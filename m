@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F1076B0075
-	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 17:21:28 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id ft15so177614pdb.7
-        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 14:21:27 -0700 (PDT)
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 44E1E6B0078
+	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 17:21:29 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id lj1so1828179pab.18
+        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 14:21:28 -0700 (PDT)
 Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id im10si4960519pbc.250.2014.10.24.14.21.26
+        by mx.google.com with ESMTP id hm1si5038174pbb.151.2014.10.24.14.21.26
         for <linux-mm@kvack.org>;
-        Fri, 24 Oct 2014 14:21:26 -0700 (PDT)
+        Fri, 24 Oct 2014 14:21:27 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v12 07/20] dax,ext2: Replace ext2_clear_xip_target with dax_clear_blocks
-Date: Fri, 24 Oct 2014 17:20:39 -0400
-Message-Id: <1414185652-28663-8-git-send-email-matthew.r.wilcox@intel.com>
+Subject: [PATCH v12 13/20] ext2: Remove ext2_use_xip
+Date: Fri, 24 Oct 2014 17:20:45 -0400
+Message-Id: <1414185652-28663-14-git-send-email-matthew.r.wilcox@intel.com>
 In-Reply-To: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
 References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,150 +19,67 @@ List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, willy@linux.intel.com, Andrew Morton <akpm@linux-foundation.org>
 
-This is practically generic code; other filesystems will want to call
-it from other places, but there's nothing ext2-specific about it.
-
-Make it a little more generic by allowing it to take a count of the number
-of bytes to zero rather than fixing it to a single page.  Thanks to Dave
-Hansen for suggesting that I need to call cond_resched() if zeroing more
-than one page.
+Replace ext2_use_xip() with test_opt(XIP) which expands to the same code
 
 Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Reviewed-by: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
 ---
- fs/dax.c           | 37 +++++++++++++++++++++++++++++++++++++
- fs/ext2/inode.c    |  8 +++++---
- fs/ext2/xip.c      | 14 --------------
- fs/ext2/xip.h      |  3 ---
- include/linux/fs.h |  1 +
- 5 files changed, 43 insertions(+), 20 deletions(-)
+ fs/ext2/ext2.h  | 4 ++++
+ fs/ext2/inode.c | 2 +-
+ fs/ext2/namei.c | 4 ++--
+ 3 files changed, 7 insertions(+), 3 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 1a2bdbf..69c3126 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -20,8 +20,45 @@
- #include <linux/fs.h>
- #include <linux/genhd.h>
- #include <linux/mutex.h>
-+#include <linux/sched.h>
- #include <linux/uio.h>
- 
-+int dax_clear_blocks(struct inode *inode, sector_t block, long size)
-+{
-+	struct block_device *bdev = inode->i_sb->s_bdev;
-+	sector_t sector = block << (inode->i_blkbits - 9);
-+
-+	might_sleep();
-+	do {
-+		void *addr;
-+		unsigned long pfn;
-+		long count;
-+
-+		count = bdev_direct_access(bdev, sector, &addr, &pfn, size);
-+		if (count < 0)
-+			return count;
-+		BUG_ON(size < count);
-+		while (count > 0) {
-+			unsigned pgsz = PAGE_SIZE - offset_in_page(addr);
-+			if (pgsz > count)
-+				pgsz = count;
-+			if (pgsz < PAGE_SIZE)
-+				memset(addr, 0, pgsz);
-+			else
-+				clear_page(addr);
-+			addr += pgsz;
-+			size -= pgsz;
-+			count -= pgsz;
-+			BUG_ON(pgsz & 511);
-+			sector += pgsz / 512;
-+			cond_resched();
-+		}
-+	} while (size);
-+
-+	return 0;
-+}
-+EXPORT_SYMBOL_GPL(dax_clear_blocks);
-+
- static long dax_get_addr(struct buffer_head *bh, void **addr, unsigned blkbits)
- {
- 	unsigned long pfn;
+diff --git a/fs/ext2/ext2.h b/fs/ext2/ext2.h
+index d9a17d0..5ecf570 100644
+--- a/fs/ext2/ext2.h
++++ b/fs/ext2/ext2.h
+@@ -380,7 +380,11 @@ struct ext2_inode {
+ #define EXT2_MOUNT_NO_UID32		0x000200  /* Disable 32-bit UIDs */
+ #define EXT2_MOUNT_XATTR_USER		0x004000  /* Extended user attributes */
+ #define EXT2_MOUNT_POSIX_ACL		0x008000  /* POSIX Access Control Lists */
++#ifdef CONFIG_FS_XIP
+ #define EXT2_MOUNT_XIP			0x010000  /* Execute in place */
++#else
++#define EXT2_MOUNT_XIP			0
++#endif
+ #define EXT2_MOUNT_USRQUOTA		0x020000  /* user quota */
+ #define EXT2_MOUNT_GRPQUOTA		0x040000  /* group quota */
+ #define EXT2_MOUNT_RESERVATION		0x080000  /* Preallocation */
 diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
-index 3ccd5fd..52978b8 100644
+index 59d6c7d..cba3833 100644
 --- a/fs/ext2/inode.c
 +++ b/fs/ext2/inode.c
-@@ -733,10 +733,12 @@ static int ext2_get_blocks(struct inode *inode,
+@@ -1394,7 +1394,7 @@ struct inode *ext2_iget (struct super_block *sb, unsigned long ino)
  
- 	if (IS_DAX(inode)) {
- 		/*
--		 * we need to clear the block
-+		 * block must be initialised before we put it in the tree
-+		 * so that it's not found by another thread before it's
-+		 * initialised
- 		 */
--		err = ext2_clear_xip_target (inode,
--			le32_to_cpu(chain[depth-1].key));
-+		err = dax_clear_blocks(inode, le32_to_cpu(chain[depth-1].key),
-+						1 << inode->i_blkbits);
- 		if (err) {
- 			mutex_unlock(&ei->truncate_mutex);
- 			goto cleanup;
-diff --git a/fs/ext2/xip.c b/fs/ext2/xip.c
-index bbc5fec..8cfca3a 100644
---- a/fs/ext2/xip.c
-+++ b/fs/ext2/xip.c
-@@ -42,20 +42,6 @@ __ext2_get_block(struct inode *inode, pgoff_t pgoff, int create,
- 	return rc;
- }
+ 	if (S_ISREG(inode->i_mode)) {
+ 		inode->i_op = &ext2_file_inode_operations;
+-		if (ext2_use_xip(inode->i_sb)) {
++		if (test_opt(inode->i_sb, XIP)) {
+ 			inode->i_mapping->a_ops = &ext2_aops_xip;
+ 			inode->i_fop = &ext2_xip_file_operations;
+ 		} else if (test_opt(inode->i_sb, NOBH)) {
+diff --git a/fs/ext2/namei.c b/fs/ext2/namei.c
+index c268d0a..846c356 100644
+--- a/fs/ext2/namei.c
++++ b/fs/ext2/namei.c
+@@ -105,7 +105,7 @@ static int ext2_create (struct inode * dir, struct dentry * dentry, umode_t mode
+ 		return PTR_ERR(inode);
  
--int
--ext2_clear_xip_target(struct inode *inode, sector_t block)
--{
--	void *kaddr;
--	unsigned long pfn;
--	long size;
--
--	size = __inode_direct_access(inode, block, &kaddr, &pfn, PAGE_SIZE);
--	if (size < 0)
--		return size;
--	clear_page(kaddr);
--	return 0;
--}
--
- void ext2_xip_verify_sb(struct super_block *sb)
- {
- 	struct ext2_sb_info *sbi = EXT2_SB(sb);
-diff --git a/fs/ext2/xip.h b/fs/ext2/xip.h
-index 29be737..b2592f2 100644
---- a/fs/ext2/xip.h
-+++ b/fs/ext2/xip.h
-@@ -7,8 +7,6 @@
+ 	inode->i_op = &ext2_file_inode_operations;
+-	if (ext2_use_xip(inode->i_sb)) {
++	if (test_opt(inode->i_sb, XIP)) {
+ 		inode->i_mapping->a_ops = &ext2_aops_xip;
+ 		inode->i_fop = &ext2_xip_file_operations;
+ 	} else if (test_opt(inode->i_sb, NOBH)) {
+@@ -126,7 +126,7 @@ static int ext2_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
+ 		return PTR_ERR(inode);
  
- #ifdef CONFIG_EXT2_FS_XIP
- extern void ext2_xip_verify_sb (struct super_block *);
--extern int ext2_clear_xip_target (struct inode *, sector_t);
--
- static inline int ext2_use_xip (struct super_block *sb)
- {
- 	struct ext2_sb_info *sbi = EXT2_SB(sb);
-@@ -19,6 +17,5 @@ int ext2_get_xip_mem(struct address_space *, pgoff_t, int,
- #else
- #define ext2_xip_verify_sb(sb)			do { } while (0)
- #define ext2_use_xip(sb)			0
--#define ext2_clear_xip_target(inode, chain)	0
- #define ext2_get_xip_mem			NULL
- #endif
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index e024dc3..aeff5dd 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -2474,6 +2474,7 @@ extern int nonseekable_open(struct inode * inode, struct file * filp);
- 
- ssize_t dax_do_io(int rw, struct kiocb *, struct inode *, struct iov_iter *,
- 		loff_t, get_block_t, dio_iodone_t, int flags);
-+int dax_clear_blocks(struct inode *, sector_t block, long size);
- 
- #ifdef CONFIG_FS_XIP
- extern int xip_file_mmap(struct file * file, struct vm_area_struct * vma);
+ 	inode->i_op = &ext2_file_inode_operations;
+-	if (ext2_use_xip(inode->i_sb)) {
++	if (test_opt(inode->i_sb, XIP)) {
+ 		inode->i_mapping->a_ops = &ext2_aops_xip;
+ 		inode->i_fop = &ext2_xip_file_operations;
+ 	} else if (test_opt(inode->i_sb, NOBH)) {
 -- 
 2.1.1
 
