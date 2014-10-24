@@ -1,54 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C2306B0069
-	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 09:49:55 -0400 (EDT)
-Received: by mail-lb0-f172.google.com with SMTP id b6so2600511lbj.31
-        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 06:49:54 -0700 (PDT)
+Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
+	by kanga.kvack.org (Postfix) with ESMTP id DC4966B006C
+	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 09:49:56 -0400 (EDT)
+Received: by mail-lb0-f181.google.com with SMTP id l4so2642907lbv.12
+        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 06:49:56 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id la5si7081716lac.99.2014.10.24.06.49.53
+        by mx.google.com with ESMTPS id y9si7193884lbr.1.2014.10.24.06.49.54
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Oct 2014 06:49:53 -0700 (PDT)
+        Fri, 24 Oct 2014 06:49:55 -0700 (PDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 1/3] mm: memcontrol: remove bogus NULL check after mem_cgroup_from_task()
-Date: Fri, 24 Oct 2014 09:49:47 -0400
-Message-Id: <1414158589-26094-1-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 2/3] mm: memcontrol: pull the NULL check from __mem_cgroup_same_or_subtree()
+Date: Fri, 24 Oct 2014 09:49:48 -0400
+Message-Id: <1414158589-26094-2-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1414158589-26094-1-git-send-email-hannes@cmpxchg.org>
+References: <1414158589-26094-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-That function acts like a typecast - unless NULL is passed in, no NULL
-can come out.  task_in_mem_cgroup() callers don't pass NULL tasks.
+The NULL in mm_match_cgroup() comes from a possibly exiting mm->owner.
+It makes a lot more sense to check where it's looked up, rather than
+check for it in __mem_cgroup_same_or_subtree() where it's unexpected.
+
+No other callsite passes NULL to __mem_cgroup_same_or_subtree().
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/memcontrol.c | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ include/linux/memcontrol.h | 5 +++--
+ mm/memcontrol.c            | 2 +-
+ 2 files changed, 4 insertions(+), 3 deletions(-)
 
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index ea007615e8f9..e32ab948f589 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -83,11 +83,12 @@ static inline
+ bool mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *memcg)
+ {
+ 	struct mem_cgroup *task_memcg;
+-	bool match;
++	bool match = false;
+ 
+ 	rcu_read_lock();
+ 	task_memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
+-	match = __mem_cgroup_same_or_subtree(memcg, task_memcg);
++	if (task_memcg)
++		match = __mem_cgroup_same_or_subtree(memcg, task_memcg);
+ 	rcu_read_unlock();
+ 	return match;
+ }
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 23cf27cca370..bdf8520979cf 100644
+index bdf8520979cf..15b1c5110a8f 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -1335,7 +1335,7 @@ static bool mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
- bool task_in_mem_cgroup(struct task_struct *task,
- 			const struct mem_cgroup *memcg)
+@@ -1316,7 +1316,7 @@ bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
  {
--	struct mem_cgroup *curr = NULL;
-+	struct mem_cgroup *curr;
- 	struct task_struct *p;
- 	bool ret;
- 
-@@ -1351,8 +1351,7 @@ bool task_in_mem_cgroup(struct task_struct *task,
- 		 */
- 		rcu_read_lock();
- 		curr = mem_cgroup_from_task(task);
--		if (curr)
--			css_get(&curr->css);
-+		css_get(&curr->css);
- 		rcu_read_unlock();
- 	}
- 	/*
+ 	if (root_memcg == memcg)
+ 		return true;
+-	if (!root_memcg->use_hierarchy || !memcg)
++	if (!root_memcg->use_hierarchy)
+ 		return false;
+ 	return cgroup_is_descendant(memcg->css.cgroup, root_memcg->css.cgroup);
+ }
 -- 
 2.1.2
 
