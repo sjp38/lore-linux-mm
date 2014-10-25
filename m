@@ -1,72 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id EAB7F6B0069
-	for <linux-mm@kvack.org>; Sat, 25 Oct 2014 05:27:12 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id et14so118991pad.1
-        for <linux-mm@kvack.org>; Sat, 25 Oct 2014 02:27:12 -0700 (PDT)
-Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
-        by mx.google.com with ESMTPS id b2si6195838pde.9.2014.10.25.02.27.11
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id D88876B0069
+	for <linux-mm@kvack.org>; Sat, 25 Oct 2014 06:30:31 -0400 (EDT)
+Received: by mail-pd0-f174.google.com with SMTP id p10so2833455pdj.33
+        for <linux-mm@kvack.org>; Sat, 25 Oct 2014 03:30:31 -0700 (PDT)
+Received: from e23smtp09.au.ibm.com (e23smtp09.au.ibm.com. [202.81.31.142])
+        by mx.google.com with ESMTPS id et10si6182234pad.131.2014.10.25.03.30.29
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Sat, 25 Oct 2014 02:27:12 -0700 (PDT)
-Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
- by mailout2.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NDZ00IAOU9AFC50@mailout2.samsung.com> for
- linux-mm@kvack.org; Sat, 25 Oct 2014 18:27:10 +0900 (KST)
-From: Weijie Yang <weijie.yang@samsung.com>
-Subject: [PATCH 2/2] zram: avoid NULL pointer access when reading mem_used_total
-Date: Sat, 25 Oct 2014 17:26:31 +0800
-Message-id: <000101cff035$d9f50480$8ddf0d80$%yang@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=utf-8
-Content-transfer-encoding: 7bit
-Content-language: zh-cn
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 25 Oct 2014 03:30:30 -0700 (PDT)
+Received: from /spool/local
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Sat, 25 Oct 2014 20:30:26 +1000
+Received: from d23relay06.au.ibm.com (d23relay06.au.ibm.com [9.185.63.219])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 8BF5F2BB0051
+	for <linux-mm@kvack.org>; Sat, 25 Oct 2014 21:30:18 +1100 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay06.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s9PAU2U236569240
+	for <linux-mm@kvack.org>; Sat, 25 Oct 2014 21:30:03 +1100
+Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s9PAUGCh021288
+	for <linux-mm@kvack.org>; Sat, 25 Oct 2014 21:30:17 +1100
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH V2 1/2] mm: Update generic gup implementation to handle hugepage directory
+In-Reply-To: <20141023.184035.388557314666522484.davem@davemloft.net>
+References: <1413520687-31729-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20141022160224.9c2268795e55d5a2eff5b94d@linux-foundation.org> <20141023.184035.388557314666522484.davem@davemloft.net>
+Date: Sat, 25 Oct 2014 16:00:05 +0530
+Message-ID: <87ppdg30ia.fsf@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Minchan Kim' <minchan@kernel.org>
-Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Dan Streetman' <ddstreet@ieee.org>, 'Sergey Senozhatsky' <sergey.senozhatsky@gmail.com>, 'Nitin Gupta' <ngupta@vflare.org>, 'Linux-MM' <linux-mm@kvack.org>, 'linux-kernel' <linux-kernel@vger.kernel.org>, 'Weijie Yang' <weijie.yang.kh@gmail.com>
+To: David Miller <davem@davemloft.net>, akpm@linux-foundation.org
+Cc: steve.capper@linaro.org, aarcange@redhat.com, benh@kernel.crashing.org, mpe@ellerman.id.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org, hannes@cmpxchg.org
 
-There is a rare NULL pointer bug in mem_used_total_show() in concurrent
-situation, like this:
-zram is not initialized, process A is a mem_used_total reader which runs
-periodicity, while process B try to init zram.
+David Miller <davem@davemloft.net> writes:
 
-	process A 				process B
-access meta, get a NULL value
-						init zram, done
-init_done() is true
-access meta->mem_pool, get a NULL pointer BUG
+> Hey guys, was looking over the generic GUP while working on a sparc64
+> issue and I noticed that you guys do speculative page gets, and after
+> talking with Johannes Weiner (CC:'d) about this we don't see how it
+> could be necessary.
+>
+> If interrupts are disabled during the page table scan (which they
+> are), no IPI tlb flushes can arrive.  Therefore any removal from the
+> page tables is guarded by interrupts being re-enabled.  And as a
+> result, page counts of pages we see in the page tables must always
+> have a count > 0.
+>
+> x86 does direct atomic_add() on &page->_count because of this
+> invariant and I would rather see the generic version do this too.
 
-This patch fixes this issue.
-	
-Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
----
- drivers/block/zram/zram_drv.c |    5 +++--
- 1 files changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index 64dd79a..2ffd7d8 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -99,11 +99,12 @@ static ssize_t mem_used_total_show(struct device *dev,
- {
- 	u64 val = 0;
- 	struct zram *zram = dev_to_zram(dev);
--	struct zram_meta *meta = zram->meta;
- 
- 	down_read(&zram->init_lock);
--	if (init_done(zram))
-+	if (init_done(zram)) {
-+		struct zram_meta *meta = zram->meta;
- 		val = zs_get_total_pages(meta->mem_pool);
-+	}
- 	up_read(&zram->init_lock);
- 
- 	return scnprintf(buf, PAGE_SIZE, "%llu\n", val << PAGE_SHIFT);
--- 
-1.7.0.4
+But that won't work with RCU GUP. For example on powerpc the tlb flush
+doesn't involve an IPI and we can essentially find page count 0.
 
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
