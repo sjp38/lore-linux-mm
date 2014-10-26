@@ -1,159 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id D48AB6B0069
-	for <linux-mm@kvack.org>; Sat, 25 Oct 2014 09:30:50 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id g10so2956157pdj.24
-        for <linux-mm@kvack.org>; Sat, 25 Oct 2014 06:30:50 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id da2si6505694pbb.46.2014.10.25.06.30.47
-        for <linux-mm@kvack.org>;
-        Sat, 25 Oct 2014 06:30:49 -0700 (PDT)
-From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [RFC PATCH 1/1] mem-hotplug: Reset node managed pages when hot-adding a new pgdat.
-Date: Sat, 25 Oct 2014 21:31:06 +0800
-Message-ID: <1414243866-5853-1-git-send-email-tangchen@cn.fujitsu.com>
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 69E016B0069
+	for <linux-mm@kvack.org>; Sat, 25 Oct 2014 21:41:54 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id et14so3287703pad.31
+        for <linux-mm@kvack.org>; Sat, 25 Oct 2014 18:41:54 -0700 (PDT)
+Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com. [2607:f8b0:400e:c02::22e])
+        by mx.google.com with ESMTPS id fr3si7440932pbd.34.2014.10.25.18.41.53
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 25 Oct 2014 18:41:53 -0700 (PDT)
+Received: by mail-pd0-f174.google.com with SMTP id p10so3501124pdj.5
+        for <linux-mm@kvack.org>; Sat, 25 Oct 2014 18:41:53 -0700 (PDT)
+Date: Sun, 26 Oct 2014 10:41:43 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 1/2] zram: make max_used_pages reset work correctly
+Message-ID: <20141026014143.GA3328@gmail.com>
+References: <000001cff035$c060dc60$41229520$%yang@samsung.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <000001cff035$c060dc60$41229520$%yang@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, santosh.shilimkar@ti.com, yinghai@kernel.org, grygorii.strashko@ti.com, tj@kernel.org, toshi.kani@hp.com
-Cc: isimatu.yasuaki@jp.fujitsu.com, tangchen@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Weijie Yang <weijie.yang@samsung.com>
+Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Dan Streetman' <ddstreet@ieee.org>, 'Sergey Senozhatsky' <sergey.senozhatsky@gmail.com>, 'Nitin Gupta' <ngupta@vflare.org>, 'Linux-MM' <linux-mm@kvack.org>, 'linux-kernel' <linux-kernel@vger.kernel.org>, 'Weijie Yang' <weijie.yang.kh@gmail.com>
 
-In free_area_init_core(), zone->managed_pages is set to an approximate
-value for lowmem, and will be adjusted when the bootmem allocator frees
-pages into the buddy system. But free_area_init_core() is also called
-by hotadd_new_pgdat() when hot-adding memory. As a result, zone->managed_pages
-of the newly added node's pgdat is set to an approximate value in the
-very beginning. Even if the memory on that node has node been onlined,
-/sys/device/system/node/nodeXXX/meminfo has wrong value.
+Hello,
 
-hot-add node2 (memory not onlined)
-cat /sys/device/system/node/node2/meminfo
-Node 2 MemTotal:       33554432 kB
-Node 2 MemFree:               0 kB
-Node 2 MemUsed:        33554432 kB
-Node 2 Active:                0 kB
+On Sat, Oct 25, 2014 at 05:25:11PM +0800, Weijie Yang wrote:
+> The commit 461a8eee6a ("zram: report maximum used memory") introduces a new
+> knob "mem_used_max" in zram.stats sysfs, and wants to reset it via write 0
+> to the sysfs interface.
+> 
+> However, the current code cann't reset it correctly, so let's fix it.
 
-This patch fixes this problem by reset node managed pages to 0 after hot-adding
-a new node.
+We wanted to reset it to current used total memory, not 0.
 
-1. Move reset_managed_pages_done from reset_node_managed_pages() to reset_all_zones_managed_pages()
-2. Make reset_node_managed_pages() non-static
-3. Call reset_node_managed_pages() in hotadd_new_pgdat() after pgdat is initialized
-
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
----
- include/linux/bootmem.h | 1 +
- mm/bootmem.c            | 9 +++++----
- mm/memory_hotplug.c     | 9 +++++++++
- mm/nobootmem.c          | 8 +++++---
- 4 files changed, 20 insertions(+), 7 deletions(-)
-
-diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
-index 4e2bd4c..0995c2d 100644
---- a/include/linux/bootmem.h
-+++ b/include/linux/bootmem.h
-@@ -46,6 +46,7 @@ extern unsigned long init_bootmem_node(pg_data_t *pgdat,
- extern unsigned long init_bootmem(unsigned long addr, unsigned long memend);
- 
- extern unsigned long free_all_bootmem(void);
-+extern void reset_node_managed_pages(pg_data_t *pgdat);
- extern void reset_all_zones_managed_pages(void);
- 
- extern void free_bootmem_node(pg_data_t *pgdat,
-diff --git a/mm/bootmem.c b/mm/bootmem.c
-index 8a000ce..477be69 100644
---- a/mm/bootmem.c
-+++ b/mm/bootmem.c
-@@ -243,13 +243,10 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
- 
- static int reset_managed_pages_done __initdata;
- 
--static inline void __init reset_node_managed_pages(pg_data_t *pgdat)
-+void reset_node_managed_pages(pg_data_t *pgdat)
- {
- 	struct zone *z;
- 
--	if (reset_managed_pages_done)
--		return;
--
- 	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
- 		z->managed_pages = 0;
- }
-@@ -258,8 +255,12 @@ void __init reset_all_zones_managed_pages(void)
- {
- 	struct pglist_data *pgdat;
- 
-+	if (reset_managed_pages_done)
-+		return;
-+
- 	for_each_online_pgdat(pgdat)
- 		reset_node_managed_pages(pgdat);
-+
- 	reset_managed_pages_done = 1;
- }
- 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 29d8693..ede9ffe 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -31,6 +31,7 @@
- #include <linux/stop_machine.h>
- #include <linux/hugetlb.h>
- #include <linux/memblock.h>
-+#include <linux/bootmem.h>
- 
- #include <asm/tlbflush.h>
- 
-@@ -1096,6 +1097,14 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
- 	build_all_zonelists(pgdat, NULL);
- 	mutex_unlock(&zonelists_mutex);
- 
-+	/*
-+	 *  zone->managed_pages is set to an approximate value in
-+	 *  free_area_init_core(), which will cause
-+	 *  /sys/device/system/node/nodeX/meminfo has wrong data.
-+	 *  So reset it to 0 before any memory is onlined.
-+	 */
-+	reset_node_managed_pages(pgdat);
-+
- 	return pgdat;
- }
- 
-diff --git a/mm/nobootmem.c b/mm/nobootmem.c
-index 7c7ab32..90b5046 100644
---- a/mm/nobootmem.c
-+++ b/mm/nobootmem.c
-@@ -145,12 +145,10 @@ static unsigned long __init free_low_memory_core_early(void)
- 
- static int reset_managed_pages_done __initdata;
- 
--static inline void __init reset_node_managed_pages(pg_data_t *pgdat)
-+void reset_node_managed_pages(pg_data_t *pgdat)
- {
- 	struct zone *z;
- 
--	if (reset_managed_pages_done)
--		return;
- 	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
- 		z->managed_pages = 0;
- }
-@@ -159,8 +157,12 @@ void __init reset_all_zones_managed_pages(void)
- {
- 	struct pglist_data *pgdat;
- 
-+	if (reset_managed_pages_done)
-+		return;
-+
- 	for_each_online_pgdat(pgdat)
- 		reset_node_managed_pages(pgdat);
-+
- 	reset_managed_pages_done = 1;
- }
- 
 -- 
-1.8.3.1
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
