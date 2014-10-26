@@ -1,47 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 665576B006C
-	for <linux-mm@kvack.org>; Sun, 26 Oct 2014 14:20:54 -0400 (EDT)
-Received: by mail-lb0-f182.google.com with SMTP id f15so3651615lbj.13
-        for <linux-mm@kvack.org>; Sun, 26 Oct 2014 11:20:53 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id qy3si16624318lbb.3.2014.10.26.11.20.51
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 26 Oct 2014 11:20:52 -0700 (PDT)
-Date: Sun, 26 Oct 2014 14:20:43 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: Kswapd 100% CPU since 3.8 on Sandybridge
-Message-ID: <20141026182043.GA28435@phnom.home.cmpxchg.org>
-References: <CABe+QzA=0YVpQ8rN+3X-cbH6JP1nWTvp2spb93P9PqJhmjBROA@mail.gmail.com>
- <CABe+QzA-E40bFFXYJBc663Kx0KrE3xy2uZq5xOH2XL6mFPA6+w@mail.gmail.com>
- <CABe+QzCn_7xm1x62o5d2VoiQrf_7LorhnVOD905Zzd+uu_EuqQ@mail.gmail.com>
- <20141006093740.GA19574@suse.de>
- <20141026160057.GA5234@puck>
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 904E56B006C
+	for <linux-mm@kvack.org>; Sun, 26 Oct 2014 14:40:20 -0400 (EDT)
+Received: by mail-wg0-f49.google.com with SMTP id x13so500543wgg.32
+        for <linux-mm@kvack.org>; Sun, 26 Oct 2014 11:40:20 -0700 (PDT)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTP id w6si5960874wix.83.2014.10.26.11.40.18
+        for <linux-mm@kvack.org>;
+        Sun, 26 Oct 2014 11:40:19 -0700 (PDT)
+Date: Sun, 26 Oct 2014 19:40:18 +0100
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH 3/4] OOM, PM: OOM killed task shouldn't escape PM suspend
+Message-ID: <20141026184018.GA16309@amd>
+References: <1413876435-11720-1-git-send-email-mhocko@suse.cz>
+ <1413876435-11720-4-git-send-email-mhocko@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20141026160057.GA5234@puck>
+In-Reply-To: <1413876435-11720-4-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sarah <sarah@thesharps.us>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, intel-gfx@lists.freedesktop.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>, Cong Wang <xiyou.wangcong@gmail.com>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>
 
-Hi Sarah,
+Hi!
 
-On Sun, Oct 26, 2014 at 09:05:34AM -0700, sarah wrote:
-> One hypothesis I had was the system was hanging because kswapd was hammering on
-> the disk, and it was really low on disk space (< 1 GB).  But I've moved about 20
-> GB of roadtrip photos to my USB 3.0 drive, and I can still replicate the slow
-> system behavior.  I was also poking around /etc/fstab, and I realized that I had
-> actually disabled my swap partition around the 3.12 kernel time frame to see if
-> that helped the issue.  That lead me to wonder why kswapd was running at all?
+> +
+> +		/*
+> +		 * There might have been an OOM kill while we were
+> +		 * freezing tasks and the killed task might be still
+> +		 * on the way out so we have to double check for race.
+> +		 */
 
-Kswapd isn't just there to swap, it reclaims pages in the background
-when memory is filling up in order to keep allocation latencies low.
-That includes trimming the page cache, shrinking slabs, even writing
-back dirty pages.  So "kswapd" is a bit of a misnomer, and it's
-expected to run even when you don't have any swap space configured.
+", so"
+
+>  	/*
+> +	 * PM-freezer should be notified that there might be an OOM killer on its
+> +	 * way to kill and wake somebody up. This is too early and we might end
+> +	 * up not killing anything but false positives are acceptable.
+
+", but".
+
+1,2 look good to me, 
+
+Acked-by: Pavel Machek <pavel@ucw.cz>
+									Pavel
+
+-- 
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
