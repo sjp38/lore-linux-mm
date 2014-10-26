@@ -1,98 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
-	by kanga.kvack.org (Postfix) with ESMTP id B21176B0069
-	for <linux-mm@kvack.org>; Sun, 26 Oct 2014 16:52:05 -0400 (EDT)
-Received: by mail-qc0-f170.google.com with SMTP id l6so2938164qcy.1
-        for <linux-mm@kvack.org>; Sun, 26 Oct 2014 13:52:05 -0700 (PDT)
-Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
-        by mx.google.com with ESMTPS id w5si17897726qat.116.2014.10.26.13.52.02
+Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 961726B0069
+	for <linux-mm@kvack.org>; Sun, 26 Oct 2014 17:09:14 -0400 (EDT)
+Received: by mail-lb0-f178.google.com with SMTP id f15so1010838lbj.37
+        for <linux-mm@kvack.org>; Sun, 26 Oct 2014 14:09:13 -0700 (PDT)
+Received: from galahad.ideasonboard.com (galahad.ideasonboard.com. [2001:4b98:dc2:45:216:3eff:febb:480d])
+        by mx.google.com with ESMTPS id oi5si16985853lbb.135.2014.10.26.14.09.12
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 26 Oct 2014 13:52:02 -0700 (PDT)
-Message-ID: <1414356641.364.142.camel@pasglop>
-Subject: Re: [PATCH V2 1/2] mm: Update generic gup implementation to handle
- hugepage directory
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Mon, 27 Oct 2014 07:50:41 +1100
-In-Reply-To: <1414167761.19984.17.camel@jarvis.lan>
-References: 
-	<1413520687-31729-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	 <20141022160224.9c2268795e55d5a2eff5b94d@linux-foundation.org>
-	 <20141023.184035.388557314666522484.davem@davemloft.net>
-	 <1414107635.364.91.camel@pasglop> <1414167761.19984.17.camel@jarvis.lan>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 26 Oct 2014 14:09:12 -0700 (PDT)
+From: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+Subject: CMA: test_pages_isolated failures in alloc_contig_range
+Date: Sun, 26 Oct 2014 23:09:16 +0200
+Message-ID: <2457604.k03RC2Mv4q@avalon>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: David Miller <davem@davemloft.net>, akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com, steve.capper@linaro.org, aarcange@redhat.com, mpe@ellerman.id.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org, hannes@cmpxchg.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-sh@vger.kernel.org, Michal Nazarewicz <mina86@mina86.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Minchan Kim <minchan@kernel.org>
 
-On Fri, 2014-10-24 at 09:22 -0700, James Bottomley wrote:
+Hello,
 
-> Parisc does this.  As soon as one CPU issues a TLB purge, it's broadcast
-> to all the CPUs on the inter-CPU bus.  The next instruction isn't
-> executed until they respond.
-> 
-> But this is only for our CPU TLB.  There's no other external
-> consequence, so removal from the page tables isn't effected by this TLB
-> flush, therefore the theory on which Dave bases the change to
-> atomic_add() should work for us (of course, atomic_add is lock add
-> unlock on our CPU, so it's not going to be of much benefit).
+I've run into a CMA-related issue while testing a DMA engine driver with 
+dmatest on a Renesas R-Car ARM platform. 
 
-I'm not sure I follow you here.
+When allocating contiguous memory through CMA the kernel prints the following 
+messages to the kernel log.
 
-Do you or do you now perform an IPI to do TLB flushes ? If you don't
-(for example because you have HW broadcast), then you need the
-speculative get_page(). If you do (and can read a PTE atomically), you
-can get away with atomic_add().
+[   99.770000] alloc_contig_range test_pages_isolated(6b843, 6b844) failed
+[  124.220000] alloc_contig_range test_pages_isolated(6b843, 6b844) failed
+[  127.550000] alloc_contig_range test_pages_isolated(6b845, 6b846) failed
+[  132.850000] alloc_contig_range test_pages_isolated(6b845, 6b846) failed
+[  151.390000] alloc_contig_range test_pages_isolated(6b843, 6b844) failed
+[  166.490000] alloc_contig_range test_pages_isolated(6b843, 6b844) failed
+[  181.450000] alloc_contig_range test_pages_isolated(6b845, 6b846) failed
 
-The reason is that if you remember how zap_pte_range works, we perform
-the flush before we get rid of the page.
+I've stripped the dmatest module down as much as possible to remove any 
+hardware dependencies and came up with the following implementation.
 
-So if your using IPIs for the flush, the fact that gup_fast has
-interrupts disabled will delay the IPI response and thus effectively
-prevent the pages from being actually freed, allowing us to simply do
-the atomic_add() on x86.
+-----------------------------------------------------------------------------
+/*
+ * CMA test module
+ *
+ * Copyright (C) 2014 Laurent Pinchart
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
 
-But if we don't use IPIs because we have HW broadcast of TLB
-invalidations, then we don't have that synchronization. atomic_add won't
-work, we need get_page_speculative() because the page could be
-concurrently being freed.
+#include <linux/delay.h>
+#include <linux/dma-mapping.h>
+#include <linux/freezer.h>
+#include <linux/kthread.h>
+#include <linux/module.h>
+#include <linux/moduleparam.h>
+#include <linux/slab.h>
+#include <linux/wait.h>
 
-Cheers,
-Ben.
+static unsigned int num_threads = 4;
+module_param(num_threads, uint, S_IRUGO | S_IWUSR);
 
-> James
-> 
-> > Another option would be to make the generic code use something defined
-> > by the arch to decide whether to use speculative get or
-> > not. I like the idea of keeping the bulk of that code generic...
-> > 
-> > Cheers,
-> > Ben.
-> > 
-> > > --
-> > > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > > see: http://www.linux-mm.org/ .
-> > > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> > 
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> > 
-> 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+static unsigned int iterations = 100000;
+module_param(iterations, uint, S_IRUGO | S_IWUSR);
 
+struct cma_test_thread {
+	struct list_head node;
+	struct task_struct *task;
+	bool done;
+};
+
+static DECLARE_WAIT_QUEUE_HEAD(thread_wait);
+static LIST_HEAD(threads);
+
+static int cma_test_thread(void *data)
+{
+	struct cma_test_thread *thread = data;
+	unsigned int i = 0;
+
+	set_freezable();
+
+	while (!kthread_should_stop() && i < iterations) {
+		dma_addr_t dma;
+		void *mem;
+
+		mem = dma_alloc_coherent(NULL, 32, &dma, GFP_KERNEL);
+		usleep_range(1000, 2000);
+		if (mem)
+			dma_free_coherent(NULL, 32, mem, dma);
+		else
+			printk(KERN_INFO "allocation error @%u\n", i);
+		++i;
+	}
+
+	thread->done = true;
+	wake_up(&thread_wait);
+
+	return 0;
+}
+
+static bool cma_test_threads_done(void)
+{
+	struct cma_test_thread *thread;
+
+	list_for_each_entry(thread, &threads, node) {
+		if (!thread->done)
+			return false;
+	}
+
+	return true;
+}
+
+static int cma_test_init(void)
+{
+	struct cma_test_thread *thread, *_thread;
+	unsigned int i;
+
+	for (i = 0; i < num_threads; ++i) {
+		thread = kzalloc(sizeof(*thread), GFP_KERNEL);
+		if (!thread) {
+			pr_warn("No memory for thread %u\n", i);
+			break;
+		}
+
+		thread->task = kthread_create(cma_test_thread, thread,
+					      "cmatest-%u", i);
+		if (IS_ERR(thread->task)) {
+			pr_warn("Failed to create thread %u\n", i);
+			kfree(thread);
+			break;
+		}
+
+		get_task_struct(thread->task);
+		list_add_tail(&thread->node, &threads);
+		wake_up_process(thread->task);
+	}
+
+	wait_event(thread_wait, cma_test_threads_done());
+
+	list_for_each_entry_safe(thread, _thread, &threads, node) {
+		kthread_stop(thread->task);
+		put_task_struct(thread->task);
+		list_del(&thread->node);
+		kfree(thread);
+	}
+
+	return 0;
+}
+module_init(cma_test_init);
+
+static void cma_test_exit(void)
+{
+}
+module_exit(cma_test_exit);
+
+MODULE_AUTHOR("Laurent Pinchart");
+MODULE_LICENSE("GPL v2");
+-----------------------------------------------------------------------------
+
+Loading the module will start 4 threads that will allocate and free DMA 
+coherent memory in a tight loop and eventually produce the error. It seems 
+like the probability of occurrence grows with the number of threads, which 
+could indicate a race condition.
+
+The tests have been run on 3.18-rc1, but previous tests on 3.16 did exhibit 
+the same behaviour.
+
+I'm not that familiar with the CMA internals, help would be appreciated to 
+debug the problem.
+
+-- 
+Regards,
+
+Laurent Pinchart
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
