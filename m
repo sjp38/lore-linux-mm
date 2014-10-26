@@ -1,20 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id A58D46B006E
-	for <linux-mm@kvack.org>; Sun, 26 Oct 2014 10:23:50 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id bj1so269546pad.29
-        for <linux-mm@kvack.org>; Sun, 26 Oct 2014 07:23:50 -0700 (PDT)
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C07B6B0070
+	for <linux-mm@kvack.org>; Sun, 26 Oct 2014 10:23:51 -0400 (EDT)
+Received: by mail-pd0-f173.google.com with SMTP id v10so4089383pde.32
+        for <linux-mm@kvack.org>; Sun, 26 Oct 2014 07:23:51 -0700 (PDT)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id jd9si8391427pbd.114.2014.10.26.07.23.49
+        by mx.google.com with ESMTPS id c4si8312082pds.247.2014.10.26.07.23.49
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Sun, 26 Oct 2014 07:23:49 -0700 (PDT)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH 2/2] memcg: use generic slab iterators for showing slabinfo
-Date: Sun, 26 Oct 2014 17:23:30 +0300
-Message-ID: <b76ef4efe6ad0a01c5bc16f6ccea3ba8743cfb86.1414332926.git.vdavydov@parallels.com>
-In-Reply-To: <21c195b795ce734d413042d3974e4d26ae2dafdf.1414332926.git.vdavydov@parallels.com>
-References: <21c195b795ce734d413042d3974e4d26ae2dafdf.1414332926.git.vdavydov@parallels.com>
+Subject: [PATCH 1/2] slab: print slabinfo header in seq show
+Date: Sun, 26 Oct 2014 17:23:29 +0300
+Message-ID: <21c195b795ce734d413042d3974e4d26ae2dafdf.1414332926.git.vdavydov@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -22,155 +20,106 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Let's use generic slab_start/next/stop for showing memcg caches info.
-In contrast to the current implementation, this will work even if all
-memcg caches' info doesn't fit into a seq buffer (a page), plus it
-simply looks neater.
-
-Actually, the main reason I do this isn't mere cleanup. I'm going to zap
-the memcg_slab_caches list, because I find it useless provided we have
-the slab_caches list, and this patch is a step in this direction.
-
-It should be noted that before this patch an attempt to read
-memory.kmem.slabinfo of a cgroup that doesn't have kmem limit set
-resulted in -EIO, while after this patch it will silently show nothing
-except the header, but I don't think it will frustrate anyone.
+Currently we print the slabinfo header in the seq start method, which
+makes it unusable for showing leaks, so we have leaks_show, which does
+practically the same as s_show except it doesn't show the header.
+However, we can print the header in the seq show method - we only need
+to check if the current element is the first on the list. This will
+allow us to use the same set of seq iterators for both leaks and
+slabinfo reporting, which is nice.
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 ---
- include/linux/slab.h |    4 ----
- mm/memcontrol.c      |   25 ++++---------------------
- mm/slab.h            |    1 +
- mm/slab_common.c     |   25 +++++++++++++++++++------
- 4 files changed, 24 insertions(+), 31 deletions(-)
+ mm/slab.c        |    8 +-------
+ mm/slab.h        |    1 +
+ mm/slab_common.c |   15 ++++++---------
+ 3 files changed, 8 insertions(+), 16 deletions(-)
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index c265bec6a57d..8a2457d42fc8 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -513,10 +513,6 @@ struct memcg_cache_params {
+diff --git a/mm/slab.c b/mm/slab.c
+index 06182bede8ac..458613d75533 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -4043,12 +4043,6 @@ ssize_t slabinfo_write(struct file *file, const char __user *buffer,
  
- int memcg_update_all_caches(int num_memcgs);
+ #ifdef CONFIG_DEBUG_SLAB_LEAK
  
--struct seq_file;
--int cache_show(struct kmem_cache *s, struct seq_file *m);
--void print_slabinfo_header(struct seq_file *m);
+-static void *leaks_start(struct seq_file *m, loff_t *pos)
+-{
+-	mutex_lock(&slab_mutex);
+-	return seq_list_start(&slab_caches, *pos);
+-}
 -
- /**
-  * kmalloc_array - allocate memory for an array.
-  * @n: number of elements.
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index c50176429fa3..54d4305ba1dd 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2460,26 +2460,6 @@ static struct kmem_cache *memcg_params_to_cache(struct memcg_cache_params *p)
- 	return cache_from_memcg_idx(cachep, memcg_cache_id(p->memcg));
+ static inline int add_caller(unsigned long *n, unsigned long v)
+ {
+ 	unsigned long *p;
+@@ -4170,7 +4164,7 @@ static int leaks_show(struct seq_file *m, void *p)
  }
  
--#ifdef CONFIG_SLABINFO
--static int mem_cgroup_slabinfo_read(struct seq_file *m, void *v)
--{
--	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
--	struct memcg_cache_params *params;
--
--	if (!memcg_kmem_is_active(memcg))
--		return -EIO;
--
--	print_slabinfo_header(m);
--
--	mutex_lock(&memcg_slab_mutex);
--	list_for_each_entry(params, &memcg->memcg_slab_caches, list)
--		cache_show(memcg_params_to_cache(params), m);
--	mutex_unlock(&memcg_slab_mutex);
--
--	return 0;
--}
--#endif
--
- static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp,
- 			     unsigned long nr_pages)
- {
-@@ -4621,7 +4601,10 @@ static struct cftype mem_cgroup_files[] = {
- #ifdef CONFIG_SLABINFO
- 	{
- 		.name = "kmem.slabinfo",
--		.seq_show = mem_cgroup_slabinfo_read,
-+		.seq_start = slab_start,
-+		.seq_next = slab_next,
-+		.seq_stop = slab_stop,
-+		.seq_show = memcg_slab_show,
- 	},
- #endif
- #endif
+ static const struct seq_operations slabstats_op = {
+-	.start = leaks_start,
++	.start = slab_start,
+ 	.next = slab_next,
+ 	.stop = slab_stop,
+ 	.show = leaks_show,
 diff --git a/mm/slab.h b/mm/slab.h
-index 53a55c70c409..3347fd77f7be 100644
+index ab019e63e3c2..53a55c70c409 100644
 --- a/mm/slab.h
 +++ b/mm/slab.h
-@@ -360,5 +360,6 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
- void *slab_start(struct seq_file *m, loff_t *pos);
- void *slab_next(struct seq_file *m, void *p, loff_t *pos);
- void slab_stop(struct seq_file *m, void *p);
-+int memcg_slab_show(struct seq_file *m, void *p);
+@@ -357,6 +357,7 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
  
- #endif /* MM_SLAB_H */
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index d8b266750985..d5e9e050a3ec 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -807,7 +807,7 @@ EXPORT_SYMBOL(kmalloc_order_trace);
- #define SLABINFO_RIGHTS S_IRUSR
  #endif
  
--void print_slabinfo_header(struct seq_file *m)
-+static void print_slabinfo_header(struct seq_file *m)
- {
- 	/*
- 	 * Output format version, so at least we can change it
-@@ -872,7 +872,7 @@ memcg_accumulate_slabinfo(struct kmem_cache *s, struct slabinfo *info)
- 	}
- }
++void *slab_start(struct seq_file *m, loff_t *pos);
+ void *slab_next(struct seq_file *m, void *p, loff_t *pos);
+ void slab_stop(struct seq_file *m, void *p);
  
--int cache_show(struct kmem_cache *s, struct seq_file *m)
-+static void cache_show(struct kmem_cache *s, struct seq_file *m)
- {
- 	struct slabinfo sinfo;
- 
-@@ -891,7 +891,6 @@ int cache_show(struct kmem_cache *s, struct seq_file *m)
- 		   sinfo.active_slabs, sinfo.num_slabs, sinfo.shared_avail);
- 	slabinfo_show_stats(m, s);
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 406944207b61..d8b266750985 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -830,14 +830,9 @@ void print_slabinfo_header(struct seq_file *m)
  	seq_putc(m, '\n');
--	return 0;
  }
  
- static int slab_show(struct seq_file *m, void *p)
-@@ -900,10 +899,24 @@ static int slab_show(struct seq_file *m, void *p)
+-static void *s_start(struct seq_file *m, loff_t *pos)
++void *slab_start(struct seq_file *m, loff_t *pos)
+ {
+-	loff_t n = *pos;
+-
+ 	mutex_lock(&slab_mutex);
+-	if (!n)
+-		print_slabinfo_header(m);
+-
+ 	return seq_list_start(&slab_caches, *pos);
+ }
  
- 	if (p == slab_caches.next)
- 		print_slabinfo_header(m);
--	if (!is_root_cache(s))
--		return 0;
--	return cache_show(s, m);
-+	if (is_root_cache(s))
-+		cache_show(s, m);
-+	return 0;
-+}
-+
-+#ifdef CONFIG_MEMCG_KMEM
-+int memcg_slab_show(struct seq_file *m, void *p)
-+{
-+	struct kmem_cache *s = list_entry(p, struct kmem_cache, list);
-+	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
-+
+@@ -899,10 +894,12 @@ int cache_show(struct kmem_cache *s, struct seq_file *m)
+ 	return 0;
+ }
+ 
+-static int s_show(struct seq_file *m, void *p)
++static int slab_show(struct seq_file *m, void *p)
+ {
+ 	struct kmem_cache *s = list_entry(p, struct kmem_cache, list);
+ 
 +	if (p == slab_caches.next)
 +		print_slabinfo_header(m);
-+	if (!is_root_cache(s) && s->memcg_params->memcg == memcg)
-+		cache_show(s, m);
-+	return 0;
- }
-+#endif
+ 	if (!is_root_cache(s))
+ 		return 0;
+ 	return cache_show(s, m);
+@@ -922,10 +919,10 @@ static int s_show(struct seq_file *m, void *p)
+  * + further values on SMP and with statistics enabled
+  */
+ static const struct seq_operations slabinfo_op = {
+-	.start = s_start,
++	.start = slab_start,
+ 	.next = slab_next,
+ 	.stop = slab_stop,
+-	.show = s_show,
++	.show = slab_show,
+ };
  
- /*
-  * slabinfo_op - iterator that generates /proc/slabinfo
+ static int slabinfo_open(struct inode *inode, struct file *file)
 -- 
 1.7.10.4
 
