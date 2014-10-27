@@ -1,50 +1,188 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 012946B0070
-	for <linux-mm@kvack.org>; Sun, 26 Oct 2014 23:23:39 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id ft15so2851903pdb.11
-        for <linux-mm@kvack.org>; Sun, 26 Oct 2014 20:23:39 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id hs2si9363422pdb.222.2014.10.26.20.23.38
-        for <linux-mm@kvack.org>;
-        Sun, 26 Oct 2014 20:23:38 -0700 (PDT)
-Message-ID: <544DBA03.1010709@intel.com>
-Date: Mon, 27 Oct 2014 11:20:35 +0800
-From: Ren Qiaowei <qiaowei.ren@intel.com>
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 834056B0069
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 02:38:54 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id g10so5069726pdj.10
+        for <linux-mm@kvack.org>; Sun, 26 Oct 2014 23:38:54 -0700 (PDT)
+Received: from cnbjrel02.sonyericsson.com (cnbjrel02.sonyericsson.com. [219.141.167.166])
+        by mx.google.com with ESMTPS id uh7si9722857pac.156.2014.10.26.23.38.45
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 26 Oct 2014 23:38:53 -0700 (PDT)
+From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Date: Mon, 27 Oct 2014 14:37:28 +0800
+Subject: [RFC V2] arm/arm64:add CONFIG_HAVE_ARCH_BITREVERSE to support rbit
+  instruction
+Message-ID: <35FD53F367049845BC99AC72306C23D103E010D18257@CNBJMBX05.corpusers.net>
+References: <35FD53F367049845BC99AC72306C23D103E010D18254@CNBJMBX05.corpusers.net>
+In-Reply-To: <35FD53F367049845BC99AC72306C23D103E010D18254@CNBJMBX05.corpusers.net>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Subject: Re: [PATCH v9 05/12] x86, mpx: on-demand kernel allocation of bounds
- tables
-References: <1413088915-13428-1-git-send-email-qiaowei.ren@intel.com> <1413088915-13428-6-git-send-email-qiaowei.ren@intel.com> <alpine.DEB.2.11.1410241257300.5308@nanos>
-In-Reply-To: <alpine.DEB.2.11.1410241257300.5308@nanos>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Dave Hansen <dave.hansen@intel.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org
+To: 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, 'Will Deacon' <Will.Deacon@arm.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'akinobu.mita@gmail.com'" <akinobu.mita@gmail.com>
 
-On 10/24/2014 08:08 PM, Thomas Gleixner wrote:
-> On Sun, 12 Oct 2014, Qiaowei Ren wrote:
->> +	/*
->> +	 * Go poke the address of the new bounds table in to the
->> +	 * bounds directory entry out in userspace memory.  Note:
->> +	 * we may race with another CPU instantiating the same table.
->> +	 * In that case the cmpxchg will see an unexpected
->> +	 * 'actual_old_val'.
->> +	 */
->> +	ret = user_atomic_cmpxchg_inatomic(&actual_old_val, bd_entry,
->> +					   expected_old_val, bt_addr);
->
-> This is fully preemptible non-atomic context, right?
->
-> So this wants a proper comment, why using
-> user_atomic_cmpxchg_inatomic() is the right thing to do here.
->
+this change add CONFIG_HAVE_ARCH_BITREVERSE config option,
+so that we can use arm/arm64 rbit instruction to do bitrev operation
+by hardware.
 
-Well, we will address it.
+Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
+---
+ arch/arm/Kconfig                |  1 +
+ arch/arm/include/asm/bitrev.h   | 21 +++++++++++++++++++++
+ arch/arm64/Kconfig              |  1 +
+ arch/arm64/include/asm/bitrev.h | 21 +++++++++++++++++++++
+ include/linux/bitrev.h          |  9 +++++++++
+ lib/Kconfig                     |  9 +++++++++
+ lib/bitrev.c                    |  2 ++
+ 7 files changed, 64 insertions(+)
+ create mode 100644 arch/arm/include/asm/bitrev.h
+ create mode 100644 arch/arm64/include/asm/bitrev.h
 
-Thanks,
-Qiaowei
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index 89c4b5c..426cbcc 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -16,6 +16,7 @@ config ARM
+ 	select DCACHE_WORD_ACCESS if HAVE_EFFICIENT_UNALIGNED_ACCESS
+ 	select GENERIC_ALLOCATOR
+ 	select GENERIC_ATOMIC64 if (CPU_V7M || CPU_V6 || !CPU_32v6K || !AEABI)
++	select HAVE_ARCH_BITREVERSE if (CPU_V7M || CPU_V7)
+ 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
+ 	select GENERIC_IDLE_POLL_SETUP
+ 	select GENERIC_IRQ_PROBE
+diff --git a/arch/arm/include/asm/bitrev.h b/arch/arm/include/asm/bitrev.h
+new file mode 100644
+index 0000000..0df5866
+--- /dev/null
++++ b/arch/arm/include/asm/bitrev.h
+@@ -0,0 +1,21 @@
++#ifndef __ASM_ARM_BITREV_H
++#define __ASM_ARM_BITREV_H
++
++static inline __attribute_const__ u32 __arch_bitrev32(u32 x)
++{
++	__asm__ ("rbit %0, %1" : "=3Dr" (x) : "r" (x));
++	return x;
++}
++
++static inline __attribute_const__ u16 __arch_bitrev16(u16 x)
++{
++	return __arch_bitrev32((u32)x) >> 16;
++}
++
++static inline __attribute_const__ u8 __arch_bitrev8(u8 x)
++{
++	return __arch_bitrev32((u32)x) >> 24;
++}
++
++#endif
++
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index 9532f8d..263c28c 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -36,6 +36,7 @@ config ARM64
+ 	select HARDIRQS_SW_RESEND
+ 	select HAVE_ARCH_AUDITSYSCALL
+ 	select HAVE_ARCH_JUMP_LABEL
++	select HAVE_ARCH_BITREVERSE
+ 	select HAVE_ARCH_KGDB
+ 	select HAVE_ARCH_TRACEHOOK
+ 	select HAVE_BPF_JIT
+diff --git a/arch/arm64/include/asm/bitrev.h b/arch/arm64/include/asm/bitre=
+v.h
+new file mode 100644
+index 0000000..5d24c11
+--- /dev/null
++++ b/arch/arm64/include/asm/bitrev.h
+@@ -0,0 +1,21 @@
++#ifndef __ASM_ARM_BITREV_H
++#define __ASM_ARM_BITREV_H
++
++static inline __attribute_const__ u32 __arch_bitrev32(u32 x)
++{
++	__asm__ ("rbit %w0, %w1" : "=3Dr" (x) : "r" (x));
++	return x;
++}
++
++static inline __attribute_const__ u16 __arch_bitrev16(u16 x)
++{
++	return __arch_bitrev32((u32)x) >> 16;
++}
++
++static inline __attribute_const__ u8 __arch_bitrev8(u8 x)
++{
++	return __arch_bitrev32((u32)x) >> 24;
++}
++
++#endif
++
+diff --git a/include/linux/bitrev.h b/include/linux/bitrev.h
+index 7ffe03f..ef5b2bb 100644
+--- a/include/linux/bitrev.h
++++ b/include/linux/bitrev.h
+@@ -3,6 +3,14 @@
+=20
+ #include <linux/types.h>
+=20
++#ifdef CONFIG_HAVE_ARCH_BITREVERSE
++#include <asm/bitrev.h>
++
++#define bitrev32 __arch_bitrev32
++#define bitrev16 __arch_bitrev16
++#define bitrev8 __arch_bitrev8
++
++#else
+ extern u8 const byte_rev_table[256];
+=20
+ static inline u8 bitrev8(u8 byte)
+@@ -13,4 +21,5 @@ static inline u8 bitrev8(u8 byte)
+ extern u16 bitrev16(u16 in);
+ extern u32 bitrev32(u32 in);
+=20
++#endif /* CONFIG_HAVE_ARCH_BITREVERSE */
+ #endif /* _LINUX_BITREV_H */
+diff --git a/lib/Kconfig b/lib/Kconfig
+index 54cf309..cd177ca 100644
+--- a/lib/Kconfig
++++ b/lib/Kconfig
+@@ -13,6 +13,15 @@ config RAID6_PQ
+ config BITREVERSE
+ 	tristate
+=20
++config HAVE_ARCH_BITREVERSE
++	boolean
++	default n
++	depends on BITREVERSE
++	help
++	  This option provides an config for the architecture which have instruct=
+ion
++	  can do bitreverse operation, we use the hardware instruction if the arc=
+hitecture
++	  have this capability.
++
+ config RATIONAL
+ 	boolean
+=20
+diff --git a/lib/bitrev.c b/lib/bitrev.c
+index 3956203..93d637a 100644
+--- a/lib/bitrev.c
++++ b/lib/bitrev.c
+@@ -1,3 +1,4 @@
++#ifndef CONFIG_HAVE_ARCH_BITREVERSE
+ #include <linux/types.h>
+ #include <linux/module.h>
+ #include <linux/bitrev.h>
+@@ -57,3 +58,4 @@ u32 bitrev32(u32 x)
+ 	return (bitrev16(x & 0xffff) << 16) | bitrev16(x >> 16);
+ }
+ EXPORT_SYMBOL(bitrev32);
++#endif /* CONFIG_HAVE_ARCH_BITREVERSE */
+--=20
+2.1.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
