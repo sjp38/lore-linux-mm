@@ -1,60 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 6341A6B006C
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 03:43:31 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id v10so5116493pde.22
-        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 00:43:31 -0700 (PDT)
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FB626B0069
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 03:53:13 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id eu11so4957983pac.37
+        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 00:53:12 -0700 (PDT)
 Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id ia9si9886902pbc.55.2014.10.27.00.43.28
+        by mx.google.com with ESMTP id r2si1790368pdh.33.2014.10.27.00.53.11
         for <linux-mm@kvack.org>;
-        Mon, 27 Oct 2014 00:43:30 -0700 (PDT)
-Date: Mon, 27 Oct 2014 16:44:42 +0900
+        Mon, 27 Oct 2014 00:53:12 -0700 (PDT)
+Date: Mon, 27 Oct 2014 16:54:26 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 3/4] mm: cma: Ensure that reservations never cross the
- low/high mem boundary
-Message-ID: <20141027074442.GD23379@js1304-P5Q-DELUXE>
-References: <1414145922-26042-1-git-send-email-laurent.pinchart+renesas@ideasonboard.com>
- <1414145922-26042-4-git-send-email-laurent.pinchart+renesas@ideasonboard.com>
- <xa1toat13031.fsf@mina86.com>
- <1436531.s0VJY8ZaKv@avalon>
+Subject: Re: [RFC 0/4] [RFC] slub: Fastpath optimization (especially for RT)
+Message-ID: <20141027075426.GE23379@js1304-P5Q-DELUXE>
+References: <20141022155517.560385718@linux.com>
+ <20141023080942.GA7598@js1304-P5Q-DELUXE>
+ <alpine.DEB.2.11.1410230916090.19494@gentwo.org>
+ <20141024045630.GD15243@js1304-P5Q-DELUXE>
+ <alpine.DEB.2.11.1410240901020.26767@gentwo.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1436531.s0VJY8ZaKv@avalon>
+In-Reply-To: <alpine.DEB.2.11.1410240901020.26767@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-Cc: Michal Nazarewicz <mina86@mina86.com>, Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sh@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Weijie Yang <weijie.yang.kh@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: akpm@linuxfoundation.org, rostedt@goodmis.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com
 
-On Sun, Oct 26, 2014 at 02:43:52PM +0200, Laurent Pinchart wrote:
-> On Friday 24 October 2014 18:26:58 Michal Nazarewicz wrote:
-> > On Fri, Oct 24 2014, Laurent Pinchart wrote:
-> > > Commit 95b0e655f914 ("ARM: mm: don't limit default CMA region only to
-> > > low memory") extended CMA memory reservation to allow usage of high
-> > > memory. It relied on commit f7426b983a6a ("mm: cma: adjust address limit
-> > > to avoid hitting low/high memory boundary") to ensure that the reserved
-> > > block never crossed the low/high memory boundary. While the
-> > > implementation correctly lowered the limit, it failed to consider the
-> > > case where the base..limit range crossed the low/high memory boundary
-> > > with enough space on each side to reserve the requested size on either
-> > > low or high memory.
-> > > 
-> > > Rework the base and limit adjustment to fix the problem. The function
-> > > now starts by rejecting the reservation altogether for fixed
-> > > reservations that cross the boundary, tries to reserve from high memory
-> > > first and then falls back to low memory.
-> > > 
-> > > Signed-off-by: Laurent Pinchart
-> > > <laurent.pinchart+renesas@ideasonboard.com>
-> > 
-> > Acked-by: Michal Nazarewicz <mina86@mina86.com>
+On Fri, Oct 24, 2014 at 09:02:18AM -0500, Christoph Lameter wrote:
+> On Fri, 24 Oct 2014, Joonsoo Kim wrote:
 > 
-> Thank you. Can we get this series merged in v3.18-rc ?
+> > In this case, object from cpu1's cpu_cache should be
+> > different with cpu0's, so allocation would be failed.
+> 
+> That is true for most object pointers unless the value is NULL. Which it
+> can be. But if this is the only case then the second patch + your approach
+> would work too.
 
-
-Hello,
-
-You'd better to resend whole series to Andrew.
+Indeed... I missed the null value case.
+Your second patch + mine would fix that situation, but, I need more
+thinking. :)
 
 Thanks.
 
