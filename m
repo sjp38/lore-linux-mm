@@ -1,295 +1,231 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f53.google.com (mail-oi0-f53.google.com [209.85.218.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 18F68900021
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 13:20:47 -0400 (EDT)
-Received: by mail-oi0-f53.google.com with SMTP id v63so3687788oia.40
-        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 10:20:46 -0700 (PDT)
-Received: from vena.lwn.net (tex.lwn.net. [70.33.254.29])
-        by mx.google.com with ESMTPS id r187si13220963oib.102.2014.10.27.10.20.45
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 247B7900021
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 13:59:06 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id eu11so5956468pac.16
+        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 10:59:05 -0700 (PDT)
+Received: from e23smtp09.au.ibm.com (e23smtp09.au.ibm.com. [202.81.31.142])
+        by mx.google.com with ESMTPS id nu8si11087272pdb.93.2014.10.27.10.59.03
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 27 Oct 2014 10:20:46 -0700 (PDT)
-Date: Mon, 27 Oct 2014 13:20:41 -0400
-From: Jonathan Corbet <corbet@lwn.net>
-Subject: Re: [PATCH v5 01/12] Add kernel address sanitizer infrastructure.
-Message-ID: <20141027132041.68edd349@lwn.net>
-In-Reply-To: <1414428419-17860-2-git-send-email-a.ryabinin@samsung.com>
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
-	<1414428419-17860-1-git-send-email-a.ryabinin@samsung.com>
-	<1414428419-17860-2-git-send-email-a.ryabinin@samsung.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 27 Oct 2014 10:59:04 -0700 (PDT)
+Received: from /spool/local
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Tue, 28 Oct 2014 03:59:00 +1000
+Received: from d23relay09.au.ibm.com (d23relay09.au.ibm.com [9.185.63.181])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 29CC02BB0052
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 04:58:54 +1100 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s9RI0rTk39387378
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 05:00:54 +1100
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s9RHwqtU012392
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 04:58:53 +1100
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH V2 1/2] mm: Update generic gup implementation to handle hugepage directory
+In-Reply-To: <20141027001842.GU6911@redhat.com>
+References: <1413520687-31729-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20141022160224.9c2268795e55d5a2eff5b94d@linux-foundation.org> <20141023.184035.388557314666522484.davem@davemloft.net> <1414107635.364.91.camel@pasglop> <1414167761.19984.17.camel@jarvis.lan> <1414356641.364.142.camel@pasglop> <20141027001842.GU6911@redhat.com>
+Date: Mon, 27 Oct 2014 23:28:41 +0530
+Message-ID: <87fve9xulq.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <a.ryabinin@samsung.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Randy Dunlap <rdunlap@infradead.org>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter
- Anvin" <hpa@zytor.com>, Dave Jones <davej@redhat.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Marek <mmarek@suse.cz>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+To: Andrea Arcangeli <aarcange@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: James Bottomley <James.Bottomley@HansenPartnership.com>, David Miller <davem@davemloft.net>, akpm@linux-foundation.org, steve.capper@linaro.org, mpe@ellerman.id.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org, hannes@cmpxchg.org
 
-Just looking at kasan.txt...
+Andrea Arcangeli <aarcange@redhat.com> writes:
 
-> diff --git a/Documentation/kasan.txt b/Documentation/kasan.txt
-> new file mode 100644
-> index 0000000..12c50da
-> --- /dev/null
-> +++ b/Documentation/kasan.txt
-> @@ -0,0 +1,174 @@
-> +Kernel address sanitizer
-> +=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> +
-> +0. Overview
-> +=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> +
-> +Kernel Address sanitizer (KASan) is a dynamic memory error detector. It =
-provides
-> +a fast and comprehensive solution for finding use-after-free and out-of-=
-bounds bugs.
+> Hello,
+>
+> On Mon, Oct 27, 2014 at 07:50:41AM +1100, Benjamin Herrenschmidt wrote:
+>> On Fri, 2014-10-24 at 09:22 -0700, James Bottomley wrote:
+>> 
+>> > Parisc does this.  As soon as one CPU issues a TLB purge, it's broadcast
+>> > to all the CPUs on the inter-CPU bus.  The next instruction isn't
+>> > executed until they respond.
+>> > 
+>> > But this is only for our CPU TLB.  There's no other external
+>> > consequence, so removal from the page tables isn't effected by this TLB
+>> > flush, therefore the theory on which Dave bases the change to
+>> > atomic_add() should work for us (of course, atomic_add is lock add
+>> > unlock on our CPU, so it's not going to be of much benefit).
+>> 
+>> I'm not sure I follow you here.
+>> 
+>> Do you or do you now perform an IPI to do TLB flushes ? If you don't
+>> (for example because you have HW broadcast), then you need the
+>> speculative get_page(). If you do (and can read a PTE atomically), you
+>> can get away with atomic_add().
+>> 
+>> The reason is that if you remember how zap_pte_range works, we perform
+>> the flush before we get rid of the page.
+>> 
+>> So if your using IPIs for the flush, the fact that gup_fast has
+>> interrupts disabled will delay the IPI response and thus effectively
+>> prevent the pages from being actually freed, allowing us to simply do
+>> the atomic_add() on x86.
+>> 
+>> But if we don't use IPIs because we have HW broadcast of TLB
+>> invalidations, then we don't have that synchronization. atomic_add won't
+>> work, we need get_page_speculative() because the page could be
+>> concurrently being freed.
+>
+> I looked at how this works more closely and I agree
+> get_page_unless_zero is always necessary if the TLB flush doesn't
+> always wait for IPIs to all CPUs where a gup_fast may be running onto.
+>
+> To summarize, the pagetables are freed with RCU (arch sets
+> HAVE_RCU_TABLE_FREE) and that allows to walk them lockless with RCU.
+>
+> After we can walk the pagetables lockless with RCU, we get to the page
+> lockless, but the pages themself can still be freed at any time from
+> under us (hence the need for get_page_unless_zero).
+>
+> The additional trick gup_fast RCU does is to recheck the pte after
+> elevating the page count with get_page_unless_zero. Rechecking the
+> pte/hugepmd to be sure it didn't change from under us is critical to
+> be sure get_page_unless_zero didn't run after the page was freed and
+> reallocated which would otherwise lead to a security problem too
+> (i.e. it protects against get_page_unless_zero false positives).
+>
+> The last bit required is to still disable irqs like on x86 to
+> serialize against THP splits combined with pmdp_splitting_flush always
+> delivering IPIs (pmdp_splitting_flush must wait all gup_fast to
+> complete before proceeding in mangling the page struct of the compound
+> page).
+>
+> Preventing the irq disable while taking a gup_fast pin using
+> compound_lock isn't as "easy" as it is to do for put_page. put_page
+> (non-compound) fastest path remains THP agnostic because
+> collapse_huge_page is inhibited by any existing gup pin, but here
+> we're exactly taking it, so we can't depend on it to already exist to
+> avoid the race with collapse_huge_page. It's not just split_huge_page
+> we need to protect against.
+>
+> So while thinking the above summary, I noticed this patch misses a IPI
+> in mm/huge_memory.c that must be delivered after pmdp_clear_flush
+> below to be safe against collapse_huge_page for the same reasons it
+> sends it within pmdp_splitting_flush. Without this IPI what can happen
+> is that the GUP pin protection in __collapse_huge_page_isolate races
+> against gup_fast-RCU.
+>
+> If gup_fast reads the pte on one CPU before pmdp_clear_flush, and on
+> the other CPU __collapse_huge_page_isolate succeeds, then gup_fast
+> could recheck the pte that hasn't been zapped yet by
+> __collapse_huge_page_copy. gup_fast would succeed because the pte
+> wasn't zapped yet, but then __collapse_huge_page_copy would run
+> replacing the pte with a transhuge pmd, making gup_fast return the old
+> page, while the process got the copy as part of the collapsed hugepage.
+>
+> 	/*
+> 	 * After this gup_fast can't run anymore. This also removes
+> 	   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ -> invariant broken by gup_fast-RCU
+> 	 * any huge TLB entry from the CPU so we won't allow
+> 	 * huge and small TLB entries for the same virtual address
+> 	 * to avoid the risk of CPU bugs in that area.
+> 	 */
+> 	_pmd = pmdp_clear_flush(vma, address, pmd);
+> 	spin_unlock(pmd_ptl);
+> 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
+>
+> 	spin_lock(pte_ptl);
+> 	isolated = __collapse_huge_page_isolate(vma, address, pte);
+> 	spin_unlock(pte_ptl);
 
-Documentation is a good place to stick to the 80-column (or slightly less)
-limit.  There's no reason to use wide lines here.
 
-> +KASan uses compile-time instrumentation for checking every memory access=
-, therefore you
-> +will need a special compiler: GCC >=3D 4.9.2
-> +
-> +Currently KASan is supported only for x86_64 architecture and requires k=
-ernel
-> +to be built with SLUB allocator.
+That is the transition from pmd pointing to a PTE page to a hugepage
+right ? On ppc64 we do the below. Though not for the same reason
+mentioned above (we did that to handle the hash insertion case) that
+should take care of the gup case too right ?
 
-"and requires that the kernel be built with the SLUB allocator."
 
-> +1. Usage
-> +=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> +
-> +KASAN requires the kernel to be built with a special compiler (GCC >=3D =
-5.0.0).
+pmd_t pmdp_clear_flush(struct vm_area_struct *vma, unsigned long address,
+		       pmd_t *pmdp)
+{
+	pmd_t pmd;
 
-That differs from the requirement listed just a few lines above.  Which is
-right?  I'm also not sure that a version requirement qualifies as
-"special." =20
+	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+	if (pmd_trans_huge(*pmdp)) {
+		pmd = pmdp_get_and_clear(vma->vm_mm, address, pmdp);
+	} else {
+		/*
+		 * khugepaged calls this for normal pmd
+		 */
+		pmd = *pmdp;
+		pmd_clear(pmdp);
+		/*
+		 * Wait for all pending hash_page to finish. This is needed
+		 * in case of subpage collapse. When we collapse normal pages
+		 * to hugepage, we first clear the pmd, then invalidate all
+		 * the PTE entries. The assumption here is that any low level
+		 * page fault will see a none pmd and take the slow path that
+		 * will wait on mmap_sem. But we could very well be in a
+		 * hash_page with local ptep pointer value. Such a hash page
+		 * can result in adding new HPTE entries for normal subpages.
+		 * That means we could be modifying the page content as we
+		 * copy them to a huge page. So wait for parallel hash_page
+		 * to finish before invalidating HPTE entries. We can do this
+		 * by sending an IPI to all the cpus and executing a dummy
+		 * function there.
+		 */
+		kick_all_cpus_sync();
+                ...
+                .....           
+                }
 
-> +To enable KASAN configure kernel with:
-> +
-> +	  CONFIG_KASAN =3D y
-> +
-> +Currently KASAN works only with the SLUB memory allocator.
-> +For better bug detection and nicer report, enable CONFIG_STACKTRACE and =
-put
-> +at least 'slub_debug=3DU' in the boot cmdline.
-> +
-> +To disable instrumentation for specific files or directories, add a line
-> +similar to the following to the respective kernel Makefile:
-> +
-> +        For a single file (e.g. main.o):
-> +                KASAN_SANITIZE_main.o :=3D n
-> +
-> +        For all files in one directory:
-> +                KASAN_SANITIZE :=3D n
-> +
-> +Only files which are linked to the main kernel image or are compiled as
-> +kernel modules are supported by this mechanism.
+>
+> CPU0					CPU1
+> ---------				-------------
+> gup_fast-RCU
+> local_irq_disable()
+> pte = pte_offset_map(pmd, address)
+>
+> 					pmdp_clear_flush (not sending IPI -> bug)
+>
+> 					__collapse_huge_page_isolate -> succeeds
+>
+> 					(page_count != 1 gup-pin check of
+> 					__collapse_huge_page_isolate
+> 					didn't fire)
+>
+> page = vm_normal_page(pte)
+> get_page_unless_zero() -> succeeds
+> recheck pte -> succeeds
+> local_irq_enable()
+> return page
+>
+> 					collapse_huge_page thought
+> 					no gup_fast could run after
+> 					pmdp_clear_flush returned
+>
+> 					__collapse_huge_page_copy (zap
+> 					pte too late, gup_fast already
+> 					returned on the other CPU)
+>
+> 					set_pmd_at(mm, address, pmd, _pmd);
+>
+> 					virtual memory backed by THP
+>
+> gup_fast went out of sync with virtual memory
+>
+> It could be solved also without IPI, for example by adding a failure
+> path to __collapse_huge_page_copy and by adding a second gup-pin check
+> (page_count != 1) after pte_clear(vma->vm_mm, address, _pte) (with a
+> smp_mb() in between) and returning a failure if the check
+> triggers. However then we need to store the 512 pte pointers in a
+> temporary page to roll all of them back if we raced.
+>
+> Comments what is preferable between IPI and a gup-pin check after
+> zapping the pte in __collapse_huge_page_copy welcome. If a
+> modification to __collapse_huge_page_copy is preferable the temporary
+> pte allocation (for rollback in the gup-pin check trigger case) should
+> still be skipped on x86.
 
-Can you do the opposite?  Disable for all but a few files where you want to
-turn it on?  That seems more useful somehow...
+We already do an IPI for ppc64.
 
-> +1.1 Error reports
-> +=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> +
-> +A typical out of bounds access report looks like this:
-> +
-> +=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> +BUG: AddressSanitizer: buffer overflow in kasan_kmalloc_oob_right+0x6a/0=
-x7a at addr c6006f1b
-> +=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D
-> +BUG kmalloc-128 (Not tainted): kasan error
-> +------------------------------------------------------------------------=
------
-> +
-> +Disabling lock debugging due to kernel taint
-> +INFO: Allocated in kasan_kmalloc_oob_right+0x2c/0x7a age=3D5 cpu=3D0 pid=
-=3D1
-> +	__slab_alloc.constprop.72+0x64f/0x680
-> +	kmem_cache_alloc+0xa8/0xe0
-> +	kasan_kmalloc_oob_rigth+0x2c/0x7a
-> +	kasan_tests_init+0x8/0xc
-> +	do_one_initcall+0x85/0x1a0
-> +	kernel_init_freeable+0x1f1/0x279
-> +	kernel_init+0x8/0xd0
-> +	ret_from_kernel_thread+0x21/0x30
-> +INFO: Slab 0xc7f3d0c0 objects=3D14 used=3D2 fp=3D0xc6006120 flags=3D0x50=
-00080
-> +INFO: Object 0xc6006ea0 @offset=3D3744 fp=3D0xc6006d80
-> +
-> +Bytes b4 c6006e90: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ....=
-............
-> +Object c6006ea0: 80 6d 00 c6 00 00 00 00 00 00 00 00 00 00 00 00  .m....=
-..........
-> +Object c6006eb0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ......=
-..........
-> +Object c6006ec0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ......=
-..........
-> +Object c6006ed0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ......=
-..........
-> +Object c6006ee0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ......=
-..........
-> +Object c6006ef0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ......=
-..........
-> +Object c6006f00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ......=
-..........
-> +Object c6006f10: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ......=
-..........
-> +CPU: 0 PID: 1 Comm: swapper/0 Tainted: G    B          3.16.0-rc3-next-2=
-0140704+ #216
-> +Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/=
-2011
-> + 00000000 00000000 c6006ea0 c6889e30 c1c4446f c6801b40 c6889e48 c11c3f32
-> + c6006000 c6801b40 c7f3d0c0 c6006ea0 c6889e68 c11c4ff5 c6801b40 c1e44906
-> + c1e11352 c7f3d0c0 c6889efc c6801b40 c6889ef4 c11ccb78 c1e11352 00000286
-> +Call Trace:
-> + [<c1c4446f>] dump_stack+0x4b/0x75
-> + [<c11c3f32>] print_trailer+0xf2/0x180
-> + [<c11c4ff5>] object_err+0x25/0x30
-> + [<c11ccb78>] kasan_report_error+0xf8/0x380
-> + [<c1c57940>] ? need_resched+0x21/0x25
-> + [<c11cb92b>] ? poison_shadow+0x2b/0x30
-> + [<c11cb92b>] ? poison_shadow+0x2b/0x30
-> + [<c11cb92b>] ? poison_shadow+0x2b/0x30
-> + [<c1f82763>] ? kasan_kmalloc_oob_right+0x7a/0x7a
-> + [<c11cbacc>] __asan_store1+0x9c/0xa0
-> + [<c1f82753>] ? kasan_kmalloc_oob_rigth+0x6a/0x7a
-> + [<c1f82753>] kasan_kmalloc_oob_rigth+0x6a/0x7a
-> + [<c1f8276b>] kasan_tests_init+0x8/0xc
-> + [<c1000435>] do_one_initcall+0x85/0x1a0
-> + [<c1f6f508>] ? repair_env_string+0x23/0x66
-> + [<c1f6f4e5>] ? initcall_blacklist+0x85/0x85
-> + [<c10c9883>] ? parse_args+0x33/0x450
-> + [<c1f6fdb7>] kernel_init_freeable+0x1f1/0x279
-> + [<c1000558>] kernel_init+0x8/0xd0
-> + [<c1c578c1>] ret_from_kernel_thread+0x21/0x30
-> + [<c1000550>] ? do_one_initcall+0x1a0/0x1a0
-> +Write of size 1 by thread T1:
-> +Memory state around the buggy address:
-> + c6006c80: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
-> + c6006d00: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
-> + c6006d80: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
-> + c6006e00: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
-> + c6006e80: fd fd fd fd 00 00 00 00 00 00 00 00 00 00 00 00
-> +>c6006f00: 00 00 00 03 fc fc fc fc fc fc fc fc fc fc fc fc
-> +                    ^
-> + c6006f80: fc fc fc fc fc fc fc fc fd fd fd fd fd fd fd fd
-> + c6007000: 00 00 00 00 00 00 00 00 00 fc fc fc fc fc fc fc
-> + c6007080: fc fc fc fc fc fc fc fc fc fc fc fc fc 00 00 00
-> + c6007100: 00 00 00 00 00 00 fc fc fc fc fc fc fc fc fc fc
-> + c6007180: fc fc fc fc fc fc fc fc fc fc 00 00 00 00 00 00
-> +=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> +
-> +In the last section the report shows memory state around the accessed ad=
-dress.
-> +Reading this part requires some more understanding of how KASAN works.
-
-Which is all great, but it might be nice to say briefly what the other
-sections are telling us?
-
-> +Each KASAN_SHADOW_SCALE_SIZE bytes of memory can be marked as addressabl=
-e,
-
-What's KASAN_SHADOW_SCALE_SIZE and why is it something we should care
-about?  Is it a parameter people can set?
-
-> +partially addressable, freed or they can be part of a redzone.
-> +If bytes are marked as addressable that means that they belong to some
-> +allocated memory block and it is possible to read or modify any of these
-> +bytes. Addressable KASAN_SHADOW_SCALE_SIZE bytes are marked by 0 in the =
-report.
-> +When only the first N bytes of KASAN_SHADOW_SCALE_SIZE belong to an allo=
-cated
-> +memory block, this bytes are partially addressable and marked by 'N'.
-
-Is that a literal "N" or some number indicating which bytes are accessible?
-=46rom what's below, I'm guessing the latter.  It would be far better to be
-clear on that.
-
-> +Markers of inaccessible bytes could be found in mm/kasan/kasan.h header:
-> +
-> +#define KASAN_FREE_PAGE         0xFF  /* page was freed */
-> +#define KASAN_PAGE_REDZONE      0xFE  /* redzone for kmalloc_large alloc=
-ations */
-> +#define KASAN_SLAB_PADDING      0xFD  /* Slab page redzone, does not bel=
-ong to any slub object */
-> +#define KASAN_KMALLOC_REDZONE   0xFC  /* redzone inside slub object */
-> +#define KASAN_KMALLOC_FREE      0xFB  /* object was freed (kmem_cache_fr=
-ee/kfree) */
-> +#define KASAN_SLAB_FREE         0xFA  /* free slab page */
-> +#define KASAN_SHADOW_GAP        0xF9  /* address belongs to shadow memor=
-y */
-> +
-> +In the report above the arrows point to the shadow byte 03, which means =
-that the
-> +accessed address is partially addressable.
-
-So N =3D 03 here?
-
-> +2. Implementation details
-> +=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-> +
-> +From a high level, our approach to memory error detection is similar to =
-that
-> +of kmemcheck: use shadow memory to record whether each byte of memory is=
- safe
-> +to access, and use compile-time instrumentation to check shadow on each =
-memory
-> +access.
-
-"to check the shadow memory on each..."
-
-> +AddressSanitizer dedicates 1/8 of kernel memory to its shadow
-> +memory (e.g. 16TB to cover 128TB on x86_64) and uses direct mapping with=
- a
-> +scale and offset to translate a memory address to its corresponding shad=
-ow address.
-> +
-> +Here is the function witch translate an address to its corresponding sha=
-dow address:
-> +
-> +unsigned long kasan_mem_to_shadow(unsigned long addr)
-> +{
-> +	return (addr >> KASAN_SHADOW_SCALE_SHIFT) + KASAN_SHADOW_OFFSET;
-> +}
-> +
-> +where KASAN_SHADOW_SCALE_SHIFT =3D 3.
-> +
-> +Each shadow byte corresponds to 8 bytes of the main memory. We use the
-> +following encoding for each shadow byte: 0 means that all 8 bytes of the
-> +corresponding memory region are addressable; k (1 <=3D k <=3D 7) means t=
-hat
-> +the first k bytes are addressable, and other (8 - k) bytes are not;
-> +any negative value indicates that the entire 8-byte word is inaccessible.
-> +We use different negative values to distinguish between different kinds =
-of
-> +inaccessible memory (redzones, freed memory) (see mm/kasan/kasan.h).
-
-This discussion belongs in the section above where you're talking about
-interpreting the markings.
-
-> +Poisoning or unpoisoning a byte in the main memory means writing some sp=
-ecial
-> +value into the corresponding shadow memory. This value indicates whether=
- the
-> +byte is addressable or not.
-
-Is this something developers would do?  Are there helper functions to do
-it?  I'd say either fill that in or leave this last bit out.
-
-Interesting work!
-
-jon
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
