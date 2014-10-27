@@ -1,114 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f53.google.com (mail-la0-f53.google.com [209.85.215.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A7476B0069
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 06:40:29 -0400 (EDT)
-Received: by mail-la0-f53.google.com with SMTP id mc6so1218336lab.12
-        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 03:40:28 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id lc6si19212911lbb.129.2014.10.27.03.40.26
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 27 Oct 2014 03:40:27 -0700 (PDT)
-Message-ID: <544E2117.9000809@suse.cz>
-Date: Mon, 27 Oct 2014 11:40:23 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 3743D6B0069
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 06:49:11 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id r10so5418536pdi.17
+        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 03:49:10 -0700 (PDT)
+Received: from foss-mx-na.foss.arm.com (foss-mx-na.foss.arm.com. [217.140.108.86])
+        by mx.google.com with ESMTP id se6si10316928pac.1.2014.10.27.03.49.09
+        for <linux-mm@kvack.org>;
+        Mon, 27 Oct 2014 03:49:10 -0700 (PDT)
+Date: Mon, 27 Oct 2014 10:48:48 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [RFC V3] arm/arm64:add CONFIG_HAVE_ARCH_BITREVERSE to support
+ rbit instruction
+Message-ID: <20141027104848.GD8768@arm.com>
+References: <35FD53F367049845BC99AC72306C23D103E010D18254@CNBJMBX05.corpusers.net>
+ <35FD53F367049845BC99AC72306C23D103E010D18257@CNBJMBX05.corpusers.net>
+ <35FD53F367049845BC99AC72306C23D103E010D18259@CNBJMBX05.corpusers.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 3/4] mm/page_alloc: move migratetype recheck logic
- to __free_one_page()
-References: <1414051821-12769-1-git-send-email-iamjoonsoo.kim@lge.com> <1414051821-12769-4-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1414051821-12769-4-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <35FD53F367049845BC99AC72306C23D103E010D18259@CNBJMBX05.corpusers.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Cc: 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'akinobu.mita@gmail.com'" <akinobu.mita@gmail.com>
 
-On 10/23/2014 10:10 AM, Joonsoo Kim wrote:
-> All the caller of __free_one_page() has similar migratetype recheck logic,
-> so we can move it to __free_one_page(). This reduce line of code and help
-> future maintenance. This is also preparation step for "mm/page_alloc:
-> restrict max order of merging on isolated pageblock" which fix the
-> freepage accouting problem on freepage with more than pageblock order.
+On Mon, Oct 27, 2014 at 08:02:08AM +0000, Wang, Yalin wrote:
+> this change add CONFIG_HAVE_ARCH_BITREVERSE config option,
+> so that we can use arm/arm64 rbit instruction to do bitrev operation
+> by hardware.
 > 
-> Cc: <stable@vger.kernel.org>
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
 > ---
->  mm/page_alloc.c |   24 ++++++++----------------
->  1 file changed, 8 insertions(+), 16 deletions(-)
+>  arch/arm/Kconfig                |  1 +
+>  arch/arm/include/asm/bitrev.h   | 28 ++++++++++++++++++++++++++++
+>  arch/arm64/Kconfig              |  1 +
+>  arch/arm64/include/asm/bitrev.h | 28 ++++++++++++++++++++++++++++
+>  include/linux/bitrev.h          |  9 +++++++++
+>  lib/Kconfig                     |  9 +++++++++
+>  lib/bitrev.c                    |  2 ++
+>  7 files changed, 78 insertions(+)
+>  create mode 100644 arch/arm/include/asm/bitrev.h
+>  create mode 100644 arch/arm64/include/asm/bitrev.h
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 5d2f807..433f92c 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -579,7 +579,15 @@ static inline void __free_one_page(struct page *page,
->  			return;
->  
->  	VM_BUG_ON(migratetype == -1);
-> +	if (unlikely(has_isolate_pageblock(zone) ||
-> +		is_migrate_isolate(migratetype))) {
-
-Since the v4 change of patch 1, this now adds
-is_migrate_isolate(migratetype) also for the free_pcppages_bulk path,
-where it's not needed?
-
-> +		migratetype = get_pfnblock_migratetype(page, pfn);
-> +		if (is_migrate_isolate(migratetype))
-> +			goto skip_counting;
+> diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+> index 89c4b5c..426cbcc 100644
+> --- a/arch/arm/Kconfig
+> +++ b/arch/arm/Kconfig
+> @@ -16,6 +16,7 @@ config ARM
+>  	select DCACHE_WORD_ACCESS if HAVE_EFFICIENT_UNALIGNED_ACCESS
+>  	select GENERIC_ALLOCATOR
+>  	select GENERIC_ATOMIC64 if (CPU_V7M || CPU_V6 || !CPU_32v6K || !AEABI)
+> +	select HAVE_ARCH_BITREVERSE if (CPU_V7M || CPU_V7)
+>  	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
+>  	select GENERIC_IDLE_POLL_SETUP
+>  	select GENERIC_IRQ_PROBE
+> diff --git a/arch/arm/include/asm/bitrev.h b/arch/arm/include/asm/bitrev.h
+> new file mode 100644
+> index 0000000..c21a5f4
+> --- /dev/null
+> +++ b/arch/arm/include/asm/bitrev.h
+> @@ -0,0 +1,28 @@
+> +#ifndef __ASM_ARM_BITREV_H
+> +#define __ASM_ARM_BITREV_H
+> +
+> +static __always_inline __attribute_const__ u32 __arch_bitrev32(u32 x)
+> +{
+> +	if (__builtin_constant_p(x)) {
+> +		x = (x >> 16) | (x << 16);
+> +		x = ((x & 0xFF00FF00) >> 8) | ((x & 0x00FF00FF) << 8);
+> +		x = ((x & 0xF0F0F0F0) >> 4) | ((x & 0x0F0F0F0F) << 4);
+> +		x = ((x & 0xCCCCCCCC) >> 2) | ((x & 0x33333333) << 2);
+> +		return ((x & 0xAAAAAAAA) >> 1) | ((x & 0x55555555) << 1);
 > +	}
-> +	__mod_zone_freepage_state(zone, 1 << order, migratetype);
->  
-> +skip_counting:
->  	page_idx = pfn & ((1 << MAX_ORDER) - 1);
->  
->  	VM_BUG_ON_PAGE(page_idx & ((1 << order) - 1), page);
-> @@ -725,14 +733,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
->  			/* must delete as __free_one_page list manipulates */
->  			list_del(&page->lru);
->  			mt = get_freepage_migratetype(page);
-> -			if (unlikely(has_isolate_pageblock(zone))) {
-> -				mt = get_pageblock_migratetype(page);
-> -				if (is_migrate_isolate(mt))
-> -					goto skip_counting;
-> -			}
-> -			__mod_zone_freepage_state(zone, 1, mt);
->  
-> -skip_counting:
->  			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
->  			__free_one_page(page, page_to_pfn(page), zone, 0, mt);
->  			trace_mm_page_pcpu_drain(page, 0, mt);
+> +	__asm__ ("rbit %0, %1" : "=r" (x) : "r" (x));
 
-The 'mt' here for the tracepoint is now different. I know it's the same
-as before patch 2, but the value introduced by patch 2 is more correct
-than the reverting to pre-patch 2 done here.
+I think you need to use %w0 and %w1 here, otherwise you bit-reverse the
+64-bit register.
 
-This and the introduced check above are maybe minor things, but it makes
-me question the value of unifying the check when the conditions in the
-two call paths are not completely the same...
-
-I understand this is also prerequisity for patch 4 in some sense, but if
-you are reworking it anyway, then maybe this won't be needed in the end?
-
-Thanks for the effort!
-Vlastimil
-
-> @@ -752,15 +753,6 @@ static void free_one_page(struct zone *zone,
->  	if (nr_scanned)
->  		__mod_zone_page_state(zone, NR_PAGES_SCANNED, -nr_scanned);
->  
-> -	if (unlikely(has_isolate_pageblock(zone) ||
-> -		is_migrate_isolate(migratetype))) {
-> -		migratetype = get_pfnblock_migratetype(page, pfn);
-> -		if (is_migrate_isolate(migratetype))
-> -			goto skip_counting;
-> -	}
-> -	__mod_zone_freepage_state(zone, 1 << order, migratetype);
-> -
-> -skip_counting:
->  	__free_one_page(page, pfn, zone, order, migratetype);
->  	spin_unlock(&zone->lock);
->  }
-> 
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
