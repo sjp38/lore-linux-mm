@@ -1,111 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
-	by kanga.kvack.org (Postfix) with ESMTP id C6D136B0069
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 05:39:06 -0400 (EDT)
-Received: by mail-lb0-f175.google.com with SMTP id u10so5439749lbd.34
-        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 02:39:05 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ao9si19076288lac.33.2014.10.27.02.39.03
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id D6CD26B0069
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 06:08:10 -0400 (EDT)
+Received: by mail-pd0-f174.google.com with SMTP id p10so5353276pdj.19
+        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 03:08:10 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id uw6si2216019pbc.149.2014.10.27.03.08.09
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 27 Oct 2014 02:39:04 -0700 (PDT)
-Message-ID: <544E12B5.5070008@suse.cz>
-Date: Mon, 27 Oct 2014 10:39:01 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 Oct 2014 03:08:09 -0700 (PDT)
+Date: Mon, 27 Oct 2014 13:08:02 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [patch] mm: memcontrol: shorten the page statistics update
+ slowpath
+Message-ID: <20141027100802.GA12335@esperanza>
+References: <1414158020-25347-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/5] mm, compaction: always update cached scanner positions
-References: <1412696019-21761-1-git-send-email-vbabka@suse.cz> <1412696019-21761-5-git-send-email-vbabka@suse.cz> <20141027073522.GB23379@js1304-P5Q-DELUXE>
-In-Reply-To: <20141027073522.GB23379@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <1414158020-25347-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 10/27/2014 08:35 AM, Joonsoo Kim wrote:> On Tue, Oct 07, 2014 at
-05:33:38PM +0200, Vlastimil Babka wrote:
->> Compaction caches the migration and free scanner positions between
-compaction
->> invocations, so that the whole zone gets eventually scanned and there
-is no
->> bias towards the initial scanner positions at the beginning/end of
-the zone.
->>
->> The cached positions are continuously updated as scanners progress
-and the
->> updating stops as soon as a page is successfully isolated. The reasoning
->> behind this is that a pageblock where isolation succeeded is likely
-to succeed
->> again in near future and it should be worth revisiting it.
->>
->> However, the downside is that potentially many pages are rescanned
-without
->> successful isolation. At worst, there might be a page where isolation
-from LRU
->> succeeds but migration fails (potentially always). So upon
-encountering this
->> page, cached position would always stop being updated for no good reason.
->> It might have been useful to let such page be rescanned with sync
-compaction
->> after async one failed, but this is now handled by caching scanner
-position
->> for async and sync mode separately since commit 35979ef33931 ("mm,
-compaction:
->> add per-zone migration pfn cache for async compaction").
->
-> Hmm... I'm not sure that this patch is good thing.
->
-> In asynchronous compaction, compaction could be easily failed and
-> isolated freepages are returned to the buddy. In this case, next
-> asynchronous compaction would skip those returned freepages and
-> both scanners could meet prematurely.
+On Fri, Oct 24, 2014 at 09:40:20AM -0400, Johannes Weiner wrote:
+> While moving charges from one memcg to another, page stat updates must
+> acquire the old memcg's move_lock to prevent double accounting.  That
+> situation is denoted by an increased memcg->move_accounting.  However,
+> the charge moving code declares this way too early for now, even
+> before summing up the RSS and pre-allocating destination charges.
+> 
+> Shorten this slowpath mode by increasing memcg->move_accounting only
+> right before walking the task's address space with the intention of
+> actually moving the pages.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-If migration fails, free pages now remain isolated until next migration
-attempt, which should happen within the same compaction when it isolates
-new migratepages - it won't fail completely just because of failed
-migration. It might run out of time due to need_resched and then yeah,
-some free pages might be skipped. That's some tradeoff but at least my
-tests don't seem to show reduced success rates.
+Reviewed-by: Vladimir Davydov <vdavydov@parallels.com>
 
-> And, I guess that pageblock skip feature effectively disable pageblock
-> rescanning if there is no freepage during rescan.
-
-If there's no freepage during rescan, then the cached free_pfn also
-won't be pointed to the pageblock anymore. Regardless of pageblock skip
-being set, there will not be second rescan. But there will still be the
-first rescan to determine there are no freepages.
-
-> This patch would
-> eliminate effect of pageblock skip feature.
-
-I don't think so (as explained above). Also if free pages were isolated
-(and then returned and skipped over), the pageblock should remain
-without skip bit, so after scanners meet and positions reset (which
-doesn't go hand in hand with skip bit reset), the next round will skip
-over the blocks without freepages and find quickly the blocks where free
-pages were skipped in the previous round.
-
-> IIUC, compaction logic assume that there are many temporary failure
-> conditions. Retrying from others would reduce effect of this temporary
-> failure so implementation looks as is.
-
-The implementation of pfn caching was written at time when we did not
-keep isolated free pages between migration attempts in a single
-compaction run. And the idea of async compaction is to try with minimal
-effort (thus latency), and if there's a failure, try somewhere else.
-Making sure we don't skip anything doesn't seem productive.
-
-> If what we want is scanning each page once in each epoch, we can
-> implement compaction logic differently.
-
-Well I'm open to suggestions :) Can't say the current set of heuristics
-is straightforward to reason about.
-
-> Please let me know if I'm missing something.
->
-> Thanks.
->
+> ---
+>  mm/memcontrol.c | 21 ++++++++-------------
+>  1 file changed, 8 insertions(+), 13 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index c50176429fa3..23cf27cca370 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -5263,8 +5263,6 @@ static void __mem_cgroup_clear_mc(void)
+>  
+>  static void mem_cgroup_clear_mc(void)
+>  {
+> -	struct mem_cgroup *from = mc.from;
+> -
+>  	/*
+>  	 * we must clear moving_task before waking up waiters at the end of
+>  	 * task migration.
+> @@ -5275,8 +5273,6 @@ static void mem_cgroup_clear_mc(void)
+>  	mc.from = NULL;
+>  	mc.to = NULL;
+>  	spin_unlock(&mc.lock);
+> -
+> -	atomic_dec(&from->moving_account);
+>  }
+>  
+>  static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
+> @@ -5310,15 +5306,6 @@ static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
+>  			VM_BUG_ON(mc.moved_charge);
+>  			VM_BUG_ON(mc.moved_swap);
+>  
+> -			/*
+> -			 * Signal mem_cgroup_begin_page_stat() to take
+> -			 * the memcg's move_lock while we're moving
+> -			 * its pages to another memcg.  Then wait for
+> -			 * already started RCU-only updates to finish.
+> -			 */
+> -			atomic_inc(&from->moving_account);
+> -			synchronize_rcu();
+> -
+>  			spin_lock(&mc.lock);
+>  			mc.from = from;
+>  			mc.to = memcg;
+> @@ -5450,6 +5437,13 @@ static void mem_cgroup_move_charge(struct mm_struct *mm)
+>  	struct vm_area_struct *vma;
+>  
+>  	lru_add_drain_all();
+> +	/*
+> +	 * Signal mem_cgroup_begin_page_stat() to take the memcg's
+> +	 * move_lock while we're moving its pages to another memcg.
+> +	 * Then wait for already started RCU-only updates to finish.
+> +	 */
+> +	atomic_inc(&mc.from->moving_account);
+> +	synchronize_rcu();
+>  retry:
+>  	if (unlikely(!down_read_trylock(&mm->mmap_sem))) {
+>  		/*
+> @@ -5482,6 +5476,7 @@ retry:
+>  			break;
+>  	}
+>  	up_read(&mm->mmap_sem);
+> +	atomic_dec(&mc.from->moving_account);
+>  }
+>  
+>  static void mem_cgroup_move_task(struct cgroup_subsys_state *css,
+> -- 
+> 2.1.2
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
