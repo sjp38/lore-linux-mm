@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 86A3D6B0078
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 13:14:44 -0400 (EDT)
-Received: by mail-lb0-f172.google.com with SMTP id n15so2277716lbi.31
-        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 10:14:43 -0700 (PDT)
-Received: from mail-la0-x22b.google.com (mail-la0-x22b.google.com. [2a00:1450:4010:c03::22b])
-        by mx.google.com with ESMTPS id 4si20901722laq.88.2014.10.27.10.14.41
+Received: from mail-la0-f43.google.com (mail-la0-f43.google.com [209.85.215.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 30E936B007B
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 13:15:03 -0400 (EDT)
+Received: by mail-la0-f43.google.com with SMTP id ge10so2189233lab.30
+        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 10:15:02 -0700 (PDT)
+Received: from mail-lb0-x234.google.com (mail-lb0-x234.google.com. [2a00:1450:4010:c04::234])
+        by mx.google.com with ESMTPS id u2si20870242laa.120.2014.10.27.10.15.00
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 27 Oct 2014 10:14:42 -0700 (PDT)
-Received: by mail-la0-f43.google.com with SMTP id ge10so2164583lab.2
-        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 10:14:41 -0700 (PDT)
+        Mon, 27 Oct 2014 10:15:01 -0700 (PDT)
+Received: by mail-lb0-f180.google.com with SMTP id z12so2704123lbi.11
+        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 10:15:00 -0700 (PDT)
 From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH v4 1/4] mm/page_alloc: fix incorrect isolation behavior by rechecking migratetype
-In-Reply-To: <1414051821-12769-2-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1414051821-12769-1-git-send-email-iamjoonsoo.kim@lge.com> <1414051821-12769-2-git-send-email-iamjoonsoo.kim@lge.com>
-Date: Mon, 27 Oct 2014 18:14:36 +0100
-Message-ID: <xa1toasxo2o3.fsf@mina86.com>
+Subject: Re: [PATCH v4 2/4] mm/page_alloc: add freepage on isolate pageblock to correct buddy list
+In-Reply-To: <1414051821-12769-3-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1414051821-12769-1-git-send-email-iamjoonsoo.kim@lge.com> <1414051821-12769-3-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Mon, 27 Oct 2014 18:14:55 +0100
+Message-ID: <xa1tlho1o2nk.fsf@mina86.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
@@ -26,64 +26,42 @@ To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.o
 Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
 On Thu, Oct 23 2014, Joonsoo Kim wrote:
-> There are two paths to reach core free function of buddy allocator,
-> __free_one_page(), one is free_one_page()->__free_one_page() and the
-> other is free_hot_cold_page()->free_pcppages_bulk()->__free_one_page().
-> Each paths has race condition causing serious problems. At first, this
-> patch is focused on first type of freepath. And then, following patch
-> will solve the problem in second type of freepath.
+> In free_pcppages_bulk(), we use cached migratetype of freepage
+> to determine type of buddy list where freepage will be added.
+> This information is stored when freepage is added to pcp list, so
+> if isolation of pageblock of this freepage begins after storing,
+> this cached information could be stale. In other words, it has
+> original migratetype rather than MIGRATE_ISOLATE.
 >
-> In the first type of freepath, we got migratetype of freeing page without
-> holding the zone lock, so it could be racy. There are two cases of this
-> race.
+> There are two problems caused by this stale information. One is that
+> we can't keep these freepages from being allocated. Although this
+> pageblock is isolated, freepage will be added to normal buddy list
+> so that it could be allocated without any restriction. And the other
+> problem is incorrect freepage accounting. Freepages on isolate pageblock
+> should not be counted for number of freepage.
 >
-> 1. pages are added to isolate buddy list after restoring orignal
-> migratetype
+> Following is the code snippet in free_pcppages_bulk().
 >
-> CPU1                                   CPU2
+> /* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
+> __free_one_page(page, page_to_pfn(page), zone, 0, mt);
+> trace_mm_page_pcpu_drain(page, 0, mt);
+> if (likely(!is_migrate_isolate_page(page))) {
+> 	__mod_zone_page_state(zone, NR_FREE_PAGES, 1);
+> 	if (is_migrate_cma(mt))
+> 		__mod_zone_page_state(zone, NR_FREE_CMA_PAGES, 1);
+> }
 >
-> get migratetype =3D> return MIGRATE_ISOLATE
-> call free_one_page() with MIGRATE_ISOLATE
+> As you can see above snippet, current code already handle second problem,
+> incorrect freepage accounting, by re-fetching pageblock migratetype
+> through is_migrate_isolate_page(page). But, because this re-fetched
+> information isn't used for __free_one_page(), first problem would not be
+> solved. This patch try to solve this situation to re-fetch pageblock
+> migratetype before __free_one_page() and to use it for __free_one_page().
 >
-> 				grab the zone lock
-> 				unisolate pageblock
-> 				release the zone lock
->
-> grab the zone lock
-> call __free_one_page() with MIGRATE_ISOLATE
-> freepage go into isolate buddy list,
-> although pageblock is already unisolated
->
-> This may cause two problems. One is that we can't use this page anymore
-> until next isolation attempt of this pageblock, because freepage is on
-> isolate buddy list. The other is that freepage accouting could be wrong
-> due to merging between different buddy list. Freepages on isolate buddy
-> list aren't counted as freepage, but ones on normal buddy list are counted
-> as freepage. If merge happens, buddy freepage on normal buddy list is
-> inevitably moved to isolate buddy list without any consideration of
-> freepage accouting so it could be incorrect.
->
-> 2. pages are added to normal buddy list while pageblock is isolated.
-> It is similar with above case.
->
-> This also may cause two problems. One is that we can't keep these
-> freepages from being allocated. Although this pageblock is isolated,
-> freepage would be added to normal buddy list so that it could be
-> allocated without any restriction. And the other problem is same as
-> case 1, that it, incorrect freepage accouting.
->
-> This race condition would be prevented by checking migratetype again
-> with holding the zone lock. Because it is somewhat heavy operation
-> and it isn't needed in common case, we want to avoid rechecking as much
-> as possible. So this patch introduce new variable, nr_isolate_pageblock
-> in struct zone to check if there is isolated pageblock.
-> With this, we can avoid to re-check migratetype in common case and do
-> it only if there is isolated pageblock or migratetype is MIGRATE_ISOLATE.
-> This solve above mentioned problems.
->
-> Changes from v3:
-> Add one more check in free_one_page() that checks whether migratetype is
-> MIGRATE_ISOLATE or not. Without this, abovementioned case 1 could happens.
+> In addition to move up position of this re-fetch, this patch use
+> optimization technique, re-fetching migratetype only if there is
+> isolate pageblock. Pageblock isolation is rare event, so we can
+> avoid re-fetching in common case with this optimization.
 >
 > Cc: <stable@vger.kernel.org>
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
@@ -91,11 +69,8 @@ On Thu, Oct 23 2014, Joonsoo Kim wrote:
 Acked-by: Michal Nazarewicz <mina86@mina86.com>
 
 > ---
->  include/linux/mmzone.h         |    9 +++++++++
->  include/linux/page-isolation.h |    8 ++++++++
->  mm/page_alloc.c                |   11 +++++++++--
->  mm/page_isolation.c            |    2 ++
->  4 files changed, 28 insertions(+), 2 deletions(-)
+>  mm/page_alloc.c |   13 ++++++++-----
+>  1 file changed, 8 insertions(+), 5 deletions(-)
 
 --=20
 Best regards,                                         _     _
