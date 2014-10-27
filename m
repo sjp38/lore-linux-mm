@@ -1,55 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B5CA6B0075
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 13:07:55 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id lf10so4196354pab.19
-        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 10:07:55 -0700 (PDT)
-Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
-        by mx.google.com with ESMTPS id b1si10949821pdd.136.2014.10.27.10.07.54
+Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 86A3D6B0078
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 13:14:44 -0400 (EDT)
+Received: by mail-lb0-f172.google.com with SMTP id n15so2277716lbi.31
+        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 10:14:43 -0700 (PDT)
+Received: from mail-la0-x22b.google.com (mail-la0-x22b.google.com. [2a00:1450:4010:c03::22b])
+        by mx.google.com with ESMTPS id 4si20901722laq.88.2014.10.27.10.14.41
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Mon, 27 Oct 2014 10:07:54 -0700 (PDT)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout1.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NE400LT551Y07A0@mailout1.w1.samsung.com> for
- linux-mm@kvack.org; Mon, 27 Oct 2014 17:10:46 +0000 (GMT)
-Message-id: <544E7BE6.8040102@samsung.com>
-Date: Mon, 27 Oct 2014 20:07:50 +0300
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
-MIME-version: 1.0
-Subject: Re: [PATCH v5 07/12] mm: slub: share slab_err and object_err functions
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
- <1414428419-17860-1-git-send-email-a.ryabinin@samsung.com>
- <1414428419-17860-8-git-send-email-a.ryabinin@samsung.com>
- <1414429203.8884.12.camel@perches.com>
-In-reply-to: <1414429203.8884.12.camel@perches.com>
-Content-type: text/plain; charset=windows-1252
-Content-transfer-encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 27 Oct 2014 10:14:42 -0700 (PDT)
+Received: by mail-la0-f43.google.com with SMTP id ge10so2164583lab.2
+        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 10:14:41 -0700 (PDT)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [PATCH v4 1/4] mm/page_alloc: fix incorrect isolation behavior by rechecking migratetype
+In-Reply-To: <1414051821-12769-2-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1414051821-12769-1-git-send-email-iamjoonsoo.kim@lge.com> <1414051821-12769-2-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Mon, 27 Oct 2014 18:14:36 +0100
+Message-ID: <xa1toasxo2o3.fsf@mina86.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joe Perches <joe@perches.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Jones <davej@redhat.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
-On 10/27/2014 08:00 PM, Joe Perches wrote:
-> On Mon, 2014-10-27 at 19:46 +0300, Andrey Ryabinin wrote:
->> Remove static and add function declarations to mm/slab.h so they
->> could be used by kernel address sanitizer.
-> []
->> diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-> []
->> @@ -115,4 +115,8 @@ static inline void *virt_to_obj(struct kmem_cache *s, void *slab_page, void *x)
-> []
->> +void slab_err(struct kmem_cache *s, struct page *page, const char *fmt, ...);
->> +void object_err(struct kmem_cache *s, struct page *page,
->> +		u8 *object, char *reason);
-> 
-> Please add __printf(3, 4) to have the compiler catch
-> format and argument mismatches.
-> 
-> 
+On Thu, Oct 23 2014, Joonsoo Kim wrote:
+> There are two paths to reach core free function of buddy allocator,
+> __free_one_page(), one is free_one_page()->__free_one_page() and the
+> other is free_hot_cold_page()->free_pcppages_bulk()->__free_one_page().
+> Each paths has race condition causing serious problems. At first, this
+> patch is focused on first type of freepath. And then, following patch
+> will solve the problem in second type of freepath.
+>
+> In the first type of freepath, we got migratetype of freeing page without
+> holding the zone lock, so it could be racy. There are two cases of this
+> race.
+>
+> 1. pages are added to isolate buddy list after restoring orignal
+> migratetype
+>
+> CPU1                                   CPU2
+>
+> get migratetype =3D> return MIGRATE_ISOLATE
+> call free_one_page() with MIGRATE_ISOLATE
+>
+> 				grab the zone lock
+> 				unisolate pageblock
+> 				release the zone lock
+>
+> grab the zone lock
+> call __free_one_page() with MIGRATE_ISOLATE
+> freepage go into isolate buddy list,
+> although pageblock is already unisolated
+>
+> This may cause two problems. One is that we can't use this page anymore
+> until next isolation attempt of this pageblock, because freepage is on
+> isolate buddy list. The other is that freepage accouting could be wrong
+> due to merging between different buddy list. Freepages on isolate buddy
+> list aren't counted as freepage, but ones on normal buddy list are counted
+> as freepage. If merge happens, buddy freepage on normal buddy list is
+> inevitably moved to isolate buddy list without any consideration of
+> freepage accouting so it could be incorrect.
+>
+> 2. pages are added to normal buddy list while pageblock is isolated.
+> It is similar with above case.
+>
+> This also may cause two problems. One is that we can't keep these
+> freepages from being allocated. Although this pageblock is isolated,
+> freepage would be added to normal buddy list so that it could be
+> allocated without any restriction. And the other problem is same as
+> case 1, that it, incorrect freepage accouting.
+>
+> This race condition would be prevented by checking migratetype again
+> with holding the zone lock. Because it is somewhat heavy operation
+> and it isn't needed in common case, we want to avoid rechecking as much
+> as possible. So this patch introduce new variable, nr_isolate_pageblock
+> in struct zone to check if there is isolated pageblock.
+> With this, we can avoid to re-check migratetype in common case and do
+> it only if there is isolated pageblock or migratetype is MIGRATE_ISOLATE.
+> This solve above mentioned problems.
+>
+> Changes from v3:
+> Add one more check in free_one_page() that checks whether migratetype is
+> MIGRATE_ISOLATE or not. Without this, abovementioned case 1 could happens.
+>
+> Cc: <stable@vger.kernel.org>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Will do, thanks.
+Acked-by: Michal Nazarewicz <mina86@mina86.com>
+
+> ---
+>  include/linux/mmzone.h         |    9 +++++++++
+>  include/linux/page-isolation.h |    8 ++++++++
+>  mm/page_alloc.c                |   11 +++++++++--
+>  mm/page_isolation.c            |    2 ++
+>  4 files changed, 28 insertions(+), 2 deletions(-)
+
+--=20
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
+ (o o)
+ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
