@@ -1,203 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 54A986B0069
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 04:02:19 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id v10so5110209pde.8
-        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 01:02:19 -0700 (PDT)
-Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
-        by mx.google.com with ESMTPS id cq3si9807716pbb.193.2014.10.27.01.02.15
+Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
+	by kanga.kvack.org (Postfix) with ESMTP id E2CF86B0069
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 05:11:38 -0400 (EDT)
+Received: by mail-la0-f47.google.com with SMTP id pv20so5523499lab.34
+        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 02:11:37 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t10si18909931lat.82.2014.10.27.02.11.36
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 27 Oct 2014 01:02:17 -0700 (PDT)
-From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Date: Mon, 27 Oct 2014 16:02:08 +0800
-Subject: [RFC V3] arm/arm64:add CONFIG_HAVE_ARCH_BITREVERSE to support rbit
-  instruction
-Message-ID: <35FD53F367049845BC99AC72306C23D103E010D18259@CNBJMBX05.corpusers.net>
-References: <35FD53F367049845BC99AC72306C23D103E010D18254@CNBJMBX05.corpusers.net>
- <35FD53F367049845BC99AC72306C23D103E010D18257@CNBJMBX05.corpusers.net>
-In-Reply-To: <35FD53F367049845BC99AC72306C23D103E010D18257@CNBJMBX05.corpusers.net>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Mon, 27 Oct 2014 02:11:36 -0700 (PDT)
+Message-ID: <544E0C43.3030009@suse.cz>
+Date: Mon, 27 Oct 2014 10:11:31 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
+Subject: Re: [PATCH 1/5] mm, compaction: pass classzone_idx and alloc_flags
+ to watermark checking
+References: <1412696019-21761-1-git-send-email-vbabka@suse.cz> <1412696019-21761-2-git-send-email-vbabka@suse.cz> <20141027064651.GA23379@js1304-P5Q-DELUXE>
+In-Reply-To: <20141027064651.GA23379@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, 'Will Deacon' <Will.Deacon@arm.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'akinobu.mita@gmail.com'" <akinobu.mita@gmail.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>
 
-this change add CONFIG_HAVE_ARCH_BITREVERSE config option,
-so that we can use arm/arm64 rbit instruction to do bitrev operation
-by hardware.
+On 10/27/2014 07:46 AM, Joonsoo Kim wrote:
+> On Tue, Oct 07, 2014 at 05:33:35PM +0200, Vlastimil Babka wrote:
+> 
+> Hello,
+> 
+> compaction_suitable() has one more zone_watermark_ok(). Why is it
+> unchanged?
 
-Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
----
- arch/arm/Kconfig                |  1 +
- arch/arm/include/asm/bitrev.h   | 28 ++++++++++++++++++++++++++++
- arch/arm64/Kconfig              |  1 +
- arch/arm64/include/asm/bitrev.h | 28 ++++++++++++++++++++++++++++
- include/linux/bitrev.h          |  9 +++++++++
- lib/Kconfig                     |  9 +++++++++
- lib/bitrev.c                    |  2 ++
- 7 files changed, 78 insertions(+)
- create mode 100644 arch/arm/include/asm/bitrev.h
- create mode 100644 arch/arm64/include/asm/bitrev.h
+Hi,
 
-diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index 89c4b5c..426cbcc 100644
---- a/arch/arm/Kconfig
-+++ b/arch/arm/Kconfig
-@@ -16,6 +16,7 @@ config ARM
- 	select DCACHE_WORD_ACCESS if HAVE_EFFICIENT_UNALIGNED_ACCESS
- 	select GENERIC_ALLOCATOR
- 	select GENERIC_ATOMIC64 if (CPU_V7M || CPU_V6 || !CPU_32v6K || !AEABI)
-+	select HAVE_ARCH_BITREVERSE if (CPU_V7M || CPU_V7)
- 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
- 	select GENERIC_IDLE_POLL_SETUP
- 	select GENERIC_IRQ_PROBE
-diff --git a/arch/arm/include/asm/bitrev.h b/arch/arm/include/asm/bitrev.h
-new file mode 100644
-index 0000000..c21a5f4
---- /dev/null
-+++ b/arch/arm/include/asm/bitrev.h
-@@ -0,0 +1,28 @@
-+#ifndef __ASM_ARM_BITREV_H
-+#define __ASM_ARM_BITREV_H
-+
-+static __always_inline __attribute_const__ u32 __arch_bitrev32(u32 x)
-+{
-+	if (__builtin_constant_p(x)) {
-+		x =3D (x >> 16) | (x << 16);
-+		x =3D ((x & 0xFF00FF00) >> 8) | ((x & 0x00FF00FF) << 8);
-+		x =3D ((x & 0xF0F0F0F0) >> 4) | ((x & 0x0F0F0F0F) << 4);
-+		x =3D ((x & 0xCCCCCCCC) >> 2) | ((x & 0x33333333) << 2);
-+		return ((x & 0xAAAAAAAA) >> 1) | ((x & 0x55555555) << 1);
-+	}
-+	__asm__ ("rbit %0, %1" : "=3Dr" (x) : "r" (x));
-+	return x;
-+}
-+
-+static __always_inline __attribute_const__ u16 __arch_bitrev16(u16 x)
-+{
-+	return __arch_bitrev32((u32)x) >> 16;
-+}
-+
-+static __always_inline __attribute_const__ u8 __arch_bitrev8(u8 x)
-+{
-+	return __arch_bitrev32((u32)x) >> 24;
-+}
-+
-+#endif
-+
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 9532f8d..263c28c 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -36,6 +36,7 @@ config ARM64
- 	select HARDIRQS_SW_RESEND
- 	select HAVE_ARCH_AUDITSYSCALL
- 	select HAVE_ARCH_JUMP_LABEL
-+	select HAVE_ARCH_BITREVERSE
- 	select HAVE_ARCH_KGDB
- 	select HAVE_ARCH_TRACEHOOK
- 	select HAVE_BPF_JIT
-diff --git a/arch/arm64/include/asm/bitrev.h b/arch/arm64/include/asm/bitre=
-v.h
-new file mode 100644
-index 0000000..f725a71
---- /dev/null
-+++ b/arch/arm64/include/asm/bitrev.h
-@@ -0,0 +1,28 @@
-+#ifndef __ASM_ARM_BITREV_H
-+#define __ASM_ARM_BITREV_H
-+
-+static __always_inline __attribute_const__ u32 __arch_bitrev32(u32 x)
-+{
-+	if (__builtin_constant_p(x)) {
-+		x =3D (x >> 16) | (x << 16);
-+		x =3D ((x & 0xFF00FF00) >> 8) | ((x & 0x00FF00FF) << 8);
-+		x =3D ((x & 0xF0F0F0F0) >> 4) | ((x & 0x0F0F0F0F) << 4);
-+		x =3D ((x & 0xCCCCCCCC) >> 2) | ((x & 0x33333333) << 2);
-+		return ((x & 0xAAAAAAAA) >> 1) | ((x & 0x55555555) << 1);
-+	}
-+	__asm__ ("rbit %w0, %w1" : "=3Dr" (x) : "r" (x));
-+	return x;
-+}
-+
-+static __always_inline __attribute_const__ u16 __arch_bitrev16(u16 x)
-+{
-+	return __arch_bitrev32((u32)x) >> 16;
-+}
-+
-+static __always_inline __attribute_const__ u8 __arch_bitrev8(u8 x)
-+{
-+	return __arch_bitrev32((u32)x) >> 24;
-+}
-+
-+#endif
-+
-diff --git a/include/linux/bitrev.h b/include/linux/bitrev.h
-index 7ffe03f..ef5b2bb 100644
---- a/include/linux/bitrev.h
-+++ b/include/linux/bitrev.h
-@@ -3,6 +3,14 @@
-=20
- #include <linux/types.h>
-=20
-+#ifdef CONFIG_HAVE_ARCH_BITREVERSE
-+#include <asm/bitrev.h>
-+
-+#define bitrev32 __arch_bitrev32
-+#define bitrev16 __arch_bitrev16
-+#define bitrev8 __arch_bitrev8
-+
-+#else
- extern u8 const byte_rev_table[256];
-=20
- static inline u8 bitrev8(u8 byte)
-@@ -13,4 +21,5 @@ static inline u8 bitrev8(u8 byte)
- extern u16 bitrev16(u16 in);
- extern u32 bitrev32(u32 in);
-=20
-+#endif /* CONFIG_HAVE_ARCH_BITREVERSE */
- #endif /* _LINUX_BITREV_H */
-diff --git a/lib/Kconfig b/lib/Kconfig
-index 54cf309..cd177ca 100644
---- a/lib/Kconfig
-+++ b/lib/Kconfig
-@@ -13,6 +13,15 @@ config RAID6_PQ
- config BITREVERSE
- 	tristate
-=20
-+config HAVE_ARCH_BITREVERSE
-+	boolean
-+	default n
-+	depends on BITREVERSE
-+	help
-+	  This option provides an config for the architecture which have instruct=
-ion
-+	  can do bitreverse operation, we use the hardware instruction if the arc=
-hitecture
-+	  have this capability.
-+
- config RATIONAL
- 	boolean
-=20
-diff --git a/lib/bitrev.c b/lib/bitrev.c
-index 3956203..93d637a 100644
---- a/lib/bitrev.c
-+++ b/lib/bitrev.c
-@@ -1,3 +1,4 @@
-+#ifndef CONFIG_HAVE_ARCH_BITREVERSE
- #include <linux/types.h>
- #include <linux/module.h>
- #include <linux/bitrev.h>
-@@ -57,3 +58,4 @@ u32 bitrev32(u32 x)
- 	return (bitrev16(x & 0xffff) << 16) | bitrev16(x >> 16);
- }
- EXPORT_SYMBOL(bitrev32);
-+#endif /* CONFIG_HAVE_ARCH_BITREVERSE */
---=20
-2.1.1
+it's a check whether there are enough free pages to perform compaction,
+which means enough migration targets and temporary copies during
+migration. These allocations are not affected by the flags of the
+process that makes the high-order allocation.
+
+> Thanks.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
