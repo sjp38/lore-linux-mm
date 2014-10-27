@@ -1,68 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 46FAC900021
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 14:48:15 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id g10so6196251pdj.10
-        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 11:48:14 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id qp3si11128153pac.147.2014.10.27.11.48.13
-        for <linux-mm@kvack.org>;
-        Mon, 27 Oct 2014 11:48:14 -0700 (PDT)
-Date: Mon, 27 Oct 2014 14:48:09 -0400
-From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Re: Progress on system crash traces with LTTng using DAX and pmem
-Message-ID: <20141027184809.GW11522@wil.cx>
-References: <1254279794.1957.1414240389301.JavaMail.zimbra@efficios.com>
- <465653369.1985.1414241485934.JavaMail.zimbra@efficios.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <465653369.1985.1414241485934.JavaMail.zimbra@efficios.com>
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id B4AD9900021
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 16:18:17 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id ft15so4315859pdb.7
+        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 13:18:17 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id a13si11287446pat.149.2014.10.27.13.18.16
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 Oct 2014 13:18:16 -0700 (PDT)
+Date: Mon, 27 Oct 2014 13:18:16 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [mmotm:master 59/223] fs/ocfs2/aops.c:654:14: warning:
+ comparison of distinct pointer types lacks a cast
+Message-Id: <20141027131816.502d8e2506843e8951f5933a@linux-foundation.org>
+In-Reply-To: <5449f4e7.+mDOGzw+O8rZdQFO%fengguang.wu@intel.com>
+References: <5449f4e7.+mDOGzw+O8rZdQFO%fengguang.wu@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Cc: Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, lttng-dev <lttng-dev@lists.lttng.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, WeiWei Wang <wangww631@huawei.com>, Linux Memory Management List <linux-mm@kvack.org>, kbuild-all@01.org
 
-On Sat, Oct 25, 2014 at 12:51:25PM +0000, Mathieu Desnoyers wrote:
-> A quick follow up on my progress on using DAX and pmem with
-> LTTng. I've been able to successfully gather a user-space
-> trace into buffers mmap'd into an ext4 filesystem within
-> a pmem block device mounted with -o dax to bypass the page
-> cache. After a soft reboot, I'm able to mount the partition
-> again, and gather the very last data collected in the buffers
-> by the applications. I created a "lttng-crash" program that
-> extracts data from those buffers and converts the content
-> into a readable Common Trace Format trace. So I guess
-> you have a use-case for your patchsets on commodity hardware
-> right there. :)
+On Fri, 24 Oct 2014 14:42:47 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
 
-Sweet!
+> tree:   git://git.cmpxchg.org/linux-mmotm.git master
+> head:   bb578c9c690d8a5525dafc52d442af18aee45280
+> commit: 5a9558722362888f158e60e5126296c867eb4a8f [59/223] ocfs2-add-and-remove-inode-in-orphan-dir-in-ocfs2_direct_io-fix
+> config: sh-allyesconfig (attached as .config)
+> reproduce:
+>   wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
+>   chmod +x ~/bin/make.cross
+>   git checkout 5a9558722362888f158e60e5126296c867eb4a8f
+>   # save the attached .config to linux build tree
+>   make.cross ARCH=sh 
+> 
+> All warnings:
+> 
+>    fs/ocfs2/aops.c: In function 'ocfs2_direct_IO_write':
+> >> fs/ocfs2/aops.c:654:14: warning: comparison of distinct pointer types lacks a cast [enabled by default]
+> 
+> vim +654 fs/ocfs2/aops.c
+> 
+>    638		struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+>    639		struct buffer_head *di_bh = NULL;
+>    640		size_t count = iter->count;
+>    641		journal_t *journal = osb->journal->j_journal;
+>    642		u32 p_cpos = 0;
+>    643		u32 v_cpos = ocfs2_clusters_for_bytes(osb->sb, offset);
+>    644		u32 zero_len;
+>    645		int cluster_align;
+>    646		loff_t final_size = offset + count;
+>    647		int append_write = offset >= i_size_read(inode) ? 1 : 0;
+>    648		unsigned int num_clusters = 0;
+>    649		unsigned int ext_flags = 0;
+>    650	
+>    651		{
+>    652			loff_t o = offset;
+>    653	
+>  > 654			zero_len = do_div(o, 1 << osb->s_clustersize_bits);
+>    655			cluster_align = !!zero_len;
+>    656		}
 
-> I've been asked by my customers if DAX would work well with
-> mtd-ram, which they are using. To you foresee any roadblock
-> with this approach ?
+hm, yes.
 
-Looks like we'd need to add support to mtd-blkdevs.c for DAX.  I assume
-they're already using one of the block-based ways to expose MTD to
-filesystems, rather than jffs2/logfs/ubifs?
-
-I'm thinking we might want to add a flag somewhere in the block_dev / bdi
-that indicates whether DAX is supported.  Currently we rely on whether
-->direct_access is present in the block_device_operations to indicate
-that, so we'd have to have two block_dev_operations in mtd-blkdevs,
-depending on whether direct access is supported by the underlying
-MTD device.  Not a show-stopper.
-
-> Please keep me in CC on your next patch versions. I'm willing
-> to spend some more time reviewing them if needed. By the way,
-> do you guys have a target time-frame/kernel version you aim
-> at for getting this work upstream ?
-
-We're trying to get it upstream ASAP.  We've been working on it
-publically since December last year, and it's getting frustrating that
-it's not upstream already.  I sent a v12 a few minutes before you sent
-this message ...  I thought git would add you to the cc's since your
-Reviewed-by is on some of the patches.
+--- a/fs/ocfs2/aops.c~ocfs2-add-and-remove-inode-in-orphan-dir-in-ocfs2_direct_io-fix-fix
++++ a/fs/ocfs2/aops.c
+@@ -649,7 +649,7 @@ static ssize_t ocfs2_direct_IO_write(str
+ 	unsigned int ext_flags = 0;
+ 
+ 	{
+-		loff_t o = offset;
++		u64 o = offset;
+ 
+ 		zero_len = do_div(o, 1 << osb->s_clustersize_bits);
+ 		cluster_align = !!zero_len;
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
