@@ -1,224 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f179.google.com (mail-yk0-f179.google.com [209.85.160.179])
-	by kanga.kvack.org (Postfix) with ESMTP id E6543900021
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 19:09:55 -0400 (EDT)
-Received: by mail-yk0-f179.google.com with SMTP id 131so805962ykp.10
-        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 16:09:55 -0700 (PDT)
-Received: from g5t1625.atlanta.hp.com (g5t1625.atlanta.hp.com. [15.192.137.8])
-        by mx.google.com with ESMTPS id 130si13496435ykl.125.2014.10.27.16.09.55
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id A0436900021
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 19:15:45 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id fa1so4680209pad.25
+        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 16:15:45 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id a12si11578993pdm.124.2014.10.27.16.15.44
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 27 Oct 2014 16:09:55 -0700 (PDT)
-From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH v4 7/7] x86, mm: Add set_memory_wt() for WT
-Date: Mon, 27 Oct 2014 16:55:45 -0600
-Message-Id: <1414450545-14028-8-git-send-email-toshi.kani@hp.com>
-In-Reply-To: <1414450545-14028-1-git-send-email-toshi.kani@hp.com>
-References: <1414450545-14028-1-git-send-email-toshi.kani@hp.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 Oct 2014 16:15:44 -0700 (PDT)
+Date: Mon, 27 Oct 2014 16:15:44 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 2/2] fs: proc: Include cma info in proc/meminfo
+Message-Id: <20141027161544.8955c1df4c01c48e22283692@linux-foundation.org>
+In-Reply-To: <xa1tk33p2zvq.fsf@mina86.com>
+References: <1413790391-31686-1-git-send-email-pintu.k@samsung.com>
+	<1413986796-19732-1-git-send-email-pintu.k@samsung.com>
+	<1413986796-19732-2-git-send-email-pintu.k@samsung.com>
+	<xa1tk33p2zvq.fsf@mina86.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Toshi Kani <toshi.kani@hp.com>
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: Pintu Kumar <pintu.k@samsung.com>, riel@redhat.com, aquini@redhat.com, paul.gortmaker@windriver.com, jmarchan@redhat.com, lcapitulino@redhat.com, kirill.shutemov@linux.intel.com, m.szyprowski@samsung.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, lauraa@codeaurora.org, gioh.kim@lge.com, mgorman@suse.de, rientjes@google.com, hannes@cmpxchg.org, vbabka@suse.cz, sasha.levin@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pintu_agarwal@yahoo.com, cpgs@samsung.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, ed.savinay@samsung.com
 
-This patch adds set_memory_wt(), set_memory_array_wt() and
-set_pages_array_wt() for setting specified range(s) of the
-regular memory to WT.
+On Fri, 24 Oct 2014 18:31:21 +0200 Michal Nazarewicz <mina86@mina86.com> wrote:
 
-Signed-off-by: Toshi Kani <toshi.kani@hp.com>
----
- Documentation/x86/pat.txt         |    9 ++++--
- arch/x86/include/asm/cacheflush.h |    6 +++-
- arch/x86/mm/pageattr.c            |   58 +++++++++++++++++++++++++++++++++----
- 3 files changed, 63 insertions(+), 10 deletions(-)
+> On Wed, Oct 22 2014, Pintu Kumar <pintu.k@samsung.com> wrote:
+> > This patch include CMA info (CMATotal, CMAFree) in /proc/meminfo.
+> > Currently, in a CMA enabled system, if somebody wants to know the
+> > total CMA size declared, there is no way to tell, other than the dmesg
+> > or /var/log/messages logs.
+> > With this patch we are showing the CMA info as part of meminfo, so that
+> > it can be determined at any point of time.
+> > This will be populated only when CMA is enabled.
+> >
+> > Below is the sample output from a ARM based device with RAM:512MB and CMA:16MB.
+> >
+> > MemTotal:         471172 kB
+> > MemFree:          111712 kB
+> > MemAvailable:     271172 kB
+> > .
+> > .
+> > .
+> > CmaTotal:          16384 kB
+> > CmaFree:            6144 kB
+> >
+> > This patch also fix below checkpatch errors that were found during these changes.
+> 
+> As already mentioned, this should be in separate patch.
 
-diff --git a/Documentation/x86/pat.txt b/Documentation/x86/pat.txt
-index be7b8c2..bf4339c 100644
---- a/Documentation/x86/pat.txt
-+++ b/Documentation/x86/pat.txt
-@@ -46,6 +46,9 @@ set_memory_uc          |    UC-   |    --      |       --         |
- set_memory_wc          |    WC    |    --      |       --         |
-  set_memory_wb         |          |            |                  |
-                        |          |            |                  |
-+set_memory_wt          |    WT    |    --      |       --         |
-+ set_memory_wb         |          |            |                  |
-+                       |          |            |                  |
- pci sysfs resource     |    --    |    --      |       UC-        |
-                        |          |            |                  |
- pci sysfs resource_wc  |    --    |    --      |       WC         |
-@@ -117,8 +120,8 @@ can be more restrictive, in case of any existing aliasing for that address.
- For example: If there is an existing uncached mapping, a new ioremap_wc can
- return uncached mapping in place of write-combine requested.
- 
--set_memory_[uc|wc] and set_memory_wb should be used in pairs, where driver will
--first make a region uc or wc and switch it back to wb after use.
-+set_memory_[uc|wc|wt] and set_memory_wb should be used in pairs, where driver
-+will first make a region uc, wc or wt and switch it back to wb after use.
- 
- Over time writes to /proc/mtrr will be deprecated in favor of using PAT based
- interfaces. Users writing to /proc/mtrr are suggested to use above interfaces.
-@@ -126,7 +129,7 @@ interfaces. Users writing to /proc/mtrr are suggested to use above interfaces.
- Drivers should use ioremap_[uc|wc] to access PCI BARs with [uc|wc] access
- types.
- 
--Drivers should use set_memory_[uc|wc] to set access type for RAM ranges.
-+Drivers should use set_memory_[uc|wc|wt] to set access type for RAM ranges.
- 
- 
- PAT debugging
-diff --git a/arch/x86/include/asm/cacheflush.h b/arch/x86/include/asm/cacheflush.h
-index a561171..7578e0b 100644
---- a/arch/x86/include/asm/cacheflush.h
-+++ b/arch/x86/include/asm/cacheflush.h
-@@ -81,7 +81,7 @@ static inline void set_page_memtype(struct page *pg,
- /*
-  * The set_memory_* API can be used to change various attributes of a virtual
-  * address range. The attributes include:
-- * Cachability   : UnCached, WriteCombining, WriteBack
-+ * Cachability   : UnCached, WriteCombining, WriteThrough, WriteBack
-  * Executability : eXeutable, NoteXecutable
-  * Read/Write    : ReadOnly, ReadWrite
-  * Presence      : NotPresent
-@@ -108,9 +108,11 @@ static inline void set_page_memtype(struct page *pg,
- 
- int _set_memory_uc(unsigned long addr, int numpages);
- int _set_memory_wc(unsigned long addr, int numpages);
-+int _set_memory_wt(unsigned long addr, int numpages);
- int _set_memory_wb(unsigned long addr, int numpages);
- int set_memory_uc(unsigned long addr, int numpages);
- int set_memory_wc(unsigned long addr, int numpages);
-+int set_memory_wt(unsigned long addr, int numpages);
- int set_memory_wb(unsigned long addr, int numpages);
- int set_memory_x(unsigned long addr, int numpages);
- int set_memory_nx(unsigned long addr, int numpages);
-@@ -121,10 +123,12 @@ int set_memory_4k(unsigned long addr, int numpages);
- 
- int set_memory_array_uc(unsigned long *addr, int addrinarray);
- int set_memory_array_wc(unsigned long *addr, int addrinarray);
-+int set_memory_array_wt(unsigned long *addr, int addrinarray);
- int set_memory_array_wb(unsigned long *addr, int addrinarray);
- 
- int set_pages_array_uc(struct page **pages, int addrinarray);
- int set_pages_array_wc(struct page **pages, int addrinarray);
-+int set_pages_array_wt(struct page **pages, int addrinarray);
- int set_pages_array_wb(struct page **pages, int addrinarray);
- 
- /*
-diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-index 34f870d..6ea685b 100644
---- a/arch/x86/mm/pageattr.c
-+++ b/arch/x86/mm/pageattr.c
-@@ -1484,12 +1484,10 @@ EXPORT_SYMBOL(set_memory_uc);
- static int _set_memory_array(unsigned long *addr, int addrinarray,
- 		enum page_cache_mode new_type)
- {
-+	enum page_cache_mode set_type;
- 	int i, j;
- 	int ret;
- 
--	/*
--	 * for now UC MINUS. see comments in ioremap_nocache()
--	 */
- 	for (i = 0; i < addrinarray; i++) {
- 		ret = reserve_memtype(__pa(addr[i]), __pa(addr[i]) + PAGE_SIZE,
- 					new_type, NULL);
-@@ -1497,9 +1495,12 @@ static int _set_memory_array(unsigned long *addr, int addrinarray,
- 			goto out_free;
- 	}
- 
-+	/* If WC, set to UC- first and then WC */
-+	set_type = (new_type == _PAGE_CACHE_MODE_WC) ?
-+				_PAGE_CACHE_MODE_UC_MINUS : new_type;
-+
- 	ret = change_page_attr_set(addr, addrinarray,
--				   cachemode2pgprot(_PAGE_CACHE_MODE_UC_MINUS),
--				   1);
-+				   cachemode2pgprot(set_type), 1);
- 
- 	if (!ret && new_type == _PAGE_CACHE_MODE_WC)
- 		ret = change_page_attr_set_clr(addr, addrinarray,
-@@ -1531,6 +1532,12 @@ int set_memory_array_wc(unsigned long *addr, int addrinarray)
- }
- EXPORT_SYMBOL(set_memory_array_wc);
- 
-+int set_memory_array_wt(unsigned long *addr, int addrinarray)
-+{
-+	return _set_memory_array(addr, addrinarray, _PAGE_CACHE_MODE_WT);
-+}
-+EXPORT_SYMBOL(set_memory_array_wt);
-+
- int _set_memory_wc(unsigned long addr, int numpages)
- {
- 	int ret;
-@@ -1571,6 +1578,34 @@ out_err:
- }
- EXPORT_SYMBOL(set_memory_wc);
- 
-+int _set_memory_wt(unsigned long addr, int numpages)
-+{
-+	return change_page_attr_set(&addr, numpages,
-+				    cachemode2pgprot(_PAGE_CACHE_MODE_WT), 0);
-+}
-+
-+int set_memory_wt(unsigned long addr, int numpages)
-+{
-+	int ret;
-+
-+	ret = reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
-+			      _PAGE_CACHE_MODE_WT, NULL);
-+	if (ret)
-+		goto out_err;
-+
-+	ret = _set_memory_wt(addr, numpages);
-+	if (ret)
-+		goto out_free;
-+
-+	return 0;
-+
-+out_free:
-+	free_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
-+out_err:
-+	return ret;
-+}
-+EXPORT_SYMBOL(set_memory_wt);
-+
- int _set_memory_wb(unsigned long addr, int numpages)
- {
- 	/* WB cache mode is hard wired to all cache attribute bits being 0 */
-@@ -1663,6 +1698,7 @@ static int _set_pages_array(struct page **pages, int addrinarray,
- {
- 	unsigned long start;
- 	unsigned long end;
-+	enum page_cache_mode set_type;
- 	int i;
- 	int free_idx;
- 	int ret;
-@@ -1676,8 +1712,12 @@ static int _set_pages_array(struct page **pages, int addrinarray,
- 			goto err_out;
- 	}
- 
-+	/* If WC, set to UC- first and then WC */
-+	set_type = (new_type == _PAGE_CACHE_MODE_WC) ?
-+				_PAGE_CACHE_MODE_UC_MINUS : new_type;
-+
- 	ret = cpa_set_pages_array(pages, addrinarray,
--			cachemode2pgprot(_PAGE_CACHE_MODE_UC_MINUS));
-+				  cachemode2pgprot(set_type));
- 	if (!ret && new_type == _PAGE_CACHE_MODE_WC)
- 		ret = change_page_attr_set_clr(NULL, addrinarray,
- 					       cachemode2pgprot(
-@@ -1711,6 +1751,12 @@ int set_pages_array_wc(struct page **pages, int addrinarray)
- }
- EXPORT_SYMBOL(set_pages_array_wc);
- 
-+int set_pages_array_wt(struct page **pages, int addrinarray)
-+{
-+	return _set_pages_array(pages, addrinarray, _PAGE_CACHE_MODE_WT);
-+}
-+EXPORT_SYMBOL(set_pages_array_wt);
-+
- int set_pages_wb(struct page *page, int numpages)
- {
- 	unsigned long addr = (unsigned long)page_address(page);
+Yes, in theory.  But a couple of little whitespace fixes aren't really
+worth a resend.  As long as they don't make the patch harder to read
+and to backport I usually just let them through.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
