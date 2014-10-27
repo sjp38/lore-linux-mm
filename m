@@ -1,56 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 593236B0069
-	for <linux-mm@kvack.org>; Sun, 26 Oct 2014 21:45:54 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id r10so4664804pdi.31
-        for <linux-mm@kvack.org>; Sun, 26 Oct 2014 18:45:54 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id j5si9353014pdk.48.2014.10.26.18.45.52
-        for <linux-mm@kvack.org>;
-        Sun, 26 Oct 2014 18:45:53 -0700 (PDT)
-From: "Ren, Qiaowei" <qiaowei.ren@intel.com>
-Subject: RE: [PATCH v9 09/12] x86, mpx: decode MPX instruction to get bound
- violation information
-Date: Mon, 27 Oct 2014 01:43:00 +0000
-Message-ID: <9E0BE1322F2F2246BD820DA9FC397ADE0180ED16@shsmsx102.ccr.corp.intel.com>
-References: <1413088915-13428-1-git-send-email-qiaowei.ren@intel.com>
- <1413088915-13428-10-git-send-email-qiaowei.ren@intel.com>
- <alpine.DEB.2.11.1410241408360.5308@nanos>
-In-Reply-To: <alpine.DEB.2.11.1410241408360.5308@nanos>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 299C66B0069
+	for <linux-mm@kvack.org>; Sun, 26 Oct 2014 22:04:25 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id kx10so4455837pab.40
+        for <linux-mm@kvack.org>; Sun, 26 Oct 2014 19:04:24 -0700 (PDT)
+Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
+        by mx.google.com with ESMTPS id rj8si9259448pdb.192.2014.10.26.19.04.23
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Sun, 26 Oct 2014 19:04:24 -0700 (PDT)
+Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
+ by mailout2.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NE2002CIZ399B30@mailout2.samsung.com> for
+ linux-mm@kvack.org; Mon, 27 Oct 2014 11:04:21 +0900 (KST)
+From: Weijie Yang <weijie.yang@samsung.com>
+Subject: [PATCH] zram: avoid NULL pointer access in concurrent situation
+Date: Mon, 27 Oct 2014 10:03:19 +0800
+Message-id: <000001cff18a$52d70d80$f8852880$%yang@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8
+Content-transfer-encoding: 7bit
+Content-language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, "linux-mips@linux-mips.org" <linux-mips@linux-mips.org>
+To: 'Andrew Morton' <akpm@linux-foundation.org>
+Cc: 'Minchan Kim' <minchan@kernel.org>, 'Sergey Senozhatsky' <sergey.senozhatsky@gmail.com>, 'Dan Streetman' <ddstreet@ieee.org>, 'Nitin Gupta' <ngupta@vflare.org>, 'linux-kernel' <linux-kernel@vger.kernel.org>, 'Linux-MM' <linux-mm@kvack.org>, 'Weijie Yang' <weijie.yang.kh@gmail.com>
 
+There is a rare NULL pointer bug in mem_used_total_show() and
+mem_used_max_store() in concurrent situation, like this:
 
+zram is not initialized, process A is a mem_used_total reader which runs
+periodically, while process B try to init zram.
 
-On 2014-10-24, Thomas Gleixner wrote:
-> On Sun, 12 Oct 2014, Qiaowei Ren wrote:
->=20
->> This patch sets bound violation fields of siginfo struct in #BR
->> exception handler by decoding the user instruction and constructing
->> the faulting pointer.
->>=20
->> This patch does't use the generic decoder, and implements a limited
->> special-purpose decoder to decode MPX instructions, simply because
->> the generic decoder is very heavyweight not just in terms of
->> performance but in terms of interface -- because it has to.
->=20
-> My question still stands why using the existing decoder is an issue.
-> Performance is a complete non issue in case of a bounds violation and
-> the interface argument is just silly, really.
->=20
+	process A 				process B
+access meta, get a NULL value
+						init zram, done
+init_done() is true
+access meta->mem_pool, get a NULL pointer BUG
 
-As hpa said, we only need to decode several mpx instructions including BNDC=
-L/BNDCU, and general decoder looks like a little heavy. Peter, what do you =
-think about it?
+This patch fixes this issue.
 
-Thanks,
-Qiaowei
+Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
+Acked-by: Minchan Kim <minchan@kernel.org>
+Acked-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+---
+ drivers/block/zram/zram_drv.c |   10 ++++++----
+ 1 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index 0e63e8a..2ad0b5b 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -99,11 +99,12 @@ static ssize_t mem_used_total_show(struct device *dev,
+ {
+ 	u64 val = 0;
+ 	struct zram *zram = dev_to_zram(dev);
+-	struct zram_meta *meta = zram->meta;
+ 
+ 	down_read(&zram->init_lock);
+-	if (init_done(zram))
++	if (init_done(zram)) {
++		struct zram_meta *meta = zram->meta;
+ 		val = zs_get_total_pages(meta->mem_pool);
++	}
+ 	up_read(&zram->init_lock);
+ 
+ 	return scnprintf(buf, PAGE_SIZE, "%llu\n", val << PAGE_SHIFT);
+@@ -173,16 +174,17 @@ static ssize_t mem_used_max_store(struct device *dev,
+ 	int err;
+ 	unsigned long val;
+ 	struct zram *zram = dev_to_zram(dev);
+-	struct zram_meta *meta = zram->meta;
+ 
+ 	err = kstrtoul(buf, 10, &val);
+ 	if (err || val != 0)
+ 		return -EINVAL;
+ 
+ 	down_read(&zram->init_lock);
+-	if (init_done(zram))
++	if (init_done(zram)) {
++		struct zram_meta *meta = zram->meta;
+ 		atomic_long_set(&zram->stats.max_used_pages,
+ 				zs_get_total_pages(meta->mem_pool));
++	}
+ 	up_read(&zram->init_lock);
+ 
+ 	return len;
+-- 
+1.7.0.4
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
