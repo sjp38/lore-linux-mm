@@ -1,148 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
-	by kanga.kvack.org (Postfix) with ESMTP id EE8FC6B006C
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 02:46:14 -0400 (EDT)
-Received: by mail-ig0-f169.google.com with SMTP id uq10so5347922igb.0
-        for <linux-mm@kvack.org>; Sun, 26 Oct 2014 23:46:14 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0021.hostedemail.com. [216.40.44.21])
-        by mx.google.com with ESMTP id zc3si15571006icb.50.2014.10.26.23.46.14
-        for <linux-mm@kvack.org>;
-        Sun, 26 Oct 2014 23:46:14 -0700 (PDT)
-Message-ID: <1414392371.8884.2.camel@perches.com>
-Subject: Re: [RFC V2] arm/arm64:add CONFIG_HAVE_ARCH_BITREVERSE to support
- rbit instruction
-From: Joe Perches <joe@perches.com>
-Date: Sun, 26 Oct 2014 23:46:11 -0700
-In-Reply-To: <35FD53F367049845BC99AC72306C23D103E010D18257@CNBJMBX05.corpusers.net>
-References: 
-	<35FD53F367049845BC99AC72306C23D103E010D18254@CNBJMBX05.corpusers.net>
-	 <35FD53F367049845BC99AC72306C23D103E010D18257@CNBJMBX05.corpusers.net>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
+	by kanga.kvack.org (Postfix) with ESMTP id A992B6B0069
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 03:03:53 -0400 (EDT)
+Received: by mail-ig0-f181.google.com with SMTP id l13so5805799iga.14
+        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 00:03:53 -0700 (PDT)
+Received: from e28smtp05.in.ibm.com (e28smtp05.in.ibm.com. [122.248.162.5])
+        by mx.google.com with ESMTPS id uf1si11184857igc.19.2014.10.27.00.03.50
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 27 Oct 2014 00:03:52 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Mon, 27 Oct 2014 12:33:44 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id E6ABDE0059
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 12:33:34 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay01.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s9R73Qla35061936
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 12:33:26 +0530
+Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s9R73TL6023525
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 12:33:30 +0530
+Date: Mon, 27 Oct 2014 12:33:29 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 05/10] uprobes: share the i_mmap_rwsem
+Message-ID: <20141027070329.GA10867@linux.vnet.ibm.com>
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <1414188380-17376-1-git-send-email-dave@stgolabs.net>
+ <1414188380-17376-6-git-send-email-dave@stgolabs.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1414188380-17376-6-git-send-email-dave@stgolabs.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Cc: 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, 'Will Deacon' <Will.Deacon@arm.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'akinobu.mita@gmail.com'" <akinobu.mita@gmail.com>
+To: Davidlohr Bueso <dave@stgolabs.net>, Oleg Nesterov <oleg@redhat.com>
+Cc: akpm@linux-foundation.org, hughd@google.com, riel@redhat.com, mgorman@suse.de, peterz@infradead.org, mingo@kernel.org, linux-kernel@vger.kernel.org, dbueso@suse.de, linux-mm@kvack.org
 
-On Mon, 2014-10-27 at 14:37 +0800, Wang, Yalin wrote:
-> this change add CONFIG_HAVE_ARCH_BITREVERSE config option,
-> so that we can use arm/arm64 rbit instruction to do bitrev operation
-> by hardware.
+* Davidlohr Bueso <dave@stgolabs.net> [2014-10-24 15:06:15]:
+
+> Both register and unregister call build_map_info() in order
+> to create the list of mappings before installing or removing
+> breakpoints for every mm which maps file backed memory. As
+> such, there is no reason to hold the i_mmap_rwsem exclusively,
+> so share it and allow concurrent readers to build the mapping
+> data.
 > 
-> Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
+> Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
+
+
+Copying Oleg (since he should have been copied on this one)
+
+Please see one comment below.
+
+Acked-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com> 
+
 > ---
->  arch/arm/Kconfig                |  1 +
->  arch/arm/include/asm/bitrev.h   | 21 +++++++++++++++++++++
->  arch/arm64/Kconfig              |  1 +
->  arch/arm64/include/asm/bitrev.h | 21 +++++++++++++++++++++
->  include/linux/bitrev.h          |  9 +++++++++
->  lib/Kconfig                     |  9 +++++++++
->  lib/bitrev.c                    |  2 ++
->  7 files changed, 64 insertions(+)
->  create mode 100644 arch/arm/include/asm/bitrev.h
->  create mode 100644 arch/arm64/include/asm/bitrev.h
+>  kernel/events/uprobes.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
 > 
-> diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-> index 89c4b5c..426cbcc 100644
-> --- a/arch/arm/Kconfig
-> +++ b/arch/arm/Kconfig
-> @@ -16,6 +16,7 @@ config ARM
->  	select DCACHE_WORD_ACCESS if HAVE_EFFICIENT_UNALIGNED_ACCESS
->  	select GENERIC_ALLOCATOR
->  	select GENERIC_ATOMIC64 if (CPU_V7M || CPU_V6 || !CPU_32v6K || !AEABI)
-> +	select HAVE_ARCH_BITREVERSE if (CPU_V7M || CPU_V7)
->  	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
->  	select GENERIC_IDLE_POLL_SETUP
->  	select GENERIC_IRQ_PROBE
-> diff --git a/arch/arm/include/asm/bitrev.h b/arch/arm/include/asm/bitrev.h
-> new file mode 100644
-> index 0000000..0df5866
-> --- /dev/null
-> +++ b/arch/arm/include/asm/bitrev.h
-> @@ -0,0 +1,21 @@
-> +#ifndef __ASM_ARM_BITREV_H
-> +#define __ASM_ARM_BITREV_H
-> +
-> +static inline __attribute_const__ u32 __arch_bitrev32(u32 x)
-> +{
-> +	__asm__ ("rbit %0, %1" : "=r" (x) : "r" (x));
-> +	return x;
-> +}
-> +
-> +static inline __attribute_const__ u16 __arch_bitrev16(u16 x)
-> +{
-> +	return __arch_bitrev32((u32)x) >> 16;
-> +}
-> +
-> +static inline __attribute_const__ u8 __arch_bitrev8(u8 x)
-> +{
-> +	return __arch_bitrev32((u32)x) >> 24;
-> +}
-> +
-> +#endif
-> +
-> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-> index 9532f8d..263c28c 100644
-> --- a/arch/arm64/Kconfig
-> +++ b/arch/arm64/Kconfig
-> @@ -36,6 +36,7 @@ config ARM64
->  	select HARDIRQS_SW_RESEND
->  	select HAVE_ARCH_AUDITSYSCALL
->  	select HAVE_ARCH_JUMP_LABEL
-> +	select HAVE_ARCH_BITREVERSE
->  	select HAVE_ARCH_KGDB
->  	select HAVE_ARCH_TRACEHOOK
->  	select HAVE_BPF_JIT
-> diff --git a/arch/arm64/include/asm/bitrev.h b/arch/arm64/include/asm/bitrev.h
-> new file mode 100644
-> index 0000000..5d24c11
-> --- /dev/null
-> +++ b/arch/arm64/include/asm/bitrev.h
-> @@ -0,0 +1,21 @@
-> +#ifndef __ASM_ARM_BITREV_H
-> +#define __ASM_ARM_BITREV_H
-> +
-> +static inline __attribute_const__ u32 __arch_bitrev32(u32 x)
-> +{
-> +	__asm__ ("rbit %w0, %w1" : "=r" (x) : "r" (x));
-> +	return x;
-> +}
-> +
-> +static inline __attribute_const__ u16 __arch_bitrev16(u16 x)
-> +{
-> +	return __arch_bitrev32((u32)x) >> 16;
-> +}
-> +
-> +static inline __attribute_const__ u8 __arch_bitrev8(u8 x)
-> +{
-> +	return __arch_bitrev32((u32)x) >> 24;
-> +}
-> +
-> +#endif
-> +
-> diff --git a/include/linux/bitrev.h b/include/linux/bitrev.h
-> index 7ffe03f..ef5b2bb 100644
-> --- a/include/linux/bitrev.h
-> +++ b/include/linux/bitrev.h
-> @@ -3,6 +3,14 @@
+> diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
+> index 045b649..7a9e620 100644
+> --- a/kernel/events/uprobes.c
+> +++ b/kernel/events/uprobes.c
+> @@ -724,7 +724,7 @@ build_map_info(struct address_space *mapping, loff_t offset, bool is_register)
+>  	int more = 0;
 >  
->  #include <linux/types.h>
->  
-> +#ifdef CONFIG_HAVE_ARCH_BITREVERSE
-> +#include <asm/bitrev.h>
-> +
-> +#define bitrev32 __arch_bitrev32
-> +#define bitrev16 __arch_bitrev16
-> +#define bitrev8 __arch_bitrev8
-> +
-> +#else
->  extern u8 const byte_rev_table[256];
+>   again:
+> -	i_mmap_lock_write(mapping);
+> +	i_mmap_lock_read(mapping);
+>  	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
+>  		if (!valid_vma(vma, is_register))
+>  			continue;
 
-If this is done, the direct uses of byte_rev_table in
-drivers/net/wireless/ath/carl9170/phy.c and
-sound/usb/6fire/firmware.c should be converted too?
 
+Just after this, we have
+if (!prev && !more) {
+	/*
+	 * Needs GFP_NOWAIT to avoid i_mmap_mutex recursion through
+	 * reclaim. This is optimistic, no harm done if it fails.
+	 */
+	prev = kmalloc(sizeof(struct map_info),
+			GFP_NOWAIT | __GFP_NOMEMALLOC | __GFP_NOWARN);
+	if (prev)
+		prev->next = NULL;
+}
+
+However in patch 02/10
+I dont think the comment referring to i_mmap_mutex was modified to
+refer i_mmap_lock_write.
+
+When thats taken care off, this patch should change that part accordingly.
+
+
+-- 
+Thanks and Regards
+Srikar Dronamraju
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
