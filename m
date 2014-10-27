@@ -1,83 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id B4AD9900021
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 16:18:17 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id ft15so4315859pdb.7
-        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 13:18:17 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id a13si11287446pat.149.2014.10.27.13.18.16
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 648D4900021
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 16:37:08 -0400 (EDT)
+Received: by mail-wi0-f169.google.com with SMTP id q5so7110904wiv.0
+        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 13:37:07 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id xu9si6025768wjb.135.2014.10.27.13.37.06
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Oct 2014 13:18:16 -0700 (PDT)
-Date: Mon, 27 Oct 2014 13:18:16 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [mmotm:master 59/223] fs/ocfs2/aops.c:654:14: warning:
- comparison of distinct pointer types lacks a cast
-Message-Id: <20141027131816.502d8e2506843e8951f5933a@linux-foundation.org>
-In-Reply-To: <5449f4e7.+mDOGzw+O8rZdQFO%fengguang.wu@intel.com>
-References: <5449f4e7.+mDOGzw+O8rZdQFO%fengguang.wu@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Mon, 27 Oct 2014 13:37:06 -0700 (PDT)
+Date: Mon, 27 Oct 2014 21:36:53 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: RE: [PATCH v9 09/12] x86, mpx: decode MPX instruction to get bound
+ violation information
+In-Reply-To: <9E0BE1322F2F2246BD820DA9FC397ADE0180ED16@shsmsx102.ccr.corp.intel.com>
+Message-ID: <alpine.DEB.2.11.1410272135420.5308@nanos>
+References: <1413088915-13428-1-git-send-email-qiaowei.ren@intel.com> <1413088915-13428-10-git-send-email-qiaowei.ren@intel.com> <alpine.DEB.2.11.1410241408360.5308@nanos> <9E0BE1322F2F2246BD820DA9FC397ADE0180ED16@shsmsx102.ccr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, WeiWei Wang <wangww631@huawei.com>, Linux Memory Management List <linux-mm@kvack.org>, kbuild-all@01.org
+To: "Ren, Qiaowei" <qiaowei.ren@intel.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, "linux-mips@linux-mips.org" <linux-mips@linux-mips.org>
 
-On Fri, 24 Oct 2014 14:42:47 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+On Mon, 27 Oct 2014, Ren, Qiaowei wrote:
+> On 2014-10-24, Thomas Gleixner wrote:
+> > On Sun, 12 Oct 2014, Qiaowei Ren wrote:
+> > 
+> >> This patch sets bound violation fields of siginfo struct in #BR
+> >> exception handler by decoding the user instruction and constructing
+> >> the faulting pointer.
+> >> 
+> >> This patch does't use the generic decoder, and implements a limited
+> >> special-purpose decoder to decode MPX instructions, simply because
+> >> the generic decoder is very heavyweight not just in terms of
+> >> performance but in terms of interface -- because it has to.
+> > 
+> > My question still stands why using the existing decoder is an issue.
+> > Performance is a complete non issue in case of a bounds violation and
+> > the interface argument is just silly, really.
+> > 
+> 
+> As hpa said, we only need to decode several mpx instructions
+> including BNDCL/BNDCU, and general decoder looks like a little
+> heavy. Peter, what do you think about it?
 
-> tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> head:   bb578c9c690d8a5525dafc52d442af18aee45280
-> commit: 5a9558722362888f158e60e5126296c867eb4a8f [59/223] ocfs2-add-and-remove-inode-in-orphan-dir-in-ocfs2_direct_io-fix
-> config: sh-allyesconfig (attached as .config)
-> reproduce:
->   wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
->   chmod +x ~/bin/make.cross
->   git checkout 5a9558722362888f158e60e5126296c867eb4a8f
->   # save the attached .config to linux build tree
->   make.cross ARCH=sh 
-> 
-> All warnings:
-> 
->    fs/ocfs2/aops.c: In function 'ocfs2_direct_IO_write':
-> >> fs/ocfs2/aops.c:654:14: warning: comparison of distinct pointer types lacks a cast [enabled by default]
-> 
-> vim +654 fs/ocfs2/aops.c
-> 
->    638		struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
->    639		struct buffer_head *di_bh = NULL;
->    640		size_t count = iter->count;
->    641		journal_t *journal = osb->journal->j_journal;
->    642		u32 p_cpos = 0;
->    643		u32 v_cpos = ocfs2_clusters_for_bytes(osb->sb, offset);
->    644		u32 zero_len;
->    645		int cluster_align;
->    646		loff_t final_size = offset + count;
->    647		int append_write = offset >= i_size_read(inode) ? 1 : 0;
->    648		unsigned int num_clusters = 0;
->    649		unsigned int ext_flags = 0;
->    650	
->    651		{
->    652			loff_t o = offset;
->    653	
->  > 654			zero_len = do_div(o, 1 << osb->s_clustersize_bits);
->    655			cluster_align = !!zero_len;
->    656		}
+You're repeating yourself. Care to read the discussion about this from
+the last round of review again?
 
-hm, yes.
+Thanks,
 
---- a/fs/ocfs2/aops.c~ocfs2-add-and-remove-inode-in-orphan-dir-in-ocfs2_direct_io-fix-fix
-+++ a/fs/ocfs2/aops.c
-@@ -649,7 +649,7 @@ static ssize_t ocfs2_direct_IO_write(str
- 	unsigned int ext_flags = 0;
- 
- 	{
--		loff_t o = offset;
-+		u64 o = offset;
- 
- 		zero_len = do_div(o, 1 << osb->s_clustersize_bits);
- 		cluster_align = !!zero_len;
-_
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
