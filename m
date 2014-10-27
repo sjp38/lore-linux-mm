@@ -1,70 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 5198C900021
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 16:49:13 -0400 (EDT)
-Received: by mail-wg0-f50.google.com with SMTP id z12so4047100wgg.33
-        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 13:49:12 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id ew3si11813780wib.48.2014.10.27.13.49.11
+Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B140900021
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 17:06:59 -0400 (EDT)
+Received: by mail-lb0-f179.google.com with SMTP id w7so1873031lbi.38
+        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 14:06:59 -0700 (PDT)
+Received: from mail.ud10.udmedia.de (ud10.udmedia.de. [194.117.254.50])
+        by mx.google.com with ESMTPS id t13si20631657lal.121.2014.10.27.14.06.57
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Mon, 27 Oct 2014 13:49:11 -0700 (PDT)
-Date: Mon, 27 Oct 2014 21:49:01 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v9 11/12] x86, mpx: cleanup unused bound tables
-In-Reply-To: <544DB873.1010207@intel.com>
-Message-ID: <alpine.DEB.2.11.1410272138540.5308@nanos>
-References: <1413088915-13428-1-git-send-email-qiaowei.ren@intel.com> <1413088915-13428-12-git-send-email-qiaowei.ren@intel.com> <alpine.DEB.2.11.1410241451280.5308@nanos> <544DB873.1010207@intel.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 Oct 2014 14:06:58 -0700 (PDT)
+Date: Mon, 27 Oct 2014 22:06:56 +0100
+From: Markus Trippelsdorf <markus@trippelsdorf.de>
+Subject: Re: isolate_freepages_block(): very high intermittent overhead
+Message-ID: <20141027210656.GC348@x4>
+References: <20141027204003.GB348@x4>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141027204003.GB348@x4>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ren Qiaowei <qiaowei.ren@intel.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Dave Hansen <dave.hansen@intel.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org
+To: linux-mm@kvack.org
+Cc: Vlastimil Babka <vbabka@suse.cz>
 
-On Mon, 27 Oct 2014, Ren Qiaowei wrote:
-> If so, I guess that there are some questions needed to be considered:
+On 2014.10.27 at 21:40 +0100, Markus Trippelsdorf wrote:
+> On my v3.18-rc2 kernel isolate_freepages_block() sometimes shows up very
+> high (>20%) in perf top during the configuration phase of software
+> builds. It increases build time considerably.
 > 
-> 1) Almost all palces which call do_munmap() will need to add
-> mpx_pre_unmap/post_unmap calls, like vm_munmap(), mremap(), shmdt(), etc..
+> Unfortunately the issue is not 100% reproducible, because it appears
+> only intermittently. And the symptoms vanish after a few minutes.
+> 
+> I think the "mm, compaction" series from Vlastimil is to blame, but it's
+> hard to be sure when bisection doesn't work.
 
-What's the problem with that?
- 
-> 2) before mpx_post_unmap() call, it is possible for those bounds tables within
-> mm->bd_remove_vmas to be re-used.
->
-> In this case, userspace may do new mapping and access one address which will
-> cover one of those bounds tables. During this period, HW will check if one
-> bounds table exist, if yes one fault won't be produced.
+Here is an example:
 
-Errm. Before user space can use the bounds table for the new mapping
-it needs to add the entries, right? So:
+Overhead  Shared Object      Symbol
+59.12%    [kernel]           [k] isolate_freepages_block
+4.75%     [kernel]           [k] amd_e400_idle
+1.10%     [kernel]           [k] clear_page_c
+0.89%     [kernel]           [k] get_pfnblock_flags_mask
+0.64%     ld-2.19.90.so      [.] do_lookup_x
+0.64%     [kernel]           [k] unmap_single_vma
+0.58%     [kernel]           [k] copy_page_rep
+0.54%     libc-2.19.90.so    [.] memcpy@@GLIBC_2.14
+0.52%     [kernel]           [k] filemap_map_pages
+0.47%     [kernel]           [k] _cond_resched
 
-CPU 0					CPU 1
-
-down_write(mm->bd_sem);
-mpx_pre_unmap();
-   clear bounds directory entries	
-unmap();
-					map()
-					write_bounds_entry()
-					trap()
-					  down_read(mm->bd_sem);
-mpx_post_unmap(); 
-up_write(mm->bd_sem);
-					  allocate_bounds_table();
-
-That's the whole point of bd_sem.
-
-> 3) According to Dave, those bounds tables related to adjacent VMAs within the
-> start and the end possibly don't have to be fully unmmaped, and we only need
-> free the part of backing physical memory.
-
-Care to explain why that's a problem?
- 
-Thanks,
-
-	tglx
+-- 
+Markus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
