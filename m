@@ -1,88 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id ADEE9900021
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 19:46:42 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id eu11so6474924pac.2
-        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 16:46:42 -0700 (PDT)
-Date: Mon, 27 Oct 2014 16:46:41 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bug 86831] New: wrong count of dirty pages when using AIO
-Message-Id: <20141027164641.8d072f4aac4bca346fe7baf3@linux-foundation.org>
-In-Reply-To: <bug-86831-27@https.bugzilla.kernel.org/>
-References: <bug-86831-27@https.bugzilla.kernel.org/>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 4852D900021
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 19:48:17 -0400 (EDT)
+Received: by mail-qa0-f46.google.com with SMTP id s7so4594871qap.19
+        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 16:48:17 -0700 (PDT)
+Received: from e39.co.us.ibm.com (e39.co.us.ibm.com. [32.97.110.160])
+        by mx.google.com with ESMTPS id o1si23178936qat.26.2014.10.27.16.48.16
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 27 Oct 2014 16:48:16 -0700 (PDT)
+Received: from /spool/local
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Mon, 27 Oct 2014 17:48:15 -0600
+Received: from b03cxnp08026.gho.boulder.ibm.com (b03cxnp08026.gho.boulder.ibm.com [9.17.130.18])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 682BAC9003C
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 19:36:55 -0400 (EDT)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by b03cxnp08026.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s9RNiQZ652887728
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 00:44:26 +0100
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id s9RNnB5S016124
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 17:49:11 -0600
+Date: Mon, 27 Oct 2014 16:44:25 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: rcu_preempt detected stalls.
+Message-ID: <20141027234425.GA19438@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20141013173504.GA27955@redhat.com>
+ <543DDD5E.9080602@oracle.com>
+ <20141023183917.GX4977@linux.vnet.ibm.com>
+ <54494F2F.6020005@oracle.com>
+ <20141023195808.GB4977@linux.vnet.ibm.com>
+ <544A45F8.2030207@oracle.com>
+ <20141024161337.GQ4977@linux.vnet.ibm.com>
+ <544A80B3.9070800@oracle.com>
+ <20141027211329.GJ5718@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141027211329.GJ5718@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: m.koenigshaus@wut.de
-Cc: bugzilla-daemon@bugzilla.kernel.org, linux-aio@kvack.org, linux-mm@kvack.org
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, htejun@gmail.com, linux-mm@kvack.org
 
-
-(switched to email.  Please respond via emailed reply-to-all, not via the
-bugzilla web interface).
-
-On Fri, 24 Oct 2014 15:33:02 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
-
-> https://bugzilla.kernel.org/show_bug.cgi?id=86831
+On Mon, Oct 27, 2014 at 02:13:29PM -0700, Paul E. McKenney wrote:
+> On Fri, Oct 24, 2014 at 12:39:15PM -0400, Sasha Levin wrote:
+> > On 10/24/2014 12:13 PM, Paul E. McKenney wrote:
+> > > On Fri, Oct 24, 2014 at 08:28:40AM -0400, Sasha Levin wrote:
+> > >> > On 10/23/2014 03:58 PM, Paul E. McKenney wrote:
+> > >>> > > On Thu, Oct 23, 2014 at 02:55:43PM -0400, Sasha Levin wrote:
+> > >>>>> > >> > On 10/23/2014 02:39 PM, Paul E. McKenney wrote:
+> > >>>>>>> > >>> > > On Tue, Oct 14, 2014 at 10:35:10PM -0400, Sasha Levin wrote:
+> > >>>>>>>>> > >>>> > >> On 10/13/2014 01:35 PM, Dave Jones wrote:
+> > >>>>>>>>>>> > >>>>> > >>> oday in "rcu stall while fuzzing" news:
+> > >>>>>>>>>>> > >>>>> > >>>
+> > >>>>>>>>>>> > >>>>> > >>> INFO: rcu_preempt detected stalls on CPUs/tasks:
+> > >>>>>>>>>>> > >>>>> > >>> 	Tasks blocked on level-0 rcu_node (CPUs 0-3): P766 P646
+> > >>>>>>>>>>> > >>>>> > >>> 	Tasks blocked on level-0 rcu_node (CPUs 0-3): P766 P646
+> > >>>>>>>>>>> > >>>>> > >>> 	(detected by 0, t=6502 jiffies, g=75434, c=75433, q=0)
+> > >>>>>>>>> > >>>> > >>
+> > >>>>>>>>> > >>>> > >> I've complained about RCU stalls couple days ago (in a different context)
+> > >>>>>>>>> > >>>> > >> on -next. I guess whatever causing them made it into Linus's tree?
+> > >>>>>>>>> > >>>> > >>
+> > >>>>>>>>> > >>>> > >> https://lkml.org/lkml/2014/10/11/64
+> > >>>>>>> > >>> > > 
+> > >>>>>>> > >>> > > And on that one, I must confess that I don't see where the RCU read-side
+> > >>>>>>> > >>> > > critical section might be.
+> > >>>>>>> > >>> > > 
+> > >>>>>>> > >>> > > Hmmm...  Maybe someone forgot to put an rcu_read_unlock() somewhere.
+> > >>>>>>> > >>> > > Can you reproduce this with CONFIG_PROVE_RCU=y?
+> > >>>>> > >> > 
+> > >>>>> > >> > Paul, if that was directed to me - Yes, I see stalls with CONFIG_PROVE_RCU
+> > >>>>> > >> > set and nothing else is showing up before/after that.
+> > >>> > > Indeed it was directed to you.  ;-)
+> > >>> > > 
+> > >>> > > Does the following crude diagnostic patch turn up anything?
+> > >> > 
+> > >> > Nope, seeing stalls but not seeing that pr_err() you added.
+> > > OK, color me confused.  Could you please send me the full dmesg or a
+> > > pointer to it?
+> > 
+> > Attached.
 > 
->             Bug ID: 86831
->            Summary: wrong count of dirty pages when using AIO
->            Product: Memory Management
->            Version: 2.5
->     Kernel Version: 3.14.21
->           Hardware: All
->                 OS: Linux
->               Tree: Mainline
->             Status: NEW
->           Severity: normal
->           Priority: P1
->          Component: Other
->           Assignee: akpm@linux-foundation.org
->           Reporter: m.koenigshaus@wut.de
->         Regression: No
+> Thank you!  I would complain about the FAULT_INJECTION messages, but
+> they don't appear to be happening all that frequently.
 > 
-> Hello,
-> 
-> we use a ARM custom Board with mysqld. Shuting down mysqld (with IAO support,
-> on a ext3 formatted Harddrive) leads to a negative number of dirty pages
-> (underrun to the counter). The negative number results in a drastic reduction
-> of the write performance because the page cache is not used, because the kernel
-> thinks it is still 2 ^ 32 dirty pages open. I found, the problem is
-> mm/truncate.c->cancel_dirty_page()
-> 
-> To reproduce,first change cancel_dirty_page()
-> 
-> [...]
-> if (mapping && mapping_cap_account_dirty (mapping)) {
-> ++WARN_ON ((int) global_page_state(NR_FILE_DIRTY) <0);
-> dec_zone_page_state (page, NR_FILE_DIRTY);
-> [...]
-> 
-> And test ->
+> The stack dumps do look different here.  I suspect that this is a real
+> issue in the VM code.
 
-hm, I wonder what AIO is doing differently - cancel_dirty_page() isn't
-specific to aio - it's used by all truncations.
+And to that end...  The filemap_map_pages() function does have loop over
+a list of pages.  I wonder if the rcu_read_lock() should be moved into
+the radix_tree_for_each_slot() loop.  CCing linux-mm for their thoughts,
+though it looks to me like the current radix_tree_for_each_slot() wants
+to be under RCU protection.  But I am not seeing anything that requires
+all iterations of the loop to be under the same RCU read-side critical
+section.  Maybe something like the following patch?
 
-Just to sanity check, could you please try something like this?
+							Thanx, Paul
 
---- a/include/linux/vmstat.h~a
-+++ a/include/linux/vmstat.h
-@@ -241,6 +241,8 @@ static inline void __inc_zone_state(stru
- static inline void __dec_zone_state(struct zone *zone, enum zone_stat_item item)
- {
- 	atomic_long_dec(&zone->vm_stat[item]);
-+	WARN_ON_ONCE(item == NR_FILE_DIRTY &&
-+		atomic_long_read(&zone->vm_stat[item]) < 0);
- 	atomic_long_dec(&vm_stat[item]);
+------------------------------------------------------------------------
+
+mm: Attempted fix for RCU CPU stall warning
+
+It appears that filemap_map_pages() can stay in a single RCU read-side
+critical section for a very long time if given a large area to map.
+This could result in RCU CPU stall warnings.  This commit therefore breaks
+the read-side critical section into per-iteration critical sections, taking
+care to make sure that the radix_tree_for_each_slot() call itself remains
+in an RCU read-side critical section, as required.
+
+Reported-by: Sasha Levin <sasha.levin@oracle.com>
+Signed-off-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 14b4642279f1..f78f144fb41f 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -2055,6 +2055,8 @@ skip:
+ next:
+ 		if (iter.index == vmf->max_pgoff)
+ 			break;
++		rcu_read_unlock();
++		rcu_read_lock();
+ 	}
+ 	rcu_read_unlock();
  }
- 
-
-That should catch the first offending decrement, although yes, it's
-probably cancel_dirty_page().
-
-(This assumes you're using an SMP kernel.  If not,
-mm/vmstat.c:dec_zone_page_state() will need to be changed instead)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
