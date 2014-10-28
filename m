@@ -1,62 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BCCA900021
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 06:44:56 -0400 (EDT)
-Received: by mail-wi0-f179.google.com with SMTP id h11so1113507wiw.0
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 03:44:55 -0700 (PDT)
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com. [74.125.82.48])
-        by mx.google.com with ESMTPS id qd12si13780714wic.70.2014.10.28.03.44.54
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 28 Oct 2014 03:44:55 -0700 (PDT)
-Received: by mail-wg0-f48.google.com with SMTP id m15so461666wgh.31
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 03:44:54 -0700 (PDT)
-Date: Tue, 28 Oct 2014 10:44:52 +0000
-From: Steve Capper <steve.capper@linaro.org>
-Subject: Re: [PATCH V3 1/2] mm: Update generic gup implementation to handle
- hugepage directory
-Message-ID: <20141028104451.GB4187@linaro.org>
-References: <1414233860-7683-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <20141027160612.b7fd0b1cc9d82faeaa674940@linux-foundation.org>
- <1414459229.31711.0.camel@concordia>
- <20141027183241.a5339085.akpm@linux-foundation.org>
+	by kanga.kvack.org (Postfix) with ESMTP id AFD32900021
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 06:55:05 -0400 (EDT)
+Received: by mail-wi0-f179.google.com with SMTP id h11so1126159wiw.12
+        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 03:55:05 -0700 (PDT)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.194])
+        by mx.google.com with ESMTP id di9si13831441wib.52.2014.10.28.03.55.03
+        for <linux-mm@kvack.org>;
+        Tue, 28 Oct 2014 03:55:04 -0700 (PDT)
+Date: Tue, 28 Oct 2014 12:54:58 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: Progress on system crash traces with LTTng using DAX and pmem
+Message-ID: <20141028105458.GA9768@node.dhcp.inet.fi>
+References: <1254279794.1957.1414240389301.JavaMail.zimbra@efficios.com>
+ <465653369.1985.1414241485934.JavaMail.zimbra@efficios.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20141027183241.a5339085.akpm@linux-foundation.org>
+In-Reply-To: <465653369.1985.1414241485934.JavaMail.zimbra@efficios.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, benh@kernel.crashing.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org
+To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Cc: Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, lttng-dev <lttng-dev@lists.lttng.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Oct 27, 2014 at 06:32:41PM -0700, Andrew Morton wrote:
-> On Tue, 28 Oct 2014 12:20:29 +1100 Michael Ellerman <mpe@ellerman.id.au> wrote:
-> 
-> > On Mon, 2014-10-27 at 16:06 -0700, Andrew Morton wrote:
-> > > On Sat, 25 Oct 2014 16:14:19 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
-> > > 
-> > > > Update generic gup implementation with powerpc specific details.
-> > > > On powerpc at pmd level we can have hugepte, normal pmd pointer
-> > > > or a pointer to the hugepage directory.
-> > > 
-> > > I grabbed these.  It would be better if they were merged into the powerpc
-> > > tree where they'll get more testing than in linux-next alone.
-> >  
-> > Fine by me. Can I get an ack from you and/or someone else on CC?
-> > 
-> 
-> Only arm and arm64 use this code.  Steve, could you please look it over
-> and check that arm is still happy?
+On Sat, Oct 25, 2014 at 12:51:25PM +0000, Mathieu Desnoyers wrote:
+> FYI, the main reason why my customer wants to go with a
+> "trace into memory that survives soft reboot" approach
+> rather than to use things like kexec/kdump is that they
+> care about the amount of time it takes to reboot their
+> machines. They want a solution where they can extract the
+> detailed crash data after reboot, after the machine is
+> back online, rather than requiring a few minutes of offline
+> time to extract the crash details.
 
-Hi Andrew,
-I've tested it and posted some comments on it.
+IIRC, on x86 there's no guarantee that your memory content will be
+preserved over reboot. BIOS is free to mess with it.
 
-If the arch/arm and arch/arm64 changes are removed and a comment about
-an assumption made by the new gup_huge_pte code is added then I'm happy.
-
-Cheers,
 -- 
-Steve
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
