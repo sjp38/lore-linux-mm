@@ -1,87 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BFA0900021
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 11:12:10 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id lf10so927250pab.5
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 08:12:09 -0700 (PDT)
-Received: from galahad.ideasonboard.com (galahad.ideasonboard.com. [185.26.127.97])
-        by mx.google.com with ESMTPS id nz9si1593496pbb.86.2014.10.28.08.12.08
+Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 21A75900021
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 11:40:07 -0400 (EDT)
+Received: by mail-qa0-f49.google.com with SMTP id i13so632551qae.8
+        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 08:40:06 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o67si2763021qga.117.2014.10.28.08.40.05
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Oct 2014 08:12:08 -0700 (PDT)
-From: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-Subject: Re: CMA: test_pages_isolated failures in alloc_contig_range
-Date: Tue, 28 Oct 2014 17:12:14 +0200
-Message-ID: <8295446.YZpkE7ns4p@avalon>
-In-Reply-To: <544EAD3B.6070102@codeaurora.org>
-References: <2457604.k03RC2Mv4q@avalon> <544EAD3B.6070102@codeaurora.org>
+        Tue, 28 Oct 2014 08:40:05 -0700 (PDT)
+Message-ID: <544FB8A8.1090402@redhat.com>
+Date: Tue, 28 Oct 2014 11:39:20 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+Subject: Re: [PATCH 0/4] Convert khugepaged to a task_work function
+References: <1414032567-109765-1-git-send-email-athorlton@sgi.com> <87lho0pf4l.fsf@tassilo.jf.intel.com> <544F9302.4010001@redhat.com>
+In-Reply-To: <544F9302.4010001@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <lauraa@codeaurora.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-sh@vger.kernel.org, Michal Nazarewicz <mina86@mina86.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Andi Kleen <andi@firstfloor.org>, Alex Thorlton <athorlton@sgi.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <lliubbo@gmail.com>, David Rientjes <rientjes@google.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@redhat.com>, Kees Cook <keescook@chromium.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Vladimir Davydov <vdavydov@parallels.com>, linux-kernel@vger.kernel.org
 
-Hi Laura,
+On 10/28/2014 08:58 AM, Rik van Riel wrote:
+> On 10/28/2014 08:12 AM, Andi Kleen wrote:
+>> Alex Thorlton <athorlton@sgi.com> writes:
+>>
+>>> Last week, while discussing possible fixes for some unexpected/unwanted behavior
+>>> from khugepaged (see: https://lkml.org/lkml/2014/10/8/515) several people
+>>> mentioned possibly changing changing khugepaged to work as a task_work function
+>>> instead of a kernel thread.  This will give us finer grained control over the
+>>> page collapse scans, eliminate some unnecessary scans since tasks that are
+>>> relatively inactive will not be scanned often, and eliminate the unwanted
+>>> behavior described in the email thread I mentioned.
+>>
+>> With your change, what would happen in a single threaded case?
+>>
+>> Previously one core would scan and another would run the workload.
+>> With your change both scanning and running would be on the same
+>> core.
+>>
+>> Would seem like a step backwards to me.
+>
+> It's not just scanning, either.
+>
+> Memory compaction can spend a lot of time waiting on
+> locks. Not consuming CPU or anything, but just waiting.
+>
+> I am not convinced that moving all that waiting to task
+> context is a good idea.
 
-On Monday 27 October 2014 13:38:19 Laura Abbott wrote:
-> On 10/26/2014 2:09 PM, Laurent Pinchart wrote:
-> > Hello,
-> > 
-> > I've run into a CMA-related issue while testing a DMA engine driver with
-> > dmatest on a Renesas R-Car ARM platform.
-> > 
-> > When allocating contiguous memory through CMA the kernel prints the
-> > following messages to the kernel log.
-> > 
-> > [   99.770000] alloc_contig_range test_pages_isolated(6b843, 6b844) failed
-> > [  124.220000] alloc_contig_range test_pages_isolated(6b843, 6b844) failed
-> > [  127.550000] alloc_contig_range test_pages_isolated(6b845, 6b846) failed
-> > [  132.850000] alloc_contig_range test_pages_isolated(6b845, 6b846) failed
-> > [  151.390000] alloc_contig_range test_pages_isolated(6b843, 6b844) failed
-> > [  166.490000] alloc_contig_range test_pages_isolated(6b843, 6b844) failed
-> > [  181.450000] alloc_contig_range test_pages_isolated(6b845, 6b846) failed
-> > 
-> > I've stripped the dmatest module down as much as possible to remove any
-> > hardware dependencies and came up with the following implementation.
-> 
-> ...
-> 
-> > Loading the module will start 4 threads that will allocate and free DMA
-> > coherent memory in a tight loop and eventually produce the error. It seems
-> > like the probability of occurrence grows with the number of threads, which
-> > could indicate a race condition.
-> > 
-> > The tests have been run on 3.18-rc1, but previous tests on 3.16 did
-> > exhibit the same behaviour.
-> > 
-> > I'm not that familiar with the CMA internals, help would be appreciated to
-> > debug the problem.
-> 
-> Are you actually seeing allocation failures or is it just the messages?
+It may be worth investigating how the hugepage code calls
+the memory allocation & compaction code.
 
-It's just the messages, I haven't noticed allocation failures.
-
-> The messages themselves may be harmless if the allocation is succeeding.
-> It's an indication that the particular range could not be isolated and
-> therefore another range should be used for the CMA allocation. Joonsoo
-> Kim had a patch series[1] that was designed to correct some problems with
-> isolation and from my testing it helps fix some CMA related errors. You
-> might try picking that up to see if it helps.
-> 
-> Thanks,
-> Laura
-> 
-> [1] https://lkml.org/lkml/2014/10/23/90
-
-I've tested the patches but they don't seem to have any influence on the 
-isolation test failures.
-
--- 
-Regards,
-
-Laurent Pinchart
+Doing only async compaction from task_work context should
+probably be ok.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
