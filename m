@@ -1,144 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 800FA900021
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 13:40:19 -0400 (EDT)
-Received: by mail-qg0-f47.google.com with SMTP id j107so911947qga.34
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 10:40:18 -0700 (PDT)
-Received: from mail.mandriva.com.br (mail.mandriva.com.br. [177.220.134.171])
-        by mx.google.com with ESMTP id m2si3341990qai.115.2014.10.28.10.40.16
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 3631A900021
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 13:43:52 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id lj1so1224171pab.22
+        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 10:43:51 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id qd9si1837590pdb.221.2014.10.28.10.43.50
         for <linux-mm@kvack.org>;
-        Tue, 28 Oct 2014 10:40:16 -0700 (PDT)
-Date: Tue, 28 Oct 2014 15:40:12 -0200
-From: Marco A Benatto <marco.benatto@mandriva.com.br>
-Subject: Re: UKSM: What's maintainers think about it?
-Message-ID: <20141028174011.GC1445@sirus.conectiva>
-References: <CAGqmi77uR2Nems6fE_XM1t3a06OwuqJP-0yOMOQh7KH13vzdzw@mail.gmail.com>
- <20141025213201.005762f9.akpm@linux-foundation.org>
- <20141028133131.GA1445@sirus.conectiva>
- <CAGqmi76b0oUMAsAvBt=PwaxF5JZXcckSdWe2=bL_pXaiUFFCXQ@mail.gmail.com>
+        Tue, 28 Oct 2014 10:43:51 -0700 (PDT)
+Message-ID: <544FD5D4.4090404@intel.com>
+Date: Tue, 28 Oct 2014 10:43:48 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGqmi76b0oUMAsAvBt=PwaxF5JZXcckSdWe2=bL_pXaiUFFCXQ@mail.gmail.com>
+Subject: Re: [PATCH v9 05/12] x86, mpx: on-demand kernel allocation of bounds
+ tables
+References: <1413088915-13428-1-git-send-email-qiaowei.ren@intel.com> <1413088915-13428-6-git-send-email-qiaowei.ren@intel.com> <alpine.DEB.2.11.1410241257300.5308@nanos>
+In-Reply-To: <alpine.DEB.2.11.1410241257300.5308@nanos>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Timofey Titovets <nefelim4ag@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Thomas Gleixner <tglx@linutronix.de>, Qiaowei Ren <qiaowei.ren@intel.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org
 
-On Tue, Oct 28, 2014 at 04:59:45PM +0300, Timofey Titovets wrote:
-> 2014-10-28 16:31 GMT+03:00 Marco A Benatto <marco.benatto@mandriva.com.br>:
-> > Hi All,
-> >
-> > I'm not mantainer at all, but I've being using UKSM for a long time and remember
-> > to port it to 3.16 family once.
-> > UKSM seems good and stable and, at least for me, doesn't raised any errors.
-> > AFAIK the only limitation I know (maybe I has been fixed already) it isn't able
-> > to work together with zram stuff due to some race-conditions.
-> >
-> > Cheers,
-> >
-> > Marco A Benatto
-> > Mandriva OEM Developer
-> >
+On 10/24/2014 05:08 AM, Thomas Gleixner wrote:
+> On Sun, 12 Oct 2014, Qiaowei Ren wrote:
+>> +	/*
+>> +	 * Go poke the address of the new bounds table in to the
+>> +	 * bounds directory entry out in userspace memory.  Note:
+>> +	 * we may race with another CPU instantiating the same table.
+>> +	 * In that case the cmpxchg will see an unexpected
+>> +	 * 'actual_old_val'.
+>> +	 */
+>> +	ret = user_atomic_cmpxchg_inatomic(&actual_old_val, bd_entry,
+>> +					   expected_old_val, bt_addr);
 > 
-> http://kerneldedup.org/forum/forum.php?mod=viewthread&tid=106
-> As i did find, uksm not conflicting with zram (or zswap - on my system).
-
-Interesting,
-
-I've contacted the mantainers to send some patches in April and they said me this:
-
-"The biggest problem between UKSM/KSM and zswap is that pages can be reclaimed so
-fast by zswap before UKSM/KSM can have a chance to merge those can be merged.
-
-So one of the ideas that make a direct solution is that:
-1. sleep the processes who trigger the zswap
-2. wake up the UKSM thread and adjust the scan parameters properly to make it
-sample the whole memory in a limited time to judge if there are any VMAs need to
-be worked on.
-3. If there are those VMAs then merge them at full speed. if there not,
-sleep UKSM.
-4. Wake up the zswap code pathes and judge that if memory is enough to satisfy
-the requests. If there is enough memory then return and redo the memory
-allocation.
-5. if there is not, then go on to do zswapping.
-
-This is just an outline of ONE of the solutions. It need to be carefully
-tweaked. Direct page reclaiming of zswap is a time sensitive code path
-, we cannot add too much overhead by doing this,
-otherwise it loses its meaning." 
-
-> ---
-> Offtop:
-> Why i open up question about UKSM?
+> This is fully preemptible non-atomic context, right?
 > 
-> May be we (as community, who want to help) can split out UKSM in
-> "several patches" in independent git repo. For allowing maintainers to
-> review this.
-> 
-> Is it morally correct?
-> 
-> UKSM code licensed under GPL and as i think we can feel free for port
-> and adopt code (with indicating the author)
-> 
-> Please, fix me if i mistake or miss something.
-> This is just stream of my thoughts %_%
-> ---
+> So this wants a proper comment, why using
+> user_atomic_cmpxchg_inatomic() is the right thing to do here.
 
-If there's no problem on that and if you don't mind, I can help you on this.
-What dou you think?
+Hey Thomas,
 
-Cheers,
+How's this for a new comment?  Does this cover the points you think need
+clarified?
 
-> > On Sat, Oct 25, 2014 at 09:32:01PM -0700, Andrew Morton wrote:
-> >> On Sat, 25 Oct 2014 22:25:56 +0300 Timofey Titovets <nefelim4ag@gmail.com> wrote:
-> >>
-> >> > Good time of day, people.
-> >> > I try to find 'mm' subsystem specific people and lists, but list
-> >> > linux-mm looks dead and mail archive look like deprecated.
-> >> > If i must to sent this message to another list or add CC people, let me know.
-> >>
-> >> linux-mm@kvack.org is alive and well.
-> 
-> So cool, thanks for adding 'mm' to CC.
-> 
-> >> > If questions are already asked (i can't find activity before), feel
-> >> > free to kick me.
-> >> >
-> >> > The main questions:
-> >> > 1. Somebody test it? I see many reviews about it.
-> >> > I already port it to latest linux-next-git kernel and its work without issues.
-> >> > http://pastebin.com/6FMuKagS
-> >> > (if it matter, i can describe use cases and results, if somebody ask it)
-> >> >
-> >> > 2. Developers of UKSM already tried to merge it? Somebody talked with uksm devs?
-> >> > offtop: now i try to communicate with dev's on kerneldedup.org forum,
-> >> > but i have problems with email verification and wait admin
-> >> > registration approval.
-> >> > (i already sent questions to
-> >> > http://kerneldedup.org/forum/home.php?mod=space&username=xianai ,
-> >> > because him looks like team leader)
-> >> >
-> >> > 3. I just want collect feedbacks from linux maintainers team, if you
-> >> > decide what UKSM not needed in kernel, all other comments (as i
-> >> > understand) not matter.
-> >> >
-> >> > Like KSM, but better.
-> >> > UKSM - Ultra Kernel Samepage Merging
-> >> > http://kerneldedup.org/en/projects/uksm/introduction/
-> >>
-> >> It's the first I've heard of it.  No, as far as I know there has been
-> >> no attempt to upstream UKSM.
-> >>
-> >> --
-> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> >> the body to majordomo@kvack.org.  For more info on Linux MM,
-> >> see: http://www.linux-mm.org/ .
-> >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> -- 
-> Have a nice day,
-> Timofey.
+====
+
+The kernel has allocated a bounds table and needs to point the
+(userspace-allocated) directory to it.  The directory entry is the
+*only* place we track that this table was allocated, so we essentially
+use it instead of an kernel data structure for synchronization.  A
+copy_to_user()-style function would not give us the atomicity that we need.
+
+If two threads race to instantiate a table, the cmpxchg ensures we know
+which one lost the race and that the loser frees the table that they
+just allocated.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
