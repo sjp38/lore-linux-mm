@@ -1,64 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 9359B900021
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 03:21:14 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id bj1so106572pad.15
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 00:21:14 -0700 (PDT)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id rt8si462617pbc.249.2014.10.28.00.21.12
-        for <linux-mm@kvack.org>;
-        Tue, 28 Oct 2014 00:21:13 -0700 (PDT)
-Date: Tue, 28 Oct 2014 16:22:31 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v4 1/4] mm/page_alloc: fix incorrect isolation behavior
- by rechecking migratetype
-Message-ID: <20141028072231.GC27813@js1304-P5Q-DELUXE>
-References: <1414051821-12769-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1414051821-12769-2-git-send-email-iamjoonsoo.kim@lge.com>
- <544E1F70.1030106@suse.cz>
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 57971900021
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 03:22:13 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id r10so114809pdi.3
+        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 00:22:13 -0700 (PDT)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id gw4si526684pbb.172.2014.10.28.00.22.12
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 28 Oct 2014 00:22:12 -0700 (PDT)
+Received: by mail-pa0-f45.google.com with SMTP id lf10so119184pab.4
+        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 00:22:11 -0700 (PDT)
+Date: Tue, 28 Oct 2014 23:18:38 +0800
+From: Fengwei Yin <yfw.kernel@gmail.com>
+Subject: Re: [PATCH v2] smaps should deal with huge zero page exactly same as
+ normal zero page.
+Message-ID: <20141028150944.GA13840@gmail.com>
+References: <1414422133-7929-1-git-send-email-yfw.kernel@gmail.com>
+ <20141027151748.3901b18abcb65426e7ed50b0@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <544E1F70.1030106@suse.cz>
+In-Reply-To: <20141027151748.3901b18abcb65426e7ed50b0@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Fengguang Wu <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-On Mon, Oct 27, 2014 at 11:33:20AM +0100, Vlastimil Babka wrote:
-> On 10/23/2014 10:10 AM, Joonsoo Kim wrote:
-> > Changes from v3:
-> > Add one more check in free_one_page() that checks whether migratetype is
-> > MIGRATE_ISOLATE or not. Without this, abovementioned case 1 could happens.
+On Mon, Oct 27, 2014 at 03:17:48PM -0700, Andrew Morton wrote:
+> On Mon, 27 Oct 2014 23:02:13 +0800 Fengwei Yin <yfw.kernel@gmail.com> wrote:
 > 
-> Good catch.
-> 
-> > Cc: <stable@vger.kernel.org>
-> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> 
-> (minor suggestion below)
-> 
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -749,9 +749,16 @@ static void free_one_page(struct zone *zone,
-> >  	if (nr_scanned)
-> >  		__mod_zone_page_state(zone, NR_PAGES_SCANNED, -nr_scanned);
+> > We could see following memory info in /proc/xxxx/smaps with THP enabled.
+> >   7bea458b3000-7fea458b3000 r--p 00000000 00:13 39989  /dev/zero
+> >   Size:           4294967296 kB
+> >   Rss:            10612736 kB
+> >   Pss:            10612736 kB
+> >   Shared_Clean:          0 kB
+> >   Shared_Dirty:          0 kB
+> >   Private_Clean:  10612736 kB
+> >   Private_Dirty:         0 kB
+> >   Referenced:     10612736 kB
+> >   Anonymous:             0 kB
+> >   AnonHugePages:  10612736 kB
+> >   Swap:                  0 kB
+> >   KernelPageSize:        4 kB
+> >   MMUPageSize:           4 kB
+> >   Locked:                0 kB
+> >   VmFlags: rd mr mw me
+> > which is wrong becuase just huge_zero_page/normal_zero_page is used for
+> > /dev/zero. Most of the value should be 0.
+> > 
+> > This patch detects huge_zero_page (original implementation just detect
+> > normal_zero_page) and avoids to update the wrong value for huge_zero_page.
+> > 
+> > ...
+> >
+> > --- a/mm/memory.c
+> > +++ b/mm/memory.c
+> > @@ -41,6 +41,7 @@
+> >  #include <linux/kernel_stat.h>
+> >  #include <linux/mm.h>
+> >  #include <linux/hugetlb.h>
+> > +#include <linux/huge_mm.h>
+> >  #include <linux/mman.h>
+> >  #include <linux/swap.h>
+> >  #include <linux/highmem.h>
+> > @@ -787,6 +788,9 @@ check_pfn:
+> >  		return NULL;
+> >  	}
 > >  
-> > +	if (unlikely(has_isolate_pageblock(zone) ||
+> > +	if (is_huge_zero_pfn(pfn))
+> > +		return NULL;
+> > +
 > 
-> Would it make any difference if this was read just once and not in each
-> loop iteration?
+> Why this change?
 > 
-> 
+I suppose the huge zero page should have same behavior as normal zero
+page. vm_normal_page will return NULL if the pte is for normal zero
+page. This change make it return NULL for huge zero page.
 
-I guess that you'd like to say this to patch 2.
-I can do it, but, it doesn't any difference in terms of performance,
-because we access zone's member variable in each loop iteration
-in __free_one_page().
+> What effect does it have upon vm_normal_page()'s many existing callers?
+This is good question. I suppose it will not impact existing caller.
+As I undestand, all other callers just pass real pte to vm_normal_page.
+They will not go to this "is_huge_zero_pfn" path.
 
-Thanks.
+The only impact code is in smaps_pte_entry() (fs/proc/task_mmu.c) which
+is what I want to fix.
+
+BTW, the patch doesn't pass build without CONFIG_TRANSPARENT_HUGEPAGE. I
+will send a new patch. Sorry for this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
