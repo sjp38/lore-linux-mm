@@ -1,48 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id E1EB7900021
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 21:32:25 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id lf10so4929843pab.5
-        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 18:32:25 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id ra9si11763505pac.136.2014.10.27.18.32.24
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B4A1900021
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 21:35:18 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id rd3so6672410pab.0
+        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 18:35:18 -0700 (PDT)
+Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
+        by mx.google.com with ESMTPS id fo9si11737364pdb.175.2014.10.27.18.34.55
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Oct 2014 18:32:24 -0700 (PDT)
-Date: Mon, 27 Oct 2014 18:32:41 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH V3 1/2] mm: Update generic gup implementation to handle
- hugepage directory
-Message-Id: <20141027183241.a5339085.akpm@linux-foundation.org>
-In-Reply-To: <1414459229.31711.0.camel@concordia>
-References: <1414233860-7683-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	<20141027160612.b7fd0b1cc9d82faeaa674940@linux-foundation.org>
-	<1414459229.31711.0.camel@concordia>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 27 Oct 2014 18:35:18 -0700 (PDT)
+From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Date: Tue, 28 Oct 2014 09:34:42 +0800
+Subject: RE: [RFC V3] arm/arm64:add CONFIG_HAVE_ARCH_BITREVERSE to support
+ rbit instruction
+Message-ID: <35FD53F367049845BC99AC72306C23D103E010D1825A@CNBJMBX05.corpusers.net>
+References: <35FD53F367049845BC99AC72306C23D103E010D18254@CNBJMBX05.corpusers.net>
+ <35FD53F367049845BC99AC72306C23D103E010D18257@CNBJMBX05.corpusers.net>
+ <35FD53F367049845BC99AC72306C23D103E010D18259@CNBJMBX05.corpusers.net>
+ <20141027104848.GD8768@arm.com>
+In-Reply-To: <20141027104848.GD8768@arm.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Steve Capper <steve.capper@linaro.org>, Andrea Arcangeli <aarcange@redhat.com>, benh@kernel.crashing.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org
+To: 'Will Deacon' <will.deacon@arm.com>
+Cc: 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'akinobu.mita@gmail.com'" <akinobu.mita@gmail.com>
 
-On Tue, 28 Oct 2014 12:20:29 +1100 Michael Ellerman <mpe@ellerman.id.au> wrote:
-
-> On Mon, 2014-10-27 at 16:06 -0700, Andrew Morton wrote:
-> > On Sat, 25 Oct 2014 16:14:19 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
-> > 
-> > > Update generic gup implementation with powerpc specific details.
-> > > On powerpc at pmd level we can have hugepte, normal pmd pointer
-> > > or a pointer to the hugepage directory.
-> > 
-> > I grabbed these.  It would be better if they were merged into the powerpc
-> > tree where they'll get more testing than in linux-next alone.
->  
-> Fine by me. Can I get an ack from you and/or someone else on CC?
-> 
-
-Only arm and arm64 use this code.  Steve, could you please look it over
-and check that arm is still happy?
+> From: Will Deacon [mailto:will.deacon@arm.com]
+> > +++ b/arch/arm/include/asm/bitrev.h
+> > @@ -0,0 +1,28 @@
+> > +#ifndef __ASM_ARM_BITREV_H
+> > +#define __ASM_ARM_BITREV_H
+> > +
+> > +static __always_inline __attribute_const__ u32 __arch_bitrev32(u32 x)
+> > +{
+> > +	if (__builtin_constant_p(x)) {
+> > +		x =3D (x >> 16) | (x << 16);
+> > +		x =3D ((x & 0xFF00FF00) >> 8) | ((x & 0x00FF00FF) << 8);
+> > +		x =3D ((x & 0xF0F0F0F0) >> 4) | ((x & 0x0F0F0F0F) << 4);
+> > +		x =3D ((x & 0xCCCCCCCC) >> 2) | ((x & 0x33333333) << 2);
+> > +		return ((x & 0xAAAAAAAA) >> 1) | ((x & 0x55555555) << 1);
+> > +	}
+> > +	__asm__ ("rbit %0, %1" : "=3Dr" (x) : "r" (x));
+>=20
+> I think you need to use %w0 and %w1 here, otherwise you bit-reverse the 6=
+4-
+> bit register.
+For arm64 in arch/arm64/include/asm/bitrev.h.
+I have use __asm__ ("rbit %w0, %w1" : "=3Dr" (x) : "r" (x));
+For arm , I use __asm__ ("rbit %0, %1" : "=3Dr" (x) : "r" (x));
+Am I right ?
+Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
