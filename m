@@ -1,64 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id D9F64900021
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 10:11:11 -0400 (EDT)
-Received: by mail-wi0-f178.google.com with SMTP id q5so1721809wiv.5
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 07:11:11 -0700 (PDT)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.194])
-        by mx.google.com with ESMTP id m4si14591607wia.35.2014.10.28.07.11.09
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A8F4900021
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 10:40:53 -0400 (EDT)
+Received: by mail-pd0-f173.google.com with SMTP id v10so815948pde.32
+        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 07:40:53 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id yh6si1468638pab.171.2014.10.28.07.40.52
         for <linux-mm@kvack.org>;
-        Tue, 28 Oct 2014 07:11:09 -0700 (PDT)
-Date: Tue, 28 Oct 2014 16:08:29 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 00/10] mm: improve usage of the i_mmap lock
-Message-ID: <20141028140829.GA11524@node.dhcp.inet.fi>
-References: <1414188380-17376-1-git-send-email-dave@stgolabs.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1414188380-17376-1-git-send-email-dave@stgolabs.net>
+        Tue, 28 Oct 2014 07:40:52 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] mremap: take anon_vma lock in shared mode
+Date: Tue, 28 Oct 2014 16:40:37 +0200
+Message-Id: <1414507237-114852-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <dave@stgolabs.net>
-Cc: akpm@linux-foundation.org, hughd@google.com, riel@redhat.com, mgorman@suse.de, peterz@infradead.org, mingo@kernel.org, linux-kernel@vger.kernel.org, dbueso@suse.de, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: riel@redhat.com, walken@google.com, aarcange@redhat.com, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Fri, Oct 24, 2014 at 03:06:10PM -0700, Davidlohr Bueso wrote:
-> Davidlohr Bueso (10):
->   mm,fs: introduce helpers around the i_mmap_mutex
->   mm: use new helper functions around the i_mmap_mutex
->   mm: convert i_mmap_mutex to rwsem
->   mm/rmap: share the i_mmap_rwsem
->   uprobes: share the i_mmap_rwsem
->   mm/xip: share the i_mmap_rwsem
->   mm/memory-failure: share the i_mmap_rwsem
->   mm/mremap: share the i_mmap_rwsem
->   mm/nommu: share the i_mmap_rwsem
->   mm/hugetlb: share the i_mmap_rwsem
-> 
->  fs/hugetlbfs/inode.c         | 14 +++++++-------
->  fs/inode.c                   |  2 +-
->  include/linux/fs.h           | 23 ++++++++++++++++++++++-
->  include/linux/mmu_notifier.h |  2 +-
->  kernel/events/uprobes.c      |  6 +++---
->  kernel/fork.c                |  4 ++--
->  mm/filemap.c                 | 10 +++++-----
->  mm/filemap_xip.c             | 23 +++++++++--------------
->  mm/fremap.c                  |  4 ++--
->  mm/hugetlb.c                 | 22 +++++++++++-----------
->  mm/memory-failure.c          |  4 ++--
->  mm/memory.c                  |  8 ++++----
->  mm/mmap.c                    | 22 +++++++++++-----------
->  mm/mremap.c                  |  6 +++---
->  mm/nommu.c                   | 17 ++++++++---------
->  mm/rmap.c                    | 12 ++++++------
->  16 files changed, 97 insertions(+), 82 deletions(-)
+There's no modification to anon_vma interval tree. We only need to
+serialize against exclusive rmap walker who want s to catch all ptes the
+page is mapped with. Shared lock is enough for that.
 
-Apart from already mentioned cosmetics, the patchset looks good to me.
+Suggested-by: Davidlohr Bueso <dbueso@suse.de>
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ mm/mremap.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@intel.linux.com>
-
+diff --git a/mm/mremap.c b/mm/mremap.c
+index c855922497a3..1e35ba664406 100644
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -123,7 +123,7 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
+ 		}
+ 		if (vma->anon_vma) {
+ 			anon_vma = vma->anon_vma;
+-			anon_vma_lock_write(anon_vma);
++			anon_vma_lock_read(anon_vma);
+ 		}
+ 	}
+ 
+@@ -154,7 +154,7 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
+ 	pte_unmap(new_pte - 1);
+ 	pte_unmap_unlock(old_pte - 1, old_ptl);
+ 	if (anon_vma)
+-		anon_vma_unlock_write(anon_vma);
++		anon_vma_unlock_read(anon_vma);
+ 	if (mapping)
+ 		mutex_unlock(&mapping->i_mmap_mutex);
+ }
+@@ -199,12 +199,12 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
+ 					      vma);
+ 				/* See comment in move_ptes() */
+ 				if (need_rmap_locks)
+-					anon_vma_lock_write(vma->anon_vma);
++					anon_vma_lock_read(vma->anon_vma);
+ 				err = move_huge_pmd(vma, new_vma, old_addr,
+ 						    new_addr, old_end,
+ 						    old_pmd, new_pmd);
+ 				if (need_rmap_locks)
+-					anon_vma_unlock_write(vma->anon_vma);
++					anon_vma_unlock_read(vma->anon_vma);
+ 			}
+ 			if (err > 0) {
+ 				need_flush = true;
 -- 
- Kirill A. Shutemov
+2.1.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
