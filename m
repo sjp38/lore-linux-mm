@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C107900021
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 17:19:03 -0400 (EDT)
-Received: by mail-ig0-f180.google.com with SMTP id h3so1929777igd.1
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 14:19:03 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0189.hostedemail.com. [216.40.44.189])
-        by mx.google.com with ESMTP id ds9si4231298icc.92.2014.10.28.14.19.02
+	by kanga.kvack.org (Postfix) with ESMTP id CEC296B0075
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 17:22:54 -0400 (EDT)
+Received: by mail-ig0-f180.google.com with SMTP id h3so1918565igd.13
+        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 14:22:54 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0158.hostedemail.com. [216.40.44.158])
+        by mx.google.com with ESMTP id s32si3909927ioi.30.2014.10.28.14.22.54
         for <linux-mm@kvack.org>;
-        Tue, 28 Oct 2014 14:19:02 -0700 (PDT)
-Message-ID: <1414531138.10912.12.camel@perches.com>
-Subject: [PATCH] carl9170: Convert byte_rev_table uses to bitrev8
+        Tue, 28 Oct 2014 14:22:54 -0700 (PDT)
+Message-ID: <1414531369.10912.14.camel@perches.com>
+Subject: [PATCH] 6fire: Convert byte_rev_table uses to bitrev8
 From: Joe Perches <joe@perches.com>
-Date: Tue, 28 Oct 2014 14:18:58 -0700
+Date: Tue, 28 Oct 2014 14:22:49 -0700
 In-Reply-To: <1414392371.8884.2.camel@perches.com>
 References: 
-	<35FD53F367049845BC99AC72306C23D103E010D18254@CNBJMBX05.corpusers.net>
+	  <35FD53F367049845BC99AC72306C23D103E010D18254@CNBJMBX05.corpusers.net>
 	 <35FD53F367049845BC99AC72306C23D103E010D18257@CNBJMBX05.corpusers.net>
 	 <1414392371.8884.2.camel@perches.com>
 Content-Type: text/plain; charset="ISO-8859-1"
@@ -22,8 +22,8 @@ Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christian Lamparter <chunkeey@googlemail.com>
-Cc: "John W. Linville" <linville@tuxdriver.com>, "Wang, Yalin" <Yalin.Wang@sonymobile.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Will Deacon <Will.Deacon@arm.com>, Akinobu Mita <akinobu.mita@gmail.com>, linux-arm-kernel@lists.infradead.org, linux-wireless@vger.kernel.org, netdev <netdev@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Jaroslav Kysela <perex@perex.cz>, Takashi Iwai <tiwai@suse.de>
+Cc: "Wang, Yalin" <Yalin.Wang@sonymobile.com>, Russell King <linux@arm.linux.org.uk>, linux-mm@kvack.org, Will Deacon <Will.Deacon@arm.com>, Akinobu Mita <akinobu.mita@gmail.com>, linux-arm-kernel@lists.infradead.org, alsa-devel <alsa-devel@alsa-project.org>, LKML <linux-kernel@vger.kernel.org>linux-mm@kvack.orgWill Deacon <Will.Deacon@arm.com>Akinobu Mita <akinobu.mita@gmail.com>linux-arm-kernel@lists.infradead.orgalsa-devel <alsa-devel@alsa-project.org>LKML <linux-kernel@vger.kernel.org>
 
 Use the inline function instead of directly indexing the array.
 
@@ -56,31 +56,22 @@ On Sun, 2014-10-26 at 23:46 -0700, Joe Perches wrote:
 > > +#else
 > >  extern u8 const byte_rev_table[256];
 
- drivers/net/wireless/ath/carl9170/phy.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ sound/usb/6fire/firmware.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/net/wireless/ath/carl9170/phy.c b/drivers/net/wireless/ath/carl9170/phy.c
-index b80b213..dca6df1 100644
---- a/drivers/net/wireless/ath/carl9170/phy.c
-+++ b/drivers/net/wireless/ath/carl9170/phy.c
-@@ -994,7 +994,7 @@ static int carl9170_init_rf_bank4_pwr(struct ar9170 *ar, bool band5ghz,
- 			refsel0 = 0;
- 			refsel1 = 1;
- 		}
--		chansel = byte_rev_table[chansel];
-+		chansel = bitrev8(chansel);
- 	} else {
- 		if (freq == 2484) {
- 			chansel = 10 + (freq - 2274) / 5;
-@@ -1002,7 +1002,7 @@ static int carl9170_init_rf_bank4_pwr(struct ar9170 *ar, bool band5ghz,
- 		} else
- 			chansel = 16 + (freq - 2272) / 5;
- 		chansel *= 4;
--		chansel = byte_rev_table[chansel];
-+		chansel = bitrev8(chansel);
- 	}
+diff --git a/sound/usb/6fire/firmware.c b/sound/usb/6fire/firmware.c
+index 3b02e54..62c25e7 100644
+--- a/sound/usb/6fire/firmware.c
++++ b/sound/usb/6fire/firmware.c
+@@ -316,7 +316,7 @@ static int usb6fire_fw_fpga_upload(
  
- 	d1 =	chansel;
+ 	while (c != end) {
+ 		for (i = 0; c != end && i < FPGA_BUFSIZE; i++, c++)
+-			buffer[i] = byte_rev_table[(u8) *c];
++			buffer[i] = bitrev8((u8)*c);
+ 
+ 		ret = usb6fire_fw_fpga_write(device, buffer, i);
+ 		if (ret < 0) {
 
 
 --
