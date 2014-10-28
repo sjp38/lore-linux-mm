@@ -1,64 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f54.google.com (mail-la0-f54.google.com [209.85.215.54])
-	by kanga.kvack.org (Postfix) with ESMTP id A318E900021
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 12:57:51 -0400 (EDT)
-Received: by mail-la0-f54.google.com with SMTP id gm9so979898lab.41
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 09:57:50 -0700 (PDT)
-Received: from mail-la0-x231.google.com (mail-la0-x231.google.com. [2a00:1450:4010:c03::231])
-        by mx.google.com with ESMTPS id ri5si3359614lbb.115.2014.10.28.09.57.49
+Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 215A9900021
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 13:14:24 -0400 (EDT)
+Received: by mail-la0-f50.google.com with SMTP id s18so1036493lam.37
+        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 10:14:22 -0700 (PDT)
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTPS id qs7si3472403lbb.76.2014.10.28.10.14.20
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 28 Oct 2014 09:57:49 -0700 (PDT)
-Received: by mail-la0-f49.google.com with SMTP id ge10so984032lab.8
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 09:57:49 -0700 (PDT)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: CMA: test_pages_isolated failures in alloc_contig_range
-In-Reply-To: <544F9EAA.5010404@hurleysoftware.com>
-References: <2457604.k03RC2Mv4q@avalon> <xa1tsii8l683.fsf@mina86.com> <544F9EAA.5010404@hurleysoftware.com>
-Date: Tue, 28 Oct 2014 17:57:45 +0100
-Message-ID: <xa1tfve8ku7q.fsf@mina86.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 Oct 2014 10:14:20 -0700 (PDT)
+From: Joerg Roedel <joro@8bytes.org>
+Subject: [PATCH 0/3 v4] mmu_notifier: Allow to manage CPU external TLBs
+Date: Tue, 28 Oct 2014 18:13:57 +0100
+Message-Id: <1414516440-910-1-git-send-email-joro@8bytes.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Hurley <peter@hurleysoftware.com>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-sh@vger.kernel.org, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>
+Cc: Jerome Glisse <jglisse@redhat.com>, Jay.Cornwall@amd.com, Oded.Gabbay@amd.com, John.Bridgman@amd.com, Suravee.Suthikulpanit@amd.com, ben.sander@amd.com, Jesse Barnes <jbarnes@virtuousgeek.org>, David Woodhouse <dwmw2@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, jroedel@suse.de, joro@8bytes.org
 
-> On 10/28/2014 08:38 AM, Michal Nazarewicz wrote:
->> Like Laura wrote, the message is not (should not be) a problem in
->> itself:
->
-> [...]
->
->> So as you can see cma_alloc will try another part of the cma region if
->> test_pages_isolated fails.
->>=20
->> Obviously, if CMA region is fragmented or there's enough space for only
->> one allocation of required size isolation failures will cause allocation
->> failures, so it's best to avoid them, but they are not always avoidable.
->>=20
->> To debug you would probably want to add more debug information about the
->> page (i.e. data from struct page) that failed isolation after the
->> pr_warn in alloc_contig_range.
+From: Joerg Roedel <jroedel@suse.de>
 
-On Tue, Oct 28 2014, Peter Hurley <peter@hurleysoftware.com> wrote:
-> If the message does not indicate an actual problem, then its printk level=
- is
-> too high. These messages have been reported when using 3.16+ distro kerne=
-ls.
+Changes V3->V4:
 
-I think it could be argued both ways.  The condition is not an error,
-since in many cases cma_alloc will be able to continue, but it *is* an
-undesired state.  As such it's not an error but feels to me a bit more
-then just information, hence a warning.  I don't care either way, though.
+* Rebased to v3.18-rc2
+* Updated patch description and some comments
 
---=20
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
- (o o)
-ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
+Changes V2->V3:
+
+* Rebased to v3.17-rc4
+* Fixed compile error because pmdp_get_and_clear_notify was
+  missing
+
+Changes V1->V2:
+
+* Rebase to v3.16-rc7
+* Added call of ->invalidate_range to
+  __mmu_notifier_invalidate_end() so that the subsystem
+  doesn't need to register an ->invalidate_end() call-back,
+  subsystems will likely either register
+  invalidate_range_start/end or invalidate_range, so that
+  should be fine.
+* Re-orded declarations a bit to reflect that
+  invalidate_range is not only called between
+  invalidate_range_start/end
+* Updated documentation to cover the case where
+  invalidate_range is called outside of
+  invalidate_range_start/end to flush page-table pages out
+  of the TLB
+
+Hi,
+
+here is v4 of my patch-set which extends the mmu-notifiers
+to allow managing CPU external TLBs. A more in-depth
+description on the How and Why of this patch-set can be
+found in the description of patch 1/3.
+
+Any comments and review appreciated!
+
+Thanks,
+
+	Joerg
+
+Joerg Roedel (3):
+  mmu_notifier: Add mmu_notifier_invalidate_range()
+  mmu_notifier: Call mmu_notifier_invalidate_range() from VMM
+  mmu_notifier: Add the call-back for mmu_notifier_invalidate_range()
+
+ include/linux/mmu_notifier.h | 88 +++++++++++++++++++++++++++++++++++++++++---
+ kernel/events/uprobes.c      |  2 +-
+ mm/fremap.c                  |  2 +-
+ mm/huge_memory.c             |  9 +++--
+ mm/hugetlb.c                 |  7 +++-
+ mm/ksm.c                     |  4 +-
+ mm/memory.c                  |  3 +-
+ mm/migrate.c                 |  3 +-
+ mm/mmu_notifier.c            | 25 +++++++++++++
+ mm/rmap.c                    |  2 +-
+ 10 files changed, 128 insertions(+), 17 deletions(-)
+
+-- 
+1.8.4.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
