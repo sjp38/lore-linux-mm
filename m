@@ -1,99 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 540B9900021
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 06:42:58 -0400 (EDT)
-Received: by mail-wg0-f47.google.com with SMTP id a1so463718wgh.18
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 03:42:57 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id t8si6784183wiy.69.2014.10.28.03.42.55
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BCCA900021
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 06:44:56 -0400 (EDT)
+Received: by mail-wi0-f179.google.com with SMTP id h11so1113507wiw.0
+        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 03:44:55 -0700 (PDT)
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com. [74.125.82.48])
+        by mx.google.com with ESMTPS id qd12si13780714wic.70.2014.10.28.03.44.54
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Tue, 28 Oct 2014 03:42:55 -0700 (PDT)
-Date: Tue, 28 Oct 2014 11:42:45 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v9 11/12] x86, mpx: cleanup unused bound tables
-In-Reply-To: <544F300B.7050002@intel.com>
-Message-ID: <alpine.DEB.2.11.1410281044420.5308@nanos>
-References: <1413088915-13428-1-git-send-email-qiaowei.ren@intel.com> <1413088915-13428-12-git-send-email-qiaowei.ren@intel.com> <alpine.DEB.2.11.1410241451280.5308@nanos> <544DB873.1010207@intel.com> <alpine.DEB.2.11.1410272138540.5308@nanos>
- <544F300B.7050002@intel.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 28 Oct 2014 03:44:55 -0700 (PDT)
+Received: by mail-wg0-f48.google.com with SMTP id m15so461666wgh.31
+        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 03:44:54 -0700 (PDT)
+Date: Tue, 28 Oct 2014 10:44:52 +0000
+From: Steve Capper <steve.capper@linaro.org>
+Subject: Re: [PATCH V3 1/2] mm: Update generic gup implementation to handle
+ hugepage directory
+Message-ID: <20141028104451.GB4187@linaro.org>
+References: <1414233860-7683-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <20141027160612.b7fd0b1cc9d82faeaa674940@linux-foundation.org>
+ <1414459229.31711.0.camel@concordia>
+ <20141027183241.a5339085.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141027183241.a5339085.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ren Qiaowei <qiaowei.ren@intel.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Dave Hansen <dave.hansen@intel.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, benh@kernel.crashing.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org
 
-On Tue, 28 Oct 2014, Ren Qiaowei wrote:
-> On 10/28/2014 04:49 AM, Thomas Gleixner wrote:
-> > On Mon, 27 Oct 2014, Ren Qiaowei wrote:
-> > > If so, I guess that there are some questions needed to be considered:
+On Mon, Oct 27, 2014 at 06:32:41PM -0700, Andrew Morton wrote:
+> On Tue, 28 Oct 2014 12:20:29 +1100 Michael Ellerman <mpe@ellerman.id.au> wrote:
+> 
+> > On Mon, 2014-10-27 at 16:06 -0700, Andrew Morton wrote:
+> > > On Sat, 25 Oct 2014 16:14:19 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
 > > > 
-> > > 1) Almost all palces which call do_munmap() will need to add
-> > > mpx_pre_unmap/post_unmap calls, like vm_munmap(), mremap(), shmdt(), etc..
-> > 
-> > What's the problem with that?
-> > 
-> 
-> For example:
-> 
-> shmdt()
->     down_write(mm->mmap_sem);
->     vma = find_vma();
->     while (vma)
->         do_munmap();
->     up_write(mm->mmap_sem);
-> 
-> We could not simply add mpx_pre_unmap() before do_munmap() or down_write().
-> And seems like it is a little hard for shmdt() to be changed to match this
-> solution, right?
-
-Everything which does not fall in place right away seems to be a
-little hard, heavy weight or whatever excuses you have for it.
-
-It's not that hard, really. We can simply split out the search code
-into a seperate function and use it for both problems.
-
-Yes, it is quite some work to do, but its straight forward.
-
-> > > 3) According to Dave, those bounds tables related to adjacent VMAs within
-> > > the
-> > > start and the end possibly don't have to be fully unmmaped, and we only
-> > > need
-> > > free the part of backing physical memory.
-> > 
-> > Care to explain why that's a problem?
+> > > > Update generic gup implementation with powerpc specific details.
+> > > > On powerpc at pmd level we can have hugepte, normal pmd pointer
+> > > > or a pointer to the hugepage directory.
+> > > 
+> > > I grabbed these.  It would be better if they were merged into the powerpc
+> > > tree where they'll get more testing than in linux-next alone.
+> >  
+> > Fine by me. Can I get an ack from you and/or someone else on CC?
 > > 
 > 
-> I guess you mean one new field mm->bd_remove_vmas should be added into staruct
-> mm, right?
+> Only arm and arm64 use this code.  Steve, could you please look it over
+> and check that arm is still happy?
 
-That was just to demonstrate the approach. I'm giving you a hint how
-to do it, I'm not telling you what the exact solution will be. If I
-need to do that, then I can implement it myself right away.
+Hi Andrew,
+I've tested it and posted some comments on it.
 
-> For those VMAs which we only need to free part of backing physical memory, we
-> could not clear bounds directory entries and should also mark the range of
-> backing physical memory within this vma. If so, maybe there are too many new
-> fields which will be added into mm struct, right?
+If the arch/arm and arch/arm64 changes are removed and a comment about
+an assumption made by the new gup_huge_pte code is added then I'm happy.
 
-If we need more data to carry over from pre to post, we can allocate a
-proper data structure and just add a pointer to that to mm. And it's
-not written in stone, that you need to carry that information from pre
-to post. You could do the unmap/zap work in the pre phase already and
-reduce mpx_post_unmap() to up_write(mm->bt_sem).
-
-I gave you an idea and the center point of that idea is to have a
-separate rwsem to protect against the various races, fault handling
-etc. You still have to think about the implementation details.
-
-Thanks,
-
-	tglx
-
-
-
-
-
+Cheers,
+-- 
+Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
