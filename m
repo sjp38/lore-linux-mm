@@ -1,61 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 17234900021
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 03:08:50 -0400 (EDT)
-Received: by mail-qa0-f49.google.com with SMTP id i13so33813qae.22
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 00:08:49 -0700 (PDT)
-Received: from na01-bn1-obe.outbound.protection.outlook.com (mail-bn1bon0147.outbound.protection.outlook.com. [157.56.111.147])
-        by mx.google.com with ESMTPS id b10si1002224qgf.10.2014.10.28.00.08.48
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 28 Oct 2014 00:08:49 -0700 (PDT)
-From: Dexuan Cui <decui@microsoft.com>
-Subject: Does slow_virt_to_phys() work with vmalloc() in the case of
- 32bit-PAE and 2MB page?
-Date: Tue, 28 Oct 2014 07:08:04 +0000
-Message-ID: <F792CF86EFE20D4AB8064279AFBA51C610567A76@HKNPRD3002MB017.064d.mgd.msft.net>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 68AD5900021
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 03:15:09 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id kq14so101158pab.10
+        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 00:15:09 -0700 (PDT)
+Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id tw4si635192pab.24.2014.10.28.00.15.07
+        for <linux-mm@kvack.org>;
+        Tue, 28 Oct 2014 00:15:08 -0700 (PDT)
+Date: Tue, 28 Oct 2014 16:16:25 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 1/5] mm, compaction: pass classzone_idx and alloc_flags
+ to watermark checking
+Message-ID: <20141028071625.GB27813@js1304-P5Q-DELUXE>
+References: <1412696019-21761-1-git-send-email-vbabka@suse.cz>
+ <1412696019-21761-2-git-send-email-vbabka@suse.cz>
+ <20141027064651.GA23379@js1304-P5Q-DELUXE>
+ <544E0C43.3030009@suse.cz>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <544E0C43.3030009@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, "H.
- Peter Anvin" <hpa@linux.intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>
 
-Hi all,
-I suspect slow_virt_to_phys() may not work with vmalloc() in
-the 32-bit PAE case(when the pa > 4GB), probably due to 2MB page(?)
+On Mon, Oct 27, 2014 at 10:11:31AM +0100, Vlastimil Babka wrote:
+> On 10/27/2014 07:46 AM, Joonsoo Kim wrote:
+> > On Tue, Oct 07, 2014 at 05:33:35PM +0200, Vlastimil Babka wrote:
+> > 
+> > Hello,
+> > 
+> > compaction_suitable() has one more zone_watermark_ok(). Why is it
+> > unchanged?
+> 
+> Hi,
+> 
+> it's a check whether there are enough free pages to perform compaction,
+> which means enough migration targets and temporary copies during
+> migration. These allocations are not affected by the flags of the
+> process that makes the high-order allocation.
 
-Is there any known issue with slow_virt_to_phys() + vmalloc() +
-32-bit PAE + 2MB page?
+Hmm...
 
->From what I read the code of slow_virt_to_phys(), the variable 'psize' is
-assigned with a value but not used at all -- is this a bug?
+To check whether enough free page is there or not needs zone index and
+alloc flag. What we need to ignore is just order information, IMO.
+If there is not enough free page in that zone, compaction progress
+doesn't have any meaning. It will fail due to shortage of free page
+after successful compaction.
 
+I guess that __isolate_free_page() is also good candidate to need this
+information in order to prevent compaction from isolating too many
+freepage in low memory condition.
 
-phys_addr_t slow_virt_to_phys(void *__virt_addr)
-{
-        unsigned long virt_addr =3D (unsigned long)__virt_addr;
-        phys_addr_t phys_addr;
-        unsigned long offset;
-        enum pg_level level;
-        unsigned long psize;
-        unsigned long pmask;
-        pte_t *pte;
-
-        pte =3D lookup_address(virt_addr, &level);
-        BUG_ON(!pte);
-        psize =3D page_level_size(level);
-        pmask =3D page_level_mask(level);
-        offset =3D virt_addr & ~pmask;
-        phys_addr =3D pte_pfn(*pte) << PAGE_SHIFT;
-        return (phys_addr | offset);
-}
-
-Thanks,
--- Dexuan
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
