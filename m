@@ -1,68 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 55726900021
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 11:01:25 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id r10so872774pdi.3
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 08:01:25 -0700 (PDT)
-Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com. [2607:f8b0:400e:c02::232])
-        by mx.google.com with ESMTPS id al14si1580059pac.80.2014.10.28.08.01.24
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 28 Oct 2014 08:01:24 -0700 (PDT)
-Received: by mail-pd0-f178.google.com with SMTP id fp1so844345pdb.23
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 08:01:24 -0700 (PDT)
-Received: from [172.16.42.1] (p654785.hkidff01.ap.so-net.ne.jp. [121.101.71.133])
-        by mx.google.com with ESMTPSA id nz1sm1936802pdb.11.2014.10.28.08.01.21
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BFA0900021
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 11:12:10 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id lf10so927250pab.5
+        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 08:12:09 -0700 (PDT)
+Received: from galahad.ideasonboard.com (galahad.ideasonboard.com. [185.26.127.97])
+        by mx.google.com with ESMTPS id nz9si1593496pbb.86.2014.10.28.08.12.08
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Oct 2014 08:01:23 -0700 (PDT)
-Message-ID: <544FAFC0.7060401@gmail.com>
-Date: Wed, 29 Oct 2014 00:01:20 +0900
-From: Makoto Harada <makotouu@gmail.com>
+        Tue, 28 Oct 2014 08:12:08 -0700 (PDT)
+From: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+Subject: Re: CMA: test_pages_isolated failures in alloc_contig_range
+Date: Tue, 28 Oct 2014 17:12:14 +0200
+Message-ID: <8295446.YZpkE7ns4p@avalon>
+In-Reply-To: <544EAD3B.6070102@codeaurora.org>
+References: <2457604.k03RC2Mv4q@avalon> <544EAD3B.6070102@codeaurora.org>
 MIME-Version: 1.0
-Subject: Request for comments/ideas to indentify the cause of TLB entry corruption
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Laura Abbott <lauraa@codeaurora.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-sh@vger.kernel.org, Michal Nazarewicz <mina86@mina86.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Dear experts,
+Hi Laura,
 
-My name is Makoto Harada, working for the ARM based board development manufacturer.
-Our product is using Single 800 MHz Cortex-A9 processor, and using Linux 3.4 
-kernel is running on.
+On Monday 27 October 2014 13:38:19 Laura Abbott wrote:
+> On 10/26/2014 2:09 PM, Laurent Pinchart wrote:
+> > Hello,
+> > 
+> > I've run into a CMA-related issue while testing a DMA engine driver with
+> > dmatest on a Renesas R-Car ARM platform.
+> > 
+> > When allocating contiguous memory through CMA the kernel prints the
+> > following messages to the kernel log.
+> > 
+> > [   99.770000] alloc_contig_range test_pages_isolated(6b843, 6b844) failed
+> > [  124.220000] alloc_contig_range test_pages_isolated(6b843, 6b844) failed
+> > [  127.550000] alloc_contig_range test_pages_isolated(6b845, 6b846) failed
+> > [  132.850000] alloc_contig_range test_pages_isolated(6b845, 6b846) failed
+> > [  151.390000] alloc_contig_range test_pages_isolated(6b843, 6b844) failed
+> > [  166.490000] alloc_contig_range test_pages_isolated(6b843, 6b844) failed
+> > [  181.450000] alloc_contig_range test_pages_isolated(6b845, 6b846) failed
+> > 
+> > I've stripped the dmatest module down as much as possible to remove any
+> > hardware dependencies and came up with the following implementation.
+> 
+> ...
+> 
+> > Loading the module will start 4 threads that will allocate and free DMA
+> > coherent memory in a tight loop and eventually produce the error. It seems
+> > like the probability of occurrence grows with the number of threads, which
+> > could indicate a race condition.
+> > 
+> > The tests have been run on 3.18-rc1, but previous tests on 3.16 did
+> > exhibit the same behaviour.
+> > 
+> > I'm not that familiar with the CMA internals, help would be appreciated to
+> > debug the problem.
+> 
+> Are you actually seeing allocation failures or is it just the messages?
 
-Now, we are working on unexpected boot hang issue, which happens once per 20-100 
-boots.
-Simply explaining, the issue is as followings.
+It's just the messages, I haven't noticed allocation failures.
 
-1. Data abort or prefetch abort exception happens to handle a certain page fault.
-2. In page fault handler, it tries to fix the cause of page fault, however do 
-nothing because
-      PTE has nothing wrong.(The page is valid, AP(access permission field) is 
-correct).
-3.  After returning back to the user process, an access to the page occurs.
-4.  Since page fault handler does nothing on #2, the access causes page fault again.
-      Thus system falls into the infinite page fault handling loop between 2-4, 
-so boot process never completed.
+> The messages themselves may be harmless if the allocation is succeeding.
+> It's an indication that the particular range could not be isolated and
+> therefore another range should be used for the CMA allocation. Joonsoo
+> Kim had a patch series[1] that was designed to correct some problems with
+> isolation and from my testing it helps fix some CMA related errors. You
+> might try picking that up to see if it helps.
+> 
+> Thanks,
+> Laura
+> 
+> [1] https://lkml.org/lkml/2014/10/23/90
 
-5. The page fault loop can be exited by invalidating the TLB entry of the page 
-(we implemented the special routine for debug purpose.)
+I've tested the patches but they don't seem to have any influence on the 
+isolation test failures.
 
-According to the symptom above, we think that due to some unknown reason TLB 
-entry is corrupted.
-We want to identify the root cause which could cause TLB entry corruption.
+-- 
+Regards,
 
-Since I'm newbie for this memory management topic, I would like to hear the 
-advice of experts.
-How you guys approach this kind of issue ? Any comments are highly appreciated.
-
-P.S We know that Linux 3.4 is a little bit old, however we have to keep using 
-this version due to our private reason.
-
-Kind Regards,
-Makoto Harada
+Laurent Pinchart
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
