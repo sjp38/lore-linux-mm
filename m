@@ -1,102 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 0029F900021
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 02:39:54 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id y10so42038pdj.12
-        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 23:39:54 -0700 (PDT)
-Received: from terminus.zytor.com (terminus.zytor.com. [2001:1868:205::10])
-        by mx.google.com with ESMTPS id e10si554802pdm.49.2014.10.27.23.39.52
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Oct 2014 23:39:52 -0700 (PDT)
-Date: Mon, 27 Oct 2014 23:39:34 -0700
-From: tip-bot for Weijie Yang <tipbot@zytor.com>
-Message-ID: <tip-3c325f8233c35fb35dec3744ba01634aab4ea36a@git.kernel.org>
-Reply-To: tglx@linutronix.de, linux-mm@kvack.org, m.szyprowski@samsung.com,
-        hpa@zytor.com, weijie.yang@samsung.com, mingo@kernel.org,
-        linux-kernel@vger.kernel.org, akpm@linux-foundation.org,
-        mina86@mina86.com, fengguang.wu@intel.com, weijie.yang.kh@gmail.com
-In-Reply-To: <000101cfef69$31e528a0$95af79e0$%yang@samsung.com>
-References: <000101cfef69$31e528a0$95af79e0$%yang@samsung.com>
-Subject: [tip:x86/urgent] x86, cma:
-  Reserve DMA contiguous area after initmem_init()
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id A73B9900021
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 03:07:02 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id fa1so76535pad.25
+        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 00:07:02 -0700 (PDT)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id zu1si545651pac.119.2014.10.28.00.07.00
+        for <linux-mm@kvack.org>;
+        Tue, 28 Oct 2014 00:07:01 -0700 (PDT)
+Date: Tue, 28 Oct 2014 16:08:19 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 4/5] mm, compaction: always update cached scanner
+ positions
+Message-ID: <20141028070818.GA27813@js1304-P5Q-DELUXE>
+References: <1412696019-21761-1-git-send-email-vbabka@suse.cz>
+ <1412696019-21761-5-git-send-email-vbabka@suse.cz>
+ <20141027073522.GB23379@js1304-P5Q-DELUXE>
+ <544E12B5.5070008@suse.cz>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <544E12B5.5070008@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-tip-commits@vger.kernel.org
-Cc: mina86@mina86.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, weijie.yang.kh@gmail.com, fengguang.wu@intel.com, linux-mm@kvack.org, tglx@linutronix.de, mingo@kernel.org, weijie.yang@samsung.com, m.szyprowski@samsung.com, hpa@zytor.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>
 
-Commit-ID:  3c325f8233c35fb35dec3744ba01634aab4ea36a
-Gitweb:     http://git.kernel.org/tip/3c325f8233c35fb35dec3744ba01634aab4ea36a
-Author:     Weijie Yang <weijie.yang@samsung.com>
-AuthorDate: Fri, 24 Oct 2014 17:00:34 +0800
-Committer:  Ingo Molnar <mingo@kernel.org>
-CommitDate: Tue, 28 Oct 2014 07:36:50 +0100
+On Mon, Oct 27, 2014 at 10:39:01AM +0100, Vlastimil Babka wrote:
+> On 10/27/2014 08:35 AM, Joonsoo Kim wrote:> On Tue, Oct 07, 2014 at
+> 05:33:38PM +0200, Vlastimil Babka wrote:
+> > Hmm... I'm not sure that this patch is good thing.
+> >
+> > In asynchronous compaction, compaction could be easily failed and
+> > isolated freepages are returned to the buddy. In this case, next
+> > asynchronous compaction would skip those returned freepages and
+> > both scanners could meet prematurely.
+> 
+> If migration fails, free pages now remain isolated until next migration
+> attempt, which should happen within the same compaction when it isolates
+> new migratepages - it won't fail completely just because of failed
+> migration. It might run out of time due to need_resched and then yeah,
+> some free pages might be skipped. That's some tradeoff but at least my
+> tests don't seem to show reduced success rates.
 
-x86, cma: Reserve DMA contiguous area after initmem_init()
+I thought later one, need_resched case.
 
-Fengguang Wu reported a boot crash on the x86 platform
-via the 0-day Linux Kernel Performance Test:
+Your test is about really high order allocation test, so it's success
+rate wouldn't be affected by this skipping. But, different result could be
+possible in mid order allocation.
 
-  cma: dma_contiguous_reserve: reserving 31 MiB for global area
-  BUG: Int 6: CR2   (null)
-  [<41850786>] dump_stack+0x16/0x18
-  [<41d2b1db>] early_idt_handler+0x6b/0x6b
-  [<41072227>] ? __phys_addr+0x2e/0xca
-  [<41d4ee4d>] cma_declare_contiguous+0x3c/0x2d7
-  [<41d6d359>] dma_contiguous_reserve_area+0x27/0x47
-  [<41d6d4d1>] dma_contiguous_reserve+0x158/0x163
-  [<41d33e0f>] setup_arch+0x79b/0xc68
-  [<41d2b7cf>] start_kernel+0x9c/0x456
-  [<41d2b2ca>] i386_start_kernel+0x79/0x7d
+> 
+> > And, I guess that pageblock skip feature effectively disable pageblock
+> > rescanning if there is no freepage during rescan.
+> 
+> If there's no freepage during rescan, then the cached free_pfn also
+> won't be pointed to the pageblock anymore. Regardless of pageblock skip
+> being set, there will not be second rescan. But there will still be the
+> first rescan to determine there are no freepages.
 
-(See details at: https://lkml.org/lkml/2014/10/8/708)
+Yes, What I'd like to say is that these would work well. Just decreasing
+few percent of scanning page doesn't look good to me to validate this
+patch, because there is some facilities to reduce rescan overhead and
+compaction is fundamentally time-consuming process. Moreover, failure of
+compaction could cause serious system crash in some cases.
 
-It is because dma_contiguous_reserve() is called before
-initmem_init() in x86, the variable high_memory is not
-initialized but accessed by __pa(high_memory) in
-dma_contiguous_reserve().
+> > This patch would
+> > eliminate effect of pageblock skip feature.
+> 
+> I don't think so (as explained above). Also if free pages were isolated
+> (and then returned and skipped over), the pageblock should remain
+> without skip bit, so after scanners meet and positions reset (which
+> doesn't go hand in hand with skip bit reset), the next round will skip
+> over the blocks without freepages and find quickly the blocks where free
+> pages were skipped in the previous round.
+> 
+> > IIUC, compaction logic assume that there are many temporary failure
+> > conditions. Retrying from others would reduce effect of this temporary
+> > failure so implementation looks as is.
+> 
+> The implementation of pfn caching was written at time when we did not
+> keep isolated free pages between migration attempts in a single
+> compaction run. And the idea of async compaction is to try with minimal
+> effort (thus latency), and if there's a failure, try somewhere else.
+> Making sure we don't skip anything doesn't seem productive.
 
-This patch moves dma_contiguous_reserve() after initmem_init()
-so that high_memory is initialized before accessed.
+free_pfn is shared by async/sync compaction and unconditional updating
+causes sync compaction to stop prematurely, too.
 
-Reported-by: Fengguang Wu <fengguang.wu@intel.com>
-Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
-Acked-by: Andrew Morton <akpm@linux-foundation.org>
-Acked-by: Marek Szyprowski <m.szyprowski@samsung.com>
-Acked-by: Michal Nazarewicz <mina86@mina86.com>
-Cc: iamjoonsoo.kim@lge.com
-Cc: 'Linux-MM' <linux-mm@kvack.org>
-Cc: 'Weijie Yang' <weijie.yang.kh@gmail.com>
-Link: http://lkml.kernel.org/r/000101cfef69%2431e528a0%2495af79e0%24%25yang@samsung.com
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
----
- arch/x86/kernel/setup.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+And, if this patch makes migrate/freepage scanner meet more frequently,
+there is one problematic scenario.
 
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index 235cfd3..ab08aa2 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -1128,7 +1128,6 @@ void __init setup_arch(char **cmdline_p)
- 	setup_real_mode();
- 
- 	memblock_set_current_limit(get_max_mapped());
--	dma_contiguous_reserve(max_pfn_mapped << PAGE_SHIFT);
- 
- 	/*
- 	 * NOTE: On x86-32, only from this point on, fixmaps are ready for use.
-@@ -1159,6 +1158,7 @@ void __init setup_arch(char **cmdline_p)
- 	early_acpi_boot_init();
- 
- 	initmem_init();
-+	dma_contiguous_reserve(max_pfn_mapped << PAGE_SHIFT);
- 
- 	/*
- 	 * Reserve memory for crash kernel after SRAT is parsed so that it
+compact_finished() doesn't check how many work we did. It just check
+if both scanners meet. Even if we failed to allocate high order page
+due to little work, compaction would be deffered for later user.
+This scenario wouldn't happen frequently if updating cached pfn is
+limited. But, this patch may enlarge the possibility of this problem.
+
+This is another problem of current logic, and, should be fixed, but,
+there is now.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
