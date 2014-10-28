@@ -1,58 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 181F1900021
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 15:09:14 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id eu11so1409675pac.2
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 12:09:13 -0700 (PDT)
-Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
-        by mx.google.com with ESMTPS id q11si2189282pdl.12.2014.10.28.12.09.12
+Received: from mail-ie0-f172.google.com (mail-ie0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 18184900021
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 15:56:18 -0400 (EDT)
+Received: by mail-ie0-f172.google.com with SMTP id rl12so1484958iec.31
+        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 12:56:17 -0700 (PDT)
+Received: from mail-ie0-x22d.google.com (mail-ie0-x22d.google.com. [2607:f8b0:4001:c03::22d])
+        by mx.google.com with ESMTPS id fd9si3849759icb.37.2014.10.28.12.56.15
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 28 Oct 2014 12:09:13 -0700 (PDT)
-Received: by mail-pa0-f53.google.com with SMTP id kx10so1384627pab.40
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 12:09:12 -0700 (PDT)
-Message-ID: <544FE9BE.6040503@gmail.com>
-Date: Tue, 28 Oct 2014 12:08:46 -0700
-From: Florian Fainelli <f.fainelli@gmail.com>
+        Tue, 28 Oct 2014 12:56:16 -0700 (PDT)
+Received: by mail-ie0-f173.google.com with SMTP id tr6so1495222ieb.32
+        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 12:56:15 -0700 (PDT)
 MIME-Version: 1.0
-Subject: DMA allocations from CMA and fatal_signal_pending check
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20141028184719.GB29098@hydra.tuxags.com>
+References: <20140927183403.13738.22121.stgit@zurg>
+	<20140927191515.13738.18027.stgit@zurg>
+	<20141028184719.GB29098@hydra.tuxags.com>
+Date: Tue, 28 Oct 2014 23:56:15 +0400
+Message-ID: <CALYGNiOrNfxbCJggraxgiFOdvn3jki_751cpssi+p_eST0Wdgg@mail.gmail.com>
+Subject: Re: [PATCH v3 1/4] mm/balloon_compaction: redesign ballooned pages management
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org, Brian Norris <computersforpeace@gmail.com>, Gregory Fong <gregory.0xf0@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lauraa@codeaurora.org, gioh.kim@lge.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, mina86@mina86.com, m.szyprowski@samsung.com, akpm@linux-foundation.org, "netdev@vger.kernel.org" <netdev@vger.kernel.org>
+To: Konstantin Khlebnikov <koct9i@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Konstantin Khlebnikov <k.khlebnikov@samsung.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Rafael Aquini <aquini@redhat.com>, Stable <stable@vger.kernel.org>, Sasha Levin <sasha.levin@oracle.com>
 
-Hello,
+On Tue, Oct 28, 2014 at 9:47 PM, Matt Mullins <mmullins@mmlx.us> wrote:
+> On Sat, Sep 27, 2014 at 11:15:16PM +0400, Konstantin Khlebnikov wrote:
+>> This patch fixes all of them.
+>
+> It seems to have rendered virtio_balloon completely ineffective without
+> CONFIG_COMPACTION and CONFIG_BALLOON_COMPACTION, even for the case that I'm
+> expanding the memory available to my VM.
 
-While debugging why some dma_alloc_coherent() allocations where
-returning NULL on our brcmstb platform, specifically with
-drivers/net/ethernet/broadcom/bcmcsysport.c, I came across the
-fatal_signal_pending() check in mm/page_alloc.c which is there.
+What do you mean by ineffective?
 
-This driver calls dma_alloc_coherent(, GFP_KERNEL) which ends up making
-a coherent allocation from a CMA region on our platform. Since that
-allocation is allowed to sleep, and because we are in bcm_syport_open(),
-executed from process context, a pending signal makes
-dma_alloc_coherent() return NULL.
+That it cannot handle fragmentation? I saw that without compaction
+ballooning works even better:
+it allocates pages without GFP_MOVABLE and buddy allocator returns
+much less scattered pages.
 
-There are two ways I could fix this:
+>
+> Was this intended?  Should Kconfig be updated so that VIRTIO_BALLOON depends on
+> BALLOON_COMPACTION now?
 
-- use a GFP_ATOMIC allocation, which would avoid this sensitivity to a
-pending signal being fatal (we suffer from the same issue in
-bcm_sysport_resume)
-
-- move the DMA coherent allocation before bcm_sysport_open(), in the
-driver's probe function, but if the network interface is never used, we
-would be waisting precious DMA coherent memory for nothing (it is only 4
-bytes times 32 but still
-
-Now the general problem that I see with this fatal_signal_pending()
-check is that any driver that calls dma_alloc_coherent() and which does
-this in a process context (network drivers are frequently doing this in
-their ndo_open callback) and also happens to get its allocation serviced
-from CMA can now fail, instead of failing on really hard OOM conditions.
---
-Florian
+Nope, this is independent feature.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
