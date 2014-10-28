@@ -1,57 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
-	by kanga.kvack.org (Postfix) with ESMTP id F255B900021
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 09:02:00 -0400 (EDT)
-Received: by mail-qg0-f52.google.com with SMTP id a108so400578qge.25
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 06:02:00 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i7si2203428qan.31.2014.10.28.06.01.59
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Oct 2014 06:01:59 -0700 (PDT)
-Message-ID: <544F9302.4010001@redhat.com>
-Date: Tue, 28 Oct 2014 08:58:42 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 15ACD900021
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 09:18:43 -0400 (EDT)
+Received: by mail-wi0-f177.google.com with SMTP id ex7so1557693wid.4
+        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 06:18:43 -0700 (PDT)
+Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.194])
+        by mx.google.com with ESMTP id we10si1949244wjb.121.2014.10.28.06.18.41
+        for <linux-mm@kvack.org>;
+        Tue, 28 Oct 2014 06:18:42 -0700 (PDT)
+Date: Tue, 28 Oct 2014 15:18:10 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v2] smaps should deal with huge zero page exactly same as
+ normal zero page.
+Message-ID: <20141028131810.GB9768@node.dhcp.inet.fi>
+References: <1414422133-7929-1-git-send-email-yfw.kernel@gmail.com>
+ <20141027151748.3901b18abcb65426e7ed50b0@linux-foundation.org>
+ <20141028150944.GA13840@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] Convert khugepaged to a task_work function
-References: <1414032567-109765-1-git-send-email-athorlton@sgi.com> <87lho0pf4l.fsf@tassilo.jf.intel.com>
-In-Reply-To: <87lho0pf4l.fsf@tassilo.jf.intel.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141028150944.GA13840@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>, Alex Thorlton <athorlton@sgi.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <lliubbo@gmail.com>, David Rientjes <rientjes@google.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@redhat.com>, Kees Cook <keescook@chromium.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Vladimir Davydov <vdavydov@parallels.com>, linux-kernel@vger.kernel.org
+To: Fengwei Yin <yfw.kernel@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Fengguang Wu <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, "David S. Miller" <davem@davemloft.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, linux-arch@vger.kernel.org
 
-On 10/28/2014 08:12 AM, Andi Kleen wrote:
-> Alex Thorlton <athorlton@sgi.com> writes:
+On Tue, Oct 28, 2014 at 11:18:38PM +0800, Fengwei Yin wrote:
+> On Mon, Oct 27, 2014 at 03:17:48PM -0700, Andrew Morton wrote:
+> > On Mon, 27 Oct 2014 23:02:13 +0800 Fengwei Yin <yfw.kernel@gmail.com> wrote:
+> > 
+> > > We could see following memory info in /proc/xxxx/smaps with THP enabled.
+> > >   7bea458b3000-7fea458b3000 r--p 00000000 00:13 39989  /dev/zero
+> > >   Size:           4294967296 kB
+> > >   Rss:            10612736 kB
+> > >   Pss:            10612736 kB
+> > >   Shared_Clean:          0 kB
+> > >   Shared_Dirty:          0 kB
+> > >   Private_Clean:  10612736 kB
+> > >   Private_Dirty:         0 kB
+> > >   Referenced:     10612736 kB
+> > >   Anonymous:             0 kB
+> > >   AnonHugePages:  10612736 kB
+> > >   Swap:                  0 kB
+> > >   KernelPageSize:        4 kB
+> > >   MMUPageSize:           4 kB
+> > >   Locked:                0 kB
+> > >   VmFlags: rd mr mw me
+> > > which is wrong becuase just huge_zero_page/normal_zero_page is used for
+> > > /dev/zero. Most of the value should be 0.
+> > > 
+> > > This patch detects huge_zero_page (original implementation just detect
+> > > normal_zero_page) and avoids to update the wrong value for huge_zero_page.
+> > > 
+> > > ...
+> > >
+> > > --- a/mm/memory.c
+> > > +++ b/mm/memory.c
+> > > @@ -41,6 +41,7 @@
+> > >  #include <linux/kernel_stat.h>
+> > >  #include <linux/mm.h>
+> > >  #include <linux/hugetlb.h>
+> > > +#include <linux/huge_mm.h>
+> > >  #include <linux/mman.h>
+> > >  #include <linux/swap.h>
+> > >  #include <linux/highmem.h>
+> > > @@ -787,6 +788,9 @@ check_pfn:
+> > >  		return NULL;
+> > >  	}
+> > >  
+> > > +	if (is_huge_zero_pfn(pfn))
+> > > +		return NULL;
+> > > +
+> > 
+> > Why this change?
+> > 
+> I suppose the huge zero page should have same behavior as normal zero
+> page. vm_normal_page will return NULL if the pte is for normal zero
+> page. This change make it return NULL for huge zero page.
 > 
->> Last week, while discussing possible fixes for some unexpected/unwanted behavior
->> from khugepaged (see: https://lkml.org/lkml/2014/10/8/515) several people
->> mentioned possibly changing changing khugepaged to work as a task_work function
->> instead of a kernel thread.  This will give us finer grained control over the
->> page collapse scans, eliminate some unnecessary scans since tasks that are
->> relatively inactive will not be scanned often, and eliminate the unwanted
->> behavior described in the email thread I mentioned.
-> 
-> With your change, what would happen in a single threaded case?
-> 
-> Previously one core would scan and another would run the workload.
-> With your change both scanning and running would be on the same
-> core.
-> 
-> Would seem like a step backwards to me.
+> > What effect does it have upon vm_normal_page()'s many existing callers?
+> This is good question. I suppose it will not impact existing caller.
 
-It's not just scanning, either.
+vm_normal_page() is designed to handle pte. We only get there due hack
+with pmd to pte cast in smaps_pte_range(). Let's try to get rid of it
+instead.
 
-Memory compaction can spend a lot of time waiting on
-locks. Not consuming CPU or anything, but just waiting.
-
-I am not convinced that moving all that waiting to task
-context is a good idea.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Could you test the patch below? I think it's a better fix.
