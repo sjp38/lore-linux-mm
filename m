@@ -1,51 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
-	by kanga.kvack.org (Postfix) with ESMTP id F2BC6900021
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 04:59:19 -0400 (EDT)
-Received: by mail-lb0-f179.google.com with SMTP id w7so177587lbi.24
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 01:59:19 -0700 (PDT)
-Received: from mail.ud10.udmedia.de (ud10.udmedia.de. [194.117.254.50])
-        by mx.google.com with ESMTPS id ra5si1295010lbb.137.2014.10.28.01.59.17
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CDBF900021
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 05:49:27 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id lf10so330761pab.33
+        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 02:49:27 -0700 (PDT)
+Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
+        by mx.google.com with ESMTPS id az17si777846pdb.198.2014.10.28.02.49.25
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Oct 2014 01:59:18 -0700 (PDT)
-Date: Tue, 28 Oct 2014 09:59:16 +0100
-From: Markus Trippelsdorf <markus@trippelsdorf.de>
-Subject: Re: isolate_freepages_block(): very high intermittent overhead
-Message-ID: <20141028085916.GA337@x4>
-References: <20141027204003.GB348@x4>
- <544EC0C5.7050808@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <544EC0C5.7050808@suse.cz>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Tue, 28 Oct 2014 02:49:26 -0700 (PDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout4.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NE500K1SFEYW190@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 28 Oct 2014 09:52:10 +0000 (GMT)
+Message-id: <544F66A2.1080302@samsung.com>
+Date: Tue, 28 Oct 2014 10:49:22 +0100
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+MIME-version: 1.0
+Subject: Re: Deadlock with CMA and CPU hotplug
+References: <5447E210.8020902@codeaurora.org>
+In-reply-to: <5447E210.8020902@codeaurora.org>
+Content-type: text/plain; charset=utf-8; format=flowed
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org
+To: Laura Abbott <lauraa@codeaurora.org>, mgorman@suse.de, mina86@mina86.com
+Cc: linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, pratikp@codeaurora.org
 
-On 2014.10.27 at 23:01 +0100, Vlastimil Babka wrote:
-> On 10/27/2014 09:40 PM, Markus Trippelsdorf wrote:
-> > On my v3.18-rc2 kernel isolate_freepages_block() sometimes shows up very
-> > high (>20%) in perf top during the configuration phase of software
-> > builds. It increases build time considerably.
-> > 
-> > Unfortunately the issue is not 100% reproducible, because it appears
-> > only intermittently. And the symptoms vanish after a few minutes.
-> 
-> Does it happen for long enough so you can capture it by perf record -g ?
+Hello,
 
-It only happens when I use the "Lockless Allocator":
-http://locklessinc.com/downloads/lockless_allocator_src.tgz
+On 2014-10-22 18:57, Laura Abbott wrote:
+> We've run into a AB/BA deadlock situation involving a driver lock and
+> the CPU hotplug lock on a 3.10 based kernel. The situation is this:
+>
+> CPU 0                CPU 1
+> -----                ----
+> Start CPU hotplug
+> mutex_lock(&cpu_hotplug.lock)
+> Run CPU hotplug notifier
+>                 data for driver comes in
+>                 mutex_lock(&driver_lock)
+>                 driver calls dma_alloc_coherent
+>                 alloc_contig_range
+>                 lru_add_drain_all
+>                 get_online_cpus()
+>                 mutex_lock(&cpu_hotplug.lock)
+>
+> Driver hotplug notifier runs
+> mutex_lock(&driver_lock)
+>
+> The driver itself is out of tree right now[1] and we're looking at
+> ways to rework the driver. The best option for rework right now
+> though might result in some performance penalties. The size that's
+> being allocated can't easily be converted to an atomic allocation either
+> It seems like this might be a limitation of where CMA/
+> dma_alloc_coherent could potentially be used and make drivers
+> unnecessarily aware of CPU hotplug locking.
+>
+> Does this seem like an actual problem that needs to be fixed or
+> is trying to use CMA in a CPU hotplug notifier path just asking
+> for trouble?
 
-I use: LD_PRELOAD=/usr/lib/libllalloc.so.1.3 when building software,
-because it gives me a ~8% speed boost over glibc's malloc.
+IMHO doing any allocation without GFP_ATOMIC from a notifier is asking
+for problems. I always considered notifiers as callbacks that might be 
+called
+directly from i.e. interrupts. I don't know much about your code, but 
+maybe it
+would be possible to move the problematic code from a notifier to a separate
+worker or thread?
 
-Unfortunately, I don't have time to debug this further and have disabled 
-"Transparent Hugepage Support" for now.
-
+Best regards
 -- 
-Markus
+Marek Szyprowski, PhD
+Samsung R&D Institute Poland
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
