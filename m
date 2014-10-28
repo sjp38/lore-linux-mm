@@ -1,42 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com [209.85.216.182])
-	by kanga.kvack.org (Postfix) with ESMTP id E489F900021
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 08:07:00 -0400 (EDT)
-Received: by mail-qc0-f182.google.com with SMTP id m20so325967qcx.41
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 05:07:00 -0700 (PDT)
-Received: from mail-qc0-x234.google.com (mail-qc0-x234.google.com. [2607:f8b0:400d:c01::234])
-        by mx.google.com with ESMTPS id o49si1931903qge.76.2014.10.28.05.07.00
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 28 Oct 2014 05:07:00 -0700 (PDT)
-Received: by mail-qc0-f180.google.com with SMTP id o8so329973qcw.39
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 05:07:00 -0700 (PDT)
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 87219900021
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 08:12:35 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id g10so558881pdj.24
+        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 05:12:35 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id tv2si1245868pac.25.2014.10.28.05.12.33
+        for <linux-mm@kvack.org>;
+        Tue, 28 Oct 2014 05:12:34 -0700 (PDT)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH 0/4] Convert khugepaged to a task_work function
+References: <1414032567-109765-1-git-send-email-athorlton@sgi.com>
+Date: Tue, 28 Oct 2014 05:12:26 -0700
+In-Reply-To: <1414032567-109765-1-git-send-email-athorlton@sgi.com> (Alex
+	Thorlton's message of "Wed, 22 Oct 2014 21:49:23 -0500")
+Message-ID: <87lho0pf4l.fsf@tassilo.jf.intel.com>
 MIME-Version: 1.0
-Date: Tue, 28 Oct 2014 08:06:59 -0400
-Message-ID: <CAM4unZzPP1oJ0p_d-rU_A9N4reqO9RVsMVJo_5J26BKf2v8Z_Q@mail.gmail.com>
-Subject: virtual server and workstation
-From: Paul Phillips <phillipspd01@gmail.com>
-Content-Type: multipart/alternative; boundary=001a11c2fbce03a6f305067a7c06
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Alex Thorlton <athorlton@sgi.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <lliubbo@gmail.com>, David Rientjes <rientjes@google.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@redhat.com>, Kees Cook <keescook@chromium.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Vladimir Davydov <vdavydov@parallels.com>, linux-kernel@vger.kernel.org
 
---001a11c2fbce03a6f305067a7c06
-Content-Type: text/plain; charset=UTF-8
+Alex Thorlton <athorlton@sgi.com> writes:
 
-I am in a class for red hat and am trying to do homework and it says to
-contact you. I cant do anything
+> Last week, while discussing possible fixes for some unexpected/unwanted behavior
+> from khugepaged (see: https://lkml.org/lkml/2014/10/8/515) several people
+> mentioned possibly changing changing khugepaged to work as a task_work function
+> instead of a kernel thread.  This will give us finer grained control over the
+> page collapse scans, eliminate some unnecessary scans since tasks that are
+> relatively inactive will not be scanned often, and eliminate the unwanted
+> behavior described in the email thread I mentioned.
 
-Paul Phillips
+With your change, what would happen in a single threaded case?
 
---001a11c2fbce03a6f305067a7c06
-Content-Type: text/html; charset=UTF-8
+Previously one core would scan and another would run the workload.
+With your change both scanning and running would be on the same
+core.
 
-<div dir="ltr"><br clear="all"><div>I am in a class for red hat and am trying to do homework and it says to contact you. I cant do anything</div><div><br></div><div>Paul Phillips</div>
-<br>
-</div>
+Would seem like a step backwards to me.
 
---001a11c2fbce03a6f305067a7c06--
+-Andi
+
+-- 
+ak@linux.intel.com -- Speaking for myself only
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
