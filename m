@@ -1,156 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A44C900021
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 13:14:27 -0400 (EDT)
-Received: by mail-la0-f45.google.com with SMTP id gm9so1037651lab.4
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 10:14:25 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id b9si3499895lbp.50.2014.10.28.10.14.20
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Oct 2014 10:14:21 -0700 (PDT)
-From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 3/3] mmu_notifier: Add the call-back for mmu_notifier_invalidate_range()
-Date: Tue, 28 Oct 2014 18:14:00 +0100
-Message-Id: <1414516440-910-4-git-send-email-joro@8bytes.org>
-In-Reply-To: <1414516440-910-1-git-send-email-joro@8bytes.org>
-References: <1414516440-910-1-git-send-email-joro@8bytes.org>
+Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 800FA900021
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 13:40:19 -0400 (EDT)
+Received: by mail-qg0-f47.google.com with SMTP id j107so911947qga.34
+        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 10:40:18 -0700 (PDT)
+Received: from mail.mandriva.com.br (mail.mandriva.com.br. [177.220.134.171])
+        by mx.google.com with ESMTP id m2si3341990qai.115.2014.10.28.10.40.16
+        for <linux-mm@kvack.org>;
+        Tue, 28 Oct 2014 10:40:16 -0700 (PDT)
+Date: Tue, 28 Oct 2014 15:40:12 -0200
+From: Marco A Benatto <marco.benatto@mandriva.com.br>
+Subject: Re: UKSM: What's maintainers think about it?
+Message-ID: <20141028174011.GC1445@sirus.conectiva>
+References: <CAGqmi77uR2Nems6fE_XM1t3a06OwuqJP-0yOMOQh7KH13vzdzw@mail.gmail.com>
+ <20141025213201.005762f9.akpm@linux-foundation.org>
+ <20141028133131.GA1445@sirus.conectiva>
+ <CAGqmi76b0oUMAsAvBt=PwaxF5JZXcckSdWe2=bL_pXaiUFFCXQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAGqmi76b0oUMAsAvBt=PwaxF5JZXcckSdWe2=bL_pXaiUFFCXQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>
-Cc: Jerome Glisse <jglisse@redhat.com>, Jay.Cornwall@amd.com, Oded.Gabbay@amd.com, John.Bridgman@amd.com, Suravee.Suthikulpanit@amd.com, ben.sander@amd.com, Jesse Barnes <jbarnes@virtuousgeek.org>, David Woodhouse <dwmw2@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, jroedel@suse.de, joro@8bytes.org
+To: Timofey Titovets <nefelim4ag@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-From: Joerg Roedel <jroedel@suse.de>
+On Tue, Oct 28, 2014 at 04:59:45PM +0300, Timofey Titovets wrote:
+> 2014-10-28 16:31 GMT+03:00 Marco A Benatto <marco.benatto@mandriva.com.br>:
+> > Hi All,
+> >
+> > I'm not mantainer at all, but I've being using UKSM for a long time and remember
+> > to port it to 3.16 family once.
+> > UKSM seems good and stable and, at least for me, doesn't raised any errors.
+> > AFAIK the only limitation I know (maybe I has been fixed already) it isn't able
+> > to work together with zram stuff due to some race-conditions.
+> >
+> > Cheers,
+> >
+> > Marco A Benatto
+> > Mandriva OEM Developer
+> >
+> 
+> http://kerneldedup.org/forum/forum.php?mod=viewthread&tid=106
+> As i did find, uksm not conflicting with zram (or zswap - on my system).
 
-Now that the mmu_notifier_invalidate_range() calls are in
-place, add the call-back to allow subsystems to register
-against it.
+Interesting,
 
-Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
-Reviewed-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Signed-off-by: Joerg Roedel <jroedel@suse.de>
----
- include/linux/mmu_notifier.h | 37 ++++++++++++++++++++++++++++++++-----
- mm/mmu_notifier.c            | 25 +++++++++++++++++++++++++
- 2 files changed, 57 insertions(+), 5 deletions(-)
+I've contacted the mantainers to send some patches in April and they said me this:
 
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-index 966da2b..94d19f6 100644
---- a/include/linux/mmu_notifier.h
-+++ b/include/linux/mmu_notifier.h
-@@ -98,11 +98,11 @@ struct mmu_notifier_ops {
- 	/*
- 	 * invalidate_range_start() and invalidate_range_end() must be
- 	 * paired and are called only when the mmap_sem and/or the
--	 * locks protecting the reverse maps are held. The subsystem
--	 * must guarantee that no additional references are taken to
--	 * the pages in the range established between the call to
--	 * invalidate_range_start() and the matching call to
--	 * invalidate_range_end().
-+	 * locks protecting the reverse maps are held. If the subsystem
-+	 * can't guarantee that no additional references are taken to
-+	 * the pages in the range, it has to implement the
-+	 * invalidate_range() notifier to remove any references taken
-+	 * after invalidate_range_start().
- 	 *
- 	 * Invalidation of multiple concurrent ranges may be
- 	 * optionally permitted by the driver. Either way the
-@@ -144,6 +144,29 @@ struct mmu_notifier_ops {
- 	void (*invalidate_range_end)(struct mmu_notifier *mn,
- 				     struct mm_struct *mm,
- 				     unsigned long start, unsigned long end);
-+
-+	/*
-+	 * invalidate_range() is either called between
-+	 * invalidate_range_start() and invalidate_range_end() when the
-+	 * VM has to free pages that where unmapped, but before the
-+	 * pages are actually freed, or outside of _start()/_end() when
-+	 * a (remote) TLB is necessary.
-+	 *
-+	 * If invalidate_range() is used to manage a non-CPU TLB with
-+	 * shared page-tables, it not necessary to implement the
-+	 * invalidate_range_start()/end() notifiers, as
-+	 * invalidate_range() alread catches the points in time when an
-+	 * external TLB range needs to be flushed.
-+	 *
-+	 * The invalidate_range() function is called under the ptl
-+	 * spin-lock and not allowed to sleep.
-+	 *
-+	 * Note that this function might be called with just a sub-range
-+	 * of what was passed to invalidate_range_start()/end(), if
-+	 * called between those functions.
-+	 */
-+	void (*invalidate_range)(struct mmu_notifier *mn, struct mm_struct *mm,
-+				 unsigned long start, unsigned long end);
- };
- 
- /*
-@@ -190,6 +213,8 @@ extern void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end);
- extern void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end);
-+extern void __mmu_notifier_invalidate_range(struct mm_struct *mm,
-+				  unsigned long start, unsigned long end);
- 
- static inline void mmu_notifier_release(struct mm_struct *mm)
- {
-@@ -245,6 +270,8 @@ static inline void mmu_notifier_invalidate_range_end(struct mm_struct *mm,
- static inline void mmu_notifier_invalidate_range(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end)
- {
-+	if (mm_has_notifiers(mm))
-+		__mmu_notifier_invalidate_range(mm, start, end);
- }
- 
- static inline void mmu_notifier_mm_init(struct mm_struct *mm)
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index 2c8da98..3b9b3d0 100644
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -193,6 +193,16 @@ void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
- 
- 	id = srcu_read_lock(&srcu);
- 	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
-+		/*
-+		 * Call invalidate_range here too to avoid the need for the
-+		 * subsystem of having to register an invalidate_range_end
-+		 * call-back when there is invalidate_range already. Usually a
-+		 * subsystem registers either invalidate_range_start()/end() or
-+		 * invalidate_range(), so this will be no additional overhead
-+		 * (besides the pointer check).
-+		 */
-+		if (mn->ops->invalidate_range)
-+			mn->ops->invalidate_range(mn, mm, start, end);
- 		if (mn->ops->invalidate_range_end)
- 			mn->ops->invalidate_range_end(mn, mm, start, end);
- 	}
-@@ -200,6 +210,21 @@ void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
- }
- EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_end);
- 
-+void __mmu_notifier_invalidate_range(struct mm_struct *mm,
-+				  unsigned long start, unsigned long end)
-+{
-+	struct mmu_notifier *mn;
-+	int id;
-+
-+	id = srcu_read_lock(&srcu);
-+	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
-+		if (mn->ops->invalidate_range)
-+			mn->ops->invalidate_range(mn, mm, start, end);
-+	}
-+	srcu_read_unlock(&srcu, id);
-+}
-+EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range);
-+
- static int do_mmu_notifier_register(struct mmu_notifier *mn,
- 				    struct mm_struct *mm,
- 				    int take_mmap_sem)
--- 
-1.8.4.5
+"The biggest problem between UKSM/KSM and zswap is that pages can be reclaimed so
+fast by zswap before UKSM/KSM can have a chance to merge those can be merged.
+
+So one of the ideas that make a direct solution is that:
+1. sleep the processes who trigger the zswap
+2. wake up the UKSM thread and adjust the scan parameters properly to make it
+sample the whole memory in a limited time to judge if there are any VMAs need to
+be worked on.
+3. If there are those VMAs then merge them at full speed. if there not,
+sleep UKSM.
+4. Wake up the zswap code pathes and judge that if memory is enough to satisfy
+the requests. If there is enough memory then return and redo the memory
+allocation.
+5. if there is not, then go on to do zswapping.
+
+This is just an outline of ONE of the solutions. It need to be carefully
+tweaked. Direct page reclaiming of zswap is a time sensitive code path
+, we cannot add too much overhead by doing this,
+otherwise it loses its meaning." 
+
+> ---
+> Offtop:
+> Why i open up question about UKSM?
+> 
+> May be we (as community, who want to help) can split out UKSM in
+> "several patches" in independent git repo. For allowing maintainers to
+> review this.
+> 
+> Is it morally correct?
+> 
+> UKSM code licensed under GPL and as i think we can feel free for port
+> and adopt code (with indicating the author)
+> 
+> Please, fix me if i mistake or miss something.
+> This is just stream of my thoughts %_%
+> ---
+
+If there's no problem on that and if you don't mind, I can help you on this.
+What dou you think?
+
+Cheers,
+
+> > On Sat, Oct 25, 2014 at 09:32:01PM -0700, Andrew Morton wrote:
+> >> On Sat, 25 Oct 2014 22:25:56 +0300 Timofey Titovets <nefelim4ag@gmail.com> wrote:
+> >>
+> >> > Good time of day, people.
+> >> > I try to find 'mm' subsystem specific people and lists, but list
+> >> > linux-mm looks dead and mail archive look like deprecated.
+> >> > If i must to sent this message to another list or add CC people, let me know.
+> >>
+> >> linux-mm@kvack.org is alive and well.
+> 
+> So cool, thanks for adding 'mm' to CC.
+> 
+> >> > If questions are already asked (i can't find activity before), feel
+> >> > free to kick me.
+> >> >
+> >> > The main questions:
+> >> > 1. Somebody test it? I see many reviews about it.
+> >> > I already port it to latest linux-next-git kernel and its work without issues.
+> >> > http://pastebin.com/6FMuKagS
+> >> > (if it matter, i can describe use cases and results, if somebody ask it)
+> >> >
+> >> > 2. Developers of UKSM already tried to merge it? Somebody talked with uksm devs?
+> >> > offtop: now i try to communicate with dev's on kerneldedup.org forum,
+> >> > but i have problems with email verification and wait admin
+> >> > registration approval.
+> >> > (i already sent questions to
+> >> > http://kerneldedup.org/forum/home.php?mod=space&username=xianai ,
+> >> > because him looks like team leader)
+> >> >
+> >> > 3. I just want collect feedbacks from linux maintainers team, if you
+> >> > decide what UKSM not needed in kernel, all other comments (as i
+> >> > understand) not matter.
+> >> >
+> >> > Like KSM, but better.
+> >> > UKSM - Ultra Kernel Samepage Merging
+> >> > http://kerneldedup.org/en/projects/uksm/introduction/
+> >>
+> >> It's the first I've heard of it.  No, as far as I know there has been
+> >> no attempt to upstream UKSM.
+> >>
+> >> --
+> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> >> the body to majordomo@kvack.org.  For more info on Linux MM,
+> >> see: http://www.linux-mm.org/ .
+> >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> -- 
+> Have a nice day,
+> Timofey.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
