@@ -1,98 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 45827900021
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 14:59:55 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id z10so1302368pdj.29
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 11:59:54 -0700 (PDT)
-Received: from galahad.ideasonboard.com (galahad.ideasonboard.com. [185.26.127.97])
-        by mx.google.com with ESMTPS id te2si2100385pab.102.2014.10.28.11.59.53
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 181F1900021
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 15:09:14 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id eu11so1409675pac.2
+        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 12:09:13 -0700 (PDT)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id q11si2189282pdl.12.2014.10.28.12.09.12
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Oct 2014 11:59:53 -0700 (PDT)
-From: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-Subject: Re: CMA: test_pages_isolated failures in alloc_contig_range
-Date: Tue, 28 Oct 2014 20:59:58 +0200
-Message-ID: <1703418.04z9xDaRPF@avalon>
-In-Reply-To: <544F9EAA.5010404@hurleysoftware.com>
-References: <2457604.k03RC2Mv4q@avalon> <xa1tsii8l683.fsf@mina86.com> <544F9EAA.5010404@hurleysoftware.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 28 Oct 2014 12:09:13 -0700 (PDT)
+Received: by mail-pa0-f53.google.com with SMTP id kx10so1384627pab.40
+        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 12:09:12 -0700 (PDT)
+Message-ID: <544FE9BE.6040503@gmail.com>
+Date: Tue, 28 Oct 2014 12:08:46 -0700
+From: Florian Fainelli <f.fainelli@gmail.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+Subject: DMA allocations from CMA and fatal_signal_pending check
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Hurley <peter@hurleysoftware.com>
-Cc: Michal Nazarewicz <mina86@mina86.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-sh@vger.kernel.org, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-arm-kernel@lists.infradead.org, Brian Norris <computersforpeace@gmail.com>, Gregory Fong <gregory.0xf0@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lauraa@codeaurora.org, gioh.kim@lge.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, mina86@mina86.com, m.szyprowski@samsung.com, akpm@linux-foundation.org, "netdev@vger.kernel.org" <netdev@vger.kernel.org>
 
 Hello,
 
-On Tuesday 28 October 2014 09:48:26 Peter Hurley wrote:
-> [ +cc Andrew Morton ]
-> 
-> On 10/28/2014 08:38 AM, Michal Nazarewicz wrote:
-> > On Sun, Oct 26 2014, Laurent Pinchart wrote:
-> >> Hello,
-> >> 
-> >> I've run into a CMA-related issue while testing a DMA engine driver with
-> >> dmatest on a Renesas R-Car ARM platform.
-> >> 
-> >> When allocating contiguous memory through CMA the kernel prints the
-> >> following messages to the kernel log.
-> >> 
-> >> [   99.770000] alloc_contig_range test_pages_isolated(6b843, 6b844)
-> >> failed
-> >> [  124.220000] alloc_contig_range test_pages_isolated(6b843, 6b844)
-> >> failed
-> >> [  127.550000] alloc_contig_range test_pages_isolated(6b845, 6b846)
-> >> failed
-> >> [  132.850000] alloc_contig_range test_pages_isolated(6b845, 6b846)
-> >> failed
-> >> [  151.390000] alloc_contig_range test_pages_isolated(6b843, 6b844)
-> >> failed
-> >> [  166.490000] alloc_contig_range test_pages_isolated(6b843, 6b844)
-> >> failed
-> >> [  181.450000] alloc_contig_range test_pages_isolated(6b845, 6b846)
-> >> failed
-> >> 
-> >> I've stripped the dmatest module down as much as possible to remove any
-> >> hardware dependencies and came up with the following implementation.
-> > 
-> > Like Laura wrote, the message is not (should not be) a problem in
-> > itself:
->
-> [...]
-> 
-> > So as you can see cma_alloc will try another part of the cma region if
-> > test_pages_isolated fails.
-> > 
-> > Obviously, if CMA region is fragmented or there's enough space for only
-> > one allocation of required size isolation failures will cause allocation
-> > failures, so it's best to avoid them, but they are not always avoidable.
-> > 
-> > To debug you would probably want to add more debug information about the
-> > page (i.e. data from struct page) that failed isolation after the
-> > pr_warn in alloc_contig_range.
+While debugging why some dma_alloc_coherent() allocations where
+returning NULL on our brcmstb platform, specifically with
+drivers/net/ethernet/broadcom/bcmcsysport.c, I came across the
+fatal_signal_pending() check in mm/page_alloc.c which is there.
 
-[   94.730000] __test_page_isolated_in_pageblock: failed at pfn 6b845: buddy 0 
-count 0 migratetype 4 poison 0
-[   94.740000] alloc_contig_range test_pages_isolated(6b845, 6b846) failed 
-(-16)
-[  202.140000] __test_page_isolated_in_pageblock: failed at pfn 6b843: buddy 0 
-count 0 migratetype 4 poison 0
-[  202.150000] alloc_contig_range test_pages_isolated(6b843, 6b844) failed 
-(-16)
+This driver calls dma_alloc_coherent(, GFP_KERNEL) which ends up making
+a coherent allocation from a CMA region on our platform. Since that
+allocation is allowed to sleep, and because we are in bcm_syport_open(),
+executed from process context, a pending signal makes
+dma_alloc_coherent() return NULL.
 
-(4 is MIGRATE_CMA)
+There are two ways I could fix this:
 
-> If the message does not indicate an actual problem, then its printk level is
-> too high. These messages have been reported when using 3.16+ distro kernels.
+- use a GFP_ATOMIC allocation, which would avoid this sensitivity to a
+pending signal being fatal (we suffer from the same issue in
+bcm_sysport_resume)
 
-The messages got me worried, and if there's nothing to worry about, that's bad 
-:-)
+- move the DMA coherent allocation before bcm_sysport_open(), in the
+driver's probe function, but if the network interface is never used, we
+would be waisting precious DMA coherent memory for nothing (it is only 4
+bytes times 32 but still
 
--- 
-Regards,
-
-Laurent Pinchart
+Now the general problem that I see with this fatal_signal_pending()
+check is that any driver that calls dma_alloc_coherent() and which does
+this in a process context (network drivers are frequently doing this in
+their ndo_open callback) and also happens to get its allocation serviced
+from CMA can now fail, instead of failing on really hard OOM conditions.
+--
+Florian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
