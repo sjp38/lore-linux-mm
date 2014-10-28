@@ -1,61 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D6C0900021
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 16:27:32 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id ey11so1536439pad.21
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 13:27:32 -0700 (PDT)
-Received: from homiemail-a10.g.dreamhost.com (homie.mail.dreamhost.com. [208.97.132.208])
-        by mx.google.com with ESMTP id s5si2340505pdc.27.2014.10.28.13.27.31
-        for <linux-mm@kvack.org>;
-        Tue, 28 Oct 2014 13:27:31 -0700 (PDT)
-Message-ID: <1414528039.10092.21.camel@linux-t7sj.site>
-Subject: Re: [PATCH 03/10] mm: convert i_mmap_mutex to rwsem
-From: Davidlohr Bueso <dave@stgolabs.net>
-Date: Tue, 28 Oct 2014 13:27:19 -0700
-In-Reply-To: <20141024224537.GA21108@node.dhcp.inet.fi>
-References: <1414188380-17376-1-git-send-email-dave@stgolabs.net>
-	 <1414188380-17376-4-git-send-email-dave@stgolabs.net>
-	 <20141024224537.GA21108@node.dhcp.inet.fi>
-Content-Type: text/plain; charset="UTF-8"
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C15C900021
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 16:35:40 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id r10so1488965pdi.3
+        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 13:35:40 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id gm1si2362443pbd.6.2014.10.28.13.35.39
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 Oct 2014 13:35:39 -0700 (PDT)
+Date: Tue, 28 Oct 2014 13:35:39 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] smaps should deal with huge zero page exactly same
+ as normal zero page.
+Message-Id: <20141028133539.c82f5e856fd66b39c2630dd4@linux-foundation.org>
+In-Reply-To: <20141028154416.GB13840@gmail.com>
+References: <1414422133-7929-1-git-send-email-yfw.kernel@gmail.com>
+	<20141027151748.3901b18abcb65426e7ed50b0@linux-foundation.org>
+	<20141028154416.GB13840@gmail.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: akpm@linux-foundation.org, hughd@google.com, riel@redhat.com, mgorman@suse.de, peterz@infradead.org, mingo@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Fengwei Yin <yfw.kernel@gmail.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Fengguang Wu <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-On Sat, 2014-10-25 at 01:45 +0300, Kirill A. Shutemov wrote:
-> On Fri, Oct 24, 2014 at 03:06:13PM -0700, Davidlohr Bueso wrote:
-> > diff --git a/mm/fremap.c b/mm/fremap.c
-> > index 72b8fa3..11ef7ec 100644
-> > --- a/mm/fremap.c
-> > +++ b/mm/fremap.c
-> > @@ -238,13 +238,13 @@ get_write_lock:
-> >  			}
-> >  			goto out_freed;
-> >  		}
-> > -		mutex_lock(&mapping->i_mmap_mutex);
-> > +		i_mmap_lock_write(mapping);
-> >  		flush_dcache_mmap_lock(mapping);
-> >  		vma->vm_flags |= VM_NONLINEAR;
-> >  		vma_interval_tree_remove(vma, &mapping->i_mmap);
-> >  		vma_nonlinear_insert(vma, &mapping->i_mmap_nonlinear);
-> >  		flush_dcache_mmap_unlock(mapping);
-> > -		mutex_unlock(&mapping->i_mmap_mutex);
-> > +		i_mmap_unlock_write(mapping);
-> >  	}
-> >  
-> >  	if (vma->vm_flags & VM_LOCKED) {
+On Tue, 28 Oct 2014 23:44:50 +0800 Fengwei Yin <yfw.kernel@gmail.com> wrote:
+
+> > > ...
+> > >
+> > > --- a/mm/memory.c
+> > > +++ b/mm/memory.c
+> > > @@ -41,6 +41,7 @@
+> > >  #include <linux/kernel_stat.h>
+> > >  #include <linux/mm.h>
+> > >  #include <linux/hugetlb.h>
+> > > +#include <linux/huge_mm.h>
+> > >  #include <linux/mman.h>
+> > >  #include <linux/swap.h>
+> > >  #include <linux/highmem.h>
+> > > @@ -787,6 +788,9 @@ check_pfn:
+> > >  		return NULL;
+> > >  	}
+> > >  
+> > > +	if (is_huge_zero_pfn(pfn))
+> > > +		return NULL;
+> > > +
+> > 
+> > Why this change?
+> > 
+> > What effect does it have upon vm_normal_page()'s many existing callers?
 > 
-> This should go to previous patch.
+> Subject: [PATCH v3] smaps should deal with huge zero page exactly same as
+>  normal zero page.
+> 
+> We could see following memory info in /proc/xxxx/smaps with THP enabled.
+>   7bea458b3000-7fea458b3000 r--p 00000000 00:13 39989  /dev/zero
+>   Size:           4294967296 kB
+>   Rss:            10612736 kB
+>   Pss:            10612736 kB
+>   Shared_Clean:          0 kB
+>   Shared_Dirty:          0 kB
+>   Private_Clean:  10612736 kB
+>   Private_Dirty:         0 kB
+>   Referenced:     10612736 kB
+>   Anonymous:             0 kB
+>   AnonHugePages:  10612736 kB
+>   Swap:                  0 kB
+>   KernelPageSize:        4 kB
+>   MMUPageSize:           4 kB
+>   Locked:                0 kB
+>   VmFlags: rd mr mw me
+> which is wrong becuase just huge_zero_page/normal_zero_page is used for
+> /dev/zero. Most of the value should be 0.
+> 
+> This patch detects huge_zero_page (original implementation just detect
+> normal_zero_page) and avoids to update the wrong value for huge_zero_page.
+> 
+> Reported-by: Fengguang Wu <fengguang.wu@intel.com>
+> Signed-off-by: Fengwei Yin <yfw.kernel@gmail.com>
+> ---
+> 
+> Hi Andrew,
+> Please try this patch.
+> It passed build with/without CONFIG_TRANSPARENT_HUGEPAGE. Thanks.
 
-Indeed. I had forgotten I snuck that change in as when I was writing the
-patch there was a conflict with that fremap. However you removed
-mm/fremap.c altogether in -next (mm: replace remap_file_pages() syscall
-with emulation) so I'll just update accordingly.
+You didn't answer my question.
 
-Thanks,
-Davidlohr
+What is the reason for that change to vm_normal_page() and how does it
+affect that function's callers?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
