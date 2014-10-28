@@ -1,60 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 99664900021
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 21:06:12 -0400 (EDT)
-Received: by mail-wg0-f49.google.com with SMTP id x13so3247794wgg.20
-        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 18:06:11 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id gt1si8070wjc.54.2014.10.27.18.06.09
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 24428900021
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2014 21:20:34 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id z10so6702754pdj.15
+        for <linux-mm@kvack.org>; Mon, 27 Oct 2014 18:20:33 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id d2si11681356pdi.219.2014.10.27.18.20.32
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Oct 2014 18:06:10 -0700 (PDT)
-Date: Tue, 28 Oct 2014 03:02:24 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 05/10] uprobes: share the i_mmap_rwsem
-Message-ID: <20141028020224.GA28581@redhat.com>
-References: <1414188380-17376-1-git-send-email-dave@stgolabs.net> <1414188380-17376-6-git-send-email-dave@stgolabs.net> <20141027070329.GA10867@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141027070329.GA10867@linux.vnet.ibm.com>
+        Mon, 27 Oct 2014 18:20:33 -0700 (PDT)
+Message-ID: <1414459229.31711.0.camel@concordia>
+Subject: Re: [PATCH V3 1/2] mm: Update generic gup implementation to handle
+ hugepage directory
+From: Michael Ellerman <mpe@ellerman.id.au>
+Date: Tue, 28 Oct 2014 12:20:29 +1100
+In-Reply-To: <20141027160612.b7fd0b1cc9d82faeaa674940@linux-foundation.org>
+References: 
+	<1414233860-7683-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+	 <20141027160612.b7fd0b1cc9d82faeaa674940@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Davidlohr Bueso <dave@stgolabs.net>, akpm@linux-foundation.org, hughd@google.com, riel@redhat.com, mgorman@suse.de, peterz@infradead.org, mingo@kernel.org, linux-kernel@vger.kernel.org, dbueso@suse.de, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Steve Capper <steve.capper@linaro.org>, Andrea Arcangeli <aarcange@redhat.com>, benh@kernel.crashing.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org
 
-On 10/27, Srikar Dronamraju wrote:
->
-> Copying Oleg (since he should have been copied on this one)
+On Mon, 2014-10-27 at 16:06 -0700, Andrew Morton wrote:
+> On Sat, 25 Oct 2014 16:14:19 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+> 
+> > Update generic gup implementation with powerpc specific details.
+> > On powerpc at pmd level we can have hugepte, normal pmd pointer
+> > or a pointer to the hugepage directory.
+> 
+> I grabbed these.  It would be better if they were merged into the powerpc
+> tree where they'll get more testing than in linux-next alone.
+ 
+Fine by me. Can I get an ack from you and/or someone else on CC?
 
-Thanks ;)
+cheers
 
-> Please see one comment below.
->
-> Acked-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com> 
->
-> > ---
-> >  kernel/events/uprobes.c | 4 ++--
-> >  1 file changed, 2 insertions(+), 2 deletions(-)
-> > 
-> > diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-> > index 045b649..7a9e620 100644
-> > --- a/kernel/events/uprobes.c
-> > +++ b/kernel/events/uprobes.c
-> > @@ -724,7 +724,7 @@ build_map_info(struct address_space *mapping, loff_t offset, bool is_register)
-> >  	int more = 0;
-> >  
-> >   again:
-> > -	i_mmap_lock_write(mapping);
-> > +	i_mmap_lock_read(mapping);
-
-I too think the patch is fine.
-
-I didn't see other changes, but I hope that i_mmap_lock_write/read names
-provide enough info and ->i_mmap_mutex was turned into rw-lock,  in this
-case read-lock should be enough.
-
-Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
