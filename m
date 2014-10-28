@@ -1,72 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f181.google.com (mail-qc0-f181.google.com [209.85.216.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 68C51900021
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 09:48:31 -0400 (EDT)
-Received: by mail-qc0-f181.google.com with SMTP id w7so504045qcr.40
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 06:48:31 -0700 (PDT)
-Received: from n23.mail01.mtsvc.net (mailout32.mail01.mtsvc.net. [216.70.64.70])
-        by mx.google.com with ESMTPS id k2si2415145qaf.20.2014.10.28.06.48.30
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Oct 2014 06:48:30 -0700 (PDT)
-Message-ID: <544F9EAA.5010404@hurleysoftware.com>
-Date: Tue, 28 Oct 2014 09:48:26 -0400
-From: Peter Hurley <peter@hurleysoftware.com>
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id C2193900021
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 09:59:56 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id lj1so789308pab.22
+        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 06:59:56 -0700 (PDT)
+Received: from foss-mx-na.foss.arm.com (foss-mx-na.foss.arm.com. [217.140.108.86])
+        by mx.google.com with ESMTP id x3si1475177pdm.53.2014.10.28.06.59.55
+        for <linux-mm@kvack.org>;
+        Tue, 28 Oct 2014 06:59:55 -0700 (PDT)
+Date: Tue, 28 Oct 2014 13:59:44 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [RFC V3] arm/arm64:add CONFIG_HAVE_ARCH_BITREVERSE to support
+ rbit instruction
+Message-ID: <20141028135944.GC29706@arm.com>
+References: <35FD53F367049845BC99AC72306C23D103E010D18254@CNBJMBX05.corpusers.net>
+ <35FD53F367049845BC99AC72306C23D103E010D18257@CNBJMBX05.corpusers.net>
+ <35FD53F367049845BC99AC72306C23D103E010D18259@CNBJMBX05.corpusers.net>
+ <20141027104848.GD8768@arm.com>
+ <35FD53F367049845BC99AC72306C23D103E010D1825A@CNBJMBX05.corpusers.net>
 MIME-Version: 1.0
-Subject: Re: CMA: test_pages_isolated failures in alloc_contig_range
-References: <2457604.k03RC2Mv4q@avalon> <xa1tsii8l683.fsf@mina86.com>
-In-Reply-To: <xa1tsii8l683.fsf@mina86.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <35FD53F367049845BC99AC72306C23D103E010D1825A@CNBJMBX05.corpusers.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-sh@vger.kernel.org, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Cc: 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'akinobu.mita@gmail.com'" <akinobu.mita@gmail.com>
 
-[ +cc Andrew Morton ]
+On Tue, Oct 28, 2014 at 01:34:42AM +0000, Wang, Yalin wrote:
+> > From: Will Deacon [mailto:will.deacon@arm.com]
+> > > +++ b/arch/arm/include/asm/bitrev.h
+> > > @@ -0,0 +1,28 @@
+> > > +#ifndef __ASM_ARM_BITREV_H
+> > > +#define __ASM_ARM_BITREV_H
+> > > +
+> > > +static __always_inline __attribute_const__ u32 __arch_bitrev32(u32 x)
+> > > +{
+> > > +	if (__builtin_constant_p(x)) {
+> > > +		x = (x >> 16) | (x << 16);
+> > > +		x = ((x & 0xFF00FF00) >> 8) | ((x & 0x00FF00FF) << 8);
+> > > +		x = ((x & 0xF0F0F0F0) >> 4) | ((x & 0x0F0F0F0F) << 4);
+> > > +		x = ((x & 0xCCCCCCCC) >> 2) | ((x & 0x33333333) << 2);
+> > > +		return ((x & 0xAAAAAAAA) >> 1) | ((x & 0x55555555) << 1);
+> > > +	}
+> > > +	__asm__ ("rbit %0, %1" : "=r" (x) : "r" (x));
+> > 
+> > I think you need to use %w0 and %w1 here, otherwise you bit-reverse the 64-
+> > bit register.
+> For arm64 in arch/arm64/include/asm/bitrev.h.
+> I have use __asm__ ("rbit %w0, %w1" : "=r" (x) : "r" (x));
+> For arm , I use __asm__ ("rbit %0, %1" : "=r" (x) : "r" (x));
+> Am I right ?
 
-On 10/28/2014 08:38 AM, Michal Nazarewicz wrote:
-> On Sun, Oct 26 2014, Laurent Pinchart <laurent.pinchart@ideasonboard.com> wrote:
->> Hello,
->>
->> I've run into a CMA-related issue while testing a DMA engine driver with 
->> dmatest on a Renesas R-Car ARM platform. 
->>
->> When allocating contiguous memory through CMA the kernel prints the following 
->> messages to the kernel log.
->>
->> [   99.770000] alloc_contig_range test_pages_isolated(6b843, 6b844) failed
->> [  124.220000] alloc_contig_range test_pages_isolated(6b843, 6b844) failed
->> [  127.550000] alloc_contig_range test_pages_isolated(6b845, 6b846) failed
->> [  132.850000] alloc_contig_range test_pages_isolated(6b845, 6b846) failed
->> [  151.390000] alloc_contig_range test_pages_isolated(6b843, 6b844) failed
->> [  166.490000] alloc_contig_range test_pages_isolated(6b843, 6b844) failed
->> [  181.450000] alloc_contig_range test_pages_isolated(6b845, 6b846) failed
->>
->> I've stripped the dmatest module down as much as possible to remove any 
->> hardware dependencies and came up with the following implementation.
-> 
-> Like Laura wrote, the message is not (should not be) a problem in
-> itself:
+Yup, sorry, I didn't realise this patch covered both architectures. It would
+probably be a good idea to split it into 3 parts: a core part, then the two
+architectural bits.
 
-[...]
-
-> So as you can see cma_alloc will try another part of the cma region if
-> test_pages_isolated fails.
-> 
-> Obviously, if CMA region is fragmented or there's enough space for only
-> one allocation of required size isolation failures will cause allocation
-> failures, so it's best to avoid them, but they are not always avoidable.
-> 
-> To debug you would probably want to add more debug information about the
-> page (i.e. data from struct page) that failed isolation after the
-> pr_warn in alloc_contig_range.
-
-If the message does not indicate an actual problem, then its printk level is
-too high. These messages have been reported when using 3.16+ distro kernels.
-
-Regards,
-Peter Hurley
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
