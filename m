@@ -1,67 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 74E95900021
-	for <linux-mm@kvack.org>; Wed, 29 Oct 2014 10:43:44 -0400 (EDT)
-Received: by mail-lb0-f172.google.com with SMTP id n15so2587809lbi.31
-        for <linux-mm@kvack.org>; Wed, 29 Oct 2014 07:43:43 -0700 (PDT)
+Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B616900021
+	for <linux-mm@kvack.org>; Wed, 29 Oct 2014 11:08:12 -0400 (EDT)
+Received: by mail-lb0-f174.google.com with SMTP id z11so665803lbi.19
+        for <linux-mm@kvack.org>; Wed, 29 Oct 2014 08:08:11 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g7si7513868lab.66.2014.10.29.07.43.41
+        by mx.google.com with ESMTPS id m7si7574180lah.97.2014.10.29.08.08.09
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 29 Oct 2014 07:43:41 -0700 (PDT)
-Message-ID: <5450FD15.4000708@suse.cz>
-Date: Wed, 29 Oct 2014 15:43:33 +0100
+        Wed, 29 Oct 2014 08:08:09 -0700 (PDT)
+Message-ID: <545102D1.6080908@suse.cz>
+Date: Wed, 29 Oct 2014 16:08:01 +0100
 From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] (CMA_AGGRESSIVE) Make CMA memory be more aggressive
- about allocation
-References: <1413430551-22392-1-git-send-email-zhuhui@xiaomi.com> <543F8812.2020002@codeaurora.org>
-In-Reply-To: <543F8812.2020002@codeaurora.org>
+Subject: Re: isolate_freepages_block(): very high intermittent overhead
+References: <20141027204003.GB348@x4> <544EC0C5.7050808@suse.cz> <20141028085916.GA337@x4>
+In-Reply-To: <20141028085916.GA337@x4>
 Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <lauraa@codeaurora.org>, Hui Zhu <zhuhui@xiaomi.com>, rjw@rjwysocki.net, len.brown@intel.com, pavel@ucw.cz, m.szyprowski@samsung.com, akpm@linux-foundation.org, mina86@mina86.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@suse.de, minchan@kernel.org, nasa4836@gmail.com, ddstreet@ieee.org, hughd@google.com, mingo@kernel.org, rientjes@google.com, peterz@infradead.org, keescook@chromium.org, atomlin@redhat.com, raistlin@linux.it, axboe@fb.com, paulmck@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, k.khlebnikov@samsung.com, msalter@redhat.com, deller@gmx.de, tangchen@cn.fujitsu.com, ben@decadent.org.uk, akinobu.mita@gmail.com, sasha.levin@oracle.com, vdavydov@parallels.com, suleiman@google.com
-Cc: linux-kernel@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org
+To: Markus Trippelsdorf <markus@trippelsdorf.de>
+Cc: linux-mm@kvack.org
 
-On 10/16/2014 10:55 AM, Laura Abbott wrote:
-> On 10/15/2014 8:35 PM, Hui Zhu wrote:
+On 10/28/2014 09:59 AM, Markus Trippelsdorf wrote:
+> On 2014.10.27 at 23:01 +0100, Vlastimil Babka wrote:
+>> On 10/27/2014 09:40 PM, Markus Trippelsdorf wrote:
+>>> On my v3.18-rc2 kernel isolate_freepages_block() sometimes shows up very
+>>> high (>20%) in perf top during the configuration phase of software
+>>> builds. It increases build time considerably.
+>>>
+>>> Unfortunately the issue is not 100% reproducible, because it appears
+>>> only intermittently. And the symptoms vanish after a few minutes.
+>>
+>> Does it happen for long enough so you can capture it by perf record -g ?
 >
-> It's good to see another proposal to fix CMA utilization. Do you have
-> any data about the success rate of CMA contiguous allocation after
-> this patch series? I played around with a similar approach of using
-> CMA for MIGRATE_MOVABLE allocations and found that although utilization
-> did increase, contiguous allocations failed at a higher rate and were
-> much slower. I see what this series is trying to do with avoiding
-> allocation from CMA pages when a contiguous allocation is progress.
-> My concern is that there would still be problems with contiguous
-> allocation after all the MIGRATE_MOVABLE fallback has happened.
+> It only happens when I use the "Lockless Allocator":
+> http://locklessinc.com/downloads/lockless_allocator_src.tgz
+>
+> I use: LD_PRELOAD=/usr/lib/libllalloc.so.1.3 when building software,
+> because it gives me a ~8% speed boost over glibc's malloc.
 
-Hi,
+Hm I see. I'll try to test that.
 
-did anyone try/suggest the following idea?
+> Unfortunately, I don't have time to debug this further and have disabled
+> "Transparent Hugepage Support" for now.
 
-- keep CMA as fallback to MOVABLE as is is now, i.e. non-agressive
-- when UNMOVABLE (RECLAIMABLE also?) allocation fails and CMA pageblocks 
-have space, don't OOM immediately, but first try to migrate some MOVABLE 
-pages to CMA pageblocks, to make space for the UNMOVABLE allocation in 
-non-CMA pageblocks
-- this should keep CMA pageblocks free as long as possible and useful 
-for CMA allocations, but without restricting the non-MOVABLE allocations 
-even though there is free memory (but in CMA pageblocks)
-- the fact that a MOVABLE page could be successfully migrated to CMA 
-pageblock, means it was not pinned or otherwise non-migratable, so 
-there's a good chance it can be migrated back again if CMA pageblocks 
-need to be used by CMA allocation
-- it's more complex, but I guess we have most of the necessary 
-infrastructure in compaction already :)
+That's unfortunate indeed. Commit 
+e14c720efdd73c6d69cd8d07fa894bcd11fe1973 "mm, compaction: remember 
+position within pageblock in free pages scanner" would be the most 
+suspicious one here I guess, so testing at least a kernel with this 
+patch reverted would be very useful. Simple git revert seems to apply 
+cleanly here.
 
-Thoughts?
+Thanks,
 Vlastimil
-
-> Thanks,
-> Laura
->
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
