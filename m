@@ -1,84 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
-	by kanga.kvack.org (Postfix) with ESMTP id B668B900021
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2014 23:28:26 -0400 (EDT)
-Received: by mail-lb0-f182.google.com with SMTP id f15so1882889lbj.41
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 20:28:25 -0700 (PDT)
-Received: from mail-la0-x22b.google.com (mail-la0-x22b.google.com. [2a00:1450:4010:c03::22b])
-        by mx.google.com with ESMTPS id bf9si5206510lab.114.2014.10.28.20.28.24
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id C8178900021
+	for <linux-mm@kvack.org>; Wed, 29 Oct 2014 00:46:56 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id rd3so2356005pab.13
+        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 21:46:56 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id v7si191913pdn.28.2014.10.28.21.46.55
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 28 Oct 2014 20:28:24 -0700 (PDT)
-Received: by mail-la0-f43.google.com with SMTP id ge10so1806460lab.30
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 20:28:24 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1414392371.8884.2.camel@perches.com>
-References: <35FD53F367049845BC99AC72306C23D103E010D18254@CNBJMBX05.corpusers.net>
- <35FD53F367049845BC99AC72306C23D103E010D18257@CNBJMBX05.corpusers.net> <1414392371.8884.2.camel@perches.com>
-From: Rob Herring <robherring2@gmail.com>
-Date: Wed, 29 Oct 2014 11:28:04 +0800
-Message-ID: <CAL_JsqJYBoG+nrr7R3UWz1wrZ--Xjw5X31RkpCrTWMJAePBgRg@mail.gmail.com>
-Subject: Re: [RFC V2] arm/arm64:add CONFIG_HAVE_ARCH_BITREVERSE to support
- rbit instruction
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 Oct 2014 21:46:55 -0700 (PDT)
+Message-ID: <1414558008.7417.2.camel@concordia>
+Subject: Re: [PATCH V3 1/2] mm: Update generic gup implementation to handle
+ hugepage directory
+From: Michael Ellerman <mpe@ellerman.id.au>
+Date: Wed, 29 Oct 2014 15:46:48 +1100
+In-Reply-To: <20141028104451.GB4187@linaro.org>
+References: 
+	<1414233860-7683-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+	 <20141027160612.b7fd0b1cc9d82faeaa674940@linux-foundation.org>
+	 <1414459229.31711.0.camel@concordia>
+	 <20141027183241.a5339085.akpm@linux-foundation.org>
+	 <20141028104451.GB4187@linaro.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joe Perches <joe@perches.com>
-Cc: "Wang, Yalin" <Yalin.Wang@sonymobile.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Will Deacon <Will.Deacon@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akinobu.mita@gmail.com" <akinobu.mita@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Steve Capper <steve.capper@linaro.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, benh@kernel.crashing.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org
 
-On Mon, Oct 27, 2014 at 2:46 PM, Joe Perches <joe@perches.com> wrote:
-> On Mon, 2014-10-27 at 14:37 +0800, Wang, Yalin wrote:
->> this change add CONFIG_HAVE_ARCH_BITREVERSE config option,
->> so that we can use arm/arm64 rbit instruction to do bitrev operation
->> by hardware.
+On Tue, 2014-10-28 at 10:44 +0000, Steve Capper wrote:
+> On Mon, Oct 27, 2014 at 06:32:41PM -0700, Andrew Morton wrote:
+> > On Tue, 28 Oct 2014 12:20:29 +1100 Michael Ellerman <mpe@ellerman.id.au> wrote:
+> > 
+> > > On Mon, 2014-10-27 at 16:06 -0700, Andrew Morton wrote:
+> > > > On Sat, 25 Oct 2014 16:14:19 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+> > > > 
+> > > > > Update generic gup implementation with powerpc specific details.
+> > > > > On powerpc at pmd level we can have hugepte, normal pmd pointer
+> > > > > or a pointer to the hugepage directory.
+> > > > 
+> > > > I grabbed these.  It would be better if they were merged into the powerpc
+> > > > tree where they'll get more testing than in linux-next alone.
+> > >  
+> > > Fine by me. Can I get an ack from you and/or someone else on CC?
+> > 
+> > Only arm and arm64 use this code.  Steve, could you please look it over
+> > and check that arm is still happy?
+> 
+> Hi Andrew,
+> I've tested it and posted some comments on it.
+> 
+> If the arch/arm and arch/arm64 changes are removed and a comment about
+> an assumption made by the new gup_huge_pte code is added then I'm happy.
 
-I don't see the original patch in my inbox, so replying here.
+OK thanks Steve.
 
->>
->> Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
->> ---
->>  arch/arm/Kconfig                |  1 +
->>  arch/arm/include/asm/bitrev.h   | 21 +++++++++++++++++++++
->>  arch/arm64/Kconfig              |  1 +
->>  arch/arm64/include/asm/bitrev.h | 21 +++++++++++++++++++++
->>  include/linux/bitrev.h          |  9 +++++++++
->>  lib/Kconfig                     |  9 +++++++++
->>  lib/bitrev.c                    |  2 ++
->>  7 files changed, 64 insertions(+)
->>  create mode 100644 arch/arm/include/asm/bitrev.h
->>  create mode 100644 arch/arm64/include/asm/bitrev.h
->>
->> diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
->> index 89c4b5c..426cbcc 100644
->> --- a/arch/arm/Kconfig
->> +++ b/arch/arm/Kconfig
->> @@ -16,6 +16,7 @@ config ARM
->>       select DCACHE_WORD_ACCESS if HAVE_EFFICIENT_UNALIGNED_ACCESS
->>       select GENERIC_ALLOCATOR
->>       select GENERIC_ATOMIC64 if (CPU_V7M || CPU_V6 || !CPU_32v6K || !AEABI)
->> +     select HAVE_ARCH_BITREVERSE if (CPU_V7M || CPU_V7)
->>       select GENERIC_CLOCKEVENTS_BROADCAST if SMP
->>       select GENERIC_IDLE_POLL_SETUP
->>       select GENERIC_IRQ_PROBE
+Aneesh can you do those changes and resend and I'll put it in powerpc next.
 
-[...]
+cheers
 
->> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
->> index 9532f8d..263c28c 100644
->> --- a/arch/arm64/Kconfig
->> +++ b/arch/arm64/Kconfig
->> @@ -36,6 +36,7 @@ config ARM64
->>       select HARDIRQS_SW_RESEND
->>       select HAVE_ARCH_AUDITSYSCALL
->>       select HAVE_ARCH_JUMP_LABEL
->> +     select HAVE_ARCH_BITREVERSE
->>       select HAVE_ARCH_KGDB
->>       select HAVE_ARCH_TRACEHOOK
->>       select HAVE_BPF_JIT
-
-The kconfig lists should be sorted.
-
-Rob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
