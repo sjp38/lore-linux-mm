@@ -1,75 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 0405F900021
-	for <linux-mm@kvack.org>; Wed, 29 Oct 2014 05:51:06 -0400 (EDT)
-Received: by mail-qc0-f174.google.com with SMTP id r5so2018807qcx.33
-        for <linux-mm@kvack.org>; Wed, 29 Oct 2014 02:51:06 -0700 (PDT)
-Received: from na01-bn1-obe.outbound.protection.outlook.com (mail-bn1on0143.outbound.protection.outlook.com. [157.56.110.143])
-        by mx.google.com with ESMTPS id y9si6641852qab.10.2014.10.29.02.51.06
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A00F900021
+	for <linux-mm@kvack.org>; Wed, 29 Oct 2014 07:51:11 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id r10so2831965pdi.17
+        for <linux-mm@kvack.org>; Wed, 29 Oct 2014 04:51:11 -0700 (PDT)
+Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
+        by mx.google.com with ESMTPS id ck1si1568255pdb.82.2014.10.29.04.51.10
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 29 Oct 2014 02:51:06 -0700 (PDT)
-From: Dexuan Cui <decui@microsoft.com>
-Subject: RE: [PATCH] x86, pageattr: fix slow_virt_to_phys() for X86_PAE
-Date: Wed, 29 Oct 2014 09:50:23 +0000
-Message-ID: <F792CF86EFE20D4AB8064279AFBA51C6105705CD@HKNPRD3002MB017.064d.mgd.msft.net>
-References: <1414580033-27484-1-git-send-email-decui@microsoft.com>
-In-Reply-To: <1414580033-27484-1-git-send-email-decui@microsoft.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Wed, 29 Oct 2014 04:51:10 -0700 (PDT)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout1.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NE700AXNFQ2TH90@mailout1.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 29 Oct 2014 11:54:02 +0000 (GMT)
+Subject: [PATCH] mm/balloon_compaction: fix deflation when compaction is
+ disabled
+From: Konstantin Khlebnikov <k.khlebnikov@samsung.com>
+Date: Wed, 29 Oct 2014 14:51:07 +0400
+Message-id: <20141029115107.23071.26065.stgit@buzz>
+In-reply-to: <20141028202333.GC29098@hydra.tuxags.com>
+References: <20141028202333.GC29098@hydra.tuxags.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "jasowang@redhat.com" <jasowang@redhat.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@redhat.com" <mingo@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "dave.hansen@intel.com" <dave.hansen@intel.com>, "riel@redhat.com" <riel@redhat.com>
-Cc: KY Srinivasan <kys@microsoft.com>, Haiyang Zhang <haiyangz@microsoft.com>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Matt Mullins <mmullins@mmlx.us>, linux-kernel@vger.kernel.org, Rafael Aquini <aquini@redhat.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, stable@vger.kernel.org
 
-> -----Original Message-----
-> From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org] On
-> Behalf Of Dexuan Cui
-> Sent: Wednesday, October 29, 2014 18:54 PM
-> To: gregkh@linuxfoundation.org; linux-kernel@vger.kernel.org; linux-
-> mm@kvack.org; x86@kernel.org; olaf@aepfle.de; apw@canonical.com;
-> jasowang@redhat.com; tglx@linutronix.de; mingo@redhat.com;
-> hpa@zytor.com; dave.hansen@intel.com; riel@redhat.com
-> Cc: KY Srinivasan; Haiyang Zhang
-> Subject: [PATCH] x86, pageattr: fix slow_virt_to_phys() for X86_PAE
->=20
-> pte_pfn() returns a PFN of long (32 bits in 32-PAE), then
-> "long << PAGE_SHIFT" will overflow for PFNs above 4GB.
->=20
-> Due to this issue, some Linux 32-PAE distros, running as guests on Hyper-=
-V,
-> with 5GB memory assigned, can't load the netvsc driver successfully and
-> hence the synthetic network device can't work (we can use the kernel
-> parameter
-> mem=3D3000M to work around the issue).
->=20
-> Cc: K. Y. Srinivasan <kys@microsoft.com>
-> Cc: Haiyang Zhang <haiyangz@microsoft.com>
-> Signed-off-by: Dexuan Cui <decui@microsoft.com>
-> ---
->  arch/x86/mm/pageattr.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->=20
-> diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-> index ae242a7..36de293 100644
-> --- a/arch/x86/mm/pageattr.c
-> +++ b/arch/x86/mm/pageattr.c
-> @@ -409,7 +409,7 @@ phys_addr_t slow_virt_to_phys(void *__virt_addr)
->  	psize =3D page_level_size(level);
->  	pmask =3D page_level_mask(level);
->  	offset =3D virt_addr & ~pmask;
-> -	phys_addr =3D pte_pfn(*pte) << PAGE_SHIFT;
-> +	phys_addr =3D (phys_addr_t)pte_pfn(*pte) << PAGE_SHIFT;
->  	return (phys_addr | offset);
->  }
->  EXPORT_SYMBOL_GPL(slow_virt_to_phys);
+Fix for commit d6d86c0a7f8ddc5b38cf089222cb1d9540762dc2
+("mm/balloon_compaction: redesign ballooned pages management").
 
-Sorry for sending the same patch twice due to my silly typing!
+If CONFIG_BALLOON_COMPACTION=n balloon_page_insert() does not link
+pages with balloon and doesn't set PagePrivate flag, as a result
+balloon_page_dequeue cannot get any pages because it thinks that
+all of them are isolated. Without balloon compaction nobody can
+isolate ballooned pages, it's safe to remove this check.
 
-Thanks,
--- Dexuan
+Signed-off-by: Konstantin Khlebnikov <k.khlebnikov@samsung.com>
+Reported-by: Matt Mullins <mmullins@mmlx.us>
+Cc: Stable <stable@vger.kernel.org>	(v3.17)
+---
+ mm/balloon_compaction.c |    2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+index b3cbe19..fcad832 100644
+--- a/mm/balloon_compaction.c
++++ b/mm/balloon_compaction.c
+@@ -68,11 +68,13 @@ struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
+ 		 * to be released by the balloon driver.
+ 		 */
+ 		if (trylock_page(page)) {
++#ifdef CONFIG_BALLOON_COMPACTION
+ 			if (!PagePrivate(page)) {
+ 				/* raced with isolation */
+ 				unlock_page(page);
+ 				continue;
+ 			}
++#endif
+ 			spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+ 			balloon_page_delete(page);
+ 			__count_vm_event(BALLOON_DEFLATE);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
