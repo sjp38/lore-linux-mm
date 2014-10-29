@@ -1,154 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f172.google.com (mail-yk0-f172.google.com [209.85.160.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 76D5590008B
-	for <linux-mm@kvack.org>; Wed, 29 Oct 2014 13:14:50 -0400 (EDT)
-Received: by mail-yk0-f172.google.com with SMTP id q9so1498527ykb.3
-        for <linux-mm@kvack.org>; Wed, 29 Oct 2014 10:14:50 -0700 (PDT)
-Received: from mail-yh0-x231.google.com (mail-yh0-x231.google.com. [2607:f8b0:4002:c01::231])
-        by mx.google.com with ESMTPS id 33si4943878yho.106.2014.10.29.10.14.49
+Received: from mail-qc0-f177.google.com (mail-qc0-f177.google.com [209.85.216.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 5161990008B
+	for <linux-mm@kvack.org>; Wed, 29 Oct 2014 13:36:25 -0400 (EDT)
+Received: by mail-qc0-f177.google.com with SMTP id l6so2770104qcy.22
+        for <linux-mm@kvack.org>; Wed, 29 Oct 2014 10:36:24 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id s20si8451926qay.118.2014.10.29.10.36.23
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 29 Oct 2014 10:14:49 -0700 (PDT)
-Received: by mail-yh0-f49.google.com with SMTP id t59so778548yho.36
-        for <linux-mm@kvack.org>; Wed, 29 Oct 2014 10:14:49 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 29 Oct 2014 10:36:24 -0700 (PDT)
+Date: Wed, 29 Oct 2014 17:39:08 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 2/4] mm: gup: add get_user_pages_locked and
+ get_user_pages_unlocked
+Message-ID: <20141029163908.GI19606@redhat.com>
+References: <1412153797-6667-1-git-send-email-aarcange@redhat.com>
+ <1412153797-6667-3-git-send-email-aarcange@redhat.com>
+ <20141009105037.GM4750@worktop.programming.kicks-ass.net>
 MIME-Version: 1.0
-In-Reply-To: <1414600520-7664-6-git-send-email-aarcange@redhat.com>
-References: <1414600520-7664-1-git-send-email-aarcange@redhat.com>
-	<1414600520-7664-6-git-send-email-aarcange@redhat.com>
-Date: Wed, 29 Oct 2014 10:14:49 -0700
-Message-ID: <CAJu=L5_kp51ik5ptMe4dRuJHpM269YsPOx97LSS0M61+b3i4=Q@mail.gmail.com>
-Subject: Re: [PATCH 5/5] mm: gup: kvm use get_user_pages_unlocked
-From: Andres Lagar-Cavilla <andreslc@google.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141009105037.GM4750@worktop.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Michel Lespinasse <walken@google.com>, Andrew Jones <drjones@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, "\\Dr. David Alan Gilbert\\" <dgilbert@redhat.com>, Peter Feiner <pfeiner@google.com>, Peter Zijlstra <peterz@infradead.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, James Bottomley <James.Bottomley@hansenpartnership.com>, David Miller <davem@davemloft.net>, Steve Capper <steve.capper@linaro.org>, Johannes Weiner <jweiner@redhat.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andres Lagar-Cavilla <andreslc@google.com>, Gleb Natapov <gleb@kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "\\\"Dr. David Alan Gilbert\\\"" <dgilbert@redhat.com>
 
-On Wed Oct 29 2014 at 9:35:34 AM Andrea Arcangeli <aarcange@redhat.com> wrote:
->
-> Use the more generic get_user_pages_unlocked which has the additional
-> benefit of passing FAULT_FLAG_ALLOW_RETRY at the very first page fault
-> (which allows the first page fault in an unmapped area to be always
-> able to block indefinitely by being allowed to release the mmap_sem).
->
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> ---
->  include/linux/kvm_host.h | 11 -----------
->  virt/kvm/async_pf.c      |  2 +-
->  virt/kvm/kvm_main.c      | 50 ++++--------------------------------------------
->  3 files changed, 5 insertions(+), 58 deletions(-)
->
-> diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
-> index ea53b04..82c67da 100644
-> --- a/include/linux/kvm_host.h
-> +++ b/include/linux/kvm_host.h
-> @@ -199,17 +199,6 @@ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, unsigned long hva,
->  int kvm_async_pf_wakeup_all(struct kvm_vcpu *vcpu);
->  #endif
->
-> -/*
-> - * Carry out a gup that requires IO. Allow the mm to relinquish the mmap
-> - * semaphore if the filemap/swap has to wait on a page lock. pagep == NULL
-> - * controls whether we retry the gup one more time to completion in that case.
-> - * Typically this is called after a FAULT_FLAG_RETRY_NOWAIT in the main tdp
-> - * handler.
-> - */
-> -int kvm_get_user_page_io(struct task_struct *tsk, struct mm_struct *mm,
-> -                        unsigned long addr, bool write_fault,
-> -                        struct page **pagep);
-> -
->  enum {
->         OUTSIDE_GUEST_MODE,
->         IN_GUEST_MODE,
-> diff --git a/virt/kvm/async_pf.c b/virt/kvm/async_pf.c
-> index 5ff7f7f..44660ae 100644
-> --- a/virt/kvm/async_pf.c
-> +++ b/virt/kvm/async_pf.c
-> @@ -80,7 +80,7 @@ static void async_pf_execute(struct work_struct *work)
->
->         might_sleep();
->
-> -       kvm_get_user_page_io(NULL, mm, addr, 1, NULL);
-> +       get_user_pages_unlocked(NULL, mm, addr, 1, 1, 0, NULL);
->         kvm_async_page_present_sync(vcpu, apf);
->
->         spin_lock(&vcpu->async_pf.lock);
-> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-> index 25ffac9..78236ad 100644
-> --- a/virt/kvm/kvm_main.c
-> +++ b/virt/kvm/kvm_main.c
-> @@ -1134,43 +1134,6 @@ static int get_user_page_nowait(struct task_struct *tsk, struct mm_struct *mm,
->         return __get_user_pages(tsk, mm, start, 1, flags, page, NULL, NULL);
->  }
->
-> -int kvm_get_user_page_io(struct task_struct *tsk, struct mm_struct *mm,
-> -                        unsigned long addr, bool write_fault,
-> -                        struct page **pagep)
-> -{
-> -       int npages;
-> -       int locked = 1;
-> -       int flags = FOLL_TOUCH | FOLL_HWPOISON |
-> -                   (pagep ? FOLL_GET : 0) |
-> -                   (write_fault ? FOLL_WRITE : 0);
-> -
-> -       /*
-> -        * If retrying the fault, we get here *not* having allowed the filemap
-> -        * to wait on the page lock. We should now allow waiting on the IO with
-> -        * the mmap semaphore released.
-> -        */
-> -       down_read(&mm->mmap_sem);
-> -       npages = __get_user_pages(tsk, mm, addr, 1, flags, pagep, NULL,
-> -                                 &locked);
-> -       if (!locked) {
-> -               VM_BUG_ON(npages);
-> -
-> -               if (!pagep)
-> -                       return 0;
-> -
-> -               /*
-> -                * The previous call has now waited on the IO. Now we can
-> -                * retry and complete. Pass TRIED to ensure we do not re
-> -                * schedule async IO (see e.g. filemap_fault).
-> -                */
-> -               down_read(&mm->mmap_sem);
-> -               npages = __get_user_pages(tsk, mm, addr, 1, flags | FOLL_TRIED,
-> -                                         pagep, NULL, NULL);
-> -       }
-> -       up_read(&mm->mmap_sem);
-> -       return npages;
-> -}
-> -
->  static inline int check_user_page_hwpoison(unsigned long addr)
->  {
->         int rc, flags = FOLL_TOUCH | FOLL_HWPOISON | FOLL_WRITE;
-> @@ -1233,15 +1196,10 @@ static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
->                 npages = get_user_page_nowait(current, current->mm,
->                                               addr, write_fault, page);
->                 up_read(&current->mm->mmap_sem);
-> -       } else {
-> -               /*
-> -                * By now we have tried gup_fast, and possibly async_pf, and we
-> -                * are certainly not atomic. Time to retry the gup, allowing
-> -                * mmap semaphore to be relinquished in the case of IO.
-> -                */
-> -               npages = kvm_get_user_page_io(current, current->mm, addr,
-> -                                             write_fault, page);
-> -       }
-> +       } else
+On Thu, Oct 09, 2014 at 12:50:37PM +0200, Peter Zijlstra wrote:
+> On Wed, Oct 01, 2014 at 10:56:35AM +0200, Andrea Arcangeli wrote:
+> 
+> > +static inline long __get_user_pages_locked(struct task_struct *tsk,
+> > +					   struct mm_struct *mm,
+> > +					   unsigned long start,
+> > +					   unsigned long nr_pages,
+> > +					   int write, int force,
+> > +					   struct page **pages,
+> > +					   struct vm_area_struct **vmas,
+> > +					   int *locked,
+> > +					   bool notify_drop)
+> > +{
+> 
+> > +	if (notify_drop && lock_dropped && *locked) {
+> > +		/*
+> > +		 * We must let the caller know we temporarily dropped the lock
+> > +		 * and so the critical section protected by it was lost.
+> > +		 */
+> > +		up_read(&mm->mmap_sem);
+> > +		*locked = 0;
+> > +	}
+> > +	return pages_done;
+> > +}
+> 
+> > +long get_user_pages_locked(struct task_struct *tsk, struct mm_struct *mm,
+> > +			   unsigned long start, unsigned long nr_pages,
+> > +			   int write, int force, struct page **pages,
+> > +			   int *locked)
+> > +{
+> > +	return __get_user_pages_locked(tsk, mm, start, nr_pages, write, force,
+> > +				       pages, NULL, locked, true);
+> > +}
+> 
+> > +long get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
+> > +			     unsigned long start, unsigned long nr_pages,
+> > +			     int write, int force, struct page **pages)
+> > +{
+> > +	long ret;
+> > +	int locked = 1;
+> > +	down_read(&mm->mmap_sem);
+> > +	ret = __get_user_pages_locked(tsk, mm, start, nr_pages, write, force,
+> > +				      pages, NULL, &locked, false);
+> > +	if (locked)
+> > +		up_read(&mm->mmap_sem);
+> > +	return ret;
+> > +}
+> 
+> >  long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+> >  		unsigned long start, unsigned long nr_pages, int write,
+> >  		int force, struct page **pages, struct vm_area_struct **vmas)
+> >  {
+> > +	return __get_user_pages_locked(tsk, mm, start, nr_pages, write, force,
+> > +				       pages, vmas, NULL, false);
+> >  }
+> 
+> I'm wondering about that notify_drop parameter, what's the added
+> benefit? If you look at these 3 callers we can do away with it, since in
+> the second called where we have locked but !notify_drop we seem to do
 
-Braces here, per coding style.
+The second (and third) caller pass notify_drop=false, so the
+notify_drop parameter is always a noop for them. They certainly could
+get away without it.
 
-Other than that:
-Reviewed-by: Andres Lagar-Cavilla <andreslc@google.com>
+> the exact same thing afterwards anyway.
 
->
-> +               npages = __get_user_pages_unlocked(current, current->mm, addr, 1,
-> +                                                  write_fault, 0, page,
-> +                                                  FOLL_TOUCH|FOLL_HWPOISON);
->         if (npages != 1)
->                 return npages;
->
+It makes a difference only to the first caller, if it wasn't for the
+first caller notify_drop could be dropped. The first caller does this:
+
+	return __get_user_pages_locked(tsk, mm, start, nr_pages, write, force,
+				       pages, NULL, locked, true, FOLL_TOUCH);
+				       	      	            ^ notify_drop = true
+
+Without "notify_drop=true" the first caller could make its own
+respective caller think the lock has never been dropped, just because
+it is locked by the time get_user_pages_locked returned. But the
+caller must be made aware that the lock has been dropped during the
+call and in turn any "vma" it got before inside the mmap_sem critical
+section is now stale. That's all notify_drop achieves.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
