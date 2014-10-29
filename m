@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id C8616900021
-	for <linux-mm@kvack.org>; Wed, 29 Oct 2014 05:46:09 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id bj1so2826901pad.17
-        for <linux-mm@kvack.org>; Wed, 29 Oct 2014 02:46:09 -0700 (PDT)
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id ECE8E900021
+	for <linux-mm@kvack.org>; Wed, 29 Oct 2014 05:46:22 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id fp1so2613964pdb.41
+        for <linux-mm@kvack.org>; Wed, 29 Oct 2014 02:46:22 -0700 (PDT)
 Received: from p3plsmtps2ded02.prod.phx3.secureserver.net (p3plsmtps2ded02.prod.phx3.secureserver.net. [208.109.80.59])
-        by mx.google.com with ESMTP id w6si3533659pdp.190.2014.10.29.02.46.08
+        by mx.google.com with ESMTP id a10si131836pat.135.2014.10.29.02.46.21
         for <linux-mm@kvack.org>;
-        Wed, 29 Oct 2014 02:46:08 -0700 (PDT)
+        Wed, 29 Oct 2014 02:46:22 -0700 (PDT)
 From: Dexuan Cui <decui@microsoft.com>
 Subject: [PATCH] x86, pageattr: fix slow_virt_to_phys() for X86_PAE
-Date: Wed, 29 Oct 2014 03:53:37 -0700
-Message-Id: <1414580017-27444-1-git-send-email-decui@microsoft.com>
+Date: Wed, 29 Oct 2014 03:53:53 -0700
+Message-Id: <1414580033-27484-1-git-send-email-decui@microsoft.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, olaf@aepfle.de, apw@canonical.com, jasowang@redhat.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, dave.hansen@intel.com, riel@redhat.com
