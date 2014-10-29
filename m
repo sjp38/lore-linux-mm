@@ -1,61 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f51.google.com (mail-qa0-f51.google.com [209.85.216.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A222390008B
-	for <linux-mm@kvack.org>; Wed, 29 Oct 2014 12:36:16 -0400 (EDT)
-Received: by mail-qa0-f51.google.com with SMTP id f12so2402031qad.10
-        for <linux-mm@kvack.org>; Wed, 29 Oct 2014 09:36:16 -0700 (PDT)
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 66C2190008B
+	for <linux-mm@kvack.org>; Wed, 29 Oct 2014 12:42:15 -0400 (EDT)
+Received: by mail-wi0-f175.google.com with SMTP id ex7so2240873wid.2
+        for <linux-mm@kvack.org>; Wed, 29 Oct 2014 09:42:14 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s38si8218235qge.85.2014.10.29.09.36.14
+        by mx.google.com with ESMTPS id m10si19176207wiz.21.2014.10.29.09.42.12
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Oct 2014 09:36:15 -0700 (PDT)
+        Wed, 29 Oct 2014 09:42:13 -0700 (PDT)
+Date: Wed, 29 Oct 2014 17:41:36 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 0/5] get_user_pages_locked|unlocked v1
-Date: Wed, 29 Oct 2014 17:35:15 +0100
-Message-Id: <1414600520-7664-1-git-send-email-aarcange@redhat.com>
+Subject: Re: [PATCH 2/4] mm: gup: add get_user_pages_locked and
+ get_user_pages_unlocked
+Message-ID: <20141029164136.GJ19606@redhat.com>
+References: <1412153797-6667-1-git-send-email-aarcange@redhat.com>
+ <1412153797-6667-3-git-send-email-aarcange@redhat.com>
+ <20141009104723.GL4750@worktop.programming.kicks-ass.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141009104723.GL4750@worktop.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Michel Lespinasse <walken@google.com>, Andrew Jones <drjones@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Andres Lagar-Cavilla <andreslc@google.com>, Minchan Kim <minchan@kernel.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, "\\\"Dr. David Alan Gilbert\\\"" <dgilbert@redhat.com>, Peter Feiner <pfeiner@google.com>, Peter Zijlstra <peterz@infradead.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, David Miller <davem@davemloft.net>, Steve Capper <steve.capper@linaro.org>, Johannes Weiner <jweiner@redhat.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andres Lagar-Cavilla <andreslc@google.com>, Gleb Natapov <gleb@kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "\\\"Dr. David Alan Gilbert\\\"" <dgilbert@redhat.com>
 
-This patchset standalone is an optimization leveraging the page fault
-FAULT_FLAG_ALLOW_RETRY flag which allows the page fault paths to drop
-the mmap_sem before I/O.
+On Thu, Oct 09, 2014 at 12:47:23PM +0200, Peter Zijlstra wrote:
+> On Wed, Oct 01, 2014 at 10:56:35AM +0200, Andrea Arcangeli wrote:
+> > +static inline long __get_user_pages_locked(struct task_struct *tsk,
+> > +					   struct mm_struct *mm,
+> > +					   unsigned long start,
+> > +					   unsigned long nr_pages,
+> > +					   int write, int force,
+> > +					   struct page **pages,
+> > +					   struct vm_area_struct **vmas,
+> > +					   int *locked,
+> > +					   bool notify_drop)
+> 
+> You might want to consider __always_inline to make sure it does indeed
+> get inlined and constant propagation works for @locked and @notify_drop.
 
-For the userfaultfd patchset this patch is instead a dependency as we
-need that flag always set the first time any thread attempts a page
-fault, in order to release the mmap_sem before stopping the page fault
-(while waiting for a later userland wakeup).
+Ok, that's included in the last patchset submit.
 
-http://thread.gmane.org/gmane.linux.kernel.mm/123575
-
-Andrea Arcangeli (5):
-  mm: gup: add get_user_pages_locked and get_user_pages_unlocked
-  mm: gup: add __get_user_pages_unlocked to customize gup_flags
-  mm: gup: use get_user_pages_unlocked within get_user_pages_fast
-  mm: gup: use get_user_pages_unlocked
-  mm: gup: kvm use get_user_pages_unlocked
-
- arch/mips/mm/gup.c                 |   8 +-
- arch/powerpc/mm/gup.c              |   6 +-
- arch/s390/mm/gup.c                 |   6 +-
- arch/sh/mm/gup.c                   |   6 +-
- arch/sparc/mm/gup.c                |   6 +-
- arch/x86/mm/gup.c                  |   7 +-
- drivers/iommu/amd_iommu_v2.c       |   6 +-
- drivers/media/pci/ivtv/ivtv-udma.c |   6 +-
- drivers/scsi/st.c                  |   7 +-
- drivers/video/fbdev/pvr2fb.c       |   6 +-
- include/linux/kvm_host.h           |  11 --
- include/linux/mm.h                 |  11 ++
- mm/gup.c                           | 203 ++++++++++++++++++++++++++++++++++---
- mm/nommu.c                         |  33 ++++++
- mm/process_vm_access.c             |   7 +-
- mm/util.c                          |  10 +-
- net/ceph/pagevec.c                 |   6 +-
- virt/kvm/async_pf.c                |   2 +-
- virt/kvm/kvm_main.c                |  50 +--------
- 19 files changed, 265 insertions(+), 132 deletions(-)
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
