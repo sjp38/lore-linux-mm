@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 829FF900021
-	for <linux-mm@kvack.org>; Wed, 29 Oct 2014 12:36:12 -0400 (EDT)
-Received: by mail-qa0-f46.google.com with SMTP id s7so2380233qap.5
-        for <linux-mm@kvack.org>; Wed, 29 Oct 2014 09:36:12 -0700 (PDT)
+Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
+	by kanga.kvack.org (Postfix) with ESMTP id C16AD900021
+	for <linux-mm@kvack.org>; Wed, 29 Oct 2014 12:36:13 -0400 (EDT)
+Received: by mail-qc0-f169.google.com with SMTP id i17so2721923qcy.28
+        for <linux-mm@kvack.org>; Wed, 29 Oct 2014 09:36:13 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n14si8169739qae.122.2014.10.29.09.36.10
+        by mx.google.com with ESMTPS id a2si8228397qgf.77.2014.10.29.09.36.11
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Oct 2014 09:36:11 -0700 (PDT)
+        Wed, 29 Oct 2014 09:36:12 -0700 (PDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 2/5] mm: gup: add __get_user_pages_unlocked to customize gup_flags
-Date: Wed, 29 Oct 2014 17:35:17 +0100
-Message-Id: <1414600520-7664-3-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 4/5] mm: gup: use get_user_pages_unlocked
+Date: Wed, 29 Oct 2014 17:35:19 +0100
+Message-Id: <1414600520-7664-5-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1414600520-7664-1-git-send-email-aarcange@redhat.com>
 References: <1414600520-7664-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,148 +20,137 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Michel Lespinasse <walken@google.com>, Andrew Jones <drjones@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Andres Lagar-Cavilla <andreslc@google.com>, Minchan Kim <minchan@kernel.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, "\\\"Dr. David Alan Gilbert\\\"" <dgilbert@redhat.com>, Peter Feiner <pfeiner@google.com>, Peter Zijlstra <peterz@infradead.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, David Miller <davem@davemloft.net>, Steve Capper <steve.capper@linaro.org>, Johannes Weiner <jweiner@redhat.com>
 
-Some caller (like KVM) may want to set the gup_flags like
-FOLL_HWPOSION to get a proper -EHWPOSION retval instead of -EFAULT to
-take a more appropriate action if get_user_pages runs into a memory
-failure.
+This allows those get_user_pages calls to pass FAULT_FLAG_ALLOW_RETRY
+to the page fault in order to release the mmap_sem during the I/O.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- include/linux/mm.h |  4 ++++
- mm/gup.c           | 44 ++++++++++++++++++++++++++++++++------------
- mm/nommu.c         | 16 +++++++++++++---
- 3 files changed, 49 insertions(+), 15 deletions(-)
+ drivers/iommu/amd_iommu_v2.c       | 6 ++----
+ drivers/media/pci/ivtv/ivtv-udma.c | 6 ++----
+ drivers/scsi/st.c                  | 7 ++-----
+ drivers/video/fbdev/pvr2fb.c       | 6 ++----
+ mm/process_vm_access.c             | 7 ++-----
+ net/ceph/pagevec.c                 | 6 ++----
+ 6 files changed, 12 insertions(+), 26 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 99831d9..9a5ada3 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1222,6 +1222,10 @@ long get_user_pages_locked(struct task_struct *tsk, struct mm_struct *mm,
- 		    unsigned long start, unsigned long nr_pages,
- 		    int write, int force, struct page **pages,
- 		    int *locked);
-+long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
-+			       unsigned long start, unsigned long nr_pages,
-+			       int write, int force, struct page **pages,
-+			       unsigned int gup_flags);
- long get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
- 		    unsigned long start, unsigned long nr_pages,
- 		    int write, int force, struct page **pages);
-diff --git a/mm/gup.c b/mm/gup.c
-index a8521f1..01534ff 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -591,9 +591,9 @@ static __always_inline long __get_user_pages_locked(struct task_struct *tsk,
- 						int write, int force,
- 						struct page **pages,
- 						struct vm_area_struct **vmas,
--						int *locked, bool notify_drop)
-+						int *locked, bool notify_drop,
-+						unsigned int flags)
- {
--	int flags = FOLL_TOUCH;
- 	long ret, pages_done;
- 	bool lock_dropped;
+diff --git a/drivers/iommu/amd_iommu_v2.c b/drivers/iommu/amd_iommu_v2.c
+index 90d734b..4cd8a87 100644
+--- a/drivers/iommu/amd_iommu_v2.c
++++ b/drivers/iommu/amd_iommu_v2.c
+@@ -521,10 +521,8 @@ static void do_fault(struct work_struct *work)
  
-@@ -707,11 +707,37 @@ long get_user_pages_locked(struct task_struct *tsk, struct mm_struct *mm,
- 			   int *locked)
- {
- 	return __get_user_pages_locked(tsk, mm, start, nr_pages, write, force,
--				       pages, NULL, locked, true);
-+				       pages, NULL, locked, true, FOLL_TOUCH);
- }
- EXPORT_SYMBOL(get_user_pages_locked);
+ 	write = !!(fault->flags & PPR_FAULT_WRITE);
  
- /*
-+ * Same as get_user_pages_unlocked(...., FOLL_TOUCH) but it allows to
-+ * pass additional gup_flags as last parameter (like FOLL_HWPOISON).
-+ *
-+ * NOTE: here FOLL_TOUCH is not set implicitly and must be set by the
-+ * caller if required (just like with __get_user_pages). "FOLL_GET",
-+ * "FOLL_WRITE" and "FOLL_FORCE" are set implicitly as needed
-+ * according to the parameters "pages", "write", "force"
-+ * respectively.
-+ */
-+__always_inline long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
-+					       unsigned long start, unsigned long nr_pages,
-+					       int write, int force, struct page **pages,
-+					       unsigned int gup_flags)
-+{
-+	long ret;
-+	int locked = 1;
-+	down_read(&mm->mmap_sem);
-+	ret = __get_user_pages_locked(tsk, mm, start, nr_pages, write, force,
-+				      pages, NULL, &locked, false, gup_flags);
-+	if (locked)
-+		up_read(&mm->mmap_sem);
-+	return ret;
-+}
-+EXPORT_SYMBOL(__get_user_pages_unlocked);
-+
-+/*
-  * get_user_pages_unlocked() is suitable to replace the form:
-  *
-  *      down_read(&mm->mmap_sem);
-@@ -732,14 +758,8 @@ long get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
- 			     unsigned long start, unsigned long nr_pages,
- 			     int write, int force, struct page **pages)
- {
--	long ret;
--	int locked = 1;
--	down_read(&mm->mmap_sem);
--	ret = __get_user_pages_locked(tsk, mm, start, nr_pages, write, force,
--				      pages, NULL, &locked, false);
--	if (locked)
+-	down_read(&fault->state->mm->mmap_sem);
+-	npages = get_user_pages(NULL, fault->state->mm,
+-				fault->address, 1, write, 0, &page, NULL);
+-	up_read(&fault->state->mm->mmap_sem);
++	npages = get_user_pages_unlocked(NULL, fault->state->mm,
++					 fault->address, 1, write, 0, &page);
+ 
+ 	if (npages == 1) {
+ 		put_page(page);
+diff --git a/drivers/media/pci/ivtv/ivtv-udma.c b/drivers/media/pci/ivtv/ivtv-udma.c
+index 7338cb2..96d866b 100644
+--- a/drivers/media/pci/ivtv/ivtv-udma.c
++++ b/drivers/media/pci/ivtv/ivtv-udma.c
+@@ -124,10 +124,8 @@ int ivtv_udma_setup(struct ivtv *itv, unsigned long ivtv_dest_addr,
+ 	}
+ 
+ 	/* Get user pages for DMA Xfer */
+-	down_read(&current->mm->mmap_sem);
+-	err = get_user_pages(current, current->mm,
+-			user_dma.uaddr, user_dma.page_count, 0, 1, dma->map, NULL);
+-	up_read(&current->mm->mmap_sem);
++	err = get_user_pages_unlocked(current, current->mm,
++			user_dma.uaddr, user_dma.page_count, 0, 1, dma->map);
+ 
+ 	if (user_dma.page_count != err) {
+ 		IVTV_DEBUG_WARN("failed to map user pages, returned %d instead of %d\n",
+diff --git a/drivers/scsi/st.c b/drivers/scsi/st.c
+index 4daa372..a98e00b 100644
+--- a/drivers/scsi/st.c
++++ b/drivers/scsi/st.c
+@@ -4538,18 +4538,15 @@ static int sgl_map_user_pages(struct st_buffer *STbp,
+ 		return -ENOMEM;
+ 
+         /* Try to fault in all of the necessary pages */
+-	down_read(&current->mm->mmap_sem);
+         /* rw==READ means read from drive, write into memory area */
+-	res = get_user_pages(
++	res = get_user_pages_unlocked(
+ 		current,
+ 		current->mm,
+ 		uaddr,
+ 		nr_pages,
+ 		rw == READ,
+ 		0, /* don't force */
+-		pages,
+-		NULL);
+-	up_read(&current->mm->mmap_sem);
++		pages);
+ 
+ 	/* Errors and no page mapped should return here */
+ 	if (res < nr_pages)
+diff --git a/drivers/video/fbdev/pvr2fb.c b/drivers/video/fbdev/pvr2fb.c
+index 7c74f58..0e24eb9 100644
+--- a/drivers/video/fbdev/pvr2fb.c
++++ b/drivers/video/fbdev/pvr2fb.c
+@@ -686,10 +686,8 @@ static ssize_t pvr2fb_write(struct fb_info *info, const char *buf,
+ 	if (!pages)
+ 		return -ENOMEM;
+ 
+-	down_read(&current->mm->mmap_sem);
+-	ret = get_user_pages(current, current->mm, (unsigned long)buf,
+-			     nr_pages, WRITE, 0, pages, NULL);
+-	up_read(&current->mm->mmap_sem);
++	ret = get_user_pages_unlocked(current, current->mm, (unsigned long)buf,
++				      nr_pages, WRITE, 0, pages);
+ 
+ 	if (ret < nr_pages) {
+ 		nr_pages = ret;
+diff --git a/mm/process_vm_access.c b/mm/process_vm_access.c
+index 5077afc..b159769 100644
+--- a/mm/process_vm_access.c
++++ b/mm/process_vm_access.c
+@@ -99,11 +99,8 @@ static int process_vm_rw_single_vec(unsigned long addr,
+ 		size_t bytes;
+ 
+ 		/* Get the pages we're interested in */
+-		down_read(&mm->mmap_sem);
+-		pages = get_user_pages(task, mm, pa, pages,
+-				      vm_write, 0, process_pages, NULL);
 -		up_read(&mm->mmap_sem);
--	return ret;
-+	return __get_user_pages_unlocked(tsk, mm, start, nr_pages, write,
-+					 force, pages, FOLL_TOUCH);
- }
- EXPORT_SYMBOL(get_user_pages_unlocked);
+-
++		pages = get_user_pages_unlocked(task, mm, pa, pages,
++						vm_write, 0, process_pages);
+ 		if (pages <= 0)
+ 			return -EFAULT;
  
-@@ -803,7 +823,7 @@ long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 		int force, struct page **pages, struct vm_area_struct **vmas)
- {
- 	return __get_user_pages_locked(tsk, mm, start, nr_pages, write, force,
--				       pages, vmas, NULL, false);
-+				       pages, vmas, NULL, false, FOLL_TOUCH);
- }
- EXPORT_SYMBOL(get_user_pages);
+diff --git a/net/ceph/pagevec.c b/net/ceph/pagevec.c
+index 5550130..096d914 100644
+--- a/net/ceph/pagevec.c
++++ b/net/ceph/pagevec.c
+@@ -23,17 +23,15 @@ struct page **ceph_get_direct_page_vector(const void __user *data,
+ 	if (!pages)
+ 		return ERR_PTR(-ENOMEM);
  
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 2a63d1f..6f6c752 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -223,9 +223,10 @@ long get_user_pages_locked(struct task_struct *tsk, struct mm_struct *mm,
- }
- EXPORT_SYMBOL(get_user_pages_locked);
- 
--long get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
--			     unsigned long start, unsigned long nr_pages,
--			     int write, int force, struct page **pages)
-+long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
-+			       unsigned long start, unsigned long nr_pages,
-+			       int write, int force, struct page **pages,
-+			       unsigned int gup_flags)
- {
- 	long ret;
- 	down_read(&mm->mmap_sem);
-@@ -234,6 +235,15 @@ long get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
- 	up_read(&mm->mmap_sem);
- 	return ret;
- }
-+EXPORT_SYMBOL(__get_user_pages_unlocked);
-+
-+long get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
-+			     unsigned long start, unsigned long nr_pages,
-+			     int write, int force, struct page **pages)
-+{
-+	return __get_user_pages_unlocked(tsk, mm, start, nr_pages, write,
-+					 force, pages, 0);
-+}
- EXPORT_SYMBOL(get_user_pages_unlocked);
- 
- /**
+-	down_read(&current->mm->mmap_sem);
+ 	while (got < num_pages) {
+-		rc = get_user_pages(current, current->mm,
++		rc = get_user_pages_unlocked(current, current->mm,
+ 		    (unsigned long)data + ((unsigned long)got * PAGE_SIZE),
+-		    num_pages - got, write_page, 0, pages + got, NULL);
++		    num_pages - got, write_page, 0, pages + got);
+ 		if (rc < 0)
+ 			break;
+ 		BUG_ON(rc == 0);
+ 		got += rc;
+ 	}
+-	up_read(&current->mm->mmap_sem);
+ 	if (rc < 0)
+ 		goto fail;
+ 	return pages;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
