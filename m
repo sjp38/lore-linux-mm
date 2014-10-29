@@ -1,65 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id C8178900021
-	for <linux-mm@kvack.org>; Wed, 29 Oct 2014 00:46:56 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id rd3so2356005pab.13
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 21:46:56 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id v7si191913pdn.28.2014.10.28.21.46.55
+	by kanga.kvack.org (Postfix) with ESMTP id C7FB4900021
+	for <linux-mm@kvack.org>; Wed, 29 Oct 2014 01:14:33 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id rd3so2401642pab.27
+        for <linux-mm@kvack.org>; Tue, 28 Oct 2014 22:14:33 -0700 (PDT)
+Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
+        by mx.google.com with ESMTPS id zt1si3203207pac.10.2014.10.28.22.14.28
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Oct 2014 21:46:55 -0700 (PDT)
-Message-ID: <1414558008.7417.2.camel@concordia>
-Subject: Re: [PATCH V3 1/2] mm: Update generic gup implementation to handle
- hugepage directory
-From: Michael Ellerman <mpe@ellerman.id.au>
-Date: Wed, 29 Oct 2014 15:46:48 +1100
-In-Reply-To: <20141028104451.GB4187@linaro.org>
-References: 
-	<1414233860-7683-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	 <20141027160612.b7fd0b1cc9d82faeaa674940@linux-foundation.org>
-	 <1414459229.31711.0.camel@concordia>
-	 <20141027183241.a5339085.akpm@linux-foundation.org>
-	 <20141028104451.GB4187@linaro.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 28 Oct 2014 22:14:32 -0700 (PDT)
+From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Date: Wed, 29 Oct 2014 13:14:18 +0800
+Subject: [RFC V4 1/3] add CONFIG_HAVE_ARCH_BITREVERSE to support rbit
+ instruction
+Message-ID: <35FD53F367049845BC99AC72306C23D103E010D1825F@CNBJMBX05.corpusers.net>
+References: <35FD53F367049845BC99AC72306C23D103E010D18254@CNBJMBX05.corpusers.net>
+ <35FD53F367049845BC99AC72306C23D103E010D18257@CNBJMBX05.corpusers.net>
+ <1414392371.8884.2.camel@perches.com>
+ <CAL_JsqJYBoG+nrr7R3UWz1wrZ--Xjw5X31RkpCrTWMJAePBgRg@mail.gmail.com>
+In-Reply-To: <CAL_JsqJYBoG+nrr7R3UWz1wrZ--Xjw5X31RkpCrTWMJAePBgRg@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steve Capper <steve.capper@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, benh@kernel.crashing.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org
+To: 'Rob Herring' <robherring2@gmail.com>, Joe Perches <joe@perches.com>
+Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, Will Deacon <Will.Deacon@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akinobu.mita@gmail.com" <akinobu.mita@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Tue, 2014-10-28 at 10:44 +0000, Steve Capper wrote:
-> On Mon, Oct 27, 2014 at 06:32:41PM -0700, Andrew Morton wrote:
-> > On Tue, 28 Oct 2014 12:20:29 +1100 Michael Ellerman <mpe@ellerman.id.au> wrote:
-> > 
-> > > On Mon, 2014-10-27 at 16:06 -0700, Andrew Morton wrote:
-> > > > On Sat, 25 Oct 2014 16:14:19 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
-> > > > 
-> > > > > Update generic gup implementation with powerpc specific details.
-> > > > > On powerpc at pmd level we can have hugepte, normal pmd pointer
-> > > > > or a pointer to the hugepage directory.
-> > > > 
-> > > > I grabbed these.  It would be better if they were merged into the powerpc
-> > > > tree where they'll get more testing than in linux-next alone.
-> > >  
-> > > Fine by me. Can I get an ack from you and/or someone else on CC?
-> > 
-> > Only arm and arm64 use this code.  Steve, could you please look it over
-> > and check that arm is still happy?
-> 
-> Hi Andrew,
-> I've tested it and posted some comments on it.
-> 
-> If the arch/arm and arch/arm64 changes are removed and a comment about
-> an assumption made by the new gup_huge_pte code is added then I'm happy.
-
-OK thanks Steve.
-
-Aneesh can you do those changes and resend and I'll put it in powerpc next.
-
-cheers
-
+dGhpcyBjaGFuZ2UgYWRkIENPTkZJR19IQVZFX0FSQ0hfQklUUkVWRVJTRSBjb25maWcgb3B0aW9u
+LA0Kc28gdGhhdCB3ZSBjYW4gdXNlIGFybS9hcm02NCByYml0IGluc3RydWN0aW9uIHRvIGRvIGJp
+dHJldiBvcGVyYXRpb24NCmJ5IGhhcmR3YXJlLg0KDQpXZSBhbHNvIGNoYW5nZSBieXRlX3Jldl90
+YWJsZVtdIHRvIGJlIHN0YXRpYywNCnRvIG1ha2Ugc3VyZSBubyBkcml2ZXJzIGNhbiBhY2Nlc3Mg
+aXQgZGlyZWN0bHkuDQoNCkNoYW5nZSBiaXRyZXYxNigpIGJpdHJldjMyKCkgdG8gYmUgaW5saW5l
+IGZ1bmN0aW9uLA0KZG9uJ3QgbmVlZCBleHBvcnQgc3ltYm9sIGZvciB0aGVzZSB0aW55IGZ1bmN0
+aW9ucy4NCg0KU2lnbmVkLW9mZi1ieTogWWFsaW4gV2FuZyA8eWFsaW4ud2FuZ0Bzb255bW9iaWxl
+LmNvbT4NCi0tLQ0KIGluY2x1ZGUvbGludXgvYml0cmV2LmggfCAyMSArKysrKysrKysrKysrKysr
+KystLS0NCiBsaWIvS2NvbmZpZyAgICAgICAgICAgIHwgIDkgKysrKysrKysrDQogbGliL2JpdHJl
+di5jICAgICAgICAgICB8IDE5ICsrKy0tLS0tLS0tLS0tLS0tLS0NCiAzIGZpbGVzIGNoYW5nZWQs
+IDMwIGluc2VydGlvbnMoKyksIDE5IGRlbGV0aW9ucygtKQ0KDQpkaWZmIC0tZ2l0IGEvaW5jbHVk
+ZS9saW51eC9iaXRyZXYuaCBiL2luY2x1ZGUvbGludXgvYml0cmV2LmgNCmluZGV4IDdmZmUwM2Yu
+LmZhMjY4MmMgMTAwNjQ0DQotLS0gYS9pbmNsdWRlL2xpbnV4L2JpdHJldi5oDQorKysgYi9pbmNs
+dWRlL2xpbnV4L2JpdHJldi5oDQpAQCAtMywxNCArMywyOSBAQA0KIA0KICNpbmNsdWRlIDxsaW51
+eC90eXBlcy5oPg0KIA0KLWV4dGVybiB1OCBjb25zdCBieXRlX3Jldl90YWJsZVsyNTZdOw0KKyNp
+ZmRlZiBDT05GSUdfSEFWRV9BUkNIX0JJVFJFVkVSU0UNCisjaW5jbHVkZSA8YXNtL2JpdHJldi5o
+Pg0KKw0KKyNkZWZpbmUgYml0cmV2MzIgX19hcmNoX2JpdHJldjMyDQorI2RlZmluZSBiaXRyZXYx
+NiBfX2FyY2hfYml0cmV2MTYNCisjZGVmaW5lIGJpdHJldjggX19hcmNoX2JpdHJldjgNCisNCisj
+ZWxzZQ0KIA0KIHN0YXRpYyBpbmxpbmUgdTggYml0cmV2OCh1OCBieXRlKQ0KIHsNCiAJcmV0dXJu
+IGJ5dGVfcmV2X3RhYmxlW2J5dGVdOw0KIH0NCiANCi1leHRlcm4gdTE2IGJpdHJldjE2KHUxNiBp
+bik7DQotZXh0ZXJuIHUzMiBiaXRyZXYzMih1MzIgaW4pOw0KK3N0YXRpYyBpbmxpbmUgdTE2IGJp
+dHJldjE2KHUxNiB4KQ0KK3sNCisJcmV0dXJuIChiaXRyZXY4KHggJiAweGZmKSA8PCA4KSB8IGJp
+dHJldjgoeCA+PiA4KTsNCit9DQorDQorc3RhdGljIGlubGluZSB1MzIgYml0cmV2MzIodTMyIHgp
+DQorew0KKwlyZXR1cm4gKGJpdHJldjE2KHggJiAweGZmZmYpIDw8IDE2KSB8IGJpdHJldjE2KHgg
+Pj4gMTYpOw0KK30NCiANCisjZW5kaWYgLyogQ09ORklHX0hBVkVfQVJDSF9CSVRSRVZFUlNFICov
+DQogI2VuZGlmIC8qIF9MSU5VWF9CSVRSRVZfSCAqLw0KZGlmZiAtLWdpdCBhL2xpYi9LY29uZmln
+IGIvbGliL0tjb25maWcNCmluZGV4IDU0Y2YzMDkuLmNkMTc3Y2EgMTAwNjQ0DQotLS0gYS9saWIv
+S2NvbmZpZw0KKysrIGIvbGliL0tjb25maWcNCkBAIC0xMyw2ICsxMywxNSBAQCBjb25maWcgUkFJ
+RDZfUFENCiBjb25maWcgQklUUkVWRVJTRQ0KIAl0cmlzdGF0ZQ0KIA0KK2NvbmZpZyBIQVZFX0FS
+Q0hfQklUUkVWRVJTRQ0KKwlib29sZWFuDQorCWRlZmF1bHQgbg0KKwlkZXBlbmRzIG9uIEJJVFJF
+VkVSU0UNCisJaGVscA0KKwkgIFRoaXMgb3B0aW9uIHByb3ZpZGVzIGFuIGNvbmZpZyBmb3IgdGhl
+IGFyY2hpdGVjdHVyZSB3aGljaCBoYXZlIGluc3RydWN0aW9uDQorCSAgY2FuIGRvIGJpdHJldmVy
+c2Ugb3BlcmF0aW9uLCB3ZSB1c2UgdGhlIGhhcmR3YXJlIGluc3RydWN0aW9uIGlmIHRoZSBhcmNo
+aXRlY3R1cmUNCisJICBoYXZlIHRoaXMgY2FwYWJpbGl0eS4NCisNCiBjb25maWcgUkFUSU9OQUwN
+CiAJYm9vbGVhbg0KIA0KZGlmZiAtLWdpdCBhL2xpYi9iaXRyZXYuYyBiL2xpYi9iaXRyZXYuYw0K
+aW5kZXggMzk1NjIwMy4uYmExMzYxMCAxMDA2NDQNCi0tLSBhL2xpYi9iaXRyZXYuYw0KKysrIGIv
+bGliL2JpdHJldi5jDQpAQCAtMSwzICsxLDQgQEANCisjaWZuZGVmIENPTkZJR19IQVZFX0FSQ0hf
+QklUUkVWRVJTRQ0KICNpbmNsdWRlIDxsaW51eC90eXBlcy5oPg0KICNpbmNsdWRlIDxsaW51eC9t
+b2R1bGUuaD4NCiAjaW5jbHVkZSA8bGludXgvYml0cmV2Lmg+DQpAQCAtNiw3ICs3LDcgQEAgTU9E
+VUxFX0FVVEhPUigiQWtpbm9idSBNaXRhIDxha2lub2J1Lm1pdGFAZ21haWwuY29tPiIpOw0KIE1P
+RFVMRV9ERVNDUklQVElPTigiQml0IG9yZGVyaW5nIHJldmVyc2FsIGZ1bmN0aW9ucyIpOw0KIE1P
+RFVMRV9MSUNFTlNFKCJHUEwiKTsNCiANCi1jb25zdCB1OCBieXRlX3Jldl90YWJsZVsyNTZdID0g
+ew0KK2NvbnN0IHN0YXRpYyB1OCBieXRlX3Jldl90YWJsZVsyNTZdID0gew0KIAkweDAwLCAweDgw
+LCAweDQwLCAweGMwLCAweDIwLCAweGEwLCAweDYwLCAweGUwLA0KIAkweDEwLCAweDkwLCAweDUw
+LCAweGQwLCAweDMwLCAweGIwLCAweDcwLCAweGYwLA0KIAkweDA4LCAweDg4LCAweDQ4LCAweGM4
+LCAweDI4LCAweGE4LCAweDY4LCAweGU4LA0KQEAgLTQyLDE4ICs0Myw0IEBAIGNvbnN0IHU4IGJ5
+dGVfcmV2X3RhYmxlWzI1Nl0gPSB7DQogfTsNCiBFWFBPUlRfU1lNQk9MX0dQTChieXRlX3Jldl90
+YWJsZSk7DQogDQotdTE2IGJpdHJldjE2KHUxNiB4KQ0KLXsNCi0JcmV0dXJuIChiaXRyZXY4KHgg
+JiAweGZmKSA8PCA4KSB8IGJpdHJldjgoeCA+PiA4KTsNCi19DQotRVhQT1JUX1NZTUJPTChiaXRy
+ZXYxNik7DQotDQotLyoqDQotICogYml0cmV2MzIgLSByZXZlcnNlIHRoZSBvcmRlciBvZiBiaXRz
+IGluIGEgdTMyIHZhbHVlDQotICogQHg6IHZhbHVlIHRvIGJlIGJpdC1yZXZlcnNlZA0KLSAqLw0K
+LXUzMiBiaXRyZXYzMih1MzIgeCkNCi17DQotCXJldHVybiAoYml0cmV2MTYoeCAmIDB4ZmZmZikg
+PDwgMTYpIHwgYml0cmV2MTYoeCA+PiAxNik7DQotfQ0KLUVYUE9SVF9TWU1CT0woYml0cmV2MzIp
+Ow0KKyNlbmRpZiAvKiBDT05GSUdfSEFWRV9BUkNIX0JJVFJFVkVSU0UgKi8NCi0tIA0KMi4xLjEN
+Cg0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
