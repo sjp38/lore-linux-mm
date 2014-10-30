@@ -1,98 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
-	by kanga.kvack.org (Postfix) with ESMTP id E491090008B
-	for <linux-mm@kvack.org>; Thu, 30 Oct 2014 11:01:51 -0400 (EDT)
-Received: by mail-lb0-f175.google.com with SMTP id b6so4395272lbj.20
-        for <linux-mm@kvack.org>; Thu, 30 Oct 2014 08:01:51 -0700 (PDT)
-Received: from mail.efficios.com (mail.efficios.com. [78.47.125.74])
-        by mx.google.com with ESMTP id ps4si12497677lbb.16.2014.10.30.08.01.48
-        for <linux-mm@kvack.org>;
-        Thu, 30 Oct 2014 08:01:49 -0700 (PDT)
-Date: Thu, 30 Oct 2014 15:01:43 +0000 (UTC)
-From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Message-ID: <1620722904.4774.1414681303433.JavaMail.zimbra@efficios.com>
-In-Reply-To: <20141027184809.GW11522@wil.cx>
-References: <1254279794.1957.1414240389301.JavaMail.zimbra@efficios.com> <465653369.1985.1414241485934.JavaMail.zimbra@efficios.com> <20141027184809.GW11522@wil.cx>
-Subject: Re: Progress on system crash traces with LTTng using DAX and pmem
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E47390008B
+	for <linux-mm@kvack.org>; Thu, 30 Oct 2014 11:06:39 -0400 (EDT)
+Received: by mail-wi0-f173.google.com with SMTP id n3so4812433wiv.6
+        for <linux-mm@kvack.org>; Thu, 30 Oct 2014 08:06:38 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id le10si10585565wjb.17.2014.10.30.08.06.37
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 Oct 2014 08:06:38 -0700 (PDT)
+Date: Thu, 30 Oct 2014 11:06:24 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: initialize variable for mem_cgroup_end_page_stat
+Message-ID: <20141030150624.GA24818@phnom.home.cmpxchg.org>
+References: <1414633464-19419-1-git-send-email-sasha.levin@oracle.com>
+ <20141030082712.GB4664@dhcp22.suse.cz>
+ <54523DDE.9000904@oracle.com>
+ <20141030141401.GA24520@phnom.home.cmpxchg.org>
+ <54524A2F.5050907@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <54524A2F.5050907@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@linux.intel.com>, hans.xx.beckerus@ericsson.com, thierry.vilmart@ericsson.com
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, lttng-dev <lttng-dev@lists.lttng.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Michal Hocko <mhocko@suse.cz>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, riel@redhat.com, peterz@infradead.org, linux-mm@kvack.org
 
------ Original Message -----
-> From: "Matthew Wilcox" <willy@linux.intel.com>
-> To: "Mathieu Desnoyers" <mathieu.desnoyers@efficios.com>
-> Cc: "Matthew Wilcox" <willy@linux.intel.com>, "Ross Zwisler" <ross.zwisler@linux.intel.com>, "lttng-dev"
-> <lttng-dev@lists.lttng.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-> Sent: Monday, October 27, 2014 2:48:09 PM
-> Subject: Re: Progress on system crash traces with LTTng using DAX and pmem
+On Thu, Oct 30, 2014 at 10:24:47AM -0400, Sasha Levin wrote:
+> On 10/30/2014 10:14 AM, Johannes Weiner wrote:
+> >> The problem is that you are attempting to read 'locked' when you call
+> >> > mem_cgroup_end_page_stat(), so it gets used even before you enter the
+> >> > function - and using uninitialized variables is undefined.
+> > We are not using that value anywhere if !memcg.  What path are you
+> > referring to?
 > 
-> On Sat, Oct 25, 2014 at 12:51:25PM +0000, Mathieu Desnoyers wrote:
-> > A quick follow up on my progress on using DAX and pmem with
-> > LTTng. I've been able to successfully gather a user-space
-> > trace into buffers mmap'd into an ext4 filesystem within
-> > a pmem block device mounted with -o dax to bypass the page
-> > cache. After a soft reboot, I'm able to mount the partition
-> > again, and gather the very last data collected in the buffers
-> > by the applications. I created a "lttng-crash" program that
-> > extracts data from those buffers and converts the content
-> > into a readable Common Trace Format trace. So I guess
-> > you have a use-case for your patchsets on commodity hardware
-> > right there. :)
+> You're using that value as soon as you are passing it to a function, it
+> doesn't matter what happens inside that function.
+
+It's copied as part of the pass-by-value protocol, but we really don't
+do anything with it.  So why does it matter?
+
+> >> > Yes, it's a compiler warning.
+> > Could you provide that please, including arch, and gcc version?
 > 
-> Sweet!
+> On x86,
 > 
-> > I've been asked by my customers if DAX would work well with
-> > mtd-ram, which they are using. To you foresee any roadblock
-> > with this approach ?
+> $ gcc --version
+> gcc (GCC) 5.0.0 20141029 (experimental)
 > 
-> Looks like we'd need to add support to mtd-blkdevs.c for DAX.  I assume
-> they're already using one of the block-based ways to expose MTD to
-> filesystems, rather than jffs2/logfs/ubifs?
+> [   26.868116] ================================================================================
+> [   26.870376] UBSan: Undefined behaviour in mm/rmap.c:1084:2
 
-Yes, from what I understand they interact with a block device. They
-are aiming at using ext2 over this block device. I'm adding Hans
-Beckerus and Therry Vilmart in CC so they can describe how the mtd
-device is used in their setup (which driver exactly, along with
-kernel options to set it up if possible).
+Well, "compiler warning" is misleading at best, this is some
+out-of-tree runtime debugging tool.
 
-> 
-> I'm thinking we might want to add a flag somewhere in the block_dev / bdi
-> that indicates whether DAX is supported.  Currently we rely on whether
-> ->direct_access is present in the block_device_operations to indicate
-> that, so we'd have to have two block_dev_operations in mtd-blkdevs,
-> depending on whether direct access is supported by the underlying
-> MTD device.  Not a show-stopper.
-
-Great!
-
-> 
-> > Please keep me in CC on your next patch versions. I'm willing
-> > to spend some more time reviewing them if needed. By the way,
-> > do you guys have a target time-frame/kernel version you aim
-> > at for getting this work upstream ?
-> 
-> We're trying to get it upstream ASAP.  We've been working on it
-> publically since December last year, and it's getting frustrating that
-> it's not upstream already.  I sent a v12 a few minutes before you sent
-> this message ...  I thought git would add you to the cc's since your
-> Reviewed-by is on some of the patches.
-
-It appears I have not received the patches. Would it be possible for you
-to setup a git tree with those patches ? It would be easier for me to
-try them out than to fish them from gmane. :-)
-
-Thanks,
-
-Mathieu
-
--- 
-Mathieu Desnoyers
-EfficiOS Inc.
-http://www.efficios.com
+As per above, there isn't a practical problem here, but your patch
+worsens the code by making callsites ignorant of how the interface
+works.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
