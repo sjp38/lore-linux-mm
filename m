@@ -1,77 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f180.google.com (mail-yk0-f180.google.com [209.85.160.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AF4A90008B
-	for <linux-mm@kvack.org>; Thu, 30 Oct 2014 10:25:22 -0400 (EDT)
-Received: by mail-yk0-f180.google.com with SMTP id 9so2344833ykp.11
-        for <linux-mm@kvack.org>; Thu, 30 Oct 2014 07:25:21 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id 52si7319392yhu.139.2014.10.30.07.25.21
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 30 Oct 2014 07:25:21 -0700 (PDT)
-Message-ID: <54524A2F.5050907@oracle.com>
-Date: Thu, 30 Oct 2014 10:24:47 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
+	by kanga.kvack.org (Postfix) with ESMTP id E491090008B
+	for <linux-mm@kvack.org>; Thu, 30 Oct 2014 11:01:51 -0400 (EDT)
+Received: by mail-lb0-f175.google.com with SMTP id b6so4395272lbj.20
+        for <linux-mm@kvack.org>; Thu, 30 Oct 2014 08:01:51 -0700 (PDT)
+Received: from mail.efficios.com (mail.efficios.com. [78.47.125.74])
+        by mx.google.com with ESMTP id ps4si12497677lbb.16.2014.10.30.08.01.48
+        for <linux-mm@kvack.org>;
+        Thu, 30 Oct 2014 08:01:49 -0700 (PDT)
+Date: Thu, 30 Oct 2014 15:01:43 +0000 (UTC)
+From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Message-ID: <1620722904.4774.1414681303433.JavaMail.zimbra@efficios.com>
+In-Reply-To: <20141027184809.GW11522@wil.cx>
+References: <1254279794.1957.1414240389301.JavaMail.zimbra@efficios.com> <465653369.1985.1414241485934.JavaMail.zimbra@efficios.com> <20141027184809.GW11522@wil.cx>
+Subject: Re: Progress on system crash traces with LTTng using DAX and pmem
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: initialize variable for mem_cgroup_end_page_stat
-References: <1414633464-19419-1-git-send-email-sasha.levin@oracle.com> <20141030082712.GB4664@dhcp22.suse.cz> <54523DDE.9000904@oracle.com> <20141030141401.GA24520@phnom.home.cmpxchg.org>
-In-Reply-To: <20141030141401.GA24520@phnom.home.cmpxchg.org>
-Content-Type: text/plain; charset=windows-1252
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, riel@redhat.com, peterz@infradead.org, linux-mm@kvack.org
+To: Matthew Wilcox <willy@linux.intel.com>, hans.xx.beckerus@ericsson.com, thierry.vilmart@ericsson.com
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, lttng-dev <lttng-dev@lists.lttng.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 10/30/2014 10:14 AM, Johannes Weiner wrote:
->> The problem is that you are attempting to read 'locked' when you call
->> > mem_cgroup_end_page_stat(), so it gets used even before you enter the
->> > function - and using uninitialized variables is undefined.
-> We are not using that value anywhere if !memcg.  What path are you
-> referring to?
+----- Original Message -----
+> From: "Matthew Wilcox" <willy@linux.intel.com>
+> To: "Mathieu Desnoyers" <mathieu.desnoyers@efficios.com>
+> Cc: "Matthew Wilcox" <willy@linux.intel.com>, "Ross Zwisler" <ross.zwisler@linux.intel.com>, "lttng-dev"
+> <lttng-dev@lists.lttng.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+> Sent: Monday, October 27, 2014 2:48:09 PM
+> Subject: Re: Progress on system crash traces with LTTng using DAX and pmem
+> 
+> On Sat, Oct 25, 2014 at 12:51:25PM +0000, Mathieu Desnoyers wrote:
+> > A quick follow up on my progress on using DAX and pmem with
+> > LTTng. I've been able to successfully gather a user-space
+> > trace into buffers mmap'd into an ext4 filesystem within
+> > a pmem block device mounted with -o dax to bypass the page
+> > cache. After a soft reboot, I'm able to mount the partition
+> > again, and gather the very last data collected in the buffers
+> > by the applications. I created a "lttng-crash" program that
+> > extracts data from those buffers and converts the content
+> > into a readable Common Trace Format trace. So I guess
+> > you have a use-case for your patchsets on commodity hardware
+> > right there. :)
+> 
+> Sweet!
+> 
+> > I've been asked by my customers if DAX would work well with
+> > mtd-ram, which they are using. To you foresee any roadblock
+> > with this approach ?
+> 
+> Looks like we'd need to add support to mtd-blkdevs.c for DAX.  I assume
+> they're already using one of the block-based ways to expose MTD to
+> filesystems, rather than jffs2/logfs/ubifs?
 
-You're using that value as soon as you are passing it to a function, it
-doesn't matter what happens inside that function.
+Yes, from what I understand they interact with a block device. They
+are aiming at using ext2 over this block device. I'm adding Hans
+Beckerus and Therry Vilmart in CC so they can describe how the mtd
+device is used in their setup (which driver exactly, along with
+kernel options to set it up if possible).
 
->> > Yes, it's a compiler warning.
-> Could you provide that please, including arch, and gcc version?
+> 
+> I'm thinking we might want to add a flag somewhere in the block_dev / bdi
+> that indicates whether DAX is supported.  Currently we rely on whether
+> ->direct_access is present in the block_device_operations to indicate
+> that, so we'd have to have two block_dev_operations in mtd-blkdevs,
+> depending on whether direct access is supported by the underlying
+> MTD device.  Not a show-stopper.
 
-On x86,
+Great!
 
-$ gcc --version
-gcc (GCC) 5.0.0 20141029 (experimental)
+> 
+> > Please keep me in CC on your next patch versions. I'm willing
+> > to spend some more time reviewing them if needed. By the way,
+> > do you guys have a target time-frame/kernel version you aim
+> > at for getting this work upstream ?
+> 
+> We're trying to get it upstream ASAP.  We've been working on it
+> publically since December last year, and it's getting frustrating that
+> it's not upstream already.  I sent a v12 a few minutes before you sent
+> this message ...  I thought git would add you to the cc's since your
+> Reviewed-by is on some of the patches.
 
-[   26.868116] ================================================================================
-[   26.870376] UBSan: Undefined behaviour in mm/rmap.c:1084:2
-[   26.871792] load of value 255 is not a valid value for type '_Bool'
-[   26.873256] CPU: 4 PID: 8304 Comm: rngd Not tainted 3.18.0-rc2-next-20141029-sasha-00039-g77ed13d-dirty #1427
-[   26.875636]  ffff8800cac17ff0 0000000000000000 0000000000000000 ffff880069ffbb28
-[   26.877611]  ffffffffaf010c16 0000000000000037 ffffffffb1c0d050 ffff880069ffbb38
-[   26.879140]  ffffffffa6e97899 ffff880069ffbbb8 ffffffffa6e97cc7 ffff880069ffbbb8
-[   26.880765] Call Trace:
-[   26.881185] dump_stack (lib/dump_stack.c:52)
-[   26.882755] ubsan_epilogue (lib/ubsan.c:159)
-[   26.883555] __ubsan_handle_load_invalid_value (lib/ubsan.c:482)
-[   26.884492] ? mem_cgroup_begin_page_stat (mm/memcontrol.c:1962)
-[   26.885441] ? unmap_page_range (./arch/x86/include/asm/paravirt.h:694 mm/memory.c:1091 mm/memory.c:1258 mm/memory.c:1279 mm/memory.c:1303)
-[   26.886242] page_remove_rmap (mm/rmap.c:1084 mm/rmap.c:1096)
-[   26.886922] unmap_page_range (./arch/x86/include/asm/atomic.h:27 include/linux/mm.h:463 mm/memory.c:1146 mm/memory.c:1258 mm/memory.c:1279 mm/memory.c:1303)
-[   26.887824] unmap_single_vma (mm/memory.c:1348)
-[   26.888582] unmap_vmas (mm/memory.c:1377 (discriminator 3))
-[   26.889430] exit_mmap (mm/mmap.c:2837)
-[   26.890060] mmput (kernel/fork.c:659)
-[   26.890656] do_exit (./arch/x86/include/asm/thread_info.h:168 kernel/exit.c:462 kernel/exit.c:747)
-[   26.891359] ? __this_cpu_preempt_check (lib/smp_processor_id.c:63)
-[   26.892287] ? trace_hardirqs_on_caller (kernel/locking/lockdep.c:2559 kernel/locking/lockdep.c:2601)
-[   26.893107] ? syscall_trace_enter_phase2 (arch/x86/kernel/ptrace.c:1598 (discriminator 2))
-[   26.893974] do_group_exit (include/linux/sched.h:775 kernel/exit.c:873)
-[   26.894695] SyS_exit_group (kernel/exit.c:901)
-[   26.895433] tracesys_phase2 (arch/x86/kernel/entry_64.S:529)
-[   26.896134] ================================================================================
-
+It appears I have not received the patches. Would it be possible for you
+to setup a git tree with those patches ? It would be easier for me to
+try them out than to fish them from gmane. :-)
 
 Thanks,
-Sasha
+
+Mathieu
+
+-- 
+Mathieu Desnoyers
+EfficiOS Inc.
+http://www.efficios.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
