@@ -1,94 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com [209.85.217.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 95C1690008B
-	for <linux-mm@kvack.org>; Thu, 30 Oct 2014 08:29:32 -0400 (EDT)
-Received: by mail-lb0-f180.google.com with SMTP id z12so4262692lbi.11
-        for <linux-mm@kvack.org>; Thu, 30 Oct 2014 05:29:31 -0700 (PDT)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.194])
-        by mx.google.com with ESMTP id xv1si11753488lbb.119.2014.10.30.05.29.30
-        for <linux-mm@kvack.org>;
-        Thu, 30 Oct 2014 05:29:31 -0700 (PDT)
-Date: Thu, 30 Oct 2014 14:28:53 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 4/5] mm: gup: use get_user_pages_unlocked
-Message-ID: <20141030122853.GD31134@node.dhcp.inet.fi>
-References: <1414600520-7664-1-git-send-email-aarcange@redhat.com>
- <1414600520-7664-5-git-send-email-aarcange@redhat.com>
+Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EC4F90008B
+	for <linux-mm@kvack.org>; Thu, 30 Oct 2014 09:13:21 -0400 (EDT)
+Received: by mail-qg0-f41.google.com with SMTP id q107so3914457qgd.0
+        for <linux-mm@kvack.org>; Thu, 30 Oct 2014 06:13:20 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t98si12170246qga.109.2014.10.30.06.13.19
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 Oct 2014 06:13:20 -0700 (PDT)
+Message-ID: <5452395C.6030500@redhat.com>
+Date: Thu, 30 Oct 2014 09:13:00 -0400
+From: Jerome Marchand <jmarchan@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1414600520-7664-5-git-send-email-aarcange@redhat.com>
+Subject: Re: [PATCH] zram: avoid kunmap_atomic a NULL pointer
+References: <000001cff409$bf7bfa50$3e73eef0$%yang@samsung.com>
+In-Reply-To: <000001cff409$bf7bfa50$3e73eef0$%yang@samsung.com>
+Content-Type: multipart/signed; micalg=pgp-sha1;
+ protocol="application/pgp-signature";
+ boundary="aNCk04KK8cB7B5LaiQrSCXbd3MMSeB3rj"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michel Lespinasse <walken@google.com>, Andrew Jones <drjones@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Andres Lagar-Cavilla <andreslc@google.com>, Minchan Kim <minchan@kernel.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, "\\\"Dr. David Alan Gilbert\\\"" <dgilbert@redhat.com>, Peter Feiner <pfeiner@google.com>, Peter Zijlstra <peterz@infradead.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, David Miller <davem@davemloft.net>, Steve Capper <steve.capper@linaro.org>, Johannes Weiner <jweiner@redhat.com>
+To: Weijie Yang <weijie.yang@samsung.com>, 'Minchan Kim' <minchan@kernel.org>
+Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Sergey Senozhatsky' <sergey.senozhatsky@gmail.com>, 'Dan Streetman' <ddstreet@ieee.org>, 'Nitin Gupta' <ngupta@vflare.org>, 'Weijie Yang' <weijie.yang.kh@gmail.com>, 'Linux-MM' <linux-mm@kvack.org>, 'linux-kernel' <linux-kernel@vger.kernel.org>
 
-On Wed, Oct 29, 2014 at 05:35:19PM +0100, Andrea Arcangeli wrote:
-> This allows those get_user_pages calls to pass FAULT_FLAG_ALLOW_RETRY
-> to the page fault in order to release the mmap_sem during the I/O.
-> 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--aNCk04KK8cB7B5LaiQrSCXbd3MMSeB3rj
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+On 10/30/2014 02:20 AM, Weijie Yang wrote:
+> zram could kunmap_atomic a NULL pointer in a rare situation:
+> a zram page become a full-zeroed page after a partial write io.
+> The current code doesn't handle this case and kunmap_atomic a
+> NULL porinter, which panic the kernel.
+>=20
+> This patch fixes this issue.
+>=20
+> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
+
+Acked-by: Jerome Marchand <jmarchan@redhat.com>
+
 > ---
->  drivers/iommu/amd_iommu_v2.c       | 6 ++----
->  drivers/media/pci/ivtv/ivtv-udma.c | 6 ++----
->  drivers/scsi/st.c                  | 7 ++-----
->  drivers/video/fbdev/pvr2fb.c       | 6 ++----
->  mm/process_vm_access.c             | 7 ++-----
->  net/ceph/pagevec.c                 | 6 ++----
->  6 files changed, 12 insertions(+), 26 deletions(-)
-> 
-> diff --git a/drivers/iommu/amd_iommu_v2.c b/drivers/iommu/amd_iommu_v2.c
-> index 90d734b..4cd8a87 100644
-> --- a/drivers/iommu/amd_iommu_v2.c
-> +++ b/drivers/iommu/amd_iommu_v2.c
-> @@ -521,10 +521,8 @@ static void do_fault(struct work_struct *work)
->  
->  	write = !!(fault->flags & PPR_FAULT_WRITE);
->  
-> -	down_read(&fault->state->mm->mmap_sem);
-> -	npages = get_user_pages(NULL, fault->state->mm,
-> -				fault->address, 1, write, 0, &page, NULL);
-> -	up_read(&fault->state->mm->mmap_sem);
-> +	npages = get_user_pages_unlocked(NULL, fault->state->mm,
-> +					 fault->address, 1, write, 0, &page);
->  
->  	if (npages == 1) {
->  		put_page(page);
-> diff --git a/drivers/media/pci/ivtv/ivtv-udma.c b/drivers/media/pci/ivtv/ivtv-udma.c
-> index 7338cb2..96d866b 100644
-> --- a/drivers/media/pci/ivtv/ivtv-udma.c
-> +++ b/drivers/media/pci/ivtv/ivtv-udma.c
-> @@ -124,10 +124,8 @@ int ivtv_udma_setup(struct ivtv *itv, unsigned long ivtv_dest_addr,
+>  drivers/block/zram/zram_drv.c |    3 ++-
+>  1 files changed, 2 insertions(+), 1 deletions(-)
+>=20
+> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_dr=
+v.c
+> index 2ad0b5b..3920ee4 100644
+> --- a/drivers/block/zram/zram_drv.c
+> +++ b/drivers/block/zram/zram_drv.c
+> @@ -560,7 +560,8 @@ static int zram_bvec_write(struct zram *zram, struc=
+t bio_vec *bvec, u32 index,
 >  	}
->  
->  	/* Get user pages for DMA Xfer */
-> -	down_read(&current->mm->mmap_sem);
-> -	err = get_user_pages(current, current->mm,
-> -			user_dma.uaddr, user_dma.page_count, 0, 1, dma->map, NULL);
-> -	up_read(&current->mm->mmap_sem);
-> +	err = get_user_pages_unlocked(current, current->mm,
-> +			user_dma.uaddr, user_dma.page_count, 0, 1, dma->map);
->  
->  	if (user_dma.page_count != err) {
->  		IVTV_DEBUG_WARN("failed to map user pages, returned %d instead of %d\n",
-> diff --git a/drivers/scsi/st.c b/drivers/scsi/st.c
-> index 4daa372..a98e00b 100644
-> --- a/drivers/scsi/st.c
-> +++ b/drivers/scsi/st.c
-> @@ -4538,18 +4538,15 @@ static int sgl_map_user_pages(struct st_buffer *STbp,
->  		return -ENOMEM;
->  
->          /* Try to fault in all of the necessary pages */
-> -	down_read(&current->mm->mmap_sem);
->          /* rw==READ means read from drive, write into memory area */
-
-Consolidate two one-line configs into a one?
+> =20
+>  	if (page_zero_filled(uncmem)) {
+> -		kunmap_atomic(user_mem);
+> +		if (user_mem)
+> +			kunmap_atomic(user_mem);
+>  		/* Free memory associated with this sector now. */
+>  		bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
+>  		zram_free_page(zram, index);
+>=20
 
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
--- 
- Kirill A. Shutemov
+--aNCk04KK8cB7B5LaiQrSCXbd3MMSeB3rj
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQEcBAEBAgAGBQJUUjlcAAoJEHTzHJCtsuoC0aQIAKvyIPhInikRYcPf6TpYxmxk
+N5+v4eP306EGErJ7vwMgPEGZLc/wuWrVxayv9vQZpH9y1T+nPn03NvUT6yvS8Wld
+6PrgcdxUlUGqzb3l8KJqOAmTtwElLdmLEnYSnzTGp+QJ7opAKZGZ/l0n+N5dlwtZ
+fWY7iVMuSX0xFu5l7+aNiiyTyT2ojqoj9IIjV3qMQnf2tLNKj0GDbSbA9ZSy+Uet
+n/EQixaer0+voHyNSUZeyNawgI/EP81AGrd9bOHn5U8+JBI1EuT5YaHSkVR0h9S7
+tH9Zsj19wAwdvPMvhQyCD/ez3P/FVvMdrcVejFylDvM7/7aEucvOE/MfysyZDS8=
+=bB3h
+-----END PGP SIGNATURE-----
+
+--aNCk04KK8cB7B5LaiQrSCXbd3MMSeB3rj--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
