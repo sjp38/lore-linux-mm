@@ -1,82 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f175.google.com (mail-yk0-f175.google.com [209.85.160.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 4716290008B
-	for <linux-mm@kvack.org>; Wed, 29 Oct 2014 21:45:04 -0400 (EDT)
-Received: by mail-yk0-f175.google.com with SMTP id q9so1861049ykb.20
-        for <linux-mm@kvack.org>; Wed, 29 Oct 2014 18:45:04 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id w10si5915566ykw.163.2014.10.29.18.45.03
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id BD1BA90008B
+	for <linux-mm@kvack.org>; Thu, 30 Oct 2014 02:08:00 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id lf10so4758242pab.18
+        for <linux-mm@kvack.org>; Wed, 29 Oct 2014 23:08:00 -0700 (PDT)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id fo9si5722264pdb.175.2014.10.29.23.07.59
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 29 Oct 2014 18:45:03 -0700 (PDT)
-From: Sasha Levin <sasha.levin@oracle.com>
-Subject: [PATCH] mm: initialize variable for mem_cgroup_end_page_stat
-Date: Wed, 29 Oct 2014 21:44:24 -0400
-Message-Id: <1414633464-19419-1-git-send-email-sasha.levin@oracle.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 29 Oct 2014 23:07:59 -0700 (PDT)
+Received: by mail-pa0-f43.google.com with SMTP id eu11so4781106pac.30
+        for <linux-mm@kvack.org>; Wed, 29 Oct 2014 23:07:59 -0700 (PDT)
+Date: Thu, 30 Oct 2014 22:04:22 +0800
+From: Fengwei Yin <yfw.kernel@gmail.com>
+Subject: Re: [PATCH v2] smaps should deal with huge zero page exactly same as
+ normal zero page.
+Message-ID: <20141030140348.GA6588@gmail.com>
+References: <1414422133-7929-1-git-send-email-yfw.kernel@gmail.com>
+ <20141027151748.3901b18abcb65426e7ed50b0@linux-foundation.org>
+ <20141028154416.GB13840@gmail.com>
+ <20141028133539.c82f5e856fd66b39c2630dd4@linux-foundation.org>
+ <20141028134018.f317ed1d0bc4043cf9b4a3b7@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141028134018.f317ed1d0bc4043cf9b4a3b7@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, riel@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org, peterz@infradead.org, linux-mm@kvack.org, Sasha Levin <sasha.levin@oracle.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Fengguang Wu <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-Commit "mm: memcontrol: fix missed end-writeback page accounting" has changed
-the behaviour of mem_cgroup_begin_page_stat() to not always set the "locked"
-parameter.
+On Tue, Oct 28, 2014 at 01:40:18PM -0700, Andrew Morton wrote:
+> On Tue, 28 Oct 2014 13:35:39 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
+> 
+> > > Hi Andrew,
+> > > Please try this patch.
+> > > It passed build with/without CONFIG_TRANSPARENT_HUGEPAGE. Thanks.
+> > 
+> > You didn't answer my question.
+> 
+> Ah, yes you did, in another email, sorry.
+> 
+> I see Kirill has a different patch for you to review and test.
 
-We should initialize it at the callers to prevent garbage being used in a
-later call to mem_cgroup_end_page_stat().
+I tested Kirill's patch and it worked OK. His patch makes more sense as
+well because it removes the old hack. Please include his patch and drop
+mine. Thanks.
 
-Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
----
- mm/page-writeback.c |    4 ++--
- mm/rmap.c           |    4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
-
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 19ceae8..7a02c97 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -2329,7 +2329,7 @@ int test_clear_page_writeback(struct page *page)
- 	struct address_space *mapping = page_mapping(page);
- 	unsigned long memcg_flags;
- 	struct mem_cgroup *memcg;
--	bool locked;
-+	bool locked = false;
- 	int ret;
- 
- 	memcg = mem_cgroup_begin_page_stat(page, &locked, &memcg_flags);
-@@ -2366,7 +2366,7 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
- 	struct address_space *mapping = page_mapping(page);
- 	unsigned long memcg_flags;
- 	struct mem_cgroup *memcg;
--	bool locked;
-+	bool locked = false;
- 	int ret;
- 
- 	memcg = mem_cgroup_begin_page_stat(page, &locked, &memcg_flags);
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 19886fb..4a4dc84 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1044,7 +1044,7 @@ void page_add_file_rmap(struct page *page)
- {
- 	struct mem_cgroup *memcg;
- 	unsigned long flags;
--	bool locked;
-+	bool locked = false;
- 
- 	memcg = mem_cgroup_begin_page_stat(page, &locked, &flags);
- 	if (atomic_inc_and_test(&page->_mapcount)) {
-@@ -1058,7 +1058,7 @@ static void page_remove_file_rmap(struct page *page)
- {
- 	struct mem_cgroup *memcg;
- 	unsigned long flags;
--	bool locked;
-+	bool locked = false;
- 
- 	memcg = mem_cgroup_begin_page_stat(page, &locked, &flags);
- 
--- 
-1.7.10.4
+Regards
+Yin, Fengwei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
