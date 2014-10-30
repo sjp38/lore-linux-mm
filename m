@@ -1,119 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f54.google.com (mail-la0-f54.google.com [209.85.215.54])
-	by kanga.kvack.org (Postfix) with ESMTP id DFD2290008B
-	for <linux-mm@kvack.org>; Thu, 30 Oct 2014 13:07:04 -0400 (EDT)
-Received: by mail-la0-f54.google.com with SMTP id gm9so4853621lab.13
-        for <linux-mm@kvack.org>; Thu, 30 Oct 2014 10:07:04 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i5si13020097lbd.20.2014.10.30.10.07.01
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 8095D90008B
+	for <linux-mm@kvack.org>; Thu, 30 Oct 2014 13:27:12 -0400 (EDT)
+Received: by mail-wg0-f50.google.com with SMTP id z12so4781321wgg.37
+        for <linux-mm@kvack.org>; Thu, 30 Oct 2014 10:27:11 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id gn9si11453605wib.62.2014.10.30.10.27.10
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 30 Oct 2014 10:07:02 -0700 (PDT)
-Date: Thu, 30 Oct 2014 18:07:00 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] mm: memcontrol: shorten the page statistics update
- slowpath
-Message-ID: <20141030170700.GC3639@dhcp22.suse.cz>
-References: <1414158020-25347-1-git-send-email-hannes@cmpxchg.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 Oct 2014 10:27:11 -0700 (PDT)
+Date: Thu, 30 Oct 2014 13:26:32 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: initialize variable for mem_cgroup_end_page_stat
+Message-ID: <20141030172632.GA25217@phnom.home.cmpxchg.org>
+References: <1414633464-19419-1-git-send-email-sasha.levin@oracle.com>
+ <20141030082712.GB4664@dhcp22.suse.cz>
+ <54523DDE.9000904@oracle.com>
+ <20141030141401.GA24520@phnom.home.cmpxchg.org>
+ <54524A2F.5050907@oracle.com>
+ <20141030153159.GA3639@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1414158020-25347-1-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <20141030153159.GA3639@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Sasha Levin <sasha.levin@oracle.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, riel@redhat.com, peterz@infradead.org, linux-mm@kvack.org
 
-On Fri 24-10-14 09:40:20, Johannes Weiner wrote:
-> While moving charges from one memcg to another, page stat updates must
-> acquire the old memcg's move_lock to prevent double accounting.  That
-> situation is denoted by an increased memcg->move_accounting.  However,
-> the charge moving code declares this way too early for now, even
-> before summing up the RSS and pre-allocating destination charges.
-
-It is also much better to have the inc and dec in the same function
-rather than in callbacks.
-
+On Thu, Oct 30, 2014 at 04:31:59PM +0100, Michal Hocko wrote:
+> On Thu 30-10-14 10:24:47, Sasha Levin wrote:
+> > On 10/30/2014 10:14 AM, Johannes Weiner wrote:
+> > >> The problem is that you are attempting to read 'locked' when you call
+> > >> > mem_cgroup_end_page_stat(), so it gets used even before you enter the
+> > >> > function - and using uninitialized variables is undefined.
+> > > We are not using that value anywhere if !memcg.  What path are you
+> > > referring to?
+> > 
+> > You're using that value as soon as you are passing it to a function, it
+> > doesn't matter what happens inside that function.
 > 
-> Shorten this slowpath mode by increasing memcg->move_accounting only
-> right before walking the task's address space with the intention of
-> actually moving the pages.
->
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-
-Acked-by: Michal Hocko <mhocko@suse.cz>
-
-> ---
->  mm/memcontrol.c | 21 ++++++++-------------
->  1 file changed, 8 insertions(+), 13 deletions(-)
+> I have discussed that with our gcc guys and you are right. Strictly
+> speaking the compiler is free to do
+> if (!memcg) abort();
+> mem_cgroup_end_page_stat(...);
 > 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index c50176429fa3..23cf27cca370 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -5263,8 +5263,6 @@ static void __mem_cgroup_clear_mc(void)
->  
->  static void mem_cgroup_clear_mc(void)
->  {
-> -	struct mem_cgroup *from = mc.from;
-> -
->  	/*
->  	 * we must clear moving_task before waking up waiters at the end of
->  	 * task migration.
-> @@ -5275,8 +5273,6 @@ static void mem_cgroup_clear_mc(void)
->  	mc.from = NULL;
->  	mc.to = NULL;
->  	spin_unlock(&mc.lock);
-> -
-> -	atomic_dec(&from->moving_account);
->  }
->  
->  static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
-> @@ -5310,15 +5306,6 @@ static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
->  			VM_BUG_ON(mc.moved_charge);
->  			VM_BUG_ON(mc.moved_swap);
->  
-> -			/*
-> -			 * Signal mem_cgroup_begin_page_stat() to take
-> -			 * the memcg's move_lock while we're moving
-> -			 * its pages to another memcg.  Then wait for
-> -			 * already started RCU-only updates to finish.
-> -			 */
-> -			atomic_inc(&from->moving_account);
-> -			synchronize_rcu();
-> -
->  			spin_lock(&mc.lock);
->  			mc.from = from;
->  			mc.to = memcg;
-> @@ -5450,6 +5437,13 @@ static void mem_cgroup_move_charge(struct mm_struct *mm)
->  	struct vm_area_struct *vma;
->  
->  	lru_add_drain_all();
-> +	/*
-> +	 * Signal mem_cgroup_begin_page_stat() to take the memcg's
-> +	 * move_lock while we're moving its pages to another memcg.
-> +	 * Then wait for already started RCU-only updates to finish.
-> +	 */
-> +	atomic_inc(&mc.from->moving_account);
-> +	synchronize_rcu();
->  retry:
->  	if (unlikely(!down_read_trylock(&mm->mmap_sem))) {
->  		/*
-> @@ -5482,6 +5476,7 @@ retry:
->  			break;
->  	}
->  	up_read(&mm->mmap_sem);
-> +	atomic_dec(&mc.from->moving_account);
->  }
->  
->  static void mem_cgroup_move_task(struct cgroup_subsys_state *css,
-> -- 
-> 2.1.2
-> 
+> but it is highly unlikely that this will ever happen. Anyway better be
+> safe than sorry. I guess the following should be sufficient and even
+> more symmetric:
 
--- 
-Michal Hocko
-SUSE Labs
+The functional aspect of this is a terrible motivation for this
+change.  Sure the compiler could, but it doesn't, and it won't.
+
+But there is some merit in keeping the checker's output meaningful as
+long as it doesn't obfuscate the interface too much.
+
+> From 6c3e748af7ee24984477e850bb93d65f83914903 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.cz>
+> Date: Thu, 30 Oct 2014 16:18:23 +0100
+> Subject: [PATCH] mm, memcg: fix potential undefined when for page stat
+>  accounting
+> 
+> since d7365e783edb (mm: memcontrol: fix missed end-writeback page
+> accounting) mem_cgroup_end_page_stat consumes locked and flags variables
+> directly rather than via pointers which might trigger C undefined
+> behavior as those variables are initialized only in the slow path of
+> mem_cgroup_begin_page_stat.
+> Although mem_cgroup_end_page_stat handles parameters correctly and
+> touches them only when they hold a sensible value it is caller which
+> loads a potentially uninitialized value which then might allow compiler
+> to do crazy things.
+
+I'm not opposed to passing pointers into end_page_stat(), but please
+mention the checker in the changelog.
+
+> Fix this by using pointer parameters for both locked and flags. This is
+> even better from the API point of view because it is symmetrical to
+> mem_cgroup_begin_page_stat.
+
+Uhm, locked and flags are return values in begin_page_stat() but input
+arguments in end_page_stat().  Symmetry obfuscates that, so that's not
+an upside at all.  It's a cost that we can pay to keep the checker
+benefits, but the underlying nastiness remains.  It comes from the
+fact that we use conditional locking to avoid the read-side spinlock,
+rather than using a reader-friendly lock to begin with.
+
+So let's change it to pointers, but at the same time be clear that
+this doesn't make the code better.  It just fixes the checker.
+
+Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
