@@ -1,98 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
-	by kanga.kvack.org (Postfix) with ESMTP id B6C6790008B
-	for <linux-mm@kvack.org>; Thu, 30 Oct 2014 08:26:46 -0400 (EDT)
-Received: by mail-la0-f42.google.com with SMTP id gq15so4305772lab.29
-        for <linux-mm@kvack.org>; Thu, 30 Oct 2014 05:26:46 -0700 (PDT)
-Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com. [209.85.217.174])
-        by mx.google.com with ESMTPS id zk2si11813260lbb.51.2014.10.30.05.26.43
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 30 Oct 2014 05:26:43 -0700 (PDT)
-Received: by mail-lb0-f174.google.com with SMTP id z11so2257770lbi.33
-        for <linux-mm@kvack.org>; Thu, 30 Oct 2014 05:26:43 -0700 (PDT)
+Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com [209.85.217.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 95C1690008B
+	for <linux-mm@kvack.org>; Thu, 30 Oct 2014 08:29:32 -0400 (EDT)
+Received: by mail-lb0-f180.google.com with SMTP id z12so4262692lbi.11
+        for <linux-mm@kvack.org>; Thu, 30 Oct 2014 05:29:31 -0700 (PDT)
+Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.194])
+        by mx.google.com with ESMTP id xv1si11753488lbb.119.2014.10.30.05.29.30
+        for <linux-mm@kvack.org>;
+        Thu, 30 Oct 2014 05:29:31 -0700 (PDT)
+Date: Thu, 30 Oct 2014 14:28:53 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 4/5] mm: gup: use get_user_pages_unlocked
+Message-ID: <20141030122853.GD31134@node.dhcp.inet.fi>
+References: <1414600520-7664-1-git-send-email-aarcange@redhat.com>
+ <1414600520-7664-5-git-send-email-aarcange@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20141030120127.GC32589@arm.com>
-References: <35FD53F367049845BC99AC72306C23D103E010D18254@CNBJMBX05.corpusers.net>
-	<35FD53F367049845BC99AC72306C23D103E010D18257@CNBJMBX05.corpusers.net>
-	<1414392371.8884.2.camel@perches.com>
-	<CAL_JsqJYBoG+nrr7R3UWz1wrZ--Xjw5X31RkpCrTWMJAePBgRg@mail.gmail.com>
-	<35FD53F367049845BC99AC72306C23D103E010D1825F@CNBJMBX05.corpusers.net>
-	<35FD53F367049845BC99AC72306C23D103E010D18260@CNBJMBX05.corpusers.net>
-	<35FD53F367049845BC99AC72306C23D103E010D18261@CNBJMBX05.corpusers.net>
-	<35FD53F367049845BC99AC72306C23D103E010D18264@CNBJMBX05.corpusers.net>
-	<35FD53F367049845BC99AC72306C23D103E010D18265@CNBJMBX05.corpusers.net>
-	<35FD53F367049845BC99AC72306C23D103E010D18266@CNBJMBX05.corpusers.net>
-	<20141030120127.GC32589@arm.com>
-Date: Thu, 30 Oct 2014 13:26:42 +0100
-Message-ID: <CAKv+Gu9g5Q6fjPUy+P8YxkeDrH+bdO4kKGnxTQZRFhQpgPxaPA@mail.gmail.com>
-Subject: Re: [RFC V5 3/3] arm64:add bitrev.h file to support rbit instruction
-From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1414600520-7664-5-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: "Wang, Yalin" <Yalin.Wang@sonymobile.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akinobu.mita@gmail.com" <akinobu.mita@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Joe Perches <joe@perches.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michel Lespinasse <walken@google.com>, Andrew Jones <drjones@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Andres Lagar-Cavilla <andreslc@google.com>, Minchan Kim <minchan@kernel.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, "\\\"Dr. David Alan Gilbert\\\"" <dgilbert@redhat.com>, Peter Feiner <pfeiner@google.com>, Peter Zijlstra <peterz@infradead.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, David Miller <davem@davemloft.net>, Steve Capper <steve.capper@linaro.org>, Johannes Weiner <jweiner@redhat.com>
 
-On 30 October 2014 13:01, Will Deacon <will.deacon@arm.com> wrote:
-> On Wed, Oct 29, 2014 at 05:52:00AM +0000, Wang, Yalin wrote:
->> This patch add bitrev.h file to support rbit instruction,
->> so that we can do bitrev operation by hardware.
->> Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
->> ---
->>  arch/arm64/Kconfig              |  1 +
->>  arch/arm64/include/asm/bitrev.h | 28 ++++++++++++++++++++++++++++
->>  2 files changed, 29 insertions(+)
->>  create mode 100644 arch/arm64/include/asm/bitrev.h
->>
->> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
->> index 9532f8d..b1ec1dd 100644
->> --- a/arch/arm64/Kconfig
->> +++ b/arch/arm64/Kconfig
->> @@ -35,6 +35,7 @@ config ARM64
->>       select HANDLE_DOMAIN_IRQ
->>       select HARDIRQS_SW_RESEND
->>       select HAVE_ARCH_AUDITSYSCALL
->> +     select HAVE_ARCH_BITREVERSE
->>       select HAVE_ARCH_JUMP_LABEL
->>       select HAVE_ARCH_KGDB
->>       select HAVE_ARCH_TRACEHOOK
->> diff --git a/arch/arm64/include/asm/bitrev.h b/arch/arm64/include/asm/bitrev.h
->> new file mode 100644
->> index 0000000..292a5de
->> --- /dev/null
->> +++ b/arch/arm64/include/asm/bitrev.h
->> @@ -0,0 +1,28 @@
->> +#ifndef __ASM_ARM64_BITREV_H
->> +#define __ASM_ARM64_BITREV_H
->> +
->> +static __always_inline __attribute_const__ u32 __arch_bitrev32(u32 x)
->> +{
->> +     if (__builtin_constant_p(x)) {
->> +             x = (x >> 16) | (x << 16);
->> +             x = ((x & 0xFF00FF00) >> 8) | ((x & 0x00FF00FF) << 8);
->> +             x = ((x & 0xF0F0F0F0) >> 4) | ((x & 0x0F0F0F0F) << 4);
->> +             x = ((x & 0xCCCCCCCC) >> 2) | ((x & 0x33333333) << 2);
->> +             return ((x & 0xAAAAAAAA) >> 1) | ((x & 0x55555555) << 1);
->
-> Shouldn't this part be in the generic code?
->
->> +     }
->> +     __asm__ ("rbit %w0, %w1" : "=r" (x) : "r" (x));
->
-> You can write this more neatly as:
->
->   asm ("rbit %w0, %w0" : "+r" (x));
->
+On Wed, Oct 29, 2014 at 05:35:19PM +0100, Andrea Arcangeli wrote:
+> This allows those get_user_pages calls to pass FAULT_FLAG_ALLOW_RETRY
+> to the page fault in order to release the mmap_sem during the I/O.
+> 
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+>  drivers/iommu/amd_iommu_v2.c       | 6 ++----
+>  drivers/media/pci/ivtv/ivtv-udma.c | 6 ++----
+>  drivers/scsi/st.c                  | 7 ++-----
+>  drivers/video/fbdev/pvr2fb.c       | 6 ++----
+>  mm/process_vm_access.c             | 7 ++-----
+>  net/ceph/pagevec.c                 | 6 ++----
+>  6 files changed, 12 insertions(+), 26 deletions(-)
+> 
+> diff --git a/drivers/iommu/amd_iommu_v2.c b/drivers/iommu/amd_iommu_v2.c
+> index 90d734b..4cd8a87 100644
+> --- a/drivers/iommu/amd_iommu_v2.c
+> +++ b/drivers/iommu/amd_iommu_v2.c
+> @@ -521,10 +521,8 @@ static void do_fault(struct work_struct *work)
+>  
+>  	write = !!(fault->flags & PPR_FAULT_WRITE);
+>  
+> -	down_read(&fault->state->mm->mmap_sem);
+> -	npages = get_user_pages(NULL, fault->state->mm,
+> -				fault->address, 1, write, 0, &page, NULL);
+> -	up_read(&fault->state->mm->mmap_sem);
+> +	npages = get_user_pages_unlocked(NULL, fault->state->mm,
+> +					 fault->address, 1, write, 0, &page);
+>  
+>  	if (npages == 1) {
+>  		put_page(page);
+> diff --git a/drivers/media/pci/ivtv/ivtv-udma.c b/drivers/media/pci/ivtv/ivtv-udma.c
+> index 7338cb2..96d866b 100644
+> --- a/drivers/media/pci/ivtv/ivtv-udma.c
+> +++ b/drivers/media/pci/ivtv/ivtv-udma.c
+> @@ -124,10 +124,8 @@ int ivtv_udma_setup(struct ivtv *itv, unsigned long ivtv_dest_addr,
+>  	}
+>  
+>  	/* Get user pages for DMA Xfer */
+> -	down_read(&current->mm->mmap_sem);
+> -	err = get_user_pages(current, current->mm,
+> -			user_dma.uaddr, user_dma.page_count, 0, 1, dma->map, NULL);
+> -	up_read(&current->mm->mmap_sem);
+> +	err = get_user_pages_unlocked(current, current->mm,
+> +			user_dma.uaddr, user_dma.page_count, 0, 1, dma->map);
+>  
+>  	if (user_dma.page_count != err) {
+>  		IVTV_DEBUG_WARN("failed to map user pages, returned %d instead of %d\n",
+> diff --git a/drivers/scsi/st.c b/drivers/scsi/st.c
+> index 4daa372..a98e00b 100644
+> --- a/drivers/scsi/st.c
+> +++ b/drivers/scsi/st.c
+> @@ -4538,18 +4538,15 @@ static int sgl_map_user_pages(struct st_buffer *STbp,
+>  		return -ENOMEM;
+>  
+>          /* Try to fault in all of the necessary pages */
+> -	down_read(&current->mm->mmap_sem);
+>          /* rw==READ means read from drive, write into memory area */
 
-This forces GCC to use the same register as input and output, which
-doesn't necessarily result in the fastest code. (e.g., if the
-un-bitrev()'ed value is reused again afterwards).
-On the other hand, the original notation does allow GCC to use the
-same register, but doesn't force it to, so I prefer the original one.
+Consolidate two one-line configs into a one?
+
+
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
 -- 
-Ard.
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
