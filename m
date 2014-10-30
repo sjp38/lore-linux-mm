@@ -1,67 +1,51 @@
 From: Davidlohr Bueso <dave@stgolabs.net>
-Subject: [PATCH 09/10] mm/nommu: share the i_mmap_rwsem
-Date: Thu, 30 Oct 2014 12:34:16 -0700
-Message-ID: <1414697657-1678-10-git-send-email-dave@stgolabs.net>
+Subject: [PATCH 05/10] uprobes: share the i_mmap_rwsem
+Date: Thu, 30 Oct 2014 12:34:12 -0700
+Message-ID: <1414697657-1678-6-git-send-email-dave@stgolabs.net>
 References: <1414697657-1678-1-git-send-email-dave@stgolabs.net>
 Return-path: <linux-kernel-owner@vger.kernel.org>
 In-Reply-To: <1414697657-1678-1-git-send-email-dave@stgolabs.net>
 Sender: linux-kernel-owner@vger.kernel.org
 To: akpm@linux-foundation.org
-Cc: hughd@google.com, riel@redhat.com, mgorman@suse.de, peterz@infradead.org, mingo@kernel.org, linux-kernel@vger.kernel.org, dbueso@suse.de, linux-mm@kvack.org, Davidlohr Bueso <dave@stgolabs.net>
+Cc: hughd@google.com, riel@redhat.com, mgorman@suse.de, peterz@infradead.org, mingo@kernel.org, linux-kernel@vger.kernel.org, dbueso@suse.de, linux-mm@kvack.org, Davidlohr Bueso <dave@stgolabs.net>, Oleg Nesterov <oleg@redhat.com>
 List-Id: linux-mm.kvack.org
 
-Shrinking/truncate logic can call nommu_shrink_inode_mappings()
-to verify that any shared mappings of the inode in question aren't
-broken (dead zone). afaict the only user being ramfs to handle
-the size change attribute.
-
-Pretty much a no-brainer to share the lock.
+Both register and unregister call build_map_info() in order
+to create the list of mappings before installing or removing
+breakpoints for every mm which maps file backed memory. As
+such, there is no reason to hold the i_mmap_rwsem exclusively,
+so share it and allow concurrent readers to build the mapping
+data.
 
 Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
+Acked-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Oleg Nesterov <oleg@redhat.com>
 Acked-by: Kirill A. Shutemov <kirill.shutemov@intel.linux.com>
 ---
- mm/nommu.c | 9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+ kernel/events/uprobes.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 4201a38..2266a34 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -2086,14 +2086,14 @@ int nommu_shrink_inode_mappings(struct inode *inode, size_t size,
- 	high = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
+index e1bb60d..6158a64b 100644
+--- a/kernel/events/uprobes.c
++++ b/kernel/events/uprobes.c
+@@ -724,7 +724,7 @@ build_map_info(struct address_space *mapping, loff_t offset, bool is_register)
+ 	int more = 0;
  
- 	down_write(&nommu_region_sem);
--	i_mmap_lock_write(inode->i_mapping);
-+	i_mmap_lock_read(inode->i_mapping);
- 
- 	/* search for VMAs that fall within the dead zone */
- 	vma_interval_tree_foreach(vma, &inode->i_mapping->i_mmap, low, high) {
- 		/* found one - only interested if it's shared out of the page
- 		 * cache */
- 		if (vma->vm_flags & VM_SHARED) {
--			i_mmap_unlock_write(inode->i_mapping);
-+			i_mmap_unlock_read(inode->i_mapping);
- 			up_write(&nommu_region_sem);
- 			return -ETXTBSY; /* not quite true, but near enough */
- 		}
-@@ -2105,8 +2105,7 @@ int nommu_shrink_inode_mappings(struct inode *inode, size_t size,
- 	 * we don't check for any regions that start beyond the EOF as there
- 	 * shouldn't be any
- 	 */
--	vma_interval_tree_foreach(vma, &inode->i_mapping->i_mmap,
--				  0, ULONG_MAX) {
-+	vma_interval_tree_foreach(vma, &inode->i_mapping->i_mmap, 0, ULONG_MAX) {
- 		if (!(vma->vm_flags & VM_SHARED))
+  again:
+-	i_mmap_lock_write(mapping);
++	i_mmap_lock_read(mapping);
+ 	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
+ 		if (!valid_vma(vma, is_register))
  			continue;
- 
-@@ -2121,7 +2120,7 @@ int nommu_shrink_inode_mappings(struct inode *inode, size_t size,
- 		}
+@@ -755,7 +755,7 @@ build_map_info(struct address_space *mapping, loff_t offset, bool is_register)
+ 		info->mm = vma->vm_mm;
+ 		info->vaddr = offset_to_vaddr(vma, offset);
  	}
+-	i_mmap_unlock_write(mapping);
++	i_mmap_unlock_read(mapping);
  
--	i_mmap_unlock_write(inode->i_mapping);
-+	i_mmap_unlock_read(inode->i_mapping);
- 	up_write(&nommu_region_sem);
- 	return 0;
- }
+ 	if (!more)
+ 		goto out;
 -- 
 1.8.4.5
