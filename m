@@ -1,84 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com [209.85.217.169])
-	by kanga.kvack.org (Postfix) with ESMTP id BEEFC90008B
-	for <linux-mm@kvack.org>; Thu, 30 Oct 2014 11:11:44 -0400 (EDT)
-Received: by mail-lb0-f169.google.com with SMTP id l4so4496994lbv.0
-        for <linux-mm@kvack.org>; Thu, 30 Oct 2014 08:11:43 -0700 (PDT)
-Received: from mail.efficios.com (mail.efficios.com. [78.47.125.74])
-        by mx.google.com with ESMTP id rs4si12543547lbb.12.2014.10.30.08.11.41
-        for <linux-mm@kvack.org>;
-        Thu, 30 Oct 2014 08:11:42 -0700 (PDT)
-Date: Thu, 30 Oct 2014 15:11:36 +0000 (UTC)
-From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Message-ID: <864133911.4806.1414681896478.JavaMail.zimbra@efficios.com>
-In-Reply-To: <20141028105458.GA9768@node.dhcp.inet.fi>
-References: <1254279794.1957.1414240389301.JavaMail.zimbra@efficios.com> <465653369.1985.1414241485934.JavaMail.zimbra@efficios.com> <20141028105458.GA9768@node.dhcp.inet.fi>
-Subject: Re: Progress on system crash traces with LTTng using DAX and pmem
+Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 0630E90008B
+	for <linux-mm@kvack.org>; Thu, 30 Oct 2014 11:32:02 -0400 (EDT)
+Received: by mail-lb0-f181.google.com with SMTP id w7so4590019lbi.12
+        for <linux-mm@kvack.org>; Thu, 30 Oct 2014 08:32:02 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n7si12578088laj.61.2014.10.30.08.32.00
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 30 Oct 2014 08:32:00 -0700 (PDT)
+Date: Thu, 30 Oct 2014 16:31:59 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm: initialize variable for mem_cgroup_end_page_stat
+Message-ID: <20141030153159.GA3639@dhcp22.suse.cz>
+References: <1414633464-19419-1-git-send-email-sasha.levin@oracle.com>
+ <20141030082712.GB4664@dhcp22.suse.cz>
+ <54523DDE.9000904@oracle.com>
+ <20141030141401.GA24520@phnom.home.cmpxchg.org>
+ <54524A2F.5050907@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <54524A2F.5050907@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, lttng-dev <lttng-dev@lists.lttng.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <andi@firstfloor.org>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, riel@redhat.com, peterz@infradead.org, linux-mm@kvack.org
 
------ Original Message -----
-> From: "Kirill A. Shutemov" <kirill@shutemov.name>
-> To: "Mathieu Desnoyers" <mathieu.desnoyers@efficios.com>
-> Cc: "Matthew Wilcox" <willy@linux.intel.com>, "Ross Zwisler" <ross.zwisler@linux.intel.com>, "lttng-dev"
-> <lttng-dev@lists.lttng.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-> Sent: Tuesday, October 28, 2014 6:54:58 AM
-> Subject: Re: Progress on system crash traces with LTTng using DAX and pmem
+On Thu 30-10-14 10:24:47, Sasha Levin wrote:
+> On 10/30/2014 10:14 AM, Johannes Weiner wrote:
+> >> The problem is that you are attempting to read 'locked' when you call
+> >> > mem_cgroup_end_page_stat(), so it gets used even before you enter the
+> >> > function - and using uninitialized variables is undefined.
+> > We are not using that value anywhere if !memcg.  What path are you
+> > referring to?
 > 
-> On Sat, Oct 25, 2014 at 12:51:25PM +0000, Mathieu Desnoyers wrote:
-> > FYI, the main reason why my customer wants to go with a
-> > "trace into memory that survives soft reboot" approach
-> > rather than to use things like kexec/kdump is that they
-> > care about the amount of time it takes to reboot their
-> > machines. They want a solution where they can extract the
-> > detailed crash data after reboot, after the machine is
-> > back online, rather than requiring a few minutes of offline
-> > time to extract the crash details.
-> 
-> IIRC, on x86 there's no guarantee that your memory content will be
-> preserved over reboot. BIOS is free to mess with it.
+> You're using that value as soon as you are passing it to a function, it
+> doesn't matter what happens inside that function.
 
-Hi Kirill,
+I have discussed that with our gcc guys and you are right. Strictly
+speaking the compiler is free to do
+if (!memcg) abort();
+mem_cgroup_end_page_stat(...);
 
-This is a good point,
-
-There are a few more aspects to consider here:
-
-- Other architectures appear to have different guarantees, for
-  instance ARM which, AFAIK, does not reset memory on soft
-  reboot (well at least for my customer's boards). So I guess
-  if x86 wants to be competitive, it would be good for them to
-  offer a similar feature,
-
-- Already having a subset of machines supporting this is useful,
-  e.g. storing trace buffers and recovering them after a crash,
-
-- Since we are in a world of dynamically upgradable BIOS, perhaps
-  if we can show that there is value in having a BIOS option to
-  specify a memory range that should not be reset on soft reboot,
-  BIOS vendors might be inclined to include an option for it,
-
-- Perhaps UEFI BIOS already have some way of specifying that a
-  memory range should not be reset on soft reboot ?
-
-Thoughts ?
-
-Thanks,
-
-Mathieu
-
--- 
-Mathieu Desnoyers
-EfficiOS Inc.
-http://www.efficios.com
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+but it is highly unlikely that this will ever happen. Anyway better be
+safe than sorry. I guess the following should be sufficient and even
+more symmetric:
+---
