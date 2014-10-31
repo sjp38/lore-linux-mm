@@ -1,67 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id B2B29280028
-	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 03:22:28 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id fp1so6775794pdb.13
-        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 00:22:28 -0700 (PDT)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id v1si8582616pdh.125.2014.10.31.00.22.26
+	by kanga.kvack.org (Postfix) with ESMTP id 49CD1280028
+	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 03:24:09 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id fp1so6778212pdb.13
+        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 00:24:09 -0700 (PDT)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id qe5si8678259pdb.2.2014.10.31.00.24.06
         for <linux-mm@kvack.org>;
-        Fri, 31 Oct 2014 00:22:27 -0700 (PDT)
+        Fri, 31 Oct 2014 00:24:08 -0700 (PDT)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH for v3.18] mm/compaction: skip the range until proper target pageblock is met
-Date: Fri, 31 Oct 2014 16:23:55 +0900
-Message-Id: <1414740235-3975-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v5 0/4] fix freepage count problems in memory isolation
+Date: Fri, 31 Oct 2014 16:25:26 +0900
+Message-Id: <1414740330-4086-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-commit 7d49d8868336 ("mm, compaction: reduce zone checking frequency in
-the migration scanner") makes side-effect that change iteration
-range calculation. Before change, block_end_pfn is calculated using
-start_pfn, but, now, blindly add pageblock_nr_pages to previous value.
+Changes from v4 to v5
+* Patch 3: Only freepage counting logic is moved. Others remains as is.
+(Vlastimil)
+* Patch 4: Consider merging on un-isolation process. (Minchan)
+* Add some Ack tags
 
-This cause the problem that isolation_start_pfn is larger than
-block_end_pfn when we isolation the page with more than pageblock order.
-In this case, isolation would be failed due to invalid range parameter.
+Changes from v3 to v4
+* Patch 1: Add code comment on nr_isolate_pageblock on struct zone (Naoya)
+	Add one more check in free_one_page() that checks whether
+	migratetype is MIGRATE_ISOLATE or not.
+* Patch 4: Use min() to prevent overflow of buddy merge order (Naoya)
+* Remove RFC tag
+* Add stable tag on all patches
 
-To prevent this, this patch implement skipping the range until proper
-target pageblock is met. Without this patch, CMA with more than pageblock
-order always fail, but, with this patch, it will succeed.
+Changes from v1, v2 to v3
+* A lot of comments that lead this patchset to right direction
+(Vlastimil and Minchan)
 
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
----
- mm/compaction.c |    6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+This is version 5 patchset which is improved and minimized version of
+version 1 to fix freepage accounting problem during memory isolation.
+I tried different approach in version 2, but, it looks really complicated
+so I change my mind to improve version 1. You can see version 1, 2 in
+following links [1] [2], respectively.
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index ec74cf0..212682a 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -472,18 +472,20 @@ isolate_freepages_range(struct compact_control *cc,
- 	pfn = start_pfn;
- 	block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
- 
--	for (; pfn < end_pfn; pfn += isolated,
--				block_end_pfn += pageblock_nr_pages) {
-+	for (; pfn < end_pfn; block_end_pfn += pageblock_nr_pages) {
- 		/* Protect pfn from changing by isolate_freepages_block */
- 		unsigned long isolate_start_pfn = pfn;
- 
- 		block_end_pfn = min(block_end_pfn, end_pfn);
-+		if (pfn >= block_end_pfn)
-+			continue;
- 
- 		if (!pageblock_pfn_to_page(pfn, block_end_pfn, cc->zone))
- 			break;
- 
- 		isolated = isolate_freepages_block(cc, &isolate_start_pfn,
- 						block_end_pfn, &freelist, true);
-+		pfn += isolated;
- 
- 		/*
- 		 * In strict mode, isolate_freepages_block() returns 0 if
+IMO, this v5 is better than v2, because this is simpler than v2 so
+better for maintenance and this doesn't change pageblock isolation
+logic so it is much easier to backport.
+
+This problems are found by testing my patchset [3]. There are some race
+conditions on pageblock isolation and these race cause incorrect
+freepage count.
+
+Before describing bugs itself, I first explain definition of freepage.
+
+1. pages on buddy list are counted as freepage.
+2. pages on isolate migratetype buddy list are *not* counted as freepage.
+3. pages on cma buddy list are counted as CMA freepage, too.
+
+Now, I describe problems and related patch.
+
+Patch 1: There is race conditions on getting pageblock migratetype that
+it results in misplacement of freepages on buddy list, incorrect
+freepage count and un-availability of freepage.
+
+Patch 2: Freepages on pcp list could have stale cached information to
+determine migratetype of buddy list to go. This causes misplacement
+of freepages on buddy list and incorrect freepage count.
+
+Patch 4: Merging between freepages on different migratetype of
+pageblocks will cause freepages accouting problem. This patch fixes it.
+
+Without patchset [3], above problem doesn't happens on my CMA allocation
+test, because CMA reserved pages aren't used at all. So there is no
+chance for above race.
+
+With patchset [3], I did simple CMA allocation test and get below result.
+
+- Virtual machine, 4 cpus, 1024 MB memory, 256 MB CMA reservation
+- run kernel build (make -j16) on background
+- 30 times CMA allocation(8MB * 30 = 240MB) attempts in 5 sec interval
+- Result: more than 5000 freepage count are missed
+
+With patchset [3] and this patchset, I found that no freepage count are
+missed so that I conclude that problems are solved.
+
+On my simple memory offlining test, these problems also occur on that
+environment, too.
+
+This patchset is based on v3.18-rc2.
+Please see individual patches for more information.
+
+Thanks.
+
+Joonsoo Kim (4):
+  mm/page_alloc: fix incorrect isolation behavior by rechecking
+    migratetype
+  mm/page_alloc: add freepage on isolate pageblock to correct buddy
+    list
+  mm/page_alloc: move freepage counting logic to __free_one_page()
+  mm/page_alloc: restrict max order of merging on isolated pageblock
+
+ include/linux/mmzone.h         |    9 +++++++
+ include/linux/page-isolation.h |    8 ++++++
+ mm/internal.h                  |   25 +++++++++++++++++++
+ mm/page_alloc.c                |   54 ++++++++++++++++------------------------
+ mm/page_isolation.c            |   33 ++++++++++++++++++++++++
+ 5 files changed, 96 insertions(+), 33 deletions(-)
+
 -- 
 1.7.9.5
 
