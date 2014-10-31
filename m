@@ -1,49 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id E244F280050
-	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 12:02:16 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id bj1so7974505pad.17
-        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 09:02:16 -0700 (PDT)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id ab8si9620934pbd.32.2014.10.31.09.02.15
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id E850C280011
+	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 12:58:43 -0400 (EDT)
+Received: by mail-wg0-f45.google.com with SMTP id x12so7030488wgg.18
+        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 09:58:43 -0700 (PDT)
+Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
+        by mx.google.com with ESMTPS id ee10si15355961wib.21.2014.10.31.09.58.41
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 31 Oct 2014 09:02:15 -0700 (PDT)
-Received: by mail-pa0-f42.google.com with SMTP id bj1so8017628pad.29
-        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 09:02:15 -0700 (PDT)
-From: Masanari Iida <standby24x7@gmail.com>
-Subject: [PATCH] Documentation: vm: Add 1GB large page support information
-Date: Sat,  1 Nov 2014 01:01:57 +0900
-Message-Id: <1414771317-5721-1-git-send-email-standby24x7@gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 31 Oct 2014 09:58:42 -0700 (PDT)
+Date: Fri, 31 Oct 2014 17:58:36 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 2/5] mm: gup: add __get_user_pages_unlocked to customize
+ gup_flags
+Message-ID: <20141031165836.GW23531@worktop.programming.kicks-ass.net>
+References: <1414600520-7664-1-git-send-email-aarcange@redhat.com>
+ <1414600520-7664-3-git-send-email-aarcange@redhat.com>
+ <20141030121737.GB31134@node.dhcp.inet.fi>
+ <20141030174309.GL19606@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141030174309.GL19606@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: corbet@lwn.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lcapitulino@redhat.com
-Cc: Masanari Iida <standby24x7@gmail.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michel Lespinasse <walken@google.com>, Andrew Jones <drjones@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Andres Lagar-Cavilla <andreslc@google.com>, Minchan Kim <minchan@kernel.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, "\\\"Dr. David Alan Gilbert\\\"" <dgilbert@redhat.com>, Peter Feiner <pfeiner@google.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, David Miller <davem@davemloft.net>, Steve Capper <steve.capper@linaro.org>, Johannes Weiner <jweiner@redhat.com>
 
-This patch add 1GB large page support information on
-x86_64 architecture in Documentation/vm/hugetlbpage.txt.
+On Thu, Oct 30, 2014 at 06:43:09PM +0100, Andrea Arcangeli wrote:
+> On Thu, Oct 30, 2014 at 02:17:37PM +0200, Kirill A. Shutemov wrote:
+> > On Wed, Oct 29, 2014 at 05:35:17PM +0100, Andrea Arcangeli wrote:
+> > > diff --git a/mm/gup.c b/mm/gup.c
+> > > index a8521f1..01534ff 100644
+> > > --- a/mm/gup.c
+> > > +++ b/mm/gup.c
+> > > @@ -591,9 +591,9 @@ static __always_inline long __get_user_pages_locked(struct task_struct *tsk,
+> > >  						int write, int force,
+> > >  						struct page **pages,
+> > >  						struct vm_area_struct **vmas,
+> > > -						int *locked, bool notify_drop)
+> > > +						int *locked, bool notify_drop,
+> > > +						unsigned int flags)
+> > 
+> > Argument list getting too long. Should we consider packing them into a
+> > struct?
+> 
+> It's __always_inline, so it's certainly not a runtime concern. The
+> whole point of using __always_inline is to optimize away certain
+> branches at build time.
 
-Signed-off-by: Masanari Iida <standby24x7@gmail.com>
----
- Documentation/vm/hugetlbpage.txt | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+Its also exported:
 
-diff --git a/Documentation/vm/hugetlbpage.txt b/Documentation/vm/hugetlbpage.txt
-index bdd4bb9..0a2bf4f 100644
---- a/Documentation/vm/hugetlbpage.txt
-+++ b/Documentation/vm/hugetlbpage.txt
-@@ -2,7 +2,8 @@
- The intent of this file is to give a brief summary of hugetlbpage support in
- the Linux kernel.  This support is built on top of multiple page size support
- that is provided by most modern architectures.  For example, i386
--architecture supports 4K and 4M (2M in PAE mode) page sizes, ia64
-+architecture supports 4K and 4M (2M in PAE mode) page sizes, x86_64
-+architecture supports 4K, 2M and 1G (SandyBridge or later) page sizes. ia64
- architecture supports multiple page sizes 4K, 8K, 64K, 256K, 1M, 4M, 16M,
- 256M and ppc64 supports 4K and 16M.  A TLB is a cache of virtual-to-physical
- translations.  Typically this is a very scarce resource on processor.
--- 
-2.1.2.555.gfbecd99
++EXPORT_SYMBOL(__get_user_pages_unlocked);
+
+Note that __always_inline is only valid within the same translation unit
+(unless you get LTO working).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
