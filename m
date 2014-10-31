@@ -1,62 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id BE6996B00E3
-	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 04:26:55 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id eu11so7200875pac.23
-        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 01:26:55 -0700 (PDT)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id fm8si8709809pac.115.2014.10.31.01.26.53
-        for <linux-mm@kvack.org>;
-        Fri, 31 Oct 2014 01:26:54 -0700 (PDT)
-Date: Fri, 31 Oct 2014 17:28:18 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: DMA allocations from CMA and fatal_signal_pending check
-Message-ID: <20141031082818.GB14642@js1304-P5Q-DELUXE>
-References: <544FE9BE.6040503@gmail.com>
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id CE4F5280011
+	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 05:09:27 -0400 (EDT)
+Received: by mail-wi0-f181.google.com with SMTP id n3so711180wiv.8
+        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 02:09:27 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id gp3si5070538wib.50.2014.10.31.02.09.25
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Fri, 31 Oct 2014 02:09:26 -0700 (PDT)
+Date: Fri, 31 Oct 2014 10:09:13 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v9 09/12] x86, mpx: decode MPX instruction to get bound
+ violation information
+In-Reply-To: <5452EFF7.4090204@intel.com>
+Message-ID: <alpine.DEB.2.11.1410311007230.5308@nanos>
+References: <1413088915-13428-1-git-send-email-qiaowei.ren@intel.com> <1413088915-13428-10-git-send-email-qiaowei.ren@intel.com> <5452BDD8.2080605@intel.com> <5452EFF7.4090204@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <544FE9BE.6040503@gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Fainelli <f.fainelli@gmail.com>
-Cc: linux-arm-kernel@lists.infradead.org, Brian Norris <computersforpeace@gmail.com>, Gregory Fong <gregory.0xf0@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lauraa@codeaurora.org, gioh.kim@lge.com, aneesh.kumar@linux.vnet.ibm.com, mina86@mina86.com, m.szyprowski@samsung.com, akpm@linux-foundation.org, "netdev@vger.kernel.org" <netdev@vger.kernel.org>
+To: Ren Qiaowei <qiaowei.ren@intel.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org
 
-On Tue, Oct 28, 2014 at 12:08:46PM -0700, Florian Fainelli wrote:
-> Hello,
+On Fri, 31 Oct 2014, Ren Qiaowei wrote:
+> On 10/31/2014 06:38 AM, Dave Hansen wrote:
+> > > @@ -316,6 +317,11 @@ dotraplinkage void do_bounds(struct pt_regs *regs,
+> > > long error_code)
+> > >   		break;
+> > > 
+> > >   	case 1: /* Bound violation. */
+> > > +		do_mpx_bounds(regs, &info, xsave_buf);
+> > > +		do_trap(X86_TRAP_BR, SIGSEGV, "bounds", regs,
+> > > +				error_code, &info);
+> > > +		break;
+> > > +
+> > >   	case 0: /* No exception caused by Intel MPX operations. */
+> > >   		do_trap(X86_TRAP_BR, SIGSEGV, "bounds", regs, error_code,
+> > > NULL);
+> > >   		break;
+> > > 
+> > 
+> > So, siginfo is stack-allocarted here.  do_mpx_bounds() can error out if
+> > it sees an invalid bndregno.  We still send the signal with the &info
+> > whether or not we filled the 'info' in do_mpx_bounds().
+> > 
+> > Can't this leak some kernel stack out in the 'info'?
+> > 
 > 
-> While debugging why some dma_alloc_coherent() allocations where
-> returning NULL on our brcmstb platform, specifically with
-> drivers/net/ethernet/broadcom/bcmcsysport.c, I came across the
-> fatal_signal_pending() check in mm/page_alloc.c which is there.
-> 
-> This driver calls dma_alloc_coherent(, GFP_KERNEL) which ends up making
-> a coherent allocation from a CMA region on our platform. Since that
-> allocation is allowed to sleep, and because we are in bcm_syport_open(),
-> executed from process context, a pending signal makes
-> dma_alloc_coherent() return NULL.
+> This should check the return value of do_mpx_bounds and should be fixed.
 
-Hello, Florian.
+And how's that answering Dave's question about leaking stack information? 
 
-fatal_signal_pending means that there is SIGKILL on that process.
-I guess that caller of dma_alloc_coherent() will die soon.
-In this case, why CMA should be succeed?
+Thanks,
 
-> 
-> There are two ways I could fix this:
-> 
-> - use a GFP_ATOMIC allocation, which would avoid this sensitivity to a
-> pending signal being fatal (we suffer from the same issue in
-> bcm_sysport_resume)
-> 
-> - move the DMA coherent allocation before bcm_sysport_open(), in the
-> driver's probe function, but if the network interface is never used, we
-> would be waisting precious DMA coherent memory for nothing (it is only 4
-> bytes times 32 but still
-
-I guess that it is okay that bcm_sysport_open() return -EINTR?
-
-Thanks.
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
