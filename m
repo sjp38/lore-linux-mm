@@ -1,91 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 91A09280011
-	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 07:42:54 -0400 (EDT)
-Received: by mail-lb0-f179.google.com with SMTP id w7so5897742lbi.10
-        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 04:42:53 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x8si16208960laj.107.2014.10.31.04.42.51
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EC1D28003A
+	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 08:15:36 -0400 (EDT)
+Received: by mail-wi0-f169.google.com with SMTP id n3so1122078wiv.4
+        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 05:15:35 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id hi1si14034316wjc.7.2014.10.31.05.15.33
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 31 Oct 2014 04:42:52 -0700 (PDT)
-Message-ID: <545375B2.6050800@suse.cz>
-Date: Fri, 31 Oct 2014 12:42:42 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 31 Oct 2014 05:15:34 -0700 (PDT)
+Message-ID: <54537D20.2080203@redhat.com>
+Date: Fri, 31 Oct 2014 08:14:24 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH for v3.18] mm/compaction: skip the range until proper
- target pageblock is met
-References: <1414740235-3975-1-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1414740235-3975-1-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+Subject: Re: [PATCH] mm: Fix a spelling mistake
+References: <1414751873-19981-1-git-send-email-weiyuan.wei@huawei.com>
+In-Reply-To: <1414751873-19981-1-git-send-email-weiyuan.wei@huawei.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: w00218164 <weiyuan.wei@huawei.com>, akpm@linux-foundation.org, mgorman@suse.de, rientjes@google.com, hannes@cmpxchg.org, vbabka@suse.cz, sasha.levin@oracle.com
+Cc: lizefan@huawei.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 10/31/2014 08:23 AM, Joonsoo Kim wrote:
-> commit 7d49d8868336 ("mm, compaction: reduce zone checking frequency in
-> the migration scanner") makes side-effect that change iteration
-> range calculation. Before change, block_end_pfn is calculated using
-> start_pfn, but, now, blindly add pageblock_nr_pages to previous value.
->
-> This cause the problem that isolation_start_pfn is larger than
-> block_end_pfn when we isolation the page with more than pageblock order.
-> In this case, isolation would be failed due to invalid range parameter.
->
-> To prevent this, this patch implement skipping the range until proper
-> target pageblock is met. Without this patch, CMA with more than pageblock
-> order always fail, but, with this patch, it will succeed.
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
 
-Well, that's a shame, a third fix you send for my series... And only the 
-first was caught before going mainline. I guess -rcX phase is intended 
-for this, but how could we do better to catch this in -next?
-Anyway, thanks!
+On 10/31/2014 06:37 AM, w00218164 wrote:
+> From: Wei Yuan <weiyuan.wei@huawei.com>
+> 
+> This patch fixes a spelling mistake in func __zone_watermark_ok,
+> which may was wrongly spelled my.
+> 
+> Signed-off-by Wei Yuan <weiyuan.wei@huawei.com>
 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> ---
->   mm/compaction.c |    6 ++++--
->   1 file changed, 4 insertions(+), 2 deletions(-)
->
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index ec74cf0..212682a 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -472,18 +472,20 @@ isolate_freepages_range(struct compact_control *cc,
->   	pfn = start_pfn;
->   	block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
->
-> -	for (; pfn < end_pfn; pfn += isolated,
-> -				block_end_pfn += pageblock_nr_pages) {
-> +	for (; pfn < end_pfn; block_end_pfn += pageblock_nr_pages) {
->   		/* Protect pfn from changing by isolate_freepages_block */
->   		unsigned long isolate_start_pfn = pfn;
->
->   		block_end_pfn = min(block_end_pfn, end_pfn);
-> +		if (pfn >= block_end_pfn)
-> +			continue;
+Acked-by: Rik van Riel <riel@redhat.com>
 
-Without any comment, this will surely confuse anyone reading the code.
-Also I wonder if just recalculating block_end_pfn wouldn't be cheaper 
-cpu-wise (not that it matters much?) and easier to understand than 
-conditionals. IIRC backward jumps (i.e. continue) are by default 
-predicted as "likely" if there's no history in the branch predictor 
-cache, but this rather unlikely?
+- -- 
+All rights reversed
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
 
->   		if (!pageblock_pfn_to_page(pfn, block_end_pfn, cc->zone))
->   			break;
->
->   		isolated = isolate_freepages_block(cc, &isolate_start_pfn,
->   						block_end_pfn, &freelist, true);
-> +		pfn += isolated;
-
-Moving the "pfn += isolated" here doesn't change anything, or does it? 
-Do you just find it nicer?
-
->   		/*
->   		 * In strict mode, isolate_freepages_block() returns 0 if
->
+iQEcBAEBAgAGBQJUU30gAAoJEM553pKExN6DuYEH/A//pb6HSRmQJAkRiQC3PQ/X
+Qq8MRDyRiXznoHks6Xd/gbAVGpbLftTXApL+6zKL7Id8CSE8qqvJ2wOg6zuLaoyf
+4KpCaPahKF6LVNGLdy8hK0OnR65iM6KnUZNHfPCPfA9FU7oDknuW6+Ryt3RqrF83
+bEgczxDfv8p4+24GHhX+UODCOktIxS65Nm3zfRYmNcoMnoIRfgCJZIbjF8Ah5LBY
+/0RWAjDAJwvpCZB6wwnttXOJlKhRPx77dnKjkMFJgjxDaplq9hSkKG+EzEqztFEi
+n8gtvPCHGQovxctjjv/AFFP0o0mvkl5O/f4V/BChC2Bih7Z6pEvlAwo9SwbKqvU=
+=OxmS
+-----END PGP SIGNATURE-----
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
