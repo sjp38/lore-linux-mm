@@ -1,104 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f173.google.com (mail-lb0-f173.google.com [209.85.217.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 40DA7280042
-	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 11:53:57 -0400 (EDT)
-Received: by mail-lb0-f173.google.com with SMTP id p9so663607lbv.4
-        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 08:53:56 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v3si17275194lal.134.2014.10.31.08.53.54
+Received: from mail-ie0-f176.google.com (mail-ie0-f176.google.com [209.85.223.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 13DC6280042
+	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 11:58:02 -0400 (EDT)
+Received: by mail-ie0-f176.google.com with SMTP id rd18so1536048iec.35
+        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 08:58:01 -0700 (PDT)
+Received: from resqmta-po-10v.sys.comcast.net (resqmta-po-10v.sys.comcast.net. [2001:558:fe16:19:96:114:154:169])
+        by mx.google.com with ESMTPS id 201si821733iof.10.2014.10.31.08.58.01
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 31 Oct 2014 08:53:54 -0700 (PDT)
-Message-ID: <5453B088.6080605@suse.cz>
-Date: Fri, 31 Oct 2014 16:53:44 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
-MIME-Version: 1.0
-Subject: Re: [PATCH 4/5] mm, compaction: always update cached scanner positions
-References: <1412696019-21761-1-git-send-email-vbabka@suse.cz> <1412696019-21761-5-git-send-email-vbabka@suse.cz> <20141027073522.GB23379@js1304-P5Q-DELUXE> <544E12B5.5070008@suse.cz> <20141028070818.GA27813@js1304-P5Q-DELUXE>
-In-Reply-To: <20141028070818.GA27813@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 31 Oct 2014 08:58:01 -0700 (PDT)
+Date: Fri, 31 Oct 2014 10:17:16 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH for v3.18] mm/slab: fix unalignment problem on Malta with
+ EVA due to slab merge
+In-Reply-To: <1414742912-14852-1-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <alpine.DEB.2.11.1410311015490.14859@gentwo.org>
+References: <1414742912-14852-1-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Markos Chandras <Markos.Chandras@imgtec.com>, linux-mips@linux-mips.org
 
-On 10/28/2014 08:08 AM, Joonsoo Kim wrote:
->>
->>> And, I guess that pageblock skip feature effectively disable pageblock
->>> rescanning if there is no freepage during rescan.
->>
->> If there's no freepage during rescan, then the cached free_pfn also
->> won't be pointed to the pageblock anymore. Regardless of pageblock skip
->> being set, there will not be second rescan. But there will still be the
->> first rescan to determine there are no freepages.
->
-> Yes, What I'd like to say is that these would work well. Just decreasing
-> few percent of scanning page doesn't look good to me to validate this
-> patch, because there is some facilities to reduce rescan overhead and
+On Fri, 31 Oct 2014, Joonsoo Kim wrote:
 
-The mechanisms have a tradeoff, while this patch didn't seem to have 
-negative consequences.
+> alloc_unbound_pwq() allocates slab object from pool_workqueue. This
+> kmem_cache requires 256 bytes alignment, but, current merging code
+> doesn't honor that, and merge it with kmalloc-256. kmalloc-256 requires
+> only cacheline size alignment so that above failure occurs. However,
+> in x86, kmalloc-256 is luckily aligned in 256 bytes, so the problem
+> didn't happen on it.
 
-> compaction is fundamentally time-consuming process. Moreover, failure of
-> compaction could cause serious system crash in some cases.
+That luck will run out when you enable debugging. But then that also
+usually means disablign merging.
 
-Relying on successful high-order allocation for not crashing is 
-dangerous, success is never guaranteed. Such critical allocation should 
-try harder than fail due to a single compaction attempt. With this 
-argument you could aim to remove all the overhead reducing heuristics.
+> To fix this problem, this patch introduces alignment mismatch check
+> in find_mergeable(). This will fix the problem.
 
->>> This patch would
->>> eliminate effect of pageblock skip feature.
->>
->> I don't think so (as explained above). Also if free pages were isolated
->> (and then returned and skipped over), the pageblock should remain
->> without skip bit, so after scanners meet and positions reset (which
->> doesn't go hand in hand with skip bit reset), the next round will skip
->> over the blocks without freepages and find quickly the blocks where free
->> pages were skipped in the previous round.
->>
->>> IIUC, compaction logic assume that there are many temporary failure
->>> conditions. Retrying from others would reduce effect of this temporary
->>> failure so implementation looks as is.
->>
->> The implementation of pfn caching was written at time when we did not
->> keep isolated free pages between migration attempts in a single
->> compaction run. And the idea of async compaction is to try with minimal
->> effort (thus latency), and if there's a failure, try somewhere else.
->> Making sure we don't skip anything doesn't seem productive.
->
-> free_pfn is shared by async/sync compaction and unconditional updating
-> causes sync compaction to stop prematurely, too.
->
-> And, if this patch makes migrate/freepage scanner meet more frequently,
-> there is one problematic scenario.
-
-OK, so you don't find a problem with how this patch changes migration 
-scanner caching, just the free scanner, right?
-So how about making release_freepages() return the highest freepage pfn 
-it encountered (could perhaps do without comparing individual pfn's, the 
-list should be ordered so it could be just the pfn of first or last page 
-in the list, but need to check that) and updating cached free pfn with 
-that? That should ensure rescanning only when needed.
-
-> compact_finished() doesn't check how many work we did. It just check
-> if both scanners meet. Even if we failed to allocate high order page
-> due to little work, compaction would be deffered for later user.
-> This scenario wouldn't happen frequently if updating cached pfn is
-> limited. But, this patch may enlarge the possibility of this problem.
-
-I doubt it changes the possibility substantially, but nevermind.
-
-> This is another problem of current logic, and, should be fixed, but,
-> there is now.
-
-If something needs the high-order allocation succeed that badly, then 
-the proper GFP flags should result in further reclaim and compaction 
-attempts (hopefully) and not give up after first sync compaction failure.
-
-> Thanks.
->
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
