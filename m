@@ -1,60 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id CE4F5280011
-	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 05:09:27 -0400 (EDT)
-Received: by mail-wi0-f181.google.com with SMTP id n3so711180wiv.8
-        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 02:09:27 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id gp3si5070538wib.50.2014.10.31.02.09.25
+Received: from mail-la0-f52.google.com (mail-la0-f52.google.com [209.85.215.52])
+	by kanga.kvack.org (Postfix) with ESMTP id CAAB3280011
+	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 05:28:16 -0400 (EDT)
+Received: by mail-la0-f52.google.com with SMTP id pv20so4091310lab.11
+        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 02:28:15 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id wh3si15702630lbb.118.2014.10.31.02.28.14
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Fri, 31 Oct 2014 02:09:26 -0700 (PDT)
-Date: Fri, 31 Oct 2014 10:09:13 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v9 09/12] x86, mpx: decode MPX instruction to get bound
- violation information
-In-Reply-To: <5452EFF7.4090204@intel.com>
-Message-ID: <alpine.DEB.2.11.1410311007230.5308@nanos>
-References: <1413088915-13428-1-git-send-email-qiaowei.ren@intel.com> <1413088915-13428-10-git-send-email-qiaowei.ren@intel.com> <5452BDD8.2080605@intel.com> <5452EFF7.4090204@intel.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 31 Oct 2014 02:28:14 -0700 (PDT)
+Date: Fri, 31 Oct 2014 10:28:12 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC patch] mm: hugetlb: fix __unmap_hugepage_range
+Message-ID: <20141031092812.GB16840@dhcp22.suse.cz>
+References: <028701cff4c2$3e9e2ca0$bbda85e0$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <028701cff4c2$3e9e2ca0$bbda85e0$@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ren Qiaowei <qiaowei.ren@intel.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org
+To: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Fri, 31 Oct 2014, Ren Qiaowei wrote:
-> On 10/31/2014 06:38 AM, Dave Hansen wrote:
-> > > @@ -316,6 +317,11 @@ dotraplinkage void do_bounds(struct pt_regs *regs,
-> > > long error_code)
-> > >   		break;
-> > > 
-> > >   	case 1: /* Bound violation. */
-> > > +		do_mpx_bounds(regs, &info, xsave_buf);
-> > > +		do_trap(X86_TRAP_BR, SIGSEGV, "bounds", regs,
-> > > +				error_code, &info);
-> > > +		break;
-> > > +
-> > >   	case 0: /* No exception caused by Intel MPX operations. */
-> > >   		do_trap(X86_TRAP_BR, SIGSEGV, "bounds", regs, error_code,
-> > > NULL);
-> > >   		break;
-> > > 
-> > 
-> > So, siginfo is stack-allocarted here.  do_mpx_bounds() can error out if
-> > it sees an invalid bndregno.  We still send the signal with the &info
-> > whether or not we filled the 'info' in do_mpx_bounds().
-> > 
-> > Can't this leak some kernel stack out in the 'info'?
-> > 
+[CCing people involved in 24669e58477e2]
+
+On Fri 31-10-14 12:22:12, Hillf Danton wrote:
+> First, after flushing TLB, we have no need to scan pte from start again.
+> Second, before bail out loop, the address is forwarded one step.
+
+I can imagine a more comprehensive wording here. It is not immediately
+clear whether this is just an optimization or a bug fix as well
+(especially the second part).
+
+Anyway the optimization looks good to me.
+
+> Signed-off-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
 > 
-> This should check the return value of do_mpx_bounds and should be fixed.
+> --- a/mm/hugetlb.c	Fri Oct 31 11:47:25 2014
+> +++ b/mm/hugetlb.c	Fri Oct 31 11:52:42 2014
+> @@ -2641,8 +2641,9 @@ void __unmap_hugepage_range(struct mmu_g
+>  
+>  	tlb_start_vma(tlb, vma);
+>  	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
+> +	address = start;
+>  again:
+> -	for (address = start; address < end; address += sz) {
+> +	for (; address < end; address += sz) {
+>  		ptep = huge_pte_offset(mm, address);
+>  		if (!ptep)
+>  			continue;
+> @@ -2689,6 +2690,7 @@ again:
+>  		page_remove_rmap(page);
+>  		force_flush = !__tlb_remove_page(tlb, page);
+>  		if (force_flush) {
+> +			address += sz;
+>  			spin_unlock(ptl);
+>  			break;
+>  		}
+> --
+> 
+> 
 
-And how's that answering Dave's question about leaking stack information? 
-
-Thanks,
-
-	tglx
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
