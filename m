@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f179.google.com (mail-ie0-f179.google.com [209.85.223.179])
-	by kanga.kvack.org (Postfix) with ESMTP id D21A8280031
-	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 03:58:13 -0400 (EDT)
-Received: by mail-ie0-f179.google.com with SMTP id rl12so734594iec.24
-        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 00:58:13 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0107.hostedemail.com. [216.40.44.107])
-        by mx.google.com with ESMTP id kz2si14389142icb.89.2014.10.31.00.58.13
-        for <linux-mm@kvack.org>;
-        Fri, 31 Oct 2014 00:58:13 -0700 (PDT)
-Message-ID: <1414742289.8928.5.camel@perches.com>
-Subject: Re: [RFC] arm:remove clear_thread_flag(TIF_UPROBE)
-From: Joe Perches <joe@perches.com>
-Date: Fri, 31 Oct 2014 00:58:09 -0700
-In-Reply-To: <35FD53F367049845BC99AC72306C23D103E010D1827C@CNBJMBX05.corpusers.net>
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id EEEF5280031
+	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 03:59:44 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id ft15so6802229pdb.21
+        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 00:59:44 -0700 (PDT)
+Received: from cnbjrel02.sonyericsson.com (cnbjrel02.sonyericsson.com. [219.141.167.166])
+        by mx.google.com with ESMTPS id bf4si8619292pdb.162.2014.10.31.00.59.42
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 31 Oct 2014 00:59:44 -0700 (PDT)
+From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Date: Fri, 31 Oct 2014 15:59:37 +0800
+Subject: RE: [RFC] arm:remove clear_thread_flag(TIF_UPROBE)
+Message-ID: <35FD53F367049845BC99AC72306C23D103E010D1827E@CNBJMBX05.corpusers.net>
 References: <1414392371.8884.2.camel@perches.com>
 	 <CAL_JsqJYBoG+nrr7R3UWz1wrZ--Xjw5X31RkpCrTWMJAePBgRg@mail.gmail.com>
 	 <35FD53F367049845BC99AC72306C23D103E010D1825F@CNBJMBX05.corpusers.net>
@@ -30,50 +30,54 @@ References: <1414392371.8884.2.camel@perches.com>
 	 <35FD53F367049845BC99AC72306C23D103E010D1827B@CNBJMBX05.corpusers.net>
 	 <1414741535.8928.2.camel@perches.com>
 	 <35FD53F367049845BC99AC72306C23D103E010D1827C@CNBJMBX05.corpusers.net>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+ <1414742289.8928.5.camel@perches.com>
+In-Reply-To: <1414742289.8928.5.camel@perches.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+To: 'Joe Perches' <joe@perches.com>
 Cc: 'Will Deacon' <will.deacon@arm.com>, 'Ard Biesheuvel' <ard.biesheuvel@linaro.org>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'akinobu.mita@gmail.com'" <akinobu.mita@gmail.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>
 
-On Fri, 2014-10-31 at 15:51 +0800, Wang, Yalin wrote:
-> > From: Joe Perches [mailto:joe@perches.com]
-> > > diff --git a/arch/arm/kernel/signal.c b/arch/arm/kernel/signal.c
-> > []
-> > > @@ -591,10 +591,9 @@ do_work_pending(struct pt_regs *regs, unsigned int
-> > thread_flags, int syscall)
-> > >  					return restart;
-> > >  				}
-> > >  				syscall = 0;
-> > > -			} else if (thread_flags & _TIF_UPROBE) {
-> > > -				clear_thread_flag(TIF_UPROBE);
-> > > +			} else if (thread_flags & _TIF_UPROBE)
-> > >  				uprobe_notify_resume(regs);
-> > > -			} else {
-> > > +			else {
-> > >  				clear_thread_flag(TIF_NOTIFY_RESUME);
-> > >  				tracehook_notify_resume(regs);
-> > >  			}
-> > 
-> > Please keep the braces.
-> 
-> mm..  could I know the reason ?  :)
+> From: Joe Perches [mailto:joe@perches.com]
+> > > > @@ -591,10 +591,9 @@ do_work_pending(struct pt_regs *regs, unsigned
+> int
+> > > thread_flags, int syscall)
+> > > >  					return restart;
+> > > >  				}
+> > > >  				syscall =3D 0;
+> > > > -			} else if (thread_flags & _TIF_UPROBE) {
+> > > > -				clear_thread_flag(TIF_UPROBE);
+> > > > +			} else if (thread_flags & _TIF_UPROBE)
+> > > >  				uprobe_notify_resume(regs);
+> > > > -			} else {
+> > > > +			else {
+> > > >  				clear_thread_flag(TIF_NOTIFY_RESUME);
+> > > >  				tracehook_notify_resume(regs);
+> > > >  			}
+> > >
+> > > Please keep the braces.
+> >
+> > mm..  could I know the reason ?  :)
+>=20
+> Try read Documentation/CodingStyle
+>=20
+> 		Chapter 3: Placing Braces and Spaces
+>=20
+> use braces in both branches:
+>=20
+> if (condition) {
+> 	do_this();
+> 	do_that();
+> } else {
+> 	otherwise();
+> }
+>=20
 
-Try read Documentation/CodingStyle
-
-		Chapter 3: Placing Braces and Spaces
-
-use braces in both branches:
-
-if (condition) {
-	do_this();
-	do_that();
-} else {
-	otherwise();
-}
-
+Got it,  I will resend one .
+Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
