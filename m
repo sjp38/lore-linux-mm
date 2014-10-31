@@ -1,43 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f176.google.com (mail-ie0-f176.google.com [209.85.223.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 13DC6280042
-	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 11:58:02 -0400 (EDT)
-Received: by mail-ie0-f176.google.com with SMTP id rd18so1536048iec.35
-        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 08:58:01 -0700 (PDT)
-Received: from resqmta-po-10v.sys.comcast.net (resqmta-po-10v.sys.comcast.net. [2001:558:fe16:19:96:114:154:169])
-        by mx.google.com with ESMTPS id 201si821733iof.10.2014.10.31.08.58.01
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id E244F280050
+	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 12:02:16 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id bj1so7974505pad.17
+        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 09:02:16 -0700 (PDT)
+Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
+        by mx.google.com with ESMTPS id ab8si9620934pbd.32.2014.10.31.09.02.15
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 31 Oct 2014 08:58:01 -0700 (PDT)
-Date: Fri, 31 Oct 2014 10:17:16 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH for v3.18] mm/slab: fix unalignment problem on Malta with
- EVA due to slab merge
-In-Reply-To: <1414742912-14852-1-git-send-email-iamjoonsoo.kim@lge.com>
-Message-ID: <alpine.DEB.2.11.1410311015490.14859@gentwo.org>
-References: <1414742912-14852-1-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 31 Oct 2014 09:02:15 -0700 (PDT)
+Received: by mail-pa0-f42.google.com with SMTP id bj1so8017628pad.29
+        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 09:02:15 -0700 (PDT)
+From: Masanari Iida <standby24x7@gmail.com>
+Subject: [PATCH] Documentation: vm: Add 1GB large page support information
+Date: Sat,  1 Nov 2014 01:01:57 +0900
+Message-Id: <1414771317-5721-1-git-send-email-standby24x7@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Markos Chandras <Markos.Chandras@imgtec.com>, linux-mips@linux-mips.org
+To: corbet@lwn.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lcapitulino@redhat.com
+Cc: Masanari Iida <standby24x7@gmail.com>
 
-On Fri, 31 Oct 2014, Joonsoo Kim wrote:
+This patch add 1GB large page support information on
+x86_64 architecture in Documentation/vm/hugetlbpage.txt.
 
-> alloc_unbound_pwq() allocates slab object from pool_workqueue. This
-> kmem_cache requires 256 bytes alignment, but, current merging code
-> doesn't honor that, and merge it with kmalloc-256. kmalloc-256 requires
-> only cacheline size alignment so that above failure occurs. However,
-> in x86, kmalloc-256 is luckily aligned in 256 bytes, so the problem
-> didn't happen on it.
+Signed-off-by: Masanari Iida <standby24x7@gmail.com>
+---
+ Documentation/vm/hugetlbpage.txt | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-That luck will run out when you enable debugging. But then that also
-usually means disablign merging.
-
-> To fix this problem, this patch introduces alignment mismatch check
-> in find_mergeable(). This will fix the problem.
-
-Acked-by: Christoph Lameter <cl@linux.com>
+diff --git a/Documentation/vm/hugetlbpage.txt b/Documentation/vm/hugetlbpage.txt
+index bdd4bb9..0a2bf4f 100644
+--- a/Documentation/vm/hugetlbpage.txt
++++ b/Documentation/vm/hugetlbpage.txt
+@@ -2,7 +2,8 @@
+ The intent of this file is to give a brief summary of hugetlbpage support in
+ the Linux kernel.  This support is built on top of multiple page size support
+ that is provided by most modern architectures.  For example, i386
+-architecture supports 4K and 4M (2M in PAE mode) page sizes, ia64
++architecture supports 4K and 4M (2M in PAE mode) page sizes, x86_64
++architecture supports 4K, 2M and 1G (SandyBridge or later) page sizes. ia64
+ architecture supports multiple page sizes 4K, 8K, 64K, 256K, 1M, 4M, 16M,
+ 256M and ppc64 supports 4K and 16M.  A TLB is a cache of virtual-to-physical
+ translations.  Typically this is a very scarce resource on processor.
+-- 
+2.1.2.555.gfbecd99
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
