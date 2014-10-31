@@ -1,94 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C35C28003D
-	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 10:02:20 -0400 (EDT)
-Received: by mail-la0-f42.google.com with SMTP id gq15so6328482lab.15
-        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 07:02:19 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id tn9si16833444lbb.72.2014.10.31.07.02.17
+Received: from mail-ie0-f175.google.com (mail-ie0-f175.google.com [209.85.223.175])
+	by kanga.kvack.org (Postfix) with ESMTP id BAB6D280046
+	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 10:10:20 -0400 (EDT)
+Received: by mail-ie0-f175.google.com with SMTP id y20so1297540ier.6
+        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 07:10:20 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id cc7si15597382icc.107.2014.10.31.07.10.19
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 31 Oct 2014 07:02:18 -0700 (PDT)
-Message-ID: <5453965F.2070800@suse.cz>
-Date: Fri, 31 Oct 2014 15:02:07 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 31 Oct 2014 07:10:20 -0700 (PDT)
+Date: Fri, 31 Oct 2014 10:10:13 -0400
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [PATCH] Frontswap: fix the condition in BUG_ON
+Message-ID: <20141031141013.GH4704@laptop.dumpdata.com>
+References: <CAFNq8R7xYA2GTpWE-5rHr5c-xX0ZONKHX6wSbra2MDo1M2DSHQ@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 3/4] mm/page_alloc: move freepage counting logic to
- __free_one_page()
-References: <1414740330-4086-1-git-send-email-iamjoonsoo.kim@lge.com> <1414740330-4086-4-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1414740330-4086-4-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAFNq8R7xYA2GTpWE-5rHr5c-xX0ZONKHX6wSbra2MDo1M2DSHQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: Li Haifeng <omycle@gmail.com>, akpm@linux-foundation.org
+Cc: open list <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-On 10/31/2014 08:25 AM, Joonsoo Kim wrote:
-> All the caller of __free_one_page() has similar freepage counting logic,
-> so we can move it to __free_one_page(). This reduce line of code and help
-> future maintenance. This is also preparation step for "mm/page_alloc:
-> restrict max order of merging on isolated pageblock" which fix the
-> freepage counting problem on freepage with more than pageblock order.
->
-> Changes from v4:
-> Only freepage counting logic is moved. Others remains as is.
->
-> Cc: <stable@vger.kernel.org>
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On Fri, Oct 31, 2014 at 06:14:19PM +0800, Li Haifeng wrote:
+> >From 012a564c7210346b99d12e3d2485542bb090586e Mon Sep 17 00:00:00 2001
+> From: Haifeng Li <omycle@gmail.com>
+> Date: Fri, 31 Oct 2014 17:40:44 +0800
+> Subject: [PATCH] Frontswap: fix the condition in BUG_ON
+> 
+> The largest index of swap device is MAX_SWAPFILES-1. So the type
+> should be less than MAX_SWAPFILES.
 
-Looks like most of the cleanup was still possible, especially getting 
-rid of the skip_counting labels is nice.
+Ok, so we would never hit this BUG_ON because of that.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Acked-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
+P.S.
+Andrew - are you OK picking this up?
+
+Thank you!
+> 
+> Signed-off-by: Haifeng Li <omycle@gmail.com>
 > ---
->   mm/page_alloc.c |   14 +++-----------
->   1 file changed, 3 insertions(+), 11 deletions(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 6df23fe..2bc7768 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -579,6 +579,8 @@ static inline void __free_one_page(struct page *page,
->   			return;
->
->   	VM_BUG_ON(migratetype == -1);
-> +	if (!is_migrate_isolate(migratetype))
-> +		__mod_zone_freepage_state(zone, 1 << order, migratetype);
->
->   	page_idx = pfn & ((1 << MAX_ORDER) - 1);
->
-> @@ -725,14 +727,9 @@ static void free_pcppages_bulk(struct zone *zone, int count,
->   			/* must delete as __free_one_page list manipulates */
->   			list_del(&page->lru);
->   			mt = get_freepage_migratetype(page);
-> -			if (unlikely(has_isolate_pageblock(zone))) {
-> +			if (unlikely(has_isolate_pageblock(zone)))
->   				mt = get_pageblock_migratetype(page);
-> -				if (is_migrate_isolate(mt))
-> -					goto skip_counting;
-> -			}
-> -			__mod_zone_freepage_state(zone, 1, mt);
->
-> -skip_counting:
->   			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
->   			__free_one_page(page, page_to_pfn(page), zone, 0, mt);
->   			trace_mm_page_pcpu_drain(page, 0, mt);
-> @@ -755,12 +752,7 @@ static void free_one_page(struct zone *zone,
->   	if (unlikely(has_isolate_pageblock(zone) ||
->   		is_migrate_isolate(migratetype))) {
->   		migratetype = get_pfnblock_migratetype(page, pfn);
-> -		if (is_migrate_isolate(migratetype))
-> -			goto skip_counting;
->   	}
-> -	__mod_zone_freepage_state(zone, 1 << order, migratetype);
-> -
-> -skip_counting:
->   	__free_one_page(page, pfn, zone, order, migratetype);
->   	spin_unlock(&zone->lock);
->   }
->
+>  mm/frontswap.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/frontswap.c b/mm/frontswap.c
+> index c30eec5..1b80c05 100644
+> --- a/mm/frontswap.c
+> +++ b/mm/frontswap.c
+> @@ -182,7 +182,7 @@ void __frontswap_init(unsigned type, unsigned long *map)
+>         if (frontswap_ops)
+>                 frontswap_ops->init(type);
+>         else {
+> -               BUG_ON(type > MAX_SWAPFILES);
+> +               BUG_ON(type >= MAX_SWAPFILES);
+>                 set_bit(type, need_init);
+>         }
+>  }
+> -- 
+> 1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
