@@ -1,83 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 88860280011
-	for <linux-mm@kvack.org>; Thu, 30 Oct 2014 18:38:20 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id v10so5912592pde.8
-        for <linux-mm@kvack.org>; Thu, 30 Oct 2014 15:38:20 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id zt4si7673996pbb.132.2014.10.30.15.38.18
-        for <linux-mm@kvack.org>;
-        Thu, 30 Oct 2014 15:38:19 -0700 (PDT)
-Message-ID: <5452BDD8.2080605@intel.com>
-Date: Thu, 30 Oct 2014 15:38:16 -0700
-From: Dave Hansen <dave.hansen@intel.com>
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D01F280018
+	for <linux-mm@kvack.org>; Thu, 30 Oct 2014 22:03:35 -0400 (EDT)
+Received: by mail-pd0-f171.google.com with SMTP id r10so6297686pdi.2
+        for <linux-mm@kvack.org>; Thu, 30 Oct 2014 19:03:34 -0700 (PDT)
+Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
+        by mx.google.com with ESMTPS id qk1si7970588pac.189.2014.10.30.19.03.32
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 30 Oct 2014 19:03:34 -0700 (PDT)
+From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Date: Fri, 31 Oct 2014 10:03:27 +0800
+Subject: RE: [RFC V5 3/3] arm64:add bitrev.h file to support rbit instruction
+Message-ID: <35FD53F367049845BC99AC72306C23D103E010D1826F@CNBJMBX05.corpusers.net>
+References: <35FD53F367049845BC99AC72306C23D103E010D18254@CNBJMBX05.corpusers.net>
+ <35FD53F367049845BC99AC72306C23D103E010D18257@CNBJMBX05.corpusers.net>
+ <1414392371.8884.2.camel@perches.com>
+ <CAL_JsqJYBoG+nrr7R3UWz1wrZ--Xjw5X31RkpCrTWMJAePBgRg@mail.gmail.com>
+ <35FD53F367049845BC99AC72306C23D103E010D1825F@CNBJMBX05.corpusers.net>
+ <35FD53F367049845BC99AC72306C23D103E010D18260@CNBJMBX05.corpusers.net>
+ <35FD53F367049845BC99AC72306C23D103E010D18261@CNBJMBX05.corpusers.net>
+ <35FD53F367049845BC99AC72306C23D103E010D18264@CNBJMBX05.corpusers.net>
+ <35FD53F367049845BC99AC72306C23D103E010D18265@CNBJMBX05.corpusers.net>
+ <35FD53F367049845BC99AC72306C23D103E010D18266@CNBJMBX05.corpusers.net>
+ <20141030120127.GC32589@arm.com>
+In-Reply-To: <20141030120127.GC32589@arm.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Subject: Re: [PATCH v9 09/12] x86, mpx: decode MPX instruction to get bound
- violation information
-References: <1413088915-13428-1-git-send-email-qiaowei.ren@intel.com> <1413088915-13428-10-git-send-email-qiaowei.ren@intel.com>
-In-Reply-To: <1413088915-13428-10-git-send-email-qiaowei.ren@intel.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Qiaowei Ren <qiaowei.ren@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>
-Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org
+To: 'Will Deacon' <will.deacon@arm.com>
+Cc: 'Rob Herring' <robherring2@gmail.com>, 'Joe Perches' <joe@perches.com>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'akinobu.mita@gmail.com'" <akinobu.mita@gmail.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>
 
-> +void do_mpx_bounds(struct pt_regs *regs, siginfo_t *info,
-> +		struct xsave_struct *xsave_buf)
-> +{
-> +	struct mpx_insn insn;
-> +	uint8_t bndregno;
-> +	unsigned long addr_vio;
-> +
-> +	addr_vio = mpx_insn_decode(&insn, regs);
-> +
-> +	bndregno = X86_MODRM_REG(insn.modrm.value);
-> +	if (bndregno > 3)
-> +		return;
-> +
-> +	/* Note: the upper 32 bits are ignored in 32-bit mode. */
-> +	info->si_lower = (void __user *)(unsigned long)
-> +		(xsave_buf->bndregs.bndregs[2*bndregno]);
-> +	info->si_upper = (void __user *)(unsigned long)
-> +		(~xsave_buf->bndregs.bndregs[2*bndregno+1]);
-> +	info->si_addr_lsb = 0;
-> +	info->si_signo = SIGSEGV;
-> +	info->si_errno = 0;
-> +	info->si_code = SEGV_BNDERR;
-> +	info->si_addr = (void __user *)addr_vio;
-> +}
-> diff --git a/arch/x86/kernel/traps.c b/arch/x86/kernel/traps.c
-> index 611b6ec..b2a916b 100644
-> --- a/arch/x86/kernel/traps.c
-> +++ b/arch/x86/kernel/traps.c
-> @@ -284,6 +284,7 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
->  	unsigned long status;
->  	struct xsave_struct *xsave_buf;
->  	struct task_struct *tsk = current;
-> +	siginfo_t info;
->  
->  	prev_state = exception_enter();
->  	if (notify_die(DIE_TRAP, "bounds", regs, error_code,
-> @@ -316,6 +317,11 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
->  		break;
->  
->  	case 1: /* Bound violation. */
-> +		do_mpx_bounds(regs, &info, xsave_buf);
-> +		do_trap(X86_TRAP_BR, SIGSEGV, "bounds", regs,
-> +				error_code, &info);
-> +		break;
-> +
->  	case 0: /* No exception caused by Intel MPX operations. */
->  		do_trap(X86_TRAP_BR, SIGSEGV, "bounds", regs, error_code, NULL);
->  		break;
-> 
+> From: Will Deacon [mailto:will.deacon@arm.com]
+> Sent: Thursday, October 30, 2014 8:01 PM
+> To: Wang, Yalin
+> Cc: 'Rob Herring'; 'Joe Perches'; 'Russell King - ARM Linux'; 'linux-
+> kernel@vger.kernel.org'; 'akinobu.mita@gmail.com'; 'linux-mm@kvack.org';
+> 'linux-arm-kernel@lists.infradead.org'
+> Subject: Re: [RFC V5 3/3] arm64:add bitrev.h file to support rbit
+> instruction
+>=20
+> > +static __always_inline __attribute_const__ u32 __arch_bitrev32(u32 x)
+> > +{
+> > +	if (__builtin_constant_p(x)) {
+> > +		x =3D (x >> 16) | (x << 16);
+> > +		x =3D ((x & 0xFF00FF00) >> 8) | ((x & 0x00FF00FF) << 8);
+> > +		x =3D ((x & 0xF0F0F0F0) >> 4) | ((x & 0x0F0F0F0F) << 4);
+> > +		x =3D ((x & 0xCCCCCCCC) >> 2) | ((x & 0x33333333) << 2);
+> > +		return ((x & 0xAAAAAAAA) >> 1) | ((x & 0x55555555) << 1);
+>=20
+> Shouldn't this part be in the generic code?
 
-So, siginfo is stack-allocarted here.  do_mpx_bounds() can error out if
-it sees an invalid bndregno.  We still send the signal with the &info
-whether or not we filled the 'info' in do_mpx_bounds().
-
-Can't this leak some kernel stack out in the 'info'?
+Good  idea, I will change this part into linux/bitrev.h .
+Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
