@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 719C4280011
-	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 05:46:28 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id lf10so7399409pab.33
-        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 02:46:28 -0700 (PDT)
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DC80280011
+	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 05:46:32 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id fp1so7005270pdb.27
+        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 02:46:31 -0700 (PDT)
 Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id rp11si8932289pab.22.2014.10.31.02.46.26
+        by mx.google.com with ESMTP id rp11si8932289pab.22.2014.10.31.02.46.29
         for <linux-mm@kvack.org>;
-        Fri, 31 Oct 2014 02:46:27 -0700 (PDT)
+        Fri, 31 Oct 2014 02:46:31 -0700 (PDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH 1/2] mem-hotplug: Reset node managed pages when hot-adding a new pgdat.
-Date: Fri, 31 Oct 2014 17:46:51 +0800
-Message-ID: <1414748812-22610-2-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH 2/2] mem-hotplug: Fix wrong check for zone->pageset initialization in online_pages().
+Date: Fri, 31 Oct 2014 17:46:52 +0800
+Message-ID: <1414748812-22610-3-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1414748812-22610-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1414748812-22610-1-git-send-email-tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
@@ -19,141 +19,112 @@ Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, santosh.shilimkar@ti.com, grygorii.strashko@ti.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.co, fabf@skynet.be, nzimmer@sgi.com, wangnan0@huawei.com, vdavydov@parallels.com, toshi.kani@hp.com, phacht@linux.vnet.ibm.com, tj@kernel.org, kirill.shutemov@linux.intel.com, riel@redhat.com, luto@amacapital.net, hpa@linux.intel.com, aarcange@redhat.com, qiuxishi@huawei.com, mgorman@suse.de, rientjes@google.com, hannes@cmpxchg.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, tangchen@cn.fujitsu.com, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, tangchen@cn.fujitsu.com, Gu Zheng <guz.fnst@cn.fujitsu.com>
 
-In free_area_init_core(), zone->managed_pages is set to an approximate
-value for lowmem, and will be adjusted when the bootmem allocator frees
-pages into the buddy system. But free_area_init_core() is also called
-by hotadd_new_pgdat() when hot-adding memory. As a result, zone->managed_pages
-of the newly added node's pgdat is set to an approximate value in the
-very beginning. Even if the memory on that node has node been onlined,
-/sys/device/system/node/nodeXXX/meminfo has wrong value.
+When we are doing memory hot-add, the following functions are called:
 
-hot-add node2 (memory not onlined)
-cat /sys/device/system/node/node2/meminfo
+add_memory()
+|--> hotadd_new_pgdat()
+     |--> free_area_init_node()
+          |--> free_area_init_core()
+               |--> zone->present_pages = realsize;           /* 1. zone is populated */
+                    |--> zone_pcp_init()
+                         |--> zone->pageset = &boot_pageset;  /* 2. zone->pageset is set to boot_pageset */
+
+There are two problems here:
+1. Zones could be populated before any memory is onlined.
+2. All the zones on a newly added node have the same pageset pointing to boot_pageset.
+
+The above two problems will result in the following problem:
+When we online memory on one node, e.g node2, the following code is executed:
+
+online_pages()
+{
+        ......
+        if (!populated_zone(zone)) {
+                need_zonelists_rebuild = 1;
+                build_all_zonelists(NULL, zone);
+        }
+        ......
+}
+
+Because of problem 1, the zone has been populated, and the build_all_zonelists()
+                      will never called. zone->pageset won't be updated.
+Because of problem 2, All the zones on a newly added node have the same pageset
+                      pointing to boot_pageset.
+And as a result, when we online memory on node2, node3's meminfo will corrupt.
+Pages on node2 may be freed to node3.
+
+# for ((i = 2048; i < 2064; i++)); do echo online_movable > /sys/devices/system/node/node2/memory$i/state; done
+# cat /sys/devices/system/node/node2/meminfo
 Node 2 MemTotal:       33554432 kB
-Node 2 MemFree:               0 kB
-Node 2 MemUsed:        33554432 kB
-Node 2 Active:                0 kB
+Node 2 MemFree:        33549092 kB
+Node 2 MemUsed:            5340 kB
+......
+# cat /sys/devices/system/node/node3/meminfo
+Node 3 MemTotal:              0 kB
+Node 3 MemFree:               248 kB                    /* corrupted */
+Node 3 MemUsed:               0 kB
+......
 
-This patch fixes this problem by reset node managed pages to 0 after hot-adding
-a new node.
+We have to populate some zones before onlining memory, otherwise no memory could be onlined.
+So when onlining pages, we should also check if zone->pageset is pointing to boot_pageset.
 
-1. Move reset_managed_pages_done from reset_node_managed_pages() to reset_all_zones_managed_pages()
-2. Make reset_node_managed_pages() non-static
-3. Call reset_node_managed_pages() in hotadd_new_pgdat() after pgdat is initialized
-
+Signed-off-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 ---
- include/linux/bootmem.h | 1 +
- mm/bootmem.c            | 9 +++++----
- mm/memory_hotplug.c     | 9 +++++++++
- mm/nobootmem.c          | 8 +++++---
- 4 files changed, 20 insertions(+), 7 deletions(-)
+ include/linux/mm.h  | 1 +
+ mm/memory_hotplug.c | 6 +++++-
+ mm/page_alloc.c     | 5 +++++
+ 3 files changed, 11 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
-index 4e2bd4c..0995c2d 100644
---- a/include/linux/bootmem.h
-+++ b/include/linux/bootmem.h
-@@ -46,6 +46,7 @@ extern unsigned long init_bootmem_node(pg_data_t *pgdat,
- extern unsigned long init_bootmem(unsigned long addr, unsigned long memend);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 02d11ee..83e6505 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1732,6 +1732,7 @@ void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...);
  
- extern unsigned long free_all_bootmem(void);
-+extern void reset_node_managed_pages(pg_data_t *pgdat);
- extern void reset_all_zones_managed_pages(void);
+ extern void setup_per_cpu_pageset(void);
  
- extern void free_bootmem_node(pg_data_t *pgdat,
-diff --git a/mm/bootmem.c b/mm/bootmem.c
-index 8a000ce..477be69 100644
---- a/mm/bootmem.c
-+++ b/mm/bootmem.c
-@@ -243,13 +243,10 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
- 
- static int reset_managed_pages_done __initdata;
- 
--static inline void __init reset_node_managed_pages(pg_data_t *pgdat)
-+void reset_node_managed_pages(pg_data_t *pgdat)
- {
- 	struct zone *z;
- 
--	if (reset_managed_pages_done)
--		return;
--
- 	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
- 		z->managed_pages = 0;
- }
-@@ -258,8 +255,12 @@ void __init reset_all_zones_managed_pages(void)
- {
- 	struct pglist_data *pgdat;
- 
-+	if (reset_managed_pages_done)
-+		return;
-+
- 	for_each_online_pgdat(pgdat)
- 		reset_node_managed_pages(pgdat);
-+
- 	reset_managed_pages_done = 1;
- }
++extern bool zone_pcp_initialized(struct zone *zone);
+ extern void zone_pcp_update(struct zone *zone);
+ extern void zone_pcp_reset(struct zone *zone);
  
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 29d8693..3ab01b2 100644
+index 3ab01b2..bc0de0f 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -31,6 +31,7 @@
- #include <linux/stop_machine.h>
- #include <linux/hugetlb.h>
- #include <linux/memblock.h>
-+#include <linux/bootmem.h>
- 
- #include <asm/tlbflush.h>
- 
-@@ -1096,6 +1097,14 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
- 	build_all_zonelists(pgdat, NULL);
- 	mutex_unlock(&zonelists_mutex);
- 
-+	/*
-+	 *  zone->managed_pages is set to an approximate value in
-+	 *  free_area_init_core(), which will cause
-+	 *  /sys/device/system/node/nodeX/meminfo has wrong data.
-+	 *  So reset it to 0 before any memory is onlined.
-+	 */
-+	reset_node_managed_pages(pgdat);
-+
- 	return pgdat;
+@@ -1013,9 +1013,13 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+ 	 * If this zone is not populated, then it is not in zonelist.
+ 	 * This means the page allocator ignores this zone.
+ 	 * So, zonelist must be updated after online.
++	 *
++	 * If this zone is populated, zone->pageset could be initialized
++	 * to boot_pageset for the first time a node is added. If so,
++	 * zone->pageset should be allocated.
+ 	 */
+ 	mutex_lock(&zonelists_mutex);
+-	if (!populated_zone(zone)) {
++	if (!populated_zone(zone) || !zone_pcp_initialized(zone)) {
+ 		need_zonelists_rebuild = 1;
+ 		build_all_zonelists(NULL, zone);
+ 	}
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 736d8e1..4ff1540 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6456,6 +6456,11 @@ void __meminit zone_pcp_update(struct zone *zone)
  }
+ #endif
  
-diff --git a/mm/nobootmem.c b/mm/nobootmem.c
-index 7c7ab32..90b5046 100644
---- a/mm/nobootmem.c
-+++ b/mm/nobootmem.c
-@@ -145,12 +145,10 @@ static unsigned long __init free_low_memory_core_early(void)
- 
- static int reset_managed_pages_done __initdata;
- 
--static inline void __init reset_node_managed_pages(pg_data_t *pgdat)
-+void reset_node_managed_pages(pg_data_t *pgdat)
++bool zone_pcp_initialized(struct zone *zone)
++{
++	return (zone->pageset != &boot_pageset);
++}
++
+ void zone_pcp_reset(struct zone *zone)
  {
- 	struct zone *z;
- 
--	if (reset_managed_pages_done)
--		return;
- 	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
- 		z->managed_pages = 0;
- }
-@@ -159,8 +157,12 @@ void __init reset_all_zones_managed_pages(void)
- {
- 	struct pglist_data *pgdat;
- 
-+	if (reset_managed_pages_done)
-+		return;
-+
- 	for_each_online_pgdat(pgdat)
- 		reset_node_managed_pages(pgdat);
-+
- 	reset_managed_pages_done = 1;
- }
- 
+ 	unsigned long flags;
 -- 
 1.8.3.1
 
