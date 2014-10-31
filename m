@@ -1,74 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f52.google.com (mail-la0-f52.google.com [209.85.215.52])
-	by kanga.kvack.org (Postfix) with ESMTP id CAAB3280011
-	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 05:28:16 -0400 (EDT)
-Received: by mail-la0-f52.google.com with SMTP id pv20so4091310lab.11
-        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 02:28:15 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id wh3si15702630lbb.118.2014.10.31.02.28.14
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 31 Oct 2014 02:28:14 -0700 (PDT)
-Date: Fri, 31 Oct 2014 10:28:12 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC patch] mm: hugetlb: fix __unmap_hugepage_range
-Message-ID: <20141031092812.GB16840@dhcp22.suse.cz>
-References: <028701cff4c2$3e9e2ca0$bbda85e0$@alibaba-inc.com>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F392280011
+	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 05:46:11 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id lf10so7363363pab.18
+        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 02:46:10 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id nt9si7949184pbc.200.2014.10.31.02.46.09
+        for <linux-mm@kvack.org>;
+        Fri, 31 Oct 2014 02:46:10 -0700 (PDT)
+From: Tang Chen <tangchen@cn.fujitsu.com>
+Subject: [PATCH 0/2] Fix node meminfo corruption.
+Date: Fri, 31 Oct 2014 17:46:29 +0800
+Message-ID: <1414748791-22557-1-git-send-email-tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <028701cff4c2$3e9e2ca0$bbda85e0$@alibaba-inc.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: akpm@linux-foundation.org, santosh.shilimkar@ti.com, grygorii.strashko@ti.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.co, fabf@skynet.be, nzimmer@sgi.com, wangnan0@huawei.com, vdavydov@parallels.com, toshi.kani@hp.com, phacht@linux.vnet.ibm.com, tj@kernel.org, kirill.shutemov@linux.intel.com, riel@redhat.com, luto@amacapital.net, hpa@linux.intel.com, aarcange@redhat.com, qiuxishi@huawei.com, mgorman@suse.de, rientjes@google.com, hannes@cmpxchg.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-[CCing people involved in 24669e58477e2]
+There are two problems when calculating node meminfo:
 
-On Fri 31-10-14 12:22:12, Hillf Danton wrote:
-> First, after flushing TLB, we have no need to scan pte from start again.
-> Second, before bail out loop, the address is forwarded one step.
+1. When hot-adding a node without onlining any page, MemTotal corrupted.
 
-I can imagine a more comprehensive wording here. It is not immediately
-clear whether this is just an optimization or a bug fix as well
-(especially the second part).
+# hot-add node2 (memory not onlined)
+# cat /sys/device/system/node/node2/meminfo
+Node 2 MemTotal:       33554432 kB			/* corrupted */
+Node 2 MemFree:               0 kB
+Node 2 MemUsed:        33554432 kB
+Node 2 Active:                0 kB
+......
 
-Anyway the optimization looks good to me.
 
-> Signed-off-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+2. When onlining memory on node2, MemFree of node3 corrupted.
 
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+# for ((i = 2048; i < 2064; i++)); do echo online_movable > /sys/devices/system/node/node2/memory$i/state; done
+# cat /sys/devices/system/node/node2/meminfo
+Node 2 MemTotal:       33554432 kB
+Node 2 MemFree:        33549092 kB
+Node 2 MemUsed:            5340 kB
+......
+# cat /sys/devices/system/node/node3/meminfo
+Node 3 MemTotal:              0 kB
+Node 3 MemFree:               248 kB                    /* corrupted */
+Node 3 MemUsed:               0 kB
+......
 
-> ---
-> 
-> --- a/mm/hugetlb.c	Fri Oct 31 11:47:25 2014
-> +++ b/mm/hugetlb.c	Fri Oct 31 11:52:42 2014
-> @@ -2641,8 +2641,9 @@ void __unmap_hugepage_range(struct mmu_g
->  
->  	tlb_start_vma(tlb, vma);
->  	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
-> +	address = start;
->  again:
-> -	for (address = start; address < end; address += sz) {
-> +	for (; address < end; address += sz) {
->  		ptep = huge_pte_offset(mm, address);
->  		if (!ptep)
->  			continue;
-> @@ -2689,6 +2690,7 @@ again:
->  		page_remove_rmap(page);
->  		force_flush = !__tlb_remove_page(tlb, page);
->  		if (force_flush) {
-> +			address += sz;
->  			spin_unlock(ptl);
->  			break;
->  		}
-> --
-> 
-> 
+This patch-set fixes them.
+
+Tang Chen (2):
+  mem-hotplug: Reset node managed pages when hot-adding a new pgdat.
+  mem-hotplug: Fix wrong check for zone->pageset initialization in
+    online_pages().
+
+ include/linux/bootmem.h |  1 +
+ include/linux/mm.h      |  1 +
+ mm/bootmem.c            |  9 +++++----
+ mm/memory_hotplug.c     | 15 ++++++++++++++-
+ mm/nobootmem.c          |  8 +++++---
+ mm/page_alloc.c         |  5 +++++
+ 6 files changed, 31 insertions(+), 8 deletions(-)
 
 -- 
-Michal Hocko
-SUSE Labs
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
