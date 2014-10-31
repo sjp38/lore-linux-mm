@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F392280011
-	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 05:46:11 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id lf10so7363363pab.18
-        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 02:46:10 -0700 (PDT)
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 738EA280011
+	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 05:46:26 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id kx10so7395970pab.34
+        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 02:46:26 -0700 (PDT)
 Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id nt9si7949184pbc.200.2014.10.31.02.46.09
+        by mx.google.com with ESMTP id rp11si8932289pab.22.2014.10.31.02.46.24
         for <linux-mm@kvack.org>;
-        Fri, 31 Oct 2014 02:46:10 -0700 (PDT)
+        Fri, 31 Oct 2014 02:46:25 -0700 (PDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
 Subject: [PATCH 0/2] Fix node meminfo corruption.
-Date: Fri, 31 Oct 2014 17:46:29 +0800
-Message-ID: <1414748791-22557-1-git-send-email-tangchen@cn.fujitsu.com>
+Date: Fri, 31 Oct 2014 17:46:50 +0800
+Message-ID: <1414748812-22610-1-git-send-email-tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, santosh.shilimkar@ti.com, grygorii.strashko@ti.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.co, fabf@skynet.be, nzimmer@sgi.com, wangnan0@huawei.com, vdavydov@parallels.com, toshi.kani@hp.com, phacht@linux.vnet.ibm.com, tj@kernel.org, kirill.shutemov@linux.intel.com, riel@redhat.com, luto@amacapital.net, hpa@linux.intel.com, aarcange@redhat.com, qiuxishi@huawei.com, mgorman@suse.de, rientjes@google.com, hannes@cmpxchg.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, tangchen@cn.fujitsu.com
 
 There are two problems when calculating node meminfo:
 
