@@ -1,103 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f54.google.com (mail-la0-f54.google.com [209.85.215.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 94C88280011
-	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 16:27:21 -0400 (EDT)
-Received: by mail-la0-f54.google.com with SMTP id s18so1461866lam.41
-        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 13:27:20 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id kz10si18566765lab.96.2014.10.31.13.27.18
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id D0E46280011
+	for <linux-mm@kvack.org>; Fri, 31 Oct 2014 16:33:56 -0400 (EDT)
+Received: by mail-wi0-f175.google.com with SMTP id ex7so2285996wid.14
+        for <linux-mm@kvack.org>; Fri, 31 Oct 2014 13:33:56 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id gf8si84387wib.72.2014.10.31.13.33.54
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 31 Oct 2014 13:27:19 -0700 (PDT)
-Message-ID: <5453F0A4.4090708@suse.cz>
-Date: Fri, 31 Oct 2014 21:27:16 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Fri, 31 Oct 2014 13:33:54 -0700 (PDT)
+Date: Fri, 31 Oct 2014 21:33:44 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v9 09/12] x86, mpx: decode MPX instruction to get bound
+ violation information
+In-Reply-To: <5453EE0E.8060200@intel.com>
+Message-ID: <alpine.DEB.2.11.1410312133120.5308@nanos>
+References: <1413088915-13428-1-git-send-email-qiaowei.ren@intel.com> <1413088915-13428-10-git-send-email-qiaowei.ren@intel.com> <alpine.DEB.2.11.1410241408360.5308@nanos> <9E0BE1322F2F2246BD820DA9FC397ADE0180ED16@shsmsx102.ccr.corp.intel.com>
+ <alpine.DEB.2.11.1410272135420.5308@nanos> <5453EE0E.8060200@intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] Convert khugepaged to a task_work function
-References: <1414032567-109765-1-git-send-email-athorlton@sgi.com> <87lho0pf4l.fsf@tassilo.jf.intel.com> <544F9302.4010001@redhat.com> <544FB8A8.1090402@redhat.com>
-In-Reply-To: <544FB8A8.1090402@redhat.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Alex Thorlton <athorlton@sgi.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <lliubbo@gmail.com>, David Rientjes <rientjes@google.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@redhat.com>, Kees Cook <keescook@chromium.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Vladimir Davydov <vdavydov@parallels.com>, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: "Ren, Qiaowei" <qiaowei.ren@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, "linux-mips@linux-mips.org" <linux-mips@linux-mips.org>
 
-On 28.10.2014 16:39, Rik van Riel wrote:
-> On 10/28/2014 08:58 AM, Rik van Riel wrote:
->> On 10/28/2014 08:12 AM, Andi Kleen wrote:
->>> Alex Thorlton <athorlton@sgi.com> writes:
->>>
->>>> Last week, while discussing possible fixes for some 
->>>> unexpected/unwanted behavior
->>>> from khugepaged (see: https://lkml.org/lkml/2014/10/8/515) several 
->>>> people
->>>> mentioned possibly changing changing khugepaged to work as a 
->>>> task_work function
->>>> instead of a kernel thread.  This will give us finer grained 
->>>> control over the
->>>> page collapse scans, eliminate some unnecessary scans since tasks 
->>>> that are
->>>> relatively inactive will not be scanned often, and eliminate the 
->>>> unwanted
->>>> behavior described in the email thread I mentioned.
->>>
->>> With your change, what would happen in a single threaded case?
->>>
->>> Previously one core would scan and another would run the workload.
->>> With your change both scanning and running would be on the same
->>> core.
->>>
->>> Would seem like a step backwards to me.
->>
->> It's not just scanning, either.
->>
->> Memory compaction can spend a lot of time waiting on
->> locks. Not consuming CPU or anything, but just waiting.
->>
->> I am not convinced that moving all that waiting to task
->> context is a good idea.
->
-> It may be worth investigating how the hugepage code calls
-> the memory allocation & compaction code.
+On Fri, 31 Oct 2014, Dave Hansen wrote:
 
-It's actually quite stupid, AFAIK. it will scan for collapse candidates, 
-and only then
-try to allocate THP, which may involve compaction. If that fails, the 
-scanning time was
-wasted.
+> On 10/27/2014 01:36 PM, Thomas Gleixner wrote:
+> > You're repeating yourself. Care to read the discussion about this from
+> > the last round of review again?
+> 
+> OK, so here's a rewritten decoder.  I think it's a lot more robust and
+> probably fixes a bug or two.  This ends up saving ~70 lines of code out
+> of ~300 or so for the old patch.
+> 
+> I'll include this in the next series, but I'm posting it early and often
+> to make sure I'm on the right track.
 
-What could help would be to cache one or few free huge pages per zone 
-with cache
-re-fill done asynchronously, e.g. via work queues. The cache could 
-benefit fault-THP
-allocations as well. And adding some logic that if nobody uses the 
-cached pages and
-memory is low, then free them. And importantly, if it's not possible to 
-allocate huge
-pages for the cache, then prevent scanning for collapse candidates as 
-there's no point.
-(well this is probably more complex if some nodes can allocate huge 
-pages and others
-not).
+Had a short glance. This looks really very well done!
 
-For the scanning itself, I think NUMA balancing does similar thing in 
-task_work context
-already, no?
+Thanks,
 
-> Doing only async compaction from task_work context should
-> probably be ok.
-
-I'm afraid that if we give up sync compaction here, then there will be 
-no more left to
-defragment MIGRATE_UNMOVABLE pageblocks.
-
->
-> -- 
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
