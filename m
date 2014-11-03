@@ -1,23 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com [209.85.218.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 035C16B0071
-	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 14:11:30 -0500 (EST)
-Received: by mail-oi0-f46.google.com with SMTP id g201so9194440oib.33
-        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 11:11:30 -0800 (PST)
-Received: from g2t2353.austin.hp.com (g2t2353.austin.hp.com. [15.217.128.52])
-        by mx.google.com with ESMTPS id i1si12229903oej.88.2014.11.03.11.11.29
+Received: from mail-oi0-f51.google.com (mail-oi0-f51.google.com [209.85.218.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D0916B00F2
+	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 14:23:44 -0500 (EST)
+Received: by mail-oi0-f51.google.com with SMTP id g201so9126118oib.24
+        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 11:23:44 -0800 (PST)
+Received: from g4t3427.houston.hp.com (g4t3427.houston.hp.com. [15.201.208.55])
+        by mx.google.com with ESMTPS id cr8si19112548oec.91.2014.11.03.11.23.42
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 03 Nov 2014 11:11:29 -0800 (PST)
-Message-ID: <1415041049.10958.15.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v4 2/7] x86, mm, pat: Change reserve_memtype() to handle
- WT
+        Mon, 03 Nov 2014 11:23:43 -0800 (PST)
+Message-ID: <1415041782.10958.26.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v4 5/7] x86, mm, pat: Refactor !pat_enabled handling
 From: Toshi Kani <toshi.kani@hp.com>
-Date: Mon, 03 Nov 2014 11:57:29 -0700
-In-Reply-To: <alpine.DEB.2.11.1411031916360.5308@nanos>
+Date: Mon, 03 Nov 2014 12:09:42 -0700
+In-Reply-To: <alpine.DEB.2.11.1411031957330.5308@nanos>
 References: <1414450545-14028-1-git-send-email-toshi.kani@hp.com>
-	 <1414450545-14028-3-git-send-email-toshi.kani@hp.com>
-	 <alpine.DEB.2.11.1411031916360.5308@nanos>
+	 <1414450545-14028-6-git-send-email-toshi.kani@hp.com>
+	 <alpine.DEB.2.11.1411031957330.5308@nanos>
 Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
@@ -26,105 +25,50 @@ List-ID: <linux-mm.kvack.org>
 To: Thomas Gleixner <tglx@linutronix.de>
 Cc: hpa@zytor.com, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com
 
-On Mon, 2014-11-03 at 19:27 +0100, Thomas Gleixner wrote:
+On Mon, 2014-11-03 at 20:01 +0100, Thomas Gleixner wrote:
 > On Mon, 27 Oct 2014, Toshi Kani wrote:
-> > This patch changes reserve_memtype() to handle the WT cache mode.
-> > When PAT is not enabled, it continues to set UC- to *new_type for
-> > any non-WB request.
-> > 
-> > When a target range is RAM, reserve_ram_pages_type() fails for WT
-> > for now.  This function may not reserve a RAM range for WT since
-> > reserve_ram_pages_type() uses the page flags limited to three memory
-> > types, WB, WC and UC.
-> > 
-> > Signed-off-by: Toshi Kani <toshi.kani@hp.com>
-> > Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-> > ---
-> >  arch/x86/include/asm/cacheflush.h |    4 ++++
-> >  arch/x86/mm/pat.c                 |   16 +++++++++++++---
-> >  2 files changed, 17 insertions(+), 3 deletions(-)
-> > 
-> > diff --git a/arch/x86/include/asm/cacheflush.h b/arch/x86/include/asm/cacheflush.h
-> > index 157644b..c912680 100644
-> > --- a/arch/x86/include/asm/cacheflush.h
-> > +++ b/arch/x86/include/asm/cacheflush.h
-> > @@ -53,6 +53,10 @@ static inline void set_page_memtype(struct page *pg,
-> >  	case _PAGE_CACHE_MODE_WB:
-> >  		memtype_flags = _PGMT_WB;
-> >  		break;
-> > +	case _PAGE_CACHE_MODE_WT:
-> > +	case _PAGE_CACHE_MODE_WP:
-> > +		pr_err("set_page_memtype: unsupported cachemode %d\n", memtype);
-> > +		BUG();
-> 
-> You already catch the cases with the hunk below at the entry of
-> reserve_ram_pages_type(). So what's the point of the BUG()?
-> 
-> If you are worried about other usage sites: This function should not
-> at all be in arch/x86/include/asm/cacheflush.h. It's solely used by
-> PAT, so we really should move it there before changing it.
-
-Yes, I was worried about other usage.  I agree that this function should
-belong to PAT.  I will move it to pat.c before changing it, and will
-remove BUG() from this patch. 
-
-> >  	default:
-> >  		memtype_flags = _PGMT_DEFAULT;
-> >  		break;
-> > diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
-> > index db687c3..a214f5a 100644
-> > --- a/arch/x86/mm/pat.c
-> > +++ b/arch/x86/mm/pat.c
-> > @@ -289,6 +289,8 @@ static int pat_pagerange_is_ram(resource_size_t start, resource_size_t end)
+> > diff --git a/arch/x86/mm/iomap_32.c b/arch/x86/mm/iomap_32.c
+> > index ee58a0b..96aa8bf 100644
+> > --- a/arch/x86/mm/iomap_32.c
+> > +++ b/arch/x86/mm/iomap_32.c
+> > @@ -70,29 +70,23 @@ void *kmap_atomic_prot_pfn(unsigned long pfn, pgprot_t prot)
+> >  	return (void *)vaddr;
+> >  }
 > >  
-> >  /*
-> >   * For RAM pages, we use page flags to mark the pages with appropriate type.
-> > + * The page flags are currently limited to three types, WB, WC and UC. Hence,
-> > + * any request to WT or WP will fail with -EINVAL.
-> >   * Here we do two pass:
-> >   * - Find the memtype of all the pages in the range, look for any conflicts
-> >   * - In case of no conflicts, set the new memtype for pages in the range
-> > @@ -300,6 +302,13 @@ static int reserve_ram_pages_type(u64 start, u64 end,
-> >  	struct page *page;
-> >  	u64 pfn;
+> > -/*
+> > - * Map 'pfn' using protections 'prot'
+> > - */
+> > -#define __PAGE_KERNEL_WC	(__PAGE_KERNEL | \
+> > -				 cachemode2protval(_PAGE_CACHE_MODE_WC))
+> > -
+> >  void __iomem *
+> >  iomap_atomic_prot_pfn(unsigned long pfn, pgprot_t prot)
+> >  {
+> >  	/*
+> > -	 * For non-PAT systems, promote PAGE_KERNEL_WC to PAGE_KERNEL_UC_MINUS.
+> > -	 * PAGE_KERNEL_WC maps to PWT, which translates to uncached if the
+> > -	 * MTRR is UC or WC.  UC_MINUS gets the real intention, of the
+> > -	 * user, which is "WC if the MTRR is WC, UC if you can't do that."
+> > +	 * For non-PAT systems, translate non-WB request to UC- just in
+> > +	 * case the caller set the PWT bit to prot directly without using
+> > +	 * pgprot_writecombine(). UC- translates to uncached if the MTRR
+> > +	 * is UC or WC. UC- gets the real intention, of the user, which is
+> > +	 * "WC if the MTRR is WC, UC if you can't do that."
+> >  	 */
+> > -	if (!pat_enabled && pgprot_val(prot) == __PAGE_KERNEL_WC)
+> > +	if (!pat_enabled && pgprot2cachemode(prot) != _PAGE_CACHE_MODE_WB)
+> >  		prot = __pgprot(__PAGE_KERNEL |
+> >  				cachemode2protval(_PAGE_CACHE_MODE_UC_MINUS));
 > >  
-> > +	if ((req_type == _PAGE_CACHE_MODE_WT) ||
-> > +	    (req_type == _PAGE_CACHE_MODE_WP)) {
-> > +		if (new_type)
-> > +			*new_type = _PAGE_CACHE_MODE_UC_MINUS;
-> > +		return -EINVAL;
-> > +	}
-> > +
-> >  	if (req_type == _PAGE_CACHE_MODE_UC) {
-> >  		/* We do not support strong UC */
-> >  		WARN_ON_ONCE(1);
-> > @@ -349,6 +358,7 @@ static int free_ram_pages_type(u64 start, u64 end)
-> >   * - _PAGE_CACHE_MODE_WC
-> >   * - _PAGE_CACHE_MODE_UC_MINUS
-> >   * - _PAGE_CACHE_MODE_UC
-> > + * - _PAGE_CACHE_MODE_WT
-> >   *
-> >   * If new_type is NULL, function will return an error if it cannot reserve the
-> >   * region with req_type. If new_type is non-NULL, function will return
-> > @@ -368,10 +378,10 @@ int reserve_memtype(u64 start, u64 end, enum page_cache_mode req_type,
-> >  	if (!pat_enabled) {
-> >  		/* This is identical to page table setting without PAT */
-> >  		if (new_type) {
-> > -			if (req_type == _PAGE_CACHE_MODE_WC)
-> > -				*new_type = _PAGE_CACHE_MODE_UC_MINUS;
-> > +			if (req_type == _PAGE_CACHE_MODE_WB)
-> > +				*new_type = _PAGE_CACHE_MODE_WB;
-> >  			else
-> > -				*new_type = req_type;
-> > +				*new_type = _PAGE_CACHE_MODE_UC_MINUS;
+> >  	return (void __force __iomem *) kmap_atomic_prot_pfn(pfn, prot);
+> >  }
+> >  EXPORT_SYMBOL_GPL(iomap_atomic_prot_pfn);
+> > -#undef __PAGE_KERNEL_WC
 > 
-> So until now we supported WB, UC- and UC and mapped WC to UC-. Now we
-> map everything except WB to UC- 
-> Why feels that wrong without a comment explaining it?
+> Rejects. Please update against Juergens latest.
 
-The case of !pat_enable only supports WB and UC-.  Previously, WC was
-the only type that needed to be mapped to UC-.  The code now handles it
-properly for any other types.  Yes, I will add a comment for this. 
+Yes, I have addressed this merge conflict in my next version.  I will
+submit it shortly after all other comments are addressed. :-)
 
 Thanks,
 -Toshi
