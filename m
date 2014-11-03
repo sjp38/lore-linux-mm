@@ -1,62 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 229BE6B00FE
-	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 12:14:51 -0500 (EST)
-Received: by mail-wi0-f172.google.com with SMTP id bs8so7104850wib.11
-        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 09:14:50 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id e17si9107941wiw.45.2014.11.03.09.14.50
+Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 54FA36B00FE
+	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 12:17:51 -0500 (EST)
+Received: by mail-la0-f41.google.com with SMTP id s18so5386499lam.28
+        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 09:17:50 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ui10si33318050lbb.62.2014.11.03.09.17.49
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Mon, 03 Nov 2014 09:14:50 -0800 (PST)
-Date: Mon, 3 Nov 2014 18:14:37 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v4 1/7] x86, mm, pat: Set WT to PA7 slot of PAT MSR
-In-Reply-To: <1414450545-14028-2-git-send-email-toshi.kani@hp.com>
-Message-ID: <alpine.DEB.2.11.1411031812390.5308@nanos>
-References: <1414450545-14028-1-git-send-email-toshi.kani@hp.com> <1414450545-14028-2-git-send-email-toshi.kani@hp.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 03 Nov 2014 09:17:50 -0800 (PST)
+Date: Mon, 3 Nov 2014 18:17:48 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 1/3] mm: embed the memcg pointer directly into struct page
+Message-ID: <20141103171748.GI10156@dhcp22.suse.cz>
+References: <1414898156-4741-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1414898156-4741-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: hpa@zytor.com, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, Tejun Heo <tj@kernel.org>, David Miller <davem@davemloft.net>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, 27 Oct 2014, Toshi Kani wrote:
-> +	} else {
-> +		/*
-> +		 * PAT full support. WT is set to slot 7, which minimizes
-> +		 * the risk of using the PAT bit as slot 3 is UC and is
-> +		 * currently unused. Slot 4 should remain as reserved.
-
-This comment makes no sense. What minimizes which risk and what has
-this to do with slot 3 and slot 4?
-
-> +		 *
-> +		 *  PTE encoding used in Linux:
-> +		 *      PAT
-> +		 *      |PCD
-> +		 *      ||PWT  PAT
-> +		 *      |||    slot
-> +		 *      000    0    WB : _PAGE_CACHE_MODE_WB
-> +		 *      001    1    WC : _PAGE_CACHE_MODE_WC
-> +		 *      010    2    UC-: _PAGE_CACHE_MODE_UC_MINUS
-> +		 *      011    3    UC : _PAGE_CACHE_MODE_UC
-> +		 *      100    4    <reserved>
-> +		 *      101    5    <reserved>
-> +		 *      110    6    <reserved>
-
-Well, they are still mapped to WB/WC/UC_MINUS ....
-
-> +		 *      111    7    WT : _PAGE_CACHE_MODE_WT
-> +		 */
-> +		pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
-> +		      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, WT);
-> +	}
-
-Thanks,
-
-	tglx
+Documentation/cgroups/memory.txt is outdate even more hopelessly than
+before. It deserves a complete rewrite but I guess something like the
+following should be added in the meantime to prepare potential readers
+about the trap.
+---
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index 67613ff0270c..46b2b5080317 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -1,5 +1,10 @@
+ Memory Resource Controller
+ 
++NOTE: This document is hopelessly outdated and it asks for a complete
++      rewrite. It still contains a useful information so we are keeping it
++      here but make sure to check the current code if you need a deeper
++      understanding.
++
+ NOTE: The Memory Resource Controller has generically been referred to as the
+       memory controller in this document. Do not confuse memory controller
+       used here with the memory controller that is used in hardware.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
