@@ -1,97 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id F0B6D6B00F2
-	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 16:29:59 -0500 (EST)
-Received: by mail-wi0-f173.google.com with SMTP id n3so7738253wiv.0
-        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 13:29:59 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id hj7si25545459wjb.114.2014.11.03.13.29.58
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id F41B76B00F2
+	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 16:36:41 -0500 (EST)
+Received: by mail-wi0-f174.google.com with SMTP id d1so7751609wiv.7
+        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 13:36:41 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id hs8si9827674wib.102.2014.11.03.13.36.41
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Mon, 03 Nov 2014 13:29:58 -0800 (PST)
-Date: Mon, 3 Nov 2014 22:29:46 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v9 11/12] x86, mpx: cleanup unused bound tables
-In-Reply-To: <5457EB67.70904@intel.com>
-Message-ID: <alpine.DEB.2.11.1411032205320.5308@nanos>
-References: <1413088915-13428-1-git-send-email-qiaowei.ren@intel.com> <1413088915-13428-12-git-send-email-qiaowei.ren@intel.com> <alpine.DEB.2.11.1410241451280.5308@nanos> <544DB873.1010207@intel.com> <alpine.DEB.2.11.1410272138540.5308@nanos>
- <5457EB67.70904@intel.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 03 Nov 2014 13:36:41 -0800 (PST)
+Date: Mon, 3 Nov 2014 16:36:28 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 1/3] mm: embed the memcg pointer directly into struct page
+Message-ID: <20141103213628.GA11428@phnom.home.cmpxchg.org>
+References: <1414898156-4741-1-git-send-email-hannes@cmpxchg.org>
+ <20141103210607.GA24091@node.dhcp.inet.fi>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141103210607.GA24091@node.dhcp.inet.fi>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Ren Qiaowei <qiaowei.ren@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.orgLinux-MM <linux-mm@kvack.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@parallels.com>, Tejun Heo <tj@kernel.org>, David Miller <davem@davemloft.net>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, 3 Nov 2014, Dave Hansen wrote:
-> On 10/27/2014 01:49 PM, Thomas Gleixner wrote:
-> > Errm. Before user space can use the bounds table for the new mapping
-> > it needs to add the entries, right? So:
+On Mon, Nov 03, 2014 at 11:06:07PM +0200, Kirill A. Shutemov wrote:
+> On Sat, Nov 01, 2014 at 11:15:54PM -0400, Johannes Weiner wrote:
+> > Memory cgroups used to have 5 per-page pointers.  To allow users to
+> > disable that amount of overhead during runtime, those pointers were
+> > allocated in a separate array, with a translation layer between them
+> > and struct page.
 > > 
-> > CPU 0					CPU 1
-> > 
-> > down_write(mm->bd_sem);
-> > mpx_pre_unmap();
-> >    clear bounds directory entries	
-> > unmap();
-> > 					map()
-> > 					write_bounds_entry()
-> > 					trap()
-> > 					  down_read(mm->bd_sem);
-> > mpx_post_unmap(); 
-> > up_write(mm->bd_sem);
-> > 					  allocate_bounds_table();
-> > 
-> > That's the whole point of bd_sem.
+> > There is now only one page pointer remaining: the memcg pointer, that
+> > indicates which cgroup the page is associated with when charged.  The
+> > complexity of runtime allocation and the runtime translation overhead
+> > is no longer justified to save that *potential* 0.19% of memory.
 > 
-> This does, indeed, seem to work for the normal munmap() cases.  However,
-> take a look at shmdt().  We don't know the size of the segment being
-> unmapped until after we acquire mmap_sem for write, so we wouldn't be
-> able to do do a mpx_pre_unmap() for those.
+> How much do you win by the change?
 
-That's not really true. You can evaluate that information with
-mmap_sem held for read as well. Nothing can change the mappings until
-you drop it. So you could do:
-
-   down_write(mm->bd_sem);
-   down_read(mm->mmap_sem;
-   evaluate_size_of_shm_to_unmap();
-   clear_bounds_directory_entries();
-   up_read(mm->mmap_sem);
-   do_the_real_shm_unmap();
-   up_write(mm->bd_sem);
-
-That should still be covered by the above scheme.
- 
-> mremap() is similar.  We don't know if the area got expanded (and we
-> don't need to modify bounds tables) or moved (and we need to free the
-> old location's tables) until well after we've taken mmap_sem for write.
-
-See above.
- 
-> I propose we keep mm->bd_sem.  But, I think we need to keep a list
-> during each of the unmapping operations of VMAs that got unmapped, and
-> then keep them on a list without freeing then.  At up_write() time, we
-> look at the list, if it is empty, we just do an up_write() and we are done.
-> 
-> If *not* empty, downgrade_write(mm->mmap_sem), and do the work you
-> spelled out in mpx_pre_unmap() above: clear the bounds directory entries
-> and gather the VMAs while still holding mm->bd_sem for write.
-> 
-> Here's the other wrinkle: This would invert the ->bd_sem vs. ->mmap_sem
-> ordering (bd_sem nests outside mmap_sem with the above scheme).  We
-> _could_ always acquire bd_sem for write whenever mmap_sem is acquired,
-> although that seems a bit heavyweight.  I can't think of anything better
-> at the moment, though.
-
-That works as well. If it makes stuff simpler I'm all for it. But then
-we should really replace down_write(mmap_sem) with a helper function
-and add something to checkpatch.pl and to the coccinelle scripts to
-catch new instances of open coded 'down_write(mmap_sem)'.
-
-Thanks,
-
-	tglx
+Heh, that would have followed right after where you cut the quote:
+with CONFIG_SLUB, that pointer actually sits in already existing
+struct page padding, which means that I'm saving one pointer per page
+(8 bytes per 4096 byte page, 0.19% of memory), plus the pointer and
+padding in each memory section.  I also save the (minor) translation
+overhead going from page to page_cgroup and the maintenance burden
+that stems from having these auxiliary arrays (see deleted code).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
