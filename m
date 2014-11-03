@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EF326B00F8
-	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 16:00:22 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id rd3so12895670pab.14
-        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 13:00:21 -0800 (PST)
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 770DE6B00F9
+	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 16:00:25 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id lf10so12899734pab.4
+        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 13:00:25 -0800 (PST)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id cf1si16210245pbc.33.2014.11.03.13.00.20
+        by mx.google.com with ESMTPS id x3si16139668pdr.187.2014.11.03.13.00.23
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Nov 2014 13:00:20 -0800 (PST)
+        Mon, 03 Nov 2014 13:00:23 -0800 (PST)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm 6/8] memcg: introduce memcg_kmem_should_charge helper
-Date: Mon, 3 Nov 2014 23:59:44 +0300
-Message-ID: <c8744df31379821d269c8e654843471545815c01.1415046910.git.vdavydov@parallels.com>
+Subject: [PATCH -mm 7/8] slab: introduce slab_free helper
+Date: Mon, 3 Nov 2014 23:59:45 +0300
+Message-ID: <439ae0a228e18af4ba909dce471a7e3d21005ef6.1415046910.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1415046910.git.vdavydov@parallels.com>
 References: <cover.1415046910.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -22,86 +22,76 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-We use the same set of checks in both memcg_kmem_newpage_charge and
-memcg_kmem_get_cache, and I need it in yet another function, which will
-be introduced by one of the following patches. So let's introduce a
-helper function for it.
-
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 ---
- include/linux/memcontrol.h |   43 ++++++++++++++++++++++---------------------
- 1 file changed, 22 insertions(+), 21 deletions(-)
+ mm/slab.c |   30 ++++++++++++++----------------
+ 1 file changed, 14 insertions(+), 16 deletions(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 617652712da8..224c045fd37f 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -416,6 +416,26 @@ void memcg_update_array_size(int num_groups);
- struct kmem_cache *
- __memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp);
+diff --git a/mm/slab.c b/mm/slab.c
+index a9eb49f40c0a..178a3b733a50 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -3521,6 +3521,18 @@ void *__kmalloc_track_caller(size_t size, gfp_t flags, unsigned long caller)
+ }
+ EXPORT_SYMBOL(__kmalloc_track_caller);
  
-+static __always_inline bool memcg_kmem_should_charge(gfp_t gfp)
++static __always_inline void slab_free(struct kmem_cache *cachep, void *objp)
 +{
-+	/*
-+	 * __GFP_NOFAIL allocations will move on even if charging is not
-+	 * possible. Therefore we don't even try, and have this allocation
-+	 * unaccounted. We could in theory charge it forcibly, but we hope
-+	 * those allocations are rare, and won't be worth the trouble.
-+	 */
-+	if (gfp & __GFP_NOFAIL)
-+		return false;
-+	if (in_interrupt())
-+		return false;
-+	if (!current->mm || (current->flags & PF_KTHREAD))
-+		return false;
-+	/* If the test is dying, just let it go. */
-+	if (unlikely(fatal_signal_pending(current)))
-+		return false;
-+	return true;
++	unsigned long flags;
++
++	local_irq_save(flags);
++	debug_check_no_locks_freed(objp, cachep->object_size);
++	if (!(cachep->flags & SLAB_DEBUG_OBJECTS))
++		debug_check_no_obj_freed(objp, cachep->object_size);
++	__cache_free(cachep, objp, _RET_IP_);
++	local_irq_restore(flags);
 +}
 +
  /**
-  * memcg_kmem_newpage_charge: verify if a new kmem allocation is allowed.
-  * @gfp: the gfp allocation flags.
-@@ -433,22 +453,8 @@ memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg, int order)
+  * kmem_cache_free - Deallocate an object
+  * @cachep: The cache the allocation was from.
+@@ -3531,18 +3543,10 @@ EXPORT_SYMBOL(__kmalloc_track_caller);
+  */
+ void kmem_cache_free(struct kmem_cache *cachep, void *objp)
  {
- 	if (!memcg_kmem_enabled())
- 		return true;
+-	unsigned long flags;
+ 	cachep = cache_from_obj(cachep, objp);
+ 	if (!cachep)
+ 		return;
 -
--	/*
--	 * __GFP_NOFAIL allocations will move on even if charging is not
--	 * possible. Therefore we don't even try, and have this allocation
--	 * unaccounted. We could in theory charge it forcibly, but we hope
--	 * those allocations are rare, and won't be worth the trouble.
--	 */
--	if (gfp & __GFP_NOFAIL)
--		return true;
--	if (in_interrupt() || (!current->mm) || (current->flags & PF_KTHREAD))
--		return true;
+-	local_irq_save(flags);
+-	debug_check_no_locks_freed(objp, cachep->object_size);
+-	if (!(cachep->flags & SLAB_DEBUG_OBJECTS))
+-		debug_check_no_obj_freed(objp, cachep->object_size);
+-	__cache_free(cachep, objp, _RET_IP_);
+-	local_irq_restore(flags);
 -
--	/* If the test is dying, just let it go. */
--	if (unlikely(fatal_signal_pending(current)))
-+	if (!memcg_kmem_should_charge(gfp))
- 		return true;
--
- 	return __memcg_kmem_newpage_charge(gfp, memcg, order);
++	slab_free(cachep, objp);
+ 	trace_kmem_cache_free(_RET_IP_, objp);
  }
+ EXPORT_SYMBOL(kmem_cache_free);
+@@ -3559,20 +3563,14 @@ EXPORT_SYMBOL(kmem_cache_free);
+ void kfree(const void *objp)
+ {
+ 	struct kmem_cache *c;
+-	unsigned long flags;
  
-@@ -491,13 +497,8 @@ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
- {
- 	if (!memcg_kmem_enabled())
- 		return cachep;
--	if (gfp & __GFP_NOFAIL)
--		return cachep;
--	if (in_interrupt() || (!current->mm) || (current->flags & PF_KTHREAD))
--		return cachep;
--	if (unlikely(fatal_signal_pending(current)))
-+	if (!memcg_kmem_should_charge(gfp))
- 		return cachep;
+ 	trace_kfree(_RET_IP_, objp);
+ 
+ 	if (unlikely(ZERO_OR_NULL_PTR(objp)))
+ 		return;
+-	local_irq_save(flags);
+ 	kfree_debugcheck(objp);
+ 	c = virt_to_cache(objp);
+-	debug_check_no_locks_freed(objp, c->object_size);
 -
- 	return __memcg_kmem_get_cache(cachep, gfp);
+-	debug_check_no_obj_freed(objp, c->object_size);
+-	__cache_free(c, (void *)objp, _RET_IP_);
+-	local_irq_restore(flags);
++	slab_free(c, (void *)objp);
  }
- #else
+ EXPORT_SYMBOL(kfree);
+ 
 -- 
 1.7.10.4
 
