@@ -1,95 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id CFE556B00DB
-	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 03:04:13 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id lj1so11670499pab.36
-        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 00:04:13 -0800 (PST)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id z12si14856202pdi.23.2014.11.03.00.04.10
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B6546B00DB
+	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 03:08:53 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id rd3so11627632pab.41
+        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 00:08:52 -0800 (PST)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id gu2si1501915pbb.173.2014.11.03.00.08.50
         for <linux-mm@kvack.org>;
-        Mon, 03 Nov 2014 00:04:12 -0800 (PST)
-Date: Mon, 3 Nov 2014 17:05:46 +0900
+        Mon, 03 Nov 2014 00:08:51 -0800 (PST)
+Date: Mon, 3 Nov 2014 17:10:31 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 0/4] (CMA_AGGRESSIVE) Make CMA memory be more aggressive
- about allocation
-Message-ID: <20141103080546.GB7052@js1304-P5Q-DELUXE>
-References: <1413430551-22392-1-git-send-email-zhuhui@xiaomi.com>
- <20141024052553.GE15243@js1304-P5Q-DELUXE>
- <CANFwon1JUmxP5S_jrEg=k7VRBhrD9DC0cH3ve4FioSVRYK0n4A@mail.gmail.com>
+Subject: Re: [PATCH v5 4/4] mm/page_alloc: restrict max order of merging on
+ isolated pageblock
+Message-ID: <20141103081031.GC7052@js1304-P5Q-DELUXE>
+References: <1414740330-4086-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1414740330-4086-5-git-send-email-iamjoonsoo.kim@lge.com>
+ <54539F11.7080501@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CANFwon1JUmxP5S_jrEg=k7VRBhrD9DC0cH3ve4FioSVRYK0n4A@mail.gmail.com>
+In-Reply-To: <54539F11.7080501@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hui Zhu <teawater@gmail.com>
-Cc: Hui Zhu <zhuhui@xiaomi.com>, rjw@rjwysocki.net, len.brown@intel.com, pavel@ucw.cz, m.szyprowski@samsung.com, Andrew Morton <akpm@linux-foundation.org>, mina86@mina86.com, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, Rik van Riel <riel@redhat.com>, mgorman@suse.de, minchan@kernel.org, nasa4836@gmail.com, ddstreet@ieee.org, Hugh Dickins <hughd@google.com>, mingo@kernel.org, rientjes@google.com, Peter Zijlstra <peterz@infradead.org>, keescook@chromium.org, atomlin@redhat.com, raistlin@linux.it, axboe@fb.com, Paul McKenney <paulmck@linux.vnet.ibm.com>, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, k.khlebnikov@samsung.com, msalter@redhat.com, deller@gmx.de, tangchen@cn.fujitsu.com, ben@decadent.org.uk, akinobu.mita@gmail.com, lauraa@codeaurora.org, vbabka@suse.cz, sasha.levin@oracle.com, vdavydov@parallels.com, suleiman@google.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-pm@vger.kernel.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
-On Mon, Nov 03, 2014 at 03:28:38PM +0800, Hui Zhu wrote:
-> On Fri, Oct 24, 2014 at 1:25 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> > On Thu, Oct 16, 2014 at 11:35:47AM +0800, Hui Zhu wrote:
-> >> In fallbacks of page_alloc.c, MIGRATE_CMA is the fallback of
-> >> MIGRATE_MOVABLE.
-> >> MIGRATE_MOVABLE will use MIGRATE_CMA when it doesn't have a page in
-> >> order that Linux kernel want.
-> >>
-> >> If a system that has a lot of user space program is running, for
-> >> instance, an Android board, most of memory is in MIGRATE_MOVABLE and
-> >> allocated.  Before function __rmqueue_fallback get memory from
-> >> MIGRATE_CMA, the oom_killer will kill a task to release memory when
-> >> kernel want get MIGRATE_UNMOVABLE memory because fallbacks of
-> >> MIGRATE_UNMOVABLE are MIGRATE_RECLAIMABLE and MIGRATE_MOVABLE.
-> >> This status is odd.  The MIGRATE_CMA has a lot free memory but Linux
-> >> kernel kill some tasks to release memory.
-> >>
-> >> This patch series adds a new function CMA_AGGRESSIVE to make CMA memory
-> >> be more aggressive about allocation.
-> >> If function CMA_AGGRESSIVE is available, when Linux kernel call function
-> >> __rmqueue try to get pages from MIGRATE_MOVABLE and conditions allow,
-> >> MIGRATE_CMA will be allocated as MIGRATE_MOVABLE first.  If MIGRATE_CMA
-> >> doesn't have enough pages for allocation, go back to allocate memory from
-> >> MIGRATE_MOVABLE.
-> >> Then the memory of MIGRATE_MOVABLE can be kept for MIGRATE_UNMOVABLE and
-> >> MIGRATE_RECLAIMABLE which doesn't have fallback MIGRATE_CMA.
+On Fri, Oct 31, 2014 at 03:39:13PM +0100, Vlastimil Babka wrote:
+> On 10/31/2014 08:25 AM, Joonsoo Kim wrote:
+> >@@ -571,6 +548,7 @@ static inline void __free_one_page(struct page *page,
+> >  	unsigned long combined_idx;
+> >  	unsigned long uninitialized_var(buddy_idx);
+> >  	struct page *buddy;
+> >+	int max_order = MAX_ORDER;
 > >
-> > Hello,
+> >  	VM_BUG_ON(!zone_is_initialized(zone));
 > >
-> > I did some work similar to this.
-> > Please reference following links.
+> >@@ -579,15 +557,23 @@ static inline void __free_one_page(struct page *page,
+> >  			return;
 > >
-> > https://lkml.org/lkml/2014/5/28/64
-> > https://lkml.org/lkml/2014/5/28/57
+> >  	VM_BUG_ON(migratetype == -1);
+> >-	if (!is_migrate_isolate(migratetype))
+> >+	if (is_migrate_isolate(migratetype)) {
+> >+		/*
+> >+		 * We restrict max order of merging to prevent merge
+> >+		 * between freepages on isolate pageblock and normal
+> >+		 * pageblock. Without this, pageblock isolation
+> >+		 * could cause incorrect freepage accounting.
+> >+		 */
+> >+		max_order = min(MAX_ORDER, pageblock_order + 1);
+> >+	} else
+> >  		__mod_zone_freepage_state(zone, 1 << order, migratetype);
 > 
-> > I tested #1 approach and found the problem. Although free memory on
-> > meminfo can move around low watermark, there is large fluctuation on free
-> > memory, because too many pages are reclaimed when kswapd is invoked.
-> > Reason for this behaviour is that successive allocated CMA pages are
-> > on the LRU list in that order and kswapd reclaim them in same order.
-> > These memory doesn't help watermark checking from kwapd, so too many
-> > pages are reclaimed, I guess.
-> 
-> This issue can be handle with some change around shrink code.  I am
-> trying to integrate  a patch for them.
-> But I am not sure we met the same issue.  Do you mind give me more
-> info about this part?
+> Please add { } to the else branch, this looks ugly :)
 
-I forgot the issue because there is so big time-gap. I need sometime
-to bring issue back to my brain. I will answer it soon after some thinking.
+Sure.
 
 > 
+> >-	page_idx = pfn & ((1 << MAX_ORDER) - 1);
+> >+	page_idx = pfn & ((1 << max_order) - 1);
 > >
-> > And, aggressive allocation should be postponed until freepage counting
-> > bug is fixed, because aggressive allocation enlarge the possiblity
-> > of problem occurence. I tried to fix that bug, too. See following link.
+> >  	VM_BUG_ON_PAGE(page_idx & ((1 << order) - 1), page);
+> >  	VM_BUG_ON_PAGE(bad_range(zone, page), page);
 > >
-> > https://lkml.org/lkml/2014/10/23/90
+> >-	while (order < MAX_ORDER-1) {
+> >+	while (order < max_order - 1) {
+> >  		buddy_idx = __find_buddy_index(page_idx, order);
+> >  		buddy = page + (buddy_idx - page_idx);
+> >  		if (!page_is_buddy(page, buddy, order))
+> >@@ -1590,7 +1576,7 @@ void split_page(struct page *page, unsigned int order)
+> >  }
+> >  EXPORT_SYMBOL_GPL(split_page);
+> >
+> >-static int __isolate_free_page(struct page *page, unsigned int order)
+> >+int __isolate_free_page(struct page *page, unsigned int order)
+> >  {
+> >  	unsigned long watermark;
+> >  	struct zone *zone;
+> >diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+> >index 1fa4a4d..df61c93 100644
+> >--- a/mm/page_isolation.c
+> >+++ b/mm/page_isolation.c
+> >@@ -76,17 +76,48 @@ void unset_migratetype_isolate(struct page *page, unsigned migratetype)
+> >  {
+> >  	struct zone *zone;
+> >  	unsigned long flags, nr_pages;
+> >+	struct page *isolated_page = NULL;
+> >+	unsigned int order;
+> >+	unsigned long page_idx, buddy_idx;
+> >+	struct page *buddy;
+> >+	int mt;
+> >
+> >  	zone = page_zone(page);
+> >  	spin_lock_irqsave(&zone->lock, flags);
+> >  	if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
+> >  		goto out;
+> >+
+> >+	/*
+> >+	 * Because freepage with more than pageblock_order on isolated
+> >+	 * pageblock is restricted to merge due to freepage counting problem,
+> >+	 * it is possible that there is free buddy page.
+> >+	 * move_freepages_block() doesn't care of merge so we need other
+> >+	 * approach in order to merge them. Isolation and free will make
+> >+	 * these pages to be merged.
+> >+	 */
+> >+	if (PageBuddy(page)) {
+> >+		order = page_order(page);
+> >+		if (order >= pageblock_order) {
+> >+			page_idx = page_to_pfn(page) & ((1 << MAX_ORDER) - 1);
+> >+			buddy_idx = __find_buddy_index(page_idx, order);
+> >+			buddy = page + (buddy_idx - page_idx);
+> >+			mt = get_pageblock_migratetype(buddy);
+> >+
+> >+			if (!is_migrate_isolate(mt)) {
 > 
-> I am following these patches.  They are great!  Thanks for your work.
+> You could use is_migrate_isolate_page(buddy) and save a variable.
 
-Thanks. :)
+Okay.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> >+				__isolate_free_page(page, order);
+> >+				set_page_refcounted(page);
+> >+				isolated_page = page;
+> >+			}
+> >+		}
+> >+	}
+> >  	nr_pages = move_freepages_block(zone, page, migratetype);
+> 
+> - this is a costly no-op when the whole pageblock is an isolated
+> page, right?
+
+Okay. I will fix it.
+
+> 
+> >  	__mod_zone_freepage_state(zone, nr_pages, migratetype);
+> 
+> - with isolated_page set, this means you increase freepage_state
+> here, and then the second time in __free_pages() below?
+> __isolate_free_page() won't decrease it as the pageblock is still
+> MIGRATE_ISOLATE, so the net result is overcounting?
+
+After __isolate_free_page(), freepage has no buddy flag and
+move_freepages_block() doesn't move and count it. So, freepage_state
+only increase in __free_pages(). So net result will be correct.
+
+Below is the update for your comment.
+
+Thanks.
+
+------------>8----------------
