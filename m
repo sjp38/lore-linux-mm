@@ -1,68 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 52C5A6B00FC
-	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 12:02:33 -0500 (EST)
-Received: by mail-la0-f50.google.com with SMTP id hz20so7357704lab.37
-        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 09:02:32 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y9si33315375lbr.1.2014.11.03.09.02.31
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 229BE6B00FE
+	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 12:14:51 -0500 (EST)
+Received: by mail-wi0-f172.google.com with SMTP id bs8so7104850wib.11
+        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 09:14:50 -0800 (PST)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id e17si9107941wiw.45.2014.11.03.09.14.50
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 03 Nov 2014 09:02:31 -0800 (PST)
-Date: Mon, 3 Nov 2014 18:02:28 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 1/3] mm: embed the memcg pointer directly into struct page
-Message-ID: <20141103170228.GH10156@dhcp22.suse.cz>
-References: <1414898156-4741-1-git-send-email-hannes@cmpxchg.org>
- <20141103080208.GA7052@js1304-P5Q-DELUXE>
- <20141103150942.GA32052@phnom.home.cmpxchg.org>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Mon, 03 Nov 2014 09:14:50 -0800 (PST)
+Date: Mon, 3 Nov 2014 18:14:37 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v4 1/7] x86, mm, pat: Set WT to PA7 slot of PAT MSR
+In-Reply-To: <1414450545-14028-2-git-send-email-toshi.kani@hp.com>
+Message-ID: <alpine.DEB.2.11.1411031812390.5308@nanos>
+References: <1414450545-14028-1-git-send-email-toshi.kani@hp.com> <1414450545-14028-2-git-send-email-toshi.kani@hp.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141103150942.GA32052@phnom.home.cmpxchg.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, Tejun Heo <tj@kernel.org>, David Miller <davem@davemloft.net>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: hpa@zytor.com, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com
 
-On Mon 03-11-14 10:09:42, Johannes Weiner wrote:
-> Hi Joonsoo,
-> 
-> On Mon, Nov 03, 2014 at 05:02:08PM +0900, Joonsoo Kim wrote:
-> > On Sat, Nov 01, 2014 at 11:15:54PM -0400, Johannes Weiner wrote:
-> > > Memory cgroups used to have 5 per-page pointers.  To allow users to
-> > > disable that amount of overhead during runtime, those pointers were
-> > > allocated in a separate array, with a translation layer between them
-> > > and struct page.
-> > 
-> > Hello, Johannes.
-> > 
-> > I'd like to leave this translation layer.
-> > Could you just disable that code with #ifdef until next user comes?
-> > 
-> > In our company, we uses PAGE_OWNER on mm tree which is the feature
-> > saying who allocates the page. To use PAGE_OWNER needs modifying
-> > struct page and then needs re-compile. This re-compile makes us difficult
-> > to use this feature. So, we decide to implement run-time configurable
-> > PAGE_OWNER through page_cgroup's translation layer code. Moreover, with
-> > this infrastructure, I plan to implement some other debugging feature.
-> > 
-> > Because of my laziness, it didn't submitted to LKML. But, I will
-> > submit it as soon as possible. If the code is removed, I would
-> > copy-and-paste the code, but, it would cause lose of the history on
-> > that code. So if possible, I'd like to leave that code now.
-> 
-> Please re-introduce this code when your new usecase is ready to be
-> upstreamed.  There is little reason to burden an unrelated feature
-> with a sizable chunk of dead code for a vague future user.
+On Mon, 27 Oct 2014, Toshi Kani wrote:
+> +	} else {
+> +		/*
+> +		 * PAT full support. WT is set to slot 7, which minimizes
+> +		 * the risk of using the PAT bit as slot 3 is UC and is
+> +		 * currently unused. Slot 4 should remain as reserved.
 
-Completely agreed! I would hate to have some random feature piggy back
-on memcg internal structures. For that to be acceptable the page_cgroup
-would have to be abstracted into a more generic structure which wouldn't
-be under CONFIG_MEMCG anyway.
--- 
-Michal Hocko
-SUSE Labs
+This comment makes no sense. What minimizes which risk and what has
+this to do with slot 3 and slot 4?
+
+> +		 *
+> +		 *  PTE encoding used in Linux:
+> +		 *      PAT
+> +		 *      |PCD
+> +		 *      ||PWT  PAT
+> +		 *      |||    slot
+> +		 *      000    0    WB : _PAGE_CACHE_MODE_WB
+> +		 *      001    1    WC : _PAGE_CACHE_MODE_WC
+> +		 *      010    2    UC-: _PAGE_CACHE_MODE_UC_MINUS
+> +		 *      011    3    UC : _PAGE_CACHE_MODE_UC
+> +		 *      100    4    <reserved>
+> +		 *      101    5    <reserved>
+> +		 *      110    6    <reserved>
+
+Well, they are still mapped to WB/WC/UC_MINUS ....
+
+> +		 *      111    7    WT : _PAGE_CACHE_MODE_WT
+> +		 */
+> +		pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
+> +		      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, WT);
+> +	}
+
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
