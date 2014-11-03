@@ -1,20 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id B36656B009D
-	for <linux-mm@kvack.org>; Sun,  2 Nov 2014 23:22:56 -0500 (EST)
-Received: by mail-pd0-f174.google.com with SMTP id p10so10698063pdj.5
-        for <linux-mm@kvack.org>; Sun, 02 Nov 2014 20:22:56 -0800 (PST)
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 125666B00E6
+	for <linux-mm@kvack.org>; Sun,  2 Nov 2014 23:23:04 -0500 (EST)
+Received: by mail-pd0-f178.google.com with SMTP id fp1so10772925pdb.37
+        for <linux-mm@kvack.org>; Sun, 02 Nov 2014 20:23:03 -0800 (PST)
 Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id og8si14402620pbb.128.2014.11.02.20.22.54
+        by mx.google.com with ESMTP id ov3si14316452pbc.228.2014.11.02.20.23.02
         for <linux-mm@kvack.org>;
-        Sun, 02 Nov 2014 20:22:55 -0800 (PST)
-Date: Sun, 02 Nov 2014 23:22:52 -0500 (EST)
-Message-Id: <20141102.232252.289821233794405148.davem@davemloft.net>
-Subject: Re: [patch 2/3] mm: page_cgroup: rename file to mm/swap_cgroup.c
+        Sun, 02 Nov 2014 20:23:02 -0800 (PST)
+Date: Sun, 02 Nov 2014 23:23:00 -0500 (EST)
+Message-Id: <20141102.232300.35454786891449365.davem@davemloft.net>
+Subject: Re: [patch 3/3] mm: move page->mem_cgroup bad page handling into
+ generic code
 From: David Miller <davem@davemloft.net>
-In-Reply-To: <1414898156-4741-2-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1414898156-4741-3-git-send-email-hannes@cmpxchg.org>
 References: <1414898156-4741-1-git-send-email-hannes@cmpxchg.org>
-	<1414898156-4741-2-git-send-email-hannes@cmpxchg.org>
+	<1414898156-4741-3-git-send-email-hannes@cmpxchg.org>
 Mime-Version: 1.0
 Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
@@ -24,12 +25,10 @@ To: hannes@cmpxchg.org
 Cc: akpm@linux-foundation.org, mhocko@suse.cz, vdavydov@parallels.com, tj@kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
 From: Johannes Weiner <hannes@cmpxchg.org>
-Date: Sat,  1 Nov 2014 23:15:55 -0400
+Date: Sat,  1 Nov 2014 23:15:56 -0400
 
 > Now that the external page_cgroup data structure and its lookup is
-> gone, the only code remaining in there is swap slot accounting.
-> 
-> Rename it and move the conditional compilation into mm/Makefile.
+> gone, let the generic bad_page() check for page->mem_cgroup sanity.
 > 
 > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
