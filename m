@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 937376B00F4
-	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 16:00:10 -0500 (EST)
-Received: by mail-pd0-f178.google.com with SMTP id fp1so12310058pdb.9
-        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 13:00:10 -0800 (PST)
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C1A9C6B00F5
+	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 16:00:12 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id kq14so12812088pab.24
+        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 13:00:12 -0800 (PST)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id gc7si9141427pac.58.2014.11.03.13.00.08
+        by mx.google.com with ESMTPS id so6si16145367pac.164.2014.11.03.13.00.10
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Nov 2014 13:00:08 -0800 (PST)
+        Mon, 03 Nov 2014 13:00:11 -0800 (PST)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm 2/8] slab: charge slab pages to the current memory cgroup
-Date: Mon, 3 Nov 2014 23:59:40 +0300
-Message-ID: <16d8b42a986bd5931459d11490f959bd9a2c5b7e.1415046910.git.vdavydov@parallels.com>
+Subject: [PATCH -mm 3/8] memcg: decouple per memcg kmem cache from the owner memcg
+Date: Mon, 3 Nov 2014 23:59:41 +0300
+Message-ID: <b5bac77e0bcb0132d68ae3ad648c0b8cefff0fd1.1415046910.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1415046910.git.vdavydov@parallels.com>
 References: <cover.1415046910.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -22,224 +22,176 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Currently, new slabs are charged to the memory cgroup that owns the
-cache (kmem_cache->memcg_params->memcg), but I'm going to decouple kmem
-caches from memory cgroups so I make them charged to the current cgroup.
+Basically, we substitute the reference to the owner memory cgroup in
+memcg_cache_params with the index in the memcg_caches array. This
+decouples kmem cache from the memcg it was created for and will allow to
+reuse it for another cgroup after css offline.
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 ---
- include/linux/memcontrol.h |    5 -----
- mm/memcontrol.c            |   14 --------------
- mm/slab.c                  |   22 +++++++++++++++-------
- mm/slab.h                  |   28 ----------------------------
- mm/slub.c                  |   18 ++++++++----------
- 5 files changed, 23 insertions(+), 64 deletions(-)
+ include/linux/slab.h |    7 +++----
+ mm/memcontrol.c      |   18 +++++-------------
+ mm/slab_common.c     |   12 +++++-------
+ 3 files changed, 13 insertions(+), 24 deletions(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index e789551d4db0..31b495ff5f3a 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -416,9 +416,6 @@ void memcg_update_array_size(int num_groups);
- struct kmem_cache *
- __memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp);
- 
--int __memcg_charge_slab(struct kmem_cache *cachep, gfp_t gfp, int order);
--void __memcg_uncharge_slab(struct kmem_cache *cachep, int order);
--
- int __memcg_cleanup_cache_params(struct kmem_cache *s);
- 
- /**
-@@ -490,8 +487,6 @@ memcg_kmem_commit_charge(struct page *page, struct mem_cgroup *memcg, int order)
-  * memcg_kmem_get_cache: selects the correct per-memcg cache for allocation
-  * @cachep: the original global kmem cache
-  * @gfp: allocation flags.
-- *
-- * All memory allocated from a per-memcg cache is charged to the owner memcg.
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index 390341d30b2d..293c04df7953 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -117,8 +117,7 @@ struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
+ 			void (*)(void *));
+ #ifdef CONFIG_MEMCG_KMEM
+ struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *,
+-					   struct kmem_cache *,
+-					   const char *);
++					   struct kmem_cache *);
+ #endif
+ void kmem_cache_destroy(struct kmem_cache *);
+ int kmem_cache_shrink(struct kmem_cache *);
+@@ -490,7 +489,7 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+  *
+  * Child caches will hold extra metadata needed for its operation. Fields are:
+  *
+- * @memcg: pointer to the memcg this cache belongs to
++ * @id: the index in the root_cache's memcg_caches array.
+  * @root_cache: pointer to the global, root cache, this cache was derived from
   */
- static __always_inline struct kmem_cache *
- memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
+ struct memcg_cache_params {
+@@ -501,7 +500,7 @@ struct memcg_cache_params {
+ 			struct kmem_cache *memcg_caches[0];
+ 		};
+ 		struct {
+-			struct mem_cgroup *memcg;
++			int id;
+ 			struct kmem_cache *root_cache;
+ 		};
+ 	};
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 370a27509e45..8c60d7a30f4f 100644
+index 8c60d7a30f4f..78d12076b01d 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -2778,20 +2778,6 @@ static void memcg_schedule_register_cache(struct mem_cgroup *memcg,
- 	memcg_resume_kmem_account();
- }
- 
--int __memcg_charge_slab(struct kmem_cache *cachep, gfp_t gfp, int order)
--{
--	unsigned int nr_pages = 1 << order;
--
--	return memcg_charge_kmem(cachep->memcg_params->memcg, gfp, nr_pages);
--}
--
--void __memcg_uncharge_slab(struct kmem_cache *cachep, int order)
--{
--	unsigned int nr_pages = 1 << order;
--
--	memcg_uncharge_kmem(cachep->memcg_params->memcg, nr_pages);
--}
--
- /*
-  * Return the kmem_cache we're supposed to use for a slab allocation.
-  * We try to use the current memcg's version of the cache.
-diff --git a/mm/slab.c b/mm/slab.c
-index 458613d75533..a9eb49f40c0a 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1559,6 +1559,19 @@ slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
- #endif
- }
- 
-+static inline struct page *alloc_slab_page(gfp_t flags, int nodeid, int order)
-+{
-+	struct mem_cgroup *memcg = NULL;
-+	struct page *page;
-+
-+	flags |= __GFP_NOTRACK;
-+	if (!memcg_kmem_newpage_charge(flags, &memcg, order))
-+		return NULL;
-+	page = alloc_pages_exact_node(nodeid, flags, order);
-+	memcg_kmem_commit_charge(page, memcg, order);
-+	return page;
-+}
-+
- /*
-  * Interface to system's page allocator. No need to hold the
-  * kmem_cache_node ->list_lock.
-@@ -1577,12 +1590,8 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
- 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
- 		flags |= __GFP_RECLAIMABLE;
- 
--	if (memcg_charge_slab(cachep, flags, cachep->gfporder))
--		return NULL;
--
--	page = alloc_pages_exact_node(nodeid, flags | __GFP_NOTRACK, cachep->gfporder);
-+	page = alloc_slab_page(flags, nodeid, cachep->gfporder);
- 	if (!page) {
--		memcg_uncharge_slab(cachep, cachep->gfporder);
- 		slab_out_of_memory(cachep, flags, nodeid);
- 		return NULL;
- 	}
-@@ -1638,8 +1647,7 @@ static void kmem_freepages(struct kmem_cache *cachep, struct page *page)
- 
- 	if (current->reclaim_state)
- 		current->reclaim_state->reclaimed_slab += nr_freed;
--	__free_pages(page, cachep->gfporder);
--	memcg_uncharge_slab(cachep, cachep->gfporder);
-+	__free_kmem_pages(page, cachep->gfporder);
- }
- 
- static void kmem_rcu_free(struct rcu_head *head)
-diff --git a/mm/slab.h b/mm/slab.h
-index 3347fd77f7be..1ba7ad07dce4 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -227,25 +227,6 @@ static inline struct kmem_cache *memcg_root_cache(struct kmem_cache *s)
- 		return s;
- 	return s->memcg_params->root_cache;
- }
--
--static __always_inline int memcg_charge_slab(struct kmem_cache *s,
--					     gfp_t gfp, int order)
--{
--	if (!memcg_kmem_enabled())
--		return 0;
--	if (is_root_cache(s))
--		return 0;
--	return __memcg_charge_slab(s, gfp, order);
--}
--
--static __always_inline void memcg_uncharge_slab(struct kmem_cache *s, int order)
--{
--	if (!memcg_kmem_enabled())
--		return;
--	if (is_root_cache(s))
--		return;
--	__memcg_uncharge_slab(s, order);
--}
- #else
- static inline bool is_root_cache(struct kmem_cache *s)
+@@ -2603,8 +2603,6 @@ void memcg_update_array_size(int num)
+ static void memcg_register_cache(struct mem_cgroup *memcg,
+ 				 struct kmem_cache *root_cache)
  {
-@@ -273,15 +254,6 @@ static inline struct kmem_cache *memcg_root_cache(struct kmem_cache *s)
- {
- 	return s;
- }
--
--static inline int memcg_charge_slab(struct kmem_cache *s, gfp_t gfp, int order)
--{
--	return 0;
--}
--
--static inline void memcg_uncharge_slab(struct kmem_cache *s, int order)
--{
--}
- #endif
+-	static char memcg_name_buf[NAME_MAX + 1]; /* protected by
+-						     memcg_slab_mutex */
+ 	struct kmem_cache *cachep;
+ 	int id;
  
- static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
-diff --git a/mm/slub.c b/mm/slub.c
-index 80c170e92ffc..205eaca18b7b 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1276,15 +1276,16 @@ static inline void slab_free_hook(struct kmem_cache *s, void *x)
+@@ -2620,8 +2618,7 @@ static void memcg_register_cache(struct mem_cgroup *memcg,
+ 	if (cache_from_memcg_idx(root_cache, id))
+ 		return;
+ 
+-	cgroup_name(memcg->css.cgroup, memcg_name_buf, NAME_MAX + 1);
+-	cachep = memcg_create_kmem_cache(memcg, root_cache, memcg_name_buf);
++	cachep = memcg_create_kmem_cache(memcg, root_cache);
+ 	/*
+ 	 * If we could not create a memcg cache, do not complain, because
+ 	 * that's not critical at all as we can always proceed with the root
+@@ -2630,8 +2627,6 @@ static void memcg_register_cache(struct mem_cgroup *memcg,
+ 	if (!cachep)
+ 		return;
+ 
+-	css_get(&memcg->css);
+-
+ 	/*
+ 	 * Since readers won't lock (see cache_from_memcg_idx()), we need a
+ 	 * barrier here to ensure nobody will see the kmem_cache partially
+@@ -2646,7 +2641,6 @@ static void memcg_register_cache(struct mem_cgroup *memcg,
+ static void memcg_unregister_cache(struct kmem_cache *cachep)
+ {
+ 	struct kmem_cache *root_cache;
+-	struct mem_cgroup *memcg;
+ 	int id;
+ 
+ 	lockdep_assert_held(&memcg_slab_mutex);
+@@ -2654,16 +2648,12 @@ static void memcg_unregister_cache(struct kmem_cache *cachep)
+ 	BUG_ON(is_root_cache(cachep));
+ 
+ 	root_cache = cachep->memcg_params->root_cache;
+-	memcg = cachep->memcg_params->memcg;
+-	id = memcg_cache_id(memcg);
++	id = cachep->memcg_params->id;
+ 
+ 	BUG_ON(root_cache->memcg_params->memcg_caches[id] != cachep);
+ 	root_cache->memcg_params->memcg_caches[id] = NULL;
+ 
+ 	kmem_cache_destroy(cachep);
+-
+-	/* drop the reference taken in memcg_register_cache */
+-	css_put(&memcg->css);
+ }
+ 
  /*
-  * Slab allocation and freeing
+@@ -4198,7 +4188,6 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+ {
+ 	int ret;
+ 
+-	memcg->kmemcg_id = -1;
+ 	ret = memcg_propagate_kmem(memcg);
+ 	if (ret)
+ 		return ret;
+@@ -4743,6 +4732,9 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
+ 	vmpressure_init(&memcg->vmpressure);
+ 	INIT_LIST_HEAD(&memcg->event_list);
+ 	spin_lock_init(&memcg->event_list_lock);
++#ifdef CONFIG_MEMCG_KMEM
++	memcg->kmemcg_id = -1;
++#endif
+ 
+ 	return &memcg->css;
+ 
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index d5e9e050a3ec..974d77db1b39 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -125,7 +125,7 @@ static int memcg_alloc_cache_params(struct mem_cgroup *memcg,
+ 		return -ENOMEM;
+ 
+ 	if (memcg) {
+-		s->memcg_params->memcg = memcg;
++		s->memcg_params->id = memcg_cache_id(memcg);
+ 		s->memcg_params->root_cache = root_cache;
+ 	} else
+ 		s->memcg_params->is_root_cache = true;
+@@ -426,15 +426,13 @@ EXPORT_SYMBOL(kmem_cache_create);
+  * memcg_create_kmem_cache - Create a cache for a memory cgroup.
+  * @memcg: The memory cgroup the new cache is for.
+  * @root_cache: The parent of the new cache.
+- * @memcg_name: The name of the memory cgroup (used for naming the new cache).
+  *
+  * This function attempts to create a kmem cache that will serve allocation
+  * requests going from @memcg to @root_cache. The new cache inherits properties
+  * from its parent.
   */
--static inline struct page *alloc_slab_page(struct kmem_cache *s,
--		gfp_t flags, int node, struct kmem_cache_order_objects oo)
-+static inline struct page *alloc_slab_page(gfp_t flags, int node,
-+					   struct kmem_cache_order_objects oo)
+ struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
+-					   struct kmem_cache *root_cache,
+-					   const char *memcg_name)
++					   struct kmem_cache *root_cache)
  {
-+	struct mem_cgroup *memcg = NULL;
- 	struct page *page;
- 	int order = oo_order(oo);
+ 	struct kmem_cache *s = NULL;
+ 	char *cache_name;
+@@ -444,8 +442,8 @@ struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
  
- 	flags |= __GFP_NOTRACK;
+ 	mutex_lock(&slab_mutex);
  
--	if (memcg_charge_slab(s, flags, order))
-+	if (!memcg_kmem_newpage_charge(flags, &memcg, order))
- 		return NULL;
+-	cache_name = kasprintf(GFP_KERNEL, "%s(%d:%s)", root_cache->name,
+-			       memcg_cache_id(memcg), memcg_name);
++	cache_name = kasprintf(GFP_KERNEL, "%s(%d)", root_cache->name,
++			       memcg_cache_id(memcg));
+ 	if (!cache_name)
+ 		goto out_unlock;
  
- 	if (node == NUMA_NO_NODE)
-@@ -1292,9 +1293,7 @@ static inline struct page *alloc_slab_page(struct kmem_cache *s,
- 	else
- 		page = alloc_pages_exact_node(node, flags, order);
+@@ -912,7 +910,7 @@ int memcg_slab_show(struct seq_file *m, void *p)
  
--	if (!page)
--		memcg_uncharge_slab(s, order);
--
-+	memcg_kmem_commit_charge(page, memcg, order);
- 	return page;
+ 	if (p == slab_caches.next)
+ 		print_slabinfo_header(m);
+-	if (!is_root_cache(s) && s->memcg_params->memcg == memcg)
++	if (!is_root_cache(s) && s->memcg_params->id == memcg_cache_id(memcg))
+ 		cache_show(s, m);
+ 	return 0;
  }
- 
-@@ -1317,7 +1316,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- 	 */
- 	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY) & ~__GFP_NOFAIL;
- 
--	page = alloc_slab_page(s, alloc_gfp, node, oo);
-+	page = alloc_slab_page(alloc_gfp, node, oo);
- 	if (unlikely(!page)) {
- 		oo = s->min;
- 		alloc_gfp = flags;
-@@ -1325,7 +1324,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- 		 * Allocation may have failed due to fragmentation.
- 		 * Try a lower order alloc if possible
- 		 */
--		page = alloc_slab_page(s, alloc_gfp, node, oo);
-+		page = alloc_slab_page(alloc_gfp, node, oo);
- 
- 		if (page)
- 			stat(s, ORDER_FALLBACK);
-@@ -1438,8 +1437,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
- 	page_mapcount_reset(page);
- 	if (current->reclaim_state)
- 		current->reclaim_state->reclaimed_slab += pages;
--	__free_pages(page, order);
--	memcg_uncharge_slab(s, order);
-+	__free_kmem_pages(page, order);
- }
- 
- #define need_reserve_slab_rcu						\
 -- 
 1.7.10.4
 
