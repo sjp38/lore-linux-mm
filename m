@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A64B6B00F4
-	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 15:46:44 -0500 (EST)
-Received: by mail-qg0-f54.google.com with SMTP id q108so9492664qgd.13
-        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 12:46:43 -0800 (PST)
-Received: from mail-qg0-x234.google.com (mail-qg0-x234.google.com. [2607:f8b0:400d:c04::234])
-        by mx.google.com with ESMTPS id n65si17047416qgd.8.2014.11.03.12.46.41
+Received: from mail-qc0-f176.google.com (mail-qc0-f176.google.com [209.85.216.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E1C36B00F5
+	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 15:46:49 -0500 (EST)
+Received: by mail-qc0-f176.google.com with SMTP id x3so9803636qcv.21
+        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 12:46:48 -0800 (PST)
+Received: from mail-qg0-x233.google.com (mail-qg0-x233.google.com. [2607:f8b0:400d:c04::233])
+        by mx.google.com with ESMTPS id l64si31384466qgf.18.2014.11.03.12.46.45
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 03 Nov 2014 12:46:42 -0800 (PST)
-Received: by mail-qg0-f52.google.com with SMTP id a108so9292900qge.39
-        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 12:46:41 -0800 (PST)
+        Mon, 03 Nov 2014 12:46:45 -0800 (PST)
+Received: by mail-qg0-f51.google.com with SMTP id j5so9218104qga.38
+        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 12:46:45 -0800 (PST)
 From: j.glisse@gmail.com
-Subject: [PATCH 2/5] mmu_notifier: keep track of active invalidation ranges
-Date: Mon,  3 Nov 2014 15:42:30 -0500
-Message-Id: <1415047353-29160-3-git-send-email-j.glisse@gmail.com>
+Subject: [PATCH 3/5] lib: lockless generic and arch independent page table (gpt) v2.
+Date: Mon,  3 Nov 2014 15:42:31 -0500
+Message-Id: <1415047353-29160-4-git-send-email-j.glisse@gmail.com>
 In-Reply-To: <1415047353-29160-1-git-send-email-j.glisse@gmail.com>
 References: <1415047353-29160-1-git-send-email-j.glisse@gmail.com>
 MIME-Version: 1.0
@@ -27,1349 +27,1304 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@l
 
 From: JA(C)rA'me Glisse <jglisse@redhat.com>
 
-The mmu_notifier_invalidate_range_start() and mmu_notifier_invalidate_range_end()
-can be considered as forming an "atomic" section for the cpu page table update
-point of view. Between this two function the cpu page table content is unreliable
-for the address range being invalidated.
+Page table is a common structure format most notably use by cpu mmu. The
+arch depend page table code has strong tie to the architecture which makes
+it unsuitable to be use by other non arch specific code.
 
-Current user such as kvm need to know when they can trust the content of the cpu
-page table. This becomes even more important to new users of the mmu_notifier
-api (such as HMM or ODP).
+This patch implement a generic and arch independent page table. It is generic
+in the sense that entry size can be u64 or unsigned long (or u32 too on 32bits
+arch).
 
-This patch use a structure define at all call site to invalidate_range_start()
-that is added to a list for the duration of the invalidation. It adds two new
-helpers to allow querying if a range is being invalidated or to wait for a range
-to become valid.
+It is lockless in the sense that at any point in time you can have concurrent
+thread updating the page table (removing or changing entry) and faulting in
+the page table (adding new entry). This is achieve by enforcing each updater
+and each faulter to take a range lock. There is no exclusion on range lock,
+ie several thread can fault or update the same range concurrently and it is
+the responsability of the user to synchronize update to the page table entry
+(pte), update to the page table directory (pdp) is under gpt responsability.
 
-For proper synchronization, user must block new range invalidation from inside
-there invalidate_range_start() callback, before calling the helper functions.
-Otherwise there is no garanty that a new range invalidation will not be added
-after the call to the helper function to query for existing range.
+API usage pattern is :
+  gpt_init()
+
+  gpt_lock_update(lock_range)
+  // User can update pte for instance by using atomic bit operation
+  // allowing complete lockless update.
+  gpt_unlock_update(lock_range)
+
+  gpt_lock_fault(lock_range)
+  // User can fault in pte but he is responsible for avoiding thread
+  // to concurrently fault the same pte and for properly accounting
+  // the number of pte faulted in the pdp structure.
+  gpt_unlock_fault(lock_range)
+  // The new faulted pte will only be visible to others updaters only
+  // once all concurrent faulter on the address unlock.
+
+Details on how the lockless concurrent updater and faulter works is provided
+in the header file.
+
+Changed since v1:
+  - Switch to macro implementation instead of using arithmetic to accomodate
+  the various size for table entry (uint64_t, unsigned long, ...).
+  This is somewhat less flexbile but right now there is no use for the extra
+  flexibility v1 was offering.
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
 ---
- drivers/gpu/drm/i915/i915_gem_userptr.c | 13 +++---
- drivers/iommu/amd_iommu_v2.c            |  8 +---
- drivers/misc/sgi-gru/grutlbpurge.c      | 15 +++----
- drivers/xen/gntdev.c                    | 15 ++++---
- fs/proc/task_mmu.c                      | 12 +++--
- include/linux/mmu_notifier.h            | 60 ++++++++++++++-----------
- kernel/events/uprobes.c                 | 13 +++---
- mm/huge_memory.c                        | 78 ++++++++++++++-------------------
- mm/hugetlb.c                            | 55 +++++++++++------------
- mm/ksm.c                                | 28 +++++-------
- mm/memory.c                             | 78 +++++++++++++++++++--------------
- mm/migrate.c                            | 36 +++++++--------
- mm/mmu_notifier.c                       | 76 +++++++++++++++++++++++++++-----
- mm/mprotect.c                           | 17 ++++---
- mm/mremap.c                             | 14 +++---
- mm/rmap.c                               | 15 +++----
- virt/kvm/kvm_main.c                     | 10 ++---
- 17 files changed, 298 insertions(+), 245 deletions(-)
+ include/linux/gpt.h | 340 +++++++++++++++++++++++++++
+ lib/Kconfig         |   3 +
+ lib/Makefile        |   2 +
+ lib/gpt.c           | 202 ++++++++++++++++
+ lib/gpt_generic.h   | 663 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 1210 insertions(+)
+ create mode 100644 include/linux/gpt.h
+ create mode 100644 lib/gpt.c
+ create mode 100644 lib/gpt_generic.h
 
-diff --git a/drivers/gpu/drm/i915/i915_gem_userptr.c b/drivers/gpu/drm/i915/i915_gem_userptr.c
-index 20dbd26..10b0044 100644
---- a/drivers/gpu/drm/i915/i915_gem_userptr.c
-+++ b/drivers/gpu/drm/i915/i915_gem_userptr.c
-@@ -128,26 +128,25 @@ restart:
- 
- static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
- 						       struct mm_struct *mm,
--						       unsigned long start,
--						       unsigned long end,
--						       enum mmu_event event)
-+						       const struct mmu_notifier_range *range)
- {
- 	struct i915_mmu_notifier *mn = container_of(_mn, struct i915_mmu_notifier, mn);
- 	struct interval_tree_node *it = NULL;
--	unsigned long next = start;
-+	unsigned long next = range->start;
- 	unsigned long serial = 0;
-+	/* interval ranges are inclusive, but invalidate range is exclusive */
-+	unsigned long end = range->end - 1;
- 
--	end--; /* interval ranges are inclusive, but invalidate range is exclusive */
- 	while (next < end) {
- 		struct drm_i915_gem_object *obj = NULL;
- 
- 		spin_lock(&mn->lock);
- 		if (mn->has_linear)
--			it = invalidate_range__linear(mn, mm, start, end);
-+			it = invalidate_range__linear(mn, mm, range->start, end);
- 		else if (serial == mn->serial)
- 			it = interval_tree_iter_next(it, next, end);
- 		else
--			it = interval_tree_iter_first(&mn->objects, start, end);
-+			it = interval_tree_iter_first(&mn->objects, range->start, end);
- 		if (it != NULL) {
- 			obj = container_of(it, struct i915_mmu_object, it)->obj;
- 			drm_gem_object_reference(&obj->base);
-diff --git a/drivers/iommu/amd_iommu_v2.c b/drivers/iommu/amd_iommu_v2.c
-index 57d2acf..9b7f32d 100644
---- a/drivers/iommu/amd_iommu_v2.c
-+++ b/drivers/iommu/amd_iommu_v2.c
-@@ -421,9 +421,7 @@ static void mn_invalidate_page(struct mmu_notifier *mn,
- 
- static void mn_invalidate_range_start(struct mmu_notifier *mn,
- 				      struct mm_struct *mm,
--				      unsigned long start,
--				      unsigned long end,
--				      enum mmu_event event)
-+				      const struct mmu_notifier_range *range)
- {
- 	struct pasid_state *pasid_state;
- 	struct device_state *dev_state;
-@@ -444,9 +442,7 @@ static void mn_invalidate_range_start(struct mmu_notifier *mn,
- 
- static void mn_invalidate_range_end(struct mmu_notifier *mn,
- 				    struct mm_struct *mm,
--				    unsigned long start,
--				    unsigned long end,
--				    enum mmu_event event)
-+				    const struct mmu_notifier_range *range)
- {
- 	struct pasid_state *pasid_state;
- 	struct device_state *dev_state;
-diff --git a/drivers/misc/sgi-gru/grutlbpurge.c b/drivers/misc/sgi-gru/grutlbpurge.c
-index e67fed1..44b41b7 100644
---- a/drivers/misc/sgi-gru/grutlbpurge.c
-+++ b/drivers/misc/sgi-gru/grutlbpurge.c
-@@ -221,8 +221,7 @@ void gru_flush_all_tlb(struct gru_state *gru)
-  */
- static void gru_invalidate_range_start(struct mmu_notifier *mn,
- 				       struct mm_struct *mm,
--				       unsigned long start, unsigned long end,
--				       enum mmu_event event)
-+				       const struct mmu_notifier_range *range)
- {
- 	struct gru_mm_struct *gms = container_of(mn, struct gru_mm_struct,
- 						 ms_notifier);
-@@ -230,14 +229,13 @@ static void gru_invalidate_range_start(struct mmu_notifier *mn,
- 	STAT(mmu_invalidate_range);
- 	atomic_inc(&gms->ms_range_active);
- 	gru_dbg(grudev, "gms %p, start 0x%lx, end 0x%lx, act %d\n", gms,
--		start, end, atomic_read(&gms->ms_range_active));
--	gru_flush_tlb_range(gms, start, end - start);
-+		range->start, range->end, atomic_read(&gms->ms_range_active));
-+	gru_flush_tlb_range(gms, range->start, range->end - range->start);
- }
- 
- static void gru_invalidate_range_end(struct mmu_notifier *mn,
--				     struct mm_struct *mm, unsigned long start,
--				     unsigned long end,
--				     enum mmu_event event)
-+				     struct mm_struct *mm,
-+				     const struct mmu_notifier_range *range)
- {
- 	struct gru_mm_struct *gms = container_of(mn, struct gru_mm_struct,
- 						 ms_notifier);
-@@ -246,7 +244,8 @@ static void gru_invalidate_range_end(struct mmu_notifier *mn,
- 	(void)atomic_dec_and_test(&gms->ms_range_active);
- 
- 	wake_up_all(&gms->ms_wait_queue);
--	gru_dbg(grudev, "gms %p, start 0x%lx, end 0x%lx\n", gms, start, end);
-+	gru_dbg(grudev, "gms %p, start 0x%lx, end 0x%lx\n", gms,
-+		range->start, range->end);
- }
- 
- static void gru_invalidate_page(struct mmu_notifier *mn, struct mm_struct *mm,
-diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
-index fe9da94..db5c2cad 100644
---- a/drivers/xen/gntdev.c
-+++ b/drivers/xen/gntdev.c
-@@ -428,19 +428,17 @@ static void unmap_if_in_range(struct grant_map *map,
- 
- static void mn_invl_range_start(struct mmu_notifier *mn,
- 				struct mm_struct *mm,
--				unsigned long start,
--				unsigned long end,
--				enum mmu_event event)
-+				const struct mmu_notifier_range *range)
- {
- 	struct gntdev_priv *priv = container_of(mn, struct gntdev_priv, mn);
- 	struct grant_map *map;
- 
- 	spin_lock(&priv->lock);
- 	list_for_each_entry(map, &priv->maps, next) {
--		unmap_if_in_range(map, start, end);
-+		unmap_if_in_range(map, range->start, range->end);
- 	}
- 	list_for_each_entry(map, &priv->freeable_maps, next) {
--		unmap_if_in_range(map, start, end);
-+		unmap_if_in_range(map, range->start, range->end);
- 	}
- 	spin_unlock(&priv->lock);
- }
-@@ -450,7 +448,12 @@ static void mn_invl_page(struct mmu_notifier *mn,
- 			 unsigned long address,
- 			 enum mmu_event event)
- {
--	mn_invl_range_start(mn, mm, address, address + PAGE_SIZE, event);
-+	struct mmu_notifier_range range;
+diff --git a/include/linux/gpt.h b/include/linux/gpt.h
+new file mode 100644
+index 0000000..3c28634
+--- /dev/null
++++ b/include/linux/gpt.h
+@@ -0,0 +1,340 @@
++/*
++ * Copyright 2014 Red Hat Inc.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * Authors: JA(C)rA'me Glisse <jglisse@redhat.com>
++ */
++/*
++ * High level overview
++ * -------------------
++ *
++ * This is a generic arch independant page table implementation with lockless
++ * (allmost lockless) access. The content of the page table ie the page table
++ * entry, are not protected by the gpt helper, it is up to the code using gpt
++ * to protect the page table entry from concurrent update with no restriction
++ * on the mechanism (can be atomic or can sleep).
++ *
++ * The gpt code only deals with protecting the page directory tree structure.
++ * Which is done in a lockless way. Concurrent threads can read and or write
++ * overlapping range of the gpt. There can also be concurrent insertion and
++ * removal of page directory (insertion or removal of page table level).
++ *
++ * While removal of page directory is completely lockless, insertion of new
++ * page directory still require a lock (to avoid double insertion). If the
++ * architecture have a spinlock in its page struct then several threads can
++ * concurrently insert new directory (level) as long as they are inserting into
++ * different page directory. Otherwise insertion will serialize using a common
++ * spinlock. Note that insertion in this context only refer to inserting page
++ * directory, it does not deal about page table entry insertion and again this
++ * is the responsability of gpt user to properly synchronize those.
++ *
++ *
++ * Each gpt access must be done under gpt lock protection by calling gpt_lock()
++ * with a lock structure. Once a range is "locked" with gpt_lock() all access
++ * can be done in lockless fashion, using either gpt_walk or gpt_iter helpers.
++ * Note however that only directory that are considered as established will be
++ * considered ie if a thread is concurently inserting a new directory in the
++ * locked range then this directory will be ignore by gpt_walk or gpt_iter.
++ *
++ * This restriction comes from the lockless design. Some thread can hold a gpt
++ * lock for long time but if it holds it for a period long enough some of the
++ * internal gpt counter (unsigned long) might wrap around breaking all further
++ * access (thought it is self healing after a period of time). So access
++ * pattern to gpt should be :
++ *   gpt_lock(gpt, lock)
++ *   gpt_walk(gpt, lock, walk)
++ *   gpt_unlock(gpt, lock)
++ *
++ * Walker callback can sleep but for now longer than it would take for other
++ * threads to wrap around internal gpt value through :
++ *   gpt_lock_fault(gpt, lock)
++ *   ... user faulting in new pte ...
++ *   gpt_unlock_fault(gpt, lock)
++ *
++ * The lockless design refer to gpt_lock() and gpt_unlock() taking a spinlock
++ * only for adding/removing the lock struct to active lock list ie no more than
++ * few instructions in both case leaving little room for lock contention.
++ *
++ * Moreover there is no memory allocation during gpt_lock() or gpt_unlock() or
++ * gpt_walk(). The only constraint is that the lock struct must be the same for
++ * gpt_lock(), gpt_unlock() and gpt_walk().
++ */
++#ifndef __LINUX_GPT_H
++#define __LINUX_GPT_H
 +
-+	range.start = address;
-+	range.end = address + PAGE_SIZE;
-+	range.event = event;
-+	mn_invl_range_start(mn, mm, &range);
- }
- 
- static void mn_release(struct mmu_notifier *mn,
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index c884143..19dc948 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -828,6 +828,12 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
- 			.mm = mm,
- 			.private = &cp,
- 		};
-+		struct mmu_notifier_range range = {
-+			.start = 0,
-+			.end = -1UL,
-+			.event = MMU_ISDIRTY,
-+		};
++#include <linux/mm.h>
++#include <asm/types.h>
 +
- 		down_read(&mm->mmap_sem);
- 		if (type == CLEAR_REFS_SOFT_DIRTY) {
- 			for (vma = mm->mmap; vma; vma = vma->vm_next) {
-@@ -842,8 +848,7 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
- 				downgrade_write(&mm->mmap_sem);
- 				break;
- 			}
--			mmu_notifier_invalidate_range_start(mm, 0,
--							    -1, MMU_ISDIRTY);
-+			mmu_notifier_invalidate_range_start(mm, &range);
- 		}
- 		for (vma = mm->mmap; vma; vma = vma->vm_next) {
- 			cp.vma = vma;
-@@ -868,8 +873,7 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
- 					&clear_refs_walk);
- 		}
- 		if (type == CLEAR_REFS_SOFT_DIRTY)
--			mmu_notifier_invalidate_range_end(mm, 0,
--							  -1, MMU_ISDIRTY);
-+			mmu_notifier_invalidate_range_end(mm, &range);
- 		flush_tlb_mm(mm);
- 		up_read(&mm->mmap_sem);
- 		mmput(mm);
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-index d36de82..8acb7c9 100644
---- a/include/linux/mmu_notifier.h
-+++ b/include/linux/mmu_notifier.h
-@@ -69,6 +69,13 @@ enum mmu_event {
- 	MMU_WRITE_PROTECT,
- };
- 
-+struct mmu_notifier_range {
-+	struct list_head list;
-+	unsigned long start;
-+	unsigned long end;
-+	enum mmu_event event;
++struct gpt_walk;
++struct gpt_iter;
++
++/* struct gpt - generic page table structure.
++ *
++ * @pde_from_pdp: Return page directory entry that correspond to a page
++ * directory page. This allow user to use there own custom page directory
++ * entry format for all page directory level.
++ * @pgd: Page global directory if multi level (tree page table).
++ * @faulters: List of all concurrent fault locks.
++ * @updaters: List of all concurrent update locks.
++ * @pdp_young: List of all young page directory page, analogy would be that
++ * directory page on the young list are like inside a rcu read section and
++ * might be dereference by other threads that do not hold a reference on it.
++ * Logic is that an active updater might have taken reference before this
++ * page directory was added and because once an updater have a lock on a
++ * range it can start to walk or iterate over the range without holding rcu
++ * read critical section (allowing walker or iterator to sleep). Directory
++ * are move off the young list only once all updaters that never considered
++ * it are done (ie have call gpt_ ## SUFFIX ## _unlock_update()).
++ * @pdp_free: List of all page directory page to free (delayed free).
++ * @last_idx: Last valid index for this page table. Page table size is derived
++ * from that value.
++ * @pd_shift: Page directory shift value (1 << pd_shift) is the number of entry
++ * that each page directory hold.
++ * @pde_mask: Mask bit corresponding to pfn value of lower page directory from
++ * a pde.
++ * @pde_shift: Shift value use to extract pfn value of lower page directory
++ * from a pde.
++ * @pde_valid: If pde & pde_valid is not 0 then it means this is a valid pde
++ * entry that have a valid pfn value for a lower page directory level.
++ * @pgd_shift: Shift value to get the index inside the pgd from an address.
++ * @min_serial: Oldest serial number use by the oldest updater.
++ * @updater_serial: Current serial number use for updater.
++ * @faulter_serial: Current serial number use for faulter.
++ * @lock: Lock protecting serial number and updaters/faulters list.
++ * @pgd_lock: Lock protecting pgd level (and all level if arch do not have room
++ * for spinlock inside its page struct).
++ */
++struct gpt {
++	uint64_t (*pde_from_pdp)(struct gpt *gpt, struct page *pdp);
++	void			*pgd;
++	struct list_head	faulters;
++	struct list_head	updaters;
++	struct list_head	pdp_young;
++	struct list_head	pdp_free;
++	uint64_t		last_idx;
++	uint64_t		pd_shift;
++	uint64_t		pde_mask;
++	uint64_t		pde_shift;
++	uint64_t		pde_valid;
++	uint64_t		pgd_shift;
++	unsigned long		min_serial;
++	unsigned long		faulter_serial;
++	unsigned long		updater_serial;
++	spinlock_t		lock;
++	spinlock_t		pgd_lock;
++	unsigned		gfp_flags;
 +};
 +
- #ifdef CONFIG_MMU_NOTIFIER
- 
- /*
-@@ -82,6 +89,12 @@ struct mmu_notifier_mm {
- 	struct hlist_head list;
- 	/* to serialize the list modifications and hlist_unhashed */
- 	spinlock_t lock;
-+	/* List of all active range invalidations. */
-+	struct list_head ranges;
-+	/* Number of active range invalidations. */
-+	int nranges;
-+	/* For threads waiting on range invalidations. */
-+	wait_queue_head_t wait_queue;
- };
- 
- struct mmu_notifier_ops {
-@@ -202,14 +215,10 @@ struct mmu_notifier_ops {
- 	 */
- 	void (*invalidate_range_start)(struct mmu_notifier *mn,
- 				       struct mm_struct *mm,
--				       unsigned long start,
--				       unsigned long end,
--				       enum mmu_event event);
-+				       const struct mmu_notifier_range *range);
- 	void (*invalidate_range_end)(struct mmu_notifier *mn,
- 				     struct mm_struct *mm,
--				     unsigned long start,
--				     unsigned long end,
--				     enum mmu_event event);
-+				     const struct mmu_notifier_range *range);
- 
- 	/*
- 	 * invalidate_range() is either called between
-@@ -279,15 +288,17 @@ extern void __mmu_notifier_invalidate_page(struct mm_struct *mm,
- 					  unsigned long address,
- 					  enum mmu_event event);
- extern void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
--						  unsigned long start,
--						  unsigned long end,
--						  enum mmu_event event);
-+						  struct mmu_notifier_range *range);
- extern void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
--						unsigned long start,
--						unsigned long end,
--						enum mmu_event event);
-+						struct mmu_notifier_range *range);
- extern void __mmu_notifier_invalidate_range(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end);
-+extern bool mmu_notifier_range_is_valid(struct mm_struct *mm,
-+					unsigned long start,
-+					unsigned long end);
-+extern void mmu_notifier_range_wait_valid(struct mm_struct *mm,
-+					  unsigned long start,
-+					  unsigned long end);
- 
- static inline void mmu_notifier_release(struct mm_struct *mm)
- {
-@@ -330,21 +341,22 @@ static inline void mmu_notifier_invalidate_page(struct mm_struct *mm,
- }
- 
- static inline void mmu_notifier_invalidate_range_start(struct mm_struct *mm,
--						       unsigned long start,
--						       unsigned long end,
--						       enum mmu_event event)
-+						       struct mmu_notifier_range *range)
- {
-+	/*
-+	 * Initialize list no matter what in case a mmu_notifier register after
-+	 * a range_start but before matching range_end.
-+	 */
-+	INIT_LIST_HEAD(&range->list);
- 	if (mm_has_notifiers(mm))
--		__mmu_notifier_invalidate_range_start(mm, start, end, event);
-+		__mmu_notifier_invalidate_range_start(mm, range);
- }
- 
- static inline void mmu_notifier_invalidate_range_end(struct mm_struct *mm,
--						     unsigned long start,
--						     unsigned long end,
--						     enum mmu_event event)
-+						     struct mmu_notifier_range *range)
- {
- 	if (mm_has_notifiers(mm))
--		__mmu_notifier_invalidate_range_end(mm, start, end, event);
-+		__mmu_notifier_invalidate_range_end(mm, range);
- }
- 
- static inline void mmu_notifier_invalidate_range(struct mm_struct *mm,
-@@ -486,16 +498,12 @@ static inline void mmu_notifier_invalidate_page(struct mm_struct *mm,
- }
- 
- static inline void mmu_notifier_invalidate_range_start(struct mm_struct *mm,
--						       unsigned long start,
--						       unsigned long end,
--						       enum mmu_event event)
-+						       struct mmu_notifier_range *range)
- {
- }
- 
- static inline void mmu_notifier_invalidate_range_end(struct mm_struct *mm,
--						     unsigned long start,
--						     unsigned long end,
--						     enum mmu_event event)
-+						     struct mmu_notifier_range *range)
- {
- }
- 
-diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-index eacdf1b..5470f61 100644
---- a/kernel/events/uprobes.c
-+++ b/kernel/events/uprobes.c
-@@ -164,9 +164,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
- 	spinlock_t *ptl;
- 	pte_t *ptep;
- 	int err;
--	/* For mmu_notifiers */
--	const unsigned long mmun_start = addr;
--	const unsigned long mmun_end   = addr + PAGE_SIZE;
-+	struct mmu_notifier_range range;
- 	struct mem_cgroup *memcg;
- 
- 	err = mem_cgroup_try_charge(kpage, vma->vm_mm, GFP_KERNEL, &memcg);
-@@ -176,8 +174,10 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
- 	/* For try_to_free_swap() and munlock_vma_page() below */
- 	lock_page(page);
- 
--	mmu_notifier_invalidate_range_start(mm, mmun_start,
--					    mmun_end, MMU_MIGRATE);
-+	range.start = addr;
-+	range.end = addr + PAGE_SIZE;
-+	range.event = MMU_MIGRATE;
-+	mmu_notifier_invalidate_range_start(mm, &range);
- 	err = -EAGAIN;
- 	ptep = page_check_address(page, mm, addr, &ptl, 0);
- 	if (!ptep)
-@@ -211,8 +211,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
- 	err = 0;
-  unlock:
- 	mem_cgroup_cancel_charge(kpage, memcg);
--	mmu_notifier_invalidate_range_end(mm, mmun_start,
--					  mmun_end, MMU_MIGRATE);
-+	mmu_notifier_invalidate_range_end(mm, &range);
- 	unlock_page(page);
- 	return err;
- }
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index f61b4ac..e1ea4f5 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -992,8 +992,7 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
- 	pmd_t _pmd;
- 	int ret = 0, i;
- 	struct page **pages;
--	unsigned long mmun_start;	/* For mmu_notifiers */
--	unsigned long mmun_end;		/* For mmu_notifiers */
-+	struct mmu_notifier_range range;
- 
- 	pages = kmalloc(sizeof(struct page *) * HPAGE_PMD_NR,
- 			GFP_KERNEL);
-@@ -1031,10 +1030,10 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
- 		cond_resched();
- 	}
- 
--	mmun_start = haddr;
--	mmun_end   = haddr + HPAGE_PMD_SIZE;
--	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end,
--					    MMU_MIGRATE);
-+	range.start = haddr;
-+	range.end = haddr + HPAGE_PMD_SIZE;
-+	range.event = MMU_MIGRATE;
-+	mmu_notifier_invalidate_range_start(mm, &range);
- 
- 	ptl = pmd_lock(mm, pmd);
- 	if (unlikely(!pmd_same(*pmd, orig_pmd)))
-@@ -1068,8 +1067,7 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
- 	page_remove_rmap(page);
- 	spin_unlock(ptl);
- 
--	mmu_notifier_invalidate_range_end(mm, mmun_start,
--					  mmun_end, MMU_MIGRATE);
-+	mmu_notifier_invalidate_range_end(mm, &range);
- 
- 	ret |= VM_FAULT_WRITE;
- 	put_page(page);
-@@ -1079,8 +1077,7 @@ out:
- 
- out_free_pages:
- 	spin_unlock(ptl);
--	mmu_notifier_invalidate_range_end(mm, mmun_start,
--					  mmun_end, MMU_MIGRATE);
-+	mmu_notifier_invalidate_range_end(mm, &range);
- 	for (i = 0; i < HPAGE_PMD_NR; i++) {
- 		memcg = (void *)page_private(pages[i]);
- 		set_page_private(pages[i], 0);
-@@ -1099,8 +1096,7 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	struct page *page = NULL, *new_page;
- 	struct mem_cgroup *memcg;
- 	unsigned long haddr;
--	unsigned long mmun_start;	/* For mmu_notifiers */
--	unsigned long mmun_end;		/* For mmu_notifiers */
-+	struct mmu_notifier_range range;
- 
- 	ptl = pmd_lockptr(mm, pmd);
- 	VM_BUG_ON_VMA(!vma->anon_vma, vma);
-@@ -1170,10 +1166,10 @@ alloc:
- 		copy_user_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
- 	__SetPageUptodate(new_page);
- 
--	mmun_start = haddr;
--	mmun_end   = haddr + HPAGE_PMD_SIZE;
--	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end,
--					    MMU_MIGRATE);
-+	range.start = haddr;
-+	range.end = haddr + HPAGE_PMD_SIZE;
-+	range.event = MMU_MIGRATE;
-+	mmu_notifier_invalidate_range_start(mm, &range);
- 
- 	spin_lock(ptl);
- 	if (page)
-@@ -1205,8 +1201,7 @@ alloc:
- 	}
- 	spin_unlock(ptl);
- out_mn:
--	mmu_notifier_invalidate_range_end(mm, mmun_start,
--					  mmun_end, MMU_MIGRATE);
-+	mmu_notifier_invalidate_range_end(mm, &range);
- out:
- 	return ret;
- out_unlock:
-@@ -1638,12 +1633,12 @@ static int __split_huge_page_splitting(struct page *page,
- 	spinlock_t *ptl;
- 	pmd_t *pmd;
- 	int ret = 0;
--	/* For mmu_notifiers */
--	const unsigned long mmun_start = address;
--	const unsigned long mmun_end   = address + HPAGE_PMD_SIZE;
-+	struct mmu_notifier_range range;
- 
--	mmu_notifier_invalidate_range_start(mm, mmun_start,
--					    mmun_end, MMU_HSPLIT);
-+	range.start = address;
-+	range.end = address + HPAGE_PMD_SIZE;
-+	range.event = MMU_HSPLIT;
-+	mmu_notifier_invalidate_range_start(mm, &range);
- 	pmd = page_check_address_pmd(page, mm, address,
- 			PAGE_CHECK_ADDRESS_PMD_NOTSPLITTING_FLAG, &ptl);
- 	if (pmd) {
-@@ -1659,8 +1654,7 @@ static int __split_huge_page_splitting(struct page *page,
- 		ret = 1;
- 		spin_unlock(ptl);
- 	}
--	mmu_notifier_invalidate_range_end(mm, mmun_start,
--					  mmun_end, MMU_HSPLIT);
-+	mmu_notifier_invalidate_range_end(mm, &range);
- 
- 	return ret;
- }
-@@ -2438,8 +2432,7 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	int isolated;
- 	unsigned long hstart, hend;
- 	struct mem_cgroup *memcg;
--	unsigned long mmun_start;	/* For mmu_notifiers */
--	unsigned long mmun_end;		/* For mmu_notifiers */
-+	struct mmu_notifier_range range;
- 
- 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
- 
-@@ -2479,10 +2472,10 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	pte = pte_offset_map(pmd, address);
- 	pte_ptl = pte_lockptr(mm, pmd);
- 
--	mmun_start = address;
--	mmun_end   = address + HPAGE_PMD_SIZE;
--	mmu_notifier_invalidate_range_start(mm, mmun_start,
--					    mmun_end, MMU_MIGRATE);
-+	range.start = address;
-+	range.end = address + HPAGE_PMD_SIZE;
-+	range.event = MMU_MIGRATE;
-+	mmu_notifier_invalidate_range_start(mm, &range);
- 	pmd_ptl = pmd_lock(mm, pmd); /* probably unnecessary */
- 	/*
- 	 * After this gup_fast can't run anymore. This also removes
-@@ -2492,8 +2485,7 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	 */
- 	_pmd = pmdp_clear_flush(vma, address, pmd);
- 	spin_unlock(pmd_ptl);
--	mmu_notifier_invalidate_range_end(mm, mmun_start,
--					  mmun_end, MMU_MIGRATE);
-+	mmu_notifier_invalidate_range_end(mm, &range);
- 
- 	spin_lock(pte_ptl);
- 	isolated = __collapse_huge_page_isolate(vma, address, pte);
-@@ -2876,36 +2868,32 @@ void __split_huge_page_pmd(struct vm_area_struct *vma, unsigned long address,
- 	struct page *page;
- 	struct mm_struct *mm = vma->vm_mm;
- 	unsigned long haddr = address & HPAGE_PMD_MASK;
--	unsigned long mmun_start;	/* For mmu_notifiers */
--	unsigned long mmun_end;		/* For mmu_notifiers */
-+	struct mmu_notifier_range range;
- 
- 	BUG_ON(vma->vm_start > haddr || vma->vm_end < haddr + HPAGE_PMD_SIZE);
- 
--	mmun_start = haddr;
--	mmun_end   = haddr + HPAGE_PMD_SIZE;
-+	range.start = haddr;
-+	range.end = haddr + HPAGE_PMD_SIZE;
-+	range.event = MMU_MIGRATE;
- again:
--	mmu_notifier_invalidate_range_start(mm, mmun_start,
--					    mmun_end, MMU_MIGRATE);
-+	mmu_notifier_invalidate_range_start(mm, &range);
- 	ptl = pmd_lock(mm, pmd);
- 	if (unlikely(!pmd_trans_huge(*pmd))) {
- 		spin_unlock(ptl);
--		mmu_notifier_invalidate_range_end(mm, mmun_start,
--						  mmun_end, MMU_MIGRATE);
-+		mmu_notifier_invalidate_range_end(mm, &range);
- 		return;
- 	}
- 	if (is_huge_zero_pmd(*pmd)) {
- 		__split_huge_zero_page_pmd(vma, haddr, pmd);
- 		spin_unlock(ptl);
--		mmu_notifier_invalidate_range_end(mm, mmun_start,
--						  mmun_end, MMU_MIGRATE);
-+		mmu_notifier_invalidate_range_end(mm, &range);
- 		return;
- 	}
- 	page = pmd_page(*pmd);
- 	VM_BUG_ON_PAGE(!page_count(page), page);
- 	get_page(page);
- 	spin_unlock(ptl);
--	mmu_notifier_invalidate_range_end(mm, mmun_start,
--					  mmun_end, MMU_MIGRATE);
-+	mmu_notifier_invalidate_range_end(mm, &range);
- 
- 	split_huge_page(page);
- 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index a9418d6..57c7425 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -2551,17 +2551,16 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
- 	int cow;
- 	struct hstate *h = hstate_vma(vma);
- 	unsigned long sz = huge_page_size(h);
--	unsigned long mmun_start;	/* For mmu_notifiers */
--	unsigned long mmun_end;		/* For mmu_notifiers */
-+	struct mmu_notifier_range range;
- 	int ret = 0;
- 
- 	cow = (vma->vm_flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
- 
--	mmun_start = vma->vm_start;
--	mmun_end = vma->vm_end;
-+	range.start = vma->vm_start;
-+	range.end = vma->vm_end;
-+	range.event = MMU_MIGRATE;
- 	if (cow)
--		mmu_notifier_invalidate_range_start(src, mmun_start,
--						    mmun_end, MMU_MIGRATE);
-+		mmu_notifier_invalidate_range_start(src, &range);
- 
- 	for (addr = vma->vm_start; addr < vma->vm_end; addr += sz) {
- 		spinlock_t *src_ptl, *dst_ptl;
-@@ -2601,8 +2600,8 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
- 		} else {
- 			if (cow) {
- 				huge_ptep_set_wrprotect(src, addr, src_pte);
--				mmu_notifier_invalidate_range(src, mmun_start,
--								   mmun_end);
-+				mmu_notifier_invalidate_range(src, range.start,
-+								   range.end);
- 			}
- 			entry = huge_ptep_get(src_pte);
- 			ptepage = pte_page(entry);
-@@ -2615,8 +2614,7 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
- 	}
- 
- 	if (cow)
--		mmu_notifier_invalidate_range_end(src, mmun_start,
--						  mmun_end, MMU_MIGRATE);
-+		mmu_notifier_invalidate_range_end(src, &range);
- 
- 	return ret;
- }
-@@ -2634,16 +2632,17 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 	struct page *page;
- 	struct hstate *h = hstate_vma(vma);
- 	unsigned long sz = huge_page_size(h);
--	const unsigned long mmun_start = start;	/* For mmu_notifiers */
--	const unsigned long mmun_end   = end;	/* For mmu_notifiers */
-+	struct mmu_notifier_range range;
- 
- 	WARN_ON(!is_vm_hugetlb_page(vma));
- 	BUG_ON(start & ~huge_page_mask(h));
- 	BUG_ON(end & ~huge_page_mask(h));
- 
-+	range.start = start;
-+	range.end = end;
-+	range.event = MMU_MIGRATE;
- 	tlb_start_vma(tlb, vma);
--	mmu_notifier_invalidate_range_start(mm, mmun_start,
--					    mmun_end, MMU_MIGRATE);
-+	mmu_notifier_invalidate_range_start(mm, &range);
- again:
- 	for (address = start; address < end; address += sz) {
- 		ptep = huge_pte_offset(mm, address);
-@@ -2714,8 +2713,7 @@ unlock:
- 		if (address < end && !ref_page)
- 			goto again;
- 	}
--	mmu_notifier_invalidate_range_end(mm, mmun_start,
--					  mmun_end, MMU_MIGRATE);
-+	mmu_notifier_invalidate_range_end(mm, &range);
- 	tlb_end_vma(tlb, vma);
- }
- 
-@@ -2812,8 +2810,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
- 	struct hstate *h = hstate_vma(vma);
- 	struct page *old_page, *new_page;
- 	int ret = 0, outside_reserve = 0;
--	unsigned long mmun_start;	/* For mmu_notifiers */
--	unsigned long mmun_end;		/* For mmu_notifiers */
-+	struct mmu_notifier_range range;
- 
- 	old_page = pte_page(pte);
- 
-@@ -2891,10 +2888,11 @@ retry_avoidcopy:
- 			    pages_per_huge_page(h));
- 	__SetPageUptodate(new_page);
- 
--	mmun_start = address & huge_page_mask(h);
--	mmun_end = mmun_start + huge_page_size(h);
--	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end,
--					    MMU_MIGRATE);
-+	range.start = address & huge_page_mask(h);
-+	range.end = range.start + huge_page_size(h);
-+	range.event = MMU_MIGRATE;
-+	mmu_notifier_invalidate_range_start(mm, &range);
++/* struct gpt_lock - generic page table range lock structure.
++ *
++ * @list: List struct for active lock holder lists.
++ * @first: Start address of the locked range (inclusive).
++ * @last: End address of the locked range (inclusive).
++ * @serial: Serial number associated with that lock.
++ *
++ * Before any read/update access to a range of the generic page table, it must
++ * be locked to synchronize with conurrent read/update and insertion. In most
++ * case gpt_lock will complete with only taking one spinlock for protecting the
++ * struct insertion in the active lock holder list (either updaters or faulters
++ * list depending if calling gpt_lock() or gpt_fault_lock()).
++ */
++struct gpt_lock {
++	struct list_head	list;
++	uint64_t		first;
++	uint64_t		last;
++	unsigned long		serial;
++	bool			faulter;
++};
 +
- 	/*
- 	 * Retake the page table lock to check for racing updates
- 	 * before the page tables are altered
-@@ -2906,7 +2904,7 @@ retry_avoidcopy:
- 
- 		/* Break COW */
- 		huge_ptep_clear_flush(vma, address, ptep);
--		mmu_notifier_invalidate_range(mm, mmun_start, mmun_end);
-+		mmu_notifier_invalidate_range(mm, range.start, range.end);
- 		set_huge_pte_at(mm, address, ptep,
- 				make_huge_pte(vma, new_page, 1));
- 		page_remove_rmap(old_page);
-@@ -2915,8 +2913,7 @@ retry_avoidcopy:
- 		new_page = old_page;
- 	}
- 	spin_unlock(ptl);
--	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end,
--					  MMU_MIGRATE);
-+	mmu_notifier_invalidate_range_end(mm, &range);
- out_release_all:
- 	page_cache_release(new_page);
- out_release_old:
-@@ -3350,11 +3347,15 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
- 	pte_t pte;
- 	struct hstate *h = hstate_vma(vma);
- 	unsigned long pages = 0;
-+	struct mmu_notifier_range range;
- 
- 	BUG_ON(address >= end);
- 	flush_cache_range(vma, address, end);
- 
--	mmu_notifier_invalidate_range_start(mm, start, end, MMU_MPROT);
-+	range.start = start;
-+	range.end = end;
-+	range.event = MMU_MPROT;
-+	mmu_notifier_invalidate_range_start(mm, &range);
- 	mutex_lock(&vma->vm_file->f_mapping->i_mmap_mutex);
- 	for (; address < end; address += huge_page_size(h)) {
- 		spinlock_t *ptl;
-@@ -3385,7 +3386,7 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
- 	flush_tlb_range(vma, start, end);
- 	mmu_notifier_invalidate_range(mm, start, end);
- 	mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
--	mmu_notifier_invalidate_range_end(mm, start, end, MMU_MPROT);
-+	mmu_notifier_invalidate_range_end(mm, &range);
- 
- 	return pages << h->order;
- }
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 8c3a892..3667d98 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -855,14 +855,13 @@ static inline int pages_identical(struct page *page1, struct page *page2)
- static int write_protect_page(struct vm_area_struct *vma, struct page *page,
- 			      pte_t *orig_pte)
- {
-+	struct mmu_notifier_range range;
- 	struct mm_struct *mm = vma->vm_mm;
- 	unsigned long addr;
- 	pte_t *ptep;
- 	spinlock_t *ptl;
- 	int swapped;
- 	int err = -EFAULT;
--	unsigned long mmun_start;	/* For mmu_notifiers */
--	unsigned long mmun_end;		/* For mmu_notifiers */
- 
- 	addr = page_address_in_vma(page, vma);
- 	if (addr == -EFAULT)
-@@ -870,10 +869,10 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
- 
- 	BUG_ON(PageTransCompound(page));
- 
--	mmun_start = addr;
--	mmun_end   = addr + PAGE_SIZE;
--	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end,
--					    MMU_WRITE_PROTECT);
-+	range.start = addr;
-+	range.end = addr + PAGE_SIZE;
-+	range.event = MMU_WRITE_PROTECT;
-+	mmu_notifier_invalidate_range_start(mm, &range);
- 
- 	ptep = page_check_address(page, mm, addr, &ptl, 0);
- 	if (!ptep)
-@@ -913,8 +912,7 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
- out_unlock:
- 	pte_unmap_unlock(ptep, ptl);
- out_mn:
--	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end,
--					  MMU_WRITE_PROTECT);
-+	mmu_notifier_invalidate_range_end(mm, &range);
- out:
- 	return err;
- }
-@@ -937,8 +935,7 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
- 	spinlock_t *ptl;
- 	unsigned long addr;
- 	int err = -EFAULT;
--	unsigned long mmun_start;	/* For mmu_notifiers */
--	unsigned long mmun_end;		/* For mmu_notifiers */
-+	struct mmu_notifier_range range;
- 
- 	addr = page_address_in_vma(page, vma);
- 	if (addr == -EFAULT)
-@@ -948,10 +945,10 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
- 	if (!pmd)
- 		goto out;
- 
--	mmun_start = addr;
--	mmun_end   = addr + PAGE_SIZE;
--	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end,
--					    MMU_MIGRATE);
-+	range.start = addr;
-+	range.end = addr + PAGE_SIZE;
-+	range.event = MMU_MIGRATE;
-+	mmu_notifier_invalidate_range_start(mm, &range);
- 
- 	ptep = pte_offset_map_lock(mm, pmd, addr, &ptl);
- 	if (!pte_same(*ptep, orig_pte)) {
-@@ -976,8 +973,7 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
- 	pte_unmap_unlock(ptep, ptl);
- 	err = 0;
- out_mn:
--	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end,
--					  MMU_MIGRATE);
-+	mmu_notifier_invalidate_range_end(mm, &range);
- out:
- 	return err;
- }
-diff --git a/mm/memory.c b/mm/memory.c
-index 64c3cde..cdafc2a 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1015,8 +1015,7 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 	unsigned long next;
- 	unsigned long addr = vma->vm_start;
- 	unsigned long end = vma->vm_end;
--	unsigned long mmun_start;	/* For mmu_notifiers */
--	unsigned long mmun_end;		/* For mmu_notifiers */
-+	struct mmu_notifier_range range;
- 	bool is_cow;
- 	int ret;
- 
-@@ -1052,11 +1051,11 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 	 * is_cow_mapping() returns true.
- 	 */
- 	is_cow = is_cow_mapping(vma->vm_flags);
--	mmun_start = addr;
--	mmun_end   = end;
-+	range.start = addr;
-+	range.end = end;
-+	range.event = MMU_MIGRATE;
- 	if (is_cow)
--		mmu_notifier_invalidate_range_start(src_mm, mmun_start,
--						    mmun_end, MMU_MIGRATE);
-+		mmu_notifier_invalidate_range_start(src_mm, &range);
- 
- 	ret = 0;
- 	dst_pgd = pgd_offset(dst_mm, addr);
-@@ -1073,8 +1072,7 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 	} while (dst_pgd++, src_pgd++, addr = next, addr != end);
- 
- 	if (is_cow)
--		mmu_notifier_invalidate_range_end(src_mm, mmun_start, mmun_end,
--						  MMU_MIGRATE);
-+		mmu_notifier_invalidate_range_end(src_mm, &range);
- 	return ret;
- }
- 
-@@ -1378,13 +1376,16 @@ void unmap_vmas(struct mmu_gather *tlb,
- 		unsigned long end_addr)
- {
- 	struct mm_struct *mm = vma->vm_mm;
-+	struct mmu_notifier_range range = {
-+		.start = start_addr,
-+		.end = end_addr,
-+		.event = MMU_MUNMAP,
-+	};
- 
--	mmu_notifier_invalidate_range_start(mm, start_addr,
--					    end_addr, MMU_MUNMAP);
-+	mmu_notifier_invalidate_range_start(mm, &range);
- 	for ( ; vma && vma->vm_start < end_addr; vma = vma->vm_next)
- 		unmap_single_vma(tlb, vma, start_addr, end_addr, NULL);
--	mmu_notifier_invalidate_range_end(mm, start_addr,
--					  end_addr, MMU_MUNMAP);
-+	mmu_notifier_invalidate_range_end(mm, &range);
- }
- 
- /**
-@@ -1401,16 +1402,20 @@ void zap_page_range(struct vm_area_struct *vma, unsigned long start,
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	struct mmu_gather tlb;
--	unsigned long end = start + size;
-+	struct mmu_notifier_range range = {
-+		.start = start,
-+		.end = start + size,
-+		.event = MMU_MUNMAP,
-+	};
- 
- 	lru_add_drain();
--	tlb_gather_mmu(&tlb, mm, start, end);
-+	tlb_gather_mmu(&tlb, mm, start, range.end);
- 	update_hiwater_rss(mm);
--	mmu_notifier_invalidate_range_start(mm, start, end, MMU_MUNMAP);
--	for ( ; vma && vma->vm_start < end; vma = vma->vm_next)
--		unmap_single_vma(&tlb, vma, start, end, details);
--	mmu_notifier_invalidate_range_end(mm, start, end, MMU_MUNMAP);
--	tlb_finish_mmu(&tlb, start, end);
-+	mmu_notifier_invalidate_range_start(mm, &range);
-+	for ( ; vma && vma->vm_start < range.end; vma = vma->vm_next)
-+		unmap_single_vma(&tlb, vma, start, range.end, details);
-+	mmu_notifier_invalidate_range_end(mm, &range);
-+	tlb_finish_mmu(&tlb, start, range.end);
- }
- 
- /**
-@@ -1427,15 +1432,19 @@ static void zap_page_range_single(struct vm_area_struct *vma, unsigned long addr
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	struct mmu_gather tlb;
--	unsigned long end = address + size;
-+	struct mmu_notifier_range range = {
-+		.start = address,
-+		.end = address + size,
-+		.event = MMU_MUNMAP,
-+	};
- 
- 	lru_add_drain();
--	tlb_gather_mmu(&tlb, mm, address, end);
-+	tlb_gather_mmu(&tlb, mm, address, range.end);
- 	update_hiwater_rss(mm);
--	mmu_notifier_invalidate_range_start(mm, address, end, MMU_MUNMAP);
--	unmap_single_vma(&tlb, vma, address, end, details);
--	mmu_notifier_invalidate_range_end(mm, address, end, MMU_MUNMAP);
--	tlb_finish_mmu(&tlb, address, end);
-+	mmu_notifier_invalidate_range_start(mm, &range);
-+	unmap_single_vma(&tlb, vma, address, range.end, details);
-+	mmu_notifier_invalidate_range_end(mm, &range);
-+	tlb_finish_mmu(&tlb, address, range.end);
- }
- 
- /**
-@@ -2055,10 +2064,12 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	int ret = 0;
- 	int page_mkwrite = 0;
- 	struct page *dirty_page = NULL;
--	unsigned long mmun_start = 0;	/* For mmu_notifiers */
--	unsigned long mmun_end = 0;	/* For mmu_notifiers */
-+	struct mmu_notifier_range range;
- 	struct mem_cgroup *memcg;
- 
-+	range.start = 0;
-+	range.end = 0;
++/* struct gpt_walk - generic page table range walker structure.
++ *
++ * @lock: The lock protecting this iterator.
++ * @first: First index of the walked range (inclusive).
++ * @last: Last index of the walked range (inclusive).
++ *
++ * This is similar to the cpu page table walker. It allows to walk a range of
++ * the generic page table. Note that gpt walk does not imply protection hence
++ * you must call gpt_lock() prior to using gpt_walk() if you want to safely
++ * walk the range as otherwise you will be open to all kind of synchronization
++ * issue.
++ */
++struct gpt_walk {
++	int (*pte)(struct gpt *gpt,
++		   struct gpt_walk *walk,
++		   struct page *pdp,
++		   void *ptep,
++		   uint64_t first,
++		   uint64_t last);
++	int (*pde)(struct gpt *gpt,
++		   struct gpt_walk *walk,
++		   struct page *pdp,
++		   void *pdep,
++		   uint64_t first,
++		   uint64_t last,
++		   uint64_t shift);
++	int (*pde_post)(struct gpt *gpt,
++			struct gpt_walk *walk,
++			struct page *pdp,
++			void *pdep,
++			uint64_t first,
++			uint64_t last,
++			uint64_t shift);
++	struct gpt_lock	*lock;
++	uint64_t	first;
++	uint64_t	last;
++	void		*data;
++};
 +
- 	old_page = vm_normal_page(vma, address, orig_pte);
- 	if (!old_page) {
- 		/*
-@@ -2217,10 +2228,10 @@ gotten:
- 	if (mem_cgroup_try_charge(new_page, mm, GFP_KERNEL, &memcg))
- 		goto oom_free_new;
- 
--	mmun_start  = address & PAGE_MASK;
--	mmun_end    = mmun_start + PAGE_SIZE;
--	mmu_notifier_invalidate_range_start(mm, mmun_start,
--					    mmun_end, MMU_MIGRATE);
-+	range.start = address & PAGE_MASK;
-+	range.end = range.start + PAGE_SIZE;
-+	range.event = MMU_MIGRATE;
-+	mmu_notifier_invalidate_range_start(mm, &range);
- 
- 	/*
- 	 * Re-check the pte - we dropped the lock
-@@ -2290,9 +2301,8 @@ gotten:
- 		page_cache_release(new_page);
- unlock:
- 	pte_unmap_unlock(page_table, ptl);
--	if (mmun_end > mmun_start)
--		mmu_notifier_invalidate_range_end(mm, mmun_start,
--						  mmun_end, MMU_MIGRATE);
-+	if (range.end > range.start)
-+		mmu_notifier_invalidate_range_end(mm, &range);
- 	if (old_page) {
- 		/*
- 		 * Don't let another task, with possibly unlocked vma,
-diff --git a/mm/migrate.c b/mm/migrate.c
-index b5279b8..1b5b9ab 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1776,10 +1776,13 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 	int isolated = 0;
- 	struct page *new_page = NULL;
- 	int page_lru = page_is_file_cache(page);
--	unsigned long mmun_start = address & HPAGE_PMD_MASK;
--	unsigned long mmun_end = mmun_start + HPAGE_PMD_SIZE;
-+	struct mmu_notifier_range range;
- 	pmd_t orig_entry;
- 
-+	range.start = address & HPAGE_PMD_MASK;
-+	range.end = range.start + HPAGE_PMD_SIZE;
-+	range.event = MMU_MIGRATE;
++/* struct gpt_iter - generic page table range iterator structure.
++ *
++ * @gpt: The generic page table structure.
++ * @lock: The lock protecting this iterator.
++ * @pdp: Current page directory page.
++ * @pdep: Pointer to page directory entry for corresponding pdp.
++ * @idx: Current index
++ */
++struct gpt_iter {
++	struct gpt	*gpt;
++	struct gpt_lock	*lock;
++	struct page	*pdp;
++	void		*pdep;
++	uint64_t	idx;
++};
 +
- 	/*
- 	 * Rate-limit the amount of data that is being migrated to a node.
- 	 * Optimal placement is no good if the memory bus is saturated and
-@@ -1801,7 +1804,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 	}
- 
- 	if (mm_tlb_flush_pending(mm))
--		flush_tlb_range(vma, mmun_start, mmun_end);
-+		flush_tlb_range(vma, range.start, range.end);
- 
- 	/* Prepare a page as a migration target */
- 	__set_page_locked(new_page);
-@@ -1814,14 +1817,12 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 	WARN_ON(PageLRU(new_page));
- 
- 	/* Recheck the target PMD */
--	mmu_notifier_invalidate_range_start(mm, mmun_start,
--					    mmun_end, MMU_MIGRATE);
-+	mmu_notifier_invalidate_range_start(mm, &range);
- 	ptl = pmd_lock(mm, pmd);
- 	if (unlikely(!pmd_same(*pmd, entry) || page_count(page) != 2)) {
- fail_putback:
- 		spin_unlock(ptl);
--		mmu_notifier_invalidate_range_end(mm, mmun_start,
--						  mmun_end, MMU_MIGRATE);
-+		mmu_notifier_invalidate_range_end(mm, &range);
- 
- 		/* Reverse changes made by migrate_page_copy() */
- 		if (TestClearPageActive(new_page))
-@@ -1854,17 +1855,17 @@ fail_putback:
- 	 * The SetPageUptodate on the new page and page_add_new_anon_rmap
- 	 * guarantee the copy is visible before the pagetable update.
- 	 */
--	flush_cache_range(vma, mmun_start, mmun_end);
--	page_add_anon_rmap(new_page, vma, mmun_start);
--	pmdp_clear_flush_notify(vma, mmun_start, pmd);
--	set_pmd_at(mm, mmun_start, pmd, entry);
--	flush_tlb_range(vma, mmun_start, mmun_end);
-+	flush_cache_range(vma, range.start, range.end);
-+	page_add_anon_rmap(new_page, vma, range.start);
-+	pmdp_clear_flush_notify(vma, range.start, pmd);
-+	set_pmd_at(mm, range.start, pmd, entry);
-+	flush_tlb_range(vma, range.start, range.end);
- 	update_mmu_cache_pmd(vma, address, &entry);
- 
- 	if (page_count(page) != 2) {
--		set_pmd_at(mm, mmun_start, pmd, orig_entry);
--		flush_tlb_range(vma, mmun_start, mmun_end);
--		mmu_notifier_invalidate_range(mm, mmun_start, mmun_end);
-+		set_pmd_at(mm, range.start, pmd, orig_entry);
-+		flush_tlb_range(vma, range.start, range.end);
-+		mmu_notifier_invalidate_range(mm, range.start, range.end);
- 		update_mmu_cache_pmd(vma, address, &entry);
- 		page_remove_rmap(new_page);
- 		goto fail_putback;
-@@ -1875,8 +1876,7 @@ fail_putback:
- 	page_remove_rmap(page);
- 
- 	spin_unlock(ptl);
--	mmu_notifier_invalidate_range_end(mm, mmun_start,
--					  mmun_end, MMU_MIGRATE);
-+	mmu_notifier_invalidate_range_end(mm, &range);
- 
- 	/* Take an "isolate" reference and put new page on the LRU. */
- 	get_page(new_page);
-@@ -1901,7 +1901,7 @@ out_dropref:
- 	ptl = pmd_lock(mm, pmd);
- 	if (pmd_same(*pmd, entry)) {
- 		entry = pmd_mknonnuma(entry);
--		set_pmd_at(mm, mmun_start, pmd, entry);
-+		set_pmd_at(mm, range.start, pmd, entry);
- 		update_mmu_cache_pmd(vma, address, &entry);
- 	}
- 	spin_unlock(ptl);
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index e51ea02..142ee8d 100644
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -174,9 +174,7 @@ void __mmu_notifier_invalidate_page(struct mm_struct *mm,
- }
- 
- void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
--					   unsigned long start,
--					   unsigned long end,
--					   enum mmu_event event)
-+					   struct mmu_notifier_range *range)
- 
- {
- 	struct mmu_notifier *mn;
-@@ -185,21 +183,36 @@ void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
- 	id = srcu_read_lock(&srcu);
- 	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
- 		if (mn->ops->invalidate_range_start)
--			mn->ops->invalidate_range_start(mn, mm, start,
--							end, event);
-+			mn->ops->invalidate_range_start(mn, mm, range);
- 	}
- 	srcu_read_unlock(&srcu, id);
 +
-+	/*
-+	 * This must happen after the callback so that subsystem can block on
-+	 * new invalidation range to synchronize itself.
-+	 */
-+	spin_lock(&mm->mmu_notifier_mm->lock);
-+	list_add_tail(&range->list, &mm->mmu_notifier_mm->ranges);
-+	mm->mmu_notifier_mm->nranges++;
-+	spin_unlock(&mm->mmu_notifier_mm->lock);
- }
- EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_start);
- 
- void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
--					 unsigned long start,
--					 unsigned long end,
--					 enum mmu_event event)
-+					 struct mmu_notifier_range *range)
- {
- 	struct mmu_notifier *mn;
- 	int id;
- 
-+	/*
-+	 * This must happen before the callback so that subsystem can unblock
-+	 * when range invalidation end.
-+	 */
-+	spin_lock(&mm->mmu_notifier_mm->lock);
-+	list_del_init(&range->list);
-+	mm->mmu_notifier_mm->nranges--;
-+	spin_unlock(&mm->mmu_notifier_mm->lock);
-+
- 	id = srcu_read_lock(&srcu);
- 	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
- 		/*
-@@ -211,12 +224,18 @@ void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
- 		 * (besides the pointer check).
- 		 */
- 		if (mn->ops->invalidate_range)
--			mn->ops->invalidate_range(mn, mm, start, end);
-+			mn->ops->invalidate_range(mn, mm,
-+						  range->start, range->end);
- 		if (mn->ops->invalidate_range_end)
--			mn->ops->invalidate_range_end(mn, mm, start,
--						      end, event);
-+			mn->ops->invalidate_range_end(mn, mm, range);
- 	}
- 	srcu_read_unlock(&srcu, id);
-+
-+	/*
-+	 * Wakeup after callback so they can do their job before any of the
-+	 * waiters resume.
-+	 */
-+	wake_up(&mm->mmu_notifier_mm->wait_queue);
- }
- EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_end);
- 
-@@ -235,6 +254,38 @@ void __mmu_notifier_invalidate_range(struct mm_struct *mm,
- }
- EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range);
- 
-+bool mmu_notifier_range_is_valid(struct mm_struct *mm,
-+				 unsigned long start,
-+				 unsigned long end)
++/* Page directory page helpers */
++static inline uint64_t gpt_pdp_shift(struct gpt *gpt, struct page *pdp)
 +{
-+	struct mmu_notifier_range *range;
++	if (!pdp)
++		return gpt->pgd_shift;
++	return pdp->flags & 0xff;
++}
 +
-+	spin_lock(&mm->mmu_notifier_mm->lock);
-+	list_for_each_entry(range, &mm->mmu_notifier_mm->ranges, list) {
-+		if (!(range->end <= start || range->start >= end)) {
-+			spin_unlock(&mm->mmu_notifier_mm->lock);
-+			return false;
-+		}
-+	}
-+	spin_unlock(&mm->mmu_notifier_mm->lock);
++static inline uint64_t gpt_pdp_first(struct gpt *gpt, struct page *pdp)
++{
++	if (!pdp)
++		return 0UL;
++	return pdp->index;
++}
++
++static inline uint64_t gpt_pdp_last(struct gpt *gpt, struct page *pdp)
++{
++	if (!pdp)
++		return gpt->last_idx;
++	return min(gpt->last_idx,
++		   (uint64_t)(pdp->index +
++		   (1UL << (gpt_pdp_shift(gpt, pdp) + gpt->pd_shift)) - 1UL));
++}
++
++#if USE_SPLIT_PTE_PTLOCKS && !ALLOC_SPLIT_PTLOCKS
++static inline void gpt_pdp_lock(struct gpt *gpt, struct page  *pdp)
++{
++	if (pdp)
++		spin_lock(&pdp->ptl);
++	else
++		spin_lock(&gpt->pgd_lock);
++}
++
++static inline void gpt_pdp_unlock(struct gpt *gpt, struct page  *pdp)
++{
++	if (pdp)
++		spin_unlock(&pdp->ptl);
++	else
++		spin_unlock(&gpt->pgd_lock);
++}
++#else /* USE_SPLIT_PTE_PTLOCKS && !ALLOC_SPLIT_PTLOCKS */
++static inline void gpt_pdp_lock(struct gpt *gpt, struct page  *pdp)
++{
++	spin_lock(&gpt->pgd_lock);
++}
++
++static inline void gpt_pdp_unlock(struct gpt *gpt, struct page  *pdp)
++{
++	spin_unlock(&gpt->pgd_lock);
++}
++#endif /* USE_SPLIT_PTE_PTLOCKS && !ALLOC_SPLIT_PTLOCKS */
++
++static inline void gpt_pdp_ref(struct gpt *gpt, struct page  *pdp)
++{
++	if (pdp)
++		atomic_inc(&pdp->_mapcount);
++}
++
++static inline void gpt_pdp_unref(struct gpt *gpt, struct page  *pdp)
++{
++	if (pdp && atomic_dec_and_test(&pdp->_mapcount))
++		BUG();
++}
++
++
++/* Generic page table common functions. */
++void gpt_free(struct gpt *gpt);
++
++
++/* Generic page table type specific functions. */
++int gpt_ulong_init(struct gpt *gpt);
++void gpt_ulong_lock_update(struct gpt *gpt, struct gpt_lock *lock);
++void gpt_ulong_unlock_update(struct gpt *gpt, struct gpt_lock *lock);
++int gpt_ulong_lock_fault(struct gpt *gpt, struct gpt_lock *lock);
++void gpt_ulong_unlock_fault(struct gpt *gpt, struct gpt_lock *lock);
++int gpt_ulong_walk(struct gpt_walk *walk,
++		   struct gpt *gpt,
++		   struct gpt_lock *lock);
++bool gpt_ulong_iter_idx(struct gpt_iter *iter, uint64_t idx);
++bool gpt_ulong_iter_first(struct gpt_iter *iter,
++			  uint64_t first,
++			  uint64_t last);
++bool gpt_ulong_iter_next(struct gpt_iter *iter);
++
++int gpt_u64_init(struct gpt *gpt);
++void gpt_u64_lock_update(struct gpt *gpt, struct gpt_lock *lock);
++void gpt_u64_unlock_update(struct gpt *gpt, struct gpt_lock *lock);
++int gpt_u64_lock_fault(struct gpt *gpt, struct gpt_lock *lock);
++void gpt_u64_unlock_fault(struct gpt *gpt, struct gpt_lock *lock);
++int gpt_u64_walk(struct gpt_walk *walk,
++		 struct gpt *gpt,
++		 struct gpt_lock *lock);
++bool gpt_u64_iter_idx(struct gpt_iter *iter, uint64_t idx);
++bool gpt_u64_iter_first(struct gpt_iter *iter,
++			uint64_t first,
++			uint64_t last);
++bool gpt_u64_iter_next(struct gpt_iter *iter);
++
++#ifndef CONFIG_64BIT
++int gpt_u32_init(struct gpt *gpt);
++void gpt_u32_lock_update(struct gpt *gpt, struct gpt_lock *lock);
++void gpt_u32_unlock_update(struct gpt *gpt, struct gpt_lock *lock);
++int gpt_u32_lock_fault(struct gpt *gpt, struct gpt_lock *lock);
++void gpt_u32_unlock_fault(struct gpt *gpt, struct gpt_lock *lock);
++int gpt_u32_walk(struct gpt_walk *walk,
++		 struct gpt *gpt,
++		 struct gpt_lock *lock);
++bool gpt_u32_iter_idx(struct gpt_iter *iter, uint64_t idx);
++bool gpt_u32_iter_first(struct gpt_iter *iter,
++			uint64_t first,
++			uint64_t last);
++bool gpt_u32_iter_next(struct gpt_iter *iter);
++#endif
++
++
++/* Generic page table iterator helpers. */
++static inline void gpt_iter_init(struct gpt_iter *iter,
++				 struct gpt *gpt,
++				 struct gpt_lock *lock)
++{
++	iter->gpt = gpt;
++	iter->lock = lock;
++	iter->pdp = NULL;
++	iter->pdep = NULL;
++}
++
++#endif /* __LINUX_GPT_H */
+diff --git a/lib/Kconfig b/lib/Kconfig
+index 2faf7b2..c041b3c 100644
+--- a/lib/Kconfig
++++ b/lib/Kconfig
+@@ -525,4 +525,7 @@ source "lib/fonts/Kconfig"
+ config ARCH_HAS_SG_CHAIN
+ 	def_bool n
+ 
++config GENERIC_PAGE_TABLE
++	bool
++
+ endmenu
+diff --git a/lib/Makefile b/lib/Makefile
+index 84000ec..e5ad435 100644
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -197,3 +197,5 @@ quiet_cmd_build_OID_registry = GEN     $@
+ clean-files	+= oid_registry_data.c
+ 
+ obj-$(CONFIG_UCS2_STRING) += ucs2_string.o
++
++obj-$(CONFIG_GENERIC_PAGE_TABLE) += gpt.o
+diff --git a/lib/gpt.c b/lib/gpt.c
+new file mode 100644
+index 0000000..3a8e62c
+--- /dev/null
++++ b/lib/gpt.c
+@@ -0,0 +1,202 @@
++/*
++ * Copyright 2014 Red Hat Inc.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * Authors: JA(C)rA'me Glisse <jglisse@redhat.com>
++ */
++/* Generic arch independant page table implementation. See include/linux/gpt.h
++ * for further informations on the design.
++ */
++#include <linux/gpt.h>
++#include <linux/highmem.h>
++#include <linux/slab.h>
++#include "gpt_generic.h"
++
++
++struct gpt_lock_walk {
++	struct list_head	pdp_to_free;
++	struct gpt_lock		*lock;
++	unsigned long		locked[(1 << (PAGE_SHIFT - 3)) / sizeof(long)];
++};
++
++/* gpt_pdp_before_serial() - is page directory older than given serial.
++ *
++ * @pdp: Pointer to struct page of the page directory.
++ * @serial: Serial number to check against.
++ *
++ * Page table walker and iterator use this to determine if the current pde
++ * needs to be walked down/iterated over or not. Use by updater to avoid
++ * walking down/iterating over new page directory.
++ */
++static inline bool gpt_pdp_before_serial(struct page *pdp,
++					 unsigned long serial)
++{
++	/*
++	 * To know if a page directory is new or old we first check if it's not
++	 * on the recently added list. If it is and its serial number is newer
++	 * or equal to our lock serial number then it is a new page directory
++	 * entry and must be ignore.
++	 */
++	return list_empty(&pdp->lru) || time_after(serial, pdp->private);
++}
++
++/* gpt_lock_hold_pdp() - does given lock hold a reference on given directory.
++ *
++ * @lock: Lock to check against.
++ * @pdp: Pointer to struct page of the page directory.
++ *
++ * When walking down page table or iterating over this function is call to know
++ * if the current pde entry needs to be walked down/iterated over.
++ */
++static bool gpt_lock_hold_pdp(struct gpt_lock *lock, struct page *pdp)
++{
++	if (lock->faulter)
++		return true;
++	if (!atomic_read(&pdp->_mapcount))
++		return false;
++	if (!gpt_pdp_before_serial(pdp, lock->serial))
++		return false;
 +	return true;
 +}
-+EXPORT_SYMBOL_GPL(mmu_notifier_range_is_valid);
 +
-+void mmu_notifier_range_wait_valid(struct mm_struct *mm,
-+				   unsigned long start,
-+				   unsigned long end)
++static void gpt_lock_walk_update_finish(struct gpt *gpt,
++					struct gpt_lock_walk *wlock)
 +{
-+	int nranges = mm->mmu_notifier_mm->nranges;
++	struct gpt_lock *lock = wlock->lock;
++	unsigned long min_serial;
 +
-+	while (!mmu_notifier_range_is_valid(mm, start, end)) {
-+		wait_event(mm->mmu_notifier_mm->wait_queue,
-+			   nranges != mm->mmu_notifier_mm->nranges);
-+		nranges = mm->mmu_notifier_mm->nranges;
++	spin_lock(&gpt->lock);
++	min_serial = gpt->min_serial;
++	list_del_init(&lock->list);
++	lock = list_first_entry_or_null(&gpt->updaters, struct gpt_lock, list);
++	gpt->min_serial = lock ? lock->serial : gpt->updater_serial;
++	spin_unlock(&gpt->lock);
++
++	/*
++	 * Drain the young pdp list if the new smallest serial lock holder is
++	 * different from previous one.
++	 */
++	if (gpt->min_serial != min_serial) {
++		struct page *pdp, *next;
++
++		spin_lock(&gpt->pgd_lock);
++		list_for_each_entry_safe(pdp, next, &gpt->pdp_young, lru) {
++			if (!gpt_pdp_before_serial(pdp, gpt->min_serial))
++				break;
++			list_del_init(&pdp->lru);
++		}
++		list_for_each_entry_safe(pdp, next, &gpt->pdp_free, lru) {
++			if (!gpt_pdp_before_serial(pdp, gpt->min_serial))
++				break;
++			list_del(&pdp->lru);
++			list_add_tail(&pdp->lru, &wlock->pdp_to_free);
++		}
++		spin_unlock(&gpt->pgd_lock);
 +	}
 +}
-+EXPORT_SYMBOL_GPL(mmu_notifier_range_wait_valid);
 +
- static int do_mmu_notifier_register(struct mmu_notifier *mn,
- 				    struct mm_struct *mm,
- 				    int take_mmap_sem)
-@@ -264,6 +315,9 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
- 	if (!mm_has_notifiers(mm)) {
- 		INIT_HLIST_HEAD(&mmu_notifier_mm->list);
- 		spin_lock_init(&mmu_notifier_mm->lock);
-+		INIT_LIST_HEAD(&mmu_notifier_mm->ranges);
-+		mmu_notifier_mm->nranges = 0;
-+		init_waitqueue_head(&mmu_notifier_mm->wait_queue);
- 
- 		mm->mmu_notifier_mm = mmu_notifier_mm;
- 		mmu_notifier_mm = NULL;
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 2302721..c88f770 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -139,7 +139,9 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
- 	unsigned long next;
- 	unsigned long pages = 0;
- 	unsigned long nr_huge_updates = 0;
--	unsigned long mni_start = 0;
-+	struct mmu_notifier_range range = {
-+		.start = 0,
-+	};
- 
- 	pmd = pmd_offset(pud, addr);
- 	do {
-@@ -150,10 +152,11 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
- 			continue;
- 
- 		/* invoke the mmu notifier if the pmd is populated */
--		if (!mni_start) {
--			mni_start = addr;
--			mmu_notifier_invalidate_range_start(mm, mni_start,
--							    end, MMU_MPROT);
-+		if (!range.start) {
-+			range.start = addr;
-+			range.end = end;
-+			range.event = MMU_MPROT;
-+			mmu_notifier_invalidate_range_start(mm, &range);
- 		}
- 
- 		if (pmd_trans_huge(*pmd)) {
-@@ -180,8 +183,8 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
- 		pages += this_pages;
- 	} while (pmd++, addr = next, addr != end);
- 
--	if (mni_start)
--		mmu_notifier_invalidate_range_end(mm, mni_start, end, MMU_MPROT);
-+	if (range.start)
-+		mmu_notifier_invalidate_range_end(mm, &range);
- 
- 	if (nr_huge_updates)
- 		count_vm_numa_events(NUMA_HUGE_PTE_UPDATES, nr_huge_updates);
-diff --git a/mm/mremap.c b/mm/mremap.c
-index a39f2aa..22b712f 100644
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -167,18 +167,17 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
- 		bool need_rmap_locks)
- {
- 	unsigned long extent, next, old_end;
-+	struct mmu_notifier_range range;
- 	pmd_t *old_pmd, *new_pmd;
- 	bool need_flush = false;
--	unsigned long mmun_start;	/* For mmu_notifiers */
--	unsigned long mmun_end;		/* For mmu_notifiers */
- 
- 	old_end = old_addr + len;
- 	flush_cache_range(vma, old_addr, old_end);
- 
--	mmun_start = old_addr;
--	mmun_end   = old_end;
--	mmu_notifier_invalidate_range_start(vma->vm_mm, mmun_start,
--					    mmun_end, MMU_MIGRATE);
-+	range.start = old_addr;
-+	range.end = old_end;
-+	range.event = MMU_MIGRATE;
-+	mmu_notifier_invalidate_range_start(vma->vm_mm, &range);
- 
- 	for (; old_addr < old_end; old_addr += extent, new_addr += extent) {
- 		cond_resched();
-@@ -230,8 +229,7 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
- 	if (likely(need_flush))
- 		flush_tlb_range(vma, old_end-len, old_addr);
- 
--	mmu_notifier_invalidate_range_end(vma->vm_mm, mmun_start,
--					  mmun_end, MMU_MIGRATE);
-+	mmu_notifier_invalidate_range_end(vma->vm_mm, &range);
- 
- 	return len + old_addr - old_end;	/* how much done */
- }
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 5fd9ece..98fb97f 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1316,15 +1316,14 @@ static int try_to_unmap_cluster(unsigned long cursor, unsigned int *mapcount,
- 	spinlock_t *ptl;
- 	struct page *page;
- 	unsigned long address;
--	unsigned long mmun_start;	/* For mmu_notifiers */
--	unsigned long mmun_end;		/* For mmu_notifiers */
-+	struct mmu_notifier_range range;
- 	unsigned long end;
- 	int ret = SWAP_AGAIN;
- 	int locked_vma = 0;
--	enum mmu_event event = MMU_MIGRATE;
- 
-+	range.event = MMU_MIGRATE;
- 	if (flags & TTU_MUNLOCK)
--		event = MMU_MUNLOCK;
-+		range.event = MMU_MUNLOCK;
- 
- 	address = (vma->vm_start + cursor) & CLUSTER_MASK;
- 	end = address + CLUSTER_SIZE;
-@@ -1337,9 +1336,9 @@ static int try_to_unmap_cluster(unsigned long cursor, unsigned int *mapcount,
- 	if (!pmd)
- 		return ret;
- 
--	mmun_start = address;
--	mmun_end   = end;
--	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end, event);
-+	range.start = address;
-+	range.end = end;
-+	mmu_notifier_invalidate_range_start(mm, &range);
- 
- 	/*
- 	 * If we can acquire the mmap_sem for read, and vma is VM_LOCKED,
-@@ -1408,7 +1407,7 @@ static int try_to_unmap_cluster(unsigned long cursor, unsigned int *mapcount,
- 		(*mapcount)--;
- 	}
- 	pte_unmap_unlock(pte - 1, ptl);
--	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end, event);
-+	mmu_notifier_invalidate_range_end(mm, &range);
- 	if (locked_vma)
- 		up_read(&vma->vm_mm->mmap_sem);
- 	return ret;
-diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-index 8afea97..03c1357 100644
---- a/virt/kvm/kvm_main.c
-+++ b/virt/kvm/kvm_main.c
-@@ -322,9 +322,7 @@ static void kvm_mmu_notifier_change_pte(struct mmu_notifier *mn,
- 
- static void kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
- 						    struct mm_struct *mm,
--						    unsigned long start,
--						    unsigned long end,
--						    enum mmu_event event)
-+						    const struct mmu_notifier_range *range)
- {
- 	struct kvm *kvm = mmu_notifier_to_kvm(mn);
- 	int need_tlb_flush = 0, idx;
-@@ -337,7 +335,7 @@ static void kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
- 	 * count is also read inside the mmu_lock critical section.
- 	 */
- 	kvm->mmu_notifier_count++;
--	need_tlb_flush = kvm_unmap_hva_range(kvm, start, end);
-+	need_tlb_flush = kvm_unmap_hva_range(kvm, range->start, range->end);
- 	need_tlb_flush |= kvm->tlbs_dirty;
- 	/* we've to flush the tlb before the pages can be freed */
- 	if (need_tlb_flush)
-@@ -349,9 +347,7 @@ static void kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
- 
- static void kvm_mmu_notifier_invalidate_range_end(struct mmu_notifier *mn,
- 						  struct mm_struct *mm,
--						  unsigned long start,
--						  unsigned long end,
--						  enum mmu_event event)
-+						  const struct mmu_notifier_range *range)
- {
- 	struct kvm *kvm = mmu_notifier_to_kvm(mn);
- 
++/* gpt_lock_fault_finish() - common lock fault cleanup.
++ *
++ * @gpt: The pointer to the generic page table structure.
++ * @wlock: Walk lock structure.
++ *
++ * This function first remove the lock from faulters list then update the
++ * serial number that will be use by next updater to either the oldest active
++ * faulter or to the next faulter serial number. In both case the next updater
++ * will ignore directory with serial equal or superior to this serial number.
++ * In other word it will only consider directory that are older that oldest
++ * active faulter.
++ *
++ * Note however that the young list is not drain here as we only want to drain
++ * it once updaters are done ie once no updaters might dereference such young
++ * page without holding a reference on it. Refer to gpt struct comments on
++ * young list.
++ */
++static void gpt_lock_fault_finish(struct gpt *gpt, struct gpt_lock_walk *wlock)
++{
++	struct gpt_lock *lock = wlock->lock;
++
++	spin_lock(&gpt->lock);
++	list_del_init(&lock->list);
++	lock = list_first_entry_or_null(&gpt->faulters, struct gpt_lock, list);
++	if (lock)
++		gpt->updater_serial = lock->serial;
++	else
++		gpt->updater_serial = gpt->faulter_serial;
++	spin_unlock(&gpt->lock);
++}
++
++static void gpt_lock_walk_free_pdp(struct gpt_lock_walk *wlock)
++{
++	struct page *pdp, *tmp;
++
++	if (list_empty(&wlock->pdp_to_free))
++		return;
++
++	synchronize_rcu();
++
++	list_for_each_entry_safe(pdp, tmp, &wlock->pdp_to_free, lru) {
++		/* Restore page struct fields to their expect value. */
++		list_del(&pdp->lru);
++		atomic_dec(&pdp->_mapcount);
++		pdp->mapping = NULL;
++		pdp->index = 0;
++		pdp->flags &= (~0xffUL);
++		__free_page(pdp);
++	}
++}
++
++
++/* Page directory page helpers */
++static inline bool gpt_pdp_cover_idx(struct gpt *gpt,
++				     struct page *pdp,
++				     unsigned long idx)
++{
++	return (idx >= gpt_pdp_first(gpt, pdp)) &&
++	       (idx <= gpt_pdp_last(gpt, pdp));
++}
++
++static inline struct page *gpt_pdp_upper_pdp(struct page *pdp)
++{
++	if (!pdp)
++		return NULL;
++	return pdp->s_mem;
++}
++
++static inline void gpt_pdp_init(struct page *page)
++{
++	atomic_set(&page->_mapcount, 1);
++#if USE_SPLIT_PTE_PTLOCKS && !ALLOC_SPLIT_PTLOCKS
++	spin_lock_init(&page->ptl);
++#endif
++}
++
++
++/* Generic page table common functions. */
++void gpt_free(struct gpt *gpt)
++{
++	BUG_ON(!list_empty(&gpt->faulters));
++	BUG_ON(!list_empty(&gpt->updaters));
++	kfree(gpt->pgd);
++	gpt->pgd = NULL;
++}
++EXPORT_SYMBOL(gpt_free);
++
++
++/* Generic page table type specific functions. */
++GPT_DEFINE(u64, uint64_t, 3);
++#ifdef CONFIG_64BIT
++GPT_DEFINE(ulong, unsigned long, 3);
++#else
++GPT_DEFINE(ulong, unsigned long, 2);
++GPT_DEFINE(u32, uint32_t, 2);
++#endif
+diff --git a/lib/gpt_generic.h b/lib/gpt_generic.h
+new file mode 100644
+index 0000000..c996314
+--- /dev/null
++++ b/lib/gpt_generic.h
+@@ -0,0 +1,663 @@
++/*
++ * Copyright 2014 Red Hat Inc.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * Authors: JA(C)rA'me Glisse <jglisse@redhat.com>
++ */
++/* Generic arch independant page table implementation. See include/linux/gpt.h
++ * for further informations on the design.
++ */
++
++/*
++ * Template for implementing generic page table for various types.
++ *
++ * SUFFIX       suffix use for naming functions.
++ * TYPE         type (uint64_t, unsigned long, ...)
++ * TYPE_SHIFT   shift corresponding to GPT_TYPE (3 for u64, 2 for u32).
++ *
++ * Note that (1 << (1 << (TYPE_SHIFT + 3))) must be big enough to store any pfn
++ * and flags the user wants. For instance for a 32 bits arch with 36 bits PAE
++ * you need 24 bits to store a pfn thus if you use u32 as a type then you only
++ * have 8 bits left for flags in each entry.
++ */
++
++#define GPT_DEFINE(SUFFIX, TYPE, TYPE_SHIFT)				      \
++									      \
++int gpt_ ## SUFFIX ## _init(struct gpt *gpt)				      \
++{									      \
++	unsigned long pgd_size;						      \
++									      \
++	gpt->pgd = NULL;						      \
++	if (!gpt->last_idx)						      \
++		return -EINVAL;						      \
++	INIT_LIST_HEAD(&gpt->faulters);					      \
++	INIT_LIST_HEAD(&gpt->updaters);					      \
++	INIT_LIST_HEAD(&gpt->pdp_young);				      \
++	INIT_LIST_HEAD(&gpt->pdp_free);					      \
++	spin_lock_init(&gpt->pgd_lock);					      \
++	spin_lock_init(&gpt->lock);					      \
++	gpt->pd_shift = (PAGE_SHIFT - TYPE_SHIFT);			      \
++	gpt->pgd_shift = (__fls(gpt->last_idx) /			      \
++			  (PAGE_SHIFT - (TYPE_SHIFT))) *		      \
++			 (PAGE_SHIFT - (TYPE_SHIFT));			      \
++	pgd_size = (gpt->last_idx >> gpt->pgd_shift) << (TYPE_SHIFT);	      \
++	gpt->pgd = kzalloc(pgd_size, GFP_KERNEL);			      \
++	gpt->updater_serial = gpt->faulter_serial = gpt->min_serial = 0;      \
++	return !gpt->pgd ? -ENOMEM : 0;					      \
++}									      \
++EXPORT_SYMBOL(gpt_ ## SUFFIX ## _init);					      \
++									      \
++/* gpt_ ## SUFFIX ## _pde_pdp() - get page directory page from a pde.	      \
++ *									      \
++ * @gpt: The pointer to the generic page table structure.		      \
++ * @pde: Page directory entry to extract the lower directory page from.	      \
++ */									      \
++static inline struct page *gpt_ ## SUFFIX ## _pde_pdp(struct gpt *gpt,	      \
++						      TYPE pde)		      \
++{									      \
++	if (!(pde & gpt->pde_valid))					      \
++		return NULL;						      \
++	return pfn_to_page((pde & gpt->pde_mask) >> gpt->pde_shift);	      \
++}									      \
++									      \
++/* gpt_ ## SUFFIX ## _pte_from_idx() - pointer to a pte inside directory      \
++ *									      \
++ * @gpt: The pointer to the generic page table structure.		      \
++ * @pdp: Page directory page if any.					      \
++ * @idx: Index of the pte that is being lookup.				      \
++ */									      \
++static inline void *gpt_ ## SUFFIX ## _pte_from_idx(struct gpt *gpt,	      \
++						    struct page *pdp,	      \
++						    uint64_t idx)	      \
++{									      \
++	TYPE *ptep = pdp ? page_address(pdp) : gpt->pgd;		      \
++									      \
++	ptep += (idx & ((1UL << gpt->pd_shift) - 1UL));			      \
++	return ptep;							      \
++}									      \
++									      \
++/* gpt_ ## SUFFIX ## _pdep_from_idx() - pointer to directory entry	      \
++ *									      \
++ * @gpt: The pointer to the generic page table structure.		      \
++ * @pdp: Page directory page if any.					      \
++ * @idx: Index of the pde that is being lookup.				      \
++ */									      \
++static inline void *gpt_ ## SUFFIX ## _pdep_from_idx(struct gpt *gpt,	      \
++						     struct page *pdp,	      \
++						     uint64_t idx)	      \
++{									      \
++	TYPE *pdep = pdp ? page_address(pdp) : gpt->pgd;		      \
++	uint64_t shift = gpt_pdp_shift(gpt, pdp);			      \
++									      \
++	pdep += ((idx >> shift) & ((1UL << gpt->pd_shift) - 1UL));	      \
++	return pdep;							      \
++}									      \
++									      \
++static int gpt_ ## SUFFIX ## _walk_pde(struct gpt *gpt,			      \
++				       struct gpt_walk *walk,		      \
++				       struct page *pdp,		      \
++				       void *ptr,			      \
++				       uint64_t first,			      \
++				       uint64_t last,			      \
++				       uint64_t shift)			      \
++{									      \
++	unsigned long i, npde;						      \
++	TYPE *pdep = ptr;						      \
++	uint64_t cur, lshift, mask, next;				      \
++	int ret;							      \
++									      \
++	if (walk->pde) {						      \
++		ret = walk->pde(gpt, walk, pdp, ptr,			      \
++				first, last, shift);			      \
++		if (ret)						      \
++			return ret;					      \
++	}								      \
++									      \
++	lshift = shift ? shift - gpt->pd_shift : 0;			      \
++	mask = ~((1ULL << shift) - 1ULL);				      \
++	npde = ((last - first) >> shift) + 1;				      \
++	for (i = 0, cur = first; i < npde; ++i, cur = next) {		      \
++		struct page *lpdp;					      \
++		TYPE pde = ACCESS_ONCE(pdep[i]);			      \
++									      \
++		next = min((cur & mask) + (1UL << shift), last);	      \
++		lpdp = gpt_ ## SUFFIX ## _pde_pdp(gpt, pde);		      \
++		if (!lpdp || !gpt_lock_hold_pdp(walk->lock, lpdp))	      \
++			continue;					      \
++		if (lshift) {						      \
++			void *lpde;					      \
++									      \
++			lpde = gpt_ ## SUFFIX ## _pdep_from_idx(gpt,	      \
++							        lpdp,	      \
++							        cur);	      \
++			ret = gpt_ ## SUFFIX ## _walk_pde(gpt, walk,	      \
++							  lpdp, lpde,	      \
++							  cur, next,	      \
++							  lshift);	      \
++			if (ret)					      \
++				return ret;				      \
++		} else if (walk->pte) {					      \
++			void *lpte;					      \
++									      \
++			lpte = gpt_ ## SUFFIX ## _pte_from_idx(gpt,	      \
++							       lpdp,	      \
++							       cur);	      \
++			ret = walk->pte(gpt, walk, lpdp,		      \
++					lpte, cur, next);		      \
++			if (ret)					      \
++				return ret;				      \
++		}							      \
++	}								      \
++									      \
++	if (walk->pde_post) {						      \
++		ret = walk->pde_post(gpt, walk, pdp, ptr,		      \
++				     first, last, shift);		      \
++		if (ret)						      \
++			return ret;					      \
++	}								      \
++									      \
++	return 0;							      \
++}									      \
++									      \
++int gpt_ ## SUFFIX ## _walk(struct gpt_walk *walk,			      \
++			    struct gpt *gpt,				      \
++			    struct gpt_lock *lock)			      \
++{									      \
++	TYPE *pdep = gpt->pgd;						      \
++	uint64_t idx;							      \
++									      \
++	if (walk->first > gpt->last_idx || walk->last > gpt->last_idx)	      \
++		return -EINVAL;						      \
++									      \
++	idx = walk->first >> gpt->pgd_shift;				      \
++	return gpt_ ## SUFFIX ## _walk_pde(gpt, walk, NULL, &pdep[idx],	      \
++					   walk->first, walk->last,	      \
++					   gpt->pgd_shift);		      \
++}									      \
++EXPORT_SYMBOL(gpt_ ## SUFFIX ## _walk);					      \
++									      \
++static void gpt_ ## SUFFIX ## _pdp_unref(struct gpt *gpt,		      \
++					 struct page *pdp,		      \
++					 struct gpt_lock_walk *wlock,	      \
++					 struct page *updp,		      \
++					 TYPE *upde)			      \
++{									      \
++	/*								      \
++	 * The atomic decrement and test insure that only one thread	      \
++	 * will cleanup pde.						      \
++	 */								      \
++	if (!atomic_dec_and_test(&pdp->_mapcount))			      \
++		return;							      \
++									      \
++	/*								      \
++	 * Protection against race btw new pdes instancing and pdes	      \
++	 * clearing due to unref, rely on faulter taking a reference on	      \
++	 * all valid pdes and calling synchronize_rcu() after. After the      \
++	 * rcu synchronize no further unreference might clear a pde in	      \
++	 * the faulter(s) range(s).					      \
++	 */								      \
++	*upde = 0;							      \
++	if (!list_empty(&pdp->lru)) {					      \
++		/*							      \
++		 * It means this page directory was added recently but	      \
++		 * is about to be destroy before it could be remove from      \
++		 * the young list.					      \
++		 *							      \
++		 * Because it is in the young list and lock holder can	      \
++		 * access the page table without rcu protection it means      \
++		 * that we can not rely on synchronize_rcu to know when	      \
++		 * it is safe to free the page as some thread might be	      \
++		 * dereferencing it. We have to wait for all lock that	      \
++		 * are older than this page directory. At which point we      \
++		 * know for sure that no thread can derefence the page.	      \
++		 */							      \
++		spin_lock(&gpt->pgd_lock);				      \
++		list_add_tail(&pdp->lru, &gpt->pdp_free);		      \
++		spin_unlock(&gpt->pgd_lock);				      \
++	} else								      \
++		/*							      \
++		 * This means this is an old page directory and thus any      \
++		 * lock holder that might dereference a pointer to it	      \
++		 * would have a reference on it. Hence because refcount	      \
++		 * reached 0 we only need to wait for rcu grace period.	      \
++		 */							      \
++		list_add_tail(&pdp->lru, &wlock->pdp_to_free);		      \
++									      \
++	/* Un-account this entry caller must hold a ref on pdp. */	      \
++	if (updp && atomic_dec_and_test(&updp->_mapcount))		      \
++		BUG();							      \
++}									      \
++									      \
++static int gpt_ ## SUFFIX ## _pde_lock_update(struct gpt *gpt,		      \
++					      struct gpt_walk *walk,	      \
++					      struct page *pdp,		      \
++					      void *ptr,		      \
++					      uint64_t first,		      \
++					      uint64_t last,		      \
++					      uint64_t shift)		      \
++{									      \
++	unsigned long i, npde;						      \
++	struct gpt_lock_walk *wlock = walk->data;			      \
++	struct gpt_lock *lock = wlock->lock;				      \
++	TYPE *pdep = ptr;						      \
++									      \
++	npde = ((last - first) >> shift) + 1;				      \
++									      \
++	rcu_read_lock();						      \
++	for (i = 0; i < npde; ++i) {					      \
++		struct page *page;					      \
++		TYPE pde = ACCESS_ONCE(pdep[i]);			      \
++									      \
++		clear_bit(i, wlock->locked);				      \
++		page = gpt_ ## SUFFIX ## _pde_pdp(gpt, pde);		      \
++		if (!page)						      \
++			continue;					      \
++		if (!atomic_inc_not_zero(&page->_mapcount))		      \
++			continue;					      \
++									      \
++		if (!gpt_pdp_before_serial(page, lock->serial)) {	      \
++			/* This is a new entry ignore it. */		      \
++			gpt_ ## SUFFIX ## _pdp_unref(gpt, page, wlock,	      \
++						     pdp, &pdep[i]);	      \
++			continue;					      \
++		}							      \
++		set_bit(i, wlock->locked);				      \
++	}								      \
++	rcu_read_unlock();						      \
++									      \
++	for (i = 0; i < npde; i++) {					      \
++		struct page *page;					      \
++									      \
++		if (!test_bit(i, wlock->locked))			      \
++			continue;					      \
++		page = gpt_ ## SUFFIX ## _pde_pdp(gpt, pdep[i]);	      \
++		kmap(page);						      \
++	}								      \
++									      \
++	return 0;							      \
++}									      \
++									      \
++void gpt_ ## SUFFIX ## _lock_update(struct gpt *gpt,			      \
++				    struct gpt_lock *lock)		      \
++{									      \
++	struct gpt_lock_walk wlock;					      \
++	struct gpt_walk walk;						      \
++									      \
++	spin_lock(&gpt->lock);						      \
++	lock->faulter = false;						      \
++	lock->serial = gpt->updater_serial;				      \
++	list_add_tail(&lock->list, &gpt->updaters);			      \
++	spin_unlock(&gpt->lock);					      \
++									      \
++	INIT_LIST_HEAD(&wlock.pdp_to_free);				      \
++	wlock.lock = lock;						      \
++	walk.lock = lock;						      \
++	walk.data = &wlock;						      \
++	walk.pde = &gpt_ ## SUFFIX ## _pde_lock_update;			      \
++	walk.pde_post = NULL;						      \
++	walk.pte = NULL;						      \
++	walk.first = lock->first;					      \
++	walk.last = lock->last;						      \
++									      \
++	gpt_ ## SUFFIX ## _walk(&walk, gpt, lock);			      \
++	gpt_lock_walk_free_pdp(&wlock);					      \
++}									      \
++EXPORT_SYMBOL(gpt_ ## SUFFIX ## _lock_update);				      \
++									      \
++static int gpt_ ## SUFFIX ## _pde_unlock_update(struct gpt *gpt,	      \
++						struct gpt_walk *walk,	      \
++						struct page *pdp,	      \
++						void *ptr,		      \
++						uint64_t first,		      \
++						uint64_t last,		      \
++						uint64_t shift)		      \
++{									      \
++	unsigned long i, npde;						      \
++	struct gpt_lock_walk *wlock = walk->data;			      \
++	struct gpt_lock *lock = wlock->lock;				      \
++	TYPE *pdep = ptr;						      \
++									      \
++	npde = ((last - first) >> shift) + 1;				      \
++									      \
++	rcu_read_lock();						      \
++	for (i = 0; i < npde; ++i) {					      \
++		struct page *page;					      \
++		TYPE pde = ACCESS_ONCE(pdep[i]);			      \
++									      \
++		if (!(pde & gpt->pde_valid))				      \
++			continue;					      \
++		page = gpt_ ## SUFFIX ## _pde_pdp(gpt, pde);		      \
++		if (!page || !gpt_pdp_before_serial(page, lock->serial))      \
++			continue;					      \
++		kunmap(page);						      \
++		gpt_ ## SUFFIX ## _pdp_unref(gpt, page, wlock,		      \
++					     pdp, &pdep[i]);		      \
++	}								      \
++	rcu_read_unlock();						      \
++									      \
++	return 0;							      \
++}									      \
++									      \
++void gpt_ ## SUFFIX ## _unlock_update(struct gpt *gpt,			      \
++				      struct gpt_lock *lock)		      \
++{									      \
++	struct gpt_lock_walk wlock;					      \
++	struct gpt_walk walk;						      \
++									      \
++	INIT_LIST_HEAD(&wlock.pdp_to_free);				      \
++	wlock.lock = lock;						      \
++	walk.lock = lock;						      \
++	walk.data = &wlock;						      \
++	walk.pde = NULL;						      \
++	walk.pde_post = &gpt_ ## SUFFIX ## _pde_unlock_update;		      \
++	walk.pte = NULL;						      \
++	walk.first = lock->first;					      \
++	walk.last = lock->last;						      \
++									      \
++	gpt_ ## SUFFIX ## _walk(&walk, gpt, lock);			      \
++									      \
++	gpt_lock_walk_update_finish(gpt, &wlock);			      \
++	gpt_lock_walk_free_pdp(&wlock);					      \
++}									      \
++EXPORT_SYMBOL(gpt_ ## SUFFIX ## _unlock_update);			      \
++									      \
++static int gpt_ ## SUFFIX ## _pde_lock_fault(struct gpt *gpt,		      \
++					     struct gpt_walk *walk,	      \
++					     struct page *pdp,		      \
++					     void *ptr,			      \
++					     uint64_t first,		      \
++					     uint64_t last,		      \
++					     uint64_t shift)		      \
++{									      \
++	unsigned long cmissing, i, npde;				      \
++	struct gpt_lock_walk *wlock = walk->data;			      \
++	struct gpt_lock *lock = wlock->lock;				      \
++	struct list_head pdp_new, pdp_added;				      \
++	struct page *page, *tmp;					      \
++	TYPE mask, *pdep = ptr;						      \
++	int ret;							      \
++									      \
++	npde = ((last - first) >> shift) + 1;				      \
++	mask = ~((1ULL << shift) - 1ULL);				      \
++	INIT_LIST_HEAD(&pdp_added);					      \
++	INIT_LIST_HEAD(&pdp_new);					      \
++									      \
++	rcu_read_lock();						      \
++	for (i = 0, cmissing = 0; i < npde; ++i) {			      \
++		TYPE pde = ACCESS_ONCE(pdep[i]);			      \
++									      \
++		clear_bit(i, wlock->locked);				      \
++		if (!(pde & gpt->pde_valid)) {				      \
++			cmissing++;					      \
++			continue;					      \
++		}							      \
++		page = gpt_ ## SUFFIX ## _pde_pdp(gpt, pde);		      \
++		if (!atomic_inc_not_zero(&page->_mapcount)) {		      \
++			cmissing++;					      \
++			continue;					      \
++		}							      \
++		set_bit(i, wlock->locked);				      \
++	}								      \
++	rcu_read_unlock();						      \
++									      \
++	/* Allocate missing page directory page. */			      \
++	for (i = 0; i < cmissing; ++i) {				      \
++		page = alloc_page(gpt->gfp_flags | __GFP_ZERO);		      \
++		if (!page) {						      \
++			ret = -ENOMEM;					      \
++			goto error;					      \
++		}							      \
++		list_add_tail(&page->lru, &pdp_new);			      \
++	}								      \
++									      \
++	/*								      \
++	 * The synchronize_rcu() is for exclusion with concurrent update      \
++	 * thread that might try to clear the pde. Because a reference	      \
++	 * was taken just above on all valid pdes we know for sure that	      \
++	 * after the rcu synchronize all thread that were about to clear      \
++	 * pdes are done and that no new unreference will lead to pde	      \
++	 * clear.							      \
++	 */								      \
++	synchronize_rcu();						      \
++									      \
++	gpt_pdp_lock(gpt, pdp);						      \
++	for (i = 0; i < npde; ++i) {					      \
++		TYPE pde = ACCESS_ONCE(pdep[i]);			      \
++									      \
++		if (test_bit(i, wlock->locked))				      \
++			continue;					      \
++									      \
++		/* Anoter thread might already have populated entry. */	      \
++		page = gpt_ ## SUFFIX ## _pde_pdp(gpt, pde);		      \
++		if (page && atomic_inc_not_zero(&page->_mapcount))	      \
++			continue;					      \
++									      \
++		page = list_first_entry_or_null(&pdp_new,		      \
++						struct page,		      \
++						lru);			      \
++		BUG_ON(!page);						      \
++		list_del(&page->lru);					      \
++									      \
++		/* Initialize page directory page struct. */		      \
++		page->private = lock->serial;				      \
++		page->s_mem = pdp;					      \
++		page->index = (first & mask) + (i << shift);		      \
++		page->flags |= (shift - gpt->pd_shift) & 0xff;		      \
++		gpt_pdp_init(page);					      \
++		list_add_tail(&page->lru, &pdp_added);			      \
++									      \
++		pdep[i] = gpt->pde_from_pdp(gpt, page);			      \
++		/* Account this new entry inside upper directory. */	      \
++		if (pdp)						      \
++			atomic_inc(&pdp->_mapcount);			      \
++	}								      \
++	gpt_pdp_unlock(gpt, pdp);					      \
++									      \
++	spin_lock(&gpt->pgd_lock);					      \
++	list_splice_tail(&pdp_added, &gpt->pdp_young);			      \
++	spin_unlock(&gpt->pgd_lock);					      \
++									      \
++	for (i = 0; i < npde; ++i) {					      \
++		page = gpt_ ## SUFFIX ## _pde_pdp(gpt, pdep[i]);	      \
++		kmap(page);						      \
++	}								      \
++									      \
++	/* Free any left over pages. */					      \
++	list_for_each_entry_safe (page, tmp, &pdp_new, lru) {		      \
++		list_del(&page->lru);					      \
++		__free_page(page);					      \
++	}								      \
++	return 0;							      \
++									      \
++error:									      \
++	/*								      \
++	 * We know that no page is kmaped and no page were added to the	      \
++	 * directroy tree.						      \
++	 */								      \
++	list_for_each_entry_safe (page, tmp, &pdp_new, lru) {		      \
++		list_del(&page->lru);					      \
++		__free_page(page);					      \
++	}								      \
++									      \
++	rcu_read_lock();						      \
++	for (i = 0; i < npde; ++i) {					      \
++		if (test_bit(i, wlock->locked))				      \
++			continue;					      \
++									      \
++		page = gpt_ ## SUFFIX ## _pde_pdp(gpt, pdep[i]);	      \
++		gpt_ ## SUFFIX ## _pdp_unref(gpt, page, wlock,		      \
++					     pdp, &pdep[i]);		      \
++	}								      \
++	rcu_read_unlock();						      \
++									      \
++	walk->last = first;						      \
++	return ret;							      \
++}									      \
++									      \
++static int gpt_ ## SUFFIX ## _pde_unlock_fault(struct gpt *gpt,		      \
++					       struct gpt_walk *walk,	      \
++					       struct page *pdp,	      \
++					       void *ptr,		      \
++					       uint64_t first,		      \
++					       uint64_t last,		      \
++					       uint64_t shift)		      \
++{									      \
++	unsigned long i, npde;						      \
++	struct gpt_lock_walk *wlock = walk->data;			      \
++	struct gpt_lock *lock = wlock->lock;				      \
++	TYPE *pdep = ptr;						      \
++									      \
++	npde = ((last - first) >> shift) + 1;				      \
++									      \
++	rcu_read_lock();						      \
++	for (i = 0; i < npde; ++i) {					      \
++		struct page *page;					      \
++									      \
++		page = gpt_ ## SUFFIX ## _pde_pdp(gpt, pdep[i]);	      \
++		if (!page || !gpt_lock_hold_pdp(lock, page))		      \
++			continue;					      \
++		kunmap(page);						      \
++		gpt_ ## SUFFIX ## _pdp_unref(gpt, page, wlock,		      \
++					     pdp, &pdep[i]);		      \
++	}								      \
++	rcu_read_unlock();						      \
++									      \
++	return 0;							      \
++}									      \
++									      \
++int gpt_ ## SUFFIX ## _lock_fault(struct gpt *gpt,			      \
++				  struct gpt_lock *lock)		      \
++{									      \
++	struct gpt_lock_walk wlock;					      \
++	struct gpt_walk walk;						      \
++	int ret;							      \
++									      \
++	lock->faulter = true;						      \
++	spin_lock(&gpt->lock);						      \
++	lock->serial = gpt->faulter_serial++;				      \
++	list_add_tail(&lock->list, &gpt->faulters);			      \
++	spin_unlock(&gpt->lock);					      \
++									      \
++	INIT_LIST_HEAD(&wlock.pdp_to_free);				      \
++	wlock.lock = lock;						      \
++	walk.lock = lock;						      \
++	walk.data = &wlock;						      \
++	walk.pde = &gpt_ ## SUFFIX ## _pde_lock_fault;			      \
++	walk.pde_post = NULL;						      \
++	walk.pte = NULL;						      \
++	walk.first = lock->first;					      \
++	walk.last = lock->last;						      \
++									      \
++	ret = gpt_ ## SUFFIX ## _walk(&walk, gpt, lock);		      \
++	if (ret) {							      \
++		walk.pde = NULL;					      \
++		walk.pde_post = &gpt_ ## SUFFIX ## _pde_unlock_fault;	      \
++		gpt_ ## SUFFIX ## _walk(&walk, gpt, lock);		      \
++		gpt_lock_fault_finish(gpt, &wlock);			      \
++	}								      \
++	gpt_lock_walk_free_pdp(&wlock);					      \
++									      \
++	return ret;							      \
++}									      \
++EXPORT_SYMBOL(gpt_ ## SUFFIX ## _lock_fault);				      \
++									      \
++void gpt_ ## SUFFIX ## _unlock_fault(struct gpt *gpt,			      \
++				     struct gpt_lock *lock)		      \
++{									      \
++	struct gpt_lock_walk wlock;					      \
++	struct gpt_walk walk;						      \
++									      \
++	INIT_LIST_HEAD(&wlock.pdp_to_free);				      \
++	wlock.lock = lock;						      \
++	walk.lock = lock;						      \
++	walk.data = &wlock;						      \
++	walk.pde = NULL;						      \
++	walk.pde_post = &gpt_ ## SUFFIX ## _pde_unlock_fault;		      \
++	walk.pte = NULL;						      \
++	walk.first = lock->first;					      \
++	walk.last = lock->last;						      \
++									      \
++	gpt_ ## SUFFIX ## _walk(&walk, gpt, lock);			      \
++									      \
++	gpt_lock_fault_finish(gpt, &wlock);				      \
++	gpt_lock_walk_free_pdp(&wlock);					      \
++}									      \
++EXPORT_SYMBOL(gpt_ ## SUFFIX ## _unlock_fault);				      \
++									      \
++static bool gpt_ ## SUFFIX ## _iter_idx_pdp(struct gpt_iter *iter,	      \
++					    uint64_t idx)		      \
++{									      \
++	struct gpt *gpt = iter->gpt;					      \
++	TYPE pde, *pdep;						      \
++									      \
++	if (!gpt_pdp_cover_idx(gpt, iter->pdp, idx)) {			      \
++		iter->pdp = gpt_pdp_upper_pdp(iter->pdp);		      \
++		return gpt_ ## SUFFIX ## _iter_idx_pdp(iter, idx);	      \
++	}								      \
++	pdep = gpt_ ## SUFFIX ## _pdep_from_idx(gpt, iter->pdp, idx);	      \
++	if (!gpt_pdp_shift(gpt, iter->pdp)) {				      \
++		iter->pdep = pdep;					      \
++		iter->idx = idx;					      \
++		return true;						      \
++	}								      \
++	pde = ACCESS_ONCE(*pdep);					      \
++	if (!(pde & iter->gpt->pde_valid)) {				      \
++		iter->pdep = NULL;					      \
++		return false;						      \
++	}								      \
++	iter->pdp = gpt_ ## SUFFIX ## _pde_pdp(iter->gpt, pde);		      \
++	return gpt_ ## SUFFIX ## _iter_idx_pdp(iter, idx);		      \
++}									      \
++									      \
++bool gpt_ ## SUFFIX ## _iter_idx(struct gpt_iter *iter, uint64_t idx)	      \
++{									      \
++	iter->pdep = NULL;						      \
++	if ((idx < iter->lock->first) || (idx > iter->lock->last))	      \
++		return false;						      \
++									      \
++	return gpt_ ## SUFFIX ## _iter_idx_pdp(iter, idx);		      \
++}									      \
++EXPORT_SYMBOL(gpt_ ## SUFFIX ## _iter_idx);				      \
++									      \
++bool gpt_ ## SUFFIX ## _iter_first(struct gpt_iter *iter,		      \
++				   uint64_t first,			      \
++				   uint64_t last)			      \
++{									      \
++	iter->pdep = NULL;						      \
++	if (first > last)						      \
++		return false;						      \
++	if ((first < iter->lock->first) || (first > iter->lock->last))	      \
++		return false;						      \
++	if ((last < iter->lock->first) || (last > iter->lock->last))	      \
++		return false;						      \
++									      \
++	do {								      \
++		if (gpt_ ## SUFFIX ## _iter_idx_pdp(iter, first))	      \
++			return true;					      \
++		if (first < last)					      \
++			first++;					      \
++		else							      \
++			return false;					      \
++	} while (1);							      \
++	return false;							      \
++}									      \
++EXPORT_SYMBOL(gpt_ ## SUFFIX ## _iter_first);				      \
++									      \
++bool gpt_ ## SUFFIX ## _iter_next(struct gpt_iter *iter)		      \
++{									      \
++	if (!iter->pdep || iter->idx >= iter->lock->last)		      \
++		return false;						      \
++	return gpt_ ## SUFFIX ## _iter_first(iter,			      \
++					     iter->idx + 1,		      \
++					     iter->lock->last);		      \
++}									      \
++EXPORT_SYMBOL(gpt_ ## SUFFIX ## _iter_next)
 -- 
 1.9.3
 
