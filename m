@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id D9F2F6B00F7
-	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 16:00:17 -0500 (EST)
-Received: by mail-pd0-f179.google.com with SMTP id g10so12225447pdj.38
-        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 13:00:17 -0800 (PST)
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EF326B00F8
+	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 16:00:22 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id rd3so12895670pab.14
+        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 13:00:21 -0800 (PST)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id ca3si16187500pad.126.2014.11.03.13.00.16
+        by mx.google.com with ESMTPS id cf1si16210245pbc.33.2014.11.03.13.00.20
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Nov 2014 13:00:16 -0800 (PST)
+        Mon, 03 Nov 2014 13:00:20 -0800 (PST)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm 5/8] memcg: free kmem cache id on css offline
-Date: Mon, 3 Nov 2014 23:59:43 +0300
-Message-ID: <6618a87bfb6bbad5c8a72f2d1fafedcfb6e93f6e.1415046910.git.vdavydov@parallels.com>
+Subject: [PATCH -mm 6/8] memcg: introduce memcg_kmem_should_charge helper
+Date: Mon, 3 Nov 2014 23:59:44 +0300
+Message-ID: <c8744df31379821d269c8e654843471545815c01.1415046910.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1415046910.git.vdavydov@parallels.com>
 References: <cover.1415046910.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -22,46 +22,86 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This will allow new kmem active cgroups to reuse the id and therefore
-the caches used by the dead memory cgroup.
+We use the same set of checks in both memcg_kmem_newpage_charge and
+memcg_kmem_get_cache, and I need it in yet another function, which will
+be introduced by one of the following patches. So let's introduce a
+helper function for it.
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 ---
- mm/memcontrol.c |   11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ include/linux/memcontrol.h |   43 ++++++++++++++++++++++---------------------
+ 1 file changed, 22 insertions(+), 21 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 923fe4c29e92..755604079d8e 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -605,14 +605,10 @@ int memcg_limited_groups_array_size;
- struct static_key memcg_kmem_enabled_key;
- EXPORT_SYMBOL(memcg_kmem_enabled_key);
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 617652712da8..224c045fd37f 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -416,6 +416,26 @@ void memcg_update_array_size(int num_groups);
+ struct kmem_cache *
+ __memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp);
  
--static void memcg_free_cache_id(int id);
--
- static void disarm_kmem_keys(struct mem_cgroup *memcg)
- {
--	if (memcg_kmem_is_active(memcg)) {
-+	if (memcg_kmem_is_active(memcg))
- 		static_key_slow_dec(&memcg_kmem_enabled_key);
--		memcg_free_cache_id(memcg->kmemcg_id);
--	}
- 	/*
- 	 * This check can't live in kmem destruction function,
- 	 * since the charges will outlive the cgroup
-@@ -4730,6 +4726,11 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
- 	spin_unlock(&memcg->event_list_lock);
- 
- 	vmpressure_cleanup(&memcg->vmpressure);
++static __always_inline bool memcg_kmem_should_charge(gfp_t gfp)
++{
++	/*
++	 * __GFP_NOFAIL allocations will move on even if charging is not
++	 * possible. Therefore we don't even try, and have this allocation
++	 * unaccounted. We could in theory charge it forcibly, but we hope
++	 * those allocations are rare, and won't be worth the trouble.
++	 */
++	if (gfp & __GFP_NOFAIL)
++		return false;
++	if (in_interrupt())
++		return false;
++	if (!current->mm || (current->flags & PF_KTHREAD))
++		return false;
++	/* If the test is dying, just let it go. */
++	if (unlikely(fatal_signal_pending(current)))
++		return false;
++	return true;
++}
 +
-+#ifdef CONFIG_MEMCG_KMEM
-+	if (memcg_kmem_is_active(memcg))
-+		memcg_free_cache_id(memcg_cache_id(memcg));
-+#endif
+ /**
+  * memcg_kmem_newpage_charge: verify if a new kmem allocation is allowed.
+  * @gfp: the gfp allocation flags.
+@@ -433,22 +453,8 @@ memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg, int order)
+ {
+ 	if (!memcg_kmem_enabled())
+ 		return true;
+-
+-	/*
+-	 * __GFP_NOFAIL allocations will move on even if charging is not
+-	 * possible. Therefore we don't even try, and have this allocation
+-	 * unaccounted. We could in theory charge it forcibly, but we hope
+-	 * those allocations are rare, and won't be worth the trouble.
+-	 */
+-	if (gfp & __GFP_NOFAIL)
+-		return true;
+-	if (in_interrupt() || (!current->mm) || (current->flags & PF_KTHREAD))
+-		return true;
+-
+-	/* If the test is dying, just let it go. */
+-	if (unlikely(fatal_signal_pending(current)))
++	if (!memcg_kmem_should_charge(gfp))
+ 		return true;
+-
+ 	return __memcg_kmem_newpage_charge(gfp, memcg, order);
  }
  
- static void mem_cgroup_css_free(struct cgroup_subsys_state *css)
+@@ -491,13 +497,8 @@ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
+ {
+ 	if (!memcg_kmem_enabled())
+ 		return cachep;
+-	if (gfp & __GFP_NOFAIL)
+-		return cachep;
+-	if (in_interrupt() || (!current->mm) || (current->flags & PF_KTHREAD))
+-		return cachep;
+-	if (unlikely(fatal_signal_pending(current)))
++	if (!memcg_kmem_should_charge(gfp))
+ 		return cachep;
+-
+ 	return __memcg_kmem_get_cache(cachep, gfp);
+ }
+ #else
 -- 
 1.7.10.4
 
