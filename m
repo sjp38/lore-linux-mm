@@ -1,149 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B6546B00DB
-	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 03:08:53 -0500 (EST)
-Received: by mail-pa0-f54.google.com with SMTP id rd3so11627632pab.41
-        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 00:08:52 -0800 (PST)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id gu2si1501915pbb.173.2014.11.03.00.08.50
-        for <linux-mm@kvack.org>;
-        Mon, 03 Nov 2014 00:08:51 -0800 (PST)
-Date: Mon, 3 Nov 2014 17:10:31 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v5 4/4] mm/page_alloc: restrict max order of merging on
- isolated pageblock
-Message-ID: <20141103081031.GC7052@js1304-P5Q-DELUXE>
-References: <1414740330-4086-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1414740330-4086-5-git-send-email-iamjoonsoo.kim@lge.com>
- <54539F11.7080501@suse.cz>
+Received: from mail-la0-f53.google.com (mail-la0-f53.google.com [209.85.215.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 96D746B010A
+	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 03:12:38 -0500 (EST)
+Received: by mail-la0-f53.google.com with SMTP id mc6so8914473lab.26
+        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 00:12:37 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id qh5si31381848lbb.111.2014.11.03.00.12.37
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 03 Nov 2014 00:12:37 -0800 (PST)
+Message-ID: <545738F1.4010307@suse.cz>
+Date: Mon, 03 Nov 2014 09:12:33 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <54539F11.7080501@suse.cz>
+Subject: Re: [PATCH 5/5] mm, compaction: more focused lru and pcplists draining
+References: <1412696019-21761-1-git-send-email-vbabka@suse.cz> <1412696019-21761-6-git-send-email-vbabka@suse.cz> <20141027074112.GC23379@js1304-P5Q-DELUXE>
+In-Reply-To: <20141027074112.GC23379@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>
 
-On Fri, Oct 31, 2014 at 03:39:13PM +0100, Vlastimil Babka wrote:
-> On 10/31/2014 08:25 AM, Joonsoo Kim wrote:
-> >@@ -571,6 +548,7 @@ static inline void __free_one_page(struct page *page,
-> >  	unsigned long combined_idx;
-> >  	unsigned long uninitialized_var(buddy_idx);
-> >  	struct page *buddy;
-> >+	int max_order = MAX_ORDER;
-> >
-> >  	VM_BUG_ON(!zone_is_initialized(zone));
-> >
-> >@@ -579,15 +557,23 @@ static inline void __free_one_page(struct page *page,
-> >  			return;
-> >
-> >  	VM_BUG_ON(migratetype == -1);
-> >-	if (!is_migrate_isolate(migratetype))
-> >+	if (is_migrate_isolate(migratetype)) {
-> >+		/*
-> >+		 * We restrict max order of merging to prevent merge
-> >+		 * between freepages on isolate pageblock and normal
-> >+		 * pageblock. Without this, pageblock isolation
-> >+		 * could cause incorrect freepage accounting.
-> >+		 */
-> >+		max_order = min(MAX_ORDER, pageblock_order + 1);
-> >+	} else
-> >  		__mod_zone_freepage_state(zone, 1 << order, migratetype);
-> 
-> Please add { } to the else branch, this looks ugly :)
+On 10/27/2014 08:41 AM, Joonsoo Kim wrote:
+> On Tue, Oct 07, 2014 at 05:33:39PM +0200, Vlastimil Babka wrote:
+>> The goal of memory compaction is to create high-order freepages through page
+>> migration. Page migration however puts pages on the per-cpu lru_add cache,
+>> which is later flushed to per-cpu pcplists, and only after pcplists are
+>> drained the pages can actually merge. This can happen due to the per-cpu
+>> caches becoming full through further freeing, or explicitly.
+>>
+>> During direct compaction, it is useful to do the draining explicitly so that
+>> pages merge as soon as possible and compaction can detect success immediately
+>> and keep the latency impact at minimum. However the current implementation is
+>> far from ideal. Draining is done only in  __alloc_pages_direct_compact(),
+>> after all zones were already compacted, and the decisions to continue or stop
+>> compaction in individual zones was done without the last batch of migrations
+>> being merged. It is also missing the draining of lru_add cache before the
+>> pcplists.
+>>
+>> This patch moves the draining for direct compaction into compact_zone(). It
+>> adds the missing lru_cache draining and uses the newly introduced single zone
+>> pcplists draining to reduce overhead and avoid impact on unrelated zones.
+>> Draining is only performed when it can actually lead to merging of a page of
+>> desired order (passed by cc->order). This means it is only done when migration
+>> occurred in the previously scanned cc->order aligned block(s) and the
+>> migration scanner is now pointing to the next cc->order aligned block.
+>>
+>> The patch has been tested with stress-highalloc benchmark from mmtests.
+>> Although overal allocation success rates of the benchmark were not affected,
+>> the number of detected compaction successes has doubled. This suggests that
+>> allocations were previously successful due to implicit merging caused by
+>> background activity, making a later allocation attempt succeed immediately,
+>> but not attributing the success to compaction. Since stress-highalloc always
+>> tries to allocate almost the whole memory, it cannot show the improvement in
+>> its reported success rate metric. However after this patch, compaction should
+>> detect success and terminate earlier, reducing the direct compaction latencies
+>> in a real scenario.
+>>
+>> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+>> Cc: Minchan Kim <minchan@kernel.org>
+>> Cc: Mel Gorman <mgorman@suse.de>
+>> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>> Cc: Michal Nazarewicz <mina86@mina86.com>
+>> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>> Cc: Christoph Lameter <cl@linux.com>
+>> Cc: Rik van Riel <riel@redhat.com>
+>> Cc: David Rientjes <rientjes@google.com>
+>> ---
+>>   mm/compaction.c | 41 ++++++++++++++++++++++++++++++++++++++++-
+>>   mm/page_alloc.c |  4 ----
+>>   2 files changed, 40 insertions(+), 5 deletions(-)
+>>
+>> diff --git a/mm/compaction.c b/mm/compaction.c
+>> index 8fa888d..41b49d7 100644
+>> --- a/mm/compaction.c
+>> +++ b/mm/compaction.c
+>> @@ -1179,6 +1179,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+>>   	while ((ret = compact_finished(zone, cc, migratetype)) ==
+>>   						COMPACT_CONTINUE) {
+>>   		int err;
+>> +		unsigned long last_migrated_pfn = 0;
+>
+> I think that this definition looks odd.
+> In every iteration, last_migrated_pfn is re-defined as 0.
+> Maybe, it is on outside of the loop.
 
-Sure.
+Oops you're right, that's a mistake and it makes the code miss some of 
+the drain points (a minority I think but anyway).
 
-> 
-> >-	page_idx = pfn & ((1 << MAX_ORDER) - 1);
-> >+	page_idx = pfn & ((1 << max_order) - 1);
-> >
-> >  	VM_BUG_ON_PAGE(page_idx & ((1 << order) - 1), page);
-> >  	VM_BUG_ON_PAGE(bad_range(zone, page), page);
-> >
-> >-	while (order < MAX_ORDER-1) {
-> >+	while (order < max_order - 1) {
-> >  		buddy_idx = __find_buddy_index(page_idx, order);
-> >  		buddy = page + (buddy_idx - page_idx);
-> >  		if (!page_is_buddy(page, buddy, order))
-> >@@ -1590,7 +1576,7 @@ void split_page(struct page *page, unsigned int order)
-> >  }
-> >  EXPORT_SYMBOL_GPL(split_page);
-> >
-> >-static int __isolate_free_page(struct page *page, unsigned int order)
-> >+int __isolate_free_page(struct page *page, unsigned int order)
-> >  {
-> >  	unsigned long watermark;
-> >  	struct zone *zone;
-> >diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> >index 1fa4a4d..df61c93 100644
-> >--- a/mm/page_isolation.c
-> >+++ b/mm/page_isolation.c
-> >@@ -76,17 +76,48 @@ void unset_migratetype_isolate(struct page *page, unsigned migratetype)
-> >  {
-> >  	struct zone *zone;
-> >  	unsigned long flags, nr_pages;
-> >+	struct page *isolated_page = NULL;
-> >+	unsigned int order;
-> >+	unsigned long page_idx, buddy_idx;
-> >+	struct page *buddy;
-> >+	int mt;
-> >
-> >  	zone = page_zone(page);
-> >  	spin_lock_irqsave(&zone->lock, flags);
-> >  	if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
-> >  		goto out;
-> >+
-> >+	/*
-> >+	 * Because freepage with more than pageblock_order on isolated
-> >+	 * pageblock is restricted to merge due to freepage counting problem,
-> >+	 * it is possible that there is free buddy page.
-> >+	 * move_freepages_block() doesn't care of merge so we need other
-> >+	 * approach in order to merge them. Isolation and free will make
-> >+	 * these pages to be merged.
-> >+	 */
-> >+	if (PageBuddy(page)) {
-> >+		order = page_order(page);
-> >+		if (order >= pageblock_order) {
-> >+			page_idx = page_to_pfn(page) & ((1 << MAX_ORDER) - 1);
-> >+			buddy_idx = __find_buddy_index(page_idx, order);
-> >+			buddy = page + (buddy_idx - page_idx);
-> >+			mt = get_pageblock_migratetype(buddy);
-> >+
-> >+			if (!is_migrate_isolate(mt)) {
-> 
-> You could use is_migrate_isolate_page(buddy) and save a variable.
+>>
+>>   		switch (isolate_migratepages(zone, cc)) {
+>>   		case ISOLATE_ABORT:
+>> @@ -1187,7 +1188,12 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+>>   			cc->nr_migratepages = 0;
+>>   			goto out;
+>>   		case ISOLATE_NONE:
+>> -			continue;
+>> +			/*
+>> +			 * We haven't isolated and migrated anything, but
+>> +			 * there might still be unflushed migrations from
+>> +			 * previous cc->order aligned block.
+>> +			 */
+>> +			goto check_drain;
+>>   		case ISOLATE_SUCCESS:
+>>   			;
+>>   		}
+>> @@ -1212,6 +1218,39 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+>>   				goto out;
+>>   			}
+>>   		}
+>> +
+>> +		/*
+>> +		 * Record where we have freed pages by migration and not yet
+>> +		 * flushed them to buddy allocator. Subtract 1, because often
+>> +		 * we finish a pageblock and migrate_pfn points to the first
+>> +		 * page* of the next one. In that case we want the drain below
+>> +		 * to happen immediately.
+>> +		 */
+>> +		if (!last_migrated_pfn)
+>> +			last_migrated_pfn = cc->migrate_pfn - 1;
+>
+> And, I wonder why last_migrated_pfn is set after isolate_migratepages().
 
-Okay.
+Not sure I understand your question. With the mistake above, it cannot 
+currently be set at the point isolate_migratepages() is called, so you 
+might question the goto check_drain in the ISOLATE_NONE case, if that's 
+what you are wondering about.
 
-> >+				__isolate_free_page(page, order);
-> >+				set_page_refcounted(page);
-> >+				isolated_page = page;
-> >+			}
-> >+		}
-> >+	}
-> >  	nr_pages = move_freepages_block(zone, page, migratetype);
-> 
-> - this is a costly no-op when the whole pageblock is an isolated
-> page, right?
+When I correct that, it might be set when COMPACT_CLUSTER_MAX pages are 
+isolated and migrated the middle of a pageblock, and then the rest of 
+the pageblock contains no pages that could be isolated, so the last 
+isolate_migratepages() attempt in the pageblock returns with 
+ISOLATE_NONE. Still there were some migrations that produced free pages 
+that should be drained at that point.
 
-Okay. I will fix it.
+>
+> Thanks.
+>
 
-> 
-> >  	__mod_zone_freepage_state(zone, nr_pages, migratetype);
-> 
-> - with isolated_page set, this means you increase freepage_state
-> here, and then the second time in __free_pages() below?
-> __isolate_free_page() won't decrease it as the pageblock is still
-> MIGRATE_ISOLATE, so the net result is overcounting?
-
-After __isolate_free_page(), freepage has no buddy flag and
-move_freepages_block() doesn't move and count it. So, freepage_state
-only increase in __free_pages(). So net result will be correct.
-
-Below is the update for your comment.
-
-Thanks.
-
------------->8----------------
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
