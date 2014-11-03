@@ -1,64 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id B05C56B011A
-	for <linux-mm@kvack.org>; Sun,  2 Nov 2014 21:17:23 -0500 (EST)
-Received: by mail-pd0-f169.google.com with SMTP id y10so10721525pdj.0
-        for <linux-mm@kvack.org>; Sun, 02 Nov 2014 18:17:23 -0800 (PST)
-Received: from cnbjrel02.sonyericsson.com (cnbjrel02.sonyericsson.com. [219.141.167.166])
-        by mx.google.com with ESMTPS id rb7si14243077pab.142.2014.11.02.18.17.20
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 02 Nov 2014 18:17:22 -0800 (PST)
-From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Date: Mon, 3 Nov 2014 10:17:15 +0800
-Subject: RE: [RFC V6 3/3] arm64:add bitrev.h file to support rbit instruction
-Message-ID: <35FD53F367049845BC99AC72306C23D103E010D18287@CNBJMBX05.corpusers.net>
-References: <35FD53F367049845BC99AC72306C23D103E010D18260@CNBJMBX05.corpusers.net>
- <35FD53F367049845BC99AC72306C23D103E010D18261@CNBJMBX05.corpusers.net>
- <35FD53F367049845BC99AC72306C23D103E010D18264@CNBJMBX05.corpusers.net>
- <35FD53F367049845BC99AC72306C23D103E010D18265@CNBJMBX05.corpusers.net>
- <35FD53F367049845BC99AC72306C23D103E010D18266@CNBJMBX05.corpusers.net>
- <20141030120127.GC32589@arm.com>
- <CAKv+Gu9g5Q6fjPUy+P8YxkeDrH+bdO4kKGnxTQZRFhQpgPxaPA@mail.gmail.com>
- <20141030135749.GE32589@arm.com>
- <35FD53F367049845BC99AC72306C23D103E010D18272@CNBJMBX05.corpusers.net>
- <35FD53F367049845BC99AC72306C23D103E010D18274@CNBJMBX05.corpusers.net>
- <20141031104305.GC6731@arm.com>
-In-Reply-To: <20141031104305.GC6731@arm.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F2906B0078
+	for <linux-mm@kvack.org>; Sun,  2 Nov 2014 23:22:50 -0500 (EST)
+Received: by mail-pa0-f47.google.com with SMTP id kx10so11314949pab.6
+        for <linux-mm@kvack.org>; Sun, 02 Nov 2014 20:22:50 -0800 (PST)
+Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
+        by mx.google.com with ESMTP id oc1si11345250pdb.223.2014.11.02.20.22.48
+        for <linux-mm@kvack.org>;
+        Sun, 02 Nov 2014 20:22:49 -0800 (PST)
+Date: Sun, 02 Nov 2014 23:22:45 -0500 (EST)
+Message-Id: <20141102.232245.1502900027200657150.davem@davemloft.net>
+Subject: Re: [patch 1/3] mm: embed the memcg pointer directly into struct
+ page
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <1414898156-4741-1-git-send-email-hannes@cmpxchg.org>
+References: <1414898156-4741-1-git-send-email-hannes@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Will Deacon' <will.deacon@arm.com>
-Cc: 'Ard Biesheuvel' <ard.biesheuvel@linaro.org>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'akinobu.mita@gmail.com'" <akinobu.mita@gmail.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, 'Joe Perches' <joe@perches.com>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>
+To: hannes@cmpxchg.org
+Cc: akpm@linux-foundation.org, mhocko@suse.cz, vdavydov@parallels.com, tj@kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-> From: Will Deacon [mailto:will.deacon@arm.com]
-> > +#ifndef __ASM_ARM64_BITREV_H
-> > +#define __ASM_ARM64_BITREV_H
->=20
-> Really minor nit, but we don't tend to include 'ARM64' in our header guar=
-ds,
-> so this should just be __ASM_BITREV_H.
->=20
-> With that change,
->=20
->   Acked-by: Will Deacon <will.deacon@arm.com>
->=20
-I have send the patch to the patch system:
-http://www.arm.linux.org.uk/developer/patches/search.php?uid=3D4025
+From: Johannes Weiner <hannes@cmpxchg.org>
+Date: Sat,  1 Nov 2014 23:15:54 -0400
 
-8187/1 8188/1 8189/1
+> Memory cgroups used to have 5 per-page pointers.  To allow users to
+> disable that amount of overhead during runtime, those pointers were
+> allocated in a separate array, with a translation layer between them
+> and struct page.
+> 
+> There is now only one page pointer remaining: the memcg pointer, that
+> indicates which cgroup the page is associated with when charged.  The
+> complexity of runtime allocation and the runtime translation overhead
+> is no longer justified to save that *potential* 0.19% of memory.  With
+> CONFIG_SLUB, page->mem_cgroup actually sits in the doubleword padding
+> after the page->private member and doesn't even increase struct page,
+> and then this patch actually saves space.  Remaining users that care
+> can still compile their kernels without CONFIG_MEMCG.
+> 
+>    text    data     bss     dec     hex     filename
+> 8828345 1725264  983040 11536649 b00909  vmlinux.old
+> 8827425 1725264  966656 11519345 afc571  vmlinux.new
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Just remind you that , should also cherry-pick Joe Perches's=20
-2 patches:
-[PATCH] 6fire: Convert byte_rev_table uses to bitrev8
-[PATCH] carl9170: Convert byte_rev_table uses to bitrev8
+Looks great:
 
-To make sure there is no build error when build these 2 drivers.
-
-Thanks
+Acked-by: David S. Miller <davem@davemloft.net>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
