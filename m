@@ -1,145 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C6F76B0075
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 11:02:10 -0500 (EST)
-Received: by mail-pd0-f182.google.com with SMTP id fp1so13960427pdb.13
-        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 08:02:10 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id jy15si572921pad.148.2014.11.04.08.02.07
-        for <linux-mm@kvack.org>;
-        Tue, 04 Nov 2014 08:02:09 -0800 (PST)
-From: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>
-Subject: RE: bdev_read_page
-Date: Tue, 4 Nov 2014 16:01:48 +0000
-Message-ID: <100D68C7BA14664A8938383216E40DE040829C17@FMSMSX114.amr.corp.intel.com>
-References: <20141104014909.GA8826@bbox>
-In-Reply-To: <20141104014909.GA8826@bbox>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E5EA6B0095
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 11:20:13 -0500 (EST)
+Received: by mail-wg0-f49.google.com with SMTP id x13so13883516wgg.36
+        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 08:20:12 -0800 (PST)
+Received: from mail.emea.novell.com (mail.emea.novell.com. [130.57.118.101])
+        by mx.google.com with ESMTPS id q10si1169013wjw.55.2014.11.04.08.20.11
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 04 Nov 2014 08:20:11 -0800 (PST)
+Message-Id: <54590AC80200007800044E95@mail.emea.novell.com>
+Date: Tue, 04 Nov 2014 16:20:08 +0000
+From: "Jan Beulich" <JBeulich@suse.com>
+Subject: Re: [PATCH] mm: Improve comment before
+ pagecache_isize_extended()
+References: <1415101390-18301-1-git-send-email-jack@suse.cz>
+ <5458D29A0200007800044C76@mail.emea.novell.com>
+ <20141104153343.GA21902@quack.suse.cz>
+In-Reply-To: <20141104153343.GA21902@quack.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, "karam.lee" <karam.lee@lge.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Matthew Wilcox <willy@linux.intel.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org
 
-SXQgd29ya3MgYmV0dGVyIHdoZW4geW91IGVtYWlsIG15IExpbnV4IGFjY291bnQgaW5zdGVhZCBv
-ZiBteSBFeGNoYW5nZSBhY2NvdW50Lg0KDQpJIHRoaW5rIHRoZSBwcm9ibGVtIGlzIHRoYXQgeW91
-IHNldCB0aGUgcGFnZSBlcnJvciwgYW5kIGFsc28gcmV0dXJuIGZhaWx1cmUgZnJvbSBiZGV2X3Jl
-YWRfcGFnZSgpIHdoaWNoIGNhdXNlcyB0aGUgcGFnZSB0byBiZSBzdWJtaXR0ZWQgZm9yIEkvTyB0
-d2ljZS4NCg0KQXNzdW1pbmcgdGhlIGVycm9yIGlzICdoYXJkJyAoaWUgcmVhZGluZyB0aGUgcGFn
-ZSBhZ2FpbiB3aWxsIG5vdCBzdWNjZWVkKSwgeW91IHNob3VsZCBzZXQgdGhlIHBhZ2UgZXJyb3Is
-IGFuZCByZXR1cm4gMCBmcm9tIHlvdXIgcndfcGFnZSBvcGVyYXRpb24sIGluZGljYXRpbmcgdGhh
-dCB0aGUgc3VibWlzc2lvbiB3YXMgc3VjY2Vzc2Z1bCBidXQgdGhlIHJlYWQgZmFpbGVkLiAgSWYg
-dGhlIHJlYWQgbWlnaHQgc3VjY2VlZCwgeW91IHNob3VsZCBub3QgY2FsbCBwYWdlX2VuZGlvKCks
-IGluc3RlYWQgcmV0dXJuaW5nIGFuIGVycm5vIGZyb20gcndfcGFnZSgpLg0KDQpJJ20gbm93IHdv
-bmRlcmluZyBpZiB0aGUgcmV0dXJuIGNvZGUgZnJvbSByd19wYWdlIHNob3VsZCBiZSBmbGlwcGVk
-IHRvIGJlIDEgb24gc3VjY2VzcyBhbmQgMCBmb3IgZmFpbHVyZSwgc28gd2UgZG9uJ3QgZ2V0IGRy
-aXZlciB3cml0ZXJzIHRyeWluZyB0byByZXR1cm4gZXJyb3IgY29kZXM/DQoNCi0tLS0tT3JpZ2lu
-YWwgTWVzc2FnZS0tLS0tDQpGcm9tOiBNaW5jaGFuIEtpbSBbbWFpbHRvOm1pbmNoYW5Aa2VybmVs
-Lm9yZ10gDQpTZW50OiBNb25kYXksIE5vdmVtYmVyIDAzLCAyMDE0IDU6NDkgUE0NClRvOiBXaWxj
-b3gsIE1hdHRoZXcgUg0KQ2M6IERhdmUgQ2hpbm5lcjsgQW5kcmV3IE1vcnRvbjsga2FyYW0ubGVl
-OyBsaW51eC1tbUBrdmFjay5vcmc7IGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmcNClN1Ympl
-Y3Q6IGJkZXZfcmVhZF9wYWdlDQoNCkhlbGxvLA0KDQpbMV0gYjA3YjBhYWY1NGFjZTA1LCB6cmFt
-OiBpbXBsZW1lbnQgcndfcGFnZSBvcGVyYXRpb24gb2YgenJhbQ0KDQpBZnRlciBJIG1lcmdlZCBb
-MV0gYW5kIHdhcyB0ZXN0aW5nIHpyYW0sIEkgZ290IGZvbGxvd2luZyB3YXJuaW5nLg0KDQpbICAx
-NzkuOTg3NTkyXSB6cmFtMDogZGV0ZWN0ZWQgY2FwYWNpdHkgY2hhbmdlIGZyb20gMjE0NzQ4MzY0
-OCB0byAwDQpbICAxNzkuOTg3NTcwXSBwYWdlOmZmZmZlYTAwMDA4ZDYzMDAgY291bnQ6MiBtYXBj
-b3VudDowIG1hcHBpbmc6ZmZmZjg4MDAyNTM0OGU4OCBpbmRleDoweDANClsgIDE3OS45ODc1NzBd
-IGZsYWdzOiAweDEwMDAwMDAwMDAyMDAwMihlcnJvcnxtYXBwZWR0b2Rpc2spDQpbICAxNzkuOTg3
-NTcwXSBwYWdlIGR1bXBlZCBiZWNhdXNlOiBWTV9CVUdfT05fUEFHRSghUGFnZUxvY2tlZChwYWdl
-KSkNClsgIDE3OS45ODc1NzBdIC0tLS0tLS0tLS0tLVsgY3V0IGhlcmUgXS0tLS0tLS0tLS0tLQ0K
-WyAgMTc5Ljk4NzU3MF0ga2VybmVsIEJVRyBhdCBtbS9maWxlbWFwLmM6NzQ3IQ0KWyAgMTc5Ljk4
-NzU3MF0gaW52YWxpZCBvcGNvZGU6IDAwMDAgWyMxXSBTTVAgDQpbICAxNzkuOTg3NTcwXSBEdW1w
-aW5nIGZ0cmFjZSBidWZmZXI6DQpbICAxNzkuOTg3NTcwXSAgICAoZnRyYWNlIGJ1ZmZlciBlbXB0
-eSkNClsgIDE3OS45ODc1NzBdIE1vZHVsZXMgbGlua2VkIGluOg0KWyAgMTc5Ljk4NzU3MF0gQ1BV
-OiAxMCBQSUQ6IDIzMDgwIENvbW06IHVkaXNrcy1wYXJ0LWlkIE5vdCB0YWludGVkIDMuMTguMC1y
-YzIrICM1ODQNClsgIDE3OS45ODc1NzBdIEhhcmR3YXJlIG5hbWU6IEJvY2hzIEJvY2hzLCBCSU9T
-IEJvY2hzIDAxLzAxLzIwMTENClsgIDE3OS45ODc1NzBdIHRhc2s6IGZmZmY4ODAwMWRlNzQyMDAg
-dGk6IGZmZmY4ODAwMWIyMjAwMDAgdGFzay50aTogZmZmZjg4MDAxYjIyMDAwMA0KWyAgMTc5Ljk4
-NzU3MF0gUklQOiAwMDEwOls8ZmZmZmZmZmY4MTE0YWUxMj5dICBbPGZmZmZmZmZmODExNGFlMTI+
-XSB1bmxvY2tfcGFnZSsweDgyLzB4OTANClsgIDE3OS45ODc1NzBdIFJTUDogMDAxODpmZmZmODgw
-MDFiMjIzOTk4ICBFRkxBR1M6IDAwMDEwMjQ2DQpbICAxNzkuOTg3NTcwXSBSQVg6IDAwMDAwMDAw
-MDAwMDAwMzYgUkJYOiBmZmZmODgwMDFlMDA5YTUwIFJDWDogMDAwMDAwMDAwOTEwMDkwZg0KWyAg
-MTc5Ljk4NzU3MF0gUkRYOiAwMDAwMDAwMDAwMDAwOTEwIFJTSTogMDAwMDAwMDAwMDAwMDAwMSBS
-REk6IGZmZmZmZmZmODE2MDBhN2YNClsgIDE3OS45ODc1NzBdIFJCUDogZmZmZjg4MDAxYjIyMzk5
-OCBSMDg6IDAwMDAwMDAwMDAwMDAwMDEgUjA5OiAwMDAwMDAwMDAwMDAwMDAxDQpbICAxNzkuOTg3
-NTcwXSBSMTA6IDAwMDAwMDAwMDAwMDAwMDEgUjExOiAwMDAwMDAwMDAwMDAwMDAwIFIxMjogMDAw
-MDAwMDAwMDAwMDAwMQ0KWyAgMTc5Ljk4NzU3MF0gUjEzOiBmZmZmODgwMDFlMDA5OWMwIFIxNDog
-MDAwMDAwMDBmZmZmZmZmYiBSMTU6IGZmZmY4ODAwMWUwMDk5YzANClsgIDE3OS45ODc1NzBdIEZT
-OiAgMDAwMDdmY2IxN2M3MzgwMCgwMDAwKSBHUzpmZmZmODgwMDI3ZjQwMDAwKDAwMDApIGtubEdT
-OjAwMDAwMDAwMDAwMDAwMDANClsgIDE3OS45ODc1NzBdIENTOiAgMDAxMCBEUzogMDAwMCBFUzog
-MDAwMCBDUjA6IDAwMDAwMDAwODAwNTAwM2INClsgIDE3OS45ODc1NzBdIENSMjogMDAwMDdmZmYx
-NjI5ZWJjOCBDUjM6IDAwMDAwMDAwMWRjNGYwMDAgQ1I0OiAwMDAwMDAwMDAwMDAwNmUwDQpbICAx
-NzkuOTg3NTcwXSBTdGFjazoNClsgIDE3OS45ODc1NzBdICBmZmZmODgwMDFiMjIzOWE4IGZmZmZm
-ZmZmODExNGFmZGUgZmZmZjg4MDAxYjIyMzlkOCBmZmZmZmZmZjgxMWYyZTUyDQpbICAxNzkuOTg3
-NTcwXSAgZmZmZjg4MDAxZTAwOTljMCAwMDAwMDAwMGZmZmZmZmZiIDAwMDAwMDAwMDAwMDAwMDAg
-ZmZmZjg4MDAyNTM0OGU4OA0KWyAgMTc5Ljk4NzU3MF0gIGZmZmY4ODAwMWIyMjNhMDggZmZmZmZm
-ZmY4MTJlOWFkMyBmZmZmODgwMDFiMjIzYTA4IGZmZmZmZmZmODEwOWI2YjMNClsgIDE3OS45ODc1
-NzBdIENhbGwgVHJhY2U6DQpbICAxNzkuOTg3NTcwXSAgWzxmZmZmZmZmZjgxMTRhZmRlPl0gcGFn
-ZV9lbmRpbysweDFlLzB4ODANClsgIDE3OS45ODc1NzBdICBbPGZmZmZmZmZmODExZjJlNTI+XSBt
-cGFnZV9lbmRfaW8rMHg0Mi8weDYwDQpbICAxNzkuOTg3NTcwXSAgWzxmZmZmZmZmZjgxMmU5YWQz
-Pl0gYmlvX2VuZGlvKzB4NTMvMHhhMA0KWyAgMTc5Ljk4NzU3MF0gIFs8ZmZmZmZmZmY4MTA5YjZi
-Mz5dID8gdXBfcmVhZCsweDIzLzB4NDANClsgIDE3OS45ODc1NzBdICBbPGZmZmZmZmZmODE0MTNm
-MDk+XSB6cmFtX21ha2VfcmVxdWVzdCsweDJhOS8weDNjMA0KWyAgMTc5Ljk4NzU3MF0gIFs8ZmZm
-ZmZmZmY4MTJlZTMzMD5dIGdlbmVyaWNfbWFrZV9yZXF1ZXN0KzB4YzAvMHgxMDANClsgIDE3OS45
-ODc1NzBdICBbPGZmZmZmZmZmODEyZWUzZTU+XSBzdWJtaXRfYmlvKzB4NzUvMHgxNDANClsgIDE3
-OS45ODc1NzBdICBbPGZmZmZmZmZmODEyZWUzNzU+XSA/IHN1Ym1pdF9iaW8rMHg1LzB4MTQwDQpb
-ICAxNzkuOTg3NTcwXSAgWzxmZmZmZmZmZjgxMWYyZTAzPl0gbXBhZ2VfYmlvX3N1Ym1pdCsweDMz
-LzB4NDANClsgIDE3OS45ODc1NzBdICBbPGZmZmZmZmZmODExZjNkZTU+XSBtcGFnZV9yZWFkcGFn
-ZXMrMHhmNS8weDExMA0KWyAgMTc5Ljk4NzU3MF0gIFs8ZmZmZmZmZmY4MTFlZDdhMD5dID8gSV9C
-REVWKzB4MTAvMHgxMA0KWyAgMTc5Ljk4NzU3MF0gIFs8ZmZmZmZmZmY4MTFlZDdhMD5dID8gSV9C
-REVWKzB4MTAvMHgxMA0KWyAgMTc5Ljk4NzU3MF0gIFs8ZmZmZmZmZmY4MTYwMzI0MT5dID8gZnRy
-YWNlX2NhbGwrMHg1LzB4MmYNClsgIDE3OS45ODc1NzBdICBbPGZmZmZmZmZmODE2MDMyNDE+XSA/
-IGZ0cmFjZV9jYWxsKzB4NS8weDJmDQpbICAxNzkuOTg3NTcwXSAgWzxmZmZmZmZmZjgxMWVlMTkw
-Pl0gPyBibGtkZXZfd3JpdGVfYmVnaW4rMHgzMC8weDMwDQpbICAxNzkuOTg3NTcwXSAgWzxmZmZm
-ZmZmZjgxMWVkN2EwPl0gPyBJX0JERVYrMHgxMC8weDEwDQpbICAxNzkuOTg3NTcwXSAgWzxmZmZm
-ZmZmZjgxMWVlMWFkPl0gYmxrZGV2X3JlYWRwYWdlcysweDFkLzB4MjANClsgIDE3OS45ODc1NzBd
-ICBbPGZmZmZmZmZmODExNThlZDQ+XSBfX2RvX3BhZ2VfY2FjaGVfcmVhZGFoZWFkKzB4MjA0LzB4
-MjkwDQpbICAxNzkuOTg3NTcwXSAgWzxmZmZmZmZmZjgxMTU4ZDk5Pl0gPyBfX2RvX3BhZ2VfY2Fj
-aGVfcmVhZGFoZWFkKzB4YzkvMHgyOTANClsgIDE3OS45ODc1NzBdICBbPGZmZmZmZmZmODExNGIw
-NDU+XSA/IGZpbmRfZ2V0X2VudHJ5KzB4NS8weDEzMA0KWyAgMTc5Ljk4NzU3MF0gIFs8ZmZmZmZm
-ZmY4MTE1OTNjZD5dIGZvcmNlX3BhZ2VfY2FjaGVfcmVhZGFoZWFkKzB4N2QvMHhiMA0KWyAgMTc5
-Ljk4NzU3MF0gIFs8ZmZmZmZmZmY4MTE1OTQ0Mz5dIHBhZ2VfY2FjaGVfc3luY19yZWFkYWhlYWQr
-MHg0My8weDUwDQpbICAxNzkuOTg3NTcwXSAgWzxmZmZmZmZmZjgxMTRkMGUxPl0gZ2VuZXJpY19m
-aWxlX3JlYWRfaXRlcisweDQ1MS8weDY1MA0KWyAgMTc5Ljk4NzU3MF0gIFs8ZmZmZmZmZmY4MTYw
-MzI0MT5dID8gZnRyYWNlX2NhbGwrMHg1LzB4MmYNClsgIDE3OS45ODc1NzBdICBbPGZmZmZmZmZm
-ODExZWQ5NDc+XSBibGtkZXZfcmVhZF9pdGVyKzB4MzcvMHg0MA0KWyAgMTc5Ljk4NzU3MF0gIFs8
-ZmZmZmZmZmY4MTFiNDM1OD5dIG5ld19zeW5jX3JlYWQrMHg3OC8weGIwDQpbICAxNzkuOTg3NTcw
-XSAgWzxmZmZmZmZmZjgxMWI1NTViPl0gdmZzX3JlYWQrMHhhYi8weDE4MA0KWyAgMTc5Ljk4NzU3
-MF0gIFs8ZmZmZmZmZmY4MTFiNTY4Mj5dIFN5U19yZWFkKzB4NTIvMHhiMA0KWyAgMTc5Ljk4NzU3
-MF0gIFs8ZmZmZmZmZmY4MTYwMTFkMj5dIHN5c3RlbV9jYWxsX2Zhc3RwYXRoKzB4MTIvMHgxNw0K
-WyAgMTc5Ljk4NzU3MF0gQ29kZTogMDAgNGMgOGIgODIgZjggMDAgMDAgMDAgMzEgZDIgNDggZDMg
-ZWUgNDggOGQgM2MgZjYgNDggODkgYzYgNDkgOGQgM2MgZjggZTggZGMgOWYgZjQgZmYgNWQgYzMg
-NDggYzcgYzYgODggMmMgYTAgODEgZTggMWUgYTggMDIgMDAgPDBmPiAwYiA2NiA2NiA2NiAyZSAw
-ZiAxZiA4NCAwMCAwMCAwMCAwMCAwMCBlOCBiYiA4MyA0YiAwMCA1NSA0OCANClsgIDE3OS45ODc1
-NzBdIFJJUCAgWzxmZmZmZmZmZjgxMTRhZTEyPl0gdW5sb2NrX3BhZ2UrMHg4Mi8weDkwDQpbICAx
-NzkuOTg3NTcwXSAgUlNQIDxmZmZmODgwMDFiMjIzOTk4Pg0KWyAgMTc5Ljk4NzU3MF0gLS0tWyBl
-bmQgdHJhY2UgMzljNzNjMWQ5ZGE4N2VjNCBdLS0tDQpbDQoNClRoZSByZWFzb24gd2FzIHRoYXQg
-cmVhZCBJL08gY2F1c2VkIGJkZXZfcmVhZF9wYWdlIGNvdWxkIGJlIGZhaWxlZCBieQ0KZHJpdmVy
-J3MgaW50ZXJuYWwgcHJvYmxlbSBzbyBkcml2ZXIgY291bGQgc2V0IHRoZSBwYWdlIGFzIFBhZ2VF
-cnJvcg0KYW5kIHRoZW4gdW5sb2NrIHRoZSBwYWdlIGJ5IHBhZ2VfZW5kaW8uIEhvd2V2ZXIsIGRv
-X21wYWdlX3JlYWRwYWdlDQpyZXRyeSB0aGUgSS9PIHdpdGggQklPIHBhdGggd2l0aG91dCBhbnkg
-bG9ja2luZy9jbGVhbmluZyBQR19lcnJvcg0Kc28gaWYgaXQgZmFpbHMgYWdhaW4sIHdlIGNvdWxk
-IGVuY291bnRlciBhYm92ZSB3YXJuaW5nLg0KDQpTaG91bGQgd2Ugc29sdmUgaXQgd2l0aCBpbnRy
-b2R1Y2luZyBwYWdlX2VuZGlvX25vbG9jayB3aGljaA0Kd2lsbCBub3QgdW5sb2NrIHRoZSBwYWdl
-IGluIGNhc2Ugb2YgcmVhZC1mYWlsdXJlIGFuZCB1c2UgdGhlIGZ1bmN0aW9uDQppbiByd19wYWdl
-IGZ1bmN0aW9ucz8gSXQgcmVsaWVzIG9uIHJldHJ5aW5nIGxvZ2ljIG9mIGNhbGxlciBzbyBpdCdz
-DQp1Z2x5Lg0KDQpBbm90aGVyIHNvdWx1dGlvbiBpcyB3ZSBjYW4gY2xlYW4gUEdfZXJyb3IgYW5k
-IGxvY2tzIHRoZSBwYWdlDQphZ2FpbiBiZWZvcmUgdGhlIGdvaW5nIGJpbyBwYXRoIGJ1dCBJJ20g
-bm90IHN1cmUgaXQgZG9lc24ndCBoYXZlDQphbnkgc2lkZS1lZmZlY3QgYWZ0ZXIgcmVsZWFzaW5n
-IHRoZSBsb2NrLiBJZiBpdCBkb2Vzbid0IGhhdmUgYW55DQpzaWRlLWVmZmVjdCwgaXQgd291bGQg
-YmUgYmVzdC4NCg0KVGhlIHNpbXBsZXN0IHNvbHV0aW9uIEkgY2FuIHRoaW5rIG9mIGlzIHRvIGJh
-aWwgb3V0IGluIGNhc2Ugb2YNCmZhaWwgb2YgYmRldl9yZWFkX3BhZ2Ugd2l0aG91dCBnb2luZyBv
-biBhbm90aGVyIHJvdXRlIGJ1dCB5b3Ugc2VlbQ0KdG8gYmUgY2FyZWZ1bCB3aGVuIEkgc2F3IHRo
-ZSBjb21tZW50IG9mIGJkZXZfcmVhZF9wYWdlLg0KDQoiRXJyb3JzIHJldHVybmVkIGJ5IHRoaXMg
-ZnVuY3Rpb24gYXJlIHVzdWFsbHkgInNvZnQiLCBlZyBvdXQgb2YgbWVtb3J5LCBvcg0KIHF1ZXVl
-IGZ1bGw7IGNhbGxlcnMgc2hvdWxkIHRyeSBhIGRpZmZlcmVudCByb3V0ZSB0byByZWFkIHRoaXMg
-cGFnZSByYXRoZXINCiB0aGFuIHByb3BhZ2F0ZSBhbiBlcnJvciBiYWNrIHVwIHRoZSBzdGFjay4i
-DQoNCkFjdHVhbGx5LCBJJ20gbm90IHN1cmUgaG93IG11Y2ggc3VjaCBmYWxsYmFjayByZXRyaWFs
-IHJlYWxseSBtYWtlcyBmb3J3YXJkDQpwcm9ncmVzcz8NCg0KQW55d2F5LCBJJ2QgbGlrZSB0byBs
-aXN0ZW4gdGhlIG9waW5pb25zLg0KDQpUaGFua3MuDQoNCg0KLS0gDQpLaW5kIHJlZ2FyZHMsDQpN
-aW5jaGFuIEtpbQ0K
+>>> On 04.11.14 at 16:33, <jack@suse.cz> wrote:
+> On Tue 04-11-14 12:20:26, Jan Beulich wrote:
+>> >>> On 04.11.14 at 12:43, <"jack@suse.cz".non-mime.internet> wrote:
+>> > --- a/mm/truncate.c
+>> > +++ b/mm/truncate.c
+>> > @@ -743,10 +743,13 @@ EXPORT_SYMBOL(truncate_setsize);
+>> >   * changed.
+>> >   *
+>> >   * The function must be called after i_size is updated so that page =
+fault
+>> > - * coming after we unlock the page will already see the new i_size.
+>> > - * The function must be called while we still hold i_mutex - this =
+not only
+>> > - * makes sure i_size is stable but also that userspace cannot =
+observe new
+>> > - * i_size value before we are prepared to store mmap writes at new =
+inode=20
+> size.
+>> > + * coming after we unlock the page will already see the new i_size.  =
+The=20
+> caller
+>> > + * must make sure (generally by holding i_mutex but e.g. XFS uses =
+its=20
+> private
+>> > + * lock) i_size cannot change from the new value while we are =
+called. It=20
+> must
+>> > + * also make sure userspace cannot observe new i_size value before =
+we are
+>> > + * prepared to store mmap writes upto new inode size (otherwise =
+userspace=20
+> could
+>> > + * think it stored data via mmap within i_size but they would get =
+zeroed=20
+> due to
+>> > + * writeback & reclaim because they have no backing blocks).
+>> >   */
+>> >  void pagecache_isize_extended(struct inode *inode, loff_t from, =
+loff_t to)
+>> >  {
+>>=20
+>> May I suggest that the comment preceding truncate_setsize() also be
+>> updated/removed?
+>   But that comment is actually still true AFAICT because VFS takes =
+i_mutex
+> before calling into ->setattr(). So we hold i_mutex in truncate_setsize()=
+
+> even for XFS.
+
+I doubt that, especially in the light of the WARN_ON() that
+prompted all this:
+
+[<ffffffff810053fa>] dump_trace+0x7a/0x350
+[<ffffffff810050de>] show_stack_log_lvl+0xee/0x150
+[<ffffffff810064fc>] show_stack+0x1c/0x50
+[<ffffffff8138e4e3>] dump_stack+0x68/0x7d
+[<ffffffff81042c82>] warn_slowpath_common+0x82/0xb0
+[<ffffffff810d3831>] pagecache_isize_extended+0x121/0x130
+[<ffffffff810d4689>] truncate_setsize+0x29/0x50
+[<ffffffffa056705f>] xfs_setattr_size+0x12f/0x440 [xfs]
+[<ffffffffa055cbf7>] xfs_file_fallocate+0x297/0x310 [xfs]
+[<ffffffff81111b59>] do_fallocate+0x169/0x190
+[<ffffffff8111206e>] SyS_fallocate+0x4e/0x90
+[<ffffffff81392712>] system_call_fastpath+0x12/0x17
+[<00007f0e6bdddf45>] 0x7f0e6bdddf45
+
+I.e. truncate_setsize() is being called here without the mutex
+held (or else the WARN_ON() wouldn't have got triggered in
+the first place).
+
+Jan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
