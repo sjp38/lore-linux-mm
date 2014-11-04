@@ -1,86 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f46.google.com (mail-la0-f46.google.com [209.85.215.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DF5F6B00E0
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 03:46:14 -0500 (EST)
-Received: by mail-la0-f46.google.com with SMTP id hs14so461487lab.5
-        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 00:46:13 -0800 (PST)
+Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 1870F6B00DD
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 03:55:03 -0500 (EST)
+Received: by mail-lb0-f174.google.com with SMTP id z11so8752958lbi.19
+        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 00:55:03 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id db1si23871123lad.79.2014.11.04.00.46.12
+        by mx.google.com with ESMTPS id xx3si36414847lbb.122.2014.11.04.00.55.02
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 04 Nov 2014 00:46:12 -0800 (PST)
-Message-ID: <54589251.2020105@suse.cz>
-Date: Tue, 04 Nov 2014 09:46:09 +0100
+        Tue, 04 Nov 2014 00:55:02 -0800 (PST)
+Message-ID: <54589465.3080708@suse.cz>
+Date: Tue, 04 Nov 2014 09:55:01 +0100
 From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 for v3.18] mm/compaction: skip the range until proper
- target pageblock is met
-References: <1415068649-18040-1-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1415068649-18040-1-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+Subject: Re: Early test: hangs in mm/compact.c w. Linus's 12d7aacab56e9ef185c
+References: <12996532.NCRhVKzS9J@xorhgos3.pefnos>
+In-Reply-To: <12996532.NCRhVKzS9J@xorhgos3.pefnos>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: "P. Christeas" <xrg@linux.gr>, linux-mm@kvack.org
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, lkml <linux-kernel@vger.kernel.org>
 
-On 11/04/2014 03:37 AM, Joonsoo Kim wrote:
-> commit 7d49d8868336 ("mm, compaction: reduce zone checking frequency in
-> the migration scanner") makes side-effect that change iteration
-> range calculation. Before change, block_end_pfn is calculated using
-> start_pfn, but, now, blindly add pageblock_nr_pages to previous value.
+On 11/04/2014 08:26 AM, P. Christeas wrote:
+> TL;DR: I'm testing Linus's 3.18-rcX in my desktop (x86_64, full load),
+> experiencing mm races about every day. Current -rc starves the canary of
+> stablity
 >
-> This cause the problem that isolation_start_pfn is larger than
-> block_end_pfn when we isolate the page with more than pageblock order.
-> In this case, isolation would be failed due to invalid range parameter.
->
-> To prevent this, this patch recalculate the range to find valid target
-> pageblock. Without this patch, CMA with more than pageblock order always
-> fail, but, with this patch, it will succeed.
->
-> Changes from v1:
-> recalculate the range rather than just skipping to find valid one.
-> add code comment.
->
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Will keep testing (should I try some -mm tree, please? ) , provide you
+> feedback about the issue.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Hello,
 
-(nitpick below)
+Please do keep testing (and see below what we need), and don't try 
+another tree - it's 3.18 we need to fix!
 
-> ---
->   mm/compaction.c |   10 ++++++++++
->   1 file changed, 10 insertions(+)
+> Not an active kernel-developer.
 >
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index ec74cf0..4f0151c 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -479,6 +479,16 @@ isolate_freepages_range(struct compact_control *cc,
+> Long:
 >
->   		block_end_pfn = min(block_end_pfn, end_pfn);
+> Since 26 Oct. upgraded my everything-on-it laptop to new distro (systemd -
+> based, all new glibc etc.) and switched from 3.17 to 3.18-pre . First time in
+> years, kernel got unstable.
 >
-> +		/*
-> +		 * pfn could pass the block_end_pfn if isolated freepage
-> +		 * is more than pageblock order. In this case, we adjust
-> +		 * scanning range to right one.
-> +		 */
-> +		if (pfn >= block_end_pfn) {
-> +			block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
-> +			block_end_pfn = min(block_end_pfn, end_pfn);
-> +		}
+> This machine is occasionaly under heavy load, doing I/O and serving random
+> desktop applications. (machine is Intel x86_64, dual core, mechanical SATA
+> disk).
+> Now, I have a race about once a day, have narrowed them down (guess) to:
+>
+>          [<ffffffff813b1025>] preempt_schedule_irq+0x3c/0x59
+>          [<ffffffff813b4810>] retint_kernel+0x20/0x30
+>          [<ffffffff810d7481>] ? __zone_watermark_ok+0x77/0x85
+>          [<ffffffff810d8256>] zone_watermark_ok+0x1a/0x1c
+>          [<ffffffff810eee56>] compact_zone+0x215/0x4b2
+>          [<ffffffff810ef13f>] compact_zone_order+0x4c/0x5f
+>          [<ffffffff810ef2fe>] try_to_compact_pages+0xc4/0x1e8
+>          [<ffffffff813ad7f8>] __alloc_pages_direct_compact+0x61/0x1bf
+>          [<ffffffff810da299>] __alloc_pages_nodemask+0x409/0x799
+>          [<ffffffff8110d3fd>] new_slab+0x5f/0x21c
+>         ...
 
-If you moved this up, there could be just one min(block_end_pfn, 
-end_pfn) instance in the code. If the first min() makes block_end_pfn == 
-end_pfn and pfn >= block_end_pfn, then pfn >= end_pfn and the loop would 
-be terminated already (assuming this was why you left the first min() 
-before the new check). But I don't mind if you leave it like this.
+I'm not sure what you mean by "race" here and your snippet is 
+unfortunately just a small portion of the output which could be a BUG, 
+OOPS, lockdep, soft-lockup, hardlock and possibly many other things. But 
+the backtrace itself is not enough, please send the whole error output 
+(it should stard and end with something like:
+-----[ cut here ]------
+Thanks in advance.
 
-> +
->   		if (!pageblock_pfn_to_page(pfn, block_end_pfn, cc->zone))
->   			break;
->
->
+> Sometimes is a less critical process, that I can safely kill, otherwise I have
+> to drop everything and reboot.
+
+OK so the process is not dead due to the problem? That probably rules 
+out some kinds of errors but we still need the full output. Thanks in 
+advance.
+
+> Unless you are already aware of this case, please accept this feedback.
+> I'm pulling from Linus, should I also try some of your trees for an early
+> solution?
+
+I'm not aware of this, CCing lkml for wider coverage.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
