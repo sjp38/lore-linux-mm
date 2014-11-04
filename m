@@ -1,85 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 239B86B0085
-	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 20:04:36 -0500 (EST)
-Received: by mail-ob0-f176.google.com with SMTP id va2so9892185obc.7
-        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 17:04:35 -0800 (PST)
-Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
-        by mx.google.com with ESMTPS id g5si19830107oed.11.2014.11.03.17.04.34
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 03 Nov 2014 17:04:34 -0800 (PST)
-Message-ID: <1415062233.10958.42.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v4 4/7] x86, mm, pat: Add pgprot_writethrough() for WT
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Mon, 03 Nov 2014 17:50:33 -0700
-In-Reply-To: <alpine.DEB.2.11.1411032352161.5308@nanos>
-References: <1414450545-14028-1-git-send-email-toshi.kani@hp.com>
-	  <1414450545-14028-5-git-send-email-toshi.kani@hp.com>
-	  <94D0CD8314A33A4D9D801C0FE68B4029593578ED@G9W0745.americas.hpqcorp.net>
-	 <1415052905.10958.39.camel@misato.fc.hp.com>
-	 <alpine.DEB.2.11.1411032352161.5308@nanos>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B03C6B0085
+	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 20:10:20 -0500 (EST)
+Received: by mail-pd0-f175.google.com with SMTP id y13so12625217pdi.34
+        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 17:10:20 -0800 (PST)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id bd7si16549575pad.218.2014.11.03.17.10.17
+        for <linux-mm@kvack.org>;
+        Mon, 03 Nov 2014 17:10:18 -0800 (PST)
+Message-ID: <54582796.7030700@cn.fujitsu.com>
+Date: Tue, 4 Nov 2014 09:10:46 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/2] Fix node meminfo corruption.
+References: <1414748812-22610-1-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1414748812-22610-1-git-send-email-tangchen@cn.fujitsu.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: "Elliott, Robert (Server Storage)" <Elliott@hp.com>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "arnd@arndb.de" <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "jgross@suse.com" <jgross@suse.com>, "stefan.bader@canonical.com" <stefan.bader@canonical.com>, "luto@amacapital.net" <luto@amacapital.net>, "hmh@hmh.eng.br" <hmh@hmh.eng.br>, "yigal@plexistor.com" <yigal@plexistor.com>, "konrad.wilk@oracle.com" <konrad.wilk@oracle.com>
+To: akpm@linux-foundation.org, santosh.shilimkar@ti.com, grygorii.strashko@ti.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.co, fabf@skynet.be, nzimmer@sgi.com, wangnan0@huawei.com, vdavydov@parallels.com, toshi.kani@hp.com, phacht@linux.vnet.ibm.com, tj@kernel.org, kirill.shutemov@linux.intel.com, riel@redhat.com, luto@amacapital.net, hpa@linux.intel.com, aarcange@redhat.com, qiuxishi@huawei.com, mgorman@suse.de, rientjes@google.com, hannes@cmpxchg.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, tangchen@cn.fujitsu.com
 
-On Mon, 2014-11-03 at 23:53 +0100, Thomas Gleixner wrote:
-> On Mon, 3 Nov 2014, Toshi Kani wrote:
-> > On Mon, 2014-11-03 at 22:10 +0000, Elliott, Robert (Server Storage)
-> > wrote:
-> >  :
-> > > > Subject: [PATCH v4 4/7] x86, mm, pat: Add pgprot_writethrough() for
-> > > > WT
-> > > > 
-> > > > This patch adds pgprot_writethrough() for setting WT to a given
-> > > > pgprot_t.
-> > > > 
-> > > > Signed-off-by: Toshi Kani <toshi.kani@hp.com>
-> > > > Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-> > > ...
-> > > > diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
-> > > > index a214f5a..a0264d3 100644
-> > > > --- a/arch/x86/mm/pat.c
-> > > > +++ b/arch/x86/mm/pat.c
-> > > > @@ -896,6 +896,16 @@ pgprot_t pgprot_writecombine(pgprot_t prot)
-> > > >  }
-> > > >  EXPORT_SYMBOL_GPL(pgprot_writecombine);
-> > > > 
-> > > > +pgprot_t pgprot_writethrough(pgprot_t prot)
-> > > > +{
-> > > > +	if (pat_enabled)
-> > > > +		return __pgprot(pgprot_val(prot) |
-> > > > +				cachemode2protval(_PAGE_CACHE_MODE_WT));
-> > > > +	else
-> > > > +		return pgprot_noncached(prot);
-> > > > +}
-> > > > +EXPORT_SYMBOL_GPL(pgprot_writethrough);
-> > > ...
-> > > 
-> > > Would you be willing to use EXPORT_SYMBOL for the new 
-> > > pgprot_writethrough function to provide more flexibility
-> > > for modules to utilize the new feature?  In x86/mm, 18 of 60
-> > > current exports are GPL and 42 are not GPL.
-> > 
-> > I simply used EXPORT_SYMBOL_GPL() since pgprot_writecombine() used
-> > it. :-)  This interface is intended to be used along with
-> > remap_pfn_range() and ioremap_prot(), which are both exported with
-> > EXPORT_SYMBOL().  So, it seems reasonable to export it with
-> > EXPORT_SYMBOL() as well.  I will make this change.
-> 
-> NAK.
-> 
-> This is new functionality and we really have no reason to give the GPL
-> circumventors access to it.
+Hi all,
 
-Thanks for the background info about EXPORT_SYMBOL.  I will keep it no
-change.
+I thinks these two problems are very important and should be merged ASAP.
+Would you please help to have a look at it ?
 
--Toshi
+Thanks.
+
+On 10/31/2014 05:46 PM, Tang Chen wrote:
+> There are two problems when calculating node meminfo:
+>
+> 1. When hot-adding a node without onlining any page, MemTotal corrupted.
+>
+> # hot-add node2 (memory not onlined)
+> # cat /sys/device/system/node/node2/meminfo
+> Node 2 MemTotal:       33554432 kB			/* corrupted */
+> Node 2 MemFree:               0 kB
+> Node 2 MemUsed:        33554432 kB
+> Node 2 Active:                0 kB
+> ......
+>
+>
+> 2. When onlining memory on node2, MemFree of node3 corrupted.
+>
+> # for ((i = 2048; i < 2064; i++)); do echo online_movable > /sys/devices/system/node/node2/memory$i/state; done
+> # cat /sys/devices/system/node/node2/meminfo
+> Node 2 MemTotal:       33554432 kB
+> Node 2 MemFree:        33549092 kB
+> Node 2 MemUsed:            5340 kB
+> ......
+> # cat /sys/devices/system/node/node3/meminfo
+> Node 3 MemTotal:              0 kB
+> Node 3 MemFree:               248 kB                    /* corrupted */
+> Node 3 MemUsed:               0 kB
+> ......
+>
+> This patch-set fixes them.
+>
+> Tang Chen (2):
+>    mem-hotplug: Reset node managed pages when hot-adding a new pgdat.
+>    mem-hotplug: Fix wrong check for zone->pageset initialization in
+>      online_pages().
+>
+>   include/linux/bootmem.h |  1 +
+>   include/linux/mm.h      |  1 +
+>   mm/bootmem.c            |  9 +++++----
+>   mm/memory_hotplug.c     | 15 ++++++++++++++-
+>   mm/nobootmem.c          |  8 +++++---
+>   mm/page_alloc.c         |  5 +++++
+>   6 files changed, 31 insertions(+), 8 deletions(-)
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
