@@ -1,104 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 35B926B0078
-	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 19:42:41 -0500 (EST)
-Received: by mail-pa0-f54.google.com with SMTP id rd3so13322572pab.13
-        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 16:42:40 -0800 (PST)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id o9si16671475pdn.5.2014.11.03.16.42.38
-        for <linux-mm@kvack.org>;
-        Mon, 03 Nov 2014 16:42:39 -0800 (PST)
-Date: Tue, 4 Nov 2014 09:44:21 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v5 2/4] mm/page_alloc: add freepage on isolate pageblock
- to correct buddy list
-Message-ID: <20141104004421.GD8412@js1304-P5Q-DELUXE>
-References: <1414740330-4086-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1414740330-4086-3-git-send-email-iamjoonsoo.kim@lge.com>
- <54573B3B.4070500@samsung.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <54573B3B.4070500@samsung.com>
+Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 239B86B0085
+	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 20:04:36 -0500 (EST)
+Received: by mail-ob0-f176.google.com with SMTP id va2so9892185obc.7
+        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 17:04:35 -0800 (PST)
+Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
+        by mx.google.com with ESMTPS id g5si19830107oed.11.2014.11.03.17.04.34
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 03 Nov 2014 17:04:34 -0800 (PST)
+Message-ID: <1415062233.10958.42.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v4 4/7] x86, mm, pat: Add pgprot_writethrough() for WT
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Mon, 03 Nov 2014 17:50:33 -0700
+In-Reply-To: <alpine.DEB.2.11.1411032352161.5308@nanos>
+References: <1414450545-14028-1-git-send-email-toshi.kani@hp.com>
+	  <1414450545-14028-5-git-send-email-toshi.kani@hp.com>
+	  <94D0CD8314A33A4D9D801C0FE68B4029593578ED@G9W0745.americas.hpqcorp.net>
+	 <1415052905.10958.39.camel@misato.fc.hp.com>
+	 <alpine.DEB.2.11.1411032352161.5308@nanos>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Heesub Shin <heesub.shin@samsung.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, Gioh Kim <gioh.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: "Elliott, Robert (Server Storage)" <Elliott@hp.com>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "arnd@arndb.de" <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "jgross@suse.com" <jgross@suse.com>, "stefan.bader@canonical.com" <stefan.bader@canonical.com>, "luto@amacapital.net" <luto@amacapital.net>, "hmh@hmh.eng.br" <hmh@hmh.eng.br>, "yigal@plexistor.com" <yigal@plexistor.com>, "konrad.wilk@oracle.com" <konrad.wilk@oracle.com>
 
-On Mon, Nov 03, 2014 at 05:22:19PM +0900, Heesub Shin wrote:
-> Hello,
+On Mon, 2014-11-03 at 23:53 +0100, Thomas Gleixner wrote:
+> On Mon, 3 Nov 2014, Toshi Kani wrote:
+> > On Mon, 2014-11-03 at 22:10 +0000, Elliott, Robert (Server Storage)
+> > wrote:
+> >  :
+> > > > Subject: [PATCH v4 4/7] x86, mm, pat: Add pgprot_writethrough() for
+> > > > WT
+> > > > 
+> > > > This patch adds pgprot_writethrough() for setting WT to a given
+> > > > pgprot_t.
+> > > > 
+> > > > Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+> > > > Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+> > > ...
+> > > > diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
+> > > > index a214f5a..a0264d3 100644
+> > > > --- a/arch/x86/mm/pat.c
+> > > > +++ b/arch/x86/mm/pat.c
+> > > > @@ -896,6 +896,16 @@ pgprot_t pgprot_writecombine(pgprot_t prot)
+> > > >  }
+> > > >  EXPORT_SYMBOL_GPL(pgprot_writecombine);
+> > > > 
+> > > > +pgprot_t pgprot_writethrough(pgprot_t prot)
+> > > > +{
+> > > > +	if (pat_enabled)
+> > > > +		return __pgprot(pgprot_val(prot) |
+> > > > +				cachemode2protval(_PAGE_CACHE_MODE_WT));
+> > > > +	else
+> > > > +		return pgprot_noncached(prot);
+> > > > +}
+> > > > +EXPORT_SYMBOL_GPL(pgprot_writethrough);
+> > > ...
+> > > 
+> > > Would you be willing to use EXPORT_SYMBOL for the new 
+> > > pgprot_writethrough function to provide more flexibility
+> > > for modules to utilize the new feature?  In x86/mm, 18 of 60
+> > > current exports are GPL and 42 are not GPL.
+> > 
+> > I simply used EXPORT_SYMBOL_GPL() since pgprot_writecombine() used
+> > it. :-)  This interface is intended to be used along with
+> > remap_pfn_range() and ioremap_prot(), which are both exported with
+> > EXPORT_SYMBOL().  So, it seems reasonable to export it with
+> > EXPORT_SYMBOL() as well.  I will make this change.
 > 
-> On 10/31/2014 04:25 PM, Joonsoo Kim wrote:
-> >In free_pcppages_bulk(), we use cached migratetype of freepage
-> >to determine type of buddy list where freepage will be added.
-> >This information is stored when freepage is added to pcp list, so
-> >if isolation of pageblock of this freepage begins after storing,
-> >this cached information could be stale. In other words, it has
-> >original migratetype rather than MIGRATE_ISOLATE.
-> >
-> >There are two problems caused by this stale information. One is that
-> >we can't keep these freepages from being allocated. Although this
-> >pageblock is isolated, freepage will be added to normal buddy list
-> >so that it could be allocated without any restriction. And the other
-> >problem is incorrect freepage accounting. Freepages on isolate pageblock
-> >should not be counted for number of freepage.
-> >
-> >Following is the code snippet in free_pcppages_bulk().
-> >
-> >/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
-> >__free_one_page(page, page_to_pfn(page), zone, 0, mt);
-> >trace_mm_page_pcpu_drain(page, 0, mt);
-> >if (likely(!is_migrate_isolate_page(page))) {
-> >	__mod_zone_page_state(zone, NR_FREE_PAGES, 1);
-> >	if (is_migrate_cma(mt))
-> >		__mod_zone_page_state(zone, NR_FREE_CMA_PAGES, 1);
-> >}
-> >
-> >As you can see above snippet, current code already handle second problem,
-> >incorrect freepage accounting, by re-fetching pageblock migratetype
-> >through is_migrate_isolate_page(page). But, because this re-fetched
-> >information isn't used for __free_one_page(), first problem would not be
-> >solved. This patch try to solve this situation to re-fetch pageblock
-> >migratetype before __free_one_page() and to use it for __free_one_page().
-> >
-> >In addition to move up position of this re-fetch, this patch use
-> >optimization technique, re-fetching migratetype only if there is
-> >isolate pageblock. Pageblock isolation is rare event, so we can
-> >avoid re-fetching in common case with this optimization.
-> >
-> >This patch also correct migratetype of the tracepoint output.
-> >
-> >Cc: <stable@vger.kernel.org>
-> >Acked-by: Minchan Kim <minchan@kernel.org>
-> >Acked-by: Michal Nazarewicz <mina86@mina86.com>
-> >Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> >Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> >---
-> >  mm/page_alloc.c |   13 ++++++++-----
-> >  1 file changed, 8 insertions(+), 5 deletions(-)
-> >
-> >diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> >index f7a867e..6df23fe 100644
-> >--- a/mm/page_alloc.c
-> >+++ b/mm/page_alloc.c
-> >@@ -725,14 +725,17 @@ static void free_pcppages_bulk(struct zone *zone, int count,
-> >  			/* must delete as __free_one_page list manipulates */
-> >  			list_del(&page->lru);
-> >  			mt = get_freepage_migratetype(page);
-> >+			if (unlikely(has_isolate_pageblock(zone))) {
+> NAK.
 > 
-> How about adding an additional check for 'mt == MIGRATE_MOVABLE'
-> here? Then, most of get_pageblock_migratetype() calls could be
-> avoided while the isolation is in progress. I am not sure this is
-> the case on memory offlining. How do you think?
+> This is new functionality and we really have no reason to give the GPL
+> circumventors access to it.
 
-Hello,
+Thanks for the background info about EXPORT_SYMBOL.  I will keep it no
+change.
 
-Isolation could be invoked to other migratetype pageblock. You can
-reference has_unmovable_pages() in page_alloc.c. So, additional check
-'mt == MIGRATE_MOVABLE' should not be inserted.
-
-Thanks.
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
