@@ -1,169 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 657CC6B009A
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 01:35:09 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id kx10so13797168pab.20
-        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 22:35:09 -0800 (PST)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id iu5si17067827pbc.243.2014.11.03.22.35.07
+Received: from mail-la0-f53.google.com (mail-la0-f53.google.com [209.85.215.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 197AE6B009A
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 02:27:21 -0500 (EST)
+Received: by mail-la0-f53.google.com with SMTP id mc6so346793lab.40
+        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 23:27:20 -0800 (PST)
+Received: from tux-cave.hellug.gr (tux-cave.hellug.gr. [195.134.99.74])
+        by mx.google.com with ESMTPS id lm8si36209142lac.7.2014.11.03.23.27.19
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 03 Nov 2014 22:35:07 -0800 (PST)
-Received: by mail-pa0-f42.google.com with SMTP id bj1so13868626pad.1
-        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 22:35:07 -0800 (PST)
-Date: Mon, 3 Nov 2014 22:35:04 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 10/10] mm/hugetlb: share the i_mmap_rwsem
-In-Reply-To: <1414697657-1678-11-git-send-email-dave@stgolabs.net>
-Message-ID: <alpine.LSU.2.11.1411032208390.15596@eggly.anvils>
-References: <1414697657-1678-1-git-send-email-dave@stgolabs.net> <1414697657-1678-11-git-send-email-dave@stgolabs.net>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 03 Nov 2014 23:27:19 -0800 (PST)
+From: "P. Christeas" <xrg@linux.gr>
+Subject: Early test: hangs in mm/compact.c w. Linus's 12d7aacab56e9ef185c
+Date: Tue, 04 Nov 2014 09:26:57 +0200
+Message-ID: <12996532.NCRhVKzS9J@xorhgos3.pefnos>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <dave@stgolabs.net>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.cz>, akpm@linux-foundation.org, hughd@google.com, riel@redhat.com, mgorman@suse.de, peterz@infradead.org, mingo@kernel.org, linux-kernel@vger.kernel.org, dbueso@suse.de, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Thu, 30 Oct 2014, Davidlohr Bueso wrote:
+TL;DR: I'm testing Linus's 3.18-rcX in my desktop (x86_64, full load), 
+experiencing mm races about every day. Current -rc starves the canary of 
+stablity
 
-> The i_mmap_rwsem protects shared pages against races
-> when doing the sharing and unsharing, ultimately
-> calling huge_pmd_share/unshare() for PMD pages --
-> it also needs it to avoid races when populating the pud
-> for pmd allocation when looking for a shareable pmd page
-> for hugetlb. Ultimately the interval tree remains intact.
-> 
-> Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
-> Acked-by: Kirill A. Shutemov <kirill.shutemov@intel.linux.com>
-                                                linux.intel.com
+Will keep testing (should I try some -mm tree, please? ) , provide you 
+feedback about the issue.
 
-I'm uncomfortable with this one: I'm certainly not prepared to Ack it;
-but that could easily be that I'm just not thinking hard enough - I'd
-rather leave the heavy thinking to someone else!
+Not an active kernel-developer.
 
-The fs/hugetlbfs/inode.c part of it should be okay, but the rest is
-iffy.  It gets into huge page table sharing territory, which is very
-tricky and surprising territory indeed (take a look at my
-__unmap_hugepage_range_final() comment, for one example).
+Long:
 
-You're right that the interval tree remains intact, but I've a feeling
-we end up using i_mmap_mutex for more exclusion than just that (rather
-like how huge_memory.c finds anon_vma lock useful for other exclusions).
+Since 26 Oct. upgraded my everything-on-it laptop to new distro (systemd -
+based, all new glibc etc.) and switched from 3.17 to 3.18-pre . First time in 
+years, kernel got unstable.
 
-I think Mel (already Cc'ed) and Michal (adding him) both have past
-experience with the shared page table (as do I, but I'm in denial).
+This machine is occasionaly under heavy load, doing I/O and serving random 
+desktop applications. (machine is Intel x86_64, dual core, mechanical SATA 
+disk).
+Now, I have a race about once a day, have narrowed them down (guess) to:
+ 
+        [<ffffffff813b1025>] preempt_schedule_irq+0x3c/0x59
+        [<ffffffff813b4810>] retint_kernel+0x20/0x30
+        [<ffffffff810d7481>] ? __zone_watermark_ok+0x77/0x85
+        [<ffffffff810d8256>] zone_watermark_ok+0x1a/0x1c
+        [<ffffffff810eee56>] compact_zone+0x215/0x4b2
+        [<ffffffff810ef13f>] compact_zone_order+0x4c/0x5f
+        [<ffffffff810ef2fe>] try_to_compact_pages+0xc4/0x1e8
+        [<ffffffff813ad7f8>] __alloc_pages_direct_compact+0x61/0x1bf
+        [<ffffffff810da299>] __alloc_pages_nodemask+0x409/0x799
+        [<ffffffff8110d3fd>] new_slab+0x5f/0x21c
+       ...
 
-I wonder if the huge shared page table would be a good next target
-for Kirill's removal of mm nastiness.  (Removing it wouldn't hurt
-Google for one: we have it "#if 0"ed out, though I forget why at
-this moment.)
+Sometimes is a less critical process, that I can safely kill, otherwise I have 
+to drop everything and reboot.
 
-But, returning to the fs/hugetlbfs/inode.c part of it, that reminds
-me: you're missing one patch from the series, aren't you?  Why no
-i_mmap_lock_read() in mm/memory.c unmap_mapping_range()?  I doubt
-it will add much useful parallelism, but it would be correct.
+Unless you are already aware of this case, please accept this feedback.
+I'm pulling from Linus, should I also try some of your trees for an early 
+solution?
 
-Hugh
 
-> ---
->  fs/hugetlbfs/inode.c |  4 ++--
->  mm/hugetlb.c         | 12 ++++++------
->  mm/memory.c          |  4 ++--
->  3 files changed, 10 insertions(+), 10 deletions(-)
-> 
-> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> index 5eba47f..0dca54d 100644
-> --- a/fs/hugetlbfs/inode.c
-> +++ b/fs/hugetlbfs/inode.c
-> @@ -412,10 +412,10 @@ static int hugetlb_vmtruncate(struct inode *inode, loff_t offset)
->  	pgoff = offset >> PAGE_SHIFT;
->  
->  	i_size_write(inode, offset);
-> -	i_mmap_lock_write(mapping);
-> +	i_mmap_lock_read(mapping);
->  	if (!RB_EMPTY_ROOT(&mapping->i_mmap))
->  		hugetlb_vmtruncate_list(&mapping->i_mmap, pgoff);
-> -	i_mmap_unlock_write(mapping);
-> +	i_mmap_unlock_read(mapping);
->  	truncate_hugepages(inode, offset);
->  	return 0;
->  }
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 2071cf4..80349f2 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -2775,7 +2775,7 @@ static void unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
->  	 * this mapping should be shared between all the VMAs,
->  	 * __unmap_hugepage_range() is called as the lock is already held
->  	 */
-> -	i_mmap_lock_write(mapping);
-> +	i_mmap_lock_read(mapping);
->  	vma_interval_tree_foreach(iter_vma, &mapping->i_mmap, pgoff, pgoff) {
->  		/* Do not unmap the current VMA */
->  		if (iter_vma == vma)
-> @@ -2792,7 +2792,7 @@ static void unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
->  			unmap_hugepage_range(iter_vma, address,
->  					     address + huge_page_size(h), page);
->  	}
-> -	i_mmap_unlock_write(mapping);
-> +	i_mmap_unlock_read(mapping);
->  }
->  
->  /*
-> @@ -3350,7 +3350,7 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
->  	flush_cache_range(vma, address, end);
->  
->  	mmu_notifier_invalidate_range_start(mm, start, end);
-> -	i_mmap_lock_write(vma->vm_file->f_mapping);
-> +	i_mmap_lock_read(vma->vm_file->f_mapping);
->  	for (; address < end; address += huge_page_size(h)) {
->  		spinlock_t *ptl;
->  		ptep = huge_pte_offset(mm, address);
-> @@ -3379,7 +3379,7 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
->  	 */
->  	flush_tlb_range(vma, start, end);
->  	mmu_notifier_invalidate_range(mm, start, end);
-> -	i_mmap_unlock_write(vma->vm_file->f_mapping);
-> +	i_mmap_unlock_read(vma->vm_file->f_mapping);
->  	mmu_notifier_invalidate_range_end(mm, start, end);
->  
->  	return pages << h->order;
-> @@ -3547,7 +3547,7 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
->  	if (!vma_shareable(vma, addr))
->  		return (pte_t *)pmd_alloc(mm, pud, addr);
->  
-> -	i_mmap_lock_write(mapping);
-> +	i_mmap_lock_read(mapping);
->  	vma_interval_tree_foreach(svma, &mapping->i_mmap, idx, idx) {
->  		if (svma == vma)
->  			continue;
-> @@ -3575,7 +3575,7 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
->  	spin_unlock(ptl);
->  out:
->  	pte = (pte_t *)pmd_alloc(mm, pud, addr);
-> -	i_mmap_unlock_write(mapping);
-> +	i_mmap_unlock_read(mapping);
->  	return pte;
->  }
->  
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 22c3089..2ca3105 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1345,9 +1345,9 @@ static void unmap_single_vma(struct mmu_gather *tlb,
->  			 * safe to do nothing in this case.
->  			 */
->  			if (vma->vm_file) {
-> -				i_mmap_lock_write(vma->vm_file->f_mapping);
-> +				i_mmap_lock_read(vma->vm_file->f_mapping);
->  				__unmap_hugepage_range_final(tlb, vma, start, end, NULL);
-> -				i_mmap_unlock_write(vma->vm_file->f_mapping);
-> +				i_mmap_unlock_read(vma->vm_file->f_mapping);
->  			}
->  		} else
->  			unmap_page_range(tlb, vma, start, end, details);
-> -- 
-> 1.8.4.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
