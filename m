@@ -1,57 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id ABE0E6B00DF
-	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 22:38:56 -0500 (EST)
-Received: by mail-qg0-f45.google.com with SMTP id z107so9879007qgd.18
-        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 19:38:56 -0800 (PST)
-Received: from n23.mail01.mtsvc.net (mailout32.mail01.mtsvc.net. [216.70.64.70])
-        by mx.google.com with ESMTPS id s7si32666310qak.86.2014.11.03.19.38.54
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Nov 2014 19:38:55 -0800 (PST)
-Message-ID: <54584A48.9000409@hurleysoftware.com>
-Date: Mon, 03 Nov 2014 22:38:48 -0500
-From: Peter Hurley <peter@hurleysoftware.com>
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id E714F6B00DF
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 00:41:57 -0500 (EST)
+Received: by mail-pd0-f171.google.com with SMTP id r10so12980502pdi.2
+        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 21:41:57 -0800 (PST)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id je1si17032508pbb.168.2014.11.03.21.41.55
+        for <linux-mm@kvack.org>;
+        Mon, 03 Nov 2014 21:41:56 -0800 (PST)
+Date: Tue, 4 Nov 2014 14:43:07 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: alloc_contig_range: demote pages busy message from
+ warn to info
+Message-ID: <20141104054307.GA23102@bbox>
+References: <2457604.k03RC2Mv4q@avalon>
+ <1415033873-28569-1-git-send-email-mina86@mina86.com>
 MIME-Version: 1.0
-Subject: Re: CMA: test_pages_isolated failures in alloc_contig_range
-References: <2457604.k03RC2Mv4q@avalon> <xa1tsii8l683.fsf@mina86.com> <544F9EAA.5010404@hurleysoftware.com> <xa1tfve8ku7q.fsf@mina86.com>
-In-Reply-To: <xa1tfve8ku7q.fsf@mina86.com>
 Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1415033873-28569-1-git-send-email-mina86@mina86.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-sh@vger.kernel.org, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Peter Hurley <peter@hurleysoftware.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 10/28/2014 12:57 PM, Michal Nazarewicz wrote:
->> On 10/28/2014 08:38 AM, Michal Nazarewicz wrote:
->>> Like Laura wrote, the message is not (should not be) a problem in
->>> itself:
->>
->> [...]
->>
->>> So as you can see cma_alloc will try another part of the cma region if
->>> test_pages_isolated fails.
->>>
->>> Obviously, if CMA region is fragmented or there's enough space for only
->>> one allocation of required size isolation failures will cause allocation
->>> failures, so it's best to avoid them, but they are not always avoidable.
->>>
->>> To debug you would probably want to add more debug information about the
->>> page (i.e. data from struct page) that failed isolation after the
->>> pr_warn in alloc_contig_range.
-> 
-> On Tue, Oct 28 2014, Peter Hurley <peter@hurleysoftware.com> wrote:
->> If the message does not indicate an actual problem, then its printk level is
->> too high. These messages have been reported when using 3.16+ distro kernels.
-> 
-> I think it could be argued both ways.  The condition is not an error,
-> since in many cases cma_alloc will be able to continue, but it *is* an
-> undesired state.  As such it's not an error but feels to me a bit more
-> then just information, hence a warning.  I don't care either way, though.
+Hello,
 
-This "undesired state" is trivially reproducible on 3.16.y on the x86 arch;
-a smattering of these will show up just building a distro kernel.
+On Mon, Nov 03, 2014 at 05:57:53PM +0100, Michal Nazarewicz wrote:
+> Having test_pages_isolated failure message as a warning confuses
+> users into thinking that it is more serious than it really is.  In
+> reality, if called via CMA, allocation will be retried so a single
+> test_pages_isolated failure does not prevent allocation from
+> succeeding.
+> 
+> Demote the warning message to an info message and reformat it such
+> that the text a??faileda?? does not appear and instead a less worrying
+> a??PFNS busya?? is used.
+
+What do you expect from this message? Please describe it so that we can
+review below message helps your goal.
+
+> 
+> Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
+> ---
+>  mm/page_alloc.c | 5 ++---
+>  1 file changed, 2 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 372e3f3..e2731eb 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -6431,13 +6431,12 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+>  
+>  	/* Make sure the range is really isolated. */
+>  	if (test_pages_isolated(outer_start, end, false)) {
+> -		pr_warn("alloc_contig_range test_pages_isolated(%lx, %lx) failed\n",
+> -		       outer_start, end);
+> +		pr_info("%s: [%lx, %lx) PFNs busy\n",
+> +			__func__, outer_start, end);
+>  		ret = -EBUSY;
+>  		goto done;
+>  	}
+>  
+> -
+>  	/* Grab isolated pages from freelists. */
+>  	outer_end = isolate_freepages_range(&cc, outer_start, end);
+>  	if (!outer_end) {
+> -- 
+> 2.1.0.rc2.206.gedb03e5
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
