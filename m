@@ -1,49 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F7556B0073
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 16:03:54 -0500 (EST)
-Received: by mail-qg0-f43.google.com with SMTP id f51so11073017qge.2
-        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 13:03:53 -0800 (PST)
-Received: from mail-qg0-x235.google.com (mail-qg0-x235.google.com. [2607:f8b0:400d:c04::235])
-        by mx.google.com with ESMTPS id 35si2633236qgl.127.2014.11.04.13.03.52
+Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
+	by kanga.kvack.org (Postfix) with ESMTP id AFFE46B00BC
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 17:18:43 -0500 (EST)
+Received: by mail-ob0-f173.google.com with SMTP id wn1so11594160obc.4
+        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 14:18:43 -0800 (PST)
+Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
+        by mx.google.com with ESMTPS id g6si1856824obh.55.2014.11.04.14.18.42
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 04 Nov 2014 13:03:53 -0800 (PST)
-Received: by mail-qg0-f53.google.com with SMTP id z107so11009480qgd.26
-        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 13:03:52 -0800 (PST)
-MIME-Version: 1.0
-From: Gregory Fong <gregory.0xf0@gmail.com>
-Date: Tue, 4 Nov 2014 13:03:22 -0800
-Message-ID: <CADtm3G7DtGkvPk36Fiunwen8grw-94V6=iv82iusGumfNJkn-g@mail.gmail.com>
-Subject: CMA alignment question
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 04 Nov 2014 14:18:42 -0800 (PST)
+From: Toshi Kani <toshi.kani@hp.com>
+Subject: [PATCH v5 0/8] Support Write-Through mapping on x86
+Date: Tue,  4 Nov 2014 15:04:30 -0700
+Message-Id: <1415138678-22958-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: lauraa@codeaurora.org, iamjoonsoo.kim@lge.com, mina86@mina86.com, Marek Szyprowski <m.szyprowski@samsung.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Florian Fainelli <f.fainelli@gmail.com>, Brian Norris <computersforpeace@gmail.com>
+To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com
 
-Hi all,
+This patchset adds support of Write-Through (WT) mapping on x86.
+The study below shows that using WT mapping may be useful for
+non-volatile memory.
 
-The alignment in cma_alloc() is done w.r.t. the bitmap.  This is a
-problem when, for example:
+  http://www.hpl.hp.com/techreports/2012/HPL-2012-236.pdf
 
-- a device requires 16M (order 12) alignment
-- the CMA region is not 16 M aligned
+This patchset applies on top of the Juergen's patchset below,
+which provides the basis of the PAT management.
 
-In such a case, can result with the CMA region starting at, say,
-0x2f800000 but any allocation you make from there will be aligned from
-there.  Requesting an allocation of 32 M with 16 M alignment, will
-result in an allocation from 0x2f800000 to 0x31800000, which doesn't
-work very well if your strange device requires 16M alignment.
+  https://lkml.org/lkml/2014/11/3/330
 
-This doesn't have the behavior I would expect, which would be for the
-allocation to be aligned w.r.t. the start of memory.  I realize that
-aligning the CMA region is an option, but don't see why cma_alloc()
-aligns to the start of the CMA region.  Is there a good reason for
-having cma_alloc() alignment work this way?
+All new/modified interfaces have been tested.
 
-Thanks and regards,
-Gregory
+v5:
+ - Clarified comment of why using slot 7. (Andy Lutomirski,
+   Thomas Gleixner)
+ - Moved [set|get]_page_memtype() to pat.c. (Thomas Gleixner)
+ - Removed BUG() from set_page_memtype(). (Thomas Gleixner)
+
+v4:
+ - Added set_memory_wt() by adding WT support of regular memory.
+
+v3:
+ - Dropped the set_memory_wt() patch. (Andy Lutomirski)
+ - Refactored the !pat_enabled handling. (H. Peter Anvin,
+   Andy Lutomirski)
+ - Added the picture of PTE encoding. (Konrad Rzeszutek Wilk)
+
+v2:
+ - Changed WT to use slot 7 of the PAT MSR. (H. Peter Anvin,
+   Andy Lutomirski)
+ - Changed to have conservative checks to exclude all Pentium 2, 3,
+   M, and 4 families. (Ingo Molnar, Henrique de Moraes Holschuh,
+   Andy Lutomirski)
+ - Updated documentation to cover WT interfaces and usages.
+   (Andy Lutomirski, Yigal Korman)
+
+---
+Toshi Kani (8):
+  1/8 x86, mm, pat: Set WT to PA7 slot of PAT MSR
+  2/8 x86, mm, pat, asm: Move [get|set]_page_memtype() to pat.c
+  3/8 x86, mm, pat: Change reserve_memtype() to handle WT
+  4/8 x86, mm, asm-gen: Add ioremap_wt() for WT
+  5/8 x86, mm, pat: Add pgprot_writethrough() for WT
+  6/8 x86, mm, pat: Refactor !pat_enable handling
+  7/8 x86, mm, asm: Add WT support to set_page_memtype()
+  8/8 x86, mm: Add set_memory_wt() for WT
+
+---
+ Documentation/x86/pat.txt            |  13 +-
+ arch/x86/include/asm/cacheflush.h    |  75 +----------
+ arch/x86/include/asm/io.h            |   2 +
+ arch/x86/include/asm/pgtable_types.h |   3 +
+ arch/x86/mm/init.c                   |   6 +-
+ arch/x86/mm/iomap_32.c               |  12 +-
+ arch/x86/mm/ioremap.c                |  26 +++-
+ arch/x86/mm/pageattr.c               |  61 +++++++--
+ arch/x86/mm/pat.c                    | 241 ++++++++++++++++++++++++-----------
+ include/asm-generic/io.h             |   4 +
+ include/asm-generic/iomap.h          |   4 +
+ include/asm-generic/pgtable.h        |   4 +
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
