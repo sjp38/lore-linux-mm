@@ -1,108 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id B0D3F6B00D7
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 08:17:17 -0500 (EST)
-Received: by mail-wi0-f171.google.com with SMTP id q5so9359428wiv.10
-        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 05:17:17 -0800 (PST)
-Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.227])
-        by mx.google.com with ESMTP id pv8si454074wjc.98.2014.11.04.05.17.16
-        for <linux-mm@kvack.org>;
-        Tue, 04 Nov 2014 05:17:16 -0800 (PST)
-Date: Tue, 4 Nov 2014 15:13:56 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: Why page fault handler behaved this way? Please help!
-Message-ID: <20141104131356.GC28274@node.dhcp.inet.fi>
-References: <771b3575.1fa3f.1495fe48476.Coremail.michaelbest002@126.com>
- <CAGdaadaxRn8yB3jWUKvyosnjHm133n5BnFX8rsaVm9-7Q+M1ZA@mail.gmail.com>
+Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 572DE6B00AF
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 08:27:21 -0500 (EST)
+Received: by mail-wg0-f54.google.com with SMTP id n12so8164041wgh.27
+        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 05:27:20 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id pq5si379941wjc.165.2014.11.04.05.27.20
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 04 Nov 2014 05:27:20 -0800 (PST)
+Date: Tue, 4 Nov 2014 08:27:01 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 1/3] mm: embed the memcg pointer directly into struct page
+Message-ID: <20141104132701.GA18441@phnom.home.cmpxchg.org>
+References: <1414898156-4741-1-git-send-email-hannes@cmpxchg.org>
+ <54589017.9060604@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAGdaadaxRn8yB3jWUKvyosnjHm133n5BnFX8rsaVm9-7Q+M1ZA@mail.gmail.com>
+In-Reply-To: <54589017.9060604@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mulyadi Santosa <mulyadi.santosa@gmail.com>
-Cc: =?utf-8?B?56em5byL5oiI?= <michaelbest002@126.com>, kernelnewbies <kernelnewbies@kernelnewbies.org>, linux-mm <linux-mm@kvack.org>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@parallels.com>, Tejun Heo <tj@kernel.org>, David Miller <davem@davemloft.net>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Nov 04, 2014 at 07:41:08PM +0700, Mulyadi Santosa wrote:
-> Hello...
+On Tue, Nov 04, 2014 at 05:36:39PM +0900, Kamezawa Hiroyuki wrote:
+> (2014/11/02 12:15), Johannes Weiner wrote:
+> > Memory cgroups used to have 5 per-page pointers.  To allow users to
+> > disable that amount of overhead during runtime, those pointers were
+> > allocated in a separate array, with a translation layer between them
+> > and struct page.
+> > 
+> > There is now only one page pointer remaining: the memcg pointer, that
+> > indicates which cgroup the page is associated with when charged.  The
+> > complexity of runtime allocation and the runtime translation overhead
+> > is no longer justified to save that *potential* 0.19% of memory.  With
+> > CONFIG_SLUB, page->mem_cgroup actually sits in the doubleword padding
+> > after the page->private member and doesn't even increase struct page,
+> > and then this patch actually saves space.  Remaining users that care
+> > can still compile their kernels without CONFIG_MEMCG.
+> > 
+> >     text    data     bss     dec     hex     filename
+> > 8828345 1725264  983040 11536649 b00909  vmlinux.old
+> > 8827425 1725264  966656 11519345 afc571  vmlinux.new
+> > 
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > ---
+> >   include/linux/memcontrol.h  |   6 +-
+> >   include/linux/mm_types.h    |   5 +
+> >   include/linux/mmzone.h      |  12 --
+> >   include/linux/page_cgroup.h |  53 --------
+> >   init/main.c                 |   7 -
+> >   mm/memcontrol.c             | 124 +++++------------
+> >   mm/page_alloc.c             |   2 -
+> >   mm/page_cgroup.c            | 319 --------------------------------------------
+> >   8 files changed, 41 insertions(+), 487 deletions(-)
+> > 
 > 
-> how big is your binary anyway?
-> 
-> from your log, if my calculation is right, your code segment is around 330
-> KiB. But bear in mind, that not all of them are your code. There are other
-> code like PLT, function prefix and so on.
-> 
-> Also, even if your code is big, are you sure all of them are executed?
-> Following 20/80 principle, most of the time, when running an application,
-> only 20% portion of the application are really used/executed during 80% of
-> application lifetime. The rest, it might untouched at all.
-> 
-> 
-> On Thu, Oct 30, 2014 at 2:10 PM, c?|a 1/4 ?ae?? <michaelbest002@126.com> wrote:
-> 
-> >
-> >
-> >
-> > Dear all,
-> >
-> >
-> > I am a kernel newbie who want's to learn more about memory management.
-> > Recently I'm doing some experiment on page fault handler. There happened
-> > something that I couldn't understand.
-> >
-> >
-> > From reading the book Understanding the Linux Kernel, I know that the
-> > kernel loads a page as late as possible. It's only happened when the
-> > program has to reference  (read, write, or execute) a page yet the page is
-> > not in memory.
-> >
-> >
-> > However, when I traced all page faults in my test program, I found
-> > something strange. My test program is large enough, but there are only two
-> > page faults triggered in the code segment of the program, while most of the
-> > faults are not in code segment.
-> >
-> >
-> > At first I thought that perhaps the page is not the normal 4K page. Thus I
-> > turned off the PAE support in the config file. But the log remains
-> > unchanged.
-> >
-> >
-> > So why are there only 2 page faults in code segment? It shouldn't be like
-> > this in my opinion. Please help me.
+> Great! 
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-We have "faultaround" feature in recent kernel which tries to map 64k with
-one page fault if the pages are already in page cache. There's handle in
-debugfs to disable the feature, if you want to play with this.
+Thank you!
 
-> > The attachment is my kernel log. Limited by the mail size, I couldn't
-> > upload my program, but I believe that the log is clear enough.
-> >
-> >
-> > Thank you very much.
-> > Best regards
-> >
-> >
-> > _______________________________________________
-> > Kernelnewbies mailing list
-> > Kernelnewbies@kernelnewbies.org
-> > http://lists.kernelnewbies.org/mailman/listinfo/kernelnewbies
-> >
-> >
-> 
-> 
-> -- 
-> regards,
-> 
-> Mulyadi Santosa
-> Freelance Linux trainer and consultant
-> 
-> blog: the-hydra.blogspot.com
-> training: mulyaditraining.blogspot.com
+> BTW, init/Kconfig comments shouldn't be updated ?
+> (I'm sorry if it has been updated since your latest fix.)
 
+Good point.  How about this?
+
+---
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch] mm: move page->mem_cgroup bad page handling into generic code fix
+
+Remove obsolete memory saving recommendations from the MEMCG Kconfig
+help text.
+
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ init/Kconfig | 12 ------------
+ 1 file changed, 12 deletions(-)
+
+diff --git a/init/Kconfig b/init/Kconfig
+index 01b7f2a6abf7..d68d8b0780b3 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -983,18 +983,6 @@ config MEMCG
+ 	  Provides a memory resource controller that manages both anonymous
+ 	  memory and page cache. (See Documentation/cgroups/memory.txt)
+ 
+-	  Note that setting this option increases fixed memory overhead
+-	  associated with each page of memory in the system. By this,
+-	  8(16)bytes/PAGE_SIZE on 32(64)bit system will be occupied by memory
+-	  usage tracking struct at boot. Total amount of this is printed out
+-	  at boot.
+-
+-	  Only enable when you're ok with these trade offs and really
+-	  sure you need the memory resource controller. Even when you enable
+-	  this, you can set "cgroup_disable=memory" at your boot option to
+-	  disable memory resource controller and you can avoid overheads.
+-	  (and lose benefits of memory resource controller)
+-
+ config MEMCG_SWAP
+ 	bool "Memory Resource Controller Swap Extension"
+ 	depends on MEMCG && SWAP
 -- 
- Kirill A. Shutemov
+2.1.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
