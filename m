@@ -1,120 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 408F26B0095
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 12:15:37 -0500 (EST)
-Received: by mail-pd0-f171.google.com with SMTP id r10so14052825pdi.30
-        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 09:15:36 -0800 (PST)
-Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
-        by mx.google.com with ESMTPS id ui1si866627pbc.4.2014.11.04.09.15.35
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id E23856B00B9
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 12:47:05 -0500 (EST)
+Received: by mail-wi0-f173.google.com with SMTP id n3so10151036wiv.0
+        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 09:47:05 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id yu10si1391532wjc.112.2014.11.04.09.47.04
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Tue, 04 Nov 2014 09:15:35 -0800 (PST)
-Received: from epcpsbgr2.samsung.com
- (u142.gpu120.samsung.co.kr [203.254.230.142])
- by mailout4.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTP id <0NEI007LSYLX2FA0@mailout4.samsung.com> for linux-mm@kvack.org;
- Wed, 05 Nov 2014 02:15:33 +0900 (KST)
-From: PINTU KUMAR <pintu.k@samsung.com>
-References: <1413790391-31686-1-git-send-email-pintu.k@samsung.com>
- <1413986796-19732-1-git-send-email-pintu.k@samsung.com>
- <alpine.DEB.2.10.1411031556140.9845@chino.kir.corp.google.com>
-In-reply-to: <alpine.DEB.2.10.1411031556140.9845@chino.kir.corp.google.com>
-Subject: RE: [PATCH v2 1/2] mm: cma: split cma-reserved in dmesg log
-Date: Tue, 04 Nov 2014 22:45:46 +0530
-Message-id: <001a01cff853$04c90290$0e5b07b0$@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-transfer-encoding: 7bit
-Content-language: en-us
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 04 Nov 2014 09:47:04 -0800 (PST)
+Date: Tue, 4 Nov 2014 12:46:50 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 1/3] mm: embed the memcg pointer directly into struct page
+Message-ID: <20141104174650.GA19061@phnom.home.cmpxchg.org>
+References: <1414898156-4741-1-git-send-email-hannes@cmpxchg.org>
+ <54589017.9060604@jp.fujitsu.com>
+ <20141104132701.GA18441@phnom.home.cmpxchg.org>
+ <20141104134110.GD22207@dhcp22.suse.cz>
+ <20141104140937.GA18602@phnom.home.cmpxchg.org>
+ <20141104150039.GF22207@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141104150039.GF22207@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'David Rientjes' <rientjes@google.com>
-Cc: akpm@linux-foundation.org, riel@redhat.com, aquini@redhat.com, paul.gortmaker@windriver.com, jmarchan@redhat.com, lcapitulino@redhat.com, kirill.shutemov@linux.intel.com, m.szyprowski@samsung.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, mina86@mina86.com, lauraa@codeaurora.org, gioh.kim@lge.com, mgorman@suse.de, hannes@cmpxchg.org, vbabka@suse.cz, sasha.levin@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pintu_agarwal@yahoo.com, cpgs@samsung.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, ed.savinay@samsung.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, Tejun Heo <tj@kernel.org>, David Miller <davem@davemloft.net>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-
-
-> -----Original Message-----
-> From: David Rientjes [mailto:rientjes@google.com]
-> Sent: Tuesday, November 04, 2014 5:27 AM
-> To: Pintu Kumar
-> Cc: akpm@linux-foundation.org; riel@redhat.com; aquini@redhat.com;
-> paul.gortmaker@windriver.com; jmarchan@redhat.com;
-> lcapitulino@redhat.com; kirill.shutemov@linux.intel.com;
-> m.szyprowski@samsung.com; aneesh.kumar@linux.vnet.ibm.com;
-> iamjoonsoo.kim@lge.com; mina86@mina86.com; lauraa@codeaurora.org;
-> gioh.kim@lge.com; mgorman@suse.de; hannes@cmpxchg.org; vbabka@suse.cz;
-> sasha.levin@oracle.com; linux-kernel@vger.kernel.org; linux-mm@kvack.org;
-> pintu_agarwal@yahoo.com; cpgs@samsung.com; vishnu.ps@samsung.com;
-> rohit.kr@samsung.com; ed.savinay@samsung.com
-> Subject: Re: [PATCH v2 1/2] mm: cma: split cma-reserved in dmesg log
+On Tue, Nov 04, 2014 at 04:00:39PM +0100, Michal Hocko wrote:
+> On Tue 04-11-14 09:09:37, Johannes Weiner wrote:
+> > On Tue, Nov 04, 2014 at 02:41:10PM +0100, Michal Hocko wrote:
+> > > On Tue 04-11-14 08:27:01, Johannes Weiner wrote:
+> > > > From: Johannes Weiner <hannes@cmpxchg.org>
+> > > > Subject: [patch] mm: move page->mem_cgroup bad page handling into generic code fix
+> > > > 
+> > > > Remove obsolete memory saving recommendations from the MEMCG Kconfig
+> > > > help text.
+> > > 
+> > > The memory overhead is still there. So I do not think it is good to
+> > > remove the message altogether. The current overhead might be 4 or 8B
+> > > depending on the configuration. What about
+> > > "
+> > > 	Note that setting this option might increase fixed memory
+> > > 	overhead associated with each page descriptor in the system.
+> > > 	The memory overhead depends on the architecture and other
+> > > 	configuration options which have influence on the size and
+> > > 	alignment on the page descriptor (struct page). Namely
+> > > 	CONFIG_SLUB has a requirement for page alignment to two words
+> > > 	which in turn means that 64b systems might not see any memory
+> > > 	overhead as the additional data fits into alignment. On the
+> > > 	other hand 32b systems might see 8B memory overhead.
+> > > "
+> > 
+> > What difference does it make whether this feature maybe costs an extra
+> > pointer per page or not?  These texts are supposed to help decide with
+> > the selection, but this is not a "good to have, if affordable" type of
+> > runtime debugging option.  You either need cgroup memory accounting
+> > and limiting or not.  There is no possible trade-off to be had.
 > 
-> On Wed, 22 Oct 2014, Pintu Kumar wrote:
+> If you are compiling the kernel for your specific usecase then it
+> is clear. You enable only what you really need/want. But if you are
+> providing a pre-built kernel and considering which features to enable
+> then an information about overhead might be useful. You can simply
+> disable the feature for memory restricted kernel flavors.
 > 
-> > diff --git a/include/linux/cma.h b/include/linux/cma.h index
-> > 0430ed0..0b75896 100644
-> > --- a/include/linux/cma.h
-> > +++ b/include/linux/cma.h
-> > @@ -15,6 +15,7 @@
-> >
-> >  struct cma;
-> >
-> > +extern unsigned long totalcma_pages;
-> >  extern phys_addr_t cma_get_base(struct cma *cma);  extern unsigned
-> > long cma_get_size(struct cma *cma);
-> >
-> > diff --git a/mm/cma.c b/mm/cma.c
-> > index 963bc4a..8435762 100644
-> > --- a/mm/cma.c
-> > +++ b/mm/cma.c
-> > @@ -288,6 +288,7 @@ int __init cma_declare_contiguous(phys_addr_t base,
-> >  	if (ret)
-> >  		goto err;
-> >
-> > +	totalcma_pages += (size / PAGE_SIZE);
-> >  	pr_info("Reserved %ld MiB at %08lx\n", (unsigned long)size / SZ_1M,
-> >  		(unsigned long)base);
-> >  	return 0;
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c index dd73f9a..ababbd8
-> > 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -110,6 +110,7 @@ static DEFINE_SPINLOCK(managed_page_count_lock);
-> >
-> >  unsigned long totalram_pages __read_mostly;  unsigned long
-> > totalreserve_pages __read_mostly;
-> > +unsigned long totalcma_pages __read_mostly;
+> > Slub and numa balancing don't mention this, either, simply because
+> > this cost is negligible or irrelevant when it comes to these knobs.
 > 
-> Shouldn't this be __initdata instead?
-> 
+> I agree that the overhead seems negligible but does it hurt us to
+> mention it though?
 
-No, we wanted to retain this variable for later use. 
-We wanted to use this to print CMA info in /proc/meminfo.
-Please see the next patch for this set.
-[PATCH v2 2/2] fs: proc: Include cma info in proc/meminfo
-
-
-> >  /*
-> >   * When calculating the number of globally allowed dirty pages, there
-> >   * is a certain number of per-zone reserves that should not be @@
-> > -5520,7 +5521,7 @@ void __init mem_init_print_info(const char *str)
-> >
-> >  	pr_info("Memory: %luK/%luK available "
-> >  	       "(%luK kernel code, %luK rwdata, %luK rodata, "
-> > -	       "%luK init, %luK bss, %luK reserved"
-> > +	       "%luK init, %luK bss, %luK reserved, %luK cma-reserved"
-> >  #ifdef	CONFIG_HIGHMEM
-> >  	       ", %luK highmem"
-> >  #endif
-> > @@ -5528,7 +5529,8 @@ void __init mem_init_print_info(const char *str)
-> >  	       nr_free_pages() << (PAGE_SHIFT-10), physpages << (PAGE_SHIFT-10),
-> >  	       codesize >> 10, datasize >> 10, rosize >> 10,
-> >  	       (init_data_size + init_code_size) >> 10, bss_size >> 10,
-> > -	       (physpages - totalram_pages) << (PAGE_SHIFT-10),
-> > +	       (physpages - totalram_pages - totalcma_pages) << (PAGE_SHIFT-10),
-> > +	       totalcma_pages << (PAGE_SHIFT-10),
-> >  #ifdef	CONFIG_HIGHMEM
-> >  	       totalhigh_pages << (PAGE_SHIFT-10),  #endif
+Yes, it's fairly misleading.  What about the instructions it adds to
+the fault hotpaths?  The additional memory footprint of each cgroup
+created?  You're adding 9 lines to point out one specific cost aspect,
+when the entire feature is otherwise summed up in two lines.  The
+per-page overhead of memcg is not exceptional or unexpected if you
+know what it does - which you should when you enable it, even as a
+distributor - and such a gross overrepresentation in the help text is
+more confusing than helpful.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
