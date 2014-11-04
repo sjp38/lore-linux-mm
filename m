@@ -1,68 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 904806B00BF
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 07:31:43 -0500 (EST)
-Received: by mail-wi0-f171.google.com with SMTP id q5so9240993wiv.10
-        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 04:31:43 -0800 (PST)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.234])
-        by mx.google.com with ESMTP id e2si191714wjp.168.2014.11.04.04.31.42
-        for <linux-mm@kvack.org>;
-        Tue, 04 Nov 2014 04:31:42 -0800 (PST)
-Date: Tue, 4 Nov 2014 14:29:01 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 08/10] mm/mremap: share the i_mmap_rwsem
-Message-ID: <20141104122901.GA28274@node.dhcp.inet.fi>
-References: <1414697657-1678-1-git-send-email-dave@stgolabs.net>
- <1414697657-1678-9-git-send-email-dave@stgolabs.net>
- <alpine.LSU.2.11.1411032148230.15596@eggly.anvils>
+Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EAB96B00BF
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 07:41:50 -0500 (EST)
+Received: by mail-lb0-f171.google.com with SMTP id b6so3079630lbj.16
+        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 04:41:49 -0800 (PST)
+Received: from mail-la0-x234.google.com (mail-la0-x234.google.com. [2a00:1450:4010:c03::234])
+        by mx.google.com with ESMTPS id q1si644652laq.20.2014.11.04.04.41.48
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 04 Nov 2014 04:41:49 -0800 (PST)
+Received: by mail-la0-f52.google.com with SMTP id pv20so765224lab.25
+        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 04:41:48 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1411032148230.15596@eggly.anvils>
+In-Reply-To: <771b3575.1fa3f.1495fe48476.Coremail.michaelbest002@126.com>
+References: <771b3575.1fa3f.1495fe48476.Coremail.michaelbest002@126.com>
+From: Mulyadi Santosa <mulyadi.santosa@gmail.com>
+Date: Tue, 4 Nov 2014 19:41:08 +0700
+Message-ID: <CAGdaadaxRn8yB3jWUKvyosnjHm133n5BnFX8rsaVm9-7Q+M1ZA@mail.gmail.com>
+Subject: Re: Why page fault handler behaved this way? Please help!
+Content-Type: multipart/alternative; boundary=001a11348490660a87050707c91d
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Davidlohr Bueso <dave@stgolabs.net>, "Kirill A. Shutemov" <kirill.shutemov@intel.linux.com>, Michel Lespinasse <walken@google.com>, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, peterz@infradead.org, mingo@kernel.org, linux-kernel@vger.kernel.org, dbueso@suse.de, linux-mm@kvack.org
+To: =?UTF-8?B?56em5byL5oiI?= <michaelbest002@126.com>
+Cc: kernelnewbies <kernelnewbies@kernelnewbies.org>, linux-mm <linux-mm@kvack.org>
 
-On Mon, Nov 03, 2014 at 10:04:24PM -0800, Hugh Dickins wrote:
-> I'm glad to see this series back, and nicely presented: thank you.
-> Not worth respinning them, but consider 1,2,3,4,5,6,7 and 9 as
-> Acked-by: Hugh Dickins <hughd@google.com>
-> 
-> On Thu, 30 Oct 2014, Davidlohr Bueso wrote:
-> 
-> > As per the comment in move_ptes(), we only require taking the
-> > anon vma and i_mmap locks to ensure that rmap will always observe
-> > either the old or new ptes, in the case of need_rmap_lock=true.
-> > No modifications to the tree itself, thus share the i_mmap_rwsem.
-> > 
-> > Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
-> > Acked-by: Kirill A. Shutemov <kirill.shutemov@intel.linux.com>
-> 
-> But this one is Nacked by me.  I don't understand how you and Kirill
-> could read Michel's painstaking comment on need_rmap_locks, then go
-> go ahead and remove the exclusion of rmap_walk().
-> 
-> I agree the code here does not modify the interval tree, but the
-> comment explains how we're moving a pte from one place in the tree
-> to another, and in some cases there's a danger that the rmap walk
-> might miss the pte from both places (which doesn't matter much to
-> most of its uses, but is critical in page migration).
-> 
-> Or am I the one missing something?
+--001a11348490660a87050707c91d
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-You're completely right.
+Hello...
 
-I've seen the comment (and I've added the missed need_rmap_locks case for
-move_huge_pmd() before). What happened is I've over-extrapolated my
-experience of rmap walk in case of split_huge_page(), which takes exclusive
-anon_vma lock, to the rest of rmap use-cases. This of course was hugely
-wrong.
+how big is your binary anyway?
 
-I'm ashamed and feel really bad about the situation. Sorry.
+from your log, if my calculation is right, your code segment is around 330
+KiB. But bear in mind, that not all of them are your code. There are other
+code like PLT, function prefix and so on.
 
--- 
- Kirill A. Shutemov
+Also, even if your code is big, are you sure all of them are executed?
+Following 20/80 principle, most of the time, when running an application,
+only 20% portion of the application are really used/executed during 80% of
+application lifetime. The rest, it might untouched at all.
+
+
+On Thu, Oct 30, 2014 at 2:10 PM, =E7=A7=A6=E5=BC=8B=E6=88=88 <michaelbest00=
+2@126.com> wrote:
+
+>
+>
+>
+> Dear all,
+>
+>
+> I am a kernel newbie who want's to learn more about memory management.
+> Recently I'm doing some experiment on page fault handler. There happened
+> something that I couldn't understand.
+>
+>
+> From reading the book Understanding the Linux Kernel, I know that the
+> kernel loads a page as late as possible. It's only happened when the
+> program has to reference  (read, write, or execute) a page yet the page i=
+s
+> not in memory.
+>
+>
+> However, when I traced all page faults in my test program, I found
+> something strange. My test program is large enough, but there are only tw=
+o
+> page faults triggered in the code segment of the program, while most of t=
+he
+> faults are not in code segment.
+>
+>
+> At first I thought that perhaps the page is not the normal 4K page. Thus =
+I
+> turned off the PAE support in the config file. But the log remains
+> unchanged.
+>
+>
+> So why are there only 2 page faults in code segment? It shouldn't be like
+> this in my opinion. Please help me.
+>
+>
+> The attachment is my kernel log. Limited by the mail size, I couldn't
+> upload my program, but I believe that the log is clear enough.
+>
+>
+> Thank you very much.
+> Best regards
+>
+>
+> _______________________________________________
+> Kernelnewbies mailing list
+> Kernelnewbies@kernelnewbies.org
+> http://lists.kernelnewbies.org/mailman/listinfo/kernelnewbies
+>
+>
+
+
+--=20
+regards,
+
+Mulyadi Santosa
+Freelance Linux trainer and consultant
+
+blog: the-hydra.blogspot.com
+training: mulyaditraining.blogspot.com
+
+--001a11348490660a87050707c91d
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div><div><div>Hello...<br><br></div>how big is your binar=
+y anyway?<br><br></div>from your log, if my calculation is right, your code=
+ segment is around 330 KiB. But bear in mind, that not all of them are your=
+ code. There are other code like PLT, function prefix and so on.<br><br></d=
+iv>Also, even if your code is big, are you sure all of them are executed? F=
+ollowing 20/80 principle, most of the time, when running an application, on=
+ly 20% portion of the application are really used/executed during 80% of ap=
+plication lifetime. The rest, it might untouched at all.<br><br></div><div =
+class=3D"gmail_extra"><br><div class=3D"gmail_quote">On Thu, Oct 30, 2014 a=
+t 2:10 PM, =E7=A7=A6=E5=BC=8B=E6=88=88 <span dir=3D"ltr">&lt;<a href=3D"mai=
+lto:michaelbest002@126.com" target=3D"_blank">michaelbest002@126.com</a>&gt=
+;</span> wrote:<br><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 =
+.8ex;border-left:1px #ccc solid;padding-left:1ex"><br>
+<br>
+<br>
+Dear all,<br>
+<br>
+<br>
+I am a kernel newbie who want&#39;s to learn more about memory management. =
+Recently I&#39;m doing some experiment on page fault handler. There happene=
+d something that I couldn&#39;t understand.<br>
+<br>
+<br>
+>From reading the book Understanding the Linux Kernel, I know that the kerne=
+l loads a page as late as possible. It&#39;s only happened when the program=
+ has to reference=C2=A0=C2=A0(read, write, or execute)=C2=A0a page yet the =
+page is not in memory.<br>
+<br>
+<br>
+However, when I traced all page faults in my test program, I found somethin=
+g strange. My test program is large enough, but there are only two page fau=
+lts triggered in the code segment of the program, while most of the faults =
+are not in code segment.<br>
+<br>
+<br>
+At first I thought that perhaps the page is not the normal 4K page. Thus I =
+turned off the PAE support in the config file. But the log remains unchange=
+d.<br>
+<br>
+<br>
+So why are there only 2 page faults in code segment? It shouldn&#39;t be li=
+ke this in my opinion. Please help me.<br>
+<br>
+<br>
+The attachment is my kernel log. Limited by the mail size, I couldn&#39;t u=
+pload my program, but I believe that the log is clear enough.<br>
+<br>
+<br>
+Thank you very much.<br>
+Best regards<br>
+<br>
+<br>_______________________________________________<br>
+Kernelnewbies mailing list<br>
+<a href=3D"mailto:Kernelnewbies@kernelnewbies.org">Kernelnewbies@kernelnewb=
+ies.org</a><br>
+<a href=3D"http://lists.kernelnewbies.org/mailman/listinfo/kernelnewbies" t=
+arget=3D"_blank">http://lists.kernelnewbies.org/mailman/listinfo/kernelnewb=
+ies</a><br>
+<br></blockquote></div><br><br clear=3D"all"><br>-- <br><div class=3D"gmail=
+_signature">regards,<br><br>Mulyadi Santosa<br>Freelance Linux trainer and =
+consultant<br><br>blog: <a href=3D"http://the-hydra.blogspot.com">the-hydra=
+.blogspot.com</a><br>training: <a href=3D"http://mulyaditraining.blogspot.c=
+om">mulyaditraining.blogspot.com</a></div>
+</div>
+
+--001a11348490660a87050707c91d--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
