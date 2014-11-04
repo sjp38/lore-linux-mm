@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f48.google.com (mail-oi0-f48.google.com [209.85.218.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F9056B00BD
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 17:18:46 -0500 (EST)
-Received: by mail-oi0-f48.google.com with SMTP id x69so11002690oia.21
-        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 14:18:46 -0800 (PST)
-Received: from g4t3427.houston.hp.com (g4t3427.houston.hp.com. [15.201.208.55])
-        by mx.google.com with ESMTPS id a6si1896361obf.26.2014.11.04.14.18.44
+Received: from mail-oi0-f54.google.com (mail-oi0-f54.google.com [209.85.218.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 52ED46B00BE
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 17:18:47 -0500 (EST)
+Received: by mail-oi0-f54.google.com with SMTP id a141so9439261oig.13
+        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 14:18:47 -0800 (PST)
+Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
+        by mx.google.com with ESMTPS id a76si1766677oig.130.2014.11.04.14.18.45
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 04 Nov 2014 14:18:45 -0800 (PST)
+        Tue, 04 Nov 2014 14:18:46 -0800 (PST)
 From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH v5 1/8] x86, mm, pat: Set WT to PA7 slot of PAT MSR
-Date: Tue,  4 Nov 2014 15:04:31 -0700
-Message-Id: <1415138678-22958-2-git-send-email-toshi.kani@hp.com>
+Subject: [PATCH v5 2/8] x86, mm, pat, asm: Move [get|set]_page_memtype() to pat.c
+Date: Tue,  4 Nov 2014 15:04:32 -0700
+Message-Id: <1415138678-22958-3-git-send-email-toshi.kani@hp.com>
 In-Reply-To: <1415138678-22958-1-git-send-email-toshi.kani@hp.com>
 References: <1415138678-22958-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,124 +20,177 @@ List-ID: <linux-mm.kvack.org>
 To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Toshi Kani <toshi.kani@hp.com>
 
-This patch sets WT to the PA7 slot in the PAT MSR when the processor
-is not affected by the PAT errata.  The PA7 slot is chosen to improve
-robustness in the presence of errata that might cause the high PAT bit
-to be ignored.  This way a buggy PA7 slot access will hit the PA3 slot,
-which is UC, so at worst we lose performance without causing a correctness
-issue.
+[set|get]_page_memtype() are used by PAT and implemented under
+CONFIG_X86_PAT only.  set_page_memtype() only handles three
+memory types, WB, WC and UC-, due to a limitation in the page flags.
 
-The following Intel processors are affected by the PAT errata.
-
-   errata               cpuid
-   ----------------------------------------------------
-   Pentium 2, A52       family 0x6, model 0x5
-   Pentium 3, E27       family 0x6, model 0x7, 0x8
-   Pentium 3 Xenon, G26 family 0x6, model 0x7, 0x8, 0xa
-   Pentium M, Y26       family 0x6, model 0x9
-   Pentium M 90nm, X9   family 0x6, model 0xd
-   Pentium 4, N46       family 0xf, model 0x0
-
-Instead of making sharp boundary checks, this patch makes conservative
-checks to exclude all Pentium 2, 3, M and 4 family processors.  For
-such processors, _PAGE_CACHE_MODE_WT is redirected to UC- per the
-default setup in __cachemode2pte_tbl[].
+This patch moves [set|get]_page_memtype() to pat.c.  This keeps
+them as PAT-internal functions and manages the limitation checked
+by the caller properly.
 
 Signed-off-by: Toshi Kani <toshi.kani@hp.com>
-Reviewed-by: Juergen Gross <jgross@suse.com>
+Suggested-by: Thomas Gleixner <tglx@linutronix.de>
 ---
- arch/x86/mm/pat.c |   71 ++++++++++++++++++++++++++++++++++++++++++-----------
- 1 file changed, 56 insertions(+), 15 deletions(-)
+ arch/x86/include/asm/cacheflush.h |   69 -------------------------------------
+ arch/x86/mm/pat.c                 |   58 +++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+), 69 deletions(-)
 
+diff --git a/arch/x86/include/asm/cacheflush.h b/arch/x86/include/asm/cacheflush.h
+index 157644b..47c8e32 100644
+--- a/arch/x86/include/asm/cacheflush.h
++++ b/arch/x86/include/asm/cacheflush.h
+@@ -5,75 +5,6 @@
+ #include <asm-generic/cacheflush.h>
+ #include <asm/special_insns.h>
+ 
+-#ifdef CONFIG_X86_PAT
+-/*
+- * X86 PAT uses page flags WC and Uncached together to keep track of
+- * memory type of pages that have backing page struct. X86 PAT supports 3
+- * different memory types, _PAGE_CACHE_MODE_WB, _PAGE_CACHE_MODE_WC and
+- * _PAGE_CACHE_MODE_UC_MINUS and fourth state where page's memory type has not
+- * been changed from its default (value of -1 used to denote this).
+- * Note we do not support _PAGE_CACHE_MODE_UC here.
+- */
+-
+-#define _PGMT_DEFAULT		0
+-#define _PGMT_WC		(1UL << PG_arch_1)
+-#define _PGMT_UC_MINUS		(1UL << PG_uncached)
+-#define _PGMT_WB		(1UL << PG_uncached | 1UL << PG_arch_1)
+-#define _PGMT_MASK		(1UL << PG_uncached | 1UL << PG_arch_1)
+-#define _PGMT_CLEAR_MASK	(~_PGMT_MASK)
+-
+-static inline enum page_cache_mode get_page_memtype(struct page *pg)
+-{
+-	unsigned long pg_flags = pg->flags & _PGMT_MASK;
+-
+-	if (pg_flags == _PGMT_DEFAULT)
+-		return -1;
+-	else if (pg_flags == _PGMT_WC)
+-		return _PAGE_CACHE_MODE_WC;
+-	else if (pg_flags == _PGMT_UC_MINUS)
+-		return _PAGE_CACHE_MODE_UC_MINUS;
+-	else
+-		return _PAGE_CACHE_MODE_WB;
+-}
+-
+-static inline void set_page_memtype(struct page *pg,
+-				    enum page_cache_mode memtype)
+-{
+-	unsigned long memtype_flags;
+-	unsigned long old_flags;
+-	unsigned long new_flags;
+-
+-	switch (memtype) {
+-	case _PAGE_CACHE_MODE_WC:
+-		memtype_flags = _PGMT_WC;
+-		break;
+-	case _PAGE_CACHE_MODE_UC_MINUS:
+-		memtype_flags = _PGMT_UC_MINUS;
+-		break;
+-	case _PAGE_CACHE_MODE_WB:
+-		memtype_flags = _PGMT_WB;
+-		break;
+-	default:
+-		memtype_flags = _PGMT_DEFAULT;
+-		break;
+-	}
+-
+-	do {
+-		old_flags = pg->flags;
+-		new_flags = (old_flags & _PGMT_CLEAR_MASK) | memtype_flags;
+-	} while (cmpxchg(&pg->flags, old_flags, new_flags) != old_flags);
+-}
+-#else
+-static inline enum page_cache_mode get_page_memtype(struct page *pg)
+-{
+-	return -1;
+-}
+-static inline void set_page_memtype(struct page *pg,
+-				    enum page_cache_mode memtype)
+-{
+-}
+-#endif
+-
+ /*
+  * The set_memory_* API can be used to change various attributes of a virtual
+  * address range. The attributes include:
 diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
-index 4c60127..652b1b3 100644
+index f43ab47..91c01b9 100644
 --- a/arch/x86/mm/pat.c
 +++ b/arch/x86/mm/pat.c
-@@ -128,6 +128,7 @@ void pat_init(void)
- {
- 	u64 pat;
- 	bool boot_cpu = !boot_pat_state;
-+	struct cpuinfo_x86 *c = &boot_cpu_data;
+@@ -16,6 +16,7 @@
+ #include <linux/mm.h>
+ #include <linux/fs.h>
+ #include <linux/rbtree.h>
++#include <linux/page-flags.h>
  
- 	if (!pat_enabled)
- 		return;
-@@ -148,21 +149,61 @@ void pat_init(void)
- 		}
- 	}
+ #include <asm/cacheflush.h>
+ #include <asm/processor.h>
+@@ -290,6 +291,63 @@ static int pat_pagerange_is_ram(resource_size_t start, resource_size_t end)
+ }
  
--	/* Set PWT to Write-Combining. All other bits stay the same */
--	/*
--	 * PTE encoding used in Linux:
--	 *      PAT
--	 *      |PCD
--	 *      ||PWT
--	 *      |||
--	 *      000 WB		_PAGE_CACHE_WB
--	 *      001 WC		_PAGE_CACHE_WC
--	 *      010 UC-		_PAGE_CACHE_UC_MINUS
--	 *      011 UC		_PAGE_CACHE_UC
--	 * PAT bit unused
--	 */
--	pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
--	      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, UC);
-+	if ((c->x86_vendor == X86_VENDOR_INTEL) &&
-+	    (((c->x86 == 0x6) && (c->x86_model <= 0xd)) ||
-+	     ((c->x86 == 0xf) && (c->x86_model <= 0x6)))) {
-+		/*
-+		 * PAT support with the lower four entries. Intel Pentium 2,
-+		 * 3, M, and 4 are affected by PAT errata, which makes the
-+		 * upper four entries unusable.  We do not use the upper four
-+		 * entries for all the affected processor families for safe.
-+		 *
-+		 *  PTE encoding used in Linux:
-+		 *      PAT
-+		 *      |PCD
-+		 *      ||PWT  PAT
-+		 *      |||    slot
-+		 *      000    0    WB : _PAGE_CACHE_MODE_WB
-+		 *      001    1    WC : _PAGE_CACHE_MODE_WC
-+		 *      010    2    UC-: _PAGE_CACHE_MODE_UC_MINUS
-+		 *      011    3    UC : _PAGE_CACHE_MODE_UC
-+		 * PAT bit unused
-+		 *
-+		 * NOTE: When WT or WP is used, it is redirected to UC- per
-+		 * the default setup in __cachemode2pte_tbl[].
-+		 */
-+		pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
-+		      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, UC);
-+	} else {
-+		/*
-+		 * PAT full support.  We put WT in slot 7 to improve
-+		 * robustness in the presence of errata that might cause
-+		 * the high PAT bit to be ignored.  This way a buggy slot 7
-+		 * access will hit slot 3, and slot 3 is UC, so at worst
-+		 * we lose performance without causing a correctness issue.
-+		 * Pentium 4 erratum N46 is an example of such an erratum,
-+		 * although we try not to use PAT at all on affected CPUs.
-+		 *
-+		 *  PTE encoding used in Linux:
-+		 *      PAT
-+		 *      |PCD
-+		 *      ||PWT  PAT
-+		 *      |||    slot
-+		 *      000    0    WB : _PAGE_CACHE_MODE_WB
-+		 *      001    1    WC : _PAGE_CACHE_MODE_WC
-+		 *      010    2    UC-: _PAGE_CACHE_MODE_UC_MINUS
-+		 *      011    3    UC : _PAGE_CACHE_MODE_UC
-+		 *      100    4    WB : Reserved
-+		 *      101    5    WC : Reserved
-+		 *      110    6    UC-: Reserved
-+		 *      111    7    WT : _PAGE_CACHE_MODE_WT
-+		 *
-+		 * The reserved slots are unused, but mapped to their
-+		 * corresponding types in the presence of PAT errata.
-+		 */
-+		pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
-+		      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, WT);
+ /*
++ * X86 PAT uses page flags WC and Uncached together to keep track of
++ * memory type of pages that have backing page struct. X86 PAT supports 3
++ * different memory types, _PAGE_CACHE_MODE_WB, _PAGE_CACHE_MODE_WC and
++ * _PAGE_CACHE_MODE_UC_MINUS and fourth state where page's memory type has not
++ * been changed from its default (value of -1 used to denote this).
++ * Note we do not support _PAGE_CACHE_MODE_UC here.
++ */
++#define _PGMT_DEFAULT		0
++#define _PGMT_WC		(1UL << PG_arch_1)
++#define _PGMT_UC_MINUS		(1UL << PG_uncached)
++#define _PGMT_WB		(1UL << PG_uncached | 1UL << PG_arch_1)
++#define _PGMT_MASK		(1UL << PG_uncached | 1UL << PG_arch_1)
++#define _PGMT_CLEAR_MASK	(~_PGMT_MASK)
++
++static inline enum page_cache_mode get_page_memtype(struct page *pg)
++{
++	unsigned long pg_flags = pg->flags & _PGMT_MASK;
++
++	if (pg_flags == _PGMT_DEFAULT)
++		return -1;
++	else if (pg_flags == _PGMT_WC)
++		return _PAGE_CACHE_MODE_WC;
++	else if (pg_flags == _PGMT_UC_MINUS)
++		return _PAGE_CACHE_MODE_UC_MINUS;
++	else
++		return _PAGE_CACHE_MODE_WB;
++}
++
++static inline void set_page_memtype(struct page *pg,
++				    enum page_cache_mode memtype)
++{
++	unsigned long memtype_flags;
++	unsigned long old_flags;
++	unsigned long new_flags;
++
++	switch (memtype) {
++	case _PAGE_CACHE_MODE_WC:
++		memtype_flags = _PGMT_WC;
++		break;
++	case _PAGE_CACHE_MODE_UC_MINUS:
++		memtype_flags = _PGMT_UC_MINUS;
++		break;
++	case _PAGE_CACHE_MODE_WB:
++		memtype_flags = _PGMT_WB;
++		break;
++	default:
++		memtype_flags = _PGMT_DEFAULT;
++		break;
 +	}
- 
- 	/* Boot CPU check */
- 	if (!boot_pat_state)
++
++	do {
++		old_flags = pg->flags;
++		new_flags = (old_flags & _PGMT_CLEAR_MASK) | memtype_flags;
++	} while (cmpxchg(&pg->flags, old_flags, new_flags) != old_flags);
++}
++
++/*
+  * For RAM pages, we use page flags to mark the pages with appropriate type.
+  * Here we do two pass:
+  * - Find the memtype of all the pages in the range, look for any conflicts
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
