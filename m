@@ -1,96 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 00E5A6B0078
-	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 19:07:05 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id ey11so13114277pad.7
-        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 16:07:05 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id je1si16430839pbb.168.2014.11.03.16.07.03
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id EC8256B0078
+	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 19:27:09 -0500 (EST)
+Received: by mail-pd0-f181.google.com with SMTP id y10so12360874pdj.26
+        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 16:27:09 -0800 (PST)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id am7si16513748pad.165.2014.11.03.16.27.07
         for <linux-mm@kvack.org>;
-        Mon, 03 Nov 2014 16:07:04 -0800 (PST)
-Subject: [PATCH] mm: fix overly aggressive shmdt() when calls span multiple segments
-From: Dave Hansen <dave@sr71.net>
-Date: Mon, 03 Nov 2014 16:06:33 -0800
-Message-Id: <20141104000633.F35632C6@viggo.jf.intel.com>
+        Mon, 03 Nov 2014 16:27:08 -0800 (PST)
+Date: Tue, 4 Nov 2014 09:28:50 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 4/5] mm, compaction: always update cached scanner
+ positions
+Message-ID: <20141104002850.GA8412@js1304-P5Q-DELUXE>
+References: <1412696019-21761-1-git-send-email-vbabka@suse.cz>
+ <1412696019-21761-5-git-send-email-vbabka@suse.cz>
+ <20141027073522.GB23379@js1304-P5Q-DELUXE>
+ <544E12B5.5070008@suse.cz>
+ <20141028070818.GA27813@js1304-P5Q-DELUXE>
+ <5453B088.6080605@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5453B088.6080605@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>
 
+On Fri, Oct 31, 2014 at 04:53:44PM +0100, Vlastimil Babka wrote:
+> On 10/28/2014 08:08 AM, Joonsoo Kim wrote:
+> >>
+> >>>And, I guess that pageblock skip feature effectively disable pageblock
+> >>>rescanning if there is no freepage during rescan.
+> >>
+> >>If there's no freepage during rescan, then the cached free_pfn also
+> >>won't be pointed to the pageblock anymore. Regardless of pageblock skip
+> >>being set, there will not be second rescan. But there will still be the
+> >>first rescan to determine there are no freepages.
+> >
+> >Yes, What I'd like to say is that these would work well. Just decreasing
+> >few percent of scanning page doesn't look good to me to validate this
+> >patch, because there is some facilities to reduce rescan overhead and
+> 
+> The mechanisms have a tradeoff, while this patch didn't seem to have
+> negative consequences.
+> 
+> >compaction is fundamentally time-consuming process. Moreover, failure of
+> >compaction could cause serious system crash in some cases.
+> 
+> Relying on successful high-order allocation for not crashing is
+> dangerous, success is never guaranteed. Such critical allocation
+> should try harder than fail due to a single compaction attempt. With
+> this argument you could aim to remove all the overhead reducing
+> heuristics.
+> 
+> >>>This patch would
+> >>>eliminate effect of pageblock skip feature.
+> >>
+> >>I don't think so (as explained above). Also if free pages were isolated
+> >>(and then returned and skipped over), the pageblock should remain
+> >>without skip bit, so after scanners meet and positions reset (which
+> >>doesn't go hand in hand with skip bit reset), the next round will skip
+> >>over the blocks without freepages and find quickly the blocks where free
+> >>pages were skipped in the previous round.
+> >>
+> >>>IIUC, compaction logic assume that there are many temporary failure
+> >>>conditions. Retrying from others would reduce effect of this temporary
+> >>>failure so implementation looks as is.
+> >>
+> >>The implementation of pfn caching was written at time when we did not
+> >>keep isolated free pages between migration attempts in a single
+> >>compaction run. And the idea of async compaction is to try with minimal
+> >>effort (thus latency), and if there's a failure, try somewhere else.
+> >>Making sure we don't skip anything doesn't seem productive.
+> >
+> >free_pfn is shared by async/sync compaction and unconditional updating
+> >causes sync compaction to stop prematurely, too.
+> >
+> >And, if this patch makes migrate/freepage scanner meet more frequently,
+> >there is one problematic scenario.
+> 
+> OK, so you don't find a problem with how this patch changes
+> migration scanner caching, just the free scanner, right?
+> So how about making release_freepages() return the highest freepage
+> pfn it encountered (could perhaps do without comparing individual
+> pfn's, the list should be ordered so it could be just the pfn of
+> first or last page in the list, but need to check that) and updating
+> cached free pfn with that? That should ensure rescanning only when
+> needed.
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+Hello,
 
-This is a highly-contrived scenario.  But, a single shmdt() call
-can be induced in to unmapping memory from mulitple shm segments.
-Example code is here:
+Updating cached free pfn in release_freepages() looks good to me.
 
-	http://www.sr71.net/~dave/intel/shmfun.c
+In fact, I guess that migration scanner also has similar problems, but,
+it's just my guess. I admit your following arguments in patch description.
 
-The fix is pretty simple:  Record the 'struct file' for the first
-VMA we encounter and then stick to it.  Decline to unmap anything
-not from the same file and thus the same segment.
+  However, the downside is that potentially many pages are rescanned without
+  successful isolation. At worst, there might be a page where isolation from LRU 
+  succeeds but migration fails (potentially always).
 
-I found this by inspection and the odds of anyone hitting this in
-practice are pretty darn small.
+So, I'm okay if you update cached free pfn in release_freepages().
 
-Lightly tested, but it's a pretty small patch.
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
----
-
- b/ipc/shm.c |   18 +++++++++++++-----
- 1 file changed, 13 insertions(+), 5 deletions(-)
-
-diff -puN ipc/shm.c~mm-shmdt-fix-over-aggressive-unmap ipc/shm.c
---- a/ipc/shm.c~mm-shmdt-fix-over-aggressive-unmap	2014-11-03 14:32:09.479595152 -0800
-+++ b/ipc/shm.c	2014-11-03 16:04:28.340225666 -0800
-@@ -1229,6 +1229,7 @@ SYSCALL_DEFINE1(shmdt, char __user *, sh
- 	int retval = -EINVAL;
- #ifdef CONFIG_MMU
- 	loff_t size = 0;
-+	struct file *file;
- 	struct vm_area_struct *next;
- #endif
- 
-@@ -1245,7 +1246,8 @@ SYSCALL_DEFINE1(shmdt, char __user *, sh
- 	 *   started at address shmaddr. It records it's size and then unmaps
- 	 *   it.
- 	 * - Then it unmaps all shm vmas that started at shmaddr and that
--	 *   are within the initially determined size.
-+	 *   are within the initially determined size and that are from the
-+	 *   same shm segment from which we determined the size.
- 	 * Errors from do_munmap are ignored: the function only fails if
- 	 * it's called with invalid parameters or if it's called to unmap
- 	 * a part of a vma. Both calls in this function are for full vmas,
-@@ -1271,8 +1273,14 @@ SYSCALL_DEFINE1(shmdt, char __user *, sh
- 		if ((vma->vm_ops == &shm_vm_ops) &&
- 			(vma->vm_start - addr)/PAGE_SIZE == vma->vm_pgoff) {
- 
--
--			size = file_inode(vma->vm_file)->i_size;
-+			/*
-+			 * Record the file of the shm segment being
-+			 * unmapped.  With mremap(), someone could place
-+			 * page from another segment but with equal offsets
-+			 * in the range we are unmapping.
-+			 */
-+			file = vma->vm_file;
-+			size = file_inode(file)->i_size;
- 			do_munmap(mm, vma->vm_start, vma->vm_end - vma->vm_start);
- 			/*
- 			 * We discovered the size of the shm segment, so
-@@ -1298,8 +1306,8 @@ SYSCALL_DEFINE1(shmdt, char __user *, sh
- 
- 		/* finding a matching vma now does not alter retval */
- 		if ((vma->vm_ops == &shm_vm_ops) &&
--			(vma->vm_start - addr)/PAGE_SIZE == vma->vm_pgoff)
--
-+		    ((vma->vm_start - addr)/PAGE_SIZE == vma->vm_pgoff) &&
-+		    (vma->vm_file == file))
- 			do_munmap(mm, vma->vm_start, vma->vm_end - vma->vm_start);
- 		vma = next;
- 	}
-_
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
