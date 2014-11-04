@@ -1,62 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 52DFA6B0075
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 10:33:49 -0500 (EST)
-Received: by mail-lb0-f182.google.com with SMTP id f15so12282473lbj.41
-        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 07:33:48 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ky4si1390541lbc.28.2014.11.04.07.33.47
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 04 Nov 2014 07:33:47 -0800 (PST)
-Date: Tue, 4 Nov 2014 16:33:43 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] mm: Improve comment before pagecache_isize_extended()
-Message-ID: <20141104153343.GA21902@quack.suse.cz>
-References: <1415101390-18301-1-git-send-email-jack@suse.cz>
- <5458D29A0200007800044C76@mail.emea.novell.com>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id B06306B0075
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 10:57:38 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id lf10so14673699pab.4
+        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 07:57:38 -0800 (PST)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTP id qe5si703727pdb.2.2014.11.04.07.57.36
+        for <linux-mm@kvack.org>;
+        Tue, 04 Nov 2014 07:57:37 -0800 (PST)
+Message-ID: <5458F6E2.9020305@fb.com>
+Date: Tue, 4 Nov 2014 10:55:14 -0500
+From: Josef Bacik <jbacik@fb.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5458D29A0200007800044C76@mail.emea.novell.com>
+Subject: Re: [PATCH] tmpfs: truncate prealloc blocks past i_size
+References: <1414602608-1416-1-git-send-email-jbacik@fb.com> <alpine.LSU.2.11.1411031710500.13943@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1411031710500.13943@eggly.anvils>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Beulich <JBeulich@suse.com>
-Cc: Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, dave Chinner <david@fromorbit.com>
 
-On Tue 04-11-14 12:20:26, Jan Beulich wrote:
-> >>> On 04.11.14 at 12:43, <"jack@suse.cz".non-mime.internet> wrote:
-> > --- a/mm/truncate.c
-> > +++ b/mm/truncate.c
-> > @@ -743,10 +743,13 @@ EXPORT_SYMBOL(truncate_setsize);
-> >   * changed.
-> >   *
-> >   * The function must be called after i_size is updated so that page fault
-> > - * coming after we unlock the page will already see the new i_size.
-> > - * The function must be called while we still hold i_mutex - this not only
-> > - * makes sure i_size is stable but also that userspace cannot observe new
-> > - * i_size value before we are prepared to store mmap writes at new inode size.
-> > + * coming after we unlock the page will already see the new i_size.  The caller
-> > + * must make sure (generally by holding i_mutex but e.g. XFS uses its private
-> > + * lock) i_size cannot change from the new value while we are called. It must
-> > + * also make sure userspace cannot observe new i_size value before we are
-> > + * prepared to store mmap writes upto new inode size (otherwise userspace could
-> > + * think it stored data via mmap within i_size but they would get zeroed due to
-> > + * writeback & reclaim because they have no backing blocks).
-> >   */
-> >  void pagecache_isize_extended(struct inode *inode, loff_t from, loff_t to)
-> >  {
-> 
-> May I suggest that the comment preceding truncate_setsize() also be
-> updated/removed?
-  But that comment is actually still true AFAICT because VFS takes i_mutex
-before calling into ->setattr(). So we hold i_mutex in truncate_setsize()
-even for XFS.
+On 11/03/2014 08:30 PM, Hugh Dickins wrote:
+> On Wed, 29 Oct 2014, Josef Bacik wrote:
+>
+>> One of the rocksdb people noticed that when you do something like this
+>>
+>> fallocate(fd, FALLOC_FL_KEEP_SIZE, 0, 10M)
+>> pwrite(fd, buf, 5M, 0)
+>> ftruncate(5M)
+>>
+>> on tmpfs the file would still take up 10M, which lead to super fun issues
+>> because we were getting ENOSPC before we thought we should be getting ENOSPC.
+>> This patch fixes the problem, and mirrors what all the other fs'es do.  I tested
+>> it locally to make sure it worked properly with the following
+>>
+>> xfs_io -f -c "falloc -k 0 10M" -c "pwrite 0 5M" -c "truncate 5M" file
+>>
+>> Without the patch we have "Blocks: 20480", with the patch we have the correct
+>> value of "Blocks: 10240".  Thanks,
+>>
+>> Signed-off-by: Josef Bacik <jbacik@fb.com>
+>
+> That is a very good catch, and thank you for the patch.  But I am not
+> convinced that the patch is correct - even if it does happen to end
+> up doing what other filesystems do here (I haven't checked).
+>
+> Your patch makes it look like a fix to an off-by-one, but that is
+> not really the case.  What if you change your final ftruncate(5M)
+> to ftruncate(6M): what should happen then?
+>
+> My intuition says that what should happen is that i_size is set to 6M,
+> and the fallocated excess blocks beyond 6M be trimmed off: so that
+> it's both an extending and a shrinking truncate at the same time.
+> And I think that behavior would be served by removing the
+> "if (newsize < oldsize)" condition completely.
+>
+> But perhaps I'm wrong: can you or anyone shed more light on this,
+> or point to documentation of what should happen in these cases?
+>
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Yup there's a section in the ftruncate manpage that specifically says 
+"expanding truncate is for losers."
+
+Dave you want to weigh in here?  Looking at both btrfs and xfs we only 
+do the trimming if newsize <= oldsize.  So if you falloc up to 10M, 
+write 5M, and truncate up to 6M there is no trimming.  I'd say this is 
+ok since it's an expanding truncate, people doing this are probably 
+going to want to keep the extra space, as opposed to those who falloc a 
+chunk and then truncate down to the amount they actually wrote.  Thoughts?
+
+Josef
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
