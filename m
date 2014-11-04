@@ -1,86 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 1870F6B00DD
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 03:55:03 -0500 (EST)
-Received: by mail-lb0-f174.google.com with SMTP id z11so8752958lbi.19
-        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 00:55:03 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id xx3si36414847lbb.122.2014.11.04.00.55.02
+Received: from mail-oi0-f54.google.com (mail-oi0-f54.google.com [209.85.218.54])
+	by kanga.kvack.org (Postfix) with ESMTP id CEB016B00E0
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 04:00:06 -0500 (EST)
+Received: by mail-oi0-f54.google.com with SMTP id a141so8289547oig.41
+        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 01:00:06 -0800 (PST)
+Received: from mail-oi0-x233.google.com (mail-oi0-x233.google.com. [2607:f8b0:4003:c06::233])
+        by mx.google.com with ESMTPS id e3si20714896obh.37.2014.11.04.01.00.04
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 04 Nov 2014 00:55:02 -0800 (PST)
-Message-ID: <54589465.3080708@suse.cz>
-Date: Tue, 04 Nov 2014 09:55:01 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        Tue, 04 Nov 2014 01:00:05 -0800 (PST)
+Received: by mail-oi0-f51.google.com with SMTP id g201so10091913oib.10
+        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 01:00:04 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: Early test: hangs in mm/compact.c w. Linus's 12d7aacab56e9ef185c
-References: <12996532.NCRhVKzS9J@xorhgos3.pefnos>
-In-Reply-To: <12996532.NCRhVKzS9J@xorhgos3.pefnos>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20141104075330.GB23102@bbox>
+References: <1413430551-22392-1-git-send-email-zhuhui@xiaomi.com>
+ <543F8812.2020002@codeaurora.org> <5450FD15.4000708@suse.cz> <20141104075330.GB23102@bbox>
+From: Hui Zhu <teawater@gmail.com>
+Date: Tue, 4 Nov 2014 16:59:24 +0800
+Message-ID: <CANFwon3rM+2pA_hiQ=cnv53kHkC+hAbVi3pvhVDNytr20qC=ww@mail.gmail.com>
+Subject: Re: [PATCH 0/4] (CMA_AGGRESSIVE) Make CMA memory be more aggressive
+ about allocation
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "P. Christeas" <xrg@linux.gr>, linux-mm@kvack.org
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, lkml <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Laura Abbott <lauraa@codeaurora.org>, Hui Zhu <zhuhui@xiaomi.com>, rjw@rjwysocki.net, len.brown@intel.com, pavel@ucw.cz, m.szyprowski@samsung.com, Andrew Morton <akpm@linux-foundation.org>, mina86@mina86.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, hannes@cmpxchg.org, Rik van Riel <riel@redhat.com>, mgorman@suse.de, nasa4836@gmail.com, ddstreet@ieee.org, Hugh Dickins <hughd@google.com>, mingo@kernel.org, rientjes@google.com, Peter Zijlstra <peterz@infradead.org>, keescook@chromium.org, atomlin@redhat.com, raistlin@linux.it, axboe@fb.com, Paul McKenney <paulmck@linux.vnet.ibm.com>, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, k.khlebnikov@samsung.com, msalter@redhat.com, deller@gmx.de, tangchen@cn.fujitsu.com, ben@decadent.org.uk, akinobu.mita@gmail.com, sasha.levin@oracle.com, vdavydov@parallels.com, suleiman@google.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-pm@vger.kernel.org, linux-mm@kvack.org
 
-On 11/04/2014 08:26 AM, P. Christeas wrote:
-> TL;DR: I'm testing Linus's 3.18-rcX in my desktop (x86_64, full load),
-> experiencing mm races about every day. Current -rc starves the canary of
-> stablity
+On Tue, Nov 4, 2014 at 3:53 PM, Minchan Kim <minchan@kernel.org> wrote:
+> Hello,
 >
-> Will keep testing (should I try some -mm tree, please? ) , provide you
-> feedback about the issue.
-
-Hello,
-
-Please do keep testing (and see below what we need), and don't try 
-another tree - it's 3.18 we need to fix!
-
-> Not an active kernel-developer.
+> On Wed, Oct 29, 2014 at 03:43:33PM +0100, Vlastimil Babka wrote:
+>> On 10/16/2014 10:55 AM, Laura Abbott wrote:
+>> >On 10/15/2014 8:35 PM, Hui Zhu wrote:
+>> >
+>> >It's good to see another proposal to fix CMA utilization. Do you have
+>> >any data about the success rate of CMA contiguous allocation after
+>> >this patch series? I played around with a similar approach of using
+>> >CMA for MIGRATE_MOVABLE allocations and found that although utilization
+>> >did increase, contiguous allocations failed at a higher rate and were
+>> >much slower. I see what this series is trying to do with avoiding
+>> >allocation from CMA pages when a contiguous allocation is progress.
+>> >My concern is that there would still be problems with contiguous
+>> >allocation after all the MIGRATE_MOVABLE fallback has happened.
+>>
+>> Hi,
+>>
+>> did anyone try/suggest the following idea?
+>>
+>> - keep CMA as fallback to MOVABLE as is is now, i.e. non-agressive
+>> - when UNMOVABLE (RECLAIMABLE also?) allocation fails and CMA
+>> pageblocks have space, don't OOM immediately, but first try to
+>> migrate some MOVABLE pages to CMA pageblocks, to make space for the
+>> UNMOVABLE allocation in non-CMA pageblocks
+>> - this should keep CMA pageblocks free as long as possible and
+>> useful for CMA allocations, but without restricting the non-MOVABLE
+>> allocations even though there is free memory (but in CMA pageblocks)
+>> - the fact that a MOVABLE page could be successfully migrated to CMA
+>> pageblock, means it was not pinned or otherwise non-migratable, so
+>> there's a good chance it can be migrated back again if CMA
+>> pageblocks need to be used by CMA allocation
 >
-> Long:
+> I suggested exactly same idea long time ago.
 >
-> Since 26 Oct. upgraded my everything-on-it laptop to new distro (systemd -
-> based, all new glibc etc.) and switched from 3.17 to 3.18-pre . First time in
-> years, kernel got unstable.
+>> - it's more complex, but I guess we have most of the necessary
+>> infrastructure in compaction already :)
 >
-> This machine is occasionaly under heavy load, doing I/O and serving random
-> desktop applications. (machine is Intel x86_64, dual core, mechanical SATA
-> disk).
-> Now, I have a race about once a day, have narrowed them down (guess) to:
+> I agree but still, it doesn't solve reclaim problem(ie, VM doesn't
+> need to reclaim CMA pages when memory pressure of unmovable pages
+> happens). Of course, we could make VM be aware of that via introducing
+> new flag of __isolate_lru_page.
 >
->          [<ffffffff813b1025>] preempt_schedule_irq+0x3c/0x59
->          [<ffffffff813b4810>] retint_kernel+0x20/0x30
->          [<ffffffff810d7481>] ? __zone_watermark_ok+0x77/0x85
->          [<ffffffff810d8256>] zone_watermark_ok+0x1a/0x1c
->          [<ffffffff810eee56>] compact_zone+0x215/0x4b2
->          [<ffffffff810ef13f>] compact_zone_order+0x4c/0x5f
->          [<ffffffff810ef2fe>] try_to_compact_pages+0xc4/0x1e8
->          [<ffffffff813ad7f8>] __alloc_pages_direct_compact+0x61/0x1bf
->          [<ffffffff810da299>] __alloc_pages_nodemask+0x409/0x799
->          [<ffffffff8110d3fd>] new_slab+0x5f/0x21c
->         ...
+> However, I'd like to think CMA design from the beginning.
+> It made page allocation logic complicated, even very fragile as we
+> had recently and now we need to add new logics to migrate like you said.
+> As well, we need to fix reclaim path, too.
+>
+> It makes mm complicated day by day even though it doesn't do the role
+> enough well(ie, big latency and frequent allocation failure) so I really
+> want to stop making the mess bloated.
+>
+> Long time ago, when I saw Joonsoo's CMA agressive allocation patchset
+> (ie, roundrobin allocation between CMA and normal movable pages)
+> it was good to me at a first glance but it needs tweak of allocation
+> path and doesn't solve reclaim path, either. Yes, reclaim path could
+> be solved by another patch but I want to solve it altogether.
+>
+> At that time, I suggested big surgery to Joonsoo in offline that
+> let's move CMA allocation with movable zone allocation. With it,
+> we could make allocation/reclaim path simple but thing is we should
+> make VM be aware of overlapping MOVABLE zone which means some of pages
+> in the zone could be part of another zones but I think we already have
+> logics to handle it when I read comment in isolate_freepages so I think
+> the design should work.
 
-I'm not sure what you mean by "race" here and your snippet is 
-unfortunately just a small portion of the output which could be a BUG, 
-OOPS, lockdep, soft-lockup, hardlock and possibly many other things. But 
-the backtrace itself is not enough, please send the whole error output 
-(it should stard and end with something like:
------[ cut here ]------
-Thanks in advance.
+Thanks.
 
-> Sometimes is a less critical process, that I can safely kill, otherwise I have
-> to drop everything and reboot.
+>
+> A thing you guys might worry is bigger CMA latency because it makes
+> CMA memory usage ratio higher than the approach you mentioned but
+> anyone couldn't guarantee it once memory is fully utilized.
+> In addition, we have used fair zone allocator policy so it makes
+> round robin allocation automatically so I believe it should be way
+> to go.
 
-OK so the process is not dead due to the problem? That probably rules 
-out some kinds of errors but we still need the full output. Thanks in 
-advance.
+Even if kernel use it to allocate the CMA memory, CMA alloc latency
+will happen if most of memory is allocated and driver try to get CMA
+memory.
+https://lkml.org/lkml/2014/10/17/129
+https://lkml.org/lkml/2014/10/17/130
+These patches let cma_alloc do a shrink with function
+shrink_all_memory_for_cma if need.  It handle a lot of latency issue
+in my part.
+And I think it can be more configurable for example some device use it
+and others not.
 
-> Unless you are already aware of this case, please accept this feedback.
-> I'm pulling from Linus, should I also try some of your trees for an early
-> solution?
+Thanks,
+Hui
 
-I'm not aware of this, CCing lkml for wider coverage.
+
+
+>
+>>
+>> Thoughts?
+>> Vlastimil
+>>
+>> >Thanks,
+>> >Laura
+>> >
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
+> --
+> Kind regards,
+> Minchan Kim
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
