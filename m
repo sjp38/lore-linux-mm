@@ -1,120 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id C4E476B00DD
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 02:52:20 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id lf10so13994223pab.32
-        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 23:52:20 -0800 (PST)
-Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id ap8si17387390pad.85.2014.11.03.23.52.17
-        for <linux-mm@kvack.org>;
-        Mon, 03 Nov 2014 23:52:19 -0800 (PST)
-Date: Tue, 4 Nov 2014 16:53:30 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 0/4] (CMA_AGGRESSIVE) Make CMA memory be more aggressive
- about allocation
-Message-ID: <20141104075330.GB23102@bbox>
-References: <1413430551-22392-1-git-send-email-zhuhui@xiaomi.com>
- <543F8812.2020002@codeaurora.org>
- <5450FD15.4000708@suse.cz>
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id BC9366B00DD
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 03:12:44 -0500 (EST)
+Received: by mail-pd0-f173.google.com with SMTP id v10so13191133pde.4
+        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 00:12:44 -0800 (PST)
+Received: from fgwmail5.fujitsu.co.jp (fgwmail5.fujitsu.co.jp. [192.51.44.35])
+        by mx.google.com with ESMTPS id cb9si14988027pdb.114.2014.11.04.00.12.42
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 04 Nov 2014 00:12:43 -0800 (PST)
+Received: from kw-mxoi1.gw.nic.fujitsu.com (unknown [10.0.237.133])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 8D40D3EE1D8
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 17:12:41 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by kw-mxoi1.gw.nic.fujitsu.com (Postfix) with ESMTP id 67A17AC010A
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 17:12:40 +0900 (JST)
+Received: from g01jpfmpwkw01.exch.g01.fujitsu.local (g01jpfmpwkw01.exch.g01.fujitsu.local [10.0.193.38])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1571AE08001
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 17:12:40 +0900 (JST)
+Message-ID: <54588A0D.1060207@jp.fujitsu.com>
+Date: Tue, 4 Nov 2014 17:10:53 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <5450FD15.4000708@suse.cz>
+Subject: Re: [PATCH 2/2] mem-hotplug: Fix wrong check for zone->pageset initialization
+ in online_pages().
+References: <1414748812-22610-1-git-send-email-tangchen@cn.fujitsu.com> <1414748812-22610-3-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1414748812-22610-3-git-send-email-tangchen@cn.fujitsu.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Laura Abbott <lauraa@codeaurora.org>, Hui Zhu <zhuhui@xiaomi.com>, rjw@rjwysocki.net, len.brown@intel.com, pavel@ucw.cz, m.szyprowski@samsung.com, akpm@linux-foundation.org, mina86@mina86.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@suse.de, nasa4836@gmail.com, ddstreet@ieee.org, hughd@google.com, mingo@kernel.org, rientjes@google.com, peterz@infradead.org, keescook@chromium.org, atomlin@redhat.com, raistlin@linux.it, axboe@fb.com, paulmck@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, k.khlebnikov@samsung.com, msalter@redhat.com, deller@gmx.de, tangchen@cn.fujitsu.com, ben@decadent.org.uk, akinobu.mita@gmail.com, sasha.levin@oracle.com, vdavydov@parallels.com, suleiman@google.com, linux-kernel@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org
+To: Tang Chen <tangchen@cn.fujitsu.com>, akpm@linux-foundation.org, santosh.shilimkar@ti.com, grygorii.strashko@ti.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.co, fabf@skynet.be, nzimmer@sgi.com, wangnan0@huawei.com, vdavydov@parallels.com, toshi.kani@hp.com, phacht@linux.vnet.ibm.com, tj@kernel.org, kirill.shutemov@linux.intel.com, riel@redhat.com, luto@amacapital.net, hpa@linux.intel.com, aarcange@redhat.com, qiuxishi@huawei.com, mgorman@suse.de, rientjes@google.com, hannes@cmpxchg.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Gu Zheng <guz.fnst@cn.fujitsu.com>
 
-Hello,
-
-On Wed, Oct 29, 2014 at 03:43:33PM +0100, Vlastimil Babka wrote:
-> On 10/16/2014 10:55 AM, Laura Abbott wrote:
-> >On 10/15/2014 8:35 PM, Hui Zhu wrote:
-> >
-> >It's good to see another proposal to fix CMA utilization. Do you have
-> >any data about the success rate of CMA contiguous allocation after
-> >this patch series? I played around with a similar approach of using
-> >CMA for MIGRATE_MOVABLE allocations and found that although utilization
-> >did increase, contiguous allocations failed at a higher rate and were
-> >much slower. I see what this series is trying to do with avoiding
-> >allocation from CMA pages when a contiguous allocation is progress.
-> >My concern is that there would still be problems with contiguous
-> >allocation after all the MIGRATE_MOVABLE fallback has happened.
+(2014/10/31 18:46), Tang Chen wrote:
+> When we are doing memory hot-add, the following functions are called:
 > 
-> Hi,
+> add_memory()
+> |--> hotadd_new_pgdat()
+>       |--> free_area_init_node()
+>            |--> free_area_init_core()
+>                 |--> zone->present_pages = realsize;           /* 1. zone is populated */
+>                      |--> zone_pcp_init()
+>                           |--> zone->pageset = &boot_pageset;  /* 2. zone->pageset is set to boot_pageset */
 > 
-> did anyone try/suggest the following idea?
+> There are two problems here:
+> 1. Zones could be populated before any memory is onlined.
+> 2. All the zones on a newly added node have the same pageset pointing to boot_pageset.
 > 
-> - keep CMA as fallback to MOVABLE as is is now, i.e. non-agressive
-> - when UNMOVABLE (RECLAIMABLE also?) allocation fails and CMA
-> pageblocks have space, don't OOM immediately, but first try to
-> migrate some MOVABLE pages to CMA pageblocks, to make space for the
-> UNMOVABLE allocation in non-CMA pageblocks
-> - this should keep CMA pageblocks free as long as possible and
-> useful for CMA allocations, but without restricting the non-MOVABLE
-> allocations even though there is free memory (but in CMA pageblocks)
-> - the fact that a MOVABLE page could be successfully migrated to CMA
-> pageblock, means it was not pinned or otherwise non-migratable, so
-> there's a good chance it can be migrated back again if CMA
-> pageblocks need to be used by CMA allocation
-
-I suggested exactly same idea long time ago.
-
-> - it's more complex, but I guess we have most of the necessary
-> infrastructure in compaction already :)
-
-I agree but still, it doesn't solve reclaim problem(ie, VM doesn't
-need to reclaim CMA pages when memory pressure of unmovable pages
-happens). Of course, we could make VM be aware of that via introducing
-new flag of __isolate_lru_page.
-
-However, I'd like to think CMA design from the beginning.
-It made page allocation logic complicated, even very fragile as we
-had recently and now we need to add new logics to migrate like you said.
-As well, we need to fix reclaim path, too.
-
-It makes mm complicated day by day even though it doesn't do the role
-enough well(ie, big latency and frequent allocation failure) so I really
-want to stop making the mess bloated.
-
-Long time ago, when I saw Joonsoo's CMA agressive allocation patchset
-(ie, roundrobin allocation between CMA and normal movable pages)
-it was good to me at a first glance but it needs tweak of allocation
-path and doesn't solve reclaim path, either. Yes, reclaim path could
-be solved by another patch but I want to solve it altogether.
-
-At that time, I suggested big surgery to Joonsoo in offline that
-let's move CMA allocation with movable zone allocation. With it,
-we could make allocation/reclaim path simple but thing is we should
-make VM be aware of overlapping MOVABLE zone which means some of pages
-in the zone could be part of another zones but I think we already have
-logics to handle it when I read comment in isolate_freepages so I think
-the design should work.
-
-A thing you guys might worry is bigger CMA latency because it makes
-CMA memory usage ratio higher than the approach you mentioned but
-anyone couldn't guarantee it once memory is fully utilized.
-In addition, we have used fair zone allocator policy so it makes
-round robin allocation automatically so I believe it should be way
-to go.
-
+> The above two problems will result in the following problem:
+> When we online memory on one node, e.g node2, the following code is executed:
 > 
-> Thoughts?
-> Vlastimil
+> online_pages()
+> {
+>          ......
+>          if (!populated_zone(zone)) {
+>                  need_zonelists_rebuild = 1;
+>                  build_all_zonelists(NULL, zone);
+>          }
+>          ......
+> }
 > 
-> >Thanks,
-> >Laura
-> >
+> Because of problem 1, the zone has been populated, and the build_all_zonelists()
+>                        will never called. zone->pageset won't be updated.
+> Because of problem 2, All the zones on a newly added node have the same pageset
+>                        pointing to boot_pageset.
+> And as a result, when we online memory on node2, node3's meminfo will corrupt.
+> Pages on node2 may be freed to node3.
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> # for ((i = 2048; i < 2064; i++)); do echo online_movable > /sys/devices/system/node/node2/memory$i/state; done
+> # cat /sys/devices/system/node/node2/meminfo
+> Node 2 MemTotal:       33554432 kB
+> Node 2 MemFree:        33549092 kB
+> Node 2 MemUsed:            5340 kB
+> ......
+> # cat /sys/devices/system/node/node3/meminfo
+> Node 3 MemTotal:              0 kB
+> Node 3 MemFree:               248 kB                    /* corrupted */
+> Node 3 MemUsed:               0 kB
+> ......
+> 
+> We have to populate some zones before onlining memory, otherwise no memory could be onlined.
+> So when onlining pages, we should also check if zone->pageset is pointing to boot_pageset.
+> 
+> Signed-off-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
+> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+> ---
+>   include/linux/mm.h  | 1 +
+>   mm/memory_hotplug.c | 6 +++++-
+>   mm/page_alloc.c     | 5 +++++
+>   3 files changed, 11 insertions(+), 1 deletion(-)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 02d11ee..83e6505 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1732,6 +1732,7 @@ void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...);
+>   
+>   extern void setup_per_cpu_pageset(void);
+>   
+> +extern bool zone_pcp_initialized(struct zone *zone);
+>   extern void zone_pcp_update(struct zone *zone);
+>   extern void zone_pcp_reset(struct zone *zone);
+>   
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 3ab01b2..bc0de0f 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1013,9 +1013,13 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+>   	 * If this zone is not populated, then it is not in zonelist.
+>   	 * This means the page allocator ignores this zone.
+>   	 * So, zonelist must be updated after online.
+> +	 *
+> +	 * If this zone is populated, zone->pageset could be initialized
+> +	 * to boot_pageset for the first time a node is added. If so,
+> +	 * zone->pageset should be allocated.
+>   	 */
+>   	mutex_lock(&zonelists_mutex);
+> -	if (!populated_zone(zone)) {
 
--- 
-Kind regards,
-Minchan Kim
+> +	if (!populated_zone(zone) || !zone_pcp_initialized(zone)) {
+>   		need_zonelists_rebuild = 1;
+>   		build_all_zonelists(NULL, zone);
+>   	}
+
+Why does zone->present_pages of the hot-added memroy have valid value?
+In my understading, the present_pages is incremented/decremented by memory
+online/offline. So when hot adding memory, the zone->present_pages of the
+memory should be 0.
+
+Thanks,
+Yasuaki Ishimatsu
+
+
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 736d8e1..4ff1540 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -6456,6 +6456,11 @@ void __meminit zone_pcp_update(struct zone *zone)
+>   }
+>   #endif
+>   
+> +bool zone_pcp_initialized(struct zone *zone)
+> +{
+> +	return (zone->pageset != &boot_pageset);
+> +}
+> +
+>   void zone_pcp_reset(struct zone *zone)
+>   {
+>   	unsigned long flags;
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
