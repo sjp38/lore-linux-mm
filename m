@@ -1,145 +1,68 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 9998A6B0069
-	for <linux-mm@kvack.org>; Sun, 30 Nov 2014 23:52:11 -0500 (EST)
-Received: by mail-pa0-f54.google.com with SMTP id fb1so10338304pad.13
-        for <linux-mm@kvack.org>; Sun, 30 Nov 2014 20:52:11 -0800 (PST)
-Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com. [2607:f8b0:400e:c02::232])
-        by mx.google.com with ESMTPS id kb6si11013389pad.26.2014.11.30.20.52.09
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 30 Nov 2014 20:52:10 -0800 (PST)
-Received: by mail-pd0-f178.google.com with SMTP id g10so10171233pdj.9
-        for <linux-mm@kvack.org>; Sun, 30 Nov 2014 20:52:09 -0800 (PST)
-Date: Sun, 30 Nov 2014 20:52:01 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] mm: unmapped page migration avoid unmap+remap overhead
-Message-ID: <alpine.LSU.2.11.1411302046420.5335@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Davidlohr Bueso <dave@stgolabs.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+From: Borislav Petkov <bp@alien8.de>
+Subject: 18-rc3+: ODEBUG: assert_init not available (active state 0) object
+ type: timer_list hint: stub_timer
+Date: Tue, 4 Nov 2014 22:43:27 +0100
+Message-ID: <20141104214327.GE14296@pd.tnic>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Return-path: <linux-kernel-owner@vger.kernel.org>
+Content-Disposition: inline
+Sender: linux-kernel-owner@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: lkml <linux-kernel@vger.kernel.org>
+List-Id: linux-mm.kvack.org
 
-Page migration's __unmap_and_move(), and rmap's try_to_unmap(),
-were created for use on pages almost certainly mapped into userspace.
-But nowadays compaction often applies them to unmapped page cache pages:
-which may exacerbate contention on i_mmap_rwsem quite unnecessarily,
-since try_to_unmap_file() makes no preliminary page_mapped() check.
+Hi,
 
-Now check page_mapped() in __unmap_and_move(); and avoid repeating the
-same overhead in rmap_walk_file() - don't remove_migration_ptes() when
-we never inserted any.
+I see the following splat on rc3+ of today when doing a suspend/resume
+cycle. My suspend script does
 
-(The PageAnon(page) comment blocks now look even sillier than before,
-but clean that up on some other occasion.  And note in passing that
-try_to_unmap_one() does not use a migration entry when PageSwapCache,
-so remove_migration_ptes() will then not update that swap entry to
-newpage pte: not a big deal, but something else to clean up later.)
+echo 3 > /proc/sys/vm/drop_caches
 
-Davidlohr remarked in "mm,fs: introduce helpers around the i_mmap_mutex"
-conversion to i_mmap_rwsem, that "The biggest winner of these changes
-is migration": a part of the reason might be all of that unnecessary
-taking of i_mmap_mutex in page migration; and it's rather a shame that
-I didn't get around to sending this patch in before his - this one is
-much less useful after Davidlohr's conversion to rwsem, but still good.
+and this maybe is related, judging by the code the splat points to:
+page-writeback.c
 
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
+>From looking at this a bit, there's some already freed timer we're
+touching in laptop_sync_completion(), probably already freed in
+blk_cleanup_queue(). Hmm...
 
- mm/migrate.c |   28 ++++++++++++++++++----------
- 1 file changed, 18 insertions(+), 10 deletions(-)
+[  106.615059] IPv6: ADDRCONF(NETDEV_CHANGE): eth0: link becomes ready
+[  113.317145] ------------[ cut here ]------------
+[  113.319022] WARNING: CPU: 1 PID: 4006 at lib/debugobjects.c:263 debug_print_object+0x8b/0xa0()
+[  113.320970] ODEBUG: assert_init not available (active state 0) object type: timer_list hint: stub_timer+0x0/
+0x20
+[  113.322866] Modules linked in: cpufreq_stats cpufreq_conservative cpufreq_powersave cpufreq_userspace binfmt
+_misc uinput ipv6 vfat fat snd_hda_codec_conexant snd_hda_codec_generic snd_hda_codec_hdmi arc4 rtl8192ce rtl_p
+ci rtl8192c_common rtlwifi pcspkr evdev mac80211 k10temp cfg80211 snd_hda_intel snd_hda_controller snd_hda_code
+c snd_hwdep thinkpad_acpi nvram snd_pcm snd_seq snd_seq_device snd_timer radeon snd video soundcore battery drm
+_kms_helper ac ttm button rtsx_pci_sdmmc mmc_core rtsx_pci mfd_core ehci_pci ohci_pci ohci_hcd ehci_hcd thermal
+[  113.327292] CPU: 1 PID: 4006 Comm: sync Not tainted 3.18.0-rc3+ #1
+[  113.327294] Hardware name: LENOVO 30515QG/30515QG, BIOS 8RET30WW (1.12 ) 09/15/2011
+[  113.327297]  0000000000000009 ffff8800ba2f3d98 ffffffff8155dbc4 ffffffff810b3d56
+[  113.327303]  ffff8800ba2f3de8 ffff8800ba2f3dd8 ffffffff810721ac ffff8800ba2f3e08
+[  113.327308]  ffff8800ba2f3e88 ffffffff81a3bf60 ffffffff817fb9e5 ffffffff82b46508
+[  113.327314] Call Trace:
+[  113.327317]  [<ffffffff8155dbc4>] dump_stack+0x4f/0x7c
+[  113.327326]  [<ffffffff810b3d56>] ? down_trylock+0x36/0x50
+[  113.327331]  [<ffffffff810721ac>] warn_slowpath_common+0x8c/0xc0
+[  113.327337]  [<ffffffff81072226>] warn_slowpath_fmt+0x46/0x50
+[  113.327341]  [<ffffffff810d8b3c>] ? do_init_timer+0x5c/0x60
+[  113.327345]  [<ffffffff812b992b>] debug_print_object+0x8b/0xa0
+[  113.327349]  [<ffffffff810d8aa0>] ? ftrace_raw_event_tick_stop+0xe0/0xe0
+[  113.327353]  [<ffffffff812ba621>] debug_object_assert_init+0x101/0x140
+[  113.327358]  [<ffffffff811529d5>] ? laptop_sync_completion+0x5/0xa0
+[  113.327364]  [<ffffffff810d9a4f>] del_timer+0x1f/0x70
+[  113.327367]  [<ffffffff81152a2c>] laptop_sync_completion+0x5c/0xa0
+[  113.327371]  [<ffffffff811529d5>] ? laptop_sync_completion+0x5/0xa0
+[  113.327375]  [<ffffffff811d82d5>] sys_sync+0x85/0x90
+[  113.327379]  [<ffffffff815672d2>] system_call_fastpath+0x12/0x17
+[  113.327386] ---[ end trace 97d71e72cfb411a7 ]---
+[  113.576302] hib.sh (4003): drop_caches: 3
+[  115.126304] PM: Syncing filesystems ... done.
 
---- 3.18-rc7/mm/migrate.c	2014-10-19 22:12:56.809625067 -0700
-+++ linux/mm/migrate.c	2014-11-30 20:17:51.205187663 -0800
-@@ -746,7 +746,7 @@ static int fallback_migrate_page(struct
-  *  MIGRATEPAGE_SUCCESS - success
-  */
- static int move_to_new_page(struct page *newpage, struct page *page,
--				int remap_swapcache, enum migrate_mode mode)
-+				int page_was_mapped, enum migrate_mode mode)
- {
- 	struct address_space *mapping;
- 	int rc;
-@@ -784,7 +784,7 @@ static int move_to_new_page(struct page
- 		newpage->mapping = NULL;
- 	} else {
- 		mem_cgroup_migrate(page, newpage, false);
--		if (remap_swapcache)
-+		if (page_was_mapped)
- 			remove_migration_ptes(page, newpage);
- 		page->mapping = NULL;
- 	}
-@@ -798,7 +798,7 @@ static int __unmap_and_move(struct page
- 				int force, enum migrate_mode mode)
- {
- 	int rc = -EAGAIN;
--	int remap_swapcache = 1;
-+	int page_was_mapped = 0;
- 	struct anon_vma *anon_vma = NULL;
- 
- 	if (!trylock_page(page)) {
-@@ -870,7 +870,6 @@ static int __unmap_and_move(struct page
- 			 * migrated but are not remapped when migration
- 			 * completes
- 			 */
--			remap_swapcache = 0;
- 		} else {
- 			goto out_unlock;
- 		}
-@@ -910,13 +909,17 @@ static int __unmap_and_move(struct page
- 	}
- 
- 	/* Establish migration ptes or remove ptes */
--	try_to_unmap(page, TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
-+	if (page_mapped(page)) {
-+		try_to_unmap(page,
-+			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
-+		page_was_mapped = 1;
-+	}
- 
- skip_unmap:
- 	if (!page_mapped(page))
--		rc = move_to_new_page(newpage, page, remap_swapcache, mode);
-+		rc = move_to_new_page(newpage, page, page_was_mapped, mode);
- 
--	if (rc && remap_swapcache)
-+	if (rc && page_was_mapped)
- 		remove_migration_ptes(page, page);
- 
- 	/* Drop an anon_vma reference if we took one */
-@@ -1017,6 +1020,7 @@ static int unmap_and_move_huge_page(new_
- {
- 	int rc = 0;
- 	int *result = NULL;
-+	int page_was_mapped = 0;
- 	struct page *new_hpage;
- 	struct anon_vma *anon_vma = NULL;
- 
-@@ -1047,12 +1051,16 @@ static int unmap_and_move_huge_page(new_
- 	if (PageAnon(hpage))
- 		anon_vma = page_get_anon_vma(hpage);
- 
--	try_to_unmap(hpage, TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
-+	if (page_mapped(hpage)) {
-+		try_to_unmap(hpage,
-+			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
-+		page_was_mapped = 1;
-+	}
- 
- 	if (!page_mapped(hpage))
--		rc = move_to_new_page(new_hpage, hpage, 1, mode);
-+		rc = move_to_new_page(new_hpage, hpage, page_was_mapped, mode);
- 
--	if (rc != MIGRATEPAGE_SUCCESS)
-+	if (rc != MIGRATEPAGE_SUCCESS && page_was_mapped)
- 		remove_migration_ptes(hpage, hpage);
- 
- 	if (anon_vma)
+-- 
+Regards/Gruss,
+    Boris.
 
+Sent from a fat crate under my desk. Formatting is fine.
 --
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
