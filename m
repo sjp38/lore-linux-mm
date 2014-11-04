@@ -1,77 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B03C6B0085
-	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 20:10:20 -0500 (EST)
-Received: by mail-pd0-f175.google.com with SMTP id y13so12625217pdi.34
-        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 17:10:20 -0800 (PST)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id bd7si16549575pad.218.2014.11.03.17.10.17
-        for <linux-mm@kvack.org>;
-        Mon, 03 Nov 2014 17:10:18 -0800 (PST)
-Message-ID: <54582796.7030700@cn.fujitsu.com>
-Date: Tue, 4 Nov 2014 09:10:46 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B19216B0085
+	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 20:30:44 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id kq14so13355875pab.38
+        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 17:30:44 -0800 (PST)
+Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
+        by mx.google.com with ESMTPS id b10si10280988pdm.209.2014.11.03.17.30.42
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 03 Nov 2014 17:30:43 -0800 (PST)
+Received: by mail-pa0-f42.google.com with SMTP id bj1so13385870pad.1
+        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 17:30:42 -0800 (PST)
+Date: Mon, 3 Nov 2014 17:30:28 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] tmpfs: truncate prealloc blocks past i_size
+In-Reply-To: <1414602608-1416-1-git-send-email-jbacik@fb.com>
+Message-ID: <alpine.LSU.2.11.1411031710500.13943@eggly.anvils>
+References: <1414602608-1416-1-git-send-email-jbacik@fb.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/2] Fix node meminfo corruption.
-References: <1414748812-22610-1-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1414748812-22610-1-git-send-email-tangchen@cn.fujitsu.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, santosh.shilimkar@ti.com, grygorii.strashko@ti.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.co, fabf@skynet.be, nzimmer@sgi.com, wangnan0@huawei.com, vdavydov@parallels.com, toshi.kani@hp.com, phacht@linux.vnet.ibm.com, tj@kernel.org, kirill.shutemov@linux.intel.com, riel@redhat.com, luto@amacapital.net, hpa@linux.intel.com, aarcange@redhat.com, qiuxishi@huawei.com, mgorman@suse.de, rientjes@google.com, hannes@cmpxchg.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, tangchen@cn.fujitsu.com
+To: Josef Bacik <jbacik@fb.com>
+Cc: hughd@google.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-Hi all,
+On Wed, 29 Oct 2014, Josef Bacik wrote:
 
-I thinks these two problems are very important and should be merged ASAP.
-Would you please help to have a look at it ?
+> One of the rocksdb people noticed that when you do something like this
+> 
+> fallocate(fd, FALLOC_FL_KEEP_SIZE, 0, 10M)
+> pwrite(fd, buf, 5M, 0)
+> ftruncate(5M)
+> 
+> on tmpfs the file would still take up 10M, which lead to super fun issues
+> because we were getting ENOSPC before we thought we should be getting ENOSPC.
+> This patch fixes the problem, and mirrors what all the other fs'es do.  I tested
+> it locally to make sure it worked properly with the following
+> 
+> xfs_io -f -c "falloc -k 0 10M" -c "pwrite 0 5M" -c "truncate 5M" file
+> 
+> Without the patch we have "Blocks: 20480", with the patch we have the correct
+> value of "Blocks: 10240".  Thanks,
+> 
+> Signed-off-by: Josef Bacik <jbacik@fb.com>
 
-Thanks.
+That is a very good catch, and thank you for the patch.  But I am not
+convinced that the patch is correct - even if it does happen to end
+up doing what other filesystems do here (I haven't checked).
 
-On 10/31/2014 05:46 PM, Tang Chen wrote:
-> There are two problems when calculating node meminfo:
->
-> 1. When hot-adding a node without onlining any page, MemTotal corrupted.
->
-> # hot-add node2 (memory not onlined)
-> # cat /sys/device/system/node/node2/meminfo
-> Node 2 MemTotal:       33554432 kB			/* corrupted */
-> Node 2 MemFree:               0 kB
-> Node 2 MemUsed:        33554432 kB
-> Node 2 Active:                0 kB
-> ......
->
->
-> 2. When onlining memory on node2, MemFree of node3 corrupted.
->
-> # for ((i = 2048; i < 2064; i++)); do echo online_movable > /sys/devices/system/node/node2/memory$i/state; done
-> # cat /sys/devices/system/node/node2/meminfo
-> Node 2 MemTotal:       33554432 kB
-> Node 2 MemFree:        33549092 kB
-> Node 2 MemUsed:            5340 kB
-> ......
-> # cat /sys/devices/system/node/node3/meminfo
-> Node 3 MemTotal:              0 kB
-> Node 3 MemFree:               248 kB                    /* corrupted */
-> Node 3 MemUsed:               0 kB
-> ......
->
-> This patch-set fixes them.
->
-> Tang Chen (2):
->    mem-hotplug: Reset node managed pages when hot-adding a new pgdat.
->    mem-hotplug: Fix wrong check for zone->pageset initialization in
->      online_pages().
->
->   include/linux/bootmem.h |  1 +
->   include/linux/mm.h      |  1 +
->   mm/bootmem.c            |  9 +++++----
->   mm/memory_hotplug.c     | 15 ++++++++++++++-
->   mm/nobootmem.c          |  8 +++++---
->   mm/page_alloc.c         |  5 +++++
->   6 files changed, 31 insertions(+), 8 deletions(-)
->
+Your patch makes it look like a fix to an off-by-one, but that is
+not really the case.  What if you change your final ftruncate(5M)
+to ftruncate(6M): what should happen then?
+
+My intuition says that what should happen is that i_size is set to 6M,
+and the fallocated excess blocks beyond 6M be trimmed off: so that
+it's both an extending and a shrinking truncate at the same time.
+And I think that behavior would be served by removing the
+"if (newsize < oldsize)" condition completely.
+
+But perhaps I'm wrong: can you or anyone shed more light on this,
+or point to documentation of what should happen in these cases?
+
+Thanks,
+Hugh
+
+> ---
+>  mm/shmem.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index 185836b..79b7fb5 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -574,7 +574,7 @@ static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
+>  			i_size_write(inode, newsize);
+>  			inode->i_ctime = inode->i_mtime = CURRENT_TIME;
+>  		}
+> -		if (newsize < oldsize) {
+> +		if (newsize <= oldsize) {
+>  			loff_t holebegin = round_up(newsize, PAGE_SIZE);
+>  			unmap_mapping_range(inode->i_mapping, holebegin, 0, 1);
+>  			shmem_truncate_range(inode, newsize, (loff_t)-1);
+> -- 
+> 1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
