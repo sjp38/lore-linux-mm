@@ -1,224 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 61BB46B00C5
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 17:18:58 -0500 (EST)
-Received: by mail-ob0-f176.google.com with SMTP id va2so11461535obc.7
-        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 14:18:58 -0800 (PST)
-Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
-        by mx.google.com with ESMTPS id q83si1930802oif.4.2014.11.04.14.18.56
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B6CD6B00BD
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 17:20:29 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id rd3so15221414pab.41
+        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 14:20:28 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id fn7si1388355pab.68.2014.11.04.14.20.27
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 04 Nov 2014 14:18:57 -0800 (PST)
-From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH v5 8/8] x86, mm: Add set_memory_wt() for WT
-Date: Tue,  4 Nov 2014 15:04:38 -0700
-Message-Id: <1415138678-22958-9-git-send-email-toshi.kani@hp.com>
-In-Reply-To: <1415138678-22958-1-git-send-email-toshi.kani@hp.com>
-References: <1415138678-22958-1-git-send-email-toshi.kani@hp.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 04 Nov 2014 14:20:27 -0800 (PST)
+Date: Tue, 4 Nov 2014 14:20:27 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: fix overly aggressive shmdt() when calls span
+ multiple segments
+Message-Id: <20141104142027.a7a0d010772d84560b445f59@linux-foundation.org>
+In-Reply-To: <20141104000633.F35632C6@viggo.jf.intel.com>
+References: <20141104000633.F35632C6@viggo.jf.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Toshi Kani <toshi.kani@hp.com>
+To: Dave Hansen <dave@sr71.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.hansen@linux.intel.com
 
-This patch adds set_memory_wt(), set_memory_array_wt() and
-set_pages_array_wt() for setting specified range(s) of the
-regular memory to WT.
+On Mon, 03 Nov 2014 16:06:33 -0800 Dave Hansen <dave@sr71.net> wrote:
 
-Signed-off-by: Toshi Kani <toshi.kani@hp.com>
----
- Documentation/x86/pat.txt         |    9 ++++--
- arch/x86/include/asm/cacheflush.h |    6 +++-
- arch/x86/mm/pageattr.c            |   58 +++++++++++++++++++++++++++++++++----
- 3 files changed, 63 insertions(+), 10 deletions(-)
+> 
+> From: Dave Hansen <dave.hansen@linux.intel.com>
+> 
+> This is a highly-contrived scenario.  But, a single shmdt() call
+> can be induced in to unmapping memory from mulitple shm segments.
+> Example code is here:
+> 
+> 	http://www.sr71.net/~dave/intel/shmfun.c
 
-diff --git a/Documentation/x86/pat.txt b/Documentation/x86/pat.txt
-index be7b8c2..bf4339c 100644
---- a/Documentation/x86/pat.txt
-+++ b/Documentation/x86/pat.txt
-@@ -46,6 +46,9 @@ set_memory_uc          |    UC-   |    --      |       --         |
- set_memory_wc          |    WC    |    --      |       --         |
-  set_memory_wb         |          |            |                  |
-                        |          |            |                  |
-+set_memory_wt          |    WT    |    --      |       --         |
-+ set_memory_wb         |          |            |                  |
-+                       |          |            |                  |
- pci sysfs resource     |    --    |    --      |       UC-        |
-                        |          |            |                  |
- pci sysfs resource_wc  |    --    |    --      |       WC         |
-@@ -117,8 +120,8 @@ can be more restrictive, in case of any existing aliasing for that address.
- For example: If there is an existing uncached mapping, a new ioremap_wc can
- return uncached mapping in place of write-combine requested.
- 
--set_memory_[uc|wc] and set_memory_wb should be used in pairs, where driver will
--first make a region uc or wc and switch it back to wb after use.
-+set_memory_[uc|wc|wt] and set_memory_wb should be used in pairs, where driver
-+will first make a region uc, wc or wt and switch it back to wb after use.
- 
- Over time writes to /proc/mtrr will be deprecated in favor of using PAT based
- interfaces. Users writing to /proc/mtrr are suggested to use above interfaces.
-@@ -126,7 +129,7 @@ interfaces. Users writing to /proc/mtrr are suggested to use above interfaces.
- Drivers should use ioremap_[uc|wc] to access PCI BARs with [uc|wc] access
- types.
- 
--Drivers should use set_memory_[uc|wc] to set access type for RAM ranges.
-+Drivers should use set_memory_[uc|wc|wt] to set access type for RAM ranges.
- 
- 
- PAT debugging
-diff --git a/arch/x86/include/asm/cacheflush.h b/arch/x86/include/asm/cacheflush.h
-index 47c8e32..b6f7457 100644
---- a/arch/x86/include/asm/cacheflush.h
-+++ b/arch/x86/include/asm/cacheflush.h
-@@ -8,7 +8,7 @@
- /*
-  * The set_memory_* API can be used to change various attributes of a virtual
-  * address range. The attributes include:
-- * Cachability   : UnCached, WriteCombining, WriteBack
-+ * Cachability   : UnCached, WriteCombining, WriteThrough, WriteBack
-  * Executability : eXeutable, NoteXecutable
-  * Read/Write    : ReadOnly, ReadWrite
-  * Presence      : NotPresent
-@@ -35,9 +35,11 @@
- 
- int _set_memory_uc(unsigned long addr, int numpages);
- int _set_memory_wc(unsigned long addr, int numpages);
-+int _set_memory_wt(unsigned long addr, int numpages);
- int _set_memory_wb(unsigned long addr, int numpages);
- int set_memory_uc(unsigned long addr, int numpages);
- int set_memory_wc(unsigned long addr, int numpages);
-+int set_memory_wt(unsigned long addr, int numpages);
- int set_memory_wb(unsigned long addr, int numpages);
- int set_memory_x(unsigned long addr, int numpages);
- int set_memory_nx(unsigned long addr, int numpages);
-@@ -48,10 +50,12 @@ int set_memory_4k(unsigned long addr, int numpages);
- 
- int set_memory_array_uc(unsigned long *addr, int addrinarray);
- int set_memory_array_wc(unsigned long *addr, int addrinarray);
-+int set_memory_array_wt(unsigned long *addr, int addrinarray);
- int set_memory_array_wb(unsigned long *addr, int addrinarray);
- 
- int set_pages_array_uc(struct page **pages, int addrinarray);
- int set_pages_array_wc(struct page **pages, int addrinarray);
-+int set_pages_array_wt(struct page **pages, int addrinarray);
- int set_pages_array_wb(struct page **pages, int addrinarray);
- 
- /*
-diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-index 114d0b3..c98dcdb 100644
---- a/arch/x86/mm/pageattr.c
-+++ b/arch/x86/mm/pageattr.c
-@@ -1484,12 +1484,10 @@ EXPORT_SYMBOL(set_memory_uc);
- static int _set_memory_array(unsigned long *addr, int addrinarray,
- 		enum page_cache_mode new_type)
- {
-+	enum page_cache_mode set_type;
- 	int i, j;
- 	int ret;
- 
--	/*
--	 * for now UC MINUS. see comments in ioremap_nocache()
--	 */
- 	for (i = 0; i < addrinarray; i++) {
- 		ret = reserve_memtype(__pa(addr[i]), __pa(addr[i]) + PAGE_SIZE,
- 					new_type, NULL);
-@@ -1497,9 +1495,12 @@ static int _set_memory_array(unsigned long *addr, int addrinarray,
- 			goto out_free;
- 	}
- 
-+	/* If WC, set to UC- first and then WC */
-+	set_type = (new_type == _PAGE_CACHE_MODE_WC) ?
-+				_PAGE_CACHE_MODE_UC_MINUS : new_type;
-+
- 	ret = change_page_attr_set(addr, addrinarray,
--				   cachemode2pgprot(_PAGE_CACHE_MODE_UC_MINUS),
--				   1);
-+				   cachemode2pgprot(set_type), 1);
- 
- 	if (!ret && new_type == _PAGE_CACHE_MODE_WC)
- 		ret = change_page_attr_set_clr(addr, addrinarray,
-@@ -1531,6 +1532,12 @@ int set_memory_array_wc(unsigned long *addr, int addrinarray)
- }
- EXPORT_SYMBOL(set_memory_array_wc);
- 
-+int set_memory_array_wt(unsigned long *addr, int addrinarray)
-+{
-+	return _set_memory_array(addr, addrinarray, _PAGE_CACHE_MODE_WT);
-+}
-+EXPORT_SYMBOL(set_memory_array_wt);
-+
- int _set_memory_wc(unsigned long addr, int numpages)
- {
- 	int ret;
-@@ -1571,6 +1578,34 @@ out_err:
- }
- EXPORT_SYMBOL(set_memory_wc);
- 
-+int _set_memory_wt(unsigned long addr, int numpages)
-+{
-+	return change_page_attr_set(&addr, numpages,
-+				    cachemode2pgprot(_PAGE_CACHE_MODE_WT), 0);
-+}
-+
-+int set_memory_wt(unsigned long addr, int numpages)
-+{
-+	int ret;
-+
-+	ret = reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
-+			      _PAGE_CACHE_MODE_WT, NULL);
-+	if (ret)
-+		goto out_err;
-+
-+	ret = _set_memory_wt(addr, numpages);
-+	if (ret)
-+		goto out_free;
-+
-+	return 0;
-+
-+out_free:
-+	free_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
-+out_err:
-+	return ret;
-+}
-+EXPORT_SYMBOL(set_memory_wt);
-+
- int _set_memory_wb(unsigned long addr, int numpages)
- {
- 	/* WB cache mode is hard wired to all cache attribute bits being 0 */
-@@ -1663,6 +1698,7 @@ static int _set_pages_array(struct page **pages, int addrinarray,
- {
- 	unsigned long start;
- 	unsigned long end;
-+	enum page_cache_mode set_type;
- 	int i;
- 	int free_idx;
- 	int ret;
-@@ -1676,8 +1712,12 @@ static int _set_pages_array(struct page **pages, int addrinarray,
- 			goto err_out;
- 	}
- 
-+	/* If WC, set to UC- first and then WC */
-+	set_type = (new_type == _PAGE_CACHE_MODE_WC) ?
-+				_PAGE_CACHE_MODE_UC_MINUS : new_type;
-+
- 	ret = cpa_set_pages_array(pages, addrinarray,
--			cachemode2pgprot(_PAGE_CACHE_MODE_UC_MINUS));
-+				  cachemode2pgprot(set_type));
- 	if (!ret && new_type == _PAGE_CACHE_MODE_WC)
- 		ret = change_page_attr_set_clr(NULL, addrinarray,
- 					       cachemode2pgprot(
-@@ -1711,6 +1751,12 @@ int set_pages_array_wc(struct page **pages, int addrinarray)
- }
- EXPORT_SYMBOL(set_pages_array_wc);
- 
-+int set_pages_array_wt(struct page **pages, int addrinarray)
-+{
-+	return _set_pages_array(pages, addrinarray, _PAGE_CACHE_MODE_WT);
-+}
-+EXPORT_SYMBOL(set_pages_array_wt);
-+
- int set_pages_wb(struct page *page, int numpages)
- {
- 	unsigned long addr = (unsigned long)page_address(page);
+Could be preserved in tools/testing/selftests/ipc/
+
+> The fix is pretty simple:  Record the 'struct file' for the first
+> VMA we encounter and then stick to it.  Decline to unmap anything
+> not from the same file and thus the same segment.
+> 
+> I found this by inspection and the odds of anyone hitting this in
+> practice are pretty darn small.
+> 
+> Lightly tested, but it's a pretty small patch.
+> 
+> ...
+>
+> --- a/ipc/shm.c~mm-shmdt-fix-over-aggressive-unmap	2014-11-03 14:32:09.479595152 -0800
+> +++ b/ipc/shm.c	2014-11-03 16:04:28.340225666 -0800
+> @@ -1229,6 +1229,7 @@ SYSCALL_DEFINE1(shmdt, char __user *, sh
+>  	int retval = -EINVAL;
+>  #ifdef CONFIG_MMU
+>  	loff_t size = 0;
+> +	struct file *file;
+>  	struct vm_area_struct *next;
+>  #endif
+>  
+> @@ -1245,7 +1246,8 @@ SYSCALL_DEFINE1(shmdt, char __user *, sh
+>  	 *   started at address shmaddr. It records it's size and then unmaps
+>  	 *   it.
+>  	 * - Then it unmaps all shm vmas that started at shmaddr and that
+> -	 *   are within the initially determined size.
+> +	 *   are within the initially determined size and that are from the
+> +	 *   same shm segment from which we determined the size.
+>  	 * Errors from do_munmap are ignored: the function only fails if
+>  	 * it's called with invalid parameters or if it's called to unmap
+>  	 * a part of a vma. Both calls in this function are for full vmas,
+> @@ -1271,8 +1273,14 @@ SYSCALL_DEFINE1(shmdt, char __user *, sh
+>  		if ((vma->vm_ops == &shm_vm_ops) &&
+>  			(vma->vm_start - addr)/PAGE_SIZE == vma->vm_pgoff) {
+>  
+> -
+> -			size = file_inode(vma->vm_file)->i_size;
+> +			/*
+> +			 * Record the file of the shm segment being
+> +			 * unmapped.  With mremap(), someone could place
+> +			 * page from another segment but with equal offsets
+> +			 * in the range we are unmapping.
+> +			 */
+> +			file = vma->vm_file;
+> +			size = file_inode(file)->i_size;
+
+Maybe we should have used i_size_read() here.  I don't think i_mutex is
+held?
+
+>  			do_munmap(mm, vma->vm_start, vma->vm_end - vma->vm_start);
+>  			/*
+>  			 * We discovered the size of the shm segment, so
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
