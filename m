@@ -1,61 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f51.google.com (mail-la0-f51.google.com [209.85.215.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DC4DF6B00AF
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 08:35:24 -0500 (EST)
-Received: by mail-la0-f51.google.com with SMTP id q1so869896lam.38
-        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 05:35:23 -0800 (PST)
-Received: from mail-lb0-x22a.google.com (mail-lb0-x22a.google.com. [2a00:1450:4010:c04::22a])
-        by mx.google.com with ESMTPS id 4si712368laq.88.2014.11.04.05.35.23
+Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FEC36B00AF
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 08:41:14 -0500 (EST)
+Received: by mail-la0-f50.google.com with SMTP id hz20so871479lab.23
+        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 05:41:13 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f4si708220laf.102.2014.11.04.05.41.13
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 04 Nov 2014 05:35:23 -0800 (PST)
-Received: by mail-lb0-f170.google.com with SMTP id z12so2738991lbi.1
-        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 05:35:23 -0800 (PST)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH] mm: alloc_contig_range: demote pages busy message from warn to info
-In-Reply-To: <5458C501.3040505@hurleysoftware.com>
-References: <2457604.k03RC2Mv4q@avalon> <1415033873-28569-1-git-send-email-mina86@mina86.com> <20141104054307.GA23102@bbox> <5458C501.3040505@hurleysoftware.com>
-Date: Tue, 04 Nov 2014 14:35:19 +0100
-Message-ID: <xa1tvbmv6qco.fsf@mina86.com>
+        Tue, 04 Nov 2014 05:41:13 -0800 (PST)
+Date: Tue, 4 Nov 2014 14:41:10 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 1/3] mm: embed the memcg pointer directly into struct page
+Message-ID: <20141104134110.GD22207@dhcp22.suse.cz>
+References: <1414898156-4741-1-git-send-email-hannes@cmpxchg.org>
+ <54589017.9060604@jp.fujitsu.com>
+ <20141104132701.GA18441@phnom.home.cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141104132701.GA18441@phnom.home.cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Hurley <peter@hurleysoftware.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Laurent Pinchart <laurent.pinchart@ideasonboard.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, Tejun Heo <tj@kernel.org>, David Miller <davem@davemloft.net>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Nov 04 2014, Peter Hurley <peter@hurleysoftware.com> wrote:
-> On 11/04/2014 12:43 AM, Minchan Kim wrote:
->> Hello,
->>=20
->> On Mon, Nov 03, 2014 at 05:57:53PM +0100, Michal Nazarewicz wrote:
->>> Having test_pages_isolated failure message as a warning confuses
->>> users into thinking that it is more serious than it really is.  In
->>> reality, if called via CMA, allocation will be retried so a single
->>> test_pages_isolated failure does not prevent allocation from
->>> succeeding.
->>>
->>> Demote the warning message to an info message and reformat it such
->>> that the text =E2=80=9Cfailed=E2=80=9D does not appear and instead a le=
-ss worrying
->>> =E2=80=9CPFNS busy=E2=80=9D is used.
->>=20
->> What do you expect from this message? Please describe it so that we can
->> review below message helps your goal.
->
-> I expect this message to not show up in logs unless there is a real probl=
-em.
+On Tue 04-11-14 08:27:01, Johannes Weiner wrote:
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Subject: [patch] mm: move page->mem_cgroup bad page handling into generic code fix
+> 
+> Remove obsolete memory saving recommendations from the MEMCG Kconfig
+> help text.
 
-So frankly I don't care.  Feel free to send a patch removing the message
-all together.  I'll be happy to ack it.
+The memory overhead is still there. So I do not think it is good to
+remove the message altogether. The current overhead might be 4 or 8B
+depending on the configuration. What about
+"
+	Note that setting this option might increase fixed memory
+	overhead associated with each page descriptor in the system.
+	The memory overhead depends on the architecture and other
+	configuration options which have influence on the size and
+	alignment on the page descriptor (struct page). Namely
+	CONFIG_SLUB has a requirement for page alignment to two words
+	which in turn means that 64b systems might not see any memory
+	overhead as the additional data fits into alignment. On the
+	other hand 32b systems might see 8B memory overhead.
+"
 
---=20
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
- (o o)
-ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  init/Kconfig | 12 ------------
+>  1 file changed, 12 deletions(-)
+> 
+> diff --git a/init/Kconfig b/init/Kconfig
+> index 01b7f2a6abf7..d68d8b0780b3 100644
+> --- a/init/Kconfig
+> +++ b/init/Kconfig
+> @@ -983,18 +983,6 @@ config MEMCG
+>  	  Provides a memory resource controller that manages both anonymous
+>  	  memory and page cache. (See Documentation/cgroups/memory.txt)
+>  
+> -	  Note that setting this option increases fixed memory overhead
+> -	  associated with each page of memory in the system. By this,
+> -	  8(16)bytes/PAGE_SIZE on 32(64)bit system will be occupied by memory
+> -	  usage tracking struct at boot. Total amount of this is printed out
+> -	  at boot.
+> -
+> -	  Only enable when you're ok with these trade offs and really
+> -	  sure you need the memory resource controller. Even when you enable
+> -	  this, you can set "cgroup_disable=memory" at your boot option to
+> -	  disable memory resource controller and you can avoid overheads.
+> -	  (and lose benefits of memory resource controller)
+> -
+>  config MEMCG_SWAP
+>  	bool "Memory Resource Controller Swap Extension"
+>  	depends on MEMCG && SWAP
+> -- 
+> 2.1.3
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
