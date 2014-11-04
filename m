@@ -1,67 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 910786B0071
-	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 21:35:51 -0500 (EST)
-Received: by mail-pd0-f181.google.com with SMTP id y10so12745547pdj.12
-        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 18:35:51 -0800 (PST)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id fw5si1429146pbb.88.2014.11.03.18.35.48
-        for <linux-mm@kvack.org>;
-        Mon, 03 Nov 2014 18:35:50 -0800 (PST)
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH v2 for v3.18] mm/compaction: skip the range until proper target pageblock is met
-Date: Tue,  4 Nov 2014 11:37:29 +0900
-Message-Id: <1415068649-18040-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from mail-oi0-f49.google.com (mail-oi0-f49.google.com [209.85.218.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C6806B0071
+	for <linux-mm@kvack.org>; Mon,  3 Nov 2014 22:36:31 -0500 (EST)
+Received: by mail-oi0-f49.google.com with SMTP id u20so9648368oif.22
+        for <linux-mm@kvack.org>; Mon, 03 Nov 2014 19:36:31 -0800 (PST)
+Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
+        by mx.google.com with ESMTPS id o6si20038288obi.101.2014.11.03.19.36.28
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 03 Nov 2014 19:36:29 -0800 (PST)
+From: "Elliott, Robert (Server Storage)" <Elliott@hp.com>
+Subject: RE: [PATCH v4 4/7] x86, mm, pat: Add pgprot_writethrough() for WT
+Date: Tue, 4 Nov 2014 03:34:35 +0000
+Message-ID: <94D0CD8314A33A4D9D801C0FE68B40295936556E@G4W3202.americas.hpqcorp.net>
+References: <1414450545-14028-1-git-send-email-toshi.kani@hp.com>
+ <1414450545-14028-5-git-send-email-toshi.kani@hp.com>
+ <94D0CD8314A33A4D9D801C0FE68B4029593578ED@G9W0745.americas.hpqcorp.net>
+ <1415052905.10958.39.camel@misato.fc.hp.com>
+ <alpine.DEB.2.11.1411032352161.5308@nanos>
+ <CALCETrXs0SotEmqs0B7rbnnqkLvMV+fzOJzNbp+y2U=zB+25OQ@mail.gmail.com>
+In-Reply-To: <CALCETrXs0SotEmqs0B7rbnnqkLvMV+fzOJzNbp+y2U=zB+25OQ@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Andy Lutomirski <luto@amacapital.net>, Thomas Gleixner <tglx@linutronix.de>
+Cc: "Kani, Toshimitsu" <toshi.kani@hp.com>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "arnd@arndb.de" <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "jgross@suse.com" <jgross@suse.com>, "stefan.bader@canonical.com" <stefan.bader@canonical.com>, "hmh@hmh.eng.br" <hmh@hmh.eng.br>, "yigal@plexistor.com" <yigal@plexistor.com>, "konrad.wilk@oracle.com" <konrad.wilk@oracle.com>
 
-commit 7d49d8868336 ("mm, compaction: reduce zone checking frequency in
-the migration scanner") makes side-effect that change iteration
-range calculation. Before change, block_end_pfn is calculated using
-start_pfn, but, now, blindly add pageblock_nr_pages to previous value.
-
-This cause the problem that isolation_start_pfn is larger than
-block_end_pfn when we isolate the page with more than pageblock order.
-In this case, isolation would be failed due to invalid range parameter.
-
-To prevent this, this patch recalculate the range to find valid target
-pageblock. Without this patch, CMA with more than pageblock order always
-fail, but, with this patch, it will succeed.
-
-Changes from v1:
-recalculate the range rather than just skipping to find valid one.
-add code comment.
-
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
----
- mm/compaction.c |   10 ++++++++++
- 1 file changed, 10 insertions(+)
-
-diff --git a/mm/compaction.c b/mm/compaction.c
-index ec74cf0..4f0151c 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -479,6 +479,16 @@ isolate_freepages_range(struct compact_control *cc,
- 
- 		block_end_pfn = min(block_end_pfn, end_pfn);
- 
-+		/*
-+		 * pfn could pass the block_end_pfn if isolated freepage
-+		 * is more than pageblock order. In this case, we adjust
-+		 * scanning range to right one.
-+		 */
-+		if (pfn >= block_end_pfn) {
-+			block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
-+			block_end_pfn = min(block_end_pfn, end_pfn);
-+		}
-+
- 		if (!pageblock_pfn_to_page(pfn, block_end_pfn, cc->zone))
- 			break;
- 
--- 
-1.7.9.5
+DQoNCj4gLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCj4gRnJvbTogQW5keSBMdXRvbWlyc2tp
+IFttYWlsdG86bHV0b0BhbWFjYXBpdGFsLm5ldF0NCj4gU2VudDogTW9uZGF5LCBOb3ZlbWJlciAw
+MywgMjAxNCA1OjAxIFBNDQo+IFRvOiBUaG9tYXMgR2xlaXhuZXINCj4gQ2M6IEthbmksIFRvc2hp
+bWl0c3U7IEVsbGlvdHQsIFJvYmVydCAoU2VydmVyIFN0b3JhZ2UpOyBocGFAenl0b3IuY29tOw0K
+PiBtaW5nb0ByZWRoYXQuY29tOyBha3BtQGxpbnV4LWZvdW5kYXRpb24ub3JnOyBhcm5kQGFybmRi
+LmRlOyBsaW51eC0NCj4gbW1Aa3ZhY2sub3JnOyBsaW51eC1rZXJuZWxAdmdlci5rZXJuZWwub3Jn
+OyBqZ3Jvc3NAc3VzZS5jb207DQo+IHN0ZWZhbi5iYWRlckBjYW5vbmljYWwuY29tOyBobWhAaG1o
+LmVuZy5icjsgeWlnYWxAcGxleGlzdG9yLmNvbTsNCj4ga29ucmFkLndpbGtAb3JhY2xlLmNvbQ0K
+PiBTdWJqZWN0OiBSZTogW1BBVENIIHY0IDQvN10geDg2LCBtbSwgcGF0OiBBZGQgcGdwcm90X3dy
+aXRldGhyb3VnaCgpIGZvcg0KPiBXVA0KPiANCj4gT24gTW9uLCBOb3YgMywgMjAxNCBhdCAyOjUz
+IFBNLCBUaG9tYXMgR2xlaXhuZXIgPHRnbHhAbGludXRyb25peC5kZT4NCj4gd3JvdGU6DQouLi4N
+Cj4gT24gdGhlIG90aGVyIGhhbmQsIEkgdGhvdWdodCB0aGF0IF9HUEwgd2FzIHN1cHBvc2VkIHRv
+IGJlIG1vcmUgYWJvdXQNCj4gd2hldGhlciB0aGUgdGhpbmcgdXNpbmcgaXQgaXMgaW5oZXJlbnRs
+eSBhIGRlcml2ZWQgd29yayBvZiB0aGUgTGludXgNCj4ga2VybmVsLiAgU2luY2UgV1QgaXMgYW4g
+SW50ZWwgY29uY2VwdCwgbm90IGEgTGludXggY29uY2VwdCwgdGhlbiBJDQo+IHRoaW5rIHRoYXQg
+dGhpcyBpcyBhIGhhcmQgYXJndW1lbnQgdG8gbWFrZS4NCg0KSUJNIFN5c3RlbS8zNjAgTW9kZWwg
+ODUgKDE5NjgpIGhhZCB3cml0ZS10aHJvdWdoIChpLmUuLCBzdG9yZS10aHJvdWdoKQ0KY2FjaGlu
+Zy4gIEludGVsIG1pZ2h0IGNsYWltIFdyaXRlIENvbWJpbmluZywgdGhvdWdoLg0KDQoNCg0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
