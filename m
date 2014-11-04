@@ -1,77 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D97C6B0075
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 10:00:42 -0500 (EST)
-Received: by mail-la0-f42.google.com with SMTP id gq15so1049198lab.1
-        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 07:00:41 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x1si1201870lbw.43.2014.11.04.07.00.40
+Received: from mail-la0-f46.google.com (mail-la0-f46.google.com [209.85.215.46])
+	by kanga.kvack.org (Postfix) with ESMTP id C6E686B0075
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 10:23:16 -0500 (EST)
+Received: by mail-la0-f46.google.com with SMTP id hs14so1082177lab.33
+        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 07:23:13 -0800 (PST)
+Received: from mail-la0-f50.google.com (mail-la0-f50.google.com. [209.85.215.50])
+        by mx.google.com with ESMTPS id h3si1199173lbc.88.2014.11.04.07.23.11
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 04 Nov 2014 07:00:40 -0800 (PST)
-Date: Tue, 4 Nov 2014 16:00:39 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 1/3] mm: embed the memcg pointer directly into struct page
-Message-ID: <20141104150039.GF22207@dhcp22.suse.cz>
-References: <1414898156-4741-1-git-send-email-hannes@cmpxchg.org>
- <54589017.9060604@jp.fujitsu.com>
- <20141104132701.GA18441@phnom.home.cmpxchg.org>
- <20141104134110.GD22207@dhcp22.suse.cz>
- <20141104140937.GA18602@phnom.home.cmpxchg.org>
+        Tue, 04 Nov 2014 07:23:11 -0800 (PST)
+Received: by mail-la0-f50.google.com with SMTP id hz20so1056224lab.23
+        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 07:23:11 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141104140937.GA18602@phnom.home.cmpxchg.org>
+In-Reply-To: <94D0CD8314A33A4D9D801C0FE68B40295936556E@G4W3202.americas.hpqcorp.net>
+References: <1414450545-14028-1-git-send-email-toshi.kani@hp.com>
+ <1414450545-14028-5-git-send-email-toshi.kani@hp.com> <94D0CD8314A33A4D9D801C0FE68B4029593578ED@G9W0745.americas.hpqcorp.net>
+ <1415052905.10958.39.camel@misato.fc.hp.com> <alpine.DEB.2.11.1411032352161.5308@nanos>
+ <CALCETrXs0SotEmqs0B7rbnnqkLvMV+fzOJzNbp+y2U=zB+25OQ@mail.gmail.com> <94D0CD8314A33A4D9D801C0FE68B40295936556E@G4W3202.americas.hpqcorp.net>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Tue, 4 Nov 2014 07:22:49 -0800
+Message-ID: <CALCETrWAU+mH0Ss7jgKXcoS=wVet5o=hP2iqz9H15+KSyq=Y-A@mail.gmail.com>
+Subject: Re: [PATCH v4 4/7] x86, mm, pat: Add pgprot_writethrough() for WT
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, Tejun Heo <tj@kernel.org>, David Miller <davem@davemloft.net>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: "Elliott, Robert (Server Storage)" <Elliott@hp.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, "Kani, Toshimitsu" <toshi.kani@hp.com>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "arnd@arndb.de" <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "jgross@suse.com" <jgross@suse.com>, "stefan.bader@canonical.com" <stefan.bader@canonical.com>, "hmh@hmh.eng.br" <hmh@hmh.eng.br>, "yigal@plexistor.com" <yigal@plexistor.com>, "konrad.wilk@oracle.com" <konrad.wilk@oracle.com>
 
-On Tue 04-11-14 09:09:37, Johannes Weiner wrote:
-> On Tue, Nov 04, 2014 at 02:41:10PM +0100, Michal Hocko wrote:
-> > On Tue 04-11-14 08:27:01, Johannes Weiner wrote:
-> > > From: Johannes Weiner <hannes@cmpxchg.org>
-> > > Subject: [patch] mm: move page->mem_cgroup bad page handling into generic code fix
-> > > 
-> > > Remove obsolete memory saving recommendations from the MEMCG Kconfig
-> > > help text.
-> > 
-> > The memory overhead is still there. So I do not think it is good to
-> > remove the message altogether. The current overhead might be 4 or 8B
-> > depending on the configuration. What about
-> > "
-> > 	Note that setting this option might increase fixed memory
-> > 	overhead associated with each page descriptor in the system.
-> > 	The memory overhead depends on the architecture and other
-> > 	configuration options which have influence on the size and
-> > 	alignment on the page descriptor (struct page). Namely
-> > 	CONFIG_SLUB has a requirement for page alignment to two words
-> > 	which in turn means that 64b systems might not see any memory
-> > 	overhead as the additional data fits into alignment. On the
-> > 	other hand 32b systems might see 8B memory overhead.
-> > "
-> 
-> What difference does it make whether this feature maybe costs an extra
-> pointer per page or not?  These texts are supposed to help decide with
-> the selection, but this is not a "good to have, if affordable" type of
-> runtime debugging option.  You either need cgroup memory accounting
-> and limiting or not.  There is no possible trade-off to be had.
+On Mon, Nov 3, 2014 at 7:34 PM, Elliott, Robert (Server Storage)
+<Elliott@hp.com> wrote:
+>
+>
+>> -----Original Message-----
+>> From: Andy Lutomirski [mailto:luto@amacapital.net]
+>> Sent: Monday, November 03, 2014 5:01 PM
+>> To: Thomas Gleixner
+>> Cc: Kani, Toshimitsu; Elliott, Robert (Server Storage); hpa@zytor.com;
+>> mingo@redhat.com; akpm@linux-foundation.org; arnd@arndb.de; linux-
+>> mm@kvack.org; linux-kernel@vger.kernel.org; jgross@suse.com;
+>> stefan.bader@canonical.com; hmh@hmh.eng.br; yigal@plexistor.com;
+>> konrad.wilk@oracle.com
+>> Subject: Re: [PATCH v4 4/7] x86, mm, pat: Add pgprot_writethrough() for
+>> WT
+>>
+>> On Mon, Nov 3, 2014 at 2:53 PM, Thomas Gleixner <tglx@linutronix.de>
+>> wrote:
+> ...
+>> On the other hand, I thought that _GPL was supposed to be more about
+>> whether the thing using it is inherently a derived work of the Linux
+>> kernel.  Since WT is an Intel concept, not a Linux concept, then I
+>> think that this is a hard argument to make.
+>
+> IBM System/360 Model 85 (1968) had write-through (i.e., store-through)
+> caching.  Intel might claim Write Combining, though.
+>
 
-If you are compiling the kernel for your specific usecase then it
-is clear. You enable only what you really need/want. But if you are
-providing a pre-built kernel and considering which features to enable
-then an information about overhead might be useful. You can simply
-disable the feature for memory restricted kernel flavors.
+Arguably WC is, and was, mostly a hack to enable full cacheline writes
+without an instruction to do it directly.  x86 has such an instruction
+now, so WC is less necessary.
 
-> Slub and numa balancing don't mention this, either, simply because
-> this cost is negligible or irrelevant when it comes to these knobs.
+In any event, my point wasn't that Intel should get any particular
+credit here; it's that this is really a straightforward interface to
+program a hardware feature that predates the interface.
 
-I agree that the overhead seems negligible but does it hurt us to
-mention it though?
-
--- 
-Michal Hocko
-SUSE Labs
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
