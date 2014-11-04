@@ -1,91 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id AD98D6B0095
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 12:03:02 -0500 (EST)
-Received: by mail-wi0-f169.google.com with SMTP id n3so9259779wiv.0
-        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 09:03:01 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id fu2si13212866wib.20.2014.11.04.09.03.01
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 408F26B0095
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 12:15:37 -0500 (EST)
+Received: by mail-pd0-f171.google.com with SMTP id r10so14052825pdi.30
+        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 09:15:36 -0800 (PST)
+Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
+        by mx.google.com with ESMTPS id ui1si866627pbc.4.2014.11.04.09.15.35
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Tue, 04 Nov 2014 09:03:01 -0800 (PST)
-Date: Tue, 4 Nov 2014 18:02:50 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v9 11/12] x86, mpx: cleanup unused bound tables
-In-Reply-To: <5458F819.2010503@intel.com>
-Message-ID: <alpine.DEB.2.11.1411041726140.4245@nanos>
-References: <1413088915-13428-1-git-send-email-qiaowei.ren@intel.com> <1413088915-13428-12-git-send-email-qiaowei.ren@intel.com> <alpine.DEB.2.11.1410241451280.5308@nanos> <544DB873.1010207@intel.com> <alpine.DEB.2.11.1410272138540.5308@nanos>
- <5457EB67.70904@intel.com> <alpine.DEB.2.11.1411032205320.5308@nanos> <5458F819.2010503@intel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Tue, 04 Nov 2014 09:15:35 -0800 (PST)
+Received: from epcpsbgr2.samsung.com
+ (u142.gpu120.samsung.co.kr [203.254.230.142])
+ by mailout4.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTP id <0NEI007LSYLX2FA0@mailout4.samsung.com> for linux-mm@kvack.org;
+ Wed, 05 Nov 2014 02:15:33 +0900 (KST)
+From: PINTU KUMAR <pintu.k@samsung.com>
+References: <1413790391-31686-1-git-send-email-pintu.k@samsung.com>
+ <1413986796-19732-1-git-send-email-pintu.k@samsung.com>
+ <alpine.DEB.2.10.1411031556140.9845@chino.kir.corp.google.com>
+In-reply-to: <alpine.DEB.2.10.1411031556140.9845@chino.kir.corp.google.com>
+Subject: RE: [PATCH v2 1/2] mm: cma: split cma-reserved in dmesg log
+Date: Tue, 04 Nov 2014 22:45:46 +0530
+Message-id: <001a01cff853$04c90290$0e5b07b0$@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-transfer-encoding: 7bit
+Content-language: en-us
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Ren Qiaowei <qiaowei.ren@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org
+To: 'David Rientjes' <rientjes@google.com>
+Cc: akpm@linux-foundation.org, riel@redhat.com, aquini@redhat.com, paul.gortmaker@windriver.com, jmarchan@redhat.com, lcapitulino@redhat.com, kirill.shutemov@linux.intel.com, m.szyprowski@samsung.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, mina86@mina86.com, lauraa@codeaurora.org, gioh.kim@lge.com, mgorman@suse.de, hannes@cmpxchg.org, vbabka@suse.cz, sasha.levin@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pintu_agarwal@yahoo.com, cpgs@samsung.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, ed.savinay@samsung.com
 
-On Tue, 4 Nov 2014, Dave Hansen wrote:
-> On 11/03/2014 01:29 PM, Thomas Gleixner wrote:
-> > On Mon, 3 Nov 2014, Dave Hansen wrote:
+
+
+> -----Original Message-----
+> From: David Rientjes [mailto:rientjes@google.com]
+> Sent: Tuesday, November 04, 2014 5:27 AM
+> To: Pintu Kumar
+> Cc: akpm@linux-foundation.org; riel@redhat.com; aquini@redhat.com;
+> paul.gortmaker@windriver.com; jmarchan@redhat.com;
+> lcapitulino@redhat.com; kirill.shutemov@linux.intel.com;
+> m.szyprowski@samsung.com; aneesh.kumar@linux.vnet.ibm.com;
+> iamjoonsoo.kim@lge.com; mina86@mina86.com; lauraa@codeaurora.org;
+> gioh.kim@lge.com; mgorman@suse.de; hannes@cmpxchg.org; vbabka@suse.cz;
+> sasha.levin@oracle.com; linux-kernel@vger.kernel.org; linux-mm@kvack.org;
+> pintu_agarwal@yahoo.com; cpgs@samsung.com; vishnu.ps@samsung.com;
+> rohit.kr@samsung.com; ed.savinay@samsung.com
+> Subject: Re: [PATCH v2 1/2] mm: cma: split cma-reserved in dmesg log
 > 
-> > That's not really true. You can evaluate that information with
-> > mmap_sem held for read as well. Nothing can change the mappings until
-> > you drop it. So you could do:
-> > 
-> >    down_write(mm->bd_sem);
-> >    down_read(mm->mmap_sem;
-> >    evaluate_size_of_shm_to_unmap();
-> >    clear_bounds_directory_entries();
-> >    up_read(mm->mmap_sem);
-> >    do_the_real_shm_unmap();
-> >    up_write(mm->bd_sem);
-> > 
-> > That should still be covered by the above scheme.
+> On Wed, 22 Oct 2014, Pintu Kumar wrote:
 > 
-> Yep, that'll work.  It just means rewriting the shmdt()/mremap() code to
-> do a "dry run" of sorts.
+> > diff --git a/include/linux/cma.h b/include/linux/cma.h index
+> > 0430ed0..0b75896 100644
+> > --- a/include/linux/cma.h
+> > +++ b/include/linux/cma.h
+> > @@ -15,6 +15,7 @@
+> >
+> >  struct cma;
+> >
+> > +extern unsigned long totalcma_pages;
+> >  extern phys_addr_t cma_get_base(struct cma *cma);  extern unsigned
+> > long cma_get_size(struct cma *cma);
+> >
+> > diff --git a/mm/cma.c b/mm/cma.c
+> > index 963bc4a..8435762 100644
+> > --- a/mm/cma.c
+> > +++ b/mm/cma.c
+> > @@ -288,6 +288,7 @@ int __init cma_declare_contiguous(phys_addr_t base,
+> >  	if (ret)
+> >  		goto err;
+> >
+> > +	totalcma_pages += (size / PAGE_SIZE);
+> >  	pr_info("Reserved %ld MiB at %08lx\n", (unsigned long)size / SZ_1M,
+> >  		(unsigned long)base);
+> >  	return 0;
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c index dd73f9a..ababbd8
+> > 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -110,6 +110,7 @@ static DEFINE_SPINLOCK(managed_page_count_lock);
+> >
+> >  unsigned long totalram_pages __read_mostly;  unsigned long
+> > totalreserve_pages __read_mostly;
+> > +unsigned long totalcma_pages __read_mostly;
+> 
+> Shouldn't this be __initdata instead?
+> 
 
-Right. So either that or we hold bd_sem write locked accross all write
-locked mmap_sem sections. Dunno, which solution is prettier :)
+No, we wanted to retain this variable for later use. 
+We wanted to use this to print CMA info in /proc/meminfo.
+Please see the next patch for this set.
+[PATCH v2 2/2] fs: proc: Include cma info in proc/meminfo
 
-> Do you have any concerns about adding another mutex to these paths?
 
-You mean bd_sem? I don't think its an issue. You need to get mmap_sem
-for write as well. So 
-
-> munmap() isn't as hot of a path as the allocation side, but it does
-> worry me a bit that we're going to perturb some workloads.  We might
-> need to find a way to optimize out the bd_sem activity on processes that
-> never used MPX.
-
-I think using mm->bd_addr as a conditional for the bd_sem/mpx activity
-is good enough. You just need to make sure that you store the result
-of the starting conditional and use it for the closing one as well.
-
-   mpx = mpx_pre_unmap(mm);
-       {
-	  if (!kernel_managing_bounds_tables(mm)
-       	     return 0;
-	  down_write(mm->bd_sem);
-	  ...
-	  return 1;
-       }
-
-   unmap();
-
-   mxp_post_unmap(mm, mpx);
-       {
-          if (mpx) {
-	     ....
-	     up_write(mm->bd_sem);
-       }
-
-So this serializes nicely with the bd_sem protected write to
-mm->bd_addr. There is a race there, but I don't think it matters. The
-worst thing what can happen is a stale bound table.
-
-Thanks,
-
-	tglx
+> >  /*
+> >   * When calculating the number of globally allowed dirty pages, there
+> >   * is a certain number of per-zone reserves that should not be @@
+> > -5520,7 +5521,7 @@ void __init mem_init_print_info(const char *str)
+> >
+> >  	pr_info("Memory: %luK/%luK available "
+> >  	       "(%luK kernel code, %luK rwdata, %luK rodata, "
+> > -	       "%luK init, %luK bss, %luK reserved"
+> > +	       "%luK init, %luK bss, %luK reserved, %luK cma-reserved"
+> >  #ifdef	CONFIG_HIGHMEM
+> >  	       ", %luK highmem"
+> >  #endif
+> > @@ -5528,7 +5529,8 @@ void __init mem_init_print_info(const char *str)
+> >  	       nr_free_pages() << (PAGE_SHIFT-10), physpages << (PAGE_SHIFT-10),
+> >  	       codesize >> 10, datasize >> 10, rosize >> 10,
+> >  	       (init_data_size + init_code_size) >> 10, bss_size >> 10,
+> > -	       (physpages - totalram_pages) << (PAGE_SHIFT-10),
+> > +	       (physpages - totalram_pages - totalcma_pages) << (PAGE_SHIFT-10),
+> > +	       totalcma_pages << (PAGE_SHIFT-10),
+> >  #ifdef	CONFIG_HIGHMEM
+> >  	       totalhigh_pages << (PAGE_SHIFT-10),  #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
