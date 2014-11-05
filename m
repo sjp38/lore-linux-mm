@@ -1,338 +1,270 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id DDD9D6B00C9
-	for <linux-mm@kvack.org>; Wed,  5 Nov 2014 09:54:40 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id lf10so918716pab.19
-        for <linux-mm@kvack.org>; Wed, 05 Nov 2014 06:54:40 -0800 (PST)
-Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
-        by mx.google.com with ESMTPS id zs5si3329955pac.18.2014.11.05.06.54.38
+Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 8664A6B00C9
+	for <linux-mm@kvack.org>; Wed,  5 Nov 2014 09:55:54 -0500 (EST)
+Received: by mail-lb0-f182.google.com with SMTP id f15so869669lbj.27
+        for <linux-mm@kvack.org>; Wed, 05 Nov 2014 06:55:53 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p9si6652136lal.21.2014.11.05.06.55.52
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Wed, 05 Nov 2014 06:54:39 -0800 (PST)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout2.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NEK00C0YMVOCBC0@mailout2.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 05 Nov 2014 14:57:25 +0000 (GMT)
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
-Subject: [PATCH] lib: add kasan test module
-Date: Wed, 05 Nov 2014 17:54:01 +0300
-Message-id: <1415199241-5121-12-git-send-email-a.ryabinin@samsung.com>
-In-reply-to: <1415199241-5121-1-git-send-email-a.ryabinin@samsung.com>
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
- <1415199241-5121-1-git-send-email-a.ryabinin@samsung.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 05 Nov 2014 06:55:52 -0800 (PST)
+Date: Wed, 5 Nov 2014 15:55:51 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 3/4] OOM, PM: OOM killed task shouldn't escape PM suspend
+Message-ID: <20141105145551.GF4527@dhcp22.suse.cz>
+References: <1413876435-11720-1-git-send-email-mhocko@suse.cz>
+ <2156351.pWp6MNRoWm@vostro.rjw.lan>
+ <20141021141159.GE9415@dhcp22.suse.cz>
+ <4766859.KSKPTm3b0x@vostro.rjw.lan>
+ <20141021142939.GG9415@dhcp22.suse.cz>
+ <20141104192705.GA22163@htj.dyndns.org>
+ <20141105124620.GB4527@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141105124620.GB4527@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Jones <davej@redhat.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>
 
-This is a test module doing various nasty things like
-out of bounds accesses, use after free. It is useful for testing
-kernel debugging features like kernel address sanitizer.
+On Wed 05-11-14 13:46:20, Michal Hocko wrote:
+[...]
+> From ef6227565fa65b52986c4626d49ba53b499e54d1 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.cz>
+> Date: Wed, 5 Nov 2014 11:49:14 +0100
+> Subject: [PATCH] OOM, PM: make OOM detection in the freezer path raceless
+> 
+> 5695be142e20 (OOM, PM: OOM killed task shouldn't escape PM suspend)
+> has left a race window when OOM killer manages to note_oom_kill after
+> freeze_processes checks the counter. The race window is quite small
+> and really unlikely and deemed sufficient at the time of submission.
+> 
+> Tejun wasn't happy about this partial solution though and insisted on
+> a full solution. That requires the full OOM and freezer exclusion,
+> though. This is done by this patch which introduces oom_sem RW lock.
+> Page allocation OOM path takes the lock for reading because there might
+> be concurrent OOM happening on disjunct zonelists. oom_killer_disabled
+> check is moved right before out_of_memory is called because it was
+> checked too early before and we do not want to hold the lock while doing
+> the last attempt for allocation which might involve zone_reclaim.
 
-It mostly concentrates on testing of slab allocator, but we
-might want to add more different stuff here in future (like
-stack/global variables out of bounds accesses and so on).
+This is incorrect because it would cause an endless allocation loop
+because we really have to got to no_page if OOM is disabled.
 
-Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
----
- lib/Kconfig.kasan |   8 ++
- lib/Makefile      |   1 +
- lib/test_kasan.c  | 254 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 263 insertions(+)
- create mode 100644 lib/test_kasan.c
+> freeze_processes then takes the lock for write throughout the whole
+> freezing process and OOM disabling.
+> 
+> There is no need to recheck all the processes with the full
+> synchronization anymore.
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> ---
+>  include/linux/oom.h    |  5 +++++
+>  kernel/power/process.c | 50 +++++++++-----------------------------------------
+>  mm/oom_kill.c          | 17 -----------------
+>  mm/page_alloc.c        | 24 ++++++++++++------------
+>  4 files changed, 26 insertions(+), 70 deletions(-)
+> 
+> diff --git a/include/linux/oom.h b/include/linux/oom.h
+> index e8d6e1058723..350b9b2ffeec 100644
+> --- a/include/linux/oom.h
+> +++ b/include/linux/oom.h
+> @@ -73,7 +73,12 @@ extern void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+>  extern int register_oom_notifier(struct notifier_block *nb);
+>  extern int unregister_oom_notifier(struct notifier_block *nb);
+>  
+> +/*
+> + * oom_killer_disabled can be modified only under oom_sem taken for write
+> + * and checked under read lock along with the full OOM handler.
+> + */
+>  extern bool oom_killer_disabled;
+> +extern struct rw_semaphore oom_sem;
+>  
+>  static inline void oom_killer_disable(void)
+>  {
+> diff --git a/kernel/power/process.c b/kernel/power/process.c
+> index 5a6ec8678b9a..befce9785233 100644
+> --- a/kernel/power/process.c
+> +++ b/kernel/power/process.c
+> @@ -108,30 +108,6 @@ static int try_to_freeze_tasks(bool user_only)
+>  	return todo ? -EBUSY : 0;
+>  }
+>  
+> -static bool __check_frozen_processes(void)
+> -{
+> -	struct task_struct *g, *p;
+> -
+> -	for_each_process_thread(g, p)
+> -		if (p != current && !freezer_should_skip(p) && !frozen(p))
+> -			return false;
+> -
+> -	return true;
+> -}
+> -
+> -/*
+> - * Returns true if all freezable tasks (except for current) are frozen already
+> - */
+> -static bool check_frozen_processes(void)
+> -{
+> -	bool ret;
+> -
+> -	read_lock(&tasklist_lock);
+> -	ret = __check_frozen_processes();
+> -	read_unlock(&tasklist_lock);
+> -	return ret;
+> -}
+> -
+>  /**
+>   * freeze_processes - Signal user space processes to enter the refrigerator.
+>   * The current thread will not be frozen.  The same process that calls
+> @@ -142,7 +118,6 @@ static bool check_frozen_processes(void)
+>  int freeze_processes(void)
+>  {
+>  	int error;
+> -	int oom_kills_saved;
+>  
+>  	error = __usermodehelper_disable(UMH_FREEZING);
+>  	if (error)
+> @@ -157,27 +132,20 @@ int freeze_processes(void)
+>  	pm_wakeup_clear();
+>  	printk("Freezing user space processes ... ");
+>  	pm_freezing = true;
+> -	oom_kills_saved = oom_kills_count();
+> +
+> +	/*
+> +	 * Need to exlude OOM killer from triggering while tasks are
+> +	 * getting frozen to make sure none of them gets killed after
+> +	 * try_to_freeze_tasks is done.
+> +	 */
+> +	down_write(&oom_sem);
+>  	error = try_to_freeze_tasks(true);
+>  	if (!error) {
+>  		__usermodehelper_set_disable_depth(UMH_DISABLED);
+>  		oom_killer_disable();
+> -
+> -		/*
+> -		 * There might have been an OOM kill while we were
+> -		 * freezing tasks and the killed task might be still
+> -		 * on the way out so we have to double check for race.
+> -		 */
+> -		if (oom_kills_count() != oom_kills_saved &&
+> -		    !check_frozen_processes()) {
+> -			__usermodehelper_set_disable_depth(UMH_ENABLED);
+> -			printk("OOM in progress.");
+> -			error = -EBUSY;
+> -		} else {
+> -			printk("done.");
+> -		}
+> +		printk("done.\n");
+>  	}
+> -	printk("\n");
+> +	up_write(&oom_sem);
+>  	BUG_ON(in_atomic());
+>  
+>  	if (error)
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 5340f6b91312..bbf405a3a18f 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -404,23 +404,6 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
+>  		dump_tasks(memcg, nodemask);
+>  }
+>  
+> -/*
+> - * Number of OOM killer invocations (including memcg OOM killer).
+> - * Primarily used by PM freezer to check for potential races with
+> - * OOM killed frozen task.
+> - */
+> -static atomic_t oom_kills = ATOMIC_INIT(0);
+> -
+> -int oom_kills_count(void)
+> -{
+> -	return atomic_read(&oom_kills);
+> -}
+> -
+> -void note_oom_kill(void)
+> -{
+> -	atomic_inc(&oom_kills);
+> -}
+> -
+>  #define K(x) ((x) << (PAGE_SHIFT-10))
+>  /*
+>   * Must be called while holding a reference to p, which will be released upon
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 9cd36b822444..76095266c4b5 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -243,6 +243,7 @@ void set_pageblock_migratetype(struct page *page, int migratetype)
+>  }
+>  
+>  bool oom_killer_disabled __read_mostly;
+> +DECLARE_RWSEM(oom_sem);
+>  
+>  #ifdef CONFIG_DEBUG_VM
+>  static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
+> @@ -2252,14 +2253,6 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+>  	}
+>  
+>  	/*
+> -	 * PM-freezer should be notified that there might be an OOM killer on
+> -	 * its way to kill and wake somebody up. This is too early and we might
+> -	 * end up not killing anything but false positives are acceptable.
+> -	 * See freeze_processes.
+> -	 */
+> -	note_oom_kill();
+> -
+> -	/*
+>  	 * Go through the zonelist yet one more time, keep very high watermark
+>  	 * here, this is only to catch a parallel oom killing, we must fail if
+>  	 * we're still under heavy pressure.
+> @@ -2288,8 +2281,17 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+>  		if (gfp_mask & __GFP_THISNODE)
+>  			goto out;
+>  	}
+> -	/* Exhausted what can be done so it's blamo time */
+> -	out_of_memory(zonelist, gfp_mask, order, nodemask, false);
+> +
+> +	/*
+> +	 * Exhausted what can be done so it's blamo time.
+> +	 * Just make sure that we cannot race with oom_killer disabling
+> +	 * e.g. PM freezer needs to make sure that no OOM happens after
+> +	 * all tasks are frozen.
+> +	 */
+> +	down_read(&oom_sem);
+> +	if (!oom_killer_disabled)
+> +		out_of_memory(zonelist, gfp_mask, order, nodemask, false);
+> +	up_read(&oom_sem);
+>  
+>  out:
+>  	oom_zonelist_unlock(zonelist, gfp_mask);
+> @@ -2716,8 +2718,6 @@ rebalance:
+>  	 */
+>  	if (!did_some_progress) {
+>  		if (oom_gfp_allowed(gfp_mask)) {
+> -			if (oom_killer_disabled)
+> -				goto nopage;
+>  			/* Coredumps can quickly deplete all memory reserves */
+>  			if ((current->flags & PF_DUMPCORE) &&
+>  			    !(gfp_mask & __GFP_NOFAIL))
+> -- 
+> 2.1.1
+> 
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
-index 1fa4fe8..8548646 100644
---- a/lib/Kconfig.kasan
-+++ b/lib/Kconfig.kasan
-@@ -43,4 +43,12 @@ config KASAN_INLINE
- 
- endchoice
- 
-+config TEST_KASAN
-+	tristate "Module for testing kasan for bug detection"
-+	depends on m && KASAN
-+	help
-+	  This is a test module doing various nasty things like
-+	  out of bounds accesses, use after free. It is useful for testing
-+	  kernel debugging features like kernel address sanitizer.
-+
- endif
-diff --git a/lib/Makefile b/lib/Makefile
-index 84000ec..b387570 100644
---- a/lib/Makefile
-+++ b/lib/Makefile
-@@ -35,6 +35,7 @@ obj-$(CONFIG_TEST_LKM) += test_module.o
- obj-$(CONFIG_TEST_USER_COPY) += test_user_copy.o
- obj-$(CONFIG_TEST_BPF) += test_bpf.o
- obj-$(CONFIG_TEST_FIRMWARE) += test_firmware.o
-+obj-$(CONFIG_TEST_KASAN) += test_kasan.o
- 
- ifeq ($(CONFIG_DEBUG_KOBJECT),y)
- CFLAGS_kobject.o += -DDEBUG
-diff --git a/lib/test_kasan.c b/lib/test_kasan.c
-new file mode 100644
-index 0000000..896dee5
---- /dev/null
-+++ b/lib/test_kasan.c
-@@ -0,0 +1,254 @@
-+/*
-+ *
-+ * Copyright (c) 2014 Samsung Electronics Co., Ltd.
-+ * Author: Andrey Ryabinin <a.ryabinin@samsung.com>
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License version 2 as
-+ * published by the Free Software Foundation.
-+ *
-+ */
-+
-+#define pr_fmt(fmt) "kasan test: %s " fmt, __func__
-+
-+#include <linux/kernel.h>
-+#include <linux/printk.h>
-+#include <linux/slab.h>
-+#include <linux/string.h>
-+#include <linux/module.h>
-+
-+static noinline void __init kmalloc_oob_right(void)
-+{
-+	char *ptr;
-+	size_t size = 123;
-+
-+	pr_info("out-of-bounds to right\n");
-+	ptr = kmalloc(size, GFP_KERNEL);
-+	if (!ptr) {
-+		pr_err("Allocation failed\n");
-+		return;
-+	}
-+
-+	ptr[size] = 'x';
-+	kfree(ptr);
-+}
-+
-+static noinline void __init kmalloc_oob_left(void)
-+{
-+	char *ptr;
-+	size_t size = 15;
-+
-+	pr_info("out-of-bounds to left\n");
-+	ptr = kmalloc(size, GFP_KERNEL);
-+	if (!ptr) {
-+		pr_err("Allocation failed\n");
-+		return;
-+	}
-+
-+	*ptr = *(ptr - 1);
-+	kfree(ptr);
-+}
-+
-+static noinline void __init kmalloc_node_oob_right(void)
-+{
-+	char *ptr;
-+	size_t size = 4096;
-+
-+	pr_info("kmalloc_node(): out-of-bounds to right\n");
-+	ptr = kmalloc_node(size, GFP_KERNEL, 0);
-+	if (!ptr) {
-+		pr_err("Allocation failed\n");
-+		return;
-+	}
-+
-+	ptr[size] = 0;
-+	kfree(ptr);
-+}
-+
-+static noinline void __init kmalloc_large_oob_rigth(void)
-+{
-+	char *ptr;
-+	size_t size = KMALLOC_MAX_CACHE_SIZE + 10;
-+
-+	pr_info("kmalloc large allocation: out-of-bounds to right\n");
-+	ptr = kmalloc(size, GFP_KERNEL);
-+	if (!ptr) {
-+		pr_err("Allocation failed\n");
-+		return;
-+	}
-+
-+	ptr[size] = 0;
-+	kfree(ptr);
-+}
-+
-+static noinline void __init kmalloc_oob_krealloc_more(void)
-+{
-+	char *ptr1, *ptr2;
-+	size_t size1 = 17;
-+	size_t size2 = 19;
-+
-+	pr_info("out-of-bounds after krealloc more\n");
-+	ptr1 = kmalloc(size1, GFP_KERNEL);
-+	ptr2 = krealloc(ptr1, size2, GFP_KERNEL);
-+	if (!ptr1 || !ptr2) {
-+		pr_err("Allocation failed\n");
-+		kfree(ptr1);
-+		return;
-+	}
-+
-+	ptr2[size2] = 'x';
-+	kfree(ptr2);
-+}
-+
-+static noinline void __init kmalloc_oob_krealloc_less(void)
-+{
-+	char *ptr1, *ptr2;
-+	size_t size1 = 17;
-+	size_t size2 = 15;
-+
-+	pr_info("out-of-bounds after krealloc less\n");
-+	ptr1 = kmalloc(size1, GFP_KERNEL);
-+	ptr2 = krealloc(ptr1, size2, GFP_KERNEL);
-+	if (!ptr1 || !ptr2) {
-+		pr_err("Allocation failed\n");
-+		kfree(ptr1);
-+		return;
-+	}
-+	ptr2[size1] = 'x';
-+	kfree(ptr2);
-+}
-+
-+static noinline void __init kmalloc_oob_16(void)
-+{
-+	struct {
-+		u64 words[2];
-+	} *ptr1, *ptr2;
-+
-+	pr_info("kmalloc out-of-bounds for 16-bytes access\n");
-+	ptr1 = kmalloc(sizeof(*ptr1) - 3, GFP_KERNEL);
-+	ptr2 = kmalloc(sizeof(*ptr2), GFP_KERNEL);
-+	if (!ptr1 || !ptr2) {
-+		pr_err("Allocation failed\n");
-+		kfree(ptr1);
-+		kfree(ptr2);
-+		return;
-+	}
-+	*ptr1 = *ptr2;
-+	kfree(ptr1);
-+	kfree(ptr2);
-+}
-+
-+static noinline void __init kmalloc_oob_in_memset(void)
-+{
-+	char *ptr;
-+	size_t size = 666;
-+
-+	pr_info("out-of-bounds in memset\n");
-+	ptr = kmalloc(size, GFP_KERNEL);
-+	if (!ptr) {
-+		pr_err("Allocation failed\n");
-+		return;
-+	}
-+
-+	memset(ptr, 0, size+5);
-+	kfree(ptr);
-+}
-+
-+static noinline void __init kmalloc_uaf(void)
-+{
-+	char *ptr;
-+	size_t size = 10;
-+
-+	pr_info("use-after-free\n");
-+	ptr = kmalloc(size, GFP_KERNEL);
-+	if (!ptr) {
-+		pr_err("Allocation failed\n");
-+		return;
-+	}
-+
-+	kfree(ptr);
-+	*(ptr + 8) = 'x';
-+}
-+
-+static noinline void __init kmalloc_uaf_memset(void)
-+{
-+	char *ptr;
-+	size_t size = 33;
-+
-+	pr_info("use-after-free in memset\n");
-+	ptr = kmalloc(size, GFP_KERNEL);
-+	if (!ptr) {
-+		pr_err("Allocation failed\n");
-+		return;
-+	}
-+
-+	kfree(ptr);
-+	memset(ptr, 0, size);
-+}
-+
-+static noinline void __init kmalloc_uaf2(void)
-+{
-+	char *ptr1, *ptr2;
-+	size_t size = 43;
-+
-+	pr_info("use-after-free after another kmalloc\n");
-+	ptr1 = kmalloc(size, GFP_KERNEL);
-+	if (!ptr1) {
-+		pr_err("Allocation failed\n");
-+		return;
-+	}
-+
-+	kfree(ptr1);
-+	ptr2 = kmalloc(size, GFP_KERNEL);
-+	if (!ptr2) {
-+		pr_err("Allocation failed\n");
-+		return;
-+	}
-+
-+	ptr1[40] = 'x';
-+	kfree(ptr2);
-+}
-+
-+static noinline void __init kmem_cache_oob(void)
-+{
-+	char *p;
-+	size_t size = 200;
-+	struct kmem_cache *cache = kmem_cache_create("test_cache",
-+						size, 0,
-+						0, NULL);
-+	if (!cache) {
-+		pr_err("Cache allocation failed\n");
-+		return;
-+	}
-+	pr_info("out-of-bounds in kmem_cache_alloc\n");
-+	p = kmem_cache_alloc(cache, GFP_KERNEL);
-+	if (!p) {
-+		pr_err("Allocation failed\n");
-+		kmem_cache_destroy(cache);
-+		return;
-+	}
-+
-+	*p = p[size];
-+	kmem_cache_free(cache, p);
-+	kmem_cache_destroy(cache);
-+}
-+
-+int __init kmalloc_tests_init(void)
-+{
-+	kmalloc_oob_right();
-+	kmalloc_oob_left();
-+	kmalloc_node_oob_right();
-+	kmalloc_large_oob_rigth();
-+	kmalloc_oob_krealloc_more();
-+	kmalloc_oob_krealloc_less();
-+	kmalloc_oob_16();
-+	kmalloc_oob_in_memset();
-+	kmalloc_uaf();
-+	kmalloc_uaf_memset();
-+	kmalloc_uaf2();
-+	kmem_cache_oob();
-+	return -EAGAIN;
-+}
-+
-+module_init(kmalloc_tests_init);
-+MODULE_LICENSE("GPL");
 -- 
-2.1.3
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
