@@ -1,70 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
-	by kanga.kvack.org (Postfix) with ESMTP id BAE376B0075
-	for <linux-mm@kvack.org>; Wed,  5 Nov 2014 11:01:18 -0500 (EST)
-Received: by mail-lb0-f181.google.com with SMTP id l4so886493lbv.40
-        for <linux-mm@kvack.org>; Wed, 05 Nov 2014 08:01:17 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id pz8si6942857lbb.36.2014.11.05.08.01.16
+Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 8507D6B0075
+	for <linux-mm@kvack.org>; Wed,  5 Nov 2014 11:03:41 -0500 (EST)
+Received: by mail-la0-f44.google.com with SMTP id gf13so973423lab.3
+        for <linux-mm@kvack.org>; Wed, 05 Nov 2014 08:03:40 -0800 (PST)
+Received: from tux-cave.hellug.gr (tux-cave.hellug.gr. [195.134.99.74])
+        by mx.google.com with ESMTPS id f6si7026761lbc.6.2014.11.05.08.03.38
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 05 Nov 2014 08:01:16 -0800 (PST)
-Date: Wed, 5 Nov 2014 17:01:15 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 3/4] OOM, PM: OOM killed task shouldn't escape PM suspend
-Message-ID: <20141105160115.GA28226@dhcp22.suse.cz>
-References: <2156351.pWp6MNRoWm@vostro.rjw.lan>
- <20141021141159.GE9415@dhcp22.suse.cz>
- <4766859.KSKPTm3b0x@vostro.rjw.lan>
- <20141021142939.GG9415@dhcp22.suse.cz>
- <20141104192705.GA22163@htj.dyndns.org>
- <20141105124620.GB4527@dhcp22.suse.cz>
- <20141105130247.GA14386@htj.dyndns.org>
- <20141105133100.GC4527@dhcp22.suse.cz>
- <20141105134219.GD4527@dhcp22.suse.cz>
- <20141105154436.GB14386@htj.dyndns.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Nov 2014 08:03:39 -0800 (PST)
+From: "P. Christeas" <xrg@linux.gr>
+Subject: Re: Early test: hangs in mm/compact.c w. Linus's 12d7aacab56e9ef185c
+Date: Wed, 05 Nov 2014 18:02:02 +0200
+Message-ID: <2478068.rAhurny29o@xorhgos3.pefnos>
+In-Reply-To: <545A419C.3090900@suse.cz>
+References: <12996532.NCRhVKzS9J@xorhgos3.pefnos> <2357788.X5UHX7WJZF@xorhgos3.pefnos> <545A419C.3090900@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141105154436.GB14386@htj.dyndns.org>
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, lkml <linux-kernel@vger.kernel.org>
 
-On Wed 05-11-14 10:44:36, Tejun Heo wrote:
-> On Wed, Nov 05, 2014 at 02:42:19PM +0100, Michal Hocko wrote:
-> > On Wed 05-11-14 14:31:00, Michal Hocko wrote:
-> > > On Wed 05-11-14 08:02:47, Tejun Heo wrote:
-> > [...]
-> > > > Also, why isn't this part of
-> > > > oom_killer_disable/enable()?  The way they're implemented is really
-> > > > silly now.  It just sets a flag and returns whether there's a
-> > > > currently running instance or not.  How were these even useful? 
-> > > > Why can't you just make disable/enable to what they were supposed to
-> > > > do from the beginning?
-> > > 
-> > > Because then we would block all the potential allocators coming from
-> > > workqueues or kernel threads which are not frozen yet rather than fail
-> > > the allocation.
-> > 
-> > After thinking about this more it would be doable by using trylock in
-> > the allocation oom path. I will respin the patch. The API will be
-> > cleaner this way.
-> 
-> In disable, block new invocations of OOM killer and then drain the
-> in-progress ones.  This is a common pattern, isn't it?
+On Wednesday 05 November 2014, Vlastimil Babka wrote:
+> I see. I've tried to reproduce such issues with 3.18-rc3 but wasn't
+> successful. But I noticed a possible issue that could lead to your problem.
+> Can you please try the following patch?
 
-I am not sure I am following. With the latest patch OOM path is no
-longer blocked by the PM (aka oom_killer_disable()). Allocations simply
-fail if the read_trylock fails.
-oom_killer_disable is moved before tasks are frozen and it will wait for
-all on-going OOM killers on the write lock. OOM killer is enabled again
-on the resume path.
+OK, I can give it a try.
 
--- 
-Michal Hocko
-SUSE Labs
+FYI, the "stability canary" is still alive, my system is on for 28hours, under 
+avg. load >=3 all this time, HEAD=980d0d51b1c9617a4
+
+/me goes busy fire-proofing your patch...
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
