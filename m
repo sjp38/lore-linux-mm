@@ -1,306 +1,241 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 6241D6B008C
-	for <linux-mm@kvack.org>; Wed,  5 Nov 2014 16:15:07 -0500 (EST)
-Received: by mail-qa0-f46.google.com with SMTP id n8so1154364qaq.5
-        for <linux-mm@kvack.org>; Wed, 05 Nov 2014 13:15:07 -0800 (PST)
-Received: from mail-qa0-f47.google.com (mail-qa0-f47.google.com. [209.85.216.47])
-        by mx.google.com with ESMTPS id m10si8578889qaz.46.2014.11.05.13.15.05
+Received: from mail-qc0-f173.google.com (mail-qc0-f173.google.com [209.85.216.173])
+	by kanga.kvack.org (Postfix) with ESMTP id B661B6B009B
+	for <linux-mm@kvack.org>; Wed,  5 Nov 2014 16:15:13 -0500 (EST)
+Received: by mail-qc0-f173.google.com with SMTP id x3so1317971qcv.32
+        for <linux-mm@kvack.org>; Wed, 05 Nov 2014 13:15:13 -0800 (PST)
+Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com. [209.85.216.182])
+        by mx.google.com with ESMTPS id s11si8647957qge.11.2014.11.05.13.15.12
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 05 Nov 2014 13:15:06 -0800 (PST)
-Received: by mail-qa0-f47.google.com with SMTP id dc16so1161707qab.6
-        for <linux-mm@kvack.org>; Wed, 05 Nov 2014 13:15:05 -0800 (PST)
+        Wed, 05 Nov 2014 13:15:12 -0800 (PST)
+Received: by mail-qc0-f182.google.com with SMTP id m20so1331390qcx.27
+        for <linux-mm@kvack.org>; Wed, 05 Nov 2014 13:15:12 -0800 (PST)
 From: Milosz Tanski <milosz@adfin.com>
-Subject: [PATCH v5 4/7] vfs: RWF_NONBLOCK flag for preadv2
-Date: Wed,  5 Nov 2014 16:14:50 -0500
-Message-Id: <379c680ae1e6309e679ff83bc6cb55e1cf97d7f9.1415220890.git.milosz@adfin.com>
+Subject: [PATCH v5 7/7] fs: add a flag for per-operation O_DSYNC semantics
+Date: Wed,  5 Nov 2014 16:14:53 -0500
+Message-Id: <c188b04ede700ce5f986b19de12fa617d158540f.1415220890.git.milosz@adfin.com>
 In-Reply-To: <cover.1415220890.git.milosz@adfin.com>
 References: <cover.1415220890.git.milosz@adfin.com>
 In-Reply-To: <cover.1415220890.git.milosz@adfin.com>
 References: <cover.1415220890.git.milosz@adfin.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, Mel Gorman <mgorman@suse.de>, Volker Lendecke <Volker.Lendecke@sernet.de>, Tejun Heo <tj@kernel.org>, Jeff Moyer <jmoyer@redhat.com>, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>, linux-api@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-arch@vger.kernel.org, ceph-devel@vger.kernel.org, linux-cifs@vger.kernel.org, samba-technical@lists.samba.org, linux-nfs@vger.kernel.org, linux-xfs@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org
+Cc: Christoph Hellwig <hch@lst.de>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, Mel Gorman <mgorman@suse.de>, Volker Lendecke <Volker.Lendecke@sernet.de>, Tejun Heo <tj@kernel.org>, Jeff Moyer <jmoyer@redhat.com>, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>, linux-api@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-arch@vger.kernel.org, ceph-devel@vger.kernel.org, fuse-devel@lists.sourceforge.net, linux-nfs@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org
 
-generic_file_read_iter() supports a new flag RWF_NONBLOCK which says that we
-only want to read the data if it's already in the page cache.
+From: Christoph Hellwig <hch@lst.de>
 
-Additionally, there are a few filesystems that we have to specifically
-bail early if RWF_NONBLOCK because the op would block. Christoph Hellwig
-contributed this code.
+With the new read/write with flags syscalls we can support a flag
+to enable O_DSYNC semantics on a per-operation basis.  This N?s
+useful to implement protocols like SMB, NFS or SCSI that have such
+per-operation flags.
 
+Example program below:
+
+cat > pwritev2.c << EOF
+
+        (off_t) val,                              \
+        (off_t) ((((uint64_t) (val)) >> (sizeof (long) * 4)) >> (sizeof (long) * 4))
+
+static ssize_t
+pwritev2(int fd, const struct iovec *iov, int iovcnt, off_t offset, int flags)
+{
+        return syscall(__NR_pwritev2, fd, iov, iovcnt, LO_HI_LONG(offset),
+			 flags);
+}
+
+int main(int argc, char **argv)
+{
+	int fd = open(argv[1], O_WRONLY|O_CREAT|O_TRUNC, 0666);
+	char buf[1024];
+	struct iovec iov = { .iov_base = buf, .iov_len = 1024 };
+	int ret;
+
+        if (fd < 0) {
+                perror("open");
+                return 0;
+        }
+
+	memset(buf, 0xfe, sizeof(buf));
+
+	ret = pwritev2(fd, &iov, 1, 0, RWF_DSYNC);
+	if (ret < 0)
+		perror("pwritev2");
+	else
+		printf("ret = %d\n", ret);
+
+	return 0;
+}
+EOF
+
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+[milosz@adfin.com: added flag check to compat_do_readv_writev()]
 Signed-off-by: Milosz Tanski <milosz@adfin.com>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Jeff Moyer <jmoyer@redhat.com>
 ---
- fs/ceph/file.c     |  2 ++
- fs/cifs/file.c     |  6 ++++++
- fs/nfs/file.c      |  5 ++++-
- fs/ocfs2/file.c    |  6 ++++++
- fs/pipe.c          |  3 ++-
- fs/read_write.c    | 38 +++++++++++++++++++++++++-------------
- fs/xfs/xfs_file.c  |  4 ++++
- include/linux/fs.h |  3 +++
- mm/filemap.c       | 18 ++++++++++++++++++
- mm/shmem.c         |  4 ++++
- 10 files changed, 74 insertions(+), 15 deletions(-)
+ fs/ceph/file.c     |  4 +++-
+ fs/fuse/file.c     |  2 ++
+ fs/nfs/file.c      | 10 ++++++----
+ fs/ocfs2/file.c    |  6 ++++--
+ fs/read_write.c    | 20 +++++++++++++++-----
+ include/linux/fs.h |  3 ++-
+ mm/filemap.c       |  4 +++-
+ 7 files changed, 35 insertions(+), 14 deletions(-)
 
 diff --git a/fs/ceph/file.c b/fs/ceph/file.c
-index d7e0da8..b798b5c 100644
+index b798b5c..2d4e15a 100644
 --- a/fs/ceph/file.c
 +++ b/fs/ceph/file.c
-@@ -822,6 +822,8 @@ again:
- 	if ((got & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_LAZYIO)) == 0 ||
- 	    (iocb->ki_filp->f_flags & O_DIRECT) ||
- 	    (fi->flags & CEPH_F_SYNC)) {
-+		if (iocb->ki_rwflags & O_NONBLOCK)
-+			return -EAGAIN;
+@@ -983,7 +983,9 @@ retry_snap:
+ 	ceph_put_cap_refs(ci, got);
  
- 		dout("aio_sync_read %p %llx.%llx %llu~%u got cap refs on %s\n",
- 		     inode, ceph_vinop(inode), iocb->ki_pos, (unsigned)len,
-diff --git a/fs/cifs/file.c b/fs/cifs/file.c
-index 3e4d00a..c485afa 100644
---- a/fs/cifs/file.c
-+++ b/fs/cifs/file.c
-@@ -3005,6 +3005,9 @@ ssize_t cifs_user_readv(struct kiocb *iocb, struct iov_iter *to)
- 	struct cifs_readdata *rdata, *tmp;
- 	struct list_head rdata_list;
- 
-+	if (iocb->ki_rwflags & RWF_NONBLOCK)
-+		return -EAGAIN;
-+
- 	len = iov_iter_count(to);
- 	if (!len)
- 		return 0;
-@@ -3123,6 +3126,9 @@ cifs_strict_readv(struct kiocb *iocb, struct iov_iter *to)
- 	    ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOPOSIXBRL) == 0))
- 		return generic_file_read_iter(iocb, to);
- 
-+	if (iocb->ki_rwflags & RWF_NONBLOCK)
-+		return -EAGAIN;
-+
- 	/*
- 	 * We need to hold the sem to be sure nobody modifies lock list
- 	 * with a brlock that prevents reading.
+ 	if (written >= 0 &&
+-	    ((file->f_flags & O_SYNC) || IS_SYNC(file->f_mapping->host) ||
++	    ((file->f_flags & O_SYNC) ||
++	     IS_SYNC(file->f_mapping->host) ||
++	     (iocb->ki_rwflags & RWF_DSYNC) ||
+ 	     ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_NEARFULL))) {
+ 		err = vfs_fsync_range(file, pos, pos + written - 1, 1);
+ 		if (err < 0)
+diff --git a/fs/fuse/file.c b/fs/fuse/file.c
+index caa8d95..bb4fb23 100644
+--- a/fs/fuse/file.c
++++ b/fs/fuse/file.c
+@@ -1248,6 +1248,8 @@ static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
+ 		written += written_buffered;
+ 		iocb->ki_pos = pos + written_buffered;
+ 	} else {
++		if (iocb->ki_rwflags & RWF_DSYNC)
++			return -EINVAL;
+ 		written = fuse_perform_write(file, mapping, from, pos);
+ 		if (written >= 0)
+ 			iocb->ki_pos = pos + written;
 diff --git a/fs/nfs/file.c b/fs/nfs/file.c
-index 2ab6f00..aa9046f 100644
+index aa9046f..c59b0b7 100644
 --- a/fs/nfs/file.c
 +++ b/fs/nfs/file.c
-@@ -171,8 +171,11 @@ nfs_file_read(struct kiocb *iocb, struct iov_iter *to)
- 	struct inode *inode = file_inode(iocb->ki_filp);
- 	ssize_t result;
+@@ -652,13 +652,15 @@ static const struct vm_operations_struct nfs_file_vm_ops = {
+ 	.remap_pages = generic_file_remap_pages,
+ };
  
--	if (iocb->ki_filp->f_flags & O_DIRECT)
-+	if (iocb->ki_filp->f_flags & O_DIRECT) {
-+		if (iocb->ki_rwflags & O_NONBLOCK)
-+			return -EAGAIN;
- 		return nfs_file_direct_read(iocb, to, iocb->ki_pos);
-+	}
+-static int nfs_need_sync_write(struct file *filp, struct inode *inode)
++static int nfs_need_sync_write(struct kiocb *iocb, struct inode *inode)
+ {
+ 	struct nfs_open_context *ctx;
  
- 	dprintk("NFS: read(%pD2, %zu@%lu)\n",
- 		iocb->ki_filp,
+-	if (IS_SYNC(inode) || (filp->f_flags & O_DSYNC))
++	if (IS_SYNC(inode) ||
++	    (iocb->ki_filp->f_flags & O_DSYNC) ||
++	    (iocb->ki_rwflags & RWF_DSYNC))
+ 		return 1;
+-	ctx = nfs_file_open_context(filp);
++	ctx = nfs_file_open_context(iocb->ki_filp);
+ 	if (test_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags) ||
+ 	    nfs_ctx_key_to_expire(ctx))
+ 		return 1;
+@@ -705,7 +707,7 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
+ 		written = result;
+ 
+ 	/* Return error values for O_DSYNC and IS_SYNC() */
+-	if (result >= 0 && nfs_need_sync_write(file, inode)) {
++	if (result >= 0 && nfs_need_sync_write(iocb, inode)) {
+ 		int err = vfs_fsync(file, 0);
+ 		if (err < 0)
+ 			result = err;
 diff --git a/fs/ocfs2/file.c b/fs/ocfs2/file.c
-index 324dc93..bb66ca4 100644
+index bb66ca4..8f9a86b 100644
 --- a/fs/ocfs2/file.c
 +++ b/fs/ocfs2/file.c
-@@ -2472,6 +2472,12 @@ static ssize_t ocfs2_file_read_iter(struct kiocb *iocb,
- 			filp->f_path.dentry->d_name.name,
- 			to->nr_segs);	/* GRRRRR */
+@@ -2374,8 +2374,10 @@ out_dio:
+ 	/* buffered aio wouldn't have proper lock coverage today */
+ 	BUG_ON(ret == -EIOCBQUEUED && !(file->f_flags & O_DIRECT));
  
-+	/*
-+	 * No non-blocking reads for ocfs2 for now.  Might be doable with
-+	 * non-blocking cluster lock helpers.
-+	 */
-+	if (iocb->ki_rwflags & RWF_NONBLOCK)
-+		return -EAGAIN;
- 
- 	if (!inode) {
- 		ret = -EINVAL;
-diff --git a/fs/pipe.c b/fs/pipe.c
-index 21981e5..212bf68 100644
---- a/fs/pipe.c
-+++ b/fs/pipe.c
-@@ -302,7 +302,8 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
- 			 */
- 			if (ret)
- 				break;
--			if (filp->f_flags & O_NONBLOCK) {
-+			if ((filp->f_flags & O_NONBLOCK) ||
-+			    (iocb->ki_rwflags & RWF_NONBLOCK)) {
- 				ret = -EAGAIN;
- 				break;
- 			}
+-	if (((file->f_flags & O_DSYNC) && !direct_io) || IS_SYNC(inode) ||
+-	    ((file->f_flags & O_DIRECT) && !direct_io)) {
++	if (((file->f_flags & O_DSYNC) && !direct_io) ||
++	    IS_SYNC(inode) ||
++	    ((file->f_flags & O_DIRECT) && !direct_io) ||
++	    (iocb->ki_rwflags & RWF_DSYNC)) {
+ 		ret = filemap_fdatawrite_range(file->f_mapping, *ppos,
+ 					       *ppos + count - 1);
+ 		if (ret < 0)
 diff --git a/fs/read_write.c b/fs/read_write.c
-index 907735c..cba7d4c 100644
+index cba7d4c..3443265 100644
 --- a/fs/read_write.c
 +++ b/fs/read_write.c
-@@ -835,14 +835,19 @@ static ssize_t do_readv_writev(int type, struct file *file,
- 		file_start_write(file);
- 	}
- 
--	if (iter_fn)
-+	if (iter_fn) {
+@@ -839,8 +839,13 @@ static ssize_t do_readv_writev(int type, struct file *file,
  		ret = do_iter_readv_writev(file, type, iov, nr_segs, tot_len,
  						pos, iter_fn, flags);
--	else if (fnv)
--		ret = do_sync_readv_writev(file, iov, nr_segs, tot_len,
--						pos, fnv);
--	else
--		ret = do_loop_readv_writev(file, iov, nr_segs, pos, fn);
-+	} else {
-+		if (type == READ && (flags & RWF_NONBLOCK))
-+			return -EAGAIN;
-+
-+		if (fnv)
-+			ret = do_sync_readv_writev(file, iov, nr_segs, tot_len,
-+							pos, fnv);
-+		else
-+			ret = do_loop_readv_writev(file, iov, nr_segs, pos, fn);
-+	}
+ 	} else {
+-		if (type == READ && (flags & RWF_NONBLOCK))
+-			return -EAGAIN;
++		if (type == READ) {
++			if (flags & RWF_NONBLOCK)
++				return -EAGAIN;
++		} else {
++			if (flags & RWF_DSYNC)
++				return -EINVAL;
++		}
  
- 	if (type != READ)
- 		file_end_write(file);
-@@ -866,8 +871,10 @@ ssize_t vfs_readv(struct file *file, const struct iovec __user *vec,
+ 		if (fnv)
+ 			ret = do_sync_readv_writev(file, iov, nr_segs, tot_len,
+@@ -888,7 +893,7 @@ ssize_t vfs_writev(struct file *file, const struct iovec __user *vec,
  		return -EBADF;
- 	if (!(file->f_mode & FMODE_CAN_READ))
+ 	if (!(file->f_mode & FMODE_CAN_WRITE))
  		return -EINVAL;
 -	if (flags & ~0)
-+	if (flags & ~RWF_NONBLOCK)
++	if (flags & ~RWF_DSYNC)
  		return -EINVAL;
-+	if ((file->f_flags & O_DIRECT) && (flags & RWF_NONBLOCK))
-+		return -EAGAIN;
  
- 	return do_readv_writev(READ, file, vec, vlen, pos, flags);
- }
-@@ -1069,14 +1076,19 @@ static ssize_t compat_do_readv_writev(int type, struct file *file,
- 		file_start_write(file);
- 	}
- 
--	if (iter_fn)
-+	if (iter_fn) {
+ 	return do_readv_writev(WRITE, file, vec, vlen, pos, flags);
+@@ -1080,8 +1085,13 @@ static ssize_t compat_do_readv_writev(int type, struct file *file,
  		ret = do_iter_readv_writev(file, type, iov, nr_segs, tot_len,
  						pos, iter_fn, flags);
--	else if (fnv)
--		ret = do_sync_readv_writev(file, iov, nr_segs, tot_len,
--						pos, fnv);
--	else
--		ret = do_loop_readv_writev(file, iov, nr_segs, pos, fn);
-+	} else {
-+		if (type == READ && (flags & RWF_NONBLOCK))
-+			return -EAGAIN;
-+
-+		if (fnv)
-+			ret = do_sync_readv_writev(file, iov, nr_segs, tot_len,
-+							pos, fnv);
-+		else
-+			ret = do_loop_readv_writev(file, iov, nr_segs, pos, fn);
-+	}
+ 	} else {
+-		if (type == READ && (flags & RWF_NONBLOCK))
+-			return -EAGAIN;
++		if (type == READ) {
++			if (flags & RWF_NONBLOCK)
++				return -EAGAIN;
++		} else {
++			if (flags & RWF_DSYNC)
++				return -EINVAL;
++		}
  
- 	if (type != READ)
- 		file_end_write(file);
-diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
-index eb596b4..b1f6334 100644
---- a/fs/xfs/xfs_file.c
-+++ b/fs/xfs/xfs_file.c
-@@ -246,6 +246,10 @@ xfs_file_read_iter(
- 
- 	XFS_STATS_INC(xs_read_calls);
- 
-+	/* XXX: need a non-blocking iolock helper, shouldn't be too hard */
-+	if (iocb->ki_rwflags & RWF_NONBLOCK)
-+		return -EAGAIN;
-+
- 	if (unlikely(file->f_flags & O_DIRECT))
- 		ioflags |= XFS_IO_ISDIRECT;
- 	if (file->f_mode & FMODE_NOCMTIME)
+ 		if (fnv)
+ 			ret = do_sync_readv_writev(file, iov, nr_segs, tot_len,
 diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 9ed5711..eaebd99 100644
+index 7d0e116..7786b88 100644
 --- a/include/linux/fs.h
 +++ b/include/linux/fs.h
-@@ -1459,6 +1459,9 @@ struct block_device_operations;
- #define HAVE_COMPAT_IOCTL 1
+@@ -1460,7 +1460,8 @@ struct block_device_operations;
  #define HAVE_UNLOCKED_IOCTL 1
  
-+/* These flags are used for the readv/writev syscalls with flags. */
-+#define RWF_NONBLOCK 0x00000001
-+
+ /* These flags are used for the readv/writev syscalls with flags. */
+-#define RWF_NONBLOCK 0x00000001
++#define RWF_NONBLOCK	0x00000001
++#define RWF_DSYNC	0x00000002
+ 
  struct iov_iter;
  
- struct file_operations {
 diff --git a/mm/filemap.c b/mm/filemap.c
-index 530c263..09d3af3 100644
+index 6107058..4fbef99 100644
 --- a/mm/filemap.c
 +++ b/mm/filemap.c
-@@ -1494,6 +1494,8 @@ static ssize_t do_generic_file_read(struct file *filp, loff_t *ppos,
- find_page:
- 		page = find_get_page(mapping, index);
- 		if (!page) {
-+			if (flags & RWF_NONBLOCK)
-+				goto would_block;
- 			page_cache_sync_readahead(mapping,
- 					ra, filp,
- 					index, last_index - index);
-@@ -1585,6 +1587,11 @@ page_ok:
- 		continue;
+@@ -2669,7 +2669,9 @@ int generic_write_sync(struct kiocb *iocb, loff_t count)
+ 	struct file *file = iocb->ki_filp;
  
- page_not_up_to_date:
-+		if (flags & RWF_NONBLOCK) {
-+			page_cache_release(page);
-+			goto would_block;
-+		}
-+
- 		/* Get exclusive access to the page ... */
- 		error = lock_page_killable(page);
- 		if (unlikely(error))
-@@ -1604,6 +1611,12 @@ page_not_up_to_date_locked:
- 			goto page_ok;
- 		}
+ 	if (count > 0 &&
+-	    ((file->f_flags & O_DSYNC) || IS_SYNC(file->f_mapping->host))) {
++	    ((file->f_flags & O_DSYNC) ||
++	     (iocb->ki_rwflags & RWF_DSYNC) ||
++	     IS_SYNC(file->f_mapping->host))) {
+ 		bool fdatasync = !(file->f_flags & __O_SYNC);
+ 		ssize_t ret = 0;
  
-+		if (flags & RWF_NONBLOCK) {
-+			unlock_page(page);
-+			page_cache_release(page);
-+			goto would_block;
-+		}
-+
- readpage:
- 		/*
- 		 * A previous I/O error may have been due to temporary
-@@ -1674,6 +1687,8 @@ no_cached_page:
- 		goto readpage;
- 	}
- 
-+would_block:
-+	error = -EAGAIN;
- out:
- 	ra->prev_pos = prev_index;
- 	ra->prev_pos <<= PAGE_CACHE_SHIFT;
-@@ -1707,6 +1722,9 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
- 		size_t count = iov_iter_count(iter);
- 		loff_t size;
- 
-+		if (iocb->ki_rwflags & RWF_NONBLOCK)
-+			return -EAGAIN;
-+
- 		if (!count)
- 			goto out; /* skip atime */
- 		size = i_size_read(inode);
-diff --git a/mm/shmem.c b/mm/shmem.c
-index cd6fc75..5c30f04 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -1531,6 +1531,10 @@ static ssize_t shmem_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
- 	ssize_t retval = 0;
- 	loff_t *ppos = &iocb->ki_pos;
- 
-+	/* XXX: should be easily supportable */
-+	if (iocb->ki_rwflags & RWF_NONBLOCK)
-+		return -EAGAIN;
-+
- 	/*
- 	 * Might this read be for a stacking filesystem?  Then when reading
- 	 * holes of a sparse file, we actually need to allocate those pages,
 -- 
 1.9.1
 
