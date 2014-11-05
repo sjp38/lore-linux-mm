@@ -1,56 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
-	by kanga.kvack.org (Postfix) with ESMTP id CF2246B0075
-	for <linux-mm@kvack.org>; Wed,  5 Nov 2014 12:55:31 -0500 (EST)
-Received: by mail-qa0-f46.google.com with SMTP id n8so865600qaq.5
-        for <linux-mm@kvack.org>; Wed, 05 Nov 2014 09:55:31 -0800 (PST)
-Received: from mail-qc0-x231.google.com (mail-qc0-x231.google.com. [2607:f8b0:400d:c01::231])
-        by mx.google.com with ESMTPS id v9si2224980qat.45.2014.11.05.09.55.30
+Received: from mail-qa0-f42.google.com (mail-qa0-f42.google.com [209.85.216.42])
+	by kanga.kvack.org (Postfix) with ESMTP id DECEA6B006C
+	for <linux-mm@kvack.org>; Wed,  5 Nov 2014 13:42:09 -0500 (EST)
+Received: by mail-qa0-f42.google.com with SMTP id k15so946483qaq.15
+        for <linux-mm@kvack.org>; Wed, 05 Nov 2014 10:42:09 -0800 (PST)
+Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
+        by mx.google.com with ESMTPS id m10si7626078qct.27.2014.11.05.10.42.08
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 05 Nov 2014 09:55:30 -0800 (PST)
-Received: by mail-qc0-f177.google.com with SMTP id l6so963095qcy.8
-        for <linux-mm@kvack.org>; Wed, 05 Nov 2014 09:55:30 -0800 (PST)
-Date: Wed, 5 Nov 2014 12:55:27 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 3/4] OOM, PM: OOM killed task shouldn't escape PM suspend
-Message-ID: <20141105175527.GH14386@htj.dyndns.org>
-References: <20141105124620.GB4527@dhcp22.suse.cz>
- <20141105130247.GA14386@htj.dyndns.org>
- <20141105133100.GC4527@dhcp22.suse.cz>
- <20141105134219.GD4527@dhcp22.suse.cz>
- <20141105154436.GB14386@htj.dyndns.org>
- <20141105160115.GA28226@dhcp22.suse.cz>
- <20141105162929.GD14386@htj.dyndns.org>
- <20141105163956.GD28226@dhcp22.suse.cz>
- <20141105165428.GF14386@htj.dyndns.org>
- <20141105174609.GE28226@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141105174609.GE28226@dhcp22.suse.cz>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Wed, 05 Nov 2014 10:42:08 -0800 (PST)
+Date: Wed, 5 Nov 2014 12:42:05 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH -mm 7/8] slab: introduce slab_free helper
+In-Reply-To: <439ae0a228e18af4ba909dce471a7e3d21005ef6.1415046910.git.vdavydov@parallels.com>
+Message-ID: <alpine.DEB.2.11.1411051241330.28485@gentwo.org>
+References: <cover.1415046910.git.vdavydov@parallels.com> <439ae0a228e18af4ba909dce471a7e3d21005ef6.1415046910.git.vdavydov@parallels.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Nov 05, 2014 at 06:46:09PM +0100, Michal Hocko wrote:
-> Because out_of_memory can be called from mutliple paths. And
-> the only interesting one should be the page allocation path.
-> pagefault_out_of_memory is not interesting because it cannot happen for
-> the frozen task.
+Some comments would be good for the commit.
 
-Hmmm.... wouldn't that be broken by definition tho?  So, if the oom
-killer is invoked from somewhere else than page allocation path, it
-would proceed ignoring the disabled setting and would race against PM
-freeze path all the same.  Why are things broken at such basic levels?
-Something named oom_killer_disable does a lame attempt at it and not
-even that depending on who's calling.  There probably is a history
-leading to the current situation but the level that things are broken
-at is too basic and baffling.  :(
-
--- 
-tejun
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
