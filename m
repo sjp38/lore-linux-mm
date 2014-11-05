@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B4F26B00A0
-	for <linux-mm@kvack.org>; Wed,  5 Nov 2014 09:50:31 -0500 (EST)
-Received: by mail-pd0-f172.google.com with SMTP id r10so898412pdi.3
-        for <linux-mm@kvack.org>; Wed, 05 Nov 2014 06:50:31 -0800 (PST)
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D9A06B00A2
+	for <linux-mm@kvack.org>; Wed,  5 Nov 2014 09:50:32 -0500 (EST)
+Received: by mail-pd0-f179.google.com with SMTP id g10so872435pdj.38
+        for <linux-mm@kvack.org>; Wed, 05 Nov 2014 06:50:32 -0800 (PST)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id g12si3109161pat.237.2014.11.05.06.50.18
+        by mx.google.com with ESMTP id qd3si3316359pac.23.2014.11.05.06.50.19
         for <linux-mm@kvack.org>;
-        Wed, 05 Nov 2014 06:50:19 -0800 (PST)
+        Wed, 05 Nov 2014 06:50:20 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 15/19] futex, thp: remove special case for THP in get_futex_key
-Date: Wed,  5 Nov 2014 16:49:50 +0200
-Message-Id: <1415198994-15252-16-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 19/19] mm, thp: remove compound_lock
+Date: Wed,  5 Nov 2014 16:49:54 +0200
+Message-Id: <1415198994-15252-20-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1415198994-15252-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1415198994-15252-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,123 +19,281 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-With new THP refcounting, we don't need tricks to stabilize huge page.
-If we've got reference to tail page, it can't split under us.
-
-This patch effectively reverts a5b338f2b0b1.
+We don't need a compound lock anymore: split_huge_page() doesn't need it
+anymore.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- kernel/futex.c | 61 ++++++++++++----------------------------------------------
- 1 file changed, 12 insertions(+), 49 deletions(-)
+ include/linux/mm.h         |  35 ------------
+ include/linux/page-flags.h |  12 +---
+ mm/page_alloc.c            |   3 -
+ mm/swap.c                  | 135 +++++++++++++++------------------------------
+ 4 files changed, 46 insertions(+), 139 deletions(-)
 
-diff --git a/kernel/futex.c b/kernel/futex.c
-index d3a9d946d0b7..fb71ccba683b 100644
---- a/kernel/futex.c
-+++ b/kernel/futex.c
-@@ -391,7 +391,7 @@ get_futex_key(u32 __user *uaddr, int fshared, union futex_key *key, int rw)
- {
- 	unsigned long address = (unsigned long)uaddr;
- 	struct mm_struct *mm = current->mm;
--	struct page *page, *page_head;
-+	struct page *page;
- 	int err, ro = 0;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index f2f95469f1c3..61f745f1fb2e 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -378,41 +378,6 @@ static inline int is_vmalloc_or_module_addr(const void *x)
  
- 	/*
-@@ -434,46 +434,9 @@ again:
- 	else
- 		err = 0;
+ extern void kvfree(const void *addr);
+ 
+-static inline void compound_lock(struct page *page)
+-{
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-	VM_BUG_ON_PAGE(PageSlab(page), page);
+-	bit_spin_lock(PG_compound_lock, &page->flags);
+-#endif
+-}
+-
+-static inline void compound_unlock(struct page *page)
+-{
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-	VM_BUG_ON_PAGE(PageSlab(page), page);
+-	bit_spin_unlock(PG_compound_lock, &page->flags);
+-#endif
+-}
+-
+-static inline unsigned long compound_lock_irqsave(struct page *page)
+-{
+-	unsigned long uninitialized_var(flags);
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-	local_irq_save(flags);
+-	compound_lock(page);
+-#endif
+-	return flags;
+-}
+-
+-static inline void compound_unlock_irqrestore(struct page *page,
+-					      unsigned long flags)
+-{
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-	compound_unlock(page);
+-	local_irq_restore(flags);
+-#endif
+-}
+-
+ static inline struct page *compound_head(struct page *page)
+ {
+ 	if (unlikely(PageTail(page)))
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 676f72d29ac2..46ebd9c05a59 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -106,9 +106,6 @@ enum pageflags {
+ #ifdef CONFIG_MEMORY_FAILURE
+ 	PG_hwpoison,		/* hardware poisoned page. Don't touch */
+ #endif
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-	PG_compound_lock,
+-#endif
+ 	__NR_PAGEFLAGS,
+ 
+ 	/* Filesystems */
+@@ -511,12 +508,6 @@ static inline void ClearPageSlabPfmemalloc(struct page *page)
+ #define __PG_MLOCKED		0
+ #endif
  
 -#ifdef CONFIG_TRANSPARENT_HUGEPAGE
--	page_head = page;
--	if (unlikely(PageTail(page))) {
--		put_page(page);
--		/* serialize against __split_huge_page_splitting() */
--		local_irq_disable();
--		if (likely(__get_user_pages_fast(address, 1, !ro, &page) == 1)) {
--			page_head = compound_head(page);
--			/*
--			 * page_head is valid pointer but we must pin
--			 * it before taking the PG_lock and/or
--			 * PG_compound_lock. The moment we re-enable
--			 * irqs __split_huge_page_splitting() can
--			 * return and the head page can be freed from
--			 * under us. We can't take the PG_lock and/or
--			 * PG_compound_lock on a page that could be
--			 * freed from under us.
--			 */
--			if (page != page_head) {
--				get_page(page_head);
--				put_page(page);
--			}
--			local_irq_enable();
--		} else {
--			local_irq_enable();
--			goto again;
--		}
--	}
+-#define __PG_COMPOUND_LOCK		(1 << PG_compound_lock)
 -#else
--	page_head = compound_head(page);
--	if (page != page_head) {
--		get_page(page_head);
--		put_page(page);
--	}
+-#define __PG_COMPOUND_LOCK		0
 -#endif
 -
--	lock_page(page_head);
--
-+	lock_page(page);
- 	/*
--	 * If page_head->mapping is NULL, then it cannot be a PageAnon
-+	 * If page->mapping is NULL, then it cannot be a PageAnon
- 	 * page; but it might be the ZERO_PAGE or in the gate area or
- 	 * in a special mapping (all cases which we are happy to fail);
- 	 * or it may have been a good file page when get_user_pages_fast
-@@ -485,12 +448,12 @@ again:
- 	 *
- 	 * The case we do have to guard against is when memory pressure made
- 	 * shmem_writepage move it from filecache to swapcache beneath us:
--	 * an unlikely race, but we do need to retry for page_head->mapping.
-+	 * an unlikely race, but we do need to retry for page->mapping.
- 	 */
--	if (!page_head->mapping) {
--		int shmem_swizzled = PageSwapCache(page_head);
--		unlock_page(page_head);
--		put_page(page_head);
-+	if (!page->mapping) {
-+		int shmem_swizzled = PageSwapCache(page);
-+		unlock_page(page);
-+		put_page(page);
- 		if (shmem_swizzled)
- 			goto again;
- 		return -EFAULT;
-@@ -503,7 +466,7 @@ again:
- 	 * it's a read-only handle, it's expected that futexes attach to
- 	 * the object not the particular process.
- 	 */
--	if (PageAnon(page_head)) {
-+	if (PageAnon(page)) {
- 		/*
- 		 * A RO anonymous page will never change and thus doesn't make
- 		 * sense for futex operations.
-@@ -518,15 +481,15 @@ again:
- 		key->private.address = address;
- 	} else {
- 		key->both.offset |= FUT_OFF_INODE; /* inode-based key */
--		key->shared.inode = page_head->mapping->host;
-+		key->shared.inode = page->mapping->host;
- 		key->shared.pgoff = basepage_index(page);
- 	}
+ /*
+  * Flags checked when a page is freed.  Pages being freed should not have
+  * these flags set.  It they are, there is a problem.
+@@ -526,8 +517,7 @@ static inline void ClearPageSlabPfmemalloc(struct page *page)
+ 	 1 << PG_private | 1 << PG_private_2 | \
+ 	 1 << PG_writeback | 1 << PG_reserved | \
+ 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
+-	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON | \
+-	 __PG_COMPOUND_LOCK)
++	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON)
  
- 	get_futex_key_refs(key); /* implies MB (B) */
+ /*
+  * Flags checked when a page is prepped for return by the page allocator.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index b19d1e69ca12..cf3096f97c6d 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6598,9 +6598,6 @@ static const struct trace_print_flags pageflag_names[] = {
+ #ifdef CONFIG_MEMORY_FAILURE
+ 	{1UL << PG_hwpoison,		"hwpoison"	},
+ #endif
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-	{1UL << PG_compound_lock,	"compound_lock"	},
+-#endif
+ };
  
- out:
--	unlock_page(page_head);
--	put_page(page_head);
-+	unlock_page(page);
-+	put_page(page);
- 	return err;
+ static void dump_page_flags(unsigned long flags)
+diff --git a/mm/swap.c b/mm/swap.c
+index da28e0767088..537592dfc6c4 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -80,16 +80,9 @@ static void __put_compound_page(struct page *page)
+ 	(*dtor)(page);
  }
+ 
+-static inline bool compound_lock_needed(struct page *page)
+-{
+-	return IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) &&
+-		!PageSlab(page) && !PageHeadHuge(page);
+-}
+-
+ static void put_compound_page(struct page *page)
+ {
+ 	struct page *page_head;
+-	unsigned long flags;
+ 
+ 	if (likely(!PageTail(page))) {
+ 		if (put_page_testzero(page)) {
+@@ -108,58 +101,33 @@ static void put_compound_page(struct page *page)
+ 	/* __split_huge_page_refcount can run under us */
+ 	page_head = compound_head(page);
+ 
+-	if (!compound_lock_needed(page_head)) {
+-		/*
+-		 * If "page" is a THP tail, we must read the tail page flags
+-		 * after the head page flags. The split_huge_page side enforces
+-		 * write memory barriers between clearing PageTail and before
+-		 * the head page can be freed and reallocated.
+-		 */
+-		smp_rmb();
+-		if (likely(PageTail(page))) {
+-			/* __split_huge_page_refcount cannot race here. */
+-			VM_BUG_ON_PAGE(!PageHead(page_head), page_head);
+-			VM_BUG_ON_PAGE(page_mapcount(page) != 0, page);
+-			if (put_page_testzero(page_head)) {
+-				/*
+-				 * If this is the tail of a slab compound page,
+-				 * the tail pin must not be the last reference
+-				 * held on the page, because the PG_slab cannot
+-				 * be cleared before all tail pins (which skips
+-				 * the _mapcount tail refcounting) have been
+-				 * released. For hugetlbfs the tail pin may be
+-				 * the last reference on the page instead,
+-				 * because PageHeadHuge will not go away until
+-				 * the compound page enters the buddy
+-				 * allocator.
+-				 */
+-				VM_BUG_ON_PAGE(PageSlab(page_head), page_head);
+-				__put_compound_page(page_head);
+-			}
+-		} else if (put_page_testzero(page))
+-			__put_single_page(page);
+-		return;
+-	}
+-
+-	flags = compound_lock_irqsave(page_head);
+-	/* here __split_huge_page_refcount won't run anymore */
+-	if (likely(page != page_head && PageTail(page))) {
+-		bool free;
+-
+-		free = put_page_testzero(page_head);
+-		compound_unlock_irqrestore(page_head, flags);
+-		if (free) {
+-			if (PageHead(page_head))
+-				__put_compound_page(page_head);
+-			else
+-				__put_single_page(page_head);
++	/*
++	 * If "page" is a THP tail, we must read the tail page flags after the
++	 * head page flags. The split_huge_page side enforces write memory
++	 * barriers between clearing PageTail and before the head page can be
++	 * freed and reallocated.
++	 */
++	smp_rmb();
++	if (likely(PageTail(page))) {
++		/* __split_huge_page_refcount cannot race here. */
++		VM_BUG_ON_PAGE(!PageHead(page_head), page_head);
++		if (put_page_testzero(page_head)) {
++			/*
++			 * If this is the tail of a slab compound page, the
++			 * tail pin must not be the last reference held on the
++			 * page, because the PG_slab cannot be cleared before
++			 * all tail pins (which skips the _mapcount tail
++			 * refcounting) have been released. For hugetlbfs the
++			 * tail pin may be the last reference on the page
++			 * instead, because PageHeadHuge will not go away until
++			 * the compound page enters the buddy allocator.
++			 */
++			VM_BUG_ON_PAGE(PageSlab(page_head), page_head);
++			__put_compound_page(page_head);
+ 		}
+-	} else {
+-		compound_unlock_irqrestore(page_head, flags);
+-		VM_BUG_ON_PAGE(PageTail(page), page);
+-		if (put_page_testzero(page))
+-			__put_single_page(page);
+-	}
++	} else if (put_page_testzero(page))
++		__put_single_page(page);
++	return;
+ }
+ 
+ void put_page(struct page *page)
+@@ -178,42 +146,29 @@ EXPORT_SYMBOL(put_page);
+ void __get_page_tail(struct page *page)
+ {
+ 	struct page *page_head = compound_head(page);
+-	unsigned long flags;
+ 
+-	if (!compound_lock_needed(page_head)) {
+-		smp_rmb();
+-		if (likely(PageTail(page))) {
+-			/*
+-			 * This is a hugetlbfs page or a slab page.
+-			 * __split_huge_page_refcount cannot race here.
+-			 */
+-			VM_BUG_ON_PAGE(!PageHead(page_head), page_head);
+-			VM_BUG_ON(page_head != page->first_page);
+-			VM_BUG_ON_PAGE(atomic_read(&page_head->_count) <= 0,
+-					page);
+-			atomic_inc(&page_head->_count);
+-		} else {
+-			/*
+-			 * __split_huge_page_refcount run before us, "page" was
+-			 * a thp tail. the split page_head has been freed and
+-			 * reallocated as slab or hugetlbfs page of smaller
+-			 * order (only possible if reallocated as slab on x86).
+-			 */
+-			VM_BUG_ON_PAGE(atomic_read(&page->_count) <= 0, page);
+-			atomic_inc(&page->_count);
+-		}
+-		return;
+-	}
+-
+-	flags = compound_lock_irqsave(page_head);
+-	/* here __split_huge_page_refcount won't run anymore */
+-	if (unlikely(page == page_head || !PageTail(page) ||
+-				!get_page_unless_zero(page_head))) {
+-		/* page is not part of THP page anymore */
++	smp_rmb();
++	if (likely(PageTail(page))) {
++		/*
++		 * This is a hugetlbfs page or a slab page.
++		 * __split_huge_page_refcount cannot race here.
++		 */
++		VM_BUG_ON_PAGE(!PageHead(page_head), page_head);
++		VM_BUG_ON(page_head != page->first_page);
++		VM_BUG_ON_PAGE(atomic_read(&page_head->_count) <= 0,
++				page);
++		atomic_inc(&page_head->_count);
++	} else {
++		/*
++		 * __split_huge_page_refcount run before us, "page" was
++		 * a thp tail. the split page_head has been freed and
++		 * reallocated as slab or hugetlbfs page of smaller
++		 * order (only possible if reallocated as slab on x86).
++		 */
+ 		VM_BUG_ON_PAGE(atomic_read(&page->_count) <= 0, page);
+ 		atomic_inc(&page->_count);
+ 	}
+-	compound_unlock_irqrestore(page_head, flags);
++	return;
+ }
+ EXPORT_SYMBOL(__get_page_tail);
  
 -- 
 2.1.1
