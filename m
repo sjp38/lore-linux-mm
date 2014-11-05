@@ -1,51 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
-	by kanga.kvack.org (Postfix) with ESMTP id B4F0B6B0098
-	for <linux-mm@kvack.org>; Wed,  5 Nov 2014 12:00:18 -0500 (EST)
-Received: by mail-lb0-f182.google.com with SMTP id f15so1127899lbj.27
-        for <linux-mm@kvack.org>; Wed, 05 Nov 2014 09:00:17 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ap1si7182868lac.54.2014.11.05.09.00.16
+Received: from mail-qa0-f42.google.com (mail-qa0-f42.google.com [209.85.216.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 283336B0099
+	for <linux-mm@kvack.org>; Wed,  5 Nov 2014 12:01:17 -0500 (EST)
+Received: by mail-qa0-f42.google.com with SMTP id k15so794358qaq.15
+        for <linux-mm@kvack.org>; Wed, 05 Nov 2014 09:01:16 -0800 (PST)
+Received: from mail-qc0-x22e.google.com (mail-qc0-x22e.google.com. [2607:f8b0:400d:c01::22e])
+        by mx.google.com with ESMTPS id s38si7293117qge.85.2014.11.05.09.01.15
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 05 Nov 2014 09:00:16 -0800 (PST)
-From: Jan Kara <jack@suse.cz>
-Subject: [PATCH] mm: Fix comment before truncate_setsize()
-Date: Wed,  5 Nov 2014 18:00:06 +0100
-Message-Id: <1415206806-6173-1-git-send-email-jack@suse.cz>
+        Wed, 05 Nov 2014 09:01:15 -0800 (PST)
+Received: by mail-qc0-f174.google.com with SMTP id r5so873776qcx.5
+        for <linux-mm@kvack.org>; Wed, 05 Nov 2014 09:01:14 -0800 (PST)
+Date: Wed, 5 Nov 2014 12:01:11 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 3/4] OOM, PM: OOM killed task shouldn't escape PM suspend
+Message-ID: <20141105170111.GG14386@htj.dyndns.org>
+References: <20141104192705.GA22163@htj.dyndns.org>
+ <20141105124620.GB4527@dhcp22.suse.cz>
+ <20141105130247.GA14386@htj.dyndns.org>
+ <20141105133100.GC4527@dhcp22.suse.cz>
+ <20141105134219.GD4527@dhcp22.suse.cz>
+ <20141105154436.GB14386@htj.dyndns.org>
+ <20141105160115.GA28226@dhcp22.suse.cz>
+ <20141105162929.GD14386@htj.dyndns.org>
+ <20141105163956.GD28226@dhcp22.suse.cz>
+ <20141105165428.GF14386@htj.dyndns.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141105165428.GF14386@htj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jan Beulich <JBeulich@suse.com>, Jan Kara <jack@suse.cz>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>
 
-XFS doesn't always hold i_mutex when calling truncate_setsize() and it
-uses a different lock to serialize truncates and writes. So fix the
-comment before truncate_setsize().
+On Wed, Nov 05, 2014 at 11:54:28AM -0500, Tejun Heo wrote:
+> > Still not following. How do you want to detect an on-going OOM without
+> > any interface around out_of_memory?
+> 
+> I thought you were using oom_killer_allowed_start() outside OOM path.
+> Ugh.... why is everything weirdly structured?  oom_killer_disabled
+> implies that oom killer may fail, right?  Why is
+> __alloc_pages_slowpath() checking it directly?  If whether oom killing
+> failed or not is relevant to its users, make out_of_memory() return an
+> error code.  There's no reason for the exclusion detail to leak out of
+> the oom killer proper.  The only interface should be disable/enable
+> and whether oom killing failed or not.
 
-Reported-by: Jan Beulich <JBeulich@suse.com>
-Signed-off-by: Jan Kara <jack@suse.cz>
----
- mm/truncate.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+And what's implemented is wrong.  What happens if oom killing is
+already in progress and then a task blocks trying to write-lock the
+rwsem and then that task is selected as the OOM victim?  disable()
+call must be able to fail.
 
-diff --git a/mm/truncate.c b/mm/truncate.c
-index b248c0c8dcd1..ed33e8f811e9 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -715,8 +715,9 @@ EXPORT_SYMBOL(truncate_pagecache);
-  * necessary) to @newsize. It will be typically be called from the filesystem's
-  * setattr function when ATTR_SIZE is passed in.
-  *
-- * Must be called with inode_mutex held and before all filesystem specific
-- * block truncation has been performed.
-+ * Must be called with a lock serializing truncates and writes (generally
-+ * i_mutex but e.g. xfs uses a different lock) and before all filesystem
-+ * specific block truncation has been performed.
-  */
- void truncate_setsize(struct inode *inode, loff_t newsize)
- {
 -- 
-1.8.1.4
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
