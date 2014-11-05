@@ -1,73 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
-	by kanga.kvack.org (Postfix) with ESMTP id A679D6B0083
-	for <linux-mm@kvack.org>; Wed,  5 Nov 2014 02:20:09 -0500 (EST)
-Received: by mail-ie0-f182.google.com with SMTP id rd18so134799iec.41
-        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 23:20:09 -0800 (PST)
-Received: from mail-ie0-x22e.google.com (mail-ie0-x22e.google.com. [2607:f8b0:4001:c03::22e])
-        by mx.google.com with ESMTPS id ii1si4318629igb.19.2014.11.04.23.20.08
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BEA36B0073
+	for <linux-mm@kvack.org>; Wed,  5 Nov 2014 04:57:10 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id lj1so468749pab.22
+        for <linux-mm@kvack.org>; Wed, 05 Nov 2014 01:57:10 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id uh4si2685850pbc.36.2014.11.05.01.57.08
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 04 Nov 2014 23:20:08 -0800 (PST)
-Received: by mail-ie0-f174.google.com with SMTP id x19so149473ier.5
-        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 23:20:08 -0800 (PST)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Nov 2014 01:57:09 -0800 (PST)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH -mm] memcg: zap kmem_account_flags
+Date: Wed, 5 Nov 2014 12:56:54 +0300
+Message-ID: <1415181414-2205-1-git-send-email-vdavydov@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <CADtm3G7bU6Y2aKco5Vb81KSqsy=FH9zmdDJm=Tixjoep1YeJ7Q@mail.gmail.com>
-References: <CADtm3G7DtGkvPk36Fiunwen8grw-94V6=iv82iusGumfNJkn-g@mail.gmail.com>
-	<xa1tlhnq7ga7.fsf@mina86.com>
-	<CADtm3G7bU6Y2aKco5Vb81KSqsy=FH9zmdDJm=Tixjoep1YeJ7Q@mail.gmail.com>
-Date: Wed, 5 Nov 2014 15:20:07 +0800
-Message-ID: <CAL1ERfMYmQcQ_sX7E0HC2bXmC-imh4T-7Q4nBVQRXkQSaTjvQQ@mail.gmail.com>
-Subject: Re: CMA alignment question
-From: Weijie Yang <weijie.yang.kh@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gregory Fong <gregory.0xf0@gmail.com>
-Cc: Michal Nazarewicz <mina86@mina86.com>, linux-mm@kvack.org, Laura Abbott <lauraa@codeaurora.org>, iamjoonsoo.kim@lge.com, Marek Szyprowski <m.szyprowski@samsung.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Florian Fainelli <f.fainelli@gmail.com>, Brian Norris <computersforpeace@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Nov 5, 2014 at 12:18 PM, Gregory Fong <gregory.0xf0@gmail.com> wrote:
-> On Tue, Nov 4, 2014 at 2:27 PM, Michal Nazarewicz <mina86@mina86.com> wrote:
->> On Tue, Nov 04 2014, Gregory Fong wrote:
->>> The alignment in cma_alloc() is done w.r.t. the bitmap.  This is a
->>> problem when, for example:
->>>
->>> - a device requires 16M (order 12) alignment
->>> - the CMA region is not 16 M aligned
+The only such flag is KMEM_ACCOUNTED_ACTIVE, but it's set iff
+mem_cgroup->kmemcg_id >= 0, so we can check kmemcg_id instead of having
+a separate flags field.
 
-I think the device driver should ensure that situation could not occur,
-by assign suitable alignment parameter in cma_declare_contiguous().
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+---
+ mm/memcontrol.c |   25 ++++++-------------------
+ 1 file changed, 6 insertions(+), 19 deletions(-)
 
->>> In such a case, can result with the CMA region starting at, say,
->>> 0x2f800000 but any allocation you make from there will be aligned from
->>> there.  Requesting an allocation of 32 M with 16 M alignment, will
->>> result in an allocation from 0x2f800000 to 0x31800000, which doesn't
->>> work very well if your strange device requires 16M alignment.
->>>
->>> This doesn't have the behavior I would expect, which would be for the
->>> allocation to be aligned w.r.t. the start of memory.  I realize that
->>> aligning the CMA region is an option, but don't see why cma_alloc()
->>> aligns to the start of the CMA region.  Is there a good reason for
->>> having cma_alloc() alignment work this way?
->>
->> No, it's a bug.  The alignment should indicate alignment of physical
->> address not position in CMA region.
->>
->
-> Ah, now I see that Marek submitted this patch from you back in 2011
-> that would have allowed the bitmap lib to support an alignment offset:
-> http://thread.gmane.org/gmane.linux.kernel/1121103/focus=1121100
->
-> Any idea why this didn't make it into the later changesets?  If not,
-> I'll resubmit it and to use it to fix this bug.
->
-> Thanks,
-> Gregory
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 0c315c99122d..9a37d99aee54 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -296,7 +296,6 @@ struct mem_cgroup {
+ 	 * Should the accounting and control be hierarchical, per subtree?
+ 	 */
+ 	bool use_hierarchy;
+-	unsigned long kmem_account_flags; /* See KMEM_ACCOUNTED_*, below */
+ 
+ 	bool		oom_lock;
+ 	atomic_t	under_oom;
+@@ -363,22 +362,11 @@ struct mem_cgroup {
+ 	/* WARNING: nodeinfo must be the last member here */
+ };
+ 
+-/* internal only representation about the status of kmem accounting. */
+-enum {
+-	KMEM_ACCOUNTED_ACTIVE, /* accounted by this cgroup itself */
+-};
+-
+ #ifdef CONFIG_MEMCG_KMEM
+-static inline void memcg_kmem_set_active(struct mem_cgroup *memcg)
+-{
+-	set_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
+-}
+-
+ static bool memcg_kmem_is_active(struct mem_cgroup *memcg)
+ {
+-	return test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
++	return memcg->kmemcg_id >= 0;
+ }
+-
+ #endif
+ 
+ /* Stuffs for move charges at task migration. */
+@@ -3471,22 +3459,21 @@ static int memcg_activate_kmem(struct mem_cgroup *memcg,
+ 		goto out;
+ 	}
+ 
+-	memcg->kmemcg_id = memcg_id;
+-
+ 	/*
+-	 * We couldn't have accounted to this cgroup, because it hasn't got the
+-	 * active bit set yet, so this should succeed.
++	 * We couldn't have accounted to this cgroup, because it hasn't got
++	 * activated yet, so this should succeed.
+ 	 */
+ 	err = page_counter_limit(&memcg->kmem, nr_pages);
+ 	VM_BUG_ON(err);
+ 
+ 	static_key_slow_inc(&memcg_kmem_enabled_key);
+ 	/*
+-	 * Setting the active bit after enabling static branching will
++	 * A memory cgroup is considered kmem-active as soon as it gets
++	 * kmemcg_id. Setting the id after enabling static branching will
+ 	 * guarantee no one starts accounting before all call sites are
+ 	 * patched.
+ 	 */
+-	memcg_kmem_set_active(memcg);
++	memcg->kmemcg_id = memcg_id;
+ out:
+ 	memcg_resume_kmem_account();
+ 	return err;
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
