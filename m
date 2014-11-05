@@ -1,52 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id B846A6B00BB
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 21:18:39 -0500 (EST)
-Received: by mail-pa0-f50.google.com with SMTP id eu11so15824922pac.9
-        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 18:18:38 -0800 (PST)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id lj12si1868064pab.5.2014.11.04.18.18.36
-        for <linux-mm@kvack.org>;
-        Tue, 04 Nov 2014 18:18:37 -0800 (PST)
-Message-ID: <545988BE.3050201@cn.fujitsu.com>
-Date: Wed, 5 Nov 2014 10:17:34 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
+	by kanga.kvack.org (Postfix) with ESMTP id D4A686B00AF
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2014 23:19:29 -0500 (EST)
+Received: by mail-qg0-f48.google.com with SMTP id q108so11724681qgd.35
+        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 20:19:29 -0800 (PST)
+Received: from mail-qc0-x22d.google.com (mail-qc0-x22d.google.com. [2607:f8b0:400d:c01::22d])
+        by mx.google.com with ESMTPS id l9si4252572qae.53.2014.11.04.20.19.28
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 04 Nov 2014 20:19:29 -0800 (PST)
+Received: by mail-qc0-f173.google.com with SMTP id x3so12109031qcv.18
+        for <linux-mm@kvack.org>; Tue, 04 Nov 2014 20:19:28 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] mem-hotplug: Fix wrong check for zone->pageset initialization
- in online_pages().
-References: <1414748812-22610-1-git-send-email-tangchen@cn.fujitsu.com> <1414748812-22610-3-git-send-email-tangchen@cn.fujitsu.com> <545976F9.50503@jp.fujitsu.com>
-In-Reply-To: <545976F9.50503@jp.fujitsu.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <xa1tlhnq7ga7.fsf@mina86.com>
+References: <CADtm3G7DtGkvPk36Fiunwen8grw-94V6=iv82iusGumfNJkn-g@mail.gmail.com>
+ <xa1tlhnq7ga7.fsf@mina86.com>
+From: Gregory Fong <gregory.0xf0@gmail.com>
+Date: Tue, 4 Nov 2014 20:18:58 -0800
+Message-ID: <CADtm3G7bU6Y2aKco5Vb81KSqsy=FH9zmdDJm=Tixjoep1YeJ7Q@mail.gmail.com>
+Subject: Re: CMA alignment question
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org, santosh.shilimkar@ti.com, grygorii.strashko@ti.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.co, fabf@skynet.be, nzimmer@sgi.com, wangnan0@huawei.com, vdavydov@parallels.com, toshi.kani@hp.com, phacht@linux.vnet.ibm.com, tj@kernel.org, kirill.shutemov@linux.intel.com, riel@redhat.com, luto@amacapital.net, hpa@linux.intel.com, aarcange@redhat.com, qiuxishi@huawei.com, mgorman@suse.de, rientjes@google.com, hannes@cmpxchg.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Gu Zheng <guz.fnst@cn.fujitsu.com>, jiang.liu@linux.intel.com
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: linux-mm@kvack.org, Laura Abbott <lauraa@codeaurora.org>, iamjoonsoo.kim@lge.com, Marek Szyprowski <m.szyprowski@samsung.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Florian Fainelli <f.fainelli@gmail.com>, Brian Norris <computersforpeace@gmail.com>
 
-On 11/05/2014 09:01 AM, Kamezawa Hiroyuki wrote:
-> ......
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 3ab01b2..bc0de0f 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1013,9 +1013,13 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
->   	 * If this zone is not populated, then it is not in zonelist.
->   	 * This means the page allocator ignores this zone.
->   	 * So, zonelist must be updated after online.
-> +	 *
-> +	 * If this zone is populated, zone->pageset could be initialized
-> +	 * to boot_pageset for the first time a node is added. If so,
-> +	 * zone->pageset should be allocated.
->   	 */
->   	mutex_lock(&zonelists_mutex);
-> -	if (!populated_zone(zone)) {
-> +	if (!populated_zone(zone) || !zone_pcp_initialized(zone)) {
-> Please don't add another strange meanings to zone's pcplist.
+On Tue, Nov 4, 2014 at 2:27 PM, Michal Nazarewicz <mina86@mina86.com> wrote:
+> On Tue, Nov 04 2014, Gregory Fong wrote:
+>> The alignment in cma_alloc() is done w.r.t. the bitmap.  This is a
+>> problem when, for example:
+>>
+>> - a device requires 16M (order 12) alignment
+>> - the CMA region is not 16 M aligned
+>>
+>> In such a case, can result with the CMA region starting at, say,
+>> 0x2f800000 but any allocation you make from there will be aligned from
+>> there.  Requesting an allocation of 32 M with 16 M alignment, will
+>> result in an allocation from 0x2f800000 to 0x31800000, which doesn't
+>> work very well if your strange device requires 16M alignment.
+>>
+>> This doesn't have the behavior I would expect, which would be for the
+>> allocation to be aligned w.r.t. the start of memory.  I realize that
+>> aligning the CMA region is an option, but don't see why cma_alloc()
+>> aligns to the start of the CMA region.  Is there a good reason for
+>> having cma_alloc() alignment work this way?
 >
-> If you say zone->present_pages doesn't mean zone has pages in buddy list any more,
-> please rewrite all parts using zone->present_pages including populated_zone().
+> No, it's a bug.  The alignment should indicate alignment of physical
+> address not position in CMA region.
+>
 
-Adding Liu Jiang...
+Ah, now I see that Marek submitted this patch from you back in 2011
+that would have allowed the bitmap lib to support an alignment offset:
+http://thread.gmane.org/gmane.linux.kernel/1121103/focus=1121100
 
-I think zone->managed_pages was introduced by Liu Jiang in the following
-patch:
+Any idea why this didn't make it into the later changesets?  If not,
+I'll resubmit it and to use it to fix this bug.
+
+Thanks,
+Gregory
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
