@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id AB5B16B0071
-	for <linux-mm@kvack.org>; Wed,  5 Nov 2014 05:23:25 -0500 (EST)
-Received: by mail-pd0-f176.google.com with SMTP id ft15so503228pdb.7
-        for <linux-mm@kvack.org>; Wed, 05 Nov 2014 02:23:25 -0800 (PST)
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 938B26B0075
+	for <linux-mm@kvack.org>; Wed,  5 Nov 2014 07:26:58 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id kx10so685678pab.26
+        for <linux-mm@kvack.org>; Wed, 05 Nov 2014 04:26:58 -0800 (PST)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id ly4si2612654pdb.174.2014.11.05.02.23.23
+        by mx.google.com with ESMTPS id wn5si2932307pbc.94.2014.11.05.04.26.56
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Nov 2014 02:23:24 -0800 (PST)
+        Wed, 05 Nov 2014 04:26:57 -0800 (PST)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm] memcg: __mem_cgroup_free: remove stale disarm_static_keys comment
-Date: Wed, 5 Nov 2014 13:23:14 +0300
-Message-ID: <1415182994-2866-1-git-send-email-vdavydov@parallels.com>
+Subject: [PATCH -mm] memcg: don't check mm in __memcg_kmem_{get_cache,newpage_charge}
+Date: Wed, 5 Nov 2014 15:26:47 +0300
+Message-ID: <1415190408-4921-1-git-send-email-vdavydov@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -20,35 +20,36 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-cpuset code stopped using cgroup_lock in favor of cpuset_mutex long ago.
+We already assured the current task has mm in memcg_kmem_should_charge,
+no need to double check.
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 ---
- mm/memcontrol.c |   11 -----------
- 1 file changed, 11 deletions(-)
+ mm/memcontrol.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 9a37d99aee54..95ee47c0f0a2 100644
+index 95ee47c0f0a2..f61ecbc97d30 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -4610,17 +4610,6 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
+@@ -2687,7 +2687,7 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep,
+ 	VM_BUG_ON(!cachep->memcg_params);
+ 	VM_BUG_ON(!cachep->memcg_params->is_root_cache);
  
- 	free_percpu(memcg->stat);
+-	if (!current->mm || current->memcg_kmem_skip_account)
++	if (current->memcg_kmem_skip_account)
+ 		return cachep;
  
--	/*
--	 * We need to make sure that (at least for now), the jump label
--	 * destruction code runs outside of the cgroup lock. This is because
--	 * get_online_cpus(), which is called from the static_branch update,
--	 * can't be called inside the cgroup_lock. cpusets are the ones
--	 * enforcing this dependency, so if they ever change, we might as well.
--	 *
--	 * schedule_work() will guarantee this happens. Be careful if you need
--	 * to move this code around, and make sure it is outside
--	 * the cgroup_lock.
--	 */
- 	disarm_static_keys(memcg);
- 	kfree(memcg);
- }
+ 	rcu_read_lock();
+@@ -2773,7 +2773,7 @@ __memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **_memcg, int order)
+ 	 * allocations are extremely rare but can happen, for instance, for the
+ 	 * cache arrays. We bring this test here.
+ 	 */
+-	if (!current->mm || current->memcg_kmem_skip_account)
++	if (current->memcg_kmem_skip_account)
+ 		return true;
+ 
+ 	memcg = get_mem_cgroup_from_mm(current->mm);
 -- 
 1.7.10.4
 
