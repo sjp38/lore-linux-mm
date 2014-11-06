@@ -1,68 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A72A6B0074
-	for <linux-mm@kvack.org>; Thu,  6 Nov 2014 03:09:57 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id fa1so789641pad.11
-        for <linux-mm@kvack.org>; Thu, 06 Nov 2014 00:09:57 -0800 (PST)
-Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
-        by mx.google.com with ESMTPS id h7si5245494pdl.85.2014.11.06.00.09.55
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 802B16B007B
+	for <linux-mm@kvack.org>; Thu,  6 Nov 2014 03:17:09 -0500 (EST)
+Received: by mail-pd0-f176.google.com with SMTP id ft15so694653pdb.21
+        for <linux-mm@kvack.org>; Thu, 06 Nov 2014 00:17:09 -0800 (PST)
+Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
+        by mx.google.com with ESMTPS id tn8si5262501pac.83.2014.11.06.00.17.07
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Thu, 06 Nov 2014 00:09:56 -0800 (PST)
-Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
- by mailout2.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NEL00GVBYOHWP00@mailout2.samsung.com> for
- linux-mm@kvack.org; Thu, 06 Nov 2014 17:09:53 +0900 (KST)
-From: Weijie Yang <weijie.yang@samsung.com>
-Subject: [PATCH 2/2] mm: page_isolation: fix zone_freepage accounting
-Date: Thu, 06 Nov 2014 16:09:08 +0800
-Message-id: <000101cff999$09225070$1b66f150$%yang@samsung.com>
+        Thu, 06 Nov 2014 00:17:08 -0800 (PST)
 MIME-version: 1.0
-Content-type: text/plain; charset=utf-8
-Content-transfer-encoding: 7bit
-Content-language: zh-cn
+Content-type: text/plain; charset=UTF-8
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout2.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NEL008L7Z55MB90@mailout2.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 06 Nov 2014 08:19:53 +0000 (GMT)
+Content-transfer-encoding: 8BIT
+From: Andrey Ryabinin <a.ryabinin@samsung.com>
+Subject: [PATCH v2] mm: slub: fix format mismatches in slab_err() callers
+Date: Thu, 06 Nov 2014 11:16:57 +0300
+Message-id: <1415261817-5283-1-git-send-email-a.ryabinin@samsung.com>
+In-reply-to: <alpine.DEB.2.10.1411051344490.31575@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1411051344490.31575@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com, 'Minchan Kim' <minchan@kernel.org>
-Cc: 'Andrew Morton' <akpm@linux-foundation.org>, mgorman@suse.de, mina86@mina86.com, 'linux-kernel' <linux-kernel@vger.kernel.org>, 'Linux-MM' <linux-mm@kvack.org>, 'Weijie Yang' <weijie.yang.kh@gmail.com>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrey Ryabinin <a.ryabinin@samsung.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-If race between isolatation and allocation happens, we could need to move
-some freepages to MIGRATE_ISOLATE in __test_page_isolated_in_pageblock().
-The current code ignores the zone_freepage accounting after the move,
-which cause the zone NR_FREE_PAGES and NR_FREE_CMA_PAGES statistics incorrect.
+Adding __printf(3, 4) to slab_err exposed following:
 
-This patch fixes this rare issue.
+mm/slub.c: In function a??check_slaba??:
+mm/slub.c:852:4: warning: format a??%ua?? expects argument of type a??unsigned inta??, but argument 4 has type a??const char *a?? [-Wformat=]
+    s->name, page->objects, maxobj);
+    ^
+mm/slub.c:852:4: warning: too many arguments for format [-Wformat-extra-args]
+mm/slub.c:857:4: warning: format a??%ua?? expects argument of type a??unsigned inta??, but argument 4 has type a??const char *a?? [-Wformat=]
+    s->name, page->inuse, page->objects);
+    ^
+mm/slub.c:857:4: warning: too many arguments for format [-Wformat-extra-args]
 
-Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
+mm/slub.c: In function a??on_freelista??:
+mm/slub.c:905:4: warning: format a??%da?? expects argument of type a??inta??, but argument 5 has type a??long unsigned inta?? [-Wformat=]
+    "should be %d", page->objects, max_objects);
+
+Fix first two warnings by removing redundant s->name.
+Fix the last by changing type of max_object from unsigned long to int.
+
+Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/page_isolation.c |    5 ++++-
- 1 files changed, 4 insertions(+), 1 deletions(-)
 
-diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-index 3ddc8b3..15b51de 100644
---- a/mm/page_isolation.c
-+++ b/mm/page_isolation.c
-@@ -193,12 +193,15 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
- 			 * is MIGRATE_ISOLATE. Catch it and move the page into
- 			 * MIGRATE_ISOLATE list.
- 			 */
--			if (get_freepage_migratetype(page) != MIGRATE_ISOLATE) {
-+			int migratetype = get_freepage_migratetype(page);
-+			if (migratetype != MIGRATE_ISOLATE) {
- 				struct page *end_page;
+Changes since v1:
+  - To fix the last warning change the type of max_objects instead of changing format string (David)
+  - Slightly update changelog
+
+ mm/slub.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/mm/slub.c b/mm/slub.c
+index 80c170e..ed816f8 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -849,12 +849,12 @@ static int check_slab(struct kmem_cache *s, struct page *page)
+ 	maxobj = order_objects(compound_order(page), s->size, s->reserved);
+ 	if (page->objects > maxobj) {
+ 		slab_err(s, page, "objects %u > max %u",
+-			s->name, page->objects, maxobj);
++			page->objects, maxobj);
+ 		return 0;
+ 	}
+ 	if (page->inuse > page->objects) {
+ 		slab_err(s, page, "inuse %u > max %u",
+-			s->name, page->inuse, page->objects);
++			page->inuse, page->objects);
+ 		return 0;
+ 	}
+ 	/* Slab_pad_check fixes things up after itself */
+@@ -871,7 +871,7 @@ static int on_freelist(struct kmem_cache *s, struct page *page, void *search)
+ 	int nr = 0;
+ 	void *fp;
+ 	void *object = NULL;
+-	unsigned long max_objects;
++	int max_objects;
  
- 				end_page = page + (1 << page_order(page)) - 1;
- 				move_freepages(page_zone(page), page, end_page,
- 						MIGRATE_ISOLATE);
-+				__mod_zone_freepage_state(zone,
-+					-(1 << page_order(page)), migratetype);
- 			}
- 			pfn += 1 << page_order(page);
- 		}
+ 	fp = page->freelist;
+ 	while (fp && nr <= page->objects) {
 -- 
-1.7.0.4
-
+2.1.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
