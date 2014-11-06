@@ -1,91 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 939096B0088
-	for <linux-mm@kvack.org>; Thu,  6 Nov 2014 04:13:14 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id ey11so867785pad.35
-        for <linux-mm@kvack.org>; Thu, 06 Nov 2014 01:13:14 -0800 (PST)
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id EE4A76B008A
+	for <linux-mm@kvack.org>; Thu,  6 Nov 2014 04:18:04 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id rd3so864774pab.41
+        for <linux-mm@kvack.org>; Thu, 06 Nov 2014 01:18:04 -0800 (PST)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id ys9si5460212pab.0.2014.11.06.01.13.12
+        by mx.google.com with ESMTPS id qp3si5323130pac.147.2014.11.06.01.18.02
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Nov 2014 01:13:13 -0800 (PST)
-Date: Thu, 6 Nov 2014 12:13:00 +0300
+        Thu, 06 Nov 2014 01:18:03 -0800 (PST)
+Date: Thu, 6 Nov 2014 12:17:49 +0300
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [mmotm:master 143/283] mm/slab.c:3260:4: error: implicit
- declaration of function 'slab_free'
-Message-ID: <20141106091300.GA21897@esperanza>
-References: <201411060959.OFpcU713%fengguang.wu@intel.com>
+Subject: Re: [PATCH -mm 8/8] slab: recharge slab pages to the allocating
+ memory cgroup
+Message-ID: <20141106091749.GB4839@esperanza>
+References: <cover.1415046910.git.vdavydov@parallels.com>
+ <fe7c55a7ff9bb8a1ddff0256f5404196c10bfd08.1415046910.git.vdavydov@parallels.com>
+ <alpine.DEB.2.11.1411051242410.28485@gentwo.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <201411060959.OFpcU713%fengguang.wu@intel.com>
+In-Reply-To: <alpine.DEB.2.11.1411051242410.28485@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Stephen Rothwell <sfr@canb.auug.org.au>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Nov 06, 2014 at 09:16:02AM +0800, kbuild test robot wrote:
-> tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> head:   4873e01c1a932866e01a6ecd91b39d45a8efd8e7
-> commit: 9f3ee6d5fef72724587d8934583b3994679c4e40 [143/283] slab: recharge slab pages to the allocating memory cgroup
-> config: sh-titan_defconfig (attached as .config)
-> reproduce:
->   wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
->   chmod +x ~/bin/make.cross
->   git checkout 9f3ee6d5fef72724587d8934583b3994679c4e40
->   # save the attached .config to linux build tree
->   make.cross ARCH=sh 
-> 
-> All error/warnings:
-> 
->    mm/slab.c: In function 'slab_alloc':
-> >> mm/slab.c:3260:4: error: implicit declaration of function 'slab_free' [-Werror=implicit-function-declaration]
->    mm/slab.c: At top level:
-> >> mm/slab.c:3534:122: warning: conflicting types for 'slab_free' [enabled by default]
-> >> mm/slab.c:3534:122: error: static declaration of 'slab_free' follows non-static declaration
->    mm/slab.c:3260:4: note: previous implicit declaration of 'slab_free' was here
->    cc1: some warnings being treated as errors
-> 
-> vim +/slab_free +3260 mm/slab.c
-> 
->   3254	
->   3255		if (likely(objp)) {
->   3256			kmemcheck_slab_alloc(cachep, flags, objp, cachep->object_size);
->   3257			if (unlikely(flags & __GFP_ZERO))
->   3258				memset(objp, 0, cachep->object_size);
->   3259			if (unlikely(memcg_kmem_recharge_slab(objp, flags))) {
-> > 3260				slab_free(cachep, objp);
->   3261				objp = NULL;
->   3262			}
->   3263		}
+Hi Christoph,
 
-Oops, I placed the forward declaration of slab_free under CONFIG_NUMA.
-Sorry :-(
+On Wed, Nov 05, 2014 at 12:43:31PM -0600, Christoph Lameter wrote:
+> On Mon, 3 Nov 2014, Vladimir Davydov wrote:
+> 
+> > +static __always_inline void slab_free(struct kmem_cache *cachep, void *objp);
+> > +
+> >  static __always_inline void *
+> >  slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
+> >  		   unsigned long caller)
+> > @@ -3185,6 +3187,10 @@ slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
+> >  		kmemcheck_slab_alloc(cachep, flags, ptr, cachep->object_size);
+> >  		if (unlikely(flags & __GFP_ZERO))
+> >  			memset(ptr, 0, cachep->object_size);
+> > +		if (unlikely(memcg_kmem_recharge_slab(ptr, flags))) {
+> > +			slab_free(cachep, ptr);
+> > +			ptr = NULL;
+> > +		}
+> >  	}
+> >
+> >  	return ptr;
+> > @@ -3250,6 +3256,10 @@ slab_alloc(struct kmem_cache *cachep, gfp_t flags, unsigned long caller)
+> >  		kmemcheck_slab_alloc(cachep, flags, objp, cachep->object_size);
+> >  		if (unlikely(flags & __GFP_ZERO))
+> >  			memset(objp, 0, cachep->object_size);
+> > +		if (unlikely(memcg_kmem_recharge_slab(objp, flags))) {
+> > +			slab_free(cachep, objp);
+> > +			objp = NULL;
+> > +		}
+> >  	}
+> >
+> 
+> Please do not add code to the hotpaths if its avoidable. Can you charge
+> the full slab only when allocated please?
 
-The fix would be:
+I call memcg_kmem_recharge_slab only on alloc path. Free path isn't
+touched. The overhead added is one function call. The function only
+reads and compares two pointers under RCU most of time. This is
+comparable to the overhead introduced by memcg_kmem_get_cache, which is
+called in slab_alloc/slab_alloc_node earlier.
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 61b01c2ae1d9..00cd028404cb 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2961,6 +2961,8 @@ out:
- 	return objp;
- }
- 
-+static __always_inline void slab_free(struct kmem_cache *cachep, void *objp);
-+
- #ifdef CONFIG_NUMA
- /*
-  * Try allocating on another node if PFA_SPREAD_SLAB is a mempolicy is set.
-@@ -3133,8 +3135,6 @@ done:
- 	return obj;
- }
- 
--static __always_inline void slab_free(struct kmem_cache *cachep, void *objp);
--
- static __always_inline void *
- slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
- 		   unsigned long caller)
+Anyways, if you think this is unacceptable, I don't mind dropping the
+whole patch set and thinking more on how to fix this per-memcg caches
+trickery. What do you think?
+
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
