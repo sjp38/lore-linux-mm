@@ -1,73 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B717900015
-	for <linux-mm@kvack.org>; Thu,  6 Nov 2014 07:31:18 -0500 (EST)
-Received: by mail-wi0-f172.google.com with SMTP id bs8so1301455wib.17
-        for <linux-mm@kvack.org>; Thu, 06 Nov 2014 04:31:17 -0800 (PST)
-Received: from mail-wi0-x230.google.com (mail-wi0-x230.google.com. [2a00:1450:400c:c05::230])
-        by mx.google.com with ESMTPS id ee10si9695254wib.21.2014.11.06.04.31.17
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id B8CA56B0087
+	for <linux-mm@kvack.org>; Thu,  6 Nov 2014 07:49:56 -0500 (EST)
+Received: by mail-wi0-f170.google.com with SMTP id r20so1318523wiv.1
+        for <linux-mm@kvack.org>; Thu, 06 Nov 2014 04:49:56 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i2si9734388wiy.55.2014.11.06.04.49.55
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 06 Nov 2014 04:31:17 -0800 (PST)
-Received: by mail-wi0-f176.google.com with SMTP id h11so1319429wiw.9
-        for <linux-mm@kvack.org>; Thu, 06 Nov 2014 04:31:17 -0800 (PST)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH 1/2] mm: page_isolation: check pfn validity before access
-In-Reply-To: <000001cff998$ee0b31d0$ca219570$%yang@samsung.com>
-References: <000001cff998$ee0b31d0$ca219570$%yang@samsung.com>
-Date: Thu, 06 Nov 2014 13:31:14 +0100
-Message-ID: <xa1ta944ik8d.fsf@mina86.com>
+        Thu, 06 Nov 2014 04:49:55 -0800 (PST)
+Date: Thu, 6 Nov 2014 13:49:53 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 3/4] OOM, PM: OOM killed task shouldn't escape PM suspend
+Message-ID: <20141106124953.GD7202@dhcp22.suse.cz>
+References: <20141105130247.GA14386@htj.dyndns.org>
+ <20141105133100.GC4527@dhcp22.suse.cz>
+ <20141105134219.GD4527@dhcp22.suse.cz>
+ <20141105154436.GB14386@htj.dyndns.org>
+ <20141105160115.GA28226@dhcp22.suse.cz>
+ <20141105162929.GD14386@htj.dyndns.org>
+ <20141105163956.GD28226@dhcp22.suse.cz>
+ <20141105165428.GF14386@htj.dyndns.org>
+ <20141105174609.GE28226@dhcp22.suse.cz>
+ <20141105175527.GH14386@htj.dyndns.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141105175527.GH14386@htj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijie.yang@samsung.com>, kamezawa.hiroyu@jp.fujitsu.com, 'Minchan Kim' <minchan@kernel.org>
-Cc: 'Andrew Morton' <akpm@linux-foundation.org>, mgorman@suse.de, 'linux-kernel' <linux-kernel@vger.kernel.org>, 'Linux-MM' <linux-mm@kvack.org>, 'Weijie Yang' <weijie.yang.kh@gmail.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>
 
-On Thu, Nov 06 2014, Weijie Yang <weijie.yang@samsung.com> wrote:
-> In the undo path of start_isolate_page_range(), we need to check
-> the pfn validity before access its page, or it will trigger an
-> addressing exception if there is hole in the zone.
->
-> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
+On Wed 05-11-14 12:55:27, Tejun Heo wrote:
+> On Wed, Nov 05, 2014 at 06:46:09PM +0100, Michal Hocko wrote:
+> > Because out_of_memory can be called from mutliple paths. And
+> > the only interesting one should be the page allocation path.
+> > pagefault_out_of_memory is not interesting because it cannot happen for
+> > the frozen task.
+> 
+> Hmmm.... wouldn't that be broken by definition tho?  So, if the oom
+> killer is invoked from somewhere else than page allocation path, it
+> would proceed ignoring the disabled setting and would race against PM
+> freeze path all the same. 
 
-Acked-by: Michal Nazarewicz <mina86@mina86.com>
+Not really because try_to_freeze_tasks doesn't finish until _all_ tasks
+are frozen and a task in the page fault path cannot be frozen, can it?
 
-> ---
->  mm/page_isolation.c |    7 +++++--
->  1 files changed, 5 insertions(+), 2 deletions(-)
->
-> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> index d1473b2..3ddc8b3 100644
-> --- a/mm/page_isolation.c
-> +++ b/mm/page_isolation.c
-> @@ -137,8 +137,11 @@ int start_isolate_page_range(unsigned long start_pfn=
-, unsigned long end_pfn,
->  undo:
->  	for (pfn =3D start_pfn;
->  	     pfn < undo_pfn;
-> -	     pfn +=3D pageblock_nr_pages)
-> -		unset_migratetype_isolate(pfn_to_page(pfn), migratetype);
-> +	     pfn +=3D pageblock_nr_pages) {
-> +		page =3D __first_valid_page(pfn, pageblock_nr_pages);
-> +		if (page)
-> +			unset_migratetype_isolate(page, migratetype);
-> +	}
->=20=20
->  	return -EBUSY;
->  }
-> --=20
-> 1.7.0.4
->
->
+I mean there shouldn't be any problem to not invoke OOM killer under
+from the page fault path as well but that might lead to looping in the
+page fault path without any progress until freezer enables OOM killer on
+the failure path because the said task cannot be frozen.
 
---=20
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
- (o o)
-ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
+Is this preferable?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
