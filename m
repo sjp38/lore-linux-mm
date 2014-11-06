@@ -1,42 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id D6DD16B0095
-	for <linux-mm@kvack.org>; Thu,  6 Nov 2014 06:00:12 -0500 (EST)
-Received: by mail-pd0-f169.google.com with SMTP id y10so938840pdj.28
-        for <linux-mm@kvack.org>; Thu, 06 Nov 2014 03:00:12 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id j4si5492917pdp.184.2014.11.06.03.00.10
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 348F66B0096
+	for <linux-mm@kvack.org>; Thu,  6 Nov 2014 06:42:11 -0500 (EST)
+Received: by mail-wi0-f172.google.com with SMTP id bs8so1173633wib.17
+        for <linux-mm@kvack.org>; Thu, 06 Nov 2014 03:42:10 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p5si9468972wij.23.2014.11.06.03.42.09
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Nov 2014 03:00:11 -0800 (PST)
-Date: Thu, 6 Nov 2014 13:59:59 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH -mm 7/8] slab: introduce slab_free helper
-Message-ID: <20141106105959.GD4839@esperanza>
-References: <cover.1415046910.git.vdavydov@parallels.com>
- <439ae0a228e18af4ba909dce471a7e3d21005ef6.1415046910.git.vdavydov@parallels.com>
- <alpine.DEB.2.11.1411051241330.28485@gentwo.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 06 Nov 2014 03:42:09 -0800 (PST)
+Message-ID: <545B5E90.6070902@suse.cz>
+Date: Thu, 06 Nov 2014 12:42:08 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.11.1411051241330.28485@gentwo.org>
+Subject: Re: isolate_freepages_block(): very high intermittent overhead
+References: <20141027204003.GB348@x4> <544EC0C5.7050808@suse.cz> <20141028085916.GA337@x4>
+In-Reply-To: <20141028085916.GA337@x4>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Markus Trippelsdorf <markus@trippelsdorf.de>
+Cc: linux-mm@kvack.org
 
-On Wed, Nov 05, 2014 at 12:42:05PM -0600, Christoph Lameter wrote:
-> Some comments would be good for the commit.
-
-If it isn't too late, here it goes:
-
-We have code duplication in kmem_cache_free/kfree. Let's move it to a
-separate function.
-
+On 10/28/2014 09:59 AM, Markus Trippelsdorf wrote:
+> On 2014.10.27 at 23:01 +0100, Vlastimil Babka wrote:
+>> On 10/27/2014 09:40 PM, Markus Trippelsdorf wrote:
+>> > On my v3.18-rc2 kernel isolate_freepages_block() sometimes shows up very
+>> > high (>20%) in perf top during the configuration phase of software
+>> > builds. It increases build time considerably.
+>> > 
+>> > Unfortunately the issue is not 100% reproducible, because it appears
+>> > only intermittently. And the symptoms vanish after a few minutes.
+>> 
+>> Does it happen for long enough so you can capture it by perf record -g ?
 > 
-> Acked-by: Christoph Lameter <cl@linux.com>
+> It only happens when I use the "Lockless Allocator":
+> http://locklessinc.com/downloads/lockless_allocator_src.tgz
+> 
+> I use: LD_PRELOAD=/usr/lib/libllalloc.so.1.3 when building software,
+> because it gives me a ~8% speed boost over glibc's malloc.
 
-Thank you.
+I tried the allocator while updating my gentoo desktop with 3.18-rc3 and adding
+some extra memory pressure, but didn't observe anything like this. It could be
+system specific. If you do't have the time to debug, can you at least send me
+output of "cat /proc/zoneinfo"?
+
+Thanks,
+Vlastimil
+
+> Unfortunately, I don't have time to debug this further and have disabled 
+> "Transparent Hugepage Support" for now.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
