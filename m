@@ -1,86 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id CB3B56B0082
-	for <linux-mm@kvack.org>; Thu,  6 Nov 2014 03:47:18 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id fa1so849157pad.11
-        for <linux-mm@kvack.org>; Thu, 06 Nov 2014 00:47:18 -0800 (PST)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id x7si5203085par.205.2014.11.06.00.47.16
-        for <linux-mm@kvack.org>;
-        Thu, 06 Nov 2014 00:47:17 -0800 (PST)
-Date: Thu, 6 Nov 2014 17:49:07 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 2/2] mm: page_isolation: fix zone_freepage accounting
-Message-ID: <20141106084907.GA29209@js1304-P5Q-DELUXE>
-References: <000101cff999$09225070$1b66f150$%yang@samsung.com>
+Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
+	by kanga.kvack.org (Postfix) with ESMTP id BF4CE6B0085
+	for <linux-mm@kvack.org>; Thu,  6 Nov 2014 04:08:50 -0500 (EST)
+Received: by mail-lb0-f175.google.com with SMTP id n15so539879lbi.6
+        for <linux-mm@kvack.org>; Thu, 06 Nov 2014 01:08:49 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p6si10489957lap.91.2014.11.06.01.08.47
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 06 Nov 2014 01:08:47 -0800 (PST)
+Date: Thu, 6 Nov 2014 10:08:45 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [mmotm:master 143/283] mm/slab.c:3260:4: error: implicit
+ declaration of function 'slab_free'
+Message-ID: <20141106090845.GA17744@dhcp22.suse.cz>
+References: <201411060959.OFpcU713%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <000101cff999$09225070$1b66f150$%yang@samsung.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <201411060959.OFpcU713%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijie.yang@samsung.com>
-Cc: kamezawa.hiroyu@jp.fujitsu.com, 'Minchan Kim' <minchan@kernel.org>, 'Andrew Morton' <akpm@linux-foundation.org>, mgorman@suse.de, mina86@mina86.com, 'linux-kernel' <linux-kernel@vger.kernel.org>, 'Linux-MM' <linux-mm@kvack.org>, 'Weijie Yang' <weijie.yang.kh@gmail.com>
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: Vladimir Davydov <vdavydov@parallels.com>, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Thu, Nov 06, 2014 at 04:09:08PM +0800, Weijie Yang wrote:
-> If race between isolatation and allocation happens, we could need to move
-> some freepages to MIGRATE_ISOLATE in __test_page_isolated_in_pageblock().
-> The current code ignores the zone_freepage accounting after the move,
-> which cause the zone NR_FREE_PAGES and NR_FREE_CMA_PAGES statistics incorrect.
-> 
-> This patch fixes this rare issue.
-
-Hello,
-
-After "fix freepage count problems in memory isolation" merged, this race
-should not happen. I have to remove it in that patchset, but, I
-forgot to remove it. Please remove this race handling code completely and
-tag with stable. If we don't remove it, there is errornous situation
-because get_freepage_migratetype() could return invalid migratetype
-although the page is on the correct buddy list. So, we regard
-no race situation as race one.
-
-Thanks.
-
-> 
-> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
-> ---
->  mm/page_isolation.c |    5 ++++-
->  1 files changed, 4 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> index 3ddc8b3..15b51de 100644
-> --- a/mm/page_isolation.c
-> +++ b/mm/page_isolation.c
-> @@ -193,12 +193,15 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
->  			 * is MIGRATE_ISOLATE. Catch it and move the page into
->  			 * MIGRATE_ISOLATE list.
->  			 */
-> -			if (get_freepage_migratetype(page) != MIGRATE_ISOLATE) {
-> +			int migratetype = get_freepage_migratetype(page);
-> +			if (migratetype != MIGRATE_ISOLATE) {
->  				struct page *end_page;
->  
->  				end_page = page + (1 << page_order(page)) - 1;
->  				move_freepages(page_zone(page), page, end_page,
->  						MIGRATE_ISOLATE);
-> +				__mod_zone_freepage_state(zone,
-> +					-(1 << page_order(page)), migratetype);
->  			}
->  			pfn += 1 << page_order(page);
->  		}
-> -- 
-> 1.7.0.4
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Hi,
+I have encountered the same error as well. We need to move the forward
+declaration up outside of CONFIG_NUMA:
+---
