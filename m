@@ -1,71 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 04DB96B00D5
-	for <linux-mm@kvack.org>; Thu,  6 Nov 2014 17:56:57 -0500 (EST)
-Received: by mail-wg0-f45.google.com with SMTP id x12so2393104wgg.32
-        for <linux-mm@kvack.org>; Thu, 06 Nov 2014 14:56:56 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id bd10si11899296wjc.128.2014.11.06.14.56.55
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Nov 2014 14:56:56 -0800 (PST)
-Message-ID: <545BFC86.2000006@redhat.com>
-Date: Thu, 06 Nov 2014 17:56:06 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail-qc0-f173.google.com (mail-qc0-f173.google.com [209.85.216.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 5479E6B00D8
+	for <linux-mm@kvack.org>; Thu,  6 Nov 2014 18:26:24 -0500 (EST)
+Received: by mail-qc0-f173.google.com with SMTP id x3so1713643qcv.32
+        for <linux-mm@kvack.org>; Thu, 06 Nov 2014 15:26:24 -0800 (PST)
+From: Jeff Moyer <jmoyer@redhat.com>
+Subject: Re: [PATCH v5 2/7] vfs: Define new syscalls preadv2,pwritev2
+References: <cover.1415220890.git.milosz@adfin.com>
+	<cover.1415220890.git.milosz@adfin.com>
+	<dcc7d998033bbd999bbd92ef9c2041bce0255a3e.1415220890.git.milosz@adfin.com>
+Date: Thu, 06 Nov 2014 18:25:50 -0500
+In-Reply-To: <dcc7d998033bbd999bbd92ef9c2041bce0255a3e.1415220890.git.milosz@adfin.com>
+	(Milosz Tanski's message of "Wed, 5 Nov 2014 16:14:48 -0500")
+Message-ID: <x49y4rn29oh.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/5] lib: lockless generic and arch independent page table
- (gpt) v2.
-References: <1415047353-29160-1-git-send-email-j.glisse@gmail.com> <1415047353-29160-4-git-send-email-j.glisse@gmail.com> <545BF6E0.8060001@redhat.com> <20141106224051.GA6877@gmail.com>
-In-Reply-To: <20141106224051.GA6877@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <j.glisse@gmail.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
+To: Milosz Tanski <milosz@adfin.com>
+Cc: linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, Mel Gorman <mgorman@suse.de>, Volker Lendecke <Volker.Lendecke@sernet.de>, Tejun Heo <tj@kernel.org>, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>, linux-api@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
+Milosz Tanski <milosz@adfin.com> writes:
 
-On 11/06/2014 05:40 PM, Jerome Glisse wrote:
-> On Thu, Nov 06, 2014 at 05:32:00PM -0500, Rik van Riel wrote:
+> New syscalls that take an flag argument. This change does not add any specific
+> flags.
+>
+> Signed-off-by: Milosz Tanski <milosz@adfin.com>
+> Reviewed-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  fs/read_write.c                   | 176 ++++++++++++++++++++++++++++++--------
+>  include/linux/compat.h            |   6 ++
+>  include/linux/syscalls.h          |   6 ++
+>  include/uapi/asm-generic/unistd.h |   6 +-
+>  mm/filemap.c                      |   5 +-
+>  5 files changed, 158 insertions(+), 41 deletions(-)
+>
+> diff --git a/fs/read_write.c b/fs/read_write.c
+> index 94b2d34..907735c 100644
+> --- a/fs/read_write.c
+> +++ b/fs/read_write.c
+> @@ -866,6 +866,8 @@ ssize_t vfs_readv(struct file *file, const struct iovec __user *vec,
+>  		return -EBADF;
+>  	if (!(file->f_mode & FMODE_CAN_READ))
+>  		return -EINVAL;
+> +	if (flags & ~0)
+> +		return -EINVAL;
+>  
+>  	return do_readv_writev(READ, file, vec, vlen, pos, flags);
+>  }
+> @@ -879,21 +881,23 @@ ssize_t vfs_writev(struct file *file, const struct iovec __user *vec,
+>  		return -EBADF;
+>  	if (!(file->f_mode & FMODE_CAN_WRITE))
+>  		return -EINVAL;
+> +	if (flags & ~0)
+> +		return -EINVAL;
+>  
+>  	return do_readv_writev(WRITE, file, vec, vlen, pos, flags);
+>  }
 
-> Never a fan of preprocessor magic, but I  see why it's needed.
-> 
-> Acked-by: Rik van Riel <riel@redhat.com>
-> 
->> v1 is not using preprocessor but has a bigger gpt struct
->> footprint and also more complex calculation for page table
->> walking due to the fact that i just rely more on runtime
->> computation than on compile time shift define through 
->> preprocessor magic.
-> 
->> Given i am not a fan either of preprocessor magic if it makes you
->> feel any better i can resort to use v1, both have seen same kind
->> of testing and both are functionaly equivalent (API they expose
->> is obviously slightly different).
-> 
->> I am not convince that what the computation i save using
->> preprocessor will show up in anyway as being bottleneck for hot
->> path.
+Hi, Milosz,
 
-I have no strong preference either way. This code is perfectly readable.
+You've checked for invalid flags for the normal system calls, but not
+for the compat variants.  Can you add that in, please?
 
-Andrew?
-
-- -- 
-All rights reversed
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iQEcBAEBAgAGBQJUW/yGAAoJEM553pKExN6DqcwIAJAh8mUCOuzyhqJl21qMGWu9
-FwL8qEUCxxXxLuX2MFv/wbkb07+OLI8nStI5rPxk6qUdC53YV4Bc7CWfvwF4slRB
-hpPVGhmNKj4e5jwP+d8/MMSd6QfGA/jaiiRw9IxasOxzYKJxtKW4wAsme+qiDy6Y
-i59sGQndVUstP6Zf5ZnaKN7BkG57daQqwypktPpMf7CQxv2uN5nnErDDFzhvm8Qz
-tCcKtpsdZgek7l6RPaovvRHi0kT3L67gq5oIFuS9iiHGqhmohpj2sTENafLeWUb1
-zGdjy8EcxBL5H0L1/wxs3PWjyKez1q/wEZJ390+wmRaMBWl1WqbGsAZ1uZ98bd0=
-=ZAbm
------END PGP SIGNATURE-----
+Thanks!
+Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
