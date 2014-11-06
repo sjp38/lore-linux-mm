@@ -1,75 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id EE4A76B008A
-	for <linux-mm@kvack.org>; Thu,  6 Nov 2014 04:18:04 -0500 (EST)
-Received: by mail-pa0-f54.google.com with SMTP id rd3so864774pab.41
-        for <linux-mm@kvack.org>; Thu, 06 Nov 2014 01:18:04 -0800 (PST)
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CFF36B0092
+	for <linux-mm@kvack.org>; Thu,  6 Nov 2014 04:29:05 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id bj1so924584pad.3
+        for <linux-mm@kvack.org>; Thu, 06 Nov 2014 01:29:04 -0800 (PST)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id qp3si5323130pac.147.2014.11.06.01.18.02
+        by mx.google.com with ESMTPS id e6si5403635pat.89.2014.11.06.01.29.03
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Nov 2014 01:18:03 -0800 (PST)
-Date: Thu, 6 Nov 2014 12:17:49 +0300
+        Thu, 06 Nov 2014 01:29:03 -0800 (PST)
+Date: Thu, 6 Nov 2014 12:28:49 +0300
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH -mm 8/8] slab: recharge slab pages to the allocating
- memory cgroup
-Message-ID: <20141106091749.GB4839@esperanza>
-References: <cover.1415046910.git.vdavydov@parallels.com>
- <fe7c55a7ff9bb8a1ddff0256f5404196c10bfd08.1415046910.git.vdavydov@parallels.com>
- <alpine.DEB.2.11.1411051242410.28485@gentwo.org>
+Subject: Re: [mmotm:master 143/283] mm/slab.c:3260:4: error: implicit
+ declaration of function 'slab_free'
+Message-ID: <20141106092849.GC4839@esperanza>
+References: <201411060959.OFpcU713%fengguang.wu@intel.com>
+ <20141106090845.GA17744@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.11.1411051242410.28485@gentwo.org>
+In-Reply-To: <20141106090845.GA17744@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-Hi Christoph,
+Hi Michal,
 
-On Wed, Nov 05, 2014 at 12:43:31PM -0600, Christoph Lameter wrote:
-> On Mon, 3 Nov 2014, Vladimir Davydov wrote:
-> 
-> > +static __always_inline void slab_free(struct kmem_cache *cachep, void *objp);
-> > +
-> >  static __always_inline void *
-> >  slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
-> >  		   unsigned long caller)
-> > @@ -3185,6 +3187,10 @@ slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
-> >  		kmemcheck_slab_alloc(cachep, flags, ptr, cachep->object_size);
-> >  		if (unlikely(flags & __GFP_ZERO))
-> >  			memset(ptr, 0, cachep->object_size);
-> > +		if (unlikely(memcg_kmem_recharge_slab(ptr, flags))) {
-> > +			slab_free(cachep, ptr);
-> > +			ptr = NULL;
-> > +		}
-> >  	}
-> >
-> >  	return ptr;
-> > @@ -3250,6 +3256,10 @@ slab_alloc(struct kmem_cache *cachep, gfp_t flags, unsigned long caller)
-> >  		kmemcheck_slab_alloc(cachep, flags, objp, cachep->object_size);
-> >  		if (unlikely(flags & __GFP_ZERO))
-> >  			memset(objp, 0, cachep->object_size);
-> > +		if (unlikely(memcg_kmem_recharge_slab(objp, flags))) {
-> > +			slab_free(cachep, objp);
-> > +			objp = NULL;
-> > +		}
-> >  	}
-> >
-> 
-> Please do not add code to the hotpaths if its avoidable. Can you charge
-> the full slab only when allocated please?
+On Thu, Nov 06, 2014 at 10:08:45AM +0100, Michal Hocko wrote:
+> I have encountered the same error as well. We need to move the forward
+> declaration up outside of CONFIG_NUMA:
 
-I call memcg_kmem_recharge_slab only on alloc path. Free path isn't
-touched. The overhead added is one function call. The function only
-reads and compares two pointers under RCU most of time. This is
-comparable to the overhead introduced by memcg_kmem_get_cache, which is
-called in slab_alloc/slab_alloc_node earlier.
+Yes, that's my fault, I'm sorry. Thank you for fixing this.
 
-Anyways, if you think this is unacceptable, I don't mind dropping the
-whole patch set and thinking more on how to fix this per-memcg caches
-trickery. What do you think?
+BTW what do you think about the whole patch set that introduced it -
+https://lkml.org/lkml/2014/11/3/781 - w/o diving deeply into details,
+just by looking at the general idea described in the cover letter?
+
+Does it look like acceptable to you that a cgroup can get a cache with
+some objects left from the previous user? Or do you think it's better to
+give each cgroup its own cache as it used to be before and introduce
+cache auto-destruction somehow (that would be tricky though, but
+possible)? Or perhaps it'd be better to get rid of per-memcg caches
+altogether and share the same kmem cache for all kmem allocations
+keeping a pointer to the owner memcg in each kmem object?
+
+I'd really appreciate if you or Johannes could share your thoughts on
+it, because I'm afraid I can do something everybody will regret about in
+the future...
 
 Thanks,
 Vladimir
