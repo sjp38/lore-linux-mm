@@ -1,70 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f173.google.com (mail-qc0-f173.google.com [209.85.216.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 5479E6B00D8
-	for <linux-mm@kvack.org>; Thu,  6 Nov 2014 18:26:24 -0500 (EST)
-Received: by mail-qc0-f173.google.com with SMTP id x3so1713643qcv.32
-        for <linux-mm@kvack.org>; Thu, 06 Nov 2014 15:26:24 -0800 (PST)
+Received: from mail-qa0-f52.google.com (mail-qa0-f52.google.com [209.85.216.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 145156B00D7
+	for <linux-mm@kvack.org>; Thu,  6 Nov 2014 18:46:40 -0500 (EST)
+Received: by mail-qa0-f52.google.com with SMTP id u7so1537948qaz.25
+        for <linux-mm@kvack.org>; Thu, 06 Nov 2014 15:46:39 -0800 (PST)
 From: Jeff Moyer <jmoyer@redhat.com>
-Subject: Re: [PATCH v5 2/7] vfs: Define new syscalls preadv2,pwritev2
+Subject: Re: [PATCH v5 7/7] fs: add a flag for per-operation O_DSYNC semantics
 References: <cover.1415220890.git.milosz@adfin.com>
 	<cover.1415220890.git.milosz@adfin.com>
-	<dcc7d998033bbd999bbd92ef9c2041bce0255a3e.1415220890.git.milosz@adfin.com>
-Date: Thu, 06 Nov 2014 18:25:50 -0500
-In-Reply-To: <dcc7d998033bbd999bbd92ef9c2041bce0255a3e.1415220890.git.milosz@adfin.com>
-	(Milosz Tanski's message of "Wed, 5 Nov 2014 16:14:48 -0500")
-Message-ID: <x49y4rn29oh.fsf@segfault.boston.devel.redhat.com>
+	<c188b04ede700ce5f986b19de12fa617d158540f.1415220890.git.milosz@adfin.com>
+Date: Thu, 06 Nov 2014 18:46:08 -0500
+In-Reply-To: <c188b04ede700ce5f986b19de12fa617d158540f.1415220890.git.milosz@adfin.com>
+	(Milosz Tanski's message of "Wed, 5 Nov 2014 16:14:53 -0500")
+Message-ID: <x49r3xf28qn.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Milosz Tanski <milosz@adfin.com>
-Cc: linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, Mel Gorman <mgorman@suse.de>, Volker Lendecke <Volker.Lendecke@sernet.de>, Tejun Heo <tj@kernel.org>, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>, linux-api@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Christoph Hellwig <hch@lst.de>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, Mel Gorman <mgorman@suse.de>, Volker Lendecke <Volker.Lendecke@sernet.de>, Tejun Heo <tj@kernel.org>, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>, linux-api@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-arch@vger.kernel.org, ceph-devel@vger.kernel.org, fuse-devel@lists.sourceforge.net, linux-nfs@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org
 
 Milosz Tanski <milosz@adfin.com> writes:
 
-> New syscalls that take an flag argument. This change does not add any specific
-> flags.
->
-> Signed-off-by: Milosz Tanski <milosz@adfin.com>
-> Reviewed-by: Christoph Hellwig <hch@lst.de>
-> ---
->  fs/read_write.c                   | 176 ++++++++++++++++++++++++++++++--------
->  include/linux/compat.h            |   6 ++
->  include/linux/syscalls.h          |   6 ++
->  include/uapi/asm-generic/unistd.h |   6 +-
->  mm/filemap.c                      |   5 +-
->  5 files changed, 158 insertions(+), 41 deletions(-)
->
-> diff --git a/fs/read_write.c b/fs/read_write.c
-> index 94b2d34..907735c 100644
-> --- a/fs/read_write.c
-> +++ b/fs/read_write.c
-> @@ -866,6 +866,8 @@ ssize_t vfs_readv(struct file *file, const struct iovec __user *vec,
->  		return -EBADF;
->  	if (!(file->f_mode & FMODE_CAN_READ))
->  		return -EINVAL;
-> +	if (flags & ~0)
-> +		return -EINVAL;
->  
->  	return do_readv_writev(READ, file, vec, vlen, pos, flags);
->  }
-> @@ -879,21 +881,23 @@ ssize_t vfs_writev(struct file *file, const struct iovec __user *vec,
->  		return -EBADF;
->  	if (!(file->f_mode & FMODE_CAN_WRITE))
->  		return -EINVAL;
-> +	if (flags & ~0)
-> +		return -EINVAL;
->  
->  	return do_readv_writev(WRITE, file, vec, vlen, pos, flags);
->  }
+> -		if (type == READ && (flags & RWF_NONBLOCK))
+> -			return -EAGAIN;
+> +		if (type == READ) {
+> +			if (flags & RWF_NONBLOCK)
+> +				return -EAGAIN;
+> +		} else {
+> +			if (flags & RWF_DSYNC)
+> +				return -EINVAL;
+> +		}
 
-Hi, Milosz,
+Minor nit, but I'd rather read something that looks like this:
 
-You've checked for invalid flags for the normal system calls, but not
-for the compat variants.  Can you add that in, please?
+	if (type == READ && (flags & RWF_NONBLOCK))
+		return -EAGAIN;
+	else if (type == WRITE && (flags & RWF_DSYNC))
+		return -EINVAL;
 
-Thanks!
-Jeff
+I won't lose sleep over it, though.
+
+Reviewed-by: Jeff Moyer <jmoyer@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
