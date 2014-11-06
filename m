@@ -1,64 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 141F16B00BC
-	for <linux-mm@kvack.org>; Thu,  6 Nov 2014 11:58:32 -0500 (EST)
-Received: by mail-wi0-f174.google.com with SMTP id d1so2114848wiv.7
-        for <linux-mm@kvack.org>; Thu, 06 Nov 2014 08:58:31 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id uw9si10487663wjc.37.2014.11.06.08.58.29
+Received: from mail-qa0-f43.google.com (mail-qa0-f43.google.com [209.85.216.43])
+	by kanga.kvack.org (Postfix) with ESMTP id E4AB26B00BE
+	for <linux-mm@kvack.org>; Thu,  6 Nov 2014 12:17:24 -0500 (EST)
+Received: by mail-qa0-f43.google.com with SMTP id j7so1068115qaq.30
+        for <linux-mm@kvack.org>; Thu, 06 Nov 2014 09:17:24 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id m79si12843416qgm.19.2014.11.06.09.17.22
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 06 Nov 2014 08:58:29 -0800 (PST)
-Date: Thu, 6 Nov 2014 17:58:28 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 3/4] OOM, PM: OOM killed task shouldn't escape PM suspend
-Message-ID: <20141106165828.GL7202@dhcp22.suse.cz>
-References: <20141105162929.GD14386@htj.dyndns.org>
- <20141105163956.GD28226@dhcp22.suse.cz>
- <20141105165428.GF14386@htj.dyndns.org>
- <20141105170111.GG14386@htj.dyndns.org>
- <20141106130543.GE7202@dhcp22.suse.cz>
- <20141106150927.GB25642@htj.dyndns.org>
- <20141106160158.GI7202@dhcp22.suse.cz>
- <20141106161211.GC25642@htj.dyndns.org>
- <20141106163124.GK7202@dhcp22.suse.cz>
- <20141106163304.GE25642@htj.dyndns.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Nov 2014 09:17:23 -0800 (PST)
+Message-ID: <545BACF4.2080808@redhat.com>
+Date: Thu, 06 Nov 2014 12:16:36 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141106163304.GE25642@htj.dyndns.org>
+Subject: Re: [PATCH 1/5] mmu_notifier: add event information to address invalidation
+ v5
+References: <1415047353-29160-1-git-send-email-j.glisse@gmail.com> <1415047353-29160-2-git-send-email-j.glisse@gmail.com>
+In-Reply-To: <1415047353-29160-2-git-send-email-j.glisse@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>
+To: j.glisse@gmail.com, akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
 
-On Thu 06-11-14 11:33:04, Tejun Heo wrote:
-> On Thu, Nov 06, 2014 at 05:31:24PM +0100, Michal Hocko wrote:
-> > On Thu 06-11-14 11:12:11, Tejun Heo wrote:
-[...]
-> > > Draining oom killer then doesn't mean anything, no?  OOM killer may
-> > > have been disabled and drained but the killed tasks might wake up
-> > > after the PM freezer considers them to be frozen, right?  What am I
-> > > missing?
-> > 
-> > The mutual exclusion between OOM and the freezer will cause that the
-> > victim will have TIF_MEMDIE already set when try_to_freeze_tasks even
-> > starts. Then freezing_slow_path wouldn't allow the task to enter the
-> > fridge so the wake up moment is not really that important.
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
+
+On 11/03/2014 03:42 PM, j.glisse@gmail.com wrote:
+> From: JA(C)rA'me Glisse <jglisse@redhat.com>
 > 
-> What if it was already in the freezer?
+> The event information will be usefull for new user of mmu_notifier
+> API. The event argument differentiate between a vma disappearing, a
+> page being write protected or simply a page being unmaped. This
+> allow new user to take different path for different event for
+> instance on unmap the resource used to track a vma are still valid
+> and should stay around. While if the event is saying that a vma is
+> being destroy it means that any resources used to track this vma
+> can be free.
 
-Good question! You are right that there is a race window until the wake
-up then. I will think about this case some more. There is simply no
-control on when the task wakes up and freezer will see it as frozen
-until then. An immediate way around would be to check for TIF_MEMDIE in
-try_to_freeze_tasks.
+Looks good. All I found was one spelling mistake :)
 
-I have to call it end of the day unfortunately and will be back on
-Monday.
--- 
-Michal Hocko
-SUSE Labs
+> + *   - MMU_WRITE_BACK: memory is being written back to disk, all
+> write accesses + *     must stop after invalidate_range_start
+> callback returns. Read access are + *     still allowed. + * + *
+> - MMU_WRITE_PROTECT: memory is being writte protected (ie should be
+> mapped
+
+                                             "write protected"
+
+> + *     read only no matter what the vma memory protection allows).
+> All write + *     accesses must stop after invalidate_range_start
+> callback returns. Read + *     access are still allowed.
+
+After fixing the spelling mistake, feel free to add my
+
+Reviewed-by: Rik van Riel <riel@redhat.com>
+
+- -- 
+All rights reversed
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQEcBAEBAgAGBQJUW6z0AAoJEM553pKExN6DN3wIALqZPmNihc/AbOc6MCnp+two
+do5pO0DTl61AD0SmPsjSKrADa8deHKDL3PqsEcA7aYOlwrJOkPhNxZZsq1SHscAO
+iw4Ar9BbI0JwBZO4xq4RwFhAVnu5r5NZEcyG1t1EqOGoOVc8NIflTNCxQYOU+vkj
+YxCZb4A0+e6nKe3P+tWso69AGHH5GVvFOqLy709OxneLbTVDRRBM1KzYtdkGR62i
+u3Xa41WGVjAa6OVYEoENloa/o8cmL9vgqPG3bhbCjR8zpBPAQ7fS3g8Ckux72mS+
+UNzyoZjCGpWg7IxF94xhTvydzER0XDMancbKzrYW14YoJ3mW7ZDj58vpK25SKM8=
+=f2u6
+-----END PGP SIGNATURE-----
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
