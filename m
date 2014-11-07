@@ -1,87 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id DD2CE800CA
-	for <linux-mm@kvack.org>; Fri,  7 Nov 2014 09:21:26 -0500 (EST)
-Received: by mail-wg0-f42.google.com with SMTP id k14so3796666wgh.1
-        for <linux-mm@kvack.org>; Fri, 07 Nov 2014 06:21:24 -0800 (PST)
-Subject: Re: [fuse-devel] [PATCH v5 7/7] add a flag for per-operation
-	O_DSYNC semantics
-From: Roger Willcocks <roger@filmlight.ltd.uk>
-In-Reply-To: <B92AEADD-B22C-4A4A-B64D-96E8869D3282@cam.ac.uk>
+Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
+	by kanga.kvack.org (Postfix) with ESMTP id A9392800CA
+	for <linux-mm@kvack.org>; Fri,  7 Nov 2014 11:28:18 -0500 (EST)
+Received: by mail-la0-f45.google.com with SMTP id pn19so4751071lab.18
+        for <linux-mm@kvack.org>; Fri, 07 Nov 2014 08:28:18 -0800 (PST)
+Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com. [209.85.217.178])
+        by mx.google.com with ESMTPS id ob1si15529331lbb.113.2014.11.07.08.28.17
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 07 Nov 2014 08:28:17 -0800 (PST)
+Received: by mail-lb0-f178.google.com with SMTP id f15so3240745lbj.37
+        for <linux-mm@kvack.org>; Fri, 07 Nov 2014 08:28:17 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <x49y4rn29oh.fsf@segfault.boston.devel.redhat.com>
 References: <cover.1415220890.git.milosz@adfin.com>
-	 <c188b04ede700ce5f986b19de12fa617d158540f.1415220890.git.milosz@adfin.com>
-	 <x49r3xf28qn.fsf@segfault.boston.devel.redhat.com>
-	 <BF30FAEC-D4D3-4079-9ECD-2743747279BD@cam.ac.uk>
-	 <CAFboF2y2skt=H4crv54shfnXOmz23W-shYWtHWekK8ZUDkfP=A@mail.gmail.com>
-	 <B92AEADD-B22C-4A4A-B64D-96E8869D3282@cam.ac.uk>
-Content-Type: text/plain
-Date: Fri, 07 Nov 2014 14:21:18 +0000
-Message-Id: <1415370078.11083.511.camel@montana.filmlight.ltd.uk>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	<dcc7d998033bbd999bbd92ef9c2041bce0255a3e.1415220890.git.milosz@adfin.com>
+	<x49y4rn29oh.fsf@segfault.boston.devel.redhat.com>
+Date: Fri, 7 Nov 2014 11:28:17 -0500
+Message-ID: <CANP1eJG=nTB_jbOUY9nQfmsxbyAfO6KhmHm0jRVTyp09dseCxg@mail.gmail.com>
+Subject: Re: [PATCH v5 2/7] vfs: Define new syscalls preadv2,pwritev2
+From: Milosz Tanski <milosz@adfin.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Altaparmakov <aia21@cam.ac.uk>
-Cc: Anand Avati <avati@gluster.org>, linux-arch@vger.kernel.org, linux-aio@kvack.org, linux-nfs@vger.kernel.org, Volker Lendecke <Volker.Lendecke@sernet.de>, Theodore Ts'o <tytso@mit.edu>, Mel Gorman <mgorman@suse.de>, "fuse-devel@lists.sourceforge.net" <fuse-devel@lists.sourceforge.net>, linux-api@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Michael Kerrisk <mtk.manpages@gmail.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Tejun Heo <tj@kernel.org>, linux-fsdevel@vger.kernel.org, ceph-devel@vger.kernel.org, Christoph Hellwig <hch@lst.de>, ocfs2-devel@oss.oracle.com, Milosz Tanski <milosz@adfin.com>
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@infradead.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-aio@kvack.org" <linux-aio@kvack.org>, Mel Gorman <mgorman@suse.de>, Volker Lendecke <Volker.Lendecke@sernet.de>, Tejun Heo <tj@kernel.org>, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>, Linux API <linux-api@vger.kernel.org>, Michael Kerrisk <mtk.manpages@gmail.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org
 
+On Thu, Nov 6, 2014 at 6:25 PM, Jeff Moyer <jmoyer@redhat.com> wrote:
+> Milosz Tanski <milosz@adfin.com> writes:
+>
+>> New syscalls that take an flag argument. This change does not add any specific
+>> flags.
+>>
+>> Signed-off-by: Milosz Tanski <milosz@adfin.com>
+>> Reviewed-by: Christoph Hellwig <hch@lst.de>
+>> ---
+>>  fs/read_write.c                   | 176 ++++++++++++++++++++++++++++++--------
+>>  include/linux/compat.h            |   6 ++
+>>  include/linux/syscalls.h          |   6 ++
+>>  include/uapi/asm-generic/unistd.h |   6 +-
+>>  mm/filemap.c                      |   5 +-
+>>  5 files changed, 158 insertions(+), 41 deletions(-)
+>>
+>> diff --git a/fs/read_write.c b/fs/read_write.c
+>> index 94b2d34..907735c 100644
+>> --- a/fs/read_write.c
+>> +++ b/fs/read_write.c
+>> @@ -866,6 +866,8 @@ ssize_t vfs_readv(struct file *file, const struct iovec __user *vec,
+>>               return -EBADF;
+>>       if (!(file->f_mode & FMODE_CAN_READ))
+>>               return -EINVAL;
+>> +     if (flags & ~0)
+>> +             return -EINVAL;
+>>
+>>       return do_readv_writev(READ, file, vec, vlen, pos, flags);
+>>  }
+>> @@ -879,21 +881,23 @@ ssize_t vfs_writev(struct file *file, const struct iovec __user *vec,
+>>               return -EBADF;
+>>       if (!(file->f_mode & FMODE_CAN_WRITE))
+>>               return -EINVAL;
+>> +     if (flags & ~0)
+>> +             return -EINVAL;
+>>
+>>       return do_readv_writev(WRITE, file, vec, vlen, pos, flags);
+>>  }
+>
+> Hi, Milosz,
+>
+> You've checked for invalid flags for the normal system calls, but not
+> for the compat variants.  Can you add that in, please?
+>
+> Thanks!
+> Jeff
 
-On Fri, 2014-11-07 at 08:43 +0200, Anton Altaparmakov wrote:
-> Hi,
-> 
-> > On 7 Nov 2014, at 07:52, Anand Avati <avati@gluster.org> wrote:
-> > On Thu, Nov 6, 2014 at 8:22 PM, Anton Altaparmakov <aia21@cam.ac.uk> wrote:
-> > > On 7 Nov 2014, at 01:46, Jeff Moyer <jmoyer@redhat.com> wrote:
-> > > Minor nit, but I'd rather read something that looks like this:
-> > >
-> > >       if (type == READ && (flags & RWF_NONBLOCK))
-> > >               return -EAGAIN;
-> > >       else if (type == WRITE && (flags & RWF_DSYNC))
-> > >               return -EINVAL;
-> > 
-> > But your version is less logically efficient for the case where "type == READ" is true and "flags & RWF_NONBLOCK" is false because your version then has to do the "if (type == WRITE" check before discovering it does not need to take that branch either, whilst the original version does not have to do such a test at all.
-> > 
-> > Seriously?
-> 
-> Of course seriously.
-> 
-> > Just focus on the code readability/maintainability which makes the code most easily understood/obvious to a new pair of eyes, and leave such micro-optimizations to the compiler..
-> 
-> The original version is more readable (IMO) and this is not a micro-optimization.  It is people like you who are responsible for the fact that we need faster and faster computers to cope with the inefficient/poor code being written more and more...
-> 
+That's a good catch Jeff I'll fix this and it'll be in the next
+version of the patch series.
 
-Your original version needs me to know that type can only be either READ
-or WRITE (and not, for instance, READONLY or READWRITE or some other
-random special case) and it rings alarm bells when I first see it. If
-you want to keep the micro optimization, you need an assertion to
-acknowledge the potential bug and a comment to make the code obvious:
+- M
 
- +            assert(type == READ || type == WRITE);
- +            if (type == READ) {
- +                    if (flags & RWF_NONBLOCK)
- +                            return -EAGAIN;
- +            } else { /* WRITE */
- +                    if (flags & RWF_DSYNC)
- +                            return -EINVAL;
- +            }
-
-but since what's really happening here is two separate and independent
-error checks, Jeff's version is still better, even if it does take an
-extra couple of nanoseconds.
-
-Actually I'd probably write:
-
-       if (type == READ && (flags & RWF_NONBLOCK))
-              return -EAGAIN;
-
-       if (type == WRITE && (flags & RWF_DSYNC))
-              return -EINVAL;
-
-(no 'else' since the code will never be reached if the first test is
-true).
 
 
 -- 
-Roger Willcocks <roger@filmlight.ltd.uk>
+Milosz Tanski
+CTO
+16 East 34th Street, 15th floor
+New York, NY 10016
+
+p: 646-253-9055
+e: milosz@adfin.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
