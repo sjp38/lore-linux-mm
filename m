@@ -1,84 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com [209.85.214.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 07D2E800DA
-	for <linux-mm@kvack.org>; Fri,  7 Nov 2014 00:52:09 -0500 (EST)
-Received: by mail-ob0-f177.google.com with SMTP id m8so1999102obr.36
-        for <linux-mm@kvack.org>; Thu, 06 Nov 2014 21:52:08 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <BF30FAEC-D4D3-4079-9ECD-2743747279BD@cam.ac.uk>
-References: <cover.1415220890.git.milosz@adfin.com>
-	<c188b04ede700ce5f986b19de12fa617d158540f.1415220890.git.milosz@adfin.com>
-	<x49r3xf28qn.fsf@segfault.boston.devel.redhat.com>
-	<BF30FAEC-D4D3-4079-9ECD-2743747279BD@cam.ac.uk>
-Date: Thu, 6 Nov 2014 21:52:07 -0800
-Message-ID: <CAFboF2y2skt=H4crv54shfnXOmz23W-shYWtHWekK8ZUDkfP=A@mail.gmail.com>
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 94C9D6B00CA
+	for <linux-mm@kvack.org>; Fri,  7 Nov 2014 01:43:42 -0500 (EST)
+Received: by mail-wi0-f177.google.com with SMTP id ex7so3592821wid.10
+        for <linux-mm@kvack.org>; Thu, 06 Nov 2014 22:43:42 -0800 (PST)
 Subject: Re: [fuse-devel] [PATCH v5 7/7] add a flag for per-operation O_DSYNC semantics
-From: Anand Avati <avati@gluster.org>
-Content-Type: multipart/alternative; boundary=001a113df27ec1df0505073e690c
+Mime-Version: 1.0 (Mac OS X Mail 8.0 \(1990.1\))
+Content-Type: text/plain; charset=us-ascii
+From: Anton Altaparmakov <aia21@cam.ac.uk>
+In-Reply-To: <CAFboF2y2skt=H4crv54shfnXOmz23W-shYWtHWekK8ZUDkfP=A@mail.gmail.com>
+Date: Fri, 7 Nov 2014 08:43:00 +0200
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <B92AEADD-B22C-4A4A-B64D-96E8869D3282@cam.ac.uk>
+References: <cover.1415220890.git.milosz@adfin.com> <c188b04ede700ce5f986b19de12fa617d158540f.1415220890.git.milosz@adfin.com> <x49r3xf28qn.fsf@segfault.boston.devel.redhat.com> <BF30FAEC-D4D3-4079-9ECD-2743747279BD@cam.ac.uk> <CAFboF2y2skt=H4crv54shfnXOmz23W-shYWtHWekK8ZUDkfP=A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Altaparmakov <aia21@cam.ac.uk>
+To: Anand Avati <avati@gluster.org>
 Cc: Jeff Moyer <jmoyer@redhat.com>, linux-arch@vger.kernel.org, linux-aio@kvack.org, linux-nfs@vger.kernel.org, Volker Lendecke <Volker.Lendecke@sernet.de>, Theodore Ts'o <tytso@mit.edu>, linux-mm@kvack.org, "fuse-devel@lists.sourceforge.net" <fuse-devel@lists.sourceforge.net>, linux-api@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@infradead.org>, Tejun Heo <tj@kernel.org>, Milosz Tanski <milosz@adfin.com>, linux-fsdevel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, ceph-devel@vger.kernel.org, Christoph Hellwig <hch@lst.de>, ocfs2-devel@oss.oracle.com, Mel Gorman <mgorman@suse.de>
 
---001a113df27ec1df0505073e690c
-Content-Type: text/plain; charset=UTF-8
+Hi,
 
-On Thu, Nov 6, 2014 at 8:22 PM, Anton Altaparmakov <aia21@cam.ac.uk> wrote:
-
+> On 7 Nov 2014, at 07:52, Anand Avati <avati@gluster.org> wrote:
+> On Thu, Nov 6, 2014 at 8:22 PM, Anton Altaparmakov <aia21@cam.ac.uk> =
+wrote:
 > > On 7 Nov 2014, at 01:46, Jeff Moyer <jmoyer@redhat.com> wrote:
 > > Minor nit, but I'd rather read something that looks like this:
 > >
-> >       if (type == READ && (flags & RWF_NONBLOCK))
+> >       if (type =3D=3D READ && (flags & RWF_NONBLOCK))
 > >               return -EAGAIN;
-> >       else if (type == WRITE && (flags & RWF_DSYNC))
+> >       else if (type =3D=3D WRITE && (flags & RWF_DSYNC))
 > >               return -EINVAL;
->
-> But your version is less logically efficient for the case where "type ==
-> READ" is true and "flags & RWF_NONBLOCK" is false because your version then
-> has to do the "if (type == WRITE" check before discovering it does not need
-> to take that branch either, whilst the original version does not have to do
-> such a test at all.
->
+>=20
+> But your version is less logically efficient for the case where "type =
+=3D=3D READ" is true and "flags & RWF_NONBLOCK" is false because your =
+version then has to do the "if (type =3D=3D WRITE" check before =
+discovering it does not need to take that branch either, whilst the =
+original version does not have to do such a test at all.
+>=20
+> Seriously?
 
-Seriously? Just focus on the code readability/maintainability which makes
-the code most easily understood/obvious to a new pair of eyes, and leave
+Of course seriously.
+
+> Just focus on the code readability/maintainability which makes the =
+code most easily understood/obvious to a new pair of eyes, and leave =
 such micro-optimizations to the compiler..
 
-Thanks
+The original version is more readable (IMO) and this is not a =
+micro-optimization.  It is people like you who are responsible for the =
+fact that we need faster and faster computers to cope with the =
+inefficient/poor code being written more and more...
 
---001a113df27ec1df0505073e690c
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+And I really wouldn't hedge my bets on gcc optimizing something like =
+that.  The amount of crap assembly produced from gcc that I have seen =
+over the years suggests that it is quite likely it will make a hash of =
+it instead...
 
-<div dir=3D"ltr"><br><div class=3D"gmail_extra"><br><div class=3D"gmail_quo=
-te">On Thu, Nov 6, 2014 at 8:22 PM, Anton Altaparmakov <span dir=3D"ltr">&l=
-t;<a href=3D"mailto:aia21@cam.ac.uk" target=3D"_blank">aia21@cam.ac.uk</a>&=
-gt;</span> wrote:<br><blockquote class=3D"gmail_quote" style=3D"margin:0 0 =
-0 .8ex;border-left:1px #ccc solid;padding-left:1ex">&gt; On 7 Nov 2014, at =
-01:46, Jeff Moyer &lt;<a href=3D"mailto:jmoyer@redhat.com">jmoyer@redhat.co=
-m</a>&gt; wrote:<br>
-&gt; Minor nit, but I&#39;d rather read something that looks like this:<br>
-&gt;<br>
-&gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0if (type =3D=3D READ &amp;&amp; (flags &amp;=
- RWF_NONBLOCK))<br>
-&gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0return -EAGAIN;<=
-br>
-&gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0else if (type =3D=3D WRITE &amp;&amp; (flags=
- &amp; RWF_DSYNC))<br>
-&gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0return -EINVAL;<=
-br>
-<br>
-But your version is less logically efficient for the case where &quot;type =
-=3D=3D READ&quot; is true and &quot;flags &amp; RWF_NONBLOCK&quot; is false=
- because your version then has to do the &quot;if (type =3D=3D WRITE&quot; =
-check before discovering it does not need to take that branch either, whils=
-t the original version does not have to do such a test at all.<br></blockqu=
-ote><div><br></div><div>Seriously? Just focus on the code readability/maint=
-ainability which makes the code most easily understood/obvious to a new pai=
-r of eyes, and leave such micro-optimizations to the compiler..</div><div><=
-br></div></div>Thanks</div></div>
+Best regards,
 
---001a113df27ec1df0505073e690c--
+	Anton
+
+> Thanks
+
+--=20
+Anton Altaparmakov <aia21 at cam.ac.uk> (replace at with @)
+University of Cambridge Information Services, Roger Needham Building
+7 JJ Thomson Avenue, Cambridge, CB3 0RB, UK
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
