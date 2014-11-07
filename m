@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id D4431800CA
-	for <linux-mm@kvack.org>; Fri,  7 Nov 2014 02:04:55 -0500 (EST)
-Received: by mail-ig0-f180.google.com with SMTP id h3so4879795igd.13
-        for <linux-mm@kvack.org>; Thu, 06 Nov 2014 23:04:55 -0800 (PST)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id a21si12944078ioj.80.2014.11.06.23.04.54
+Received: from mail-yh0-f48.google.com (mail-yh0-f48.google.com [209.85.213.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DE86800CA
+	for <linux-mm@kvack.org>; Fri,  7 Nov 2014 02:05:01 -0500 (EST)
+Received: by mail-yh0-f48.google.com with SMTP id f10so2122057yha.7
+        for <linux-mm@kvack.org>; Thu, 06 Nov 2014 23:05:01 -0800 (PST)
+Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
+        by mx.google.com with ESMTPS id n10si8484683yhn.0.2014.11.06.23.04.59
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 06 Nov 2014 23:04:55 -0800 (PST)
+        Thu, 06 Nov 2014 23:05:00 -0800 (PST)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH -mm v7 05/13] clear_refs: remove clear_refs_private->vma and
- introduce clear_refs_test_walk()
-Date: Fri, 7 Nov 2014 07:01:57 +0000
-Message-ID: <1415343692-6314-6-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH -mm v7 06/13] pagemap: use walk->vma instead of calling
+ find_vma()
+Date: Fri, 7 Nov 2014 07:01:58 +0000
+Message-ID: <1415343692-6314-7-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1415343692-6314-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1415343692-6314-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Content-Language: ja-JP
@@ -25,112 +25,134 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Peter Feiner <pfeiner@google.com>, Jerome Marchand <jmarchan@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-clear_refs_write() has some prechecks to determine if we really walk over
-a given vma. Now we have a test_walk() callback to filter vmas, so let's
-utilize it.
+Page table walker has the information of the current vma in mm_walk,
+so we don't have to call find_vma() in each pagemap_(pte|hugetlb)_range()
+call any longer. Currently pagemap_pte_range() does vma loop itself, so
+this patch reduces many lines of code.
+
+NULL-vma check is omitted because we assume that we never run these
+callbacks on any address outside vma. And even if it were broken, NULL
+pointer dereference would be detected, so we can get enough information
+for debugging.
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
-ChangeLog v5:
-- remove unused vma
-
-ChangeLog v4:
-- use walk_page_range instead of walk_page_vma with for loop
+ChangeLog v7:
+- remove while-loop in pagemap_pte_range() (thanks to Peter Feiner)
+- remove Kirill's Ack because this patch has non-minor change since v6
 ---
- fs/proc/task_mmu.c | 46 ++++++++++++++++++++++------------------------
- 1 file changed, 22 insertions(+), 24 deletions(-)
+ fs/proc/task_mmu.c | 68 +++++++++++++-------------------------------------=
+----
+ 1 file changed, 16 insertions(+), 52 deletions(-)
 
 diff --git mmotm-2014-11-05-16-01.orig/fs/proc/task_mmu.c mmotm-2014-11-05-=
 16-01/fs/proc/task_mmu.c
-index c1b937095625..9aaab24677ae 100644
+index 9aaab24677ae..f997734d2b4b 100644
 --- mmotm-2014-11-05-16-01.orig/fs/proc/task_mmu.c
 +++ mmotm-2014-11-05-16-01/fs/proc/task_mmu.c
-@@ -741,7 +741,6 @@ enum clear_refs_types {
- };
-=20
- struct clear_refs_private {
+@@ -1054,15 +1054,13 @@ static inline void thp_pmd_to_pagemap_entry(pagemap=
+_entry_t *pme, struct pagemap
+ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long=
+ end,
+ 			     struct mm_walk *walk)
+ {
 -	struct vm_area_struct *vma;
- 	enum clear_refs_types type;
- };
-=20
-@@ -774,7 +773,7 @@ static int clear_refs_pte_range(pmd_t *pmd, unsigned lo=
-ng addr,
- 				unsigned long end, struct mm_walk *walk)
- {
- 	struct clear_refs_private *cp =3D walk->private;
--	struct vm_area_struct *vma =3D cp->vma;
 +	struct vm_area_struct *vma =3D walk->vma;
- 	pte_t *pte, ptent;
+ 	struct pagemapread *pm =3D walk->private;
  	spinlock_t *ptl;
- 	struct page *page;
-@@ -808,6 +807,25 @@ static int clear_refs_pte_range(pmd_t *pmd, unsigned l=
-ong addr,
- 	return 0;
- }
+ 	pte_t *pte;
+ 	int err =3D 0;
 =20
-+static int clear_refs_test_walk(unsigned long start, unsigned long end,
-+				struct mm_walk *walk)
-+{
-+	struct clear_refs_private *cp =3D walk->private;
-+	struct vm_area_struct *vma =3D walk->vma;
-+
-+	/*
-+	 * Writing 1 to /proc/pid/clear_refs affects all pages.
-+	 * Writing 2 to /proc/pid/clear_refs only affects anonymous pages.
-+	 * Writing 3 to /proc/pid/clear_refs only affects file mapped pages.
-+	 * Writing 4 to /proc/pid/clear_refs affects all pages.
-+	 */
-+	if (cp->type =3D=3D CLEAR_REFS_ANON && vma->vm_file)
-+		return 1;
-+	if (cp->type =3D=3D CLEAR_REFS_MAPPED && !vma->vm_file)
-+		return 1;
-+	return 0;
-+}
-+
- static ssize_t clear_refs_write(struct file *file, const char __user *buf,
- 				size_t count, loff_t *ppos)
- {
-@@ -848,6 +866,7 @@ static ssize_t clear_refs_write(struct file *file, cons=
-t char __user *buf,
- 		};
- 		struct mm_walk clear_refs_walk =3D {
- 			.pmd_entry =3D clear_refs_pte_range,
-+			.test_walk =3D clear_refs_test_walk,
- 			.mm =3D mm,
- 			.private =3D &cp,
- 		};
-@@ -867,28 +886,7 @@ static ssize_t clear_refs_write(struct file *file, con=
-st char __user *buf,
- 			}
- 			mmu_notifier_invalidate_range_start(mm, 0, -1);
- 		}
--		for (vma =3D mm->mmap; vma; vma =3D vma->vm_next) {
--			cp.vma =3D vma;
--			if (is_vm_hugetlb_page(vma))
--				continue;
--			/*
--			 * Writing 1 to /proc/pid/clear_refs affects all pages.
--			 *
--			 * Writing 2 to /proc/pid/clear_refs only affects
--			 * Anonymous pages.
--			 *
--			 * Writing 3 to /proc/pid/clear_refs only affects file
--			 * mapped pages.
--			 *
--			 * Writing 4 to /proc/pid/clear_refs affects all pages.
--			 */
--			if (type =3D=3D CLEAR_REFS_ANON && vma->vm_file)
--				continue;
--			if (type =3D=3D CLEAR_REFS_MAPPED && !vma->vm_file)
--				continue;
--			walk_page_range(vma->vm_start, vma->vm_end,
--					&clear_refs_walk);
+-	/* find the first VMA at or above 'addr' */
+-	vma =3D find_vma(walk->mm, addr);
+-	if (vma && pmd_trans_huge_lock(pmd, vma, &ptl) =3D=3D 1) {
++	if (pmd_trans_huge_lock(pmd, vma, &ptl) =3D=3D 1) {
+ 		int pmd_flags2;
+=20
+ 		if ((vma->vm_flags & VM_SOFTDIRTY) || pmd_soft_dirty(*pmd))
+@@ -1088,50 +1086,19 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned l=
+ong addr, unsigned long end,
+ 	if (pmd_trans_unstable(pmd))
+ 		return 0;
+=20
+-	while (1) {
+-		/* End of address space hole, which we mark as non-present. */
+-		unsigned long hole_end;
+-
+-		if (vma)
+-			hole_end =3D min(end, vma->vm_start);
+-		else
+-			hole_end =3D end;
+-
+-		for (; addr < hole_end; addr +=3D PAGE_SIZE) {
+-			pagemap_entry_t pme =3D make_pme(PM_NOT_PRESENT(pm->v2));
+-
+-			err =3D add_to_pagemap(addr, &pme, pm);
+-			if (err)
+-				return err;
 -		}
-+		walk_page_range(0, ~0UL, &clear_refs_walk);
- 		if (type =3D=3D CLEAR_REFS_SOFT_DIRTY)
- 			mmu_notifier_invalidate_range_end(mm, 0, -1);
- 		flush_tlb_mm(mm);
+-
+-		if (!vma || vma->vm_start >=3D end)
+-			break;
+-		/*
+-		 * We can't possibly be in a hugetlb VMA. In general,
+-		 * for a mm_walk with a pmd_entry and a hugetlb_entry,
+-		 * the pmd_entry can only be called on addresses in a
+-		 * hugetlb if the walk starts in a non-hugetlb VMA and
+-		 * spans a hugepage VMA. Since pagemap_read walks are
+-		 * PMD-sized and PMD-aligned, this will never be true.
+-		 */
+-		BUG_ON(is_vm_hugetlb_page(vma));
+-
+-		/* Addresses in the VMA. */
+-		for (; addr < min(end, vma->vm_end); addr +=3D PAGE_SIZE) {
+-			pagemap_entry_t pme;
+-			pte =3D pte_offset_map(pmd, addr);
+-			pte_to_pagemap_entry(&pme, pm, vma, addr, *pte);
+-			pte_unmap(pte);
+-			err =3D add_to_pagemap(addr, &pme, pm);
+-			if (err)
+-				return err;
+-		}
+-
+-		if (addr =3D=3D end)
+-			break;
++	/*
++	 * We can assume that @vma always points to a valid one and @end never
++	 * goes beyond vma->vm_end.
++	 */
++	for (; addr < end; addr +=3D PAGE_SIZE) {
++		pagemap_entry_t pme;
+=20
+-		vma =3D find_vma(walk->mm, addr);
++		pte =3D pte_offset_map(pmd, addr);
++		pte_to_pagemap_entry(&pme, pm, vma, addr, *pte);
++		pte_unmap(pte);
++		err =3D add_to_pagemap(addr, &pme, pm);
++		if (err)
++			return err;
+ 	}
+=20
+ 	cond_resched();
+@@ -1158,15 +1125,12 @@ static int pagemap_hugetlb_range(pte_t *pte, unsign=
+ed long hmask,
+ 				 struct mm_walk *walk)
+ {
+ 	struct pagemapread *pm =3D walk->private;
+-	struct vm_area_struct *vma;
++	struct vm_area_struct *vma =3D walk->vma;
+ 	int err =3D 0;
+ 	int flags2;
+ 	pagemap_entry_t pme;
+=20
+-	vma =3D find_vma(walk->mm, addr);
+-	WARN_ON_ONCE(!vma);
+-
+-	if (vma && (vma->vm_flags & VM_SOFTDIRTY))
++	if (vma->vm_flags & VM_SOFTDIRTY)
+ 		flags2 =3D __PM_SOFT_DIRTY;
+ 	else
+ 		flags2 =3D 0;
 --=20
 2.2.0.rc0.2.gf745acb
 
