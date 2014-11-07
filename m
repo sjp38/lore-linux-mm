@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f48.google.com (mail-yh0-f48.google.com [209.85.213.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DE86800CA
-	for <linux-mm@kvack.org>; Fri,  7 Nov 2014 02:05:01 -0500 (EST)
-Received: by mail-yh0-f48.google.com with SMTP id f10so2122057yha.7
-        for <linux-mm@kvack.org>; Thu, 06 Nov 2014 23:05:01 -0800 (PST)
+Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 11450800CA
+	for <linux-mm@kvack.org>; Fri,  7 Nov 2014 02:05:08 -0500 (EST)
+Received: by mail-ie0-f178.google.com with SMTP id rp18so4640786iec.37
+        for <linux-mm@kvack.org>; Thu, 06 Nov 2014 23:05:07 -0800 (PST)
 Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
-        by mx.google.com with ESMTPS id n10si8484683yhn.0.2014.11.06.23.04.59
+        by mx.google.com with ESMTPS id s8si13613892icp.24.2014.11.06.23.05.06
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 06 Nov 2014 23:05:00 -0800 (PST)
+        Thu, 06 Nov 2014 23:05:06 -0800 (PST)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH -mm v7 06/13] pagemap: use walk->vma instead of calling
- find_vma()
-Date: Fri, 7 Nov 2014 07:01:58 +0000
-Message-ID: <1415343692-6314-7-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH -mm v7 08/13] numa_maps: remove numa_maps->vma
+Date: Fri, 7 Nov 2014 07:02:00 +0000
+Message-ID: <1415343692-6314-9-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1415343692-6314-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1415343692-6314-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Content-Language: ja-JP
@@ -25,134 +24,105 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Peter Feiner <pfeiner@google.com>, Jerome Marchand <jmarchan@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Page table walker has the information of the current vma in mm_walk,
-so we don't have to call find_vma() in each pagemap_(pte|hugetlb)_range()
-call any longer. Currently pagemap_pte_range() does vma loop itself, so
-this patch reduces many lines of code.
-
-NULL-vma check is omitted because we assume that we never run these
-callbacks on any address outside vma. And even if it were broken, NULL
-pointer dereference would be detected, so we can get enough information
-for debugging.
+pagewalk.c can handle vma in itself, so we don't have to pass vma via
+walk->private. And show_numa_map() walks pages on vma basis, so using
+walk_page_vma() is preferable.
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
-ChangeLog v7:
-- remove while-loop in pagemap_pte_range() (thanks to Peter Feiner)
-- remove Kirill's Ack because this patch has non-minor change since v6
----
- fs/proc/task_mmu.c | 68 +++++++++++++-------------------------------------=
-----
- 1 file changed, 16 insertions(+), 52 deletions(-)
+ fs/proc/task_mmu.c | 29 +++++++++++++----------------
+ 1 file changed, 13 insertions(+), 16 deletions(-)
 
 diff --git mmotm-2014-11-05-16-01.orig/fs/proc/task_mmu.c mmotm-2014-11-05-=
 16-01/fs/proc/task_mmu.c
-index 9aaab24677ae..f997734d2b4b 100644
+index bddae83fbf39..e7d86b97598b 100644
 --- mmotm-2014-11-05-16-01.orig/fs/proc/task_mmu.c
 +++ mmotm-2014-11-05-16-01/fs/proc/task_mmu.c
-@@ -1054,15 +1054,13 @@ static inline void thp_pmd_to_pagemap_entry(pagemap=
-_entry_t *pme, struct pagemap
- static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long=
- end,
- 			     struct mm_walk *walk)
- {
+@@ -1290,7 +1290,6 @@ const struct file_operations proc_pagemap_operations =
+=3D {
+ #ifdef CONFIG_NUMA
+=20
+ struct numa_maps {
 -	struct vm_area_struct *vma;
+ 	unsigned long pages;
+ 	unsigned long anon;
+ 	unsigned long active;
+@@ -1359,18 +1358,17 @@ static struct page *can_gather_numa_stats(pte_t pte=
+, struct vm_area_struct *vma,
+ static int gather_pte_stats(pmd_t *pmd, unsigned long addr,
+ 		unsigned long end, struct mm_walk *walk)
+ {
+-	struct numa_maps *md;
++	struct numa_maps *md =3D walk->private;
 +	struct vm_area_struct *vma =3D walk->vma;
- 	struct pagemapread *pm =3D walk->private;
  	spinlock_t *ptl;
+ 	pte_t *orig_pte;
  	pte_t *pte;
- 	int err =3D 0;
 =20
--	/* find the first VMA at or above 'addr' */
--	vma =3D find_vma(walk->mm, addr);
--	if (vma && pmd_trans_huge_lock(pmd, vma, &ptl) =3D=3D 1) {
+-	md =3D walk->private;
+-
+-	if (pmd_trans_huge_lock(pmd, md->vma, &ptl) =3D=3D 1) {
 +	if (pmd_trans_huge_lock(pmd, vma, &ptl) =3D=3D 1) {
- 		int pmd_flags2;
+ 		pte_t huge_pte =3D *(pte_t *)pmd;
+ 		struct page *page;
 =20
- 		if ((vma->vm_flags & VM_SOFTDIRTY) || pmd_soft_dirty(*pmd))
-@@ -1088,50 +1086,19 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned l=
-ong addr, unsigned long end,
- 	if (pmd_trans_unstable(pmd))
+-		page =3D can_gather_numa_stats(huge_pte, md->vma, addr);
++		page =3D can_gather_numa_stats(huge_pte, vma, addr);
+ 		if (page)
+ 			gather_stats(page, md, pte_dirty(huge_pte),
+ 				     HPAGE_PMD_SIZE/PAGE_SIZE);
+@@ -1382,7 +1380,7 @@ static int gather_pte_stats(pmd_t *pmd, unsigned long=
+ addr,
  		return 0;
+ 	orig_pte =3D pte =3D pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
+ 	do {
+-		struct page *page =3D can_gather_numa_stats(*pte, md->vma, addr);
++		struct page *page =3D can_gather_numa_stats(*pte, vma, addr);
+ 		if (!page)
+ 			continue;
+ 		gather_stats(page, md, pte_dirty(*pte), 1);
+@@ -1429,7 +1427,12 @@ static int show_numa_map(struct seq_file *m, void *v=
+, int is_pid)
+ 	struct numa_maps *md =3D &numa_priv->md;
+ 	struct file *file =3D vma->vm_file;
+ 	struct mm_struct *mm =3D vma->vm_mm;
+-	struct mm_walk walk =3D {};
++	struct mm_walk walk =3D {
++		.hugetlb_entry =3D gather_hugetlb_stats,
++		.pmd_entry =3D gather_pte_stats,
++		.private =3D md,
++		.mm =3D mm,
++	};
+ 	struct mempolicy *pol;
+ 	char buffer[64];
+ 	int nid;
+@@ -1440,13 +1443,6 @@ static int show_numa_map(struct seq_file *m, void *v=
+, int is_pid)
+ 	/* Ensure we start with an empty set of numa_maps statistics. */
+ 	memset(md, 0, sizeof(*md));
 =20
--	while (1) {
--		/* End of address space hole, which we mark as non-present. */
--		unsigned long hole_end;
+-	md->vma =3D vma;
 -
--		if (vma)
--			hole_end =3D min(end, vma->vm_start);
--		else
--			hole_end =3D end;
+-	walk.hugetlb_entry =3D gather_hugetlb_stats;
+-	walk.pmd_entry =3D gather_pte_stats;
+-	walk.private =3D md;
+-	walk.mm =3D mm;
 -
--		for (; addr < hole_end; addr +=3D PAGE_SIZE) {
--			pagemap_entry_t pme =3D make_pme(PM_NOT_PRESENT(pm->v2));
--
--			err =3D add_to_pagemap(addr, &pme, pm);
--			if (err)
--				return err;
--		}
--
--		if (!vma || vma->vm_start >=3D end)
--			break;
--		/*
--		 * We can't possibly be in a hugetlb VMA. In general,
--		 * for a mm_walk with a pmd_entry and a hugetlb_entry,
--		 * the pmd_entry can only be called on addresses in a
--		 * hugetlb if the walk starts in a non-hugetlb VMA and
--		 * spans a hugepage VMA. Since pagemap_read walks are
--		 * PMD-sized and PMD-aligned, this will never be true.
--		 */
--		BUG_ON(is_vm_hugetlb_page(vma));
--
--		/* Addresses in the VMA. */
--		for (; addr < min(end, vma->vm_end); addr +=3D PAGE_SIZE) {
--			pagemap_entry_t pme;
--			pte =3D pte_offset_map(pmd, addr);
--			pte_to_pagemap_entry(&pme, pm, vma, addr, *pte);
--			pte_unmap(pte);
--			err =3D add_to_pagemap(addr, &pme, pm);
--			if (err)
--				return err;
--		}
--
--		if (addr =3D=3D end)
--			break;
-+	/*
-+	 * We can assume that @vma always points to a valid one and @end never
-+	 * goes beyond vma->vm_end.
-+	 */
-+	for (; addr < end; addr +=3D PAGE_SIZE) {
-+		pagemap_entry_t pme;
+ 	pol =3D __get_vma_policy(vma, vma->vm_start);
+ 	if (pol) {
+ 		mpol_to_str(buffer, sizeof(buffer), pol);
+@@ -1480,7 +1476,8 @@ static int show_numa_map(struct seq_file *m, void *v,=
+ int is_pid)
+ 	if (is_vm_hugetlb_page(vma))
+ 		seq_puts(m, " huge");
 =20
--		vma =3D find_vma(walk->mm, addr);
-+		pte =3D pte_offset_map(pmd, addr);
-+		pte_to_pagemap_entry(&pme, pm, vma, addr, *pte);
-+		pte_unmap(pte);
-+		err =3D add_to_pagemap(addr, &pme, pm);
-+		if (err)
-+			return err;
- 	}
+-	walk_page_range(vma->vm_start, vma->vm_end, &walk);
++	/* mmap_sem is held by m_start */
++	walk_page_vma(vma, &walk);
 =20
- 	cond_resched();
-@@ -1158,15 +1125,12 @@ static int pagemap_hugetlb_range(pte_t *pte, unsign=
-ed long hmask,
- 				 struct mm_walk *walk)
- {
- 	struct pagemapread *pm =3D walk->private;
--	struct vm_area_struct *vma;
-+	struct vm_area_struct *vma =3D walk->vma;
- 	int err =3D 0;
- 	int flags2;
- 	pagemap_entry_t pme;
-=20
--	vma =3D find_vma(walk->mm, addr);
--	WARN_ON_ONCE(!vma);
--
--	if (vma && (vma->vm_flags & VM_SOFTDIRTY))
-+	if (vma->vm_flags & VM_SOFTDIRTY)
- 		flags2 =3D __PM_SOFT_DIRTY;
- 	else
- 		flags2 =3D 0;
+ 	if (!md->pages)
+ 		goto out;
 --=20
 2.2.0.rc0.2.gf745acb
 
