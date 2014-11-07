@@ -1,93 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
-	by kanga.kvack.org (Postfix) with ESMTP id A9392800CA
-	for <linux-mm@kvack.org>; Fri,  7 Nov 2014 11:28:18 -0500 (EST)
-Received: by mail-la0-f45.google.com with SMTP id pn19so4751071lab.18
-        for <linux-mm@kvack.org>; Fri, 07 Nov 2014 08:28:18 -0800 (PST)
-Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com. [209.85.217.178])
-        by mx.google.com with ESMTPS id ob1si15529331lbb.113.2014.11.07.08.28.17
+Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id E5E91800CA
+	for <linux-mm@kvack.org>; Fri,  7 Nov 2014 11:34:09 -0500 (EST)
+Received: by mail-wg0-f46.google.com with SMTP id x13so4170914wgg.33
+        for <linux-mm@kvack.org>; Fri, 07 Nov 2014 08:34:09 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id wx8si16160334wjb.75.2014.11.07.08.27.54
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 07 Nov 2014 08:28:17 -0800 (PST)
-Received: by mail-lb0-f178.google.com with SMTP id f15so3240745lbj.37
-        for <linux-mm@kvack.org>; Fri, 07 Nov 2014 08:28:17 -0800 (PST)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 07 Nov 2014 08:27:54 -0800 (PST)
+Date: Fri, 7 Nov 2014 11:27:38 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [rfc patch] mm: vmscan: invoke slab shrinkers for each lruvec
+Message-ID: <20141107162738.GA22732@phnom.home.cmpxchg.org>
+References: <1415317828-19390-1-git-send-email-hannes@cmpxchg.org>
+ <20141107091811.GH4839@esperanza>
 MIME-Version: 1.0
-In-Reply-To: <x49y4rn29oh.fsf@segfault.boston.devel.redhat.com>
-References: <cover.1415220890.git.milosz@adfin.com>
-	<dcc7d998033bbd999bbd92ef9c2041bce0255a3e.1415220890.git.milosz@adfin.com>
-	<x49y4rn29oh.fsf@segfault.boston.devel.redhat.com>
-Date: Fri, 7 Nov 2014 11:28:17 -0500
-Message-ID: <CANP1eJG=nTB_jbOUY9nQfmsxbyAfO6KhmHm0jRVTyp09dseCxg@mail.gmail.com>
-Subject: Re: [PATCH v5 2/7] vfs: Define new syscalls preadv2,pwritev2
-From: Milosz Tanski <milosz@adfin.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141107091811.GH4839@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Moyer <jmoyer@redhat.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@infradead.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-aio@kvack.org" <linux-aio@kvack.org>, Mel Gorman <mgorman@suse.de>, Volker Lendecke <Volker.Lendecke@sernet.de>, Tejun Heo <tj@kernel.org>, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>, Linux API <linux-api@vger.kernel.org>, Michael Kerrisk <mtk.manpages@gmail.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Nov 6, 2014 at 6:25 PM, Jeff Moyer <jmoyer@redhat.com> wrote:
-> Milosz Tanski <milosz@adfin.com> writes:
->
->> New syscalls that take an flag argument. This change does not add any specific
->> flags.
->>
->> Signed-off-by: Milosz Tanski <milosz@adfin.com>
->> Reviewed-by: Christoph Hellwig <hch@lst.de>
->> ---
->>  fs/read_write.c                   | 176 ++++++++++++++++++++++++++++++--------
->>  include/linux/compat.h            |   6 ++
->>  include/linux/syscalls.h          |   6 ++
->>  include/uapi/asm-generic/unistd.h |   6 +-
->>  mm/filemap.c                      |   5 +-
->>  5 files changed, 158 insertions(+), 41 deletions(-)
->>
->> diff --git a/fs/read_write.c b/fs/read_write.c
->> index 94b2d34..907735c 100644
->> --- a/fs/read_write.c
->> +++ b/fs/read_write.c
->> @@ -866,6 +866,8 @@ ssize_t vfs_readv(struct file *file, const struct iovec __user *vec,
->>               return -EBADF;
->>       if (!(file->f_mode & FMODE_CAN_READ))
->>               return -EINVAL;
->> +     if (flags & ~0)
->> +             return -EINVAL;
->>
->>       return do_readv_writev(READ, file, vec, vlen, pos, flags);
->>  }
->> @@ -879,21 +881,23 @@ ssize_t vfs_writev(struct file *file, const struct iovec __user *vec,
->>               return -EBADF;
->>       if (!(file->f_mode & FMODE_CAN_WRITE))
->>               return -EINVAL;
->> +     if (flags & ~0)
->> +             return -EINVAL;
->>
->>       return do_readv_writev(WRITE, file, vec, vlen, pos, flags);
->>  }
->
-> Hi, Milosz,
->
-> You've checked for invalid flags for the normal system calls, but not
-> for the compat variants.  Can you add that in, please?
->
-> Thanks!
-> Jeff
+On Fri, Nov 07, 2014 at 12:18:11PM +0300, Vladimir Davydov wrote:
+> On Thu, Nov 06, 2014 at 06:50:28PM -0500, Johannes Weiner wrote:
+> [...]
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index a384339bf718..6a9ab5adf118 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> [...]
+> > @@ -1876,7 +1872,8 @@ enum scan_balance {
+> >   * nr[2] = file inactive pages to scan; nr[3] = file active pages to scan
+> >   */
+> >  static void get_scan_count(struct lruvec *lruvec, int swappiness,
+> > -			   struct scan_control *sc, unsigned long *nr)
+> > +			   struct scan_control *sc, unsigned long *nr,
+> > +			   unsigned long *lru_pages)
+> >  {
+> >  	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
+> >  	u64 fraction[2];
+> > @@ -2022,39 +2019,34 @@ out:
+> >  	some_scanned = false;
+> >  	/* Only use force_scan on second pass. */
+> >  	for (pass = 0; !some_scanned && pass < 2; pass++) {
+> > +		*lru_pages = 0;
+> >  		for_each_evictable_lru(lru) {
+> >  			int file = is_file_lru(lru);
+> >  			unsigned long size;
+> >  			unsigned long scan;
+> >  
+> > +			/* Scan one type exclusively */
+> > +			if ((scan_balance == SCAN_FILE) != file) {
+> > +				nr[lru] = 0;
+> > +				continue;
+> > +			}
+> > +
+> 
+> Why do you move this piece of code? AFAIU, we only want to accumulate
+> the total number of evictable pages on the lruvec, so the patch for
+> shrink_lruvec should look much simpler. Is it a kind of cleanup? If so,
+> I guess it'd be better to submit it separately.
 
-That's a good catch Jeff I'll fix this and it'll be in the next
-version of the patch series.
+Yes, it started out as a separate patch to make the setting of
+*lru_pages more readable.
 
-- M
+> Anyways, this hunk doesn't look right to me. With it applied, if
+> scan_balance equals SCAN_EQUAL or SCAN_FRACT we won't scan file lists at
+> all.
 
+Urgh, brain fart.  I reverted back to the original switch, it should
+be readable enough.
 
+> > @@ -2173,6 +2172,23 @@ static void shrink_lruvec(struct lruvec *lruvec, int swappiness,
+> >  	sc->nr_reclaimed += nr_reclaimed;
+> >  
+> >  	/*
+> > +	 * Shrink slab caches in the same proportion that the eligible
+> > +	 * LRU pages were scanned.
+> > +	 *
+> > +	 * XXX: Skip memcg limit reclaim, as the slab shrinkers are
+> > +	 * not cgroup-aware yet and we can't know if the objects in
+> > +	 * the global lists contribute to the memcg limit.
+> > +	 */
+> > +	if (global_reclaim(sc) && lru_pages) {
+> > +		nr_scanned = sc->nr_scanned - nr_scanned;
+> > +		shrink_slab(&shrink, nr_scanned, lru_pages);
+> 
+> I've a few concerns about slab-vs-pagecache reclaim proportion:
 
--- 
-Milosz Tanski
-CTO
-16 East 34th Street, 15th floor
-New York, NY 10016
+Well, hopefully! :-)
 
-p: 646-253-9055
-e: milosz@adfin.com
+> If a node has > 1 zones, then we will scan slabs more aggressively than
+> lru pages. Not sure, if it really matters, because on x86_64 most nodes
+> have 1 zone.
+
+It shouldn't be a big problem, but it is also fairly easy to fix.  We
+can safely assume that most slab objects are allocated without any
+zone restrictions (except that they have to be lowmem), so the aging
+pressure of the Normal zone should be the most suitable to translate
+to the slab objects as well.  Thus, we should shrink slabs only when
+scanning the LRU pages of the Normal zone.
+
+> If there are > 1 nodes, NUMA-unaware shrinkers will get more pressure
+> than NUMA-aware ones. However, we have the same behavior in kswapd at
+> present. This might be an issue if there are many nodes.
+
+There is nothing we can do about this.  Kswapd does the majority of
+reclaim, and by its nature has a per-node view.  We can't provide a
+bigger granularity than that.
+
+> If there are > 1 memory cgroups, slab shrinkers will get significantly
+> more pressure on global reclaim than they should. The introduction of
+> memcg-aware shrinkers will help, but only for memcg-aware shrinkers.
+> Other shrinkers (if there are any) will be treated unfairly. I think for
+> memcg-unaware shrinkers (i.e. for all shrinkers right now) we should
+> pass lru_pages=zone_reclaimable_pages.
+
+Agreed, we need separate entry points for cgroup-aware and
+cgroup-unaware shrinkers.  I'm putting the node shrinker into
+shrink_zone() for now, which will later remain memcg-unaware.
+
+The memcg one you can later add in shrink_lruvec(), along with a
+filter that skips over memcg-aware shrinkers on the node-level.
+
+I'm propagating the pages that get_scan_count() considers up to
+shrink_zone(), so they are available to you in shrink_lruvec().
+
+> BTW, may be we'd better pass the scan priority for shrink_slab to
+> calculate the pressure instead of messing with nr_scanned/lru_pages?
+
+The scan goal itself is lru_pages >> priority, so the priority level
+is already encoded in the nr_scanned / lru_pages ratio.
+
+> > +		if (reclaim_state) {
+> > +			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
+> > +			reclaim_state->reclaimed_slab = 0;
+> > +		}
+> 
+> OFF TOPIC: I wonder why we need the reclaim_state. The main shrink
+> candidates, dentries and inodes, are mostly freed by RCU, so they won't
+> count there.
+
+Good point.  I'll make a note of it, but might defer it in this
+series.
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
