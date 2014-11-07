@@ -1,123 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id B51F1800CA
-	for <linux-mm@kvack.org>; Fri,  7 Nov 2014 04:55:26 -0500 (EST)
-Received: by mail-wg0-f54.google.com with SMTP id n12so3257219wgh.41
-        for <linux-mm@kvack.org>; Fri, 07 Nov 2014 01:55:22 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ur7si14283018wjc.89.2014.11.07.01.55.22
+Received: from mail-yh0-f53.google.com (mail-yh0-f53.google.com [209.85.213.53])
+	by kanga.kvack.org (Postfix) with ESMTP id E5475800CA
+	for <linux-mm@kvack.org>; Fri,  7 Nov 2014 05:45:37 -0500 (EST)
+Received: by mail-yh0-f53.google.com with SMTP id v1so1526520yhn.12
+        for <linux-mm@kvack.org>; Fri, 07 Nov 2014 02:45:37 -0800 (PST)
+Received: from SMTP02.CITRIX.COM (smtp02.citrix.com. [66.165.176.63])
+        by mx.google.com with ESMTPS id q205si12085yka.176.2014.11.07.02.45.33
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 07 Nov 2014 01:55:22 -0800 (PST)
-Message-ID: <545C9705.3040605@suse.cz>
-Date: Fri, 07 Nov 2014 10:55:17 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        Fri, 07 Nov 2014 02:45:33 -0800 (PST)
+Date: Fri, 7 Nov 2014 10:45:32 +0000
+From: Wei Liu <wei.liu2@citrix.com>
+Subject: Re: [PATCH RFC] x86,mm: use _PAGE_BIT_SOFTW2 as _PAGE_BIT_NUMA
+Message-ID: <20141107104531.GA28188@zion.uk.xensource.com>
+References: <1415296096-22873-1-git-send-email-wei.liu2@citrix.com>
+ <20141107085210.GW21422@suse.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] mm/debug-pagealloc: cleanup page guard code
-References: <1415345746-16666-1-git-send-email-iamjoonsoo.kim@lge.com> <1415345746-16666-2-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1415345746-16666-2-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20141107085210.GW21422@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Wei Liu <wei.liu2@citrix.com>, linux-mm@kvack.org, xen-devel@lists.xenproject.org, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, David Vrabel <david.vrabel@citrix.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>
 
-On 11/07/2014 08:35 AM, Joonsoo Kim wrote:
-> Page guard is used by debug-pagealloc feature. Currently,
-> it is open-coded, but, I think that more abstraction of it makes
-> core page allocator code more readable.
->
-> There is no functional difference.
->
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On Fri, Nov 07, 2014 at 08:52:10AM +0000, Mel Gorman wrote:
+> On Thu, Nov 06, 2014 at 05:48:16PM +0000, Wei Liu wrote:
+> > In b38af4721 ("x86,mm: fix pte_special versus pte_numa") pte_special()
+> > (SPECIAL with PRESENT or PROTNONE) was made to complement pte_numa()
+> > (SPECIAL with neither PRESENT nor PROTNONE). That broke Xen PV guest
+> > with NUMA balancing support.
+> > 
+> > That's because Xen hypervisor sets _PAGE_GLOBAL (_PAGE_GLOBAL /
+> > _PAGE_PROTNONE in Linux) for guest user space mapping. So in a Xen PV
+> > guest, when NUMA balancing is enabled, a NUMA hinted PTE ends up
+> > "SPECIAL (in fact NUMA) with PROTNONE but not PRESENT", which makes
+> > pte_special() returns true when it shouldn't.
+> > 
+> > Fundamentally we only need _PAGE_NUMA and _PAGE_PRESENT to tell
+> > difference between an unmapped entry and an entry protected for NUMA
+> > hinting fault. So use _PAGE_BIT_SOFTW2 as _PAGE_BIT_NUMA, adjust
+> > _PAGE_NUMA_MASK and SWP_OFFSET_SHIFT as needed.
+> > 
+> > Suggested-by: David Vrabel <david.vrabel@citrix.com>
+> > Signed-off-by: Wei Liu <wei.liu2@citrix.com>
+> 
+> I suggest instead that you force automatic NUMA balancing to be disabled
+> on Xen PV guests until I or someone else finds time to implement Linus'
+> idea to remove _PAGE_NUMA entirely. It's been on my TODO list for a few
+> weeks but I still have not reached the point where I'm back working on
+> upstream material properly.
+>  
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+No problem. Thanks for the suggestion.
 
-> ---
->   mm/page_alloc.c |   38 +++++++++++++++++++-------------------
->   1 file changed, 19 insertions(+), 19 deletions(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index d673f64..c0dbede 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -440,18 +440,29 @@ static int __init debug_guardpage_minorder_setup(char *buf)
->   }
->   __setup("debug_guardpage_minorder=", debug_guardpage_minorder_setup);
->
-> -static inline void set_page_guard_flag(struct page *page)
-> +static inline void set_page_guard(struct zone *zone, struct page *page,
-> +				unsigned int order, int migratetype)
->   {
->   	__set_bit(PAGE_DEBUG_FLAG_GUARD, &page->debug_flags);
-> +	INIT_LIST_HEAD(&page->lru);
-> +	set_page_private(page, order);
-> +	/* Guard pages are not available for any usage */
-> +	__mod_zone_freepage_state(zone, -(1 << order), migratetype);
->   }
->
-> -static inline void clear_page_guard_flag(struct page *page)
-> +static inline void clear_page_guard(struct zone *zone, struct page *page,
-> +				unsigned int order, int migratetype)
->   {
->   	__clear_bit(PAGE_DEBUG_FLAG_GUARD, &page->debug_flags);
-> +	set_page_private(page, 0);
-> +	if (!is_migrate_isolate(migratetype))
-> +		__mod_zone_freepage_state(zone, (1 << order), migratetype);
->   }
->   #else
-> -static inline void set_page_guard_flag(struct page *page) { }
-> -static inline void clear_page_guard_flag(struct page *page) { }
-> +static inline void set_page_guard(struct zone *zone, struct page *page,
-> +				unsigned int order, int migratetype) {}
-> +static inline void clear_page_guard(struct zone *zone, struct page *page,
-> +				unsigned int order, int migratetype) {}
->   #endif
->
->   static inline void set_page_order(struct page *page, unsigned int order)
-> @@ -582,12 +593,7 @@ static inline void __free_one_page(struct page *page,
->   		 * merge with it and move up one order.
->   		 */
->   		if (page_is_guard(buddy)) {
-> -			clear_page_guard_flag(buddy);
-> -			set_page_private(buddy, 0);
-> -			if (!is_migrate_isolate(migratetype)) {
-> -				__mod_zone_freepage_state(zone, 1 << order,
-> -							  migratetype);
-> -			}
-> +			clear_page_guard(zone, buddy, order, migratetype);
->   		} else {
->   			list_del(&buddy->lru);
->   			zone->free_area[order].nr_free--;
-> @@ -862,23 +868,17 @@ static inline void expand(struct zone *zone, struct page *page,
->   		size >>= 1;
->   		VM_BUG_ON_PAGE(bad_range(zone, &page[size]), &page[size]);
->
-> -#ifdef CONFIG_DEBUG_PAGEALLOC
-> -		if (high < debug_guardpage_minorder()) {
-> +		if (IS_ENABLED(CONFIG_DEBUG_PAGEALLOC) &&
-> +			high < debug_guardpage_minorder()) {
->   			/*
->   			 * Mark as guard pages (or page), that will allow to
->   			 * merge back to allocator when buddy will be freed.
->   			 * Corresponding page table entries will not be touched,
->   			 * pages will stay not present in virtual address space
->   			 */
-> -			INIT_LIST_HEAD(&page[size].lru);
-> -			set_page_guard_flag(&page[size]);
-> -			set_page_private(&page[size], high);
-> -			/* Guard pages are not available for any usage */
-> -			__mod_zone_freepage_state(zone, -(1 << high),
-> -						  migratetype);
-> +			set_page_guard(zone, &page[size], high, migratetype);
->   			continue;
->   		}
-> -#endif
->   		list_add(&page[size].lru, &area->free_list[migratetype]);
->   		area->nr_free++;
->   		set_page_order(&page[size], high);
->
+Wei.
+
+> -- 
+> Mel Gorman
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
