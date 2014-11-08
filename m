@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 236E382BEF
-	for <linux-mm@kvack.org>; Sat,  8 Nov 2014 18:01:53 -0500 (EST)
-Received: by mail-wg0-f47.google.com with SMTP id a1so6212904wgh.34
-        for <linux-mm@kvack.org>; Sat, 08 Nov 2014 15:01:52 -0800 (PST)
-Received: from mail-wg0-x22d.google.com (mail-wg0-x22d.google.com. [2a00:1450:400c:c00::22d])
-        by mx.google.com with ESMTPS id ic6si9949177wid.95.2014.11.08.15.01.52
+Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F80582BEF
+	for <linux-mm@kvack.org>; Sat,  8 Nov 2014 18:01:54 -0500 (EST)
+Received: by mail-wg0-f54.google.com with SMTP id n12so6460284wgh.41
+        for <linux-mm@kvack.org>; Sat, 08 Nov 2014 15:01:53 -0800 (PST)
+Received: from mail-wg0-x236.google.com (mail-wg0-x236.google.com. [2a00:1450:400c:c00::236])
+        by mx.google.com with ESMTPS id bq18si10059602wib.25.2014.11.08.15.01.53
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 08 Nov 2014 15:01:52 -0800 (PST)
-Received: by mail-wg0-f45.google.com with SMTP id x12so6224715wgg.4
-        for <linux-mm@kvack.org>; Sat, 08 Nov 2014 15:01:52 -0800 (PST)
+        Sat, 08 Nov 2014 15:01:53 -0800 (PST)
+Received: by mail-wg0-f54.google.com with SMTP id n12so6187836wgh.13
+        for <linux-mm@kvack.org>; Sat, 08 Nov 2014 15:01:53 -0800 (PST)
 From: Timofey Titovets <nefelim4ag@gmail.com>
-Subject: [PATCH v2 2/3] KSM: Add to sysfs - mark_new_vma
-Date: Sun,  9 Nov 2014 02:01:42 +0300
-Message-Id: <1415487703-1824-3-git-send-email-nefelim4ag@gmail.com>
+Subject: [PATCH v2 3/3] KSM: Add config to control mark_new_vma
+Date: Sun,  9 Nov 2014 02:01:43 +0300
+Message-Id: <1415487703-1824-4-git-send-email-nefelim4ag@gmail.com>
 In-Reply-To: <1415487703-1824-1-git-send-email-nefelim4ag@gmail.com>
 References: <1415487703-1824-1-git-send-email-nefelim4ag@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,123 +22,32 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: nefelim4ag@gmail.com, marco.antonio.780@gmail.com
 
-It allow for user to  control process of marking new vma as VM_MERGEABLE
-Create new sysfs interface /sys/kernel/mm/ksm/mark_new_vma
-1 - enabled - mark new allocated vma as VM_MERGEABLE and add it to ksm queue
-0 - disable it
+Allowing to control mark_new_vma default value
+Allowing work ksm on early allocated vmas
 
 Signed-off-by: Timofey Titovets <nefelim4ag@gmail.com>
 ---
- include/linux/ksm.h | 10 +++++++++-
- mm/ksm.c            | 39 ++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 47 insertions(+), 2 deletions(-)
+ mm/Kconfig | 7 +++++++
+ 1 file changed, 7 insertions(+)
 
-diff --git a/include/linux/ksm.h b/include/linux/ksm.h
-index c3fff64..deb60fc 100644
---- a/include/linux/ksm.h
-+++ b/include/linux/ksm.h
-@@ -76,6 +76,12 @@ struct page *ksm_might_need_to_copy(struct page *page,
- int rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc);
- void ksm_migrate_page(struct page *newpage, struct page *oldpage);
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 1d1ae6b..90f40a6 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -340,6 +340,13 @@ config KSM
+ 	  until a program has madvised that an area is MADV_MERGEABLE, and
+ 	  root has set /sys/kernel/mm/ksm/run to 1 (if CONFIG_SYSFS is set).
  
++config KSM_MARK_NEW_VMA
++	int "Marking new vma pages as VM_MERGEABLE"
++	depends on KSM
++	default 0
++	range 0 1
++	help
 +
-+/* Mark new vma as mergeable */
-+#define ALLOW	1
-+#define DENY	0
-+extern unsigned mark_new_vma __read_mostly;
-+
- /*
-  * Allow to mark new vma as VM_MERGEABLE
-  */
-@@ -84,6 +90,8 @@ void ksm_migrate_page(struct page *newpage, struct page *oldpage);
- #endif
- static inline void ksm_vm_flags_mod(unsigned long *vm_flags)
- {
-+	if (!mark_new_vma)
-+		return;
- 	if (*vm_flags & (VM_MERGEABLE | VM_SHARED  | VM_MAYSHARE   |
- 			 VM_PFNMAP    | VM_IO      | VM_DONTEXPAND |
- 			 VM_HUGETLB | VM_NONLINEAR | VM_MIXEDMAP   | VM_SAO) )
-@@ -94,7 +102,7 @@ static inline void ksm_vm_flags_mod(unsigned long *vm_flags)
- static inline void ksm_vma_add_new(struct vm_area_struct *vma)
- {
- 	struct mm_struct *mm = vma->vm_mm;
--	if (!test_bit(MMF_VM_MERGEABLE, &mm->flags)) {
-+	if (mark_new_vma && !test_bit(MMF_VM_MERGEABLE, &mm->flags)) {
- 		__ksm_enter(mm);
- 	}
- }
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 6b2e337..7bfb616 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -223,6 +223,12 @@ static unsigned int ksm_thread_pages_to_scan = 100;
- /* Milliseconds ksmd should sleep between batches */
- static unsigned int ksm_thread_sleep_millisecs = 20;
- 
-+/* Mark new vma as mergeable */
-+#ifndef CONFIG_KSM_MARK_NEW_VMA
-+#define CONFIG_KSM_MARK_NEW_VMA DENY
-+#endif
-+unsigned mark_new_vma = CONFIG_KSM_MARK_NEW_VMA;
-+
- #ifdef CONFIG_NUMA
- /* Zeroed when merging across nodes is not allowed */
- static unsigned int ksm_merge_across_nodes = 1;
-@@ -2127,6 +2133,34 @@ static ssize_t pages_to_scan_store(struct kobject *kobj,
- }
- KSM_ATTR(pages_to_scan);
- 
-+static ssize_t mark_new_vma_show(struct kobject *kobj, struct kobj_attribute *attr,
-+			char *buf)
-+{
-+	return sprintf(buf, "%u\n", mark_new_vma);
-+}
-+static ssize_t mark_new_vma_store(struct kobject *kobj,
-+				  struct kobj_attribute *attr,
-+				  const char *buf, size_t count)
-+{
-+	int err;
-+	unsigned long flags;
-+
-+	err = kstrtoul(buf, 10, &flags);
-+	if (err || flags > UINT_MAX || flags > ALLOW)
-+		return -EINVAL;
-+
-+	/*
-+	 * ALLOW = 1 - sets allow for mark new vma as
-+	 * VM_MERGEABLE and adding it to ksm
-+	 * DENY = 0 - disable it
-+	 */
-+	if (mark_new_vma != flags) {
-+		mark_new_vma = flags;
-+	}
-+	return count;
-+}
-+KSM_ATTR(mark_new_vma);
-+
- static ssize_t run_show(struct kobject *kobj, struct kobj_attribute *attr,
- 			char *buf)
- {
-@@ -2287,6 +2321,7 @@ static struct attribute *ksm_attrs[] = {
- 	&pages_unshared_attr.attr,
- 	&pages_volatile_attr.attr,
- 	&full_scans_attr.attr,
-+	&mark_new_vma_attr.attr,
- #ifdef CONFIG_NUMA
- 	&merge_across_nodes_attr.attr,
- #endif
-@@ -2323,7 +2358,9 @@ static int __init ksm_init(void)
- 		goto out_free;
- 	}
- #else
--	ksm_run = KSM_RUN_MERGE;	/* no way for user to start it */
-+	/* no way for user to start it */
-+	mark_new_vma = ALLOW;
-+	ksm_run = KSM_RUN_MERGE;
- 
- #endif /* CONFIG_SYSFS */
- 
+ config DEFAULT_MMAP_MIN_ADDR
+         int "Low address space to protect from user allocation"
+ 	depends on MMU
 -- 
 2.1.3
 
