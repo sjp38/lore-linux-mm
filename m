@@ -1,114 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B1F3280021
-	for <linux-mm@kvack.org>; Mon, 10 Nov 2014 14:30:14 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id kq14so8826494pab.24
-        for <linux-mm@kvack.org>; Mon, 10 Nov 2014 11:30:14 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id of10si11167118pdb.133.2014.11.10.11.30.12
-        for <linux-mm@kvack.org>;
-        Mon, 10 Nov 2014 11:30:13 -0800 (PST)
-From: tony.luck@intel.com
-Subject: memblock: Refactor functions to set/clear MEMBLOCK_HOTPLUG
-Date: Mon, 10 Nov 2014 11:05:29 -0800
-Message-Id: <54610c79308447c79c@agluck-desk.sc.intel.com>
+Received: from mail-yk0-f177.google.com (mail-yk0-f177.google.com [209.85.160.177])
+	by kanga.kvack.org (Postfix) with ESMTP id CEDB228000A
+	for <linux-mm@kvack.org>; Mon, 10 Nov 2014 15:22:04 -0500 (EST)
+Received: by mail-yk0-f177.google.com with SMTP id 142so4395476ykq.22
+        for <linux-mm@kvack.org>; Mon, 10 Nov 2014 12:22:04 -0800 (PST)
+Received: from mail-yh0-x22c.google.com (mail-yh0-x22c.google.com. [2607:f8b0:4002:c01::22c])
+        by mx.google.com with ESMTPS id o8si19996664yhd.67.2014.11.10.12.22.03
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 10 Nov 2014 12:22:03 -0800 (PST)
+Received: by mail-yh0-f44.google.com with SMTP id b6so3978048yha.31
+        for <linux-mm@kvack.org>; Mon, 10 Nov 2014 12:22:03 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <1415644096-3513-4-git-send-email-j.glisse@gmail.com>
+References: <1415644096-3513-1-git-send-email-j.glisse@gmail.com>
+	<1415644096-3513-4-git-send-email-j.glisse@gmail.com>
+Date: Mon, 10 Nov 2014 12:22:03 -0800
+Message-ID: <CA+55aFwHd4QYopHvd=H6hxoQeqDV3HT6=436LGU-FRb5A0p7Vg@mail.gmail.com>
+Subject: Re: [PATCH 3/5] lib: lockless generic and arch independent page table
+ (gpt) v2.
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Santosh Shilimkar <santosh.shilimkar@ti.com>, Tang Chen <tangchen@cn.fujitsu.com>, Grygorii Strashko <grygorii.strashko@ti.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Philipp Hachtmann <phacht@linux.vnet.ibm.com>, Yinghai Lu <yinghai@kernel.org>, Emil Medve <Emilian.Medve@freescale.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Joerg Roedel <joro@8bytes.org>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
 
-There is a lot of duplication in the rubric around actually setting or
-clearing a mem region flag. Create a new helper function to do this and
-reduce each of memblock_mark_hotplug() and memblock_clear_hotplug() to
-a single line.
+Ok, so things are somewhat calm, and I'm trying to take time off to
+see what's going on. And I'm not happy.
 
-Signed-off-by: Tony Luck <tony.luck@intel.com>
+On Mon, Nov 10, 2014 at 10:28 AM,  <j.glisse@gmail.com> wrote:
+>
+> Page table is a common structure format most notably use by cpu mmu. The
+> arch depend page table code has strong tie to the architecture which makes
+> it unsuitable to be use by other non arch specific code.
 
----
+Please don't call this thing a "generic page table".
 
-This will be useful if someone were to add a new mem region flag - which
-I hope to be doing some day soon. But it looks like a plausible cleanup
-even without that - so I'd like to get it out of the way now.
+It is no such thing. The *real* page tables are page tables. This is
+some kind of "mapping lookup", and has nothing to do with page tables
+as far as I can see. Why do you call it a page table?
 
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 6ecb0d937fb5..252b77bdf65e 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -715,16 +715,13 @@ int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
- }
- 
- /**
-- * memblock_mark_hotplug - Mark hotpluggable memory with flag MEMBLOCK_HOTPLUG.
-- * @base: the base phys addr of the region
-- * @size: the size of the region
-  *
-- * This function isolates region [@base, @base + @size), and mark it with flag
-- * MEMBLOCK_HOTPLUG.
-+ * This function isolates region [@base, @base + @size), and sets/clears flag
-  *
-  * Return 0 on succees, -errno on failure.
-  */
--int __init_memblock memblock_mark_hotplug(phys_addr_t base, phys_addr_t size)
-+static int __init_memblock memblock_setclr_flag(phys_addr_t base,
-+				phys_addr_t size, int set, int flag)
- {
- 	struct memblock_type *type = &memblock.memory;
- 	int i, ret, start_rgn, end_rgn;
-@@ -734,37 +731,37 @@ int __init_memblock memblock_mark_hotplug(phys_addr_t base, phys_addr_t size)
- 		return ret;
- 
- 	for (i = start_rgn; i < end_rgn; i++)
--		memblock_set_region_flags(&type->regions[i], MEMBLOCK_HOTPLUG);
-+		if (set)
-+			memblock_set_region_flags(&type->regions[i], flag);
-+		else
-+			memblock_clear_region_flags(&type->regions[i], flag);
- 
- 	memblock_merge_regions(type);
- 	return 0;
- }
- 
- /**
-- * memblock_clear_hotplug - Clear flag MEMBLOCK_HOTPLUG for a specified region.
-+ * memblock_mark_hotplug - Mark hotpluggable memory with flag MEMBLOCK_HOTPLUG.
-  * @base: the base phys addr of the region
-  * @size: the size of the region
-  *
-- * This function isolates region [@base, @base + @size), and clear flag
-- * MEMBLOCK_HOTPLUG for the isolated regions.
-+ * Return 0 on succees, -errno on failure.
-+ */
-+int __init_memblock memblock_mark_hotplug(phys_addr_t base, phys_addr_t size)
-+{
-+	return memblock_setclr_flag(base, size, 1, MEMBLOCK_HOTPLUG);
-+}
-+
-+/**
-+ * memblock_clear_hotplug - Clear flag MEMBLOCK_HOTPLUG for a specified region.
-+ * @base: the base phys addr of the region
-+ * @size: the size of the region
-  *
-  * Return 0 on succees, -errno on failure.
-  */
- int __init_memblock memblock_clear_hotplug(phys_addr_t base, phys_addr_t size)
- {
--	struct memblock_type *type = &memblock.memory;
--	int i, ret, start_rgn, end_rgn;
--
--	ret = memblock_isolate_range(type, base, size, &start_rgn, &end_rgn);
--	if (ret)
--		return ret;
--
--	for (i = start_rgn; i < end_rgn; i++)
--		memblock_clear_region_flags(&type->regions[i],
--					    MEMBLOCK_HOTPLUG);
--
--	memblock_merge_regions(type);
--	return 0;
-+	return memblock_setclr_flag(base, size, 0, MEMBLOCK_HOTPLUG);
- }
- 
- /**
+Also, why isn't this just using our *existing* generic mapping
+functionality, which already uses a radix tree, and has a lot of
+lockless models? We already *have* something like that, and it's
+called a "struct address_space".
+
+And if you *just* want the tree, why don't you use "struct radix_tree_root".
+
+And if it's generic, why do you have that odd insane conditional
+locking going on?
+
+In other words, looking at this, I just go "this is re-implementing
+existing models, and uses naming that is actively misleading".
+
+I think it's actively horrible, in other words. The fact that you have
+one ACK on it already makes me go "Hmm". Is there some actual reason
+why this would be called a page table, when even your explanation very
+much clarifies that it is explicitly written to *not* be an actual
+page table.
+
+I also find it absolutely disgusting how you use USE_SPLIT_PTE_PTLOCKS
+for this, which seems to make absolutely zero sense. So you're sharing
+the config with the *real* page tables for no reason I can see.
+
+I'm also looking at the "locking". It's insane. It's wrong, and
+doesn't have any serialization. Using the bit operations for locking
+is not correct. We've gotten over that years ago.
+
+Rik, the fact that you acked this just makes all your other ack's be
+suspect. Did you do it just because it was from Red Hat, or do you do
+it because you like seeing Acked-by's with your name?
+
+Anyway, this gets a NAK from me. Maybe I'm missing something, but I
+think naming is supremely important, and I really don't see the point
+of this. At a minimum, it needs a *hell* of a lot more explanations
+for all it does. And quite frankly, I don't think that will be
+sufficient, since the whole "bitops for locking" looks downright
+buggy, and it's not at all clear why you want this in the first place
+as opposed to just using gang lookups on the radix trees that we
+already have, and that is well-tested and known to scale fine.
+
+So really, it boils down to: why is this any better than radix trees
+that are well-named, tested, and work?
+
+                Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
