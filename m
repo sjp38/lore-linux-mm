@@ -1,240 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 88E7F280018
-	for <linux-mm@kvack.org>; Mon, 10 Nov 2014 11:40:51 -0500 (EST)
-Received: by mail-qg0-f42.google.com with SMTP id i50so5826984qgf.1
-        for <linux-mm@kvack.org>; Mon, 10 Nov 2014 08:40:51 -0800 (PST)
-Received: from mail-qc0-f181.google.com (mail-qc0-f181.google.com. [209.85.216.181])
-        by mx.google.com with ESMTPS id c7si29754448qco.42.2014.11.10.08.40.49
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 0297B6B0110
+	for <linux-mm@kvack.org>; Mon, 10 Nov 2014 11:53:37 -0500 (EST)
+Received: by mail-wi0-f176.google.com with SMTP id h11so11121658wiw.9
+        for <linux-mm@kvack.org>; Mon, 10 Nov 2014 08:53:36 -0800 (PST)
+Received: from mail-wg0-x22c.google.com (mail-wg0-x22c.google.com. [2a00:1450:400c:c00::22c])
+        by mx.google.com with ESMTPS id v9si29954986wjv.117.2014.11.10.08.31.01
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 10 Nov 2014 08:40:49 -0800 (PST)
-Received: by mail-qc0-f181.google.com with SMTP id w7so5909279qcr.40
-        for <linux-mm@kvack.org>; Mon, 10 Nov 2014 08:40:48 -0800 (PST)
-From: Milosz Tanski <milosz@adfin.com>
-Subject: [PATCH v6 7/7] fs: add a flag for per-operation O_DSYNC semantics
-Date: Mon, 10 Nov 2014 11:40:30 -0500
-Message-Id: <66d286ef31b6b21ce252ba2716c228639b484e53.1415636409.git.milosz@adfin.com>
-In-Reply-To: <cover.1415636409.git.milosz@adfin.com>
-References: <cover.1415636409.git.milosz@adfin.com>
-In-Reply-To: <cover.1415636409.git.milosz@adfin.com>
-References: <cover.1415636409.git.milosz@adfin.com>
+        Mon, 10 Nov 2014 08:31:01 -0800 (PST)
+Received: by mail-wg0-f44.google.com with SMTP id x12so9345136wgg.3
+        for <linux-mm@kvack.org>; Mon, 10 Nov 2014 08:31:00 -0800 (PST)
+Date: Mon, 10 Nov 2014 17:30:55 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 3/4] OOM, PM: OOM killed task shouldn't escape PM suspend
+Message-ID: <20141110163055.GC18373@dhcp22.suse.cz>
+References: <20141105160115.GA28226@dhcp22.suse.cz>
+ <20141105162929.GD14386@htj.dyndns.org>
+ <20141105163956.GD28226@dhcp22.suse.cz>
+ <20141105165428.GF14386@htj.dyndns.org>
+ <20141105174609.GE28226@dhcp22.suse.cz>
+ <20141105175527.GH14386@htj.dyndns.org>
+ <20141106124953.GD7202@dhcp22.suse.cz>
+ <20141106150121.GA25642@htj.dyndns.org>
+ <20141106160223.GJ7202@dhcp22.suse.cz>
+ <20141106162845.GD25642@htj.dyndns.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141106162845.GD25642@htj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Christoph Hellwig <hch@lst.de>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, Mel Gorman <mgorman@suse.de>, Volker Lendecke <Volker.Lendecke@sernet.de>, Tejun Heo <tj@kernel.org>, Jeff Moyer <jmoyer@redhat.com>, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>, linux-api@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-arch@vger.kernel.org, ceph-devel@vger.kernel.org, fuse-devel@lists.sourceforge.net, linux-nfs@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org
+To: Tejun Heo <tj@kernel.org>
+Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>
 
-From: Christoph Hellwig <hch@lst.de>
+On Thu 06-11-14 11:28:45, Tejun Heo wrote:
+> On Thu, Nov 06, 2014 at 05:02:23PM +0100, Michal Hocko wrote:
+[...]
+> > > We're doing one thing for non-PM freezing and the other way around for
+> > > PM freezing, which indicates one of the two directions is wrong.
+> > 
+> > Because those two paths are quite different in their requirements. The
+> > cgroup freezer only cares about freezing tasks and it doesn't have to
+> > care about tasks accessing a possibly half suspended device on their way
+> > out.
+> 
+> I don't think the fundamental relationship between freezing and oom
+> killing are different between the two and the failure to recognize
+> that is what's leading to these weird issues.
 
-With the new read/write with flags syscalls we can support a flag
-to enable O_DSYNC semantics on a per-operation basis.  This N?s
-useful to implement protocols like SMB, NFS or SCSI that have such
-per-operation flags.
+I do not understand the above. Could you be more specific, please?
+AFAIU cgroup freezer requires that no task will leak into userspace
+while the cgroup is frozen. This is naturally true for the OOM path
+whether the two are synchronized or not.
+The PM freezer, on the other hand, requires that no task is _woken up_
+after all tasks are frozen. This requires synchronization between the
+freezer and OOM path because allocations are allowed also after tasks
+are frozen.
+What am I missing?
 
-Example program below:
+> > > Shouldn't it be that OOM killing happening while PM freezing is in
+> > > progress cancels PM freezing rather than the other way around?  Find a
+> > > point in PM suspend/hibernation operation where everything must be
+> > > stable, disable OOM killing there and check whether OOM killing
+> > > happened inbetween and if so back out. 
+> > 
+> > This is freeze_processes AFAIU. I might be wrong of course but this is
+> > the time since when nobody should be waking processes up because they
+> > could access half suspended devices.
+> 
+> No, you're doing it before freezing starts.  The system is in no way
+> in a quiescent state at that point.
 
-cat > pwritev2.c << EOF
+You are right! Userspace shouldn't see any unexpected allocation
+failures just because PM freezing is in progress. This whole process
+should be transparent from userspace POV.
 
-        (off_t) val,                              \
-        (off_t) ((((uint64_t) (val)) >> (sizeof (long) * 4)) >> (sizeof (long) * 4))
+I am getting back to
+	oom_killer_lock();
+	error = try_to_freeze_tasks();
+	if (!error)
+		oom_killer_disable();
+	oom_killer_unlock();
 
-static ssize_t
-pwritev2(int fd, const struct iovec *iov, int iovcnt, off_t offset, int flags)
-{
-        return syscall(__NR_pwritev2, fd, iov, iovcnt, LO_HI_LONG(offset),
-			 flags);
-}
-
-int main(int argc, char **argv)
-{
-	int fd = open(argv[1], O_WRONLY|O_CREAT|O_TRUNC, 0666);
-	char buf[1024];
-	struct iovec iov = { .iov_base = buf, .iov_len = 1024 };
-	int ret;
-
-        if (fd < 0) {
-                perror("open");
-                return 0;
-        }
-
-	memset(buf, 0xfe, sizeof(buf));
-
-	ret = pwritev2(fd, &iov, 1, 0, RWF_DSYNC);
-	if (ret < 0)
-		perror("pwritev2");
-	else
-		printf("ret = %d\n", ret);
-
-	return 0;
-}
-EOF
-
-Signed-off-by: Christoph Hellwig <hch@lst.de>
-[milosz@adfin.com: comapt syscall changes for RWF_ODSYNC]
-Signed-off-by: Milosz Tanski <milosz@adfin.com>
-Reviewed-by: Jeff Moyer <jmoyer@redhat.com>
-Acked-by: Sage Weil <sage@redhat.com>
----
- fs/ceph/file.c     |  4 +++-
- fs/fuse/file.c     |  2 ++
- fs/nfs/file.c      | 10 ++++++----
- fs/ocfs2/file.c    |  6 ++++--
- fs/read_write.c    |  8 ++++++--
- include/linux/fs.h |  3 ++-
- mm/filemap.c       |  4 +++-
- 7 files changed, 26 insertions(+), 11 deletions(-)
-
-diff --git a/fs/ceph/file.c b/fs/ceph/file.c
-index b798b5c..2d4e15a 100644
---- a/fs/ceph/file.c
-+++ b/fs/ceph/file.c
-@@ -983,7 +983,9 @@ retry_snap:
- 	ceph_put_cap_refs(ci, got);
- 
- 	if (written >= 0 &&
--	    ((file->f_flags & O_SYNC) || IS_SYNC(file->f_mapping->host) ||
-+	    ((file->f_flags & O_SYNC) ||
-+	     IS_SYNC(file->f_mapping->host) ||
-+	     (iocb->ki_rwflags & RWF_DSYNC) ||
- 	     ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_NEARFULL))) {
- 		err = vfs_fsync_range(file, pos, pos + written - 1, 1);
- 		if (err < 0)
-diff --git a/fs/fuse/file.c b/fs/fuse/file.c
-index caa8d95..bb4fb23 100644
---- a/fs/fuse/file.c
-+++ b/fs/fuse/file.c
-@@ -1248,6 +1248,8 @@ static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
- 		written += written_buffered;
- 		iocb->ki_pos = pos + written_buffered;
- 	} else {
-+		if (iocb->ki_rwflags & RWF_DSYNC)
-+			return -EINVAL;
- 		written = fuse_perform_write(file, mapping, from, pos);
- 		if (written >= 0)
- 			iocb->ki_pos = pos + written;
-diff --git a/fs/nfs/file.c b/fs/nfs/file.c
-index aa9046f..c59b0b7 100644
---- a/fs/nfs/file.c
-+++ b/fs/nfs/file.c
-@@ -652,13 +652,15 @@ static const struct vm_operations_struct nfs_file_vm_ops = {
- 	.remap_pages = generic_file_remap_pages,
- };
- 
--static int nfs_need_sync_write(struct file *filp, struct inode *inode)
-+static int nfs_need_sync_write(struct kiocb *iocb, struct inode *inode)
- {
- 	struct nfs_open_context *ctx;
- 
--	if (IS_SYNC(inode) || (filp->f_flags & O_DSYNC))
-+	if (IS_SYNC(inode) ||
-+	    (iocb->ki_filp->f_flags & O_DSYNC) ||
-+	    (iocb->ki_rwflags & RWF_DSYNC))
- 		return 1;
--	ctx = nfs_file_open_context(filp);
-+	ctx = nfs_file_open_context(iocb->ki_filp);
- 	if (test_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags) ||
- 	    nfs_ctx_key_to_expire(ctx))
- 		return 1;
-@@ -705,7 +707,7 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
- 		written = result;
- 
- 	/* Return error values for O_DSYNC and IS_SYNC() */
--	if (result >= 0 && nfs_need_sync_write(file, inode)) {
-+	if (result >= 0 && nfs_need_sync_write(iocb, inode)) {
- 		int err = vfs_fsync(file, 0);
- 		if (err < 0)
- 			result = err;
-diff --git a/fs/ocfs2/file.c b/fs/ocfs2/file.c
-index bb66ca4..8f9a86b 100644
---- a/fs/ocfs2/file.c
-+++ b/fs/ocfs2/file.c
-@@ -2374,8 +2374,10 @@ out_dio:
- 	/* buffered aio wouldn't have proper lock coverage today */
- 	BUG_ON(ret == -EIOCBQUEUED && !(file->f_flags & O_DIRECT));
- 
--	if (((file->f_flags & O_DSYNC) && !direct_io) || IS_SYNC(inode) ||
--	    ((file->f_flags & O_DIRECT) && !direct_io)) {
-+	if (((file->f_flags & O_DSYNC) && !direct_io) ||
-+	    IS_SYNC(inode) ||
-+	    ((file->f_flags & O_DIRECT) && !direct_io) ||
-+	    (iocb->ki_rwflags & RWF_DSYNC)) {
- 		ret = filemap_fdatawrite_range(file->f_mapping, *ppos,
- 					       *ppos + count - 1);
- 		if (ret < 0)
-diff --git a/fs/read_write.c b/fs/read_write.c
-index adf85ab..c2e3c0a 100644
---- a/fs/read_write.c
-+++ b/fs/read_write.c
-@@ -841,6 +841,8 @@ static ssize_t do_readv_writev(int type, struct file *file,
- 	} else {
- 		if (type == READ && (flags & RWF_NONBLOCK))
- 			return -EAGAIN;
-+		if (type == WRITE && (flags & RWF_DSYNC))
-+			return -EINVAL;
- 
- 		if (fnv)
- 			ret = do_sync_readv_writev(file, iov, nr_segs, tot_len,
-@@ -888,7 +890,7 @@ ssize_t vfs_writev(struct file *file, const struct iovec __user *vec,
- 		return -EBADF;
- 	if (!(file->f_mode & FMODE_CAN_WRITE))
- 		return -EINVAL;
--	if (flags & ~0)
-+	if (flags & ~RWF_DSYNC)
- 		return -EINVAL;
- 
- 	return do_readv_writev(WRITE, file, vec, vlen, pos, flags);
-@@ -1082,6 +1084,8 @@ static ssize_t compat_do_readv_writev(int type, struct file *file,
- 	} else {
- 		if (type == READ && (flags & RWF_NONBLOCK))
- 			return -EAGAIN;
-+		if (type == WRITE && (flags & RWF_DSYNC))
-+			return -EINVAL;
- 
- 		if (fnv)
- 			ret = do_sync_readv_writev(file, iov, nr_segs, tot_len,
-@@ -1221,7 +1225,7 @@ static size_t compat_writev(struct file *file,
- 	ret = -EINVAL;
- 	if (!(file->f_mode & FMODE_CAN_WRITE))
- 		goto out;
--	if (flags & ~0)
-+	if (flags & ~RWF_DSYNC)
- 		goto out;
- 
- 	ret = compat_do_readv_writev(WRITE, file, vec, vlen, pos, flags);
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 7d0e116..7786b88 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -1460,7 +1460,8 @@ struct block_device_operations;
- #define HAVE_UNLOCKED_IOCTL 1
- 
- /* These flags are used for the readv/writev syscalls with flags. */
--#define RWF_NONBLOCK 0x00000001
-+#define RWF_NONBLOCK	0x00000001
-+#define RWF_DSYNC	0x00000002
- 
- struct iov_iter;
- 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 535967b..8c50d35 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -2669,7 +2669,9 @@ int generic_write_sync(struct kiocb *iocb, loff_t count)
- 	struct file *file = iocb->ki_filp;
- 
- 	if (count > 0 &&
--	    ((file->f_flags & O_DSYNC) || IS_SYNC(file->f_mapping->host))) {
-+	    ((file->f_flags & O_DSYNC) ||
-+	     (iocb->ki_rwflags & RWF_DSYNC) ||
-+	     IS_SYNC(file->f_mapping->host))) {
- 		bool fdatasync = !(file->f_flags & __O_SYNC);
- 		ssize_t ret;
- 
+Thanks!
 -- 
-1.9.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
