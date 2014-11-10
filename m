@@ -1,92 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 0297B6B0110
-	for <linux-mm@kvack.org>; Mon, 10 Nov 2014 11:53:37 -0500 (EST)
-Received: by mail-wi0-f176.google.com with SMTP id h11so11121658wiw.9
-        for <linux-mm@kvack.org>; Mon, 10 Nov 2014 08:53:36 -0800 (PST)
-Received: from mail-wg0-x22c.google.com (mail-wg0-x22c.google.com. [2a00:1450:400c:c00::22c])
-        by mx.google.com with ESMTPS id v9si29954986wjv.117.2014.11.10.08.31.01
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 10 Nov 2014 08:31:01 -0800 (PST)
-Received: by mail-wg0-f44.google.com with SMTP id x12so9345136wgg.3
-        for <linux-mm@kvack.org>; Mon, 10 Nov 2014 08:31:00 -0800 (PST)
-Date: Mon, 10 Nov 2014 17:30:55 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 3/4] OOM, PM: OOM killed task shouldn't escape PM suspend
-Message-ID: <20141110163055.GC18373@dhcp22.suse.cz>
-References: <20141105160115.GA28226@dhcp22.suse.cz>
- <20141105162929.GD14386@htj.dyndns.org>
- <20141105163956.GD28226@dhcp22.suse.cz>
- <20141105165428.GF14386@htj.dyndns.org>
- <20141105174609.GE28226@dhcp22.suse.cz>
- <20141105175527.GH14386@htj.dyndns.org>
- <20141106124953.GD7202@dhcp22.suse.cz>
- <20141106150121.GA25642@htj.dyndns.org>
- <20141106160223.GJ7202@dhcp22.suse.cz>
- <20141106162845.GD25642@htj.dyndns.org>
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 436F76B0112
+	for <linux-mm@kvack.org>; Mon, 10 Nov 2014 12:03:08 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id kx10so8498709pab.26
+        for <linux-mm@kvack.org>; Mon, 10 Nov 2014 09:03:08 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id rc17si17086217pab.100.2014.11.10.09.03.05
+        for <linux-mm@kvack.org>;
+        Mon, 10 Nov 2014 09:03:06 -0800 (PST)
+Message-ID: <5460EFC9.7060906@intel.com>
+Date: Mon, 10 Nov 2014 09:03:05 -0800
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141106162845.GD25642@htj.dyndns.org>
+Subject: Re: [PATCH] proc/smaps: add proportional size of anonymous page
+References: <1415349088-24078-1-git-send-email-xiaokang.qin@intel.com> <545D3AFB.1080308@intel.com> <6212C327DC2094488C1AAAD903AF062B01BCE1E6@SHSMSX104.ccr.corp.intel.com>
+In-Reply-To: <6212C327DC2094488C1AAAD903AF062B01BCE1E6@SHSMSX104.ccr.corp.intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>, Andrew Morton <akpm@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>
+To: "Qin, Xiaokang" <xiaokang.qin@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "Yin, Fengwei" <fengwei.yin@intel.com>
 
-On Thu 06-11-14 11:28:45, Tejun Heo wrote:
-> On Thu, Nov 06, 2014 at 05:02:23PM +0100, Michal Hocko wrote:
-[...]
-> > > We're doing one thing for non-PM freezing and the other way around for
-> > > PM freezing, which indicates one of the two directions is wrong.
-> > 
-> > Because those two paths are quite different in their requirements. The
-> > cgroup freezer only cares about freezing tasks and it doesn't have to
-> > care about tasks accessing a possibly half suspended device on their way
-> > out.
-> 
-> I don't think the fundamental relationship between freezing and oom
-> killing are different between the two and the failure to recognize
-> that is what's leading to these weird issues.
+On 11/10/2014 12:48 AM, Qin, Xiaokang wrote:
+> For some case especially under Android, anonymous page sharing is common, for example:
+> 70323000-70e41000 rw-p 00000000 fd:00 120004                             /data/dalvik-cache/x86/system@framework@boot.art
+> Size:              11384 kB
+> Rss:                8840 kB
+> Pss:                 927 kB
+> Shared_Clean:       5720 kB
+> Shared_Dirty:       2492 kB
+> Private_Clean:        16 kB
+> Private_Dirty:       612 kB
+> Referenced:         7896 kB
+> Anonymous:          3104 kB
+> PropAnonymous:       697 kB
 
-I do not understand the above. Could you be more specific, please?
-AFAIU cgroup freezer requires that no task will leak into userspace
-while the cgroup is frozen. This is naturally true for the OOM path
-whether the two are synchronized or not.
-The PM freezer, on the other hand, requires that no task is _woken up_
-after all tasks are frozen. This requires synchronization between the
-freezer and OOM path because allocations are allowed also after tasks
-are frozen.
-What am I missing?
+Please don't top post.
 
-> > > Shouldn't it be that OOM killing happening while PM freezing is in
-> > > progress cancels PM freezing rather than the other way around?  Find a
-> > > point in PM suspend/hibernation operation where everything must be
-> > > stable, disable OOM killing there and check whether OOM killing
-> > > happened inbetween and if so back out. 
-> > 
-> > This is freeze_processes AFAIU. I might be wrong of course but this is
-> > the time since when nobody should be waking processes up because they
-> > could access half suspended devices.
-> 
-> No, you're doing it before freezing starts.  The system is in no way
-> in a quiescent state at that point.
+> The only Anonymous here is confusing to me. What I really want to
+> know is how many anonymous page is there in Pss. After exposing
+> PropAnonymous, we could know 697/927 is anonymous in Pss.
+> I suppose the Pss - PropAnonymous = Proportional Page cache size for
+> file based memory and we want to break down the page cache into
+> process level, how much page cache each process consumes.
 
-You are right! Userspace shouldn't see any unexpected allocation
-failures just because PM freezing is in progress. This whole process
-should be transparent from userspace POV.
+Ahh, so you're talking about the anonymous pages that result from
+copy-on-write copies of private file mappings?  That wasn't very clear
+from the description at all.
 
-I am getting back to
-	oom_killer_lock();
-	error = try_to_freeze_tasks();
-	if (!error)
-		oom_killer_disable();
-	oom_killer_unlock();
+I'll agree that this definitely provides a bit of data that we didn't
+have before, albeit a fairly obscure one.
 
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+But, what's the goal of this patch?  Why are you doing this?  Was there
+some application whose behavior you were not able to explain before, but
+can after this patch?  If the goal is providing a "Proportional Page
+cache size", why do that in an indirect way?  Have you explored doing
+the same measurement with /proc/$pid/pagemap?  Is it possible with that
+interface?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
