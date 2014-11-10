@@ -1,81 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BD4A6B00DE
-	for <linux-mm@kvack.org>; Mon, 10 Nov 2014 03:39:09 -0500 (EST)
-Received: by mail-wi0-f180.google.com with SMTP id hi2so9600727wib.13
-        for <linux-mm@kvack.org>; Mon, 10 Nov 2014 00:39:08 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id qq9si28065657wjc.105.2014.11.10.00.39.07
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 10 Nov 2014 00:39:07 -0800 (PST)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH] mm, compaction: prevent infinite loop in compact_zone
-Date: Mon, 10 Nov 2014 09:38:30 +0100
-Message-Id: <1415608710-8326-1-git-send-email-vbabka@suse.cz>
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 545836B0103
+	for <linux-mm@kvack.org>; Mon, 10 Nov 2014 03:52:17 -0500 (EST)
+Received: by mail-pd0-f177.google.com with SMTP id v10so7321546pde.8
+        for <linux-mm@kvack.org>; Mon, 10 Nov 2014 00:52:17 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id bg3si15890125pbc.95.2014.11.10.00.52.15
+        for <linux-mm@kvack.org>;
+        Mon, 10 Nov 2014 00:52:16 -0800 (PST)
+From: "Qin, Xiaokang" <xiaokang.qin@intel.com>
+Subject: RE: [PATCH] proc/smaps: add proportional size of anonymous page
+Date: Mon, 10 Nov 2014 08:48:12 +0000
+Message-ID: <6212C327DC2094488C1AAAD903AF062B01BCE1E6@SHSMSX104.ccr.corp.intel.com>
+References: <1415349088-24078-1-git-send-email-xiaokang.qin@intel.com>
+ <545D3AFB.1080308@intel.com>
+In-Reply-To: <545D3AFB.1080308@intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Norbert Preining <preining@logic.at>, Pavel Machek <pavel@ucw.cz>, "P. Christeas" <xrg@linux.gr>
+To: "Hansen, Dave" <dave.hansen@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "Yin, Fengwei" <fengwei.yin@intel.com>
 
-Several people have reported occasionally seeing processes stuck in
-compact_zone(), even triggering soft lockups, in 3.18-rc2+. Testing revert of
-e14c720efdd7 ("mm, compaction: remember position within pageblock in free
-pages scanner") fixed the issue, although the stuck processes do not appear
-to involve the free scanner. Finally, by code inspection, the bug was found
-in isolate_migratepages() which uses a slightly different condition to detect
-if the migration and free scanners have met, than compact_finished(). That has
-not been a problem until commit e14c720efdd7 allowed the free scanner position
-between individual invocations to be in the middle of a pageblock. In an
-relatively rare case, the migration scanner position can end up at the
-beginning of a pageblock, with the free scanner position in the middle of the
-same pageblock. If it's the migration scanner's turn, isolate_migratepages()
-exits immediately (without updating the position), while compact_finished()
-decides to continue compaction, resulting in a potentially infinite loop. The
-system can recover only if another process creates enough high-order pages to
-make the watermark checks in compact_finished() pass.
+Hi, Dave
 
-This patch fixes the immediate problem by bumping the migration scanner's
-position to meet the free scanner in isolate_migratepages(), when both are
-within the same pageblock. This causes compact_finished() to terminate
-properly. A more robust check in compact_finished() is planned as a cleanup
-for better future maintainability.
+For some case especially under Android, anonymous page sharing is common, f=
+or example:
+70323000-70e41000 rw-p 00000000 fd:00 120004                             /d=
+ata/dalvik-cache/x86/system@framework@boot.art
+Size:              11384 kB
+Rss:                8840 kB
+Pss:                 927 kB
+Shared_Clean:       5720 kB
+Shared_Dirty:       2492 kB
+Private_Clean:        16 kB
+Private_Dirty:       612 kB
+Referenced:         7896 kB
+Anonymous:          3104 kB
+PropAnonymous:       697 kB
+AnonHugePages:         0 kB
+Swap:                  0 kB
+KernelPageSize:        4 kB
+MMUPageSize:           4 kB
+Locked:                0 kB
+The only Anonymous here is confusing to me. What I really want to know is h=
+ow many anonymous page is there in Pss. After exposing PropAnonymous, we co=
+uld know 697/927 is anonymous in Pss.
+I suppose the Pss - PropAnonymous =3D Proportional Page cache size for file=
+ based memory and we want to break down the page cache into process level, =
+how much page cache each process consumes.
 
-Fixes: e14c720efdd73c6d69cd8d07fa894bcd11fe1973
-Reported-and-tested-by: P. Christeas <xrg@linux.gr>
-Link: http://marc.info/?l=linux-mm&m=141508604232522&w=2
-Reported-and-tested-by: Norbert Preining <preining@logic.at>
-Link: https://lkml.org/lkml/2014/11/4/904
-Reported-by: Pavel Machek <pavel@ucw.cz>
-Link: https://lkml.org/lkml/2014/11/7/164
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: David Rientjes <rientjes@google.com>
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- mm/compaction.c | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+Regards,
+Xiaokang
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index ec74cf0..1b7a1be 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1029,8 +1029,12 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 	}
- 
- 	acct_isolated(zone, cc);
--	/* Record where migration scanner will be restarted */
--	cc->migrate_pfn = low_pfn;
-+	/* 
-+	 * Record where migration scanner will be restarted. If we end up in
-+	 * the same pageblock as the free scanner, make the scanners fully
-+	 * meet so that compact_finished() terminates compaction.
-+	 */
-+	cc->migrate_pfn = (end_pfn <= cc->free_pfn) ? low_pfn : cc->free_pfn;
- 
- 	return cc->nr_migratepages ? ISOLATE_SUCCESS : ISOLATE_NONE;
- }
--- 
-2.1.2
+
+-----Original Message-----
+From: Hansen, Dave=20
+Sent: Saturday, November 08, 2014 5:35 AM
+To: Qin, Xiaokang; linux-mm@kvack.org
+Cc: Yin, Fengwei
+Subject: Re: [PATCH] proc/smaps: add proportional size of anonymous page
+
+On 11/07/2014 12:31 AM, Xiaokang Qin wrote:
+> The "proportional anonymous page size" (PropAnonymous) of a process is=20
+> the count of anonymous pages it has in memory, where each anonymous=20
+> page is devided by the number of processes sharing it.
+
+This seems like the kind of thing that should just be accounted for in the =
+existing pss metric.  Why do we need a new, separate one?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
