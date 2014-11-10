@@ -1,247 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 00237280012
-	for <linux-mm@kvack.org>; Mon, 10 Nov 2014 11:08:00 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id lf10so8541597pab.32
-        for <linux-mm@kvack.org>; Mon, 10 Nov 2014 08:08:00 -0800 (PST)
-Date: Mon, 10 Nov 2014 08:07:58 -0800 (PST)
-From: Sage Weil <sage@newdream.net>
-Subject: Re: [PATCH v5 7/7] fs: add a flag for per-operation O_DSYNC
- semantics
-In-Reply-To: <c188b04ede700ce5f986b19de12fa617d158540f.1415220890.git.milosz@adfin.com>
-Message-ID: <alpine.DEB.2.00.1411100807350.11379@cobra.newdream.net>
-References: <cover.1415220890.git.milosz@adfin.com> <c188b04ede700ce5f986b19de12fa617d158540f.1415220890.git.milosz@adfin.com>
+Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B9DA280012
+	for <linux-mm@kvack.org>; Mon, 10 Nov 2014 11:22:50 -0500 (EST)
+Received: by mail-wg0-f51.google.com with SMTP id l18so9194586wgh.38
+        for <linux-mm@kvack.org>; Mon, 10 Nov 2014 08:22:49 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s13si17648224wiv.4.2014.11.10.08.22.49
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 10 Nov 2014 08:22:49 -0800 (PST)
+Date: Mon, 10 Nov 2014 16:22:45 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 10/10] mm/hugetlb: share the i_mmap_rwsem
+Message-ID: <20141110162245.GZ21422@suse.de>
+References: <1414697657-1678-1-git-send-email-dave@stgolabs.net>
+ <1414697657-1678-11-git-send-email-dave@stgolabs.net>
+ <alpine.LSU.2.11.1411032208390.15596@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1411032208390.15596@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Milosz Tanski <milosz@adfin.com>
-Cc: linux-kernel@vger.kernel.org, Christoph Hellwig <hch@lst.de>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, Mel Gorman <mgorman@suse.de>, Volker Lendecke <Volker.Lendecke@sernet.de>, Tejun Heo <tj@kernel.org>, Jeff Moyer <jmoyer@redhat.com>, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>, linux-api@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-arch@vger.kernel.org, ceph-devel@vger.kernel.org, fuse-devel@lists.sourceforge.net, linux-nfs@vger.kernel.org, ocfs2-devel@oss.oracle.com, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Davidlohr Bueso <dave@stgolabs.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.cz>, akpm@linux-foundation.org, riel@redhat.com, peterz@infradead.org, mingo@kernel.org, linux-kernel@vger.kernel.org, dbueso@suse.de, linux-mm@kvack.org
 
-On Wed, 5 Nov 2014, Milosz Tanski wrote:
-> From: Christoph Hellwig <hch@lst.de>
+On Mon, Nov 03, 2014 at 10:35:04PM -0800, Hugh Dickins wrote:
+> On Thu, 30 Oct 2014, Davidlohr Bueso wrote:
 > 
-> With the new read/write with flags syscalls we can support a flag
-> to enable O_DSYNC semantics on a per-operation basis.  This ?s
-> useful to implement protocols like SMB, NFS or SCSI that have such
-> per-operation flags.
+> > The i_mmap_rwsem protects shared pages against races
+> > when doing the sharing and unsharing, ultimately
+> > calling huge_pmd_share/unshare() for PMD pages --
+> > it also needs it to avoid races when populating the pud
+> > for pmd allocation when looking for a shareable pmd page
+> > for hugetlb. Ultimately the interval tree remains intact.
+> > 
+> > Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
+> > Acked-by: Kirill A. Shutemov <kirill.shutemov@intel.linux.com>
+>                                                 linux.intel.com
 > 
-> Example program below:
+> I'm uncomfortable with this one: I'm certainly not prepared to Ack it;
+> but that could easily be that I'm just not thinking hard enough - I'd
+> rather leave the heavy thinking to someone else!
 > 
-> cat > pwritev2.c << EOF
+> The fs/hugetlbfs/inode.c part of it should be okay, but the rest is
+> iffy.  It gets into huge page table sharing territory, which is very
+> tricky and surprising territory indeed (take a look at my
+> __unmap_hugepage_range_final() comment, for one example).
 > 
->         (off_t) val,                              \
->         (off_t) ((((uint64_t) (val)) >> (sizeof (long) * 4)) >> (sizeof (long) * 4))
+> You're right that the interval tree remains intact, but I've a feeling
+> we end up using i_mmap_mutex for more exclusion than just that (rather
+> like how huge_memory.c finds anon_vma lock useful for other exclusions).
 > 
-> static ssize_t
-> pwritev2(int fd, const struct iovec *iov, int iovcnt, off_t offset, int flags)
-> {
->         return syscall(__NR_pwritev2, fd, iov, iovcnt, LO_HI_LONG(offset),
-> 			 flags);
-> }
+> I think Mel (already Cc'ed) and Michal (adding him) both have past
+> experience with the shared page table (as do I, but I'm in denial).
 > 
-> int main(int argc, char **argv)
-> {
-> 	int fd = open(argv[1], O_WRONLY|O_CREAT|O_TRUNC, 0666);
-> 	char buf[1024];
-> 	struct iovec iov = { .iov_base = buf, .iov_len = 1024 };
-> 	int ret;
-> 
->         if (fd < 0) {
->                 perror("open");
->                 return 0;
->         }
-> 
-> 	memset(buf, 0xfe, sizeof(buf));
-> 
-> 	ret = pwritev2(fd, &iov, 1, 0, RWF_DSYNC);
-> 	if (ret < 0)
-> 		perror("pwritev2");
-> 	else
-> 		printf("ret = %d\n", ret);
-> 
-> 	return 0;
-> }
-> EOF
-> 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
-> [milosz@adfin.com: added flag check to compat_do_readv_writev()]
-> Signed-off-by: Milosz Tanski <milosz@adfin.com>
 
-Ceph bits
+I dealt with it far in the past when it was still buried under arch/x86
+and it was a whole pile of no fun. In this case I think there is little or
+no value in trying to convert the lock for page table sharing. The benefit
+is marginal (database initialisation maybe) while the potential for
+surprises is high.
 
-Acked-by: Sage Weil <sage@redhat.com>
+The __unmap_hugepage_range_final() concern is valid. If this is converted to
+read then I am fairly sure that the bug fixed by commit d833352a4338 ("mm:
+hugetlbfs: close race during teardown of hugetlbfs shared page tables")
+gets reintroduced. We also potentially see races between huge_pmd_unshare
+ref counting and huge_pmd_share as huge_pmd_unshare does a race-prone
+check on refcount if it's not serialised by i_mmap_lock_write. On a rance,
+it will leak pages which will be hard to detect.
 
-> ---
->  fs/ceph/file.c     |  4 +++-
->  fs/fuse/file.c     |  2 ++
->  fs/nfs/file.c      | 10 ++++++----
->  fs/ocfs2/file.c    |  6 ++++--
->  fs/read_write.c    | 20 +++++++++++++++-----
->  include/linux/fs.h |  3 ++-
->  mm/filemap.c       |  4 +++-
->  7 files changed, 35 insertions(+), 14 deletions(-)
+Considering the upside of this particular conversion, I don't think it's
+worth the loss of hair or will to live to try fix it up.
+
+> I wonder if the huge shared page table would be a good next target
+> for Kirill's removal of mm nastiness.  (Removing it wouldn't hurt
+> Google for one: we have it "#if 0"ed out, though I forget why at
+> this moment.)
 > 
-> diff --git a/fs/ceph/file.c b/fs/ceph/file.c
-> index b798b5c..2d4e15a 100644
-> --- a/fs/ceph/file.c
-> +++ b/fs/ceph/file.c
-> @@ -983,7 +983,9 @@ retry_snap:
->  	ceph_put_cap_refs(ci, got);
->  
->  	if (written >= 0 &&
-> -	    ((file->f_flags & O_SYNC) || IS_SYNC(file->f_mapping->host) ||
-> +	    ((file->f_flags & O_SYNC) ||
-> +	     IS_SYNC(file->f_mapping->host) ||
-> +	     (iocb->ki_rwflags & RWF_DSYNC) ||
->  	     ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_NEARFULL))) {
->  		err = vfs_fsync_range(file, pos, pos + written - 1, 1);
->  		if (err < 0)
-> diff --git a/fs/fuse/file.c b/fs/fuse/file.c
-> index caa8d95..bb4fb23 100644
-> --- a/fs/fuse/file.c
-> +++ b/fs/fuse/file.c
-> @@ -1248,6 +1248,8 @@ static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
->  		written += written_buffered;
->  		iocb->ki_pos = pos + written_buffered;
->  	} else {
-> +		if (iocb->ki_rwflags & RWF_DSYNC)
-> +			return -EINVAL;
->  		written = fuse_perform_write(file, mapping, from, pos);
->  		if (written >= 0)
->  			iocb->ki_pos = pos + written;
-> diff --git a/fs/nfs/file.c b/fs/nfs/file.c
-> index aa9046f..c59b0b7 100644
-> --- a/fs/nfs/file.c
-> +++ b/fs/nfs/file.c
-> @@ -652,13 +652,15 @@ static const struct vm_operations_struct nfs_file_vm_ops = {
->  	.remap_pages = generic_file_remap_pages,
->  };
->  
-> -static int nfs_need_sync_write(struct file *filp, struct inode *inode)
-> +static int nfs_need_sync_write(struct kiocb *iocb, struct inode *inode)
->  {
->  	struct nfs_open_context *ctx;
->  
-> -	if (IS_SYNC(inode) || (filp->f_flags & O_DSYNC))
-> +	if (IS_SYNC(inode) ||
-> +	    (iocb->ki_filp->f_flags & O_DSYNC) ||
-> +	    (iocb->ki_rwflags & RWF_DSYNC))
->  		return 1;
-> -	ctx = nfs_file_open_context(filp);
-> +	ctx = nfs_file_open_context(iocb->ki_filp);
->  	if (test_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags) ||
->  	    nfs_ctx_key_to_expire(ctx))
->  		return 1;
-> @@ -705,7 +707,7 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
->  		written = result;
->  
->  	/* Return error values for O_DSYNC and IS_SYNC() */
-> -	if (result >= 0 && nfs_need_sync_write(file, inode)) {
-> +	if (result >= 0 && nfs_need_sync_write(iocb, inode)) {
->  		int err = vfs_fsync(file, 0);
->  		if (err < 0)
->  			result = err;
-> diff --git a/fs/ocfs2/file.c b/fs/ocfs2/file.c
-> index bb66ca4..8f9a86b 100644
-> --- a/fs/ocfs2/file.c
-> +++ b/fs/ocfs2/file.c
-> @@ -2374,8 +2374,10 @@ out_dio:
->  	/* buffered aio wouldn't have proper lock coverage today */
->  	BUG_ON(ret == -EIOCBQUEUED && !(file->f_flags & O_DIRECT));
->  
-> -	if (((file->f_flags & O_DSYNC) && !direct_io) || IS_SYNC(inode) ||
-> -	    ((file->f_flags & O_DIRECT) && !direct_io)) {
-> +	if (((file->f_flags & O_DSYNC) && !direct_io) ||
-> +	    IS_SYNC(inode) ||
-> +	    ((file->f_flags & O_DIRECT) && !direct_io) ||
-> +	    (iocb->ki_rwflags & RWF_DSYNC)) {
->  		ret = filemap_fdatawrite_range(file->f_mapping, *ppos,
->  					       *ppos + count - 1);
->  		if (ret < 0)
-> diff --git a/fs/read_write.c b/fs/read_write.c
-> index cba7d4c..3443265 100644
-> --- a/fs/read_write.c
-> +++ b/fs/read_write.c
-> @@ -839,8 +839,13 @@ static ssize_t do_readv_writev(int type, struct file *file,
->  		ret = do_iter_readv_writev(file, type, iov, nr_segs, tot_len,
->  						pos, iter_fn, flags);
->  	} else {
-> -		if (type == READ && (flags & RWF_NONBLOCK))
-> -			return -EAGAIN;
-> +		if (type == READ) {
-> +			if (flags & RWF_NONBLOCK)
-> +				return -EAGAIN;
-> +		} else {
-> +			if (flags & RWF_DSYNC)
-> +				return -EINVAL;
-> +		}
->  
->  		if (fnv)
->  			ret = do_sync_readv_writev(file, iov, nr_segs, tot_len,
-> @@ -888,7 +893,7 @@ ssize_t vfs_writev(struct file *file, const struct iovec __user *vec,
->  		return -EBADF;
->  	if (!(file->f_mode & FMODE_CAN_WRITE))
->  		return -EINVAL;
-> -	if (flags & ~0)
-> +	if (flags & ~RWF_DSYNC)
->  		return -EINVAL;
->  
->  	return do_readv_writev(WRITE, file, vec, vlen, pos, flags);
-> @@ -1080,8 +1085,13 @@ static ssize_t compat_do_readv_writev(int type, struct file *file,
->  		ret = do_iter_readv_writev(file, type, iov, nr_segs, tot_len,
->  						pos, iter_fn, flags);
->  	} else {
-> -		if (type == READ && (flags & RWF_NONBLOCK))
-> -			return -EAGAIN;
-> +		if (type == READ) {
-> +			if (flags & RWF_NONBLOCK)
-> +				return -EAGAIN;
-> +		} else {
-> +			if (flags & RWF_DSYNC)
-> +				return -EINVAL;
-> +		}
->  
->  		if (fnv)
->  			ret = do_sync_readv_writev(file, iov, nr_segs, tot_len,
-> diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index 7d0e116..7786b88 100644
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -1460,7 +1460,8 @@ struct block_device_operations;
->  #define HAVE_UNLOCKED_IOCTL 1
->  
->  /* These flags are used for the readv/writev syscalls with flags. */
-> -#define RWF_NONBLOCK 0x00000001
-> +#define RWF_NONBLOCK	0x00000001
-> +#define RWF_DSYNC	0x00000002
->  
->  struct iov_iter;
->  
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index 6107058..4fbef99 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -2669,7 +2669,9 @@ int generic_write_sync(struct kiocb *iocb, loff_t count)
->  	struct file *file = iocb->ki_filp;
->  
->  	if (count > 0 &&
-> -	    ((file->f_flags & O_DSYNC) || IS_SYNC(file->f_mapping->host))) {
-> +	    ((file->f_flags & O_DSYNC) ||
-> +	     (iocb->ki_rwflags & RWF_DSYNC) ||
-> +	     IS_SYNC(file->f_mapping->host))) {
->  		bool fdatasync = !(file->f_flags & __O_SYNC);
->  		ssize_t ret = 0;
->  
-> -- 
-> 1.9.1
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe ceph-devel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> 
-> 
+
+I think the only benefit was reducing TLB pressure on databases with
+very large shared memory before 1G pages existed and when 2M TLB entries
+were a very limited resource. I doubt it's been quantified on anything
+resembling recent hardware. If it did get killed though, it would need a
+spin through a database test that used the particular database software
+that benefitted.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
