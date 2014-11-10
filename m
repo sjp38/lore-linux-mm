@@ -1,124 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C95382BEF
-	for <linux-mm@kvack.org>; Sun,  9 Nov 2014 18:28:58 -0500 (EST)
-Received: by mail-pd0-f176.google.com with SMTP id ft15so6597925pdb.35
-        for <linux-mm@kvack.org>; Sun, 09 Nov 2014 15:28:57 -0800 (PST)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id pn3si12368990pac.215.2014.11.09.15.28.55
-        for <linux-mm@kvack.org>;
-        Sun, 09 Nov 2014 15:28:56 -0800 (PST)
-Message-ID: <545FF8B5.5000007@lge.com>
-Date: Mon, 10 Nov 2014 08:28:53 +0900
-From: Gioh Kim <gioh.kim@lge.com>
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 0401582BEF
+	for <linux-mm@kvack.org>; Sun,  9 Nov 2014 19:28:18 -0500 (EST)
+Received: by mail-pa0-f47.google.com with SMTP id kx10so7000879pab.6
+        for <linux-mm@kvack.org>; Sun, 09 Nov 2014 16:28:17 -0800 (PST)
+Received: from fgwmail6.fujitsu.co.jp (fgwmail6.fujitsu.co.jp. [192.51.44.36])
+        by mx.google.com with ESMTPS id x3si14958881pdr.187.2014.11.09.16.28.15
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 09 Nov 2014 16:28:16 -0800 (PST)
+Received: from kw-mxoi1.gw.nic.fujitsu.com (unknown [10.0.237.133])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id BCCE13EE0CB
+	for <linux-mm@kvack.org>; Mon, 10 Nov 2014 09:28:14 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by kw-mxoi1.gw.nic.fujitsu.com (Postfix) with ESMTP id 9C083AC04EC
+	for <linux-mm@kvack.org>; Mon, 10 Nov 2014 09:28:13 +0900 (JST)
+Received: from g01jpfmpwyt01.exch.g01.fujitsu.local (g01jpfmpwyt01.exch.g01.fujitsu.local [10.128.193.38])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2F112E08002
+	for <linux-mm@kvack.org>; Mon, 10 Nov 2014 09:28:13 +0900 (JST)
+Message-ID: <54600665.5090503@jp.fujitsu.com>
+Date: Mon, 10 Nov 2014 09:27:17 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] mm/debug-pagealloc: cleanup page guard code
-References: <1415345746-16666-1-git-send-email-iamjoonsoo.kim@lge.com> <1415345746-16666-2-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1415345746-16666-2-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=euc-kr
-Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH v2 2/2] mem-hotplug: Reset node present pages when hot-adding
+ a new pgdat.
+References: <1415353481-3140-1-git-send-email-tangchen@cn.fujitsu.com> <1415353481-3140-3-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1415353481-3140-3-git-send-email-tangchen@cn.fujitsu.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tang Chen <tangchen@cn.fujitsu.com>, akpm@linux-foundation.org, santosh.shilimkar@ti.com, grygorii.strashko@ti.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, fabf@skynet.be, nzimmer@sgi.com, wangnan0@huawei.com, vdavydov@parallels.com, toshi.kani@hp.com, phacht@linux.vnet.ibm.com, tj@kernel.org, kirill.shutemov@linux.intel.com, riel@redhat.com, luto@amacapital.net, hpa@linux.intel.com, aarcange@redhat.com, qiuxishi@huawei.com, mgorman@suse.de, rientjes@google.com, hannes@cmpxchg.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, miaox@cn.fujitsu.com
 
-
-
-2014-11-07 ?AEA 4:35?! Joonsoo Kim AI(?!)  3/4 ' +-U:
-> Page guard is used by debug-pagealloc feature. Currently,
-> it is open-coded, but, I think that more abstraction of it makes
-> core page allocator code more readable.
+(2014/11/07 18:44), Tang Chen wrote:
+> When onlining memory on node2, node2 zoneinfo and node3 meminfo corrupted:
 > 
-> There is no functional difference.
+> # for ((i = 2048; i < 2064; i++)); do echo online_movable > /sys/devices/system/node/node2/memory$i/state; done
+> # cat /sys/devices/system/node/node2/meminfo
+> Node 2 MemTotal:       33554432 kB
+> Node 2 MemFree:        33549092 kB
+> Node 2 MemUsed:            5340 kB
+> ......
+> # cat /sys/devices/system/node/node3/meminfo
+> Node 3 MemTotal:              0 kB
+> Node 3 MemFree:               248 kB      /* corrupted, should be 0 */
+> Node 3 MemUsed:               0 kB
+> ......
 > 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> # cat /proc/zoneinfo
+> ......
+> Node 2, zone   Movable
+> ......
+>          spanned  8388608
+>          present  16777216               /* corrupted, should be 8388608 */
+>          managed  8388608
+> 
+> 
+> When memory is hot-added, all the memory is in offline state. So
+> clear all zone->present_pages because they will be updated in
+> online_pages() and offline_pages().
+> 
+> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 > ---
->   mm/page_alloc.c |   38 +++++++++++++++++++-------------------
->   1 file changed, 19 insertions(+), 19 deletions(-)
+
+Looks good to me.
+
+Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+
+Thanks,
+Yasuaki Ishimatsu
+
+>   mm/memory_hotplug.c | 15 +++++++++++++++
+>   1 file changed, 15 insertions(+)
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index d673f64..c0dbede 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -440,18 +440,29 @@ static int __init debug_guardpage_minorder_setup(char *buf)
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 8aba12b..26eac61 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1067,6 +1067,14 @@ out:
 >   }
->   __setup("debug_guardpage_minorder=", debug_guardpage_minorder_setup);
+>   #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
 >   
-> -static inline void set_page_guard_flag(struct page *page)
-> +static inline void set_page_guard(struct zone *zone, struct page *page,
-> +				unsigned int order, int migratetype)
+> +static void reset_node_present_pages(pg_data_t *pgdat)
+> +{
+> +        struct zone *z;
+> +
+> +        for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
+> +                z->present_pages = 0;
+> +}
+> +
+>   /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
+>   static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
 >   {
->   	__set_bit(PAGE_DEBUG_FLAG_GUARD, &page->debug_flags);
-> +	INIT_LIST_HEAD(&page->lru);
-> +	set_page_private(page, order);
-> +	/* Guard pages are not available for any usage */
-> +	__mod_zone_freepage_state(zone, -(1 << order), migratetype);
+> @@ -1105,6 +1113,13 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
+>   	 */
+>   	reset_node_managed_pages(pgdat);
+>   
+> +	/*
+> +	 * When memory is hot-added, all the memory is in offline state. So
+> +	 * clear all zones' present_pages because they will be updated in
+> +	 * online_pages() and offline_pages().
+> +	 */
+> +	reset_node_present_pages(pgdat);
+> +
+>   	return pgdat;
 >   }
 >   
-> -static inline void clear_page_guard_flag(struct page *page)
-> +static inline void clear_page_guard(struct zone *zone, struct page *page,
-> +				unsigned int order, int migratetype)
->   {
->   	__clear_bit(PAGE_DEBUG_FLAG_GUARD, &page->debug_flags);
-> +	set_page_private(page, 0);
-> +	if (!is_migrate_isolate(migratetype))
-> +		__mod_zone_freepage_state(zone, (1 << order), migratetype);
->   }
->   #else
-> -static inline void set_page_guard_flag(struct page *page) { }
-> -static inline void clear_page_guard_flag(struct page *page) { }
-> +static inline void set_page_guard(struct zone *zone, struct page *page,
-> +				unsigned int order, int migratetype) {}
-> +static inline void clear_page_guard(struct zone *zone, struct page *page,
-> +				unsigned int order, int migratetype) {}
->   #endif
->   
->   static inline void set_page_order(struct page *page, unsigned int order)
-> @@ -582,12 +593,7 @@ static inline void __free_one_page(struct page *page,
->   		 * merge with it and move up one order.
->   		 */
->   		if (page_is_guard(buddy)) {
-> -			clear_page_guard_flag(buddy);
-> -			set_page_private(buddy, 0);
-> -			if (!is_migrate_isolate(migratetype)) {
-> -				__mod_zone_freepage_state(zone, 1 << order,
-> -							  migratetype);
-> -			}
-> +			clear_page_guard(zone, buddy, order, migratetype);
->   		} else {
->   			list_del(&buddy->lru);
->   			zone->free_area[order].nr_free--;
-> @@ -862,23 +868,17 @@ static inline void expand(struct zone *zone, struct page *page,
->   		size >>= 1;
->   		VM_BUG_ON_PAGE(bad_range(zone, &page[size]), &page[size]);
->   
-> -#ifdef CONFIG_DEBUG_PAGEALLOC
-> -		if (high < debug_guardpage_minorder()) {
-> +		if (IS_ENABLED(CONFIG_DEBUG_PAGEALLOC) &&
-> +			high < debug_guardpage_minorder()) {
->   			/*
->   			 * Mark as guard pages (or page), that will allow to
->   			 * merge back to allocator when buddy will be freed.
->   			 * Corresponding page table entries will not be touched,
->   			 * pages will stay not present in virtual address space
->   			 */
-> -			INIT_LIST_HEAD(&page[size].lru);
-> -			set_page_guard_flag(&page[size]);
-> -			set_page_private(&page[size], high);
-> -			/* Guard pages are not available for any usage */
-> -			__mod_zone_freepage_state(zone, -(1 << high),
-> -						  migratetype);
-> +			set_page_guard(zone, &page[size], high, migratetype);
->   			continue;
->   		}
-> -#endif
->   		list_add(&page[size].lru, &area->free_list[migratetype]);
->   		area->nr_free++;
->   		set_page_order(&page[size], high);
 > 
 
-Looks good!
-Thanks for your work.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
