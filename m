@@ -1,76 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 431B1280029
-	for <linux-mm@kvack.org>; Tue, 11 Nov 2014 06:11:24 -0500 (EST)
-Received: by mail-wi0-f174.google.com with SMTP id d1so1244101wiv.13
-        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 03:11:23 -0800 (PST)
-Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
-        by mx.google.com with ESMTPS id ex8si17155272wjb.33.2014.11.11.03.11.23
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id B54086B0113
+	for <linux-mm@kvack.org>; Tue, 11 Nov 2014 07:57:51 -0500 (EST)
+Received: by mail-wi0-f173.google.com with SMTP id n3so1531238wiv.12
+        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 04:57:51 -0800 (PST)
+Received: from mail-wi0-x235.google.com (mail-wi0-x235.google.com. [2a00:1450:400c:c05::235])
+        by mx.google.com with ESMTPS id ex8si17562768wjb.33.2014.11.11.04.57.50
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 11 Nov 2014 03:11:23 -0800 (PST)
-From: Luis Henriques <luis.henriques@canonical.com>
-Subject: [PATCH 3.16.y-ckt 149/170] x86, pageattr: Prevent overflow in slow_virt_to_phys() for X86_PAE
-Date: Tue, 11 Nov 2014 11:08:28 +0000
-Message-Id: <1415704129-12709-150-git-send-email-luis.henriques@canonical.com>
-In-Reply-To: <1415704129-12709-1-git-send-email-luis.henriques@canonical.com>
-References: <1415704129-12709-1-git-send-email-luis.henriques@canonical.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 11 Nov 2014 04:57:50 -0800 (PST)
+Received: by mail-wi0-f181.google.com with SMTP id n3so1530008wiv.8
+        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 04:57:50 -0800 (PST)
+From: Timofey Titovets <nefelim4ag@gmail.com>
+Subject: [PATCH V3 0/4] KSM: Mark new vma for deduplication
+Date: Tue, 11 Nov 2014 15:57:32 +0300
+Message-Id: <1415710656-29296-1-git-send-email-nefelim4ag@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, stable@vger.kernel.org, kernel-team@lists.ubuntu.com
-Cc: Dexuan Cui <decui@microsoft.com>, "K. Y. Srinivasan" <kys@microsoft.com>, Haiyang Zhang <haiyangz@microsoft.com>, gregkh@linuxfoundation.org, linux-mm@kvack.org, olaf@aepfle.de, apw@canonical.com, jasowang@redhat.com, dave.hansen@intel.com, riel@redhat.com, Thomas Gleixner <tglx@linutronix.de>, Luis Henriques <luis.henriques@canonical.com>
+To: linux-mm@kvack.org
+Cc: nefelim4ag@gmail.com, marco.antonio.780@gmail.com, linux-kernel@vger.kernel.org, tonyb@cybernetics.com, killertofu@gmail.com
 
-3.16.7-ckt1 -stable review patch.  If anyone has any objections, please let me know.
+Good time of day List,
+this tiny series of patches implement feature for auto deduping all anonymous memory.
+mark_new_vma - new ksm sysfs interface
+Every time then new vma created and mark_new_vma set to 1, then will be vma marked as VM_MERGEABLE and added to ksm queue.
+This can produce small overheads
+(I have not catch any problems or slowdown)
 
-------------------
+This is useful for:
+Android (CM) devs which implement ksm support with patching system.
+Users of tiny pc.
+Servers what not use KVM but use something very releated, like containers.
 
-From: Dexuan Cui <decui@microsoft.com>
+Can be pulled from:
+https://github.com/Nefelim4ag/linux.git ksm_improvements
 
-commit d1cd1210834649ce1ca6bafe5ac25d2f40331343 upstream.
+For tests:
+I have tested it and it working very good. For testing apply it and enable ksm:
+echo 1 | sudo tee /sys/kernel/mm/ksm/run
+This show how much memory saved:
+echo $[$(cat /sys/kernel/mm/ksm/pages_shared)*$(getconf PAGE_SIZE)/1024 ]KB
 
-pte_pfn() returns a PFN of long (32 bits in 32-PAE), so "long <<
-PAGE_SHIFT" will overflow for PFNs above 4GB.
+On my system i save ~1% of memory 26 Mb/2100 Mb (deduped)/(used)
 
-Due to this issue, some Linux 32-PAE distros, running as guests on Hyper-V,
-with 5GB memory assigned, can't load the netvsc driver successfully and
-hence the synthetic network device can't work (we can use the kernel parameter
-mem=3000M to work around the issue).
+v2:
+	Added Kconfig for control default value of mark_new_vma
+	Added sysfs interface for control mark_new_vma
+	Splitted in several patches
 
-Cast pte_pfn() to phys_addr_t before shifting.
+v3:
+	Documentation for ksm changed for clarify new cha
 
-Fixes: "commit d76565344512: x86, mm: Create slow_virt_to_phys()"
-Signed-off-by: Dexuan Cui <decui@microsoft.com>
-Cc: K. Y. Srinivasan <kys@microsoft.com>
-Cc: Haiyang Zhang <haiyangz@microsoft.com>
-Cc: gregkh@linuxfoundation.org
-Cc: linux-mm@kvack.org
-Cc: olaf@aepfle.de
-Cc: apw@canonical.com
-Cc: jasowang@redhat.com
-Cc: dave.hansen@intel.com
-Cc: riel@redhat.com
-Link: http://lkml.kernel.org/r/1414580017-27444-1-git-send-email-decui@microsoft.com
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Signed-off-by: Luis Henriques <luis.henriques@canonical.com>
----
- arch/x86/mm/pageattr.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Timofey Titovets (4):
+  KSM: Add auto flag new VMA as VM_MERGEABLE
+  KSM: Add to sysfs - mark_new_vma
+  KSM: Add config to control mark_new_vma
+  KSM: mark_new_vma added to Documentation.
 
-diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-index ae242a7c11c7..36de293caf25 100644
---- a/arch/x86/mm/pageattr.c
-+++ b/arch/x86/mm/pageattr.c
-@@ -409,7 +409,7 @@ phys_addr_t slow_virt_to_phys(void *__virt_addr)
- 	psize = page_level_size(level);
- 	pmask = page_level_mask(level);
- 	offset = virt_addr & ~pmask;
--	phys_addr = pte_pfn(*pte) << PAGE_SHIFT;
-+	phys_addr = (phys_addr_t)pte_pfn(*pte) << PAGE_SHIFT;
- 	return (phys_addr | offset);
- }
- EXPORT_SYMBOL_GPL(slow_virt_to_phys);
+ Documentation/vm/ksm.txt |  7 +++++++
+ include/linux/ksm.h      | 39 +++++++++++++++++++++++++++++++++++++++
+ mm/Kconfig               |  7 +++++++
+ mm/ksm.c                 | 39 ++++++++++++++++++++++++++++++++++++++-
+ mm/mmap.c                | 17 +++++++++++++++++
+ 5 files changed, 108 insertions(+), 1 deletion(-)
+
 -- 
-2.1.0
+2.1.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
