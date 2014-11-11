@@ -1,41 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 024AD280021
-	for <linux-mm@kvack.org>; Tue, 11 Nov 2014 04:59:10 -0500 (EST)
-Received: by mail-wi0-f182.google.com with SMTP id d1so1069286wiv.3
-        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 01:59:09 -0800 (PST)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id p6si22260884wiw.34.2014.11.11.01.59.09
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 431B1280029
+	for <linux-mm@kvack.org>; Tue, 11 Nov 2014 06:11:24 -0500 (EST)
+Received: by mail-wi0-f174.google.com with SMTP id d1so1244101wiv.13
+        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 03:11:23 -0800 (PST)
+Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
+        by mx.google.com with ESMTPS id ex8si17155272wjb.33.2014.11.11.03.11.23
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Nov 2014 01:59:09 -0800 (PST)
-Date: Tue, 11 Nov 2014 10:59:03 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 3/5] lib: lockless generic and arch independent page
- table (gpt) v2.
-Message-ID: <20141111095903.GH10501@worktop.programming.kicks-ass.net>
-References: <1415644096-3513-1-git-send-email-j.glisse@gmail.com>
- <1415644096-3513-4-git-send-email-j.glisse@gmail.com>
- <CA+55aFwHd4QYopHvd=H6hxoQeqDV3HT6=436LGU-FRb5A0p7Vg@mail.gmail.com>
- <20141110205814.GA4186@gmail.com>
- <CA+55aFwwKV_D5oWT6a97a70G7OnvsPD_j9LsuR+_e4MEdCOO9A@mail.gmail.com>
- <20141110225036.GB4186@gmail.com>
- <CA+55aFyfgj5ntoXEJeTZyGdOZ9_A_TK0fwt1px_FUhemXGgr0Q@mail.gmail.com>
- <20141111024531.GA2503@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141111024531.GA2503@gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 11 Nov 2014 03:11:23 -0800 (PST)
+From: Luis Henriques <luis.henriques@canonical.com>
+Subject: [PATCH 3.16.y-ckt 149/170] x86, pageattr: Prevent overflow in slow_virt_to_phys() for X86_PAE
+Date: Tue, 11 Nov 2014 11:08:28 +0000
+Message-Id: <1415704129-12709-150-git-send-email-luis.henriques@canonical.com>
+In-Reply-To: <1415704129-12709-1-git-send-email-luis.henriques@canonical.com>
+References: <1415704129-12709-1-git-send-email-luis.henriques@canonical.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <j.glisse@gmail.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Joerg Roedel <joro@8bytes.org>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
+To: linux-kernel@vger.kernel.org, stable@vger.kernel.org, kernel-team@lists.ubuntu.com
+Cc: Dexuan Cui <decui@microsoft.com>, "K. Y. Srinivasan" <kys@microsoft.com>, Haiyang Zhang <haiyangz@microsoft.com>, gregkh@linuxfoundation.org, linux-mm@kvack.org, olaf@aepfle.de, apw@canonical.com, jasowang@redhat.com, dave.hansen@intel.com, riel@redhat.com, Thomas Gleixner <tglx@linutronix.de>, Luis Henriques <luis.henriques@canonical.com>
 
-On Mon, Nov 10, 2014 at 09:45:33PM -0500, Jerome Glisse wrote:
-> All the complexity arise from two things, first the need to keep ad-hoc
-> link btw directory level to facilitate iteration over range.
+3.16.7-ckt1 -stable review patch.  If anyone has any objections, please let me know.
 
-btw means "by the way" not "between", use a dictionary some time.
+------------------
+
+From: Dexuan Cui <decui@microsoft.com>
+
+commit d1cd1210834649ce1ca6bafe5ac25d2f40331343 upstream.
+
+pte_pfn() returns a PFN of long (32 bits in 32-PAE), so "long <<
+PAGE_SHIFT" will overflow for PFNs above 4GB.
+
+Due to this issue, some Linux 32-PAE distros, running as guests on Hyper-V,
+with 5GB memory assigned, can't load the netvsc driver successfully and
+hence the synthetic network device can't work (we can use the kernel parameter
+mem=3000M to work around the issue).
+
+Cast pte_pfn() to phys_addr_t before shifting.
+
+Fixes: "commit d76565344512: x86, mm: Create slow_virt_to_phys()"
+Signed-off-by: Dexuan Cui <decui@microsoft.com>
+Cc: K. Y. Srinivasan <kys@microsoft.com>
+Cc: Haiyang Zhang <haiyangz@microsoft.com>
+Cc: gregkh@linuxfoundation.org
+Cc: linux-mm@kvack.org
+Cc: olaf@aepfle.de
+Cc: apw@canonical.com
+Cc: jasowang@redhat.com
+Cc: dave.hansen@intel.com
+Cc: riel@redhat.com
+Link: http://lkml.kernel.org/r/1414580017-27444-1-git-send-email-decui@microsoft.com
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Signed-off-by: Luis Henriques <luis.henriques@canonical.com>
+---
+ arch/x86/mm/pageattr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+index ae242a7c11c7..36de293caf25 100644
+--- a/arch/x86/mm/pageattr.c
++++ b/arch/x86/mm/pageattr.c
+@@ -409,7 +409,7 @@ phys_addr_t slow_virt_to_phys(void *__virt_addr)
+ 	psize = page_level_size(level);
+ 	pmask = page_level_mask(level);
+ 	offset = virt_addr & ~pmask;
+-	phys_addr = pte_pfn(*pte) << PAGE_SHIFT;
++	phys_addr = (phys_addr_t)pte_pfn(*pte) << PAGE_SHIFT;
+ 	return (phys_addr | offset);
+ }
+ EXPORT_SYMBOL_GPL(slow_virt_to_phys);
+-- 
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
