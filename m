@@ -1,77 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f171.google.com (mail-yk0-f171.google.com [209.85.160.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EBB228002D
-	for <linux-mm@kvack.org>; Mon, 10 Nov 2014 23:29:17 -0500 (EST)
-Received: by mail-yk0-f171.google.com with SMTP id q200so1641501ykb.30
-        for <linux-mm@kvack.org>; Mon, 10 Nov 2014 20:29:16 -0800 (PST)
-Received: from mail-yh0-x229.google.com (mail-yh0-x229.google.com. [2607:f8b0:4002:c01::229])
-        by mx.google.com with ESMTPS id m25si21104659yhb.45.2014.11.10.20.29.15
+Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 50ACE280033
+	for <linux-mm@kvack.org>; Mon, 10 Nov 2014 23:55:29 -0500 (EST)
+Received: by mail-ig0-f174.google.com with SMTP id hn18so386197igb.1
+        for <linux-mm@kvack.org>; Mon, 10 Nov 2014 20:55:29 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id f13si30756425ick.66.2014.11.10.20.55.27
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 10 Nov 2014 20:29:16 -0800 (PST)
-Received: by mail-yh0-f41.google.com with SMTP id i57so4114713yha.0
-        for <linux-mm@kvack.org>; Mon, 10 Nov 2014 20:29:15 -0800 (PST)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Nov 2014 20:55:28 -0800 (PST)
+Date: Tue, 11 Nov 2014 13:54:09 +0900
+From: Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH v2 1/2] mem-hotplug: Reset node managed pages when
+ hot-adding a new pgdat.
+Message-ID: <20141111045409.GA23920@kroah.com>
+References: <1415669227-10996-1-git-send-email-tangchen@cn.fujitsu.com>
+ <1415669227-10996-2-git-send-email-tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFw5MdJVK5AWV39rorMsmuny00=jVaBrnMRAoKAxBeZO7Q@mail.gmail.com>
-References: <1415644096-3513-1-git-send-email-j.glisse@gmail.com>
-	<1415644096-3513-4-git-send-email-j.glisse@gmail.com>
-	<CA+55aFwHd4QYopHvd=H6hxoQeqDV3HT6=436LGU-FRb5A0p7Vg@mail.gmail.com>
-	<20141110205814.GA4186@gmail.com>
-	<CA+55aFwwKV_D5oWT6a97a70G7OnvsPD_j9LsuR+_e4MEdCOO9A@mail.gmail.com>
-	<20141110225036.GB4186@gmail.com>
-	<CA+55aFyfgj5ntoXEJeTZyGdOZ9_A_TK0fwt1px_FUhemXGgr0Q@mail.gmail.com>
-	<20141111024531.GA2503@gmail.com>
-	<CA+55aFw5MdJVK5AWV39rorMsmuny00=jVaBrnMRAoKAxBeZO7Q@mail.gmail.com>
-Date: Mon, 10 Nov 2014 20:29:15 -0800
-Message-ID: <CA+55aFwxdT+G26O3mSmrMuq5f3Tf9cRVhOLxR7kpXZu49x8c5Q@mail.gmail.com>
-Subject: Re: [PATCH 3/5] lib: lockless generic and arch independent page table
- (gpt) v2.
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1415669227-10996-2-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <j.glisse@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Joerg Roedel <joro@8bytes.org>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: akpm@linux-foundation.org, santosh.shilimkar@ti.com, grygorii.strashko@ti.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.co, fabf@skynet.be, nzimmer@sgi.com, wangnan0@huawei.com, vdavydov@parallels.com, toshi.kani@hp.com, phacht@linux.vnet.ibm.com, tj@kernel.org, kirill.shutemov@linux.intel.com, riel@redhat.com, luto@amacapital.net, hpa@linux.intel.com, aarcange@redhat.com, qiuxishi@huawei.com, mgorman@suse.de, rientjes@google.com, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, miaox@cn.fujitsu.com, stable@vger.kernel.org, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-On Mon, Nov 10, 2014 at 7:16 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
-> There's no reason for a "u64 cast". The value of "1 << pd_shift" is
-> going to be an "int" regardless of what type pd_shift is. The type of
-> a shift expression is the type of the left-hand side (with the C
-> promotion rules forcing it to at least "int"), the right-hand
-> expression type has absolutely no relevance.
+On Tue, Nov 11, 2014 at 09:27:06AM +0800, Tang Chen wrote:
+> In free_area_init_core(), zone->managed_pages is set to an approximate
+> value for lowmem, and will be adjusted when the bootmem allocator frees
+> pages into the buddy system. But free_area_init_core() is also called
+> by hotadd_new_pgdat() when hot-adding memory. As a result, zone->managed_pages
+> of the newly added node's pgdat is set to an approximate value in the
+> very beginning. Even if the memory on that node has node been onlined,
+> /sys/device/system/node/nodeXXX/meminfo has wrong value.
+> 
+> hot-add node2 (memory not onlined)
+> cat /sys/device/system/node/node2/meminfo
+> Node 2 MemTotal:       33554432 kB
+> Node 2 MemFree:               0 kB
+> Node 2 MemUsed:        33554432 kB
+> Node 2 Active:                0 kB
+> 
+> This patch fixes this problem by reset node managed pages to 0 after hot-adding
+> a new node.
+> 
+> 1. Move reset_managed_pages_done from reset_node_managed_pages() to reset_all_zones_managed_pages()
+> 2. Make reset_node_managed_pages() non-static
+> 3. Call reset_node_managed_pages() in hotadd_new_pgdat() after pgdat is initialized
+> 
+> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+> ---
+>  include/linux/bootmem.h | 1 +
+>  mm/bootmem.c            | 9 +++++----
+>  mm/memory_hotplug.c     | 9 +++++++++
+>  mm/nobootmem.c          | 8 +++++---
+>  4 files changed, 20 insertions(+), 7 deletions(-)
 
-Btw, for that exact reason, code like this:
+<formletter>
 
-+                  (uint64_t)(pdp->index +
-+                  (1UL << (gpt_pdp_shift(gpt, pdp) + gpt->pd_shift)) - 1UL));
+This is not the correct way to submit patches for inclusion in the
+stable kernel tree.  Please read Documentation/stable_kernel_rules.txt
+for how to do this properly.
 
-is likely buggy if you actually care about the uint64_t part.
-
-On 32-bit, 1ul will be 32-bit. And so will "(1ul << .. ) -1UL",
-regardless of the type of the right hand of the shift. So the fact
-that gpt->pd_shift and gpt_pdp_shift() are both u64, the actual end
-result is u32 (page->index is a 32-bit entity on 32-bit architectures,
-since pgoff_t is an "unsigned long" too). So you're doing the shifts
-in 32-bit, the addition in 32-bit, and then just casting the resulting
-32-bit thing to a 64-bit entity.  The high 32 bits are guaranteed to
-be zero, in other words.
-
-This just highlights how wrong it is to make those shifts be u64. That
-gpt_pdp_shift() helper similarly should at no point be returning u64.
-It doesn't help, it only hurts. It makes the structure bigger for no
-gain, and apparently it confuses people into thinking those shifts are
-done in 64 bit.
-
-When you do "a+b" or similar operations, the end result is the biggest
-type size of 'a' and 'b' respectively (with the normal promotion to at
-least 'int'). But that's not true of shifts, the type of the shift
-expression is the (integer-promoted) left-hand side. The right-hand
-side just gives the amount that value is shifted by, it doesn't affect
-the type of the result.
-
-                       Linus
+</formletter>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
