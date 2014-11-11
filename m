@@ -1,65 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id B860F6B012E
-	for <linux-mm@kvack.org>; Tue, 11 Nov 2014 15:44:07 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id kx10so11330193pab.40
-        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 12:44:07 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id sz2si21049190pac.44.2014.11.11.12.44.05
-        for <linux-mm@kvack.org>;
-        Tue, 11 Nov 2014 12:44:06 -0800 (PST)
-Message-ID: <54627512.7060806@intel.com>
-Date: Tue, 11 Nov 2014 12:44:02 -0800
-From: Dave Hansen <dave.hansen@intel.com>
+Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
+	by kanga.kvack.org (Postfix) with ESMTP id AF991900014
+	for <linux-mm@kvack.org>; Tue, 11 Nov 2014 16:01:44 -0500 (EST)
+Received: by mail-qg0-f48.google.com with SMTP id q108so7912801qgd.35
+        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 13:01:44 -0800 (PST)
+Received: from mx6-phx2.redhat.com (mx6-phx2.redhat.com. [209.132.183.39])
+        by mx.google.com with ESMTPS id 33si14093006qgf.64.2014.11.11.13.01.41
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Nov 2014 13:01:43 -0800 (PST)
+Date: Tue, 11 Nov 2014 16:01:00 -0500 (EST)
+From: David Airlie <airlied@redhat.com>
+Message-ID: <1169847148.8603193.1415739660148.JavaMail.zimbra@redhat.com>
+In-Reply-To: <20141111095903.GH10501@worktop.programming.kicks-ass.net>
+References: <1415644096-3513-1-git-send-email-j.glisse@gmail.com> <CA+55aFwHd4QYopHvd=H6hxoQeqDV3HT6=436LGU-FRb5A0p7Vg@mail.gmail.com> <20141110205814.GA4186@gmail.com> <CA+55aFwwKV_D5oWT6a97a70G7OnvsPD_j9LsuR+_e4MEdCOO9A@mail.gmail.com> <20141110225036.GB4186@gmail.com> <CA+55aFyfgj5ntoXEJeTZyGdOZ9_A_TK0fwt1px_FUhemXGgr0Q@mail.gmail.com> <20141111024531.GA2503@gmail.com> <20141111095903.GH10501@worktop.programming.kicks-ass.net>
+Subject: Re: [PATCH 3/5] lib: lockless generic and arch independent page
+ table (gpt) v2.
 MIME-Version: 1.0
-Subject: Re: [PATCH v9 11/12] x86, mpx: cleanup unused bound tables
-References: <1413088915-13428-1-git-send-email-qiaowei.ren@intel.com> <1413088915-13428-12-git-send-email-qiaowei.ren@intel.com> <alpine.DEB.2.11.1410241451280.5308@nanos> <545BED0B.8000001@intel.com> <alpine.DEB.2.11.1411111213450.3935@nanos>
-In-Reply-To: <alpine.DEB.2.11.1411111213450.3935@nanos>
-Content-Type: text/plain; charset=windows-1252
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Qiaowei Ren <qiaowei.ren@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Jerome Glisse <j.glisse@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Joerg Roedel <joro@8bytes.org>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>
 
-On 11/11/2014 10:27 AM, Thomas Gleixner wrote:
-> On Thu, 6 Nov 2014, Dave Hansen wrote:
->> Instead of all of these games with dropping and reacquiring mmap_sem and
->> adding other locks, or deferring the work, why don't we just do a
->> get_user_pages()?  Something along the lines of:
->>
->> while (1) {
->> 	ret = cmpxchg(addr)
->> 	if (!ret)
->> 		break;
->> 	if (ret == -EFAULT)
->> 		get_user_pages(addr);
->> }
->>
->> Does anybody see a problem with that?
+
+> On Mon, Nov 10, 2014 at 09:45:33PM -0500, Jerome Glisse wrote:
+> > All the complexity arise from two things, first the need to keep ad-hoc
+> > link btw directory level to facilitate iteration over range.
 > 
-> You want to do that under mmap_sem write held, right? Not a problem per
-> se, except that you block normal faults for a possibly long time when
-> the page(s) need to be swapped in.
+> btw means "by the way" not "between", use a dictionary some time.
+> 
 
-Yeah, it might hold mmap_sem for write while doing this in the unmap
-path.  But, that's only if the bounds directory entry has been swapped
-out.  There's only 1 pointer of bounds directory entries there for every
-1MB of data, so it _should_ be relatively rare.  It would mean that
-nobody's been accessing a 512MB swath of data controlled by the same
-page of the bounds directory.
+Thanks for the in-depth review Peter.
 
-If it gets to be an issue, we can always add some code to fault it in
-before mmap_sem is acquired.
-
-FWIW, I believe we have a fairly long road ahead of us to optimize MPX
-in practice.  I have a list of things I want to go investigate, but I
-have not looked in to it in detail at all.
-
-> But yes, this might solve most of the issues at hand. Did not think
-> about GUP at all :(
-
-Whew.  Fixing it was getting nasty and complicated. :)
+Dave.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
