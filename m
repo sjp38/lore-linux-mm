@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id F0CC1280020
-	for <linux-mm@kvack.org>; Tue, 11 Nov 2014 07:57:52 -0500 (EST)
-Received: by mail-wg0-f53.google.com with SMTP id b13so11562711wgh.26
-        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 04:57:52 -0800 (PST)
-Received: from mail-wi0-x229.google.com (mail-wi0-x229.google.com. [2a00:1450:400c:c05::229])
-        by mx.google.com with ESMTPS id wk8si27325915wjb.34.2014.11.11.04.57.52
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 56233280020
+	for <linux-mm@kvack.org>; Tue, 11 Nov 2014 07:57:54 -0500 (EST)
+Received: by mail-wg0-f45.google.com with SMTP id x12so11485284wgg.4
+        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 04:57:53 -0800 (PST)
+Received: from mail-wg0-x233.google.com (mail-wg0-x233.google.com. [2a00:1450:400c:c00::233])
+        by mx.google.com with ESMTPS id h10si16916209wiv.42.2014.11.11.04.57.53
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 11 Nov 2014 04:57:52 -0800 (PST)
-Received: by mail-wi0-f169.google.com with SMTP id n3so1690159wiv.4
-        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 04:57:52 -0800 (PST)
+        Tue, 11 Nov 2014 04:57:53 -0800 (PST)
+Received: by mail-wg0-f51.google.com with SMTP id l18so11357668wgh.38
+        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 04:57:53 -0800 (PST)
 From: Timofey Titovets <nefelim4ag@gmail.com>
-Subject: [PATCH V3 1/4] KSM: Add auto flag new VMA as VM_MERGEABLE
-Date: Tue, 11 Nov 2014 15:57:33 +0300
-Message-Id: <1415710656-29296-2-git-send-email-nefelim4ag@gmail.com>
+Subject: [PATCH V3 2/4] KSM: Add to sysfs - mark_new_vma
+Date: Tue, 11 Nov 2014 15:57:34 +0300
+Message-Id: <1415710656-29296-3-git-send-email-nefelim4ag@gmail.com>
 In-Reply-To: <1415710656-29296-1-git-send-email-nefelim4ag@gmail.com>
 References: <1415710656-29296-1-git-send-email-nefelim4ag@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,152 +22,122 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: nefelim4ag@gmail.com, marco.antonio.780@gmail.com, linux-kernel@vger.kernel.org, tonyb@cybernetics.com, killertofu@gmail.com
 
-Implement two functions:
-ksm_vm_flags_mod() - if existing flags supported by ksm - then mark like VM_MERGEABLE
-ksm_vma_add_new() - If vma marked as VM_MERGEABLE add it to ksm page queue
+It allow to control user mark new vma as VM_MERGEABLE or not
+Create new sysfs interface /sys/kernel/mm/ksm/mark_new_vma
+1 - enabled - mark new allocated vma as VM_MERGEABLE and add it to ksm queue
+0 - disable it
 
 Signed-off-by: Timofey Titovets <nefelim4ag@gmail.com>
 ---
- include/linux/ksm.h | 31 +++++++++++++++++++++++++++++++
- mm/mmap.c           | 17 +++++++++++++++++
- 2 files changed, 48 insertions(+)
+ include/linux/ksm.h | 10 +++++++++-
+ mm/ksm.c            | 39 ++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 47 insertions(+), 2 deletions(-)
 
 diff --git a/include/linux/ksm.h b/include/linux/ksm.h
-index 3be6bb1..c3fff64 100644
+index c3fff64..deb60fc 100644
 --- a/include/linux/ksm.h
 +++ b/include/linux/ksm.h
-@@ -76,6 +76,29 @@ struct page *ksm_might_need_to_copy(struct page *page,
+@@ -76,6 +76,12 @@ struct page *ksm_might_need_to_copy(struct page *page,
  int rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc);
  void ksm_migrate_page(struct page *newpage, struct page *oldpage);
  
-+/*
-+ * Allow to mark new vma as VM_MERGEABLE
-+ */
-+#ifndef VM_SAO
-+#define VM_SAO 0
-+#endif
-+static inline void ksm_vm_flags_mod(unsigned long *vm_flags)
-+{
-+	if (*vm_flags & (VM_MERGEABLE | VM_SHARED  | VM_MAYSHARE   |
-+			 VM_PFNMAP    | VM_IO      | VM_DONTEXPAND |
-+			 VM_HUGETLB | VM_NONLINEAR | VM_MIXEDMAP   | VM_SAO) )
++
++/* Mark new vma as mergeable */
++#define ALLOW	1
++#define DENY	0
++extern unsigned mark_new_vma __read_mostly;
++
+ /*
+  * Allow to mark new vma as VM_MERGEABLE
+  */
+@@ -84,6 +90,8 @@ void ksm_migrate_page(struct page *newpage, struct page *oldpage);
+ #endif
+ static inline void ksm_vm_flags_mod(unsigned long *vm_flags)
+ {
++	if (!mark_new_vma)
 +		return;
-+	*vm_flags |= VM_MERGEABLE;
-+}
-+
-+static inline void ksm_vma_add_new(struct vm_area_struct *vma)
-+{
-+	struct mm_struct *mm = vma->vm_mm;
-+	if (!test_bit(MMF_VM_MERGEABLE, &mm->flags)) {
-+		__ksm_enter(mm);
-+	}
-+}
-+
- #else  /* !CONFIG_KSM */
- 
- static inline int ksm_fork(struct mm_struct *mm, struct mm_struct *oldmm)
-@@ -92,6 +115,14 @@ static inline int PageKsm(struct page *page)
- 	return 0;
+ 	if (*vm_flags & (VM_MERGEABLE | VM_SHARED  | VM_MAYSHARE   |
+ 			 VM_PFNMAP    | VM_IO      | VM_DONTEXPAND |
+ 			 VM_HUGETLB | VM_NONLINEAR | VM_MIXEDMAP   | VM_SAO) )
+@@ -94,7 +102,7 @@ static inline void ksm_vm_flags_mod(unsigned long *vm_flags)
+ static inline void ksm_vma_add_new(struct vm_area_struct *vma)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+-	if (!test_bit(MMF_VM_MERGEABLE, &mm->flags)) {
++	if (mark_new_vma && !test_bit(MMF_VM_MERGEABLE, &mm->flags)) {
+ 		__ksm_enter(mm);
+ 	}
  }
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 6b2e337..7bfb616 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -223,6 +223,12 @@ static unsigned int ksm_thread_pages_to_scan = 100;
+ /* Milliseconds ksmd should sleep between batches */
+ static unsigned int ksm_thread_sleep_millisecs = 20;
  
-+static inline void ksm_vm_flags_mod(unsigned long *vm_flags_p)
++/* Mark new vma as mergeable */
++#ifndef CONFIG_KSM_MARK_NEW_VMA
++#define CONFIG_KSM_MARK_NEW_VMA DENY
++#endif
++unsigned mark_new_vma = CONFIG_KSM_MARK_NEW_VMA;
++
+ #ifdef CONFIG_NUMA
+ /* Zeroed when merging across nodes is not allowed */
+ static unsigned int ksm_merge_across_nodes = 1;
+@@ -2127,6 +2133,34 @@ static ssize_t pages_to_scan_store(struct kobject *kobj,
+ }
+ KSM_ATTR(pages_to_scan);
+ 
++static ssize_t mark_new_vma_show(struct kobject *kobj, struct kobj_attribute *attr,
++			char *buf)
 +{
++	return sprintf(buf, "%u\n", mark_new_vma);
 +}
-+
-+void ksm_vma_add_new(struct vm_area_struct *vma)
++static ssize_t mark_new_vma_store(struct kobject *kobj,
++				  struct kobj_attribute *attr,
++				  const char *buf, size_t count)
 +{
++	int err;
++	unsigned long flags;
++
++	err = kstrtoul(buf, 10, &flags);
++	if (err || flags > UINT_MAX || flags > ALLOW)
++		return -EINVAL;
++
++	/*
++	 * ALLOW = 1 - sets allow for mark new vma as
++	 * VM_MERGEABLE and adding it to ksm
++	 * DENY = 0 - disable it
++	 */
++	if (mark_new_vma != flags) {
++		mark_new_vma = flags;
++	}
++	return count;
 +}
++KSM_ATTR(mark_new_vma);
 +
- #ifdef CONFIG_MMU
- static inline int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
- 		unsigned long end, int advice, unsigned long *vm_flags)
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 7f85520..ce0073e 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -41,6 +41,7 @@
- #include <linux/notifier.h>
- #include <linux/memory.h>
- #include <linux/printk.h>
-+#include <linux/ksm.h>
- 
- #include <asm/uaccess.h>
- #include <asm/cacheflush.h>
-@@ -911,10 +912,14 @@ again:			remove_next = 1 + (end > next->vm_end);
- 			vma_gap_update(next);
- 		else
- 			mm->highest_vm_end = end;
-+	} else {
-+		if (next && !insert)
-+			ksm_vma_add_new(next);
+ static ssize_t run_show(struct kobject *kobj, struct kobj_attribute *attr,
+ 			char *buf)
+ {
+@@ -2287,6 +2321,7 @@ static struct attribute *ksm_attrs[] = {
+ 	&pages_unshared_attr.attr,
+ 	&pages_volatile_attr.attr,
+ 	&full_scans_attr.attr,
++	&mark_new_vma_attr.attr,
+ #ifdef CONFIG_NUMA
+ 	&merge_across_nodes_attr.attr,
+ #endif
+@@ -2323,7 +2358,9 @@ static int __init ksm_init(void)
+ 		goto out_free;
  	}
- 	if (insert && file)
- 		uprobe_mmap(insert);
+ #else
+-	ksm_run = KSM_RUN_MERGE;	/* no way for user to start it */
++	/* no way for user to start it */
++	mark_new_vma = ALLOW;
++	ksm_run = KSM_RUN_MERGE;
  
-+	ksm_vma_add_new(vma);
- 	validate_mm(mm);
- 
- 	return 0;
-@@ -1307,6 +1312,9 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
- 	vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags) |
- 			mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
- 
-+	/* If ksm is enabled, we add VM_MERGABLE to new VMAs. */
-+	ksm_vm_flags_mod(&vm_flags);
-+
- 	if (flags & MAP_LOCKED)
- 		if (!can_do_mlock())
- 			return -EPERM;
-@@ -1648,6 +1656,7 @@ munmap_back:
- 			allow_write_access(file);
- 	}
- 	file = vma->vm_file;
-+	ksm_vma_add_new(vma);
- out:
- 	perf_event_mmap(vma);
- 
-@@ -2484,6 +2493,8 @@ static int __split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
- 	else
- 		err = vma_adjust(vma, vma->vm_start, addr, vma->vm_pgoff, new);
- 
-+	ksm_vma_add_new(vma);
-+
- 	/* Success. */
- 	if (!err)
- 		return 0;
-@@ -2659,6 +2670,9 @@ static unsigned long do_brk(unsigned long addr, unsigned long len)
- 	if (error)
- 		return error;
- 
-+	/* If ksm is enabled, we add VM_MERGABLE to new VMAs. */
-+	ksm_vm_flags_mod(&flags);
-+
- 	/*
- 	 * mm->mmap_sem is required to protect against another thread
- 	 * changing the mappings in case we sleep.
-@@ -2708,6 +2722,7 @@ static unsigned long do_brk(unsigned long addr, unsigned long len)
- 	vma->vm_flags = flags;
- 	vma->vm_page_prot = vm_get_page_prot(flags);
- 	vma_link(mm, vma, prev, rb_link, rb_parent);
-+	ksm_vma_add_new(vma);
- out:
- 	perf_event_mmap(vma);
- 	mm->total_vm += len >> PAGE_SHIFT;
-@@ -2887,6 +2902,7 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
- 				new_vma->vm_ops->open(new_vma);
- 			vma_link(mm, new_vma, prev, rb_link, rb_parent);
- 			*need_rmap_locks = false;
-+			ksm_vma_add_new(new_vma);
- 		}
- 	}
- 	return new_vma;
-@@ -3004,6 +3020,7 @@ static struct vm_area_struct *__install_special_mapping(
- 	mm->total_vm += len >> PAGE_SHIFT;
- 
- 	perf_event_mmap(vma);
-+	ksm_vma_add_new(vma);
- 
- 	return vma;
+ #endif /* CONFIG_SYSFS */
  
 -- 
 2.1.3
