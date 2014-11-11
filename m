@@ -1,140 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 5507A6B0128
-	for <linux-mm@kvack.org>; Tue, 11 Nov 2014 14:53:29 -0500 (EST)
-Received: by mail-wg0-f54.google.com with SMTP id n12so12772675wgh.41
-        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 11:53:28 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id ka4si21444438wjc.46.2014.11.11.11.53.28
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id E4CE36B012B
+	for <linux-mm@kvack.org>; Tue, 11 Nov 2014 15:15:43 -0500 (EST)
+Received: by mail-wi0-f169.google.com with SMTP id n3so2921818wiv.0
+        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 12:15:43 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d5si36985892wjs.63.2014.11.11.12.15.42
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Nov 2014 11:53:28 -0800 (PST)
-Date: Tue, 11 Nov 2014 14:53:10 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [rfc patch] mm: vmscan: invoke slab shrinkers for each lruvec
-Message-ID: <20141111195310.GA27249@phnom.home.cmpxchg.org>
-References: <1415317828-19390-1-git-send-email-hannes@cmpxchg.org>
- <20141110064640.GO23575@dastard>
- <20141110144405.GA6873@phnom.home.cmpxchg.org>
- <20141111063419.GS23575@dastard>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 11 Nov 2014 12:15:42 -0800 (PST)
+Date: Tue, 11 Nov 2014 21:15:39 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [BUG] mm/page-writeback.c: divide by zero in pos_ratio_polynom
+ not fixed
+Message-ID: <20141111201539.GA12333@quack.suse.cz>
+References: <20141101082325.7be0463f@gandalf.local.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20141111063419.GS23575@dastard>
+In-Reply-To: <20141101082325.7be0463f@gandalf.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, Nov 11, 2014 at 05:34:19PM +1100, Dave Chinner wrote:
-> On Mon, Nov 10, 2014 at 09:44:05AM -0500, Johannes Weiner wrote:
-> > On Mon, Nov 10, 2014 at 05:46:40PM +1100, Dave Chinner wrote:
-> > > On Thu, Nov 06, 2014 at 06:50:28PM -0500, Johannes Weiner wrote:
-> > > > The slab shrinkers currently rely on the reclaim code providing an
-> > > > ad-hoc concept of NUMA nodes that doesn't really exist: for all
-> > > > scanned zones and lruvecs, the nodes and available LRU pages are
-> > > > summed up, only to have the shrinkers then again walk that nodemask
-> > > > when scanning slab caches.  This duplication will only get worse and
-> > > > more expensive once the shrinkers become aware of cgroups.
-> > > 
-> > > As i said previously, it's not an "ad-hoc concept". It's exactly the
-> > > same NUMA abstraction that the VM presents to anyone who wants to
-> > > control memory allocation locality. i.e. node IDs and node masks.
-> > 
-> > That's what the page allocator takes as input, but it's translated to
-> > zones fairly quickly, and it definitely doesn't exist in the reclaim
-> > code anymore.  The way we reconstruct the node view on that level
-> > really is ad-hoc.  And that is a problem.  It's not just duplicative,
-> > it's also that reclaim really needs the ability to target types of
-> > zones in order to meet allocation constraints, and right now we just
-> > scatter-shoot slab objects and hope we free some desired zone memory.
-> > 
-> > I don't see any intrinsic value in symmetry here, especially since we
-> > can easily encapsulate how the lists are organized for the shrinkers.
-> > Vladimir is already pushing the interface in that direction: add
-> > object, remove object, walk objects according to this shrink_control.
+On Sat 01-11-14 08:23:25, Steven Rostedt wrote:
 > 
-> You probably don't see the value in symmetry because you look at it
-> from the inside. I lok at shrinkers from outside the VM, and so I
-> see them from a very different view point. That is, I do not want
-> the internal architecture of the VM dictating how I must do things.
-> The shrinkers are extremely flexible and used in quite varied
-> subsystems for very different purposes. The shrinker API and
-> behaviour needs to be independent of the VM so we don't lose that
-> flexibility....
->
-> > My suspicion is that invoking the shrinkers per-zone against the same
-> > old per-node lists incorrectly triples the slab pressure relative to
-> > the lru pressure.  Kswapd already does this, but I'm guessing it
-> > matters less under lower pressure, and once pressure mounts direct
-> > reclaim takes over, which my patch made more aggressive.
-> > 
-> > Organizing the slab objects on per-zone lists would solve this, and
-> > would also allow proper zone reclaim to meet allocation restraints.
+> My tests hit this bug:
 > 
-> Which is exactly the sort of increase in per-object cache + LRUs we
-> want to avoid. Nothing outside the VM has the concept of zones - all
-> our object caches are either global or per-node pools or LRUs. We
-> need to keep some semblence of global LRU in filesystem
-> caches because objects are heirarchical in importance. Hence the
-> more finely grained we chop up the LRUs the worse our working set
-> maintenance gets.
+> divide error: 0000 [#1] SMP 
+> Modules linked in: nf_conntrack_ipv6 nf_defrag_ipv6 ip6table_filter ip6_tables ipv6 ppdev parport_pc parport microcode r8169
+> CPU: 1 PID: 3379 Comm: trace-cmd Tainted: P               3.18.0-rc1-test+ #26
+> Hardware name: MSI MS-7823/CSM-H87M-G43 (MS-7823), BIOS V1.6 02/22/2014
+> task: ef4a2bc0 ti: efad4000 task.ti: efad4000
+> EIP: 0060:[<c06979a9>] EFLAGS: 00010246 CPU: 1
+> EIP is at div_u64_rem+0x11/0x24
+> EAX: 00000000 EBX: 00000000 ECX: 00000000 EDX: 00000000
+> ESI: 00ef57e4 EDI: 00000000 EBP: efad5ca0 ESP: efad5c98
+>  DS: 007b ES: 007b FS: 00d8 GS: 0033 SS: 0068
+> CR0: 80050033 CR2: b77495dc CR3: 2fee1000 CR4: 001407f0
+> Stack:
+>  00000000 0000061a efad5ccc c0697c48 efad5cbc c04ec9d5 0000304e 00ef57e4^M
+>  00000000 00000000 00000000 0000061a 00000000 efad5d08 c04ecbc5 00000000
+>  00000000 00000000 00000575 f0d84210 0000387b 387b0000 00000000 00000aeb
+> Call Trace:
+>  [<c0697c48>] div64_u64+0x2f/0xd7
+>  [<c04ec9d5>] ? pos_ratio_polynom+0x42/0xb2
+>  [<c04ecbc5>] bdi_position_ratio+0x180/0x1d4
+>  [<c04eddb2>] balance_dirty_pages_ratelimited+0x2a3/0x549
+>  [<c04c274e>] ? __buffer_unlock_commit+0x10/0x12
+>  [<c04c2a5a>] ? trace_function+0x6b/0x73
+>  [<c04e5993>] ? generic_perform_write+0x110/0x17f^M
+>  [<c05001c5>] ? iov_iter_advance+0x9/0xf0
+>  [<c04e59bf>] generic_perform_write+0x13c/0x17f
+>  [<c04e746b>] __generic_file_write_iter+0x1a6/0x1db^M
+>  [<c058aeee>] ? ext4_file_write_iter+0x146/0x489
+>  [<c058b176>] ext4_file_write_iter+0x3ce/0x489
+>  [<c04bcbed>] ? ring_buffer_unlock_commit+0x25/0x73
+>  [<c04c274e>] ? __buffer_unlock_commit+0x10/0x12
+>  [<c04c8459>] ? function_trace_call+0xc9/0xf6^M
+>  [<c0c7753a>] ? ftrace_call+0x5/0xb
+>  [<c054242f>] iter_file_splice_write+0x21f/0x30e
+>  [<c0542210>] ? splice_direct_to_actor+0x178/0x178
+>  [<c0543921>] SyS_splice+0x3b0/0x4cd
+>  [<c0c76982>] syscall_call+0x7/0x7
+> Code: 55 89 e5 5d 01 d0 c3 b9 0a 00 00 00 31 d2 f7 f1 55 89 e5 5d c1 e0 04 01 d0 c3 55 89 e5 56 89 c6 53 31 db 39 ca 72 08 89 d0 31 d2 <f7> f1 89 c3 89 f0 f7 f1 8b 4d 08 89 11 89 da 5b 5e 5d c3 55 89
+> EIP: [<c06979a9>] div_u64_rem+0x11/0x24 SS:ESP 0068:efad5c98
+> ---[ end trace 04e65e2c8b607f3d ]---
 > 
-> Indeed, we've moved away from VM based page caches for our complex
-> subsystems because the VM simply cannot express the reclaim
-> relationships necessary for efficient maintenance of the working
-> set. The working set has nothing to do with the locality of the
-> objects maintained by the cache - it's all about the relationships
-> between the objects.  Evicting objects based on memory locality does
-> not work, and that's why we do not use the VM based page caches.
+> Where the ip of the code points here:
 > 
-> This is precisely why I do not want the internal architecture of the
-> VM to dictate how we cache and reclaim objects - the VM just has no
-> concept of what the caches are used for and so therefore should not
-> be dictating structure of the cache or it's reclaim algorithms.
-> Shrinkers are simply a method of applying a measure of pressure to a
-> cache, they do not and should not define how caches are structured
-> or how they scale.
-
-But that measure of pressure is defined by local activity.  How can we
-reasonably derive a global measure of pressure from independent local
-situations?
-
-The scanned/eligible ratio can't be meaningful without a unit attached
-to it, and that unit is currently implementation defined.  Just try to
-figure out what it means for kswapd, direct reclaim, zone reclaim etc.
-
-"One NUMA node" is a reasonable unit, and with NUMA-awareness in the
-shrinkers we can finally have a meaningful quantity of pressure that
-we can translate between the VM and auxiliary object caches.  My 2nd
-patch should at least make all reclaim paths agree on this unit and
-invoke the shrinkers with well-defined arguments.
-
-This is still not optimal for the VM and zone reclaim will age slab
-objects in an unrelated zone on the same node disproportionately, but
-we can probably live with that for the most part.  It's an acceptable
-trade-off when filesystems can group related objects on the same node.
-
-Global object lists on the other hand are simply broken when we drive
-them by node-local pressure - which is the best the VM can do.  They
-can work by accident, but they'll do the wrong thing depending on the
-workload, and they'll be tuned to implementation details in the VM.
-You might as well drive them by a timer or some other random event.
-
-Using the shrinkers like that is not flexibility, it's just undefined
-behavior.  I wish we could stop this abuse.
-
-> > But for now, how about the following patch that invokes the shrinkers
-> > once per node, but uses the allocator's preferred zone as the pivot
-> > for nr_scanned / nr_eligible instead of summing up the node?  That
-> > doesn't increase the current number of slab invocations, actually
-> > reduces them for kswapd, but would put the shrinker calls at a more
-> > natural level for reclaim, and would also allow us to go ahead with
-> > the cgroup-aware slab shrinkers.
+> 	/*
+> 	 * Use span=(8*write_bw) in single bdi case as indicated by
+> 	 * (thresh - bdi_thresh ~= 0) and transit to bdi_thresh in JBOD case.
+> 	 *
+> 	 *        bdi_thresh                    thresh - bdi_thresh
+> 	 * span = ---------- * (8 * write_bw) + ------------------- * bdi_thresh
+> 	 *          thresh                            thresh
+> 	 */
+> 	span = (thresh - bdi_thresh + 8 * write_bw) * (u64)x >> 16;
+> 	x_intercept = bdi_setpoint + span;
 > 
-> I'll try to test it tomorrow.
+> 	if (bdi_dirty < x_intercept - span / 4) {
+> 		pos_ratio = div64_u64(pos_ratio * (x_intercept - bdi_dirty),  <---- bug
+> 				    x_intercept - bdi_setpoint + 1);
+> 	} else
+> 		pos_ratio /= 4;
+> 
+> 
+> Now my kernel contains d5c9fde3dae75 "mm/page-writeback.c: fix divide by
+> zero in pos_ratio_polynom", which is suppose to fix a divide by zero by
+> changing div_u64 to div64_u64(), which changes the divisor parameter
+> from 32bit to 64bit. But the x_intercept and bdi_setpoint are still
+> just unsigned longs, which on 32bit systems are 32 bits. Just using
+> div64_u64() isn't enough, the value passed in must also be 64 bit
+> otherwise the "x_intercept - bdi_setpoint + 1" will still be truncated
+> before it gets passed into div64_u64(). I don't see how d5c9fde3dae75
+> could have fixed anything.
+> 
+> I'd write a patch to fix this, but my wife has me doing other chores.
+  So I was looking into this but I have to say I don't understand where is
+the problem. The registers clearly show that x_intercept - bdi_setpoint + 1
+== 0 (in 32-bit arithmetics). Given:
+   x_intercept = bdi_setpoint + span
 
-Thanks!
+We have that span + 1 == 0 and that means that:
+((thresh - bdi_thresh + 8 * write_bw) * (u64)x >> 16) == -1 (again in
+32-bit arithmetics). But I don't see how that can realistically happen...
+
+Is this reproducible at all?
+
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
