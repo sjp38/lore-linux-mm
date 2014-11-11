@@ -1,59 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CEA8280020
-	for <linux-mm@kvack.org>; Tue, 11 Nov 2014 07:58:05 -0500 (EST)
-Received: by mail-wi0-f171.google.com with SMTP id r20so1537429wiv.10
-        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 04:58:05 -0800 (PST)
-Received: from mail-wi0-x22f.google.com (mail-wi0-x22f.google.com. [2a00:1450:400c:c05::22f])
-        by mx.google.com with ESMTPS id md18si6934216wic.8.2014.11.11.04.58.04
+Received: from mail-qa0-f42.google.com (mail-qa0-f42.google.com [209.85.216.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 23394900014
+	for <linux-mm@kvack.org>; Tue, 11 Nov 2014 08:42:12 -0500 (EST)
+Received: by mail-qa0-f42.google.com with SMTP id k15so6978936qaq.1
+        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 05:42:11 -0800 (PST)
+Received: from mail-qa0-x236.google.com (mail-qa0-x236.google.com. [2607:f8b0:400d:c00::236])
+        by mx.google.com with ESMTPS id c1si36715945qam.98.2014.11.11.05.42.10
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 11 Nov 2014 04:58:04 -0800 (PST)
-Received: by mail-wi0-f175.google.com with SMTP id ex7so1530081wid.14
-        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 04:58:04 -0800 (PST)
-From: Timofey Titovets <nefelim4ag@gmail.com>
-Subject: [PATCH V3 4/4] KSM: mark_new_vma added to Documentation.
-Date: Tue, 11 Nov 2014 15:57:36 +0300
-Message-Id: <1415710656-29296-5-git-send-email-nefelim4ag@gmail.com>
-In-Reply-To: <1415710656-29296-1-git-send-email-nefelim4ag@gmail.com>
-References: <1415710656-29296-1-git-send-email-nefelim4ag@gmail.com>
+        Tue, 11 Nov 2014 05:42:10 -0800 (PST)
+Received: by mail-qa0-f54.google.com with SMTP id u7so6778063qaz.41
+        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 05:42:10 -0800 (PST)
+Date: Tue, 11 Nov 2014 08:42:02 -0500
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: [PATCH 3/5] lib: lockless generic and arch independent page
+ table (gpt) v2.
+Message-ID: <20141111134131.GA2817@gmail.com>
+References: <1415644096-3513-1-git-send-email-j.glisse@gmail.com>
+ <1415644096-3513-4-git-send-email-j.glisse@gmail.com>
+ <CA+55aFwHd4QYopHvd=H6hxoQeqDV3HT6=436LGU-FRb5A0p7Vg@mail.gmail.com>
+ <20141110205814.GA4186@gmail.com>
+ <CA+55aFwwKV_D5oWT6a97a70G7OnvsPD_j9LsuR+_e4MEdCOO9A@mail.gmail.com>
+ <20141110225036.GB4186@gmail.com>
+ <CA+55aFyfgj5ntoXEJeTZyGdOZ9_A_TK0fwt1px_FUhemXGgr0Q@mail.gmail.com>
+ <20141111024531.GA2503@gmail.com>
+ <20141111095903.GH10501@worktop.programming.kicks-ass.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20141111095903.GH10501@worktop.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: nefelim4ag@gmail.com, marco.antonio.780@gmail.com, linux-kernel@vger.kernel.org, tonyb@cybernetics.com, killertofu@gmail.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Joerg Roedel <joro@8bytes.org>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
 
-Signed-off-by: Timofey Titovets <nefelim4ag@gmail.com>
----
- Documentation/vm/ksm.txt | 7 +++++++
- 1 file changed, 7 insertions(+)
+On Tue, Nov 11, 2014 at 10:59:03AM +0100, Peter Zijlstra wrote:
+> On Mon, Nov 10, 2014 at 09:45:33PM -0500, Jerome Glisse wrote:
+> > All the complexity arise from two things, first the need to keep ad-hoc
+> > link btw directory level to facilitate iteration over range.
+> 
+> btw means "by the way" not "between", use a dictionary some time.
 
-diff --git a/Documentation/vm/ksm.txt b/Documentation/vm/ksm.txt
-index f34a8ee..880fdbf 100644
---- a/Documentation/vm/ksm.txt
-+++ b/Documentation/vm/ksm.txt
-@@ -24,6 +24,8 @@ KSM only operates on those areas of address space which an application
- has advised to be likely candidates for merging, by using the madvise(2)
- system call: int madvise(addr, length, MADV_MERGEABLE).
- 
-+Also KSM can mark anonymous memory as mergeable, see below.
-+
- The app may call int madvise(addr, length, MADV_UNMERGEABLE) to cancel
- that advice and restore unshared pages: whereupon KSM unmerges whatever
- it merged in that range.  Note: this unmerging call may suddenly require
-@@ -73,6 +75,11 @@ merge_across_nodes - specifies if pages from different numa nodes can be merged.
-                    merge_across_nodes, to remerge according to the new setting.
-                    Default: 1 (merging across nodes as in earlier releases)
- 
-+mark_new_vma     - set 0 to disallow ksm marking every new allocated anonymous
-+                   memory as mergeable.
-+                   set 1 to allow ksm mark every new allocated anonymous memory
-+                   as mergeable
-+
- run              - set 0 to stop ksmd from running but keep merged pages,
-                    set 1 to run ksmd e.g. "echo 1 > /sys/kernel/mm/ksm/run",
-                    set 2 to stop ksmd and unmerge all pages currently merged,
--- 
-2.1.3
+Apologies if my poor english makes it even harder to understand me.
+
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
