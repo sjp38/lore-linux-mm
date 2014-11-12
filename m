@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 49A9C6B00E8
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2014 03:25:08 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id eu11so12479957pac.30
-        for <linux-mm@kvack.org>; Wed, 12 Nov 2014 00:25:08 -0800 (PST)
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 94C226B00EC
+	for <linux-mm@kvack.org>; Wed, 12 Nov 2014 03:25:09 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id kq14so12523947pab.38
+        for <linux-mm@kvack.org>; Wed, 12 Nov 2014 00:25:09 -0800 (PST)
 Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id km8si19830663pdb.221.2014.11.12.00.25.04
+        by mx.google.com with ESMTP id rp7si22117567pab.229.2014.11.12.00.25.04
         for <linux-mm@kvack.org>;
         Wed, 12 Nov 2014 00:25:05 -0800 (PST)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [RFC PATCH 1/5] mm/page_ext: resurrect struct page extending code for debugging
-Date: Wed, 12 Nov 2014 17:27:11 +0900
-Message-Id: <1415780835-24642-2-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [RFC PATCH 2/5] mm/debug-pagealloc: prepare boottime configurable on/off
+Date: Wed, 12 Nov 2014 17:27:12 +0900
+Message-Id: <1415780835-24642-3-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1415780835-24642-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1415780835-24642-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,566 +19,331 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Alexander Nyberg <alexn@dsv.su.se>, Dave Hansen <dave@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Jungsoo Son <jungsoo.son@lge.com>, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-When we debug something, we'd like to insert some information to
-every page. For this purpose, we sometimes modify struct page itself.
-But, this has drawbacks. First, it requires re-compile. This makes us
-hesitate to use the powerful debug feature so development process is
-slowed down. And, second, sometimes it is impossible to rebuild the kernel
-due to third party module dependency. At third, system behaviour would be
-largely different after re-compile, because it changes size of struct
-page greatly and this structure is accessed by every part of kernel.
-Keeping this as it is would be better to reproduce errornous situation.
+Until now, debug-pagealloc needs extra flags in struct page, so we need
+to recompile whole source code when we decide to use it. This is really
+painful, because it takes some time to recompile and sometimes rebuild is
+not possible due to third party module depending on struct page.
+So, we can't use this good feature in many cases.
 
-To overcome these drawbacks, we can extend struct page on another place
-rather than struct page itself. Until now, memcg uses this technique. But,
-now, memcg decides to embed their variable to struct page itself and it's
-code to extend struct page has been removed. I'd like to use this code
-to develop debug feature, so this patch resurrect it.
+Now, we have the page extension feature that allows us to insert
+extra flags to outside of struct page. This gets rid of third party module
+issue mentioned above. And, this allows us to determine if we need extra
+memory for this page extension in boottime. With these property, we can
+avoid using debug-pagealloc in boottime with low computational overhead
+in the kernel built with CONFIG_DEBUG_PAGEALLOC. This will help our
+development process greatly.
 
-invoke_need_callbacks() and invoke_init_callbacks() are added for
-boottime determination of allocation memory. Others are completely same
-with previous extension code in memcg.
+This patch is the preparation step to achive above goal. debug-pagealloc
+originally uses extra field of struct page, but, after this patch, it
+will use field of struct page_ext. Because memory for page_ext is
+allocated later than initialization of page allocator in CONFIG_SPARSEMEM,
+we should disable debug-pagealloc feature temporarily until initialization
+of page_ext. This patch implements this.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- include/linux/mmzone.h   |   12 ++
- include/linux/page_ext.h |   59 ++++++++
- init/main.c              |    7 +
- mm/Kconfig.debug         |    9 ++
- mm/Makefile              |    1 +
- mm/page_alloc.c          |    2 +
- mm/page_ext.c            |  341 ++++++++++++++++++++++++++++++++++++++++++++++
- 7 files changed, 431 insertions(+)
- create mode 100644 include/linux/page_ext.h
- create mode 100644 mm/page_ext.c
+ include/linux/mm.h               |   18 +++++++++++++++++-
+ include/linux/mm_types.h         |    4 ----
+ include/linux/page-debug-flags.h |   32 --------------------------------
+ include/linux/page_ext.h         |   15 +++++++++++++++
+ mm/Kconfig.debug                 |    1 +
+ mm/debug-pagealloc.c             |   26 ++++++++++++++++++++++----
+ mm/page_alloc.c                  |   38 +++++++++++++++++++++++++++++++++++---
+ mm/page_ext.c                    |    1 +
+ 8 files changed, 91 insertions(+), 44 deletions(-)
+ delete mode 100644 include/linux/page-debug-flags.h
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 3879d76..2f0856d 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -722,6 +722,9 @@ typedef struct pglist_data {
- 	int nr_zones;
- #ifdef CONFIG_FLAT_NODE_MEM_MAP	/* means !SPARSEMEM */
- 	struct page *node_mem_map;
-+#ifdef CONFIG_PAGE_EXTENSION
-+	struct page_ext *node_page_ext;
-+#endif
- #endif
- #ifndef CONFIG_NO_BOOTMEM
- 	struct bootmem_data *bdata;
-@@ -1075,6 +1078,7 @@ static inline unsigned long early_pfn_to_nid(unsigned long pfn)
- #define SECTION_ALIGN_DOWN(pfn)	((pfn) & PAGE_SECTION_MASK)
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index b922a16..849a9af 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -19,6 +19,7 @@
+ #include <linux/bit_spinlock.h>
+ #include <linux/shrinker.h>
+ #include <linux/resource.h>
++#include <linux/page_ext.h>
  
- struct page;
-+struct page_ext;
- struct mem_section {
- 	/*
- 	 * This is, logically, a pointer to an array of struct
-@@ -1092,6 +1096,14 @@ struct mem_section {
+ struct mempolicy;
+ struct anon_vma;
+@@ -2149,20 +2150,35 @@ extern void copy_user_huge_page(struct page *dst, struct page *src,
+ 				unsigned int pages_per_huge_page);
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
  
- 	/* See declaration of similar field in struct zone */
- 	unsigned long *pageblock_flags;
-+#ifdef CONFIG_PAGE_EXTENSION
-+	/*
-+	 * If !SPARSEMEM, pgdat doesn't have page_ext pointer. We use
-+	 * section. (see page_ext.h about this.)
-+	 */
++extern struct page_ext_operations debug_guardpage_ops;
++
+ #ifdef CONFIG_DEBUG_PAGEALLOC
+ extern unsigned int _debug_guardpage_minorder;
++extern bool _debug_guardpage_enabled;
+ 
+ static inline unsigned int debug_guardpage_minorder(void)
+ {
+ 	return _debug_guardpage_minorder;
+ }
+ 
++static inline bool debug_guardpage_enabled(void)
++{
++	return _debug_guardpage_enabled;
++}
++
+ static inline bool page_is_guard(struct page *page)
+ {
+-	return test_bit(PAGE_DEBUG_FLAG_GUARD, &page->debug_flags);
 +	struct page_ext *page_ext;
-+	unsigned long pad;
-+#endif
++
++	if (!debug_guardpage_enabled())
++		return false;
++
++	page_ext = lookup_page_ext(page);
++	return test_bit(PAGE_EXT_DEBUG_GUARD, &page_ext->flags);
+ }
+ #else
+ static inline unsigned int debug_guardpage_minorder(void) { return 0; }
++static inline bool debug_guardpage_enabled(void) { return false; }
+ static inline bool page_is_guard(struct page *page) { return false; }
+ #endif /* CONFIG_DEBUG_PAGEALLOC */
+ 
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 33a8acf..c7b22e7 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -10,7 +10,6 @@
+ #include <linux/rwsem.h>
+ #include <linux/completion.h>
+ #include <linux/cpumask.h>
+-#include <linux/page-debug-flags.h>
+ #include <linux/uprobes.h>
+ #include <linux/page-flags-layout.h>
+ #include <asm/page.h>
+@@ -186,9 +185,6 @@ struct page {
+ 	void *virtual;			/* Kernel virtual address (NULL if
+ 					   not kmapped, ie. highmem) */
+ #endif /* WANT_PAGE_VIRTUAL */
+-#ifdef CONFIG_WANT_PAGE_DEBUG_FLAGS
+-	unsigned long debug_flags;	/* Use atomic bitops on this */
+-#endif
+ 
+ #ifdef CONFIG_KMEMCHECK
  	/*
- 	 * WARNING: mem_section must be a power-of-2 in size for the
- 	 * calculation and use of SECTION_ROOT_MASK to make sense.
+diff --git a/include/linux/page-debug-flags.h b/include/linux/page-debug-flags.h
+deleted file mode 100644
+index 22691f61..0000000
+--- a/include/linux/page-debug-flags.h
++++ /dev/null
+@@ -1,32 +0,0 @@
+-#ifndef LINUX_PAGE_DEBUG_FLAGS_H
+-#define  LINUX_PAGE_DEBUG_FLAGS_H
+-
+-/*
+- * page->debug_flags bits:
+- *
+- * PAGE_DEBUG_FLAG_POISON is set for poisoned pages. This is used to
+- * implement generic debug pagealloc feature. The pages are filled with
+- * poison patterns and set this flag after free_pages(). The poisoned
+- * pages are verified whether the patterns are not corrupted and clear
+- * the flag before alloc_pages().
+- */
+-
+-enum page_debug_flags {
+-	PAGE_DEBUG_FLAG_POISON,		/* Page is poisoned */
+-	PAGE_DEBUG_FLAG_GUARD,
+-};
+-
+-/*
+- * Ensure that CONFIG_WANT_PAGE_DEBUG_FLAGS reliably
+- * gets turned off when no debug features are enabling it!
+- */
+-
+-#ifdef CONFIG_WANT_PAGE_DEBUG_FLAGS
+-#if !defined(CONFIG_PAGE_POISONING) && \
+-    !defined(CONFIG_PAGE_GUARD) \
+-/* && !defined(CONFIG_PAGE_DEBUG_SOMETHING_ELSE) && ... */
+-#error WANT_PAGE_DEBUG_FLAGS is turned on with no debug features!
+-#endif
+-#endif /* CONFIG_WANT_PAGE_DEBUG_FLAGS */
+-
+-#endif /* LINUX_PAGE_DEBUG_FLAGS_H */
 diff --git a/include/linux/page_ext.h b/include/linux/page_ext.h
-new file mode 100644
-index 0000000..2ccc8b4
---- /dev/null
+index 2ccc8b4..61c0f05 100644
+--- a/include/linux/page_ext.h
 +++ b/include/linux/page_ext.h
-@@ -0,0 +1,59 @@
-+#ifndef __LINUX_PAGE_EXT_H
-+#define __LINUX_PAGE_EXT_H
+@@ -10,6 +10,21 @@ struct page_ext_operations {
+ #ifdef CONFIG_PAGE_EXTENSION
+ 
+ /*
++ * page_ext->flags bits:
++ *
++ * PAGE_EXT_DEBUG_POISON is set for poisoned pages. This is used to
++ * implement generic debug pagealloc feature. The pages are filled with
++ * poison patterns and set this flag after free_pages(). The poisoned
++ * pages are verified whether the patterns are not corrupted and clear
++ * the flag before alloc_pages().
++ */
 +
-+struct pglist_data;
-+struct page_ext_operations {
-+	bool (*need)(void);
-+	void (*init)(void);
++enum page_ext_flags {
++	PAGE_EXT_DEBUG_POISON,		/* Page is poisoned */
++	PAGE_EXT_DEBUG_GUARD,
 +};
-+
-+#ifdef CONFIG_PAGE_EXTENSION
 +
 +/*
-+ * Page Extension can be considered as an extended mem_map.
-+ * A page_ext page is associated with every page descriptor. The
-+ * page_ext helps us add more information about the page.
-+ * All page_ext are allocated at boot or memory hotplug event,
-+ * then the page_ext for pfn always exists.
-+ */
-+struct page_ext {
-+	unsigned long flags;
-+};
-+
-+extern void pgdat_page_ext_init(struct pglist_data *pgdat);
-+
-+#ifdef CONFIG_SPARSEMEM
-+static inline void page_ext_init_flatmem(void)
-+{
-+}
-+extern void page_ext_init(void);
-+#else
-+extern void page_ext_init_flatmem(void);
-+static inline void page_ext_init(void)
-+{
-+}
-+#endif
-+
-+struct page_ext *lookup_page_ext(struct page *page);
-+
-+#else /* !CONFIG_PAGE_EXTENSION */
-+struct page_ext;
-+
-+static inline void pgdat_page_ext_init(struct pglist_data *pgdat)
-+{
-+}
-+
-+static inline struct page_ext *lookup_page_ext(struct page *page)
-+{
-+	return NULL;
-+}
-+
-+static inline void page_ext_init(void)
-+{
-+}
-+
-+static inline void page_ext_init_flatmem(void)
-+{
-+}
-+#endif /* CONFIG_PAGE_EXTENSION */
-+#endif /* __LINUX_PAGE_EXT_H */
-diff --git a/init/main.c b/init/main.c
-index 235aafb..c60a246 100644
---- a/init/main.c
-+++ b/init/main.c
-@@ -51,6 +51,7 @@
- #include <linux/mempolicy.h>
- #include <linux/key.h>
- #include <linux/buffer_head.h>
-+#include <linux/page_ext.h>
- #include <linux/debug_locks.h>
- #include <linux/debugobjects.h>
- #include <linux/lockdep.h>
-@@ -484,6 +485,11 @@ void __init __weak thread_info_cache_init(void)
-  */
- static void __init mm_init(void)
- {
-+	/*
-+	 * page_ext requires contiguous pages,
-+	 * bigger than MAX_ORDER unless SPARSEMEM.
-+	 */
-+	page_ext_init_flatmem();
- 	mem_init();
- 	kmem_cache_init();
- 	percpu_init_late();
-@@ -621,6 +627,7 @@ asmlinkage __visible void __init start_kernel(void)
- 		initrd_start = 0;
- 	}
- #endif
-+	page_ext_init();
- 	debug_objects_mem_init();
- 	kmemleak_init();
- 	setup_per_cpu_pageset();
+  * Page Extension can be considered as an extended mem_map.
+  * A page_ext page is associated with every page descriptor. The
+  * page_ext helps us add more information about the page.
 diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
-index 4b24432..f712c7e 100644
+index f712c7e..c40b44a 100644
 --- a/mm/Kconfig.debug
 +++ b/mm/Kconfig.debug
-@@ -1,3 +1,12 @@
-+config PAGE_EXTENSION
-+	bool "Extend memmap on extra space for more information on page"
-+	default n
-+	---help---
-+	  Extend memmap on extra space for more information on page. This
-+	  could be used for debugging features that need to insert extra
-+	  field for every page. This extension enables us to save memory
-+	  by not allocating this extra memory in runtime.
-+
- config DEBUG_PAGEALLOC
- 	bool "Debug page memory allocations"
+@@ -12,6 +12,7 @@ config DEBUG_PAGEALLOC
  	depends on DEBUG_KERNEL
-diff --git a/mm/Makefile b/mm/Makefile
-index 9c4371d..0b7a784 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -71,3 +71,4 @@ obj-$(CONFIG_ZSMALLOC)	+= zsmalloc.o
- obj-$(CONFIG_GENERIC_EARLY_IOREMAP) += early_ioremap.o
- obj-$(CONFIG_CMA)	+= cma.o
- obj-$(CONFIG_MEMORY_BALLOON) += balloon_compaction.o
-+obj-$(CONFIG_PAGE_EXTENSION) += page_ext.o
+ 	depends on !HIBERNATION || ARCH_SUPPORTS_DEBUG_PAGEALLOC && !PPC && !SPARC
+ 	depends on !KMEMCHECK
++	select PAGE_EXTENSION
+ 	select PAGE_POISONING if !ARCH_SUPPORTS_DEBUG_PAGEALLOC
+ 	select PAGE_GUARD if ARCH_SUPPORTS_DEBUG_PAGEALLOC
+ 	---help---
+diff --git a/mm/debug-pagealloc.c b/mm/debug-pagealloc.c
+index 789ff70..ede1b38 100644
+--- a/mm/debug-pagealloc.c
++++ b/mm/debug-pagealloc.c
+@@ -2,23 +2,41 @@
+ #include <linux/string.h>
+ #include <linux/mm.h>
+ #include <linux/highmem.h>
+-#include <linux/page-debug-flags.h>
++#include <linux/page_ext.h>
+ #include <linux/poison.h>
+ #include <linux/ratelimit.h>
+ 
+ static inline void set_page_poison(struct page *page)
+ {
+-	__set_bit(PAGE_DEBUG_FLAG_POISON, &page->debug_flags);
++	struct page_ext *page_ext;
++
++	if (!page_ext_enabled)
++		return;
++
++	page_ext = lookup_page_ext(page);
++	__set_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
+ }
+ 
+ static inline void clear_page_poison(struct page *page)
+ {
+-	__clear_bit(PAGE_DEBUG_FLAG_POISON, &page->debug_flags);
++	struct page_ext *page_ext;
++
++	if (!page_ext_enabled)
++		return;
++
++	page_ext = lookup_page_ext(page);
++	__clear_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
+ }
+ 
+ static inline bool page_poison(struct page *page)
+ {
+-	return test_bit(PAGE_DEBUG_FLAG_POISON, &page->debug_flags);
++	struct page_ext *page_ext;
++
++	if (!page_ext_enabled)
++		return false;
++
++	page_ext = lookup_page_ext(page);
++	return test_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
+ }
+ 
+ static void poison_page(struct page *page)
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c0dbede..c91f449 100644
+index c91f449..7534733 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -48,6 +48,7 @@
- #include <linux/backing-dev.h>
- #include <linux/fault-inject.h>
- #include <linux/page-isolation.h>
+@@ -56,7 +56,7 @@
+ #include <linux/prefetch.h>
+ #include <linux/mm_inline.h>
+ #include <linux/migrate.h>
+-#include <linux/page-debug-flags.h>
 +#include <linux/page_ext.h>
- #include <linux/debugobjects.h>
- #include <linux/kmemleak.h>
- #include <linux/compaction.h>
-@@ -4857,6 +4858,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
- #endif
- 	init_waitqueue_head(&pgdat->kswapd_wait);
- 	init_waitqueue_head(&pgdat->pfmemalloc_wait);
-+	pgdat_page_ext_init(pgdat);
+ #include <linux/hugetlb.h>
+ #include <linux/sched/rt.h>
  
- 	for (j = 0; j < MAX_NR_ZONES; j++) {
- 		struct zone *zone = pgdat->node_zones + j;
-diff --git a/mm/page_ext.c b/mm/page_ext.c
-new file mode 100644
-index 0000000..53c8b89
---- /dev/null
-+++ b/mm/page_ext.c
-@@ -0,0 +1,341 @@
-+#include <linux/mm.h>
-+#include <linux/mmzone.h>
-+#include <linux/bootmem.h>
-+#include <linux/page_ext.h>
-+#include <linux/memory.h>
-+#include <linux/vmalloc.h>
-+#include <linux/kmemleak.h>
+@@ -426,6 +426,22 @@ static inline void prep_zero_page(struct page *page, unsigned int order,
+ 
+ #ifdef CONFIG_DEBUG_PAGEALLOC
+ unsigned int _debug_guardpage_minorder;
++bool _debug_guardpage_enabled __read_mostly;
 +
-+static unsigned long total_usage;
++static bool need_debug_guardpage(void)
++{
++	return true;
++}
 +
-+static struct page_ext_operations *page_ext_ops[] = {
++static void init_debug_guardpage(void)
++{
++	_debug_guardpage_enabled = true;
++}
++
++struct page_ext_operations debug_guardpage_ops = {
++	.need = need_debug_guardpage,
++	.init = init_debug_guardpage,
 +};
+ 
+ static int __init debug_guardpage_minorder_setup(char *buf)
+ {
+@@ -444,7 +460,14 @@ __setup("debug_guardpage_minorder=", debug_guardpage_minorder_setup);
+ static inline void set_page_guard(struct zone *zone, struct page *page,
+ 				unsigned int order, int migratetype)
+ {
+-	__set_bit(PAGE_DEBUG_FLAG_GUARD, &page->debug_flags);
++	struct page_ext *page_ext;
 +
-+static bool __init invoke_need_callbacks(void)
-+{
-+	int i;
-+	int entries = sizeof(page_ext_ops) / sizeof(page_ext_ops[0]);
-+
-+	for (i = 0; i < entries; i++) {
-+		if (page_ext_ops[i]->need && page_ext_ops[i]->need())
-+			return true;
-+	}
-+
-+	return false;
-+}
-+
-+static void __init invoke_init_callbacks(void)
-+{
-+	int i;
-+	int entries = sizeof(page_ext_ops) / sizeof(page_ext_ops[0]);
-+
-+	for (i = 0; i < entries; i++) {
-+		if (page_ext_ops[i]->init)
-+			page_ext_ops[i]->init();
-+	}
-+}
-+
-+#if !defined(CONFIG_SPARSEMEM)
-+
-+
-+void __meminit pgdat_page_ext_init(struct pglist_data *pgdat)
-+{
-+	pgdat->node_page_ext = NULL;
-+}
-+
-+struct page_ext *lookup_page_ext(struct page *page)
-+{
-+	unsigned long pfn = page_to_pfn(page);
-+	unsigned long offset;
-+	struct page_ext *base;
-+
-+	base = NODE_DATA(page_to_nid(page))->node_page_ext;
-+#ifdef CONFIG_DEBUG_VM
-+	/*
-+	 * The sanity checks the page allocator does upon freeing a
-+	 * page can reach here before the page_ext arrays are
-+	 * allocated when feeding a range of pages to the allocator
-+	 * for the first time during bootup or memory hotplug.
-+	 */
-+	if (unlikely(!base))
-+		return NULL;
-+#endif
-+	offset = pfn - NODE_DATA(page_to_nid(page))->node_start_pfn;
-+	return base + offset;
-+}
-+
-+static int __init alloc_node_page_ext(int nid)
-+{
-+	struct page_ext *base;
-+	unsigned long table_size;
-+	unsigned long nr_pages;
-+
-+	nr_pages = NODE_DATA(nid)->node_spanned_pages;
-+	if (!nr_pages)
-+		return 0;
-+
-+	table_size = sizeof(struct page_ext) * nr_pages;
-+
-+	base = memblock_virt_alloc_try_nid_nopanic(
-+			table_size, PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
-+			BOOTMEM_ALLOC_ACCESSIBLE, nid);
-+	if (!base)
-+		return -ENOMEM;
-+	NODE_DATA(nid)->node_page_ext = base;
-+	total_usage += table_size;
-+	return 0;
-+}
-+
-+void __init page_ext_init_flatmem(void)
-+{
-+
-+	int nid, fail;
-+
-+	if (!invoke_need_callbacks)
++	if (!debug_guardpage_enabled())
 +		return;
 +
-+	for_each_online_node(nid)  {
-+		fail = alloc_node_page_ext(nid);
-+		if (fail)
-+			goto fail;
-+	}
-+	pr_info("allocated %ld bytes of page_ext\n", total_usage);
-+	invoke_init_callbacks();
-+	return;
++	page_ext = lookup_page_ext(page);
++	__set_bit(PAGE_EXT_DEBUG_GUARD, &page_ext->flags);
 +
-+fail:
-+	pr_crit("allocation of page_ext failed.\n");
-+	panic("Out of memory");
-+}
+ 	INIT_LIST_HEAD(&page->lru);
+ 	set_page_private(page, order);
+ 	/* Guard pages are not available for any usage */
+@@ -454,12 +477,20 @@ static inline void set_page_guard(struct zone *zone, struct page *page,
+ static inline void clear_page_guard(struct zone *zone, struct page *page,
+ 				unsigned int order, int migratetype)
+ {
+-	__clear_bit(PAGE_DEBUG_FLAG_GUARD, &page->debug_flags);
++	struct page_ext *page_ext;
 +
-+#else /* CONFIG_FLAT_NODE_MEM_MAP */
-+
-+struct page_ext *lookup_page_ext(struct page *page)
-+{
-+	unsigned long pfn = page_to_pfn(page);
-+	struct mem_section *section = __pfn_to_section(pfn);
-+#ifdef CONFIG_DEBUG_VM
-+	/*
-+	 * The sanity checks the page allocator does upon freeing a
-+	 * page can reach here before the page_ext arrays are
-+	 * allocated when feeding a range of pages to the allocator
-+	 * for the first time during bootup or memory hotplug.
-+	 */
-+	if (!section->page_ext)
-+		return NULL;
-+#endif
-+	return section->page_ext + pfn;
-+}
-+
-+static void *__meminit alloc_page_ext(size_t size, int nid)
-+{
-+	gfp_t flags = GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN;
-+	void *addr = NULL;
-+
-+	addr = alloc_pages_exact_nid(nid, size, flags);
-+	if (addr) {
-+		kmemleak_alloc(addr, size, 1, flags);
-+		return addr;
-+	}
-+
-+	if (node_state(nid, N_HIGH_MEMORY))
-+		addr = vzalloc_node(size, nid);
-+	else
-+		addr = vzalloc(size);
-+
-+	return addr;
-+}
-+
-+static int __meminit init_section_page_ext(unsigned long pfn, int nid)
-+{
-+	struct mem_section *section;
-+	struct page_ext *base;
-+	unsigned long table_size;
-+
-+	section = __pfn_to_section(pfn);
-+
-+	if (section->page_ext)
-+		return 0;
-+
-+	table_size = sizeof(struct page_ext) * PAGES_PER_SECTION;
-+	base = alloc_page_ext(table_size, nid);
-+
-+	/*
-+	 * The value stored in section->page_ext is (base - pfn)
-+	 * and it does not point to the memory block allocated above,
-+	 * causing kmemleak false positives.
-+	 */
-+	kmemleak_not_leak(base);
-+
-+	if (!base) {
-+		pr_err("page ext allocation failure\n");
-+		return -ENOMEM;
-+	}
-+
-+	/*
-+	 * The passed "pfn" may not be aligned to SECTION.  For the calculation
-+	 * we need to apply a mask.
-+	 */
-+	pfn &= PAGE_SECTION_MASK;
-+	section->page_ext = base - pfn;
-+	total_usage += table_size;
-+	return 0;
-+}
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+static void free_page_ext(void *addr)
-+{
-+	if (is_vmalloc_addr(addr)) {
-+		vfree(addr);
-+	} else {
-+		struct page *page = virt_to_page(addr);
-+		size_t table_size =
-+			sizeof(struct page_ext) * PAGES_PER_SECTION;
-+
-+		BUG_ON(PageReserved(page));
-+		free_pages_exact(addr, table_size);
-+	}
-+}
-+
-+static void __free_page_ext(unsigned long pfn)
-+{
-+	struct mem_section *ms;
-+	struct page_ext *base;
-+
-+	ms = __pfn_to_section(pfn);
-+	if (!ms || !ms->page_ext)
-+		return;
-+	base = ms->page_ext + pfn;
-+	free_page_ext(base);
-+	ms->page_ext = NULL;
-+}
-+
-+static int __meminit online_page_ext(unsigned long start_pfn,
-+				unsigned long nr_pages,
-+				int nid)
-+{
-+	unsigned long start, end, pfn;
-+	int fail = 0;
-+
-+	start = SECTION_ALIGN_DOWN(start_pfn);
-+	end = SECTION_ALIGN_UP(start_pfn + nr_pages);
-+
-+	if (nid == -1) {
-+		/*
-+		 * In this case, "nid" already exists and contains valid memory.
-+		 * "start_pfn" passed to us is a pfn which is an arg for
-+		 * online__pages(), and start_pfn should exist.
-+		 */
-+		nid = pfn_to_nid(start_pfn);
-+		VM_BUG_ON(!node_state(nid, N_ONLINE));
-+	}
-+
-+	for (pfn = start; !fail && pfn < end; pfn += PAGES_PER_SECTION) {
-+		if (!pfn_present(pfn))
-+			continue;
-+		fail = init_section_page_ext(pfn, nid);
-+	}
-+	if (!fail)
-+		return 0;
-+
-+	/* rollback */
-+	for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION)
-+		__free_page_ext(pfn);
-+
-+	return -ENOMEM;
-+}
-+
-+static int __meminit offline_page_ext(unsigned long start_pfn,
-+				unsigned long nr_pages, int nid)
-+{
-+	unsigned long start, end, pfn;
-+
-+	start = SECTION_ALIGN_DOWN(start_pfn);
-+	end = SECTION_ALIGN_UP(start_pfn + nr_pages);
-+
-+	for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION)
-+		__free_page_ext(pfn);
-+	return 0;
-+
-+}
-+
-+static int __meminit page_ext_callback(struct notifier_block *self,
-+			       unsigned long action, void *arg)
-+{
-+	struct memory_notify *mn = arg;
-+	int ret = 0;
-+
-+	switch (action) {
-+	case MEM_GOING_ONLINE:
-+		ret = online_page_ext(mn->start_pfn,
-+				   mn->nr_pages, mn->status_change_nid);
-+		break;
-+	case MEM_OFFLINE:
-+		offline_page_ext(mn->start_pfn,
-+				mn->nr_pages, mn->status_change_nid);
-+		break;
-+	case MEM_CANCEL_ONLINE:
-+		offline_page_ext(mn->start_pfn,
-+				mn->nr_pages, mn->status_change_nid);
-+		break;
-+	case MEM_GOING_OFFLINE:
-+		break;
-+	case MEM_ONLINE:
-+	case MEM_CANCEL_OFFLINE:
-+		break;
-+	}
-+
-+	return notifier_from_errno(ret);
-+}
-+
-+#endif
-+
-+void __init page_ext_init(void)
-+{
-+	unsigned long pfn;
-+	int nid;
-+
-+	if (!invoke_need_callbacks())
++	if (!debug_guardpage_enabled())
 +		return;
 +
-+	for_each_node_state(nid, N_MEMORY) {
-+		unsigned long start_pfn, end_pfn;
++	page_ext = lookup_page_ext(page);
++	__clear_bit(PAGE_EXT_DEBUG_GUARD, &page_ext->flags);
 +
-+		start_pfn = node_start_pfn(nid);
-+		end_pfn = node_end_pfn(nid);
-+		/*
-+		 * start_pfn and end_pfn may not be aligned to SECTION and the
-+		 * page->flags of out of node pages are not initialized.  So we
-+		 * scan [start_pfn, the biggest section's pfn < end_pfn) here.
-+		 */
-+		for (pfn = start_pfn; pfn < end_pfn;
-+			pfn = ALIGN(pfn + 1, PAGES_PER_SECTION)) {
-+
-+			if (!pfn_valid(pfn))
-+				continue;
-+			/*
-+			 * Nodes's pfns can be overlapping.
-+			 * We know some arch can have a nodes layout such as
-+			 * -------------pfn-------------->
-+			 * N0 | N1 | N2 | N0 | N1 | N2|....
-+			 */
-+			if (pfn_to_nid(pfn) != nid)
-+				continue;
-+			if (init_section_page_ext(pfn, nid))
-+				goto oom;
-+		}
-+	}
-+	hotplug_memory_notifier(page_ext_callback, 0);
-+	pr_info("allocated %ld bytes of page_ext\n", total_usage);
-+	invoke_init_callbacks();
-+	return;
-+
-+oom:
-+	panic("Out of memory");
-+}
-+
-+void __meminit pgdat_page_ext_init(struct pglist_data *pgdat)
-+{
-+}
-+
-+#endif
-+
+ 	set_page_private(page, 0);
+ 	if (!is_migrate_isolate(migratetype))
+ 		__mod_zone_freepage_state(zone, (1 << order), migratetype);
+ }
+ #else
++struct page_ext_operations debug_guardpage_ops = { NULL, };
+ static inline void set_page_guard(struct zone *zone, struct page *page,
+ 				unsigned int order, int migratetype) {}
+ static inline void clear_page_guard(struct zone *zone, struct page *page,
+@@ -870,6 +901,7 @@ static inline void expand(struct zone *zone, struct page *page,
+ 		VM_BUG_ON_PAGE(bad_range(zone, &page[size]), &page[size]);
+ 
+ 		if (IS_ENABLED(CONFIG_DEBUG_PAGEALLOC) &&
++			debug_guardpage_enabled() &&
+ 			high < debug_guardpage_minorder()) {
+ 			/*
+ 			 * Mark as guard pages (or page), that will allow to
+diff --git a/mm/page_ext.c b/mm/page_ext.c
+index 53c8b89..07a32f5 100644
+--- a/mm/page_ext.c
++++ b/mm/page_ext.c
+@@ -9,6 +9,7 @@
+ static unsigned long total_usage;
+ 
+ static struct page_ext_operations *page_ext_ops[] = {
++	&debug_guardpage_ops,
+ };
+ 
+ static bool __init invoke_need_callbacks(void)
 -- 
 1.7.9.5
 
