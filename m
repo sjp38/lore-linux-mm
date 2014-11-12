@@ -1,77 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B0F96B0138
-	for <linux-mm@kvack.org>; Tue, 11 Nov 2014 20:38:40 -0500 (EST)
-Received: by mail-ie0-f174.google.com with SMTP id x19so12649919ier.33
-        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 17:38:40 -0800 (PST)
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 2577C6B013A
+	for <linux-mm@kvack.org>; Tue, 11 Nov 2014 20:43:42 -0500 (EST)
+Received: by mail-ig0-f171.google.com with SMTP id hl2so2118425igb.4
+        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 17:43:42 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id vb8si28605083icb.68.2014.11.11.17.38.39
+        by mx.google.com with ESMTPS id t11si33859212iot.51.2014.11.11.17.43.40
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Nov 2014 17:38:39 -0800 (PST)
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 3.14 035/203] x86, pageattr: Prevent overflow in slow_virt_to_phys() for X86_PAE
-Date: Wed, 12 Nov 2014 10:15:05 +0900
-Message-Id: <20141112011544.326707411@linuxfoundation.org>
-In-Reply-To: <20141112011542.686743533@linuxfoundation.org>
-References: <20141112011542.686743533@linuxfoundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-15
+        Tue, 11 Nov 2014 17:43:41 -0800 (PST)
+Date: Tue, 11 Nov 2014 17:44:12 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bug 87891] New: kernel BUG at mm/slab.c:2625!
+Message-Id: <20141111174412.ba0ac86f.akpm@linux-foundation.org>
+In-Reply-To: <20141112012244.GA21576@js1304-P5Q-DELUXE>
+References: <bug-87891-27@https.bugzilla.kernel.org/>
+	<alpine.DEB.2.11.1411111833220.8762@gentwo.org>
+	<20141111164913.3616531c21c91499871c46de@linux-foundation.org>
+	<201411120054.04651.luke@dashjr.org>
+	<20141111170243.c24ce5fdb5efaf0814071847@linux-foundation.org>
+	<20141112012244.GA21576@js1304-P5Q-DELUXE>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Dexuan Cui <decui@microsoft.com>, "K. Y. Srinivasan" <kys@microsoft.com>, Haiyang Zhang <haiyangz@microsoft.com>, linux-mm@kvack.org, olaf@aepfle.de, apw@canonical.com, jasowang@redhat.com, dave.hansen@intel.com, riel@redhat.com, Thomas Gleixner <tglx@linutronix.de>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Luke Dashjr <luke@dashjr.org>, Christoph Lameter <cl@linux.com>, Ming Lei <ming.lei@canonical.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Pauli Nieminen <suokkos@gmail.com>, Dave Airlie <airlied@linux.ie>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, bugzilla-daemon@bugzilla.kernel.org, luke-jr+linuxbugs@utopios.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org
 
-3.14-stable review patch.  If anyone has any objections, please let me know.
+On Wed, 12 Nov 2014 10:22:45 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
 
-------------------
+> On Tue, Nov 11, 2014 at 05:02:43PM -0800, Andrew Morton wrote:
+> > On Wed, 12 Nov 2014 00:54:01 +0000 Luke Dashjr <luke@dashjr.org> wrote:
+> > 
+> > > On Wednesday, November 12, 2014 12:49:13 AM Andrew Morton wrote:
+> > > > But anyway - Luke, please attach your .config to
+> > > > https://bugzilla.kernel.org/show_bug.cgi?id=87891?
+> > > 
+> > > Done: https://bugzilla.kernel.org/attachment.cgi?id=157381
+> > > 
+> > 
+> > OK, thanks.  No CONFIG_HIGHMEM of course.  I'm stumped.
+> 
+> Hello, Andrew.
+> 
+> I think that the cause is GFP_HIGHMEM.
+> GFP_HIGHMEM is always defined regardless CONFIG_HIGHMEM.
+> Please look at the do_huge_pmd_anonymous_page().
+> It calls alloc_hugepage_vma() and then alloc_pages_vma() is called
+> with alloc_hugepage_gfpmask(). This gfpmask includes GFP_TRANSHUGE
+> and then GFP_HIGHUSER_MOVABLE.
 
-From: Dexuan Cui <decui@microsoft.com>
+OK.
 
-commit d1cd1210834649ce1ca6bafe5ac25d2f40331343 upstream.
+So where's the bug?  I'm inclined to say that it's in ttm.  It's taking
+a gfp_mask which means "this is the allocation attempt which we are
+attempting to satisfy" and uses that for its own allocation.
 
-pte_pfn() returns a PFN of long (32 bits in 32-PAE), so "long <<
-PAGE_SHIFT" will overflow for PFNs above 4GB.
+But ttm has no business using that gfp_mask for its own allocation
+attempt.  If anything it should use something like, err,
 
-Due to this issue, some Linux 32-PAE distros, running as guests on Hyper-V,
-with 5GB memory assigned, can't load the netvsc driver successfully and
-hence the synthetic network device can't work (we can use the kernel parameter
-mem=3000M to work around the issue).
+	GFP_KERNEL & ~__GFP_IO & ~__GFP_FS | __GFP_HIGH
 
-Cast pte_pfn() to phys_addr_t before shifting.
+although as I mentioned earlier, it would be better to avoid allocation
+altogether.
 
-Fixes: "commit d76565344512: x86, mm: Create slow_virt_to_phys()"
-Signed-off-by: Dexuan Cui <decui@microsoft.com>
-Cc: K. Y. Srinivasan <kys@microsoft.com>
-Cc: Haiyang Zhang <haiyangz@microsoft.com>
-Cc: gregkh@linuxfoundation.org
-Cc: linux-mm@kvack.org
-Cc: olaf@aepfle.de
-Cc: apw@canonical.com
-Cc: jasowang@redhat.com
-Cc: dave.hansen@intel.com
-Cc: riel@redhat.com
-Cc: stable@vger.kernel.org
-Link: http://lkml.kernel.org/r/1414580017-27444-1-git-send-email-decui@microsoft.com
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-
----
- arch/x86/mm/pageattr.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
---- a/arch/x86/mm/pageattr.c
-+++ b/arch/x86/mm/pageattr.c
-@@ -405,7 +405,7 @@ phys_addr_t slow_virt_to_phys(void *__vi
- 	psize = page_level_size(level);
- 	pmask = page_level_mask(level);
- 	offset = virt_addr & ~pmask;
--	phys_addr = pte_pfn(*pte) << PAGE_SHIFT;
-+	phys_addr = (phys_addr_t)pte_pfn(*pte) << PAGE_SHIFT;
- 	return (phys_addr | offset);
- }
- EXPORT_SYMBOL_GPL(slow_virt_to_phys);
-
+Poor ttm guys - this is a bit of a trap we set for them.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
