@@ -1,60 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 773AD6B00EE
-	for <linux-mm@kvack.org>; Tue, 11 Nov 2014 22:40:34 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id kq14so11917635pab.24
-        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 19:40:34 -0800 (PST)
-Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
-        by mx.google.com with ESMTPS id tr9si21667744pac.159.2014.11.11.19.40.32
+Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
+	by kanga.kvack.org (Postfix) with ESMTP id A4F136B00EE
+	for <linux-mm@kvack.org>; Tue, 11 Nov 2014 22:44:02 -0500 (EST)
+Received: by mail-la0-f44.google.com with SMTP id hz20so574257lab.31
+        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 19:44:01 -0800 (PST)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
+        by mx.google.com with ESMTPS id kt1si4917837lac.41.2014.11.11.19.44.00
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Tue, 11 Nov 2014 19:40:33 -0800 (PST)
-Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
- by mailout2.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NEW00G9QQ7GW3C0@mailout2.samsung.com> for
- linux-mm@kvack.org; Wed, 12 Nov 2014 12:40:28 +0900 (KST)
-From: Weijie Yang <weijie.yang@samsung.com>
-Subject: [PATCH] mm: mincore: add hwpoison page handle
-Date: Wed, 12 Nov 2014 11:39:29 +0800
-Message-id: <000001cffe2a$66a95a50$33fc0ef0$%yang@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=UTF-8
-Content-transfer-encoding: 7bit
-Content-language: zh-cn
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 11 Nov 2014 19:44:01 -0800 (PST)
+Message-ID: <5462D71C.4070600@huawei.com>
+Date: Wed, 12 Nov 2014 11:42:20 +0800
+From: Zhang Zhen <zhenzhang.zhang@huawei.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] memory-hotplug: remove redundant call of page_to_pfn
+References: <1415697184-26409-1-git-send-email-zhenzhang.zhang@huawei.com> <5461D343.60803@huawei.com> <5462D0F5.1050008@jp.fujitsu.com>
+In-Reply-To: <5462D0F5.1050008@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Johannes Weiner' <hannes@cmpxchg.org>
-Cc: 'Andrew Morton' <akpm@linux-foundation.org>, mgorman@suse.de, 'Rik van Riel' <riel@redhat.com>, 'Weijie Yang' <weijie.yang.kh@gmail.com>, 'Linux-MM' <linux-mm@kvack.org>, 'linux-kernel' <linux-kernel@vger.kernel.org>
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Linux MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, wangnan0@huawei.com
 
-When encounter pte is a swap entry, the current code handles two cases:
-migration and normal swapentry, but we have a third case: hwpoison page.
+On 2014/11/12 11:16, Yasuaki Ishimatsu wrote:
+> (2014/11/11 18:13), Zhang Zhen wrote:
+>> The start_pfn can be obtained directly by
+>> phys_index << PFN_SECTION_SHIFT.
+>>
+>> Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
+>> ---
+> 
+> The patch looks good to me but I want you to write a purpose of the patch
+> to the description for other reviewer.
+> 
+> Thanks,
+> Yasuaki Ishimatsu
+> 
 
-This patch adds hwpoison page handle, consider hwpoison page incore as
-same as migration.
+Ok, thanks for your review.
 
-Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
----
- mm/mincore.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/mincore.c b/mm/mincore.c
-index 725c809..3545f13 100644
---- a/mm/mincore.c
-+++ b/mm/mincore.c
-@@ -137,8 +137,8 @@ static void mincore_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 		} else { /* pte is a swap entry */
- 			swp_entry_t entry = pte_to_swp_entry(pte);
- 
--			if (is_migration_entry(entry)) {
--				/* migration entries are always uptodate */
-+			if (non_swap_entry(entry)) {
-+			/* migration or hwpoison entries are always uptodate */
- 				*vec = 1;
- 			} else {
- #ifdef CONFIG_SWAP
--- 
-1.7.0.4
+>>   drivers/base/memory.c | 4 ++--
+>>   1 file changed, 2 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+>> index 7c5d871..85be040 100644
+>> --- a/drivers/base/memory.c
+>> +++ b/drivers/base/memory.c
+>> @@ -228,8 +228,8 @@ memory_block_action(unsigned long phys_index, unsigned long action, int online_t
+>>       struct page *first_page;
+>>       int ret;
+>>
+>> -    first_page = pfn_to_page(phys_index << PFN_SECTION_SHIFT);
+>> -    start_pfn = page_to_pfn(first_page);
+>> +    start_pfn = phys_index << PFN_SECTION_SHIFT;
+>> +    first_page = pfn_to_page(start_pfn);
+>>
+>>       switch (action) {
+>>           case MEM_ONLINE:
+>>
+> 
+> 
+> 
+> 
 
 
 --
