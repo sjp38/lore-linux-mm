@@ -1,81 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 8660A6B00DB
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2014 17:13:31 -0500 (EST)
-Received: by mail-wi0-f178.google.com with SMTP id bs8so6368098wib.17
-        for <linux-mm@kvack.org>; Wed, 12 Nov 2014 14:13:30 -0800 (PST)
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id E745D6B00DB
+	for <linux-mm@kvack.org>; Wed, 12 Nov 2014 17:33:44 -0500 (EST)
+Received: by mail-wi0-f179.google.com with SMTP id h11so6423889wiw.12
+        for <linux-mm@kvack.org>; Wed, 12 Nov 2014 14:33:44 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id dn3si29504809wib.68.2014.11.12.14.13.29
+        by mx.google.com with ESMTPS id pl10si29510215wic.91.2014.11.12.14.33.43
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Nov 2014 14:13:30 -0800 (PST)
-Message-ID: <5463DAD8.3050601@redhat.com>
-Date: Wed, 12 Nov 2014 17:10:32 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [RFC v6 2/2] mm: swapoff prototype: frontswap handling added
-References: <20141112025823.GA7464@kelleynnn-virtual-machine>
-In-Reply-To: <20141112025823.GA7464@kelleynnn-virtual-machine>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+        Wed, 12 Nov 2014 14:33:44 -0800 (PST)
+From: Luiz Capitulino <lcapitulino@redhat.com>
+Subject: [PATCH 1/3] hugetlb: fix hugepages= entry in kernel-parameters.txt
+Date: Wed, 12 Nov 2014 17:33:11 -0500
+Message-Id: <1415831593-9020-2-git-send-email-lcapitulino@redhat.com>
+In-Reply-To: <1415831593-9020-1-git-send-email-lcapitulino@redhat.com>
+References: <1415831593-9020-1-git-send-email-lcapitulino@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kelley Nielsen <kelleynnn@gmail.com>, linux-mm@kvack.org, riel@surriel.com, opw-kernel@googlegroups.com, hughd@google.com, akpm@linux-foundation.org, jamieliu@google.com, sjenning@linux.vnet.ibm.com, sarah.a.sharp@intel.com
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, andi@firstfloor.org, rientjes@google.com, riel@redhat.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, davidlohr@hp.com
 
-On 11/11/2014 09:58 PM, Kelley Nielsen wrote:
-> The prototype of the new swapoff (without the quadratic complexity)
-> presently ignores the frontswap case. Pass the count of
-> pages_to_unuse down the page table walks in try_to_unuse(),
-> and return from the walk when the desired number of pages
-> has been swapped back in.
-> 
-> Signed-off-by: Kelley Nielsen <kelleynnn@gmail.com>
-> ---
->  mm/shmem.c    |  1 +
->  mm/swapfile.c | 53 +++++++++++++++++++++++++++++++++++++----------------
->  2 files changed, 38 insertions(+), 16 deletions(-)
-> 
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index 2a7179c..e7a813f 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -629,6 +629,7 @@ static int shmem_unuse_inode(struct inode *inode, unsigned int type)
->  	int entries = 0;
->  	swp_entry_t entry;
->  	unsigned int stype;
-> +
->  	pgoff_t start = 0;
+The hugepages= entry in kernel-parameters.txt states that
+1GB pages can only be allocated at boot time and not
+freed afterwards. This is not true since commit
+944d9fec8d7aee, at least for x86_64.
 
-Why is there an shmem.c blank line in the frontswap patch?
+Instead of adding arch-specifc observations to the
+hugepages= entry, this commit just drops the out of date
+information. Further information about arch-specific
+support and available features can be obtained in the
+hugetlb documentation.
 
-> @@ -1210,6 +1212,15 @@ static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
->  		SetPageDirty(page);
->  		unlock_page(page);
->  		page_cache_release(page);
-> +		if (ret && pages_to_unuse > 0) {
-> +			pages_to_unuse--;
-> +			/*
-> +			 * we've unused all we need for frontswap,
-> +			 * so return special code to indicate this.
-> +			 */
-> +			if (pages_to_unuse == 0)
-> +				return 2;
-> +		}
+Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
+---
+ Documentation/kernel-parameters.txt | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
 
-If you are using a magic value, could you make it a #define so
-people can more easily find out why the code is testing for == 2
-elsewhere?
-
-One obvious bug is that the pages_to_unuse variable is passed by
-value, so try_to_unuse never sees that unuse_pte_range decremented
-the counter. You will want to use a pointer instead.
-
-A second issue is that you decrement pages_to_unuse on every pte
-unmap, and not on every swap slot that is unused. Would it make
-more sense to decrement pages_to_unuse where you call
-delete_from_swap_cache?
-
-Other than that, this series looks good to me.
+diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+index 479f332..d919af0 100644
+--- a/Documentation/kernel-parameters.txt
++++ b/Documentation/kernel-parameters.txt
+@@ -1228,9 +1228,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+ 			multiple times interleaved with hugepages= to reserve
+ 			huge pages of different sizes. Valid pages sizes on
+ 			x86-64 are 2M (when the CPU supports "pse") and 1G
+-			(when the CPU supports the "pdpe1gb" cpuinfo flag)
+-			Note that 1GB pages can only be allocated at boot time
+-			using hugepages= and not freed afterwards.
++			(when the CPU supports the "pdpe1gb" cpuinfo flag).
+ 
+ 	hvc_iucv=	[S390] Number of z/VM IUCV hypervisor console (HVC)
+ 			       terminal devices. Valid values: 0..8
+-- 
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
