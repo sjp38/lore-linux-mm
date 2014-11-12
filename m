@@ -1,59 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A85B06B00EB
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2014 13:59:01 -0500 (EST)
-Received: by mail-wg0-f51.google.com with SMTP id l18so15326221wgh.10
-        for <linux-mm@kvack.org>; Wed, 12 Nov 2014 10:59:01 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p4si28919141wiy.81.2014.11.12.10.59.00
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id D5B9E6B00E6
+	for <linux-mm@kvack.org>; Wed, 12 Nov 2014 14:35:00 -0500 (EST)
+Received: by mail-wg0-f52.google.com with SMTP id b13so15025805wgh.39
+        for <linux-mm@kvack.org>; Wed, 12 Nov 2014 11:35:00 -0800 (PST)
+Received: from mail-wi0-x230.google.com (mail-wi0-x230.google.com. [2a00:1450:400c:c05::230])
+        by mx.google.com with ESMTPS id p8si28997061wia.96.2014.11.12.11.34.59
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 12 Nov 2014 10:59:00 -0800 (PST)
+        Wed, 12 Nov 2014 11:34:59 -0800 (PST)
+Received: by mail-wi0-f176.google.com with SMTP id h11so5995001wiw.15
+        for <linux-mm@kvack.org>; Wed, 12 Nov 2014 11:34:59 -0800 (PST)
+Date: Wed, 12 Nov 2014 20:34:50 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: [RFC 4/4] OOM: thaw the OOM victim if it is frozen
-Date: Wed, 12 Nov 2014 19:58:52 +0100
-Message-Id: <1415818732-27712-5-git-send-email-mhocko@suse.cz>
-In-Reply-To: <1415818732-27712-1-git-send-email-mhocko@suse.cz>
-References: <20141110163055.GC18373@dhcp22.suse.cz>
- <1415818732-27712-1-git-send-email-mhocko@suse.cz>
+Subject: Re: [PATCH 1/2] mm: page_isolation: check pfn validity before access
+Message-ID: <20141112193450.GA18936@dhcp22.suse.cz>
+References: <000001cff998$ee0b31d0$ca219570$%yang@samsung.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <000001cff998$ee0b31d0$ca219570$%yang@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org, linux-pm@vger.kernel.org, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>
+To: Weijie Yang <weijie.yang@samsung.com>
+Cc: kamezawa.hiroyu@jp.fujitsu.com, 'Minchan Kim' <minchan@kernel.org>, 'Andrew Morton' <akpm@linux-foundation.org>, mgorman@suse.de, mina86@mina86.com, 'linux-kernel' <linux-kernel@vger.kernel.org>, 'Linux-MM' <linux-mm@kvack.org>, 'Weijie Yang' <weijie.yang.kh@gmail.com>
 
-oom_kill_process only sets TIF_MEMDIE flag and sends a signal to the
-victim. This is basically noop when the task is frozen though because
-the task sleeps in uninterruptible sleep. The victim is eventually
-thawed later when oom_scan_process_thread meets the task again in a
-later OOM invocation so the OOM killer doesn't live lock. But this is
-less than optimal. Let's add the frozen check and thaw the task right
-before we send SIGKILL to the victim.
+On Thu 06-11-14 16:08:02, Weijie Yang wrote:
+> In the undo path of start_isolate_page_range(), we need to check
+> the pfn validity before access its page, or it will trigger an
+> addressing exception if there is hole in the zone.
 
-The check and thawing in oom_scan_process_thread has to stay because the
-task might got access to memory reserves even without an explicit
-SIGKILL from oom_kill_process (e.g. it already has fatal signal pending
-or it is exiting already).
+This looks a bit fishy to me. I am not familiar with the code much but
+at least __offline_pages zone = page_zone(pfn_to_page(start_pfn)) so it
+would blow up before we got here. Same applies to the other caller
+alloc_contig_range. So either both need a fix and then
+start_isolate_page_range doesn't need more checks or this is all
+unnecessary.
 
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
----
- mm/oom_kill.c | 2 ++
- 1 file changed, 2 insertions(+)
+Please do not make this code more obfuscated than it is already...
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 39a591092ca0..67ea7fb70fa4 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -511,6 +511,8 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 	rcu_read_unlock();
- 
- 	set_tsk_thread_flag(victim, TIF_MEMDIE);
-+	if (frozen(victim))
-+		__thaw_task(victim);
- 	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
- 	put_task_struct(victim);
- }
+> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
+> ---
+>  mm/page_isolation.c |    7 +++++--
+>  1 files changed, 5 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+> index d1473b2..3ddc8b3 100644
+> --- a/mm/page_isolation.c
+> +++ b/mm/page_isolation.c
+> @@ -137,8 +137,11 @@ int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
+>  undo:
+>  	for (pfn = start_pfn;
+>  	     pfn < undo_pfn;
+> -	     pfn += pageblock_nr_pages)
+> -		unset_migratetype_isolate(pfn_to_page(pfn), migratetype);
+> +	     pfn += pageblock_nr_pages) {
+> +		page = __first_valid_page(pfn, pageblock_nr_pages);
+> +		if (page)
+> +			unset_migratetype_isolate(page, migratetype);
+> +	}
+>  
+>  	return -EBUSY;
+>  }
+> -- 
+> 1.7.0.4
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
 -- 
-2.1.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
