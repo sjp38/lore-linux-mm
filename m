@@ -1,144 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 789B16B0102
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2014 01:44:35 -0500 (EST)
-Received: by mail-pd0-f178.google.com with SMTP id fp1so11532919pdb.23
-        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 22:44:35 -0800 (PST)
-Received: from fgwmail6.fujitsu.co.jp (fgwmail6.fujitsu.co.jp. [192.51.44.36])
-        by mx.google.com with ESMTPS id mi6si22135906pab.17.2014.11.11.22.44.33
+	by kanga.kvack.org (Postfix) with ESMTP id 3EB1F6B0101
+	for <linux-mm@kvack.org>; Wed, 12 Nov 2014 02:02:01 -0500 (EST)
+Received: by mail-pd0-f178.google.com with SMTP id fp1so11737387pdb.9
+        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 23:02:00 -0800 (PST)
+Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
+        by mx.google.com with ESMTPS id t11si22127034pdl.62.2014.11.11.23.01.59
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 11 Nov 2014 22:44:34 -0800 (PST)
-Received: from kw-mxoi1.gw.nic.fujitsu.com (unknown [10.0.237.133])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 752B93EE0CD
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2014 15:44:32 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by kw-mxoi1.gw.nic.fujitsu.com (Postfix) with ESMTP id E478BAC07D2
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2014 15:44:14 +0900 (JST)
-Received: from g01jpfmpwyt01.exch.g01.fujitsu.local (g01jpfmpwyt01.exch.g01.fujitsu.local [10.128.193.38])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5561E1DB8051
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2014 15:44:14 +0900 (JST)
-Message-ID: <546301A4.3090209@jp.fujitsu.com>
-Date: Wed, 12 Nov 2014 15:43:48 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 11 Nov 2014 23:01:59 -0800 (PST)
+Received: by mail-pa0-f49.google.com with SMTP id lj1so12240677pab.22
+        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 23:01:59 -0800 (PST)
+From: SeongJae Park <sj38.park@gmail.com>
+Date: Wed, 12 Nov 2014 16:02:43 +0900 (KST)
+Subject: Re: [RFC v1 0/6] introduce gcma
+In-Reply-To: <alpine.DEB.2.11.1411111255420.6657@gentwo.org>
+Message-ID: <alpine.DEB.2.10.1411121549300.18607@hxeon>
+References: <1415718010-18663-1-git-send-email-sj38.park@gmail.com> <alpine.DEB.2.11.1411111255420.6657@gentwo.org>
 MIME-Version: 1.0
-Subject: Re: memblock: Refactor functions to set/clear MEMBLOCK_HOTPLUG
-References: <54610c79308447c79c@agluck-desk.sc.intel.com>
-In-Reply-To: <54610c79308447c79c@agluck-desk.sc.intel.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tony.luck@intel.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Santosh Shilimkar <santosh.shilimkar@ti.com>, Tang Chen <tangchen@cn.fujitsu.com>, Grygorii Strashko <grygorii.strashko@ti.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Philipp Hachtmann <phacht@linux.vnet.ibm.com>, Yinghai Lu <yinghai@kernel.org>, Emil Medve <Emilian.Medve@freescale.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: SeongJae Park <sj38.park@gmail.com>, akpm@linux-foundation.org, lauraa@codeaurora.org, minchan@kernel.org, sergey.senozhatsky@gmail.com, linux-mm@kvack.org
 
-(2014/11/11 4:05), tony.luck@intel.com wrote:
-> There is a lot of duplication in the rubric around actually setting or
-> clearing a mem region flag. Create a new helper function to do this and
-> reduce each of memblock_mark_hotplug() and memblock_clear_hotplug() to
-> a single line.
-> 
-> Signed-off-by: Tony Luck <tony.luck@intel.com>
-> 
-> ---
+Hi Christoph,
 
-The refactoring looks good.
+On Tue, 11 Nov 2014, Christoph Lameter wrote:
+
+> On Wed, 12 Nov 2014, SeongJae Park wrote:
+>
+>> Difference with cma is choice and operation of 2nd-class client. In gcma,
+>> 2nd-class client should allocate pages from the reserved area only if the
+>> allocated pages mets following conditions.
+>
+> How about making CMA configurable in some fashion to be able to specify
+> the type of 2nd class clients? Clean page-cache pages can also be rather
+> easily evicted (see zone-reclaim). You could migrate them out when they
+> are dirtied so that you do not have the high writeback latency from the
+> CMA reserved area if it needs to be evicted later.
+
+Nice point.
+
+Currently, gcma is integrated inside cma and user could decide a specific 
+contiguous memory area to work in cma way(movable pages as 2nd class) or 
+in gcma way(out-of-kernel, easy-to-discard pages as 2nd class).
+It is implemented in 6th change of this RFC, "gcma: integrate gcma under 
+cma interface".
+
+In short, the 2nd-clients of cma is already configurable between 
+movable pages and frontswap backend with this RFC.
+
+And yes, cleancache will be great 2nd class client.
+As described within coverletter, our 2nd class client candidates are 
+frontswap and _cleancache_. But, because the gcma is still in unmatured 
+sate yet, current RFC(this patchset) use only frontswap.
+In future, it will be configurable.
+
+Apologize I forgot to describe about future plan.
 
 Thanks,
-Yasuaki Ishimatsu
+SeongJae Park
 
-> 
-> This will be useful if someone were to add a new mem region flag - which
-> I hope to be doing some day soon. But it looks like a plausible cleanup
-> even without that - so I'd like to get it out of the way now.
-> 
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index 6ecb0d937fb5..252b77bdf65e 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -715,16 +715,13 @@ int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
->   }
->   
->   /**
-> - * memblock_mark_hotplug - Mark hotpluggable memory with flag MEMBLOCK_HOTPLUG.
-> - * @base: the base phys addr of the region
-> - * @size: the size of the region
->    *
-> - * This function isolates region [@base, @base + @size), and mark it with flag
-> - * MEMBLOCK_HOTPLUG.
-> + * This function isolates region [@base, @base + @size), and sets/clears flag
->    *
->    * Return 0 on succees, -errno on failure.
->    */
-> -int __init_memblock memblock_mark_hotplug(phys_addr_t base, phys_addr_t size)
-> +static int __init_memblock memblock_setclr_flag(phys_addr_t base,
-> +				phys_addr_t size, int set, int flag)
->   {
->   	struct memblock_type *type = &memblock.memory;
->   	int i, ret, start_rgn, end_rgn;
-> @@ -734,37 +731,37 @@ int __init_memblock memblock_mark_hotplug(phys_addr_t base, phys_addr_t size)
->   		return ret;
->   
->   	for (i = start_rgn; i < end_rgn; i++)
-> -		memblock_set_region_flags(&type->regions[i], MEMBLOCK_HOTPLUG);
-> +		if (set)
-> +			memblock_set_region_flags(&type->regions[i], flag);
-> +		else
-> +			memblock_clear_region_flags(&type->regions[i], flag);
->   
->   	memblock_merge_regions(type);
->   	return 0;
->   }
->   
->   /**
-> - * memblock_clear_hotplug - Clear flag MEMBLOCK_HOTPLUG for a specified region.
-> + * memblock_mark_hotplug - Mark hotpluggable memory with flag MEMBLOCK_HOTPLUG.
->    * @base: the base phys addr of the region
->    * @size: the size of the region
->    *
-> - * This function isolates region [@base, @base + @size), and clear flag
-> - * MEMBLOCK_HOTPLUG for the isolated regions.
-> + * Return 0 on succees, -errno on failure.
-> + */
-> +int __init_memblock memblock_mark_hotplug(phys_addr_t base, phys_addr_t size)
-> +{
-> +	return memblock_setclr_flag(base, size, 1, MEMBLOCK_HOTPLUG);
-> +}
-> +
-> +/**
-> + * memblock_clear_hotplug - Clear flag MEMBLOCK_HOTPLUG for a specified region.
-> + * @base: the base phys addr of the region
-> + * @size: the size of the region
->    *
->    * Return 0 on succees, -errno on failure.
->    */
->   int __init_memblock memblock_clear_hotplug(phys_addr_t base, phys_addr_t size)
->   {
-> -	struct memblock_type *type = &memblock.memory;
-> -	int i, ret, start_rgn, end_rgn;
-> -
-> -	ret = memblock_isolate_range(type, base, size, &start_rgn, &end_rgn);
-> -	if (ret)
-> -		return ret;
-> -
-> -	for (i = start_rgn; i < end_rgn; i++)
-> -		memblock_clear_region_flags(&type->regions[i],
-> -					    MEMBLOCK_HOTPLUG);
-> -
-> -	memblock_merge_regions(type);
-> -	return 0;
-> +	return memblock_setclr_flag(base, size, 0, MEMBLOCK_HOTPLUG);
->   }
->   
->   /**
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
