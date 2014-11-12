@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 43CCD6B00E9
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2014 12:05:46 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id kx10so13312483pab.12
-        for <linux-mm@kvack.org>; Wed, 12 Nov 2014 09:05:46 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id rb7si23313768pab.142.2014.11.12.09.05.43
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CF976B00EA
+	for <linux-mm@kvack.org>; Wed, 12 Nov 2014 12:06:00 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id hz1so2131357pad.41
+        for <linux-mm@kvack.org>; Wed, 12 Nov 2014 09:05:59 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id ju5si11084205pbb.184.2014.11.12.09.05.57
         for <linux-mm@kvack.org>;
-        Wed, 12 Nov 2014 09:05:44 -0800 (PST)
-Subject: [PATCH 04/11] ia64: sync struct siginfo with general version
+        Wed, 12 Nov 2014 09:05:58 -0800 (PST)
+Subject: [PATCH 03/11] mips: sync struct siginfo with general version
 From: Dave Hansen <dave@sr71.net>
-Date: Wed, 12 Nov 2014 09:04:56 -0800
+Date: Wed, 12 Nov 2014 09:04:53 -0800
 References: <20141112170443.B4BD0899@viggo.jf.intel.com>
 In-Reply-To: <20141112170443.B4BD0899@viggo.jf.intel.com>
-Message-Id: <20141112170456.AD302D1B@viggo.jf.intel.com>
+Message-Id: <20141112170453.04589D81@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: hpa@zytor.com
@@ -25,42 +25,30 @@ From: Dave Hansen <dave.hansen@linux.intel.com>
 
 New fields about bound violation are added into general struct
 siginfo. This will impact MIPS and IA64, which extend general
-struct siginfo. This patch syncs this struct for IA64 with
+struct siginfo. This patch syncs this struct for MIPS with
 general version.
 
 Signed-off-by: Qiaowei Ren <qiaowei.ren@intel.com>
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 ---
 
- b/arch/ia64/include/uapi/asm/siginfo.h |    8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ b/arch/mips/include/uapi/asm/siginfo.h |    4 ++++
+ 1 file changed, 4 insertions(+)
 
-diff -puN arch/ia64/include/uapi/asm/siginfo.h~2014-10-14-08_12-ia64-sync-struct-siginfo-with-general-version arch/ia64/include/uapi/asm/siginfo.h
---- a/arch/ia64/include/uapi/asm/siginfo.h~2014-10-14-08_12-ia64-sync-struct-siginfo-with-general-version	2014-11-12 08:49:24.584830328 -0800
-+++ b/arch/ia64/include/uapi/asm/siginfo.h	2014-11-12 08:49:24.587830463 -0800
-@@ -63,6 +63,10 @@ typedef struct siginfo {
- 			unsigned int _flags;	/* see below */
- 			unsigned long _isr;	/* isr */
- 			short _addr_lsb;	/* lsb of faulting address */
+diff -puN arch/mips/include/uapi/asm/siginfo.h~2014-10-14-07_12-mips-sync-struct-siginfo-with-general-version arch/mips/include/uapi/asm/siginfo.h
+--- a/arch/mips/include/uapi/asm/siginfo.h~2014-10-14-07_12-mips-sync-struct-siginfo-with-general-version	2014-11-12 08:49:24.242814903 -0800
++++ b/arch/mips/include/uapi/asm/siginfo.h	2014-11-12 08:49:24.245815038 -0800
+@@ -92,6 +92,10 @@ typedef struct siginfo {
+ 			int _trapno;	/* TRAP # which caused the signal */
+ #endif
+ 			short _addr_lsb;
 +			struct {
 +				void __user *_lower;
 +				void __user *_upper;
 +			} _addr_bnd;
  		} _sigfault;
  
- 		/* SIGPOLL */
-@@ -110,9 +114,9 @@ typedef struct siginfo {
- /*
-  * SIGSEGV si_codes
-  */
--#define __SEGV_PSTKOVF	(__SI_FAULT|3)	/* paragraph stack overflow */
-+#define __SEGV_PSTKOVF	(__SI_FAULT|4)	/* paragraph stack overflow */
- #undef NSIGSEGV
--#define NSIGSEGV	3
-+#define NSIGSEGV	4
- 
- #undef NSIGTRAP
- #define NSIGTRAP	4
+ 		/* SIGPOLL, SIGXFSZ (To do ...)	 */
 _
 
 --
