@@ -1,121 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 8288B6B0105
-	for <linux-mm@kvack.org>; Tue, 11 Nov 2014 23:29:51 -0500 (EST)
-Received: by mail-pd0-f179.google.com with SMTP id g10so11354906pdj.24
-        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 20:29:51 -0800 (PST)
-Received: from fgwmail6.fujitsu.co.jp (fgwmail6.fujitsu.co.jp. [192.51.44.36])
-        by mx.google.com with ESMTPS id aa2si21733523pad.177.2014.11.11.20.29.49
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 4613A6B0105
+	for <linux-mm@kvack.org>; Tue, 11 Nov 2014 23:38:30 -0500 (EST)
+Received: by mail-ig0-f177.google.com with SMTP id hl2so2288099igb.10
+        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 20:38:29 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id nk7si34754297icb.61.2014.11.11.20.38.28
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 11 Nov 2014 20:29:50 -0800 (PST)
-Received: from kw-mxoi1.gw.nic.fujitsu.com (unknown [10.0.237.133])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 39DB03EE0CF
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2014 13:29:48 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by kw-mxoi1.gw.nic.fujitsu.com (Postfix) with ESMTP id 16DE4AC0710
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2014 13:29:47 +0900 (JST)
-Received: from g01jpfmpwyt03.exch.g01.fujitsu.local (g01jpfmpwyt03.exch.g01.fujitsu.local [10.128.193.57])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 94DBC1DB8042
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2014 13:29:46 +0900 (JST)
-Message-ID: <5462E200.6060405@jp.fujitsu.com>
-Date: Wed, 12 Nov 2014 13:28:48 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2 2/2] mem-hotplug: Reset node present pages when hot-adding
- a new pgdat.
-References: <1415669227-10996-1-git-send-email-tangchen@cn.fujitsu.com> <1415669227-10996-3-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1415669227-10996-3-git-send-email-tangchen@cn.fujitsu.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Nov 2014 20:38:29 -0800 (PST)
+Date: Tue, 11 Nov 2014 20:38:59 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bug 87891] New: kernel BUG at mm/slab.c:2625!
+Message-Id: <20141111203859.3c578f5d.akpm@linux-foundation.org>
+In-Reply-To: <201411120408.sAC48tTa029031@www262.sakura.ne.jp>
+References: <bug-87891-27@https.bugzilla.kernel.org/>
+	<alpine.DEB.2.11.1411111833220.8762@gentwo.org>
+	<20141111164913.3616531c21c91499871c46de@linux-foundation.org>
+	<201411120054.04651.luke@dashjr.org>
+	<20141111170243.c24ce5fdb5efaf0814071847@linux-foundation.org>
+	<20141112012244.GA21576@js1304-P5Q-DELUXE>
+	<20141111174412.ba0ac86f.akpm@linux-foundation.org>
+	<201411120408.sAC48tTa029031@www262.sakura.ne.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>, yinghai@kernel.org, luto@amacapital.net
-Cc: akpm@linux-foundation.org, santosh.shilimkar@ti.com, grygorii.strashko@ti.com, isimatu.yasuaki@jp.fujitsu.com, fabf@skynet.be, nzimmer@sgi.com, wangnan0@huawei.com, vdavydov@parallels.com, toshi.kani@hp.com, phacht@linux.vnet.ibm.com, tj@kernel.org, kirill.shutemov@linux.intel.com, riel@redhat.com, hpa@linux.intel.com, aarcange@redhat.com, qiuxishi@huawei.com, mgorman@suse.de, rientjes@google.com, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, miaox@cn.fujitsu.com, stable@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Luke Dashjr <luke@dashjr.org>, Christoph Lameter <cl@linux.com>, Ming Lei <ming.lei@canonical.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Pauli Nieminen <suokkos@gmail.com>, Dave Airlie <airlied@linux.ie>, bugzilla-daemon@bugzilla.kernel.org, luke-jr+linuxbugs@utopios.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-(2014/11/11 10:27), Tang Chen wrote:
-> When onlining memory on node2, node2 zoneinfo and node3 meminfo corrupted:
+On Wed, 12 Nov 2014 13:08:55 +0900 Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp> wrote:
+
+> Andrew Morton wrote:
+> > Poor ttm guys - this is a bit of a trap we set for them.
 > 
-> # for ((i = 2048; i < 2064; i++)); do echo online_movable > /sys/devices/system/node/node2/memory$i/state; done
-> # cat /sys/devices/system/node/node2/meminfo
-> Node 2 MemTotal:       33554432 kB
-> Node 2 MemFree:        33549092 kB
-> Node 2 MemUsed:            5340 kB
-> ......
-> # cat /sys/devices/system/node/node3/meminfo
-> Node 3 MemTotal:              0 kB
-> Node 3 MemFree:               248 kB      /* corrupted, should be 0 */
-> Node 3 MemUsed:               0 kB
-> ......
+> Commit a91576d7916f6cce (\"drm/ttm: Pass GFP flags in order to avoid deadlock.\")
+> changed to use sc->gfp_mask rather than GFP_KERNEL.
 > 
-> # cat /proc/zoneinfo
-> ......
-> Node 2, zone   Movable
-> ......
->          spanned  8388608
->          present  16777216               /* corrupted, should be 8388608 */
->          managed  8388608
+> -       pages_to_free = kmalloc(npages_to_free * sizeof(struct page *),
+> -                       GFP_KERNEL);
+> +       pages_to_free = kmalloc(npages_to_free * sizeof(struct page *), gfp);
 > 
+> But this bug is caused by sc->gfp_mask containing some flags which are not
+> in GFP_KERNEL, right? Then, I think
 > 
-> When memory is hot-added, all the memory is in offline state. So
-> clear all zone->present_pages because they will be updated in
-> online_pages() and offline_pages().
+> -       pages_to_free = kmalloc(npages_to_free * sizeof(struct page *), gfp);
+> +       pages_to_free = kmalloc(npages_to_free * sizeof(struct page *), gfp & GFP_KERNEL);
 > 
-> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-
-> Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-
-I has reviewed your patch. But I have one comment.
-Please see below.
-
-> ---
->   mm/memory_hotplug.c | 15 +++++++++++++++
->   1 file changed, 15 insertions(+)
+> would hide this bug.
 > 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 8aba12b..26eac61 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1067,6 +1067,14 @@ out:
->   }
->   #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
->   
+> But I think we should use GFP_ATOMIC (or drop __GFP_WAIT flag)
 
-> +static void reset_node_present_pages(pg_data_t *pgdat)
-> +{
-> +        struct zone *z;
-> +
-> +        for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
-> +                z->present_pages = 0;
-> +}
+Well no - ttm_page_pool_free() should stop calling kmalloc altogether. 
+Just do
 
-You should reset pgdat->node_present_pages.
-pgdat->node_present_pages is set to realtotalpages by calculate_node_totalpages().
-And it is also incremented/decremented by memroy online/offline.
-So pgdat->node_present_pages is broken internally too.
+	struct page *pages_to_free[16];
 
-Thanks,
-Yasuaki Ishimatsu.
+and rework the code to free 16 pages at a time.  Easy.
 
-> +
->   /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
->   static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
->   {
-> @@ -1105,6 +1113,13 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
->   	 */
->   	reset_node_managed_pages(pgdat);
->   
-> +	/*
-> +	 * When memory is hot-added, all the memory is in offline state. So
-> +	 * clear all zones' present_pages because they will be updated in
-> +	 * online_pages() and offline_pages().
-> +	 */
-> +	reset_node_present_pages(pgdat);
-> +
->   	return pgdat;
->   }
->   
+Apart from all the other things we're discussing here, it should do
+this because kmalloc() isn't very reliable within a shrinker.
+
+
+> for
+> two reasons when __alloc_pages_nodemask() is called from shrinker functions.
 > 
+> (1) Stack usage by __alloc_pages_nodemask() is large. If we unlimitedly allow
+>     recursive __alloc_pages_nodemask() calls, kernel stack could overflow
+>     under extreme memory pressure.
+> 
+> (2) Some shrinker functions are using sleepable locks which could make kswapd
+>     sleep for unpredictable duration. If kswapd is unexpectedly blocked inside
+>     shrinker functions and somebody is expecting that kswapd is running for
+>     reclaiming memory, it is a memory allocation deadlock.
+> 
+> Speak of ttm module, commit 22e71691fd54c637 (\"drm/ttm: Use mutex_trylock() to
+> avoid deadlock inside shrinker functions.\") prevents unlimited recursive
+> __alloc_pages_nodemask() calls.
+
+Yes, there are such problems.
+
+Shrinkers do all sorts of surprising things - some of the filesystem
+ones do disk writes!  And these involve all sorts of locking and memory
+allocations.  But they won't be directly using scan_control.gfp_mask. 
+They may be using open-coded __GFP_NOFS for the allocations.  The
+complicated ones pass the IO over to kernel threads and wait for them
+to complete, which addresses the stack consumption concerns (at least).
 
 
 --
