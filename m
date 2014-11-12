@@ -1,69 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E167A6B00C2
-	for <linux-mm@kvack.org>; Tue, 11 Nov 2014 22:16:57 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id kq14so12036560pab.10
-        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 19:16:57 -0800 (PST)
-Received: from fgwmail6.fujitsu.co.jp (fgwmail6.fujitsu.co.jp. [192.51.44.36])
-        by mx.google.com with ESMTPS id oq7si883718pdb.55.2014.11.11.19.16.56
+	by kanga.kvack.org (Postfix) with ESMTP id 773AD6B00EE
+	for <linux-mm@kvack.org>; Tue, 11 Nov 2014 22:40:34 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id kq14so11917635pab.24
+        for <linux-mm@kvack.org>; Tue, 11 Nov 2014 19:40:34 -0800 (PST)
+Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
+        by mx.google.com with ESMTPS id tr9si21667744pac.159.2014.11.11.19.40.32
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 11 Nov 2014 19:16:56 -0800 (PST)
-Received: from kw-mxauth.gw.nic.fujitsu.com (unknown [10.0.237.134])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 9D1443EE0C5
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2014 12:16:54 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by kw-mxauth.gw.nic.fujitsu.com (Postfix) with ESMTP id 9DAC0AC05C9
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2014 12:16:53 +0900 (JST)
-Received: from g01jpfmpwkw01.exch.g01.fujitsu.local (g01jpfmpwkw01.exch.g01.fujitsu.local [10.0.193.38])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 342E31DB8042
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2014 12:16:53 +0900 (JST)
-Message-ID: <5462D0F5.1050008@jp.fujitsu.com>
-Date: Wed, 12 Nov 2014 12:16:05 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] memory-hotplug: remove redundant call of page_to_pfn
-References: <1415697184-26409-1-git-send-email-zhenzhang.zhang@huawei.com> <5461D343.60803@huawei.com>
-In-Reply-To: <5461D343.60803@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Tue, 11 Nov 2014 19:40:33 -0800 (PST)
+Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
+ by mailout2.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NEW00G9QQ7GW3C0@mailout2.samsung.com> for
+ linux-mm@kvack.org; Wed, 12 Nov 2014 12:40:28 +0900 (KST)
+From: Weijie Yang <weijie.yang@samsung.com>
+Subject: [PATCH] mm: mincore: add hwpoison page handle
+Date: Wed, 12 Nov 2014 11:39:29 +0800
+Message-id: <000001cffe2a$66a95a50$33fc0ef0$%yang@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=UTF-8
+Content-transfer-encoding: 7bit
+Content-language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Zhen <zhenzhang.zhang@huawei.com>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Linux MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, wangnan0@huawei.com
+To: 'Johannes Weiner' <hannes@cmpxchg.org>
+Cc: 'Andrew Morton' <akpm@linux-foundation.org>, mgorman@suse.de, 'Rik van Riel' <riel@redhat.com>, 'Weijie Yang' <weijie.yang.kh@gmail.com>, 'Linux-MM' <linux-mm@kvack.org>, 'linux-kernel' <linux-kernel@vger.kernel.org>
 
-(2014/11/11 18:13), Zhang Zhen wrote:
-> The start_pfn can be obtained directly by
-> phys_index << PFN_SECTION_SHIFT.
->
-> Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
-> ---
+When encounter pte is a swap entry, the current code handles two cases:
+migration and normal swapentry, but we have a third case: hwpoison page.
 
-The patch looks good to me but I want you to write a purpose of the patch
-to the description for other reviewer.
+This patch adds hwpoison page handle, consider hwpoison page incore as
+same as migration.
 
-Thanks,
-Yasuaki Ishimatsu
+Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
+---
+ mm/mincore.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
->   drivers/base/memory.c | 4 ++--
->   1 file changed, 2 insertions(+), 2 deletions(-)
->
-> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-> index 7c5d871..85be040 100644
-> --- a/drivers/base/memory.c
-> +++ b/drivers/base/memory.c
-> @@ -228,8 +228,8 @@ memory_block_action(unsigned long phys_index, unsigned long action, int online_t
->   	struct page *first_page;
->   	int ret;
->
-> -	first_page = pfn_to_page(phys_index << PFN_SECTION_SHIFT);
-> -	start_pfn = page_to_pfn(first_page);
-> +	start_pfn = phys_index << PFN_SECTION_SHIFT;
-> +	first_page = pfn_to_page(start_pfn);
->
->   	switch (action) {
->   		case MEM_ONLINE:
->
+diff --git a/mm/mincore.c b/mm/mincore.c
+index 725c809..3545f13 100644
+--- a/mm/mincore.c
++++ b/mm/mincore.c
+@@ -137,8 +137,8 @@ static void mincore_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 		} else { /* pte is a swap entry */
+ 			swp_entry_t entry = pte_to_swp_entry(pte);
+ 
+-			if (is_migration_entry(entry)) {
+-				/* migration entries are always uptodate */
++			if (non_swap_entry(entry)) {
++			/* migration or hwpoison entries are always uptodate */
+ 				*vec = 1;
+ 			} else {
+ #ifdef CONFIG_SWAP
+-- 
+1.7.0.4
 
 
 --
