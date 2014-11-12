@@ -1,73 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id DF3306B00DF
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2014 03:14:14 -0500 (EST)
-Received: by mail-pd0-f179.google.com with SMTP id g10so11694011pdj.24
-        for <linux-mm@kvack.org>; Wed, 12 Nov 2014 00:14:14 -0800 (PST)
-Received: from m15-38.126.com (m15-38.126.com. [220.181.15.38])
-        by mx.google.com with ESMTP id ml1si5525529pdb.20.2014.11.12.00.14.11
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 63AEF6B00DF
+	for <linux-mm@kvack.org>; Wed, 12 Nov 2014 03:19:32 -0500 (EST)
+Received: by mail-pa0-f52.google.com with SMTP id fa1so12354400pad.25
+        for <linux-mm@kvack.org>; Wed, 12 Nov 2014 00:19:32 -0800 (PST)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id co2si22040775pbc.241.2014.11.12.00.19.28
         for <linux-mm@kvack.org>;
-        Wed, 12 Nov 2014 00:14:13 -0800 (PST)
-Date: Wed, 12 Nov 2014 16:13:30 +0800 (CST)
-From: =?GBK?B?x9jfrrjq?= <michaelbest002@126.com>
-Subject: How to disable fault-around by debugfs?
-Content-Type: multipart/alternative;
-	boundary="----=_Part_505743_1587407499.1415780010566"
+        Wed, 12 Nov 2014 00:19:31 -0800 (PST)
+Date: Wed, 12 Nov 2014 17:21:41 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [Bug 87891] New: kernel BUG at mm/slab.c:2625!
+Message-ID: <20141112082141.GA24364@js1304-P5Q-DELUXE>
+References: <bug-87891-27@https.bugzilla.kernel.org/>
+ <20141111153120.9131c8e1459415afff8645bc@linux-foundation.org>
+ <alpine.DEB.2.11.1411111833220.8762@gentwo.org>
+ <20141111164913.3616531c21c91499871c46de@linux-foundation.org>
+ <20141112012241.GA17446@node.dhcp.inet.fi>
+ <20141112021716.GB21951@js1304-P5Q-DELUXE>
+ <20141112023746.GD17446@node.dhcp.inet.fi>
 MIME-Version: 1.0
-Message-ID: <267163c2.1f570.149a3108a46.Coremail.michaelbest002@126.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141112023746.GD17446@node.dhcp.inet.fi>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kirill@shutemov.name
-Cc: kernelnewbies <kernelnewbies@kernelnewbies.org>, linux-mm <linux-mm@kvack.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Ming Lei <ming.lei@canonical.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mel@csn.ul.ie>, Johannes Weiner <hannes@cmpxchg.org>, Pauli Nieminen <suokkos@gmail.com>, Dave Airlie <airlied@linux.ie>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, bugzilla-daemon@bugzilla.kernel.org, luke-jr+linuxbugs@utopios.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org
 
-------=_Part_505743_1587407499.1415780010566
-Content-Type: text/plain; charset=GBK
-Content-Transfer-Encoding: base64
+On Wed, Nov 12, 2014 at 04:37:46AM +0200, Kirill A. Shutemov wrote:
+> On Wed, Nov 12, 2014 at 11:17:16AM +0900, Joonsoo Kim wrote:
+> > On Wed, Nov 12, 2014 at 03:22:41AM +0200, Kirill A. Shutemov wrote:
+> > > On Tue, Nov 11, 2014 at 04:49:13PM -0800, Andrew Morton wrote:
+> > > > On Tue, 11 Nov 2014 18:36:28 -0600 (CST) Christoph Lameter <cl@linux.com> wrote:
+> > > > 
+> > > > > On Tue, 11 Nov 2014, Andrew Morton wrote:
+> > > > > 
+> > > > > > There's no point in doing
+> > > > > >
+> > > > > > 	#define GFP_SLAB_BUG_MASK (__GFP_DMA32|__GFP_HIGHMEM|~__GFP_BITS_MASK)
+> > > > > >
+> > > > > > because __GFP_DMA32|__GFP_HIGHMEM are already part of ~__GFP_BITS_MASK.
+> > > > > 
+> > > > > ?? ~__GFP_BITS_MASK means bits 25 to 31 are set.
+> > > > > 
+> > > > > __GFP_DMA32 is bit 2 and __GFP_HIGHMEM is bit 1.
+> > > > 
+> > > > Ah, yes, OK.
+> > > > 
+> > > > I suppose it's possible that __GFP_HIGHMEM was set.
+> > > > 
+> > > > do_huge_pmd_anonymous_page
+> > > > ->pte_alloc_one
+> > > >   ->alloc_pages(__userpte_alloc_gfp==__GFP_HIGHMEM)
+> > > 
+> > > do_huge_pmd_anonymous_page
+> > >  alloc_hugepage_vma
+> > >   alloc_pages_vma(GFP_TRANSHUGE)
+> > > 
+> > > GFP_TRANSHUGE contains GFP_HIGHUSER_MOVABLE, which has __GFP_HIGHMEM.
+> > 
+> > Hello, Kirill.
+> > 
+> > BTW, why does GFP_TRANSHUGE have MOVABLE flag despite it isn't
+> > movable? After breaking hugepage, it could be movable, but, it may
+> > prevent CMA from working correctly until break.
+> 
+> Again, the same alloc vs. free gfp_mask: we want page allocator to move
+> pages around to find space from THP, but resulting page is no really
+> movable.
 
-SGksCgoKSSdtIGp1c3QgdGhlIGd1eSB3aG8gYXNrZWQgYSBxdWVzdGlvbiBhYm91dCB0aGUgcGFn
-ZSBmYXVsdCBoYW5kbGVyIGRheXMgYWdvLiBUaGFua3MgZm9yIHRlbGxpbmcgbWUgYWJvdXQgdGhl
-IGZhdWx0LWFyb3VuZCBmZWF0dXJlLiAKCgpZb3UgYWxzbyB0b2xkIG1lIHRoYXQgdGhpcyBmZWF0
-dXJlIGNvdWxkIGJlIGRpc2FibGVkIGluIGRlYnVnZnMsIGJ1dCBJIHN0aWxsIGRvbid0IGtub3cg
-aG93IHRvIGFjaGlldmUgaXQgYnkgZGVidWdmcy4gSSBvbmx5IGtub3cgdGhhdCBkZWJ1Z2ZzIGlz
-IHNvbWV0aGluZyB0aGF0IGRldmVsb3BlcnMgY291bGQgcHV0IGluZm9ybWF0aW9uIGFib3V0IGtl
-cm5lbCB0aGVyZS4gU28gY291bGQgeW91IHRlbGwgbWUgaG93IHRvIGRpc2FibGUgZmF1bHQtYXJv
-dW5kIGZlYXR1cmUgYnkgZGVidWdmcz8gT3IgaXMgaXQgT0sgdG8gZGlyZWN0bHkgbW9kaWZ5IGtl
-cm5lbD8gSSBmaW5kIHdoZXJlIGl0IGlzIGxvY2F0ZWQgaW4gc291cmNlOgoKCjM1MTggICAgIGlm
-ICh2bWEtPnZtX29wcy0+bWFwX3BhZ2VzKSB7CjM1MTkgICAgICAgICBwdGUgPSBwdGVfb2Zmc2V0
-X21hcF9sb2NrKG1tLCBwbWQsIGFkZHJlc3MsICZwdGwpOwozNTIwICAgICAgICAgZG9fZmF1bHRf
-YXJvdW5kKHZtYSwgYWRkcmVzcywgcHRlLCBwZ29mZiwgZmxhZ3MpOwozNTIxICAgICAgICAgaWYg
-KCFwdGVfc2FtZSgqcHRlLCBvcmlnX3B0ZSkpCjM1MjIgICAgICAgICAgICAgZ290byB1bmxvY2tf
-b3V0OwozNTIzICAgICAgICAgcHRlX3VubWFwX3VubG9jayhwdGUsIHB0bCk7CjM1MjQgICAgIH0K
-CgpUaGFuayB5b3UgdmVyeSBtdWNoIQpCZXN0IHJlZ2FyZHM=
-------=_Part_505743_1587407499.1415780010566
-Content-Type: text/html; charset=GBK
-Content-Transfer-Encoding: base64
+Hmm... AFAIK, without MOVABLE flag page allocator will try to move
+pages to find space for THP page. Am I missing something?
+        
+> 
+> I've tried to look into making THP movable: it requires quite a bit of
+> infrastructure changes around rmap: try_to_unmap*(), remove_migration_pmd(),
+> migration entries for PMDs, etc. I gets ugly pretty fast :-/
+> I probably need to give it second try. No promises.
 
-PGRpdiBzdHlsZT0ibGluZS1oZWlnaHQ6MS43O2NvbG9yOiMwMDAwMDA7Zm9udC1zaXplOjE0cHg7
-Zm9udC1mYW1pbHk6QXJpYWwiPjxkaXY+SGksPC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj5JJ20g
-anVzdCB0aGUgZ3V5IHdobyBhc2tlZCBhIHF1ZXN0aW9uIGFib3V0IHRoZSBwYWdlIGZhdWx0IGhh
-bmRsZXIgZGF5cyBhZ28uIFRoYW5rcyBmb3IgdGVsbGluZyBtZSBhYm91dCB0aGUgZmF1bHQtYXJv
-dW5kIGZlYXR1cmUuJm5ic3A7PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj5Zb3UgYWxzbyB0b2xk
-IG1lIHRoYXQgdGhpcyBmZWF0dXJlIGNvdWxkIGJlIGRpc2FibGVkIGluIGRlYnVnZnMsIGJ1dCBJ
-IHN0aWxsIGRvbid0IGtub3cgaG93IHRvIGFjaGlldmUgaXQgYnkgZGVidWdmcy4gSSBvbmx5IGtu
-b3cgdGhhdCBkZWJ1Z2ZzIGlzIHNvbWV0aGluZyB0aGF0IGRldmVsb3BlcnMgY291bGQgcHV0IGlu
-Zm9ybWF0aW9uIGFib3V0IGtlcm5lbCB0aGVyZS4gU28gY291bGQgeW91IHRlbGwgbWUgaG93IHRv
-IGRpc2FibGUgZmF1bHQtYXJvdW5kIGZlYXR1cmUgYnkgZGVidWdmcz8gT3IgaXMgaXQgT0sgdG8g
-ZGlyZWN0bHkgbW9kaWZ5IGtlcm5lbD8gSSBmaW5kIHdoZXJlIGl0IGlzIGxvY2F0ZWQgaW4gc291
-cmNlOjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+PGRpdj4zNTE4ICZuYnNwOyAmbmJzcDsgaWYg
-KHZtYS0mZ3Q7dm1fb3BzLSZndDttYXBfcGFnZXMpIHs8L2Rpdj48ZGl2PjM1MTkgJm5ic3A7ICZu
-YnNwOyAmbmJzcDsgJm5ic3A7IHB0ZSA9IHB0ZV9vZmZzZXRfbWFwX2xvY2sobW0sIHBtZCwgYWRk
-cmVzcywgJmFtcDtwdGwpOzwvZGl2PjxkaXY+MzUyMCAmbmJzcDsgJm5ic3A7ICZuYnNwOyAmbmJz
-cDsgZG9fZmF1bHRfYXJvdW5kKHZtYSwgYWRkcmVzcywgcHRlLCBwZ29mZiwgZmxhZ3MpOzwvZGl2
-PjxkaXY+MzUyMSAmbmJzcDsgJm5ic3A7ICZuYnNwOyAmbmJzcDsgaWYgKCFwdGVfc2FtZSgqcHRl
-LCBvcmlnX3B0ZSkpPC9kaXY+PGRpdj4zNTIyICZuYnNwOyAmbmJzcDsgJm5ic3A7ICZuYnNwOyAm
-bmJzcDsgJm5ic3A7IGdvdG8gdW5sb2NrX291dDs8L2Rpdj48ZGl2PjM1MjMgJm5ic3A7ICZuYnNw
-OyAmbmJzcDsgJm5ic3A7IHB0ZV91bm1hcF91bmxvY2socHRlLCBwdGwpOzwvZGl2PjxkaXY+MzUy
-NCAmbmJzcDsgJm5ic3A7IH08L2Rpdj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PlRoYW5rIHlv
-dSB2ZXJ5IG11Y2ghPC9kaXY+PGRpdj5CZXN0IHJlZ2FyZHM8L2Rpdj48L2Rpdj48YnI+PGJyPjxz
-cGFuIHRpdGxlPSJuZXRlYXNlZm9vdGVyIj48c3BhbiBpZD0ibmV0ZWFzZV9tYWlsX2Zvb3RlciI+
-PC9zcGFuPjwvc3Bhbj4=
-------=_Part_505743_1587407499.1415780010566--
+Good to hear. :)
+
+I think that we can go another way that breaks the hugepage. This
+operation makes it movable and CMA would be succeed.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
