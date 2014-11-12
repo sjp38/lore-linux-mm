@@ -1,205 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id F36206B00E8
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2014 12:05:38 -0500 (EST)
-Received: by mail-pd0-f177.google.com with SMTP id v10so12399915pde.8
-        for <linux-mm@kvack.org>; Wed, 12 Nov 2014 09:05:38 -0800 (PST)
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 43CCD6B00E9
+	for <linux-mm@kvack.org>; Wed, 12 Nov 2014 12:05:46 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id kx10so13312483pab.12
+        for <linux-mm@kvack.org>; Wed, 12 Nov 2014 09:05:46 -0800 (PST)
 Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id sz2si23409997pac.44.2014.11.12.09.05.35
+        by mx.google.com with ESMTP id rb7si23313768pab.142.2014.11.12.09.05.43
         for <linux-mm@kvack.org>;
-        Wed, 12 Nov 2014 09:05:37 -0800 (PST)
-Subject: [PATCH 00/11] [v10] Intel MPX support
+        Wed, 12 Nov 2014 09:05:44 -0800 (PST)
+Subject: [PATCH 04/11] ia64: sync struct siginfo with general version
 From: Dave Hansen <dave@sr71.net>
-Date: Wed, 12 Nov 2014 09:04:43 -0800
-Message-Id: <20141112170443.B4BD0899@viggo.jf.intel.com>
+Date: Wed, 12 Nov 2014 09:04:56 -0800
+References: <20141112170443.B4BD0899@viggo.jf.intel.com>
+In-Reply-To: <20141112170443.B4BD0899@viggo.jf.intel.com>
+Message-Id: <20141112170456.AD302D1B@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: hpa@zytor.com
-Cc: tglx@linutronix.de, mingo@redhat.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, qiaowei.ren@intel.com, Dave Hansen <dave@sr71.net>
+Cc: tglx@linutronix.de, mingo@redhat.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, qiaowei.ren@intel.com, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com
+
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
+
+New fields about bound violation are added into general struct
+siginfo. This will impact MIPS and IA64, which extend general
+struct siginfo. This patch syncs this struct for IA64 with
+general version.
+
+Signed-off-by: Qiaowei Ren <qiaowei.ren@intel.com>
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 ---
 
-Why am I cc'ing you on this?
+ b/arch/ia64/include/uapi/asm/siginfo.h |    8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
 
-mips/ia64 folks: the only patch that applies to you is the'
-	 	 'struct siginfo' one.
-mm folks: the most interesting patches are the last 2 (excluding
-	  the Documentation/ one).
-
----
-
-Changes since v9:
- * New instruction decoder.  Uses generic infrastructure instead
-   of "private" MPX decoder. (details in that patch)
- * Switched over to using get_user_pages() to handle faults when
-   we touch userspace.
- * Lots of clarified comments and grammar fixups.
- * Merged arch/x86/kernel/mpx.c and arch/x86/mm/mpx.c
- * #ifdef'd the smaps display of the MPX flag (compile error on
-   non-x86)
- * Added code to use new functions to access the "xsaves" compact
-   buffers.  The old direct access method was broken since 3.17
-
-We (Intel) are also trying to get some code merged in to GCC for
-MPX.  It will be calling the new prctl()s introduced in this set.
-We need to get those numbers locked down an reserved in the
-kernel before we push the GCC code, though.
-
-This currently requires booting with 'noxsaves' to work around
-what I presume is an issue in the x86 'xsaves' code.  I'll work
-with the folks responsible to get it fixed up properlye
-
----
-
-This patch set adds support for the Memory Protection eXtensions
-(MPX) feature found in future Intel processors. MPX is used in
-conjunction with compiler changes to check memory references, and
-can be used to catch buffer overflow or underflow.
-
-For MPX to work, changes are required in the kernel, binutils and
-compiler. No source changes are required for applications, just a
-recompile.
-
-There are a lot of moving parts of this to all work right:
-
-===== Example Compiler / Application / Kernel Interaction =====
-
-1. Application developer compiles with -fmpx.  The compiler will add the
-   instrumentation as well as some setup code called early after the app
-   starts. New instruction prefixes are noops for old CPUs.
-2. That setup code allocates (virtual) space for the "bounds directory",
-   points the "bndcfgu" register to the directory and notifies the
-   kernel (via the new prctl(PR_MPX_ENABLE_MANAGEMENT)) that the app will
-   be using MPX.
-3. The kernel detects that the CPU has MPX, allows the new prctl() to
-   succeed, and notes the location of the bounds directory. Userspace is
-   expected to keep the bounds directory at that location. We note it
-   instead of reading it each time because the 'xsave' operation needed
-   to access the bounds directory register is an expensive operation.
-4. If the application needs to spill bounds out of the 4 registers, it
-   issues a bndstx instruction.  Since the bounds directory is empty at
-   this point, a bounds fault (#BR) is raised, the kernel allocates a
-   bounds table (in the user address space) and makes the relevant
-   entry in the bounds directory point to the new table. [1]
-5. If the application violates the bounds specified in the bounds
-   registers, a separate kind of #BR is raised which will deliver a
-   signal with information about the violation in the 'struct siginfo'.
-6. Whenever memory is freed, we know that it can no longer contain
-   valid pointers, and we attempt to free the associated space in the
-   bounds tables. If an entire table becomes unused, we will attempt
-   to free the table and remove the entry in the directory.
-
-To summarize, there are essentially three things interacting here:
-
-GCC with -fmpx:
- * enables annotation of code with MPX instructions and prefixes
- * inserts code early in the application to call in to the "gcc runtime"
-GCC MPX Runtime:
- * Checks for hardware MPX support in cpuid leaf
- * allocates virtual space for the bounds directory (malloc()
-   essentially)
- * points the hardware BNDCFGU register at the directory
- * calls a new prctl() to notify the kernel to start managing the
-   bounds directories
-Kernel MPX Code:
- * Checks for hardware MPX support in cpuid leaf
- * Handles #BR exceptions and sends SIGSEGV to the app when it violates
-   bounds, like during a buffer overflow.
- * When bounds are spilled in to an unallocated bounds table, the kernel
-   notices in the #BR exception, allocates the virtual space, then
-   updates the bounds directory to point to the new table. It keeps
-   special track of the memory with a specific ->vm_ops for MPX.
- * Frees unused bounds tables at the time that the memory they described
-   is unmapped. (See "cleanup unused bound tables")
-
-===== Testing =====
-
-This patchset has been tested on real internal hardware platform at Intel.
-We have some simple unit tests in user space, which directly call MPX
-instructions to produce #BR to let kernel allocate bounds tables and cause
-bounds violations. We also compiled several benchmarks with an MPX-enabled
-compiler and ran them with this patch set. We found a number of bugs in this
-code in these tests.
-
-1. For more info on why the kernel does these allocations, see the patch
-"on-demand kernel allocation of bounds tables"
-
-Future TODO items:
-1) support 32-bit binaries on 64-bit kernels.
-2) Remove dependence on mmap_sem for ->bd_addr serialization
-3) Lots of performance work
-4) Manpage (not a kernel patch, but worth mentioning)  I have a
-   patch to do it and will submit once this is merged.
-5) prctl() so we can write wrappers to disable MPX in children
-6) Tracepoints to help diagnose what's going on
-
-Changes since v1:
-  * check to see if #BR occurred in userspace or kernel space.
-  * use generic structure and macro as much as possible when
-    decode mpx instructions.
-
-Changes since v2:
-  * fix some compile warnings.
-  * update documentation.
-
-Changes since v3:
-  * correct some syntax errors at documentation, and document
-    extended struct siginfo.
-  * for kill the process when the error code of BNDSTATUS is 3.
-  * add some comments.
-  * remove new prctl() commands.
-  * fix some compile warnings for 32-bit.
-
-Changes since v4:
-  * raise SIGBUS if the allocations of the bound tables fail.
-
-Changes since v5:
-  * hook unmap() path to cleanup unused bounds tables, and use
-    new prctl() command to register bounds directory address to
-    struct mm_struct to check whether one process is MPX enabled
-    during unmap().
-  * in order track precisely MPX memory usage, add MPX specific
-    mmap interface and one VM_MPX flag to check whether a VMA
-    is MPX bounds table.
-  * add macro cpu_has_mpx to do performance optimization.
-  * sync struct figinfo for mips with general version to avoid
-    build issue.
-
-Changes since v6:
-  * because arch_vma_name is removed, this patchset have toset MPX
-    specific ->vm_ops to do the same thing.
-  * fix warnings for 32 bit arch.
-  * add more description into these patches.
-
-Changes since v7:
-  * introduce VM_ARCH_2 flag. 
-  * remove all of the pr_debug()s.
-  * fix prctl numbers in documentation.
-  * fix some bugs on bounds tables freeing.
-
-Changes since v8:
-  * add new patch to rename cfg_reg_u and status_reg.
-  * add new patch to use disabled features from Dave's patches.
-  * add new patch to sync struct siginfo for IA64.
-  * rename two new prctl() commands to PR_MPX_ENABLE_MANAGEMENT and
-    PR_MPX_DISABLE_MANAGEMENT, check whether the management of bounds
-    tables in kernel is enabled at #BR fault time, and add locking to
-    protect the access to 'bd_addr'.
-  * update the documentation file to add more content about on-demand
-    allocation of bounds tables, etc..
-
-Changes since v9:
- * New instruction decoder.  Uses generic infrastructure instead
-   of "private" MPX decoder. (details in that patch)
- * Switched over to using get_user_pages() to handle faults when
-   we touch userspace.
- * Lots of clarified comments and grammar fixups.
- * Merged arch/x86/kernel/mpx.c and arch/x86/mm/mpx.c
- * #ifdef'd the smaps display of the MPX flag (compile error on
-   non-x86)
- * Added code to use new functions to access the "xsaves" compact
+diff -puN arch/ia64/include/uapi/asm/siginfo.h~2014-10-14-08_12-ia64-sync-struct-siginfo-with-general-version arch/ia64/include/uapi/asm/siginfo.h
+--- a/arch/ia64/include/uapi/asm/siginfo.h~2014-10-14-08_12-ia64-sync-struct-siginfo-with-general-version	2014-11-12 08:49:24.584830328 -0800
++++ b/arch/ia64/include/uapi/asm/siginfo.h	2014-11-12 08:49:24.587830463 -0800
+@@ -63,6 +63,10 @@ typedef struct siginfo {
+ 			unsigned int _flags;	/* see below */
+ 			unsigned long _isr;	/* isr */
+ 			short _addr_lsb;	/* lsb of faulting address */
++			struct {
++				void __user *_lower;
++				void __user *_upper;
++			} _addr_bnd;
+ 		} _sigfault;
+ 
+ 		/* SIGPOLL */
+@@ -110,9 +114,9 @@ typedef struct siginfo {
+ /*
+  * SIGSEGV si_codes
+  */
+-#define __SEGV_PSTKOVF	(__SI_FAULT|3)	/* paragraph stack overflow */
++#define __SEGV_PSTKOVF	(__SI_FAULT|4)	/* paragraph stack overflow */
+ #undef NSIGSEGV
+-#define NSIGSEGV	3
++#define NSIGSEGV	4
+ 
+ #undef NSIGTRAP
+ #define NSIGTRAP	4
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
