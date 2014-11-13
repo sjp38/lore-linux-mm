@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f50.google.com (mail-yh0-f50.google.com [209.85.213.50])
-	by kanga.kvack.org (Postfix) with ESMTP id DEE7B6B00E0
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2014 14:25:32 -0500 (EST)
-Received: by mail-yh0-f50.google.com with SMTP id 29so7497277yhl.37
-        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 11:25:32 -0800 (PST)
-Received: from mail-yk0-x236.google.com (mail-yk0-x236.google.com. [2607:f8b0:4002:c07::236])
-        by mx.google.com with ESMTPS id c32si28080449yha.68.2014.11.13.11.25.31
+Received: from mail-yh0-f45.google.com (mail-yh0-f45.google.com [209.85.213.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 2698D6B00E3
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2014 14:25:34 -0500 (EST)
+Received: by mail-yh0-f45.google.com with SMTP id f10so1254218yha.4
+        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 11:25:33 -0800 (PST)
+Received: from mail-yh0-x22d.google.com (mail-yh0-x22d.google.com. [2607:f8b0:4002:c01::22d])
+        by mx.google.com with ESMTPS id h48si28014364yhb.147.2014.11.13.11.25.32
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 13 Nov 2014 11:25:31 -0800 (PST)
-Received: by mail-yk0-f182.google.com with SMTP id q9so2384015ykb.27
-        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 11:25:31 -0800 (PST)
+        Thu, 13 Nov 2014 11:25:33 -0800 (PST)
+Received: by mail-yh0-f45.google.com with SMTP id f10so1258424yha.18
+        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 11:25:32 -0800 (PST)
 From: Pranith Kumar <bobby.prani@gmail.com>
-Subject: [PATCH 13/16] ksm: Replace smp_read_barrier_depends() with lockless_dereference()
-Date: Thu, 13 Nov 2014 14:24:19 -0500
-Message-Id: <1415906662-4576-14-git-send-email-bobby.prani@gmail.com>
+Subject: [PATCH 14/16] slab: Replace smp_read_barrier_depends() with lockless_dereference()
+Date: Thu, 13 Nov 2014 14:24:20 -0500
+Message-Id: <1415906662-4576-15-git-send-email-bobby.prani@gmail.com>
 In-Reply-To: <1415906662-4576-1-git-send-email-bobby.prani@gmail.com>
 References: <1415906662-4576-1-git-send-email-bobby.prani@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, David Rientjes <rientjes@google.com>, Joerg Roedel <jroedel@suse.de>, NeilBrown <neilb@suse.de>, Sasha Levin <sasha.levin@oracle.com>, Paul McQuade <paulmcquad@gmail.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, open list <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "open list:SLAB ALLOCATOR" <linux-mm@kvack.org>, open list <linux-kernel@vger.kernel.org>
 Cc: paulmck@linux.vnet.ibm.com
 
 Recently lockless_dereference() was added which can be used in place of
@@ -27,31 +27,31 @@ hard-coding smp_read_barrier_depends(). The following PATCH makes the change.
 
 Signed-off-by: Pranith Kumar <bobby.prani@gmail.com>
 ---
- mm/ksm.c | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ mm/slab.h | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/mm/ksm.c b/mm/ksm.c
-index d247efa..a67de79 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -542,15 +542,14 @@ static struct page *get_ksm_page(struct stable_node *stable_node, bool lock_it)
- 	expected_mapping = (void *)stable_node +
- 				(PAGE_MAPPING_ANON | PAGE_MAPPING_KSM);
- again:
--	kpfn = ACCESS_ONCE(stable_node->kpfn);
--	page = pfn_to_page(kpfn);
--
+diff --git a/mm/slab.h b/mm/slab.h
+index 3347fd7..1cf40054 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -209,15 +209,15 @@ cache_from_memcg_idx(struct kmem_cache *s, int idx)
+ 
+ 	rcu_read_lock();
+ 	params = rcu_dereference(s->memcg_params);
+-	cachep = params->memcg_caches[idx];
+-	rcu_read_unlock();
+ 
  	/*
- 	 * page is computed from kpfn, so on most architectures reading
- 	 * page->mapping is naturally ordered after reading node->kpfn,
- 	 * but on Alpha we need to be more careful.
+ 	 * Make sure we will access the up-to-date value. The code updating
+ 	 * memcg_caches issues a write barrier to match this (see
+ 	 * memcg_register_cache()).
  	 */
 -	smp_read_barrier_depends();
-+	kpfn = lockless_dereference(stable_node->kpfn);
-+	page = pfn_to_page(kpfn);
++	cachep = lockless_dereference(params->memcg_caches[idx]);
++	rcu_read_unlock();
 +
- 	if (ACCESS_ONCE(page->mapping) != expected_mapping)
- 		goto stale;
+ 	return cachep;
+ }
  
 -- 
 1.9.1
