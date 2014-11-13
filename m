@@ -1,158 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 060486B00E3
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2014 17:57:59 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id lf10so16135790pab.19
-        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 14:57:58 -0800 (PST)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id l3si26783587pdc.176.2014.11.13.14.57.56
-        for <linux-mm@kvack.org>;
-        Thu, 13 Nov 2014 14:57:57 -0800 (PST)
-Date: Fri, 14 Nov 2014 07:58:09 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v17 0/7] MADV_FREE support
-Message-ID: <20141113225809.GA8997@bbox>
-References: <1413799924-17946-1-git-send-email-minchan@kernel.org>
+Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 164246B00E3
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2014 18:07:59 -0500 (EST)
+Received: by mail-ig0-f179.google.com with SMTP id r10so543176igi.6
+        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 15:07:58 -0800 (PST)
+Received: from e34.co.us.ibm.com (e34.co.us.ibm.com. [32.97.110.152])
+        by mx.google.com with ESMTPS id no3si1066688igb.33.2014.11.13.15.07.57
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 13 Nov 2014 15:07:58 -0800 (PST)
+Received: from /spool/local
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Thu, 13 Nov 2014 16:07:57 -0700
+Received: from b03cxnp08028.gho.boulder.ibm.com (b03cxnp08028.gho.boulder.ibm.com [9.17.130.20])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id AD2C91FF0027
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2014 15:56:38 -0700 (MST)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by b03cxnp08028.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id sADN7r1x55246986
+	for <linux-mm@kvack.org>; Fri, 14 Nov 2014 00:07:53 +0100
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id sADNCiJu002688
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2014 16:12:44 -0700
+Date: Thu, 13 Nov 2014 15:07:51 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: rcu_preempt detected stalls.
+Message-ID: <20141113230751.GB26051@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20141013173504.GA27955@redhat.com>
+ <543DDD5E.9080602@oracle.com>
+ <20141023183917.GX4977@linux.vnet.ibm.com>
+ <54494F2F.6020005@oracle.com>
+ <20141023195808.GB4977@linux.vnet.ibm.com>
+ <544A45F8.2030207@oracle.com>
+ <20141024161337.GQ4977@linux.vnet.ibm.com>
+ <544A80B3.9070800@oracle.com>
+ <20141027211329.GJ5718@linux.vnet.ibm.com>
+ <20141027234425.GA19438@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1413799924-17946-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <20141027234425.GA19438@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, zhangyanfei@cn.fujitsu.com, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, htejun@gmail.com, linux-mm@kvack.org
 
-Hello Andrew,
+On Mon, Oct 27, 2014 at 04:44:25PM -0700, Paul E. McKenney wrote:
+> On Mon, Oct 27, 2014 at 02:13:29PM -0700, Paul E. McKenney wrote:
+> > On Fri, Oct 24, 2014 at 12:39:15PM -0400, Sasha Levin wrote:
+> > > On 10/24/2014 12:13 PM, Paul E. McKenney wrote:
+> > > > On Fri, Oct 24, 2014 at 08:28:40AM -0400, Sasha Levin wrote:
+> > > >> > On 10/23/2014 03:58 PM, Paul E. McKenney wrote:
+> > > >>> > > On Thu, Oct 23, 2014 at 02:55:43PM -0400, Sasha Levin wrote:
+> > > >>>>> > >> > On 10/23/2014 02:39 PM, Paul E. McKenney wrote:
+> > > >>>>>>> > >>> > > On Tue, Oct 14, 2014 at 10:35:10PM -0400, Sasha Levin wrote:
+> > > >>>>>>>>> > >>>> > >> On 10/13/2014 01:35 PM, Dave Jones wrote:
+> > > >>>>>>>>>>> > >>>>> > >>> oday in "rcu stall while fuzzing" news:
+> > > >>>>>>>>>>> > >>>>> > >>>
+> > > >>>>>>>>>>> > >>>>> > >>> INFO: rcu_preempt detected stalls on CPUs/tasks:
+> > > >>>>>>>>>>> > >>>>> > >>> 	Tasks blocked on level-0 rcu_node (CPUs 0-3): P766 P646
+> > > >>>>>>>>>>> > >>>>> > >>> 	Tasks blocked on level-0 rcu_node (CPUs 0-3): P766 P646
+> > > >>>>>>>>>>> > >>>>> > >>> 	(detected by 0, t=6502 jiffies, g=75434, c=75433, q=0)
+> > > >>>>>>>>> > >>>> > >>
+> > > >>>>>>>>> > >>>> > >> I've complained about RCU stalls couple days ago (in a different context)
+> > > >>>>>>>>> > >>>> > >> on -next. I guess whatever causing them made it into Linus's tree?
+> > > >>>>>>>>> > >>>> > >>
+> > > >>>>>>>>> > >>>> > >> https://lkml.org/lkml/2014/10/11/64
+> > > >>>>>>> > >>> > > 
+> > > >>>>>>> > >>> > > And on that one, I must confess that I don't see where the RCU read-side
+> > > >>>>>>> > >>> > > critical section might be.
+> > > >>>>>>> > >>> > > 
+> > > >>>>>>> > >>> > > Hmmm...  Maybe someone forgot to put an rcu_read_unlock() somewhere.
+> > > >>>>>>> > >>> > > Can you reproduce this with CONFIG_PROVE_RCU=y?
+> > > >>>>> > >> > 
+> > > >>>>> > >> > Paul, if that was directed to me - Yes, I see stalls with CONFIG_PROVE_RCU
+> > > >>>>> > >> > set and nothing else is showing up before/after that.
+> > > >>> > > Indeed it was directed to you.  ;-)
+> > > >>> > > 
+> > > >>> > > Does the following crude diagnostic patch turn up anything?
+> > > >> > 
+> > > >> > Nope, seeing stalls but not seeing that pr_err() you added.
+> > > > OK, color me confused.  Could you please send me the full dmesg or a
+> > > > pointer to it?
+> > > 
+> > > Attached.
+> > 
+> > Thank you!  I would complain about the FAULT_INJECTION messages, but
+> > they don't appear to be happening all that frequently.
+> > 
+> > The stack dumps do look different here.  I suspect that this is a real
+> > issue in the VM code.
+> 
+> And to that end...  The filemap_map_pages() function does have loop over
+> a list of pages.  I wonder if the rcu_read_lock() should be moved into
+> the radix_tree_for_each_slot() loop.  CCing linux-mm for their thoughts,
+> though it looks to me like the current radix_tree_for_each_slot() wants
+> to be under RCU protection.  But I am not seeing anything that requires
+> all iterations of the loop to be under the same RCU read-side critical
+> section.  Maybe something like the following patch?
 
-It seems I have waited your review for a long time.
-What should I do to take your time slot?
+Just following up, did the patch below help?
 
-On Mon, Oct 20, 2014 at 07:11:57PM +0900, Minchan Kim wrote:
-> This patch enable MADV_FREE hint for madvise syscall, which have
-> been supported by other OSes. [PATCH 1] includes the details.
-> 
-> [1] support MADVISE_FREE for !THP page so if VM encounter
-> THP page in syscall context, it splits THP page.
-> [2-6] is to preparing to call madvise syscall without THP plitting
-> [7] enable THP page support for MADV_FREE.
-> 
-> * from v16
->  * Rebased on mmotm-2014-10-15-16-57
-> 
-> * from v15
->  * Add more Acked-by - Rik van Riel
->  * Rebased on mmotom-08-29-15-15
-> 
-> * from v14
->  * Add more Ackedy-by from arch people(sparc, arm64 and arm)
->  * Drop s390 since pmd_dirty/clean was merged
-> 
-> * from v13
->  * Add more Ackedy-by from arch people(arm, arm64 and ppc)
->  * Rebased on mmotm 2014-08-13-14-29
-> 
-> * from v12
->  * Fix - skip to mark free pte on try_to_free_swap failed page - Kirill
->  * Add more Acked-by from arch maintainers and Kirill
-> 
-> * From v11
->  * Fix arm build - Steve
->  * Separate patch for arm and arm64 - Steve
->  * Remove unnecessary check - Kirill
->  * Skip non-vm_normal page - Kirill
->  * Add Acked-by - Zhang
->  * Sparc64 build fix
->  * Pagetable walker THP handling fix
-> 
-> * From v10
->  * Add Acked-by from arch stuff(x86, s390)
->  * Pagewalker based pagetable working - Kirill
->  * Fix try_to_unmap_one broken with hwpoison - Kirill
->  * Use VM_BUG_ON_PAGE in madvise_free_pmd - Kirill
->  * Fix pgtable-3level.h for arm - Steve
-> 
-> * From v9
->  * Add Acked-by - Rik
->  * Add THP page support - Kirill
-> 
-> * From v8
->  * Rebased-on v3.16-rc2-mmotm-2014-06-25-16-44
-> 
-> * From v7
->  * Rebased-on next-20140613
-> 
-> * From v6
->  * Remove page from swapcache in syscal time
->  * Move utility functions from memory.c to madvise.c - Johannes
->  * Rename untilify functtions - Johannes
->  * Remove unnecessary checks from vmscan.c - Johannes
->  * Rebased-on v3.15-rc5-mmotm-2014-05-16-16-56
->  * Drop Reviewe-by because there was some changes since then.
-> 
-> * From v5
->  * Fix PPC problem which don't flush TLB - Rik
->  * Remove unnecessary lazyfree_range stub function - Rik
->  * Rebased on v3.15-rc5
-> 
-> * From v4
->  * Add Reviewed-by: Zhang Yanfei
->  * Rebase on v3.15-rc1-mmotm-2014-04-15-16-14
-> 
-> * From v3
->  * Add "how to work part" in description - Zhang
->  * Add page_discardable utility function - Zhang
->  * Clean up
-> 
-> * From v2
->  * Remove forceful dirty marking of swap-readed page - Johannes
->  * Remove deactivation logic of lazyfreed page
->  * Rebased on 3.14
->  * Remove RFC tag
-> 
-> * From v1
->  * Use custom page table walker for madvise_free - Johannes
->  * Remove PG_lazypage flag - Johannes
->  * Do madvise_dontneed instead of madvise_freein swapless system
-> 
-> 
-> 
-> Minchan Kim (7):
->   mm: support madvise(MADV_FREE)
->   x86: add pmd_[dirty|mkclean] for THP
->   sparc: add pmd_[dirty|mkclean] for THP
->   powerpc: add pmd_[dirty|mkclean] for THP
->   arm: add pmd_mkclean for THP
->   arm64: add pmd_[dirty|mkclean] for THP
->   mm: Don't split THP page when syscall is called
-> 
->  arch/arm/include/asm/pgtable-3level.h    |   1 +
->  arch/arm64/include/asm/pgtable.h         |   2 +
->  arch/powerpc/include/asm/pgtable-ppc64.h |   2 +
->  arch/sparc/include/asm/pgtable_64.h      |  16 ++++
->  arch/x86/include/asm/pgtable.h           |  10 ++
->  include/linux/huge_mm.h                  |   4 +
->  include/linux/rmap.h                     |   9 +-
->  include/linux/vm_event_item.h            |   1 +
->  include/uapi/asm-generic/mman-common.h   |   1 +
->  mm/huge_memory.c                         |  35 +++++++
->  mm/madvise.c                             | 159 +++++++++++++++++++++++++++++++
->  mm/rmap.c                                |  46 ++++++++-
->  mm/vmscan.c                              |  64 +++++++++----
->  mm/vmstat.c                              |   1 +
->  14 files changed, 331 insertions(+), 20 deletions(-)
-> 
-> -- 
-> 2.0.0
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+							Thanx, Paul
 
--- 
-Kind regards,
-Minchan Kim
+> ------------------------------------------------------------------------
+> 
+> mm: Attempted fix for RCU CPU stall warning
+> 
+> It appears that filemap_map_pages() can stay in a single RCU read-side
+> critical section for a very long time if given a large area to map.
+> This could result in RCU CPU stall warnings.  This commit therefore breaks
+> the read-side critical section into per-iteration critical sections, taking
+> care to make sure that the radix_tree_for_each_slot() call itself remains
+> in an RCU read-side critical section, as required.
+> 
+> Reported-by: Sasha Levin <sasha.levin@oracle.com>
+> Signed-off-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+> 
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index 14b4642279f1..f78f144fb41f 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -2055,6 +2055,8 @@ skip:
+>  next:
+>  		if (iter.index == vmf->max_pgoff)
+>  			break;
+> +		rcu_read_unlock();
+> +		rcu_read_lock();
+>  	}
+>  	rcu_read_unlock();
+>  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
