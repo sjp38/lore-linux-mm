@@ -1,88 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B4216B00D5
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2014 08:27:40 -0500 (EST)
-Received: by mail-pd0-f169.google.com with SMTP id y10so14490640pdj.28
-        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 05:27:40 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id mm5si25504721pbc.212.2014.11.13.05.27.38
-        for <linux-mm@kvack.org>;
-        Thu, 13 Nov 2014 05:27:38 -0800 (PST)
-Date: Thu, 13 Nov 2014 21:26:56 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [next:master 6416/6487] fs/exec.c:1507:53: sparse: incorrect type in
- argument 2 (different address spaces)
-Message-ID: <201411132154.tkbVS9yt%fengguang.wu@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A1006B00D5
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2014 08:37:56 -0500 (EST)
+Received: by mail-pd0-f178.google.com with SMTP id fp1so14631634pdb.9
+        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 05:37:55 -0800 (PST)
+Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
+        by mx.google.com with ESMTPS id kl11si25675553pbd.55.2014.11.13.05.37.54
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 13 Nov 2014 05:37:54 -0800 (PST)
+Received: by mail-pa0-f49.google.com with SMTP id lj1so15172330pab.22
+        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 05:37:54 -0800 (PST)
+From: Mahendran Ganesh <opensource.ganesh@gmail.com>
+Subject: [PATCH 1/3] mm/zsmalloc: avoid unregister a NOT-registered zsmalloc zpool driver
+Date: Thu, 13 Nov 2014 21:37:35 +0800
+Message-Id: <1415885857-5283-1-git-send-email-opensource.ganesh@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Drysdale <drysdale@google.com>
-Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: minchan@kernel.org, ngupta@vflare.org, ddstreet@ieee.org, sergey.senozhatsky@gmail.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mahendran Ganesh <opensource.ganesh@gmail.com>
 
-tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-head:   bbdef57970d5e1887de755474ff1562baa17ef11
-commit: ed9af7d027e2f211e782631dcd6740323a6f26f9 [6416/6487] syscalls,x86: implement execveat() system call
-reproduce:
-  # apt-get install sparse
-  git checkout ed9af7d027e2f211e782631dcd6740323a6f26f9
-  make ARCH=x86_64 allmodconfig
-  make C=1 CF=-D__CHECK_ENDIAN__
+Now zsmalloc can be registered as a zpool driver into zpool when
+CONFIG_ZPOOL is enabled. During the init of zsmalloc, when error happens,
+we need to do cleanup. But in current code, it will unregister a not yet
+registered zsmalloc zpool driver(*zs_zpool_driver*).
 
+This patch puts the cleanup in zs_init() instead of calling zs_exit()
+where it will unregister a not-registered zpool driver.
 
-sparse warnings: (new ones prefixed by >>)
-
-   fs/exec.c:407:39: sparse: incorrect type in return expression (different address spaces)
-   fs/exec.c:407:39:    expected char const [noderef] <asn:1>*
-   fs/exec.c:407:39:    got void *
-   fs/exec.c:414:31: sparse: incorrect type in return expression (different address spaces)
-   fs/exec.c:414:31:    expected char const [noderef] <asn:1>*
-   fs/exec.c:414:31:    got void *
-   fs/exec.c:986:56: sparse: incorrect type in argument 2 (different address spaces)
-   fs/exec.c:986:56:    expected struct task_struct *parent
-   fs/exec.c:986:56:    got struct task_struct [noderef] <asn:4>*parent
-   fs/exec.c:1019:17: sparse: incorrect type in assignment (different address spaces)
-   fs/exec.c:1019:17:    expected struct sighand_struct *volatile <noident>
-   fs/exec.c:1019:17:    got struct sighand_struct [noderef] <asn:4>*<noident>
-   fs/exec.c:1421:70: sparse: incorrect type in argument 1 (different address spaces)
-   fs/exec.c:1421:70:    expected struct task_struct *tsk
-   fs/exec.c:1421:70:    got struct task_struct [noderef] <asn:4>*parent
->> fs/exec.c:1507:53: sparse: incorrect type in argument 2 (different address spaces)
-   fs/exec.c:1507:53:    expected struct fdtable const *fdt
-   fs/exec.c:1507:53:    got struct fdtable [noderef] <asn:4>*fdt
-
-vim +1507 fs/exec.c
-
-  1491		bprm->file = file;
-  1492		if (fd == AT_FDCWD || filename->name[0] == '/') {
-  1493			bprm->filename = filename->name;
-  1494		} else {
-  1495			if (filename->name[0] == '\0')
-  1496				pathbuf = kasprintf(GFP_TEMPORARY, "/dev/fd/%d", fd);
-  1497			else
-  1498				pathbuf = kasprintf(GFP_TEMPORARY, "/dev/fd/%d/%s",
-  1499						    fd, filename->name);
-  1500			if (!pathbuf) {
-  1501				retval = -ENOMEM;
-  1502				goto out_unmark;
-  1503			}
-  1504			/* Record that a name derived from an O_CLOEXEC fd will be
-  1505			 * inaccessible after exec. Relies on having exclusive access to
-  1506			 * current->files (due to unshare_files above). */
-> 1507			if (close_on_exec(fd, current->files->fdt))
-  1508				bprm->interp_flags |= BINPRM_FLAGS_PATH_INACCESSIBLE;
-  1509			bprm->filename = pathbuf;
-  1510		}
-  1511		bprm->interp = bprm->filename;
-  1512	
-  1513		retval = bprm_mm_init(bprm);
-  1514		if (retval)
-  1515			goto out_unmark;
-
+Signed-off-by: Mahendran Ganesh <opensource.ganesh@gmail.com>
 ---
-0-DAY kernel test infrastructure                Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
+ mm/zsmalloc.c |   12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 839a48c..3d2bb36 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -907,10 +907,8 @@ static int zs_init(void)
+ 	__register_cpu_notifier(&zs_cpu_nb);
+ 	for_each_online_cpu(cpu) {
+ 		ret = zs_cpu_notifier(NULL, CPU_UP_PREPARE, (void *)(long)cpu);
+-		if (notifier_to_errno(ret)) {
+-			cpu_notifier_register_done();
++		if (notifier_to_errno(ret))
+ 			goto fail;
+-		}
+ 	}
+ 
+ 	cpu_notifier_register_done();
+@@ -920,8 +918,14 @@ static int zs_init(void)
+ #endif
+ 
+ 	return 0;
++
+ fail:
+-	zs_exit();
++	for_each_online_cpu(cpu)
++		zs_cpu_notifier(NULL, CPU_UP_CANCELED, (void *)(long)cpu);
++	__unregister_cpu_notifier(&zs_cpu_nb);
++
++	cpu_notifier_register_done();
++
+ 	return notifier_to_errno(ret);
+ }
+ 
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
