@@ -1,90 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id C876B6B00E3
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2014 18:10:58 -0500 (EST)
-Received: by mail-pd0-f174.google.com with SMTP id p10so15500637pdj.33
-        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 15:10:58 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id fg6si26774083pad.209.2014.11.13.15.10.56
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 13 Nov 2014 15:10:57 -0800 (PST)
-Message-ID: <54653A7C.80803@oracle.com>
-Date: Thu, 13 Nov 2014 18:10:52 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EEBB6B00D3
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2014 18:28:58 -0500 (EST)
+Received: by mail-pd0-f182.google.com with SMTP id g10so347206pdj.13
+        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 15:28:58 -0800 (PST)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id wq6si6989904pab.160.2014.11.13.15.28.55
+        for <linux-mm@kvack.org>;
+        Thu, 13 Nov 2014 15:28:57 -0800 (PST)
+Date: Fri, 14 Nov 2014 08:29:09 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 1/3] mm/zsmalloc: avoid unregister a NOT-registered
+ zsmalloc zpool driver
+Message-ID: <20141113232909.GB8997@bbox>
+References: <1415885857-5283-1-git-send-email-opensource.ganesh@gmail.com>
+ <20141113152247.GB1408@swordfish>
+ <20141113153017.GC1408@swordfish>
+ <20141113223127.GA951@swordfish>
 MIME-Version: 1.0
-Subject: Re: rcu_preempt detected stalls.
-References: <20141013173504.GA27955@redhat.com> <543DDD5E.9080602@oracle.com> <20141023183917.GX4977@linux.vnet.ibm.com> <54494F2F.6020005@oracle.com> <20141023195808.GB4977@linux.vnet.ibm.com> <544A45F8.2030207@oracle.com> <20141024161337.GQ4977@linux.vnet.ibm.com> <544A80B3.9070800@oracle.com> <20141027211329.GJ5718@linux.vnet.ibm.com> <20141027234425.GA19438@linux.vnet.ibm.com> <20141113230751.GB26051@linux.vnet.ibm.com>
-In-Reply-To: <20141113230751.GB26051@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20141113223127.GA951@swordfish>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paulmck@linux.vnet.ibm.com
-Cc: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, htejun@gmail.com, linux-mm@kvack.org
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Mahendran Ganesh <opensource.ganesh@gmail.com>, ngupta@vflare.org, ddstreet@ieee.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 11/13/2014 06:07 PM, Paul E. McKenney wrote:
-> On Mon, Oct 27, 2014 at 04:44:25PM -0700, Paul E. McKenney wrote:
->> > On Mon, Oct 27, 2014 at 02:13:29PM -0700, Paul E. McKenney wrote:
->>> > > On Fri, Oct 24, 2014 at 12:39:15PM -0400, Sasha Levin wrote:
->>>> > > > On 10/24/2014 12:13 PM, Paul E. McKenney wrote:
->>>>> > > > > On Fri, Oct 24, 2014 at 08:28:40AM -0400, Sasha Levin wrote:
->>>>>>> > > > >> > On 10/23/2014 03:58 PM, Paul E. McKenney wrote:
->>>>>>>>> > > > >>> > > On Thu, Oct 23, 2014 at 02:55:43PM -0400, Sasha Levin wrote:
->>>>>>>>>>>>> > > > >>>>> > >> > On 10/23/2014 02:39 PM, Paul E. McKenney wrote:
->>>>>>>>>>>>>>>>> > > > >>>>>>> > >>> > > On Tue, Oct 14, 2014 at 10:35:10PM -0400, Sasha Levin wrote:
->>>>>>>>>>>>>>>>>>>>> > > > >>>>>>>>> > >>>> > >> On 10/13/2014 01:35 PM, Dave Jones wrote:
->>>>>>>>>>>>>>>>>>>>>>>>> > > > >>>>>>>>>>> > >>>>> > >>> oday in "rcu stall while fuzzing" news:
->>>>>>>>>>>>>>>>>>>>>>>>> > > > >>>>>>>>>>> > >>>>> > >>>
->>>>>>>>>>>>>>>>>>>>>>>>> > > > >>>>>>>>>>> > >>>>> > >>> INFO: rcu_preempt detected stalls on CPUs/tasks:
->>>>>>>>>>>>>>>>>>>>>>>>> > > > >>>>>>>>>>> > >>>>> > >>> 	Tasks blocked on level-0 rcu_node (CPUs 0-3): P766 P646
->>>>>>>>>>>>>>>>>>>>>>>>> > > > >>>>>>>>>>> > >>>>> > >>> 	Tasks blocked on level-0 rcu_node (CPUs 0-3): P766 P646
->>>>>>>>>>>>>>>>>>>>>>>>> > > > >>>>>>>>>>> > >>>>> > >>> 	(detected by 0, t=6502 jiffies, g=75434, c=75433, q=0)
->>>>>>>>>>>>>>>>>>>>> > > > >>>>>>>>> > >>>> > >>
->>>>>>>>>>>>>>>>>>>>> > > > >>>>>>>>> > >>>> > >> I've complained about RCU stalls couple days ago (in a different context)
->>>>>>>>>>>>>>>>>>>>> > > > >>>>>>>>> > >>>> > >> on -next. I guess whatever causing them made it into Linus's tree?
->>>>>>>>>>>>>>>>>>>>> > > > >>>>>>>>> > >>>> > >>
->>>>>>>>>>>>>>>>>>>>> > > > >>>>>>>>> > >>>> > >> https://lkml.org/lkml/2014/10/11/64
->>>>>>>>>>>>>>>>> > > > >>>>>>> > >>> > > 
->>>>>>>>>>>>>>>>> > > > >>>>>>> > >>> > > And on that one, I must confess that I don't see where the RCU read-side
->>>>>>>>>>>>>>>>> > > > >>>>>>> > >>> > > critical section might be.
->>>>>>>>>>>>>>>>> > > > >>>>>>> > >>> > > 
->>>>>>>>>>>>>>>>> > > > >>>>>>> > >>> > > Hmmm...  Maybe someone forgot to put an rcu_read_unlock() somewhere.
->>>>>>>>>>>>>>>>> > > > >>>>>>> > >>> > > Can you reproduce this with CONFIG_PROVE_RCU=y?
->>>>>>>>>>>>> > > > >>>>> > >> > 
->>>>>>>>>>>>> > > > >>>>> > >> > Paul, if that was directed to me - Yes, I see stalls with CONFIG_PROVE_RCU
->>>>>>>>>>>>> > > > >>>>> > >> > set and nothing else is showing up before/after that.
->>>>>>>>> > > > >>> > > Indeed it was directed to you.  ;-)
->>>>>>>>> > > > >>> > > 
->>>>>>>>> > > > >>> > > Does the following crude diagnostic patch turn up anything?
->>>>>>> > > > >> > 
->>>>>>> > > > >> > Nope, seeing stalls but not seeing that pr_err() you added.
->>>>> > > > > OK, color me confused.  Could you please send me the full dmesg or a
->>>>> > > > > pointer to it?
->>>> > > > 
->>>> > > > Attached.
->>> > > 
->>> > > Thank you!  I would complain about the FAULT_INJECTION messages, but
->>> > > they don't appear to be happening all that frequently.
->>> > > 
->>> > > The stack dumps do look different here.  I suspect that this is a real
->>> > > issue in the VM code.
->> > 
->> > And to that end...  The filemap_map_pages() function does have loop over
->> > a list of pages.  I wonder if the rcu_read_lock() should be moved into
->> > the radix_tree_for_each_slot() loop.  CCing linux-mm for their thoughts,
->> > though it looks to me like the current radix_tree_for_each_slot() wants
->> > to be under RCU protection.  But I am not seeing anything that requires
->> > all iterations of the loop to be under the same RCU read-side critical
->> > section.  Maybe something like the following patch?
-> Just following up, did the patch below help?
+Hello Sergey,
 
-I'm not seeing any more stalls with filemap in them, but I don see different
-traces.
+On Fri, Nov 14, 2014 at 07:31:27AM +0900, Sergey Senozhatsky wrote:
+> On (11/14/14 00:30), Sergey Senozhatsky wrote:
+> > Factor out zsmalloc cpu notifier unregistration code and call
+> > it from both zs_exit() and zs_init() error path.
+> 
+> I should had have a good sleep before posting this.
+> shame on me!
+> 
+> v3
+> 
+> Signed-ogg-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
+Looks good to me. a nitpick.
+Could you factor out cpu register part as well as cpu unregister, too?
+Then, please resend it with formal description and includes reported-by.
 
-Thanks,
-Sasha
+Thanks.
+
+> 
+> ---
+> 
+>  mm/zsmalloc.c | 16 ++++++++++------
+>  1 file changed, 10 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index b3b57ef..cd4efa1 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -881,14 +881,10 @@ static struct notifier_block zs_cpu_nb = {
+>  	.notifier_call = zs_cpu_notifier
+>  };
+>  
+> -static void zs_exit(void)
+> +static void zs_unregister_cpu_notifier(void)
+>  {
+>  	int cpu;
+>  
+> -#ifdef CONFIG_ZPOOL
+> -	zpool_unregister_driver(&zs_zpool_driver);
+> -#endif
+> -
+>  	cpu_notifier_register_begin();
+>  
+>  	for_each_online_cpu(cpu)
+> @@ -898,6 +894,14 @@ static void zs_exit(void)
+>  	cpu_notifier_register_done();
+>  }
+>  
+> +static void zs_exit(void)
+> +{
+> +#ifdef CONFIG_ZPOOL
+> +	zpool_unregister_driver(&zs_zpool_driver);
+> +#endif
+> +	zs_unregister_cpu_notifier();
+> +}
+> +
+>  static int zs_init(void)
+>  {
+>  	int cpu, ret;
+> @@ -921,7 +925,7 @@ static int zs_init(void)
+>  
+>  	return 0;
+>  fail:
+> -	zs_exit();
+> +	zs_unregister_cpu_notifier();
+>  	return notifier_to_errno(ret);
+>  }
+>  
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
