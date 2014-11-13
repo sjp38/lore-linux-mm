@@ -1,120 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id A539D6B00DB
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2014 09:55:26 -0500 (EST)
-Received: by mail-wi0-f177.google.com with SMTP id l15so4625245wiw.4
-        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 06:55:26 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id vm10si29127280wjc.57.2014.11.13.06.55.25
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id A8E066B00DB
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2014 10:22:29 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id eu11so15312299pac.23
+        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 07:22:29 -0800 (PST)
+Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com. [2607:f8b0:400e:c03::230])
+        by mx.google.com with ESMTPS id pc5si25877945pdb.170.2014.11.13.07.22.27
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Thu, 13 Nov 2014 06:55:25 -0800 (PST)
-Date: Thu, 13 Nov 2014 15:55:13 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 10/11] x86, mpx: cleanup unused bound tables
-In-Reply-To: <20141112170512.C932CF4D@viggo.jf.intel.com>
-Message-ID: <alpine.DEB.2.11.1411131541520.3935@nanos>
-References: <20141112170443.B4BD0899@viggo.jf.intel.com> <20141112170512.C932CF4D@viggo.jf.intel.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 13 Nov 2014 07:22:28 -0800 (PST)
+Received: by mail-pa0-f48.google.com with SMTP id rd3so1853117pab.35
+        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 07:22:27 -0800 (PST)
+Date: Fri, 14 Nov 2014 00:22:48 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [PATCH 1/3] mm/zsmalloc: avoid unregister a NOT-registered
+ zsmalloc zpool driver
+Message-ID: <20141113152247.GB1408@swordfish>
+References: <1415885857-5283-1-git-send-email-opensource.ganesh@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1415885857-5283-1-git-send-email-opensource.ganesh@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: hpa@zytor.com, mingo@redhat.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, qiaowei.ren@intel.com, dave.hansen@linux.intel.com
+To: Mahendran Ganesh <opensource.ganesh@gmail.com>
+Cc: minchan@kernel.org, ngupta@vflare.org, ddstreet@ieee.org, sergey.senozhatsky@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 12 Nov 2014, Dave Hansen wrote:
-> +/*
-> + * Get the base of bounds tables pointed by specific bounds
-> + * directory entry.
-> + */
-> +static int get_bt_addr(struct mm_struct *mm,
-> +			long __user *bd_entry, unsigned long *bt_addr)
-> +{
-> +	int ret;
-> +	int valid;
+On (11/13/14 21:37), Mahendran Ganesh wrote:
+> Now zsmalloc can be registered as a zpool driver into zpool when
+> CONFIG_ZPOOL is enabled. During the init of zsmalloc, when error happens,
+> we need to do cleanup. But in current code, it will unregister a not yet
+> registered zsmalloc zpool driver(*zs_zpool_driver*).
+> 
+> This patch puts the cleanup in zs_init() instead of calling zs_exit()
+> where it will unregister a not-registered zpool driver.
+> 
+> Signed-off-by: Mahendran Ganesh <opensource.ganesh@gmail.com>
+> ---
+>  mm/zsmalloc.c |   12 ++++++++----
+>  1 file changed, 8 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index 839a48c..3d2bb36 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -907,10 +907,8 @@ static int zs_init(void)
+>  	__register_cpu_notifier(&zs_cpu_nb);
+>  	for_each_online_cpu(cpu) {
+>  		ret = zs_cpu_notifier(NULL, CPU_UP_PREPARE, (void *)(long)cpu);
+> -		if (notifier_to_errno(ret)) {
+> -			cpu_notifier_register_done();
+> +		if (notifier_to_errno(ret))
+>  			goto fail;
+> -		}
+>  	}
+>  
+>  	cpu_notifier_register_done();
+> @@ -920,8 +918,14 @@ static int zs_init(void)
+>  #endif
+>  
+>  	return 0;
 > +
-> +	if (!access_ok(VERIFY_READ, (bd_entry), sizeof(*bd_entry)))
-> +		return -EFAULT;
+>  fail:
+> -	zs_exit();
+> +	for_each_online_cpu(cpu)
+> +		zs_cpu_notifier(NULL, CPU_UP_CANCELED, (void *)(long)cpu);
+> +	__unregister_cpu_notifier(&zs_cpu_nb);
 > +
-> +	while (1) {
-> +		int need_write = 0;
+> +	cpu_notifier_register_done();
 > +
-> +		pagefault_disable();
-> +		ret = get_user(*bt_addr, bd_entry);
-> +		pagefault_enable();
-> +		if (!ret)
-> +			break;
-> +		if (ret == -EFAULT)
-> +			ret = mpx_resolve_fault(bd_entry, need_write);
-> +		/*
-> +		 * If we could not resolve the fault, consider it
-> +		 * userspace's fault and error out.
-> +		 */
-> +		if (ret)
-> +			return ret;
-> +	}
-> +
-> +	valid = *bt_addr & MPX_BD_ENTRY_VALID_FLAG;
-> +	*bt_addr &= MPX_BT_ADDR_MASK;
-> +
-> +	/*
-> +	 * When the kernel is managing bounds tables, a bounds directory
-> +	 * entry will either have a valid address (plus the valid bit)
-> +	 * *OR* be completely empty. If we see a !valid entry *and* some
-> +	 * data in the address field, we know something is wrong. This
-> +	 * -EINVAL return will cause a SIGSEGV.
-> +	 */
-> +	if (!valid && *bt_addr)
-> +		return -EINVAL;
-> +	/*
-> +	 * Not present is OK.  It just means there was no bounds table
-> +	 * for this memory, which is completely OK.  Make sure to distinguish
-> +	 * this from -EINVAL, which will cause a SEGV.
-> +	 */
-> +	if (!valid)
-> +		return -ENOENT;
+>  	return notifier_to_errno(ret);
 
-So here you have the extra -ENOENT return value, but at the
-direct/indirect call sites you ignore -EINVAL or everything.
+so we duplicate same code, and there is a bit confusing part
+now: zs_cpu_notifier(CPU_UP_CANCELED) and zs_cpu_notifier(CPU_DEAD)
+calls.
 
-> +static int mpx_unmap_tables(struct mm_struct *mm,
-> +		unsigned long start, unsigned long end)
 
-> +	ret = unmap_edge_bts(mm, start, end);
-> +	if (ret == -EFAULT)
-> +		return ret;
+how about something like this?
 
-So here you ignore EINVAL despite claiming that it will cause a
-SIGSEGV. So this should be:
+Factor out zsmalloc cpu notifier unregistration code and call
+it from both zs_exit() and zs_init() error path.
 
-	switch (ret) {
-	case 0:
-	case -ENOENT:	break;
-	default:	return ret;
-	}
+Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-> +	for (bd_entry = bde_start + 1; bd_entry < bde_end; bd_entry++) {
-> +		ret = get_bt_addr(mm, bd_entry, &bt_addr);
-> +		/*
-> +		 * If we encounter an issue like a bad bounds-directory
-> +		 * we should still try the next one.
-> +		 */
-> +		if (ret)
-> +			continue;
+---
 
-You ignore all error returns. 
+ mm/zsmalloc.c | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)
 
-		switch (ret) {
-		case 0:		break;
-		case -ENOENT:	continue;
-		default:	return ret;
-		}
-
-Other than that, this all looks very reasonable now.
-
-Thanks,
-
-	tglx
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index b3b57ef..c4d2d60 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -881,14 +881,10 @@ static struct notifier_block zs_cpu_nb = {
+ 	.notifier_call = zs_cpu_notifier
+ };
+ 
+-static void zs_exit(void)
++static inline void zs_unregister_cpu_notifier()
+ {
+ 	int cpu;
+ 
+-#ifdef CONFIG_ZPOOL
+-	zpool_unregister_driver(&zs_zpool_driver);
+-#endif
+-
+ 	cpu_notifier_register_begin();
+ 
+ 	for_each_online_cpu(cpu)
+@@ -898,6 +894,14 @@ static void zs_exit(void)
+ 	cpu_notifier_register_done();
+ }
+ 
++static void zs_exit(void)
++{
++#ifdef CONFIG_ZPOOL
++	zpool_unregister_driver(&zs_zpool_driver);
++#endif
++	zs_unregister_cpu_notifier();
++}
++
+ static int zs_init(void)
+ {
+ 	int cpu, ret;
+@@ -907,10 +911,8 @@ static int zs_init(void)
+ 	__register_cpu_notifier(&zs_cpu_nb);
+ 	for_each_online_cpu(cpu) {
+ 		ret = zs_cpu_notifier(NULL, CPU_UP_PREPARE, (void *)(long)cpu);
+-		if (notifier_to_errno(ret)) {
+-			cpu_notifier_register_done();
++		if (notifier_to_errno(ret))
+ 			goto fail;
+-		}
+ 	}
+ 
+ 	cpu_notifier_register_done();
+@@ -921,7 +923,7 @@ static int zs_init(void)
+ 
+ 	return 0;
+ fail:
+-	zs_exit();
++	zs_unregister_cpu_notifier();
+ 	return notifier_to_errno(ret);
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
