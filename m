@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id CB3C76B00E6
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2014 16:02:14 -0500 (EST)
-Received: by mail-wg0-f43.google.com with SMTP id y10so17936693wgg.16
-        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 13:02:14 -0800 (PST)
-Received: from mail-wi0-x230.google.com (mail-wi0-x230.google.com. [2a00:1450:400c:c05::230])
-        by mx.google.com with ESMTPS id dm9si896605wib.3.2014.11.13.13.02.14
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 667BA6B00E7
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2014 16:02:16 -0500 (EST)
+Received: by mail-wi0-f169.google.com with SMTP id n3so3346043wiv.2
+        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 13:02:15 -0800 (PST)
+Received: from mail-wi0-x236.google.com (mail-wi0-x236.google.com. [2a00:1450:400c:c05::236])
+        by mx.google.com with ESMTPS id em19si46354893wjd.52.2014.11.13.13.02.15
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 13 Nov 2014 13:02:14 -0800 (PST)
-Received: by mail-wi0-f176.google.com with SMTP id ex7so800174wid.15
-        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 13:02:14 -0800 (PST)
+        Thu, 13 Nov 2014 13:02:15 -0800 (PST)
+Received: by mail-wi0-f182.google.com with SMTP id h11so858474wiw.3
+        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 13:02:15 -0800 (PST)
 From: Timofey Titovets <nefelim4ag@gmail.com>
-Subject: [RESEND][PATCH V3 3/4] KSM: Add config to control mark_new_vma
-Date: Fri, 14 Nov 2014 00:01:57 +0300
-Message-Id: <1415912518-8508-4-git-send-email-nefelim4ag@gmail.com>
+Subject: [RESEND][PATCH V3 4/4] KSM: mark_new_vma added to Documentation.
+Date: Fri, 14 Nov 2014 00:01:58 +0300
+Message-Id: <1415912518-8508-5-git-send-email-nefelim4ag@gmail.com>
 In-Reply-To: <1415912518-8508-1-git-send-email-nefelim4ag@gmail.com>
 References: <1415912518-8508-1-git-send-email-nefelim4ag@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,32 +22,36 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: akpm@linux-foundation.org, Timofey Titovets <nefelim4ag@gmail.com>
 
-Allowing to control mark_new_vma default value
-Allowing work ksm on early allocated vmas
-
 Signed-off-by: Timofey Titovets <nefelim4ag@gmail.com>
 ---
- mm/Kconfig | 7 +++++++
+ Documentation/vm/ksm.txt | 7 +++++++
  1 file changed, 7 insertions(+)
 
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 1d1ae6b..90f40a6 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -340,6 +340,13 @@ config KSM
- 	  until a program has madvised that an area is MADV_MERGEABLE, and
- 	  root has set /sys/kernel/mm/ksm/run to 1 (if CONFIG_SYSFS is set).
+diff --git a/Documentation/vm/ksm.txt b/Documentation/vm/ksm.txt
+index f34a8ee..880fdbf 100644
+--- a/Documentation/vm/ksm.txt
++++ b/Documentation/vm/ksm.txt
+@@ -24,6 +24,8 @@ KSM only operates on those areas of address space which an application
+ has advised to be likely candidates for merging, by using the madvise(2)
+ system call: int madvise(addr, length, MADV_MERGEABLE).
  
-+config KSM_MARK_NEW_VMA
-+	int "Marking new vma pages as VM_MERGEABLE"
-+	depends on KSM
-+	default 0
-+	range 0 1
-+	help
++Also KSM can mark anonymous memory as mergeable, see below.
 +
- config DEFAULT_MMAP_MIN_ADDR
-         int "Low address space to protect from user allocation"
- 	depends on MMU
+ The app may call int madvise(addr, length, MADV_UNMERGEABLE) to cancel
+ that advice and restore unshared pages: whereupon KSM unmerges whatever
+ it merged in that range.  Note: this unmerging call may suddenly require
+@@ -73,6 +75,11 @@ merge_across_nodes - specifies if pages from different numa nodes can be merged.
+                    merge_across_nodes, to remerge according to the new setting.
+                    Default: 1 (merging across nodes as in earlier releases)
+ 
++mark_new_vma     - set 0 to disallow ksm marking every new allocated anonymous
++                   memory as mergeable.
++                   set 1 to allow ksm mark every new allocated anonymous memory
++                   as mergeable
++
+ run              - set 0 to stop ksmd from running but keep merged pages,
+                    set 1 to run ksmd e.g. "echo 1 > /sys/kernel/mm/ksm/run",
+                    set 2 to stop ksmd and unmerge all pages currently merged,
 -- 
 2.1.3
 
