@@ -1,66 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A5C46B00DF
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2014 20:28:46 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id rd3so581712pab.7
-        for <linux-mm@kvack.org>; Wed, 12 Nov 2014 17:28:45 -0800 (PST)
-Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
-        by mx.google.com with ESMTPS id tl10si24360009pac.46.2014.11.12.17.28.44
+Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 1ABBC6B00DF
+	for <linux-mm@kvack.org>; Wed, 12 Nov 2014 20:46:36 -0500 (EST)
+Received: by mail-ig0-f174.google.com with SMTP id hn18so4162886igb.1
+        for <linux-mm@kvack.org>; Wed, 12 Nov 2014 17:46:35 -0800 (PST)
+Received: from mail-ie0-x235.google.com (mail-ie0-x235.google.com. [2607:f8b0:4001:c03::235])
+        by mx.google.com with ESMTPS id x10si38543114ich.34.2014.11.12.17.46.34
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Wed, 12 Nov 2014 17:28:44 -0800 (PST)
-Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
- by mailout4.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NEY0056VERU0U90@mailout4.samsung.com> for
- linux-mm@kvack.org; Thu, 13 Nov 2014 10:28:42 +0900 (KST)
-From: Weijie Yang <weijie.yang@samsung.com>
-References: <1415803038-7913-1-git-send-email-opensource.ganesh@gmail.com>
- <20141113000216.GA1074@bbox>
-In-reply-to: <20141113000216.GA1074@bbox>
-Subject: RE: [PATCH] mm/zram: correct ZRAM_ZERO flag bit position
-Date: Thu, 13 Nov 2014 09:27:33 +0800
-Message-id: <000001cffee1$28362ed0$78a28c70$%yang@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=utf-8
-Content-transfer-encoding: 7bit
-Content-language: zh-cn
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 12 Nov 2014 17:46:35 -0800 (PST)
+Received: by mail-ie0-f181.google.com with SMTP id rp18so14894929iec.12
+        for <linux-mm@kvack.org>; Wed, 12 Nov 2014 17:46:34 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20141112193450.GA18936@dhcp22.suse.cz>
+References: <000001cff998$ee0b31d0$ca219570$%yang@samsung.com>
+	<20141112193450.GA18936@dhcp22.suse.cz>
+Date: Thu, 13 Nov 2014 09:46:34 +0800
+Message-ID: <CAL1ERfOJm0HW90Xwe9wuKij_ZXedoKPMo4HdU627XmmpuZExPg@mail.gmail.com>
+Subject: Re: [PATCH 1/2] mm: page_isolation: check pfn validity before access
+From: Weijie Yang <weijie.yang.kh@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Mahendran Ganesh' <opensource.ganesh@gmail.com>
-Cc: 'Minchan Kim' <minchan@kernel.org>, ngupta@vflare.org, sergey.senozhatsky@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Weijie Yang <weijie.yang@samsung.com>, kamezawa.hiroyu@jp.fujitsu.com, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, mgorman@suse.de, mina86@mina86.com, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Thu, Nov 13, 2014 at 8:02 AM, Minchan Kim <minchan@kernel.org> wrote:
-> On Wed, Nov 12, 2014 at 10:37:18PM +0800, Mahendran Ganesh wrote:
->> In struct zram_table_entry, the element *value* contains obj size and
->> obj zram flags. Bit 0 to bit (ZRAM_FLAG_SHIFT - 1) represent obj size,
->> and bit ZRAM_FLAG_SHIFT to the highest bit of unsigned long represent obj
->> zram_flags. So the first zram flag(ZRAM_ZERO) should be from ZRAM_FLAG_SHIFT
->> instead of (ZRAM_FLAG_SHIFT + 1).
->>
->> This patch fixes this issue.
->>
->> Also this patch fixes a typo, "page in now accessed" -> "page is now accessed"
->>
->> Signed-off-by: Mahendran Ganesh <opensource.ganesh@gmail.com>
-> Acked-by: Minchan Kim <minchan@kernel.org>
-
-Acked-by: Weijie Yang <weijie.yang@samsung.com>
-
-> To be clear about "fixes this issue", it's not a bug but just clean up
-> so it doesn't change any behavior.
+On Thu, Nov 13, 2014 at 3:34 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Thu 06-11-14 16:08:02, Weijie Yang wrote:
+>> In the undo path of start_isolate_page_range(), we need to check
+>> the pfn validity before access its page, or it will trigger an
+>> addressing exception if there is hole in the zone.
 >
-> Thanks!
+> This looks a bit fishy to me. I am not familiar with the code much but
+> at least __offline_pages zone = page_zone(pfn_to_page(start_pfn)) so it
+> would blow up before we got here. Same applies to the other caller
+> alloc_contig_range. So either both need a fix and then
+> start_isolate_page_range doesn't need more checks or this is all
+> unnecessary.
+
+Thanks for your suggestion.
+If start_isolate_page_range()'s user can ensure there isn't hole in
+the [start_pfn, end_pfn) range, we can remove the checks. But if we
+cann't, I think it's better reserve these "unnecessary" code.
+That's really obfuscated : (
+
+> Please do not make this code more obfuscated than it is already...
+>
+>> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
+>> ---
+>>  mm/page_isolation.c |    7 +++++--
+>>  1 files changed, 5 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+>> index d1473b2..3ddc8b3 100644
+>> --- a/mm/page_isolation.c
+>> +++ b/mm/page_isolation.c
+>> @@ -137,8 +137,11 @@ int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
+>>  undo:
+>>       for (pfn = start_pfn;
+>>            pfn < undo_pfn;
+>> -          pfn += pageblock_nr_pages)
+>> -             unset_migratetype_isolate(pfn_to_page(pfn), migratetype);
+>> +          pfn += pageblock_nr_pages) {
+>> +             page = __first_valid_page(pfn, pageblock_nr_pages);
+>> +             if (page)
+>> +                     unset_migratetype_isolate(page, migratetype);
+>> +     }
+>>
+>>       return -EBUSY;
+>>  }
+>> --
+>> 1.7.0.4
+>>
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 >
 > --
-> Kind regards,
-> Minchan Kim
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
