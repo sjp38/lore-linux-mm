@@ -1,84 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f180.google.com (mail-yk0-f180.google.com [209.85.160.180])
-	by kanga.kvack.org (Postfix) with ESMTP id D73BF6B00DF
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2014 14:24:57 -0500 (EST)
-Received: by mail-yk0-f180.google.com with SMTP id 9so1425477ykp.11
-        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 11:24:57 -0800 (PST)
-Received: from mail-yk0-x233.google.com (mail-yk0-x233.google.com. [2607:f8b0:4002:c07::233])
-        by mx.google.com with ESMTPS id d6si13399739ykf.69.2014.11.13.11.24.56
+Received: from mail-yh0-f50.google.com (mail-yh0-f50.google.com [209.85.213.50])
+	by kanga.kvack.org (Postfix) with ESMTP id DEE7B6B00E0
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2014 14:25:32 -0500 (EST)
+Received: by mail-yh0-f50.google.com with SMTP id 29so7497277yhl.37
+        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 11:25:32 -0800 (PST)
+Received: from mail-yk0-x236.google.com (mail-yk0-x236.google.com. [2607:f8b0:4002:c07::236])
+        by mx.google.com with ESMTPS id c32si28080449yha.68.2014.11.13.11.25.31
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 13 Nov 2014 11:24:56 -0800 (PST)
-Received: by mail-yk0-f179.google.com with SMTP id 131so2358733ykp.24
-        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 11:24:56 -0800 (PST)
+        Thu, 13 Nov 2014 11:25:31 -0800 (PST)
+Received: by mail-yk0-f182.google.com with SMTP id q9so2384015ykb.27
+        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 11:25:31 -0800 (PST)
 From: Pranith Kumar <bobby.prani@gmail.com>
-Subject: [RFC PATCH 00/16] Replace smp_read_barrier_depends() with lockless_derefrence()
-Date: Thu, 13 Nov 2014 14:24:06 -0500
-Message-Id: <1415906662-4576-1-git-send-email-bobby.prani@gmail.com>
+Subject: [PATCH 13/16] ksm: Replace smp_read_barrier_depends() with lockless_dereference()
+Date: Thu, 13 Nov 2014 14:24:19 -0500
+Message-Id: <1415906662-4576-14-git-send-email-bobby.prani@gmail.com>
+In-Reply-To: <1415906662-4576-1-git-send-email-bobby.prani@gmail.com>
+References: <1415906662-4576-1-git-send-email-bobby.prani@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Herbert Xu <herbert@gondor.apana.org.au>, "David S. Miller" <davem@davemloft.net>, Cristian Stoica <cristian.stoica@freescale.com>, Horia Geanta <horia.geanta@freescale.com>, Ruchika Gupta <ruchika.gupta@freescale.com>, Michael Neuling <mikey@neuling.org>, Wolfram Sang <wsa@the-dreams.de>, "open list:CRYPTO API" <linux-crypto@vger.kernel.org>, open list <linux-kernel@vger.kernel.org>, Vinod Koul <vinod.koul@intel.com>, Dan Williams <dan.j.williams@intel.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, =?UTF-8?q?Manuel=20Sch=C3=B6lling?= <manuel.schoelling@gmx.de>, Dave Jiang <dave.jiang@intel.com>, Rashika <rashika.kheria@gmail.com>, "open list:DMA GENERIC OFFLO..." <dmaengine@vger.kernel.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Haiyang Zhang <haiyangz@microsoft.com>, "open list:Hyper-V CORE AND..." <devel@linuxdriverproject.org>, Josh Triplett <josh@joshtriplett.org>, Steven Rostedt <rostedt@goodmis.org>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Paul Mackerras <paulus@samba.org>, Ingo Molnar <mingo@redhat.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, Kees Cook <keescook@chromium.org>, Andy Lutomirski <luto@amacapital.net>, Will Drewry <wad@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, NeilBrown <neilb@suse.de>, Joerg Roedel <jroedel@suse.de>, Sasha Levin <sasha.levin@oracle.com>, Paul McQuade <paulmcquad@gmail.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, netfilter-devel@vger.kernel.org, coreteam@netfilter.org, "open list:NETWORKING [IPv4/..." <netdev@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, David Rientjes <rientjes@google.com>, Joerg Roedel <jroedel@suse.de>, NeilBrown <neilb@suse.de>, Sasha Levin <sasha.levin@oracle.com>, Paul McQuade <paulmcquad@gmail.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, open list <linux-kernel@vger.kernel.org>
 Cc: paulmck@linux.vnet.ibm.com
 
 Recently lockless_dereference() was added which can be used in place of
-hard-coding smp_read_barrier_depends(). 
+hard-coding smp_read_barrier_depends(). The following PATCH makes the change.
 
-http://lkml.iu.edu/hypermail/linux/kernel/1410.3/04561.html
+Signed-off-by: Pranith Kumar <bobby.prani@gmail.com>
+---
+ mm/ksm.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
 
-The following series tries to do this.
-
-There are still some hard-coded locations which I was not sure how to replace
-with. I will send in separate patches/questions regarding them.
-
-Pranith Kumar (16):
-  crypto: caam - Remove unnecessary smp_read_barrier_depends()
-  doc: memory-barriers.txt: Document use of lockless_dereference()
-  drivers: dma: Replace smp_read_barrier_depends() with
-    lockless_dereference()
-  dcache: Replace smp_read_barrier_depends() with lockless_dereference()
-  overlayfs: Replace smp_read_barrier_depends() with
-    lockless_dereference()
-  assoc_array: Replace smp_read_barrier_depends() with
-    lockless_dereference()
-  hyperv: Replace smp_read_barrier_depends() with lockless_dereference()
-  rcupdate: Replace smp_read_barrier_depends() with
-    lockless_dereference()
-  percpu: Replace smp_read_barrier_depends() with lockless_dereference()
-  perf: Replace smp_read_barrier_depends() with lockless_dereference()
-  seccomp: Replace smp_read_barrier_depends() with
-    lockless_dereference()
-  task_work: Replace smp_read_barrier_depends() with
-    lockless_dereference()
-  ksm: Replace smp_read_barrier_depends() with lockless_dereference()
-  slab: Replace smp_read_barrier_depends() with lockless_dereference()
-  netfilter: Replace smp_read_barrier_depends() with
-    lockless_dereference()
-  rxrpc: Replace smp_read_barrier_depends() with lockless_dereference()
-
- Documentation/memory-barriers.txt |  2 +-
- drivers/crypto/caam/jr.c          |  3 ---
- drivers/dma/ioat/dma_v2.c         |  3 +--
- drivers/dma/ioat/dma_v3.c         |  3 +--
- fs/dcache.c                       |  7 ++-----
- fs/overlayfs/super.c              |  4 +---
- include/linux/assoc_array_priv.h  | 11 +++++++----
- include/linux/hyperv.h            |  9 ++++-----
- include/linux/percpu-refcount.h   |  4 +---
- include/linux/rcupdate.h          | 10 +++++-----
- kernel/events/core.c              |  3 +--
- kernel/events/uprobes.c           |  8 ++++----
- kernel/seccomp.c                  |  7 +++----
- kernel/task_work.c                |  3 +--
- lib/assoc_array.c                 |  7 -------
- mm/ksm.c                          |  7 +++----
- mm/slab.h                         |  6 +++---
- net/ipv4/netfilter/arp_tables.c   |  3 +--
- net/ipv4/netfilter/ip_tables.c    |  3 +--
- net/ipv6/netfilter/ip6_tables.c   |  3 +--
- net/rxrpc/ar-ack.c                | 22 +++++++++-------------
- security/keys/keyring.c           |  6 ------
- 22 files changed, 50 insertions(+), 84 deletions(-)
-
+diff --git a/mm/ksm.c b/mm/ksm.c
+index d247efa..a67de79 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -542,15 +542,14 @@ static struct page *get_ksm_page(struct stable_node *stable_node, bool lock_it)
+ 	expected_mapping = (void *)stable_node +
+ 				(PAGE_MAPPING_ANON | PAGE_MAPPING_KSM);
+ again:
+-	kpfn = ACCESS_ONCE(stable_node->kpfn);
+-	page = pfn_to_page(kpfn);
+-
+ 	/*
+ 	 * page is computed from kpfn, so on most architectures reading
+ 	 * page->mapping is naturally ordered after reading node->kpfn,
+ 	 * but on Alpha we need to be more careful.
+ 	 */
+-	smp_read_barrier_depends();
++	kpfn = lockless_dereference(stable_node->kpfn);
++	page = pfn_to_page(kpfn);
++
+ 	if (ACCESS_ONCE(page->mapping) != expected_mapping)
+ 		goto stale;
+ 
 -- 
 1.9.1
 
