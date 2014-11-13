@@ -1,107 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D16B6B00D5
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2014 07:47:14 -0500 (EST)
-Received: by mail-wi0-f175.google.com with SMTP id l15so4131379wiw.2
-        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 04:47:13 -0800 (PST)
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F7DD6B00D5
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2014 08:10:46 -0500 (EST)
+Received: by mail-wi0-f179.google.com with SMTP id ex7so925448wid.0
+        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 05:10:45 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j1si32203209wia.1.2014.11.13.04.47.11
+        by mx.google.com with ESMTPS id v10si10071672wjy.103.2014.11.13.05.10.44
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 13 Nov 2014 04:47:11 -0800 (PST)
-Message-ID: <5464A84C.1040903@suse.cz>
-Date: Thu, 13 Nov 2014 13:47:08 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        Thu, 13 Nov 2014 05:10:45 -0800 (PST)
+Date: Thu, 13 Nov 2014 14:10:43 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/2] mm: page_isolation: check pfn validity before access
+Message-ID: <20141113131043.GA2489@dhcp22.suse.cz>
+References: <000001cff998$ee0b31d0$ca219570$%yang@samsung.com>
+ <20141112193450.GA18936@dhcp22.suse.cz>
+ <CAL1ERfOJm0HW90Xwe9wuKij_ZXedoKPMo4HdU627XmmpuZExPg@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/5] mm, compaction: more focused lru and pcplists draining
-References: <1412696019-21761-1-git-send-email-vbabka@suse.cz> <1412696019-21761-6-git-send-email-vbabka@suse.cz> <20141027074112.GC23379@js1304-P5Q-DELUXE> <545738F1.4010307@suse.cz> <20141104003733.GB8412@js1304-P5Q-DELUXE>
-In-Reply-To: <20141104003733.GB8412@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAL1ERfOJm0HW90Xwe9wuKij_ZXedoKPMo4HdU627XmmpuZExPg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>
+To: Weijie Yang <weijie.yang.kh@gmail.com>
+Cc: Weijie Yang <weijie.yang@samsung.com>, kamezawa.hiroyu@jp.fujitsu.com, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, mgorman@suse.de, mina86@mina86.com, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On 11/04/2014 01:37 AM, Joonsoo Kim wrote:
-> On Mon, Nov 03, 2014 at 09:12:33AM +0100, Vlastimil Babka wrote:
->> On 10/27/2014 08:41 AM, Joonsoo Kim wrote:
->>> On Tue, Oct 07, 2014 at 05:33:39PM +0200, Vlastimil Babka wrote:
->>>
->>> And, I wonder why last_migrated_pfn is set after isolate_migratepages().
->>
->> Not sure I understand your question. With the mistake above, it
->> cannot currently be set at the point isolate_migratepages() is
->> called, so you might question the goto check_drain in the
->> ISOLATE_NONE case, if that's what you are wondering about.
->>
->> When I correct that, it might be set when COMPACT_CLUSTER_MAX pages
->> are isolated and migrated the middle of a pageblock, and then the
->> rest of the pageblock contains no pages that could be isolated, so
->> the last isolate_migratepages() attempt in the pageblock returns
->> with ISOLATE_NONE. Still there were some migrations that produced
->> free pages that should be drained at that point.
->
-> To clarify my question, I attach psuedo code that I thought correct.
+On Thu 13-11-14 09:46:34, Weijie Yang wrote:
+> On Thu, Nov 13, 2014 at 3:34 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> > On Thu 06-11-14 16:08:02, Weijie Yang wrote:
+> >> In the undo path of start_isolate_page_range(), we need to check
+> >> the pfn validity before access its page, or it will trigger an
+> >> addressing exception if there is hole in the zone.
+> >
+> > This looks a bit fishy to me. I am not familiar with the code much but
+> > at least __offline_pages zone = page_zone(pfn_to_page(start_pfn)) so it
+> > would blow up before we got here. Same applies to the other caller
+> > alloc_contig_range. So either both need a fix and then
+> > start_isolate_page_range doesn't need more checks or this is all
+> > unnecessary.
+> 
+> Thanks for your suggestion.
+> If start_isolate_page_range()'s user can ensure there isn't hole in
+> the [start_pfn, end_pfn) range, we can remove the checks. But if we
+> cann't, I think it's better reserve these "unnecessary" code.
 
-Sorry for the late reply.
+I am not sure I understand you correctly but my point was that we do not
+need check at start_isolate_page_range level but rather than in the
+caller (or do not rely on pfn_to_page at that level). 
 
-> static int compact_zone()
-> {
->          unsigned long last_migrated_pfn = 0;
->
->          ...
->
->          compaction_suitable();
->
->          ...
->
->          while (compact_finished()) {
->                  if (!last_migrated_pfn)
->                          last_migrated_pfn = cc->migrate_pfn - 1;
->
->                  isolate_migratepages();
->                  switch case
->                  migrate_pages();
->                  ...
->
->                  check_drain: (at the end of loop)
->                          do flush and reset last_migrated_pfn if needed
->          }
-> }
->
-> We should record last_migrated_pfn before isolate_migratepages() and
-> then compare it with cc->migrate_pfn after isolate_migratepages() to
-> know if we moved away from the previous cc->order aligned block.
-> Am I missing something?
+> That's really obfuscated : (
+> 
+> > Please do not make this code more obfuscated than it is already...
+> >
+> >> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
+> >> ---
+> >>  mm/page_isolation.c |    7 +++++--
+> >>  1 files changed, 5 insertions(+), 2 deletions(-)
+> >>
+> >> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+> >> index d1473b2..3ddc8b3 100644
+> >> --- a/mm/page_isolation.c
+> >> +++ b/mm/page_isolation.c
+> >> @@ -137,8 +137,11 @@ int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
+> >>  undo:
+> >>       for (pfn = start_pfn;
+> >>            pfn < undo_pfn;
+> >> -          pfn += pageblock_nr_pages)
+> >> -             unset_migratetype_isolate(pfn_to_page(pfn), migratetype);
+> >> +          pfn += pageblock_nr_pages) {
+> >> +             page = __first_valid_page(pfn, pageblock_nr_pages);
+> >> +             if (page)
+> >> +                     unset_migratetype_isolate(page, migratetype);
+> >> +     }
+> >>
+> >>       return -EBUSY;
+> >>  }
+> >> --
+> >> 1.7.0.4
+> >>
+> >>
+> >> --
+> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> >> the body to majordomo@kvack.org.  For more info on Linux MM,
+> >> see: http://www.linux-mm.org/ .
+> >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> >
+> > --
+> > Michal Hocko
+> > SUSE Labs
 
-What about this scenario, with pageblock order:
-
-- record cc->migrate_pfn pointing to pageblock X
-- isolate_migratepages() skips the pageblock due to e.g. skip bit, or 
-the pageblock being a THP already...
-- loop to pageblock X+1, last_migrated_pfn is still set to pfn of 
-pageblock X (more precisely the pfn is (X << pageblock_order) - 1 per 
-your code, but doesn't matter)
-- isolate_migratepages isolates something, but ends up somewhere in the 
-middle of pageblock due to COMPACT_CLUSTER_MAX
-- cc->migrate_pfn points to pageblock X+1 (plus some pages it scanned)
-- so it will decide that it has fully migrated pageblock X and it's time 
-to drain. But the drain is most likely useless - we didn't migrate 
-anything in pageblock X, we skipped it. And in X+1 we didn't migrate 
-everything yet, so we should drain only after finishing the other part 
-of the pageblock.
-
-In short, "last_migrated_pfn" is not "last position of migrate scanner" 
-but "last block where we *actually* migrated".
-
-I think if you would try to fix the scenario above, you would end up 
-with something like my patch :)
-
-Vlastimil
-
-> Thanks.
->
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
