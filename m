@@ -1,101 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f175.google.com (mail-vc0-f175.google.com [209.85.220.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 17F826B00D7
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2014 20:18:05 -0500 (EST)
-Received: by mail-vc0-f175.google.com with SMTP id hy10so359603vcb.34
-        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 17:18:04 -0800 (PST)
-Received: from mail-vc0-x236.google.com (mail-vc0-x236.google.com. [2607:f8b0:400c:c03::236])
-        by mx.google.com with ESMTPS id ps16si1823110vdb.15.2014.11.13.17.18.03
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F6576B00DC
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2014 20:18:53 -0500 (EST)
+Received: by mail-wi0-f169.google.com with SMTP id n3so3741790wiv.0
+        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 17:18:52 -0800 (PST)
+Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id n7si1512450wic.31.2014.11.13.17.18.51
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 13 Nov 2014 17:18:03 -0800 (PST)
-Received: by mail-vc0-f182.google.com with SMTP id im17so4302956vcb.13
-        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 17:18:03 -0800 (PST)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 13 Nov 2014 17:18:51 -0800 (PST)
+Date: Fri, 14 Nov 2014 01:18:32 +0000
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [RFC V6 2/3] arm:add bitrev.h file to support rbit instruction
+Message-ID: <20141114011832.GE4042@n2100.arm.linux.org.uk>
+References: <20141030120127.GC32589@arm.com>
+ <CAKv+Gu9g5Q6fjPUy+P8YxkeDrH+bdO4kKGnxTQZRFhQpgPxaPA@mail.gmail.com>
+ <20141030135749.GE32589@arm.com>
+ <35FD53F367049845BC99AC72306C23D103E010D18272@CNBJMBX05.corpusers.net>
+ <35FD53F367049845BC99AC72306C23D103E010D18273@CNBJMBX05.corpusers.net>
+ <35FD53F367049845BC99AC72306C23D103E010D18275@CNBJMBX05.corpusers.net>
+ <20141113235322.GC4042@n2100.arm.linux.org.uk>
+ <1415923530.4223.17.camel@perches.com>
+ <20141114001720.GD4042@n2100.arm.linux.org.uk>
+ <1415925943.4141.1.camel@perches.com>
 MIME-Version: 1.0
-In-Reply-To: <20141114005833.GA1572@node.dhcp.inet.fi>
-References: <1415644096-3513-1-git-send-email-j.glisse@gmail.com>
-	<1415644096-3513-4-git-send-email-j.glisse@gmail.com>
-	<CA+55aFwHd4QYopHvd=H6hxoQeqDV3HT6=436LGU-FRb5A0p7Vg@mail.gmail.com>
-	<20141110205814.GA4186@gmail.com>
-	<CA+55aFwwKV_D5oWT6a97a70G7OnvsPD_j9LsuR+_e4MEdCOO9A@mail.gmail.com>
-	<20141110225036.GB4186@gmail.com>
-	<CA+55aFyfgj5ntoXEJeTZyGdOZ9_A_TK0fwt1px_FUhemXGgr0Q@mail.gmail.com>
-	<CA+55aFxYnBxGZr3ed0i46SpSdOj+3VSVBZiqRbdJuwFMuTmxDw@mail.gmail.com>
-	<20141114005833.GA1572@node.dhcp.inet.fi>
-Date: Thu, 13 Nov 2014 17:18:03 -0800
-Message-ID: <CA+55aFy0kP202FFbvXe7ZbqiPTgCMORk=2+KFVPWkopArR_oBw@mail.gmail.com>
-Subject: Re: [PATCH 3/5] lib: lockless generic and arch independent page table
- (gpt) v2.
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1415925943.4141.1.camel@perches.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Jerome Glisse <j.glisse@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Joerg Roedel <joro@8bytes.org>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
+To: Joe Perches <joe@perches.com>
+Cc: Takashi Iwai <tiwai@suse.de>, "Wang, Yalin" <Yalin.Wang@sonymobile.com>, 'Will Deacon' <will.deacon@arm.com>, 'Ard Biesheuvel' <ard.biesheuvel@linaro.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'akinobu.mita@gmail.com'" <akinobu.mita@gmail.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>
 
-On Thu, Nov 13, 2014 at 4:58 PM, Kirill A. Shutemov
-<kirill@shutemov.name> wrote:
-> On Thu, Nov 13, 2014 at 03:50:02PM -0800, Linus Torvalds wrote:
->> +/*
->> + * The 'tree_level' data only describes one particular level
->> + * of the tree. The upper levels are totally invisible to the
->> + * user of the tree walker, since the tree walker will walk
->> + * those using the tree definitions.
->> + *
->> + * NOTE! "struct tree_entry" is an opaque type, and is just a
->> + * used as a pointer to the particular level. You can figure
->> + * out which level you are at by looking at the "tree_level",
->> + * but even better is to just use different "lookup()"
->> + * functions for different levels, at which point the
->> + * function is inherent to the level.
->
-> Please, don't.
->
-> We will end up with the same last-level centric code as we have now in mm
-> subsystem: all code only cares about pte.
+On Thu, Nov 13, 2014 at 04:45:43PM -0800, Joe Perches wrote:
+> On Fri, 2014-11-14 at 00:17 +0000, Russell King - ARM Linux wrote:
+> > On Thu, Nov 13, 2014 at 04:05:30PM -0800, Joe Perches wrote:
+> > > On Thu, 2014-11-13 at 23:53 +0000, Russell King - ARM Linux wrote:
+> > > > On Fri, Oct 31, 2014 at 01:42:44PM +0800, Wang, Yalin wrote:
+> > > > > This patch add bitrev.h file to support rbit instruction,
+> > > > > so that we can do bitrev operation by hardware.
+> > > > > Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
+> > > > > ---
+> > > > >  arch/arm/Kconfig              |  1 +
+> > > > >  arch/arm/include/asm/bitrev.h | 21 +++++++++++++++++++++
+> > > > >  2 files changed, 22 insertions(+)
+> > > > >  create mode 100644 arch/arm/include/asm/bitrev.h
+> > > > > 
+> > > > > diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+> > > > > index 89c4b5c..be92b3b 100644
+> > > > > --- a/arch/arm/Kconfig
+> > > > > +++ b/arch/arm/Kconfig
+> > > > > @@ -28,6 +28,7 @@ config ARM
+> > > > >  	select HANDLE_DOMAIN_IRQ
+> > > > >  	select HARDIRQS_SW_RESEND
+> > > > >  	select HAVE_ARCH_AUDITSYSCALL if (AEABI && !OABI_COMPAT)
+> > > > > +	select HAVE_ARCH_BITREVERSE if (CPU_V7M || CPU_V7)
+> > > > 
+> > > > Looking at this, this is just wrong.  Take a moment to consider what
+> > > > happens if we build a kernel which supports both ARMv6 _and_ ARMv7 CPUs.
+> > > > What happens if an ARMv6 CPU tries to execute an rbit instruction?
+> > > > 
+> > > > Second point (which isn't obvious from your submissions on-list) is that
+> > > > you've loaded the patch system up with patches for other parts of the
+> > > > kernel tree for which I am not responsible for.  As such, I can't take
+> > > > those patches without the sub-tree maintainer acking them.  Also, the
+> > > > commit text in those patches look weird:
+> > > > 
+> > > > 6fire: Convert byte_rev_table uses to bitrev8
+> > > > 
+> > > > Use the inline function instead of directly indexing the array.
+> > > > 
+> > > > This allows some architectures with hardware instructions for bit
+> > > > reversals to eliminate the array.
+> > > > 
+> > > > Signed-off-by: Joe Perches <(address hidden)>
+> > > > Signed-off-by: Yalin Wang <(address hidden)>
+> > > > 
+> > > > Why is Joe signing off on these patches?
+> > > > Shouldn't his entry be an Acked-by: ?
+> > > 
+> > > I didn't sign off on or ack the "add bitrev.h" patch.
+> > 
+> > Correct, I never said you did.  Please read my message a bit more carefully
+> > next time, huh?
+> 
+> You've no reason to write that Russell.
 
-You realize that we have a name for this. It's called "reality".
+Absolutely I have, but I'm not going to discuss it because I'll just
+end up flaming you because in my mind you are the one who is completely
+mistaken with your comments.
 
-> It makes implementing variable
-> page size support really hard and lead to copy-paste approach. And to
-> hugetlb parallel world...
+In case it hasn't been realised, I hardly read this mailing list anymore,
+or messages that I'm Cc'd on.  I do read most messages that I'm in the
+To: line, but generally not if they're DT changes (which always end up
+being marked To: me.)
 
-No, go back and read the thing.
+> > Great, so I can just discard these that were incorrectly submitted to me
+> > then.
+> 
+> I think you shouldn't apply these patches or updated
+> ones either until all the current uses are converted.
 
-You're confusing two different issues: looking up the tree, and
-actually walking the end result.
+Where are the dependencies mentioned?  How do I get to know when all
+the dependencies are met?  Who is tracking the dependencies?
 
-The "looking up different levels of the tree" absolutely _should_ use
-different actors for different levels. Because the levels are not at
-all guaranteed to be the same.
-
-Sure, they often are. When you extend a tree, it's fairly reasonable
-to try to make the different levels look identical. But "often" is not
-at all "always".
-
-More importantly, nobody should ever care. Because the whole *point*
-of the tree walker is that the user never sees any of this. This is
-purely an implementation detail of the tree itself. Somebody who just
-*walks* the tree only sees the final end result.
-
-And *that* is the "walk()" callback. Which gets the virtual address
-and the length, exactly so that for a super-page you don't even really
-see the difference between walking different levels (well, you do see
-it, since the length will differ).
-
-Now, I didn't actually try to make that whole thing very transparent.
-In particular, somebody who just wants to see the data (and ignore as
-much of the "tree" details as possible) would really want to have not
-that "tree_entry", but the whole "struct tree_level *" and in
-particular a way to *map* the page. I left that out entirely, because
-it wasn't really central to the whole tree walking.
-
-But thinking that the levels should look the same is fundamentally
-bogus. For one, because they don't always look the same at all. For
-another, because it's completely separate from the accessing of the
-level data anyway.
-
-                       Linus
+-- 
+FTTC broadband for 0.8mile line: currently at 9.5Mbps down 400kbps up
+according to speedtest.net.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
