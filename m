@@ -1,95 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D88C6B00D2
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2014 19:05:35 -0500 (EST)
-Received: by mail-ig0-f172.google.com with SMTP id a13so593899igq.17
-        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 16:05:34 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0249.hostedemail.com. [216.40.44.249])
-        by mx.google.com with ESMTP id mx4si1202101igb.20.2014.11.13.16.05.33
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A5EC6B00D2
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2014 19:12:36 -0500 (EST)
+Received: by mail-pa0-f52.google.com with SMTP id fa1so16203898pad.25
+        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 16:12:35 -0800 (PST)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id xd10si9838681pbc.226.2014.11.13.16.12.33
         for <linux-mm@kvack.org>;
-        Thu, 13 Nov 2014 16:05:34 -0800 (PST)
-Message-ID: <1415923530.4223.17.camel@perches.com>
-Subject: Re: [RFC V6 2/3] arm:add bitrev.h file to support rbit instruction
-From: Joe Perches <joe@perches.com>
-Date: Thu, 13 Nov 2014 16:05:30 -0800
-In-Reply-To: <20141113235322.GC4042@n2100.arm.linux.org.uk>
-References: 
-	<35FD53F367049845BC99AC72306C23D103E010D18261@CNBJMBX05.corpusers.net>
-	 <35FD53F367049845BC99AC72306C23D103E010D18264@CNBJMBX05.corpusers.net>
-	 <35FD53F367049845BC99AC72306C23D103E010D18265@CNBJMBX05.corpusers.net>
-	 <35FD53F367049845BC99AC72306C23D103E010D18266@CNBJMBX05.corpusers.net>
-	 <20141030120127.GC32589@arm.com>
-	 <CAKv+Gu9g5Q6fjPUy+P8YxkeDrH+bdO4kKGnxTQZRFhQpgPxaPA@mail.gmail.com>
-	 <20141030135749.GE32589@arm.com>
-	 <35FD53F367049845BC99AC72306C23D103E010D18272@CNBJMBX05.corpusers.net>
-	 <35FD53F367049845BC99AC72306C23D103E010D18273@CNBJMBX05.corpusers.net>
-	 <35FD53F367049845BC99AC72306C23D103E010D18275@CNBJMBX05.corpusers.net>
-	 <20141113235322.GC4042@n2100.arm.linux.org.uk>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Thu, 13 Nov 2014 16:12:34 -0800 (PST)
+Date: Fri, 14 Nov 2014 09:14:52 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [RFC PATCH 1/5] mm/page_ext: resurrect struct page extending
+ code for debugging
+Message-ID: <20141114001451.GA22952@js1304-P5Q-DELUXE>
+References: <1415780835-24642-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1415780835-24642-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <54638BE4.3080509@sr71.net>
+ <20141113064035.GB18369@js1304-P5Q-DELUXE>
+ <20141113124035.35bc5bb743affddf7f425825@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141113124035.35bc5bb743affddf7f425825@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>, Takashi Iwai <tiwai@suse.de>
-Cc: "Wang, Yalin" <Yalin.Wang@sonymobile.com>, 'Will Deacon' <will.deacon@arm.com>, 'Ard Biesheuvel' <ard.biesheuvel@linaro.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'akinobu.mita@gmail.com'" <akinobu.mita@gmail.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave@sr71.net>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Alexander Nyberg <alexn@dsv.su.se>, Dave Hansen <dave@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Jungsoo Son <jungsoo.son@lge.com>, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 2014-11-13 at 23:53 +0000, Russell King - ARM Linux wrote:
-> On Fri, Oct 31, 2014 at 01:42:44PM +0800, Wang, Yalin wrote:
-> > This patch add bitrev.h file to support rbit instruction,
-> > so that we can do bitrev operation by hardware.
-> > Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
-> > ---
-> >  arch/arm/Kconfig              |  1 +
-> >  arch/arm/include/asm/bitrev.h | 21 +++++++++++++++++++++
-> >  2 files changed, 22 insertions(+)
-> >  create mode 100644 arch/arm/include/asm/bitrev.h
+On Thu, Nov 13, 2014 at 12:40:35PM -0800, Andrew Morton wrote:
+> On Thu, 13 Nov 2014 15:40:35 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> 
+> > On Wed, Nov 12, 2014 at 08:33:40AM -0800, Dave Hansen wrote:
+> > > On 11/12/2014 12:27 AM, Joonsoo Kim wrote:
+> > > > @@ -1092,6 +1096,14 @@ struct mem_section {
+> > > >  
+> > > >  	/* See declaration of similar field in struct zone */
+> > > >  	unsigned long *pageblock_flags;
+> > > > +#ifdef CONFIG_PAGE_EXTENSION
+> > > > +	/*
+> > > > +	 * If !SPARSEMEM, pgdat doesn't have page_ext pointer. We use
+> > > > +	 * section. (see page_ext.h about this.)
+> > > > +	 */
+> > > > +	struct page_ext *page_ext;
+> > > > +	unsigned long pad;
+> > > > +#endif
+> > > 
+> > > Will the distributions be amenable to enabling this?  If so, I'm all for
+> > > it if it gets us things like page_owner at runtime.
 > > 
-> > diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-> > index 89c4b5c..be92b3b 100644
-> > --- a/arch/arm/Kconfig
-> > +++ b/arch/arm/Kconfig
-> > @@ -28,6 +28,7 @@ config ARM
-> >  	select HANDLE_DOMAIN_IRQ
-> >  	select HARDIRQS_SW_RESEND
-> >  	select HAVE_ARCH_AUDITSYSCALL if (AEABI && !OABI_COMPAT)
-> > +	select HAVE_ARCH_BITREVERSE if (CPU_V7M || CPU_V7)
+> > Yes, I hope so.
+> > At least, I can make it default to our product. But, how distributions
+> > will do is beyond my power. :)
+> > 
 > 
-> Looking at this, this is just wrong.  Take a moment to consider what
-> happens if we build a kernel which supports both ARMv6 _and_ ARMv7 CPUs.
-> What happens if an ARMv6 CPU tries to execute an rbit instruction?
+> >From my reading of the code, the overhead is very low if nobody is
+> using it.  In which case things should be OK and we can perhaps do away
+> with CONFIG_PAGE_EXTENSION altogether.
+
+Yeap!
+
 > 
-> Second point (which isn't obvious from your submissions on-list) is that
-> you've loaded the patch system up with patches for other parts of the
-> kernel tree for which I am not responsible for.  As such, I can't take
-> those patches without the sub-tree maintainer acking them.  Also, the
-> commit text in those patches look weird:
+> But my reading of the code may be wrong.  It is very poorly documented.
+> As far as I can tell, invoke_need_callbacks() works out whether there
+> are any clients of this feature and if not, we avoid allocating that
+> huge chunk of memory.
 > 
-> 6fire: Convert byte_rev_table uses to bitrev8
+
+Your understanding is correct.
+
+> And the way we register clients is to enter a pointer into the global
+> page_ext_ops[].  So this requires a kernel rebuild anyway, so there's
+> no point in distros enabling CONFIG_PAGE_EXTENSION.  The way to do this
+> is for CONFIG_PAGE_OWNER (for example) to `select'
+> CONFIG_PAGE_EXTENSION.
 > 
-> Use the inline function instead of directly indexing the array.
-> 
-> This allows some architectures with hardware instructions for bit
-> reversals to eliminate the array.
-> 
-> Signed-off-by: Joe Perches <(address hidden)>
-> Signed-off-by: Yalin Wang <(address hidden)>
-> 
-> Why is Joe signing off on these patches?
-> Shouldn't his entry be an Acked-by: ?
 
-I didn't sign off on or ack the "add bitrev.h" patch.
+Yes. Without any client, CONFIG_PAGE_EXTENSION has no point to be
+enabled. So, each client, DEBUG_PAGEALLOC, PAGE_OWNER has 'select
+CONFIG_PAGE_EXTENSION' in it's Kconfig, repectively. (Patch 2, 5)
 
-I created 2 patches that converted direct uses of byte_rev_table
-to that bitrev8 static inline.  One of them is already in -next
+> It's unclear to me why invoke_need_callbacks() walks the page_ext_ops[]
+> entries, inspecting them.  Perhaps this is so that clients of
+> CONFIG_PAGE_EXTENSION can be enabled/disabled at boot time, dunno.
 
-7a1283d8f5298437a454ec477384dcd9f9f88bac carl9170: Convert byte_rev_table uses to bitrev8
+Yes, if user decides not to use certain debugging feature at boot time,
+it's very wasting to have that huge memory chunk for page extension.
+invoke_need_callbacks() is introduced to determine and reduce this
+overhead in boot time.
 
-The other hasn't been applied.
+> Please, can we get all this design and behaviour appropriately
+> documented in the code and changelogs?
 
-https://lkml.org/lkml/2014/10/28/1056
+Yes! 
+With pleasure, I will do it. :)
 
-Maybe Takashi Iwai will get around to it one day.
-
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
