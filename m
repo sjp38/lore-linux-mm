@@ -1,150 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 186F66B00EB
-	for <linux-mm@kvack.org>; Fri, 14 Nov 2014 03:57:44 -0500 (EST)
-Received: by mail-wg0-f54.google.com with SMTP id n12so19179726wgh.41
-        for <linux-mm@kvack.org>; Fri, 14 Nov 2014 00:57:43 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id dx5si2682576wib.78.2014.11.14.00.57.43
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id C8A916B00EA
+	for <linux-mm@kvack.org>; Fri, 14 Nov 2014 04:52:23 -0500 (EST)
+Received: by mail-wg0-f50.google.com with SMTP id k14so895902wgh.9
+        for <linux-mm@kvack.org>; Fri, 14 Nov 2014 01:52:23 -0800 (PST)
+Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id fl5si3000083wib.10.2014.11.14.01.52.22
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 14 Nov 2014 00:57:43 -0800 (PST)
-Message-ID: <5465C405.4030603@suse.cz>
-Date: Fri, 14 Nov 2014 09:57:41 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 14 Nov 2014 01:52:22 -0800 (PST)
+Date: Fri, 14 Nov 2014 09:52:06 +0000
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [RFC V6 2/3] arm:add bitrev.h file to support rbit instruction
+Message-ID: <20141114095205.GF4042@n2100.arm.linux.org.uk>
+References: <20141030135749.GE32589@arm.com>
+ <35FD53F367049845BC99AC72306C23D103E010D18272@CNBJMBX05.corpusers.net>
+ <35FD53F367049845BC99AC72306C23D103E010D18273@CNBJMBX05.corpusers.net>
+ <35FD53F367049845BC99AC72306C23D103E010D18275@CNBJMBX05.corpusers.net>
+ <20141113235322.GC4042@n2100.arm.linux.org.uk>
+ <1415923530.4223.17.camel@perches.com>
+ <20141114001720.GD4042@n2100.arm.linux.org.uk>
+ <1415925943.4141.1.camel@perches.com>
+ <20141114011832.GE4042@n2100.arm.linux.org.uk>
+ <1415928394.4141.3.camel@perches.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/5] mm, compaction: always update cached scanner positions
-References: <1412696019-21761-1-git-send-email-vbabka@suse.cz> <1412696019-21761-5-git-send-email-vbabka@suse.cz> <20141027073522.GB23379@js1304-P5Q-DELUXE> <544E12B5.5070008@suse.cz> <20141028070818.GA27813@js1304-P5Q-DELUXE> <5453B088.6080605@suse.cz> <20141104002850.GA8412@js1304-P5Q-DELUXE>
-In-Reply-To: <20141104002850.GA8412@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1415928394.4141.3.camel@perches.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>
+To: Joe Perches <joe@perches.com>
+Cc: Takashi Iwai <tiwai@suse.de>, "Wang, Yalin" <Yalin.Wang@sonymobile.com>, 'Will Deacon' <will.deacon@arm.com>, 'Ard Biesheuvel' <ard.biesheuvel@linaro.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'akinobu.mita@gmail.com'" <akinobu.mita@gmail.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>
 
-On 11/04/2014 01:28 AM, Joonsoo Kim wrote:
-> On Fri, Oct 31, 2014 at 04:53:44PM +0100, Vlastimil Babka wrote:
->> On 10/28/2014 08:08 AM, Joonsoo Kim wrote:
->>
->> OK, so you don't find a problem with how this patch changes
->> migration scanner caching, just the free scanner, right?
->> So how about making release_freepages() return the highest freepage
->> pfn it encountered (could perhaps do without comparing individual
->> pfn's, the list should be ordered so it could be just the pfn of
->> first or last page in the list, but need to check that) and updating
->> cached free pfn with that? That should ensure rescanning only when
->> needed.
+On Thu, Nov 13, 2014 at 05:26:34PM -0800, Joe Perches wrote:
+> On Fri, 2014-11-14 at 01:18 +0000, Russell King - ARM Linux wrote:
+> > On Thu, Nov 13, 2014 at 04:45:43PM -0800, Joe Perches wrote:
+> > > I think you shouldn't apply these patches or updated
+> > > ones either until all the current uses are converted.
+> > 
+> > Where are the dependencies mentioned?
 > 
-> Hello,
+> I mentioned it when these patches (which are not
+> mine btw), were submitted the second time.
+
+Yes, I'm well aware that the author of the ARM patches are Yalin Wang.
+
+> https://lkml.org/lkml/2014/10/27/69
 > 
-> Updating cached free pfn in release_freepages() looks good to me.
+> > How do I get to know when all
+> > the dependencies are met?
 > 
-> In fact, I guess that migration scanner also has similar problems, but,
-> it's just my guess. I admit your following arguments in patch description.
+> No idea.
 > 
->    However, the downside is that potentially many pages are rescanned without
->    successful isolation. At worst, there might be a page where isolation from LRU
->    succeeds but migration fails (potentially always).
+> > Who is tracking the dependencies?
 > 
-> So, I'm okay if you update cached free pfn in release_freepages().
+> Not me.
 
-Hi, here's the patch-fix to update cached free pfn based on release_freepages().
-No significant difference in my testing.
+Right, what that means is that no one is doing that.  What you've also
+said in this thread now is that the ARM patches should not be applied
+until all the other users are converted.  As those patches are going via
+other trees, that means the ARM patches can only be applied _after_ the
+next merge window _if_ all maintainers pick up the previous set.
 
-------8<------
-From: Vlastimil Babka <vbabka@suse.cz>
-Date: Wed, 12 Nov 2014 16:37:21 +0100
-Subject: [PATCH] mm-compaction-always-update-cached-scanner-positions-fix
+As I'm not tracking the status of what other maintainers do, I'm simply
+going to avoid applying these patches until after the next merge window
+and hope that the other maintainers pick the dependent patches up and get
+them in during the next merge window.  If not, I guess we'll see compile
+breakage.
 
-This patch-fix addresses Joonsoo Kim's concerns about free pages potentially
-being skipped when they are isolated and then returned due to migration
-failure. It does so by setting the cached scanner pfn to the pageblock where
-where the free page with the highest pfn of all returned free pages resides.
-A small downside is that release_freepages() no longer returns the number of
-freed pages, which has been used in a VM_BUG_ON check. I don't think the check
-was important enough to warrant a more complex solution.
-
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Michal Nazarewicz <mina86@mina86.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: David Rientjes <rientjes@google.com>
-
----
-
-When squashed, the following paragraph should be appended to the fixed patch's
-changelog:
-
-To prevent free scanner from leaving free pages behind after they are returned
-due to page migration failure, the cached scanner pfn is changed to point to
-the pageblock of the returned free page with the highest pfn, before leaving
-compact_zone().
-
- mm/compaction.c | 29 +++++++++++++++++++++++------
- 1 file changed, 23 insertions(+), 6 deletions(-)
-
-diff --git a/mm/compaction.c b/mm/compaction.c
-index e0befc3..3669f92 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -41,15 +41,17 @@ static inline void count_compact_events(enum vm_event_item item, long delta)
- static unsigned long release_freepages(struct list_head *freelist)
- {
- 	struct page *page, *next;
--	unsigned long count = 0;
-+	unsigned long high_pfn = 0;
- 
- 	list_for_each_entry_safe(page, next, freelist, lru) {
-+		unsigned long pfn = page_to_pfn(page);
- 		list_del(&page->lru);
- 		__free_page(page);
--		count++;
-+		if (pfn > high_pfn)
-+			high_pfn = pfn;
- 	}
- 
--	return count;
-+	return high_pfn;
- }
- 
- static void map_pages(struct list_head *list)
-@@ -1223,9 +1225,24 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
- 	}
- 
- out:
--	/* Release free pages and check accounting */
--	cc->nr_freepages -= release_freepages(&cc->freepages);
--	VM_BUG_ON(cc->nr_freepages != 0);
-+	/*
-+	 * Release free pages and update where the free scanner should restart,
-+	 * so we don't leave any returned pages behind in the next attempt.
-+	 */
-+	if (cc->nr_freepages > 0) {
-+		unsigned long free_pfn = release_freepages(&cc->freepages);
-+		cc->nr_freepages = 0;
-+
-+		VM_BUG_ON(free_pfn == 0);
-+		/* The cached pfn is always the first in a pageblock */
-+		free_pfn &= ~(pageblock_nr_pages-1);
-+		/*
-+		 * Only go back, not forward. The cached pfn might have been
-+		 * already reset to zone end in compact_finished()
-+		 */
-+		if (free_pfn > zone->compact_cached_free_pfn)
-+			zone->compact_cached_free_pfn = free_pfn;
-+	}
- 
- 	trace_mm_compaction_end(ret);
- 
 -- 
-2.1.2
-
-
+FTTC broadband for 0.8mile line: currently at 9.5Mbps down 400kbps up
+according to speedtest.net.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
