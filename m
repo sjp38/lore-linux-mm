@@ -1,69 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f175.google.com (mail-qc0-f175.google.com [209.85.216.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 11A5B6B00CF
-	for <linux-mm@kvack.org>; Fri, 14 Nov 2014 12:55:39 -0500 (EST)
-Received: by mail-qc0-f175.google.com with SMTP id b13so14797643qcw.34
-        for <linux-mm@kvack.org>; Fri, 14 Nov 2014 09:55:38 -0800 (PST)
-Received: from mail-qc0-x22b.google.com (mail-qc0-x22b.google.com. [2607:f8b0:400d:c01::22b])
-        by mx.google.com with ESMTPS id 67si52186766qgx.12.2014.11.14.09.55.37
+Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
+	by kanga.kvack.org (Postfix) with ESMTP id A98136B00CF
+	for <linux-mm@kvack.org>; Fri, 14 Nov 2014 12:56:49 -0500 (EST)
+Received: by mail-lb0-f177.google.com with SMTP id z12so6263118lbi.8
+        for <linux-mm@kvack.org>; Fri, 14 Nov 2014 09:56:48 -0800 (PST)
+Received: from mail-la0-f51.google.com (mail-la0-f51.google.com. [209.85.215.51])
+        by mx.google.com with ESMTPS id ju18si20996769lab.8.2014.11.14.09.56.47
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 14 Nov 2014 09:55:37 -0800 (PST)
-Received: by mail-qc0-f171.google.com with SMTP id r5so1684493qcx.16
-        for <linux-mm@kvack.org>; Fri, 14 Nov 2014 09:55:37 -0800 (PST)
-Date: Fri, 14 Nov 2014 12:55:34 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC 1/4] OOM, PM: Do not miss OOM killed frozen tasks
-Message-ID: <20141114175534.GH25889@htj.dyndns.org>
-References: <20141110163055.GC18373@dhcp22.suse.cz>
- <1415818732-27712-1-git-send-email-mhocko@suse.cz>
- <1415818732-27712-2-git-send-email-mhocko@suse.cz>
+        Fri, 14 Nov 2014 09:56:48 -0800 (PST)
+Received: by mail-la0-f51.google.com with SMTP id q1so15529805lam.38
+        for <linux-mm@kvack.org>; Fri, 14 Nov 2014 09:56:47 -0800 (PST)
+Message-ID: <5466425D.1060100@cogentembedded.com>
+Date: Fri, 14 Nov 2014 20:56:45 +0300
+From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1415818732-27712-2-git-send-email-mhocko@suse.cz>
+Subject: Re: [PATCH 05/11] x86, mpx: add MPX to disaabled features
+References: <20141114151816.F56A3072@viggo.jf.intel.com> <20141114151823.B358EAD2@viggo.jf.intel.com>
+In-Reply-To: <20141114151823.B358EAD2@viggo.jf.intel.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-pm@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>
+To: Dave Hansen <dave@sr71.net>, hpa@zytor.com
+Cc: tglx@linutronix.de, mingo@redhat.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, qiaowei.ren@intel.com, dave.hansen@linux.intel.com
 
-Hello, Michal.
+Hello.
 
-On Wed, Nov 12, 2014 at 07:58:49PM +0100, Michal Hocko wrote:
-> Also change the return value semantic as the current one is little bit
-> awkward. There is just one caller (try_to_freeze_tasks) which checks
-> the return value and it is only interested whether the request was
-> successful or the task blocks the freezing progress. It is natural to
-> reflect the success by true rather than false.
+On 11/14/2014 06:18 PM, Dave Hansen wrote:
 
-I don't know about this.  It's also customary to return %true when
-further action needs to be taken.  I don't think either is
-particularly wrong but the flip seems gratuitous.
+> From: Dave Hansen <dave.hansen@linux.intel.com>
 
->  bool freeze_task(struct task_struct *p)
->  {
-> @@ -129,12 +130,20 @@ bool freeze_task(struct task_struct *p)
->  	 * normally.
->  	 */
->  	if (freezer_should_skip(p))
-> +		return true;
-> +
-> +	/*
-> +	 * Do not check freezing state or attempt to freeze a task
-> +	 * which has been killed by OOM killer. We are just waiting
-> +	 * for the task to wake up and die.
+> This allows us to use cpu_feature_enabled(X86_FEATURE_MPX) as
+> both a runtime and compile-time check.
 
-Maybe saying sth like "consider the task freezing as ...." is a
-clearer way to put it?
+> When CONFIG_X86_INTEL_MPX is disabled,
+> cpu_feature_enabled(X86_FEATURE_MPX) will evaluate at
+> compile-time to 0. If CONFIG_X86_INTEL_MPX=y, then the cpuid
+> flag will be checked at runtime.
 
-> +	 */
-> +	if (!test_tsk_thread_flag(p, TIF_MEMDIE))
->  		return false;
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> Signed-off-by: Qiaowei Ren <qiaowei.ren@intel.com>
+> ---
 
-Thanks.
+>   b/arch/x86/include/asm/disabled-features.h |    8 +++++++-
+>   1 file changed, 7 insertions(+), 1 deletion(-)
 
--- 
-tejun
+> diff -puN arch/x86/include/asm/disabled-features.h~mpx-v11-add-MPX-to-disaabled-features arch/x86/include/asm/disabled-features.h
+> --- a/arch/x86/include/asm/disabled-features.h~mpx-v11-add-MPX-to-disaabled-features	2014-11-14 07:06:22.297610243 -0800
+> +++ b/arch/x86/include/asm/disabled-features.h	2014-11-14 07:06:22.300610378 -0800
+[...]
+> @@ -34,6 +40,6 @@
+>   #define DISABLED_MASK6	0
+>   #define DISABLED_MASK7	0
+>   #define DISABLED_MASK8	0
+> -#define DISABLED_MASK9	0
+> +#define DISABLED_MASK9	(DISABLE_MPX)
+
+    These parens are not really needed. Sorry to be a PITA and not saying this 
+before.
+
+[...]
+
+WBR, Sergei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
