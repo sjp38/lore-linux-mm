@@ -1,104 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
-	by kanga.kvack.org (Postfix) with ESMTP id CE0E26B00CE
-	for <linux-mm@kvack.org>; Fri, 14 Nov 2014 09:49:29 -0500 (EST)
-Received: by mail-ob0-f173.google.com with SMTP id uy5so146163obc.4
-        for <linux-mm@kvack.org>; Fri, 14 Nov 2014 06:49:29 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id l10si32559435oep.3.2014.11.14.06.49.27
+Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 8544D6B00CC
+	for <linux-mm@kvack.org>; Fri, 14 Nov 2014 10:07:04 -0500 (EST)
+Received: by mail-qc0-f180.google.com with SMTP id i8so2256644qcq.25
+        for <linux-mm@kvack.org>; Fri, 14 Nov 2014 07:07:04 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k11si46724786qgk.28.2014.11.14.07.07.02
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 14 Nov 2014 06:49:28 -0800 (PST)
-Message-ID: <5466142C.60100@oracle.com>
-Date: Fri, 14 Nov 2014 09:39:40 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 14 Nov 2014 07:07:03 -0800 (PST)
+Message-ID: <54661A8C.5050806@redhat.com>
+Date: Fri, 14 Nov 2014 10:06:52 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: mm: shmem: freeing mlocked page
-References: <545C4A36.9050702@oracle.com>
-In-Reply-To: <545C4A36.9050702@oracle.com>
-Content-Type: text/plain; charset=utf-8
+Subject: Re: anon_vma accumulating for certain load still not addressed
+References: <20141114130822.GC22857@dhcp22.suse.cz>
+In-Reply-To: <20141114130822.GC22857@dhcp22.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
+To: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Andrea Argangeli <andrea@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Daniel Forrest <dan.forrest@ssec.wisc.edu>, LKML <linux-kernel@vger.kernel.org>
 
-On 11/06/2014 11:27 PM, Sasha Levin wrote:
-> Hi all,
-> 
-> While fuzzing with trinity inside a KVM tools guest running the latest -next
-> kernel, I've stumbled on the following spew:
-> 
-> [ 1441.564471] BUG: Bad page state in process trinity-c612  pfn:12593a
-> [ 1441.564476] page:ffffea0006e175c0 count:0 mapcount:0 mapping:          (null) index:
-> 0x49
-> [ 1441.564488] flags: 0xafffff8028000c(referenced|uptodate|swapbacked|mlocked)
-> [ 1441.564491] page dumped because: PAGE_FLAGS_CHECK_AT_FREE flag(s) set
-> [ 1441.564493] bad because of flags:
-> [ 1441.564498] flags: 0x200000(mlocked)
-> [ 1441.564503] Modules linked in:
-> [ 1441.564511] CPU: 2 PID: 11657 Comm: trinity-c612 Not tainted 3.18.0-rc3-next-20141106-sasha-00054-g09b7ccf-dirty #1447
-> [ 1441.564519]  0000000000000000 0000000000000000 1ffffffff3b44e48 ffff8805c969b868
-> [ 1441.564526]  ffffffff9c085024 0000000000000000 ffffea0006e175c0 ffff8805c969b898
-> [ 1441.564532]  ffffffff925fd0a1 ffffea0006e17628 dfffe90000000000 0000000000000000
-> [ 1441.564534] Call Trace:
-> [ 1441.568496] dump_stack (lib/dump_stack.c:52)
-> [ 1441.568516] bad_page (mm/page_alloc.c:338)
-> [ 1441.568523] free_pages_prepare (mm/page_alloc.c:649 mm/page_alloc.c:755)
-> [ 1441.568531] free_hot_cold_page (mm/page_alloc.c:1436)
-> [ 1441.568541] free_hot_cold_page_list (mm/page_alloc.c:1482 (discriminator 3))
-> [ 1441.568555] release_pages (mm/swap.c:961)
-> [ 1441.568566] __pagevec_release (include/linux/pagevec.h:44 mm/swap.c:978)
-> [ 1441.568579] shmem_undo_range (include/linux/pagevec.h:69 mm/shmem.c:451)
-> [ 1441.568591] shmem_truncate_range (mm/shmem.c:546)
-> [ 1441.568599] shmem_fallocate (include/linux/spinlock.h:309 mm/shmem.c:2092)
-> [ 1441.568612] ? __sb_start_write (fs/super.c:1208)
-> [ 1441.568622] ? __sb_start_write (fs/super.c:1208)
-> [ 1441.568633] do_fallocate (fs/open.c:297)
-> [ 1441.568648] SyS_madvise (mm/madvise.c:332 mm/madvise.c:381 mm/madvise.c:531 mm/madvise.c:462)
-> [ 1441.568660] ? syscall_trace_enter_phase1 (include/linux/context_tracking.h:27 arch/x86/kernel/ptrace.c:1486)
-> [ 1441.568672] tracesys_phase2 (arch/x86/kernel/entry_64.S:529)
-> 
-> I'm slightly confused here, because the page is mapcount==0, not LOCKED but still MLOCKED...
+On 11/14/2014 08:08 AM, Michal Hocko wrote:
+> Hi,
+> back in 2012 [1] there was a discussion about a forking load which
+> accumulates anon_vmas. There was a trivial test case which triggers this
+> and can potentially deplete the memory by local user.
+>
+> We have a report for an older enterprise distribution where nsd is
+> suffering from this issue most probably (I haven't debugged it throughly
+> but accumulating anon_vma structs over time sounds like a good enough
+> fit) and has to be restarted after some time to release the accumulated
+> anon_vma objects.
+>
+> There was a patch which tried to work around the issue [2] but I do not
+> see any follow ups nor any indication that the issue would be addressed
+> in other way.
+>
+> The test program from [1] was running for around 39 mins on my laptop
+> and here is the result:
+>
+> $ date +%s; grep anon_vma /proc/slabinfo
+> 1415960225
+> anon_vma           11664  11900    160   25    1 : tunables    0    0    0 : slabdata    476    476      0
+>
+> $ ./a # The reproducer
+>
+> $ date +%s; grep anon_vma /proc/slabinfo
+> 1415962592
+> anon_vma           34875  34875    160   25    1 : tunables    0    0    0 : slabdata   1395   1395      0
+>
+> $ killall a
+> $ date +%s; grep anon_vma /proc/slabinfo
+> 1415962607
+> anon_vma           11277  12175    160   25    1 : tunables    0    0    0 : slabdata    487    487      0
+>
+> So we have accumulated 23211 objects over that time period before the
+> offender was killed which released all of them.
+>
+> The proposed workaround is kind of ugly but do people have a better idea
+> than reference counting? If not should we merge it?
 
-So I got this as well:
+I believe we should just merge that patch.
 
-[ 1026.988043] BUG: Bad page state in process trinity-c374  pfn:23f70
-[ 1026.989684] page:ffffea0000b3d300 count:0 mapcount:0 mapping:          (null) index:0x5b
-[ 1026.991151] flags: 0x1fffff8028000c(referenced|uptodate|swapbacked|mlocked)
-[ 1026.992410] page dumped because: PAGE_FLAGS_CHECK_AT_FREE flag(s) set
-[ 1026.993479] bad because of flags:
-[ 1026.994125] flags: 0x200000(mlocked)
-[ 1026.994816] Modules linked in:
-[ 1026.995378] CPU: 7 PID: 7879 Comm: trinity-c374 Not tainted 3.18.0-rc4-next-20141113-sasha-00047-gd1763ce-dirty #1455
-[ 1026.996123] FAULT_INJECTION: forcing a failure.
-[ 1026.996123] name failslab, interval 100, probability 30, space 0, times -1
-[ 1026.999050]  0000000000000000 0000000000000000 0000000000b3d300 ffff88061295bbd8
-[ 1027.000676]  ffffffff92f71097 0000000000000000 ffffea0000b3d300 ffff88061295bc08
-[ 1027.002020]  ffffffff8197ef7a ffffea0000b3d300 ffffffff942dd148 dfffe90000000000
-[ 1027.003359] Call Trace:
-[ 1027.003831] dump_stack (lib/dump_stack.c:52)
-[ 1027.004725] bad_page (mm/page_alloc.c:338)
-[ 1027.005623] free_pages_prepare (mm/page_alloc.c:657 mm/page_alloc.c:763)
-[ 1027.006761] free_hot_cold_page (mm/page_alloc.c:1438)
-[ 1027.007772] ? __page_cache_release (mm/swap.c:66)
-[ 1027.008815] put_page (mm/swap.c:270)
-[ 1027.009665] page_cache_pipe_buf_release (fs/splice.c:93)
-[ 1027.010888] __splice_from_pipe (fs/splice.c:784 fs/splice.c:886)
-[ 1027.011917] ? might_fault (./arch/x86/include/asm/current.h:14 mm/memory.c:3734)
-[ 1027.012856] ? pipe_lock (fs/pipe.c:69)
-[ 1027.013728] ? write_pipe_buf (fs/splice.c:1534)
-[ 1027.014756] vmsplice_to_user (fs/splice.c:1574)
-[ 1027.015725] ? rcu_read_lock_held (kernel/rcu/update.c:169)
-[ 1027.016757] ? __fget_light (include/linux/fdtable.h:80 fs/file.c:684)
-[ 1027.017782] SyS_vmsplice (fs/splice.c:1656 fs/splice.c:1639)
-[ 1027.018863] tracesys_phase2 (arch/x86/kernel/entry_64.S:529)
+I have not seen any better ideas come by.
 
-Which makes me suspect I blamed shmem for nothing.
-
-
-Thanks,
-Sasha
+The comment should probably be fixed to reflect the
+chain length of 5 though :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
