@@ -1,117 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 7371E6B00D3
-	for <linux-mm@kvack.org>; Fri, 14 Nov 2014 01:55:14 -0500 (EST)
-Received: by mail-ie0-f182.google.com with SMTP id rd18so17372840iec.27
-        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 22:55:14 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0033.hostedemail.com. [216.40.44.33])
-        by mx.google.com with ESMTP id d198si40243358iod.76.2014.11.13.22.55.12
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id DD92E6B00D3
+	for <linux-mm@kvack.org>; Fri, 14 Nov 2014 02:02:59 -0500 (EST)
+Received: by mail-pd0-f178.google.com with SMTP id y13so1019025pdi.23
+        for <linux-mm@kvack.org>; Thu, 13 Nov 2014 23:02:59 -0800 (PST)
+Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id ry7si17711277pab.104.2014.11.13.23.02.57
         for <linux-mm@kvack.org>;
-        Thu, 13 Nov 2014 22:55:13 -0800 (PST)
-Message-ID: <1415948109.5912.12.camel@perches.com>
-Subject: Re: [RFC V6 2/3] arm:add bitrev.h file to support rbit instruction
-From: Joe Perches <joe@perches.com>
-Date: Thu, 13 Nov 2014 22:55:09 -0800
-In-Reply-To: <s5hd28qp9t2.wl-tiwai@suse.de>
-References: 
-	<35FD53F367049845BC99AC72306C23D103E010D18261@CNBJMBX05.corpusers.net>
-	 <35FD53F367049845BC99AC72306C23D103E010D18264@CNBJMBX05.corpusers.net>
-	 <35FD53F367049845BC99AC72306C23D103E010D18265@CNBJMBX05.corpusers.net>
-	 <35FD53F367049845BC99AC72306C23D103E010D18266@CNBJMBX05.corpusers.net>
-	 <20141030120127.GC32589@arm.com>
-	 <CAKv+Gu9g5Q6fjPUy+P8YxkeDrH+bdO4kKGnxTQZRFhQpgPxaPA@mail.gmail.com>
-	 <20141030135749.GE32589@arm.com>
-	 <35FD53F367049845BC99AC72306C23D103E010D18272@CNBJMBX05.corpusers.net>
-	 <35FD53F367049845BC99AC72306C23D103E010D18273@CNBJMBX05.corpusers.net>
-	 <35FD53F367049845BC99AC72306C23D103E010D18275@CNBJMBX05.corpusers.net>
-	 <20141113235322.GC4042@n2100.arm.linux.org.uk>
-	 <1415923530.4223.17.camel@perches.com> <s5hd28qp9t2.wl-tiwai@suse.de>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Thu, 13 Nov 2014 23:02:58 -0800 (PST)
+Date: Fri, 14 Nov 2014 16:05:02 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 5/5] mm, compaction: more focused lru and pcplists
+ draining
+Message-ID: <20141114070501.GA24817@js1304-P5Q-DELUXE>
+References: <1412696019-21761-1-git-send-email-vbabka@suse.cz>
+ <1412696019-21761-6-git-send-email-vbabka@suse.cz>
+ <20141027074112.GC23379@js1304-P5Q-DELUXE>
+ <545738F1.4010307@suse.cz>
+ <20141104003733.GB8412@js1304-P5Q-DELUXE>
+ <5464A84C.1040903@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5464A84C.1040903@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Takashi Iwai <tiwai@suse.de>
-Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, "Wang, Yalin" <Yalin.Wang@sonymobile.com>, 'Will Deacon' <will.deacon@arm.com>, 'Ard Biesheuvel' <ard.biesheuvel@linaro.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'akinobu.mita@gmail.com'" <akinobu.mita@gmail.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>
 
-On Fri, 2014-11-14 at 07:37 +0100, Takashi Iwai wrote:
-> At Thu, 13 Nov 2014 16:05:30 -0800,
-> Joe Perches wrote:
-> > 
-> > On Thu, 2014-11-13 at 23:53 +0000, Russell King - ARM Linux wrote:
-> > > On Fri, Oct 31, 2014 at 01:42:44PM +0800, Wang, Yalin wrote:
-> > > > This patch add bitrev.h file to support rbit instruction,
-> > > > so that we can do bitrev operation by hardware.
-> > > > Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
-> > > > ---
-> > > >  arch/arm/Kconfig              |  1 +
-> > > >  arch/arm/include/asm/bitrev.h | 21 +++++++++++++++++++++
-> > > >  2 files changed, 22 insertions(+)
-> > > >  create mode 100644 arch/arm/include/asm/bitrev.h
-> > > > 
-> > > > diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-> > > > index 89c4b5c..be92b3b 100644
-> > > > --- a/arch/arm/Kconfig
-> > > > +++ b/arch/arm/Kconfig
-> > > > @@ -28,6 +28,7 @@ config ARM
-> > > >  	select HANDLE_DOMAIN_IRQ
-> > > >  	select HARDIRQS_SW_RESEND
-> > > >  	select HAVE_ARCH_AUDITSYSCALL if (AEABI && !OABI_COMPAT)
-> > > > +	select HAVE_ARCH_BITREVERSE if (CPU_V7M || CPU_V7)
-> > > 
-> > > Looking at this, this is just wrong.  Take a moment to consider what
-> > > happens if we build a kernel which supports both ARMv6 _and_ ARMv7 CPUs.
-> > > What happens if an ARMv6 CPU tries to execute an rbit instruction?
-> > > 
-> > > Second point (which isn't obvious from your submissions on-list) is that
-> > > you've loaded the patch system up with patches for other parts of the
-> > > kernel tree for which I am not responsible for.  As such, I can't take
-> > > those patches without the sub-tree maintainer acking them.  Also, the
-> > > commit text in those patches look weird:
-> > > 
-> > > 6fire: Convert byte_rev_table uses to bitrev8
-> > > 
-> > > Use the inline function instead of directly indexing the array.
-> > > 
-> > > This allows some architectures with hardware instructions for bit
-> > > reversals to eliminate the array.
-> > > 
-> > > Signed-off-by: Joe Perches <(address hidden)>
-> > > Signed-off-by: Yalin Wang <(address hidden)>
-> > > 
-> > > Why is Joe signing off on these patches?
-> > > Shouldn't his entry be an Acked-by: ?
-> > 
-> > I didn't sign off on or ack the "add bitrev.h" patch.
-> > 
-> > I created 2 patches that converted direct uses of byte_rev_table
-> > to that bitrev8 static inline.  One of them is already in -next
-> > 
-> > 7a1283d8f5298437a454ec477384dcd9f9f88bac carl9170: Convert byte_rev_table uses to bitrev8
-> > 
-> > The other hasn't been applied.
-> > 
-> > https://lkml.org/lkml/2014/10/28/1056
-> > 
-> > Maybe Takashi Iwai will get around to it one day.
+On Thu, Nov 13, 2014 at 01:47:08PM +0100, Vlastimil Babka wrote:
+> On 11/04/2014 01:37 AM, Joonsoo Kim wrote:
+> >On Mon, Nov 03, 2014 at 09:12:33AM +0100, Vlastimil Babka wrote:
+> >>On 10/27/2014 08:41 AM, Joonsoo Kim wrote:
+> >>>On Tue, Oct 07, 2014 at 05:33:39PM +0200, Vlastimil Babka wrote:
+> >>>
+> >>>And, I wonder why last_migrated_pfn is set after isolate_migratepages().
+> >>
+> >>Not sure I understand your question. With the mistake above, it
+> >>cannot currently be set at the point isolate_migratepages() is
+> >>called, so you might question the goto check_drain in the
+> >>ISOLATE_NONE case, if that's what you are wondering about.
+> >>
+> >>When I correct that, it might be set when COMPACT_CLUSTER_MAX pages
+> >>are isolated and migrated the middle of a pageblock, and then the
+> >>rest of the pageblock contains no pages that could be isolated, so
+> >>the last isolate_migratepages() attempt in the pageblock returns
+> >>with ISOLATE_NONE. Still there were some migrations that produced
+> >>free pages that should be drained at that point.
+> >
+> >To clarify my question, I attach psuedo code that I thought correct.
 > 
-> It was not clear to me whether I should apply it individually from
-> others in the whole thread.  Your description looked as if it makes
-> sense only with ARM's bitrev8 support.
+> Sorry for the late reply.
 > 
-> So, again: should I apply this now to my tree?
+> >static int compact_zone()
+> >{
+> >         unsigned long last_migrated_pfn = 0;
+> >
+> >         ...
+> >
+> >         compaction_suitable();
+> >
+> >         ...
+> >
+> >         while (compact_finished()) {
+> >                 if (!last_migrated_pfn)
+> >                         last_migrated_pfn = cc->migrate_pfn - 1;
+> >
+> >                 isolate_migratepages();
+> >                 switch case
+> >                 migrate_pages();
+> >                 ...
+> >
+> >                 check_drain: (at the end of loop)
+> >                         do flush and reset last_migrated_pfn if needed
+> >         }
+> >}
+> >
+> >We should record last_migrated_pfn before isolate_migratepages() and
+> >then compare it with cc->migrate_pfn after isolate_migratepages() to
+> >know if we moved away from the previous cc->order aligned block.
+> >Am I missing something?
+> 
+> What about this scenario, with pageblock order:
+> 
+> - record cc->migrate_pfn pointing to pageblock X
+> - isolate_migratepages() skips the pageblock due to e.g. skip bit,
+> or the pageblock being a THP already...
+> - loop to pageblock X+1, last_migrated_pfn is still set to pfn of
+> pageblock X (more precisely the pfn is (X << pageblock_order) - 1
+> per your code, but doesn't matter)
+> - isolate_migratepages isolates something, but ends up somewhere in
+> the middle of pageblock due to COMPACT_CLUSTER_MAX
+> - cc->migrate_pfn points to pageblock X+1 (plus some pages it scanned)
+> - so it will decide that it has fully migrated pageblock X and it's
+> time to drain. But the drain is most likely useless - we didn't
+> migrate anything in pageblock X, we skipped it. And in X+1 we didn't
+> migrate everything yet, so we should drain only after finishing the
+> other part of the pageblock.
 
-I it would be good to apply even if the
-bitrev patch for arm is never applied.
+Yes, but, it can be easily fixed.
 
-$ git grep -w bitrev8 | wc -l
-110
+  while (compact_finished()) {
+          unsigned long prev_migrate_pfn = cc->migrate_pfn;
 
-vs
+          isolate_migratepages()
+          switch case {
+                  NONE:
+                  goto check_drain;
+                  SUCCESS:
+                  if (!last_migrated_pfn)
+                          last_migrated_pfn = prev_migrate_pfn;
+          }
 
-this last direct use of byte_rev_table.
+          ...
 
-cheers, Joe
+          check_drain: (at the end of loop)
+                ...
+}
+
+> In short, "last_migrated_pfn" is not "last position of migrate
+> scanner" but "last block where we *actually* migrated".
+
+Okay. Now I get it.
+Nevertheless, I'd like to change logic like above.
+
+One problem of your approach is that it can't detect some cases.
+
+Let's think about following case.
+'|' denotes aligned block boundary.
+'^' denotes migrate_pfn at certain time.
+
+Assume that last_migrated_pfn = 0;
+
+|--------------|-------------|--------------|
+   ^                ^
+  before isolate   after isolate
+
+In this case, your code just records position of second '^' to
+last_migrated_pfn and skip to flush. But, flush is needed if we
+migrate some pages because we move away from previous aligned block.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
