@@ -1,176 +1,202 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 175766B00D0
-	for <linux-mm@kvack.org>; Fri, 14 Nov 2014 10:07:39 -0500 (EST)
-Received: by mail-qc0-f174.google.com with SMTP id c9so2317559qcz.5
-        for <linux-mm@kvack.org>; Fri, 14 Nov 2014 07:07:38 -0800 (PST)
-Received: from relay.variantweb.net ([104.131.199.242])
-        by mx.google.com with ESMTP id 10si37552905qcp.44.2014.11.14.07.07.36
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id B012E6B00CA
+	for <linux-mm@kvack.org>; Fri, 14 Nov 2014 10:18:19 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id et14so2916249pad.17
+        for <linux-mm@kvack.org>; Fri, 14 Nov 2014 07:18:19 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id kl11si28657792pbd.55.2014.11.14.07.18.16
         for <linux-mm@kvack.org>;
-        Fri, 14 Nov 2014 07:07:37 -0800 (PST)
-Received: from mail (unknown [10.42.10.20])
-	by relay.variantweb.net (Postfix) with ESMTP id 30406101392
-	for <linux-mm@kvack.org>; Fri, 14 Nov 2014 10:07:33 -0500 (EST)
-Date: Fri, 14 Nov 2014 09:07:32 -0600
-From: Seth Jennings <sjennings@variantweb.net>
-Subject: Re: [PATCH] zsmalloc: correct fragile [kmap|kunmap]_atomic use
-Message-ID: <20141114150732.GA2402@cerebellum.variantweb.net>
-References: <1415927461-14220-1-git-send-email-minchan@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1415927461-14220-1-git-send-email-minchan@kernel.org>
+        Fri, 14 Nov 2014 07:18:17 -0800 (PST)
+Subject: [PATCH 00/11] [v11] Intel MPX support
+From: Dave Hansen <dave@sr71.net>
+Date: Fri, 14 Nov 2014 07:18:16 -0800
+Message-Id: <20141114151816.F56A3072@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dan Streetman <ddstreet@ieee.org>, Jerome Marchand <jmarchan@redhat.com>
+To: hpa@zytor.com
+Cc: tglx@linutronix.de, mingo@redhat.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, qiaowei.ren@intel.com, Dave Hansen <dave@sr71.net>
 
-On Fri, Nov 14, 2014 at 10:11:01AM +0900, Minchan Kim wrote:
-> The kunmap_atomic should use virtual address getting by kmap_atomic.
-> However, some pieces of code in zsmalloc uses modified address,
-> not the one got by kmap_atomic for kunmap_atomic.
-> 
-> It's okay for working because zsmalloc modifies the address
-> inner PAGE_SIZE bounday so it works with current kmap_atomic's
-> implementation. But it's still fragile with potential changing
-> of kmap_atomic so let's correct it.
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Seems like you could just use PAGE_MASK to get the base page address
-from link like this:
+Changes since v10:
+ * get rid of some generic #ifdefs and add mpx_mm_init(mm)
+ * add comment about reasons for doing xsaves
+ * Cleanups in "on-demand allocation" patch, and add a missing
+   return
+ * Changes in some of the unmapping code error handling.  Make
+   it more strict not to ever ignore unmapping errors.
+ * Add the get_xsave_addr() to one spot which was missed
+
+----
+
+Why am I cc'ing you on this?
+
+mips/ia64 folks: the only patch that applies to you is the'
+	 	 'struct siginfo' one.
+mm folks: the most interesting patches are the last 2 (excluding
+	  the Documentation/ one).
 
 ---
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index b3b57ef..d6ca05a 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -654,7 +654,7 @@ static void init_zspage(struct page *first_page, struct size_class *class)
-                 */
-                next_page = get_next_page(page);
-                link->next = obj_location_to_handle(next_page, 0);
--               kunmap_atomic(link);
-+               kunmap_atomic((void *)((unsigned long)link & PAGE_MASK));
-                page = next_page;
-                off %= PAGE_SIZE;
-        }
-@@ -1087,7 +1087,7 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
-                                        m_offset / sizeof(*link);
-        first_page->freelist = link->next;
-        memset(link, POISON_INUSE, sizeof(*link));
--       kunmap_atomic(link);
-+       kunmap_atomic((void *)((unsigned long)link & PAGE_MASK));
- 
-        first_page->inuse++;
-        /* Now move the zspage to another fullness group, if required */
-@@ -1124,7 +1124,7 @@ void zs_free(struct zs_pool *pool, unsigned long obj)
-        link = (struct link_free *)((unsigned char *)kmap_atomic(f_page)
-                                                        + f_offset);
-        link->next = first_page->freelist;
--       kunmap_atomic(link);
-+       kunmap_atomic((void *)((unsigned long)link & PAGE_MASK));
-        first_page->freelist = (void *)obj;
- 
-        first_page->inuse--;
+
+We (Intel) are also trying to get some code merged in to GCC for
+MPX.  It will be calling the new prctl()s introduced in this set.
+We need to get those numbers locked down an reserved in the
+kernel before we push the GCC code, though.
+
+This currently requires booting with 'noxsaves' to work around
+what I presume is an issue in the x86 'xsaves' code.  I'll work
+with the folks responsible to get it fixed up properlye
+
 ---
 
-This seems cleaner, but, at the same time, it isn't obvious that we are
-passing the same value to kunmap_atomic() that we got from
-kmap_atomic().  Just a thought.
+This patch set adds support for the Memory Protection eXtensions
+(MPX) feature found in future Intel processors. MPX is used in
+conjunction with compiler changes to check memory references, and
+can be used to catch buffer overflow or underflow.
 
-Either way:
+For MPX to work, changes are required in the kernel, binutils and
+compiler. No source changes are required for applications, just a
+recompile.
 
-Reviewed-by: Seth Jennings <sjennings@variantweb.net>
+There are a lot of moving parts of this to all work right:
 
-> 
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  mm/zsmalloc.c | 21 ++++++++++++---------
->  1 file changed, 12 insertions(+), 9 deletions(-)
-> 
-> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index b3b57ef85830..85e14f584048 100644
-> --- a/mm/zsmalloc.c
-> +++ b/mm/zsmalloc.c
-> @@ -629,6 +629,7 @@ static void init_zspage(struct page *first_page, struct size_class *class)
->  		struct page *next_page;
->  		struct link_free *link;
->  		unsigned int i = 1;
-> +		void *vaddr;
->  
->  		/*
->  		 * page->index stores offset of first object starting
-> @@ -639,8 +640,8 @@ static void init_zspage(struct page *first_page, struct size_class *class)
->  		if (page != first_page)
->  			page->index = off;
->  
-> -		link = (struct link_free *)kmap_atomic(page) +
-> -						off / sizeof(*link);
-> +		vaddr = kmap_atomic(page);
-> +		link = (struct link_free *)vaddr + off / sizeof(*link);
->  
->  		while ((off += class->size) < PAGE_SIZE) {
->  			link->next = obj_location_to_handle(page, i++);
-> @@ -654,7 +655,7 @@ static void init_zspage(struct page *first_page, struct size_class *class)
->  		 */
->  		next_page = get_next_page(page);
->  		link->next = obj_location_to_handle(next_page, 0);
-> -		kunmap_atomic(link);
-> +		kunmap_atomic(vaddr);
->  		page = next_page;
->  		off %= PAGE_SIZE;
->  	}
-> @@ -1055,6 +1056,7 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
->  	unsigned long obj;
->  	struct link_free *link;
->  	struct size_class *class;
-> +	void *vaddr;
->  
->  	struct page *first_page, *m_page;
->  	unsigned long m_objidx, m_offset;
-> @@ -1083,11 +1085,11 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
->  	obj_handle_to_location(obj, &m_page, &m_objidx);
->  	m_offset = obj_idx_to_offset(m_page, m_objidx, class->size);
->  
-> -	link = (struct link_free *)kmap_atomic(m_page) +
-> -					m_offset / sizeof(*link);
-> +	vaddr = kmap_atomic(m_page);
-> +	link = (struct link_free *)vaddr + m_offset / sizeof(*link);
->  	first_page->freelist = link->next;
->  	memset(link, POISON_INUSE, sizeof(*link));
-> -	kunmap_atomic(link);
-> +	kunmap_atomic(vaddr);
->  
->  	first_page->inuse++;
->  	/* Now move the zspage to another fullness group, if required */
-> @@ -1103,6 +1105,7 @@ void zs_free(struct zs_pool *pool, unsigned long obj)
->  	struct link_free *link;
->  	struct page *first_page, *f_page;
->  	unsigned long f_objidx, f_offset;
-> +	void *vaddr;
->  
->  	int class_idx;
->  	struct size_class *class;
-> @@ -1121,10 +1124,10 @@ void zs_free(struct zs_pool *pool, unsigned long obj)
->  	spin_lock(&class->lock);
->  
->  	/* Insert this object in containing zspage's freelist */
-> -	link = (struct link_free *)((unsigned char *)kmap_atomic(f_page)
-> -							+ f_offset);
-> +	vaddr = kmap_atomic(f_page);
-> +	link = (struct link_free *)(vaddr + f_offset);
->  	link->next = first_page->freelist;
-> -	kunmap_atomic(link);
-> +	kunmap_atomic(vaddr);
->  	first_page->freelist = (void *)obj;
->  
->  	first_page->inuse--;
-> -- 
-> 2.0.0
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+===== Example Compiler / Application / Kernel Interaction =====
+
+1. Application developer compiles with -fmpx.  The compiler will add the
+   instrumentation as well as some setup code called early after the app
+   starts. New instruction prefixes are noops for old CPUs.
+2. That setup code allocates (virtual) space for the "bounds directory",
+   points the "bndcfgu" register to the directory and notifies the
+   kernel (via the new prctl(PR_MPX_ENABLE_MANAGEMENT)) that the app will
+   be using MPX.
+3. The kernel detects that the CPU has MPX, allows the new prctl() to
+   succeed, and notes the location of the bounds directory. Userspace is
+   expected to keep the bounds directory at that location. We note it
+   instead of reading it each time because the 'xsave' operation needed
+   to access the bounds directory register is an expensive operation.
+4. If the application needs to spill bounds out of the 4 registers, it
+   issues a bndstx instruction.  Since the bounds directory is empty at
+   this point, a bounds fault (#BR) is raised, the kernel allocates a
+   bounds table (in the user address space) and makes the relevant
+   entry in the bounds directory point to the new table. [1]
+5. If the application violates the bounds specified in the bounds
+   registers, a separate kind of #BR is raised which will deliver a
+   signal with information about the violation in the 'struct siginfo'.
+6. Whenever memory is freed, we know that it can no longer contain
+   valid pointers, and we attempt to free the associated space in the
+   bounds tables. If an entire table becomes unused, we will attempt
+   to free the table and remove the entry in the directory.
+
+To summarize, there are essentially three things interacting here:
+
+GCC with -fmpx:
+ * enables annotation of code with MPX instructions and prefixes
+ * inserts code early in the application to call in to the "gcc runtime"
+GCC MPX Runtime:
+ * Checks for hardware MPX support in cpuid leaf
+ * allocates virtual space for the bounds directory (malloc()
+   essentially)
+ * points the hardware BNDCFGU register at the directory
+ * calls a new prctl() to notify the kernel to start managing the
+   bounds directories
+Kernel MPX Code:
+ * Checks for hardware MPX support in cpuid leaf
+ * Handles #BR exceptions and sends SIGSEGV to the app when it violates
+   bounds, like during a buffer overflow.
+ * When bounds are spilled in to an unallocated bounds table, the kernel
+   notices in the #BR exception, allocates the virtual space, then
+   updates the bounds directory to point to the new table. It keeps
+   special track of the memory with a specific ->vm_ops for MPX.
+ * Frees unused bounds tables at the time that the memory they described
+   is unmapped. (See "cleanup unused bound tables")
+
+===== Testing =====
+
+This patchset has been tested on real internal hardware platform at Intel.
+We have some simple unit tests in user space, which directly call MPX
+instructions to produce #BR to let kernel allocate bounds tables and cause
+bounds violations. We also compiled several benchmarks with an MPX-enabled
+compiler and ran them with this patch set. We found a number of bugs in this
+code in these tests.
+
+1. For more info on why the kernel does these allocations, see the patch
+"on-demand kernel allocation of bounds tables"
+
+Future TODO items:
+1) support 32-bit binaries on 64-bit kernels.
+2) Remove dependence on mmap_sem for ->bd_addr serialization
+3) Lots of performance work
+4) Manpage (not a kernel patch, but worth mentioning)  I have a
+   patch to do it and will submit once this is merged.
+5) prctl() so we can write wrappers to disable MPX in children
+6) Tracepoints to help diagnose what's going on
+
+Changes since v1:
+  * check to see if #BR occurred in userspace or kernel space.
+  * use generic structure and macro as much as possible when
+    decode mpx instructions.
+
+Changes since v2:
+  * fix some compile warnings.
+  * update documentation.
+
+Changes since v3:
+  * correct some syntax errors at documentation, and document
+    extended struct siginfo.
+  * for kill the process when the error code of BNDSTATUS is 3.
+  * add some comments.
+  * remove new prctl() commands.
+  * fix some compile warnings for 32-bit.
+
+Changes since v4:
+  * raise SIGBUS if the allocations of the bound tables fail.
+
+Changes since v5:
+  * hook unmap() path to cleanup unused bounds tables, and use
+    new prctl() command to register bounds directory address to
+    struct mm_struct to check whether one process is MPX enabled
+    during unmap().
+  * in order track precisely MPX memory usage, add MPX specific
+    mmap interface and one VM_MPX flag to check whether a VMA
+    is MPX bounds table.
+  * add macro cpu_has_mpx to do performance optimization.
+  * sync struct figinfo for mips with general version to avoid
+    build issue.
+
+Changes since v6:
+  * because arch_vma_name is removed, this patchset have toset MPX
+    specific ->vm_ops to do the same thing.
+  * fix warnings for 32 bit arch.
+  * add more description into these patches.
+
+Changes since v7:
+  * introduce VM_ARCH_2 flag. 
+  * remove all of the pr_debug()s.
+  * fix prctl numbers in documentation.
+  * fix some bugs on bounds tables freeing.
+
+Changes since v8:
+  * add new patch to rename cfg_reg_u and status_reg.
+  * add new patch to use disabled features from Dave's patches.
+  * add new patch to sync struct siginfo for IA64.
+  * rename two new prctl() commands to PR_MPX_ENABLE_MANAGEMENT and
+    PR_MPX_DISABLE_MANAGEMENT, check whether the management of bounds
+    tables in kernel is enabled at #BR fault time, and add locking to
+    protect the access to 'bd_addr'.
+  * update the documentation file to add more content about on-demand
+    allocation of bounds tables, etc..
+
+Changes since v9:
+ * New instruction decoder.  Uses generic infrastructure instead
+   of "private" MPX decoder. (details in that patch)
+ * Switched over to using get_user_pages() to handle faults when
+   we touch userspace.
+ * Lots of clarified comments and grammar fixups.
+ * Merged arch/x86/kernel/mpx.c and arch/x86/mm/mpx.c
+ * #ifdef'd the smaps display of the MPX flag (compile error on
+   non-x86)
+ * Added code to use new functions to access the "xsaves" compact
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
