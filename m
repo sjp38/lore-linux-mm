@@ -1,133 +1,360 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AAE66B00C3
-	for <linux-mm@kvack.org>; Sat, 15 Nov 2014 04:19:01 -0500 (EST)
-Received: by mail-pd0-f173.google.com with SMTP id v10so18206701pde.32
-        for <linux-mm@kvack.org>; Sat, 15 Nov 2014 01:19:01 -0800 (PST)
-Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
-        by mx.google.com with ESMTPS id y15si30512686pdj.67.2014.11.15.01.19.00
+Received: from mail-qc0-f178.google.com (mail-qc0-f178.google.com [209.85.216.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 87C406B00BF
+	for <linux-mm@kvack.org>; Sat, 15 Nov 2014 06:48:54 -0500 (EST)
+Received: by mail-qc0-f178.google.com with SMTP id b13so15584966qcw.37
+        for <linux-mm@kvack.org>; Sat, 15 Nov 2014 03:48:54 -0800 (PST)
+Received: from mail-qc0-x231.google.com (mail-qc0-x231.google.com. [2607:f8b0:400d:c01::231])
+        by mx.google.com with ESMTPS id r10si37751163qce.15.2014.11.15.03.48.52
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 15 Nov 2014 01:19:00 -0800 (PST)
-Received: by mail-pa0-f50.google.com with SMTP id eu11so18909772pac.23
-        for <linux-mm@kvack.org>; Sat, 15 Nov 2014 01:18:59 -0800 (PST)
-Date: Sat, 15 Nov 2014 18:19:21 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [PATCH] zram: rely on the bi_end_io for zram_rw_page fails
-Message-ID: <20141115091921.GA1046@swordfish>
-References: <1415926147-9023-1-git-send-email-minchan@kernel.org>
+        Sat, 15 Nov 2014 03:48:53 -0800 (PST)
+Received: by mail-qc0-f177.google.com with SMTP id l6so13797830qcy.8
+        for <linux-mm@kvack.org>; Sat, 15 Nov 2014 03:48:52 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1415926147-9023-1-git-send-email-minchan@kernel.org>
+From: Andrey Korolyov <andrey@xdel.ru>
+Date: Sat, 15 Nov 2014 15:48:32 +0400
+Message-ID: <CABYiri-do2YdfBx=r+u1kwXkEwN4v+yeRSHB-ODXo4gMFgW-Fg@mail.gmail.com>
+Subject: isolate_freepages_block and excessive CPU usage by OSD process
+Content-Type: multipart/mixed; boundary=001a11c2ca3057698c0507e4542d
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matthew Wilcox <matthew.r.wilcox@intel.com>, Karam Lee <karam.lee@lge.com>, Dave Chinner <david@fromorbit.com>
+To: "ceph-users@lists.ceph.com" <ceph-users@lists.ceph.com>
+Cc: riel@redhat.com, Mark Nelson <mark.nelson@inktank.com>, linux-mm@kvack.org
 
-Hi,
+--001a11c2ca3057698c0507e4542d
+Content-Type: text/plain; charset=UTF-8
 
-On (11/14/14 09:49), Minchan Kim wrote:
-> When I tested zram, I found processes got segfaulted.
-> The reason was zram_rw_page doesn't make the page dirty
-> again when swap write failed, and even it doesn't return
-> error by [1].
-> 
-> If error by zram internal happens, zram_rw_page should return
-> non-zero without calling page_endio.
-> It causes resubmit the IO with bio so that it ends up calling
-> bio->bi_end_io.
-> 
-> The reason is zram could be used for a block device for FS and
-> swap, which they uses different bio complete callback, which
-> works differently. So, we should rely on the bio I/O complete
-> handler rather than zram_bvec_rw itself in case of I/O fail.
-> 
-> This patch fixes the segfault issue as well one [1]'s
-> mentioned
-> 
-> [1] zram: make rw_page opeartion return 0
-> 
-> Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
-> Cc: Karam Lee <karam.lee@lge.com>
-> Cc: Dave Chinner <david@fromorbit.com>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  drivers/block/zram/zram_drv.c | 8 +++-----
->  1 file changed, 3 insertions(+), 5 deletions(-)
-> 
-> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-> index 4b4f4dbc3cfd..0e0650feab2a 100644
-> --- a/drivers/block/zram/zram_drv.c
-> +++ b/drivers/block/zram/zram_drv.c
-> @@ -978,12 +978,10 @@ static int zram_rw_page(struct block_device *bdev, sector_t sector,
->  out_unlock:
->  	up_read(&zram->init_lock);
->  out:
-> -	page_endio(page, rw, err);
-> +	if (unlikely(err))
-> +		return err;
+Hello,
 
-this unlikely() case can be turned into a likely() one:
+I had found recently that the OSD daemons under certain conditions
+(moderate vm pressure, moderate I/O, slightly altered vm settings) can
+go into loop involving isolate_freepages and effectively hit Ceph
+cluster performance. I found this thread
+https://lkml.org/lkml/2012/6/27/545, but looks like that the
+significant decrease of bdi max_ratio did not helped even for a bit.
+Although I have approximately a half of physical memory for cache-like
+stuff, the problem with mm persists, so I would like to try
+suggestions from the other people. In current testing iteration I had
+decreased vfs_cache_pressure to 10 and raised vm_dirty_ratio and
+background ratio to 15 and 10 correspondingly (because default values
+are too spiky for mine workloads). The host kernel is a linux-stable
+3.10.
 
-	if (err == 0)
-		page_endio(page, rw, 0);
-	return err;
+Non-default VM settings are:
+vm.swappiness = 5
+vm.dirty_ratio=10
+vm.dirty_background_ratio=5
+bdi_max_ratio was 100%, right now 20%, at a glance it looks like the
+situation worsened, because unstable OSD host cause domino-like effect
+on other hosts, which are starting to flap too and only cache flush
+via drop_caches is helping.
 
-> -	/*
-> -	 * Return 0 prevents I/O fallback trial caused by rw_page fail
-> -	 * and upper layer can handle this IO error via page error.
-> -	 */
-> +	page_endio(page, rw, 0);
->  	return 0;
->  }
+Unfortunately there are no slab info from "exhausted" state due to
+sporadic nature of this bug, will try to catch next time.
 
-seems like we also can drop at least one goto (jump-to-return) for
-invalid request.
+slabtop (normal state):
+ Active / Total Objects (% used)    : 8675843 / 8965833 (96.8%)
+ Active / Total Slabs (% used)      : 224858 / 224858 (100.0%)
+ Active / Total Caches (% used)     : 86 / 132 (65.2%)
+ Active / Total Size (% used)       : 1152171.37K / 1253116.37K (91.9%)
+ Minimum / Average / Maximum Object : 0.01K / 0.14K / 15.75K
 
-(not sure about `goto out_unblock', yet another up_read(&zram->init_lock)
-just will make function bigger).
+  OBJS ACTIVE  USE OBJ SIZE  SLABS OBJ/SLAB CACHE SIZE NAME
+6890130 6889185  99%    0.10K 176670       39    706680K buffer_head
+751232 721707  96%    0.06K  11738       64     46952K kmalloc-64
+251636 226228  89%    0.55K   8987       28    143792K radix_tree_node
+121696  45710  37%    0.25K   3803       32     30424K kmalloc-256
+113022  80618  71%    0.19K   2691       42     21528K dentry
+112672  35160  31%    0.50K   3521       32     56336K kmalloc-512
+ 73136  72800  99%    0.07K   1306       56      5224K Acpi-ParseExt
+ 61696  58644  95%    0.02K    241      256       964K kmalloc-16
+ 54348  36649  67%    0.38K   1294       42     20704K ip6_dst_cache
+ 53136  51787  97%    0.11K   1476       36      5904K sysfs_dir_cache
+ 51200  50724  99%    0.03K    400      128      1600K kmalloc-32
+ 49120  46105  93%    1.00K   1535       32     49120K xfs_inode
+ 30702  30702 100%    0.04K    301      102      1204K Acpi-Namespace
+ 28224  25742  91%    0.12K    882       32      3528K kmalloc-128
+ 28028  22691  80%    0.18K    637       44      5096K vm_area_struct
+ 28008  28008 100%    0.22K    778       36      6224K xfs_ili
+ 18944  18944 100%    0.01K     37      512       148K kmalloc-8
+ 16576  15154  91%    0.06K    259       64      1036K anon_vma
+ 16475  14200  86%    0.16K    659       25      2636K sigqueue
 
-Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+zoneinfo (normal state, attached)
 
----
+--001a11c2ca3057698c0507e4542d
+Content-Type: application/octet-stream; name=zoneinfo
+Content-Disposition: attachment; filename=zoneinfo
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_i2ivv1cs0
 
- drivers/block/zram/zram_drv.c | 13 ++++---------
- 1 file changed, 4 insertions(+), 9 deletions(-)
-
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index 0e0650f..decca6f 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -956,8 +956,7 @@ static int zram_rw_page(struct block_device *bdev, sector_t sector,
- 	zram = bdev->bd_disk->private_data;
- 	if (!valid_io_request(zram, sector, PAGE_SIZE)) {
- 		atomic64_inc(&zram->stats.invalid_io);
--		err = -EINVAL;
--		goto out;
-+		return -EINVAL;
- 	}
- 
- 	down_read(&zram->init_lock);
-@@ -974,15 +973,11 @@ static int zram_rw_page(struct block_device *bdev, sector_t sector,
- 	bv.bv_offset = 0;
- 
- 	err = zram_bvec_rw(zram, &bv, index, offset, rw);
--
- out_unlock:
- 	up_read(&zram->init_lock);
--out:
--	if (unlikely(err))
--		return err;
--
--	page_endio(page, rw, 0);
--	return 0;
-+	if (err == 0)
-+		page_endio(page, rw, 0);
-+	return err;
- }
- 
- static const struct block_device_operations zram_devops = {
+Tm9kZSAwLCB6b25lICAgICAgRE1BCiAgcGFnZXMgZnJlZSAgICAgMzk3MwogICAgICAgIG1pbiAg
+ICAgIDUKICAgICAgICBsb3cgICAgICA2CiAgICAgICAgaGlnaCAgICAgNwogICAgICAgIHNjYW5u
+ZWQgIDAKICAgICAgICBzcGFubmVkICA0MDk1CiAgICAgICAgcHJlc2VudCAgMzk5NAogICAgICAg
+IG1hbmFnZWQgIDM5NzMKICAgIG5yX2ZyZWVfcGFnZXMgMzk3MwogICAgbnJfaW5hY3RpdmVfYW5v
+biAwCiAgICBucl9hY3RpdmVfYW5vbiAwCiAgICBucl9pbmFjdGl2ZV9maWxlIDAKICAgIG5yX2Fj
+dGl2ZV9maWxlIDAKICAgIG5yX3VuZXZpY3RhYmxlIDAKICAgIG5yX21sb2NrICAgICAwCiAgICBu
+cl9hbm9uX3BhZ2VzIDAKICAgIG5yX21hcHBlZCAgICAwCiAgICBucl9maWxlX3BhZ2VzIDAKICAg
+IG5yX2RpcnR5ICAgICAwCiAgICBucl93cml0ZWJhY2sgMAogICAgbnJfc2xhYl9yZWNsYWltYWJs
+ZSAwCiAgICBucl9zbGFiX3VucmVjbGFpbWFibGUgMAogICAgbnJfcGFnZV90YWJsZV9wYWdlcyAw
+CiAgICBucl9rZXJuZWxfc3RhY2sgMAogICAgbnJfdW5zdGFibGUgIDAKICAgIG5yX2JvdW5jZSAg
+ICAwCiAgICBucl92bXNjYW5fd3JpdGUgMAogICAgbnJfdm1zY2FuX2ltbWVkaWF0ZV9yZWNsYWlt
+IDAKICAgIG5yX3dyaXRlYmFja190ZW1wIDAKICAgIG5yX2lzb2xhdGVkX2Fub24gMAogICAgbnJf
+aXNvbGF0ZWRfZmlsZSAwCiAgICBucl9zaG1lbSAgICAgMAogICAgbnJfZGlydGllZCAgIDAKICAg
+IG5yX3dyaXR0ZW4gICAwCiAgICBudW1hX2hpdCAgICAgMAogICAgbnVtYV9taXNzICAgIDAKICAg
+IG51bWFfZm9yZWlnbiAwCiAgICBudW1hX2ludGVybGVhdmUgMAogICAgbnVtYV9sb2NhbCAgIDAK
+ICAgIG51bWFfb3RoZXIgICAwCiAgICBucl9hbm9uX3RyYW5zcGFyZW50X2h1Z2VwYWdlcyAwCiAg
+ICBucl9mcmVlX2NtYSAgMAogICAgICAgIHByb3RlY3Rpb246ICgwLCAxOTE0LCAzMjEyMSwgMzIx
+MjEpCiAgcGFnZXNldHMKICAgIGNwdTogMAogICAgICAgICAgICAgIGNvdW50OiAwCiAgICAgICAg
+ICAgICAgaGlnaDogIDAKICAgICAgICAgICAgICBiYXRjaDogMQogIHZtIHN0YXRzIHRocmVzaG9s
+ZDogMTAKICAgIGNwdTogMQogICAgICAgICAgICAgIGNvdW50OiAwCiAgICAgICAgICAgICAgaGln
+aDogIDAKICAgICAgICAgICAgICBiYXRjaDogMQogIHZtIHN0YXRzIHRocmVzaG9sZDogMTAKICAg
+IGNwdTogMgogICAgICAgICAgICAgIGNvdW50OiAwCiAgICAgICAgICAgICAgaGlnaDogIDAKICAg
+ICAgICAgICAgICBiYXRjaDogMQogIHZtIHN0YXRzIHRocmVzaG9sZDogMTAKICAgIGNwdTogMwog
+ICAgICAgICAgICAgIGNvdW50OiAwCiAgICAgICAgICAgICAgaGlnaDogIDAKICAgICAgICAgICAg
+ICBiYXRjaDogMQogIHZtIHN0YXRzIHRocmVzaG9sZDogMTAKICAgIGNwdTogNAogICAgICAgICAg
+ICAgIGNvdW50OiAwCiAgICAgICAgICAgICAgaGlnaDogIDAKICAgICAgICAgICAgICBiYXRjaDog
+MQogIHZtIHN0YXRzIHRocmVzaG9sZDogMTAKICAgIGNwdTogNQogICAgICAgICAgICAgIGNvdW50
+OiAwCiAgICAgICAgICAgICAgaGlnaDogIDAKICAgICAgICAgICAgICBiYXRjaDogMQogIHZtIHN0
+YXRzIHRocmVzaG9sZDogMTAKICAgIGNwdTogNgogICAgICAgICAgICAgIGNvdW50OiAwCiAgICAg
+ICAgICAgICAgaGlnaDogIDAKICAgICAgICAgICAgICBiYXRjaDogMQogIHZtIHN0YXRzIHRocmVz
+aG9sZDogMTAKICAgIGNwdTogNwogICAgICAgICAgICAgIGNvdW50OiAwCiAgICAgICAgICAgICAg
+aGlnaDogIDAKICAgICAgICAgICAgICBiYXRjaDogMQogIHZtIHN0YXRzIHRocmVzaG9sZDogMTAK
+ICAgIGNwdTogOAogICAgICAgICAgICAgIGNvdW50OiAwCiAgICAgICAgICAgICAgaGlnaDogIDAK
+ICAgICAgICAgICAgICBiYXRjaDogMQogIHZtIHN0YXRzIHRocmVzaG9sZDogMTAKICAgIGNwdTog
+OQogICAgICAgICAgICAgIGNvdW50OiAwCiAgICAgICAgICAgICAgaGlnaDogIDAKICAgICAgICAg
+ICAgICBiYXRjaDogMQogIHZtIHN0YXRzIHRocmVzaG9sZDogMTAKICAgIGNwdTogMTAKICAgICAg
+ICAgICAgICBjb3VudDogMAogICAgICAgICAgICAgIGhpZ2g6ICAwCiAgICAgICAgICAgICAgYmF0
+Y2g6IDEKICB2bSBzdGF0cyB0aHJlc2hvbGQ6IDEwCiAgICBjcHU6IDExCiAgICAgICAgICAgICAg
+Y291bnQ6IDAKICAgICAgICAgICAgICBoaWdoOiAgMAogICAgICAgICAgICAgIGJhdGNoOiAxCiAg
+dm0gc3RhdHMgdGhyZXNob2xkOiAxMAogICAgY3B1OiAxMgogICAgICAgICAgICAgIGNvdW50OiAw
+CiAgICAgICAgICAgICAgaGlnaDogIDAKICAgICAgICAgICAgICBiYXRjaDogMQogIHZtIHN0YXRz
+IHRocmVzaG9sZDogMTAKICAgIGNwdTogMTMKICAgICAgICAgICAgICBjb3VudDogMAogICAgICAg
+ICAgICAgIGhpZ2g6ICAwCiAgICAgICAgICAgICAgYmF0Y2g6IDEKICB2bSBzdGF0cyB0aHJlc2hv
+bGQ6IDEwCiAgICBjcHU6IDE0CiAgICAgICAgICAgICAgY291bnQ6IDAKICAgICAgICAgICAgICBo
+aWdoOiAgMAogICAgICAgICAgICAgIGJhdGNoOiAxCiAgdm0gc3RhdHMgdGhyZXNob2xkOiAxMAog
+ICAgY3B1OiAxNQogICAgICAgICAgICAgIGNvdW50OiAwCiAgICAgICAgICAgICAgaGlnaDogIDAK
+ICAgICAgICAgICAgICBiYXRjaDogMQogIHZtIHN0YXRzIHRocmVzaG9sZDogMTAKICAgIGNwdTog
+MTYKICAgICAgICAgICAgICBjb3VudDogMAogICAgICAgICAgICAgIGhpZ2g6ICAwCiAgICAgICAg
+ICAgICAgYmF0Y2g6IDEKICB2bSBzdGF0cyB0aHJlc2hvbGQ6IDEwCiAgICBjcHU6IDE3CiAgICAg
+ICAgICAgICAgY291bnQ6IDAKICAgICAgICAgICAgICBoaWdoOiAgMAogICAgICAgICAgICAgIGJh
+dGNoOiAxCiAgdm0gc3RhdHMgdGhyZXNob2xkOiAxMAogICAgY3B1OiAxOAogICAgICAgICAgICAg
+IGNvdW50OiAwCiAgICAgICAgICAgICAgaGlnaDogIDAKICAgICAgICAgICAgICBiYXRjaDogMQog
+IHZtIHN0YXRzIHRocmVzaG9sZDogMTAKICAgIGNwdTogMTkKICAgICAgICAgICAgICBjb3VudDog
+MAogICAgICAgICAgICAgIGhpZ2g6ICAwCiAgICAgICAgICAgICAgYmF0Y2g6IDEKICB2bSBzdGF0
+cyB0aHJlc2hvbGQ6IDEwCiAgICBjcHU6IDIwCiAgICAgICAgICAgICAgY291bnQ6IDAKICAgICAg
+ICAgICAgICBoaWdoOiAgMAogICAgICAgICAgICAgIGJhdGNoOiAxCiAgdm0gc3RhdHMgdGhyZXNo
+b2xkOiAxMAogICAgY3B1OiAyMQogICAgICAgICAgICAgIGNvdW50OiAwCiAgICAgICAgICAgICAg
+aGlnaDogIDAKICAgICAgICAgICAgICBiYXRjaDogMQogIHZtIHN0YXRzIHRocmVzaG9sZDogMTAK
+ICAgIGNwdTogMjIKICAgICAgICAgICAgICBjb3VudDogMAogICAgICAgICAgICAgIGhpZ2g6ICAw
+CiAgICAgICAgICAgICAgYmF0Y2g6IDEKICB2bSBzdGF0cyB0aHJlc2hvbGQ6IDEwCiAgICBjcHU6
+IDIzCiAgICAgICAgICAgICAgY291bnQ6IDAKICAgICAgICAgICAgICBoaWdoOiAgMAogICAgICAg
+ICAgICAgIGJhdGNoOiAxCiAgdm0gc3RhdHMgdGhyZXNob2xkOiAxMAogIGFsbF91bnJlY2xhaW1h
+YmxlOiAxCiAgc3RhcnRfcGZuOiAgICAgICAgIDEKICBpbmFjdGl2ZV9yYXRpbzogICAgMQpOb2Rl
+IDAsIHpvbmUgICAgRE1BMzIKICBwYWdlcyBmcmVlICAgICAzMjIyMwogICAgICAgIG1pbiAgICAg
+IDY2OQogICAgICAgIGxvdyAgICAgIDgzNgogICAgICAgIGhpZ2ggICAgIDEwMDMKICAgICAgICBz
+Y2FubmVkICAwCiAgICAgICAgc3Bhbm5lZCAgMTA0NDQ4MAogICAgICAgIHByZXNlbnQgIDUxMTky
+NgogICAgICAgIG1hbmFnZWQgIDQ5MDIzOQogICAgbnJfZnJlZV9wYWdlcyAzMjIyMwogICAgbnJf
+aW5hY3RpdmVfYW5vbiAyNzcKICAgIG5yX2FjdGl2ZV9hbm9uIDQ1NTMzCiAgICBucl9pbmFjdGl2
+ZV9maWxlIDIyNzY5OAogICAgbnJfYWN0aXZlX2ZpbGUgMTIyMTEyCiAgICBucl91bmV2aWN0YWJs
+ZSA0NzYwCiAgICBucl9tbG9jayAgICAgNDc2MAogICAgbnJfYW5vbl9wYWdlcyA0OTc4MQogICAg
+bnJfbWFwcGVkICAgIDEzMwogICAgbnJfZmlsZV9wYWdlcyAzNTAwODcKICAgIG5yX2RpcnR5ICAg
+ICAxNjAKICAgIG5yX3dyaXRlYmFjayAwCiAgICBucl9zbGFiX3JlY2xhaW1hYmxlIDIwNDE4CiAg
+ICBucl9zbGFiX3VucmVjbGFpbWFibGUgMzAyMjgKICAgIG5yX3BhZ2VfdGFibGVfcGFnZXMgMTkw
+CiAgICBucl9rZXJuZWxfc3RhY2sgNDM2CiAgICBucl91bnN0YWJsZSAgMAogICAgbnJfYm91bmNl
+ICAgIDAKICAgIG5yX3Ztc2Nhbl93cml0ZSAyCiAgICBucl92bXNjYW5faW1tZWRpYXRlX3JlY2xh
+aW0gMzQ5OQogICAgbnJfd3JpdGViYWNrX3RlbXAgMAogICAgbnJfaXNvbGF0ZWRfYW5vbiAwCiAg
+ICBucl9pc29sYXRlZF9maWxlIDAKICAgIG5yX3NobWVtICAgICAyNzcKICAgIG5yX2RpcnRpZWQg
+ICA2MDk4MDc2MzEKICAgIG5yX3dyaXR0ZW4gICA2MDk3MzQ0NjcKICAgIG51bWFfaGl0ICAgICA2
+OTc5NzYxMTg1CiAgICBudW1hX21pc3MgICAgMzk0MTMyNDIwMQogICAgbnVtYV9mb3JlaWduIDAK
+ICAgIG51bWFfaW50ZXJsZWF2ZSAwCiAgICBudW1hX2xvY2FsICAgNjk3OTc1MTg1MQogICAgbnVt
+YV9vdGhlciAgIDM5NDEzMzM1MzUKICAgIG5yX2Fub25fdHJhbnNwYXJlbnRfaHVnZXBhZ2VzIDEK
+ICAgIG5yX2ZyZWVfY21hICAwCiAgICAgICAgcHJvdGVjdGlvbjogKDAsIDAsIDMwMjA2LCAzMDIw
+NikKICBwYWdlc2V0cwogICAgY3B1OiAwCiAgICAgICAgICAgICAgY291bnQ6IDEyCiAgICAgICAg
+ICAgICAgaGlnaDogIDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVz
+aG9sZDogNTAKICAgIGNwdTogMQogICAgICAgICAgICAgIGNvdW50OiA4CiAgICAgICAgICAgICAg
+aGlnaDogIDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVzaG9sZDog
+NTAKICAgIGNwdTogMgogICAgICAgICAgICAgIGNvdW50OiA2MAogICAgICAgICAgICAgIGhpZ2g6
+ICAxODYKICAgICAgICAgICAgICBiYXRjaDogMzEKICB2bSBzdGF0cyB0aHJlc2hvbGQ6IDUwCiAg
+ICBjcHU6IDMKICAgICAgICAgICAgICBjb3VudDogNDUKICAgICAgICAgICAgICBoaWdoOiAgMTg2
+CiAgICAgICAgICAgICAgYmF0Y2g6IDMxCiAgdm0gc3RhdHMgdGhyZXNob2xkOiA1MAogICAgY3B1
+OiA0CiAgICAgICAgICAgICAgY291bnQ6IDEyCiAgICAgICAgICAgICAgaGlnaDogIDE4NgogICAg
+ICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVzaG9sZDogNTAKICAgIGNwdTogNQog
+ICAgICAgICAgICAgIGNvdW50OiAzCiAgICAgICAgICAgICAgaGlnaDogIDE4NgogICAgICAgICAg
+ICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVzaG9sZDogNTAKICAgIGNwdTogNgogICAgICAg
+ICAgICAgIGNvdW50OiA0OQogICAgICAgICAgICAgIGhpZ2g6ICAxODYKICAgICAgICAgICAgICBi
+YXRjaDogMzEKICB2bSBzdGF0cyB0aHJlc2hvbGQ6IDUwCiAgICBjcHU6IDcKICAgICAgICAgICAg
+ICBjb3VudDogMjgKICAgICAgICAgICAgICBoaWdoOiAgMTg2CiAgICAgICAgICAgICAgYmF0Y2g6
+IDMxCiAgdm0gc3RhdHMgdGhyZXNob2xkOiA1MAogICAgY3B1OiA4CiAgICAgICAgICAgICAgY291
+bnQ6IDAKICAgICAgICAgICAgICBoaWdoOiAgMTg2CiAgICAgICAgICAgICAgYmF0Y2g6IDMxCiAg
+dm0gc3RhdHMgdGhyZXNob2xkOiA1MAogICAgY3B1OiA5CiAgICAgICAgICAgICAgY291bnQ6IDUK
+ICAgICAgICAgICAgICBoaWdoOiAgMTg2CiAgICAgICAgICAgICAgYmF0Y2g6IDMxCiAgdm0gc3Rh
+dHMgdGhyZXNob2xkOiA1MAogICAgY3B1OiAxMAogICAgICAgICAgICAgIGNvdW50OiAwCiAgICAg
+ICAgICAgICAgaGlnaDogIDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRo
+cmVzaG9sZDogNTAKICAgIGNwdTogMTEKICAgICAgICAgICAgICBjb3VudDogMAogICAgICAgICAg
+ICAgIGhpZ2g6ICAxODYKICAgICAgICAgICAgICBiYXRjaDogMzEKICB2bSBzdGF0cyB0aHJlc2hv
+bGQ6IDUwCiAgICBjcHU6IDEyCiAgICAgICAgICAgICAgY291bnQ6IDE5CiAgICAgICAgICAgICAg
+aGlnaDogIDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVzaG9sZDog
+NTAKICAgIGNwdTogMTMKICAgICAgICAgICAgICBjb3VudDogMQogICAgICAgICAgICAgIGhpZ2g6
+ICAxODYKICAgICAgICAgICAgICBiYXRjaDogMzEKICB2bSBzdGF0cyB0aHJlc2hvbGQ6IDUwCiAg
+ICBjcHU6IDE0CiAgICAgICAgICAgICAgY291bnQ6IDEyCiAgICAgICAgICAgICAgaGlnaDogIDE4
+NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVzaG9sZDogNTAKICAgIGNw
+dTogMTUKICAgICAgICAgICAgICBjb3VudDogMTYyCiAgICAgICAgICAgICAgaGlnaDogIDE4Ngog
+ICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVzaG9sZDogNTAKICAgIGNwdTog
+MTYKICAgICAgICAgICAgICBjb3VudDogMTQKICAgICAgICAgICAgICBoaWdoOiAgMTg2CiAgICAg
+ICAgICAgICAgYmF0Y2g6IDMxCiAgdm0gc3RhdHMgdGhyZXNob2xkOiA1MAogICAgY3B1OiAxNwog
+ICAgICAgICAgICAgIGNvdW50OiAwCiAgICAgICAgICAgICAgaGlnaDogIDE4NgogICAgICAgICAg
+ICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVzaG9sZDogNTAKICAgIGNwdTogMTgKICAgICAg
+ICAgICAgICBjb3VudDogMwogICAgICAgICAgICAgIGhpZ2g6ICAxODYKICAgICAgICAgICAgICBi
+YXRjaDogMzEKICB2bSBzdGF0cyB0aHJlc2hvbGQ6IDUwCiAgICBjcHU6IDE5CiAgICAgICAgICAg
+ICAgY291bnQ6IDAKICAgICAgICAgICAgICBoaWdoOiAgMTg2CiAgICAgICAgICAgICAgYmF0Y2g6
+IDMxCiAgdm0gc3RhdHMgdGhyZXNob2xkOiA1MAogICAgY3B1OiAyMAogICAgICAgICAgICAgIGNv
+dW50OiAwCiAgICAgICAgICAgICAgaGlnaDogIDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQog
+IHZtIHN0YXRzIHRocmVzaG9sZDogNTAKICAgIGNwdTogMjEKICAgICAgICAgICAgICBjb3VudDog
+MAogICAgICAgICAgICAgIGhpZ2g6ICAxODYKICAgICAgICAgICAgICBiYXRjaDogMzEKICB2bSBz
+dGF0cyB0aHJlc2hvbGQ6IDUwCiAgICBjcHU6IDIyCiAgICAgICAgICAgICAgY291bnQ6IDAKICAg
+ICAgICAgICAgICBoaWdoOiAgMTg2CiAgICAgICAgICAgICAgYmF0Y2g6IDMxCiAgdm0gc3RhdHMg
+dGhyZXNob2xkOiA1MAogICAgY3B1OiAyMwogICAgICAgICAgICAgIGNvdW50OiAwCiAgICAgICAg
+ICAgICAgaGlnaDogIDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVz
+aG9sZDogNTAKICBhbGxfdW5yZWNsYWltYWJsZTogMAogIHN0YXJ0X3BmbjogICAgICAgICA0MDk2
+CiAgaW5hY3RpdmVfcmF0aW86ICAgIDMKTm9kZSAwLCB6b25lICAgTm9ybWFsCiAgcGFnZXMgZnJl
+ZSAgICAgMzI5NjAKICAgICAgICBtaW4gICAgICAxMDU2OAogICAgICAgIGxvdyAgICAgIDEzMjEw
+CiAgICAgICAgaGlnaCAgICAgMTU4NTIKICAgICAgICBzY2FubmVkICAwCiAgICAgICAgc3Bhbm5l
+ZCAgNzg2NDMyMAogICAgICAgIHByZXNlbnQgIDc4NjQzMjAKICAgICAgICBtYW5hZ2VkICA3NzMy
+ODI4CiAgICBucl9mcmVlX3BhZ2VzIDMyOTYwCiAgICBucl9pbmFjdGl2ZV9hbm9uIDExMTkxCiAg
+ICBucl9hY3RpdmVfYW5vbiAzMDM2OTEzCiAgICBucl9pbmFjdGl2ZV9maWxlIDMyMjM4ODUKICAg
+IG5yX2FjdGl2ZV9maWxlIDExMjc5NjYKICAgIG5yX3VuZXZpY3RhYmxlIDQwODYKICAgIG5yX21s
+b2NrICAgICA0MDg2CiAgICBucl9hbm9uX3BhZ2VzIDIzNjM3NDUKICAgIG5yX21hcHBlZCAgICAz
+NDE5MQogICAgbnJfZmlsZV9wYWdlcyA0MzU4ODcyCiAgICBucl9kaXJ0eSAgICAgMjkyNgogICAg
+bnJfd3JpdGViYWNrIDAKICAgIG5yX3NsYWJfcmVjbGFpbWFibGUgODI2MjMKICAgIG5yX3NsYWJf
+dW5yZWNsYWltYWJsZSAyNDAyNgogICAgbnJfcGFnZV90YWJsZV9wYWdlcyAxMjYxMQogICAgbnJf
+a2VybmVsX3N0YWNrIDE4NDIKICAgIG5yX3Vuc3RhYmxlICAwCiAgICBucl9ib3VuY2UgICAgMAog
+ICAgbnJfdm1zY2FuX3dyaXRlIDU5CiAgICBucl92bXNjYW5faW1tZWRpYXRlX3JlY2xhaW0gMjk2
+MDIKICAgIG5yX3dyaXRlYmFja190ZW1wIDAKICAgIG5yX2lzb2xhdGVkX2Fub24gMAogICAgbnJf
+aXNvbGF0ZWRfZmlsZSAwCiAgICBucl9zaG1lbSAgICAgNjM0OAogICAgbnJfZGlydGllZCAgIDgz
+NDczMDU0MDEKICAgIG5yX3dyaXR0ZW4gICA4MzQzMjIyNDU2CiAgICBudW1hX2hpdCAgICAgNDk1
+OTQ2MTM4MTcKICAgIG51bWFfbWlzcyAgICA2MzU0NTcwOTYKICAgIG51bWFfZm9yZWlnbiAzOTEy
+NTE4NzYKICAgIG51bWFfaW50ZXJsZWF2ZSAyMDA2MwogICAgbnVtYV9sb2NhbCAgIDQ5NTk0NDkw
+NjAwCiAgICBudW1hX290aGVyICAgNjM1NTgwMzEzCiAgICBucl9hbm9uX3RyYW5zcGFyZW50X2h1
+Z2VwYWdlcyAxMzMxCiAgICBucl9mcmVlX2NtYSAgMAogICAgICAgIHByb3RlY3Rpb246ICgwLCAw
+LCAwLCAwKQogIHBhZ2VzZXRzCiAgICBjcHU6IDAKICAgICAgICAgICAgICBjb3VudDogNTgKICAg
+ICAgICAgICAgICBoaWdoOiAgMTg2CiAgICAgICAgICAgICAgYmF0Y2g6IDMxCiAgdm0gc3RhdHMg
+dGhyZXNob2xkOiA5MAogICAgY3B1OiAxCiAgICAgICAgICAgICAgY291bnQ6IDE2MQogICAgICAg
+ICAgICAgIGhpZ2g6ICAxODYKICAgICAgICAgICAgICBiYXRjaDogMzEKICB2bSBzdGF0cyB0aHJl
+c2hvbGQ6IDkwCiAgICBjcHU6IDIKICAgICAgICAgICAgICBjb3VudDogMTU5CiAgICAgICAgICAg
+ICAgaGlnaDogIDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVzaG9s
+ZDogOTAKICAgIGNwdTogMwogICAgICAgICAgICAgIGNvdW50OiAxNzAKICAgICAgICAgICAgICBo
+aWdoOiAgMTg2CiAgICAgICAgICAgICAgYmF0Y2g6IDMxCiAgdm0gc3RhdHMgdGhyZXNob2xkOiA5
+MAogICAgY3B1OiA0CiAgICAgICAgICAgICAgY291bnQ6IDE1OQogICAgICAgICAgICAgIGhpZ2g6
+ICAxODYKICAgICAgICAgICAgICBiYXRjaDogMzEKICB2bSBzdGF0cyB0aHJlc2hvbGQ6IDkwCiAg
+ICBjcHU6IDUKICAgICAgICAgICAgICBjb3VudDogNzgKICAgICAgICAgICAgICBoaWdoOiAgMTg2
+CiAgICAgICAgICAgICAgYmF0Y2g6IDMxCiAgdm0gc3RhdHMgdGhyZXNob2xkOiA5MAogICAgY3B1
+OiA2CiAgICAgICAgICAgICAgY291bnQ6IDY0CiAgICAgICAgICAgICAgaGlnaDogIDE4NgogICAg
+ICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVzaG9sZDogOTAKICAgIGNwdTogNwog
+ICAgICAgICAgICAgIGNvdW50OiAxNTEKICAgICAgICAgICAgICBoaWdoOiAgMTg2CiAgICAgICAg
+ICAgICAgYmF0Y2g6IDMxCiAgdm0gc3RhdHMgdGhyZXNob2xkOiA5MAogICAgY3B1OiA4CiAgICAg
+ICAgICAgICAgY291bnQ6IDE4MgogICAgICAgICAgICAgIGhpZ2g6ICAxODYKICAgICAgICAgICAg
+ICBiYXRjaDogMzEKICB2bSBzdGF0cyB0aHJlc2hvbGQ6IDkwCiAgICBjcHU6IDkKICAgICAgICAg
+ICAgICBjb3VudDogMTczCiAgICAgICAgICAgICAgaGlnaDogIDE4NgogICAgICAgICAgICAgIGJh
+dGNoOiAzMQogIHZtIHN0YXRzIHRocmVzaG9sZDogOTAKICAgIGNwdTogMTAKICAgICAgICAgICAg
+ICBjb3VudDogMTY0CiAgICAgICAgICAgICAgaGlnaDogIDE4NgogICAgICAgICAgICAgIGJhdGNo
+OiAzMQogIHZtIHN0YXRzIHRocmVzaG9sZDogOTAKICAgIGNwdTogMTEKICAgICAgICAgICAgICBj
+b3VudDogMTY1CiAgICAgICAgICAgICAgaGlnaDogIDE4NgogICAgICAgICAgICAgIGJhdGNoOiAz
+MQogIHZtIHN0YXRzIHRocmVzaG9sZDogOTAKICAgIGNwdTogMTIKICAgICAgICAgICAgICBjb3Vu
+dDogMTc2CiAgICAgICAgICAgICAgaGlnaDogIDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQog
+IHZtIHN0YXRzIHRocmVzaG9sZDogOTAKICAgIGNwdTogMTMKICAgICAgICAgICAgICBjb3VudDog
+MTU2CiAgICAgICAgICAgICAgaGlnaDogIDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZt
+IHN0YXRzIHRocmVzaG9sZDogOTAKICAgIGNwdTogMTQKICAgICAgICAgICAgICBjb3VudDogMTU3
+CiAgICAgICAgICAgICAgaGlnaDogIDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0
+YXRzIHRocmVzaG9sZDogOTAKICAgIGNwdTogMTUKICAgICAgICAgICAgICBjb3VudDogMTM1CiAg
+ICAgICAgICAgICAgaGlnaDogIDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRz
+IHRocmVzaG9sZDogOTAKICAgIGNwdTogMTYKICAgICAgICAgICAgICBjb3VudDogMTU4CiAgICAg
+ICAgICAgICAgaGlnaDogIDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRo
+cmVzaG9sZDogOTAKICAgIGNwdTogMTcKICAgICAgICAgICAgICBjb3VudDogMTcyCiAgICAgICAg
+ICAgICAgaGlnaDogIDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVz
+aG9sZDogOTAKICAgIGNwdTogMTgKICAgICAgICAgICAgICBjb3VudDogMTY3CiAgICAgICAgICAg
+ICAgaGlnaDogIDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVzaG9s
+ZDogOTAKICAgIGNwdTogMTkKICAgICAgICAgICAgICBjb3VudDogMTcxCiAgICAgICAgICAgICAg
+aGlnaDogIDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVzaG9sZDog
+OTAKICAgIGNwdTogMjAKICAgICAgICAgICAgICBjb3VudDogMTY5CiAgICAgICAgICAgICAgaGln
+aDogIDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVzaG9sZDogOTAK
+ICAgIGNwdTogMjEKICAgICAgICAgICAgICBjb3VudDogMTU3CiAgICAgICAgICAgICAgaGlnaDog
+IDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVzaG9sZDogOTAKICAg
+IGNwdTogMjIKICAgICAgICAgICAgICBjb3VudDogMTc3CiAgICAgICAgICAgICAgaGlnaDogIDE4
+NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVzaG9sZDogOTAKICAgIGNw
+dTogMjMKICAgICAgICAgICAgICBjb3VudDogMTYxCiAgICAgICAgICAgICAgaGlnaDogIDE4Ngog
+ICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVzaG9sZDogOTAKICBhbGxfdW5y
+ZWNsYWltYWJsZTogMAogIHN0YXJ0X3BmbjogICAgICAgICAxMDQ4NTc2CiAgaW5hY3RpdmVfcmF0
+aW86ICAgIDE3Ck5vZGUgMSwgem9uZSAgIE5vcm1hbAogIHBhZ2VzIGZyZWUgICAgIDE0ODgwCiAg
+ICAgICAgbWluICAgICAgMTEyODQKICAgICAgICBsb3cgICAgICAxNDEwNQogICAgICAgIGhpZ2gg
+ICAgIDE2OTI2CiAgICAgICAgc2Nhbm5lZCAgMAogICAgICAgIHNwYW5uZWQgIDgzODg2MDgKICAg
+ICAgICBwcmVzZW50ICA4Mzg4NjA4CiAgICAgICAgbWFuYWdlZCAgODI1NzA1NgogICAgbnJfZnJl
+ZV9wYWdlcyAxNDg4MAogICAgbnJfaW5hY3RpdmVfYW5vbiAxMzE0MAogICAgbnJfYWN0aXZlX2Fu
+b24gMjU2OTI2OQogICAgbnJfaW5hY3RpdmVfZmlsZSAzNzE1Nzk3CiAgICBucl9hY3RpdmVfZmls
+ZSAxNjU5OTcwCiAgICBucl91bmV2aWN0YWJsZSAxNTQ2NAogICAgbnJfbWxvY2sgICAgIDE1NDY0
+CiAgICBucl9hbm9uX3BhZ2VzIDEzMTA2OTgKICAgIG5yX21hcHBlZCAgICA0NTMwMQogICAgbnJf
+ZmlsZV9wYWdlcyA1Mzg3MTAyCiAgICBucl9kaXJ0eSAgICAgMzU1MQogICAgbnJfd3JpdGViYWNr
+IDAKICAgIG5yX3NsYWJfcmVjbGFpbWFibGUgMTM1NTcyCiAgICBucl9zbGFiX3VucmVjbGFpbWFi
+bGUgMjQwOTMKICAgIG5yX3BhZ2VfdGFibGVfcGFnZXMgNjY3NwogICAgbnJfa2VybmVsX3N0YWNr
+IDc3NQogICAgbnJfdW5zdGFibGUgIDAKICAgIG5yX2JvdW5jZSAgICAwCiAgICBucl92bXNjYW5f
+d3JpdGUgMAogICAgbnJfdm1zY2FuX2ltbWVkaWF0ZV9yZWNsYWltIDU3ODU0CiAgICBucl93cml0
+ZWJhY2tfdGVtcCAwCiAgICBucl9pc29sYXRlZF9hbm9uIDAKICAgIG5yX2lzb2xhdGVkX2ZpbGUg
+MAogICAgbnJfc2htZW0gICAgIDEwMzE3CiAgICBucl9kaXJ0aWVkICAgMTMzMjU5MTE3NjMKICAg
+IG5yX3dyaXR0ZW4gICAxMzMyMDYzMDU4MQogICAgbnVtYV9oaXQgICAgIDQzNTEwMDA4NTY1CiAg
+ICBudW1hX21pc3MgICAgMzkxMjUxODc2CiAgICBudW1hX2ZvcmVpZ24gNDU3Njc4MTI5NwogICAg
+bnVtYV9pbnRlcmxlYXZlIDE5ODY3CiAgICBudW1hX2xvY2FsICAgNDM1MDk5NzM0MTAKICAgIG51
+bWFfb3RoZXIgICAzOTEyODcwMzEKICAgIG5yX2Fub25fdHJhbnNwYXJlbnRfaHVnZXBhZ2VzIDI0
+OTIKICAgIG5yX2ZyZWVfY21hICAwCiAgICAgICAgcHJvdGVjdGlvbjogKDAsIDAsIDAsIDApCiAg
+cGFnZXNldHMKICAgIGNwdTogMAogICAgICAgICAgICAgIGNvdW50OiAxNTUKICAgICAgICAgICAg
+ICBoaWdoOiAgMTg2CiAgICAgICAgICAgICAgYmF0Y2g6IDMxCiAgdm0gc3RhdHMgdGhyZXNob2xk
+OiA5MAogICAgY3B1OiAxCiAgICAgICAgICAgICAgY291bnQ6IDE3MwogICAgICAgICAgICAgIGhp
+Z2g6ICAxODYKICAgICAgICAgICAgICBiYXRjaDogMzEKICB2bSBzdGF0cyB0aHJlc2hvbGQ6IDkw
+CiAgICBjcHU6IDIKICAgICAgICAgICAgICBjb3VudDogMTA0CiAgICAgICAgICAgICAgaGlnaDog
+IDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVzaG9sZDogOTAKICAg
+IGNwdTogMwogICAgICAgICAgICAgIGNvdW50OiAxNjgKICAgICAgICAgICAgICBoaWdoOiAgMTg2
+CiAgICAgICAgICAgICAgYmF0Y2g6IDMxCiAgdm0gc3RhdHMgdGhyZXNob2xkOiA5MAogICAgY3B1
+OiA0CiAgICAgICAgICAgICAgY291bnQ6IDE1OAogICAgICAgICAgICAgIGhpZ2g6ICAxODYKICAg
+ICAgICAgICAgICBiYXRjaDogMzEKICB2bSBzdGF0cyB0aHJlc2hvbGQ6IDkwCiAgICBjcHU6IDUK
+ICAgICAgICAgICAgICBjb3VudDogMTY5CiAgICAgICAgICAgICAgaGlnaDogIDE4NgogICAgICAg
+ICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVzaG9sZDogOTAKICAgIGNwdTogNgogICAg
+ICAgICAgICAgIGNvdW50OiA1MwogICAgICAgICAgICAgIGhpZ2g6ICAxODYKICAgICAgICAgICAg
+ICBiYXRjaDogMzEKICB2bSBzdGF0cyB0aHJlc2hvbGQ6IDkwCiAgICBjcHU6IDcKICAgICAgICAg
+ICAgICBjb3VudDogODEKICAgICAgICAgICAgICBoaWdoOiAgMTg2CiAgICAgICAgICAgICAgYmF0
+Y2g6IDMxCiAgdm0gc3RhdHMgdGhyZXNob2xkOiA5MAogICAgY3B1OiA4CiAgICAgICAgICAgICAg
+Y291bnQ6IDYzCiAgICAgICAgICAgICAgaGlnaDogIDE4NgogICAgICAgICAgICAgIGJhdGNoOiAz
+MQogIHZtIHN0YXRzIHRocmVzaG9sZDogOTAKICAgIGNwdTogOQogICAgICAgICAgICAgIGNvdW50
+OiAxNjgKICAgICAgICAgICAgICBoaWdoOiAgMTg2CiAgICAgICAgICAgICAgYmF0Y2g6IDMxCiAg
+dm0gc3RhdHMgdGhyZXNob2xkOiA5MAogICAgY3B1OiAxMAogICAgICAgICAgICAgIGNvdW50OiA0
+NgogICAgICAgICAgICAgIGhpZ2g6ICAxODYKICAgICAgICAgICAgICBiYXRjaDogMzEKICB2bSBz
+dGF0cyB0aHJlc2hvbGQ6IDkwCiAgICBjcHU6IDExCiAgICAgICAgICAgICAgY291bnQ6IDI4CiAg
+ICAgICAgICAgICAgaGlnaDogIDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRz
+IHRocmVzaG9sZDogOTAKICAgIGNwdTogMTIKICAgICAgICAgICAgICBjb3VudDogMTYxCiAgICAg
+ICAgICAgICAgaGlnaDogIDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRo
+cmVzaG9sZDogOTAKICAgIGNwdTogMTMKICAgICAgICAgICAgICBjb3VudDogMTc3CiAgICAgICAg
+ICAgICAgaGlnaDogIDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVz
+aG9sZDogOTAKICAgIGNwdTogMTQKICAgICAgICAgICAgICBjb3VudDogMTU1CiAgICAgICAgICAg
+ICAgaGlnaDogIDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVzaG9s
+ZDogOTAKICAgIGNwdTogMTUKICAgICAgICAgICAgICBjb3VudDogMTgxCiAgICAgICAgICAgICAg
+aGlnaDogIDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVzaG9sZDog
+OTAKICAgIGNwdTogMTYKICAgICAgICAgICAgICBjb3VudDogMTY0CiAgICAgICAgICAgICAgaGln
+aDogIDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVzaG9sZDogOTAK
+ICAgIGNwdTogMTcKICAgICAgICAgICAgICBjb3VudDogMTg1CiAgICAgICAgICAgICAgaGlnaDog
+IDE4NgogICAgICAgICAgICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVzaG9sZDogOTAKICAg
+IGNwdTogMTgKICAgICAgICAgICAgICBjb3VudDogNjkKICAgICAgICAgICAgICBoaWdoOiAgMTg2
+CiAgICAgICAgICAgICAgYmF0Y2g6IDMxCiAgdm0gc3RhdHMgdGhyZXNob2xkOiA5MAogICAgY3B1
+OiAxOQogICAgICAgICAgICAgIGNvdW50OiA3NQogICAgICAgICAgICAgIGhpZ2g6ICAxODYKICAg
+ICAgICAgICAgICBiYXRjaDogMzEKICB2bSBzdGF0cyB0aHJlc2hvbGQ6IDkwCiAgICBjcHU6IDIw
+CiAgICAgICAgICAgICAgY291bnQ6IDE1MQogICAgICAgICAgICAgIGhpZ2g6ICAxODYKICAgICAg
+ICAgICAgICBiYXRjaDogMzEKICB2bSBzdGF0cyB0aHJlc2hvbGQ6IDkwCiAgICBjcHU6IDIxCiAg
+ICAgICAgICAgICAgY291bnQ6IDkxCiAgICAgICAgICAgICAgaGlnaDogIDE4NgogICAgICAgICAg
+ICAgIGJhdGNoOiAzMQogIHZtIHN0YXRzIHRocmVzaG9sZDogOTAKICAgIGNwdTogMjIKICAgICAg
+ICAgICAgICBjb3VudDogNTEKICAgICAgICAgICAgICBoaWdoOiAgMTg2CiAgICAgICAgICAgICAg
+YmF0Y2g6IDMxCiAgdm0gc3RhdHMgdGhyZXNob2xkOiA5MAogICAgY3B1OiAyMwogICAgICAgICAg
+ICAgIGNvdW50OiA1NgogICAgICAgICAgICAgIGhpZ2g6ICAxODYKICAgICAgICAgICAgICBiYXRj
+aDogMzEKICB2bSBzdGF0cyB0aHJlc2hvbGQ6IDkwCiAgYWxsX3VucmVjbGFpbWFibGU6IDAKICBz
+dGFydF9wZm46ICAgICAgICAgODkxMjg5NgogIGluYWN0aXZlX3JhdGlvOiAgICAxNwo=
+--001a11c2ca3057698c0507e4542d--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
