@@ -1,66 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f42.google.com (mail-qa0-f42.google.com [209.85.216.42])
-	by kanga.kvack.org (Postfix) with ESMTP id BE4B86B00D1
-	for <linux-mm@kvack.org>; Fri, 14 Nov 2014 15:14:25 -0500 (EST)
-Received: by mail-qa0-f42.google.com with SMTP id j7so1205542qaq.15
-        for <linux-mm@kvack.org>; Fri, 14 Nov 2014 12:14:24 -0800 (PST)
-Received: from mail-qa0-x229.google.com (mail-qa0-x229.google.com. [2607:f8b0:400d:c00::229])
-        by mx.google.com with ESMTPS id f5si4794333qgf.125.2014.11.14.12.14.23
+Received: from mail-vc0-f180.google.com (mail-vc0-f180.google.com [209.85.220.180])
+	by kanga.kvack.org (Postfix) with ESMTP id A88616B00CE
+	for <linux-mm@kvack.org>; Fri, 14 Nov 2014 20:41:04 -0500 (EST)
+Received: by mail-vc0-f180.google.com with SMTP id im6so2777971vcb.25
+        for <linux-mm@kvack.org>; Fri, 14 Nov 2014 17:41:04 -0800 (PST)
+Received: from mail-vc0-x235.google.com (mail-vc0-x235.google.com. [2607:f8b0:400c:c03::235])
+        by mx.google.com with ESMTPS id ez5si18813442vdc.25.2014.11.14.17.41.03
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 14 Nov 2014 12:14:23 -0800 (PST)
-Received: by mail-qa0-f41.google.com with SMTP id s7so12208785qap.14
-        for <linux-mm@kvack.org>; Fri, 14 Nov 2014 12:14:22 -0800 (PST)
-Date: Fri, 14 Nov 2014 15:14:19 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC 0/4] OOM vs PM freezer fixes
-Message-ID: <20141114201419.GI25889@htj.dyndns.org>
-References: <20141110163055.GC18373@dhcp22.suse.cz>
- <1415818732-27712-1-git-send-email-mhocko@suse.cz>
+        Fri, 14 Nov 2014 17:41:03 -0800 (PST)
+Received: by mail-vc0-f181.google.com with SMTP id le20so2848479vcb.40
+        for <linux-mm@kvack.org>; Fri, 14 Nov 2014 17:41:02 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1415818732-27712-1-git-send-email-mhocko@suse.cz>
+In-Reply-To: <1415971986-16143-1-git-send-email-mgorman@suse.de>
+References: <1415971986-16143-1-git-send-email-mgorman@suse.de>
+Date: Fri, 14 Nov 2014 17:41:02 -0800
+Message-ID: <CA+55aFx-_EU6pgSY61YsA8qYVtNnz8PeJzU=h-NQy8pMJU-jxQ@mail.gmail.com>
+Subject: Re: [RFC PATCH 0/7] Replace _PAGE_NUMA with PAGE_NONE protections
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-pm@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@redhat.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Sasha Levin <sasha.levin@oracle.com>
 
-On Wed, Nov 12, 2014 at 07:58:48PM +0100, Michal Hocko wrote:
-> Hi,
-> here is another take at OOM vs. PM freezer interaction fixes/cleanups.
-> First three patches are fixes for an unlikely cases when OOM races with
-> the PM freezer which should be closed completely finally. The last patch
-> is a simple code enhancement which is not needed strictly speaking but
-> it is nice to have IMO.
-> 
-> Both OOM killer and PM freezer are quite subtle so I hope I haven't
-> missing anything. Any feedback is highly appreciated. I am also
-> interested about feedback for the used approach. To be honest I am not
-> really happy about spreading TIF_MEMDIE checks into freezer (patch 1)
-> but I didn't find any other way for detecting OOM killed tasks.
+On Fri, Nov 14, 2014 at 5:32 AM, Mel Gorman <mgorman@suse.de> wrote:
+>
+> This series is very heavily based on patches from Linus and Aneesh to
+> replace the existing PTE/PMD NUMA helper functions with normal change
+> protections. I did alter and add parts of it but I consider them relatively
+> minor contributions. Note that the signed-offs here need addressing. I
+> couldn't use "From" or Signed-off-by from the original authors as the
+> patches had to be broken up and they were never signed off. I expect the
+> two people involved will just stick their signed-off-by on it.
 
-I really don't get why this is structured this way.  Can't you just do
-the following?
+Feel free to just take authorship of my parts, and make my
+"Needs-sign-off's" be just "Acked-by:"
 
-1. Freeze all freezables.  Don't worry about PF_MEMDIE.
+Or alternatively keep them as "Signed-off-by:", even when it looks a
+bit odd if it doesn't have a "From:" me, when the actual patch won't
+then actually go through me - I'm assuming this will come in through
+the -mm tree.
 
-2. Disable OOM killer.  This should be contained in the OOM killer
-   proper.  Lock out the OOM killer and disable it.
+As to the ppc parts, obviously it would be good to have Aneesh re-test
+the series..
 
-3. At this point, we know that no one will create more freezable
-   threads and no new process will be OOM kliled.  Wait till there's
-   no process w/ PF_MEMDIE set.
-
-There's no reason to lock out or disable OOM killer while the system
-is not in the quiescent state, which is a big can of worms.  Bring
-down the system to the quiescent state, disable the OOM killer and
-then drain PF_MEMDIEs.
-
-Thanks.
-
--- 
-tejun
+                    Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
