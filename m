@@ -1,152 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 2586A6B00A8
-	for <linux-mm@kvack.org>; Sat, 15 Nov 2014 13:52:28 -0500 (EST)
-Received: by mail-qg0-f52.google.com with SMTP id a108so1867108qge.11
-        for <linux-mm@kvack.org>; Sat, 15 Nov 2014 10:52:27 -0800 (PST)
-Received: from mail-qa0-x233.google.com (mail-qa0-x233.google.com. [2607:f8b0:400d:c00::233])
-        by mx.google.com with ESMTPS id t8si4050693qak.69.2014.11.15.10.52.25
+Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
+	by kanga.kvack.org (Postfix) with ESMTP id D516F6B0093
+	for <linux-mm@kvack.org>; Sun, 16 Nov 2014 06:41:39 -0500 (EST)
+Received: by mail-ob0-f182.google.com with SMTP id nt9so15754754obb.41
+        for <linux-mm@kvack.org>; Sun, 16 Nov 2014 03:41:39 -0800 (PST)
+Received: from mail-oi0-x22c.google.com (mail-oi0-x22c.google.com. [2607:f8b0:4003:c06::22c])
+        by mx.google.com with ESMTPS id mt3si19283664oeb.29.2014.11.16.03.41.37
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 15 Nov 2014 10:52:26 -0800 (PST)
-Received: by mail-qa0-f51.google.com with SMTP id k15so1500189qaq.38
-        for <linux-mm@kvack.org>; Sat, 15 Nov 2014 10:52:25 -0800 (PST)
+        Sun, 16 Nov 2014 03:41:38 -0800 (PST)
+Received: by mail-oi0-f44.google.com with SMTP id e131so1413066oig.17
+        for <linux-mm@kvack.org>; Sun, 16 Nov 2014 03:41:37 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <54679F43.8040706@suse.cz>
-References: <CABYiri-do2YdfBx=r+u1kwXkEwN4v+yeRSHB-ODXo4gMFgW-Fg@mail.gmail.com>
- <54678020.9090402@suse.cz> <CABYiri-bT=uN9msTGinMKqUaoqhx0B6+FROdOLMTsoBWCz6vWg@mail.gmail.com>
- <54679F43.8040706@suse.cz>
-From: Andrey Korolyov <andrey@xdel.ru>
-Date: Sat, 15 Nov 2014 22:52:05 +0400
-Message-ID: <CABYiri-bnDJgVVwrL8uE28zFvEU5TR8qrqe_gqsUH6u9yyRaWA@mail.gmail.com>
-Subject: Re: isolate_freepages_block and excessive CPU usage by OSD process
+In-Reply-To: <1415927461-14220-1-git-send-email-minchan@kernel.org>
+References: <1415927461-14220-1-git-send-email-minchan@kernel.org>
+Date: Sun, 16 Nov 2014 19:41:37 +0800
+Message-ID: <CADAEsF9UXD7qfKH6eSU30qODxGS4D6eHTaX-s1ezcw12hyNbrw@mail.gmail.com>
+Subject: Re: [PATCH] zsmalloc: correct fragile [kmap|kunmap]_atomic use
+From: Ganesh Mahendran <opensource.ganesh@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: "ceph-users@lists.ceph.com" <ceph-users@lists.ceph.com>, riel@redhat.com, Mark Nelson <mark.nelson@inktank.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjennings@variantweb.net>, Jerome Marchand <jmarchan@redhat.com>
 
-On Sat, Nov 15, 2014 at 9:45 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
-> On 11/15/2014 06:10 PM, Andrey Korolyov wrote:
->> On Sat, Nov 15, 2014 at 7:32 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
->>> On 11/15/2014 12:48 PM, Andrey Korolyov wrote:
->>>> Hello,
->>>>
->>>> I had found recently that the OSD daemons under certain conditions
->>>> (moderate vm pressure, moderate I/O, slightly altered vm settings) can
->>>> go into loop involving isolate_freepages and effectively hit Ceph
->>>> cluster performance. I found this thread
->>>
->>> Do you feel it is a regression, compared to some older kernel version or something?
->>
->> No, it`s just a rare but very concerning stuff. The higher pressure
->> is, the more chance to hit this particular issue, although absolute
->> numbers are still very large (e.g. room for cache memory). Some
->> googling also found simular question on sf:
->> http://serverfault.com/questions/642883/cause-of-page-fragmentation-on-large-server-with-xfs-20-disks-and-ceph
->> but there are no perf info unfortunately so I cannot say if the issue
->> is the same or not.
->
-> Well it would be useful to find out what's doing the high-order allocations.
-> With 'perf -g -a' and then 'perf report -g' determine the call stack. Order and
-> allocation flags can be captured by enabling the page_alloc tracepoint.
+Hello
 
-Thanks, please give me some time to go through testing iterations, so
-I`ll collect appropriate perf.data.
+2014-11-14 9:11 GMT+08:00 Minchan Kim <minchan@kernel.org>:
+> The kunmap_atomic should use virtual address getting by kmap_atomic.
+> However, some pieces of code in zsmalloc uses modified address,
+> not the one got by kmap_atomic for kunmap_atomic.
 >
->>>
->>>> https://lkml.org/lkml/2012/6/27/545, but looks like that the
->>>> significant decrease of bdi max_ratio did not helped even for a bit.
->>>> Although I have approximately a half of physical memory for cache-like
->>>> stuff, the problem with mm persists, so I would like to try
->>>> suggestions from the other people. In current testing iteration I had
->>>> decreased vfs_cache_pressure to 10 and raised vm_dirty_ratio and
->>>> background ratio to 15 and 10 correspondingly (because default values
->>>> are too spiky for mine workloads). The host kernel is a linux-stable
->>>> 3.10.
->>>
->>> Well I'm glad to hear it's not 3.18-rc3 this time. But I would recommend trying
->>> it, or at least 3.17. Lot of patches went to reduce compaction overhead for
->>> (especially for transparent hugepages) since 3.10.
->>
->> Heh, I may say that I limited to pushing knobs in 3.10, because it has
->> a well-known set of problems and any major version switch will lead to
->> months-long QA procedures, but I may try that if none of mine knob
->> selection will help. I am not THP user, the problem is happening with
->> regular 4k pages and almost default VM settings. Also it worth to mean
+> It's okay for working because zsmalloc modifies the address
+> inner PAGE_SIZE bounday so it works with current kmap_atomic's
+> implementation. But it's still fragile with potential changing
+> of kmap_atomic so let's correct it.
 >
-> OK that's useful to know. So it might be some driver (do you also have
-> mellanox?) or maybe SLUB (do you have it enabled?) is trying high-order allocations.
-
-Yes, I am using mellanox transport there and SLUB allocator, as SLAB
-had some issues with allocations with uneven node fill-up on a
-two-head system which I am primarily using.
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  mm/zsmalloc.c | 21 ++++++++++++---------
+>  1 file changed, 12 insertions(+), 9 deletions(-)
+>
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index b3b57ef85830..85e14f584048 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -629,6 +629,7 @@ static void init_zspage(struct page *first_page, struct size_class *class)
+>                 struct page *next_page;
+>                 struct link_free *link;
+>                 unsigned int i = 1;
+> +               void *vaddr;
+>
+>                 /*
+>                  * page->index stores offset of first object starting
+> @@ -639,8 +640,8 @@ static void init_zspage(struct page *first_page, struct size_class *class)
+>                 if (page != first_page)
+>                         page->index = off;
+>
+> -               link = (struct link_free *)kmap_atomic(page) +
+> -                                               off / sizeof(*link);
+> +               vaddr = kmap_atomic(page);
+> +               link = (struct link_free *)vaddr + off / sizeof(*link);
+Just a nitpick:
+I think
+                    link = (struct link_free *)(vaddr + off);
+is better.
+To use the same method as in zs_free()
+                   link = (struct link_free *)(vaddr + f_offset);
 
 >
->> that kernel messages are not complaining about allocation failures, as
->> in case in URL from above, compaction just tightens up to some limit
+>                 while ((off += class->size) < PAGE_SIZE) {
+>                         link->next = obj_location_to_handle(page, i++);
+> @@ -654,7 +655,7 @@ static void init_zspage(struct page *first_page, struct size_class *class)
+>                  */
+>                 next_page = get_next_page(page);
+>                 link->next = obj_location_to_handle(next_page, 0);
+> -               kunmap_atomic(link);
+> +               kunmap_atomic(vaddr);
+>                 page = next_page;
+>                 off %= PAGE_SIZE;
+>         }
+> @@ -1055,6 +1056,7 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+>         unsigned long obj;
+>         struct link_free *link;
+>         struct size_class *class;
+> +       void *vaddr;
 >
-> Without the warnings, that's why we need tracing/profiling to find out what's
-> causing it.
+>         struct page *first_page, *m_page;
+>         unsigned long m_objidx, m_offset;
+> @@ -1083,11 +1085,11 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+>         obj_handle_to_location(obj, &m_page, &m_objidx);
+>         m_offset = obj_idx_to_offset(m_page, m_objidx, class->size);
 >
->> and (after it 'locked' system for a couple of minutes, reducing actual
->> I/O and derived amount of memory operations) it goes back to normal.
->> Cache flush fixing this just in a moment, so should large room for
+> -       link = (struct link_free *)kmap_atomic(m_page) +
+> -                                       m_offset / sizeof(*link);
+> +       vaddr = kmap_atomic(m_page);
+> +       link = (struct link_free *)vaddr + m_offset / sizeof(*link);
+            link = (struct link_free *)(vaddr + m_offset)
+
+>         first_page->freelist = link->next;
+>         memset(link, POISON_INUSE, sizeof(*link));
+> -       kunmap_atomic(link);
+> +       kunmap_atomic(vaddr);
 >
-> That could perhaps suggest a poor coordination between reclaim and compaction,
-> made worse by the fact that there are more parallel ongoing attempts and the
-> watermark checking doesn't take that into account.
+>         first_page->inuse++;
+>         /* Now move the zspage to another fullness group, if required */
+> @@ -1103,6 +1105,7 @@ void zs_free(struct zs_pool *pool, unsigned long obj)
+>         struct link_free *link;
+>         struct page *first_page, *f_page;
+>         unsigned long f_objidx, f_offset;
+> +       void *vaddr;
 >
->> min_free_kbytes. Over couple of days, depends on which nodes with
->> certain settings issue will reappear, I may judge if my ideas was
->> wrong.
->>
->>>
->>>> Non-default VM settings are:
->>>> vm.swappiness = 5
->>>> vm.dirty_ratio=10
->>>> vm.dirty_background_ratio=5
->>>> bdi_max_ratio was 100%, right now 20%, at a glance it looks like the
->>>> situation worsened, because unstable OSD host cause domino-like effect
->>>> on other hosts, which are starting to flap too and only cache flush
->>>> via drop_caches is helping.
->>>>
->>>> Unfortunately there are no slab info from "exhausted" state due to
->>>> sporadic nature of this bug, will try to catch next time.
->>>>
->>>> slabtop (normal state):
->>>>  Active / Total Objects (% used)    : 8675843 / 8965833 (96.8%)
->>>>  Active / Total Slabs (% used)      : 224858 / 224858 (100.0%)
->>>>  Active / Total Caches (% used)     : 86 / 132 (65.2%)
->>>>  Active / Total Size (% used)       : 1152171.37K / 1253116.37K (91.9%)
->>>>  Minimum / Average / Maximum Object : 0.01K / 0.14K / 15.75K
->>>>
->>>>   OBJS ACTIVE  USE OBJ SIZE  SLABS OBJ/SLAB CACHE SIZE NAME
->>>> 6890130 6889185  99%    0.10K 176670       39    706680K buffer_head
->>>> 751232 721707  96%    0.06K  11738       64     46952K kmalloc-64
->>>> 251636 226228  89%    0.55K   8987       28    143792K radix_tree_node
->>>> 121696  45710  37%    0.25K   3803       32     30424K kmalloc-256
->>>> 113022  80618  71%    0.19K   2691       42     21528K dentry
->>>> 112672  35160  31%    0.50K   3521       32     56336K kmalloc-512
->>>>  73136  72800  99%    0.07K   1306       56      5224K Acpi-ParseExt
->>>>  61696  58644  95%    0.02K    241      256       964K kmalloc-16
->>>>  54348  36649  67%    0.38K   1294       42     20704K ip6_dst_cache
->>>>  53136  51787  97%    0.11K   1476       36      5904K sysfs_dir_cache
->>>>  51200  50724  99%    0.03K    400      128      1600K kmalloc-32
->>>>  49120  46105  93%    1.00K   1535       32     49120K xfs_inode
->>>>  30702  30702 100%    0.04K    301      102      1204K Acpi-Namespace
->>>>  28224  25742  91%    0.12K    882       32      3528K kmalloc-128
->>>>  28028  22691  80%    0.18K    637       44      5096K vm_area_struct
->>>>  28008  28008 100%    0.22K    778       36      6224K xfs_ili
->>>>  18944  18944 100%    0.01K     37      512       148K kmalloc-8
->>>>  16576  15154  91%    0.06K    259       64      1036K anon_vma
->>>>  16475  14200  86%    0.16K    659       25      2636K sigqueue
->>>>
->>>> zoneinfo (normal state, attached)
->>>>
->>>
->>
+>         int class_idx;
+>         struct size_class *class;
+> @@ -1121,10 +1124,10 @@ void zs_free(struct zs_pool *pool, unsigned long obj)
+>         spin_lock(&class->lock);
 >
+>         /* Insert this object in containing zspage's freelist */
+> -       link = (struct link_free *)((unsigned char *)kmap_atomic(f_page)
+> -                                                       + f_offset);
+> +       vaddr = kmap_atomic(f_page);
+> +       link = (struct link_free *)(vaddr + f_offset);
+Yes, I think this method to calc *link* is better. (:
+
+Thanks
+
+>         link->next = first_page->freelist;
+> -       kunmap_atomic(link);
+> +       kunmap_atomic(vaddr);
+>         first_page->freelist = (void *)obj;
+>
+>         first_page->inuse--;
+> --
+> 2.0.0
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
