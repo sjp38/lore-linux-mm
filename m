@@ -1,65 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 439836B0083
-	for <linux-mm@kvack.org>; Sun, 16 Nov 2014 19:16:19 -0500 (EST)
-Received: by mail-ig0-f175.google.com with SMTP id h15so2472362igd.14
-        for <linux-mm@kvack.org>; Sun, 16 Nov 2014 16:16:18 -0800 (PST)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id h187si52250391ioe.107.2014.11.16.16.16.15
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 4384C6B0069
+	for <linux-mm@kvack.org>; Sun, 16 Nov 2014 21:39:10 -0500 (EST)
+Received: by mail-pd0-f182.google.com with SMTP id g10so5168267pdj.27
+        for <linux-mm@kvack.org>; Sun, 16 Nov 2014 18:39:09 -0800 (PST)
+Received: from cnbjrel02.sonyericsson.com (cnbjrel02.sonyericsson.com. [219.141.167.166])
+        by mx.google.com with ESMTPS id gn9si33992153pac.127.2014.11.16.18.39.07
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 16 Nov 2014 16:16:16 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 3/3] hugetlb: hugetlb_register_all_nodes(): add __init
- marker
-Date: Mon, 17 Nov 2014 00:12:24 +0000
-Message-ID: <20141117001301.GC4667@hori1.linux.bs1.fc.nec.co.jp>
-References: <1415831593-9020-1-git-send-email-lcapitulino@redhat.com>
- <1415831593-9020-4-git-send-email-lcapitulino@redhat.com>
-In-Reply-To: <1415831593-9020-4-git-send-email-lcapitulino@redhat.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <D9064B7E273C684ABEA1AD5EE820A2FC@gisp.nec.co.jp>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 16 Nov 2014 18:39:08 -0800 (PST)
+From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Date: Mon, 17 Nov 2014 10:38:58 +0800
+Subject: RE: [RFC V6 2/3] arm:add bitrev.h file to support rbit instruction
+Message-ID: <35FD53F367049845BC99AC72306C23D103E688B313C6@CNBJMBX05.corpusers.net>
+References: <35FD53F367049845BC99AC72306C23D103E010D18265@CNBJMBX05.corpusers.net>
+ <35FD53F367049845BC99AC72306C23D103E010D18266@CNBJMBX05.corpusers.net>
+ <20141030120127.GC32589@arm.com>
+ <CAKv+Gu9g5Q6fjPUy+P8YxkeDrH+bdO4kKGnxTQZRFhQpgPxaPA@mail.gmail.com>
+ <20141030135749.GE32589@arm.com>
+ <35FD53F367049845BC99AC72306C23D103E010D18272@CNBJMBX05.corpusers.net>
+ <35FD53F367049845BC99AC72306C23D103E010D18273@CNBJMBX05.corpusers.net>
+ <35FD53F367049845BC99AC72306C23D103E010D18275@CNBJMBX05.corpusers.net>
+ <20141113235322.GC4042@n2100.arm.linux.org.uk>
+ <35FD53F367049845BC99AC72306C23D103E010D1829B@CNBJMBX05.corpusers.net>
+ <20141114095812.GG4042@n2100.arm.linux.org.uk>
+In-Reply-To: <20141114095812.GG4042@n2100.arm.linux.org.uk>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "andi@firstfloor.org" <andi@firstfloor.org>, "rientjes@google.com" <rientjes@google.com>, "riel@redhat.com" <riel@redhat.com>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "yinghai@kernel.org" <yinghai@kernel.org>, "davidlohr@hp.com" <davidlohr@hp.com>
+To: 'Russell King - ARM Linux' <linux@arm.linux.org.uk>
+Cc: 'Will Deacon' <will.deacon@arm.com>, 'Ard Biesheuvel' <ard.biesheuvel@linaro.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'akinobu.mita@gmail.com'" <akinobu.mita@gmail.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, 'Joe Perches' <joe@perches.com>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>
 
-On Wed, Nov 12, 2014 at 05:33:13PM -0500, Luiz Capitulino wrote:
-> This function is only called during initialization.
+> From: Russell King - ARM Linux [mailto:linux@arm.linux.org.uk]
+> Sent: Friday, November 14, 2014 5:58 PM
+> To: Wang, Yalin
+> Cc: 'Will Deacon'; 'Ard Biesheuvel'; 'linux-kernel@vger.kernel.org';
+> 'akinobu.mita@gmail.com'; 'linux-mm@kvack.org'; 'Joe Perches'; 'linux-arm=
+-
+> kernel@lists.infradead.org'
+> Subject: Re: [RFC V6 2/3] arm:add bitrev.h file to support rbit instructi=
+on
+>
+> > Is it possible to build a kernel that support both CPU_V6 and CPU_V7?
 >=20
-> Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
+> Absolutely it is.
+>=20
+> > I mean in Kconfig, CPU_V6 =3D y and CPU_V7 =3D y ?
+>=20
+> Yes.
+>=20
+> > If there is problem like you said,
+> > How about this solution:
+> > select HAVE_ARCH_BITREVERSE if ((CPU_V7M || CPU_V7) && !CPU_V6)
+>=20
+> That would work.
+>=20
+OK, I will submit a patch for this change.
 
-Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > For this patch,
+> > I just cherry-pick from Joe,
+> > If you are not responsible for this part, I will submit to the
+> > maintainers for these patches .
+> > Sorry for that .
+>=20
+> I think you need to discuss with Joe how Joe would like his patches handl=
+ed.
+> However, it seems that Joe already sent his patches to the appropriate
+> maintainers, and they have been applying those patches themselves.
+>=20
+> Since your generic ARM changes depend on these patches being accepted fir=
+st,
+> this means is that I can't apply the generic ARM changes until those othe=
+r
+> patches have hit mainline, otherwise things are going to break.  So, when
+> you come to submit the latest set of patches to the patch system, please =
+do
+> so only after these dependent patches have been merged into mainline so
+> that they don't get accidentally applied before hand and break the two
+> drivers that Joe mentioned.
 
-> ---
->  mm/hugetlb.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->=20
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index a10fd57..9785546 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -2083,7 +2083,7 @@ static void hugetlb_register_node(struct node *node=
-)
->   * devices of nodes that have memory.  All on-line nodes should have
->   * registered their associated device by this time.
->   */
-> -static void hugetlb_register_all_nodes(void)
-> +static void __init hugetlb_register_all_nodes(void)
->  {
->  	int nid;
-> =20
-> --=20
-> 1.9.3
->=20
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>=
+Joe has submitted patches to maintainers,
+So we need wait for them to be accepted .
+
+Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
