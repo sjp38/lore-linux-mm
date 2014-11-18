@@ -1,94 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 68EF76B0038
-	for <linux-mm@kvack.org>; Tue, 18 Nov 2014 15:19:40 -0500 (EST)
-Received: by mail-ig0-f178.google.com with SMTP id hl2so4885248igb.11
-        for <linux-mm@kvack.org>; Tue, 18 Nov 2014 12:19:40 -0800 (PST)
+Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C4D76B0038
+	for <linux-mm@kvack.org>; Tue, 18 Nov 2014 15:58:47 -0500 (EST)
+Received: by mail-ie0-f169.google.com with SMTP id y20so8120287ier.0
+        for <linux-mm@kvack.org>; Tue, 18 Nov 2014 12:58:47 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id c9si19474036igo.10.2014.11.18.12.19.37
+        by mx.google.com with ESMTPS id d7si11455237igl.52.2014.11.18.12.58.45
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Nov 2014 12:19:38 -0800 (PST)
-Date: Tue, 18 Nov 2014 12:19:36 -0800
+        Tue, 18 Nov 2014 12:58:46 -0800 (PST)
+Date: Tue, 18 Nov 2014 12:58:43 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] Repeated fork() causes SLAB to grow without bound
-Message-Id: <20141118121936.07b02545a0684b2cc839a10c@linux-foundation.org>
-In-Reply-To: <546AB1F5.6030306@redhat.com>
-References: <502D42E5.7090403@redhat.com>
-	<20120818000312.GA4262@evergreen.ssec.wisc.edu>
-	<502F100A.1080401@redhat.com>
-	<alpine.LSU.2.00.1208200032450.24855@eggly.anvils>
-	<CANN689Ej7XLh8VKuaPrTttDrtDGQbXuYJgS2uKnZL2EYVTM3Dg@mail.gmail.com>
-	<20120822032057.GA30871@google.com>
-	<50345232.4090002@redhat.com>
-	<20130603195003.GA31275@evergreen.ssec.wisc.edu>
-	<20141114163053.GA6547@cosmos.ssec.wisc.edu>
-	<20141117160212.b86d031e1870601240b0131d@linux-foundation.org>
-	<20141118014135.GA17252@cosmos.ssec.wisc.edu>
-	<546AB1F5.6030306@redhat.com>
+Subject: Re: [PATCH v6 00/11] Kernel address sanitizer - runtime memory
+ debugger.
+Message-Id: <20141118125843.434c216540def495d50f3a45@linux-foundation.org>
+In-Reply-To: <5461B906.1040803@samsung.com>
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
+	<1415199241-5121-1-git-send-email-a.ryabinin@samsung.com>
+	<5461B906.1040803@samsung.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tim Hartrick <tim@edgecast.com>, Michal Hocko <mhocko@suse.cz>
+To: Andrey Ryabinin <a.ryabinin@samsung.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Michal Marek <mmarek@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-mm@kvack.org, Randy Dunlap <rdunlap@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Jones <davej@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joe Perches <joe@perches.com>, linux-kernel@vger.kernel.org
 
-On Mon, 17 Nov 2014 21:41:57 -0500 Rik van Riel <riel@redhat.com> wrote:
+On Tue, 11 Nov 2014 10:21:42 +0300 Andrey Ryabinin <a.ryabinin@samsung.com> wrote:
 
-> > Because of the serial forking there does indeed end up being an
-> > infinite number of vmas.  The initial vma can never be deleted
-> > (even though the initial parent process has long since terminated)
-> > because the initial vma is referenced by the children.
+> Hi Andrew,
 > 
-> There is a finite number of VMAs, but an infite number of
-> anon_vmas.
-> 
-> Subtle, yet deadly...
+> Now we have stable GCC(4.9.2) which supports kasan and from my point of view patchset is ready for merging.
+> I could have sent v7 (it's just rebased v6), but I see no point in doing that and bothering people,
+> unless you are ready to take it.
 
-Well, we clearly have the data structures screwed up.  I've forgotten
-enough about this code for me to be unable to work out what the fixed
-up data structures would look like :( But surely there is some proper
-solution here.  Help?
+It's a huge pile of tricky code we'll need to maintain.  To justify its
+inclusion I think we need to be confident that kasan will find a
+significant number of significant bugs that
+kmemcheck/debug_pagealloc/slub_debug failed to detect.
 
-> > I can't say, but it only affects users who fork more than five
-> > levels deep without doing an exec.  On the other hand, there are at
-> > least three users (Tim Hartrick, Michal Hocko, and myself) who have
-> > real world applications where the consequence of no patch is a
-> > crashed system.
-> > 
-> > I would suggest reading the thread starting with my initial bug
-> > report for what others have had to say about this.
-> 
-> I suspect what Andrew is hinting at is that the
-> changelog for the patch should contain a detailed
-> description of exactly what the bug is, how it is
-> triggered, what the symptoms are, and how the
-> patch avoids it.
->
-> That way people can understand what the code does
-> simply by looking at the changelog - no need to go
-> find old linux-kernel mailing list threads.
+How do we get that confidence?  I've seen a small number of
+minorish-looking kasan-detected bug reports go past, maybe six or so. 
+That's in a 20-year-old code base, so one new minor bug discovered per
+three years?  Not worth it!
 
-Yes please, there's a ton of stuff here which we should attempt to
-capture.
+Presumably more bugs will be exposed as more people use kasan on
+different kernel configs, but will their number and seriousness justify
+the maintenance effort?
 
-https://lkml.org/lkml/2012/8/15/765 is useful.
+If kasan will permit us to remove kmemcheck/debug_pagealloc/slub_debug
+then that tips the balance a little.  What's the feasibility of that?
 
-I'm assuming that with the "foo < 5" hack, an application which forked
-5 times then did a lot of work would still trigger the "catastrophic
-issue at page reclaim time" issue which Rik identified at
-https://lkml.org/lkml/2012/8/20/265?
 
-There are real-world workloads which are triggering this slab growth
-problem, yes?  (Detail them in the changelog, please).
-
-This bug snuck under my radar last time - we're permitting unprivileged
-userspace to exhaust memory and that's bad.  I'm OK with the foo<5
-thing for -stable kernels, as it is simple.  But I'm reluctant to merge
-(or at least to retain) it in mainline because then everyone will run
-away and think about other stuff and this bug will never get fixed
-properly.
+Sorry to play the hardass here, but someone has to ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
