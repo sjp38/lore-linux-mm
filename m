@@ -1,104 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id BCFC16B0038
-	for <linux-mm@kvack.org>; Tue, 18 Nov 2014 18:51:32 -0500 (EST)
-Received: by mail-pd0-f169.google.com with SMTP id fp1so7011367pdb.28
-        for <linux-mm@kvack.org>; Tue, 18 Nov 2014 15:51:32 -0800 (PST)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id ck3si85059pbb.107.2014.11.18.15.51.30
-        for <linux-mm@kvack.org>;
-        Tue, 18 Nov 2014 15:51:31 -0800 (PST)
-Date: Wed, 19 Nov 2014 08:52:01 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] zram: rely on the bi_end_io for zram_rw_page fails
-Message-ID: <20141118235201.GB7393@bbox>
-References: <1415926147-9023-1-git-send-email-minchan@kernel.org>
- <20141118152336.d58b7b61a711b7d9982deb9d@linux-foundation.org>
+Received: from mail-vc0-f177.google.com (mail-vc0-f177.google.com [209.85.220.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 971516B0038
+	for <linux-mm@kvack.org>; Tue, 18 Nov 2014 18:53:27 -0500 (EST)
+Received: by mail-vc0-f177.google.com with SMTP id ij19so7863358vcb.36
+        for <linux-mm@kvack.org>; Tue, 18 Nov 2014 15:53:27 -0800 (PST)
+Received: from mail-vc0-x22a.google.com (mail-vc0-x22a.google.com. [2607:f8b0:400c:c03::22a])
+        by mx.google.com with ESMTPS id nv6si90797vcb.47.2014.11.18.15.53.26
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 18 Nov 2014 15:53:26 -0800 (PST)
+Received: by mail-vc0-f170.google.com with SMTP id hq12so9883705vcb.15
+        for <linux-mm@kvack.org>; Tue, 18 Nov 2014 15:53:26 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20141118152336.d58b7b61a711b7d9982deb9d@linux-foundation.org>
+In-Reply-To: <20141118125843.434c216540def495d50f3a45@linux-foundation.org>
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
+	<1415199241-5121-1-git-send-email-a.ryabinin@samsung.com>
+	<5461B906.1040803@samsung.com>
+	<20141118125843.434c216540def495d50f3a45@linux-foundation.org>
+Date: Wed, 19 Nov 2014 03:53:26 +0400
+Message-ID: <CAPAsAGwZtfzx5oM73bOi_kw5BqXrwGd_xmt=m6xxU6uECA+H9Q@mail.gmail.com>
+Subject: Re: [PATCH v6 00/11] Kernel address sanitizer - runtime memory debugger.
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matthew Wilcox <matthew.r.wilcox@intel.com>, Karam Lee <karam.lee@lge.com>, Dave Chinner <david@fromorbit.com>
+Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Michal Marek <mmarek@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Randy Dunlap <rdunlap@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Jones <davej@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joe Perches <joe@perches.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Nov 18, 2014 at 03:23:36PM -0800, Andrew Morton wrote:
-> On Fri, 14 Nov 2014 09:49:07 +0900 Minchan Kim <minchan@kernel.org> wrote:
-> 
-> > When I tested zram, I found processes got segfaulted.
-> > The reason was zram_rw_page doesn't make the page dirty
-> > again when swap write failed, and even it doesn't return
-> > error by [1].
-> > 
-> > If error by zram internal happens, zram_rw_page should return
-> > non-zero without calling page_endio.
-> > It causes resubmit the IO with bio so that it ends up calling
-> > bio->bi_end_io.
-> > 
-> > The reason is zram could be used for a block device for FS and
-> > swap, which they uses different bio complete callback, which
-> > works differently. So, we should rely on the bio I/O complete
-> > handler rather than zram_bvec_rw itself in case of I/O fail.
-> > 
-> > This patch fixes the segfault issue as well one [1]'s
-> > mentioned
-> > 
-> > ...
-> >
-> > --- a/drivers/block/zram/zram_drv.c
-> > +++ b/drivers/block/zram/zram_drv.c
-> > @@ -978,12 +978,10 @@ static int zram_rw_page(struct block_device *bdev, sector_t sector,
-> >  out_unlock:
-> >  	up_read(&zram->init_lock);
-> >  out:
-> > -	page_endio(page, rw, err);
-> > +	if (unlikely(err))
-> > +		return err;
-> >  
-> > -	/*
-> > -	 * Return 0 prevents I/O fallback trial caused by rw_page fail
-> > -	 * and upper layer can handle this IO error via page error.
-> > -	 */
-> > +	page_endio(page, rw, 0);
-> >  	return 0;
-> 
-> Losing the comment makes me sad.  The code is somewhat odd-looking.  We
-> should add some words explaining why we're not reporting errors at this
-> point.
+2014-11-18 23:58 GMT+03:00 Andrew Morton <akpm@linux-foundation.org>:
+> On Tue, 11 Nov 2014 10:21:42 +0300 Andrey Ryabinin <a.ryabinin@samsung.com> wrote:
+>
+>> Hi Andrew,
+>>
+>> Now we have stable GCC(4.9.2) which supports kasan and from my point of view patchset is ready for merging.
+>> I could have sent v7 (it's just rebased v6), but I see no point in doing that and bothering people,
+>> unless you are ready to take it.
+>
+> It's a huge pile of tricky code we'll need to maintain.  To justify its
+> inclusion I think we need to be confident that kasan will find a
+> significant number of significant bugs that
+> kmemcheck/debug_pagealloc/slub_debug failed to detect.
+>
+> How do we get that confidence?  I've seen a small number of
+> minorish-looking kasan-detected bug reports go past, maybe six or so.
 
-Okay. How about this?
+I must admit that most bugs I've seen is a minor,
+but there are  a bit more then six of them.
 
+I've counted 16:
 
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index decca6f161b8..1d7c90d5e0d0 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -975,6 +975,12 @@ static int zram_rw_page(struct block_device *bdev, sector_t sector,
- 	err = zram_bvec_rw(zram, &bv, index, offset, rw);
- out_unlock:
- 	up_read(&zram->init_lock);
-+	/*
-+	 * If I/O fails, just return error without calling page_endio.
-+	 * It causes resubmit the I/O with bio request by rw_page fallback
-+	 * and bio I/O complete handler does things to handle the error
-+	 * (e.g., set_page_dirty of swap_writepage fail).
-+	 */
- 	if (err == 0)
- 		page_endio(page, rw, 0);
- 	return err;
+aab515d (fib_trie: remove potential out of bound access)
+984f173 ([SCSI] sd: Fix potential out-of-bounds access)
+5e9ae2e (aio: fix use-after-free in aio_migratepage)
+2811eba (ipv6: udp packets following an UFO enqueued packet need also
+be handled by UFO)
+057db84 (tracing: Fix potential out-of-bounds in trace_get_user())
+9709674 (ipv4: fix a race in ip4_datagram_release_cb())
+4e8d213 (ext4: fix use-after-free in ext4_mb_new_blocks)
+624483f (mm: rmap: fix use-after-free in __put_anon_vma)
+93b7aca (lib/idr.c: fix out-of-bounds pointer dereference)
+b4903d6 (mm: debugfs: move rounddown_pow_of_two() out from do_fault path)
+40eea80 (net: sendmsg: fix NULL pointer dereference)
+10ec947 (ipv4: fix buffer overflow in ip_options_compile())
+dbf20cb2 (f2fs: avoid use invalid mapping of node_inode when evict meta inode)
+d6d86c0 (mm/balloon_compaction: redesign ballooned pages management)
 
++ 2 recently found, seems minor:
+    http://lkml.kernel.org/r/1415372020-1871-1-git-send-email-a.ryabinin@samsung.com
+    (sched/numa: Fix out of bounds read in sched_init_numa())
 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+    http://lkml.kernel.org/r/1415458085-12485-1-git-send-email-ryabinin.a.a@gmail.com
+    (security: smack: fix out-of-bounds access in smk_parse_smack())
+
+Note that some functionality is not yet implemented in this patch set.
+Kasan has possibility
+to detect out-of-bounds accesses on global/stack variables. Neither
+kmemcheck/debug_pagealloc or slub_debug could do that.
+
+> That's in a 20-year-old code base, so one new minor bug discovered per
+> three years?  Not worth it!
+>
+> Presumably more bugs will be exposed as more people use kasan on
+> different kernel configs, but will their number and seriousness justify
+> the maintenance effort?
+>
+
+Yes, AFAIK there are only few users of kasan now, and I guess that
+only small part of kernel code
+was covered by it.
+IMO kasan shouldn't take a lot maintenance efforts, most part of code
+is isolated and it doesn't
+have some complex dependencies on in-kernel API.
+And you could always just poke me, I'd be happy to sort out any issues.
+
+> If kasan will permit us to remove kmemcheck/debug_pagealloc/slub_debug
+> then that tips the balance a little.  What's the feasibility of that?
+>
+
+I think kasan could replace kmemcheck at some point.
+Unlike kmemcheck, kasan couldn't detect uninitialized memory reads now.
+But It could be done  using the same compiler's instrumentation (I
+have some proof-of-concept).
+Though it will be a different Kconfig option, so you either enable
+CONFIG_KASAN to detect out-of-bounds
+and use-after-frees or CONFIG_DETECT_UNINITIALIZED_MEMORY to catch
+only uninitialized memory reads.
+
+Removing debug_pagealloc maybe is not so good idea, because it doesn't
+eat much memory unlike kasan.
+
+slub_debug could be enabled in production kernels without rebuilding,
+so I wouldn't touch it too.
+
+>
+> Sorry to play the hardass here, but someone has to ;)
+>
+
 
 -- 
-Kind regards,
-Minchan Kim
+Best regards,
+Andrey Ryabinin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
