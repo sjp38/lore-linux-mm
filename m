@@ -1,75 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 54C126B0038
-	for <linux-mm@kvack.org>; Tue, 18 Nov 2014 16:08:36 -0500 (EST)
-Received: by mail-wg0-f43.google.com with SMTP id l18so7537840wgh.2
-        for <linux-mm@kvack.org>; Tue, 18 Nov 2014 13:08:36 -0800 (PST)
-Received: from mail-wi0-x22f.google.com (mail-wi0-x22f.google.com. [2a00:1450:400c:c05::22f])
-        by mx.google.com with ESMTPS id lp5si68628722wjb.25.2014.11.18.13.08.35
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F3296B0038
+	for <linux-mm@kvack.org>; Tue, 18 Nov 2014 16:10:23 -0500 (EST)
+Received: by mail-wi0-f171.google.com with SMTP id bs8so3289035wib.16
+        for <linux-mm@kvack.org>; Tue, 18 Nov 2014 13:10:22 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id id4si26007991wjb.143.2014.11.18.13.10.22
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 18 Nov 2014 13:08:35 -0800 (PST)
-Received: by mail-wi0-f175.google.com with SMTP id l15so3300186wiw.14
-        for <linux-mm@kvack.org>; Tue, 18 Nov 2014 13:08:35 -0800 (PST)
-Date: Tue, 18 Nov 2014 22:08:33 +0100
+        Tue, 18 Nov 2014 13:10:22 -0800 (PST)
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC 0/4] OOM vs PM freezer fixes
-Message-ID: <20141118210833.GE23640@dhcp22.suse.cz>
-References: <20141110163055.GC18373@dhcp22.suse.cz>
- <1415818732-27712-1-git-send-email-mhocko@suse.cz>
- <20141114201419.GI25889@htj.dyndns.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141114201419.GI25889@htj.dyndns.org>
+Subject: [RFC 1/2] oom: add helper for setting and clearing TIF_MEMDIE
+Date: Tue, 18 Nov 2014 22:10:05 +0100
+Message-Id: <1416345006-8284-1-git-send-email-mhocko@suse.cz>
+In-Reply-To: <20141118210833.GE23640@dhcp22.suse.cz>
+References: <20141118210833.GE23640@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-pm@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, linux-pm@vger.kernel.org, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>
 
-On Fri 14-11-14 15:14:19, Tejun Heo wrote:
-> On Wed, Nov 12, 2014 at 07:58:48PM +0100, Michal Hocko wrote:
-> > Hi,
-> > here is another take at OOM vs. PM freezer interaction fixes/cleanups.
-> > First three patches are fixes for an unlikely cases when OOM races with
-> > the PM freezer which should be closed completely finally. The last patch
-> > is a simple code enhancement which is not needed strictly speaking but
-> > it is nice to have IMO.
-> > 
-> > Both OOM killer and PM freezer are quite subtle so I hope I haven't
-> > missing anything. Any feedback is highly appreciated. I am also
-> > interested about feedback for the used approach. To be honest I am not
-> > really happy about spreading TIF_MEMDIE checks into freezer (patch 1)
-> > but I didn't find any other way for detecting OOM killed tasks.
-> 
-> I really don't get why this is structured this way.  Can't you just do
-> the following?
+This patch is just a preparatory and it doesn't introduce any functional
+change.
 
-Well, I liked how simple this was and localized at the only place which
-matters. When I was thinking about a solution which you are describing
-below it was more complicated and more subtle (e.g. waiting for an OOM
-victim might be tricky if it stumbles over a lock which is held by a
-frozen thread which uses try_to_freeze_unsafe). Anyway I gave it another
-try and will post the two patches as a reply to this email. I hope the
-both interface and implementation is cleaner.
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+---
+ include/linux/oom.h |  4 ++++
+ kernel/exit.c       |  2 +-
+ mm/memcontrol.c     |  2 +-
+ mm/oom_kill.c       | 16 +++++++++++++---
+ 4 files changed, 19 insertions(+), 5 deletions(-)
 
-> 1. Freeze all freezables.  Don't worry about PF_MEMDIE.
-> 
-> 2. Disable OOM killer.  This should be contained in the OOM killer
->    proper.  Lock out the OOM killer and disable it.
-> 
-> 3. At this point, we know that no one will create more freezable
->    threads and no new process will be OOM kliled.  Wait till there's
->    no process w/ PF_MEMDIE set.
-> 
-> There's no reason to lock out or disable OOM killer while the system
-> is not in the quiescent state, which is a big can of worms.  Bring
-> down the system to the quiescent state, disable the OOM killer and
-> then drain PF_MEMDIEs.
-
+diff --git a/include/linux/oom.h b/include/linux/oom.h
+index e8d6e1058723..8f7e74f8ab3a 100644
+--- a/include/linux/oom.h
++++ b/include/linux/oom.h
+@@ -47,6 +47,10 @@ static inline bool oom_task_origin(const struct task_struct *p)
+ 	return !!(p->signal->oom_flags & OOM_FLAG_ORIGIN);
+ }
+ 
++void mark_tsk_oom_victim(struct task_struct *tsk);
++
++void unmark_tsk_oom_victim(struct task_struct *tsk);
++
+ extern unsigned long oom_badness(struct task_struct *p,
+ 		struct mem_cgroup *memcg, const nodemask_t *nodemask,
+ 		unsigned long totalpages);
+diff --git a/kernel/exit.c b/kernel/exit.c
+index 5d30019ff953..323882973b4b 100644
+--- a/kernel/exit.c
++++ b/kernel/exit.c
+@@ -459,7 +459,7 @@ static void exit_mm(struct task_struct *tsk)
+ 	task_unlock(tsk);
+ 	mm_update_next_owner(mm);
+ 	mmput(mm);
+-	clear_thread_flag(TIF_MEMDIE);
++	unmark_tsk_oom_victim(current);
+ }
+ 
+ /*
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index d6ac0e33e150..302e0fc6d121 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1735,7 +1735,7 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	 * quickly exit and free its memory.
+ 	 */
+ 	if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
+-		set_thread_flag(TIF_MEMDIE);
++		mark_tsk_oom_victim(current);
+ 		return;
+ 	}
+ 
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 5340f6b91312..8b6e14136f4f 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -421,6 +421,16 @@ void note_oom_kill(void)
+ 	atomic_inc(&oom_kills);
+ }
+ 
++void mark_tsk_oom_victim(struct task_struct *tsk)
++{
++	set_tsk_thread_flag(tsk, TIF_MEMDIE);
++}
++
++void unmark_tsk_oom_victim(struct task_struct *tsk)
++{
++	clear_thread_flag(TIF_MEMDIE);
++}
++
+ #define K(x) ((x) << (PAGE_SHIFT-10))
+ /*
+  * Must be called while holding a reference to p, which will be released upon
+@@ -444,7 +454,7 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 	 * its children or threads, just set TIF_MEMDIE so it can die quickly
+ 	 */
+ 	if (p->flags & PF_EXITING) {
+-		set_tsk_thread_flag(p, TIF_MEMDIE);
++		mark_tsk_oom_victim(p);
+ 		put_task_struct(p);
+ 		return;
+ 	}
+@@ -527,7 +537,7 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 		}
+ 	rcu_read_unlock();
+ 
+-	set_tsk_thread_flag(victim, TIF_MEMDIE);
++	mark_tsk_oom_victim(victim);
+ 	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
+ 	put_task_struct(victim);
+ }
+@@ -650,7 +660,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 	 * quickly exit and free its memory.
+ 	 */
+ 	if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
+-		set_thread_flag(TIF_MEMDIE);
++		mark_tsk_oom_victim(current);
+ 		return;
+ 	}
+ 
 -- 
-Michal Hocko
-SUSE Labs
+2.1.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
