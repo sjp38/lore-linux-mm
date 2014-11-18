@@ -1,76 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f176.google.com (mail-ie0-f176.google.com [209.85.223.176])
-	by kanga.kvack.org (Postfix) with ESMTP id B297C6B006E
-	for <linux-mm@kvack.org>; Tue, 18 Nov 2014 16:58:46 -0500 (EST)
-Received: by mail-ie0-f176.google.com with SMTP id ar1so2912752iec.7
-        for <linux-mm@kvack.org>; Tue, 18 Nov 2014 13:58:46 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id p194si60295267ioe.16.2014.11.18.13.58.45
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id B203B6B0038
+	for <linux-mm@kvack.org>; Tue, 18 Nov 2014 17:15:47 -0500 (EST)
+Received: by mail-wg0-f52.google.com with SMTP id a1so5406759wgh.25
+        for <linux-mm@kvack.org>; Tue, 18 Nov 2014 14:15:47 -0800 (PST)
+Received: from mail-wg0-x236.google.com (mail-wg0-x236.google.com. [2a00:1450:400c:c00::236])
+        by mx.google.com with ESMTPS id aq2si122186wjc.52.2014.11.18.14.15.46
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Nov 2014 13:58:45 -0800 (PST)
-Date: Tue, 18 Nov 2014 13:58:43 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: mm: shmem: freeing mlocked page
-Message-Id: <20141118135843.bd711e95d3977c74cf51d803@linux-foundation.org>
-In-Reply-To: <5466142C.60100@oracle.com>
-References: <545C4A36.9050702@oracle.com>
-	<5466142C.60100@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 18 Nov 2014 14:15:47 -0800 (PST)
+Received: by mail-wg0-f54.google.com with SMTP id y10so7440666wgg.13
+        for <linux-mm@kvack.org>; Tue, 18 Nov 2014 14:15:46 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20141118121936.07b02545a0684b2cc839a10c@linux-foundation.org>
+References: <502D42E5.7090403@redhat.com>
+	<20120818000312.GA4262@evergreen.ssec.wisc.edu>
+	<502F100A.1080401@redhat.com>
+	<alpine.LSU.2.00.1208200032450.24855@eggly.anvils>
+	<CANN689Ej7XLh8VKuaPrTttDrtDGQbXuYJgS2uKnZL2EYVTM3Dg@mail.gmail.com>
+	<20120822032057.GA30871@google.com>
+	<50345232.4090002@redhat.com>
+	<20130603195003.GA31275@evergreen.ssec.wisc.edu>
+	<20141114163053.GA6547@cosmos.ssec.wisc.edu>
+	<20141117160212.b86d031e1870601240b0131d@linux-foundation.org>
+	<20141118014135.GA17252@cosmos.ssec.wisc.edu>
+	<546AB1F5.6030306@redhat.com>
+	<20141118121936.07b02545a0684b2cc839a10c@linux-foundation.org>
+Date: Wed, 19 Nov 2014 02:15:46 +0400
+Message-ID: <CALYGNiMxnxmy-LyJ4OT9OoFeKwTPPkZMF-bJ-eJDBFXgZQ6AEA@mail.gmail.com>
+Subject: Re: [PATCH] Repeated fork() causes SLAB to grow without bound
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>, Jens Axboe <axboe@kernel.dk>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Tim Hartrick <tim@edgecast.com>, Michal Hocko <mhocko@suse.cz>
 
-On Fri, 14 Nov 2014 09:39:40 -0500 Sasha Levin <sasha.levin@oracle.com> wrote:
+On Tue, Nov 18, 2014 at 11:19 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Mon, 17 Nov 2014 21:41:57 -0500 Rik van Riel <riel@redhat.com> wrote:
+>
+>> > Because of the serial forking there does indeed end up being an
+>> > infinite number of vmas.  The initial vma can never be deleted
+>> > (even though the initial parent process has long since terminated)
+>> > because the initial vma is referenced by the children.
+>>
+>> There is a finite number of VMAs, but an infite number of
+>> anon_vmas.
+>>
+>> Subtle, yet deadly...
+>
+> Well, we clearly have the data structures screwed up.  I've forgotten
+> enough about this code for me to be unable to work out what the fixed
+> up data structures would look like :( But surely there is some proper
+> solution here.  Help?
 
-> 
-> [ 1026.988043] BUG: Bad page state in process trinity-c374  pfn:23f70
-> [ 1026.989684] page:ffffea0000b3d300 count:0 mapcount:0 mapping:          (null) index:0x5b
-> [ 1026.991151] flags: 0x1fffff8028000c(referenced|uptodate|swapbacked|mlocked)
-> [ 1026.992410] page dumped because: PAGE_FLAGS_CHECK_AT_FREE flag(s) set
-> [ 1026.993479] bad because of flags:
-> [ 1026.994125] flags: 0x200000(mlocked)
+Not sure if it's right but probably we could reuse on fork an old anon_vma
+from the chain if it's already lost all vmas which points to it.
+For endlessly forking exploit this should work mostly like proposed patch
+which stops branching after some depth but without magic constant.
 
-Gee that new page dumping code is nice!
-
-> [ 1026.994816] Modules linked in:
-> [ 1026.995378] CPU: 7 PID: 7879 Comm: trinity-c374 Not tainted 3.18.0-rc4-next-20141113-sasha-00047-gd1763ce-dirty #1455
-> [ 1026.996123] FAULT_INJECTION: forcing a failure.
-> [ 1026.996123] name failslab, interval 100, probability 30, space 0, times -1
-> [ 1026.999050]  0000000000000000 0000000000000000 0000000000b3d300 ffff88061295bbd8
-> [ 1027.000676]  ffffffff92f71097 0000000000000000 ffffea0000b3d300 ffff88061295bc08
-> [ 1027.002020]  ffffffff8197ef7a ffffea0000b3d300 ffffffff942dd148 dfffe90000000000
-> [ 1027.003359] Call Trace:
-> [ 1027.003831] dump_stack (lib/dump_stack.c:52)
-> [ 1027.004725] bad_page (mm/page_alloc.c:338)
-> [ 1027.005623] free_pages_prepare (mm/page_alloc.c:657 mm/page_alloc.c:763)
-> [ 1027.006761] free_hot_cold_page (mm/page_alloc.c:1438)
-> [ 1027.007772] ? __page_cache_release (mm/swap.c:66)
-> [ 1027.008815] put_page (mm/swap.c:270)
-> [ 1027.009665] page_cache_pipe_buf_release (fs/splice.c:93)
-> [ 1027.010888] __splice_from_pipe (fs/splice.c:784 fs/splice.c:886)
-> [ 1027.011917] ? might_fault (./arch/x86/include/asm/current.h:14 mm/memory.c:3734)
-> [ 1027.012856] ? pipe_lock (fs/pipe.c:69)
-> [ 1027.013728] ? write_pipe_buf (fs/splice.c:1534)
-> [ 1027.014756] vmsplice_to_user (fs/splice.c:1574)
-> [ 1027.015725] ? rcu_read_lock_held (kernel/rcu/update.c:169)
-> [ 1027.016757] ? __fget_light (include/linux/fdtable.h:80 fs/file.c:684)
-> [ 1027.017782] SyS_vmsplice (fs/splice.c:1656 fs/splice.c:1639)
-> [ 1027.018863] tracesys_phase2 (arch/x86/kernel/entry_64.S:529)
-> 
-
-So what happened here?  Userspace fed some mlocked memory into splice()
-and then, while splice() was running, userspace dropped its reference
-to the memory, leaving splice() with the last reference.  Yet somehow,
-that page was still marked as being mlocked.  I wouldn't expect the
-kernel to permit userspace to drop its reference to the memory without
-first clearing the mlocked state.
-
-Is it possible to work out from trinity sources what the exact sequence
-was?  Which syscalls are being used, for example?
+>
+>> > I can't say, but it only affects users who fork more than five
+>> > levels deep without doing an exec.  On the other hand, there are at
+>> > least three users (Tim Hartrick, Michal Hocko, and myself) who have
+>> > real world applications where the consequence of no patch is a
+>> > crashed system.
+>> >
+>> > I would suggest reading the thread starting with my initial bug
+>> > report for what others have had to say about this.
+>>
+>> I suspect what Andrew is hinting at is that the
+>> changelog for the patch should contain a detailed
+>> description of exactly what the bug is, how it is
+>> triggered, what the symptoms are, and how the
+>> patch avoids it.
+>>
+>> That way people can understand what the code does
+>> simply by looking at the changelog - no need to go
+>> find old linux-kernel mailing list threads.
+>
+> Yes please, there's a ton of stuff here which we should attempt to
+> capture.
+>
+> https://lkml.org/lkml/2012/8/15/765 is useful.
+>
+> I'm assuming that with the "foo < 5" hack, an application which forked
+> 5 times then did a lot of work would still trigger the "catastrophic
+> issue at page reclaim time" issue which Rik identified at
+> https://lkml.org/lkml/2012/8/20/265?
+>
+> There are real-world workloads which are triggering this slab growth
+> problem, yes?  (Detail them in the changelog, please).
+>
+> This bug snuck under my radar last time - we're permitting unprivileged
+> userspace to exhaust memory and that's bad.  I'm OK with the foo<5
+> thing for -stable kernels, as it is simple.  But I'm reluctant to merge
+> (or at least to retain) it in mainline because then everyone will run
+> away and think about other stuff and this bug will never get fixed
+> properly.
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
