@@ -1,122 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E2096B0038
-	for <linux-mm@kvack.org>; Tue, 18 Nov 2014 18:44:20 -0500 (EST)
-Received: by mail-pd0-f176.google.com with SMTP id y10so5001705pdj.35
-        for <linux-mm@kvack.org>; Tue, 18 Nov 2014 15:44:20 -0800 (PST)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id uc9si38537pac.130.2014.11.18.15.44.18
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id C2F6F6B0038
+	for <linux-mm@kvack.org>; Tue, 18 Nov 2014 18:50:04 -0500 (EST)
+Received: by mail-wi0-f172.google.com with SMTP id n3so3624949wiv.5
+        for <linux-mm@kvack.org>; Tue, 18 Nov 2014 15:50:04 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t5si440739wjr.21.2014.11.18.15.50.03
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 18 Nov 2014 15:44:19 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 06/19] mm: store mapcount for compound page separate
-Date: Tue, 18 Nov 2014 23:41:08 +0000
-Message-ID: <20141118234145.GA4116@hori1.linux.bs1.fc.nec.co.jp>
-References: <1415198994-15252-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1415198994-15252-7-git-send-email-kirill.shutemov@linux.intel.com>
- <20141118084337.GA16714@hori1.linux.bs1.fc.nec.co.jp>
- <20141118095811.GA21774@node.dhcp.inet.fi>
-In-Reply-To: <20141118095811.GA21774@node.dhcp.inet.fi>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <0ACED6FBA3CFB049B5DB2D7AC4EB0B4F@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 18 Nov 2014 15:50:03 -0800 (PST)
+Message-ID: <546BDB29.9050403@suse.cz>
+Date: Wed, 19 Nov 2014 00:50:01 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
+Subject: Re: [PATCH] Repeated fork() causes SLAB to grow without bound
+References: <502D42E5.7090403@redhat.com>	<20120818000312.GA4262@evergreen.ssec.wisc.edu>	<502F100A.1080401@redhat.com>	<alpine.LSU.2.00.1208200032450.24855@eggly.anvils>	<CANN689Ej7XLh8VKuaPrTttDrtDGQbXuYJgS2uKnZL2EYVTM3Dg@mail.gmail.com>	<20120822032057.GA30871@google.com>	<50345232.4090002@redhat.com>	<20130603195003.GA31275@evergreen.ssec.wisc.edu>	<20141114163053.GA6547@cosmos.ssec.wisc.edu>	<20141117160212.b86d031e1870601240b0131d@linux-foundation.org>	<20141118014135.GA17252@cosmos.ssec.wisc.edu>	<546AB1F5.6030306@redhat.com>	<20141118121936.07b02545a0684b2cc839a10c@linux-foundation.org>	<CALYGNiMxnxmy-LyJ4OT9OoFeKwTPPkZMF-bJ-eJDBFXgZQ6AEA@mail.gmail.com> <CALYGNiM_CsjjiK_36JGirZT8rTP+ROYcH0CSyZjghtSNDU8ptw@mail.gmail.com>
+In-Reply-To: <CALYGNiM_CsjjiK_36JGirZT8rTP+ROYcH0CSyZjghtSNDU8ptw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Konstantin Khlebnikov <koct9i@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Tim Hartrick <tim@edgecast.com>, Michal Hocko <mhocko@suse.cz>
 
-On Tue, Nov 18, 2014 at 11:58:11AM +0200, Kirill A. Shutemov wrote:
-> On Tue, Nov 18, 2014 at 08:43:00AM +0000, Naoya Horiguchi wrote:
-> > > @@ -1837,6 +1839,9 @@ static void __split_huge_page_refcount(struct p=
-age *page,
-> > >  	atomic_sub(tail_count, &page->_count);
-> > >  	BUG_ON(atomic_read(&page->_count) <=3D 0);
-> > > =20
-> > > +	page->_mapcount =3D *compound_mapcount_ptr(page);
-> >=20
-> > Is atomic_set() necessary?
->=20
-> Do you mean
-> 	atomic_set(&page->_mapcount, atomic_read(compound_mapcount_ptr(page)));
-> ?
->=20
-> I don't see why we would need this. Simple assignment should work just
-> fine. Or we have archs which will break?
+On 11/19/2014 12:02 AM, Konstantin Khlebnikov wrote:
+> On Wed, Nov 19, 2014 at 1:15 AM, Konstantin Khlebnikov <koct9i@gmail.com> wrote:
+>> On Tue, Nov 18, 2014 at 11:19 PM, Andrew Morton
+>> <akpm@linux-foundation.org> wrote:
+>>> On Mon, 17 Nov 2014 21:41:57 -0500 Rik van Riel <riel@redhat.com> wrote:
+>>>
+>>>> > Because of the serial forking there does indeed end up being an
+>>>> > infinite number of vmas.  The initial vma can never be deleted
+>>>> > (even though the initial parent process has long since terminated)
+>>>> > because the initial vma is referenced by the children.
+>>>>
+>>>> There is a finite number of VMAs, but an infite number of
+>>>> anon_vmas.
+>>>>
+>>>> Subtle, yet deadly...
+>>>
+>>> Well, we clearly have the data structures screwed up.  I've forgotten
+>>> enough about this code for me to be unable to work out what the fixed
+>>> up data structures would look like :( But surely there is some proper
+>>> solution here.  Help?
+>>
+>> Not sure if it's right but probably we could reuse on fork an old anon_vma
+>> from the chain if it's already lost all vmas which points to it.
+>> For endlessly forking exploit this should work mostly like proposed patch
+>> which stops branching after some depth but without magic constant.
+> 
+> Something like this. I leave proper comment for tomorrow.
 
-Sorry, I was wrong, please ignore this comment.
+Hmm I'm not sure that will work as it is. If I understand it correctly, your
+patch can detect if the parent's anon_vma has no own references at the fork()
+time. But at the fork time, the parent is still alive, it only exits after the
+fork, right? So I guess it still has own references and the child will still
+allocate its new anon_vma, and the problem is not solved.
 
-> > > @@ -6632,10 +6637,12 @@ static void dump_page_flags(unsigned long fla=
-gs)
-> > >  void dump_page_badflags(struct page *page, const char *reason,
-> > >  		unsigned long badflags)
-> > >  {
-> > > -	printk(KERN_ALERT
-> > > -	       "page:%p count:%d mapcount:%d mapping:%p index:%#lx\n",
-> > > +	pr_alert("page:%p count:%d mapcount:%d mapping:%p index:%#lx",
-> > >  		page, atomic_read(&page->_count), page_mapcount(page),
-> > >  		page->mapping, page->index);
-> > > +	if (PageCompound(page))
-> >=20
-> > > +		printk(" compound_mapcount: %d", compound_mapcount(page));
-> > > +	printk("\n");
-> >=20
-> > These two printk() should be pr_alert(), too?
->=20
-> No. It will split the line into several messages in dmesg.
+So maybe we could detect that the own references dropped to zero when the parent
+does exit, and then change mapping of all relevant pages to the root anon_vma,
+destroy avc's of children and the anon_vma itself. But that sounds quite
+heavyweight :/
 
-This splitting is fine. I meant that these printk()s are for one series
-of message, so setting the same log level looks reasonable to me.
+Vlastimil
 
-> > > @@ -986,9 +986,30 @@ void page_add_anon_rmap(struct page *page,
-> > >  void do_page_add_anon_rmap(struct page *page,
-> > >  	struct vm_area_struct *vma, unsigned long address, int flags)
-> > >  {
-> > > -	int first =3D atomic_inc_and_test(&page->_mapcount);
-> > > +	bool compound =3D flags & RMAP_COMPOUND;
-> > > +	bool first;
-> > > +
-> > > +	VM_BUG_ON_PAGE(!PageLocked(compound_head(page)), page);
-> > > +
-> > > +	if (PageTransCompound(page)) {
-> > > +		struct page *head_page =3D compound_head(page);
-> > > +
-> > > +		if (compound) {
-> > > +			VM_BUG_ON_PAGE(!PageTransHuge(page), page);
-> > > +			first =3D atomic_inc_and_test(compound_mapcount_ptr(page));
-> >=20
-> > Is compound_mapcount_ptr() well-defined for tail pages?
->=20
-> The page is head page, otherwise VM_BUG_ON on the line above would trigge=
-r.
-
-Ah, OK.
-
-Thanks,
-Naoya Horiguchi
-
-> > > @@ -1032,10 +1052,19 @@ void page_add_new_anon_rmap(struct page *page=
-,
-> > > =20
-> > >  	VM_BUG_ON(address < vma->vm_start || address >=3D vma->vm_end);
-> > >  	SetPageSwapBacked(page);
-> > > -	atomic_set(&page->_mapcount, 0); /* increment count (starts at -1) =
-*/
-> > >  	if (compound) {
-> > > +		atomic_t *compound_mapcount;
-> > > +
-> > >  		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
-> > > +		compound_mapcount =3D (atomic_t *)&page[1].mapping;
-> >=20
-> > You can use compound_mapcount_ptr() here.
->=20
-> Right, thanks.
->=20
-> --=20
->  Kirill A. Shutemov
-> =
+>>
+>>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
