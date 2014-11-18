@@ -1,70 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f180.google.com (mail-ie0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D4AB6B0038
-	for <linux-mm@kvack.org>; Tue, 18 Nov 2014 18:23:39 -0500 (EST)
-Received: by mail-ie0-f180.google.com with SMTP id rp18so5139856iec.11
-        for <linux-mm@kvack.org>; Tue, 18 Nov 2014 15:23:39 -0800 (PST)
+Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 281DB6B0038
+	for <linux-mm@kvack.org>; Tue, 18 Nov 2014 18:34:28 -0500 (EST)
+Received: by mail-ie0-f169.google.com with SMTP id y20so8390981ier.0
+        for <linux-mm@kvack.org>; Tue, 18 Nov 2014 15:34:28 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id om6si19808755igb.15.2014.11.18.15.23.37
+        by mx.google.com with ESMTPS id rp3si578299igb.63.2014.11.18.15.34.26
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Nov 2014 15:23:38 -0800 (PST)
-Date: Tue, 18 Nov 2014 15:23:36 -0800
+        Tue, 18 Nov 2014 15:34:27 -0800 (PST)
+Date: Tue, 18 Nov 2014 15:34:24 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] zram: rely on the bi_end_io for zram_rw_page fails
-Message-Id: <20141118152336.d58b7b61a711b7d9982deb9d@linux-foundation.org>
-In-Reply-To: <1415926147-9023-1-git-send-email-minchan@kernel.org>
-References: <1415926147-9023-1-git-send-email-minchan@kernel.org>
+Subject: Re: [PATCH] zsmalloc: correct fragile [kmap|kunmap]_atomic use
+Message-Id: <20141118153424.70899732d4ed7933892b6055@linux-foundation.org>
+In-Reply-To: <20141118232139.GA7393@bbox>
+References: <1415927461-14220-1-git-send-email-minchan@kernel.org>
+	<20141114150732.GA2402@cerebellum.variantweb.net>
+	<20141118150138.668c81fda55c3ce39d7b2aac@linux-foundation.org>
+	<20141118232139.GA7393@bbox>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
-Cc: Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matthew Wilcox <matthew.r.wilcox@intel.com>, Karam Lee <karam.lee@lge.com>, Dave Chinner <david@fromorbit.com>
+Cc: Seth Jennings <sjennings@variantweb.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dan Streetman <ddstreet@ieee.org>, Jerome Marchand <jmarchan@redhat.com>
 
-On Fri, 14 Nov 2014 09:49:07 +0900 Minchan Kim <minchan@kernel.org> wrote:
+On Wed, 19 Nov 2014 08:21:39 +0900 Minchan Kim <minchan@kernel.org> wrote:
 
-> When I tested zram, I found processes got segfaulted.
-> The reason was zram_rw_page doesn't make the page dirty
-> again when swap write failed, and even it doesn't return
-> error by [1].
-> 
-> If error by zram internal happens, zram_rw_page should return
-> non-zero without calling page_endio.
-> It causes resubmit the IO with bio so that it ends up calling
-> bio->bi_end_io.
-> 
-> The reason is zram could be used for a block device for FS and
-> swap, which they uses different bio complete callback, which
-> works differently. So, we should rely on the bio I/O complete
-> handler rather than zram_bvec_rw itself in case of I/O fail.
-> 
-> This patch fixes the segfault issue as well one [1]'s
-> mentioned
-> 
-> ...
->
-> --- a/drivers/block/zram/zram_drv.c
-> +++ b/drivers/block/zram/zram_drv.c
-> @@ -978,12 +978,10 @@ static int zram_rw_page(struct block_device *bdev, sector_t sector,
->  out_unlock:
->  	up_read(&zram->init_lock);
->  out:
-> -	page_endio(page, rw, err);
-> +	if (unlikely(err))
-> +		return err;
->  
-> -	/*
-> -	 * Return 0 prevents I/O fallback trial caused by rw_page fail
-> -	 * and upper layer can handle this IO error via page error.
-> -	 */
-> +	page_endio(page, rw, 0);
->  	return 0;
+> Main reason I sent the patch is I got a subtle bug when I implement
+> new feature of zsmalloc(ie, compaction) due to link's mishandling
+> (ie, link was over page boundary by my fault).
+> Although it was totally my mistake, it took time for a while
+> to find a root cause because unpredictable kmapped address should
+> be unmapped so it's almost random crash.
 
-Losing the comment makes me sad.  The code is somewhat odd-looking.  We
-should add some words explaining why we're not reporting errors at this
-point.
+Fair enough.
+
+That's pretty rude behaviour from kunmap_atomic().  Unfortunately it
+just doesn't have anything with which to check the address - we'd need
+to create a special per-cpu array[KM_TYPE_NR] just for the purpose.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
