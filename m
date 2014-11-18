@@ -1,101 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 079346B0069
-	for <linux-mm@kvack.org>; Tue, 18 Nov 2014 04:58:31 -0500 (EST)
-Received: by mail-wi0-f179.google.com with SMTP id ex7so12034915wid.0
-        for <linux-mm@kvack.org>; Tue, 18 Nov 2014 01:58:30 -0800 (PST)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.195])
-        by mx.google.com with ESMTP id v10si31324938wjy.103.2014.11.18.01.58.29
-        for <linux-mm@kvack.org>;
-        Tue, 18 Nov 2014 01:58:29 -0800 (PST)
-Date: Tue, 18 Nov 2014 11:58:11 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 06/19] mm: store mapcount for compound page separate
-Message-ID: <20141118095811.GA21774@node.dhcp.inet.fi>
-References: <1415198994-15252-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1415198994-15252-7-git-send-email-kirill.shutemov@linux.intel.com>
- <20141118084337.GA16714@hori1.linux.bs1.fc.nec.co.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141118084337.GA16714@hori1.linux.bs1.fc.nec.co.jp>
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 84BF86B0069
+	for <linux-mm@kvack.org>; Tue, 18 Nov 2014 09:09:25 -0500 (EST)
+Received: by mail-wi0-f178.google.com with SMTP id hi2so4226270wib.5
+        for <linux-mm@kvack.org>; Tue, 18 Nov 2014 06:09:24 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i2si21384498wiy.55.2014.11.18.06.09.24
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 18 Nov 2014 06:09:24 -0800 (PST)
+From: Jiri Slaby <jslaby@suse.cz>
+Subject: [PATCH 3.12 070/206] x86, pageattr: Prevent overflow in slow_virt_to_phys() for X86_PAE
+Date: Tue, 18 Nov 2014 15:07:05 +0100
+Message-Id: <0833c9e835508b7dc0305846e8b2ebf793a18d97.1416319692.git.jslaby@suse.cz>
+In-Reply-To: <28f04bcc068a44c5641c727883947960fb8dcbd5.1416319692.git.jslaby@suse.cz>
+References: <28f04bcc068a44c5641c727883947960fb8dcbd5.1416319692.git.jslaby@suse.cz>
+In-Reply-To: <cover.1416319692.git.jslaby@suse.cz>
+References: <cover.1416319692.git.jslaby@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: stable@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, Dexuan Cui <decui@microsoft.com>, "K. Y. Srinivasan" <kys@microsoft.com>, Haiyang Zhang <haiyangz@microsoft.com>, gregkh@linuxfoundation.org, linux-mm@kvack.org, olaf@aepfle.de, apw@canonical.com, jasowang@redhat.com, dave.hansen@intel.com, riel@redhat.com, Thomas Gleixner <tglx@linutronix.de>, Jiri Slaby <jslaby@suse.cz>
 
-On Tue, Nov 18, 2014 at 08:43:00AM +0000, Naoya Horiguchi wrote:
-> > @@ -1837,6 +1839,9 @@ static void __split_huge_page_refcount(struct page *page,
-> >  	atomic_sub(tail_count, &page->_count);
-> >  	BUG_ON(atomic_read(&page->_count) <= 0);
-> >  
-> > +	page->_mapcount = *compound_mapcount_ptr(page);
-> 
-> Is atomic_set() necessary?
+From: Dexuan Cui <decui@microsoft.com>
 
-Do you mean
-	atomic_set(&page->_mapcount, atomic_read(compound_mapcount_ptr(page)));
-?
+3.12-stable review patch.  If anyone has any objections, please let me know.
 
-I don't see why we would need this. Simple assignment should work just
-fine. Or we have archs which will break?
+===============
 
-> > @@ -6632,10 +6637,12 @@ static void dump_page_flags(unsigned long flags)
-> >  void dump_page_badflags(struct page *page, const char *reason,
-> >  		unsigned long badflags)
-> >  {
-> > -	printk(KERN_ALERT
-> > -	       "page:%p count:%d mapcount:%d mapping:%p index:%#lx\n",
-> > +	pr_alert("page:%p count:%d mapcount:%d mapping:%p index:%#lx",
-> >  		page, atomic_read(&page->_count), page_mapcount(page),
-> >  		page->mapping, page->index);
-> > +	if (PageCompound(page))
-> 
-> > +		printk(" compound_mapcount: %d", compound_mapcount(page));
-> > +	printk("\n");
-> 
-> These two printk() should be pr_alert(), too?
+commit d1cd1210834649ce1ca6bafe5ac25d2f40331343 upstream.
 
-No. It will split the line into several messages in dmesg.
+pte_pfn() returns a PFN of long (32 bits in 32-PAE), so "long <<
+PAGE_SHIFT" will overflow for PFNs above 4GB.
 
-> > @@ -986,9 +986,30 @@ void page_add_anon_rmap(struct page *page,
-> >  void do_page_add_anon_rmap(struct page *page,
-> >  	struct vm_area_struct *vma, unsigned long address, int flags)
-> >  {
-> > -	int first = atomic_inc_and_test(&page->_mapcount);
-> > +	bool compound = flags & RMAP_COMPOUND;
-> > +	bool first;
-> > +
-> > +	VM_BUG_ON_PAGE(!PageLocked(compound_head(page)), page);
-> > +
-> > +	if (PageTransCompound(page)) {
-> > +		struct page *head_page = compound_head(page);
-> > +
-> > +		if (compound) {
-> > +			VM_BUG_ON_PAGE(!PageTransHuge(page), page);
-> > +			first = atomic_inc_and_test(compound_mapcount_ptr(page));
-> 
-> Is compound_mapcount_ptr() well-defined for tail pages?
+Due to this issue, some Linux 32-PAE distros, running as guests on Hyper-V,
+with 5GB memory assigned, can't load the netvsc driver successfully and
+hence the synthetic network device can't work (we can use the kernel parameter
+mem=3000M to work around the issue).
 
-The page is head page, otherwise VM_BUG_ON on the line above would trigger.
+Cast pte_pfn() to phys_addr_t before shifting.
 
-> > @@ -1032,10 +1052,19 @@ void page_add_new_anon_rmap(struct page *page,
-> >  
-> >  	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
-> >  	SetPageSwapBacked(page);
-> > -	atomic_set(&page->_mapcount, 0); /* increment count (starts at -1) */
-> >  	if (compound) {
-> > +		atomic_t *compound_mapcount;
-> > +
-> >  		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
-> > +		compound_mapcount = (atomic_t *)&page[1].mapping;
-> 
-> You can use compound_mapcount_ptr() here.
+Fixes: "commit d76565344512: x86, mm: Create slow_virt_to_phys()"
+Signed-off-by: Dexuan Cui <decui@microsoft.com>
+Cc: K. Y. Srinivasan <kys@microsoft.com>
+Cc: Haiyang Zhang <haiyangz@microsoft.com>
+Cc: gregkh@linuxfoundation.org
+Cc: linux-mm@kvack.org
+Cc: olaf@aepfle.de
+Cc: apw@canonical.com
+Cc: jasowang@redhat.com
+Cc: dave.hansen@intel.com
+Cc: riel@redhat.com
+Cc: stable@vger.kernel.org
+Link: http://lkml.kernel.org/r/1414580017-27444-1-git-send-email-decui@microsoft.com
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Signed-off-by: Jiri Slaby <jslaby@suse.cz>
+---
+ arch/x86/mm/pageattr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Right, thanks.
-
+diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+index bb32480c2d71..aabdf762f592 100644
+--- a/arch/x86/mm/pageattr.c
++++ b/arch/x86/mm/pageattr.c
+@@ -389,7 +389,7 @@ phys_addr_t slow_virt_to_phys(void *__virt_addr)
+ 	psize = page_level_size(level);
+ 	pmask = page_level_mask(level);
+ 	offset = virt_addr & ~pmask;
+-	phys_addr = pte_pfn(*pte) << PAGE_SHIFT;
++	phys_addr = (phys_addr_t)pte_pfn(*pte) << PAGE_SHIFT;
+ 	return (phys_addr | offset);
+ }
+ EXPORT_SYMBOL_GPL(slow_virt_to_phys);
 -- 
- Kirill A. Shutemov
+2.1.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
