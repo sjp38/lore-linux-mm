@@ -1,54 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 224CC6B006E
-	for <linux-mm@kvack.org>; Tue, 18 Nov 2014 12:08:50 -0500 (EST)
-Received: by mail-pd0-f182.google.com with SMTP id g10so8525009pdj.41
-        for <linux-mm@kvack.org>; Tue, 18 Nov 2014 09:08:49 -0800 (PST)
-Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
-        by mx.google.com with ESMTPS id v1si34885149pdm.171.2014.11.18.09.08.48
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D9306B006E
+	for <linux-mm@kvack.org>; Tue, 18 Nov 2014 12:14:18 -0500 (EST)
+Received: by mail-wg0-f48.google.com with SMTP id y19so6149522wgg.21
+        for <linux-mm@kvack.org>; Tue, 18 Nov 2014 09:14:17 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id df6si22056584wib.106.2014.11.18.09.14.17
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Tue, 18 Nov 2014 09:08:48 -0800 (PST)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout1.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NF8008XIVRF5S10@mailout1.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 18 Nov 2014 17:11:40 +0000 (GMT)
-Message-id: <546B7D1A.2020503@samsung.com>
-Date: Tue, 18 Nov 2014 20:08:42 +0300
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
-MIME-version: 1.0
-Subject: Re: [PATCH v6 00/11] Kernel address sanitizer - runtime memory
- debugger.
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
- <1415199241-5121-1-git-send-email-a.ryabinin@samsung.com>
- <5461B906.1040803@samsung.com>
-In-reply-to: <5461B906.1040803@samsung.com>
-Content-type: text/plain; charset=koi8-r
-Content-transfer-encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 18 Nov 2014 09:14:17 -0800 (PST)
+Date: Tue, 18 Nov 2014 17:14:14 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC PATCH 0/7] Replace _PAGE_NUMA with PAGE_NONE protections
+Message-ID: <20141118171413.GE2725@suse.de>
+References: <1415971986-16143-1-git-send-email-mgorman@suse.de>
+ <5466C8A5.3000402@oracle.com>
+ <20141118154246.GB2725@suse.de>
+ <546B74F5.10004@oracle.com>
+ <87tx1w78hi.fsf@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <87tx1w78hi.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Michal Marek <mmarek@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-mm@kvack.org, Randy Dunlap <rdunlap@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Jones <davej@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joe Perches <joe@perches.com>, linux-kernel@vger.kernel.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@redhat.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On 11/11/2014 10:21 AM, Andrey Ryabinin wrote:
-> Hi Andrew,
+On Tue, Nov 18, 2014 at 10:26:41PM +0530, Aneesh Kumar K.V wrote:
+> Sasha Levin <sasha.levin@oracle.com> writes:
 > 
-> Now we have stable GCC(4.9.2) which supports kasan and from my point of view patchset is ready for merging.
-> I could have sent v7 (it's just rebased v6), but I see no point in doing that and bothering people,
-> unless you are ready to take it.
-> So how should I proceed?
+> > On 11/18/2014 10:42 AM, Mel Gorman wrote:
+> >> 1. I'm assuming this is a KVM setup but can you confirm?
+> >
+> > Yes.
+> >
+> >> 2. Are you using numa=fake=N?
+> >
+> > Yes. numa=fake=24, which is probably way more nodes on any physical machine
+> > than the new code was tested on?
+> >
+> >> 3. If you are using fake NUMA, what happens if you boot without it as
+> >>    that should make the patches a no-op?
+> >
+> > Nope, still seeing it without fake numa.
+> >
+> >> 4. Similarly, does the kernel boot properly without without patches?
+> >
+> > Yes, the kernel works fine without the patches both with and without fake
+> > numa.
 > 
-Ping, Andrew ?
-
-FWIW v7 will have one more patch needed for catching bad accesses in memcpy/memmove/memset.
-Recently instrumentation of those functions was removed from GCC 5.0.
-
-
-
-> Thanks,
-> Andrey.
 > 
+> Hmm that is interesting. I am not sure how writeback_fid can be
+> related. We use writeback fid to enable client side caching with 9p
+> (cache=loose). We use this fid to write back dirty pages later. Can you
+> share the qemu command line used, 9p mount options and the test details ? 
+> 
+
+It would help if the test details included the kernel config. I got KVM
+working again on an server with an older installation and while it
+doesn't use 9p, I'm not seeing any other oddities either yet while
+running trinity.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
