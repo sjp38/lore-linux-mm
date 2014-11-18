@@ -1,53 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EF286B0069
-	for <linux-mm@kvack.org>; Mon, 17 Nov 2014 16:33:57 -0500 (EST)
-Received: by mail-pa0-f54.google.com with SMTP id hz1so11906053pad.13
-        for <linux-mm@kvack.org>; Mon, 17 Nov 2014 13:33:57 -0800 (PST)
-Received: from relay.sgi.com (relay2.sgi.com. [192.48.180.65])
-        by mx.google.com with ESMTP id gg1si36045566pbc.237.2014.11.17.13.33.55
-        for <linux-mm@kvack.org>;
-        Mon, 17 Nov 2014 13:33:56 -0800 (PST)
-Date: Mon, 17 Nov 2014 15:34:15 -0600
-From: Alex Thorlton <athorlton@sgi.com>
-Subject: Re: [PATCH 0/4] Convert khugepaged to a task_work function
-Message-ID: <20141117213415.GU21147@sgi.com>
-References: <1414032567-109765-1-git-send-email-athorlton@sgi.com>
- <87lho0pf4l.fsf@tassilo.jf.intel.com>
- <544F9302.4010001@redhat.com>
- <544FB8A8.1090402@redhat.com>
- <5453F0A4.4090708@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5453F0A4.4090708@suse.cz>
+Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
+	by kanga.kvack.org (Postfix) with ESMTP id AB6316B0069
+	for <linux-mm@kvack.org>; Mon, 17 Nov 2014 19:02:15 -0500 (EST)
+Received: by mail-ig0-f176.google.com with SMTP id l13so95059iga.15
+        for <linux-mm@kvack.org>; Mon, 17 Nov 2014 16:02:15 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id em5si56956487icb.55.2014.11.17.16.02.14
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Nov 2014 16:02:14 -0800 (PST)
+Date: Mon, 17 Nov 2014 16:02:12 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] Repeated fork() causes SLAB to grow without bound
+Message-Id: <20141117160212.b86d031e1870601240b0131d@linux-foundation.org>
+In-Reply-To: <20141114163053.GA6547@cosmos.ssec.wisc.edu>
+References: <20120816024610.GA5350@evergreen.ssec.wisc.edu>
+	<502D42E5.7090403@redhat.com>
+	<20120818000312.GA4262@evergreen.ssec.wisc.edu>
+	<502F100A.1080401@redhat.com>
+	<alpine.LSU.2.00.1208200032450.24855@eggly.anvils>
+	<CANN689Ej7XLh8VKuaPrTttDrtDGQbXuYJgS2uKnZL2EYVTM3Dg@mail.gmail.com>
+	<20120822032057.GA30871@google.com>
+	<50345232.4090002@redhat.com>
+	<20130603195003.GA31275@evergreen.ssec.wisc.edu>
+	<20141114163053.GA6547@cosmos.ssec.wisc.edu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Alex Thorlton <athorlton@sgi.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <lliubbo@gmail.com>, David Rientjes <rientjes@google.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@redhat.com>, Kees Cook <keescook@chromium.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Vladimir Davydov <vdavydov@parallels.com>, linux-kernel@vger.kernel.org
+To: Daniel Forrest <dan.forrest@ssec.wisc.edu>
+Cc: Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tim Hartrick <tim@edgecast.com>, Michal Hocko <mhocko@suse.cz>
 
-On Fri, Oct 31, 2014 at 09:27:16PM +0100, Vlastimil Babka wrote:
-> What could help would be to cache one or few free huge pages per
-> zone with cache
-> re-fill done asynchronously, e.g. via work queues. The cache could
-> benefit fault-THP
-> allocations as well. And adding some logic that if nobody uses the
-> cached pages and
-> memory is low, then free them. And importantly, if it's not possible
-> to allocate huge
-> pages for the cache, then prevent scanning for collapse candidates
-> as there's no point.
-> (well this is probably more complex if some nodes can allocate huge
-> pages and others
-> not).
+On Fri, 14 Nov 2014 10:30:53 -0600 Daniel Forrest <dan.forrest@ssec.wisc.edu> wrote:
 
-I think this would be a pretty cool addition, even separately from this
-effort.  If we keep a page cached on each NUMA node, then we could,
-theoretically, really speed up the khugepaged scans (even if we don't
-move those scans to task_work), and regular THP faults.  I'll add it to
-my ever-growing wish list :)
+> There have been a couple of inquiries about the status of this patch
+> over the last few months, so I am going to try pushing it out.
+> 
+> Andrea Arcangeli has commented:
+> 
+> > Agreed. The only thing I don't like about this patch is the hardcoding
+> > of number 5: could we make it a variable to tweak with sysfs/sysctl so
+> > if some weird workload arises we have a tuning tweak? It'd cost one
+> > cacheline during fork, so it doesn't look excessive overhead.
+> 
+> Adding this is beyond my experience level, so if it is required then
+> someone else will have to make it so.
+> 
+> Rik van Riel has commented:
+> 
+> > I believe we should just merge that patch.
+> > 
+> > I have not seen any better ideas come by.
+> > 
+> > The comment should probably be fixed to reflect the
+> > chain length of 5 though :)
+> 
+> So here is Michel's patch again with "(length > 1)" modified to
+> "(length > 5)" and fixed comments.
+> 
+> I have been running with this patch (with the threshold set to 5) for
+> over two years now and it does indeed solve the problem.
+> 
+> ---
+> 
+> anon_vma_clone() is modified to return the length of the existing
+> same_vma anon vma chain, and we create a new anon_vma in the child
+> if it is more than five forks after the anon_vma was created, as we
+> don't want the same_vma chain to grow arbitrarily large.
 
-- Alex
+hoo boy, what's going on here.
+
+- Under what circumstances are we seeing this slab windup?
+
+- What are the consequences?  Can it OOM the machine?
+
+- Why is this occurring?  There aren't an infinite number of vmas, so
+  there shouldn't be an infinite number of anon_vmas or
+  anon_vma_chains.
+
+- IOW, what has to be done to fix this properly?
+
+- What are the runtime consequences of limiting the length of the chain?
+
+> ...
+>
+> @@ -331,10 +334,17 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
+>  	 * First, attach the new VMA to the parent VMA's anon_vmas,
+>  	 * so rmap can find non-COWed pages in child processes.
+>  	 */
+> -	if (anon_vma_clone(vma, pvma))
+> +	length = anon_vma_clone(vma, pvma);
+> +	if (length < 0)
+>  		return -ENOMEM;
+
+This should propagate the anon_vma_clone() return val instead of
+assuming ENOMEM.  But that won't fix anything...
+
+> +	else if (length > 5)
+> +		return 0;
+>  
+> -	/* Then add our own anon_vma. */
+> +	/*
+> +	 * Then add our own anon_vma. We do this only for five forks after
+> +	 * the anon_vma was created, as we don't want the same_vma chain to
+> +	 * grow arbitrarily large.
+> +	 */
+>  	anon_vma = anon_vma_alloc();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
