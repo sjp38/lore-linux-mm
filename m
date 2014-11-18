@@ -1,73 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id BA3B96B0069
-	for <linux-mm@kvack.org>; Mon, 17 Nov 2014 22:08:54 -0500 (EST)
-Received: by mail-pd0-f172.google.com with SMTP id r10so22578478pdi.3
-        for <linux-mm@kvack.org>; Mon, 17 Nov 2014 19:08:54 -0800 (PST)
-Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id fm3si36883156pab.94.2014.11.17.19.08.52
-        for <linux-mm@kvack.org>;
-        Mon, 17 Nov 2014 19:08:53 -0800 (PST)
-Date: Tue, 18 Nov 2014 12:11:26 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v5 1/4] mm/page_alloc: fix incorrect isolation behavior
- by rechecking migratetype
-Message-ID: <20141118031125.GA12197@js1304-P5Q-DELUXE>
-References: <1414740330-4086-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1414740330-4086-2-git-send-email-iamjoonsoo.kim@lge.com>
- <CAL1ERfMxR0BPQ-1hsD+Z-Oizkt4WHzL_rwYmKd2n70R=H0X22Q@mail.gmail.com>
- <20141114103301.GD21422@suse.de>
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 02E0F6B0069
+	for <linux-mm@kvack.org>; Mon, 17 Nov 2014 22:25:29 -0500 (EST)
+Received: by mail-pd0-f171.google.com with SMTP id r10so22463273pdi.2
+        for <linux-mm@kvack.org>; Mon, 17 Nov 2014 19:25:28 -0800 (PST)
+Received: from fgwmail6.fujitsu.co.jp (fgwmail6.fujitsu.co.jp. [192.51.44.36])
+        by mx.google.com with ESMTPS id w4si11516430pdi.115.2014.11.17.19.25.27
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 17 Nov 2014 19:25:27 -0800 (PST)
+Received: from kw-mxoi1.gw.nic.fujitsu.com (unknown [10.0.237.133])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 382043EE0C1
+	for <linux-mm@kvack.org>; Tue, 18 Nov 2014 12:25:26 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by kw-mxoi1.gw.nic.fujitsu.com (Postfix) with ESMTP id 36CBBAC049B
+	for <linux-mm@kvack.org>; Tue, 18 Nov 2014 12:25:25 +0900 (JST)
+Received: from g01jpfmpwkw01.exch.g01.fujitsu.local (g01jpfmpwkw01.exch.g01.fujitsu.local [10.0.193.38])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 953E21DB8050
+	for <linux-mm@kvack.org>; Tue, 18 Nov 2014 12:25:24 +0900 (JST)
+Message-ID: <546ABC02.4010905@jp.fujitsu.com>
+Date: Tue, 18 Nov 2014 12:24:50 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141114103301.GD21422@suse.de>
+Subject: Re: [PATCH] mm: do not overwrite reserved pages counter at show_mem()
+References: <e34cbf786f7c16d4330889825aa5b13141cc085c.1415989668.git.aquini@redhat.com>
+In-Reply-To: <e34cbf786f7c16d4330889825aa5b13141cc085c.1415989668.git.aquini@redhat.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Weijie Yang <weijie.yang.kh@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org
 
-On Fri, Nov 14, 2014 at 10:33:01AM +0000, Mel Gorman wrote:
-> > > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> > > index 4593567..3d090af 100644
-> > > --- a/include/linux/mmzone.h
-> > > +++ b/include/linux/mmzone.h
-> > > @@ -431,6 +431,15 @@ struct zone {
-> > >          */
-> > >         int                     nr_migrate_reserve_block;
-> > >
-> > > +#ifdef CONFIG_MEMORY_ISOLATION
-> > > +       /*
-> > > +        * Number of isolated pageblock. It is used to solve incorrect
-> > > +        * freepage counting problem due to racy retrieving migratetype
-> > > +        * of pageblock. Protected by zone->lock.
-> > > +        */
-> > > +       unsigned long           nr_isolate_pageblock;
-> > > +#endif
-> > > +
-> > 
-> > First sorry for this deferred reply, I see these patches have been merged
-> > into the mainline.
-> > However, I still have a tiny question:
-> > Why use ZONE_PADDING(_pad1_)  seperate it and zone->lock?
-> > How about move it to the same cacheline with zone->lock, because it is
-> > accessed under zone->lock?
-> > 
+(2014/11/15 3:34), Rafael Aquini wrote:
+> Minor fixlet to perform the reserved pages counter aggregation
+> for each node, at show_mem()
 > 
-> zone->lock is currently sharing lines with the data that is frequently
-> updated under zone lock and some of the dirty data cache line bouncing has
-> completed when the lock is acquired. nr_isolate_pageblock is a read-mostly
-> field and in some cases will never be used. It's fine where it is beside
-> other read-mostly fields.
+> Signed-off-by: Rafael Aquini <aquini@redhat.com>
+> ---
+
+Acked-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+
+Thanks,
+Yasuaki Ishimatsu
+
+>   lib/show_mem.c | 2 +-
+>   1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/lib/show_mem.c b/lib/show_mem.c
+> index 0922579..5e25627 100644
+> --- a/lib/show_mem.c
+> +++ b/lib/show_mem.c
+> @@ -28,7 +28,7 @@ void show_mem(unsigned int filter)
+>   				continue;
+>   
+>   			total += zone->present_pages;
+> -			reserved = zone->present_pages - zone->managed_pages;
+> +			reserved += zone->present_pages - zone->managed_pages;
+>   
+>   			if (is_highmem_idx(zoneid))
+>   				highmem += zone->present_pages;
 > 
 
-My bad...
-I don't remember why I decide that place. :/
-
-It seems better to move nr_isolate_pageblock to the same cacheline with
-zone->lock, but, as Mel said, it is rarely used field so improvement would
-be marginal.
-
-Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
