@@ -1,115 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F5CA6B0038
-	for <linux-mm@kvack.org>; Wed, 19 Nov 2014 08:16:00 -0500 (EST)
-Received: by mail-wi0-f173.google.com with SMTP id r20so5319324wiv.0
-        for <linux-mm@kvack.org>; Wed, 19 Nov 2014 05:15:59 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id fa3si2616977wjd.31.2014.11.19.05.15.57
+Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 104DB6B0038
+	for <linux-mm@kvack.org>; Wed, 19 Nov 2014 08:38:26 -0500 (EST)
+Received: by mail-wg0-f41.google.com with SMTP id y19so888610wgg.0
+        for <linux-mm@kvack.org>; Wed, 19 Nov 2014 05:38:25 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id pc1si2714950wjb.23.2014.11.19.05.38.23
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Nov 2014 05:15:58 -0800 (PST)
-Message-ID: <546C97EC.10905@redhat.com>
-Date: Wed, 19 Nov 2014 14:15:24 +0100
-From: Jerome Marchand <jmarchan@redhat.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 19 Nov 2014 05:38:23 -0800 (PST)
+Message-ID: <546C9D4D.9090201@suse.cz>
+Date: Wed, 19 Nov 2014 14:38:21 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 06/19] mm: store mapcount for compound page separate
-References: <1415198994-15252-1-git-send-email-kirill.shutemov@linux.intel.com> <1415198994-15252-7-git-send-email-kirill.shutemov@linux.intel.com> <546C761D.6050407@redhat.com> <20141119130050.GA29884@node.dhcp.inet.fi>
-In-Reply-To: <20141119130050.GA29884@node.dhcp.inet.fi>
-Content-Type: multipart/signed; micalg=pgp-sha1;
- protocol="application/pgp-signature";
- boundary="D0iXfmHUpo7RM25lPPKt2AucLa8O5rJmI"
+Subject: Re: mm: shmem: freeing mlocked page
+References: <545C4A36.9050702@oracle.com>	<5466142C.60100@oracle.com> <20141118135843.bd711e95d3977c74cf51d803@linux-foundation.org>
+In-Reply-To: <20141118135843.bd711e95d3977c74cf51d803@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>
+Cc: Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>, Jens Axboe <axboe@kernel.dk>
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---D0iXfmHUpo7RM25lPPKt2AucLa8O5rJmI
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+On 11/18/2014 10:58 PM, Andrew Morton wrote:
+> On Fri, 14 Nov 2014 09:39:40 -0500 Sasha Levin <sasha.levin@oracle.com> wrote:
+> 
+>> 
+>> [ 1026.988043] BUG: Bad page state in process trinity-c374  pfn:23f70
+>> [ 1026.989684] page:ffffea0000b3d300 count:0 mapcount:0 mapping:          (null) index:0x5b
+>> [ 1026.991151] flags: 0x1fffff8028000c(referenced|uptodate|swapbacked|mlocked)
+>> [ 1026.992410] page dumped because: PAGE_FLAGS_CHECK_AT_FREE flag(s) set
+>> [ 1026.993479] bad because of flags:
+>> [ 1026.994125] flags: 0x200000(mlocked)
+> 
+> Gee that new page dumping code is nice!
+> 
+>> [ 1026.994816] Modules linked in:
+>> [ 1026.995378] CPU: 7 PID: 7879 Comm: trinity-c374 Not tainted 3.18.0-rc4-next-20141113-sasha-00047-gd1763ce-dirty #1455
+>> [ 1026.996123] FAULT_INJECTION: forcing a failure.
+>> [ 1026.996123] name failslab, interval 100, probability 30, space 0, times -1
+>> [ 1026.999050]  0000000000000000 0000000000000000 0000000000b3d300 ffff88061295bbd8
+>> [ 1027.000676]  ffffffff92f71097 0000000000000000 ffffea0000b3d300 ffff88061295bc08
+>> [ 1027.002020]  ffffffff8197ef7a ffffea0000b3d300 ffffffff942dd148 dfffe90000000000
+>> [ 1027.003359] Call Trace:
+>> [ 1027.003831] dump_stack (lib/dump_stack.c:52)
+>> [ 1027.004725] bad_page (mm/page_alloc.c:338)
+>> [ 1027.005623] free_pages_prepare (mm/page_alloc.c:657 mm/page_alloc.c:763)
+>> [ 1027.006761] free_hot_cold_page (mm/page_alloc.c:1438)
+>> [ 1027.007772] ? __page_cache_release (mm/swap.c:66)
+>> [ 1027.008815] put_page (mm/swap.c:270)
+>> [ 1027.009665] page_cache_pipe_buf_release (fs/splice.c:93)
+>> [ 1027.010888] __splice_from_pipe (fs/splice.c:784 fs/splice.c:886)
+>> [ 1027.011917] ? might_fault (./arch/x86/include/asm/current.h:14 mm/memory.c:3734)
+>> [ 1027.012856] ? pipe_lock (fs/pipe.c:69)
+>> [ 1027.013728] ? write_pipe_buf (fs/splice.c:1534)
+>> [ 1027.014756] vmsplice_to_user (fs/splice.c:1574)
+>> [ 1027.015725] ? rcu_read_lock_held (kernel/rcu/update.c:169)
+>> [ 1027.016757] ? __fget_light (include/linux/fdtable.h:80 fs/file.c:684)
+>> [ 1027.017782] SyS_vmsplice (fs/splice.c:1656 fs/splice.c:1639)
+>> [ 1027.018863] tracesys_phase2 (arch/x86/kernel/entry_64.S:529)
+>> 
+> 
+> So what happened here?  Userspace fed some mlocked memory into splice()
+> and then, while splice() was running, userspace dropped its reference
+> to the memory, leaving splice() with the last reference.  Yet somehow,
+> that page was still marked as being mlocked.  I wouldn't expect the
+> kernel to permit userspace to drop its reference to the memory without
+> first clearing the mlocked state.
 
-On 11/19/2014 02:00 PM, Kirill A. Shutemov wrote:
-> On Wed, Nov 19, 2014 at 11:51:09AM +0100, Jerome Marchand wrote:
->> On 11/05/2014 03:49 PM, Kirill A. Shutemov wrote:
->>> We're going to allow mapping of individual 4k pages of THP compound a=
-nd
->>> we need a cheap way to find out how many time the compound page is
->>> mapped with PMD -- compound_mapcount() does this.
->>>
->>> page_mapcount() counts both: PTE and PMD mappings of the page.
->>>
->>> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
->>> ---
->>>  include/linux/mm.h   | 17 +++++++++++++++--
->>>  include/linux/rmap.h |  4 ++--
->>>  mm/huge_memory.c     | 23 ++++++++++++++---------
->>>  mm/hugetlb.c         |  4 ++--
->>>  mm/memory.c          |  2 +-
->>>  mm/migrate.c         |  2 +-
->>>  mm/page_alloc.c      | 13 ++++++++++---
->>>  mm/rmap.c            | 50 ++++++++++++++++++++++++++++++++++++++++++=
-+-------
->>>  8 files changed, 88 insertions(+), 27 deletions(-)
->>>
->>> diff --git a/include/linux/mm.h b/include/linux/mm.h
->>> index 1825c468f158..aef03acff228 100644
->>> --- a/include/linux/mm.h
->>> +++ b/include/linux/mm.h
->>> @@ -435,6 +435,19 @@ static inline struct page *compound_head(struct =
-page *page)
->>>  	return page;
->>>  }
->>> =20
->>> +static inline atomic_t *compound_mapcount_ptr(struct page *page)
->>> +{
->>> +	return (atomic_t *)&page[1].mapping;
->>> +}
->>
->> IIUC your patch overloads the unused mapping field of the first tail
->> page to store the PMD mapcount. That's a non obvious trick. Why not ma=
-ke
->> it more explicit by adding a new field (say compound_mapcount - and th=
-e
->> appropriate comment of course) to the union to which mapping already b=
-elong?
->=20
-> I don't think we want to bloat struct page description: nobody outside =
-of
-> helpers should use it direcly. And it's exactly what we did to store
-> compound page destructor and compound page order.
+I did check a bit and something caught my eye. Both page_remove_rmap() and
+page_remove_file_rmap() contain this:
 
-Yes, but hiding it might make people think this field is unused when
-it's not. If it has been done that way for a while, maybe it's not as
-much trouble as I think it is, but could you at least add a comment in
-the helper.
+        if (unlikely(PageMlocked(page)))
+                clear_page_mlock(page);
 
->=20
->> The patch description would benefit from more explanation too.
->=20
-> Agreed.
->=20
+So could maybe something mlock the page between the check and clear?
 
+I find lru_cache_add_active_or_unevictable somewhat suspicious. But checking if
+these two could race will take some time.
 
-
---D0iXfmHUpo7RM25lPPKt2AucLa8O5rJmI
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iQEcBAEBAgAGBQJUbJfsAAoJEHTzHJCtsuoCs2EIAK2Dy9isSBb5uUh9mv2GOBhN
-cgAlRMwQf2dirDILIZMRrbGp3whn7MHQttyuVffvIzipZ5rkzluFCpnJogLuXP+H
-WeCR4XLWAkBvM7mbWLDkve/Xa5RRavqTFgW4jqrpS5OFflLaqKP7YyAlB+PPEe8F
-pKJqTtUZn5VRA8usXJVzv9Abhwi6B2a2ILXhc0Vpg132qlUqnUzqldpn+hxJj1YT
-jQ5ah7TOHkQ0+dr2i+PQXASekKQSgtYoqlxY+dTpubKAyObdX53d/OhvF88lF9KK
-cr8Y2do1oM2Ch9woKvnAbJ+HbmK39hkabwuF+SZQfVebu6WYuYUvACzaE+Hh3nw=
-=NRWw
------END PGP SIGNATURE-----
-
---D0iXfmHUpo7RM25lPPKt2AucLa8O5rJmI--
+> Is it possible to work out from trinity sources what the exact sequence
+> was?  Which syscalls are being used, for example?
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
