@@ -1,78 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C3476B0038
-	for <linux-mm@kvack.org>; Wed, 19 Nov 2014 08:02:26 -0500 (EST)
-Received: by mail-wi0-f179.google.com with SMTP id ex7so1747355wid.12
-        for <linux-mm@kvack.org>; Wed, 19 Nov 2014 05:02:25 -0800 (PST)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.227])
-        by mx.google.com with ESMTP id n6si2483065wjx.83.2014.11.19.05.02.25
-        for <linux-mm@kvack.org>;
-        Wed, 19 Nov 2014 05:02:25 -0800 (PST)
-Date: Wed, 19 Nov 2014 15:02:14 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 10/19] thp: PMD splitting without splitting compound page
-Message-ID: <20141119130214.GB29884@node.dhcp.inet.fi>
-References: <1415198994-15252-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1415198994-15252-11-git-send-email-kirill.shutemov@linux.intel.com>
- <20141119065823.GA16887@hori1.linux.bs1.fc.nec.co.jp>
+Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id AEFA76B0038
+	for <linux-mm@kvack.org>; Wed, 19 Nov 2014 08:06:42 -0500 (EST)
+Received: by mail-ie0-f181.google.com with SMTP id tp5so402523ieb.12
+        for <linux-mm@kvack.org>; Wed, 19 Nov 2014 05:06:42 -0800 (PST)
+Received: from mail-ie0-x22f.google.com (mail-ie0-x22f.google.com. [2607:f8b0:4001:c03::22f])
+        by mx.google.com with ESMTPS id sd7si1042892igb.62.2014.11.19.05.06.41
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 19 Nov 2014 05:06:41 -0800 (PST)
+Received: by mail-ie0-f175.google.com with SMTP id at20so400744iec.34
+        for <linux-mm@kvack.org>; Wed, 19 Nov 2014 05:06:41 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141119065823.GA16887@hori1.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <20141118222936.GB20945@cerebellum.variantweb.net>
+References: <000001d0030d$0505aaa0$0f10ffe0$%yang@samsung.com>
+	<20141118222936.GB20945@cerebellum.variantweb.net>
+Date: Wed, 19 Nov 2014 21:06:41 +0800
+Message-ID: <CAL1ERfO6qoqCDyfEdJx3OCjdJjrsakSRG4SQhvzA6SL4NxO6uQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: frontswap: invalidate expired data on a dup-store failure
+From: Weijie Yang <weijie.yang.kh@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Seth Jennings <sjennings@variantweb.net>
+Cc: Weijie Yang <weijie.yang@samsung.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Streetman <ddstreet@ieee.org>, Minchan Kim <minchan@kernel.org>, Bob Liu <bob.liu@oracle.com>, =?UTF-8?B?5p2O5bi45Z2k?= <xfishcoder@gmail.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
 
-On Wed, Nov 19, 2014 at 06:57:47AM +0000, Naoya Horiguchi wrote:
-> On Wed, Nov 05, 2014 at 04:49:45PM +0200, Kirill A. Shutemov wrote:
-> > Current split_huge_page() combines two operations: splitting PMDs into
-> > tables of PTEs and splitting underlying compound page. This patch
-> > changes split_huge_pmd() implementation to split the given PMD without
-> > splitting other PMDs this page mapped with or underlying compound page.
-> > 
-> > In order to do this we have to get rid of tail page refcounting, which
-> > uses _mapcount of tail pages. Tail page refcounting is needed to be able
-> > to split THP page at any point: we always know which of tail pages is
-> > pinned (i.e. by get_user_pages()) and can distribute page count
-> > correctly.
-> > 
-> > We can avoid this by allowing split_huge_page() to fail if the compound
-> > page is pinned. This patch removes all infrastructure for tail page
-> > refcounting and make split_huge_page() to always return -EBUSY. All
-> > split_huge_page() users already know how to handle its fail. Proper
-> > implementation will be added later.
-> > 
-> > Without tail page refcounting, implementation of split_huge_pmd() is
-> > pretty straight-forward.
-> > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > ---
-> ...
-> 
-> > diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
-> > index 7e70ae968e5f..e4ba17694b6b 100644
-> > --- a/arch/powerpc/mm/hugetlbpage.c
-> > +++ b/arch/powerpc/mm/hugetlbpage.c
-> > @@ -1022,7 +1022,6 @@ int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
-> >  {
-> >  	unsigned long mask;
-> >  	unsigned long pte_end;
-> > -	struct page *head, *page, *tail;
-> >  	pte_t pte;
-> >  	int refs;
-> >  
-> 
-> This breaks build of powerpc, so you need keep *head and *page as
-> you do for other architectures.
+On Wed, Nov 19, 2014 at 6:29 AM, Seth Jennings <sjennings@variantweb.net> wrote:
+> On Tue, Nov 18, 2014 at 04:51:36PM +0800, Weijie Yang wrote:
+>> If a frontswap dup-store failed, it should invalidate the expired page
+>> in the backend, or it could trigger some data corruption issue.
+>> Such as:
+>> 1. use zswap as the frontswap backend with writeback feature
+>> 2. store a swap page(version_1) to entry A, success
+>> 3. dup-store a newer page(version_2) to the same entry A, fail
+>> 4. use __swap_writepage() write version_2 page to swapfile, success
+>> 5. zswap do shrink, writeback version_1 page to swapfile
+>> 6. version_2 page is overwrited by version_1, data corrupt.
+>
+> Good catch!
+>
+>>
+>> This patch fixes this issue by invalidating expired data immediately
+>> when meet a dup-store failure.
+>>
+>> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
+>> ---
+>>  mm/frontswap.c |    4 +++-
+>>  1 files changed, 3 insertions(+), 1 deletions(-)
+>>
+>> diff --git a/mm/frontswap.c b/mm/frontswap.c
+>> index c30eec5..f2a3571 100644
+>> --- a/mm/frontswap.c
+>> +++ b/mm/frontswap.c
+>> @@ -244,8 +244,10 @@ int __frontswap_store(struct page *page)
+>>                 the (older) page from frontswap
+>>                */
+>>               inc_frontswap_failed_stores();
+>> -             if (dup)
+>> +             if (dup) {
+>>                       __frontswap_clear(sis, offset);
+>> +                     frontswap_ops->invalidate_page(type, offset);
+>
+> Looking at __frontswap_invalidate_page(), should we do
+> inc_frontswap_invalidates() too?  If so, maybe we should just call
+> __frontswap_invalidate_page().
 
-Yeah. I've already fixed this localy after 0-DAY kernel testing
-complained.
+The frontswap_invalidate_page() is for swap_entry_free, while here
+is an inner ops for dup-store, so I think there is no need for
+inc_frontswap_invalidates().
 
-Thanks.
-
--- 
- Kirill A. Shutemov
+> Thanks,
+> Seth
+>
+>> +             }
+>>       }
+>>       if (frontswap_writethrough_enabled)
+>>               /* report failure so swap also writes to swap device */
+>> --
+>> 1.7.0.4
+>>
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
