@@ -1,82 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A5F46B0038
-	for <linux-mm@kvack.org>; Wed, 19 Nov 2014 08:11:47 -0500 (EST)
-Received: by mail-wi0-f180.google.com with SMTP id n3so1804246wiv.1
-        for <linux-mm@kvack.org>; Wed, 19 Nov 2014 05:11:47 -0800 (PST)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.203])
-        by mx.google.com with ESMTP id ka4si2574681wjc.46.2014.11.19.05.11.46
-        for <linux-mm@kvack.org>;
-        Wed, 19 Nov 2014 05:11:46 -0800 (PST)
-Date: Wed, 19 Nov 2014 15:11:37 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 16/19] thp: update documentation
-Message-ID: <20141119131137.GD29884@node.dhcp.inet.fi>
-References: <1415198994-15252-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1415198994-15252-17-git-send-email-kirill.shutemov@linux.intel.com>
- <20141119080828.GA11447@hori1.linux.bs1.fc.nec.co.jp>
+	by kanga.kvack.org (Postfix) with ESMTP id 2F6976B0038
+	for <linux-mm@kvack.org>; Wed, 19 Nov 2014 08:14:11 -0500 (EST)
+Received: by mail-wi0-f180.google.com with SMTP id n3so1812044wiv.1
+        for <linux-mm@kvack.org>; Wed, 19 Nov 2014 05:14:10 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id vm10si2570410wjc.57.2014.11.19.05.14.10
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 19 Nov 2014 05:14:10 -0800 (PST)
+Date: Wed, 19 Nov 2014 13:14:06 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC PATCH 0/7] Replace _PAGE_NUMA with PAGE_NONE protections
+Message-ID: <20141119131406.GH2725@suse.de>
+References: <1415971986-16143-1-git-send-email-mgorman@suse.de>
+ <5466C8A5.3000402@oracle.com>
+ <20141118154246.GB2725@suse.de>
+ <546B74F5.10004@oracle.com>
+ <87tx1w78hi.fsf@linux.vnet.ibm.com>
+ <546B7F73.6090805@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20141119080828.GA11447@hori1.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <546B7F73.6090805@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@redhat.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Wed, Nov 19, 2014 at 08:07:59AM +0000, Naoya Horiguchi wrote:
-> On Wed, Nov 05, 2014 at 04:49:51PM +0200, Kirill A. Shutemov wrote:
-> > The patch updates Documentation/vm/transhuge.txt to reflect changes in
-> > THP design.
+On Tue, Nov 18, 2014 at 12:18:43PM -0500, Sasha Levin wrote:
+> On 11/18/2014 11:56 AM, Aneesh Kumar K.V wrote:
+> >>> 4. Similarly, does the kernel boot properly without without patches?
+> >> >
+> >> > Yes, the kernel works fine without the patches both with and without fake
+> >> > numa.
 > > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > ---
-> >  Documentation/vm/transhuge.txt | 84 +++++++++++++++++++-----------------------
-> >  1 file changed, 38 insertions(+), 46 deletions(-)
-> > 
-> > diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
-> > index df1794a9071f..33465e7b0d9b 100644
-> > --- a/Documentation/vm/transhuge.txt
-> > +++ b/Documentation/vm/transhuge.txt
-> > @@ -200,9 +200,18 @@ thp_collapse_alloc_failed is incremented if khugepaged found a range
-> >  	of pages that should be collapsed into one huge page but failed
-> >  	the allocation.
-> >  
-> > -thp_split is incremented every time a huge page is split into base
-> > +thp_split_page is incremented every time a huge page is split into base
-> >  	pages. This can happen for a variety of reasons but a common
-> >  	reason is that a huge page is old and is being reclaimed.
-> > +	This action implies splitting all PMD the page mapped with.
-> > +
-> > +thp_split_page_failed is is incremented if kernel fails to split huge
+> > Hmm that is interesting. I am not sure how writeback_fid can be
+> > related. We use writeback fid to enable client side caching with 9p
+> > (cache=loose). We use this fid to write back dirty pages later. Can you
+> > share the qemu command line used, 9p mount options and the test details ? 
 > 
-> 'is' appears twice.
+> I'm using kvmtool rather than qemu. rootfs is created via kernel parameters:
 > 
-> > +	page. This can happen if the page was pinned by somebody.
-> > +
-> > +thp_split_pmd is incremented every time a PMD split into table of PTEs.
-> > +	This can happen, for instance, when application calls mprotect() or
-> > +	munmap() on part of huge page. It doesn't split huge page, only
-> > +	page table entry.
-> >  
-> >  thp_zero_page_alloc is incremented every time a huge zero page is
-> >  	successfully allocated. It includes allocations which where
+> root=/dev/root rw rootflags=rw,trans=virtio,version=9p2000.L rootfstype=9p
 > 
-> There is a sentense related to the adjustment on futex code you just
-> removed in patch 15/19 in "get_user_pages and follow_page" section.
+> The test is just running trinity, there's no 9p or mm specific test going on.
 > 
->   ...
->   split_huge_page() to avoid the head and tail pages to disappear from
->   under it, see the futex code to see an example of that, hugetlbfs also
->   needed special handling in futex code for similar reasons).
+> I've attached my .config.
 > 
-> this seems obsolete, so we need some change on this?
 
-I'll update documentation futher once patchset will be closer to ready
-state.
+Ok, based on that I was able to reproduce the problem. I hope to have a
+V2 before the end of the week. Thanks.
 
 -- 
- Kirill A. Shutemov
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
