@@ -1,106 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F4316B0070
-	for <linux-mm@kvack.org>; Wed, 19 Nov 2014 16:14:18 -0500 (EST)
-Received: by mail-ie0-f182.google.com with SMTP id x19so1442116ier.41
-        for <linux-mm@kvack.org>; Wed, 19 Nov 2014 13:14:18 -0800 (PST)
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 60D4B6B0069
+	for <linux-mm@kvack.org>; Wed, 19 Nov 2014 16:15:38 -0500 (EST)
+Received: by mail-ig0-f182.google.com with SMTP id hn15so1693943igb.9
+        for <linux-mm@kvack.org>; Wed, 19 Nov 2014 13:15:38 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id b35si246307iod.72.2014.11.19.13.14.16
+        by mx.google.com with ESMTPS id i16si719638icf.3.2014.11.19.13.15.36
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Nov 2014 13:14:17 -0800 (PST)
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 3.14 117/122] x86/mm: In the PTE swapout page reclaim case clear the accessed bit instead of flushing the TLB
-Date: Wed, 19 Nov 2014 12:52:47 -0800
-Message-Id: <20141119205212.727672767@linuxfoundation.org>
-In-Reply-To: <20141119205208.812884198@linuxfoundation.org>
-References: <20141119205208.812884198@linuxfoundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+        Wed, 19 Nov 2014 13:15:37 -0800 (PST)
+Date: Wed, 19 Nov 2014 13:15:35 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] zram: rely on the bi_end_io for zram_rw_page fails
+Message-Id: <20141119131535.7d848c148535c076a17b9d29@linux-foundation.org>
+In-Reply-To: <20141118235201.GB7393@bbox>
+References: <1415926147-9023-1-git-send-email-minchan@kernel.org>
+	<20141118152336.d58b7b61a711b7d9982deb9d@linux-foundation.org>
+	<20141118235201.GB7393@bbox>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Shaohua Li <shli@fusionio.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matthew Wilcox <matthew.r.wilcox@intel.com>, Karam Lee <karam.lee@lge.com>, Dave Chinner <david@fromorbit.com>
 
-3.14-stable review patch.  If anyone has any objections, please let me know.
+On Wed, 19 Nov 2014 08:52:01 +0900 Minchan Kim <minchan@kernel.org> wrote:
 
-------------------
+> > >  
+> > > -	/*
+> > > -	 * Return 0 prevents I/O fallback trial caused by rw_page fail
+> > > -	 * and upper layer can handle this IO error via page error.
+> > > -	 */
+> > > +	page_endio(page, rw, 0);
+> > >  	return 0;
+> > 
+> > Losing the comment makes me sad.  The code is somewhat odd-looking.  We
+> > should add some words explaining why we're not reporting errors at this
+> > point.
+> 
+> Okay. How about this?
+> 
+> 
+> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> index decca6f161b8..1d7c90d5e0d0 100644
+> --- a/drivers/block/zram/zram_drv.c
+> +++ b/drivers/block/zram/zram_drv.c
+> @@ -975,6 +975,12 @@ static int zram_rw_page(struct block_device *bdev, sector_t sector,
+>  	err = zram_bvec_rw(zram, &bv, index, offset, rw);
+>  out_unlock:
+>  	up_read(&zram->init_lock);
+> +	/*
+> +	 * If I/O fails, just return error without calling page_endio.
+> +	 * It causes resubmit the I/O with bio request by rw_page fallback
+> +	 * and bio I/O complete handler does things to handle the error
+> +	 * (e.g., set_page_dirty of swap_writepage fail).
+> +	 */
+>  	if (err == 0)
+>  		page_endio(page, rw, 0);
+>  	return err;
 
-From: Shaohua Li <shli@kernel.org>
+I don't understand the comment :( bdev_read_page() doesn't resubmit the
+IO if block_device_operations.rw_page() returns zero and it's unclear
+how the bio I/O complete handler (which one?) gets involved.
 
-commit b13b1d2d8692b437203de7a404c6b809d2cc4d99 upstream.
-
-We use the accessed bit to age a page at page reclaim time,
-and currently we also flush the TLB when doing so.
-
-But in some workloads TLB flush overhead is very heavy. In my
-simple multithreaded app with a lot of swap to several pcie
-SSDs, removing the tlb flush gives about 20% ~ 30% swapout
-speedup.
-
-Fortunately just removing the TLB flush is a valid optimization:
-on x86 CPUs, clearing the accessed bit without a TLB flush
-doesn't cause data corruption.
-
-It could cause incorrect page aging and the (mistaken) reclaim of
-hot pages, but the chance of that should be relatively low.
-
-So as a performance optimization don't flush the TLB when
-clearing the accessed bit, it will eventually be flushed by
-a context switch or a VM operation anyway. [ In the rare
-event of it not getting flushed for a long time the delay
-shouldn't really matter because there's no real memory
-pressure for swapout to react to. ]
-
-Suggested-by: Linus Torvalds <torvalds@linux-foundation.org>
-Signed-off-by: Shaohua Li <shli@fusionio.com>
-Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mgorman@suse.de>
-Acked-by: Hugh Dickins <hughd@google.com>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Link: http://lkml.kernel.org/r/20140408075809.GA1764@kernel.org
-[ Rewrote the changelog and the code comments. ]
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Mel Gorman <mgorman@suse.de>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-
----
- arch/x86/mm/pgtable.c |   21 ++++++++++++++-------
- 1 file changed, 14 insertions(+), 7 deletions(-)
-
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -399,13 +399,20 @@ int pmdp_test_and_clear_young(struct vm_
- int ptep_clear_flush_young(struct vm_area_struct *vma,
- 			   unsigned long address, pte_t *ptep)
- {
--	int young;
--
--	young = ptep_test_and_clear_young(vma, address, ptep);
--	if (young)
--		flush_tlb_page(vma, address);
--
--	return young;
-+	/*
-+	 * On x86 CPUs, clearing the accessed bit without a TLB flush
-+	 * doesn't cause data corruption. [ It could cause incorrect
-+	 * page aging and the (mistaken) reclaim of hot pages, but the
-+	 * chance of that should be relatively low. ]
-+	 *
-+	 * So as a performance optimization don't flush the TLB when
-+	 * clearing the accessed bit, it will eventually be flushed by
-+	 * a context switch or a VM operation anyway. [ In the rare
-+	 * event of it not getting flushed for a long time the delay
-+	 * shouldn't really matter because there's no real memory
-+	 * pressure for swapout to react to. ]
-+	 */
-+	return ptep_test_and_clear_young(vma, address, ptep);
- }
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-
+It would help in the comment was more specific.  Instead of using vague
+terms like "rw_page fallback" and "bio I/O complete handler", use
+actual function names so the reader understand exactly what code we're
+referring to.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
