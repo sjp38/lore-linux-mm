@@ -1,98 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 999BB6B007B
-	for <linux-mm@kvack.org>; Wed, 19 Nov 2014 18:10:32 -0500 (EST)
-Received: by mail-wi0-f176.google.com with SMTP id ex7so6942648wid.3
-        for <linux-mm@kvack.org>; Wed, 19 Nov 2014 15:10:32 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ce6si4641875wib.72.2014.11.19.15.10.31
+Received: from mail-qc0-f179.google.com (mail-qc0-f179.google.com [209.85.216.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 89C1B6B0080
+	for <linux-mm@kvack.org>; Wed, 19 Nov 2014 18:14:17 -0500 (EST)
+Received: by mail-qc0-f179.google.com with SMTP id c9so1273051qcz.38
+        for <linux-mm@kvack.org>; Wed, 19 Nov 2014 15:14:17 -0800 (PST)
+Received: from mail-qa0-x231.google.com (mail-qa0-x231.google.com. [2607:f8b0:400d:c00::231])
+        by mx.google.com with ESMTPS id 67si891678qgx.12.2014.11.19.15.14.16
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 19 Nov 2014 15:10:31 -0800 (PST)
-Received: from relay2.suse.de (charybdis-ext.suse.de [195.135.220.254])
-	by mx2.suse.de (Postfix) with ESMTP id 2645CAAF1
-	for <linux-mm@kvack.org>; Wed, 19 Nov 2014 23:10:31 +0000 (UTC)
-Message-ID: <546D2366.1050506@suse.cz>
-Date: Thu, 20 Nov 2014 00:10:30 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        Wed, 19 Nov 2014 15:14:16 -0800 (PST)
+Received: by mail-qa0-f49.google.com with SMTP id s7so1152125qap.8
+        for <linux-mm@kvack.org>; Wed, 19 Nov 2014 15:14:16 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: isolate_freepages_block and excessive CPU usage by OSD process
-References: <20141119012110.GA2608@cucumber.iinet.net.au> <CABYiri99WAj+6hfTq+6x+_w0=VNgBua8N9+mOvU6o5bynukPLQ@mail.gmail.com> <20141119212013.GA18318@cucumber.anchor.net.au>
-In-Reply-To: <20141119212013.GA18318@cucumber.anchor.net.au>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CALYGNiO9_bAVVZ2GdFq=PO2yV3LPs2utsbcb2pFby7MypptLCw@mail.gmail.com>
+References: <502D42E5.7090403@redhat.com>
+	<20120818000312.GA4262@evergreen.ssec.wisc.edu>
+	<502F100A.1080401@redhat.com>
+	<alpine.LSU.2.00.1208200032450.24855@eggly.anvils>
+	<CANN689Ej7XLh8VKuaPrTttDrtDGQbXuYJgS2uKnZL2EYVTM3Dg@mail.gmail.com>
+	<20120822032057.GA30871@google.com>
+	<50345232.4090002@redhat.com>
+	<20130603195003.GA31275@evergreen.ssec.wisc.edu>
+	<20141114163053.GA6547@cosmos.ssec.wisc.edu>
+	<20141117160212.b86d031e1870601240b0131d@linux-foundation.org>
+	<20141118014135.GA17252@cosmos.ssec.wisc.edu>
+	<546AB1F5.6030306@redhat.com>
+	<20141118121936.07b02545a0684b2cc839a10c@linux-foundation.org>
+	<CALYGNiMxnxmy-LyJ4OT9OoFeKwTPPkZMF-bJ-eJDBFXgZQ6AEA@mail.gmail.com>
+	<CALYGNiM_CsjjiK_36JGirZT8rTP+ROYcH0CSyZjghtSNDU8ptw@mail.gmail.com>
+	<546BDB29.9050403@suse.cz>
+	<CALYGNiOHXvyqr3+Jq5FsZ_xscsXwrQ_9YCtL2819i6iRkgms2w@mail.gmail.com>
+	<546CC0CD.40906@suse.cz>
+	<CALYGNiO9_bAVVZ2GdFq=PO2yV3LPs2utsbcb2pFby7MypptLCw@mail.gmail.com>
+Date: Wed, 19 Nov 2014 15:14:15 -0800
+Message-ID: <CANN689G+y77m2_paF0vBpHG8EsJ2-pEnJvLJSGs-zHf+SqTEjQ@mail.gmail.com>
+Subject: Re: [PATCH] Repeated fork() causes SLAB to grow without bound
+From: Michel Lespinasse <walken@google.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Tim Hartrick <tim@edgecast.com>, Michal Hocko <mhocko@suse.cz>
 
-On 11/19/2014 10:20 PM, Christian Marie wrote:
-> On Wed, Nov 19, 2014 at 10:03:44PM +0400, Andrey Korolyov wrote:
->> > We are using Mellanox ipoib drivers which do not do scatter-gather, so I'm
->> > currently working on adding support for that (the hardware supports it). Are
->> > you also using ipoib or have something else doing high order allocations? It's
->> > a bit concerning for me if you don't as it would suggest that cutting down on
->> > those allocations won't help.
->> 
->> So do I. On a test environment with regular tengig cards I was unable to
->> reproduce the issue. Honestly, I thought that almost every contemporary
->> driver for high-speed cards is working with scatter-gather, so I had not mlx
->> in mind as a potential cause of this problem from very beginning.
-> 
-> Right, the drivers handle SG just fine, even in UD mode. It's just that as soon
-> as you go switch to CM they turn of hardware IP csums and SG support. The only
-> question I remain to answer before testing a patched driver is whether or not
-> the messages sent by Ceph are fragmented enough to save allocations. If not, we
-> could always patch Ceph as well but this is beginning to snowball.
-> 
-> Here is the untested WIP patch for SG support in ipoib CM mode, I'm currently
-> talking to the original author of a larger patch to review and split that and
-> get them both upstream.:
-> 
-> https://gist.github.com/christian-marie/e8048b9c118bd3925957
-> 
->> There are a couple of reports in ceph lists, complaining for OSD
->> flapping/unresponsiveness without clear reason on certain (not always clear
->> though) conditions which may have same root cause.
-> 
-> Possibly, though ipoib and Ceph seem to be a relatively rare combination.
-> Someone will likely find this thread if it is the same root cause.
-> 
->> Wonder if numad-like mechanism will help there, but its usage is generally an
->> anti-performance pattern in my experience.
-> 
-> We've played with zone_reclaim_mode and numad to no avail. Only thing we haven't
-> tried is striping, which I don't want to do anyway.
-> 
-> If these large allocations are indeed a reasonable thing to ask of the
-> compaction/reclaim subsystem that seems like the best way forward. I have two
-> questions that follow from this conjecture:
-> 
-> Are compaction behaving badly or are we just asking for too many high order
-> allocations?
-> 
-> Is this fixed in a later kernel? I haven't tested yet.
+On Wed, Nov 19, 2014 at 8:58 AM, Konstantin Khlebnikov <koct9i@gmail.com> wrote:
+> On Wed, Nov 19, 2014 at 7:09 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
+>> Also from reading http://lwn.net/Articles/383162/ I understand that correctness
+>> also depends on the hierarchy and I wonder if there's a danger of reintroducing
+>> a bug like the one described there.
+>
+> If I remember right that was fixed by linking non-exclusively mapped pages to
+> root anon_vma instead of anon_vma from vma where fault has happened.
+> After my patch this still works. Topology hierarchy actually isn't used.
+> Here just one selected "root' anon_vma which dies last. That's all.
 
-As I said, recent kernels received many compaction performance tuning patches,
-and reclaim as well. I would recommend trying them, if it's possible.
+That's not how I remember it.
 
-You mention 3.10.0-123.9.3.el7.x86_64 which I have no idea how it relates to
-upstream stable kernel. Upstream version 3.10.44 received several compaction
-fixes that I'd deem critical for compaction to work as intended, and lack of
-them could explain your problems:
+An anon_vma corresponds to a given vma V, and is used to track all
+vmas (V and descendant vmas) that may include a page that was
+originally mapped in V.
 
-mm: compaction: reset cached scanner pfn's before reading them
-commit d3132e4b83e6bd383c74d716f7281d7c3136089c upstream.
+Each anon page has a link to the anon_vma corresponding to the vma
+they were originally faulted in, and an offset indicating where the
+page was located relative to that original VMA.
 
-mm: compaction: detect when scanners meet in isolate_freepages
-commit 7ed695e069c3cbea5e1fd08f84a04536da91f584 upstream.
+The anon_vma has an interval tree of struct anon_vma_chain, and each
+struct anon_vma_chain includes a link to a descendent-of-V vma. This
+allows rmap to quickly find all the vmas that may map a given page
+(based on the page's anon_vma and offset).
 
-mm/compaction: make isolate_freepages start at pageblock boundary
-commit 49e068f0b73dd042c186ffa9b420a9943e90389a upstream.
+When forking or splitting vmas, the new vma is a descendent of the
+same vmas as the old one so it must be added to all the anon_vma
+interval trees that were referencing the old one (that is, ancestors
+of the new vma). To that end, all the struct anon_vma_chain pointing
+to a given vma are kept on a linked list, and struct anon_vma_chain
+includes a link to the anon_vma holding the interval tree.
 
-You might want to check if those are included in your kernel package, and/or try
-upstream stable 3.10 (if you can't use the latest for some reason).
+Locking the entire structure is done with a single lock hosted in the
+root anon_vma (that is, a vma that was created by mmap() and not by
+cloning or forking existing vmas).
 
-Vlastimil
+Limit the length of the ancestors linked list is correct, though it
+has performance implications. In the extreme case, forcing all vmas to
+be added on the root vma's interval tree would be correct, though it
+may re-introduce the performance problems that lead to the
+introduction of anon_vma.
+
+The good thing about Konstantin's proposal is that it does not have
+any magic constant like mine did. However, I think he is mistaken in
+saying that hierarchy isn't used - an ancestor vma will always have
+more descendents than its children, and the reason for the hierarchy
+is to limit the number of vmas that rmap must explore.
+
+-- 
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
