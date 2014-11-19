@@ -1,90 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id AEFA76B0038
-	for <linux-mm@kvack.org>; Wed, 19 Nov 2014 08:06:42 -0500 (EST)
-Received: by mail-ie0-f181.google.com with SMTP id tp5so402523ieb.12
-        for <linux-mm@kvack.org>; Wed, 19 Nov 2014 05:06:42 -0800 (PST)
-Received: from mail-ie0-x22f.google.com (mail-ie0-x22f.google.com. [2607:f8b0:4001:c03::22f])
-        by mx.google.com with ESMTPS id sd7si1042892igb.62.2014.11.19.05.06.41
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 19 Nov 2014 05:06:41 -0800 (PST)
-Received: by mail-ie0-f175.google.com with SMTP id at20so400744iec.34
-        for <linux-mm@kvack.org>; Wed, 19 Nov 2014 05:06:41 -0800 (PST)
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 35BEF6B0038
+	for <linux-mm@kvack.org>; Wed, 19 Nov 2014 08:08:56 -0500 (EST)
+Received: by mail-wi0-f179.google.com with SMTP id ex7so1777373wid.6
+        for <linux-mm@kvack.org>; Wed, 19 Nov 2014 05:08:55 -0800 (PST)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.227])
+        by mx.google.com with ESMTP id ev5si2397522wid.100.2014.11.19.05.08.55
+        for <linux-mm@kvack.org>;
+        Wed, 19 Nov 2014 05:08:55 -0800 (PST)
+Date: Wed, 19 Nov 2014 15:08:42 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 17/19] mlock, thp: HACK: split all pages in VM_LOCKED vma
+Message-ID: <20141119130842.GC29884@node.dhcp.inet.fi>
+References: <1415198994-15252-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1415198994-15252-18-git-send-email-kirill.shutemov@linux.intel.com>
+ <20141119090318.GA3974@hori1.linux.bs1.fc.nec.co.jp>
 MIME-Version: 1.0
-In-Reply-To: <20141118222936.GB20945@cerebellum.variantweb.net>
-References: <000001d0030d$0505aaa0$0f10ffe0$%yang@samsung.com>
-	<20141118222936.GB20945@cerebellum.variantweb.net>
-Date: Wed, 19 Nov 2014 21:06:41 +0800
-Message-ID: <CAL1ERfO6qoqCDyfEdJx3OCjdJjrsakSRG4SQhvzA6SL4NxO6uQ@mail.gmail.com>
-Subject: Re: [PATCH] mm: frontswap: invalidate expired data on a dup-store failure
-From: Weijie Yang <weijie.yang.kh@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141119090318.GA3974@hori1.linux.bs1.fc.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjennings@variantweb.net>
-Cc: Weijie Yang <weijie.yang@samsung.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Streetman <ddstreet@ieee.org>, Minchan Kim <minchan@kernel.org>, Bob Liu <bob.liu@oracle.com>, =?UTF-8?B?5p2O5bi45Z2k?= <xfishcoder@gmail.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed, Nov 19, 2014 at 6:29 AM, Seth Jennings <sjennings@variantweb.net> wrote:
-> On Tue, Nov 18, 2014 at 04:51:36PM +0800, Weijie Yang wrote:
->> If a frontswap dup-store failed, it should invalidate the expired page
->> in the backend, or it could trigger some data corruption issue.
->> Such as:
->> 1. use zswap as the frontswap backend with writeback feature
->> 2. store a swap page(version_1) to entry A, success
->> 3. dup-store a newer page(version_2) to the same entry A, fail
->> 4. use __swap_writepage() write version_2 page to swapfile, success
->> 5. zswap do shrink, writeback version_1 page to swapfile
->> 6. version_2 page is overwrited by version_1, data corrupt.
->
-> Good catch!
->
->>
->> This patch fixes this issue by invalidating expired data immediately
->> when meet a dup-store failure.
->>
->> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
->> ---
->>  mm/frontswap.c |    4 +++-
->>  1 files changed, 3 insertions(+), 1 deletions(-)
->>
->> diff --git a/mm/frontswap.c b/mm/frontswap.c
->> index c30eec5..f2a3571 100644
->> --- a/mm/frontswap.c
->> +++ b/mm/frontswap.c
->> @@ -244,8 +244,10 @@ int __frontswap_store(struct page *page)
->>                 the (older) page from frontswap
->>                */
->>               inc_frontswap_failed_stores();
->> -             if (dup)
->> +             if (dup) {
->>                       __frontswap_clear(sis, offset);
->> +                     frontswap_ops->invalidate_page(type, offset);
->
-> Looking at __frontswap_invalidate_page(), should we do
-> inc_frontswap_invalidates() too?  If so, maybe we should just call
-> __frontswap_invalidate_page().
+On Wed, Nov 19, 2014 at 09:02:42AM +0000, Naoya Horiguchi wrote:
+> On Wed, Nov 05, 2014 at 04:49:52PM +0200, Kirill A. Shutemov wrote:
+> > We don't yet handle mlocked pages properly with new THP refcounting.
+> > For now we split all pages in VMA on mlock and disallow khugepaged
+> > collapse pages in the VMA. If split failed on mlock() we fail the
+> > syscall with -EBUSY.
+> > ---
+> ...
+> 
+> > @@ -542,6 +530,60 @@ next:
+> >  	}
+> >  }
+> >  
+> > +static int thp_split(pmd_t *pmd, unsigned long addr, unsigned long end,
+> > +		struct mm_walk *walk)
+> > +{
+> > +	spinlock_t *ptl;
+> > +	struct page *page = NULL;
+> > +	pte_t *pte;
+> > +	int err = 0;
+> > +
+> > +retry:
+> > +	if (pmd_none(*pmd))
+> > +		return 0;
+> > +	if (pmd_trans_huge(*pmd)) {
+> > +		if (is_huge_zero_pmd(*pmd)) {
+> > +			split_huge_pmd(walk->vma, pmd, addr);
+> > +			return 0;
+> > +		}
+> > +		ptl = pmd_lock(walk->mm, pmd);
+> > +		if (!pmd_trans_huge(*pmd)) {
+> > +			spin_unlock(ptl);
+> > +			goto retry;
+> > +		}
+> > +		page = pmd_page(*pmd);
+> > +		VM_BUG_ON_PAGE(!PageHead(page), page);
+> > +		get_page(page);
+> > +		spin_unlock(ptl);
+> > +		err = split_huge_page(page);
+> > +		put_page(page);
+> > +		return err;
+> > +	}
+> > +	pte = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
+> > +	do {
+> > +		if (!pte_present(*pte))
+> > +			continue;
+> > +		page = vm_normal_page(walk->vma, addr, *pte);
+> > +		if (!page)
+> > +			continue;
+> > +		if (PageTransCompound(page)) {
+> > +			page = compound_head(page);
+> > +			get_page(page);
+> > +			spin_unlock(ptl);
+> > +			err = split_huge_page(page);
+> > +			spin_lock(ptl);
+> > +			put_page(page);
+> > +			if (!err) {
+> > +				VM_BUG_ON_PAGE(compound_mapcount(page), page);
+> > +				VM_BUG_ON_PAGE(PageTransCompound(page), page);
+> 
+> If split_huge_page() succeeded, we don't have to continue the iteration,
+> so break this loop here?
 
-The frontswap_invalidate_page() is for swap_entry_free, while here
-is an inner ops for dup-store, so I think there is no need for
-inc_frontswap_invalidates().
+We may want to skip to the next huge page region, but the patch is crap
+anyway -- don't bother.
 
-> Thanks,
-> Seth
->
->> +             }
->>       }
->>       if (frontswap_writethrough_enabled)
->>               /* report failure so swap also writes to swap device */
->> --
->> 1.7.0.4
->>
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
