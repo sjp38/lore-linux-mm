@@ -1,40 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id D887F6B0071
-	for <linux-mm@kvack.org>; Thu, 20 Nov 2014 05:39:45 -0500 (EST)
-Received: by mail-wg0-f45.google.com with SMTP id b13so3302381wgh.32
-        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 02:39:45 -0800 (PST)
-Received: from mx0.aculab.com (mx0.aculab.com. [213.249.233.131])
-        by mx.google.com with SMTP id fb7si6749204wid.47.2014.11.20.02.39.45
-        for <linux-mm@kvack.org>;
-        Thu, 20 Nov 2014 02:39:45 -0800 (PST)
-Received: from mx0.aculab.com ([127.0.0.1])
- by localhost (mx0.aculab.com [127.0.0.1]) (amavisd-new, port 10024) with SMTP
- id 11609-07 for <linux-mm@kvack.org>; Thu, 20 Nov 2014 10:39:35 +0000 (GMT)
-From: David Laight <David.Laight@ACULAB.COM>
-Subject: RE: [PATCH 03/10] mm: Convert p[te|md]_numa users to
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 95A3B6B0081
+	for <linux-mm@kvack.org>; Thu, 20 Nov 2014 05:47:27 -0500 (EST)
+Received: by mail-wi0-f178.google.com with SMTP id hi2so4871000wib.5
+        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 02:47:27 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id bj3si6727572wib.82.2014.11.20.02.47.26
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 20 Nov 2014 02:47:27 -0800 (PST)
+Date: Thu, 20 Nov 2014 10:47:22 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 03/10] mm: Convert p[te|md]_numa users to
  p[te|md]_protnone_numa
-Date: Thu, 20 Nov 2014 10:38:56 +0000
-Message-ID: <063D6719AE5E284EB5DD2968C1650D6D1C9F48CB@AcuExch.aculab.com>
+Message-ID: <20141120104722.GL2725@suse.de>
 References: <1416478790-27522-1-git-send-email-mgorman@suse.de>
  <1416478790-27522-4-git-send-email-mgorman@suse.de>
-In-Reply-To: <1416478790-27522-4-git-send-email-mgorman@suse.de>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+ <063D6719AE5E284EB5DD2968C1650D6D1C9F48CB@AcuExch.aculab.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <063D6719AE5E284EB5DD2968C1650D6D1C9F48CB@AcuExch.aculab.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Mel Gorman' <mgorman@suse.de>, Linux Kernel <linux-kernel@vger.kernel.org>
-Cc: Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Paul Mackerras <paulus@samba.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Sasha
- Levin <sasha.levin@oracle.com>, Dave Jones <davej@redhat.com>, LinuxPPC-dev <linuxppc-dev@lists.ozlabs.org>, Kirill Shutemov <kirill.shutemov@linux.intel.com>
+To: David Laight <David.Laight@ACULAB.COM>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Paul Mackerras <paulus@samba.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Sasha Levin <sasha.levin@oracle.com>, Dave Jones <davej@redhat.com>, LinuxPPC-dev <linuxppc-dev@lists.ozlabs.org>, Kirill Shutemov <kirill.shutemov@linux.intel.com>
 
-RnJvbTogIE1lbCBHb3JtYW4NCj4gQ29udmVydCBleGlzdGluZyB1c2VycyBvZiBwdGVfbnVtYSBh
-bmQgZnJpZW5kcyB0byB0aGUgbmV3IGhlbHBlci4gTm90ZQ0KPiB0aGF0IHRoZSBrZXJuZWwgaXMg
-YnJva2VuIGFmdGVyIHRoaXMgcGF0Y2ggaXMgYXBwbGllZCB1bnRpbCB0aGUgb3RoZXINCj4gcGFn
-ZSB0YWJsZSBtb2RpZmllcnMgYXJlIGFsc28gYWx0ZXJlZC4gVGhpcyBwYXRjaCBsYXlvdXQgaXMg
-dG8gbWFrZQ0KPiByZXZpZXcgZWFzaWVyLg0KDQpEb2Vzbid0IHRoYXQgYnJlYWsgYmlzZWN0aW9u
-Pw0KDQoJRGF2aWQNCg0K
+On Thu, Nov 20, 2014 at 10:38:56AM +0000, David Laight wrote:
+> From:  Mel Gorman
+> > Convert existing users of pte_numa and friends to the new helper. Note
+> > that the kernel is broken after this patch is applied until the other
+> > page table modifiers are also altered. This patch layout is to make
+> > review easier.
+> 
+> Doesn't that break bisection?
+> 
+
+Yes, for automatic NUMA balancing at least. The patch structure is to
+to make reviewers job easier and besides, bisecting within patches 2-6
+is pointless. If desired, I can collapse patches 2-6 together for the
+final submission.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
