@@ -1,222 +1,293 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 79CD36B0070
-	for <linux-mm@kvack.org>; Thu, 20 Nov 2014 08:42:22 -0500 (EST)
-Received: by mail-ig0-f169.google.com with SMTP id hl2so7391915igb.4
-        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 05:42:22 -0800 (PST)
+Received: from mail-ie0-f175.google.com (mail-ie0-f175.google.com [209.85.223.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 95E236B0070
+	for <linux-mm@kvack.org>; Thu, 20 Nov 2014 09:19:07 -0500 (EST)
+Received: by mail-ie0-f175.google.com with SMTP id at20so2823191iec.20
+        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 06:19:07 -0800 (PST)
 Received: from mail-ig0-x22e.google.com (mail-ig0-x22e.google.com. [2607:f8b0:4001:c05::22e])
-        by mx.google.com with ESMTPS id s7si2076500igh.3.2014.11.20.05.42.20
+        by mx.google.com with ESMTPS id kd4si3399072igb.32.2014.11.20.06.19.05
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 20 Nov 2014 05:42:21 -0800 (PST)
-Received: by mail-ig0-f174.google.com with SMTP id hn15so4764692igb.1
-        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 05:42:20 -0800 (PST)
+        Thu, 20 Nov 2014 06:19:06 -0800 (PST)
+Received: by mail-ig0-f174.google.com with SMTP id hn15so4824312igb.1
+        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 06:19:05 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <546D0B78.9010005@suse.cz>
-References: <000301d00253$0fcd0560$2f671020$%yang@samsung.com>
-	<546D0B78.9010005@suse.cz>
-Date: Thu, 20 Nov 2014 21:42:20 +0800
-Message-ID: <CAL1ERfNJKoAr3_Tx_MCn6KgF2n2Ui9B31W-z4sNiW8A6vaw8vA@mail.gmail.com>
-Subject: Re: [PATCH] mm: page_alloc: store updated page migratetype to avoid
- misusing stale value
-From: Weijie Yang <weijie.yang.kh@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <AF7C0ADF1FEABA4DABABB97411952A2EC91FE0@CN-MBX02.HTC.COM.TW>
+References: <AF7C0ADF1FEABA4DABABB97411952A2EC91E38@CN-MBX02.HTC.COM.TW>
+	<20141120095802.GA24575@dhcp22.suse.cz>
+	<AF7C0ADF1FEABA4DABABB97411952A2EC91EF5@CN-MBX02.HTC.COM.TW>
+	<20141120101855.GB24575@dhcp22.suse.cz>
+	<AF7C0ADF1FEABA4DABABB97411952A2EC91FE0@CN-MBX02.HTC.COM.TW>
+Date: Thu, 20 Nov 2014 22:19:05 +0800
+Message-ID: <CABdxLJGViULvRt7nptNzYZN3E7szN3k4BvQAMUrJ7oMBNcoOoQ@mail.gmail.com>
+Subject: =?UTF-8?B?UmU6IOetlOWkjTog562U5aSNOiBsb3cgbWVtb3J5IGtpbGxlcg==?=
+From: Weijie Yang <weijieut@gmail.com>
+Content-Type: multipart/alternative; boundary=047d7bd761d6c8249205084b020e
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Weijie Yang <weijie.yang@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: zhiyuan_zhu@htc.com
+Cc: mhocko@suse.cz, hannes@cmpxchg.org, Future_Zhou@htc.com, Rachel_Zhang@htc.com, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, cgroups@vger.kernel.org, linux-mm@kvack.org, greg@kroah.com, Sai_Shen@htc.com
 
-On Thu, Nov 20, 2014 at 5:28 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
-> On 11/17/2014 11:40 AM, Weijie Yang wrote:
->> The commit ad53f92e(fix incorrect isolation behavior by rechecking migratetype)
->> patch series describe the race between page isolation and free path, and try to
->> fix the freepage account issues.
->>
->> However, there is still a little issue: freed page could have stale migratetype
->> in the free_list. This would cause some bad behavior if we misuse this stale
->> value later.
->> Such as: in __test_page_isolated_in_pageblock() we check the buddy page, if the
->> page's stale migratetype is not MIGRATE_ISOLATE, which will cause unnecessary
->> page move action.
+--047d7bd761d6c8249205084b020e
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+On Thu, Nov 20, 2014 at 8:05 PM, <zhiyuan_zhu@htc.com> wrote:
+
+> Hi Greg/Michal
+> Very sorry I have a mistake in previous mail. (It should be nr_file_pages=
+ not nr_free_pages)
+> I rearrange this problem.
 >
-> Hello,
-
-Hi Vlastimil,
-Thanks for your reply, that makes me think from a bigger view.
-
-After a careful check according to your said, this patch is not proper, it
-should be dropped and I will resend a v2 patch.
-
-> are there other places than __test_page_isolated_in_pageblock(), where
-> freepage_migratetype matters? You make it sound like it's just an example, but I
-> doubt there is any other. All other callers of get_freepage_migratetype() are
-> querying pages on the pcplists, not the buddy lists. There it serves as a cached
-> value for migratetype so it doesn't have to be read again when freeing from
-> pcplists to budy list.
-
-Agree. Now only __test_page_isolated_in_pageblock() matters
-freepage_migratetype.
-pages from pcplists have a cached but not 100% accurate migratetype and we
-will recheck them when drain them to buddy if there is a need(race
-with isolation);
-pages in buddy should have an update and 100% accurate migratetype, or it would
-cause some bad issue, and that is the aim of this patch.
-
-Or, if we make nobody rely on the freepage_migratetype in buddy, we can take no
-care of the 100% accuracy of the freepage_migratetype in buddy.
-This is your suggestion, do I understand it correctly?
-
-> Seems to me that __test_page_isolated_in_pageblock() was an exception that tried
-> to rely on freepage_migratetype being valid even after the page has moved from
-> pcplist to buddy list, but this assumption was always broken.
-
-I am not very clear, could you please explain why it always broken?
-
-> Sure, if all the pages in isolated pageblock are catched by move_freepages()
-> during isolation, then the freetype is correct, but that doesn't always happen
-> due to parallel activity (and that's the core problem that Joonsoo's series
-> dealt with).
-
-Agree. Joonsoo's series fix the race between page freeing and isolation due to
-not-update freepage_migratetype check, and introduce nr_isolate_pageblock
-to avoid too much heavy check.
-
-> So, in this patch you try to make sure that freepage_migratetype will be correct
-> after page got to buddy list via __free_one_page(). But I don't think that
-> covers all situations. Look at expand(), which puts potentially numerous
-> splitted free pages on free_list, and doesn't set freepage_migratetype. Sure,
-> this ommision doesn't affect __test_page_isolated_in_pageblock(), as expand() is
-> called during allocation, which won't touch ISOLATE pageblocks, and free pages
-> created by expand() *before* setting ISOLATE are processed by move_freepages().
-
-I have to admit I did not think about the page_alloc path(such as
-expand), I will review
-the code before I resend the patch.
-What I thought is setting freepage_migratetype via __free_one_page()
-is enough because
-we can ensure them correct from the begining __free_pages_bootmem().
-
-> So my point is, you are maybe fixing just the case of
-> __test_page_isolated_in_pageblock() (but not completely I think, see below) by
-> adding extra operation to __free_one_page() which is hot path. And all for a
-> WARN_ON_ONCE. That doesn't seem like a good tradeoff. And to do it consistently,
-> you would need to add the operation also to expand(), another hotpath. So that's
-> a NAK from me.
-
-I agree we should handle hot patch carefully, in my next patch I will
-consider how to
-avoid affecting the hot path meanwhile fix the
-__test_page_isolated_in_pageblock().
-
-> I would uggest you throw the __test_page_isolated_in_pageblock() function away
-> completely.
-
-I'm not sure we can throw it completely. There is another check on
-page_count besides
-PageBuddy() and hwpoison stuff.
-
-> Or just rework it to check for PageBuddy() and hwpoison stuff - the
-> migratetype checks make no sense to me. Or if you insist that this is needed for
-> debugging further possible races in page isolation, then please hide the
-> necessary bits in hot paths being a debugging config option.
-
-Agree.
-
-> If you agree, we can even throw away the set_freepage_migratetype() calls from
-> move_freepages() - there's no point to them anymore.
-
-Agree.
-
->> This patch store the page's updated migratetype after free the page to the
->> free_list to avoid subsequent misusing stale value, and use a WARN_ON_ONCE
->> to catch a potential undetected race between isolatation and free path.
->>
->>
->> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
->> ---
->>  mm/page_alloc.c     |    1 +
->>  mm/page_isolation.c |   17 +++++------------
->>  2 files changed, 6 insertions(+), 12 deletions(-)
->>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index 616a2c9..177fca0 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -622,6 +622,7 @@ static inline void __free_one_page(struct page *page,
+> // *********** log begin **********
+> 6      161030.084144       2014-11-07 21:44:53.304        lowmemorykiller=
+: Killing 'om.htc.launcher' (4486), adj 294,
+> 6      161030.084144       2014-11-07 21:44:53.304           to free 4785=
+6kB on behalf of 'kworker/u8:14' (20594) because
+> 6      161030.084144       2014-11-07 21:44:53.304           cache 72460k=
+B is below limit 73728kB for oom_score_adj 235
+> //  **** /proc/meminfo 's result
+> 4      161030.084797       2014-11-07 21:44:53.304        Cached:        =
+   142448 kB
+> // *********** log end **********
 >
-> See here at this point, the function has this code:
->                         list_add_tail(&page->lru,
->                                &zone->free_area[order].free_list[migratetype]);
->                         goto out;
+> After I checked the android's low memory strategy: kernel/drivers/staging=
+/android/lowmemorykiller.c
 >
-> You are missing this list_add_tail() path with your patch.
-
-My fault.
-
->>       }
->>
->>       list_add(&page->lru, &zone->free_area[order].free_list[migratetype]);
->> +     set_freepage_migratetype(page, migratetype);
->>  out:
->>       zone->free_area[order].nr_free++;
->>  }
->> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
->> index c8778f7..0618071 100644
->> --- a/mm/page_isolation.c
->> +++ b/mm/page_isolation.c
->> @@ -223,19 +223,12 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
->>               page = pfn_to_page(pfn);
->>               if (PageBuddy(page)) {
->>                       /*
->> -                      * If race between isolatation and allocation happens,
->> -                      * some free pages could be in MIGRATE_MOVABLE list
->> -                      * although pageblock's migratation type of the page
->> -                      * is MIGRATE_ISOLATE. Catch it and move the page into
->> -                      * MIGRATE_ISOLATE list.
->> +                      * Use a WARN_ON_ONCE to catch a potential undetected
->> +                      * race between isolatation and free pages, even if
->> +                      * we try to avoid this issue.
->>                        */
->> -                     if (get_freepage_migratetype(page) != MIGRATE_ISOLATE) {
->> -                             struct page *end_page;
->> -
->> -                             end_page = page + (1 << page_order(page)) - 1;
->> -                             move_freepages(page_zone(page), page, end_page,
->> -                                             MIGRATE_ISOLATE);
->> -                     }
->> +                     WARN_ON_ONCE(get_freepage_migratetype(page) !=
->> +                                     MIGRATE_ISOLATE);
+> // ****** code begin *********
+> other_file =3D global_page_state(NR_FILE_PAGES) -
+> global_page_state(NR_SHMEM) -
+> total_swapcache_pages();
 >
-> So yeah as I said, all the trouble and inconsistency for a WARN_ON_ONCE doesn't
-> seem worth it.
-
-May be adding a debug config is better.
-
->>                       pfn += 1 << page_order(page);
->>               }
+> lowmem_print(1, "Killing '%s' (%d), adj %hd,\n" \
+> "   to free %ldkB on behalf of '%s' (%d) because\n" \
+> "   cache %ldkB is below limit %ldkB for oom_score_adj %hd\n" \
+> "   Free memory is %ldkB above reserved\n",
+>      selected->comm, selected->pid,
+>      selected_oom_score_adj,
+>      selected_tasksize * (long)(PAGE_SIZE / 1024),
+>      current->comm, current->pid,
+>      other_file * (long)(PAGE_SIZE / 1024),
+>      minfree * (long)(PAGE_SIZE / 1024),
+>      min_score_adj,
+>      other_free * (long)(PAGE_SIZE / 1024));
+> // ******* code end ************
 >
-> BTW, here the function continues like:
+> So android's strategy's free memory is =3D other_file =3D (nr file pages =
+- nr shmem - total swapcache pages) * 4K =3D [cache 72460kB]
+> But the system's free memory is: Cached:        142448 kB  // from /proc/=
+meminfo
 >
->                 else if (page_count(page) == 0 &&
->                         get_freepage_migratetype(page) == MIGRATE_ISOLATE)
->                         pfn += 1;
+> And system's free memory is: Cached + MemFree + Buffers is largely than t=
+he memory which anroid lowmemorykiller calculated memory [cache 72460K]
+> At this time point, system will kill some important processes, but system=
+ have enough memory.
+> This is android's lowmemorykiller defect? or Linux kernel memory's defect=
+?
 >
-> I believe this code tries to check for pages on pcplists? But isn't it bogus? At
-> least currently, page is never added to pcplist with MIGRATE_ISOLATE
-> freepage_migratetype - it goes straight to buddy lists.
-
-I think we can remove this check, how do you think?
-I cann't find its necessity.
-
-> Also, why count pages on pcplists as successfully isolated?
-> isolate_freepages_range() will fail on them.
-
-I think you make a misread, if page's count is not zero we break the while
-and return fail.
-
->>               else if (page_count(page) == 0 &&
->>
+> So I have some questions:
+> I have a question: what's the nr file pages mean? What different between =
+nr_file_pages from Cached (from /proc/meminfo)?
+> And nr shmem, swapcache pages are small, so I think this is the key probl=
+em why android's stragegy calculated free memory is largely less than /proc=
+/meminfo Cached's value.
 >
+>
+Why lowmemkiller -total_swapcache_pages()? see commit 058dbde92:
+
+staging: android: lowmemorykiller: neglect swap cached pages in other_file
+With ZRAM enabled it is observed that lowmemory killer
+doesn't trigger properly. swap cached pages are
+accounted in NR_FILE, and lowmemorykiller considers
+this as reclaimable and adds to other_file. But these
+pages can't be reclaimed unless lowmemorykiller triggers.
+So subtract swap pages from other_file.
+
+
+and commit 31d59a4198f will also make help, please check it.
+
+
+> Thanks
+> Zhiyuan zhu
+>
+> -----=E9=82=AE=E4=BB=B6=E5=8E=9F=E4=BB=B6-----
+> =E5=8F=91=E4=BB=B6=E4=BA=BA: Michal Hocko [mailto:mhocko@suse.cz]
+> =E5=8F=91=E9=80=81=E6=97=B6=E9=97=B4: 2014=E5=B9=B411=E6=9C=8820=E6=97=A5=
+ 18:19
+> =E6=94=B6=E4=BB=B6=E4=BA=BA: Zhiyuan Zhu(=E6=9C=B1=E5=BF=97=E9=81=A0)
+> =E6=8A=84=E9=80=81: hannes@cmpxchg.org; Future Zhou(=E5=91=A8=E6=9C=AA=E4=
+=BE=86); Rachel Zhang(=E5=BC=B5=E7=91=A9); bsingharora@gmail.com; kamezawa.=
+hiroyu@jp.fujitsu.com; cgroups@vger.kernel.org; linux-mm@kvack.org; greg@kr=
+oah.com
+> =E4=B8=BB=E9=A2=98: Re: =E7=AD=94=E5=A4=8D: low memory killer
+>
+> On Thu 20-11-14 10:09:25, zhiyuan_zhu@htc.com wrote:
+> > Hi Michal
+> > Thanks for your kindly support.
+> > I got a device, and dump the /proc/meminfo and /proc/vmstat files,
+> > they are the Linux standard proc files.
+> > I found that: Cached =3D 339880 KB, but nr_free_pages=3D14675*4 =3D 587=
+00KB
+> > and nr_shmem =3D 508*4=3D2032KB
+> >
+> > nr_shmem is just a little memory, and nr free pages + nr_shmem is
+> > largely less than Cached.  So why nr_free_pages is largely less than
+> > Cached? Thank you.
+>
+> nr_free_pages refers to pages which are not allocated. Cached referes to =
+a used memory which is easily reclaimable so it can be reused should there =
+be a need and free memory drops down. So this is a normal situation. How is=
+ this related to the lowmemory killer question posted previously?
+>
+> [...]
+> --
+> Michal Hocko
+> SUSE Labs
+>
+>
+> CONFIDENTIALITY NOTE : The information in this e-mail is confidential and
+> privileged; it is intended for use solely by the individual or entity nam=
+ed
+> as the recipient hereof. Disclosure, copying, distribution, or use of the
+> contents of this e-mail by persons other than the intended recipient is
+> strictly prohibited and may violate applicable laws. If you have received
+> this e-mail in error, please delete the original message and notify us by
+> return email or collect call immediately. Thank you. HTC Corporation
+>
+
+--047d7bd761d6c8249205084b020e
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div class=3D"gmail_extra"><div class=3D"gmail_quote">On T=
+hu, Nov 20, 2014 at 8:05 PM,  <span dir=3D"ltr">&lt;<a href=3D"mailto:zhiyu=
+an_zhu@htc.com" target=3D"_blank">zhiyuan_zhu@htc.com</a>&gt;</span> wrote:=
+<br><blockquote class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;bor=
+der-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:sol=
+id;padding-left:1ex"><pre>Hi Greg/Michal
+Very sorry I have a mistake in previous mail. (It should be nr_file_pages n=
+ot nr_free_pages)
+I rearrange this problem.
+
+// *********** log begin **********
+6      161030.084144       2014-11-07 21:44:53.304        lowmemorykiller: =
+Killing &#39;om.htc.launcher&#39; (4486), adj 294,
+6      161030.084144       2014-11-07 21:44:53.304           to free 47856k=
+B on behalf of &#39;kworker/u8:14&#39; (20594) because
+6      161030.084144       2014-11-07 21:44:53.304           cache 72460kB =
+is below limit 73728kB for oom_score_adj 235
+//  **** /proc/meminfo &#39;s result
+4      161030.084797       2014-11-07 21:44:53.304        Cached:          =
+ 142448 kB
+// *********** log end **********
+
+After I checked the android&#39;s low memory strategy: kernel/drivers/stagi=
+ng/android/lowmemorykiller.c
+
+// ****** code begin *********
+other_file =3D global_page_state(NR_FILE_PAGES) -
+global_page_state(NR_SHMEM) -
+total_swapcache_pages();
+
+lowmem_print(1, &quot;Killing &#39;%s&#39; (%d), adj %hd,\n&quot; \
+&quot;   to free %ldkB on behalf of &#39;%s&#39; (%d) because\n&quot; \
+&quot;   cache %ldkB is below limit %ldkB for oom_score_adj %hd\n&quot; \
+&quot;   Free memory is %ldkB above reserved\n&quot;,
+     selected-&gt;comm, selected-&gt;pid,
+     selected_oom_score_adj,
+     selected_tasksize * (long)(PAGE_SIZE / 1024),
+     current-&gt;comm, current-&gt;pid,
+     other_file * (long)(PAGE_SIZE / 1024),
+     minfree * (long)(PAGE_SIZE / 1024),
+     min_score_adj,
+     other_free * (long)(PAGE_SIZE / 1024));
+// ******* code end ************
+
+So android&#39;s strategy&#39;s free memory is =3D other_file =3D (nr file =
+pages - nr shmem - total swapcache pages) * 4K =3D [cache 72460kB]
+But the system&#39;s free memory is: Cached:        142448 kB  // from /pro=
+c/meminfo
+
+And system&#39;s free memory is: Cached + MemFree + Buffers is largely than=
+ the memory which anroid lowmemorykiller calculated memory [cache 72460K]
+At this time point, system will kill some important processes, but system h=
+ave enough memory.
+This is android&#39;s lowmemorykiller defect? or Linux kernel memory&#39;s =
+defect?
+
+So I have some questions:
+I have a question: what&#39;s the nr file pages mean? What different betwee=
+n nr_file_pages from Cached (from /proc/meminfo)?
+And nr shmem, swapcache pages are small, so I think this is the key problem=
+ why android&#39;s stragegy calculated free memory is largely less than /pr=
+oc/meminfo Cached&#39;s value.</pre></blockquote><div><br></div><div>Why lo=
+wmemkiller -total_swapcache_pages()? see commit=C2=A0058dbde92:</div><div><=
+br></div><div><div>staging: android: lowmemorykiller: neglect swap cached p=
+ages in other_file</div><div>With ZRAM enabled it is observed that lowmemor=
+y killer</div><div>doesn&#39;t trigger properly. swap cached pages are</div=
+><div>accounted in NR_FILE, and lowmemorykiller considers</div><div>this as=
+ reclaimable and adds to other_file. But these</div><div>pages can&#39;t be=
+ reclaimed unless lowmemorykiller triggers.</div><div>So subtract swap page=
+s from other_file.</div><div><br></div></div><div><br></div><div>and commit=
+=C2=A031d59a4198f will also make help, please check it.</div><div>=C2=A0</d=
+iv><blockquote class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;bord=
+er-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:soli=
+d;padding-left:1ex"><pre>Thanks
+Zhiyuan zhu
+
+-----=E9=82=AE=E4=BB=B6=E5=8E=9F=E4=BB=B6-----
+=E5=8F=91=E4=BB=B6=E4=BA=BA: Michal Hocko [mailto:<a href=3D"mailto:mhocko@=
+suse.cz" target=3D"_blank">mhocko@suse.cz</a>]=20
+=E5=8F=91=E9=80=81=E6=97=B6=E9=97=B4: 2014=E5=B9=B411=E6=9C=8820=E6=97=A5 1=
+8:19
+=E6=94=B6=E4=BB=B6=E4=BA=BA: Zhiyuan Zhu(=E6=9C=B1=E5=BF=97=E9=81=A0)
+=E6=8A=84=E9=80=81: <a href=3D"mailto:hannes@cmpxchg.org" target=3D"_blank"=
+>hannes@cmpxchg.org</a>; Future Zhou(=E5=91=A8=E6=9C=AA=E4=BE=86); Rachel Z=
+hang(=E5=BC=B5=E7=91=A9); <a href=3D"mailto:bsingharora@gmail.com" target=
+=3D"_blank">bsingharora@gmail.com</a>; <a href=3D"mailto:kamezawa.hiroyu@jp=
+.fujitsu.com" target=3D"_blank">kamezawa.hiroyu@jp.fujitsu.com</a>; <a href=
+=3D"mailto:cgroups@vger.kernel.org" target=3D"_blank">cgroups@vger.kernel.o=
+rg</a>; <a href=3D"mailto:linux-mm@kvack.org" target=3D"_blank">linux-mm@kv=
+ack.org</a>; <a href=3D"mailto:greg@kroah.com" target=3D"_blank">greg@kroah=
+.com</a>
+=E4=B8=BB=E9=A2=98: Re: =E7=AD=94=E5=A4=8D: low memory killer
+
+On Thu 20-11-14 10:09:25, <a href=3D"mailto:zhiyuan_zhu@htc.com" target=3D"=
+_blank">zhiyuan_zhu@htc.com</a> wrote:
+&gt; Hi Michal
+&gt; Thanks for your kindly support.
+&gt; I got a device, and dump the /proc/meminfo and /proc/vmstat files,=20
+&gt; they are the Linux standard proc files.
+&gt; I found that: Cached =3D 339880 KB, but nr_free_pages=3D14675*4 =3D 58=
+700KB=20
+&gt; and nr_shmem =3D 508*4=3D2032KB
+&gt;
+&gt; nr_shmem is just a little memory, and nr free pages + nr_shmem is=20
+&gt; largely less than Cached.  So why nr_free_pages is largely less than=
+=20
+&gt; Cached? Thank you.
+
+nr_free_pages refers to pages which are not allocated. Cached referes to a =
+used memory which is easily reclaimable so it can be reused should there be=
+ a need and free memory drops down. So this is a normal situation. How is t=
+his related to the lowmemory killer question posted previously?
+
+[...]
+--
+Michal Hocko
+SUSE Labs
+
+</pre><div class=3D""><div class=3D"h5"><table><tbody><tr><td>CONFIDENTIALI=
+TY NOTE : The information in this e-mail is confidential and privileged; it=
+ is intended for use solely by the individual or entity named as the recipi=
+ent hereof. Disclosure, copying, distribution, or use of the contents of th=
+is e-mail by persons other than the intended recipient is strictly prohibit=
+ed and may violate applicable laws. If you have received this e-mail in err=
+or, please delete the original message and notify us by return email or col=
+lect call immediately. Thank you. HTC Corporation</td></tr></tbody></table>=
+</div></div></blockquote></div><br></div></div>
+
+--047d7bd761d6c8249205084b020e--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
