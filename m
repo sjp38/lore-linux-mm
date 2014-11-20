@@ -1,39 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 26B986B0038
-	for <linux-mm@kvack.org>; Wed, 19 Nov 2014 19:50:43 -0500 (EST)
-Received: by mail-ig0-f182.google.com with SMTP id hn15so1987981igb.3
-        for <linux-mm@kvack.org>; Wed, 19 Nov 2014 16:50:43 -0800 (PST)
-Received: from mail-ie0-x233.google.com (mail-ie0-x233.google.com. [2607:f8b0:4001:c03::233])
-        by mx.google.com with ESMTPS id k15si645673iok.8.2014.11.19.16.50.41
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 19 Nov 2014 16:50:42 -0800 (PST)
-Received: by mail-ie0-f179.google.com with SMTP id rp18so1726042iec.24
-        for <linux-mm@kvack.org>; Wed, 19 Nov 2014 16:50:41 -0800 (PST)
-Date: Wed, 19 Nov 2014 16:50:39 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm/numa balancing: Rearrange Kconfig entry
-In-Reply-To: <1413425935-24767-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.10.1411191650180.9079@chino.kir.corp.google.com>
-References: <1413425935-24767-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 035F36B0069
+	for <linux-mm@kvack.org>; Wed, 19 Nov 2014 22:31:03 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id bj1so1622697pad.23
+        for <linux-mm@kvack.org>; Wed, 19 Nov 2014 19:31:02 -0800 (PST)
+Received: from ponies.io (mail.ponies.io. [173.255.217.209])
+        by mx.google.com with ESMTP id e16si1209718pdj.196.2014.11.19.19.31.00
+        for <linux-mm@kvack.org>;
+        Wed, 19 Nov 2014 19:31:01 -0800 (PST)
+Received: from cucumber.localdomain (58-6-54-190.dyn.iinet.net.au [58.6.54.190])
+	by ponies.io (Postfix) with ESMTPSA id 534F4A0BB
+	for <linux-mm@kvack.org>; Thu, 20 Nov 2014 03:31:00 +0000 (UTC)
+Date: Thu, 20 Nov 2014 14:30:57 +1100
+From: Christian Marie <christian@ponies.io>
+Subject: Re: isolate_freepages_block and excessive CPU usage by OSD process
+Message-ID: <20141120033057.GA28899@cucumber.anchor.net.au>
+References: <20141119012110.GA2608@cucumber.iinet.net.au>
+ <CABYiri99WAj+6hfTq+6x+_w0=VNgBua8N9+mOvU6o5bynukPLQ@mail.gmail.com>
+ <20141119212013.GA18318@cucumber.anchor.net.au>
+ <546D2366.1050506@suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="X1bOJ3K7DJ5YkBrT"
+Content-Disposition: inline
+In-Reply-To: <546D2366.1050506@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 
-On Thu, 16 Oct 2014, Aneesh Kumar K.V wrote:
 
-> Add the default enable config option after the NUMA_BALANCING option
-> so that it appears related in the nconfig interface.
-> 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+--X1bOJ3K7DJ5YkBrT
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Acked-by: David Rientjes <rientjes@google.com>
+On Thu, Nov 20, 2014 at 12:10:30AM +0100, Vlastimil Babka wrote:
+> > Is this fixed in a later kernel? I haven't tested yet.
+>=20
+> As I said, recent kernels received many compaction performance tuning pat=
+ches,
+> and reclaim as well. I would recommend trying them, if it's possible.
+>=20
+> You mention 3.10.0-123.9.3.el7.x86_64 which I have no idea how it relates=
+ to
+> upstream stable kernel. Upstream version 3.10.44 received several compact=
+ion
+> fixes that I'd deem critical for compaction to work as intended, and lack=
+ of
+> them could explain your problems:
+>=20
+> mm: compaction: reset cached scanner pfn's before reading them
+> commit d3132e4b83e6bd383c74d716f7281d7c3136089c upstream.
+>=20
+> mm: compaction: detect when scanners meet in isolate_freepages
+> commit 7ed695e069c3cbea5e1fd08f84a04536da91f584 upstream.
+>=20
+> mm/compaction: make isolate_freepages start at pageblock boundary
+> commit 49e068f0b73dd042c186ffa9b420a9943e90389a upstream.
+>=20
+> You might want to check if those are included in your kernel package, and=
+/or try
+> upstream stable 3.10 (if you can't use the latest for some reason).
 
-Hasn't hit Linus's tree yet, so there's still time to ack!
+Excellent, thankyou.
+
+I realised there were a lot of changes but this list of specific fixes might
+help narrow down the actual cause here. I've just built a kernel that's exa=
+ctly
+the same as the exploding one with just these three patches and will be back
+tomorrow with the results of testing.
+
+--X1bOJ3K7DJ5YkBrT
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBAgAGBQJUbWBxAAoJEMHZnoZn5OShQi4QAJB4H/2aEHsDVllX+AL1O5jH
+i2R994mXxAT0yqKn3z32/ZyG1PTcPHFeJ3hvMoJiWtKCSyAV3TSTzbg2Bdw09P+x
+hckV+M6kxb85OmscaqlBmE0xe/YdC3LtAL0h3C3NzbVUh2JFKMjMOTG93Qehfryb
+D6joYtCOQqHpYl5OFrIyIVxZrHjTIGVEhUT1GMWTRBrcCMPDPphVaurbrv/Mfbwd
+ADOI4IqK9xDbI/feTj+kY6n+ylSJOO3rm5eGoDEWIc8eXWxFloHlaIJqqOWuFoS0
+yLJGUvVBtNJtKWmWm59bM1EpUYhh2ISkxatiwhaVzUXp8WYT7hb0ejafUaDX15rI
+XRZC3laDZGCv03RC+n8WA3oL/cKUjkNwl4L7FW8D4AO5PckeUcB3d3l9AaFdNMHE
+lOiOv71IALAitEZDAEl7kj0Jsh30ggJ7GsAEwkoqGnlzhjsq+TpKZlAuDcwB/fpo
+pkG1y+sgY7dBiw93cN9I4PGObUxUnWZzphIUHLp0sNPulnn+2jNVDs1BNGcGqjgS
+uAqvri9C1g3BAReH22nAJ9Nm6xNw7AM07fblWzlGY+oQVSzkMVB3RdK4sbiHFksJ
+DXxgxfiss0ViQETB8PO39QzP10cO6kXKWrSelFKAfiu8WYfnFYXjhasF7fb4+YvC
+mFMS5alSpaNu9gq2z+XY
+=ydAx
+-----END PGP SIGNATURE-----
+
+--X1bOJ3K7DJ5YkBrT--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
