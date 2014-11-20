@@ -1,293 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f175.google.com (mail-ie0-f175.google.com [209.85.223.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 95E236B0070
-	for <linux-mm@kvack.org>; Thu, 20 Nov 2014 09:19:07 -0500 (EST)
-Received: by mail-ie0-f175.google.com with SMTP id at20so2823191iec.20
-        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 06:19:07 -0800 (PST)
-Received: from mail-ig0-x22e.google.com (mail-ig0-x22e.google.com. [2607:f8b0:4001:c05::22e])
-        by mx.google.com with ESMTPS id kd4si3399072igb.32.2014.11.20.06.19.05
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id AC6506B0070
+	for <linux-mm@kvack.org>; Thu, 20 Nov 2014 09:42:04 -0500 (EST)
+Received: by mail-wi0-f178.google.com with SMTP id hi2so5574495wib.17
+        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 06:42:04 -0800 (PST)
+Received: from mail-wg0-x234.google.com (mail-wg0-x234.google.com. [2a00:1450:400c:c00::234])
+        by mx.google.com with ESMTPS id db3si7641519wib.3.2014.11.20.06.42.03
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 20 Nov 2014 06:19:06 -0800 (PST)
-Received: by mail-ig0-f174.google.com with SMTP id hn15so4824312igb.1
-        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 06:19:05 -0800 (PST)
+        Thu, 20 Nov 2014 06:42:03 -0800 (PST)
+Received: by mail-wg0-f52.google.com with SMTP id a1so3895208wgh.25
+        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 06:42:03 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <AF7C0ADF1FEABA4DABABB97411952A2EC91FE0@CN-MBX02.HTC.COM.TW>
-References: <AF7C0ADF1FEABA4DABABB97411952A2EC91E38@CN-MBX02.HTC.COM.TW>
-	<20141120095802.GA24575@dhcp22.suse.cz>
-	<AF7C0ADF1FEABA4DABABB97411952A2EC91EF5@CN-MBX02.HTC.COM.TW>
-	<20141120101855.GB24575@dhcp22.suse.cz>
-	<AF7C0ADF1FEABA4DABABB97411952A2EC91FE0@CN-MBX02.HTC.COM.TW>
-Date: Thu, 20 Nov 2014 22:19:05 +0800
-Message-ID: <CABdxLJGViULvRt7nptNzYZN3E7szN3k4BvQAMUrJ7oMBNcoOoQ@mail.gmail.com>
-Subject: =?UTF-8?B?UmU6IOetlOWkjTog562U5aSNOiBsb3cgbWVtb3J5IGtpbGxlcg==?=
-From: Weijie Yang <weijieut@gmail.com>
-Content-Type: multipart/alternative; boundary=047d7bd761d6c8249205084b020e
+In-Reply-To: <CANN689G+y77m2_paF0vBpHG8EsJ2-pEnJvLJSGs-zHf+SqTEjQ@mail.gmail.com>
+References: <502D42E5.7090403@redhat.com>
+	<20120818000312.GA4262@evergreen.ssec.wisc.edu>
+	<502F100A.1080401@redhat.com>
+	<alpine.LSU.2.00.1208200032450.24855@eggly.anvils>
+	<CANN689Ej7XLh8VKuaPrTttDrtDGQbXuYJgS2uKnZL2EYVTM3Dg@mail.gmail.com>
+	<20120822032057.GA30871@google.com>
+	<50345232.4090002@redhat.com>
+	<20130603195003.GA31275@evergreen.ssec.wisc.edu>
+	<20141114163053.GA6547@cosmos.ssec.wisc.edu>
+	<20141117160212.b86d031e1870601240b0131d@linux-foundation.org>
+	<20141118014135.GA17252@cosmos.ssec.wisc.edu>
+	<546AB1F5.6030306@redhat.com>
+	<20141118121936.07b02545a0684b2cc839a10c@linux-foundation.org>
+	<CALYGNiMxnxmy-LyJ4OT9OoFeKwTPPkZMF-bJ-eJDBFXgZQ6AEA@mail.gmail.com>
+	<CALYGNiM_CsjjiK_36JGirZT8rTP+ROYcH0CSyZjghtSNDU8ptw@mail.gmail.com>
+	<546BDB29.9050403@suse.cz>
+	<CALYGNiOHXvyqr3+Jq5FsZ_xscsXwrQ_9YCtL2819i6iRkgms2w@mail.gmail.com>
+	<546CC0CD.40906@suse.cz>
+	<CALYGNiO9_bAVVZ2GdFq=PO2yV3LPs2utsbcb2pFby7MypptLCw@mail.gmail.com>
+	<CANN689G+y77m2_paF0vBpHG8EsJ2-pEnJvLJSGs-zHf+SqTEjQ@mail.gmail.com>
+Date: Thu, 20 Nov 2014 18:42:03 +0400
+Message-ID: <CALYGNiOC4dEzzVzSQXGC4oxLbgp=8TC=A+duJs67jT97TWQ++g@mail.gmail.com>
+Subject: Re: [PATCH] Repeated fork() causes SLAB to grow without bound
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhiyuan_zhu@htc.com
-Cc: mhocko@suse.cz, hannes@cmpxchg.org, Future_Zhou@htc.com, Rachel_Zhang@htc.com, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, cgroups@vger.kernel.org, linux-mm@kvack.org, greg@kroah.com, Sai_Shen@htc.com
+To: Michel Lespinasse <walken@google.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Tim Hartrick <tim@edgecast.com>, Michal Hocko <mhocko@suse.cz>
 
---047d7bd761d6c8249205084b020e
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+On Thu, Nov 20, 2014 at 2:14 AM, Michel Lespinasse <walken@google.com> wrote:
+> On Wed, Nov 19, 2014 at 8:58 AM, Konstantin Khlebnikov <koct9i@gmail.com> wrote:
+>> On Wed, Nov 19, 2014 at 7:09 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
+>>> Also from reading http://lwn.net/Articles/383162/ I understand that correctness
+>>> also depends on the hierarchy and I wonder if there's a danger of reintroducing
+>>> a bug like the one described there.
+>>
+>> If I remember right that was fixed by linking non-exclusively mapped pages to
+>> root anon_vma instead of anon_vma from vma where fault has happened.
+>> After my patch this still works. Topology hierarchy actually isn't used.
+>> Here just one selected "root' anon_vma which dies last. That's all.
+>
+> That's not how I remember it.
 
-On Thu, Nov 20, 2014 at 8:05 PM, <zhiyuan_zhu@htc.com> wrote:
+??? That at the end of lwn article:
 
-> Hi Greg/Michal
-> Very sorry I have a mistake in previous mail. (It should be nr_file_pages=
- not nr_free_pages)
-> I rearrange this problem.
->
-> // *********** log begin **********
-> 6      161030.084144       2014-11-07 21:44:53.304        lowmemorykiller=
-: Killing 'om.htc.launcher' (4486), adj 294,
-> 6      161030.084144       2014-11-07 21:44:53.304           to free 4785=
-6kB on behalf of 'kworker/u8:14' (20594) because
-> 6      161030.084144       2014-11-07 21:44:53.304           cache 72460k=
-B is below limit 73728kB for oom_score_adj 235
-> //  **** /proc/meminfo 's result
-> 4      161030.084797       2014-11-07 21:44:53.304        Cached:        =
-   142448 kB
-> // *********** log end **********
->
-> After I checked the android's low memory strategy: kernel/drivers/staging=
-/android/lowmemorykiller.c
->
-> // ****** code begin *********
-> other_file =3D global_page_state(NR_FILE_PAGES) -
-> global_page_state(NR_SHMEM) -
-> total_swapcache_pages();
->
-> lowmem_print(1, "Killing '%s' (%d), adj %hd,\n" \
-> "   to free %ldkB on behalf of '%s' (%d) because\n" \
-> "   cache %ldkB is below limit %ldkB for oom_score_adj %hd\n" \
-> "   Free memory is %ldkB above reserved\n",
->      selected->comm, selected->pid,
->      selected_oom_score_adj,
->      selected_tasksize * (long)(PAGE_SIZE / 1024),
->      current->comm, current->pid,
->      other_file * (long)(PAGE_SIZE / 1024),
->      minfree * (long)(PAGE_SIZE / 1024),
->      min_score_adj,
->      other_free * (long)(PAGE_SIZE / 1024));
-> // ******* code end ************
->
-> So android's strategy's free memory is =3D other_file =3D (nr file pages =
-- nr shmem - total swapcache pages) * 4K =3D [cache 72460kB]
-> But the system's free memory is: Cached:        142448 kB  // from /proc/=
-meminfo
->
-> And system's free memory is: Cached + MemFree + Buffers is largely than t=
-he memory which anroid lowmemorykiller calculated memory [cache 72460K]
-> At this time point, system will kill some important processes, but system=
- have enough memory.
-> This is android's lowmemorykiller defect? or Linux kernel memory's defect=
-?
->
-> So I have some questions:
-> I have a question: what's the nr file pages mean? What different between =
-nr_file_pages from Cached (from /proc/meminfo)?
-> And nr shmem, swapcache pages are small, so I think this is the key probl=
-em why android's stragegy calculated free memory is largely less than /proc=
-/meminfo Cached's value.
->
->
-Why lowmemkiller -total_swapcache_pages()? see commit 058dbde92:
+[quote]
+The fix is straightforward; when linking an existing page to an
+anon_vma structure,
+the kernel needs to pick the one which is highest in the process hierarchy;
+that guarantees that the anon_vma will not go away prematurely.
+[/quote]
 
-staging: android: lowmemorykiller: neglect swap cached pages in other_file
-With ZRAM enabled it is observed that lowmemory killer
-doesn't trigger properly. swap cached pages are
-accounted in NR_FILE, and lowmemorykiller considers
-this as reclaimable and adds to other_file. But these
-pages can't be reclaimed unless lowmemorykiller triggers.
-So subtract swap pages from other_file.
+nowdays this happens in __page_set_anon_rmap():
+
+/*
+* If the page isn't exclusively mapped into this vma,
+* we must use the _oldest_ possible anon_vma for the
+* page mapping!
+*/
+if (!exclusive)
+    anon_vma = anon_vma->root;
+
+The rest treeish of topology affects only performance.
+
+>
+> An anon_vma corresponds to a given vma V, and is used to track all
+> vmas (V and descendant vmas) that may include a page that was
+> originally mapped in V.
+>
+> Each anon page has a link to the anon_vma corresponding to the vma
+> they were originally faulted in, and an offset indicating where the
+> page was located relative to that original VMA.
+>
+> The anon_vma has an interval tree of struct anon_vma_chain, and each
+> struct anon_vma_chain includes a link to a descendent-of-V vma. This
+> allows rmap to quickly find all the vmas that may map a given page
+> (based on the page's anon_vma and offset).
+>
+> When forking or splitting vmas, the new vma is a descendent of the
+> same vmas as the old one so it must be added to all the anon_vma
+> interval trees that were referencing the old one (that is, ancestors
+> of the new vma). To that end, all the struct anon_vma_chain pointing
+> to a given vma are kept on a linked list, and struct anon_vma_chain
+> includes a link to the anon_vma holding the interval tree.
+>
+> Locking the entire structure is done with a single lock hosted in the
+> root anon_vma (that is, a vma that was created by mmap() and not by
+> cloning or forking existing vmas).
+>
+> Limit the length of the ancestors linked list is correct, though it
+> has performance implications. In the extreme case, forcing all vmas to
+> be added on the root vma's interval tree would be correct, though it
+> may re-introduce the performance problems that lead to the
+> introduction of anon_vma.
+>
+> The good thing about Konstantin's proposal is that it does not have
+> any magic constant like mine did. However, I think he is mistaken in
+> saying that hierarchy isn't used - an ancestor vma will always have
+> more descendents than its children, and the reason for the hierarchy
+> is to limit the number of vmas that rmap must explore.
+
+I mean after breaking hierarchy whole structure stays correct and kernel
+wouldn't explode, of course reusing anon_vma from ancestor makes
+rmap walk less effective because newly allocated pages will get false
+aliased vmas where they will never be mapped.
 
 
-and commit 31d59a4198f will also make help, please check it.
+I'm thinking about limitation for reusing anon_vmas which might increase
+performance without breaking asymptotic estimation of count anon_vma in
+the worst case. For example this heuristic: allow to reuse only anon_vma
+with single direct descendant. It seems there will be arount up to two times
+more anon_vmas but false-aliasing must be much lower.
 
 
-> Thanks
-> Zhiyuan zhu
+
 >
-> -----=E9=82=AE=E4=BB=B6=E5=8E=9F=E4=BB=B6-----
-> =E5=8F=91=E4=BB=B6=E4=BA=BA: Michal Hocko [mailto:mhocko@suse.cz]
-> =E5=8F=91=E9=80=81=E6=97=B6=E9=97=B4: 2014=E5=B9=B411=E6=9C=8820=E6=97=A5=
- 18:19
-> =E6=94=B6=E4=BB=B6=E4=BA=BA: Zhiyuan Zhu(=E6=9C=B1=E5=BF=97=E9=81=A0)
-> =E6=8A=84=E9=80=81: hannes@cmpxchg.org; Future Zhou(=E5=91=A8=E6=9C=AA=E4=
-=BE=86); Rachel Zhang(=E5=BC=B5=E7=91=A9); bsingharora@gmail.com; kamezawa.=
-hiroyu@jp.fujitsu.com; cgroups@vger.kernel.org; linux-mm@kvack.org; greg@kr=
-oah.com
-> =E4=B8=BB=E9=A2=98: Re: =E7=AD=94=E5=A4=8D: low memory killer
->
-> On Thu 20-11-14 10:09:25, zhiyuan_zhu@htc.com wrote:
-> > Hi Michal
-> > Thanks for your kindly support.
-> > I got a device, and dump the /proc/meminfo and /proc/vmstat files,
-> > they are the Linux standard proc files.
-> > I found that: Cached =3D 339880 KB, but nr_free_pages=3D14675*4 =3D 587=
-00KB
-> > and nr_shmem =3D 508*4=3D2032KB
-> >
-> > nr_shmem is just a little memory, and nr free pages + nr_shmem is
-> > largely less than Cached.  So why nr_free_pages is largely less than
-> > Cached? Thank you.
->
-> nr_free_pages refers to pages which are not allocated. Cached referes to =
-a used memory which is easily reclaimable so it can be reused should there =
-be a need and free memory drops down. So this is a normal situation. How is=
- this related to the lowmemory killer question posted previously?
->
-> [...]
 > --
-> Michal Hocko
-> SUSE Labs
->
->
-> CONFIDENTIALITY NOTE : The information in this e-mail is confidential and
-> privileged; it is intended for use solely by the individual or entity nam=
-ed
-> as the recipient hereof. Disclosure, copying, distribution, or use of the
-> contents of this e-mail by persons other than the intended recipient is
-> strictly prohibited and may violate applicable laws. If you have received
-> this e-mail in error, please delete the original message and notify us by
-> return email or collect call immediately. Thank you. HTC Corporation
->
-
---047d7bd761d6c8249205084b020e
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr"><div class=3D"gmail_extra"><div class=3D"gmail_quote">On T=
-hu, Nov 20, 2014 at 8:05 PM,  <span dir=3D"ltr">&lt;<a href=3D"mailto:zhiyu=
-an_zhu@htc.com" target=3D"_blank">zhiyuan_zhu@htc.com</a>&gt;</span> wrote:=
-<br><blockquote class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;bor=
-der-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:sol=
-id;padding-left:1ex"><pre>Hi Greg/Michal
-Very sorry I have a mistake in previous mail. (It should be nr_file_pages n=
-ot nr_free_pages)
-I rearrange this problem.
-
-// *********** log begin **********
-6      161030.084144       2014-11-07 21:44:53.304        lowmemorykiller: =
-Killing &#39;om.htc.launcher&#39; (4486), adj 294,
-6      161030.084144       2014-11-07 21:44:53.304           to free 47856k=
-B on behalf of &#39;kworker/u8:14&#39; (20594) because
-6      161030.084144       2014-11-07 21:44:53.304           cache 72460kB =
-is below limit 73728kB for oom_score_adj 235
-//  **** /proc/meminfo &#39;s result
-4      161030.084797       2014-11-07 21:44:53.304        Cached:          =
- 142448 kB
-// *********** log end **********
-
-After I checked the android&#39;s low memory strategy: kernel/drivers/stagi=
-ng/android/lowmemorykiller.c
-
-// ****** code begin *********
-other_file =3D global_page_state(NR_FILE_PAGES) -
-global_page_state(NR_SHMEM) -
-total_swapcache_pages();
-
-lowmem_print(1, &quot;Killing &#39;%s&#39; (%d), adj %hd,\n&quot; \
-&quot;   to free %ldkB on behalf of &#39;%s&#39; (%d) because\n&quot; \
-&quot;   cache %ldkB is below limit %ldkB for oom_score_adj %hd\n&quot; \
-&quot;   Free memory is %ldkB above reserved\n&quot;,
-     selected-&gt;comm, selected-&gt;pid,
-     selected_oom_score_adj,
-     selected_tasksize * (long)(PAGE_SIZE / 1024),
-     current-&gt;comm, current-&gt;pid,
-     other_file * (long)(PAGE_SIZE / 1024),
-     minfree * (long)(PAGE_SIZE / 1024),
-     min_score_adj,
-     other_free * (long)(PAGE_SIZE / 1024));
-// ******* code end ************
-
-So android&#39;s strategy&#39;s free memory is =3D other_file =3D (nr file =
-pages - nr shmem - total swapcache pages) * 4K =3D [cache 72460kB]
-But the system&#39;s free memory is: Cached:        142448 kB  // from /pro=
-c/meminfo
-
-And system&#39;s free memory is: Cached + MemFree + Buffers is largely than=
- the memory which anroid lowmemorykiller calculated memory [cache 72460K]
-At this time point, system will kill some important processes, but system h=
-ave enough memory.
-This is android&#39;s lowmemorykiller defect? or Linux kernel memory&#39;s =
-defect?
-
-So I have some questions:
-I have a question: what&#39;s the nr file pages mean? What different betwee=
-n nr_file_pages from Cached (from /proc/meminfo)?
-And nr shmem, swapcache pages are small, so I think this is the key problem=
- why android&#39;s stragegy calculated free memory is largely less than /pr=
-oc/meminfo Cached&#39;s value.</pre></blockquote><div><br></div><div>Why lo=
-wmemkiller -total_swapcache_pages()? see commit=C2=A0058dbde92:</div><div><=
-br></div><div><div>staging: android: lowmemorykiller: neglect swap cached p=
-ages in other_file</div><div>With ZRAM enabled it is observed that lowmemor=
-y killer</div><div>doesn&#39;t trigger properly. swap cached pages are</div=
-><div>accounted in NR_FILE, and lowmemorykiller considers</div><div>this as=
- reclaimable and adds to other_file. But these</div><div>pages can&#39;t be=
- reclaimed unless lowmemorykiller triggers.</div><div>So subtract swap page=
-s from other_file.</div><div><br></div></div><div><br></div><div>and commit=
-=C2=A031d59a4198f will also make help, please check it.</div><div>=C2=A0</d=
-iv><blockquote class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;bord=
-er-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:soli=
-d;padding-left:1ex"><pre>Thanks
-Zhiyuan zhu
-
------=E9=82=AE=E4=BB=B6=E5=8E=9F=E4=BB=B6-----
-=E5=8F=91=E4=BB=B6=E4=BA=BA: Michal Hocko [mailto:<a href=3D"mailto:mhocko@=
-suse.cz" target=3D"_blank">mhocko@suse.cz</a>]=20
-=E5=8F=91=E9=80=81=E6=97=B6=E9=97=B4: 2014=E5=B9=B411=E6=9C=8820=E6=97=A5 1=
-8:19
-=E6=94=B6=E4=BB=B6=E4=BA=BA: Zhiyuan Zhu(=E6=9C=B1=E5=BF=97=E9=81=A0)
-=E6=8A=84=E9=80=81: <a href=3D"mailto:hannes@cmpxchg.org" target=3D"_blank"=
->hannes@cmpxchg.org</a>; Future Zhou(=E5=91=A8=E6=9C=AA=E4=BE=86); Rachel Z=
-hang(=E5=BC=B5=E7=91=A9); <a href=3D"mailto:bsingharora@gmail.com" target=
-=3D"_blank">bsingharora@gmail.com</a>; <a href=3D"mailto:kamezawa.hiroyu@jp=
-.fujitsu.com" target=3D"_blank">kamezawa.hiroyu@jp.fujitsu.com</a>; <a href=
-=3D"mailto:cgroups@vger.kernel.org" target=3D"_blank">cgroups@vger.kernel.o=
-rg</a>; <a href=3D"mailto:linux-mm@kvack.org" target=3D"_blank">linux-mm@kv=
-ack.org</a>; <a href=3D"mailto:greg@kroah.com" target=3D"_blank">greg@kroah=
-.com</a>
-=E4=B8=BB=E9=A2=98: Re: =E7=AD=94=E5=A4=8D: low memory killer
-
-On Thu 20-11-14 10:09:25, <a href=3D"mailto:zhiyuan_zhu@htc.com" target=3D"=
-_blank">zhiyuan_zhu@htc.com</a> wrote:
-&gt; Hi Michal
-&gt; Thanks for your kindly support.
-&gt; I got a device, and dump the /proc/meminfo and /proc/vmstat files,=20
-&gt; they are the Linux standard proc files.
-&gt; I found that: Cached =3D 339880 KB, but nr_free_pages=3D14675*4 =3D 58=
-700KB=20
-&gt; and nr_shmem =3D 508*4=3D2032KB
-&gt;
-&gt; nr_shmem is just a little memory, and nr free pages + nr_shmem is=20
-&gt; largely less than Cached.  So why nr_free_pages is largely less than=
-=20
-&gt; Cached? Thank you.
-
-nr_free_pages refers to pages which are not allocated. Cached referes to a =
-used memory which is easily reclaimable so it can be reused should there be=
- a need and free memory drops down. So this is a normal situation. How is t=
-his related to the lowmemory killer question posted previously?
-
-[...]
---
-Michal Hocko
-SUSE Labs
-
-</pre><div class=3D""><div class=3D"h5"><table><tbody><tr><td>CONFIDENTIALI=
-TY NOTE : The information in this e-mail is confidential and privileged; it=
- is intended for use solely by the individual or entity named as the recipi=
-ent hereof. Disclosure, copying, distribution, or use of the contents of th=
-is e-mail by persons other than the intended recipient is strictly prohibit=
-ed and may violate applicable laws. If you have received this e-mail in err=
-or, please delete the original message and notify us by return email or col=
-lect call immediately. Thank you. HTC Corporation</td></tr></tbody></table>=
-</div></div></blockquote></div><br></div></div>
-
---047d7bd761d6c8249205084b020e--
+> Michel "Walken" Lespinasse
+> A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
