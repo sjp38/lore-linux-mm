@@ -1,101 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 9642E6B0071
-	for <linux-mm@kvack.org>; Thu, 20 Nov 2014 10:27:05 -0500 (EST)
-Received: by mail-qg0-f45.google.com with SMTP id f51so2231853qge.18
-        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 07:27:05 -0800 (PST)
-Received: from mail-qg0-x229.google.com (mail-qg0-x229.google.com. [2607:f8b0:400d:c04::229])
-        by mx.google.com with ESMTPS id c9si3037914qcm.44.2014.11.20.07.27.04
+Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
+	by kanga.kvack.org (Postfix) with ESMTP id D9B4D6B0069
+	for <linux-mm@kvack.org>; Thu, 20 Nov 2014 11:32:52 -0500 (EST)
+Received: by mail-lb0-f178.google.com with SMTP id f15so1183981lbj.9
+        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 08:32:52 -0800 (PST)
+Received: from mail-la0-x236.google.com (mail-la0-x236.google.com. [2a00:1450:4010:c03::236])
+        by mx.google.com with ESMTPS id sn3si2537142lbb.77.2014.11.20.08.32.50
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 20 Nov 2014 07:27:04 -0800 (PST)
-Received: by mail-qg0-f41.google.com with SMTP id j5so2239596qga.0
-        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 07:27:04 -0800 (PST)
+        Thu, 20 Nov 2014 08:32:51 -0800 (PST)
+Received: by mail-la0-f54.google.com with SMTP id gf13so2666099lab.41
+        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 08:32:50 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CALYGNiOC4dEzzVzSQXGC4oxLbgp=8TC=A+duJs67jT97TWQ++g@mail.gmail.com>
-References: <502D42E5.7090403@redhat.com>
-	<20120818000312.GA4262@evergreen.ssec.wisc.edu>
-	<502F100A.1080401@redhat.com>
-	<alpine.LSU.2.00.1208200032450.24855@eggly.anvils>
-	<CANN689Ej7XLh8VKuaPrTttDrtDGQbXuYJgS2uKnZL2EYVTM3Dg@mail.gmail.com>
-	<20120822032057.GA30871@google.com>
-	<50345232.4090002@redhat.com>
-	<20130603195003.GA31275@evergreen.ssec.wisc.edu>
-	<20141114163053.GA6547@cosmos.ssec.wisc.edu>
-	<20141117160212.b86d031e1870601240b0131d@linux-foundation.org>
-	<20141118014135.GA17252@cosmos.ssec.wisc.edu>
-	<546AB1F5.6030306@redhat.com>
-	<20141118121936.07b02545a0684b2cc839a10c@linux-foundation.org>
-	<CALYGNiMxnxmy-LyJ4OT9OoFeKwTPPkZMF-bJ-eJDBFXgZQ6AEA@mail.gmail.com>
-	<CALYGNiM_CsjjiK_36JGirZT8rTP+ROYcH0CSyZjghtSNDU8ptw@mail.gmail.com>
-	<546BDB29.9050403@suse.cz>
-	<CALYGNiOHXvyqr3+Jq5FsZ_xscsXwrQ_9YCtL2819i6iRkgms2w@mail.gmail.com>
-	<546CC0CD.40906@suse.cz>
-	<CALYGNiO9_bAVVZ2GdFq=PO2yV3LPs2utsbcb2pFby7MypptLCw@mail.gmail.com>
-	<CANN689G+y77m2_paF0vBpHG8EsJ2-pEnJvLJSGs-zHf+SqTEjQ@mail.gmail.com>
-	<CALYGNiOC4dEzzVzSQXGC4oxLbgp=8TC=A+duJs67jT97TWQ++g@mail.gmail.com>
-Date: Thu, 20 Nov 2014 16:27:03 +0100
-Message-ID: <CANN689E2DEOF4JryO3soCr4jTZM-oWCjafvSiFpRkSi31TNeUg@mail.gmail.com>
-Subject: Re: [PATCH] Repeated fork() causes SLAB to grow without bound
-From: Michel Lespinasse <walken@google.com>
+In-Reply-To: <20141120090356.GA6690@gmail.com>
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
+ <1415199241-5121-1-git-send-email-a.ryabinin@samsung.com> <5461B906.1040803@samsung.com>
+ <20141118125843.434c216540def495d50f3a45@linux-foundation.org>
+ <CAPAsAGwZtfzx5oM73bOi_kw5BqXrwGd_xmt=m6xxU6uECA+H9Q@mail.gmail.com> <20141120090356.GA6690@gmail.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Thu, 20 Nov 2014 20:32:30 +0400
+Message-ID: <CACT4Y+aOKzq0AzvSJrRC-iU9LmmtLzxY=pxzu8f4oT-OZk=oLA@mail.gmail.com>
+Subject: Re: [PATCH v6 00/11] Kernel address sanitizer - runtime memory debugger.
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Tim Hartrick <tim@edgecast.com>, Michal Hocko <mhocko@suse.cz>
+To: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Andrey Ryabinin <a.ryabinin@samsung.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Michal Marek <mmarek@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Randy Dunlap <rdunlap@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Jones <davej@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joe Perches <joe@perches.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Thu, Nov 20, 2014 at 3:42 PM, Konstantin Khlebnikov <koct9i@gmail.com> wrote:
-> On Thu, Nov 20, 2014 at 2:14 AM, Michel Lespinasse <walken@google.com> wrote:
->> On Wed, Nov 19, 2014 at 8:58 AM, Konstantin Khlebnikov <koct9i@gmail.com> wrote:
->>> On Wed, Nov 19, 2014 at 7:09 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
->>>> Also from reading http://lwn.net/Articles/383162/ I understand that correctness
->>>> also depends on the hierarchy and I wonder if there's a danger of reintroducing
->>>> a bug like the one described there.
->>>
->>> If I remember right that was fixed by linking non-exclusively mapped pages to
->>> root anon_vma instead of anon_vma from vma where fault has happened.
->>> After my patch this still works. Topology hierarchy actually isn't used.
->>> Here just one selected "root' anon_vma which dies last. That's all.
+On Thu, Nov 20, 2014 at 12:03 PM, Ingo Molnar <mingo@kernel.org> wrote:
+>
+> * Andrey Ryabinin <ryabinin.a.a@gmail.com> wrote:
+>
+>> I've counted 16:
 >>
->> That's not how I remember it.
+>> aab515d (fib_trie: remove potential out of bound access)
+>> 984f173 ([SCSI] sd: Fix potential out-of-bounds access)
+>> 5e9ae2e (aio: fix use-after-free in aio_migratepage)
+>> 2811eba (ipv6: udp packets following an UFO enqueued packet need also
+>> be handled by UFO)
+>> 057db84 (tracing: Fix potential out-of-bounds in trace_get_user())
+>> 9709674 (ipv4: fix a race in ip4_datagram_release_cb())
+>> 4e8d213 (ext4: fix use-after-free in ext4_mb_new_blocks)
+>> 624483f (mm: rmap: fix use-after-free in __put_anon_vma)
+>> 93b7aca (lib/idr.c: fix out-of-bounds pointer dereference)
+>> b4903d6 (mm: debugfs: move rounddown_pow_of_two() out from do_fault path)
+>> 40eea80 (net: sendmsg: fix NULL pointer dereference)
+>> 10ec947 (ipv4: fix buffer overflow in ip_options_compile())
+>> dbf20cb2 (f2fs: avoid use invalid mapping of node_inode when evict meta inode)
+>> d6d86c0 (mm/balloon_compaction: redesign ballooned pages management)
+>>
+>> + 2 recently found, seems minor:
+>>     http://lkml.kernel.org/r/1415372020-1871-1-git-send-email-a.ryabinin@samsung.com
+>>     (sched/numa: Fix out of bounds read in sched_init_numa())
+>>
+>>     http://lkml.kernel.org/r/1415458085-12485-1-git-send-email-ryabinin.a.a@gmail.com
+>>     (security: smack: fix out-of-bounds access in smk_parse_smack())
+>>
+>> Note that some functionality is not yet implemented in this
+>> patch set. Kasan has possibility to detect out-of-bounds
+>> accesses on global/stack variables. Neither
+>> kmemcheck/debug_pagealloc or slub_debug could do that.
+>>
+>> > That's in a 20-year-old code base, so one new minor bug discovered per
+>> > three years?  Not worth it!
+>> >
+>> > Presumably more bugs will be exposed as more people use kasan on
+>> > different kernel configs, but will their number and seriousness justify
+>> > the maintenance effort?
+>> >
+>>
+>> Yes, AFAIK there are only few users of kasan now, and I guess that
+>> only small part of kernel code
+>> was covered by it.
+>> IMO kasan shouldn't take a lot maintenance efforts, most part of code
+>> is isolated and it doesn't
+>> have some complex dependencies on in-kernel API.
+>> And you could always just poke me, I'd be happy to sort out any issues.
+>>
+>> > If kasan will permit us to remove kmemcheck/debug_pagealloc/slub_debug
+>> > then that tips the balance a little.  What's the feasibility of that?
+>> >
+>>
+>> I think kasan could replace kmemcheck at some point.
 >
-> ??? That at the end of lwn article:
+> So that angle sounds interesting, because kmemcheck is
+> essentially unmaintained right now: in the last 3 years since
+> v3.0 arch/x86/mm/kmemcheck/ has not seen a single kmemcheck
+> specific change, only 4 incidental changes.
 >
-> [quote]
-> The fix is straightforward; when linking an existing page to an
-> anon_vma structure,
-> the kernel needs to pick the one which is highest in the process hierarchy;
-> that guarantees that the anon_vma will not go away prematurely.
-> [/quote]
->
-> nowdays this happens in __page_set_anon_rmap():
->
-> /*
-> * If the page isn't exclusively mapped into this vma,
-> * we must use the _oldest_ possible anon_vma for the
-> * page mapping!
-> */
-> if (!exclusive)
->     anon_vma = anon_vma->root;
->
-> The rest treeish of topology affects only performance.
+> kmemcheck is also very architecture bound and somewhat fragile
+> due to having to decode instructions, so if generic, compiler
+> driven instrumentation can replace it, that would be a plus.
 
-Ah, I see what you mean.
+Hi Andrew, Ingo,
 
-IIRC the !exclusive bit is for pages coming back from swap, where we
-don't have enough tracking info to remember where the page was first
-created so we have to assume the worst case (i.e. that it was created
-in the root anon_vma). My understanding was that we don't exercise
-this in the non-swap case. Looking back into it, it seems that we are
-now doing this with ksm and migrate as well, though.
+I understand your concerns about added complexity.
 
-The point remains though that moving pages higher than necessary in
-the anon_vma hierarchy is OK from a correctness perspective but could
-have bad implications from a performance perspective.
+Let me provide some background first.
+We've developed the set of tools, AddressSanitizer (Asan),
+ThreadSanitizer and MemorySanitizer, for user space. We actively use
+them for testing inside of Google (continuous testing, fuzzing,
+running prod services). To date the tools have found more than 10'000
+scary bugs in Chromium, Google internal codebase and various
+open-source projects (Firefox, OpenSSL, gcc, clang, ffmpeg, MySQL and
+lots of others):
+https://code.google.com/p/address-sanitizer/wiki/FoundBugs
+https://code.google.com/p/thread-sanitizer/wiki/FoundBugs
+https://code.google.com/p/memory-sanitizer/wiki/FoundBugs
+The tools are part of both gcc and clang compilers.
 
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+We have not yet done massive testing under the Kernel AddressSanitizer
+(it's kind of chicken and egg problem, you need it to be upstream to
+start applying it extensively). To date it has found about 50 bugs.
+Bugs that we've found in upstream kernel are listed here:
+https://code.google.com/p/address-sanitizer/wiki/AddressSanitizerForKernel#Trophies
+We've also found ~20 bugs in out internal version of the kernel. Also
+people from Samsung and Oracle have found some. It's somewhat expected
+that when we boot the kernel and run a trivial workload, we do not
+find hundreds of bugs -- most of the harmful bugs in kernel codebase
+were already fixed the hard way (the kernel is quite stable, right).
+Based on our experience with user-space version of the tool, most of
+the bugs will be discovered by continuously testing new code (new bugs
+discovered the easy way), running fuzzers (that can discover existing
+bugs that are not hit frequently enough) and running end-to-end tests
+of production systems.
+
+As others noted, the main feature of AddressSanitizer is its
+performance due to inline compiler instrumentation and simple linear
+shadow memory. User-space Asan has ~2x slowdown on computational
+programs and ~2x memory consumption increase. Taking into account that
+kernel usually consumes only small fraction of CPU and memory when
+running real user-space programs, I would expect that kernel Asan will
+have ~10-30% slowdown and similar memory consumption increase (when we
+finish all tuning).
+
+I agree that Asan can well replace kmemcheck. We have plans to start
+working on Kernel MemorySanitizer that finds uses of unitialized
+memory. Asan+Msan will provide feature-parity with kmemcheck. As
+others noted, Asan will unlikely replace debug slab and pagealloc that
+can be enabled at runtime. Asan uses compiler instrumentation, so even
+if it is disabled, it still incurs visible overheads.
+
+Asan technology is easily portable to other architectures. Compiler
+instrumentation is fully portable. Runtime has some arch-dependent
+parts like shadow mapping and atomic operation interception. They are
+relatively easy to port.
+
+Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
