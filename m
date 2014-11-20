@@ -1,152 +1,250 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
-	by kanga.kvack.org (Postfix) with ESMTP id D9B4D6B0069
-	for <linux-mm@kvack.org>; Thu, 20 Nov 2014 11:32:52 -0500 (EST)
-Received: by mail-lb0-f178.google.com with SMTP id f15so1183981lbj.9
-        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 08:32:52 -0800 (PST)
-Received: from mail-la0-x236.google.com (mail-la0-x236.google.com. [2a00:1450:4010:c03::236])
-        by mx.google.com with ESMTPS id sn3si2537142lbb.77.2014.11.20.08.32.50
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D0CC6B0069
+	for <linux-mm@kvack.org>; Thu, 20 Nov 2014 12:52:20 -0500 (EST)
+Received: by mail-wg0-f44.google.com with SMTP id b13so4419780wgh.3
+        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 09:52:19 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id kr10si4504956wjb.90.2014.11.20.09.52.18
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 20 Nov 2014 08:32:51 -0800 (PST)
-Received: by mail-la0-f54.google.com with SMTP id gf13so2666099lab.41
-        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 08:32:50 -0800 (PST)
+        Thu, 20 Nov 2014 09:52:18 -0800 (PST)
+Message-ID: <546E2A4E.2040907@suse.cz>
+Date: Thu, 20 Nov 2014 18:52:14 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20141120090356.GA6690@gmail.com>
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
- <1415199241-5121-1-git-send-email-a.ryabinin@samsung.com> <5461B906.1040803@samsung.com>
- <20141118125843.434c216540def495d50f3a45@linux-foundation.org>
- <CAPAsAGwZtfzx5oM73bOi_kw5BqXrwGd_xmt=m6xxU6uECA+H9Q@mail.gmail.com> <20141120090356.GA6690@gmail.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Thu, 20 Nov 2014 20:32:30 +0400
-Message-ID: <CACT4Y+aOKzq0AzvSJrRC-iU9LmmtLzxY=pxzu8f4oT-OZk=oLA@mail.gmail.com>
-Subject: Re: [PATCH v6 00/11] Kernel address sanitizer - runtime memory debugger.
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH] mm: page_alloc: store updated page migratetype to avoid
+ misusing stale value
+References: <000301d00253$0fcd0560$2f671020$%yang@samsung.com>	<546D0B78.9010005@suse.cz> <CAL1ERfNJKoAr3_Tx_MCn6KgF2n2Ui9B31W-z4sNiW8A6vaw8vA@mail.gmail.com>
+In-Reply-To: <CAL1ERfNJKoAr3_Tx_MCn6KgF2n2Ui9B31W-z4sNiW8A6vaw8vA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Andrey Ryabinin <a.ryabinin@samsung.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Michal Marek <mmarek@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Randy Dunlap <rdunlap@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Jones <davej@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joe Perches <joe@perches.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Weijie Yang <weijie.yang.kh@gmail.com>
+Cc: Weijie Yang <weijie.yang@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Thu, Nov 20, 2014 at 12:03 PM, Ingo Molnar <mingo@kernel.org> wrote:
->
-> * Andrey Ryabinin <ryabinin.a.a@gmail.com> wrote:
->
->> I've counted 16:
+On 11/20/2014 02:42 PM, Weijie Yang wrote:
+> On Thu, Nov 20, 2014 at 5:28 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
+>> On 11/17/2014 11:40 AM, Weijie Yang wrote:
+>>> The commit ad53f92e(fix incorrect isolation behavior by rechecking migratetype)
+>>> patch series describe the race between page isolation and free path, and try to
+>>> fix the freepage account issues.
+>>>
+>>> However, there is still a little issue: freed page could have stale migratetype
+>>> in the free_list. This would cause some bad behavior if we misuse this stale
+>>> value later.
+>>> Such as: in __test_page_isolated_in_pageblock() we check the buddy page, if the
+>>> page's stale migratetype is not MIGRATE_ISOLATE, which will cause unnecessary
+>>> page move action.
 >>
->> aab515d (fib_trie: remove potential out of bound access)
->> 984f173 ([SCSI] sd: Fix potential out-of-bounds access)
->> 5e9ae2e (aio: fix use-after-free in aio_migratepage)
->> 2811eba (ipv6: udp packets following an UFO enqueued packet need also
->> be handled by UFO)
->> 057db84 (tracing: Fix potential out-of-bounds in trace_get_user())
->> 9709674 (ipv4: fix a race in ip4_datagram_release_cb())
->> 4e8d213 (ext4: fix use-after-free in ext4_mb_new_blocks)
->> 624483f (mm: rmap: fix use-after-free in __put_anon_vma)
->> 93b7aca (lib/idr.c: fix out-of-bounds pointer dereference)
->> b4903d6 (mm: debugfs: move rounddown_pow_of_two() out from do_fault path)
->> 40eea80 (net: sendmsg: fix NULL pointer dereference)
->> 10ec947 (ipv4: fix buffer overflow in ip_options_compile())
->> dbf20cb2 (f2fs: avoid use invalid mapping of node_inode when evict meta inode)
->> d6d86c0 (mm/balloon_compaction: redesign ballooned pages management)
+>> Hello,
+> 
+> Hi Vlastimil,
+> Thanks for your reply, that makes me think from a bigger view.
+> 
+> After a careful check according to your said, this patch is not proper, it
+> should be dropped and I will resend a v2 patch.
+
+Thanks.
+
+>> are there other places than __test_page_isolated_in_pageblock(), where
+>> freepage_migratetype matters? You make it sound like it's just an example, but I
+>> doubt there is any other. All other callers of get_freepage_migratetype() are
+>> querying pages on the pcplists, not the buddy lists. There it serves as a cached
+>> value for migratetype so it doesn't have to be read again when freeing from
+>> pcplists to budy list.
+> 
+> Agree. Now only __test_page_isolated_in_pageblock() matters
+> freepage_migratetype.
+> pages from pcplists have a cached but not 100% accurate migratetype and we
+> will recheck them when drain them to buddy if there is a need(race
+> with isolation);
+
+Yes.
+
+> pages in buddy should have an update and 100% accurate migratetype, or it would
+> cause some bad issue, and that is the aim of this patch.
+
+Yeah, but I question the importance of the only existing "bad issue" which is
+__test_page_isolated_in_pageblock().
+
+> Or, if we make nobody rely on the freepage_migratetype in buddy, we can take no
+> care of the 100% accuracy of the freepage_migratetype in buddy.
+> This is your suggestion, do I understand it correctly?
+
+Yes, I would prefer that.
+
+>> Seems to me that __test_page_isolated_in_pageblock() was an exception that tried
+>> to rely on freepage_migratetype being valid even after the page has moved from
+>> pcplist to buddy list, but this assumption was always broken.
+> 
+> I am not very clear, could you please explain why it always broken?
+
+Well your patch is a proof it was/is broken. The only pages where migratetype is
+valid are those that went through move_freepages() during isolation. Those that
+were being freed during the isolation can be wrong.
+
+>> Sure, if all the pages in isolated pageblock are catched by move_freepages()
+>> during isolation, then the freetype is correct, but that doesn't always happen
+>> due to parallel activity (and that's the core problem that Joonsoo's series
+>> dealt with).
+> 
+> Agree. Joonsoo's series fix the race between page freeing and isolation due to
+> not-update freepage_migratetype check, and introduce nr_isolate_pageblock
+> to avoid too much heavy check.
+
+Yes.
+
+>> So, in this patch you try to make sure that freepage_migratetype will be correct
+>> after page got to buddy list via __free_one_page(). But I don't think that
+>> covers all situations. Look at expand(), which puts potentially numerous
+>> splitted free pages on free_list, and doesn't set freepage_migratetype. Sure,
+>> this ommision doesn't affect __test_page_isolated_in_pageblock(), as expand() is
+>> called during allocation, which won't touch ISOLATE pageblocks, and free pages
+>> created by expand() *before* setting ISOLATE are processed by move_freepages().
+> 
+> I have to admit I did not think about the page_alloc path(such as
+> expand), I will review
+> the code before I resend the patch.
+> What I thought is setting freepage_migratetype via __free_one_page()
+> is enough because
+> we can ensure them correct from the begining __free_pages_bootmem().
+> 
+>> So my point is, you are maybe fixing just the case of
+>> __test_page_isolated_in_pageblock() (but not completely I think, see below) by
+>> adding extra operation to __free_one_page() which is hot path. And all for a
+>> WARN_ON_ONCE. That doesn't seem like a good tradeoff. And to do it consistently,
+>> you would need to add the operation also to expand(), another hotpath. So that's
+>> a NAK from me.
+> 
+> I agree we should handle hot patch carefully, in my next patch I will
+> consider how to
+> avoid affecting the hot path meanwhile fix the
+> __test_page_isolated_in_pageblock().
+> 
+>> I would uggest you throw the __test_page_isolated_in_pageblock() function away
+>> completely.
+> 
+> I'm not sure we can throw it completely. There is another check on
+> page_count besides
+> PageBuddy() and hwpoison stuff.
+
+Sure, so just assume the migratetype is correct. For capturing the pages, it
+should only matter if the page is free (i.e. PageBuddy), after all?
+
+>> Or just rework it to check for PageBuddy() and hwpoison stuff - the
+>> migratetype checks make no sense to me. Or if you insist that this is needed for
+>> debugging further possible races in page isolation, then please hide the
+>> necessary bits in hot paths being a debugging config option.
+> 
+> Agree.
+> 
+>> If you agree, we can even throw away the set_freepage_migratetype() calls from
+>> move_freepages() - there's no point to them anymore.
+> 
+> Agree.
+> 
+>>> This patch store the page's updated migratetype after free the page to the
+>>> free_list to avoid subsequent misusing stale value, and use a WARN_ON_ONCE
+>>> to catch a potential undetected race between isolatation and free path.
+>>>
+>>>
+>>> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
+>>> ---
+>>>  mm/page_alloc.c     |    1 +
+>>>  mm/page_isolation.c |   17 +++++------------
+>>>  2 files changed, 6 insertions(+), 12 deletions(-)
+>>>
+>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>> index 616a2c9..177fca0 100644
+>>> --- a/mm/page_alloc.c
+>>> +++ b/mm/page_alloc.c
+>>> @@ -622,6 +622,7 @@ static inline void __free_one_page(struct page *page,
 >>
->> + 2 recently found, seems minor:
->>     http://lkml.kernel.org/r/1415372020-1871-1-git-send-email-a.ryabinin@samsung.com
->>     (sched/numa: Fix out of bounds read in sched_init_numa())
+>> See here at this point, the function has this code:
+>>                         list_add_tail(&page->lru,
+>>                                &zone->free_area[order].free_list[migratetype]);
+>>                         goto out;
 >>
->>     http://lkml.kernel.org/r/1415458085-12485-1-git-send-email-ryabinin.a.a@gmail.com
->>     (security: smack: fix out-of-bounds access in smk_parse_smack())
+>> You are missing this list_add_tail() path with your patch.
+> 
+> My fault.
+> 
+>>>       }
+>>>
+>>>       list_add(&page->lru, &zone->free_area[order].free_list[migratetype]);
+>>> +     set_freepage_migratetype(page, migratetype);
+>>>  out:
+>>>       zone->free_area[order].nr_free++;
+>>>  }
+>>> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+>>> index c8778f7..0618071 100644
+>>> --- a/mm/page_isolation.c
+>>> +++ b/mm/page_isolation.c
+>>> @@ -223,19 +223,12 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
+>>>               page = pfn_to_page(pfn);
+>>>               if (PageBuddy(page)) {
+>>>                       /*
+>>> -                      * If race between isolatation and allocation happens,
+>>> -                      * some free pages could be in MIGRATE_MOVABLE list
+>>> -                      * although pageblock's migratation type of the page
+>>> -                      * is MIGRATE_ISOLATE. Catch it and move the page into
+>>> -                      * MIGRATE_ISOLATE list.
+>>> +                      * Use a WARN_ON_ONCE to catch a potential undetected
+>>> +                      * race between isolatation and free pages, even if
+>>> +                      * we try to avoid this issue.
+>>>                        */
+>>> -                     if (get_freepage_migratetype(page) != MIGRATE_ISOLATE) {
+>>> -                             struct page *end_page;
+>>> -
+>>> -                             end_page = page + (1 << page_order(page)) - 1;
+>>> -                             move_freepages(page_zone(page), page, end_page,
+>>> -                                             MIGRATE_ISOLATE);
+>>> -                     }
+>>> +                     WARN_ON_ONCE(get_freepage_migratetype(page) !=
+>>> +                                     MIGRATE_ISOLATE);
 >>
->> Note that some functionality is not yet implemented in this
->> patch set. Kasan has possibility to detect out-of-bounds
->> accesses on global/stack variables. Neither
->> kmemcheck/debug_pagealloc or slub_debug could do that.
+>> So yeah as I said, all the trouble and inconsistency for a WARN_ON_ONCE doesn't
+>> seem worth it.
+> 
+> May be adding a debug config is better.
+
+Maybe another solution for a debug config would be to walk the free lists
+manually to determine where pages are placed? Slower for sure, but without
+cluttering unrelated page allocation code, so maybe acceptable for debug-only?
+
+>>>                       pfn += 1 << page_order(page);
+>>>               }
 >>
->> > That's in a 20-year-old code base, so one new minor bug discovered per
->> > three years?  Not worth it!
->> >
->> > Presumably more bugs will be exposed as more people use kasan on
->> > different kernel configs, but will their number and seriousness justify
->> > the maintenance effort?
->> >
+>> BTW, here the function continues like:
 >>
->> Yes, AFAIK there are only few users of kasan now, and I guess that
->> only small part of kernel code
->> was covered by it.
->> IMO kasan shouldn't take a lot maintenance efforts, most part of code
->> is isolated and it doesn't
->> have some complex dependencies on in-kernel API.
->> And you could always just poke me, I'd be happy to sort out any issues.
+>>                 else if (page_count(page) == 0 &&
+>>                         get_freepage_migratetype(page) == MIGRATE_ISOLATE)
+>>                         pfn += 1;
 >>
->> > If kasan will permit us to remove kmemcheck/debug_pagealloc/slub_debug
->> > then that tips the balance a little.  What's the feasibility of that?
->> >
+>> I believe this code tries to check for pages on pcplists? But isn't it bogus? At
+>> least currently, page is never added to pcplist with MIGRATE_ISOLATE
+>> freepage_migratetype - it goes straight to buddy lists.
+> 
+> I think we can remove this check, how do you think?
+> I cann't find its necessity.
+
+I think so, unless I'm missing something.
+
+>> Also, why count pages on pcplists as successfully isolated?
+>> isolate_freepages_range() will fail on them.
+> 
+> I think you make a misread, if page's count is not zero we break the while
+> and return fail.
+
+Yeah, but for count == zero it assumes it's on pcplists and that it's fine, I'd
+argue it's not.
+
+>>>               else if (page_count(page) == 0 &&
+>>>
 >>
->> I think kasan could replace kmemcheck at some point.
->
-> So that angle sounds interesting, because kmemcheck is
-> essentially unmaintained right now: in the last 3 years since
-> v3.0 arch/x86/mm/kmemcheck/ has not seen a single kmemcheck
-> specific change, only 4 incidental changes.
->
-> kmemcheck is also very architecture bound and somewhat fragile
-> due to having to decode instructions, so if generic, compiler
-> driven instrumentation can replace it, that would be a plus.
-
-Hi Andrew, Ingo,
-
-I understand your concerns about added complexity.
-
-Let me provide some background first.
-We've developed the set of tools, AddressSanitizer (Asan),
-ThreadSanitizer and MemorySanitizer, for user space. We actively use
-them for testing inside of Google (continuous testing, fuzzing,
-running prod services). To date the tools have found more than 10'000
-scary bugs in Chromium, Google internal codebase and various
-open-source projects (Firefox, OpenSSL, gcc, clang, ffmpeg, MySQL and
-lots of others):
-https://code.google.com/p/address-sanitizer/wiki/FoundBugs
-https://code.google.com/p/thread-sanitizer/wiki/FoundBugs
-https://code.google.com/p/memory-sanitizer/wiki/FoundBugs
-The tools are part of both gcc and clang compilers.
-
-We have not yet done massive testing under the Kernel AddressSanitizer
-(it's kind of chicken and egg problem, you need it to be upstream to
-start applying it extensively). To date it has found about 50 bugs.
-Bugs that we've found in upstream kernel are listed here:
-https://code.google.com/p/address-sanitizer/wiki/AddressSanitizerForKernel#Trophies
-We've also found ~20 bugs in out internal version of the kernel. Also
-people from Samsung and Oracle have found some. It's somewhat expected
-that when we boot the kernel and run a trivial workload, we do not
-find hundreds of bugs -- most of the harmful bugs in kernel codebase
-were already fixed the hard way (the kernel is quite stable, right).
-Based on our experience with user-space version of the tool, most of
-the bugs will be discovered by continuously testing new code (new bugs
-discovered the easy way), running fuzzers (that can discover existing
-bugs that are not hit frequently enough) and running end-to-end tests
-of production systems.
-
-As others noted, the main feature of AddressSanitizer is its
-performance due to inline compiler instrumentation and simple linear
-shadow memory. User-space Asan has ~2x slowdown on computational
-programs and ~2x memory consumption increase. Taking into account that
-kernel usually consumes only small fraction of CPU and memory when
-running real user-space programs, I would expect that kernel Asan will
-have ~10-30% slowdown and similar memory consumption increase (when we
-finish all tuning).
-
-I agree that Asan can well replace kmemcheck. We have plans to start
-working on Kernel MemorySanitizer that finds uses of unitialized
-memory. Asan+Msan will provide feature-parity with kmemcheck. As
-others noted, Asan will unlikely replace debug slab and pagealloc that
-can be enabled at runtime. Asan uses compiler instrumentation, so even
-if it is disabled, it still incurs visible overheads.
-
-Asan technology is easily portable to other architectures. Compiler
-instrumentation is fully portable. Runtime has some arch-dependent
-parts like shadow mapping and atomic operation interception. They are
-relatively easy to port.
-
-Thanks
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
