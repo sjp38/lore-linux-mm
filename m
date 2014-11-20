@@ -1,97 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 035F36B0069
-	for <linux-mm@kvack.org>; Wed, 19 Nov 2014 22:31:03 -0500 (EST)
-Received: by mail-pa0-f50.google.com with SMTP id bj1so1622697pad.23
-        for <linux-mm@kvack.org>; Wed, 19 Nov 2014 19:31:02 -0800 (PST)
-Received: from ponies.io (mail.ponies.io. [173.255.217.209])
-        by mx.google.com with ESMTP id e16si1209718pdj.196.2014.11.19.19.31.00
-        for <linux-mm@kvack.org>;
-        Wed, 19 Nov 2014 19:31:01 -0800 (PST)
-Received: from cucumber.localdomain (58-6-54-190.dyn.iinet.net.au [58.6.54.190])
-	by ponies.io (Postfix) with ESMTPSA id 534F4A0BB
-	for <linux-mm@kvack.org>; Thu, 20 Nov 2014 03:31:00 +0000 (UTC)
-Date: Thu, 20 Nov 2014 14:30:57 +1100
-From: Christian Marie <christian@ponies.io>
-Subject: Re: isolate_freepages_block and excessive CPU usage by OSD process
-Message-ID: <20141120033057.GA28899@cucumber.anchor.net.au>
-References: <20141119012110.GA2608@cucumber.iinet.net.au>
- <CABYiri99WAj+6hfTq+6x+_w0=VNgBua8N9+mOvU6o5bynukPLQ@mail.gmail.com>
- <20141119212013.GA18318@cucumber.anchor.net.au>
- <546D2366.1050506@suse.cz>
+Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 773166B0069
+	for <linux-mm@kvack.org>; Thu, 20 Nov 2014 02:23:27 -0500 (EST)
+Received: by mail-la0-f50.google.com with SMTP id pv20so1908726lab.37
+        for <linux-mm@kvack.org>; Wed, 19 Nov 2014 23:23:26 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id o10si1421464laj.15.2014.11.19.23.23.25
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Nov 2014 23:23:25 -0800 (PST)
+Message-ID: <546D8882.4040908@parallels.com>
+Date: Thu, 20 Nov 2014 10:21:54 +0400
+From: Pavel Emelyanov <xemul@parallels.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="X1bOJ3K7DJ5YkBrT"
-Content-Disposition: inline
-In-Reply-To: <546D2366.1050506@suse.cz>
+Subject: Re: [PATCH 00/10] RFC: userfault (question about remap_anon_pages
+ API)
+In-Reply-To: 20140703140853.GG21667 () redhat ! com
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Linux MM <linux-mm@kvack.org>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>
+
+Andrea,
+
+We'd like to use this code to implement the post-copy migration
+too, but this time for containers, not for virtual machines. This
+will be done as a part of the CRIU [1] project.
+
+>From our experiments almost everything is suitable, but the
+remap_anon_pages() system call, so I'd like you to comment on
+whether we're mis-using your API or not :) So, for containers the
+post-copy migration would look like this.
 
 
---X1bOJ3K7DJ5YkBrT
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+On the source node we freeze the container's process tree, read
+its state, except for the memory contents using CRIU tool, then
+copy the state on remote host and recreate the processes back
+using the CRIU tool again.
 
-On Thu, Nov 20, 2014 at 12:10:30AM +0100, Vlastimil Babka wrote:
-> > Is this fixed in a later kernel? I haven't tested yet.
->=20
-> As I said, recent kernels received many compaction performance tuning pat=
-ches,
-> and reclaim as well. I would recommend trying them, if it's possible.
->=20
-> You mention 3.10.0-123.9.3.el7.x86_64 which I have no idea how it relates=
- to
-> upstream stable kernel. Upstream version 3.10.44 received several compact=
-ion
-> fixes that I'd deem critical for compaction to work as intended, and lack=
- of
-> them could explain your problems:
->=20
-> mm: compaction: reset cached scanner pfn's before reading them
-> commit d3132e4b83e6bd383c74d716f7281d7c3136089c upstream.
->=20
-> mm: compaction: detect when scanners meet in isolate_freepages
-> commit 7ed695e069c3cbea5e1fd08f84a04536da91f584 upstream.
->=20
-> mm/compaction: make isolate_freepages start at pageblock boundary
-> commit 49e068f0b73dd042c186ffa9b420a9943e90389a upstream.
->=20
-> You might want to check if those are included in your kernel package, and=
-/or try
-> upstream stable 3.10 (if you can't use the latest for some reason).
+At this step (restore) we mark all the memory of the tasks we
+restore with MADV_USERFAULT so that any attempt to access one 
+results in the notification via userfaultfd. The userfaultfd, in
+turn, exists for every process in the container and, in our plans, 
+is owned by the CRIU daemon, that will provide the post-copy 
+memory updates. Then we unfreeze the processes and let them run
+further.
 
-Excellent, thankyou.
+So, when a process tries to access the memory the CRIU daemon
+wakes up, reads the fault address, pulls the page from source node
+and then it should put this page into the proper process' address
+space. And here's where we have problems.
 
-I realised there were a lot of changes but this list of specific fixes might
-help narrow down the actual cause here. I've just built a kernel that's exa=
-ctly
-the same as the exploding one with just these three patches and will be back
-tomorrow with the results of testing.
+The page with data is in CRIU daemon address space and the syscall
+remap_anon_pages() works on current process address space. So, in
+order to have the data in the container's process address space, we
+have two choices. Either we somehow make the page be available in 
+the other process address space and make this process call the remap
+system call, or we should extend the syscall to accept the pid of 
+the process on whose address space we'd like to work on.
 
---X1bOJ3K7DJ5YkBrT
-Content-Type: application/pgp-signature
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
+What do you think? Are you OK with tuning the remap_anon_pages, or
+we should do things in completely different way? If the above
+explanation is not clear enough, we'd be happy to provide more 
+details.
 
-iQIcBAEBAgAGBQJUbWBxAAoJEMHZnoZn5OShQi4QAJB4H/2aEHsDVllX+AL1O5jH
-i2R994mXxAT0yqKn3z32/ZyG1PTcPHFeJ3hvMoJiWtKCSyAV3TSTzbg2Bdw09P+x
-hckV+M6kxb85OmscaqlBmE0xe/YdC3LtAL0h3C3NzbVUh2JFKMjMOTG93Qehfryb
-D6joYtCOQqHpYl5OFrIyIVxZrHjTIGVEhUT1GMWTRBrcCMPDPphVaurbrv/Mfbwd
-ADOI4IqK9xDbI/feTj+kY6n+ylSJOO3rm5eGoDEWIc8eXWxFloHlaIJqqOWuFoS0
-yLJGUvVBtNJtKWmWm59bM1EpUYhh2ISkxatiwhaVzUXp8WYT7hb0ejafUaDX15rI
-XRZC3laDZGCv03RC+n8WA3oL/cKUjkNwl4L7FW8D4AO5PckeUcB3d3l9AaFdNMHE
-lOiOv71IALAitEZDAEl7kj0Jsh30ggJ7GsAEwkoqGnlzhjsq+TpKZlAuDcwB/fpo
-pkG1y+sgY7dBiw93cN9I4PGObUxUnWZzphIUHLp0sNPulnn+2jNVDs1BNGcGqjgS
-uAqvri9C1g3BAReH22nAJ9Nm6xNw7AM07fblWzlGY+oQVSzkMVB3RdK4sbiHFksJ
-DXxgxfiss0ViQETB8PO39QzP10cO6kXKWrSelFKAfiu8WYfnFYXjhasF7fb4+YvC
-mFMS5alSpaNu9gq2z+XY
-=ydAx
------END PGP SIGNATURE-----
+Thanks,
+Pavel
 
---X1bOJ3K7DJ5YkBrT--
+[1] http://criu.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
