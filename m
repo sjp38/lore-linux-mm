@@ -1,77 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id F327B6B0092
-	for <linux-mm@kvack.org>; Thu, 20 Nov 2014 05:20:08 -0500 (EST)
-Received: by mail-wg0-f44.google.com with SMTP id b13so3255831wgh.17
-        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 02:20:08 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id aw9si2633459wjc.177.2014.11.20.02.20.08
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 20 Nov 2014 02:20:08 -0800 (PST)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 10/10] mm: numa: Avoid unnecessary TLB flushes when setting NUMA hinting entries
-Date: Thu, 20 Nov 2014 10:19:50 +0000
-Message-Id: <1416478790-27522-11-git-send-email-mgorman@suse.de>
-In-Reply-To: <1416478790-27522-1-git-send-email-mgorman@suse.de>
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id D887F6B0071
+	for <linux-mm@kvack.org>; Thu, 20 Nov 2014 05:39:45 -0500 (EST)
+Received: by mail-wg0-f45.google.com with SMTP id b13so3302381wgh.32
+        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 02:39:45 -0800 (PST)
+Received: from mx0.aculab.com (mx0.aculab.com. [213.249.233.131])
+        by mx.google.com with SMTP id fb7si6749204wid.47.2014.11.20.02.39.45
+        for <linux-mm@kvack.org>;
+        Thu, 20 Nov 2014 02:39:45 -0800 (PST)
+Received: from mx0.aculab.com ([127.0.0.1])
+ by localhost (mx0.aculab.com [127.0.0.1]) (amavisd-new, port 10024) with SMTP
+ id 11609-07 for <linux-mm@kvack.org>; Thu, 20 Nov 2014 10:39:35 +0000 (GMT)
+From: David Laight <David.Laight@ACULAB.COM>
+Subject: RE: [PATCH 03/10] mm: Convert p[te|md]_numa users to
+ p[te|md]_protnone_numa
+Date: Thu, 20 Nov 2014 10:38:56 +0000
+Message-ID: <063D6719AE5E284EB5DD2968C1650D6D1C9F48CB@AcuExch.aculab.com>
 References: <1416478790-27522-1-git-send-email-mgorman@suse.de>
+ <1416478790-27522-4-git-send-email-mgorman@suse.de>
+In-Reply-To: <1416478790-27522-4-git-send-email-mgorman@suse.de>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux Kernel <linux-kernel@vger.kernel.org>
-Cc: Linux-MM <linux-mm@kvack.org>, LinuxPPC-dev <linuxppc-dev@lists.ozlabs.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@redhat.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Sasha Levin <sasha.levin@oracle.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>
+To: 'Mel Gorman' <mgorman@suse.de>, Linux Kernel <linux-kernel@vger.kernel.org>
+Cc: Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Paul Mackerras <paulus@samba.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Sasha
+ Levin <sasha.levin@oracle.com>, Dave Jones <davej@redhat.com>, LinuxPPC-dev <linuxppc-dev@lists.ozlabs.org>, Kirill Shutemov <kirill.shutemov@linux.intel.com>
 
-If a PTE or PMD is already marked NUMA when scanning to mark entries
-for NUMA hinting then it is not necessary to update the entry and
-incur a TLB flush penalty. Avoid the avoidhead where possible.
-
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/huge_memory.c | 14 ++++++++------
- mm/mprotect.c    |  4 ++++
- 2 files changed, 12 insertions(+), 6 deletions(-)
-
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 6458229f..a7ea9b8 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1524,12 +1524,14 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 			return 0;
- 		}
- 
--		ret = 1;
--		entry = pmdp_get_and_clear(mm, addr, pmd);
--		entry = pmd_modify(entry, newprot);
--		ret = HPAGE_PMD_NR;
--		set_pmd_at(mm, addr, pmd, entry);
--		BUG_ON(pmd_write(entry));
-+		if (!prot_numa || !pmd_protnone_numa(*pmd)) {
-+			ret = 1;
-+			entry = pmdp_get_and_clear(mm, addr, pmd);
-+			entry = pmd_modify(entry, newprot);
-+			ret = HPAGE_PMD_NR;
-+			set_pmd_at(mm, addr, pmd, entry);
-+			BUG_ON(pmd_write(entry));
-+		}
- 		spin_unlock(ptl);
- 	}
- 
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 33dfafb..eb890d0 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -86,6 +86,10 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 				page = vm_normal_page(vma, addr, oldpte);
- 				if (!page || PageKsm(page))
- 					continue;
-+
-+				/* Avoid TLB flush if possible */
-+				if (pte_protnone_numa(oldpte))
-+					continue;
- 			}
- 
- 			ptent = ptep_modify_prot_start(mm, addr, pte);
--- 
-2.1.2
+RnJvbTogIE1lbCBHb3JtYW4NCj4gQ29udmVydCBleGlzdGluZyB1c2VycyBvZiBwdGVfbnVtYSBh
+bmQgZnJpZW5kcyB0byB0aGUgbmV3IGhlbHBlci4gTm90ZQ0KPiB0aGF0IHRoZSBrZXJuZWwgaXMg
+YnJva2VuIGFmdGVyIHRoaXMgcGF0Y2ggaXMgYXBwbGllZCB1bnRpbCB0aGUgb3RoZXINCj4gcGFn
+ZSB0YWJsZSBtb2RpZmllcnMgYXJlIGFsc28gYWx0ZXJlZC4gVGhpcyBwYXRjaCBsYXlvdXQgaXMg
+dG8gbWFrZQ0KPiByZXZpZXcgZWFzaWVyLg0KDQpEb2Vzbid0IHRoYXQgYnJlYWsgYmlzZWN0aW9u
+Pw0KDQoJRGF2aWQNCg0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
