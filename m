@@ -1,227 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id E5E776B0078
-	for <linux-mm@kvack.org>; Thu, 20 Nov 2014 07:05:06 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id lj1so2429321pab.33
-        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 04:05:06 -0800 (PST)
-Received: from tyimss-2.htc.com (tyimss-2.htc.com. [219.87.71.150])
-        by mx.google.com with ESMTPS id sd5si3153917pbc.20.2014.11.20.04.05.04
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 753DF6B0069
+	for <linux-mm@kvack.org>; Thu, 20 Nov 2014 07:35:35 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id eu11so2473548pac.22
+        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 04:35:35 -0800 (PST)
+Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
+        by mx.google.com with ESMTPS id qk1si2940605pac.189.2014.11.20.04.35.33
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 20 Nov 2014 04:05:05 -0800 (PST)
-From: <zhiyuan_zhu@htc.com>
-Subject: =?gb2312?B?tPC4tDogtPC4tDogbG93IG1lbW9yeSBraWxsZXI=?=
-Date: Thu, 20 Nov 2014 12:05:00 +0000
-Message-ID: <AF7C0ADF1FEABA4DABABB97411952A2EC91FE0@CN-MBX02.HTC.COM.TW>
-References: <AF7C0ADF1FEABA4DABABB97411952A2EC91E38@CN-MBX02.HTC.COM.TW>
- <20141120095802.GA24575@dhcp22.suse.cz>
- <AF7C0ADF1FEABA4DABABB97411952A2EC91EF5@CN-MBX02.HTC.COM.TW>
- <20141120101855.GB24575@dhcp22.suse.cz>
-In-Reply-To: <20141120101855.GB24575@dhcp22.suse.cz>
-Content-Language: zh-CN
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
-Content-Type: multipart/alternative; boundary="__=_Part_Boundary_009_1837996101.507241841"
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Thu, 20 Nov 2014 04:35:33 -0800 (PST)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout3.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NFC005FA8FXG140@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 20 Nov 2014 12:38:21 +0000 (GMT)
+Message-id: <546DE00A.6000104@samsung.com>
+Date: Thu, 20 Nov 2014 15:35:22 +0300
+From: Andrey Ryabinin <a.ryabinin@samsung.com>
+MIME-version: 1.0
+Subject: Re: [PATCH v6 00/11] Kernel address sanitizer - runtime memory
+ debugger.
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
+ <1415199241-5121-1-git-send-email-a.ryabinin@samsung.com>
+ <5461B906.1040803@samsung.com>
+ <20141118125843.434c216540def495d50f3a45@linux-foundation.org>
+ <CAPAsAGwZtfzx5oM73bOi_kw5BqXrwGd_xmt=m6xxU6uECA+H9Q@mail.gmail.com>
+ <20141120090356.GA6690@gmail.com>
+In-reply-to: <20141120090356.GA6690@gmail.com>
+Content-type: text/plain; charset=windows-1252
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.cz
-Cc: hannes@cmpxchg.org, Future_Zhou@htc.com, Rachel_Zhang@htc.com, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, cgroups@vger.kernel.org, linux-mm@kvack.org, greg@kroah.com, Sai_Shen@htc.com
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Michal Marek <mmarek@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Randy Dunlap <rdunlap@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Jones <davej@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joe Perches <joe@perches.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-VGhpcyBpcyBNSU1FIG11bHRpcGFydCA3Lg==
---__=_Part_Boundary_009_1837996101.507241841
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
+On 11/20/2014 12:03 PM, Ingo Molnar wrote:
+> 
+> * Andrey Ryabinin <ryabinin.a.a@gmail.com> wrote:
+> 
+>> I've counted 16:
+>>
+>> aab515d (fib_trie: remove potential out of bound access)
+>> 984f173 ([SCSI] sd: Fix potential out-of-bounds access)
+>> 5e9ae2e (aio: fix use-after-free in aio_migratepage)
+>> 2811eba (ipv6: udp packets following an UFO enqueued packet need also
+>> be handled by UFO)
+>> 057db84 (tracing: Fix potential out-of-bounds in trace_get_user())
+>> 9709674 (ipv4: fix a race in ip4_datagram_release_cb())
+>> 4e8d213 (ext4: fix use-after-free in ext4_mb_new_blocks)
+>> 624483f (mm: rmap: fix use-after-free in __put_anon_vma)
+>> 93b7aca (lib/idr.c: fix out-of-bounds pointer dereference)
+>> b4903d6 (mm: debugfs: move rounddown_pow_of_two() out from do_fault path)
+>> 40eea80 (net: sendmsg: fix NULL pointer dereference)
+>> 10ec947 (ipv4: fix buffer overflow in ip_options_compile())
+>> dbf20cb2 (f2fs: avoid use invalid mapping of node_inode when evict meta inode)
+>> d6d86c0 (mm/balloon_compaction: redesign ballooned pages management)
+>>
+>> + 2 recently found, seems minor:
+>>     http://lkml.kernel.org/r/1415372020-1871-1-git-send-email-a.ryabinin@samsung.com
+>>     (sched/numa: Fix out of bounds read in sched_init_numa())
+>>
+>>     http://lkml.kernel.org/r/1415458085-12485-1-git-send-email-ryabinin.a.a@gmail.com
+>>     (security: smack: fix out-of-bounds access in smk_parse_smack())
+>>
+>> Note that some functionality is not yet implemented in this 
+>> patch set. Kasan has possibility to detect out-of-bounds 
+>> accesses on global/stack variables. Neither 
+>> kmemcheck/debug_pagealloc or slub_debug could do that.
+>>
+>>> That's in a 20-year-old code base, so one new minor bug discovered per
+>>> three years?  Not worth it!
+>>>
+>>> Presumably more bugs will be exposed as more people use kasan on
+>>> different kernel configs, but will their number and seriousness justify
+>>> the maintenance effort?
+>>>
+>>
+>> Yes, AFAIK there are only few users of kasan now, and I guess that
+>> only small part of kernel code
+>> was covered by it.
+>> IMO kasan shouldn't take a lot maintenance efforts, most part of code
+>> is isolated and it doesn't
+>> have some complex dependencies on in-kernel API.
+>> And you could always just poke me, I'd be happy to sort out any issues.
+>>
+>>> If kasan will permit us to remove kmemcheck/debug_pagealloc/slub_debug
+>>> then that tips the balance a little.  What's the feasibility of that?
+>>>
+>>
+>> I think kasan could replace kmemcheck at some point.
+> 
+> So that angle sounds interesting, because kmemcheck is 
+> essentially unmaintained right now: in the last 3 years since 
+> v3.0 arch/x86/mm/kmemcheck/ has not seen a single kmemcheck 
+> specific change, only 4 incidental changes.
+> 
+> kmemcheck is also very architecture bound and somewhat fragile 
+> due to having to decode instructions, so if generic, compiler 
+> driven instrumentation can replace it, that would be a plus.
+> 
 
-SGkgR3JlZy9NaWNoYWwNClZlcnkgc29ycnkgSSBoYXZlIGEgbWlzdGFrZSBpbiBwcmV2aW91cyBt
-YWlsLiAoSXQgc2hvdWxkIGJlIG5yX2ZpbGVfcGFnZXMgbm90IG5yX2ZyZWVfcGFnZXMpDQpJIHJl
-YXJyYW5nZSB0aGlzIHByb2JsZW0uDQoNCi8vICoqKioqKioqKioqIGxvZyBiZWdpbiAqKioqKioq
-KioqDQo2ICAgICAgMTYxMDMwLjA4NDE0NCAgICAgICAyMDE0LTExLTA3IDIxOjQ0OjUzLjMwNCAg
-ICAgICAgbG93bWVtb3J5a2lsbGVyOiBLaWxsaW5nICdvbS5odGMubGF1bmNoZXInICg0NDg2KSwg
-YWRqIDI5NCwNCjYgICAgICAxNjEwMzAuMDg0MTQ0ICAgICAgIDIwMTQtMTEtMDcgMjE6NDQ6NTMu
-MzA0ICAgICAgICAgICB0byBmcmVlIDQ3ODU2a0Igb24gYmVoYWxmIG9mICdrd29ya2VyL3U4OjE0
-JyAoMjA1OTQpIGJlY2F1c2UNCjYgICAgICAxNjEwMzAuMDg0MTQ0ICAgICAgIDIwMTQtMTEtMDcg
-MjE6NDQ6NTMuMzA0ICAgICAgICAgICBjYWNoZSA3MjQ2MGtCIGlzIGJlbG93IGxpbWl0IDczNzI4
-a0IgZm9yIG9vbV9zY29yZV9hZGogMjM1DQovLyAgKioqKiAvcHJvYy9tZW1pbmZvICdzIHJlc3Vs
-dA0KNCAgICAgIDE2MTAzMC4wODQ3OTcgICAgICAgMjAxNC0xMS0wNyAyMTo0NDo1My4zMDQgICAg
-ICAgIENhY2hlZDogICAgICAgICAgIDE0MjQ0OCBrQg0KLy8gKioqKioqKioqKiogbG9nIGVuZCAq
-KioqKioqKioqDQoNCkFmdGVyIEkgY2hlY2tlZCB0aGUgYW5kcm9pZCdzIGxvdyBtZW1vcnkgc3Ry
-YXRlZ3k6IGtlcm5lbC9kcml2ZXJzL3N0YWdpbmcvYW5kcm9pZC9sb3dtZW1vcnlraWxsZXIuYw0K
-DQovLyAqKioqKiogY29kZSBiZWdpbiAqKioqKioqKioNCgkJb3RoZXJfZmlsZSA9IGdsb2JhbF9w
-YWdlX3N0YXRlKE5SX0ZJTEVfUEFHRVMpIC0NCgkJCQkJCWdsb2JhbF9wYWdlX3N0YXRlKE5SX1NI
-TUVNKSAtDQoJCQkJCQl0b3RhbF9zd2FwY2FjaGVfcGFnZXMoKTsNCg0KCQlsb3dtZW1fcHJpbnQo
-MSwgIktpbGxpbmcgJyVzJyAoJWQpLCBhZGogJWhkLFxuIiBcDQoJCQkJIiAgIHRvIGZyZWUgJWxk
-a0Igb24gYmVoYWxmIG9mICclcycgKCVkKSBiZWNhdXNlXG4iIFwNCgkJCQkiICAgY2FjaGUgJWxk
-a0IgaXMgYmVsb3cgbGltaXQgJWxka0IgZm9yIG9vbV9zY29yZV9hZGogJWhkXG4iIFwNCgkJCQki
-ICAgRnJlZSBtZW1vcnkgaXMgJWxka0IgYWJvdmUgcmVzZXJ2ZWRcbiIsDQoJCQkgICAgIHNlbGVj
-dGVkLT5jb21tLCBzZWxlY3RlZC0+cGlkLA0KCQkJICAgICBzZWxlY3RlZF9vb21fc2NvcmVfYWRq
-LA0KCQkJICAgICBzZWxlY3RlZF90YXNrc2l6ZSAqIChsb25nKShQQUdFX1NJWkUgLyAxMDI0KSwN
-CgkJCSAgICAgY3VycmVudC0+Y29tbSwgY3VycmVudC0+cGlkLA0KCQkJICAgICBvdGhlcl9maWxl
-ICogKGxvbmcpKFBBR0VfU0laRSAvIDEwMjQpLA0KCQkJICAgICBtaW5mcmVlICogKGxvbmcpKFBB
-R0VfU0laRSAvIDEwMjQpLA0KCQkJICAgICBtaW5fc2NvcmVfYWRqLA0KCQkJICAgICBvdGhlcl9m
-cmVlICogKGxvbmcpKFBBR0VfU0laRSAvIDEwMjQpKTsNCi8vICoqKioqKiogY29kZSBlbmQgKioq
-KioqKioqKioqDQoNClNvIGFuZHJvaWQncyBzdHJhdGVneSdzIGZyZWUgbWVtb3J5IGlzID0gb3Ro
-ZXJfZmlsZSA9IChuciBmaWxlIHBhZ2VzIC0gbnIgc2htZW0gLSB0b3RhbCBzd2FwY2FjaGUgcGFn
-ZXMpICogNEsgPSBbY2FjaGUgNzI0NjBrQl0NCkJ1dCB0aGUgc3lzdGVtJ3MgZnJlZSBtZW1vcnkg
-aXM6IENhY2hlZDogICAgICAgIDE0MjQ0OCBrQiAgLy8gZnJvbSAvcHJvYy9tZW1pbmZvDQoNCkFu
-ZCBzeXN0ZW0ncyBmcmVlIG1lbW9yeSBpczogQ2FjaGVkICsgTWVtRnJlZSArIEJ1ZmZlcnMgaXMg
-bGFyZ2VseSB0aGFuIHRoZSBtZW1vcnkgd2hpY2ggYW5yb2lkIGxvd21lbW9yeWtpbGxlciBjYWxj
-dWxhdGVkIG1lbW9yeSBbY2FjaGUgNzI0NjBLXQ0KQXQgdGhpcyB0aW1lIHBvaW50LCBzeXN0ZW0g
-d2lsbCBraWxsIHNvbWUgaW1wb3J0YW50IHByb2Nlc3NlcywgYnV0IHN5c3RlbSBoYXZlIGVub3Vn
-aCBtZW1vcnkuDQpUaGlzIGlzIGFuZHJvaWQncyBsb3dtZW1vcnlraWxsZXIgZGVmZWN0PyBvciBM
-aW51eCBrZXJuZWwgbWVtb3J5J3MgZGVmZWN0Pw0KDQpTbyBJIGhhdmUgc29tZSBxdWVzdGlvbnM6
-DQpJIGhhdmUgYSBxdWVzdGlvbjogd2hhdCdzIHRoZSBuciBmaWxlIHBhZ2VzIG1lYW4/IFdoYXQg
-ZGlmZmVyZW50IGJldHdlZW4gbnJfZmlsZV9wYWdlcyBmcm9tIENhY2hlZCAoZnJvbSAvcHJvYy9t
-ZW1pbmZvKT8NCkFuZCBuciBzaG1lbSwgc3dhcGNhY2hlIHBhZ2VzIGFyZSBzbWFsbCwgc28gSSB0
-aGluayB0aGlzIGlzIHRoZSBrZXkgcHJvYmxlbSB3aHkgYW5kcm9pZCdzIHN0cmFnZWd5IGNhbGN1
-bGF0ZWQgZnJlZSBtZW1vcnkgaXMgbGFyZ2VseSBsZXNzIHRoYW4gL3Byb2MvbWVtaW5mbyBDYWNo
-ZWQncyB2YWx1ZS4NCg0KVGhhbmtzDQpaaGl5dWFuIHpodQ0KDQotLS0tLdPKvP7Urbz+LS0tLS0N
-CreivP7IyzogTWljaGFsIEhvY2tvIFttYWlsdG86bWhvY2tvQHN1c2UuY3pdIA0Kt6LLzcqxvOQ6
-IDIwMTTE6jEx1MIyMMjVIDE4OjE5DQrK1bz+yMs6IFpoaXl1YW4gWmh1KNbs1r7faCkNCrOty806
-IGhhbm5lc0BjbXB4Y2hnLm9yZzsgRnV0dXJlIFpob3Uo1tzOtIHtKTsgUmFjaGVsIFpoYW5nKI+I
-rJMpOyBic2luZ2hhcm9yYUBnbWFpbC5jb207IGthbWV6YXdhLmhpcm95dUBqcC5mdWppdHN1LmNv
-bTsgY2dyb3Vwc0B2Z2VyLmtlcm5lbC5vcmc7IGxpbnV4LW1tQGt2YWNrLm9yZzsgZ3JlZ0Brcm9h
-aC5jb20NCtb3zOI6IFJlOiC08Li0OiBsb3cgbWVtb3J5IGtpbGxlcg0KDQpPbiBUaHUgMjAtMTEt
-MTQgMTA6MDk6MjUsIHpoaXl1YW5femh1QGh0Yy5jb20gd3JvdGU6DQo+IEhpIE1pY2hhbA0KPiBU
-aGFua3MgZm9yIHlvdXIga2luZGx5IHN1cHBvcnQuDQo+IEkgZ290IGEgZGV2aWNlLCBhbmQgZHVt
-cCB0aGUgL3Byb2MvbWVtaW5mbyBhbmQgL3Byb2Mvdm1zdGF0IGZpbGVzLCANCj4gdGhleSBhcmUg
-dGhlIExpbnV4IHN0YW5kYXJkIHByb2MgZmlsZXMuDQo+IEkgZm91bmQgdGhhdDogQ2FjaGVkID0g
-MzM5ODgwIEtCLCBidXQgbnJfZnJlZV9wYWdlcz0xNDY3NSo0ID0gNTg3MDBLQiANCj4gYW5kIG5y
-X3NobWVtID0gNTA4KjQ9MjAzMktCDQo+DQo+IG5yX3NobWVtIGlzIGp1c3QgYSBsaXR0bGUgbWVt
-b3J5LCBhbmQgbnIgZnJlZSBwYWdlcyArIG5yX3NobWVtIGlzIA0KPiBsYXJnZWx5IGxlc3MgdGhh
-biBDYWNoZWQuICBTbyB3aHkgbnJfZnJlZV9wYWdlcyBpcyBsYXJnZWx5IGxlc3MgdGhhbiANCj4g
-Q2FjaGVkPyBUaGFuayB5b3UuDQoNCm5yX2ZyZWVfcGFnZXMgcmVmZXJzIHRvIHBhZ2VzIHdoaWNo
-IGFyZSBub3QgYWxsb2NhdGVkLiBDYWNoZWQgcmVmZXJlcyB0byBhIHVzZWQgbWVtb3J5IHdoaWNo
-IGlzIGVhc2lseSByZWNsYWltYWJsZSBzbyBpdCBjYW4gYmUgcmV1c2VkIHNob3VsZCB0aGVyZSBi
-ZSBhIG5lZWQgYW5kIGZyZWUgbWVtb3J5IGRyb3BzIGRvd24uIFNvIHRoaXMgaXMgYSBub3JtYWwg
-c2l0dWF0aW9uLiBIb3cgaXMgdGhpcyByZWxhdGVkIHRvIHRoZSBsb3dtZW1vcnkga2lsbGVyIHF1
-ZXN0aW9uIHBvc3RlZCBwcmV2aW91c2x5Pw0KDQpbLi4uXQ0KLS0NCk1pY2hhbCBIb2Nrbw0KU1VT
-RSBMYWJzDQo=
+GCC already supports address sanitizer on x86_32/x86_64/arm/arm64/rs6000,
+and adding compiler's support for any other architecture is trivial.
 
---__=_Part_Boundary_009_1837996101.507241841
-Content-Type: text/html; charset="gb2312"
-Content-Transfer-Encoding: base64
+Per-arch work on kernel-side maybe is not trivial, but there is nothing complex either.
+It's much more simpler then kmemcheck.
 
-PHByZT4NCkhpJiMzMjtHcmVnL01pY2hhbA0KVmVyeSYjMzI7c29ycnkmIzMyO0kmIzMyO2hhdmUm
-IzMyO2EmIzMyO21pc3Rha2UmIzMyO2luJiMzMjtwcmV2aW91cyYjMzI7bWFpbC4mIzMyOyhJdCYj
-MzI7c2hvdWxkJiMzMjtiZSYjMzI7bnJfZmlsZV9wYWdlcyYjMzI7bm90JiMzMjtucl9mcmVlX3Bh
-Z2VzKQ0KSSYjMzI7cmVhcnJhbmdlJiMzMjt0aGlzJiMzMjtwcm9ibGVtLg0KDQovLyYjMzI7Kioq
-KioqKioqKiomIzMyO2xvZyYjMzI7YmVnaW4mIzMyOyoqKioqKioqKioNCjYmIzMyOyYjMzI7JiMz
-MjsmIzMyOyYjMzI7JiMzMjsxNjEwMzAuMDg0MTQ0JiMzMjsmIzMyOyYjMzI7JiMzMjsmIzMyOyYj
-MzI7JiMzMjsyMDE0LTExLTA3JiMzMjsyMTo0NDo1My4zMDQmIzMyOyYjMzI7JiMzMjsmIzMyOyYj
-MzI7JiMzMjsmIzMyOyYjMzI7bG93bWVtb3J5a2lsbGVyOiYjMzI7S2lsbGluZyYjMzI7JiMzOTtv
-bS5odGMubGF1bmNoZXImIzM5OyYjMzI7KDQ0ODYpLCYjMzI7YWRqJiMzMjsyOTQsDQo2JiMzMjsm
-IzMyOyYjMzI7JiMzMjsmIzMyOyYjMzI7MTYxMDMwLjA4NDE0NCYjMzI7JiMzMjsmIzMyOyYjMzI7
-JiMzMjsmIzMyOyYjMzI7MjAxNC0xMS0wNyYjMzI7MjE6NDQ6NTMuMzA0JiMzMjsmIzMyOyYjMzI7
-JiMzMjsmIzMyOyYjMzI7JiMzMjsmIzMyOyYjMzI7JiMzMjsmIzMyO3RvJiMzMjtmcmVlJiMzMjs0
-Nzg1NmtCJiMzMjtvbiYjMzI7YmVoYWxmJiMzMjtvZiYjMzI7JiMzOTtrd29ya2VyL3U4OjE0JiMz
-OTsmIzMyOygyMDU5NCkmIzMyO2JlY2F1c2UNCjYmIzMyOyYjMzI7JiMzMjsmIzMyOyYjMzI7JiMz
-MjsxNjEwMzAuMDg0MTQ0JiMzMjsmIzMyOyYjMzI7JiMzMjsmIzMyOyYjMzI7JiMzMjsyMDE0LTEx
-LTA3JiMzMjsyMTo0NDo1My4zMDQmIzMyOyYjMzI7JiMzMjsmIzMyOyYjMzI7JiMzMjsmIzMyOyYj
-MzI7JiMzMjsmIzMyOyYjMzI7Y2FjaGUmIzMyOzcyNDYwa0ImIzMyO2lzJiMzMjtiZWxvdyYjMzI7
-bGltaXQmIzMyOzczNzI4a0ImIzMyO2ZvciYjMzI7b29tX3Njb3JlX2FkaiYjMzI7MjM1DQovLyYj
-MzI7JiMzMjsqKioqJiMzMjsvcHJvYy9tZW1pbmZvJiMzMjsmIzM5O3MmIzMyO3Jlc3VsdA0KNCYj
-MzI7JiMzMjsmIzMyOyYjMzI7JiMzMjsmIzMyOzE2MTAzMC4wODQ3OTcmIzMyOyYjMzI7JiMzMjsm
-IzMyOyYjMzI7JiMzMjsmIzMyOzIwMTQtMTEtMDcmIzMyOzIxOjQ0OjUzLjMwNCYjMzI7JiMzMjsm
-IzMyOyYjMzI7JiMzMjsmIzMyOyYjMzI7JiMzMjtDYWNoZWQ6JiMzMjsmIzMyOyYjMzI7JiMzMjsm
-IzMyOyYjMzI7JiMzMjsmIzMyOyYjMzI7JiMzMjsmIzMyOzE0MjQ0OCYjMzI7a0INCi8vJiMzMjsq
-KioqKioqKioqKiYjMzI7bG9nJiMzMjtlbmQmIzMyOyoqKioqKioqKioNCg0KQWZ0ZXImIzMyO0km
-IzMyO2NoZWNrZWQmIzMyO3RoZSYjMzI7YW5kcm9pZCYjMzk7cyYjMzI7bG93JiMzMjttZW1vcnkm
-IzMyO3N0cmF0ZWd5OiYjMzI7a2VybmVsL2RyaXZlcnMvc3RhZ2luZy9hbmRyb2lkL2xvd21lbW9y
-eWtpbGxlci5jDQoNCi8vJiMzMjsqKioqKiomIzMyO2NvZGUmIzMyO2JlZ2luJiMzMjsqKioqKioq
-KioNCm90aGVyX2ZpbGUmIzMyOz0mIzMyO2dsb2JhbF9wYWdlX3N0YXRlKE5SX0ZJTEVfUEFHRVMp
-JiMzMjstDQpnbG9iYWxfcGFnZV9zdGF0ZShOUl9TSE1FTSkmIzMyOy0NCnRvdGFsX3N3YXBjYWNo
-ZV9wYWdlcygpOw0KDQpsb3dtZW1fcHJpbnQoMSwmIzMyOyZxdW90O0tpbGxpbmcmIzMyOyYjMzk7
-JXMmIzM5OyYjMzI7KCVkKSwmIzMyO2FkaiYjMzI7JWhkLCYjOTI7biZxdW90OyYjMzI7JiM5MjsN
-CiZxdW90OyYjMzI7JiMzMjsmIzMyO3RvJiMzMjtmcmVlJiMzMjslbGRrQiYjMzI7b24mIzMyO2Jl
-aGFsZiYjMzI7b2YmIzMyOyYjMzk7JXMmIzM5OyYjMzI7KCVkKSYjMzI7YmVjYXVzZSYjOTI7biZx
-dW90OyYjMzI7JiM5MjsNCiZxdW90OyYjMzI7JiMzMjsmIzMyO2NhY2hlJiMzMjslbGRrQiYjMzI7
-aXMmIzMyO2JlbG93JiMzMjtsaW1pdCYjMzI7JWxka0ImIzMyO2ZvciYjMzI7b29tX3Njb3JlX2Fk
-aiYjMzI7JWhkJiM5MjtuJnF1b3Q7JiMzMjsmIzkyOw0KJnF1b3Q7JiMzMjsmIzMyOyYjMzI7RnJl
-ZSYjMzI7bWVtb3J5JiMzMjtpcyYjMzI7JWxka0ImIzMyO2Fib3ZlJiMzMjtyZXNlcnZlZCYjOTI7
-biZxdW90OywNCiYjMzI7JiMzMjsmIzMyOyYjMzI7JiMzMjtzZWxlY3RlZC0mZ3Q7Y29tbSwmIzMy
-O3NlbGVjdGVkLSZndDtwaWQsDQomIzMyOyYjMzI7JiMzMjsmIzMyOyYjMzI7c2VsZWN0ZWRfb29t
-X3Njb3JlX2FkaiwNCiYjMzI7JiMzMjsmIzMyOyYjMzI7JiMzMjtzZWxlY3RlZF90YXNrc2l6ZSYj
-MzI7KiYjMzI7KGxvbmcpKFBBR0VfU0laRSYjMzI7LyYjMzI7MTAyNCksDQomIzMyOyYjMzI7JiMz
-MjsmIzMyOyYjMzI7Y3VycmVudC0mZ3Q7Y29tbSwmIzMyO2N1cnJlbnQtJmd0O3BpZCwNCiYjMzI7
-JiMzMjsmIzMyOyYjMzI7JiMzMjtvdGhlcl9maWxlJiMzMjsqJiMzMjsobG9uZykoUEFHRV9TSVpF
-JiMzMjsvJiMzMjsxMDI0KSwNCiYjMzI7JiMzMjsmIzMyOyYjMzI7JiMzMjttaW5mcmVlJiMzMjsq
-JiMzMjsobG9uZykoUEFHRV9TSVpFJiMzMjsvJiMzMjsxMDI0KSwNCiYjMzI7JiMzMjsmIzMyOyYj
-MzI7JiMzMjttaW5fc2NvcmVfYWRqLA0KJiMzMjsmIzMyOyYjMzI7JiMzMjsmIzMyO290aGVyX2Zy
-ZWUmIzMyOyomIzMyOyhsb25nKShQQUdFX1NJWkUmIzMyOy8mIzMyOzEwMjQpKTsNCi8vJiMzMjsq
-KioqKioqJiMzMjtjb2RlJiMzMjtlbmQmIzMyOyoqKioqKioqKioqKg0KDQpTbyYjMzI7YW5kcm9p
-ZCYjMzk7cyYjMzI7c3RyYXRlZ3kmIzM5O3MmIzMyO2ZyZWUmIzMyO21lbW9yeSYjMzI7aXMmIzMy
-Oz0mIzMyO290aGVyX2ZpbGUmIzMyOz0mIzMyOyhuciYjMzI7ZmlsZSYjMzI7cGFnZXMmIzMyOy0m
-IzMyO25yJiMzMjtzaG1lbSYjMzI7LSYjMzI7dG90YWwmIzMyO3N3YXBjYWNoZSYjMzI7cGFnZXMp
-JiMzMjsqJiMzMjs0SyYjMzI7PSYjMzI7W2NhY2hlJiMzMjs3MjQ2MGtCXQ0KQnV0JiMzMjt0aGUm
-IzMyO3N5c3RlbSYjMzk7cyYjMzI7ZnJlZSYjMzI7bWVtb3J5JiMzMjtpczomIzMyO0NhY2hlZDom
-IzMyOyYjMzI7JiMzMjsmIzMyOyYjMzI7JiMzMjsmIzMyOyYjMzI7MTQyNDQ4JiMzMjtrQiYjMzI7
-JiMzMjsvLyYjMzI7ZnJvbSYjMzI7L3Byb2MvbWVtaW5mbw0KDQpBbmQmIzMyO3N5c3RlbSYjMzk7
-cyYjMzI7ZnJlZSYjMzI7bWVtb3J5JiMzMjtpczomIzMyO0NhY2hlZCYjMzI7KyYjMzI7TWVtRnJl
-ZSYjMzI7KyYjMzI7QnVmZmVycyYjMzI7aXMmIzMyO2xhcmdlbHkmIzMyO3RoYW4mIzMyO3RoZSYj
-MzI7bWVtb3J5JiMzMjt3aGljaCYjMzI7YW5yb2lkJiMzMjtsb3dtZW1vcnlraWxsZXImIzMyO2Nh
-bGN1bGF0ZWQmIzMyO21lbW9yeSYjMzI7W2NhY2hlJiMzMjs3MjQ2MEtdDQpBdCYjMzI7dGhpcyYj
-MzI7dGltZSYjMzI7cG9pbnQsJiMzMjtzeXN0ZW0mIzMyO3dpbGwmIzMyO2tpbGwmIzMyO3NvbWUm
-IzMyO2ltcG9ydGFudCYjMzI7cHJvY2Vzc2VzLCYjMzI7YnV0JiMzMjtzeXN0ZW0mIzMyO2hhdmUm
-IzMyO2Vub3VnaCYjMzI7bWVtb3J5Lg0KVGhpcyYjMzI7aXMmIzMyO2FuZHJvaWQmIzM5O3MmIzMy
-O2xvd21lbW9yeWtpbGxlciYjMzI7ZGVmZWN0JiM2MzsmIzMyO29yJiMzMjtMaW51eCYjMzI7a2Vy
-bmVsJiMzMjttZW1vcnkmIzM5O3MmIzMyO2RlZmVjdCYjNjM7DQoNClNvJiMzMjtJJiMzMjtoYXZl
-JiMzMjtzb21lJiMzMjtxdWVzdGlvbnM6DQpJJiMzMjtoYXZlJiMzMjthJiMzMjtxdWVzdGlvbjom
-IzMyO3doYXQmIzM5O3MmIzMyO3RoZSYjMzI7bnImIzMyO2ZpbGUmIzMyO3BhZ2VzJiMzMjttZWFu
-JiM2MzsmIzMyO1doYXQmIzMyO2RpZmZlcmVudCYjMzI7YmV0d2VlbiYjMzI7bnJfZmlsZV9wYWdl
-cyYjMzI7ZnJvbSYjMzI7Q2FjaGVkJiMzMjsoZnJvbSYjMzI7L3Byb2MvbWVtaW5mbykmIzYzOw0K
-QW5kJiMzMjtuciYjMzI7c2htZW0sJiMzMjtzd2FwY2FjaGUmIzMyO3BhZ2VzJiMzMjthcmUmIzMy
-O3NtYWxsLCYjMzI7c28mIzMyO0kmIzMyO3RoaW5rJiMzMjt0aGlzJiMzMjtpcyYjMzI7dGhlJiMz
-MjtrZXkmIzMyO3Byb2JsZW0mIzMyO3doeSYjMzI7YW5kcm9pZCYjMzk7cyYjMzI7c3RyYWdlZ3km
-IzMyO2NhbGN1bGF0ZWQmIzMyO2ZyZWUmIzMyO21lbW9yeSYjMzI7aXMmIzMyO2xhcmdlbHkmIzMy
-O2xlc3MmIzMyO3RoYW4mIzMyOy9wcm9jL21lbWluZm8mIzMyO0NhY2hlZCYjMzk7cyYjMzI7dmFs
-dWUuDQoNClRoYW5rcw0KWmhpeXVhbiYjMzI7emh1DQoNCi0tLS0tJiMzNzAzODsmIzIwMjE0OyYj
-MjE0MDc7JiMyMDIxNDstLS0tLQ0KJiMyMTQ1NzsmIzIwMjE0OyYjMjAxNTQ7OiYjMzI7TWljaGFs
-JiMzMjtIb2NrbyYjMzI7W21haWx0bzptaG9ja29Ac3VzZS5jel0mIzMyOw0KJiMyMTQ1NzsmIzM2
-ODY1OyYjMjYxMDI7JiMzODM4ODs6JiMzMjsyMDE0JiMyNDE4MDsxMSYjMjYzNzY7MjAmIzI2MDg1
-OyYjMzI7MTg6MTkNCiYjMjU5MTA7JiMyMDIxNDsmIzIwMTU0OzomIzMyO1poaXl1YW4mIzMyO1po
-dSgmIzI2NDE3OyYjMjQ1MzU7JiMzNjk2MDspDQomIzI1MjIwOyYjMzY4NjU7OiYjMzI7aGFubmVz
-QGNtcHhjaGcub3JnOyYjMzI7RnV0dXJlJiMzMjtaaG91KCYjMjE2MDg7JiMyNjQxMDsmIzIwMzU4
-Oyk7JiMzMjtSYWNoZWwmIzMyO1poYW5nKCYjMjQzNzM7JiMyOTgwMTspOyYjMzI7YnNpbmdoYXJv
-cmFAZ21haWwuY29tOyYjMzI7a2FtZXphd2EuaGlyb3l1QGpwLmZ1aml0c3UuY29tOyYjMzI7Y2dy
-b3Vwc0B2Z2VyLmtlcm5lbC5vcmc7JiMzMjtsaW51eC1tbUBrdmFjay5vcmc7JiMzMjtncmVnQGty
-b2FoLmNvbQ0KJiMyMDAyNzsmIzM5MDY0OzomIzMyO1JlOiYjMzI7JiMzMTU3MjsmIzIyNzk3Ozom
-IzMyO2xvdyYjMzI7bWVtb3J5JiMzMjtraWxsZXINCg0KT24mIzMyO1RodSYjMzI7MjAtMTEtMTQm
-IzMyOzEwOjA5OjI1LCYjMzI7emhpeXVhbl96aHVAaHRjLmNvbSYjMzI7d3JvdGU6DQomZ3Q7JiMz
-MjtIaSYjMzI7TWljaGFsDQomZ3Q7JiMzMjtUaGFua3MmIzMyO2ZvciYjMzI7eW91ciYjMzI7a2lu
-ZGx5JiMzMjtzdXBwb3J0Lg0KJmd0OyYjMzI7SSYjMzI7Z290JiMzMjthJiMzMjtkZXZpY2UsJiMz
-MjthbmQmIzMyO2R1bXAmIzMyO3RoZSYjMzI7L3Byb2MvbWVtaW5mbyYjMzI7YW5kJiMzMjsvcHJv
-Yy92bXN0YXQmIzMyO2ZpbGVzLCYjMzI7DQomZ3Q7JiMzMjt0aGV5JiMzMjthcmUmIzMyO3RoZSYj
-MzI7TGludXgmIzMyO3N0YW5kYXJkJiMzMjtwcm9jJiMzMjtmaWxlcy4NCiZndDsmIzMyO0kmIzMy
-O2ZvdW5kJiMzMjt0aGF0OiYjMzI7Q2FjaGVkJiMzMjs9JiMzMjszMzk4ODAmIzMyO0tCLCYjMzI7
-YnV0JiMzMjtucl9mcmVlX3BhZ2VzPTE0Njc1KjQmIzMyOz0mIzMyOzU4NzAwS0ImIzMyOw0KJmd0
-OyYjMzI7YW5kJiMzMjtucl9zaG1lbSYjMzI7PSYjMzI7NTA4KjQ9MjAzMktCDQomZ3Q7DQomZ3Q7
-JiMzMjtucl9zaG1lbSYjMzI7aXMmIzMyO2p1c3QmIzMyO2EmIzMyO2xpdHRsZSYjMzI7bWVtb3J5
-LCYjMzI7YW5kJiMzMjtuciYjMzI7ZnJlZSYjMzI7cGFnZXMmIzMyOysmIzMyO25yX3NobWVtJiMz
-MjtpcyYjMzI7DQomZ3Q7JiMzMjtsYXJnZWx5JiMzMjtsZXNzJiMzMjt0aGFuJiMzMjtDYWNoZWQu
-JiMzMjsmIzMyO1NvJiMzMjt3aHkmIzMyO25yX2ZyZWVfcGFnZXMmIzMyO2lzJiMzMjtsYXJnZWx5
-JiMzMjtsZXNzJiMzMjt0aGFuJiMzMjsNCiZndDsmIzMyO0NhY2hlZCYjNjM7JiMzMjtUaGFuayYj
-MzI7eW91Lg0KDQpucl9mcmVlX3BhZ2VzJiMzMjtyZWZlcnMmIzMyO3RvJiMzMjtwYWdlcyYjMzI7
-d2hpY2gmIzMyO2FyZSYjMzI7bm90JiMzMjthbGxvY2F0ZWQuJiMzMjtDYWNoZWQmIzMyO3JlZmVy
-ZXMmIzMyO3RvJiMzMjthJiMzMjt1c2VkJiMzMjttZW1vcnkmIzMyO3doaWNoJiMzMjtpcyYjMzI7
-ZWFzaWx5JiMzMjtyZWNsYWltYWJsZSYjMzI7c28mIzMyO2l0JiMzMjtjYW4mIzMyO2JlJiMzMjty
-ZXVzZWQmIzMyO3Nob3VsZCYjMzI7dGhlcmUmIzMyO2JlJiMzMjthJiMzMjtuZWVkJiMzMjthbmQm
-IzMyO2ZyZWUmIzMyO21lbW9yeSYjMzI7ZHJvcHMmIzMyO2Rvd24uJiMzMjtTbyYjMzI7dGhpcyYj
-MzI7aXMmIzMyO2EmIzMyO25vcm1hbCYjMzI7c2l0dWF0aW9uLiYjMzI7SG93JiMzMjtpcyYjMzI7
-dGhpcyYjMzI7cmVsYXRlZCYjMzI7dG8mIzMyO3RoZSYjMzI7bG93bWVtb3J5JiMzMjtraWxsZXIm
-IzMyO3F1ZXN0aW9uJiMzMjtwb3N0ZWQmIzMyO3ByZXZpb3VzbHkmIzYzOw0KDQpbLi4uXQ0KLS0N
-Ck1pY2hhbCYjMzI7SG9ja28NClNVU0UmIzMyO0xhYnMNCg0KPC9wcmU+PHRhYmxlPjx0cj48dGQ+
-PCEtLXR5cGU6aHRtbC0tPjwhLS17LS0+Q09ORklERU5USUFMSVRZIE5PVEUgOiBUaGUgaW5mb3Jt
-YXRpb24gaW4gdGhpcyBlLW1haWwgaXMgY29uZmlkZW50aWFsIGFuZCBwcml2aWxlZ2VkOyBpdCBp
-cyBpbnRlbmRlZCBmb3IgdXNlIHNvbGVseSBieSB0aGUgaW5kaXZpZHVhbCBvciBlbnRpdHkgbmFt
-ZWQgYXMgdGhlIHJlY2lwaWVudCBoZXJlb2YuIERpc2Nsb3N1cmUsIGNvcHlpbmcsIGRpc3RyaWJ1
-dGlvbiwgb3IgdXNlIG9mIHRoZSBjb250ZW50cyBvZiB0aGlzIGUtbWFpbCBieSBwZXJzb25zIG90
-aGVyIHRoYW4gdGhlIGludGVuZGVkIHJlY2lwaWVudCBpcyBzdHJpY3RseSBwcm9oaWJpdGVkIGFu
-ZCBtYXkgdmlvbGF0ZSBhcHBsaWNhYmxlIGxhd3MuIElmIHlvdSBoYXZlIHJlY2VpdmVkIHRoaXMg
-ZS1tYWlsIGluIGVycm9yLCBwbGVhc2UgZGVsZXRlIHRoZSBvcmlnaW5hbCBtZXNzYWdlIGFuZCBu
-b3RpZnkgdXMgYnkgcmV0dXJuIGVtYWlsIG9yIGNvbGxlY3QgY2FsbCBpbW1lZGlhdGVseS4gVGhh
-bmsgeW91LiBIVEMgQ29ycG9yYXRpb248IS0tfS0tPjwvdGQ+PC90cj48L3RhYmxlPg==
-
---__=_Part_Boundary_009_1837996101.507241841--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
