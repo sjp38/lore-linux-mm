@@ -1,35 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
-	by kanga.kvack.org (Postfix) with ESMTP id B628E6B0069
-	for <linux-mm@kvack.org>; Thu, 20 Nov 2014 15:03:21 -0500 (EST)
-Received: by mail-ig0-f174.google.com with SMTP id hn15so5409993igb.7
-        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 12:03:21 -0800 (PST)
-Received: from resqmta-po-01v.sys.comcast.net (resqmta-po-01v.sys.comcast.net. [2001:558:fe16:19:96:114:154:160])
-        by mx.google.com with ESMTPS id h10si2703738igt.36.2014.11.20.12.03.20
+Received: from mail-qc0-f179.google.com (mail-qc0-f179.google.com [209.85.216.179])
+	by kanga.kvack.org (Postfix) with ESMTP id C7B3E6B0069
+	for <linux-mm@kvack.org>; Thu, 20 Nov 2014 15:06:59 -0500 (EST)
+Received: by mail-qc0-f179.google.com with SMTP id c9so2671465qcz.24
+        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 12:06:59 -0800 (PST)
+Received: from resqmta-ch2-06v.sys.comcast.net (resqmta-ch2-06v.sys.comcast.net. [2001:558:fe21:29:69:252:207:38])
+        by mx.google.com with ESMTPS id m8si3817617qac.60.2014.11.20.12.06.57
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Thu, 20 Nov 2014 12:03:20 -0800 (PST)
-Date: Thu, 20 Nov 2014 14:03:16 -0600 (CST)
+        Thu, 20 Nov 2014 12:06:57 -0800 (PST)
+Date: Thu, 20 Nov 2014 14:06:53 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 1/3] mm: sl[aou]b: introduce kmem_cache_zalloc_node()
-In-Reply-To: <546DAA99.5070402@samsung.com>
-Message-ID: <alpine.DEB.2.11.1411201402050.14867@gentwo.org>
-References: <1415621218-6438-1-git-send-email-a.ryabinin@samsung.com> <alpine.DEB.2.10.1411191545210.32057@chino.kir.corp.google.com> <546DAA99.5070402@samsung.com>
+Subject: Re: [PATCH 06/19] mm: store mapcount for compound page separate
+In-Reply-To: <20141119130050.GA29884@node.dhcp.inet.fi>
+Message-ID: <alpine.DEB.2.11.1411201405140.14867@gentwo.org>
+References: <1415198994-15252-1-git-send-email-kirill.shutemov@linux.intel.com> <1415198994-15252-7-git-send-email-kirill.shutemov@linux.intel.com> <546C761D.6050407@redhat.com> <20141119130050.GA29884@node.dhcp.inet.fi>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <a.ryabinin@samsung.com>
-Cc: David Rientjes <rientjes@google.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Jerome Marchand <jmarchan@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 20 Nov 2014, Andrey Ryabinin wrote:
+On Wed, 19 Nov 2014, Kirill A. Shutemov wrote:
 
-> It could be used not only for irq_desc. Grepping sources gave me 7 possible users.
->
-> We already have zeroing variants of kmalloc/kmalloc_node/kmem_cache_alloc,
-> so why kmem_cache_alloc_node is special?
+> I don't think we want to bloat struct page description: nobody outside of
+> helpers should use it direcly. And it's exactly what we did to store
+> compound page destructor and compound page order.
 
-Why do we need this at all? You can always add the __GFP_ZERO flag and any
-alloc function will then zero the memory for you.
+This is more like a description what overloading is occurring. Either
+add the new way of using it there including a comment explainng things or
+please do not overload the field.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
