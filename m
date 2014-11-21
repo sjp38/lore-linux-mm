@@ -1,66 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 6439D6B006E
-	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 01:48:21 -0500 (EST)
-Received: by mail-pa0-f54.google.com with SMTP id fb1so4255374pad.27
-        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 22:48:21 -0800 (PST)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id ud1si6441603pbc.84.2014.11.20.22.48.19
+Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 911A06B006E
+	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 02:32:44 -0500 (EST)
+Received: by mail-lb0-f171.google.com with SMTP id b6so3558088lbj.2
+        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 23:32:43 -0800 (PST)
+Received: from mail-lb0-x233.google.com (mail-lb0-x233.google.com. [2a00:1450:4010:c04::233])
+        by mx.google.com with ESMTPS id v4si4093293laj.106.2014.11.20.23.32.43
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 20 Nov 2014 22:48:20 -0800 (PST)
-Received: by mail-pa0-f41.google.com with SMTP id rd3so4262016pab.0
-        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 22:48:19 -0800 (PST)
-Date: Fri, 21 Nov 2014 06:48:49 +0000
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC PATCH] mm/zsmalloc: remove unnecessary check
-Message-ID: <20141121064849.GA17181@gmail.com>
-References: <1416489716-9967-1-git-send-email-opensource.ganesh@gmail.com>
- <20141121035442.GB10123@bbox>
- <CADAEsF975+a6Y5dcEu1B2OscQ5JaxD+ZQ1jnFOJ115BXgMqULA@mail.gmail.com>
+        Thu, 20 Nov 2014 23:32:43 -0800 (PST)
+Received: by mail-lb0-f179.google.com with SMTP id l4so3525237lbv.24
+        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 23:32:42 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CADAEsF975+a6Y5dcEu1B2OscQ5JaxD+ZQ1jnFOJ115BXgMqULA@mail.gmail.com>
+In-Reply-To: <20141120150033.4cd1ca25be4a9b00a7074149@linux-foundation.org>
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
+ <1415199241-5121-1-git-send-email-a.ryabinin@samsung.com> <5461B906.1040803@samsung.com>
+ <20141118125843.434c216540def495d50f3a45@linux-foundation.org>
+ <CAPAsAGwZtfzx5oM73bOi_kw5BqXrwGd_xmt=m6xxU6uECA+H9Q@mail.gmail.com>
+ <20141120090356.GA6690@gmail.com> <CACT4Y+aOKzq0AzvSJrRC-iU9LmmtLzxY=pxzu8f4oT-OZk=oLA@mail.gmail.com>
+ <20141120150033.4cd1ca25be4a9b00a7074149@linux-foundation.org>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Fri, 21 Nov 2014 11:32:22 +0400
+Message-ID: <CACT4Y+ZfWTTMn21QCU4y+rR9NXo6LZ3ZLcG5JhatGUshApPdqA@mail.gmail.com>
+Subject: Re: [PATCH v6 00/11] Kernel address sanitizer - runtime memory debugger.
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Cc: Nitin Gupta <ngupta@vflare.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ingo Molnar <mingo@kernel.org>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Andrey Ryabinin <a.ryabinin@samsung.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Michal Marek <mmarek@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Randy Dunlap <rdunlap@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Jones <davej@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joe Perches <joe@perches.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Fri, Nov 21, 2014 at 01:33:26PM +0800, Ganesh Mahendran wrote:
-> Hello
-> 
-> 2014-11-21 11:54 GMT+08:00 Minchan Kim <minchan@kernel.org>:
-> > On Thu, Nov 20, 2014 at 09:21:56PM +0800, Mahendran Ganesh wrote:
-> >> ZS_SIZE_CLASSES is calc by:
-> >>   ((ZS_MAX_ALLOC_SIZE - ZS_MIN_ALLOC_SIZE) / ZS_SIZE_CLASS_DELTA + 1)
-> >>
-> >> So when i is in [0, ZS_SIZE_CLASSES - 1), the size:
-> >>   size = ZS_MIN_ALLOC_SIZE + i * ZS_SIZE_CLASS_DELTA
-> >> will not be greater than ZS_MAX_ALLOC_SIZE
-> >>
-> >> This patch removes the unnecessary check.
-> >
-> > It depends on ZS_MIN_ALLOC_SIZE.
-> > For example, we would change min to 8 but MAX is still 4096.
-> > ZS_SIZE_CLASSES is (4096 - 8) / 16 + 1 = 256 so 8 + 255 * 16 = 4088,
-> > which exceeds the max.
-> Here, 4088 is less than MAX(4096).
-> 
-> ZS_SIZE_CLASSES = (MAX - MIN) / Delta + 1
-> So, I think the value of
->     MIN + (ZS_SIZE_CLASSES - 1) * Delta =
->     MIN + ((MAX - MIN) / Delta) * Delta =
->     MAX
-> will not exceed the MAX
+On Fri, Nov 21, 2014 at 2:00 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Thu, 20 Nov 2014 20:32:30 +0400 Dmitry Vyukov <dvyukov@google.com> wrote:
+>
+>> Let me provide some background first.
+>
+> Well that was useful.  Andrey, please slurp Dmitry's info into the 0/n
+> changelog?
+>
+> Also, some quantitative info about the kmemleak overhead would be
+> useful.
+>
+> In this discussion you've mentioned a few planned kasan enhancements.
+> Please also list those and attempt to describe the amount of effort and
+> complexity levels.  Partly so other can understand the plans and partly
+> so we can see what we're semi-committing ourselves to if we merge this
+> stuff.
 
-You're right. It was complext math for me.
-I should go back to elementary school.
 
-Thanks!
+The enhancements are:
+1. Detection of stack out-of-bounds. This is done mostly in the
+compiler. Kernel only needs adjustments in reporting.
+2. Detection of global out-of-bounds. Kernel will need to process
+compiler-generated list of globals during bootstrap. Complexity is
+very low and it is isolated in Asan code.
+3. Heap quarantine (delayed reuse of heap blocks). We will need to
+hook into slub, queue freed blocks in an efficient/scalable way and
+integrate with memory shrinker (register_shrinker). This will be
+somewhat complex and touch production kernel code. Konstantin
+Khlebnikov wants to make the quarantine available independently of
+Asan, as part of slub debug that can be enabled at runtime.
+4. Port Asan to slAb.
+5. Do various tuning of allocator integration, redzones sizes,
+speeding up what is currently considered debug-only paths in
+malloc/free, etc.
+6. Some people also expressed interest in ARM port.
 
-Acked-by: Minchan Kim <minchan@kernel.org>
-
+The user-space Asan codebase is mostly stable for the last two years,
+so it's not that we have infinite plans.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
