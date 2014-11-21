@@ -1,97 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id E1B336B0069
-	for <linux-mm@kvack.org>; Thu, 20 Nov 2014 21:35:59 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id lj1so3810419pab.5
-        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 18:35:59 -0800 (PST)
-Received: from ponies.io (ponies.io. [2600:3c01::f03c:91ff:fe6e:5e45])
-        by mx.google.com with ESMTP id ym4si6073963pab.27.2014.11.20.18.35.57
-        for <linux-mm@kvack.org>;
-        Thu, 20 Nov 2014 18:35:58 -0800 (PST)
-Received: from cucumber.localdomain (nat-gw2.syd4.anchor.net.au [110.173.144.2])
-	by ponies.io (Postfix) with ESMTPSA id 1DE88A0BF
-	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 02:35:56 +0000 (UTC)
-Date: Fri, 21 Nov 2014 13:35:54 +1100
-From: Christian Marie <christian@ponies.io>
-Subject: Re: isolate_freepages_block and excessive CPU usage by OSD process
-Message-ID: <20141121023554.GA24175@cucumber.bridge.anchor.net.au>
-References: <20141119012110.GA2608@cucumber.iinet.net.au>
- <CABYiri99WAj+6hfTq+6x+_w0=VNgBua8N9+mOvU6o5bynukPLQ@mail.gmail.com>
- <20141119212013.GA18318@cucumber.anchor.net.au>
- <546D2366.1050506@suse.cz>
+Received: from mail-la0-f53.google.com (mail-la0-f53.google.com [209.85.215.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 906CB6B006E
+	for <linux-mm@kvack.org>; Thu, 20 Nov 2014 22:22:41 -0500 (EST)
+Received: by mail-la0-f53.google.com with SMTP id gm9so578639lab.26
+        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 19:22:40 -0800 (PST)
+Received: from mail-lb0-x22f.google.com (mail-lb0-x22f.google.com. [2a00:1450:4010:c04::22f])
+        by mx.google.com with ESMTPS id p7si3644695lah.114.2014.11.20.19.22.40
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 20 Nov 2014 19:22:40 -0800 (PST)
+Received: by mail-lb0-f175.google.com with SMTP id u10so453666lbd.20
+        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 19:22:40 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="3MwIy2ne0vdjdPXF"
-Content-Disposition: inline
-In-Reply-To: <546D2366.1050506@suse.cz>
+In-Reply-To: <1416488913-9691-1-git-send-email-opensource.ganesh@gmail.com>
+References: <1416488913-9691-1-git-send-email-opensource.ganesh@gmail.com>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Thu, 20 Nov 2014 22:22:19 -0500
+Message-ID: <CALZtONAdpiP+DZfJBYG9EYN+8pTToMnAaUGemZ-r7x8YcQXbCQ@mail.gmail.com>
+Subject: Re: [PATCH] mm/zsmalloc: avoid duplicate assignment of prev_class
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Mahendran Ganesh <opensource.ganesh@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+
+On Thu, Nov 20, 2014 at 8:08 AM, Mahendran Ganesh
+<opensource.ganesh@gmail.com> wrote:
+> In zs_create_pool(), prev_class is assigned (ZS_SIZE_CLASSES - 1)
+> times. And the prev_class only references to the previous alloc
+> size_class. So we do not need unnecessary assignement.
+>
+> This patch modifies *prev_class* to *prev_alloc_class*. And the
+> *prev_alloc_class* will only be assigned when a new size_class
+> structure is allocated.
+>
+> Signed-off-by: Mahendran Ganesh <opensource.ganesh@gmail.com>
+> ---
+>  mm/zsmalloc.c |    9 +++++----
+>  1 file changed, 5 insertions(+), 4 deletions(-)
+>
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index b3b57ef..ac2b396 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -970,7 +970,7 @@ struct zs_pool *zs_create_pool(gfp_t flags)
+>                 int size;
+>                 int pages_per_zspage;
+>                 struct size_class *class;
+> -               struct size_class *prev_class;
+> +               struct size_class *uninitialized_var(prev_alloc_class);
+
++               struct size_class *prev_class = NULL;
+
+Use the fact it's unset below, so set it to NULL here
+
+>
+>                 size = ZS_MIN_ALLOC_SIZE + i * ZS_SIZE_CLASS_DELTA;
+>                 if (size > ZS_MAX_ALLOC_SIZE)
+> @@ -987,9 +987,8 @@ struct zs_pool *zs_create_pool(gfp_t flags)
+>                  * previous size_class if possible.
+>                  */
+>                 if (i < ZS_SIZE_CLASSES - 1) {
+> -                       prev_class = pool->size_class[i + 1];
+> -                       if (can_merge(prev_class, size, pages_per_zspage)) {
+> -                               pool->size_class[i] = prev_class;
+> +                       if (can_merge(prev_alloc_class, size, pages_per_zspage)) {
+> +                               pool->size_class[i] = prev_alloc_class;
+
+simplify more, we can check if this is the first iteration by looking
+at prev_class, e.g.:
+
+                if (prev_class) {
+                       if (can_merge(prev_class, size, pages_per_zspage)) {
+                               pool->size_class[i] = prev_class;
 
 
---3MwIy2ne0vdjdPXF
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-
-On Thu, Nov 20, 2014 at 12:10:30AM +0100, Vlastimil Babka wrote:
-> As I said, recent kernels received many compaction performance tuning pat=
-ches,
-> and reclaim as well. I would recommend trying them, if it's possible.
->=20
-> You mention 3.10.0-123.9.3.el7.x86_64 which I have no idea how it relates=
- to
-> upstream stable kernel. Upstream version 3.10.44 received several compact=
-ion
-> fixes that I'd deem critical for compaction to work as intended, and lack=
- of
-> them could explain your problems:
->=20
-> mm: compaction: reset cached scanner pfn's before reading them
-> commit d3132e4b83e6bd383c74d716f7281d7c3136089c upstream.
->=20
-> mm: compaction: detect when scanners meet in isolate_freepages
-> commit 7ed695e069c3cbea5e1fd08f84a04536da91f584 upstream.
->=20
-> mm/compaction: make isolate_freepages start at pageblock boundary
-> commit 49e068f0b73dd042c186ffa9b420a9943e90389a upstream.
->=20
-> You might want to check if those are included in your kernel package, and=
-/or try
-> upstream stable 3.10 (if you can't use the latest for some reason).
-
-I built exactly the same kernel with these patches applied, unfortunately it
-suffered the same problem. I will now try the latest (3.18-rc5) release
-candidate and report back.
-
-Do you have any ideas of where I could be looking to collect data to track =
-down
-what is happening here? Here is some perf output again:
-
-http://ponies.io/raw/compaction.png
-
---3MwIy2ne0vdjdPXF
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQIcBAEBAgAGBQJUbqUKAAoJEMHZnoZn5OSh+IkP/3oR4tOYU/c8Bk/duCYmpYrR
-oirCo2VcQYb3EJluPFErltD/XMfoYOngsrDbrfK/anubq6ZteIHIGcxqbf5aKsdy
-t2K3YKDS8IDrsrElrM6zPFIfgGJPU7H/9E7fUbtwcLjyTbzUiV6CjqLCKW8+1AJy
-RZ2a+aexA/1ggPGLPS9HZTN+ODv1zGxs6HwjjTeSwiE6rcUkhOvSLUleMNRODjQB
-5lxZSEhRHhKUaLzkw4iL1qB0v923GLAVxWMBZW2apQlr90F+P+VZMIVSouT74uRI
-jvySWuY2DqpAVEDvN6Rf9RauxIQSVesuNX7kZVf/PLpxLQKugDOYFOl3n2571wob
-pdnaxeWcLG9gBdd3byZWA2gTVbAhH59hvCF6wqkF542xkuR8UbppZ2ikcd5sQ3HI
-ODhLvsZf/rEvS0onjJ/RWvhbNDP784C2UFAvRLTaQjT7r0whfM88fxxMCL0q6//p
-4myjBu0j6hPrEBz4Iq7ID08kMdbEApgWwDtbv2l8ptEY3RBYpvdrZgThBTRVXSIr
-roVfEAZdNeiWo/PxuhJhYTdy6wvRXKohjqCtpjeLZKHytHXvOiuYQVsVpwsNBEjK
-z5x5NgWr9d5RY6cZI+kkipBcii/ZXJB5ntFJ/N5GzM8marDY3IrcnjUDtQ7KX2Wp
-PxYsKuF94ZmaD4zgRlVX
-=5dns
------END PGP SIGNATURE-----
-
---3MwIy2ne0vdjdPXF--
+>                                 continue;
+>                         }
+>                 }
+> @@ -1003,6 +1002,8 @@ struct zs_pool *zs_create_pool(gfp_t flags)
+>                 class->pages_per_zspage = pages_per_zspage;
+>                 spin_lock_init(&class->lock);
+>                 pool->size_class[i] = class;
+> +
+> +               prev_alloc_class = class;
+>         }
+>
+>         pool->flags = flags;
+> --
+> 1.7.9.5
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
