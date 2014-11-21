@@ -1,139 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f177.google.com (mail-vc0-f177.google.com [209.85.220.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 793B16B0072
-	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 13:07:56 -0500 (EST)
-Received: by mail-vc0-f177.google.com with SMTP id ij19so2585064vcb.36
-        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 10:07:54 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a19si15224wiw.40.2014.11.21.10.00.46
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 583B46B0072
+	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 13:25:04 -0500 (EST)
+Received: by mail-qg0-f42.google.com with SMTP id z107so2599822qgd.1
+        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 10:25:04 -0800 (PST)
+Received: from g4t3427.houston.hp.com (g4t3427.houston.hp.com. [15.201.208.55])
+        by mx.google.com with ESMTPS id b4si5106226qag.91.2014.11.21.10.25.02
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 21 Nov 2014 10:00:46 -0800 (PST)
-Date: Fri, 21 Nov 2014 19:00:45 +0100
-From: David Sterba <dsterba@suse.cz>
-Subject: Re: [PATCH v2 5/5] btrfs: enable swap file support
-Message-ID: <20141121180045.GF8568@twin.jikos.cz>
-Reply-To: dsterba@suse.cz
-References: <cover.1416563833.git.osandov@osandov.com>
- <afd3c1009172a4a1cfa10e73a64caf35c631a6d4.1416563833.git.osandov@osandov.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <afd3c1009172a4a1cfa10e73a64caf35c631a6d4.1416563833.git.osandov@osandov.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 21 Nov 2014 10:25:03 -0800 (PST)
+From: Toshi Kani <toshi.kani@hp.com>
+Subject: [PATCH v6 0/7] Support Write-Through mapping on x86
+Date: Fri, 21 Nov 2014 11:10:33 -0700
+Message-Id: <1416593440-23083-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Omar Sandoval <osandov@osandov.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, Trond Myklebust <trond.myklebust@primarydata.com>, Mel Gorman <mgorman@suse.de>
+To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com
 
-On Fri, Nov 21, 2014 at 02:08:31AM -0800, Omar Sandoval wrote:
-> Implement the swap file a_ops on btrfs. Activation simply checks for a usable
-> swap file: it must be fully allocated (no holes), support direct I/O (so no
-> compressed or inline extents) and should be nocow (I'm not sure about that last
-> one).
-> 
-> Signed-off-by: Omar Sandoval <osandov@osandov.com>
-> ---
->  fs/btrfs/inode.c | 71 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
->  1 file changed, 71 insertions(+)
-> 
-> diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
-> index d23362f..b8fd36b 100644
-> --- a/fs/btrfs/inode.c
-> +++ b/fs/btrfs/inode.c
-> @@ -9442,6 +9442,75 @@ out_inode:
->  
->  }
->  
-> +static int btrfs_swap_activate(struct swap_info_struct *sis, struct file *file,
-> +			       sector_t *span)
-> +{
-> +	struct inode *inode = file_inode(file);
-> +	struct btrfs_inode *ip = BTRFS_I(inode);
+This patchset adds support of Write-Through (WT) mapping on x86.
+The study below shows that using WT mapping may be useful for
+non-volatile memory.
 
-'ip' looks strange in context of a filesystem, please pick a different
-name (eg. 'inode' or whatever).
+  http://www.hpl.hp.com/techreports/2012/HPL-2012-236.pdf
 
-> +	int ret = 0;
-> +	u64 isize = inode->i_size;
-> +	struct extent_state *cached_state = NULL;
-> +	struct extent_map *em;
-> +	u64 start, len;
-> +
-> +	if (ip->flags & BTRFS_INODE_COMPRESS) {
-> +		/* Can't do direct I/O on a compressed file. */
-> +		pr_err("BTRFS: swapfile is compressed");
+This patchset applies on top of the tip branch, which contains
+Juergen's patchset for the PAT management.
 
-Please use the btrfs_err macros everywhere.
+All new/modified interfaces have been tested.
 
-> +		return -EINVAL;
-> +	}
-> +	if (!(ip->flags & BTRFS_INODE_NODATACOW)) {
-> +		/* The swap file can't be copy-on-write. */
-> +		pr_err("BTRFS: swapfile is copy-on-write");
-> +		return -EINVAL;
-> +	}
-> +
-> +	lock_extent_bits(&ip->io_tree, 0, isize - 1, 0, &cached_state);
-> +
-> +	/*
-> +	 * All of the extents must be allocated and support direct I/O. Inline
-> +	 * extents and compressed extents fall back to buffered I/O, so those
-> +	 * are no good.
-> +	 */
-> +	start = 0;
-> +	while (start < isize) {
-> +		len = isize - start;
-> +		em = btrfs_get_extent(inode, NULL, 0, start, len, 0);
-> +		if (IS_ERR(em)) {
-> +			ret = PTR_ERR(em);
-> +			goto out;
-> +		}
-> +
-> +		if (test_bit(EXTENT_FLAG_VACANCY, &em->flags) ||
-> +		    em->block_start == EXTENT_MAP_HOLE) {
+v6:
+ - Dropped the patch moving [set|get]_page_memtype() to pat.c
+   since the tip branch already has this change.
+ - Fixed an issue when CONFIG_X86_PAT is not defined.
 
-If the no-holes feature is enabled on the filesystem, there won't be any
-such extent representing the hole. You have to check that each two
-consecutive extents are adjacent.
+v5:
+ - Clarified comment of why using slot 7. (Andy Lutomirski,
+   Thomas Gleixner)
+ - Moved [set|get]_page_memtype() to pat.c. (Thomas Gleixner)
+ - Removed BUG() from set_page_memtype(). (Thomas Gleixner)
 
-> +			pr_err("BTRFS: swapfile has holes");
-> +			ret = -EINVAL;
-> +			goto out;
-> +		}
-> +		if (em->block_start == EXTENT_MAP_INLINE) {
-> +			pr_err("BTRFS: swapfile is inline");
+v4:
+ - Added set_memory_wt() by adding WT support of regular memory.
 
-While the test is valid, this would mean that the file is smaller than
-the inline limit, which is now one page. I think the generic swap code
-would refuse such a small file anyway.
+v3:
+ - Dropped the set_memory_wt() patch. (Andy Lutomirski)
+ - Refactored the !pat_enabled handling. (H. Peter Anvin,
+   Andy Lutomirski)
+ - Added the picture of PTE encoding. (Konrad Rzeszutek Wilk)
 
-> +			ret = -EINVAL;
-> +			goto out;
-> +		}
-> +		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags)) {
-> +			pr_err("BTRFS: swapfile is compresed");
-> +			ret = -EINVAL;
-> +			goto out;
-> +		}
+v2:
+ - Changed WT to use slot 7 of the PAT MSR. (H. Peter Anvin,
+   Andy Lutomirski)
+ - Changed to have conservative checks to exclude all Pentium 2, 3,
+   M, and 4 families. (Ingo Molnar, Henrique de Moraes Holschuh,
+   Andy Lutomirski)
+ - Updated documentation to cover WT interfaces and usages.
+   (Andy Lutomirski, Yigal Korman)
 
-I think the preallocated extents should be refused as well. This means
-the filesystem has enough space to hold the data but it would still have
-to go through the allocation and could in turn stress the memory
-management code that triggered the swapping activity in the first place.
+---
+Toshi Kani (7):
+  1/7 x86, mm, pat: Set WT to PA7 slot of PAT MSR
+  2/7 x86, mm, pat: Change reserve_memtype() to handle WT
+  3/7 x86, mm, asm-gen: Add ioremap_wt() for WT
+  4/7 x86, mm, pat: Add pgprot_writethrough() for WT
+  5/7 x86, mm, pat: Refactor !pat_enable handling
+  6/7 x86, mm, asm: Add WT support to set_page_memtype()
+  7/7 x86, mm: Add set_memory_wt() for WT
 
-Though it's probably still possible to reach such corner case even with
-fully allocated nodatacow file, this should be reviewed anyway.
-
-> +
-> +		start = extent_map_end(em);
-> +		free_extent_map(em);
-> +	}
-> +
-> +out:
-> +	unlock_extent_cached(&ip->io_tree, 0, isize - 1, &cached_state,
-> +			     GFP_NOFS);
-> +	return ret;
-> +}
+---
+ Documentation/x86/pat.txt            |  13 ++-
+ arch/x86/include/asm/cacheflush.h    |   6 +-
+ arch/x86/include/asm/io.h            |   2 +
+ arch/x86/include/asm/pgtable_types.h |   3 +
+ arch/x86/mm/init.c                   |   6 +-
+ arch/x86/mm/iomap_32.c               |  12 +--
+ arch/x86/mm/ioremap.c                |  26 ++++-
+ arch/x86/mm/pageattr.c               |  61 ++++++++++--
+ arch/x86/mm/pat.c                    | 184 ++++++++++++++++++++++++-----------
+ include/asm-generic/io.h             |   4 +
+ include/asm-generic/iomap.h          |   4 +
+ include/asm-generic/pgtable.h        |   4 +
+ 12 files changed, 239 insertions(+), 86 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
