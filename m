@@ -1,69 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 365BC6B006E
-	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 00:25:39 -0500 (EST)
-Received: by mail-ob0-f174.google.com with SMTP id m8so3452571obr.33
-        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 21:25:39 -0800 (PST)
-Received: from mail-ob0-x22d.google.com (mail-ob0-x22d.google.com. [2607:f8b0:4003:c01::22d])
-        by mx.google.com with ESMTPS id y7si2780512oej.107.2014.11.20.21.25.38
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 962F16B006E
+	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 00:29:01 -0500 (EST)
+Received: by mail-pd0-f177.google.com with SMTP id ft15so4507031pdb.22
+        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 21:29:01 -0800 (PST)
+Received: from e23smtp08.au.ibm.com (e23smtp08.au.ibm.com. [202.81.31.141])
+        by mx.google.com with ESMTPS id fb1si6443019pab.61.2014.11.20.21.28.58
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 20 Nov 2014 21:25:38 -0800 (PST)
-Received: by mail-ob0-f173.google.com with SMTP id uy5so3473132obc.4
-        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 21:25:38 -0800 (PST)
+        Thu, 20 Nov 2014 21:29:00 -0800 (PST)
+Received: from /spool/local
+	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Fri, 21 Nov 2014 15:28:54 +1000
+Received: from d23relay09.au.ibm.com (d23relay09.au.ibm.com [9.185.63.181])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 53F433578052
+	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 16:28:48 +1100 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id sAL5UeNT32506096
+	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 16:30:42 +1100
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id sAL5SjBc013790
+	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 16:28:46 +1100
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 03/10] mm: Convert p[te|md]_numa users to p[te|md]_protnone_numa
+In-Reply-To: <1416478790-27522-4-git-send-email-mgorman@suse.de>
+References: <1416478790-27522-1-git-send-email-mgorman@suse.de> <1416478790-27522-4-git-send-email-mgorman@suse.de>
+Date: Fri, 21 Nov 2014 10:58:34 +0530
+Message-ID: <87lhn56s1p.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20141121034355.GA10123@bbox>
-References: <1416488913-9691-1-git-send-email-opensource.ganesh@gmail.com>
-	<20141121034355.GA10123@bbox>
-Date: Fri, 21 Nov 2014 13:25:37 +0800
-Message-ID: <CADAEsF9foZzneOY+0b_S71b8xVhrX+bNqGZCcgaL56c_SNicOQ@mail.gmail.com>
-Subject: Re: [PATCH] mm/zsmalloc: avoid duplicate assignment of prev_class
-From: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Nitin Gupta <ngupta@vflare.org>, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>, Linux Kernel <linux-kernel@vger.kernel.org>
+Cc: Linux-MM <linux-mm@kvack.org>, LinuxPPC-dev <linuxppc-dev@lists.ozlabs.org>, Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@redhat.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Sasha Levin <sasha.levin@oracle.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-Hello
+Mel Gorman <mgorman@suse.de> writes:
 
-2014-11-21 11:43 GMT+08:00 Minchan Kim <minchan@kernel.org>:
-> On Thu, Nov 20, 2014 at 09:08:33PM +0800, Mahendran Ganesh wrote:
->> In zs_create_pool(), prev_class is assigned (ZS_SIZE_CLASSES - 1)
->> times. And the prev_class only references to the previous alloc
->> size_class. So we do not need unnecessary assignement.
->>
->> This patch modifies *prev_class* to *prev_alloc_class*. And the
->> *prev_alloc_class* will only be assigned when a new size_class
->> structure is allocated.
->>
->> Signed-off-by: Mahendran Ganesh <opensource.ganesh@gmail.com>
->> ---
->>  mm/zsmalloc.c |    9 +++++----
->>  1 file changed, 5 insertions(+), 4 deletions(-)
->>
->> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
->> index b3b57ef..ac2b396 100644
->> --- a/mm/zsmalloc.c
->> +++ b/mm/zsmalloc.c
->> @@ -970,7 +970,7 @@ struct zs_pool *zs_create_pool(gfp_t flags)
->>               int size;
->>               int pages_per_zspage;
->>               struct size_class *class;
->> -             struct size_class *prev_class;
->> +             struct size_class *uninitialized_var(prev_alloc_class);
+> Convert existing users of pte_numa and friends to the new helper. Note
+> that the kernel is broken after this patch is applied until the other
+> page table modifiers are also altered. This patch layout is to make
+> review easier.
 >
-> https://lkml.org/lkml/2012/10/27/71
-> In addition, I prefer prev_class.
 
-Thanks for you review. I will resend the patch.
+.....
 
->
-> Thanks.
->
-> --
-> Kind regards,
-> Minchan Kim
+> diff --git a/arch/powerpc/mm/pgtable.c b/arch/powerpc/mm/pgtable.c
+> index c90e602..b5d58d3 100644
+> --- a/arch/powerpc/mm/pgtable.c
+> +++ b/arch/powerpc/mm/pgtable.c
+> @@ -173,7 +173,13 @@ void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
+>  		pte_t pte)
+>  {
+>  #ifdef CONFIG_DEBUG_VM
+> -	WARN_ON(pte_val(*ptep) & _PAGE_PRESENT);
+> +	/*
+> +	 * When handling numa faults, we already have the pte marked
+> +	 * _PAGE_PRESENT, but we can be sure that it is not in hpte.
+> +	 * Hence we can use set_pte_at for them.
+> +	 */
+> +	WARN_ON((pte_val(*ptep) & (_PAGE_PRESENT | _PAGE_USER)) ==
+> +		(_PAGE_PRESENT | _PAGE_USER));
+>  #endif
+
+
+This can be VM_WARN_ON with #ifdef removed.
+
+>  	/* Note: mm->context.id might not yet have been assigned as
+>  	 * this context might not have been activated yet when this
+> diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
