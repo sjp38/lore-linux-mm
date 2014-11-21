@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 32788900017
-	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 08:58:02 -0500 (EST)
-Received: by mail-wi0-f171.google.com with SMTP id bs8so12043625wib.16
-        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 05:57:59 -0800 (PST)
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E947900017
+	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 08:58:04 -0500 (EST)
+Received: by mail-wi0-f180.google.com with SMTP id n3so8972334wiv.1
+        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 05:58:03 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ll9si9361147wjb.28.2014.11.21.05.57.58
+        by mx.google.com with ESMTPS id gd5si9139228wjb.148.2014.11.21.05.58.03
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 21 Nov 2014 05:57:58 -0800 (PST)
+        Fri, 21 Nov 2014 05:58:03 -0800 (PST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 04/10] ppc64: Add paranoid warnings for unexpected DSISR_PROTFAULT
-Date: Fri, 21 Nov 2014 13:57:42 +0000
-Message-Id: <1416578268-19597-5-git-send-email-mgorman@suse.de>
+Subject: [PATCH 09/10] mm: numa: Add paranoid check around pte_protnone_numa
+Date: Fri, 21 Nov 2014 13:57:47 +0000
+Message-Id: <1416578268-19597-10-git-send-email-mgorman@suse.de>
 In-Reply-To: <1416578268-19597-1-git-send-email-mgorman@suse.de>
 References: <1416578268-19597-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,83 +20,48 @@ List-ID: <linux-mm.kvack.org>
 To: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LinuxPPC-dev <linuxppc-dev@lists.ozlabs.org>
 Cc: Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@redhat.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Sasha Levin <sasha.levin@oracle.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>
 
-ppc64 should not be depending on DSISR_PROTFAULT and it's unexpected
-if they are triggered. This patch adds warnings just in case they
-are being accidentally depended upon.
+pte_protnone_numa is only safe to use after VMA checks for PROT_NONE are
+complete. Treating a real PROT_NONE PTE as a NUMA hinting fault is going
+to result in strangeness so add a check for it. BUG_ON looks like overkill
+but if this is hit then it's a serious bug that could result in corruption
+so do not even try recovering. It would have been more comprehensive to
+check VMA flags in pte_protnone_numa but it would have made the API ugly
+just for a debugging check.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
-Acked-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- arch/powerpc/mm/copro_fault.c |  8 ++++++--
- arch/powerpc/mm/fault.c       | 20 +++++++++-----------
- 2 files changed, 15 insertions(+), 13 deletions(-)
+ mm/huge_memory.c | 3 +++
+ mm/memory.c      | 3 +++
+ 2 files changed, 6 insertions(+)
 
-diff --git a/arch/powerpc/mm/copro_fault.c b/arch/powerpc/mm/copro_fault.c
-index 5a236f0..0450d68 100644
---- a/arch/powerpc/mm/copro_fault.c
-+++ b/arch/powerpc/mm/copro_fault.c
-@@ -64,10 +64,14 @@ int copro_handle_mm_fault(struct mm_struct *mm, unsigned long ea,
- 		if (!(vma->vm_flags & VM_WRITE))
- 			goto out_unlock;
- 	} else {
--		if (dsisr & DSISR_PROTFAULT)
--			goto out_unlock;
- 		if (!(vma->vm_flags & (VM_READ | VM_EXEC)))
- 			goto out_unlock;
-+		/*
-+		 * protfault should only happen due to us
-+		 * mapping a region readonly temporarily. PROT_NONE
-+		 * is also covered by the VMA check above.
-+		 */
-+		WARN_ON_ONCE(dsisr & DSISR_PROTFAULT);
- 	}
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index ad2a3ee..8546654 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1273,6 +1273,9 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	bool migrated = false;
+ 	int flags = 0;
  
- 	ret = 0;
-diff --git a/arch/powerpc/mm/fault.c b/arch/powerpc/mm/fault.c
-index b434153..1bcd378 100644
---- a/arch/powerpc/mm/fault.c
-+++ b/arch/powerpc/mm/fault.c
-@@ -389,17 +389,6 @@ good_area:
- #endif /* CONFIG_8xx */
++	/* A PROT_NONE fault should not end up here */
++	BUG_ON(!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)));
++
+ 	ptl = pmd_lock(mm, pmdp);
+ 	if (unlikely(!pmd_same(pmd, *pmdp)))
+ 		goto out_unlock;
+diff --git a/mm/memory.c b/mm/memory.c
+index 2ec07a9..7d97af5 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3109,6 +3109,9 @@ static int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	bool migrated = false;
+ 	int flags = 0;
  
- 	if (is_exec) {
--#ifdef CONFIG_PPC_STD_MMU
--		/* Protection fault on exec go straight to failure on
--		 * Hash based MMUs as they either don't support per-page
--		 * execute permission, or if they do, it's handled already
--		 * at the hash level. This test would probably have to
--		 * be removed if we change the way this works to make hash
--		 * processors use the same I/D cache coherency mechanism
--		 * as embedded.
--		 */
--#endif /* CONFIG_PPC_STD_MMU */
--
- 		/*
- 		 * Allow execution from readable areas if the MMU does not
- 		 * provide separate controls over reading and executing.
-@@ -414,6 +403,14 @@ good_area:
- 		    (cpu_has_feature(CPU_FTR_NOEXECUTE) ||
- 		     !(vma->vm_flags & (VM_READ | VM_WRITE))))
- 			goto bad_area;
-+#ifdef CONFIG_PPC_STD_MMU
-+		/*
-+		 * protfault should only happen due to us
-+		 * mapping a region readonly temporarily. PROT_NONE
-+		 * is also covered by the VMA check above.
-+		 */
-+		WARN_ON_ONCE(error_code & DSISR_PROTFAULT);
-+#endif /* CONFIG_PPC_STD_MMU */
- 	/* a write */
- 	} else if (is_write) {
- 		if (!(vma->vm_flags & VM_WRITE))
-@@ -423,6 +420,7 @@ good_area:
- 	} else {
- 		if (!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)))
- 			goto bad_area;
-+		WARN_ON_ONCE(error_code & DSISR_PROTFAULT);
- 	}
- 
++	/* A PROT_NONE fault should not end up here */
++	BUG_ON(!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)));
++
  	/*
+ 	* The "pte" at this point cannot be used safely without
+ 	* validation through pte_unmap_same(). It's of NUMA type but
 -- 
 2.1.2
 
