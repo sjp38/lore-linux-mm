@@ -1,224 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f177.google.com (mail-yk0-f177.google.com [209.85.160.177])
-	by kanga.kvack.org (Postfix) with ESMTP id B4FFA6B0080
-	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 13:25:19 -0500 (EST)
-Received: by mail-yk0-f177.google.com with SMTP id 9so2553597ykp.36
-        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 10:25:19 -0800 (PST)
-Received: from g4t3427.houston.hp.com (g4t3427.houston.hp.com. [15.201.208.55])
-        by mx.google.com with ESMTPS id la5si7796425qcb.35.2014.11.21.10.25.16
+Received: from mail-la0-f51.google.com (mail-la0-f51.google.com [209.85.215.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0465C6B0070
+	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 14:07:05 -0500 (EST)
+Received: by mail-la0-f51.google.com with SMTP id mc6so4781421lab.38
+        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 11:07:04 -0800 (PST)
+Received: from mail-lb0-x233.google.com (mail-lb0-x233.google.com. [2a00:1450:4010:c04::233])
+        by mx.google.com with ESMTPS id y8si7030347laj.5.2014.11.21.11.07.03
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Nov 2014 10:25:17 -0800 (PST)
-From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH v6 7/7] x86, mm: Add set_memory_wt() for WT
-Date: Fri, 21 Nov 2014 11:10:40 -0700
-Message-Id: <1416593440-23083-8-git-send-email-toshi.kani@hp.com>
-In-Reply-To: <1416593440-23083-1-git-send-email-toshi.kani@hp.com>
-References: <1416593440-23083-1-git-send-email-toshi.kani@hp.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 21 Nov 2014 11:07:03 -0800 (PST)
+Received: by mail-lb0-f179.google.com with SMTP id l4so4563020lbv.24
+        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 11:07:03 -0800 (PST)
+MIME-Version: 1.0
+Reply-To: fdmanana@gmail.com
+In-Reply-To: <20141121180045.GF8568@twin.jikos.cz>
+References: <cover.1416563833.git.osandov@osandov.com>
+	<afd3c1009172a4a1cfa10e73a64caf35c631a6d4.1416563833.git.osandov@osandov.com>
+	<20141121180045.GF8568@twin.jikos.cz>
+Date: Fri, 21 Nov 2014 19:07:03 +0000
+Message-ID: <CAL3q7H5=X0duvO3e-b5aKZ5n=VbBhXVOcz9uKkR_j2KQ4DB_Mw@mail.gmail.com>
+Subject: Re: [PATCH v2 5/5] btrfs: enable swap file support
+From: Filipe David Manana <fdmanana@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Toshi Kani <toshi.kani@hp.com>
+To: "dsterba@suse.cz" <dsterba@suse.cz>, Omar Sandoval <osandov@osandov.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, "linux-btrfs@vger.kernel.org" <linux-btrfs@vger.kernel.org>, linux-fsdevel@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-nfs@vger.kernel.org, Trond Myklebust <trond.myklebust@primarydata.com>, Mel Gorman <mgorman@suse.de>
 
-This patch adds set_memory_wt(), set_memory_array_wt() and
-set_pages_array_wt() for setting specified range(s) of the
-regular memory to WT.
+On Fri, Nov 21, 2014 at 6:00 PM, David Sterba <dsterba@suse.cz> wrote:
+> On Fri, Nov 21, 2014 at 02:08:31AM -0800, Omar Sandoval wrote:
+>> Implement the swap file a_ops on btrfs. Activation simply checks for a usable
+>> swap file: it must be fully allocated (no holes), support direct I/O (so no
+>> compressed or inline extents) and should be nocow (I'm not sure about that last
+>> one).
+>>
+>> Signed-off-by: Omar Sandoval <osandov@osandov.com>
+>> ---
+>>  fs/btrfs/inode.c | 71 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+>>  1 file changed, 71 insertions(+)
+>>
+>> diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
+>> index d23362f..b8fd36b 100644
+>> --- a/fs/btrfs/inode.c
+>> +++ b/fs/btrfs/inode.c
+>> @@ -9442,6 +9442,75 @@ out_inode:
+>>
+>>  }
+>>
+>> +static int btrfs_swap_activate(struct swap_info_struct *sis, struct file *file,
+>> +                            sector_t *span)
+>> +{
+>> +     struct inode *inode = file_inode(file);
+>> +     struct btrfs_inode *ip = BTRFS_I(inode);
+>
+> 'ip' looks strange in context of a filesystem, please pick a different
+> name (eg. 'inode' or whatever).
+>
+>> +     int ret = 0;
+>> +     u64 isize = inode->i_size;
+>> +     struct extent_state *cached_state = NULL;
+>> +     struct extent_map *em;
+>> +     u64 start, len;
+>> +
+>> +     if (ip->flags & BTRFS_INODE_COMPRESS) {
+>> +             /* Can't do direct I/O on a compressed file. */
+>> +             pr_err("BTRFS: swapfile is compressed");
+>
+> Please use the btrfs_err macros everywhere.
+>
+>> +             return -EINVAL;
+>> +     }
+>> +     if (!(ip->flags & BTRFS_INODE_NODATACOW)) {
+>> +             /* The swap file can't be copy-on-write. */
+>> +             pr_err("BTRFS: swapfile is copy-on-write");
+>> +             return -EINVAL;
+>> +     }
+>> +
+>> +     lock_extent_bits(&ip->io_tree, 0, isize - 1, 0, &cached_state);
+>> +
+>> +     /*
+>> +      * All of the extents must be allocated and support direct I/O. Inline
+>> +      * extents and compressed extents fall back to buffered I/O, so those
+>> +      * are no good.
+>> +      */
+>> +     start = 0;
+>> +     while (start < isize) {
+>> +             len = isize - start;
+>> +             em = btrfs_get_extent(inode, NULL, 0, start, len, 0);
+>> +             if (IS_ERR(em)) {
+>> +                     ret = PTR_ERR(em);
+>> +                     goto out;
+>> +             }
+>> +
+>> +             if (test_bit(EXTENT_FLAG_VACANCY, &em->flags) ||
+>> +                 em->block_start == EXTENT_MAP_HOLE) {
+>
+> If the no-holes feature is enabled on the filesystem, there won't be any
+> such extent representing the hole. You have to check that each two
+> consecutive extents are adjacent.
 
-Signed-off-by: Toshi Kani <toshi.kani@hp.com>
----
- Documentation/x86/pat.txt         |    9 ++++--
- arch/x86/include/asm/cacheflush.h |    6 +++-
- arch/x86/mm/pageattr.c            |   58 +++++++++++++++++++++++++++++++++----
- 3 files changed, 63 insertions(+), 10 deletions(-)
+If no-holes is enabled it means file extent items aren't used to
+represent holes. But extent maps are still used to represent holes in
+memory, and that's what the code is looking for and therefore it's
+correct.
 
-diff --git a/Documentation/x86/pat.txt b/Documentation/x86/pat.txt
-index be7b8c2..bf4339c 100644
---- a/Documentation/x86/pat.txt
-+++ b/Documentation/x86/pat.txt
-@@ -46,6 +46,9 @@ set_memory_uc          |    UC-   |    --      |       --         |
- set_memory_wc          |    WC    |    --      |       --         |
-  set_memory_wb         |          |            |                  |
-                        |          |            |                  |
-+set_memory_wt          |    WT    |    --      |       --         |
-+ set_memory_wb         |          |            |                  |
-+                       |          |            |                  |
- pci sysfs resource     |    --    |    --      |       UC-        |
-                        |          |            |                  |
- pci sysfs resource_wc  |    --    |    --      |       WC         |
-@@ -117,8 +120,8 @@ can be more restrictive, in case of any existing aliasing for that address.
- For example: If there is an existing uncached mapping, a new ioremap_wc can
- return uncached mapping in place of write-combine requested.
- 
--set_memory_[uc|wc] and set_memory_wb should be used in pairs, where driver will
--first make a region uc or wc and switch it back to wb after use.
-+set_memory_[uc|wc|wt] and set_memory_wb should be used in pairs, where driver
-+will first make a region uc, wc or wt and switch it back to wb after use.
- 
- Over time writes to /proc/mtrr will be deprecated in favor of using PAT based
- interfaces. Users writing to /proc/mtrr are suggested to use above interfaces.
-@@ -126,7 +129,7 @@ interfaces. Users writing to /proc/mtrr are suggested to use above interfaces.
- Drivers should use ioremap_[uc|wc] to access PCI BARs with [uc|wc] access
- types.
- 
--Drivers should use set_memory_[uc|wc] to set access type for RAM ranges.
-+Drivers should use set_memory_[uc|wc|wt] to set access type for RAM ranges.
- 
- 
- PAT debugging
-diff --git a/arch/x86/include/asm/cacheflush.h b/arch/x86/include/asm/cacheflush.h
-index 47c8e32..b6f7457 100644
---- a/arch/x86/include/asm/cacheflush.h
-+++ b/arch/x86/include/asm/cacheflush.h
-@@ -8,7 +8,7 @@
- /*
-  * The set_memory_* API can be used to change various attributes of a virtual
-  * address range. The attributes include:
-- * Cachability   : UnCached, WriteCombining, WriteBack
-+ * Cachability   : UnCached, WriteCombining, WriteThrough, WriteBack
-  * Executability : eXeutable, NoteXecutable
-  * Read/Write    : ReadOnly, ReadWrite
-  * Presence      : NotPresent
-@@ -35,9 +35,11 @@
- 
- int _set_memory_uc(unsigned long addr, int numpages);
- int _set_memory_wc(unsigned long addr, int numpages);
-+int _set_memory_wt(unsigned long addr, int numpages);
- int _set_memory_wb(unsigned long addr, int numpages);
- int set_memory_uc(unsigned long addr, int numpages);
- int set_memory_wc(unsigned long addr, int numpages);
-+int set_memory_wt(unsigned long addr, int numpages);
- int set_memory_wb(unsigned long addr, int numpages);
- int set_memory_x(unsigned long addr, int numpages);
- int set_memory_nx(unsigned long addr, int numpages);
-@@ -48,10 +50,12 @@ int set_memory_4k(unsigned long addr, int numpages);
- 
- int set_memory_array_uc(unsigned long *addr, int addrinarray);
- int set_memory_array_wc(unsigned long *addr, int addrinarray);
-+int set_memory_array_wt(unsigned long *addr, int addrinarray);
- int set_memory_array_wb(unsigned long *addr, int addrinarray);
- 
- int set_pages_array_uc(struct page **pages, int addrinarray);
- int set_pages_array_wc(struct page **pages, int addrinarray);
-+int set_pages_array_wt(struct page **pages, int addrinarray);
- int set_pages_array_wb(struct page **pages, int addrinarray);
- 
- /*
-diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-index 114d0b3..c98dcdb 100644
---- a/arch/x86/mm/pageattr.c
-+++ b/arch/x86/mm/pageattr.c
-@@ -1484,12 +1484,10 @@ EXPORT_SYMBOL(set_memory_uc);
- static int _set_memory_array(unsigned long *addr, int addrinarray,
- 		enum page_cache_mode new_type)
- {
-+	enum page_cache_mode set_type;
- 	int i, j;
- 	int ret;
- 
--	/*
--	 * for now UC MINUS. see comments in ioremap_nocache()
--	 */
- 	for (i = 0; i < addrinarray; i++) {
- 		ret = reserve_memtype(__pa(addr[i]), __pa(addr[i]) + PAGE_SIZE,
- 					new_type, NULL);
-@@ -1497,9 +1495,12 @@ static int _set_memory_array(unsigned long *addr, int addrinarray,
- 			goto out_free;
- 	}
- 
-+	/* If WC, set to UC- first and then WC */
-+	set_type = (new_type == _PAGE_CACHE_MODE_WC) ?
-+				_PAGE_CACHE_MODE_UC_MINUS : new_type;
-+
- 	ret = change_page_attr_set(addr, addrinarray,
--				   cachemode2pgprot(_PAGE_CACHE_MODE_UC_MINUS),
--				   1);
-+				   cachemode2pgprot(set_type), 1);
- 
- 	if (!ret && new_type == _PAGE_CACHE_MODE_WC)
- 		ret = change_page_attr_set_clr(addr, addrinarray,
-@@ -1531,6 +1532,12 @@ int set_memory_array_wc(unsigned long *addr, int addrinarray)
- }
- EXPORT_SYMBOL(set_memory_array_wc);
- 
-+int set_memory_array_wt(unsigned long *addr, int addrinarray)
-+{
-+	return _set_memory_array(addr, addrinarray, _PAGE_CACHE_MODE_WT);
-+}
-+EXPORT_SYMBOL(set_memory_array_wt);
-+
- int _set_memory_wc(unsigned long addr, int numpages)
- {
- 	int ret;
-@@ -1571,6 +1578,34 @@ out_err:
- }
- EXPORT_SYMBOL(set_memory_wc);
- 
-+int _set_memory_wt(unsigned long addr, int numpages)
-+{
-+	return change_page_attr_set(&addr, numpages,
-+				    cachemode2pgprot(_PAGE_CACHE_MODE_WT), 0);
-+}
-+
-+int set_memory_wt(unsigned long addr, int numpages)
-+{
-+	int ret;
-+
-+	ret = reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
-+			      _PAGE_CACHE_MODE_WT, NULL);
-+	if (ret)
-+		goto out_err;
-+
-+	ret = _set_memory_wt(addr, numpages);
-+	if (ret)
-+		goto out_free;
-+
-+	return 0;
-+
-+out_free:
-+	free_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
-+out_err:
-+	return ret;
-+}
-+EXPORT_SYMBOL(set_memory_wt);
-+
- int _set_memory_wb(unsigned long addr, int numpages)
- {
- 	/* WB cache mode is hard wired to all cache attribute bits being 0 */
-@@ -1663,6 +1698,7 @@ static int _set_pages_array(struct page **pages, int addrinarray,
- {
- 	unsigned long start;
- 	unsigned long end;
-+	enum page_cache_mode set_type;
- 	int i;
- 	int free_idx;
- 	int ret;
-@@ -1676,8 +1712,12 @@ static int _set_pages_array(struct page **pages, int addrinarray,
- 			goto err_out;
- 	}
- 
-+	/* If WC, set to UC- first and then WC */
-+	set_type = (new_type == _PAGE_CACHE_MODE_WC) ?
-+				_PAGE_CACHE_MODE_UC_MINUS : new_type;
-+
- 	ret = cpa_set_pages_array(pages, addrinarray,
--			cachemode2pgprot(_PAGE_CACHE_MODE_UC_MINUS));
-+				  cachemode2pgprot(set_type));
- 	if (!ret && new_type == _PAGE_CACHE_MODE_WC)
- 		ret = change_page_attr_set_clr(NULL, addrinarray,
- 					       cachemode2pgprot(
-@@ -1711,6 +1751,12 @@ int set_pages_array_wc(struct page **pages, int addrinarray)
- }
- EXPORT_SYMBOL(set_pages_array_wc);
- 
-+int set_pages_array_wt(struct page **pages, int addrinarray)
-+{
-+	return _set_pages_array(pages, addrinarray, _PAGE_CACHE_MODE_WT);
-+}
-+EXPORT_SYMBOL(set_pages_array_wt);
-+
- int set_pages_wb(struct page *page, int numpages)
- {
- 	unsigned long addr = (unsigned long)page_address(page);
+>
+>> +                     pr_err("BTRFS: swapfile has holes");
+>> +                     ret = -EINVAL;
+>> +                     goto out;
+>> +             }
+>> +             if (em->block_start == EXTENT_MAP_INLINE) {
+>> +                     pr_err("BTRFS: swapfile is inline");
+>
+> While the test is valid, this would mean that the file is smaller than
+> the inline limit, which is now one page. I think the generic swap code
+> would refuse such a small file anyway.
+>
+>> +                     ret = -EINVAL;
+>> +                     goto out;
+>> +             }
+>> +             if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags)) {
+>> +                     pr_err("BTRFS: swapfile is compresed");
+>> +                     ret = -EINVAL;
+>> +                     goto out;
+>> +             }
+>
+> I think the preallocated extents should be refused as well. This means
+> the filesystem has enough space to hold the data but it would still have
+> to go through the allocation and could in turn stress the memory
+> management code that triggered the swapping activity in the first place.
+>
+> Though it's probably still possible to reach such corner case even with
+> fully allocated nodatacow file, this should be reviewed anyway.
+>
+>> +
+>> +             start = extent_map_end(em);
+>> +             free_extent_map(em);
+>> +     }
+>> +
+>> +out:
+>> +     unlock_extent_cached(&ip->io_tree, 0, isize - 1, &cached_state,
+>> +                          GFP_NOFS);
+>> +     return ret;
+>> +}
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+
+
+
+-- 
+Filipe David Manana,
+
+"Reasonable men adapt themselves to the world.
+ Unreasonable men adapt the world to themselves.
+ That's why all progress depends on unreasonable men."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
