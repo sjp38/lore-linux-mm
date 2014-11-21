@@ -1,45 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 6364E6B0038
-	for <linux-mm@kvack.org>; Thu, 20 Nov 2014 18:14:46 -0500 (EST)
-Received: by mail-wg0-f44.google.com with SMTP id b13so5095180wgh.31
-        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 15:14:45 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id bw20si9484944wib.86.2014.11.20.15.14.45
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Thu, 20 Nov 2014 15:14:45 -0800 (PST)
-Date: Fri, 21 Nov 2014 00:14:20 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v6 00/11] Kernel address sanitizer - runtime memory
- debugger.
-In-Reply-To: <20141120150033.4cd1ca25be4a9b00a7074149@linux-foundation.org>
-Message-ID: <alpine.DEB.2.11.1411210011530.6439@nanos>
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com> <1415199241-5121-1-git-send-email-a.ryabinin@samsung.com> <5461B906.1040803@samsung.com> <20141118125843.434c216540def495d50f3a45@linux-foundation.org> <CAPAsAGwZtfzx5oM73bOi_kw5BqXrwGd_xmt=m6xxU6uECA+H9Q@mail.gmail.com>
- <20141120090356.GA6690@gmail.com> <CACT4Y+aOKzq0AzvSJrRC-iU9LmmtLzxY=pxzu8f4oT-OZk=oLA@mail.gmail.com> <20141120150033.4cd1ca25be4a9b00a7074149@linux-foundation.org>
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id E1B336B0069
+	for <linux-mm@kvack.org>; Thu, 20 Nov 2014 21:35:59 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id lj1so3810419pab.5
+        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 18:35:59 -0800 (PST)
+Received: from ponies.io (ponies.io. [2600:3c01::f03c:91ff:fe6e:5e45])
+        by mx.google.com with ESMTP id ym4si6073963pab.27.2014.11.20.18.35.57
+        for <linux-mm@kvack.org>;
+        Thu, 20 Nov 2014 18:35:58 -0800 (PST)
+Received: from cucumber.localdomain (nat-gw2.syd4.anchor.net.au [110.173.144.2])
+	by ponies.io (Postfix) with ESMTPSA id 1DE88A0BF
+	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 02:35:56 +0000 (UTC)
+Date: Fri, 21 Nov 2014 13:35:54 +1100
+From: Christian Marie <christian@ponies.io>
+Subject: Re: isolate_freepages_block and excessive CPU usage by OSD process
+Message-ID: <20141121023554.GA24175@cucumber.bridge.anchor.net.au>
+References: <20141119012110.GA2608@cucumber.iinet.net.au>
+ <CABYiri99WAj+6hfTq+6x+_w0=VNgBua8N9+mOvU6o5bynukPLQ@mail.gmail.com>
+ <20141119212013.GA18318@cucumber.anchor.net.au>
+ <546D2366.1050506@suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="3MwIy2ne0vdjdPXF"
+Content-Disposition: inline
+In-Reply-To: <546D2366.1050506@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Ingo Molnar <mingo@kernel.org>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Andrey Ryabinin <a.ryabinin@samsung.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Michal Marek <mmarek@suse.cz>, Ingo Molnar <mingo@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Randy Dunlap <rdunlap@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Jones <davej@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joe Perches <joe@perches.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: linux-mm@kvack.org
 
-On Thu, 20 Nov 2014, Andrew Morton wrote:
 
-> On Thu, 20 Nov 2014 20:32:30 +0400 Dmitry Vyukov <dvyukov@google.com> wrote:
-> 
-> > Let me provide some background first.
-> 
-> Well that was useful.  Andrey, please slurp Dmitry's info into the 0/n
-> changelog?
+--3MwIy2ne0vdjdPXF
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-And into Documentation/UBSan or whatever the favourite place is. 0/n
-lengthy explanations have a tendecy to be hard to retrieve.
+On Thu, Nov 20, 2014 at 12:10:30AM +0100, Vlastimil Babka wrote:
+> As I said, recent kernels received many compaction performance tuning pat=
+ches,
+> and reclaim as well. I would recommend trying them, if it's possible.
+>=20
+> You mention 3.10.0-123.9.3.el7.x86_64 which I have no idea how it relates=
+ to
+> upstream stable kernel. Upstream version 3.10.44 received several compact=
+ion
+> fixes that I'd deem critical for compaction to work as intended, and lack=
+ of
+> them could explain your problems:
+>=20
+> mm: compaction: reset cached scanner pfn's before reading them
+> commit d3132e4b83e6bd383c74d716f7281d7c3136089c upstream.
+>=20
+> mm: compaction: detect when scanners meet in isolate_freepages
+> commit 7ed695e069c3cbea5e1fd08f84a04536da91f584 upstream.
+>=20
+> mm/compaction: make isolate_freepages start at pageblock boundary
+> commit 49e068f0b73dd042c186ffa9b420a9943e90389a upstream.
+>=20
+> You might want to check if those are included in your kernel package, and=
+/or try
+> upstream stable 3.10 (if you can't use the latest for some reason).
 
-Thanks,
+I built exactly the same kernel with these patches applied, unfortunately it
+suffered the same problem. I will now try the latest (3.18-rc5) release
+candidate and report back.
 
-	tglx
+Do you have any ideas of where I could be looking to collect data to track =
+down
+what is happening here? Here is some perf output again:
 
+http://ponies.io/raw/compaction.png
+
+--3MwIy2ne0vdjdPXF
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBAgAGBQJUbqUKAAoJEMHZnoZn5OSh+IkP/3oR4tOYU/c8Bk/duCYmpYrR
+oirCo2VcQYb3EJluPFErltD/XMfoYOngsrDbrfK/anubq6ZteIHIGcxqbf5aKsdy
+t2K3YKDS8IDrsrElrM6zPFIfgGJPU7H/9E7fUbtwcLjyTbzUiV6CjqLCKW8+1AJy
+RZ2a+aexA/1ggPGLPS9HZTN+ODv1zGxs6HwjjTeSwiE6rcUkhOvSLUleMNRODjQB
+5lxZSEhRHhKUaLzkw4iL1qB0v923GLAVxWMBZW2apQlr90F+P+VZMIVSouT74uRI
+jvySWuY2DqpAVEDvN6Rf9RauxIQSVesuNX7kZVf/PLpxLQKugDOYFOl3n2571wob
+pdnaxeWcLG9gBdd3byZWA2gTVbAhH59hvCF6wqkF542xkuR8UbppZ2ikcd5sQ3HI
+ODhLvsZf/rEvS0onjJ/RWvhbNDP784C2UFAvRLTaQjT7r0whfM88fxxMCL0q6//p
+4myjBu0j6hPrEBz4Iq7ID08kMdbEApgWwDtbv2l8ptEY3RBYpvdrZgThBTRVXSIr
+roVfEAZdNeiWo/PxuhJhYTdy6wvRXKohjqCtpjeLZKHytHXvOiuYQVsVpwsNBEjK
+z5x5NgWr9d5RY6cZI+kkipBcii/ZXJB5ntFJ/N5GzM8marDY3IrcnjUDtQ7KX2Wp
+PxYsKuF94ZmaD4zgRlVX
+=5dns
+-----END PGP SIGNATURE-----
+
+--3MwIy2ne0vdjdPXF--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
