@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 282076B0073
-	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 05:17:07 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id et14so4615044pad.1
-        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 02:17:06 -0800 (PST)
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com. [209.85.192.179])
-        by mx.google.com with ESMTPS id rb7si7450531pab.142.2014.11.21.02.17.05
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id DBD006B0073
+	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 05:17:11 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id kx10so4577068pab.16
+        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 02:17:11 -0800 (PST)
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com. [209.85.220.42])
+        by mx.google.com with ESMTPS id te6si7136225pbc.227.2014.11.21.02.17.10
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 21 Nov 2014 02:17:06 -0800 (PST)
-Received: by mail-pd0-f179.google.com with SMTP id w10so5040544pde.10
-        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 02:17:05 -0800 (PST)
+        Fri, 21 Nov 2014 02:17:10 -0800 (PST)
+Received: by mail-pa0-f42.google.com with SMTP id et14so4615124pad.1
+        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 02:17:10 -0800 (PST)
 From: Omar Sandoval <osandov@osandov.com>
-Subject: [PATCH v2 1/5] direct-io: don't dirty ITER_BVEC pages on read
-Date: Fri, 21 Nov 2014 02:08:27 -0800
-Message-Id: <d5e6bbb3e54f76bbc11ffd106bc98a2c531b67ad.1416563833.git.osandov@osandov.com>
+Subject: [PATCH v2 2/5] nfs: don't dirty ITER_BVEC pages read through direct I/O
+Date: Fri, 21 Nov 2014 02:08:28 -0800
+Message-Id: <6f2a9d098e9b558cf551aa32f668d5eb95c96406.1416563833.git.osandov@osandov.com>
 In-Reply-To: <cover.1416563833.git.osandov@osandov.com>
 References: <cover.1416563833.git.osandov@osandov.com>
 In-Reply-To: <cover.1416563833.git.osandov@osandov.com>
@@ -22,65 +22,46 @@ References: <cover.1416563833.git.osandov@osandov.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, Trond Myklebust <trond.myklebust@primarydata.com>, Mel Gorman <mgorman@suse.de>
-Cc: Omar Sandoval <osandov@osandov.com>, Dave Kleikamp <dave.kleikamp@oracle.com>, Ming Lei <ming.lei@canonical.com>
+Cc: Omar Sandoval <osandov@osandov.com>
 
-Reads through the iov_iter infrastructure for kernel pages shouldn't be dirtied
-by the direct I/O code.
+As with the generic blockdev code, kernel pages shouldn't be dirtied by the
+direct I/O path.
 
-This is based on Dave Kleikamp's and Ming Lei's previously posted patches.
-
-Cc: Dave Kleikamp <dave.kleikamp@oracle.com>
-Cc: Ming Lei <ming.lei@canonical.com>
 Signed-off-by: Omar Sandoval <osandov@osandov.com>
 ---
- fs/direct-io.c | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ fs/nfs/direct.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
 
-diff --git a/fs/direct-io.c b/fs/direct-io.c
-index e181b6b..e542ce4 100644
---- a/fs/direct-io.c
-+++ b/fs/direct-io.c
-@@ -120,6 +120,7 @@ struct dio {
- 	spinlock_t bio_lock;		/* protects BIO fields below */
- 	int page_errors;		/* errno from get_user_pages() */
- 	int is_async;			/* is IO async ? */
-+	int should_dirty;		/* should we mark read pages dirty? */
- 	bool defer_completion;		/* defer AIO completion to workqueue? */
- 	int io_error;			/* IO error in completion path */
- 	unsigned long refcount;		/* direct_io_worker() and bios */
-@@ -392,7 +393,7 @@ static inline void dio_bio_submit(struct dio *dio, struct dio_submit *sdio)
- 	dio->refcount++;
- 	spin_unlock_irqrestore(&dio->bio_lock, flags);
+diff --git a/fs/nfs/direct.c b/fs/nfs/direct.c
+index 10bf072..a67fa2c 100644
+--- a/fs/nfs/direct.c
++++ b/fs/nfs/direct.c
+@@ -88,6 +88,7 @@ struct nfs_direct_req {
+ 	struct pnfs_ds_commit_info ds_cinfo;	/* Storage for cinfo */
+ 	struct work_struct	work;
+ 	int			flags;
++	int			should_dirty;	/* should we mark read pages dirty? */
+ #define NFS_ODIRECT_DO_COMMIT		(1)	/* an unstable reply was received */
+ #define NFS_ODIRECT_RESCHED_WRITES	(2)	/* write verification failed */
+ 	struct nfs_writeverf	verf;		/* unstable write verifier */
+@@ -370,7 +371,8 @@ static void nfs_direct_read_completion(struct nfs_pgio_header *hdr)
+ 		struct nfs_page *req = nfs_list_entry(hdr->pages.next);
+ 		struct page *page = req->wb_page;
  
--	if (dio->is_async && dio->rw == READ)
-+	if (dio->is_async && dio->rw == READ && dio->should_dirty)
- 		bio_set_pages_dirty(bio);
- 
- 	if (sdio->submit_io)
-@@ -463,13 +464,13 @@ static int dio_bio_complete(struct dio *dio, struct bio *bio)
- 	if (!uptodate)
- 		dio->io_error = -EIO;
- 
--	if (dio->is_async && dio->rw == READ) {
-+	if (dio->is_async && dio->rw == READ && dio->should_dirty) {
- 		bio_check_pages_dirty(bio);	/* transfers ownership */
- 	} else {
- 		bio_for_each_segment_all(bvec, bio, i) {
- 			struct page *page = bvec->bv_page;
- 
--			if (dio->rw == READ && !PageCompound(page))
-+			if (dio->rw == READ && !PageCompound(page) && dio->should_dirty)
- 				set_page_dirty_lock(page);
- 			page_cache_release(page);
- 		}
-@@ -1177,6 +1178,7 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
- 
- 	dio->inode = inode;
- 	dio->rw = rw;
-+	dio->should_dirty = !(iter->type & ITER_BVEC);
- 
- 	/*
- 	 * For AIO O_(D)SYNC writes we need to defer completions to a workqueue
+-		if (!PageCompound(page) && bytes < hdr->good_bytes)
++		if (!PageCompound(page) && bytes < hdr->good_bytes &&
++		    dreq->should_dirty)
+ 			set_page_dirty(page);
+ 		bytes += req->wb_bytes;
+ 		nfs_list_remove_request(req);
+@@ -542,6 +544,7 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, struct iov_iter *iter,
+ 	dreq->inode = inode;
+ 	dreq->bytes_left = count;
+ 	dreq->ctx = get_nfs_open_context(nfs_file_open_context(iocb->ki_filp));
++	dreq->should_dirty = !(iter->type & ITER_BVEC);
+ 	l_ctx = nfs_get_lock_context(dreq->ctx);
+ 	if (IS_ERR(l_ctx)) {
+ 		result = PTR_ERR(l_ctx);
 -- 
 2.1.3
 
