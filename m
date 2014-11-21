@@ -1,160 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f51.google.com (mail-la0-f51.google.com [209.85.215.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0465C6B0070
-	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 14:07:05 -0500 (EST)
-Received: by mail-la0-f51.google.com with SMTP id mc6so4781421lab.38
-        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 11:07:04 -0800 (PST)
-Received: from mail-lb0-x233.google.com (mail-lb0-x233.google.com. [2a00:1450:4010:c04::233])
-        by mx.google.com with ESMTPS id y8si7030347laj.5.2014.11.21.11.07.03
+Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 72F036B006E
+	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 16:21:08 -0500 (EST)
+Received: by mail-ig0-f169.google.com with SMTP id hl2so2261827igb.4
+        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 13:21:08 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id ii1si395433igb.19.2014.11.21.13.21.06
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 21 Nov 2014 11:07:03 -0800 (PST)
-Received: by mail-lb0-f179.google.com with SMTP id l4so4563020lbv.24
-        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 11:07:03 -0800 (PST)
-MIME-Version: 1.0
-Reply-To: fdmanana@gmail.com
-In-Reply-To: <20141121180045.GF8568@twin.jikos.cz>
-References: <cover.1416563833.git.osandov@osandov.com>
-	<afd3c1009172a4a1cfa10e73a64caf35c631a6d4.1416563833.git.osandov@osandov.com>
-	<20141121180045.GF8568@twin.jikos.cz>
-Date: Fri, 21 Nov 2014 19:07:03 +0000
-Message-ID: <CAL3q7H5=X0duvO3e-b5aKZ5n=VbBhXVOcz9uKkR_j2KQ4DB_Mw@mail.gmail.com>
-Subject: Re: [PATCH v2 5/5] btrfs: enable swap file support
-From: Filipe David Manana <fdmanana@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 21 Nov 2014 13:21:07 -0800 (PST)
+Date: Fri, 21 Nov 2014 13:21:05 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [balancenuma:mm-numa-protnone-v3r3 83/362]
+ include/linux/compaction.h:108:1: error: expected identifier or '(' before
+ '{' token
+Message-Id: <20141121132105.f48085180ac3756028d0a846@linux-foundation.org>
+In-Reply-To: <201411220114.QnSQfMwJ%fengguang.wu@intel.com>
+References: <201411220114.QnSQfMwJ%fengguang.wu@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "dsterba@suse.cz" <dsterba@suse.cz>, Omar Sandoval <osandov@osandov.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, "linux-btrfs@vger.kernel.org" <linux-btrfs@vger.kernel.org>, linux-fsdevel@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-nfs@vger.kernel.org, Trond Myklebust <trond.myklebust@primarydata.com>, Mel Gorman <mgorman@suse.de>
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, kbuild-all@01.org, Mel Gorman <mgorman@suse.de>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Fri, Nov 21, 2014 at 6:00 PM, David Sterba <dsterba@suse.cz> wrote:
-> On Fri, Nov 21, 2014 at 02:08:31AM -0800, Omar Sandoval wrote:
->> Implement the swap file a_ops on btrfs. Activation simply checks for a usable
->> swap file: it must be fully allocated (no holes), support direct I/O (so no
->> compressed or inline extents) and should be nocow (I'm not sure about that last
->> one).
->>
->> Signed-off-by: Omar Sandoval <osandov@osandov.com>
->> ---
->>  fs/btrfs/inode.c | 71 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
->>  1 file changed, 71 insertions(+)
->>
->> diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
->> index d23362f..b8fd36b 100644
->> --- a/fs/btrfs/inode.c
->> +++ b/fs/btrfs/inode.c
->> @@ -9442,6 +9442,75 @@ out_inode:
->>
->>  }
->>
->> +static int btrfs_swap_activate(struct swap_info_struct *sis, struct file *file,
->> +                            sector_t *span)
->> +{
->> +     struct inode *inode = file_inode(file);
->> +     struct btrfs_inode *ip = BTRFS_I(inode);
->
-> 'ip' looks strange in context of a filesystem, please pick a different
-> name (eg. 'inode' or whatever).
->
->> +     int ret = 0;
->> +     u64 isize = inode->i_size;
->> +     struct extent_state *cached_state = NULL;
->> +     struct extent_map *em;
->> +     u64 start, len;
->> +
->> +     if (ip->flags & BTRFS_INODE_COMPRESS) {
->> +             /* Can't do direct I/O on a compressed file. */
->> +             pr_err("BTRFS: swapfile is compressed");
->
-> Please use the btrfs_err macros everywhere.
->
->> +             return -EINVAL;
->> +     }
->> +     if (!(ip->flags & BTRFS_INODE_NODATACOW)) {
->> +             /* The swap file can't be copy-on-write. */
->> +             pr_err("BTRFS: swapfile is copy-on-write");
->> +             return -EINVAL;
->> +     }
->> +
->> +     lock_extent_bits(&ip->io_tree, 0, isize - 1, 0, &cached_state);
->> +
->> +     /*
->> +      * All of the extents must be allocated and support direct I/O. Inline
->> +      * extents and compressed extents fall back to buffered I/O, so those
->> +      * are no good.
->> +      */
->> +     start = 0;
->> +     while (start < isize) {
->> +             len = isize - start;
->> +             em = btrfs_get_extent(inode, NULL, 0, start, len, 0);
->> +             if (IS_ERR(em)) {
->> +                     ret = PTR_ERR(em);
->> +                     goto out;
->> +             }
->> +
->> +             if (test_bit(EXTENT_FLAG_VACANCY, &em->flags) ||
->> +                 em->block_start == EXTENT_MAP_HOLE) {
->
-> If the no-holes feature is enabled on the filesystem, there won't be any
-> such extent representing the hole. You have to check that each two
-> consecutive extents are adjacent.
+On Sat, 22 Nov 2014 01:20:17 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
 
-If no-holes is enabled it means file extent items aren't used to
-represent holes. But extent maps are still used to represent holes in
-memory, and that's what the code is looking for and therefore it's
-correct.
+> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/mel/linux-balancenuma mm-numa-protnone-v3r3
+> head:   e5d6f2e502e06020eeb0f852a5ed853802799eb3
+> commit: 17d9af0e32bdc4f263e23daefea699ed463bb87c [83/362] mm, compaction: simplify deferred compaction
+> config: x86_64-allnoconfig (attached as .config)
+> reproduce:
+>   git checkout 17d9af0e32bdc4f263e23daefea699ed463bb87c
+>   # save the attached .config to linux build tree
+>   make ARCH=x86_64 
+> 
+> Note: the balancenuma/mm-numa-protnone-v3r3 HEAD e5d6f2e502e06020eeb0f852a5ed853802799eb3 builds fine.
+>       It only hurts bisectibility.
+> 
+> All error/warnings:
+> 
+>    In file included from kernel/sysctl.c:43:0:
+> >> include/linux/compaction.h:108:1: error: expected identifier or '(' before '{' token
+>     {
 
->
->> +                     pr_err("BTRFS: swapfile has holes");
->> +                     ret = -EINVAL;
->> +                     goto out;
->> +             }
->> +             if (em->block_start == EXTENT_MAP_INLINE) {
->> +                     pr_err("BTRFS: swapfile is inline");
->
-> While the test is valid, this would mean that the file is smaller than
-> the inline limit, which is now one page. I think the generic swap code
-> would refuse such a small file anyway.
->
->> +                     ret = -EINVAL;
->> +                     goto out;
->> +             }
->> +             if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags)) {
->> +                     pr_err("BTRFS: swapfile is compresed");
->> +                     ret = -EINVAL;
->> +                     goto out;
->> +             }
->
-> I think the preallocated extents should be refused as well. This means
-> the filesystem has enough space to hold the data but it would still have
-> to go through the allocation and could in turn stress the memory
-> management code that triggered the swapping activity in the first place.
->
-> Though it's probably still possible to reach such corner case even with
-> fully allocated nodatacow file, this should be reviewed anyway.
->
->> +
->> +             start = extent_map_end(em);
->> +             free_extent_map(em);
->> +     }
->> +
->> +out:
->> +     unlock_extent_cached(&ip->io_tree, 0, isize - 1, &cached_state,
->> +                          GFP_NOFS);
->> +     return ret;
->> +}
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+That's fixed in the next patch,
+mm-compaction-simplify-deferred-compaction-fix.patch.
 
-
-
--- 
-Filipe David Manana,
-
-"Reasonable men adapt themselves to the world.
- Unreasonable men adapt the world to themselves.
- That's why all progress depends on unreasonable men."
+Your bisectbot broke again :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
