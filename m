@@ -1,78 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id C5E136B006E
-	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 08:43:47 -0500 (EST)
-Received: by mail-pd0-f181.google.com with SMTP id z10so5348377pdj.40
-        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 05:43:47 -0800 (PST)
-Received: from mail-pd0-x236.google.com (mail-pd0-x236.google.com. [2607:f8b0:400e:c02::236])
-        by mx.google.com with ESMTPS id pu3si8484651pdb.150.2014.11.21.05.43.45
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id F06DC6B0071
+	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 08:57:54 -0500 (EST)
+Received: by mail-wi0-f170.google.com with SMTP id bs8so2803737wib.3
+        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 05:57:54 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ex8si9354818wjb.33.2014.11.21.05.57.52
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 21 Nov 2014 05:43:46 -0800 (PST)
-Received: by mail-pd0-f182.google.com with SMTP id r10so5390438pdi.27
-        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 05:43:45 -0800 (PST)
-From: Mahendran Ganesh <opensource.ganesh@gmail.com>
-Subject: [PATCH v2] mm/zsmalloc: avoid duplicate assignment of prev_class
-Date: Fri, 21 Nov 2014 21:43:23 +0800
-Message-Id: <1416577403-7887-1-git-send-email-opensource.ganesh@gmail.com>
+        Fri, 21 Nov 2014 05:57:52 -0800 (PST)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 01/10] mm: numa: Do not dereference pmd outside of the lock during NUMA hinting fault
+Date: Fri, 21 Nov 2014 13:57:39 +0000
+Message-Id: <1416578268-19597-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1416578268-19597-1-git-send-email-mgorman@suse.de>
+References: <1416578268-19597-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: minchan@kernel.org, ngupta@vflare.org, iamjoonsoo.kim@lge.com, ddstreet@ieee.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mahendran Ganesh <opensource.ganesh@gmail.com>
+To: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LinuxPPC-dev <linuxppc-dev@lists.ozlabs.org>
+Cc: Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@redhat.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Sasha Levin <sasha.levin@oracle.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>
 
-In zs_create_pool(), prev_class is assigned (ZS_SIZE_CLASSES - 1)
-times. And the prev_class only references to the previous size_class.
-So we do not need unnecessary assignement.
+A transhuge NUMA hinting fault may find the page is migrating and should
+wait until migration completes. The check is race-prone because the pmd
+is deferenced outside of the page lock and while the race is tiny, it'll
+be larger if the PMD is cleared while marking PMDs for hinting fault.
+This patch closes the race.
 
-This patch assigns *prev_class* when a new size_class structure
-is allocated and uses prev_class to check whether the first class
-has been allocated.
-
-Signed-off-by: Mahendran Ganesh <opensource.ganesh@gmail.com>
-
+Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
-v1 -> v2:
-  - follow Dan Streetman's advise to use prev_class to
-    check whether the first class has been allocated
-  - follow Minchan Kim's advise to remove uninitialized_var()
----
- mm/zsmalloc.c |    7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ include/linux/migrate.h | 4 ----
+ mm/huge_memory.c        | 3 ++-
+ mm/migrate.c            | 6 ------
+ 3 files changed, 2 insertions(+), 11 deletions(-)
 
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index b3b57ef..810eda1 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -970,7 +970,7 @@ struct zs_pool *zs_create_pool(gfp_t flags)
- 		int size;
- 		int pages_per_zspage;
- 		struct size_class *class;
--		struct size_class *prev_class;
-+		struct size_class *prev_class = NULL;
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index 01aad3e..a3edcdf 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -77,7 +77,6 @@ static inline int migrate_huge_page_move_mapping(struct address_space *mapping,
  
- 		size = ZS_MIN_ALLOC_SIZE + i * ZS_SIZE_CLASS_DELTA;
- 		if (size > ZS_MAX_ALLOC_SIZE)
-@@ -986,8 +986,7 @@ struct zs_pool *zs_create_pool(gfp_t flags)
- 		 * characteristics. So, we makes size_class point to
- 		 * previous size_class if possible.
- 		 */
--		if (i < ZS_SIZE_CLASSES - 1) {
--			prev_class = pool->size_class[i + 1];
-+		if (prev_class) {
- 			if (can_merge(prev_class, size, pages_per_zspage)) {
- 				pool->size_class[i] = prev_class;
- 				continue;
-@@ -1003,6 +1002,8 @@ struct zs_pool *zs_create_pool(gfp_t flags)
- 		class->pages_per_zspage = pages_per_zspage;
- 		spin_lock_init(&class->lock);
- 		pool->size_class[i] = class;
-+
-+		prev_class = class;
+ #ifdef CONFIG_NUMA_BALANCING
+ extern bool pmd_trans_migrating(pmd_t pmd);
+-extern void wait_migrate_huge_page(struct anon_vma *anon_vma, pmd_t *pmd);
+ extern int migrate_misplaced_page(struct page *page,
+ 				  struct vm_area_struct *vma, int node);
+ extern bool migrate_ratelimited(int node);
+@@ -86,9 +85,6 @@ static inline bool pmd_trans_migrating(pmd_t pmd)
+ {
+ 	return false;
+ }
+-static inline void wait_migrate_huge_page(struct anon_vma *anon_vma, pmd_t *pmd)
+-{
+-}
+ static inline int migrate_misplaced_page(struct page *page,
+ 					 struct vm_area_struct *vma, int node)
+ {
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 817a875..a2cd021 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1283,8 +1283,9 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	 * check_same as the page may no longer be mapped.
+ 	 */
+ 	if (unlikely(pmd_trans_migrating(*pmdp))) {
++		page = pmd_page(*pmdp);
+ 		spin_unlock(ptl);
+-		wait_migrate_huge_page(vma->anon_vma, pmdp);
++		wait_on_page_locked(page);
+ 		goto out;
  	}
  
- 	pool->flags = flags;
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 41945cb..11d86b4 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1698,12 +1698,6 @@ bool pmd_trans_migrating(pmd_t pmd)
+ 	return PageLocked(page);
+ }
+ 
+-void wait_migrate_huge_page(struct anon_vma *anon_vma, pmd_t *pmd)
+-{
+-	struct page *page = pmd_page(*pmd);
+-	wait_on_page_locked(page);
+-}
+-
+ /*
+  * Attempt to migrate a misplaced page to the specified destination
+  * node. Caller is expected to have an elevated reference count on
 -- 
-1.7.9.5
+2.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
