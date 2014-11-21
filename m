@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f180.google.com (mail-ie0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id EB5C86B006E
-	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 18:37:34 -0500 (EST)
-Received: by mail-ie0-f180.google.com with SMTP id rp18so5970268iec.39
-        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 15:37:34 -0800 (PST)
+Received: from mail-ie0-f175.google.com (mail-ie0-f175.google.com [209.85.223.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B2FA6B0070
+	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 18:38:02 -0500 (EST)
+Received: by mail-ie0-f175.google.com with SMTP id at20so5991011iec.20
+        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 15:38:02 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id w3si620747igs.9.2014.11.21.15.37.33
+        by mx.google.com with ESMTPS id lr8si587185igb.37.2014.11.21.15.38.00
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Nov 2014 15:37:33 -0800 (PST)
-Date: Fri, 21 Nov 2014 15:37:31 -0800
+        Fri, 21 Nov 2014 15:38:01 -0800 (PST)
+Date: Fri, 21 Nov 2014 15:37:59 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 1/7] mm/page_ext: resurrect struct page extending
- code for debugging
-Message-Id: <20141121153731.b68bd8f0240a2eccb142e864@linux-foundation.org>
-In-Reply-To: <1416557646-21755-2-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 5/7] stacktrace: introduce snprint_stack_trace for
+ buffer output
+Message-Id: <20141121153759.c6a502e824207d517dd2f994@linux-foundation.org>
+In-Reply-To: <1416557646-21755-6-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1416557646-21755-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<1416557646-21755-2-git-send-email-iamjoonsoo.kim@lge.com>
+	<1416557646-21755-6-git-send-email-iamjoonsoo.kim@lge.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -25,160 +25,77 @@ List-ID: <linux-mm.kvack.org>
 To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave@sr71.net>, Michal Nazarewicz <mina86@mina86.com>, Jungsoo Son <jungsoo.son@lge.com>, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 21 Nov 2014 17:14:00 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+On Fri, 21 Nov 2014 17:14:04 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
 
-> When we debug something, we'd like to insert some information to
-> every page. For this purpose, we sometimes modify struct page itself.
-> But, this has drawbacks. First, it requires re-compile. This makes us
-> hesitate to use the powerful debug feature so development process is
-> slowed down. And, second, sometimes it is impossible to rebuild the kernel
-> due to third party module dependency. At third, system behaviour would be
-> largely different after re-compile, because it changes size of struct
-> page greatly and this structure is accessed by every part of kernel.
-> Keeping this as it is would be better to reproduce errornous situation.
+> Current stacktrace only have the function for console output.
+> page_owner that will be introduced in following patch needs to print
+> the output of stacktrace into the buffer for our own output format
+> so so new function, snprint_stack_trace(), is needed.
 > 
-> This feature is intended to overcome above mentioned problems. This feature
-> allocates memory for extended data per page in certain place rather than
-> the struct page itself. This memory can be accessed by the accessor
-> functions provided by this code. During the boot process, it checks whether
-> allocation of huge chunk of memory is needed or not. If not, it avoids
-> allocating memory at all. With this advantage, we can include this feature
-> into the kernel in default and can avoid rebuild and solve related problems.
-> 
-> Until now, memcg uses this technique. But, now, memcg decides to embed
-> their variable to struct page itself and it's code to extend struct page
-> has been removed. I'd like to use this code to develop debug feature,
-> so this patch resurrect it.
-> 
-> To help these things to work well, this patch introduces two callbacks
-> for clients. One is the need callback which is mandatory if user wants
-> to avoid useless memory allocation at boot-time. The other is optional,
-> init callback, which is used to do proper initialization after memory
-> is allocated. Detailed explanation about purpose of these functions is
-> in code comment. Please refer it.
-> 
-> Others are completely same with previous extension code in memcg.
->
 > ...
 >
-> +static bool __init invoke_need_callbacks(void)
+> --- a/include/linux/stacktrace.h
+> +++ b/include/linux/stacktrace.h
+> @@ -20,6 +20,8 @@ extern void save_stack_trace_tsk(struct task_struct *tsk,
+>  				struct stack_trace *trace);
+>  
+>  extern void print_stack_trace(struct stack_trace *trace, int spaces);
+> +extern int  snprint_stack_trace(char *buf, int buf_len,
+> +				struct stack_trace *trace, int spaces);
+>  
+>  #ifdef CONFIG_USER_STACKTRACE_SUPPORT
+>  extern void save_stack_trace_user(struct stack_trace *trace);
+> @@ -32,6 +34,7 @@ extern void save_stack_trace_user(struct stack_trace *trace);
+>  # define save_stack_trace_tsk(tsk, trace)		do { } while (0)
+>  # define save_stack_trace_user(trace)			do { } while (0)
+>  # define print_stack_trace(trace, spaces)		do { } while (0)
+> +# define snprint_stack_trace(buf, len, trace, spaces)	do { } while (0)
+
+Doing this with macros instead of C functions is pretty crappy - it
+defeats typechecking and can lead to unused-var warnings when the
+feature is disabled.
+
+Fixing this might not be practical if struct stack_trace isn't
+available, dunno.
+
+> --- a/kernel/stacktrace.c
+> +++ b/kernel/stacktrace.c
+> @@ -25,6 +25,30 @@ void print_stack_trace(struct stack_trace *trace, int spaces)
+>  }
+>  EXPORT_SYMBOL_GPL(print_stack_trace);
+>  
+> +int snprint_stack_trace(char *buf, int buf_len, struct stack_trace *trace,
+> +			int spaces)
 > +{
-> +	int i;
-> +	int entries = ARRAY_SIZE(page_ext_ops);
+> +	int i, printed;
+> +	unsigned long ip;
+> +	int ret = 0;
 > +
-> +	for (i = 0; i < entries; i++) {
-> +		if (page_ext_ops[i]->need && page_ext_ops[i]->need())
-> +			return true;
+> +	if (WARN_ON(!trace->entries))
+> +		return 0;
+> +
+> +	for (i = 0; i < trace->nr_entries && buf_len; i++) {
+> +		ip = trace->entries[i];
+> +		printed = snprintf(buf, buf_len, "%*c[<%p>] %pS\n",
+> +				1 + spaces, ' ', (void *) ip, (void *) ip);
+> +
+> +		buf_len -= printed;
+> +		ret += printed;
+> +		buf += printed;
 > +	}
 > +
-> +	return false;
+> +	return ret;
 > +}
-> +
-> +static void __init invoke_init_callbacks(void)
-> +{
-> +	int i;
-> +	int entries = sizeof(page_ext_ops) / sizeof(page_ext_ops[0]);
 
-ARRAY_SIZE()
+I'm not liking this much.  The behaviour when the output buffer is too
+small is scary.  snprintf() will return "the number of characters which
+would be generated for the given input", so local variable `buf_len'
+will go negative and we pass a negative int into snprintf()'s `size_t
+size'.  snprintf() says "goody, lots and lots of buffer!" and your
+machine crashes.
 
-> +	for (i = 0; i < entries; i++) {
-> +		if (page_ext_ops[i]->init)
-> +			page_ext_ops[i]->init();
-> +	}
-> +}
-> +
->
-> ...
->
-> +void __init page_ext_init_flatmem(void)
-> +{
-> +
-> +	int nid, fail;
-> +
-> +	if (!invoke_need_callbacks)
-> +		return;
-> +
-> +	for_each_online_node(nid)  {
-> +		fail = alloc_node_page_ext(nid);
-> +		if (fail)
-> +			goto fail;
-> +	}
-> +	pr_info("allocated %ld bytes of page_ext\n", total_usage);
-> +	invoke_init_callbacks();
-> +	return;
-> +
-> +fail:
-> +	pr_crit("allocation of page_ext failed.\n");
-> +	panic("Out of memory");
-
-Did we really need to panic the machine?  The situation should be
-pretty easily recoverable by disabling the clients.  I guess it's OK as
-long as page_ext is being used for kernel developer debug things.
-
-> +}
-> +
-
-We'll need this to fix the build.  I'll queue it up.
-
-
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: include/linux/kmemleak.h: needs slab.h
-
-include/linux/kmemleak.h: In function 'kmemleak_alloc_recursive':
-include/linux/kmemleak.h:43: error: 'SLAB_NOLEAKTRACE' undeclared (first use in this function)
-
---- a/include/linux/kmemleak.h~include-linux-kmemleakh-needs-slabh
-+++ a/include/linux/kmemleak.h
-@@ -21,6 +21,8 @@
- #ifndef __KMEMLEAK_H
- #define __KMEMLEAK_H
- 
-+#include <linux/slab.h>
-+
- #ifdef CONFIG_DEBUG_KMEMLEAK
- 
- extern void kmemleak_init(void) __ref;
-
-
-
-And here are a couple of tweaks for this patch:
-
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm-page_ext-resurrect-struct-page-extending-code-for-debugging-fix
-
-use ARRAY_SIZE, clean up 80-col tricks
-
---- a/mm/page_ext.c~mm-page_ext-resurrect-struct-page-extending-code-for-debugging-fix
-+++ a/mm/page_ext.c
-@@ -71,7 +71,7 @@ static bool __init invoke_need_callbacks
- static void __init invoke_init_callbacks(void)
- {
- 	int i;
--	int entries = sizeof(page_ext_ops) / sizeof(page_ext_ops[0]);
-+	int entries = ARRAY_SIZE(page_ext_ops);
- 
- 	for (i = 0; i < entries; i++) {
- 		if (page_ext_ops[i]->init)
-@@ -81,7 +81,6 @@ static void __init invoke_init_callbacks
- 
- #if !defined(CONFIG_SPARSEMEM)
- 
--
- void __meminit pgdat_page_ext_init(struct pglist_data *pgdat)
- {
- 	pgdat->node_page_ext = NULL;
-@@ -232,8 +231,9 @@ static void free_page_ext(void *addr)
- 		vfree(addr);
- 	} else {
- 		struct page *page = virt_to_page(addr);
--		size_t table_size =
--			sizeof(struct page_ext) * PAGES_PER_SECTION;
-+		size_t table_size;
-+
-+		table_size = sizeof(struct page_ext) * PAGES_PER_SECTION;
- 
- 		BUG_ON(PageReserved(page));
- 		free_pages_exact(addr, table_size);
+buf_len should be a size_t and snprint_stack_trace() will need to be
+changed to handle this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
