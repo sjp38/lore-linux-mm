@@ -1,84 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id EBD906B0070
-	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 05:32:46 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id kq14so4622957pab.20
-        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 02:32:45 -0800 (PST)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id ac9si7211980pbd.232.2014.11.21.02.32.44
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 797036B006E
+	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 06:07:19 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id kq14so4670409pab.12
+        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 03:07:19 -0800 (PST)
+Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
+        by mx.google.com with ESMTPS id dn2si7490313pbc.160.2014.11.21.03.07.16
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 21 Nov 2014 02:32:45 -0800 (PST)
-Received: by mail-pa0-f51.google.com with SMTP id ey11so4646170pad.10
-        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 02:32:44 -0800 (PST)
-Date: Fri, 21 Nov 2014 19:32:32 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC PATCH] mm/zsmalloc: remove unnecessary check
-Message-ID: <20141121103232.GA31540@blaptop>
-References: <1416489716-9967-1-git-send-email-opensource.ganesh@gmail.com>
- <20141121035442.GB10123@bbox>
- <CADAEsF975+a6Y5dcEu1B2OscQ5JaxD+ZQ1jnFOJ115BXgMqULA@mail.gmail.com>
- <20141121064849.GA17181@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141121064849.GA17181@gmail.com>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Fri, 21 Nov 2014 03:07:17 -0800 (PST)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout3.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NFD0017UZ0K4PA0@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 21 Nov 2014 11:09:56 +0000 (GMT)
+Message-id: <546F1CD1.3060600@samsung.com>
+Date: Fri, 21 Nov 2014 14:06:57 +0300
+From: Andrey Ryabinin <a.ryabinin@samsung.com>
+MIME-version: 1.0
+Subject: Re: [PATCH v6 00/11] Kernel address sanitizer - runtime memory
+ debugger.
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
+ <1415199241-5121-1-git-send-email-a.ryabinin@samsung.com>
+ <5461B906.1040803@samsung.com>
+ <20141118125843.434c216540def495d50f3a45@linux-foundation.org>
+ <CAPAsAGwZtfzx5oM73bOi_kw5BqXrwGd_xmt=m6xxU6uECA+H9Q@mail.gmail.com>
+ <20141120090356.GA6690@gmail.com>
+ <CACT4Y+aOKzq0AzvSJrRC-iU9LmmtLzxY=pxzu8f4oT-OZk=oLA@mail.gmail.com>
+ <20141120150033.4cd1ca25be4a9b00a7074149@linux-foundation.org>
+In-reply-to: <20141120150033.4cd1ca25be4a9b00a7074149@linux-foundation.org>
+Content-type: text/plain; charset=windows-1252
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Cc: Nitin Gupta <ngupta@vflare.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>
+Cc: Ingo Molnar <mingo@kernel.org>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Michal Marek <mmarek@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Randy Dunlap <rdunlap@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Jones <davej@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Joe Perches <joe@perches.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Fri, Nov 21, 2014 at 06:48:49AM +0000, Minchan Kim wrote:
-> On Fri, Nov 21, 2014 at 01:33:26PM +0800, Ganesh Mahendran wrote:
-> > Hello
-> > 
-> > 2014-11-21 11:54 GMT+08:00 Minchan Kim <minchan@kernel.org>:
-> > > On Thu, Nov 20, 2014 at 09:21:56PM +0800, Mahendran Ganesh wrote:
-> > >> ZS_SIZE_CLASSES is calc by:
-> > >>   ((ZS_MAX_ALLOC_SIZE - ZS_MIN_ALLOC_SIZE) / ZS_SIZE_CLASS_DELTA + 1)
-> > >>
-> > >> So when i is in [0, ZS_SIZE_CLASSES - 1), the size:
-> > >>   size = ZS_MIN_ALLOC_SIZE + i * ZS_SIZE_CLASS_DELTA
-> > >> will not be greater than ZS_MAX_ALLOC_SIZE
-> > >>
-> > >> This patch removes the unnecessary check.
-> > >
-> > > It depends on ZS_MIN_ALLOC_SIZE.
-> > > For example, we would change min to 8 but MAX is still 4096.
-> > > ZS_SIZE_CLASSES is (4096 - 8) / 16 + 1 = 256 so 8 + 255 * 16 = 4088,
-> > > which exceeds the max.
-> > Here, 4088 is less than MAX(4096).
-> > 
-> > ZS_SIZE_CLASSES = (MAX - MIN) / Delta + 1
-> > So, I think the value of
-> >     MIN + (ZS_SIZE_CLASSES - 1) * Delta =
-> >     MIN + ((MAX - MIN) / Delta) * Delta =
-> >     MAX
-> > will not exceed the MAX
+On 11/21/2014 02:00 AM, Andrew Morton wrote:
+> On Thu, 20 Nov 2014 20:32:30 +0400 Dmitry Vyukov <dvyukov@google.com> wrote:
 > 
-> You're right. It was complext math for me.
-> I should go back to elementary school.
+>> Let me provide some background first.
 > 
-> Thanks!
+> Well that was useful.  Andrey, please slurp Dmitry's info into the 0/n
+> changelog?
 > 
-> Acked-by: Minchan Kim <minchan@kernel.org>
 
-I catch a nasty cold but above my poor math makes me think more.
-ZS_SIZE_CLASSES is broken. In above my example, current code cannot
-allocate 4096 size class so we should correct ZS_SIZE_CLASSES
-at first.
+Sure.
 
-zs_size_classes = zs_max - zs_min / delta + 1;
-if ((zs_max - zs_min) % delta)
-	zs_size_classes += 1;
+> Also, some quantitative info about the kmemleak overhead would be
+> useful.
+> 
 
-Then, we need to code piece you removed.
-As well, we need to fix below.
+Confused. Perhaps you mean kmemcheck?
 
-- area->vm_buf = (char *)__get_free_page(GFP_KERNEL);
-+ area->vm_buf = kmalloc(ZS_MAX_ALLOC_SIZE);
+I did some brief performance testing:
 
-Hope I am sane in this time :(
+$ netperf -l 30
+
+		MIGRATED TCP STREAM TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to localhost (127.0.0.1) port 0 AF_INET
+		Recv   Send    Send
+		Socket Socket  Message  Elapsed
+		Size   Size    Size     Time     Throughput
+		bytes  bytes   bytes    secs.    10^6bits/sec
+
+no debug:	87380  16384  16384    30.00    41624.72
+
+kasan inline:	87380  16384  16384    30.00    12870.54
+
+kasan outline:	87380  16384  16384    30.00    10586.39
+
+kmemcheck: 	87380  16384  16384    30.03      20.23
+
+
+So on this workload kasan x500-x600 times faster then kmemcheck.
+
+
+> In this discussion you've mentioned a few planned kasan enhancements. 
+> Please also list those and attempt to describe the amount of effort and
+> complexity levels.  Partly so other can understand the plans and partly
+> so we can see what we're semi-committing ourselves to if we merge this
+> stuff.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
