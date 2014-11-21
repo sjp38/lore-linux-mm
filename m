@@ -1,90 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
-	by kanga.kvack.org (Postfix) with ESMTP id A76536B006E
-	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 00:33:27 -0500 (EST)
-Received: by mail-ob0-f182.google.com with SMTP id m8so3474723obr.13
-        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 21:33:27 -0800 (PST)
-Received: from mail-ob0-x22a.google.com (mail-ob0-x22a.google.com. [2607:f8b0:4003:c01::22a])
-        by mx.google.com with ESMTPS id j8si2892275obk.3.2014.11.20.21.33.26
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id EF8226B006E
+	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 01:14:07 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id rd3so4173011pab.7
+        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 22:14:07 -0800 (PST)
+Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com. [202.81.31.140])
+        by mx.google.com with ESMTPS id cb9si6468034pdb.114.2014.11.20.22.13.50
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 20 Nov 2014 21:33:26 -0800 (PST)
-Received: by mail-ob0-f170.google.com with SMTP id wp18so3504889obc.1
-        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 21:33:26 -0800 (PST)
+        Thu, 20 Nov 2014 22:14:06 -0800 (PST)
+Received: from /spool/local
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Fri, 21 Nov 2014 16:13:18 +1000
+Received: from d23relay09.au.ibm.com (d23relay09.au.ibm.com [9.185.63.181])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 1CA922BB006A
+	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 17:13:11 +1100 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id sAL6F4h722020104
+	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 17:15:04 +1100
+Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id sAL6DAWE016127
+	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 17:13:10 +1100
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 06/19] mm: store mapcount for compound page separate
+In-Reply-To: <1415198994-15252-7-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1415198994-15252-1-git-send-email-kirill.shutemov@linux.intel.com> <1415198994-15252-7-git-send-email-kirill.shutemov@linux.intel.com>
+Date: Fri, 21 Nov 2014 11:42:51 +0530
+Message-ID: <87h9xt6pzw.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20141121035442.GB10123@bbox>
-References: <1416489716-9967-1-git-send-email-opensource.ganesh@gmail.com>
-	<20141121035442.GB10123@bbox>
-Date: Fri, 21 Nov 2014 13:33:26 +0800
-Message-ID: <CADAEsF975+a6Y5dcEu1B2OscQ5JaxD+ZQ1jnFOJ115BXgMqULA@mail.gmail.com>
-Subject: Re: [RFC PATCH] mm/zsmalloc: remove unnecessary check
-From: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Nitin Gupta <ngupta@vflare.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hello
+"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
 
-2014-11-21 11:54 GMT+08:00 Minchan Kim <minchan@kernel.org>:
-> On Thu, Nov 20, 2014 at 09:21:56PM +0800, Mahendran Ganesh wrote:
->> ZS_SIZE_CLASSES is calc by:
->>   ((ZS_MAX_ALLOC_SIZE - ZS_MIN_ALLOC_SIZE) / ZS_SIZE_CLASS_DELTA + 1)
->>
->> So when i is in [0, ZS_SIZE_CLASSES - 1), the size:
->>   size = ZS_MIN_ALLOC_SIZE + i * ZS_SIZE_CLASS_DELTA
->> will not be greater than ZS_MAX_ALLOC_SIZE
->>
->> This patch removes the unnecessary check.
+> We're going to allow mapping of individual 4k pages of THP compound and
+> we need a cheap way to find out how many time the compound page is
+> mapped with PMD -- compound_mapcount() does this.
 >
-> It depends on ZS_MIN_ALLOC_SIZE.
-> For example, we would change min to 8 but MAX is still 4096.
-> ZS_SIZE_CLASSES is (4096 - 8) / 16 + 1 = 256 so 8 + 255 * 16 = 4088,
-> which exceeds the max.
-Here, 4088 is less than MAX(4096).
-
-ZS_SIZE_CLASSES = (MAX - MIN) / Delta + 1
-So, I think the value of
-    MIN + (ZS_SIZE_CLASSES - 1) * Delta =
-    MIN + ((MAX - MIN) / Delta) * Delta =
-    MAX
-will not exceed the MAX
-
-Thanks.
-
+> page_mapcount() counts both: PTE and PMD mappings of the page.
 >
->>
->> Signed-off-by: Mahendran Ganesh <opensource.ganesh@gmail.com>
->> ---
->>  mm/zsmalloc.c |    2 --
->>  1 file changed, 2 deletions(-)
->>
->> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
->> index b3b57ef..f2279e2 100644
->> --- a/mm/zsmalloc.c
->> +++ b/mm/zsmalloc.c
->> @@ -973,8 +973,6 @@ struct zs_pool *zs_create_pool(gfp_t flags)
->>               struct size_class *prev_class;
->>
->>               size = ZS_MIN_ALLOC_SIZE + i * ZS_SIZE_CLASS_DELTA;
->> -             if (size > ZS_MAX_ALLOC_SIZE)
->> -                     size = ZS_MAX_ALLOC_SIZE;
->>               pages_per_zspage = get_pages_per_zspage(size);
->>
->>               /*
->> --
->> 1.7.9.5
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  include/linux/mm.h   | 17 +++++++++++++++--
+>  include/linux/rmap.h |  4 ++--
+>  mm/huge_memory.c     | 23 ++++++++++++++---------
+>  mm/hugetlb.c         |  4 ++--
+>  mm/memory.c          |  2 +-
+>  mm/migrate.c         |  2 +-
+>  mm/page_alloc.c      | 13 ++++++++++---
+>  mm/rmap.c            | 50 +++++++++++++++++++++++++++++++++++++++++++-------
+>  8 files changed, 88 insertions(+), 27 deletions(-)
 >
-> --
-> Kind regards,
-> Minchan Kim
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 1825c468f158..aef03acff228 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -435,6 +435,19 @@ static inline struct page *compound_head(struct page *page)
+>  	return page;
+>  }
+>  
+> +static inline atomic_t *compound_mapcount_ptr(struct page *page)
+> +{
+> +	return (atomic_t *)&page[1].mapping;
+> +}
+> +
+> +static inline int compound_mapcount(struct page *page)
+> +{
+> +	if (!PageCompound(page))
+> +		return 0;
+> +	page = compound_head(page);
+> +	return atomic_read(compound_mapcount_ptr(page)) + 1;
+> +}
+
+
+How about 
+
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 6e0b286649f1..59c9cf3d8510 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -46,6 +46,11 @@ struct page {
+ 	unsigned long flags;		/* Atomic flags, some possibly
+ 					 * updated asynchronously */
+ 	union {
++		/*
++		  * For THP we use this to track the compound
++		  * page mapcount.
++		  */
++		atomic_t _compound_mapcount;
+ 		struct address_space *mapping;	/* If low bit clear, points to
+ 						 * inode address_space, or NULL.
+ 						 * If page mapped as anonymous
+
+and 
+
+static inline atomic_t *compound_mapcount_ptr(struct page *page)
+{
+        return (atomic_t *)&page[1]._compound_mapcount;
+}
+
+
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
