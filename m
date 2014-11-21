@@ -1,73 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id CED3A6B006E
-	for <linux-mm@kvack.org>; Thu, 20 Nov 2014 22:54:38 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id kx10so3969541pab.30
-        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 19:54:38 -0800 (PST)
-Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id ic2si2869064pad.205.2014.11.20.19.54.36
-        for <linux-mm@kvack.org>;
-        Thu, 20 Nov 2014 19:54:37 -0800 (PST)
-Date: Fri, 21 Nov 2014 12:54:42 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC PATCH] mm/zsmalloc: remove unnecessary check
-Message-ID: <20141121035442.GB10123@bbox>
-References: <1416489716-9967-1-git-send-email-opensource.ganesh@gmail.com>
+Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 722DD6B006E
+	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 00:22:23 -0500 (EST)
+Received: by mail-ob0-f172.google.com with SMTP id wn1so3491996obc.31
+        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 21:22:23 -0800 (PST)
+Received: from mail-oi0-x230.google.com (mail-oi0-x230.google.com. [2607:f8b0:4003:c06::230])
+        by mx.google.com with ESMTPS id uk5si2877055oeb.0.2014.11.20.21.22.22
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 20 Nov 2014 21:22:22 -0800 (PST)
+Received: by mail-oi0-f48.google.com with SMTP id u20so3123069oif.21
+        for <linux-mm@kvack.org>; Thu, 20 Nov 2014 21:22:22 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <1416489716-9967-1-git-send-email-opensource.ganesh@gmail.com>
+In-Reply-To: <CALZtONAdpiP+DZfJBYG9EYN+8pTToMnAaUGemZ-r7x8YcQXbCQ@mail.gmail.com>
+References: <1416488913-9691-1-git-send-email-opensource.ganesh@gmail.com>
+	<CALZtONAdpiP+DZfJBYG9EYN+8pTToMnAaUGemZ-r7x8YcQXbCQ@mail.gmail.com>
+Date: Fri, 21 Nov 2014 13:22:21 +0800
+Message-ID: <CADAEsF8+BbQO0-cbL0KRxbaH_nisG=_Gukr=_=nkYaCwR+sqQw@mail.gmail.com>
+Subject: Re: [PATCH] mm/zsmalloc: avoid duplicate assignment of prev_class
+From: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mahendran Ganesh <opensource.ganesh@gmail.com>
-Cc: ngupta@vflare.org, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Thu, Nov 20, 2014 at 09:21:56PM +0800, Mahendran Ganesh wrote:
-> ZS_SIZE_CLASSES is calc by:
->   ((ZS_MAX_ALLOC_SIZE - ZS_MIN_ALLOC_SIZE) / ZS_SIZE_CLASS_DELTA + 1)
-> 
-> So when i is in [0, ZS_SIZE_CLASSES - 1), the size:
->   size = ZS_MIN_ALLOC_SIZE + i * ZS_SIZE_CLASS_DELTA
-> will not be greater than ZS_MAX_ALLOC_SIZE
-> 
-> This patch removes the unnecessary check.
+Hello
 
-It depends on ZS_MIN_ALLOC_SIZE.
-For example, we would change min to 8 but MAX is still 4096.
-ZS_SIZE_CLASSES is (4096 - 8) / 16 + 1 = 256 so 8 + 255 * 16 = 4088,
-which exceeds the max.
+2014-11-21 11:22 GMT+08:00 Dan Streetman <ddstreet@ieee.org>:
+> On Thu, Nov 20, 2014 at 8:08 AM, Mahendran Ganesh
+> <opensource.ganesh@gmail.com> wrote:
+>> In zs_create_pool(), prev_class is assigned (ZS_SIZE_CLASSES - 1)
+>> times. And the prev_class only references to the previous alloc
+>> size_class. So we do not need unnecessary assignement.
+>>
+>> This patch modifies *prev_class* to *prev_alloc_class*. And the
+>> *prev_alloc_class* will only be assigned when a new size_class
+>> structure is allocated.
+>>
+>> Signed-off-by: Mahendran Ganesh <opensource.ganesh@gmail.com>
+>> ---
+>>  mm/zsmalloc.c |    9 +++++----
+>>  1 file changed, 5 insertions(+), 4 deletions(-)
+>>
+>> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+>> index b3b57ef..ac2b396 100644
+>> --- a/mm/zsmalloc.c
+>> +++ b/mm/zsmalloc.c
+>> @@ -970,7 +970,7 @@ struct zs_pool *zs_create_pool(gfp_t flags)
+>>                 int size;
+>>                 int pages_per_zspage;
+>>                 struct size_class *class;
+>> -               struct size_class *prev_class;
+>> +               struct size_class *uninitialized_var(prev_alloc_class);
+>
+> +               struct size_class *prev_class = NULL;
+>
+> Use the fact it's unset below, so set it to NULL here
 
-> 
-> Signed-off-by: Mahendran Ganesh <opensource.ganesh@gmail.com>
-> ---
->  mm/zsmalloc.c |    2 --
->  1 file changed, 2 deletions(-)
-> 
-> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index b3b57ef..f2279e2 100644
-> --- a/mm/zsmalloc.c
-> +++ b/mm/zsmalloc.c
-> @@ -973,8 +973,6 @@ struct zs_pool *zs_create_pool(gfp_t flags)
->  		struct size_class *prev_class;
->  
->  		size = ZS_MIN_ALLOC_SIZE + i * ZS_SIZE_CLASS_DELTA;
-> -		if (size > ZS_MAX_ALLOC_SIZE)
-> -			size = ZS_MAX_ALLOC_SIZE;
->  		pages_per_zspage = get_pages_per_zspage(size);
->  
->  		/*
-> -- 
-> 1.7.9.5
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Yes, You are right. I will change it in next resend.
+Thanks for your review.
 
--- 
-Kind regards,
-Minchan Kim
+>
+>>
+>>                 size = ZS_MIN_ALLOC_SIZE + i * ZS_SIZE_CLASS_DELTA;
+>>                 if (size > ZS_MAX_ALLOC_SIZE)
+>> @@ -987,9 +987,8 @@ struct zs_pool *zs_create_pool(gfp_t flags)
+>>                  * previous size_class if possible.
+>>                  */
+>>                 if (i < ZS_SIZE_CLASSES - 1) {
+>> -                       prev_class = pool->size_class[i + 1];
+>> -                       if (can_merge(prev_class, size, pages_per_zspage)) {
+>> -                               pool->size_class[i] = prev_class;
+>> +                       if (can_merge(prev_alloc_class, size, pages_per_zspage)) {
+>> +                               pool->size_class[i] = prev_alloc_class;
+>
+> simplify more, we can check if this is the first iteration by looking
+> at prev_class, e.g.:
+>
+>                 if (prev_class) {
+>                        if (can_merge(prev_class, size, pages_per_zspage)) {
+>                                pool->size_class[i] = prev_class;
+>
+>
+>>                                 continue;
+>>                         }
+>>                 }
+>> @@ -1003,6 +1002,8 @@ struct zs_pool *zs_create_pool(gfp_t flags)
+>>                 class->pages_per_zspage = pages_per_zspage;
+>>                 spin_lock_init(&class->lock);
+>>                 pool->size_class[i] = class;
+>> +
+>> +               prev_alloc_class = class;
+>>         }
+>>
+>>         pool->flags = flags;
+>> --
+>> 1.7.9.5
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
