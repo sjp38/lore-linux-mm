@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f46.google.com (mail-yh0-f46.google.com [209.85.213.46])
-	by kanga.kvack.org (Postfix) with ESMTP id D8B3E6B007D
-	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 13:25:18 -0500 (EST)
-Received: by mail-yh0-f46.google.com with SMTP id t59so2607866yho.5
-        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 10:25:18 -0800 (PST)
-Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
-        by mx.google.com with ESMTPS id f34si7810522qgd.35.2014.11.21.10.25.15
+Received: from mail-yk0-f177.google.com (mail-yk0-f177.google.com [209.85.160.177])
+	by kanga.kvack.org (Postfix) with ESMTP id B4FFA6B0080
+	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 13:25:19 -0500 (EST)
+Received: by mail-yk0-f177.google.com with SMTP id 9so2553597ykp.36
+        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 10:25:19 -0800 (PST)
+Received: from g4t3427.houston.hp.com (g4t3427.houston.hp.com. [15.201.208.55])
+        by mx.google.com with ESMTPS id la5si7796425qcb.35.2014.11.21.10.25.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Nov 2014 10:25:16 -0800 (PST)
+        Fri, 21 Nov 2014 10:25:17 -0800 (PST)
 From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH v6 6/7] x86, mm, asm: Add WT support to set_page_memtype()
-Date: Fri, 21 Nov 2014 11:10:39 -0700
-Message-Id: <1416593440-23083-7-git-send-email-toshi.kani@hp.com>
+Subject: [PATCH v6 7/7] x86, mm: Add set_memory_wt() for WT
+Date: Fri, 21 Nov 2014 11:10:40 -0700
+Message-Id: <1416593440-23083-8-git-send-email-toshi.kani@hp.com>
 In-Reply-To: <1416593440-23083-1-git-send-email-toshi.kani@hp.com>
 References: <1416593440-23083-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,148 +20,205 @@ List-ID: <linux-mm.kvack.org>
 To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Toshi Kani <toshi.kani@hp.com>
 
-As set_memory_wb() calls set_page_memtype() with -1, _PGMT_DEFAULT is
-solely used for tracking the WB type.  _PGMT_WB is defined but unused.
-Hence, this patch renames _PGMT_DEFAULT to _PGMT_WB to clarify its
-usage, and releases the slot used by _PGMT_WB before.  As a result,
-set_memory_wb() is changed to call set_page_memtype() with _PGMT_WB,
-and get_page_memtype() returns _PAGE_CACHE_MODE_WB for _PGMT_WB.
-
-This patch then defines _PGMT_WT to the released slot.  This enables
-set_page_memtype() to track the WT type.
+This patch adds set_memory_wt(), set_memory_array_wt() and
+set_pages_array_wt() for setting specified range(s) of the
+regular memory to WT.
 
 Signed-off-by: Toshi Kani <toshi.kani@hp.com>
 ---
- arch/x86/mm/pat.c |   48 +++++++++++++++++++++---------------------------
- 1 file changed, 21 insertions(+), 27 deletions(-)
+ Documentation/x86/pat.txt         |    9 ++++--
+ arch/x86/include/asm/cacheflush.h |    6 +++-
+ arch/x86/mm/pageattr.c            |   58 +++++++++++++++++++++++++++++++++----
+ 3 files changed, 63 insertions(+), 10 deletions(-)
 
-diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
-index 1271533..1c7a5f5 100644
---- a/arch/x86/mm/pat.c
-+++ b/arch/x86/mm/pat.c
-@@ -69,18 +69,18 @@ static u64 __read_mostly boot_pat_state;
+diff --git a/Documentation/x86/pat.txt b/Documentation/x86/pat.txt
+index be7b8c2..bf4339c 100644
+--- a/Documentation/x86/pat.txt
++++ b/Documentation/x86/pat.txt
+@@ -46,6 +46,9 @@ set_memory_uc          |    UC-   |    --      |       --         |
+ set_memory_wc          |    WC    |    --      |       --         |
+  set_memory_wb         |          |            |                  |
+                        |          |            |                  |
++set_memory_wt          |    WT    |    --      |       --         |
++ set_memory_wb         |          |            |                  |
++                       |          |            |                  |
+ pci sysfs resource     |    --    |    --      |       UC-        |
+                        |          |            |                  |
+ pci sysfs resource_wc  |    --    |    --      |       WC         |
+@@ -117,8 +120,8 @@ can be more restrictive, in case of any existing aliasing for that address.
+ For example: If there is an existing uncached mapping, a new ioremap_wc can
+ return uncached mapping in place of write-combine requested.
  
- #ifdef CONFIG_X86_PAT
+-set_memory_[uc|wc] and set_memory_wb should be used in pairs, where driver will
+-first make a region uc or wc and switch it back to wb after use.
++set_memory_[uc|wc|wt] and set_memory_wb should be used in pairs, where driver
++will first make a region uc, wc or wt and switch it back to wb after use.
+ 
+ Over time writes to /proc/mtrr will be deprecated in favor of using PAT based
+ interfaces. Users writing to /proc/mtrr are suggested to use above interfaces.
+@@ -126,7 +129,7 @@ interfaces. Users writing to /proc/mtrr are suggested to use above interfaces.
+ Drivers should use ioremap_[uc|wc] to access PCI BARs with [uc|wc] access
+ types.
+ 
+-Drivers should use set_memory_[uc|wc] to set access type for RAM ranges.
++Drivers should use set_memory_[uc|wc|wt] to set access type for RAM ranges.
+ 
+ 
+ PAT debugging
+diff --git a/arch/x86/include/asm/cacheflush.h b/arch/x86/include/asm/cacheflush.h
+index 47c8e32..b6f7457 100644
+--- a/arch/x86/include/asm/cacheflush.h
++++ b/arch/x86/include/asm/cacheflush.h
+@@ -8,7 +8,7 @@
  /*
-- * X86 PAT uses page flags WC and Uncached together to keep track of
-- * memory type of pages that have backing page struct. X86 PAT supports 3
-- * different memory types, _PAGE_CACHE_MODE_WB, _PAGE_CACHE_MODE_WC and
-- * _PAGE_CACHE_MODE_UC_MINUS and fourth state where page's memory type has not
-- * been changed from its default (value of -1 used to denote this).
-+ * X86 PAT uses page flags arch_1 and uncached together to keep track of
-+ * memory type of pages that have backing page struct. X86 PAT supports 4
-+ * different memory types, _PAGE_CACHE_MODE_WT, _PAGE_CACHE_MODE_WC,
-+ * _PAGE_CACHE_MODE_UC_MINUS and _PAGE_CACHE_MODE_WB where page's memory
-+ * type has not been changed from its default.
-  * Note we do not support _PAGE_CACHE_MODE_UC here.
-  */
+  * The set_memory_* API can be used to change various attributes of a virtual
+  * address range. The attributes include:
+- * Cachability   : UnCached, WriteCombining, WriteBack
++ * Cachability   : UnCached, WriteCombining, WriteThrough, WriteBack
+  * Executability : eXeutable, NoteXecutable
+  * Read/Write    : ReadOnly, ReadWrite
+  * Presence      : NotPresent
+@@ -35,9 +35,11 @@
  
--#define _PGMT_DEFAULT		0
-+#define _PGMT_WB		0	/* default */
- #define _PGMT_WC		(1UL << PG_arch_1)
- #define _PGMT_UC_MINUS		(1UL << PG_uncached)
--#define _PGMT_WB		(1UL << PG_uncached | 1UL << PG_arch_1)
-+#define _PGMT_WT		(1UL << PG_uncached | 1UL << PG_arch_1)
- #define _PGMT_MASK		(1UL << PG_uncached | 1UL << PG_arch_1)
- #define _PGMT_CLEAR_MASK	(~_PGMT_MASK)
+ int _set_memory_uc(unsigned long addr, int numpages);
+ int _set_memory_wc(unsigned long addr, int numpages);
++int _set_memory_wt(unsigned long addr, int numpages);
+ int _set_memory_wb(unsigned long addr, int numpages);
+ int set_memory_uc(unsigned long addr, int numpages);
+ int set_memory_wc(unsigned long addr, int numpages);
++int set_memory_wt(unsigned long addr, int numpages);
+ int set_memory_wb(unsigned long addr, int numpages);
+ int set_memory_x(unsigned long addr, int numpages);
+ int set_memory_nx(unsigned long addr, int numpages);
+@@ -48,10 +50,12 @@ int set_memory_4k(unsigned long addr, int numpages);
  
-@@ -88,14 +88,14 @@ static inline enum page_cache_mode get_page_memtype(struct page *pg)
- {
- 	unsigned long pg_flags = pg->flags & _PGMT_MASK;
+ int set_memory_array_uc(unsigned long *addr, int addrinarray);
+ int set_memory_array_wc(unsigned long *addr, int addrinarray);
++int set_memory_array_wt(unsigned long *addr, int addrinarray);
+ int set_memory_array_wb(unsigned long *addr, int addrinarray);
  
--	if (pg_flags == _PGMT_DEFAULT)
--		return -1;
-+	if (pg_flags == _PGMT_WB)
-+		return _PAGE_CACHE_MODE_WB;
- 	else if (pg_flags == _PGMT_WC)
- 		return _PAGE_CACHE_MODE_WC;
- 	else if (pg_flags == _PGMT_UC_MINUS)
- 		return _PAGE_CACHE_MODE_UC_MINUS;
- 	else
--		return _PAGE_CACHE_MODE_WB;
-+		return _PAGE_CACHE_MODE_WT;
- }
- 
- static inline void set_page_memtype(struct page *pg,
-@@ -112,11 +112,12 @@ static inline void set_page_memtype(struct page *pg,
- 	case _PAGE_CACHE_MODE_UC_MINUS:
- 		memtype_flags = _PGMT_UC_MINUS;
- 		break;
--	case _PAGE_CACHE_MODE_WB:
--		memtype_flags = _PGMT_WB;
-+	case _PAGE_CACHE_MODE_WT:
-+		memtype_flags = _PGMT_WT;
- 		break;
-+	case _PAGE_CACHE_MODE_WB:
- 	default:
--		memtype_flags = _PGMT_DEFAULT;
-+		memtype_flags = _PGMT_WB;	/* default */
- 		break;
- 	}
- 
-@@ -382,8 +383,9 @@ static int pat_pagerange_is_ram(resource_size_t start, resource_size_t end)
+ int set_pages_array_uc(struct page **pages, int addrinarray);
+ int set_pages_array_wc(struct page **pages, int addrinarray);
++int set_pages_array_wt(struct page **pages, int addrinarray);
+ int set_pages_array_wb(struct page **pages, int addrinarray);
  
  /*
-  * For RAM pages, we use page flags to mark the pages with appropriate type.
-- * The page flags are limited to three types, WB, WC and UC-.
-- * WT and WP requests fail with -EINVAL, and UC gets redirected to UC-.
-+ * The page flags are limited to four types, WB (default), WC, WT and UC-.
-+ * WP request fails with -EINVAL, and UC gets redirected to UC-.
-+ * A new memtype can only be set to the default memtype WB.
-  * Here we do two pass:
-  * - Find the memtype of all the pages in the range, look for any conflicts
-  * - In case of no conflicts, set the new memtype for pages in the range
-@@ -395,8 +397,7 @@ static int reserve_ram_pages_type(u64 start, u64 end,
- 	struct page *page;
- 	u64 pfn;
- 
--	if ((req_type == _PAGE_CACHE_MODE_WT) ||
--	    (req_type == _PAGE_CACHE_MODE_WP)) {
-+	if (req_type == _PAGE_CACHE_MODE_WP) {
- 		if (new_type)
- 			*new_type = _PAGE_CACHE_MODE_UC_MINUS;
- 		return -EINVAL;
-@@ -413,7 +414,7 @@ static int reserve_ram_pages_type(u64 start, u64 end,
- 
- 		page = pfn_to_page(pfn);
- 		type = get_page_memtype(page);
--		if (type != -1) {
-+		if (type != _PAGE_CACHE_MODE_WB) {
- 			pr_info("reserve_ram_pages_type failed [mem %#010Lx-%#010Lx], track 0x%x, req 0x%x\n",
- 				start, end - 1, type, req_type);
- 			if (new_type)
-@@ -440,7 +441,7 @@ static int free_ram_pages_type(u64 start, u64 end)
- 
- 	for (pfn = (start >> PAGE_SHIFT); pfn < (end >> PAGE_SHIFT); ++pfn) {
- 		page = pfn_to_page(pfn);
--		set_page_memtype(page, -1);
-+		set_page_memtype(page, _PAGE_CACHE_MODE_WB);
- 	}
- 	return 0;
- }
-@@ -580,7 +581,7 @@ int free_memtype(u64 start, u64 end)
-  * Only to be called when PAT is enabled
-  *
-  * Returns _PAGE_CACHE_MODE_WB, _PAGE_CACHE_MODE_WC, _PAGE_CACHE_MODE_UC_MINUS
-- * or _PAGE_CACHE_MODE_UC
-+ * or _PAGE_CACHE_MODE_WT.
-  */
- static enum page_cache_mode lookup_memtype(u64 paddr)
+diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+index 114d0b3..c98dcdb 100644
+--- a/arch/x86/mm/pageattr.c
++++ b/arch/x86/mm/pageattr.c
+@@ -1484,12 +1484,10 @@ EXPORT_SYMBOL(set_memory_uc);
+ static int _set_memory_array(unsigned long *addr, int addrinarray,
+ 		enum page_cache_mode new_type)
  {
-@@ -594,13 +595,6 @@ static enum page_cache_mode lookup_memtype(u64 paddr)
- 		struct page *page;
- 		page = pfn_to_page(paddr >> PAGE_SHIFT);
- 		rettype = get_page_memtype(page);
--		/*
--		 * -1 from get_page_memtype() implies RAM page is in its
--		 * default state and not reserved, and hence of type WB
--		 */
--		if (rettype == -1)
--			rettype = _PAGE_CACHE_MODE_WB;
--
- 		return rettype;
++	enum page_cache_mode set_type;
+ 	int i, j;
+ 	int ret;
+ 
+-	/*
+-	 * for now UC MINUS. see comments in ioremap_nocache()
+-	 */
+ 	for (i = 0; i < addrinarray; i++) {
+ 		ret = reserve_memtype(__pa(addr[i]), __pa(addr[i]) + PAGE_SIZE,
+ 					new_type, NULL);
+@@ -1497,9 +1495,12 @@ static int _set_memory_array(unsigned long *addr, int addrinarray,
+ 			goto out_free;
  	}
  
++	/* If WC, set to UC- first and then WC */
++	set_type = (new_type == _PAGE_CACHE_MODE_WC) ?
++				_PAGE_CACHE_MODE_UC_MINUS : new_type;
++
+ 	ret = change_page_attr_set(addr, addrinarray,
+-				   cachemode2pgprot(_PAGE_CACHE_MODE_UC_MINUS),
+-				   1);
++				   cachemode2pgprot(set_type), 1);
+ 
+ 	if (!ret && new_type == _PAGE_CACHE_MODE_WC)
+ 		ret = change_page_attr_set_clr(addr, addrinarray,
+@@ -1531,6 +1532,12 @@ int set_memory_array_wc(unsigned long *addr, int addrinarray)
+ }
+ EXPORT_SYMBOL(set_memory_array_wc);
+ 
++int set_memory_array_wt(unsigned long *addr, int addrinarray)
++{
++	return _set_memory_array(addr, addrinarray, _PAGE_CACHE_MODE_WT);
++}
++EXPORT_SYMBOL(set_memory_array_wt);
++
+ int _set_memory_wc(unsigned long addr, int numpages)
+ {
+ 	int ret;
+@@ -1571,6 +1578,34 @@ out_err:
+ }
+ EXPORT_SYMBOL(set_memory_wc);
+ 
++int _set_memory_wt(unsigned long addr, int numpages)
++{
++	return change_page_attr_set(&addr, numpages,
++				    cachemode2pgprot(_PAGE_CACHE_MODE_WT), 0);
++}
++
++int set_memory_wt(unsigned long addr, int numpages)
++{
++	int ret;
++
++	ret = reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
++			      _PAGE_CACHE_MODE_WT, NULL);
++	if (ret)
++		goto out_err;
++
++	ret = _set_memory_wt(addr, numpages);
++	if (ret)
++		goto out_free;
++
++	return 0;
++
++out_free:
++	free_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
++out_err:
++	return ret;
++}
++EXPORT_SYMBOL(set_memory_wt);
++
+ int _set_memory_wb(unsigned long addr, int numpages)
+ {
+ 	/* WB cache mode is hard wired to all cache attribute bits being 0 */
+@@ -1663,6 +1698,7 @@ static int _set_pages_array(struct page **pages, int addrinarray,
+ {
+ 	unsigned long start;
+ 	unsigned long end;
++	enum page_cache_mode set_type;
+ 	int i;
+ 	int free_idx;
+ 	int ret;
+@@ -1676,8 +1712,12 @@ static int _set_pages_array(struct page **pages, int addrinarray,
+ 			goto err_out;
+ 	}
+ 
++	/* If WC, set to UC- first and then WC */
++	set_type = (new_type == _PAGE_CACHE_MODE_WC) ?
++				_PAGE_CACHE_MODE_UC_MINUS : new_type;
++
+ 	ret = cpa_set_pages_array(pages, addrinarray,
+-			cachemode2pgprot(_PAGE_CACHE_MODE_UC_MINUS));
++				  cachemode2pgprot(set_type));
+ 	if (!ret && new_type == _PAGE_CACHE_MODE_WC)
+ 		ret = change_page_attr_set_clr(NULL, addrinarray,
+ 					       cachemode2pgprot(
+@@ -1711,6 +1751,12 @@ int set_pages_array_wc(struct page **pages, int addrinarray)
+ }
+ EXPORT_SYMBOL(set_pages_array_wc);
+ 
++int set_pages_array_wt(struct page **pages, int addrinarray)
++{
++	return _set_pages_array(pages, addrinarray, _PAGE_CACHE_MODE_WT);
++}
++EXPORT_SYMBOL(set_pages_array_wt);
++
+ int set_pages_wb(struct page *page, int numpages)
+ {
+ 	unsigned long addr = (unsigned long)page_address(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
