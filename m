@@ -1,69 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 5692B6B006E
-	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 19:36:13 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id kq14so5895490pab.6
-        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 16:36:13 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id gv6si11067001pac.208.2014.11.21.16.36.10
-        for <linux-mm@kvack.org>;
-        Fri, 21 Nov 2014 16:36:12 -0800 (PST)
-Date: Fri, 21 Nov 2014 16:36:04 -0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [mmotm:master 108/319] kernel/events/uprobes.c:319:2: error:
- implicit declaration of function 'mem_cgroup_charge_anon'
-Message-ID: <20141122003604.GA24535@wfg-t540p.sh.intel.com>
-References: <53ab71c4.YGFc6XN+rgscOdCJ%fengguang.wu@intel.com>
- <20140626130223.2db7a085421f594eb1707eb8@linux-foundation.org>
+Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id C81DC6B0069
+	for <linux-mm@kvack.org>; Sat, 22 Nov 2014 02:45:51 -0500 (EST)
+Received: by mail-wg0-f46.google.com with SMTP id x12so8399031wgg.33
+        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 23:45:51 -0800 (PST)
+Received: from mx2.suse.de ([195.135.220.15])
+        by mx.google.com with ESMTPS id eq8si2684520wib.54.2014.11.21.23.45.50
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 21 Nov 2014 23:45:50 -0800 (PST)
+Date: Sat, 22 Nov 2014 07:45:44 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [balancenuma:mm-numa-protnone-v3r3 83/362]
+ include/linux/compaction.h:108:1: error: expected identifier or '(' before
+ '{' token
+Message-ID: <20141122074544.GB2725@suse.de>
+References: <201411220114.QnSQfMwJ%fengguang.wu@intel.com>
+ <20141121132105.f48085180ac3756028d0a846@linux-foundation.org>
+ <20141121223218.GA22303@wfg-t540p.sh.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20140626130223.2db7a085421f594eb1707eb8@linux-foundation.org>
+In-Reply-To: <20141121223218.GA22303@wfg-t540p.sh.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>, kbuild-all@01.org
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>
 
-Hi Andrew,
-
-On Thu, Jun 26, 2014 at 01:02:23PM -0700, Andrew Morton wrote:
-> On Thu, 26 Jun 2014 09:05:08 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+On Fri, Nov 21, 2014 at 02:32:18PM -0800, Fengguang Wu wrote:
+> Hi Andrew,
 > 
-> > tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> > head:   9477ec75947f2cf0fc47e8ab781a5e9171099be2
-> > commit: 5c83b35612a2f2894b54d902ac50612cec2e1926 [108/319] mm: memcontrol: rewrite charge API
-> > config: i386-randconfig-ha2-0626 (attached as .config)
+> On Fri, Nov 21, 2014 at 01:21:05PM -0800, Andrew Morton wrote:
+> > On Sat, 22 Nov 2014 01:20:17 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
 > > 
-> > Note: the mmotm/master HEAD 9477ec75947f2cf0fc47e8ab781a5e9171099be2 builds fine.
-> >       It only hurts bisectibility.
+> > > tree:   git://git.kernel.org/pub/scm/linux/kernel/git/mel/linux-balancenuma mm-numa-protnone-v3r3
+> > > head:   e5d6f2e502e06020eeb0f852a5ed853802799eb3
+> > > commit: 17d9af0e32bdc4f263e23daefea699ed463bb87c [83/362] mm, compaction: simplify deferred compaction
+> > > config: x86_64-allnoconfig (attached as .config)
+> > > reproduce:
+> > >   git checkout 17d9af0e32bdc4f263e23daefea699ed463bb87c
+> > >   # save the attached .config to linux build tree
+> > >   make ARCH=x86_64 
+> > > 
+> > > Note: the balancenuma/mm-numa-protnone-v3r3 HEAD e5d6f2e502e06020eeb0f852a5ed853802799eb3 builds fine.
+> > >       It only hurts bisectibility.
+> > > 
+> > > All error/warnings:
+> > > 
+> > >    In file included from kernel/sysctl.c:43:0:
+> > > >> include/linux/compaction.h:108:1: error: expected identifier or '(' before '{' token
+> > >     {
 > > 
-> > All error/warnings:
+> > That's fixed in the next patch,
+> > mm-compaction-simplify-deferred-compaction-fix.patch.
 > > 
-> >    kernel/events/uprobes.c: In function 'uprobe_write_opcode':
-> > >> kernel/events/uprobes.c:319:2: error: implicit declaration of function 'mem_cgroup_charge_anon' [-Werror=implicit-function-declaration]
-> >      if (mem_cgroup_charge_anon(new_page, mm, GFP_KERNEL))
-> >      ^
-> >    cc1: some warnings being treated as errors
+> > Your bisectbot broke again :)
 > 
-> The next patch mm-memcontrol-rewrite-charge-api-fix-3.patch fixes this
-> up.  Is there something I did which fooled the buildbot's
-> hey-theres-a-fixup-patch detector?
+> Sorry about that! I checked it quickly and find the root cause is,
+> the check for your XXX-fix patches was limited to 3 trees:
+> (next|mmotm|memcg) and now we see it in the balancenuma tree.
+> 
 
-Git log shows that the next patch is "kernel: uprobes: switch to new
-memcg charge protocol" and in fact there is no
-mm-memcontrol-rewrite-charge-api-fix-3.patch at the time this git
-branch is created:
+Sorry, that was entirely my fault. It's because mm-numa-protnone-v3r3
+has been rebased on top of mmotm in preparation for sending to Andrew.
+It's a one-off. Can just that branch be disabled?
 
-                        34346b2c memcg: mem_cgroup_charge_statistics needs preempt_disable
-fix 2 =>                ac43603 mm: memcontrol: rewrite uncharge API fix 2
-fix 1 =>                0d971aa mm: memcontrol: rewrite uncharge API
-                        a9f32f2 kernel: uprobes: switch to new memcg charge protocol
-first bad commit =>     5c83b35 mm: memcontrol: rewrite charge API
+Thanks.
 
-That should explain why the buildbot reported the error out.
-
-Thanks,
-Fengguang
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
