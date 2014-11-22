@@ -1,48 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id CBD116B006E
-	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 18:38:43 -0500 (EST)
-Received: by mail-ig0-f178.google.com with SMTP id hl2so468656igb.17
-        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 15:38:43 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id f4si5470020icx.73.2014.11.21.15.38.42
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Nov 2014 15:38:43 -0800 (PST)
-Date: Fri, 21 Nov 2014 15:38:41 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 7/7] mm/page_owner: correct owner information for
- early allocated pages
-Message-Id: <20141121153841.c15fa400fd5c76d3946523a8@linux-foundation.org>
-In-Reply-To: <1416557646-21755-8-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1416557646-21755-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<1416557646-21755-8-git-send-email-iamjoonsoo.kim@lge.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 5692B6B006E
+	for <linux-mm@kvack.org>; Fri, 21 Nov 2014 19:36:13 -0500 (EST)
+Received: by mail-pa0-f47.google.com with SMTP id kq14so5895490pab.6
+        for <linux-mm@kvack.org>; Fri, 21 Nov 2014 16:36:13 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id gv6si11067001pac.208.2014.11.21.16.36.10
+        for <linux-mm@kvack.org>;
+        Fri, 21 Nov 2014 16:36:12 -0800 (PST)
+Date: Fri, 21 Nov 2014 16:36:04 -0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [mmotm:master 108/319] kernel/events/uprobes.c:319:2: error:
+ implicit declaration of function 'mem_cgroup_charge_anon'
+Message-ID: <20141122003604.GA24535@wfg-t540p.sh.intel.com>
+References: <53ab71c4.YGFc6XN+rgscOdCJ%fengguang.wu@intel.com>
+ <20140626130223.2db7a085421f594eb1707eb8@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140626130223.2db7a085421f594eb1707eb8@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave@sr71.net>, Michal Nazarewicz <mina86@mina86.com>, Jungsoo Son <jungsoo.son@lge.com>, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>, kbuild-all@01.org
 
-On Fri, 21 Nov 2014 17:14:06 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+Hi Andrew,
 
-> Extended memory to store page owner information is initialized some time
-> later than that page allocator starts. Until initialization, many pages
-> can be allocated and they have no owner information. This make debugging
-> using page owner harder, so some fixup will be helpful.
+On Thu, Jun 26, 2014 at 01:02:23PM -0700, Andrew Morton wrote:
+> On Thu, 26 Jun 2014 09:05:08 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
 > 
-> This patch fix up this situation by setting fake owner information
-> immediately after page extension is initialized. Information doesn't
-> tell the right owner, but, at least, it can tell whether page is
-> allocated or not, more correctly.
+> > tree:   git://git.cmpxchg.org/linux-mmotm.git master
+> > head:   9477ec75947f2cf0fc47e8ab781a5e9171099be2
+> > commit: 5c83b35612a2f2894b54d902ac50612cec2e1926 [108/319] mm: memcontrol: rewrite charge API
+> > config: i386-randconfig-ha2-0626 (attached as .config)
+> > 
+> > Note: the mmotm/master HEAD 9477ec75947f2cf0fc47e8ab781a5e9171099be2 builds fine.
+> >       It only hurts bisectibility.
+> > 
+> > All error/warnings:
+> > 
+> >    kernel/events/uprobes.c: In function 'uprobe_write_opcode':
+> > >> kernel/events/uprobes.c:319:2: error: implicit declaration of function 'mem_cgroup_charge_anon' [-Werror=implicit-function-declaration]
+> >      if (mem_cgroup_charge_anon(new_page, mm, GFP_KERNEL))
+> >      ^
+> >    cc1: some warnings being treated as errors
 > 
-> On my testing, this patch catches 13343 early allocated pages, although
-> they are mostly allocated from page extension feature. Anyway, after then,
-> there is no page left that it is allocated and has no page owner flag.
+> The next patch mm-memcontrol-rewrite-charge-api-fix-3.patch fixes this
+> up.  Is there something I did which fooled the buildbot's
+> hey-theres-a-fixup-patch detector?
 
-We really should have a Documentation/vm/page_owner.txt which explains
-all this stuff, provides examples, etc.
+Git log shows that the next patch is "kernel: uprobes: switch to new
+memcg charge protocol" and in fact there is no
+mm-memcontrol-rewrite-charge-api-fix-3.patch at the time this git
+branch is created:
+
+                        34346b2c memcg: mem_cgroup_charge_statistics needs preempt_disable
+fix 2 =>                ac43603 mm: memcontrol: rewrite uncharge API fix 2
+fix 1 =>                0d971aa mm: memcontrol: rewrite uncharge API
+                        a9f32f2 kernel: uprobes: switch to new memcg charge protocol
+first bad commit =>     5c83b35 mm: memcontrol: rewrite charge API
+
+That should explain why the buildbot reported the error out.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
