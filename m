@@ -1,78 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id BA12E6B0038
-	for <linux-mm@kvack.org>; Sat, 22 Nov 2014 13:18:25 -0500 (EST)
-Received: by mail-pd0-f174.google.com with SMTP id w10so7256937pde.19
-        for <linux-mm@kvack.org>; Sat, 22 Nov 2014 10:18:25 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id im9si13944434pbc.189.2014.11.22.10.18.23
-        for <linux-mm@kvack.org>;
-        Sat, 22 Nov 2014 10:18:24 -0800 (PST)
-Date: Sat, 22 Nov 2014 10:18:16 -0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [balancenuma:mm-numa-protnone-v3r3 83/362]
- include/linux/compaction.h:108:1: error: expected identifier or '(' before
- '{' token
-Message-ID: <20141122181816.GA28646@wfg-t540p.sh.intel.com>
-References: <201411220114.QnSQfMwJ%fengguang.wu@intel.com>
- <20141121132105.f48085180ac3756028d0a846@linux-foundation.org>
- <20141121223218.GA22303@wfg-t540p.sh.intel.com>
- <20141122074544.GB2725@suse.de>
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 25CAA6B0069
+	for <linux-mm@kvack.org>; Sat, 22 Nov 2014 15:04:02 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id rd3so7122897pab.0
+        for <linux-mm@kvack.org>; Sat, 22 Nov 2014 12:04:01 -0800 (PST)
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com. [209.85.220.41])
+        by mx.google.com with ESMTPS id ug5si14803083pac.3.2014.11.22.12.04.00
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 22 Nov 2014 12:04:00 -0800 (PST)
+Received: by mail-pa0-f41.google.com with SMTP id rd3so7055542pab.14
+        for <linux-mm@kvack.org>; Sat, 22 Nov 2014 12:04:00 -0800 (PST)
+Date: Sat, 22 Nov 2014 12:03:57 -0800
+From: Omar Sandoval <osandov@osandov.com>
+Subject: Re: [PATCH v2 5/5] btrfs: enable swap file support
+Message-ID: <20141122200357.GA15189@mew>
+References: <cover.1416563833.git.osandov@osandov.com>
+ <afd3c1009172a4a1cfa10e73a64caf35c631a6d4.1416563833.git.osandov@osandov.com>
+ <20141121180045.GF8568@twin.jikos.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20141122074544.GB2725@suse.de>
+In-Reply-To: <20141121180045.GF8568@twin.jikos.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>
+To: David Sterba <dsterba@suse.cz>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, Trond Myklebust <trond.myklebust@primarydata.com>, Mel Gorman <mgorman@suse.de>
 
-Hi Mel,
-
-On Sat, Nov 22, 2014 at 07:45:44AM +0000, Mel Gorman wrote:
-> On Fri, Nov 21, 2014 at 02:32:18PM -0800, Fengguang Wu wrote:
-> > Hi Andrew,
-> > 
-> > On Fri, Nov 21, 2014 at 01:21:05PM -0800, Andrew Morton wrote:
-> > > On Sat, 22 Nov 2014 01:20:17 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
-> > > 
-> > > > tree:   git://git.kernel.org/pub/scm/linux/kernel/git/mel/linux-balancenuma mm-numa-protnone-v3r3
-> > > > head:   e5d6f2e502e06020eeb0f852a5ed853802799eb3
-> > > > commit: 17d9af0e32bdc4f263e23daefea699ed463bb87c [83/362] mm, compaction: simplify deferred compaction
-> > > > config: x86_64-allnoconfig (attached as .config)
-> > > > reproduce:
-> > > >   git checkout 17d9af0e32bdc4f263e23daefea699ed463bb87c
-> > > >   # save the attached .config to linux build tree
-> > > >   make ARCH=x86_64 
-> > > > 
-> > > > Note: the balancenuma/mm-numa-protnone-v3r3 HEAD e5d6f2e502e06020eeb0f852a5ed853802799eb3 builds fine.
-> > > >       It only hurts bisectibility.
-> > > > 
-> > > > All error/warnings:
-> > > > 
-> > > >    In file included from kernel/sysctl.c:43:0:
-> > > > >> include/linux/compaction.h:108:1: error: expected identifier or '(' before '{' token
-> > > >     {
-> > > 
-> > > That's fixed in the next patch,
-> > > mm-compaction-simplify-deferred-compaction-fix.patch.
-> > > 
-> > > Your bisectbot broke again :)
-> > 
-> > Sorry about that! I checked it quickly and find the root cause is,
-> > the check for your XXX-fix patches was limited to 3 trees:
-> > (next|mmotm|memcg) and now we see it in the balancenuma tree.
-> > 
+On Fri, Nov 21, 2014 at 07:00:45PM +0100, David Sterba wrote:
+> > +			pr_err("BTRFS: swapfile has holes");
+> > +			ret = -EINVAL;
+> > +			goto out;
+> > +		}
+> > +		if (em->block_start == EXTENT_MAP_INLINE) {
+> > +			pr_err("BTRFS: swapfile is inline");
 > 
-> Sorry, that was entirely my fault. It's because mm-numa-protnone-v3r3
-> has been rebased on top of mmotm in preparation for sending to Andrew.
-> It's a one-off. Can just that branch be disabled?
+> While the test is valid, this would mean that the file is smaller than
+> the inline limit, which is now one page. I think the generic swap code
+> would refuse such a small file anyway.
+> 
+Sure. This test doesn't really cost us anything, so I think I'd feel a little
+better just leaving it in. I'll add a comment for the next close reader.
 
-It's fine, I've made the 0day bot to deal with the general situation
-that MM developers base their tree on Andrew's.
+Besides that and Filipe's response, I'll address everything you mentioned here
+and in your other email in the next version, thanks.
 
-Thanks,
-Fengguang
+> > +			ret = -EINVAL;
+> > +			goto out;
+> > +		}
+> > +		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags)) {
+> > +			pr_err("BTRFS: swapfile is compresed");
+> > +			ret = -EINVAL;
+> > +			goto out;
+> > +		}
+> 
+> I think the preallocated extents should be refused as well. This means
+> the filesystem has enough space to hold the data but it would still have
+> to go through the allocation and could in turn stress the memory
+> management code that triggered the swapping activity in the first place.
+> 
+> Though it's probably still possible to reach such corner case even with
+> fully allocated nodatacow file, this should be reviewed anyway.
+> 
+I'll definitely take a closer look at this. In particular,
+btrfs_get_blocks_direct and btrfs_get_extent do allocations in some cases which
+I'll look into.
+
+-- 
+Omar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
