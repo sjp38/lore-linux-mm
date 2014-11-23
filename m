@@ -1,122 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 99C6F6B007B
-	for <linux-mm@kvack.org>; Sat, 22 Nov 2014 23:52:52 -0500 (EST)
-Received: by mail-pd0-f173.google.com with SMTP id ft15so7805884pdb.32
-        for <linux-mm@kvack.org>; Sat, 22 Nov 2014 20:52:52 -0800 (PST)
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id F21236B007D
+	for <linux-mm@kvack.org>; Sat, 22 Nov 2014 23:53:44 -0500 (EST)
+Received: by mail-pd0-f175.google.com with SMTP id y10so7866975pdj.20
+        for <linux-mm@kvack.org>; Sat, 22 Nov 2014 20:53:44 -0800 (PST)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id ez4si15833554pbb.37.2014.11.22.20.52.50
+        by mx.google.com with ESMTPS id fn3si15319486pbc.235.2014.11.22.20.53.42
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 22 Nov 2014 20:52:51 -0800 (PST)
-Received: from fsav304.sakura.ne.jp (fsav304.sakura.ne.jp [153.120.85.135])
-	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id sAN4qm63081301
-	for <linux-mm@kvack.org>; Sun, 23 Nov 2014 13:52:48 +0900 (JST)
+        Sat, 22 Nov 2014 20:53:43 -0800 (PST)
+Received: from fsav303.sakura.ne.jp (fsav303.sakura.ne.jp [153.120.85.134])
+	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id sAN4rfcU081491
+	for <linux-mm@kvack.org>; Sun, 23 Nov 2014 13:53:41 +0900 (JST)
 	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
 Received: from AQUA (KD175108057186.ppp-bb.dion.ne.jp [175.108.57.186])
 	(authenticated bits=0)
-	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id sAN4qlfb081298
-	for <linux-mm@kvack.org>; Sun, 23 Nov 2014 13:52:47 +0900 (JST)
+	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id sAN4rftL081488
+	for <linux-mm@kvack.org>; Sun, 23 Nov 2014 13:53:41 +0900 (JST)
 	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
-Subject: [PATCH 4/5] mm: Drop __GFP_WAIT flag when allocating from shrinker functions.
+Subject: [PATCH 5/5] mm: Insert some delay if ongoing memory allocation stalls.
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 References: <201411231349.CAG78628.VFQFOtOSFJMOLH@I-love.SAKURA.ne.jp>
 In-Reply-To: <201411231349.CAG78628.VFQFOtOSFJMOLH@I-love.SAKURA.ne.jp>
-Message-Id: <201411231352.IFC13048.LOOJQMFtFVSHFO@I-love.SAKURA.ne.jp>
-Date: Sun, 23 Nov 2014 13:52:48 +0900
+Message-Id: <201411231353.BDE90173.FQOMJtHOLVFOFS@I-love.SAKURA.ne.jp>
+Date: Sun, 23 Nov 2014 13:53:41 +0900
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 
->From b248c31988ea582d2d4f4093fb8b649be91174bb Mon Sep 17 00:00:00 2001
+>From 4fad86f7a653dbbaec3ba2389f74f97a6705a558 Mon Sep 17 00:00:00 2001
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Sun, 23 Nov 2014 13:40:47 +0900
-Subject: [PATCH 4/5] mm: Drop __GFP_WAIT flag when allocating from shrinker functions.
+Date: Sun, 23 Nov 2014 13:41:24 +0900
+Subject: [PATCH 5/5] mm: Insert some delay if ongoing memory allocation stalls.
 
-Memory allocations from shrinker functions are complicated.
-If unexpected flags are stored in "struct shrink_control"->gfp_mask and
-used inside shrinker functions, it can cause difficult-to-trigger bugs
-like https://bugzilla.kernel.org/show_bug.cgi?id=87891 .
+This patch introduces 1ms of unkillable sleep before retrying when
+sleepable __alloc_pages_nodemask() is taking more than 5 seconds.
+According to Documentation/timers/timers-howto.txt, msleep < 20ms
+can sleep for up to 20ms, but this should not be a problem because
+msleep(1) is called only when there is no choice but retrying.
 
-Also, stack usage by __alloc_pages_nodemask() is large. If we unlimitedly
-allow recursive __alloc_pages_nodemask() calls, kernel stack could overflow
-under extreme memory pressure.
+This patch is intended for two purposes.
 
-Some shrinker functions are using sleepable locks which could make kswapd
-sleep for unpredictable duration. If kswapd is unexpectedly blocked inside
-shrinker functions and somebody is expecting that kswapd is running for
-reclaiming memory (e.g.
+(1) Reduce CPU usage when memory allocation deadlock occurred, by
+    avoiding useless busy retry loop.
 
-  while (unlikely(too_many_isolated(zone, file, sc))) {
-          congestion_wait(BLK_RW_ASYNC, HZ/10);
+(2) Allow SysRq-w (or SysRq-t) to report how long each thread is
+    blocked for memory allocation.
 
-          /* We are about to die and free our memory. Return now. */
-          if (fatal_signal_pending(current))
-                  return SWAP_CLUSTER_MAX;
-  }
+  kworker/0:2     D ffff88007a2d8cf8     0    61      2 0x00000000
+  MemAlloc: 69851 jiffies on 0x10
+  Workqueue: events_freezable_power_ disk_events_workfn
+   ffff88007a2e3898 0000000000000046 ffff88007a2e38f8 ffff88007a2d88d0
+   0000000000013500 ffff88007a2e3fd8 0000000000013500 ffff88007a2d88d0
+   ffff88007fffdb08 0000000100052ae5 ffff88007a2e38c8 ffffffff819d44c0
+  Call Trace:
+   [<ffffffff815951e4>] schedule+0x24/0x70
+   [<ffffffff815982b1>] schedule_timeout+0x111/0x1a0
+   [<ffffffff810b7470>] ? migrate_timer_list+0x60/0x60
+   [<ffffffff810b778f>] msleep+0x2f/0x40
+   [<ffffffff81110ecb>] __alloc_pages_nodemask+0x7eb/0xad0
+   [<ffffffff81150dae>] alloc_pages_current+0x8e/0x100
+   [<ffffffff81252156>] bio_copy_user_iov+0x1d6/0x380
+   [<ffffffff8125474d>] ? blk_rq_init+0xed/0x160
+   [<ffffffff81252399>] bio_copy_kern+0x49/0x100
+   [<ffffffff8109a370>] ? prepare_to_wait_event+0x100/0x100
+   [<ffffffff8125c0ef>] blk_rq_map_kern+0x6f/0x130
+   [<ffffffff81159e1e>] ? kmem_cache_alloc+0x48e/0x4b0
+   [<ffffffff8139c50f>] scsi_execute+0x12f/0x160
+   [<ffffffff8139dd54>] scsi_execute_req_flags+0x84/0xf0
+   [<ffffffffa01e19cc>] sr_check_events+0xbc/0x2e0 [sr_mod]
+   [<ffffffff810912ac>] ? put_prev_entity+0x2c/0x3b0
+   [<ffffffffa01d5177>] cdrom_check_events+0x17/0x30 [cdrom]
+   [<ffffffffa01e1e5d>] sr_block_check_events+0x2d/0x30 [sr_mod]
+   [<ffffffff81266236>] disk_check_events+0x56/0x1b0
+   [<ffffffff812663a1>] disk_events_workfn+0x11/0x20
+   [<ffffffff81076aef>] process_one_work+0x13f/0x370
+   [<ffffffff81077ad9>] worker_thread+0x119/0x500
+   [<ffffffff810779c0>] ? rescuer_thread+0x350/0x350
+   [<ffffffff8107cbbc>] kthread+0xdc/0x100
+   [<ffffffff8107cae0>] ? kthread_create_on_node+0x1b0/0x1b0
+   [<ffffffff815995bc>] ret_from_fork+0x7c/0xb0
+   [<ffffffff8107cae0>] ? kthread_create_on_node+0x1b0/0x1b0
 
-in shrink_inactive_list()), it is a memory allocation deadlock.
-
-This patch drops __GFP_WAIT flag when allocating from shrinker functions
-so that recursive __alloc_pages_nodemask() calls will not cause troubles
-like recursive locks and/or unpredictable sleep. The comments in this patch
-suggest shrinker functions users to try to avoid use of sleepable locks
-and memory allocations from shrinker functions, as with TTM driver's
-shrinker functions.
+  kworker/u16:28  D ffff8800793d0638     0  9950    346 0x00000080
+  MemAlloc: 13014 jiffies on 0x250
+   ffff880052777618 0000000000000046 ffff880052777678 ffff8800793d0210
+   0000000000013500 ffff880052777fd8 0000000000013500 ffff8800793d0210
+   ffff88007fffdb08 00000001000534b2 ffff880052777648 ffff88007c920000
+  Call Trace:
+   [<ffffffff815951e4>] schedule+0x24/0x70
+   [<ffffffff815982b1>] schedule_timeout+0x111/0x1a0
+   [<ffffffff810b7470>] ? migrate_timer_list+0x60/0x60
+   [<ffffffff810b778f>] msleep+0x2f/0x40
+   [<ffffffff81110ecb>] __alloc_pages_nodemask+0x7eb/0xad0
+   [<ffffffff81150dae>] alloc_pages_current+0x8e/0x100
+   [<ffffffffa0269f97>] xfs_buf_allocate_memory+0x168/0x247 [xfs]
+   [<ffffffffa0235f62>] xfs_buf_get_map+0xd2/0x130 [xfs]
+   [<ffffffffa0236534>] xfs_buf_read_map+0x24/0xc0 [xfs]
+   [<ffffffffa025fdb9>] xfs_trans_read_buf_map+0x119/0x300 [xfs]
+   [<ffffffffa022b9f9>] xfs_imap_to_bp+0x69/0xf0 [xfs]
+   [<ffffffffa022bee9>] xfs_iread+0x79/0x410 [xfs]
+   [<ffffffffa0251c8f>] ? kmem_zone_alloc+0x6f/0x100 [xfs]
+   [<ffffffffa023d8ff>] xfs_iget+0x18f/0x530 [xfs]
+   [<ffffffffa024589e>] xfs_lookup+0xae/0xd0 [xfs]
+   [<ffffffffa0242cf3>] xfs_vn_lookup+0x73/0xc0 [xfs]
+   [<ffffffff8117f1a8>] lookup_real+0x18/0x50
+   [<ffffffff811848cc>] do_last+0x98c/0x1250
+   [<ffffffff81180123>] ? inode_permission+0x13/0x40
+   [<ffffffff81182699>] ? link_path_walk+0x79/0x850
+   [<ffffffff81185253>] path_openat+0xc3/0x670
+   [<ffffffff81186984>] do_filp_open+0x44/0xb0
+   [<ffffffff81213991>] ? security_prepare_creds+0x11/0x20
+   [<ffffffff8107e871>] ? prepare_creds+0xf1/0x1b0
+   [<ffffffff8117c491>] do_open_exec+0x21/0xe0
+   [<ffffffff8117d1eb>] do_execve_common.isra.27+0x1bb/0x5e0
+   [<ffffffff8117d623>] do_execve+0x13/0x20
+   [<ffffffff81073e56>] ____call_usermodehelper+0x126/0x1c0
+   [<ffffffff81073ef0>] ? ____call_usermodehelper+0x1c0/0x1c0
+   [<ffffffff81073f09>] call_helper+0x19/0x20
+   [<ffffffff815995bc>] ret_from_fork+0x7c/0xb0
+   [<ffffffff81073ef0>] ? ____call_usermodehelper+0x1c0/0x1c0
 
 Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 ---
- mm/page_alloc.c | 35 +++++++++++++++++++++++++++++++++++
- 1 file changed, 35 insertions(+)
+ mm/page_alloc.c | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 11cc37d..c77418e 100644
+index c77418e..9e80b9f 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -2801,6 +2801,41 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 		 */
- 		current->gfp_start = jiffies;
- 		current->gfp_flags = gfp_mask;
-+	} else {
-+		/*
-+		 * When this function is called from interrupt context,
-+		 * the caller must not include __GFP_WAIT flag.
-+		 *
-+		 * When this function is called by recursive
-+		 * __alloc_pages_nodemask() calls from shrinker functions,
-+		 * the context might allow __GFP_WAIT flag. But since this
-+		 * function consumes a lot of kernel stack, kernel stack
-+		 * could overflow under extreme memory pressure if we
-+		 * unlimitedly allow recursive __alloc_pages_nodemask() calls.
-+		 * Also, if kswapd is unexpectedly blocked for unpredictable
-+		 * duration inside shrinker functions, and somebody is
-+		 * expecting that kswapd is running for reclaiming memory,
-+		 * it is a memory allocation deadlock.
-+		 *
-+		 * If current->gfp_flags != 0 here, it means that this function
-+		 * is called from either interrupt context or shrinker
-+		 * functions. Thus, it should be safe to drop __GFP_WAIT flag.
-+		 *
-+		 * Moreover, we don't need to check for current->gfp_flags != 0
-+		 * here because omit_timestamp == true is equivalent to
-+		 * (gfp_mask & __GFP_WAIT) == 0 and/or current->gfp_flags != 0.
-+		 * Dropping __GFP_WAIT flag when (gfp_mask & __GFP_WAIT) == 0
-+		 * is a no-op.
-+		 *
-+		 * By dropping __GFP_WAIT flag, kswapd will no longer blocked
-+		 * by recursive __alloc_pages_nodemask() calls from shrinker
-+		 * functions. Note that kswapd could still be blocked for
-+		 * unpredictable duration if sleepable locks are used inside
-+		 * shrinker functions. Therefore, please try to avoid use of
-+		 * sleepable locks and memory allocations from shrinker
-+		 * functions.
-+		 */
-+		gfp_mask &= ~__GFP_WAIT;
- 	}
+@@ -59,6 +59,7 @@
+ #include <linux/page-debug-flags.h>
+ #include <linux/hugetlb.h>
+ #include <linux/sched/rt.h>
++#include <linux/delay.h>
  
- 	gfp_mask &= gfp_allowed_mask;
+ #include <asm/sections.h>
+ #include <asm/tlbflush.h>
+@@ -2738,6 +2739,12 @@ rebalance:
+ 					goto nopage;
+ 			}
+ 
++			/*
++			 * If wait == true and it is taking more than 5
++			 * seconds, sleep for 1ms for reducing CPU usage.
++			 */
++			if (time_after(jiffies, current->gfp_start + 5 * HZ))
++				msleep(1);
+ 			goto restart;
+ 		}
+ 	}
+@@ -2748,6 +2755,12 @@ rebalance:
+ 						pages_reclaimed)) {
+ 		/* Wait for some write requests to complete then retry */
+ 		wait_iff_congested(preferred_zone, BLK_RW_ASYNC, HZ/50);
++		/*
++		 * If wait == true and it is taking more than 5 seconds,
++		 * sleep for 1ms for reducing CPU usage.
++		 */
++		if (time_after(jiffies, current->gfp_start + 5 * HZ))
++			msleep(1);
+ 		goto rebalance;
+ 	} else {
+ 		/*
 -- 
 1.8.3.1
 
