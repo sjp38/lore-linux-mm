@@ -1,202 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B1F96B0072
-	for <linux-mm@kvack.org>; Sat, 22 Nov 2014 23:50:53 -0500 (EST)
-Received: by mail-pa0-f50.google.com with SMTP id bj1so7462397pad.23
-        for <linux-mm@kvack.org>; Sat, 22 Nov 2014 20:50:53 -0800 (PST)
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 75BA76B0074
+	for <linux-mm@kvack.org>; Sat, 22 Nov 2014 23:51:35 -0500 (EST)
+Received: by mail-pd0-f177.google.com with SMTP id ft15so7705716pdb.8
+        for <linux-mm@kvack.org>; Sat, 22 Nov 2014 20:51:35 -0800 (PST)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id m1si15620363pdm.166.2014.11.22.20.50.51
+        by mx.google.com with ESMTPS id yo5si15417532pbb.166.2014.11.22.20.51.32
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 22 Nov 2014 20:50:52 -0800 (PST)
-Received: from fsav201.sakura.ne.jp (fsav201.sakura.ne.jp [210.224.168.163])
-	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id sAN4on9p080943
-	for <linux-mm@kvack.org>; Sun, 23 Nov 2014 13:50:49 +0900 (JST)
+        Sat, 22 Nov 2014 20:51:34 -0800 (PST)
+Received: from fsav303.sakura.ne.jp (fsav303.sakura.ne.jp [153.120.85.134])
+	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id sAN4pVU4081029
+	for <linux-mm@kvack.org>; Sun, 23 Nov 2014 13:51:31 +0900 (JST)
 	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
 Received: from AQUA (KD175108057186.ppp-bb.dion.ne.jp [175.108.57.186])
 	(authenticated bits=0)
-	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id sAN4onxx080940
-	for <linux-mm@kvack.org>; Sun, 23 Nov 2014 13:50:49 +0900 (JST)
+	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id sAN4pVVX081026
+	for <linux-mm@kvack.org>; Sun, 23 Nov 2014 13:51:31 +0900 (JST)
 	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
-Subject: [PATCH 2/5] mm: Kill shrinker's global semaphore.
+Subject: [PATCH 3/5] mm: Remember ongoing memory allocation status.
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 References: <201411231349.CAG78628.VFQFOtOSFJMOLH@I-love.SAKURA.ne.jp>
 In-Reply-To: <201411231349.CAG78628.VFQFOtOSFJMOLH@I-love.SAKURA.ne.jp>
-Message-Id: <201411231350.DHI12456.OLOFFJSFtQVMHO@I-love.SAKURA.ne.jp>
-Date: Sun, 23 Nov 2014 13:50:50 +0900
+Message-Id: <201411231351.HJA17065.VHQSFOJFtLFOMO@I-love.SAKURA.ne.jp>
+Date: Sun, 23 Nov 2014 13:51:31 +0900
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 
->From 92aec48e3b2e21c3716654670a24890f34c58683 Mon Sep 17 00:00:00 2001
+>From 0c6d4e0ac9fc5964fdd09849c99e4f6497b7a37e Mon Sep 17 00:00:00 2001
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Sun, 23 Nov 2014 13:39:25 +0900
-Subject: [PATCH 2/5] mm: Kill shrinker's global semaphore.
+Date: Sun, 23 Nov 2014 13:40:20 +0900
+Subject: [PATCH 3/5] mm: Remember ongoing memory allocation status.
 
-Currently register_shrinker()/unregister_shrinker() calls down_write()
-while shrink_slab() calls down_read_trylock(). This implies that the OOM
-killer becomes disabled because shrink_slab() pretends "we reclaimed some
-slab memory" even if "no slab memory can be reclaimed" when somebody calls
-register_shrinker()/unregister_shrinker() while one of shrinker functions
-allocates memory and/or holds mutex which may take unpredictably long
-duration to complete.
+When a stall by memory allocation problem occurs, printing how long
+a thread was blocked for memory allocation will be useful.
 
-This patch replaces global semaphore with per a shrinker refcounter
-so that shrink_slab() can respond "we could not reclaim slab memory"
-when out_of_memory() needs to be called.
+This patch allows remembering how many jiffies was spent for ongoing
+__alloc_pages_nodemask() and reading it by printing backtrace and by
+analyzing vmcore.
 
-Before this patch, response time of addition/removal are unpredictable
-when one of shrinkers are in use by shrink_slab(), nearly 0 otherwise.
+If the system is rebooted by timeout of SoftDog watchdog, this patch
+will be helpful because we can check whether the thread writing to
+/dev/watchdog interface was blocked for memory allocation.
 
-After this patch, response time of addition is nearly 0. Response time of
-removal remains unpredictable when the shrinker to remove is in use by
-shrink_slab(), nearly two RCU grace periods otherwise.
+If the system is running on a QEMU (KVM) managed via libvirt interface,
+this patch will be helpful because we can check status of ongoing
+memory allocation by comparing several vmcore snapshots obtained
+via "virsh dump" command.
 
 Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 ---
- include/linux/shrinker.h |  4 +++
- mm/vmscan.c              | 78 ++++++++++++++++++++++++++++++++++--------------
- 2 files changed, 60 insertions(+), 22 deletions(-)
+ include/linux/sched.h |  3 +++
+ kernel/sched/core.c   | 17 +++++++++++++++++
+ mm/page_alloc.c       | 20 ++++++++++++++++++--
+ 3 files changed, 38 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
-index 68c0970..745246a 100644
---- a/include/linux/shrinker.h
-+++ b/include/linux/shrinker.h
-@@ -59,6 +59,10 @@ struct shrinker {
- 	struct list_head list;
- 	/* objs pending delete, per node */
- 	atomic_long_t *nr_deferred;
-+	/* Number of users holding reference to this object. */
-+	atomic_t usage;
-+	/* Used for handling concurrent unregistration tracing. */
-+	struct list_head gc_list;
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index f1626c3..83ac0c2 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1663,6 +1663,9 @@ struct task_struct {
+ #endif
+ 	/* Set when TIF_MEMDIE flag is set to this thread. */
+ 	unsigned long memdie_start;
++	/* Set when outermost memory allocation starts. */
++	unsigned long gfp_start;
++	gfp_t gfp_flags;
  };
- #define DEFAULT_SEEKS 2 /* A good number if you don't know better. */
  
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index dcb4707..54d2638 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -144,7 +144,7 @@ int vm_swappiness = 60;
- unsigned long vm_total_pages;
- 
- static LIST_HEAD(shrinker_list);
--static DECLARE_RWSEM(shrinker_rwsem);
-+static DEFINE_SPINLOCK(shrinker_list_lock);
- 
- #ifdef CONFIG_MEMCG
- static bool global_reclaim(struct scan_control *sc)
-@@ -208,9 +208,16 @@ int register_shrinker(struct shrinker *shrinker)
- 	if (!shrinker->nr_deferred)
- 		return -ENOMEM;
- 
--	down_write(&shrinker_rwsem);
--	list_add_tail(&shrinker->list, &shrinker_list);
--	up_write(&shrinker_rwsem);
-+	/*
-+	 * Make it possible for list_for_each_entry_rcu(shrinker,
-+	 * &shrinker_list, list) in shrink_slab() to find this shrinker.
-+	 * We assume that this shrinker is not under unregister_shrinker()
-+	 * call.
-+	 */
-+	atomic_set(&shrinker->usage, 0);
-+	spin_lock(&shrinker_list_lock);
-+	list_add_tail_rcu(&shrinker->list, &shrinker_list);
-+	spin_unlock(&shrinker_list_lock);
- 	return 0;
+ /* Future-safe accessor for struct task_struct's cpus_allowed. */
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 24beb9b..f8d0192 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -4518,6 +4518,22 @@ out_unlock:
+ 	return retval;
  }
- EXPORT_SYMBOL(register_shrinker);
-@@ -220,9 +227,41 @@ EXPORT_SYMBOL(register_shrinker);
-  */
- void unregister_shrinker(struct shrinker *shrinker)
- {
--	down_write(&shrinker_rwsem);
--	list_del(&shrinker->list);
--	up_write(&shrinker_rwsem);
-+	static LIST_HEAD(shrinker_gc_list);
-+	struct shrinker *gc;
-+	unsigned int i = 0;
-+	int usage;
+ 
++static void print_memalloc_info(const struct task_struct *p)
++{
++	const gfp_t gfp = p->gfp_flags;
 +
 +	/*
-+	 * Make it impossible for shrinkers on shrinker_list and shrinkers
-+	 * on shrinker_gc_list to call atomic_inc(&shrinker->usage) after
-+	 * RCU grace period expires.
++	 * __alloc_pages_nodemask() doesn't use smp_wmb() between
++	 * updating ->gfp_start and ->gfp_flags. But reading stale
++	 * ->gfp_start value harms nothing but printing bogus duration.
++	 * Correct duration will be printed when this function is
++	 * called for the next time.
 +	 */
-+	spin_lock(&shrinker_list_lock);
-+	list_del_rcu(&shrinker->list);
-+	list_for_each_entry(gc, &shrinker_gc_list, gc_list) {
-+		if (gc->list.next == &shrinker->list)
-+			rcu_assign_pointer(gc->list.next, shrinker->list.next);
-+	}
-+	list_add_tail(&shrinker->gc_list, &shrinker_gc_list);
-+	spin_unlock(&shrinker_list_lock);
-+	synchronize_rcu();
-+	/*
-+	 * Wait for readers until RCU grace period expires after the last
-+	 * atomic_dec(&shrinker->usage). Warn if it is taking too long.
-+	 */
-+	while (1) {
-+		usage = atomic_read(&shrinker->usage);
-+		if (!usage)
-+			break;
-+		msleep(100);
-+		WARN(++i % 600 == 0, "Shrinker usage=%d\n", usage);
-+	}
-+	synchronize_rcu();
-+	/* Now, nobody is using this shrinker. */
-+	spin_lock(&shrinker_list_lock);
-+	list_del(&shrinker->gc_list);
-+	spin_unlock(&shrinker_list_lock);
- 	kfree(shrinker->nr_deferred);
- }
- EXPORT_SYMBOL(unregister_shrinker);
-@@ -369,23 +408,15 @@ unsigned long shrink_slab(struct shrink_control *shrinkctl,
- 	if (nr_pages_scanned == 0)
- 		nr_pages_scanned = SWAP_CLUSTER_MAX;
- 
--	if (!down_read_trylock(&shrinker_rwsem)) {
--		/*
--		 * If we would return 0, our callers would understand that we
--		 * have nothing else to shrink and give up trying. By returning
--		 * 1 we keep it going and assume we'll be able to shrink next
--		 * time.
--		 */
--		freed = 1;
--		goto out;
--	}
--
--	list_for_each_entry(shrinker, &shrinker_list, list) {
-+	rcu_read_lock();
-+	list_for_each_entry_rcu(shrinker, &shrinker_list, list) {
-+		atomic_inc(&shrinker->usage);
-+		rcu_read_unlock();
- 		if (!(shrinker->flags & SHRINKER_NUMA_AWARE)) {
- 			shrinkctl->nid = 0;
- 			freed += shrink_slab_node(shrinkctl, shrinker,
- 					nr_pages_scanned, lru_pages);
--			continue;
-+			goto next_entry;
- 		}
- 
- 		for_each_node_mask(shrinkctl->nid, shrinkctl->nodes_to_scan) {
-@@ -394,9 +425,12 @@ unsigned long shrink_slab(struct shrink_control *shrinkctl,
- 						nr_pages_scanned, lru_pages);
- 
- 		}
-+next_entry:
-+		rcu_read_lock();
-+		atomic_dec(&shrinker->usage);
- 	}
--	up_read(&shrinker_rwsem);
--out:
-+	rcu_read_unlock();
++	if (unlikely(gfp))
++		printk(KERN_INFO "MemAlloc: %ld jiffies on 0x%x\n",
++			jiffies - p->gfp_start, gfp);
++}
 +
- 	cond_resched();
- 	return freed;
+ static const char stat_nam[] = TASK_STATE_TO_CHAR_STR;
+ 
+ void sched_show_task(struct task_struct *p)
+@@ -4550,6 +4566,7 @@ void sched_show_task(struct task_struct *p)
+ 		task_pid_nr(p), ppid,
+ 		(unsigned long)task_thread_info(p)->flags);
+ 
++	print_memalloc_info(p);
+ 	print_worker_info(KERN_INFO, p);
+ 	show_stack(p, NULL);
  }
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 616a2c9..11cc37d 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2790,6 +2790,18 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 	unsigned int cpuset_mems_cookie;
+ 	int alloc_flags = ALLOC_WMARK_LOW|ALLOC_CPUSET|ALLOC_FAIR;
+ 	int classzone_idx;
++	const bool omit_timestamp = !(gfp_mask & __GFP_WAIT) ||
++		current->gfp_flags;
++
++	if (!omit_timestamp) {
++		/*
++		 * Since omit_timestamp == false depends on
++		 * (gfp_mask & __GFP_WAIT) != 0 , the current->gfp_flags is
++		 * updated from zero to non-zero value.
++		 */
++		current->gfp_start = jiffies;
++		current->gfp_flags = gfp_mask;
++	}
+ 
+ 	gfp_mask &= gfp_allowed_mask;
+ 
+@@ -2798,7 +2810,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 	might_sleep_if(gfp_mask & __GFP_WAIT);
+ 
+ 	if (should_fail_alloc_page(gfp_mask, order))
+-		return NULL;
++		goto nopage;
+ 
+ 	/*
+ 	 * Check the zones suitable for the gfp_mask contain at least one
+@@ -2806,7 +2818,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 	 * of GFP_THISNODE and a memoryless node
+ 	 */
+ 	if (unlikely(!zonelist->_zonerefs->zone))
+-		return NULL;
++		goto nopage;
+ 
+ 	if (IS_ENABLED(CONFIG_CMA) && migratetype == MIGRATE_MOVABLE)
+ 		alloc_flags |= ALLOC_CMA;
+@@ -2850,6 +2862,10 @@ out:
+ 	if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie)))
+ 		goto retry_cpuset;
+ 
++nopage:
++	if (!omit_timestamp)
++		current->gfp_flags = 0;
++
+ 	return page;
+ }
+ EXPORT_SYMBOL(__alloc_pages_nodemask);
 -- 
 1.8.3.1
 
