@@ -1,209 +1,202 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 053E36B0070
-	for <linux-mm@kvack.org>; Sat, 22 Nov 2014 23:50:11 -0500 (EST)
-Received: by mail-pd0-f181.google.com with SMTP id z10so7817049pdj.40
-        for <linux-mm@kvack.org>; Sat, 22 Nov 2014 20:50:10 -0800 (PST)
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B1F96B0072
+	for <linux-mm@kvack.org>; Sat, 22 Nov 2014 23:50:53 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id bj1so7462397pad.23
+        for <linux-mm@kvack.org>; Sat, 22 Nov 2014 20:50:53 -0800 (PST)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id j4si15507155pdm.235.2014.11.22.20.50.08
+        by mx.google.com with ESMTPS id m1si15620363pdm.166.2014.11.22.20.50.51
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 22 Nov 2014 20:50:09 -0800 (PST)
-Received: from fsav204.sakura.ne.jp (fsav204.sakura.ne.jp [210.224.168.166])
-	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id sAN4o6EJ080830
-	for <linux-mm@kvack.org>; Sun, 23 Nov 2014 13:50:06 +0900 (JST)
+        Sat, 22 Nov 2014 20:50:52 -0800 (PST)
+Received: from fsav201.sakura.ne.jp (fsav201.sakura.ne.jp [210.224.168.163])
+	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id sAN4on9p080943
+	for <linux-mm@kvack.org>; Sun, 23 Nov 2014 13:50:49 +0900 (JST)
 	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
 Received: from AQUA (KD175108057186.ppp-bb.dion.ne.jp [175.108.57.186])
 	(authenticated bits=0)
-	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id sAN4o64K080827
-	for <linux-mm@kvack.org>; Sun, 23 Nov 2014 13:50:06 +0900 (JST)
+	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id sAN4onxx080940
+	for <linux-mm@kvack.org>; Sun, 23 Nov 2014 13:50:49 +0900 (JST)
 	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
-Subject: [PATCH 1/5] mm: Introduce OOM kill timeout.
+Subject: [PATCH 2/5] mm: Kill shrinker's global semaphore.
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 References: <201411231349.CAG78628.VFQFOtOSFJMOLH@I-love.SAKURA.ne.jp>
 In-Reply-To: <201411231349.CAG78628.VFQFOtOSFJMOLH@I-love.SAKURA.ne.jp>
-Message-Id: <201411231350.DDH78622.LOtOQOFMFSHFJV@I-love.SAKURA.ne.jp>
-Date: Sun, 23 Nov 2014 13:50:07 +0900
+Message-Id: <201411231350.DHI12456.OLOFFJSFtQVMHO@I-love.SAKURA.ne.jp>
+Date: Sun, 23 Nov 2014 13:50:50 +0900
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 
->From ca8b3ee4bea5bcc6f8ec5e8496a97fd4cab5a440 Mon Sep 17 00:00:00 2001
+>From 92aec48e3b2e21c3716654670a24890f34c58683 Mon Sep 17 00:00:00 2001
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Sun, 23 Nov 2014 13:38:53 +0900
-Subject: [PATCH 1/5] mm: Introduce OOM kill timeout.
+Date: Sun, 23 Nov 2014 13:39:25 +0900
+Subject: [PATCH 2/5] mm: Kill shrinker's global semaphore.
 
-Regarding many of Linux kernel versions (from unknown till now), any
-local user can give a certain type of memory pressure which causes
-__alloc_pages_nodemask() to keep trying to reclaim memory for presumably
-forever. As a consequence, such user can disturb any users' activities
-by keeping the system stalled with 0% or 100% CPU usage.
+Currently register_shrinker()/unregister_shrinker() calls down_write()
+while shrink_slab() calls down_read_trylock(). This implies that the OOM
+killer becomes disabled because shrink_slab() pretends "we reclaimed some
+slab memory" even if "no slab memory can be reclaimed" when somebody calls
+register_shrinker()/unregister_shrinker() while one of shrinker functions
+allocates memory and/or holds mutex which may take unpredictably long
+duration to complete.
 
-On systems where XFS is used, SysRq-f (forced OOM killer) may become
-unresponsive because kernel worker thread which is supposed to process
-SysRq-f request is blocked by previous request's GFP_WAIT allocation.
+This patch replaces global semaphore with per a shrinker refcounter
+so that shrink_slab() can respond "we could not reclaim slab memory"
+when out_of_memory() needs to be called.
 
-The problem described above is one of phenomena which is triggered by
-a vulnerability which exists since (if I didn't miss something)
-Linux 2.0 (18 years ago). However, it is too difficult to backport
-patches which fix the vulnerability.
+Before this patch, response time of addition/removal are unpredictable
+when one of shrinkers are in use by shrink_slab(), nearly 0 otherwise.
 
-Setting TIF_MEMDIE to SIGKILL'ed and/or PF_EXITING thread disables
-the OOM killer. But the TIF_MEMDIE thread may not be able to terminate
-within reasonable duration for some reason. Therefore, in order to avoid
-keeping the OOM killer disabled forever, this patch introduces 5 seconds
-timeout for TIF_MEMDIE threads which are supposed to terminate shortly.
-
-Android platform's low memory killer is already using 1 second timeout
-for TIF_MEMDIE threads. This patch is for generic platforms.
-
-Note that this patch does not help unless out_of_memory() is called.
-For example, if all threads were looping at
-
-  while (unlikely(too_many_isolated(zone, file, sc))) {
-          congestion_wait(BLK_RW_ASYNC, HZ/10);
-
-          /* We are about to die and free our memory. Return now. */
-          if (fatal_signal_pending(current))
-                  return SWAP_CLUSTER_MAX;
-  }
-
-in shrink_inactive_list() when kswapd is sleeping inside shrinker
-functions, the system will stall forever with 0% CPU usage.
+After this patch, response time of addition is nearly 0. Response time of
+removal remains unpredictable when the shrinker to remove is in use by
+shrink_slab(), nearly two RCU grace periods otherwise.
 
 Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 ---
- drivers/staging/android/lowmemorykiller.c |  2 +-
- include/linux/mm.h                        |  2 ++
- include/linux/sched.h                     |  2 ++
- mm/memcontrol.c                           |  2 +-
- mm/oom_kill.c                             | 35 ++++++++++++++++++++++++++++---
- 5 files changed, 38 insertions(+), 5 deletions(-)
+ include/linux/shrinker.h |  4 +++
+ mm/vmscan.c              | 78 ++++++++++++++++++++++++++++++++++--------------
+ 2 files changed, 60 insertions(+), 22 deletions(-)
 
-diff --git a/drivers/staging/android/lowmemorykiller.c b/drivers/staging/android/lowmemorykiller.c
-index b545d3d..819bc36 100644
---- a/drivers/staging/android/lowmemorykiller.c
-+++ b/drivers/staging/android/lowmemorykiller.c
-@@ -160,7 +160,7 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
- 			     selected->pid, selected->comm,
- 			     selected_oom_score_adj, selected_tasksize);
- 		lowmem_deathpending_timeout = jiffies + HZ;
--		set_tsk_thread_flag(selected, TIF_MEMDIE);
-+		set_memdie_flag(selected);
- 		send_sig(SIGKILL, selected, 0);
- 		rem += selected_tasksize;
- 	}
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index b464611..8b187fe 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2161,5 +2161,7 @@ void __init setup_nr_node_ids(void);
- static inline void setup_nr_node_ids(void) {}
- #endif
- 
-+void set_memdie_flag(struct task_struct *task);
-+
- #endif /* __KERNEL__ */
- #endif /* _LINUX_MM_H */
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 5e344bb..f1626c3 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1661,6 +1661,8 @@ struct task_struct {
- 	unsigned int	sequential_io;
- 	unsigned int	sequential_io_avg;
- #endif
-+	/* Set when TIF_MEMDIE flag is set to this thread. */
-+	unsigned long memdie_start;
+diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
+index 68c0970..745246a 100644
+--- a/include/linux/shrinker.h
++++ b/include/linux/shrinker.h
+@@ -59,6 +59,10 @@ struct shrinker {
+ 	struct list_head list;
+ 	/* objs pending delete, per node */
+ 	atomic_long_t *nr_deferred;
++	/* Number of users holding reference to this object. */
++	atomic_t usage;
++	/* Used for handling concurrent unregistration tracing. */
++	struct list_head gc_list;
  };
+ #define DEFAULT_SEEKS 2 /* A good number if you don't know better. */
  
- /* Future-safe accessor for struct task_struct's cpus_allowed. */
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index d6ac0e3..bf51518 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1735,7 +1735,7 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	 * quickly exit and free its memory.
- 	 */
- 	if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
--		set_thread_flag(TIF_MEMDIE);
-+		set_memdie_flag(current);
- 		return;
- 	}
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index dcb4707..54d2638 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -144,7 +144,7 @@ int vm_swappiness = 60;
+ unsigned long vm_total_pages;
  
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 5340f6b..678c431 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -134,6 +134,19 @@ static bool oom_unkillable_task(struct task_struct *p,
- 	if (!has_intersects_mems_allowed(p, nodemask))
- 		return true;
+ static LIST_HEAD(shrinker_list);
+-static DECLARE_RWSEM(shrinker_rwsem);
++static DEFINE_SPINLOCK(shrinker_list_lock);
  
-+	/* p may not be terminated within reasonale duration */
-+	if (test_tsk_thread_flag(p, TIF_MEMDIE)) {
-+		smp_rmb(); /* set_memdie_flag() uses smp_wmb(). */
-+		if (time_after(jiffies, p->memdie_start + 5 * HZ)) {
-+			static unsigned char warn = 255;
-+			char comm[sizeof(p->comm)];
-+
-+			if (warn && warn--)
-+				pr_err("Process %d (%s) was not killed within 5 seconds.\n",
-+				       task_pid_nr(p), get_task_comm(comm, p));
-+			return true;
-+		}
-+	}
- 	return false;
- }
+ #ifdef CONFIG_MEMCG
+ static bool global_reclaim(struct scan_control *sc)
+@@ -208,9 +208,16 @@ int register_shrinker(struct shrinker *shrinker)
+ 	if (!shrinker->nr_deferred)
+ 		return -ENOMEM;
  
-@@ -444,7 +457,7 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 	 * its children or threads, just set TIF_MEMDIE so it can die quickly
- 	 */
- 	if (p->flags & PF_EXITING) {
--		set_tsk_thread_flag(p, TIF_MEMDIE);
-+		set_memdie_flag(p);
- 		put_task_struct(p);
- 		return;
- 	}
-@@ -527,7 +540,7 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 		}
- 	rcu_read_unlock();
- 
--	set_tsk_thread_flag(victim, TIF_MEMDIE);
-+	set_memdie_flag(victim);
- 	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
- 	put_task_struct(victim);
- }
-@@ -650,7 +663,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
- 	 * quickly exit and free its memory.
- 	 */
- 	if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
--		set_thread_flag(TIF_MEMDIE);
-+		set_memdie_flag(current);
- 		return;
- 	}
- 
-@@ -711,3 +724,19 @@ void pagefault_out_of_memory(void)
- 		oom_zonelist_unlock(zonelist, GFP_KERNEL);
- 	}
- }
-+
-+void set_memdie_flag(struct task_struct *task)
-+{
-+	if (test_tsk_thread_flag(task, TIF_MEMDIE))
-+		return;
+-	down_write(&shrinker_rwsem);
+-	list_add_tail(&shrinker->list, &shrinker_list);
+-	up_write(&shrinker_rwsem);
 +	/*
-+	 * Allow oom_unkillable_task() to take into account whether
-+	 * the thread cannot be terminated immediately for some reason
-+	 * (e.g. waiting on unkillable lock, waiting for completion by
-+	 * other thread).
++	 * Make it possible for list_for_each_entry_rcu(shrinker,
++	 * &shrinker_list, list) in shrink_slab() to find this shrinker.
++	 * We assume that this shrinker is not under unregister_shrinker()
++	 * call.
 +	 */
-+	task->memdie_start = jiffies;
-+	smp_wmb(); /* oom_unkillable_task() uses smp_rmb(). */
-+	set_tsk_thread_flag(task, TIF_MEMDIE);
-+}
-+EXPORT_SYMBOL(set_memdie_flag);
++	atomic_set(&shrinker->usage, 0);
++	spin_lock(&shrinker_list_lock);
++	list_add_tail_rcu(&shrinker->list, &shrinker_list);
++	spin_unlock(&shrinker_list_lock);
+ 	return 0;
+ }
+ EXPORT_SYMBOL(register_shrinker);
+@@ -220,9 +227,41 @@ EXPORT_SYMBOL(register_shrinker);
+  */
+ void unregister_shrinker(struct shrinker *shrinker)
+ {
+-	down_write(&shrinker_rwsem);
+-	list_del(&shrinker->list);
+-	up_write(&shrinker_rwsem);
++	static LIST_HEAD(shrinker_gc_list);
++	struct shrinker *gc;
++	unsigned int i = 0;
++	int usage;
++
++	/*
++	 * Make it impossible for shrinkers on shrinker_list and shrinkers
++	 * on shrinker_gc_list to call atomic_inc(&shrinker->usage) after
++	 * RCU grace period expires.
++	 */
++	spin_lock(&shrinker_list_lock);
++	list_del_rcu(&shrinker->list);
++	list_for_each_entry(gc, &shrinker_gc_list, gc_list) {
++		if (gc->list.next == &shrinker->list)
++			rcu_assign_pointer(gc->list.next, shrinker->list.next);
++	}
++	list_add_tail(&shrinker->gc_list, &shrinker_gc_list);
++	spin_unlock(&shrinker_list_lock);
++	synchronize_rcu();
++	/*
++	 * Wait for readers until RCU grace period expires after the last
++	 * atomic_dec(&shrinker->usage). Warn if it is taking too long.
++	 */
++	while (1) {
++		usage = atomic_read(&shrinker->usage);
++		if (!usage)
++			break;
++		msleep(100);
++		WARN(++i % 600 == 0, "Shrinker usage=%d\n", usage);
++	}
++	synchronize_rcu();
++	/* Now, nobody is using this shrinker. */
++	spin_lock(&shrinker_list_lock);
++	list_del(&shrinker->gc_list);
++	spin_unlock(&shrinker_list_lock);
+ 	kfree(shrinker->nr_deferred);
+ }
+ EXPORT_SYMBOL(unregister_shrinker);
+@@ -369,23 +408,15 @@ unsigned long shrink_slab(struct shrink_control *shrinkctl,
+ 	if (nr_pages_scanned == 0)
+ 		nr_pages_scanned = SWAP_CLUSTER_MAX;
+ 
+-	if (!down_read_trylock(&shrinker_rwsem)) {
+-		/*
+-		 * If we would return 0, our callers would understand that we
+-		 * have nothing else to shrink and give up trying. By returning
+-		 * 1 we keep it going and assume we'll be able to shrink next
+-		 * time.
+-		 */
+-		freed = 1;
+-		goto out;
+-	}
+-
+-	list_for_each_entry(shrinker, &shrinker_list, list) {
++	rcu_read_lock();
++	list_for_each_entry_rcu(shrinker, &shrinker_list, list) {
++		atomic_inc(&shrinker->usage);
++		rcu_read_unlock();
+ 		if (!(shrinker->flags & SHRINKER_NUMA_AWARE)) {
+ 			shrinkctl->nid = 0;
+ 			freed += shrink_slab_node(shrinkctl, shrinker,
+ 					nr_pages_scanned, lru_pages);
+-			continue;
++			goto next_entry;
+ 		}
+ 
+ 		for_each_node_mask(shrinkctl->nid, shrinkctl->nodes_to_scan) {
+@@ -394,9 +425,12 @@ unsigned long shrink_slab(struct shrink_control *shrinkctl,
+ 						nr_pages_scanned, lru_pages);
+ 
+ 		}
++next_entry:
++		rcu_read_lock();
++		atomic_dec(&shrinker->usage);
+ 	}
+-	up_read(&shrinker_rwsem);
+-out:
++	rcu_read_unlock();
++
+ 	cond_resched();
+ 	return freed;
+ }
 -- 
 1.8.3.1
 
