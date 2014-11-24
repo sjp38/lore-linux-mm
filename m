@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 17518800CA
-	for <linux-mm@kvack.org>; Mon, 24 Nov 2014 03:12:49 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id eu11so8940802pac.8
-        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 00:12:48 -0800 (PST)
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id CEA29800CA
+	for <linux-mm@kvack.org>; Mon, 24 Nov 2014 03:12:50 -0500 (EST)
+Received: by mail-pd0-f178.google.com with SMTP id g10so7148182pdj.9
+        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 00:12:50 -0800 (PST)
 Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id v15si20552059pdi.10.2014.11.24.00.12.41
+        by mx.google.com with ESMTP id cm7si20326003pdb.130.2014.11.24.00.12.41
         for <linux-mm@kvack.org>;
         Mon, 24 Nov 2014 00:12:43 -0800 (PST)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH v3 2/8] mm/debug-pagealloc: prepare boottime configurable on/off
-Date: Mon, 24 Nov 2014 17:15:20 +0900
-Message-Id: <1416816926-7756-3-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v3 6/8] mm/page_owner: keep track of page owners
+Date: Mon, 24 Nov 2014 17:15:24 +0900
+Message-Id: <1416816926-7756-7-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1416816926-7756-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1416816926-7756-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,355 +19,807 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave@sr71.net>, Michal Nazarewicz <mina86@mina86.com>, Jungsoo Son <jungsoo.son@lge.com>, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Until now, debug-pagealloc needs extra flags in struct page, so we need
-to recompile whole source code when we decide to use it. This is really
-painful, because it takes some time to recompile and sometimes rebuild is
-not possible due to third party module depending on struct page.
-So, we can't use this good feature in many cases.
+This is the page owner tracking code which is introduced
+so far ago. It is resident on Andrew's tree, though, nobody
+tried to upstream so it remain as is. Our company uses this feature
+actively to debug memory leak or to find a memory hogger so
+I decide to upstream this feature.
 
-Now, we have the page extension feature that allows us to insert
-extra flags to outside of struct page. This gets rid of third party module
-issue mentioned above. And, this allows us to determine if we need extra
-memory for this page extension in boottime. With these property, we can
-avoid using debug-pagealloc in boottime with low computational overhead
-in the kernel built with CONFIG_DEBUG_PAGEALLOC. This will help our
-development process greatly.
+This functionality help us to know who allocates the page.
+When allocating a page, we store some information about
+allocation in extra memory. Later, if we need to know
+status of all pages, we can get and analyze it from this stored
+information.
 
-This patch is the preparation step to achive above goal. debug-pagealloc
-originally uses extra field of struct page, but, after this patch, it
-will use field of struct page_ext. Because memory for page_ext is
-allocated later than initialization of page allocator in CONFIG_SPARSEMEM,
-we should disable debug-pagealloc feature temporarily until initialization
-of page_ext. This patch implements this.
+In previous version of this feature, extra memory is statically defined
+in struct page, but, in this version, extra memory is allocated outside
+of struct page. It enables us to turn on/off this feature at boottime
+without considerable memory waste.
 
-v2: fix compile error on CONFIG_PAGE_POISONING
+Although we already have tracepoint for tracing page allocation/free,
+using it to analyze page owner is rather complex. We need to enlarge
+the trace buffer for preventing overlapping until userspace program
+launched. And, launched program continually dump out the trace buffer
+for later analysis and it would change system behaviour with more
+possibility rather than just keeping it in memory, so bad for debug.
+
+Moreover, we can use page_owner feature further for various purposes.
+For example, we can use it for fragmentation statistics implemented in
+this patch. And, I also plan to implement some CMA failure debugging
+feature using this interface.
+
+I'd like to give the credit for all developers contributed this feature,
+but, it's not easy because I don't know exact history. Sorry about that.
+Below is people who has "Signed-off-by" in the patches in Andrew's tree.
+
+Contributor:
+Alexander Nyberg <alexn@dsv.su.se>
+Mel Gorman <mgorman@suse.de>
+Dave Hansen <dave@linux.vnet.ibm.com>
+Minchan Kim <minchan@kernel.org>
+Michal Nazarewicz <mina86@mina86.com>
+Andrew Morton <akpm@linux-foundation.org>
+Jungsoo Son <jungsoo.son@lge.com>
+
+v3: Make the default behaviour disabled.
+ Change boot parameter from disabling switch to enabling one.
+ Inline a check whether page owner is initialized or not
+ to minimize runtime overhead when disabled.
+ Fix infinite loop condition in fragmentation statistics
+ Disable fragmentation statistics if page owner isn't initialized.
+
+v2: Do set_page_owner() more places than v1. This corrects page owner
+information of memory for alloc_pages_exact() and compaction/CMA.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- include/linux/mm.h               |   19 ++++++++++++++++++-
- include/linux/mm_types.h         |    4 ----
- include/linux/page-debug-flags.h |   32 --------------------------------
- include/linux/page_ext.h         |   15 +++++++++++++++
- mm/Kconfig.debug                 |    1 +
- mm/debug-pagealloc.c             |   37 +++++++++++++++++++++++++++++++++----
- mm/page_alloc.c                  |   38 +++++++++++++++++++++++++++++++++++---
- mm/page_ext.c                    |    4 ++++
- 8 files changed, 106 insertions(+), 44 deletions(-)
- delete mode 100644 include/linux/page-debug-flags.h
+ Documentation/kernel-parameters.txt |    6 +
+ include/linux/page_ext.h            |   10 ++
+ include/linux/page_owner.h          |   38 ++++++
+ lib/Kconfig.debug                   |   16 +++
+ mm/Makefile                         |    1 +
+ mm/page_alloc.c                     |   11 +-
+ mm/page_ext.c                       |    4 +
+ mm/page_owner.c                     |  222 +++++++++++++++++++++++++++++++++++
+ mm/vmstat.c                         |  101 ++++++++++++++++
+ tools/vm/Makefile                   |    4 +-
+ tools/vm/page_owner_sort.c          |  144 +++++++++++++++++++++++
+ 11 files changed, 554 insertions(+), 3 deletions(-)
+ create mode 100644 include/linux/page_owner.h
+ create mode 100644 mm/page_owner.c
+ create mode 100644 tools/vm/page_owner_sort.c
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index b922a16..5a8d4d4 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -19,6 +19,7 @@
- #include <linux/bit_spinlock.h>
- #include <linux/shrinker.h>
- #include <linux/resource.h>
-+#include <linux/page_ext.h>
+diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+index b5ac055..c8c4446 100644
+--- a/Documentation/kernel-parameters.txt
++++ b/Documentation/kernel-parameters.txt
+@@ -2515,6 +2515,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+ 	OSS		[HW,OSS]
+ 			See Documentation/sound/oss/oss-parameters.txt
  
- struct mempolicy;
- struct anon_vma;
-@@ -2149,20 +2150,36 @@ extern void copy_user_huge_page(struct page *dst, struct page *src,
- 				unsigned int pages_per_huge_page);
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
- 
-+extern struct page_ext_operations debug_guardpage_ops;
-+extern struct page_ext_operations page_poisoning_ops;
++	page_owner=	[KNL] Boot-time page_owner enabling option.
++			Storage of the information about who allocated
++			each page is disabled in default. With this switch,
++			we can turn it on.
++			on: enable the feature
 +
- #ifdef CONFIG_DEBUG_PAGEALLOC
- extern unsigned int _debug_guardpage_minorder;
-+extern bool _debug_guardpage_enabled;
- 
- static inline unsigned int debug_guardpage_minorder(void)
- {
- 	return _debug_guardpage_minorder;
- }
- 
-+static inline bool debug_guardpage_enabled(void)
-+{
-+	return _debug_guardpage_enabled;
-+}
-+
- static inline bool page_is_guard(struct page *page)
- {
--	return test_bit(PAGE_DEBUG_FLAG_GUARD, &page->debug_flags);
-+	struct page_ext *page_ext;
-+
-+	if (!debug_guardpage_enabled())
-+		return false;
-+
-+	page_ext = lookup_page_ext(page);
-+	return test_bit(PAGE_EXT_DEBUG_GUARD, &page_ext->flags);
- }
- #else
- static inline unsigned int debug_guardpage_minorder(void) { return 0; }
-+static inline bool debug_guardpage_enabled(void) { return false; }
- static inline bool page_is_guard(struct page *page) { return false; }
- #endif /* CONFIG_DEBUG_PAGEALLOC */
- 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 33a8acf..c7b22e7 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -10,7 +10,6 @@
- #include <linux/rwsem.h>
- #include <linux/completion.h>
- #include <linux/cpumask.h>
--#include <linux/page-debug-flags.h>
- #include <linux/uprobes.h>
- #include <linux/page-flags-layout.h>
- #include <asm/page.h>
-@@ -186,9 +185,6 @@ struct page {
- 	void *virtual;			/* Kernel virtual address (NULL if
- 					   not kmapped, ie. highmem) */
- #endif /* WANT_PAGE_VIRTUAL */
--#ifdef CONFIG_WANT_PAGE_DEBUG_FLAGS
--	unsigned long debug_flags;	/* Use atomic bitops on this */
--#endif
- 
- #ifdef CONFIG_KMEMCHECK
- 	/*
-diff --git a/include/linux/page-debug-flags.h b/include/linux/page-debug-flags.h
-deleted file mode 100644
-index 22691f61..0000000
---- a/include/linux/page-debug-flags.h
-+++ /dev/null
-@@ -1,32 +0,0 @@
--#ifndef LINUX_PAGE_DEBUG_FLAGS_H
--#define  LINUX_PAGE_DEBUG_FLAGS_H
--
--/*
-- * page->debug_flags bits:
-- *
-- * PAGE_DEBUG_FLAG_POISON is set for poisoned pages. This is used to
-- * implement generic debug pagealloc feature. The pages are filled with
-- * poison patterns and set this flag after free_pages(). The poisoned
-- * pages are verified whether the patterns are not corrupted and clear
-- * the flag before alloc_pages().
-- */
--
--enum page_debug_flags {
--	PAGE_DEBUG_FLAG_POISON,		/* Page is poisoned */
--	PAGE_DEBUG_FLAG_GUARD,
--};
--
--/*
-- * Ensure that CONFIG_WANT_PAGE_DEBUG_FLAGS reliably
-- * gets turned off when no debug features are enabling it!
-- */
--
--#ifdef CONFIG_WANT_PAGE_DEBUG_FLAGS
--#if !defined(CONFIG_PAGE_POISONING) && \
--    !defined(CONFIG_PAGE_GUARD) \
--/* && !defined(CONFIG_PAGE_DEBUG_SOMETHING_ELSE) && ... */
--#error WANT_PAGE_DEBUG_FLAGS is turned on with no debug features!
--#endif
--#endif /* CONFIG_WANT_PAGE_DEBUG_FLAGS */
--
--#endif /* LINUX_PAGE_DEBUG_FLAGS_H */
+ 	panic=		[KNL] Kernel behaviour on panic: delay <timeout>
+ 			timeout > 0: seconds before rebooting
+ 			timeout = 0: wait forever
 diff --git a/include/linux/page_ext.h b/include/linux/page_ext.h
-index 2ccc8b4..61c0f05 100644
+index 61c0f05..d2a2c84 100644
 --- a/include/linux/page_ext.h
 +++ b/include/linux/page_ext.h
-@@ -10,6 +10,21 @@ struct page_ext_operations {
- #ifdef CONFIG_PAGE_EXTENSION
+@@ -1,6 +1,9 @@
+ #ifndef __LINUX_PAGE_EXT_H
+ #define __LINUX_PAGE_EXT_H
+ 
++#include <linux/types.h>
++#include <linux/stacktrace.h>
++
+ struct pglist_data;
+ struct page_ext_operations {
+ 	bool (*need)(void);
+@@ -22,6 +25,7 @@ struct page_ext_operations {
+ enum page_ext_flags {
+ 	PAGE_EXT_DEBUG_POISON,		/* Page is poisoned */
+ 	PAGE_EXT_DEBUG_GUARD,
++	PAGE_EXT_OWNER,
+ };
  
  /*
-+ * page_ext->flags bits:
-+ *
-+ * PAGE_EXT_DEBUG_POISON is set for poisoned pages. This is used to
-+ * implement generic debug pagealloc feature. The pages are filled with
-+ * poison patterns and set this flag after free_pages(). The poisoned
-+ * pages are verified whether the patterns are not corrupted and clear
-+ * the flag before alloc_pages().
-+ */
-+
-+enum page_ext_flags {
-+	PAGE_EXT_DEBUG_POISON,		/* Page is poisoned */
-+	PAGE_EXT_DEBUG_GUARD,
-+};
-+
-+/*
-  * Page Extension can be considered as an extended mem_map.
-  * A page_ext page is associated with every page descriptor. The
-  * page_ext helps us add more information about the page.
-diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
-index 1ba81c7..56badfc 100644
---- a/mm/Kconfig.debug
-+++ b/mm/Kconfig.debug
-@@ -12,6 +12,7 @@ config DEBUG_PAGEALLOC
- 	depends on DEBUG_KERNEL
- 	depends on !HIBERNATION || ARCH_SUPPORTS_DEBUG_PAGEALLOC && !PPC && !SPARC
- 	depends on !KMEMCHECK
-+	select PAGE_EXTENSION
- 	select PAGE_POISONING if !ARCH_SUPPORTS_DEBUG_PAGEALLOC
- 	select PAGE_GUARD if ARCH_SUPPORTS_DEBUG_PAGEALLOC
- 	---help---
-diff --git a/mm/debug-pagealloc.c b/mm/debug-pagealloc.c
-index 789ff70..0072f2c 100644
---- a/mm/debug-pagealloc.c
-+++ b/mm/debug-pagealloc.c
-@@ -2,23 +2,49 @@
- #include <linux/string.h>
- #include <linux/mm.h>
- #include <linux/highmem.h>
--#include <linux/page-debug-flags.h>
-+#include <linux/page_ext.h>
- #include <linux/poison.h>
- #include <linux/ratelimit.h>
+@@ -33,6 +37,12 @@ enum page_ext_flags {
+  */
+ struct page_ext {
+ 	unsigned long flags;
++#ifdef CONFIG_PAGE_OWNER
++	unsigned int order;
++	gfp_t gfp_mask;
++	struct stack_trace trace;
++	unsigned long trace_entries[8];
++#endif
+ };
  
-+static bool page_poisoning_enabled __read_mostly;
+ extern void pgdat_page_ext_init(struct pglist_data *pgdat);
+diff --git a/include/linux/page_owner.h b/include/linux/page_owner.h
+new file mode 100644
+index 0000000..b48c347
+--- /dev/null
++++ b/include/linux/page_owner.h
+@@ -0,0 +1,38 @@
++#ifndef __LINUX_PAGE_OWNER_H
++#define __LINUX_PAGE_OWNER_H
 +
-+static bool need_page_poisoning(void)
++#ifdef CONFIG_PAGE_OWNER
++extern bool page_owner_inited;
++extern struct page_ext_operations page_owner_ops;
++
++extern void __reset_page_owner(struct page *page, unsigned int order);
++extern void __set_page_owner(struct page *page,
++			unsigned int order, gfp_t gfp_mask);
++
++static inline void reset_page_owner(struct page *page, unsigned int order)
 +{
-+	return true;
-+}
-+
-+static void init_page_poisoning(void)
-+{
-+	page_poisoning_enabled = true;
-+}
-+
-+struct page_ext_operations page_poisoning_ops = {
-+	.need = need_page_poisoning,
-+	.init = init_page_poisoning,
-+};
-+
- static inline void set_page_poison(struct page *page)
- {
--	__set_bit(PAGE_DEBUG_FLAG_POISON, &page->debug_flags);
-+	struct page_ext *page_ext;
-+
-+	page_ext = lookup_page_ext(page);
-+	__set_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
- }
- 
- static inline void clear_page_poison(struct page *page)
- {
--	__clear_bit(PAGE_DEBUG_FLAG_POISON, &page->debug_flags);
-+	struct page_ext *page_ext;
-+
-+	page_ext = lookup_page_ext(page);
-+	__clear_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
- }
- 
- static inline bool page_poison(struct page *page)
- {
--	return test_bit(PAGE_DEBUG_FLAG_POISON, &page->debug_flags);
-+	struct page_ext *page_ext;
-+
-+	page_ext = lookup_page_ext(page);
-+	return test_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
- }
- 
- static void poison_page(struct page *page)
-@@ -95,6 +121,9 @@ static void unpoison_pages(struct page *page, int n)
- 
- void kernel_map_pages(struct page *page, int numpages, int enable)
- {
-+	if (!page_poisoning_enabled)
++	if (likely(!page_owner_inited))
 +		return;
 +
- 	if (enable)
- 		unpoison_pages(page, numpages);
- 	else
++	__reset_page_owner(page, order);
++}
++
++static inline void set_page_owner(struct page *page,
++			unsigned int order, gfp_t gfp_mask)
++{
++	if (likely(!page_owner_inited))
++		return;
++
++	__set_page_owner(page, order, gfp_mask);
++}
++#else
++static inline void reset_page_owner(struct page *page, unsigned int order)
++{
++}
++static inline void set_page_owner(struct page *page,
++			unsigned int order, gfp_t gfp_mask)
++{
++}
++
++#endif /* CONFIG_PAGE_OWNER */
++#endif /* __LINUX_PAGE_OWNER_H */
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index c078a76..8864e90 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -227,6 +227,22 @@ config UNUSED_SYMBOLS
+ 	  you really need it, and what the merge plan to the mainline kernel for
+ 	  your module is.
+ 
++config PAGE_OWNER
++	bool "Track page owner"
++	depends on DEBUG_KERNEL && STACKTRACE_SUPPORT
++	select DEBUG_FS
++	select STACKTRACE
++	select PAGE_EXTENSION
++	help
++	  This keeps track of what call chain is the owner of a page, may
++	  help to find bare alloc_page(s) leaks. Even if you include this
++	  feature on your build, it is disabled in default. You should pass
++	  "page_owner=on" to boot parameter in order to enable it. Eats
++	  a fair amount of memory if enabled. See tools/vm/page_owner_sort.c
++	  for user-space helper.
++
++	  If unsure, say N.
++
+ config DEBUG_FS
+ 	bool "Debug Filesystem"
+ 	help
+diff --git a/mm/Makefile b/mm/Makefile
+index 0b7a784..3548460 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -63,6 +63,7 @@ obj-$(CONFIG_MEMORY_FAILURE) += memory-failure.o
+ obj-$(CONFIG_HWPOISON_INJECT) += hwpoison-inject.o
+ obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak.o
+ obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
++obj-$(CONFIG_PAGE_OWNER) += page_owner.o
+ obj-$(CONFIG_CLEANCACHE) += cleancache.o
+ obj-$(CONFIG_MEMORY_ISOLATION) += page_isolation.o
+ obj-$(CONFIG_ZPOOL)	+= zpool.o
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c91f449..7534733 100644
+index 4eea173..f1968d7 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -56,7 +56,7 @@
- #include <linux/prefetch.h>
- #include <linux/mm_inline.h>
- #include <linux/migrate.h>
--#include <linux/page-debug-flags.h>
-+#include <linux/page_ext.h>
+@@ -59,6 +59,7 @@
+ #include <linux/page_ext.h>
  #include <linux/hugetlb.h>
  #include <linux/sched/rt.h>
++#include <linux/page_owner.h>
  
-@@ -426,6 +426,22 @@ static inline void prep_zero_page(struct page *page, unsigned int order,
+ #include <asm/sections.h>
+ #include <asm/tlbflush.h>
+@@ -810,6 +811,8 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
+ 	if (bad)
+ 		return false;
  
- #ifdef CONFIG_DEBUG_PAGEALLOC
- unsigned int _debug_guardpage_minorder;
-+bool _debug_guardpage_enabled __read_mostly;
++	reset_page_owner(page, order);
 +
-+static bool need_debug_guardpage(void)
-+{
-+	return true;
-+}
-+
-+static void init_debug_guardpage(void)
-+{
-+	_debug_guardpage_enabled = true;
-+}
-+
-+struct page_ext_operations debug_guardpage_ops = {
-+	.need = need_debug_guardpage,
-+	.init = init_debug_guardpage,
-+};
+ 	if (!PageHighMem(page)) {
+ 		debug_check_no_locks_freed(page_address(page),
+ 					   PAGE_SIZE << order);
+@@ -985,6 +988,8 @@ static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags)
+ 	if (order && (gfp_flags & __GFP_COMP))
+ 		prep_compound_page(page, order);
  
- static int __init debug_guardpage_minorder_setup(char *buf)
- {
-@@ -444,7 +460,14 @@ __setup("debug_guardpage_minorder=", debug_guardpage_minorder_setup);
- static inline void set_page_guard(struct zone *zone, struct page *page,
- 				unsigned int order, int migratetype)
- {
--	__set_bit(PAGE_DEBUG_FLAG_GUARD, &page->debug_flags);
-+	struct page_ext *page_ext;
++	set_page_owner(page, order, gfp_flags);
 +
-+	if (!debug_guardpage_enabled())
-+		return;
-+
-+	page_ext = lookup_page_ext(page);
-+	__set_bit(PAGE_EXT_DEBUG_GUARD, &page_ext->flags);
-+
- 	INIT_LIST_HEAD(&page->lru);
- 	set_page_private(page, order);
- 	/* Guard pages are not available for any usage */
-@@ -454,12 +477,20 @@ static inline void set_page_guard(struct zone *zone, struct page *page,
- static inline void clear_page_guard(struct zone *zone, struct page *page,
- 				unsigned int order, int migratetype)
- {
--	__clear_bit(PAGE_DEBUG_FLAG_GUARD, &page->debug_flags);
-+	struct page_ext *page_ext;
-+
-+	if (!debug_guardpage_enabled())
-+		return;
-+
-+	page_ext = lookup_page_ext(page);
-+	__clear_bit(PAGE_EXT_DEBUG_GUARD, &page_ext->flags);
-+
- 	set_page_private(page, 0);
- 	if (!is_migrate_isolate(migratetype))
- 		__mod_zone_freepage_state(zone, (1 << order), migratetype);
+ 	return 0;
  }
- #else
-+struct page_ext_operations debug_guardpage_ops = { NULL, };
- static inline void set_page_guard(struct zone *zone, struct page *page,
- 				unsigned int order, int migratetype) {}
- static inline void clear_page_guard(struct zone *zone, struct page *page,
-@@ -870,6 +901,7 @@ static inline void expand(struct zone *zone, struct page *page,
- 		VM_BUG_ON_PAGE(bad_range(zone, &page[size]), &page[size]);
  
- 		if (IS_ENABLED(CONFIG_DEBUG_PAGEALLOC) &&
-+			debug_guardpage_enabled() &&
- 			high < debug_guardpage_minorder()) {
- 			/*
- 			 * Mark as guard pages (or page), that will allow to
+@@ -1557,8 +1562,11 @@ void split_page(struct page *page, unsigned int order)
+ 		split_page(virt_to_page(page[0].shadow), order);
+ #endif
+ 
+-	for (i = 1; i < (1 << order); i++)
++	set_page_owner(page, 0, 0);
++	for (i = 1; i < (1 << order); i++) {
+ 		set_page_refcounted(page + i);
++		set_page_owner(page + i, 0, 0);
++	}
+ }
+ EXPORT_SYMBOL_GPL(split_page);
+ 
+@@ -1598,6 +1606,7 @@ int __isolate_free_page(struct page *page, unsigned int order)
+ 		}
+ 	}
+ 
++	set_page_owner(page, order, 0);
+ 	return 1UL << order;
+ }
+ 
 diff --git a/mm/page_ext.c b/mm/page_ext.c
-index 8b3a97a..ede4d1e 100644
+index ede4d1e..ce86485 100644
 --- a/mm/page_ext.c
 +++ b/mm/page_ext.c
-@@ -51,6 +51,10 @@
-  */
+@@ -5,6 +5,7 @@
+ #include <linux/memory.h>
+ #include <linux/vmalloc.h>
+ #include <linux/kmemleak.h>
++#include <linux/page_owner.h>
  
- static struct page_ext_operations *page_ext_ops[] = {
-+	&debug_guardpage_ops,
-+#ifdef CONFIG_PAGE_POISONING
-+	&page_poisoning_ops,
+ /*
+  * struct page extension
+@@ -55,6 +56,9 @@ static struct page_ext_operations *page_ext_ops[] = {
+ #ifdef CONFIG_PAGE_POISONING
+ 	&page_poisoning_ops,
+ #endif
++#ifdef CONFIG_PAGE_OWNER
++	&page_owner_ops,
 +#endif
  };
  
  static unsigned long total_usage;
+diff --git a/mm/page_owner.c b/mm/page_owner.c
+new file mode 100644
+index 0000000..85eec7e
+--- /dev/null
++++ b/mm/page_owner.c
+@@ -0,0 +1,222 @@
++#include <linux/debugfs.h>
++#include <linux/mm.h>
++#include <linux/slab.h>
++#include <linux/uaccess.h>
++#include <linux/bootmem.h>
++#include <linux/stacktrace.h>
++#include <linux/page_owner.h>
++#include "internal.h"
++
++static bool page_owner_disabled = true;
++bool page_owner_inited __read_mostly;
++
++static int early_page_owner_param(char *buf)
++{
++	if (!buf)
++		return -EINVAL;
++
++	if (strcmp(buf, "on") == 0)
++		page_owner_disabled = false;
++
++	return 0;
++}
++early_param("page_owner", early_page_owner_param);
++
++static bool need_page_owner(void)
++{
++	if (page_owner_disabled)
++		return false;
++
++	return true;
++}
++
++static void init_page_owner(void)
++{
++	if (page_owner_disabled)
++		return;
++
++	page_owner_inited = true;
++}
++
++struct page_ext_operations page_owner_ops = {
++	.need = need_page_owner,
++	.init = init_page_owner,
++};
++
++void __reset_page_owner(struct page *page, unsigned int order)
++{
++	int i;
++	struct page_ext *page_ext;
++
++	for (i = 0; i < (1 << order); i++) {
++		page_ext = lookup_page_ext(page + i);
++		__clear_bit(PAGE_EXT_OWNER, &page_ext->flags);
++	}
++}
++
++void __set_page_owner(struct page *page, unsigned int order, gfp_t gfp_mask)
++{
++	struct page_ext *page_ext;
++	struct stack_trace *trace;
++
++	page_ext = lookup_page_ext(page);
++
++	trace = &page_ext->trace;
++	trace->nr_entries = 0;
++	trace->max_entries = ARRAY_SIZE(page_ext->trace_entries);
++	trace->entries = &page_ext->trace_entries[0];
++	trace->skip = 3;
++	save_stack_trace(&page_ext->trace);
++
++	page_ext->order = order;
++	page_ext->gfp_mask = gfp_mask;
++
++	__set_bit(PAGE_EXT_OWNER, &page_ext->flags);
++}
++
++static ssize_t
++print_page_owner(char __user *buf, size_t count, unsigned long pfn,
++		struct page *page, struct page_ext *page_ext)
++{
++	int ret;
++	int pageblock_mt, page_mt;
++	char *kbuf;
++
++	kbuf = kmalloc(count, GFP_KERNEL);
++	if (!kbuf)
++		return -ENOMEM;
++
++	ret = snprintf(kbuf, count,
++			"Page allocated via order %u, mask 0x%x\n",
++			page_ext->order, page_ext->gfp_mask);
++
++	if (ret >= count)
++		goto err;
++
++	/* Print information relevant to grouping pages by mobility */
++	pageblock_mt = get_pfnblock_migratetype(page, pfn);
++	page_mt  = gfpflags_to_migratetype(page_ext->gfp_mask);
++	ret += snprintf(kbuf + ret, count - ret,
++			"PFN %lu Block %lu type %d %s Flags %s%s%s%s%s%s%s%s%s%s%s%s\n",
++			pfn,
++			pfn >> pageblock_order,
++			pageblock_mt,
++			pageblock_mt != page_mt ? "Fallback" : "        ",
++			PageLocked(page)	? "K" : " ",
++			PageError(page)		? "E" : " ",
++			PageReferenced(page)	? "R" : " ",
++			PageUptodate(page)	? "U" : " ",
++			PageDirty(page)		? "D" : " ",
++			PageLRU(page)		? "L" : " ",
++			PageActive(page)	? "A" : " ",
++			PageSlab(page)		? "S" : " ",
++			PageWriteback(page)	? "W" : " ",
++			PageCompound(page)	? "C" : " ",
++			PageSwapCache(page)	? "B" : " ",
++			PageMappedToDisk(page)	? "M" : " ");
++
++	if (ret >= count)
++		goto err;
++
++	ret += snprint_stack_trace(kbuf + ret, count - ret,
++					&page_ext->trace, 0);
++	if (ret >= count)
++		goto err;
++
++	ret += snprintf(kbuf + ret, count - ret, "\n");
++	if (ret >= count)
++		goto err;
++
++	if (copy_to_user(buf, kbuf, ret))
++		ret = -EFAULT;
++
++	kfree(kbuf);
++	return ret;
++
++err:
++	kfree(kbuf);
++	return -ENOMEM;
++}
++
++static ssize_t
++read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
++{
++	unsigned long pfn;
++	struct page *page;
++	struct page_ext *page_ext;
++
++	if (!page_owner_inited)
++		return -EINVAL;
++
++	page = NULL;
++	pfn = min_low_pfn + *ppos;
++
++	/* Find a valid PFN or the start of a MAX_ORDER_NR_PAGES area */
++	while (!pfn_valid(pfn) && (pfn & (MAX_ORDER_NR_PAGES - 1)) != 0)
++		pfn++;
++
++	drain_all_pages(NULL);
++
++	/* Find an allocated page */
++	for (; pfn < max_pfn; pfn++) {
++		/*
++		 * If the new page is in a new MAX_ORDER_NR_PAGES area,
++		 * validate the area as existing, skip it if not
++		 */
++		if ((pfn & (MAX_ORDER_NR_PAGES - 1)) == 0 && !pfn_valid(pfn)) {
++			pfn += MAX_ORDER_NR_PAGES - 1;
++			continue;
++		}
++
++		/* Check for holes within a MAX_ORDER area */
++		if (!pfn_valid_within(pfn))
++			continue;
++
++		page = pfn_to_page(pfn);
++		if (PageBuddy(page)) {
++			unsigned long freepage_order = page_order_unsafe(page);
++
++			if (freepage_order < MAX_ORDER)
++				pfn += (1UL << freepage_order) - 1;
++			continue;
++		}
++
++		page_ext = lookup_page_ext(page);
++
++		/*
++		 * Pages allocated before initialization of page_owner are
++		 * non-buddy and have no page_owner info.
++		 */
++		if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags))
++			continue;
++
++		/* Record the next PFN to read in the file offset */
++		*ppos = (pfn - min_low_pfn) + 1;
++
++		return print_page_owner(buf, count, pfn, page, page_ext);
++	}
++
++	return 0;
++}
++
++static const struct file_operations proc_page_owner_operations = {
++	.read		= read_page_owner,
++};
++
++static int __init pageowner_init(void)
++{
++	struct dentry *dentry;
++
++	if (!page_owner_inited) {
++		pr_info("page_owner is disabled\n");
++		return 0;
++	}
++
++	dentry = debugfs_create_file("page_owner", S_IRUSR, NULL,
++			NULL, &proc_page_owner_operations);
++	if (IS_ERR(dentry))
++		return PTR_ERR(dentry);
++
++	return 0;
++}
++module_init(pageowner_init)
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 1b12d39..b090e9e 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -22,6 +22,8 @@
+ #include <linux/writeback.h>
+ #include <linux/compaction.h>
+ #include <linux/mm_inline.h>
++#include <linux/page_ext.h>
++#include <linux/page_owner.h>
+ 
+ #include "internal.h"
+ 
+@@ -1017,6 +1019,104 @@ static int pagetypeinfo_showblockcount(struct seq_file *m, void *arg)
+ 	return 0;
+ }
+ 
++#ifdef CONFIG_PAGE_OWNER
++static void pagetypeinfo_showmixedcount_print(struct seq_file *m,
++							pg_data_t *pgdat,
++							struct zone *zone)
++{
++	struct page *page;
++	struct page_ext *page_ext;
++	unsigned long pfn = zone->zone_start_pfn, block_end_pfn;
++	unsigned long end_pfn = pfn + zone->spanned_pages;
++	unsigned long count[MIGRATE_TYPES] = { 0, };
++	int pageblock_mt, page_mt;
++	int i;
++
++	/* Scan block by block. First and last block may be incomplete */
++	pfn = zone->zone_start_pfn;
++
++	/*
++	 * Walk the zone in pageblock_nr_pages steps. If a page block spans
++	 * a zone boundary, it will be double counted between zones. This does
++	 * not matter as the mixed block count will still be correct
++	 */
++	for (; pfn < end_pfn; ) {
++		if (!pfn_valid(pfn)) {
++			pfn = ALIGN(pfn + 1, MAX_ORDER_NR_PAGES);
++			continue;
++		}
++
++		block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
++		block_end_pfn = min(block_end_pfn, end_pfn);
++
++		page = pfn_to_page(pfn);
++		pageblock_mt = get_pfnblock_migratetype(page, pfn);
++
++		for (; pfn < block_end_pfn; pfn++) {
++			if (!pfn_valid_within(pfn))
++				continue;
++
++			page = pfn_to_page(pfn);
++			if (PageBuddy(page)) {
++				pfn += (1UL << page_order(page)) - 1;
++				continue;
++			}
++
++			if (PageReserved(page))
++				continue;
++
++			page_ext = lookup_page_ext(page);
++
++			if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags))
++				continue;
++
++			page_mt = gfpflags_to_migratetype(page_ext->gfp_mask);
++			if (pageblock_mt != page_mt) {
++				if (is_migrate_cma(pageblock_mt))
++					count[MIGRATE_MOVABLE]++;
++				else
++					count[pageblock_mt]++;
++
++				pfn = block_end_pfn;
++				break;
++			}
++			pfn += (1UL << page_ext->order) - 1;
++		}
++	}
++
++	/* Print counts */
++	seq_printf(m, "Node %d, zone %8s ", pgdat->node_id, zone->name);
++	for (i = 0; i < MIGRATE_TYPES; i++)
++		seq_printf(m, "%12lu ", count[i]);
++	seq_putc(m, '\n');
++}
++#endif /* CONFIG_PAGE_OWNER */
++
++/*
++ * Print out the number of pageblocks for each migratetype that contain pages
++ * of other types. This gives an indication of how well fallbacks are being
++ * contained by rmqueue_fallback(). It requires information from PAGE_OWNER
++ * to determine what is going on
++ */
++static void pagetypeinfo_showmixedcount(struct seq_file *m, pg_data_t *pgdat)
++{
++#ifdef CONFIG_PAGE_OWNER
++	int mtype;
++
++	if (!page_owner_inited)
++		return;
++
++	drain_all_pages(NULL);
++
++	seq_printf(m, "\n%-23s", "Number of mixed blocks ");
++	for (mtype = 0; mtype < MIGRATE_TYPES; mtype++)
++		seq_printf(m, "%12s ", migratetype_names[mtype]);
++	seq_putc(m, '\n');
++
++	walk_zones_in_node(m, pgdat, pagetypeinfo_showmixedcount_print);
++#endif /* CONFIG_PAGE_OWNER */
++}
++
+ /*
+  * This prints out statistics in relation to grouping pages by mobility.
+  * It is expensive to collect so do not constantly read the file.
+@@ -1034,6 +1134,7 @@ static int pagetypeinfo_show(struct seq_file *m, void *arg)
+ 	seq_putc(m, '\n');
+ 	pagetypeinfo_showfree(m, pgdat);
+ 	pagetypeinfo_showblockcount(m, pgdat);
++	pagetypeinfo_showmixedcount(m, pgdat);
+ 
+ 	return 0;
+ }
+diff --git a/tools/vm/Makefile b/tools/vm/Makefile
+index 3d907da..ac884b6 100644
+--- a/tools/vm/Makefile
++++ b/tools/vm/Makefile
+@@ -1,6 +1,6 @@
+ # Makefile for vm tools
+ #
+-TARGETS=page-types slabinfo
++TARGETS=page-types slabinfo page_owner_sort
+ 
+ LIB_DIR = ../lib/api
+ LIBS = $(LIB_DIR)/libapikfs.a
+@@ -18,5 +18,5 @@ $(LIBS):
+ 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
+ 
+ clean:
+-	$(RM) page-types slabinfo
++	$(RM) page-types slabinfo page_owner_sort
+ 	make -C $(LIB_DIR) clean
+diff --git a/tools/vm/page_owner_sort.c b/tools/vm/page_owner_sort.c
+new file mode 100644
+index 0000000..77147b4
+--- /dev/null
++++ b/tools/vm/page_owner_sort.c
+@@ -0,0 +1,144 @@
++/*
++ * User-space helper to sort the output of /sys/kernel/debug/page_owner
++ *
++ * Example use:
++ * cat /sys/kernel/debug/page_owner > page_owner_full.txt
++ * grep -v ^PFN page_owner_full.txt > page_owner.txt
++ * ./sort page_owner.txt sorted_page_owner.txt
++*/
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <sys/types.h>
++#include <sys/stat.h>
++#include <fcntl.h>
++#include <unistd.h>
++#include <string.h>
++
++struct block_list {
++	char *txt;
++	int len;
++	int num;
++};
++
++
++static struct block_list *list;
++static int list_size;
++static int max_size;
++
++struct block_list *block_head;
++
++int read_block(char *buf, int buf_size, FILE *fin)
++{
++	char *curr = buf, *const buf_end = buf + buf_size;
++
++	while (buf_end - curr > 1 && fgets(curr, buf_end - curr, fin)) {
++		if (*curr == '\n') /* empty line */
++			return curr - buf;
++		curr += strlen(curr);
++	}
++
++	return -1; /* EOF or no space left in buf. */
++}
++
++static int compare_txt(const void *p1, const void *p2)
++{
++	const struct block_list *l1 = p1, *l2 = p2;
++
++	return strcmp(l1->txt, l2->txt);
++}
++
++static int compare_num(const void *p1, const void *p2)
++{
++	const struct block_list *l1 = p1, *l2 = p2;
++
++	return l2->num - l1->num;
++}
++
++static void add_list(char *buf, int len)
++{
++	if (list_size != 0 &&
++	    len == list[list_size-1].len &&
++	    memcmp(buf, list[list_size-1].txt, len) == 0) {
++		list[list_size-1].num++;
++		return;
++	}
++	if (list_size == max_size) {
++		printf("max_size too small??\n");
++		exit(1);
++	}
++	list[list_size].txt = malloc(len+1);
++	list[list_size].len = len;
++	list[list_size].num = 1;
++	memcpy(list[list_size].txt, buf, len);
++	list[list_size].txt[len] = 0;
++	list_size++;
++	if (list_size % 1000 == 0) {
++		printf("loaded %d\r", list_size);
++		fflush(stdout);
++	}
++}
++
++#define BUF_SIZE	1024
++
++int main(int argc, char **argv)
++{
++	FILE *fin, *fout;
++	char buf[BUF_SIZE];
++	int ret, i, count;
++	struct block_list *list2;
++	struct stat st;
++
++	if (argc < 3) {
++		printf("Usage: ./program <input> <output>\n");
++		perror("open: ");
++		exit(1);
++	}
++
++	fin = fopen(argv[1], "r");
++	fout = fopen(argv[2], "w");
++	if (!fin || !fout) {
++		printf("Usage: ./program <input> <output>\n");
++		perror("open: ");
++		exit(1);
++	}
++
++	fstat(fileno(fin), &st);
++	max_size = st.st_size / 100; /* hack ... */
++
++	list = malloc(max_size * sizeof(*list));
++
++	for ( ; ; ) {
++		ret = read_block(buf, BUF_SIZE, fin);
++		if (ret < 0)
++			break;
++
++		add_list(buf, ret);
++	}
++
++	printf("loaded %d\n", list_size);
++
++	printf("sorting ....\n");
++
++	qsort(list, list_size, sizeof(list[0]), compare_txt);
++
++	list2 = malloc(sizeof(*list) * list_size);
++
++	printf("culling\n");
++
++	for (i = count = 0; i < list_size; i++) {
++		if (count == 0 ||
++		    strcmp(list2[count-1].txt, list[i].txt) != 0) {
++			list2[count++] = list[i];
++		} else {
++			list2[count-1].num += list[i].num;
++		}
++	}
++
++	qsort(list2, count, sizeof(list[0]), compare_num);
++
++	for (i = 0; i < count; i++)
++		fprintf(fout, "%d times:\n%s\n", list2[i].num, list2[i].txt);
++
++	return 0;
++}
 -- 
 1.7.9.5
 
