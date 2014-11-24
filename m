@@ -1,115 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 032C16B0087
-	for <linux-mm@kvack.org>; Mon, 24 Nov 2014 04:58:41 -0500 (EST)
-Received: by mail-wi0-f178.google.com with SMTP id hi2so5132176wib.5
-        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 01:58:40 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id jr1si8080796wjc.40.2014.11.24.01.58.39
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id F314E6B00A0
+	for <linux-mm@kvack.org>; Mon, 24 Nov 2014 05:21:24 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id bj1so9211669pad.23
+        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 02:21:24 -0800 (PST)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id sz3si20668514pab.188.2014.11.24.02.21.22
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 24 Nov 2014 01:58:39 -0800 (PST)
-Date: Mon, 24 Nov 2014 09:58:33 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: LSF/MM 2015 Call For Proposals
-Message-ID: <20141124095833.GC2725@suse.de>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 24 Nov 2014 02:21:23 -0800 (PST)
+From: Jijiagang <jijiagang@hisilicon.com>
+Subject: RE: UBIFS assert failed in ubifs_set_page_dirty at 1421
+Date: Mon, 24 Nov 2014 10:20:59 +0000
+Message-ID: <BE257DAADD2C0D439647A27133296657394A75F1@SZXEMA511-MBS.china.huawei.com>
+References: <BE257DAADD2C0D439647A271332966573949EFEC@SZXEMA511-MBS.china.huawei.com>
+ <1413805935.7906.225.camel@sauron.fi.intel.com>
+ <C3050A4DBA34F345975765E43127F10F62CC5D9B@SZXEMA512-MBX.china.huawei.com>
+ <1413810719.7906.268.camel@sauron.fi.intel.com>
+ <545C2CEE.5020905@huawei.com> <20141120123011.GA9716@node.dhcp.inet.fi>
+ <BE257DAADD2C0D439647A27133296657394A65A4@SZXEMA511-MBS.china.huawei.com>
+ <20141124091024.GA1190@node.dhcp.inet.fi>
+In-Reply-To: <20141124091024.GA1190@node.dhcp.inet.fi>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-ide@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org, lsf-pc@lists.linux-foundation.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Hujianyang <hujianyang@huawei.com>, "dedekind1@gmail.com" <dedekind1@gmail.com>, Caizhiyong <caizhiyong@hisilicon.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Wanli (welly)" <welly.wan@hisilicon.com>, "linux-mtd@lists.infradead.org" <linux-mtd@lists.infradead.org>, "adrian.hunter@intel.com" <adrian.hunter@intel.com>
 
-The annual Linux Storage, Filesystem and Memory Management Summit for
-2015 will be held on March 9th and 10th before the Linux Foundation Vault
-conference at the Revere Hotel, Boston MA. For those that do not know,
-Vault is designed to be an event where open source storage and filesystem
-practitioners meet storage implementors and, as such, it would be of
-benefit for LSF/MM attendees to go to at least the first day of Vault.
+Hi Kirill,
+I test your patch, bus there's no dump_vma definition.
+The log is here, hope it will be helpful.
 
-	http://events.linuxfoundation.org/events/linux-storage-filesystem-and-mm-summit
-	http://events.linuxfoundation.org/events/vault
+ page:817fd7e0 count:3 mapcount:1 mapping:a318bb8c index:0x4
+ page flags: 0xa19(locked|uptodate|dirty|arch_1|private)
+ pte_write: 1
+ page:81441a80 count:3 mapcount:1 mapping:a318bb8c index:0x5
+ page flags: 0x209(locked|uptodate|arch_1)
+ pte_write: 1
+ UBIFS assert failed in ubifs_set_page_dirty at 1422 (pid 545)
+ CPU: 2 PID: 545 Comm: kswapd0 Tainted: P           O 3.10.0_s40 #19
+ [<8001d8a0>] (unwind_backtrace+0x0/0x108) from [<80019f44>] (show_stack+0x=
+20/0x24)
+ [<80019f44>] (show_stack+0x20/0x24) from [<80acfa18>] (dump_stack+0x24/0x2=
+c)
+ [<80acfa18>] (dump_stack+0x24/0x2c) from [<8029766c>] (ubifs_set_page_dirt=
+y+0x54/0x5c)
+ [<8029766c>] (ubifs_set_page_dirty+0x54/0x5c) from [<800cea60>] (set_page_=
+dirty+0x50/0x78)
+ [<800cea60>] (set_page_dirty+0x50/0x78) from [<800f4b10>] (try_to_unmap_on=
+e+0x124/0x410)
+ [<800f4b10>] (try_to_unmap_one+0x124/0x410) from [<800f4f84>] (try_to_unma=
+p_file+0x9c/0x740)
+ [<800f4f84>] (try_to_unmap_file+0x9c/0x740) from [<800f56b8>] (try_to_unma=
+p+0x40/0x78)
+ [<800f56b8>] (try_to_unmap+0x40/0x78) from [<800d6a04>] (shrink_page_list+=
+0x23c/0x884)
+ [<800d6a04>] (shrink_page_list+0x23c/0x884) from [<800d76c8>] (shrink_inac=
+tive_list+0x21c/0x3c8)
+ [<800d76c8>] (shrink_inactive_list+0x21c/0x3c8) from [<800d7c20>] (shrink_=
+lruvec+0x3ac/0x524)
+ [<800d7c20>] (shrink_lruvec+0x3ac/0x524) from [<800d8970>] (kswapd+0x854/0=
+xdc0)
+ [<800d8970>] (kswapd+0x854/0xdc0) from [<80051e28>] (kthread+0xc8/0xcc)
+ [<80051e28>] (kthread+0xc8/0xcc) from [<80015198>] (ret_from_fork+0x14/0x2=
+0)
+ UBIFS assert failed in ubifs_release_budget at 567 (pid 6)
+ CPU: 3 PID: 6 Comm: kworker/u8:0 Tainted: P           O 3.10.0_s40 #19
 
-On behalf of the committee I am issuing a call for agenda proposals that
-are suitable for cross-track discussion as well as technical subjects for
-the breakout sessions.
-
-1) Proposals for agenda topics should be sent before January 16th, 2015 to:
-
-	lsf-pc@lists.linux-foundation.org
-
-and cc the Linux list or lists that are most interested in it:
-
-	ATA:  linux-ide@vger.kernel.org
-	FS:   linux-fsdevel@vger.kernel.org
-	MM:   linux-mm@kvack.org
-	SCSI: linux-scsi@vger.kernel.org
-
-If advance notice is required for visa applications then please send
-proposals before January 1st. The committee will complete the first round
-of selections near that date to accommodate applications.
-
-Please tag your proposal with [LSF/MM TOPIC] to make it easier to track.
-Agenda topics and attendees will be selected by the program committee,
-but the final agenda will be formed by consensus of the attendees on the day.
-
-We will try to cap attendance at around 25-30 per track to facilitate
-discussions although the final numbers will depend on the room sizes at
-the venue.
-
-2) Requests to attend the summit should be sent to:
-
-	lsf-pc@lists.linux-foundation.org
-
-Please summarise what expertise you will bring to the meeting, and what
-you would like to discuss. Please also tag your email with [LSF/MM ATTEND]
-so there is less chance of it getting lost.
-
-Presentations are allowed to guide discussion, but are strongly
-discouraged. There will be no recording or audio bridge. However, we expect
-that written minutes will be published as we did in previous years
-
-2014:
-	http://lwn.net/Articles/LSFMM2014/
-
-2013:
-	http://lwn.net/Articles/548089/
-
-2012:
-	http://lwn.net/Articles/490114/
-	http://lwn.net/Articles/490501/
-
-3) If you have feedback on last year's meeting that we can use to
-improve this year's, please also send that to:
-
-	lsf-pc@lists.linux-foundation.org
-
-4) We would like to remind those that are are also interested in presenting
-   at the Vault conference that the CFP deadline for Vault is December 1st.
-
-Thank you on behalf of the program committee:
-
-Storage:
-	James Bottomley 
-	Martin Petersen 
-	Christoph Hellwig 
-
-Filesystem:
-	Jeff Layton 
-	Ric Wheeler 
-	Jan Kara 
-	Trond Myklebust 
-	Theodore Ts'o
-
-MM:
-	Rik van Riel 
-	Michel Lespinasse 
-	Sasha Levin
-
--- 
-Mel Gorman
-SUSE Labs
+> -----Original Message-----
+> From: Kirill A. Shutemov [mailto:kirill@shutemov.name]
+> Sent: Monday, November 24, 2014 5:10 PM
+> To: Jijiagang
+> Cc: Hujianyang; dedekind1@gmail.com; Caizhiyong;
+> linux-fsdevel@vger.kernel.org; linux-mm@kvack.org; Wanli (welly);
+> linux-mtd@lists.infradead.org; adrian.hunter@intel.com
+> Subject: Re: UBIFS assert failed in ubifs_set_page_dirty at 1421
+>=20
+> On Mon, Nov 24, 2014 at 02:59:51AM +0000, Jijiagang wrote:
+> > Hi Kirill,
+> >
+> > I add dump_page(page) in function ubifs_set_page_dirty.
+> > And get this log when ubifs assert fail. Is it helpful for this problem=
+?
+>=20
+> Not really. It seems you called dump_page() after
+> __set_page_dirty_nobuffers() in ubifs_set_page_dirty().
+>=20
+> Could you try something like patch below. It assumes ubifs to compiled in=
+ (not
+> module).
+>=20
+> diff --git a/fs/ubifs/file.c b/fs/ubifs/file.c index b5b593c45270..7b4386=
+dd174e
+> 100644
+> --- a/fs/ubifs/file.c
+> +++ b/fs/ubifs/file.c
+> @@ -1531,7 +1531,7 @@ out_unlock:
+>         return err;
+>  }
+>=20
+> -static const struct vm_operations_struct ubifs_file_vm_ops =3D {
+> +const struct vm_operations_struct ubifs_file_vm_ops =3D {
+>         .fault        =3D filemap_fault,
+>         .map_pages =3D filemap_map_pages,
+>         .page_mkwrite =3D ubifs_vm_page_mkwrite, diff --git a/mm/rmap.c
+> b/mm/rmap.c index 19886fb2f13a..343c4571df68 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -1171,8 +1171,15 @@ static int try_to_unmap_one(struct page *page,
+> struct vm_area_struct *vma,
+>         pteval =3D ptep_clear_flush(vma, address, pte);
+>=20
+>         /* Move the dirty bit to the physical page now the pte is gone. *=
+/
+> -       if (pte_dirty(pteval))
+> +       if (pte_dirty(pteval)) {
+> +               extern const struct vm_operations_struct
+> ubifs_file_vm_ops;
+> +               if (vma->vm_ops =3D=3D &ubifs_file_vm_ops) {
+> +                       dump_vma(vma);
+> +                       dump_page(page, __func__);
+> +                       pr_emerg("pte_write: %d\n", pte_write(pteval));
+> +               }
+>                 set_page_dirty(page);
+> +       }
+>=20
+>         /* Update high watermark before we lower rss */
+>         update_hiwater_rss(mm);
+> --
+>  Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
