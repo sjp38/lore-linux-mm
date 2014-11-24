@@ -1,75 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f173.google.com (mail-ie0-f173.google.com [209.85.223.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CBBF6B0038
-	for <linux-mm@kvack.org>; Mon, 24 Nov 2014 17:57:32 -0500 (EST)
-Received: by mail-ie0-f173.google.com with SMTP id y20so9875131ier.18
-        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 14:57:32 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id a15si107514icg.87.2014.11.24.14.57.30
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Nov 2014 14:57:31 -0800 (PST)
-Date: Mon, 24 Nov 2014 14:57:52 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3 5/8] stacktrace: introduce snprint_stack_trace for
- buffer output
-Message-Id: <20141124145752.ab64fd85.akpm@linux-foundation.org>
-In-Reply-To: <1416816926-7756-6-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 5213B6B0038
+	for <linux-mm@kvack.org>; Mon, 24 Nov 2014 18:39:41 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id lj1so10517074pab.33
+        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 15:39:41 -0800 (PST)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id fk8si24004529pab.13.2014.11.24.15.39.38
+        for <linux-mm@kvack.org>;
+        Mon, 24 Nov 2014 15:39:40 -0800 (PST)
+Date: Tue, 25 Nov 2014 08:42:37 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v3 3/8] mm/debug-pagealloc: make debug-pagealloc boottime
+ configurable
+Message-ID: <20141124234237.GA7824@js1304-P5Q-DELUXE>
 References: <1416816926-7756-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<1416816926-7756-6-git-send-email-iamjoonsoo.kim@lge.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <1416816926-7756-4-git-send-email-iamjoonsoo.kim@lge.com>
+ <20141124145542.08b97076.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141124145542.08b97076.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave@sr71.net>, Michal Nazarewicz <mina86@mina86.com>, Jungsoo Son <jungsoo.son@lge.com>, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 24 Nov 2014 17:15:23 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-
-> Current stacktrace only have the function for console output.
-> page_owner that will be introduced in following patch needs to print
-> the output of stacktrace into the buffer for our own output format
-> so so new function, snprint_stack_trace(), is needed.
+On Mon, Nov 24, 2014 at 02:55:42PM -0800, Andrew Morton wrote:
+> On Mon, 24 Nov 2014 17:15:21 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
 > 
-> ...
->
-> +int snprint_stack_trace(char *buf, size_t size,
-> +			struct stack_trace *trace, int spaces)
-> +{
-> +	int i;
-> +	unsigned long ip;
-> +	int generated;
-> +	int total = 0;
-> +
-> +	if (WARN_ON(!trace->entries))
-> +		return 0;
-> +
-> +	for (i = 0; i < trace->nr_entries; i++) {
-> +		ip = trace->entries[i];
-> +		generated = snprintf(buf, size, "%*c[<%p>] %pS\n",
-> +				1 + spaces, ' ', (void *) ip, (void *) ip);
-> +
-> +		total += generated;
-> +
-> +		/* Assume that generated isn't a negative number */
-> +		if (generated >= size) {
-> +			buf += size;
-> +			size = 0;
+> > Now, we have prepared to avoid using debug-pagealloc in boottime. So
+> > introduce new kernel-parameter to disable debug-pagealloc in boottime,
+> > and makes related functions to be disabled in this case.
+> > 
+> > Only non-intuitive part is change of guard page functions. Because
+> > guard page is effective only if debug-pagealloc is enabled, turning off
+> > according to debug-pagealloc is reasonable thing to do.
+> > 
+> > ...
+> >
+> > --- a/Documentation/kernel-parameters.txt
+> > +++ b/Documentation/kernel-parameters.txt
+> > @@ -858,6 +858,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+> >  			causing system reset or hang due to sending
+> >  			INIT from AP to BSP.
+> >  
+> > +	disable_debug_pagealloc
+> > +			[KNL] When CONFIG_DEBUG_PAGEALLOC is set, this
+> > +			parameter allows user to disable it at boot time.
+> > +			With this parameter, we can avoid allocating huge
+> > +			chunk of memory for debug pagealloc and then
+> > +			the system will work mostly same with the kernel
+> > +			built without CONFIG_DEBUG_PAGEALLOC.
+> > +
+> 
+> Weren't we going to make this default to "off", require a boot option
+> to turn debug_pagealloc on?
 
-Seems strange to keep looping around doing nothing.  Would it be better
-to `break' here?
+Hello, Andrew.
 
-> +		} else {
-> +			buf += generated;
-> +			size -= generated;
-> +		}
-> +	}
-> +
-> +	return total;
-> +}
-> +EXPORT_SYMBOL_GPL(snprint_stack_trace);
-> +
+I'm afraid that changing default to "off" confuses some old users.
+They would expect that it is default "on". But, it is just debug
+feature, so, it may be no problem. If you prefer to change default, I
+will rework this patch. Please let me know your decision.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
