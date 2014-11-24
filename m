@@ -1,47 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A9F86B006C
-	for <linux-mm@kvack.org>; Mon, 24 Nov 2014 17:17:46 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id rd3so10396233pab.28
-        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 14:17:46 -0800 (PST)
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com. [209.85.220.49])
-        by mx.google.com with ESMTPS id fl3si22740328pab.35.2014.11.24.14.17.44
+Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id B4B6D6B006C
+	for <linux-mm@kvack.org>; Mon, 24 Nov 2014 17:29:03 -0500 (EST)
+Received: by mail-ie0-f181.google.com with SMTP id tp5so9784060ieb.40
+        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 14:29:03 -0800 (PST)
+Received: from mail-ie0-x234.google.com (mail-ie0-x234.google.com. [2607:f8b0:4001:c03::234])
+        by mx.google.com with ESMTPS id 129si10365005ion.103.2014.11.24.14.29.02
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 24 Nov 2014 14:17:45 -0800 (PST)
-Received: by mail-pa0-f49.google.com with SMTP id eu11so10231757pac.8
-        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 14:17:44 -0800 (PST)
-Date: Mon, 24 Nov 2014 14:17:42 -0800
-From: Omar Sandoval <osandov@osandov.com>
-Subject: Re: [PATCH v2 0/5] btrfs: implement swap file support
-Message-ID: <20141124221742.GA15745@mew.dhcp4.washington.edu>
-References: <cover.1416563833.git.osandov@osandov.com>
- <20141121101531.GB21814@mew>
- <20141121101914.GA380@infradead.org>
+        Mon, 24 Nov 2014 14:29:02 -0800 (PST)
+Received: by mail-ie0-f180.google.com with SMTP id rp18so9510155iec.25
+        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 14:29:02 -0800 (PST)
+Date: Mon, 24 Nov 2014 14:29:00 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/5] mm: Introduce OOM kill timeout.
+In-Reply-To: <20141124165032.GA11745@curandero.mameluci.net>
+Message-ID: <alpine.DEB.2.10.1411241417250.7986@chino.kir.corp.google.com>
+References: <201411231349.CAG78628.VFQFOtOSFJMOLH@I-love.SAKURA.ne.jp> <201411231350.DDH78622.LOtOQOFMFSHFJV@I-love.SAKURA.ne.jp> <20141124165032.GA11745@curandero.mameluci.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141121101914.GA380@infradead.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, Trond Myklebust <trond.myklebust@primarydata.com>, Mel Gorman <mgorman@suse.de>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org
 
-On Fri, Nov 21, 2014 at 02:19:14AM -0800, Christoph Hellwig wrote:
-> On Fri, Nov 21, 2014 at 02:15:31AM -0800, Omar Sandoval wrote:
-> > Sorry for the noise, looks like Christoph got back to me on the previous RFC
-> > just before I sent this out -- disregard this for now.
+On Mon, 24 Nov 2014, Michal Hocko wrote:
+
+> > The problem described above is one of phenomena which is triggered by
+> > a vulnerability which exists since (if I didn't miss something)
+> > Linux 2.0 (18 years ago). However, it is too difficult to backport
+> > patches which fix the vulnerability.
 > 
-> If the NFS people are fine with this version I'd certainly welcome it as
-> a first step.  Additional improvements are of course always welcome.
->
-To follow up with the NFS people, there's some more review going on on the
-BTRFS side, but I'd like to have the infrastructure squared away here.
-Additional improvements should be mostly on the VFS side.
+> What is the vulnerability?
+> 
 
-Thanks!
--- 
-Omar
+There have historically been issues when oom killed processes fail to 
+exit, so this is probably trying to address one of those issues.
+
+The most notable example is when an oom killed process is waiting on a 
+lock that is held by another thread that is trying to allocate memory and 
+looping indefinitely since reclaim fails and the oom killer keeps finding 
+the oom killed process waiting to exit.  This is a consequence of the page 
+allocator looping forever for small order allocations.  Memcg oom kills 
+typically see this much more often when you do complete kmem accounting: 
+any combination of mutex + kmalloc(GFP_KERNEL) becomes a potential 
+livelock.  For the system oom killer, I would imagine this would be 
+difficult to trigger since it would require a process holding the mutex to 
+never be able to allocate memory.
+
+The oom killer timeout is always an attractive remedy to this situation 
+and gets proposed quite often.  Several problems: (1) you can needlessly 
+panic the machine because no other processes are eligible for oom kill 
+after declaring that the first oom kill victim cannot make progress, (2) 
+it can lead to unnecessary oom killing if the oom kill victim can exit but 
+hasn't be scheduled or is in the process of exiting, (3) you can easily 
+turn the oom killer into a serial oom killer since there's no guarantee 
+the next process that is chosen won't be affected by the same problem, and 
+(4) this doesn't fix the problem if an oom disabled process is wedged 
+trying to allocate memory while holding a mutex that others are waiting 
+on.
+
+The general approach has always been to fix the actual issue in whatever 
+code is causing the wedge.  We lack specific examples in this changelog 
+and I agree that it seems to be papering over issues that could otherwise 
+be fixed, so I agree with your NACK.
+
+> We had a kind of similar problem in Memory cgroup controller because the
+> OOM was handled in the allocation path which might sit on many locks and
+> had to wait for the victim . So waiting for OOM victim to finish would
+> simply deadlock if the killed task was stuck on any of the locks held by
+> memcg OOM killer. But this is not the case anymore (we are processing
+> memcg OOM from the fault path).
+> 
+
+I'm painfully aware of it happening with complete kmem accounting, however 
+:)  I'm sure you can imagine the scenario that is causes and unfortunately 
+our complete support isn't upstream so there's no code that I can point 
+to.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
