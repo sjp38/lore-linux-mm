@@ -1,90 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id AB7416B00B7
-	for <linux-mm@kvack.org>; Mon, 24 Nov 2014 11:57:17 -0500 (EST)
-Received: by mail-ig0-f176.google.com with SMTP id l13so3702767iga.3
-        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 08:57:17 -0800 (PST)
-Received: from mail-ig0-x235.google.com (mail-ig0-x235.google.com. [2607:f8b0:4001:c05::235])
-        by mx.google.com with ESMTPS id zc3si10154769icb.50.2014.11.24.08.57.16
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id EEF9A6B00B9
+	for <linux-mm@kvack.org>; Mon, 24 Nov 2014 12:01:25 -0500 (EST)
+Received: by mail-wi0-f173.google.com with SMTP id r20so6354416wiv.12
+        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 09:01:25 -0800 (PST)
+Received: from mail-wg0-x234.google.com (mail-wg0-x234.google.com. [2a00:1450:400c:c00::234])
+        by mx.google.com with ESMTPS id x7si13230897wiw.14.2014.11.24.09.01.25
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 24 Nov 2014 08:57:16 -0800 (PST)
-Received: by mail-ig0-f181.google.com with SMTP id l13so3709811iga.8
-        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 08:57:16 -0800 (PST)
+        Mon, 24 Nov 2014 09:01:25 -0800 (PST)
+Received: by mail-wg0-f52.google.com with SMTP id a1so12802660wgh.39
+        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 09:01:25 -0800 (PST)
+Date: Mon, 24 Nov 2014 18:01:22 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 3/5] mm: Remember ongoing memory allocation status.
+Message-ID: <20141124170122.GC11745@curandero.mameluci.net>
+References: <201411231349.CAG78628.VFQFOtOSFJMOLH@I-love.SAKURA.ne.jp>
+ <201411231351.HJA17065.VHQSFOJFtLFOMO@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <1416577403-7887-1-git-send-email-opensource.ganesh@gmail.com>
-References: <1416577403-7887-1-git-send-email-opensource.ganesh@gmail.com>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Mon, 24 Nov 2014 11:56:55 -0500
-Message-ID: <CALZtONCbto8t_RCpJrfH=ykP1t=AgxnP+4nPORdcf1wNb=6kCQ@mail.gmail.com>
-Subject: Re: [PATCH v2] mm/zsmalloc: avoid duplicate assignment of prev_class
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201411231351.HJA17065.VHQSFOJFtLFOMO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mahendran Ganesh <opensource.ganesh@gmail.com>
-Cc: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org
 
-On Fri, Nov 21, 2014 at 8:43 AM, Mahendran Ganesh
-<opensource.ganesh@gmail.com> wrote:
-> In zs_create_pool(), prev_class is assigned (ZS_SIZE_CLASSES - 1)
-> times. And the prev_class only references to the previous size_class.
-> So we do not need unnecessary assignement.
->
-> This patch assigns *prev_class* when a new size_class structure
-> is allocated and uses prev_class to check whether the first class
-> has been allocated.
->
-> Signed-off-by: Mahendran Ganesh <opensource.ganesh@gmail.com>
->
-> ---
-> v1 -> v2:
->   - follow Dan Streetman's advise to use prev_class to
->     check whether the first class has been allocated
->   - follow Minchan Kim's advise to remove uninitialized_var()
-> ---
->  mm/zsmalloc.c |    7 ++++---
->  1 file changed, 4 insertions(+), 3 deletions(-)
->
-> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index b3b57ef..810eda1 100644
-> --- a/mm/zsmalloc.c
-> +++ b/mm/zsmalloc.c
-> @@ -970,7 +970,7 @@ struct zs_pool *zs_create_pool(gfp_t flags)
->                 int size;
->                 int pages_per_zspage;
->                 struct size_class *class;
-> -               struct size_class *prev_class;
-> +               struct size_class *prev_class = NULL;
+On Sun 23-11-14 13:51:31, Tetsuo Handa wrote:
+> >From 0c6d4e0ac9fc5964fdd09849c99e4f6497b7a37e Mon Sep 17 00:00:00 2001
+> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Date: Sun, 23 Nov 2014 13:40:20 +0900
+> Subject: [PATCH 3/5] mm: Remember ongoing memory allocation status.
+> 
+> When a stall by memory allocation problem occurs, printing how long
+> a thread was blocked for memory allocation will be useful.
 
-Maybe I'm looking at the wrong source tree, but I don't think this
-will work?  You have to move
-prev_class outside the for loop, or it'll be NULL each iteration.
+Why tracepoints are not suitable for this debugging?
 
->
->                 size = ZS_MIN_ALLOC_SIZE + i * ZS_SIZE_CLASS_DELTA;
->                 if (size > ZS_MAX_ALLOC_SIZE)
-> @@ -986,8 +986,7 @@ struct zs_pool *zs_create_pool(gfp_t flags)
->                  * characteristics. So, we makes size_class point to
->                  * previous size_class if possible.
->                  */
-> -               if (i < ZS_SIZE_CLASSES - 1) {
-> -                       prev_class = pool->size_class[i + 1];
-> +               if (prev_class) {
->                         if (can_merge(prev_class, size, pages_per_zspage)) {
->                                 pool->size_class[i] = prev_class;
->                                 continue;
-> @@ -1003,6 +1002,8 @@ struct zs_pool *zs_create_pool(gfp_t flags)
->                 class->pages_per_zspage = pages_per_zspage;
->                 spin_lock_init(&class->lock);
->                 pool->size_class[i] = class;
-> +
-> +               prev_class = class;
->         }
->
->         pool->flags = flags;
-> --
-> 1.7.9.5
->
+> This patch allows remembering how many jiffies was spent for ongoing
+> __alloc_pages_nodemask() and reading it by printing backtrace and by
+> analyzing vmcore.
+
+__alloc_pages_nodemask is a hotpath of the allocation and it is not
+really acceptable to add debugging stuff there which will have only very
+limited usage.
+
+[...]
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
