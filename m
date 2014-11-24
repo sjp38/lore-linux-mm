@@ -1,48 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id B08326B0078
-	for <linux-mm@kvack.org>; Mon, 24 Nov 2014 12:14:49 -0500 (EST)
-Received: by mail-wi0-f177.google.com with SMTP id l15so6531145wiw.16
-        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 09:14:49 -0800 (PST)
-Received: from mail-wi0-x234.google.com (mail-wi0-x234.google.com. [2a00:1450:400c:c05::234])
-        by mx.google.com with ESMTPS id mc20si13233896wic.30.2014.11.24.09.14.49
+Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DEB86B00B4
+	for <linux-mm@kvack.org>; Mon, 24 Nov 2014 12:17:25 -0500 (EST)
+Received: by mail-ie0-f182.google.com with SMTP id x19so9234377ier.41
+        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 09:17:25 -0800 (PST)
+Received: from resqmta-po-03v.sys.comcast.net (resqmta-po-03v.sys.comcast.net. [2001:558:fe16:19:96:114:154:162])
+        by mx.google.com with ESMTPS id h7si5268983iga.21.2014.11.24.09.17.23
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 24 Nov 2014 09:14:49 -0800 (PST)
-Received: by mail-wi0-f180.google.com with SMTP id n3so6600039wiv.1
-        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 09:14:49 -0800 (PST)
-Date: Mon, 24 Nov 2014 18:14:46 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 4/5] mm: Drop __GFP_WAIT flag when allocating from
- shrinker functions.
-Message-ID: <20141124171446.GD11745@curandero.mameluci.net>
-References: <201411231349.CAG78628.VFQFOtOSFJMOLH@I-love.SAKURA.ne.jp>
- <201411231352.IFC13048.LOOJQMFtFVSHFO@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201411231352.IFC13048.LOOJQMFtFVSHFO@I-love.SAKURA.ne.jp>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Mon, 24 Nov 2014 09:17:24 -0800 (PST)
+Date: Mon, 24 Nov 2014 11:17:22 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] slub: fix confusing error messages in check_slab
+In-Reply-To: <CAHkaATSEn9WMKJNRp5QvzPsno_vddtMXY39yvi=BGtb4M+Hqdw@mail.gmail.com>
+Message-ID: <alpine.DEB.2.11.1411241117030.8951@gentwo.org>
+References: <CAHkaATSEn9WMKJNRp5QvzPsno_vddtMXY39yvi=BGtb4M+Hqdw@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org
+To: Min-Hua Chen <orca.chen@gmail.com>
+Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Sun 23-11-14 13:52:48, Tetsuo Handa wrote:
-[...]
-> This patch drops __GFP_WAIT flag when allocating from shrinker functions
-> so that recursive __alloc_pages_nodemask() calls will not cause troubles
-> like recursive locks and/or unpredictable sleep. The comments in this patch
-> suggest shrinker functions users to try to avoid use of sleepable locks
-> and memory allocations from shrinker functions, as with TTM driver's
-> shrinker functions.
+On Mon, 24 Nov 2014, Min-Hua Chen wrote:
 
-Again, you are just papering over potential bugs. Those bugs should be
-identified and fixe _properly_ (like stop calling kmalloc in the bug
-referenced in your changelog) rather than dropping gfp flags behind
-requester back.
--- 
-Michal Hocko
-SUSE Labs
+> In check_slab, s->name is passed incorrectly to the error
+> messages. It will cause confusing error messages if the object
+> check fails. This patch fix this bug by removing s->name.
+
+I have seen a patch like thios before.
+
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
