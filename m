@@ -1,44 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 8264B6B0038
-	for <linux-mm@kvack.org>; Mon, 24 Nov 2014 13:21:51 -0500 (EST)
-Received: by mail-wg0-f43.google.com with SMTP id l18so13414842wgh.16
-        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 10:21:51 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id h9si24147100wjr.139.2014.11.24.10.21.50
+Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
+	by kanga.kvack.org (Postfix) with ESMTP id D66E76B00DE
+	for <linux-mm@kvack.org>; Mon, 24 Nov 2014 13:46:11 -0500 (EST)
+Received: by mail-ob0-f178.google.com with SMTP id gq1so7672371obb.9
+        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 10:46:11 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id ml3si3246563oeb.26.2014.11.24.10.46.09
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Nov 2014 10:21:50 -0800 (PST)
-Date: Mon, 24 Nov 2014 13:21:27 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm, gfp: escalatedly define GFP_HIGHUSER and
- GFP_HIGHUSER_MOVABLE
-Message-ID: <20141124182127.GA7604@phnom.home.cmpxchg.org>
-References: <1416847427-2550-1-git-send-email-nasa4836@gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 24 Nov 2014 10:46:10 -0800 (PST)
+Message-ID: <54737CD7.7080908@oracle.com>
+Date: Mon, 24 Nov 2014 13:45:43 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1416847427-2550-1-git-send-email-nasa4836@gmail.com>
+Subject: Re: [PATCH v7 03/12] x86_64: add KASan support
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com> <1416852146-9781-1-git-send-email-a.ryabinin@samsung.com> <1416852146-9781-4-git-send-email-a.ryabinin@samsung.com>
+In-Reply-To: <1416852146-9781-4-git-send-email-a.ryabinin@samsung.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jianyu Zhan <nasa4836@gmail.com>
-Cc: akpm@linux-foundation.org, mgorman@suse.de, riel@redhat.com, sasha.levin@oracle.com, n-horiguchi@ah.jp.nec.com, andriy.shevchenko@linux.intel.com, rientjes@google.com, vdavydov@parallels.com, fabf@skynet.be, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jianyu Zhan <jianyu.zhan@emc.com>
+To: Andrey Ryabinin <a.ryabinin@samsung.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Jones <davej@redhat.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>
 
-On Tue, Nov 25, 2014 at 12:43:47AM +0800, Jianyu Zhan wrote:
-> GFP_USER, GFP_HIGHUSER and GFP_HIGHUSER_MOVABLE are escalatedly
-> confined defined, also implied by their names:
-> 
-> GFP_USER                                  = GFP_USER
-> GFP_USER + __GFP_HIGHMEM                  = GFP_HIGHUSER
-> GFP_USER + __GFP_HIGHMEM + __GFP_MOVABLE  = GFP_HIGHUSER_MOVABLE
-> 
-> So just make GFP_HIGHUSER and GFP_HIGHUSER_MOVABLE escalatedly defined
-> to reflect this fact. It also makes the definition clear and texturally
-> warn on any furture break-up of this escalated relastionship.
-> 
-> Signed-off-by: Jianyu Zhan <jianyu.zhan@emc.com>
+On 11/24/2014 01:02 PM, Andrey Ryabinin wrote:
+> +static int kasan_die_handler(struct notifier_block *self,
+> +			     unsigned long val,
+> +			     void *data)
+> +{
+> +	if (val == DIE_GPF) {
+> +		pr_emerg("CONFIG_KASAN_INLINE enabled\n");
+> +		pr_emerg("GPF could be caused by NULL-ptr deref or user memory access\n");
+> +	}
+> +	return NOTIFY_OK;
+> +}
+> +
+> +static struct notifier_block kasan_die_notifier = {
+> +	.notifier_call = kasan_die_handler,
+> +};
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+This part fails to compile:
+
+  CC      arch/x86/mm/kasan_init_64.o
+arch/x86/mm/kasan_init_64.c: In function ?kasan_die_handler?:
+arch/x86/mm/kasan_init_64.c:72:13: error: ?DIE_GPF? undeclared (first use in this function)
+  if (val == DIE_GPF) {
+             ^
+arch/x86/mm/kasan_init_64.c:72:13: note: each undeclared identifier is reported only once for each function it appears in
+arch/x86/mm/kasan_init_64.c: In function ?kasan_init?:
+arch/x86/mm/kasan_init_64.c:89:2: error: implicit declaration of function ?register_die_notifier? [-Werror=implicit-function-declaration]
+  register_die_notifier(&kasan_die_notifier);
+  ^
+cc1: some warnings being treated as errors
+make[1]: *** [arch/x86/mm/kasan_init_64.o] Error 1
+
+
+Simple fix:
+
+diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
+index 70041fd..c8f7f3e 100644
+--- a/arch/x86/mm/kasan_init_64.c
++++ b/arch/x86/mm/kasan_init_64.c
+@@ -5,6 +5,7 @@
+ #include <linux/vmalloc.h>
+
+ #include <asm/tlbflush.h>
++#include <linux/kdebug.h>
+
+ extern pgd_t early_level4_pgt[PTRS_PER_PGD];
+ extern struct range pfn_mapped[E820_X_MAX];
+
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
