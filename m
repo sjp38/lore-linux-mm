@@ -1,42 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A4116B00A5
-	for <linux-mm@kvack.org>; Mon, 24 Nov 2014 10:03:45 -0500 (EST)
-Received: by mail-wi0-f175.google.com with SMTP id l15so5950591wiw.14
-        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 07:03:44 -0800 (PST)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.195])
-        by mx.google.com with ESMTP id mc20si12675753wic.30.2014.11.24.07.03.44
-        for <linux-mm@kvack.org>;
-        Mon, 24 Nov 2014 07:03:44 -0800 (PST)
-Date: Mon, 24 Nov 2014 17:03:42 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC PATCH] mm/thp: Always allocate transparent hugepages on
- local node
-Message-ID: <20141124150342.GA3889@node.dhcp.inet.fi>
-References: <1416838791-30023-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from mail-oi0-f51.google.com (mail-oi0-f51.google.com [209.85.218.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A0F256B00A7
+	for <linux-mm@kvack.org>; Mon, 24 Nov 2014 10:06:15 -0500 (EST)
+Received: by mail-oi0-f51.google.com with SMTP id e131so6715844oig.38
+        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 07:06:15 -0800 (PST)
+Received: from mail-ob0-x231.google.com (mail-ob0-x231.google.com. [2607:f8b0:4003:c01::231])
+        by mx.google.com with ESMTPS id u7si9249277oes.5.2014.11.24.07.06.14
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 24 Nov 2014 07:06:14 -0800 (PST)
+Received: by mail-ob0-f177.google.com with SMTP id va2so6996182obc.36
+        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 07:06:14 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1416838791-30023-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Date: Mon, 24 Nov 2014 23:06:14 +0800
+Message-ID: <CAHkaATSEn9WMKJNRp5QvzPsno_vddtMXY39yvi=BGtb4M+Hqdw@mail.gmail.com>
+Subject: [PATCH] slub: fix confusing error messages in check_slab
+From: Min-Hua Chen <orca.chen@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Mon, Nov 24, 2014 at 07:49:51PM +0530, Aneesh Kumar K.V wrote:
-> This make sure that we try to allocate hugepages from local node. If
-> we can't we fallback to small page allocation based on
-> mempolicy. This is based on the observation that allocating pages
-> on local node is more beneficial that allocating hugepages on remote node.
+In check_slab, s->name is passed incorrectly to the error
+messages. It will cause confusing error messages if the object
+check fails. This patch fix this bug by removing s->name.
 
-Local node on allocation is not necessary local node for use.
-If policy says to use a specific node[s], we should follow.
+Signed-off-by: Min-Hua Chen <orca.chen@gmail.com>
+---
+ mm/slub.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-I think it makes sense to force local allocation if policy is interleave
-or if current node is in preferred or bind set.
- 
+diff --git a/mm/slub.c b/mm/slub.c
+index ae7b9f1..5da9f9f 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -849,12 +849,12 @@ static int check_slab(struct kmem_cache *s,
+struct page *page)
+     maxobj = order_objects(compound_order(page), s->size, s->reserved);
+     if (page->objects > maxobj) {
+         slab_err(s, page, "objects %u > max %u",
+-            s->name, page->objects, maxobj);
++             page->objects, maxobj);
+         return 0;
+     }
+     if (page->inuse > page->objects) {
+         slab_err(s, page, "inuse %u > max %u",
+-            s->name, page->inuse, page->objects);
++             page->inuse, page->objects);
+         return 0;
+     }
+     /* Slab_pad_check fixes things up after itself */
 -- 
- Kirill A. Shutemov
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
