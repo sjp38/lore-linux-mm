@@ -1,46 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A36C6B00C0
-	for <linux-mm@kvack.org>; Mon, 24 Nov 2014 12:26:02 -0500 (EST)
-Received: by mail-wi0-f171.google.com with SMTP id bs8so6445704wib.10
-        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 09:26:01 -0800 (PST)
-Received: from mail-wi0-x233.google.com (mail-wi0-x233.google.com. [2a00:1450:400c:c05::233])
-        by mx.google.com with ESMTPS id d6si13154604wiz.67.2014.11.24.09.26.01
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 8731E6B00C2
+	for <linux-mm@kvack.org>; Mon, 24 Nov 2014 12:40:03 -0500 (EST)
+Received: by mail-pd0-f181.google.com with SMTP id z10so10183261pdj.40
+        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 09:40:03 -0800 (PST)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id fe6si4151281pdb.147.2014.11.24.09.40.01
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 24 Nov 2014 09:26:01 -0800 (PST)
-Received: by mail-wi0-f179.google.com with SMTP id ex7so6613355wid.12
-        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 09:26:01 -0800 (PST)
-Date: Mon, 24 Nov 2014 18:25:58 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC PATCH 0/5] mm: Patches for mitigating memory allocation
- stalls.
-Message-ID: <20141124172558.GF11745@curandero.mameluci.net>
-References: <201411231349.CAG78628.VFQFOtOSFJMOLH@I-love.SAKURA.ne.jp>
+        Mon, 24 Nov 2014 09:40:02 -0800 (PST)
+Received: by mail-pa0-f44.google.com with SMTP id et14so9919906pad.31
+        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 09:40:01 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201411231349.CAG78628.VFQFOtOSFJMOLH@I-love.SAKURA.ne.jp>
+In-Reply-To: <alpine.DEB.2.11.1411241117030.8951@gentwo.org>
+References: <CAHkaATSEn9WMKJNRp5QvzPsno_vddtMXY39yvi=BGtb4M+Hqdw@mail.gmail.com>
+	<alpine.DEB.2.11.1411241117030.8951@gentwo.org>
+Date: Mon, 24 Nov 2014 21:40:01 +0400
+Message-ID: <CAPAsAGxbA-3gi+vgoK2NtPM4UOeARw2+5xJtnp1kh8VzrfOHeg@mail.gmail.com>
+Subject: Re: [PATCH] slub: fix confusing error messages in check_slab
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Min-Hua Chen <orca.chen@gmail.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Sun 23-11-14 13:49:27, Tetsuo Handa wrote:
-[...]
->       I reported this vulnerability last year and a CVE number was assigned,
->       but no progress has been made. If a malicious local user notices a
->       patchset that mitigates/fixes this vulnerability, the user is free to
->       attack existing Linux systems. Therefore, I propose this patchset before
->       any patchset that mitigates/fixes this vulnerability is proposed.
+2014-11-24 20:17 GMT+03:00 Christoph Lameter <cl@linux.com>:
+> On Mon, 24 Nov 2014, Min-Hua Chen wrote:
+>
+>> In check_slab, s->name is passed incorrectly to the error
+>> messages. It will cause confusing error messages if the object
+>> check fails. This patch fix this bug by removing s->name.
+>
+> I have seen a patch like thios before.
+>
 
-I have looked at patches and I do not believe they address anything.
-They seem like random and ad-hoc hacks which pretend to solve a class of
-problems but in fact only paper over potentially real ones.
-[...]
--- 
-Michal Hocko
-SUSE Labs
+It's in -mm already
+http://ozlabs.org/~akpm/mmotm/broken-out/mm-slub-fix-format-mismatches-in-slab_err-callers.patch
+
+> Acked-by: Christoph Lameter <cl@linux.com>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
