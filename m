@@ -1,35 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DEB86B00B4
-	for <linux-mm@kvack.org>; Mon, 24 Nov 2014 12:17:25 -0500 (EST)
-Received: by mail-ie0-f182.google.com with SMTP id x19so9234377ier.41
-        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 09:17:25 -0800 (PST)
-Received: from resqmta-po-03v.sys.comcast.net (resqmta-po-03v.sys.comcast.net. [2001:558:fe16:19:96:114:154:162])
-        by mx.google.com with ESMTPS id h7si5268983iga.21.2014.11.24.09.17.23
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A63B6B00B6
+	for <linux-mm@kvack.org>; Mon, 24 Nov 2014 12:20:03 -0500 (EST)
+Received: by mail-wi0-f180.google.com with SMTP id n3so6616617wiv.1
+        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 09:20:02 -0800 (PST)
+Received: from mail-wg0-x229.google.com (mail-wg0-x229.google.com. [2a00:1450:400c:c00::229])
+        by mx.google.com with ESMTPS id ge2si13041414wib.95.2014.11.24.09.20.00
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Mon, 24 Nov 2014 09:17:24 -0800 (PST)
-Date: Mon, 24 Nov 2014 11:17:22 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] slub: fix confusing error messages in check_slab
-In-Reply-To: <CAHkaATSEn9WMKJNRp5QvzPsno_vddtMXY39yvi=BGtb4M+Hqdw@mail.gmail.com>
-Message-ID: <alpine.DEB.2.11.1411241117030.8951@gentwo.org>
-References: <CAHkaATSEn9WMKJNRp5QvzPsno_vddtMXY39yvi=BGtb4M+Hqdw@mail.gmail.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 24 Nov 2014 09:20:01 -0800 (PST)
+Received: by mail-wg0-f41.google.com with SMTP id y19so12799832wgg.14
+        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 09:20:00 -0800 (PST)
+Date: Mon, 24 Nov 2014 18:19:57 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 5/5] mm: Insert some delay if ongoing memory allocation
+ stalls.
+Message-ID: <20141124171956.GE11745@curandero.mameluci.net>
+References: <201411231349.CAG78628.VFQFOtOSFJMOLH@I-love.SAKURA.ne.jp>
+ <201411231353.BDE90173.FQOMJtHOLVFOFS@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201411231353.BDE90173.FQOMJtHOLVFOFS@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Min-Hua Chen <orca.chen@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org
 
-On Mon, 24 Nov 2014, Min-Hua Chen wrote:
+On Sun 23-11-14 13:53:41, Tetsuo Handa wrote:
+> >From 4fad86f7a653dbbaec3ba2389f74f97a6705a558 Mon Sep 17 00:00:00 2001
+> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Date: Sun, 23 Nov 2014 13:41:24 +0900
+> Subject: [PATCH 5/5] mm: Insert some delay if ongoing memory allocation stalls.
+> 
+> This patch introduces 1ms of unkillable sleep before retrying when
+> sleepable __alloc_pages_nodemask() is taking more than 5 seconds.
+> According to Documentation/timers/timers-howto.txt, msleep < 20ms
+> can sleep for up to 20ms, but this should not be a problem because
+> msleep(1) is called only when there is no choice but retrying.
+> 
+> This patch is intended for two purposes.
+> 
+> (1) Reduce CPU usage when memory allocation deadlock occurred, by
+>     avoiding useless busy retry loop.
+> 
+> (2) Allow SysRq-w (or SysRq-t) to report how long each thread is
+>     blocked for memory allocation.
 
-> In check_slab, s->name is passed incorrectly to the error
-> messages. It will cause confusing error messages if the object
-> check fails. This patch fix this bug by removing s->name.
+Both do not make any sense to me whatsoever. If there is a deadlock then
+we cannot consume CPU as the deadlocked tasks are _blocked_. I guess you
+meant livelocked but even then, how does a random timeout helps?
 
-I have seen a patch like thios before.
-
-Acked-by: Christoph Lameter <cl@linux.com>
+Why would a timeout help sysrq to proceed?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
