@@ -1,57 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com [209.85.216.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E8C66B0038
-	for <linux-mm@kvack.org>; Mon, 24 Nov 2014 16:49:06 -0500 (EST)
-Received: by mail-qc0-f182.google.com with SMTP id r5so7699788qcx.27
-        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 13:49:06 -0800 (PST)
-Received: from mail-qc0-x22f.google.com (mail-qc0-x22f.google.com. [2607:f8b0:400d:c01::22f])
-        by mx.google.com with ESMTPS id s67si17318316qgs.4.2014.11.24.13.49.03
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id AB6EC6B0038
+	for <linux-mm@kvack.org>; Mon, 24 Nov 2014 17:03:07 -0500 (EST)
+Received: by mail-pd0-f178.google.com with SMTP id g10so8287863pdj.23
+        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 14:03:07 -0800 (PST)
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com. [209.85.192.181])
+        by mx.google.com with ESMTPS id xn3si23487473pab.146.2014.11.24.14.03.05
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 24 Nov 2014 13:49:04 -0800 (PST)
-Received: by mail-qc0-f175.google.com with SMTP id b13so8462225qcw.34
-        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 13:49:03 -0800 (PST)
+        Mon, 24 Nov 2014 14:03:06 -0800 (PST)
+Received: by mail-pd0-f181.google.com with SMTP id z10so10604229pdj.40
+        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 14:03:05 -0800 (PST)
+Date: Mon, 24 Nov 2014 14:03:02 -0800
+From: Omar Sandoval <osandov@osandov.com>
+Subject: Re: [PATCH v2 5/5] btrfs: enable swap file support
+Message-ID: <20141124220302.GA5785@mew.dhcp4.washington.edu>
+References: <cover.1416563833.git.osandov@osandov.com>
+ <afd3c1009172a4a1cfa10e73a64caf35c631a6d4.1416563833.git.osandov@osandov.com>
+ <20141121180045.GF8568@twin.jikos.cz>
+ <20141122200357.GA15189@mew>
 MIME-Version: 1.0
-In-Reply-To: <20141123093348.GA16954@cucumber.anchor.net.au>
-References: <20141119012110.GA2608@cucumber.iinet.net.au> <CABYiri99WAj+6hfTq+6x+_w0=VNgBua8N9+mOvU6o5bynukPLQ@mail.gmail.com>
- <20141119212013.GA18318@cucumber.anchor.net.au> <546D2366.1050506@suse.cz>
- <20141121023554.GA24175@cucumber.bridge.anchor.net.au> <20141123093348.GA16954@cucumber.anchor.net.au>
-From: Andrey Korolyov <andrey@xdel.ru>
-Date: Tue, 25 Nov 2014 01:48:42 +0400
-Message-ID: <CABYiri8LYukujETMCb4gHUQd=J-MQ8m=rGRiEkTD1B42Jh=Ksg@mail.gmail.com>
-Subject: Re: isolate_freepages_block and excessive CPU usage by OSD process
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141122200357.GA15189@mew>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Filipe David Manana <fdmanana@gmail.com>, David Sterba <dsterba@suse.cz>, linux-btrfs@vger.kernel.org
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, Trond Myklebust <trond.myklebust@primarydata.com>, Mel Gorman <mgorman@suse.de>
 
-On Sun, Nov 23, 2014 at 12:33 PM, Christian Marie <christian@ponies.io> wrote:
-> Here's an update:
->
-> Tried running 3.18.0-rc5 over the weekend to no avail. A load spike through
-> Ceph brings no perceived improvement over the chassis running 3.10 kernels.
->
-> Here is a graph of *system* cpu time (not user), note that 3.18 was a005.block:
->
-> http://ponies.io/raw/cluster.png
->
-> It is perhaps faring a little better that those chassis running the 3.10 in
-> that it did not have min_free_kbytes raised to 2GB as the others did, instead
-> it was sitting around 90MB.
->
-> The perf recording did look a little different. Not sure if this was just the
-> luck of the draw in how the fractal rendering works:
->
-> http://ponies.io/raw/perf-3.10.png
->
-> Any pointers on how we can track this down? There's at least three of us
-> following at this now so we should have plenty of area to test.
+On Sat, Nov 22, 2014 at 12:03:57PM -0800, Omar Sandoval wrote:
+> On Fri, Nov 21, 2014 at 07:00:45PM +0100, David Sterba wrote:
+> > > +			ret = -EINVAL;
+> > > +			goto out;
+> > > +		}
+> > > +		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags)) {
+> > > +			pr_err("BTRFS: swapfile is compresed");
+> > > +			ret = -EINVAL;
+> > > +			goto out;
+> > > +		}
+> > 
+> > I think the preallocated extents should be refused as well. This means
+> > the filesystem has enough space to hold the data but it would still have
+> > to go through the allocation and could in turn stress the memory
+> > management code that triggered the swapping activity in the first place.
+> > 
+> > Though it's probably still possible to reach such corner case even with
+> > fully allocated nodatacow file, this should be reviewed anyway.
+> > 
+> I'll definitely take a closer look at this. In particular,
+> btrfs_get_blocks_direct and btrfs_get_extent do allocations in some cases which
+> I'll look into.
+> 
+Alright, I took a look at this. My understanding is that a PREALLOC extent
+represents a region on disk that has already been allocated but isn't in use
+yet, but please correct me if I'm wrong. Judging by this comment in
+btrfs_get_blocks_direct, we don't have to worry about PREALLOC extents in
+general:
 
+/*
+ * We don't allocate a new extent in the following cases
+ *
+ * 1) The inode is marked as NODATACOW.  In this case we'll just use the
+ * existing extent.
+ * 2) The extent is marked as PREALLOC.  We're good to go here and can
+ * just use the extent.
+ *
+ */
 
-Checked against 3.16 (3.17 hanged for an unrelated problem), the issue
-is presented for single- and two-headed systems as well. Ceph-users
-reported presence of the problem for 3.17, so probably we are facing
-generic compaction issue.
+A couple of other considerations that cropped up:
+
+- btrfs_get_extent does a bunch of extra work if the extent is not cached in
+  the extent map tree that would be nice to avoid when swapping
+- We might still have to do a COW if the swap file is in a snapshot
+
+We can avoid the btrfs_get_extent by pinning the extents in memory one way or
+another in btrfs_swap_activate.
+
+The snapshot issue is a little tricker to resolve. I see a few options:
+
+1. Just do the COW and hope for the best
+2. As part of btrfs_swap_activate, COW any shared extents. If a snapshot
+happens while a swap file is active, we'll fall back to 1.
+3. Clobber any swap file extents which are in a snapshot, i.e., always use the
+existing extent.
+
+I'm partial to 3, as it's the simplest approach, and I don't think it makes
+much sense for a swap file to be in a snapshot anyways. I'd appreciate any
+comments that anyone might have.
+
+-- 
+Omar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
