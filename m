@@ -1,52 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 18B6E6B0038
-	for <linux-mm@kvack.org>; Tue, 25 Nov 2014 06:19:48 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id et14so390118pad.29
-        for <linux-mm@kvack.org>; Tue, 25 Nov 2014 03:19:47 -0800 (PST)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id n9si1311084pdp.200.2014.11.25.03.19.45
-        for <linux-mm@kvack.org>;
-        Tue, 25 Nov 2014 03:19:46 -0800 (PST)
-Message-ID: <547465d2.0937460a.7739.fffff2baSMTPIN_ADDED_BROKEN@mx.google.com>
-From: "Chanho Min" <chanho.min@lge.com>
-References: <1416898318-17409-1-git-send-email-chanho.min@lge.com> <20141124230502.30f9b6f0.akpm@linux-foundation.org>
-In-Reply-To: <20141124230502.30f9b6f0.akpm@linux-foundation.org>
-Subject: RE: [PATCH] mm: add parameter to disable faultaround
-Date: Tue, 25 Nov 2014 20:19:40 +0900
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 733B96B0038
+	for <linux-mm@kvack.org>; Tue, 25 Nov 2014 06:32:35 -0500 (EST)
+Received: by mail-wi0-f173.google.com with SMTP id r20so8831610wiv.0
+        for <linux-mm@kvack.org>; Tue, 25 Nov 2014 03:32:35 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id dh10si15853923wib.80.2014.11.25.03.32.34
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 25 Nov 2014 03:32:34 -0800 (PST)
+Date: Tue, 25 Nov 2014 11:32:26 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Improving CMA
+Message-ID: <20141125113225.GH2725@suse.de>
+References: <5473E146.7000503@codeaurora.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Content-Language: ko
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <5473E146.7000503@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Andrew Morton' <akpm@linux-foundation.org>
-Cc: "'Kirill A. Shutemov'" <kirill.shutemov@linux.intel.com>, 'Hugh Dickins' <hughd@google.com>, 'Michal Hocko' <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'HyoJun Im' <hyojun.im@lge.com>, 'Gunho Lee' <gunho.lee@lge.com>, 'Wonhong Kwon' <wonhong.kwon@lge.com>
+To: Laura Abbott <lauraa@codeaurora.org>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, SeongJae Park <sj38.park@gmail.com>, minchan@kernel.org, zhuhui@xiaomi.com, iamjoonsoo.kim@lge.com, gioh.kim@lge.com
 
-> > The faultaround improves the file read performance, whereas pages which
-> > can be dropped by drop_caches are reduced. On some systems, The amount of
-> > freeable pages under memory pressure is more important than read
-> > performance.
+On Mon, Nov 24, 2014 at 05:54:14PM -0800, Laura Abbott wrote:
+> There have been a number of patch series posted designed to improve various
+> aspects of CMA. A sampling:
 > 
-> The faultaround pages *are* freeable.  Perhaps you meant "free" here.
+> https://lkml.org/lkml/2014/10/15/623
+> http://marc.info/?l=linux-mm&m=141571797202006&w=2
+> https://lkml.org/lkml/2014/6/26/549
 > 
-> Please tell us a great deal about the problem which you are trying to
-> solve.  What sort of system, what sort of workload, what is bad about
-> the behaviour which you are observing, etc.
+> As far as I can tell, these are all trying to fix real problems with CMA but
+> none of them have moved forward very much from what I can tell. The goal of
+> this session would be to come out with an agreement on what are the biggest
+> problems with CMA and the best ways to solve them.
+> 
 
-We are trying to solve two issues.
+I think this is a good topic. Some of the issues have been brought up before
+at LSF/MM but they never made that much traction so it's worth revisiting. I
+haven't been paying close attention to the mailing list discussions but
+I've been a little worried that the page allocator paths are turning into
+a bigger and bigger mess. I'm also a bit worried that options such as
+migrating pages out of CMA areas that are about to be pinned for having
+callback options to forcibly free pages never went anywhere.
 
-We drop page caches by writing to /proc/sys/vm/drop_caches at specific point
-and make suspend-to-disk image. The size of this image is increased if faultaround
-is worked.
-
-Under memory pressure, we want to drop many page caches as possible.
-But, The number of dropped pages are reduced compared to non-faultaround kernel.
-
-Thanks
-Chanho,
-
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
