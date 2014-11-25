@@ -1,362 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
-	by kanga.kvack.org (Postfix) with ESMTP id B36AC6B0038
-	for <linux-mm@kvack.org>; Tue, 25 Nov 2014 06:14:59 -0500 (EST)
-Received: by mail-ob0-f182.google.com with SMTP id m8so235565obr.41
-        for <linux-mm@kvack.org>; Tue, 25 Nov 2014 03:14:59 -0800 (PST)
-Received: from mail-oi0-x229.google.com (mail-oi0-x229.google.com. [2607:f8b0:4003:c06::229])
-        by mx.google.com with ESMTPS id l18si654102obe.32.2014.11.25.03.14.58
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 25 Nov 2014 03:14:58 -0800 (PST)
-Received: by mail-oi0-f41.google.com with SMTP id a3so232376oib.28
-        for <linux-mm@kvack.org>; Tue, 25 Nov 2014 03:14:58 -0800 (PST)
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 18B6E6B0038
+	for <linux-mm@kvack.org>; Tue, 25 Nov 2014 06:19:48 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id et14so390118pad.29
+        for <linux-mm@kvack.org>; Tue, 25 Nov 2014 03:19:47 -0800 (PST)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id n9si1311084pdp.200.2014.11.25.03.19.45
+        for <linux-mm@kvack.org>;
+        Tue, 25 Nov 2014 03:19:46 -0800 (PST)
+Message-ID: <547465d2.0937460a.7739.fffff2baSMTPIN_ADDED_BROKEN@mx.google.com>
+From: "Chanho Min" <chanho.min@lge.com>
+References: <1416898318-17409-1-git-send-email-chanho.min@lge.com> <20141124230502.30f9b6f0.akpm@linux-foundation.org>
+In-Reply-To: <20141124230502.30f9b6f0.akpm@linux-foundation.org>
+Subject: RE: [PATCH] mm: add parameter to disable faultaround
+Date: Tue, 25 Nov 2014 20:19:40 +0900
 MIME-Version: 1.0
-In-Reply-To: <1416852146-9781-12-git-send-email-a.ryabinin@samsung.com>
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
- <1416852146-9781-1-git-send-email-a.ryabinin@samsung.com> <1416852146-9781-12-git-send-email-a.ryabinin@samsung.com>
-From: Dmitry Chernenkov <dmitryc@google.com>
-Date: Tue, 25 Nov 2014 15:14:37 +0400
-Message-ID: <CAA6XgkEZD=+TvqXmO814nYi_oqp_3F7_NvkjEW0-X262xTiRDw@mail.gmail.com>
-Subject: Re: [PATCH v7 11/12] lib: add kasan test module
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain;
+	charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Content-Language: ko
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <a.ryabinin@samsung.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Jones <davej@redhat.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: 'Andrew Morton' <akpm@linux-foundation.org>
+Cc: "'Kirill A. Shutemov'" <kirill.shutemov@linux.intel.com>, 'Hugh Dickins' <hughd@google.com>, 'Michal Hocko' <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'HyoJun Im' <hyojun.im@lge.com>, 'Gunho Lee' <gunho.lee@lge.com>, 'Wonhong Kwon' <wonhong.kwon@lge.com>
 
-I have a bit of concern about tests.
-A) they are not fully automated, there is no checking whether they
-pass or not. This is implemented in our repository using special tags
-in the log (https://github.com/google/kasan/commit/33b267553e7ffe66d5207152a3294112361b75fe;
-don't mmind the TODOs, they weren't broken to begin with), and a
-parser script (https://code.google.com/p/address-sanitizer/source/browse/trunk/tools/kernel_test_parse.py)
-to feed the kernel log to.
+> > The faultaround improves the file read performance, whereas pages which
+> > can be dropped by drop_caches are reduced. On some systems, The amount of
+> > freeable pages under memory pressure is more important than read
+> > performance.
+> 
+> The faultaround pages *are* freeable.  Perhaps you meant "free" here.
+> 
+> Please tell us a great deal about the problem which you are trying to
+> solve.  What sort of system, what sort of workload, what is bad about
+> the behaviour which you are observing, etc.
 
-B) They are not thorough enough - they don't check false negatives,
-accesses more than 1 byte away etc.
+We are trying to solve two issues.
 
-C) (more of general concern for current Kasan realiability) - when
-running multiple times, some tests are flaky, specificially oob_right
-and uaf2. The latter needs quarantine to work reliably (I know
-Konstantin is working on it). oob_right needs redzones in the
-beginning of the slabs.
+We drop page caches by writing to /proc/sys/vm/drop_caches at specific point
+and make suspend-to-disk image. The size of this image is increased if faultaround
+is worked.
 
-I know all of these may seem like long shots, but if we want a
-reliable solution (also a backportable solution), we need to at least
-consider them.
+Under memory pressure, we want to drop many page caches as possible.
+But, The number of dropped pages are reduced compared to non-faultaround kernel.
 
-Otherwise, LGTM
+Thanks
+Chanho,
 
-On Mon, Nov 24, 2014 at 9:02 PM, Andrey Ryabinin <a.ryabinin@samsung.com> wrote:
-> This is a test module doing various nasty things like
-> out of bounds accesses, use after free. It is useful for testing
-> kernel debugging features like kernel address sanitizer.
->
-> It mostly concentrates on testing of slab allocator, but we
-> might want to add more different stuff here in future (like
-> stack/global variables out of bounds accesses and so on).
->
-> Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
-> ---
->  lib/Kconfig.kasan |   8 ++
->  lib/Makefile      |   1 +
->  lib/test_kasan.c  | 254 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
->  3 files changed, 263 insertions(+)
->  create mode 100644 lib/test_kasan.c
->
-> diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
-> index 1fa4fe8..8548646 100644
-> --- a/lib/Kconfig.kasan
-> +++ b/lib/Kconfig.kasan
-> @@ -43,4 +43,12 @@ config KASAN_INLINE
->
->  endchoice
->
-> +config TEST_KASAN
-> +       tristate "Module for testing kasan for bug detection"
-> +       depends on m && KASAN
-> +       help
-> +         This is a test module doing various nasty things like
-> +         out of bounds accesses, use after free. It is useful for testing
-> +         kernel debugging features like kernel address sanitizer.
-> +
->  endif
-> diff --git a/lib/Makefile b/lib/Makefile
-> index 750617c..1d8211a 100644
-> --- a/lib/Makefile
-> +++ b/lib/Makefile
-> @@ -38,6 +38,7 @@ obj-$(CONFIG_TEST_LKM) += test_module.o
->  obj-$(CONFIG_TEST_USER_COPY) += test_user_copy.o
->  obj-$(CONFIG_TEST_BPF) += test_bpf.o
->  obj-$(CONFIG_TEST_FIRMWARE) += test_firmware.o
-> +obj-$(CONFIG_TEST_KASAN) += test_kasan.o
->
->  ifeq ($(CONFIG_DEBUG_KOBJECT),y)
->  CFLAGS_kobject.o += -DDEBUG
-> diff --git a/lib/test_kasan.c b/lib/test_kasan.c
-> new file mode 100644
-> index 0000000..896dee5
-> --- /dev/null
-> +++ b/lib/test_kasan.c
-> @@ -0,0 +1,254 @@
-> +/*
-> + *
-> + * Copyright (c) 2014 Samsung Electronics Co., Ltd.
-> + * Author: Andrey Ryabinin <a.ryabinin@samsung.com>
-> + *
-> + * This program is free software; you can redistribute it and/or modify
-> + * it under the terms of the GNU General Public License version 2 as
-> + * published by the Free Software Foundation.
-> + *
-> + */
-> +
-> +#define pr_fmt(fmt) "kasan test: %s " fmt, __func__
-> +
-> +#include <linux/kernel.h>
-> +#include <linux/printk.h>
-> +#include <linux/slab.h>
-> +#include <linux/string.h>
-> +#include <linux/module.h>
-> +
-> +static noinline void __init kmalloc_oob_right(void)
-> +{
-> +       char *ptr;
-> +       size_t size = 123;
-> +
-> +       pr_info("out-of-bounds to right\n");
-> +       ptr = kmalloc(size, GFP_KERNEL);
-> +       if (!ptr) {
-> +               pr_err("Allocation failed\n");
-> +               return;
-> +       }
-> +
-> +       ptr[size] = 'x';
-> +       kfree(ptr);
-> +}
-> +
-> +static noinline void __init kmalloc_oob_left(void)
-> +{
-> +       char *ptr;
-> +       size_t size = 15;
-> +
-> +       pr_info("out-of-bounds to left\n");
-> +       ptr = kmalloc(size, GFP_KERNEL);
-> +       if (!ptr) {
-> +               pr_err("Allocation failed\n");
-> +               return;
-> +       }
-> +
-> +       *ptr = *(ptr - 1);
-> +       kfree(ptr);
-> +}
-> +
-> +static noinline void __init kmalloc_node_oob_right(void)
-> +{
-> +       char *ptr;
-> +       size_t size = 4096;
-> +
-> +       pr_info("kmalloc_node(): out-of-bounds to right\n");
-> +       ptr = kmalloc_node(size, GFP_KERNEL, 0);
-> +       if (!ptr) {
-> +               pr_err("Allocation failed\n");
-> +               return;
-> +       }
-> +
-> +       ptr[size] = 0;
-> +       kfree(ptr);
-> +}
-> +
-> +static noinline void __init kmalloc_large_oob_rigth(void)
-> +{
-> +       char *ptr;
-> +       size_t size = KMALLOC_MAX_CACHE_SIZE + 10;
-> +
-> +       pr_info("kmalloc large allocation: out-of-bounds to right\n");
-> +       ptr = kmalloc(size, GFP_KERNEL);
-> +       if (!ptr) {
-> +               pr_err("Allocation failed\n");
-> +               return;
-> +       }
-> +
-> +       ptr[size] = 0;
-> +       kfree(ptr);
-> +}
-> +
-> +static noinline void __init kmalloc_oob_krealloc_more(void)
-> +{
-> +       char *ptr1, *ptr2;
-> +       size_t size1 = 17;
-> +       size_t size2 = 19;
-> +
-> +       pr_info("out-of-bounds after krealloc more\n");
-> +       ptr1 = kmalloc(size1, GFP_KERNEL);
-> +       ptr2 = krealloc(ptr1, size2, GFP_KERNEL);
-> +       if (!ptr1 || !ptr2) {
-> +               pr_err("Allocation failed\n");
-> +               kfree(ptr1);
-> +               return;
-> +       }
-> +
-> +       ptr2[size2] = 'x';
-> +       kfree(ptr2);
-> +}
-> +
-> +static noinline void __init kmalloc_oob_krealloc_less(void)
-> +{
-> +       char *ptr1, *ptr2;
-> +       size_t size1 = 17;
-> +       size_t size2 = 15;
-> +
-> +       pr_info("out-of-bounds after krealloc less\n");
-> +       ptr1 = kmalloc(size1, GFP_KERNEL);
-> +       ptr2 = krealloc(ptr1, size2, GFP_KERNEL);
-> +       if (!ptr1 || !ptr2) {
-> +               pr_err("Allocation failed\n");
-> +               kfree(ptr1);
-> +               return;
-> +       }
-> +       ptr2[size1] = 'x';
-> +       kfree(ptr2);
-> +}
-> +
-> +static noinline void __init kmalloc_oob_16(void)
-> +{
-> +       struct {
-> +               u64 words[2];
-> +       } *ptr1, *ptr2;
-> +
-> +       pr_info("kmalloc out-of-bounds for 16-bytes access\n");
-> +       ptr1 = kmalloc(sizeof(*ptr1) - 3, GFP_KERNEL);
-> +       ptr2 = kmalloc(sizeof(*ptr2), GFP_KERNEL);
-> +       if (!ptr1 || !ptr2) {
-> +               pr_err("Allocation failed\n");
-> +               kfree(ptr1);
-> +               kfree(ptr2);
-> +               return;
-> +       }
-> +       *ptr1 = *ptr2;
-> +       kfree(ptr1);
-> +       kfree(ptr2);
-> +}
-> +
-> +static noinline void __init kmalloc_oob_in_memset(void)
-> +{
-> +       char *ptr;
-> +       size_t size = 666;
-> +
-> +       pr_info("out-of-bounds in memset\n");
-> +       ptr = kmalloc(size, GFP_KERNEL);
-> +       if (!ptr) {
-> +               pr_err("Allocation failed\n");
-> +               return;
-> +       }
-> +
-> +       memset(ptr, 0, size+5);
-> +       kfree(ptr);
-> +}
-> +
-> +static noinline void __init kmalloc_uaf(void)
-> +{
-> +       char *ptr;
-> +       size_t size = 10;
-> +
-> +       pr_info("use-after-free\n");
-> +       ptr = kmalloc(size, GFP_KERNEL);
-> +       if (!ptr) {
-> +               pr_err("Allocation failed\n");
-> +               return;
-> +       }
-> +
-> +       kfree(ptr);
-> +       *(ptr + 8) = 'x';
-> +}
-> +
-> +static noinline void __init kmalloc_uaf_memset(void)
-> +{
-> +       char *ptr;
-> +       size_t size = 33;
-> +
-> +       pr_info("use-after-free in memset\n");
-> +       ptr = kmalloc(size, GFP_KERNEL);
-> +       if (!ptr) {
-> +               pr_err("Allocation failed\n");
-> +               return;
-> +       }
-> +
-> +       kfree(ptr);
-> +       memset(ptr, 0, size);
-> +}
-> +
-> +static noinline void __init kmalloc_uaf2(void)
-> +{
-> +       char *ptr1, *ptr2;
-> +       size_t size = 43;
-> +
-> +       pr_info("use-after-free after another kmalloc\n");
-> +       ptr1 = kmalloc(size, GFP_KERNEL);
-> +       if (!ptr1) {
-> +               pr_err("Allocation failed\n");
-> +               return;
-> +       }
-> +
-> +       kfree(ptr1);
-> +       ptr2 = kmalloc(size, GFP_KERNEL);
-> +       if (!ptr2) {
-> +               pr_err("Allocation failed\n");
-> +               return;
-> +       }
-> +
-> +       ptr1[40] = 'x';
-> +       kfree(ptr2);
-> +}
-> +
-> +static noinline void __init kmem_cache_oob(void)
-> +{
-> +       char *p;
-> +       size_t size = 200;
-> +       struct kmem_cache *cache = kmem_cache_create("test_cache",
-> +                                               size, 0,
-> +                                               0, NULL);
-> +       if (!cache) {
-> +               pr_err("Cache allocation failed\n");
-> +               return;
-> +       }
-> +       pr_info("out-of-bounds in kmem_cache_alloc\n");
-> +       p = kmem_cache_alloc(cache, GFP_KERNEL);
-> +       if (!p) {
-> +               pr_err("Allocation failed\n");
-> +               kmem_cache_destroy(cache);
-> +               return;
-> +       }
-> +
-> +       *p = p[size];
-> +       kmem_cache_free(cache, p);
-> +       kmem_cache_destroy(cache);
-> +}
-> +
-> +int __init kmalloc_tests_init(void)
-> +{
-> +       kmalloc_oob_right();
-> +       kmalloc_oob_left();
-> +       kmalloc_node_oob_right();
-> +       kmalloc_large_oob_rigth();
-> +       kmalloc_oob_krealloc_more();
-> +       kmalloc_oob_krealloc_less();
-> +       kmalloc_oob_16();
-> +       kmalloc_oob_in_memset();
-> +       kmalloc_uaf();
-> +       kmalloc_uaf_memset();
-> +       kmalloc_uaf2();
-> +       kmem_cache_oob();
-> +       return -EAGAIN;
-> +}
-> +
-> +module_init(kmalloc_tests_init);
-> +MODULE_LICENSE("GPL");
-> --
-> 2.1.3
->
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
