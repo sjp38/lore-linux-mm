@@ -1,61 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 448BD6B0038
-	for <linux-mm@kvack.org>; Mon, 24 Nov 2014 22:02:37 -0500 (EST)
-Received: by mail-pd0-f177.google.com with SMTP id ft15so10943878pdb.22
-        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 19:02:37 -0800 (PST)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id kn4si24469839pbc.19.2014.11.24.19.02.34
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id A49A06B0038
+	for <linux-mm@kvack.org>; Tue, 25 Nov 2014 00:55:38 -0500 (EST)
+Received: by mail-wg0-f47.google.com with SMTP id n12so14097662wgh.6
+        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 21:55:38 -0800 (PST)
+Received: from fw5a.wadns.net (fw5a-katy.wadns.net. [41.185.62.20])
+        by mx.google.com with ESMTPS id qa3si356151wjc.62.2014.11.24.21.55.37
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 24 Nov 2014 19:02:35 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 01/19] mm, thp: drop FOLL_SPLIT
-Date: Tue, 25 Nov 2014 03:01:16 +0000
-Message-ID: <20141125030109.GA21716@hori1.linux.bs1.fc.nec.co.jp>
-References: <1415198994-15252-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1415198994-15252-2-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1415198994-15252-2-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <C01FDC8EF842D54697B74E053094DEBA@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Mon, 24 Nov 2014 21:55:37 -0800 (PST)
+Message-ID: <547419D6.40905@swiftspirit.co.za>
+Date: Tue, 25 Nov 2014 07:55:34 +0200
+From: Brendan Hide <brendan@swiftspirit.co.za>
 MIME-Version: 1.0
+Subject: Re: [PATCH v2 5/5] btrfs: enable swap file support
+References: <cover.1416563833.git.osandov@osandov.com> <afd3c1009172a4a1cfa10e73a64caf35c631a6d4.1416563833.git.osandov@osandov.com> <20141121180045.GF8568@twin.jikos.cz> <20141122200357.GA15189@mew> <20141124220302.GA5785@mew.dhcp4.washington.edu>
+In-Reply-To: <20141124220302.GA5785@mew.dhcp4.washington.edu>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Omar Sandoval <osandov@osandov.com>
+Cc: Filipe David Manana <fdmanana@gmail.com>, David Sterba <dsterba@suse.cz>, linux-btrfs@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, Trond Myklebust <trond.myklebust@primarydata.com>, Mel Gorman <mgorman@suse.de>
 
-On Wed, Nov 05, 2014 at 04:49:36PM +0200, Kirill A. Shutemov wrote:
-> FOLL_SPLIT is used only in two places: migration and s390.
->=20
-> Let's replace it with explicit split and remove FOLL_SPLIT.
->=20
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
-...
-> @@ -1246,6 +1246,11 @@ static int do_move_page_to_node_array(struct mm_st=
-ruct *mm,
->  		if (!page)
->  			goto set_status;
-> =20
-> +		if (PageTransHuge(page) && split_huge_page(page)) {
-> +			err =3D -EBUSY;
-> +			goto set_status;
-> +		}
-> +
+On 2014/11/25 00:03, Omar Sandoval wrote:
+> [snip]
+>
+> The snapshot issue is a little tricker to resolve. I see a few options:
+>
+> 1. Just do the COW and hope for the best
+> 2. As part of btrfs_swap_activate, COW any shared extents. If a snapshot
+> happens while a swap file is active, we'll fall back to 1.
+> 3. Clobber any swap file extents which are in a snapshot, i.e., always use the
+> existing extent.
+>
+> I'm partial to 3, as it's the simplest approach, and I don't think it makes
+> much sense for a swap file to be in a snapshot anyways. I'd appreciate any
+> comments that anyone might have.
+>
+Personally, 3 seems pragmatic - but not necessarily "correct". :-/
 
-This check makes split_huge_page() be called for hugetlb pages, which
-triggers BUG_ON. So could you do this after if (PageHuge) block below?
-And I think that we have "Node already in the right place" check afterward,
-so I hope that moving down this check also helps us reduce thp splitting.
-
-Thanks,
-Naoya Horiguchi
-
->  		/* Use PageReserved to check for zero page */
->  		if (PageReserved(page))
->  			goto put_and_set;=
+-- 
+__________
+Brendan Hide
+http://swiftspirit.co.za/
+http://www.webafrica.co.za/?AFF1E97
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
