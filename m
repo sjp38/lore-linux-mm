@@ -1,68 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id A8D6B6B006E
-	for <linux-mm@kvack.org>; Tue, 25 Nov 2014 09:17:08 -0500 (EST)
-Received: by mail-wi0-f179.google.com with SMTP id ex7so1604579wid.0
-        for <linux-mm@kvack.org>; Tue, 25 Nov 2014 06:17:08 -0800 (PST)
-Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.227])
-        by mx.google.com with ESMTP id d6si3305355wiz.67.2014.11.25.06.17.06
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id BD1F86B006C
+	for <linux-mm@kvack.org>; Tue, 25 Nov 2014 09:32:29 -0500 (EST)
+Received: by mail-wi0-f173.google.com with SMTP id r20so9312230wiv.6
+        for <linux-mm@kvack.org>; Tue, 25 Nov 2014 06:32:29 -0800 (PST)
+Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.203])
+        by mx.google.com with ESMTP id bo7si738720wib.95.2014.11.25.06.32.28
         for <linux-mm@kvack.org>;
-        Tue, 25 Nov 2014 06:17:06 -0800 (PST)
-Date: Tue, 25 Nov 2014 16:17:02 +0200
+        Tue, 25 Nov 2014 06:32:28 -0800 (PST)
+Date: Tue, 25 Nov 2014 16:32:19 +0200
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC PATCH] mm/thp: Always allocate transparent hugepages on
- local node
-Message-ID: <20141125141702.GB11841@node.dhcp.inet.fi>
-References: <1416838791-30023-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <20141124150342.GA3889@node.dhcp.inet.fi>
- <alpine.DEB.2.10.1411241317430.21237@chino.kir.corp.google.com>
+Subject: Re: [PATCH] mm, gfp: escalatedly define GFP_HIGHUSER and
+ GFP_HIGHUSER_MOVABLE
+Message-ID: <20141125143219.GC11841@node.dhcp.inet.fi>
+References: <1416847427-2550-1-git-send-email-nasa4836@gmail.com>
+ <20141124190127.GA5027@node.dhcp.inet.fi>
+ <alpine.DEB.2.10.1411241334490.21237@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1411241317430.21237@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1411241334490.21237@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Jianyu Zhan <nasa4836@gmail.com>, akpm@linux-foundation.org, mgorman@suse.de, riel@redhat.com, sasha.levin@oracle.com, n-horiguchi@ah.jp.nec.com, andriy.shevchenko@linux.intel.com, hannes@cmpxchg.org, vdavydov@parallels.com, fabf@skynet.be, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jianyu Zhan <jianyu.zhan@emc.com>
 
-On Mon, Nov 24, 2014 at 01:33:42PM -0800, David Rientjes wrote:
+On Mon, Nov 24, 2014 at 01:35:00PM -0800, David Rientjes wrote:
 > On Mon, 24 Nov 2014, Kirill A. Shutemov wrote:
 > 
-> > > This make sure that we try to allocate hugepages from local node. If
-> > > we can't we fallback to small page allocation based on
-> > > mempolicy. This is based on the observation that allocating pages
-> > > on local node is more beneficial that allocating hugepages on remote node.
-> > 
-> > Local node on allocation is not necessary local node for use.
-> > If policy says to use a specific node[s], we should follow.
+> > But I would prefer to have GPF_HIGHUSER movable by default and
+> > GFP_HIGHUSER_UNMOVABLE to opt out.
 > > 
 > 
-> True, and the interaction between thp and mempolicies is fragile: if a 
-> process has a MPOL_BIND mempolicy over a set of nodes, that does not 
-> necessarily mean that we want to allocate thp remotely if it will always 
-> be accessed remotely.  It's simple to benchmark and show that remote 
-> access latency of a hugepage can exceed that of local pages.  MPOL_BIND 
-> itself is a policy of exclusion, not inclusion, and it's difficult to 
-> define when local pages and its cost of allocation is better than remote 
-> thp.
-> 
-> For MPOL_BIND, if the local node is allowed then thp should be forced from 
-> that node, if the local node is disallowed then allocate from any node in 
-> the nodemask.  For MPOL_INTERLEAVE, I think we should only allocate thp 
-> from the next node in order, otherwise fail the allocation and fallback to 
-> small pages.  Is this what you meant as well?
+> Sounds like a separate patch.
 
-Correct.
+There are few questions before preparing patch:
 
-> > I think it makes sense to force local allocation if policy is interleave
-> > or if current node is in preferred or bind set.
-> >  
-> 
-> If local allocation were forced for MPOL_INTERLEAVE and all memory is 
-> initially faulted by cpus on a single node, then the policy has 
-> effectively become MPOL_DEFAULT, there's no interleave.
+1. Compatibility: some code which is not yet in tree can rely on
+non-movable behaviour of GFP_HIGHUSER. How would we handle this?
+Should we invent new name for the movable GFP_HIGHUSER?
 
-You're right. I don't have much experience with mempolicy code.
+2. Should GFP_USER be movable too? And the same compatibility question
+here.
+
+3. Do we need a separate define for non-movable GPF_HIGHUSER or caller
+should use something like GPF_HIGHUSER & ~__GFP_MOVABLE?
+
+4. Is there a gain, taking into account questions above?
 
 -- 
  Kirill A. Shutemov
