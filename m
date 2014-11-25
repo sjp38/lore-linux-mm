@@ -1,55 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id DA9156B006C
-	for <linux-mm@kvack.org>; Tue, 25 Nov 2014 09:16:51 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id lj1so651255pab.33
-        for <linux-mm@kvack.org>; Tue, 25 Nov 2014 06:16:51 -0800 (PST)
-Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
-        by mx.google.com with ESMTPS id re11si1980120pdb.228.2014.11.25.06.16.49
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Tue, 25 Nov 2014 06:16:50 -0800 (PST)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout2.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NFL00IJDMGKFC80@mailout2.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 25 Nov 2014 14:19:32 +0000 (GMT)
-Message-id: <54748F4A.8030003@samsung.com>
-Date: Tue, 25 Nov 2014 17:16:42 +0300
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
-MIME-version: 1.0
-Subject: Re: [PATCH v7 01/12] Add kernel address sanitizer infrastructure.
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
- <1416852146-9781-1-git-send-email-a.ryabinin@samsung.com>
- <1416852146-9781-2-git-send-email-a.ryabinin@samsung.com>
- <CAA6XgkH4soz_oCiO+X2Tibc3H6NHiZJp5ySzk5SSntD9dV6Gfw@mail.gmail.com>
-In-reply-to: 
- <CAA6XgkH4soz_oCiO+X2Tibc3H6NHiZJp5ySzk5SSntD9dV6Gfw@mail.gmail.com>
-Content-type: text/plain; charset=utf-8
-Content-transfer-encoding: 7bit
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id A8D6B6B006E
+	for <linux-mm@kvack.org>; Tue, 25 Nov 2014 09:17:08 -0500 (EST)
+Received: by mail-wi0-f179.google.com with SMTP id ex7so1604579wid.0
+        for <linux-mm@kvack.org>; Tue, 25 Nov 2014 06:17:08 -0800 (PST)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.227])
+        by mx.google.com with ESMTP id d6si3305355wiz.67.2014.11.25.06.17.06
+        for <linux-mm@kvack.org>;
+        Tue, 25 Nov 2014 06:17:06 -0800 (PST)
+Date: Tue, 25 Nov 2014 16:17:02 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC PATCH] mm/thp: Always allocate transparent hugepages on
+ local node
+Message-ID: <20141125141702.GB11841@node.dhcp.inet.fi>
+References: <1416838791-30023-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <20141124150342.GA3889@node.dhcp.inet.fi>
+ <alpine.DEB.2.10.1411241317430.21237@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1411241317430.21237@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Chernenkov <dmitryc@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Randy Dunlap <rdunlap@infradead.org>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Jones <davej@redhat.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Jonathan Corbet <corbet@lwn.net>, Michal Marek <mmarek@suse.cz>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+To: David Rientjes <rientjes@google.com>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 11/25/2014 03:40 PM, Dmitry Chernenkov wrote:
-> I'm a little concerned with how enabling/disabling works. If an
-> enable() is forgotten once, it's disabled forever. If disable() is
-> forgotten once, the toggle is reversed for the forseable future. MB
-> check for inequality in kasan_enabled()? like current->kasan_depth >=
-> 0 (will need a signed int for the field). Do you think it's going to
-> decrease performance?
-
-I think that check in kasan_enabled shouldn't hurt much.
-But it also doesn't look very useful for me.
-
-There are only few user of kasan_disable_local/kasan_enable_local, it's easy to review them.
-And in future we also shouldn't have a lot of new users of those functions.
-
+On Mon, Nov 24, 2014 at 01:33:42PM -0800, David Rientjes wrote:
+> On Mon, 24 Nov 2014, Kirill A. Shutemov wrote:
 > 
-> LGTM
+> > > This make sure that we try to allocate hugepages from local node. If
+> > > we can't we fallback to small page allocation based on
+> > > mempolicy. This is based on the observation that allocating pages
+> > > on local node is more beneficial that allocating hugepages on remote node.
+> > 
+> > Local node on allocation is not necessary local node for use.
+> > If policy says to use a specific node[s], we should follow.
+> > 
 > 
+> True, and the interaction between thp and mempolicies is fragile: if a 
+> process has a MPOL_BIND mempolicy over a set of nodes, that does not 
+> necessarily mean that we want to allocate thp remotely if it will always 
+> be accessed remotely.  It's simple to benchmark and show that remote 
+> access latency of a hugepage can exceed that of local pages.  MPOL_BIND 
+> itself is a policy of exclusion, not inclusion, and it's difficult to 
+> define when local pages and its cost of allocation is better than remote 
+> thp.
 > 
+> For MPOL_BIND, if the local node is allowed then thp should be forced from 
+> that node, if the local node is disallowed then allocate from any node in 
+> the nodemask.  For MPOL_INTERLEAVE, I think we should only allocate thp 
+> from the next node in order, otherwise fail the allocation and fallback to 
+> small pages.  Is this what you meant as well?
+
+Correct.
+
+> > I think it makes sense to force local allocation if policy is interleave
+> > or if current node is in preferred or bind set.
+> >  
+> 
+> If local allocation were forced for MPOL_INTERLEAVE and all memory is 
+> initially faulted by cpus on a single node, then the policy has 
+> effectively become MPOL_DEFAULT, there's no interleave.
+
+You're right. I don't have much experience with mempolicy code.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
