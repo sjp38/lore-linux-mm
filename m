@@ -1,53 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 733B96B0038
-	for <linux-mm@kvack.org>; Tue, 25 Nov 2014 06:32:35 -0500 (EST)
-Received: by mail-wi0-f173.google.com with SMTP id r20so8831610wiv.0
-        for <linux-mm@kvack.org>; Tue, 25 Nov 2014 03:32:35 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id dh10si15853923wib.80.2014.11.25.03.32.34
+Received: from mail-ie0-f176.google.com (mail-ie0-f176.google.com [209.85.223.176])
+	by kanga.kvack.org (Postfix) with ESMTP id CAAE56B0038
+	for <linux-mm@kvack.org>; Tue, 25 Nov 2014 06:39:56 -0500 (EST)
+Received: by mail-ie0-f176.google.com with SMTP id tr6so326423ieb.21
+        for <linux-mm@kvack.org>; Tue, 25 Nov 2014 03:39:56 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id i1si575244iod.64.2014.11.25.03.39.55
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 25 Nov 2014 03:32:34 -0800 (PST)
-Date: Tue, 25 Nov 2014 11:32:26 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Improving CMA
-Message-ID: <20141125113225.GH2725@suse.de>
-References: <5473E146.7000503@codeaurora.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <5473E146.7000503@codeaurora.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 25 Nov 2014 03:39:55 -0800 (PST)
+Date: Tue, 25 Nov 2014 03:40:16 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: add parameter to disable faultaround
+Message-Id: <20141125034016.5638d5e4.akpm@linux-foundation.org>
+In-Reply-To: <547465d2.6561420a.04ed.0514SMTPIN_ADDED_BROKEN@mx.google.com>
+References: <1416898318-17409-1-git-send-email-chanho.min@lge.com>
+	<20141124230502.30f9b6f0.akpm@linux-foundation.org>
+	<547465d2.6561420a.04ed.0514SMTPIN_ADDED_BROKEN@mx.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <lauraa@codeaurora.org>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, SeongJae Park <sj38.park@gmail.com>, minchan@kernel.org, zhuhui@xiaomi.com, iamjoonsoo.kim@lge.com, gioh.kim@lge.com
+To: Chanho Min <chanho.min@lge.com>
+Cc: "'Kirill A. Shutemov'" <kirill.shutemov@linux.intel.com>, 'Hugh Dickins' <hughd@google.com>, 'Michal Hocko' <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'HyoJun Im' <hyojun.im@lge.com>, 'Gunho Lee' <gunho.lee@lge.com>, 'Wonhong Kwon' <wonhong.kwon@lge.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>
 
-On Mon, Nov 24, 2014 at 05:54:14PM -0800, Laura Abbott wrote:
-> There have been a number of patch series posted designed to improve various
-> aspects of CMA. A sampling:
-> 
-> https://lkml.org/lkml/2014/10/15/623
-> http://marc.info/?l=linux-mm&m=141571797202006&w=2
-> https://lkml.org/lkml/2014/6/26/549
-> 
-> As far as I can tell, these are all trying to fix real problems with CMA but
-> none of them have moved forward very much from what I can tell. The goal of
-> this session would be to come out with an agreement on what are the biggest
-> problems with CMA and the best ways to solve them.
-> 
+On Tue, 25 Nov 2014 20:19:40 +0900 "Chanho Min" <chanho.min@lge.com> wrote:
 
-I think this is a good topic. Some of the issues have been brought up before
-at LSF/MM but they never made that much traction so it's worth revisiting. I
-haven't been paying close attention to the mailing list discussions but
-I've been a little worried that the page allocator paths are turning into
-a bigger and bigger mess. I'm also a bit worried that options such as
-migrating pages out of CMA areas that are about to be pinned for having
-callback options to forcibly free pages never went anywhere.
+> > > The faultaround improves the file read performance, whereas pages which
+> > > can be dropped by drop_caches are reduced. On some systems, The amount of
+> > > freeable pages under memory pressure is more important than read
+> > > performance.
+> > 
+> > The faultaround pages *are* freeable.  Perhaps you meant "free" here.
+> > 
+> > Please tell us a great deal about the problem which you are trying to
+> > solve.  What sort of system, what sort of workload, what is bad about
+> > the behaviour which you are observing, etc.
+> 
+> We are trying to solve two issues.
+> 
+> We drop page caches by writing to /proc/sys/vm/drop_caches at specific point
+> and make suspend-to-disk image. The size of this image is increased if faultaround
+> is worked.
 
--- 
-Mel Gorman
-SUSE Labs
+OK.
+
+These pages are clean (mostly) and are mapped into process pagetables. 
+Obviously mm/vmscan.c:shrink_all_memory() is not freeing these pages
+prior to hibernating.
+
+I forget what the policy/tuning is in this area.  IIRC, the intent of
+shrink_all_memory() is to free up enough memory so that hibernation can
+perform its function, rather than to explicitly reduce the size of the
+image.
+
+What I suggest you do is to take a look at how hibernation is calling
+shrink_all_memory() and retune it so it shrinks a lot harder.  You may
+want to disable swapping, or perhaps reduce it by performing one
+shrink_all_memory() in the same way as at present, then perform a
+second shrink_all_memory() more aggressively, but with
+scan_control.may_swap=0.  The overall effect will be to make
+hibernation tear down the process pagetable mappings and free these
+pagecache pages before preparing the disk image.
+
+If we can get this working then your hibernation image will be
+significantly smaller than it is with this patch, because more pages
+will be unmapped and freed.  There will of course be a lot of major
+pagefaults after resume.  If that's a problem then perhaps we can tune
+the second shrink_all_memory() pass to only unmap ptes for unreferenced
+pages.
+
+> Under memory pressure, we want to drop many page caches as possible.
+> But, The number of dropped pages are reduced compared to non-faultaround kernel.
+
+Again, why do you want to do this?  What problem is it solving?  I
+assume you're using drop_caches for this as well?
+
+Generally, any use of drop_caches is wrong, and indicates there's some
+shortcoming in MM.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
