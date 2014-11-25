@@ -1,59 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id F2CEF6B0038
-	for <linux-mm@kvack.org>; Tue, 25 Nov 2014 09:04:43 -0500 (EST)
-Received: by mail-wg0-f45.google.com with SMTP id b13so949378wgh.18
-        for <linux-mm@kvack.org>; Tue, 25 Nov 2014 06:04:43 -0800 (PST)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.203])
-        by mx.google.com with ESMTP id l2si3297023wix.39.2014.11.25.06.04.42
-        for <linux-mm@kvack.org>;
-        Tue, 25 Nov 2014 06:04:42 -0800 (PST)
-Date: Tue, 25 Nov 2014 16:04:28 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 01/19] mm, thp: drop FOLL_SPLIT
-Message-ID: <20141125140428.GA11841@node.dhcp.inet.fi>
-References: <1415198994-15252-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1415198994-15252-2-git-send-email-kirill.shutemov@linux.intel.com>
- <20141125030109.GA21716@hori1.linux.bs1.fc.nec.co.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141125030109.GA21716@hori1.linux.bs1.fc.nec.co.jp>
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id DA9156B006C
+	for <linux-mm@kvack.org>; Tue, 25 Nov 2014 09:16:51 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id lj1so651255pab.33
+        for <linux-mm@kvack.org>; Tue, 25 Nov 2014 06:16:51 -0800 (PST)
+Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
+        by mx.google.com with ESMTPS id re11si1980120pdb.228.2014.11.25.06.16.49
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Tue, 25 Nov 2014 06:16:50 -0800 (PST)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout2.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NFL00IJDMGKFC80@mailout2.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 25 Nov 2014 14:19:32 +0000 (GMT)
+Message-id: <54748F4A.8030003@samsung.com>
+Date: Tue, 25 Nov 2014 17:16:42 +0300
+From: Andrey Ryabinin <a.ryabinin@samsung.com>
+MIME-version: 1.0
+Subject: Re: [PATCH v7 01/12] Add kernel address sanitizer infrastructure.
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
+ <1416852146-9781-1-git-send-email-a.ryabinin@samsung.com>
+ <1416852146-9781-2-git-send-email-a.ryabinin@samsung.com>
+ <CAA6XgkH4soz_oCiO+X2Tibc3H6NHiZJp5ySzk5SSntD9dV6Gfw@mail.gmail.com>
+In-reply-to: 
+ <CAA6XgkH4soz_oCiO+X2Tibc3H6NHiZJp5ySzk5SSntD9dV6Gfw@mail.gmail.com>
+Content-type: text/plain; charset=utf-8
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Dmitry Chernenkov <dmitryc@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Randy Dunlap <rdunlap@infradead.org>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Jones <davej@redhat.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Jonathan Corbet <corbet@lwn.net>, Michal Marek <mmarek@suse.cz>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 
-On Tue, Nov 25, 2014 at 03:01:16AM +0000, Naoya Horiguchi wrote:
-> On Wed, Nov 05, 2014 at 04:49:36PM +0200, Kirill A. Shutemov wrote:
-> > FOLL_SPLIT is used only in two places: migration and s390.
-> > 
-> > Let's replace it with explicit split and remove FOLL_SPLIT.
-> > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > ---
-> ...
-> > @@ -1246,6 +1246,11 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
-> >  		if (!page)
-> >  			goto set_status;
-> >  
-> > +		if (PageTransHuge(page) && split_huge_page(page)) {
-> > +			err = -EBUSY;
-> > +			goto set_status;
-> > +		}
-> > +
+On 11/25/2014 03:40 PM, Dmitry Chernenkov wrote:
+> I'm a little concerned with how enabling/disabling works. If an
+> enable() is forgotten once, it's disabled forever. If disable() is
+> forgotten once, the toggle is reversed for the forseable future. MB
+> check for inequality in kasan_enabled()? like current->kasan_depth >=
+> 0 (will need a signed int for the field). Do you think it's going to
+> decrease performance?
+
+I think that check in kasan_enabled shouldn't hurt much.
+But it also doesn't look very useful for me.
+
+There are only few user of kasan_disable_local/kasan_enable_local, it's easy to review them.
+And in future we also shouldn't have a lot of new users of those functions.
+
 > 
-> This check makes split_huge_page() be called for hugetlb pages, which
-> triggers BUG_ON. So could you do this after if (PageHuge) block below?
-> And I think that we have "Node already in the right place" check afterward,
-> so I hope that moving down this check also helps us reduce thp splitting.
-
-It makes sense. Thanks for report.
-
-Other problem here is that we need to goto put_and_set, not set_status :-/
-
--- 
- Kirill A. Shutemov
+> LGTM
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
