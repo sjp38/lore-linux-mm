@@ -1,50 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id A49A06B0038
-	for <linux-mm@kvack.org>; Tue, 25 Nov 2014 00:55:38 -0500 (EST)
-Received: by mail-wg0-f47.google.com with SMTP id n12so14097662wgh.6
-        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 21:55:38 -0800 (PST)
-Received: from fw5a.wadns.net (fw5a-katy.wadns.net. [41.185.62.20])
-        by mx.google.com with ESMTPS id qa3si356151wjc.62.2014.11.24.21.55.37
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Mon, 24 Nov 2014 21:55:37 -0800 (PST)
-Message-ID: <547419D6.40905@swiftspirit.co.za>
-Date: Tue, 25 Nov 2014 07:55:34 +0200
-From: Brendan Hide <brendan@swiftspirit.co.za>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2 5/5] btrfs: enable swap file support
-References: <cover.1416563833.git.osandov@osandov.com> <afd3c1009172a4a1cfa10e73a64caf35c631a6d4.1416563833.git.osandov@osandov.com> <20141121180045.GF8568@twin.jikos.cz> <20141122200357.GA15189@mew> <20141124220302.GA5785@mew.dhcp4.washington.edu>
-In-Reply-To: <20141124220302.GA5785@mew.dhcp4.washington.edu>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id DB70F6B0038
+	for <linux-mm@kvack.org>; Tue, 25 Nov 2014 01:52:23 -0500 (EST)
+Received: by mail-pd0-f173.google.com with SMTP id ft15so11397787pdb.32
+        for <linux-mm@kvack.org>; Mon, 24 Nov 2014 22:52:23 -0800 (PST)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id p5si577961pdb.8.2014.11.24.22.52.18
+        for <linux-mm@kvack.org>;
+        Mon, 24 Nov 2014 22:52:22 -0800 (PST)
+From: Chanho Min <chanho.min@lge.com>
+Subject: [PATCH] mm: add parameter to disable faultaround
+Date: Tue, 25 Nov 2014 15:51:58 +0900
+Message-Id: <1416898318-17409-1-git-send-email-chanho.min@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Omar Sandoval <osandov@osandov.com>
-Cc: Filipe David Manana <fdmanana@gmail.com>, David Sterba <dsterba@suse.cz>, linux-btrfs@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, Trond Myklebust <trond.myklebust@primarydata.com>, Mel Gorman <mgorman@suse.de>
+To: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, HyoJun Im <hyojun.im@lge.com>, Gunho Lee <gunho.lee@lge.com>, Wonhong Kwon <wonhong.kwon@lge.com>, Chanho Min <chanho.min@lge.com>
 
-On 2014/11/25 00:03, Omar Sandoval wrote:
-> [snip]
->
-> The snapshot issue is a little tricker to resolve. I see a few options:
->
-> 1. Just do the COW and hope for the best
-> 2. As part of btrfs_swap_activate, COW any shared extents. If a snapshot
-> happens while a swap file is active, we'll fall back to 1.
-> 3. Clobber any swap file extents which are in a snapshot, i.e., always use the
-> existing extent.
->
-> I'm partial to 3, as it's the simplest approach, and I don't think it makes
-> much sense for a swap file to be in a snapshot anyways. I'd appreciate any
-> comments that anyone might have.
->
-Personally, 3 seems pragmatic - but not necessarily "correct". :-/
+The faultaround improves the file read performance, whereas pages which
+can be dropped by drop_caches are reduced. On some systems, The amount of
+freeable pages under memory pressure is more important than read
+performance. So It prefers to be selectable.
 
+This patch adds a new kernel cmdline parameter "nofaultaround"
+for situations where users want to disable faultaround.
+
+Signed-off-by: Chanho Min <chanho.min@lge.com>
+---
+ mm/memory.c |   11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/mm/memory.c b/mm/memory.c
+index 4879b42..c36a96f 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2888,6 +2888,14 @@ static int __init fault_around_debugfs(void)
+ late_initcall(fault_around_debugfs);
+ #endif
+ 
++static bool enable_fault_around = true;
++static int __init disable_fault_around(char *s)
++{
++	enable_fault_around = false;
++	return 1;
++}
++__setup("nofaultaround", disable_fault_around);
++
+ /*
+  * do_fault_around() tries to map few pages around the fault address. The hope
+  * is that the pages will be needed soon and this will lower the number of
+@@ -2965,7 +2973,8 @@ static int do_read_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	 * if page by the offset is not ready to be mapped (cold cache or
+ 	 * something).
+ 	 */
+-	if (vma->vm_ops->map_pages && !(flags & FAULT_FLAG_NONLINEAR) &&
++	if (enable_fault_around && vma->vm_ops->map_pages &&
++	    !(flags & FAULT_FLAG_NONLINEAR) &&
+ 	    fault_around_pages() > 1) {
+ 		pte = pte_offset_map_lock(mm, pmd, address, &ptl);
+ 		do_fault_around(vma, address, pte, pgoff, flags);
 -- 
-__________
-Brendan Hide
-http://swiftspirit.co.za/
-http://www.webafrica.co.za/?AFF1E97
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
