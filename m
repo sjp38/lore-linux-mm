@@ -1,104 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f44.google.com (mail-oi0-f44.google.com [209.85.218.44])
-	by kanga.kvack.org (Postfix) with ESMTP id D86676B006C
-	for <linux-mm@kvack.org>; Tue, 25 Nov 2014 07:23:14 -0500 (EST)
-Received: by mail-oi0-f44.google.com with SMTP id e131so305828oig.17
-        for <linux-mm@kvack.org>; Tue, 25 Nov 2014 04:23:14 -0800 (PST)
-Received: from mail-oi0-x22a.google.com (mail-oi0-x22a.google.com. [2607:f8b0:4003:c06::22a])
-        by mx.google.com with ESMTPS id pp10si765019oeb.37.2014.11.25.04.23.13
+Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
+	by kanga.kvack.org (Postfix) with ESMTP id CCCFF6B006C
+	for <linux-mm@kvack.org>; Tue, 25 Nov 2014 07:26:49 -0500 (EST)
+Received: by mail-ob0-f176.google.com with SMTP id vb8so325751obc.7
+        for <linux-mm@kvack.org>; Tue, 25 Nov 2014 04:26:49 -0800 (PST)
+Received: from mail-ob0-x233.google.com (mail-ob0-x233.google.com. [2607:f8b0:4003:c01::233])
+        by mx.google.com with ESMTPS id gp3si767615obb.47.2014.11.25.04.26.48
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 25 Nov 2014 04:23:13 -0800 (PST)
-Received: by mail-oi0-f42.google.com with SMTP id v63so307455oia.15
-        for <linux-mm@kvack.org>; Tue, 25 Nov 2014 04:23:13 -0800 (PST)
+        Tue, 25 Nov 2014 04:26:48 -0800 (PST)
+Received: by mail-ob0-f179.google.com with SMTP id va2so330385obc.10
+        for <linux-mm@kvack.org>; Tue, 25 Nov 2014 04:26:48 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1416852146-9781-8-git-send-email-a.ryabinin@samsung.com>
+In-Reply-To: <1416852146-9781-7-git-send-email-a.ryabinin@samsung.com>
 References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
- <1416852146-9781-1-git-send-email-a.ryabinin@samsung.com> <1416852146-9781-8-git-send-email-a.ryabinin@samsung.com>
+ <1416852146-9781-1-git-send-email-a.ryabinin@samsung.com> <1416852146-9781-7-git-send-email-a.ryabinin@samsung.com>
 From: Dmitry Chernenkov <dmitryc@google.com>
-Date: Tue, 25 Nov 2014 16:22:53 +0400
-Message-ID: <CAA6XgkFPvHQE7LpZ=Q19e8sGAwOtWiVBXzjZA+7HXmNWL_genA@mail.gmail.com>
-Subject: Re: [PATCH v7 07/12] mm: slub: introduce metadata_access_enable()/metadata_access_disable()
+Date: Tue, 25 Nov 2014 16:26:28 +0400
+Message-ID: <CAA6XgkGWdR7r1VmKKE0-Rs9jozdXcv88khB1goFrOyDx1wTkhg@mail.gmail.com>
+Subject: Re: [PATCH v7 06/12] mm: slub: share slab_err and object_err functions
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <a.ryabinin@samsung.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Jones <davej@redhat.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Joe Perches <joe@perches.com>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Jones <davej@redhat.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>
 
 LGTM
 
-Does this mean we're going to sanitize the slub code itself?)
-
 On Mon, Nov 24, 2014 at 9:02 PM, Andrey Ryabinin <a.ryabinin@samsung.com> wrote:
-> Wrap access to object's metadata in external functions with
-> metadata_access_enable()/metadata_access_disable() function calls.
->
-> This hooks separates payload accesses from metadata accesses
-> which might be useful for different checkers (e.g. KASan).
+> Remove static and add function declarations to mm/slab.h so they
+> could be used by kernel address sanitizer.
 >
 > Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
 > ---
->  mm/slub.c | 16 ++++++++++++++++
->  1 file changed, 16 insertions(+)
+>  include/linux/slub_def.h | 5 +++++
+>  mm/slub.c                | 4 ++--
+>  2 files changed, 7 insertions(+), 2 deletions(-)
 >
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 0c01584..88ad8b8 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -467,13 +467,23 @@ static int slub_debug;
->  static char *slub_debug_slabs;
->  static int disable_higher_order_debug;
->
-> +static inline void metadata_access_enable(void)
-> +{
-> +}
-> +
-> +static inline void metadata_access_disable(void)
-> +{
-> +}
-> +
->  /*
->   * Object debugging
->   */
->  static void print_section(char *text, u8 *addr, unsigned int length)
->  {
-> +       metadata_access_enable();
->         print_hex_dump(KERN_ERR, text, DUMP_PREFIX_ADDRESS, 16, 1, addr,
->                         length, 1);
-> +       metadata_access_disable();
+> diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+> index c75bc1d..144b5cb 100644
+> --- a/include/linux/slub_def.h
+> +++ b/include/linux/slub_def.h
+> @@ -115,4 +115,9 @@ static inline void *virt_to_obj(struct kmem_cache *s, void *slab_page, void *x)
+>         return x - ((x - slab_page) % s->size);
 >  }
 >
->  static struct track *get_track(struct kmem_cache *s, void *object,
-> @@ -503,7 +513,9 @@ static void set_track(struct kmem_cache *s, void *object,
->                 trace.max_entries = TRACK_ADDRS_COUNT;
->                 trace.entries = p->addrs;
->                 trace.skip = 3;
-> +               metadata_access_enable();
->                 save_stack_trace(&trace);
-> +               metadata_access_disable();
+> +__printf(3, 4)
+> +void slab_err(struct kmem_cache *s, struct page *page, const char *fmt, ...);
+> +void object_err(struct kmem_cache *s, struct page *page,
+> +               u8 *object, char *reason);
+> +
+>  #endif /* _LINUX_SLUB_DEF_H */
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 95d2142..0c01584 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -629,14 +629,14 @@ static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
+>         dump_stack();
+>  }
 >
->                 /* See rant in lockdep.c */
->                 if (trace.nr_entries != 0 &&
-> @@ -677,7 +689,9 @@ static int check_bytes_and_report(struct kmem_cache *s, struct page *page,
->         u8 *fault;
->         u8 *end;
+> -static void object_err(struct kmem_cache *s, struct page *page,
+> +void object_err(struct kmem_cache *s, struct page *page,
+>                         u8 *object, char *reason)
+>  {
+>         slab_bug(s, "%s", reason);
+>         print_trailer(s, page, object);
+>  }
 >
-> +       metadata_access_enable();
->         fault = memchr_inv(start, value, bytes);
-> +       metadata_access_disable();
->         if (!fault)
->                 return 1;
->
-> @@ -770,7 +784,9 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
->         if (!remainder)
->                 return 1;
->
-> +       metadata_access_enable();
->         fault = memchr_inv(end - remainder, POISON_INUSE, remainder);
-> +       metadata_access_disable();
->         if (!fault)
->                 return 1;
->         while (end > fault && end[-1] == POISON_INUSE)
+> -static void slab_err(struct kmem_cache *s, struct page *page,
+> +void slab_err(struct kmem_cache *s, struct page *page,
+>                         const char *fmt, ...)
+>  {
+>         va_list args;
 > --
 > 2.1.3
 >
