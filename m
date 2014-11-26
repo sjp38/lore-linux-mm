@@ -1,76 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 6259F6B0069
-	for <linux-mm@kvack.org>; Wed, 26 Nov 2014 15:49:39 -0500 (EST)
-Received: by mail-ie0-f181.google.com with SMTP id tp5so3370988ieb.40
-        for <linux-mm@kvack.org>; Wed, 26 Nov 2014 12:49:39 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id h12si4203514ici.1.2014.11.26.12.49.37
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Nov 2014 12:49:38 -0800 (PST)
-Date: Wed, 26 Nov 2014 12:49:36 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3 3/8] mm/debug-pagealloc: make debug-pagealloc
- boottime configurable
-Message-Id: <20141126124936.56cc901e13f27927d7b42aaf@linux-foundation.org>
-In-Reply-To: <20141124234237.GA7824@js1304-P5Q-DELUXE>
-References: <1416816926-7756-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<1416816926-7756-4-git-send-email-iamjoonsoo.kim@lge.com>
-	<20141124145542.08b97076.akpm@linux-foundation.org>
-	<20141124234237.GA7824@js1304-P5Q-DELUXE>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id AE71E6B0069
+	for <linux-mm@kvack.org>; Wed, 26 Nov 2014 16:06:01 -0500 (EST)
+Received: by mail-ig0-f171.google.com with SMTP id z20so3472164igj.10
+        for <linux-mm@kvack.org>; Wed, 26 Nov 2014 13:06:01 -0800 (PST)
+Received: from cosmos.ssec.wisc.edu ([2607:f388:1090:0:fab1:56ff:fedf:5d9c])
+        by mx.google.com with ESMTP id f20si668116icm.100.2014.11.26.13.06.00
+        for <linux-mm@kvack.org>;
+        Wed, 26 Nov 2014 13:06:00 -0800 (PST)
+Date: Wed, 26 Nov 2014 15:05:59 -0600
+From: Daniel Forrest <dan.forrest@ssec.wisc.edu>
+Subject: Re: [PATCH v3] mm: prevent endless growth of anon_vma hierarchy
+Message-ID: <20141126210559.GA12060@cosmos.ssec.wisc.edu>
+Reply-To: Daniel Forrest <dan.forrest@ssec.wisc.edu>
+References: <20141126191145.3089.90947.stgit@zurg>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141126191145.3089.90947.stgit@zurg>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave@sr71.net>, Michal Nazarewicz <mina86@mina86.com>, Jungsoo Son <jungsoo.son@lge.com>, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Tim Hartrick <tim@edgecast.com>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Tue, 25 Nov 2014 08:42:37 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+On Wed, Nov 26, 2014 at 10:11:45PM +0400, Konstantin Khlebnikov wrote:
 
-> On Mon, Nov 24, 2014 at 02:55:42PM -0800, Andrew Morton wrote:
-> > On Mon, 24 Nov 2014 17:15:21 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> > 
-> > > Now, we have prepared to avoid using debug-pagealloc in boottime. So
-> > > introduce new kernel-parameter to disable debug-pagealloc in boottime,
-> > > and makes related functions to be disabled in this case.
-> > > 
-> > > Only non-intuitive part is change of guard page functions. Because
-> > > guard page is effective only if debug-pagealloc is enabled, turning off
-> > > according to debug-pagealloc is reasonable thing to do.
-> > > 
-> > > ...
-> > >
-> > > --- a/Documentation/kernel-parameters.txt
-> > > +++ b/Documentation/kernel-parameters.txt
-> > > @@ -858,6 +858,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
-> > >  			causing system reset or hang due to sending
-> > >  			INIT from AP to BSP.
-> > >  
-> > > +	disable_debug_pagealloc
-> > > +			[KNL] When CONFIG_DEBUG_PAGEALLOC is set, this
-> > > +			parameter allows user to disable it at boot time.
-> > > +			With this parameter, we can avoid allocating huge
-> > > +			chunk of memory for debug pagealloc and then
-> > > +			the system will work mostly same with the kernel
-> > > +			built without CONFIG_DEBUG_PAGEALLOC.
-> > > +
-> > 
-> > Weren't we going to make this default to "off", require a boot option
-> > to turn debug_pagealloc on?
+> Constantly forking task causes unlimited grow of anon_vma chain.
+> Each next child allocate new level of anon_vmas and links vmas to all
+> previous levels because it inherits pages from them. None of anon_vmas
+> cannot be freed because there might be pages which points to them.
 > 
-> Hello, Andrew.
+> This patch adds heuristic which decides to reuse existing anon_vma instead
+> of forking new one. It counts vmas and direct descendants for each anon_vma.
+> Anon_vma with degree lower than two will be reused at next fork.
 > 
-> I'm afraid that changing default to "off" confuses some old users.
-> They would expect that it is default "on". But, it is just debug
-> feature, so, it may be no problem. If you prefer to change default, I
-> will rework this patch. Please let me know your decision.
+> As a result each anon_vma has either alive vma or at least two descendants,
+> endless chains are no longer possible and count of anon_vmas is no more than
+> two times more than count of vmas.
 
-I suspect the number of "old users" is one ;)
+While I was working on the previous fix for this bug, Andrew Morton
+noticed that the error return from anon_vma_clone() was being dropped
+and replaced with -ENOMEM (which is not itself a bug because the only
+error return value from anon_vma_clone() is -ENOMEM).
 
-I think it would be better to default to off - that's the typical
-behaviour for debug features, for good reasons.
+I did an audit of callers of anon_vma_clone() and discovered an actual
+bug where the error return was being lost.  In __split_vma(), between
+Linux 3.11 and 3.12 the code was changed so the err variable is used
+before the call to anon_vma_clone() and the default initial value of
+-ENOMEM is overwritten.  So a failure of anon_vma_clone() will return
+success since err at this point is now zero.
+
+Below is a patch which fixes this bug and also propagates the error
+return value from anon_vma_clone() in all cases.
+
+I can send this as a separate patch, but maybe it would be easier if
+you were to incorporate it into yours?
+
+Signed-off-by: Daniel Forrest <dan.forrest@ssec.wisc.edu>
+
+---
+ mmap.c |   10 +++++++---
+ rmap.c |    6 ++++--
+ 2 files changed, 11 insertions(+), 5 deletions(-)
+
+diff -rup a/mm/mmap.c b/mm/mmap.c
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -776,8 +776,11 @@ again:			remove_next = 1 + (end > next->
+ 		 * shrinking vma had, to cover any anon pages imported.
+ 		 */
+ 		if (exporter && exporter->anon_vma && !importer->anon_vma) {
+-			if (anon_vma_clone(importer, exporter))
+-				return -ENOMEM;
++			int error;
++
++			error = anon_vma_clone(importer, exporter);
++			if (error)
++				return error;
+ 			importer->anon_vma = exporter->anon_vma;
+ 		}
+ 	}
+@@ -2469,7 +2472,8 @@ static int __split_vma(struct mm_struct 
+ 	if (err)
+ 		goto out_free_vma;
+ 
+-	if (anon_vma_clone(new, vma))
++	err = anon_vma_clone(new, vma);
++	if (err)
+ 		goto out_free_mpol;
+ 
+ 	if (new->vm_file)
+diff -rup a/mm/rmap.c b/mm/rmap.c
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -274,6 +274,7 @@ int anon_vma_fork(struct vm_area_struct 
+ {
+ 	struct anon_vma_chain *avc;
+ 	struct anon_vma *anon_vma;
++	int error;
+ 
+ 	/* Don't bother if the parent process has no anon_vma here. */
+ 	if (!pvma->anon_vma)
+@@ -283,8 +284,9 @@ int anon_vma_fork(struct vm_area_struct 
+ 	 * First, attach the new VMA to the parent VMA's anon_vmas,
+ 	 * so rmap can find non-COWed pages in child processes.
+ 	 */
+-	if (anon_vma_clone(vma, pvma))
+-		return -ENOMEM;
++	error = anon_vma_clone(vma, pvma);
++	if (error)
++		return error;
+ 
+ 	/* Then add our own anon_vma. */
+ 	anon_vma = anon_vma_alloc();
+
+-- 
+Daniel K. Forrest		Space Science and
+dan.forrest@ssec.wisc.edu	Engineering Center
+(608) 890 - 0558		University of Wisconsin, Madison
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
