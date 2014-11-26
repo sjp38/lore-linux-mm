@@ -1,123 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
-	by kanga.kvack.org (Postfix) with ESMTP id AE71E6B0069
-	for <linux-mm@kvack.org>; Wed, 26 Nov 2014 16:06:01 -0500 (EST)
-Received: by mail-ig0-f171.google.com with SMTP id z20so3472164igj.10
-        for <linux-mm@kvack.org>; Wed, 26 Nov 2014 13:06:01 -0800 (PST)
-Received: from cosmos.ssec.wisc.edu ([2607:f388:1090:0:fab1:56ff:fedf:5d9c])
-        by mx.google.com with ESMTP id f20si668116icm.100.2014.11.26.13.06.00
-        for <linux-mm@kvack.org>;
-        Wed, 26 Nov 2014 13:06:00 -0800 (PST)
-Date: Wed, 26 Nov 2014 15:05:59 -0600
-From: Daniel Forrest <dan.forrest@ssec.wisc.edu>
-Subject: Re: [PATCH v3] mm: prevent endless growth of anon_vma hierarchy
-Message-ID: <20141126210559.GA12060@cosmos.ssec.wisc.edu>
-Reply-To: Daniel Forrest <dan.forrest@ssec.wisc.edu>
-References: <20141126191145.3089.90947.stgit@zurg>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141126191145.3089.90947.stgit@zurg>
+Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
+	by kanga.kvack.org (Postfix) with ESMTP id F3B816B0069
+	for <linux-mm@kvack.org>; Wed, 26 Nov 2014 16:41:22 -0500 (EST)
+Received: by mail-ig0-f175.google.com with SMTP id h15so7598530igd.2
+        for <linux-mm@kvack.org>; Wed, 26 Nov 2014 13:41:22 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id i8si9987451igu.61.2014.11.26.13.41.21
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Nov 2014 13:41:22 -0800 (PST)
+Date: Wed, 26 Nov 2014 13:41:20 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] mm: vmscan: invoke slab shrinkers from shrink_zone()
+Message-Id: <20141126134120.7d25e5d062f423a9c082e557@linux-foundation.org>
+In-Reply-To: <1416939830-20289-1-git-send-email-hannes@cmpxchg.org>
+References: <1416939830-20289-1-git-send-email-hannes@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Tim Hartrick <tim@edgecast.com>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Vladimir Davydov <vdavydov@parallels.com>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Nov 26, 2014 at 10:11:45PM +0400, Konstantin Khlebnikov wrote:
+On Tue, 25 Nov 2014 13:23:50 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-> Constantly forking task causes unlimited grow of anon_vma chain.
-> Each next child allocate new level of anon_vmas and links vmas to all
-> previous levels because it inherits pages from them. None of anon_vmas
-> cannot be freed because there might be pages which points to them.
+> The slab shrinkers are currently invoked from the zonelist walkers in
+> kswapd, direct reclaim, and zone reclaim, all of which roughly gauge
+> the eligible LRU pages and assemble a nodemask to pass to NUMA-aware
+> shrinkers, which then again have to walk over the nodemask.  This is
+> redundant code, extra runtime work, and fairly inaccurate when it
+> comes to the estimation of actually scannable LRU pages.  The code
+> duplication will only get worse when making the shrinkers cgroup-aware
+> and requiring them to have out-of-band cgroup hierarchy walks as well.
 > 
-> This patch adds heuristic which decides to reuse existing anon_vma instead
-> of forking new one. It counts vmas and direct descendants for each anon_vma.
-> Anon_vma with degree lower than two will be reused at next fork.
+> Instead, invoke the shrinkers from shrink_zone(), which is where all
+> reclaimers end up, to avoid this duplication.
 > 
-> As a result each anon_vma has either alive vma or at least two descendants,
-> endless chains are no longer possible and count of anon_vmas is no more than
-> two times more than count of vmas.
+> Take the count for eligible LRU pages out of get_scan_count(), which
+> considers many more factors than just the availability of swap space,
+> like zone_reclaimable_pages() currently does.  Accumulate the number
+> over all visited lruvecs to get the per-zone value.
+> 
+> Some nodes have multiple zones due to memory addressing restrictions.
+> To avoid putting too much pressure on the shrinkers, only invoke them
+> once for each such node, using the class zone of the allocation as the
+> pivot zone.
+> 
+> For now, this integrates the slab shrinking better into the reclaim
+> logic and gets rid of duplicative invocations from kswapd, direct
+> reclaim, and zone reclaim.  It also prepares for cgroup-awareness,
+> allowing memcg-capable shrinkers to be added at the lruvec level
+> without much duplication of both code and runtime work.
+> 
+> This changes kswapd behavior, which used to invoke the shrinkers for
+> each zone, but with scan ratios gathered from the entire node,
+> resulting in meaningless pressure quantities on multi-zone nodes.
 
-While I was working on the previous fix for this bug, Andrew Morton
-noticed that the error return from anon_vma_clone() was being dropped
-and replaced with -ENOMEM (which is not itself a bug because the only
-error return value from anon_vma_clone() is -ENOMEM).
+It's a troublesome patch - we've been poking at this code for years and
+now it gets significantly upended.  It all *seems* sensible, but any
+warts will take time to identify.
 
-I did an audit of callers of anon_vma_clone() and discovered an actual
-bug where the error return was being lost.  In __split_vma(), between
-Linux 3.11 and 3.12 the code was changed so the err variable is used
-before the call to anon_vma_clone() and the default initial value of
--ENOMEM is overwritten.  So a failure of anon_vma_clone() will return
-success since err at this point is now zero.
+> Zone reclaim behavior also changes.  It used to shrink slabs until the
+> same amount of pages were shrunk as were reclaimed from the LRUs.  Now
+> it merely invokes the shrinkers once with the zone's scan ratio, which
+> makes the shrinkers go easier on caches that implement aging and would
+> prefer feeding back pressure from recently used slab objects to unused
+> LRU pages.
 
-Below is a patch which fixes this bug and also propagates the error
-return value from anon_vma_clone() in all cases.
+hm, "go easier on caches" means it changes reclaim balancing.  Is the
+result better or worse?
 
-I can send this as a separate patch, but maybe it would be easier if
-you were to incorporate it into yours?
-
-Signed-off-by: Daniel Forrest <dan.forrest@ssec.wisc.edu>
-
----
- mmap.c |   10 +++++++---
- rmap.c |    6 ++++--
- 2 files changed, 11 insertions(+), 5 deletions(-)
-
-diff -rup a/mm/mmap.c b/mm/mmap.c
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -776,8 +776,11 @@ again:			remove_next = 1 + (end > next->
- 		 * shrinking vma had, to cover any anon pages imported.
- 		 */
- 		if (exporter && exporter->anon_vma && !importer->anon_vma) {
--			if (anon_vma_clone(importer, exporter))
--				return -ENOMEM;
-+			int error;
-+
-+			error = anon_vma_clone(importer, exporter);
-+			if (error)
-+				return error;
- 			importer->anon_vma = exporter->anon_vma;
- 		}
- 	}
-@@ -2469,7 +2472,8 @@ static int __split_vma(struct mm_struct 
- 	if (err)
- 		goto out_free_vma;
- 
--	if (anon_vma_clone(new, vma))
-+	err = anon_vma_clone(new, vma);
-+	if (err)
- 		goto out_free_mpol;
- 
- 	if (new->vm_file)
-diff -rup a/mm/rmap.c b/mm/rmap.c
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -274,6 +274,7 @@ int anon_vma_fork(struct vm_area_struct 
- {
- 	struct anon_vma_chain *avc;
- 	struct anon_vma *anon_vma;
-+	int error;
- 
- 	/* Don't bother if the parent process has no anon_vma here. */
- 	if (!pvma->anon_vma)
-@@ -283,8 +284,9 @@ int anon_vma_fork(struct vm_area_struct 
- 	 * First, attach the new VMA to the parent VMA's anon_vmas,
- 	 * so rmap can find non-COWed pages in child processes.
- 	 */
--	if (anon_vma_clone(vma, pvma))
--		return -ENOMEM;
-+	error = anon_vma_clone(vma, pvma);
-+	if (error)
-+		return error;
- 
- 	/* Then add our own anon_vma. */
- 	anon_vma = anon_vma_alloc();
-
--- 
-Daniel K. Forrest		Space Science and
-dan.forrest@ssec.wisc.edu	Engineering Center
-(608) 890 - 0558		University of Wisconsin, Madison
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
