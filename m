@@ -1,62 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D00C6B006E
-	for <linux-mm@kvack.org>; Wed, 26 Nov 2014 00:58:59 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id rd3so2155971pab.35
-        for <linux-mm@kvack.org>; Tue, 25 Nov 2014 21:58:59 -0800 (PST)
-Received: from mx1.mxmail.xiaomi.com ([58.68.235.87])
-        by mx.google.com with ESMTP id qa5si5291252pbc.29.2014.11.25.21.58.54
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 14A0A6B0069
+	for <linux-mm@kvack.org>; Wed, 26 Nov 2014 01:46:21 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id eu11so2232017pac.36
+        for <linux-mm@kvack.org>; Tue, 25 Nov 2014 22:46:20 -0800 (PST)
+Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id bz3si5394686pbb.64.2014.11.25.22.46.18
         for <linux-mm@kvack.org>;
-        Tue, 25 Nov 2014 21:58:57 -0800 (PST)
-From: =?utf-8?B?5pyx6L6J?= <zhuhui@xiaomi.com>
-Subject: =?utf-8?B?562U5aSNOiBbTHNmLXBjXSBbTFNGL01NIFRPUElDXSBJbXByb3ZpbmcgQ01B?=
-Date: Wed, 26 Nov 2014 05:58:51 +0000
-Message-ID: <1416981530769.16741@xiaomi.com>
+        Tue, 25 Nov 2014 22:46:19 -0800 (PST)
+Date: Wed, 26 Nov 2014 15:46:20 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [LSF/MM TOPIC] Improving CMA
+Message-ID: <20141126064620.GA10412@bbox>
 References: <5473E146.7000503@codeaurora.org>
- <20141125113225.GH2725@suse.de>,<54755621.6050700@lge.com>
-In-Reply-To: <54755621.6050700@lge.com>
-Content-Language: zh-CN
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
 MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <5473E146.7000503@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gioh Kim <gioh.kim@lge.com>, Mel Gorman <mgorman@suse.de>, Laura Abbott <lauraa@codeaurora.org>
-Cc: "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, SeongJae Park <sj38.park@gmail.com>, "minchan@kernel.org" <minchan@kernel.org>, "iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>
+To: Laura Abbott <lauraa@codeaurora.org>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, zhuhui@xiaomi.com, iamjoonsoo.kim@lge.com, gioh.kim@lge.com, SeongJae Park <sj38.park@gmail.com>
 
-Cl9fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX18K5Y+R5Lu25Lq6OiBHaW9o
-IEtpbSA8Z2lvaC5raW1AbGdlLmNvbT4K5Y+R6YCB5pe26Ze0OiAyMDE05bm0MTHmnIgyNuaXpSAx
-MjoyNQrmlLbku7bkuro6IE1lbCBHb3JtYW47IExhdXJhIEFiYm90dArmioTpgIE6IGxzZi1wY0Bs
-aXN0cy5saW51eC1mb3VuZGF0aW9uLm9yZzsgbGludXgtbW1Aa3ZhY2sub3JnOyBTZW9uZ0phZSBQ
-YXJrOyBtaW5jaGFuQGtlcm5lbC5vcmc7IOacsei+iTsgaWFtam9vbnNvby5raW1AbGdlLmNvbQrk
-uLvpopg6IFJlOiBbTHNmLXBjXSBbTFNGL01NIFRPUElDXSBJbXByb3ZpbmcgQ01BCgoyMDE0LTEx
-LTI1IOyYpO2bhCA4OjMy7JeQIE1lbCBHb3JtYW4g7J20KOqwgCkg7JO0IOq4gDoKPiBPbiBNb24s
-IE5vdiAyNCwgMjAxNCBhdCAwNTo1NDoxNFBNIC0wODAwLCBMYXVyYSBBYmJvdHQgd3JvdGU6Cj4+
-IFRoZXJlIGhhdmUgYmVlbiBhIG51bWJlciBvZiBwYXRjaCBzZXJpZXMgcG9zdGVkIGRlc2lnbmVk
-IHRvIGltcHJvdmUgdmFyaW91cwo+PiBhc3BlY3RzIG9mIENNQS4gQSBzYW1wbGluZzoKPj4KPj4g
-aHR0cHM6Ly9sa21sLm9yZy9sa21sLzIwMTQvMTAvMTUvNjIzCj4+IGh0dHA6Ly9tYXJjLmluZm8v
-P2w9bGludXgtbW0mbT0xNDE1NzE3OTcyMDIwMDYmdz0yCj4+IGh0dHBzOi8vbGttbC5vcmcvbGtt
-bC8yMDE0LzYvMjYvNTQ5Cj4+Cj4+IEFzIGZhciBhcyBJIGNhbiB0ZWxsLCB0aGVzZSBhcmUgYWxs
-IHRyeWluZyB0byBmaXggcmVhbCBwcm9ibGVtcyB3aXRoIENNQSBidXQKPj4gbm9uZSBvZiB0aGVt
-IGhhdmUgbW92ZWQgZm9yd2FyZCB2ZXJ5IG11Y2ggZnJvbSB3aGF0IEkgY2FuIHRlbGwuIFRoZSBn
-b2FsIG9mCj4+IHRoaXMgc2Vzc2lvbiB3b3VsZCBiZSB0byBjb21lIG91dCB3aXRoIGFuIGFncmVl
-bWVudCBvbiB3aGF0IGFyZSB0aGUgYmlnZ2VzdAo+PiBwcm9ibGVtcyB3aXRoIENNQSBhbmQgdGhl
-IGJlc3Qgd2F5cyB0byBzb2x2ZSB0aGVtLgo+Pgo+Cj4gSSB0aGluayB0aGlzIGlzIGEgZ29vZCB0
-b3BpYy4gU29tZSBvZiB0aGUgaXNzdWVzIGhhdmUgYmVlbiBicm91Z2h0IHVwIGJlZm9yZQo+IGF0
-IExTRi9NTSBidXQgdGhleSBuZXZlciBtYWRlIHRoYXQgbXVjaCB0cmFjdGlvbiBzbyBpdCdzIHdv
-cnRoIHJldmlzaXRpbmcuIEkKPiBoYXZlbid0IGJlZW4gcGF5aW5nIGNsb3NlIGF0dGVudGlvbiB0
-byB0aGUgbWFpbGluZyBsaXN0IGRpc2N1c3Npb25zIGJ1dAo+IEkndmUgYmVlbiBhIGxpdHRsZSB3
-b3JyaWVkIHRoYXQgdGhlIHBhZ2UgYWxsb2NhdG9yIHBhdGhzIGFyZSB0dXJuaW5nIGludG8KPiBh
-IGJpZ2dlciBhbmQgYmlnZ2VyIG1lc3MuIEknbSBhbHNvIGEgYml0IHdvcnJpZWQgdGhhdCBvcHRp
-b25zIHN1Y2ggYXMKPiBtaWdyYXRpbmcgcGFnZXMgb3V0IG9mIENNQSBhcmVhcyB0aGF0IGFyZSBh
-Ym91dCB0byBiZSBwaW5uZWQgZm9yIGhhdmluZwo+IGNhbGxiYWNrIG9wdGlvbnMgdG8gZm9yY2li
-bHkgZnJlZSBwYWdlcyBuZXZlciB3ZW50IGFueXdoZXJlLgo+Cgo+IEkgaGF2ZSB0d28gcXVlc3Rp
-b24uCj4KPiBGaXJzdCwgaXMgR0NNQSBhYmxlIHRvIHJlcGxhY2UgQ01BPyBJdCdzIG5ld3MgdG8g
-bWUuCj4gSSBuZWVkIHNvbWUgdGltZSB0byBjaGVjayBHQ01BLgo+Cj4gU2Vjb25kLCBpcyBDTUEg
-cG9wdWxhciBlbm91Z2ggdG8gY2hhbmdlIGFsbG9jYXRvciBwYXRoPwo+IFllcywgSSBuZWVkIGl0
-Lgo+IEJ1dCBJIGRvbid0IGtub3cgYW55IGNvbXBhbnkgdXNlcyBpdCwgYW5kIG5vYm9keSBzZWVt
-cyB0byBoYXZlIGludGVyZXN0IGluCj4gaXQuCgpXZSAoeGlhb21pKSB1c2UgaXQgaW4gb3VyIG5l
-dyBtaWJveC4KClRoYW5rcywKSHVp
+Hello Laura,
+
+On Mon, Nov 24, 2014 at 05:54:14PM -0800, Laura Abbott wrote:
+> There have been a number of patch series posted designed to improve various
+> aspects of CMA. A sampling:
+> 
+> https://lkml.org/lkml/2014/10/15/623
+> http://marc.info/?l=linux-mm&m=141571797202006&w=2
+> https://lkml.org/lkml/2014/6/26/549
+> 
+> As far as I can tell, these are all trying to fix real problems with CMA but
+> none of them have moved forward very much from what I can tell. The goal of
+> this session would be to come out with an agreement on what are the biggest
+> problems with CMA and the best ways to solve them.
+
+Thanks for the proposal.
+Yes, CMA has broken for a long time.
+
+1. Memory allocation for CMA area -> Broken
+2. Memory reclaim for CMA area -> Broken
+3. CMA allocation latency -> Broken
+4. CMA allocation success guarantee -> Broken.
+
+I believe there is no real product to use vanilla CMA in mainline
+without any hack.
+
+Recently, there are some efforts to fix 1 but patchset I have seen hurt
+allocator's hot path which is really not what I want. Instead, I suggested
+to use movalbe zone. It would help 1 and 2 problem and make mm code simple
+so I think it's worth to try before making mm code more bloat with CMA hooks.
+https://lkml.org/lkml/2014/11/4/55
+
+However, we don't have a nice idea to solve 3 and 4 still.
+There were some trying to migrate CMA page out when someone try to pin
+CMA page via GUP but it's not a perfect solution. We should take care of
+indirect object dependency(ex, obj A gets obj B, obj B gets obj C)
+so page located in obj C will not release until obj B release and
+obj B doesn't relase until obj A released). It means we should
+take care of get_page as well as GUP. It's terrible.
+
+Recently, I and SeongJae posted GCMA(Guaranteed CMA) which is a idea
+to solve above all problems. https://lkml.org/lkml/2014/10/15/623
+But it apparently has tradeoff. So, our goal is to recommend GCMA
+if you want to make sure fast allocation success. Or, use CMA
+if you have fallback scheme of failure of allocation, if you
+are okay to allocation latency(a few seconds) sometime, if you
+should use really big contiguous memory.
+
+Anyway, I have an interest on this topic and want to attend.
+
+Thanks.
+
+> 
+> Thanks,
+> Laura
+> 
+> -- 
+> Qualcomm Innovation Center, Inc.
+> Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
+> a Linux Foundation Collaborative Project
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
