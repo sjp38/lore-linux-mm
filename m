@@ -1,70 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id A66F16B0069
-	for <linux-mm@kvack.org>; Wed, 26 Nov 2014 17:17:35 -0500 (EST)
-Received: by mail-ig0-f178.google.com with SMTP id hl2so3374220igb.17
-        for <linux-mm@kvack.org>; Wed, 26 Nov 2014 14:17:35 -0800 (PST)
-Received: from mail-ig0-x22f.google.com (mail-ig0-x22f.google.com. [2607:f8b0:4001:c05::22f])
-        by mx.google.com with ESMTPS id f4si4267840icx.73.2014.11.26.14.17.34
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id D58F46B0069
+	for <linux-mm@kvack.org>; Wed, 26 Nov 2014 17:35:45 -0500 (EST)
+Received: by mail-ig0-f180.google.com with SMTP id h15so3400648igd.13
+        for <linux-mm@kvack.org>; Wed, 26 Nov 2014 14:35:45 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 82si3780520iod.52.2014.11.26.14.35.44
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 26 Nov 2014 14:17:34 -0800 (PST)
-Received: by mail-ig0-f175.google.com with SMTP id h15so7641138igd.2
-        for <linux-mm@kvack.org>; Wed, 26 Nov 2014 14:17:34 -0800 (PST)
-Date: Wed, 26 Nov 2014 14:17:32 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, oom: remove gfp helper function
-Message-ID: <alpine.DEB.2.10.1411261416480.13014@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Nov 2014 14:35:44 -0800 (PST)
+Date: Wed, 26 Nov 2014 14:35:43 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3] mm: prevent endless growth of anon_vma hierarchy
+Message-Id: <20141126143543.63634293ba6e9136e689fe44@linux-foundation.org>
+In-Reply-To: <20141126210559.GA12060@cosmos.ssec.wisc.edu>
+References: <20141126191145.3089.90947.stgit@zurg>
+	<20141126210559.GA12060@cosmos.ssec.wisc.edu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Qiang Huang <h.huangqiang@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Daniel Forrest <dan.forrest@ssec.wisc.edu>
+Cc: Konstantin Khlebnikov <koct9i@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Tim Hartrick <tim@edgecast.com>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Vlastimil Babka <vbabka@suse.cz>
 
-Commit b9921ecdee66 ("mm: add a helper function to check may oom
-condition") was added because the gfp criteria for oom killing was
-checked in both the page allocator and memcg.
+On Wed, 26 Nov 2014 15:05:59 -0600 Daniel Forrest <dan.forrest@ssec.wisc.edu> wrote:
 
-That was true for about nine months, but then commit 0029e19ebf84 ("mm:
-memcontrol: remove explicit OOM parameter in charge path") removed the
-memcg usecase.
+> On Wed, Nov 26, 2014 at 10:11:45PM +0400, Konstantin Khlebnikov wrote:
+> 
+> > Constantly forking task causes unlimited grow of anon_vma chain.
+> > Each next child allocate new level of anon_vmas and links vmas to all
+> > previous levels because it inherits pages from them. None of anon_vmas
+> > cannot be freed because there might be pages which points to them.
+> > 
+> > This patch adds heuristic which decides to reuse existing anon_vma instead
+> > of forking new one. It counts vmas and direct descendants for each anon_vma.
+> > Anon_vma with degree lower than two will be reused at next fork.
+> > 
+> > As a result each anon_vma has either alive vma or at least two descendants,
+> > endless chains are no longer possible and count of anon_vmas is no more than
+> > two times more than count of vmas.
+> 
+> While I was working on the previous fix for this bug, Andrew Morton
+> noticed that the error return from anon_vma_clone() was being dropped
+> and replaced with -ENOMEM (which is not itself a bug because the only
+> error return value from anon_vma_clone() is -ENOMEM).
+> 
+> I did an audit of callers of anon_vma_clone() and discovered an actual
+> bug where the error return was being lost.  In __split_vma(), between
+> Linux 3.11 and 3.12 the code was changed so the err variable is used
+> before the call to anon_vma_clone() and the default initial value of
+> -ENOMEM is overwritten.  So a failure of anon_vma_clone() will return
+> success since err at this point is now zero.
+> 
+> Below is a patch which fixes this bug and also propagates the error
+> return value from anon_vma_clone() in all cases.
+> 
+> I can send this as a separate patch, but maybe it would be easier if
+> you were to incorporate it into yours?
+> 
 
-Fold the implementation into its only caller.
-
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- include/linux/oom.h | 5 -----
- mm/page_alloc.c     | 2 +-
- 2 files changed, 1 insertion(+), 6 deletions(-)
-
-diff --git a/include/linux/oom.h b/include/linux/oom.h
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -85,11 +85,6 @@ static inline void oom_killer_enable(void)
- 	oom_killer_disabled = false;
- }
- 
--static inline bool oom_gfp_allowed(gfp_t gfp_mask)
--{
--	return (gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY);
--}
--
- extern struct task_struct *find_lock_task_mm(struct task_struct *p);
- 
- /* sysctls */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2706,7 +2706,7 @@ rebalance:
- 	 * running out of options and have to consider going OOM
- 	 */
- 	if (!did_some_progress) {
--		if (oom_gfp_allowed(gfp_mask)) {
-+		if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY)) {
- 			if (oom_killer_disabled)
- 				goto nopage;
- 			/* Coredumps can quickly deplete all memory reserves */
+I grabbed it.  A bugfix is a bugfix.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
