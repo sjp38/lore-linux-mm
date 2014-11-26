@@ -1,99 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id A18496B0069
-	for <linux-mm@kvack.org>; Wed, 26 Nov 2014 00:55:30 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id eu11so2157583pac.39
-        for <linux-mm@kvack.org>; Tue, 25 Nov 2014 21:55:30 -0800 (PST)
-Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com. [2607:f8b0:400e:c02::22e])
-        by mx.google.com with ESMTPS id xj9si5236927pab.73.2014.11.25.21.55.28
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 25 Nov 2014 21:55:29 -0800 (PST)
-Received: by mail-pd0-f174.google.com with SMTP id w10so2110516pde.19
-        for <linux-mm@kvack.org>; Tue, 25 Nov 2014 21:55:28 -0800 (PST)
-From: SeongJae Park <sj38.park@gmail.com>
-Date: Wed, 26 Nov 2014 14:56:37 +0900 (KST)
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Improving CMA
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D00C6B006E
+	for <linux-mm@kvack.org>; Wed, 26 Nov 2014 00:58:59 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id rd3so2155971pab.35
+        for <linux-mm@kvack.org>; Tue, 25 Nov 2014 21:58:59 -0800 (PST)
+Received: from mx1.mxmail.xiaomi.com ([58.68.235.87])
+        by mx.google.com with ESMTP id qa5si5291252pbc.29.2014.11.25.21.58.54
+        for <linux-mm@kvack.org>;
+        Tue, 25 Nov 2014 21:58:57 -0800 (PST)
+From: =?utf-8?B?5pyx6L6J?= <zhuhui@xiaomi.com>
+Subject: =?utf-8?B?562U5aSNOiBbTHNmLXBjXSBbTFNGL01NIFRPUElDXSBJbXByb3ZpbmcgQ01B?=
+Date: Wed, 26 Nov 2014 05:58:51 +0000
+Message-ID: <1416981530769.16741@xiaomi.com>
+References: <5473E146.7000503@codeaurora.org>
+ <20141125113225.GH2725@suse.de>,<54755621.6050700@lge.com>
 In-Reply-To: <54755621.6050700@lge.com>
-Message-ID: <alpine.DEB.2.10.1411261438040.6720@hxeon>
-References: <5473E146.7000503@codeaurora.org> <20141125113225.GH2725@suse.de> <54755621.6050700@lge.com>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="781441777-2032870768-1416981410=:6720"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gioh Kim <gioh.kim@lge.com>
-Cc: Mel Gorman <mgorman@suse.de>, Laura Abbott <lauraa@codeaurora.org>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, SeongJae Park <sj38.park@gmail.com>, minchan@kernel.org, zhuhui@xiaomi.com, iamjoonsoo.kim@lge.com
+To: Gioh Kim <gioh.kim@lge.com>, Mel Gorman <mgorman@suse.de>, Laura Abbott <lauraa@codeaurora.org>
+Cc: "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, SeongJae Park <sj38.park@gmail.com>, "minchan@kernel.org" <minchan@kernel.org>, "iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
-
---781441777-2032870768-1416981410=:6720
-Content-Type: TEXT/PLAIN; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8BIT
-
-Hi Gioh,
-
-On Wed, 26 Nov 2014, Gioh Kim wrote:
-
->
->
-> 2014-11-25 i??i?? 8:32i?? Mel Gorman i?'(e??) i?' e,?:
->> On Mon, Nov 24, 2014 at 05:54:14PM -0800, Laura Abbott wrote:
->>> There have been a number of patch series posted designed to improve 
->>> various
->>> aspects of CMA. A sampling:
->>> 
->>> https://lkml.org/lkml/2014/10/15/623
->>> http://marc.info/?l=linux-mm&m=141571797202006&w=2
->>> https://lkml.org/lkml/2014/6/26/549
->>> 
->>> As far as I can tell, these are all trying to fix real problems with CMA 
->>> but
->>> none of them have moved forward very much from what I can tell. The goal 
->>> of
->>> this session would be to come out with an agreement on what are the 
->>> biggest
->>> problems with CMA and the best ways to solve them.
->>> 
->> 
->> I think this is a good topic. Some of the issues have been brought up 
->> before
->> at LSF/MM but they never made that much traction so it's worth revisiting. 
->> I
->> haven't been paying close attention to the mailing list discussions but
->> I've been a little worried that the page allocator paths are turning into
->> a bigger and bigger mess. I'm also a bit worried that options such as
->> migrating pages out of CMA areas that are about to be pinned for having
->> callback options to forcibly free pages never went anywhere.
->> 
->
->
-> I have two question.
->
-> First, is GCMA able to replace CMA? It's news to me.
-
-Yes, it can. GCMA could replace or co-exist and be used selectively with 
-CMA. You could replace CMA with GCMA by simply changing 
-cma_declare_contiguous() function call with gcma_declare_contiguous().
-
-> I need some time to check GCMA.
-
-1st RFC of GCMA was posted on linux-mm mailing list as Laura linked and 
-you could get whole code from gcma/rfc/v1 tag of 
-https://github.com/sjp38/linux.gcma. It would great for me if you could 
-check it and give me any feedback because GCMA have lots of TODO / Future 
-plans and 2nd RFC is acively developing already.
-
-Thanks,
-SeongJae Park
-
->
-> Second, is CMA popular enough to change allocator path?
-> Yes, I need it.
-> But I don't know any company uses it, and nobody seems to have interest in 
-> it.
->
---781441777-2032870768-1416981410=:6720--
+Cl9fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX18K5Y+R5Lu25Lq6OiBHaW9o
+IEtpbSA8Z2lvaC5raW1AbGdlLmNvbT4K5Y+R6YCB5pe26Ze0OiAyMDE05bm0MTHmnIgyNuaXpSAx
+MjoyNQrmlLbku7bkuro6IE1lbCBHb3JtYW47IExhdXJhIEFiYm90dArmioTpgIE6IGxzZi1wY0Bs
+aXN0cy5saW51eC1mb3VuZGF0aW9uLm9yZzsgbGludXgtbW1Aa3ZhY2sub3JnOyBTZW9uZ0phZSBQ
+YXJrOyBtaW5jaGFuQGtlcm5lbC5vcmc7IOacsei+iTsgaWFtam9vbnNvby5raW1AbGdlLmNvbQrk
+uLvpopg6IFJlOiBbTHNmLXBjXSBbTFNGL01NIFRPUElDXSBJbXByb3ZpbmcgQ01BCgoyMDE0LTEx
+LTI1IOyYpO2bhCA4OjMy7JeQIE1lbCBHb3JtYW4g7J20KOqwgCkg7JO0IOq4gDoKPiBPbiBNb24s
+IE5vdiAyNCwgMjAxNCBhdCAwNTo1NDoxNFBNIC0wODAwLCBMYXVyYSBBYmJvdHQgd3JvdGU6Cj4+
+IFRoZXJlIGhhdmUgYmVlbiBhIG51bWJlciBvZiBwYXRjaCBzZXJpZXMgcG9zdGVkIGRlc2lnbmVk
+IHRvIGltcHJvdmUgdmFyaW91cwo+PiBhc3BlY3RzIG9mIENNQS4gQSBzYW1wbGluZzoKPj4KPj4g
+aHR0cHM6Ly9sa21sLm9yZy9sa21sLzIwMTQvMTAvMTUvNjIzCj4+IGh0dHA6Ly9tYXJjLmluZm8v
+P2w9bGludXgtbW0mbT0xNDE1NzE3OTcyMDIwMDYmdz0yCj4+IGh0dHBzOi8vbGttbC5vcmcvbGtt
+bC8yMDE0LzYvMjYvNTQ5Cj4+Cj4+IEFzIGZhciBhcyBJIGNhbiB0ZWxsLCB0aGVzZSBhcmUgYWxs
+IHRyeWluZyB0byBmaXggcmVhbCBwcm9ibGVtcyB3aXRoIENNQSBidXQKPj4gbm9uZSBvZiB0aGVt
+IGhhdmUgbW92ZWQgZm9yd2FyZCB2ZXJ5IG11Y2ggZnJvbSB3aGF0IEkgY2FuIHRlbGwuIFRoZSBn
+b2FsIG9mCj4+IHRoaXMgc2Vzc2lvbiB3b3VsZCBiZSB0byBjb21lIG91dCB3aXRoIGFuIGFncmVl
+bWVudCBvbiB3aGF0IGFyZSB0aGUgYmlnZ2VzdAo+PiBwcm9ibGVtcyB3aXRoIENNQSBhbmQgdGhl
+IGJlc3Qgd2F5cyB0byBzb2x2ZSB0aGVtLgo+Pgo+Cj4gSSB0aGluayB0aGlzIGlzIGEgZ29vZCB0
+b3BpYy4gU29tZSBvZiB0aGUgaXNzdWVzIGhhdmUgYmVlbiBicm91Z2h0IHVwIGJlZm9yZQo+IGF0
+IExTRi9NTSBidXQgdGhleSBuZXZlciBtYWRlIHRoYXQgbXVjaCB0cmFjdGlvbiBzbyBpdCdzIHdv
+cnRoIHJldmlzaXRpbmcuIEkKPiBoYXZlbid0IGJlZW4gcGF5aW5nIGNsb3NlIGF0dGVudGlvbiB0
+byB0aGUgbWFpbGluZyBsaXN0IGRpc2N1c3Npb25zIGJ1dAo+IEkndmUgYmVlbiBhIGxpdHRsZSB3
+b3JyaWVkIHRoYXQgdGhlIHBhZ2UgYWxsb2NhdG9yIHBhdGhzIGFyZSB0dXJuaW5nIGludG8KPiBh
+IGJpZ2dlciBhbmQgYmlnZ2VyIG1lc3MuIEknbSBhbHNvIGEgYml0IHdvcnJpZWQgdGhhdCBvcHRp
+b25zIHN1Y2ggYXMKPiBtaWdyYXRpbmcgcGFnZXMgb3V0IG9mIENNQSBhcmVhcyB0aGF0IGFyZSBh
+Ym91dCB0byBiZSBwaW5uZWQgZm9yIGhhdmluZwo+IGNhbGxiYWNrIG9wdGlvbnMgdG8gZm9yY2li
+bHkgZnJlZSBwYWdlcyBuZXZlciB3ZW50IGFueXdoZXJlLgo+Cgo+IEkgaGF2ZSB0d28gcXVlc3Rp
+b24uCj4KPiBGaXJzdCwgaXMgR0NNQSBhYmxlIHRvIHJlcGxhY2UgQ01BPyBJdCdzIG5ld3MgdG8g
+bWUuCj4gSSBuZWVkIHNvbWUgdGltZSB0byBjaGVjayBHQ01BLgo+Cj4gU2Vjb25kLCBpcyBDTUEg
+cG9wdWxhciBlbm91Z2ggdG8gY2hhbmdlIGFsbG9jYXRvciBwYXRoPwo+IFllcywgSSBuZWVkIGl0
+Lgo+IEJ1dCBJIGRvbid0IGtub3cgYW55IGNvbXBhbnkgdXNlcyBpdCwgYW5kIG5vYm9keSBzZWVt
+cyB0byBoYXZlIGludGVyZXN0IGluCj4gaXQuCgpXZSAoeGlhb21pKSB1c2UgaXQgaW4gb3VyIG5l
+dyBtaWJveC4KClRoYW5rcywKSHVp
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
