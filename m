@@ -1,1720 +1,520 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 1881C6B0069
-	for <linux-mm@kvack.org>; Wed, 26 Nov 2014 19:21:43 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id kx10so3846730pab.16
-        for <linux-mm@kvack.org>; Wed, 26 Nov 2014 16:21:42 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id j7si9105550pdo.103.2014.11.26.16.21.38
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id A9CD46B0069
+	for <linux-mm@kvack.org>; Wed, 26 Nov 2014 19:26:27 -0500 (EST)
+Received: by mail-wg0-f52.google.com with SMTP id a1so5127644wgh.39
+        for <linux-mm@kvack.org>; Wed, 26 Nov 2014 16:26:27 -0800 (PST)
+Received: from v094114.home.net.pl (v094114.home.net.pl. [79.96.170.134])
+        by mx.google.com with SMTP id a5si9137477wjy.155.2014.11.26.16.26.26
         for <linux-mm@kvack.org>;
-        Wed, 26 Nov 2014 16:21:41 -0800 (PST)
-Date: Thu, 27 Nov 2014 08:20:35 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master 185/397] mm/nommu.c:1193:8: warning: assignment makes
- pointer from integer without a cast
-Message-ID: <201411270833.w1auTAKD%fengguang.wu@intel.com>
+        Wed, 26 Nov 2014 16:26:26 -0800 (PST)
+From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Subject: Re: [RFC 2/2] OOM, PM: make OOM detection in the freezer path raceless
+Date: Thu, 27 Nov 2014 01:47:42 +0100
+Message-ID: <6460796.RIZxga0pMR@vostro.rjw.lan>
+In-Reply-To: <1416345006-8284-2-git-send-email-mhocko@suse.cz>
+References: <20141118210833.GE23640@dhcp22.suse.cz> <1416345006-8284-1-git-send-email-mhocko@suse.cz> <1416345006-8284-2-git-send-email-mhocko@suse.cz>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="ZGiS0Q5IWpPtfppv"
-Content-Disposition: inline
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
-
-
---ZGiS0Q5IWpPtfppv
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-
-tree:   git://git.cmpxchg.org/linux-mmotm.git master
-head:   a2d887dee78e23dc092ff14ae2ad22592437a328
-commit: cd4687a1102a69d9045d09e0af6bb9bacfb49ee5 [185/397] mm/nommu: use alloc_pages_exact() rather than it's own implementation
-config: m32r-m32104ut_defconfig (attached as .config)
-reproduce:
-  wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
-  chmod +x ~/bin/make.cross
-  git checkout cd4687a1102a69d9045d09e0af6bb9bacfb49ee5
-  # save the attached .config to linux build tree
-  make.cross ARCH=m32r 
-
-All warnings:
-
-   mm/nommu.c: In function 'do_mmap_private':
->> mm/nommu.c:1193:8: warning: assignment makes pointer from integer without a cast
-      base = __get_free_pages(GFP_KERNEL, order);
-           ^
-
-vim +1193 mm/nommu.c
-
-  1177		/* allocate some memory to hold the mapping
-  1178		 * - note that this may not return a page-aligned address if the object
-  1179		 *   we're allocating is smaller than a page
-  1180		 */
-  1181		order = get_order(len);
-  1182		kdebug("alloc order %d for %lx", order, len);
-  1183	
-  1184		total = 1 << order;
-  1185		point = len >> PAGE_SHIFT;
-  1186	
-  1187		/* we don't want to allocate a power-of-2 sized page set */
-  1188		if (sysctl_nr_trim_pages && total - point >= sysctl_nr_trim_pages) {
-  1189			total = point;
-  1190			kdebug("try to alloc exact %lu pages", total);
-  1191			base = alloc_pages_exact(len, GFP_KERNEL);
-  1192		} else {
-> 1193			base = __get_free_pages(GFP_KERNEL, order);
-  1194		}
-  1195	
-  1196		if (!base)
-  1197			goto enomem;
-  1198	
-  1199		atomic_long_add(total, &mmap_pages_allocated);
-  1200	
-  1201		region->vm_flags = vma->vm_flags |= VM_MAPPED_COPY;
-
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
-
---ZGiS0Q5IWpPtfppv
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename=".config"
-
-#
-# Automatically generated file; DO NOT EDIT.
-# Linux/m32r 3.18.0-rc6-mm1 Kernel Configuration
-#
-CONFIG_M32R=y
-CONFIG_GENERIC_ISA_DMA=y
-CONFIG_ZONE_DMA=y
-CONFIG_NO_IOPORT_MAP=y
-CONFIG_NO_DMA=y
-CONFIG_HZ=100
-CONFIG_DEFCONFIG_LIST="/lib/modules/$UNAME_RELEASE/.config"
-CONFIG_IRQ_WORK=y
-
-#
-# General setup
-#
-CONFIG_BROKEN_ON_SMP=y
-CONFIG_INIT_ENV_ARG_LIMIT=32
-CONFIG_CROSS_COMPILE=""
-# CONFIG_COMPILE_TEST is not set
-CONFIG_LOCALVERSION=""
-CONFIG_LOCALVERSION_AUTO=y
-CONFIG_HAVE_KERNEL_GZIP=y
-CONFIG_HAVE_KERNEL_BZIP2=y
-CONFIG_HAVE_KERNEL_LZMA=y
-CONFIG_KERNEL_GZIP=y
-# CONFIG_KERNEL_BZIP2 is not set
-# CONFIG_KERNEL_LZMA is not set
-CONFIG_DEFAULT_HOSTNAME="(none)"
-CONFIG_SYSVIPC=y
-CONFIG_SYSVIPC_SYSCTL=y
-# CONFIG_POSIX_MQUEUE is not set
-# CONFIG_FHANDLE is not set
-CONFIG_USELIB=y
-# CONFIG_AUDIT is not set
-
-#
-# IRQ subsystem
-#
-CONFIG_GENERIC_IRQ_PROBE=y
-CONFIG_GENERIC_IRQ_SHOW=y
-CONFIG_ARCH_USES_GETTIMEOFFSET=y
-
-#
-# CPU/Task time and stats accounting
-#
-CONFIG_TICK_CPU_ACCOUNTING=y
-# CONFIG_BSD_PROCESS_ACCT is not set
-# CONFIG_TASKSTATS is not set
-
-#
-# RCU Subsystem
-#
-CONFIG_TREE_PREEMPT_RCU=y
-CONFIG_PREEMPT_RCU=y
-# CONFIG_TASKS_RCU is not set
-CONFIG_RCU_STALL_COMMON=y
-CONFIG_RCU_FANOUT=32
-CONFIG_RCU_FANOUT_LEAF=16
-# CONFIG_RCU_FANOUT_EXACT is not set
-# CONFIG_TREE_RCU_TRACE is not set
-# CONFIG_RCU_BOOST is not set
-# CONFIG_RCU_NOCB_CPU is not set
-CONFIG_BUILD_BIN2C=y
-CONFIG_IKCONFIG=y
-CONFIG_IKCONFIG_PROC=y
-CONFIG_LOG_BUF_SHIFT=14
-# CONFIG_CGROUPS is not set
-# CONFIG_CHECKPOINT_RESTORE is not set
-CONFIG_NAMESPACES=y
-CONFIG_UTS_NS=y
-CONFIG_IPC_NS=y
-# CONFIG_USER_NS is not set
-CONFIG_PID_NS=y
-CONFIG_NET_NS=y
-# CONFIG_SCHED_AUTOGROUP is not set
-# CONFIG_SYSFS_DEPRECATED is not set
-# CONFIG_RELAY is not set
-# CONFIG_BLK_DEV_INITRD is not set
-# CONFIG_CC_OPTIMIZE_FOR_SIZE is not set
-CONFIG_SYSCTL=y
-CONFIG_ANON_INODES=y
-CONFIG_BPF=y
-# CONFIG_EXPERT is not set
-# CONFIG_SGETMASK_SYSCALL is not set
-CONFIG_SYSFS_SYSCALL=y
-# CONFIG_SYSCTL_SYSCALL is not set
-CONFIG_KALLSYMS=y
-CONFIG_PRINTK=y
-CONFIG_BUG=y
-CONFIG_ELF_CORE=y
-CONFIG_BASE_FULL=y
-CONFIG_FUTEX=y
-CONFIG_EPOLL=y
-CONFIG_SIGNALFD=y
-CONFIG_TIMERFD=y
-CONFIG_EVENTFD=y
-# CONFIG_BPF_SYSCALL is not set
-CONFIG_AIO=y
-CONFIG_ADVISE_SYSCALLS=y
-# CONFIG_EMBEDDED is not set
-
-#
-# Kernel Performance Events And Counters
-#
-CONFIG_VM_EVENT_COUNTERS=y
-CONFIG_COMPAT_BRK=y
-CONFIG_SLAB=y
-# CONFIG_SLUB is not set
-CONFIG_PROFILING=y
-CONFIG_OPROFILE=m
-CONFIG_HAVE_OPROFILE=y
-# CONFIG_UPROBES is not set
-# CONFIG_HAVE_64BIT_ALIGNED_ACCESS is not set
-CONFIG_ARCH_WANT_IPC_PARSE_VERSION=y
-# CONFIG_CC_STACKPROTECTOR is not set
-CONFIG_MODULES_USE_ELF_RELA=y
-
-#
-# GCOV-based kernel profiling
-#
-# CONFIG_HAVE_GENERIC_DMA_COHERENT is not set
-CONFIG_SLABINFO=y
-CONFIG_RT_MUTEXES=y
-CONFIG_BASE_SMALL=0
-CONFIG_MODULES=y
-# CONFIG_MODULE_FORCE_LOAD is not set
-CONFIG_MODULE_UNLOAD=y
-CONFIG_MODULE_FORCE_UNLOAD=y
-# CONFIG_MODVERSIONS is not set
-# CONFIG_MODULE_SRCVERSION_ALL is not set
-# CONFIG_MODULE_SIG is not set
-# CONFIG_MODULE_COMPRESS is not set
-CONFIG_INIT_ALL_POSSIBLE=y
-CONFIG_BLOCK=y
-CONFIG_LBDAF=y
-# CONFIG_BLK_DEV_BSG is not set
-# CONFIG_BLK_DEV_BSGLIB is not set
-# CONFIG_BLK_DEV_INTEGRITY is not set
-# CONFIG_BLK_CMDLINE_PARSER is not set
-
-#
-# Partition Types
-#
-# CONFIG_PARTITION_ADVANCED is not set
-CONFIG_MSDOS_PARTITION=y
-CONFIG_EFI_PARTITION=y
-
-#
-# IO Schedulers
-#
-CONFIG_IOSCHED_NOOP=y
-CONFIG_IOSCHED_DEADLINE=y
-CONFIG_IOSCHED_CFQ=y
-# CONFIG_DEFAULT_DEADLINE is not set
-CONFIG_DEFAULT_CFQ=y
-# CONFIG_DEFAULT_NOOP is not set
-CONFIG_DEFAULT_IOSCHED="cfq"
-CONFIG_UNINLINE_SPIN_UNLOCK=y
-# CONFIG_FREEZER is not set
-
-#
-# Processor type and features
-#
-# CONFIG_PLAT_MAPPI is not set
-# CONFIG_PLAT_USRV is not set
-# CONFIG_PLAT_M32700UT is not set
-# CONFIG_PLAT_OPSPUT is not set
-# CONFIG_PLAT_OAKS32R is not set
-# CONFIG_PLAT_MAPPI2 is not set
-# CONFIG_PLAT_MAPPI3 is not set
-CONFIG_PLAT_M32104UT=y
-# CONFIG_CHIP_M32700 is not set
-# CONFIG_CHIP_M32102 is not set
-CONFIG_CHIP_M32104=y
-# CONFIG_CHIP_VDEC2 is not set
-# CONFIG_CHIP_OPSP is not set
-CONFIG_ISA_M32R=y
-# CONFIG_PLAT_HAS_INT0ICU is not set
-CONFIG_PLAT_HAS_INT1ICU=y
-# CONFIG_PLAT_HAS_INT2ICU is not set
-CONFIG_BUS_CLOCK=54000000
-CONFIG_TIMER_DIVIDE=128
-# CONFIG_CPU_LITTLE_ENDIAN is not set
-CONFIG_MEMORY_START=0x04000000
-CONFIG_MEMORY_SIZE=0x01000000
-CONFIG_ARCH_DISCONTIGMEM_ENABLE=y
-CONFIG_DISCONTIGMEM=y
-CONFIG_FLAT_NODE_MEM_MAP=y
-CONFIG_NEED_MULTIPLE_NODES=y
-# CONFIG_HAVE_BOOTMEM_INFO_NODE is not set
-CONFIG_PAGEFLAGS_EXTENDED=y
-CONFIG_SPLIT_PTLOCK_CPUS=999999
-# CONFIG_PHYS_ADDR_T_64BIT is not set
-CONFIG_ZONE_DMA_FLAG=1
-CONFIG_VIRT_TO_BUS=y
-CONFIG_NOMMU_INITIAL_TRIM_EXCESS=1
-CONFIG_NEED_PER_CPU_KM=y
-# CONFIG_CLEANCACHE is not set
-# CONFIG_ZPOOL is not set
-# CONFIG_ZBUD is not set
-CONFIG_IRAM_START=0x00700000
-CONFIG_IRAM_SIZE=0x00010000
-CONFIG_RWSEM_GENERIC_SPINLOCK=y
-# CONFIG_RWSEM_XCHGADD_ALGORITHM is not set
-# CONFIG_ARCH_HAS_ILOG2_U32 is not set
-# CONFIG_ARCH_HAS_ILOG2_U64 is not set
-CONFIG_GENERIC_HWEIGHT=y
-CONFIG_GENERIC_CALIBRATE_DELAY=y
-CONFIG_SCHED_OMIT_FRAME_POINTER=y
-# CONFIG_PREEMPT_NONE is not set
-# CONFIG_PREEMPT_VOLUNTARY is not set
-CONFIG_PREEMPT=y
-CONFIG_PREEMPT_COUNT=y
-# CONFIG_SMP is not set
-CONFIG_NODES_SHIFT=1
-
-#
-# Bus options (PCI, PCMCIA, EISA, MCA, ISA)
-#
-# CONFIG_PCCARD is not set
-
-#
-# Executable file formats
-#
-CONFIG_BINFMT_SCRIPT=y
-# CONFIG_BINFMT_FLAT is not set
-# CONFIG_HAVE_AOUT is not set
-CONFIG_BINFMT_MISC=y
-CONFIG_COREDUMP=y
-CONFIG_NET=y
-
-#
-# Networking options
-#
-CONFIG_PACKET=y
-# CONFIG_PACKET_DIAG is not set
-CONFIG_UNIX=y
-# CONFIG_UNIX_DIAG is not set
-CONFIG_XFRM=y
-# CONFIG_XFRM_USER is not set
-# CONFIG_XFRM_SUB_POLICY is not set
-# CONFIG_XFRM_MIGRATE is not set
-# CONFIG_XFRM_STATISTICS is not set
-# CONFIG_NET_KEY is not set
-CONFIG_INET=y
-# CONFIG_IP_MULTICAST is not set
-# CONFIG_IP_ADVANCED_ROUTER is not set
-CONFIG_IP_ROUTE_CLASSID=y
-# CONFIG_IP_PNP is not set
-# CONFIG_NET_IPIP is not set
-# CONFIG_NET_IPGRE_DEMUX is not set
-# CONFIG_NET_IP_TUNNEL is not set
-# CONFIG_SYN_COOKIES is not set
-# CONFIG_NET_IPVTI is not set
-# CONFIG_NET_UDP_TUNNEL is not set
-# CONFIG_NET_FOU is not set
-# CONFIG_GENEVE is not set
-# CONFIG_INET_AH is not set
-# CONFIG_INET_ESP is not set
-# CONFIG_INET_IPCOMP is not set
-# CONFIG_INET_XFRM_TUNNEL is not set
-# CONFIG_INET_TUNNEL is not set
-CONFIG_INET_XFRM_MODE_TRANSPORT=y
-CONFIG_INET_XFRM_MODE_TUNNEL=y
-CONFIG_INET_XFRM_MODE_BEET=y
-CONFIG_INET_LRO=y
-CONFIG_INET_DIAG=y
-CONFIG_INET_TCP_DIAG=y
-# CONFIG_INET_UDP_DIAG is not set
-# CONFIG_TCP_CONG_ADVANCED is not set
-CONFIG_TCP_CONG_CUBIC=y
-CONFIG_DEFAULT_TCP_CONG="cubic"
-# CONFIG_TCP_MD5SIG is not set
-# CONFIG_IPV6 is not set
-# CONFIG_NETWORK_SECMARK is not set
-# CONFIG_NET_PTP_CLASSIFY is not set
-# CONFIG_NETWORK_PHY_TIMESTAMPING is not set
-CONFIG_NETFILTER=y
-# CONFIG_NETFILTER_DEBUG is not set
-CONFIG_NETFILTER_ADVANCED=y
-
-#
-# Core Netfilter Configuration
-#
-CONFIG_NETFILTER_NETLINK=m
-# CONFIG_NETFILTER_NETLINK_ACCT is not set
-CONFIG_NETFILTER_NETLINK_QUEUE=m
-CONFIG_NETFILTER_NETLINK_LOG=m
-# CONFIG_NF_CONNTRACK is not set
-# CONFIG_NF_TABLES is not set
-CONFIG_NETFILTER_XTABLES=m
-
-#
-# Xtables combined modules
-#
-CONFIG_NETFILTER_XT_MARK=m
-
-#
-# Xtables targets
-#
-# CONFIG_NETFILTER_XT_TARGET_CHECKSUM is not set
-CONFIG_NETFILTER_XT_TARGET_CLASSIFY=m
-# CONFIG_NETFILTER_XT_TARGET_DSCP is not set
-CONFIG_NETFILTER_XT_TARGET_HL=m
-# CONFIG_NETFILTER_XT_TARGET_HMARK is not set
-# CONFIG_NETFILTER_XT_TARGET_IDLETIMER is not set
-# CONFIG_NETFILTER_XT_TARGET_LED is not set
-# CONFIG_NETFILTER_XT_TARGET_LOG is not set
-CONFIG_NETFILTER_XT_TARGET_MARK=m
-# CONFIG_NETFILTER_XT_TARGET_NFLOG is not set
-CONFIG_NETFILTER_XT_TARGET_NFQUEUE=m
-# CONFIG_NETFILTER_XT_TARGET_RATEEST is not set
-# CONFIG_NETFILTER_XT_TARGET_TEE is not set
-# CONFIG_NETFILTER_XT_TARGET_TPROXY is not set
-# CONFIG_NETFILTER_XT_TARGET_TRACE is not set
-# CONFIG_NETFILTER_XT_TARGET_TCPMSS is not set
-# CONFIG_NETFILTER_XT_TARGET_TCPOPTSTRIP is not set
-
-#
-# Xtables matches
-#
-# CONFIG_NETFILTER_XT_MATCH_ADDRTYPE is not set
-# CONFIG_NETFILTER_XT_MATCH_BPF is not set
-CONFIG_NETFILTER_XT_MATCH_COMMENT=m
-# CONFIG_NETFILTER_XT_MATCH_CPU is not set
-CONFIG_NETFILTER_XT_MATCH_DCCP=m
-# CONFIG_NETFILTER_XT_MATCH_DEVGROUP is not set
-# CONFIG_NETFILTER_XT_MATCH_DSCP is not set
-CONFIG_NETFILTER_XT_MATCH_ECN=m
-# CONFIG_NETFILTER_XT_MATCH_ESP is not set
-# CONFIG_NETFILTER_XT_MATCH_HASHLIMIT is not set
-CONFIG_NETFILTER_XT_MATCH_HL=m
-# CONFIG_NETFILTER_XT_MATCH_IPCOMP is not set
-# CONFIG_NETFILTER_XT_MATCH_IPRANGE is not set
-# CONFIG_NETFILTER_XT_MATCH_L2TP is not set
-CONFIG_NETFILTER_XT_MATCH_LENGTH=m
-CONFIG_NETFILTER_XT_MATCH_LIMIT=m
-CONFIG_NETFILTER_XT_MATCH_MAC=m
-CONFIG_NETFILTER_XT_MATCH_MARK=m
-# CONFIG_NETFILTER_XT_MATCH_MULTIPORT is not set
-# CONFIG_NETFILTER_XT_MATCH_NFACCT is not set
-# CONFIG_NETFILTER_XT_MATCH_OSF is not set
-# CONFIG_NETFILTER_XT_MATCH_OWNER is not set
-# CONFIG_NETFILTER_XT_MATCH_POLICY is not set
-CONFIG_NETFILTER_XT_MATCH_PKTTYPE=m
-# CONFIG_NETFILTER_XT_MATCH_QUOTA is not set
-# CONFIG_NETFILTER_XT_MATCH_RATEEST is not set
-CONFIG_NETFILTER_XT_MATCH_REALM=m
-# CONFIG_NETFILTER_XT_MATCH_RECENT is not set
-CONFIG_NETFILTER_XT_MATCH_SCTP=m
-# CONFIG_NETFILTER_XT_MATCH_SOCKET is not set
-# CONFIG_NETFILTER_XT_MATCH_STATISTIC is not set
-CONFIG_NETFILTER_XT_MATCH_STRING=m
-CONFIG_NETFILTER_XT_MATCH_TCPMSS=m
-# CONFIG_NETFILTER_XT_MATCH_TIME is not set
-# CONFIG_NETFILTER_XT_MATCH_U32 is not set
-# CONFIG_IP_SET is not set
-# CONFIG_IP_VS is not set
-
-#
-# IP: Netfilter Configuration
-#
-# CONFIG_NF_DEFRAG_IPV4 is not set
-# CONFIG_NF_LOG_ARP is not set
-# CONFIG_NF_LOG_IPV4 is not set
-CONFIG_NF_REJECT_IPV4=m
-CONFIG_IP_NF_IPTABLES=m
-# CONFIG_IP_NF_MATCH_AH is not set
-CONFIG_IP_NF_MATCH_ECN=m
-# CONFIG_IP_NF_MATCH_RPFILTER is not set
-CONFIG_IP_NF_MATCH_TTL=m
-CONFIG_IP_NF_FILTER=m
-CONFIG_IP_NF_TARGET_REJECT=m
-CONFIG_IP_NF_MANGLE=m
-CONFIG_IP_NF_TARGET_ECN=m
-CONFIG_IP_NF_TARGET_TTL=m
-CONFIG_IP_NF_RAW=m
-CONFIG_IP_NF_ARPTABLES=m
-CONFIG_IP_NF_ARPFILTER=m
-CONFIG_IP_NF_ARP_MANGLE=m
-# CONFIG_IP_DCCP is not set
-# CONFIG_IP_SCTP is not set
-# CONFIG_RDS is not set
-# CONFIG_TIPC is not set
-# CONFIG_ATM is not set
-# CONFIG_L2TP is not set
-# CONFIG_BRIDGE is not set
-CONFIG_HAVE_NET_DSA=y
-# CONFIG_VLAN_8021Q is not set
-# CONFIG_DECNET is not set
-# CONFIG_LLC2 is not set
-# CONFIG_IPX is not set
-# CONFIG_ATALK is not set
-# CONFIG_X25 is not set
-# CONFIG_LAPB is not set
-# CONFIG_PHONET is not set
-# CONFIG_IEEE802154 is not set
-# CONFIG_NET_SCHED is not set
-# CONFIG_DCB is not set
-# CONFIG_BATMAN_ADV is not set
-# CONFIG_OPENVSWITCH is not set
-# CONFIG_VSOCKETS is not set
-# CONFIG_NETLINK_MMAP is not set
-# CONFIG_NETLINK_DIAG is not set
-# CONFIG_NET_MPLS_GSO is not set
-# CONFIG_HSR is not set
-CONFIG_NET_RX_BUSY_POLL=y
-CONFIG_BQL=y
-
-#
-# Network testing
-#
-# CONFIG_NET_PKTGEN is not set
-# CONFIG_HAMRADIO is not set
-# CONFIG_CAN is not set
-# CONFIG_IRDA is not set
-# CONFIG_BT is not set
-# CONFIG_AF_RXRPC is not set
-CONFIG_WIRELESS=y
-# CONFIG_CFG80211 is not set
-# CONFIG_LIB80211 is not set
-
-#
-# CFG80211 needs to be enabled for MAC80211
-#
-# CONFIG_WIMAX is not set
-# CONFIG_RFKILL is not set
-# CONFIG_NET_9P is not set
-# CONFIG_CAIF is not set
-# CONFIG_CEPH_LIB is not set
-# CONFIG_NFC is not set
-
-#
-# Device Drivers
-#
-
-#
-# Generic Driver Options
-#
-CONFIG_UEVENT_HELPER=y
-CONFIG_UEVENT_HELPER_PATH=""
-# CONFIG_DEVTMPFS is not set
-CONFIG_STANDALONE=y
-CONFIG_PREVENT_FIRMWARE_BUILD=y
-CONFIG_FW_LOADER=y
-CONFIG_FIRMWARE_IN_KERNEL=y
-CONFIG_EXTRA_FIRMWARE=""
-# CONFIG_FW_LOADER_USER_HELPER_FALLBACK is not set
-CONFIG_ALLOW_DEV_COREDUMP=y
-# CONFIG_SYS_HYPERVISOR is not set
-# CONFIG_GENERIC_CPU_DEVICES is not set
-# CONFIG_DMA_SHARED_BUFFER is not set
-
-#
-# Bus devices
-#
-# CONFIG_CONNECTOR is not set
-# CONFIG_MTD is not set
-CONFIG_PARPORT=m
-# CONFIG_PARPORT_GSC is not set
-# CONFIG_PARPORT_AX88796 is not set
-CONFIG_PARPORT_1284=y
-CONFIG_BLK_DEV=y
-# CONFIG_BLK_DEV_NULL_BLK is not set
-# CONFIG_BLK_DEV_COW_COMMON is not set
-CONFIG_BLK_DEV_LOOP=y
-CONFIG_BLK_DEV_LOOP_MIN_COUNT=8
-# CONFIG_BLK_DEV_CRYPTOLOOP is not set
-# CONFIG_BLK_DEV_DRBD is not set
-CONFIG_BLK_DEV_NBD=m
-# CONFIG_BLK_DEV_RAM is not set
-CONFIG_CDROM_PKTCDVD=m
-CONFIG_CDROM_PKTCDVD_BUFFERS=8
-CONFIG_CDROM_PKTCDVD_WCACHE=y
-# CONFIG_ATA_OVER_ETH is not set
-# CONFIG_BLK_DEV_HD is not set
-# CONFIG_BLK_DEV_RBD is not set
-
-#
-# Misc devices
-#
-# CONFIG_SENSORS_LIS3LV02D is not set
-# CONFIG_AD525X_DPOT is not set
-# CONFIG_DUMMY_IRQ is not set
-# CONFIG_ICS932S401 is not set
-# CONFIG_ENCLOSURE_SERVICES is not set
-# CONFIG_APDS9802ALS is not set
-# CONFIG_ISL29003 is not set
-# CONFIG_ISL29020 is not set
-# CONFIG_SENSORS_TSL2550 is not set
-# CONFIG_SENSORS_BH1780 is not set
-# CONFIG_SENSORS_BH1770 is not set
-# CONFIG_SENSORS_APDS990X is not set
-# CONFIG_HMC6352 is not set
-# CONFIG_DS1682 is not set
-# CONFIG_BMP085_I2C is not set
-# CONFIG_USB_SWITCH_FSA9480 is not set
-# CONFIG_SRAM is not set
-# CONFIG_C2PORT is not set
-
-#
-# EEPROM support
-#
-# CONFIG_EEPROM_AT24 is not set
-# CONFIG_EEPROM_LEGACY is not set
-# CONFIG_EEPROM_MAX6875 is not set
-# CONFIG_EEPROM_93CX6 is not set
-
-#
-# Texas Instruments shared transport line discipline
-#
-# CONFIG_SENSORS_LIS3_I2C is not set
-
-#
-# Altera FPGA firmware download module
-#
-# CONFIG_ALTERA_STAPL is not set
-
-#
-# Intel MIC Bus Driver
-#
-
-#
-# Intel MIC Host Driver
-#
-
-#
-# Intel MIC Card Driver
-#
-# CONFIG_ECHO is not set
-# CONFIG_CXL_BASE is not set
-CONFIG_HAVE_IDE=y
-CONFIG_IDE=y
-
-#
-# Please see Documentation/ide/ide.txt for help/info on IDE drives
-#
-CONFIG_IDE_ATAPI=y
-# CONFIG_BLK_DEV_IDE_SATA is not set
-CONFIG_IDE_GD=y
-CONFIG_IDE_GD_ATA=y
-# CONFIG_IDE_GD_ATAPI is not set
-CONFIG_BLK_DEV_IDECD=y
-CONFIG_BLK_DEV_IDECD_VERBOSE_ERRORS=y
-# CONFIG_BLK_DEV_IDETAPE is not set
-# CONFIG_IDE_TASK_IOCTL is not set
-CONFIG_IDE_PROC_FS=y
-
-#
-# IDE chipset support/bugfixes
-#
-CONFIG_IDE_GENERIC=y
-# CONFIG_BLK_DEV_PLATFORM is not set
-# CONFIG_BLK_DEV_IDEDMA is not set
-
-#
-# SCSI device support
-#
-CONFIG_SCSI_MOD=y
-# CONFIG_RAID_ATTRS is not set
-CONFIG_SCSI=y
-# CONFIG_SCSI_DMA is not set
-# CONFIG_SCSI_NETLINK is not set
-# CONFIG_SCSI_MQ_DEFAULT is not set
-CONFIG_SCSI_PROC_FS=y
-
-#
-# SCSI support type (disk, tape, CD-ROM)
-#
-CONFIG_BLK_DEV_SD=y
-CONFIG_CHR_DEV_ST=m
-# CONFIG_CHR_DEV_OSST is not set
-CONFIG_BLK_DEV_SR=m
-# CONFIG_BLK_DEV_SR_VENDOR is not set
-CONFIG_CHR_DEV_SG=m
-# CONFIG_CHR_DEV_SCH is not set
-CONFIG_SCSI_CONSTANTS=y
-# CONFIG_SCSI_LOGGING is not set
-# CONFIG_SCSI_SCAN_ASYNC is not set
-
-#
-# SCSI Transports
-#
-CONFIG_SCSI_SPI_ATTRS=y
-# CONFIG_SCSI_FC_ATTRS is not set
-# CONFIG_SCSI_ISCSI_ATTRS is not set
-# CONFIG_SCSI_SAS_ATTRS is not set
-# CONFIG_SCSI_SAS_LIBSAS is not set
-# CONFIG_SCSI_SRP_ATTRS is not set
-CONFIG_SCSI_LOWLEVEL=y
-# CONFIG_ISCSI_TCP is not set
-# CONFIG_ISCSI_BOOT_SYSFS is not set
-# CONFIG_SCSI_DEBUG is not set
-# CONFIG_SCSI_DH is not set
-# CONFIG_SCSI_OSD_INITIATOR is not set
-CONFIG_MD=y
-CONFIG_BLK_DEV_MD=y
-CONFIG_MD_AUTODETECT=y
-# CONFIG_MD_LINEAR is not set
-# CONFIG_MD_RAID0 is not set
-CONFIG_MD_RAID1=y
-# CONFIG_MD_RAID10 is not set
-# CONFIG_MD_RAID456 is not set
-# CONFIG_MD_MULTIPATH is not set
-# CONFIG_MD_FAULTY is not set
-# CONFIG_BCACHE is not set
-CONFIG_BLK_DEV_DM_BUILTIN=y
-CONFIG_BLK_DEV_DM=m
-# CONFIG_DM_DEBUG is not set
-CONFIG_DM_BUFIO=m
-CONFIG_DM_CRYPT=m
-CONFIG_DM_SNAPSHOT=m
-# CONFIG_DM_THIN_PROVISIONING is not set
-# CONFIG_DM_CACHE is not set
-# CONFIG_DM_ERA is not set
-# CONFIG_DM_MIRROR is not set
-# CONFIG_DM_RAID is not set
-# CONFIG_DM_ZERO is not set
-# CONFIG_DM_MULTIPATH is not set
-# CONFIG_DM_DELAY is not set
-# CONFIG_DM_UEVENT is not set
-# CONFIG_DM_FLAKEY is not set
-# CONFIG_DM_VERITY is not set
-# CONFIG_DM_SWITCH is not set
-# CONFIG_TARGET_CORE is not set
-CONFIG_NETDEVICES=y
-CONFIG_NET_CORE=y
-# CONFIG_BONDING is not set
-CONFIG_DUMMY=m
-# CONFIG_EQUALIZER is not set
-# CONFIG_NET_TEAM is not set
-# CONFIG_MACVLAN is not set
-# CONFIG_VXLAN is not set
-# CONFIG_NETCONSOLE is not set
-# CONFIG_NETPOLL is not set
-# CONFIG_NET_POLL_CONTROLLER is not set
-# CONFIG_TUN is not set
-# CONFIG_VETH is not set
-# CONFIG_NLMON is not set
-
-#
-# CAIF transport drivers
-#
-
-#
-# Distributed Switch Architecture drivers
-#
-# CONFIG_NET_DSA_MV88E6XXX is not set
-# CONFIG_NET_DSA_MV88E6060 is not set
-# CONFIG_NET_DSA_MV88E6XXX_NEED_PPU is not set
-# CONFIG_NET_DSA_MV88E6131 is not set
-# CONFIG_NET_DSA_MV88E6123_61_65 is not set
-# CONFIG_NET_DSA_MV88E6171 is not set
-# CONFIG_NET_DSA_BCM_SF2 is not set
-CONFIG_ETHERNET=y
-CONFIG_NET_VENDOR_ARC=y
-# CONFIG_DNET is not set
-CONFIG_NET_VENDOR_INTEL=y
-CONFIG_NET_VENDOR_I825XX=y
-CONFIG_NET_VENDOR_MARVELL=y
-# CONFIG_MVMDIO is not set
-CONFIG_NET_VENDOR_MICREL=y
-# CONFIG_KS8851_MLL is not set
-CONFIG_NET_VENDOR_NATSEMI=y
-CONFIG_NET_VENDOR_8390=y
-CONFIG_NE2000=m
-CONFIG_NET_VENDOR_QUALCOMM=y
-CONFIG_NET_VENDOR_SAMSUNG=y
-CONFIG_NET_VENDOR_SEEQ=y
-CONFIG_NET_VENDOR_SMSC=y
-# CONFIG_SMC91X is not set
-# CONFIG_SMSC911X is not set
-CONFIG_NET_VENDOR_STMICRO=y
-CONFIG_NET_VENDOR_VIA=y
-CONFIG_NET_VENDOR_WIZNET=y
-# CONFIG_WIZNET_W5100 is not set
-# CONFIG_WIZNET_W5300 is not set
-# CONFIG_PHYLIB is not set
-# CONFIG_PLIP is not set
-# CONFIG_PPP is not set
-# CONFIG_SLIP is not set
-
-#
-# Host-side USB support is needed for USB Network Adapter support
-#
-CONFIG_WLAN=y
-# CONFIG_HOSTAP is not set
-# CONFIG_WL_TI is not set
-
-#
-# Enable WiMAX (Networking options) to see the WiMAX drivers
-#
-# CONFIG_WAN is not set
-# CONFIG_ISDN is not set
-
-#
-# Input device support
-#
-CONFIG_INPUT=y
-# CONFIG_INPUT_FF_MEMLESS is not set
-# CONFIG_INPUT_POLLDEV is not set
-# CONFIG_INPUT_SPARSEKMAP is not set
-# CONFIG_INPUT_MATRIXKMAP is not set
-
-#
-# Userland interfaces
-#
-CONFIG_INPUT_MOUSEDEV=y
-CONFIG_INPUT_MOUSEDEV_PSAUX=y
-CONFIG_INPUT_MOUSEDEV_SCREEN_X=1024
-CONFIG_INPUT_MOUSEDEV_SCREEN_Y=768
-# CONFIG_INPUT_JOYDEV is not set
-# CONFIG_INPUT_EVDEV is not set
-# CONFIG_INPUT_EVBUG is not set
-
-#
-# Input Device Drivers
-#
-CONFIG_INPUT_KEYBOARD=y
-# CONFIG_KEYBOARD_ADP5588 is not set
-# CONFIG_KEYBOARD_ADP5589 is not set
-CONFIG_KEYBOARD_ATKBD=y
-# CONFIG_KEYBOARD_QT1070 is not set
-# CONFIG_KEYBOARD_QT2160 is not set
-# CONFIG_KEYBOARD_LKKBD is not set
-# CONFIG_KEYBOARD_TCA6416 is not set
-# CONFIG_KEYBOARD_TCA8418 is not set
-# CONFIG_KEYBOARD_LM8323 is not set
-# CONFIG_KEYBOARD_LM8333 is not set
-# CONFIG_KEYBOARD_MAX7359 is not set
-# CONFIG_KEYBOARD_MCS is not set
-# CONFIG_KEYBOARD_MPR121 is not set
-# CONFIG_KEYBOARD_NEWTON is not set
-# CONFIG_KEYBOARD_OPENCORES is not set
-# CONFIG_KEYBOARD_STOWAWAY is not set
-# CONFIG_KEYBOARD_SUNKBD is not set
-# CONFIG_KEYBOARD_XTKBD is not set
-CONFIG_INPUT_LEDS=y
-CONFIG_INPUT_MOUSE=y
-CONFIG_MOUSE_PS2=y
-CONFIG_MOUSE_PS2_ALPS=y
-CONFIG_MOUSE_PS2_LOGIPS2PP=y
-CONFIG_MOUSE_PS2_SYNAPTICS=y
-CONFIG_MOUSE_PS2_CYPRESS=y
-CONFIG_MOUSE_PS2_TRACKPOINT=y
-# CONFIG_MOUSE_PS2_ELANTECH is not set
-# CONFIG_MOUSE_PS2_SENTELIC is not set
-# CONFIG_MOUSE_PS2_TOUCHKIT is not set
-# CONFIG_MOUSE_SERIAL is not set
-# CONFIG_MOUSE_APPLETOUCH is not set
-# CONFIG_MOUSE_BCM5974 is not set
-# CONFIG_MOUSE_CYAPA is not set
-# CONFIG_MOUSE_VSXXXAA is not set
-# CONFIG_MOUSE_SYNAPTICS_I2C is not set
-# CONFIG_MOUSE_SYNAPTICS_USB is not set
-# CONFIG_INPUT_JOYSTICK is not set
-# CONFIG_INPUT_TABLET is not set
-# CONFIG_INPUT_TOUCHSCREEN is not set
-# CONFIG_INPUT_MISC is not set
-
-#
-# Hardware I/O ports
-#
-CONFIG_SERIO=y
-CONFIG_SERIO_SERPORT=y
-# CONFIG_SERIO_PARKBD is not set
-CONFIG_SERIO_LIBPS2=y
-# CONFIG_SERIO_RAW is not set
-# CONFIG_SERIO_ALTERA_PS2 is not set
-# CONFIG_SERIO_PS2MULT is not set
-# CONFIG_SERIO_ARC_PS2 is not set
-# CONFIG_GAMEPORT is not set
-
-#
-# Character devices
-#
-CONFIG_TTY=y
-CONFIG_VT=y
-CONFIG_CONSOLE_TRANSLATIONS=y
-CONFIG_VT_CONSOLE=y
-CONFIG_HW_CONSOLE=y
-# CONFIG_VT_HW_CONSOLE_BINDING is not set
-CONFIG_UNIX98_PTYS=y
-# CONFIG_DEVPTS_MULTIPLE_INSTANCES is not set
-CONFIG_LEGACY_PTYS=y
-CONFIG_LEGACY_PTY_COUNT=256
-# CONFIG_SERIAL_NONSTANDARD is not set
-# CONFIG_N_GSM is not set
-# CONFIG_TRACE_SINK is not set
-CONFIG_DEVKMEM=y
-
-#
-# Serial drivers
-#
-CONFIG_SERIAL_8250=m
-CONFIG_SERIAL_8250_DEPRECATED_OPTIONS=y
-CONFIG_SERIAL_8250_NR_UARTS=4
-CONFIG_SERIAL_8250_RUNTIME_UARTS=4
-# CONFIG_SERIAL_8250_EXTENDED is not set
-# CONFIG_SERIAL_8250_DW is not set
-
-#
-# Non-8250 serial port support
-#
-CONFIG_SERIAL_CORE=y
-CONFIG_SERIAL_M32R_SIO=y
-# CONFIG_SERIAL_M32R_SIO_CONSOLE is not set
-# CONFIG_SERIAL_SCCNXP is not set
-# CONFIG_SERIAL_SC16IS7XX is not set
-# CONFIG_SERIAL_ALTERA_JTAGUART is not set
-# CONFIG_SERIAL_ALTERA_UART is not set
-# CONFIG_SERIAL_ARC is not set
-# CONFIG_PRINTER is not set
-# CONFIG_PPDEV is not set
-# CONFIG_IPMI_HANDLER is not set
-# CONFIG_HW_RANDOM is not set
-# CONFIG_RTC is not set
-# CONFIG_R3964 is not set
-# CONFIG_RAW_DRIVER is not set
-# CONFIG_TCG_TPM is not set
-
-#
-# I2C support
-#
-CONFIG_I2C=m
-CONFIG_I2C_BOARDINFO=y
-CONFIG_I2C_COMPAT=y
-CONFIG_I2C_CHARDEV=m
-# CONFIG_I2C_MUX is not set
-CONFIG_I2C_HELPER_AUTO=y
-
-#
-# I2C Hardware Bus support
-#
-
-#
-# I2C system bus drivers (mostly embedded / system-on-chip)
-#
-# CONFIG_I2C_DESIGNWARE_PLATFORM is not set
-# CONFIG_I2C_OCORES is not set
-# CONFIG_I2C_PCA_PLATFORM is not set
-# CONFIG_I2C_PXA_PCI is not set
-# CONFIG_I2C_SIMTEC is not set
-# CONFIG_I2C_XILINX is not set
-
-#
-# External I2C/SMBus adapter drivers
-#
-# CONFIG_I2C_PARPORT is not set
-# CONFIG_I2C_PARPORT_LIGHT is not set
-# CONFIG_I2C_TAOS_EVM is not set
-
-#
-# Other I2C/SMBus bus drivers
-#
-# CONFIG_I2C_STUB is not set
-# CONFIG_I2C_DEBUG_CORE is not set
-# CONFIG_I2C_DEBUG_ALGO is not set
-# CONFIG_I2C_DEBUG_BUS is not set
-# CONFIG_SPI is not set
-# CONFIG_SPMI is not set
-# CONFIG_HSI is not set
-
-#
-# PPS support
-#
-# CONFIG_PPS is not set
-
-#
-# PPS generators support
-#
-
-#
-# PTP clock support
-#
-# CONFIG_PTP_1588_CLOCK is not set
-
-#
-# Enable PHYLIB and NETWORK_PHY_TIMESTAMPING to see the additional clocks.
-#
-# CONFIG_W1 is not set
-# CONFIG_POWER_SUPPLY is not set
-# CONFIG_POWER_AVS is not set
-CONFIG_HWMON=y
-CONFIG_HWMON_VID=m
-# CONFIG_HWMON_DEBUG_CHIP is not set
-
-#
-# Native drivers
-#
-# CONFIG_SENSORS_AD7414 is not set
-# CONFIG_SENSORS_AD7418 is not set
-CONFIG_SENSORS_ADM1021=m
-CONFIG_SENSORS_ADM1025=m
-# CONFIG_SENSORS_ADM1026 is not set
-# CONFIG_SENSORS_ADM1029 is not set
-CONFIG_SENSORS_ADM1031=m
-# CONFIG_SENSORS_ADM9240 is not set
-# CONFIG_SENSORS_ADT7410 is not set
-# CONFIG_SENSORS_ADT7411 is not set
-# CONFIG_SENSORS_ADT7462 is not set
-# CONFIG_SENSORS_ADT7470 is not set
-# CONFIG_SENSORS_ADT7475 is not set
-# CONFIG_SENSORS_ASC7621 is not set
-# CONFIG_SENSORS_ATXP1 is not set
-# CONFIG_SENSORS_DS620 is not set
-CONFIG_SENSORS_DS1621=m
-# CONFIG_SENSORS_F71805F is not set
-# CONFIG_SENSORS_F71882FG is not set
-# CONFIG_SENSORS_F75375S is not set
-CONFIG_SENSORS_GL518SM=m
-# CONFIG_SENSORS_GL520SM is not set
-# CONFIG_SENSORS_G760A is not set
-# CONFIG_SENSORS_G762 is not set
-# CONFIG_SENSORS_HIH6130 is not set
-CONFIG_SENSORS_IT87=m
-# CONFIG_SENSORS_JC42 is not set
-# CONFIG_SENSORS_POWR1220 is not set
-# CONFIG_SENSORS_LINEAGE is not set
-# CONFIG_SENSORS_LTC2945 is not set
-# CONFIG_SENSORS_LTC4151 is not set
-# CONFIG_SENSORS_LTC4215 is not set
-# CONFIG_SENSORS_LTC4222 is not set
-# CONFIG_SENSORS_LTC4245 is not set
-# CONFIG_SENSORS_LTC4260 is not set
-# CONFIG_SENSORS_LTC4261 is not set
-# CONFIG_SENSORS_MAX16065 is not set
-CONFIG_SENSORS_MAX1619=m
-# CONFIG_SENSORS_MAX1668 is not set
-# CONFIG_SENSORS_MAX197 is not set
-# CONFIG_SENSORS_MAX6639 is not set
-# CONFIG_SENSORS_MAX6642 is not set
-# CONFIG_SENSORS_MAX6650 is not set
-# CONFIG_SENSORS_MAX6697 is not set
-# CONFIG_SENSORS_HTU21 is not set
-# CONFIG_SENSORS_MCP3021 is not set
-# CONFIG_SENSORS_LM63 is not set
-# CONFIG_SENSORS_LM73 is not set
-CONFIG_SENSORS_LM75=m
-CONFIG_SENSORS_LM77=m
-CONFIG_SENSORS_LM78=m
-CONFIG_SENSORS_LM80=m
-CONFIG_SENSORS_LM83=m
-CONFIG_SENSORS_LM85=m
-# CONFIG_SENSORS_LM87 is not set
-CONFIG_SENSORS_LM90=m
-# CONFIG_SENSORS_LM92 is not set
-# CONFIG_SENSORS_LM93 is not set
-# CONFIG_SENSORS_LM95234 is not set
-# CONFIG_SENSORS_LM95241 is not set
-# CONFIG_SENSORS_LM95245 is not set
-# CONFIG_SENSORS_PC87360 is not set
-# CONFIG_SENSORS_PC87427 is not set
-# CONFIG_SENSORS_NTC_THERMISTOR is not set
-# CONFIG_SENSORS_NCT6683 is not set
-# CONFIG_SENSORS_NCT6775 is not set
-# CONFIG_SENSORS_PCF8591 is not set
-# CONFIG_PMBUS is not set
-# CONFIG_SENSORS_SHT21 is not set
-# CONFIG_SENSORS_SHTC1 is not set
-# CONFIG_SENSORS_DME1737 is not set
-# CONFIG_SENSORS_EMC1403 is not set
-# CONFIG_SENSORS_EMC2103 is not set
-# CONFIG_SENSORS_EMC6W201 is not set
-CONFIG_SENSORS_SMSC47M1=m
-# CONFIG_SENSORS_SMSC47M192 is not set
-# CONFIG_SENSORS_SMSC47B397 is not set
-# CONFIG_SENSORS_SCH56XX_COMMON is not set
-# CONFIG_SENSORS_SMM665 is not set
-# CONFIG_SENSORS_ADC128D818 is not set
-# CONFIG_SENSORS_ADS1015 is not set
-# CONFIG_SENSORS_ADS7828 is not set
-# CONFIG_SENSORS_AMC6821 is not set
-# CONFIG_SENSORS_INA209 is not set
-# CONFIG_SENSORS_INA2XX is not set
-# CONFIG_SENSORS_THMC50 is not set
-# CONFIG_SENSORS_TMP102 is not set
-# CONFIG_SENSORS_TMP103 is not set
-# CONFIG_SENSORS_TMP401 is not set
-# CONFIG_SENSORS_TMP421 is not set
-# CONFIG_SENSORS_VT1211 is not set
-CONFIG_SENSORS_W83781D=m
-# CONFIG_SENSORS_W83791D is not set
-# CONFIG_SENSORS_W83792D is not set
-# CONFIG_SENSORS_W83793 is not set
-# CONFIG_SENSORS_W83795 is not set
-CONFIG_SENSORS_W83L785TS=m
-# CONFIG_SENSORS_W83L786NG is not set
-CONFIG_SENSORS_W83627HF=m
-# CONFIG_SENSORS_W83627EHF is not set
-# CONFIG_THERMAL is not set
-# CONFIG_WATCHDOG is not set
-
-#
-# Multifunction device drivers
-#
-# CONFIG_MFD_CORE is not set
-# CONFIG_MFD_BCM590XX is not set
-# CONFIG_MFD_CROS_EC is not set
-# CONFIG_MFD_MC13XXX_I2C is not set
-# CONFIG_HTC_PASIC3 is not set
-# CONFIG_MFD_KEMPLD is not set
-# CONFIG_MFD_MENF21BMC is not set
-# CONFIG_MFD_RETU is not set
-# CONFIG_MFD_PCF50633 is not set
-# CONFIG_MFD_RN5T618 is not set
-# CONFIG_MFD_SI476X_CORE is not set
-# CONFIG_MFD_SM501 is not set
-# CONFIG_ABX500_CORE is not set
-# CONFIG_MFD_SYSCON is not set
-# CONFIG_MFD_TI_AM335X_TSCADC is not set
-# CONFIG_MFD_LP3943 is not set
-# CONFIG_TPS6105X is not set
-# CONFIG_TPS6507X is not set
-# CONFIG_MFD_TPS65217 is not set
-# CONFIG_MFD_TPS65218 is not set
-# CONFIG_MFD_WL1273_CORE is not set
-# CONFIG_MFD_LM3533 is not set
-# CONFIG_MFD_TMIO is not set
-# CONFIG_MFD_ARIZONA_I2C is not set
-# CONFIG_MFD_WM8994 is not set
-# CONFIG_REGULATOR is not set
-# CONFIG_MEDIA_SUPPORT is not set
-
-#
-# Graphics support
-#
-
-#
-# Direct Rendering Manager
-#
-
-#
-# Frame buffer Devices
-#
-# CONFIG_FB is not set
-# CONFIG_BACKLIGHT_LCD_SUPPORT is not set
-# CONFIG_VGASTATE is not set
-
-#
-# Console display driver support
-#
-CONFIG_VGA_CONSOLE=y
-# CONFIG_VGACON_SOFT_SCROLLBACK is not set
-CONFIG_DUMMY_CONSOLE=y
-# CONFIG_SOUND is not set
-
-#
-# HID support
-#
-CONFIG_HID=y
-# CONFIG_HIDRAW is not set
-# CONFIG_UHID is not set
-CONFIG_HID_GENERIC=y
-
-#
-# Special HID drivers
-#
-CONFIG_HID_A4TECH=y
-# CONFIG_HID_ACRUX is not set
-CONFIG_HID_APPLE=y
-# CONFIG_HID_AUREAL is not set
-CONFIG_HID_BELKIN=y
-CONFIG_HID_CHERRY=y
-CONFIG_HID_CHICONY=y
-CONFIG_HID_CYPRESS=y
-# CONFIG_HID_DRAGONRISE is not set
-# CONFIG_HID_EMS_FF is not set
-# CONFIG_HID_ELECOM is not set
-CONFIG_HID_EZKEY=y
-# CONFIG_HID_KEYTOUCH is not set
-# CONFIG_HID_KYE is not set
-# CONFIG_HID_UCLOGIC is not set
-# CONFIG_HID_WALTOP is not set
-# CONFIG_HID_GYRATION is not set
-# CONFIG_HID_ICADE is not set
-# CONFIG_HID_TWINHAN is not set
-CONFIG_HID_KENSINGTON=y
-# CONFIG_HID_LCPOWER is not set
-# CONFIG_HID_LENOVO is not set
-CONFIG_HID_LOGITECH=y
-# CONFIG_LOGITECH_FF is not set
-# CONFIG_LOGIRUMBLEPAD2_FF is not set
-# CONFIG_LOGIG940_FF is not set
-# CONFIG_LOGIWHEELS_FF is not set
-# CONFIG_HID_MAGICMOUSE is not set
-CONFIG_HID_MICROSOFT=y
-CONFIG_HID_MONTEREY=y
-# CONFIG_HID_MULTITOUCH is not set
-# CONFIG_HID_ORTEK is not set
-# CONFIG_HID_PANTHERLORD is not set
-# CONFIG_HID_PETALYNX is not set
-# CONFIG_HID_PICOLCD is not set
-# CONFIG_HID_PRIMAX is not set
-# CONFIG_HID_SAITEK is not set
-# CONFIG_HID_SAMSUNG is not set
-# CONFIG_HID_SPEEDLINK is not set
-# CONFIG_HID_STEELSERIES is not set
-# CONFIG_HID_SUNPLUS is not set
-# CONFIG_HID_RMI is not set
-# CONFIG_HID_GREENASIA is not set
-# CONFIG_HID_SMARTJOYPLUS is not set
-# CONFIG_HID_TIVO is not set
-# CONFIG_HID_TOPSEED is not set
-# CONFIG_HID_THINGM is not set
-# CONFIG_HID_THRUSTMASTER is not set
-# CONFIG_HID_WACOM is not set
-# CONFIG_HID_WIIMOTE is not set
-# CONFIG_HID_XINMO is not set
-# CONFIG_HID_ZEROPLUS is not set
-# CONFIG_HID_ZYDACRON is not set
-# CONFIG_HID_SENSOR_HUB is not set
-
-#
-# I2C HID support
-#
-# CONFIG_I2C_HID is not set
-CONFIG_USB_OHCI_LITTLE_ENDIAN=y
-CONFIG_USB_SUPPORT=y
-CONFIG_USB_ARCH_HAS_HCD=y
-# CONFIG_USB is not set
-
-#
-# USB port drivers
-#
-
-#
-# USB Physical Layer drivers
-#
-# CONFIG_USB_PHY is not set
-# CONFIG_NOP_USB_XCEIV is not set
-# CONFIG_USB_GADGET is not set
-# CONFIG_UWB is not set
-# CONFIG_MMC is not set
-# CONFIG_MEMSTICK is not set
-CONFIG_NEW_LEDS=y
-CONFIG_LEDS_CLASS=y
-
-#
-# LED drivers
-#
-# CONFIG_LEDS_LM3530 is not set
-# CONFIG_LEDS_LM3642 is not set
-# CONFIG_LEDS_PCA9532 is not set
-# CONFIG_LEDS_LP3944 is not set
-# CONFIG_LEDS_LP5521 is not set
-# CONFIG_LEDS_LP5523 is not set
-# CONFIG_LEDS_LP5562 is not set
-# CONFIG_LEDS_LP8501 is not set
-# CONFIG_LEDS_PCA955X is not set
-# CONFIG_LEDS_PCA963X is not set
-# CONFIG_LEDS_BD2802 is not set
-# CONFIG_LEDS_TCA6507 is not set
-# CONFIG_LEDS_LM355x is not set
-
-#
-# LED driver for blink(1) USB RGB LED is under Special HID drivers (HID_THINGM)
-#
-# CONFIG_LEDS_BLINKM is not set
-
-#
-# LED Triggers
-#
-CONFIG_LEDS_TRIGGERS=y
-# CONFIG_LEDS_TRIGGER_TIMER is not set
-# CONFIG_LEDS_TRIGGER_ONESHOT is not set
-# CONFIG_LEDS_TRIGGER_IDE_DISK is not set
-# CONFIG_LEDS_TRIGGER_HEARTBEAT is not set
-# CONFIG_LEDS_TRIGGER_BACKLIGHT is not set
-# CONFIG_LEDS_TRIGGER_CPU is not set
-# CONFIG_LEDS_TRIGGER_DEFAULT_ON is not set
-
-#
-# iptables trigger is under Netfilter config (LED target)
-#
-# CONFIG_LEDS_TRIGGER_TRANSIENT is not set
-# CONFIG_LEDS_TRIGGER_CAMERA is not set
-# CONFIG_ACCESSIBILITY is not set
-# CONFIG_RTC_CLASS is not set
-# CONFIG_AUXDISPLAY is not set
-# CONFIG_VIRT_DRIVERS is not set
-
-#
-# Virtio drivers
-#
-# CONFIG_VIRTIO_MMIO is not set
-
-#
-# Microsoft Hyper-V guest support
-#
-# CONFIG_STAGING is not set
-
-#
-# SOC (System On Chip) specific Drivers
-#
-# CONFIG_SOC_TI is not set
-
-#
-# Hardware Spinlock drivers
-#
-
-#
-# Clock Source drivers
-#
-# CONFIG_ATMEL_PIT is not set
-# CONFIG_MAILBOX is not set
-CONFIG_IOMMU_SUPPORT=y
-
-#
-# Remoteproc drivers
-#
-
-#
-# Rpmsg drivers
-#
-
-#
-# SOC (System On Chip) specific Drivers
-#
-# CONFIG_PM_DEVFREQ is not set
-# CONFIG_EXTCON is not set
-# CONFIG_MEMORY is not set
-# CONFIG_IIO is not set
-# CONFIG_PWM is not set
-# CONFIG_IPACK_BUS is not set
-# CONFIG_RESET_CONTROLLER is not set
-# CONFIG_FMC is not set
-
-#
-# PHY Subsystem
-#
-# CONFIG_GENERIC_PHY is not set
-# CONFIG_BCM_KONA_USB2_PHY is not set
-# CONFIG_POWERCAP is not set
-# CONFIG_MCB is not set
-
-#
-# File systems
-#
-CONFIG_EXT2_FS=y
-CONFIG_EXT2_FS_XATTR=y
-CONFIG_EXT2_FS_POSIX_ACL=y
-CONFIG_EXT2_FS_SECURITY=y
-CONFIG_EXT3_FS=y
-CONFIG_EXT3_DEFAULTS_TO_ORDERED=y
-CONFIG_EXT3_FS_XATTR=y
-CONFIG_EXT3_FS_POSIX_ACL=y
-CONFIG_EXT3_FS_SECURITY=y
-# CONFIG_EXT4_FS is not set
-CONFIG_JBD=y
-CONFIG_FS_MBCACHE=y
-# CONFIG_REISERFS_FS is not set
-# CONFIG_JFS_FS is not set
-# CONFIG_XFS_FS is not set
-# CONFIG_GFS2_FS is not set
-# CONFIG_OCFS2_FS is not set
-# CONFIG_BTRFS_FS is not set
-# CONFIG_NILFS2_FS is not set
-CONFIG_FS_POSIX_ACL=y
-CONFIG_EXPORTFS=m
-CONFIG_FILE_LOCKING=y
-CONFIG_FSNOTIFY=y
-CONFIG_DNOTIFY=y
-CONFIG_INOTIFY_USER=y
-# CONFIG_FANOTIFY is not set
-# CONFIG_QUOTA is not set
-# CONFIG_QUOTACTL is not set
-# CONFIG_AUTOFS4_FS is not set
-# CONFIG_FUSE_FS is not set
-# CONFIG_OVERLAY_FS is not set
-
-#
-# Caches
-#
-# CONFIG_FSCACHE is not set
-
-#
-# CD-ROM/DVD Filesystems
-#
-CONFIG_ISO9660_FS=y
-CONFIG_JOLIET=y
-# CONFIG_ZISOFS is not set
-CONFIG_UDF_FS=m
-CONFIG_UDF_NLS=y
-
-#
-# DOS/FAT/NT Filesystems
-#
-CONFIG_FAT_FS=y
-CONFIG_MSDOS_FS=y
-CONFIG_VFAT_FS=y
-CONFIG_FAT_DEFAULT_CODEPAGE=437
-CONFIG_FAT_DEFAULT_IOCHARSET="iso8859-1"
-# CONFIG_NTFS_FS is not set
-
-#
-# Pseudo filesystems
-#
-CONFIG_PROC_FS=y
-CONFIG_PROC_SYSCTL=y
-CONFIG_KERNFS=y
-CONFIG_SYSFS=y
-# CONFIG_HUGETLB_PAGE is not set
-CONFIG_CONFIGFS_FS=m
-CONFIG_MISC_FILESYSTEMS=y
-# CONFIG_ADFS_FS is not set
-# CONFIG_AFFS_FS is not set
-# CONFIG_HFS_FS is not set
-# CONFIG_HFSPLUS_FS is not set
-# CONFIG_BEFS_FS is not set
-# CONFIG_BFS_FS is not set
-# CONFIG_EFS_FS is not set
-# CONFIG_LOGFS is not set
-# CONFIG_CRAMFS is not set
-# CONFIG_SQUASHFS is not set
-# CONFIG_VXFS_FS is not set
-# CONFIG_MINIX_FS is not set
-# CONFIG_MINIX_FS_NATIVE_ENDIAN is not set
-# CONFIG_OMFS_FS is not set
-# CONFIG_HPFS_FS is not set
-# CONFIG_QNX4FS_FS is not set
-# CONFIG_QNX6FS_FS is not set
-CONFIG_ROMFS_FS=y
-CONFIG_ROMFS_BACKED_BY_BLOCK=y
-CONFIG_ROMFS_ON_BLOCK=y
-# CONFIG_PSTORE is not set
-# CONFIG_SYSV_FS is not set
-# CONFIG_UFS_FS is not set
-# CONFIG_F2FS_FS is not set
-CONFIG_NETWORK_FILESYSTEMS=y
-CONFIG_NFS_FS=y
-CONFIG_NFS_V2=y
-CONFIG_NFS_V3=y
-# CONFIG_NFS_V3_ACL is not set
-# CONFIG_NFS_V4 is not set
-# CONFIG_NFS_SWAP is not set
-CONFIG_NFSD=m
-CONFIG_NFSD_V3=y
-# CONFIG_NFSD_V3_ACL is not set
-# CONFIG_NFSD_V4 is not set
-CONFIG_GRACE_PERIOD=y
-CONFIG_LOCKD=y
-CONFIG_LOCKD_V4=y
-CONFIG_NFS_COMMON=y
-CONFIG_SUNRPC=y
-# CONFIG_SUNRPC_DEBUG is not set
-# CONFIG_CEPH_FS is not set
-# CONFIG_CIFS is not set
-# CONFIG_NCP_FS is not set
-# CONFIG_CODA_FS is not set
-# CONFIG_AFS_FS is not set
-CONFIG_NLS=y
-CONFIG_NLS_DEFAULT="cp437"
-CONFIG_NLS_CODEPAGE_437=y
-# CONFIG_NLS_CODEPAGE_737 is not set
-# CONFIG_NLS_CODEPAGE_775 is not set
-# CONFIG_NLS_CODEPAGE_850 is not set
-# CONFIG_NLS_CODEPAGE_852 is not set
-# CONFIG_NLS_CODEPAGE_855 is not set
-# CONFIG_NLS_CODEPAGE_857 is not set
-# CONFIG_NLS_CODEPAGE_860 is not set
-# CONFIG_NLS_CODEPAGE_861 is not set
-# CONFIG_NLS_CODEPAGE_862 is not set
-# CONFIG_NLS_CODEPAGE_863 is not set
-# CONFIG_NLS_CODEPAGE_864 is not set
-# CONFIG_NLS_CODEPAGE_865 is not set
-# CONFIG_NLS_CODEPAGE_866 is not set
-# CONFIG_NLS_CODEPAGE_869 is not set
-# CONFIG_NLS_CODEPAGE_936 is not set
-# CONFIG_NLS_CODEPAGE_950 is not set
-CONFIG_NLS_CODEPAGE_932=y
-# CONFIG_NLS_CODEPAGE_949 is not set
-# CONFIG_NLS_CODEPAGE_874 is not set
-# CONFIG_NLS_ISO8859_8 is not set
-# CONFIG_NLS_CODEPAGE_1250 is not set
-# CONFIG_NLS_CODEPAGE_1251 is not set
-# CONFIG_NLS_ASCII is not set
-CONFIG_NLS_ISO8859_1=y
-# CONFIG_NLS_ISO8859_2 is not set
-# CONFIG_NLS_ISO8859_3 is not set
-# CONFIG_NLS_ISO8859_4 is not set
-# CONFIG_NLS_ISO8859_5 is not set
-# CONFIG_NLS_ISO8859_6 is not set
-# CONFIG_NLS_ISO8859_7 is not set
-# CONFIG_NLS_ISO8859_9 is not set
-# CONFIG_NLS_ISO8859_13 is not set
-# CONFIG_NLS_ISO8859_14 is not set
-# CONFIG_NLS_ISO8859_15 is not set
-# CONFIG_NLS_KOI8_R is not set
-# CONFIG_NLS_KOI8_U is not set
-# CONFIG_NLS_MAC_ROMAN is not set
-# CONFIG_NLS_MAC_CELTIC is not set
-# CONFIG_NLS_MAC_CENTEURO is not set
-# CONFIG_NLS_MAC_CROATIAN is not set
-# CONFIG_NLS_MAC_CYRILLIC is not set
-# CONFIG_NLS_MAC_GAELIC is not set
-# CONFIG_NLS_MAC_GREEK is not set
-# CONFIG_NLS_MAC_ICELAND is not set
-# CONFIG_NLS_MAC_INUIT is not set
-# CONFIG_NLS_MAC_ROMANIAN is not set
-# CONFIG_NLS_MAC_TURKISH is not set
-# CONFIG_NLS_UTF8 is not set
-# CONFIG_DLM is not set
-
-#
-# Kernel hacking
-#
-
-#
-# printk and dmesg options
-#
-# CONFIG_PRINTK_TIME is not set
-CONFIG_MESSAGE_LOGLEVEL_DEFAULT=4
-
-#
-# Compile-time checks and compiler options
-#
-CONFIG_ENABLE_WARN_DEPRECATED=y
-CONFIG_ENABLE_MUST_CHECK=y
-CONFIG_FRAME_WARN=1024
-# CONFIG_STRIP_ASM_SYMS is not set
-# CONFIG_UNUSED_SYMBOLS is not set
-# CONFIG_DEBUG_FS is not set
-# CONFIG_HEADERS_CHECK is not set
-# CONFIG_DEBUG_SECTION_MISMATCH is not set
-# CONFIG_FRAME_POINTER is not set
-# CONFIG_MAGIC_SYSRQ is not set
-# CONFIG_DEBUG_KERNEL is not set
-
-#
-# Memory Debugging
-#
-# CONFIG_PAGE_EXTENSION is not set
-CONFIG_DEBUG_MEMORY_INIT=y
-CONFIG_HAVE_DEBUG_STACKOVERFLOW=y
-
-#
-# Debug Lockups and Hangs
-#
-# CONFIG_PANIC_ON_OOPS is not set
-CONFIG_PANIC_ON_OOPS_VALUE=0
-CONFIG_PANIC_TIMEOUT=0
-
-#
-# Lock Debugging (spinlocks, mutexes, etc...)
-#
-CONFIG_HAVE_DEBUG_BUGVERBOSE=y
-CONFIG_DEBUG_BUGVERBOSE=y
-
-#
-# RCU Debugging
-#
-# CONFIG_SPARSE_RCU_POINTER is not set
-# CONFIG_TORTURE_TEST is not set
-CONFIG_RCU_CPU_STALL_TIMEOUT=21
-CONFIG_RCU_CPU_STALL_VERBOSE=y
-CONFIG_TRACE_CLOCK=y
-CONFIG_RING_BUFFER=y
-CONFIG_RING_BUFFER_ALLOW_SWAP=y
-
-#
-# Runtime Testing
-#
-# CONFIG_ATOMIC64_SELFTEST is not set
-# CONFIG_TEST_STRING_HELPERS is not set
-# CONFIG_TEST_KSTRTOX is not set
-# CONFIG_TEST_RHASHTABLE is not set
-# CONFIG_TEST_LKM is not set
-# CONFIG_TEST_USER_COPY is not set
-# CONFIG_TEST_BPF is not set
-# CONFIG_TEST_FIRMWARE is not set
-# CONFIG_TEST_UDELAY is not set
-# CONFIG_SAMPLES is not set
-
-#
-# Security options
-#
-# CONFIG_KEYS is not set
-# CONFIG_SECURITY_DMESG_RESTRICT is not set
-# CONFIG_SECURITY is not set
-# CONFIG_SECURITYFS is not set
-CONFIG_DEFAULT_SECURITY_DAC=y
-CONFIG_DEFAULT_SECURITY=""
-CONFIG_CRYPTO=y
-
-#
-# Crypto core or helper
-#
-CONFIG_CRYPTO_ALGAPI=y
-CONFIG_CRYPTO_ALGAPI2=y
-CONFIG_CRYPTO_AEAD2=y
-CONFIG_CRYPTO_BLKCIPHER=m
-CONFIG_CRYPTO_BLKCIPHER2=y
-CONFIG_CRYPTO_HASH=y
-CONFIG_CRYPTO_HASH2=y
-CONFIG_CRYPTO_RNG=m
-CONFIG_CRYPTO_RNG2=y
-CONFIG_CRYPTO_PCOMP2=y
-CONFIG_CRYPTO_MANAGER=y
-CONFIG_CRYPTO_MANAGER2=y
-# CONFIG_CRYPTO_USER is not set
-CONFIG_CRYPTO_MANAGER_DISABLE_TESTS=y
-# CONFIG_CRYPTO_GF128MUL is not set
-CONFIG_CRYPTO_NULL=m
-CONFIG_CRYPTO_WORKQUEUE=y
-# CONFIG_CRYPTO_CRYPTD is not set
-# CONFIG_CRYPTO_MCRYPTD is not set
-# CONFIG_CRYPTO_AUTHENC is not set
-# CONFIG_CRYPTO_TEST is not set
-
-#
-# Authenticated Encryption with Associated Data
-#
-# CONFIG_CRYPTO_CCM is not set
-# CONFIG_CRYPTO_GCM is not set
-# CONFIG_CRYPTO_SEQIV is not set
-
-#
-# Block modes
-#
-CONFIG_CRYPTO_CBC=m
-# CONFIG_CRYPTO_CTR is not set
-# CONFIG_CRYPTO_CTS is not set
-CONFIG_CRYPTO_ECB=m
-# CONFIG_CRYPTO_LRW is not set
-CONFIG_CRYPTO_PCBC=m
-# CONFIG_CRYPTO_XTS is not set
-
-#
-# Hash modes
-#
-# CONFIG_CRYPTO_CMAC is not set
-CONFIG_CRYPTO_HMAC=y
-# CONFIG_CRYPTO_XCBC is not set
-# CONFIG_CRYPTO_VMAC is not set
-
-#
-# Digest
-#
-CONFIG_CRYPTO_CRC32C=m
-# CONFIG_CRYPTO_CRC32 is not set
-# CONFIG_CRYPTO_CRCT10DIF is not set
-# CONFIG_CRYPTO_GHASH is not set
-CONFIG_CRYPTO_MD4=m
-CONFIG_CRYPTO_MD5=m
-# CONFIG_CRYPTO_MICHAEL_MIC is not set
-# CONFIG_CRYPTO_RMD128 is not set
-# CONFIG_CRYPTO_RMD160 is not set
-# CONFIG_CRYPTO_RMD256 is not set
-# CONFIG_CRYPTO_RMD320 is not set
-CONFIG_CRYPTO_SHA1=m
-CONFIG_CRYPTO_SHA256=m
-CONFIG_CRYPTO_SHA512=m
-# CONFIG_CRYPTO_TGR192 is not set
-CONFIG_CRYPTO_WP512=m
-
-#
-# Ciphers
-#
-CONFIG_CRYPTO_AES=y
-# CONFIG_CRYPTO_ANUBIS is not set
-# CONFIG_CRYPTO_ARC4 is not set
-CONFIG_CRYPTO_BLOWFISH=m
-CONFIG_CRYPTO_BLOWFISH_COMMON=m
-# CONFIG_CRYPTO_CAMELLIA is not set
-# CONFIG_CRYPTO_CAST5 is not set
-# CONFIG_CRYPTO_CAST6 is not set
-CONFIG_CRYPTO_DES=m
-# CONFIG_CRYPTO_FCRYPT is not set
-# CONFIG_CRYPTO_KHAZAD is not set
-# CONFIG_CRYPTO_SALSA20 is not set
-# CONFIG_CRYPTO_SEED is not set
-CONFIG_CRYPTO_SERPENT=m
-# CONFIG_CRYPTO_TEA is not set
-CONFIG_CRYPTO_TWOFISH=m
-CONFIG_CRYPTO_TWOFISH_COMMON=m
-
-#
-# Compression
-#
-# CONFIG_CRYPTO_DEFLATE is not set
-# CONFIG_CRYPTO_ZLIB is not set
-# CONFIG_CRYPTO_LZO is not set
-# CONFIG_CRYPTO_LZ4 is not set
-# CONFIG_CRYPTO_LZ4HC is not set
-
-#
-# Random Number Generation
-#
-CONFIG_CRYPTO_ANSI_CPRNG=m
-# CONFIG_CRYPTO_DRBG_MENU is not set
-# CONFIG_CRYPTO_USER_API_HASH is not set
-# CONFIG_CRYPTO_USER_API_SKCIPHER is not set
-CONFIG_CRYPTO_HW=y
-# CONFIG_BINARY_PRINTF is not set
-
-#
-# Library routines
-#
-CONFIG_BITREVERSE=y
-CONFIG_GENERIC_NET_UTILS=y
-CONFIG_GENERIC_IO=y
-CONFIG_CRC_CCITT=m
-CONFIG_CRC16=m
-# CONFIG_CRC_T10DIF is not set
-CONFIG_CRC_ITU_T=m
-CONFIG_CRC32=y
-# CONFIG_CRC32_SELFTEST is not set
-CONFIG_CRC32_SLICEBY8=y
-# CONFIG_CRC32_SLICEBY4 is not set
-# CONFIG_CRC32_SARWATE is not set
-# CONFIG_CRC32_BIT is not set
-# CONFIG_CRC7 is not set
-CONFIG_LIBCRC32C=m
-# CONFIG_CRC8 is not set
-# CONFIG_AUDIT_ARCH_COMPAT_GENERIC is not set
-# CONFIG_RANDOM32_SELFTEST is not set
-# CONFIG_XZ_DEC is not set
-# CONFIG_XZ_DEC_BCJ is not set
-CONFIG_TEXTSEARCH=y
-CONFIG_TEXTSEARCH_KMP=m
-CONFIG_TEXTSEARCH_BM=m
-CONFIG_TEXTSEARCH_FSM=m
-CONFIG_HAS_IOMEM=y
-CONFIG_DQL=y
-CONFIG_NLATTR=y
-CONFIG_GENERIC_ATOMIC64=y
-CONFIG_ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE=y
-# CONFIG_AVERAGE is not set
-# CONFIG_CORDIC is not set
-# CONFIG_DDR is not set
-# CONFIG_ARCH_HAS_SG_CHAIN is not set
-
---ZGiS0Q5IWpPtfppv--
+To: Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-pm@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>
+
+On Tuesday, November 18, 2014 10:10:06 PM Michal Hocko wrote:
+> 5695be142e20 (OOM, PM: OOM killed task shouldn't escape PM suspend)
+> has left a race window when OOM killer manages to note_oom_kill after
+> freeze_processes checks the counter. The race window is quite small and
+> really unlikely and partial solution deemed sufficient at the time of
+> submission.
+> 
+> Tejun wasn't happy about this partial solution though and insisted on a
+> full solution. That requires the full OOM and freezer's task freezing
+> exclusion, though. This is done by this patch which introduces oom_sem
+> RW lock and turns oom_killer_disable() into a full OOM barrier.
+> 
+> oom_killer_disabled is now checked at out_of_memory level which takes
+> the lock for reading. This also means that the page fault path is
+> covered now as well although it was assumed to be safe before. As per
+> Tejun, "We used to have freezing points deep in file system code which
+> may be reacheable from page fault." so it would be better and more
+> robust to not rely on freezing points here. Same applies to the memcg
+> OOM killer.
+> 
+> out_of_memory tells the caller whether the OOM was allowed to
+> trigger and the callers are supposed to handle the situation. The page
+> allocation path simply fails the allocation same as before. The page
+> fault path will be retrying the fault until the freezer fails and Sysrq
+> OOM trigger will simply complain to the log.
+> 
+> oom_killer_disable takes oom_sem for writing and after it disables
+> further OOM killer invocations it checks for any OOM victims which
+> are still alive (because they haven't woken up to handle the pending
+> signal). Victims are counted via {un}mark_tsk_oom_victim. The
+> last victim signals the completion via oom_victims_wait on which
+> oom_killer_disable() waits if it sees non zero oom_victims.
+> This is safe against both mark_tsk_oom_victim which cannot be called
+> after oom_killer_disabled is set and unmark_tsk_oom_victim signals the
+> completion only for the last oom_victim when oom is disabled and
+> oom_killer_disable waits for completion only of there was at least one
+> victim at the time it disabled the oom.
+> 
+> As oom_killer_disable is a full OOM barrier now we can postpone it to
+> later after all freezable tasks are frozen during PM freezer. This
+> reduces the time when OOM is put out order and so reduces chances of
+> misbehavior due to unexpected allocation failures.
+> 
+> TODO:
+> Android lowmemory killer abuses mark_tsk_oom_victim in lowmem_scan
+> and it has to learn about oom_disable logic as well.
+> 
+> Suggested-by: Tejun Heo <tj@kernel.org>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+
+This appears to do the right thing to me, although I admit I haven't checked
+the details very carefully.
+
+Tejun?
+
+> ---
+>  drivers/tty/sysrq.c    |  6 ++--
+>  include/linux/oom.h    | 26 ++++++++------
+>  kernel/power/process.c | 60 +++++++++-----------------------
+>  mm/memcontrol.c        |  4 ++-
+>  mm/oom_kill.c          | 94 +++++++++++++++++++++++++++++++++++++++++---------
+>  mm/page_alloc.c        | 32 ++++++++---------
+>  6 files changed, 132 insertions(+), 90 deletions(-)
+> 
+> diff --git a/drivers/tty/sysrq.c b/drivers/tty/sysrq.c
+> index 42bad18c66c9..6818589c1004 100644
+> --- a/drivers/tty/sysrq.c
+> +++ b/drivers/tty/sysrq.c
+> @@ -355,8 +355,10 @@ static struct sysrq_key_op sysrq_term_op = {
+>  
+>  static void moom_callback(struct work_struct *ignored)
+>  {
+> -	out_of_memory(node_zonelist(first_memory_node, GFP_KERNEL), GFP_KERNEL,
+> -		      0, NULL, true);
+> +	if (!out_of_memory(node_zonelist(first_memory_node, GFP_KERNEL),
+> +			   GFP_KERNEL, 0, NULL, true)) {
+> +		printk(KERN_INFO "OOM request ignored because killer is disabled\n");
+> +	}
+>  }
+>  
+>  static DECLARE_WORK(moom_work, moom_callback);
+> diff --git a/include/linux/oom.h b/include/linux/oom.h
+> index 8f7e74f8ab3a..d802575c9307 100644
+> --- a/include/linux/oom.h
+> +++ b/include/linux/oom.h
+> @@ -72,22 +72,26 @@ extern enum oom_scan_t oom_scan_process_thread(struct task_struct *task,
+>  		unsigned long totalpages, const nodemask_t *nodemask,
+>  		bool force_kill);
+>  
+> -extern void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+> +extern bool out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+>  		int order, nodemask_t *mask, bool force_kill);
+>  extern int register_oom_notifier(struct notifier_block *nb);
+>  extern int unregister_oom_notifier(struct notifier_block *nb);
+>  
+> -extern bool oom_killer_disabled;
+> -
+> -static inline void oom_killer_disable(void)
+> -{
+> -	oom_killer_disabled = true;
+> -}
+> +/**
+> + * oom_killer_disable - disable OOM killer
+> + *
+> + * Forces all page allocations to fail rather than trigger OOM killer.
+> + * Will block and wait until all OOM victims are dead.
+> + *
+> + * Returns true if successfull and false if the OOM killer cannot be
+> + * disabled.
+> + */
+> +extern bool oom_killer_disable(void);
+>  
+> -static inline void oom_killer_enable(void)
+> -{
+> -	oom_killer_disabled = false;
+> -}
+> +/**
+> + * oom_killer_enable - enable OOM killer
+> + */
+> +extern void oom_killer_enable(void);
+>  
+>  static inline bool oom_gfp_allowed(gfp_t gfp_mask)
+>  {
+> diff --git a/kernel/power/process.c b/kernel/power/process.c
+> index 5a6ec8678b9a..a4306e39f35c 100644
+> --- a/kernel/power/process.c
+> +++ b/kernel/power/process.c
+> @@ -108,30 +108,6 @@ static int try_to_freeze_tasks(bool user_only)
+>  	return todo ? -EBUSY : 0;
+>  }
+>  
+> -static bool __check_frozen_processes(void)
+> -{
+> -	struct task_struct *g, *p;
+> -
+> -	for_each_process_thread(g, p)
+> -		if (p != current && !freezer_should_skip(p) && !frozen(p))
+> -			return false;
+> -
+> -	return true;
+> -}
+> -
+> -/*
+> - * Returns true if all freezable tasks (except for current) are frozen already
+> - */
+> -static bool check_frozen_processes(void)
+> -{
+> -	bool ret;
+> -
+> -	read_lock(&tasklist_lock);
+> -	ret = __check_frozen_processes();
+> -	read_unlock(&tasklist_lock);
+> -	return ret;
+> -}
+> -
+>  /**
+>   * freeze_processes - Signal user space processes to enter the refrigerator.
+>   * The current thread will not be frozen.  The same process that calls
+> @@ -142,7 +118,6 @@ static bool check_frozen_processes(void)
+>  int freeze_processes(void)
+>  {
+>  	int error;
+> -	int oom_kills_saved;
+>  
+>  	error = __usermodehelper_disable(UMH_FREEZING);
+>  	if (error)
+> @@ -157,27 +132,11 @@ int freeze_processes(void)
+>  	pm_wakeup_clear();
+>  	printk("Freezing user space processes ... ");
+>  	pm_freezing = true;
+> -	oom_kills_saved = oom_kills_count();
+>  	error = try_to_freeze_tasks(true);
+>  	if (!error) {
+>  		__usermodehelper_set_disable_depth(UMH_DISABLED);
+> -		oom_killer_disable();
+> -
+> -		/*
+> -		 * There might have been an OOM kill while we were
+> -		 * freezing tasks and the killed task might be still
+> -		 * on the way out so we have to double check for race.
+> -		 */
+> -		if (oom_kills_count() != oom_kills_saved &&
+> -		    !check_frozen_processes()) {
+> -			__usermodehelper_set_disable_depth(UMH_ENABLED);
+> -			printk("OOM in progress.");
+> -			error = -EBUSY;
+> -		} else {
+> -			printk("done.");
+> -		}
+> +		printk("done.\n");
+>  	}
+> -	printk("\n");
+>  	BUG_ON(in_atomic());
+>  
+>  	if (error)
+> @@ -206,6 +165,18 @@ int freeze_kernel_threads(void)
+>  	printk("\n");
+>  	BUG_ON(in_atomic());
+>  
+> +	/*
+> +	 * Now that everything freezable is handled we need to disbale
+> +	 * the OOM killer to disallow any further interference with
+> +	 * killable tasks.
+> +	 */
+> +	printk("Disabling OOM killer ... ");
+> +	if (!oom_killer_disable()) {
+> +		printk("failed.\n");
+> +		error = -EAGAIN;
+> +	} else
+> +		printk("done.\n");
+> +
+>  	if (error)
+>  		thaw_kernel_threads();
+>  	return error;
+> @@ -222,8 +193,6 @@ void thaw_processes(void)
+>  	pm_freezing = false;
+>  	pm_nosig_freezing = false;
+>  
+> -	oom_killer_enable();
+> -
+>  	printk("Restarting tasks ... ");
+>  
+>  	__usermodehelper_set_disable_depth(UMH_FREEZING);
+> @@ -251,6 +220,9 @@ void thaw_kernel_threads(void)
+>  {
+>  	struct task_struct *g, *p;
+>  
+> +	printk("Enabling OOM killer again.\n");
+> +	oom_killer_enable();
+> +
+>  	pm_nosig_freezing = false;
+>  	printk("Restarting kernel threads ... ");
+>  
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 302e0fc6d121..34bcbb053132 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2128,6 +2128,8 @@ static void mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
+>  	current->memcg_oom.order = order;
+>  }
+>  
+> +extern bool oom_killer_disabled;
+> +
+>  /**
+>   * mem_cgroup_oom_synchronize - complete memcg OOM handling
+>   * @handle: actually kill/wait or just clean up the OOM state
+> @@ -2155,7 +2157,7 @@ bool mem_cgroup_oom_synchronize(bool handle)
+>  	if (!memcg)
+>  		return false;
+>  
+> -	if (!handle)
+> +	if (!handle || oom_killer_disabled)
+>  		goto cleanup;
+>  
+>  	owait.memcg = memcg;
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 8b6e14136f4f..b3ccd92bc6dc 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -405,30 +405,63 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
+>  }
+>  
+>  /*
+> - * Number of OOM killer invocations (including memcg OOM killer).
+> - * Primarily used by PM freezer to check for potential races with
+> - * OOM killed frozen task.
+> + * Number of OOM victims in flight
+>   */
+> -static atomic_t oom_kills = ATOMIC_INIT(0);
+> +static atomic_t oom_victims = ATOMIC_INIT(0);
+> +static DECLARE_COMPLETION(oom_victims_wait);
+>  
+> -int oom_kills_count(void)
+> +bool oom_killer_disabled __read_mostly;
+> +static DECLARE_RWSEM(oom_sem);
+> +
+> +void mark_tsk_oom_victim(struct task_struct *tsk)
+>  {
+> -	return atomic_read(&oom_kills);
+> +	BUG_ON(oom_killer_disabled);
+> +	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
+> +		return;
+> +	atomic_inc(&oom_victims);
+>  }
+>  
+> -void note_oom_kill(void)
+> +void unmark_tsk_oom_victim(struct task_struct *tsk)
+>  {
+> -	atomic_inc(&oom_kills);
+> +	int count;
+> +
+> +	if (!test_and_clear_tsk_thread_flag(tsk, TIF_MEMDIE))
+> +		return;
+> +
+> +	down_read(&oom_sem);
+> +	/*
+> +	 * There is no need to signal the lasst oom_victim if there
+> +	 * is nobody who cares.
+> +	 */
+> +	if (!atomic_dec_return(&oom_victims) && oom_killer_disabled)
+> +		complete(&oom_victims_wait);
+> +	up_read(&oom_sem);
+>  }
+>  
+> -void mark_tsk_oom_victim(struct task_struct *tsk)
+> +bool oom_killer_disable(void)
+>  {
+> -	set_tsk_thread_flag(tsk, TIF_MEMDIE);
+> +	/*
+> +	 * Make sure to not race with an ongoing OOM killer
+> +	 * and that the current is not the victim.
+> +	 */
+> +	down_write(&oom_sem);
+> +	if (!test_tsk_thread_flag(current, TIF_MEMDIE))
+> +		oom_killer_disabled = true;
+> +
+> +	count = atomic_read(&oom_victims);
+> +	up_write(&oom_sem);
+> +
+> +	if (count && oom_killer_disabled)
+> +		wait_for_completion(&oom_victims_wait);
+> +
+> +	return oom_killer_disabled;
+>  }
+>  
+> -void unmark_tsk_oom_victim(struct task_struct *tsk)
+> +void oom_killer_enable(void)
+>  {
+> -	clear_thread_flag(TIF_MEMDIE);
+> +	down_write(&oom_sem);
+> +	oom_killer_disabled = false;
+> +	up_write(&oom_sem);
+>  }
+>  
+>  #define K(x) ((x) << (PAGE_SHIFT-10))
+> @@ -626,7 +659,7 @@ void oom_zonelist_unlock(struct zonelist *zonelist, gfp_t gfp_mask)
+>  }
+>  
+>  /**
+> - * out_of_memory - kill the "best" process when we run out of memory
+> + * __out_of_memory - kill the "best" process when we run out of memory
+>   * @zonelist: zonelist pointer
+>   * @gfp_mask: memory allocation flags
+>   * @order: amount of memory being requested as a power of 2
+> @@ -638,7 +671,7 @@ void oom_zonelist_unlock(struct zonelist *zonelist, gfp_t gfp_mask)
+>   * OR try to be smart about which process to kill. Note that we
+>   * don't have to be perfect here, we just have to be good.
+>   */
+> -void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+> +static void __out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+>  		int order, nodemask_t *nodemask, bool force_kill)
+>  {
+>  	const nodemask_t *mpol_mask;
+> @@ -703,6 +736,31 @@ out:
+>  		schedule_timeout_killable(1);
+>  }
+>  
+> +/** out_of_memory -  tries to invoke OOM killer.
+> + * @zonelist: zonelist pointer
+> + * @gfp_mask: memory allocation flags
+> + * @order: amount of memory being requested as a power of 2
+> + * @nodemask: nodemask passed to page allocator
+> + * @force_kill: true if a task must be killed, even if others are exiting
+> + *
+> + * invokes __out_of_memory if the OOM is not disabled by oom_killer_disable()
+> + * when it returns false. Otherwise returns true.
+> + */
+> +bool out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+> +		int order, nodemask_t *nodemask, bool force_kill)
+> +{
+> +	bool ret = false;
+> +
+> +	down_read(&oom_sem);
+> +	if (!oom_killer_disabled) {
+> +		__out_of_memory(zonelist, gfp_mask, order, nodemask, force_kill);
+> +		ret = true;
+> +	}
+> +	up_read(&oom_sem);
+> +
+> +	return ret;
+> +}
+> +
+>  /*
+>   * The pagefault handler calls here because it is out of memory, so kill a
+>   * memory-hogging task.  If any populated zone has ZONE_OOM_LOCKED set, a
+> @@ -712,12 +770,16 @@ void pagefault_out_of_memory(void)
+>  {
+>  	struct zonelist *zonelist;
+>  
+> +	down_read(&oom_sem);
+>  	if (mem_cgroup_oom_synchronize(true))
+> -		return;
+> +		goto unlock;
+>  
+>  	zonelist = node_zonelist(first_memory_node, GFP_KERNEL);
+>  	if (oom_zonelist_trylock(zonelist, GFP_KERNEL)) {
+> -		out_of_memory(NULL, 0, 0, NULL, false);
+> +		if (!oom_killer_disabled)
+> +			__out_of_memory(NULL, 0, 0, NULL, false);
+>  		oom_zonelist_unlock(zonelist, GFP_KERNEL);
+>  	}
+> +unlock:
+> +	up_read(&oom_sem);
+>  }
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 9cd36b822444..d44d69aa7b70 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -242,8 +242,6 @@ void set_pageblock_migratetype(struct page *page, int migratetype)
+>  					PB_migrate, PB_migrate_end);
+>  }
+>  
+> -bool oom_killer_disabled __read_mostly;
+> -
+>  #ifdef CONFIG_DEBUG_VM
+>  static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
+>  {
+> @@ -2241,10 +2239,11 @@ static inline struct page *
+>  __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+>  	struct zonelist *zonelist, enum zone_type high_zoneidx,
+>  	nodemask_t *nodemask, struct zone *preferred_zone,
+> -	int classzone_idx, int migratetype)
+> +	int classzone_idx, int migratetype, bool *oom_failed)
+>  {
+>  	struct page *page;
+>  
+> +	*oom_failed = false;
+>  	/* Acquire the per-zone oom lock for each zone */
+>  	if (!oom_zonelist_trylock(zonelist, gfp_mask)) {
+>  		schedule_timeout_uninterruptible(1);
+> @@ -2252,14 +2251,6 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+>  	}
+>  
+>  	/*
+> -	 * PM-freezer should be notified that there might be an OOM killer on
+> -	 * its way to kill and wake somebody up. This is too early and we might
+> -	 * end up not killing anything but false positives are acceptable.
+> -	 * See freeze_processes.
+> -	 */
+> -	note_oom_kill();
+> -
+> -	/*
+>  	 * Go through the zonelist yet one more time, keep very high watermark
+>  	 * here, this is only to catch a parallel oom killing, we must fail if
+>  	 * we're still under heavy pressure.
+> @@ -2289,8 +2280,8 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+>  			goto out;
+>  	}
+>  	/* Exhausted what can be done so it's blamo time */
+> -	out_of_memory(zonelist, gfp_mask, order, nodemask, false);
+> -
+> +	if (!out_of_memory(zonelist, gfp_mask, order, nodemask, false))
+> +		*oom_failed = true;
+>  out:
+>  	oom_zonelist_unlock(zonelist, gfp_mask);
+>  	return page;
+> @@ -2716,8 +2707,8 @@ rebalance:
+>  	 */
+>  	if (!did_some_progress) {
+>  		if (oom_gfp_allowed(gfp_mask)) {
+> -			if (oom_killer_disabled)
+> -				goto nopage;
+> +			bool oom_failed;
+> +
+>  			/* Coredumps can quickly deplete all memory reserves */
+>  			if ((current->flags & PF_DUMPCORE) &&
+>  			    !(gfp_mask & __GFP_NOFAIL))
+> @@ -2725,10 +2716,19 @@ rebalance:
+>  			page = __alloc_pages_may_oom(gfp_mask, order,
+>  					zonelist, high_zoneidx,
+>  					nodemask, preferred_zone,
+> -					classzone_idx, migratetype);
+> +					classzone_idx, migratetype,
+> +					&oom_failed);
+> +
+>  			if (page)
+>  				goto got_pg;
+>  
+> +			/*
+> +			 * OOM killer might be disabled and then we have to
+> +			 * fail the allocation
+> +			 */
+> +			if (oom_failed)
+> +				goto nopage;
+> +
+>  			if (!(gfp_mask & __GFP_NOFAIL)) {
+>  				/*
+>  				 * The oom killer is not called for high-order
+> 
+
+-- 
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
