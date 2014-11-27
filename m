@@ -1,89 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id AB4896B0069
-	for <linux-mm@kvack.org>; Thu, 27 Nov 2014 05:46:50 -0500 (EST)
-Received: by mail-pd0-f175.google.com with SMTP id y10so4728203pdj.20
-        for <linux-mm@kvack.org>; Thu, 27 Nov 2014 02:46:49 -0800 (PST)
-Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
-        by mx.google.com with ESMTPS id qd7si11070485pbb.22.2014.11.27.02.46.47
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 27 Nov 2014 02:46:48 -0800 (PST)
-Received: by mail-pa0-f50.google.com with SMTP id bj1so4845598pad.9
-        for <linux-mm@kvack.org>; Thu, 27 Nov 2014 02:46:47 -0800 (PST)
-From: Hongbo Zhong <bocui107@gmail.com>
-Subject: [PATCH] mm: Remove the highmem zones' memmap in the highmem zone
-Date: Thu, 27 Nov 2014 18:46:34 +0800
-Message-Id: <1417085194-17042-1-git-send-email-bocui107@gmail.com>
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C8BE6B0069
+	for <linux-mm@kvack.org>; Thu, 27 Nov 2014 07:35:41 -0500 (EST)
+Received: by mail-wi0-f177.google.com with SMTP id l15so8185334wiw.10
+        for <linux-mm@kvack.org>; Thu, 27 Nov 2014 04:35:40 -0800 (PST)
+Received: from cpsmtpb-ews02.kpnxchange.com (cpsmtpb-ews02.kpnxchange.com. [213.75.39.5])
+        by mx.google.com with ESMTP id t5si12908310wiz.35.2014.11.27.04.35.40
+        for <linux-mm@kvack.org>;
+        Thu, 27 Nov 2014 04:35:40 -0800 (PST)
+Message-ID: <1417091739.29407.95.camel@x220>
+Subject: Re: [PATCH v3 2/8] mm/debug-pagealloc: prepare boottime
+ configurable on/off
+From: Paul Bolle <pebolle@tiscali.nl>
+Date: Thu, 27 Nov 2014 13:35:39 +0100
+In-Reply-To: <1416816926-7756-3-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1416816926-7756-1-git-send-email-iamjoonsoo.kim@lge.com>
+	 <1416816926-7756-3-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Valentin Rothberg <valentinrothberg@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave@sr71.net>, Michal Nazarewicz <mina86@mina86.com>, Jungsoo Son <jungsoo.son@lge.com>, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Zhong Hongbo <bocui107@gmail.com>
+Joonsoo,
 
-Since the commit 01cefaef40c4 ("mm: provide more accurate estimation
-of pages occupied by memmap") allocate the pages from lowmem for the
-highmem zones' memmap. So It is not need to reserver the memmap's for
-the highmem.
+On Mon, 2014-11-24 at 17:15 +0900, Joonsoo Kim wrote:
+> Until now, debug-pagealloc needs extra flags in struct page, so we need
+> to recompile whole source code when we decide to use it. This is really
+> painful, because it takes some time to recompile and sometimes rebuild is
+> not possible due to third party module depending on struct page.
+> So, we can't use this good feature in many cases.
+> 
+> Now, we have the page extension feature that allows us to insert
+> extra flags to outside of struct page. This gets rid of third party module
+> issue mentioned above. And, this allows us to determine if we need extra
+> memory for this page extension in boottime. With these property, we can
+> avoid using debug-pagealloc in boottime with low computational overhead
+> in the kernel built with CONFIG_DEBUG_PAGEALLOC. This will help our
+> development process greatly.
+> 
+> This patch is the preparation step to achive above goal. debug-pagealloc
+> originally uses extra field of struct page, but, after this patch, it
+> will use field of struct page_ext. Because memory for page_ext is
+> allocated later than initialization of page allocator in CONFIG_SPARSEMEM,
+> we should disable debug-pagealloc feature temporarily until initialization
+> of page_ext. This patch implements this.
+> 
+> v2: fix compile error on CONFIG_PAGE_POISONING
+> 
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-A 2G DDR3 for the arm platform:
-On node 0 totalpages: 524288
-free_area_init_node: node 0, pgdat 80ccd380, node_mem_map 80d38000
-  DMA zone: 3568 pages used for memmap
-  DMA zone: 0 pages reserved
-  DMA zone: 456704 pages, LIFO batch:31
-  HighMem zone: 528 pages used for memmap
-  HighMem zone: 67584 pages, LIFO batch:15
+This patch is included in today's linux-next (ie, next-2o0141127) as
+commit 1e491e9be4c9 ("mm/debug-pagealloc: prepare boottime configurable
+on/off").
 
-On node 0 totalpages: 524288
-free_area_init_node: node 0, pgdat 80cd6f40, node_mem_map 80d42000
-  DMA zone: 3568 pages used for memmap
-  DMA zone: 0 pages reserved
-  DMA zone: 456704 pages, LIFO batch:31
-  HighMem zone: 67584 pages, LIFO batch:15
+> [...]
+> 
+> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> index 33a8acf..c7b22e7 100644
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -10,7 +10,6 @@
+>  #include <linux/rwsem.h>
+>  #include <linux/completion.h>
+>  #include <linux/cpumask.h>
+> -#include <linux/page-debug-flags.h>
+>  #include <linux/uprobes.h>
+>  #include <linux/page-flags-layout.h>
+>  #include <asm/page.h>
+> @@ -186,9 +185,6 @@ struct page {
+>  	void *virtual;			/* Kernel virtual address (NULL if
+>  					   not kmapped, ie. highmem) */
+>  #endif /* WANT_PAGE_VIRTUAL */
+> -#ifdef CONFIG_WANT_PAGE_DEBUG_FLAGS
+> -	unsigned long debug_flags;	/* Use atomic bitops on this */
+> -#endif
+>  
+>  #ifdef CONFIG_KMEMCHECK
+>  	/*
+> diff --git a/include/linux/page-debug-flags.h b/include/linux/page-debug-flags.h
+> deleted file mode 100644
+> index 22691f61..0000000
+> --- a/include/linux/page-debug-flags.h
+> +++ /dev/null
+> @@ -1,32 +0,0 @@
+> -#ifndef LINUX_PAGE_DEBUG_FLAGS_H
+> -#define  LINUX_PAGE_DEBUG_FLAGS_H
+> -
+> -/*
+> - * page->debug_flags bits:
+> - *
+> - * PAGE_DEBUG_FLAG_POISON is set for poisoned pages. This is used to
+> - * implement generic debug pagealloc feature. The pages are filled with
+> - * poison patterns and set this flag after free_pages(). The poisoned
+> - * pages are verified whether the patterns are not corrupted and clear
+> - * the flag before alloc_pages().
+> - */
+> -
+> -enum page_debug_flags {
+> -	PAGE_DEBUG_FLAG_POISON,		/* Page is poisoned */
+> -	PAGE_DEBUG_FLAG_GUARD,
+> -};
+> -
+> -/*
+> - * Ensure that CONFIG_WANT_PAGE_DEBUG_FLAGS reliably
+> - * gets turned off when no debug features are enabling it!
+> - */
+> -
+> -#ifdef CONFIG_WANT_PAGE_DEBUG_FLAGS
+> -#if !defined(CONFIG_PAGE_POISONING) && \
+> -    !defined(CONFIG_PAGE_GUARD) \
+> -/* && !defined(CONFIG_PAGE_DEBUG_SOMETHING_ELSE) && ... */
+> -#error WANT_PAGE_DEBUG_FLAGS is turned on with no debug features!
+> -#endif
+> -#endif /* CONFIG_WANT_PAGE_DEBUG_FLAGS */
+> -
+> -#endif /* LINUX_PAGE_DEBUG_FLAGS_H */
+
+This remove all uses of CONFIG_WANT_PAGE_DEBUG_FLAGS and
+CONFIG_PAGE_GUARD. So the Kconfig symbols WANT_PAGE_DEBUG_FLAGS and
+PAGE_GUARD are now unused.
+
+Should I submit the trivial patch to remove these symbols or is a patch
+that does that queued already?
 
 
-Signed-off-by: Hongbo Zhong <hongbo.zhong@gmail.com>
----
- mm/page_alloc.c |   22 ++++++++++++----------
- 1 file changed, 12 insertions(+), 10 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 616a2c9..d2f723c 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4851,16 +4851,18 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
- 		 * and per-cpu initialisations
- 		 */
- 		memmap_pages = calc_memmap_size(size, realsize);
--		if (freesize >= memmap_pages) {
--			freesize -= memmap_pages;
--			if (memmap_pages)
--				printk(KERN_DEBUG
--				       "  %s zone: %lu pages used for memmap\n",
--				       zone_names[j], memmap_pages);
--		} else
--			printk(KERN_WARNING
--				"  %s zone: %lu pages exceeds freesize %lu\n",
--				zone_names[j], memmap_pages, freesize);
-+		if (!is_highmem_idx(j)) {
-+			if (freesize >= memmap_pages) {
-+				freesize -= memmap_pages;
-+				if (memmap_pages)
-+					printk(KERN_DEBUG
-+					       "  %s zone: %lu pages used for memmap\n",
-+					       zone_names[j], memmap_pages);
-+			} else
-+				printk(KERN_WARNING
-+					"  %s zone: %lu pages exceeds freesize %lu\n",
-+					zone_names[j], memmap_pages, freesize);
-+		}
- 
- 		/* Account for reserved pages */
- 		if (j == 0 && freesize > dma_reserve) {
--- 
-1.7.9.5
+Paul Bolle
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
