@@ -1,120 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id E90366B0069
-	for <linux-mm@kvack.org>; Thu, 27 Nov 2014 01:43:26 -0500 (EST)
-Received: by mail-pd0-f169.google.com with SMTP id fp1so4318354pdb.0
-        for <linux-mm@kvack.org>; Wed, 26 Nov 2014 22:43:26 -0800 (PST)
-Received: from e23smtp09.au.ibm.com (e23smtp09.au.ibm.com. [202.81.31.142])
-        by mx.google.com with ESMTPS id r17si10068647pdi.172.2014.11.26.22.43.23
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 26 Nov 2014 22:43:25 -0800 (PST)
-Received: from /spool/local
-	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 27 Nov 2014 16:33:08 +1000
-Received: from d23relay10.au.ibm.com (d23relay10.au.ibm.com [9.190.26.77])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 7FBA53578083
-	for <linux-mm@kvack.org>; Thu, 27 Nov 2014 17:33:06 +1100 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id sAR6Wvmp23658734
-	for <linux-mm@kvack.org>; Thu, 27 Nov 2014 17:33:06 +1100
-Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id sAR6WWNP030696
-	for <linux-mm@kvack.org>; Thu, 27 Nov 2014 17:32:32 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH] mm/thp: Always allocate transparent hugepages on local node
-In-Reply-To: <alpine.DEB.2.10.1411241317430.21237@chino.kir.corp.google.com>
-References: <1416838791-30023-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20141124150342.GA3889@node.dhcp.inet.fi> <alpine.DEB.2.10.1411241317430.21237@chino.kir.corp.google.com>
-Date: Thu, 27 Nov 2014 12:02:01 +0530
-Message-ID: <87r3wp887y.fsf@linux.vnet.ibm.com>
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id ADC326B0069
+	for <linux-mm@kvack.org>; Thu, 27 Nov 2014 02:43:13 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id eu11so4481502pac.22
+        for <linux-mm@kvack.org>; Wed, 26 Nov 2014 23:43:13 -0800 (PST)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id o10si10399109pby.25.2014.11.26.23.43.10
+        for <linux-mm@kvack.org>;
+        Wed, 26 Nov 2014 23:43:12 -0800 (PST)
+Message-ID: <5476D60D.4030506@lge.com>
+Date: Thu, 27 Nov 2014 16:43:09 +0900
+From: Gioh Kim <gioh.kim@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [LSF/MM TOPIC] Improving CMA
+References: <5473E146.7000503@codeaurora.org> <20141127061204.GA6850@js1304-P5Q-DELUXE>
+In-Reply-To: <20141127061204.GA6850@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Laura Abbott <lauraa@codeaurora.org>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, zhuhui@xiaomi.com, minchan@kernel.org, SeongJae Park <sj38.park@gmail.com>, mgorman@suse.de
 
-David Rientjes <rientjes@google.com> writes:
 
-> On Mon, 24 Nov 2014, Kirill A. Shutemov wrote:
+
+2014-11-27 i??i?? 3:12i?? Joonsoo Kim i?'(e??) i?' e,?:
+> On Mon, Nov 24, 2014 at 05:54:14PM -0800, Laura Abbott wrote:
+>> There have been a number of patch series posted designed to improve various
+>> aspects of CMA. A sampling:
+>>
+>> https://lkml.org/lkml/2014/10/15/623
+>> http://marc.info/?l=linux-mm&m=141571797202006&w=2
+>> https://lkml.org/lkml/2014/6/26/549
+>>
+>> As far as I can tell, these are all trying to fix real problems with CMA but
+>> none of them have moved forward very much from what I can tell. The goal of
+>> this session would be to come out with an agreement on what are the biggest
+>> problems with CMA and the best ways to solve them.
 >
->> > This make sure that we try to allocate hugepages from local node. If
->> > we can't we fallback to small page allocation based on
->> > mempolicy. This is based on the observation that allocating pages
->> > on local node is more beneficial that allocating hugepages on remote node.
->> 
->> Local node on allocation is not necessary local node for use.
->> If policy says to use a specific node[s], we should follow.
->> 
+> I also tried to solve problem from CMA, that is, reserved memory
+> utilization.
 >
-> True, and the interaction between thp and mempolicies is fragile: if a 
-> process has a MPOL_BIND mempolicy over a set of nodes, that does not 
-> necessarily mean that we want to allocate thp remotely if it will always 
-> be accessed remotely.  It's simple to benchmark and show that remote 
-> access latency of a hugepage can exceed that of local pages.  MPOL_BIND 
-> itself is a policy of exclusion, not inclusion, and it's difficult to 
-> define when local pages and its cost of allocation is better than remote 
-> thp.
+> https://lkml.org/lkml/2014/5/28/64
 >
-> For MPOL_BIND, if the local node is allowed then thp should be forced from 
-> that node, if the local node is disallowed then allocate from any node in 
-> the nodemask.  For MPOL_INTERLEAVE, I think we should only allocate thp 
-> from the next node in order, otherwise fail the allocation and fallback to 
-> small pages.  Is this what you meant as well?
+> While playing that patchset, I found serious problem about free page
+> counting, so I stopped to develop it for a while and tried to fix it.
+> Now, it is fixed by me and I can continue my patchset.
+>
+> https://lkml.org/lkml/2014/10/31/69
+>
+> I heard that Minchan suggests new CMA zone like movable zone, and, I
+> think that it would be the way to go. But, it would be a long-term goal
+> and I'd like to solve utilization problem with my patchset for now.
+> It is the biggest issue and it already forces someone to develop
+> out of tree solution. It's not good that out of tree solution is used
+> more and more in the product so I'd like to fix it quickly at first
+> stage.
+>
+> I think that CMA have big potential. If we fix problems of CMA
+> completely, it can be used for many places. One such case in my mind
+> is hugetlb or THP. Until now, hugetlb uses reserved approach, that is
+> very inefficient. System administrator carefully set the number of
+> reserved hugepage according to whole system workload. And application
+> can't use it freely, because it is very limited and managed resource.
+> If we use CMA for hugetlb, we can easily allocate hugepage and
+> application can use hugepages more freely.
+>
+> Anyway, I'd like to attend LSF/MM and discuss this topic.
+>
+> Thanks.
 >
 
-Something like below
+Until now, I've used CMA with 2 out-of-tree patches:
+1. https://lkml.org/lkml/2012/8/31/313 : Laura's patch
+2. https://lkml.org/lkml/2014/5/28/64 : Joonsoo's patch
 
-struct page *alloc_hugepage_vma(gfp_t gfp, struct vm_area_struct *vma,
-				unsigned long addr, int order)
-{
-	struct page *page;
-	nodemask_t *nmask;
-	struct mempolicy *pol;
-	int node = numa_node_id();
-	unsigned int cpuset_mems_cookie;
+And one merged patch by me: https://lkml.org/lkml/2014/9/4/78
 
-retry_cpuset:
-	pol = get_vma_policy(vma, addr);
-	cpuset_mems_cookie = read_mems_allowed_begin();
+With them, my platform could've worked but it still had free-page-counting problem.
 
-	if (unlikely(pol->mode == MPOL_INTERLEAVE)) {
-		unsigned nid;
-		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT + order);
-		mpol_cond_put(pol);
-		page = alloc_page_interleave(gfp, order, nid);
-		if (unlikely(!page &&
-			     read_mems_allowed_retry(cpuset_mems_cookie)))
-			goto retry_cpuset;
-		return page;
-	}
-	nmask = policy_nodemask(gfp, pol);
-	if (!nmask || node_isset(node, *nmask)) {
-		mpol_cond_put(pol);
-		page = alloc_hugepage_exact_node(node, gfp, order);
-		if (unlikely(!page &&
-			     read_mems_allowed_retry(cpuset_mems_cookie)))
-			goto retry_cpuset;
-		return page;
+I think if Joonsoo's patch [2] is merged into mainline, CMA can be stable and useful.
+Allocation latency Minchan mentioned is not problem for my platform.
+CMA allocation is not often and limited to only one drivers.
 
-	}
-	/*
-	 * if current node is not part of node mask, try
-	 * the allocation from any node, and we can do retry
-	 * in that case.
-	 */
-	page = __alloc_pages_nodemask(gfp, order,
-				      policy_zonelist(gfp, pol, node),
-				      nmask);
-	mpol_cond_put(pol);
-	if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie)))
-		goto retry_cpuset;
+Allocation guarantee is, I hope, fixed with my patch (https://lkml.org/lkml/2014/9/4/78) at least in my platform.
+My platform had worked for several hours but it lacks heavy load test.
+I have a plan to use CMA for massive product next year.
 
-	return page;
-}
-
--aneesh
+I'd like to attend LSF/MM and discuss this topic too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
