@@ -1,97 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B0016B0069
-	for <linux-mm@kvack.org>; Thu, 27 Nov 2014 22:45:47 -0500 (EST)
-Received: by mail-ob0-f172.google.com with SMTP id wn1so4508977obc.3
-        for <linux-mm@kvack.org>; Thu, 27 Nov 2014 19:45:47 -0800 (PST)
-Received: from mail-oi0-x22a.google.com (mail-oi0-x22a.google.com. [2607:f8b0:4003:c06::22a])
-        by mx.google.com with ESMTPS id nr7si4210135oeb.98.2014.11.27.19.45.45
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id E8C596B0069
+	for <linux-mm@kvack.org>; Thu, 27 Nov 2014 23:48:51 -0500 (EST)
+Received: by mail-pd0-f171.google.com with SMTP id y13so5987957pdi.2
+        for <linux-mm@kvack.org>; Thu, 27 Nov 2014 20:48:51 -0800 (PST)
+Received: from mailout3.samsung.com (mailout3.samsung.com. [203.254.224.33])
+        by mx.google.com with ESMTPS id c3si14506383pdk.33.2014.11.27.20.48.48
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 27 Nov 2014 19:45:45 -0800 (PST)
-Received: by mail-oi0-f42.google.com with SMTP id v63so4228729oia.1
-        for <linux-mm@kvack.org>; Thu, 27 Nov 2014 19:45:45 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20141024052849.GF15243@js1304-P5Q-DELUXE>
-References: <1413430551-22392-1-git-send-email-zhuhui@xiaomi.com>
- <1413430551-22392-5-git-send-email-zhuhui@xiaomi.com> <20141024052849.GF15243@js1304-P5Q-DELUXE>
-From: Hui Zhu <teawater@gmail.com>
-Date: Fri, 28 Nov 2014 11:45:04 +0800
-Message-ID: <CANFwon0CP6jA4oq0U2xC340MbFsws5NmhEMGEUDm983N=mT-Pg@mail.gmail.com>
-Subject: Re: [PATCH 4/4] (CMA_AGGRESSIVE) Update page alloc function
-Content-Type: text/plain; charset=ISO-8859-1
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Thu, 27 Nov 2014 20:48:50 -0800 (PST)
+Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
+ by mailout3.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NFQ00IV1G1A6T90@mailout3.samsung.com> for
+ linux-mm@kvack.org; Fri, 28 Nov 2014 13:48:46 +0900 (KST)
+From: Weijie Yang <weijie.yang@samsung.com>
+References: <1417144515812.18416@xiaomi.com>
+In-reply-to: <1417144515812.18416@xiaomi.com>
+Subject: RE: CMA, isolate: get warning in page_isolation.c:235
+ test_pages_isolated
+Date: Fri, 28 Nov 2014 12:48:00 +0800
+Message-id: <000001d00ac6$97f829d0$c7e87d70$%yang@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=gb2312
+Content-transfer-encoding: quoted-printable
+Content-language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Hui Zhu <zhuhui@xiaomi.com>, rjw@rjwysocki.net, len.brown@intel.com, pavel@ucw.cz, m.szyprowski@samsung.com, Andrew Morton <akpm@linux-foundation.org>, mina86@mina86.com, aneesh.kumar@linux.vnet.ibm.com, hannes@cmpxchg.org, Rik van Riel <riel@redhat.com>, mgorman@suse.de, minchan@kernel.org, nasa4836@gmail.com, ddstreet@ieee.org, Hugh Dickins <hughd@google.com>, mingo@kernel.org, rientjes@google.com, Peter Zijlstra <peterz@infradead.org>, keescook@chromium.org, atomlin@redhat.com, raistlin@linux.it, axboe@fb.com, Paul McKenney <paulmck@linux.vnet.ibm.com>, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, k.khlebnikov@samsung.com, msalter@redhat.com, deller@gmx.de, tangchen@cn.fujitsu.com, ben@decadent.org.uk, akinobu.mita@gmail.com, lauraa@codeaurora.org, vbabka@suse.cz, sasha.levin@oracle.com, vdavydov@parallels.com, suleiman@google.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-pm@vger.kernel.org, linux-mm@kvack.org
+To: =?gb2312?B?J9bsu9Qn?= <zhuhui@xiaomi.com>, iamjoonsoo.kim@lge.com
+Cc: 'Hui Zhu' <teawater@gmail.com>, linux-mm@kvack.org
 
-On Fri, Oct 24, 2014 at 1:28 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> On Thu, Oct 16, 2014 at 11:35:51AM +0800, Hui Zhu wrote:
->> If page alloc function __rmqueue try to get pages from MIGRATE_MOVABLE and
->> conditions (cma_alloc_counter, cma_aggressive_free_min, cma_alloc_counter)
->> allow, MIGRATE_CMA will be allocated as MIGRATE_MOVABLE first.
->>
->> Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
->> ---
->>  mm/page_alloc.c | 42 +++++++++++++++++++++++++++++++-----------
->>  1 file changed, 31 insertions(+), 11 deletions(-)
->>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index 736d8e1..87bc326 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -65,6 +65,10 @@
->>  #include <asm/div64.h>
->>  #include "internal.h"
->>
->> +#ifdef CONFIG_CMA_AGGRESSIVE
->> +#include <linux/cma.h>
->> +#endif
->> +
->>  /* prevent >1 _updater_ of zone percpu pageset ->high and ->batch fields */
->>  static DEFINE_MUTEX(pcp_batch_high_lock);
->>  #define MIN_PERCPU_PAGELIST_FRACTION (8)
->> @@ -1189,20 +1193,36 @@ static struct page *__rmqueue(struct zone *zone, unsigned int order,
->>  {
->>       struct page *page;
->>
->> -retry_reserve:
->> +#ifdef CONFIG_CMA_AGGRESSIVE
->> +     if (cma_aggressive_switch
->> +         && migratetype == MIGRATE_MOVABLE
->> +         && atomic_read(&cma_alloc_counter) == 0
->> +         && global_page_state(NR_FREE_CMA_PAGES) > cma_aggressive_free_min
->> +                                                     + (1 << order))
->> +             migratetype = MIGRATE_CMA;
->> +#endif
->> +retry:
->
-> I don't get it why cma_alloc_counter should be tested.
-> When cma alloc is progress, pageblock is isolated so that pages on that
-> pageblock cannot be allocated. Why should we prevent aggressive
-> allocation in this case?
->
+> -----Original Message-----
+> From: =D6=EC=BB=D4 [mailto:zhuhui@xiaomi.com]
+> Sent: Friday, November 28, 2014 11:15 AM
+> To: weijie.yang@samsung.com; iamjoonsoo.kim@lge.com
+> Cc: Hui Zhu; linux-mm@kvack.org
+> Subject: CMA, isolate: get warning in page_isolation.c:235 =
+test_pages_isolated
+>=20
+> Hi guys,
+>=20
+> After I back porting your patches:
+> mm/page_alloc: fix incorrect isolation behavior by rechecking =
+migratetype
+> mm/page_alloc: add freepage on isolate pageblock to correct buddy list
+> mm/page_alloc: move freepage counting logic to __free_one_page()
+> mm/page_alloc: restrict max order of merging on isolated pageblock
+> mm: page_alloc: store updated page migratetype to avoid misusing stale =
+value
+> mm: page_isolation: check pfn validity before access
 
-Hi Joonsoo,
+My patch is not proper, it doesn't consider the steal freepages in alloc =
+path.
+So it should be dropped(I will send a notice email to akpm).
 
-Even if the pageblock is isolated in the begin of function
-alloc_contig_range, it will unisolate if alloc_contig_range get some
-error for example "PFNs busy".  And the cma_alloc will keep call
-alloc_contig_range with another address if need.
+I am now working on its v2 patch and will resend it soon.
 
-So it will decrease the contradiction between CMA allocation in
-cma_alloc and __rmqueue with  cma_alloc_counter.
+Thanks
 
-Thanks,
-Hui
-
-> Thanks.
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> to 3.10 linux kernel.
+> I also use the CMA_AGGRESSIVE patches in =
+https://lkml.org/lkml/2014/10/15/623.
+>=20
+> I got:
+> [68121.770699@2] ------------[ cut here ]------------
+> [68121.774592@2] WARNING: at =
+/home/teawater/common/mm/page_isolation.c:235 =
+test_pages_isolated+0x108/0x208()
+> [68121.793911@2] CPU: 2 PID: 2711 Comm: kthread_xxx Tainted: P         =
+  O 3.10.33-250644-gcfd93f8-dirty #184
+> [68121.803632@2] [<c0016de4>] (unwind_backtrace+0x0/0x128) from =
+[<c0013360>] (show_stack+0x20/0x24)
+> [68121.812379@2] [<c0013360>] (show_stack+0x20/0x24) from [<c074553c>] =
+(dump_stack+0x20/0x28)
+> [68121.820612@2] [<c074553c>] (dump_stack+0x20/0x28) from [<c002f2b8>] =
+(warn_slowpath_common+0x5c/0x7c)
+> [68121.829712@2] [<c002f2b8>] (warn_slowpath_common+0x5c/0x7c) from =
+[<c002f304>] (warn_slowpath_null+0x2c/0x34)
+> [68121.839508@2] [<c002f304>] (warn_slowpath_null+0x2c/0x34) from =
+[<c011f324>] (test_pages_isolated+0x108/0x208)
+> [68121.849393@2] [<c011f324>] (test_pages_isolated+0x108/0x208) from =
+[<c00e24d8>] (alloc_contig_range+0x208/0x2b0)
+> [68121.859447@2] [<c00e24d8>] (alloc_contig_range+0x208/0x2b0) from =
+[<c0320d44>] (dma_alloc_from_contiguous+0x15c/0x24c)
+>=20
+> Looks it has some race issue between page isolation and free path =
+after these patches.
+> And I checked the free path but found nothing.
+>=20
+> I worried that it still has some race issue between page isolation and =
+something in upstream.  Or I missed some patches?
+> If we cannot handle this issue in a short time, I suggest add the =
+"move_freepages" code back to __test_page_isolated_in_pageblock.
+>=20
+> Thanks,
+> Hui
+>=20
+>=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
