@@ -1,141 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 95D776B0069
-	for <linux-mm@kvack.org>; Fri, 28 Nov 2014 02:32:16 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id rd3so6305792pab.35
-        for <linux-mm@kvack.org>; Thu, 27 Nov 2014 23:32:16 -0800 (PST)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id sf9si12930900pac.8.2014.11.27.23.32.13
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 53DA26B0069
+	for <linux-mm@kvack.org>; Fri, 28 Nov 2014 03:00:24 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id ey11so6422107pad.10
+        for <linux-mm@kvack.org>; Fri, 28 Nov 2014 00:00:24 -0800 (PST)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id vv4si14898266pbc.165.2014.11.28.00.00.21
         for <linux-mm@kvack.org>;
-        Thu, 27 Nov 2014 23:32:15 -0800 (PST)
-Date: Fri, 28 Nov 2014 16:35:24 +0900
+        Fri, 28 Nov 2014 00:00:22 -0800 (PST)
+Date: Fri, 28 Nov 2014 17:03:31 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v3 2/8] mm/debug-pagealloc: prepare boottime configurable
- on/off
-Message-ID: <20141128073524.GC11802@js1304-P5Q-DELUXE>
-References: <1416816926-7756-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1416816926-7756-3-git-send-email-iamjoonsoo.kim@lge.com>
- <1417091739.29407.95.camel@x220>
+Subject: Re: isolate_freepages_block and excessive CPU usage by OSD process
+Message-ID: <20141128080331.GD11802@js1304-P5Q-DELUXE>
+References: <20141119012110.GA2608@cucumber.iinet.net.au>
+ <CABYiri99WAj+6hfTq+6x+_w0=VNgBua8N9+mOvU6o5bynukPLQ@mail.gmail.com>
+ <20141119212013.GA18318@cucumber.anchor.net.au>
+ <546D2366.1050506@suse.cz>
+ <20141121023554.GA24175@cucumber.bridge.anchor.net.au>
+ <20141123093348.GA16954@cucumber.anchor.net.au>
+ <CABYiri8LYukujETMCb4gHUQd=J-MQ8m=rGRiEkTD1B42Jh=Ksg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1417091739.29407.95.camel@x220>
+In-Reply-To: <CABYiri8LYukujETMCb4gHUQd=J-MQ8m=rGRiEkTD1B42Jh=Ksg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Bolle <pebolle@tiscali.nl>
-Cc: Valentin Rothberg <valentinrothberg@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave@sr71.net>, Michal Nazarewicz <mina86@mina86.com>, Jungsoo Son <jungsoo.son@lge.com>, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrey Korolyov <andrey@xdel.ru>
+Cc: linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>
 
-On Thu, Nov 27, 2014 at 01:35:39PM +0100, Paul Bolle wrote:
-> Joonsoo,
+On Tue, Nov 25, 2014 at 01:48:42AM +0400, Andrey Korolyov wrote:
+> On Sun, Nov 23, 2014 at 12:33 PM, Christian Marie <christian@ponies.io> wrote:
+> > Here's an update:
+> >
+> > Tried running 3.18.0-rc5 over the weekend to no avail. A load spike through
+> > Ceph brings no perceived improvement over the chassis running 3.10 kernels.
+> >
+> > Here is a graph of *system* cpu time (not user), note that 3.18 was a005.block:
+> >
+> > http://ponies.io/raw/cluster.png
+> >
+> > It is perhaps faring a little better that those chassis running the 3.10 in
+> > that it did not have min_free_kbytes raised to 2GB as the others did, instead
+> > it was sitting around 90MB.
+> >
+> > The perf recording did look a little different. Not sure if this was just the
+> > luck of the draw in how the fractal rendering works:
+> >
+> > http://ponies.io/raw/perf-3.10.png
+> >
+> > Any pointers on how we can track this down? There's at least three of us
+> > following at this now so we should have plenty of area to test.
 > 
-> On Mon, 2014-11-24 at 17:15 +0900, Joonsoo Kim wrote:
-> > Until now, debug-pagealloc needs extra flags in struct page, so we need
-> > to recompile whole source code when we decide to use it. This is really
-> > painful, because it takes some time to recompile and sometimes rebuild is
-> > not possible due to third party module depending on struct page.
-> > So, we can't use this good feature in many cases.
-> > 
-> > Now, we have the page extension feature that allows us to insert
-> > extra flags to outside of struct page. This gets rid of third party module
-> > issue mentioned above. And, this allows us to determine if we need extra
-> > memory for this page extension in boottime. With these property, we can
-> > avoid using debug-pagealloc in boottime with low computational overhead
-> > in the kernel built with CONFIG_DEBUG_PAGEALLOC. This will help our
-> > development process greatly.
-> > 
-> > This patch is the preparation step to achive above goal. debug-pagealloc
-> > originally uses extra field of struct page, but, after this patch, it
-> > will use field of struct page_ext. Because memory for page_ext is
-> > allocated later than initialization of page allocator in CONFIG_SPARSEMEM,
-> > we should disable debug-pagealloc feature temporarily until initialization
-> > of page_ext. This patch implements this.
-> > 
-> > v2: fix compile error on CONFIG_PAGE_POISONING
-> > 
-> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > 
-> This patch is included in today's linux-next (ie, next-2o0141127) as
-> commit 1e491e9be4c9 ("mm/debug-pagealloc: prepare boottime configurable
-> on/off").
+> Checked against 3.16 (3.17 hanged for an unrelated problem), the issue
+> is presented for single- and two-headed systems as well. Ceph-users
+> reported presence of the problem for 3.17, so probably we are facing
+> generic compaction issue.
 > 
-> > [...]
-> > 
-> > diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> > index 33a8acf..c7b22e7 100644
-> > --- a/include/linux/mm_types.h
-> > +++ b/include/linux/mm_types.h
-> > @@ -10,7 +10,6 @@
-> >  #include <linux/rwsem.h>
-> >  #include <linux/completion.h>
-> >  #include <linux/cpumask.h>
-> > -#include <linux/page-debug-flags.h>
-> >  #include <linux/uprobes.h>
-> >  #include <linux/page-flags-layout.h>
-> >  #include <asm/page.h>
-> > @@ -186,9 +185,6 @@ struct page {
-> >  	void *virtual;			/* Kernel virtual address (NULL if
-> >  					   not kmapped, ie. highmem) */
-> >  #endif /* WANT_PAGE_VIRTUAL */
-> > -#ifdef CONFIG_WANT_PAGE_DEBUG_FLAGS
-> > -	unsigned long debug_flags;	/* Use atomic bitops on this */
-> > -#endif
-> >  
-> >  #ifdef CONFIG_KMEMCHECK
-> >  	/*
-> > diff --git a/include/linux/page-debug-flags.h b/include/linux/page-debug-flags.h
-> > deleted file mode 100644
-> > index 22691f61..0000000
-> > --- a/include/linux/page-debug-flags.h
-> > +++ /dev/null
-> > @@ -1,32 +0,0 @@
-> > -#ifndef LINUX_PAGE_DEBUG_FLAGS_H
-> > -#define  LINUX_PAGE_DEBUG_FLAGS_H
-> > -
-> > -/*
-> > - * page->debug_flags bits:
-> > - *
-> > - * PAGE_DEBUG_FLAG_POISON is set for poisoned pages. This is used to
-> > - * implement generic debug pagealloc feature. The pages are filled with
-> > - * poison patterns and set this flag after free_pages(). The poisoned
-> > - * pages are verified whether the patterns are not corrupted and clear
-> > - * the flag before alloc_pages().
-> > - */
-> > -
-> > -enum page_debug_flags {
-> > -	PAGE_DEBUG_FLAG_POISON,		/* Page is poisoned */
-> > -	PAGE_DEBUG_FLAG_GUARD,
-> > -};
-> > -
-> > -/*
-> > - * Ensure that CONFIG_WANT_PAGE_DEBUG_FLAGS reliably
-> > - * gets turned off when no debug features are enabling it!
-> > - */
-> > -
-> > -#ifdef CONFIG_WANT_PAGE_DEBUG_FLAGS
-> > -#if !defined(CONFIG_PAGE_POISONING) && \
-> > -    !defined(CONFIG_PAGE_GUARD) \
-> > -/* && !defined(CONFIG_PAGE_DEBUG_SOMETHING_ELSE) && ... */
-> > -#error WANT_PAGE_DEBUG_FLAGS is turned on with no debug features!
-> > -#endif
-> > -#endif /* CONFIG_WANT_PAGE_DEBUG_FLAGS */
-> > -
-> > -#endif /* LINUX_PAGE_DEBUG_FLAGS_H */
-> 
-> This remove all uses of CONFIG_WANT_PAGE_DEBUG_FLAGS and
-> CONFIG_PAGE_GUARD. So the Kconfig symbols WANT_PAGE_DEBUG_FLAGS and
-> PAGE_GUARD are now unused.
-> 
-> Should I submit the trivial patch to remove these symbols or is a patch
-> that does that queued already?
 
-Hello, Paul.
+Hello,
 
-Thanks for spotting this.
-I attach the patch. :)
+I didn't follow-up this discussion, but, at glance, this excessive CPU
+usage by compaction is related to following fixes.
 
-Andrew,
-Could you kindly fold this into the patch in your tree?
+Could you test following two patches?
+
+If these fixes your problem, I will resumit patches with proper commit
+description.
 
 Thanks.
 
-------------------->8---------------
+-------->8-------------
