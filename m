@@ -1,85 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C48C6B0069
-	for <linux-mm@kvack.org>; Thu, 27 Nov 2014 13:08:47 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id lj1so5353091pab.33
-        for <linux-mm@kvack.org>; Thu, 27 Nov 2014 10:08:47 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id qc5si12524451pac.236.2014.11.27.10.08.44
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id EAAA76B0069
+	for <linux-mm@kvack.org>; Thu, 27 Nov 2014 22:15:25 -0500 (EST)
+Received: by mail-pa0-f52.google.com with SMTP id eu11so5898332pac.25
+        for <linux-mm@kvack.org>; Thu, 27 Nov 2014 19:15:25 -0800 (PST)
+Received: from mx1.mxmail.xiaomi.com ([58.68.235.87])
+        by mx.google.com with ESMTP id fs12si7458328pdb.56.2014.11.27.19.15.23
         for <linux-mm@kvack.org>;
-        Thu, 27 Nov 2014 10:08:46 -0800 (PST)
-Date: Fri, 28 Nov 2014 02:08:06 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master 181/397] arch/x86/include/asm/paravirt.h:534:17:
- sparse: context imbalance in 'madvise_free_huge_pmd' - unexpected unlock
-Message-ID: <201411280201.xezjOjT0%fengguang.wu@intel.com>
+        Thu, 27 Nov 2014 19:15:24 -0800 (PST)
+From: =?gb2312?B?1uy71A==?= <zhuhui@xiaomi.com>
+Subject: CMA, isolate: get warning in page_isolation.c:235 test_pages_isolated
+Date: Fri, 28 Nov 2014 03:15:19 +0000
+Message-ID: <1417144515812.18416@xiaomi.com>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: "weijie.yang@samsung.com" <weijie.yang@samsung.com>, "iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>
+Cc: Hui Zhu <teawater@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-tree:   git://git.cmpxchg.org/linux-mmotm.git master
-head:   a2d887dee78e23dc092ff14ae2ad22592437a328
-commit: ee010684ca66feef309e267f9a47a8cb9b6eb2e3 [181/397] mm: don't split THP page when syscall is called
-reproduce:
-  # apt-get install sparse
-  git checkout ee010684ca66feef309e267f9a47a8cb9b6eb2e3
-  make ARCH=x86_64 allmodconfig
-  make C=1 CF=-D__CHECK_ENDIAN__
-
-
-sparse warnings: (new ones prefixed by >>)
-
->> arch/x86/include/asm/paravirt.h:534:17: sparse: context imbalance in 'madvise_free_huge_pmd' - unexpected unlock
-   mm/huge_memory.c:1436:40: sparse: context imbalance in 'zap_huge_pmd' - unexpected unlock
-   mm/huge_memory.c:1467:28: sparse: context imbalance in 'mincore_huge_pmd' - unexpected unlock
-   mm/huge_memory.c:1521:28: sparse: context imbalance in 'move_huge_pmd' - unexpected unlock
-   mm/huge_memory.c:1566:28: sparse: context imbalance in 'change_huge_pmd' - unexpected unlock
-   mm/huge_memory.c:1579:5: sparse: context imbalance in '__pmd_trans_huge_lock' - different lock contexts for basic block
-   mm/huge_memory.c:1606:7: sparse: context imbalance in 'page_check_address_pmd' - different lock contexts for basic block
-   mm/huge_memory.c:1680:17: sparse: context imbalance in '__split_huge_page_splitting' - unexpected unlock
-   arch/x86/include/asm/paravirt.h:545:17: sparse: context imbalance in '__split_huge_page_map' - unexpected unlock
-
-vim +/madvise_free_huge_pmd +534 arch/x86/include/asm/paravirt.h
-
-4eed80cd include/asm-x86/paravirt.h      Jeremy Fitzhardinge 2008-01-30  518  			      pte_t *ptep, pte_t pte)
-4eed80cd include/asm-x86/paravirt.h      Jeremy Fitzhardinge 2008-01-30  519  {
-4eed80cd include/asm-x86/paravirt.h      Jeremy Fitzhardinge 2008-01-30  520  	if (sizeof(pteval_t) > sizeof(long))
-4eed80cd include/asm-x86/paravirt.h      Jeremy Fitzhardinge 2008-01-30  521  		/* 5 arg words */
-4eed80cd include/asm-x86/paravirt.h      Jeremy Fitzhardinge 2008-01-30  522  		pv_mmu_ops.set_pte_at(mm, addr, ptep, pte);
-4eed80cd include/asm-x86/paravirt.h      Jeremy Fitzhardinge 2008-01-30  523  	else
-4eed80cd include/asm-x86/paravirt.h      Jeremy Fitzhardinge 2008-01-30  524  		PVOP_VCALL4(pv_mmu_ops.set_pte_at, mm, addr, ptep, pte.pte);
-4eed80cd include/asm-x86/paravirt.h      Jeremy Fitzhardinge 2008-01-30  525  }
-4eed80cd include/asm-x86/paravirt.h      Jeremy Fitzhardinge 2008-01-30  526  
-331127f7 arch/x86/include/asm/paravirt.h Andrea Arcangeli    2011-01-13  527  static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
-331127f7 arch/x86/include/asm/paravirt.h Andrea Arcangeli    2011-01-13  528  			      pmd_t *pmdp, pmd_t pmd)
-331127f7 arch/x86/include/asm/paravirt.h Andrea Arcangeli    2011-01-13  529  {
-331127f7 arch/x86/include/asm/paravirt.h Andrea Arcangeli    2011-01-13  530  	if (sizeof(pmdval_t) > sizeof(long))
-331127f7 arch/x86/include/asm/paravirt.h Andrea Arcangeli    2011-01-13  531  		/* 5 arg words */
-331127f7 arch/x86/include/asm/paravirt.h Andrea Arcangeli    2011-01-13  532  		pv_mmu_ops.set_pmd_at(mm, addr, pmdp, pmd);
-331127f7 arch/x86/include/asm/paravirt.h Andrea Arcangeli    2011-01-13  533  	else
-cacf061c arch/x86/include/asm/paravirt.h Andrea Arcangeli    2011-01-25 @534  		PVOP_VCALL4(pv_mmu_ops.set_pmd_at, mm, addr, pmdp,
-cacf061c arch/x86/include/asm/paravirt.h Andrea Arcangeli    2011-01-25  535  			    native_pmd_val(pmd));
-331127f7 arch/x86/include/asm/paravirt.h Andrea Arcangeli    2011-01-13  536  }
-331127f7 arch/x86/include/asm/paravirt.h Andrea Arcangeli    2011-01-13  537  
-60b3f626 include/asm-x86/paravirt.h      Jeremy Fitzhardinge 2008-01-30  538  static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
-60b3f626 include/asm-x86/paravirt.h      Jeremy Fitzhardinge 2008-01-30  539  {
-60b3f626 include/asm-x86/paravirt.h      Jeremy Fitzhardinge 2008-01-30  540  	pmdval_t val = native_pmd_val(pmd);
-60b3f626 include/asm-x86/paravirt.h      Jeremy Fitzhardinge 2008-01-30  541  
-60b3f626 include/asm-x86/paravirt.h      Jeremy Fitzhardinge 2008-01-30  542  	if (sizeof(pmdval_t) > sizeof(long))
-
-:::::: The code at line 534 was first introduced by commit
-:::::: cacf061c5e42a040200463afccd9178ace680322 thp: fix PARAVIRT x86 32bit noPAE
-
-:::::: TO: Andrea Arcangeli <aarcange@redhat.com>
-:::::: CC: Linus Torvalds <torvalds@linux-foundation.org>
-
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
+SGkgZ3V5cywKCkFmdGVyIEkgYmFjayBwb3J0aW5nIHlvdXIgcGF0Y2hlczoKbW0vcGFnZV9hbGxv
+YzogZml4IGluY29ycmVjdCBpc29sYXRpb24gYmVoYXZpb3IgYnkgcmVjaGVja2luZyBtaWdyYXRl
+dHlwZQptbS9wYWdlX2FsbG9jOiBhZGQgZnJlZXBhZ2Ugb24gaXNvbGF0ZSBwYWdlYmxvY2sgdG8g
+Y29ycmVjdCBidWRkeSBsaXN0Cm1tL3BhZ2VfYWxsb2M6IG1vdmUgZnJlZXBhZ2UgY291bnRpbmcg
+bG9naWMgdG8gX19mcmVlX29uZV9wYWdlKCkKbW0vcGFnZV9hbGxvYzogcmVzdHJpY3QgbWF4IG9y
+ZGVyIG9mIG1lcmdpbmcgb24gaXNvbGF0ZWQgcGFnZWJsb2NrCm1tOiBwYWdlX2FsbG9jOiBzdG9y
+ZSB1cGRhdGVkIHBhZ2UgbWlncmF0ZXR5cGUgdG8gYXZvaWQgbWlzdXNpbmcgc3RhbGUgdmFsdWUK
+bW06IHBhZ2VfaXNvbGF0aW9uOiBjaGVjayBwZm4gdmFsaWRpdHkgYmVmb3JlIGFjY2Vzcwp0byAz
+LjEwIGxpbnV4IGtlcm5lbC4KSSBhbHNvIHVzZSB0aGUgQ01BX0FHR1JFU1NJVkUgcGF0Y2hlcyBp
+biBodHRwczovL2xrbWwub3JnL2xrbWwvMjAxNC8xMC8xNS82MjMuCgpJIGdvdDoKWzY4MTIxLjc3
+MDY5OUAyXSAtLS0tLS0tLS0tLS1bIGN1dCBoZXJlIF0tLS0tLS0tLS0tLS0KWzY4MTIxLjc3NDU5
+MkAyXSBXQVJOSU5HOiBhdCAvaG9tZS90ZWF3YXRlci9jb21tb24vbW0vcGFnZV9pc29sYXRpb24u
+YzoyMzUgdGVzdF9wYWdlc19pc29sYXRlZCsweDEwOC8weDIwOCgpCls2ODEyMS43OTM5MTFAMl0g
+Q1BVOiAyIFBJRDogMjcxMSBDb21tOiBrdGhyZWFkX3h4eCBUYWludGVkOiBQICAgICAgICAgICBP
+IDMuMTAuMzMtMjUwNjQ0LWdjZmQ5M2Y4LWRpcnR5ICMxODQKWzY4MTIxLjgwMzYzMkAyXSBbPGMw
+MDE2ZGU0Pl0gKHVud2luZF9iYWNrdHJhY2UrMHgwLzB4MTI4KSBmcm9tIFs8YzAwMTMzNjA+XSAo
+c2hvd19zdGFjaysweDIwLzB4MjQpCls2ODEyMS44MTIzNzlAMl0gWzxjMDAxMzM2MD5dIChzaG93
+X3N0YWNrKzB4MjAvMHgyNCkgZnJvbSBbPGMwNzQ1NTNjPl0gKGR1bXBfc3RhY2srMHgyMC8weDI4
+KQpbNjgxMjEuODIwNjEyQDJdIFs8YzA3NDU1M2M+XSAoZHVtcF9zdGFjaysweDIwLzB4MjgpIGZy
+b20gWzxjMDAyZjJiOD5dICh3YXJuX3Nsb3dwYXRoX2NvbW1vbisweDVjLzB4N2MpCls2ODEyMS44
+Mjk3MTJAMl0gWzxjMDAyZjJiOD5dICh3YXJuX3Nsb3dwYXRoX2NvbW1vbisweDVjLzB4N2MpIGZy
+b20gWzxjMDAyZjMwND5dICh3YXJuX3Nsb3dwYXRoX251bGwrMHgyYy8weDM0KQpbNjgxMjEuODM5
+NTA4QDJdIFs8YzAwMmYzMDQ+XSAod2Fybl9zbG93cGF0aF9udWxsKzB4MmMvMHgzNCkgZnJvbSBb
+PGMwMTFmMzI0Pl0gKHRlc3RfcGFnZXNfaXNvbGF0ZWQrMHgxMDgvMHgyMDgpCls2ODEyMS44NDkz
+OTNAMl0gWzxjMDExZjMyND5dICh0ZXN0X3BhZ2VzX2lzb2xhdGVkKzB4MTA4LzB4MjA4KSBmcm9t
+IFs8YzAwZTI0ZDg+XSAoYWxsb2NfY29udGlnX3JhbmdlKzB4MjA4LzB4MmIwKQpbNjgxMjEuODU5
+NDQ3QDJdIFs8YzAwZTI0ZDg+XSAoYWxsb2NfY29udGlnX3JhbmdlKzB4MjA4LzB4MmIwKSBmcm9t
+IFs8YzAzMjBkNDQ+XSAoZG1hX2FsbG9jX2Zyb21fY29udGlndW91cysweDE1Yy8weDI0YykKCkxv
+b2tzIGl0IGhhcyBzb21lIHJhY2UgaXNzdWUgYmV0d2VlbiBwYWdlIGlzb2xhdGlvbiBhbmQgZnJl
+ZSBwYXRoIGFmdGVyIHRoZXNlIHBhdGNoZXMuCkFuZCBJIGNoZWNrZWQgdGhlIGZyZWUgcGF0aCBi
+dXQgZm91bmQgbm90aGluZy4KCkkgd29ycmllZCB0aGF0IGl0IHN0aWxsIGhhcyBzb21lIHJhY2Ug
+aXNzdWUgYmV0d2VlbiBwYWdlIGlzb2xhdGlvbiBhbmQgc29tZXRoaW5nIGluIHVwc3RyZWFtLiAg
+T3IgSSBtaXNzZWQgc29tZSBwYXRjaGVzPwpJZiB3ZSBjYW5ub3QgaGFuZGxlIHRoaXMgaXNzdWUg
+aW4gYSBzaG9ydCB0aW1lLCBJIHN1Z2dlc3QgYWRkIHRoZSAibW92ZV9mcmVlcGFnZXMiIGNvZGUg
+YmFjayB0byBfX3Rlc3RfcGFnZV9pc29sYXRlZF9pbl9wYWdlYmxvY2suCgpUaGFua3MsCkh1aQoK
+IA==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
