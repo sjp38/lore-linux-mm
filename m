@@ -1,56 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BE6E6B0069
-	for <linux-mm@kvack.org>; Sat, 29 Nov 2014 06:24:18 -0500 (EST)
-Received: by mail-pa0-f50.google.com with SMTP id bj1so8136668pad.37
-        for <linux-mm@kvack.org>; Sat, 29 Nov 2014 03:24:17 -0800 (PST)
-Received: from mail-pd0-x22a.google.com (mail-pd0-x22a.google.com. [2607:f8b0:400e:c02::22a])
-        by mx.google.com with ESMTPS id d6si2243216pdm.104.2014.11.29.03.24.15
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A40ED6B0069
+	for <linux-mm@kvack.org>; Sun, 30 Nov 2014 17:16:17 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id ey11so9706058pad.24
+        for <linux-mm@kvack.org>; Sun, 30 Nov 2014 14:16:17 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id cc14si26097095pac.137.2014.11.30.14.16.15
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 29 Nov 2014 03:24:15 -0800 (PST)
-Received: by mail-pd0-f170.google.com with SMTP id fp1so8025022pdb.29
-        for <linux-mm@kvack.org>; Sat, 29 Nov 2014 03:24:14 -0800 (PST)
-From: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Subject: [RFC PATCH] mm/zsmalloc: allocate exactly size of struct zs_pool
-Date: Sat, 29 Nov 2014 19:23:55 +0800
-Message-Id: <1417260235-32053-1-git-send-email-opensource.ganesh@gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 30 Nov 2014 14:16:16 -0800 (PST)
+Date: Mon, 1 Dec 2014 09:16:07 +1100
+From: Paul Mackerras <paulus@samba.org>
+Subject: [PATCH] slab: Fix nodeid bounds check for non-contiguous node IDs
+Message-ID: <20141130221606.GA25929@iris.ozlabs.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: minchan@kernel.org, ngupta@vflare.org, ddstreet@ieee.org
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ganesh Mahendran <opensource.ganesh@gmail.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
 
-In zs_create_pool(), we allocate memory more then sizeof(struct zs_pool)
-  ovhd_size = roundup(sizeof(*pool), PAGE_SIZE);
+The bounds check for nodeid in ____cache_alloc_node gives false
+positives on machines where the node IDs are not contiguous, leading
+to a panic at boot time.  For example, on a POWER8 machine the node
+IDs are typically 0, 1, 16 and 17.  This means that num_online_nodes()
+returns 4, so when ____cache_alloc_node is called with nodeid = 16 the
+VM_BUG_ON triggers.
 
-This patch allocate memory of exactly needed size.
+To fix this, we instead compare the nodeid with MAX_NUMNODES, and
+additionally make sure it isn't negative (since nodeid is an int).
+The check is there mainly to protect the array dereference in the
+get_node() call in the next line, and the array being dereferenced is
+of size MAX_NUMNODES.  If the nodeid is in range but invalid, the
+BUG_ON in the next line will catch that.
 
-Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Signed-off-by: Paul Mackerras <paulus@samba.org>
 ---
- mm/zsmalloc.c |    5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
-
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 2021df5..4d0a063 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -979,12 +979,11 @@ static bool can_merge(struct size_class *prev, int size, int pages_per_zspage)
-  */
- struct zs_pool *zs_create_pool(gfp_t flags)
- {
--	int i, ovhd_size;
-+	int i;
- 	struct zs_pool *pool;
- 	struct size_class *prev_class = NULL;
+diff --git a/mm/slab.c b/mm/slab.c
+index eb2b2ea..f34e053 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -3076,7 +3076,7 @@ static void *____cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
+ 	void *obj;
+ 	int x;
  
--	ovhd_size = roundup(sizeof(*pool), PAGE_SIZE);
--	pool = kzalloc(ovhd_size, GFP_KERNEL);
-+	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
- 	if (!pool)
- 		return NULL;
+-	VM_BUG_ON(nodeid > num_online_nodes());
++	VM_BUG_ON(nodeid < 0 || nodeid >= MAX_NUMNODES);
+ 	n = get_node(cachep, nodeid);
+ 	BUG_ON(!n);
  
--- 
-1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
