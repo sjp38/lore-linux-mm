@@ -1,63 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 7488D6B0069
-	for <linux-mm@kvack.org>; Sun, 30 Nov 2014 19:26:46 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id lj1so9919450pab.33
-        for <linux-mm@kvack.org>; Sun, 30 Nov 2014 16:26:46 -0800 (PST)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id g6si26322697pdl.217.2014.11.30.16.26.43
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 267A56B0069
+	for <linux-mm@kvack.org>; Sun, 30 Nov 2014 19:29:31 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id eu11so9867533pac.22
+        for <linux-mm@kvack.org>; Sun, 30 Nov 2014 16:29:30 -0800 (PST)
+Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id gy1si26383536pbd.94.2014.11.30.16.29.28
         for <linux-mm@kvack.org>;
-        Sun, 30 Nov 2014 16:26:45 -0800 (PST)
-Date: Mon, 1 Dec 2014 09:27:03 +0900
+        Sun, 30 Nov 2014 16:29:29 -0800 (PST)
+Date: Mon, 1 Dec 2014 09:29:48 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [mmotm:master 210/397] mm/zsmalloc.c:1021:11: error:
- 'ZS_SIZE_CLASSES' undeclared
-Message-ID: <20141201002703.GB11340@bbox>
-References: <201411271133.qSXTvdQZ%fengguang.wu@intel.com>
- <CADAEsF8RyCBBoxYozCOPXLkeZ0ioM2jPsqn_K-=S35CfkaKohw@mail.gmail.com>
- <CADAEsF-FBqDFp4LjeYoTC5=nPOh7qsdb6h9kOdt2sVPhFE=z9w@mail.gmail.com>
+Subject: Re: [RFC PATCH] mm/zsmalloc: allocate exactly size of struct zs_pool
+Message-ID: <20141201002948.GC11340@bbox>
+References: <1417260235-32053-1-git-send-email-opensource.ganesh@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <CADAEsF-FBqDFp4LjeYoTC5=nPOh7qsdb6h9kOdt2sVPhFE=z9w@mail.gmail.com>
+In-Reply-To: <1417260235-32053-1-git-send-email-opensource.ganesh@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+Cc: ngupta@vflare.org, ddstreet@ieee.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello,
+On Sat, Nov 29, 2014 at 07:23:55PM +0800, Ganesh Mahendran wrote:
+> In zs_create_pool(), we allocate memory more then sizeof(struct zs_pool)
+>   ovhd_size = roundup(sizeof(*pool), PAGE_SIZE);
+> 
+> This patch allocate memory of exactly needed size.
+> 
+> Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Acked-by: Minchan Kim <minchan@kernel.org>
 
-On Thu, Nov 27, 2014 at 10:12:49PM +0800, Ganesh Mahendran wrote:
-> Hello:
-> 
-> I know why the build failed.
-> 
-> I sent patch 1 [mm/zsmalloc: avoid duplicate assignment of prev_class]
-> firstly.  It was accept.
-> And then I sent patch 2 [mm/zsmalloc: support allocating obj with size
-> of ZS_MAX_ALLOC_SIZE]. I was accept.
-> 
-> But Dan Streetman <ddstreet@ieee.org> found an issue in patch 1
-> [mm/zsmalloc: avoid duplicate assignment of prev_class].
-> Then the first patch 1 was dropped. But the second patch was *based*
-> on the first patch. So the build is failed on:
-> commit: 304e521b912aa95514a5b66f7d6795d096f15535 [210/397]
-> mm/zsmalloc: support allocating obj with size of ZS_MAX_ALLOC_SIZE
-> which was based on patch 1.
-> 
-> But it is ok after the patch [mm/zsmalloc: avoid duplicate assignment
-> of prev_class].
-> 
-> So what should I do now?
-
-Normally, Andrew Morton is one of kind maintainers who fixes such
-trivial problem by themselves but it doesn't mean we should wait
-on him so what we can do is just make a fix and describe the problem
-and send it to him. Other than that, he will handle.
-
-Thanks.
-
-- 
+-- 
 Kind regards,
 Minchan Kim
 
