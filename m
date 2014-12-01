@@ -1,46 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f172.google.com (mail-vc0-f172.google.com [209.85.220.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 17A2E6B0069
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 11:28:27 -0500 (EST)
-Received: by mail-vc0-f172.google.com with SMTP id hq11so4808431vcb.31
-        for <linux-mm@kvack.org>; Mon, 01 Dec 2014 08:28:26 -0800 (PST)
-Received: from foss-mx-na.foss.arm.com (foss-mx-na.foss.arm.com. [217.140.108.86])
-        by mx.google.com with ESMTP id l108si20988159qgf.94.2014.12.01.08.28.25
-        for <linux-mm@kvack.org>;
-        Mon, 01 Dec 2014 08:28:25 -0800 (PST)
-Date: Mon, 1 Dec 2014 16:28:10 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH v8 10/12] kmemleak: disable kasan instrumentation for
- kmemleak
-Message-ID: <20141201162810.GA13676@localhost>
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
- <1417104057-20335-1-git-send-email-a.ryabinin@samsung.com>
- <1417104057-20335-11-git-send-email-a.ryabinin@samsung.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1417104057-20335-11-git-send-email-a.ryabinin@samsung.com>
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id E85726B0069
+	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 11:47:25 -0500 (EST)
+Received: by mail-ig0-f178.google.com with SMTP id hl2so9153172igb.17
+        for <linux-mm@kvack.org>; Mon, 01 Dec 2014 08:47:25 -0800 (PST)
+Received: from resqmta-po-01v.sys.comcast.net (resqmta-po-01v.sys.comcast.net. [2001:558:fe16:19:96:114:154:160])
+        by mx.google.com with ESMTPS id q6si4548016igr.15.2014.12.01.08.47.23
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Mon, 01 Dec 2014 08:47:23 -0800 (PST)
+Date: Mon, 1 Dec 2014 10:45:21 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [LSF/MM ATTEND] Expanding OS noise suppression
+In-Reply-To: <alpine.DEB.2.11.1411241345250.10694@gentwo.org>
+Message-ID: <alpine.DEB.2.11.1412011044450.2648@gentwo.org>
+References: <alpine.DEB.2.11.1411241345250.10694@gentwo.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <a.ryabinin@samsung.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: lsf-pc@lists.linux-foundation.org
+Cc: linux-mm@kvack.org, Frederic Weisbecker <fweisbec@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Thu, Nov 27, 2014 at 04:00:54PM +0000, Andrey Ryabinin wrote:
-> kmalloc internally round up allocation size, and kmemleak
-> uses rounded up size as object's size. This makes kasan
-> to complain while kmemleak scans memory or calculates of object's
-> checksum. The simplest solution here is to disable kasan.
+Sorry the list address was not correct
 
-This would indeed be the simplest since by the time kmemleak callbacks
-get called (from slub) we lose the original size information (especially
-for kmem_cache_alloc).
+On Mon, 24 Nov 2014, Christoph Lameter wrote:
 
-> Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
-> ---
->  mm/kmemleak.c | 6 ++++++
->  1 file changed, 6 insertions(+)
-
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+> Recently a lot of work has been done in the kernel to be able to keep OS
+> threads off low latency cores with the NOHZ work mainly pushed by Frederic
+> Weisbecker (also also Paul McKenney modifying RCU for that purpose). With
+> that approach we may now reduce the timer tick to a frequency of 1 per
+> second. The result of that work is now available in Redhat 7.
+>
+> I have recently submitted work on the vmstat kworkers that makes the
+> kworkers run on demand with a shepherd worker checking from a non low
+> latency processor if there is actual work to be done on a processor in low
+> latency mode. If not then the kworker requests can be avoided and
+> therefore activities on that processor are reduced. This approach can be
+> extended to cover other necessary activities on low latency cores.
+>
+> There is other work in progress to limit unbound kworker threads to no
+> NOHZ processors. Also more work is in flight to work on various issues in
+> the scheduler to enable us to hold off the timer tick for more than one
+> second.
+>
+> There are numerous other issues that can impact on a low latency core from
+> the memory management system. I would like to discuss ways that we can
+> further ensure that OS activities do not impact latency critical threads
+> running on special nohz cores.
+>
+> This may cover:
+>  - minor and major faults and how to suppress them effectively.
+>  - Processor cache impacts by sibling threads.
+>  - IPIs
+>  - Control over various subsystem specific per cpu threads.
+>  - Control impacts of scans for defragmentation and THP on these cores.
+>
+> There was a recent discussion on the subject matter on lkml that mentions
+> a number of the pending issues in this area:
+>
+> https://lkml.org/lkml/2014/11/11/679
+> https://lkml.org/lkml/2014/10/31/364
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
