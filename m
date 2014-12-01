@@ -1,74 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id AEA736B0069
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 03:52:28 -0500 (EST)
-Received: by mail-pd0-f173.google.com with SMTP id ft15so10473588pdb.4
-        for <linux-mm@kvack.org>; Mon, 01 Dec 2014 00:52:28 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id ko6si27862554pab.94.2014.12.01.00.52.25
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 94A516B0069
+	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 04:22:34 -0500 (EST)
+Received: by mail-pd0-f169.google.com with SMTP id fp1so10394966pdb.14
+        for <linux-mm@kvack.org>; Mon, 01 Dec 2014 01:22:34 -0800 (PST)
+Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
+        by mx.google.com with ESMTPS id y7si27909119pdj.154.2014.12.01.01.22.32
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Dec 2014 00:52:26 -0800 (PST)
-Message-ID: <1417423941.25107.2.camel@concordia>
-Subject: Re: [PATCH v2] slab: Fix nodeid bounds check for non-contiguous
- node IDs
-From: Michael Ellerman <mpe@ellerman.id.au>
-Date: Mon, 01 Dec 2014 19:52:21 +1100
-In-Reply-To: <20141201052448.GC11234@drongo>
+        Mon, 01 Dec 2014 01:22:33 -0800 (PST)
+Received: from compute1.internal (compute1.nyi.internal [10.202.2.41])
+	by mailout.nyi.internal (Postfix) with ESMTP id 8A85C20B39
+	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 04:22:29 -0500 (EST)
+Message-ID: <547C3353.9030502@iki.fi>
+Date: Mon, 01 Dec 2014 11:22:27 +0200
+From: Pekka Enberg <penberg@iki.fi>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2] slab: Fix nodeid bounds check for non-contiguous node
+ IDs
 References: <20141201042844.GB11234@drongo>
-	 <1417410134.16178.2.camel@concordia> <20141201052448.GC11234@drongo>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+In-Reply-To: <20141201042844.GB11234@drongo>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Mackerras <paulus@samba.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@kernel.org>, linuxppc-dev@ozlabs.org, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, 2014-12-01 at 16:24 +1100, Paul Mackerras wrote:
-> On Mon, Dec 01, 2014 at 04:02:14PM +1100, Michael Ellerman wrote:
-> > On Mon, 2014-12-01 at 15:28 +1100, Paul Mackerras wrote:
-> > > The bounds check for nodeid in ____cache_alloc_node gives false
-> > > positives on machines where the node IDs are not contiguous, leading
-> > > to a panic at boot time.  For example, on a POWER8 machine the node
-> > > IDs are typically 0, 1, 16 and 17.  This means that num_online_nodes()
-> > > returns 4, so when ____cache_alloc_node is called with nodeid = 16 the
-> > > VM_BUG_ON triggers, like this:
-> > ...
-> > > 
-> > > To fix this, we instead compare the nodeid with MAX_NUMNODES, and
-> > > additionally make sure it isn't negative (since nodeid is an int).
-> > > The check is there mainly to protect the array dereference in the
-> > > get_node() call in the next line, and the array being dereferenced is
-> > > of size MAX_NUMNODES.  If the nodeid is in range but invalid (for
-> > > example if the node is off-line), the BUG_ON in the next line will
-> > > catch that.
-> > 
-> > When did this break? How come we only just noticed?
-> 
-> Commit 14e50c6a9bc2, which went into 3.10-rc1.
+On 12/1/14 6:28 AM, Paul Mackerras wrote:
+> ---
+> v2: include the oops message in the patch description
+>
+>   mm/slab.c | 2 +-
+>   1 file changed, 1 insertion(+), 1 deletion(-)
+>
+> diff --git a/mm/slab.c b/mm/slab.c
+> index eb2b2ea..f34e053 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -3076,7 +3076,7 @@ static void *____cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
+>   	void *obj;
+>   	int x;
+>   
+> -	VM_BUG_ON(nodeid > num_online_nodes());
+> +	VM_BUG_ON(nodeid < 0 || nodeid >= MAX_NUMNODES);
+>   	n = get_node(cachep, nodeid);
+>   	BUG_ON(!n);
 
-OK. So a Fixes tag is nice:
-
-Fixes: 14e50c6a9bc2 ("mm: slab: Verify the nodeid passed to ____cache_alloc_node")
-
-> You'll only notice if you have CONFIG_SLAB=y and CONFIG_DEBUG_VM=y
-> and you're running on a machine with discontiguous node IDs.
-
-Right. And we have SLUB=y for all the defconfigs that are likely to hit that.
-
-> > Also needs:
-> > 
-> > Cc: stable@vger.kernel.org
-> 
-> It does.  I remembered that a minute after I sent the patch.
-
-OK. Hopefully one of the slab maintainers will be happy to add it for us when
-they merge this?
-
-cheers
-
-
+Reviewed-by: Pekka Enberg <penberg@kernel.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
