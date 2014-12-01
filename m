@@ -1,51 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 1970F6B006E
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 18:30:48 -0500 (EST)
-Received: by mail-wg0-f44.google.com with SMTP id b13so15607364wgh.3
-        for <linux-mm@kvack.org>; Mon, 01 Dec 2014 15:30:46 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id j7si27139813wiz.40.2014.12.01.15.30.46
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A8006B006E
+	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 18:48:17 -0500 (EST)
+Received: by mail-ig0-f170.google.com with SMTP id r2so15414908igi.3
+        for <linux-mm@kvack.org>; Mon, 01 Dec 2014 15:48:16 -0800 (PST)
+Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
+        by mx.google.com with ESMTPS id cy14si13477200igc.10.2014.12.01.15.48.11
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Dec 2014 15:30:46 -0800 (PST)
-Date: Mon, 1 Dec 2014 18:30:40 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch] mm, oom: remove gfp helper function
-Message-ID: <20141201233040.GB29642@phnom.home.cmpxchg.org>
-References: <alpine.DEB.2.10.1411261416480.13014@chino.kir.corp.google.com>
- <20141127102547.GA18833@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141127102547.GA18833@dhcp22.suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 01 Dec 2014 15:48:14 -0800 (PST)
+Message-ID: <1417473849.7182.9.camel@kernel.crashing.org>
+Subject: Re: [PATCH 03/10] mm: Convert p[te|md]_numa users to
+ p[te|md]_protnone_numa
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Tue, 02 Dec 2014 09:44:09 +1100
+In-Reply-To: <1416578268-19597-4-git-send-email-mgorman@suse.de>
+References: <1416578268-19597-1-git-send-email-mgorman@suse.de>
+	 <1416578268-19597-4-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Qiang Huang <h.huangqiang@huawei.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LinuxPPC-dev <linuxppc-dev@lists.ozlabs.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@redhat.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Sasha Levin <sasha.levin@oracle.com>, Paul Mackerras <paulus@samba.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Thu, Nov 27, 2014 at 11:25:47AM +0100, Michal Hocko wrote:
-> On Wed 26-11-14 14:17:32, David Rientjes wrote:
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -2706,7 +2706,7 @@ rebalance:
-> >  	 * running out of options and have to consider going OOM
-> >  	 */
-> >  	if (!did_some_progress) {
-> > -		if (oom_gfp_allowed(gfp_mask)) {
-> 		/*
-> 		 * Do not attempt to trigger OOM killer for !__GFP_FS
-> 		 * allocations because it would be premature to kill
-> 		 * anything just because the reclaim is stuck on
-> 		 * dirty/writeback pages.
-> 		 * __GFP_NORETRY allocations might fail and so the OOM
-> 		 * would be more harmful than useful.
-> 		 */
+On Fri, 2014-11-21 at 13:57 +0000, Mel Gorman wrote:
+> void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
+>                 pte_t pte)
+>  {
+> -#ifdef CONFIG_DEBUG_VM
+> -       WARN_ON(pte_val(*ptep) & _PAGE_PRESENT);
+> -#endif
+> +       /*
+> +        * When handling numa faults, we already have the pte marked
+> +        * _PAGE_PRESENT, but we can be sure that it is not in hpte.
+> +        * Hence we can use set_pte_at for them.
+> +        */
+> +       VM_WARN_ON((pte_val(*ptep) & (_PAGE_PRESENT | _PAGE_USER)) ==
+> +               (_PAGE_PRESENT | _PAGE_USER));
+> +
 
-I don't think we need to explain the individual flags, but it would
-indeed be useful to remark here that we shouldn't OOM kill from
-allocations contexts with (severely) limited reclaim abilities.
+His is that going to fare with set_pte_at() called for kernel pages ?
+
+Cheers,
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
