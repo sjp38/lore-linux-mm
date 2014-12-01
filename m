@@ -1,177 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 8617E6B0069
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 00:47:04 -0500 (EST)
-Received: by mail-pd0-f172.google.com with SMTP id y13so10186387pdi.17
-        for <linux-mm@kvack.org>; Sun, 30 Nov 2014 21:47:04 -0800 (PST)
-Received: from e28smtp02.in.ibm.com (e28smtp02.in.ibm.com. [122.248.162.2])
-        by mx.google.com with ESMTPS id zv1si27041252pbb.220.2014.11.30.21.47.00
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id B89CD6B0069
+	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 01:46:13 -0500 (EST)
+Received: by mail-pd0-f171.google.com with SMTP id y13so10269523pdi.16
+        for <linux-mm@kvack.org>; Sun, 30 Nov 2014 22:46:13 -0800 (PST)
+Received: from fgwmail5.fujitsu.co.jp (fgwmail5.fujitsu.co.jp. [192.51.44.35])
+        by mx.google.com with ESMTPS id oo1si27325276pdb.214.2014.11.30.22.46.11
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 30 Nov 2014 21:47:03 -0800 (PST)
-Received: from /spool/local
-	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 1 Dec 2014 11:16:55 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 32AD3E0053
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 11:17:19 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay04.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id sB15lQeP63307996
-	for <linux-mm@kvack.org>; Mon, 1 Dec 2014 11:17:27 +0530
-Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id sB15koFU011579
-	for <linux-mm@kvack.org>; Mon, 1 Dec 2014 11:16:50 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH V2] mm/thp: Allocate transparent hugepages on local node
-Date: Mon,  1 Dec 2014 11:16:43 +0530
-Message-Id: <1417412803-27234-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 30 Nov 2014 22:46:12 -0800 (PST)
+Received: from kw-mxq.gw.nic.fujitsu.com (unknown [10.0.237.131])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 9FED43EE1D7
+	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 15:46:09 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by kw-mxq.gw.nic.fujitsu.com (Postfix) with ESMTP id BCE46AC02C3
+	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 15:46:08 +0900 (JST)
+Received: from g01jpfmpwyt02.exch.g01.fujitsu.local (g01jpfmpwyt02.exch.g01.fujitsu.local [10.128.193.56])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4A2EAE08006
+	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 15:46:08 +0900 (JST)
+Message-ID: <547C0E4E.4020605@jp.fujitsu.com>
+Date: Mon, 1 Dec 2014 15:44:30 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: unmapped page migration avoid unmap+remap overhead
+References: <alpine.LSU.2.11.1411302046420.5335@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1411302046420.5335@eggly.anvils>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, "Kirill A. Shutemov" <kirill@shutemov.name>, David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This make sure that we try to allocate hugepages from local node if
-allowed by mempolicy. If we can't, we fallback to small page allocation
-based on mempolicy. This is based on the observation that allocating pages
-on local node is more beneficial that allocating hugepages on remote node.
+(2014/12/01 13:52), Hugh Dickins wrote:
+> Page migration's __unmap_and_move(), and rmap's try_to_unmap(),
+> were created for use on pages almost certainly mapped into userspace.
+> But nowadays compaction often applies them to unmapped page cache pages:
+> which may exacerbate contention on i_mmap_rwsem quite unnecessarily,
+> since try_to_unmap_file() makes no preliminary page_mapped() check.
+>
+> Now check page_mapped() in __unmap_and_move(); and avoid repeating the
+> same overhead in rmap_walk_file() - don't remove_migration_ptes() when
+> we never inserted any.
+>
+> (The PageAnon(page) comment blocks now look even sillier than before,
+> but clean that up on some other occasion.  And note in passing that
+> try_to_unmap_one() does not use a migration entry when PageSwapCache,
+> so remove_migration_ptes() will then not update that swap entry to
+> newpage pte: not a big deal, but something else to clean up later.)
+>
+> Davidlohr remarked in "mm,fs: introduce helpers around the i_mmap_mutex"
+> conversion to i_mmap_rwsem, that "The biggest winner of these changes
+> is migration": a part of the reason might be all of that unnecessary
+> taking of i_mmap_mutex in page migration; and it's rather a shame that
+> I didn't get around to sending this patch in before his - this one is
+> much less useful after Davidlohr's conversion to rwsem, but still good.
+>
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> ---
+>
+>   mm/migrate.c |   28 ++++++++++++++++++----------
+>   1 file changed, 18 insertions(+), 10 deletions(-)
+>
+> --- 3.18-rc7/mm/migrate.c	2014-10-19 22:12:56.809625067 -0700
+> +++ linux/mm/migrate.c	2014-11-30 20:17:51.205187663 -0800
+> @@ -746,7 +746,7 @@ static int fallback_migrate_page(struct
+>    *  MIGRATEPAGE_SUCCESS - success
+>    */
+>   static int move_to_new_page(struct page *newpage, struct page *page,
+> -				int remap_swapcache, enum migrate_mode mode)
+> +				int page_was_mapped, enum migrate_mode mode)
+>   {
+>   	struct address_space *mapping;
+>   	int rc;
+> @@ -784,7 +784,7 @@ static int move_to_new_page(struct page
+>   		newpage->mapping = NULL;
+>   	} else {
+>   		mem_cgroup_migrate(page, newpage, false);
+> -		if (remap_swapcache)
+> +		if (page_was_mapped)
+>   			remove_migration_ptes(page, newpage);
+>   		page->mapping = NULL;
+>   	}
+> @@ -798,7 +798,7 @@ static int __unmap_and_move(struct page
+>   				int force, enum migrate_mode mode)
+>   {
+>   	int rc = -EAGAIN;
+> -	int remap_swapcache = 1;
+> +	int page_was_mapped = 0;
+>   	struct anon_vma *anon_vma = NULL;
+>
+>   	if (!trylock_page(page)) {
+> @@ -870,7 +870,6 @@ static int __unmap_and_move(struct page
+>   			 * migrated but are not remapped when migration
+>   			 * completes
+>   			 */
+> -			remap_swapcache = 0;
+>   		} else {
+>   			goto out_unlock;
+>   		}
+> @@ -910,13 +909,17 @@ static int __unmap_and_move(struct page
+>   	}
+>
+>   	/* Establish migration ptes or remove ptes */
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
- include/linux/gfp.h |  4 ++++
- mm/huge_memory.c    | 24 +++++++++---------------
- mm/mempolicy.c      | 40 ++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 53 insertions(+), 15 deletions(-)
+> -	try_to_unmap(page, TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
+> +	if (page_mapped(page)) {
+> +		try_to_unmap(page,
+> +			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
+> +		page_was_mapped = 1;
+> +	}
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 41b30fd4d041..fcbd017b4fb4 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -338,11 +338,15 @@ alloc_pages(gfp_t gfp_mask, unsigned int order)
- extern struct page *alloc_pages_vma(gfp_t gfp_mask, int order,
- 			struct vm_area_struct *vma, unsigned long addr,
- 			int node);
-+extern struct page *alloc_hugepage_vma(gfp_t gfp, struct vm_area_struct *vma,
-+				       unsigned long addr, int order);
- #else
- #define alloc_pages(gfp_mask, order) \
- 		alloc_pages_node(numa_node_id(), gfp_mask, order)
- #define alloc_pages_vma(gfp_mask, order, vma, addr, node)	\
- 	alloc_pages(gfp_mask, order)
-+#define alloc_hugepage_vma(gfp_mask, vma, addr, order)	\
-+	alloc_pages(gfp_mask, order)
- #endif
- #define alloc_page(gfp_mask) alloc_pages(gfp_mask, 0)
- #define alloc_page_vma(gfp_mask, vma, addr)			\
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index de984159cf0b..7903eb995b7f 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -766,15 +766,6 @@ static inline gfp_t alloc_hugepage_gfpmask(int defrag, gfp_t extra_gfp)
- 	return (GFP_TRANSHUGE & ~(defrag ? 0 : __GFP_WAIT)) | extra_gfp;
- }
- 
--static inline struct page *alloc_hugepage_vma(int defrag,
--					      struct vm_area_struct *vma,
--					      unsigned long haddr, int nd,
--					      gfp_t extra_gfp)
--{
--	return alloc_pages_vma(alloc_hugepage_gfpmask(defrag, extra_gfp),
--			       HPAGE_PMD_ORDER, vma, haddr, nd);
--}
--
- /* Caller must hold page table lock. */
- static bool set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
- 		struct vm_area_struct *vma, unsigned long haddr, pmd_t *pmd,
-@@ -796,6 +787,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 			       unsigned long address, pmd_t *pmd,
- 			       unsigned int flags)
- {
-+	gfp_t gfp;
- 	struct page *page;
- 	unsigned long haddr = address & HPAGE_PMD_MASK;
- 
-@@ -830,8 +822,8 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		}
- 		return 0;
- 	}
--	page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
--			vma, haddr, numa_node_id(), 0);
-+	gfp = alloc_hugepage_gfpmask(transparent_hugepage_defrag(vma), 0);
-+	page = alloc_hugepage_vma(gfp, vma, haddr, HPAGE_PMD_ORDER);
- 	if (unlikely(!page)) {
- 		count_vm_event(THP_FAULT_FALLBACK);
- 		return VM_FAULT_FALLBACK;
-@@ -1119,10 +1111,12 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	spin_unlock(ptl);
- alloc:
- 	if (transparent_hugepage_enabled(vma) &&
--	    !transparent_hugepage_debug_cow())
--		new_page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
--					      vma, haddr, numa_node_id(), 0);
--	else
-+	    !transparent_hugepage_debug_cow()) {
-+		gfp_t gfp;
-+
-+		gfp = alloc_hugepage_gfpmask(transparent_hugepage_defrag(vma), 0);
-+		new_page = alloc_hugepage_vma(gfp, vma, haddr, HPAGE_PMD_ORDER);
-+	} else
- 		new_page = NULL;
- 
- 	if (unlikely(!new_page)) {
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index e58725aff7e9..fa96af5b31f7 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -2041,6 +2041,46 @@ retry_cpuset:
- 	return page;
- }
- 
-+struct page *alloc_hugepage_vma(gfp_t gfp, struct vm_area_struct *vma,
-+				unsigned long addr, int order)
-+{
-+	struct page *page;
-+	nodemask_t *nmask;
-+	struct mempolicy *pol;
-+	int node = numa_node_id();
-+	unsigned int cpuset_mems_cookie;
-+
-+retry_cpuset:
-+	pol = get_vma_policy(vma, addr);
-+	cpuset_mems_cookie = read_mems_allowed_begin();
-+
-+	if (pol->mode != MPOL_INTERLEAVE) {
-+		/*
-+		 * For interleave policy, we don't worry about
-+		 * current node. Otherwise if current node is
-+		 * in nodemask, try to allocate hugepage from
-+		 * current node. Don't fall back to other nodes
-+		 * for THP.
-+		 */
-+		nmask = policy_nodemask(gfp, pol);
-+		if (!nmask || node_isset(node, *nmask)) {
-+			mpol_cond_put(pol);
-+			page = alloc_pages_exact_node(node, gfp, order);
-+			if (unlikely(!page &&
-+				     read_mems_allowed_retry(cpuset_mems_cookie)))
-+				goto retry_cpuset;
-+			return page;
-+		}
-+	}
-+	mpol_cond_put(pol);
-+	/*
-+	 * if current node is not part of node mask, try
-+	 * the allocation from any node, and we can do retry
-+	 * in that case.
-+	 */
-+	return alloc_pages_vma(gfp, order, vma, addr, node);
-+}
-+
- /**
-  * 	alloc_pages_current - Allocate pages.
-  *
--- 
-2.1.0
+Is there no possibility that page is swap cache? If page is swap cache,
+this code changes behavior of move_to_new_page(). Is it O.K.?
+
+Thanks,
+Yasuaki Ishimatsu
+
+>
+>   skip_unmap:
+>   	if (!page_mapped(page))
+> -		rc = move_to_new_page(newpage, page, remap_swapcache, mode);
+> +		rc = move_to_new_page(newpage, page, page_was_mapped, mode);
+>
+> -	if (rc && remap_swapcache)
+> +	if (rc && page_was_mapped)
+>   		remove_migration_ptes(page, page);
+>
+>   	/* Drop an anon_vma reference if we took one */
+> @@ -1017,6 +1020,7 @@ static int unmap_and_move_huge_page(new_
+>   {
+>   	int rc = 0;
+>   	int *result = NULL;
+> +	int page_was_mapped = 0;
+>   	struct page *new_hpage;
+>   	struct anon_vma *anon_vma = NULL;
+>
+> @@ -1047,12 +1051,16 @@ static int unmap_and_move_huge_page(new_
+>   	if (PageAnon(hpage))
+>   		anon_vma = page_get_anon_vma(hpage);
+>
+> -	try_to_unmap(hpage, TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
+> +	if (page_mapped(hpage)) {
+> +		try_to_unmap(hpage,
+> +			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
+> +		page_was_mapped = 1;
+> +	}
+>
+>   	if (!page_mapped(hpage))
+> -		rc = move_to_new_page(new_hpage, hpage, 1, mode);
+> +		rc = move_to_new_page(new_hpage, hpage, page_was_mapped, mode);
+>
+> -	if (rc != MIGRATEPAGE_SUCCESS)
+> +	if (rc != MIGRATEPAGE_SUCCESS && page_was_mapped)
+>   		remove_migration_ptes(hpage, hpage);
+>
+>   	if (anon_vma)
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
