@@ -1,72 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id E85726B0069
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 11:47:25 -0500 (EST)
-Received: by mail-ig0-f178.google.com with SMTP id hl2so9153172igb.17
-        for <linux-mm@kvack.org>; Mon, 01 Dec 2014 08:47:25 -0800 (PST)
-Received: from resqmta-po-01v.sys.comcast.net (resqmta-po-01v.sys.comcast.net. [2001:558:fe16:19:96:114:154:160])
-        by mx.google.com with ESMTPS id q6si4548016igr.15.2014.12.01.08.47.23
+Received: from mail-qc0-f179.google.com (mail-qc0-f179.google.com [209.85.216.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F1D86B006E
+	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 11:47:47 -0500 (EST)
+Received: by mail-qc0-f179.google.com with SMTP id c9so8043032qcz.10
+        for <linux-mm@kvack.org>; Mon, 01 Dec 2014 08:47:47 -0800 (PST)
+Received: from mail-qc0-x229.google.com (mail-qc0-x229.google.com. [2607:f8b0:400d:c01::229])
+        by mx.google.com with ESMTPS id a18si15561815qai.69.2014.12.01.08.47.46
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Mon, 01 Dec 2014 08:47:23 -0800 (PST)
-Date: Mon, 1 Dec 2014 10:45:21 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [LSF/MM ATTEND] Expanding OS noise suppression
-In-Reply-To: <alpine.DEB.2.11.1411241345250.10694@gentwo.org>
-Message-ID: <alpine.DEB.2.11.1412011044450.2648@gentwo.org>
-References: <alpine.DEB.2.11.1411241345250.10694@gentwo.org>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 01 Dec 2014 08:47:46 -0800 (PST)
+Received: by mail-qc0-f169.google.com with SMTP id w7so7969566qcr.14
+        for <linux-mm@kvack.org>; Mon, 01 Dec 2014 08:47:46 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <1417435485-24629-1-git-send-email-raindel@mellanox.com>
+References: <1417435485-24629-1-git-send-email-raindel@mellanox.com>
+Date: Mon, 1 Dec 2014 08:47:45 -0800
+Message-ID: <CA+55aFxRvL9qtCLTTCZZ-kus4yQjFRp_NSZcB1bdB_LJ-qBtow@mail.gmail.com>
+Subject: Re: [PATCH 0/5] Refactor do_wp_page, no functional change
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: linux-mm@kvack.org, Frederic Weisbecker <fweisbec@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Shachar Raindel <raindel@mellanox.com>
+Cc: linux-mm <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Haggai Eran <haggaie@mellanox.com>, Andrea Arcangeli <aarcange@redhat.com>, Peter Feiner <pfeiner@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Sagi Grimberg <sagig@mellanox.com>, Michel Lespinasse <walken@google.com>
 
-Sorry the list address was not correct
+On Mon, Dec 1, 2014 at 4:04 AM, Shachar Raindel <raindel@mellanox.com> wrote:
+>
+> The patches have been tested using trinity on a KVM machine with 4
+> vCPU, with all possible kernel debugging options enabled. So far, we
+> have not seen any regressions. We have also tested the patches with
+> internal tests we have that stress the MMU notifiers, again without
+> seeing any issues.
 
-On Mon, 24 Nov 2014, Christoph Lameter wrote:
+Looks good. Please take Kirill's feedback, but apart from that:
 
-> Recently a lot of work has been done in the kernel to be able to keep OS
-> threads off low latency cores with the NOHZ work mainly pushed by Frederic
-> Weisbecker (also also Paul McKenney modifying RCU for that purpose). With
-> that approach we may now reduce the timer tick to a frequency of 1 per
-> second. The result of that work is now available in Redhat 7.
->
-> I have recently submitted work on the vmstat kworkers that makes the
-> kworkers run on demand with a shepherd worker checking from a non low
-> latency processor if there is actual work to be done on a processor in low
-> latency mode. If not then the kworker requests can be avoided and
-> therefore activities on that processor are reduced. This approach can be
-> extended to cover other necessary activities on low latency cores.
->
-> There is other work in progress to limit unbound kworker threads to no
-> NOHZ processors. Also more work is in flight to work on various issues in
-> the scheduler to enable us to hold off the timer tick for more than one
-> second.
->
-> There are numerous other issues that can impact on a low latency core from
-> the memory management system. I would like to discuss ways that we can
-> further ensure that OS activities do not impact latency critical threads
-> running on special nohz cores.
->
-> This may cover:
->  - minor and major faults and how to suppress them effectively.
->  - Processor cache impacts by sibling threads.
->  - IPIs
->  - Control over various subsystem specific per cpu threads.
->  - Control impacts of scans for defragmentation and THP on these cores.
->
-> There was a recent discussion on the subject matter on lkml that mentions
-> a number of the pending issues in this area:
->
-> https://lkml.org/lkml/2014/11/11/679
-> https://lkml.org/lkml/2014/10/31/364
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+  Acked-by: Linus Torvalds <torvalds@linux-foundation.org>
+
+(I assume this will come in through -mm as usual - Andrew, holler if not).
+
+                     Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
