@@ -1,141 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id CDFDA6B0071
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 15:58:24 -0500 (EST)
-Received: by mail-wi0-f180.google.com with SMTP id n3so18836198wiv.1
-        for <linux-mm@kvack.org>; Mon, 01 Dec 2014 12:58:24 -0800 (PST)
-Received: from mellanox.co.il ([193.47.165.129])
-        by mx.google.com with ESMTP id y8si31871721wjx.160.2014.12.01.12.58.23
-        for <linux-mm@kvack.org>;
-        Mon, 01 Dec 2014 12:58:24 -0800 (PST)
-From: Shachar Raindel <raindel@mellanox.com>
-Subject: [PATCH v2 4/4] mm: Refactor do_wp_page handling of shared vma into a function
-Date: Mon,  1 Dec 2014 22:58:11 +0200
-Message-Id: <1417467491-20071-5-git-send-email-raindel@mellanox.com>
-In-Reply-To: <1417467491-20071-1-git-send-email-raindel@mellanox.com>
-References: <1417467491-20071-1-git-send-email-raindel@mellanox.com>
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C22E6B0069
+	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 16:06:13 -0500 (EST)
+Received: by mail-ig0-f171.google.com with SMTP id z20so9727203igj.16
+        for <linux-mm@kvack.org>; Mon, 01 Dec 2014 13:06:13 -0800 (PST)
+Received: from mail-ig0-x236.google.com (mail-ig0-x236.google.com. [2607:f8b0:4001:c05::236])
+        by mx.google.com with ESMTPS id z8si12400153igl.46.2014.12.01.13.06.11
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 01 Dec 2014 13:06:12 -0800 (PST)
+Received: by mail-ig0-f182.google.com with SMTP id hn15so9637757igb.9
+        for <linux-mm@kvack.org>; Mon, 01 Dec 2014 13:06:11 -0800 (PST)
+Date: Mon, 1 Dec 2014 13:06:09 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2] slab: Fix nodeid bounds check for non-contiguous node
+ IDs
+In-Reply-To: <20141201042844.GB11234@drongo>
+Message-ID: <alpine.DEB.2.10.1412011305560.16984@chino.kir.corp.google.com>
+References: <20141201042844.GB11234@drongo>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: kirill.shutemov@linux.intel.com, mgorman@suse.de, riel@redhat.com, ak@linux.intel.com, matthew.r.wilcox@intel.com, dave.hansen@linux.intel.com, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, torvalds@linux-foundation.org, haggaie@mellanox.com, aarcange@redhat.com, pfeiner@google.com, hannes@cmpxchg.org, sagig@mellanox.com, walken@google.com, raindel@mellanox.com
+To: Paul Mackerras <paulus@samba.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
 
-The do_wp_page function is extremely long. Extract the logic for
-handling a page belonging to a shared vma into a function of its own.
+On Mon, 1 Dec 2014, Paul Mackerras wrote:
 
-This helps the readability of the code, without doing any functional
-change in it.
+> The bounds check for nodeid in ____cache_alloc_node gives false
+> positives on machines where the node IDs are not contiguous, leading
+> to a panic at boot time.  For example, on a POWER8 machine the node
+> IDs are typically 0, 1, 16 and 17.  This means that num_online_nodes()
+> returns 4, so when ____cache_alloc_node is called with nodeid = 16 the
+> VM_BUG_ON triggers, like this:
+> 
+> kernel BUG at /home/paulus/kernel/kvm/mm/slab.c:3079!
+> Oops: Exception in kernel mode, sig: 5 [#1]
+> SMP NR_CPUS=1024 NUMA PowerNV
+> Modules linked in:
+> CPU: 0 PID: 0 Comm: swapper Not tainted 3.18.0-rc5-kvm+ #17
+> task: c0000000013ba230 ti: c000000001494000 task.ti: c000000001494000
+> NIP: c000000000264f6c LR: c000000000264f5c CTR: 0000000000000000
+> REGS: c0000000014979a0 TRAP: 0700   Not tainted  (3.18.0-rc5-kvm+)
+> MSR: 9000000002021032 <SF,HV,VEC,ME,IR,DR,RI>  CR: 28000448  XER: 20000000
+> CFAR: c00000000047e978 SOFTE: 0
+> GPR00: c000000000264f5c c000000001497c20 c000000001499d48 0000000000000004
+> GPR04: 0000000000000100 0000000000000010 0000000000000068 ffffffffffffffff
+> GPR08: 0000000000000000 0000000000000001 00000000082d0000 c000000000cca5a8
+> GPR12: 0000000048000448 c00000000fda0000 000001003bd44ff0 0000000010020578
+> GPR16: 000001003bd44ff8 000001003bd45000 0000000000000001 0000000000000000
+> GPR20: 0000000000000000 0000000000000000 0000000000000000 0000000000000010
+> GPR24: c000000ffe000080 c000000000c824ec 0000000000000068 c000000ffe000080
+> GPR28: 0000000000000010 c000000ffe000080 0000000000000010 0000000000000000
+> NIP [c000000000264f6c] .____cache_alloc_node+0x6c/0x270
+> LR [c000000000264f5c] .____cache_alloc_node+0x5c/0x270
+> Call Trace:
+> [c000000001497c20] [c000000000264f5c] .____cache_alloc_node+0x5c/0x270 (unreliable)
+> [c000000001497cf0] [c00000000026552c] .kmem_cache_alloc_node_trace+0xdc/0x360
+> [c000000001497dc0] [c000000000c824ec] .init_list+0x3c/0x128
+> [c000000001497e50] [c000000000c827b4] .kmem_cache_init+0x1dc/0x258
+> [c000000001497ef0] [c000000000c54090] .start_kernel+0x2a0/0x568
+> [c000000001497f90] [c000000000008c6c] start_here_common+0x20/0xa8
+> Instruction dump:
+> 7c7d1b78 7c962378 4bda4e91 60000000 3c620004 38800100 386370d8 48219959
+> 60000000 7f83e000 7d301026 5529effe <0b090000> 393c0010 79291f24 7d3d4a14
+> 
+> To fix this, we instead compare the nodeid with MAX_NUMNODES, and
+> additionally make sure it isn't negative (since nodeid is an int).
+> The check is there mainly to protect the array dereference in the
+> get_node() call in the next line, and the array being dereferenced is
+> of size MAX_NUMNODES.  If the nodeid is in range but invalid (for
+> example if the node is off-line), the BUG_ON in the next line will
+> catch that.
+> 
+> Signed-off-by: Paul Mackerras <paulus@samba.org>
 
-Signed-off-by: Shachar Raindel <raindel@mellanox.com>
----
- mm/memory.c | 86 ++++++++++++++++++++++++++++++++++---------------------------
- 1 file changed, 48 insertions(+), 38 deletions(-)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index c7c0df2..e730628 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2227,6 +2227,52 @@ oom:
- 	return VM_FAULT_OOM;
- }
- 
-+static int wp_page_shared(struct mm_struct *mm, struct vm_area_struct *vma,
-+			  unsigned long address, pte_t *page_table,
-+			  pmd_t *pmd, spinlock_t *ptl, pte_t orig_pte,
-+			  struct page *old_page)
-+	__releases(ptl)
-+{
-+	int page_mkwrite = 0;
-+	int ret;
-+
-+	/*
-+	 * Only catch write-faults on shared writable pages, read-only shared
-+	 * pages can get COWed by get_user_pages(.write=1, .force=1).
-+	 */
-+	if (!vma->vm_ops || !vma->vm_ops->page_mkwrite)
-+		goto no_mkwrite;
-+
-+	page_cache_get(old_page);
-+	pte_unmap_unlock(page_table, ptl);
-+	ret = do_page_mkwrite(vma, old_page, address);
-+	if (unlikely(!ret || (ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))) {
-+		page_cache_release(old_page);
-+		return ret;
-+	}
-+	/*
-+	 * Since we dropped the lock we need to revalidate
-+	 * the PTE as someone else may have changed it.  If
-+	 * they did, we just return, as we can count on the
-+	 * MMU to tell us if they didn't also make it writable.
-+	 */
-+	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
-+	if (!pte_same(*page_table, orig_pte)) {
-+		unlock_page(old_page);
-+		pte_unmap_unlock(page_table, ptl);
-+		page_cache_release(old_page);
-+		return 0;
-+	}
-+
-+	page_mkwrite = 1;
-+
-+no_mkwrite:
-+	get_page(old_page);
-+
-+	return wp_page_reuse(mm, vma, address, page_table, ptl, orig_pte,
-+			     old_page, 1, page_mkwrite);
-+}
-+
- /*
-  * This routine handles present pages, when users try to write
-  * to a shared page. It is done by copying the page to a new address
-@@ -2305,44 +2351,8 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		unlock_page(old_page);
- 	} else if (unlikely((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
- 					(VM_WRITE|VM_SHARED))) {
--		int page_mkwrite = 0;
--
--		/*
--		 * Only catch write-faults on shared writable pages,
--		 * read-only shared pages can get COWed by
--		 * get_user_pages(.write=1, .force=1).
--		 */
--		if (vma->vm_ops && vma->vm_ops->page_mkwrite) {
--			int tmp;
--			page_cache_get(old_page);
--			pte_unmap_unlock(page_table, ptl);
--			tmp = do_page_mkwrite(vma, old_page, address);
--			if (unlikely(!tmp || (tmp &
--					(VM_FAULT_ERROR | VM_FAULT_NOPAGE)))) {
--				page_cache_release(old_page);
--				return tmp;
--			}
--			/*
--			 * Since we dropped the lock we need to revalidate
--			 * the PTE as someone else may have changed it.  If
--			 * they did, we just return, as we can count on the
--			 * MMU to tell us if they didn't also make it writable.
--			 */
--			page_table = pte_offset_map_lock(mm, pmd, address,
--							 &ptl);
--			if (!pte_same(*page_table, orig_pte)) {
--				unlock_page(old_page);
--				pte_unmap_unlock(page_table, ptl);
--				page_cache_release(old_page);
--				return 0;
--			}
--
--			page_mkwrite = 1;
--		}
--		get_page(old_page);
--
--		return wp_page_reuse(mm, vma, address, page_table, ptl,
--				     orig_pte, old_page, 1, page_mkwrite);
-+		return wp_page_shared(mm, vma, address, page_table, pmd,
-+				      ptl, orig_pte, old_page);
- 	}
- 
- 	/*
--- 
-1.7.11.2
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
