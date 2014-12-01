@@ -1,94 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 0EF666B0069
-	for <linux-mm@kvack.org>; Sun, 30 Nov 2014 23:29:13 -0500 (EST)
-Received: by mail-pd0-f176.google.com with SMTP id y10so10031969pdj.35
-        for <linux-mm@kvack.org>; Sun, 30 Nov 2014 20:29:12 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id uq12si27054226pab.95.2014.11.30.20.29.10
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 9998A6B0069
+	for <linux-mm@kvack.org>; Sun, 30 Nov 2014 23:52:11 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id fb1so10338304pad.13
+        for <linux-mm@kvack.org>; Sun, 30 Nov 2014 20:52:11 -0800 (PST)
+Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com. [2607:f8b0:400e:c02::232])
+        by mx.google.com with ESMTPS id kb6si11013389pad.26.2014.11.30.20.52.09
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 30 Nov 2014 20:29:11 -0800 (PST)
-Date: Mon, 1 Dec 2014 15:28:44 +1100
-From: Paul Mackerras <paulus@samba.org>
-Subject: [PATCH v2] slab: Fix nodeid bounds check for non-contiguous node IDs
-Message-ID: <20141201042844.GB11234@drongo>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 30 Nov 2014 20:52:10 -0800 (PST)
+Received: by mail-pd0-f178.google.com with SMTP id g10so10171233pdj.9
+        for <linux-mm@kvack.org>; Sun, 30 Nov 2014 20:52:09 -0800 (PST)
+Date: Sun, 30 Nov 2014 20:52:01 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH] mm: unmapped page migration avoid unmap+remap overhead
+Message-ID: <alpine.LSU.2.11.1411302046420.5335@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Davidlohr Bueso <dave@stgolabs.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The bounds check for nodeid in ____cache_alloc_node gives false
-positives on machines where the node IDs are not contiguous, leading
-to a panic at boot time.  For example, on a POWER8 machine the node
-IDs are typically 0, 1, 16 and 17.  This means that num_online_nodes()
-returns 4, so when ____cache_alloc_node is called with nodeid = 16 the
-VM_BUG_ON triggers, like this:
+Page migration's __unmap_and_move(), and rmap's try_to_unmap(),
+were created for use on pages almost certainly mapped into userspace.
+But nowadays compaction often applies them to unmapped page cache pages:
+which may exacerbate contention on i_mmap_rwsem quite unnecessarily,
+since try_to_unmap_file() makes no preliminary page_mapped() check.
 
-kernel BUG at /home/paulus/kernel/kvm/mm/slab.c:3079!
-Oops: Exception in kernel mode, sig: 5 [#1]
-SMP NR_CPUS=1024 NUMA PowerNV
-Modules linked in:
-CPU: 0 PID: 0 Comm: swapper Not tainted 3.18.0-rc5-kvm+ #17
-task: c0000000013ba230 ti: c000000001494000 task.ti: c000000001494000
-NIP: c000000000264f6c LR: c000000000264f5c CTR: 0000000000000000
-REGS: c0000000014979a0 TRAP: 0700   Not tainted  (3.18.0-rc5-kvm+)
-MSR: 9000000002021032 <SF,HV,VEC,ME,IR,DR,RI>  CR: 28000448  XER: 20000000
-CFAR: c00000000047e978 SOFTE: 0
-GPR00: c000000000264f5c c000000001497c20 c000000001499d48 0000000000000004
-GPR04: 0000000000000100 0000000000000010 0000000000000068 ffffffffffffffff
-GPR08: 0000000000000000 0000000000000001 00000000082d0000 c000000000cca5a8
-GPR12: 0000000048000448 c00000000fda0000 000001003bd44ff0 0000000010020578
-GPR16: 000001003bd44ff8 000001003bd45000 0000000000000001 0000000000000000
-GPR20: 0000000000000000 0000000000000000 0000000000000000 0000000000000010
-GPR24: c000000ffe000080 c000000000c824ec 0000000000000068 c000000ffe000080
-GPR28: 0000000000000010 c000000ffe000080 0000000000000010 0000000000000000
-NIP [c000000000264f6c] .____cache_alloc_node+0x6c/0x270
-LR [c000000000264f5c] .____cache_alloc_node+0x5c/0x270
-Call Trace:
-[c000000001497c20] [c000000000264f5c] .____cache_alloc_node+0x5c/0x270 (unreliable)
-[c000000001497cf0] [c00000000026552c] .kmem_cache_alloc_node_trace+0xdc/0x360
-[c000000001497dc0] [c000000000c824ec] .init_list+0x3c/0x128
-[c000000001497e50] [c000000000c827b4] .kmem_cache_init+0x1dc/0x258
-[c000000001497ef0] [c000000000c54090] .start_kernel+0x2a0/0x568
-[c000000001497f90] [c000000000008c6c] start_here_common+0x20/0xa8
-Instruction dump:
-7c7d1b78 7c962378 4bda4e91 60000000 3c620004 38800100 386370d8 48219959
-60000000 7f83e000 7d301026 5529effe <0b090000> 393c0010 79291f24 7d3d4a14
+Now check page_mapped() in __unmap_and_move(); and avoid repeating the
+same overhead in rmap_walk_file() - don't remove_migration_ptes() when
+we never inserted any.
 
-To fix this, we instead compare the nodeid with MAX_NUMNODES, and
-additionally make sure it isn't negative (since nodeid is an int).
-The check is there mainly to protect the array dereference in the
-get_node() call in the next line, and the array being dereferenced is
-of size MAX_NUMNODES.  If the nodeid is in range but invalid (for
-example if the node is off-line), the BUG_ON in the next line will
-catch that.
+(The PageAnon(page) comment blocks now look even sillier than before,
+but clean that up on some other occasion.  And note in passing that
+try_to_unmap_one() does not use a migration entry when PageSwapCache,
+so remove_migration_ptes() will then not update that swap entry to
+newpage pte: not a big deal, but something else to clean up later.)
 
-Signed-off-by: Paul Mackerras <paulus@samba.org>
+Davidlohr remarked in "mm,fs: introduce helpers around the i_mmap_mutex"
+conversion to i_mmap_rwsem, that "The biggest winner of these changes
+is migration": a part of the reason might be all of that unnecessary
+taking of i_mmap_mutex in page migration; and it's rather a shame that
+I didn't get around to sending this patch in before his - this one is
+much less useful after Davidlohr's conversion to rwsem, but still good.
+
+Signed-off-by: Hugh Dickins <hughd@google.com>
 ---
-v2: include the oops message in the patch description
 
- mm/slab.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/migrate.c |   28 ++++++++++++++++++----------
+ 1 file changed, 18 insertions(+), 10 deletions(-)
 
-diff --git a/mm/slab.c b/mm/slab.c
-index eb2b2ea..f34e053 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -3076,7 +3076,7 @@ static void *____cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
- 	void *obj;
- 	int x;
+--- 3.18-rc7/mm/migrate.c	2014-10-19 22:12:56.809625067 -0700
++++ linux/mm/migrate.c	2014-11-30 20:17:51.205187663 -0800
+@@ -746,7 +746,7 @@ static int fallback_migrate_page(struct
+  *  MIGRATEPAGE_SUCCESS - success
+  */
+ static int move_to_new_page(struct page *newpage, struct page *page,
+-				int remap_swapcache, enum migrate_mode mode)
++				int page_was_mapped, enum migrate_mode mode)
+ {
+ 	struct address_space *mapping;
+ 	int rc;
+@@ -784,7 +784,7 @@ static int move_to_new_page(struct page
+ 		newpage->mapping = NULL;
+ 	} else {
+ 		mem_cgroup_migrate(page, newpage, false);
+-		if (remap_swapcache)
++		if (page_was_mapped)
+ 			remove_migration_ptes(page, newpage);
+ 		page->mapping = NULL;
+ 	}
+@@ -798,7 +798,7 @@ static int __unmap_and_move(struct page
+ 				int force, enum migrate_mode mode)
+ {
+ 	int rc = -EAGAIN;
+-	int remap_swapcache = 1;
++	int page_was_mapped = 0;
+ 	struct anon_vma *anon_vma = NULL;
  
--	VM_BUG_ON(nodeid > num_online_nodes());
-+	VM_BUG_ON(nodeid < 0 || nodeid >= MAX_NUMNODES);
- 	n = get_node(cachep, nodeid);
- 	BUG_ON(!n);
+ 	if (!trylock_page(page)) {
+@@ -870,7 +870,6 @@ static int __unmap_and_move(struct page
+ 			 * migrated but are not remapped when migration
+ 			 * completes
+ 			 */
+-			remap_swapcache = 0;
+ 		} else {
+ 			goto out_unlock;
+ 		}
+@@ -910,13 +909,17 @@ static int __unmap_and_move(struct page
+ 	}
  
--- 
-2.1.1
+ 	/* Establish migration ptes or remove ptes */
+-	try_to_unmap(page, TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
++	if (page_mapped(page)) {
++		try_to_unmap(page,
++			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
++		page_was_mapped = 1;
++	}
+ 
+ skip_unmap:
+ 	if (!page_mapped(page))
+-		rc = move_to_new_page(newpage, page, remap_swapcache, mode);
++		rc = move_to_new_page(newpage, page, page_was_mapped, mode);
+ 
+-	if (rc && remap_swapcache)
++	if (rc && page_was_mapped)
+ 		remove_migration_ptes(page, page);
+ 
+ 	/* Drop an anon_vma reference if we took one */
+@@ -1017,6 +1020,7 @@ static int unmap_and_move_huge_page(new_
+ {
+ 	int rc = 0;
+ 	int *result = NULL;
++	int page_was_mapped = 0;
+ 	struct page *new_hpage;
+ 	struct anon_vma *anon_vma = NULL;
+ 
+@@ -1047,12 +1051,16 @@ static int unmap_and_move_huge_page(new_
+ 	if (PageAnon(hpage))
+ 		anon_vma = page_get_anon_vma(hpage);
+ 
+-	try_to_unmap(hpage, TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
++	if (page_mapped(hpage)) {
++		try_to_unmap(hpage,
++			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
++		page_was_mapped = 1;
++	}
+ 
+ 	if (!page_mapped(hpage))
+-		rc = move_to_new_page(new_hpage, hpage, 1, mode);
++		rc = move_to_new_page(new_hpage, hpage, page_was_mapped, mode);
+ 
+-	if (rc != MIGRATEPAGE_SUCCESS)
++	if (rc != MIGRATEPAGE_SUCCESS && page_was_mapped)
+ 		remove_migration_ptes(hpage, hpage);
+ 
+ 	if (anon_vma)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
