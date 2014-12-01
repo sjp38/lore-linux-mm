@@ -1,63 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 25E106B006C
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 15:58:16 -0500 (EST)
-Received: by mail-wg0-f50.google.com with SMTP id k14so15332531wgh.9
-        for <linux-mm@kvack.org>; Mon, 01 Dec 2014 12:58:15 -0800 (PST)
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id ACA1B6B006E
+	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 15:58:21 -0500 (EST)
+Received: by mail-wi0-f175.google.com with SMTP id l15so26040442wiw.8
+        for <linux-mm@kvack.org>; Mon, 01 Dec 2014 12:58:21 -0800 (PST)
 Received: from mellanox.co.il ([193.47.165.129])
-        by mx.google.com with ESMTP id j7si26678615wiz.40.2014.12.01.12.58.14
+        by mx.google.com with ESMTP id ex8si32045834wjb.33.2014.12.01.12.58.20
         for <linux-mm@kvack.org>;
-        Mon, 01 Dec 2014 12:58:15 -0800 (PST)
+        Mon, 01 Dec 2014 12:58:21 -0800 (PST)
 From: Shachar Raindel <raindel@mellanox.com>
-Subject: [PATCH v2 0/4]  Refactor do_wp_page, no functional change
-Date: Mon,  1 Dec 2014 22:58:07 +0200
-Message-Id: <1417467491-20071-1-git-send-email-raindel@mellanox.com>
+Subject: [PATCH v2 2/4] mm: Refactor do_wp_page - rewrite the unlock flow
+Date: Mon,  1 Dec 2014 22:58:09 +0200
+Message-Id: <1417467491-20071-3-git-send-email-raindel@mellanox.com>
+In-Reply-To: <1417467491-20071-1-git-send-email-raindel@mellanox.com>
+References: <1417467491-20071-1-git-send-email-raindel@mellanox.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: kirill.shutemov@linux.intel.com, mgorman@suse.de, riel@redhat.com, ak@linux.intel.com, matthew.r.wilcox@intel.com, dave.hansen@linux.intel.com, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, torvalds@linux-foundation.org, haggaie@mellanox.com, aarcange@redhat.com, pfeiner@google.com, hannes@cmpxchg.org, sagig@mellanox.com, walken@google.com, raindel@mellanox.com
 
-Currently do_wp_page contains 265 code lines. It also contains 9 goto
-statements, of which 5 are targeting labels which are not cleanup
-related. This makes the function extremely difficult to
-understand. The following patches are an attempt at breaking the
-function to its basic components, and making it easier to understand.
+When do_wp_page is ending, in several cases it needs to unlock the
+pages and ptls it was accessing.
 
-The patches are straight forward function extractions from
-do_wp_page. As we extract functions, we remove unneeded parameters and
-simplify the code as much as possible. However, the functionality is
-supposed to remain completely unchanged. The patches also attempt to
-document the functionality of each extracted function. In patch 2, we
-split the unlock logic to the contain logic relevant to specific needs
-of each use case, instead of having huge number of conditional
-decisions in a single unlock flow.
+Currently, this logic was "called" by using a goto jump. This makes
+following the control flow of the function harder. Readability was
+further hampered by the unlock case containing large amount of logic
+needed only in one of the 3 cases.
 
+Using goto for cleanup is generally allowed. However, moving the
+trivial unlocking flows to the relevant call sites allow deeper
+refactoring in the next patch.
 
-Change log:
+Signed-off-by: Shachar Raindel <raindel@mellanox.com>
+---
+ mm/memory.c | 21 ++++++++++++---------
+ 1 file changed, 12 insertions(+), 9 deletions(-)
 
-v0 -> v1:
-- Minor renaming of argument in patch 1
-- Instead of having a complex unlock function, unlock the needed parts
-  in the relevant call sites. Simplify code accordingly.
-- Avoid calling wp_page_copy with the ptl held.
-- Rename wp_page_shared_vma to wp_page_shared, flip the logic of a
-  check there to goto the end of the function if no function, instead
-  of having a large conditional block.
-
-v1 -> v2:
-- Cosmetical white space changes in patch 4
-
-Many thanks to Kirill for reviewing the patches.
-
-Shachar Raindel (4):
-  mm: Refactor do_wp_page, extract the reuse case
-  mm: Refactor do_wp_page - rewrite the unlock flow
-  mm: refactor do_wp_page, extract the page copy flow
-  mm: Refactor do_wp_page handling of shared vma into a function
-
- mm/memory.c | 393 +++++++++++++++++++++++++++++++++++-------------------------
- 1 file changed, 227 insertions(+), 166 deletions(-)
-
+diff --git a/mm/memory.c b/mm/memory.c
+index 6bb5d42..b42bec0 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2112,7 +2112,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ {
+ 	struct page *old_page, *new_page = NULL;
+ 	pte_t entry;
+-	int ret = 0;
++	int page_copied = 0;
+ 	unsigned long mmun_start = 0;	/* For mmu_notifiers */
+ 	unsigned long mmun_end = 0;	/* For mmu_notifiers */
+ 	struct mem_cgroup *memcg;
+@@ -2147,7 +2147,9 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 							 &ptl);
+ 			if (!pte_same(*page_table, orig_pte)) {
+ 				unlock_page(old_page);
+-				goto unlock;
++				pte_unmap_unlock(page_table, ptl);
++				page_cache_release(old_page);
++				return 0;
+ 			}
+ 			page_cache_release(old_page);
+ 		}
+@@ -2192,7 +2194,9 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 							 &ptl);
+ 			if (!pte_same(*page_table, orig_pte)) {
+ 				unlock_page(old_page);
+-				goto unlock;
++				pte_unmap_unlock(page_table, ptl);
++				page_cache_release(old_page);
++				return 0;
+ 			}
+ 
+ 			page_mkwrite = 1;
+@@ -2292,29 +2296,28 @@ gotten:
+ 
+ 		/* Free the old page.. */
+ 		new_page = old_page;
+-		ret |= VM_FAULT_WRITE;
++		page_copied = 1;
+ 	} else
+ 		mem_cgroup_cancel_charge(new_page, memcg);
+ 
+ 	if (new_page)
+ 		page_cache_release(new_page);
+-unlock:
++
+ 	pte_unmap_unlock(page_table, ptl);
+-	if (mmun_end > mmun_start)
+-		mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
++	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
+ 	if (old_page) {
+ 		/*
+ 		 * Don't let another task, with possibly unlocked vma,
+ 		 * keep the mlocked page.
+ 		 */
+-		if ((ret & VM_FAULT_WRITE) && (vma->vm_flags & VM_LOCKED)) {
++		if (page_copied && (vma->vm_flags & VM_LOCKED)) {
+ 			lock_page(old_page);	/* LRU manipulation */
+ 			munlock_vma_page(old_page);
+ 			unlock_page(old_page);
+ 		}
+ 		page_cache_release(old_page);
+ 	}
+-	return ret;
++	return page_copied ? VM_FAULT_WRITE : 0;
+ oom_free_new:
+ 	page_cache_release(new_page);
+ oom:
 -- 
 1.7.11.2
 
