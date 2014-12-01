@@ -1,61 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C9156B0069
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 17:46:21 -0500 (EST)
-Received: by mail-wg0-f45.google.com with SMTP id b13so15527460wgh.32
-        for <linux-mm@kvack.org>; Mon, 01 Dec 2014 14:46:21 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id ek2si47320193wid.102.2014.12.01.14.46.20
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 981986B0069
+	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 17:52:43 -0500 (EST)
+Received: by mail-wi0-f180.google.com with SMTP id n3so19106428wiv.13
+        for <linux-mm@kvack.org>; Mon, 01 Dec 2014 14:52:43 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id hc7si32312370wjc.87.2014.12.01.14.52.42
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Dec 2014 14:46:20 -0800 (PST)
-Message-ID: <547CEFAA.7020103@redhat.com>
-Date: Mon, 01 Dec 2014 17:46:02 -0500
-From: Rik van Riel <riel@redhat.com>
+        Mon, 01 Dec 2014 14:52:42 -0800 (PST)
+Date: Mon, 1 Dec 2014 17:52:34 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [rfc patch] mm: protect set_page_dirty() from ongoing truncation
+Message-ID: <20141201225234.GA4559@phnom.home.cmpxchg.org>
+References: <1416944921-14164-1-git-send-email-hannes@cmpxchg.org>
+ <20141126140006.d6f71f447b69cd4fadc42c26@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 2/4] mm: Refactor do_wp_page - rewrite the unlock flow
-References: <1417467491-20071-1-git-send-email-raindel@mellanox.com> <1417467491-20071-3-git-send-email-raindel@mellanox.com>
-In-Reply-To: <1417467491-20071-3-git-send-email-raindel@mellanox.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141126140006.d6f71f447b69cd4fadc42c26@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shachar Raindel <raindel@mellanox.com>, linux-mm@kvack.org
-Cc: kirill.shutemov@linux.intel.com, mgorman@suse.de, ak@linux.intel.com, matthew.r.wilcox@intel.com, dave.hansen@linux.intel.com, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, torvalds@linux-foundation.org, haggaie@mellanox.com, aarcange@redhat.com, pfeiner@google.com, hannes@cmpxchg.org, sagig@mellanox.com, walken@google.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
-
-On 12/01/2014 03:58 PM, Shachar Raindel wrote:
-> When do_wp_page is ending, in several cases it needs to unlock the 
-> pages and ptls it was accessing.
+On Wed, Nov 26, 2014 at 02:00:06PM -0800, Andrew Morton wrote:
+> On Tue, 25 Nov 2014 14:48:41 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
+> >  The
+> > same btw applies for the page_mkwrite case: how is mapping safe to
+> > pass to balance_dirty_pages() after unlocking page table and page?
 > 
-> Currently, this logic was "called" by using a goto jump. This
-> makes following the control flow of the function harder.
-> Readability was further hampered by the unlock case containing
-> large amount of logic needed only in one of the 3 cases.
-> 
-> Using goto for cleanup is generally allowed. However, moving the 
-> trivial unlocking flows to the relevant call sites allow deeper 
-> refactoring in the next patch.
-> 
-> Signed-off-by: Shachar Raindel <raindel@mellanox.com>
+> I'm not sure which code you're referring to here, but it's likely that
+> the switch-balancing-to-bdi approach will address that as well?
 
-Acked-by: Rik van Riel <riel@redhat.com>
+This code in do_wp_page():
 
-- -- 
-All rights reversed
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
+		pte_unmap_unlock(page_table, ptl);
+[...]
+		put_page(dirty_page);
+		if (page_mkwrite) {
+			struct address_space *mapping = dirty_page->mapping;
 
-iQEcBAEBAgAGBQJUfO+qAAoJEM553pKExN6D4zMIAJCXpbwTi/aPFnes03x5/VVY
-NRxhhWUessVxK4gM0jwG8JU/MKisrZ1bNbL997yd8Vv8H6UScoLvJNjfUYYpvsy1
-WdmBZJzUmq5QH3pemNnEooz50cPWxVzcHhtMXFf+3UQ0NG/5MqIaUGNN+tjs7+rU
-ynW4oCB1jHbIRCLlPhvydW5lc1Z5+7h9I2wkHfN+A9p7JF1wExH6jc8Qc5mJcPy2
-xmNJViTep7C43JC8KYXqOnS6FtW10vPBC/hMs0/6DTasaox5ztD+qoEtotIpne1U
-OaDWyZkUxLyyYl1BRaujxQzEwaS/Z3cHH30WOuKiJhwnWOX8PfjykQ/tBzKIAe0=
-=d25J
------END PGP SIGNATURE-----
+			set_page_dirty(dirty_page);
+			unlock_page(dirty_page);
+			page_cache_release(dirty_page);
+			if (mapping)	{
+				/*
+				 * Some device drivers do not set page.mapping
+				 * but still dirty their pages
+				 */
+				balance_dirty_pages_ratelimited(mapping);
+			}
+		}
+
+And there is also this code in do_shared_fault():
+
+	pte_unmap_unlock(pte, ptl);
+
+	if (set_page_dirty(fault_page))
+		dirtied = 1;
+	mapping = fault_page->mapping;
+	unlock_page(fault_page);
+	if ((dirtied || vma->vm_ops->page_mkwrite) && mapping) {
+		/*
+		 * Some device drivers do not set page.mapping but still
+		 * dirty their pages
+		 */
+		balance_dirty_pages_ratelimited(mapping);
+	}
+
+I don't see anything that ensures mapping stays alive by the time it's
+passed to balance_dirty_pages() in either case.
+
+Argh, but of course there is.  The mmap_sem.  That pins the vma, which
+pins the file, which pins the inode.  In all cases.  So I think we can
+just stick with passing mapping to balance_dirty_pages() for now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
