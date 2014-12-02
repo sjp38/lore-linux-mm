@@ -1,77 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 166C46B0069
-	for <linux-mm@kvack.org>; Tue,  2 Dec 2014 03:58:29 -0500 (EST)
-Received: by mail-wi0-f181.google.com with SMTP id r20so20173250wiv.14
-        for <linux-mm@kvack.org>; Tue, 02 Dec 2014 00:58:28 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d6si35162670wiz.67.2014.12.02.00.58.27
+Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 077126B0069
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2014 04:09:29 -0500 (EST)
+Received: by mail-wg0-f54.google.com with SMTP id l2so16396917wgh.13
+        for <linux-mm@kvack.org>; Tue, 02 Dec 2014 01:09:28 -0800 (PST)
+Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0674.outbound.protection.outlook.com. [2a01:111:f400:fe00::674])
+        by mx.google.com with ESMTPS id v7si49444921wiy.8.2014.12.02.01.09.27
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 02 Dec 2014 00:58:27 -0800 (PST)
-Date: Tue, 2 Dec 2014 09:58:25 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [patch 2/3] mm: memory: remove ->vm_file check on shared
- writable vmas
-Message-ID: <20141202085825.GA9092@quack.suse.cz>
-References: <1417474682-29326-1-git-send-email-hannes@cmpxchg.org>
- <1417474682-29326-2-git-send-email-hannes@cmpxchg.org>
+        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 02 Dec 2014 01:09:27 -0800 (PST)
+From: Shachar Raindel <raindel@mellanox.com>
+Subject: RE: [PATCH v2 3/4] mm: refactor do_wp_page, extract the page copy
+ flow
+Date: Tue, 2 Dec 2014 09:09:04 +0000
+Message-ID: <b33f68fb290142379f1189efbd8ea557@AM3PR05MB0935.eurprd05.prod.outlook.com>
+References: <1417467491-20071-1-git-send-email-raindel@mellanox.com>
+ <1417467491-20071-4-git-send-email-raindel@mellanox.com>
+ <547D29A3.7090108@redhat.com>
+In-Reply-To: <547D29A3.7090108@redhat.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1417474682-29326-2-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mgorman@suse.de" <mgorman@suse.de>, "ak@linux.intel.com" <ak@linux.intel.com>, "matthew.r.wilcox@intel.com" <matthew.r.wilcox@intel.com>, "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "n-horiguchi@ah.jp.nec.com" <n-horiguchi@ah.jp.nec.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, Haggai Eran <haggaie@mellanox.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "pfeiner@google.com" <pfeiner@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Sagi
+ Grimberg <sagig@mellanox.com>, "walken@google.com" <walken@google.com>, Jerome Glisse <j.glisse@gmail.com>
 
-On Mon 01-12-14 17:58:01, Johannes Weiner wrote:
-> The only way a VMA can have shared and writable semantics is with a
-> backing file.
-  OK, one always learns :) After some digging I found that MAP_SHARED |
-MAP_ANONYMOUS mappings are in fact mappings of a temporary file in tmpfs.
-It would be worth to mention this in the changelog I believe. Otherwise
-feel free to add:
-  Reviewed-by: Jan Kara <jack@suse.cz>
-
-								Honza
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  mm/memory.c | 7 ++-----
->  1 file changed, 2 insertions(+), 5 deletions(-)
-> 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 73220eb6e9e3..2a2e3648ed65 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2167,9 +2167,7 @@ reuse:
->  				balance_dirty_pages_ratelimited(mapping);
->  			}
->  
-> -			/* file_update_time outside page_lock */
-> -			if (vma->vm_file)
-> -				file_update_time(vma->vm_file);
-> +			file_update_time(vma->vm_file);
->  		}
->  		put_page(dirty_page);
->  		if (page_mkwrite) {
-> @@ -3025,8 +3023,7 @@ static int do_shared_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->  		balance_dirty_pages_ratelimited(mapping);
->  	}
->  
-> -	/* file_update_time outside page_lock */
-> -	if (vma->vm_file && !vma->vm_ops->page_mkwrite)
-> +	if (!vma->vm_ops->page_mkwrite)
->  		file_update_time(vma->vm_file);
->  
->  	return ret;
-> -- 
-> 2.1.3
-> 
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+DQoNCj4gLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCj4gRnJvbTogb3duZXItbGludXgtbW1A
+a3ZhY2sub3JnIFttYWlsdG86b3duZXItbGludXgtbW1Aa3ZhY2sub3JnXSBPbg0KPiBCZWhhbGYg
+T2YgUmlrIHZhbiBSaWVsDQo+IFNlbnQ6IFR1ZXNkYXksIERlY2VtYmVyIDAyLCAyMDE0IDQ6NTMg
+QU0NCj4gVG86IFNoYWNoYXIgUmFpbmRlbDsgbGludXgtbW1Aa3ZhY2sub3JnDQo+IENjOiBraXJp
+bGwuc2h1dGVtb3ZAbGludXguaW50ZWwuY29tOyBtZ29ybWFuQHN1c2UuZGU7DQo+IGFrQGxpbnV4
+LmludGVsLmNvbTsgbWF0dGhldy5yLndpbGNveEBpbnRlbC5jb207DQo+IGRhdmUuaGFuc2VuQGxp
+bnV4LmludGVsLmNvbTsgbi1ob3JpZ3VjaGlAYWguanAubmVjLmNvbTsgYWtwbUBsaW51eC0NCj4g
+Zm91bmRhdGlvbi5vcmc7IHRvcnZhbGRzQGxpbnV4LWZvdW5kYXRpb24ub3JnOyBIYWdnYWkgRXJh
+bjsNCj4gYWFyY2FuZ2VAcmVkaGF0LmNvbTsgcGZlaW5lckBnb29nbGUuY29tOyBoYW5uZXNAY21w
+eGNoZy5vcmc7IFNhZ2kNCj4gR3JpbWJlcmc7IHdhbGtlbkBnb29nbGUuY29tDQo+IFN1YmplY3Q6
+IFJlOiBbUEFUQ0ggdjIgMy80XSBtbTogcmVmYWN0b3IgZG9fd3BfcGFnZSwgZXh0cmFjdCB0aGUg
+cGFnZQ0KPiBjb3B5IGZsb3cNCj4gDQo+IC0tLS0tQkVHSU4gUEdQIFNJR05FRCBNRVNTQUdFLS0t
+LS0NCj4gSGFzaDogU0hBMQ0KPiANCj4gT24gMTIvMDEvMjAxNCAwMzo1OCBQTSwgU2hhY2hhciBS
+YWluZGVsIHdyb3RlOg0KPiA+IEluIHNvbWUgY2FzZXMsIGRvX3dwX3BhZ2UgaGFkIHRvIGNvcHkg
+dGhlIHBhZ2Ugc3VmZmVyaW5nIGEgd3JpdGUNCj4gPiBmYXVsdCB0byBhIG5ldyBsb2NhdGlvbi4g
+SWYgdGhlIGZ1bmN0aW9uIGxvZ2ljIGRlY2lkZWQgdGhhdCB0byBkbw0KPiA+IHRoaXMsIGl0IHdh
+cyBkb25lIGJ5IGp1bXBpbmcgd2l0aCBhICJnb3RvIiBvcGVyYXRpb24gdG8gdGhlDQo+ID4gcmVs
+ZXZhbnQgY29kZSBibG9jay4gVGhpcyBtYWRlIHRoZSBjb2RlIHJlYWxseSBoYXJkIHRvIHVuZGVy
+c3RhbmQuDQo+ID4gSXQgaXMgYWxzbyBhZ2FpbnN0IHRoZSBrZXJuZWwgY29kaW5nIHN0eWxlIGd1
+aWRlbGluZXMuDQo+ID4NCj4gPiBUaGlzIHBhdGNoIGV4dHJhY3RzIHRoZSBwYWdlIGNvcHkgYW5k
+IHBhZ2UgdGFibGUgdXBkYXRlIGxvZ2ljIHRvIGENCj4gPiBzZXBhcmF0ZSBmdW5jdGlvbi4gSXQg
+YWxzbyBjbGVhbiB1cCB0aGUgbmFtaW5nLCBmcm9tICJnb3R0ZW4iIHRvDQo+ID4gIndwX3BhZ2Vf
+Y29weSIsIGFuZCBhZGRzIGZldyBjb21tZW50cy4NCj4gPg0KPiA+IFNpZ25lZC1vZmYtYnk6IFNo
+YWNoYXIgUmFpbmRlbCA8cmFpbmRlbEBtZWxsYW5veC5jb20+IC0tLQ0KPiA+IG1tL21lbW9yeS5j
+IHwgMjY1DQo+ID4gKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrLS0tLS0tLS0tLS0t
+LS0tLS0tLS0tLS0tLS0tIDEgZmlsZQ0KPiA+IGNoYW5nZWQsIDE0NyBpbnNlcnRpb25zKCspLCAx
+MTggZGVsZXRpb25zKC0pDQo+ID4NCj4gPiBkaWZmIC0tZ2l0IGEvbW0vbWVtb3J5LmMgYi9tbS9t
+ZW1vcnkuYyBpbmRleCBiNDJiZWMwLi5jN2MwZGYyDQo+ID4gMTAwNjQ0IC0tLSBhL21tL21lbW9y
+eS5jICsrKyBiL21tL21lbW9yeS5jIEBAIC0yMDg4LDYgKzIwODgsMTQ2IEBADQo+ID4gc3RhdGlj
+IGludCB3cF9wYWdlX3JldXNlKHN0cnVjdCBtbV9zdHJ1Y3QgKm1tLCBzdHJ1Y3QNCj4gPiB2bV9h
+cmVhX3N0cnVjdCAqdm1hLCB9DQo+ID4NCj4gPiAvKiArICogSGFuZGxlIHRoZSBjYXNlIG9mIGEg
+cGFnZSB3aGljaCB3ZSBhY3R1YWxseSBuZWVkIHRvIGNvcHkgdG8NCj4gPiBhIG5ldyBwYWdlLiAr
+ICogKyAqIENhbGxlZCB3aXRoIG1tYXBfc2VtIGxvY2tlZCBhbmQgdGhlIG9sZCBwYWdlDQo+ID4g
+cmVmZXJlbmNlZCwgYnV0ICsgKiB3aXRob3V0IHRoZSBwdGwgaGVsZC4gKyAqICsgKiBIaWdoIGxl
+dmVsIGxvZ2ljDQo+ID4gZmxvdzogKyAqICsgKiAtIEFsbG9jYXRlIGEgcGFnZSwgY29weSB0aGUg
+Y29udGVudCBvZiB0aGUgb2xkIHBhZ2UNCj4gPiB0byB0aGUgbmV3IG9uZS4gKyAqIC0gSGFuZGxl
+IGJvb2sga2VlcGluZyBhbmQgYWNjb3VudGluZyAtIGNncm91cHMsDQo+ID4gbW11LW5vdGlmaWVy
+cywgZXRjLiArICogLSBUYWtlIHRoZSBQVEwuIElmIHRoZSBwdGUgY2hhbmdlZCwgYmFpbA0KPiA+
+IG91dCBhbmQgcmVsZWFzZSB0aGUgYWxsb2NhdGVkIHBhZ2UgKyAqIC0gSWYgdGhlIHB0ZSBpcyBz
+dGlsbCB0aGUNCj4gPiB3YXkgd2UgcmVtZW1iZXIgaXQsIHVwZGF0ZSB0aGUgcGFnZSB0YWJsZSBh
+bmQgYWxsICsgKiAgIHJlbGV2YW50DQo+ID4gcmVmZXJlbmNlcy4gVGhpcyBpbmNsdWRlcyBkcm9w
+cGluZyB0aGUgcmVmZXJlbmNlIHRoZSBwYWdlLXRhYmxlICsgKg0KPiA+IGhlbGQgdG8gdGhlIG9s
+ZCBwYWdlLCBhcyB3ZWxsIGFzIHVwZGF0aW5nIHRoZSBybWFwLiArICogLSBJbiBhbnkNCj4gPiBj
+YXNlLCB1bmxvY2sgdGhlIFBUTCBhbmQgZHJvcCB0aGUgcmVmZXJlbmNlIHdlIHRvb2sgdG8gdGhl
+IG9sZA0KPiA+IHBhZ2UuICsgKi8gK3N0YXRpYyBpbnQgd3BfcGFnZV9jb3B5KHN0cnVjdCBtbV9z
+dHJ1Y3QgKm1tLCBzdHJ1Y3QNCj4gPiB2bV9hcmVhX3N0cnVjdCAqdm1hLCArCQkJdW5zaWduZWQg
+bG9uZyBhZGRyZXNzLCBwdGVfdA0KPiAqcGFnZV90YWJsZSwNCj4gPiBwbWRfdCAqcG1kLCArCQkJ
+cHRlX3Qgb3JpZ19wdGUsIHN0cnVjdCBwYWdlICpvbGRfcGFnZSkgK3sgKw0KPiAJc3RydWN0DQo+
+ID4gcGFnZSAqbmV3X3BhZ2UgPSBOVUxMOyArCXNwaW5sb2NrX3QgKnB0bCA9IE5VTEw7ICsJcHRl
+X3QgZW50cnk7ICsNCj4gPiBpbnQgcGFnZV9jb3BpZWQgPSAwOyArCWNvbnN0IHVuc2lnbmVkIGxv
+bmcgbW11bl9zdGFydCA9IGFkZHJlc3MgJg0KPiA+IFBBR0VfTUFTSzsJLyogRm9yIG1tdV9ub3Rp
+ZmllcnMgKi8gKwljb25zdCB1bnNpZ25lZCBsb25nIG1tdW5fZW5kDQo+ID0NCj4gPiBtbXVuX3N0
+YXJ0ICsgUEFHRV9TSVpFOwkvKiBGb3IgbW11X25vdGlmaWVycyAqLyArCXN0cnVjdCBtZW1fY2dy
+b3VwDQo+ID4gKm1lbWNnOyArICsJaWYgKHVubGlrZWx5KGFub25fdm1hX3ByZXBhcmUodm1hKSkp
+ICsJCWdvdG8NCj4gb29tOyArICsNCj4gPiBpZiAoaXNfemVyb19wZm4ocHRlX3BmbihvcmlnX3B0
+ZSkpKSB7ICsJCW5ld19wYWdlID0NCj4gPiBhbGxvY196ZXJvZWRfdXNlcl9oaWdocGFnZV9tb3Zh
+YmxlKHZtYSwgYWRkcmVzcyk7ICsJCWlmDQo+ID4gKCFuZXdfcGFnZSkgKwkJCWdvdG8gb29tOyAr
+CX0gZWxzZSB7ICsJCW5ld19wYWdlID0NCj4gPiBhbGxvY19wYWdlX3ZtYShHRlBfSElHSFVTRVJf
+TU9WQUJMRSwgdm1hLCBhZGRyZXNzKTsgKwkJaWYNCj4gPiAoIW5ld19wYWdlKSArCQkJZ290byBv
+b207ICsJCWNvd191c2VyX3BhZ2UobmV3X3BhZ2UsDQo+IG9sZF9wYWdlLA0KPiA+IGFkZHJlc3Ms
+IHZtYSk7ICsJfSArCV9fU2V0UGFnZVVwdG9kYXRlKG5ld19wYWdlKTsgKyArCWlmDQo+ID4gKG1l
+bV9jZ3JvdXBfdHJ5X2NoYXJnZShuZXdfcGFnZSwgbW0sIEdGUF9LRVJORUwsICZtZW1jZykpICsN
+Cj4gCWdvdG8NCj4gPiBvb21fZnJlZV9uZXc7ICsgKwltbXVfbm90aWZpZXJfaW52YWxpZGF0ZV9y
+YW5nZV9zdGFydChtbSwNCj4gPiBtbXVuX3N0YXJ0LCBtbXVuX2VuZCk7DQo+IA0KPiBJIGJlbGll
+dmUgdGhlIG1tdV9ub3RpZmllcl9pbnZhbGlkYXRlX3JhbmdlX3N0YXJ0ICYgX2VuZA0KPiBmdW5j
+dGlvbnMgY2FuIGJlIG1vdmVkIGluc2lkZSB0aGUgcHRlX3NhbWUoKnBhZ2VfdGFibGUsIG9yaWdf
+cHRlKQ0KPiBicmFuY2guIFRoZXJlIGlzIG5vIHJlYXNvbiB0byBjYWxsIHRob3NlIGZ1bmN0aW9u
+cyBpZiB3ZSBkbyBub3QNCj4gbW9kaWZ5IHRoZSBwYWdlIHRhYmxlIGVudHJ5Lg0KPiANCg0KVGhl
+cmUgaXMgYSBjcml0aWNhbCByZWFzb24gZm9yIHRoaXMgLSBtb3ZpbmcgdGhlIE1NVSBub3RpZmll
+cnMgdGhlcmUgd2lsbA0KbWFrZSB0aGVtIHVuc2xlZXBhYmxlLiBUaGlzIHdpbGwgcHJldmVudCBo
+YXJkd2FyZSBkZXZpY2VzIHRoYXQga2VlcCBzZWNvbmRhcnkNClBURXMgZnJvbSB3YWl0aW5nIGZv
+ciBhbiBpbnRlcnJ1cHQgdG8gc2lnbmFsIHRoYXQgdGhlIGludmFsaWRhdGlvbiB3YXMgY29tcGxl
+dGVkLiANClRoaXMgaXMgcmVxdWlyZWQgZm9yIGV4YW1wbGUgYnkgdGhlIE9EUCBwYXRjaCBzZXQg
+DQooaHR0cDovL3d3dy5zcGluaWNzLm5ldC9saXN0cy9saW51eC1yZG1hL21zZzIyMDQ0Lmh0bWwg
+KSBhbmQNCmJ5IHRoZSBITU0gcGF0Y2ggc2V0IChodHRwOi8vY29tbWVudHMuZ21hbmUub3JnL2dt
+YW5lLmxpbnV4Lmtlcm5lbC5tbS8xMTY1ODQgKS4NCg0KPiBUaGlzIGlzIG5vdCBzb21ldGhpbmcg
+aW50cm9kdWNlZCBieSB5b3VyIHBhdGNoLCBidXQgeW91IG1pZ2h0IGFzDQo+IHdlbGwgZml4IGl0
+IHdoaWxlIHlvdSdyZSB0b3VjaGluZyB0aGUgY29kZSA6KQ0KDQpUaGlzIGhhcHBlbmVkIHRvIGJl
+IGludHJvZHVjZWQgYnkgSGFnZ2FpIEVyYW4gDQooaHR0cDovL2dpdC5rZXJuZWwub3JnL2NnaXQv
+bGludXgva2VybmVsL2dpdC90b3J2YWxkcy9saW51eC5naXQvY29tbWl0Lz9pZD02YmRiOTEzZjBh
+ICksDQp3aG8ga2luZGx5IHJldmlld2VkIHRoaXMgcGF0Y2hzZXQgYmVmb3JlIHYwIHdhcyBzZW50
+Lg0KDQpBcyBtZW50aW9uZWQgYWJvdmUsIEkgd291bGQgcHJlZmVyIG5vdCB0byBicmVhayB0aGUg
+c2xlZXBhYmlsaXR5IG9mIHRoZSBNTVUgbm90aWZpZXJzIGluDQp0aGlzIHBhdGNoc2V0IHdoaWNo
+IGlzIHRhcmdldGluZyBjb2Rpbmcgc3R5bGUgY2xlYW51cC4gSWYgeW91IHdhbnQgdG8gZnVydGhl
+ciBkaXNjdXNzIHRoZQ0KaXNzdWUsIGNhbiB3ZSBzcGxpdCBpdCB0byBhIGRpZmZlcmVudCB0aHJl
+YWQsIG5vdCBibG9ja2luZyB0aGUgYWNrIG9uIHRoaXMgcGF0Y2g/DQoNCj4gDQo+IE90aGVyIHRo
+YW4gdGhhdDoNCj4gDQo+IEFja2VkLWJ5OiBSaWsgdmFuIFJpZWwgPHJpZWxAcmVkaGF0LmNvbT4N
+Cj4gDQpUaGFua3MuDQoNCi0tU2hhY2hhcg0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
