@@ -1,80 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E0E46B006C
-	for <linux-mm@kvack.org>; Tue,  2 Dec 2014 00:06:13 -0500 (EST)
-Received: by mail-pd0-f171.google.com with SMTP id y13so12433817pdi.30
-        for <linux-mm@kvack.org>; Mon, 01 Dec 2014 21:06:13 -0800 (PST)
-Received: from ponies.io (ponies.io. [2600:3c01::f03c:91ff:fe6e:5e45])
-        by mx.google.com with ESMTP id yt4si31945425pbb.62.2014.12.01.21.06.10
-        for <linux-mm@kvack.org>;
-        Mon, 01 Dec 2014 21:06:10 -0800 (PST)
-Received: from cucumber.localdomain (nat-gw2.syd4.anchor.net.au [110.173.144.2])
-	by ponies.io (Postfix) with ESMTPSA id 19281A0EF
-	for <linux-mm@kvack.org>; Tue,  2 Dec 2014 05:06:10 +0000 (UTC)
-Date: Tue, 2 Dec 2014 16:06:08 +1100
-From: Christian Marie <christian@ponies.io>
-Subject: Re: isolate_freepages_block and excessive CPU usage by OSD process
-Message-ID: <20141202050608.GA11051@cucumber.bridge.anchor.net.au>
-References: <20141119212013.GA18318@cucumber.anchor.net.au>
- <546D2366.1050506@suse.cz>
- <20141121023554.GA24175@cucumber.bridge.anchor.net.au>
- <20141123093348.GA16954@cucumber.anchor.net.au>
- <CABYiri8LYukujETMCb4gHUQd=J-MQ8m=rGRiEkTD1B42Jh=Ksg@mail.gmail.com>
- <20141128080331.GD11802@js1304-P5Q-DELUXE>
- <54783FB7.4030502@suse.cz>
- <20141201083118.GB2499@js1304-P5Q-DELUXE>
- <20141202014724.GA22239@cucumber.bridge.anchor.net.au>
- <20141202045324.GC6268@js1304-P5Q-DELUXE>
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A56E6B0069
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2014 02:27:21 -0500 (EST)
+Received: by mail-pa0-f47.google.com with SMTP id kq14so12791208pab.6
+        for <linux-mm@kvack.org>; Mon, 01 Dec 2014 23:27:21 -0800 (PST)
+Received: from e28smtp03.in.ibm.com (e28smtp03.in.ibm.com. [122.248.162.3])
+        by mx.google.com with ESMTPS id uq12si32377591pab.95.2014.12.01.23.27.17
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 01 Dec 2014 23:27:20 -0800 (PST)
+Received: from /spool/local
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Tue, 2 Dec 2014 12:57:12 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 917B21258054
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2014 12:57:26 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay05.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id sB27RjRZ2556176
+	for <linux-mm@kvack.org>; Tue, 2 Dec 2014 12:57:46 +0530
+Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id sB27R870029494
+	for <linux-mm@kvack.org>; Tue, 2 Dec 2014 12:57:08 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 03/10] mm: Convert p[te|md]_numa users to p[te|md]_protnone_numa
+In-Reply-To: <1417473762.7182.8.camel@kernel.crashing.org>
+References: <1416578268-19597-1-git-send-email-mgorman@suse.de> <1416578268-19597-4-git-send-email-mgorman@suse.de> <1417473762.7182.8.camel@kernel.crashing.org>
+Date: Tue, 02 Dec 2014 12:57:00 +0530
+Message-ID: <87k32ah5q3.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="X1bOJ3K7DJ5YkBrT"
-Content-Disposition: inline
-In-Reply-To: <20141202045324.GC6268@js1304-P5Q-DELUXE>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Mel Gorman <mgorman@suse.de>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LinuxPPC-dev <linuxppc-dev@lists.ozlabs.org>, Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@redhat.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Sasha Levin <sasha.levin@oracle.com>, Paul Mackerras <paulus@samba.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
+Benjamin Herrenschmidt <benh@kernel.crashing.org> writes:
 
---X1bOJ3K7DJ5YkBrT
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+> On Fri, 2014-11-21 at 13:57 +0000, Mel Gorman wrote:
+>> Convert existing users of pte_numa and friends to the new helper. Note
+>> that the kernel is broken after this patch is applied until the other
+>> page table modifiers are also altered. This patch layout is to make
+>> review easier.
+>
+> Aneesh, the removal of the DSISR_PROTFAULT checks, I wonder if we might
+> break something here ... (I know, I asked for them to be removed :-)
+>
 
-On Tue, Dec 02, 2014 at 01:53:24PM +0900, Joonsoo Kim wrote:
-> This is just my assumption, so if possible, please check it with
-> compaction tracepoint. If it is, we can make a solution for this
-> problem.
+That is the reason I converted that to a WARN_ON in later patch. 
 
-Which event/function would you like me to trace specifically?
+> IE, we basically bounce all protection checks to the "normal" VMA
+> protection checking, so far so good...
+>
+> But what about the subpage protection stuff ? Will that still work ?
+>
 
-> Anyway, could you test one more time without second patch?
-> IMO, first patch is reasonable to backport, because it fixes a real bug.
-> But, I'm not sure if second patch is needed to backport or not.
-> One more testing will help us to understand the effect of patch.
+I did look at that before. So if we had subpage access limitted, when we
+take a fault for that subpage, we bail out early in hash_page_mm. (with
+rc = 2). low_hash_fault handle that case directly. We will not end up
+calling do_page_fault.
 
-I will attempt to do this tomorrow and should have results in around 24 hours.
+Now, hash_preload can possibly insert an hpte in hash page table even if
+the access is not allowed by the pte permissions. But i guess even that
+is ok. because we will fault again, end-up calling hash_page_mm where we
+handle that part correctly.
 
---X1bOJ3K7DJ5YkBrT
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQIcBAEBCAAGBQJUfUi+AAoJEMHZnoZn5OShhTAP/2OmwsMoAqzd1zPh3ffjdBIm
-TmDOfHbWZ/lDgQTtteslf3VZFZnhVABb2b01uOyC30FmbzqcZz/mj2zgdKep++LM
-QFrrlPN+MxSDsfA5X1dCcj7oN7EUgAAas6xeHqcbFGs1PKJOQkxo/BEYhbUieYfi
-VJ6hdfs9jjWZySe9RaiUmXX5QdW/IBbZES+bgAUxBc4YWKq/WNT3BXSlzV7tga+d
-rG6IU2aoCaztjcIGm0Ny89Ig23S32UKbpcSFQF9Nrg3IX3CbEBQyj37HQN4BW1Qa
-5NGmKkAmZ2WIokmB/NC21Qpz/0DXYNGWUMMA/rcprY6UNB1nRKXiLtQ4amD1HqSV
-WpzoBIUXNSh7RmVgMTznqvOI94WGak9lfgXafz9fX2dPXbgQ9vd8jdSj67FCdioC
-cKPJkbGqf+IAjAQsUDPSWCs0chj+ktvfTJhLPGAZp8tppjkPnJeWBGw+t+e04qWr
-lYLMKUS9Mzmj1shJPpZLWecX0QeSOFRVpT+8Rhy4HlXLx/hnsKMNvRr9ZAx/3XpH
-VncScAXKj4Le+d0tXo1vGC9QrcxNApWghMj1UVE5SupUoNcuNnl/c9UiNXJe4YK7
-kXQ2EdGBOb4U7twHaxjSk8pwjQKblHDnAJOd5Qa3QWXzscCNRccEK/ws0UchoUar
-7QANSb7saRAEYNNGylSF
-=YupH
------END PGP SIGNATURE-----
-
---X1bOJ3K7DJ5YkBrT--
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
