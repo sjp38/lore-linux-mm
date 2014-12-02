@@ -1,254 +1,220 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 88A076B0069
-	for <linux-mm@kvack.org>; Tue,  2 Dec 2014 09:10:30 -0500 (EST)
-Received: by mail-pa0-f54.google.com with SMTP id fb1so13444144pad.41
-        for <linux-mm@kvack.org>; Tue, 02 Dec 2014 06:10:30 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id ez16si33694627pad.84.2014.12.02.06.10.28
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 535EB6B0069
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2014 09:47:31 -0500 (EST)
+Received: by mail-wg0-f47.google.com with SMTP id n12so17050715wgh.6
+        for <linux-mm@kvack.org>; Tue, 02 Dec 2014 06:47:30 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j6si2947341wiz.3.2014.12.02.06.47.29
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Dec 2014 06:10:28 -0800 (PST)
-Message-ID: <547DC83D.3010806@parallels.com>
-Date: Tue, 2 Dec 2014 17:10:05 +0300
-From: Pavel Emelyanov <xemul@parallels.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 02 Dec 2014 06:47:29 -0800 (PST)
+Message-ID: <547DD100.30307@suse.cz>
+Date: Tue, 02 Dec 2014 15:47:28 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00/10] RFC: userfault (question about remap_anon_pages
- API)
-References: <546D8882.4040908@parallels.com> <20141126143030.GV4569@redhat.com>
-In-Reply-To: <20141126143030.GV4569@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [PATCH V2] mm/thp: Allocate transparent hugepages on local node
+References: <1417412803-27234-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20141201113340.GA545@node.dhcp.inet.fi> <87vblvh3b9.fsf@linux.vnet.ibm.com>
+In-Reply-To: <87vblvh3b9.fsf@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Linux MM <linux-mm@kvack.org>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: akpm@linux-foundation.org, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 11/26/2014 05:30 PM, Andrea Arcangeli wrote:
-> Hi Pavel,
-> 
-> On Thu, Nov 20, 2014 at 10:21:54AM +0400, Pavel Emelyanov wrote:
->> Andrea,
+On 12/01/2014 03:06 PM, Aneesh Kumar K.V wrote:
+> "Kirill A. Shutemov" <kirill@shutemov.name> writes:
+>
+>> On Mon, Dec 01, 2014 at 11:16:43AM +0530, Aneesh Kumar K.V wrote:
+>>> This make sure that we try to allocate hugepages from local node if
+>>> allowed by mempolicy. If we can't, we fallback to small page allocation
+>>> based on mempolicy. This is based on the observation that allocating pages
+>>> on local node is more beneficial that allocating hugepages on remote node.
+>>>
+>>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+>>> ---
+>>>   include/linux/gfp.h |  4 ++++
+>>>   mm/huge_memory.c    | 24 +++++++++---------------
+>>>   mm/mempolicy.c      | 40 ++++++++++++++++++++++++++++++++++++++++
+>>>   3 files changed, 53 insertions(+), 15 deletions(-)
+>>>
+>>> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+>>> index 41b30fd4d041..fcbd017b4fb4 100644
+>>> --- a/include/linux/gfp.h
+>>> +++ b/include/linux/gfp.h
+>>> @@ -338,11 +338,15 @@ alloc_pages(gfp_t gfp_mask, unsigned int order)
+>>>   extern struct page *alloc_pages_vma(gfp_t gfp_mask, int order,
+>>>   			struct vm_area_struct *vma, unsigned long addr,
+>>>   			int node);
+>>> +extern struct page *alloc_hugepage_vma(gfp_t gfp, struct vm_area_struct *vma,
+>>> +				       unsigned long addr, int order);
+>>>   #else
+>>>   #define alloc_pages(gfp_mask, order) \
+>>>   		alloc_pages_node(numa_node_id(), gfp_mask, order)
+>>>   #define alloc_pages_vma(gfp_mask, order, vma, addr, node)	\
+>>>   	alloc_pages(gfp_mask, order)
+>>> +#define alloc_hugepage_vma(gfp_mask, vma, addr, order)	\
+>>> +	alloc_pages(gfp_mask, order)
+>>>   #endif
+>>>   #define alloc_page(gfp_mask) alloc_pages(gfp_mask, 0)
+>>>   #define alloc_page_vma(gfp_mask, vma, addr)			\
+>>> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+>>> index de984159cf0b..7903eb995b7f 100644
+>>> --- a/mm/huge_memory.c
+>>> +++ b/mm/huge_memory.c
+>>> @@ -766,15 +766,6 @@ static inline gfp_t alloc_hugepage_gfpmask(int defrag, gfp_t extra_gfp)
+>>>   	return (GFP_TRANSHUGE & ~(defrag ? 0 : __GFP_WAIT)) | extra_gfp;
+>>>   }
+>>>
+>>> -static inline struct page *alloc_hugepage_vma(int defrag,
+>>> -					      struct vm_area_struct *vma,
+>>> -					      unsigned long haddr, int nd,
+>>> -					      gfp_t extra_gfp)
+>>> -{
+>>> -	return alloc_pages_vma(alloc_hugepage_gfpmask(defrag, extra_gfp),
+>>> -			       HPAGE_PMD_ORDER, vma, haddr, nd);
+>>> -}
+>>> -
+>>>   /* Caller must hold page table lock. */
+>>>   static bool set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
+>>>   		struct vm_area_struct *vma, unsigned long haddr, pmd_t *pmd,
+>>> @@ -796,6 +787,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>>>   			       unsigned long address, pmd_t *pmd,
+>>>   			       unsigned int flags)
+>>>   {
+>>> +	gfp_t gfp;
+>>>   	struct page *page;
+>>>   	unsigned long haddr = address & HPAGE_PMD_MASK;
+>>>
+>>> @@ -830,8 +822,8 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>>>   		}
+>>>   		return 0;
+>>>   	}
+>>> -	page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
+>>> -			vma, haddr, numa_node_id(), 0);
+>>> +	gfp = alloc_hugepage_gfpmask(transparent_hugepage_defrag(vma), 0);
+>>> +	page = alloc_hugepage_vma(gfp, vma, haddr, HPAGE_PMD_ORDER);
+>>>   	if (unlikely(!page)) {
+>>>   		count_vm_event(THP_FAULT_FALLBACK);
+>>>   		return VM_FAULT_FALLBACK;
+>>> @@ -1119,10 +1111,12 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>>>   	spin_unlock(ptl);
+>>>   alloc:
+>>>   	if (transparent_hugepage_enabled(vma) &&
+>>> -	    !transparent_hugepage_debug_cow())
+>>> -		new_page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
+>>> -					      vma, haddr, numa_node_id(), 0);
+>>> -	else
+>>> +	    !transparent_hugepage_debug_cow()) {
+>>> +		gfp_t gfp;
+>>> +
+>>> +		gfp = alloc_hugepage_gfpmask(transparent_hugepage_defrag(vma), 0);
+>>> +		new_page = alloc_hugepage_vma(gfp, vma, haddr, HPAGE_PMD_ORDER);
 >>
->> We'd like to use this code to implement the post-copy migration
->> too, but this time for containers, not for virtual machines. This
->> will be done as a part of the CRIU [1] project.
+>> Should node of page we're handling wp-fault for be part of decision?
+>
+>
+> We are doing that in alloc_hugepage_vma by using numa_node_id(), I am
+
+That doesn't really answer the question, if I understand it correctly. 
+But I think that the node of the previously used read-only page doesn't 
+matter here. Either it's zero page, or a page we are COWing after fork? 
+It should only matter from which node we are accessing it now.
+
+It's just a simple heuristic but I agree it makes sense to avoid remote 
+nodes with potential reclaim/compaction to allocate the huge page, 
+especially in page faults.
+
+> not sure whether it really matters w.r.t to the task getting preempted
+> and running on another node ? Even if we make it same as the node on
+> which the page fault happened, we could end up running on another
+> node. That situation is no worse than what we have today.
+>
+>
+>
 >>
->> From our experiments almost everything is suitable, but the
->> remap_anon_pages() system call, so I'd like you to comment on
-> 
-> Ok, as a side note, we'll soon stop using remap_anon_pages for
-> postcopy, we'll do a copy instead of a move. As Linus pointed out that
-> should improve performance. I'm mentioning it just as a reminder, for
-> this discussion below it changes nothing if we do a copy or a move,
-> and you also should benefit from doing a copy instead of a move.
+>>> +	} else
+>>>   		new_page = NULL;
+>>>
+>>>   	if (unlikely(!new_page)) {
+>>> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+>>> index e58725aff7e9..fa96af5b31f7 100644
+>>> --- a/mm/mempolicy.c
+>>> +++ b/mm/mempolicy.c
+>>> @@ -2041,6 +2041,46 @@ retry_cpuset:
+>>>   	return page;
+>>>   }
+>>>
+>>> +struct page *alloc_hugepage_vma(gfp_t gfp, struct vm_area_struct *vma,
+>>> +				unsigned long addr, int order)
 
-Provided we do it on current task -- yes. But since we're working on
-some other one, we will need some way to memcpy() one there.
+It's somewhat confusing that the name talks about hugepages, yet you 
+have to supply the order and gfp. Only the policy handling is tailored 
+for hugepages. But maybe it's better than calling the function 
+"alloc_pages_vma_local_only_unless_interpolate" :/
 
->> whether we're mis-using your API or not :) So, for containers the
->> post-copy migration would look like this.
+>>> +{
+>>> +	struct page *page;
+>>> +	nodemask_t *nmask;
+>>> +	struct mempolicy *pol;
+>>> +	int node = numa_node_id();
 >>
+>> Hm. What if the code will be preempted and scheduled on different node?
+>> I'm not really familiar with mempolicy details and not sure if we should
+>> care. Probably not.
 >>
->> On the source node we freeze the container's process tree, read
->> its state, except for the memory contents using CRIU tool, then
->> copy the state on remote host and recreate the processes back
->> using the CRIU tool again.
+>>> +	unsigned int cpuset_mems_cookie;
+>>> +
+>>> +retry_cpuset:
+>>> +	pol = get_vma_policy(vma, addr);
+>>> +	cpuset_mems_cookie = read_mems_allowed_begin();
+>>> +
+>>> +	if (pol->mode != MPOL_INTERLEAVE) {
+>>> +		/*
+>>> +		 * For interleave policy, we don't worry about
+>>> +		 * current node. Otherwise if current node is
+>>> +		 * in nodemask, try to allocate hugepage from
+>>> +		 * current node. Don't fall back to other nodes
+>>> +		 * for THP.
+>>> +		 */
 >>
->> At this step (restore) we mark all the memory of the tasks we
->> restore with MADV_USERFAULT so that any attempt to access one 
->> results in the notification via userfaultfd. The userfaultfd, in
->> turn, exists for every process in the container and, in our plans, 
->> is owned by the CRIU daemon, that will provide the post-copy 
->> memory updates. Then we unfreeze the processes and let them run
->> further.
+>> The comment probably should be above "if ()", not below.
+>
+> ok
+>
 >>
->> So, when a process tries to access the memory the CRIU daemon
->> wakes up, reads the fault address, pulls the page from source node
->> and then it should put this page into the proper process' address
->> space. And here's where we have problems.
->>
->> The page with data is in CRIU daemon address space and the syscall
->> remap_anon_pages() works on current process address space. So, in
->> order to have the data in the container's process address space, we
->> have two choices. Either we somehow make the page be available in 
->> the other process address space and make this process call the remap
->> system call, or we should extend the syscall to accept the pid of 
->> the process on whose address space we'd like to work on.
->>
->>
->> What do you think? Are you OK with tuning the remap_anon_pages, or
->> we should do things in completely different way? If the above
->> explanation is not clear enough, we'd be happy to provide more 
->> details.
-> 
-> The problem with remap_anon_pages is clear. What's not clear is how
-> you make the userfaultfd "owned" by the CRIU daemon. userfaultfd()
-> should be run by each process in the container, not by the daemon, so
-> during creation it has the same constraints of the
-> remap_anon_pages/mcopy_atomic.
-> 
-> Or you passing all processes' fd to the CRIU through unix domain
-> sockets or something like that? 
-
-Exactly :)
-
-> I actually didn't think of sending the
-> fd over to a different process and I'd originally expected you to run
-> on the same issue you have with remap_anon_pages also with
-> userfaultfd() because userfaultfd() also doesn't get a "pid" as
-> parameter.
-
-It doesn't but we can live with it. CRIU restores the processes like
-this -- it fork()-s, then the new child morphs into the state of the
-process it should restore. I.e. -- it closes old FDs and opens new
-ones, unmaps old memory and puts the new one back, changes session,
-comm, credentials, registers (at the end), etc.
-
-So, while we do restore we call the userfaultfd(), get the fd from
-it, send one via unix socket to daemon, then continue the "morphing".
-The daemon receives the descriptor, using SCM_CREDS finds out who
-is the sender and builds a map of {pid, uffd} pairs, so when an event
-occurs on an fd it knows which process' mm is generating one.
-
-> The issue with adding a "pid" will complicate things a bit, I don't
-> think it's impossible, just a pid is not a proper representation of an
-> mm, it could be kernel thread that transiently own the mm.
-
-Of course.
-
-> But you'll
-> just use the pid of the main user thread so it still shall work and
-> then it's userland responsibility to ensure the pid isn't killed and
-> replaced by another spawned process with a different mm. Just it's not
-> the normal thing to have a pid parameter in syscalls that alter the
-> address space.
-> 
-> Sending the page over should be possible with a pipe plus vmsplice, so
-> you could do this already with the current code.
-
-But if we send a page over pipe, then the process we send it to should
-be ready to accept one. However in our case, the process after restore
-continues running and doesn't expect us to send any pages.
-
-> If we'd expose the new vma-less VM operations as ufd commands (instead
-> of syscalls) then you could just use the source address in the MM
-> context of the process that is running the write syscall into the ufd,
-> and the destination address would be still interpreted in the original
-> MM context of the process that owns the fd. That assuming you got a
-> working way to send the fd over (unix domain sockets /proc or something).
-
-Do I get you right, that we can (well, should be able to) send a page
-into the userfaultfd and it will plant one into the mm it monitors? If
-yes, this will perfectly fit our case :)
-
-> I still didn't hear much comments on what peoples prefer between
-> exposing those vma-less mprotect-mremap-like operations as syscalls
-> (mcopy_atomic for postcopy live migration, mprotect_pagetable for
-> postcopy live snapshot) or if to hide those operations into ufd
-> commands.
-> 
-> If we use syscalls userland will have to do the below (for simplicity
-> I'll ignore err retval that should be checked, it's c-like pseudocode):
-> 
->     u64 range[2];
-> 
->     /* enable userfault on the region */
->     madvise(guest_start, guest_len, MADV_USERFAULT);
-> 
->     /* register userfaultfd into the region, disable SIGBUS behavior */
->     ufd = userfaultfd(0);
->     range[0] = guest_start | USERFAULTFD_RANGE_REGISTER;
->     range[1] = guest_start + guest_len;
->     write(ufd, range, sizeof(range));
-> 
->     poll(fd = ufd, ....);
-> 
->     /*
->      * userfault trigger on addr "dst" and userland decides to solve
->      * it with 4k granularity below
->      */
-> 
->     /* map the page in the faulting address "dst", "src" is where you got the data */
->     mcopy_atomic(dst, src, 4096);
-
-Yup. In our case here should go the code, that would put the src data
-into _another_ process' memory.
-
->     range[0] = dst;
->     range[1] = dst + 4096;
->     /* tell the kernel to wake and retry the blocked page fault */
->     write(ufd, range, sizeof(range));
-> 
-> If we use ufd commands then pure MADV_USERFAULT (without userfaultfd)
-> won't be able anymore to call mcopy_atomic in SIGBUS and it probably
-> should be dropped entirely (forcing everyone including volatile pages
-> to use userfaultfd) and the code would become:
-> 
->     u64 range[4];
-> 
->     /* register userfaultfd into the region */
->     ufd = userfaultfd(0);
->     range[0] = USERFAULTFD_RANGE_REGISTER_NOT_PRESENT;
->     range[1] = guest_start;
->     range[2] = guest_start + guest_len;
->     write(ufd, range, sizeof(range));
-> 
->     poll(fd = ufd, ....);
-> 
->     /*
->      * userfault trigger on addr "dst" and userland decides to solve
->      * it with 4k granularity below
->      */
-> 
->     range[0] = USERFAULTFD_MCOPY_ATOMIC;
->     range[1] = dst;
->     range[2] = dst + 4096;
->     /* src is where you transferred the data */
->     range[3] = src;
->     /* tell the kernel to copy the page atomically and wake and retry the blocked page fault */
->     write(ufd, range, sizeof(range));
-
-If this will copy/move the page from current task's mm to the mm ufd points
-to, this will perfectly work for us.
-
-> If we hide all pagetable mangling operations as ufd commands, then we
-> would add the USERFAULTFD_RANGE_REGISTER_WRPROTECTED and other
-> commands to mark and unmark pagetables wrprotected to arm and disarm
-> the wrprotect faults without thouching vmas.
-> 
-> The range[4] above in the second case is just to make it smaller
-> above, it'd need to be a proper structure of course, but you get the
-> idea.
-> 
-> Comments on what is preferred between the two APIs would be welcome,
-> as some bit of plumbing code would change and I could save some
-> time. I'm quite netural on the two approaches.
-> 
-> Doing everything inside userfaultfd would imply that the only way
-> those operations could ever be useful would be in combination with the
-> userfaultfd.
-> 
-> Doing it with syscalls has the main advantage of not requiring a
-> userfaultfd protocol bump every single time if we add new operations,
-> so we could have a fully feature userfaultfd notification mechanism to
-> start with (that allows to register for not present or wrprotect
-> faults and reports also the type of the fault), and later we could add
-> more pte mangling syscalls incrementally. However if we're sure those
-> operations cannot be useful without userfaultfd open, we could as well
-> hide them as ufd commands and then you could use them from a different
-> process and they would act on the mm attached to the ufd.
-> 
-> Comments to decide which API is better are welcome, the internals
-> won't change it's an API matter but it's still quite some code it may
-> affect if we switch between the two.
-
-I like your suggestion to move all the vm working into the userfaultfd
-protocol. This will help us forget about the pid re-use issue that was
-pointed out above.
-
-Thanks,
-Pavel
+>>> +		nmask = policy_nodemask(gfp, pol);
+>>> +		if (!nmask || node_isset(node, *nmask)) {
+>>> +			mpol_cond_put(pol);
+>>> +			page = alloc_pages_exact_node(node, gfp, order);
+>>> +			if (unlikely(!page &&
+>>> +				     read_mems_allowed_retry(cpuset_mems_cookie)))
+>>> +				goto retry_cpuset;
+>>> +			return page;
+>>> +		}
+>>> +	}
+>>> +	mpol_cond_put(pol);
+>>> +	/*
+>>> +	 * if current node is not part of node mask, try
+>>> +	 * the allocation from any node, and we can do retry
+>>> +	 * in that case.
+>>> +	 */
+>>> +	return alloc_pages_vma(gfp, order, vma, addr, node);
+>>> +}
+>>> +
+>>>   /**
+>>>    * 	alloc_pages_current - Allocate pages.
+>>>    *
+>
+> -aneesh
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
