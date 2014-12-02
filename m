@@ -1,68 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id CAF936B0074
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 21:50:17 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id eu11so12360176pac.22
-        for <linux-mm@kvack.org>; Mon, 01 Dec 2014 18:50:17 -0800 (PST)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id b14si2003627pat.34.2014.12.01.18.50.09
-        for <linux-mm@kvack.org>;
-        Mon, 01 Dec 2014 18:50:11 -0800 (PST)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [RFC 1/6] zsmalloc: expand size class to support sizeof(unsigned long)
-Date: Tue,  2 Dec 2014 11:49:42 +0900
-Message-Id: <1417488587-28609-2-git-send-email-minchan@kernel.org>
-In-Reply-To: <1417488587-28609-1-git-send-email-minchan@kernel.org>
-References: <1417488587-28609-1-git-send-email-minchan@kernel.org>
+Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D9E36B006C
+	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 21:53:42 -0500 (EST)
+Received: by mail-wg0-f46.google.com with SMTP id a1so7594397wgh.19
+        for <linux-mm@kvack.org>; Mon, 01 Dec 2014 18:53:42 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t19si34070067wiv.66.2014.12.01.18.53.41
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 01 Dec 2014 18:53:41 -0800 (PST)
+Message-ID: <547D29A3.7090108@redhat.com>
+Date: Mon, 01 Dec 2014 21:53:23 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2 3/4] mm: refactor do_wp_page, extract the page copy
+ flow
+References: <1417467491-20071-1-git-send-email-raindel@mellanox.com> <1417467491-20071-4-git-send-email-raindel@mellanox.com>
+In-Reply-To: <1417467491-20071-4-git-send-email-raindel@mellanox.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjennings@variantweb.net>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Luigi Semenzato <semenzato@google.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Minchan Kim <minchan@kernel.org>
+To: Shachar Raindel <raindel@mellanox.com>, linux-mm@kvack.org
+Cc: kirill.shutemov@linux.intel.com, mgorman@suse.de, ak@linux.intel.com, matthew.r.wilcox@intel.com, dave.hansen@linux.intel.com, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, torvalds@linux-foundation.org, haggaie@mellanox.com, aarcange@redhat.com, pfeiner@google.com, hannes@cmpxchg.org, sagig@mellanox.com, walken@google.com
 
-For compaction of zsmalloc, we need to decouple handle and
-obj position binding. For that, we need another memory to
-keep handle and I want to reuse existing functions of zsmalloc
-to implement indirect layer.
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
 
-For that, we need to support new size class(ie, sizeof(unsigned
-long)) so this patch does it.
+On 12/01/2014 03:58 PM, Shachar Raindel wrote:
+> In some cases, do_wp_page had to copy the page suffering a write
+> fault to a new location. If the function logic decided that to do
+> this, it was done by jumping with a "goto" operation to the
+> relevant code block. This made the code really hard to understand.
+> It is also against the kernel coding style guidelines.
+> 
+> This patch extracts the page copy and page table update logic to a 
+> separate function. It also clean up the naming, from "gotten" to 
+> "wp_page_copy", and adds few comments.
+> 
+> Signed-off-by: Shachar Raindel <raindel@mellanox.com> --- 
+> mm/memory.c | 265
+> +++++++++++++++++++++++++++++++++--------------------------- 1 file
+> changed, 147 insertions(+), 118 deletions(-)
+> 
+> diff --git a/mm/memory.c b/mm/memory.c index b42bec0..c7c0df2
+> 100644 --- a/mm/memory.c +++ b/mm/memory.c @@ -2088,6 +2088,146 @@
+> static int wp_page_reuse(struct mm_struct *mm, struct
+> vm_area_struct *vma, }
+> 
+> /* + * Handle the case of a page which we actually need to copy to
+> a new page. + * + * Called with mmap_sem locked and the old page
+> referenced, but + * without the ptl held. + * + * High level logic
+> flow: + * + * - Allocate a page, copy the content of the old page
+> to the new one. + * - Handle book keeping and accounting - cgroups,
+> mmu-notifiers, etc. + * - Take the PTL. If the pte changed, bail
+> out and release the allocated page + * - If the pte is still the
+> way we remember it, update the page table and all + *   relevant
+> references. This includes dropping the reference the page-table + *
+> held to the old page, as well as updating the rmap. + * - In any
+> case, unlock the PTL and drop the reference we took to the old
+> page. + */ +static int wp_page_copy(struct mm_struct *mm, struct
+> vm_area_struct *vma, +			unsigned long address, pte_t *page_table,
+> pmd_t *pmd, +			pte_t orig_pte, struct page *old_page) +{ +	struct
+> page *new_page = NULL; +	spinlock_t *ptl = NULL; +	pte_t entry; +
+> int page_copied = 0; +	const unsigned long mmun_start = address &
+> PAGE_MASK;	/* For mmu_notifiers */ +	const unsigned long mmun_end =
+> mmun_start + PAGE_SIZE;	/* For mmu_notifiers */ +	struct mem_cgroup
+> *memcg; + +	if (unlikely(anon_vma_prepare(vma))) +		goto oom; + +
+> if (is_zero_pfn(pte_pfn(orig_pte))) { +		new_page =
+> alloc_zeroed_user_highpage_movable(vma, address); +		if
+> (!new_page) +			goto oom; +	} else { +		new_page =
+> alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address); +		if
+> (!new_page) +			goto oom; +		cow_user_page(new_page, old_page,
+> address, vma); +	} +	__SetPageUptodate(new_page); + +	if
+> (mem_cgroup_try_charge(new_page, mm, GFP_KERNEL, &memcg)) +		goto
+> oom_free_new; + +	mmu_notifier_invalidate_range_start(mm,
+> mmun_start, mmun_end);
 
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- mm/zsmalloc.c | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+I believe the mmu_notifier_invalidate_range_start & _end
+functions can be moved inside the pte_same(*page_table, orig_pte)
+branch. There is no reason to call those functions if we do not
+modify the page table entry.
 
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 2021df5eb891..a806d714924c 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -100,7 +100,8 @@
-  * span more than 1 page which avoids complex case of mapping 2 pages simply
-  * to restore link_free pointer values.
-  */
--#define ZS_ALIGN		8
-+#define ZS_ALIGN		(sizeof(struct link_free))
-+#define ZS_HANDLE_SIZE		(sizeof(unsigned long))
- 
- /*
-  * A single 'zspage' is composed of up to 2^N discontiguous 0-order (single)
-@@ -138,11 +139,11 @@
- #define MAX(a, b) ((a) >= (b) ? (a) : (b))
- /* ZS_MIN_ALLOC_SIZE must be multiple of ZS_ALIGN */
- #define ZS_MIN_ALLOC_SIZE \
--	MAX(32, (ZS_MAX_PAGES_PER_ZSPAGE << PAGE_SHIFT >> OBJ_INDEX_BITS))
--#define ZS_MAX_ALLOC_SIZE	PAGE_SIZE
-+	MAX(ZS_ALIGN, (ZS_MAX_PAGES_PER_ZSPAGE << PAGE_SHIFT >> OBJ_INDEX_BITS))
-+#define ZS_MAX_ALLOC_SIZE	(PAGE_SIZE + ZS_HANDLE_SIZE)
- 
- /*
-- * On systems with 4K page size, this gives 255 size classes! There is a
-+ * On systems with 4K page size, this gives 257 size classes! There is a
-  * trader-off here:
-  *  - Large number of size classes is potentially wasteful as free page are
-  *    spread across these classes
--- 
-2.0.0
+This is not something introduced by your patch, but you might as
+well fix it while you're touching the code :)
+
+Other than that:
+
+Acked-by: Rik van Riel <riel@redhat.com>
+
+- -- 
+All rights reversed
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQEcBAEBAgAGBQJUfSmjAAoJEM553pKExN6DhhIIAI72W6J2jKD9EXulDTF2TXXW
+AyiKUvJHg8GiCRExvurHkUwZ+y9WdzrEEjy8ZKZvh76uhvZZpyytRTYysiFTc4Hs
+du5qsdxbn/FejukO9hygPGoQnwL7aFG6S6B48syaolR5xpwLXHgI54+5GJNurmY9
+mqcfitfojqbQK39d18GvwHl4HkJ4T/Cfg/mf5oRSwlsf9Yc8gcrKGlfrdoHjFAWH
+oHXFdVQVw98Khlkpw6cmw/ga9TgTWGipZxQyx2SRVAkq52XhPNivPov+agNWH8Fh
+79YbqTqetWYkMdiJXlnnk3V/7bi3fGmSxoA8KM/miheKiDY8ECr0E9qhd3VOegI=
+=yuS6
+-----END PGP SIGNATURE-----
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
