@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id E40626B0069
-	for <linux-mm@kvack.org>; Tue,  2 Dec 2014 10:06:31 -0500 (EST)
-Received: by mail-wg0-f48.google.com with SMTP id y19so17249620wgg.7
-        for <linux-mm@kvack.org>; Tue, 02 Dec 2014 07:06:31 -0800 (PST)
+Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 6871C6B0069
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2014 10:11:20 -0500 (EST)
+Received: by mail-wg0-f46.google.com with SMTP id a1so9027151wgh.19
+        for <linux-mm@kvack.org>; Tue, 02 Dec 2014 07:11:20 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id s9si37287101wiz.16.2014.12.02.07.06.30
+        by mx.google.com with ESMTPS id xy3si35356944wjc.174.2014.12.02.07.11.18
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Dec 2014 07:06:30 -0800 (PST)
-Date: Tue, 2 Dec 2014 10:06:23 -0500
+        Tue, 02 Dec 2014 07:11:19 -0800 (PST)
+Date: Tue, 2 Dec 2014 10:11:12 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: Re: [patch 1/3] mm: protect set_page_dirty() from ongoing truncation
-Message-ID: <20141202150623.GA8401@phnom.home.cmpxchg.org>
+Message-ID: <20141202151112.GB8401@phnom.home.cmpxchg.org>
 References: <1417474682-29326-1-git-send-email-hannes@cmpxchg.org>
- <20141202091212.GB9092@quack.suse.cz>
+ <20141202115652.GB22683@node.dhcp.inet.fi>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20141202091212.GB9092@quack.suse.cz>
+In-Reply-To: <20141202115652.GB22683@node.dhcp.inet.fi>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Dec 02, 2014 at 10:12:12AM +0100, Jan Kara wrote:
-> On Mon 01-12-14 17:58:00, Johannes Weiner wrote:
+On Tue, Dec 02, 2014 at 01:56:52PM +0200, Kirill A. Shutemov wrote:
+> On Mon, Dec 01, 2014 at 05:58:00PM -0500, Johannes Weiner wrote:
 > > Tejun, while reviewing the code, spotted the following race condition
 > > between the dirtying and truncation of a page:
 > > 
@@ -100,21 +100,19 @@ On Tue, Dec 02, 2014 at 10:12:12AM +0100, Jan Kara wrote:
 > > +			lock_page(dirty_page);
 > > +			dirtied = set_page_dirty(dirty_page);
 > > +			mapping = dirty_page->mapping;
-> > +			unlock_page(dirty_page);
-> > +
-> > +			if (dirtied && mapping) {
-> > +				/*
-> > +				 * Some device drivers do not set page.mapping
-> > +				 * but still dirty their pages
-> > +				 */
->   The comment doesn't make sense to me here. Is it meant to explain why we
-> check 'mapping' in the above condition? I always thought truncate is the
-> main reason.
+> 
+> At first, I wanted to ask why you don't use page_mapping() here, but after
+> a bit of digging I see we cannot get here with anon page.
+> 
+> Explicid VM_BUG_ON_PAGE(PageAnon(dirty_page), dirty_page); would be great.
 
-Yes, I just copied it from the page_mkwrite case a few lines down, and
-there is another copy of it in do_shared_fault().  Truncate is also a
-possibility during a race, of course, but even without it we expect
-that the mapping can be NULL for certain device drivers.
+Fair enough, I added that.
+
+> Otherwise looks good to me.
+> 
+> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
