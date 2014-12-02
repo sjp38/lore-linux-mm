@@ -1,48 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com [209.85.214.177])
-	by kanga.kvack.org (Postfix) with ESMTP id A6EAC6B0069
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 23:04:28 -0500 (EST)
-Received: by mail-ob0-f177.google.com with SMTP id va2so8787260obc.8
-        for <linux-mm@kvack.org>; Mon, 01 Dec 2014 20:04:28 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id uk5si13164965oeb.0.2014.12.01.20.04.27
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 01 Dec 2014 20:04:27 -0800 (PST)
-From: Sasha Levin <sasha.levin@oracle.com>
-Subject: [PATCH] mm: fadvise: avoid signed integer overflow calculating offset
-Date: Mon,  1 Dec 2014 23:04:08 -0500
-Message-Id: <1417493050-13594-4-git-send-email-sasha.levin@oracle.com>
-In-Reply-To: <1417493050-13594-1-git-send-email-sasha.levin@oracle.com>
-References: <1417493050-13594-1-git-send-email-sasha.levin@oracle.com>
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 77BD16B0069
+	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 23:19:12 -0500 (EST)
+Received: by mail-pd0-f176.google.com with SMTP id y10so12288014pdj.7
+        for <linux-mm@kvack.org>; Mon, 01 Dec 2014 20:19:12 -0800 (PST)
+Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id sf2si31759913pbb.99.2014.12.01.20.19.10
+        for <linux-mm@kvack.org>;
+        Mon, 01 Dec 2014 20:19:11 -0800 (PST)
+Date: Tue, 2 Dec 2014 13:22:14 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH] Fix memory ordering bug in mm/vmalloc.c.
+Message-ID: <20141202042214.GA6268@js1304-P5Q-DELUXE>
+References: <1417421486-13976-1-git-send-email-dvyukov@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1417421486-13976-1-git-send-email-dvyukov@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Sasha Levin <sasha.levin@oracle.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: akpm@linux-foundation.org, edumazet@google.com, linux-mm@kvack.org
 
-Both offset and len are signed integers who's overflow isn't defined. Use
-unsigned addition to avoid the issue.
+On Mon, Dec 01, 2014 at 11:11:26AM +0300, Dmitry Vyukov wrote:
+> Read memory barriers must follow the read operations.
 
-Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
----
- mm/fadvise.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Hello, Dmitry.
 
-diff --git a/mm/fadvise.c b/mm/fadvise.c
-index 3bcfd81d..762cb63 100644
---- a/mm/fadvise.c
-+++ b/mm/fadvise.c
-@@ -67,7 +67,7 @@ SYSCALL_DEFINE4(fadvise64_64, int, fd, loff_t, offset, loff_t, len, int, advice)
- 	}
- 
- 	/* Careful about overflows. Len == 0 means "as much as possible" */
--	endbyte = offset + len;
-+	endbyte = offset + (u64)len;
- 	if (!len || endbyte < len)
- 		endbyte = -1;
- 	else
--- 
-1.7.10.4
+You are right.
+Acked-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
