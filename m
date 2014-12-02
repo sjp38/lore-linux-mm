@@ -1,50 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A8006B006E
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 18:48:17 -0500 (EST)
-Received: by mail-ig0-f170.google.com with SMTP id r2so15414908igi.3
-        for <linux-mm@kvack.org>; Mon, 01 Dec 2014 15:48:16 -0800 (PST)
-Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
-        by mx.google.com with ESMTPS id cy14si13477200igc.10.2014.12.01.15.48.11
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DD286B0069
+	for <linux-mm@kvack.org>; Mon,  1 Dec 2014 19:13:03 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id kx10so12201535pab.30
+        for <linux-mm@kvack.org>; Mon, 01 Dec 2014 16:13:03 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id vh3si31045645pbc.153.2014.12.01.16.13.01
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 01 Dec 2014 15:48:14 -0800 (PST)
-Message-ID: <1417473849.7182.9.camel@kernel.crashing.org>
-Subject: Re: [PATCH 03/10] mm: Convert p[te|md]_numa users to
- p[te|md]_protnone_numa
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Tue, 02 Dec 2014 09:44:09 +1100
-In-Reply-To: <1416578268-19597-4-git-send-email-mgorman@suse.de>
-References: <1416578268-19597-1-git-send-email-mgorman@suse.de>
-	 <1416578268-19597-4-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 01 Dec 2014 16:13:02 -0800 (PST)
+Date: Mon, 1 Dec 2014 16:13:00 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: Remove the highmem zones' memmap in the highmem
+ zone
+Message-Id: <20141201161300.8d370b30b181e988065ec71d@linux-foundation.org>
+In-Reply-To: <1417085194-17042-1-git-send-email-bocui107@gmail.com>
+References: <1417085194-17042-1-git-send-email-bocui107@gmail.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LinuxPPC-dev <linuxppc-dev@lists.ozlabs.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@redhat.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Sasha Levin <sasha.levin@oracle.com>, Paul Mackerras <paulus@samba.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Hongbo Zhong <bocui107@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
 
-On Fri, 2014-11-21 at 13:57 +0000, Mel Gorman wrote:
-> void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
->                 pte_t pte)
->  {
-> -#ifdef CONFIG_DEBUG_VM
-> -       WARN_ON(pte_val(*ptep) & _PAGE_PRESENT);
-> -#endif
-> +       /*
-> +        * When handling numa faults, we already have the pte marked
-> +        * _PAGE_PRESENT, but we can be sure that it is not in hpte.
-> +        * Hence we can use set_pte_at for them.
-> +        */
-> +       VM_WARN_ON((pte_val(*ptep) & (_PAGE_PRESENT | _PAGE_USER)) ==
-> +               (_PAGE_PRESENT | _PAGE_USER));
-> +
+On Thu, 27 Nov 2014 18:46:34 +0800 Hongbo Zhong <bocui107@gmail.com> wrote:
 
-His is that going to fare with set_pte_at() called for kernel pages ?
+> From: Zhong Hongbo <bocui107@gmail.com>
+> 
+> Since the commit 01cefaef40c4 ("mm: provide more accurate estimation
+> of pages occupied by memmap") allocate the pages from lowmem for the
+> highmem zones' memmap. So It is not need to reserver the memmap's for
+> the highmem.
 
-Cheers,
-Ben.
+Looks right.
+
+> A 2G DDR3 for the arm platform:
+> On node 0 totalpages: 524288
+> free_area_init_node: node 0, pgdat 80ccd380, node_mem_map 80d38000
+>   DMA zone: 3568 pages used for memmap
+>   DMA zone: 0 pages reserved
+>   DMA zone: 456704 pages, LIFO batch:31
+>   HighMem zone: 528 pages used for memmap
+>   HighMem zone: 67584 pages, LIFO batch:15
+> 
+> On node 0 totalpages: 524288
+> free_area_init_node: node 0, pgdat 80cd6f40, node_mem_map 80d42000
+>   DMA zone: 3568 pages used for memmap
+>   DMA zone: 0 pages reserved
+>   DMA zone: 456704 pages, LIFO batch:31
+>   HighMem zone: 67584 pages, LIFO batch:15
+
+So nothing changed.  Maybe it would have if the machine had more
+highmem.
+
+I'm trying to work out what effect this patch actually has.  AFAICT it
+provides more accurate values for zone->min_unmapped_pages and
+zone->min_slab_pages on NUMA.  Anything else?
 
 
 --
