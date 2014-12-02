@@ -1,130 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 07A2D6B0069
-	for <linux-mm@kvack.org>; Tue,  2 Dec 2014 11:56:16 -0500 (EST)
-Received: by mail-wi0-f175.google.com with SMTP id l15so28779586wiw.2
-        for <linux-mm@kvack.org>; Tue, 02 Dec 2014 08:56:15 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id wl10si35876132wjc.129.2014.12.02.08.56.14
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Dec 2014 08:56:14 -0800 (PST)
-Date: Tue, 2 Dec 2014 11:56:07 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 3/3] mm: memory: merge shared-writable dirtying branches
- in do_wp_page()
-Message-ID: <20141202165607.GD8401@phnom.home.cmpxchg.org>
-References: <1417474682-29326-1-git-send-email-hannes@cmpxchg.org>
- <1417474682-29326-3-git-send-email-hannes@cmpxchg.org>
- <20141202091939.GC9092@quack.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141202091939.GC9092@quack.suse.cz>
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id D23716B0038
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2014 14:37:19 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id fb1so14137002pad.13
+        for <linux-mm@kvack.org>; Tue, 02 Dec 2014 11:37:19 -0800 (PST)
+Received: from p3plsmtps2ded04.prod.phx3.secureserver.net (p3plsmtps2ded04.prod.phx3.secureserver.net. [208.109.80.198])
+        by mx.google.com with ESMTP id zq10si34772114pbc.218.2014.12.02.11.37.17
+        for <linux-mm@kvack.org>;
+        Tue, 02 Dec 2014 11:37:18 -0800 (PST)
+From: "K. Y. Srinivasan" <kys@microsoft.com>
+Subject: [PATCH 1/1] mm: Fix a deadlock in the hotplug code
+Date: Tue,  2 Dec 2014 12:46:58 -0800
+Message-Id: <1417553218-12339-1-git-send-email-kys@microsoft.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, olaf@aepfle.de, apw@canonical.com, linux-mm@kvack.org
+Cc: "K. Y. Srinivasan" <kys@microsoft.com>
 
-On Tue, Dec 02, 2014 at 10:19:39AM +0100, Jan Kara wrote:
-> On Mon 01-12-14 17:58:02, Johannes Weiner wrote:
-> > Whether there is a vm_ops->page_mkwrite or not, the page dirtying is
-> > pretty much the same.  Make sure the page references are the same in
-> > both cases, then merge the two branches.
-> > 
-> > It's tempting to go even further and page-lock the !page_mkwrite case,
-> > to get it in line with everybody else setting the page table and thus
-> > further simplify the model.  But that's not quite compelling enough to
-> > justify dropping the pte lock, then relocking and verifying the entry
-> > for filesystems without ->page_mkwrite, which notably includes tmpfs.
-> > Leave it for now and lock the page late in the !page_mkwrite case.
-> > 
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > ---
-> >  mm/memory.c | 46 ++++++++++++++++------------------------------
-> >  1 file changed, 16 insertions(+), 30 deletions(-)
-> > 
-> > diff --git a/mm/memory.c b/mm/memory.c
-> > index 2a2e3648ed65..ff92abfa5303 100644
-> > --- a/mm/memory.c
-> > +++ b/mm/memory.c
-> ...
-> > @@ -2147,42 +2147,28 @@ reuse:
-> >  		pte_unmap_unlock(page_table, ptl);
-> >  		ret |= VM_FAULT_WRITE;
-> >  
-> > -		if (!dirty_page)
-> > -			return ret;
-> > -
-> > -		if (!page_mkwrite) {
-> > +		if (dirty_shared) {
-> >  			struct address_space *mapping;
-> >  			int dirtied;
-> >  
-> > -			lock_page(dirty_page);
-> > -			dirtied = set_page_dirty(dirty_page);
-> > -			mapping = dirty_page->mapping;
-> > -			unlock_page(dirty_page);
-> > +			if (!page_mkwrite)
-> > +				lock_page(old_page);
-> >  
-> > -			if (dirtied && mapping) {
-> > -				/*
-> > -				 * Some device drivers do not set page.mapping
-> > -				 * but still dirty their pages
-> > -				 */
-> > -				balance_dirty_pages_ratelimited(mapping);
-> > -			}
-> > +			dirtied = set_page_dirty(old_page);
-> > +			mapping = old_page->mapping;
-> > +			unlock_page(old_page);
-> > +			page_cache_release(old_page);
-> >  
-> > -			file_update_time(vma->vm_file);
-> > -		}
-> > -		put_page(dirty_page);
-> > -		if (page_mkwrite) {
-> > -			struct address_space *mapping = dirty_page->mapping;
-> > -
-> > -			set_page_dirty(dirty_page);
-> > -			unlock_page(dirty_page);
-> > -			page_cache_release(dirty_page);
-> > -			if (mapping)	{
-> > +			if ((dirtied || page_mkwrite) && mapping) {
->   Why do we actually call balance_dirty_pages_ratelimited() even if we
-> didn't dirty the page when ->page_mkwrite() exists? Is it because
-> filesystem may dirty the page in ->page_mkwrite() and we don't want it to
-> deal with calling balance_dirty_pages_ratelimited()?
+Andy Whitcroft <apw@canonical.com> initially saw this deadlock. We have
+seen this as well. Here is the original description of the problem (and a
+potential solution) from Andy:
 
-Yes, ->page_mkwrite() can dirty the page, but balance_dirty_pages(),
-as you noted, is not allowed under the page lock.  However, it also
-can't drop the page lock if that is the final set_page_dirty() as the
-pte isn't dirty yet, and clear_page_dirty_for_io() relies on the pte
-to be dirtied before the page outside the page lock.
+https://lkml.org/lkml/2014/3/14/451
 
-That being said, the page lock semantics in there are strange.  It
-seems to me that page_mkwrite semantics inherited fault semantics,
-which don't allow the page lock to be dropped between verifying the
-page->mapping and installing the page table, to make sure we don't map
-a truncated page.  That's why when ->page_mkwrite() returns with the
-page unlocked, do_page_mkwrite() locks it and verifies page->mapping,
-only to hold the page lock until after the page table update is done.
+Here is an excerpt from that mail:
 
-However, unlike during a nopage fault, we fault against an existing
-read-only pte mapping of the page, and truncation needs to unmap it.
-Even if we dropped both the page lock and the pte lock, that
-pte_same() check after re-locking the page table would reliably tell
-us if somebody swooped in and truncated the page behind our backs.
+"We are seeing machines lockup with what appears to be an ABBA deadlock in
+the memory hotplug system.  These are from the 3.13.6 based Ubuntu kernels.
+The hv_balloon driver is adding memory using add_memory() which takes the
+hotplug lock, and then emits a udev event, and then attempts to lock the
+sysfs device.  In response to the udev event udev opens the sysfs device
+and locks it, then attempts to grab the hotplug lock to online the memory.
+This seems to be inverted nesting in the two cases, leading to the hangs below:
 
-So AFAICS ->page_mkwrite() could safely return with the page unlocked
-in terms of correctness.  But OTOH if it locks the page anyway, it's
-cheaper to just keep it until we need it again for set_page_dirty().
-Either way, I think the truncation verification in do_page_mkwrite()
-is unnecessary.
+[  240.608612] INFO: task kworker/0:2:861 blocked for more than 120 seconds.
+[  240.608705] INFO: task systemd-udevd:1906 blocked for more than 120 seconds.
 
-> Otherwise the patch looks good to me.
+I note that the device hotplug locking allows complete retries (via
+ERESTARTSYS) and if we could detect this at the online stage it
+could be used to get us out.  But before I go down this road I wanted
+to make sure I am reading this right.  Or indeed if the hv_balloon driver
+is just doing this wrong."
 
-Thanks!
+This patch is based on Andy's analysis and suggestion.
+
+Signed-off-by: K. Y. Srinivasan <kys@microsoft.com>
+---
+ mm/memory_hotplug.c |   24 +++++++++++++++++-------
+ 1 files changed, 17 insertions(+), 7 deletions(-)
+
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 9fab107..e195269 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -104,19 +104,27 @@ void put_online_mems(void)
+ 
+ }
+ 
+-static void mem_hotplug_begin(void)
++static int mem_hotplug_begin(bool trylock)
+ {
+ 	mem_hotplug.active_writer = current;
+ 
+ 	memhp_lock_acquire();
+ 	for (;;) {
+-		mutex_lock(&mem_hotplug.lock);
++		if (trylock) {
++			if (!mutex_trylock(&mem_hotplug.lock)) {
++				mem_hotplug.active_writer = NULL;
++				return -ERESTARTSYS;
++			}
++		} else {
++			mutex_lock(&mem_hotplug.lock);
++		}
+ 		if (likely(!mem_hotplug.refcount))
+ 			break;
+ 		__set_current_state(TASK_UNINTERRUPTIBLE);
+ 		mutex_unlock(&mem_hotplug.lock);
+ 		schedule();
+ 	}
++	return 0;
+ }
+ 
+ static void mem_hotplug_done(void)
+@@ -969,7 +977,9 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+ 	int ret;
+ 	struct memory_notify arg;
+ 
+-	mem_hotplug_begin();
++	ret = mem_hotplug_begin(true);
++	if (ret)
++		return ret;
+ 	/*
+ 	 * This doesn't need a lock to do pfn_to_page().
+ 	 * The section can't be removed here because of the
+@@ -1146,7 +1156,7 @@ int try_online_node(int nid)
+ 	if (node_online(nid))
+ 		return 0;
+ 
+-	mem_hotplug_begin();
++	mem_hotplug_begin(false);
+ 	pgdat = hotadd_new_pgdat(nid, 0);
+ 	if (!pgdat) {
+ 		pr_err("Cannot online node %d due to NULL pgdat\n", nid);
+@@ -1236,7 +1246,7 @@ int __ref add_memory(int nid, u64 start, u64 size)
+ 		new_pgdat = !p;
+ 	}
+ 
+-	mem_hotplug_begin();
++	mem_hotplug_begin(false);
+ 
+ 	new_node = !node_online(nid);
+ 	if (new_node) {
+@@ -1684,7 +1694,7 @@ static int __ref __offline_pages(unsigned long start_pfn,
+ 	if (!test_pages_in_a_zone(start_pfn, end_pfn))
+ 		return -EINVAL;
+ 
+-	mem_hotplug_begin();
++	mem_hotplug_begin(false);
+ 
+ 	zone = page_zone(pfn_to_page(start_pfn));
+ 	node = zone_to_nid(zone);
+@@ -2002,7 +2012,7 @@ void __ref remove_memory(int nid, u64 start, u64 size)
+ 
+ 	BUG_ON(check_hotplug_memory_range(start, size));
+ 
+-	mem_hotplug_begin();
++	mem_hotplug_begin(false);
+ 
+ 	/*
+ 	 * All memory blocks must be offlined before removing memory.  Check
+-- 
+1.7.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
