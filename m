@@ -1,80 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 055C06B0038
-	for <linux-mm@kvack.org>; Tue,  2 Dec 2014 20:15:27 -0500 (EST)
-Received: by mail-pd0-f181.google.com with SMTP id v10so8992954pde.12
-        for <linux-mm@kvack.org>; Tue, 02 Dec 2014 17:15:26 -0800 (PST)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id da5si35887377pdb.204.2014.12.02.17.15.24
-        for <linux-mm@kvack.org>;
-        Tue, 02 Dec 2014 17:15:25 -0800 (PST)
-Date: Wed, 3 Dec 2014 10:18:47 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v3 1/8] mm/page_ext: resurrect struct page extending code
- for debugging
-Message-ID: <20141203011846.GB10084@js1304-P5Q-DELUXE>
-References: <1416816926-7756-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1416816926-7756-2-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 1404A6B0038
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2014 20:32:05 -0500 (EST)
+Received: by mail-pd0-f170.google.com with SMTP id fp1so14376387pdb.1
+        for <linux-mm@kvack.org>; Tue, 02 Dec 2014 17:32:04 -0800 (PST)
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com. [209.85.220.43])
+        by mx.google.com with ESMTPS id ey6si14415024pab.160.2014.12.02.17.32.03
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 02 Dec 2014 17:32:03 -0800 (PST)
+Received: by mail-pa0-f43.google.com with SMTP id kx10so14693708pab.2
+        for <linux-mm@kvack.org>; Tue, 02 Dec 2014 17:32:03 -0800 (PST)
+Message-ID: <547E680F.4080108@amacapital.net>
+Date: Tue, 02 Dec 2014 17:31:59 -0800
+From: Andy Lutomirski <luto@amacapital.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1416816926-7756-2-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [Lsf-pc] [LSF/MM ATTEND] Expanding OS noise suppression
+References: <alpine.DEB.2.11.1411241345250.10694@gentwo.org> <alpine.DEB.2.11.1412011044450.2648@gentwo.org> <547CA12A.6010102@redhat.com> <alpine.DEB.2.11.1412011215240.2903@gentwo.org>
+In-Reply-To: <alpine.DEB.2.11.1412011215240.2903@gentwo.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave@sr71.net>, Michal Nazarewicz <mina86@mina86.com>, Jungsoo Son <jungsoo.son@lge.com>, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Fengguang Wu <fengguang.wu@intel.com>
+To: Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Frederic Weisbecker <fweisbec@gmail.com>
 
-On Mon, Nov 24, 2014 at 05:15:19PM +0900, Joonsoo Kim wrote:
-> When we debug something, we'd like to insert some information to
-> every page. For this purpose, we sometimes modify struct page itself.
-> But, this has drawbacks. First, it requires re-compile. This makes us
-> hesitate to use the powerful debug feature so development process is
-> slowed down. And, second, sometimes it is impossible to rebuild the kernel
-> due to third party module dependency. At third, system behaviour would be
-> largely different after re-compile, because it changes size of struct
-> page greatly and this structure is accessed by every part of kernel.
-> Keeping this as it is would be better to reproduce errornous situation.
+On 12/01/2014 10:22 AM, Christoph Lameter wrote:
+> On Mon, 1 Dec 2014, Rik van Riel wrote:
 > 
-> This feature is intended to overcome above mentioned problems. This feature
-> allocates memory for extended data per page in certain place rather than
-> the struct page itself. This memory can be accessed by the accessor
-> functions provided by this code. During the boot process, it checks whether
-> allocation of huge chunk of memory is needed or not. If not, it avoids
-> allocating memory at all. With this advantage, we can include this feature
-> into the kernel in default and can avoid rebuild and solve related problems.
+>> This is a very interesting topic, but I am not sure the right audience
+>> for many of these discussions will be at LSF/MM...
 > 
-> Until now, memcg uses this technique. But, now, memcg decides to embed
-> their variable to struct page itself and it's code to extend struct page
-> has been removed. I'd like to use this code to develop debug feature,
-> so this patch resurrect it.
+> Well some of it at least is relevant.
 > 
-> To help these things to work well, this patch introduces two callbacks
-> for clients. One is the need callback which is mandatory if user wants
-> to avoid useless memory allocation at boot-time. The other is optional,
-> init callback, which is used to do proper initialization after memory
-> is allocated. Detailed explanation about purpose of these functions is
-> in code comment. Please refer it.
+>> Besides the minor and major faults, and the THP related defragmentation,
+>> which of the problems could actually be addressed by the memory
+>> management subsystem?
 > 
-> Others are completely same with previous extension code in memcg.
+> One of the motivations for the development of SLUB for example was the
+> long periods of latency generated by SLAB's object expiration. There are
+> numerous code segment in the mm subsystem that can cause suprisingly long
+> latencies for the application. Memory allocations through the page
+> allocator are on of the most severe examples.
 > 
-> v3:
->  minor fix for readable code
+> The SLUB allocator's per cpu partial pages introduce some new latencies
+> (not as bad as SLAB but still) and I have seen that RT people compile that
+> cpu partial page support out because it causes higher variability.
 > 
-> v2:
->  describe overall design at the top of the page extension code.
->  add more description on commit message.
+> Some way for the application to know and be able to avoid these would be
+> great.
 > 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>> Would you have a list of other items in the memory management subsystem
+>> that cause latency issues?
+> 
+> I mentioned some above. There are numeous issues arising from various
+> pieces of heavy operations of the mm subsystems which involve page
+> migration, writeback, general page table walks, statistics keeping etc
+> etc.
+> 
+>> Is the minor & major fault thing an actual problem for people with real
+>> time applications?
+> 
+> Yes. The timeframes for electronic trading are lower than the time it
+> takes for a fault to be processed. A fault occurring at the wrong time
+> causes an immediate hit on the bottom line.
 
-Hello, Andrew.
+*snicker* :)
 
-Could you fold following fix into the merged patch?
-It fixes the problem on !CONFIG_SPARSEMEM which is reported by
-0day kernel testing robot.
+There's also my old complaint that memory mapped files insist on
+periodically write-protecting their pages, causing unnecessary minor
+faults.  This may or may not affect users, depending on the workload.
 
-https://lkml.org/lkml/2014/11/28/123
+FWIW, context tracking for full nohz is *slow*, so it may reduce noise,
+but it dramatically increases syscall and fault overhead.  This isn't
+really an mm issue, though.
 
-Thanks.
+--Andy
 
+> 
+>> Do you have any ideas on how we could solve the defragmentation and THP
+>> issue? Even strawman proposals to start a discussion could be useful...
+> 
+> Right now we disable automatic defrag and do a run of defrag and THP
+> before the start of business manually. There are cores that are dedicated
+> for the OS where the defrag etc can run during business hours and which
+> could also do these jobs remotely for the low latency cores if one is
+> careful and does not create too many latency issues on the remote cores.
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
-------->8----------
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
