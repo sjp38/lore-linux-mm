@@ -1,79 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D3266B0074
-	for <linux-mm@kvack.org>; Wed,  3 Dec 2014 10:43:38 -0500 (EST)
-Received: by mail-pd0-f173.google.com with SMTP id ft15so15601313pdb.18
-        for <linux-mm@kvack.org>; Wed, 03 Dec 2014 07:43:38 -0800 (PST)
-Received: from e28smtp06.in.ibm.com (e28smtp06.in.ibm.com. [122.248.162.6])
-        by mx.google.com with ESMTPS id ty10si21365469pbc.66.2014.12.03.07.43.35
+Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id BD65B6B0078
+	for <linux-mm@kvack.org>; Wed,  3 Dec 2014 10:52:25 -0500 (EST)
+Received: by mail-wg0-f46.google.com with SMTP id a1so11950398wgh.19
+        for <linux-mm@kvack.org>; Wed, 03 Dec 2014 07:52:25 -0800 (PST)
+Received: from mail-wi0-x232.google.com (mail-wi0-x232.google.com. [2a00:1450:400c:c05::232])
+        by mx.google.com with ESMTPS id eh2si40463687wjd.149.2014.12.03.07.52.25
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 03 Dec 2014 07:43:36 -0800 (PST)
-Received: from /spool/local
-	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 3 Dec 2014 21:13:32 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 6422F125805F
-	for <linux-mm@kvack.org>; Wed,  3 Dec 2014 21:13:49 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay02.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id sB3FhKIF58851434
-	for <linux-mm@kvack.org>; Wed, 3 Dec 2014 21:13:20 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id sB3Fh7xW002304
-	for <linux-mm@kvack.org>; Wed, 3 Dec 2014 21:13:07 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH V2] mm/thp: Allocate transparent hugepages on local node
-In-Reply-To: <547DD100.30307@suse.cz>
-References: <1417412803-27234-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20141201113340.GA545@node.dhcp.inet.fi> <87vblvh3b9.fsf@linux.vnet.ibm.com> <547DD100.30307@suse.cz>
-Date: Wed, 03 Dec 2014 21:13:06 +0530
-Message-ID: <87fvcwbuyd.fsf@linux.vnet.ibm.com>
+        Wed, 03 Dec 2014 07:52:25 -0800 (PST)
+Received: by mail-wi0-f178.google.com with SMTP id em10so5405510wid.11
+        for <linux-mm@kvack.org>; Wed, 03 Dec 2014 07:52:25 -0800 (PST)
+Date: Wed, 3 Dec 2014 16:52:22 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch] mm, oom: remove gfp helper function
+Message-ID: <20141203155222.GH23236@dhcp22.suse.cz>
+References: <alpine.DEB.2.10.1411261416480.13014@chino.kir.corp.google.com>
+ <20141127102547.GA18833@dhcp22.suse.cz>
+ <20141201233040.GB29642@phnom.home.cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141201233040.GB29642@phnom.home.cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: akpm@linux-foundation.org, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Qiang Huang <h.huangqiang@huawei.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Vlastimil Babka <vbabka@suse.cz> writes:
+On Mon 01-12-14 18:30:40, Johannes Weiner wrote:
+> On Thu, Nov 27, 2014 at 11:25:47AM +0100, Michal Hocko wrote:
+> > On Wed 26-11-14 14:17:32, David Rientjes wrote:
+> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > > --- a/mm/page_alloc.c
+> > > +++ b/mm/page_alloc.c
+> > > @@ -2706,7 +2706,7 @@ rebalance:
+> > >  	 * running out of options and have to consider going OOM
+> > >  	 */
+> > >  	if (!did_some_progress) {
+> > > -		if (oom_gfp_allowed(gfp_mask)) {
+> > 		/*
+> > 		 * Do not attempt to trigger OOM killer for !__GFP_FS
+> > 		 * allocations because it would be premature to kill
+> > 		 * anything just because the reclaim is stuck on
+> > 		 * dirty/writeback pages.
+> > 		 * __GFP_NORETRY allocations might fail and so the OOM
+> > 		 * would be more harmful than useful.
+> > 		 */
+> 
+> I don't think we need to explain the individual flags, but it would
+> indeed be useful to remark here that we shouldn't OOM kill from
+> allocations contexts with (severely) limited reclaim abilities.
 
-> On 12/01/2014 03:06 PM, Aneesh Kumar K.V wrote:
->> "Kirill A. Shutemov" <kirill@shutemov.name> writes:
->>
->>> On Mon, Dec 01, 2014 at 11:16:43AM +0530, Aneesh Kumar K.V wrote:
->>>> This make sure that we try to allocate hugepages from local node if
->>>> allowed by mempolicy. If we can't, we fallback to small page allocation
->>>> based on mempolicy. This is based on the observation that allocating pages
->>>> on local node is more beneficial that allocating hugepages on remote node.
->>>>
-........
-......
+Is __GFP_NORETRY really related to limited reclaim abilities? I thought
+it was merely a way to tell the allocator to fail rather than spend too
+much time reclaiming. If you are referring to __GFP_FS part then I have
+no objections to be less specific, of course, but __GFP_IO would fall
+into the same category but we are not checking for it. I have no idea
+why we consider the first and not the later one, to be honest...
 
->>>> index e58725aff7e9..fa96af5b31f7 100644
->>>> --- a/mm/mempolicy.c
->>>> +++ b/mm/mempolicy.c
->>>> @@ -2041,6 +2041,46 @@ retry_cpuset:
->>>>   	return page;
->>>>   }
->>>>
->>>> +struct page *alloc_hugepage_vma(gfp_t gfp, struct vm_area_struct *vma,
->>>> +				unsigned long addr, int order)
->
-> It's somewhat confusing that the name talks about hugepages, yet you 
-> have to supply the order and gfp. Only the policy handling is tailored 
-> for hugepages. But maybe it's better than calling the function 
-> "alloc_pages_vma_local_only_unless_interpolate" :/
->
-
-I did try to do an API that does
-
-struct page *alloc_hugepage_vma(struct vm_area_struct *vma, unsigned long addr)
-
-But that will result in further #ifdef in mm/mempolicy, because we will
-then introduce transparent_hugepage_defrag(vma) and HPAGE_PMD_ORDER
-there. I was not sure whether we really wanted that.
-
--aneesh
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
