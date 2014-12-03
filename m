@@ -1,140 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D5286B0070
-	for <linux-mm@kvack.org>; Wed,  3 Dec 2014 02:48:46 -0500 (EST)
-Received: by mail-pd0-f180.google.com with SMTP id p10so14964396pdj.11
-        for <linux-mm@kvack.org>; Tue, 02 Dec 2014 23:48:46 -0800 (PST)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id ob9si14377320pdb.199.2014.12.02.23.48.42
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id B4DB36B0038
+	for <linux-mm@kvack.org>; Wed,  3 Dec 2014 02:54:20 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id eu11so15186606pac.22
+        for <linux-mm@kvack.org>; Tue, 02 Dec 2014 23:54:20 -0800 (PST)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id us1si13710712pac.23.2014.12.02.23.54.17
         for <linux-mm@kvack.org>;
-        Tue, 02 Dec 2014 23:48:44 -0800 (PST)
+        Tue, 02 Dec 2014 23:54:19 -0800 (PST)
+Date: Wed, 3 Dec 2014 16:57:47 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH 3/3] mm/compaction: add tracepoint to observe behaviour of compaction defer
-Date: Wed,  3 Dec 2014 16:52:07 +0900
-Message-Id: <1417593127-6819-3-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1417593127-6819-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1417593127-6819-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: isolate_freepages_block and excessive CPU usage by OSD process
+Message-ID: <20141203075747.GB6276@js1304-P5Q-DELUXE>
+References: <546D2366.1050506@suse.cz>
+ <20141121023554.GA24175@cucumber.bridge.anchor.net.au>
+ <20141123093348.GA16954@cucumber.anchor.net.au>
+ <CABYiri8LYukujETMCb4gHUQd=J-MQ8m=rGRiEkTD1B42Jh=Ksg@mail.gmail.com>
+ <20141128080331.GD11802@js1304-P5Q-DELUXE>
+ <54783FB7.4030502@suse.cz>
+ <20141201083118.GB2499@js1304-P5Q-DELUXE>
+ <20141202014724.GA22239@cucumber.bridge.anchor.net.au>
+ <20141202045324.GC6268@js1304-P5Q-DELUXE>
+ <20141202050608.GA11051@cucumber.bridge.anchor.net.au>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141202050608.GA11051@cucumber.bridge.anchor.net.au>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: linux-mm@kvack.org
 
-compaction deferring logic is heavy hammer that block the way to
-the compaction. It doesn't consider overall system state, so it
-could prevent user from doing compaction falsely. In other words,
-even if system has enough range of memory to compact, compaction would be
-skipped due to compaction deferring logic. This patch add new tracepoint
-to understand work of deferring logic. This will also help to check
-compaction success and fail.
+On Tue, Dec 02, 2014 at 04:06:08PM +1100, Christian Marie wrote:
+> On Tue, Dec 02, 2014 at 01:53:24PM +0900, Joonsoo Kim wrote:
+> > This is just my assumption, so if possible, please check it with
+> > compaction tracepoint. If it is, we can make a solution for this
+> > problem.
+> 
+> Which event/function would you like me to trace specifically?
 
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
----
- include/trace/events/compaction.h |   56 +++++++++++++++++++++++++++++++++++++
- mm/compaction.c                   |    7 ++++-
- 2 files changed, 62 insertions(+), 1 deletion(-)
+Hello,
 
-diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
-index 5e47cb2..673d59a 100644
---- a/include/trace/events/compaction.h
-+++ b/include/trace/events/compaction.h
-@@ -255,6 +255,62 @@ DEFINE_EVENT(mm_compaction_suitable_template, mm_compaction_suitable,
- 	TP_ARGS(zone, order, alloc_flags, classzone_idx, ret)
- );
- 
-+DECLARE_EVENT_CLASS(mm_compaction_defer_template,
-+
-+	TP_PROTO(struct zone *zone,
-+		unsigned int order),
-+
-+	TP_ARGS(zone, order),
-+
-+	TP_STRUCT__entry(
-+		__field(char *, name)
-+		__field(unsigned int, order)
-+		__field(unsigned int, considered)
-+		__field(unsigned int, defer_shift)
-+		__field(int, order_failed)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->name = (char *)zone->name;
-+		__entry->order = order;
-+		__entry->considered = zone->compact_considered;
-+		__entry->defer_shift = zone->compact_defer_shift;
-+		__entry->order_failed = zone->compact_order_failed;
-+	),
-+
-+	TP_printk("zone=%-8s order=%u order_failed=%u reason=%s consider=%u limit=%lu",
-+		__entry->name,
-+		__entry->order,
-+		__entry->order_failed,
-+		__entry->order < __entry->order_failed ? "order" : "try",
-+		__entry->considered,
-+		1UL << __entry->defer_shift)
-+);
-+
-+DEFINE_EVENT(mm_compaction_defer_template, mm_compaction_deffered,
-+
-+	TP_PROTO(struct zone *zone,
-+		unsigned int order),
-+
-+	TP_ARGS(zone, order)
-+);
-+
-+DEFINE_EVENT(mm_compaction_defer_template, mm_compaction_defer_compaction,
-+
-+	TP_PROTO(struct zone *zone,
-+		unsigned int order),
-+
-+	TP_ARGS(zone, order)
-+);
-+
-+DEFINE_EVENT(mm_compaction_defer_template, mm_compaction_defer_reset,
-+
-+	TP_PROTO(struct zone *zone,
-+		unsigned int order),
-+
-+	TP_ARGS(zone, order)
-+);
-+
- #endif /* _TRACE_COMPACTION_H */
- 
- /* This part must be outside protection */
-diff --git a/mm/compaction.c b/mm/compaction.c
-index f5d2405..e005620 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1413,8 +1413,10 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 		int status;
- 		int zone_contended;
- 
--		if (compaction_deferred(zone, order))
-+		if (compaction_deferred(zone, order)) {
-+			trace_mm_compaction_deffered(zone, order);
- 			continue;
-+		}
- 
- 		status = compact_zone_order(zone, order, gfp_mask, mode,
- 				&zone_contended, alloc_flags, classzone_idx);
-@@ -1435,6 +1437,8 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 			 * succeeds in this zone.
- 			 */
- 			compaction_defer_reset(zone, order, false);
-+			trace_mm_compaction_defer_reset(zone, order);
-+
- 			/*
- 			 * It is possible that async compaction aborted due to
- 			 * need_resched() and the watermarks were ok thanks to
-@@ -1456,6 +1460,7 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 			 * succeeding after all, it will be reset.
- 			 */
- 			defer_compaction(zone, order);
-+			trace_mm_compaction_defer_compaction(zone, order);
- 		}
- 
- 		/*
--- 
-1.7.9.5
+It'd be very helpful to get output of
+"trace_event=compaction:*,kmem:mm_page_alloc_extfrag" on the kernel
+with my tracepoint patches below.
+
+See following link. There is 3 patches.
+
+https://lkml.org/lkml/2014/12/3/71
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
