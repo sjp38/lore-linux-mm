@@ -1,74 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 0385F6B0032
-	for <linux-mm@kvack.org>; Wed,  3 Dec 2014 13:15:19 -0500 (EST)
-Received: by mail-wi0-f182.google.com with SMTP id h11so25355662wiw.15
-        for <linux-mm@kvack.org>; Wed, 03 Dec 2014 10:15:18 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id mb2si41222965wjb.3.2014.12.03.10.15.17
+Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E7D66B0032
+	for <linux-mm@kvack.org>; Wed,  3 Dec 2014 18:05:52 -0500 (EST)
+Received: by mail-ie0-f181.google.com with SMTP id tp5so14722020ieb.12
+        for <linux-mm@kvack.org>; Wed, 03 Dec 2014 15:05:52 -0800 (PST)
+Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
+        by mx.google.com with ESMTPS id ky10si17486657icc.31.2014.12.03.15.05.47
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Dec 2014 10:15:17 -0800 (PST)
-Date: Wed, 3 Dec 2014 13:15:09 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch] mm, oom: remove gfp helper function
-Message-ID: <20141203181509.GA24567@phnom.home.cmpxchg.org>
-References: <alpine.DEB.2.10.1411261416480.13014@chino.kir.corp.google.com>
- <20141127102547.GA18833@dhcp22.suse.cz>
- <20141201233040.GB29642@phnom.home.cmpxchg.org>
- <20141203155222.GH23236@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141203155222.GH23236@dhcp22.suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 03 Dec 2014 15:05:50 -0800 (PST)
+Message-ID: <1417640517.4741.14.camel@kernel.crashing.org>
+Subject: Re: [PATCH 03/10] mm: Convert p[te|md]_numa users to
+ p[te|md]_protnone_numa
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Thu, 04 Dec 2014 08:01:57 +1100
+In-Reply-To: <20141203155242.GE6043@suse.de>
+References: <1416578268-19597-1-git-send-email-mgorman@suse.de>
+	 <1416578268-19597-4-git-send-email-mgorman@suse.de>
+	 <1417473762.7182.8.camel@kernel.crashing.org>
+	 <87k32ah5q3.fsf@linux.vnet.ibm.com>
+	 <1417551115.27448.7.camel@kernel.crashing.org>
+	 <87lhmobvuu.fsf@linux.vnet.ibm.com> <20141203155242.GE6043@suse.de>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Qiang Huang <h.huangqiang@huawei.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LinuxPPC-dev <linuxppc-dev@lists.ozlabs.org>, Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@redhat.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Sasha Levin <sasha.levin@oracle.com>, Paul Mackerras <paulus@samba.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Wed, Dec 03, 2014 at 04:52:22PM +0100, Michal Hocko wrote:
-> On Mon 01-12-14 18:30:40, Johannes Weiner wrote:
-> > On Thu, Nov 27, 2014 at 11:25:47AM +0100, Michal Hocko wrote:
-> > > On Wed 26-11-14 14:17:32, David Rientjes wrote:
-> > > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > > --- a/mm/page_alloc.c
-> > > > +++ b/mm/page_alloc.c
-> > > > @@ -2706,7 +2706,7 @@ rebalance:
-> > > >  	 * running out of options and have to consider going OOM
-> > > >  	 */
-> > > >  	if (!did_some_progress) {
-> > > > -		if (oom_gfp_allowed(gfp_mask)) {
-> > > 		/*
-> > > 		 * Do not attempt to trigger OOM killer for !__GFP_FS
-> > > 		 * allocations because it would be premature to kill
-> > > 		 * anything just because the reclaim is stuck on
-> > > 		 * dirty/writeback pages.
-> > > 		 * __GFP_NORETRY allocations might fail and so the OOM
-> > > 		 * would be more harmful than useful.
-> > > 		 */
-> > 
-> > I don't think we need to explain the individual flags, but it would
-> > indeed be useful to remark here that we shouldn't OOM kill from
-> > allocations contexts with (severely) limited reclaim abilities.
+On Wed, 2014-12-03 at 15:52 +0000, Mel Gorman wrote:
 > 
-> Is __GFP_NORETRY really related to limited reclaim abilities? I thought
-> it was merely a way to tell the allocator to fail rather than spend too
-> much time reclaiming.
+> It's implied but can I assume it passed? If so, Ben and Paul, can I
+> consider the series to be acked by you other than the minor comment
+> updates?
 
-And you wouldn't call that "limited reclaim ability"?  I guess it's a
-matter of phrasing, but the point is that we don't want anybody to OOM
-kill that didn't exhaust all other options that are usually available
-to allocators.  This includes the ability to enter the FS, the ability
-to do IO in general, and the ability to retry reclaim.  Possibly more.
+Yes. Assuming it passed :-)
 
-> If you are referring to __GFP_FS part then I have
-> no objections to be less specific, of course, but __GFP_IO would fall
-> into the same category but we are not checking for it. I have no idea
-> why we consider the first and not the later one, to be honest...
+Acked-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-Which proves my point that we should document high-level intent rather
-than implementation.  Suddenly, that missing __GFP_IO is sticking out
-like a sore thumb...
+Cheers,
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
