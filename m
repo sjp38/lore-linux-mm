@@ -1,20 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 6061E6B0038
-	for <linux-mm@kvack.org>; Tue,  2 Dec 2014 23:04:09 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id et14so14870101pad.15
-        for <linux-mm@kvack.org>; Tue, 02 Dec 2014 20:04:09 -0800 (PST)
-Received: from ponies.io (ponies.io. [2600:3c01::f03c:91ff:fe6e:5e45])
-        by mx.google.com with ESMTP id zy6si36310465pac.216.2014.12.02.20.04.06
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 822466B0038
+	for <linux-mm@kvack.org>; Wed,  3 Dec 2014 02:46:32 -0500 (EST)
+Received: by mail-pd0-f169.google.com with SMTP id fp1so14843955pdb.28
+        for <linux-mm@kvack.org>; Tue, 02 Dec 2014 23:46:32 -0800 (PST)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id do6si9085864pdb.34.2014.12.02.23.46.29
         for <linux-mm@kvack.org>;
-        Tue, 02 Dec 2014 20:04:07 -0800 (PST)
-Received: from cucumber.localdomain (nat-gw2.syd4.anchor.net.au [110.173.144.2])
-	by ponies.io (Postfix) with ESMTPSA id 2C690A144
-	for <linux-mm@kvack.org>; Wed,  3 Dec 2014 04:04:06 +0000 (UTC)
-Date: Wed, 3 Dec 2014 15:04:04 +1100
-From: Christian Marie <christian@ponies.io>
+        Tue, 02 Dec 2014 23:46:30 -0800 (PST)
+Date: Wed, 3 Dec 2014 16:49:57 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Subject: Re: isolate_freepages_block and excessive CPU usage by OSD process
-Message-ID: <20141203040404.GA16499@cucumber.bridge.anchor.net.au>
+Message-ID: <20141203074957.GA6276@js1304-P5Q-DELUXE>
 References: <546D2366.1050506@suse.cz>
  <20141121023554.GA24175@cucumber.bridge.anchor.net.au>
  <20141123093348.GA16954@cucumber.anchor.net.au>
@@ -24,119 +21,88 @@ References: <546D2366.1050506@suse.cz>
  <20141201083118.GB2499@js1304-P5Q-DELUXE>
  <20141202014724.GA22239@cucumber.bridge.anchor.net.au>
  <20141202045324.GC6268@js1304-P5Q-DELUXE>
- <20141202050608.GA11051@cucumber.bridge.anchor.net.au>
+ <547DDED9.6080105@suse.cz>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="gKMricLos+KVdGMg"
-Content-Disposition: inline
-In-Reply-To: <20141202050608.GA11051@cucumber.bridge.anchor.net.au>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-
-
---gKMricLos+KVdGMg
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <547DDED9.6080105@suse.cz>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org
 
-On Tue, Dec 02, 2014 at 04:06:08PM +1100, Christian Marie wrote:
-> I will attempt to do this tomorrow and should have results in around 24 hours.
+On Tue, Dec 02, 2014 at 04:46:33PM +0100, Vlastimil Babka wrote:
+> On 12/02/2014 05:53 AM, Joonsoo Kim wrote:
+> >On Tue, Dec 02, 2014 at 12:47:24PM +1100, Christian Marie wrote:
+> >>On 28.11.2014 9:03, Joonsoo Kim wrote:
+> >>>Hello,
+> >>>
+> >>>I didn't follow-up this discussion, but, at glance, this excessive CPU
+> >>>usage by compaction is related to following fixes.
+> >>>
+> >>>Could you test following two patches?
+> >>>
+> >>>If these fixes your problem, I will resumit patches with proper commit
+> >>>description.
+> >>>
+> >>>-------- 8< ---------
+> >>
+> >>
+> >>Thanks for looking into this. Running 3.18-rc5 kernel with your patches has
+> >>produced some interesting results.
+> >>
+> >>Load average still spikes to around 2000-3000 with the processors spinning 100%
+> >>doing compaction related things when min_free_kbytes is left at the default.
+> >>
+> >>However, unlike before, the system is now completely stable. Pre-patch it would
+> >>be almost completely unresponsive (having to wait 30 seconds to establish an
+> >>SSH connection and several seconds to send a character).
+> >>
+> >>Is it reasonable to guess that ipoib is giving compaction a hard time and
+> >>fixing this bug has allowed the system to at least not lock up?
+> >>
+> >>I will try back-porting this to 3.10 and seeing if it is stable under these
+> >>strange conditions also.
+> >
+> >Hello,
+> >
+> >Good to hear!
+> 
+> Indeed, although I somehow doubt your first patch could have made
+> such difference. It only matters when you have a whole pageblock
+> free. Without the patch, the particular compaction attempt that
+> managed to free the block might not be terminated ASAP, but then the
+> free pageblock is still allocatable by the following allocation
+> attempts, so it shouldn't result in a stream of complete
+> compactions.
 
-I ran said test today and wasn't able to pinpoint a solid difference between a kernel
-with both patches and one with only the first. The one with both patches "felt"
-a little more responsive, probably a fluke.
+High-order freepage made by compaction could be broken by other
+order-0 allocation attempts, so following high-order allocation attempts
+could result in new compaction. It would be dependent on workload.
 
-I'd really like to write a stress test that simulates what ceph/ipoib is doing
-here so that I can test this in a more scientific manner.
+Anyway, we should fix cc->order to order. :)
 
-Here is some perf output, the kernel with only the first patch is on the right:
+> 
+> So I would expect it's either a fluke, or the second patch made the
+> difference, to either SLUB or something else making such
+> fallback-able allocations.
+> 
+> But hmm, I've never considered the implications of
+> compact_finished() migratetypes handling on unmovable allocations.
+> Regardless of cc->order, it often has to free a whole pageblock to
+> succeed, as it's unlikely it will succeed compacting within a
+> pageblock already marked as UNMOVABLE. Guess it's to prevent further
+> fragmentation and that makes sense, but it does make high-order
+> unmovable allocations problematic. At least the watermark checks for
+> allowing compaction in the first place are then wrong - we decide
+> that based on cc->order, but in we fact need at least a pageblock
+> worth of space free to actually succeed.
 
-http://ponies.io/raw/before-after.png
+I think that watermark check is okay but we need a elegant way to decide
+the best timing compaction should be stopped. I made following two patches
+about this. This patch would make non-movable compaction less
+aggressive. This is just draft so ignore my poor description. :)
 
+Could you comment it?
 
-A note in passing: we left the cluster running with min_free_kbytes set to the
-default last night and within a few hours it started spewing the usual
-pre-patch allocation failures, so whilst this patch appears to make the system
-more responsive under adverse conditions the underlying
-not-keeping-up-with-pressure issue is still there.
-
-There's enough starvation to break single page allocations.
-
-Keep in mind that this is on a 3.10 kernel with the patches applied so I'm not
-expecting anyone to particularly care. I'm running out of time to test the
-whole cluster at 3.18 is all, I really do think that replicating the allocation
-pattern is the best way forward but my attempts at simply sending a lot of
-packets that look similar with lots of page cache don't do it.
-
-Those allocation failures on 3.10 with both patches look like this:
-
-	[73138.803800] ceph-osd: page allocation failure: order:0, mode:0x20
-	[73138.803802] CPU: 0 PID: 9214 Comm: ceph-osd Tainted: GF
-	O--------------   3.10.0-123.9.3.anchor.x86_64 #1
-	[73138.803803] Hardware name: Dell Inc. PowerEdge R720xd/0X3D66, BIOS 2.2.2
-	01/16/2014
-	[73138.803803]  0000000000000020 00000000d6532f99 ffff88081fa03aa0
-	ffffffff815e23bb
-	[73138.803806]  ffff88081fa03b30 ffffffff81147340 00000000ffffffff
-	ffff8807da887900
-	[73138.803808]  ffff88083ffd9e80 ffff8800b2242900 ffff8807d843c050
-	00000000d6532f99
-	[73138.803812] Call Trace:
-	[73138.803813]  <IRQ>  [<ffffffff815e23bb>] dump_stack+0x19/0x1b
-	[73138.803817]  [<ffffffff81147340>] warn_alloc_failed+0x110/0x180
-	[73138.803819]  [<ffffffff8114b4ee>] __alloc_pages_nodemask+0x91e/0xb20
-	[73138.803821]  [<ffffffff8152f82a>] ? tcp_v4_rcv+0x67a/0x7c0
-	[73138.803823]  [<ffffffff81509710>] ? ip_rcv_finish+0x350/0x350
-	[73138.803826]  [<ffffffff81188369>] alloc_pages_current+0xa9/0x170
-	[73138.803828]  [<ffffffff814bedb1>] __netdev_alloc_frag+0x91/0x140
-	[73138.803831]  [<ffffffff814c0df7>] __netdev_alloc_skb+0x77/0xc0
-	[73138.803834]  [<ffffffffa06b54c5>] ipoib_cm_handle_rx_wc+0xf5/0x940
-	[ib_ipoib]
-	[73138.803838]  [<ffffffffa0625e78>] ? mlx4_ib_poll_cq+0xc8/0x210 [mlx4_ib]
-	[73138.803841]  [<ffffffffa06a90ed>] ipoib_poll+0x8d/0x150 [ib_ipoib]
-	[73138.803843]  [<ffffffff814d05aa>] net_rx_action+0x15a/0x250
-	[73138.803846]  [<ffffffff81067047>] __do_softirq+0xf7/0x290
-	[73138.803848]  [<ffffffff815f43dc>] call_softirq+0x1c/0x30
-	[73138.803851]  [<ffffffff81014d25>] do_softirq+0x55/0x90
-	[73138.803853]  [<ffffffff810673e5>] irq_exit+0x115/0x120
-	[73138.803855]  [<ffffffff815f4cd8>] do_IRQ+0x58/0xf0
-	[73138.803857]  [<ffffffff815e9e2d>] common_interrupt+0x6d/0x6d
-	[73138.803858]  <EOI>  [<ffffffff815f2bc0>] ? sysret_audit+0x17/0x21
-
-We get some like this, also:
-
-[ 1293.152415] SLUB: Unable to allocate memory on node -1 (gfp=0x20)
-[ 1293.152416]   cache: kmalloc-256, object size: 256, buffer size: 256,
-default order: 1, min order: 0
-[ 1293.152417]   node 0: slabs: 1789, objs: 57248, free: 0
-[ 1293.152418]   node 1: slabs: 449, objs: 14368, free: 2
-
-
---gKMricLos+KVdGMg
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQIcBAEBCAAGBQJUfouxAAoJEMHZnoZn5OShFhgQAIrnWryrtORT8Q0ad2NV9ol3
-CwFFIHDJQh8Erc/m6ZMF7AWZeEPEtNJU0JPFcEWpgcwAQWpoqiBWNPWTwUEi0uxU
-uWIm/rgeFW2ElrhCF1U0tCFSW7+FA9mMIswJGhacJ/hoSXGg2uRcU+yjSjJtMGiF
-KxfVLkQdQ+umGSkur2bWTQacCL4EXoitcg3EvP1kFDaaFDzNCb7zjh6itqgNJfma
-+Inzosz238+78jVN9nSTuYzxreq+Bg1BKpkjG8ZOjdyuytuN5kpE17q6rSESzq6R
-QssF/d/XYismBig8T6KE738NFzqmvfQn7eNT+uTIEArvZMKC40DuBRXj82A051yR
-RI9a9RH3+ekcZsasdeXYn5JmUC6+2ehf3Kc9MKy1EADy7hgiL6PMDMlo9ZqttpmM
-0SG0Svf1VkOVfvNIwR7mjXQBdIuP4cjiAqKYYkAwGXYWiKjrLwEAGm0hznlttFYZ
-+XuW0vm6sC0s5+yMIV5B7VgZGOglT2/3FcLN/+q589eDP8mQ6DOfB1vqYTN6dsn7
-SBzJl31gFYWDAMYIye5z9acfmusDnyM/LHzBT3VIJVv9ZDWqFPcISxQN78d+O0V5
-+B9VgwJNp1JCYcKQMFs1jVNX4KJPKJuoPbwex+V8Az75cO/VGxcN9iwVY/Jtt8/Z
-+uAM5i9GBZzj0TwJgWpV
-=mR61
------END PGP SIGNATURE-----
-
---gKMricLos+KVdGMg--
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+--------->8-----------------
