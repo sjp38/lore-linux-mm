@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id BFA046B006E
-	for <linux-mm@kvack.org>; Tue,  2 Dec 2014 19:42:50 -0500 (EST)
-Received: by mail-wg0-f42.google.com with SMTP id z12so18518002wgg.1
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 368D16B0070
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2014 19:42:51 -0500 (EST)
+Received: by mail-wg0-f50.google.com with SMTP id k14so18556710wgh.9
         for <linux-mm@kvack.org>; Tue, 02 Dec 2014 16:42:50 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id vv5si37354195wjc.173.2014.12.02.16.42.49
+        by mx.google.com with ESMTPS id hs6si20008410wjb.68.2014.12.02.16.42.50
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 02 Dec 2014 16:42:49 -0800 (PST)
+        Tue, 02 Dec 2014 16:42:50 -0800 (PST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 1/2] mm: fadvise: Document the fadvise(FADV_DONTNEED) behaviour for partial pages
-Date: Wed,  3 Dec 2014 00:42:46 +0000
-Message-Id: <1417567367-9298-2-git-send-email-mgorman@suse.de>
+Subject: [PATCH 2/2] posix_fadvise.2: Document the behaviour of partial page discard requests
+Date: Wed,  3 Dec 2014 00:42:47 +0000
+Message-Id: <1417567367-9298-3-git-send-email-mgorman@suse.de>
 In-Reply-To: <1417567367-9298-1-git-send-email-mgorman@suse.de>
 References: <1417567367-9298-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,38 +20,30 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Michael Kerrisk <mtk.manpages@gmail.com>
 Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-A random seek IO benchmark appeared to regress because of a change to
-readahead but the real problem was the benchmark. To ensure the IO request
-accesssed disk, it used fadvise(FADV_DONTNEED) on a block boundary (512K)
-but the hint is ignored by the kernel. This is correct but not necessarily
-obvious behaviour.  As much as I dislike comment patches, the explanation
-for this behaviour predates current git history. Clarify why it behaves
-like this in case someone "fixes" fadvise or readahead for the wrong reasons.
+It is not obvious from the interface that partial page discard requests
+are ignored. It should be spelled out.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/fadvise.c | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ man2/posix_fadvise.2 | 5 +++++
+ 1 file changed, 5 insertions(+)
 
-diff --git a/mm/fadvise.c b/mm/fadvise.c
-index 3bcfd81d..c908c72 100644
---- a/mm/fadvise.c
-+++ b/mm/fadvise.c
-@@ -117,7 +117,11 @@ SYSCALL_DEFINE4(fadvise64_64, int, fd, loff_t, offset, loff_t, len, int, advice)
- 			__filemap_fdatawrite_range(mapping, offset, endbyte,
- 						   WB_SYNC_NONE);
+diff --git a/man2/posix_fadvise.2 b/man2/posix_fadvise.2
+index 25d0c50..07313a9 100644
+--- a/man2/posix_fadvise.2
++++ b/man2/posix_fadvise.2
+@@ -144,6 +144,11 @@ A program may periodically request the kernel to free cached data
+ that has already been used, so that more useful cached pages are not
+ discarded instead.
  
--		/* First and last FULL page! */
-+		/*
-+		 * First and last FULL page! Partial pages are deliberately
-+		 * preserved on the expectation that it is better to preserve
-+		 * needed memory than to discard unneeded memory.
-+		 */
- 		start_index = (offset+(PAGE_CACHE_SIZE-1)) >> PAGE_CACHE_SHIFT;
- 		end_index = (endbyte >> PAGE_CACHE_SHIFT);
- 
--- 
-2.1.2
++Requests to discard partial pages are ignored. It is preferable to preserve
++needed data than discard unneeded data. If the application requires that
++data be considered for discarding then \fIoffset\fP and \fIlen\fP must be
++page-aligned.
++
+ Pages that have not yet been written out will be unaffected, so if the
+ application wishes to guarantee that pages will be released, it should
+ call
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
