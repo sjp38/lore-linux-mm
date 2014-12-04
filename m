@@ -1,68 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 8319B6B0032
-	for <linux-mm@kvack.org>; Wed,  3 Dec 2014 21:33:52 -0500 (EST)
-Received: by mail-oi0-f43.google.com with SMTP id a3so11826868oib.16
-        for <linux-mm@kvack.org>; Wed, 03 Dec 2014 18:33:52 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id fn9si6514322obb.12.2014.12.03.18.33.50
+Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C3EC6B0032
+	for <linux-mm@kvack.org>; Wed,  3 Dec 2014 21:56:33 -0500 (EST)
+Received: by mail-ob0-f170.google.com with SMTP id wp18so12668159obc.1
+        for <linux-mm@kvack.org>; Wed, 03 Dec 2014 18:56:32 -0800 (PST)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id ge9si16950228obb.99.2014.12.03.18.56.30
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 03 Dec 2014 18:33:51 -0800 (PST)
-Message-ID: <547FC807.6040000@oracle.com>
-Date: Wed, 03 Dec 2014 21:33:43 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+        Wed, 03 Dec 2014 18:56:32 -0800 (PST)
+Message-ID: <547FCCE9.2020600@huawei.com>
+Date: Thu, 4 Dec 2014 10:54:33 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: shmem: avoid overflowing in shmem_fallocate
-References: <1417652657-1801-1-git-send-email-sasha.levin@oracle.com> <20141204015120.GA2522@hori1.linux.bs1.fc.nec.co.jp>
-In-Reply-To: <20141204015120.GA2522@hori1.linux.bs1.fc.nec.co.jp>
-Content-Type: text/plain; charset=iso-2022-jp
+Subject: [PATCH] CMA: add the amount of cma memory in meminfo
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>, m.szyprowski@samsung.com, mina86@mina86.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Xishi Qiu <qiuxishi@huawei.com>
 
-On 12/03/2014 08:51 PM, Naoya Horiguchi wrote:
-> On Wed, Dec 03, 2014 at 07:24:07PM -0500, Sasha Levin wrote:
->> > "offset + len" has the potential of overflowing. Validate this user input
->> > first to avoid undefined behaviour.
->> > 
->> > Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
->> > ---
->> >  mm/shmem.c |    3 +++
->> >  1 file changed, 3 insertions(+)
->> > 
->> > diff --git a/mm/shmem.c b/mm/shmem.c
->> > index 185836b..5a0e344 100644
->> > --- a/mm/shmem.c
->> > +++ b/mm/shmem.c
->> > @@ -2098,6 +2098,9 @@ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
->> >  	}
->> >  
->> >  	/* We need to check rlimit even when FALLOC_FL_KEEP_SIZE */
->> > +	error = -EOVERFLOW;
->> > +	if ((u64)len + offset < (u64)len)
->> > +		goto out;
-> Hi Sasha,
-> 
-> It seems to me that we already do some overflow check in common path,
-> do_fallocate():
-> 
->         /* Check for wrap through zero too */
->         if (((offset + len) > inode->i_sb->s_maxbytes) || ((offset + len) < 0))
->                 return -EFBIG;
-> 
-> Do we really need another check?
+Add the amount of cma memory in the following meminfo.
+/proc/meminfo
+/sys/devices/system/node/nodeXX/meminfo
 
-It looks like we actually need to fix this snippet you pasted rather than shmem_fallocate().
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+---
+ drivers/base/node.c | 16 ++++++++++------
+ fs/proc/meminfo.c   | 12 +++++++++---
+ 2 files changed, 19 insertions(+), 9 deletions(-)
 
-We can't check for ((offset + len) < 0) since both offset and length are signed integers. I'll
-send a patch to deal with that rather that this shmem specific one. Thanks!
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index 472168c..a27e4e0 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -120,6 +120,9 @@ static ssize_t node_read_meminfo(struct device *dev,
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 		       "Node %d AnonHugePages:  %8lu kB\n"
+ #endif
++#ifdef CONFIG_CMA
++		       "Node %d FreeCMAPages:   %8lu kB\n"
++#endif
+ 			,
+ 		       nid, K(node_page_state(nid, NR_FILE_DIRTY)),
+ 		       nid, K(node_page_state(nid, NR_WRITEBACK)),
+@@ -136,14 +139,15 @@ static ssize_t node_read_meminfo(struct device *dev,
+ 		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE) +
+ 				node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),
+ 		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE)),
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE))
+-			, nid,
+-			K(node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *
+-			HPAGE_PMD_NR));
+-#else
+-		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)));
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++		       , nid, K(node_page_state(nid,
++				NR_ANON_TRANSPARENT_HUGEPAGES) * HPAGE_PMD_NR)
++#endif
++#ifdef CONFIG_CMA
++		       , nid, K(node_page_state(nid, NR_FREE_CMA_PAGES))
+ #endif
++			);
+ 	n += hugetlb_report_node_meminfo(nid, buf + n);
+ 	return n;
+ }
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+index aa1eee0..d42e082 100644
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -138,6 +138,9 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 		"AnonHugePages:  %8lu kB\n"
+ #endif
++#ifdef CONFIG_CMA
++		"FreeCMAPages:   %8lu kB\n"
++#endif
+ 		,
+ 		K(i.totalram),
+ 		K(i.freeram),
+@@ -187,11 +190,14 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ 		vmi.used >> 10,
+ 		vmi.largest_chunk >> 10
+ #ifdef CONFIG_MEMORY_FAILURE
+-		,atomic_long_read(&num_poisoned_pages) << (PAGE_SHIFT - 10)
++		, atomic_long_read(&num_poisoned_pages) << (PAGE_SHIFT - 10)
+ #endif
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-		,K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
+-		   HPAGE_PMD_NR)
++		, K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
++				HPAGE_PMD_NR)
++#endif
++#ifdef CONFIG_CMA
++		, K(global_page_state(NR_FREE_CMA_PAGES))
+ #endif
+ 		);
+ 
+-- 
+2.0.0
 
-
-Thanks,
-Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
