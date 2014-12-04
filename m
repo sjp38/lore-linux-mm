@@ -1,89 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 01C796B006C
-	for <linux-mm@kvack.org>; Thu,  4 Dec 2014 02:52:55 -0500 (EST)
-Received: by mail-pd0-f169.google.com with SMTP id z10so2046929pdj.14
-        for <linux-mm@kvack.org>; Wed, 03 Dec 2014 23:52:54 -0800 (PST)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id ck6si41866071pad.145.2014.12.03.23.52.51
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 10B406B0032
+	for <linux-mm@kvack.org>; Thu,  4 Dec 2014 06:15:54 -0500 (EST)
+Received: by mail-wi0-f177.google.com with SMTP id l15so27492406wiw.16
+        for <linux-mm@kvack.org>; Thu, 04 Dec 2014 03:15:53 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o7si45263197wiy.107.2014.12.04.03.15.52
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 03 Dec 2014 23:52:53 -0800 (PST)
-Message-ID: <54801228.5030405@huawei.com>
-Date: Thu, 4 Dec 2014 15:50:00 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 04 Dec 2014 03:15:53 -0800 (PST)
+Date: Thu, 4 Dec 2014 11:15:46 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 03/10] mm: Convert p[te|md]_numa users to
+ p[te|md]_protnone_numa
+Message-ID: <20141204111546.GK6043@suse.de>
+References: <1416578268-19597-1-git-send-email-mgorman@suse.de>
+ <1416578268-19597-4-git-send-email-mgorman@suse.de>
+ <1417473762.7182.8.camel@kernel.crashing.org>
+ <87k32ah5q3.fsf@linux.vnet.ibm.com>
+ <1417551115.27448.7.camel@kernel.crashing.org>
+ <87lhmobvuu.fsf@linux.vnet.ibm.com>
+ <20141203155242.GE6043@suse.de>
+ <1417640517.4741.14.camel@kernel.crashing.org>
 MIME-Version: 1.0
-Subject: [PATCH] x86, mm: fix zone ranges print in boot
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1417640517.4741.14.camel@kernel.crashing.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Rik van Riel <riel@redhat.com>, dave@sr71.net
-Cc: the arch/x86 maintainers <x86@kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Xishi Qiu <qiuxishi@huawei.com>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LinuxPPC-dev <linuxppc-dev@lists.ozlabs.org>, Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@redhat.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Sasha Levin <sasha.levin@oracle.com>, Paul Mackerras <paulus@samba.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-This is the usual log without restrict memory.
-...
-[    0.000000] Zone ranges:
-[    0.000000]   DMA      [mem 0x00001000-0x00ffffff]
-[    0.000000]   DMA32    [mem 0x01000000-0xffffffff]
-[    0.000000]   Normal   [mem 0x100000000-0xc3fffffff]
-[    0.000000] Movable zone start for each node
-[    0.000000] Early memory node ranges
-[    0.000000]   node   0: [mem 0x00001000-0x00099fff]
-[    0.000000]   node   0: [mem 0x00100000-0xbf78ffff]
-[    0.000000]   node   0: [mem 0x100000000-0x63fffffff]
-[    0.000000]   node   1: [mem 0x640000000-0xc3fffffff]
-...
+On Thu, Dec 04, 2014 at 08:01:57AM +1100, Benjamin Herrenschmidt wrote:
+> On Wed, 2014-12-03 at 15:52 +0000, Mel Gorman wrote:
+> > 
+> > It's implied but can I assume it passed? If so, Ben and Paul, can I
+> > consider the series to be acked by you other than the minor comment
+> > updates?
+> 
+> Yes. Assuming it passed :-)
+> 
+> Acked-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> 
 
-This is the log when set "mem=2G" in cmdline.
-...
-[    0.000000] Zone ranges:
-[    0.000000]   DMA      [mem 0x00001000-0x00ffffff]
-[    0.000000]   DMA32    [mem 0x01000000-0xffffffff]  // should be 0x7fffffff, right?
-[    0.000000]   Normal   empty
-[    0.000000] Movable zone start for each node
-[    0.000000] Early memory node ranges
-[    0.000000]   node   0: [mem 0x00001000-0x00099fff]
-[    0.000000]   node   0: [mem 0x00100000-0x7fffffff]
-...
+Sweet, thanks.
 
-This patch fix the print, the following log shows right ranges.
-...
-[    0.000000] Zone ranges:
-[    0.000000]   DMA      [mem 0x00001000-0x00ffffff]
-[    0.000000]   DMA32    [mem 0x01000000-0x7fffffff]
-[    0.000000]   Normal   empty
-[    0.000000] Movable zone start for each node
-[    0.000000] Early memory node ranges
-[    0.000000]   node   0: [mem 0x00001000-0x00099fff]
-[    0.000000]   node   0: [mem 0x00100000-0x7fffffff]
-...
-
-Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
----
- arch/x86/mm/init.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
-index 66dba36..07244aa 100644
---- a/arch/x86/mm/init.c
-+++ b/arch/x86/mm/init.c
-@@ -674,10 +674,10 @@ void __init zone_sizes_init(void)
- 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
- 
- #ifdef CONFIG_ZONE_DMA
--	max_zone_pfns[ZONE_DMA]		= MAX_DMA_PFN;
-+	max_zone_pfns[ZONE_DMA]		= min(MAX_DMA_PFN, max_low_pfn);
- #endif
- #ifdef CONFIG_ZONE_DMA32
--	max_zone_pfns[ZONE_DMA32]	= MAX_DMA32_PFN;
-+	max_zone_pfns[ZONE_DMA32]	= min(MAX_DMA32_PFN, max_low_pfn);
- #endif
- 	max_zone_pfns[ZONE_NORMAL]	= max_low_pfn;
- #ifdef CONFIG_HIGHMEM
 -- 
-2.0.0
-
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
