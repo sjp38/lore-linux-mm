@@ -1,98 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 0736E6B0032
-	for <linux-mm@kvack.org>; Thu,  4 Dec 2014 10:18:02 -0500 (EST)
-Received: by mail-wi0-f171.google.com with SMTP id bs8so34998783wib.16
-        for <linux-mm@kvack.org>; Thu, 04 Dec 2014 07:18:01 -0800 (PST)
-Received: from mail-wg0-x230.google.com (mail-wg0-x230.google.com. [2a00:1450:400c:c00::230])
-        by mx.google.com with ESMTPS id bf5si45208839wjc.82.2014.12.04.07.18.00
+Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id DD2286B0032
+	for <linux-mm@kvack.org>; Thu,  4 Dec 2014 11:26:33 -0500 (EST)
+Received: by mail-wg0-f54.google.com with SMTP id l2so23151365wgh.41
+        for <linux-mm@kvack.org>; Thu, 04 Dec 2014 08:26:33 -0800 (PST)
+Received: from mail-wg0-x22b.google.com (mail-wg0-x22b.google.com. [2a00:1450:400c:c00::22b])
+        by mx.google.com with ESMTPS id fe6si45585626wjc.5.2014.12.04.08.26.32
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 04 Dec 2014 07:18:00 -0800 (PST)
-Received: by mail-wg0-f48.google.com with SMTP id y19so22920607wgg.7
-        for <linux-mm@kvack.org>; Thu, 04 Dec 2014 07:18:00 -0800 (PST)
-Date: Thu, 4 Dec 2014 16:17:58 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] mm, oom: remove gfp helper function
-Message-ID: <20141204151758.GC25001@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1411261416480.13014@chino.kir.corp.google.com>
- <20141127102547.GA18833@dhcp22.suse.cz>
- <20141201233040.GB29642@phnom.home.cmpxchg.org>
- <20141203155222.GH23236@dhcp22.suse.cz>
- <20141203181509.GA24567@phnom.home.cmpxchg.org>
+        Thu, 04 Dec 2014 08:26:32 -0800 (PST)
+Received: by mail-wg0-f43.google.com with SMTP id l18so22981592wgh.30
+        for <linux-mm@kvack.org>; Thu, 04 Dec 2014 08:26:32 -0800 (PST)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [PATCH] CMA: add the amount of cma memory in meminfo
+In-Reply-To: <547FCCE9.2020600@huawei.com>
+References: <547FCCE9.2020600@huawei.com>
+Date: Thu, 04 Dec 2014 17:26:29 +0100
+Message-ID: <xa1tfvcvcrey.fsf@mina86.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141203181509.GA24567@phnom.home.cmpxchg.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Qiang Huang <h.huangqiang@huawei.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, m.szyprowski@samsung.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-On Wed 03-12-14 13:15:09, Johannes Weiner wrote:
-> On Wed, Dec 03, 2014 at 04:52:22PM +0100, Michal Hocko wrote:
-> > On Mon 01-12-14 18:30:40, Johannes Weiner wrote:
-> > > On Thu, Nov 27, 2014 at 11:25:47AM +0100, Michal Hocko wrote:
-> > > > On Wed 26-11-14 14:17:32, David Rientjes wrote:
-> > > > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > > > --- a/mm/page_alloc.c
-> > > > > +++ b/mm/page_alloc.c
-> > > > > @@ -2706,7 +2706,7 @@ rebalance:
-> > > > >  	 * running out of options and have to consider going OOM
-> > > > >  	 */
-> > > > >  	if (!did_some_progress) {
-> > > > > -		if (oom_gfp_allowed(gfp_mask)) {
-> > > > 		/*
-> > > > 		 * Do not attempt to trigger OOM killer for !__GFP_FS
-> > > > 		 * allocations because it would be premature to kill
-> > > > 		 * anything just because the reclaim is stuck on
-> > > > 		 * dirty/writeback pages.
-> > > > 		 * __GFP_NORETRY allocations might fail and so the OOM
-> > > > 		 * would be more harmful than useful.
-> > > > 		 */
-> > > 
-> > > I don't think we need to explain the individual flags, but it would
-> > > indeed be useful to remark here that we shouldn't OOM kill from
-> > > allocations contexts with (severely) limited reclaim abilities.
-> > 
-> > Is __GFP_NORETRY really related to limited reclaim abilities? I thought
-> > it was merely a way to tell the allocator to fail rather than spend too
-> > much time reclaiming.
-> 
-> And you wouldn't call that "limited reclaim ability"?
+On Thu, Dec 04 2014, Xishi Qiu <qiuxishi@huawei.com> wrote:
+> Add the amount of cma memory in the following meminfo.
+> /proc/meminfo
+> /sys/devices/system/node/nodeXX/meminfo
+>
+> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+> ---
+>  drivers/base/node.c | 16 ++++++++++------
+>  fs/proc/meminfo.c   | 12 +++++++++---
+>  2 files changed, 19 insertions(+), 9 deletions(-)
+>
+> diff --git a/drivers/base/node.c b/drivers/base/node.c
+> index 472168c..a27e4e0 100644
+> --- a/drivers/base/node.c
+> +++ b/drivers/base/node.c
+> @@ -120,6 +120,9 @@ static ssize_t node_read_meminfo(struct device *dev,
+>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>  		       "Node %d AnonHugePages:  %8lu kB\n"
+>  #endif
+> +#ifdef CONFIG_CMA
+> +		       "Node %d FreeCMAPages:   %8lu kB\n"
+> +#endif
+>  			,
+>  		       nid, K(node_page_state(nid, NR_FILE_DIRTY)),
+>  		       nid, K(node_page_state(nid, NR_WRITEBACK)),
+> @@ -136,14 +139,15 @@ static ssize_t node_read_meminfo(struct device *dev,
+>  		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE) +
+>  				node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),
+>  		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE)),
+> -#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>  		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE))
 
-I really do not want to go into language lawyering here. But to me the
-reclaim ability is what the reclaim is capable to do with the given gfp.
-And __GFP_NORETRY is completely irrelevant for the reclaim. It tells the
-allocator how hard it should try (similar like __GFP_REPEAT or
-__GFP_NOFAIL) unlike __GFP_FS which restricts the reclaim in its
-operation.
+Why is this line suddenly out of =E2=80=9C#ifdef CONFIG_TRANSPARENT_HUGEPAG=
+E=E2=80=9D?
 
-> I guess it's a
-> matter of phrasing, but the point is that we don't want anybody to OOM
-> kill that didn't exhaust all other options that are usually available
-> to allocators.  This includes the ability to enter the FS, the ability
-> to do IO in general, and the ability to retry reclaim.  Possibly more.
+> -			, nid,
+> -			K(node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *
+> -			HPAGE_PMD_NR));
+> -#else
+> -		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)));
+> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> +		       , nid, K(node_page_state(nid,
+> +				NR_ANON_TRANSPARENT_HUGEPAGES) * HPAGE_PMD_NR)
 
-Right.
+This is mere white-space change which is confusing.
 
-> > If you are referring to __GFP_FS part then I have
-> > no objections to be less specific, of course, but __GFP_IO would fall
-> > into the same category but we are not checking for it. I have no idea
-> > why we consider the first and not the later one, to be honest...
-> 
-> Which proves my point that we should document high-level intent rather
-> than implementation.  Suddenly, that missing __GFP_IO is sticking out
-> like a sore thumb...
+> +#endif
+> +#ifdef CONFIG_CMA
+> +		       , nid, K(node_page_state(nid, NR_FREE_CMA_PAGES))
+>  #endif
+> +			);
+>  	n +=3D hugetlb_report_node_meminfo(nid, buf + n);
+>  	return n;
+>  }
+> diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+> index aa1eee0..d42e082 100644
+> --- a/fs/proc/meminfo.c
+> +++ b/fs/proc/meminfo.c
+> @@ -138,6 +138,9 @@ static int meminfo_proc_show(struct seq_file *m, void=
+ *v)
+>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>  		"AnonHugePages:  %8lu kB\n"
+>  #endif
+> +#ifdef CONFIG_CMA
+> +		"FreeCMAPages:   %8lu kB\n"
+> +#endif
+>  		,
+>  		K(i.totalram),
+>  		K(i.freeram),
+> @@ -187,11 +190,14 @@ static int meminfo_proc_show(struct seq_file *m, vo=
+id *v)
+>  		vmi.used >> 10,
+>  		vmi.largest_chunk >> 10
+>  #ifdef CONFIG_MEMORY_FAILURE
+> -		,atomic_long_read(&num_poisoned_pages) << (PAGE_SHIFT - 10)
+> +		, atomic_long_read(&num_poisoned_pages) << (PAGE_SHIFT - 10)
+>  #endif
+>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> -		,K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
+> -		   HPAGE_PMD_NR)
+> +		, K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
+> +				HPAGE_PMD_NR)
+> +#endif
 
-I am obviously not insisting on the above wording. I am for everything
-that would clarify the test and do not force me to go through several
-hops of the git blame to find the original intention again after year
-when I forget this again.
+Again, please don't include white space changes.  They are confusing.
 
--- 
-Michal Hocko
-SUSE Labs
+> +#ifdef CONFIG_CMA
+> +		, K(global_page_state(NR_FREE_CMA_PAGES))
+>  #endif
+>  		);
+>=20=20
+> --=20
+> 2.0.0
+>
+>
+
+--=20
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
+ (o o)
+ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
