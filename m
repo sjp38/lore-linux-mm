@@ -1,89 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A2B66B0032
-	for <linux-mm@kvack.org>; Fri,  5 Dec 2014 03:32:54 -0500 (EST)
-Received: by mail-wg0-f53.google.com with SMTP id l18so272411wgh.12
-        for <linux-mm@kvack.org>; Fri, 05 Dec 2014 00:32:53 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cf4si1460273wib.11.2014.12.05.00.32.52
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B5CF6B0032
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2014 03:57:51 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id lj1so301726pab.33
+        for <linux-mm@kvack.org>; Fri, 05 Dec 2014 00:57:51 -0800 (PST)
+Received: from cnbjrel02.sonyericsson.com (cnbjrel02.sonyericsson.com. [219.141.167.166])
+        by mx.google.com with ESMTPS id dg8si20278893pdb.242.2014.12.05.00.57.48
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 05 Dec 2014 00:32:52 -0800 (PST)
-Date: Fri, 5 Dec 2014 09:32:49 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v17 1/7] mm: support madvise(MADV_FREE)
-Message-ID: <20141205083249.GA2321@dhcp22.suse.cz>
-References: <1413799924-17946-1-git-send-email-minchan@kernel.org>
- <1413799924-17946-2-git-send-email-minchan@kernel.org>
- <20141127144725.GB19157@dhcp22.suse.cz>
- <20141130235652.GA10333@bbox>
- <20141202100125.GD27014@dhcp22.suse.cz>
- <20141203000026.GA30217@bbox>
- <20141203101329.GB23236@dhcp22.suse.cz>
- <20141205070816.GB3358@bbox>
+        Fri, 05 Dec 2014 00:57:50 -0800 (PST)
+From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Date: Fri, 5 Dec 2014 16:57:38 +0800
+Subject: [RFC] mm:add KPF_ZERO_PAGE flag for /proc/kpageflags
+Message-ID: <35FD53F367049845BC99AC72306C23D103E688B313EE@CNBJMBX05.corpusers.net>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141205070816.GB3358@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, zhangyanfei@cn.fujitsu.com, "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, 'Konstantin Khlebnikov' <koct9i@gmail.com>, "'akpm@linux-foundation.org'" <akpm@linux-foundation.org>, "'n-horiguchi@ah.jp.nec.com'" <n-horiguchi@ah.jp.nec.com>
 
-On Fri 05-12-14 16:08:16, Minchan Kim wrote:
-[...]
-> From cfa212d4fb307ae772b08cf564cab7e6adb8f4fc Mon Sep 17 00:00:00 2001
-> From: Minchan Kim <minchan@kernel.org>
-> Date: Mon, 1 Dec 2014 08:53:55 +0900
-> Subject: [PATCH] madvise.2: Document MADV_FREE
-> 
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
+This patch add KPF_ZERO_PAGE flag for zero_page,
+so that userspace process can notice zero_page from
+/proc/kpageflags, and then do memory analysis more accurately.
 
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
+---
+ fs/proc/page.c                         | 3 +++
+ include/uapi/linux/kernel-page-flags.h | 1 +
+ 2 files changed, 4 insertions(+)
 
-Thanks!
-
-> ---
->  man2/madvise.2 | 12 ++++++++++++
->  1 file changed, 12 insertions(+)
-> 
-> diff --git a/man2/madvise.2 b/man2/madvise.2
-> index 032ead7..fc1aaca 100644
-> --- a/man2/madvise.2
-> +++ b/man2/madvise.2
-> @@ -265,6 +265,18 @@ file (see
->  .BR MADV_DODUMP " (since Linux 3.4)"
->  Undo the effect of an earlier
->  .BR MADV_DONTDUMP .
-> +.TP
-> +.BR MADV_FREE " (since Linux 3.19)"
-> +Tell the kernel that contents in the specified address range are no
-> +longer important and the range will be overwritten. When there is
-> +demand for memory, the system will free pages associated with the
-> +specified address range. In this instance, the next time a page in the
-> +address range is referenced, it will contain all zeroes.  Otherwise,
-> +it will contain the data that was there prior to the MADV_FREE call.
-> +References made to the address range will not make the system read
-> +from backing store (swap space) until the page is modified again.
-> +It works only with private anonymous pages (see
-> +.BR mmap (2)).
->  .SH RETURN VALUE
->  On success
->  .BR madvise ()
-> -- 
-> 2.0.0
-> 
-> -- 
-> Kind regards,
-> Minchan Kim
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-api" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-
--- 
-Michal Hocko
-SUSE Labs
+diff --git a/fs/proc/page.c b/fs/proc/page.c
+index 1e3187d..120dbf7 100644
+--- a/fs/proc/page.c
++++ b/fs/proc/page.c
+@@ -136,6 +136,9 @@ u64 stable_page_flags(struct page *page)
+ 	if (PageBalloon(page))
+ 		u |=3D 1 << KPF_BALLOON;
+=20
++	if (is_zero_pfn(page_to_pfn(page)))
++		u |=3D 1 << KPF_ZERO_PAGE;
++
+ 	u |=3D kpf_copy_bit(k, KPF_LOCKED,	PG_locked);
+=20
+ 	u |=3D kpf_copy_bit(k, KPF_SLAB,		PG_slab);
+diff --git a/include/uapi/linux/kernel-page-flags.h b/include/uapi/linux/ke=
+rnel-page-flags.h
+index 2f96d23..a6c4962 100644
+--- a/include/uapi/linux/kernel-page-flags.h
++++ b/include/uapi/linux/kernel-page-flags.h
+@@ -32,6 +32,7 @@
+ #define KPF_KSM			21
+ #define KPF_THP			22
+ #define KPF_BALLOON		23
++#define KPF_ZERO_PAGE		24
+=20
+=20
+ #endif /* _UAPILINUX_KERNEL_PAGE_FLAGS_H */
+--=20
+2.1.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
