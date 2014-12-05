@@ -1,72 +1,67 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f175.google.com (mail-we0-f175.google.com [74.125.82.175])
-	by kanga.kvack.org (Postfix) with ESMTP id BCA176B0032
-	for <linux-mm@kvack.org>; Wed, 31 Dec 2014 10:47:39 -0500 (EST)
-Received: by mail-we0-f175.google.com with SMTP id k11so2541817wes.34
-        for <linux-mm@kvack.org>; Wed, 31 Dec 2014 07:47:39 -0800 (PST)
-Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0092.outbound.protection.outlook.com. [157.55.234.92])
-        by mx.google.com with ESMTPS id hs6si84768760wjb.68.2014.12.31.07.47.38
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 31 Dec 2014 07:47:38 -0800 (PST)
-Message-ID: <54A41A64.9080909@mellanox.com>
-Date: Wed, 31 Dec 2014 17:46:44 +0200
-From: Haggai Eran <haggaie@mellanox.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 3/7] HMM: introduce heterogeneous memory management.
-References: <1419266940-5440-1-git-send-email-j.glisse@gmail.com>
- <1419266940-5440-4-git-send-email-j.glisse@gmail.com>
-In-Reply-To: <1419266940-5440-4-git-send-email-j.glisse@gmail.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: j.glisse@gmail.com, akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes
- Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van
- Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron
- Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul
- Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Jatin Kumar <jakumar@nvidia.com>
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [RFC v2] arm:extend the reserved mrmory for initrd to be page
+ aligned
+Date: Fri, 5 Dec 2014 17:27:02 +0000
+Message-ID: <20141205172701.GW11285@n2100.arm.linux.org.uk>
+References: <35FD53F367049845BC99AC72306C23D103D6DB491609@CNBJMBX05.corpusers.net>
+ <20140915113325.GD12361@n2100.arm.linux.org.uk>
+ <20141204120305.GC17783@e104818-lin.cambridge.arm.com>
+ <20141205120506.GH1630@arm.com>
+ <20141205170745.GA31222@e104818-lin.cambridge.arm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Return-path: <linux-kernel-owner@vger.kernel.org>
+Content-Disposition: inline
+In-Reply-To: <20141205170745.GA31222@e104818-lin.cambridge.arm.com>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Will Deacon <will.deacon@arm.com>, "Wang, Yalin" <Yalin.Wang@sonymobile.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'linux-arm-msm@vger.kernel.org'" <linux-arm-msm@vger.kernel.org>, Peter Maydell <Peter.Maydell@arm.com>
+List-Id: linux-mm.kvack.org
 
-Hi,
+On Fri, Dec 05, 2014 at 05:07:45PM +0000, Catalin Marinas wrote:
+> On Fri, Dec 05, 2014 at 12:05:06PM +0000, Will Deacon wrote:
+> > Care to submit this as a proper patch? We should at least fix Peter's issue
+> > before doing things like extending headers, which won't work for older
+> > kernels anyway.
+> 
+> Quick fix is the revert of the whole patch, together with removing
+> PAGE_ALIGN(end) in poison_init_mem() on arm32. If Russell is ok with
+> this patch, we can take it via the arm64 tree, otherwise I'll send you a
+> partial revert only for the arm64 part.
 
-On 22/12/2014 18:48, j.glisse@gmail.com wrote:
-> +/* hmm_device_register() - register a device with HMM.
-> + *
-> + * @device: The hmm_device struct.
-> + * Returns: 0 on success or -EINVAL otherwise.
-> + *
-> + *
-> + * Call when device driver want to register itself with HMM. Device driver can
-> + * only register once. It will return a reference on the device thus to release
-> + * a device the driver must unreference the device.
+Not really.  Let's look at the history.
 
-I see that the code doesn't actually have a reference count on the
-hmm_device, but just registers and unregisters it through the
-hmm_device_register/hmm_device_unregister functions. Perhaps you should
-update the comment here to tell that.
+For years, we've been poisoning memory, page aligning the end pointer.
+This has never been an issue.
 
-> + */
-> +int hmm_device_register(struct hmm_device *device)
-> +{
-> +	/* sanity check */
-> +	BUG_ON(!device);
-> +	BUG_ON(!device->name);
-> +	BUG_ON(!device->ops);
-> +	BUG_ON(!device->ops->release);
-> +
-> +	mutex_init(&device->mutex);
-> +	INIT_LIST_HEAD(&device->mirrors);
-> +
-> +	return 0;
-> +}
-> +EXPORT_SYMBOL(hmm_device_register);
+However, patch 8167/1 changed things so we freed the overlapping pages.
+Since we've always poisoned up to the end of the final page, freeing it
+should not be a problem, especially as (I said above) we've been poisoning
+it for years.
 
-Regards,
-Haggai
+The issue is more about what happens at the start.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+In any case:
+
+> >From 8e317c6be00abe280de4dcdd598d2e92009174b6 Mon Sep 17 00:00:00 2001
+> From: Catalin Marinas <catalin.marinas@arm.com>
+> Date: Fri, 5 Dec 2014 16:41:52 +0000
+> Subject: [PATCH] Revert "ARM: 8167/1: extend the reserved memory for initrd to
+>  be page aligned"
+> 
+> This reverts commit 421520ba98290a73b35b7644e877a48f18e06004. There is
+> no guarantee that the boot-loader places other images like dtb in a
+> different page than initrd start/end. When this happens, such pages must
+> not be freed. The free_reserved_area() already takes care of rounding up
+> "start" and rounding down "end" to avoid freeing partially used pages.
+> 
+> In addition to the revert, this patch also removes the arm32
+> PAGE_ALIGN(end) when calculating the size of the memory to be poisoned.
+
+which makes the summary line rather misleading, and I really don't think
+we need to do this on ARM for the simple reason that we've been doing it
+for soo long that it can't be an issue.
+
+-- 
+FTTC broadband for 0.8mile line: currently at 9.5Mbps down 400kbps up
+according to speedtest.net.
