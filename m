@@ -1,109 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id D356F6B0032
-	for <linux-mm@kvack.org>; Fri,  5 Dec 2014 00:55:48 -0500 (EST)
-Received: by mail-pd0-f178.google.com with SMTP id g10so26468pdj.23
-        for <linux-mm@kvack.org>; Thu, 04 Dec 2014 21:55:48 -0800 (PST)
-Received: from ponies.io (mail.ponies.io. [173.255.217.209])
-        by mx.google.com with ESMTP id jc4si46176345pbd.35.2014.12.04.21.55.46
-        for <linux-mm@kvack.org>;
-        Thu, 04 Dec 2014 21:55:47 -0800 (PST)
-Received: from cucumber.localdomain (nat-gw2.syd4.anchor.net.au [110.173.144.2])
-	by ponies.io (Postfix) with ESMTPSA id 6FC3FA0F5
-	for <linux-mm@kvack.org>; Fri,  5 Dec 2014 05:55:46 +0000 (UTC)
-Date: Fri, 5 Dec 2014 16:55:44 +1100
-From: Christian Marie <christian@ponies.io>
-Subject: Re: isolate_freepages_block and excessive CPU usage by OSD process
-Message-ID: <20141205055544.GB18326@cucumber.syd4.anchor.net.au>
-References: <CABYiri8LYukujETMCb4gHUQd=J-MQ8m=rGRiEkTD1B42Jh=Ksg@mail.gmail.com>
- <20141128080331.GD11802@js1304-P5Q-DELUXE>
- <54783FB7.4030502@suse.cz>
- <20141201083118.GB2499@js1304-P5Q-DELUXE>
- <20141202014724.GA22239@cucumber.bridge.anchor.net.au>
- <20141202045324.GC6268@js1304-P5Q-DELUXE>
- <20141202050608.GA11051@cucumber.bridge.anchor.net.au>
- <20141203075747.GB6276@js1304-P5Q-DELUXE>
- <20141204073045.GA2960@cucumber.anchor.net.au>
- <20141205010733.GA13751@js1304-P5Q-DELUXE>
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id F34146B0032
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2014 01:22:29 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id kx10so62956pab.30
+        for <linux-mm@kvack.org>; Thu, 04 Dec 2014 22:22:29 -0800 (PST)
+Received: from fgwmail5.fujitsu.co.jp (fgwmail5.fujitsu.co.jp. [192.51.44.35])
+        by mx.google.com with ESMTPS id ho1si46181450pbc.78.2014.12.04.22.22.27
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 04 Dec 2014 22:22:28 -0800 (PST)
+Received: from kw-mxoi2.gw.nic.fujitsu.com (unknown [10.0.237.143])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 9CB743EE1E5
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2014 15:22:25 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by kw-mxoi2.gw.nic.fujitsu.com (Postfix) with ESMTP id B2597AC027D
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2014 15:22:24 +0900 (JST)
+Received: from g01jpfmpwyt01.exch.g01.fujitsu.local (g01jpfmpwyt01.exch.g01.fujitsu.local [10.128.193.38])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 580AEE18003
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2014 15:22:24 +0900 (JST)
+Message-ID: <54814EFC.5020904@jp.fujitsu.com>
+Date: Fri, 5 Dec 2014 15:21:48 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="OwLcNYc0lM97+oe1"
-Content-Disposition: inline
-In-Reply-To: <20141205010733.GA13751@js1304-P5Q-DELUXE>
+Subject: Re: [PATCH 1/1] mm: Fix a deadlock in the hotplug code
+References: <1417553218-12339-1-git-send-email-kys@microsoft.com>
+In-Reply-To: <1417553218-12339-1-git-send-email-kys@microsoft.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: "K. Y. Srinivasan" <kys@microsoft.com>
+Cc: linux-kernel@vger.kernel.org, olaf@aepfle.de, apw@canonical.com, linux-mm@kvack.org
 
+(2014/12/03 5:46), K. Y. Srinivasan wrote:
+> Andy Whitcroft <apw@canonical.com> initially saw this deadlock. We have
+> seen this as well. Here is the original description of the problem (and a
+> potential solution) from Andy:
+> 
+> https://lkml.org/lkml/2014/3/14/451
+> 
+> Here is an excerpt from that mail:
+> 
+> "We are seeing machines lockup with what appears to be an ABBA deadlock in
+> the memory hotplug system.  These are from the 3.13.6 based Ubuntu kernels.
+> The hv_balloon driver is adding memory using add_memory() which takes the
+> hotplug lock, and then emits a udev event, and then attempts to lock the
+> sysfs device.  In response to the udev event udev opens the sysfs device
+> and locks it, then attempts to grab the hotplug lock to online the memory.
+> This seems to be inverted nesting in the two cases, leading to the hangs below:
+> 
+> [  240.608612] INFO: task kworker/0:2:861 blocked for more than 120 seconds.
+> [  240.608705] INFO: task systemd-udevd:1906 blocked for more than 120 seconds.
+> 
+> I note that the device hotplug locking allows complete retries (via
+> ERESTARTSYS) and if we could detect this at the online stage it
+> could be used to get us out.  But before I go down this road I wanted
+> to make sure I am reading this right.  Or indeed if the hv_balloon driver
+> is just doing this wrong."
+> 
+> This patch is based on Andy's analysis and suggestion.
 
---OwLcNYc0lM97+oe1
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+How about use lock_device_hotplug() before calling add_memory() in hv_mem_hot_add()?
+Commit 0f1cfe9d0d06 (mm/hotplug: remove stop_machine() from try_offline_node()) said:
 
-On Fri, Dec 05, 2014 at 10:07:33AM +0900, Joonsoo Kim wrote:
-> It looks that there is no stop condition in isolate_freepages(). In
-> this period, your system have not enough freepage and many processes
-> try to find freepage for compaction. Because there is no stop
-> condition, they iterate almost all memory range every time. At the
-> bottom of this mail, I attach one more fix although I don't test it
-> yet. It will cause a lot of allocation failure that your network layer
-> need. It is order 5 allocation request and with __GFP_NOWARN gfp flag,
-> so I assume that there is no problem if allocation request is failed,
-> but, I'm not sure.
->=20
-> watermark check on this patch needs cc->classzone_idx, cc->alloc_flags
-> that comes from Vlastimil's recent change. If you want to test it with
-> 3.18rc5, please remove it. It doesn't much matter.
->=20
-> Anyway, I hope it also helps you.
+  ---
+    lock_device_hotplug() serializes hotplug & online/offline operations.  The
+    lock is held in common sysfs online/offline interfaces and ACPI hotplug
+    code paths.
 
-Thank you, I will try this next week. If it improves the situation do you t=
-hink
-that we have a good chance of merging it upstream? I should think that
-backporting such a fix would be a hard sell.
+    And here are the code paths:
 
-> By judging from this perf report, my second patch would have no impact
-> to your system. I thought that this excessive cpu usage is started from
-> the SLUB, but, order 5 kmalloc request is just forwarded to page
-> allocator in current SLUB implementation, so patch 2 from me would not
-> work on this problem.
+    - CPU & Mem online/offline via sysfs online
+        store_online()->lock_device_hotplug()
 
-I agree with this.
+    - Mem online via sysfs state:
+        store_mem_state()->lock_device_hotplug()
 
->=20
-> By the way, is it common that network layer needs order 5 allocation?
-> IMHO, it'd be better to avoid this highorder request, because the kernel
-> easily fail to handle this kind of request.
+    - ACPI CPU & Mem hot-add:
+        acpi_scan_bus_device_check()->lock_device_hotplug()
 
-Yes, agreed. I'm trying to sort that issue out concurrently. I'm currently
-collaborating on a patch to get Scatter Gather support for the network laye=
-r so
-that we can avoid these huge allocations. They are large because ipoib in
-Connected Mode wants a very large MTU (around 65535) and does not do SG in =
-CM.
+    - ACPI CPU & Mem hot-delete:
+        acpi_scan_hot_remove()->lock_device_hotplug()
+  ---
 
---OwLcNYc0lM97+oe1
-Content-Type: application/pgp-signature
+CPU & Memory online/offline/hotplug are serialized by lock_device_hotplug().
+So using lock_device_hotplug() solves the ABBA issue.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
+Thanks,
+Yasuaki Ishimatsu
 
-iQIcBAEBCAAGBQJUgUjgAAoJEMHZnoZn5OShYY0P/2F38/JNKeexOo6JAHIA7/Ee
-aBOzXOwXF10H6Hs5Ca/CABoM5t8fae8nvoQtb45oFO1OK6OA03upZTK8HgGRDqsZ
-1oMN4SqlYoElULY21/DAkmBTa4Zz3r2/E6beQ+VuUdkkCnSw3n3cgW2Sm+VhNZ6g
-l+9EB+Cbtl23znISpE92lAaYX2Ywrv6dneezDzKx/WPxQTMmYQtVQbtwPyXBm2wq
-8NqB+anlMBpAYO509d6D0DpM+xrO5/sHnbMYQh8h0Q6+0ErwLP0NRk/9Szjxta5f
-YBwMVVG87wAZeWM3Igaw+/ypycaYEQfMZPQGY+Y2VtYW4oqM2Azy+JPpv6eIBSuX
-9BeZa6CSbFL2bHIj+ARkP2BXAu11blLG2Pqk+wUxh0eIqj6xIJqlgbIzU9i8CuZw
-QPE/BH7ahvgUMkF5/bbSqT/AMFi8Mc2tR+SZ34dnKw2rjbQOpliEYMf8IrqJOkZC
-XuKsfCGoDIHV83idYVIhAVBOnrEoH6LJBHQB6eL+mXJxs6MMdC3iyVrrptErGBlE
-mFqModO/rEs5jTA1DwJfhfIoSHLVNz2hguTLiEY9L2LuIdzWFndNu4/hqLEid3wW
-wkxKnIk1iYT9aY/I0m9AmQ1gs5QohRzcMznfY0blftFD5XcjUEIoX0m7bYF4APVO
-98lZIu2AqNz1pv5183io
-=Qom8
------END PGP SIGNATURE-----
+> 
+> Signed-off-by: K. Y. Srinivasan <kys@microsoft.com>
+> ---
+>   mm/memory_hotplug.c |   24 +++++++++++++++++-------
+>   1 files changed, 17 insertions(+), 7 deletions(-)
+> 
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 9fab107..e195269 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -104,19 +104,27 @@ void put_online_mems(void)
+>   
+>   }
+>   
+> -static void mem_hotplug_begin(void)
+> +static int mem_hotplug_begin(bool trylock)
+>   {
+>   	mem_hotplug.active_writer = current;
+>   
+>   	memhp_lock_acquire();
+>   	for (;;) {
+> -		mutex_lock(&mem_hotplug.lock);
+> +		if (trylock) {
+> +			if (!mutex_trylock(&mem_hotplug.lock)) {
+> +				mem_hotplug.active_writer = NULL;
+> +				return -ERESTARTSYS;
+> +			}
+> +		} else {
+> +			mutex_lock(&mem_hotplug.lock);
+> +		}
+>   		if (likely(!mem_hotplug.refcount))
+>   			break;
+>   		__set_current_state(TASK_UNINTERRUPTIBLE);
+>   		mutex_unlock(&mem_hotplug.lock);
+>   		schedule();
+>   	}
+> +	return 0;
+>   }
+>   
+>   static void mem_hotplug_done(void)
+> @@ -969,7 +977,9 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+>   	int ret;
+>   	struct memory_notify arg;
+>   
+> -	mem_hotplug_begin();
+> +	ret = mem_hotplug_begin(true);
+> +	if (ret)
+> +		return ret;
+>   	/*
+>   	 * This doesn't need a lock to do pfn_to_page().
+>   	 * The section can't be removed here because of the
+> @@ -1146,7 +1156,7 @@ int try_online_node(int nid)
+>   	if (node_online(nid))
+>   		return 0;
+>   
+> -	mem_hotplug_begin();
+> +	mem_hotplug_begin(false);
+>   	pgdat = hotadd_new_pgdat(nid, 0);
+>   	if (!pgdat) {
+>   		pr_err("Cannot online node %d due to NULL pgdat\n", nid);
+> @@ -1236,7 +1246,7 @@ int __ref add_memory(int nid, u64 start, u64 size)
+>   		new_pgdat = !p;
+>   	}
+>   
+> -	mem_hotplug_begin();
+> +	mem_hotplug_begin(false);
+>   
+>   	new_node = !node_online(nid);
+>   	if (new_node) {
+> @@ -1684,7 +1694,7 @@ static int __ref __offline_pages(unsigned long start_pfn,
+>   	if (!test_pages_in_a_zone(start_pfn, end_pfn))
+>   		return -EINVAL;
+>   
+> -	mem_hotplug_begin();
+> +	mem_hotplug_begin(false);
+>   
+>   	zone = page_zone(pfn_to_page(start_pfn));
+>   	node = zone_to_nid(zone);
+> @@ -2002,7 +2012,7 @@ void __ref remove_memory(int nid, u64 start, u64 size)
+>   
+>   	BUG_ON(check_hotplug_memory_range(start, size));
+>   
+> -	mem_hotplug_begin();
+> +	mem_hotplug_begin(false);
+>   
+>   	/*
+>   	 * All memory blocks must be offlined before removing memory.  Check
+> 
 
---OwLcNYc0lM97+oe1--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
