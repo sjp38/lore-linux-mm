@@ -1,104 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 48AAE6B0032
-	for <linux-mm@kvack.org>; Thu,  4 Dec 2014 21:35:41 -0500 (EST)
-Received: by mail-pd0-f182.google.com with SMTP id r10so19041357pdi.27
-        for <linux-mm@kvack.org>; Thu, 04 Dec 2014 18:35:41 -0800 (PST)
-Received: from cnbjrel02.sonyericsson.com (cnbjrel02.sonyericsson.com. [219.141.167.166])
-        by mx.google.com with ESMTPS id xp4si27128382pbb.36.2014.12.04.18.35.37
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 04 Dec 2014 18:35:39 -0800 (PST)
-From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Date: Fri, 5 Dec 2014 10:35:29 +0800
-Subject: RE: [RFC v2] arm:extend the reserved mrmory for initrd to be page
- aligned
-Message-ID: <35FD53F367049845BC99AC72306C23D103E688B313EA@CNBJMBX05.corpusers.net>
-References: <35FD53F367049845BC99AC72306C23D103D6DB491609@CNBJMBX05.corpusers.net>
- <20140915113325.GD12361@n2100.arm.linux.org.uk>
- <20141204120305.GC17783@e104818-lin.cambridge.arm.com>
-In-Reply-To: <20141204120305.GC17783@e104818-lin.cambridge.arm.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id A69C76B0032
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2014 00:50:52 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id et14so35535pad.1
+        for <linux-mm@kvack.org>; Thu, 04 Dec 2014 21:50:52 -0800 (PST)
+Received: from ponies.io (ponies.io. [2600:3c01::f03c:91ff:fe6e:5e45])
+        by mx.google.com with ESMTP id us1si22760562pac.23.2014.12.04.21.50.50
+        for <linux-mm@kvack.org>;
+        Thu, 04 Dec 2014 21:50:50 -0800 (PST)
+Received: from cucumber.localdomain (nat-gw2.syd4.anchor.net.au [110.173.144.2])
+	by ponies.io (Postfix) with ESMTPSA id DB58FA0F5
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2014 05:50:49 +0000 (UTC)
+Date: Fri, 5 Dec 2014 16:50:47 +1100
+From: Christian Marie <christian@ponies.io>
+Subject: Re: isolate_freepages_block and excessive CPU usage by OSD process
+Message-ID: <20141205055047.GA18326@cucumber.syd4.anchor.net.au>
+References: <20141123093348.GA16954@cucumber.anchor.net.au>
+ <CABYiri8LYukujETMCb4gHUQd=J-MQ8m=rGRiEkTD1B42Jh=Ksg@mail.gmail.com>
+ <20141128080331.GD11802@js1304-P5Q-DELUXE>
+ <54783FB7.4030502@suse.cz>
+ <20141201083118.GB2499@js1304-P5Q-DELUXE>
+ <20141202014724.GA22239@cucumber.bridge.anchor.net.au>
+ <20141202045324.GC6268@js1304-P5Q-DELUXE>
+ <20141202050608.GA11051@cucumber.bridge.anchor.net.au>
+ <20141203040404.GA16499@cucumber.bridge.anchor.net.au>
+ <5480EE9D.1050503@suse.cz>
 MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="5vNYLRcllDrimb99"
+Content-Disposition: inline
+In-Reply-To: <5480EE9D.1050503@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Catalin Marinas' <catalin.marinas@arm.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: "'linux-mm@kvack.org'" <linux-mm@kvack.org>, Will Deacon <Will.Deacon@arm.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'linux-arm-msm@vger.kernel.org'" <linux-arm-msm@vger.kernel.org>, Peter Maydell <Peter.Maydell@arm.com>
-
-> -----Original Message-----
-> From: Catalin Marinas [mailto:catalin.marinas@arm.com]
-> Sent: Thursday, December 04, 2014 8:03 PM
-> To: Russell King - ARM Linux
-> Cc: Wang, Yalin; 'linux-mm@kvack.org'; Will Deacon; 'linux-
-> kernel@vger.kernel.org'; 'linux-arm-kernel@lists.infradead.org'; 'linux-
-> arm-msm@vger.kernel.org'; Peter Maydell
-> Subject: Re: [RFC v2] arm:extend the reserved mrmory for initrd to be pag=
-e
-> aligned
->=20
-> On Mon, Sep 15, 2014 at 12:33:25PM +0100, Russell King - ARM Linux wrote:
-> > On Mon, Sep 15, 2014 at 07:07:20PM +0800, Wang, Yalin wrote:
-> > > @@ -636,6 +646,11 @@ static int keep_initrd;  void
-> > > free_initrd_mem(unsigned long start, unsigned long end)  {
-> > >  	if (!keep_initrd) {
-> > > +		if (start =3D=3D initrd_start)
-> > > +			start =3D round_down(start, PAGE_SIZE);
-> > > +		if (end =3D=3D initrd_end)
-> > > +			end =3D round_up(end, PAGE_SIZE);
-> > > +
-> > >  		poison_init_mem((void *)start, PAGE_ALIGN(end) - start);
-> > >  		free_reserved_area((void *)start, (void *)end, -1, "initrd");
-> > >  	}
-> >
-> > is the only bit of code you likely need to achieve your goal.
-> >
-> > Thinking about this, I think that you are quite right to align these.
-> > The memory around the initrd is defined to be system memory, and we
-> > already free the pages around it, so it *is* wrong not to free the
-> > partial initrd pages.
->=20
-> Actually, I think we have a problem, at least on arm64 (raised by Peter
-> Maydell). There is no guarantee that the page around start/end of initrd =
-is
-> free, it may contain the dtb for example. This is even more obvious when =
-we
-> have a 64KB page kernel (the boot loader doesn't know the page size that
-> the kernel is going to use).
->=20
-> The bug was there before as we had poison_init_mem() already (not it
-> disappeared since free_reserved_area does the poisoning).
->=20
-> So as a quick fix I think we need the rounding the other way (and in the
-> general case we probably lose a page at the end of initrd):
->=20
-> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c index
-> 494297c698ca..39fd080683e7 100644
-> --- a/arch/arm64/mm/init.c
-> +++ b/arch/arm64/mm/init.c
-> @@ -335,9 +335,9 @@ void free_initrd_mem(unsigned long start, unsigned lo=
-ng
-> end)  {
->  	if (!keep_initrd) {
->  		if (start =3D=3D initrd_start)
-> -			start =3D round_down(start, PAGE_SIZE);
-> +			start =3D round_up(start, PAGE_SIZE);
->  		if (end =3D=3D initrd_end)
-> -			end =3D round_up(end, PAGE_SIZE);
-> +			end =3D round_down(end, PAGE_SIZE);
->=20
->  		free_reserved_area((void *)start, (void *)end, 0, "initrd");
->  	}
->=20
-> A better fix would be to check what else is around the start/end of initr=
-d.
-I think a better way is add some head info in Image header,
-So that bootloader  can know the kernel CONFIG_PAGE_SIZE ,
-For example we can add PAGE_SIZE in zImage header .
-How about this way?
+To: linux-mm@kvack.org
 
 
+--5vNYLRcllDrimb99
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+
+On Fri, Dec 05, 2014 at 12:30:37AM +0100, Vlastimil Babka wrote:
+> Oh, I would think that if you can't allocate single pages, then there's
+> little wonder that compaction also spends all its time looking for single
+> free pages. Did that happen just now for the single page allocations,
+> or was it always the case?
+
+This has always been the case with the default min_free_pages and given enough
+pressure for enough time. I have just been hoping that compaction should
+be "smart" enough to lest reclaim do its stuff quickly if single page
+allocations are failing.
+
+Raising min_free_kbytes makes these 0 order allocations failures never happen.
+
+--5vNYLRcllDrimb99
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBCAAGBQJUgUe1AAoJEMHZnoZn5OShwUkP/jZ7LRxWkGW+jsEVUCacvTZi
+RH/mskEZ30MUtlsjFH7OKsfiXAKLFvMpRrVn8DVQvXNBmtp8KhjgTgj6iksN6m+N
+fkbCKmz2VPaN0lVY+dm5QZR59fCqO/1qPuu6xi0BZIBjQqK79avI1riQZvGqHAsi
+vwHDTTQ09QdlXYyiXhkKpJRNAhy3UkhprDSVUB6lbl+0q2brNvywCWng00+Ner6I
+DiW+1ylJ951MT2uXyeUI8Az24NH1ykdjz5H90UZVvY/ptu7L81NHHOmHnOp49h2K
+14Mzj0G5h9jpQn8Kic3bB+860IduaDsWwLNcf8EaaiUmaajeMj/rm4uv0lnVm0dH
+37bl6XF5HYZhwPFekJLck3tXUzivmwVgm34TIUh7SyrpaomnY4Cgl8cSyWZzRzPN
+EtunuaF7K+T049mp9k3YrPmLQDdTjsJtSGl3c3M5B37PWB4V74IdlvdhNR0d13qw
+JhlHVVR1HtMVuT6c/pKh5Sqp13t3sdZoWwQQzzZvdnhFEUyTTKr9dahaEHWDdyNw
+y+E9bAIKBQ/RC29MAFpN4K6gM3j+P5+40mFAowVgrAKMuddIze7xNQrBRHoNpXOf
+bnpcUWtBcAuj4nq/AWPBXlwLZ7CDOBSRJn95N82z3txXP0MkzaOARBAhBHst7qj8
+7j6/m4/DkZ4vO5WDB+5B
+=Ehnd
+-----END PGP SIGNATURE-----
+
+--5vNYLRcllDrimb99--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
