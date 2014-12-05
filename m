@@ -1,94 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 416D36B006C
-	for <linux-mm@kvack.org>; Fri,  5 Dec 2014 12:07:58 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id kx10so1038186pab.16
-        for <linux-mm@kvack.org>; Fri, 05 Dec 2014 09:07:58 -0800 (PST)
-Received: from foss-mx-na.foss.arm.com (foss-mx-na.foss.arm.com. [217.140.108.86])
-        by mx.google.com with ESMTP id q3si38043759pdp.113.2014.12.05.09.07.54
-        for <linux-mm@kvack.org>;
-        Fri, 05 Dec 2014 09:07:55 -0800 (PST)
-Date: Fri, 5 Dec 2014 17:07:45 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [RFC v2] arm:extend the reserved mrmory for initrd to be page
- aligned
-Message-ID: <20141205170745.GA31222@e104818-lin.cambridge.arm.com>
-References: <35FD53F367049845BC99AC72306C23D103D6DB491609@CNBJMBX05.corpusers.net>
- <20140915113325.GD12361@n2100.arm.linux.org.uk>
- <20141204120305.GC17783@e104818-lin.cambridge.arm.com>
- <20141205120506.GH1630@arm.com>
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 92F986B0032
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2014 12:41:14 -0500 (EST)
+Received: by mail-wi0-f180.google.com with SMTP id n3so2164598wiv.1
+        for <linux-mm@kvack.org>; Fri, 05 Dec 2014 09:41:14 -0800 (PST)
+Received: from mail-wi0-x22f.google.com (mail-wi0-x22f.google.com. [2a00:1450:400c:c05::22f])
+        by mx.google.com with ESMTPS id eb2si3318557wib.105.2014.12.05.09.41.13
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 05 Dec 2014 09:41:13 -0800 (PST)
+Received: by mail-wi0-f175.google.com with SMTP id l15so2171174wiw.2
+        for <linux-mm@kvack.org>; Fri, 05 Dec 2014 09:41:13 -0800 (PST)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [PATCH] CMA: add the amount of cma memory in meminfo
+In-Reply-To: <547FCCE9.2020600@huawei.com>
+References: <547FCCE9.2020600@huawei.com>
+Date: Fri, 05 Dec 2014 18:41:04 +0100
+Message-ID: <xa1ty4qm9eq7.fsf@mina86.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141205120506.GH1630@arm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, "Wang, Yalin" <Yalin.Wang@sonymobile.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'linux-arm-msm@vger.kernel.org'" <linux-arm-msm@vger.kernel.org>, Peter Maydell <Peter.Maydell@arm.com>
+To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, m.szyprowski@samsung.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-On Fri, Dec 05, 2014 at 12:05:06PM +0000, Will Deacon wrote:
-> On Thu, Dec 04, 2014 at 12:03:05PM +0000, Catalin Marinas wrote:
-> > On Mon, Sep 15, 2014 at 12:33:25PM +0100, Russell King - ARM Linux wrote:
-> > > On Mon, Sep 15, 2014 at 07:07:20PM +0800, Wang, Yalin wrote:
-> > > > @@ -636,6 +646,11 @@ static int keep_initrd;
-> > > >  void free_initrd_mem(unsigned long start, unsigned long end)
-> > > >  {
-> > > >  	if (!keep_initrd) {
-> > > > +		if (start == initrd_start)
-> > > > +			start = round_down(start, PAGE_SIZE);
-> > > > +		if (end == initrd_end)
-> > > > +			end = round_up(end, PAGE_SIZE);
-> > > > +
-> > > >  		poison_init_mem((void *)start, PAGE_ALIGN(end) - start);
-> > > >  		free_reserved_area((void *)start, (void *)end, -1, "initrd");
-> > > >  	}
-> > > 
-> > > is the only bit of code you likely need to achieve your goal.
-> > > 
-> > > Thinking about this, I think that you are quite right to align these.
-> > > The memory around the initrd is defined to be system memory, and we
-> > > already free the pages around it, so it *is* wrong not to free the
-> > > partial initrd pages.
-> > 
-> > Actually, I think we have a problem, at least on arm64 (raised by Peter
-> > Maydell). There is no guarantee that the page around start/end of initrd
-> > is free, it may contain the dtb for example. This is even more obvious
-> > when we have a 64KB page kernel (the boot loader doesn't know the page
-> > size that the kernel is going to use).
-> > 
-> > The bug was there before as we had poison_init_mem() already (not it
-> > disappeared since free_reserved_area does the poisoning).
-> > 
-> > So as a quick fix I think we need the rounding the other way (and in the
-> > general case we probably lose a page at the end of initrd):
-> > 
-> > diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-> > index 494297c698ca..39fd080683e7 100644
-> > --- a/arch/arm64/mm/init.c
-> > +++ b/arch/arm64/mm/init.c
-> > @@ -335,9 +335,9 @@ void free_initrd_mem(unsigned long start, unsigned long end)
-> >  {
-> >  	if (!keep_initrd) {
-> >  		if (start == initrd_start)
-> > -			start = round_down(start, PAGE_SIZE);
-> > +			start = round_up(start, PAGE_SIZE);
-> >  		if (end == initrd_end)
-> > -			end = round_up(end, PAGE_SIZE);
-> > +			end = round_down(end, PAGE_SIZE);
-> >  
-> >  		free_reserved_area((void *)start, (void *)end, 0, "initrd");
-> >  	}
-> > 
-> > A better fix would be to check what else is around the start/end of
-> > initrd.
-> 
-> Care to submit this as a proper patch? We should at least fix Peter's issue
-> before doing things like extending headers, which won't work for older
-> kernels anyway.
+On Thu, Dec 04 2014, Xishi Qiu <qiuxishi@huawei.com> wrote:
+> Add the amount of cma memory in the following meminfo.
+> /proc/meminfo
+> /sys/devices/system/node/nodeXX/meminfo
+>
+> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
 
-Quick fix is the revert of the whole patch, together with removing
-PAGE_ALIGN(end) in poison_init_mem() on arm32. If Russell is ok with
-this patch, we can take it via the arm64 tree, otherwise I'll send you a
-partial revert only for the arm64 part.
+No second look:
 
--------------8<-----------------------
+Acked-by: Michal Nazarewicz <mina86@mina86.com>
+
+> ---
+>  drivers/base/node.c | 16 ++++++++++------
+>  fs/proc/meminfo.c   | 12 +++++++++---
+>  2 files changed, 19 insertions(+), 9 deletions(-)
+>
+> diff --git a/drivers/base/node.c b/drivers/base/node.c
+> index 472168c..a27e4e0 100644
+> --- a/drivers/base/node.c
+> +++ b/drivers/base/node.c
+> @@ -120,6 +120,9 @@ static ssize_t node_read_meminfo(struct device *dev,
+>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>  		       "Node %d AnonHugePages:  %8lu kB\n"
+>  #endif
+> +#ifdef CONFIG_CMA
+> +		       "Node %d FreeCMAPages:   %8lu kB\n"
+> +#endif
+>  			,
+>  		       nid, K(node_page_state(nid, NR_FILE_DIRTY)),
+>  		       nid, K(node_page_state(nid, NR_WRITEBACK)),
+> @@ -136,14 +139,15 @@ static ssize_t node_read_meminfo(struct device *dev,
+>  		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE) +
+>  				node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),
+>  		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE)),
+> -#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>  		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE))
+> -			, nid,
+> -			K(node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *
+> -			HPAGE_PMD_NR));
+> -#else
+> -		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)));
+> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> +		       , nid, K(node_page_state(nid,
+> +				NR_ANON_TRANSPARENT_HUGEPAGES) * HPAGE_PMD_NR)
+> +#endif
+> +#ifdef CONFIG_CMA
+> +		       , nid, K(node_page_state(nid, NR_FREE_CMA_PAGES))
+>  #endif
+> +			);
+>  	n +=3D hugetlb_report_node_meminfo(nid, buf + n);
+>  	return n;
+>  }
+> diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+> index aa1eee0..d42e082 100644
+> --- a/fs/proc/meminfo.c
+> +++ b/fs/proc/meminfo.c
+> @@ -138,6 +138,9 @@ static int meminfo_proc_show(struct seq_file *m, void=
+ *v)
+>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>  		"AnonHugePages:  %8lu kB\n"
+>  #endif
+> +#ifdef CONFIG_CMA
+> +		"FreeCMAPages:   %8lu kB\n"
+> +#endif
+>  		,
+>  		K(i.totalram),
+>  		K(i.freeram),
+> @@ -187,11 +190,14 @@ static int meminfo_proc_show(struct seq_file *m, vo=
+id *v)
+>  		vmi.used >> 10,
+>  		vmi.largest_chunk >> 10
+>  #ifdef CONFIG_MEMORY_FAILURE
+> -		,atomic_long_read(&num_poisoned_pages) << (PAGE_SHIFT - 10)
+> +		, atomic_long_read(&num_poisoned_pages) << (PAGE_SHIFT - 10)
+>  #endif
+>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> -		,K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
+> -		   HPAGE_PMD_NR)
+> +		, K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
+> +				HPAGE_PMD_NR)
+> +#endif
+> +#ifdef CONFIG_CMA
+> +		, K(global_page_state(NR_FREE_CMA_PAGES))
+>  #endif
+>  		);
+>=20=20
+> --=20
+> 2.0.0
+>
+>
+
+--=20
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
+ (o o)
+ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
