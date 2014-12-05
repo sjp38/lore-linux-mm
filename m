@@ -1,72 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 0957C6B0070
-	for <linux-mm@kvack.org>; Fri,  5 Dec 2014 06:05:43 -0500 (EST)
-Received: by mail-wi0-f172.google.com with SMTP id n3so1042991wiv.5
-        for <linux-mm@kvack.org>; Fri, 05 Dec 2014 03:05:42 -0800 (PST)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.195])
-        by mx.google.com with ESMTP id dd7si23277225wjb.143.2014.12.05.03.05.41
+Received: from mail-qa0-f54.google.com (mail-qa0-f54.google.com [209.85.216.54])
+	by kanga.kvack.org (Postfix) with ESMTP id DEDB26B0070
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2014 07:05:07 -0500 (EST)
+Received: by mail-qa0-f54.google.com with SMTP id i13so306269qae.13
+        for <linux-mm@kvack.org>; Fri, 05 Dec 2014 04:05:07 -0800 (PST)
+Received: from foss-mx-na.foss.arm.com (foss-mx-na.foss.arm.com. [217.140.108.86])
+        by mx.google.com with ESMTP id s52si30717365qge.11.2014.12.05.04.05.06
         for <linux-mm@kvack.org>;
-        Fri, 05 Dec 2014 03:05:41 -0800 (PST)
-Date: Fri, 5 Dec 2014 13:05:32 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC V2] mm:add KPF_ZERO_PAGE flag for /proc/kpageflags
-Message-ID: <20141205110532.GA8782@node.dhcp.inet.fi>
-References: <35FD53F367049845BC99AC72306C23D103E688B313EE@CNBJMBX05.corpusers.net>
- <35FD53F367049845BC99AC72306C23D103E688B313F1@CNBJMBX05.corpusers.net>
+        Fri, 05 Dec 2014 04:05:06 -0800 (PST)
+Date: Fri, 5 Dec 2014 12:05:06 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [RFC v2] arm:extend the reserved mrmory for initrd to be page
+ aligned
+Message-ID: <20141205120506.GH1630@arm.com>
+References: <35FD53F367049845BC99AC72306C23D103D6DB491609@CNBJMBX05.corpusers.net>
+ <20140915113325.GD12361@n2100.arm.linux.org.uk>
+ <20141204120305.GC17783@e104818-lin.cambridge.arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <35FD53F367049845BC99AC72306C23D103E688B313F1@CNBJMBX05.corpusers.net>
+In-Reply-To: <20141204120305.GC17783@e104818-lin.cambridge.arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Cc: "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, 'Konstantin Khlebnikov' <koct9i@gmail.com>, "'akpm@linux-foundation.org'" <akpm@linux-foundation.org>, "'n-horiguchi@ah.jp.nec.com'" <n-horiguchi@ah.jp.nec.com>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, "Wang, Yalin" <Yalin.Wang@sonymobile.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'linux-arm-msm@vger.kernel.org'" <linux-arm-msm@vger.kernel.org>, Peter Maydell <Peter.Maydell@arm.com>
 
-On Fri, Dec 05, 2014 at 06:21:17PM +0800, Wang, Yalin wrote:
-> This patch add KPF_ZERO_PAGE flag for zero_page,
-> so that userspace process can notice zero_page from
-> /proc/kpageflags, and then do memory analysis more accurately.
+On Thu, Dec 04, 2014 at 12:03:05PM +0000, Catalin Marinas wrote:
+> On Mon, Sep 15, 2014 at 12:33:25PM +0100, Russell King - ARM Linux wrote:
+> > On Mon, Sep 15, 2014 at 07:07:20PM +0800, Wang, Yalin wrote:
+> > > @@ -636,6 +646,11 @@ static int keep_initrd;
+> > >  void free_initrd_mem(unsigned long start, unsigned long end)
+> > >  {
+> > >  	if (!keep_initrd) {
+> > > +		if (start == initrd_start)
+> > > +			start = round_down(start, PAGE_SIZE);
+> > > +		if (end == initrd_end)
+> > > +			end = round_up(end, PAGE_SIZE);
+> > > +
+> > >  		poison_init_mem((void *)start, PAGE_ALIGN(end) - start);
+> > >  		free_reserved_area((void *)start, (void *)end, -1, "initrd");
+> > >  	}
+> > 
+> > is the only bit of code you likely need to achieve your goal.
+> > 
+> > Thinking about this, I think that you are quite right to align these.
+> > The memory around the initrd is defined to be system memory, and we
+> > already free the pages around it, so it *is* wrong not to free the
+> > partial initrd pages.
 > 
-> Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
-> ---
->  fs/proc/page.c                         | 14 +++++++++++---
->  include/linux/huge_mm.h                | 12 ++++++++++++
->  include/uapi/linux/kernel-page-flags.h |  1 +
->  mm/huge_memory.c                       |  7 +------
->  4 files changed, 25 insertions(+), 9 deletions(-)
+> Actually, I think we have a problem, at least on arm64 (raised by Peter
+> Maydell). There is no guarantee that the page around start/end of initrd
+> is free, it may contain the dtb for example. This is even more obvious
+> when we have a 64KB page kernel (the boot loader doesn't know the page
+> size that the kernel is going to use).
 > 
-> diff --git a/fs/proc/page.c b/fs/proc/page.c
-> index 1e3187d..dbe5630 100644
-> --- a/fs/proc/page.c
-> +++ b/fs/proc/page.c
-> @@ -5,6 +5,7 @@
->  #include <linux/ksm.h>
->  #include <linux/mm.h>
->  #include <linux/mmzone.h>
-> +#include <linux/huge_mm.h>
->  #include <linux/proc_fs.h>
->  #include <linux/seq_file.h>
->  #include <linux/hugetlb.h>
-> @@ -121,9 +122,16 @@ u64 stable_page_flags(struct page *page)
->  	 * just checks PG_head/PG_tail, so we need to check PageLRU/PageAnon
->  	 * to make sure a given page is a thp, not a non-huge compound page.
->  	 */
-> -	else if (PageTransCompound(page) && (PageLRU(compound_head(page)) ||
-> -					     PageAnon(compound_head(page))))
-> -		u |= 1 << KPF_THP;
-> +	else if (PageTransCompound(page)) {
-> +		struct page *head = compound_head(page);
-> +
-> +		if (PageLRU(head) || PageAnon(head))
-> +			u |= 1 << KPF_THP;
-> +		else if (is_huge_zero_page(head))
-> +			u |= 1 << KPF_ZERO_PAGE;
+> The bug was there before as we had poison_init_mem() already (not it
+> disappeared since free_reserved_area does the poisoning).
+> 
+> So as a quick fix I think we need the rounding the other way (and in the
+> general case we probably lose a page at the end of initrd):
+> 
+> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+> index 494297c698ca..39fd080683e7 100644
+> --- a/arch/arm64/mm/init.c
+> +++ b/arch/arm64/mm/init.c
+> @@ -335,9 +335,9 @@ void free_initrd_mem(unsigned long start, unsigned long end)
+>  {
+>  	if (!keep_initrd) {
+>  		if (start == initrd_start)
+> -			start = round_down(start, PAGE_SIZE);
+> +			start = round_up(start, PAGE_SIZE);
+>  		if (end == initrd_end)
+> -			end = round_up(end, PAGE_SIZE);
+> +			end = round_down(end, PAGE_SIZE);
+>  
+>  		free_reserved_area((void *)start, (void *)end, 0, "initrd");
+>  	}
+> 
+> A better fix would be to check what else is around the start/end of
+> initrd.
 
-IIUC, KPF_THP bit should be set for huge zero page too.
+Care to submit this as a proper patch? We should at least fix Peter's issue
+before doing things like extending headers, which won't work for older
+kernels anyway.
 
--- 
- Kirill A. Shutemov
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
