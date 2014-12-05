@@ -1,154 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id BAC366B0032
-	for <linux-mm@kvack.org>; Thu,  4 Dec 2014 20:44:06 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id rd3so19106727pab.35
-        for <linux-mm@kvack.org>; Thu, 04 Dec 2014 17:44:06 -0800 (PST)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id s5si45529093pdg.142.2014.12.04.17.44.04
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 48AAE6B0032
+	for <linux-mm@kvack.org>; Thu,  4 Dec 2014 21:35:41 -0500 (EST)
+Received: by mail-pd0-f182.google.com with SMTP id r10so19041357pdi.27
+        for <linux-mm@kvack.org>; Thu, 04 Dec 2014 18:35:41 -0800 (PST)
+Received: from cnbjrel02.sonyericsson.com (cnbjrel02.sonyericsson.com. [219.141.167.166])
+        by mx.google.com with ESMTPS id xp4si27128382pbb.36.2014.12.04.18.35.37
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 04 Dec 2014 17:44:05 -0800 (PST)
-Message-ID: <54810D74.4030606@huawei.com>
-Date: Fri, 5 Dec 2014 09:42:12 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 04 Dec 2014 18:35:39 -0800 (PST)
+From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Date: Fri, 5 Dec 2014 10:35:29 +0800
+Subject: RE: [RFC v2] arm:extend the reserved mrmory for initrd to be page
+ aligned
+Message-ID: <35FD53F367049845BC99AC72306C23D103E688B313EA@CNBJMBX05.corpusers.net>
+References: <35FD53F367049845BC99AC72306C23D103D6DB491609@CNBJMBX05.corpusers.net>
+ <20140915113325.GD12361@n2100.arm.linux.org.uk>
+ <20141204120305.GC17783@e104818-lin.cambridge.arm.com>
+In-Reply-To: <20141204120305.GC17783@e104818-lin.cambridge.arm.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Subject: Re: [PATCH] CMA: add the amount of cma memory in meminfo
-References: <547FCCE9.2020600@huawei.com> <xa1tfvcvcrey.fsf@mina86.com>
-In-Reply-To: <xa1tfvcvcrey.fsf@mina86.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, m.szyprowski@samsung.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: 'Catalin Marinas' <catalin.marinas@arm.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: "'linux-mm@kvack.org'" <linux-mm@kvack.org>, Will Deacon <Will.Deacon@arm.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'linux-arm-msm@vger.kernel.org'" <linux-arm-msm@vger.kernel.org>, Peter Maydell <Peter.Maydell@arm.com>
 
-On 2014/12/5 0:26, Michal Nazarewicz wrote:
-
-> On Thu, Dec 04 2014, Xishi Qiu <qiuxishi@huawei.com> wrote:
->> Add the amount of cma memory in the following meminfo.
->> /proc/meminfo
->> /sys/devices/system/node/nodeXX/meminfo
->>
->> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
->> ---
->>  drivers/base/node.c | 16 ++++++++++------
->>  fs/proc/meminfo.c   | 12 +++++++++---
->>  2 files changed, 19 insertions(+), 9 deletions(-)
->>
->> diff --git a/drivers/base/node.c b/drivers/base/node.c
->> index 472168c..a27e4e0 100644
->> --- a/drivers/base/node.c
->> +++ b/drivers/base/node.c
->> @@ -120,6 +120,9 @@ static ssize_t node_read_meminfo(struct device *dev,
->>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->>  		       "Node %d AnonHugePages:  %8lu kB\n"
->>  #endif
->> +#ifdef CONFIG_CMA
->> +		       "Node %d FreeCMAPages:   %8lu kB\n"
->> +#endif
->>  			,
->>  		       nid, K(node_page_state(nid, NR_FILE_DIRTY)),
->>  		       nid, K(node_page_state(nid, NR_WRITEBACK)),
->> @@ -136,14 +139,15 @@ static ssize_t node_read_meminfo(struct device *dev,
->>  		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE) +
->>  				node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),
->>  		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE)),
->> -#ifdef CONFIG_TRANSPARENT_HUGEPAGE
->>  		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE))
-> 
-> Why is this line suddenly out of a??#ifdef CONFIG_TRANSPARENT_HUGEPAGEa???
-> 
-
-Hi Michal,
-
-The original code is like this.
-			...
-  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE))
-			, nid,
-			K(node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *
-			HPAGE_PMD_NR));
-  #else
-		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)));
-  #endif
-			...
-
-I change it to like this, just move ");" out of the "#ifdef".
-			...
-                       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE))
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-                       , nid, K(node_page_state(nid,
-                                NR_ANON_TRANSPARENT_HUGEPAGES) * HPAGE_PMD_NR)
- #endif
-			);
-			...
-
->> -			, nid,
->> -			K(node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *
->> -			HPAGE_PMD_NR));
->> -#else
->> -		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)));
->> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
->> +		       , nid, K(node_page_state(nid,
->> +				NR_ANON_TRANSPARENT_HUGEPAGES) * HPAGE_PMD_NR)
-> 
-> This is mere white-space change which is confusing.
-> 
-
-you mean change like this ", nid, K(...)" -> ",nid, K(xxx)"?
-
-Thanks,
-Xishi Qiu
-
->> +#endif
->> +#ifdef CONFIG_CMA
->> +		       , nid, K(node_page_state(nid, NR_FREE_CMA_PAGES))
->>  #endif
->> +			);
->>  	n += hugetlb_report_node_meminfo(nid, buf + n);
->>  	return n;
->>  }
->> diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
->> index aa1eee0..d42e082 100644
->> --- a/fs/proc/meminfo.c
->> +++ b/fs/proc/meminfo.c
->> @@ -138,6 +138,9 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
->>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->>  		"AnonHugePages:  %8lu kB\n"
->>  #endif
->> +#ifdef CONFIG_CMA
->> +		"FreeCMAPages:   %8lu kB\n"
->> +#endif
->>  		,
->>  		K(i.totalram),
->>  		K(i.freeram),
->> @@ -187,11 +190,14 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
->>  		vmi.used >> 10,
->>  		vmi.largest_chunk >> 10
->>  #ifdef CONFIG_MEMORY_FAILURE
->> -		,atomic_long_read(&num_poisoned_pages) << (PAGE_SHIFT - 10)
->> +		, atomic_long_read(&num_poisoned_pages) << (PAGE_SHIFT - 10)
->>  #endif
->>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->> -		,K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
->> -		   HPAGE_PMD_NR)
->> +		, K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
->> +				HPAGE_PMD_NR)
->> +#endif
-> 
-> Again, please don't include white space changes.  They are confusing.
-> 
->> +#ifdef CONFIG_CMA
->> +		, K(global_page_state(NR_FREE_CMA_PAGES))
->>  #endif
->>  		);
->>  
->> -- 
->> 2.0.0
->>
->>
-> 
+> -----Original Message-----
+> From: Catalin Marinas [mailto:catalin.marinas@arm.com]
+> Sent: Thursday, December 04, 2014 8:03 PM
+> To: Russell King - ARM Linux
+> Cc: Wang, Yalin; 'linux-mm@kvack.org'; Will Deacon; 'linux-
+> kernel@vger.kernel.org'; 'linux-arm-kernel@lists.infradead.org'; 'linux-
+> arm-msm@vger.kernel.org'; Peter Maydell
+> Subject: Re: [RFC v2] arm:extend the reserved mrmory for initrd to be pag=
+e
+> aligned
+>=20
+> On Mon, Sep 15, 2014 at 12:33:25PM +0100, Russell King - ARM Linux wrote:
+> > On Mon, Sep 15, 2014 at 07:07:20PM +0800, Wang, Yalin wrote:
+> > > @@ -636,6 +646,11 @@ static int keep_initrd;  void
+> > > free_initrd_mem(unsigned long start, unsigned long end)  {
+> > >  	if (!keep_initrd) {
+> > > +		if (start =3D=3D initrd_start)
+> > > +			start =3D round_down(start, PAGE_SIZE);
+> > > +		if (end =3D=3D initrd_end)
+> > > +			end =3D round_up(end, PAGE_SIZE);
+> > > +
+> > >  		poison_init_mem((void *)start, PAGE_ALIGN(end) - start);
+> > >  		free_reserved_area((void *)start, (void *)end, -1, "initrd");
+> > >  	}
+> >
+> > is the only bit of code you likely need to achieve your goal.
+> >
+> > Thinking about this, I think that you are quite right to align these.
+> > The memory around the initrd is defined to be system memory, and we
+> > already free the pages around it, so it *is* wrong not to free the
+> > partial initrd pages.
+>=20
+> Actually, I think we have a problem, at least on arm64 (raised by Peter
+> Maydell). There is no guarantee that the page around start/end of initrd =
+is
+> free, it may contain the dtb for example. This is even more obvious when =
+we
+> have a 64KB page kernel (the boot loader doesn't know the page size that
+> the kernel is going to use).
+>=20
+> The bug was there before as we had poison_init_mem() already (not it
+> disappeared since free_reserved_area does the poisoning).
+>=20
+> So as a quick fix I think we need the rounding the other way (and in the
+> general case we probably lose a page at the end of initrd):
+>=20
+> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c index
+> 494297c698ca..39fd080683e7 100644
+> --- a/arch/arm64/mm/init.c
+> +++ b/arch/arm64/mm/init.c
+> @@ -335,9 +335,9 @@ void free_initrd_mem(unsigned long start, unsigned lo=
+ng
+> end)  {
+>  	if (!keep_initrd) {
+>  		if (start =3D=3D initrd_start)
+> -			start =3D round_down(start, PAGE_SIZE);
+> +			start =3D round_up(start, PAGE_SIZE);
+>  		if (end =3D=3D initrd_end)
+> -			end =3D round_up(end, PAGE_SIZE);
+> +			end =3D round_down(end, PAGE_SIZE);
+>=20
+>  		free_reserved_area((void *)start, (void *)end, 0, "initrd");
+>  	}
+>=20
+> A better fix would be to check what else is around the start/end of initr=
+d.
+I think a better way is add some head info in Image header,
+So that bootloader  can know the kernel CONFIG_PAGE_SIZE ,
+For example we can add PAGE_SIZE in zImage header .
+How about this way?
 
 
 
