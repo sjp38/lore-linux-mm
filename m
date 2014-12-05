@@ -1,50 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f52.google.com (mail-la0-f52.google.com [209.85.215.52])
-	by kanga.kvack.org (Postfix) with ESMTP id C7B496B0032
-	for <linux-mm@kvack.org>; Fri,  5 Dec 2014 13:59:53 -0500 (EST)
-Received: by mail-la0-f52.google.com with SMTP id hs14so1158291lab.25
-        for <linux-mm@kvack.org>; Fri, 05 Dec 2014 10:59:53 -0800 (PST)
-Received: from mail-la0-f43.google.com (mail-la0-f43.google.com. [209.85.215.43])
-        by mx.google.com with ESMTPS id jc11si16216771lac.31.2014.12.05.10.59.52
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id C3E776B0032
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2014 14:59:18 -0500 (EST)
+Received: by mail-wi0-f171.google.com with SMTP id bs8so2490195wib.10
+        for <linux-mm@kvack.org>; Fri, 05 Dec 2014 11:59:18 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id lj11si3895507wic.21.2014.12.05.11.59.17
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 05 Dec 2014 10:59:52 -0800 (PST)
-Received: by mail-la0-f43.google.com with SMTP id s18so678496lam.2
-        for <linux-mm@kvack.org>; Fri, 05 Dec 2014 10:59:52 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20141205184418.GF31222@e104818-lin.cambridge.arm.com>
-References: <35FD53F367049845BC99AC72306C23D103D6DB491609@CNBJMBX05.corpusers.net>
- <20140915113325.GD12361@n2100.arm.linux.org.uk> <20141204120305.GC17783@e104818-lin.cambridge.arm.com>
- <20141205120506.GH1630@arm.com> <20141205170745.GA31222@e104818-lin.cambridge.arm.com>
- <20141205172701.GW11285@n2100.arm.linux.org.uk> <20141205184418.GF31222@e104818-lin.cambridge.arm.com>
-From: Peter Maydell <peter.maydell@linaro.org>
-Date: Fri, 5 Dec 2014 18:59:32 +0000
-Message-ID: <CAFEAcA_4ZNq-mxEK82nXAMJCg8oSyqXeUte3wGXHcLv5dWr_OQ@mail.gmail.com>
-Subject: Re: [RFC v2] arm:extend the reserved mrmory for initrd to be page aligned
-Content-Type: text/plain; charset=UTF-8
+        Fri, 05 Dec 2014 11:59:17 -0800 (PST)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH 4/4] mm: microoptimize zonelist operations
+Date: Fri,  5 Dec 2014 20:59:05 +0100
+Message-Id: <1417809545-4540-5-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1417809545-4540-1-git-send-email-vbabka@suse.cz>
+References: <1417809545-4540-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, Peter Maydell <Peter.Maydell@arm.com>, "Wang, Yalin" <Yalin.Wang@sonymobile.com>, "linux-arm-msm@vger.kernel.org" <linux-arm-msm@vger.kernel.org>, Will Deacon <Will.Deacon@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>
 
-On 5 December 2014 at 18:44, Catalin Marinas <catalin.marinas@arm.com> wrote:
-> On Fri, Dec 05, 2014 at 05:27:02PM +0000, Russell King - ARM Linux wrote:
->> which makes the summary line rather misleading, and I really don't think
->> we need to do this on ARM for the simple reason that we've been doing it
->> for soo long that it can't be an issue.
->
-> I started this as a revert and then realised that it doesn't solve
-> anything for arm32 without changing the poisoning.
->
-> Anyway, if you are happy with how it is, I'll drop the arm32 part. As I
-> said yesterday, the issue is worse for arm64 with 64K pages.
+The function next_zones_zonelist() returns zoneref pointer, as well as zone
+pointer via extra parameter. Since the latter can be trivially obtained by
+dereferencing the former, the overhead of the extra parameter is unjustified.
 
-If you do want to retain the arm32 "mustn't be in the 4K page of
-the initrd tail" behaviour then it would probably be a good idea
-to document this in the Booting spec.
+This patch thus removes the zone parameter from next_zones_zonelist(). Both
+callers happen to be in the same header file, so it's simple to add the
+zoneref dereference inline. We save some bytes of code size.
 
-thanks
--- PMM
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ include/linux/mmzone.h | 12 ++++++------
+ mm/mmzone.c            |  4 +---
+ 2 files changed, 7 insertions(+), 9 deletions(-)
+
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 2f0856d..9a1c634 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -970,7 +970,6 @@ static inline int zonelist_node_idx(struct zoneref *zoneref)
+  * @z - The cursor used as a starting point for the search
+  * @highest_zoneidx - The zone index of the highest zone to return
+  * @nodes - An optional nodemask to filter the zonelist with
+- * @zone - The first suitable zone found is returned via this parameter
+  *
+  * This function returns the next zone at or below a given zone index that is
+  * within the allowed nodemask using a cursor as the starting point for the
+@@ -980,8 +979,7 @@ static inline int zonelist_node_idx(struct zoneref *zoneref)
+  */
+ struct zoneref *next_zones_zonelist(struct zoneref *z,
+ 					enum zone_type highest_zoneidx,
+-					nodemask_t *nodes,
+-					struct zone **zone);
++					nodemask_t *nodes);
+ 
+ /**
+  * first_zones_zonelist - Returns the first zone at or below highest_zoneidx within the allowed nodemask in a zonelist
+@@ -1000,8 +998,9 @@ static inline struct zoneref *first_zones_zonelist(struct zonelist *zonelist,
+ 					nodemask_t *nodes,
+ 					struct zone **zone)
+ {
+-	return next_zones_zonelist(zonelist->_zonerefs, highest_zoneidx, nodes,
+-								zone);
++	struct zoneref *z = next_zones_zonelist(zonelist->_zonerefs, highest_zoneidx, nodes);
++	*zone = zonelist_zone(z);
++	return z;
+ }
+ 
+ /**
+@@ -1018,7 +1017,8 @@ static inline struct zoneref *first_zones_zonelist(struct zonelist *zonelist,
+ #define for_each_zone_zonelist_nodemask(zone, z, zlist, highidx, nodemask) \
+ 	for (z = first_zones_zonelist(zlist, highidx, nodemask, &zone);	\
+ 		zone;							\
+-		z = next_zones_zonelist(++z, highidx, nodemask, &zone))	\
++		z = next_zones_zonelist(++z, highidx, nodemask),	\
++			zone = zonelist_zone(z))			\
+ 
+ /**
+  * for_each_zone_zonelist - helper macro to iterate over valid zones in a zonelist at or below a given zone index
+diff --git a/mm/mmzone.c b/mm/mmzone.c
+index bf34fb8..7d87ebb 100644
+--- a/mm/mmzone.c
++++ b/mm/mmzone.c
+@@ -54,8 +54,7 @@ static inline int zref_in_nodemask(struct zoneref *zref, nodemask_t *nodes)
+ /* Returns the next zone at or below highest_zoneidx in a zonelist */
+ struct zoneref *next_zones_zonelist(struct zoneref *z,
+ 					enum zone_type highest_zoneidx,
+-					nodemask_t *nodes,
+-					struct zone **zone)
++					nodemask_t *nodes)
+ {
+ 	/*
+ 	 * Find the next suitable zone to use for the allocation.
+@@ -69,7 +68,6 @@ struct zoneref *next_zones_zonelist(struct zoneref *z,
+ 				(z->zone && !zref_in_nodemask(z, nodes)))
+ 			z++;
+ 
+-	*zone = zonelist_zone(z);
+ 	return z;
+ }
+ 
+-- 
+2.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
