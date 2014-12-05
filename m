@@ -1,212 +1,296 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id E2B796B006E
-	for <linux-mm@kvack.org>; Fri,  5 Dec 2014 11:03:30 -0500 (EST)
-Received: by mail-pd0-f173.google.com with SMTP id ft15so923093pdb.32
-        for <linux-mm@kvack.org>; Fri, 05 Dec 2014 08:03:30 -0800 (PST)
-Received: from na01-by2-obe.outbound.protection.outlook.com (mail-by2on0135.outbound.protection.outlook.com. [207.46.100.135])
-        by mx.google.com with ESMTPS id tf10si48209081pac.186.2014.12.05.08.03.28
+Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 78CB46B006E
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2014 11:18:08 -0500 (EST)
+Received: by mail-qc0-f169.google.com with SMTP id w7so688546qcr.14
+        for <linux-mm@kvack.org>; Fri, 05 Dec 2014 08:18:08 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i6si15317310qaz.8.2014.12.05.08.18.06
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 05 Dec 2014 08:03:29 -0800 (PST)
-From: KY Srinivasan <kys@microsoft.com>
-Subject: RE: [PATCH 1/1] mm: Fix a deadlock in the hotplug code
-Date: Fri, 5 Dec 2014 16:03:26 +0000
-Message-ID: <BY2PR0301MB0711CEB6E2CC2D227EF1CF02A0790@BY2PR0301MB0711.namprd03.prod.outlook.com>
-References: <1417553218-12339-1-git-send-email-kys@microsoft.com>
- <54814EFC.5020904@jp.fujitsu.com>
-In-Reply-To: <54814EFC.5020904@jp.fujitsu.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Dec 2014 08:18:07 -0800 (PST)
+Message-ID: <5481D2F0.2090908@redhat.com>
+Date: Fri, 05 Dec 2014 16:44:48 +0100
+From: Jerome Marchand <jmarchan@redhat.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH] Repeated fork() causes SLAB to grow without bound
+References: <546CC0CD.40906@suse.cz> <CALYGNiO9_bAVVZ2GdFq=PO2yV3LPs2utsbcb2pFby7MypptLCw@mail.gmail.com> <CANN689G+y77m2_paF0vBpHG8EsJ2-pEnJvLJSGs-zHf+SqTEjQ@mail.gmail.com> <CALYGNiOC4dEzzVzSQXGC4oxLbgp=8TC=A+duJs67jT97TWQ++g@mail.gmail.com> <546DFFA1.4030700@redhat.com> <CALYGNiP_zqAucmN=Gn75Mm2wK1iE6fPNxTsaTRgnUbFbFE7C-g@mail.gmail.com> <CALYGNiO9NSpCFcRezArgfqzLQcTx2DnFYWYgpyK2HFyCnuGLOA@mail.gmail.com> <20141125105953.GC4607@dhcp22.suse.cz> <CALYGNiPZmf4Y1_vX_FaiALKp-BPvct7fAiaPEjnDGnVx9paS9w@mail.gmail.com> <20141125150006.GB4415@dhcp22.suse.cz> <20141126173517.GA8180@dhcp22.suse.cz>
+In-Reply-To: <20141126173517.GA8180@dhcp22.suse.cz>
+Content-Type: multipart/signed; micalg=pgp-sha1;
+ protocol="application/pgp-signature";
+ boundary="ljVvaKbLTp0wFD2DBEHsqLhuNTgc52Hrq"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@suse.cz>, Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Tim Hartrick <tim@edgecast.com>, Daniel Forrest <dan.forrest@ssec.wisc.edu>
+
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--ljVvaKbLTp0wFD2DBEHsqLhuNTgc52Hrq
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: quoted-printable
+
+On 11/26/2014 06:35 PM, Michal Hocko wrote:
+> On Tue 25-11-14 16:00:06, Michal Hocko wrote:
+>> On Tue 25-11-14 16:13:16, Konstantin Khlebnikov wrote:
+>>> On Tue, Nov 25, 2014 at 1:59 PM, Michal Hocko <mhocko@suse.cz> wrote:=
+
+>>>> On Mon 24-11-14 11:09:40, Konstantin Khlebnikov wrote:
+>>>>> On Thu, Nov 20, 2014 at 6:03 PM, Konstantin Khlebnikov <koct9i@gmai=
+l.com> wrote:
+>>>>>> On Thu, Nov 20, 2014 at 5:50 PM, Rik van Riel <riel@redhat.com> wr=
+ote:
+>>>>>>> -----BEGIN PGP SIGNED MESSAGE-----
+>>>>>>> Hash: SHA1
+>>>>>>>
+>>>>>>> On 11/20/2014 09:42 AM, Konstantin Khlebnikov wrote:
+>>>>>>>
+>>>>>>>> I'm thinking about limitation for reusing anon_vmas which might
+>>>>>>>> increase performance without breaking asymptotic estimation of
+>>>>>>>> count anon_vma in the worst case. For example this heuristic: al=
+low
+>>>>>>>> to reuse only anon_vma with single direct descendant. It seems
+>>>>>>>> there will be arount up to two times more anon_vmas but
+>>>>>>>> false-aliasing must be much lower.
+>>>>>
+>>>>> Done. RFC patch in attachment.
+>=20
+> Ok, finally managed to untagnle myself from vma chains and your patch
+> makes sense to me, it is quite clever actually. Here is it including th=
+e
+> fixup.
+> ---
+>> From 1d4b0b38198c69ecfeb37670cb1dda767a802c9a Mon Sep 17 00:00:00 2001=
+
+>> From: Konstantin Khlebnikov <koct9i@gmail.com>
+>> Date: Tue, 25 Nov 2014 10:54:44 +0100
+>> Subject: [PATCH] mm: prevent endless growth of anon_vma hierarchy
+>>
+>> Constantly forking task causes unlimited grow of anon_vma chain.
+>> Each next child allocate new level of anon_vmas and links vmas to all
+>> previous levels because it inherits pages from them. None of anon_vmas=
+
+>> cannot be freed because there might be pages which points to them.
+>>
+>> This patch adds heuristic which decides to reuse existing anon_vma ins=
+tead
+>> of forking new one. It counts vmas and direct descendants for each ano=
+n_vma.
+>> Anon_vma with degree lower than two will be reused at next fork.
+>> As a result each anon_vma has either alive vma or at least two descend=
+ants,
+>> endless chains are no longer possible and count of anon_vmas is no mor=
+e than
+>> two times more than count of vmas.
+>>
+>> Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
+>> Link: http://lkml.kernel.org/r/20120816024610.GA5350@evergreen.ssec.wi=
+sc.edu
+>=20
+> Tested-by: Michal Hocko <mhocko@suse.cz>
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+>=20
+> and I guess
+> Reported-by: Daniel Forrest <dan.forrest@ssec.wisc.edu>
+
+Tested-by: Jerome Marchand <jmarchan@redhat.com>
+
+Minor nitpicks below.
+
+>=20
+> who somehow vanished from CC list (added back) would be appropriate as
+> well.
+>=20
+> plus
+>=20
+> Fixes: 5beb49305251 (mm: change anon_vma linking to fix multi-process s=
+erver scalability issue)
+> and mark it for stable
+>=20
+> Thanks!
+>=20
+>> ---
+>>  include/linux/rmap.h | 16 ++++++++++++++++
+>>  mm/rmap.c            | 29 ++++++++++++++++++++++++++++-
+>>  2 files changed, 44 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+>> index c0c2bce6b0b7..b1d140c20b37 100644
+>> --- a/include/linux/rmap.h
+>> +++ b/include/linux/rmap.h
+>> @@ -45,6 +45,22 @@ struct anon_vma {
+>>  	 * mm_take_all_locks() (mm_all_locks_mutex).
+>>  	 */
+>>  	struct rb_root rb_root;	/* Interval tree of private "related" vmas *=
+/
+>> +
+>> +	/*
+>> +	 * Count of child anon_vmas and VMAs which points to this anon_vma.
+>> +	 *
+>> +	 * This counter is used for making decision about reusing old anon_v=
+ma
+>> +	 * instead of forking new one. It allows to detect anon_vmas which h=
+ave
+>> +	 * just one direct descendant and no vmas. Reusing such anon_vma not=
+
+>> +	 * leads to significant preformance regression but prevents degradat=
+ion
+
+Does it or does it not lead to significant performance issue? I can't tel=
+l.
+
+>> +	 * of anon_vma hierarchy to endless linear chain.
+>> +	 *
+>> +	 * Root anon_vma is never reused because it is its own parent and it=
+ has
+>> +	 * at leat one vma or child, thus at fork it's degree is at least 2.=
+
+
+s/leat/least/
+
+Thanks,
+Jerome
+
+>> +	 */
+>> +	unsigned degree;
+>> +
+>> +	struct anon_vma *parent;	/* Parent of this anon_vma */
+>>  };
+>> =20
+>>  /*
+>> diff --git a/mm/rmap.c b/mm/rmap.c
+>> index 19886fb2f13a..40ae8184a1e1 100644
+>> --- a/mm/rmap.c
+>> +++ b/mm/rmap.c
+>> @@ -72,6 +72,8 @@ static inline struct anon_vma *anon_vma_alloc(void)
+>>  	anon_vma =3D kmem_cache_alloc(anon_vma_cachep, GFP_KERNEL);
+>>  	if (anon_vma) {
+>>  		atomic_set(&anon_vma->refcount, 1);
+>> +		anon_vma->degree =3D 1;	/* Reference for first vma */
+>> +		anon_vma->parent =3D anon_vma;
+>>  		/*
+>>  		 * Initialise the anon_vma root to point to itself. If called
+>>  		 * from fork, the root will be reset to the parents anon_vma.
+>> @@ -188,6 +190,7 @@ int anon_vma_prepare(struct vm_area_struct *vma)
+>>  		if (likely(!vma->anon_vma)) {
+>>  			vma->anon_vma =3D anon_vma;
+>>  			anon_vma_chain_link(vma, avc, anon_vma);
+>> +			anon_vma->degree++;
+>>  			allocated =3D NULL;
+>>  			avc =3D NULL;
+>>  		}
+>> @@ -256,7 +259,17 @@ int anon_vma_clone(struct vm_area_struct *dst, st=
+ruct vm_area_struct *src)
+>>  		anon_vma =3D pavc->anon_vma;
+>>  		root =3D lock_anon_vma_root(root, anon_vma);
+>>  		anon_vma_chain_link(dst, avc, anon_vma);
+>> +
+>> +		/*
+>> +		 * Reuse existing anon_vma if its degree lower than two,
+>> +		 * that means it has no vma and just one anon_vma child.
+>> +		 */
+>> +		if (!dst->anon_vma && anon_vma !=3D src->anon_vma &&
+>> +				anon_vma->degree < 2)
+>> +			dst->anon_vma =3D anon_vma;
+>>  	}
+>> +	if (dst->anon_vma)
+>> +		dst->anon_vma->degree++;
+>>  	unlock_anon_vma_root(root);
+>>  	return 0;
+>> =20
+>> @@ -279,6 +292,9 @@ int anon_vma_fork(struct vm_area_struct *vma, stru=
+ct vm_area_struct *pvma)
+>>  	if (!pvma->anon_vma)
+>>  		return 0;
+>> =20
+>> +	/* Drop inherited anon_vma, we'll reuse old one or allocate new. */
+>> +	vma->anon_vma =3D NULL;
+>> +
+>>  	/*
+>>  	 * First, attach the new VMA to the parent VMA's anon_vmas,
+>>  	 * so rmap can find non-COWed pages in child processes.
+>> @@ -286,6 +302,10 @@ int anon_vma_fork(struct vm_area_struct *vma, str=
+uct vm_area_struct *pvma)
+>>  	if (anon_vma_clone(vma, pvma))
+>>  		return -ENOMEM;
+>> =20
+>> +	/* An old anon_vma has been reused. */
+>> +	if (vma->anon_vma)
+>> +		return 0;
+>> +
+>>  	/* Then add our own anon_vma. */
+>>  	anon_vma =3D anon_vma_alloc();
+>>  	if (!anon_vma)
+>> @@ -299,6 +319,7 @@ int anon_vma_fork(struct vm_area_struct *vma, stru=
+ct vm_area_struct *pvma)
+>>  	 * lock any of the anon_vmas in this anon_vma tree.
+>>  	 */
+>>  	anon_vma->root =3D pvma->anon_vma->root;
+>> +	anon_vma->parent =3D pvma->anon_vma;
+>>  	/*
+>>  	 * With refcounts, an anon_vma can stay around longer than the
+>>  	 * process it belongs to. The root anon_vma needs to be pinned until=
+
+>> @@ -309,6 +330,7 @@ int anon_vma_fork(struct vm_area_struct *vma, stru=
+ct vm_area_struct *pvma)
+>>  	vma->anon_vma =3D anon_vma;
+>>  	anon_vma_lock_write(anon_vma);
+>>  	anon_vma_chain_link(vma, avc, anon_vma);
+>> +	anon_vma->parent->degree++;
+>>  	anon_vma_unlock_write(anon_vma);
+>> =20
+>>  	return 0;
+>> @@ -339,12 +361,16 @@ void unlink_anon_vmas(struct vm_area_struct *vma=
+)
+>>  		 * Leave empty anon_vmas on the list - we'll need
+>>  		 * to free them outside the lock.
+>>  		 */
+>> -		if (RB_EMPTY_ROOT(&anon_vma->rb_root))
+>> +		if (RB_EMPTY_ROOT(&anon_vma->rb_root)) {
+>> +			anon_vma->parent->degree--;
+>>  			continue;
+>> +		}
+>> =20
+>>  		list_del(&avc->same_vma);
+>>  		anon_vma_chain_free(avc);
+>>  	}
+>> +	if (vma->anon_vma)
+>> +		vma->anon_vma->degree--;
+>>  	unlock_anon_vma_root(root);
+>> =20
+>>  	/*
+>> @@ -355,6 +381,7 @@ void unlink_anon_vmas(struct vm_area_struct *vma)
+>>  	list_for_each_entry_safe(avc, next, &vma->anon_vma_chain, same_vma) =
+{
+>>  		struct anon_vma *anon_vma =3D avc->anon_vma;
+>> =20
+>> +		BUG_ON(anon_vma->degree);
+>>  		put_anon_vma(anon_vma);
+>> =20
+>>  		list_del(&avc->same_vma);
+>> --=20
+>> 2.1.3
+>=20
 
 
 
-> -----Original Message-----
-> From: Yasuaki Ishimatsu [mailto:isimatu.yasuaki@jp.fujitsu.com]
-> Sent: Thursday, December 4, 2014 10:22 PM
-> To: KY Srinivasan
-> Cc: linux-kernel@vger.kernel.org; olaf@aepfle.de; apw@canonical.com;
-> linux-mm@kvack.org
-> Subject: Re: [PATCH 1/1] mm: Fix a deadlock in the hotplug code
->=20
-> (2014/12/03 5:46), K. Y. Srinivasan wrote:
-> > Andy Whitcroft <apw@canonical.com> initially saw this deadlock. We
-> > have seen this as well. Here is the original description of the
-> > problem (and a potential solution) from Andy:
-> >
-> > https://lkml.org/lkml/2014/3/14/451
-> >
-> > Here is an excerpt from that mail:
-> >
-> > "We are seeing machines lockup with what appears to be an ABBA
-> > deadlock in the memory hotplug system.  These are from the 3.13.6 based
-> Ubuntu kernels.
-> > The hv_balloon driver is adding memory using add_memory() which takes
-> > the hotplug lock, and then emits a udev event, and then attempts to
-> > lock the sysfs device.  In response to the udev event udev opens the
-> > sysfs device and locks it, then attempts to grab the hotplug lock to on=
-line
-> the memory.
-> > This seems to be inverted nesting in the two cases, leading to the hang=
-s
-> below:
-> >
-> > [  240.608612] INFO: task kworker/0:2:861 blocked for more than 120
-> seconds.
-> > [  240.608705] INFO: task systemd-udevd:1906 blocked for more than 120
-> seconds.
-> >
-> > I note that the device hotplug locking allows complete retries (via
-> > ERESTARTSYS) and if we could detect this at the online stage it could
-> > be used to get us out.  But before I go down this road I wanted to
-> > make sure I am reading this right.  Or indeed if the hv_balloon driver
-> > is just doing this wrong."
-> >
-> > This patch is based on Andy's analysis and suggestion.
->=20
-> How about use lock_device_hotplug() before calling add_memory() in
-> hv_mem_hot_add()?
-> Commit 0f1cfe9d0d06 (mm/hotplug: remove stop_machine() from
-> try_offline_node()) said:
->=20
->   ---
->     lock_device_hotplug() serializes hotplug & online/offline operations.=
-  The
->     lock is held in common sysfs online/offline interfaces and ACPI hotpl=
-ug
->     code paths.
->=20
->     And here are the code paths:
->=20
->     - CPU & Mem online/offline via sysfs online
->         store_online()->lock_device_hotplug()
->=20
->     - Mem online via sysfs state:
->         store_mem_state()->lock_device_hotplug()
->=20
->     - ACPI CPU & Mem hot-add:
->         acpi_scan_bus_device_check()->lock_device_hotplug()
->=20
->     - ACPI CPU & Mem hot-delete:
->         acpi_scan_hot_remove()->lock_device_hotplug()
->   ---
->=20
-> CPU & Memory online/offline/hotplug are serialized by
-> lock_device_hotplug().
-> So using lock_device_hotplug() solves the ABBA issue.
+--ljVvaKbLTp0wFD2DBEHsqLhuNTgc52Hrq
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
 
-Thank you!  I will make the necessary adjustments including exporting the r=
-elevant
-Functions lock/unlock the device_hotplug lock.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
 
-Regards,
+iQEcBAEBAgAGBQJUgdLwAAoJEHTzHJCtsuoCXLgH/2nti42bXPoi1luv0yxkmJl+
+303DVMFIcO45LGekL3xWyJaHvnA2IVdXwSd73rMrEzHDpx0Ahh5nQIwi/zQXS5ED
+zijKD/JmL/C8FEWGYMp17M6B8zz506RVFSUzlRT/aHQcldIEb7eGRkZIWw7neLXL
+gzUVXG+Pqv/3scd6UcoEeFoxwPZVdUUO6Ns3Nj8II+/v8aLZLCCE9eslPTveky7+
+epC5GJLlMKf32iehHtMq5axGz001Bk6koA2Zhzmq3Yj7UHK3G9qgsqsumM5vDxZs
+AgDFzGYFSIcP1zfRevQRJqh7ln2DWI/wFPfZOUaos4AsMqjJUTS34TwrqLI0ksI=
+=dtia
+-----END PGP SIGNATURE-----
 
-K. Y
->=20
-> Thanks,
-> Yasuaki Ishimatsu
->=20
-> >
-> > Signed-off-by: K. Y. Srinivasan <kys@microsoft.com>
-> > ---
-> >   mm/memory_hotplug.c |   24 +++++++++++++++++-------
-> >   1 files changed, 17 insertions(+), 7 deletions(-)
-> >
-> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c index
-> > 9fab107..e195269 100644
-> > --- a/mm/memory_hotplug.c
-> > +++ b/mm/memory_hotplug.c
-> > @@ -104,19 +104,27 @@ void put_online_mems(void)
-> >
-> >   }
-> >
-> > -static void mem_hotplug_begin(void)
-> > +static int mem_hotplug_begin(bool trylock)
-> >   {
-> >   	mem_hotplug.active_writer =3D current;
-> >
-> >   	memhp_lock_acquire();
-> >   	for (;;) {
-> > -		mutex_lock(&mem_hotplug.lock);
-> > +		if (trylock) {
-> > +			if (!mutex_trylock(&mem_hotplug.lock)) {
-> > +				mem_hotplug.active_writer =3D NULL;
-> > +				return -ERESTARTSYS;
-> > +			}
-> > +		} else {
-> > +			mutex_lock(&mem_hotplug.lock);
-> > +		}
-> >   		if (likely(!mem_hotplug.refcount))
-> >   			break;
-> >   		__set_current_state(TASK_UNINTERRUPTIBLE);
-> >   		mutex_unlock(&mem_hotplug.lock);
-> >   		schedule();
-> >   	}
-> > +	return 0;
-> >   }
-> >
-> >   static void mem_hotplug_done(void)
-> > @@ -969,7 +977,9 @@ int __ref online_pages(unsigned long pfn, unsigned
-> long nr_pages, int online_typ
-> >   	int ret;
-> >   	struct memory_notify arg;
-> >
-> > -	mem_hotplug_begin();
-> > +	ret =3D mem_hotplug_begin(true);
-> > +	if (ret)
-> > +		return ret;
-> >   	/*
-> >   	 * This doesn't need a lock to do pfn_to_page().
-> >   	 * The section can't be removed here because of the @@ -1146,7
-> > +1156,7 @@ int try_online_node(int nid)
-> >   	if (node_online(nid))
-> >   		return 0;
-> >
-> > -	mem_hotplug_begin();
-> > +	mem_hotplug_begin(false);
-> >   	pgdat =3D hotadd_new_pgdat(nid, 0);
-> >   	if (!pgdat) {
-> >   		pr_err("Cannot online node %d due to NULL pgdat\n", nid);
-> @@
-> > -1236,7 +1246,7 @@ int __ref add_memory(int nid, u64 start, u64 size)
-> >   		new_pgdat =3D !p;
-> >   	}
-> >
-> > -	mem_hotplug_begin();
-> > +	mem_hotplug_begin(false);
-> >
-> >   	new_node =3D !node_online(nid);
-> >   	if (new_node) {
-> > @@ -1684,7 +1694,7 @@ static int __ref __offline_pages(unsigned long
-> start_pfn,
-> >   	if (!test_pages_in_a_zone(start_pfn, end_pfn))
-> >   		return -EINVAL;
-> >
-> > -	mem_hotplug_begin();
-> > +	mem_hotplug_begin(false);
-> >
-> >   	zone =3D page_zone(pfn_to_page(start_pfn));
-> >   	node =3D zone_to_nid(zone);
-> > @@ -2002,7 +2012,7 @@ void __ref remove_memory(int nid, u64 start,
-> u64
-> > size)
-> >
-> >   	BUG_ON(check_hotplug_memory_range(start, size));
-> >
-> > -	mem_hotplug_begin();
-> > +	mem_hotplug_begin(false);
-> >
-> >   	/*
-> >   	 * All memory blocks must be offlined before removing memory.
-> > Check
-> >
->=20
+--ljVvaKbLTp0wFD2DBEHsqLhuNTgc52Hrq--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
