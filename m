@@ -1,135 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 012D36B0071
-	for <linux-mm@kvack.org>; Fri,  5 Dec 2014 14:59:21 -0500 (EST)
-Received: by mail-wi0-f177.google.com with SMTP id l15so2495740wiw.16
-        for <linux-mm@kvack.org>; Fri, 05 Dec 2014 11:59:20 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a7si3902844wie.15.2014.12.05.11.59.17
+Received: from mail-qa0-f52.google.com (mail-qa0-f52.google.com [209.85.216.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FA216B0032
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2014 17:11:46 -0500 (EST)
+Received: by mail-qa0-f52.google.com with SMTP id dc16so1075200qab.39
+        for <linux-mm@kvack.org>; Fri, 05 Dec 2014 14:11:45 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id yv4si49789207wjc.120.2014.12.05.06.52.55
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 05 Dec 2014 11:59:17 -0800 (PST)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH 1/4] mm: set page->pfmemalloc in prep_new_page()
-Date: Fri,  5 Dec 2014 20:59:02 +0100
-Message-Id: <1417809545-4540-2-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1417809545-4540-1-git-send-email-vbabka@suse.cz>
-References: <1417809545-4540-1-git-send-email-vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Dec 2014 06:52:55 -0800 (PST)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch 3/3] mm: memory: merge shared-writable dirtying branches in do_wp_page()
+Date: Fri,  5 Dec 2014 09:52:46 -0500
+Message-Id: <1417791166-32226-3-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1417791166-32226-1-git-send-email-hannes@cmpxchg.org>
+References: <1417791166-32226-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-The function prep_new_page() sets almost everything in the struct page of the
-page being allocated, except page->pfmemalloc. This is not obvious and has at
-least once led to a bug where page->pfmemalloc was forgotten to be set
-correctly, see commit 8fb74b9fb2b1 ("mm: compaction: partially revert capture
-of suitable high-order page").
+Whether there is a vm_ops->page_mkwrite or not, the page dirtying is
+pretty much the same.  Make sure the page references are the same in
+both cases, then merge the two branches.
 
-This patch moves the pfmemalloc setting to prep_new_page(), which means it
-needs to gain alloc_flags parameter. The call to prep_new_page is moved from
-buffered_rmqueue() to get_page_from_freelist(), which also leads to simpler
-code. An obsolete comment for buffered_rmqueue() is replaced.
+It's tempting to go even further and page-lock the !page_mkwrite case,
+to get it in line with everybody else setting the page table and thus
+further simplify the model.  But that's not quite compelling enough to
+justify dropping the pte lock, then relocking and verifying the entry
+for filesystems without ->page_mkwrite, which notably includes tmpfs.
+Leave it for now and lock the page late in the !page_mkwrite case.
 
-A small addition to better maintainability is reduction of code and stack
-usage for get_page_from_freelist() (which inlines the other above mentioned
-functions).
-
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/page_alloc.c | 37 ++++++++++++++++---------------------
- 1 file changed, 16 insertions(+), 21 deletions(-)
+ mm/memory.c | 48 +++++++++++++++++-------------------------------
+ 1 file changed, 17 insertions(+), 31 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 622929f..bfc00c3 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -970,7 +970,8 @@ static inline int check_new_page(struct page *page)
- 	return 0;
- }
- 
--static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags)
-+static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
-+								int alloc_flags)
- {
- 	int i;
- 
-@@ -994,6 +995,14 @@ static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags)
- 
- 	set_page_owner(page, order, gfp_flags);
- 
-+	/*
-+	 * page->pfmemalloc is set when ALLOC_NO_WATERMARKS was necessary to
-+	 * allocate the page. The expectation is that the caller is taking
-+	 * steps that will free more memory. The caller should avoid the page
-+	 * being used for !PFMEMALLOC purposes.
-+	 */
-+	page->pfmemalloc = !!(alloc_flags & ALLOC_NO_WATERMARKS);
+diff --git a/mm/memory.c b/mm/memory.c
+index 5640a718ac58..df47fd0a4b7f 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2046,7 +2046,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	pte_t entry;
+ 	int ret = 0;
+ 	int page_mkwrite = 0;
+-	struct page *dirty_page = NULL;
++	bool dirty_shared = false;
+ 	unsigned long mmun_start = 0;	/* For mmu_notifiers */
+ 	unsigned long mmun_end = 0;	/* For mmu_notifiers */
+ 	struct mem_cgroup *memcg;
+@@ -2097,6 +2097,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		unlock_page(old_page);
+ 	} else if (unlikely((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
+ 					(VM_WRITE|VM_SHARED))) {
++		page_cache_get(old_page);
+ 		/*
+ 		 * Only catch write-faults on shared writable pages,
+ 		 * read-only shared pages can get COWed by
+@@ -2104,7 +2105,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		 */
+ 		if (vma->vm_ops && vma->vm_ops->page_mkwrite) {
+ 			int tmp;
+-			page_cache_get(old_page);
 +
- 	return 0;
- }
- 
-@@ -1642,9 +1651,7 @@ int split_free_page(struct page *page)
- }
- 
- /*
-- * Really, prep_compound_page() should be called from __rmqueue_bulk().  But
-- * we cheat by calling it from here, in the order > 0 path.  Saves a branch
-- * or two.
-+ * Allocate a page from the given zone. Use pcplists for order-0 allocations.
-  */
- static inline
- struct page *buffered_rmqueue(struct zone *preferred_zone,
-@@ -1655,7 +1662,6 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
- 	struct page *page;
- 	bool cold = ((gfp_flags & __GFP_COLD) != 0);
- 
--again:
- 	if (likely(order == 0)) {
- 		struct per_cpu_pages *pcp;
- 		struct list_head *list;
-@@ -1711,8 +1717,6 @@ again:
- 	local_irq_restore(flags);
- 
- 	VM_BUG_ON_PAGE(bad_range(zone, page), page);
--	if (prep_new_page(page, order, gfp_flags))
--		goto again;
- 	return page;
- 
- failed:
-@@ -2177,25 +2181,16 @@ zonelist_scan:
- try_this_zone:
- 		page = buffered_rmqueue(preferred_zone, zone, order,
- 						gfp_mask, migratetype);
--		if (page)
--			break;
-+		if (page) {
-+			if (prep_new_page(page, order, gfp_mask, alloc_flags))
-+				goto try_this_zone;
-+			return page;
-+		}
- this_zone_full:
- 		if (IS_ENABLED(CONFIG_NUMA) && zlc_active)
- 			zlc_mark_zone_full(zonelist, z);
- 	}
- 
--	if (page) {
--		/*
--		 * page->pfmemalloc is set when ALLOC_NO_WATERMARKS was
--		 * necessary to allocate the page. The expectation is
--		 * that the caller is taking steps that will free more
--		 * memory. The caller should avoid the page being used
--		 * for !PFMEMALLOC purposes.
--		 */
--		page->pfmemalloc = !!(alloc_flags & ALLOC_NO_WATERMARKS);
--		return page;
--	}
+ 			pte_unmap_unlock(page_table, ptl);
+ 			tmp = do_page_mkwrite(vma, old_page, address);
+ 			if (unlikely(!tmp || (tmp &
+@@ -2124,11 +2125,10 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 				unlock_page(old_page);
+ 				goto unlock;
+ 			}
 -
- 	/*
- 	 * The first pass makes sure allocations are spread fairly within the
- 	 * local node.  However, the local node might have free pages left
+ 			page_mkwrite = 1;
+ 		}
+-		dirty_page = old_page;
+-		get_page(dirty_page);
++
++		dirty_shared = true;
+ 
+ reuse:
+ 		/*
+@@ -2147,43 +2147,29 @@ reuse:
+ 		pte_unmap_unlock(page_table, ptl);
+ 		ret |= VM_FAULT_WRITE;
+ 
+-		if (!dirty_page)
+-			return ret;
+-
+-		if (!page_mkwrite) {
++		if (dirty_shared) {
+ 			struct address_space *mapping;
+ 			int dirtied;
+ 
+-			lock_page(dirty_page);
+-			dirtied = set_page_dirty(dirty_page);
+-			VM_BUG_ON_PAGE(PageAnon(dirty_page), dirty_page);
+-			mapping = dirty_page->mapping;
+-			unlock_page(dirty_page);
++			if (!page_mkwrite)
++				lock_page(old_page);
+ 
+-			if (dirtied && mapping) {
+-				/*
+-				 * Some device drivers do not set page.mapping
+-				 * but still dirty their pages
+-				 */
+-				balance_dirty_pages_ratelimited(mapping);
+-			}
++			dirtied = set_page_dirty(old_page);
++			VM_BUG_ON_PAGE(PageAnon(old_page), old_page);
++			mapping = old_page->mapping;
++			unlock_page(old_page);
++			page_cache_release(old_page);
+ 
+-			file_update_time(vma->vm_file);
+-		}
+-		put_page(dirty_page);
+-		if (page_mkwrite) {
+-			struct address_space *mapping = dirty_page->mapping;
+-
+-			set_page_dirty(dirty_page);
+-			unlock_page(dirty_page);
+-			page_cache_release(dirty_page);
+-			if (mapping)	{
++			if ((dirtied || page_mkwrite) && mapping) {
+ 				/*
+ 				 * Some device drivers do not set page.mapping
+ 				 * but still dirty their pages
+ 				 */
+ 				balance_dirty_pages_ratelimited(mapping);
+ 			}
++
++			if (!page_mkwrite)
++				file_update_time(vma->vm_file);
+ 		}
+ 
+ 		return ret;
 -- 
-2.1.2
+2.1.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
