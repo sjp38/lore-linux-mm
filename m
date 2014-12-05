@@ -1,60 +1,191 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
-	by kanga.kvack.org (Postfix) with ESMTP id EE8B36B006C
-	for <linux-mm@kvack.org>; Fri,  5 Dec 2014 17:11:49 -0500 (EST)
-Received: by mail-ie0-f178.google.com with SMTP id tp5so1592881ieb.37
-        for <linux-mm@kvack.org>; Fri, 05 Dec 2014 14:11:49 -0800 (PST)
+Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
+	by kanga.kvack.org (Postfix) with ESMTP id CD2406B006E
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2014 17:11:52 -0500 (EST)
+Received: by mail-ob0-f173.google.com with SMTP id uy5so1253444obc.4
+        for <linux-mm@kvack.org>; Fri, 05 Dec 2014 14:11:52 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id bq4si49769291wjc.138.2014.12.05.06.52.54
+        by mx.google.com with ESMTPS id wk10si49712735wjc.175.2014.12.05.06.52.53
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Dec 2014 06:52:54 -0800 (PST)
+        Fri, 05 Dec 2014 06:52:53 -0800 (PST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 2/3] mm: memory: remove ->vm_file check on shared writable vmas
-Date: Fri,  5 Dec 2014 09:52:45 -0500
-Message-Id: <1417791166-32226-2-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1417791166-32226-1-git-send-email-hannes@cmpxchg.org>
-References: <1417791166-32226-1-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 1/3] mm: protect set_page_dirty() from ongoing truncation
+Date: Fri,  5 Dec 2014 09:52:44 -0500
+Message-Id: <1417791166-32226-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Shared anonymous mmaps are implemented with shmem files, so all VMAs
-with shared writable semantics also have an underlying backing file.
+Tejun, while reviewing the code, spotted the following race condition
+between the dirtying and truncation of a page:
 
+__set_page_dirty_nobuffers()       __delete_from_page_cache()
+  if (TestSetPageDirty(page))
+                                     page->mapping = NULL
+				     if (PageDirty())
+				       dec_zone_page_state(page, NR_FILE_DIRTY);
+				       dec_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
+    if (page->mapping)
+      account_page_dirtied(page)
+        __inc_zone_page_state(page, NR_FILE_DIRTY);
+	__inc_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
+
+which results in an imbalance of NR_FILE_DIRTY and BDI_RECLAIMABLE.
+
+Dirtiers usually lock out truncation, either by holding the page lock
+directly, or in case of zap_pte_range(), by pinning the mapcount with
+the page table lock held.  The notable exception to this rule, though,
+is do_wp_page(), for which this race exists.  However, do_wp_page()
+already waits for a locked page to unlock before setting the dirty
+bit, in order to prevent a race where clear_page_dirty() misses the
+page bit in the presence of dirty ptes.  Upgrade that wait to a fully
+locked set_page_dirty() to also cover the situation explained above.
+
+Afterwards, the code in set_page_dirty() dealing with a truncation
+race is no longer needed.  Remove it.
+
+Reported-by: Tejun Heo <tj@kernel.org>
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Reviewed-by: Jan Kara <jack@suse.cz>
+Cc: <stable@vger.kernel.org>
 Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/memory.c | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ include/linux/writeback.h |  1 -
+ mm/memory.c               | 27 +++++++++++++++++----------
+ mm/page-writeback.c       | 43 ++++++++++++-------------------------------
+ 3 files changed, 29 insertions(+), 42 deletions(-)
 
+diff --git a/include/linux/writeback.h b/include/linux/writeback.h
+index a219be961c0a..00048339c23e 100644
+--- a/include/linux/writeback.h
++++ b/include/linux/writeback.h
+@@ -177,7 +177,6 @@ int write_cache_pages(struct address_space *mapping,
+ 		      struct writeback_control *wbc, writepage_t writepage,
+ 		      void *data);
+ int do_writepages(struct address_space *mapping, struct writeback_control *wbc);
+-void set_page_dirty_balance(struct page *page);
+ void writeback_set_ratelimit(void);
+ void tag_pages_for_writeback(struct address_space *mapping,
+ 			     pgoff_t start, pgoff_t end);
 diff --git a/mm/memory.c b/mm/memory.c
-index 72d998eb0438..5640a718ac58 100644
+index 3e503831e042..72d998eb0438 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -2168,9 +2168,7 @@ reuse:
- 				balance_dirty_pages_ratelimited(mapping);
- 			}
+@@ -2150,17 +2150,24 @@ reuse:
+ 		if (!dirty_page)
+ 			return ret;
  
--			/* file_update_time outside page_lock */
--			if (vma->vm_file)
--				file_update_time(vma->vm_file);
-+			file_update_time(vma->vm_file);
- 		}
- 		put_page(dirty_page);
- 		if (page_mkwrite) {
-@@ -3026,8 +3024,7 @@ static int do_shared_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 		balance_dirty_pages_ratelimited(mapping);
- 	}
+-		/*
+-		 * Yes, Virginia, this is actually required to prevent a race
+-		 * with clear_page_dirty_for_io() from clearing the page dirty
+-		 * bit after it clear all dirty ptes, but before a racing
+-		 * do_wp_page installs a dirty pte.
+-		 *
+-		 * do_shared_fault is protected similarly.
+-		 */
+ 		if (!page_mkwrite) {
+-			wait_on_page_locked(dirty_page);
+-			set_page_dirty_balance(dirty_page);
++			struct address_space *mapping;
++			int dirtied;
++
++			lock_page(dirty_page);
++			dirtied = set_page_dirty(dirty_page);
++			VM_BUG_ON_PAGE(PageAnon(dirty_page), dirty_page);
++			mapping = dirty_page->mapping;
++			unlock_page(dirty_page);
++
++			if (dirtied && mapping) {
++				/*
++				 * Some device drivers do not set page.mapping
++				 * but still dirty their pages
++				 */
++				balance_dirty_pages_ratelimited(mapping);
++			}
++
+ 			/* file_update_time outside page_lock */
+ 			if (vma->vm_file)
+ 				file_update_time(vma->vm_file);
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 19ceae87522d..437174a2aaa3 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -1541,16 +1541,6 @@ pause:
+ 		bdi_start_background_writeback(bdi);
+ }
  
--	/* file_update_time outside page_lock */
--	if (vma->vm_file && !vma->vm_ops->page_mkwrite)
-+	if (!vma->vm_ops->page_mkwrite)
- 		file_update_time(vma->vm_file);
+-void set_page_dirty_balance(struct page *page)
+-{
+-	if (set_page_dirty(page)) {
+-		struct address_space *mapping = page_mapping(page);
+-
+-		if (mapping)
+-			balance_dirty_pages_ratelimited(mapping);
+-	}
+-}
+-
+ static DEFINE_PER_CPU(int, bdp_ratelimits);
  
- 	return ret;
+ /*
+@@ -2123,32 +2113,25 @@ EXPORT_SYMBOL(account_page_dirtied);
+  * page dirty in that case, but not all the buffers.  This is a "bottom-up"
+  * dirtying, whereas __set_page_dirty_buffers() is a "top-down" dirtying.
+  *
+- * Most callers have locked the page, which pins the address_space in memory.
+- * But zap_pte_range() does not lock the page, however in that case the
+- * mapping is pinned by the vma's ->vm_file reference.
+- *
+- * We take care to handle the case where the page was truncated from the
+- * mapping by re-checking page_mapping() inside tree_lock.
++ * The caller must ensure this doesn't race with truncation.  Most will simply
++ * hold the page lock, but e.g. zap_pte_range() calls with the page mapped and
++ * the pte lock held, which also locks out truncation.
+  */
+ int __set_page_dirty_nobuffers(struct page *page)
+ {
+ 	if (!TestSetPageDirty(page)) {
+ 		struct address_space *mapping = page_mapping(page);
+-		struct address_space *mapping2;
+ 		unsigned long flags;
+ 
+ 		if (!mapping)
+ 			return 1;
+ 
+ 		spin_lock_irqsave(&mapping->tree_lock, flags);
+-		mapping2 = page_mapping(page);
+-		if (mapping2) { /* Race with truncate? */
+-			BUG_ON(mapping2 != mapping);
+-			WARN_ON_ONCE(!PagePrivate(page) && !PageUptodate(page));
+-			account_page_dirtied(page, mapping);
+-			radix_tree_tag_set(&mapping->page_tree,
+-				page_index(page), PAGECACHE_TAG_DIRTY);
+-		}
++		BUG_ON(page_mapping(page) != mapping);
++		WARN_ON_ONCE(!PagePrivate(page) && !PageUptodate(page));
++		account_page_dirtied(page, mapping);
++		radix_tree_tag_set(&mapping->page_tree, page_index(page),
++				   PAGECACHE_TAG_DIRTY);
+ 		spin_unlock_irqrestore(&mapping->tree_lock, flags);
+ 		if (mapping->host) {
+ 			/* !PageAnon && !swapper_space */
+@@ -2305,12 +2288,10 @@ int clear_page_dirty_for_io(struct page *page)
+ 		/*
+ 		 * We carefully synchronise fault handlers against
+ 		 * installing a dirty pte and marking the page dirty
+-		 * at this point. We do this by having them hold the
+-		 * page lock at some point after installing their
+-		 * pte, but before marking the page dirty.
+-		 * Pages are always locked coming in here, so we get
+-		 * the desired exclusion. See mm/memory.c:do_wp_page()
+-		 * for more comments.
++		 * at this point.  We do this by having them hold the
++		 * page lock while dirtying the page, and pages are
++		 * always locked coming in here, so we get the desired
++		 * exclusion.
+ 		 */
+ 		if (TestClearPageDirty(page)) {
+ 			dec_zone_page_state(page, NR_FILE_DIRTY);
 -- 
 2.1.3
 
