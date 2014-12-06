@@ -1,84 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id CFC336B006E
-	for <linux-mm@kvack.org>; Fri,  5 Dec 2014 18:31:48 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id kq14so1577053pab.40
-        for <linux-mm@kvack.org>; Fri, 05 Dec 2014 15:31:48 -0800 (PST)
-Received: from p3plsmtps2ded02.prod.phx3.secureserver.net (p3plsmtps2ded02.prod.phx3.secureserver.net. [208.109.80.59])
-        by mx.google.com with ESMTP id qs1si22754106pbb.167.2014.12.05.15.31.46
-        for <linux-mm@kvack.org>;
-        Fri, 05 Dec 2014 15:31:46 -0800 (PST)
-From: "K. Y. Srinivasan" <kys@microsoft.com>
-Subject: [PATCH 2/2] Drivers: hv: balloon: Fix the deadlock issue in the memory hot-add code
-Date: Fri,  5 Dec 2014 16:41:38 -0800
-Message-Id: <1417826498-21172-2-git-send-email-kys@microsoft.com>
-In-Reply-To: <1417826498-21172-1-git-send-email-kys@microsoft.com>
-References: <1417826471-21131-1-git-send-email-kys@microsoft.com>
- <1417826498-21172-1-git-send-email-kys@microsoft.com>
+Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 501076B0032
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2014 20:07:22 -0500 (EST)
+Received: by mail-qg0-f54.google.com with SMTP id q107so1295468qgd.41
+        for <linux-mm@kvack.org>; Fri, 05 Dec 2014 17:07:22 -0800 (PST)
+Received: from mail-qc0-x22b.google.com (mail-qc0-x22b.google.com. [2607:f8b0:400d:c01::22b])
+        by mx.google.com with ESMTPS id w51si1275591qge.89.2014.12.05.17.07.20
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 05 Dec 2014 17:07:21 -0800 (PST)
+Received: by mail-qc0-f171.google.com with SMTP id r5so1352974qcx.16
+        for <linux-mm@kvack.org>; Fri, 05 Dec 2014 17:07:20 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <1417809545-4540-1-git-send-email-vbabka@suse.cz>
+References: <1417809545-4540-1-git-send-email-vbabka@suse.cz>
+Date: Fri, 5 Dec 2014 17:07:20 -0800
+Message-ID: <CA+55aFwvWk6twgBaevPrF5z_0Faetnh0L19ZokWLidiaAaUmQg@mail.gmail.com>
+Subject: Re: [RFC PATCH V2 0/4] Reducing parameters of alloc_pages* family of functions
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, devel@linuxdriverproject.org, olaf@aepfle.de, apw@canonical.com, linux-mm@kvack.org, isimatu.yasuaki@jp.fujitsu.com
-Cc: "K. Y. Srinivasan" <kys@microsoft.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
 
-Andy Whitcroft <apw@canonical.com> initially saw this deadlock. We
-have seen this as well. Here is the original description of the
-problem (and a potential solution) from Andy:
+On Fri, Dec 5, 2014 at 11:59 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
+> Hey all,
+>
+> this is a V2 of attempting something that has been discussed when Minchan
+> proposed to expand the x86 kernel stack [1], namely the reduction of huge
+> number of parameters that the alloc_pages* family and get_page_from_freelist()
+> functions have.
 
-https://lkml.org/lkml/2014/3/14/451
+So I generally like this, but looking at that "struct alloc_context",
+one member kind of stands out: the "order" parameter doesn't fit in
+with all the other members.
 
-Here is an excerpt from that mail:
+Most everything else is describing where or what kind of pages to work
+with. The "order" in contrast, really is separate.
 
-"We are seeing machines lockup with what appears to be an ABBA
-deadlock in the memory hotplug system.  These are from the 3.13.6 based Ubuntu kernels.
-The hv_balloon driver is adding memory using add_memory() which takes
-the hotplug lock, and then emits a udev event, and then attempts to
-lock the sysfs device.  In response to the udev event udev opens the
-sysfs device and locks it, then attempts to grab the hotplug lock to online the memory.
-This seems to be inverted nesting in the two cases, leading to the hangs below:
+So conceptually, my reaction is that it looks like a good cleanup even
+aside from the code/stack size reduction, but that the alloc_context
+definition is a bit odd.
 
-[  240.608612] INFO: task kworker/0:2:861 blocked for more than 120 seconds.
-[  240.608705] INFO: task systemd-udevd:1906 blocked for more than 120 seconds.
+Quite frankly, I think the :"order" really fits much more closely with
+"alloc_flags", not with the alloc_context. Because like alloc_flags,.
+it really describes how we need to allocate things within the context,
+I'd argue.
 
-I note that the device hotplug locking allows complete retries (via
-ERESTARTSYS) and if we could detect this at the online stage it could
-be used to get us out.  But before I go down this road I wanted to
-make sure I am reading this right.  Or indeed if the hv_balloon driver
-is just doing this wrong."
+In fact, I think that the order could actually be packed with the
+alloc_flags in a single register, even on 32-bit (using a single-word
+structure, perhaps). If we really care about number of parameters.
 
-This patch is based on the suggestion from
-Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+I'd rather go for "makes conceptual sense" over "packs order in
+because it kind of works" and we don't modify it".
 
-Signed-off-by: K. Y. Srinivasan <kys@microsoft.com>
----
- drivers/hv/hv_balloon.c |    4 ++++
- 1 files changed, 4 insertions(+), 0 deletions(-)
+Hmm?
 
-diff --git a/drivers/hv/hv_balloon.c b/drivers/hv/hv_balloon.c
-index afdb0d5..f525a62 100644
---- a/drivers/hv/hv_balloon.c
-+++ b/drivers/hv/hv_balloon.c
-@@ -22,6 +22,7 @@
- #include <linux/jiffies.h>
- #include <linux/mman.h>
- #include <linux/delay.h>
-+#include <linux/device.h>
- #include <linux/init.h>
- #include <linux/module.h>
- #include <linux/slab.h>
-@@ -649,8 +650,11 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
- 
- 		release_region_mutex(false);
- 		nid = memory_add_physaddr_to_nid(PFN_PHYS(start_pfn));
-+
-+		lock_device_hotplug();
- 		ret = add_memory(nid, PFN_PHYS((start_pfn)),
- 				(HA_CHUNK << PAGE_SHIFT));
-+		unlock_device_hotplug();
- 
- 		if (ret) {
- 			pr_info("hot_add memory failed error is %d\n", ret);
--- 
-1.7.4.1
+                       Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
