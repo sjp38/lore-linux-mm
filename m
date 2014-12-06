@@ -1,47 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f178.google.com (mail-qc0-f178.google.com [209.85.216.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 136FA6B006E
-	for <linux-mm@kvack.org>; Sat,  6 Dec 2014 08:11:20 -0500 (EST)
-Received: by mail-qc0-f178.google.com with SMTP id b13so1900205qcw.37
-        for <linux-mm@kvack.org>; Sat, 06 Dec 2014 05:11:19 -0800 (PST)
-Received: from mail-qg0-x22c.google.com (mail-qg0-x22c.google.com. [2607:f8b0:400d:c04::22c])
-        by mx.google.com with ESMTPS id w8si37979764qar.67.2014.12.06.05.11.18
+Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
+	by kanga.kvack.org (Postfix) with ESMTP id A88286B0032
+	for <linux-mm@kvack.org>; Sat,  6 Dec 2014 11:04:56 -0500 (EST)
+Received: by mail-qg0-f48.google.com with SMTP id q107so1840320qgd.35
+        for <linux-mm@kvack.org>; Sat, 06 Dec 2014 08:04:56 -0800 (PST)
+Received: from mail-qg0-x231.google.com (mail-qg0-x231.google.com. [2607:f8b0:400d:c04::231])
+        by mx.google.com with ESMTPS id j7si18576370qaf.48.2014.12.06.08.04.55
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 06 Dec 2014 05:11:19 -0800 (PST)
-Received: by mail-qg0-f44.google.com with SMTP id z60so1718837qgd.31
-        for <linux-mm@kvack.org>; Sat, 06 Dec 2014 05:11:18 -0800 (PST)
-Date: Sat, 6 Dec 2014 08:11:15 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH -v2 5/5] OOM, PM: make OOM detection in the freezer path
- raceless
-Message-ID: <20141206131115.GF18711@htj.dyndns.org>
-References: <20141110163055.GC18373@dhcp22.suse.cz>
- <1417797707-31699-1-git-send-email-mhocko@suse.cz>
- <1417797707-31699-6-git-send-email-mhocko@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1417797707-31699-6-git-send-email-mhocko@suse.cz>
+        Sat, 06 Dec 2014 08:04:55 -0800 (PST)
+Received: by mail-qg0-f49.google.com with SMTP id a108so1817156qge.22
+        for <linux-mm@kvack.org>; Sat, 06 Dec 2014 08:04:55 -0800 (PST)
+From: Fabio Estevam <festevam@gmail.com>
+Subject: [PATCH] mm/memcontrol.c: fix the placement of 'MAX_NUMNODES > 1' if block
+Date: Sat,  6 Dec 2014 14:04:43 -0200
+Message-Id: <1417881883-18324-1-git-send-email-festevam@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-pm@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: hannes@cmpxchg.org, mhocko@suse.cz, linux-mm@kvack.org, Fabio Estevam <fabio.estevam@freescale.com>
 
-On Fri, Dec 05, 2014 at 05:41:47PM +0100, Michal Hocko wrote:
-> 5695be142e20 (OOM, PM: OOM killed task shouldn't escape PM suspend)
-> has left a race window when OOM killer manages to note_oom_kill after
-> freeze_processes checks the counter. The race window is quite small and
-> really unlikely and partial solution deemed sufficient at the time of
-> submission.
+From: Fabio Estevam <fabio.estevam@freescale.com>
 
-This patch doesn't apply on top of v3.18-rc3, latest mainline, -mm or
--next.  Did I miss something?  Can you please check the patch?
+When building ARM allmodconfig we get the following build warning:
 
-Thanks.
+mm/memcontrol.c:1629:13: warning: 'test_mem_cgroup_node_reclaimable' defined but not used [-Wunused-function]
 
+As test_mem_cgroup_node_reclaimable() is only used inside the
+'#if MAX_NUMNODES > 1' block, we should also place its definition there as well.
+
+Reported-by: Olof's autobuilder <build@lixom.net>
+Signed-off-by: Fabio Estevam <fabio.estevam@freescale.com>
+---
+ mm/memcontrol.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index c6ac50e..d538b08 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1616,6 +1616,7 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 			 NULL, "Memory cgroup out of memory");
+ }
+ 
++#if MAX_NUMNODES > 1
+ /**
+  * test_mem_cgroup_node_reclaimable
+  * @memcg: the target memcg
+@@ -1638,7 +1639,6 @@ static bool test_mem_cgroup_node_reclaimable(struct mem_cgroup *memcg,
+ 	return false;
+ 
+ }
+-#if MAX_NUMNODES > 1
+ 
+ /*
+  * Always updating the nodemask is not very good - even if we have an empty
 -- 
-tejun
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
