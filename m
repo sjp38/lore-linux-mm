@@ -1,50 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A3A86B0032
-	for <linux-mm@kvack.org>; Sun,  7 Dec 2014 05:11:21 -0500 (EST)
-Received: by mail-wg0-f53.google.com with SMTP id l18so4079963wgh.40
-        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 02:11:21 -0800 (PST)
-Received: from mail-wi0-x235.google.com (mail-wi0-x235.google.com. [2a00:1450:400c:c05::235])
-        by mx.google.com with ESMTPS id cz10si5271341wib.49.2014.12.07.02.11.20
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 24D6F6B006E
+	for <linux-mm@kvack.org>; Sun,  7 Dec 2014 05:13:26 -0500 (EST)
+Received: by mail-wi0-f180.google.com with SMTP id n3so2317082wiv.7
+        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 02:13:25 -0800 (PST)
+Received: from mail-wi0-x22b.google.com (mail-wi0-x22b.google.com. [2a00:1450:400c:c05::22b])
+        by mx.google.com with ESMTPS id db3si5329071wib.3.2014.12.07.02.13.25
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 07 Dec 2014 02:11:20 -0800 (PST)
-Received: by mail-wi0-f181.google.com with SMTP id r20so2323067wiv.8
-        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 02:11:20 -0800 (PST)
-Date: Sun, 7 Dec 2014 11:11:18 +0100
+        Sun, 07 Dec 2014 02:13:25 -0800 (PST)
+Received: by mail-wi0-f171.google.com with SMTP id bs8so2298454wib.10
+        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 02:13:25 -0800 (PST)
+Date: Sun, 7 Dec 2014 11:13:23 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -v2 5/5] OOM, PM: make OOM detection in the freezer path
- raceless
-Message-ID: <20141207101118.GD15892@dhcp22.suse.cz>
+Subject: Re: [PATCH -v2 1/5] oom: add helpers for setting and clearing
+ TIF_MEMDIE
+Message-ID: <20141207101323.GE15892@dhcp22.suse.cz>
 References: <20141110163055.GC18373@dhcp22.suse.cz>
  <1417797707-31699-1-git-send-email-mhocko@suse.cz>
- <1417797707-31699-6-git-send-email-mhocko@suse.cz>
- <20141206131115.GF18711@htj.dyndns.org>
+ <1417797707-31699-2-git-send-email-mhocko@suse.cz>
+ <20141206125617.GB18711@htj.dyndns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20141206131115.GF18711@htj.dyndns.org>
+In-Reply-To: <20141206125617.GB18711@htj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tejun Heo <tj@kernel.org>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-pm@vger.kernel.org
 
-On Sat 06-12-14 08:11:15, Tejun Heo wrote:
-> On Fri, Dec 05, 2014 at 05:41:47PM +0100, Michal Hocko wrote:
-> > 5695be142e20 (OOM, PM: OOM killed task shouldn't escape PM suspend)
-> > has left a race window when OOM killer manages to note_oom_kill after
-> > freeze_processes checks the counter. The race window is quite small and
-> > really unlikely and partial solution deemed sufficient at the time of
-> > submission.
+On Sat 06-12-14 07:56:17, Tejun Heo wrote:
+> On Fri, Dec 05, 2014 at 05:41:43PM +0100, Michal Hocko wrote:
+> > +/**
+> > + * Marks the given taks as OOM victim.
 > 
-> This patch doesn't apply on top of v3.18-rc3, latest mainline, -mm or
-> -next.  Did I miss something?  Can you please check the patch?
+> /**
+>  * $FUNCTION_NAME - $DESCRIPTION
+> 
+> > + * @tsk: task to mark
+> > + */
+> > +void mark_tsk_oom_victim(struct task_struct *tsk)
+> > +{
+> > +	set_tsk_thread_flag(tsk, TIF_MEMDIE);
+> > +}
+> > +
+> > +/**
+> > + * Unmarks the current task as OOM victim.
+> 
+> Ditto.
 
-The original cover letter which didn't make it to the mailing list has
-mentioned that. I have reposted it now. Anyway this is on top of
-http://marc.info/?l=linux-kernel&m=141779091114777 which hasn't landed
-into -mm tree at the time I was posting this. Sorry about the confusion.
-
+Fixed
 -- 
 Michal Hocko
 SUSE Labs
