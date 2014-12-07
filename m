@@ -1,150 +1,315 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 7760D6B0032
-	for <linux-mm@kvack.org>; Sun,  7 Dec 2014 10:21:41 -0500 (EST)
-Received: by mail-wg0-f49.google.com with SMTP id n12so4408277wgh.36
-        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 07:21:40 -0800 (PST)
-Received: from mail-wg0-x22d.google.com (mail-wg0-x22d.google.com. [2a00:1450:400c:c00::22d])
-        by mx.google.com with ESMTPS id o6si44563547wjb.41.2014.12.07.07.21.40
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 783D76B0032
+	for <linux-mm@kvack.org>; Sun,  7 Dec 2014 11:32:48 -0500 (EST)
+Received: by mail-pd0-f175.google.com with SMTP id y10so3664036pdj.34
+        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 08:32:47 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id x3si56442011par.88.2014.12.07.08.32.46
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 07 Dec 2014 07:21:40 -0800 (PST)
-Received: by mail-wg0-f45.google.com with SMTP id b13so4467532wgh.18
-        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 07:21:40 -0800 (PST)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 07 Dec 2014 08:32:46 -0800 (PST)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH -mm] memcg: fix possible use-after-free in memcg_kmem_get_cache
+Date: Sun, 7 Dec 2014 19:32:27 +0300
+Message-ID: <1417969947-4072-1-git-send-email-vdavydov@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1412010138420.7580@eggly.anvils>
-References: <1415912518-8508-1-git-send-email-nefelim4ag@gmail.com> <alpine.LSU.2.11.1412010138420.7580@eggly.anvils>
-From: Timofey Titovets <nefelim4ag@gmail.com>
-Date: Sun, 7 Dec 2014 18:20:59 +0300
-Message-ID: <CAGqmi75EKYOY+POQRwzF=o1cdNesfmEVnUBc7ONrL-TGLteNGw@mail.gmail.com>
-Subject: Re: [RESEND][PATCH V3 0/4] KSM: Mark new vma for deduplication
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David
+ Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-2014-12-01 13:35 GMT+03:00 Hugh Dickins <hughd@google.com>:
-> On Fri, 14 Nov 2014, Timofey Titovets wrote:
->
->> Good time of day List,
->> this tiny series of patches implement feature for auto deduping all anonymous memory.
->> mark_new_vma - new ksm sysfs interface
->> Every time then new vma created and mark_new_vma set to 1, then will be vma marked as VM_MERGEABLE and added to ksm queue.
->> This can produce small overheads
->> (I have not catch any problems or slowdown)
->>
->> This is useful for:
->> Android (CM) devs which implement ksm support with patching system.
->> Users of tiny pc.
->> Servers what not use KVM but use something very releated, like containers.
->>
->> Can be pulled from:
->> https://github.com/Nefelim4ag/linux.git ksm_improvements
->>
->> For tests:
->> I have tested it and it working very good. For testing apply it and enable ksm:
->> echo 1 | sudo tee /sys/kernel/mm/ksm/run
->> This show how much memory saved:
->> echo $[$(cat /sys/kernel/mm/ksm/pages_shared)*$(getconf PAGE_SIZE)/1024 ]KB
->>
->> On my system i save ~1% of memory 26 Mb/2100 Mb (deduped)/(used)
->>
->> v2:
->>       Added Kconfig for control default value of mark_new_vma
->>       Added sysfs interface for control mark_new_vma
->>       Splitted in several patches
->>
->> v3:
->>       Documentation for ksm changed for clarify new cha
->>
->> Timofey Titovets (4):
->>   KSM: Add auto flag new VMA as VM_MERGEABLE
->>   KSM: Add to sysfs - mark_new_vma
->>   KSM: Add config to control mark_new_vma
->>   KSM: mark_new_vma added to Documentation.
->>
->>  Documentation/vm/ksm.txt |  7 +++++++
->>  include/linux/ksm.h      | 39 +++++++++++++++++++++++++++++++++++++++
->>  mm/Kconfig               |  7 +++++++
->>  mm/ksm.c                 | 39 ++++++++++++++++++++++++++++++++++++++-
->>  mm/mmap.c                | 17 +++++++++++++++++
->>  5 files changed, 108 insertions(+), 1 deletion(-)
->
-> I welcome what you're trying to achieve with this,
-> but have a lot of issues with how you have gone about it.
->
-> (I have my own patch to mm/mmap.c to achieve a similar effect, for
-> testing KSM: but looking through it again now, conclude that it's just
-> too hacky for others' eyes: I'd be glad to have something in the tree
-> that saves me from having to apply that hack in the future.)
+Suppose task @t that belongs to a memory cgroup @memcg is going to
+allocate an object from a kmem cache @c. The copy of @c corresponding to
+@memcg, @mc, is empty. Then if kmem_cache_alloc races with the memory
+cgroup destruction we can access the memory cgroup's copy of the cache
+after it was destroyed:
 
-Where i can see your code? =)
+CPU0				CPU1
+----				----
+[ current=@t
+  @mc->memcg_params->nr_pages=0 ]
 
-> Please reduce this to a single patch: I don't see anything gained,
-> but both our time wasted, from having it split into four.
+kmem_cache_alloc(@c):
+  call memcg_kmem_get_cache(@c);
+  proceed to allocation from @mc:
+    alloc a page for @mc:
+      ...
 
-Sorry, fixed =-=
+				move @t from @memcg
+				destroy @memcg:
+				  mem_cgroup_css_offline(@memcg):
+				    memcg_unregister_all_caches(@memcg):
+				      kmem_cache_destroy(@mc)
 
-> Please run scripts/checkpatch.pl over the result: it has quite a
-> few complaints; or you might prefer to do that afterwards...
->
-> Please throw away all(?) of your changes to mm/mmap.c, and those
-> inlines in include/linux/ksm.h.  KSM has a tradition of invading
-> the rest of mm as little as possible, and I'd like to keep to that
-> so far as we can (and others will want us to keep to that even more
-> than I do).
->
->    Instead of trying to apply VM_MERGEABLE in assorted places
->    throughout mmap.c, you should instead be modifying ksm.c to
->    ignore VM_MERGEABLE and respect only its conditioning flags
->    when your option is set.  (Looking through those conditioning
->    flags, I think the only one that actually matters internally
->    is probably VM_HUGETLB - having an anon_vma is in practice the
->    important criterion - but better that you continue to respect
->    those flags for now, rather than experimenting without them.)
->
->    Then I think all you need is one hook somewhere to ensure that
->    every mm gets on KSM's mm_list (while your option is set),
->    instead of just those which call madvise(,,MADV_MERGEABLE).
->    Or does this approach not work for some reason?
+    add page to @mc
 
-First of all, I am a kernel newbie and i can miss something, sorry if
-it happens.
+We could fix this issue by taking a reference to a per-memcg cache, but
+that would require adding a per-cpu reference counter to per-memcg
+caches, which would look cumbersome.
 
-Ksm can't scan memory by itself. I'm not only mark page as
-VM_MERGEABLE, i call __ksm_enter for adding it to ksm mm_list.
-I already think about case where ksm scan all mm find marked with
-VM_MERGEABLE and add it to own mm_list:
-First its can slow down entire system as i think. But at now it does not matter.
-Second, really, i can't find global mm tree =_='' or something like it
-for add one to ksm.
-Can you specify where i can found it or may be i mistaking in somewhere?
+Instead, let's take a reference to a memory cgroup, which already has a
+per-cpu reference counter, in the beginning of kmem_cache_alloc to be
+dropped in the end, and move per memcg caches destruction from css
+offline to css free. As a side effect, per-memcg caches will be
+destroyed not one by one, but all at once when the last page accounted
+to the memory cgroup is freed. This doesn't sound as a high price for
+code readability though.
 
-i must fix issue above before try modify ksm for ignore VM_MERGEABLE =\
+Note, this patch does add some overhead to the kmem_cache_alloc hot
+path, but it is pretty negligible - it's just a function call plus a per
+cpu counter decrement, which is comparable to what we already have in
+memcg_kmem_get_cache. Besides, it's only relevant if there are memory
+cgroups with kmem accounting enabled. I don't think we can find a way to
+handle this race w/o it, because alloc_page called from kmem_cache_alloc
+may sleep so we can't flush all pending kmallocs w/o reference counting.
 
-> Please find some better naming: I suggest "all_mergeable" for
-> the tunable, and KSM_ALL_MERGEABLE for the config option (my hack
-> has an "allksm" boot option, but I think we can do without that).
-> Poor naming ("ksm_vma_add_new" was an mm operation) misled you into
-> putting hooks into quite unnecessary places (how would splitting a
-> vma require a change to the mm's MMF_MERGEABLE?).
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+---
+ include/linux/memcontrol.h |   14 ++++++++++--
+ include/linux/slab.h       |    2 --
+ mm/memcontrol.c            |   51 ++++++++++++++------------------------------
+ mm/slab.c                  |    2 ++
+ mm/slub.c                  |    1 +
+ 5 files changed, 31 insertions(+), 39 deletions(-)
 
-Thanks for idea, i renamed it.
-
-> Then we can look at the result of that; but be warned, as you can
-> see from the "speed" of my reply, I have no time to spare at present,
-> and few others are interested in KSM (perhaps that's an unfortunate
-> side-effect of our success in keeping it isolated from the rest of mm).
->
-> Thanks,
-> Hugh
-
-Not a problem Hugh, thanks for reply.
-
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index b74942a9e22f..7c95af8d552c 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -400,8 +400,8 @@ int memcg_cache_id(struct mem_cgroup *memcg);
+ 
+ void memcg_update_array_size(int num_groups);
+ 
+-struct kmem_cache *
+-__memcg_kmem_get_cache(struct kmem_cache *cachep);
++struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep);
++void __memcg_kmem_put_cache(struct kmem_cache *cachep);
+ 
+ int __memcg_charge_slab(struct kmem_cache *cachep, gfp_t gfp, int order);
+ void __memcg_uncharge_slab(struct kmem_cache *cachep, int order);
+@@ -494,6 +494,12 @@ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
+ 
+ 	return __memcg_kmem_get_cache(cachep);
+ }
++
++static __always_inline void memcg_kmem_put_cache(struct kmem_cache *cachep)
++{
++	if (memcg_kmem_enabled())
++		__memcg_kmem_put_cache(cachep);
++}
+ #else
+ #define for_each_memcg_cache_index(_idx)	\
+ 	for (; NULL; )
+@@ -528,6 +534,10 @@ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
+ {
+ 	return cachep;
+ }
++
++static inline void memcg_kmem_put_cache(struct kmem_cache *cachep)
++{
++}
+ #endif /* CONFIG_MEMCG_KMEM */
+ #endif /* _LINUX_MEMCONTROL_H */
+ 
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index 8a2457d42fc8..9a139b637069 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -493,7 +493,6 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+  * @memcg: pointer to the memcg this cache belongs to
+  * @list: list_head for the list of all caches in this memcg
+  * @root_cache: pointer to the global, root cache, this cache was derived from
+- * @nr_pages: number of pages that belongs to this cache.
+  */
+ struct memcg_cache_params {
+ 	bool is_root_cache;
+@@ -506,7 +505,6 @@ struct memcg_cache_params {
+ 			struct mem_cgroup *memcg;
+ 			struct list_head list;
+ 			struct kmem_cache *root_cache;
+-			atomic_t nr_pages;
+ 		};
+ 	};
+ };
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index c6ac50e7d1c2..09c4838b24f0 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2634,7 +2634,6 @@ static void memcg_register_cache(struct mem_cgroup *memcg,
+ 	if (!cachep)
+ 		return;
+ 
+-	css_get(&memcg->css);
+ 	list_add(&cachep->memcg_params->list, &memcg->memcg_slab_caches);
+ 
+ 	/*
+@@ -2668,9 +2667,6 @@ static void memcg_unregister_cache(struct kmem_cache *cachep)
+ 	list_del(&cachep->memcg_params->list);
+ 
+ 	kmem_cache_destroy(cachep);
+-
+-	/* drop the reference taken in memcg_register_cache */
+-	css_put(&memcg->css);
+ }
+ 
+ int __memcg_cleanup_cache_params(struct kmem_cache *s)
+@@ -2704,9 +2700,7 @@ static void memcg_unregister_all_caches(struct mem_cgroup *memcg)
+ 	mutex_lock(&memcg_slab_mutex);
+ 	list_for_each_entry_safe(params, tmp, &memcg->memcg_slab_caches, list) {
+ 		cachep = memcg_params_to_cache(params);
+-		kmem_cache_shrink(cachep);
+-		if (atomic_read(&cachep->memcg_params->nr_pages) == 0)
+-			memcg_unregister_cache(cachep);
++		memcg_unregister_cache(cachep);
+ 	}
+ 	mutex_unlock(&memcg_slab_mutex);
+ }
+@@ -2741,10 +2735,10 @@ static void __memcg_schedule_register_cache(struct mem_cgroup *memcg,
+ 	struct memcg_register_cache_work *cw;
+ 
+ 	cw = kmalloc(sizeof(*cw), GFP_NOWAIT);
+-	if (cw == NULL) {
+-		css_put(&memcg->css);
++	if (!cw)
+ 		return;
+-	}
++
++	css_get(&memcg->css);
+ 
+ 	cw->memcg = memcg;
+ 	cw->cachep = cachep;
+@@ -2775,12 +2769,8 @@ static void memcg_schedule_register_cache(struct mem_cgroup *memcg,
+ int __memcg_charge_slab(struct kmem_cache *cachep, gfp_t gfp, int order)
+ {
+ 	unsigned int nr_pages = 1 << order;
+-	int res;
+ 
+-	res = memcg_charge_kmem(cachep->memcg_params->memcg, gfp, nr_pages);
+-	if (!res)
+-		atomic_add(nr_pages, &cachep->memcg_params->nr_pages);
+-	return res;
++	return memcg_charge_kmem(cachep->memcg_params->memcg, gfp, nr_pages);
+ }
+ 
+ void __memcg_uncharge_slab(struct kmem_cache *cachep, int order)
+@@ -2788,7 +2778,6 @@ void __memcg_uncharge_slab(struct kmem_cache *cachep, int order)
+ 	unsigned int nr_pages = 1 << order;
+ 
+ 	memcg_uncharge_kmem(cachep->memcg_params->memcg, nr_pages);
+-	atomic_sub(nr_pages, &cachep->memcg_params->nr_pages);
+ }
+ 
+ /*
+@@ -2815,22 +2804,13 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep)
+ 	if (current->memcg_kmem_skip_account)
+ 		return cachep;
+ 
+-	rcu_read_lock();
+-	memcg = mem_cgroup_from_task(rcu_dereference(current->mm->owner));
+-
++	memcg = get_mem_cgroup_from_mm(current->mm);
+ 	if (!memcg_kmem_is_active(memcg))
+ 		goto out;
+ 
+ 	memcg_cachep = cache_from_memcg_idx(cachep, memcg_cache_id(memcg));
+-	if (likely(memcg_cachep)) {
+-		cachep = memcg_cachep;
+-		goto out;
+-	}
+-
+-	/* The corresponding put will be done in the workqueue. */
+-	if (!css_tryget_online(&memcg->css))
+-		goto out;
+-	rcu_read_unlock();
++	if (likely(memcg_cachep))
++		return memcg_cachep;
+ 
+ 	/*
+ 	 * If we are in a safe context (can wait, and not in interrupt
+@@ -2845,12 +2825,17 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep)
+ 	 * defer everything.
+ 	 */
+ 	memcg_schedule_register_cache(memcg, cachep);
+-	return cachep;
+ out:
+-	rcu_read_unlock();
++	css_put(&memcg->css);
+ 	return cachep;
+ }
+ 
++void __memcg_kmem_put_cache(struct kmem_cache *cachep)
++{
++	if (!is_root_cache(cachep))
++		css_put(&cachep->memcg_params->memcg->css);
++}
++
+ /*
+  * We need to verify if the allocation against current->mm->owner's memcg is
+  * possible for the given order. But the page is not allocated yet, so we'll
+@@ -2913,10 +2898,6 @@ void __memcg_kmem_uncharge_pages(struct page *page, int order)
+ 	memcg_uncharge_kmem(memcg, 1 << order);
+ 	page->mem_cgroup = NULL;
+ }
+-#else
+-static inline void memcg_unregister_all_caches(struct mem_cgroup *memcg)
+-{
+-}
+ #endif /* CONFIG_MEMCG_KMEM */
+ 
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+@@ -4187,6 +4168,7 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+ 
+ static void memcg_destroy_kmem(struct mem_cgroup *memcg)
+ {
++	memcg_unregister_all_caches(memcg);
+ 	mem_cgroup_sockets_destroy(memcg);
+ }
+ #else
+@@ -4796,7 +4778,6 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
+ 	}
+ 	spin_unlock(&memcg->event_list_lock);
+ 
+-	memcg_unregister_all_caches(memcg);
+ 	vmpressure_cleanup(&memcg->vmpressure);
+ }
+ 
+diff --git a/mm/slab.c b/mm/slab.c
+index 37727f074e16..65b5dcb6f671 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -3182,6 +3182,7 @@ slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
+ 			memset(ptr, 0, cachep->object_size);
+ 	}
+ 
++	memcg_kmem_put_cache(cachep);
+ 	return ptr;
+ }
+ 
+@@ -3247,6 +3248,7 @@ slab_alloc(struct kmem_cache *cachep, gfp_t flags, unsigned long caller)
+ 			memset(objp, 0, cachep->object_size);
+ 	}
+ 
++	memcg_kmem_put_cache(cachep);
+ 	return objp;
+ }
+ 
+diff --git a/mm/slub.c b/mm/slub.c
+index 95d214255663..7ddf01e2a465 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2450,6 +2450,7 @@ redo:
+ 
+ 	slab_post_alloc_hook(s, gfpflags, object);
+ 
++	memcg_kmem_put_cache(s);
+ 	return object;
+ }
+ 
 -- 
-Have a nice day,
-Timofey.
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
