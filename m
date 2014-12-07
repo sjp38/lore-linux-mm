@@ -1,74 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 245276B006E
-	for <linux-mm@kvack.org>; Sun,  7 Dec 2014 05:24:33 -0500 (EST)
-Received: by mail-wi0-f171.google.com with SMTP id bs8so2327486wib.4
-        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 02:24:32 -0800 (PST)
-Received: from mail-wi0-x236.google.com (mail-wi0-x236.google.com. [2a00:1450:400c:c05::236])
-        by mx.google.com with ESMTPS id hw9si16453318wjb.136.2014.12.07.02.24.32
+Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A4786B006E
+	for <linux-mm@kvack.org>; Sun,  7 Dec 2014 05:26:10 -0500 (EST)
+Received: by mail-wg0-f51.google.com with SMTP id k14so4107057wgh.10
+        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 02:26:10 -0800 (PST)
+Received: from mail-wi0-x22e.google.com (mail-wi0-x22e.google.com. [2a00:1450:400c:c05::22e])
+        by mx.google.com with ESMTPS id d1si5362247wie.4.2014.12.07.02.26.09
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 07 Dec 2014 02:24:32 -0800 (PST)
-Received: by mail-wi0-f182.google.com with SMTP id h11so2317926wiw.15
-        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 02:24:32 -0800 (PST)
-Date: Sun, 7 Dec 2014 11:24:30 +0100
+        Sun, 07 Dec 2014 02:26:09 -0800 (PST)
+Received: by mail-wi0-f174.google.com with SMTP id h11so2325591wiw.1
+        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 02:26:09 -0800 (PST)
+Date: Sun, 7 Dec 2014 11:26:07 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -v2 2/5] OOM: thaw the OOM victim if it is frozen
-Message-ID: <20141207102430.GF15892@dhcp22.suse.cz>
+Subject: Re: [PATCH -v2 3/5] PM: convert printk to pr_* equivalent
+Message-ID: <20141207102607.GG15892@dhcp22.suse.cz>
 References: <20141110163055.GC18373@dhcp22.suse.cz>
  <1417797707-31699-1-git-send-email-mhocko@suse.cz>
- <1417797707-31699-3-git-send-email-mhocko@suse.cz>
- <20141206130657.GC18711@htj.dyndns.org>
+ <1417797707-31699-4-git-send-email-mhocko@suse.cz>
+ <6656448.TBhAod4SQC@vostro.rjw.lan>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20141206130657.GC18711@htj.dyndns.org>
+In-Reply-To: <6656448.TBhAod4SQC@vostro.rjw.lan>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-pm@vger.kernel.org
+To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-pm@vger.kernel.org
 
-On Sat 06-12-14 08:06:57, Tejun Heo wrote:
-> Hello,
-> 
-> On Fri, Dec 05, 2014 at 05:41:44PM +0100, Michal Hocko wrote:
-> > oom_kill_process only sets TIF_MEMDIE flag and sends a signal to the
-> > victim. This is basically noop when the task is frozen though because
-> > the task sleeps in uninterruptible sleep. The victim is eventually
-> > thawed later when oom_scan_process_thread meets the task again in a
-> > later OOM invocation so the OOM killer doesn't live lock. But this is
-> > less than optimal. Let's add the frozen check and thaw the task right
-> > before we send SIGKILL to the victim.
+On Fri 05-12-14 23:40:55, Rafael J. Wysocki wrote:
+> On Friday, December 05, 2014 05:41:45 PM Michal Hocko wrote:
+> > While touching this area let's convert printk to pr_*. This also makes
+> > the printing of continuation lines done properly.
 > > 
-> > The check and thawing in oom_scan_process_thread has to stay because the
-> > task might got access to memory reserves even without an explicit
-> > SIGKILL from oom_kill_process (e.g. it already has fatal signal pending
-> > or it is exiting already).
+> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
 > 
-> How else would a task get TIF_MEMDIE?  If there are other paths which
-> set TIF_MEMDIE, the right thing to do is creating a function which
-> thaws / wakes up the target task and use it there too.  Please
-> interlock these things properly from the get-go instead of scattering
-> these things around.
+> This is fine by me.
+> 
+> Please let me know if you want me to take it.  Otherwise, please feel free to
+> push it through a different tree.
 
-See __out_of_memory which sets TIF_MEMDIE on current when it is exiting
-or has fatal signals pending. This task cannot be frozen obviously.
-
-> > @@ -545,6 +545,8 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
-> >  	rcu_read_unlock();
+I guess it will be easier to push this through Andrew's tree due to
+other dependencies.
+ 
+> > ---
+> >  kernel/power/process.c | 29 +++++++++++++++--------------
+> >  1 file changed, 15 insertions(+), 14 deletions(-)
+> > 
+> > diff --git a/kernel/power/process.c b/kernel/power/process.c
+> > index 5a6ec8678b9a..3ac45f192e9f 100644
+> > --- a/kernel/power/process.c
+> > +++ b/kernel/power/process.c
+> > @@ -84,8 +84,8 @@ static int try_to_freeze_tasks(bool user_only)
+> >  	elapsed_msecs = elapsed_msecs64;
 > >  
-> >  	mark_tsk_oom_victim(victim);
-> > +	if (frozen(victim))
-> > +		__thaw_task(victim);
+> >  	if (todo) {
+> > -		printk("\n");
+> > -		printk(KERN_ERR "Freezing of tasks %s after %d.%03d seconds "
+> > +		pr_cont("\n");
+> > +		pr_err("Freezing of tasks %s after %d.%03d seconds "
+> >  		       "(%d tasks refusing to freeze, wq_busy=%d):\n",
+> >  		       wakeup ? "aborted" : "failed",
+> >  		       elapsed_msecs / 1000, elapsed_msecs % 1000,
+> > @@ -101,7 +101,7 @@ static int try_to_freeze_tasks(bool user_only)
+> >  			read_unlock(&tasklist_lock);
+> >  		}
+> >  	} else {
+> > -		printk("(elapsed %d.%03d seconds) ", elapsed_msecs / 1000,
+> > +		pr_cont("(elapsed %d.%03d seconds) ", elapsed_msecs / 1000,
+> >  			elapsed_msecs % 1000);
+> >  	}
+> >  
+> > @@ -155,7 +155,7 @@ int freeze_processes(void)
+> >  		atomic_inc(&system_freezing_cnt);
+> >  
+> >  	pm_wakeup_clear();
+> > -	printk("Freezing user space processes ... ");
+> > +	pr_info("Freezing user space processes ... ");
+> >  	pm_freezing = true;
+> >  	oom_kills_saved = oom_kills_count();
+> >  	error = try_to_freeze_tasks(true);
+> > @@ -171,13 +171,13 @@ int freeze_processes(void)
+> >  		if (oom_kills_count() != oom_kills_saved &&
+> >  		    !check_frozen_processes()) {
+> >  			__usermodehelper_set_disable_depth(UMH_ENABLED);
+> > -			printk("OOM in progress.");
+> > +			pr_cont("OOM in progress.");
+> >  			error = -EBUSY;
+> >  		} else {
+> > -			printk("done.");
+> > +			pr_cont("done.");
+> >  		}
+> >  	}
+> > -	printk("\n");
+> > +	pr_cont("\n");
+> >  	BUG_ON(in_atomic());
+> >  
+> >  	if (error)
+> > @@ -197,13 +197,14 @@ int freeze_kernel_threads(void)
+> >  {
+> >  	int error;
+> >  
+> > -	printk("Freezing remaining freezable tasks ... ");
+> > +	pr_info("Freezing remaining freezable tasks ... ");
+> > +
+> >  	pm_nosig_freezing = true;
+> >  	error = try_to_freeze_tasks(false);
+> >  	if (!error)
+> > -		printk("done.");
+> > +		pr_cont("done.");
+> >  
+> > -	printk("\n");
+> > +	pr_cont("\n");
+> >  	BUG_ON(in_atomic());
+> >  
+> >  	if (error)
+> > @@ -224,7 +225,7 @@ void thaw_processes(void)
+> >  
+> >  	oom_killer_enable();
+> >  
+> > -	printk("Restarting tasks ... ");
+> > +	pr_info("Restarting tasks ... ");
+> >  
+> >  	__usermodehelper_set_disable_depth(UMH_FREEZING);
+> >  	thaw_workqueues();
+> > @@ -243,7 +244,7 @@ void thaw_processes(void)
+> >  	usermodehelper_enable();
+> >  
+> >  	schedule();
+> > -	printk("done.\n");
+> > +	pr_cont("done.\n");
+> >  	trace_suspend_resume(TPS("thaw_processes"), 0, false);
+> >  }
+> >  
+> > @@ -252,7 +253,7 @@ void thaw_kernel_threads(void)
+> >  	struct task_struct *g, *p;
+> >  
+> >  	pm_nosig_freezing = false;
+> > -	printk("Restarting kernel threads ... ");
+> > +	pr_info("Restarting kernel threads ... ");
+> >  
+> >  	thaw_workqueues();
+> >  
+> > @@ -264,5 +265,5 @@ void thaw_kernel_threads(void)
+> >  	read_unlock(&tasklist_lock);
+> >  
+> >  	schedule();
+> > -	printk("done.\n");
+> > +	pr_cont("done.\n");
+> >  }
+> > 
 > 
-> The frozen() test here is racy.  Always calling __thaw_task() wouldn't
-> be.  You can argue that being racy here is okay because the later
-> scanning would find it but why complicate things like that?  Just
-> properly interlock each instance and be done with it.
+> -- 
+> I speak only for myself.
+> Rafael J. Wysocki, Intel Open Source Technology Center.
 
-OK, changed. I didn't realize that __thaw_task does the check already
-and was following what we have in oom_scan_process_thread. Removed the
-check from that one as well.
 -- 
 Michal Hocko
 SUSE Labs
