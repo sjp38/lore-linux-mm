@@ -1,72 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C83D6B0073
-	for <linux-mm@kvack.org>; Sun,  7 Dec 2014 05:31:08 -0500 (EST)
-Received: by mail-wi0-f169.google.com with SMTP id r20so4872655wiv.0
-        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 02:31:07 -0800 (PST)
-Received: from mail-wg0-x233.google.com (mail-wg0-x233.google.com. [2a00:1450:400c:c00::233])
-        by mx.google.com with ESMTPS id vj4si57110907wjc.21.2014.12.07.02.31.07
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 939D36B0075
+	for <linux-mm@kvack.org>; Sun,  7 Dec 2014 05:33:12 -0500 (EST)
+Received: by mail-wi0-f174.google.com with SMTP id h11so2309863wiw.13
+        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 02:33:12 -0800 (PST)
+Received: from mail-wi0-x235.google.com (mail-wi0-x235.google.com. [2a00:1450:400c:c05::235])
+        by mx.google.com with ESMTPS id q4si5365911wiy.17.2014.12.07.02.33.11
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 07 Dec 2014 02:31:07 -0800 (PST)
-Received: by mail-wg0-f51.google.com with SMTP id k14so4069980wgh.38
-        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 02:31:07 -0800 (PST)
-Date: Sun, 7 Dec 2014 11:31:05 +0100
+        Sun, 07 Dec 2014 02:33:11 -0800 (PST)
+Received: by mail-wi0-f181.google.com with SMTP id r20so2347495wiv.8
+        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 02:33:11 -0800 (PST)
+Date: Sun, 7 Dec 2014 11:33:10 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm: memcontrol.c:  Cleaning up function that are not
- used anywhere
-Message-ID: <20141207103105.GI15892@dhcp22.suse.cz>
-References: <1417884356-3086-1-git-send-email-rickard_strandqvist@spectrumdigital.se>
+Subject: Re: [PATCH] mm: memcontrol: Skip test_mem_cgroup_node_reclaimable()
+ when no MAX_NUMNODES or not more than 1
+Message-ID: <20141207103310.GJ15892@dhcp22.suse.cz>
+References: <5482316D.607@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1417884356-3086-1-git-send-email-rickard_strandqvist@spectrumdigital.se>
+In-Reply-To: <5482316D.607@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rickard Strandqvist <rickard_strandqvist@spectrumdigital.se>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Chen Gang <gang.chen.5i5j@gmail.com>
+Cc: hannes@cmpxchg.org, cgroups@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Sat 06-12-14 17:45:56, Rickard Strandqvist wrote:
-> Remove function mem_cgroup_lru_names_not_uptodate() that is not used anywhere.
-> And move BUILD_BUG_ON() to the beginning of memcg_stat_show() instead.
+Hi,
+this has been fixed last week already
+http://marc.info/?l=linux-mm&m=141751847710864&w=2
+
+On Sat 06-12-14 06:27:57, Chen Gang wrote:
+> test_mem_cgroup_node_reclaimable() is only used when "MAX_NUMNODES > 1",
+> so move it into related quote.
 > 
-> This was partially found by using a static code analysis program called cppcheck.
+> The related warning (with allmodconfig under parisc):
 > 
-> Signed-off-by: Rickard Strandqvist <rickard_strandqvist@spectrumdigital.se>
-
-Acked-by: Michal Hocko <mhocko@suse.cz>
-
+>     CC      mm/memcontrol.o
+>   mm/memcontrol.c:1629:13: warning: 'test_mem_cgroup_node_reclaimable' defined but not used [-Wunused-function]
+>    static bool test_mem_cgroup_node_reclaimable(struct mem_cgroup *memcg,
+>                ^
+> 
+> Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>
 > ---
->  mm/memcontrol.c |    7 ++-----
->  1 file changed, 2 insertions(+), 5 deletions(-)
+>  mm/memcontrol.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
 > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index d6ac0e3..5e2f0f3 100644
+> index c6ac50e..d538b08 100644
 > --- a/mm/memcontrol.c
 > +++ b/mm/memcontrol.c
-> @@ -4379,17 +4379,14 @@ static int memcg_numa_stat_show(struct seq_file *m, void *v)
+> @@ -1616,6 +1616,7 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>  			 NULL, "Memory cgroup out of memory");
 >  }
->  #endif /* CONFIG_NUMA */
 >  
-> -static inline void mem_cgroup_lru_names_not_uptodate(void)
-> -{
-> -	BUILD_BUG_ON(ARRAY_SIZE(mem_cgroup_lru_names) != NR_LRU_LISTS);
-> -}
-> -
->  static int memcg_stat_show(struct seq_file *m, void *v)
->  {
->  	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
->  	struct mem_cgroup *mi;
->  	unsigned int i;
+> +#if MAX_NUMNODES > 1
+>  /**
+>   * test_mem_cgroup_node_reclaimable
+>   * @memcg: the target memcg
+> @@ -1638,7 +1639,6 @@ static bool test_mem_cgroup_node_reclaimable(struct mem_cgroup *memcg,
+>  	return false;
 >  
-> +	BUILD_BUG_ON(ARRAY_SIZE(mem_cgroup_lru_names) != NR_LRU_LISTS);
-> +
->  	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
->  		if (i == MEM_CGROUP_STAT_SWAP && !do_swap_account)
->  			continue;
+>  }
+> -#if MAX_NUMNODES > 1
+>  
+>  /*
+>   * Always updating the nodemask is not very good - even if we have an empty
 > -- 
-> 1.7.10.4
-> 
+> 1.9.3
 
 -- 
 Michal Hocko
