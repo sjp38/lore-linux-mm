@@ -1,63 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 87F8A6B0075
-	for <linux-mm@kvack.org>; Sun,  7 Dec 2014 05:45:42 -0500 (EST)
-Received: by mail-wi0-f180.google.com with SMTP id n3so2375209wiv.1
-        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 02:45:42 -0800 (PST)
-Received: from mail-wi0-x22d.google.com (mail-wi0-x22d.google.com. [2a00:1450:400c:c05::22d])
-        by mx.google.com with ESMTPS id ha2si56955960wjc.161.2014.12.07.02.45.41
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id EFA416B0032
+	for <linux-mm@kvack.org>; Sun,  7 Dec 2014 07:40:31 -0500 (EST)
+Received: by mail-pd0-f173.google.com with SMTP id ft15so3486707pdb.4
+        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 04:40:31 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id z13si55620003pbv.45.2014.12.07.04.40.30
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 07 Dec 2014 02:45:41 -0800 (PST)
-Received: by mail-wi0-f173.google.com with SMTP id r20so2334500wiv.12
-        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 02:45:41 -0800 (PST)
-Date: Sun, 7 Dec 2014 11:45:39 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -v2 2/5] OOM: thaw the OOM victim if it is frozen
-Message-ID: <20141207104539.GK15892@dhcp22.suse.cz>
-References: <20141110163055.GC18373@dhcp22.suse.cz>
- <1417797707-31699-1-git-send-email-mhocko@suse.cz>
- <1417797707-31699-3-git-send-email-mhocko@suse.cz>
- <20141206130657.GC18711@htj.dyndns.org>
- <20141207102430.GF15892@dhcp22.suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 07 Dec 2014 04:40:30 -0800 (PST)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH -mm] mm: vmscan: shrink_zones: assure class zone is populated
+Date: Sun, 7 Dec 2014 15:40:21 +0300
+Message-ID: <1417956021-27298-1-git-send-email-vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141207102430.GF15892@dhcp22.suse.cz>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-pm@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun 07-12-14 11:24:30, Michal Hocko wrote:
-> On Sat 06-12-14 08:06:57, Tejun Heo wrote:
-> > Hello,
-> > 
-> > On Fri, Dec 05, 2014 at 05:41:44PM +0100, Michal Hocko wrote:
-> > > oom_kill_process only sets TIF_MEMDIE flag and sends a signal to the
-> > > victim. This is basically noop when the task is frozen though because
-> > > the task sleeps in uninterruptible sleep. The victim is eventually
-> > > thawed later when oom_scan_process_thread meets the task again in a
-> > > later OOM invocation so the OOM killer doesn't live lock. But this is
-> > > less than optimal. Let's add the frozen check and thaw the task right
-> > > before we send SIGKILL to the victim.
-> > > 
-> > > The check and thawing in oom_scan_process_thread has to stay because the
-> > > task might got access to memory reserves even without an explicit
-> > > SIGKILL from oom_kill_process (e.g. it already has fatal signal pending
-> > > or it is exiting already).
-> > 
-> > How else would a task get TIF_MEMDIE?  If there are other paths which
-> > set TIF_MEMDIE, the right thing to do is creating a function which
-> > thaws / wakes up the target task and use it there too.  Please
-> > interlock these things properly from the get-go instead of scattering
-> > these things around.
-> 
-> See __out_of_memory which sets TIF_MEMDIE on current when it is exiting
-> or has fatal signals pending. This task cannot be frozen obviously.
+Since commit 5df87d36a45e ("mm: vmscan: invoke slab shrinkers from
+shrink_zone()") slab shrinkers are invoked from shrink_zone. Since slab
+shrinkers lack the notion of memory zones, we only call slab shrinkers
+after scanning the highest zone suitable for allocation (class zone).
+However, class zone can be empty. E.g. if an x86_64 host has less than
+4G of RAM, it will have only ZONE_DMA and ZONE_DMA32 populated while the
+class zone for most allocations, ZONE_NORMAL, will be empty. As a
+result, slab caches will not be scanned at all from the direct reclaim
+path, which may result in premature OOM killer invocations.
 
-On the other hand we are doing the same early in oom_kill_process which
-doesn't work on the current. I've moved the __thaw_task
-into mark_tsk_oom_victim so it catches all instances now.
-oom_scan_process_thread doesn't need to thaw anymore.
+Let's take the highest *populated* zone suitable for allocation for the
+class zone to fix this issue.
+
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 ---
+ mm/vmscan.c |   10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 9130cf67bac1..5e8772b2b9ef 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2454,8 +2454,16 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+ 
+ 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+ 					requested_highidx, sc->nodemask) {
++		enum zone_type classzone_idx;
++
+ 		if (!populated_zone(zone))
+ 			continue;
++
++		classzone_idx = requested_highidx;
++		while (!populated_zone(zone->zone_pgdat->node_zones +
++							classzone_idx))
++			classzone_idx--;
++
+ 		/*
+ 		 * Take care memory controller reclaiming has small influence
+ 		 * to global LRU.
+@@ -2503,7 +2511,7 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+ 			/* need some check for avoid more shrink_zone() */
+ 		}
+ 
+-		if (shrink_zone(zone, sc, zone_idx(zone) == requested_highidx))
++		if (shrink_zone(zone, sc, zone_idx(zone) == classzone_idx))
+ 			reclaimable = true;
+ 
+ 		if (global_reclaim(sc) &&
+-- 
+1.7.10.4
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
