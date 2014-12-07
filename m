@@ -1,159 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A4786B006E
-	for <linux-mm@kvack.org>; Sun,  7 Dec 2014 05:26:10 -0500 (EST)
-Received: by mail-wg0-f51.google.com with SMTP id k14so4107057wgh.10
-        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 02:26:10 -0800 (PST)
-Received: from mail-wi0-x22e.google.com (mail-wi0-x22e.google.com. [2a00:1450:400c:c05::22e])
-        by mx.google.com with ESMTPS id d1si5362247wie.4.2014.12.07.02.26.09
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 42A3C6B0071
+	for <linux-mm@kvack.org>; Sun,  7 Dec 2014 05:29:49 -0500 (EST)
+Received: by mail-wi0-f178.google.com with SMTP id em10so2339625wid.5
+        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 02:29:48 -0800 (PST)
+Received: from mail-wg0-x22c.google.com (mail-wg0-x22c.google.com. [2a00:1450:400c:c00::22c])
+        by mx.google.com with ESMTPS id ic3si5314369wid.49.2014.12.07.02.29.48
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 07 Dec 2014 02:26:09 -0800 (PST)
-Received: by mail-wi0-f174.google.com with SMTP id h11so2325591wiw.1
-        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 02:26:09 -0800 (PST)
-Date: Sun, 7 Dec 2014 11:26:07 +0100
+        Sun, 07 Dec 2014 02:29:48 -0800 (PST)
+Received: by mail-wg0-f44.google.com with SMTP id b13so4122106wgh.3
+        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 02:29:48 -0800 (PST)
+Date: Sun, 7 Dec 2014 11:29:46 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -v2 3/5] PM: convert printk to pr_* equivalent
-Message-ID: <20141207102607.GG15892@dhcp22.suse.cz>
-References: <20141110163055.GC18373@dhcp22.suse.cz>
- <1417797707-31699-1-git-send-email-mhocko@suse.cz>
- <1417797707-31699-4-git-send-email-mhocko@suse.cz>
- <6656448.TBhAod4SQC@vostro.rjw.lan>
+Subject: Re: [PATCH] mm/memcontrol.c: fix the placement of 'MAX_NUMNODES > 1'
+ if block
+Message-ID: <20141207102946.GH15892@dhcp22.suse.cz>
+References: <1417881883-18324-1-git-send-email-festevam@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <6656448.TBhAod4SQC@vostro.rjw.lan>
+In-Reply-To: <1417881883-18324-1-git-send-email-festevam@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-pm@vger.kernel.org
+To: Fabio Estevam <festevam@gmail.com>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, linux-mm@kvack.org, Fabio Estevam <fabio.estevam@freescale.com>
 
-On Fri 05-12-14 23:40:55, Rafael J. Wysocki wrote:
-> On Friday, December 05, 2014 05:41:45 PM Michal Hocko wrote:
-> > While touching this area let's convert printk to pr_*. This also makes
-> > the printing of continuation lines done properly.
-> > 
-> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> 
-> This is fine by me.
-> 
-> Please let me know if you want me to take it.  Otherwise, please feel free to
-> push it through a different tree.
+Hi,
+this has been fixed last week already
+http://marc.info/?l=linux-mm&m=141751847710864&w=2
 
-I guess it will be easier to push this through Andrew's tree due to
-other dependencies.
- 
-> > ---
-> >  kernel/power/process.c | 29 +++++++++++++++--------------
-> >  1 file changed, 15 insertions(+), 14 deletions(-)
-> > 
-> > diff --git a/kernel/power/process.c b/kernel/power/process.c
-> > index 5a6ec8678b9a..3ac45f192e9f 100644
-> > --- a/kernel/power/process.c
-> > +++ b/kernel/power/process.c
-> > @@ -84,8 +84,8 @@ static int try_to_freeze_tasks(bool user_only)
-> >  	elapsed_msecs = elapsed_msecs64;
-> >  
-> >  	if (todo) {
-> > -		printk("\n");
-> > -		printk(KERN_ERR "Freezing of tasks %s after %d.%03d seconds "
-> > +		pr_cont("\n");
-> > +		pr_err("Freezing of tasks %s after %d.%03d seconds "
-> >  		       "(%d tasks refusing to freeze, wq_busy=%d):\n",
-> >  		       wakeup ? "aborted" : "failed",
-> >  		       elapsed_msecs / 1000, elapsed_msecs % 1000,
-> > @@ -101,7 +101,7 @@ static int try_to_freeze_tasks(bool user_only)
-> >  			read_unlock(&tasklist_lock);
-> >  		}
-> >  	} else {
-> > -		printk("(elapsed %d.%03d seconds) ", elapsed_msecs / 1000,
-> > +		pr_cont("(elapsed %d.%03d seconds) ", elapsed_msecs / 1000,
-> >  			elapsed_msecs % 1000);
-> >  	}
-> >  
-> > @@ -155,7 +155,7 @@ int freeze_processes(void)
-> >  		atomic_inc(&system_freezing_cnt);
-> >  
-> >  	pm_wakeup_clear();
-> > -	printk("Freezing user space processes ... ");
-> > +	pr_info("Freezing user space processes ... ");
-> >  	pm_freezing = true;
-> >  	oom_kills_saved = oom_kills_count();
-> >  	error = try_to_freeze_tasks(true);
-> > @@ -171,13 +171,13 @@ int freeze_processes(void)
-> >  		if (oom_kills_count() != oom_kills_saved &&
-> >  		    !check_frozen_processes()) {
-> >  			__usermodehelper_set_disable_depth(UMH_ENABLED);
-> > -			printk("OOM in progress.");
-> > +			pr_cont("OOM in progress.");
-> >  			error = -EBUSY;
-> >  		} else {
-> > -			printk("done.");
-> > +			pr_cont("done.");
-> >  		}
-> >  	}
-> > -	printk("\n");
-> > +	pr_cont("\n");
-> >  	BUG_ON(in_atomic());
-> >  
-> >  	if (error)
-> > @@ -197,13 +197,14 @@ int freeze_kernel_threads(void)
-> >  {
-> >  	int error;
-> >  
-> > -	printk("Freezing remaining freezable tasks ... ");
-> > +	pr_info("Freezing remaining freezable tasks ... ");
-> > +
-> >  	pm_nosig_freezing = true;
-> >  	error = try_to_freeze_tasks(false);
-> >  	if (!error)
-> > -		printk("done.");
-> > +		pr_cont("done.");
-> >  
-> > -	printk("\n");
-> > +	pr_cont("\n");
-> >  	BUG_ON(in_atomic());
-> >  
-> >  	if (error)
-> > @@ -224,7 +225,7 @@ void thaw_processes(void)
-> >  
-> >  	oom_killer_enable();
-> >  
-> > -	printk("Restarting tasks ... ");
-> > +	pr_info("Restarting tasks ... ");
-> >  
-> >  	__usermodehelper_set_disable_depth(UMH_FREEZING);
-> >  	thaw_workqueues();
-> > @@ -243,7 +244,7 @@ void thaw_processes(void)
-> >  	usermodehelper_enable();
-> >  
-> >  	schedule();
-> > -	printk("done.\n");
-> > +	pr_cont("done.\n");
-> >  	trace_suspend_resume(TPS("thaw_processes"), 0, false);
-> >  }
-> >  
-> > @@ -252,7 +253,7 @@ void thaw_kernel_threads(void)
-> >  	struct task_struct *g, *p;
-> >  
-> >  	pm_nosig_freezing = false;
-> > -	printk("Restarting kernel threads ... ");
-> > +	pr_info("Restarting kernel threads ... ");
-> >  
-> >  	thaw_workqueues();
-> >  
-> > @@ -264,5 +265,5 @@ void thaw_kernel_threads(void)
-> >  	read_unlock(&tasklist_lock);
-> >  
-> >  	schedule();
-> > -	printk("done.\n");
-> > +	pr_cont("done.\n");
-> >  }
-> > 
+Thanks!
+
+On Sat 06-12-14 14:04:43, Fabio Estevam wrote:
+> From: Fabio Estevam <fabio.estevam@freescale.com>
 > 
+> When building ARM allmodconfig we get the following build warning:
+> 
+> mm/memcontrol.c:1629:13: warning: 'test_mem_cgroup_node_reclaimable' defined but not used [-Wunused-function]
+> 
+> As test_mem_cgroup_node_reclaimable() is only used inside the
+> '#if MAX_NUMNODES > 1' block, we should also place its definition there as well.
+> 
+> Reported-by: Olof's autobuilder <build@lixom.net>
+> Signed-off-by: Fabio Estevam <fabio.estevam@freescale.com>
+> ---
+>  mm/memcontrol.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index c6ac50e..d538b08 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1616,6 +1616,7 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>  			 NULL, "Memory cgroup out of memory");
+>  }
+>  
+> +#if MAX_NUMNODES > 1
+>  /**
+>   * test_mem_cgroup_node_reclaimable
+>   * @memcg: the target memcg
+> @@ -1638,7 +1639,6 @@ static bool test_mem_cgroup_node_reclaimable(struct mem_cgroup *memcg,
+>  	return false;
+>  
+>  }
+> -#if MAX_NUMNODES > 1
+>  
+>  /*
+>   * Always updating the nodemask is not very good - even if we have an empty
 > -- 
-> I speak only for myself.
-> Rafael J. Wysocki, Intel Open Source Technology Center.
+> 1.9.1
+> 
 
 -- 
 Michal Hocko
