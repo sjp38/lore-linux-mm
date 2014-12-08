@@ -1,174 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B3866B0078
-	for <linux-mm@kvack.org>; Mon,  8 Dec 2014 04:34:07 -0500 (EST)
-Received: by mail-wg0-f49.google.com with SMTP id n12so5676028wgh.22
-        for <linux-mm@kvack.org>; Mon, 08 Dec 2014 01:34:06 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v10si60672454wjy.103.2014.12.08.01.34.06
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id A85C96B006C
+	for <linux-mm@kvack.org>; Mon,  8 Dec 2014 04:51:27 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id lj1so4921279pab.18
+        for <linux-mm@kvack.org>; Mon, 08 Dec 2014 01:51:27 -0800 (PST)
+Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
+        by mx.google.com with ESMTPS id c3si1139445pdl.88.2014.12.08.01.51.24
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 08 Dec 2014 01:34:06 -0800 (PST)
-Message-ID: <5485708D.3070009@suse.cz>
-Date: Mon, 08 Dec 2014 10:34:05 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        Mon, 08 Dec 2014 01:51:26 -0800 (PST)
+From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Date: Mon, 8 Dec 2014 17:51:15 +0800
+Subject: RE: [PATCH] mm:add VM_BUG_ON() for page_mapcount()
+Message-ID: <35FD53F367049845BC99AC72306C23D103E688B313F8@CNBJMBX05.corpusers.net>
+References: <010b01d012ca$05244060$0f6cc120$@alibaba-inc.com>
+In-Reply-To: <010b01d012ca$05244060$0f6cc120$@alibaba-inc.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/4] mm/compaction: enhance compaction finish condition
-References: <1418022980-4584-1-git-send-email-iamjoonsoo.kim@lge.com> <1418022980-4584-4-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1418022980-4584-4-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: 'Hillf Danton' <hillf.zj@alibaba-inc.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On 12/08/2014 08:16 AM, Joonsoo Kim wrote:
-> Compaction has anti fragmentation algorithm. It is that freepage
-> should be more than pageblock order to finish the compaction if we don't
-> find any freepage in requested migratetype buddy list. This is for
-> mitigating fragmentation, but, it is a lack of migratetype consideration
-> and too excessive.
->
-> At first, it doesn't consider migratetype so there would be false positive
-> on compaction finish decision. For example, if allocation request is
-> for unmovable migratetype, freepage in CMA migratetype doesn't help that
-> allocation, so compaction should not be stopped. But, current logic
-> considers it as compaction is no longer needed and stop the compaction.
->
-> Secondly, it is too excessive. We can steal freepage from other migratetype
-> and change pageblock migratetype on more relaxed conditions. In page
-> allocator, there is another conditions that can succeed to steal without
-> introducing fragmentation.
->
-> To solve these problems, this patch borrows anti fragmentation logic from
-> page allocator. It will reduce premature compaction finish in some cases
-> and reduce excessive compaction work.
->
-> stress-highalloc test in mmtests with non movable order 7 allocation shows
-> in allocation success rate on phase 1 and compaction success rate.
->
-> Allocation success rate on phase 1 (%)
-> 57.00 : 63.67
->
-> Compaction success rate (Compaction success * 100 / Compaction stalls, %)
-> 28.94 : 35.13
->
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> ---
->   include/linux/mmzone.h |    3 +++
->   mm/compaction.c        |   31 +++++++++++++++++++++++++++++--
->   mm/internal.h          |    1 +
->   mm/page_alloc.c        |    5 ++---
->   4 files changed, 35 insertions(+), 5 deletions(-)
->
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 2f0856d..87f5bb5 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -63,6 +63,9 @@ enum {
->   	MIGRATE_TYPES
->   };
->
-> +#define FALLBACK_MIGRATETYPES (4)
-> +extern int fallbacks[MIGRATE_TYPES][FALLBACK_MIGRATETYPES];
-> +
->   #ifdef CONFIG_CMA
->   #  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)
->   #else
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 1a5f465..2fd5f79 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -1054,6 +1054,30 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
->   	return cc->nr_migratepages ? ISOLATE_SUCCESS : ISOLATE_NONE;
->   }
->
-> +static bool can_steal_fallbacks(struct free_area *area,
-> +			unsigned int order, int migratetype)
-> +{
-> +	int i;
-> +	int fallback_mt;
-> +
-> +	if (area->nr_free == 0)
-> +		return false;
-> +
-> +	for (i = 0; i < FALLBACK_MIGRATETYPES; i++) {
-> +		fallback_mt = fallbacks[migratetype][i];
-> +		if (fallback_mt == MIGRATE_RESERVE)
-> +			break;
-> +
-> +		if (list_empty(&area->free_list[fallback_mt]))
-> +			continue;
-> +
-> +		if (can_steal_freepages(order, migratetype, fallback_mt))
-> +			return true;
-> +	}
-> +
-> +	return false;
-> +}
-> +
->   static int __compact_finished(struct zone *zone, struct compact_control *cc,
->   			    const int migratetype)
->   {
-> @@ -1104,8 +1128,11 @@ static int __compact_finished(struct zone *zone, struct compact_control *cc,
->   		if (!list_empty(&area->free_list[migratetype]))
->   			return COMPACT_PARTIAL;
->
-> -		/* Job done if allocation would set block type */
-> -		if (order >= pageblock_order && area->nr_free)
-
-So, can_steal_fallbacks() -> can_steal_freepages() is quite involved way 
-if in the end we just realize that order >= pageblock_order and we are 
-stealing whole pageblock. Given that often compaction is done for THP, 
-it would be better to check order >= pageblock_order and handle it 
-upfront. This goes together with my comments on previous patch that 
-order >= pageblock_order is better handled separately.
-
-> +		/*
-> +		 * Job done if allocation would steal freepages from
-> +		 * other migratetype buddy lists.
-> +		 */
-> +		if (can_steal_fallbacks(area, order, migratetype))
->   			return COMPACT_PARTIAL;
->   	}
->
-> diff --git a/mm/internal.h b/mm/internal.h
-> index efad241..7028d83 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -179,6 +179,7 @@ unsigned long
->   isolate_migratepages_range(struct compact_control *cc,
->   			   unsigned long low_pfn, unsigned long end_pfn);
->
-> +bool can_steal_freepages(unsigned int order, int start_mt, int fallback_mt);
->   #endif
->
->   /*
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 7b4c9aa..dcb8523 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1031,7 +1031,7 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
->    * This array describes the order lists are fallen back to when
->    * the free lists for the desirable migrate type are depleted
->    */
-> -static int fallbacks[MIGRATE_TYPES][4] = {
-> +int fallbacks[MIGRATE_TYPES][FALLBACK_MIGRATETYPES] = {
->   	[MIGRATE_UNMOVABLE]   = { MIGRATE_RECLAIMABLE, MIGRATE_MOVABLE,     MIGRATE_RESERVE },
->   	[MIGRATE_RECLAIMABLE] = { MIGRATE_UNMOVABLE,   MIGRATE_MOVABLE,     MIGRATE_RESERVE },
->   #ifdef CONFIG_CMA
-> @@ -1161,8 +1161,7 @@ static void try_to_steal_freepages(struct zone *zone, struct page *page,
->   	}
->   }
->
-> -static bool can_steal_freepages(unsigned int order,
-> -			int start_mt, int fallback_mt)
-> +bool can_steal_freepages(unsigned int order, int start_mt, int fallback_mt)
->   {
->   	/*
->   	 * When borrowing from MIGRATE_CMA, we need to release the excess
->
+PiAtLS0tLU9yaWdpbmFsIE1lc3NhZ2UtLS0tLQ0KPiBGcm9tOiBIaWxsZiBEYW50b24gW21haWx0
+bzpoaWxsZi56akBhbGliYWJhLWluYy5jb21dDQo+IFNlbnQ6IE1vbmRheSwgRGVjZW1iZXIgMDgs
+IDIwMTQgNTozMyBQTQ0KPiBUbzogV2FuZywgWWFsaW4NCj4gQ2M6IGxpbnV4LWtlcm5lbDsgbGlu
+dXgtbW1Aa3ZhY2sub3JnOyBsaW51eC1hcm0ta2VybmVsQGxpc3RzLmluZnJhZGVhZC5vcmc7DQo+
+IEFuZHJldyBNb3J0b247IEhpbGxmIERhbnRvbg0KPiBTdWJqZWN0OiBSZTogW1BBVENIXSBtbTph
+ZGQgVk1fQlVHX09OKCkgZm9yIHBhZ2VfbWFwY291bnQoKQ0KPiANCj4gPg0KPiA+IFRoaXMgcGF0
+Y2ggYWRkIFZNX0JVR19PTigpIGZvciBzbGFiIHBhZ2UsIGJlY2F1c2UgX21hcGNvdW50IGlzIGFu
+DQo+ID4gdW5pb24gd2l0aCBzbGFiIHN0cnVjdCBpbiBzdHJ1Y3QgcGFnZSwgYXZvaWQgYWNjZXNz
+IF9tYXBjb3VudCBpZiB0aGlzDQo+ID4gcGFnZSBpcyBhIHNsYWIgcGFnZS4NCj4gPiBBbHNvIHJl
+bW92ZSB0aGUgdW5uZWVkZWQgYnJhY2tldC4NCj4gPg0KPiA+IFNpZ25lZC1vZmYtYnk6IFlhbGlu
+IFdhbmcgPHlhbGluLndhbmdAc29ueW1vYmlsZS5jb20+DQo+ID4gLS0tDQo+ID4gIGluY2x1ZGUv
+bGludXgvbW0uaCB8IDMgKystDQo+ID4gIDEgZmlsZSBjaGFuZ2VkLCAyIGluc2VydGlvbnMoKyks
+IDEgZGVsZXRpb24oLSkNCj4gPg0KPiA+IGRpZmYgLS1naXQgYS9pbmNsdWRlL2xpbnV4L21tLmgg
+Yi9pbmNsdWRlL2xpbnV4L21tLmggaW5kZXgNCj4gPiAxMWI2NWNmLi4zNDEyNGM0IDEwMDY0NA0K
+PiA+IC0tLSBhL2luY2x1ZGUvbGludXgvbW0uaA0KPiA+ICsrKyBiL2luY2x1ZGUvbGludXgvbW0u
+aA0KPiA+IEBAIC0zNzMsNyArMzczLDggQEAgc3RhdGljIGlubGluZSB2b2lkIHJlc2V0X3BhZ2Vf
+bWFwY291bnQoc3RydWN0IHBhZ2UNCj4gPiAqcGFnZSkNCj4gPg0KPiA+ICBzdGF0aWMgaW5saW5l
+IGludCBwYWdlX21hcGNvdW50KHN0cnVjdCBwYWdlICpwYWdlKSAgew0KPiA+IC0JcmV0dXJuIGF0
+b21pY19yZWFkKCYocGFnZSktPl9tYXBjb3VudCkgKyAxOw0KPiA+ICsJVk1fQlVHX09OKFBhZ2VT
+bGFiKHBhZ2UpKTsNCj4gDQo+IHMvIFZNX0JVR19PTi8gVk1fQlVHX09OX1BBR0UvID8NClllcywg
+SSB3aWxsIHNlbmQgYWdhaW4gLg0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
