@@ -1,61 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 862BA6B0038
-	for <linux-mm@kvack.org>; Mon,  8 Dec 2014 02:15:55 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id kq14so4697105pab.40
-        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 23:15:55 -0800 (PST)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id c7si28880444pat.30.2014.12.07.23.15.52
-        for <linux-mm@kvack.org>;
-        Sun, 07 Dec 2014 23:15:54 -0800 (PST)
-Date: Mon, 8 Dec 2014 16:19:40 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: isolate_freepages_block and excessive CPU usage by OSD process
-Message-ID: <20141208071939.GC3904@js1304-P5Q-DELUXE>
-References: <20141128080331.GD11802@js1304-P5Q-DELUXE>
- <54783FB7.4030502@suse.cz>
- <20141201083118.GB2499@js1304-P5Q-DELUXE>
- <20141202014724.GA22239@cucumber.bridge.anchor.net.au>
- <20141202045324.GC6268@js1304-P5Q-DELUXE>
- <20141202050608.GA11051@cucumber.bridge.anchor.net.au>
- <20141203075747.GB6276@js1304-P5Q-DELUXE>
- <20141204073045.GA2960@cucumber.anchor.net.au>
- <20141205010733.GA13751@js1304-P5Q-DELUXE>
- <20141205055544.GB18326@cucumber.syd4.anchor.net.au>
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id C395C6B0038
+	for <linux-mm@kvack.org>; Mon,  8 Dec 2014 02:22:58 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id eu11so4650310pac.8
+        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 23:22:58 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id bg2si58823535pdb.20.2014.12.07.23.22.56
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 07 Dec 2014 23:22:57 -0800 (PST)
+Message-ID: <548551CC.70908@codeaurora.org>
+Date: Mon, 08 Dec 2014 12:52:52 +0530
+From: Chintan Pandya <cpandya@codeaurora.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141205055544.GB18326@cucumber.syd4.anchor.net.au>
+Subject: Re: Questions about mm
+References: <548527E3.6040104@gmail.com>
+In-Reply-To: <548527E3.6040104@gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Sanidhya Kashyap <sanidhya.gatech@gmail.com>
+Cc: linux-mm@kvack.org
 
-On Fri, Dec 05, 2014 at 04:55:44PM +1100, Christian Marie wrote:
-> On Fri, Dec 05, 2014 at 10:07:33AM +0900, Joonsoo Kim wrote:
-> > It looks that there is no stop condition in isolate_freepages(). In
-> > this period, your system have not enough freepage and many processes
-> > try to find freepage for compaction. Because there is no stop
-> > condition, they iterate almost all memory range every time. At the
-> > bottom of this mail, I attach one more fix although I don't test it
-> > yet. It will cause a lot of allocation failure that your network layer
-> > need. It is order 5 allocation request and with __GFP_NOWARN gfp flag,
-> > so I assume that there is no problem if allocation request is failed,
-> > but, I'm not sure.
-> > 
-> > watermark check on this patch needs cc->classzone_idx, cc->alloc_flags
-> > that comes from Vlastimil's recent change. If you want to test it with
-> > 3.18rc5, please remove it. It doesn't much matter.
-> > 
-> > Anyway, I hope it also helps you.
-> 
-> Thank you, I will try this next week. If it improves the situation do you think
-> that we have a good chance of merging it upstream? I should think that
-> backporting such a fix would be a hard sell.
+Hi Sanidhya,
 
-I think that if it improves the situation, it could be merged into upstream.
-If the patch fix real issue, it is a candidate for stable tree.
+Could you explain your use-case or debug method ? Why do you need to 
+keep a page even after its original process have got killed ?
 
-Thanks.
+thanks,
+
+On 12/08/2014 09:54 AM, Sanidhya Kashyap wrote:
+> Hello everyone,
+>
+> I have some questions about page allocation and locking.
+>
+> - Suppose that a process is about to be killed and before that happens, I want
+> to keep the content of the page intact in the memory, i.e. the page should
+> neither be zeored or allocated to some other process unless required. In order
+> to achieve this, what can be the most optimal approach in which the internals of
+> the kernel is not changed besides adding a syscall or something.
+>
+> - Another is what happens if I increase the count of mm_users and mm_count
+> before and later that process gets killed. Assuming that the mm was linked only
+> to the killed process. What will happen in this case?
+>
+> - Last question that I wanted to know is what will happen if I change the flags
+> of the pages to be reserved and unevictable?
+> Is it possible for the pages to be set pinned as well?
+> Can this approach help me soling the first issue or I might get a BUG by some
+> other component in kernel?
+>
+> Since, I have just started playing with the kernel, so there is a possibility
+> that I might have asked something very silly/horrific. Please bear with me.
+>
+> Thanks,
+> Sanidhya
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email:<a href=mailto:"dont@kvack.org">  email@kvack.org</a>
+
+
+-- 
+Chintan Pandya
+
+QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
+member of the Code Aurora Forum, hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
