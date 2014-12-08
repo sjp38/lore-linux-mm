@@ -1,48 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id E61976B006E
-	for <linux-mm@kvack.org>; Sun,  7 Dec 2014 14:00:28 -0500 (EST)
-Received: by mail-wi0-f174.google.com with SMTP id h11so2921858wiw.7
-        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 11:00:28 -0800 (PST)
-Received: from mail-wg0-x232.google.com (mail-wg0-x232.google.com. [2a00:1450:400c:c00::232])
-        by mx.google.com with ESMTPS id e7si6633358wib.100.2014.12.07.11.00.28
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 120C26B0038
+	for <linux-mm@kvack.org>; Sun,  7 Dec 2014 19:07:34 -0500 (EST)
+Received: by mail-pa0-f52.google.com with SMTP id eu11so4100368pac.11
+        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 16:07:33 -0800 (PST)
+Received: from fgwmail5.fujitsu.co.jp (fgwmail5.fujitsu.co.jp. [192.51.44.35])
+        by mx.google.com with ESMTPS id of5si27998596pbb.197.2014.12.07.16.07.31
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 07 Dec 2014 11:00:28 -0800 (PST)
-Received: by mail-wg0-f50.google.com with SMTP id k14so4684583wgh.9
-        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 11:00:28 -0800 (PST)
-Date: Sun, 7 Dec 2014 20:00:26 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 0/4] OOM vs PM freezer fixes
-Message-ID: <20141207190026.GB29065@dhcp22.suse.cz>
-References: <20141110163055.GC18373@dhcp22.suse.cz>
- <1417797707-31699-1-git-send-email-mhocko@suse.cz>
- <20141207100953.GC15892@dhcp22.suse.cz>
- <20141207135551.GA19034@htj.dyndns.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 07 Dec 2014 16:07:32 -0800 (PST)
+Received: from kw-mxauth.gw.nic.fujitsu.com (unknown [10.0.237.134])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 1FFA63EE1AB
+	for <linux-mm@kvack.org>; Mon,  8 Dec 2014 09:07:30 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by kw-mxauth.gw.nic.fujitsu.com (Postfix) with ESMTP id 1D152AC0475
+	for <linux-mm@kvack.org>; Mon,  8 Dec 2014 09:07:29 +0900 (JST)
+Received: from g01jpfmpwyt01.exch.g01.fujitsu.local (g01jpfmpwyt01.exch.g01.fujitsu.local [10.128.193.38])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AEFB3E08006
+	for <linux-mm@kvack.org>; Mon,  8 Dec 2014 09:07:28 +0900 (JST)
+Message-ID: <5484EBA5.8050302@jp.fujitsu.com>
+Date: Mon, 8 Dec 2014 09:07:01 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141207135551.GA19034@htj.dyndns.org>
+Subject: Re: [PATCH 0/2] Drivers: hv: hv_balloon: Fix a deadlock in the hot-add
+ path.
+References: <1417826471-21131-1-git-send-email-kys@microsoft.com>
+In-Reply-To: <1417826471-21131-1-git-send-email-kys@microsoft.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-pm@vger.kernel.org
+To: "K. Y. Srinivasan" <kys@microsoft.com>, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, devel@linuxdriverproject.org, olaf@aepfle.de, apw@canonical.com, linux-mm@kvack.org
 
-On Sun 07-12-14 08:55:51, Tejun Heo wrote:
-> On Sun, Dec 07, 2014 at 11:09:53AM +0100, Michal Hocko wrote:
-> > this is another attempt to address OOM vs. PM interaction. More
-> > about the issue is described in the last patch. The other 4 patches
-> > are just clean ups. This is based on top of 3.18-rc3 + Johannes'
-> > http://marc.info/?l=linux-kernel&m=141779091114777 which is not in the
-> > Andrew's tree yet but I wanted to prevent from later merge conflicts.
+(2014/12/06 9:41), K. Y. Srinivasan wrote:
+> Fix a deadlock in the hot-add path in the Hyper-V balloon driver.
 > 
-> When the patches are based on a custom tree, it's often a good idea to
-> create a git branch of the patches to help reviewing.
 
-git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git to-review/make-oom-vs-pm-freezing-more-robust-2
--- 
-Michal Hocko
-SUSE Labs
+> K. Y. Srinivasan (2):
+>    Drivers: base: core: Export functions to lock/unlock device hotplug
+>      lock
+>    Drivers: hv: balloon: Fix the deadlock issue in the memory hot-add
+>      code
+
+Looks good to me.
+
+Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+
+Thanks,
+Yasauaki Ishimatsu
+
+> 
+>   drivers/base/core.c     |    2 ++
+>   drivers/hv/hv_balloon.c |    4 ++++
+>   2 files changed, 6 insertions(+), 0 deletions(-)
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
