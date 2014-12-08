@@ -1,73 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 76C196B0073
-	for <linux-mm@kvack.org>; Mon,  8 Dec 2014 06:26:12 -0500 (EST)
-Received: by mail-wi0-f171.google.com with SMTP id bs8so4392127wib.4
-        for <linux-mm@kvack.org>; Mon, 08 Dec 2014 03:26:12 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id jt3si9369539wid.19.2014.12.08.03.26.11
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 08 Dec 2014 03:26:11 -0800 (PST)
-Date: Mon, 8 Dec 2014 11:26:06 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC PATCH 3/3] mm: always steal split buddies in fallback
- allocations
-Message-ID: <20141208112606.GP6043@suse.de>
-References: <1417713178-10256-1-git-send-email-vbabka@suse.cz>
- <1417713178-10256-4-git-send-email-vbabka@suse.cz>
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id E2B256B006C
+	for <linux-mm@kvack.org>; Mon,  8 Dec 2014 06:46:14 -0500 (EST)
+Received: by mail-wi0-f170.google.com with SMTP id bs8so6854996wib.3
+        for <linux-mm@kvack.org>; Mon, 08 Dec 2014 03:46:14 -0800 (PST)
+Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.195])
+        by mx.google.com with ESMTP id t2si9377619wiw.60.2014.12.08.03.46.13
+        for <linux-mm@kvack.org>;
+        Mon, 08 Dec 2014 03:46:14 -0800 (PST)
+Date: Mon, 8 Dec 2014 13:46:01 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC V4] mm:add KPF_ZERO_PAGE flag for /proc/kpageflags
+Message-ID: <20141208114601.GA28846@node.dhcp.inet.fi>
+References: <35FD53F367049845BC99AC72306C23D103E688B313EE@CNBJMBX05.corpusers.net>
+ <CALYGNiOuBKz8shHSrFCp0BT5AV6XkNOCHj+LJedQQ-2YdZtM7w@mail.gmail.com>
+ <35FD53F367049845BC99AC72306C23D103E688B313F2@CNBJMBX05.corpusers.net>
+ <20141205143134.37139da2208c654a0d3cd942@linux-foundation.org>
+ <35FD53F367049845BC99AC72306C23D103E688B313F4@CNBJMBX05.corpusers.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1417713178-10256-4-git-send-email-vbabka@suse.cz>
+In-Reply-To: <35FD53F367049845BC99AC72306C23D103E688B313F4@CNBJMBX05.corpusers.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>
+To: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Konstantin Khlebnikov' <koct9i@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "n-horiguchi@ah.jp.nec.com" <n-horiguchi@ah.jp.nec.com>
 
-On Thu, Dec 04, 2014 at 06:12:58PM +0100, Vlastimil Babka wrote:
-> When allocation falls back to another migratetype, it will steal a page with
-> highest available order, and (depending on this order and desired migratetype),
-> it might also steal the rest of free pages from the same pageblock.
+On Mon, Dec 08, 2014 at 10:00:50AM +0800, Wang, Yalin wrote:
+> This patch add KPF_ZERO_PAGE flag for zero_page,
+> so that userspace process can notice zero_page from
+> /proc/kpageflags, and then do memory analysis more accurately.
 > 
-> Given the preference of highest available order, it is likely that it will be
-> higher than the desired order, and result in the stolen buddy page being split.
-> The remaining pages after split are currently stolen only when the rest of the
-> free pages are stolen.
-
-The original intent was that the stolen fallback buddy page would be
-added to the requested migratetype freelists. This was independent of
-whether all other free pages in the pageblock were moved or whether the
-pageblock migratetype was updated.
-
-> This can however lead to situations where for MOVABLE
-> allocations we split e.g. order-4 fallback UNMOVABLE page, but steal only
-> order-0 page. Then on the next MOVABLE allocation (which may be batched to
-> fill the pcplists) we split another order-3 or higher page, etc. By stealing
-> all pages that we have split, we can avoid further stealing.
+> Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
+> ---
+>  Documentation/vm/pagemap.txt           |  5 +++++
+>  fs/proc/page.c                         | 16 +++++++++++++---
+>  include/linux/huge_mm.h                | 12 ++++++++++++
+>  include/uapi/linux/kernel-page-flags.h |  1 +
+>  mm/huge_memory.c                       |  7 +------
+>  5 files changed, 32 insertions(+), 9 deletions(-)
 > 
-> This patch therefore adjust the page stealing so that buddy pages created by
-> split are always stolen. This has effect only on MOVABLE allocations, as
-> RECLAIMABLE and UNMOVABLE allocations already always do that in addition to
-> stealing the rest of free pages from the pageblock.
-> 
+> diff --git a/Documentation/vm/pagemap.txt b/Documentation/vm/pagemap.txt
+> index 5948e45..fdeb06e 100644
+> --- a/Documentation/vm/pagemap.txt
+> +++ b/Documentation/vm/pagemap.txt
+> @@ -62,6 +62,8 @@ There are three components to pagemap:
+>      20. NOPAGE
+>      21. KSM
+>      22. THP
+> +    23. BALLOON
+> +    24. ZERO_PAGE
+>  
+>  Short descriptions to the page flags:
+>  
+> @@ -102,6 +104,9 @@ Short descriptions to the page flags:
+>  22. THP
+>      contiguous pages which construct transparent hugepages
+>  
+> +24. ZERO_PAGE
+> +    zero page for pfn_zero or huge_zero page
+> +
+>      [IO related page flags]
+>   1. ERROR     IO error occurred
+>   3. UPTODATE  page has up-to-date data
 
-This restores the intended behaviour.
+Would be nice to document BALLOON while you're there.
+Otherwise looks good to me.
 
-> Note that commit 7118af076f6 ("mm: mmzone: MIGRATE_CMA migration type added")
-> has already performed this change (unintentinally), but was reverted by commit
-> 0cbef29a7821 ("mm: __rmqueue_fallback() should respect pageblock type").
-> Neither included evaluation. My evaluation with stress-highalloc from mmtests
-> shows about 2.5x reduction of page stealing events for MOVABLE allocations,
-> without affecting the page stealing events for other allocation migratetypes.
-> 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-
-Acked-by: Mel Gorman <mgorman@suse.de>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
 -- 
-Mel Gorman
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
