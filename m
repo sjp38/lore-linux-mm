@@ -1,56 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id B86606B0038
-	for <linux-mm@kvack.org>; Mon,  8 Dec 2014 02:48:01 -0500 (EST)
-Received: by mail-pd0-f175.google.com with SMTP id y10so4660442pdj.6
-        for <linux-mm@kvack.org>; Sun, 07 Dec 2014 23:48:01 -0800 (PST)
-Received: from cnbjrel02.sonyericsson.com (cnbjrel02.sonyericsson.com. [219.141.167.166])
-        by mx.google.com with ESMTPS id pt10si3057728pac.96.2014.12.07.23.47.58
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id CCC426B0038
+	for <linux-mm@kvack.org>; Mon,  8 Dec 2014 03:32:22 -0500 (EST)
+Received: by mail-wi0-f174.google.com with SMTP id h11so3978871wiw.1
+        for <linux-mm@kvack.org>; Mon, 08 Dec 2014 00:32:22 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d1si8848669wie.4.2014.12.08.00.32.21
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 07 Dec 2014 23:48:00 -0800 (PST)
-From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Date: Mon, 8 Dec 2014 15:47:47 +0800
-Subject: [PATCH] mm:add VM_BUG_ON() for page_mapcount()
-Message-ID: <35FD53F367049845BC99AC72306C23D103E688B313F5@CNBJMBX05.corpusers.net>
-References: <35FD53F367049845BC99AC72306C23D103E688B313EE@CNBJMBX05.corpusers.net>
- <35FD53F367049845BC99AC72306C23D103E688B313F1@CNBJMBX05.corpusers.net>
-In-Reply-To: <35FD53F367049845BC99AC72306C23D103E688B313F1@CNBJMBX05.corpusers.net>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Mon, 08 Dec 2014 00:32:21 -0800 (PST)
+Message-ID: <54856213.9070909@suse.cz>
+Date: Mon, 08 Dec 2014 09:32:19 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
+Subject: Re: [RFC PATCH V2 0/4] Reducing parameters of alloc_pages* family
+ of functions
+References: <1417809545-4540-1-git-send-email-vbabka@suse.cz> <CA+55aFwvWk6twgBaevPrF5z_0Faetnh0L19ZokWLidiaAaUmQg@mail.gmail.com>
+In-Reply-To: <CA+55aFwvWk6twgBaevPrF5z_0Faetnh0L19ZokWLidiaAaUmQg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'akpm@linux-foundation.org'" <akpm@linux-foundation.org>, "'riel@redhat.com'" <riel@redhat.com>, "'nasa4836@gmail.com'" <nasa4836@gmail.com>, "'sasha.levin@oracle.com'" <sasha.levin@oracle.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
 
-This patch add VM_BUG_ON() for slab page,
-because _mapcount is an union with slab struct in struct page,
-avoid access _mapcount if this page is a slab page.
-Also remove the unneeded bracket.
+On 12/06/2014 02:07 AM, Linus Torvalds wrote:
+> On Fri, Dec 5, 2014 at 11:59 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
+>> Hey all,
+>>
+>> this is a V2 of attempting something that has been discussed when Minchan
+>> proposed to expand the x86 kernel stack [1], namely the reduction of huge
+>> number of parameters that the alloc_pages* family and get_page_from_freelist()
+>> functions have.
+>
+> So I generally like this, but looking at that "struct alloc_context",
+> one member kind of stands out: the "order" parameter doesn't fit in
+> with all the other members.
+>
+> Most everything else is describing where or what kind of pages to work
+> with. The "order" in contrast, really is separate.
+>
+> So conceptually, my reaction is that it looks like a good cleanup even
+> aside from the code/stack size reduction, but that the alloc_context
+> definition is a bit odd.
+>
+> Quite frankly, I think the :"order" really fits much more closely with
+> "alloc_flags", not with the alloc_context. Because like alloc_flags,.
+> it really describes how we need to allocate things within the context,
+> I'd argue.
+>
+> In fact, I think that the order could actually be packed with the
+> alloc_flags in a single register, even on 32-bit (using a single-word
+> structure, perhaps). If we really care about number of parameters.
+>
+> I'd rather go for "makes conceptual sense" over "packs order in
+> because it kind of works" and we don't modify it".
+>
+> Hmm?
 
-Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
----
- include/linux/mm.h | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+Thanks for the suggestions, order indeed stands out. I'll check if it 
+makes more sense to have it separately, or pack as you suggest. Packing
+could perhaps bring more complexity than the benefit of less parameters. 
+But the suggestion made me realize that migratetype could be also packed 
+into alloc_flags and it would be more straightforward for that than order.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 11b65cf..34124c4 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -373,7 +373,8 @@ static inline void reset_page_mapcount(struct page *pag=
-e)
-=20
- static inline int page_mapcount(struct page *page)
- {
--	return atomic_read(&(page)->_mapcount) + 1;
-+	VM_BUG_ON(PageSlab(page));
-+	return atomic_read(&page->_mapcount) + 1;
- }
-=20
- static inline int page_count(struct page *page)
---=20
-2.1.3
+With order and migratetype out, everything left in alloc_context would 
+be about nodes and zones, which is also good I guess. Maybe a different 
+name for the structure then?
+
+Vlastimil
+
+>
+>                         Linus
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
