@@ -1,77 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id CCC426B0038
-	for <linux-mm@kvack.org>; Mon,  8 Dec 2014 03:32:22 -0500 (EST)
-Received: by mail-wi0-f174.google.com with SMTP id h11so3978871wiw.1
-        for <linux-mm@kvack.org>; Mon, 08 Dec 2014 00:32:22 -0800 (PST)
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id CB32C6B006E
+	for <linux-mm@kvack.org>; Mon,  8 Dec 2014 04:06:40 -0500 (EST)
+Received: by mail-wi0-f177.google.com with SMTP id l15so4115186wiw.4
+        for <linux-mm@kvack.org>; Mon, 08 Dec 2014 01:06:39 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d1si8848669wie.4.2014.12.08.00.32.21
+        by mx.google.com with ESMTPS id z2si8851107wib.91.2014.12.08.01.06.38
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 08 Dec 2014 00:32:21 -0800 (PST)
-Message-ID: <54856213.9070909@suse.cz>
-Date: Mon, 08 Dec 2014 09:32:19 +0100
+        Mon, 08 Dec 2014 01:06:38 -0800 (PST)
+Message-ID: <54856A1D.9060200@suse.cz>
+Date: Mon, 08 Dec 2014 10:06:37 +0100
 From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH V2 0/4] Reducing parameters of alloc_pages* family
- of functions
-References: <1417809545-4540-1-git-send-email-vbabka@suse.cz> <CA+55aFwvWk6twgBaevPrF5z_0Faetnh0L19ZokWLidiaAaUmQg@mail.gmail.com>
-In-Reply-To: <CA+55aFwvWk6twgBaevPrF5z_0Faetnh0L19ZokWLidiaAaUmQg@mail.gmail.com>
+Subject: Re: [PATCH 1/4] mm/compaction: fix wrong order check in compact_finished()
+References: <1418022980-4584-1-git-send-email-iamjoonsoo.kim@lge.com> <1418022980-4584-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1418022980-4584-2-git-send-email-iamjoonsoo.kim@lge.com>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
-On 12/06/2014 02:07 AM, Linus Torvalds wrote:
-> On Fri, Dec 5, 2014 at 11:59 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
->> Hey all,
->>
->> this is a V2 of attempting something that has been discussed when Minchan
->> proposed to expand the x86 kernel stack [1], namely the reduction of huge
->> number of parameters that the alloc_pages* family and get_page_from_freelist()
->> functions have.
+On 12/08/2014 08:16 AM, Joonsoo Kim wrote:
+> What we want to check here is whether there is highorder freepage
+> in buddy list of other migratetype in order to steal it without
+> fragmentation. But, current code just checks cc->order which means
+> allocation request order. So, this is wrong.
 >
-> So I generally like this, but looking at that "struct alloc_context",
-> one member kind of stands out: the "order" parameter doesn't fit in
-> with all the other members.
+> Without this fix, non-movable synchronous compaction below pageblock order
+> would not stopped until compaction is complete, because migratetype of most
+> pageblocks are movable and high order freepage made by compaction is usually
+> on movable type buddy list.
 >
-> Most everything else is describing where or what kind of pages to work
-> with. The "order" in contrast, really is separate.
+> There is some report related to this bug. See below link.
 >
-> So conceptually, my reaction is that it looks like a good cleanup even
-> aside from the code/stack size reduction, but that the alloc_context
-> definition is a bit odd.
+> http://www.spinics.net/lists/linux-mm/msg81666.html
 >
-> Quite frankly, I think the :"order" really fits much more closely with
-> "alloc_flags", not with the alloc_context. Because like alloc_flags,.
-> it really describes how we need to allocate things within the context,
-> I'd argue.
+> Although the issued system still has load spike comes from compaction,
+> this makes that system completely stable and responsive according to
+> his report.
 >
-> In fact, I think that the order could actually be packed with the
-> alloc_flags in a single register, even on 32-bit (using a single-word
-> structure, perhaps). If we really care about number of parameters.
+> stress-highalloc test in mmtests with non movable order 7 allocation doesn't
+> show any notable difference in allocation success rate, but, it shows more
+> compaction success rate and reduced elapsed time.
 >
-> I'd rather go for "makes conceptual sense" over "packs order in
-> because it kind of works" and we don't modify it".
+> Compaction success rate (Compaction success * 100 / Compaction stalls, %)
+> 18.47 : 28.94
 >
-> Hmm?
+> Elapsed time (sec)
+> 1429 : 1411
+>
+> Cc: <stable@vger.kernel.org>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Thanks for the suggestions, order indeed stands out. I'll check if it 
-makes more sense to have it separately, or pack as you suggest. Packing
-could perhaps bring more complexity than the benefit of less parameters. 
-But the suggestion made me realize that migratetype could be also packed 
-into alloc_flags and it would be more straightforward for that than order.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-With order and migratetype out, everything left in alloc_context would 
-be about nodes and zones, which is also good I guess. Maybe a different 
-name for the structure then?
-
-Vlastimil
-
+> ---
+>   mm/compaction.c |    2 +-
+>   1 file changed, 1 insertion(+), 1 deletion(-)
 >
->                         Linus
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index c9ee464..1a5f465 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -1105,7 +1105,7 @@ static int __compact_finished(struct zone *zone, struct compact_control *cc,
+>   			return COMPACT_PARTIAL;
+>
+>   		/* Job done if allocation would set block type */
+> -		if (cc->order >= pageblock_order && area->nr_free)
+> +		if (order >= pageblock_order && area->nr_free)
+>   			return COMPACT_PARTIAL;
+>   	}
+>
 >
 
 --
