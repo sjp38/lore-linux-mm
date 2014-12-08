@@ -1,110 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id ACDE36B0071
-	for <linux-mm@kvack.org>; Mon,  8 Dec 2014 06:25:01 -0500 (EST)
-Received: by mail-pd0-f175.google.com with SMTP id y10so4983608pdj.6
-        for <linux-mm@kvack.org>; Mon, 08 Dec 2014 03:25:01 -0800 (PST)
-Received: from m15-46.126.com (m15-46.126.com. [220.181.15.46])
-        by mx.google.com with ESMTP id kn6si21411483pdb.248.2014.12.08.03.24.58
-        for <linux-mm@kvack.org>;
-        Mon, 08 Dec 2014 03:25:00 -0800 (PST)
-Date: Mon, 8 Dec 2014 19:24:53 +0800 (CST)
-From: =?GBK?B?x9jfrrjq?= <michaelbest002@126.com>
-Subject: I want to be a contributor for linux-mm
-In-Reply-To: <CAK25hWPMYrwf9VoXyZYj3-ye411iEYxCguChUYTzBnPAxW6dVw@mail.gmail.com>
-References: <CAOKdMdZH1Lwfp0bA57L+5mBJS8+zyHtAe-y=3+oyEVYXKFvRdA@mail.gmail.com>
- <CAK25hWPMYrwf9VoXyZYj3-ye411iEYxCguChUYTzBnPAxW6dVw@mail.gmail.com>
-Content-Type: multipart/alternative;
-	boundary="----=_Part_416902_132852385.1418037893706"
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 76C196B0073
+	for <linux-mm@kvack.org>; Mon,  8 Dec 2014 06:26:12 -0500 (EST)
+Received: by mail-wi0-f171.google.com with SMTP id bs8so4392127wib.4
+        for <linux-mm@kvack.org>; Mon, 08 Dec 2014 03:26:12 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id jt3si9369539wid.19.2014.12.08.03.26.11
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 08 Dec 2014 03:26:11 -0800 (PST)
+Date: Mon, 8 Dec 2014 11:26:06 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC PATCH 3/3] mm: always steal split buddies in fallback
+ allocations
+Message-ID: <20141208112606.GP6043@suse.de>
+References: <1417713178-10256-1-git-send-email-vbabka@suse.cz>
+ <1417713178-10256-4-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
-Message-ID: <6fac41b5.19910.14a29a51a4b.Coremail.michaelbest002@126.com>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1417713178-10256-4-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Saket Sinha <saket.sinha89@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>
 
-------=_Part_416902_132852385.1418037893706
-Content-Type: text/plain; charset=GBK
-Content-Transfer-Encoding: base64
+On Thu, Dec 04, 2014 at 06:12:58PM +0100, Vlastimil Babka wrote:
+> When allocation falls back to another migratetype, it will steal a page with
+> highest available order, and (depending on this order and desired migratetype),
+> it might also steal the rest of free pages from the same pageblock.
+> 
+> Given the preference of highest available order, it is likely that it will be
+> higher than the desired order, and result in the stolen buddy page being split.
+> The remaining pages after split are currently stolen only when the rest of the
+> free pages are stolen.
 
-SGkgU2FrZXQgU2luaGEsCgoKSSdtIGFsc28gYSBrZXJuZWwgbmV3YmllIHdobyBpcyBlYWdlciB0
-byBkbyBzb21ldGhpbmcgZm9yIGtlcm5lbC4gUmVjZW50bHkgSSBoYXZlIGRvbmUgc29tZSBleHBl
-cmltZW50IG9uIHBhZ2UgZmF1bHQgaGFuZGxlciBpbiB4ODYgYW5kIEkgZmVlbCB0aGF0IEkgY2Fu
-IG1ha2Ugc29tZSBjb250cmlidXRpb24gdG8gaXQgb3Igc29tZXRoaW5nIGVsc2UgcmVsYXRlZCB0
-byBtbS4gQnV0IEkgY291bGRuJ3QgdHJhY2sgdGhlIG1haWwgeW91IG1lbnRpb25lZCBiZWNhdXNl
-IEkgZGlkbid0IHN1YnNjcmliZSBsaW51eC1rZXJuZWwgbWFpbGluZyBsaXN0IHRoZW4uIFNvIGNh
-biB5b3UgaGVscCBtZSB3aXRoIGl0PyBUaGFuayB5b3UgdmVyeSBtdWNoIQoKCkJlc3QgcmVnYXJk
-cywKTWljaGFlbAoKCgoKCgoKCkF0IDIwMTQtMTItMDMgMTM6Mjc6NTIsICJTYWtldCBTaW5oYSIg
-PHNha2V0LnNpbmhhODlAZ21haWwuY29tPiB3cm90ZToKPkhpIERlYW4sCj4KPiAgICAgICAgIFJl
-Y2VudGx5LCBLZW50IE92ZXJzdHJlZXQgaGFzIGRyb29wZWQgYSBtYWlsIG9uIGxpbnV4IGtlcm5l
-bAo+bWFpbGluZyBsaXN0IHdpdGggdGhlIHN1YmplY3QgIkJsb2NrIGxheWVyIHByb2plY3RzIHRo
-YXQgSSBoYXZlbid0IGhhZAo+dGltZSBmb3IiLCBvbiBOb3YyNC4gSXQgdGFsa3MgYWJvdXQgYSBo
-YW5kZnVsIG9mIHJlbGF0ZWQgTU0tcmVsYXRlZAo+aXNzdWVzKHBhZ2UtY2FjaGUgYW5kIHN0dWZm
-KS4gU2VlIGlmIHRoYXQgaW50ZXJlc3RzIHlvdS4KPgo+TGV0IG1lIGtub3csIGlmIHlvdSBhcmUg
-dW5hYmxlIHRvIHRyYWNrIGl0Lgo+Cj5SZWdhcmRzLAo+U2FrZXQgU2luaGEKPgo+Cj4KPgo+Cj4K
-Pgo+Cj4KPgo+Cj5PbiBXZWQsIERlYyAzLCAyMDE0IGF0IDEwOjM2IEFNLCBEZWFuIE1pY2hhZWwg
-QW5jYWphcwo+PGRiYW5jYWphc0BnbWFpbC5jb20+IHdyb3RlOgo+Pgo+PiBIaSBFdmVyeW9uZSwK
-Pj4gICBJIGFtIHN0YXJ0aW5nICB0byBsZWFybiBsaW51eCBtZW1vcnkgbWFuYWdlbWV0IHVzaW5n
-IEdvcm1hbidzIGJvb2suIEkKPj4gdGhpbmsgaXQgd291bGQgYmUgZ3JlYXQgaWYgSSBjb3VsZCBw
-YXJ0aWNpcGF0ZSBpbiBhIHByb2plY3QgcmVsYXRpbmcgdG8gTU0uCj4+IFdvdWxkIGFueSBvZiB5
-b3UgZ3V5cyBrbm93IGEgbGluayBvZiB0aGUgY3VycmVudCBwcm9qZWN0cyByZWxhdGluZyB0byBN
-TQo+PiB0aGF0IEkgY2FuIGpvaW4/IFRoZXJlIGFyZSBzb21lIHByb2plY3RzIGxpc3RlZCBvbiB0
-aGUgbGludXgtbW0gd2Vic2l0ZSBidXQKPj4gSSBhbSBub3Qgc3VyZSBpZiB0aGV5IGFyZSBzdGls
-bCB1cGRhdGVkLi4uCj4+Cj4+IFRoYW5rcy4KPj4KPj4KPj4gX19fX19fX19fX19fX19fX19fX19f
-X19fX19fX19fX19fX19fX19fX19fX19fX18KPj4gS2VybmVsbmV3YmllcyBtYWlsaW5nIGxpc3QK
-Pj4gS2VybmVsbmV3Ymllc0BrZXJuZWxuZXdiaWVzLm9yZwo+PiBodHRwOi8vbGlzdHMua2VybmVs
-bmV3Ymllcy5vcmcvbWFpbG1hbi9saXN0aW5mby9rZXJuZWxuZXdiaWVzCj4+Cj4KPl9fX19fX19f
-X19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fCj5LZXJuZWxuZXdiaWVzIG1h
-aWxpbmcgbGlzdAo+S2VybmVsbmV3Ymllc0BrZXJuZWxuZXdiaWVzLm9yZwo+aHR0cDovL2xpc3Rz
-Lmtlcm5lbG5ld2JpZXMub3JnL21haWxtYW4vbGlzdGluZm8va2VybmVsbmV3Ymllcwo=
-------=_Part_416902_132852385.1418037893706
-Content-Type: text/html; charset=GBK
-Content-Transfer-Encoding: base64
+The original intent was that the stolen fallback buddy page would be
+added to the requested migratetype freelists. This was independent of
+whether all other free pages in the pageblock were moved or whether the
+pageblock migratetype was updated.
 
-PGRpdiBzdHlsZT0ibGluZS1oZWlnaHQ6MS43O2NvbG9yOiMwMDAwMDA7Zm9udC1zaXplOjE0cHg7
-Zm9udC1mYW1pbHk6QXJpYWwiPjxkaXYgc3R5bGU9ImxpbmUtaGVpZ2h0OiAyMy43OTk5OTkyMzcw
-NjA1cHg7Ij5IaSBTYWtldCBTaW5oYSw8L2Rpdj48ZGl2IHN0eWxlPSJsaW5lLWhlaWdodDogMjMu
-Nzk5OTk5MjM3MDYwNXB4OyI+PGJyPjwvZGl2PjxkaXYgc3R5bGU9ImxpbmUtaGVpZ2h0OiAyMy43
-OTk5OTkyMzcwNjA1cHg7Ij5JJ20gYWxzbyBhIGtlcm5lbCBuZXdiaWUgd2hvIGlzIGVhZ2VyIHRv
-IGRvIHNvbWV0aGluZyBmb3Iga2VybmVsLiBSZWNlbnRseSBJIGhhdmUgZG9uZSBzb21lIGV4cGVy
-aW1lbnQgb24gcGFnZSBmYXVsdCBoYW5kbGVyIGluIHg4NiBhbmQgSSBmZWVsIHRoYXQgSSBjYW4g
-bWFrZSBzb21lIGNvbnRyaWJ1dGlvbiB0byBpdCBvciBzb21ldGhpbmcgZWxzZSByZWxhdGVkIHRv
-IG1tLiBCdXQgSSBjb3VsZG4ndCB0cmFjayB0aGUgbWFpbCB5b3UgbWVudGlvbmVkIGJlY2F1c2Ug
-SSBkaWRuJ3Qgc3Vic2NyaWJlIGxpbnV4LWtlcm5lbCBtYWlsaW5nIGxpc3QgdGhlbi4gU28gY2Fu
-IHlvdSBoZWxwIG1lIHdpdGggaXQ/IFRoYW5rIHlvdSB2ZXJ5IG11Y2ghPC9kaXY+PGRpdiBzdHls
-ZT0ibGluZS1oZWlnaHQ6IDIzLjc5OTk5OTIzNzA2MDVweDsiPjxicj48L2Rpdj48ZGl2IHN0eWxl
-PSJsaW5lLWhlaWdodDogMjMuNzk5OTk5MjM3MDYwNXB4OyI+QmVzdCByZWdhcmRzLDwvZGl2Pjxk
-aXYgc3R5bGU9ImxpbmUtaGVpZ2h0OiAyMy43OTk5OTkyMzcwNjA1cHg7Ij5NaWNoYWVsPC9kaXY+
-PGJyPjxicj48YnI+PGJyPjxkaXY+PC9kaXY+PGRpdiBpZD0iZGl2TmV0ZWFzZU1haWxDYXJkIj48
-L2Rpdj48YnI+PHByZT48YnI+QXQgMjAxNC0xMi0wMyAxMzoyNzo1MiwgIlNha2V0IFNpbmhhIiAm
-bHQ7c2FrZXQuc2luaGE4OUBnbWFpbC5jb20mZ3Q7IHdyb3RlOgomZ3Q7SGkgRGVhbiwKJmd0Owom
-Z3Q7ICAgICAgICAgUmVjZW50bHksIEtlbnQgT3ZlcnN0cmVldCBoYXMgZHJvb3BlZCBhIG1haWwg
-b24gbGludXgga2VybmVsCiZndDttYWlsaW5nIGxpc3Qgd2l0aCB0aGUgc3ViamVjdCAiQmxvY2sg
-bGF5ZXIgcHJvamVjdHMgdGhhdCBJIGhhdmVuJ3QgaGFkCiZndDt0aW1lIGZvciIsIG9uIE5vdjI0
-LiBJdCB0YWxrcyBhYm91dCBhIGhhbmRmdWwgb2YgcmVsYXRlZCBNTS1yZWxhdGVkCiZndDtpc3N1
-ZXMocGFnZS1jYWNoZSBhbmQgc3R1ZmYpLiBTZWUgaWYgdGhhdCBpbnRlcmVzdHMgeW91LgomZ3Q7
-CiZndDtMZXQgbWUga25vdywgaWYgeW91IGFyZSB1bmFibGUgdG8gdHJhY2sgaXQuCiZndDsKJmd0
-O1JlZ2FyZHMsCiZndDtTYWtldCBTaW5oYQomZ3Q7CiZndDsKJmd0OwomZ3Q7CiZndDsKJmd0Owom
-Z3Q7CiZndDsKJmd0OwomZ3Q7CiZndDsKJmd0O09uIFdlZCwgRGVjIDMsIDIwMTQgYXQgMTA6MzYg
-QU0sIERlYW4gTWljaGFlbCBBbmNhamFzCiZndDsmbHQ7ZGJhbmNhamFzQGdtYWlsLmNvbSZndDsg
-d3JvdGU6CiZndDsmZ3Q7CiZndDsmZ3Q7IEhpIEV2ZXJ5b25lLAomZ3Q7Jmd0OyAgIEkgYW0gc3Rh
-cnRpbmcgIHRvIGxlYXJuIGxpbnV4IG1lbW9yeSBtYW5hZ2VtZXQgdXNpbmcgR29ybWFuJ3MgYm9v
-ay4gSQomZ3Q7Jmd0OyB0aGluayBpdCB3b3VsZCBiZSBncmVhdCBpZiBJIGNvdWxkIHBhcnRpY2lw
-YXRlIGluIGEgcHJvamVjdCByZWxhdGluZyB0byBNTS4KJmd0OyZndDsgV291bGQgYW55IG9mIHlv
-dSBndXlzIGtub3cgYSBsaW5rIG9mIHRoZSBjdXJyZW50IHByb2plY3RzIHJlbGF0aW5nIHRvIE1N
-CiZndDsmZ3Q7IHRoYXQgSSBjYW4gam9pbj8gVGhlcmUgYXJlIHNvbWUgcHJvamVjdHMgbGlzdGVk
-IG9uIHRoZSBsaW51eC1tbSB3ZWJzaXRlIGJ1dAomZ3Q7Jmd0OyBJIGFtIG5vdCBzdXJlIGlmIHRo
-ZXkgYXJlIHN0aWxsIHVwZGF0ZWQuLi4KJmd0OyZndDsKJmd0OyZndDsgVGhhbmtzLgomZ3Q7Jmd0
-OwomZ3Q7Jmd0OwomZ3Q7Jmd0OyBfX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19f
-X19fX19fX19fXwomZ3Q7Jmd0OyBLZXJuZWxuZXdiaWVzIG1haWxpbmcgbGlzdAomZ3Q7Jmd0OyBL
-ZXJuZWxuZXdiaWVzQGtlcm5lbG5ld2JpZXMub3JnCiZndDsmZ3Q7IGh0dHA6Ly9saXN0cy5rZXJu
-ZWxuZXdiaWVzLm9yZy9tYWlsbWFuL2xpc3RpbmZvL2tlcm5lbG5ld2JpZXMKJmd0OyZndDsKJmd0
-OwomZ3Q7X19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX18KJmd0
-O0tlcm5lbG5ld2JpZXMgbWFpbGluZyBsaXN0CiZndDtLZXJuZWxuZXdiaWVzQGtlcm5lbG5ld2Jp
-ZXMub3JnCiZndDtodHRwOi8vbGlzdHMua2VybmVsbmV3Ymllcy5vcmcvbWFpbG1hbi9saXN0aW5m
-by9rZXJuZWxuZXdiaWVzCjwvcHJlPjwvZGl2Pjxicj48YnI+PHNwYW4gdGl0bGU9Im5ldGVhc2Vm
-b290ZXIiPjxzcGFuIGlkPSJuZXRlYXNlX21haWxfZm9vdGVyIj48L3NwYW4+PC9zcGFuPg==
-------=_Part_416902_132852385.1418037893706--
+> This can however lead to situations where for MOVABLE
+> allocations we split e.g. order-4 fallback UNMOVABLE page, but steal only
+> order-0 page. Then on the next MOVABLE allocation (which may be batched to
+> fill the pcplists) we split another order-3 or higher page, etc. By stealing
+> all pages that we have split, we can avoid further stealing.
+> 
+> This patch therefore adjust the page stealing so that buddy pages created by
+> split are always stolen. This has effect only on MOVABLE allocations, as
+> RECLAIMABLE and UNMOVABLE allocations already always do that in addition to
+> stealing the rest of free pages from the pageblock.
+> 
+
+This restores the intended behaviour.
+
+> Note that commit 7118af076f6 ("mm: mmzone: MIGRATE_CMA migration type added")
+> has already performed this change (unintentinally), but was reverted by commit
+> 0cbef29a7821 ("mm: __rmqueue_fallback() should respect pageblock type").
+> Neither included evaluation. My evaluation with stress-highalloc from mmtests
+> shows about 2.5x reduction of page stealing events for MOVABLE allocations,
+> without affecting the page stealing events for other allocation migratetypes.
+> 
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+
+Acked-by: Mel Gorman <mgorman@suse.de>
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
