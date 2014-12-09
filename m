@@ -1,90 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 546226B0032
-	for <linux-mm@kvack.org>; Tue,  9 Dec 2014 01:39:34 -0500 (EST)
-Received: by mail-pd0-f170.google.com with SMTP id v10so6737207pde.29
-        for <linux-mm@kvack.org>; Mon, 08 Dec 2014 22:39:34 -0800 (PST)
-Received: from cnbjrel02.sonyericsson.com (cnbjrel02.sonyericsson.com. [219.141.167.166])
-        by mx.google.com with ESMTPS id x3si458534pdm.53.2014.12.08.22.39.29
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B3ED6B0032
+	for <linux-mm@kvack.org>; Tue,  9 Dec 2014 02:41:38 -0500 (EST)
+Received: by mail-pa0-f52.google.com with SMTP id eu11so37912pac.25
+        for <linux-mm@kvack.org>; Mon, 08 Dec 2014 23:41:38 -0800 (PST)
+Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
+        by mx.google.com with ESMTPS id l3si452996pdl.205.2014.12.08.23.41.36
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 08 Dec 2014 22:39:31 -0800 (PST)
-From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Date: Tue, 9 Dec 2014 14:39:23 +0800
-Subject: [PATCH V3] fix build error for vm tools
-Message-ID: <35FD53F367049845BC99AC72306C23D103E688B313FF@CNBJMBX05.corpusers.net>
-References: <35FD53F367049845BC99AC72306C23D103E688B313FC@CNBJMBX05.corpusers.net>
- <35FD53F367049845BC99AC72306C23D103E688B313FD@CNBJMBX05.corpusers.net>
-In-Reply-To: <35FD53F367049845BC99AC72306C23D103E688B313FD@CNBJMBX05.corpusers.net>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Mon, 08 Dec 2014 23:41:36 -0800 (PST)
+Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
+ by mailout4.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NGB00JIU1DAFV10@mailout4.samsung.com> for
+ linux-mm@kvack.org; Tue, 09 Dec 2014 16:41:34 +0900 (KST)
+From: Weijie Yang <weijie.yang@samsung.com>
+Subject: [PATCH] mm: page_alloc: place zone id check before VM_BUG_ON_PAGE check
+Date: Tue, 09 Dec 2014 15:40:35 +0800
+Message-id: <000001d01383$8e0f1120$aa2d3360$%yang@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8
+Content-transfer-encoding: 7bit
+Content-language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "'acme@redhat.com'" <acme@redhat.com>, "'bp@suse.de'" <bp@suse.de>, "'mingo@kernel.org'" <mingo@kernel.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>
+To: mgorman@suse.de
+Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Rik van Riel' <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'Weijie Yang' <weijie.yang.kh@gmail.com>
 
-This patch fix the build error when make like this:
-make O=3D/xx/x vm
+If the free page and its buddy has different zone id, the current
+zone->lock cann't prevent buddy page getting allocated, this could
+trigger VM_BUG_ON_PAGE in a very tiny chance:
 
-use $(OUTPUT) to generate to the right place.
+cpu 0:						cpu 1:
+hold zone_1 lock
+check page and it buddy
+PageBuddy(buddy) is true			hold zone_2 lock
+page_order(buddy) == order is true		alloc buddy
+trigger VM_BUG_ON_PAGE(page_count(buddy) != 0)
 
-Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
+This patch fixes this issue by placing the zone id check before
+the VM_BUG_ON_PAGE check.
+
+Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
 ---
- tools/lib/api/Makefile |  2 +-
- tools/vm/Makefile      | 14 +++++++++-----
- 2 files changed, 10 insertions(+), 6 deletions(-)
+ mm/page_alloc.c |    8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/tools/lib/api/Makefile b/tools/lib/api/Makefile
-index 36c08b1..a1c598d 100644
---- a/tools/lib/api/Makefile
-+++ b/tools/lib/api/Makefile
-@@ -44,6 +44,6 @@ $(OUTPUT)%.o: %.S libapi_dirs
- 	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) $<
-=20
- clean:
--	$(call QUIET_CLEAN, libapi) $(RM) $(LIB_OBJS) $(LIBFILE)
-+	$(call QUIET_CLEAN, libapi) $(RM) $(LIB_OBJS) $(OUTPUT)$(LIBFILE)
-=20
- .PHONY: clean
-diff --git a/tools/vm/Makefile b/tools/vm/Makefile
-index 3d907da..7e3fc9f 100644
---- a/tools/vm/Makefile
-+++ b/tools/vm/Makefile
-@@ -1,22 +1,26 @@
- # Makefile for vm tools
- #
-+include ../scripts/Makefile.include
- TARGETS=3Dpage-types slabinfo
-=20
- LIB_DIR =3D ../lib/api
--LIBS =3D $(LIB_DIR)/libapikfs.a
-+LIBS =3D $(OUTPUT)../lib/api/libapikfs.a
-=20
- CC =3D $(CROSS_COMPILE)gcc
- CFLAGS =3D -Wall -Wextra -I../lib/
- LDFLAGS =3D $(LIBS)
-=20
-+all: $(TARGETS)
- $(TARGETS): $(LIBS)
-=20
- $(LIBS):
--	make -C $(LIB_DIR)
-+	$(call descend,../lib/api libapikfs.a)
-=20
- %: %.c
--	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
-+	$(CC) $(CFLAGS) -o $(OUTPUT)$@ $< $(LDFLAGS)
-=20
- clean:
--	$(RM) page-types slabinfo
--	make -C $(LIB_DIR) clean
-+	$(RM) $(OUTPUT)page-types $(OUTPUT)slabinfo
-+	$(call descend,../lib/api clean)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 616a2c9..491d055 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -488,17 +488,15 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
+ 		return 0;
+ 
+ 	if (page_is_guard(buddy) && page_order(buddy) == order) {
+-		VM_BUG_ON_PAGE(page_count(buddy) != 0, buddy);
+-
+ 		if (page_zone_id(page) != page_zone_id(buddy))
+ 			return 0;
+ 
++		VM_BUG_ON_PAGE(page_count(buddy) != 0, buddy);
 +
-+.PHONY: all clean
---=20
-2.1.3
+ 		return 1;
+ 	}
+ 
+ 	if (PageBuddy(buddy) && page_order(buddy) == order) {
+-		VM_BUG_ON_PAGE(page_count(buddy) != 0, buddy);
+-
+ 		/*
+ 		 * zone check is done late to avoid uselessly
+ 		 * calculating zone/node ids for pages that could
+@@ -507,6 +505,8 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
+ 		if (page_zone_id(page) != page_zone_id(buddy))
+ 			return 0;
+ 
++		VM_BUG_ON_PAGE(page_count(buddy) != 0, buddy);
++
+ 		return 1;
+ 	}
+ 	return 0;
+-- 
+1.7.10.4
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
