@@ -1,72 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 1005C6B0032
-	for <linux-mm@kvack.org>; Tue,  9 Dec 2014 05:55:34 -0500 (EST)
-Received: by mail-wi0-f175.google.com with SMTP id l15so7430708wiw.14
-        for <linux-mm@kvack.org>; Tue, 09 Dec 2014 02:55:33 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cs8si1524422wjc.11.2014.12.09.02.55.33
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CBFB6B0038
+	for <linux-mm@kvack.org>; Tue,  9 Dec 2014 12:10:53 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id rd3so932349pab.7
+        for <linux-mm@kvack.org>; Tue, 09 Dec 2014 09:10:53 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id ye3si2702696pab.141.2014.12.09.09.10.50
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 09 Dec 2014 02:55:33 -0800 (PST)
-Date: Tue, 9 Dec 2014 11:55:32 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 2/2] Drivers: hv: balloon: Fix the deadlock issue in the
- memory hot-add code
-Message-ID: <20141209105532.GB11373@dhcp22.suse.cz>
-References: <1417826471-21131-1-git-send-email-kys@microsoft.com>
- <1417826498-21172-1-git-send-email-kys@microsoft.com>
- <1417826498-21172-2-git-send-email-kys@microsoft.com>
- <20141208150445.GB29102@dhcp22.suse.cz>
- <54864F27.8010008@jp.fujitsu.com>
- <20141209090843.GA11373@dhcp22.suse.cz>
- <5486CE2E.4070409@jp.fujitsu.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Dec 2014 09:10:51 -0800 (PST)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH -mm] memcg: zap __memcg_{charge,uncharge}_slab
+Date: Tue, 9 Dec 2014 20:10:39 +0300
+Message-ID: <1418145039-31053-1-git-send-email-vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5486CE2E.4070409@jp.fujitsu.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: "K. Y. Srinivasan" <kys@microsoft.com>, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, devel@linuxdriverproject.org, olaf@aepfle.de, apw@canonical.com, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 09-12-14 19:25:50, Yasuaki Ishimatsu wrote:
-> (2014/12/09 18:08), Michal Hocko wrote:
-[...]
-> >Doesn't udev retry the operation if it gets EBUSY or EAGAIN?
-> 
-> It depend on implementation of udev.rules. So we can retry online/offline
-> operation in udev.rules.
-[...]
+They are simple wrappers around memcg_{charge,uncharge}_kmem, so let's
+zap them and call these functions directly.
 
-# Memory hotadd request
-SUBSYSTEM=="memory", ACTION=="add", DEVPATH=="/devices/system/memory/memory*[0-9]", TEST=="/sys$devpath/state", RUN+="/bin/sh -c 'echo online > /sys$devpath/state'"
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+---
+ include/linux/memcontrol.h |    5 +++--
+ mm/memcontrol.c            |   21 +++------------------
+ mm/slab.h                  |    4 ++--
+ 3 files changed, 8 insertions(+), 22 deletions(-)
 
-OK so this is not prepared for a temporary failures and retries.
-
-> >And again, why cannot we simply make the onlining fail or try_lock and
-> >retry internally if the event consumer cannot cope with errors?
-> 
-> Did you mean the following Srinivasan's first patch looks good to you?
->   https://lkml.org/lkml/2014/12/2/662
-
-Heh, I was just about to post this. Because I haven't noticed the
-previous patch yet. Yeah, Something like that. Except that I would
-expect EAGAIN or EBUSY rather than ERESTARTSYS which should never leak
-into userspace. And that would happen here AFAICS because signal_pending
-will not be true usually.
-
-So there are two options. Either make the udev rule more robust and
-retry within RUN section or do the retry withing online_pages (try_lock
-and go into interruptible sleep which gets signaled by finished
-add_memory()). The later option is safer wrt. the userspace because the
-operation wouldn't fail unexpectedly.
-Another option would be generating the sysfs file after all the internal
-initialization is done and call it outside of the memory hotplug lock.
-
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 7c95af8d552c..18ccb2988979 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -403,8 +403,9 @@ void memcg_update_array_size(int num_groups);
+ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep);
+ void __memcg_kmem_put_cache(struct kmem_cache *cachep);
+ 
+-int __memcg_charge_slab(struct kmem_cache *cachep, gfp_t gfp, int order);
+-void __memcg_uncharge_slab(struct kmem_cache *cachep, int order);
++int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp,
++		      unsigned long nr_pages);
++void memcg_uncharge_kmem(struct mem_cgroup *memcg, unsigned long nr_pages);
+ 
+ int __memcg_cleanup_cache_params(struct kmem_cache *s);
+ 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 09c4838b24f0..e9086513a42f 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2494,8 +2494,8 @@ static struct kmem_cache *memcg_params_to_cache(struct memcg_cache_params *p)
+ 	return cache_from_memcg_idx(cachep, memcg_cache_id(p->memcg));
+ }
+ 
+-static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp,
+-			     unsigned long nr_pages)
++int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp,
++		      unsigned long nr_pages)
+ {
+ 	struct page_counter *counter;
+ 	int ret = 0;
+@@ -2532,8 +2532,7 @@ static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp,
+ 	return ret;
+ }
+ 
+-static void memcg_uncharge_kmem(struct mem_cgroup *memcg,
+-				unsigned long nr_pages)
++void memcg_uncharge_kmem(struct mem_cgroup *memcg, unsigned long nr_pages)
+ {
+ 	page_counter_uncharge(&memcg->memory, nr_pages);
+ 	if (do_swap_account)
+@@ -2766,20 +2765,6 @@ static void memcg_schedule_register_cache(struct mem_cgroup *memcg,
+ 	current->memcg_kmem_skip_account = 0;
+ }
+ 
+-int __memcg_charge_slab(struct kmem_cache *cachep, gfp_t gfp, int order)
+-{
+-	unsigned int nr_pages = 1 << order;
+-
+-	return memcg_charge_kmem(cachep->memcg_params->memcg, gfp, nr_pages);
+-}
+-
+-void __memcg_uncharge_slab(struct kmem_cache *cachep, int order)
+-{
+-	unsigned int nr_pages = 1 << order;
+-
+-	memcg_uncharge_kmem(cachep->memcg_params->memcg, nr_pages);
+-}
+-
+ /*
+  * Return the kmem_cache we're supposed to use for a slab allocation.
+  * We try to use the current memcg's version of the cache.
+diff --git a/mm/slab.h b/mm/slab.h
+index 1cf4005482dd..90430d6f665e 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -235,7 +235,7 @@ static __always_inline int memcg_charge_slab(struct kmem_cache *s,
+ 		return 0;
+ 	if (is_root_cache(s))
+ 		return 0;
+-	return __memcg_charge_slab(s, gfp, order);
++	return memcg_charge_kmem(s->memcg_params->memcg, gfp, 1 << order);
+ }
+ 
+ static __always_inline void memcg_uncharge_slab(struct kmem_cache *s, int order)
+@@ -244,7 +244,7 @@ static __always_inline void memcg_uncharge_slab(struct kmem_cache *s, int order)
+ 		return;
+ 	if (is_root_cache(s))
+ 		return;
+-	__memcg_uncharge_slab(s, order);
++	memcg_uncharge_kmem(s->memcg_params->memcg, 1 << order);
+ }
+ #else
+ static inline bool is_root_cache(struct kmem_cache *s)
 -- 
-Michal Hocko
-SUSE Labs
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
