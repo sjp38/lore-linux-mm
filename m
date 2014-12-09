@@ -1,25 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id C26B86B0032
-	for <linux-mm@kvack.org>; Mon,  8 Dec 2014 22:36:28 -0500 (EST)
-Received: by mail-pd0-f169.google.com with SMTP id z10so6458467pdj.28
-        for <linux-mm@kvack.org>; Mon, 08 Dec 2014 19:36:28 -0800 (PST)
-Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
-        by mx.google.com with ESMTPS id fo10si62810068pad.106.2014.12.08.19.36.25
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A92F6B0032
+	for <linux-mm@kvack.org>; Tue,  9 Dec 2014 00:23:47 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id lj1so6696838pab.4
+        for <linux-mm@kvack.org>; Mon, 08 Dec 2014 21:23:47 -0800 (PST)
+Received: from cnbjrel02.sonyericsson.com (cnbjrel02.sonyericsson.com. [219.141.167.166])
+        by mx.google.com with ESMTPS id pm2si75435pac.169.2014.12.08.21.23.43
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 08 Dec 2014 19:36:27 -0800 (PST)
+        Mon, 08 Dec 2014 21:23:45 -0800 (PST)
 From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Date: Tue, 9 Dec 2014 11:36:17 +0800
-Subject: [PATCH] fix build error for vm tools
-Message-ID: <35FD53F367049845BC99AC72306C23D103E688B313FC@CNBJMBX05.corpusers.net>
+Date: Tue, 9 Dec 2014 13:23:27 +0800
+Subject: [PATCH V2] fix build error for vm tools
+Message-ID: <35FD53F367049845BC99AC72306C23D103E688B313FD@CNBJMBX05.corpusers.net>
+References: <35FD53F367049845BC99AC72306C23D103E688B313FC@CNBJMBX05.corpusers.net>
+In-Reply-To: <35FD53F367049845BC99AC72306C23D103E688B313FC@CNBJMBX05.corpusers.net>
 Content-Language: en-US
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "'acme@redhat.com'" <acme@redhat.com>, "'bp@suse.de'" <bp@suse.de>, "'mingo@kernel.org'" <mingo@kernel.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: "'acme@redhat.com'" <acme@redhat.com>, "'bp@suse.de'" <bp@suse.de>, "'mingo@kernel.org'" <mingo@kernel.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>
 
 This patch fix the build error when make like this:
 make O=3D/xx/x vm
@@ -28,14 +30,14 @@ use $(OUTPUT) to generate to the right place.
 
 Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
 ---
- tools/vm/Makefile | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ tools/vm/Makefile | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
 
 diff --git a/tools/vm/Makefile b/tools/vm/Makefile
-index 3d907da..28d4bd9 100644
+index 3d907da..2847345 100644
 --- a/tools/vm/Makefile
 +++ b/tools/vm/Makefile
-@@ -1,9 +1,10 @@
+@@ -1,22 +1,24 @@
  # Makefile for vm tools
  #
 +include ../scripts/Makefile.include
@@ -47,7 +49,9 @@ index 3d907da..28d4bd9 100644
 =20
  CC =3D $(CROSS_COMPILE)gcc
  CFLAGS =3D -Wall -Wextra -I../lib/
-@@ -12,11 +13,11 @@ LDFLAGS =3D $(LIBS)
+ LDFLAGS =3D $(LIBS)
+=20
++all: $(TARGETS)
  $(TARGETS): $(LIBS)
 =20
  $(LIBS):
