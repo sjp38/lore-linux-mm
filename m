@@ -1,47 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 621C46B0072
-	for <linux-mm@kvack.org>; Tue,  9 Dec 2014 14:40:32 -0500 (EST)
-Received: by mail-pd0-f174.google.com with SMTP id fp1so1164588pdb.5
-        for <linux-mm@kvack.org>; Tue, 09 Dec 2014 11:40:32 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id ca3si3240178pbb.168.2014.12.09.11.40.30
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 7375C6B0038
+	for <linux-mm@kvack.org>; Tue,  9 Dec 2014 15:09:44 -0500 (EST)
+Received: by mail-pd0-f177.google.com with SMTP id ft15so1201968pdb.36
+        for <linux-mm@kvack.org>; Tue, 09 Dec 2014 12:09:44 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id um2si3533608pac.33.2014.12.09.12.09.40
         for <linux-mm@kvack.org>;
-        Tue, 09 Dec 2014 11:40:31 -0800 (PST)
-Date: Wed, 10 Dec 2014 03:38:17 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [PATCH tj-misc] bitmap: bitmap_print_list() can be static
-Message-ID: <20141209193817.GA27635@lkp-sb04>
-References: <201412100354.d6xN5OCa%fengguang.wu@intel.com>
+        Tue, 09 Dec 2014 12:09:40 -0800 (PST)
+Date: Tue, 9 Dec 2014 12:08:19 -0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [next:master 10653/11539] arch/x86/ia32/audit.c:38:14: sparse:
+ incompatible types for 'case' statement
+Message-ID: <20141209200819.GA27597@wfg-t540p.sh.intel.com>
+References: <201412090206.Nd6JUQcF%fengguang.wu@intel.com>
+ <20141208130344.9dc58fda1862a4a4a14c7c6b@linux-foundation.org>
+ <CAHse=S-7g77Dv+j7mUXgmAACs4czLQSv0VA361t=hecwQr03rg@mail.gmail.com>
+ <20141209192751.GA13752@wfg-t540p.sh.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201412100354.d6xN5OCa%fengguang.wu@intel.com>
+In-Reply-To: <20141209192751.GA13752@wfg-t540p.sh.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Rasmus Villemoes <linux@rasmusvillemoes.dk>, Sudeep Holla <sudeep.holla@arm.com>, Michal Nazarewicz <mina86@mina86.com>, linux-kernel@vger.kernel.org
+To: David Drysdale <drysdale@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>, Dan Carpenter <dan.carpenter@oracle.com>
 
-lib/bitmap.c:574:6: sparse: symbol 'bitmap_print_list' was not declared. Should it be static?
+On Tue, Dec 09, 2014 at 11:27:51AM -0800, Fengguang Wu wrote:
+> On Tue, Dec 09, 2014 at 09:02:02AM +0000, David Drysdale wrote:
+> > On Mon, Dec 8, 2014 at 9:03 PM, Andrew Morton <akpm@linux-foundation.org>
+> > wrote:
+> > 
+> > > On Tue, 9 Dec 2014 02:40:09 +0800 kbuild test robot <
+> > > fengguang.wu@intel.com> wrote:
+> > >
+> > > > tree:   git://
+> > > git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+> > > > head:   cf12164be498180dc466ef97194ca7755ea39f3b
+> > > > commit: b4baa9e36be0651f7eb15077af5e0eff53b7691b [10653/11539] x86: hook
+> > > up execveat system call
+> > > > reproduce:
+> > > >   # apt-get install sparse
+> > > >   git checkout b4baa9e36be0651f7eb15077af5e0eff53b7691b
+> > > >   make ARCH=x86_64 allmodconfig
+> > > >   make C=1 CF=-D__CHECK_ENDIAN__
+> > > >
+> > > >
+> > > > sparse warnings: (new ones prefixed by >>)
+> > > >
+> > > >    arch/x86/ia32/audit.c:38:14: sparse: undefined identifier
+> > > '__NR_execveat'
+> > > > >> arch/x86/ia32/audit.c:38:14: sparse: incompatible types for 'case'
+> > > statement
+> > > >    arch/x86/ia32/audit.c:38:14: sparse: Expected constant expression in
+> > > case statement
+> > > >    arch/x86/ia32/audit.c: In function 'ia32_classify_syscall':
+> > > >    arch/x86/ia32/audit.c:38:7: error: '__NR_execveat' undeclared (first
+> > > use in this function)
+> > > >      case __NR_execveat:
+> > > >           ^
+> > > >    arch/x86/ia32/audit.c:38:7: note: each undeclared identifier is
+> > > reported only once for each function it appears in
+> > > > --
+> > >
+> > > Confused. This makes no sense and I can't reproduce it.
+> > >
+> > 
+> > Ditto.
+> 
+> Sorry I cannot reproduce the issue, too. I've tried upgrading sparse.
+> 
+> > Someone else did previously[1] have a build problem from a stale copy of
+> > arch/x86/include/generated/asm/unistd_32.h in their tree, but I don't know
+> > how that could happen.
+> > 
+> > [1] https://lkml.org/lkml/2014/11/25/542
+> 
+> Since I'm doing incremental builds, it could happen that some left
+> over generated files lead to interesting errors.
 
-Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
----
- bitmap.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+I'll run this during bisect, hopefully it will avoid such kind of
+false errors in future.
 
-diff --git a/lib/bitmap.c b/lib/bitmap.c
-index c5dd40e..dc43a01 100644
---- a/lib/bitmap.c
-+++ b/lib/bitmap.c
-@@ -571,7 +571,7 @@ static inline void bscnl_emit(int rbot, int rtop, bool first,
- 		printfn(printfn_data, "%d-%d", rbot, rtop);
- }
- 
--void bitmap_print_list(const unsigned long *maskp, int nmaskbits,
-+static void bitmap_print_list(const unsigned long *maskp, int nmaskbits,
- 		       bitmap_printfn_t printfn, void *printfn_data)
- {
- 	bool first = true;
+        rm -fr include/generated/ arch/*/include/generated/
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
