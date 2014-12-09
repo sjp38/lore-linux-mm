@@ -1,137 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CF7A6B0032
-	for <linux-mm@kvack.org>; Tue,  9 Dec 2014 04:02:24 -0500 (EST)
-Received: by mail-qc0-f174.google.com with SMTP id c9so80717qcz.19
-        for <linux-mm@kvack.org>; Tue, 09 Dec 2014 01:02:23 -0800 (PST)
-Received: from mail-qa0-x235.google.com (mail-qa0-x235.google.com. [2607:f8b0:400d:c00::235])
-        by mx.google.com with ESMTPS id f19si590287qgd.35.2014.12.09.01.02.22
+Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F85D6B0032
+	for <linux-mm@kvack.org>; Tue,  9 Dec 2014 04:08:46 -0500 (EST)
+Received: by mail-wg0-f54.google.com with SMTP id l2so216771wgh.27
+        for <linux-mm@kvack.org>; Tue, 09 Dec 2014 01:08:45 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id cc17si1707481wib.70.2014.12.09.01.08.45
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 09 Dec 2014 01:02:22 -0800 (PST)
-Received: by mail-qa0-f53.google.com with SMTP id bm13so75872qab.26
-        for <linux-mm@kvack.org>; Tue, 09 Dec 2014 01:02:22 -0800 (PST)
+        Tue, 09 Dec 2014 01:08:45 -0800 (PST)
+Date: Tue, 9 Dec 2014 10:08:43 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 2/2] Drivers: hv: balloon: Fix the deadlock issue in the
+ memory hot-add code
+Message-ID: <20141209090843.GA11373@dhcp22.suse.cz>
+References: <1417826471-21131-1-git-send-email-kys@microsoft.com>
+ <1417826498-21172-1-git-send-email-kys@microsoft.com>
+ <1417826498-21172-2-git-send-email-kys@microsoft.com>
+ <20141208150445.GB29102@dhcp22.suse.cz>
+ <54864F27.8010008@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20141208130344.9dc58fda1862a4a4a14c7c6b@linux-foundation.org>
-References: <201412090206.Nd6JUQcF%fengguang.wu@intel.com> <20141208130344.9dc58fda1862a4a4a14c7c6b@linux-foundation.org>
-From: David Drysdale <drysdale@google.com>
-Date: Tue, 9 Dec 2014 09:02:02 +0000
-Message-ID: <CAHse=S-7g77Dv+j7mUXgmAACs4czLQSv0VA361t=hecwQr03rg@mail.gmail.com>
-Subject: Re: [next:master 10653/11539] arch/x86/ia32/audit.c:38:14: sparse:
- incompatible types for 'case' statement
-Content-Type: multipart/alternative; boundary=089e015375b411c46a0509c4cde2
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <54864F27.8010008@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: "K. Y. Srinivasan" <kys@microsoft.com>, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, devel@linuxdriverproject.org, olaf@aepfle.de, apw@canonical.com, linux-mm@kvack.org
 
---089e015375b411c46a0509c4cde2
-Content-Type: text/plain; charset=UTF-8
-
-On Mon, Dec 8, 2014 at 9:03 PM, Andrew Morton <akpm@linux-foundation.org>
-wrote:
-
-> On Tue, 9 Dec 2014 02:40:09 +0800 kbuild test robot <
-> fengguang.wu@intel.com> wrote:
->
-> > tree:   git://
-> git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-> > head:   cf12164be498180dc466ef97194ca7755ea39f3b
-> > commit: b4baa9e36be0651f7eb15077af5e0eff53b7691b [10653/11539] x86: hook
-> up execveat system call
-> > reproduce:
-> >   # apt-get install sparse
-> >   git checkout b4baa9e36be0651f7eb15077af5e0eff53b7691b
-> >   make ARCH=x86_64 allmodconfig
-> >   make C=1 CF=-D__CHECK_ENDIAN__
+On Tue 09-12-14 10:23:51, Yasuaki Ishimatsu wrote:
+> (2014/12/09 0:04), Michal Hocko wrote:
+> >On Fri 05-12-14 16:41:38, K. Y. Srinivasan wrote:
+> >>Andy Whitcroft <apw@canonical.com> initially saw this deadlock. We
+> >>have seen this as well. Here is the original description of the
+> >>problem (and a potential solution) from Andy:
+> >>
+> >>https://lkml.org/lkml/2014/3/14/451
+> >>
+> >>Here is an excerpt from that mail:
+> >>
+> >>"We are seeing machines lockup with what appears to be an ABBA
+> >>deadlock in the memory hotplug system.  These are from the 3.13.6 based Ubuntu kernels.
+> >>The hv_balloon driver is adding memory using add_memory() which takes
+> >>the hotplug lock
 > >
+> >Do you mean mem_hotplug_begin?
 > >
-> > sparse warnings: (new ones prefixed by >>)
+> 
+> >>and then emits a udev event, and then attempts to
+> >>lock the sysfs device.  In response to the udev event udev opens the
+> >>sysfs device and locks it, then attempts to grab the hotplug lock to online the memory.
 > >
-> >    arch/x86/ia32/audit.c:38:14: sparse: undefined identifier
-> '__NR_execveat'
-> > >> arch/x86/ia32/audit.c:38:14: sparse: incompatible types for 'case'
-> statement
-> >    arch/x86/ia32/audit.c:38:14: sparse: Expected constant expression in
-> case statement
-> >    arch/x86/ia32/audit.c: In function 'ia32_classify_syscall':
-> >    arch/x86/ia32/audit.c:38:7: error: '__NR_execveat' undeclared (first
-> use in this function)
-> >      case __NR_execveat:
-> >           ^
-> >    arch/x86/ia32/audit.c:38:7: note: each undeclared identifier is
-> reported only once for each function it appears in
-> > --
->
-> Confused. This makes no sense and I can't reproduce it.
->
+> >Cannot we simply teach online_pages to fail with EBUSY when the memory
+> >hotplug is on the way.  We shouldn't try to online something that is not
+> >initialized yet, no?
+> 
+> Yes. Memory online shouldn't try before initializing it. Then memory online
+> should wait for initializing it, not easily fails. Generally, kernel sends
+> memory ONLINE event to userland by kobject_uevent() during initializing memory
+> and udev makes memory online after catching the event. Onlining memory by
+> udev almost run during initializing memory.
 
-Ditto.
+I guess this is because the event is sent after a mem section is
+initialized while the overal hotplug operation is still not completed.
 
-Someone else did previously[1] have a build problem from a stale copy of
-arch/x86/include/generated/asm/unistd_32.h in their tree, but I don't know
-how that could happen.
+> So if memory online easily fails, onlining memory by udev almost
+> fails.
 
-[1] https://lkml.org/lkml/2014/11/25/542
+Doesn't udev retry the operation if it gets EBUSY or EAGAIN?
 
---089e015375b411c46a0509c4cde2
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+> >The memory hotplug log is global so we can get
+> >false positives but that should be easier to deal with than exporting
+> >lock_device_hotplug and adding yet another lock dependency.
+> >
+> >>This seems to be inverted nesting in the two cases, leading to the hangs below:
+> >>
+> >>[  240.608612] INFO: task kworker/0:2:861 blocked for more than 120 seconds.
+> >>[  240.608705] INFO: task systemd-udevd:1906 blocked for more than 120 seconds.
+> >>
+> >>I note that the device hotplug locking allows complete retries (via
+> >>ERESTARTSYS) and if we could detect this at the online stage it could
+> >>be used to get us out.
+> >
+> >I am not sure I understand this but it suggests EBUSY above?
+> >
+> >>But before I go down this road I wanted to
+> >>make sure I am reading this right.  Or indeed if the hv_balloon driver
+> >>is just doing this wrong."
+> >>
+> >>This patch is based on the suggestion from
+> >>Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+> >
+> >This changelog doesn't explain us much. And boy this whole thing is so
+> >convoluted. E.g. I have hard time to see why ACPI hotplug is working
+> >correctly. My trail got lost at acpi_memory_device_add level which is
+> >a callback while acpi_device_hotplug is holding lock_device_hotplug but
+> >then again the rest is hidden by callbacks.
+> 
+> Commit 0f1cfe9d0d06 (mm/hotplug: remove stop_machine() from try_offline_node()) said:
+> 
+>   ---
+>     lock_device_hotplug() serializes hotplug & online/offline operations.  The
+>     lock is held in common sysfs online/offline interfaces and ACPI hotplug
+>     code paths.
+> 
+>     And here are the code paths:
+> 
+>     - CPU & Mem online/offline via sysfs online
+>         store_online()->lock_device_hotplug()
+> 
+>     - Mem online via sysfs state:
+>         store_mem_state()->lock_device_hotplug()
+> 
+>     - ACPI CPU & Mem hot-add:
+>         acpi_scan_bus_device_check()->lock_device_hotplug()
+> 
+>     - ACPI CPU & Mem hot-delete:
+>         acpi_scan_hot_remove()->lock_device_hotplug()
+>   ---
+> 
+> CPU & Memory online/offline/hotplug are serialized by lock_device_hotplug().
 
-<div dir=3D"ltr"><div class=3D"gmail_extra"><div class=3D"gmail_quote">On M=
-on, Dec 8, 2014 at 9:03 PM, Andrew Morton <span dir=3D"ltr">&lt;<a href=3D"=
-mailto:akpm@linux-foundation.org" target=3D"_blank">akpm@linux-foundation.o=
-rg</a>&gt;</span> wrote:<br><blockquote class=3D"gmail_quote" style=3D"marg=
-in:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,20=
-4);border-left-style:solid;padding-left:1ex"><span>On Tue, 9 Dec 2014 02:40=
-:09 +0800 kbuild test robot &lt;<a href=3D"mailto:fengguang.wu@intel.com" t=
-arget=3D"_blank">fengguang.wu@intel.com</a>&gt; wrote:<br>
-<br>
-&gt; tree:=C2=A0 =C2=A0git://<a href=3D"http://git.kernel.org/pub/scm/linux=
-/kernel/git/next/linux-next.git" target=3D"_blank">git.kernel.org/pub/scm/l=
-inux/kernel/git/next/linux-next.git</a> master<br>
-&gt; head:=C2=A0 =C2=A0cf12164be498180dc466ef97194ca7755ea39f3b<br>
-&gt; commit: b4baa9e36be0651f7eb15077af5e0eff53b7691b [10653/11539] x86: ho=
-ok up execveat system call<br>
-&gt; reproduce:<br>
-&gt;=C2=A0 =C2=A0# apt-get install sparse<br>
-&gt;=C2=A0 =C2=A0git checkout b4baa9e36be0651f7eb15077af5e0eff53b7691b<br>
-&gt;=C2=A0 =C2=A0make ARCH=3Dx86_64 allmodconfig<br>
-&gt;=C2=A0 =C2=A0make C=3D1 CF=3D-D__CHECK_ENDIAN__<br>
-&gt;<br>
-&gt;<br>
-&gt; sparse warnings: (new ones prefixed by &gt;&gt;)<br>
-&gt;<br>
-&gt;=C2=A0 =C2=A0 arch/x86/ia32/audit.c:38:14: sparse: undefined identifier=
- &#39;__NR_execveat&#39;<br>
-&gt; &gt;&gt; arch/x86/ia32/audit.c:38:14: sparse: incompatible types for &=
-#39;case&#39; statement<br>
-&gt;=C2=A0 =C2=A0 arch/x86/ia32/audit.c:38:14: sparse: Expected constant ex=
-pression in case statement<br>
-&gt;=C2=A0 =C2=A0 arch/x86/ia32/audit.c: In function &#39;ia32_classify_sys=
-call&#39;:<br>
-&gt;=C2=A0 =C2=A0 arch/x86/ia32/audit.c:38:7: error: &#39;__NR_execveat&#39=
-; undeclared (first use in this function)<br>
-&gt;=C2=A0 =C2=A0 =C2=A0 case __NR_execveat:<br>
-&gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0^<br>
-&gt;=C2=A0 =C2=A0 arch/x86/ia32/audit.c:38:7: note: each undeclared identif=
-ier is reported only once for each function it appears in<br>
-&gt; --<br>
-<br>
-</span>Confused. This makes no sense and I can&#39;t reproduce it.<br>
-</blockquote></div><br></div><div class=3D"gmail_extra">Ditto.</div><div cl=
-ass=3D"gmail_extra"><br></div><div class=3D"gmail_extra">Someone else did p=
-reviously[1] have a build problem from a stale copy of</div><div class=3D"g=
-mail_extra"><span style=3D"font-size:13px">arch/x86/include/generated/</spa=
-n><span style=3D"font-size:13px">asm/unistd_32.h in their tree, but I don&#=
-39;t know</span></div><div class=3D"gmail_extra"><span style=3D"font-size:1=
-3px">how that=C2=A0</span><span style=3D"font-size:13px">could happen.</spa=
-n></div><div class=3D"gmail_extra"><span style=3D"font-size:13px"><br></spa=
-n></div><div class=3D"gmail_extra"><span style=3D"font-size:13px">[1]=C2=A0=
-</span><a href=3D"https://lkml.org/lkml/2014/11/25/542">https://lkml.org/lk=
-ml/2014/11/25/542</a></div></div>
+OK, this patch aimed at the complete nodes hotplug. I am not familiar
+with the code enough to tell whether this is really needed but it sounds
+like an overkill when we are interested only in the memory hotplug. Why
+would we need stop_machine or anything for memory that is guaranteed to
+be not used at the time of both online and offline.
+And again, why cannot we simply make the onlining fail or try_lock and
+retry internally if the event consumer cannot cope with errors?
+And even if that is not possible then do not export lock_device_hotplug
+but export a memory hotplug functions which use it properly so that
+other consumers (xen ballon seem to rely on add_memory as well) do not
+need the same change as well.
 
---089e015375b411c46a0509c4cde2--
+> >I cannot seem to find any documentation which would explain all the
+> >locking here.
+> 
+> Yes. I need the documentation.
+
+Yes please! This code is incredibly hard to follow and deduce all the
+hidden requirements and dependencies is even harder.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
