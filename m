@@ -1,20 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A92F6B0032
-	for <linux-mm@kvack.org>; Tue,  9 Dec 2014 00:23:47 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id lj1so6696838pab.4
-        for <linux-mm@kvack.org>; Mon, 08 Dec 2014 21:23:47 -0800 (PST)
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 546226B0032
+	for <linux-mm@kvack.org>; Tue,  9 Dec 2014 01:39:34 -0500 (EST)
+Received: by mail-pd0-f170.google.com with SMTP id v10so6737207pde.29
+        for <linux-mm@kvack.org>; Mon, 08 Dec 2014 22:39:34 -0800 (PST)
 Received: from cnbjrel02.sonyericsson.com (cnbjrel02.sonyericsson.com. [219.141.167.166])
-        by mx.google.com with ESMTPS id pm2si75435pac.169.2014.12.08.21.23.43
+        by mx.google.com with ESMTPS id x3si458534pdm.53.2014.12.08.22.39.29
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 08 Dec 2014 21:23:45 -0800 (PST)
+        Mon, 08 Dec 2014 22:39:31 -0800 (PST)
 From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Date: Tue, 9 Dec 2014 13:23:27 +0800
-Subject: [PATCH V2] fix build error for vm tools
-Message-ID: <35FD53F367049845BC99AC72306C23D103E688B313FD@CNBJMBX05.corpusers.net>
+Date: Tue, 9 Dec 2014 14:39:23 +0800
+Subject: [PATCH V3] fix build error for vm tools
+Message-ID: <35FD53F367049845BC99AC72306C23D103E688B313FF@CNBJMBX05.corpusers.net>
 References: <35FD53F367049845BC99AC72306C23D103E688B313FC@CNBJMBX05.corpusers.net>
-In-Reply-To: <35FD53F367049845BC99AC72306C23D103E688B313FC@CNBJMBX05.corpusers.net>
+ <35FD53F367049845BC99AC72306C23D103E688B313FD@CNBJMBX05.corpusers.net>
+In-Reply-To: <35FD53F367049845BC99AC72306C23D103E688B313FD@CNBJMBX05.corpusers.net>
 Content-Language: en-US
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
@@ -30,14 +31,27 @@ use $(OUTPUT) to generate to the right place.
 
 Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
 ---
- tools/vm/Makefile | 10 ++++++----
- 1 file changed, 6 insertions(+), 4 deletions(-)
+ tools/lib/api/Makefile |  2 +-
+ tools/vm/Makefile      | 14 +++++++++-----
+ 2 files changed, 10 insertions(+), 6 deletions(-)
 
+diff --git a/tools/lib/api/Makefile b/tools/lib/api/Makefile
+index 36c08b1..a1c598d 100644
+--- a/tools/lib/api/Makefile
++++ b/tools/lib/api/Makefile
+@@ -44,6 +44,6 @@ $(OUTPUT)%.o: %.S libapi_dirs
+ 	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) $<
+=20
+ clean:
+-	$(call QUIET_CLEAN, libapi) $(RM) $(LIB_OBJS) $(LIBFILE)
++	$(call QUIET_CLEAN, libapi) $(RM) $(LIB_OBJS) $(OUTPUT)$(LIBFILE)
+=20
+ .PHONY: clean
 diff --git a/tools/vm/Makefile b/tools/vm/Makefile
-index 3d907da..2847345 100644
+index 3d907da..7e3fc9f 100644
 --- a/tools/vm/Makefile
 +++ b/tools/vm/Makefile
-@@ -1,22 +1,24 @@
+@@ -1,22 +1,26 @@
  # Makefile for vm tools
  #
 +include ../scripts/Makefile.include
@@ -64,8 +78,11 @@ index 3d907da..2847345 100644
 =20
  clean:
 -	$(RM) page-types slabinfo
+-	make -C $(LIB_DIR) clean
 +	$(RM) $(OUTPUT)page-types $(OUTPUT)slabinfo
- 	make -C $(LIB_DIR) clean
++	$(call descend,../lib/api clean)
++
++.PHONY: all clean
 --=20
 2.1.3
 
