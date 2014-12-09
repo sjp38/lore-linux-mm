@@ -1,91 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 7375C6B0038
-	for <linux-mm@kvack.org>; Tue,  9 Dec 2014 15:09:44 -0500 (EST)
-Received: by mail-pd0-f177.google.com with SMTP id ft15so1201968pdb.36
-        for <linux-mm@kvack.org>; Tue, 09 Dec 2014 12:09:44 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id um2si3533608pac.33.2014.12.09.12.09.40
-        for <linux-mm@kvack.org>;
-        Tue, 09 Dec 2014 12:09:40 -0800 (PST)
-Date: Tue, 9 Dec 2014 12:08:19 -0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [next:master 10653/11539] arch/x86/ia32/audit.c:38:14: sparse:
- incompatible types for 'case' statement
-Message-ID: <20141209200819.GA27597@wfg-t540p.sh.intel.com>
-References: <201412090206.Nd6JUQcF%fengguang.wu@intel.com>
- <20141208130344.9dc58fda1862a4a4a14c7c6b@linux-foundation.org>
- <CAHse=S-7g77Dv+j7mUXgmAACs4czLQSv0VA361t=hecwQr03rg@mail.gmail.com>
- <20141209192751.GA13752@wfg-t540p.sh.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141209192751.GA13752@wfg-t540p.sh.intel.com>
+Received: from mail-ie0-f173.google.com (mail-ie0-f173.google.com [209.85.223.173])
+	by kanga.kvack.org (Postfix) with ESMTP id D04F06B0038
+	for <linux-mm@kvack.org>; Tue,  9 Dec 2014 17:50:41 -0500 (EST)
+Received: by mail-ie0-f173.google.com with SMTP id y20so1551738ier.4
+        for <linux-mm@kvack.org>; Tue, 09 Dec 2014 14:50:41 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id qo3si1966902igb.47.2014.12.09.14.50.40
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Dec 2014 14:50:40 -0800 (PST)
+Date: Tue, 9 Dec 2014 14:50:38 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH V2] x86/mm: Fix zone ranges boot printout
+Message-Id: <20141209145038.6253a2b99379bfb1255fa95e@linux-foundation.org>
+In-Reply-To: <54866C18.1050203@huawei.com>
+References: <54866C18.1050203@huawei.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Drysdale <drysdale@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>, Dan Carpenter <dan.carpenter@oracle.com>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Ingo Molnar <mingo@kernel.org>, dave@sr71.net, Rik van Riel <riel@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, linux-tip-commits@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-On Tue, Dec 09, 2014 at 11:27:51AM -0800, Fengguang Wu wrote:
-> On Tue, Dec 09, 2014 at 09:02:02AM +0000, David Drysdale wrote:
-> > On Mon, Dec 8, 2014 at 9:03 PM, Andrew Morton <akpm@linux-foundation.org>
-> > wrote:
-> > 
-> > > On Tue, 9 Dec 2014 02:40:09 +0800 kbuild test robot <
-> > > fengguang.wu@intel.com> wrote:
-> > >
-> > > > tree:   git://
-> > > git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-> > > > head:   cf12164be498180dc466ef97194ca7755ea39f3b
-> > > > commit: b4baa9e36be0651f7eb15077af5e0eff53b7691b [10653/11539] x86: hook
-> > > up execveat system call
-> > > > reproduce:
-> > > >   # apt-get install sparse
-> > > >   git checkout b4baa9e36be0651f7eb15077af5e0eff53b7691b
-> > > >   make ARCH=x86_64 allmodconfig
-> > > >   make C=1 CF=-D__CHECK_ENDIAN__
-> > > >
-> > > >
-> > > > sparse warnings: (new ones prefixed by >>)
-> > > >
-> > > >    arch/x86/ia32/audit.c:38:14: sparse: undefined identifier
-> > > '__NR_execveat'
-> > > > >> arch/x86/ia32/audit.c:38:14: sparse: incompatible types for 'case'
-> > > statement
-> > > >    arch/x86/ia32/audit.c:38:14: sparse: Expected constant expression in
-> > > case statement
-> > > >    arch/x86/ia32/audit.c: In function 'ia32_classify_syscall':
-> > > >    arch/x86/ia32/audit.c:38:7: error: '__NR_execveat' undeclared (first
-> > > use in this function)
-> > > >      case __NR_execveat:
-> > > >           ^
-> > > >    arch/x86/ia32/audit.c:38:7: note: each undeclared identifier is
-> > > reported only once for each function it appears in
-> > > > --
-> > >
-> > > Confused. This makes no sense and I can't reproduce it.
-> > >
-> > 
-> > Ditto.
-> 
-> Sorry I cannot reproduce the issue, too. I've tried upgrading sparse.
-> 
-> > Someone else did previously[1] have a build problem from a stale copy of
-> > arch/x86/include/generated/asm/unistd_32.h in their tree, but I don't know
-> > how that could happen.
-> > 
-> > [1] https://lkml.org/lkml/2014/11/25/542
-> 
-> Since I'm doing incremental builds, it could happen that some left
-> over generated files lead to interesting errors.
+On Tue, 9 Dec 2014 11:27:20 +0800 Xishi Qiu <qiuxishi@huawei.com> wrote:
 
-I'll run this during bisect, hopefully it will avoid such kind of
-false errors in future.
+> Changelog:
+> V2:
+> 	-fix building warnings of min(...).
+>
+> ...
+>
+> --- a/arch/x86/mm/init.c
+> +++ b/arch/x86/mm/init.c
+> @@ -674,10 +674,12 @@ void __init zone_sizes_init(void)
+>  	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
+>  
+>  #ifdef CONFIG_ZONE_DMA
+> -	max_zone_pfns[ZONE_DMA]		= MAX_DMA_PFN;
+> +	max_zone_pfns[ZONE_DMA]		= min_t(unsigned long,
+> +						max_low_pfn, MAX_DMA_PFN);
 
-        rm -fr include/generated/ arch/*/include/generated/
+MAX_DMA_PFN has type int.
 
-Thanks,
-Fengguang
+>  #endif
+>  #ifdef CONFIG_ZONE_DMA32
+> -	max_zone_pfns[ZONE_DMA32]	= MAX_DMA32_PFN;
+> +	max_zone_pfns[ZONE_DMA32]	= min_t(unsigned long,
+> +						max_low_pfn, MAX_DMA32_PFN);
+
+MAX_DMA32_PFN has type UL (I think?) so there's no need for min_t here.
+
+>  #endif
+>  	max_zone_pfns[ZONE_NORMAL]	= max_low_pfn;
+>  #ifdef CONFIG_HIGHMEM
+
+
+Let's try to get the types correct, rather than hacking around fixing
+up fallout from earlier incorrect type choices?
+
+What is the type of a pfn?  Unsigned long, generally, when we bother
+thinking about it.
+
+So how about we make MAX_DMA_PFN have type UL?  I assume that fixes the
+warning?
+
+If we do this, we should also be able to undo the min_t hackery in
+arch/x86/kernel/e820.c:memblock_find_dma_reserve().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
