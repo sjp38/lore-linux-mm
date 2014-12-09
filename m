@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id CC4586B006E
-	for <linux-mm@kvack.org>; Tue,  9 Dec 2014 02:53:02 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id kx10so75873pab.2
-        for <linux-mm@kvack.org>; Mon, 08 Dec 2014 23:53:02 -0800 (PST)
-Received: from mailout3.samsung.com (mailout3.samsung.com. [203.254.224.33])
-        by mx.google.com with ESMTPS id du2si559129pdb.156.2014.12.08.23.52.59
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id BD40E6B0070
+	for <linux-mm@kvack.org>; Tue,  9 Dec 2014 02:53:55 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id et14so76604pad.3
+        for <linux-mm@kvack.org>; Mon, 08 Dec 2014 23:53:55 -0800 (PST)
+Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
+        by mx.google.com with ESMTPS id tk10si590869pac.134.2014.12.08.23.53.53
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Mon, 08 Dec 2014 23:53:00 -0800 (PST)
+        Mon, 08 Dec 2014 23:53:54 -0800 (PST)
 Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
- by mailout3.samsung.com
+ by mailout1.samsung.com
  (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NGB00GWY1W9Z220@mailout3.samsung.com> for
- linux-mm@kvack.org; Tue, 09 Dec 2014 16:52:58 +0900 (KST)
+ 17 2011)) with ESMTP id <0NGB00H2Q1XR1SC0@mailout1.samsung.com> for
+ linux-mm@kvack.org; Tue, 09 Dec 2014 16:53:51 +0900 (KST)
 From: Weijie Yang <weijie.yang@samsung.com>
-Subject: [PATCH 2/3] mm: page_isolation: remove unnecessary
- freepage_migratetype check for unused page
+Subject: [PATCH 3/3] mm: page_alloc: remove redundant
+ set_freepage_migratetype() calls
 Date: Tue, 09 Dec 2014 15:51:49 +0800
-Message-id: <000201d01385$25a6c950$70f45bf0$%yang@samsung.com>
+Message-id: <000301d01385$45554a60$cfffdf20$%yang@samsung.com>
 MIME-version: 1.0
 Content-type: text/plain; charset=utf-8
 Content-transfer-encoding: 7bit
@@ -28,41 +28,47 @@ List-ID: <linux-mm.kvack.org>
 To: iamjoonsoo.kim@lge.com
 Cc: 'Andrew Morton' <akpm@linux-foundation.org>, mgorman@suse.de, 'Rik van Riel' <riel@redhat.com>, vbabka@suse.cz, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Minchan Kim' <minchan@kernel.org>, 'Weijie Yang' <weijie.yang.kh@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-when we test the pages in a range is free or not, there is a little
-chance we encounter some page which is not in buddy but page_count is 0.
-That means that page could be in the page-freeing path but not in the
-buddy freelist, such as in pcplist or wait for the zone->lock which the
-tester is holding.
+The freepage_migratetype is a temporary cached value which represents
+the free page's pageblock migratetype. Now we use it in two scenarios:
 
-Back to the freepage_migratetype, we use it for a cached value for decide
-which free-list the page go when freeing page. If the pageblock is isolated
-the page will go to free-list[MIGRATE_ISOLATE] even if the cached type is
-not MIGRATE_ISOLATE, the commit ad53f92e(fix incorrect isolation behavior
-by rechecking migratetype) patch series have ensure this.
+1. Use it as a cached value in page freeing path. This cached value
+is temporary and non-100% update, which help us decide which pcp
+freelist and buddy freelist the page should go rather than using
+get_pfnblock_migratetype() to save some instructions.
+When there is race between page isolation and free path, we need use
+additional method to get a accurate value to put the free pages to
+the correct freelist and get a precise free pages statistics.
 
-So the freepage_migratetype check for page_count==0 page in
-__test_page_isolated_in_pageblock() is meaningless.
-This patch removes the unnecessary freepage_migratetype check.
+2. Use it in page alloc path to update NR_FREE_CMA_PAGES statistics.
+
+This patch aims at the scenario 1 and removes two redundant
+set_freepage_migratetype() calls, which will make sense in the hot path.
 
 Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
 ---
- mm/page_isolation.c |    3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ mm/page_alloc.c |    2 --
+ 1 file changed, 2 deletions(-)
 
-diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-index 6e5174d..f7c9183 100644
---- a/mm/page_isolation.c
-+++ b/mm/page_isolation.c
-@@ -223,8 +223,7 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
- 		page = pfn_to_page(pfn);
- 		if (PageBuddy(page))
- 			pfn += 1 << page_order(page);
--		else if (page_count(page) == 0 &&
--			get_freepage_migratetype(page) == MIGRATE_ISOLATE)
-+		else if (page_count(page) == 0)
- 			pfn += 1;
- 		else if (skip_hwpoisoned_pages && PageHWPoison(page)) {
- 			/*
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 616a2c9..99af01a 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -775,7 +775,6 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+ 	migratetype = get_pfnblock_migratetype(page, pfn);
+ 	local_irq_save(flags);
+ 	__count_vm_events(PGFREE, 1 << order);
+-	set_freepage_migratetype(page, migratetype);
+ 	free_one_page(page_zone(page), page, pfn, order, migratetype);
+ 	local_irq_restore(flags);
+ }
+@@ -1024,7 +1023,6 @@ int move_freepages(struct zone *zone,
+ 		order = page_order(page);
+ 		list_move(&page->lru,
+ 			  &zone->free_area[order].free_list[migratetype]);
+-		set_freepage_migratetype(page, migratetype);
+ 		page += 1 << order;
+ 		pages_moved += 1 << order;
+ 	}
 -- 
 1.7.10.4
 
