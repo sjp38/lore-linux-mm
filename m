@@ -1,84 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id BB4E16B0038
-	for <linux-mm@kvack.org>; Tue,  9 Dec 2014 14:27:54 -0500 (EST)
-Received: by mail-pd0-f181.google.com with SMTP id v10so1150177pde.12
-        for <linux-mm@kvack.org>; Tue, 09 Dec 2014 11:27:54 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id cu3si3273770pbc.108.2014.12.09.11.27.52
+Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
+	by kanga.kvack.org (Postfix) with ESMTP id DFA0F6B006E
+	for <linux-mm@kvack.org>; Tue,  9 Dec 2014 14:35:01 -0500 (EST)
+Received: by mail-ig0-f179.google.com with SMTP id r2so1568084igi.6
+        for <linux-mm@kvack.org>; Tue, 09 Dec 2014 11:35:01 -0800 (PST)
+Received: from relay.sgi.com (relay2.sgi.com. [192.48.180.65])
+        by mx.google.com with ESMTP id z1si1387008ioi.28.2014.12.09.11.34.59
         for <linux-mm@kvack.org>;
-        Tue, 09 Dec 2014 11:27:53 -0800 (PST)
-Date: Tue, 9 Dec 2014 11:27:51 -0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [next:master 10653/11539] arch/x86/ia32/audit.c:38:14: sparse:
- incompatible types for 'case' statement
-Message-ID: <20141209192751.GA13752@wfg-t540p.sh.intel.com>
-References: <201412090206.Nd6JUQcF%fengguang.wu@intel.com>
- <20141208130344.9dc58fda1862a4a4a14c7c6b@linux-foundation.org>
- <CAHse=S-7g77Dv+j7mUXgmAACs4czLQSv0VA361t=hecwQr03rg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAHse=S-7g77Dv+j7mUXgmAACs4czLQSv0VA361t=hecwQr03rg@mail.gmail.com>
+        Tue, 09 Dec 2014 11:34:59 -0800 (PST)
+From: James Custer <jcuster@sgi.com>
+Subject: [PATCH] mm: fix invalid use of pfn_valid_within in test_pages_in_a_zone
+Date: Tue,  9 Dec 2014 13:34:56 -0600
+Message-Id: <1418153696-167580-1-git-send-email-jcuster@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Drysdale <drysdale@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com
+Cc: rja@sgi.com, dfults@sgi.com, James Custer <jcuster@sgi.com>
 
-On Tue, Dec 09, 2014 at 09:02:02AM +0000, David Drysdale wrote:
-> On Mon, Dec 8, 2014 at 9:03 PM, Andrew Morton <akpm@linux-foundation.org>
-> wrote:
-> 
-> > On Tue, 9 Dec 2014 02:40:09 +0800 kbuild test robot <
-> > fengguang.wu@intel.com> wrote:
-> >
-> > > tree:   git://
-> > git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-> > > head:   cf12164be498180dc466ef97194ca7755ea39f3b
-> > > commit: b4baa9e36be0651f7eb15077af5e0eff53b7691b [10653/11539] x86: hook
-> > up execveat system call
-> > > reproduce:
-> > >   # apt-get install sparse
-> > >   git checkout b4baa9e36be0651f7eb15077af5e0eff53b7691b
-> > >   make ARCH=x86_64 allmodconfig
-> > >   make C=1 CF=-D__CHECK_ENDIAN__
-> > >
-> > >
-> > > sparse warnings: (new ones prefixed by >>)
-> > >
-> > >    arch/x86/ia32/audit.c:38:14: sparse: undefined identifier
-> > '__NR_execveat'
-> > > >> arch/x86/ia32/audit.c:38:14: sparse: incompatible types for 'case'
-> > statement
-> > >    arch/x86/ia32/audit.c:38:14: sparse: Expected constant expression in
-> > case statement
-> > >    arch/x86/ia32/audit.c: In function 'ia32_classify_syscall':
-> > >    arch/x86/ia32/audit.c:38:7: error: '__NR_execveat' undeclared (first
-> > use in this function)
-> > >      case __NR_execveat:
-> > >           ^
-> > >    arch/x86/ia32/audit.c:38:7: note: each undeclared identifier is
-> > reported only once for each function it appears in
-> > > --
-> >
-> > Confused. This makes no sense and I can't reproduce it.
-> >
-> 
-> Ditto.
+Offlining memory by 'echo 0 > /sys/devices/system/memory/memory#/online'
+or reading valid_zones 'cat /sys/devices/system/memory/memory#/valid_zones'
+causes BUG: unable to handle kernel paging request due to invalid use of
+pfn_valid_within. This is due to a bug in test_pages_in_a_zone.
 
-Sorry I cannot reproduce the issue, too. I've tried upgrading sparse.
+In order to use pfn_valid_within within a MAX_ORDER_NR_PAGES block of pages,
+a valid pfn within the block must first be found. There only needs to be
+one valid pfn found in test_pages_in_a_zone in the first place. So the
+fix is to replace pfn_valid_within with pfn_valid such that the first
+valid pfn within the pageblock is found (if it exists). This works
+independently of CONFIG_HOLES_IN_ZONE.
 
-> Someone else did previously[1] have a build problem from a stale copy of
-> arch/x86/include/generated/asm/unistd_32.h in their tree, but I don't know
-> how that could happen.
-> 
-> [1] https://lkml.org/lkml/2014/11/25/542
+Signed-off-by: James Custer <jcuster@sgi.com>
+---
+ mm/memory_hotplug.c | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
 
-Since I'm doing incremental builds, it could happen that some left
-over generated files lead to interesting errors.
-
-Thanks,
-Fengguang
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 1bf4807..304c187 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1331,7 +1331,7 @@ int is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
+ }
+ 
+ /*
+- * Confirm all pages in a range [start, end) is belongs to the same zone.
++ * Confirm all pages in a range [start, end) belong to the same zone.
+  */
+ int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
+ {
+@@ -1342,10 +1342,11 @@ int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
+ 	for (pfn = start_pfn;
+ 	     pfn < end_pfn;
+ 	     pfn += MAX_ORDER_NR_PAGES) {
+-		i = 0;
+-		/* This is just a CONFIG_HOLES_IN_ZONE check.*/
+-		while ((i < MAX_ORDER_NR_PAGES) && !pfn_valid_within(pfn + i))
+-			i++;
++		/* Find the first valid pfn in this pageblock */
++		for (i = 0; i < MAX_ORDER_NR_PAGES; i++) {
++			if (pfn_valid(pfn + i))
++				break;
++		}
+ 		if (i == MAX_ORDER_NR_PAGES)
+ 			continue;
+ 		page = pfn_to_page(pfn + i);
+-- 
+1.8.2.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
