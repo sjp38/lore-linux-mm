@@ -1,77 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id CC7416B006E
-	for <linux-mm@kvack.org>; Tue,  9 Dec 2014 04:24:29 -0500 (EST)
-Received: by mail-wg0-f42.google.com with SMTP id z12so269632wgg.1
-        for <linux-mm@kvack.org>; Tue, 09 Dec 2014 01:24:29 -0800 (PST)
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BD316B0032
+	for <linux-mm@kvack.org>; Tue,  9 Dec 2014 04:47:23 -0500 (EST)
+Received: by mail-wi0-f179.google.com with SMTP id ex7so1063730wid.0
+        for <linux-mm@kvack.org>; Tue, 09 Dec 2014 01:47:22 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q4si1850630wiy.17.2014.12.09.01.24.28
+        by mx.google.com with ESMTPS id u12si14062210wiv.10.2014.12.09.01.47.21
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 09 Dec 2014 01:24:28 -0800 (PST)
-Message-ID: <5486BFCB.4040305@suse.cz>
-Date: Tue, 09 Dec 2014 10:24:27 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        Tue, 09 Dec 2014 01:47:21 -0800 (PST)
+Date: Tue, 9 Dec 2014 09:47:18 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC PATCH 2/3] mm: more aggressive page stealing for UNMOVABLE
+ allocations
+Message-ID: <20141209094718.GA21903@suse.de>
+References: <1417713178-10256-1-git-send-email-vbabka@suse.cz>
+ <1417713178-10256-3-git-send-email-vbabka@suse.cz>
+ <20141209030939.GD3358@bbox>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/3] mm: page_isolation: remove unnecessary freepage_migratetype
- check for unused page
-References: <000201d01385$25a6c950$70f45bf0$%yang@samsung.com>
-In-Reply-To: <000201d01385$25a6c950$70f45bf0$%yang@samsung.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20141209030939.GD3358@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijie.yang@samsung.com>, iamjoonsoo.kim@lge.com
-Cc: 'Andrew Morton' <akpm@linux-foundation.org>, mgorman@suse.de, 'Rik van Riel' <riel@redhat.com>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Minchan Kim' <minchan@kernel.org>, 'Weijie Yang' <weijie.yang.kh@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>
 
-On 12/09/2014 08:51 AM, Weijie Yang wrote:
-> when we test the pages in a range is free or not, there is a little
-> chance we encounter some page which is not in buddy but page_count is 0.
-> That means that page could be in the page-freeing path but not in the
-> buddy freelist, such as in pcplist
+On Tue, Dec 09, 2014 at 12:09:40PM +0900, Minchan Kim wrote:
+> On Thu, Dec 04, 2014 at 06:12:57PM +0100, Vlastimil Babka wrote:
+> > When allocation falls back to stealing free pages of another migratetype,
+> > it can decide to steal extra pages, or even the whole pageblock in order to
+> > reduce fragmentation, which could happen if further allocation fallbacks
+> > pick a different pageblock. In try_to_steal_freepages(), one of the situations
+> > where extra pages are stolen happens when we are trying to allocate a
+> > MIGRATE_RECLAIMABLE page.
+> > 
+> > However, MIGRATE_UNMOVABLE allocations are not treated the same way, although
+> > spreading such allocation over multiple fallback pageblocks is arguably even
+> > worse than it is for RECLAIMABLE allocations. To minimize fragmentation, we
+> > should minimize the number of such fallbacks, and thus steal as much as is
+> > possible from each fallback pageblock.
+> 
+> Fair enough.
+> 
 
-This shouldn't happen anymore IMHO. The pageblock is marked as 
-MIGRATE_ISOLATE and then a lru+pcplist drain is performed. Nothing 
-should be left on pcplist - anything newly freed goes directly to free 
-lists. Hm, maybe it could be on lru cache, but that holds a page 
-reference IIRC, so this test won't pass.
+Just to be absolutly sure, check that data and see what the number of
+MIGRATE_UNMOVABLE blocks looks like over time. Make sure it's not just
+continually growing. MIGRATE_RECLAIMABLE and MIGRATE_MOVABLE blocks were
+expected to be freed if the system was aggressively reclaimed but the same
+is not be true of MIGRATE_UNMOVABLE. Even if all processes are
+aggressively reclaimed for example, the page tables are still there.
 
-> or wait for the zone->lock which the
-> tester is holding.
-
-That could maybe happen, but is it worth testing? If yes, please add it 
-in a comment to the code.
-
-> Back to the freepage_migratetype, we use it for a cached value for decide
-> which free-list the page go when freeing page. If the pageblock is isolated
-> the page will go to free-list[MIGRATE_ISOLATE] even if the cached type is
-> not MIGRATE_ISOLATE, the commit ad53f92e(fix incorrect isolation behavior
-> by rechecking migratetype) patch series have ensure this.
->
-> So the freepage_migratetype check for page_count==0 page in
-> __test_page_isolated_in_pageblock() is meaningless.
-> This patch removes the unnecessary freepage_migratetype check.
->
-> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
-> ---
->   mm/page_isolation.c |    3 +--
->   1 file changed, 1 insertion(+), 2 deletions(-)
->
-> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> index 6e5174d..f7c9183 100644
-> --- a/mm/page_isolation.c
-> +++ b/mm/page_isolation.c
-> @@ -223,8 +223,7 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
->   		page = pfn_to_page(pfn);
->   		if (PageBuddy(page))
->   			pfn += 1 << page_order(page);
-> -		else if (page_count(page) == 0 &&
-> -			get_freepage_migratetype(page) == MIGRATE_ISOLATE)
-> +		else if (page_count(page) == 0)
->   			pfn += 1;
->   		else if (skip_hwpoisoned_pages && PageHWPoison(page)) {
->   			/*
->
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
