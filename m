@@ -1,185 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D9E66B0032
-	for <linux-mm@kvack.org>; Mon,  8 Dec 2014 22:24:31 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id lj1so6502691pab.33
-        for <linux-mm@kvack.org>; Mon, 08 Dec 2014 19:24:30 -0800 (PST)
-Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
-        by mx.google.com with ESMTPS id sh4si62728271pbc.3.2014.12.08.19.24.26
+Received: from mail-la0-f48.google.com (mail-la0-f48.google.com [209.85.215.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E5656B0032
+	for <linux-mm@kvack.org>; Mon,  8 Dec 2014 22:30:30 -0500 (EST)
+Received: by mail-la0-f48.google.com with SMTP id gf13so4961355lab.21
+        for <linux-mm@kvack.org>; Mon, 08 Dec 2014 19:30:29 -0800 (PST)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id b1si18967371lab.72.2014.12.08.19.30.26
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 08 Dec 2014 19:24:28 -0800 (PST)
-From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Date: Tue, 9 Dec 2014 11:24:20 +0800
-Subject: [RFC V5] mm:add KPF_ZERO_PAGE flag for /proc/kpageflags
-Message-ID: <35FD53F367049845BC99AC72306C23D103E688B313FB@CNBJMBX05.corpusers.net>
-References: <35FD53F367049845BC99AC72306C23D103E688B313EE@CNBJMBX05.corpusers.net>
- <CALYGNiOuBKz8shHSrFCp0BT5AV6XkNOCHj+LJedQQ-2YdZtM7w@mail.gmail.com>
- <35FD53F367049845BC99AC72306C23D103E688B313F2@CNBJMBX05.corpusers.net>
- <20141205143134.37139da2208c654a0d3cd942@linux-foundation.org>
- <35FD53F367049845BC99AC72306C23D103E688B313F4@CNBJMBX05.corpusers.net>
- <20141208114601.GA28846@node.dhcp.inet.fi>
-In-Reply-To: <20141208114601.GA28846@node.dhcp.inet.fi>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 08 Dec 2014 19:30:29 -0800 (PST)
+Message-ID: <54866C18.1050203@huawei.com>
+Date: Tue, 9 Dec 2014 11:27:20 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
+Subject: [PATCH V2] x86/mm: Fix zone ranges boot printout
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "'Kirill A. Shutemov'" <kirill@shutemov.name>
-Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Konstantin Khlebnikov' <koct9i@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "n-horiguchi@ah.jp.nec.com" <n-horiguchi@ah.jp.nec.com>
+To: Ingo Molnar <mingo@kernel.org>, dave@sr71.net, Rik van Riel <riel@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-tip-commits@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Xishi Qiu <qiuxishi@huawei.com>
 
-This patch add KPF_ZERO_PAGE flag for zero_page,
-so that userspace process can notice zero_page from
-/proc/kpageflags, and then do memory analysis more accurately.
+Changelog:
+V2:
+	-fix building warnings of min(...).
 
-Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
+This is the usual physical memory layout boot printout:
+...
+[    0.000000] Zone ranges:
+[    0.000000]   DMA      [mem 0x00001000-0x00ffffff]
+[    0.000000]   DMA32    [mem 0x01000000-0xffffffff]
+[    0.000000]   Normal   [mem 0x100000000-0xc3fffffff]
+[    0.000000] Movable zone start for each node
+[    0.000000] Early memory node ranges
+[    0.000000]   node   0: [mem 0x00001000-0x00099fff]
+[    0.000000]   node   0: [mem 0x00100000-0xbf78ffff]
+[    0.000000]   node   0: [mem 0x100000000-0x63fffffff]
+[    0.000000]   node   1: [mem 0x640000000-0xc3fffffff]
+...
+
+This is the log when we set "mem=2G" on the boot cmdline:
+...
+[    0.000000] Zone ranges:
+[    0.000000]   DMA      [mem 0x00001000-0x00ffffff]
+[    0.000000]   DMA32    [mem 0x01000000-0xffffffff]  // should be 0x7fffffff, right?
+[    0.000000]   Normal   empty
+[    0.000000] Movable zone start for each node
+[    0.000000] Early memory node ranges
+[    0.000000]   node   0: [mem 0x00001000-0x00099fff]
+[    0.000000]   node   0: [mem 0x00100000-0x7fffffff]
+...
+
+This patch fixes the printout, the following log shows the right ranges:
+...
+[    0.000000] Zone ranges:
+[    0.000000]   DMA      [mem 0x00001000-0x00ffffff]
+[    0.000000]   DMA32    [mem 0x01000000-0x7fffffff]
+[    0.000000]   Normal   empty
+[    0.000000] Movable zone start for each node
+[    0.000000] Early memory node ranges
+[    0.000000]   node   0: [mem 0x00001000-0x00099fff]
+[    0.000000]   node   0: [mem 0x00100000-0x7fffffff]
+...
+
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
 ---
- Documentation/vm/pagemap.txt           |  8 ++++++++
- fs/proc/page.c                         | 16 +++++++++++++---
- include/linux/huge_mm.h                | 12 ++++++++++++
- include/uapi/linux/kernel-page-flags.h |  1 +
- mm/huge_memory.c                       |  7 +------
- tools/vm/page-types.c                  |  1 +
- 6 files changed, 36 insertions(+), 9 deletions(-)
+ arch/x86/mm/init.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
 
-diff --git a/Documentation/vm/pagemap.txt b/Documentation/vm/pagemap.txt
-index 5948e45..6fbd55e 100644
---- a/Documentation/vm/pagemap.txt
-+++ b/Documentation/vm/pagemap.txt
-@@ -62,6 +62,8 @@ There are three components to pagemap:
-     20. NOPAGE
-     21. KSM
-     22. THP
-+    23. BALLOON
-+    24. ZERO_PAGE
-=20
- Short descriptions to the page flags:
-=20
-@@ -102,6 +104,12 @@ Short descriptions to the page flags:
- 22. THP
-     contiguous pages which construct transparent hugepages
-=20
-+23. BALLOON
-+    balloon compaction page
-+
-+24. ZERO_PAGE
-+    zero page for pfn_zero or huge_zero page
-+
-     [IO related page flags]
-  1. ERROR     IO error occurred
-  3. UPTODATE  page has up-to-date data
-diff --git a/fs/proc/page.c b/fs/proc/page.c
-index 1e3187d..7eee2d8 100644
---- a/fs/proc/page.c
-+++ b/fs/proc/page.c
-@@ -5,6 +5,7 @@
- #include <linux/ksm.h>
- #include <linux/mm.h>
- #include <linux/mmzone.h>
-+#include <linux/huge_mm.h>
- #include <linux/proc_fs.h>
- #include <linux/seq_file.h>
- #include <linux/hugetlb.h>
-@@ -121,9 +122,18 @@ u64 stable_page_flags(struct page *page)
- 	 * just checks PG_head/PG_tail, so we need to check PageLRU/PageAnon
- 	 * to make sure a given page is a thp, not a non-huge compound page.
- 	 */
--	else if (PageTransCompound(page) && (PageLRU(compound_head(page)) ||
--					     PageAnon(compound_head(page))))
--		u |=3D 1 << KPF_THP;
-+	else if (PageTransCompound(page)) {
-+		struct page *head =3D compound_head(page);
-+
-+		if (PageLRU(head) || PageAnon(head))
-+			u |=3D 1 << KPF_THP;
-+		else if (is_huge_zero_page(head)) {
-+			u |=3D 1 << KPF_ZERO_PAGE;
-+			u |=3D 1 << KPF_THP;
-+		}
-+	} else if (is_zero_pfn(page_to_pfn(page)))
-+		u |=3D 1 << KPF_ZERO_PAGE;
-+
-=20
- 	/*
- 	 * Caveats on high order pages: page->_count will only be set
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index ad9051b..f10b20f 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -157,6 +157,13 @@ static inline int hpage_nr_pages(struct page *page)
- extern int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_stru=
-ct *vma,
- 				unsigned long addr, pmd_t pmd, pmd_t *pmdp);
-=20
-+extern struct page *huge_zero_page;
-+
-+static inline bool is_huge_zero_page(struct page *page)
-+{
-+	return ACCESS_ONCE(huge_zero_page) =3D=3D page;
-+}
-+
- #else /* CONFIG_TRANSPARENT_HUGEPAGE */
- #define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
- #define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
-@@ -206,6 +213,11 @@ static inline int do_huge_pmd_numa_page(struct mm_stru=
-ct *mm, struct vm_area_str
- 	return 0;
- }
-=20
-+static inline bool is_huge_zero_page(struct page *page)
-+{
-+	return false;
-+}
-+
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-=20
- #endif /* _LINUX_HUGE_MM_H */
-diff --git a/include/uapi/linux/kernel-page-flags.h b/include/uapi/linux/ke=
-rnel-page-flags.h
-index 2f96d23..a6c4962 100644
---- a/include/uapi/linux/kernel-page-flags.h
-+++ b/include/uapi/linux/kernel-page-flags.h
-@@ -32,6 +32,7 @@
- #define KPF_KSM			21
- #define KPF_THP			22
- #define KPF_BALLOON		23
-+#define KPF_ZERO_PAGE		24
-=20
-=20
- #endif /* _UAPILINUX_KERNEL_PAGE_FLAGS_H */
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index de98415..d7bc7a5 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -171,12 +171,7 @@ static int start_khugepaged(void)
- }
-=20
- static atomic_t huge_zero_refcount;
--static struct page *huge_zero_page __read_mostly;
--
--static inline bool is_huge_zero_page(struct page *page)
--{
--	return ACCESS_ONCE(huge_zero_page) =3D=3D page;
--}
-+struct page *huge_zero_page __read_mostly;
-=20
- static inline bool is_huge_zero_pmd(pmd_t pmd)
- {
-diff --git a/tools/vm/page-types.c b/tools/vm/page-types.c
-index 264fbc2..8bdf16b 100644
---- a/tools/vm/page-types.c
-+++ b/tools/vm/page-types.c
-@@ -133,6 +133,7 @@ static const char * const page_flag_names[] =3D {
- 	[KPF_KSM]		=3D "x:ksm",
- 	[KPF_THP]		=3D "t:thp",
- 	[KPF_BALLOON]		=3D "o:balloon",
-+	[KPF_ZERO_PAGE]		=3D "z:zero_page",
-=20
- 	[KPF_RESERVED]		=3D "r:reserved",
- 	[KPF_MLOCKED]		=3D "m:mlocked",
---=20
-2.1.3
+diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
+index 66dba36..963945d 100644
+--- a/arch/x86/mm/init.c
++++ b/arch/x86/mm/init.c
+@@ -674,10 +674,12 @@ void __init zone_sizes_init(void)
+ 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
+ 
+ #ifdef CONFIG_ZONE_DMA
+-	max_zone_pfns[ZONE_DMA]		= MAX_DMA_PFN;
++	max_zone_pfns[ZONE_DMA]		= min_t(unsigned long,
++						max_low_pfn, MAX_DMA_PFN);
+ #endif
+ #ifdef CONFIG_ZONE_DMA32
+-	max_zone_pfns[ZONE_DMA32]	= MAX_DMA32_PFN;
++	max_zone_pfns[ZONE_DMA32]	= min_t(unsigned long,
++						max_low_pfn, MAX_DMA32_PFN);
+ #endif
+ 	max_zone_pfns[ZONE_NORMAL]	= max_low_pfn;
+ #ifdef CONFIG_HIGHMEM
+-- 
+2.0.0
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
