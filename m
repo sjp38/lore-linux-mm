@@ -1,60 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 807746B0078
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 11:30:43 -0500 (EST)
-Received: by mail-qg0-f51.google.com with SMTP id e89so2311499qgf.24
-        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 08:30:43 -0800 (PST)
-Received: from resqmta-ch2-09v.sys.comcast.net (resqmta-ch2-09v.sys.comcast.net. [2001:558:fe21:29:69:252:207:41])
-        by mx.google.com with ESMTPS id 32si1344393qgt.46.2014.12.10.08.30.37
+Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 51DF26B007B
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 11:30:46 -0500 (EST)
+Received: by mail-qg0-f46.google.com with SMTP id q107so287513qgd.33
+        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 08:30:46 -0800 (PST)
+Received: from resqmta-ch2-06v.sys.comcast.net (resqmta-ch2-06v.sys.comcast.net. [2001:558:fe21:29:69:252:207:38])
+        by mx.google.com with ESMTPS id k8si5443830qad.19.2014.12.10.08.30.37
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Wed, 10 Dec 2014 08:30:37 -0800 (PST)
-Message-Id: <20141210163033.717707217@linux.com>
-Date: Wed, 10 Dec 2014 10:30:20 -0600
+        Wed, 10 Dec 2014 08:30:38 -0800 (PST)
+Message-Id: <20141210163033.841468065@linux.com>
+Date: Wed, 10 Dec 2014 10:30:21 -0600
 From: Christoph Lameter <cl@linux.com>
-Subject: [PATCH 3/7] slub: Do not use c->page on free
+Subject: [PATCH 4/7] slub: Avoid using the page struct address in allocation fastpath
 References: <20141210163017.092096069@linux.com>
 Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=slub_free_compare_address_range
+Content-Disposition: inline; filename=more_c_page
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linuxfoundation.org
 Cc: rostedt@goodmis.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com, Jesper Dangaard Brouer <brouer@redhat.com>
 
-Avoid using the page struct address on free by just doing an
-address comparison. That is easily doable now that the page address
-is available in the page struct and we already have the page struct
-address of the object to be freed calculated.
+We can use virt_to_page there and only invoke the costly function if
+actually a node is specified and we have to check the NUMA locality.
+
+Increases the cost of allocating on a specific NUMA node but then that
+was never cheap since we may have to dump our caches and retrieve memory
+from the correct node.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
 Index: linux/mm/slub.c
 ===================================================================
---- linux.orig/mm/slub.c	2014-12-09 12:25:45.770405462 -0600
-+++ linux/mm/slub.c	2014-12-09 12:25:45.766405582 -0600
-@@ -2625,6 +2625,13 @@ slab_empty:
- 	discard_slab(s, page);
+--- linux.orig/mm/slub.c	2014-12-09 12:27:49.414686959 -0600
++++ linux/mm/slub.c	2014-12-09 12:27:49.414686959 -0600
+@@ -2097,6 +2097,15 @@ static inline int node_match(struct page
+ 	return 1;
  }
  
-+static bool same_slab_page(struct kmem_cache *s, struct page *page, void *p)
++static inline int node_match_ptr(void *p, int node)
 +{
-+	long d = p - page->address;
-+
-+	return d > 0 && d < (1 << MAX_ORDER) && d < (compound_order(page) << PAGE_SHIFT);
++#ifdef CONFIG_NUMA
++	if (!p || (node != NUMA_NO_NODE && page_to_nid(virt_to_page(p)) != node))
++		return 0;
++#endif
++	return 1;
 +}
 +
- /*
-  * Fastpath with forced inlining to produce a kfree and kmem_cache_free that
-  * can perform fastpath freeing without additional function calls.
-@@ -2658,7 +2665,7 @@ redo:
- 	tid = c->tid;
- 	preempt_enable();
+ #ifdef CONFIG_SLUB_DEBUG
+ static int count_free(struct page *page)
+ {
+@@ -2410,7 +2419,7 @@ redo:
  
--	if (likely(page == c->page)) {
-+	if (likely(same_slab_page(s, page, c->freelist))) {
- 		set_freepointer(s, object, c->freelist);
- 
- 		if (unlikely(!this_cpu_cmpxchg_double(
+ 	object = c->freelist;
+ 	page = c->page;
+-	if (unlikely(!object || !node_match(page, node))) {
++	if (unlikely(!object || !node_match_ptr(object, node))) {
+ 		object = __slab_alloc(s, gfpflags, node, addr, c);
+ 		stat(s, ALLOC_SLOWPATH);
+ 	} else {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
