@@ -1,105 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f180.google.com (mail-ie0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BEBA6B0032
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 09:10:46 -0500 (EST)
-Received: by mail-ie0-f180.google.com with SMTP id rp18so2712544iec.39
-        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 06:10:46 -0800 (PST)
-Received: from mail-ie0-x236.google.com (mail-ie0-x236.google.com. [2607:f8b0:4001:c03::236])
-        by mx.google.com with ESMTPS id g7si3006820ioj.23.2014.12.10.06.10.44
+Received: from mail-qa0-f45.google.com (mail-qa0-f45.google.com [209.85.216.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 366136B0032
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 09:15:29 -0500 (EST)
+Received: by mail-qa0-f45.google.com with SMTP id x12so2019506qac.18
+        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 06:15:29 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u49si5031953qgd.101.2014.12.10.06.15.27
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 10 Dec 2014 06:10:45 -0800 (PST)
-Received: by mail-ie0-f182.google.com with SMTP id x19so2738628ier.13
-        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 06:10:44 -0800 (PST)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 Dec 2014 06:15:27 -0800 (PST)
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: [RFC PATCH 0/3] Faster than SLAB caching of SKBs with qmempool
+	(backed by alf_queue)
+Date: Wed, 10 Dec 2014 15:15:07 +0100
+Message-ID: <20141210141332.31779.56391.stgit@dragon>
+In-Reply-To: <20141210033902.2114.68658.stgit@ahduyck-vm-fedora20>
+References: <20141210033902.2114.68658.stgit@ahduyck-vm-fedora20>
 MIME-Version: 1.0
-In-Reply-To: <5486BFCB.4040305@suse.cz>
-References: <000201d01385$25a6c950$70f45bf0$%yang@samsung.com>
-	<5486BFCB.4040305@suse.cz>
-Date: Wed, 10 Dec 2014 22:10:44 +0800
-Message-ID: <CAL1ERfPsSs9GnvP4S3L+4OQUZ71Eps89_0qGgE7_2OQkPDyJ-w@mail.gmail.com>
-Subject: Re: [PATCH 2/3] mm: page_isolation: remove unnecessary
- freepage_migratetype check for unused page
-From: Weijie Yang <weijie.yang.kh@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Weijie Yang <weijie.yang@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Jesper Dangaard Brouer <brouer@redhat.com>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>
+Cc: linux-api@vger.kernel.org, Eric Dumazet <eric.dumazet@gmail.com>, "David S. Miller" <davem@davemloft.net>, Hannes Frederic Sowa <hannes@stressinduktion.org>, Alexander Duyck <alexander.duyck@gmail.com>, Alexei Starovoitov <ast@plumgrid.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Steven Rostedt <rostedt@goodmis.org>
 
-On Tue, Dec 9, 2014 at 5:24 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
-> On 12/09/2014 08:51 AM, Weijie Yang wrote:
->>
->> when we test the pages in a range is free or not, there is a little
->> chance we encounter some page which is not in buddy but page_count is 0.
->> That means that page could be in the page-freeing path but not in the
->> buddy freelist, such as in pcplist
->
->
-> This shouldn't happen anymore IMHO. The pageblock is marked as
-> MIGRATE_ISOLATE and then a lru+pcplist drain is performed. Nothing should be
-> left on pcplist - anything newly freed goes directly to free lists. Hm,
-> maybe it could be on lru cache, but that holds a page reference IIRC, so
-> this test won't pass.
+The network stack have some use-cases that puts some extreme demands
+on the memory allocator.  One use-case, 10Gbit/s wirespeed at smallest
+packet size[1], requires handling a packet every 67.2 ns (nanosec).
 
-Yes, you are right. I made a mistake, this shouldn't happen.
-I will remove this description in next version. Thanks.
+Micro benchmarking[2] the SLUB allocator (with skb size 256bytes
+elements), show "fast-path" instant reuse only costs 19 ns, but a
+closer to network usage pattern show the cost rise to 45 ns.
 
->> or wait for the zone->lock which the
->> tester is holding.
->
->
-> That could maybe happen, but is it worth testing? If yes, please add it in a
-> comment to the code.
+This patchset introduce a quick mempool (qmempool), which when used
+in-front of the SKB (sk_buff) kmem_cache, saves 12 ns on "fast-path"
+drop in iptables "raw" table, but more importantly saves 40 ns with
+IP-forwarding, which were hitting the slower SLUB use-case.
 
-This could happen even though the chance is very tiny.
-As for cma_alloc, the test makes no difference.
-However, as for offline_page, the test makes sense. If we leave the test and
-pass it when page_count is zero, it could trigger the BUG_ON(!PageBuddy(page))
-in the __offline_isolated_pages() if the page hasn't finish its free journey.
 
->From the literal meaning of this test_pages_isolated() function, I think it is
-better get a definite result and not leave some middle status even if
-they are rare.
+One of the building blocks for achieving this speedup is a cmpxchg
+based Lock-Free queue that supports bulking, named alf_queue for
+Array-based Lock-Free queue.  By bulking elements (pointers) from the
+queue, the cost of the cmpxchg (approx 8 ns) is amortized over several
+elements.
 
-So, Let's remove the whole test branch
-(page_count(page) == 0 && get_freepage_migratetype(page) == MIGRATE_ISOLATE)
+ Patch1: alf_queue (Lock-Free queue)
 
-Thanks for your remind and suggestion.
+ Patch2: qmempool using alf_queue
 
->
->> Back to the freepage_migratetype, we use it for a cached value for decide
->> which free-list the page go when freeing page. If the pageblock is
->> isolated
->> the page will go to free-list[MIGRATE_ISOLATE] even if the cached type is
->> not MIGRATE_ISOLATE, the commit ad53f92e(fix incorrect isolation behavior
->> by rechecking migratetype) patch series have ensure this.
->>
->> So the freepage_migratetype check for page_count==0 page in
->> __test_page_isolated_in_pageblock() is meaningless.
->> This patch removes the unnecessary freepage_migratetype check.
->>
->> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
->> ---
->>   mm/page_isolation.c |    3 +--
->>   1 file changed, 1 insertion(+), 2 deletions(-)
->>
->> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
->> index 6e5174d..f7c9183 100644
->> --- a/mm/page_isolation.c
->> +++ b/mm/page_isolation.c
->> @@ -223,8 +223,7 @@ __test_page_isolated_in_pageblock(unsigned long pfn,
->> unsigned long end_pfn,
->>                 page = pfn_to_page(pfn);
->>                 if (PageBuddy(page))
->>                         pfn += 1 << page_order(page);
->> -               else if (page_count(page) == 0 &&
->> -                       get_freepage_migratetype(page) == MIGRATE_ISOLATE)
->> +               else if (page_count(page) == 0)
->>                         pfn += 1;
->>                 else if (skip_hwpoisoned_pages && PageHWPoison(page)) {
->>                         /*
->>
->
+ Patch3: usage of qmempool for SKB caching
+
+
+Notice, this patchset depend on introduction of napi_alloc_skb(),
+which is part of Alexander Duyck's work patchset [3].
+
+Different correctness tests and micro benchmarks are avail via my
+github repo "prototype-kernel"[4], where the alf_queue and qmempool is
+also kept in sync with this patchset.
+
+Links:
+ [1]: http://netoptimizer.blogspot.dk/2014/05/the-calculations-10gbits-wirespeed.html
+ [2]: https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/mm/qmempool_bench.c
+ [3]: http://thread.gmane.org/gmane.linux.network/342347
+ [4]: https://github.com/netoptimizer/prototype-kernel
+
+---
+
+Jesper Dangaard Brouer (3):
+      net: use qmempool in-front of sk_buff kmem_cache
+      mm: qmempool - quick queue based memory pool
+      lib: adding an Array-based Lock-Free (ALF) queue
+
+
+ include/linux/alf_queue.h |  303 ++++++++++++++++++++++++++++++++++++++++++
+ include/linux/qmempool.h  |  205 +++++++++++++++++++++++++++++
+ include/linux/skbuff.h    |    4 -
+ lib/Kconfig               |   13 ++
+ lib/Makefile              |    2 
+ lib/alf_queue.c           |   47 +++++++
+ mm/Kconfig                |   12 ++
+ mm/Makefile               |    1 
+ mm/qmempool.c             |  322 +++++++++++++++++++++++++++++++++++++++++++++
+ net/core/dev.c            |    5 +
+ net/core/skbuff.c         |   43 +++++-
+ 11 files changed, 950 insertions(+), 7 deletions(-)
+ create mode 100644 include/linux/alf_queue.h
+ create mode 100644 include/linux/qmempool.h
+ create mode 100644 lib/alf_queue.c
+ create mode 100644 mm/qmempool.c
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Sr. Network Kernel Developer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
