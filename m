@@ -1,141 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 50C2C6B0038
-	for <linux-mm@kvack.org>; Tue,  9 Dec 2014 20:41:19 -0500 (EST)
-Received: by mail-pd0-f176.google.com with SMTP id y10so1717663pdj.7
-        for <linux-mm@kvack.org>; Tue, 09 Dec 2014 17:41:19 -0800 (PST)
-Received: from fgwmail5.fujitsu.co.jp (fgwmail5.fujitsu.co.jp. [192.51.44.35])
-        by mx.google.com with ESMTPS id nt1si4267919pbc.196.2014.12.09.17.41.16
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C79526B0038
+	for <linux-mm@kvack.org>; Tue,  9 Dec 2014 20:44:46 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id ey11so1732131pad.38
+        for <linux-mm@kvack.org>; Tue, 09 Dec 2014 17:44:46 -0800 (PST)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id jf9si4349693pbd.143.2014.12.09.17.44.43
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 09 Dec 2014 17:41:17 -0800 (PST)
-Received: from kw-mxoi2.gw.nic.fujitsu.com (unknown [10.0.237.143])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 2E4313EE1AB
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 10:41:15 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by kw-mxoi2.gw.nic.fujitsu.com (Postfix) with ESMTP id 42B2DAC046B
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 10:41:14 +0900 (JST)
-Received: from g01jpfmpwkw01.exch.g01.fujitsu.local (g01jpfmpwkw01.exch.g01.fujitsu.local [10.0.193.38])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E3508E08002
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 10:41:13 +0900 (JST)
-Message-ID: <5487A418.4060800@jp.fujitsu.com>
-Date: Wed, 10 Dec 2014 10:38:32 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+        Tue, 09 Dec 2014 17:44:45 -0800 (PST)
+Message-ID: <5487A471.30005@huawei.com>
+Date: Wed, 10 Dec 2014 09:40:01 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: fix invalid use of pfn_valid_within in test_pages_in_a_zone
-References: <1418153696-167580-1-git-send-email-jcuster@sgi.com>,<54878D56.4030508@jp.fujitsu.com> <E0FB9EDDBE1AAD4EA62C90D3B6E4783B739E643B@P-EXMB2-DC21.corp.sgi.com>
-In-Reply-To: <E0FB9EDDBE1AAD4EA62C90D3B6E4783B739E643B@P-EXMB2-DC21.corp.sgi.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Subject: Re: [PATCH V2] x86/mm: Fix zone ranges boot printout
+References: <54866C18.1050203@huawei.com> <20141209145038.6253a2b99379bfb1255fa95e@linux-foundation.org>
+In-Reply-To: <20141209145038.6253a2b99379bfb1255fa95e@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Custer <jcuster@sgi.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Russ Anderson <rja@sgi.com>, Derek Fults <dfults@sgi.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ingo Molnar <mingo@kernel.org>, dave@sr71.net, Rik van Riel <riel@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, linux-tip-commits@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-(2014/12/10 9:14), James Custer wrote:
-> It is exactly the same if CONFIG_HOLES_IN_NODE is set, but if CONFIG_HOLES_IN_NODE is not set, then pfn_valid_within is always 1.
+On 2014/12/10 6:50, Andrew Morton wrote:
 
-Why don't you set CONFIG_HOLES_IN_ZONE? This BUG is occrred by hole in zone.
-CONFIG_HOLE_IN_ZONE is propered for the system.
+> On Tue, 9 Dec 2014 11:27:20 +0800 Xishi Qiu <qiuxishi@huawei.com> wrote:
+> 
+>> Changelog:
+>> V2:
+>> 	-fix building warnings of min(...).
+>>
+>> ...
+>>
+>> --- a/arch/x86/mm/init.c
+>> +++ b/arch/x86/mm/init.c
+>> @@ -674,10 +674,12 @@ void __init zone_sizes_init(void)
+>>  	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
+>>  
+>>  #ifdef CONFIG_ZONE_DMA
+>> -	max_zone_pfns[ZONE_DMA]		= MAX_DMA_PFN;
+>> +	max_zone_pfns[ZONE_DMA]		= min_t(unsigned long,
+>> +						max_low_pfn, MAX_DMA_PFN);
+> 
+> MAX_DMA_PFN has type int.
+> 
+>>  #endif
+>>  #ifdef CONFIG_ZONE_DMA32
+>> -	max_zone_pfns[ZONE_DMA32]	= MAX_DMA32_PFN;
+>> +	max_zone_pfns[ZONE_DMA32]	= min_t(unsigned long,
+>> +						max_low_pfn, MAX_DMA32_PFN);
+> 
+> MAX_DMA32_PFN has type UL (I think?) so there's no need for min_t here.
+> 
+>>  #endif
+>>  	max_zone_pfns[ZONE_NORMAL]	= max_low_pfn;
+>>  #ifdef CONFIG_HIGHMEM
+> 
+> 
+> Let's try to get the types correct, rather than hacking around fixing
+> up fallout from earlier incorrect type choices?
+> 
+> What is the type of a pfn?  Unsigned long, generally, when we bother
+> thinking about it.
+> 
+> So how about we make MAX_DMA_PFN have type UL?  I assume that fixes the
+> warning?
+> 
+> If we do this, we should also be able to undo the min_t hackery in
+> arch/x86/kernel/e820.c:memblock_find_dma_reserve().
+> 
 
-I think your patch fixes the BUG. But even if fixing the BUG, other issues
-will be occurred by hole in zone.
+Hi Andrew,
+
+Thanks for your suggestion, I'll resend V3.
 
 Thanks,
-Yasuaki Ishimatsu
+Xishi Qiu
 
->
-> From: https://lkml.org/lkml/2007/3/21/272
->
-> "Generally we work under the assumption that memory the mem_map
-> array is contigious and valid out to MAX_ORDER_NR_PAGES block
-> of pages, ie. that if we have validated any page within this
-> MAX_ORDER_NR_PAGES block we need not check any other.  This is not
-> true when CONFIG_HOLES_IN_ZONE is set and we must check each and
-> every reference we make from a pfn.
->
-> Add a pfn_valid_within() helper which should be used when scanning
-> pages within a MAX_ORDER_NR_PAGES block when we have already
-> checked the validility of the block normally with pfn_valid().
-> This can then be optimised away when we do not have holes within
-> a MAX_ORDER_NR_PAGES block of pages."
->
-> So, since we're iterating over a pageblock there must be a valid pfn to be able to use pfn_valid_within (which makes sense since if CONFIG_HOLES_IN_NODE is not set, it is always 1).
->
-> I'm just going off of the documentation there and what makes sense to me based off that documentation. Does that explanation help?
->
-> Regards,
-> James Custer
-> ________________________________________
-> From: Yasuaki Ishimatsu [isimatu.yasuaki@jp.fujitsu.com]
-> Sent: Tuesday, December 09, 2014 6:01 PM
-> To: James Custer; linux-kernel@vger.kernel.org; linux-mm@kvack.org; akpm@linux-foundation.org; kamezawa.hiroyu@jp.fujitsu.com
-> Cc: Russ Anderson; Derek Fults
-> Subject: Re: [PATCH] mm: fix invalid use of pfn_valid_within in test_pages_in_a_zone
->
-> (2014/12/10 4:34), James Custer wrote:
->> Offlining memory by 'echo 0 > /sys/devices/system/memory/memory#/online'
->> or reading valid_zones 'cat /sys/devices/system/memory/memory#/valid_zones'
->
->> causes BUG: unable to handle kernel paging request due to invalid use of
->> pfn_valid_within. This is due to a bug in test_pages_in_a_zone.
->
-> The information is not enough to understand what happened on your system.
-> Could you show full BUG messages?
->
->>
->> In order to use pfn_valid_within within a MAX_ORDER_NR_PAGES block of pages,
->> a valid pfn within the block must first be found. There only needs to be
->> one valid pfn found in test_pages_in_a_zone in the first place. So the
->> fix is to replace pfn_valid_within with pfn_valid such that the first
->> valid pfn within the pageblock is found (if it exists). This works
->> independently of CONFIG_HOLES_IN_ZONE.
->>
->> Signed-off-by: James Custer <jcuster@sgi.com>
->> ---
->>    mm/memory_hotplug.c | 11 ++++++-----
->>    1 file changed, 6 insertions(+), 5 deletions(-)
->>
->> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->> index 1bf4807..304c187 100644
->> --- a/mm/memory_hotplug.c
->> +++ b/mm/memory_hotplug.c
->> @@ -1331,7 +1331,7 @@ int is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
->>    }
->>
->>    /*
->> - * Confirm all pages in a range [start, end) is belongs to the same zone.
->> + * Confirm all pages in a range [start, end) belong to the same zone.
->>     */
->>    int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
->>    {
->> @@ -1342,10 +1342,11 @@ int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
->>        for (pfn = start_pfn;
->>             pfn < end_pfn;
->>             pfn += MAX_ORDER_NR_PAGES) {
->
->> -             i = 0;
->> -             /* This is just a CONFIG_HOLES_IN_ZONE check.*/
->> -             while ((i < MAX_ORDER_NR_PAGES) && !pfn_valid_within(pfn + i))
->> -                     i++;
->> +             /* Find the first valid pfn in this pageblock */
->> +             for (i = 0; i < MAX_ORDER_NR_PAGES; i++) {
->> +                     if (pfn_valid(pfn + i))
->> +                             break;
->> +             }
->
-> If CONFIG_HOLES_IN_NODE is set, there is no difference. Am I making a mistake?
->
-> Thanks,
-> Yasuaki Ishimatsu
->
->
->>                if (i == MAX_ORDER_NR_PAGES)
->>                        continue;
->>                page = pfn_to_page(pfn + i);
->>
->
->
+> 
+> .
+> 
+
 
 
 --
