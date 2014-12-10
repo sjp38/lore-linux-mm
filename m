@@ -1,72 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 914AA6B0032
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 14:51:36 -0500 (EST)
-Received: by mail-ie0-f178.google.com with SMTP id tp5so3315601ieb.23
-        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 11:51:36 -0800 (PST)
-Received: from resqmta-po-11v.sys.comcast.net (resqmta-po-11v.sys.comcast.net. [2001:558:fe16:19:96:114:154:170])
-        by mx.google.com with ESMTPS id lq6si15496igb.14.2014.12.10.11.51.34
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Wed, 10 Dec 2014 11:51:35 -0800 (PST)
-Date: Wed, 10 Dec 2014 13:51:32 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC PATCH 0/3] Faster than SLAB caching of SKBs with qmempool
- (backed by alf_queue)
-In-Reply-To: <20141210141332.31779.56391.stgit@dragon>
-Message-ID: <alpine.DEB.2.11.1412101339480.22982@gentwo.org>
-References: <20141210033902.2114.68658.stgit@ahduyck-vm-fedora20> <20141210141332.31779.56391.stgit@dragon>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 119A96B0032
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 15:53:24 -0500 (EST)
+Received: by mail-pd0-f169.google.com with SMTP id z10so3509172pdj.14
+        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 12:53:23 -0800 (PST)
+Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
+        by mx.google.com with ESMTP id nt8si8243862pdb.253.2014.12.10.12.53.21
+        for <linux-mm@kvack.org>;
+        Wed, 10 Dec 2014 12:53:23 -0800 (PST)
+Date: Thu, 11 Dec 2014 07:53:18 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v12 00/20] DAX: Page cache bypass for filesystems on
+ memory storage
+Message-ID: <20141210205318.GD24183@dastard>
+References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
+ <20141210140347.GA23252@infradead.org>
+ <20141210141211.GD2220@wil.cx>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141210141211.GD2220@wil.cx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Eric Dumazet <eric.dumazet@gmail.com>, "David S. Miller" <davem@davemloft.net>, Hannes Frederic Sowa <hannes@stressinduktion.org>, Alexander Duyck <alexander.duyck@gmail.com>, Alexei Starovoitov <ast@plumgrid.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Steven Rostedt <rostedt@goodmis.org>
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, 10 Dec 2014, Jesper Dangaard Brouer wrote:
+On Wed, Dec 10, 2014 at 09:12:11AM -0500, Matthew Wilcox wrote:
+> On Wed, Dec 10, 2014 at 06:03:47AM -0800, Christoph Hellwig wrote:
+> > What is the status of this patch set?
+> 
+> I have no outstanding bug reports against it.  Linus told me that he
+> wants to see it come through Andrew's tree.  I have an email two weeks
+> ago from Andrew saying that it's on his list.  I would love to see it
+> merged since it's almost a year old at this point.
 
-> One of the building blocks for achieving this speedup is a cmpxchg
-> based Lock-Free queue that supports bulking, named alf_queue for
-> Array-based Lock-Free queue.  By bulking elements (pointers) from the
-> queue, the cost of the cmpxchg (approx 8 ns) is amortized over several
-> elements.
+Yup, and I've been sitting on the XFS patches to enable DAX for
+quite a few months. I'm waiting for it to hit the upstream trees so
+I can push it...
 
-This is a bit of an issue since the design of the SLUB allocator is such
-that you should pick up an object, apply some processing and then take the
-next one. The fetching of an object warms up the first cacheline and this
-is tied into the way free objects are linked in SLUB.
+Cheers,
 
-So a bulk fetch from SLUB will not that effective and cause the touching
-of many cachelines if we are dealing with just a few objects. If we are
-looking at whole slab pages with all objects then SLUB can be effective
-since we do not have to build up the linked pointer structure in each
-page. SLAB has a different architecture there and a bulk fetch there is
-possible without touching objects even for small sets since the freelist
-management is separate from the objects.
-
-If you do this bulking then you will later access cache cold objects?
-Doesnt that negate the benefit that you gain? Or are these objects written
-to by hardware and therefore by necessity cache cold?
-
-We could provide a faster bulk alloc/free function.
-
-	int kmem_cache_alloc_array(struct kmem_cache *s, gfp_t flags,
-		size_t objects, void **array)
-
-and this could be optimized by each slab allocator to provide fast
-population of objects in that array. We then assume that the number of
-objects is in the hundreds or so right?
-
-The corresponding free function
-
-	void kmem_cache_free_array(struct kmem_cache *s,
-		size_t objects, void **array)
-
-
-I think the queue management of the array can be improved by using a
-similar technique as used the SLUB allocator using the cmpxchg_local.
-cmpxchg_local is much faster than a full cmpxchg and we are operating on
-per cpu structures anyways. So the overhead could still be reduced.
-
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
