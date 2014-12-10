@@ -1,102 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E7916B0032
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 10:02:48 -0500 (EST)
-Received: by mail-ig0-f172.google.com with SMTP id hl2so6561038igb.5
-        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 07:02:48 -0800 (PST)
-Received: from mail-ie0-x22e.google.com (mail-ie0-x22e.google.com. [2607:f8b0:4001:c03::22e])
-        by mx.google.com with ESMTPS id qg1si3376788igb.22.2014.12.10.07.02.46
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EEB16B006E
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 10:06:22 -0500 (EST)
+Received: by mail-wi0-f174.google.com with SMTP id h11so11531180wiw.1
+        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 07:06:22 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q4si8781750wiy.17.2014.12.10.07.06.21
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 10 Dec 2014 07:02:47 -0800 (PST)
-Received: by mail-ie0-f174.google.com with SMTP id rl12so2810308iec.19
-        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 07:02:46 -0800 (PST)
+        Wed, 10 Dec 2014 07:06:21 -0800 (PST)
+Message-ID: <5488616B.3070104@suse.cz>
+Date: Wed, 10 Dec 2014 16:06:19 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <000001cffe5e$44893f60$cd9bbe20$%yang@samsung.com>
-References: <000001cffe5e$44893f60$cd9bbe20$%yang@samsung.com>
-Date: Wed, 10 Dec 2014 23:02:46 +0800
-Message-ID: <CAL1ERfM3gn25gt-yf_MgVgZCkPyecQBB+cw32SR2XLNDWmnCQQ@mail.gmail.com>
-Subject: Re: [RFC PATCH] mm: mincore: use PAGE_SIZE instead of PAGE_CACHE_SIZE
-From: Weijie Yang <weijie.yang.kh@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: isolate_freepages_block and excessive CPU usage by OSD process
+References: <20141123093348.GA16954@cucumber.anchor.net.au> <CABYiri8LYukujETMCb4gHUQd=J-MQ8m=rGRiEkTD1B42Jh=Ksg@mail.gmail.com> <20141128080331.GD11802@js1304-P5Q-DELUXE> <54783FB7.4030502@suse.cz> <20141201083118.GB2499@js1304-P5Q-DELUXE> <20141202014724.GA22239@cucumber.bridge.anchor.net.au> <20141202045324.GC6268@js1304-P5Q-DELUXE> <20141202050608.GA11051@cucumber.bridge.anchor.net.au> <20141203075747.GB6276@js1304-P5Q-DELUXE> <20141204073045.GA2960@cucumber.anchor.net.au> <20141205010733.GA13751@js1304-P5Q-DELUXE>
+In-Reply-To: <20141205010733.GA13751@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijie.yang@samsung.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org
 
-ping. Any comments?
-
-On Wed, Nov 12, 2014 at 5:50 PM, Weijie Yang <weijie.yang@samsung.com> wrote:
-> This is a RFC patch, because current PAGE_SIZE is equal to PAGE_CACHE_SIZE,
-> there isn't any difference and issue when running.
+On 12/05/2014 02:07 AM, Joonsoo Kim wrote:
+> ------------>8-----------------
+>  From b7daa232c327a4ebbb48ca0538a2dbf9ca83ca1f Mon Sep 17 00:00:00 2001
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Date: Fri, 5 Dec 2014 09:38:30 +0900
+> Subject: [PATCH] mm/compaction: stop the compaction if there isn't enough
+>   freepage
 >
-> However, the current code mixes these two aligned_size inconsistently, and if
-> they are not equal in future mincore_unmapped_range() would check more file
-> pages than wanted.
+> After compaction_suitable() passed, there is no check whether the system
+> has enough memory to compact and blindly try to find freepage through
+> iterating all memory range. This causes excessive cpu usage in low free
+> memory condition and finally compaction would be failed. It makes sense
+> that compaction would be stopped if there isn't enough freepage. So,
+> this patch adds watermark check to isolate_freepages() in order to stop
+> the compaction in this case.
 >
-> According to man-page, mincore uses PAGE_SIZE as its size unit, so this patch
-> uses PAGE_SIZE instead of PAGE_CACHE_SIZE.
->
-> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > ---
->  mm/mincore.c |   19 +++++++++++++------
->  1 files changed, 13 insertions(+), 6 deletions(-)
+>   mm/compaction.c |    9 +++++++++
+>   1 file changed, 9 insertions(+)
 >
-> diff --git a/mm/mincore.c b/mm/mincore.c
-> index 725c809..8c19bce 100644
-> --- a/mm/mincore.c
-> +++ b/mm/mincore.c
-> @@ -102,11 +102,18 @@ static void mincore_unmapped_range(struct vm_area_struct *vma,
->         int i;
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index e005620..31c4009 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -828,6 +828,7 @@ static void isolate_freepages(struct compact_control *cc)
+>   	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
+>   	int nr_freepages = cc->nr_freepages;
+>   	struct list_head *freelist = &cc->freepages;
+> +	unsigned long watermark = low_wmark_pages(zone) + (2UL << cc->order);
+
+Given that we maybe have already isolated up to 31 free pages (if 
+cc->nr_migratepages is the maximum 32), then this is somewhat stricter 
+than the check in isolation_suitable() (when nothing was isolated yet) 
+and may interrupt us prematurely. We should allow for some slack.
+
 >
->         if (vma->vm_file) {
-> -               pgoff_t pgoff;
-> +               pgoff_t pgoff, pgoff_end;
-> +               int j, count;
-> +               unsigned char res;
->
-> +               count = 1 << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
->                 pgoff = linear_page_index(vma, addr);
-> -               for (i = 0; i < nr; i++, pgoff++)
-> -                       vec[i] = mincore_page(vma->vm_file->f_mapping, pgoff);
-> +               pgoff_end = linear_page_index(vma, end);
-> +               for (i = 0; pgoff < pgoff_end; pgoff++) {
-> +                       res = mincore_page(vma->vm_file->f_mapping, pgoff);
-> +                       for (j = 0; j < count; j++)
-> +                               vec[i++] = res;
-> +               }
->         } else {
->                 for (i = 0; i < nr; i++)
->                         vec[i] = 0;
-> @@ -258,7 +265,7 @@ static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *v
->   * return values:
->   *  zero    - success
->   *  -EFAULT - vec points to an illegal address
-> - *  -EINVAL - addr is not a multiple of PAGE_CACHE_SIZE
-> + *  -EINVAL - addr is not a multiple of PAGE_SIZE
->   *  -ENOMEM - Addresses in the range [addr, addr + len] are
->   *             invalid for the address space of this process, or
->   *             specify one or more pages which are not currently
-> @@ -273,14 +280,14 @@ SYSCALL_DEFINE3(mincore, unsigned long, start, size_t, len,
->         unsigned char *tmp;
->
->         /* Check the start address: needs to be page-aligned.. */
-> -       if (start & ~PAGE_CACHE_MASK)
-> +       if (start & ~PAGE_MASK)
->                 return -EINVAL;
->
->         /* ..and we need to be passed a valid user-space range */
->         if (!access_ok(VERIFY_READ, (void __user *) start, len))
->                 return -ENOMEM;
->
-> -       /* This also avoids any overflows on PAGE_CACHE_ALIGN */
-> +       /* This also avoids any overflows on PAGE_ALIGN */
->         pages = len >> PAGE_SHIFT;
->         pages += (len & ~PAGE_MASK) != 0;
->
-> --
-> 1.7.0.4
->
+>   	/*
+>   	 * Initialise the free scanner. The starting point is where we last
+> @@ -903,6 +904,14 @@ static void isolate_freepages(struct compact_control *cc)
+>   		 */
+>   		if (cc->contended)
+>   			break;
+> +
+> +		/*
+> +		 * Watermarks for order-0 must be met for compaction.
+> +		 * See compaction_suitable for more detailed explanation.
+> +		 */
+> +		if (!zone_watermark_ok(zone, 0, watermark,
+> +			cc->classzone_idx, cc->alloc_flags))
+> +			break;
+>   	}
+
+I'm a also bit concerned about the overhead of doing this in each pageblock.
+
+I wonder if there could be a mechanism where a process entering reclaim 
+or compaction with the goal of meeting the watermarks to allocate, 
+should increase the watermarks needed for further parallel allocation 
+attempts to pass. Then it shouldn't happen that somebody else steals the 
+memory.
+
+>   	/* split_free_page does not map the pages */
 >
 
 --
