@@ -1,175 +1,505 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 28E2D6B0075
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 10:19:16 -0500 (EST)
-Received: by mail-wg0-f51.google.com with SMTP id x12so3918493wgg.10
-        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 07:19:15 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cl6si8096915wjb.49.2014.12.10.07.19.14
+Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com [209.85.216.182])
+	by kanga.kvack.org (Postfix) with ESMTP id A92576B0032
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 10:33:28 -0500 (EST)
+Received: by mail-qc0-f182.google.com with SMTP id r5so2272862qcx.41
+        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 07:33:28 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d7si5259279qaq.66.2014.12.10.07.33.26
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 10 Dec 2014 07:19:14 -0800 (PST)
-Message-ID: <54886471.9050306@suse.cz>
-Date: Wed, 10 Dec 2014 16:19:13 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 Dec 2014 07:33:27 -0800 (PST)
+Date: Wed, 10 Dec 2014 16:33:21 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [RFC PATCH 0/3] Faster than SLAB caching of SKBs with qmempool
+ (backed by alf_queue)
+Message-ID: <20141210163321.0e4e4fd2@redhat.com>
+In-Reply-To: <alpine.DEB.2.11.1412100917020.4047@gentwo.org>
+References: <20141210033902.2114.68658.stgit@ahduyck-vm-fedora20>
+	<20141210141332.31779.56391.stgit@dragon>
+	<alpine.DEB.2.11.1412100917020.4047@gentwo.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] mm/compaction: stop the isolation when we isolate
- enough freepage
-References: <1418022980-4584-1-git-send-email-iamjoonsoo.kim@lge.com> <1418022980-4584-5-git-send-email-iamjoonsoo.kim@lge.com> <54857675.5080400@suse.cz> <20141210070055.GE13371@js1304-P5Q-DELUXE>
-In-Reply-To: <20141210070055.GE13371@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, brouer@redhat.com
 
-On 12/10/2014 08:00 AM, Joonsoo Kim wrote:
-> On Mon, Dec 08, 2014 at 10:59:17AM +0100, Vlastimil Babka wrote:
->> On 12/08/2014 08:16 AM, Joonsoo Kim wrote:
->>> From: Joonsoo Kim <js1304@gmail.com>
->>>
->>> Currently, freepage isolation in one pageblock doesn't consider how many
->>> freepages we isolate. When I traced flow of compaction, compaction
->>> sometimes isolates more than 256 freepages to migrate just 32 pages.
->>>
->>> In this patch, freepage isolation is stopped at the point that we
->>> have more isolated freepage than isolated page for migration. This
->>> results in slowing down free page scanner and make compaction success
->>> rate higher.
->>>
->>> stress-highalloc test in mmtests with non movable order 7 allocation shows
->>> increase of compaction success rate and slight improvement of allocation
->>> success rate.
->>>
->>> Allocation success rate on phase 1 (%)
->>> 62.70 : 64.00
->>>
->>> Compaction success rate (Compaction success * 100 / Compaction stalls, %)
->>> 35.13 : 41.50
->>
->> This is weird. I could maybe understand that isolating too many
->
-> In fact, I also didn't fully understand why it results in this
-> result. :)
->
->> freepages and then returning them is a waste of time if compaction
->> terminates immediately after the following migration (otherwise we
->> would keep those free pages for the future migrations within same
->> compaction run). And wasting time could reduce success rates for
->> async compaction terminating prematurely due to cond_resched(), but
->> that should be all the difference, unless there's another subtle
->> bug, no?
->
-> My guess is that there is bad effect when we release isolated
-> freepages. In asynchronous compaction, this happens quite easily.
-> In this case, freepages are returned to page allocator and, maybe,
-> they are on pcp list or front of buddy list so they would be used by
-> another user at first. This reduces freepages we can utilize so
-> compaction is finished earlier.
+On Wed, 10 Dec 2014 09:17:32 -0600 (CST)
+Christoph Lameter <cl@linux.com> wrote:
 
-Hmm, some might even stay on the pcplists and we won't isolate them 
-again. So we will leave them behind. I wouldn't expect such big 
-difference here, but anyway...
-It might be interesting to evaluate if a pcplists drain after returning 
-isolated freepages (unless the scanners have already met, that's 
-pointless) would make any difference.
+> On Wed, 10 Dec 2014, Jesper Dangaard Brouer wrote:
+> 
+> >  Patch1: alf_queue (Lock-Free queue)
+> 
+> For some reason that key patch is not in my linux-mm archives nor in my
+> inbox.
 
->>
->>> pfn where both scanners meets on compaction complete
->>> (separate test due to enormous tracepoint buffer)
->>> (zone_start=4096, zone_end=1048576)
->>> 586034 : 654378
->>
->> The difference here suggests that there is indeed another subtle bug
->> related to where free scanner restarts, and we must be leaving the
->> excessively isolated (and then returned) freepages behind. Otherwise
->> I think the scanners should meet at the same place regardless of
->> your patch.
->
-> I tried to find another subtle bug, but, can't find any critical one.
-> Hmm...
->
-> Anyway, regardless of the reason of result, this patch seems reasonable,
-> because we don't need to waste time to isolate unneeded freepages.
+That is very strange! I did notice that it was somehow delayed in
+showing up on gmane.org (http://thread.gmane.org/gmane.linux.network/342347/focus=126148)
+and didn't show up on netdev either...
 
-Right.
+Inserting it below (hoping my email client does not screw it up):
 
-> Thanks.
->
->>
->>> Signed-off-by: Joonsoo Kim <js1304@gmail.com>
->>> ---
->>>   mm/compaction.c |   17 ++++++++++-------
->>>   1 file changed, 10 insertions(+), 7 deletions(-)
->>>
->>> diff --git a/mm/compaction.c b/mm/compaction.c
->>> index 2fd5f79..12223b9 100644
->>> --- a/mm/compaction.c
->>> +++ b/mm/compaction.c
->>> @@ -422,6 +422,13 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
->>>
->>>   		/* If a page was split, advance to the end of it */
->>>   		if (isolated) {
->>> +			cc->nr_freepages += isolated;
->>> +			if (!strict &&
->>> +				cc->nr_migratepages <= cc->nr_freepages) {
->>> +				blockpfn += isolated;
->>> +				break;
->>> +			}
->>> +
->>>   			blockpfn += isolated - 1;
->>>   			cursor += isolated - 1;
->>>   			continue;
->>> @@ -831,7 +838,6 @@ static void isolate_freepages(struct compact_control *cc)
->>>   	unsigned long isolate_start_pfn; /* exact pfn we start at */
->>>   	unsigned long block_end_pfn;	/* end of current pageblock */
->>>   	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
->>> -	int nr_freepages = cc->nr_freepages;
->>>   	struct list_head *freelist = &cc->freepages;
->>>
->>>   	/*
->>> @@ -856,11 +862,11 @@ static void isolate_freepages(struct compact_control *cc)
->>>   	 * pages on cc->migratepages. We stop searching if the migrate
->>>   	 * and free page scanners meet or enough free pages are isolated.
->>>   	 */
->>> -	for (; block_start_pfn >= low_pfn && cc->nr_migratepages > nr_freepages;
->>> +	for (; block_start_pfn >= low_pfn &&
->>> +			cc->nr_migratepages > cc->nr_freepages;
->>>   				block_end_pfn = block_start_pfn,
->>>   				block_start_pfn -= pageblock_nr_pages,
->>>   				isolate_start_pfn = block_start_pfn) {
->>> -		unsigned long isolated;
->>>
->>>   		/*
->>>   		 * This can iterate a massively long zone without finding any
->>> @@ -885,9 +891,8 @@ static void isolate_freepages(struct compact_control *cc)
->>>   			continue;
->>>
->>>   		/* Found a block suitable for isolating free pages from. */
->>> -		isolated = isolate_freepages_block(cc, &isolate_start_pfn,
->>> +		isolate_freepages_block(cc, &isolate_start_pfn,
->>>   					block_end_pfn, freelist, false);
->>> -		nr_freepages += isolated;
->>>
->>>   		/*
->>>   		 * Remember where the free scanner should restart next time,
->>> @@ -919,8 +924,6 @@ static void isolate_freepages(struct compact_control *cc)
->>>   	 */
->>>   	if (block_start_pfn < low_pfn)
->>>   		cc->free_pfn = cc->migrate_pfn;
->>> -
->>> -	cc->nr_freepages = nr_freepages;
->>>   }
->>>
->>>   /*
->>>
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+[PATCH RFC] lib: adding an Array-based Lock-Free (ALF) queue
+
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+
+This Array-based Lock-Free (ALF) queue, is a very fast bounded
+Producer-Consumer queue, supporting bulking.  The MPMC
+(Multi-Producer/Multi-Consumer) variant uses a locked cmpxchg, but the
+cost can be amorized by utilizing bulk enqueue/dequeue.
+
+Results on x86_64 CPU E5-2695, for variants:
+ MPMC = Multi-Producer-Multi-Consumer
+ SPSC = Single-Producer-Single-Consumer
+
+(none-bulking):  per element cost MPMC and SPSC
+                   MPMC     -- SPSC
+ simple         :  9.519 ns -- 1.282 ns
+ multi(step:128): 12.905 ns -- 2.240 ns
+
+The majority of the cost is associated with the locked cmpxchg in the
+MPMC variant.  Bulking helps amortize this cost:
+
+(bulking) cost per element comparing MPMC -> SPSC:
+         MPMC     -- SPSC
+ bulk2 : 5.849 ns -- 1.748 ns
+ bulk3 : 4.102 ns -- 1.531 ns
+ bulk4 : 3.281 ns -- 1.383 ns
+ bulk6 : 2.530 ns -- 1.238 ns
+ bulk8 : 2.125 ns -- 1.196 ns
+ bulk16: 1.552 ns -- 1.109 ns
+
+Joint work with Hannes Frederic Sowa.
+
+Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
+Signed-off-by: Hannes Frederic Sowa <hannes@stressinduktion.org>
+----
+
+Correctness of memory barries on different arch's need to be evaluated.
+
+The API might need some adjustments/discussions regarding:
+
+1) the semantics of enq/deq when doing bulking, choosing what
+to do when e.g. a bulk enqueue cannot fit fully.
+
+2) some better way to detect miss-use of API, e.g. using
+single-enqueue variant function call on a multi-enqueue variant data
+structure.  Now no detection happens.
+---
+
+ include/linux/alf_queue.h |  303 +++++++++++++++++++++++++++++++++++++++++++++
+ lib/Kconfig               |   13 ++
+ lib/Makefile              |    2 
+ lib/alf_queue.c           |   47 +++++++
+ 4 files changed, 365 insertions(+), 0 deletions(-)
+ create mode 100644 include/linux/alf_queue.h
+ create mode 100644 lib/alf_queue.c
+
+
+diff --git a/include/linux/alf_queue.h b/include/linux/alf_queue.h
+new file mode 100644
+index 0000000..fb1a774
+--- /dev/null
++++ b/include/linux/alf_queue.h
+@@ -0,0 +1,303 @@
++#ifndef _LINUX_ALF_QUEUE_H
++#define _LINUX_ALF_QUEUE_H
++/* linux/alf_queue.h
++ *
++ * ALF: Array-based Lock-Free queue
++ *
++ * Queue properties
++ *  - Array based for cache-line optimization
++ *  - Bounded by the array size
++ *  - FIFO Producer/Consumer queue, no queue traversal supported
++ *  - Very fast
++ *  - Designed as a queue for pointers to objects
++ *  - Bulk enqueue and dequeue support
++ *  - Supports combinations of Multi and Single Producer/Consumer
++ *
++ * Copyright (C) 2014, Red Hat, Inc.,
++ *  by Jesper Dangaard Brouer and Hannes Frederic Sowa
++ *  for licensing details see kernel-base/COPYING
++ */
++#include <linux/compiler.h>
++#include <linux/kernel.h>
++
++struct alf_actor {
++	u32 head;
++	u32 tail;
++};
++
++struct alf_queue {
++	u32 size;
++	u32 mask;
++	u32 flags;
++	struct alf_actor producer ____cacheline_aligned_in_smp;
++	struct alf_actor consumer ____cacheline_aligned_in_smp;
++	void *ring[0] ____cacheline_aligned_in_smp;
++};
++
++struct alf_queue *alf_queue_alloc(u32 size, gfp_t gfp);
++void		  alf_queue_free(struct alf_queue *q);
++
++/* Helpers for LOAD and STORE of elements, have been split-out because:
++ *  1. They can be reused for both "Single" and "Multi" variants
++ *  2. Allow us to experiment with (pipeline) optimizations in this area.
++ */
++static inline void
++__helper_alf_enqueue_store(u32 p_head, struct alf_queue *q,
++			   void **ptr, const u32 n)
++{
++	int i, index = p_head;
++
++	for (i = 0; i < n; i++, index++)
++		q->ring[index & q->mask] = ptr[i];
++}
++
++static inline void
++__helper_alf_dequeue_load(u32 c_head, struct alf_queue *q,
++			  void **ptr, const u32 elems)
++{
++	int i, index = c_head;
++
++	for (i = 0; i < elems; i++, index++)
++		ptr[i] = q->ring[index & q->mask];
++}
++
++/* Main Multi-Producer ENQUEUE
++ *
++ * Even-though current API have a "fixed" semantics of aborting if it
++ * cannot enqueue the full bulk size.  Users of this API should check
++ * on the returned number of enqueue elements match, to verify enqueue
++ * was successful.  This allow us to introduce a "variable" enqueue
++ * scheme later.
++ *
++ * Not preemption safe. Multiple CPUs can enqueue elements, but the
++ * same CPU is not allowed to be preempted and access the same
++ * queue. Due to how the tail is updated, this can result in a soft
++ * lock-up. (Same goes for alf_mc_dequeue).
++ */
++static inline int
++alf_mp_enqueue(const u32 n;
++	       struct alf_queue *q, void *ptr[n], const u32 n)
++{
++	u32 p_head, p_next, c_tail, space;
++
++	/* Reserve part of the array for enqueue STORE/WRITE */
++	do {
++		p_head = ACCESS_ONCE(q->producer.head);
++		c_tail = ACCESS_ONCE(q->consumer.tail);
++
++		space = q->size + c_tail - p_head;
++		if (n > space)
++			return 0;
++
++		p_next = p_head + n;
++	}
++	while (unlikely(cmpxchg(&q->producer.head, p_head, p_next) != p_head));
++
++	/* STORE the elems into the queue array */
++	__helper_alf_enqueue_store(p_head, q, ptr, n);
++	smp_wmb(); /* Write-Memory-Barrier matching dequeue LOADs */
++
++	/* Wait for other concurrent preceding enqueues not yet done,
++	 * this part make us none-wait-free and could be problematic
++	 * in case of congestion with many CPUs
++	 */
++	while (unlikely(ACCESS_ONCE(q->producer.tail) != p_head))
++		cpu_relax();
++	/* Mark this enq done and avail for consumption */
++	ACCESS_ONCE(q->producer.tail) = p_next;
++
++	return n;
++}
++
++/* Main Multi-Consumer DEQUEUE */
++static inline int
++alf_mc_dequeue(const u32 n;
++	       struct alf_queue *q, void *ptr[n], const u32 n)
++{
++	u32 c_head, c_next, p_tail, elems;
++
++	/* Reserve part of the array for dequeue LOAD/READ */
++	do {
++		c_head = ACCESS_ONCE(q->consumer.head);
++		p_tail = ACCESS_ONCE(q->producer.tail);
++
++		elems = p_tail - c_head;
++
++		if (elems == 0)
++			return 0;
++		else
++			elems = min(elems, n);
++
++		c_next = c_head + elems;
++	}
++	while (unlikely(cmpxchg(&q->consumer.head, c_head, c_next) != c_head));
++
++	/* LOAD the elems from the queue array.
++	 *   We don't need a smb_rmb() Read-Memory-Barrier here because
++	 *   the above cmpxchg is an implied full Memory-Barrier.
++	 */
++	__helper_alf_dequeue_load(c_head, q, ptr, elems);
++
++	/* Archs with weak Memory Ordering need a memory barrier here.
++	 * As the STORE to q->consumer.tail, must happen after the
++	 * dequeue LOADs. Dequeue LOADs have a dependent STORE into
++	 * ptr, thus a smp_wmb() is enough. Paired with enqueue
++	 * implicit full-MB in cmpxchg.
++	 */
++	smp_wmb();
++
++	/* Wait for other concurrent preceding dequeues not yet done */
++	while (unlikely(ACCESS_ONCE(q->consumer.tail) != c_head))
++		cpu_relax();
++	/* Mark this deq done and avail for producers */
++	ACCESS_ONCE(q->consumer.tail) = c_next;
++
++	return elems;
++}
++
++/* #define ASSERT_DEBUG_SPSC 1 */
++#ifndef ASSERT_DEBUG_SPSC
++#define ASSERT(x) do { } while (0)
++#else
++#define ASSERT(x)							\
++	do {								\
++		if (unlikely(!(x))) {					\
++			pr_crit("Assertion failed %s:%d: \"%s\"\n",	\
++				__FILE__, __LINE__, #x);		\
++			BUG();						\
++		}							\
++	} while (0)
++#endif
++
++/* Main SINGLE Producer ENQUEUE
++ *  caller MUST make sure preemption is disabled
++ */
++static inline int
++alf_sp_enqueue(const u32 n;
++	       struct alf_queue *q, void *ptr[n], const u32 n)
++{
++	u32 p_head, p_next, c_tail, space;
++
++	/* Reserve part of the array for enqueue STORE/WRITE */
++	p_head = q->producer.head;
++	smp_rmb(); /* for consumer.tail write, making sure deq loads are done */
++	c_tail = ACCESS_ONCE(q->consumer.tail);
++
++	space = q->size + c_tail - p_head;
++	if (n > space)
++		return 0;
++
++	p_next = p_head + n;
++	ASSERT(ACCESS_ONCE(q->producer.head) == p_head);
++	q->producer.head = p_next;
++
++	/* STORE the elems into the queue array */
++	__helper_alf_enqueue_store(p_head, q, ptr, n);
++	smp_wmb(); /* Write-Memory-Barrier matching dequeue LOADs */
++
++	/* Assert no other CPU (or same CPU via preemption) changed queue */
++	ASSERT(ACCESS_ONCE(q->producer.tail) == p_head);
++
++	/* Mark this enq done and avail for consumption */
++	ACCESS_ONCE(q->producer.tail) = p_next;
++
++	return n;
++}
++
++/* Main SINGLE Consumer DEQUEUE
++ *  caller MUST make sure preemption is disabled
++ */
++static inline int
++alf_sc_dequeue(const u32 n;
++	       struct alf_queue *q, void *ptr[n], const u32 n)
++{
++	u32 c_head, c_next, p_tail, elems;
++
++	/* Reserve part of the array for dequeue LOAD/READ */
++	c_head = q->consumer.head;
++	p_tail = ACCESS_ONCE(q->producer.tail);
++
++	elems = p_tail - c_head;
++
++	if (elems == 0)
++		return 0;
++	else
++		elems = min(elems, n);
++
++	c_next = c_head + elems;
++	ASSERT(ACCESS_ONCE(q->consumer.head) == c_head);
++	q->consumer.head = c_next;
++
++	smp_rmb(); /* Read-Memory-Barrier matching enq STOREs */
++	__helper_alf_dequeue_load(c_head, q, ptr, elems);
++
++	/* Archs with weak Memory Ordering need a memory barrier here.
++	 * As the STORE to q->consumer.tail, must happen after the
++	 * dequeue LOADs. Dequeue LOADs have a dependent STORE into
++	 * ptr, thus a smp_wmb() is enough.
++	 */
++	smp_wmb();
++
++	/* Assert no other CPU (or same CPU via preemption) changed queue */
++	ASSERT(ACCESS_ONCE(q->consumer.tail) == c_head);
++
++	/* Mark this deq done and avail for producers */
++	ACCESS_ONCE(q->consumer.tail) = c_next;
++
++	return elems;
++}
++
++static inline bool
++alf_queue_empty(struct alf_queue *q)
++{
++	u32 c_tail = ACCESS_ONCE(q->consumer.tail);
++	u32 p_tail = ACCESS_ONCE(q->producer.tail);
++
++	/* The empty (and initial state) is when consumer have reached
++	 * up with producer.
++	 *
++	 * DOUBLE-CHECK: Should we use producer.head, as this indicate
++	 * a producer is in-progress(?)
++	 */
++	return c_tail == p_tail;
++}
++
++static inline int
++alf_queue_count(struct alf_queue *q)
++{
++	u32 c_head = ACCESS_ONCE(q->consumer.head);
++	u32 p_tail = ACCESS_ONCE(q->producer.tail);
++	u32 elems;
++
++	/* Due to u32 arithmetic the values are implicitly
++	 * masked/modulo 32-bit, thus saving one mask operation
++	 */
++	elems = p_tail - c_head;
++	/* Thus, same as:
++	 *  elems = (p_tail - c_head) & q->mask;
++	 */
++	return elems;
++}
++
++static inline int
++alf_queue_avail_space(struct alf_queue *q)
++{
++	u32 p_head = ACCESS_ONCE(q->producer.head);
++	u32 c_tail = ACCESS_ONCE(q->consumer.tail);
++	u32 space;
++
++	/* The max avail space is q->size and
++	 * the empty state is when (consumer == producer)
++	 */
++
++	/* Due to u32 arithmetic the values are implicitly
++	 * masked/modulo 32-bit, thus saving one mask operation
++	 */
++	space = q->size + c_tail - p_head;
++	/* Thus, same as:
++	 *  space = (q->size + c_tail - p_head) & q->mask;
++	 */
++	return space;
++}
++
++#endif /* _LINUX_ALF_QUEUE_H */
+diff --git a/lib/Kconfig b/lib/Kconfig
+index 54cf309..3c0cd58 100644
+--- a/lib/Kconfig
++++ b/lib/Kconfig
+@@ -439,6 +439,19 @@ config NLATTR
+ 	bool
+ 
+ #
++# ALF queue
++#
++config ALF_QUEUE
++	bool "ALF: Array-based Lock-Free (Producer-Consumer) queue"
++	default y
++	help
++	  This Array-based Lock-Free (ALF) queue, is a very fast
++	  bounded Producer-Consumer queue, supporting bulking.  The
++	  MPMC (Multi-Producer/Multi-Consumer) variant uses a locked
++	  cmpxchg, but the cost can be amorized by utilizing bulk
++	  enqueue/dequeue.
++
++#
+ # Generic 64-bit atomic support is selected if needed
+ #
+ config GENERIC_ATOMIC64
+diff --git a/lib/Makefile b/lib/Makefile
+index 0211d2b..cd3a2d0 100644
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -119,6 +119,8 @@ obj-$(CONFIG_DYNAMIC_DEBUG) += dynamic_debug.o
+ 
+ obj-$(CONFIG_NLATTR) += nlattr.o
+ 
++obj-$(CONFIG_ALF_QUEUE) += alf_queue.o
++
+ obj-$(CONFIG_LRU_CACHE) += lru_cache.o
+ 
+ obj-$(CONFIG_DMA_API_DEBUG) += dma-debug.o
+diff --git a/lib/alf_queue.c b/lib/alf_queue.c
+new file mode 100644
+index 0000000..d6c9b69
+--- /dev/null
++++ b/lib/alf_queue.c
+@@ -0,0 +1,47 @@
++/*
++ * lib/alf_queue.c
++ *
++ * ALF: Array-based Lock-Free queue
++ *  - Main implementation in: include/linux/alf_queue.h
++ *
++ * Copyright (C) 2014, Red Hat, Inc.,
++ *  by Jesper Dangaard Brouer and Hannes Frederic Sowa
++ *  for licensing details see kernel-base/COPYING
++ */
++#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
++
++#include <linux/module.h>
++#include <linux/slab.h> /* kzalloc */
++#include <linux/alf_queue.h>
++#include <linux/log2.h>
++
++struct alf_queue *alf_queue_alloc(u32 size, gfp_t gfp)
++{
++	struct alf_queue *q;
++	size_t mem_size;
++
++	if (!(is_power_of_2(size)) || size > 65536)
++		return ERR_PTR(-EINVAL);
++
++	/* The ring array is allocated together with the queue struct */
++	mem_size = size * sizeof(void *) + sizeof(struct alf_queue);
++	q = kzalloc(mem_size, gfp);
++	if (!q)
++		return ERR_PTR(-ENOMEM);
++
++	q->size = size;
++	q->mask = size - 1;
++
++	return q;
++}
++EXPORT_SYMBOL_GPL(alf_queue_alloc);
++
++void alf_queue_free(struct alf_queue *q)
++{
++	kfree(q);
++}
++EXPORT_SYMBOL_GPL(alf_queue_free);
++
++MODULE_DESCRIPTION("ALF: Array-based Lock-Free queue");
++MODULE_AUTHOR("Jesper Dangaard Brouer <netoptimizer@brouer.com>");
++MODULE_LICENSE("GPL");
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
