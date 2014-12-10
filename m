@@ -1,60 +1,245 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
-	by kanga.kvack.org (Postfix) with ESMTP id BE5B56B0032
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 08:38:44 -0500 (EST)
-Received: by mail-ie0-f177.google.com with SMTP id rd18so2635518iec.36
-        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 05:38:44 -0800 (PST)
-Received: from mail-ig0-x235.google.com (mail-ig0-x235.google.com. [2607:f8b0:4001:c05::235])
-        by mx.google.com with ESMTPS id z1si2945579ioi.28.2014.12.10.05.38.43
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id D10856B0032
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 08:40:44 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id lf10so2218188pab.33
+        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 05:40:44 -0800 (PST)
+Received: from mail-pd0-x230.google.com (mail-pd0-x230.google.com. [2607:f8b0:400e:c02::230])
+        by mx.google.com with ESMTPS id hs3si6906847pbc.30.2014.12.10.05.40.42
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 10 Dec 2014 05:38:43 -0800 (PST)
-Received: by mail-ig0-f181.google.com with SMTP id l13so3060715iga.14
-        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 05:38:42 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20141209095922.GB21903@suse.de>
-References: <000001d01383$8e0f1120$aa2d3360$%yang@samsung.com>
-	<20141209095922.GB21903@suse.de>
-Date: Wed, 10 Dec 2014 21:38:42 +0800
-Message-ID: <CAL1ERfOxEJGJjZk9O_NKV82mOT+udto0tL2eCagicLig6CaJ=g@mail.gmail.com>
-Subject: Re: [PATCH] mm: page_alloc: place zone id check before VM_BUG_ON_PAGE check
-From: Weijie Yang <weijie.yang.kh@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        Wed, 10 Dec 2014 05:40:43 -0800 (PST)
+Received: by mail-pd0-f176.google.com with SMTP id r10so821334pdi.7
+        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 05:40:42 -0800 (PST)
+From: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Subject: [PATCH] mm/zsmalloc: disclose statistics to debugfs
+Date: Wed, 10 Dec 2014 21:40:20 +0800
+Message-Id: <1418218820-4153-1-git-send-email-opensource.ganesh@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Weijie Yang <weijie.yang@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
+To: minchan@kernel.org, ngupta@vflare.org
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ganesh Mahendran <opensource.ganesh@gmail.com>
 
-On Tue, Dec 9, 2014 at 5:59 PM, Mel Gorman <mgorman@suse.de> wrote:
-> On Tue, Dec 09, 2014 at 03:40:35PM +0800, Weijie Yang wrote:
->> If the free page and its buddy has different zone id, the current
->> zone->lock cann't prevent buddy page getting allocated, this could
->> trigger VM_BUG_ON_PAGE in a very tiny chance:
->>
->
-> Under what circumstances can a buddy page be allocated without the
-> zone->lock? Any parallel allocation from that zone that takes place will
-> be from the per-cpu allocator and should not be affected by this. Have
-> you actually hit this race?
+As we now talk more and more about the fragmentation of zsmalloc. But
+we still need to manually add some debug code to see the fragmentation.
+So, I think we may add the statistics of memory fragmention in zsmalloc
+and disclose them to debugfs. Then we can easily get and analysis
+them when adding or developing new feature for zsmalloc.
 
-My description maybe not clear, if the free page and its buddy is not
-at the same zone, the holding zone->lock cann't prevent buddy page
-getting allocated.
-zone_1->lock prevents the freeing page getting allocated
-zone_2->lock prevents the buddy page getting allocated
-they are not the same zone->lock.
+Below entries will be created when a zsmalloc pool is created:
+    /sys/kernel/debug/zsmalloc/pool-n/obj_allocated
+    /sys/kernel/debug/zsmalloc/pool-n/obj_used
 
-I found it when review the code, not a running test.
-However, if we cann't remove the zone_id check statement, I think
-we should handle this rare race.
+Then the status of objects usage will be:
+    objects_usage = obj_used / obj_allocated
 
-If I miss something or make a mistake, please let me know.
+Also we can collect other information and add corresponding entries
+in debugfs when needed.
 
-Thanks
+Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
+---
+ mm/zsmalloc.c |  108 ++++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 104 insertions(+), 4 deletions(-)
 
-> --
-> Mel Gorman
-> SUSE Labs
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 4d0a063..f682ef9 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -168,6 +168,8 @@ enum fullness_group {
+ 	ZS_FULL
+ };
+ 
++static int zs_pool_num;
++
+ /*
+  * number of size_classes
+  */
+@@ -216,11 +218,19 @@ struct link_free {
+ 	void *next;
+ };
+ 
++struct zs_stats {
++	atomic_long_t pages_allocated;
++	u64 obj_allocated;
++	u64 obj_used;
++};
++
+ struct zs_pool {
+ 	struct size_class **size_class;
+ 
+ 	gfp_t flags;	/* allocation flags used when growing pool */
+-	atomic_long_t pages_allocated;
++
++	struct zs_stats stats;
++	struct dentry *debugfs_dentry;
+ };
+ 
+ /*
+@@ -925,12 +935,84 @@ static void init_zs_size_classes(void)
+ 	zs_size_classes = nr;
+ }
+ 
++
++#ifdef CONFIG_DEBUG_FS
++#include <linux/debugfs.h>
++
++static struct dentry *zs_debugfs_root;
++
++static int __init zs_debugfs_init(void)
++{
++	if (!debugfs_initialized())
++		return -ENODEV;
++
++	zs_debugfs_root = debugfs_create_dir("zsmalloc", NULL);
++	if (!zs_debugfs_root)
++		return -ENOMEM;
++
++	return 0;
++}
++
++static void __exit zs_debugfs_exit(void)
++{
++	debugfs_remove_recursive(zs_debugfs_root);
++}
++
++static int zs_pool_debugfs_create(struct zs_pool *pool, int index)
++{
++	char name[10];
++	int ret = 0;
++
++	if (!zs_debugfs_root) {
++		ret = -ENODEV;
++		goto out;
++	}
++
++	snprintf(name, sizeof(name), "pool-%d", index);
++	pool->debugfs_dentry = debugfs_create_dir(name, zs_debugfs_root);
++	if (!pool->debugfs_dentry) {
++		ret = -ENOMEM;
++		goto out;
++	}
++
++	debugfs_create_u64("obj_allocated", S_IRUGO, pool->debugfs_dentry,
++			&pool->stats.obj_allocated);
++	debugfs_create_u64("obj_used", S_IRUGO, pool->debugfs_dentry,
++			&pool->stats.obj_used);
++
++out:
++	return ret;
++}
++
++static void zs_pool_debugfs_destroy(struct zs_pool *pool)
++{
++	debugfs_remove_recursive(pool->debugfs_dentry);
++}
++
++#else
++static int __init zs_debugfs_init(void)
++{
++	return 0;
++}
++
++static void __exit zs_debugfs_exit(void) { }
++
++static int zs_pool_debugfs_create(struct zs_pool *pool, int index)
++{
++	return 0;
++}
++
++static void zs_pool_debugfs_destroy(struct zs_pool *pool) {}
++#endif
++
+ static void __exit zs_exit(void)
+ {
+ #ifdef CONFIG_ZPOOL
+ 	zpool_unregister_driver(&zs_zpool_driver);
+ #endif
+ 	zs_unregister_cpu_notifier();
++
++	zs_debugfs_exit();
+ }
+ 
+ static int __init zs_init(void)
+@@ -947,6 +1029,10 @@ static int __init zs_init(void)
+ #ifdef CONFIG_ZPOOL
+ 	zpool_register_driver(&zs_zpool_driver);
+ #endif
++
++	if (zs_debugfs_init())
++		pr_warn("debugfs initialization failed\n");
++
+ 	return 0;
+ }
+ 
+@@ -1039,6 +1125,11 @@ struct zs_pool *zs_create_pool(gfp_t flags)
+ 
+ 	pool->flags = flags;
+ 
++	zs_pool_num++;
++
++	if (zs_pool_debugfs_create(pool, zs_pool_num))
++		pr_warn("zs pool debugfs initialization failed\n");
++
+ 	return pool;
+ 
+ err:
+@@ -1071,6 +1162,9 @@ void zs_destroy_pool(struct zs_pool *pool)
+ 	}
+ 
+ 	kfree(pool->size_class);
++	zs_pool_debugfs_destroy(pool);
++	zs_pool_num--;
++
+ 	kfree(pool);
+ }
+ EXPORT_SYMBOL_GPL(zs_destroy_pool);
+@@ -1110,7 +1204,9 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+ 
+ 		set_zspage_mapping(first_page, class->index, ZS_EMPTY);
+ 		atomic_long_add(class->pages_per_zspage,
+-					&pool->pages_allocated);
++					&pool->stats.pages_allocated);
++		pool->stats.obj_allocated += get_maxobj_per_zspage(class->size,
++				class->pages_per_zspage);
+ 		spin_lock(&class->lock);
+ 	}
+ 
+@@ -1125,6 +1221,7 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+ 	kunmap_atomic(vaddr);
+ 
+ 	first_page->inuse++;
++	pool->stats.obj_used++;
+ 	/* Now move the zspage to another fullness group, if required */
+ 	fix_fullness_group(pool, first_page);
+ 	spin_unlock(&class->lock);
+@@ -1164,12 +1261,15 @@ void zs_free(struct zs_pool *pool, unsigned long obj)
+ 	first_page->freelist = (void *)obj;
+ 
+ 	first_page->inuse--;
++	pool->stats.obj_used--;
+ 	fullness = fix_fullness_group(pool, first_page);
+ 	spin_unlock(&class->lock);
+ 
+ 	if (fullness == ZS_EMPTY) {
+ 		atomic_long_sub(class->pages_per_zspage,
+-				&pool->pages_allocated);
++				&pool->stats.pages_allocated);
++		pool->stats.obj_allocated -= get_maxobj_per_zspage(class->size,
++				class->pages_per_zspage);
+ 		free_zspage(first_page);
+ 	}
+ }
+@@ -1267,7 +1367,7 @@ EXPORT_SYMBOL_GPL(zs_unmap_object);
+ 
+ unsigned long zs_get_total_pages(struct zs_pool *pool)
+ {
+-	return atomic_long_read(&pool->pages_allocated);
++	return atomic_long_read(&pool->stats.pages_allocated);
+ }
+ EXPORT_SYMBOL_GPL(zs_get_total_pages);
+ 
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
