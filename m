@@ -1,55 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id E972F6B0032
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 04:55:04 -0500 (EST)
-Received: by mail-wi0-f171.google.com with SMTP id bs8so10601052wib.4
-        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 01:55:04 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id hu8si19525685wib.9.2014.12.10.01.55.03
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 10 Dec 2014 01:55:03 -0800 (PST)
-Message-ID: <54881876.70309@suse.cz>
-Date: Wed, 10 Dec 2014 10:55:02 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D9D66B0032
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 06:06:15 -0500 (EST)
+Received: by mail-wi0-f170.google.com with SMTP id bs8so12913240wib.3
+        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 03:06:14 -0800 (PST)
+Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.227])
+        by mx.google.com with ESMTP id hm5si6956045wjc.56.2014.12.10.03.06.14
+        for <linux-mm@kvack.org>;
+        Wed, 10 Dec 2014 03:06:14 -0800 (PST)
+Date: Wed, 10 Dec 2014 13:05:56 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC] mm:fix zero_page huge_zero_page rss/pss statistic
+Message-ID: <20141210110556.GA10630@node.dhcp.inet.fi>
+References: <35FD53F367049845BC99AC72306C23D103E688B313EE@CNBJMBX05.corpusers.net>
+ <CALYGNiOuBKz8shHSrFCp0BT5AV6XkNOCHj+LJedQQ-2YdZtM7w@mail.gmail.com>
+ <35FD53F367049845BC99AC72306C23D103E688B313F2@CNBJMBX05.corpusers.net>
+ <20141205143134.37139da2208c654a0d3cd942@linux-foundation.org>
+ <35FD53F367049845BC99AC72306C23D103E688B313F4@CNBJMBX05.corpusers.net>
+ <20141208114601.GA28846@node.dhcp.inet.fi>
+ <35FD53F367049845BC99AC72306C23D103E688B313FB@CNBJMBX05.corpusers.net>
+ <35FD53F367049845BC99AC72306C23D103E688B31403@CNBJMBX05.corpusers.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/4] mm/page_alloc: expands broken freepage to proper
- buddy list when steal
-References: <1418022980-4584-1-git-send-email-iamjoonsoo.kim@lge.com> <1418022980-4584-3-git-send-email-iamjoonsoo.kim@lge.com> <54856F88.8090300@suse.cz> <20141210063840.GC13371@js1304-P5Q-DELUXE>
-In-Reply-To: <20141210063840.GC13371@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <35FD53F367049845BC99AC72306C23D103E688B31403@CNBJMBX05.corpusers.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Konstantin Khlebnikov' <koct9i@gmail.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'n-horiguchi@ah.jp.nec.com'" <n-horiguchi@ah.jp.nec.com>, "'oleg@redhat.com'" <oleg@redhat.com>, "'gorcunov@openvz.org'" <gorcunov@openvz.org>, "'pfeiner@google.com'" <pfeiner@google.com>
 
-On 12/10/2014 07:38 AM, Joonsoo Kim wrote:
-> On Mon, Dec 08, 2014 at 10:29:44AM +0100, Vlastimil Babka wrote:
->> On 12/08/2014 08:16 AM, Joonsoo Kim wrote:
->>> There is odd behaviour when we steal freepages from other migratetype
->>> buddy list. In try_to_steal_freepages(), we move all freepages in
->>> the pageblock that founded freepage is belong to to the request
->>> migratetype in order to mitigate fragmentation. If the number of moved
->>> pages are enough to change pageblock migratetype, there is no problem. If
->>> not enough, we don't change pageblock migratetype and add broken freepages
->>> to the original migratetype buddy list rather than request migratetype
->>> one. For me, this is odd, because we already moved all freepages in this
->>> pageblock to the request migratetype. This patch fixes this situation to
->>> add broken freepages to the request migratetype buddy list in this case.
->>
->> I'd rather split the fix from the refactoring. And maybe my
->> description is longer, but easier to understand? (I guess somebody
->> else should judge this)
->
-> Your patch is much better to understand than mine. :)
-> No need to judge from somebody else.
-> After your patch is merged, I will resubmit these on top of it.
+On Wed, Dec 10, 2014 at 03:22:21PM +0800, Wang, Yalin wrote:
+> smaps_pte_entry() doesn't ignore zero_huge_page,
+> but it ignore zero_page, because vm_normal_page() will
+> ignore it. We remove vm_normal_page() call, because walk_page_range()
+> have ignore VM_PFNMAP vma maps, it's safe to just use pfn_valid(),
+> so that we can also consider zero_page to be a valid page.
 
-Thanks. I'm doing another evaluation focusing on number of unmovable 
-pageblocks as Mel suggested and then resubmit with tracepoint fixed.
+We fixed huge zero page accounting in smaps recentely. See mm tree.
 
-Vlastimil
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
