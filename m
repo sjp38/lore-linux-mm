@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 032446B0074
-	for <linux-mm@kvack.org>; Tue,  9 Dec 2014 20:46:50 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id lf10so1118158pab.5
-        for <linux-mm@kvack.org>; Tue, 09 Dec 2014 17:46:49 -0800 (PST)
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com. [209.85.192.172])
-        by mx.google.com with ESMTPS id iw7si4418871pac.105.2014.12.09.17.46.47
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DEC96B0075
+	for <linux-mm@kvack.org>; Tue,  9 Dec 2014 20:46:52 -0500 (EST)
+Received: by mail-pd0-f169.google.com with SMTP id z10so1742437pdj.0
+        for <linux-mm@kvack.org>; Tue, 09 Dec 2014 17:46:51 -0800 (PST)
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com. [209.85.220.46])
+        by mx.google.com with ESMTPS id j2si4389355pdo.128.2014.12.09.17.46.49
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 09 Dec 2014 17:46:48 -0800 (PST)
-Received: by mail-pd0-f172.google.com with SMTP id y13so1730638pdi.3
-        for <linux-mm@kvack.org>; Tue, 09 Dec 2014 17:46:47 -0800 (PST)
+        Tue, 09 Dec 2014 17:46:50 -0800 (PST)
+Received: by mail-pa0-f46.google.com with SMTP id lf10so1116320pab.19
+        for <linux-mm@kvack.org>; Tue, 09 Dec 2014 17:46:49 -0800 (PST)
 From: Omar Sandoval <osandov@osandov.com>
-Subject: [RFC PATCH v3 6/7] btrfs: add EXTENT_FLAG_SWAPFILE
-Date: Tue,  9 Dec 2014 17:45:47 -0800
-Message-Id: <f489d4ad85df4039f3a84f1a2f89735c9a1cf88d.1418173063.git.osandov@osandov.com>
+Subject: [RFC PATCH v3 7/7] btrfs: enable swap file support
+Date: Tue,  9 Dec 2014 17:45:48 -0800
+Message-Id: <0f9937165d8fc1b8b6332ac97e59593022e9fa5b.1418173063.git.osandov@osandov.com>
 In-Reply-To: <cover.1418173063.git.osandov@osandov.com>
 References: <cover.1418173063.git.osandov@osandov.com>
 In-Reply-To: <cover.1418173063.git.osandov@osandov.com>
@@ -24,69 +24,177 @@ List-ID: <linux-mm.kvack.org>
 To: Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Christoph Hellwig <hch@infradead.org>, David Sterba <dsterba@suse.cz>, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 Cc: Omar Sandoval <osandov@osandov.com>
 
-Extents mapping a swap file should remain pinned in memory in order to
-avoid doing allocations to look up an extent when we're already low on
-memory. Rather than overloading EXTENT_FLAG_PINNED, add a new flag
-specifically for this purpose.
+Implement the swap file a_ops on btrfs. Activation does two things:
+
+1. Checks for a usable swap file: it must be fully allocated (no holes),
+   support direct I/O (so no compressed or inline extents) and must be
+   eligible for nocow in its entirety in order to avoid doing a bunch of
+   allocations for a COW when we're already low on memory
+2. Pins the extent maps in memory with EXTENT_FLAG_SWAPFILE
+
+Deactivation unpins all of the extent maps.
 
 Signed-off-by: Omar Sandoval <osandov@osandov.com>
 ---
- fs/btrfs/extent_io.c         | 1 +
- fs/btrfs/extent_map.h        | 1 +
- fs/btrfs/inode.c             | 1 +
- include/trace/events/btrfs.h | 3 ++-
- 4 files changed, 5 insertions(+), 1 deletion(-)
+ fs/btrfs/inode.c | 131 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 131 insertions(+)
 
-diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
-index bf3f424..36166d0 100644
---- a/fs/btrfs/extent_io.c
-+++ b/fs/btrfs/extent_io.c
-@@ -4244,6 +4244,7 @@ int try_release_extent_mapping(struct extent_map_tree *map,
- 				break;
- 			}
- 			if (test_bit(EXTENT_FLAG_PINNED, &em->flags) ||
-+			    test_bit(EXTENT_FLAG_SWAPFILE, &em->flags) ||
- 			    em->start != start) {
- 				write_unlock(&map->lock);
- 				free_extent_map(em);
-diff --git a/fs/btrfs/extent_map.h b/fs/btrfs/extent_map.h
-index b2991fd..93b9548 100644
---- a/fs/btrfs/extent_map.h
-+++ b/fs/btrfs/extent_map.h
-@@ -16,6 +16,7 @@
- #define EXTENT_FLAG_LOGGING 4 /* Logging this extent */
- #define EXTENT_FLAG_FILLING 5 /* Filling in a preallocated extent */
- #define EXTENT_FLAG_FS_MAPPING 6 /* filesystem extent mapping type */
-+#define EXTENT_FLAG_SWAPFILE 7 /* this extent maps a swap file */
- 
- struct extent_map {
- 	struct rb_node rb_node;
 diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
-index d23362f..7c2dfb2 100644
+index 7c2dfb2..76b58d7 100644
 --- a/fs/btrfs/inode.c
 +++ b/fs/btrfs/inode.c
-@@ -6353,6 +6353,7 @@ again:
- 		else
- 			goto out;
- 	}
+@@ -7191,6 +7191,7 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
+ 	 * this will cow the extent, reset the len in case we changed
+ 	 * it above
+ 	 */
 +	WARN_ON_ONCE(IS_SWAPFILE(inode));
- 	em = alloc_extent_map();
- 	if (!em) {
- 		err = -ENOMEM;
-diff --git a/include/trace/events/btrfs.h b/include/trace/events/btrfs.h
-index 1faecea..5c5f9de 100644
---- a/include/trace/events/btrfs.h
-+++ b/include/trace/events/btrfs.h
-@@ -164,7 +164,8 @@ DEFINE_EVENT(btrfs__inode, btrfs_inode_evict,
- 		{ (1 << EXTENT_FLAG_PREALLOC), 		"PREALLOC" 	},\
- 		{ (1 << EXTENT_FLAG_LOGGING),	 	"LOGGING" 	},\
- 		{ (1 << EXTENT_FLAG_FILLING),	 	"FILLING" 	},\
--		{ (1 << EXTENT_FLAG_FS_MAPPING),	"FS_MAPPING"	})
-+		{ (1 << EXTENT_FLAG_FS_MAPPING),	"FS_MAPPING"	},\
-+		{ (1 << EXTENT_FLAG_SWAPFILE),		"SWAPFILE"	})
+ 	len = bh_result->b_size;
+ 	free_extent_map(em);
+ 	em = btrfs_new_extent_direct(inode, start, len);
+@@ -9443,6 +9444,134 @@ out_inode:
  
- TRACE_EVENT_CONDITION(btrfs_get_extent,
+ }
  
++static void __clear_swapfile_extents(struct inode *inode)
++{
++	u64 isize = inode->i_size;
++	struct extent_map *em;
++	u64 start, len;
++
++	start = 0;
++	while (start < isize) {
++		len = isize - start;
++		em = btrfs_get_extent(inode, NULL, 0, start, len, 0);
++		if (IS_ERR(em))
++			return;
++
++		clear_bit(EXTENT_FLAG_SWAPFILE, &em->flags);
++
++		start = extent_map_end(em);
++		free_extent_map(em);
++	}
++}
++
++static int btrfs_swap_activate(struct swap_info_struct *sis, struct file *file,
++			       sector_t *span)
++{
++	struct inode *inode = file_inode(file);
++	struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
++	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
++	int ret = 0;
++	u64 isize = inode->i_size;
++	struct extent_state *cached_state = NULL;
++	struct extent_map *em;
++	u64 start, len;
++
++	if (BTRFS_I(inode)->flags & BTRFS_INODE_COMPRESS) {
++		/* Can't do direct I/O on a compressed file. */
++		btrfs_err(fs_info, "swapfile is compressed");
++		return -EINVAL;
++	}
++	if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATACOW)) {
++		/*
++		 * Going through the copy-on-write path while swapping pages
++		 * in/out and doing a bunch of allocations could stress the
++		 * memory management code that got us there in the first place,
++		 * and that's sure to be a bad time.
++		 */
++		btrfs_err(fs_info, "swapfile is copy-on-write");
++		return -EINVAL;
++	}
++
++	lock_extent_bits(io_tree, 0, isize - 1, 0, &cached_state);
++
++	/*
++	 * All of the extents must be allocated and support direct I/O. Inline
++	 * extents and compressed extents fall back to buffered I/O, so those
++	 * are no good. Additionally, all of the extents must be safe for nocow.
++	 */
++	atomic_inc(&BTRFS_I(inode)->root->nr_swapfiles);
++	start = 0;
++	while (start < isize) {
++		len = isize - start;
++		em = btrfs_get_extent(inode, NULL, 0, start, len, 0);
++		if (IS_ERR(em)) {
++			ret = PTR_ERR(em);
++			goto out;
++		}
++
++		if (test_bit(EXTENT_FLAG_VACANCY, &em->flags) ||
++		    em->block_start == EXTENT_MAP_HOLE) {
++			btrfs_err(fs_info, "swapfile has holes");
++			ret = -EINVAL;
++			goto out;
++		}
++		if (em->block_start == EXTENT_MAP_INLINE) {
++			/*
++			 * It's unlikely we'll ever actually find ourselves
++			 * here, as a file small enough to fit inline won't be
++			 * big enough to store more than the swap header, but in
++			 * case something changes in the future, let's catch it
++			 * here rather than later.
++			 */
++			btrfs_err(fs_info, "swapfile is inline");
++			ret = -EINVAL;
++			goto out;
++		}
++		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags)) {
++			btrfs_err(fs_info, "swapfile is compresed");
++			ret = -EINVAL;
++			goto out;
++		}
++		ret = can_nocow_extent(inode, start, &len, NULL, NULL, NULL);
++		if (ret < 0) {
++			goto out;
++		} else if (ret == 1) {
++			ret = 0;
++		} else {
++			btrfs_err(fs_info, "swapfile has extent requiring COW (%llu-%llu)",
++				  start, start + len - 1);
++			ret = -EINVAL;
++			goto out;
++		}
++
++		set_bit(EXTENT_FLAG_SWAPFILE, &em->flags);
++
++		start = extent_map_end(em);
++		free_extent_map(em);
++	}
++
++out:
++	if (ret) {
++		__clear_swapfile_extents(inode);
++		atomic_dec(&BTRFS_I(inode)->root->nr_swapfiles);
++	}
++	unlock_extent_cached(io_tree, 0, isize - 1, &cached_state, GFP_NOFS);
++	return ret;
++}
++
++static void btrfs_swap_deactivate(struct file *file)
++{
++	struct inode *inode = file_inode(file);
++	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
++	struct extent_state *cached_state = NULL;
++	u64 isize = inode->i_size;
++
++	lock_extent_bits(io_tree, 0, isize - 1, 0, &cached_state);
++	__clear_swapfile_extents(inode);
++	unlock_extent_cached(io_tree, 0, isize - 1, &cached_state, GFP_NOFS);
++	atomic_dec(&BTRFS_I(inode)->root->nr_swapfiles);
++}
++
+ static const struct inode_operations btrfs_dir_inode_operations = {
+ 	.getattr	= btrfs_getattr,
+ 	.lookup		= btrfs_lookup,
+@@ -9520,6 +9649,8 @@ static const struct address_space_operations btrfs_aops = {
+ 	.releasepage	= btrfs_releasepage,
+ 	.set_page_dirty	= btrfs_set_page_dirty,
+ 	.error_remove_page = generic_error_remove_page,
++	.swap_activate	= btrfs_swap_activate,
++	.swap_deactivate = btrfs_swap_deactivate,
+ };
+ 
+ static const struct address_space_operations btrfs_symlink_aops = {
 -- 
 2.1.3
 
