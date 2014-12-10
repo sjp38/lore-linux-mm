@@ -1,47 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id D179F6B007B
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 12:08:31 -0500 (EST)
-Received: by mail-ig0-f179.google.com with SMTP id r2so3271996igi.0
-        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 09:08:31 -0800 (PST)
-Received: from resqmta-po-06v.sys.comcast.net (resqmta-po-06v.sys.comcast.net. [2001:558:fe16:19:96:114:154:165])
-        by mx.google.com with ESMTPS id m10si3618346igx.38.2014.12.10.09.08.30
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CD226B0080
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 12:29:46 -0500 (EST)
+Received: by mail-wg0-f50.google.com with SMTP id a1so4241299wgh.23
+        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 09:29:46 -0800 (PST)
+Received: from mail-wg0-x229.google.com (mail-wg0-x229.google.com. [2a00:1450:400c:c00::229])
+        by mx.google.com with ESMTPS id hr5si8517514wjb.150.2014.12.10.09.29.45
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Wed, 10 Dec 2014 09:08:30 -0800 (PST)
-Date: Wed, 10 Dec 2014 11:08:28 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 3/7] slub: Do not use c->page on free
-In-Reply-To: <CAOJsxLFEN_w7q6NvbxkH2KTujB9auLkQgskLnGtN9iBQ4hV9sw@mail.gmail.com>
-Message-ID: <alpine.DEB.2.11.1412101107350.6291@gentwo.org>
-References: <20141210163017.092096069@linux.com> <20141210163033.717707217@linux.com> <CAOJsxLFEN_w7q6NvbxkH2KTujB9auLkQgskLnGtN9iBQ4hV9sw@mail.gmail.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 10 Dec 2014 09:29:45 -0800 (PST)
+Received: by mail-wg0-f41.google.com with SMTP id y19so4293017wgg.0
+        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 09:29:45 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20141210163034.078015357@linux.com>
+References: <20141210163017.092096069@linux.com>
+	<20141210163034.078015357@linux.com>
+Date: Wed, 10 Dec 2014 19:29:45 +0200
+Message-ID: <CAOJsxLGtqtDSvvSXnQBGdXFfX_osWKuQ5R8Q0ai0VMv2hQC3eg@mail.gmail.com>
+Subject: Re: [PATCH 6/7] slub: Drop ->page field from kmem_cache_cpu
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
+To: Christoph Lameter <cl@linux.com>
 Cc: akpm <akpm@linuxfoundation.org>, Steven Rostedt <rostedt@goodmis.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, iamjoonsoo@lge.com, Jesper Dangaard Brouer <brouer@redhat.com>
 
-On Wed, 10 Dec 2014, Pekka Enberg wrote:
-
-> > +static bool same_slab_page(struct kmem_cache *s, struct page *page, void *p)
+On Wed, Dec 10, 2014 at 6:30 PM, Christoph Lameter <cl@linux.com> wrote:
+> Dropping the page field is possible since the page struct address
+> of an object or a freelist pointer can now always be calcualted from
+> the address. No freelist pointer will be NULL anymore so use
+> NULL to signify the condition that the current cpu has no
+> percpu slab attached to it.
 >
-> Why are you passing a pointer to struct kmem_cache here? You don't
-> seem to use it.
+> Signed-off-by: Christoph Lameter <cl@linux.com>
 
-True.
-> > +{
-> > +       long d = p - page->address;
-> > +
-> > +       return d > 0 && d < (1 << MAX_ORDER) && d < (compound_order(page) << PAGE_SHIFT);
-> > +}
->
-> Can you elaborate on what this is doing? I don't really understand it.
-
-Checks if the pointer points to the slab page. Also it tres to avoid
-having to call compound_order needlessly. Not sure if that optimization is
-worth it.
-
-
+Reviewed-by: Pekka Enberg <penberg@kernel.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
