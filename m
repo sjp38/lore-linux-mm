@@ -1,79 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 206D56B0032
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 02:22:36 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id eu11so2235097pac.25
-        for <linux-mm@kvack.org>; Tue, 09 Dec 2014 23:22:35 -0800 (PST)
-Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
-        by mx.google.com with ESMTPS id z1si5240111pdk.226.2014.12.09.23.22.31
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id E972F6B0032
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 04:55:04 -0500 (EST)
+Received: by mail-wi0-f171.google.com with SMTP id bs8so10601052wib.4
+        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 01:55:04 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id hu8si19525685wib.9.2014.12.10.01.55.03
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 09 Dec 2014 23:22:34 -0800 (PST)
-From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Date: Wed, 10 Dec 2014 15:22:21 +0800
-Subject: [RFC] mm:fix zero_page huge_zero_page rss/pss statistic
-Message-ID: <35FD53F367049845BC99AC72306C23D103E688B31403@CNBJMBX05.corpusers.net>
-References: <35FD53F367049845BC99AC72306C23D103E688B313EE@CNBJMBX05.corpusers.net>
- <CALYGNiOuBKz8shHSrFCp0BT5AV6XkNOCHj+LJedQQ-2YdZtM7w@mail.gmail.com>
- <35FD53F367049845BC99AC72306C23D103E688B313F2@CNBJMBX05.corpusers.net>
- <20141205143134.37139da2208c654a0d3cd942@linux-foundation.org>
- <35FD53F367049845BC99AC72306C23D103E688B313F4@CNBJMBX05.corpusers.net>
- <20141208114601.GA28846@node.dhcp.inet.fi>
- <35FD53F367049845BC99AC72306C23D103E688B313FB@CNBJMBX05.corpusers.net>
-In-Reply-To: <35FD53F367049845BC99AC72306C23D103E688B313FB@CNBJMBX05.corpusers.net>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Wed, 10 Dec 2014 01:55:03 -0800 (PST)
+Message-ID: <54881876.70309@suse.cz>
+Date: Wed, 10 Dec 2014 10:55:02 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
+Subject: Re: [PATCH 2/4] mm/page_alloc: expands broken freepage to proper
+ buddy list when steal
+References: <1418022980-4584-1-git-send-email-iamjoonsoo.kim@lge.com> <1418022980-4584-3-git-send-email-iamjoonsoo.kim@lge.com> <54856F88.8090300@suse.cz> <20141210063840.GC13371@js1304-P5Q-DELUXE>
+In-Reply-To: <20141210063840.GC13371@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "'Kirill A. Shutemov'" <kirill@shutemov.name>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Konstantin Khlebnikov' <koct9i@gmail.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'n-horiguchi@ah.jp.nec.com'" <n-horiguchi@ah.jp.nec.com>, "'oleg@redhat.com'" <oleg@redhat.com>, "'gorcunov@openvz.org'" <gorcunov@openvz.org>, "'pfeiner@google.com'" <pfeiner@google.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-smaps_pte_entry() doesn't ignore zero_huge_page,
-but it ignore zero_page, because vm_normal_page() will
-ignore it. We remove vm_normal_page() call, because walk_page_range()
-have ignore VM_PFNMAP vma maps, it's safe to just use pfn_valid(),
-so that we can also consider zero_page to be a valid page.
+On 12/10/2014 07:38 AM, Joonsoo Kim wrote:
+> On Mon, Dec 08, 2014 at 10:29:44AM +0100, Vlastimil Babka wrote:
+>> On 12/08/2014 08:16 AM, Joonsoo Kim wrote:
+>>> There is odd behaviour when we steal freepages from other migratetype
+>>> buddy list. In try_to_steal_freepages(), we move all freepages in
+>>> the pageblock that founded freepage is belong to to the request
+>>> migratetype in order to mitigate fragmentation. If the number of moved
+>>> pages are enough to change pageblock migratetype, there is no problem. If
+>>> not enough, we don't change pageblock migratetype and add broken freepages
+>>> to the original migratetype buddy list rather than request migratetype
+>>> one. For me, this is odd, because we already moved all freepages in this
+>>> pageblock to the request migratetype. This patch fixes this situation to
+>>> add broken freepages to the request migratetype buddy list in this case.
+>>
+>> I'd rather split the fix from the refactoring. And maybe my
+>> description is longer, but easier to understand? (I guess somebody
+>> else should judge this)
+>
+> Your patch is much better to understand than mine. :)
+> No need to judge from somebody else.
+> After your patch is merged, I will resubmit these on top of it.
 
-Another change is that we only add map_count >=3D 2 or mapcount =3D=3D 1
-pages into pss, because zero_page and huge_zero_page's _mapcount is
-zero, this means pss will consider evey zero page as a PAGE_SIZE for
-every process, this is not correct for pss statistic. We ignore
-zero page for pss, just add zero page into rss statistic.
+Thanks. I'm doing another evaluation focusing on number of unmovable 
+pageblocks as Mel suggested and then resubmit with tracepoint fixed.
 
-Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
----
- fs/proc/task_mmu.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
-
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 4e0388c..ce503d3 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -458,7 +458,9 @@ static void smaps_pte_entry(pte_t ptent, unsigned long =
-addr,
- 	int mapcount;
-=20
- 	if (pte_present(ptent)) {
--		page =3D vm_normal_page(vma, addr, ptent);
-+		if (!pte_special(ptent) && pfn_valid(pte_pfn(ptent)))
-+			page =3D pfn_to_page(pte_pfn(ptent));
-+
- 	} else if (is_swap_pte(ptent)) {
- 		swp_entry_t swpent =3D pte_to_swp_entry(ptent);
-=20
-@@ -491,7 +493,7 @@ static void smaps_pte_entry(pte_t ptent, unsigned long =
-addr,
- 		else
- 			mss->shared_clean +=3D ptent_size;
- 		mss->pss +=3D (ptent_size << PSS_SHIFT) / mapcount;
--	} else {
-+	} else if (mapcount =3D=3D 1){
- 		if (pte_dirty(ptent) || PageDirty(page))
- 			mss->private_dirty +=3D ptent_size;
- 		else
---=20
-2.1.3
+Vlastimil
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
