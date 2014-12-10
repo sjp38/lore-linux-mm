@@ -1,45 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D9D66B0032
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 06:06:15 -0500 (EST)
-Received: by mail-wi0-f170.google.com with SMTP id bs8so12913240wib.3
-        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 03:06:14 -0800 (PST)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.227])
-        by mx.google.com with ESMTP id hm5si6956045wjc.56.2014.12.10.03.06.14
-        for <linux-mm@kvack.org>;
-        Wed, 10 Dec 2014 03:06:14 -0800 (PST)
-Date: Wed, 10 Dec 2014 13:05:56 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC] mm:fix zero_page huge_zero_page rss/pss statistic
-Message-ID: <20141210110556.GA10630@node.dhcp.inet.fi>
-References: <35FD53F367049845BC99AC72306C23D103E688B313EE@CNBJMBX05.corpusers.net>
- <CALYGNiOuBKz8shHSrFCp0BT5AV6XkNOCHj+LJedQQ-2YdZtM7w@mail.gmail.com>
- <35FD53F367049845BC99AC72306C23D103E688B313F2@CNBJMBX05.corpusers.net>
- <20141205143134.37139da2208c654a0d3cd942@linux-foundation.org>
- <35FD53F367049845BC99AC72306C23D103E688B313F4@CNBJMBX05.corpusers.net>
- <20141208114601.GA28846@node.dhcp.inet.fi>
- <35FD53F367049845BC99AC72306C23D103E688B313FB@CNBJMBX05.corpusers.net>
- <35FD53F367049845BC99AC72306C23D103E688B31403@CNBJMBX05.corpusers.net>
+Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
+	by kanga.kvack.org (Postfix) with ESMTP id BE5B56B0032
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 08:38:44 -0500 (EST)
+Received: by mail-ie0-f177.google.com with SMTP id rd18so2635518iec.36
+        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 05:38:44 -0800 (PST)
+Received: from mail-ig0-x235.google.com (mail-ig0-x235.google.com. [2607:f8b0:4001:c05::235])
+        by mx.google.com with ESMTPS id z1si2945579ioi.28.2014.12.10.05.38.43
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 10 Dec 2014 05:38:43 -0800 (PST)
+Received: by mail-ig0-f181.google.com with SMTP id l13so3060715iga.14
+        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 05:38:42 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <35FD53F367049845BC99AC72306C23D103E688B31403@CNBJMBX05.corpusers.net>
+In-Reply-To: <20141209095922.GB21903@suse.de>
+References: <000001d01383$8e0f1120$aa2d3360$%yang@samsung.com>
+	<20141209095922.GB21903@suse.de>
+Date: Wed, 10 Dec 2014 21:38:42 +0800
+Message-ID: <CAL1ERfOxEJGJjZk9O_NKV82mOT+udto0tL2eCagicLig6CaJ=g@mail.gmail.com>
+Subject: Re: [PATCH] mm: page_alloc: place zone id check before VM_BUG_ON_PAGE check
+From: Weijie Yang <weijie.yang.kh@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Konstantin Khlebnikov' <koct9i@gmail.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'n-horiguchi@ah.jp.nec.com'" <n-horiguchi@ah.jp.nec.com>, "'oleg@redhat.com'" <oleg@redhat.com>, "'gorcunov@openvz.org'" <gorcunov@openvz.org>, "'pfeiner@google.com'" <pfeiner@google.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Weijie Yang <weijie.yang@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>
 
-On Wed, Dec 10, 2014 at 03:22:21PM +0800, Wang, Yalin wrote:
-> smaps_pte_entry() doesn't ignore zero_huge_page,
-> but it ignore zero_page, because vm_normal_page() will
-> ignore it. We remove vm_normal_page() call, because walk_page_range()
-> have ignore VM_PFNMAP vma maps, it's safe to just use pfn_valid(),
-> so that we can also consider zero_page to be a valid page.
+On Tue, Dec 9, 2014 at 5:59 PM, Mel Gorman <mgorman@suse.de> wrote:
+> On Tue, Dec 09, 2014 at 03:40:35PM +0800, Weijie Yang wrote:
+>> If the free page and its buddy has different zone id, the current
+>> zone->lock cann't prevent buddy page getting allocated, this could
+>> trigger VM_BUG_ON_PAGE in a very tiny chance:
+>>
+>
+> Under what circumstances can a buddy page be allocated without the
+> zone->lock? Any parallel allocation from that zone that takes place will
+> be from the per-cpu allocator and should not be affected by this. Have
+> you actually hit this race?
 
-We fixed huge zero page accounting in smaps recentely. See mm tree.
+My description maybe not clear, if the free page and its buddy is not
+at the same zone, the holding zone->lock cann't prevent buddy page
+getting allocated.
+zone_1->lock prevents the freeing page getting allocated
+zone_2->lock prevents the buddy page getting allocated
+they are not the same zone->lock.
 
--- 
- Kirill A. Shutemov
+I found it when review the code, not a running test.
+However, if we cann't remove the zone_id check statement, I think
+we should handle this rare race.
+
+If I miss something or make a mistake, please let me know.
+
+Thanks
+
+> --
+> Mel Gorman
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
