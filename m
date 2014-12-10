@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id ED5E56B0073
-	for <linux-mm@kvack.org>; Tue,  9 Dec 2014 20:46:47 -0500 (EST)
-Received: by mail-pd0-f170.google.com with SMTP id v10so1732526pde.1
-        for <linux-mm@kvack.org>; Tue, 09 Dec 2014 17:46:47 -0800 (PST)
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com. [209.85.220.52])
-        by mx.google.com with ESMTPS id hb6si4281721pbc.194.2014.12.09.17.46.45
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 032446B0074
+	for <linux-mm@kvack.org>; Tue,  9 Dec 2014 20:46:50 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id lf10so1118158pab.5
+        for <linux-mm@kvack.org>; Tue, 09 Dec 2014 17:46:49 -0800 (PST)
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com. [209.85.192.172])
+        by mx.google.com with ESMTPS id iw7si4418871pac.105.2014.12.09.17.46.47
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 09 Dec 2014 17:46:46 -0800 (PST)
-Received: by mail-pa0-f52.google.com with SMTP id eu11so1713588pac.25
-        for <linux-mm@kvack.org>; Tue, 09 Dec 2014 17:46:45 -0800 (PST)
+        Tue, 09 Dec 2014 17:46:48 -0800 (PST)
+Received: by mail-pd0-f172.google.com with SMTP id y13so1730638pdi.3
+        for <linux-mm@kvack.org>; Tue, 09 Dec 2014 17:46:47 -0800 (PST)
 From: Omar Sandoval <osandov@osandov.com>
-Subject: [RFC PATCH v3 5/7] btrfs: prevent ioctls from interfering with a swap file
-Date: Tue,  9 Dec 2014 17:45:46 -0800
-Message-Id: <a0ff3435124c2150effb6681d529d56032c711f8.1418173063.git.osandov@osandov.com>
+Subject: [RFC PATCH v3 6/7] btrfs: add EXTENT_FLAG_SWAPFILE
+Date: Tue,  9 Dec 2014 17:45:47 -0800
+Message-Id: <f489d4ad85df4039f3a84f1a2f89735c9a1cf88d.1418173063.git.osandov@osandov.com>
 In-Reply-To: <cover.1418173063.git.osandov@osandov.com>
 References: <cover.1418173063.git.osandov@osandov.com>
 In-Reply-To: <cover.1418173063.git.osandov@osandov.com>
@@ -24,139 +24,69 @@ List-ID: <linux-mm.kvack.org>
 To: Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Christoph Hellwig <hch@infradead.org>, David Sterba <dsterba@suse.cz>, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 Cc: Omar Sandoval <osandov@osandov.com>
 
-There are several ioctls which can work around constraints enforced by
-btrfs_swap_activate and lead to an unsafe situation. We cannot do any of
-the following on an active swap file in order to avoid creating
-compressed or shared extents:
-
-- chattr -C or +c
-- snapshot create
-- defrag
-- clone
-- dedup
+Extents mapping a swap file should remain pinned in memory in order to
+avoid doing allocations to look up an extent when we're already low on
+memory. Rather than overloading EXTENT_FLAG_PINNED, add a new flag
+specifically for this purpose.
 
 Signed-off-by: Omar Sandoval <osandov@osandov.com>
 ---
- fs/btrfs/ctree.h   |  3 +++
- fs/btrfs/disk-io.c |  1 +
- fs/btrfs/ioctl.c   | 35 +++++++++++++++++++++++++++++++----
- 3 files changed, 35 insertions(+), 4 deletions(-)
+ fs/btrfs/extent_io.c         | 1 +
+ fs/btrfs/extent_map.h        | 1 +
+ fs/btrfs/inode.c             | 1 +
+ include/trace/events/btrfs.h | 3 ++-
+ 4 files changed, 5 insertions(+), 1 deletion(-)
 
-diff --git a/fs/btrfs/ctree.h b/fs/btrfs/ctree.h
-index fe69edd..38979b9 100644
---- a/fs/btrfs/ctree.h
-+++ b/fs/btrfs/ctree.h
-@@ -1891,6 +1891,9 @@ struct btrfs_root {
- 	int send_in_progress;
- 	struct btrfs_subvolume_writers *subv_writers;
- 	atomic_t will_be_snapshoted;
-+
-+	/* Number of active swapfiles */
-+	atomic_t nr_swapfiles;
- };
+diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
+index bf3f424..36166d0 100644
+--- a/fs/btrfs/extent_io.c
++++ b/fs/btrfs/extent_io.c
+@@ -4244,6 +4244,7 @@ int try_release_extent_mapping(struct extent_map_tree *map,
+ 				break;
+ 			}
+ 			if (test_bit(EXTENT_FLAG_PINNED, &em->flags) ||
++			    test_bit(EXTENT_FLAG_SWAPFILE, &em->flags) ||
+ 			    em->start != start) {
+ 				write_unlock(&map->lock);
+ 				free_extent_map(em);
+diff --git a/fs/btrfs/extent_map.h b/fs/btrfs/extent_map.h
+index b2991fd..93b9548 100644
+--- a/fs/btrfs/extent_map.h
++++ b/fs/btrfs/extent_map.h
+@@ -16,6 +16,7 @@
+ #define EXTENT_FLAG_LOGGING 4 /* Logging this extent */
+ #define EXTENT_FLAG_FILLING 5 /* Filling in a preallocated extent */
+ #define EXTENT_FLAG_FS_MAPPING 6 /* filesystem extent mapping type */
++#define EXTENT_FLAG_SWAPFILE 7 /* this extent maps a swap file */
  
- struct btrfs_ioctl_defrag_range_args {
-diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
-index 1bf9f89..60094c4 100644
---- a/fs/btrfs/disk-io.c
-+++ b/fs/btrfs/disk-io.c
-@@ -1265,6 +1265,7 @@ static void __setup_root(u32 nodesize, u32 sectorsize, u32 stripesize,
- 	atomic_set(&root->orphan_inodes, 0);
- 	atomic_set(&root->refs, 1);
- 	atomic_set(&root->will_be_snapshoted, 0);
-+	atomic_set(&root->nr_swapfiles, 0);
- 	root->log_transid = 0;
- 	root->log_transid_committed = -1;
- 	root->last_log_commit = 0;
-diff --git a/fs/btrfs/ioctl.c b/fs/btrfs/ioctl.c
-index 4399f0c..18fa95c 100644
---- a/fs/btrfs/ioctl.c
-+++ b/fs/btrfs/ioctl.c
-@@ -291,9 +291,11 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
- 		} else {
- 			ip->flags |= BTRFS_INODE_NODATACOW;
- 		}
--	} else {
-+	} else if (!IS_SWAPFILE(inode)) {
- 		/*
--		 * Revert back under same assuptions as above
-+		 * Revert back under same assumptions as above. swap_activate
-+		 * checks that we don't swapon a copy-on-write file, but we also
-+		 * make sure that it doesn't become copy-on-write here.
- 		 */
- 		if (S_ISREG(mode)) {
- 			if (inode->i_size == 0)
-@@ -316,7 +318,12 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
- 		ret = btrfs_set_prop(inode, "btrfs.compression", NULL, 0, 0);
- 		if (ret && ret != -ENODATA)
- 			goto out_drop;
--	} else if (flags & FS_COMPR_FL) {
-+	} else if (flags & FS_COMPR_FL && !IS_SWAPFILE(inode)) {
-+		/*
-+		 * Like nodatacow, swap_activate checks that we don't swapon a
-+		 * compressed file, so we shouldn't let it become compressed.
-+		 */
-+
- 		const char *comp;
- 
- 		ip->flags |= BTRFS_INODE_COMPRESS;
-@@ -330,7 +337,6 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
- 				     comp, strlen(comp), 0);
- 		if (ret)
- 			goto out_drop;
--
- 	} else {
- 		ret = btrfs_set_prop(inode, "btrfs.compression", NULL, 0, 0);
- 		if (ret && ret != -ENODATA)
-@@ -647,6 +653,12 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
- 	if (!test_bit(BTRFS_ROOT_REF_COWS, &root->state))
- 		return -EINVAL;
- 
-+	if (atomic_read(&root->nr_swapfiles)) {
-+		btrfs_err(root->fs_info,
-+			  "cannot create snapshot with active swapfile");
-+		return -ETXTBSY;
-+	}
-+
- 	atomic_inc(&root->will_be_snapshoted);
- 	smp_mb__after_atomic();
- 	btrfs_wait_nocow_write(root);
-@@ -1292,6 +1304,12 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
- 			compress_type = range->compress_type;
+ struct extent_map {
+ 	struct rb_node rb_node;
+diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
+index d23362f..7c2dfb2 100644
+--- a/fs/btrfs/inode.c
++++ b/fs/btrfs/inode.c
+@@ -6353,6 +6353,7 @@ again:
+ 		else
+ 			goto out;
  	}
++	WARN_ON_ONCE(IS_SWAPFILE(inode));
+ 	em = alloc_extent_map();
+ 	if (!em) {
+ 		err = -ENOMEM;
+diff --git a/include/trace/events/btrfs.h b/include/trace/events/btrfs.h
+index 1faecea..5c5f9de 100644
+--- a/include/trace/events/btrfs.h
++++ b/include/trace/events/btrfs.h
+@@ -164,7 +164,8 @@ DEFINE_EVENT(btrfs__inode, btrfs_inode_evict,
+ 		{ (1 << EXTENT_FLAG_PREALLOC), 		"PREALLOC" 	},\
+ 		{ (1 << EXTENT_FLAG_LOGGING),	 	"LOGGING" 	},\
+ 		{ (1 << EXTENT_FLAG_FILLING),	 	"FILLING" 	},\
+-		{ (1 << EXTENT_FLAG_FS_MAPPING),	"FS_MAPPING"	})
++		{ (1 << EXTENT_FLAG_FS_MAPPING),	"FS_MAPPING"	},\
++		{ (1 << EXTENT_FLAG_SWAPFILE),		"SWAPFILE"	})
  
-+	mutex_lock(&inode->i_mutex);
-+	ret = IS_SWAPFILE(inode) ? -ETXTBSY : 0;
-+	mutex_unlock(&inode->i_mutex);
-+	if (ret)
-+		return ret;
-+
- 	if (extent_thresh == 0)
- 		extent_thresh = 256 * 1024;
+ TRACE_EVENT_CONDITION(btrfs_get_extent,
  
-@@ -2927,6 +2945,11 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 len,
- 
- 	btrfs_double_lock(src, loff, dst, dst_loff, len);
- 
-+	if (IS_SWAPFILE(src) || IS_SWAPFILE(dst)) {
-+		ret = -ETXTBSY;
-+		goto out_unlock;
-+	}
-+
- 	ret = extent_same_check_offsets(src, loff, len);
- 	if (ret)
- 		goto out_unlock;
-@@ -3644,6 +3667,10 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
- 		mutex_lock(&src->i_mutex);
- 	}
- 
-+	ret = -ETXTBSY;
-+	if (IS_SWAPFILE(src) || IS_SWAPFILE(inode))
-+		goto out_unlock;
-+
- 	/* determine range to clone */
- 	ret = -EINVAL;
- 	if (off + len > src->i_size || off + len < off)
 -- 
 2.1.3
 
