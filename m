@@ -1,98 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id F3DD76B0075
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 09:44:14 -0500 (EST)
-Received: by mail-ie0-f174.google.com with SMTP id rl12so2771964iec.19
-        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 06:44:14 -0800 (PST)
-Received: from mail-ie0-x233.google.com (mail-ie0-x233.google.com. [2607:f8b0:4001:c03::233])
-        by mx.google.com with ESMTPS id rv2si8316049igb.34.2014.12.10.06.44.13
+Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E7916B0032
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 10:02:48 -0500 (EST)
+Received: by mail-ig0-f172.google.com with SMTP id hl2so6561038igb.5
+        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 07:02:48 -0800 (PST)
+Received: from mail-ie0-x22e.google.com (mail-ie0-x22e.google.com. [2607:f8b0:4001:c03::22e])
+        by mx.google.com with ESMTPS id qg1si3376788igb.22.2014.12.10.07.02.46
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 10 Dec 2014 06:44:13 -0800 (PST)
-Received: by mail-ie0-f179.google.com with SMTP id rp18so2762907iec.38
-        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 06:44:13 -0800 (PST)
+        Wed, 10 Dec 2014 07:02:47 -0800 (PST)
+Received: by mail-ie0-f174.google.com with SMTP id rl12so2810308iec.19
+        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 07:02:46 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <5486C591.7030509@suse.cz>
-References: <000301d01385$45554a60$cfffdf20$%yang@samsung.com>
-	<5486C591.7030509@suse.cz>
-Date: Wed, 10 Dec 2014 22:44:13 +0800
-Message-ID: <CAL1ERfOZ5eiJTDneh=5HAoOs7z2AhxxrKaLL9sHKtRk0Cfcf6Q@mail.gmail.com>
-Subject: Re: [PATCH 3/3] mm: page_alloc: remove redundant set_freepage_migratetype()
- calls
+In-Reply-To: <000001cffe5e$44893f60$cd9bbe20$%yang@samsung.com>
+References: <000001cffe5e$44893f60$cd9bbe20$%yang@samsung.com>
+Date: Wed, 10 Dec 2014 23:02:46 +0800
+Message-ID: <CAL1ERfM3gn25gt-yf_MgVgZCkPyecQBB+cw32SR2XLNDWmnCQQ@mail.gmail.com>
+Subject: Re: [RFC PATCH] mm: mincore: use PAGE_SIZE instead of PAGE_CACHE_SIZE
 From: Weijie Yang <weijie.yang.kh@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Weijie Yang <weijie.yang@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Weijie Yang <weijie.yang@samsung.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Tue, Dec 9, 2014 at 5:49 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
-> On 12/09/2014 08:51 AM, Weijie Yang wrote:
->>
->> The freepage_migratetype is a temporary cached value which represents
->> the free page's pageblock migratetype. Now we use it in two scenarios:
->>
->> 1. Use it as a cached value in page freeing path. This cached value
->> is temporary and non-100% update, which help us decide which pcp
->> freelist and buddy freelist the page should go rather than using
->> get_pfnblock_migratetype() to save some instructions.
->> When there is race between page isolation and free path, we need use
->> additional method to get a accurate value to put the free pages to
->> the correct freelist and get a precise free pages statistics.
->>
->> 2. Use it in page alloc path to update NR_FREE_CMA_PAGES statistics.
+ping. Any comments?
+
+On Wed, Nov 12, 2014 at 5:50 PM, Weijie Yang <weijie.yang@samsung.com> wrote:
+> This is a RFC patch, because current PAGE_SIZE is equal to PAGE_CACHE_SIZE,
+> there isn't any difference and issue when running.
 >
+> However, the current code mixes these two aligned_size inconsistently, and if
+> they are not equal in future mincore_unmapped_range() would check more file
+> pages than wanted.
 >
-> Maybe add that in this case, the value is only valid between being set by
-> __rmqueue_smallest/__rmqueue_fallback and being consumed by rmqueue_bulk or
-> buffered_rmqueue for the purposes of statistics.
-> Oh, except that in rmqueue_bulk, we are placing it on pcplists, so it's case
-> 1. Tricky.
-
-I will add more description and comments in the next version.
-Thanks.
-
-> Anyway, the comments for get/set_freepage_migratetype() say:
+> According to man-page, mincore uses PAGE_SIZE as its size unit, so this patch
+> uses PAGE_SIZE instead of PAGE_CACHE_SIZE.
 >
-> /* It's valid only if the page is free path or free_list */
+> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
+> ---
+>  mm/mincore.c |   19 +++++++++++++------
+>  1 files changed, 13 insertions(+), 6 deletions(-)
 >
-> And that's not really true. So should it instead say something like "The
-> value is only valid when the page is on pcp list, for determining on which
-> free list the page should go if the pcp list is flushed. It is also
-> temporarily valid during allocation from free list."
-
-I will update the comments. Thanks
-
->> This patch aims at the scenario 1 and removes two redundant
->> set_freepage_migratetype() calls, which will make sense in the hot path.
->>
->> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
->> ---
->>   mm/page_alloc.c |    2 --
->>   1 file changed, 2 deletions(-)
->>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index 616a2c9..99af01a 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -775,7 +775,6 @@ static void __free_pages_ok(struct page *page,
->> unsigned int order)
->>         migratetype = get_pfnblock_migratetype(page, pfn);
->>         local_irq_save(flags);
->>         __count_vm_events(PGFREE, 1 << order);
->> -       set_freepage_migratetype(page, migratetype);
->>         free_one_page(page_zone(page), page, pfn, order, migratetype);
->>         local_irq_restore(flags);
->>   }
->> @@ -1024,7 +1023,6 @@ int move_freepages(struct zone *zone,
->>                 order = page_order(page);
->>                 list_move(&page->lru,
->>                           &zone->free_area[order].free_list[migratetype]);
->> -               set_freepage_migratetype(page, migratetype);
->>                 page += 1 << order;
->>                 pages_moved += 1 << order;
->>         }
->>
+> diff --git a/mm/mincore.c b/mm/mincore.c
+> index 725c809..8c19bce 100644
+> --- a/mm/mincore.c
+> +++ b/mm/mincore.c
+> @@ -102,11 +102,18 @@ static void mincore_unmapped_range(struct vm_area_struct *vma,
+>         int i;
+>
+>         if (vma->vm_file) {
+> -               pgoff_t pgoff;
+> +               pgoff_t pgoff, pgoff_end;
+> +               int j, count;
+> +               unsigned char res;
+>
+> +               count = 1 << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+>                 pgoff = linear_page_index(vma, addr);
+> -               for (i = 0; i < nr; i++, pgoff++)
+> -                       vec[i] = mincore_page(vma->vm_file->f_mapping, pgoff);
+> +               pgoff_end = linear_page_index(vma, end);
+> +               for (i = 0; pgoff < pgoff_end; pgoff++) {
+> +                       res = mincore_page(vma->vm_file->f_mapping, pgoff);
+> +                       for (j = 0; j < count; j++)
+> +                               vec[i++] = res;
+> +               }
+>         } else {
+>                 for (i = 0; i < nr; i++)
+>                         vec[i] = 0;
+> @@ -258,7 +265,7 @@ static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *v
+>   * return values:
+>   *  zero    - success
+>   *  -EFAULT - vec points to an illegal address
+> - *  -EINVAL - addr is not a multiple of PAGE_CACHE_SIZE
+> + *  -EINVAL - addr is not a multiple of PAGE_SIZE
+>   *  -ENOMEM - Addresses in the range [addr, addr + len] are
+>   *             invalid for the address space of this process, or
+>   *             specify one or more pages which are not currently
+> @@ -273,14 +280,14 @@ SYSCALL_DEFINE3(mincore, unsigned long, start, size_t, len,
+>         unsigned char *tmp;
+>
+>         /* Check the start address: needs to be page-aligned.. */
+> -       if (start & ~PAGE_CACHE_MASK)
+> +       if (start & ~PAGE_MASK)
+>                 return -EINVAL;
+>
+>         /* ..and we need to be passed a valid user-space range */
+>         if (!access_ok(VERIFY_READ, (void __user *) start, len))
+>                 return -ENOMEM;
+>
+> -       /* This also avoids any overflows on PAGE_CACHE_ALIGN */
+> +       /* This also avoids any overflows on PAGE_ALIGN */
+>         pages = len >> PAGE_SHIFT;
+>         pages += (len & ~PAGE_MASK) != 0;
+>
+> --
+> 1.7.0.4
+>
 >
 
 --
