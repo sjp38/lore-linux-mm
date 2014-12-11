@@ -1,108 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 945A86B006C
-	for <linux-mm@kvack.org>; Thu, 11 Dec 2014 08:19:51 -0500 (EST)
-Received: by mail-qa0-f49.google.com with SMTP id s7so3475139qap.22
-        for <linux-mm@kvack.org>; Thu, 11 Dec 2014 05:19:51 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k10si1211817qge.43.2014.12.11.05.19.49
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Dec 2014 05:19:50 -0800 (PST)
-Date: Thu, 11 Dec 2014 14:19:38 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [PATCH 3/7] slub: Do not use c->page on free
-Message-ID: <20141211141938.6420b94a@redhat.com>
-In-Reply-To: <alpine.DEB.2.11.1412101136520.6639@gentwo.org>
-References: <20141210163017.092096069@linux.com>
-	<20141210163033.717707217@linux.com>
-	<CAOJsxLFEN_w7q6NvbxkH2KTujB9auLkQgskLnGtN9iBQ4hV9sw@mail.gmail.com>
-	<alpine.DEB.2.11.1412101107350.6291@gentwo.org>
-	<CAOJsxLH4BGT9rGgg_4nxUMgW3sdEzLrmX2WtM8Ld3aytdR5e8g@mail.gmail.com>
-	<alpine.DEB.2.11.1412101136520.6639@gentwo.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id DCD956B006C
+	for <linux-mm@kvack.org>; Thu, 11 Dec 2014 08:21:02 -0500 (EST)
+Received: by mail-pd0-f176.google.com with SMTP id r10so3009122pdi.21
+        for <linux-mm@kvack.org>; Thu, 11 Dec 2014 05:21:02 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id pc1si1855649pdb.16.2014.12.11.05.21.00
+        for <linux-mm@kvack.org>;
+        Thu, 11 Dec 2014 05:21:01 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] mm: add fields for compound destructor and order into struct page
+Date: Thu, 11 Dec 2014 15:20:27 +0200
+Message-Id: <1418304027-154173-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, akpm <akpm@linuxfoundation.org>, Steven Rostedt <rostedt@goodmis.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, iamjoonsoo@lge.com, brouer@redhat.com
+To: akpm@linux-foundation.org
+Cc: cl@linux.com, jmarchan@redhat.com, aneesh.kumar@linux.vnet.ibm.com, dave.hansen@intel.com, aarcange@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
+Currently, we use lru.next/lru.prev plus cast to access or set
+destructor and order of compound page.
 
-On Wed, 10 Dec 2014 11:37:56 -0600 (CST) Christoph Lameter <cl@linux.com> wrote:
+Let's replace it with explicit fields in struct page.
 
-[...]
-> 
-> There were some other issues so its now:
-> 
-> 
-> Subject: slub: Do not use c->page on free
-> 
-> Avoid using the page struct address on free by just doing an
-> address comparison. That is easily doable now that the page address
-> is available in the page struct and we already have the page struct
-> address of the object to be freed calculated.
-> 
-> Reviewed-by: Pekka Enberg <penberg@kernel.org>
-> Signed-off-by: Christoph Lameter <cl@linux.com>
-> 
-> Index: linux/mm/slub.c
-> ===================================================================
-> --- linux.orig/mm/slub.c	2014-12-10 11:35:32.538563734 -0600
-> +++ linux/mm/slub.c	2014-12-10 11:36:39.032447807 -0600
-> @@ -2625,6 +2625,17 @@ slab_empty:
->  	discard_slab(s, page);
->  }
-> 
-> +static bool is_pointer_to_page(struct page *page, void *p)
-> +{
-> +	long d = p - page->address;
-> +
-> +	/*
-> +	 * Do a comparison for a MAX_ORDER page first before using
-> +	 * compound_order() to determine the actual page size.
-> +	 */
-> +	return d >= 0 && d < (1 << MAX_ORDER) && d < (compound_order(page) << PAGE_SHIFT);
-> +}
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ include/linux/mm.h       | 9 ++++-----
+ include/linux/mm_types.h | 8 ++++++++
+ 2 files changed, 12 insertions(+), 5 deletions(-)
 
-My current compiler (gcc 4.9.1), choose not to inline is_pointer_to_page().
-
- (perf record of [1])
- Samples: 8K of event 'cycles', Event count (approx.): 5737618489
- +   46.13%  modprobe  [kernel.kallsyms]  [k] kmem_cache_free
- +   33.02%  modprobe  [kernel.kallsyms]  [k] kmem_cache_alloc
- +   16.14%  modprobe  [kernel.kallsyms]  [k] is_pointer_to_page
-
-If I explicitly add "inline", then it gets inlined, and performance is good again.
-
-Test[1] cost of kmem_cache_alloc+free:
- * baseline: 47 cycles(tsc) 19.032 ns  (net-next without patchset)
- * patchset: 50 cycles(tsc) 20.028 ns
- * inline  : 45 cycles(tsc) 18.135 ns  (inlined is_pointer_to_page())
-
-
->  /*
->   * Fastpath with forced inlining to produce a kfree and kmem_cache_free that
->   * can perform fastpath freeing without additional function calls.
-> @@ -2658,7 +2669,7 @@ redo:
->  	tid = c->tid;
->  	preempt_enable();
-> 
-> -	if (likely(page == c->page)) {
-> +	if (likely(is_pointer_to_page(page, c->freelist))) {
->  		set_freepointer(s, object, c->freelist);
-> 
->  		if (unlikely(!this_cpu_cmpxchg_double(
-
-
-[1] https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/lib/time_bench_kmem_cache1.c
-
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 5bfd9b9756fa..a8de6fe11d0a 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -525,29 +525,28 @@ int split_free_page(struct page *page);
+  * prototype for that function and accessor functions.
+  * These are _only_ valid on the head of a PG_compound page.
+  */
+-typedef void compound_page_dtor(struct page *);
+ 
+ static inline void set_compound_page_dtor(struct page *page,
+ 						compound_page_dtor *dtor)
+ {
+-	page[1].lru.next = (void *)dtor;
++	page[1].compound_dtor = dtor;
+ }
+ 
+ static inline compound_page_dtor *get_compound_page_dtor(struct page *page)
+ {
+-	return (compound_page_dtor *)page[1].lru.next;
++	return page[1].compound_dtor;
+ }
+ 
+ static inline int compound_order(struct page *page)
+ {
+ 	if (!PageHead(page))
+ 		return 0;
+-	return (unsigned long)page[1].lru.prev;
++	return page[1].compound_order;
+ }
+ 
+ static inline void set_compound_order(struct page *page, unsigned long order)
+ {
+-	page[1].lru.prev = (void *)order;
++	page[1].compound_order = order;
+ }
+ 
+ #ifdef CONFIG_MMU
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 03945eef1350..cbc71f32a53c 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -28,6 +28,8 @@ struct mem_cgroup;
+ 		IS_ENABLED(CONFIG_ARCH_ENABLE_SPLIT_PMD_PTLOCK))
+ #define ALLOC_SPLIT_PTLOCKS	(SPINLOCK_SIZE > BITS_PER_LONG/8)
+ 
++typedef void compound_page_dtor(struct page *);
++
+ /*
+  * Each physical page in the system has a struct page associated with
+  * it to keep track of whatever it is we are using the page for at the
+@@ -131,6 +133,12 @@ struct page {
+ 		struct rcu_head rcu_head;	/* Used by SLAB
+ 						 * when destroying via RCU
+ 						 */
++		/* First tail page of compound page */
++		struct {
++			compound_page_dtor *compound_dtor;
++			unsigned long compound_order;
++		};
++
+ #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && USE_SPLIT_PMD_PTLOCKS
+ 		pgtable_t pmd_huge_pte; /* protected by page->ptl */
+ #endif
 -- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Sr. Network Kernel Developer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+2.1.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
