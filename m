@@ -1,188 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id B09026B0032
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 22:05:54 -0500 (EST)
-Received: by mail-pd0-f174.google.com with SMTP id fp1so4040748pdb.19
-        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 19:05:54 -0800 (PST)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id sz3si9341724pab.188.2014.12.10.19.05.51
-        for <linux-mm@kvack.org>;
-        Wed, 10 Dec 2014 19:05:53 -0800 (PST)
-Date: Thu, 11 Dec 2014 12:09:48 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 4/4] mm/compaction: stop the isolation when we isolate
- enough freepage
-Message-ID: <20141211030948.GB16381@js1304-P5Q-DELUXE>
-References: <1418022980-4584-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1418022980-4584-5-git-send-email-iamjoonsoo.kim@lge.com>
- <54857675.5080400@suse.cz>
- <20141210070055.GE13371@js1304-P5Q-DELUXE>
- <54886471.9050306@suse.cz>
+Received: from mail-qa0-f44.google.com (mail-qa0-f44.google.com [209.85.216.44])
+	by kanga.kvack.org (Postfix) with ESMTP id B11B26B0032
+	for <linux-mm@kvack.org>; Thu, 11 Dec 2014 05:19:16 -0500 (EST)
+Received: by mail-qa0-f44.google.com with SMTP id i13so3330952qae.31
+        for <linux-mm@kvack.org>; Thu, 11 Dec 2014 02:19:16 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d108si773821qgf.1.2014.12.11.02.19.14
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Dec 2014 02:19:15 -0800 (PST)
+Date: Thu, 11 Dec 2014 11:18:59 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [RFC PATCH 0/3] Faster than SLAB caching of SKBs with qmempool
+ (backed by alf_queue)
+Message-ID: <20141211111859.21e23e90@redhat.com>
+In-Reply-To: <alpine.DEB.2.11.1412101339480.22982@gentwo.org>
+References: <20141210033902.2114.68658.stgit@ahduyck-vm-fedora20>
+	<20141210141332.31779.56391.stgit@dragon>
+	<alpine.DEB.2.11.1412101339480.22982@gentwo.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <54886471.9050306@suse.cz>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Eric Dumazet <eric.dumazet@gmail.com>, "David S. Miller" <davem@davemloft.net>, Hannes Frederic Sowa <hannes@stressinduktion.org>, Alexander Duyck <alexander.duyck@gmail.com>, Alexei Starovoitov <ast@plumgrid.com>, "Paul
+ E. McKenney" <paulmck@linux.vnet.ibm.com>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Steven Rostedt <rostedt@goodmis.org>, brouer@redhat.com
 
-On Wed, Dec 10, 2014 at 04:19:13PM +0100, Vlastimil Babka wrote:
-> On 12/10/2014 08:00 AM, Joonsoo Kim wrote:
-> >On Mon, Dec 08, 2014 at 10:59:17AM +0100, Vlastimil Babka wrote:
-> >>On 12/08/2014 08:16 AM, Joonsoo Kim wrote:
-> >>>From: Joonsoo Kim <js1304@gmail.com>
-> >>>
-> >>>Currently, freepage isolation in one pageblock doesn't consider how many
-> >>>freepages we isolate. When I traced flow of compaction, compaction
-> >>>sometimes isolates more than 256 freepages to migrate just 32 pages.
-> >>>
-> >>>In this patch, freepage isolation is stopped at the point that we
-> >>>have more isolated freepage than isolated page for migration. This
-> >>>results in slowing down free page scanner and make compaction success
-> >>>rate higher.
-> >>>
-> >>>stress-highalloc test in mmtests with non movable order 7 allocation shows
-> >>>increase of compaction success rate and slight improvement of allocation
-> >>>success rate.
-> >>>
-> >>>Allocation success rate on phase 1 (%)
-> >>>62.70 : 64.00
-> >>>
-> >>>Compaction success rate (Compaction success * 100 / Compaction stalls, %)
-> >>>35.13 : 41.50
-> >>
-> >>This is weird. I could maybe understand that isolating too many
-> >
-> >In fact, I also didn't fully understand why it results in this
-> >result. :)
-> >
-> >>freepages and then returning them is a waste of time if compaction
-> >>terminates immediately after the following migration (otherwise we
-> >>would keep those free pages for the future migrations within same
-> >>compaction run). And wasting time could reduce success rates for
-> >>async compaction terminating prematurely due to cond_resched(), but
-> >>that should be all the difference, unless there's another subtle
-> >>bug, no?
-> >
-> >My guess is that there is bad effect when we release isolated
-> >freepages. In asynchronous compaction, this happens quite easily.
-> >In this case, freepages are returned to page allocator and, maybe,
-> >they are on pcp list or front of buddy list so they would be used by
-> >another user at first. This reduces freepages we can utilize so
-> >compaction is finished earlier.
-> 
-> Hmm, some might even stay on the pcplists and we won't isolate them
-> again. So we will leave them behind. I wouldn't expect such big
-> difference here, but anyway...
-> It might be interesting to evaluate if a pcplists drain after
-> returning isolated freepages (unless the scanners have already met,
-> that's pointless) would make any difference.
+On Wed, 10 Dec 2014 13:51:32 -0600 (CST)
+Christoph Lameter <cl@linux.com> wrote:
 
-Yes, I will check it.
+> On Wed, 10 Dec 2014, Jesper Dangaard Brouer wrote:
+> 
+> > One of the building blocks for achieving this speedup is a cmpxchg
+> > based Lock-Free queue that supports bulking, named alf_queue for
+> > Array-based Lock-Free queue.  By bulking elements (pointers) from the
+> > queue, the cost of the cmpxchg (approx 8 ns) is amortized over several
+> > elements.
+> 
+> This is a bit of an issue since the design of the SLUB allocator is such
+> that you should pick up an object, apply some processing and then take the
+> next one. The fetching of an object warms up the first cacheline and this
+> is tied into the way free objects are linked in SLUB.
+> 
+> So a bulk fetch from SLUB will not that effective and cause the touching
+> of many cachelines if we are dealing with just a few objects. If we are
+> looking at whole slab pages with all objects then SLUB can be effective
+> since we do not have to build up the linked pointer structure in each
+> page. SLAB has a different architecture there and a bulk fetch there is
+> possible without touching objects even for small sets since the freelist
+> management is separate from the objects.
+> 
+> If you do this bulking then you will later access cache cold objects?
+> Doesnt that negate the benefit that you gain? Or are these objects written
+> to by hardware and therefore by necessity cache cold?
 
+Cache warmup is a concern, but perhaps it's the callers responsibility
+to prefetch for their use-case.  For qmempool I do have patches that
+prefetch elems when going from the sharedq to the localq (per CPU), but
+I didn't see much gain, and I could prove my point (of being faster than
+slab) without it.  And I would use/need the slab bulk interface to add
+elems to sharedq which I consider semi-cache cold.
+
+
+> We could provide a faster bulk alloc/free function.
 > 
-> >>
-> >>>pfn where both scanners meets on compaction complete
-> >>>(separate test due to enormous tracepoint buffer)
-> >>>(zone_start=4096, zone_end=1048576)
-> >>>586034 : 654378
-> >>
-> >>The difference here suggests that there is indeed another subtle bug
-> >>related to where free scanner restarts, and we must be leaving the
-> >>excessively isolated (and then returned) freepages behind. Otherwise
-> >>I think the scanners should meet at the same place regardless of
-> >>your patch.
-> >
-> >I tried to find another subtle bug, but, can't find any critical one.
-> >Hmm...
-> >
-> >Anyway, regardless of the reason of result, this patch seems reasonable,
-> >because we don't need to waste time to isolate unneeded freepages.
+> 	int kmem_cache_alloc_array(struct kmem_cache *s, gfp_t flags,
+> 		size_t objects, void **array)
+
+I like it :-)
+
+> and this could be optimized by each slab allocator to provide fast
+> population of objects in that array. We then assume that the number of
+> objects is in the hundreds or so right?
+
+I'm already seeing a benefit with 16 packets alloc/free "bulking".
+
+On RX we have a "budget" of 64 packets/descriptors (taken from the NIC
+RX ring) that need SKBs.
+
+On TX packets are put into the TX ring, and later at TX completion the
+TX ring is cleaned up, as many as 256 (as e.g. in the ixgbe driver).
+
+Scientific articles on userspace networking (like netmap) report that
+they need at least 8 packet bulking to see wirespeed 10G at 64 bytes.
+
+
+> The corresponding free function
 > 
-> Right.
+> 	void kmem_cache_free_array(struct kmem_cache *s,
+> 		size_t objects, void **array)
 > 
-> >Thanks.
-> >
-> >>
-> >>>Signed-off-by: Joonsoo Kim <js1304@gmail.com>
-> >>>---
-> >>>  mm/compaction.c |   17 ++++++++++-------
-> >>>  1 file changed, 10 insertions(+), 7 deletions(-)
-> >>>
-> >>>diff --git a/mm/compaction.c b/mm/compaction.c
-> >>>index 2fd5f79..12223b9 100644
-> >>>--- a/mm/compaction.c
-> >>>+++ b/mm/compaction.c
-> >>>@@ -422,6 +422,13 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
-> >>>
-> >>>  		/* If a page was split, advance to the end of it */
-> >>>  		if (isolated) {
-> >>>+			cc->nr_freepages += isolated;
-> >>>+			if (!strict &&
-> >>>+				cc->nr_migratepages <= cc->nr_freepages) {
-> >>>+				blockpfn += isolated;
-> >>>+				break;
-> >>>+			}
-> >>>+
-> >>>  			blockpfn += isolated - 1;
-> >>>  			cursor += isolated - 1;
-> >>>  			continue;
-> >>>@@ -831,7 +838,6 @@ static void isolate_freepages(struct compact_control *cc)
-> >>>  	unsigned long isolate_start_pfn; /* exact pfn we start at */
-> >>>  	unsigned long block_end_pfn;	/* end of current pageblock */
-> >>>  	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
-> >>>-	int nr_freepages = cc->nr_freepages;
-> >>>  	struct list_head *freelist = &cc->freepages;
-> >>>
-> >>>  	/*
-> >>>@@ -856,11 +862,11 @@ static void isolate_freepages(struct compact_control *cc)
-> >>>  	 * pages on cc->migratepages. We stop searching if the migrate
-> >>>  	 * and free page scanners meet or enough free pages are isolated.
-> >>>  	 */
-> >>>-	for (; block_start_pfn >= low_pfn && cc->nr_migratepages > nr_freepages;
-> >>>+	for (; block_start_pfn >= low_pfn &&
-> >>>+			cc->nr_migratepages > cc->nr_freepages;
-> >>>  				block_end_pfn = block_start_pfn,
-> >>>  				block_start_pfn -= pageblock_nr_pages,
-> >>>  				isolate_start_pfn = block_start_pfn) {
-> >>>-		unsigned long isolated;
-> >>>
-> >>>  		/*
-> >>>  		 * This can iterate a massively long zone without finding any
-> >>>@@ -885,9 +891,8 @@ static void isolate_freepages(struct compact_control *cc)
-> >>>  			continue;
-> >>>
-> >>>  		/* Found a block suitable for isolating free pages from. */
-> >>>-		isolated = isolate_freepages_block(cc, &isolate_start_pfn,
-> >>>+		isolate_freepages_block(cc, &isolate_start_pfn,
-> >>>  					block_end_pfn, freelist, false);
-> >>>-		nr_freepages += isolated;
-> >>>
-> >>>  		/*
-> >>>  		 * Remember where the free scanner should restart next time,
-> >>>@@ -919,8 +924,6 @@ static void isolate_freepages(struct compact_control *cc)
-> >>>  	 */
-> >>>  	if (block_start_pfn < low_pfn)
-> >>>  		cc->free_pfn = cc->migrate_pfn;
-> >>>-
-> >>>-	cc->nr_freepages = nr_freepages;
-> >>>  }
-> >>>
-> >>>  /*
-> >>>
-> >>
-> >>--
-> >>To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> >>the body to majordomo@kvack.org.  For more info on Linux MM,
-> >>see: http://www.linux-mm.org/ .
-> >>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> I think the queue management of the array can be improved by using a
+> similar technique as used the SLUB allocator using the cmpxchg_local.
+> cmpxchg_local is much faster than a full cmpxchg and we are operating on
+> per cpu structures anyways. So the overhead could still be reduced.
+
+I think you missed that the per cpu localq is already not using cmpxchg
+(it is a SPSC queue).  The sharedq (MPMC queue) does need and use the
+locked cmpxchg.
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Sr. Network Kernel Developer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
