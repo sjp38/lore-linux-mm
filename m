@@ -1,112 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 3089B6B0071
-	for <linux-mm@kvack.org>; Thu, 11 Dec 2014 09:05:27 -0500 (EST)
-Received: by mail-wi0-f182.google.com with SMTP id h11so8722909wiw.15
-        for <linux-mm@kvack.org>; Thu, 11 Dec 2014 06:05:26 -0800 (PST)
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id BC5996B0073
+	for <linux-mm@kvack.org>; Thu, 11 Dec 2014 09:05:30 -0500 (EST)
+Received: by mail-wi0-f171.google.com with SMTP id bs8so14670839wib.10
+        for <linux-mm@kvack.org>; Thu, 11 Dec 2014 06:05:29 -0800 (PST)
 Received: from e06smtp16.uk.ibm.com (e06smtp16.uk.ibm.com. [195.75.94.112])
-        by mx.google.com with ESMTPS id po7si2488845wjc.0.2014.12.11.06.05.26
+        by mx.google.com with ESMTPS id 8si2214449wjx.166.2014.12.11.06.05.29
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 11 Dec 2014 06:05:26 -0800 (PST)
+        Thu, 11 Dec 2014 06:05:29 -0800 (PST)
 Received: from /spool/local
 	by e06smtp16.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Thu, 11 Dec 2014 14:05:24 -0000
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
-	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id E1D0B17D8045
-	for <linux-mm@kvack.org>; Thu, 11 Dec 2014 14:05:44 +0000 (GMT)
-Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id sBBE5MUw49086636
-	for <linux-mm@kvack.org>; Thu, 11 Dec 2014 14:05:22 GMT
-Received: from d06av01.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av01.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id sBBE5LUY020351
-	for <linux-mm@kvack.org>; Thu, 11 Dec 2014 07:05:22 -0700
+	Thu, 11 Dec 2014 14:05:28 -0000
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (d06relay13.portsmouth.uk.ibm.com [9.149.109.198])
+	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id B9A3D17D8042
+	for <linux-mm@kvack.org>; Thu, 11 Dec 2014 14:05:48 +0000 (GMT)
+Received: from d06av12.portsmouth.uk.ibm.com (d06av12.portsmouth.uk.ibm.com [9.149.37.247])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id sBBE5Q8n51118278
+	for <linux-mm@kvack.org>; Thu, 11 Dec 2014 14:05:26 GMT
+Received: from d06av12.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av12.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id sBBE5NwM010358
+	for <linux-mm@kvack.org>; Thu, 11 Dec 2014 07:05:25 -0700
 From: Christian Borntraeger <borntraeger@de.ibm.com>
-Subject: [PATCH 2/8] mm: replace ACCESS_ONCE with READ_ONCE or barriers
-Date: Thu, 11 Dec 2014 15:05:05 +0100
-Message-Id: <1418306712-17245-3-git-send-email-borntraeger@de.ibm.com>
-In-Reply-To: <1418306712-17245-1-git-send-email-borntraeger@de.ibm.com>
-References: <1418306712-17245-1-git-send-email-borntraeger@de.ibm.com>
+Subject: [PATCHv5 0/8]  ACCESS_ONCE and non-scalar accesses
+Date: Thu, 11 Dec 2014 15:05:03 +0100
+Message-Id: <1418306712-17245-1-git-send-email-borntraeger@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-arch@vger.kernel.org, paulmck@linux.vnet.ibm.com, torvalds@linux-foundation.org, George Spelvin <linux@horizon.com>, Christian Borntraeger <borntraeger@de.ibm.com>, linux-mm@kvack.org
 
-ACCESS_ONCE does not work reliably on non-scalar types. For
-example gcc 4.6 and 4.7 might remove the volatile tag for such
-accesses during the SRA (scalar replacement of aggregates) step
-(https://gcc.gnu.org/bugzilla/show_bug.cgi?id=58145)
+As discussed on LKML http://marc.info/?i=54611D86.4040306%40de.ibm.com
+ACCESS_ONCE might fail with specific compilers for non-scalar accesses.
 
-Let's change the code to access the page table elements with
-READ_ONCE that does implicit scalar accesses for the gup code.
+Here is a set of patches to tackle that problem.
 
-mm_find_pmd is tricky, because m68k and sparc(32bit) define pmd_t
-as array of longs. This code requires just that the pmd_present
-and pmd_trans_huge check are done on the same value, so a barrier
-is sufficent.
+The first patch introduce READ_ONCE and ASSIGN_ONCE. If the data structure
+is larger than the machine word size memcpy is used and a warning is emitted.
+The next patches fix up all in-tree users of ACCESS_ONCE on non-scalar types.
 
-A similar case is in handle_pte_fault. On ppc44x the word size is
-32 bit, but a pte is 64 bit. A barrier is ok as well.
+Due to all the trouble when dealing with linux-next, I will defer the patch
+that forces ACCESS_ONCE to work only on scalar types after rc1 to give it
+a full spin in linux-next.
 
-Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
+If nobody complains I will ask Linus to pull this for 3.19 next week.
+The tree can be found at 
+
+git://git.kernel.org/pub/scm/linux/kernel/git/borntraeger/linux.git linux-next
+
+Changelog:
+v4->v5:
+1. READ_ONCE/ASSIGN_ONCE use x instead of p
+2. linux/types.h --> uapi/linux/types.h u??-->__u?? to avoid header
+   inclusion fun and compile errors
+3. Actually provide data_access_exceeds_word_size.
+4. also move handle_pte_fault to a barrier as there is ppc44x which has
+   64bit ptes and 32bit word size. Some sanity check from a VM person
+   would be good.
+
 Cc: linux-mm@kvack.org
-Acked-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
----
- mm/gup.c    |  2 +-
- mm/memory.c | 11 ++++++++++-
- mm/rmap.c   |  3 ++-
- 3 files changed, 13 insertions(+), 3 deletions(-)
 
-diff --git a/mm/gup.c b/mm/gup.c
-index cd62c8c..f2305de 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -917,7 +917,7 @@ static int gup_pud_range(pgd_t *pgdp, unsigned long addr, unsigned long end,
- 
- 	pudp = pud_offset(pgdp, addr);
- 	do {
--		pud_t pud = ACCESS_ONCE(*pudp);
-+		pud_t pud = READ_ONCE(*pudp);
- 
- 		next = pud_addr_end(addr, end);
- 		if (pud_none(pud))
-diff --git a/mm/memory.c b/mm/memory.c
-index 3e50383..d86aa88 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3202,7 +3202,16 @@ static int handle_pte_fault(struct mm_struct *mm,
- 	pte_t entry;
- 	spinlock_t *ptl;
- 
--	entry = ACCESS_ONCE(*pte);
-+	/*
-+	 * some architectures can have larger ptes than wordsize,
-+	 * e.g.ppc44x-defconfig has CONFIG_PTE_64BIT=y and CONFIG_32BIT=y,
-+	 * so READ_ONCE or ACCESS_ONCE cannot guarantee atomic accesses.
-+	 * The code below just needs a consistent view for the ifs and
-+	 * we later double check anyway with the ptl lock held. So here
-+	 * a barrier will do.
-+	 */
-+	entry = *pte;
-+	barrier();
- 	if (!pte_present(entry)) {
- 		if (pte_none(entry)) {
- 			if (vma->vm_ops) {
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 19886fb..1e54274 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -581,7 +581,8 @@ pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address)
- 	 * without holding anon_vma lock for write.  So when looking for a
- 	 * genuine pmde (in which to find pte), test present and !THP together.
- 	 */
--	pmde = ACCESS_ONCE(*pmd);
-+	pmde = *pmd;
-+	barrier();
- 	if (!pmd_present(pmde) || pmd_trans_huge(pmde))
- 		pmd = NULL;
- out:
+Christian Borntraeger (8):
+  kernel: Provide READ_ONCE and ASSIGN_ONCE
+  mm: replace ACCESS_ONCE with READ_ONCE or barriers
+  x86/spinlock: Replace ACCESS_ONCE with READ_ONCE
+  x86/gup: Replace ACCESS_ONCE with READ_ONCE
+  mips/gup: Replace ACCESS_ONCE with READ_ONCE
+  arm64/spinlock: Replace ACCESS_ONCE READ_ONCE
+  arm/spinlock: Replace ACCESS_ONCE with READ_ONCE
+  s390/kvm: REPLACE barrier fixup with READ_ONCE
+
+ arch/arm/include/asm/spinlock.h   |  4 +--
+ arch/arm64/include/asm/spinlock.h |  4 +--
+ arch/mips/mm/gup.c                |  2 +-
+ arch/s390/kvm/gaccess.c           | 18 ++++------
+ arch/x86/include/asm/spinlock.h   |  8 ++---
+ arch/x86/mm/gup.c                 |  2 +-
+ include/linux/compiler.h          | 70 +++++++++++++++++++++++++++++++++++++++
+ lib/Makefile                      |  2 +-
+ lib/access.c                      |  8 +++++
+ mm/gup.c                          |  2 +-
+ mm/memory.c                       | 11 +++++-
+ mm/rmap.c                         |  3 +-
+ 12 files changed, 108 insertions(+), 26 deletions(-)
+ create mode 100644 lib/access.c
+
 -- 
 1.9.3
 
