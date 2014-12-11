@@ -1,103 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id B16746B0032
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 19:21:12 -0500 (EST)
-Received: by mail-pd0-f180.google.com with SMTP id w10so3807506pde.11
-        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 16:21:12 -0800 (PST)
-Received: from na01-by2-obe.outbound.protection.outlook.com (mail-by2on0141.outbound.protection.outlook.com. [207.46.100.141])
-        by mx.google.com with ESMTPS id vs9si8948713pbc.142.2014.12.10.16.21.10
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 10 Dec 2014 16:21:11 -0800 (PST)
-From: KY Srinivasan <kys@microsoft.com>
-Subject: RE: [PATCH 2/2] Drivers: hv: balloon: Fix the deadlock issue in the
- memory hot-add code
-Date: Thu, 11 Dec 2014 00:21:09 +0000
-Message-ID: <BY2PR0301MB07118CFD9B32FEBE4E0C9921A0630@BY2PR0301MB0711.namprd03.prod.outlook.com>
-References: <1417826471-21131-1-git-send-email-kys@microsoft.com>
- <1417826498-21172-1-git-send-email-kys@microsoft.com>
- <1417826498-21172-2-git-send-email-kys@microsoft.com>
- <20141208150445.GB29102@dhcp22.suse.cz> <54864F27.8010008@jp.fujitsu.com>
- <20141209090843.GA11373@dhcp22.suse.cz> <5486CE2E.4070409@jp.fujitsu.com>
- <20141209105532.GB11373@dhcp22.suse.cz>
-In-Reply-To: <20141209105532.GB11373@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id DB7B96B0032
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2014 22:04:07 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id et14so4153794pad.3
+        for <linux-mm@kvack.org>; Wed, 10 Dec 2014 19:04:07 -0800 (PST)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id gp2si9482160pac.82.2014.12.10.19.04.04
+        for <linux-mm@kvack.org>;
+        Wed, 10 Dec 2014 19:04:06 -0800 (PST)
+Date: Thu, 11 Dec 2014 12:08:01 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: isolate_freepages_block and excessive CPU usage by OSD process
+Message-ID: <20141211030801.GA16381@js1304-P5Q-DELUXE>
+References: <20141128080331.GD11802@js1304-P5Q-DELUXE>
+ <54783FB7.4030502@suse.cz>
+ <20141201083118.GB2499@js1304-P5Q-DELUXE>
+ <20141202014724.GA22239@cucumber.bridge.anchor.net.au>
+ <20141202045324.GC6268@js1304-P5Q-DELUXE>
+ <20141202050608.GA11051@cucumber.bridge.anchor.net.au>
+ <20141203075747.GB6276@js1304-P5Q-DELUXE>
+ <20141204073045.GA2960@cucumber.anchor.net.au>
+ <20141205010733.GA13751@js1304-P5Q-DELUXE>
+ <5488616B.3070104@suse.cz>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5488616B.3070104@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org
 
-
-
-> -----Original Message-----
-> From: Michal Hocko [mailto:mhocko@suse.cz]
-> Sent: Tuesday, December 9, 2014 2:56 AM
-> To: Yasuaki Ishimatsu
-> Cc: KY Srinivasan; gregkh@linuxfoundation.org; linux-
-> kernel@vger.kernel.org; devel@linuxdriverproject.org; olaf@aepfle.de;
-> apw@canonical.com; linux-mm@kvack.org
-> Subject: Re: [PATCH 2/2] Drivers: hv: balloon: Fix the deadlock issue in =
-the
-> memory hot-add code
->=20
-> On Tue 09-12-14 19:25:50, Yasuaki Ishimatsu wrote:
-> > (2014/12/09 18:08), Michal Hocko wrote:
-> [...]
-> > >Doesn't udev retry the operation if it gets EBUSY or EAGAIN?
+On Wed, Dec 10, 2014 at 04:06:19PM +0100, Vlastimil Babka wrote:
+> On 12/05/2014 02:07 AM, Joonsoo Kim wrote:
+> >------------>8-----------------
+> > From b7daa232c327a4ebbb48ca0538a2dbf9ca83ca1f Mon Sep 17 00:00:00 2001
+> >From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> >Date: Fri, 5 Dec 2014 09:38:30 +0900
+> >Subject: [PATCH] mm/compaction: stop the compaction if there isn't enough
+> >  freepage
 > >
-> > It depend on implementation of udev.rules. So we can retry
-> > online/offline operation in udev.rules.
-> [...]
->=20
-> # Memory hotadd request
-> SUBSYSTEM=3D=3D"memory", ACTION=3D=3D"add",
-> DEVPATH=3D=3D"/devices/system/memory/memory*[0-9]",
-> TEST=3D=3D"/sys$devpath/state", RUN+=3D"/bin/sh -c 'echo online >
-> /sys$devpath/state'"
->=20
-> OK so this is not prepared for a temporary failures and retries.
->=20
-> > >And again, why cannot we simply make the onlining fail or try_lock
-> > >and retry internally if the event consumer cannot cope with errors?
+> >After compaction_suitable() passed, there is no check whether the system
+> >has enough memory to compact and blindly try to find freepage through
+> >iterating all memory range. This causes excessive cpu usage in low free
+> >memory condition and finally compaction would be failed. It makes sense
+> >that compaction would be stopped if there isn't enough freepage. So,
+> >this patch adds watermark check to isolate_freepages() in order to stop
+> >the compaction in this case.
 > >
-> > Did you mean the following Srinivasan's first patch looks good to you?
-> >   https://lkml.org/lkml/2014/12/2/662
->=20
-> Heh, I was just about to post this. Because I haven't noticed the previou=
-s
-> patch yet. Yeah, Something like that. Except that I would expect EAGAIN o=
-r
-> EBUSY rather than ERESTARTSYS which should never leak into userspace. And
-> that would happen here AFAICS because signal_pending will not be true
-> usually.
-Michal,
+> >Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> >---
+> >  mm/compaction.c |    9 +++++++++
+> >  1 file changed, 9 insertions(+)
+> >
+> >diff --git a/mm/compaction.c b/mm/compaction.c
+> >index e005620..31c4009 100644
+> >--- a/mm/compaction.c
+> >+++ b/mm/compaction.c
+> >@@ -828,6 +828,7 @@ static void isolate_freepages(struct compact_control *cc)
+> >  	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
+> >  	int nr_freepages = cc->nr_freepages;
+> >  	struct list_head *freelist = &cc->freepages;
+> >+	unsigned long watermark = low_wmark_pages(zone) + (2UL << cc->order);
+> 
+> Given that we maybe have already isolated up to 31 free pages (if
+> cc->nr_migratepages is the maximum 32), then this is somewhat
+> stricter than the check in isolation_suitable() (when nothing was
+> isolated yet) and may interrupt us prematurely. We should allow for
+> some slack.
 
-I agree that the fix to this problem must be outside the clients of  add_me=
-mory() and that
-is the reason I had sent that patch:  https://lkml.org/lkml/2014/12/2/662. =
-Let me know if
-you want me to resend this patch with the correct return value.
+Okay. Will allow some slack.
 
-Regards,
+> 
+> >
+> >  	/*
+> >  	 * Initialise the free scanner. The starting point is where we last
+> >@@ -903,6 +904,14 @@ static void isolate_freepages(struct compact_control *cc)
+> >  		 */
+> >  		if (cc->contended)
+> >  			break;
+> >+
+> >+		/*
+> >+		 * Watermarks for order-0 must be met for compaction.
+> >+		 * See compaction_suitable for more detailed explanation.
+> >+		 */
+> >+		if (!zone_watermark_ok(zone, 0, watermark,
+> >+			cc->classzone_idx, cc->alloc_flags))
+> >+			break;
+> >  	}
+> 
+> I'm a also bit concerned about the overhead of doing this in each pageblock.
 
-K. Y
->=20
-> So there are two options. Either make the udev rule more robust and retry
-> within RUN section or do the retry withing online_pages (try_lock and go =
-into
-> interruptible sleep which gets signaled by finished add_memory()). The la=
-ter
-> option is safer wrt. the userspace because the operation wouldn't fail
-> unexpectedly.
-> Another option would be generating the sysfs file after all the internal
-> initialization is done and call it outside of the memory hotplug lock.
->=20
+Yep, we can do it whenever SWAP_CLUSTER_MAX pageblock is scanned. It
+will reduce overhead somewhat. I will change it.
+
+> 
+> I wonder if there could be a mechanism where a process entering
+> reclaim or compaction with the goal of meeting the watermarks to
+> allocate, should increase the watermarks needed for further parallel
+> allocation attempts to pass. Then it shouldn't happen that somebody
+> else steals the memory.
+
+I don't know, neither.
+
+Thanks.
+
+> 
+> >  	/* split_free_page does not map the pages */
+> >
+> 
 > --
-> Michal Hocko
-> SUSE Labs
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
