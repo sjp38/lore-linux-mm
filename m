@@ -1,112 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f44.google.com (mail-qa0-f44.google.com [209.85.216.44])
-	by kanga.kvack.org (Postfix) with ESMTP id B11B26B0032
-	for <linux-mm@kvack.org>; Thu, 11 Dec 2014 05:19:16 -0500 (EST)
-Received: by mail-qa0-f44.google.com with SMTP id i13so3330952qae.31
-        for <linux-mm@kvack.org>; Thu, 11 Dec 2014 02:19:16 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d108si773821qgf.1.2014.12.11.02.19.14
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id C3EC66B006E
+	for <linux-mm@kvack.org>; Thu, 11 Dec 2014 07:26:32 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id lf10so4354760pab.4
+        for <linux-mm@kvack.org>; Thu, 11 Dec 2014 04:26:32 -0800 (PST)
+Received: from terminus.zytor.com (terminus.zytor.com. [2001:1868:205::10])
+        by mx.google.com with ESMTPS id xu8si1502336pab.121.2014.12.11.04.26.30
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Dec 2014 02:19:15 -0800 (PST)
-Date: Thu, 11 Dec 2014 11:18:59 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [RFC PATCH 0/3] Faster than SLAB caching of SKBs with qmempool
- (backed by alf_queue)
-Message-ID: <20141211111859.21e23e90@redhat.com>
-In-Reply-To: <alpine.DEB.2.11.1412101339480.22982@gentwo.org>
-References: <20141210033902.2114.68658.stgit@ahduyck-vm-fedora20>
-	<20141210141332.31779.56391.stgit@dragon>
-	<alpine.DEB.2.11.1412101339480.22982@gentwo.org>
+        Thu, 11 Dec 2014 04:26:31 -0800 (PST)
+Date: Thu, 11 Dec 2014 04:26:10 -0800
+From: tip-bot for Xishi Qiu <tipbot@zytor.com>
+Message-ID: <tip-c072b90c8dfe135072f646cc50b826e30c5aa558@git.kernel.org>
+Reply-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, hpa@zytor.com,
+        mingo@kernel.org, dave@sr71.net, qiuxishi@huawei.com, riel@redhat.com,
+        akpm@linux-foundation.org, tglx@linutronix.de
+In-Reply-To: <5487AB3D.6070306@huawei.com>
+References: <5487AB3D.6070306@huawei.com>
+Subject: [tip:x86/urgent] x86/mm: Fix zone ranges boot printout
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Eric Dumazet <eric.dumazet@gmail.com>, "David S. Miller" <davem@davemloft.net>, Hannes Frederic Sowa <hannes@stressinduktion.org>, Alexander Duyck <alexander.duyck@gmail.com>, Alexei Starovoitov <ast@plumgrid.com>, "Paul
- E. McKenney" <paulmck@linux.vnet.ibm.com>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Steven Rostedt <rostedt@goodmis.org>, brouer@redhat.com
+To: linux-tip-commits@vger.kernel.org
+Cc: akpm@linux-foundation.org, tglx@linutronix.de, qiuxishi@huawei.com, riel@redhat.com, dave@sr71.net, mingo@kernel.org, hpa@zytor.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 10 Dec 2014 13:51:32 -0600 (CST)
-Christoph Lameter <cl@linux.com> wrote:
+Commit-ID:  c072b90c8dfe135072f646cc50b826e30c5aa558
+Gitweb:     http://git.kernel.org/tip/c072b90c8dfe135072f646cc50b826e30c5aa558
+Author:     Xishi Qiu <qiuxishi@huawei.com>
+AuthorDate: Wed, 10 Dec 2014 10:09:01 +0800
+Committer:  Ingo Molnar <mingo@kernel.org>
+CommitDate: Thu, 11 Dec 2014 11:35:02 +0100
 
-> On Wed, 10 Dec 2014, Jesper Dangaard Brouer wrote:
-> 
-> > One of the building blocks for achieving this speedup is a cmpxchg
-> > based Lock-Free queue that supports bulking, named alf_queue for
-> > Array-based Lock-Free queue.  By bulking elements (pointers) from the
-> > queue, the cost of the cmpxchg (approx 8 ns) is amortized over several
-> > elements.
-> 
-> This is a bit of an issue since the design of the SLUB allocator is such
-> that you should pick up an object, apply some processing and then take the
-> next one. The fetching of an object warms up the first cacheline and this
-> is tied into the way free objects are linked in SLUB.
-> 
-> So a bulk fetch from SLUB will not that effective and cause the touching
-> of many cachelines if we are dealing with just a few objects. If we are
-> looking at whole slab pages with all objects then SLUB can be effective
-> since we do not have to build up the linked pointer structure in each
-> page. SLAB has a different architecture there and a bulk fetch there is
-> possible without touching objects even for small sets since the freelist
-> management is separate from the objects.
-> 
-> If you do this bulking then you will later access cache cold objects?
-> Doesnt that negate the benefit that you gain? Or are these objects written
-> to by hardware and therefore by necessity cache cold?
+x86/mm: Fix zone ranges boot printout
 
-Cache warmup is a concern, but perhaps it's the callers responsibility
-to prefetch for their use-case.  For qmempool I do have patches that
-prefetch elems when going from the sharedq to the localq (per CPU), but
-I didn't see much gain, and I could prove my point (of being faster than
-slab) without it.  And I would use/need the slab bulk interface to add
-elems to sharedq which I consider semi-cache cold.
+This is the usual physical memory layout boot printout:
+	...
+	[    0.000000] Zone ranges:
+	[    0.000000]   DMA      [mem 0x00001000-0x00ffffff]
+	[    0.000000]   DMA32    [mem 0x01000000-0xffffffff]
+	[    0.000000]   Normal   [mem 0x100000000-0xc3fffffff]
+	[    0.000000] Movable zone start for each node
+	[    0.000000] Early memory node ranges
+	[    0.000000]   node   0: [mem 0x00001000-0x00099fff]
+	[    0.000000]   node   0: [mem 0x00100000-0xbf78ffff]
+	[    0.000000]   node   0: [mem 0x100000000-0x63fffffff]
+	[    0.000000]   node   1: [mem 0x640000000-0xc3fffffff]
+	...
 
+This is the log when we set "mem=2G" on the boot cmdline:
+	...
+	[    0.000000] Zone ranges:
+	[    0.000000]   DMA      [mem 0x00001000-0x00ffffff]
+	[    0.000000]   DMA32    [mem 0x01000000-0xffffffff]  // should be 0x7fffffff, right?
+	[    0.000000]   Normal   empty
+	[    0.000000] Movable zone start for each node
+	[    0.000000] Early memory node ranges
+	[    0.000000]   node   0: [mem 0x00001000-0x00099fff]
+	[    0.000000]   node   0: [mem 0x00100000-0x7fffffff]
+	...
 
-> We could provide a faster bulk alloc/free function.
-> 
-> 	int kmem_cache_alloc_array(struct kmem_cache *s, gfp_t flags,
-> 		size_t objects, void **array)
+This patch fixes the printout, the following log shows the right
+ranges:
+	...
+	[    0.000000] Zone ranges:
+	[    0.000000]   DMA      [mem 0x00001000-0x00ffffff]
+	[    0.000000]   DMA32    [mem 0x01000000-0x7fffffff]
+	[    0.000000]   Normal   empty
+	[    0.000000] Movable zone start for each node
+	[    0.000000] Early memory node ranges
+	[    0.000000]   node   0: [mem 0x00001000-0x00099fff]
+	[    0.000000]   node   0: [mem 0x00100000-0x7fffffff]
+	...
 
-I like it :-)
+Suggested-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Linux MM <linux-mm@kvack.org>
+Cc: <dave@sr71.net>
+Cc: Rik van Riel <riel@redhat.com>
+Link: http://lkml.kernel.org/r/5487AB3D.6070306@huawei.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+---
+ arch/x86/include/asm/dma.h | 2 +-
+ arch/x86/mm/init.c         | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
 
-> and this could be optimized by each slab allocator to provide fast
-> population of objects in that array. We then assume that the number of
-> objects is in the hundreds or so right?
-
-I'm already seeing a benefit with 16 packets alloc/free "bulking".
-
-On RX we have a "budget" of 64 packets/descriptors (taken from the NIC
-RX ring) that need SKBs.
-
-On TX packets are put into the TX ring, and later at TX completion the
-TX ring is cleaned up, as many as 256 (as e.g. in the ixgbe driver).
-
-Scientific articles on userspace networking (like netmap) report that
-they need at least 8 packet bulking to see wirespeed 10G at 64 bytes.
-
-
-> The corresponding free function
-> 
-> 	void kmem_cache_free_array(struct kmem_cache *s,
-> 		size_t objects, void **array)
-> 
-> 
-> I think the queue management of the array can be improved by using a
-> similar technique as used the SLUB allocator using the cmpxchg_local.
-> cmpxchg_local is much faster than a full cmpxchg and we are operating on
-> per cpu structures anyways. So the overhead could still be reduced.
-
-I think you missed that the per cpu localq is already not using cmpxchg
-(it is a SPSC queue).  The sharedq (MPMC queue) does need and use the
-locked cmpxchg.
-
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Sr. Network Kernel Developer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+diff --git a/arch/x86/include/asm/dma.h b/arch/x86/include/asm/dma.h
+index 0bdb0c5..fe884e1 100644
+--- a/arch/x86/include/asm/dma.h
++++ b/arch/x86/include/asm/dma.h
+@@ -70,7 +70,7 @@
+ #define MAX_DMA_CHANNELS	8
+ 
+ /* 16MB ISA DMA zone */
+-#define MAX_DMA_PFN   ((16 * 1024 * 1024) >> PAGE_SHIFT)
++#define MAX_DMA_PFN   ((16UL * 1024 * 1024) >> PAGE_SHIFT)
+ 
+ /* 4GB broken PCI/AGP hardware bus master zone */
+ #define MAX_DMA32_PFN ((4UL * 1024 * 1024 * 1024) >> PAGE_SHIFT)
+diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
+index 66dba36..07244aa 100644
+--- a/arch/x86/mm/init.c
++++ b/arch/x86/mm/init.c
+@@ -674,10 +674,10 @@ void __init zone_sizes_init(void)
+ 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
+ 
+ #ifdef CONFIG_ZONE_DMA
+-	max_zone_pfns[ZONE_DMA]		= MAX_DMA_PFN;
++	max_zone_pfns[ZONE_DMA]		= min(MAX_DMA_PFN, max_low_pfn);
+ #endif
+ #ifdef CONFIG_ZONE_DMA32
+-	max_zone_pfns[ZONE_DMA32]	= MAX_DMA32_PFN;
++	max_zone_pfns[ZONE_DMA32]	= min(MAX_DMA32_PFN, max_low_pfn);
+ #endif
+ 	max_zone_pfns[ZONE_NORMAL]	= max_low_pfn;
+ #ifdef CONFIG_HIGHMEM
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
