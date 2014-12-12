@@ -1,114 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D9AA6B0071
-	for <linux-mm@kvack.org>; Fri, 12 Dec 2014 02:47:22 -0500 (EST)
-Received: by mail-ob0-f182.google.com with SMTP id wo20so6967023obc.13
-        for <linux-mm@kvack.org>; Thu, 11 Dec 2014 23:47:22 -0800 (PST)
-Received: from mail-ob0-x230.google.com (mail-ob0-x230.google.com. [2607:f8b0:4003:c01::230])
-        by mx.google.com with ESMTPS id l18si355941obe.32.2014.12.11.23.47.20
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C6B26B0073
+	for <linux-mm@kvack.org>; Fri, 12 Dec 2014 05:32:17 -0500 (EST)
+Received: by mail-wi0-f181.google.com with SMTP id r20so2065367wiv.8
+        for <linux-mm@kvack.org>; Fri, 12 Dec 2014 02:32:16 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id kn5si1527780wjb.116.2014.12.12.02.32.15
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 11 Dec 2014 23:47:21 -0800 (PST)
-Received: by mail-ob0-f176.google.com with SMTP id vb8so6984770obc.7
-        for <linux-mm@kvack.org>; Thu, 11 Dec 2014 23:47:20 -0800 (PST)
+        Fri, 12 Dec 2014 02:32:15 -0800 (PST)
+Date: Fri, 12 Dec 2014 11:32:13 +0100
+From: David Sterba <dsterba@suse.cz>
+Subject: Re: [RFC PATCH v3 0/7] btrfs: implement swap file support
+Message-ID: <20141212103213.GL27601@twin.jikos.cz>
+Reply-To: dsterba@suse.cz
+References: <cover.1418173063.git.osandov@osandov.com>
 MIME-Version: 1.0
-In-Reply-To: <20141212064055.GA17166@bbox>
-References: <1418218820-4153-1-git-send-email-opensource.ganesh@gmail.com>
-	<20141211234005.GA13405@bbox>
-	<CADAEsF9cZ-JOrKx1_9FCu7_SW19Je938wK_wdy+jdBTehgZiXw@mail.gmail.com>
-	<20141212064055.GA17166@bbox>
-Date: Fri, 12 Dec 2014 15:47:20 +0800
-Message-ID: <CADAEsF9JV3iN28va+T_=a6ty_dkiZJ=75Dg-36H3j_SgTQ0K1g@mail.gmail.com>
-Subject: Re: [PATCH] mm/zsmalloc: disclose statistics to debugfs
-From: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <cover.1418173063.git.osandov@osandov.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Omar Sandoval <osandov@osandov.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Christoph Hellwig <hch@infradead.org>, David Sterba <dsterba@suse.cz>, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 
-2014-12-12 14:40 GMT+08:00 Minchan Kim <minchan@kernel.org>:
-> On Fri, Dec 12, 2014 at 01:53:16PM +0800, Ganesh Mahendran wrote:
->> Hello Minchan
->>
->> 2014-12-12 7:40 GMT+08:00 Minchan Kim <minchan@kernel.org>:
->> > Hello Ganesh,
->> >
->> > On Wed, Dec 10, 2014 at 09:40:20PM +0800, Ganesh Mahendran wrote:
->> >> As we now talk more and more about the fragmentation of zsmalloc. But
->> >> we still need to manually add some debug code to see the fragmentation.
->> >> So, I think we may add the statistics of memory fragmention in zsmalloc
->> >> and disclose them to debugfs. Then we can easily get and analysis
->> >> them when adding or developing new feature for zsmalloc.
->> >>
->> >> Below entries will be created when a zsmalloc pool is created:
->> >>     /sys/kernel/debug/zsmalloc/pool-n/obj_allocated
->> >>     /sys/kernel/debug/zsmalloc/pool-n/obj_used
->> >>
->> >> Then the status of objects usage will be:
->> >>     objects_usage = obj_used / obj_allocated
->> >>
->> >
->> > I didn't look at the code in detail but It would be handy for developer
->> > but not sure we should deliver it to admin so need configurable?
->> What kind of configuration do you want?
->> I think it is reasonable to expose such information to admin like
->> */sys/kernel/debug/usb/device*
->>
->> Or maybe we can enclose these code by DEBUG macro which will be
->> defined when CONFIG_ZSMALLOC_DEBUG is selected.
->
-> Hmm, I'd like to separte DEBUG and STAT because we can add some
-> sanity checking(ex, poisoning for invalid overwriting or
-> handle<->obj mapping verification) with DEBUG while we could
-> count obj stat with STAT.
+On Tue, Dec 09, 2014 at 05:45:41PM -0800, Omar Sandoval wrote:
+> After some discussion on the mailing list, I decided that for simplicity and
+> reliability, it's best to simply disallow COW files and files with shared
+> extents (like files with extents shared with a snapshot). From a user's
+> perspective, this means that a snapshotted subvolume cannot be used for a swap
+> file, but keeping the swap file in a separate subvolume that is never
+> snapshotted seems entirely reasonable to me.
 
-Yes. Add a CONFIG_ZSMALLOC_STAT will make code cleaner.
+Well, there are enough special cases how to do things on btrfs and I'd
+like to avoid introducing another one.
 
->
-> So, now it seems you want CONFIG_ZSMALLOC_STAT?
-Yes, I will follow your suggestion.
+> An alternative suggestion was to
+> allow swap files to be snapshotted and to do an implied COW on swap file
+> activation, which I was ready to implement until I realized that we can't permit
+> snapshotting a subvolume with an active swap file, so this creates a surprising
+> inconsistency for users (in my opinion).
 
->
->>
->> >
->> > How about making it per-sizeclass information, not per-pool?
->> Yes, you are right. Per sizeclass information will be better for
->> developers than per pool.
->>
->> Is it acceptable to show 256 lines like:
->> #cat /sys/kernel/debug/zsmalloc/pool-1/obj_in_classes
->> class      obj_allocated     obj_used
->> 1 ...
->> 2 ...
->> ....
->> ....
->> 255
->>
->> Anyway for developers, these information is more usefull.
->
-> It would be better to show the number of pages so we can know
-> how many of fragment space in last subpage of zspage is wasted.
-> But I don't want to keep pages_used in memory but you could
-> calcurate it dynamically with obj_allocated when user access debugfs.
->
-> #cat /sys/kernel/debug/zsmalloc/pool-1/obj_in_classes
-> class-size      obj_allocated     obj_used    pages_used
-> 32
-> 48
-> .
-> .
-> .
+I still don't see why it's not possible to do the snapshot with an
+active swapfile.
 
-I got it. I will send a v2 patch.
+> As with before, this functionality is tenuously tested in a virtual machine with
+> some artificial workloads, but it "works for me". I'm pretty happy with the
+> results on my end, so please comment away.
 
-Thanks.
->
-> Thanks!
->
-> --
-> Kind regards,
-> Minchan Kim
+The non-btrfs changes can go independently and do not have to wait until
+we resolve the swap vs snapshot problem.
+
+I did a simple test and it crashed instantly, lockep complains:
+
+memory: 2G
+swap file: 1G
+kernel: 3.17 + v3
+
+[  739.790731] Adding 1054716k swap on /mnt/test-swap/mnt/swapfile.  Priority:-1 extents:1 across:1054716k
+[  751.848607]
+[  751.851852] =====================================
+[  751.852161] [ BUG: bad unlock balance detected! ]
+[  751.852161] 3.17.0-default+ #199 Not tainted
+[  751.852161] -------------------------------------
+[  751.852161] heavy_swap/4119 is trying to release lock (&sb->s_type->i_mutex_key) at:
+[  751.852161] [<ffffffff81a4f0ce>] mutex_unlock+0xe/0x10
+[  751.852161] but there are no more locks to release!
+[  751.852161]
+[  751.852161] other info that might help us debug this:
+[  751.852161] 1 lock held by heavy_swap/4119:
+[  751.852161]  #0:  (&mm->mmap_sem){++++++}, at: [<ffffffff81043ba9>] __do_page_fault+0x149/0x560
+[  751.852161]
+[  751.852161] stack backtrace:
+[  751.852161] CPU: 1 PID: 4119 Comm: heavy_swap Not tainted 3.17.0-default+ #199
+[  751.852161] Hardware name: Intel Corporation Santa Rosa platform/Matanzas, BIOS TSRSCRB1.86C.0047.B00.0610170821 10/17/06
+[  751.852161]  ffffffff81a4f0ce ffff880075dbb3d8 ffffffff81a4b268 0000000000000001
+[  751.852161]  ffff8800775e0000 ffff880075dbb408 ffffffff810b51a9 0000000000000000
+[  751.852161]  ffff8800775e0000 00000000ffffffff ffff8800763c9d00 ffff880075dbb4a8
+[  751.852161] Call Trace:
+[  751.852161]  [<ffffffff81a4f0ce>] ? mutex_unlock+0xe/0x10
+[  751.852161]  [<ffffffff81a4b268>] dump_stack+0x51/0x71
+[  751.852161]  [<ffffffff810b51a9>] print_unlock_imbalance_bug+0xf9/0x100
+[  751.852161]  [<ffffffff810b8bcf>] lock_release_non_nested+0x2cf/0x3e0
+[  751.852161]  [<ffffffff81a541ed>] ? ftrace_call+0x5/0x2f
+[  751.852161]  [<ffffffff81a4f0ce>] ? mutex_unlock+0xe/0x10
+[  751.852161]  [<ffffffff81a4f0ce>] ? mutex_unlock+0xe/0x10
+[  751.852161]  [<ffffffff810b8da9>] lock_release+0xc9/0x240
+[  751.852161]  [<ffffffff81a4eef0>] __mutex_unlock_slowpath+0x80/0x190
+[  751.852161]  [<ffffffff81a4f0c9>] ? mutex_unlock+0x9/0x10
+[  751.852161]  [<ffffffff81a4f0ce>] mutex_unlock+0xe/0x10
+[  751.852161]  [<ffffffffa0037c88>] btrfs_direct_IO+0x2b8/0x310 [btrfs]
+[  751.852161]  [<ffffffff810acf4d>] ? __wake_up_bit+0xd/0x50
+[  751.852161]  [<ffffffff8117e03b>] __swap_writepage+0x10b/0x270
+[  751.852161]  [<ffffffff81180723>] ? page_swapcount+0x53/0x70
+[  751.852161]  [<ffffffff8117e1d7>] swap_writepage+0x37/0x60
+[  751.852161]  [<ffffffff8115a072>] shmem_writepage+0x2a2/0x2e0
+[  751.852161]  [<ffffffff811554ae>] shrink_page_list+0x44e/0x9d0
+[  751.852161]  [<ffffffff81a51b50>] ? _raw_spin_unlock_irq+0x30/0x40
+[  751.852161]  [<ffffffff811560cd>] shrink_inactive_list+0x26d/0x4f0
+[  751.852161]  [<ffffffff813adcc9>] ? blk_start_plug+0x9/0x50
+[  751.852161]  [<ffffffff81156918>] shrink_lruvec+0x5c8/0x6c0
+[  751.852161]  [<ffffffff81165f09>] ? compaction_suitable+0x19/0xc0
+[  751.852161]  [<ffffffff81165f09>] ? compaction_suitable+0x19/0xc0
+[  751.852161]  [<ffffffff81156a5d>] shrink_zone+0x4d/0x120
+[  751.852161]  [<ffffffff811577ea>] do_try_to_free_pages+0x19a/0x3a0
+[  751.852161]  [<ffffffff81152a7d>] ? pfmemalloc_watermark_ok+0xd/0xc0
+[  751.852161]  [<ffffffff81157b42>] try_to_free_pages+0xb2/0x160
+[  751.852161]  [<ffffffff81a4bb79>] ? _cond_resched+0x9/0x30
+[  751.852161]  [<ffffffff8114adfb>] __alloc_pages_nodemask+0x5eb/0xa90
+[  751.852161]  [<ffffffff81a541ed>] ? ftrace_call+0x5/0x2f
+[  751.852161]  [<ffffffff811784f1>] ? anon_vma_prepare+0x21/0x190
+[  751.852161]  [<ffffffff811916a8>] do_huge_pmd_anonymous_page+0xe8/0x330
+[  751.852161]  [<ffffffff811783c9>] ? is_vma_temporary_stack+0x9/0x30
+[  751.852161]  [<ffffffff8116edd5>] handle_mm_fault+0x135/0xb60
+[  751.852161]  [<ffffffff81172015>] ? find_vma+0x15/0x80
+[  751.852161]  [<ffffffff81166c6d>] ? vmacache_find+0xd/0xd0
+[  751.852161]  [<ffffffff81097c2e>] ? __might_sleep+0xe/0x110
+[  751.852161]  [<ffffffff81043c0d>] __do_page_fault+0x1ad/0x560
+[  751.852161]  [<ffffffff81073000>] ? do_fork+0xe0/0x420
+[  751.852161]  [<ffffffff81a53f43>] ? error_sti+0x5/0x6
+[  751.852161]  [<ffffffff813e660d>] ? trace_hardirqs_off_thunk+0x3a/0x3c
+[  751.852161]  [<ffffffff810440cc>] do_page_fault+0xc/0x10
+[  751.852161]  [<ffffffff81a53d42>] page_fault+0x22/0x30
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
