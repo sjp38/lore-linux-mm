@@ -1,103 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A2766B0095
-	for <linux-mm@kvack.org>; Fri, 12 Dec 2014 11:01:46 -0500 (EST)
-Received: by mail-wg0-f45.google.com with SMTP id b13so9457423wgh.32
-        for <linux-mm@kvack.org>; Fri, 12 Dec 2014 08:01:46 -0800 (PST)
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 4382D6B0098
+	for <linux-mm@kvack.org>; Fri, 12 Dec 2014 11:01:49 -0500 (EST)
+Received: by mail-wi0-f174.google.com with SMTP id h11so2976673wiw.1
+        for <linux-mm@kvack.org>; Fri, 12 Dec 2014 08:01:48 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v7si3379131wiy.8.2014.12.12.08.01.41
+        by mx.google.com with ESMTPS id l3si3323879wic.38.2014.12.12.08.01.41
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Fri, 12 Dec 2014 08:01:41 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2 3/3] mm: more aggressive page stealing for UNMOVABLE allocations
-Date: Fri, 12 Dec 2014 17:01:25 +0100
-Message-Id: <1418400085-3622-4-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1418400085-3622-1-git-send-email-vbabka@suse.cz>
-References: <1418400085-3622-1-git-send-email-vbabka@suse.cz>
+Subject: [PATCH v2 0/3] page stealing tweaks
+Date: Fri, 12 Dec 2014 17:01:22 +0100
+Message-Id: <1418400085-3622-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>
+Cc: linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-When allocation falls back to stealing free pages of another migratetype,
-it can decide to steal extra pages, or even the whole pageblock in order to
-reduce fragmentation, which could happen if further allocation fallbacks
-pick a different pageblock. In try_to_steal_freepages(), one of the situations
-where extra pages are stolen happens when we are trying to allocate a
-MIGRATE_RECLAIMABLE page.
+Changes since v1:
+o Reorder patch 2 and 3, Cc stable for patch 1
+o Fix tracepoint in patch 1 (Joonsoo Kim)
+o Cleanup in patch 2 (suggested by Minchan Kim)
+o Improved comments and changelogs per Minchan and Mel.
+o Considered /proc/pagetypeinfo in evaluation with 3.18 as baseline
 
-However, MIGRATE_UNMOVABLE allocations are not treated the same way, although
-spreading such allocation over multiple fallback pageblocks is arguably even
-worse than it is for RECLAIMABLE allocations. To minimize fragmentation, we
-should minimize the number of such fallbacks, and thus steal as much as is
-possible from each fallback pageblock.
+When studying page stealing, I noticed some weird looking decisions in
+try_to_steal_freepages(). The first I assume is a bug (Patch 1), the following
+two patches were driven by evaluation.
 
-Note that in theory this might put more pressure on movable pageblocks and
-cause movable allocations to steal back from unmovable pageblocks. However,
-movable allocations are not as aggressive with stealing, and do not cause
-permanent fragmentation, so the tradeoff is reasonable, and evaluation seems
-to support the change.
+Testing was done with stress-highalloc of mmtests, using the
+mm_page_alloc_extfrag tracepoint and postprocessing to get counts of how often
+page stealing occurs for individual migratetypes, and what migratetypes are
+used for fallbacks. Arguably, the worst case of page stealing is when
+UNMOVABLE allocation steals from MOVABLE pageblock. RECLAIMABLE allocation
+stealing from MOVABLE allocation is also not ideal, so the goal is to minimize
+these two cases.
 
-This patch thus adds a check for MIGRATE_UNMOVABLE to the decision to steal
-extra free pages. When evaluating with stress-highalloc from mmtests, this has
-reduced the number of MIGRATE_UNMOVABLE fallbacks to roughly 1/6. The number
-of these fallbacks stealing from MIGRATE_MOVABLE block is reduced to 1/3.
-There was no observation of growing number of unmovable pageblocks over time,
-and also not of increased movable allocation fallbacks.
+For some reason, the first patch increased the number of page stealing events
+for MOVABLE allocations in the former evaluation with 3.17-rc7 + compaction
+patches. In theory these events are not as bad, and the second patch does more
+than just to correct this. In v2 evaluation based on 3.18, the weird result
+was gone completely.
 
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Acked-by: Mel Gorman <mgorman@suse.de>
-Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/page_alloc.c | 18 ++++++++++++++----
- 1 file changed, 14 insertions(+), 4 deletions(-)
+In v2 I also checked if /proc/pagetypeinfo has shown an increase of the number
+of unmovable/reclaimable pageblocks during and after the test, and it didn't.
+The test was repeated 25 times with reboot only after each 5 to show
+longer-term differences in the state of the system, which also wasn't the case.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2cfd5d9..a015828 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1065,10 +1065,19 @@ static void change_pageblock_range(struct page *pageblock_page,
- }
- 
- /*
-- * If breaking a large block of pages, move all free pages to the preferred
-- * allocation list. If falling back for a reclaimable kernel allocation, be
-- * more aggressive about taking ownership of free pages. If we claim more than
-- * half of the pageblock, change pageblock's migratetype as well.
-+ * When we are falling back to another migratetype during allocation, try to
-+ * steal extra free pages from the same pageblocks to satisfy further
-+ * allocations, instead of polluting multiple pageblocks.
-+ *
-+ * If we are stealing a relatively large buddy page, it is likely there will
-+ * be more free pages in the pageblock, so try to steal them all. For
-+ * reclaimable and unmovable allocations, we steal regardless of page size,
-+ * as fragmentation caused by those allocations polluting movable pageblocks
-+ * is worse than movable allocations stealing from unmovable and reclaimable
-+ * pageblocks.
-+ *
-+ * If we claim more than half of the pageblock, change pageblock's migratetype
-+ * as well.
-  */
- static void try_to_steal_freepages(struct zone *zone, struct page *page,
- 				  int start_type, int fallback_type)
-@@ -1083,6 +1092,7 @@ static void try_to_steal_freepages(struct zone *zone, struct page *page,
- 
- 	if (current_order >= pageblock_order / 2 ||
- 	    start_type == MIGRATE_RECLAIMABLE ||
-+	    start_type == MIGRATE_UNMOVABLE ||
- 	    page_group_by_mobility_disabled) {
- 		int pages;
- 
+Extfrag events summed over first iteration after reboot (5 repeats)
+                                                        3.18            3.18            3.18            3.18
+                                                   0-nothp-1       1-nothp-1       2-nothp-1       3-nothp-1
+Page alloc extfrag event                                4547160     4593415     2343438     2198189
+Extfrag fragmenting                                     4546361     4592610     2342595     2196611
+Extfrag fragmenting for unmovable                          5725        9196        5720        1093
+Extfrag fragmenting unmovable placed with movable          3877        4091        1330         859
+Extfrag fragmenting for reclaimable                         770         628         511         616
+Extfrag fragmenting reclaimable placed with movable         679         520         407         492
+Extfrag fragmenting for movable                         4539866     4582786     2336364     2194902
+
+Compared to v1 this looks like a regression for patch 1 wrt unmovable events,
+but I blame noise and less repeats (it was 10 in v1). On the other hand, the
+the mysterious increase in movable allocation events in v1 is gone (due to
+different baseline?)
+
+Sum for second iterations since reboot:
+                                                         3.18            3.18            3.18            3.18
+                                                    0-nothp-2       1-nothp-2       2-nothp-2       3-nothp-2
+Page alloc extfrag event                                1960806     1682705      868136      602097
+Extfrag fragmenting                                     1960268     1682153      867624      601608
+Extfrag fragmenting for unmovable                         14373       13973       12275        2158
+Extfrag fragmenting unmovable placed with movable         10465        7233        8814        1821
+Extfrag fragmenting for reclaimable                        2268        1244        1122        1284
+Extfrag fragmenting reclaimable placed with movable        2092        1010         940        1033
+Extfrag fragmenting for movable                         1943627     1666936      854227      598166
+
+Running stress-highalloc again without reboot is indeed different, and worse
+wrt unmovable allocations (also worse wrt high-order allocation success rates)
+but the patches improve it as well. Similar trend can be observed for further
+iterations after reboot.
+
+
+
+
+
+
+
+Vlastimil Babka (3):
+  mm: when stealing freepages, also take pages created by splitting
+    buddy page
+  mm: always steal split buddies in fallback allocations
+  mm: more aggressive page stealing for UNMOVABLE allocations
+
+ include/trace/events/kmem.h |  7 ++--
+ mm/page_alloc.c             | 78 ++++++++++++++++++++++++---------------------
+ 2 files changed, 45 insertions(+), 40 deletions(-)
+
 -- 
 2.1.2
 
