@@ -1,97 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 558496B0032
-	for <linux-mm@kvack.org>; Sat, 13 Dec 2014 03:22:35 -0500 (EST)
-Received: by mail-pd0-f174.google.com with SMTP id fp1so8581940pdb.33
-        for <linux-mm@kvack.org>; Sat, 13 Dec 2014 00:22:34 -0800 (PST)
-Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
-        by mx.google.com with ESMTPS id x5si5336069pdo.45.2014.12.13.00.22.32
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 784696B006C
+	for <linux-mm@kvack.org>; Sat, 13 Dec 2014 06:48:30 -0500 (EST)
+Received: by mail-wg0-f44.google.com with SMTP id b13so11115969wgh.31
+        for <linux-mm@kvack.org>; Sat, 13 Dec 2014 03:48:29 -0800 (PST)
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com. [74.125.82.48])
+        by mx.google.com with ESMTPS id lo2si7204465wjb.27.2014.12.13.03.48.29
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Sat, 13 Dec 2014 00:22:33 -0800 (PST)
-Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
- by mailout2.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NGI005DQHXJI090@mailout2.samsung.com> for
- linux-mm@kvack.org; Sat, 13 Dec 2014 17:22:31 +0900 (KST)
-From: Weijie Yang <weijie.yang@samsung.com>
-Subject: [RESEND PATCH ] mm: page_alloc: place zone_id check before
- VM_BUG_ON_PAGE check
-Date: Sat, 13 Dec 2014 16:21:36 +0800
-Message-id: <000101d016ad$f0278720$d0769560$%yang@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=UTF-8
-Content-transfer-encoding: 7bit
-Content-language: zh-cn
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 13 Dec 2014 03:48:29 -0800 (PST)
+Received: by mail-wg0-f48.google.com with SMTP id y19so11031747wgg.7
+        for <linux-mm@kvack.org>; Sat, 13 Dec 2014 03:48:29 -0800 (PST)
+Date: Sat, 13 Dec 2014 11:48:27 +0000
+From: Matt Fleming <matt@console-pimps.org>
+Subject: Re: Progress on system crash traces with LTTng using DAX and pmem
+Message-ID: <20141213114827.GA7761@console-pimps.org>
+References: <1254279794.1957.1414240389301.JavaMail.zimbra@efficios.com>
+ <465653369.1985.1414241485934.JavaMail.zimbra@efficios.com>
+ <20141028105458.GA9768@node.dhcp.inet.fi>
+ <864133911.4806.1414681896478.JavaMail.zimbra@efficios.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <864133911.4806.1414681896478.JavaMail.zimbra@efficios.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Andrew Morton' <akpm@linux-foundation.org>
-Cc: mgorman@suse.de, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Rik van Riel' <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Matthew Wilcox <willy@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, lttng-dev <lttng-dev@lists.lttng.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <andi@firstfloor.org>, linux-efi@vger.kernel.org, Tony Luck <tony.luck@gmail.com>
 
-If the freeing page and its buddy page are not at the same zone, the current
-holding zone->lock for the freeing page cann't prevent buddy page getting
-allocated, this could trigger VM_BUG_ON_PAGE in page_is_buddy() at a
-very tiny chance, such as:
+On Thu, 30 Oct, at 03:11:36PM, Mathieu Desnoyers wrote:
+> 
+> Hi Kirill,
+> 
+> This is a good point,
+> 
+> There are a few more aspects to consider here:
+> 
+> - Other architectures appear to have different guarantees, for
+>   instance ARM which, AFAIK, does not reset memory on soft
+>   reboot (well at least for my customer's boards). So I guess
+>   if x86 wants to be competitive, it would be good for them to
+>   offer a similar feature,
+> 
+> - Already having a subset of machines supporting this is useful,
+>   e.g. storing trace buffers and recovering them after a crash,
+> 
+> - Since we are in a world of dynamically upgradable BIOS, perhaps
+>   if we can show that there is value in having a BIOS option to
+>   specify a memory range that should not be reset on soft reboot,
+>   BIOS vendors might be inclined to include an option for it,
+> 
+> - Perhaps UEFI BIOS already have some way of specifying that a
+>   memory range should not be reset on soft reboot ?
 
-cpu 0:						cpu 1:
-hold zone_1 lock
-check page and it buddy
-PageBuddy(buddy) is true			hold zone_2 lock
-page_order(buddy) == order is true		alloc buddy
-trigger VM_BUG_ON_PAGE(page_count(buddy) != 0)
+We've achieved this in the past using UEFI capsules with the
+EFI_CAPSULE_PERSIST_ACROSS_RESET header flag.
 
-zone_1->lock prevents the freeing page getting allocated
-zone_2->lock prevents the buddy page getting allocated
-they are not the same zone->lock.
+Unfortunately, runtime capsule support is pretty spotty, so it's not a
+general solution right now.
 
-If we cann't remove the zone_id check statement, it's better handle
-this rare race. This patch fixes this by placing the zone_id check
-before the VM_BUG_ON_PAGE check.
-
-Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
-Acked-by: Mel Gorman <mgorman@suse.de>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Rik van Riel <riel@redhat.com>
----
- mm/page_alloc.c |    8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 616a2c9..491d055 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -488,17 +488,15 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
- 		return 0;
- 
- 	if (page_is_guard(buddy) && page_order(buddy) == order) {
--		VM_BUG_ON_PAGE(page_count(buddy) != 0, buddy);
--
- 		if (page_zone_id(page) != page_zone_id(buddy))
- 			return 0;
- 
-+		VM_BUG_ON_PAGE(page_count(buddy) != 0, buddy);
-+
- 		return 1;
- 	}
- 
- 	if (PageBuddy(buddy) && page_order(buddy) == order) {
--		VM_BUG_ON_PAGE(page_count(buddy) != 0, buddy);
--
- 		/*
- 		 * zone check is done late to avoid uselessly
- 		 * calculating zone/node ids for pages that could
-@@ -507,6 +505,8 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
- 		if (page_zone_id(page) != page_zone_id(buddy))
- 			return 0;
- 
-+		VM_BUG_ON_PAGE(page_count(buddy) != 0, buddy);
-+
- 		return 1;
- 	}
- 	return 0;
 -- 
-1.7.10.4
-
+Matt Fleming, Intel Open Source Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
