@@ -1,62 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 572186B0038
-	for <linux-mm@kvack.org>; Mon, 15 Dec 2014 17:11:10 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id rd3so12717035pab.28
-        for <linux-mm@kvack.org>; Mon, 15 Dec 2014 14:11:10 -0800 (PST)
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com. [209.85.192.178])
-        by mx.google.com with ESMTPS id ml2si15763045pab.144.2014.12.15.14.11.08
+Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 968126B006C
+	for <linux-mm@kvack.org>; Mon, 15 Dec 2014 18:02:10 -0500 (EST)
+Received: by mail-ig0-f169.google.com with SMTP id hl2so6803837igb.0
+        for <linux-mm@kvack.org>; Mon, 15 Dec 2014 15:02:10 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id gb19si7782252icb.23.2014.12.15.15.02.08
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 15 Dec 2014 14:11:08 -0800 (PST)
-Received: by mail-pd0-f178.google.com with SMTP id r10so12496058pdi.37
-        for <linux-mm@kvack.org>; Mon, 15 Dec 2014 14:11:07 -0800 (PST)
-Date: Mon, 15 Dec 2014 14:11:00 -0800
-From: Omar Sandoval <osandov@osandov.com>
-Subject: Re: [PATCH 2/8] swap: lock i_mutex for swap_writepage direct_IO
-Message-ID: <20141215221100.GA4637@mew>
-References: <cover.1418618044.git.osandov@osandov.com>
- <a59510f4552a5d3557958cdb0ce1b23b3abfc75b.1418618044.git.osandov@osandov.com>
- <20141215162705.GA23887@quack.suse.cz>
- <20141215165615.GA19041@infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141215165615.GA19041@infradead.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 15 Dec 2014 15:02:09 -0800 (PST)
+Received: from akpm3.mtv.corp.google.com (unknown [216.239.45.95])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 2CA37ACD
+	for <linux-mm@kvack.org>; Mon, 15 Dec 2014 23:02:08 +0000 (UTC)
+Date: Mon, 15 Dec 2014 15:02:07 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Stalled MM patches for review
+Message-Id: <20141215150207.67c9a25583c04202d9f4508e@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Jan Kara <jack@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, David Sterba <dsterba@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 
-On Mon, Dec 15, 2014 at 08:56:15AM -0800, Christoph Hellwig wrote:
-> On Mon, Dec 15, 2014 at 05:27:05PM +0100, Jan Kara wrote:
-> > On Sun 14-12-14 21:26:56, Omar Sandoval wrote:
-> > > The generic write code locks i_mutex for a direct_IO. Swap-over-NFS
-> > > doesn't grab the mutex because nfs_direct_IO doesn't expect i_mutex to
-> > > be held, but most direct_IO implementations do.
-> >   I think you are speaking about direct IO writes only, aren't you? For DIO
-> > reads we don't hold i_mutex AFAICS. And also for DIO writes we don't
-> > necessarily hold i_mutex - see for example XFS which doesn't take i_mutex
-> > for direct IO writes. It uses it's internal rwlock for this (see
-> > xfs_file_dio_aio_write()). So I think this is just wrong.
-> 
-> The problem is that the use of ->direct_IO by the swap code is a gross
-> layering violation.  ->direct_IO is a callback for the filesystem, and
-> the swap code need to call ->read_iter instead of ->readpage and
-> ->write_tier instead of ->direct_IO, and leave the locking to the
-> filesystem.
->
-Ok, I got the swap code working with ->read_iter/->write_iter without
-too much trouble. I wanted to double check before I submit if there's
-any gotchas involved with adding the O_DIRECT flag to a file pointer
-after it has been opened -- swapon opens the swapfile before we know if
-we're using the SWP_FILE infrastructure, and we need to add O_DIRECT so
-->{read,write}_iter use direct I/O, but we can't add O_DIRECT to the
-original open without excluding filesystems that support the old bmap
-path but not direct I/O.
 
--- 
-Omar
+I'm sitting on a bunch of patches which have question marks over them. 
+I'll send them out now.  Can people please dig in and see if we can get
+them finished off one way or the other?
+
+My notes (which may be out of date):
+
+mm-page_isolation-check-pfn-validity-before-access.patch:
+  - Might be unneeded. mhocko has issues.
+
+mm-page_allocc-__alloc_pages_nodemask-dont-alter-arg-gfp_mask.patch:
+  - Needs review and checking
+
+mm-page_alloc-embed-oom-killing-naturally-into-allocation-slowpath.patch:
+  - mhocko wanted a changelog update
+
+mm-fix-invalid-use-of-pfn_valid_within-in-test_pages_in_a_zone.patch:
+  - Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com> has issues with it
+
+mm-introduce-do_shared_fault-and-drop-do_fault-fix-fix.patch:
+  - Adds a comment whcih might not be true?
+
+fs-mpagec-forgotten-write_sync-in-case-of-data-integrity-write.patch:
+  - Unsure whether or not this helps.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
