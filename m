@@ -1,120 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id E00316B0038
-	for <linux-mm@kvack.org>; Mon, 15 Dec 2014 02:46:16 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id et14so11383635pad.29
-        for <linux-mm@kvack.org>; Sun, 14 Dec 2014 23:46:16 -0800 (PST)
-Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id hb2si12837936pac.58.2014.12.14.23.46.13
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FD546B006E
+	for <linux-mm@kvack.org>; Mon, 15 Dec 2014 02:46:54 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id eu11so11269646pac.22
+        for <linux-mm@kvack.org>; Sun, 14 Dec 2014 23:46:54 -0800 (PST)
+Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id bb10si12854102pdb.46.2014.12.14.23.46.50
         for <linux-mm@kvack.org>;
-        Sun, 14 Dec 2014 23:46:15 -0800 (PST)
-Date: Mon, 15 Dec 2014 16:50:17 +0900
+        Sun, 14 Dec 2014 23:46:52 -0800 (PST)
+Date: Mon, 15 Dec 2014 16:51:00 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 0/3] page stealing tweaks
-Message-ID: <20141215075017.GB4898@js1304-P5Q-DELUXE>
+Subject: Re: [PATCH v2 2/3] mm: always steal split buddies in fallback
+ allocations
+Message-ID: <20141215075100.GC4898@js1304-P5Q-DELUXE>
 References: <1418400085-3622-1-git-send-email-vbabka@suse.cz>
+ <1418400085-3622-3-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1418400085-3622-1-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1418400085-3622-3-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>
 
-On Fri, Dec 12, 2014 at 05:01:22PM +0100, Vlastimil Babka wrote:
-> Changes since v1:
-> o Reorder patch 2 and 3, Cc stable for patch 1
-> o Fix tracepoint in patch 1 (Joonsoo Kim)
-> o Cleanup in patch 2 (suggested by Minchan Kim)
-> o Improved comments and changelogs per Minchan and Mel.
-> o Considered /proc/pagetypeinfo in evaluation with 3.18 as baseline
+On Fri, Dec 12, 2014 at 05:01:24PM +0100, Vlastimil Babka wrote:
+> When allocation falls back to another migratetype, it will steal a page with
+> highest available order, and (depending on this order and desired migratetype),
+> it might also steal the rest of free pages from the same pageblock.
 > 
-> When studying page stealing, I noticed some weird looking decisions in
-> try_to_steal_freepages(). The first I assume is a bug (Patch 1), the following
-> two patches were driven by evaluation.
+> Given the preference of highest available order, it is likely that it will be
+> higher than the desired order, and result in the stolen buddy page being split.
+> The remaining pages after split are currently stolen only when the rest of the
+> free pages are stolen. This can however lead to situations where for MOVABLE
+> allocations we split e.g. order-4 fallback UNMOVABLE page, but steal only
+> order-0 page. Then on the next MOVABLE allocation (which may be batched to
+> fill the pcplists) we split another order-3 or higher page, etc. By stealing
+> all pages that we have split, we can avoid further stealing.
 > 
-> Testing was done with stress-highalloc of mmtests, using the
-> mm_page_alloc_extfrag tracepoint and postprocessing to get counts of how often
-> page stealing occurs for individual migratetypes, and what migratetypes are
-> used for fallbacks. Arguably, the worst case of page stealing is when
-> UNMOVABLE allocation steals from MOVABLE pageblock. RECLAIMABLE allocation
-> stealing from MOVABLE allocation is also not ideal, so the goal is to minimize
-> these two cases.
-> 
-> For some reason, the first patch increased the number of page stealing events
-> for MOVABLE allocations in the former evaluation with 3.17-rc7 + compaction
-> patches. In theory these events are not as bad, and the second patch does more
-> than just to correct this. In v2 evaluation based on 3.18, the weird result
-> was gone completely.
-> 
-> In v2 I also checked if /proc/pagetypeinfo has shown an increase of the number
-> of unmovable/reclaimable pageblocks during and after the test, and it didn't.
-> The test was repeated 25 times with reboot only after each 5 to show
-> longer-term differences in the state of the system, which also wasn't the case.
-> 
-> Extfrag events summed over first iteration after reboot (5 repeats)
->                                                         3.18            3.18            3.18            3.18
->                                                    0-nothp-1       1-nothp-1       2-nothp-1       3-nothp-1
-> Page alloc extfrag event                                4547160     4593415     2343438     2198189
-> Extfrag fragmenting                                     4546361     4592610     2342595     2196611
-> Extfrag fragmenting for unmovable                          5725        9196        5720        1093
-> Extfrag fragmenting unmovable placed with movable          3877        4091        1330         859
-> Extfrag fragmenting for reclaimable                         770         628         511         616
-> Extfrag fragmenting reclaimable placed with movable         679         520         407         492
-> Extfrag fragmenting for movable                         4539866     4582786     2336364     2194902
-> 
-> Compared to v1 this looks like a regression for patch 1 wrt unmovable events,
-> but I blame noise and less repeats (it was 10 in v1). On the other hand, the
-> the mysterious increase in movable allocation events in v1 is gone (due to
-> different baseline?)
+> This patch therefore adjusts the page stealing so that buddy pages created by
+> split are always stolen. This has effect only on MOVABLE allocations, as
+> RECLAIMABLE and UNMOVABLE allocations already always do that in addition to
+> stealing the rest of free pages from the pageblock. The change also allows
+> to simplify try_to_steal_freepages() and factor out CMA handling.
 
-Hmm... the result on patch 2 looks odd.
-Because you reorder patches, patch 2 have some effects on unmovable
-stealing and I expect that 'Extfrag fragmenting for unmovable' decreases.
-But, the result looks not. Is there any reason you think?
-
-And, could you share compaction success rate and allocation success
-rate on each iteration? In fact, reducing Extfrag event isn't our goal.
-It is natural result of this patchset because we steal pages more
-aggressively. Our utimate goal is to make the system less fragmented
-and to get more high order freepage, so I'd like to know this results.
+Maybe, this message should be fixed, because you reorder patches.
 
 Thanks.
 
 > 
-> Sum for second iterations since reboot:
->                                                          3.18            3.18            3.18            3.18
->                                                     0-nothp-2       1-nothp-2       2-nothp-2       3-nothp-2
-> Page alloc extfrag event                                1960806     1682705      868136      602097
-> Extfrag fragmenting                                     1960268     1682153      867624      601608
-> Extfrag fragmenting for unmovable                         14373       13973       12275        2158
-> Extfrag fragmenting unmovable placed with movable         10465        7233        8814        1821
-> Extfrag fragmenting for reclaimable                        2268        1244        1122        1284
-> Extfrag fragmenting reclaimable placed with movable        2092        1010         940        1033
-> Extfrag fragmenting for movable                         1943627     1666936      854227      598166
+> According to Mel, it has been intended since the beginning that buddy pages
+> after split would be stolen always, but it doesn't seem like it was ever the
+> case until commit 47118af076f6 ("mm: mmzone: MIGRATE_CMA migration type
+> added"). The commit has unintentionally introduced this behavior, but was
+> reverted by commit 0cbef29a7821 ("mm: __rmqueue_fallback() should respect
+> pageblock type"). Neither included evaluation.
 > 
-> Running stress-highalloc again without reboot is indeed different, and worse
-> wrt unmovable allocations (also worse wrt high-order allocation success rates)
-> but the patches improve it as well. Similar trend can be observed for further
-> iterations after reboot.
+> My evaluation with stress-highalloc from mmtests shows about 2.5x reduction
+> of page stealing events for MOVABLE allocations, without affecting the page
+> stealing events for other allocation migratetypes.
 > 
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> Acked-by: Mel Gorman <mgorman@suse.de>
+> Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+> Acked-by: Minchan Kim <minchan@kernel.org>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> ---
+>  mm/page_alloc.c | 62 +++++++++++++++++++++++++++------------------------------
+>  1 file changed, 29 insertions(+), 33 deletions(-)
 > 
-> 
-> 
-> 
-> 
-> 
-> Vlastimil Babka (3):
->   mm: when stealing freepages, also take pages created by splitting
->     buddy page
->   mm: always steal split buddies in fallback allocations
->   mm: more aggressive page stealing for UNMOVABLE allocations
-> 
->  include/trace/events/kmem.h |  7 ++--
->  mm/page_alloc.c             | 78 ++++++++++++++++++++++++---------------------
->  2 files changed, 45 insertions(+), 40 deletions(-)
-> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index c32cb64..2cfd5d9 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1067,33 +1067,18 @@ static void change_pageblock_range(struct page *pageblock_page,
+>  /*
+>   * If breaking a large block of pages, move all free pages to the preferred
+>   * allocation list. If falling back for a reclaimable kernel allocation, be
+> - * more aggressive about taking ownership of free pages.
+> - *
+> - * On the other hand, never change migration type of MIGRATE_CMA pageblocks
+> - * nor move CMA pages to different free lists. We don't want unmovable pages
+> - * to be allocated from MIGRATE_CMA areas.
+> - *
+> - * Returns the allocation migratetype if free pages were stolen, or the
+> - * fallback migratetype if it was decided not to steal.
+> + * more aggressive about taking ownership of free pages. If we claim more than
+> + * half of the pageblock, change pageblock's migratetype as well.
+>   */
+> -static int try_to_steal_freepages(struct zone *zone, struct page *page,
+> +static void try_to_steal_freepages(struct zone *zone, struct page *page,
+>  				  int start_type, int fallback_type)
+>  {
+>  	int current_order = page_order(page);
+>  
+> -	/*
+> -	 * When borrowing from MIGRATE_CMA, we need to release the excess
+> -	 * buddy pages to CMA itself. We also ensure the freepage_migratetype
+> -	 * is set to CMA so it is returned to the correct freelist in case
+> -	 * the page ends up being not actually allocated from the pcp lists.
+> -	 */
+> -	if (is_migrate_cma(fallback_type))
+> -		return fallback_type;
+> -
+>  	/* Take ownership for orders >= pageblock_order */
+>  	if (current_order >= pageblock_order) {
+>  		change_pageblock_range(page, current_order, start_type);
+> -		return start_type;
+> +		return;
+>  	}
+>  
+>  	if (current_order >= pageblock_order / 2 ||
+> @@ -1107,11 +1092,7 @@ static int try_to_steal_freepages(struct zone *zone, struct page *page,
+>  		if (pages >= (1 << (pageblock_order-1)) ||
+>  				page_group_by_mobility_disabled)
+>  			set_pageblock_migratetype(page, start_type);
+> -
+> -		return start_type;
+>  	}
+> -
+> -	return fallback_type;
+>  }
+>  
+>  /* Remove an element from the buddy allocator from the fallback list */
+> @@ -1121,14 +1102,15 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
+>  	struct free_area *area;
+>  	unsigned int current_order;
+>  	struct page *page;
+> -	int migratetype, new_type, i;
+>  
+>  	/* Find the largest possible block of pages in the other list */
+>  	for (current_order = MAX_ORDER-1;
+>  				current_order >= order && current_order <= MAX_ORDER-1;
+>  				--current_order) {
+> +		int i;
+>  		for (i = 0;; i++) {
+> -			migratetype = fallbacks[start_migratetype][i];
+> +			int migratetype = fallbacks[start_migratetype][i];
+> +			int buddy_type = start_migratetype;
+>  
+>  			/* MIGRATE_RESERVE handled later if necessary */
+>  			if (migratetype == MIGRATE_RESERVE)
+> @@ -1142,22 +1124,36 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
+>  					struct page, lru);
+>  			area->nr_free--;
+>  
+> -			new_type = try_to_steal_freepages(zone, page,
+> -							  start_migratetype,
+> -							  migratetype);
+> +			if (!is_migrate_cma(migratetype)) {
+> +				try_to_steal_freepages(zone, page,
+> +							start_migratetype,
+> +							migratetype);
+> +			} else {
+> +				/*
+> +				 * When borrowing from MIGRATE_CMA, we need to
+> +				 * release the excess buddy pages to CMA
+> +				 * itself, and we do not try to steal extra
+> +				 * free pages.
+> +				 */
+> +				buddy_type = migratetype;
+> +			}
+>  
+>  			/* Remove the page from the freelists */
+>  			list_del(&page->lru);
+>  			rmv_page_order(page);
+>  
+>  			expand(zone, page, order, current_order, area,
+> -			       new_type);
+> -			/* The freepage_migratetype may differ from pageblock's
+> +					buddy_type);
+> +
+> +			/*
+> +			 * The freepage_migratetype may differ from pageblock's
+>  			 * migratetype depending on the decisions in
+> -			 * try_to_steal_freepages. This is OK as long as it does
+> -			 * not differ for MIGRATE_CMA type.
+> +			 * try_to_steal_freepages(). This is OK as long as it
+> +			 * does not differ for MIGRATE_CMA pageblocks. For CMA
+> +			 * we need to make sure unallocated pages flushed from
+> +			 * pcp lists are returned to the correct freelist.
+>  			 */
+> -			set_freepage_migratetype(page, new_type);
+> +			set_freepage_migratetype(page, buddy_type);
+>  
+>  			trace_mm_page_alloc_extfrag(page, order, current_order,
+>  				start_migratetype, migratetype);
 > -- 
 > 2.1.2
 > 
