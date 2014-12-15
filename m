@@ -1,100 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id D3FC96B0072
-	for <linux-mm@kvack.org>; Mon, 15 Dec 2014 05:12:02 -0500 (EST)
-Received: by mail-wg0-f45.google.com with SMTP id b13so14099592wgh.32
-        for <linux-mm@kvack.org>; Mon, 15 Dec 2014 02:12:02 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ao10si15733827wjc.83.2014.12.15.02.12.01
+Received: from mail-ie0-f179.google.com (mail-ie0-f179.google.com [209.85.223.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 491B46B0038
+	for <linux-mm@kvack.org>; Mon, 15 Dec 2014 07:49:22 -0500 (EST)
+Received: by mail-ie0-f179.google.com with SMTP id rp18so10686020iec.10
+        for <linux-mm@kvack.org>; Mon, 15 Dec 2014 04:49:22 -0800 (PST)
+Received: from mail-ie0-x236.google.com (mail-ie0-x236.google.com. [2607:f8b0:4001:c03::236])
+        by mx.google.com with ESMTPS id a3si6545598igg.49.2014.12.15.04.49.20
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 15 Dec 2014 02:12:01 -0800 (PST)
-Message-ID: <548EB3EF.2060803@suse.cz>
-Date: Mon, 15 Dec 2014 11:11:59 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        Mon, 15 Dec 2014 04:49:21 -0800 (PST)
+Received: by mail-ie0-f182.google.com with SMTP id x19so10618131ier.27
+        for <linux-mm@kvack.org>; Mon, 15 Dec 2014 04:49:20 -0800 (PST)
 MIME-Version: 1.0
-Subject: [LSF/MM TOPIC] memory compaction and anti-fragmentation
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <7561c096c7de603ac39fcfcff7bd2ec80589cae1.1418618044.git.osandov@osandov.com>
+References: <cover.1418618044.git.osandov@osandov.com>
+	<7561c096c7de603ac39fcfcff7bd2ec80589cae1.1418618044.git.osandov@osandov.com>
+Date: Mon, 15 Dec 2014 07:49:20 -0500
+Message-ID: <CAABAsM4jMcox1emR1nSxORUOPNMDYmCcmMD4YymJ9R_BM_UU4w@mail.gmail.com>
+Subject: Re: [PATCH 1/8] nfs: follow direct I/O write locking convention
+From: Trond Myklebust <trond.myklebust@primarydata.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>
+To: Omar Sandoval <osandov@osandov.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, David Sterba <dsterba@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hi,
+On Mon, Dec 15, 2014 at 12:26 AM, Omar Sandoval <osandov@osandov.com> wrote:
+> The generic callers of direct_IO lock i_mutex before doing a write. NFS
+> doesn't use the generic write code, so it doesn't follow this
+> convention. This is now a problem because the interface introduced for
+> swap-over-NFS calls direct_IO for a write without holding i_mutex, but
+> other implementations of direct_IO will expect to have it locked.
 
-this topic still looks like far from a solved problem. It's also a natural
-complement to the topics of THP and CMA.
+I really don't care much about swap-over-NFS performance; that's a
+niche usage at best. I _do_ care about O_DIRECT performance, and the
+ability to run multiple WRITE calls in parallel.
 
-When we discussed compaction last LSF/MM [1] we noted presence of bugs, and
-overhead. Both was improved since, but still today we find quite old bugs, deal
-with reports of excessive overhead, and the success rates are also still not great.
+IOW: Patch NACKed... Please find another solution.
 
-So here's a list of compaction subtopics/questions that I think could be discussed.
-
-- As it turns out, surprising behavior can still show up in compaction code, and
-often we don't have a good idea about what it's really doing. I've been using
-ad-hoc (and ugly) tracepoints locally for specific issues, Joonsoo has recently
-posted more polished set of tracepoints. Is this enough, or do we need more
-tracepoints or vmstat entries? What about postprocessing of the traces, should
-there be shared tools?
-
-- For testing, which benchmarks to use? I (and others) have been relying on
-stress-highalloc from mmtests, but I'm aware it's quite artificial, and results
-could thus be potentially misleading. Is there anything better representative,
-but doesn't need hours to run for a single data point?
-
-- How to better decide when to try compaction and for how long? Is the deferred
-compaction mechanism enough? Given how we've reduced the amount of synchronous
-compaction compared to asynchronous, it's possible that deferred compaction is
-not triggered enough. For asynchronous compaction we currently quit when we
-detect lock contention or need_resched(). We have briefly discussed on linux-mm
-with David Rientjes whether this makes sense and if instead there shouldn't be a
-limit on the number of scanned pages per invocation? User or automatically
-tunable perhaps?
-
-- Can we improve coordination between direct reclaim and compaction? Both rely
-mostly on watermark checks and estimation of fragmentation to decide whether to
-reclaim or compact. Within compaction itself, the checks were found to be
-inconsistent due to important parameters (alloc_flags and classzone_idx) not
-available, which should now be fixed. But they are still missing in the reclaim
-vs compaction decisions. This could be a problem in near-full-memory situations.
-Can we also do something about parallel activity changing the conditions during
-the compaction? E.g. we decide we have enough free memory to try compaction, but
-then another process allocates it...
-
-- Is the fundamental compaction algorithm sufficient? Migration scanner starts
-at the zone beginning, free scanner at the zone end. Testing shows that with
-memory nearly full, they always meet somewhere around the middle of the zone.
-But that means the migration scanner never sees the second half of the zone, and
-won't migrate movable pages from unmovable pageblocks, which impacts
-fragmentation avoidance. Should we try to somehow move the scanner starting
-points around the zone so all pageblocks get the same share of migrate scanner
-on average?
-
-Complementary to compaction is the fragmentation avoidance mechanism, which
-Joonsoo and I are now also looking at. It's of course a heuristic and cannot be
-perfect, unless it could predict the future. But can we do better to prevent
-long-term unmovable allocations from polluting more pageblocks than needed?
-
-- Should we perhaps sometimes decide that it's better to try migrating movable
-pages out of current unmovable pageblocks, than placing an unmovable allocation
-to movable pageblock?
-
-- Would it be useful to introduce another migratetype e.g. MIXED, to mark
-pageblocks where unmovable allocations occured, but didn't steal enough free
-pages to change pageblock migratetype to unmovable? The idea is that further
-stealing would prefer MIXED pageblocks before polluting another clean movable
-pageblocks.
-
-In case anyone's interested in more details, I've also written about the work
-done on this topic (mostly from my perspective) during the last year, for our
-SUSE Labs conference this September [2].
-
-Vlastimil
-
-[1] http://lwn.net/Articles/591998/
-[2] http://labs.suse.cz/vbabka/compaction.pdf
+Trond
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
