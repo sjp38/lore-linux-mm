@@ -1,117 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 976D76B0088
-	for <linux-mm@kvack.org>; Mon, 15 Dec 2014 18:43:26 -0500 (EST)
-Received: by mail-ig0-f182.google.com with SMTP id hn15so6084861igb.3
-        for <linux-mm@kvack.org>; Mon, 15 Dec 2014 15:43:26 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id u1si6688icq.76.2014.12.15.15.43.24
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Dec 2014 15:43:25 -0800 (PST)
-Date: Mon, 15 Dec 2014 15:43:23 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 2/6] mm/page_alloc.c:__alloc_pages_nodemask(): don't
- alter arg gfp_mask
-Message-Id: <20141215154323.08cc8e7d18ef78f19e5ecce2@linux-foundation.org>
-In-Reply-To: <548F6F94.2020209@jp.fujitsu.com>
-References: <548f68b5.yNW2nTZ3zFvjiAsf%akpm@linux-foundation.org>
-	<548F6F94.2020209@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-la0-f53.google.com (mail-la0-f53.google.com [209.85.215.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CA5E6B008A
+	for <linux-mm@kvack.org>; Mon, 15 Dec 2014 18:55:49 -0500 (EST)
+Received: by mail-la0-f53.google.com with SMTP id gm9so10582038lab.12
+        for <linux-mm@kvack.org>; Mon, 15 Dec 2014 15:55:48 -0800 (PST)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.195])
+        by mx.google.com with ESMTP id q15si11878814lal.79.2014.12.15.15.55.47
+        for <linux-mm@kvack.org>;
+        Mon, 15 Dec 2014 15:55:47 -0800 (PST)
+Date: Tue, 16 Dec 2014 01:55:32 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [patch 5/6]
+ mm-introduce-do_shared_fault-and-drop-do_fault-fix-fix
+Message-ID: <20141215235532.GA16180@node.dhcp.inet.fi>
+References: <548f68cf.6xGKPRYKtNb84wM5%akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <548f68cf.6xGKPRYKtNb84wM5%akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, hannes@cmpxchg.org, mel@csn.ul.ie, ming.lei@canonical.com
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, ak@linux.intel.com, dave.hansen@linux.intel.com, lliubbo@gmail.com, matthew.r.wilcox@intel.com, mgorman@suse.de, n-horiguchi@ah.jp.nec.com, riel@redhat.com, sasha.levin@oracle.com, hughd@google.com
 
-On Tue, 16 Dec 2014 08:32:36 +0900 Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com> wrote:
-
-> (2014/12/16 8:03), akpm@linux-foundation.org wrote:
-> > From: Andrew Morton <akpm@linux-foundation.org>
-> > Subject: mm/page_alloc.c:__alloc_pages_nodemask(): don't alter arg gfp_mask
-> >
-> > __alloc_pages_nodemask() strips __GFP_IO when retrying the page
-> > allocation.  But it does this by altering the function-wide variable
-> > gfp_mask.  This will cause subsequent allocation attempts to inadvertently
-> > use the modified gfp_mask.
-> >
-> > Cc: Ming Lei <ming.lei@canonical.com>
-> > Cc: Mel Gorman <mel@csn.ul.ie>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> > ---
-> >
-> >   mm/page_alloc.c |    5 +++--
-> >   1 file changed, 3 insertions(+), 2 deletions(-)
-> >
-> > diff -puN mm/page_alloc.c~mm-page_allocc-__alloc_pages_nodemask-dont-alter-arg-gfp_mask mm/page_alloc.c
-> > --- a/mm/page_alloc.c~mm-page_allocc-__alloc_pages_nodemask-dont-alter-arg-gfp_mask
-> > +++ a/mm/page_alloc.c
-> > @@ -2918,8 +2918,9 @@ retry_cpuset:
-> >   		 * can deadlock because I/O on the device might not
-> >   		 * complete.
-> >   		 */
-> > -		gfp_mask = memalloc_noio_flags(gfp_mask);
-> > -		page = __alloc_pages_slowpath(gfp_mask, order,
+On Mon, Dec 15, 2014 at 03:03:43PM -0800, akpm@linux-foundation.org wrote:
+> From: Andrew Morton <akpm@linux-foundation.org>
+> Subject: mm-introduce-do_shared_fault-and-drop-do_fault-fix-fix
 > 
-> > +		gfp_t mask = memalloc_noio_flags(gfp_mask);
-> > +
-> > +		page = __alloc_pages_slowpath(mask, order,
-> >   				zonelist, high_zoneidx, nodemask,
-> >   				preferred_zone, classzone_idx, migratetype);
-> >   	}
+> add comment which may not be true :(
 > 
-> After allocating page, trace_mm_page_alloc(page, order, gfp_mask, migratetype)
-> is called. But mask is not passed to it. So trace_mm_page_alloc traces wrong
-> gfp_mask.
+> Cc: Andi Kleen <ak@linux.intel.com>
+> Cc: Bob Liu <lliubbo@gmail.com>
+> Cc: Dave Hansen <dave.hansen@linux.intel.com>
+> Cc: "Kirill A. Shutemov" <kirill@shutemov.name>
+> Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Sasha Levin <sasha.levin@oracle.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+>  mm/memory.c |    6 ++++++
+>  1 file changed, 6 insertions(+)
+> 
+> diff -puN mm/memory.c~mm-introduce-do_shared_fault-and-drop-do_fault-fix-fix mm/memory.c
+> --- a/mm/memory.c~mm-introduce-do_shared_fault-and-drop-do_fault-fix-fix
+> +++ a/mm/memory.c
+> @@ -3009,6 +3009,12 @@ static int do_shared_fault(struct mm_str
+>  
+>  	if (set_page_dirty(fault_page))
+>  		dirtied = 1;
+> +	/*
+> +	 * Take a local copy of the address_space - page.mapping may be zeroed
+> +	 * by truncate after unlock_page().   The address_space itself remains
+> +	 * pinned by vma->vm_file's reference.  We rely on unlock_page()'s
+> +	 * release semantics to prevent the compiler from undoing this copying.
+> +	 */
 
-Well it was already wrong because the first allocation attempt uses
-gfp_mask|__GFP_HARDWAL, but we only trace gfp_mask.
+Looks correct to me.
 
-This?
+We need the same comment or reference to this one in do_wp_page().
 
---- a/mm/page_alloc.c~mm-page_allocc-__alloc_pages_nodemask-dont-alter-arg-gfp_mask-fix
-+++ a/mm/page_alloc.c
-@@ -2877,6 +2877,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, u
- 	unsigned int cpuset_mems_cookie;
- 	int alloc_flags = ALLOC_WMARK_LOW|ALLOC_CPUSET|ALLOC_FAIR;
- 	int classzone_idx;
-+	gfp_t mask;
- 
- 	gfp_mask &= gfp_allowed_mask;
- 
-@@ -2910,23 +2911,24 @@ retry_cpuset:
- 	classzone_idx = zonelist_zone_idx(preferred_zoneref);
- 
- 	/* First allocation attempt */
--	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
--			zonelist, high_zoneidx, alloc_flags,
--			preferred_zone, classzone_idx, migratetype);
-+	mask = gfp_mask|__GFP_HARDWALL;
-+	page = get_page_from_freelist(mask, nodemask, order, zonelist,
-+			high_zoneidx, alloc_flags, preferred_zone,
-+			classzone_idx, migratetype);
- 	if (unlikely(!page)) {
- 		/*
- 		 * Runtime PM, block IO and its error handling path
- 		 * can deadlock because I/O on the device might not
- 		 * complete.
- 		 */
--		gfp_t mask = memalloc_noio_flags(gfp_mask);
-+		mask = memalloc_noio_flags(gfp_mask);
- 
- 		page = __alloc_pages_slowpath(mask, order,
- 				zonelist, high_zoneidx, nodemask,
- 				preferred_zone, classzone_idx, migratetype);
- 	}
- 
--	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
-+	trace_mm_page_alloc(page, order, mask, migratetype);
- 
- out:
- 	/*
-_
+>  	mapping = fault_page->mapping;
+
+BTW, I noticed that fault_page here can be a tail page: sound subsytem
+allocates its pages with GFP_COMP and maps them with ptes. The problem is
+that we never set ->mapping for tail pages and the check below is always
+false. It seems doesn't cause any problems right now (looks like ->mapping
+is NULL also for head page sound case), but logic is somewhat broken.
+
+I only triggered the problem when tried to reuse ->mapping in first tail
+page for compound_mapcount in my thp refcounting rework.
+
+If it sounds right, I will prepare patch to replace the line above and the
+same case in do_wp_page() with
+
+	mapping = compound_head(fault_page)->mapping;
+
+Ok?
+
+>  	unlock_page(fault_page);
+>  	if ((dirtied || vma->vm_ops->page_mkwrite) && mapping) {
+> _
+> 
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
