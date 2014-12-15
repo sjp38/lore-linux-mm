@@ -1,91 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f53.google.com (mail-la0-f53.google.com [209.85.215.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CA5E6B008A
-	for <linux-mm@kvack.org>; Mon, 15 Dec 2014 18:55:49 -0500 (EST)
-Received: by mail-la0-f53.google.com with SMTP id gm9so10582038lab.12
-        for <linux-mm@kvack.org>; Mon, 15 Dec 2014 15:55:48 -0800 (PST)
-Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.195])
-        by mx.google.com with ESMTP id q15si11878814lal.79.2014.12.15.15.55.47
-        for <linux-mm@kvack.org>;
-        Mon, 15 Dec 2014 15:55:47 -0800 (PST)
-Date: Tue, 16 Dec 2014 01:55:32 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [patch 5/6]
- mm-introduce-do_shared_fault-and-drop-do_fault-fix-fix
-Message-ID: <20141215235532.GA16180@node.dhcp.inet.fi>
-References: <548f68cf.6xGKPRYKtNb84wM5%akpm@linux-foundation.org>
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E7566B008C
+	for <linux-mm@kvack.org>; Mon, 15 Dec 2014 18:57:16 -0500 (EST)
+Received: by mail-pd0-f173.google.com with SMTP id ft15so12658919pdb.4
+        for <linux-mm@kvack.org>; Mon, 15 Dec 2014 15:57:16 -0800 (PST)
+Received: from fgwmail6.fujitsu.co.jp (fgwmail6.fujitsu.co.jp. [192.51.44.36])
+        by mx.google.com with ESMTPS id l11si16099597pdj.98.2014.12.15.15.57.14
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 15 Dec 2014 15:57:15 -0800 (PST)
+Received: from kw-mxauth.gw.nic.fujitsu.com (unknown [10.0.237.134])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 9F2603EE0AE
+	for <linux-mm@kvack.org>; Tue, 16 Dec 2014 08:57:12 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by kw-mxauth.gw.nic.fujitsu.com (Postfix) with ESMTP id ADC22AC0453
+	for <linux-mm@kvack.org>; Tue, 16 Dec 2014 08:57:11 +0900 (JST)
+Received: from g01jpfmpwyt01.exch.g01.fujitsu.local (g01jpfmpwyt01.exch.g01.fujitsu.local [10.128.193.38])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A3E9E08001
+	for <linux-mm@kvack.org>; Tue, 16 Dec 2014 08:57:11 +0900 (JST)
+Message-ID: <548F7541.8040407@jp.fujitsu.com>
+Date: Tue, 16 Dec 2014 08:56:49 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <548f68cf.6xGKPRYKtNb84wM5%akpm@linux-foundation.org>
+Subject: Re: Stalled MM patches for review
+References: <20141215150207.67c9a25583c04202d9f4508e@linux-foundation.org>
+In-Reply-To: <20141215150207.67c9a25583c04202d9f4508e@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, ak@linux.intel.com, dave.hansen@linux.intel.com, lliubbo@gmail.com, matthew.r.wilcox@intel.com, mgorman@suse.de, n-horiguchi@ah.jp.nec.com, riel@redhat.com, sasha.levin@oracle.com, hughd@google.com
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, Dec 15, 2014 at 03:03:43PM -0800, akpm@linux-foundation.org wrote:
-> From: Andrew Morton <akpm@linux-foundation.org>
-> Subject: mm-introduce-do_shared_fault-and-drop-do_fault-fix-fix
-> 
-> add comment which may not be true :(
-> 
-> Cc: Andi Kleen <ak@linux.intel.com>
-> Cc: Bob Liu <lliubbo@gmail.com>
-> Cc: Dave Hansen <dave.hansen@linux.intel.com>
-> Cc: "Kirill A. Shutemov" <kirill@shutemov.name>
-> Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Sasha Levin <sasha.levin@oracle.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
-> 
->  mm/memory.c |    6 ++++++
->  1 file changed, 6 insertions(+)
-> 
-> diff -puN mm/memory.c~mm-introduce-do_shared_fault-and-drop-do_fault-fix-fix mm/memory.c
-> --- a/mm/memory.c~mm-introduce-do_shared_fault-and-drop-do_fault-fix-fix
-> +++ a/mm/memory.c
-> @@ -3009,6 +3009,12 @@ static int do_shared_fault(struct mm_str
->  
->  	if (set_page_dirty(fault_page))
->  		dirtied = 1;
-> +	/*
-> +	 * Take a local copy of the address_space - page.mapping may be zeroed
-> +	 * by truncate after unlock_page().   The address_space itself remains
-> +	 * pinned by vma->vm_file's reference.  We rely on unlock_page()'s
-> +	 * release semantics to prevent the compiler from undoing this copying.
-> +	 */
+(2014/12/16 8:02), Andrew Morton wrote:
+>
+> I'm sitting on a bunch of patches which have question marks over them.
+> I'll send them out now.  Can people please dig in and see if we can get
+> them finished off one way or the other?
+>
+> My notes (which may be out of date):
+>
 
-Looks correct to me.
+Here are the threads of each discussion. Please use them as a reference.
 
-We need the same comment or reference to this one in do_wp_page().
+> mm-page_isolation-check-pfn-validity-before-access.patch:
+>    - Might be unneeded. mhocko has issues.
 
->  	mapping = fault_page->mapping;
+https://lkml.org/lkml/2014/11/6/79
 
-BTW, I noticed that fault_page here can be a tail page: sound subsytem
-allocates its pages with GFP_COMP and maps them with ptes. The problem is
-that we never set ->mapping for tail pages and the check below is always
-false. It seems doesn't cause any problems right now (looks like ->mapping
-is NULL also for head page sound case), but logic is somewhat broken.
+>
+> mm-page_allocc-__alloc_pages_nodemask-dont-alter-arg-gfp_mask.patch:
+>    - Needs review and checking
 
-I only triggered the problem when tried to reuse ->mapping in first tail
-page for compound_mapcount in my thp refcounting rework.
 
-If it sounds right, I will prepare patch to replace the line above and the
-same case in do_wp_page() with
 
-	mapping = compound_head(fault_page)->mapping;
+> mm-page_alloc-embed-oom-killing-naturally-into-allocation-slowpath.patch:
+>    - mhocko wanted a changelog update
 
-Ok?
+https://lkml.org/lkml/2014/12/4/697
 
->  	unlock_page(fault_page);
->  	if ((dirtied || vma->vm_ops->page_mkwrite) && mapping) {
-> _
-> 
--- 
- Kirill A. Shutemov
+>
+> mm-fix-invalid-use-of-pfn_valid_within-in-test_pages_in_a_zone.patch:
+>    - Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com> has issues with it
+
+https://lkml.org/lkml/2014/12/9/482
+
+>
+> mm-introduce-do_shared_fault-and-drop-do_fault-fix-fix.patch:
+>    - Adds a comment whcih might not be true?
+>
+
+> fs-mpagec-forgotten-write_sync-in-case-of-data-integrity-write.patch:
+>    - Unsure whether or not this helps.
+
+https://lkml.org/lkml/2014/2/15/245
+
+Thanks,
+Yasuaki Ishimatsu
+
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
