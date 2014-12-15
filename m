@@ -1,117 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E6976B0075
-	for <linux-mm@kvack.org>; Mon, 15 Dec 2014 12:16:40 -0500 (EST)
-Received: by mail-wi0-f182.google.com with SMTP id h11so9742329wiw.15
-        for <linux-mm@kvack.org>; Mon, 15 Dec 2014 09:16:40 -0800 (PST)
-Received: from mail-wg0-x233.google.com (mail-wg0-x233.google.com. [2a00:1450:400c:c00::233])
-        by mx.google.com with ESMTPS id y7si17510015wjy.65.2014.12.15.09.16.39
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 572186B0038
+	for <linux-mm@kvack.org>; Mon, 15 Dec 2014 17:11:10 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id rd3so12717035pab.28
+        for <linux-mm@kvack.org>; Mon, 15 Dec 2014 14:11:10 -0800 (PST)
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com. [209.85.192.178])
+        by mx.google.com with ESMTPS id ml2si15763045pab.144.2014.12.15.14.11.08
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 15 Dec 2014 09:16:39 -0800 (PST)
-Received: by mail-wg0-f51.google.com with SMTP id x12so15189808wgg.10
-        for <linux-mm@kvack.org>; Mon, 15 Dec 2014 09:16:39 -0800 (PST)
-From: Petr Cermak <petrcermak@chromium.org>
-Subject: [PATCH 2/2] task_mmu: Add user-space support for resetting mm->hiwater_rss (peak RSS)
-Date: Mon, 15 Dec 2014 17:15:33 +0000
-Message-Id: <1418663733-15949-1-git-send-email-petrcermak@chromium.org>
-References: <1418223544-11382-1-git-send-email-petrcermak@chromium.org>
-In-Reply-To: <1418223544-11382-1-git-send-email-petrcermak@chromium.org>
+        Mon, 15 Dec 2014 14:11:08 -0800 (PST)
+Received: by mail-pd0-f178.google.com with SMTP id r10so12496058pdi.37
+        for <linux-mm@kvack.org>; Mon, 15 Dec 2014 14:11:07 -0800 (PST)
+Date: Mon, 15 Dec 2014 14:11:00 -0800
+From: Omar Sandoval <osandov@osandov.com>
+Subject: Re: [PATCH 2/8] swap: lock i_mutex for swap_writepage direct_IO
+Message-ID: <20141215221100.GA4637@mew>
+References: <cover.1418618044.git.osandov@osandov.com>
+ <a59510f4552a5d3557958cdb0ce1b23b3abfc75b.1418618044.git.osandov@osandov.com>
+ <20141215162705.GA23887@quack.suse.cz>
+ <20141215165615.GA19041@infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141215165615.GA19041@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Petr Cermak <petrcermak@chromium.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Bjorn Helgaas <bhelgaas@google.com>, Primiano Tucci <primiano@chromium.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Jan Kara <jack@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, David Sterba <dsterba@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Peak resident size of a process can be reset by writing "5" to
-/proc/pid/clear_refs. The driving use-case for this would be getting the
-peak RSS value, which can be retrieved from the VmHWM field in
-/proc/pid/status, per benchmark iteration or test scenario.
+On Mon, Dec 15, 2014 at 08:56:15AM -0800, Christoph Hellwig wrote:
+> On Mon, Dec 15, 2014 at 05:27:05PM +0100, Jan Kara wrote:
+> > On Sun 14-12-14 21:26:56, Omar Sandoval wrote:
+> > > The generic write code locks i_mutex for a direct_IO. Swap-over-NFS
+> > > doesn't grab the mutex because nfs_direct_IO doesn't expect i_mutex to
+> > > be held, but most direct_IO implementations do.
+> >   I think you are speaking about direct IO writes only, aren't you? For DIO
+> > reads we don't hold i_mutex AFAICS. And also for DIO writes we don't
+> > necessarily hold i_mutex - see for example XFS which doesn't take i_mutex
+> > for direct IO writes. It uses it's internal rwlock for this (see
+> > xfs_file_dio_aio_write()). So I think this is just wrong.
+> 
+> The problem is that the use of ->direct_IO by the swap code is a gross
+> layering violation.  ->direct_IO is a callback for the filesystem, and
+> the swap code need to call ->read_iter instead of ->readpage and
+> ->write_tier instead of ->direct_IO, and leave the locking to the
+> filesystem.
+>
+Ok, I got the swap code working with ->read_iter/->write_iter without
+too much trouble. I wanted to double check before I submit if there's
+any gotchas involved with adding the O_DIRECT flag to a file pointer
+after it has been opened -- swapon opens the swapfile before we know if
+we're using the SWP_FILE infrastructure, and we need to add O_DIRECT so
+->{read,write}_iter use direct I/O, but we can't add O_DIRECT to the
+original open without excluding filesystems that support the old bmap
+path but not direct I/O.
 
-Cc: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Bjorn Helgaas <bhelgaas@google.com>
-Cc: Primiano Tucci <primiano@chromium.org>
-Cc: Petr Cermak <petrcermak@chromium.org>
-Signed-off-by: Petr Cermak <petrcermak@chromium.org>
----
- Documentation/filesystems/proc.txt |  3 +++
- fs/proc/task_mmu.c                 | 15 ++++++++++++++-
- include/linux/mm.h                 |  5 +++++
- 3 files changed, 22 insertions(+), 1 deletion(-)
-
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index aae9dd1..eab62e3 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -488,6 +488,9 @@ To clear the bits for the file mapped pages associated with the process
- To clear the soft-dirty bit
-     > echo 4 > /proc/PID/clear_refs
- 
-+To reset the peak resident set size ("high water mark")
-+    > echo 5 > /proc/PID/clear_refs
-+
- Any other value written to /proc/PID/clear_refs will have no effect.
- 
- The /proc/pid/pagemap gives the PFN, which can be used to find the pageflags
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 3ee8541..7967535 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -747,6 +747,7 @@ enum clear_refs_types {
- 	CLEAR_REFS_ANON,
- 	CLEAR_REFS_MAPPED,
- 	CLEAR_REFS_SOFT_DIRTY,
-+	CLEAR_REFS_MM_HIWATER_RSS,
- 	CLEAR_REFS_LAST,
- };
- 
-@@ -855,6 +856,17 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
- 	if (!mm)
- 		goto out_task;
- 
-+	if (type == CLEAR_REFS_MM_HIWATER_RSS) {
-+		/*
-+		 * Writing 5 to /proc/pid/clear_refs resets the peak resident
-+		 * set size.
-+		 */
-+		down_write(&mm->mmap_sem);
-+		reset_mm_hiwater_rss(mm);
-+		up_write(&mm->mmap_sem);
-+		goto out_mm;
-+	}
-+
- 	struct clear_refs_private cp = {
- 		.type = type,
- 	};
-@@ -904,8 +916,9 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
- 		mmu_notifier_invalidate_range_end(mm, 0, -1);
- 	flush_tlb_mm(mm);
- 	up_read(&mm->mmap_sem);
--	mmput(mm);
- 
-+out_mm:
-+	mmput(mm);
- out_task:
- 	put_task_struct(task);
- 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index c0a67b8..f3f6cee 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1368,6 +1368,11 @@ static inline void update_hiwater_vm(struct mm_struct *mm)
- 		mm->hiwater_vm = mm->total_vm;
- }
- 
-+static inline void reset_mm_hiwater_rss(struct mm_struct *mm)
-+{
-+	mm->hiwater_rss = get_mm_rss(mm);
-+}
-+
- static inline void setmax_mm_hiwater_rss(unsigned long *maxrss,
- 					 struct mm_struct *mm)
- {
 -- 
-2.2.0.rc0.207.ga3a616c
+Omar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
