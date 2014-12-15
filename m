@@ -1,130 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 6591F6B008A
-	for <linux-mm@kvack.org>; Sun, 14 Dec 2014 20:39:40 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id et14so10785129pad.31
-        for <linux-mm@kvack.org>; Sun, 14 Dec 2014 17:39:40 -0800 (PST)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id j4si11591039pdm.235.2014.12.14.17.39.37
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id B488D6B0038
+	for <linux-mm@kvack.org>; Mon, 15 Dec 2014 00:27:25 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id rd3so11104726pab.21
+        for <linux-mm@kvack.org>; Sun, 14 Dec 2014 21:27:25 -0800 (PST)
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com. [209.85.220.54])
+        by mx.google.com with ESMTPS id fy2si12373017pbb.67.2014.12.14.21.27.23
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 14 Dec 2014 17:39:38 -0800 (PST)
-Message-ID: <548E3B5E.6050805@huawei.com>
-Date: Mon, 15 Dec 2014 09:37:34 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] CMA: add the amount of cma memory in meminfo
-References: <547FCCE9.2020600@huawei.com> <xa1ty4qm9eq7.fsf@mina86.com>
-In-Reply-To: <xa1ty4qm9eq7.fsf@mina86.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 14 Dec 2014 21:27:24 -0800 (PST)
+Received: by mail-pa0-f54.google.com with SMTP id fb1so11162534pad.13
+        for <linux-mm@kvack.org>; Sun, 14 Dec 2014 21:27:23 -0800 (PST)
+From: Omar Sandoval <osandov@osandov.com>
+Subject: [PATCH 0/8] clean up and generalize swap-over-NFS
+Date: Sun, 14 Dec 2014 21:26:54 -0800
+Message-Id: <cover.1418618044.git.osandov@osandov.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, m.szyprowski@samsung.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, Christoph Hellwig <hch@infradead.org>, David Sterba <dsterba@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Omar Sandoval <osandov@osandov.com>
 
-On 2014/12/6 1:41, Michal Nazarewicz wrote:
+Hi, everyone,
 
-> On Thu, Dec 04 2014, Xishi Qiu <qiuxishi@huawei.com> wrote:
->> Add the amount of cma memory in the following meminfo.
->> /proc/meminfo
->> /sys/devices/system/node/nodeXX/meminfo
->>
->> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
-> 
-> No second look:
-> 
-> Acked-by: Michal Nazarewicz <mina86@mina86.com>
-> 
->> ---
->>  drivers/base/node.c | 16 ++++++++++------
->>  fs/proc/meminfo.c   | 12 +++++++++---
->>  2 files changed, 19 insertions(+), 9 deletions(-)
->>
->> diff --git a/drivers/base/node.c b/drivers/base/node.c
->> index 472168c..a27e4e0 100644
->> --- a/drivers/base/node.c
->> +++ b/drivers/base/node.c
->> @@ -120,6 +120,9 @@ static ssize_t node_read_meminfo(struct device *dev,
->>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->>  		       "Node %d AnonHugePages:  %8lu kB\n"
->>  #endif
->> +#ifdef CONFIG_CMA
->> +		       "Node %d FreeCMAPages:   %8lu kB\n"
->> +#endif
->>  			,
->>  		       nid, K(node_page_state(nid, NR_FILE_DIRTY)),
->>  		       nid, K(node_page_state(nid, NR_WRITEBACK)),
->> @@ -136,14 +139,15 @@ static ssize_t node_read_meminfo(struct device *dev,
->>  		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE) +
->>  				node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),
->>  		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE)),
->> -#ifdef CONFIG_TRANSPARENT_HUGEPAGE
->>  		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE))
->> -			, nid,
->> -			K(node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *
->> -			HPAGE_PMD_NR));
->> -#else
->> -		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)));
->> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
->> +		       , nid, K(node_page_state(nid,
->> +				NR_ANON_TRANSPARENT_HUGEPAGES) * HPAGE_PMD_NR)
+This patch series contains all of the non-BTRFS changes that I've made
+as a part of implementing swap file support on BTRFS. The BTRFS parts of
+that series (https://lkml.org/lkml/2014/12/9/718) are still undergoing
+development, and the non-BTRFS changes now outnumber those within BTRFS,
+so it'll probably work best to get these in separately.
 
-Hi Michali 1/4 ?
+Long story short, the generic swap file infrastructure introduced for
+swap-over-NFS isn't quite ready for other clients without making some
+changes.
 
-The "mere white-space change" you said a few days agoi 1/4 ?how about change like this
-", nid, K(...)" -> ",nid, K(xxx)"?
+Before I forget, this patch series was built against cbfe0de in Linus'
+tree (to avoid conflicts with the recent iov_iter work).
 
-Thanks,
-Xishi Qiu
+Patches 1 and 2 fix an issue with NFS and the swap file infrastructure
+not following the direct_IO locking conventions, leading to locking
+issues for anyone else trying to use the interface (discussed here:
+https://lkml.org/lkml/2014/12/12/677).
 
->> +#endif
->> +#ifdef CONFIG_CMA
->> +		       , nid, K(node_page_state(nid, NR_FREE_CMA_PAGES))
->>  #endif
->> +			);
->>  	n += hugetlb_report_node_meminfo(nid, buf + n);
->>  	return n;
->>  }
->> diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
->> index aa1eee0..d42e082 100644
->> --- a/fs/proc/meminfo.c
->> +++ b/fs/proc/meminfo.c
->> @@ -138,6 +138,9 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
->>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->>  		"AnonHugePages:  %8lu kB\n"
->>  #endif
->> +#ifdef CONFIG_CMA
->> +		"FreeCMAPages:   %8lu kB\n"
->> +#endif
->>  		,
->>  		K(i.totalram),
->>  		K(i.freeram),
->> @@ -187,11 +190,14 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
->>  		vmi.used >> 10,
->>  		vmi.largest_chunk >> 10
->>  #ifdef CONFIG_MEMORY_FAILURE
->> -		,atomic_long_read(&num_poisoned_pages) << (PAGE_SHIFT - 10)
->> +		, atomic_long_read(&num_poisoned_pages) << (PAGE_SHIFT - 10)
->>  #endif
->>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->> -		,K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
->> -		   HPAGE_PMD_NR)
->> +		, K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
->> +				HPAGE_PMD_NR)
->> +#endif
->> +#ifdef CONFIG_CMA
->> +		, K(global_page_state(NR_FREE_CMA_PAGES))
->>  #endif
->>  		);
->>  
->> -- 
->> 2.0.0
->>
->>
-> 
+Patch 3 removes the ITER_BVEC flag from the rw argument passed to
+direct_IO, as many, but not all, direct_IO implementations expect either
+rw == READ or rw == WRITE. The lack of documentation about what's
+correct here is probably going to break something at some point, but
+that's another conversation.
 
+Patch 4 adds iov_iter_bvec for swap_writepage, the upcoming
+swap_readpage change, and splice.
 
+Patches 5 and 6 are preparation for patch 7, teaching the VFS and NFS to
+handle ITER_BVEC reads.
+
+Patch 7 is the biggest change in the series: it changes swap_readpage to
+proxy through ->direct_IO rather than ->readpage. Using readpage for a
+swapcache page requires all sorts of messy workarounds (see here for
+context: https://lkml.org/lkml/2014/11/19/46). Patch 8 updates the
+documentation accordingly.
+
+Thanks!
+
+Omar Sandoval (8):
+  nfs: follow direct I/O write locking convention
+  swap: lock i_mutex for swap_writepage direct_IO
+  swap: don't add ITER_BVEC flag to direct_IO rw
+  iov_iter: add iov_iter_bvec and convert callers
+  direct-io: don't dirty ITER_BVEC pages on read
+  nfs: don't dirty ITER_BVEC pages read through direct I/O
+  swap: use direct I/O for SWP_FILE swap_readpage
+  vfs: update swap_{,de}activate documentation
+
+ Documentation/filesystems/Locking |  7 +++---
+ Documentation/filesystems/vfs.txt |  7 +++---
+ fs/direct-io.c                    |  8 ++++---
+ fs/nfs/direct.c                   | 17 ++++++++-------
+ fs/nfs/file.c                     |  8 +++++--
+ fs/splice.c                       |  7 ++----
+ include/linux/uio.h               |  2 ++
+ mm/iov_iter.c                     | 12 +++++++++++
+ mm/page_io.c                      | 45 ++++++++++++++++++++++++++++-----------
+ 9 files changed, 76 insertions(+), 37 deletions(-)
+
+-- 
+2.1.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
