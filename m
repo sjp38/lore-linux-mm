@@ -1,129 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F9F86B0071
-	for <linux-mm@kvack.org>; Mon, 15 Dec 2014 02:55:24 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id kq14so11171581pab.26
-        for <linux-mm@kvack.org>; Sun, 14 Dec 2014 23:55:24 -0800 (PST)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id wc9si3273140pab.213.2014.12.14.23.55.21
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id F04E46B0073
+	for <linux-mm@kvack.org>; Mon, 15 Dec 2014 02:59:30 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id et14so11337696pad.15
+        for <linux-mm@kvack.org>; Sun, 14 Dec 2014 23:59:30 -0800 (PST)
+Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id fw3si12914494pdb.30.2014.12.14.23.59.27
         for <linux-mm@kvack.org>;
-        Sun, 14 Dec 2014 23:55:22 -0800 (PST)
-Date: Mon, 15 Dec 2014 16:59:33 +0900
+        Sun, 14 Dec 2014 23:59:29 -0800 (PST)
+Date: Mon, 15 Dec 2014 17:03:38 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 0/7] slub: Fastpath optimization (especially for RT) V1
-Message-ID: <20141215075933.GD4898@js1304-P5Q-DELUXE>
+Subject: Re: [PATCH 3/7] slub: Do not use c->page on free
+Message-ID: <20141215080338.GE4898@js1304-P5Q-DELUXE>
 References: <20141210163017.092096069@linux.com>
+ <20141210163033.717707217@linux.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20141210163017.092096069@linux.com>
+In-Reply-To: <20141210163033.717707217@linux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: akpm@linuxfoundation.org, rostedt@goodmis.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com, Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: akpm@linuxfoundation.org, rostedt@goodmis.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, penberg@kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>
 
-On Wed, Dec 10, 2014 at 10:30:17AM -0600, Christoph Lameter wrote:
-> We had to insert a preempt enable/disable in the fastpath a while ago. This
-> was mainly due to a lot of state that is kept to be allocating from the per
-> cpu freelist. In particular the page field is not covered by
-> this_cpu_cmpxchg used in the fastpath to do the necessary atomic state
-> change for fast path allocation and freeing.
+On Wed, Dec 10, 2014 at 10:30:20AM -0600, Christoph Lameter wrote:
+> Avoid using the page struct address on free by just doing an
+> address comparison. That is easily doable now that the page address
+> is available in the page struct and we already have the page struct
+> address of the object to be freed calculated.
 > 
-> This patch removes the need for the page field to describe the state of the
-> per cpu list. The freelist pointer can be used to determine the page struct
-> address if necessary.
+> Signed-off-by: Christoph Lameter <cl@linux.com>
 > 
-> However, currently this does not work for the termination value of a list
-> which is NULL and the same for all slab pages. If we use a valid pointer
-> into the page as well as set the last bit then all freelist pointers can
-> always be used to determine the address of the page struct and we will not
-> need the page field anymore in the per cpu are for a slab. Testing for the
-> end of the list is a test if the first bit is set.
-> 
-> So the first patch changes the termination pointer for freelists to do just
-> that. The second removes the page field and then third can then remove the
-> preempt enable/disable.
-> 
-> Removing the ->page field reduces the cache footprint of the fastpath so hopefully overall
-> allocator effectiveness will increase further. Also RT uses full preemption which means
-> that currently pretty expensive code has to be inserted into the fastpath. This approach
-> allows the removal of that code and a corresponding performance increase.
-> 
-> For V1 a number of changes were made to avoid the overhead of virt_to_page
-> and page_address from the RFC.
-> 
-> Slab Benchmarks on a kernel with CONFIG_PREEMPT show an improvement of
-> 20%-50% of fastpath latency:
-> 
-> Before:
-> 
-> Single thread testing
-> 1. Kmalloc: Repeatedly allocate then free test
-> 10000 times kmalloc(8) -> 68 cycles kfree -> 107 cycles
-> 10000 times kmalloc(16) -> 69 cycles kfree -> 108 cycles
-> 10000 times kmalloc(32) -> 78 cycles kfree -> 112 cycles
-> 10000 times kmalloc(64) -> 97 cycles kfree -> 112 cycles
-> 10000 times kmalloc(128) -> 111 cycles kfree -> 119 cycles
-> 10000 times kmalloc(256) -> 114 cycles kfree -> 139 cycles
-> 10000 times kmalloc(512) -> 110 cycles kfree -> 142 cycles
-> 10000 times kmalloc(1024) -> 114 cycles kfree -> 156 cycles
-> 10000 times kmalloc(2048) -> 155 cycles kfree -> 174 cycles
-> 10000 times kmalloc(4096) -> 203 cycles kfree -> 209 cycles
-> 10000 times kmalloc(8192) -> 361 cycles kfree -> 265 cycles
-> 10000 times kmalloc(16384) -> 597 cycles kfree -> 286 cycles
-> 
-> 2. Kmalloc: alloc/free test
-> 10000 times kmalloc(8)/kfree -> 114 cycles
-> 10000 times kmalloc(16)/kfree -> 115 cycles
-> 10000 times kmalloc(32)/kfree -> 117 cycles
-> 10000 times kmalloc(64)/kfree -> 115 cycles
-> 10000 times kmalloc(128)/kfree -> 111 cycles
-> 10000 times kmalloc(256)/kfree -> 116 cycles
-> 10000 times kmalloc(512)/kfree -> 110 cycles
-> 10000 times kmalloc(1024)/kfree -> 114 cycles
-> 10000 times kmalloc(2048)/kfree -> 110 cycles
-> 10000 times kmalloc(4096)/kfree -> 107 cycles
-> 10000 times kmalloc(8192)/kfree -> 108 cycles
-> 10000 times kmalloc(16384)/kfree -> 706 cycles
-> 
-> 
-> After:
-> 
-> 
-> Single thread testing
-> 1. Kmalloc: Repeatedly allocate then free test
-> 10000 times kmalloc(8) -> 41 cycles kfree -> 81 cycles
-> 10000 times kmalloc(16) -> 47 cycles kfree -> 88 cycles
-> 10000 times kmalloc(32) -> 48 cycles kfree -> 93 cycles
-> 10000 times kmalloc(64) -> 58 cycles kfree -> 89 cycles
-> 10000 times kmalloc(128) -> 84 cycles kfree -> 104 cycles
-> 10000 times kmalloc(256) -> 92 cycles kfree -> 125 cycles
-> 10000 times kmalloc(512) -> 86 cycles kfree -> 129 cycles
-> 10000 times kmalloc(1024) -> 88 cycles kfree -> 125 cycles
-> 10000 times kmalloc(2048) -> 120 cycles kfree -> 159 cycles
-> 10000 times kmalloc(4096) -> 176 cycles kfree -> 183 cycles
-> 10000 times kmalloc(8192) -> 294 cycles kfree -> 233 cycles
-> 10000 times kmalloc(16384) -> 585 cycles kfree -> 291 cycles
-> 
-> 2. Kmalloc: alloc/free test
-> 10000 times kmalloc(8)/kfree -> 100 cycles
-> 10000 times kmalloc(16)/kfree -> 108 cycles
-> 10000 times kmalloc(32)/kfree -> 101 cycles
-> 10000 times kmalloc(64)/kfree -> 109 cycles
-> 10000 times kmalloc(128)/kfree -> 125 cycles
-> 10000 times kmalloc(256)/kfree -> 60 cycles
-> 10000 times kmalloc(512)/kfree -> 60 cycles
-> 10000 times kmalloc(1024)/kfree -> 67 cycles
-> 10000 times kmalloc(2048)/kfree -> 60 cycles
-> 10000 times kmalloc(4096)/kfree -> 65 cycles
-> 10000 times kmalloc(8192)/kfree -> 60 cycles
+> Index: linux/mm/slub.c
+> ===================================================================
+> --- linux.orig/mm/slub.c	2014-12-09 12:25:45.770405462 -0600
+> +++ linux/mm/slub.c	2014-12-09 12:25:45.766405582 -0600
+> @@ -2625,6 +2625,13 @@ slab_empty:
+>  	discard_slab(s, page);
+>  }
+>  
+> +static bool same_slab_page(struct kmem_cache *s, struct page *page, void *p)
+> +{
+> +	long d = p - page->address;
+> +
+> +	return d > 0 && d < (1 << MAX_ORDER) && d < (compound_order(page) << PAGE_SHIFT);
+> +}
+> +
 
-Hello, Christoph.
-
-I don't review in detail, but, at a glance, overall patchset looks good.
-But, above result looks odd. Improvement is beyond what we can expect.
-Do you have any idea why allocating object more than 256 bytes is so
-fast?
+Somtimes, compound_order() induces one more cacheline access, because
+compound_order() access second struct page in order to get order. Is there
+any way to remove this?
 
 Thanks.
 
