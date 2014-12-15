@@ -1,206 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FD546B006E
-	for <linux-mm@kvack.org>; Mon, 15 Dec 2014 02:46:54 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id eu11so11269646pac.22
-        for <linux-mm@kvack.org>; Sun, 14 Dec 2014 23:46:54 -0800 (PST)
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F9F86B0071
+	for <linux-mm@kvack.org>; Mon, 15 Dec 2014 02:55:24 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id kq14so11171581pab.26
+        for <linux-mm@kvack.org>; Sun, 14 Dec 2014 23:55:24 -0800 (PST)
 Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id bb10si12854102pdb.46.2014.12.14.23.46.50
+        by mx.google.com with ESMTP id wc9si3273140pab.213.2014.12.14.23.55.21
         for <linux-mm@kvack.org>;
-        Sun, 14 Dec 2014 23:46:52 -0800 (PST)
-Date: Mon, 15 Dec 2014 16:51:00 +0900
+        Sun, 14 Dec 2014 23:55:22 -0800 (PST)
+Date: Mon, 15 Dec 2014 16:59:33 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 2/3] mm: always steal split buddies in fallback
- allocations
-Message-ID: <20141215075100.GC4898@js1304-P5Q-DELUXE>
-References: <1418400085-3622-1-git-send-email-vbabka@suse.cz>
- <1418400085-3622-3-git-send-email-vbabka@suse.cz>
+Subject: Re: [PATCH 0/7] slub: Fastpath optimization (especially for RT) V1
+Message-ID: <20141215075933.GD4898@js1304-P5Q-DELUXE>
+References: <20141210163017.092096069@linux.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1418400085-3622-3-git-send-email-vbabka@suse.cz>
+In-Reply-To: <20141210163017.092096069@linux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: akpm@linuxfoundation.org, rostedt@goodmis.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com, Jesper Dangaard Brouer <brouer@redhat.com>
 
-On Fri, Dec 12, 2014 at 05:01:24PM +0100, Vlastimil Babka wrote:
-> When allocation falls back to another migratetype, it will steal a page with
-> highest available order, and (depending on this order and desired migratetype),
-> it might also steal the rest of free pages from the same pageblock.
+On Wed, Dec 10, 2014 at 10:30:17AM -0600, Christoph Lameter wrote:
+> We had to insert a preempt enable/disable in the fastpath a while ago. This
+> was mainly due to a lot of state that is kept to be allocating from the per
+> cpu freelist. In particular the page field is not covered by
+> this_cpu_cmpxchg used in the fastpath to do the necessary atomic state
+> change for fast path allocation and freeing.
 > 
-> Given the preference of highest available order, it is likely that it will be
-> higher than the desired order, and result in the stolen buddy page being split.
-> The remaining pages after split are currently stolen only when the rest of the
-> free pages are stolen. This can however lead to situations where for MOVABLE
-> allocations we split e.g. order-4 fallback UNMOVABLE page, but steal only
-> order-0 page. Then on the next MOVABLE allocation (which may be batched to
-> fill the pcplists) we split another order-3 or higher page, etc. By stealing
-> all pages that we have split, we can avoid further stealing.
+> This patch removes the need for the page field to describe the state of the
+> per cpu list. The freelist pointer can be used to determine the page struct
+> address if necessary.
 > 
-> This patch therefore adjusts the page stealing so that buddy pages created by
-> split are always stolen. This has effect only on MOVABLE allocations, as
-> RECLAIMABLE and UNMOVABLE allocations already always do that in addition to
-> stealing the rest of free pages from the pageblock. The change also allows
-> to simplify try_to_steal_freepages() and factor out CMA handling.
+> However, currently this does not work for the termination value of a list
+> which is NULL and the same for all slab pages. If we use a valid pointer
+> into the page as well as set the last bit then all freelist pointers can
+> always be used to determine the address of the page struct and we will not
+> need the page field anymore in the per cpu are for a slab. Testing for the
+> end of the list is a test if the first bit is set.
+> 
+> So the first patch changes the termination pointer for freelists to do just
+> that. The second removes the page field and then third can then remove the
+> preempt enable/disable.
+> 
+> Removing the ->page field reduces the cache footprint of the fastpath so hopefully overall
+> allocator effectiveness will increase further. Also RT uses full preemption which means
+> that currently pretty expensive code has to be inserted into the fastpath. This approach
+> allows the removal of that code and a corresponding performance increase.
+> 
+> For V1 a number of changes were made to avoid the overhead of virt_to_page
+> and page_address from the RFC.
+> 
+> Slab Benchmarks on a kernel with CONFIG_PREEMPT show an improvement of
+> 20%-50% of fastpath latency:
+> 
+> Before:
+> 
+> Single thread testing
+> 1. Kmalloc: Repeatedly allocate then free test
+> 10000 times kmalloc(8) -> 68 cycles kfree -> 107 cycles
+> 10000 times kmalloc(16) -> 69 cycles kfree -> 108 cycles
+> 10000 times kmalloc(32) -> 78 cycles kfree -> 112 cycles
+> 10000 times kmalloc(64) -> 97 cycles kfree -> 112 cycles
+> 10000 times kmalloc(128) -> 111 cycles kfree -> 119 cycles
+> 10000 times kmalloc(256) -> 114 cycles kfree -> 139 cycles
+> 10000 times kmalloc(512) -> 110 cycles kfree -> 142 cycles
+> 10000 times kmalloc(1024) -> 114 cycles kfree -> 156 cycles
+> 10000 times kmalloc(2048) -> 155 cycles kfree -> 174 cycles
+> 10000 times kmalloc(4096) -> 203 cycles kfree -> 209 cycles
+> 10000 times kmalloc(8192) -> 361 cycles kfree -> 265 cycles
+> 10000 times kmalloc(16384) -> 597 cycles kfree -> 286 cycles
+> 
+> 2. Kmalloc: alloc/free test
+> 10000 times kmalloc(8)/kfree -> 114 cycles
+> 10000 times kmalloc(16)/kfree -> 115 cycles
+> 10000 times kmalloc(32)/kfree -> 117 cycles
+> 10000 times kmalloc(64)/kfree -> 115 cycles
+> 10000 times kmalloc(128)/kfree -> 111 cycles
+> 10000 times kmalloc(256)/kfree -> 116 cycles
+> 10000 times kmalloc(512)/kfree -> 110 cycles
+> 10000 times kmalloc(1024)/kfree -> 114 cycles
+> 10000 times kmalloc(2048)/kfree -> 110 cycles
+> 10000 times kmalloc(4096)/kfree -> 107 cycles
+> 10000 times kmalloc(8192)/kfree -> 108 cycles
+> 10000 times kmalloc(16384)/kfree -> 706 cycles
+> 
+> 
+> After:
+> 
+> 
+> Single thread testing
+> 1. Kmalloc: Repeatedly allocate then free test
+> 10000 times kmalloc(8) -> 41 cycles kfree -> 81 cycles
+> 10000 times kmalloc(16) -> 47 cycles kfree -> 88 cycles
+> 10000 times kmalloc(32) -> 48 cycles kfree -> 93 cycles
+> 10000 times kmalloc(64) -> 58 cycles kfree -> 89 cycles
+> 10000 times kmalloc(128) -> 84 cycles kfree -> 104 cycles
+> 10000 times kmalloc(256) -> 92 cycles kfree -> 125 cycles
+> 10000 times kmalloc(512) -> 86 cycles kfree -> 129 cycles
+> 10000 times kmalloc(1024) -> 88 cycles kfree -> 125 cycles
+> 10000 times kmalloc(2048) -> 120 cycles kfree -> 159 cycles
+> 10000 times kmalloc(4096) -> 176 cycles kfree -> 183 cycles
+> 10000 times kmalloc(8192) -> 294 cycles kfree -> 233 cycles
+> 10000 times kmalloc(16384) -> 585 cycles kfree -> 291 cycles
+> 
+> 2. Kmalloc: alloc/free test
+> 10000 times kmalloc(8)/kfree -> 100 cycles
+> 10000 times kmalloc(16)/kfree -> 108 cycles
+> 10000 times kmalloc(32)/kfree -> 101 cycles
+> 10000 times kmalloc(64)/kfree -> 109 cycles
+> 10000 times kmalloc(128)/kfree -> 125 cycles
+> 10000 times kmalloc(256)/kfree -> 60 cycles
+> 10000 times kmalloc(512)/kfree -> 60 cycles
+> 10000 times kmalloc(1024)/kfree -> 67 cycles
+> 10000 times kmalloc(2048)/kfree -> 60 cycles
+> 10000 times kmalloc(4096)/kfree -> 65 cycles
+> 10000 times kmalloc(8192)/kfree -> 60 cycles
 
-Maybe, this message should be fixed, because you reorder patches.
+Hello, Christoph.
+
+I don't review in detail, but, at a glance, overall patchset looks good.
+But, above result looks odd. Improvement is beyond what we can expect.
+Do you have any idea why allocating object more than 256 bytes is so
+fast?
 
 Thanks.
-
-> 
-> According to Mel, it has been intended since the beginning that buddy pages
-> after split would be stolen always, but it doesn't seem like it was ever the
-> case until commit 47118af076f6 ("mm: mmzone: MIGRATE_CMA migration type
-> added"). The commit has unintentionally introduced this behavior, but was
-> reverted by commit 0cbef29a7821 ("mm: __rmqueue_fallback() should respect
-> pageblock type"). Neither included evaluation.
-> 
-> My evaluation with stress-highalloc from mmtests shows about 2.5x reduction
-> of page stealing events for MOVABLE allocations, without affecting the page
-> stealing events for other allocation migratetypes.
-> 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Acked-by: Mel Gorman <mgorman@suse.de>
-> Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-> Acked-by: Minchan Kim <minchan@kernel.org>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> ---
->  mm/page_alloc.c | 62 +++++++++++++++++++++++++++------------------------------
->  1 file changed, 29 insertions(+), 33 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index c32cb64..2cfd5d9 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1067,33 +1067,18 @@ static void change_pageblock_range(struct page *pageblock_page,
->  /*
->   * If breaking a large block of pages, move all free pages to the preferred
->   * allocation list. If falling back for a reclaimable kernel allocation, be
-> - * more aggressive about taking ownership of free pages.
-> - *
-> - * On the other hand, never change migration type of MIGRATE_CMA pageblocks
-> - * nor move CMA pages to different free lists. We don't want unmovable pages
-> - * to be allocated from MIGRATE_CMA areas.
-> - *
-> - * Returns the allocation migratetype if free pages were stolen, or the
-> - * fallback migratetype if it was decided not to steal.
-> + * more aggressive about taking ownership of free pages. If we claim more than
-> + * half of the pageblock, change pageblock's migratetype as well.
->   */
-> -static int try_to_steal_freepages(struct zone *zone, struct page *page,
-> +static void try_to_steal_freepages(struct zone *zone, struct page *page,
->  				  int start_type, int fallback_type)
->  {
->  	int current_order = page_order(page);
->  
-> -	/*
-> -	 * When borrowing from MIGRATE_CMA, we need to release the excess
-> -	 * buddy pages to CMA itself. We also ensure the freepage_migratetype
-> -	 * is set to CMA so it is returned to the correct freelist in case
-> -	 * the page ends up being not actually allocated from the pcp lists.
-> -	 */
-> -	if (is_migrate_cma(fallback_type))
-> -		return fallback_type;
-> -
->  	/* Take ownership for orders >= pageblock_order */
->  	if (current_order >= pageblock_order) {
->  		change_pageblock_range(page, current_order, start_type);
-> -		return start_type;
-> +		return;
->  	}
->  
->  	if (current_order >= pageblock_order / 2 ||
-> @@ -1107,11 +1092,7 @@ static int try_to_steal_freepages(struct zone *zone, struct page *page,
->  		if (pages >= (1 << (pageblock_order-1)) ||
->  				page_group_by_mobility_disabled)
->  			set_pageblock_migratetype(page, start_type);
-> -
-> -		return start_type;
->  	}
-> -
-> -	return fallback_type;
->  }
->  
->  /* Remove an element from the buddy allocator from the fallback list */
-> @@ -1121,14 +1102,15 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
->  	struct free_area *area;
->  	unsigned int current_order;
->  	struct page *page;
-> -	int migratetype, new_type, i;
->  
->  	/* Find the largest possible block of pages in the other list */
->  	for (current_order = MAX_ORDER-1;
->  				current_order >= order && current_order <= MAX_ORDER-1;
->  				--current_order) {
-> +		int i;
->  		for (i = 0;; i++) {
-> -			migratetype = fallbacks[start_migratetype][i];
-> +			int migratetype = fallbacks[start_migratetype][i];
-> +			int buddy_type = start_migratetype;
->  
->  			/* MIGRATE_RESERVE handled later if necessary */
->  			if (migratetype == MIGRATE_RESERVE)
-> @@ -1142,22 +1124,36 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
->  					struct page, lru);
->  			area->nr_free--;
->  
-> -			new_type = try_to_steal_freepages(zone, page,
-> -							  start_migratetype,
-> -							  migratetype);
-> +			if (!is_migrate_cma(migratetype)) {
-> +				try_to_steal_freepages(zone, page,
-> +							start_migratetype,
-> +							migratetype);
-> +			} else {
-> +				/*
-> +				 * When borrowing from MIGRATE_CMA, we need to
-> +				 * release the excess buddy pages to CMA
-> +				 * itself, and we do not try to steal extra
-> +				 * free pages.
-> +				 */
-> +				buddy_type = migratetype;
-> +			}
->  
->  			/* Remove the page from the freelists */
->  			list_del(&page->lru);
->  			rmv_page_order(page);
->  
->  			expand(zone, page, order, current_order, area,
-> -			       new_type);
-> -			/* The freepage_migratetype may differ from pageblock's
-> +					buddy_type);
-> +
-> +			/*
-> +			 * The freepage_migratetype may differ from pageblock's
->  			 * migratetype depending on the decisions in
-> -			 * try_to_steal_freepages. This is OK as long as it does
-> -			 * not differ for MIGRATE_CMA type.
-> +			 * try_to_steal_freepages(). This is OK as long as it
-> +			 * does not differ for MIGRATE_CMA pageblocks. For CMA
-> +			 * we need to make sure unallocated pages flushed from
-> +			 * pcp lists are returned to the correct freelist.
->  			 */
-> -			set_freepage_migratetype(page, new_type);
-> +			set_freepage_migratetype(page, buddy_type);
->  
->  			trace_mm_page_alloc_extfrag(page, order, current_order,
->  				start_migratetype, migratetype);
-> -- 
-> 2.1.2
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
