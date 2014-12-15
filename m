@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id EDC8C6B0073
-	for <linux-mm@kvack.org>; Mon, 15 Dec 2014 00:27:38 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id lf10so10490081pab.18
-        for <linux-mm@kvack.org>; Sun, 14 Dec 2014 21:27:38 -0800 (PST)
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com. [209.85.192.176])
-        by mx.google.com with ESMTPS id qb8si5692573pdb.75.2014.12.14.21.27.36
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 184166B0078
+	for <linux-mm@kvack.org>; Mon, 15 Dec 2014 00:27:41 -0500 (EST)
+Received: by mail-pd0-f177.google.com with SMTP id ft15so10908360pdb.36
+        for <linux-mm@kvack.org>; Sun, 14 Dec 2014 21:27:40 -0800 (PST)
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com. [209.85.220.51])
+        by mx.google.com with ESMTPS id l1si12342669pdg.110.2014.12.14.21.27.38
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 14 Dec 2014 21:27:37 -0800 (PST)
-Received: by mail-pd0-f176.google.com with SMTP id r10so8961077pdi.35
-        for <linux-mm@kvack.org>; Sun, 14 Dec 2014 21:27:36 -0800 (PST)
+        Sun, 14 Dec 2014 21:27:39 -0800 (PST)
+Received: by mail-pa0-f51.google.com with SMTP id ey11so11154786pad.38
+        for <linux-mm@kvack.org>; Sun, 14 Dec 2014 21:27:38 -0800 (PST)
 From: Omar Sandoval <osandov@osandov.com>
-Subject: [PATCH 6/8] nfs: don't dirty ITER_BVEC pages read through direct I/O
-Date: Sun, 14 Dec 2014 21:27:00 -0800
-Message-Id: <e5240b33c30d147588d0cdd285d8d95463b3de18.1418618044.git.osandov@osandov.com>
+Subject: [PATCH 7/8] swap: use direct I/O for SWP_FILE swap_readpage
+Date: Sun, 14 Dec 2014 21:27:01 -0800
+Message-Id: <d3fed803654ace449a61aefb37792ae5647e1cf3.1418618044.git.osandov@osandov.com>
 In-Reply-To: <cover.1418618044.git.osandov@osandov.com>
 References: <cover.1418618044.git.osandov@osandov.com>
 In-Reply-To: <cover.1418618044.git.osandov@osandov.com>
@@ -24,44 +24,56 @@ List-ID: <linux-mm.kvack.org>
 To: Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, Christoph Hellwig <hch@infradead.org>, David Sterba <dsterba@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 Cc: Omar Sandoval <osandov@osandov.com>
 
-As with the generic blockdev code, kernel pages shouldn't be dirtied by
-the direct I/O path.
+On Mon, Nov 17, 2014 at 07:48:17AM -0800, Christoph Hellwig wrote:
+> With the new iov_iter infrastructure that supprots direct I/O to kernel
+> pages please get rid of the ->readpage hack first.  I'm still utterly
+> disapoined that this crap ever got merged.
 
 Signed-off-by: Omar Sandoval <osandov@osandov.com>
 ---
- fs/nfs/direct.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ mm/page_io.c | 25 +++++++++++++++++++++++--
+ 1 file changed, 23 insertions(+), 2 deletions(-)
 
-diff --git a/fs/nfs/direct.c b/fs/nfs/direct.c
-index 9402b96..a502b3f 100644
---- a/fs/nfs/direct.c
-+++ b/fs/nfs/direct.c
-@@ -88,6 +88,7 @@ struct nfs_direct_req {
- 	struct pnfs_ds_commit_info ds_cinfo;	/* Storage for cinfo */
- 	struct work_struct	work;
- 	int			flags;
-+	int			should_dirty;	/* should we mark read pages dirty? */
- #define NFS_ODIRECT_DO_COMMIT		(1)	/* an unstable reply was received */
- #define NFS_ODIRECT_RESCHED_WRITES	(2)	/* write verification failed */
- 	struct nfs_writeverf	verf;		/* unstable write verifier */
-@@ -370,7 +371,8 @@ static void nfs_direct_read_completion(struct nfs_pgio_header *hdr)
- 		struct nfs_page *req = nfs_list_entry(hdr->pages.next);
- 		struct page *page = req->wb_page;
+diff --git a/mm/page_io.c b/mm/page_io.c
+index 4741248..956307c 100644
+--- a/mm/page_io.c
++++ b/mm/page_io.c
+@@ -346,12 +346,33 @@ int swap_readpage(struct page *page)
+ 	}
  
--		if (!PageCompound(page) && bytes < hdr->good_bytes)
-+		if (!PageCompound(page) && bytes < hdr->good_bytes &&
-+		    dreq->should_dirty)
- 			set_page_dirty(page);
- 		bytes += req->wb_bytes;
- 		nfs_list_remove_request(req);
-@@ -542,6 +544,7 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, struct iov_iter *iter,
- 	dreq->inode = inode;
- 	dreq->bytes_left = count;
- 	dreq->ctx = get_nfs_open_context(nfs_file_open_context(iocb->ki_filp));
-+	dreq->should_dirty = !(iter->type & ITER_BVEC);
- 	l_ctx = nfs_get_lock_context(dreq->ctx);
- 	if (IS_ERR(l_ctx)) {
- 		result = PTR_ERR(l_ctx);
+ 	if (sis->flags & SWP_FILE) {
++		struct kiocb kiocb;
+ 		struct file *swap_file = sis->swap_file;
+ 		struct address_space *mapping = swap_file->f_mapping;
++		struct iov_iter to;
++		struct bio_vec bv = {
++			.bv_page = page,
++			.bv_len = PAGE_SIZE,
++			.bv_offset = 0,
++		};
++
++		iov_iter_bvec(&to, ITER_BVEC | READ, &bv, 1, PAGE_SIZE);
+ 
+-		ret = mapping->a_ops->readpage(swap_file, page);
+-		if (!ret)
++		init_sync_kiocb(&kiocb, swap_file);
++		kiocb.ki_pos = page_file_offset(page);
++		kiocb.ki_nbytes = PAGE_SIZE;
++
++		ret = mapping->a_ops->direct_IO(READ, &kiocb, &to,
++						kiocb.ki_pos);
++		if (ret == PAGE_SIZE) {
++			SetPageUptodate(page);
+ 			count_vm_event(PSWPIN);
++			ret = 0;
++		} else {
++			ClearPageUptodate(page);
++			SetPageError(page);
++		}
++		unlock_page(page);
+ 		return ret;
+ 	}
+ 
 -- 
 2.1.3
 
