@@ -1,75 +1,202 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id C5DB26B0032
-	for <linux-mm@kvack.org>; Tue, 16 Dec 2014 03:56:30 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id kx10so13754579pab.30
-        for <linux-mm@kvack.org>; Tue, 16 Dec 2014 00:56:30 -0800 (PST)
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com. [209.85.192.181])
-        by mx.google.com with ESMTPS id is3si17329032pbc.229.2014.12.16.00.56.28
+Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CE696B0032
+	for <linux-mm@kvack.org>; Tue, 16 Dec 2014 05:42:23 -0500 (EST)
+Received: by mail-wg0-f43.google.com with SMTP id l18so17099374wgh.16
+        for <linux-mm@kvack.org>; Tue, 16 Dec 2014 02:42:22 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id vk1si780330wjc.12.2014.12.16.02.42.21
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 16 Dec 2014 00:56:29 -0800 (PST)
-Received: by mail-pd0-f181.google.com with SMTP id v10so13540334pde.40
-        for <linux-mm@kvack.org>; Tue, 16 Dec 2014 00:56:28 -0800 (PST)
-Date: Tue, 16 Dec 2014 00:56:24 -0800
-From: Omar Sandoval <osandov@osandov.com>
-Subject: Re: [PATCH 2/8] swap: lock i_mutex for swap_writepage direct_IO
-Message-ID: <20141216085624.GA25256@mew>
-References: <cover.1418618044.git.osandov@osandov.com>
- <a59510f4552a5d3557958cdb0ce1b23b3abfc75b.1418618044.git.osandov@osandov.com>
- <20141215162705.GA23887@quack.suse.cz>
- <20141215165615.GA19041@infradead.org>
- <20141215221100.GA4637@mew>
- <20141216083543.GA32425@infradead.org>
+        Tue, 16 Dec 2014 02:42:21 -0800 (PST)
+Date: Tue, 16 Dec 2014 11:42:18 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v3] mm: prevent endless growth of anon_vma hierarchy
+Message-ID: <20141216104218.GB22920@dhcp22.suse.cz>
+References: <20141126191145.3089.90947.stgit@zurg>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20141216083543.GA32425@infradead.org>
+In-Reply-To: <20141126191145.3089.90947.stgit@zurg>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Jan Kara <jack@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, David Sterba <dsterba@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Tim Hartrick <tim@edgecast.com>, Daniel Forrest <dan.forrest@ssec.wisc.edu>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Tue, Dec 16, 2014 at 12:35:43AM -0800, Christoph Hellwig wrote:
-> On Mon, Dec 15, 2014 at 02:11:00PM -0800, Omar Sandoval wrote:
-> > Ok, I got the swap code working with ->read_iter/->write_iter without
-> > too much trouble. I wanted to double check before I submit if there's
-> > any gotchas involved with adding the O_DIRECT flag to a file pointer
-> > after it has been opened -- swapon opens the swapfile before we know if
-> > we're using the SWP_FILE infrastructure, and we need to add O_DIRECT so
-> > ->{read,write}_iter use direct I/O, but we can't add O_DIRECT to the
-> > original open without excluding filesystems that support the old bmap
-> > path but not direct I/O.
+What happened to this patch? I do not see it merged for 3.19 and
+nor in the current mmotm tree (2014-12-15-17-05)
+
+On Wed 26-11-14 22:11:45, Konstantin Khlebnikov wrote:
+> Constantly forking task causes unlimited grow of anon_vma chain.
+> Each next child allocate new level of anon_vmas and links vmas to all
+> previous levels because it inherits pages from them. None of anon_vmas
+> cannot be freed because there might be pages which points to them.
 > 
-> In general just adding O_DIRECT is a problem.  However given that the
-> swap file is locked against any other access while in use it seems ok
-> in this particular case.  Just make sure to clear it on swapoff, and
-> write a detailed comment explaining the situation.
-
-I'll admit that I'm a bit confused. I want to do this:
-
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 8798b2e..5145c09 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1728,6 +1728,9 @@ static int setup_swap_extents(struct swap_info_struct *sis, sector_t *span)
-        }
- 
-        if (mapping->a_ops->swap_activate) {
-+               if (!mapping->a_ops->direct_IO)
-+                       return -EINVAL;
-+               swap_file->f_flags |= O_DIRECT;
-                ret = mapping->a_ops->swap_activate(sis, swap_file, span);
-                if (!ret) {
-                        sis->flags |= SWP_FILE;
-
-This seems to be more or less equivalent to doing a fcntl(F_SETFL) to
-add the O_DIRECT flag to swap_file (which is a struct file *). Swapoff
-calls filp_close on swap_file, so I don't see why it's necessary to
-clear the flag.
+> This patch adds heuristic which decides to reuse existing anon_vma instead
+> of forking new one. It counts vmas and direct descendants for each anon_vma.
+> Anon_vma with degree lower than two will be reused at next fork.
+> 
+> As a result each anon_vma has either alive vma or at least two descendants,
+> endless chains are no longer possible and count of anon_vmas is no more than
+> two times more than count of vmas.
+> 
+> Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
+> Reported-by: Daniel Forrest <dan.forrest@ssec.wisc.edu>
+> Tested-by: Michal Hocko <mhocko@suse.cz>
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+> Link: http://lkml.kernel.org/r/20120816024610.GA5350@evergreen.ssec.wisc.edu
+> Fixes: 5beb49305251 ("mm: change anon_vma linking to fix multi-process server scalability issue")
+> Cc: Stable <stable@vger.kernel.org> (2.6.34+)
+> 
+> ---
+> 
+> v2: update degree in anon_vma_prepare for merged anon_vma
+> v3: update comment and tags
+> ---
+>  include/linux/rmap.h |   16 ++++++++++++++++
+>  mm/rmap.c            |   30 +++++++++++++++++++++++++++++-
+>  2 files changed, 45 insertions(+), 1 deletion(-)
+> 
+> diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+> index c0c2bce..b1d140c 100644
+> --- a/include/linux/rmap.h
+> +++ b/include/linux/rmap.h
+> @@ -45,6 +45,22 @@ struct anon_vma {
+>  	 * mm_take_all_locks() (mm_all_locks_mutex).
+>  	 */
+>  	struct rb_root rb_root;	/* Interval tree of private "related" vmas */
+> +
+> +	/*
+> +	 * Count of child anon_vmas and VMAs which points to this anon_vma.
+> +	 *
+> +	 * This counter is used for making decision about reusing old anon_vma
+> +	 * instead of forking new one. It allows to detect anon_vmas which have
+> +	 * just one direct descendant and no vmas. Reusing such anon_vma not
+> +	 * leads to significant preformance regression but prevents degradation
+> +	 * of anon_vma hierarchy to endless linear chain.
+> +	 *
+> +	 * Root anon_vma is never reused because it is its own parent and it has
+> +	 * at leat one vma or child, thus at fork it's degree is at least 2.
+> +	 */
+> +	unsigned degree;
+> +
+> +	struct anon_vma *parent;	/* Parent of this anon_vma */
+>  };
+>  
+>  /*
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index 19886fb..df5c44e 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -72,6 +72,8 @@ static inline struct anon_vma *anon_vma_alloc(void)
+>  	anon_vma = kmem_cache_alloc(anon_vma_cachep, GFP_KERNEL);
+>  	if (anon_vma) {
+>  		atomic_set(&anon_vma->refcount, 1);
+> +		anon_vma->degree = 1;	/* Reference for first vma */
+> +		anon_vma->parent = anon_vma;
+>  		/*
+>  		 * Initialise the anon_vma root to point to itself. If called
+>  		 * from fork, the root will be reset to the parents anon_vma.
+> @@ -188,6 +190,8 @@ int anon_vma_prepare(struct vm_area_struct *vma)
+>  		if (likely(!vma->anon_vma)) {
+>  			vma->anon_vma = anon_vma;
+>  			anon_vma_chain_link(vma, avc, anon_vma);
+> +			/* vma link if merged or child link for new root */
+> +			anon_vma->degree++;
+>  			allocated = NULL;
+>  			avc = NULL;
+>  		}
+> @@ -256,7 +260,17 @@ int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
+>  		anon_vma = pavc->anon_vma;
+>  		root = lock_anon_vma_root(root, anon_vma);
+>  		anon_vma_chain_link(dst, avc, anon_vma);
+> +
+> +		/*
+> +		 * Reuse existing anon_vma if its degree lower than two,
+> +		 * that means it has no vma and just one anon_vma child.
+> +		 */
+> +		if (!dst->anon_vma && anon_vma != src->anon_vma &&
+> +				anon_vma->degree < 2)
+> +			dst->anon_vma = anon_vma;
+>  	}
+> +	if (dst->anon_vma)
+> +		dst->anon_vma->degree++;
+>  	unlock_anon_vma_root(root);
+>  	return 0;
+>  
+> @@ -279,6 +293,9 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
+>  	if (!pvma->anon_vma)
+>  		return 0;
+>  
+> +	/* Drop inherited anon_vma, we'll reuse old one or allocate new. */
+> +	vma->anon_vma = NULL;
+> +
+>  	/*
+>  	 * First, attach the new VMA to the parent VMA's anon_vmas,
+>  	 * so rmap can find non-COWed pages in child processes.
+> @@ -286,6 +303,10 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
+>  	if (anon_vma_clone(vma, pvma))
+>  		return -ENOMEM;
+>  
+> +	/* An old anon_vma has been reused. */
+> +	if (vma->anon_vma)
+> +		return 0;
+> +
+>  	/* Then add our own anon_vma. */
+>  	anon_vma = anon_vma_alloc();
+>  	if (!anon_vma)
+> @@ -299,6 +320,7 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
+>  	 * lock any of the anon_vmas in this anon_vma tree.
+>  	 */
+>  	anon_vma->root = pvma->anon_vma->root;
+> +	anon_vma->parent = pvma->anon_vma;
+>  	/*
+>  	 * With refcounts, an anon_vma can stay around longer than the
+>  	 * process it belongs to. The root anon_vma needs to be pinned until
+> @@ -309,6 +331,7 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
+>  	vma->anon_vma = anon_vma;
+>  	anon_vma_lock_write(anon_vma);
+>  	anon_vma_chain_link(vma, avc, anon_vma);
+> +	anon_vma->parent->degree++;
+>  	anon_vma_unlock_write(anon_vma);
+>  
+>  	return 0;
+> @@ -339,12 +362,16 @@ void unlink_anon_vmas(struct vm_area_struct *vma)
+>  		 * Leave empty anon_vmas on the list - we'll need
+>  		 * to free them outside the lock.
+>  		 */
+> -		if (RB_EMPTY_ROOT(&anon_vma->rb_root))
+> +		if (RB_EMPTY_ROOT(&anon_vma->rb_root)) {
+> +			anon_vma->parent->degree--;
+>  			continue;
+> +		}
+>  
+>  		list_del(&avc->same_vma);
+>  		anon_vma_chain_free(avc);
+>  	}
+> +	if (vma->anon_vma)
+> +		vma->anon_vma->degree--;
+>  	unlock_anon_vma_root(root);
+>  
+>  	/*
+> @@ -355,6 +382,7 @@ void unlink_anon_vmas(struct vm_area_struct *vma)
+>  	list_for_each_entry_safe(avc, next, &vma->anon_vma_chain, same_vma) {
+>  		struct anon_vma *anon_vma = avc->anon_vma;
+>  
+> +		BUG_ON(anon_vma->degree);
+>  		put_anon_vma(anon_vma);
+>  
+>  		list_del(&avc->same_vma);
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
-Omar
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
