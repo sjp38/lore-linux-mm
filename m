@@ -1,129 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id D95C86B0070
-	for <linux-mm@kvack.org>; Tue, 16 Dec 2014 07:57:45 -0500 (EST)
-Received: by mail-pd0-f173.google.com with SMTP id ft15so13819407pdb.18
-        for <linux-mm@kvack.org>; Tue, 16 Dec 2014 04:57:45 -0800 (PST)
-Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
-        by mx.google.com with ESMTPS id fs12si1065034pdb.56.2014.12.16.04.57.42
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 99A566B0038
+	for <linux-mm@kvack.org>; Tue, 16 Dec 2014 08:25:53 -0500 (EST)
+Received: by mail-pd0-f179.google.com with SMTP id fp1so13940171pdb.38
+        for <linux-mm@kvack.org>; Tue, 16 Dec 2014 05:25:53 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id q5si1048919pdi.134.2014.12.16.05.25.50
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Tue, 16 Dec 2014 04:57:44 -0800 (PST)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout4.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NGO00JPZEUTB650@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 16 Dec 2014 13:01:41 +0000 (GMT)
-From: Dmitry Safonov <d.safonov@partner.samsung.com>
-Subject: [RFC PATCH] mm: vmalloc: remove ioremap align constraint
-Date: Tue, 16 Dec 2014 15:57:11 +0300
-Message-id: <1418734631-7933-1-git-send-email-d.safonov@partner.samsung.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Dec 2014 05:25:51 -0800 (PST)
+From: Chintan Pandya <cpandya@codeaurora.org>
+Subject: [PATCH] memcg: Provide knob for force OOM into the memcg
+Date: Tue, 16 Dec 2014 18:55:35 +0530
+Message-Id: <1418736335-30915-1-git-send-email-cpandya@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Dmitry Safonov <d.safonov@partner.samsung.com>, Russell King <linux@arm.linux.org.uk>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Nicolas Pitre <nicolas.pitre@linaro.org>, James Bottomley <JBottomley@parallels.com>, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Dyasly Sergey <s.dyasly@samsung.com>
+To: mhocko@suse.cz, hannes@cmpxchg.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, Chintan Pandya <cpandya@codeaurora.org>
 
-ioremap uses __get_vm_area_node which sets alignment to fls of requested size.
-I couldn't find any reason for such big align. Does it decrease TLB misses?
-What am I missing?
+We may want to use memcg to limit the total memory
+footprint of all the processes within the one group.
+This may lead to a situation where any arbitrary
+process cannot get migrated to that one  memcg
+because its limits will be breached. Or, process can
+get migrated but even being most recently used
+process, it can get killed by in-cgroup OOM. To
+avoid such scenarios, provide a convenient knob
+by which we can forcefully trigger OOM and make
+a room for upcoming process.
 
-Alignment restriction for ioremap region was introduced with the commit:
+To trigger force OOM,
+$ echo 1 > /<memcg_path>/memory.force_oom
 
-> Author: James Bottomley <jejb@mulgrave.(none)>
-> Date:   Wed Jun 30 11:11:14 2004 -0500
-> 
->     Add vmalloc alignment constraints
-> 
->     vmalloc is used by ioremap() to get regions for
->     remapping I/O space.  To feed these regions back
->     into a __get_free_pages() type memory allocator,
->     they are expected to have more alignment than
->     get_vm_area() proves.  So add additional alignment
->     constraints for VM_IOREMAP.
-> 
->     Signed-off-by: James Bottomley <James.Bottomley@SteelEye.com>
-
-Cc: Russell King <linux@arm.linux.org.uk>
-Cc: Guan Xuetao <gxt@mprc.pku.edu.cn>
-Cc: Nicolas Pitre <nicolas.pitre@linaro.org>
-Cc: James Bottomley <JBottomley@parallels.com>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dyasly Sergey <s.dyasly@samsung.com>
-Signed-off-by: Dmitry Safonov <d.safonov@partner.samsung.com>
+Signed-off-by: Chintan Pandya <cpandya@codeaurora.org>
 ---
- arch/arm/include/asm/memory.h       | 5 -----
- arch/unicore32/include/asm/memory.h | 5 -----
- include/linux/vmalloc.h             | 8 --------
- mm/vmalloc.c                        | 2 --
- 4 files changed, 20 deletions(-)
+ mm/memcontrol.c | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)
 
-diff --git a/arch/arm/include/asm/memory.h b/arch/arm/include/asm/memory.h
-index 184def0..b333245 100644
---- a/arch/arm/include/asm/memory.h
-+++ b/arch/arm/include/asm/memory.h
-@@ -78,11 +78,6 @@
-  */
- #define XIP_VIRT_ADDR(physaddr)  (MODULES_VADDR + ((physaddr) & 0x000fffff))
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index ef91e85..4c68aa7 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3305,6 +3305,30 @@ static int mem_cgroup_force_empty(struct mem_cgroup *memcg)
+ 	return 0;
+ }
  
--/*
-- * Allow 16MB-aligned ioremap pages
-- */
--#define IOREMAP_MAX_ORDER	24
--
- #else /* CONFIG_MMU */
- 
- /*
-diff --git a/arch/unicore32/include/asm/memory.h b/arch/unicore32/include/asm/memory.h
-index debafc4..ffae189 100644
---- a/arch/unicore32/include/asm/memory.h
-+++ b/arch/unicore32/include/asm/memory.h
-@@ -46,11 +46,6 @@
- #define MODULES_END		(PAGE_OFFSET)
- 
- /*
-- * Allow 16MB-aligned ioremap pages
-- */
--#define IOREMAP_MAX_ORDER	24
--
--/*
-  * Physical vs virtual RAM address space conversion.  These are
-  * private definitions which should NOT be used outside memory.h
-  * files.  Use virt_to_phys/phys_to_virt/__pa/__va instead.
-diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index b87696f..2f428e8 100644
---- a/include/linux/vmalloc.h
-+++ b/include/linux/vmalloc.h
-@@ -18,14 +18,6 @@ struct vm_area_struct;		/* vma defining user mapping in mm_types.h */
- #define VM_UNINITIALIZED	0x00000020	/* vm_struct is not fully initialized */
- /* bits [20..32] reserved for arch specific ioremap internals */
- 
--/*
-- * Maximum alignment for ioremap() regions.
-- * Can be overriden by arch-specific value.
-- */
--#ifndef IOREMAP_MAX_ORDER
--#define IOREMAP_MAX_ORDER	(7 + PAGE_SHIFT)	/* 128 pages */
--#endif
--
- struct vm_struct {
- 	struct vm_struct	*next;
- 	void			*addr;
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 39c3388..c4f480dd 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1313,8 +1313,6 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
- 	struct vm_struct *area;
- 
- 	BUG_ON(in_interrupt());
--	if (flags & VM_IOREMAP)
--		align = 1ul << clamp(fls(size), PAGE_SHIFT, IOREMAP_MAX_ORDER);
- 
- 	size = PAGE_ALIGN(size);
- 	if (unlikely(!size))
++static int mem_cgroup_force_oom(struct cgroup *cont, unsigned int event)
++{
++	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
++	int ret;
++
++	if (mem_cgroup_is_root(memcg))
++		return -EINVAL;
++
++	css_get(&memcg->css);
++	ret = mem_cgroup_handle_oom(memcg, GFP_KERNEL, 0);
++	css_put(&memcg->css);
++
++	return ret;
++}
++
++static int mem_cgroup_force_oom_write(struct cgroup *cgrp,
++				struct cftype *cft, u64 val)
++{
++	if (val > 1 || val < 1)
++		return -EINVAL;
++
++	return mem_cgroup_force_oom(cgrp, 0);
++}
++
+ static ssize_t mem_cgroup_force_empty_write(struct kernfs_open_file *of,
+ 					    char *buf, size_t nbytes,
+ 					    loff_t off)
+@@ -4442,6 +4466,11 @@ static struct cftype mem_cgroup_files[] = {
+ 		.write = mem_cgroup_force_empty_write,
+ 	},
+ 	{
++		.name = "force_oom",
++		.trigger = mem_cgroup_force_oom,
++		.write_u64 = mem_cgroup_force_oom_write,
++	},
++	{
+ 		.name = "use_hierarchy",
+ 		.write_u64 = mem_cgroup_hierarchy_write,
+ 		.read_u64 = mem_cgroup_hierarchy_read,
 -- 
-1.9.1
+Chintan Pandya
+
+QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
+member of the Code Aurora Forum, hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
