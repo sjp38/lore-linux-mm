@@ -1,145 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E0966B0075
-	for <linux-mm@kvack.org>; Tue, 16 Dec 2014 11:18:40 -0500 (EST)
-Received: by mail-wi0-f176.google.com with SMTP id ex7so12821048wid.3
-        for <linux-mm@kvack.org>; Tue, 16 Dec 2014 08:18:40 -0800 (PST)
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 745076B0070
+	for <linux-mm@kvack.org>; Tue, 16 Dec 2014 11:59:28 -0500 (EST)
+Received: by mail-wi0-f169.google.com with SMTP id r20so14317503wiv.2
+        for <linux-mm@kvack.org>; Tue, 16 Dec 2014 08:59:27 -0800 (PST)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id v10si22598644wif.101.2014.12.16.08.18.38
+        by mx.google.com with ESMTPS id r5si2261452wjy.74.2014.12.16.08.59.27
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Dec 2014 08:18:38 -0800 (PST)
+        Tue, 16 Dec 2014 08:59:27 -0800 (PST)
+Date: Tue, 16 Dec 2014 11:59:22 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 3/3] mm: memory: merge shared-writable dirtying branches in do_wp_page()
-Date: Tue, 16 Dec 2014 11:18:11 -0500
-Message-Id: <1418746691-326-4-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1418746691-326-1-git-send-email-hannes@cmpxchg.org>
-References: <1418746691-326-1-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [PATCH] memcg: Provide knob for force OOM into the memcg
+Message-ID: <20141216165922.GA30984@phnom.home.cmpxchg.org>
+References: <1418736335-30915-1-git-send-email-cpandya@codeaurora.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1418736335-30915-1-git-send-email-cpandya@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Chintan Pandya <cpandya@codeaurora.org>
+Cc: mhocko@suse.cz, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Whether there is a vm_ops->page_mkwrite or not, the page dirtying is
-pretty much the same.  Make sure the page references are the same in
-both cases, then merge the two branches.
+On Tue, Dec 16, 2014 at 06:55:35PM +0530, Chintan Pandya wrote:
+> We may want to use memcg to limit the total memory
+> footprint of all the processes within the one group.
+> This may lead to a situation where any arbitrary
+> process cannot get migrated to that one  memcg
+> because its limits will be breached. Or, process can
+> get migrated but even being most recently used
+> process, it can get killed by in-cgroup OOM. To
+> avoid such scenarios, provide a convenient knob
+> by which we can forcefully trigger OOM and make
+> a room for upcoming process.
 
-It's tempting to go even further and page-lock the !page_mkwrite case,
-to get it in line with everybody else setting the page table and thus
-further simplify the model.  But that's not quite compelling enough to
-justify dropping the pte lock, then relocking and verifying the entry
-for filesystems without ->page_mkwrite, which notably includes tmpfs.
-Leave it for now and lock the page late in the !page_mkwrite case.
+Why do you move tasks around during runtime?  Rather than scanning
+thousands or millions of page table entries to relocate a task and its
+private memory to another configuration domain, wouldn't it be easier to
+just keep the task in a dedicated cgroup and reconfigure that instead?
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Reviewed-by: Jan Kara <jack@suse.cz>
----
- mm/memory.c | 48 +++++++++++++++++-------------------------------
- 1 file changed, 17 insertions(+), 31 deletions(-)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index d5a303cf2901..a26f30b6abd1 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2033,7 +2033,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	pte_t entry;
- 	int ret = 0;
- 	int page_mkwrite = 0;
--	struct page *dirty_page = NULL;
-+	bool dirty_shared = false;
- 	unsigned long mmun_start = 0;	/* For mmu_notifiers */
- 	unsigned long mmun_end = 0;	/* For mmu_notifiers */
- 	struct mem_cgroup *memcg;
-@@ -2084,6 +2084,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		unlock_page(old_page);
- 	} else if (unlikely((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
- 					(VM_WRITE|VM_SHARED))) {
-+		page_cache_get(old_page);
- 		/*
- 		 * Only catch write-faults on shared writable pages,
- 		 * read-only shared pages can get COWed by
-@@ -2091,7 +2092,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		 */
- 		if (vma->vm_ops && vma->vm_ops->page_mkwrite) {
- 			int tmp;
--			page_cache_get(old_page);
-+
- 			pte_unmap_unlock(page_table, ptl);
- 			tmp = do_page_mkwrite(vma, old_page, address);
- 			if (unlikely(!tmp || (tmp &
-@@ -2111,11 +2112,10 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 				unlock_page(old_page);
- 				goto unlock;
- 			}
--
- 			page_mkwrite = 1;
- 		}
--		dirty_page = old_page;
--		get_page(dirty_page);
-+
-+		dirty_shared = true;
- 
- reuse:
- 		/*
-@@ -2134,43 +2134,29 @@ reuse:
- 		pte_unmap_unlock(page_table, ptl);
- 		ret |= VM_FAULT_WRITE;
- 
--		if (!dirty_page)
--			return ret;
--
--		if (!page_mkwrite) {
-+		if (dirty_shared) {
- 			struct address_space *mapping;
- 			int dirtied;
- 
--			lock_page(dirty_page);
--			dirtied = set_page_dirty(dirty_page);
--			VM_BUG_ON_PAGE(PageAnon(dirty_page), dirty_page);
--			mapping = dirty_page->mapping;
--			unlock_page(dirty_page);
-+			if (!page_mkwrite)
-+				lock_page(old_page);
- 
--			if (dirtied && mapping) {
--				/*
--				 * Some device drivers do not set page.mapping
--				 * but still dirty their pages
--				 */
--				balance_dirty_pages_ratelimited(mapping);
--			}
-+			dirtied = set_page_dirty(old_page);
-+			VM_BUG_ON_PAGE(PageAnon(old_page), old_page);
-+			mapping = old_page->mapping;
-+			unlock_page(old_page);
-+			page_cache_release(old_page);
- 
--			file_update_time(vma->vm_file);
--		}
--		put_page(dirty_page);
--		if (page_mkwrite) {
--			struct address_space *mapping = dirty_page->mapping;
--
--			set_page_dirty(dirty_page);
--			unlock_page(dirty_page);
--			page_cache_release(dirty_page);
--			if (mapping)	{
-+			if ((dirtied || page_mkwrite) && mapping) {
- 				/*
- 				 * Some device drivers do not set page.mapping
- 				 * but still dirty their pages
- 				 */
- 				balance_dirty_pages_ratelimited(mapping);
- 			}
-+
-+			if (!page_mkwrite)
-+				file_update_time(vma->vm_file);
- 		}
- 
- 		return ret;
--- 
-2.1.3
+There doesn't seem to be a strong usecase for charge migration that
+couldn't be solved by doing things slightly differently from userspace.
+Certainly not something that justifies the complexity that it adds to
+memcg model and it's synchronization requirements from VM hotpaths.
+Hence, I'm inclined to not add charge moving to version 2 of memcg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
