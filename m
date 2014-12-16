@@ -1,117 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3502D6B006E
-	for <linux-mm@kvack.org>; Tue, 16 Dec 2014 08:39:39 -0500 (EST)
-Received: by mail-wg0-f51.google.com with SMTP id x12so17176470wgg.24
-        for <linux-mm@kvack.org>; Tue, 16 Dec 2014 05:39:38 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cu6si22001931wib.36.2014.12.16.05.39.37
+Received: from mail-qc0-f179.google.com (mail-qc0-f179.google.com [209.85.216.179])
+	by kanga.kvack.org (Postfix) with ESMTP id BF1B46B0032
+	for <linux-mm@kvack.org>; Tue, 16 Dec 2014 09:05:51 -0500 (EST)
+Received: by mail-qc0-f179.google.com with SMTP id c9so10141166qcz.24
+        for <linux-mm@kvack.org>; Tue, 16 Dec 2014 06:05:51 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 37si935810qgo.41.2014.12.16.06.05.49
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 16 Dec 2014 05:39:38 -0800 (PST)
-Date: Tue, 16 Dec 2014 14:39:35 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: Provide knob for force OOM into the memcg
-Message-ID: <20141216133935.GK22914@dhcp22.suse.cz>
-References: <1418736335-30915-1-git-send-email-cpandya@codeaurora.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Dec 2014 06:05:50 -0800 (PST)
+Date: Tue, 16 Dec 2014 15:05:37 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [PATCH 3/7] slub: Do not use c->page on free
+Message-ID: <20141216150537.25c72553@redhat.com>
+In-Reply-To: <CAPAsAGyGXSP-2eY1CQS1jDpJq89kwpCuJm4ZBa3cYDGkv_oTxA@mail.gmail.com>
+References: <20141210163017.092096069@linux.com>
+	<20141210163033.717707217@linux.com>
+	<20141215080338.GE4898@js1304-P5Q-DELUXE>
+	<alpine.DEB.2.11.1412150815210.20101@gentwo.org>
+	<20141216024210.GB23270@js1304-P5Q-DELUXE>
+	<CAPAsAGyGXSP-2eY1CQS1jDpJq89kwpCuJm4ZBa3cYDGkv_oTxA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1418736335-30915-1-git-send-email-cpandya@codeaurora.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chintan Pandya <cpandya@codeaurora.org>
-Cc: hannes@cmpxchg.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christoph Lameter <cl@linux.com>, akpm@linuxfoundation.org, rostedt@goodmis.org, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, brouer@redhat.com
 
-On Tue 16-12-14 18:55:35, Chintan Pandya wrote:
-> We may want to use memcg to limit the total memory
-> footprint of all the processes within the one group.
-> This may lead to a situation where any arbitrary
-> process cannot get migrated to that one  memcg
-> because its limits will be breached. Or, process can
-> get migrated but even being most recently used
-> process, it can get killed by in-cgroup OOM. To
-> avoid such scenarios, provide a convenient knob
-> by which we can forcefully trigger OOM and make
-> a room for upcoming process.
-> 
-> To trigger force OOM,
-> $ echo 1 > /<memcg_path>/memory.force_oom
+On Tue, 16 Dec 2014 11:54:12 +0400
+Andrey Ryabinin <ryabinin.a.a@gmail.com> wrote:
 
-What would prevent another task deplete that memory shortly after you
-triggered OOM and end up in the same situation? E.g. while the moving
-task is migrating its charges to the new group...
+> 2014-12-16 5:42 GMT+03:00 Joonsoo Kim <iamjoonsoo.kim@lge.com>:
+> > On Mon, Dec 15, 2014 at 08:16:00AM -0600, Christoph Lameter wrote:
+> >> On Mon, 15 Dec 2014, Joonsoo Kim wrote:
+> >>
+> >> > > +static bool same_slab_page(struct kmem_cache *s, struct page *page, void *p)
+> >> > > +{
+> >> > > + long d = p - page->address;
+> >> > > +
+> >> > > + return d > 0 && d < (1 << MAX_ORDER) && d < (compound_order(page) << PAGE_SHIFT);
+> >> > > +}
+> >> > > +
+> >> >
+> >> > Somtimes, compound_order() induces one more cacheline access, because
+> >> > compound_order() access second struct page in order to get order. Is there
+> >> > any way to remove this?
+> >>
+> >> I already have code there to avoid the access if its within a MAX_ORDER
+> >> page. We could probably go for a smaller setting there. PAGE_COSTLY_ORDER?
+> >
+> > That is the solution to avoid compound_order() call when slab of
+> > object isn't matched with per cpu slab.
+> >
+> > What I'm asking is whether there is a way to avoid compound_order() call when slab
+> > of object is matched with per cpu slab or not.
+> >
+> 
+> Can we use page->objects for that?
+> 
+> Like this:
+> 
+>         return d > 0 && d < page->objects * s->size;
 
-Why cannot you simply disable OOM killer in that memcg and handle it
-from userspace properly?
+I gave this change a quick micro benchmark spin (with Christoph's
+tool), the results are below.
 
-> Signed-off-by: Chintan Pandya <cpandya@codeaurora.org>
-> ---
->  mm/memcontrol.c | 29 +++++++++++++++++++++++++++++
->  1 file changed, 29 insertions(+)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index ef91e85..4c68aa7 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3305,6 +3305,30 @@ static int mem_cgroup_force_empty(struct mem_cgroup *memcg)
->  	return 0;
->  }
->  
-> +static int mem_cgroup_force_oom(struct cgroup *cont, unsigned int event)
-> +{
-> +	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
-> +	int ret;
-> +
-> +	if (mem_cgroup_is_root(memcg))
-> +		return -EINVAL;
-> +
-> +	css_get(&memcg->css);
-> +	ret = mem_cgroup_handle_oom(memcg, GFP_KERNEL, 0);
-> +	css_put(&memcg->css);
-> +
-> +	return ret;
-> +}
-> +
-> +static int mem_cgroup_force_oom_write(struct cgroup *cgrp,
-> +				struct cftype *cft, u64 val)
-> +{
-> +	if (val > 1 || val < 1)
-> +		return -EINVAL;
-> +
-> +	return mem_cgroup_force_oom(cgrp, 0);
-> +}
-> +
->  static ssize_t mem_cgroup_force_empty_write(struct kernfs_open_file *of,
->  					    char *buf, size_t nbytes,
->  					    loff_t off)
-> @@ -4442,6 +4466,11 @@ static struct cftype mem_cgroup_files[] = {
->  		.write = mem_cgroup_force_empty_write,
->  	},
->  	{
-> +		.name = "force_oom",
-> +		.trigger = mem_cgroup_force_oom,
-> +		.write_u64 = mem_cgroup_force_oom_write,
-> +	},
-> +	{
->  		.name = "use_hierarchy",
->  		.write_u64 = mem_cgroup_hierarchy_write,
->  		.read_u64 = mem_cgroup_hierarchy_read,
-> -- 
-> Chintan Pandya
-> 
-> QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
-> member of the Code Aurora Forum, hosted by The Linux Foundation
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Notice, the "2. Kmalloc: alloc/free test" for small obj sizes improves,
+which is more "back-to-normal" as before this patchset.
+
+Before (with curr patchset):
+============================
+
+ Single thread testing
+ =====================
+ 1. Kmalloc: Repeatedly allocate then free test
+ 10000 times kmalloc(8) -> 50 cycles kfree -> 60 cycles
+ 10000 times kmalloc(16) -> 52 cycles kfree -> 60 cycles
+ 10000 times kmalloc(32) -> 56 cycles kfree -> 64 cycles
+ 10000 times kmalloc(64) -> 67 cycles kfree -> 72 cycles
+ 10000 times kmalloc(128) -> 86 cycles kfree -> 79 cycles
+ 10000 times kmalloc(256) -> 97 cycles kfree -> 110 cycles
+ 10000 times kmalloc(512) -> 88 cycles kfree -> 114 cycles
+ 10000 times kmalloc(1024) -> 91 cycles kfree -> 115 cycles
+ 10000 times kmalloc(2048) -> 119 cycles kfree -> 131 cycles
+ 10000 times kmalloc(4096) -> 159 cycles kfree -> 163 cycles
+ 10000 times kmalloc(8192) -> 269 cycles kfree -> 226 cycles
+ 10000 times kmalloc(16384) -> 498 cycles kfree -> 291 cycles
+ 2. Kmalloc: alloc/free test
+ 10000 times kmalloc(8)/kfree -> 112 cycles
+ 10000 times kmalloc(16)/kfree -> 118 cycles
+ 10000 times kmalloc(32)/kfree -> 117 cycles
+ 10000 times kmalloc(64)/kfree -> 122 cycles
+ 10000 times kmalloc(128)/kfree -> 133 cycles
+ 10000 times kmalloc(256)/kfree -> 79 cycles
+ 10000 times kmalloc(512)/kfree -> 79 cycles
+ 10000 times kmalloc(1024)/kfree -> 79 cycles
+ 10000 times kmalloc(2048)/kfree -> 72 cycles
+ 10000 times kmalloc(4096)/kfree -> 78 cycles
+ 10000 times kmalloc(8192)/kfree -> 78 cycles
+ 10000 times kmalloc(16384)/kfree -> 596 cycles
+
+After (with proposed change):
+=============================
+ Single thread testing
+ =====================
+ 1. Kmalloc: Repeatedly allocate then free test
+ 10000 times kmalloc(8) -> 53 cycles kfree -> 62 cycles
+ 10000 times kmalloc(16) -> 53 cycles kfree -> 64 cycles
+ 10000 times kmalloc(32) -> 57 cycles kfree -> 66 cycles
+ 10000 times kmalloc(64) -> 68 cycles kfree -> 72 cycles
+ 10000 times kmalloc(128) -> 77 cycles kfree -> 80 cycles
+ 10000 times kmalloc(256) -> 98 cycles kfree -> 110 cycles
+ 10000 times kmalloc(512) -> 87 cycles kfree -> 113 cycles
+ 10000 times kmalloc(1024) -> 90 cycles kfree -> 116 cycles
+ 10000 times kmalloc(2048) -> 116 cycles kfree -> 131 cycles
+ 10000 times kmalloc(4096) -> 160 cycles kfree -> 164 cycles
+ 10000 times kmalloc(8192) -> 269 cycles kfree -> 226 cycles
+ 10000 times kmalloc(16384) -> 499 cycles kfree -> 295 cycles
+ 2. Kmalloc: alloc/free test
+ 10000 times kmalloc(8)/kfree -> 74 cycles
+ 10000 times kmalloc(16)/kfree -> 73 cycles
+ 10000 times kmalloc(32)/kfree -> 73 cycles
+ 10000 times kmalloc(64)/kfree -> 74 cycles
+ 10000 times kmalloc(128)/kfree -> 73 cycles
+ 10000 times kmalloc(256)/kfree -> 72 cycles
+ 10000 times kmalloc(512)/kfree -> 73 cycles
+ 10000 times kmalloc(1024)/kfree -> 72 cycles
+ 10000 times kmalloc(2048)/kfree -> 73 cycles
+ 10000 times kmalloc(4096)/kfree -> 72 cycles
+ 10000 times kmalloc(8192)/kfree -> 72 cycles
+ 10000 times kmalloc(16384)/kfree -> 556 cycles
+
+
+(kernel 3.18.0-net-next+ SMP PREEMPT on top of f96fe225677)
 
 -- 
-Michal Hocko
-SUSE Labs
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Sr. Network Kernel Developer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
