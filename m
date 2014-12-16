@@ -1,70 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id D29076B0032
-	for <linux-mm@kvack.org>; Tue, 16 Dec 2014 03:21:44 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id rd3so13676358pab.28
-        for <linux-mm@kvack.org>; Tue, 16 Dec 2014 00:21:44 -0800 (PST)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id tj5si91644pab.88.2014.12.16.00.21.41
-        for <linux-mm@kvack.org>;
-        Tue, 16 Dec 2014 00:21:43 -0800 (PST)
-Date: Tue, 16 Dec 2014 17:25:56 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 3/7] slub: Do not use c->page on free
-Message-ID: <20141216082555.GA6088@js1304-P5Q-DELUXE>
-References: <20141210163017.092096069@linux.com>
- <20141210163033.717707217@linux.com>
- <20141215080338.GE4898@js1304-P5Q-DELUXE>
- <alpine.DEB.2.11.1412150815210.20101@gentwo.org>
- <20141216024210.GB23270@js1304-P5Q-DELUXE>
- <CAPAsAGyGXSP-2eY1CQS1jDpJq89kwpCuJm4ZBa3cYDGkv_oTxA@mail.gmail.com>
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id C9C2B6B006C
+	for <linux-mm@kvack.org>; Tue, 16 Dec 2014 03:35:51 -0500 (EST)
+Received: by mail-pd0-f179.google.com with SMTP id fp1so13378618pdb.24
+        for <linux-mm@kvack.org>; Tue, 16 Dec 2014 00:35:51 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id d6si114919pdm.104.2014.12.16.00.35.49
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Dec 2014 00:35:50 -0800 (PST)
+Date: Tue, 16 Dec 2014 00:35:43 -0800
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 2/8] swap: lock i_mutex for swap_writepage direct_IO
+Message-ID: <20141216083543.GA32425@infradead.org>
+References: <cover.1418618044.git.osandov@osandov.com>
+ <a59510f4552a5d3557958cdb0ce1b23b3abfc75b.1418618044.git.osandov@osandov.com>
+ <20141215162705.GA23887@quack.suse.cz>
+ <20141215165615.GA19041@infradead.org>
+ <20141215221100.GA4637@mew>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAPAsAGyGXSP-2eY1CQS1jDpJq89kwpCuJm4ZBa3cYDGkv_oTxA@mail.gmail.com>
+In-Reply-To: <20141215221100.GA4637@mew>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, akpm@linuxfoundation.org, rostedt@goodmis.org, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, Jesper Dangaard Brouer <brouer@redhat.com>
+To: Omar Sandoval <osandov@osandov.com>
+Cc: Jan Kara <jack@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, David Sterba <dsterba@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Dec 16, 2014 at 11:54:12AM +0400, Andrey Ryabinin wrote:
-> 2014-12-16 5:42 GMT+03:00 Joonsoo Kim <iamjoonsoo.kim@lge.com>:
-> > On Mon, Dec 15, 2014 at 08:16:00AM -0600, Christoph Lameter wrote:
-> >> On Mon, 15 Dec 2014, Joonsoo Kim wrote:
-> >>
-> >> > > +static bool same_slab_page(struct kmem_cache *s, struct page *page, void *p)
-> >> > > +{
-> >> > > + long d = p - page->address;
-> >> > > +
-> >> > > + return d > 0 && d < (1 << MAX_ORDER) && d < (compound_order(page) << PAGE_SHIFT);
-> >> > > +}
-> >> > > +
-> >> >
-> >> > Somtimes, compound_order() induces one more cacheline access, because
-> >> > compound_order() access second struct page in order to get order. Is there
-> >> > any way to remove this?
-> >>
-> >> I already have code there to avoid the access if its within a MAX_ORDER
-> >> page. We could probably go for a smaller setting there. PAGE_COSTLY_ORDER?
-> >
-> > That is the solution to avoid compound_order() call when slab of
-> > object isn't matched with per cpu slab.
-> >
-> > What I'm asking is whether there is a way to avoid compound_order() call when slab
-> > of object is matched with per cpu slab or not.
-> >
-> 
-> Can we use page->objects for that?
-> 
-> Like this:
-> 
->         return d > 0 && d < page->objects * s->size;
-> 
+On Mon, Dec 15, 2014 at 02:11:00PM -0800, Omar Sandoval wrote:
+> Ok, I got the swap code working with ->read_iter/->write_iter without
+> too much trouble. I wanted to double check before I submit if there's
+> any gotchas involved with adding the O_DIRECT flag to a file pointer
+> after it has been opened -- swapon opens the swapfile before we know if
+> we're using the SWP_FILE infrastructure, and we need to add O_DIRECT so
+> ->{read,write}_iter use direct I/O, but we can't add O_DIRECT to the
+> original open without excluding filesystems that support the old bmap
+> path but not direct I/O.
 
-Yes! That's what I'm looking for.
-Christoph, how about above change?
-
-Thanks.
+In general just adding O_DIRECT is a problem.  However given that the
+swap file is locked against any other access while in use it seems ok
+in this particular case.  Just make sure to clear it on swapoff, and
+write a detailed comment explaining the situation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
