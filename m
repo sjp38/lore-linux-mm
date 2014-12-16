@@ -1,50 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 745076B0070
-	for <linux-mm@kvack.org>; Tue, 16 Dec 2014 11:59:28 -0500 (EST)
-Received: by mail-wi0-f169.google.com with SMTP id r20so14317503wiv.2
-        for <linux-mm@kvack.org>; Tue, 16 Dec 2014 08:59:27 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id r5si2261452wjy.74.2014.12.16.08.59.27
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Dec 2014 08:59:27 -0800 (PST)
-Date: Tue, 16 Dec 2014 11:59:22 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] memcg: Provide knob for force OOM into the memcg
-Message-ID: <20141216165922.GA30984@phnom.home.cmpxchg.org>
-References: <1418736335-30915-1-git-send-email-cpandya@codeaurora.org>
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 21A606B0032
+	for <linux-mm@kvack.org>; Tue, 16 Dec 2014 16:37:01 -0500 (EST)
+Received: by mail-pd0-f169.google.com with SMTP id z10so14714019pdj.14
+        for <linux-mm@kvack.org>; Tue, 16 Dec 2014 13:37:00 -0800 (PST)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id oc17si2814358pdb.97.2014.12.16.13.36.58
+        for <linux-mm@kvack.org>;
+        Tue, 16 Dec 2014 13:36:59 -0800 (PST)
+Message-ID: <5490A5F8.6050504@sr71.net>
+Date: Tue, 16 Dec 2014 13:36:56 -0800
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1418736335-30915-1-git-send-email-cpandya@codeaurora.org>
+Subject: post-3.18 performance regression in TLB flushing code
+Content-Type: multipart/mixed;
+ boundary="------------020303010007070204050006"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chintan Pandya <cpandya@codeaurora.org>
-Cc: mhocko@suse.cz, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <peterz@infradead.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Michal Simek <monstr@monstr.eu>, Linus Torvalds <torvalds@linux-foundation.org>, Will Deacon <will.deacon@arm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Tue, Dec 16, 2014 at 06:55:35PM +0530, Chintan Pandya wrote:
-> We may want to use memcg to limit the total memory
-> footprint of all the processes within the one group.
-> This may lead to a situation where any arbitrary
-> process cannot get migrated to that one  memcg
-> because its limits will be breached. Or, process can
-> get migrated but even being most recently used
-> process, it can get killed by in-cgroup OOM. To
-> avoid such scenarios, provide a convenient knob
-> by which we can forcefully trigger OOM and make
-> a room for upcoming process.
+This is a multi-part message in MIME format.
+--------------020303010007070204050006
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 
-Why do you move tasks around during runtime?  Rather than scanning
-thousands or millions of page table entries to relocate a task and its
-private memory to another configuration domain, wouldn't it be easier to
-just keep the task in a dedicated cgroup and reconfigure that instead?
+I'm running the 'brk1' test from will-it-scale:
 
-There doesn't seem to be a strong usecase for charge migration that
-couldn't be solved by doing things slightly differently from userspace.
-Certainly not something that justifies the complexity that it adds to
-memcg model and it's synchronization requirements from VM hotpaths.
-Hence, I'm inclined to not add charge moving to version 2 of memcg.
+> https://github.com/antonblanchard/will-it-scale/blob/master/tests/brk1.c
+
+on a 8-socket/160-thread system.  It's seeing about a 6% drop in
+performance (263M -> 247M ops/sec at 80-threads) from this commit:
+
+	commit fb7332a9fedfd62b1ba6530c86f39f0fa38afd49
+	Author: Will Deacon <will.deacon@arm.com>
+	Date:   Wed Oct 29 10:03:09 2014 +0000
+
+	 mmu_gather: move minimal range calculations into generic code
+
+tlb_finish_mmu() goes up about 9x in the profiles (~0.4%->3.6%) and
+tlb_flush_mmu_free() takes about 3.1% of CPU time with the patch
+applied, but does not show up at all on the commit before.
+
+This isn't a major regression, but it is rather unfortunate for a patch
+that is apparently a code cleanup.  It also _looks_ to show up even when
+things are single-threaded, although I haven't looked at it in detail.
+
+I suspect the tlb->need_flush logic was serving some role that the
+modified code isn't capturing like in this hunk:
+
+>  void tlb_flush_mmu(struct mmu_gather *tlb)
+>  {
+> -       if (!tlb->need_flush)
+> -               return;
+>         tlb_flush_mmu_tlbonly(tlb);
+>         tlb_flush_mmu_free(tlb);
+>  }
+
+tlb_flush_mmu_tlbonly() has tlb->end check (which replaces the
+->need_flush logic), but tlb_flush_mmu_free() does not.
+
+If we add a !tlb->end (patch attached) to tlb_flush_mmu(), that gets us
+back up to ~258M ops/sec, but that's still ~2% down from where we started.
+
+--------------020303010007070204050006
+Content-Type: text/x-patch;
+ name="fix-old-need_flush-logic.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+ filename="fix-old-need_flush-logic.patch"
+
+
+
+---
+
+ b/mm/memory.c |    3 +++
+ 1 file changed, 3 insertions(+)
+
+diff -puN mm/memory.c~fix-old-need_flush-logic mm/memory.c
+--- a/mm/memory.c~fix-old-need_flush-logic	2014-12-16 13:24:27.338557014 -0800
++++ b/mm/memory.c	2014-12-16 13:24:50.412598019 -0800
+@@ -258,6 +258,9 @@ static void tlb_flush_mmu_free(struct mm
+ 
+ void tlb_flush_mmu(struct mmu_gather *tlb)
+ {
++	if (!tlb->end)
++		return;
++
+ 	tlb_flush_mmu_tlbonly(tlb);
+ 	tlb_flush_mmu_free(tlb);
+ }
+_
+
+--------------020303010007070204050006--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
