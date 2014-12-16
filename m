@@ -1,97 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 21A606B0032
-	for <linux-mm@kvack.org>; Tue, 16 Dec 2014 16:37:01 -0500 (EST)
-Received: by mail-pd0-f169.google.com with SMTP id z10so14714019pdj.14
-        for <linux-mm@kvack.org>; Tue, 16 Dec 2014 13:37:00 -0800 (PST)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id oc17si2814358pdb.97.2014.12.16.13.36.58
-        for <linux-mm@kvack.org>;
-        Tue, 16 Dec 2014 13:36:59 -0800 (PST)
-Message-ID: <5490A5F8.6050504@sr71.net>
-Date: Tue, 16 Dec 2014 13:36:56 -0800
-From: Dave Hansen <dave@sr71.net>
+Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id B82186B0032
+	for <linux-mm@kvack.org>; Tue, 16 Dec 2014 17:34:01 -0500 (EST)
+Received: by mail-ie0-f182.google.com with SMTP id x19so14056333ier.13
+        for <linux-mm@kvack.org>; Tue, 16 Dec 2014 14:34:01 -0800 (PST)
+Received: from mail-ie0-x22a.google.com (mail-ie0-x22a.google.com. [2607:f8b0:4001:c03::22a])
+        by mx.google.com with ESMTPS id y90si1555662ioi.88.2014.12.16.14.33.59
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 16 Dec 2014 14:34:00 -0800 (PST)
+Received: by mail-ie0-f170.google.com with SMTP id rd18so14046432iec.1
+        for <linux-mm@kvack.org>; Tue, 16 Dec 2014 14:33:59 -0800 (PST)
+Date: Tue, 16 Dec 2014 14:33:58 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] memcg: Provide knob for force OOM into the memcg
+In-Reply-To: <20141216133935.GK22914@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1412161430040.5142@chino.kir.corp.google.com>
+References: <1418736335-30915-1-git-send-email-cpandya@codeaurora.org> <20141216133935.GK22914@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: post-3.18 performance regression in TLB flushing code
-Content-Type: multipart/mixed;
- boundary="------------020303010007070204050006"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <peterz@infradead.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Michal Simek <monstr@monstr.eu>, Linus Torvalds <torvalds@linux-foundation.org>, Will Deacon <will.deacon@arm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Chintan Pandya <cpandya@codeaurora.org>, hannes@cmpxchg.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-This is a multi-part message in MIME format.
---------------020303010007070204050006
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+On Tue, 16 Dec 2014, Michal Hocko wrote:
 
-I'm running the 'brk1' test from will-it-scale:
+> > We may want to use memcg to limit the total memory
+> > footprint of all the processes within the one group.
+> > This may lead to a situation where any arbitrary
+> > process cannot get migrated to that one  memcg
+> > because its limits will be breached. Or, process can
+> > get migrated but even being most recently used
+> > process, it can get killed by in-cgroup OOM. To
+> > avoid such scenarios, provide a convenient knob
+> > by which we can forcefully trigger OOM and make
+> > a room for upcoming process.
+> > 
+> > To trigger force OOM,
+> > $ echo 1 > /<memcg_path>/memory.force_oom
+> 
+> What would prevent another task deplete that memory shortly after you
+> triggered OOM and end up in the same situation? E.g. while the moving
+> task is migrating its charges to the new group...
+> 
+> Why cannot you simply disable OOM killer in that memcg and handle it
+> from userspace properly?
+> 
 
-> https://github.com/antonblanchard/will-it-scale/blob/master/tests/brk1.c
+The patch is introducing a mechanism to induce a kernel oom kill for a 
+memcg hierarchy to make room for it in the new memcg, not disable the oom 
+killer so the migration fails due to the lower limits.
 
-on a 8-socket/160-thread system.  It's seeing about a 6% drop in
-performance (263M -> 247M ops/sec at 80-threads) from this commit:
+It doesn't have any basis since a SIGKILL coming from userspace should be 
+considered the same as a kernel oom kill from the memcg perspective, i.e. 
+the fatal_signal_pending() checks that allow charge bypass instead of a 
+strict reliance on TIF_MEMDIE being set.
 
-	commit fb7332a9fedfd62b1ba6530c86f39f0fa38afd49
-	Author: Will Deacon <will.deacon@arm.com>
-	Date:   Wed Oct 29 10:03:09 2014 +0000
-
-	 mmu_gather: move minimal range calculations into generic code
-
-tlb_finish_mmu() goes up about 9x in the profiles (~0.4%->3.6%) and
-tlb_flush_mmu_free() takes about 3.1% of CPU time with the patch
-applied, but does not show up at all on the commit before.
-
-This isn't a major regression, but it is rather unfortunate for a patch
-that is apparently a code cleanup.  It also _looks_ to show up even when
-things are single-threaded, although I haven't looked at it in detail.
-
-I suspect the tlb->need_flush logic was serving some role that the
-modified code isn't capturing like in this hunk:
-
->  void tlb_flush_mmu(struct mmu_gather *tlb)
->  {
-> -       if (!tlb->need_flush)
-> -               return;
->         tlb_flush_mmu_tlbonly(tlb);
->         tlb_flush_mmu_free(tlb);
->  }
-
-tlb_flush_mmu_tlbonly() has tlb->end check (which replaces the
-->need_flush logic), but tlb_flush_mmu_free() does not.
-
-If we add a !tlb->end (patch attached) to tlb_flush_mmu(), that gets us
-back up to ~258M ops/sec, but that's still ~2% down from where we started.
-
---------------020303010007070204050006
-Content-Type: text/x-patch;
- name="fix-old-need_flush-logic.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
- filename="fix-old-need_flush-logic.patch"
-
-
-
----
-
- b/mm/memory.c |    3 +++
- 1 file changed, 3 insertions(+)
-
-diff -puN mm/memory.c~fix-old-need_flush-logic mm/memory.c
---- a/mm/memory.c~fix-old-need_flush-logic	2014-12-16 13:24:27.338557014 -0800
-+++ b/mm/memory.c	2014-12-16 13:24:50.412598019 -0800
-@@ -258,6 +258,9 @@ static void tlb_flush_mmu_free(struct mm
- 
- void tlb_flush_mmu(struct mmu_gather *tlb)
- {
-+	if (!tlb->end)
-+		return;
-+
- 	tlb_flush_mmu_tlbonly(tlb);
- 	tlb_flush_mmu_free(tlb);
- }
-_
-
---------------020303010007070204050006--
+It seems to be proposed as a shortcut so that the kernel will determine 
+the best process to kill.  That information is available to userspace so 
+it should be able to just SIGKILL the desired process (either in the 
+destination memcg or in the source memcg to allow deletion), so this 
+functionality isn't needed in the kernel.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
