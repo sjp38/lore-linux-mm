@@ -1,47 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 2704A6B0038
-	for <linux-mm@kvack.org>; Wed, 17 Dec 2014 13:52:10 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id et14so16964012pad.1
-        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 10:52:09 -0800 (PST)
-Received: from blackbird.sr71.net ([2001:19d0:2:6:209:6bff:fe9a:902])
-        by mx.google.com with ESMTP id ou2si6670813pbb.214.2014.12.17.10.52.04
-        for <linux-mm@kvack.org>;
-        Wed, 17 Dec 2014 10:52:05 -0800 (PST)
-Message-ID: <5491D0D2.5070103@sr71.net>
-Date: Wed, 17 Dec 2014 10:52:02 -0800
-From: Dave Hansen <dave@sr71.net>
+	by kanga.kvack.org (Postfix) with ESMTP id E44146B006E
+	for <linux-mm@kvack.org>; Wed, 17 Dec 2014 13:53:05 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id et14so16903348pad.15
+        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 10:53:05 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id la11si6834546pab.123.2014.12.17.10.53.01
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Dec 2014 10:53:02 -0800 (PST)
+Date: Wed, 17 Dec 2014 10:52:56 -0800
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 2/8] swap: lock i_mutex for swap_writepage direct_IO
+Message-ID: <20141217185256.GA5657@infradead.org>
+References: <a59510f4552a5d3557958cdb0ce1b23b3abfc75b.1418618044.git.osandov@osandov.com>
+ <20141215162705.GA23887@quack.suse.cz>
+ <20141215165615.GA19041@infradead.org>
+ <20141215221100.GA4637@mew>
+ <20141216083543.GA32425@infradead.org>
+ <20141216085624.GA25256@mew>
+ <20141217080610.GA20335@infradead.org>
+ <20141217082020.GH22149@ZenIV.linux.org.uk>
+ <20141217082437.GA9301@infradead.org>
+ <20141217145832.GA3497@mew>
 MIME-Version: 1.0
-Subject: Re: post-3.18 performance regression in TLB flushing code
-References: <5490A5F8.6050504@sr71.net> <20141217100810.GA3461@arm.com> <CA+55aFyVxOw0upa=At6MmiNYEHzfPz4rE5bZUBCs9h4vKGh1iA@mail.gmail.com> <20141217165310.GJ870@arm.com>
-In-Reply-To: <20141217165310.GJ870@arm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141217145832.GA3497@mew>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <peterz@infradead.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Michal Simek <monstr@monstr.eu>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Omar Sandoval <osandov@osandov.com>
+Cc: Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, David Sterba <dsterba@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 12/17/2014 08:53 AM, Will Deacon wrote:
-> On Wed, Dec 17, 2014 at 04:28:23PM +0000, Linus Torvalds wrote:
->> On Wed, Dec 17, 2014 at 2:08 AM, Will Deacon <will.deacon@arm.com> wrote:
->> So why not just this trivial patch, to make the logic be the same it
->> used to be (just using "end > 0" instead of the old "need_flush")?
-> 
-> Looks fine to me... Dave?
+On Wed, Dec 17, 2014 at 06:58:32AM -0800, Omar Sandoval wrote:
+> See my previous message. If we use O_DIRECT on the original open, then
+> filesystems that implement bmap but not direct_IO will no longer work.
+> These are the ones that I found in my tree:
 
-First of all, this is quite observable when testing single-threaded on a
-desktop.  This is a mildly crusty Sandybridge CPU from 2011.  I made 3
-runs with a single thread: ./brk1_processes -s 30 -t 1
-
-	   fb7332a9fed : 4323385
-	   fb7332a9fed^: 4503736
-fb7332a9fed+Linus's fix: 4516761
-
-These things are also a little bit noisy, so we're well within the
-margin of error with Linus's fix.
-
-This also holds up on the large system.
+In the long run I don't think they are worth keeping.  But to keep you
+out of that discussion you can just try an open without O_DIRECT if the
+open with the flag failed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
