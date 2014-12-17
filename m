@@ -1,69 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id B169A6B0032
-	for <linux-mm@kvack.org>; Tue, 16 Dec 2014 21:13:07 -0500 (EST)
-Received: by mail-wg0-f53.google.com with SMTP id l18so19009082wgh.12
-        for <linux-mm@kvack.org>; Tue, 16 Dec 2014 18:13:07 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id cm1si5720752wib.51.2014.12.16.18.13.06
+Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
+	by kanga.kvack.org (Postfix) with ESMTP id CE7F96B0032
+	for <linux-mm@kvack.org>; Tue, 16 Dec 2014 23:32:32 -0500 (EST)
+Received: by mail-ig0-f175.google.com with SMTP id h15so8138026igd.8
+        for <linux-mm@kvack.org>; Tue, 16 Dec 2014 20:32:32 -0800 (PST)
+Received: from mail-ig0-x235.google.com (mail-ig0-x235.google.com. [2607:f8b0:4001:c05::235])
+        by mx.google.com with ESMTPS id h12si2773274ici.1.2014.12.16.20.32.31
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Dec 2014 18:13:06 -0800 (PST)
-Date: Tue, 16 Dec 2014 21:13:02 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: Stalled MM patches for review
-Message-ID: <20141217021302.GA14148@phnom.home.cmpxchg.org>
-References: <20141215150207.67c9a25583c04202d9f4508e@linux-foundation.org>
- <548F7541.8040407@jp.fujitsu.com>
- <20141216030658.GA18569@phnom.home.cmpxchg.org>
- <alpine.DEB.2.10.1412161650540.19867@chino.kir.corp.google.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 16 Dec 2014 20:32:31 -0800 (PST)
+Received: by mail-ig0-f181.google.com with SMTP id l13so8927129iga.8
+        for <linux-mm@kvack.org>; Tue, 16 Dec 2014 20:32:31 -0800 (PST)
+Message-ID: <5491075B.9080609@gmail.com>
+Date: Tue, 16 Dec 2014 23:32:27 -0500
+From: nick <xerofoify@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1412161650540.19867@chino.kir.corp.google.com>
+Subject: Question about Old  Fix Me comment in mempool.c
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: akpm@linux-foundation.org
+Cc: catalin.marinas@arm.com, mpatocka@redhat.com, sebott@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Dec 16, 2014 at 05:07:16PM -0800, David Rientjes wrote:
-> On Mon, 15 Dec 2014, Johannes Weiner wrote:
-> >  	/* Check if we should retry the allocation */
-> >  	pages_reclaimed += did_some_progress;
-> >  	if (should_alloc_retry(gfp_mask, order, did_some_progress,
-> >  						pages_reclaimed)) {
-> > +		/*
-> > +		 * If we fail to make progress by freeing individual
-> > +		 * pages, but the allocation wants us to keep going,
-> > +		 * start OOM killing tasks.
-> > +		 */
-> > +		if (!did_some_progress) {
-> > +			page = __alloc_pages_may_oom(gfp_mask, order, zonelist,
-> > +						high_zoneidx, nodemask,
-> > +						preferred_zone, classzone_idx,
-> > +						migratetype,&did_some_progress);
-> 
-> Missing a space.
+Greetings Andrew and other maintainers,
+I am wondering why the below comment is even in mempool.c and this has not been changed to a call to io_schedule as the kernel version is stupidly old and this should be fixed by now and the issues with DM would have been removed by now. 
+/*
+         * FIXME: this should be io_schedule().  The timeout is there as a
+         * workaround for some DM problems in 2.6.18.
+        */
 
-That was because of the 80 character limit, it seemed preferrable over
-a linewrap.
+Sorry for the stupid question but I like to double check with the maintainers before I sent in a patch for things like this to see if I am missing anything:).
 
-> > +			if (page)
-> > +				goto got_pg;
-> > +			if (!did_some_progress)
-> > +				goto nopage;
-> > +		}
-> >  		/* Wait for some write requests to complete then retry */
-> >  		wait_iff_congested(preferred_zone, BLK_RW_ASYNC, HZ/50);
-> >  		goto rebalance;
-> 
-> This is broken because it does not recall gfp_to_alloc_flags().  If 
-> current is the oom kill victim, then ALLOC_NO_WATERMARKS never gets set 
-> properly and the slowpath will end up looping forever.  The "restart" 
-> label which was removed in this patch needs to be reintroduced, and it can 
-> probably be moved to directly before gfp_to_alloc_flags().
+Thanks for Your Time,
+Nick 
 
-Thanks for catching this.  gfp_to_alloc_flags()'s name doesn't exactly
-imply such side effects...  Here is a fixlet on top:
-
----
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
