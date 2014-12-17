@@ -1,51 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EE286B0070
-	for <linux-mm@kvack.org>; Wed, 17 Dec 2014 02:15:36 -0500 (EST)
-Received: by mail-ob0-f170.google.com with SMTP id wp18so2450223obc.1
-        for <linux-mm@kvack.org>; Tue, 16 Dec 2014 23:15:36 -0800 (PST)
-Received: from mail-ob0-x235.google.com (mail-ob0-x235.google.com. [2607:f8b0:4003:c01::235])
-        by mx.google.com with ESMTPS id o126si1855264oig.56.2014.12.16.23.15.34
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 35C696B0073
+	for <linux-mm@kvack.org>; Wed, 17 Dec 2014 03:06:18 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id ey11so15984943pad.10
+        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 00:06:17 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id pv3si4438226pbb.141.2014.12.17.00.06.15
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 16 Dec 2014 23:15:35 -0800 (PST)
-Received: by mail-ob0-f181.google.com with SMTP id gq1so2392489obb.12
-        for <linux-mm@kvack.org>; Tue, 16 Dec 2014 23:15:34 -0800 (PST)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Dec 2014 00:06:16 -0800 (PST)
+Date: Wed, 17 Dec 2014 00:06:10 -0800
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH 2/8] swap: lock i_mutex for swap_writepage direct_IO
+Message-ID: <20141217080610.GA20335@infradead.org>
+References: <cover.1418618044.git.osandov@osandov.com>
+ <a59510f4552a5d3557958cdb0ce1b23b3abfc75b.1418618044.git.osandov@osandov.com>
+ <20141215162705.GA23887@quack.suse.cz>
+ <20141215165615.GA19041@infradead.org>
+ <20141215221100.GA4637@mew>
+ <20141216083543.GA32425@infradead.org>
+ <20141216085624.GA25256@mew>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.11.1412160948240.27999@gentwo.org>
-References: <20141210163017.092096069@linux.com>
-	<20141210163033.717707217@linux.com>
-	<20141215080338.GE4898@js1304-P5Q-DELUXE>
-	<alpine.DEB.2.11.1412150815210.20101@gentwo.org>
-	<20141216024210.GB23270@js1304-P5Q-DELUXE>
-	<CAPAsAGyGXSP-2eY1CQS1jDpJq89kwpCuJm4ZBa3cYDGkv_oTxA@mail.gmail.com>
-	<20141216082555.GA6088@js1304-P5Q-DELUXE>
-	<alpine.DEB.2.11.1412160852460.27498@gentwo.org>
-	<20141216161521.1f72e102@redhat.com>
-	<alpine.DEB.2.11.1412160948240.27999@gentwo.org>
-Date: Wed, 17 Dec 2014 16:15:34 +0900
-Message-ID: <CAAmzW4MaGCCq4_pz+9dFDY+0X+3qcfr4aTSPsjt8ejkV9WbMnA@mail.gmail.com>
-Subject: Re: [PATCH 3/7] slub: Do not use c->page on free
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141216085624.GA25256@mew>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Jesper Dangaard Brouer <brouer@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, akpm@linuxfoundation.org, Steven Rostedt <rostedt@goodmis.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>
+To: Omar Sandoval <osandov@osandov.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Jan Kara <jack@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, David Sterba <dsterba@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 
-2014-12-17 0:48 GMT+09:00 Christoph Lameter <cl@linux.com>:
-> On Tue, 16 Dec 2014, Jesper Dangaard Brouer wrote:
->
->> > Ok but now there is a multiplication in the fast path.
->>
->> Could we pre-calculate the value (page->objects * s->size) and e.g store it
->> in struct kmem_cache, thus saving the imul ?
->
-> I think I just used the last available field for the page->address.
+On Tue, Dec 16, 2014 at 12:56:24AM -0800, Omar Sandoval wrote:
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -1728,6 +1728,9 @@ static int setup_swap_extents(struct swap_info_struct *sis, sector_t *span)
+>         }
+>  
+>         if (mapping->a_ops->swap_activate) {
+> +               if (!mapping->a_ops->direct_IO)
+> +                       return -EINVAL;
+> +               swap_file->f_flags |= O_DIRECT;
+>                 ret = mapping->a_ops->swap_activate(sis, swap_file, span);
+>                 if (!ret) {
+>                         sis->flags |= SWP_FILE;
 
-Possibly, we can use _count field.
+This needs to hold swap_file->f_lock, but otherwise looks good.
 
-Thanks.
+> This seems to be more or less equivalent to doing a fcntl(F_SETFL) to
+> add the O_DIRECT flag to swap_file (which is a struct file *). Swapoff
+> calls filp_close on swap_file, so I don't see why it's necessary to
+> clear the flag.
+
+filp_lose doesn't nessecarily destroy the file structure, there might be
+other reference to it, e.g. from dup() or descriptor passing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
