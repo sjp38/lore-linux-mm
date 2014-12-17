@@ -1,100 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id A6EB96B0032
-	for <linux-mm@kvack.org>; Tue, 16 Dec 2014 19:08:07 -0500 (EST)
-Received: by mail-ie0-f169.google.com with SMTP id y20so14099519ier.0
-        for <linux-mm@kvack.org>; Tue, 16 Dec 2014 16:08:07 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id ga9si1178340igd.44.2014.12.16.16.08.06
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Dec 2014 16:08:06 -0800 (PST)
-Date: Tue, 16 Dec 2014 16:08:04 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
+Received: from mail-la0-f43.google.com (mail-la0-f43.google.com [209.85.215.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 659E06B0032
+	for <linux-mm@kvack.org>; Tue, 16 Dec 2014 19:47:50 -0500 (EST)
+Received: by mail-la0-f43.google.com with SMTP id s18so12349824lam.30
+        for <linux-mm@kvack.org>; Tue, 16 Dec 2014 16:47:49 -0800 (PST)
+Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.195])
+        by mx.google.com with ESMTP id rr7si2310413lbb.43.2014.12.16.16.47.48
+        for <linux-mm@kvack.org>;
+        Tue, 16 Dec 2014 16:47:48 -0800 (PST)
+Date: Wed, 17 Dec 2014 02:47:34 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
 Subject: Re: [patch 5/6]
  mm-introduce-do_shared_fault-and-drop-do_fault-fix-fix
-Message-Id: <20141216160804.5f7e6feffb910816d2730fd9@linux-foundation.org>
-In-Reply-To: <20141215235532.GA16180@node.dhcp.inet.fi>
+Message-ID: <20141217004734.GA23150@node.dhcp.inet.fi>
 References: <548f68cf.6xGKPRYKtNb84wM5%akpm@linux-foundation.org>
-	<20141215235532.GA16180@node.dhcp.inet.fi>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20141215235532.GA16180@node.dhcp.inet.fi>
+ <20141216160804.5f7e6feffb910816d2730fd9@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141216160804.5f7e6feffb910816d2730fd9@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, ak@linux.intel.com, dave.hansen@linux.intel.com, lliubbo@gmail.com, matthew.r.wilcox@intel.com, mgorman@suse.de, n-horiguchi@ah.jp.nec.com, riel@redhat.com, sasha.levin@oracle.com, hughd@google.com
+To: Andrew Morton <akpm@linux-foundation.org>, hughd@google.com
+Cc: linux-mm@kvack.org, ak@linux.intel.com, dave.hansen@linux.intel.com, lliubbo@gmail.com, matthew.r.wilcox@intel.com, mgorman@suse.de, n-horiguchi@ah.jp.nec.com, riel@redhat.com, sasha.levin@oracle.com
 
-On Tue, 16 Dec 2014 01:55:32 +0200 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
-
-> On Mon, Dec 15, 2014 at 03:03:43PM -0800, akpm@linux-foundation.org wrote:
-> > From: Andrew Morton <akpm@linux-foundation.org>
-> > Subject: mm-introduce-do_shared_fault-and-drop-do_fault-fix-fix
+On Tue, Dec 16, 2014 at 04:08:04PM -0800, Andrew Morton wrote:
+> On Tue, 16 Dec 2014 01:55:32 +0200 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+> 
+> > On Mon, Dec 15, 2014 at 03:03:43PM -0800, akpm@linux-foundation.org wrote:
+> > > From: Andrew Morton <akpm@linux-foundation.org>
+> > > Subject: mm-introduce-do_shared_fault-and-drop-do_fault-fix-fix
+> > > 
+> > > add comment which may not be true :(
+> > > 
+> > > Cc: Andi Kleen <ak@linux.intel.com>
+> > > Cc: Bob Liu <lliubbo@gmail.com>
+> > > Cc: Dave Hansen <dave.hansen@linux.intel.com>
+> > > Cc: "Kirill A. Shutemov" <kirill@shutemov.name>
+> > > Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
+> > > Cc: Mel Gorman <mgorman@suse.de>
+> > > Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > > Cc: Rik van Riel <riel@redhat.com>
+> > > Cc: Sasha Levin <sasha.levin@oracle.com>
+> > > Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> > > ---
+> > > 
+> > >  mm/memory.c |    6 ++++++
+> > >  1 file changed, 6 insertions(+)
+> > > 
+> > > diff -puN mm/memory.c~mm-introduce-do_shared_fault-and-drop-do_fault-fix-fix mm/memory.c
+> > > --- a/mm/memory.c~mm-introduce-do_shared_fault-and-drop-do_fault-fix-fix
+> > > +++ a/mm/memory.c
+> > > @@ -3009,6 +3009,12 @@ static int do_shared_fault(struct mm_str
+> > >  
+> > >  	if (set_page_dirty(fault_page))
+> > >  		dirtied = 1;
+> > > +	/*
+> > > +	 * Take a local copy of the address_space - page.mapping may be zeroed
+> > > +	 * by truncate after unlock_page().   The address_space itself remains
+> > > +	 * pinned by vma->vm_file's reference.  We rely on unlock_page()'s
+> > > +	 * release semantics to prevent the compiler from undoing this copying.
+> > > +	 */
 > > 
-> > add comment which may not be true :(
+> > Looks correct to me.
 > > 
-> > Cc: Andi Kleen <ak@linux.intel.com>
-> > Cc: Bob Liu <lliubbo@gmail.com>
-> > Cc: Dave Hansen <dave.hansen@linux.intel.com>
-> > Cc: "Kirill A. Shutemov" <kirill@shutemov.name>
-> > Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
-> > Cc: Mel Gorman <mgorman@suse.de>
-> > Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > Cc: Rik van Riel <riel@redhat.com>
-> > Cc: Sasha Levin <sasha.levin@oracle.com>
-> > Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> > ---
+> > We need the same comment or reference to this one in do_wp_page().
+> 
+> Can you please send a patch some time?
+
+Sure.
+But I think patchset with do_wp_page() cleanup by Shachar Raindel should
+go into -mm first, shouldn't it? Count my ack.
+
+> > >  	mapping = fault_page->mapping;
 > > 
-> >  mm/memory.c |    6 ++++++
-> >  1 file changed, 6 insertions(+)
+> > BTW, I noticed that fault_page here can be a tail page: sound subsytem
+> > allocates its pages with GFP_COMP and maps them with ptes.
+> 
+> hm, why does it use __GFP_COMP?  It could just use plain old
+> alloc_pages(GFP_KERNEL) then set up a pte per 4k page?
+
+IIUC, it wants compound page semantics for get_page()/put_page() -- free
+whole compond page when last compound reference goes away instead of
+per-order-0 handling.
+
+https://lkml.org/lkml/2005/11/21/216
+
+Hugh?
+ 
+> > The problem is
+> > that we never set ->mapping for tail pages and the check below is always
+> > false. It seems doesn't cause any problems right now (looks like ->mapping
+> > is NULL also for head page sound case), but logic is somewhat broken.
 > > 
-> > diff -puN mm/memory.c~mm-introduce-do_shared_fault-and-drop-do_fault-fix-fix mm/memory.c
-> > --- a/mm/memory.c~mm-introduce-do_shared_fault-and-drop-do_fault-fix-fix
-> > +++ a/mm/memory.c
-> > @@ -3009,6 +3009,12 @@ static int do_shared_fault(struct mm_str
-> >  
-> >  	if (set_page_dirty(fault_page))
-> >  		dirtied = 1;
-> > +	/*
-> > +	 * Take a local copy of the address_space - page.mapping may be zeroed
-> > +	 * by truncate after unlock_page().   The address_space itself remains
-> > +	 * pinned by vma->vm_file's reference.  We rely on unlock_page()'s
-> > +	 * release semantics to prevent the compiler from undoing this copying.
-> > +	 */
+> > I only triggered the problem when tried to reuse ->mapping in first tail
+> > page for compound_mapcount in my thp refcounting rework.
+> > 
+> > If it sounds right, I will prepare patch to replace the line above and the
+> > same case in do_wp_page() with
+> > 
+> > 	mapping = compound_head(fault_page)->mapping;
+> > 
+> > Ok?
 > 
-> Looks correct to me.
-> 
-> We need the same comment or reference to this one in do_wp_page().
+> Generally I don't think we should encourage (or even permit) random
+> driver code to use somewhat-internal-to-MM features unless they really
+> need to.  But I note that a lot of drivers are allocating with
+> __GFP_COMP.  Why is this?
 
-Can you please send a patch some time?
+I think, the reason is the same -- get_page()/put_page() semantics. But
+will give a closer look later.
 
-> >  	mapping = fault_page->mapping;
-> 
-> BTW, I noticed that fault_page here can be a tail page: sound subsytem
-> allocates its pages with GFP_COMP and maps them with ptes.
-
-hm, why does it use __GFP_COMP?  It could just use plain old
-alloc_pages(GFP_KERNEL) then set up a pte per 4k page?
-
-> The problem is
-> that we never set ->mapping for tail pages and the check below is always
-> false. It seems doesn't cause any problems right now (looks like ->mapping
-> is NULL also for head page sound case), but logic is somewhat broken.
-> 
-> I only triggered the problem when tried to reuse ->mapping in first tail
-> page for compound_mapcount in my thp refcounting rework.
-> 
-> If it sounds right, I will prepare patch to replace the line above and the
-> same case in do_wp_page() with
-> 
-> 	mapping = compound_head(fault_page)->mapping;
-> 
-> Ok?
-
-Generally I don't think we should encourage (or even permit) random
-driver code to use somewhat-internal-to-MM features unless they really
-need to.  But I note that a lot of drivers are allocating with
-__GFP_COMP.  Why is this?
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
