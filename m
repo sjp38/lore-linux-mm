@@ -1,122 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 0EF396B0032
-	for <linux-mm@kvack.org>; Wed, 17 Dec 2014 17:28:41 -0500 (EST)
-Received: by mail-ig0-f178.google.com with SMTP id hl2so226152igb.11
-        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 14:28:40 -0800 (PST)
-Received: from mail-ig0-x22f.google.com (mail-ig0-x22f.google.com. [2607:f8b0:4001:c05::22f])
-        by mx.google.com with ESMTPS id yz3si4515560icb.10.2014.12.17.14.28.39
+Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CAA16B0032
+	for <linux-mm@kvack.org>; Wed, 17 Dec 2014 17:30:13 -0500 (EST)
+Received: by mail-ig0-f175.google.com with SMTP id h15so9614543igd.2
+        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 14:30:13 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id bg1si4494707icb.41.2014.12.17.14.30.11
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 17 Dec 2014 14:28:39 -0800 (PST)
-Received: by mail-ig0-f175.google.com with SMTP id h15so9585611igd.14
-        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 14:28:39 -0800 (PST)
-Date: Wed, 17 Dec 2014 14:28:37 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: Stalled MM patches for review
-In-Reply-To: <20141217021302.GA14148@phnom.home.cmpxchg.org>
-Message-ID: <alpine.DEB.2.10.1412171422330.16260@chino.kir.corp.google.com>
-References: <20141215150207.67c9a25583c04202d9f4508e@linux-foundation.org> <548F7541.8040407@jp.fujitsu.com> <20141216030658.GA18569@phnom.home.cmpxchg.org> <alpine.DEB.2.10.1412161650540.19867@chino.kir.corp.google.com>
- <20141217021302.GA14148@phnom.home.cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Dec 2014 14:30:12 -0800 (PST)
+Date: Wed, 17 Dec 2014 14:30:10 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/2] task_mmu: Add user-space support for resetting
+ mm->hiwater_rss (peak RSS)
+Message-Id: <20141217143010.ccf73cbd544ade86bb4dec3f@linux-foundation.org>
+In-Reply-To: <1418663733-15949-1-git-send-email-petrcermak@chromium.org>
+References: <1418223544-11382-1-git-send-email-petrcermak@chromium.org>
+	<1418663733-15949-1-git-send-email-petrcermak@chromium.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Petr Cermak <petrcermak@chromium.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Bjorn Helgaas <bhelgaas@google.com>, Primiano Tucci <primiano@chromium.org>
 
-On Tue, 16 Dec 2014, Johannes Weiner wrote:
+On Mon, 15 Dec 2014 17:15:33 +0000 Petr Cermak <petrcermak@chromium.org> wrote:
 
-> > This is broken because it does not recall gfp_to_alloc_flags().  If 
-> > current is the oom kill victim, then ALLOC_NO_WATERMARKS never gets set 
-> > properly and the slowpath will end up looping forever.  The "restart" 
-> > label which was removed in this patch needs to be reintroduced, and it can 
-> > probably be moved to directly before gfp_to_alloc_flags().
-> 
-> Thanks for catching this.  gfp_to_alloc_flags()'s name doesn't exactly
-> imply such side effects...  Here is a fixlet on top:
-> 
+> Peak resident size of a process can be reset by writing "5" to
+> /proc/pid/clear_refs. The driving use-case for this would be getting the
+> peak RSS value, which can be retrieved from the VmHWM field in
+> /proc/pid/status, per benchmark iteration or test scenario.
 
-It would have livelocked the machine on an oom kill.
+The term "reset" is ambiguous - it often means "reset it to zero".
 
-> ---
-> From 45362d1920340716ef58bf1024d9674b5dfa809e Mon Sep 17 00:00:00 2001
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Date: Tue, 16 Dec 2014 21:04:24 -0500
-> Subject: [patch] mm: page_alloc: embed OOM killing naturally into allocation
->  slowpath fix
-> 
-> When retrying the allocation after potentially invoking OOM, make sure
-> the alloc flags are recalculated, as they have to consider TIF_MEMDIE.
-> 
-> Restore the original restart label, but rename it to 'retry' to match
-> the should_alloc_retry() it depends on.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  mm/page_alloc.c | 4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 83ec725aec36..e8f5997c557c 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2673,6 +2673,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	    (gfp_mask & GFP_THISNODE) == GFP_THISNODE)
->  		goto nopage;
->  
-> +retry:
->  	if (!(gfp_mask & __GFP_NO_KSWAPD))
->  		wake_all_kswapds(order, zonelist, high_zoneidx,
->  				preferred_zone, nodemask);
-> @@ -2695,7 +2696,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  		classzone_idx = zonelist_zone_idx(preferred_zoneref);
->  	}
->  
-> -rebalance:
->  	/* This is the last chance, in general, before the goto nopage. */
->  	page = get_page_from_freelist(gfp_mask, nodemask, order, zonelist,
->  			high_zoneidx, alloc_flags & ~ALLOC_NO_WATERMARKS,
-> @@ -2823,7 +2823,7 @@ rebalance:
->  		}
->  		/* Wait for some write requests to complete then retry */
->  		wait_iff_congested(preferred_zone, BLK_RW_ASYNC, HZ/50);
-> -		goto rebalance;
-> +		goto retry;
->  	} else {
->  		/*
->  		 * High-order allocations do not necessarily loop after
+This?
 
-Why remove 'rebalance'?  In the situation where direct reclaim does free 
-memory and we're waiting on writeback (no call to the oom killer is made), 
-it doesn't seem necessary to recalculate classzone_idx.
-
-Additionally, we never called wait_iff_congested() before when the oom 
-killer freed memory.  This is a no-op if the preferred_zone isn't waiting 
-on writeback, but seems pointless if we just freed memory by calling the 
-oom killer.
-
-In other words, I'm not sure why you're fixlet isn't this:
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2673,6 +2673,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	    (gfp_mask & GFP_THISNODE) == GFP_THISNODE)
- 		goto nopage;
+--- a/Documentation/filesystems/proc.txt~task_mmu-add-user-space-support-for-resetting-mm-hiwater_rss-peak-rss-fix
++++ a/Documentation/filesystems/proc.txt
+@@ -488,7 +488,8 @@ To clear the bits for the file mapped pa
+ To clear the soft-dirty bit
+     > echo 4 > /proc/PID/clear_refs
  
-+retry:
- 	if (!(gfp_mask & __GFP_NO_KSWAPD))
- 		wake_all_kswapds(order, zonelist, high_zoneidx,
- 				preferred_zone, nodemask);
-@@ -2822,6 +2823,7 @@ rebalance:
- 				BUG_ON(gfp_mask & __GFP_NOFAIL);
- 				goto nopage;
- 			}
-+			goto retry;
- 		}
- 		/* Wait for some write requests to complete then retry */
- 		wait_iff_congested(preferred_zone, BLK_RW_ASYNC, HZ/50);
+-To reset the peak resident set size ("high water mark")
++To reset the peak resident set size ("high water mark") to the process's
++current value:
+     > echo 5 > /proc/PID/clear_refs
+ 
+ Any other value written to /proc/PID/clear_refs will have no effect.
+--- a/fs/proc/task_mmu.c~task_mmu-add-user-space-support-for-resetting-mm-hiwater_rss-peak-rss-fix
++++ a/fs/proc/task_mmu.c
+@@ -859,7 +859,7 @@ static ssize_t clear_refs_write(struct f
+ 	if (type == CLEAR_REFS_MM_HIWATER_RSS) {
+ 		/*
+ 		 * Writing 5 to /proc/pid/clear_refs resets the peak resident
+-		 * set size.
++		 * set size to this mm's current rss value.
+ 		 */
+ 		down_write(&mm->mmap_sem);
+ 		reset_mm_hiwater_rss(mm);
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
