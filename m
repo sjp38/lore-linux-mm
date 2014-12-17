@@ -1,45 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id E44146B006E
-	for <linux-mm@kvack.org>; Wed, 17 Dec 2014 13:53:05 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id et14so16903348pad.15
-        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 10:53:05 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id la11si6834546pab.123.2014.12.17.10.53.01
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 869D46B0032
+	for <linux-mm@kvack.org>; Wed, 17 Dec 2014 14:44:25 -0500 (EST)
+Received: by mail-ig0-f181.google.com with SMTP id l13so10259256iga.14
+        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 11:44:25 -0800 (PST)
+Received: from resqmta-po-04v.sys.comcast.net (resqmta-po-04v.sys.comcast.net. [2001:558:fe16:19:96:114:154:163])
+        by mx.google.com with ESMTPS id q15si4153670ics.106.2014.12.17.11.44.23
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Dec 2014 10:53:02 -0800 (PST)
-Date: Wed, 17 Dec 2014 10:52:56 -0800
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 2/8] swap: lock i_mutex for swap_writepage direct_IO
-Message-ID: <20141217185256.GA5657@infradead.org>
-References: <a59510f4552a5d3557958cdb0ce1b23b3abfc75b.1418618044.git.osandov@osandov.com>
- <20141215162705.GA23887@quack.suse.cz>
- <20141215165615.GA19041@infradead.org>
- <20141215221100.GA4637@mew>
- <20141216083543.GA32425@infradead.org>
- <20141216085624.GA25256@mew>
- <20141217080610.GA20335@infradead.org>
- <20141217082020.GH22149@ZenIV.linux.org.uk>
- <20141217082437.GA9301@infradead.org>
- <20141217145832.GA3497@mew>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141217145832.GA3497@mew>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Wed, 17 Dec 2014 11:44:24 -0800 (PST)
+Date: Wed, 17 Dec 2014 13:44:21 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 0/7] slub: Fastpath optimization (especially for RT) V1
+In-Reply-To: <alpine.DEB.2.11.1412170953280.8347@gentwo.org>
+Message-ID: <alpine.DEB.2.11.1412171339450.29803@gentwo.org>
+References: <20141210163017.092096069@linux.com> <20141215075933.GD4898@js1304-P5Q-DELUXE> <CAAmzW4NCpx5aJyW36fgOfu3EaDj6=uv6MUiBC+a0ggePWPXndQ@mail.gmail.com> <alpine.DEB.2.11.1412170953280.8347@gentwo.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Omar Sandoval <osandov@osandov.com>
-Cc: Al Viro <viro@ZenIV.linux.org.uk>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, David Sterba <dsterba@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, akpm@linuxfoundation.org, Steven Rostedt <rostedt@goodmis.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, Jesper Dangaard Brouer <brouer@redhat.com>
 
-On Wed, Dec 17, 2014 at 06:58:32AM -0800, Omar Sandoval wrote:
-> See my previous message. If we use O_DIRECT on the original open, then
-> filesystems that implement bmap but not direct_IO will no longer work.
-> These are the ones that I found in my tree:
+On Wed, 17 Dec 2014, Christoph Lameter wrote:
 
-In the long run I don't think they are worth keeping.  But to keep you
-out of that discussion you can just try an open without O_DIRECT if the
-open with the flag failed.
+> On Wed, 17 Dec 2014, Joonsoo Kim wrote:
+>
+> > +       do {
+> > +               tid = this_cpu_read(s->cpu_slab->tid);
+> > +               c = this_cpu_ptr(s->cpu_slab);
+> > +       } while (IS_ENABLED(CONFIG_PREEMPT) && unlikely(tid != c->tid));
+
+Here is another one without debugging:
+
+   0xffffffff811d23bb <+59>:	mov    %gs:0x8(%r9),%rdx		tid(rdx) = this_cpu_read()
+   0xffffffff811d23c0 <+64>:	mov    %r9,%r8
+   0xffffffff811d23c3 <+67>:	add    %gs:0x7ee37d9d(%rip),%r8         c (r8) =
+   0xffffffff811d23cb <+75>:	cmp    0x8(%r8),%rdx			c->tid == tid
+   0xffffffff811d23cf <+79>:	jne    0xffffffff811d23bb <kmem_cache_alloc+59>
+
+Actually that looks ok.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
