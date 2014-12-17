@@ -1,131 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id A18126B0070
-	for <linux-mm@kvack.org>; Wed, 17 Dec 2014 05:47:14 -0500 (EST)
-Received: by mail-wg0-f53.google.com with SMTP id l18so19534010wgh.26
-        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 02:47:14 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v13si5888963wjw.146.2014.12.17.02.47.13
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id D70686B0038
+	for <linux-mm@kvack.org>; Wed, 17 Dec 2014 06:47:54 -0500 (EST)
+Received: by mail-pd0-f181.google.com with SMTP id v10so16011983pde.12
+        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 03:47:54 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id pr2si5303537pbb.88.2014.12.17.03.47.52
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 17 Dec 2014 02:47:13 -0800 (PST)
-Message-ID: <54915F2F.5050408@suse.cz>
-Date: Wed, 17 Dec 2014 11:47:11 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Dec 2014 03:47:53 -0800 (PST)
+Message-ID: <54916D63.7060701@codeaurora.org>
+Date: Wed, 17 Dec 2014 17:17:47 +0530
+From: Chintan Pandya <cpandya@codeaurora.org>
 MIME-Version: 1.0
-Subject: Re: [patch 2/6] mm/page_alloc.c:__alloc_pages_nodemask(): don't alter
- arg gfp_mask
-References: <548f68b5.yNW2nTZ3zFvjiAsf%akpm@linux-foundation.org>	<548F6F94.2020209@jp.fujitsu.com> <20141215154323.08cc8e7d18ef78f19e5ecce2@linux-foundation.org>
-In-Reply-To: <20141215154323.08cc8e7d18ef78f19e5ecce2@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Subject: Re: [PATCH] memcg: Provide knob for force OOM into the memcg
+References: <1418736335-30915-1-git-send-email-cpandya@codeaurora.org> <20141216133935.GK22914@dhcp22.suse.cz> <alpine.DEB.2.10.1412161430040.5142@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1412161430040.5142@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, hannes@cmpxchg.org, mel@csn.ul.ie, ming.lei@canonical.com
+To: David Rientjes <rientjes@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, hannes@cmpxchg.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 12/16/2014 12:43 AM, Andrew Morton wrote:
-> On Tue, 16 Dec 2014 08:32:36 +0900 Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com> wrote:
+On 12/17/2014 04:03 AM, David Rientjes wrote:
+> On Tue, 16 Dec 2014, Michal Hocko wrote:
 >
->> (2014/12/16 8:03), akpm@linux-foundation.org wrote:
->>> From: Andrew Morton <akpm@linux-foundation.org>
->>> Subject: mm/page_alloc.c:__alloc_pages_nodemask(): don't alter arg gfp_mask
+>>> We may want to use memcg to limit the total memory
+>>> footprint of all the processes within the one group.
+>>> This may lead to a situation where any arbitrary
+>>> process cannot get migrated to that one  memcg
+>>> because its limits will be breached. Or, process can
+>>> get migrated but even being most recently used
+>>> process, it can get killed by in-cgroup OOM. To
+>>> avoid such scenarios, provide a convenient knob
+>>> by which we can forcefully trigger OOM and make
+>>> a room for upcoming process.
 >>>
->>> __alloc_pages_nodemask() strips __GFP_IO when retrying the page
->>> allocation.  But it does this by altering the function-wide variable
->>> gfp_mask.  This will cause subsequent allocation attempts to inadvertently
->>> use the modified gfp_mask.
->>>
->>> Cc: Ming Lei <ming.lei@canonical.com>
->>> Cc: Mel Gorman <mel@csn.ul.ie>
->>> Cc: Johannes Weiner <hannes@cmpxchg.org>
->>> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
->>> ---
->>>
->>>    mm/page_alloc.c |    5 +++--
->>>    1 file changed, 3 insertions(+), 2 deletions(-)
->>>
->>> diff -puN mm/page_alloc.c~mm-page_allocc-__alloc_pages_nodemask-dont-alter-arg-gfp_mask mm/page_alloc.c
->>> --- a/mm/page_alloc.c~mm-page_allocc-__alloc_pages_nodemask-dont-alter-arg-gfp_mask
->>> +++ a/mm/page_alloc.c
->>> @@ -2918,8 +2918,9 @@ retry_cpuset:
->>>    		 * can deadlock because I/O on the device might not
->>>    		 * complete.
->>>    		 */
->>> -		gfp_mask = memalloc_noio_flags(gfp_mask);
->>> -		page = __alloc_pages_slowpath(gfp_mask, order,
+>>> To trigger force OOM,
+>>> $ echo 1>  /<memcg_path>/memory.force_oom
 >>
->>> +		gfp_t mask = memalloc_noio_flags(gfp_mask);
->>> +
->>> +		page = __alloc_pages_slowpath(mask, order,
->>>    				zonelist, high_zoneidx, nodemask,
->>>    				preferred_zone, classzone_idx, migratetype);
->>>    	}
+>> What would prevent another task deplete that memory shortly after you
+>> triggered OOM and end up in the same situation? E.g. while the moving
+>> task is migrating its charges to the new group...
+
+Idea was to trigger an OOM until we can migrate any particular process 
+onto desired cgroup.
+
 >>
->> After allocating page, trace_mm_page_alloc(page, order, gfp_mask, migratetype)
->> is called. But mask is not passed to it. So trace_mm_page_alloc traces wrong
->> gfp_mask.
->
-> Well it was already wrong because the first allocation attempt uses
-> gfp_mask|__GFP_HARDWAL, but we only trace gfp_mask.
+>> Why cannot you simply disable OOM killer in that memcg and handle it
+>> from userspace properly?
 
-If we wanted to be 100% correct with the tracepoint, then there's also 
-__alloc_pages_may_oom(), which also appends __GFP_HARDWALL on the fly
+Well, this can be done it seems. Let me explore around this. Thanks for 
+this suggestion.
 
-         page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask,
+> It seems to be proposed as a shortcut so that the kernel will determine
+> the best process to kill.  That information is available to userspace so
+> it should be able to just SIGKILL the desired process (either in the
+> destination memcg or in the source memcg to allow deletion), so this
+> functionality isn't needed in the kernel.
 
-But fixing that would be ugly :/ I guess it's not worth the trouble.
+Yes, this can be seen as a shortcut because we are off-loading some 
+task-selection to be killed by OOM on kernel rather than userspace 
+decides by itself.
 
-> This?
->
-> --- a/mm/page_alloc.c~mm-page_allocc-__alloc_pages_nodemask-dont-alter-arg-gfp_mask-fix
-> +++ a/mm/page_alloc.c
-> @@ -2877,6 +2877,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, u
->   	unsigned int cpuset_mems_cookie;
->   	int alloc_flags = ALLOC_WMARK_LOW|ALLOC_CPUSET|ALLOC_FAIR;
->   	int classzone_idx;
-> +	gfp_t mask;
->
->   	gfp_mask &= gfp_allowed_mask;
->
-> @@ -2910,23 +2911,24 @@ retry_cpuset:
->   	classzone_idx = zonelist_zone_idx(preferred_zoneref);
->
->   	/* First allocation attempt */
-> -	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
-> -			zonelist, high_zoneidx, alloc_flags,
-> -			preferred_zone, classzone_idx, migratetype);
-> +	mask = gfp_mask|__GFP_HARDWALL;
-> +	page = get_page_from_freelist(mask, nodemask, order, zonelist,
-> +			high_zoneidx, alloc_flags, preferred_zone,
-> +			classzone_idx, migratetype);
->   	if (unlikely(!page)) {
->   		/*
->   		 * Runtime PM, block IO and its error handling path
->   		 * can deadlock because I/O on the device might not
->   		 * complete.
->   		 */
-> -		gfp_t mask = memalloc_noio_flags(gfp_mask);
-> +		mask = memalloc_noio_flags(gfp_mask);
->
->   		page = __alloc_pages_slowpath(mask, order,
->   				zonelist, high_zoneidx, nodemask,
->   				preferred_zone, classzone_idx, migratetype);
->   	}
->
-> -	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
-> +	trace_mm_page_alloc(page, order, mask, migratetype);
->
->   out:
->   	/*
-> _
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+-- 
+Chintan Pandya
+
+QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
+member of the Code Aurora Forum, hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
