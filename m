@@ -1,74 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id D70686B0038
-	for <linux-mm@kvack.org>; Wed, 17 Dec 2014 06:47:54 -0500 (EST)
-Received: by mail-pd0-f181.google.com with SMTP id v10so16011983pde.12
-        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 03:47:54 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id pr2si5303537pbb.88.2014.12.17.03.47.52
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id EE83C6B006E
+	for <linux-mm@kvack.org>; Wed, 17 Dec 2014 06:54:59 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id et14so16253915pad.17
+        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 03:54:59 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id bg5si5401110pbc.38.2014.12.17.03.54.57
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Dec 2014 03:47:53 -0800 (PST)
-Message-ID: <54916D63.7060701@codeaurora.org>
-Date: Wed, 17 Dec 2014 17:17:47 +0530
-From: Chintan Pandya <cpandya@codeaurora.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH] memcg: Provide knob for force OOM into the memcg
-References: <1418736335-30915-1-git-send-email-cpandya@codeaurora.org> <20141216133935.GK22914@dhcp22.suse.cz> <alpine.DEB.2.10.1412161430040.5142@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1412161430040.5142@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 17 Dec 2014 03:54:58 -0800 (PST)
+Subject: Re: [RFC PATCH] oom: Don't count on mm-less current process.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201412122254.AJJ57896.OLFOOJQHSMtFVF@I-love.SAKURA.ne.jp>
+	<20141216124714.GF22914@dhcp22.suse.cz>
+In-Reply-To: <20141216124714.GF22914@dhcp22.suse.cz>
+Message-Id: <201412172054.CFJ78687.HFFLtVMOOJSQFO@I-love.SAKURA.ne.jp>
+Date: Wed, 17 Dec 2014 20:54:53 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, hannes@cmpxchg.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: mhocko@suse.cz
+Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com
 
-On 12/17/2014 04:03 AM, David Rientjes wrote:
-> On Tue, 16 Dec 2014, Michal Hocko wrote:
+Michal Hocko wrote:
+> > Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > ---
+> >  include/linux/oom.h |  3 +++
+> >  mm/memcontrol.c     |  8 +++++++-
+> >  mm/oom_kill.c       | 12 +++++++++---
+> >  3 files changed, 19 insertions(+), 4 deletions(-)
+> >
+> [...]
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index c6ac50e..6d9532d 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -1558,8 +1558,14 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+> >       * If current has a pending SIGKILL or is exiting, then automatically
+> >       * select it.  The goal is to allow it to allocate so that it may
+> >       * quickly exit and free its memory.
+> > +     *
+> > +     * However, if current is calling out_of_memory() by doing memory
+> > +     * allocation from e.g. exit_task_work() in do_exit() after PF_EXITING
+> > +     * was set by exit_signals() and mm was released by exit_mm(), it is
+> > +     * wrong to expect current to exit and free its memory quickly.
+> >       */
+> > -     if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
+> > +     if ((fatal_signal_pending(current) || current->flags & PF_EXITING) &&
+> > +         current->mm && !oom_unkillable_task(current, memcg, NULL)) {
+> >            set_thread_flag(TIF_MEMDIE);
+> >            return;
+> >       }
 >
->>> We may want to use memcg to limit the total memory
->>> footprint of all the processes within the one group.
->>> This may lead to a situation where any arbitrary
->>> process cannot get migrated to that one  memcg
->>> because its limits will be breached. Or, process can
->>> get migrated but even being most recently used
->>> process, it can get killed by in-cgroup OOM. To
->>> avoid such scenarios, provide a convenient knob
->>> by which we can forcefully trigger OOM and make
->>> a room for upcoming process.
->>>
->>> To trigger force OOM,
->>> $ echo 1>  /<memcg_path>/memory.force_oom
->>
->> What would prevent another task deplete that memory shortly after you
->> triggered OOM and end up in the same situation? E.g. while the moving
->> task is migrating its charges to the new group...
+> Why do you check oom_unkillable_task for memcg OOM killer?
+>
 
-Idea was to trigger an OOM until we can migrate any particular process 
-onto desired cgroup.
+I'm not familiar with memcg. But I think the condition whether TIF_MEMDIE
+flag should be set or not should be same between the memcg OOM killer and
+the global OOM killer, for a thread inside some memcg with TIF_MEMDIE flag
+can prevent the global OOM killer from killing other threads when the memcg
+OOM killer and the global OOM killer run concurrently (the worst corner case).
+When a malicious user runs a memory consumer program which triggers memcg OOM
+killer deadlock inside some memcg, it will result in the global OOM killer
+deadlock when the global OOM killer is triggered by other user's tasks.
 
->>
->> Why cannot you simply disable OOM killer in that memcg and handle it
->> from userspace properly?
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > index 481d550..01719d6 100644
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> [...]
+> > @@ -649,8 +649,14 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+> >       * If current has a pending SIGKILL or is exiting, then automatically
+> >       * select it.  The goal is to allow it to allocate so that it may
+> >       * quickly exit and free its memory.
+> > +     *
+> > +     * However, if current is calling out_of_memory() by doing memory
+> > +     * allocation from e.g. exit_task_work() in do_exit() after PF_EXITING
+> > +     * was set by exit_signals() and mm was released by exit_mm(), it is
+> > +     * wrong to expect current to exit and free its memory quickly.
+> >       */
+> > -     if (fatal_signal_pending(current) || task_will_free_mem(current)) {
+> > +     if ((fatal_signal_pending(current) || task_will_free_mem(current)) &&
+> > +         current->mm && !oom_unkillable_task(current, NULL, nodemask)) {
+> >            set_thread_flag(TIF_MEMDIE);
+> >            return;
+> >       }
+>
+> Calling oom_unkillable_task doesn't make much sense to me. Even if it made
+> sense it should be in a separate patch, no?
 
-Well, this can be done it seems. Let me explore around this. Thanks for 
-this suggestion.
+At least for the global OOM case, current may be a kernel thread, doesn't it?
+Such kernel thread can do memory allocation from exit_task_work(), and trigger
+the global OOM killer, and disable the global OOM killer and prevent other
+threads from allocating memory, can't it?
 
-> It seems to be proposed as a shortcut so that the kernel will determine
-> the best process to kill.  That information is available to userspace so
-> it should be able to just SIGKILL the desired process (either in the
-> destination memcg or in the source memcg to allow deletion), so this
-> functionality isn't needed in the kernel.
+We can utilize memcg for reducing the possibility of triggering the global
+OOM killer. But if we failed to prevent the global OOM killer from triggering,
+the global OOM killer is responsible for solving the OOM condition than keeping
+the system stalled for presumably forever. Panic on TIF_MEMDIE timeout can act
+like /proc/sys/vm/panic_on_oom only when the OOM killer chose (by chance or
+by a trap) an unkillable (due to e.g. lock dependency loop) task. Of course,
+for those who prefer the system kept stalled over the OOM condition solved,
+such action should be optional and thus I'm happy to propose sysctl-tunable
+version.
 
-Yes, this can be seen as a shortcut because we are off-loading some 
-task-selection to be killed by OOM on kernel rather than userspace 
-decides by itself.
+I think that
 
--- 
-Chintan Pandya
+    if (!task->mm && test_tsk_thread_flag(task, TIF_MEMDIE))
+        return true;
 
-QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
-member of the Code Aurora Forum, hosted by The Linux Foundation
+check should be added to oom_unkillable_task() because mm-less thread can
+release little memory (except invisible memory if any). And if we add
+TIF_MEMDIE timeout check to oom_unkillable_task(), we can wait for mm-less
+TIF_MEMDIE thread for a short period before trying to kill other threads
+(as with with-mm TIF_MEMDIE threads which I demonstrated you off-list on
+Sat, 13 Dec 2014 23:28:33 +0900).
+
+The post exit_mm() issues will remain as long as OOM deadlock by pre
+exit_mm() issues remains. And as I demonstrated you off-list, OOM deadlock
+by pre exit_mm() issues is too difficult to solve because you will need to
+track every lock dependency like lockdep does. Thus, I think that this
+"oom: Don't count on mm-less current process." patch itself is a junk and
+I added "the whole paragraph" for guiding you to "how to handle TIF_MEMDIE
+deadlock caused by pre exit_mm() issues".
+
+Generally memcg should work, but memcg depends on coordination with userspace
+where the targets I'm troubleshooting (i.e. currently deployed enterprise
+servers) do not have. The cause of deadlock/slowdown may be not a malicious
+user's attacks but bugs in enterprise applications or kernel modules. To debug
+troubles in currently deployed enterprise servers, I want a solution to "handle
+TIF_MEMDIE deadlock caused by pre exit_mm() issues without depending on memcg".
+But to backport the solution to currently deployed enterprise servers, it needs
+to be first accepted by upstream. You say "Upstream kernels do not need
+TIF_MEMDIE timeout. Use memcg and you will not see the global OOM condition."
+but I can't force the targets to use memcg. Well, it's a chicken-and-egg
+situation...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
