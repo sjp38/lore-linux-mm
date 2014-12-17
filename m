@@ -1,161 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 625F66B0032
-	for <linux-mm@kvack.org>; Wed, 17 Dec 2014 17:10:32 -0500 (EST)
-Received: by mail-pd0-f178.google.com with SMTP id r10so16895402pdi.23
-        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 14:10:32 -0800 (PST)
-Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com. [2607:f8b0:400e:c02::232])
-        by mx.google.com with ESMTPS id pm2si7589365pdb.18.2014.12.17.14.10.30
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EF396B0032
+	for <linux-mm@kvack.org>; Wed, 17 Dec 2014 17:28:41 -0500 (EST)
+Received: by mail-ig0-f178.google.com with SMTP id hl2so226152igb.11
+        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 14:28:40 -0800 (PST)
+Received: from mail-ig0-x22f.google.com (mail-ig0-x22f.google.com. [2607:f8b0:4001:c05::22f])
+        by mx.google.com with ESMTPS id yz3si4515560icb.10.2014.12.17.14.28.39
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 17 Dec 2014 14:10:30 -0800 (PST)
-Received: by mail-pd0-f178.google.com with SMTP id r10so17105316pdi.9
-        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 14:10:30 -0800 (PST)
-From: Gregory Fong <gregory.0xf0@gmail.com>
-Subject: [RFC PATCH] mm: cma: add functions for getting allocation info
-Date: Wed, 17 Dec 2014 14:10:30 -0800
-Message-Id: <1418854236-25140-1-git-send-email-gregory.0xf0@gmail.com>
+        Wed, 17 Dec 2014 14:28:39 -0800 (PST)
+Received: by mail-ig0-f175.google.com with SMTP id h15so9585611igd.14
+        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 14:28:39 -0800 (PST)
+Date: Wed, 17 Dec 2014 14:28:37 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: Stalled MM patches for review
+In-Reply-To: <20141217021302.GA14148@phnom.home.cmpxchg.org>
+Message-ID: <alpine.DEB.2.10.1412171422330.16260@chino.kir.corp.google.com>
+References: <20141215150207.67c9a25583c04202d9f4508e@linux-foundation.org> <548F7541.8040407@jp.fujitsu.com> <20141216030658.GA18569@phnom.home.cmpxchg.org> <alpine.DEB.2.10.1412161650540.19867@chino.kir.corp.google.com>
+ <20141217021302.GA14148@phnom.home.cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Gregory Fong <gregory.0xf0@gmail.com>, Laura Abbott <lauraa@codeaurora.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Weijie Yang <weijie.yang@samsung.com>, Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>, open list <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-These functions allow for retrieval of information on what is allocated from
-within a given CMA region.  It can be useful to know the number of distinct
-contiguous allocations and where in the region those allocations are located.
+On Tue, 16 Dec 2014, Johannes Weiner wrote:
 
-Based on an initial version by Marc Carino <marc.ceeeee@gmail.com> in a driver
-that used the CMA bitmap directly; this instead moves the logic into the core
-CMA API.
+> > This is broken because it does not recall gfp_to_alloc_flags().  If 
+> > current is the oom kill victim, then ALLOC_NO_WATERMARKS never gets set 
+> > properly and the slowpath will end up looping forever.  The "restart" 
+> > label which was removed in this patch needs to be reintroduced, and it can 
+> > probably be moved to directly before gfp_to_alloc_flags().
+> 
+> Thanks for catching this.  gfp_to_alloc_flags()'s name doesn't exactly
+> imply such side effects...  Here is a fixlet on top:
+> 
 
-Signed-off-by: Gregory Fong <gregory.0xf0@gmail.com>
----
-This has been really useful for us to determine allocation information for a
-CMA region.  We have had a separate driver that might not be appropriate for
-upstream, but allowed using a user program to run CMA unit tests to verify that
-allocations end up where they we would expect.  This addition would allow for
-that without needing to expose the CMA bitmap.  Wanted to put this out there to
-see if anyone else would be interested, comments and suggestions welcome.
+It would have livelocked the machine on an oom kill.
 
- include/linux/cma.h |  3 ++
- mm/cma.c            | 91 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 94 insertions(+)
+> ---
+> From 45362d1920340716ef58bf1024d9674b5dfa809e Mon Sep 17 00:00:00 2001
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Date: Tue, 16 Dec 2014 21:04:24 -0500
+> Subject: [patch] mm: page_alloc: embed OOM killing naturally into allocation
+>  slowpath fix
+> 
+> When retrying the allocation after potentially invoking OOM, make sure
+> the alloc flags are recalculated, as they have to consider TIF_MEMDIE.
+> 
+> Restore the original restart label, but rename it to 'retry' to match
+> the should_alloc_retry() it depends on.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  mm/page_alloc.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 83ec725aec36..e8f5997c557c 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2673,6 +2673,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  	    (gfp_mask & GFP_THISNODE) == GFP_THISNODE)
+>  		goto nopage;
+>  
+> +retry:
+>  	if (!(gfp_mask & __GFP_NO_KSWAPD))
+>  		wake_all_kswapds(order, zonelist, high_zoneidx,
+>  				preferred_zone, nodemask);
+> @@ -2695,7 +2696,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  		classzone_idx = zonelist_zone_idx(preferred_zoneref);
+>  	}
+>  
+> -rebalance:
+>  	/* This is the last chance, in general, before the goto nopage. */
+>  	page = get_page_from_freelist(gfp_mask, nodemask, order, zonelist,
+>  			high_zoneidx, alloc_flags & ~ALLOC_NO_WATERMARKS,
+> @@ -2823,7 +2823,7 @@ rebalance:
+>  		}
+>  		/* Wait for some write requests to complete then retry */
+>  		wait_iff_congested(preferred_zone, BLK_RW_ASYNC, HZ/50);
+> -		goto rebalance;
+> +		goto retry;
+>  	} else {
+>  		/*
+>  		 * High-order allocations do not necessarily loop after
 
-diff --git a/include/linux/cma.h b/include/linux/cma.h
-index a93438b..bc676e5 100644
---- a/include/linux/cma.h
-+++ b/include/linux/cma.h
-@@ -25,6 +25,9 @@ extern int __init cma_declare_contiguous(phys_addr_t base,
- extern int cma_init_reserved_mem(phys_addr_t base,
- 					phys_addr_t size, int order_per_bit,
- 					struct cma **res_cma);
-+extern int cma_get_alloc_info(struct cma *cma, int index, phys_addr_t *base,
-+		phys_addr_t *size);
- extern struct page *cma_alloc(struct cma *cma, int count, unsigned int align);
-+extern int cma_get_alloc_count(struct cma *cma);
- extern bool cma_release(struct cma *cma, struct page *pages, int count);
- #endif
-diff --git a/mm/cma.c b/mm/cma.c
-index f891762..fc9a04a 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -447,3 +447,94 @@ bool cma_release(struct cma *cma, struct page *pages, int count)
+Why remove 'rebalance'?  In the situation where direct reclaim does free 
+memory and we're waiting on writeback (no call to the oom killer is made), 
+it doesn't seem necessary to recalculate classzone_idx.
+
+Additionally, we never called wait_iff_congested() before when the oom 
+killer freed memory.  This is a no-op if the preferred_zone isn't waiting 
+on writeback, but seems pointless if we just freed memory by calling the 
+oom killer.
+
+In other words, I'm not sure why you're fixlet isn't this:
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2673,6 +2673,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	    (gfp_mask & GFP_THISNODE) == GFP_THISNODE)
+ 		goto nopage;
  
- 	return true;
- }
-+
-+enum cma_scan_type {
-+	GET_NUM_ALLOCS,
-+	GET_ALLOC_INFO,
-+};
-+
-+struct cma_scan_bitmap_res {
-+	int index;             /* index of allocation (input) */
-+	unsigned long offset;  /* offset into bitmap */
-+	unsigned long size;    /* size in bits */
-+	int num_allocs;        /* number of allocations */
-+};
-+
-+static int cma_scan_bitmap(struct cma *cma, enum cma_scan_type op,
-+		struct cma_scan_bitmap_res *res)
-+{
-+	unsigned long i = 0, pos_head = 0, pos_tail;
-+	int count = 0, head_found = 0;
-+
-+	if (!cma)
-+		return -EFAULT;
-+
-+	/* Count the number of contiguous chunks */
-+	do {
-+		if (head_found) {
-+			pos_tail = find_next_zero_bit(cma->bitmap, cma->count,
-+						      i);
-+
-+			if (op == GET_ALLOC_INFO && count == res->index) {
-+				res->offset = pos_head;
-+				res->size = pos_tail - pos_head;
-+				return 0;
-+			}
-+			count++;
-+
-+			head_found = 0;
-+			i = pos_tail + 1;
-+
-+		} else {
-+			pos_head = find_next_bit(cma->bitmap, cma->count, i);
-+			i = pos_head + 1;
-+			head_found = 1;
-+		}
-+	} while (i < cma->count);
-+
-+	if (op == GET_NUM_ALLOCS) {
-+		res->num_allocs = count;
-+		return 0;
-+	} else {
-+		return -EINVAL;
-+	}
-+}
-+
-+/**
-+ * cma_get_alloc_info() - Get info on the requested allocation
-+ * @cma:   Contiguous memory region for which the allocation is performed.
-+ * @index: Index of the allocation to get info for
-+ * @base:  Base address of the allocation
-+ * @size:  Size of the allocation in bytes
-+ *
-+ * Return: 0 on success, negative on failure
-+ */
-+int cma_get_alloc_info(struct cma *cma, int index, phys_addr_t *base,
-+		phys_addr_t *size)
-+{
-+	struct cma_scan_bitmap_res res;
-+	int ret;
-+
-+	res.index = index;
-+	ret = cma_scan_bitmap(cma, GET_ALLOC_INFO, &res);
-+	if (ret)
-+		return ret;
-+
-+	*base = cma_get_base(cma) + PFN_PHYS(res.offset << cma->order_per_bit);
-+	*size = PFN_PHYS(res.size << cma->order_per_bit);
-+	return 0;
-+}
-+
-+/**
-+ * cma_get_alloc_count() - Get number of allocations
-+ * @cma:   Contiguous memory region for which the allocation is performed.
-+ *
-+ * Return: number of allocations on success, negative on failure
-+ */
-+int cma_get_alloc_count(struct cma *cma)
-+{
-+	struct cma_scan_bitmap_res res;
-+	int ret = cma_scan_bitmap(cma, GET_NUM_ALLOCS, &res);
-+
-+	return (ret < 0) ? ret : res.num_allocs;
-+}
--- 
-1.9.1
++retry:
+ 	if (!(gfp_mask & __GFP_NO_KSWAPD))
+ 		wake_all_kswapds(order, zonelist, high_zoneidx,
+ 				preferred_zone, nodemask);
+@@ -2822,6 +2823,7 @@ rebalance:
+ 				BUG_ON(gfp_mask & __GFP_NOFAIL);
+ 				goto nopage;
+ 			}
++			goto retry;
+ 		}
+ 		/* Wait for some write requests to complete then retry */
+ 		wait_iff_congested(preferred_zone, BLK_RW_ASYNC, HZ/50);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
