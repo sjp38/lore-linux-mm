@@ -1,50 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id BCFEC6B006E
-	for <linux-mm@kvack.org>; Wed, 17 Dec 2014 12:24:47 -0500 (EST)
-Received: by mail-qg0-f47.google.com with SMTP id q108so10148282qgd.34
-        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 09:24:47 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z3si5230924qaj.112.2014.12.17.09.24.45
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Dec 2014 09:24:46 -0800 (PST)
-Message-ID: <5491B031.3070107@redhat.com>
-Date: Wed, 17 Dec 2014 11:32:49 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 2704A6B0038
+	for <linux-mm@kvack.org>; Wed, 17 Dec 2014 13:52:10 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id et14so16964012pad.1
+        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 10:52:09 -0800 (PST)
+Received: from blackbird.sr71.net ([2001:19d0:2:6:209:6bff:fe9a:902])
+        by mx.google.com with ESMTP id ou2si6670813pbb.214.2014.12.17.10.52.04
+        for <linux-mm@kvack.org>;
+        Wed, 17 Dec 2014 10:52:05 -0800 (PST)
+Message-ID: <5491D0D2.5070103@sr71.net>
+Date: Wed, 17 Dec 2014 10:52:02 -0800
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4] mm: prevent endless growth of anon_vma hierarchy
-References: <20141217085737.16381.75639.stgit@zurg>
-In-Reply-To: <20141217085737.16381.75639.stgit@zurg>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: post-3.18 performance regression in TLB flushing code
+References: <5490A5F8.6050504@sr71.net> <20141217100810.GA3461@arm.com> <CA+55aFyVxOw0upa=At6MmiNYEHzfPz4rE5bZUBCs9h4vKGh1iA@mail.gmail.com> <20141217165310.GJ870@arm.com>
+In-Reply-To: <20141217165310.GJ870@arm.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Tim Hartrick <tim@edgecast.com>, Daniel Forrest <dan.forrest@ssec.wisc.edu>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Michel Lespinasse <walken@google.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Will Deacon <will.deacon@arm.com>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <peterz@infradead.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Michal Simek <monstr@monstr.eu>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On 12/17/2014 02:57 AM, Konstantin Khlebnikov wrote:
+On 12/17/2014 08:53 AM, Will Deacon wrote:
+> On Wed, Dec 17, 2014 at 04:28:23PM +0000, Linus Torvalds wrote:
+>> On Wed, Dec 17, 2014 at 2:08 AM, Will Deacon <will.deacon@arm.com> wrote:
+>> So why not just this trivial patch, to make the logic be the same it
+>> used to be (just using "end > 0" instead of the old "need_flush")?
+> 
+> Looks fine to me... Dave?
 
-> @@ -236,6 +240,13 @@ static inline void unlock_anon_vma_root(struct anon_vma *root)
->  /*
->   * Attach the anon_vmas from src to dst.
->   * Returns 0 on success, -ENOMEM on failure.
-> + *
-> + * If dst->anon_vma is NULL this function tries to find and reuse existing
-> + * anon_vma which has no vmas and only one child anon_vma. This prevents
-> + * degradation of anon_vma hierarchy to endless linear chain in case of
-> + * constantly forking task. In other hand anon_vma with more than one child
-> + * isn't reused even if was no alive vma, thus rmap walker has a good chance
-> + * to avoid scanning whole hieraryhy when it searches where page is mapped.
-                              ^^^^^^^^^
-                              hierarchy
+First of all, this is quite observable when testing single-threaded on a
+desktop.  This is a mildly crusty Sandybridge CPU from 2011.  I made 3
+runs with a single thread: ./brk1_processes -s 30 -t 1
 
-Other than that:
+	   fb7332a9fed : 4323385
+	   fb7332a9fed^: 4503736
+fb7332a9fed+Linus's fix: 4516761
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+These things are also a little bit noisy, so we're well within the
+margin of error with Linus's fix.
 
-
-Thanks for fixing this long standing issue, Konstantin.
+This also holds up on the large system.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
