@@ -1,58 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f172.google.com (mail-ie0-f172.google.com [209.85.223.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 96DA76B006E
-	for <linux-mm@kvack.org>; Thu, 18 Dec 2014 12:01:31 -0500 (EST)
-Received: by mail-ie0-f172.google.com with SMTP id tr6so1495587ieb.17
-        for <linux-mm@kvack.org>; Thu, 18 Dec 2014 09:01:31 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id z15si6112878icf.64.2014.12.18.09.00.41
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Dec 2014 09:00:46 -0800 (PST)
-Message-ID: <54930835.8020009@codeaurora.org>
-Date: Thu, 18 Dec 2014 09:00:37 -0800
-From: Laura Abbott <lauraa@codeaurora.org>
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 609EB6B0032
+	for <linux-mm@kvack.org>; Thu, 18 Dec 2014 12:16:51 -0500 (EST)
+Received: by mail-ig0-f173.google.com with SMTP id r2so1249386igi.6
+        for <linux-mm@kvack.org>; Thu, 18 Dec 2014 09:16:51 -0800 (PST)
+Received: from relay.sgi.com (relay2.sgi.com. [192.48.180.65])
+        by mx.google.com with ESMTP id ji6si13955158igb.27.2014.12.18.09.16.49
+        for <linux-mm@kvack.org>;
+        Thu, 18 Dec 2014 09:16:50 -0800 (PST)
+From: James Custer <jcuster@sgi.com>
+Subject: RE: [patch 4/6] mm: fix invalid use of pfn_valid_within in
+ test_pages_in_a_zone
+Date: Thu, 18 Dec 2014 17:16:47 +0000
+Message-ID: <E0FB9EDDBE1AAD4EA62C90D3B6E4783B739E6CA4@P-EXMB2-DC21.corp.sgi.com>
+References: <548f68bb.wuNDZDL8qk6xEWTm%akpm@linux-foundation.org>,<alpine.DEB.2.10.1412171537560.16260@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1412171537560.16260@chino.kir.corp.google.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH] mm: cma: add functions for getting allocation info
-References: <1418854236-25140-1-git-send-email-gregory.0xf0@gmail.com>
-In-Reply-To: <1418854236-25140-1-git-send-email-gregory.0xf0@gmail.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gregory Fong <gregory.0xf0@gmail.com>, linux-mm@kvack.org
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Weijie Yang <weijie.yang@samsung.com>, Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>, open list <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, Russ
+ Anderson <rja@sgi.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>
 
-On 12/17/2014 2:10 PM, Gregory Fong wrote:
-> These functions allow for retrieval of information on what is allocated from
-> within a given CMA region.  It can be useful to know the number of distinct
-> contiguous allocations and where in the region those allocations are located.
->
-> Based on an initial version by Marc Carino <marc.ceeeee@gmail.com> in a driver
-> that used the CMA bitmap directly; this instead moves the logic into the core
-> CMA API.
->
-> Signed-off-by: Gregory Fong <gregory.0xf0@gmail.com>
-> ---
-> This has been really useful for us to determine allocation information for a
-> CMA region.  We have had a separate driver that might not be appropriate for
-> upstream, but allowed using a user program to run CMA unit tests to verify that
-> allocations end up where they we would expect.  This addition would allow for
-> that without needing to expose the CMA bitmap.  Wanted to put this out there to
-> see if anyone else would be interested, comments and suggestions welcome.
->
-
-Information is definitely useful but I'm not sure how it's intended to
-be used. Do you have a sample usage of these APIs? Another option might
-be to just add regular debugfs support for each of the regions instead
-of just calling out to a separate driver.
-
-Thanks,
-Laura
-
--- 
-Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-hosted by The Linux Foundation
+Reading the documentation on pageblock_pfn_to_page it checks to see if all =
+of [start_pfn, end_pfn) is valid and within the same zone. But the validity=
+ in the entirety of [start_pfn, end_pfn) doesn't seem to be a requirement o=
+f test_pages_in_a_zone, unless I'm missing something.=0A=
+=0A=
+Disclaimer: I'm very much not familiar with this area of code, and I fixed =
+this bug based off of documentation that I read. =0A=
+=0A=
+Regards,=0A=
+James=0A=
+________________________________________=0A=
+From: David Rientjes [rientjes@google.com]=0A=
+Sent: Wednesday, December 17, 2014 5:40 PM=0A=
+To: akpm@linux-foundation.org=0A=
+Cc: linux-mm@kvack.org; James Custer; isimatu.yasuaki@jp.fujitsu.com; kamez=
+awa.hiroyu@jp.fujitsu.com; Russ Anderson; stable@vger.kernel.org=0A=
+Subject: Re: [patch 4/6] mm: fix invalid use of pfn_valid_within in test_pa=
+ges_in_a_zone=0A=
+=0A=
+On Mon, 15 Dec 2014, akpm@linux-foundation.org wrote:=0A=
+=0A=
+> diff -puN mm/memory_hotplug.c~mm-fix-invalid-use-of-pfn_valid_within-in-t=
+est_pages_in_a_zone mm/memory_hotplug.c=0A=
+> --- a/mm/memory_hotplug.c~mm-fix-invalid-use-of-pfn_valid_within-in-test_=
+pages_in_a_zone=0A=
+> +++ a/mm/memory_hotplug.c=0A=
+> @@ -1331,7 +1331,7 @@ int is_mem_section_removable(unsigned lo=0A=
+>  }=0A=
+>=0A=
+>  /*=0A=
+> - * Confirm all pages in a range [start, end) is belongs to the same zone=
+.=0A=
+> + * Confirm all pages in a range [start, end) belong to the same zone.=0A=
+>   */=0A=
+>  int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)=
+=0A=
+>  {=0A=
+> @@ -1342,10 +1342,11 @@ int test_pages_in_a_zone(unsigned long s=0A=
+>       for (pfn =3D start_pfn;=0A=
+>            pfn < end_pfn;=0A=
+>            pfn +=3D MAX_ORDER_NR_PAGES) {=0A=
+> -             i =3D 0;=0A=
+> -             /* This is just a CONFIG_HOLES_IN_ZONE check.*/=0A=
+> -             while ((i < MAX_ORDER_NR_PAGES) && !pfn_valid_within(pfn + =
+i))=0A=
+> -                     i++;=0A=
+> +             /* Find the first valid pfn in this pageblock */=0A=
+> +             for (i =3D 0; i < MAX_ORDER_NR_PAGES; i++) {=0A=
+> +                     if (pfn_valid(pfn + i))=0A=
+> +                             break;=0A=
+> +             }=0A=
+>               if (i =3D=3D MAX_ORDER_NR_PAGES)=0A=
+>                       continue;=0A=
+>               page =3D pfn_to_page(pfn + i);=0A=
+=0A=
+I think it would be much better to implement test_pages_in_a_zone() as a=0A=
+wrapper around the logic in memory compaction's pageblock_pfn_to_page()=0A=
+that does this exact same check for a pageblock.  It would only need to=0A=
+iterate the valid pageblocks in the [start_pfn, end_pfn) range and find=0A=
+the zone of the first pfn of the first valid pageblock.  This not only=0A=
+removes code, but it also unifies the implementation since your=0A=
+implementation above would be slower.=0A=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
