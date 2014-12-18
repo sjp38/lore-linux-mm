@@ -1,101 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 584C06B006C
-	for <linux-mm@kvack.org>; Thu, 18 Dec 2014 15:50:28 -0500 (EST)
-Received: by mail-qc0-f174.google.com with SMTP id c9so1505520qcz.33
-        for <linux-mm@kvack.org>; Thu, 18 Dec 2014 12:50:28 -0800 (PST)
-Received: from mail-qa0-x229.google.com (mail-qa0-x229.google.com. [2607:f8b0:400d:c00::229])
-        by mx.google.com with ESMTPS id h45si9637078qgd.59.2014.12.18.12.50.26
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 770C06B0032
+	for <linux-mm@kvack.org>; Thu, 18 Dec 2014 16:10:45 -0500 (EST)
+Received: by mail-wi0-f171.google.com with SMTP id bs8so3109151wib.16
+        for <linux-mm@kvack.org>; Thu, 18 Dec 2014 13:10:45 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id mb2si14027741wjb.3.2014.12.18.13.10.44
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 18 Dec 2014 12:50:27 -0800 (PST)
-Received: by mail-qa0-f41.google.com with SMTP id f12so1399941qad.28
-        for <linux-mm@kvack.org>; Thu, 18 Dec 2014 12:50:26 -0800 (PST)
-Date: Thu, 18 Dec 2014 15:50:18 -0500
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: [LSF/MM TOPIC] Supporting heterogeneous memory architecture (HMM
- patchset).
-Message-ID: <20141218205016.GA3986@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 Dec 2014 13:10:44 -0800 (PST)
+Date: Thu, 18 Dec 2014 13:10:41 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 2/6] mm/page_alloc.c:__alloc_pages_nodemask(): don't
+ alter arg gfp_mask
+Message-Id: <20141218131041.76391e96a6bd8b071db45962@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.10.1412171642370.23841@chino.kir.corp.google.com>
+References: <548f68b5.yNW2nTZ3zFvjiAsf%akpm@linux-foundation.org>
+	<548F6F94.2020209@jp.fujitsu.com>
+	<20141215154323.08cc8e7d18ef78f19e5ecce2@linux-foundation.org>
+	<alpine.DEB.2.10.1412171608300.16260@chino.kir.corp.google.com>
+	<20141217162905.9bc063be55a341d40b293c72@linux-foundation.org>
+	<alpine.DEB.2.10.1412171642370.23841@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.or
+To: David Rientjes <rientjes@google.com>
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, linux-mm@kvack.org, hannes@cmpxchg.org, mel@csn.ul.ie, ming.lei@canonical.com
 
-Background
+On Wed, 17 Dec 2014 16:51:21 -0800 (PST) David Rientjes <rientjes@google.com> wrote:
 
-Recent trend in computing is the re-birth of specialized co-processing unit,
-mainly in the form of GPU. Specialized DSP/FPGA and GPU are so much faster
-than CPU for largely parallel algorithm, and are becoming sufficiently more
-flexible to a larger set of problem, that their use keep increasing (from
-workstation to compute cluster).
+> > > The page allocator slowpath is always called from the fastpath if the 
+> > > first allocation didn't succeed, so we don't know from which we allocated 
+> > > the page at this tracepoint.
+> > 
+> > True, but the idea is that when we call trace_mm_page_alloc(), local
+> > var `mask' holds the gfp_t which was used in the most recent allocation
+> > attempt.
+> > 
+> 
+> So if the fastpath succeeds, which should be the majority of the time, 
+> then we get a tracepoint here that says we allocated with 
+> __GFP_FS | __GFP_IO even though we may have PF_MEMALLOC_NOIO set.  So if 
+> page != NULL, we can know that either the fastpath succeeded or we don't 
+> have PF_MEMALLOC_NOIO and were allowed to reclaim.  Not sure that's very 
+> helpful.
+> 
+> Easiest thing to do would be to just clear __GFP_FS and __GFP_IO when we 
+> clear everything not in gfp_allowed_mask, but that's pointless if the 
+> fastpath succeeds.  I'm not sure it's worth to restructure the code with a 
+> possible performance overhead for the benefit of a tracepoint.
+> 
+> And then there's the call to lockdep_trace_alloc() which does care about 
+> __GFP_FS.  That looks broken because we need to clear __GFP_FS with 
+> PF_MEMALLOC_NOIO.
 
-If GPU can crunch so much more number than CPU this is mainly because they
-have a way bigger memory bandwidth at their disposal (300GB/s for today high
-end next generation should reach 400/600GB/s). The memory bandwidth gap btw
-CPU and GPU keeps increasing and will do so for foreseeable future.
+<head spinning>
 
-In order to simplify use of GPU (both programming and debugging) the industry
-is moving toward a common address space between GPU and CPU. There is many
-way to implement this.
+I'm not particuarly concerned about the tracepoint and we can change
+that later.  The main intent here is to restore the allocation mask
+when __alloc_pages_nodemask() does the "goto retry_cpuset".
 
-The first and simpler solution is to use system memory and to pin pages that
-are in use by GPU. Obvious drawbacks are that this does not allow use of GPU
-local memory except for temporary local GPU variables, nor does it fit well
-with memory management as it is locking a lot of pages for unpredictable
-amount of time.
-
-The second solution involve hardware such as IOMMU with ATS/PASID that allow
-the kernel IOMMU driver to trigger page fault on behalf of a device against
-a particular process. Again this solution only allow the use of system memory
-but it does solve the pinning problem.
-
-A third solution is to modify linux kernel memory management to become aware
-of those new kind of memory and to offer ways to leverage GPU local memory
-while preserving current expectation for CPU access (ie CPU can keep accessing
-memory but not necessarily directly the GPU memory).
-
-------------------------------------------------------------------------------
-
-Linux kernel changes
-
-HMM (Heterogeneous Memory Management) is a patchset that aim to hook itself
-with core memory management and provide a common API for device driver to
-allow use of local device memory all this while mirroring a process address
-space.
-
->From CPU point of view, device memory is like a special kind of swap which is
-inaccessible and require a page fault to migrate data back to system memory.
-HMM intends to provide all common code and to expose a simple driver API.
-
-I would like to discuss design and implementation of HMM on several specific
-aspect :
-
-[MM-track]
- - Anonymous memory migration.
- - Re-design CPU page table update to better parallelize with GPU page table
-   update. Necessary ? Do-able ? Overhead acceptable ?
- - Pining to GPU memory (blocking CPU access) new syscall ?
-
-[FS-track]
- - Migration of file backed page to remote memory
- - Should each filesystem made be aware of this ?
- - Modification of page cache not enough why ? and possible way to fix it ?
- - DAX (persistant memory) use case ? Do we want to allow migration or not ?
+(I renamed `mask' to `alloc_mask' and documented it a bit)
 
 
-Current patchset take the least disruptive path and does not impact any of
-existing workload. But for a better integration and performance some of the
-above idea might be necessary and i would like to discuss them. I intend
-to briefly present each of them through high level patch to guide discussion.
 
-Of course i am also open to discuss other possible use case for HMM.
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: mm/page_alloc.c:__alloc_pages_nodemask(): don't alter arg gfp_mask
 
-Cheers,
-Jerome Glisse
+__alloc_pages_nodemask() strips __GFP_IO when retrying the page
+allocation.  But it does this by altering the function-wide variable
+gfp_mask.  This will cause subsequent allocation attempts to inadvertently
+use the modified gfp_mask.
+
+Also, pass the correct mask (the mask we actually used) into
+trace_mm_page_alloc().
+
+Cc: Ming Lei <ming.lei@canonical.com>
+Cc: Mel Gorman <mel@csn.ul.ie>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: David Rientjes <rientjes@google.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ mm/page_alloc.c |   15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)
+
+diff -puN mm/page_alloc.c~mm-page_allocc-__alloc_pages_nodemask-dont-alter-arg-gfp_mask mm/page_alloc.c
+--- a/mm/page_alloc.c~mm-page_allocc-__alloc_pages_nodemask-dont-alter-arg-gfp_mask
++++ a/mm/page_alloc.c
+@@ -2865,6 +2865,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, u
+ 	unsigned int cpuset_mems_cookie;
+ 	int alloc_flags = ALLOC_WMARK_LOW|ALLOC_CPUSET|ALLOC_FAIR;
+ 	int classzone_idx;
++	gfp_t alloc_mask; /* The gfp_t that was actually used for allocation */
+ 
+ 	gfp_mask &= gfp_allowed_mask;
+ 
+@@ -2898,22 +2899,24 @@ retry_cpuset:
+ 	classzone_idx = zonelist_zone_idx(preferred_zoneref);
+ 
+ 	/* First allocation attempt */
+-	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
+-			zonelist, high_zoneidx, alloc_flags,
+-			preferred_zone, classzone_idx, migratetype);
++	alloc_mask = gfp_mask|__GFP_HARDWALL;
++	page = get_page_from_freelist(alloc_mask, nodemask, order, zonelist,
++			high_zoneidx, alloc_flags, preferred_zone,
++			classzone_idx, migratetype);
+ 	if (unlikely(!page)) {
+ 		/*
+ 		 * Runtime PM, block IO and its error handling path
+ 		 * can deadlock because I/O on the device might not
+ 		 * complete.
+ 		 */
+-		gfp_mask = memalloc_noio_flags(gfp_mask);
+-		page = __alloc_pages_slowpath(gfp_mask, order,
++		alloc_mask = memalloc_noio_flags(gfp_mask);
++
++		page = __alloc_pages_slowpath(alloc_mask, order,
+ 				zonelist, high_zoneidx, nodemask,
+ 				preferred_zone, classzone_idx, migratetype);
+ 	}
+ 
+-	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
++	trace_mm_page_alloc(page, order, alloc_mask, migratetype);
+ 
+ out:
+ 	/*
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
