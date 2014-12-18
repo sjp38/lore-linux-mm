@@ -1,90 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E2876B0070
-	for <linux-mm@kvack.org>; Wed, 17 Dec 2014 19:38:29 -0500 (EST)
-Received: by mail-wg0-f52.google.com with SMTP id x12so227548wgg.11
-        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 16:38:28 -0800 (PST)
-Received: from mail-wg0-x234.google.com (mail-wg0-x234.google.com. [2a00:1450:400c:c00::234])
-        by mx.google.com with ESMTPS id jk4si29835881wid.54.2014.12.17.16.38.28
+Received: from mail-ie0-f180.google.com (mail-ie0-f180.google.com [209.85.223.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D83F6B0072
+	for <linux-mm@kvack.org>; Wed, 17 Dec 2014 19:40:02 -0500 (EST)
+Received: by mail-ie0-f180.google.com with SMTP id rp18so167883iec.39
+        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 16:40:02 -0800 (PST)
+Received: from mail-ig0-x22b.google.com (mail-ig0-x22b.google.com. [2607:f8b0:4001:c05::22b])
+        by mx.google.com with ESMTPS id a7si12452185iga.52.2014.12.17.16.40.00
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 17 Dec 2014 16:38:28 -0800 (PST)
-Received: by mail-wg0-f52.google.com with SMTP id x12so227542wgg.11
-        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 16:38:28 -0800 (PST)
+        Wed, 17 Dec 2014 16:40:01 -0800 (PST)
+Received: by mail-ig0-f171.google.com with SMTP id z20so35353igj.16
+        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 16:40:00 -0800 (PST)
+Date: Wed, 17 Dec 2014 16:39:58 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 2/2] mm: hugetlb: fix type of hugetlb_treat_as_movable
+ variable
+In-Reply-To: <1418826650-10145-2-git-send-email-a.ryabinin@samsung.com>
+Message-ID: <alpine.DEB.2.10.1412171639430.23841@chino.kir.corp.google.com>
+References: <548CA6B6.3060901@colorfullife.com> <1418826650-10145-1-git-send-email-a.ryabinin@samsung.com> <1418826650-10145-2-git-send-email-a.ryabinin@samsung.com>
 MIME-Version: 1.0
-In-Reply-To: <20141217150654.e857603cebd4f97c794a2dff@linux-foundation.org>
-References: <1418560486-21685-1-git-send-email-nefelim4ag@gmail.com> <20141217150654.e857603cebd4f97c794a2dff@linux-foundation.org>
-From: Timofey Titovets <nefelim4ag@gmail.com>
-Date: Thu, 18 Dec 2014 03:37:48 +0300
-Message-ID: <CAGqmi76snK8SMZx_j64WkHcBcixJM3_=jDOZTfihmPpT4zigog@mail.gmail.com>
-Subject: Re: [PATCH] mempool.c: Replace io_schedule_timeout with io_schedule
-Content-Type: multipart/alternative; boundary=047d7bea379290b93c050a72cf76
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+To: Andrey Ryabinin <a.ryabinin@samsung.com>
+Cc: akpm@linux-foundation.org, Dmitry Vyukov <dvyukov@google.com>, Manfred Spraul <manfred@colorfullife.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Luiz Capitulino <lcapitulino@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "nadia.derbey@bull.net" <Nadia.Derbey@bull.net>, aquini@redhat.com, Joe Perches <joe@perches.com>, avagin@openvz.org, LKML <linux-kernel@vger.kernel.org>, Kostya Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <andreyknvl@google.com>, Konstantin Khlebnikov <koct9i@gmail.com>, kasan-dev <kasan-dev@googlegroups.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm@kvack.org
 
---047d7bea379290b93c050a72cf76
-Content-Type: text/plain; charset=UTF-8
+On Wed, 17 Dec 2014, Andrey Ryabinin wrote:
 
-2014-12-18 2:06 GMT+03:00 Andrew Morton <akpm@linux-foundation.org>:
->
-> On Sun, 14 Dec 2014 15:34:46 +0300 Timofey Titovets <nefelim4ag@gmail.com>
-> wrote:
->
-> > io_schedule_timeout(5*HZ);
-> > Introduced for avoidance dm bug:
-> > http://linux.derkeiler.com/Mailing-Lists/Kernel/2006-08/msg04869.html
-> > According to description must be replaced with io_schedule()
-> >
-> > I replace it and recompile kernel, tested it by following script:
->
-> How do we know DM doesn't still depend on the io_schedule_timeout()?
->
-> It would require input from the DM developers and quite a lot of
-> stress-testing of many kernel subsystems before we could make this
-> change.
->
+> hugetlb_treat_as_movable declared as unsigned long, but
+> proc_dointvec() used for parsing it:
+> 
+> static struct ctl_table vm_table[] = {
+> ...
+> 	{
+> 		.procname	= "hugepages_treat_as_movable",
+> 		.data		= &hugepages_treat_as_movable,
+> 		.maxlen		= sizeof(int),
+> 		.mode		= 0644,
+> 		.proc_handler	= proc_dointvec,
+> 	},
+> 
+> This seems harmless, but it's better to use int type here.
+> 
+> Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
 
-Okay, sorry for noise, will talking with dm devels, and after, if all be
-good, will resend it.
-
--- 
-Have a nice day,
-Timofey.
-
---047d7bea379290b93c050a72cf76
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr"><div class=3D"gmail_extra"><div class=3D"gmail_quote">2014=
--12-18 2:06 GMT+03:00 Andrew Morton <span dir=3D"ltr">&lt;<a href=3D"mailto=
-:akpm@linux-foundation.org" target=3D"_blank">akpm@linux-foundation.org</a>=
-&gt;</span>:<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;bo=
-rder-left:1px #ccc solid;padding-left:1ex"><span>On Sun, 14 Dec 2014 15:34:=
-46 +0300 Timofey Titovets &lt;<a href=3D"mailto:nefelim4ag@gmail.com" targe=
-t=3D"_blank">nefelim4ag@gmail.com</a>&gt; wrote:<br>
-<br>
-&gt; io_schedule_timeout(5*HZ);<br>
-&gt; Introduced for avoidance dm bug:<br>
-&gt; <a href=3D"http://linux.derkeiler.com/Mailing-Lists/Kernel/2006-08/msg=
-04869.html" target=3D"_blank">http://linux.derkeiler.com/Mailing-Lists/Kern=
-el/2006-08/msg04869.html</a><br>
-&gt; According to description must be replaced with io_schedule()<br>
-&gt;<br>
-&gt; I replace it and recompile kernel, tested it by following script:<br>
-<br>
-</span>How do we know DM doesn&#39;t still depend on the io_schedule_timeou=
-t()?<br>
-<br>
-It would require input from the DM developers and quite a lot of<br>
-stress-testing of many kernel subsystems before we could make this<br>
-change.<br></blockquote></div><div><br></div><div>Okay, sorry for noise, wi=
-ll talking with dm devels, and after, if all be good, will resend it.</div>=
-<div><br></div>-- <br><div>Have a nice day,<br>Timofey.</div>
-</div></div>
-
---047d7bea379290b93c050a72cf76--
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
