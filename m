@@ -1,89 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 439906B0074
-	for <linux-mm@kvack.org>; Thu, 18 Dec 2014 11:33:27 -0500 (EST)
-Received: by mail-ie0-f171.google.com with SMTP id rl12so1427194iec.16
-        for <linux-mm@kvack.org>; Thu, 18 Dec 2014 08:33:27 -0800 (PST)
-Received: from resqmta-po-08v.sys.comcast.net (resqmta-po-08v.sys.comcast.net. [2001:558:fe16:19:96:114:154:167])
-        by mx.google.com with ESMTPS id l76si5421201ioi.15.2014.12.18.08.33.25
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BC156B0032
+	for <linux-mm@kvack.org>; Thu, 18 Dec 2014 11:55:07 -0500 (EST)
+Received: by mail-wi0-f178.google.com with SMTP id em10so2480163wid.17
+        for <linux-mm@kvack.org>; Thu, 18 Dec 2014 08:55:06 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id bz8si12921820wjb.73.2014.12.18.08.55.05
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Thu, 18 Dec 2014 08:33:25 -0800 (PST)
-Date: Thu, 18 Dec 2014 10:33:23 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: [PATCH] Slab infrastructure for array operations
-Message-ID: <alpine.DEB.2.11.1412181031520.2962@gentwo.org>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 18 Dec 2014 08:55:06 -0800 (PST)
+Date: Thu, 18 Dec 2014 17:55:04 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: Stalled MM patches for review
+Message-ID: <20141218165504.GB957@dhcp22.suse.cz>
+References: <20141215150207.67c9a25583c04202d9f4508e@linux-foundation.org>
+ <548F7541.8040407@jp.fujitsu.com>
+ <20141216030658.GA18569@phnom.home.cmpxchg.org>
+ <alpine.DEB.2.10.1412161650540.19867@chino.kir.corp.google.com>
+ <20141217021302.GA14148@phnom.home.cmpxchg.org>
+ <alpine.DEB.2.10.1412171422330.16260@chino.kir.corp.google.com>
+ <20141218022019.GA25071@phnom.home.cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141218022019.GA25071@phnom.home.cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: akpm@linuxfoundation.org, Steven Rostedt <rostedt@goodmis.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: David Rientjes <rientjes@google.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-This patch adds the basic infrastructure for alloc / free operations
-on pointer arrays. It includes a fallback function.
+On Wed 17-12-14 21:20:19, Johannes Weiner wrote:
+> On Wed, Dec 17, 2014 at 02:28:37PM -0800, David Rientjes wrote:
+[...]
+> > Why remove 'rebalance'?  In the situation where direct reclaim does free 
+> > memory and we're waiting on writeback (no call to the oom killer is made), 
+> > it doesn't seem necessary to recalculate classzone_idx.
+> > 
+> > Additionally, we never called wait_iff_congested() before when the oom 
+> > killer freed memory.  This is a no-op if the preferred_zone isn't waiting 
+> > on writeback, but seems pointless if we just freed memory by calling the 
+> > oom killer.
+> 
+> Why keep all these undocumented assumptions in the code?  It's really
+> simple: if we retry freeing memory (LRU reclaim or OOM kills), we wait
+> for congestion, kick kswapd, re-evaluate the current task state,
+> regardless of which reclaim method did what or anything at all.  It's
+> a slowpath, so there is no reason to not keep this simple and robust.
 
-Allocators must define _HAVE_SLAB_ALLOCATOR_OPERATIONS in their
-header files in order to implement their own fast version for
-these array operations.
-
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
-Index: linux/include/linux/slab.h
-===================================================================
---- linux.orig/include/linux/slab.h	2014-12-16 09:27:26.369447763 -0600
-+++ linux/include/linux/slab.h	2014-12-18 10:30:33.394927526 -0600
-@@ -123,6 +123,7 @@ struct kmem_cache *memcg_create_kmem_cac
- void kmem_cache_destroy(struct kmem_cache *);
- int kmem_cache_shrink(struct kmem_cache *);
- void kmem_cache_free(struct kmem_cache *, void *);
-+void kmem_cache_free_array(struct kmem_cache *, int, void **);
-
- /*
-  * Please use this macro to create slab caches. Simply specify the
-@@ -289,6 +290,7 @@ static __always_inline int kmalloc_index
-
- void *__kmalloc(size_t size, gfp_t flags);
- void *kmem_cache_alloc(struct kmem_cache *, gfp_t flags);
-+int kmem_cache_alloc_array(struct kmem_cache *, gfp_t, int, void **);
-
- #ifdef CONFIG_NUMA
- void *__kmalloc_node(size_t size, gfp_t flags, int node);
-Index: linux/mm/slab_common.c
-===================================================================
---- linux.orig/mm/slab_common.c	2014-12-12 10:27:49.360799479 -0600
-+++ linux/mm/slab_common.c	2014-12-18 10:25:41.695889129 -0600
-@@ -105,6 +105,31 @@ static inline int kmem_cache_sanity_chec
- }
- #endif
-
-+#ifndef _HAVE_SLAB_ALLOCATOR_ARRAY_OPERATIONS
-+int kmem_cache_alloc_array(struct kmem_cache *s, gfp_t flags, int nr, void **p)
-+{
-+	int i;
-+
-+	for (i=0; i < nr; i++) {
-+		void *x = p[i] = kmem_cache_alloc(s, flags);
-+		if (!x)
-+			return i;
-+	}
-+	return nr;
-+}
-+EXPORT_SYMBOL(kmem_cache_alloc_array);
-+
-+void kmem_cache_free_array(struct kmem_cache *s, int nr, void **p)
-+{
-+	int i;
-+
-+	for (i=0; i < nr; i++)
-+		kmem_cache_free(s, p[i]);
-+}
-+EXPORT_SYMBOL(kmem_cache_free_array);
-+
-+#endif
-+
- #ifdef CONFIG_MEMCG_KMEM
- static int memcg_alloc_cache_params(struct mem_cgroup *memcg,
- 		struct kmem_cache *s, struct kmem_cache *root_cache)
+Agreed, the less subtle loops via labels we have the better.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
