@@ -1,136 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 770C06B0032
-	for <linux-mm@kvack.org>; Thu, 18 Dec 2014 16:10:45 -0500 (EST)
-Received: by mail-wi0-f171.google.com with SMTP id bs8so3109151wib.16
-        for <linux-mm@kvack.org>; Thu, 18 Dec 2014 13:10:45 -0800 (PST)
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id F38A06B006C
+	for <linux-mm@kvack.org>; Thu, 18 Dec 2014 16:26:22 -0500 (EST)
+Received: by mail-wg0-f42.google.com with SMTP id k14so2791276wgh.29
+        for <linux-mm@kvack.org>; Thu, 18 Dec 2014 13:26:22 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id mb2si14027741wjb.3.2014.12.18.13.10.44
+        by mx.google.com with ESMTPS id hu10si13997001wjb.53.2014.12.18.13.26.22
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Dec 2014 13:10:44 -0800 (PST)
-Date: Thu, 18 Dec 2014 13:10:41 -0800
+        Thu, 18 Dec 2014 13:26:22 -0800 (PST)
+Date: Thu, 18 Dec 2014 13:26:19 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 2/6] mm/page_alloc.c:__alloc_pages_nodemask(): don't
- alter arg gfp_mask
-Message-Id: <20141218131041.76391e96a6bd8b071db45962@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.10.1412171642370.23841@chino.kir.corp.google.com>
-References: <548f68b5.yNW2nTZ3zFvjiAsf%akpm@linux-foundation.org>
-	<548F6F94.2020209@jp.fujitsu.com>
-	<20141215154323.08cc8e7d18ef78f19e5ecce2@linux-foundation.org>
-	<alpine.DEB.2.10.1412171608300.16260@chino.kir.corp.google.com>
-	<20141217162905.9bc063be55a341d40b293c72@linux-foundation.org>
-	<alpine.DEB.2.10.1412171642370.23841@chino.kir.corp.google.com>
+Subject: Re: [PATCH V3 0/4] Reducing parameters of alloc_pages* family of
+ functions
+Message-Id: <20141218132619.4e6b349d0aa1744c41f985c7@linux-foundation.org>
+In-Reply-To: <1418400805-4661-1-git-send-email-vbabka@suse.cz>
+References: <1418400805-4661-1-git-send-email-vbabka@suse.cz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, linux-mm@kvack.org, hannes@cmpxchg.org, mel@csn.ul.ie, ming.lei@canonical.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-On Wed, 17 Dec 2014 16:51:21 -0800 (PST) David Rientjes <rientjes@google.com> wrote:
+On Fri, 12 Dec 2014 17:13:21 +0100 Vlastimil Babka <vbabka@suse.cz> wrote:
 
-> > > The page allocator slowpath is always called from the fastpath if the 
-> > > first allocation didn't succeed, so we don't know from which we allocated 
-> > > the page at this tracepoint.
-> > 
-> > True, but the idea is that when we call trace_mm_page_alloc(), local
-> > var `mask' holds the gfp_t which was used in the most recent allocation
-> > attempt.
-> > 
-> 
-> So if the fastpath succeeds, which should be the majority of the time, 
-> then we get a tracepoint here that says we allocated with 
-> __GFP_FS | __GFP_IO even though we may have PF_MEMALLOC_NOIO set.  So if 
-> page != NULL, we can know that either the fastpath succeeded or we don't 
-> have PF_MEMALLOC_NOIO and were allowed to reclaim.  Not sure that's very 
-> helpful.
-> 
-> Easiest thing to do would be to just clear __GFP_FS and __GFP_IO when we 
-> clear everything not in gfp_allowed_mask, but that's pointless if the 
-> fastpath succeeds.  I'm not sure it's worth to restructure the code with a 
-> possible performance overhead for the benefit of a tracepoint.
-> 
-> And then there's the call to lockdep_trace_alloc() which does care about 
-> __GFP_FS.  That looks broken because we need to clear __GFP_FS with 
-> PF_MEMALLOC_NOIO.
+> Vlastimil Babka (4):
+>   mm: set page->pfmemalloc in prep_new_page()
+>   mm, page_alloc: reduce number of alloc_pages* functions' parameters
+>   mm: reduce try_to_compact_pages parameters
+>   mm: microoptimize zonelist operations
 
-<head spinning>
+That all looks pretty straightforward.  It would be nice to have a
+summary of the code-size and stack-usage changes for the whole
+patchset.
 
-I'm not particuarly concerned about the tracepoint and we can change
-that later.  The main intent here is to restore the allocation mask
-when __alloc_pages_nodemask() does the "goto retry_cpuset".
+Can we move `struct alloc_context' into mm/internal.h?
 
-(I renamed `mask' to `alloc_mask' and documented it a bit)
+I pity the poor schmuck who has to maintain this patchset for 2 months.
+[2/4] already throws a large pile of rejects against page_alloc.c so
+can you please refresh/retest/resend?
 
-
-
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm/page_alloc.c:__alloc_pages_nodemask(): don't alter arg gfp_mask
-
-__alloc_pages_nodemask() strips __GFP_IO when retrying the page
-allocation.  But it does this by altering the function-wide variable
-gfp_mask.  This will cause subsequent allocation attempts to inadvertently
-use the modified gfp_mask.
-
-Also, pass the correct mask (the mask we actually used) into
-trace_mm_page_alloc().
-
-Cc: Ming Lei <ming.lei@canonical.com>
-Cc: Mel Gorman <mel@csn.ul.ie>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- mm/page_alloc.c |   15 +++++++++------
- 1 file changed, 9 insertions(+), 6 deletions(-)
-
-diff -puN mm/page_alloc.c~mm-page_allocc-__alloc_pages_nodemask-dont-alter-arg-gfp_mask mm/page_alloc.c
---- a/mm/page_alloc.c~mm-page_allocc-__alloc_pages_nodemask-dont-alter-arg-gfp_mask
-+++ a/mm/page_alloc.c
-@@ -2865,6 +2865,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, u
- 	unsigned int cpuset_mems_cookie;
- 	int alloc_flags = ALLOC_WMARK_LOW|ALLOC_CPUSET|ALLOC_FAIR;
- 	int classzone_idx;
-+	gfp_t alloc_mask; /* The gfp_t that was actually used for allocation */
- 
- 	gfp_mask &= gfp_allowed_mask;
- 
-@@ -2898,22 +2899,24 @@ retry_cpuset:
- 	classzone_idx = zonelist_zone_idx(preferred_zoneref);
- 
- 	/* First allocation attempt */
--	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
--			zonelist, high_zoneidx, alloc_flags,
--			preferred_zone, classzone_idx, migratetype);
-+	alloc_mask = gfp_mask|__GFP_HARDWALL;
-+	page = get_page_from_freelist(alloc_mask, nodemask, order, zonelist,
-+			high_zoneidx, alloc_flags, preferred_zone,
-+			classzone_idx, migratetype);
- 	if (unlikely(!page)) {
- 		/*
- 		 * Runtime PM, block IO and its error handling path
- 		 * can deadlock because I/O on the device might not
- 		 * complete.
- 		 */
--		gfp_mask = memalloc_noio_flags(gfp_mask);
--		page = __alloc_pages_slowpath(gfp_mask, order,
-+		alloc_mask = memalloc_noio_flags(gfp_mask);
-+
-+		page = __alloc_pages_slowpath(alloc_mask, order,
- 				zonelist, high_zoneidx, nodemask,
- 				preferred_zone, classzone_idx, migratetype);
- 	}
- 
--	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
-+	trace_mm_page_alloc(page, order, alloc_mask, migratetype);
- 
- out:
- 	/*
-_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
