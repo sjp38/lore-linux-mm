@@ -1,103 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 51E286B0070
-	for <linux-mm@kvack.org>; Wed, 17 Dec 2014 18:56:12 -0500 (EST)
-Received: by mail-ig0-f182.google.com with SMTP id hn15so324209igb.15
-        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 15:56:12 -0800 (PST)
-Received: from mail-ie0-x231.google.com (mail-ie0-x231.google.com. [2607:f8b0:4001:c03::231])
-        by mx.google.com with ESMTPS id fs8si4566055icb.105.2014.12.17.15.56.10
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
+	by kanga.kvack.org (Postfix) with ESMTP id C208C6B006C
+	for <linux-mm@kvack.org>; Wed, 17 Dec 2014 19:22:34 -0500 (EST)
+Received: by mail-ig0-f177.google.com with SMTP id z20so25746igj.10
+        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 16:22:34 -0800 (PST)
+Received: from mail-ie0-x22b.google.com (mail-ie0-x22b.google.com. [2607:f8b0:4001:c03::22b])
+        by mx.google.com with ESMTPS id 193si4004313ion.18.2014.12.17.16.22.32
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 17 Dec 2014 15:56:11 -0800 (PST)
-Received: by mail-ie0-f177.google.com with SMTP id rd18so123041iec.22
-        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 15:56:10 -0800 (PST)
-Date: Wed, 17 Dec 2014 15:56:08 -0800 (PST)
+        Wed, 17 Dec 2014 16:22:33 -0800 (PST)
+Received: by mail-ie0-f171.google.com with SMTP id rl12so170840iec.2
+        for <linux-mm@kvack.org>; Wed, 17 Dec 2014 16:22:32 -0800 (PST)
+Date: Wed, 17 Dec 2014 16:22:30 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 1/6] mm: page_isolation: check pfn validity before
- access
-In-Reply-To: <548f68b2.K9HkeqWVHZ6daibm%akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.10.1412171548150.16260@chino.kir.corp.google.com>
-References: <548f68b2.K9HkeqWVHZ6daibm%akpm@linux-foundation.org>
+Subject: Re: [patch 2/6] mm/page_alloc.c:__alloc_pages_nodemask(): don't
+ alter arg gfp_mask
+In-Reply-To: <20141215154323.08cc8e7d18ef78f19e5ecce2@linux-foundation.org>
+Message-ID: <alpine.DEB.2.10.1412171608300.16260@chino.kir.corp.google.com>
+References: <548f68b5.yNW2nTZ3zFvjiAsf%akpm@linux-foundation.org> <548F6F94.2020209@jp.fujitsu.com> <20141215154323.08cc8e7d18ef78f19e5ecce2@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, weijie.yang@samsung.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, mhocko@suse.cz, mina86@mina86.com, minchan@kernel.org, stable@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, linux-mm@kvack.org, hannes@cmpxchg.org, mel@csn.ul.ie, ming.lei@canonical.com
 
-On Mon, 15 Dec 2014, akpm@linux-foundation.org wrote:
+On Mon, 15 Dec 2014, Andrew Morton wrote:
 
-> From: Weijie Yang <weijie.yang@samsung.com>
-> Subject: mm: page_isolation: check pfn validity before access
+> Well it was already wrong because the first allocation attempt uses
+> gfp_mask|__GFP_HARDWAL, but we only trace gfp_mask.
 > 
-> In the undo path of start_isolate_page_range(), we need to check the pfn
-> validity before accessing its page, or it will trigger an addressing
-> exception if there is hole in the zone.
+> This?
 > 
-> This issue is found by code-review not a test-trigger.  In
-> "CONFIG_HOLES_IN_ZONE" environment, there is a certain chance that it
-> would casue an addressing exception when start_isolate_page_range()
-> fails, this could affect CMA, hugepage and memory-hotplug function.
-> 
-> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
-> Acked-by: Michal Nazarewicz <mina86@mina86.com>
-> Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Mel Gorman <mel@csn.ul.ie>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: <stable@vger.kernel.org>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
-> 
->  mm/page_isolation.c |    7 +++++--
->  1 file changed, 5 insertions(+), 2 deletions(-)
-> 
-> diff -puN mm/page_isolation.c~mm-page_isolation-check-pfn-validity-before-access mm/page_isolation.c
-> --- a/mm/page_isolation.c~mm-page_isolation-check-pfn-validity-before-access
-> +++ a/mm/page_isolation.c
-> @@ -176,8 +176,11 @@ int start_isolate_page_range(unsigned lo
->  undo:
->  	for (pfn = start_pfn;
->  	     pfn < undo_pfn;
-> -	     pfn += pageblock_nr_pages)
-> -		unset_migratetype_isolate(pfn_to_page(pfn), migratetype);
-> +	     pfn += pageblock_nr_pages) {
-> +		page = __first_valid_page(pfn, pageblock_nr_pages);
-> +		if (page)
-> +			unset_migratetype_isolate(page, migratetype);
-> +	}
+> --- a/mm/page_alloc.c~mm-page_allocc-__alloc_pages_nodemask-dont-alter-arg-gfp_mask-fix
+> +++ a/mm/page_alloc.c
+> @@ -2877,6 +2877,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, u
+>  	unsigned int cpuset_mems_cookie;
+>  	int alloc_flags = ALLOC_WMARK_LOW|ALLOC_CPUSET|ALLOC_FAIR;
+>  	int classzone_idx;
+> +	gfp_t mask;
 >  
->  	return -EBUSY;
->  }
+>  	gfp_mask &= gfp_allowed_mask;
+>  
+> @@ -2910,23 +2911,24 @@ retry_cpuset:
+>  	classzone_idx = zonelist_zone_idx(preferred_zoneref);
+>  
+>  	/* First allocation attempt */
+> -	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
+> -			zonelist, high_zoneidx, alloc_flags,
+> -			preferred_zone, classzone_idx, migratetype);
+> +	mask = gfp_mask|__GFP_HARDWALL;
+> +	page = get_page_from_freelist(mask, nodemask, order, zonelist,
+> +			high_zoneidx, alloc_flags, preferred_zone,
+> +			classzone_idx, migratetype);
+>  	if (unlikely(!page)) {
+>  		/*
+>  		 * Runtime PM, block IO and its error handling path
+>  		 * can deadlock because I/O on the device might not
+>  		 * complete.
+>  		 */
+> -		gfp_t mask = memalloc_noio_flags(gfp_mask);
+> +		mask = memalloc_noio_flags(gfp_mask);
+>  
+>  		page = __alloc_pages_slowpath(mask, order,
+>  				zonelist, high_zoneidx, nodemask,
+>  				preferred_zone, classzone_idx, migratetype);
+>  	}
+>  
+> -	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
+> +	trace_mm_page_alloc(page, order, mask, migratetype);
+>  
+>  out:
+>  	/*
 
-This is such an interesting patch because of who acked it and the two 
-callers of the function that seem to want different behavior.
+I'm not sure I understand why we need a local variable to hold the context 
+mask vs. what was passed to the function.  We should only be allocating 
+with a single gfp_mask that is passed to the function and modify it as 
+necessary, and that becomes the context mask that can be traced.
 
-The behavior of start_isolate_page_range() is currently to either set the 
-migratetype of the pageblocks to MIGRATE_ISOLATE or allow the pageblocks 
-to have no valid pages due to a memory hole.
+The above is wrong because it unconditionally sets __GFP_HARDWALL as the 
+gfp mask for __alloc_pages_slowpath() when we actually only want that for 
+the first allocation attempt, it's needed for the implementation of 
+__cpuset_node_allowed().
 
-The memory hotplug usecase makes perfect sense since it's entirely 
-legitimate to offline memory holes and we would not want to return -EBUSY, 
-but that doesn't seem to be what the implementation of 
-start_isolate_page_range() is this undo behavior expects pfn_to_page(pfn) 
-to be valid up to undo_pfn.
+The page allocator slowpath is always called from the fastpath if the 
+first allocation didn't succeed, so we don't know from which we allocated 
+the page at this tracepoint.
 
-I'm not a CMA expert, but I'm surprised that we want to return success 
-here if some pageblocks are actually memory holes.  Don't we want to 
-return -EBUSY for such a range?  That seems to be more in line with the 
-comment for start_isolate_page_range() which specifies it returns "-EBUSY 
-if any part of range cannot be isolated", which would seem to imply memory 
-holes as well, but that doesn't match its implementation.
-
-So there's two radically different expectations for this function with 
-regard to invalid pfns.  Which one do we want?
-
-If we want it to simply disregard memory holes (memory hotplug), then ack 
-the patch with a follow-up to fix the comment.  If we want it to undo on 
-memory holes (CMA), then nack the patch since its current implementation 
-is correct and we need to fix memory hotplug.
+I'm afraid the original code before either of these patches was more 
+correct.  The use of memalloc_noio_flags() for "subsequent allocation 
+attempts" doesn't really matter since neither __GFP_FS nor __GFP_IO 
+matters for fastpath allocation (we aren't reclaiming).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
