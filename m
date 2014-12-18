@@ -1,47 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id F38A06B006C
-	for <linux-mm@kvack.org>; Thu, 18 Dec 2014 16:26:22 -0500 (EST)
-Received: by mail-wg0-f42.google.com with SMTP id k14so2791276wgh.29
-        for <linux-mm@kvack.org>; Thu, 18 Dec 2014 13:26:22 -0800 (PST)
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id D18976B006C
+	for <linux-mm@kvack.org>; Thu, 18 Dec 2014 17:06:32 -0500 (EST)
+Received: by mail-wi0-f172.google.com with SMTP id n3so68424wiv.17
+        for <linux-mm@kvack.org>; Thu, 18 Dec 2014 14:06:32 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id hu10si13997001wjb.53.2014.12.18.13.26.22
+        by mx.google.com with ESMTPS id ki1si14026448wjc.118.2014.12.18.14.06.31
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Dec 2014 13:26:22 -0800 (PST)
-Date: Thu, 18 Dec 2014 13:26:19 -0800
+        Thu, 18 Dec 2014 14:06:32 -0800 (PST)
+Date: Thu, 18 Dec 2014 14:06:29 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH V3 0/4] Reducing parameters of alloc_pages* family of
- functions
-Message-Id: <20141218132619.4e6b349d0aa1744c41f985c7@linux-foundation.org>
-In-Reply-To: <1418400805-4661-1-git-send-email-vbabka@suse.cz>
-References: <1418400805-4661-1-git-send-email-vbabka@suse.cz>
+Subject: Re: [PATCH] Slab infrastructure for array operations
+Message-Id: <20141218140629.393972c7bd8b3b884507264c@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.11.1412181031520.2962@gentwo.org>
+References: <alpine.DEB.2.11.1412181031520.2962@gentwo.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Jesper Dangaard Brouer <brouer@redhat.com>, akpm@linuxfoundation.org, Steven Rostedt <rostedt@goodmis.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>
 
-On Fri, 12 Dec 2014 17:13:21 +0100 Vlastimil Babka <vbabka@suse.cz> wrote:
+On Thu, 18 Dec 2014 10:33:23 -0600 (CST) Christoph Lameter <cl@linux.com> wrote:
 
-> Vlastimil Babka (4):
->   mm: set page->pfmemalloc in prep_new_page()
->   mm, page_alloc: reduce number of alloc_pages* functions' parameters
->   mm: reduce try_to_compact_pages parameters
->   mm: microoptimize zonelist operations
+> This patch adds the basic infrastructure for alloc / free operations
+> on pointer arrays.
 
-That all looks pretty straightforward.  It would be nice to have a
-summary of the code-size and stack-usage changes for the whole
-patchset.
+Please provide the justification/reason for making this change.
 
-Can we move `struct alloc_context' into mm/internal.h?
+> It includes a fallback function.
 
-I pity the poor schmuck who has to maintain this patchset for 2 months.
-[2/4] already throws a large pile of rejects against page_alloc.c so
-can you please refresh/retest/resend?
+I don't know what this means.  Something to do with
+_HAVE_SLAB_ALLOCATOR_OPERATIONS perhaps.
 
+> Allocators must define _HAVE_SLAB_ALLOCATOR_OPERATIONS in their
+> header files in order to implement their own fast version for
+> these array operations.
+
+Why?  What's driving this?
+
+The changelog is far too skimpy, sorry.  It makes the patch
+unreviewable.
+
+> --- linux.orig/include/linux/slab.h	2014-12-16 09:27:26.369447763 -0600
+> +++ linux/include/linux/slab.h	2014-12-18 10:30:33.394927526 -0600
+> @@ -123,6 +123,7 @@ struct kmem_cache *memcg_create_kmem_cac
+>  void kmem_cache_destroy(struct kmem_cache *);
+>  int kmem_cache_shrink(struct kmem_cache *);
+>  void kmem_cache_free(struct kmem_cache *, void *);
+> +void kmem_cache_free_array(struct kmem_cache *, int, void **);
+
+These declarations are much more useful if they include the argument
+names.
+
+> --- linux.orig/mm/slab_common.c	2014-12-12 10:27:49.360799479 -0600
+> +++ linux/mm/slab_common.c	2014-12-18 10:25:41.695889129 -0600
+> @@ -105,6 +105,31 @@ static inline int kmem_cache_sanity_chec
+>  }
+>  #endif
+> 
+> +#ifndef _HAVE_SLAB_ALLOCATOR_ARRAY_OPERATIONS
+> +int kmem_cache_alloc_array(struct kmem_cache *s, gfp_t flags, int nr, void **p)
+> +{
+> +	int i;
+> +
+> +	for (i=0; i < nr; i++) {
+> +		void *x = p[i] = kmem_cache_alloc(s, flags);
+> +		if (!x)
+> +			return i;
+> +	}
+> +	return nr;
+> +}
+> +EXPORT_SYMBOL(kmem_cache_alloc_array);
+
+Please use checkpatch.
+
+This function very much needs documentation.  Particularly concerning
+the return value, and the caller's responsibility at cleanup time.
+
+And that return value is weird.  What's the point in returning a
+partial result?
+
+Why is the memory exhaustion handling implemented this way rather than
+zeroing out the rest of the array, so the caller doesn't have to
+remember the return value for kmem_cache_free_array()?
+
+> +void kmem_cache_free_array(struct kmem_cache *s, int nr, void **p)
+> +{
+> +	int i;
+> +
+> +	for (i=0; i < nr; i++)
+> +		kmem_cache_free(s, p[i]);
+> +}
+> +EXPORT_SYMBOL(kmem_cache_free_array);
+
+Possibly `nr' and `i' should be size_t, dunno.  They certainly don't
+need to be signed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
