@@ -1,256 +1,362 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 815106B0032
-	for <linux-mm@kvack.org>; Thu, 18 Dec 2014 07:11:33 -0500 (EST)
-Received: by mail-pd0-f172.google.com with SMTP id y13so1330589pdi.3
-        for <linux-mm@kvack.org>; Thu, 18 Dec 2014 04:11:33 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id ua2si9749624pab.180.2014.12.18.04.11.30
+Received: from mail-oi0-f49.google.com (mail-oi0-f49.google.com [209.85.218.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 628AD6B0032
+	for <linux-mm@kvack.org>; Thu, 18 Dec 2014 09:34:31 -0500 (EST)
+Received: by mail-oi0-f49.google.com with SMTP id i138so440103oig.8
+        for <linux-mm@kvack.org>; Thu, 18 Dec 2014 06:34:31 -0800 (PST)
+Received: from mail-ob0-x230.google.com (mail-ob0-x230.google.com. [2607:f8b0:4003:c01::230])
+        by mx.google.com with ESMTPS id pm15si4368863oeb.59.2014.12.18.06.34.29
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 18 Dec 2014 04:11:31 -0800 (PST)
-Subject: Re: [RFC PATCH] oom: Don't count on mm-less current process.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201412122254.AJJ57896.OLFOOJQHSMtFVF@I-love.SAKURA.ne.jp>
-	<20141216124714.GF22914@dhcp22.suse.cz>
-	<201412172054.CFJ78687.HFFLtVMOOJSQFO@I-love.SAKURA.ne.jp>
-	<20141217130807.GB24704@dhcp22.suse.cz>
-In-Reply-To: <20141217130807.GB24704@dhcp22.suse.cz>
-Message-Id: <201412182111.JCE48417.QFOJSFtMOHFLOV@I-love.SAKURA.ne.jp>
-Date: Thu, 18 Dec 2014 21:11:26 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 18 Dec 2014 06:34:29 -0800 (PST)
+Received: by mail-ob0-f176.google.com with SMTP id vb8so3507445obc.7
+        for <linux-mm@kvack.org>; Thu, 18 Dec 2014 06:34:29 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20141217130841.100dac71@redhat.com>
+References: <20141210163017.092096069@linux.com>
+	<20141215075933.GD4898@js1304-P5Q-DELUXE>
+	<CAAmzW4NCpx5aJyW36fgOfu3EaDj6=uv6MUiBC+a0ggePWPXndQ@mail.gmail.com>
+	<20141217130841.100dac71@redhat.com>
+Date: Thu, 18 Dec 2014 23:34:29 +0900
+Message-ID: <CAAmzW4NYMTnyA4HNt1q5csjg0bA-A9OEqdLStRZ4epet5P12ew@mail.gmail.com>
+Subject: Re: [PATCH 0/7] slub: Fastpath optimization (especially for RT) V1
+From: Joonsoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.cz
-Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christoph Lameter <cl@linux.com>, akpm@linuxfoundation.org, Steven Rostedt <rostedt@goodmis.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>
 
-Michal Hocko wrote:
-> On Wed 17-12-14 20:54:53, Tetsuo Handa wrote:
-> [...]
-> > I'm not familiar with memcg.
+2014-12-17 21:08 GMT+09:00 Jesper Dangaard Brouer <brouer@redhat.com>:
+> On Wed, 17 Dec 2014 16:13:49 +0900 Joonsoo Kim <js1304@gmail.com> wrote:
 >
-> This check doesn't make any sense for this path because the task is part
-> of the memcg, otherwise it wouldn't trigger charge for it and couldn't
-> cause the OOM killer. Kernel threads do not have their address space
-> they cannot trigger memcg OOM killer. As you provide NULL nodemask then
-> this is basically a check for task being part of the memcg.
-
-So !oom_unkillable_task(current, memcg, NULL) is always true for
-mem_cgroup_out_of_memory() case, isn't it?
-
->                                                             The check
-> for current->mm is not needed as well because task will not trigger a
-> charge after exit_mm.
-
-So current->mm != NULL is always true for mem_cgroup_out_of_memory()
-case, isn't it?
-
+>> Ping... and I found another way to remove preempt_disable/enable
+>> without complex changes.
+>>
+>> What we want to ensure is getting tid and kmem_cache_cpu
+>> on the same cpu. We can achieve that goal with below condition loop.
+>>
+>> I ran Jesper's benchmark and saw 3~5% win in a fast-path loop over
+>> kmem_cache_alloc+free in CONFIG_PREEMPT.
+>>
+>> 14.5 ns -> 13.8 ns
 >
-> > But I think the condition whether TIF_MEMDIE
-> > flag should be set or not should be same between the memcg OOM killer and
-> > the global OOM killer, for a thread inside some memcg with TIF_MEMDIE flag
-> > can prevent the global OOM killer from killing other threads when the memcg
-> > OOM killer and the global OOM killer run concurrently (the worst corner case).
-> > When a malicious user runs a memory consumer program which triggers memcg OOM
-> > killer deadlock inside some memcg, it will result in the global OOM killer
-> > deadlock when the global OOM killer is triggered by other user's tasks.
+> Hi Kim,
 >
-> Hope that the above exaplains your concerns here.
+> I've tested you patch.  Full report below patch.
 >
+> Summary, I'm seeing 18.599 ns -> 17.523 ns (-1.076ns better).
 
-Thread1 in memcg1 asks for memory, and thread1 gets requested amount of
-memory without triggering the global OOM killer, and requested amount of
-memory is charged to memcg1, and the memcg OOM killer is triggered.
-While the memcg OOM killer is searching for a victim from threads in
-memcg1, thread2 in memcg2 asks for the memory. Thread2 fails to get
-requested amount of memory without triggering the global OOM killer.
-Now the global OOM killer starts searching for a victim from all threads
-whereas the memcg OOM killer chooses thread1 in memcg1 and sets TIF_MEMDIE
-flag on thread1 in memcg1. Then, the global OOM killer finds that thread1
-in memcg1 already has TIF_MEMDIE flag set, and waits for thread1 in memcg1
-to terminate than chooses another victim from all threads. However, when
-thread1 in memcg1 cannot be terminated immediately for some reason, thread2
-in memcg2 is blocked by thread1 in memcg1.
+Thanks for testing! :)
+It will help to convince others.
 
-> > > > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > > > index 481d550..01719d6 100644
-> > > > --- a/mm/oom_kill.c
-> > > > +++ b/mm/oom_kill.c
-> > > [...]
-> > > > @@ -649,8 +649,14 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
-> > > >       * If current has a pending SIGKILL or is exiting, then automatically
-> > > >       * select it.  The goal is to allow it to allocate so that it may
-> > > >       * quickly exit and free its memory.
-> > > > +     *
-> > > > +     * However, if current is calling out_of_memory() by doing memory
-> > > > +     * allocation from e.g. exit_task_work() in do_exit() after PF_EXITING
-> > > > +     * was set by exit_signals() and mm was released by exit_mm(), it is
-> > > > +     * wrong to expect current to exit and free its memory quickly.
-> > > >       */
-> > > > -     if (fatal_signal_pending(current) || task_will_free_mem(current)) {
-> > > > +     if ((fatal_signal_pending(current) || task_will_free_mem(current)) &&
-> > > > +         current->mm && !oom_unkillable_task(current, NULL, nodemask)) {
-> > > >            set_thread_flag(TIF_MEMDIE);
-> > > >            return;
-> > > >       }
-> > >
-> > > Calling oom_unkillable_task doesn't make much sense to me. Even if it made
-> > > sense it should be in a separate patch, no?
-> >
-> > At least for the global OOM case, current may be a kernel thread, doesn't it?
+Thanks.
+
+> For network overload tests:
 >
-> then mm would be NULL most of the time so current->mm check wouldn't
-> give it TIF_MEMDIE and the task itself will be exluded later on during
-> tasks scanning.
+> Dropping packets in iptables raw, which is hitting the slub fast-path.
+> Here I'm seeing an improvement of 3ns.
 >
-> > Such kernel thread can do memory allocation from exit_task_work(), and trigger
-> > the global OOM killer, and disable the global OOM killer and prevent other
-> > threads from allocating memory, can't it?
-> >
-> > We can utilize memcg for reducing the possibility of triggering the global
-> > OOM killer.
+> For IP-forward, which is also invoking the slub slower path, I'm seeing
+> an improvement of 6ns (I were not expecting to see any improvement
+> here, the kmem_cache_alloc code is 24bytes smaller, so perhaps it's
+> saving some icache).
 >
-> I do not get this. Memcg charge happens after the allocation is done so
-> the global OOM killer would trigger before memcg one.
-
-I mean, someone triggers the global OOM killer between somebody else triggered
-the memcg OOM killer and the memcg OOM killer finishes.
-
-> > But if we failed to prevent the global OOM killer from triggering,
-> > the global OOM killer is responsible for solving the OOM condition than keeping
-> > the system stalled for presumably forever. Panic on TIF_MEMDIE timeout can act
-> > like /proc/sys/vm/panic_on_oom only when the OOM killer chose (by chance or
-> > by a trap) an unkillable (due to e.g. lock dependency loop) task. Of course,
-> > for those who prefer the system kept stalled over the OOM condition solved,
-> > such action should be optional and thus I'm happy to propose sysctl-tunable
-> > version.
+> Full report below patch...
 >
-> You are getting offtopic again (which is pretty annoying to be honest as
-> it is going all over again and again). Please focus on a single thing at
-> a time.
+>> See following patch.
+>>
+>> Thanks.
+>>
+>> ----------->8-------------
+>> diff --git a/mm/slub.c b/mm/slub.c
+>> index 95d2142..e537af5 100644
+>> --- a/mm/slub.c
+>> +++ b/mm/slub.c
+>> @@ -2399,8 +2399,10 @@ redo:
+>>          * on a different processor between the determination of the pointer
+>>          * and the retrieval of the tid.
+>>          */
+>> -       preempt_disable();
+>> -       c = this_cpu_ptr(s->cpu_slab);
+>> +       do {
+>> +               tid = this_cpu_read(s->cpu_slab->tid);
+>> +               c = this_cpu_ptr(s->cpu_slab);
+>> +       } while (IS_ENABLED(CONFIG_PREEMPT) && unlikely(tid != c->tid));
+>>
+>>         /*
+>>          * The transaction ids are globally unique per cpu and per operation on
+>> @@ -2408,8 +2410,6 @@ redo:
+>>          * occurs on the right processor and that there was no operation on the
+>>          * linked list in between.
+>>          */
+>> -       tid = c->tid;
+>> -       preempt_enable();
+>>
+>>         object = c->freelist;
+>>         page = c->page;
+>> @@ -2655,11 +2655,10 @@ redo:
+>>          * data is retrieved via this pointer. If we are on the same cpu
+>>          * during the cmpxchg then the free will succedd.
+>>          */
+>> -       preempt_disable();
+>> -       c = this_cpu_ptr(s->cpu_slab);
+>> -
+>> -       tid = c->tid;
+>> -       preempt_enable();
+>> +       do {
+>> +               tid = this_cpu_read(s->cpu_slab->tid);
+>> +               c = this_cpu_ptr(s->cpu_slab);
+>> +       } while (IS_ENABLED(CONFIG_PREEMPT) && unlikely(tid != c->tid));
+>>
+>>         if (likely(page == c->page)) {
+>>                 set_freepointer(s, object, c->freelist);
 >
-
-I think focusing on only mm-less case makes no sense, for with-mm case
-ruins efforts made for mm-less case. My question is quite simple.
-How can we avoid memory allocation stalls when
-
-  System has 2048MB of RAM and no swap.
-  Memcg1 for task1 has quota 512MB and 400MB in use.
-  Memcg2 for task2 has quota 512MB and 400MB in use.
-  Memcg3 for task3 has quota 512MB and 400MB in use.
-  Memcg4 for task4 has quota 512MB and 400MB in use.
-  Memcg5 for task5 has quota 512MB and 1MB in use.
-
-and task5 launches below memory consumption program which would trigger
-the global OOM killer before triggering the memcg OOM killer?
-
----------- XFS + OOM killer dependency stall reproducer start ----------
-#define _GNU_SOURCE
-#include <stdlib.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sched.h>
-
-static int file_writer(void *unused)
-{
-	static char buf[4096];
-	const int fd = open("file", O_CREAT | O_WRONLY, 0600);
-	while (write(fd, buf, sizeof(buf)) == sizeof(buf))
-		fsync(fd);
-	close(fd);
-	return 0;
-}
-
-int main(int argc, char *argv[])
-{
-	int i;
-	unsigned long size;
-	const int fd = open("/dev/zero", O_RDONLY);
-	char *buf = NULL;
-	if (fd == -1)
-		return 1;
-	for (size = 1048576; size < 512UL * (1 << 30); size <<= 1) {
-		char *cp = realloc(buf, size);
-		if (!cp)
-			break;
-		buf = cp;
-	}
-	for (i = 0; i < 128; i++) {
-		char *cp = malloc(4096);
-		if (!cp || clone(file_writer, cp + 4096,
-				 CLONE_SIGHAND | CLONE_VM, NULL) == -1)
-			break;
-	}
-	read(fd, buf, size);
-	return 0;
-}
----------- XFS + OOM killer dependency stall reproducer end ----------
-
-The global OOM killer will try to kill this program because this program
-will be using 400MB+ of RAM by the time the global OOM killer is triggered.
-But sometimes this program cannot be terminated by the global OOM killer
-due to XFS lock dependency.
-
-You can see what is happening from OOM traces after uptime > 320 seconds of
-http://I-love.SAKURA.ne.jp/tmp/serial-20141213.txt.xz though memcg is not
-configured on this program.
-
-Trying to apply quota using memcg for safeguard is fine. But don't forget
-to prepare for the global OOM killer. And please don't reject with "use
-memcg and never over-commit", for my proposal is for analyzing/avoiding
-
-  stalls caused by not only a malicious user's attacks but bugs in
-  enterprise applications or kernel modules
-
-and/or
-
-  stalls of servers where coordination with userspace is impossible
-
-.
-
-> > I think that
-> >
-> >     if (!task->mm && test_tsk_thread_flag(task, TIF_MEMDIE))
-> >         return true;
-> >
-> > check should be added to oom_unkillable_task() because mm-less thread can
-> > release little memory (except invisible memory if any).
+> SLUB evaluation 03
+> ==================
 >
-> Why do you think this makes more sense than handling this very special
-> case in out_of_memory? I really do not see any reason to to make
-> oom_unkillable_task more complicated.
-
-Because everyone can safely skip victim threads who don't have mm.
-Handling setting of TIF_MEMDIE in the caller is racy. Somebody may set
-TIF_MEMDIE at oom_kill_process() even if we avoided setting TIF_MEMDIE at
-out_of_memory(). There will be more locations where TIF_MEMDIE is set; even
-out-of-tree modules might set TIF_MEMDIE.
-
-Nonetheless, I don't think
-
-    if (!task->mm && test_tsk_thread_flag(task, TIF_MEMDIE))
-        return true;
-
-check is perfect because we anyway need to prepare for both mm-less and
-with-mm cases.
-
-My concern is not "whether TIF_MEMDIE flag should be set or not". My concern
-is not "whether task->mm is NULL or not". My concern is "whether threads with
-TIF_MEMDIE flag retard other process' memory allocation or not".
-Above-mentioned program is an example of with-mm threads retarding
-other process' memory allocation.
-
-I know you don't like timeout approach, but adding
-
-    if (sysctl_memdie_timeout_secs && test_tsk_thread_flag(task, TIF_MEMDIE) &&
-        time_after(jiffies, task->memdie_start + sysctl_memdie_timeout_secs * HZ))
-        return true;
-
-check to oom_unkillable_task() will take care of both mm-less and with-mm
-cases because everyone can safely skip the TIF_MEMDIE victim threads who
-cannot be terminated immediately for some reason.
+> Testing patch from Joonsoo Kim <iamjoonsoo.kim@lge.com> slub fast-path
+> preempt_{disable,enable} avoidance.
+>
+> Kernel
+> ======
+> Compiler: GCC 4.9.1
+>
+> Kernel config ::
+>
+>  $ grep PREEMPT .config
+>  CONFIG_PREEMPT_RCU=y
+>  CONFIG_PREEMPT_NOTIFIERS=y
+>  # CONFIG_PREEMPT_NONE is not set
+>  # CONFIG_PREEMPT_VOLUNTARY is not set
+>  CONFIG_PREEMPT=y
+>  CONFIG_PREEMPT_COUNT=y
+>  # CONFIG_DEBUG_PREEMPT is not set
+>
+>  $ egrep -e "SLUB|SLAB" .config
+>  # CONFIG_SLUB_DEBUG is not set
+>  # CONFIG_SLAB is not set
+>  CONFIG_SLUB=y
+>  # CONFIG_SLUB_CPU_PARTIAL is not set
+>  # CONFIG_SLUB_STATS is not set
+>
+> On top of::
+>
+>  commit f96fe225677b3efb74346ebd56fafe3997b02afa
+>  Merge: 5543798 eea3e8f
+>  Author: Linus Torvalds <torvalds@linux-foundation.org>
+>  Date:   Fri Dec 12 16:11:12 2014 -0800
+>
+>     Merge git://git.kernel.org/pub/scm/linux/kernel/git/davem/net
+>
+>
+> Setup
+> =====
+>
+> netfilter_unload_modules.sh
+> netfilter_unload_modules.sh
+> sudo rmmod nf_reject_ipv4 nf_reject_ipv6
+>
+> base_device_setup.sh eth4  # 10G sink/receiving interface (ixgbe)
+> base_device_setup.sh eth5
+> sudo ethtool --coalesce eth4 rx-usecs 30
+> sudo ip neigh add 192.168.21.66 dev eth5 lladdr 00:00:ba:d0:ba:d0
+> sudo ip route add 198.18.0.0/15 via 192.168.21.66 dev eth5
+>
+>
+> # sudo tuned-adm active
+> Current active profile: latency-performance
+>
+> Drop in raw
+> -----------
+> alias iptables='sudo iptables'
+> iptables -t raw -N simple || iptables -t raw -F simple
+> iptables -t raw -I simple -d 198.18.0.0/15 -j DROP
+> iptables -t raw -D PREROUTING -j simple
+> iptables -t raw -I PREROUTING -j simple
+>
+> Generator
+> ---------
+> ./pktgen02_burst.sh -d 198.18.0.2 -i eth8 -m 90:E2:BA:0A:56:B4 -b 8 -t 3 -s 64
+>
+>
+> Patch by Joonsoo Kim to avoid preempt in slub
+> =============================================
+>
+> baseline: without patch
+> -----------------------
+>
+> baseline kernel v3.18-7016-gf96fe22 at commit f96fe22567
+>
+> Type:kmem fastpath reuse Per elem: 46 cycles(tsc) 18.599 ns
+>  - (measurement period time:1.859917529 sec time_interval:1859917529)
+>  - (invoke count:100000000 tsc_interval:4649791431)
+>
+> alloc N-pattern before free with 256 elements
+>
+> Type:kmem alloc+free N-pattern Per elem: 100 cycles(tsc) 40.077 ns
+>  - (measurement period time:1.025993290 sec time_interval:1025993290)
+>  - (invoke count:25600000 tsc_interval:2564981743)
+>
+> single flow/CPU
+>  * IP-forward
+>   - instant rx:0 tx:1165376 pps n:60 average: rx:0 tx:1165928 pps
+>     (instant variation TX -0.407 ns (min:-0.828 max:0.507) RX 0.000 ns)
+>  * Drop in RAW (slab fast-path test)
+>    - instant rx:3245248 tx:0 pps n:60 average: rx:3245325 tx:0 pps
+>      (instant variation TX 0.000 ns (min:0.000 max:0.000) RX -0.007 ns)
+>
+> Christoph's slab_test, baseline kernel (at commit f96fe22567)::
+>
+>  Single thread testing
+>  =====================
+>  1. Kmalloc: Repeatedly allocate then free test
+>  10000 times kmalloc(8) -> 49 cycles kfree -> 62 cycles
+>  10000 times kmalloc(16) -> 48 cycles kfree -> 64 cycles
+>  10000 times kmalloc(32) -> 53 cycles kfree -> 70 cycles
+>  10000 times kmalloc(64) -> 64 cycles kfree -> 77 cycles
+>  10000 times kmalloc(128) -> 74 cycles kfree -> 84 cycles
+>  10000 times kmalloc(256) -> 84 cycles kfree -> 114 cycles
+>  10000 times kmalloc(512) -> 83 cycles kfree -> 116 cycles
+>  10000 times kmalloc(1024) -> 81 cycles kfree -> 120 cycles
+>  10000 times kmalloc(2048) -> 104 cycles kfree -> 136 cycles
+>  10000 times kmalloc(4096) -> 142 cycles kfree -> 165 cycles
+>  10000 times kmalloc(8192) -> 238 cycles kfree -> 226 cycles
+>  10000 times kmalloc(16384) -> 403 cycles kfree -> 264 cycles
+>  2. Kmalloc: alloc/free test
+>  10000 times kmalloc(8)/kfree -> 68 cycles
+>  10000 times kmalloc(16)/kfree -> 68 cycles
+>  10000 times kmalloc(32)/kfree -> 69 cycles
+>  10000 times kmalloc(64)/kfree -> 68 cycles
+>  10000 times kmalloc(128)/kfree -> 68 cycles
+>  10000 times kmalloc(256)/kfree -> 68 cycles
+>  10000 times kmalloc(512)/kfree -> 74 cycles
+>  10000 times kmalloc(1024)/kfree -> 75 cycles
+>  10000 times kmalloc(2048)/kfree -> 74 cycles
+>  10000 times kmalloc(4096)/kfree -> 74 cycles
+>  10000 times kmalloc(8192)/kfree -> 75 cycles
+>  10000 times kmalloc(16384)/kfree -> 510 cycles
+>
+> $ nm --print-size vmlinux | egrep -e 'kmem_cache_alloc|kmem_cache_free|is_pointer_to_page'
+> ffffffff81163bd0 00000000000000e1 T kmem_cache_alloc
+> ffffffff81163ac0 000000000000010c T kmem_cache_alloc_node
+> ffffffff81162cb0 000000000000013b T kmem_cache_free
+>
+>
+> with patch
+> ----------
+>
+> single flow/CPU
+>  * IP-forward
+>   - instant rx:0 tx:1174652 pps n:60 average: rx:0 tx:1174222 pps
+>     (instant variation TX 0.311 ns (min:-0.230 max:1.018) RX 0.000 ns)
+>  * compare against baseline:
+>   - 1174222-1165928 = +8294pps
+>   - (1/1174222*10^9)-(1/1165928*10^9) = -6.058ns
+>
+>  * Drop in RAW (slab fast-path test)
+>   - instant rx:3277440 tx:0 pps n:74 average: rx:3277737 tx:0 pps
+>     (instant variation TX 0.000 ns (min:0.000 max:0.000) RX -0.028 ns)
+>  * compare against baseline:
+>   - 3277737-3245325 = +32412 pps
+>   - (1/3277737*10^9)-(1/3245325*10^9) = -3.047ns
+>
+> SLUB fast-path test: time_bench_kmem_cache1
+>  * modprobe time_bench_kmem_cache1 ; rmmod time_bench_kmem_cache1; sudo dmesg -c
+>
+> Type:kmem fastpath reuse Per elem: 43 cycles(tsc) 17.523 ns (step:0)
+>  - (measurement period time:1.752338378 sec time_interval:1752338378)
+>  - (invoke count:100000000 tsc_interval:4380843588)
+>   * difference: 17.523 - 18.599 = -1.076ns
+>
+> alloc N-pattern before free with 256 elements
+>
+> Type:kmem alloc+free N-pattern Per elem: 100 cycles(tsc) 40.369 ns (step:0)
+>  - (measurement period time:1.033447112 sec time_interval:1033447112)
+>  - (invoke count:25600000 tsc_interval:2583616203)
+>     * difference: 40.369 - 40.077 = +0.292ns
+>
+>
+> Christoph's slab_test::
+>
+>  Single thread testing
+>  =====================
+>  1. Kmalloc: Repeatedly allocate then free test
+>  10000 times kmalloc(8) -> 46 cycles kfree -> 61 cycles
+>  10000 times kmalloc(16) -> 46 cycles kfree -> 63 cycles
+>  10000 times kmalloc(32) -> 49 cycles kfree -> 69 cycles
+>  10000 times kmalloc(64) -> 57 cycles kfree -> 76 cycles
+>  10000 times kmalloc(128) -> 66 cycles kfree -> 83 cycles
+>  10000 times kmalloc(256) -> 84 cycles kfree -> 110 cycles
+>  10000 times kmalloc(512) -> 77 cycles kfree -> 114 cycles
+>  10000 times kmalloc(1024) -> 80 cycles kfree -> 116 cycles
+>  10000 times kmalloc(2048) -> 102 cycles kfree -> 131 cycles
+>  10000 times kmalloc(4096) -> 135 cycles kfree -> 163 cycles
+>  10000 times kmalloc(8192) -> 238 cycles kfree -> 218 cycles
+>  10000 times kmalloc(16384) -> 399 cycles kfree -> 262 cycles
+>  2. Kmalloc: alloc/free test
+>  10000 times kmalloc(8)/kfree -> 65 cycles
+>  10000 times kmalloc(16)/kfree -> 66 cycles
+>  10000 times kmalloc(32)/kfree -> 65 cycles
+>  10000 times kmalloc(64)/kfree -> 66 cycles
+>  10000 times kmalloc(128)/kfree -> 66 cycles
+>  10000 times kmalloc(256)/kfree -> 71 cycles
+>  10000 times kmalloc(512)/kfree -> 72 cycles
+>  10000 times kmalloc(1024)/kfree -> 71 cycles
+>  10000 times kmalloc(2048)/kfree -> 71 cycles
+>  10000 times kmalloc(4096)/kfree -> 71 cycles
+>  10000 times kmalloc(8192)/kfree -> 65 cycles
+>  10000 times kmalloc(16384)/kfree -> 511 cycles
+>
+> $ nm --print-size vmlinux | egrep -e 'kmem_cache_alloc|kmem_cache_free|is_pointer_to_page'
+> ffffffff81163ba0 00000000000000c9 T kmem_cache_alloc
+> ffffffff81163aa0 00000000000000f8 T kmem_cache_alloc_node
+> ffffffff81162cb0 0000000000000133 T kmem_cache_free
+>
+>
+>
+> Kernel size change
+> ------------------
+>
+>  $ scripts/bloat-o-meter vmlinux vmlinux-kim-preempt-avoid
+>  add/remove: 0/0 grow/shrink: 0/8 up/down: 0/-248 (-248)
+>  function                                     old     new   delta
+>  kmem_cache_free                              315     307      -8
+>  kmem_cache_alloc_node                        268     248     -20
+>  kmem_cache_alloc                             225     201     -24
+>  kfree                                        274     250     -24
+>  __kmalloc_node_track_caller                  356     324     -32
+>  __kmalloc_node                               340     308     -32
+>  __kmalloc                                    324     273     -51
+>  __kmalloc_track_caller                       343     286     -57
+>
+>
+> Qmempool notes:
+> ---------------
+>
+> On baseline kernel:
+>
+> Type:qmempool fastpath reuse SOFTIRQ Per elem: 33 cycles(tsc) 13.287 ns
+>  - (measurement period time:0.398628965 sec time_interval:398628965)
+>  - (invoke count:30000000 tsc_interval:996571541)
+>
+> Type:qmempool fastpath reuse BH-disable Per elem: 47 cycles(tsc) 19.180 ns
+>  - (measurement period time:0.575425927 sec time_interval:575425927)
+>  - (invoke count:30000000 tsc_interval:1438563781)
+>
+> qmempool_bench: N-pattern with 256 elements
+>
+> Type:qmempool alloc+free N-pattern Per elem: 62 cycles(tsc) 24.955 ns (step:0)
+>  - (measurement period time:0.638871008 sec time_interval:638871008)
+>  - (invoke count:25600000 tsc_interval:1597176303)
+>
+>
+> --
+> Best regards,
+>   Jesper Dangaard Brouer
+>   MSc.CS, Sr. Network Kernel Developer at Red Hat
+>   Author of http://www.iptv-analyzer.org
+>   LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
