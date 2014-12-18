@@ -1,50 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id ACDE76B0071
-	for <linux-mm@kvack.org>; Thu, 18 Dec 2014 11:27:22 -0500 (EST)
-Received: by mail-wg0-f47.google.com with SMTP id n12so2092662wgh.6
-        for <linux-mm@kvack.org>; Thu, 18 Dec 2014 08:27:21 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t3si1119145wiv.74.2014.12.18.08.27.19
+Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 439906B0074
+	for <linux-mm@kvack.org>; Thu, 18 Dec 2014 11:33:27 -0500 (EST)
+Received: by mail-ie0-f171.google.com with SMTP id rl12so1427194iec.16
+        for <linux-mm@kvack.org>; Thu, 18 Dec 2014 08:33:27 -0800 (PST)
+Received: from resqmta-po-08v.sys.comcast.net (resqmta-po-08v.sys.comcast.net. [2001:558:fe16:19:96:114:154:167])
+        by mx.google.com with ESMTPS id l76si5421201ioi.15.2014.12.18.08.33.25
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 18 Dec 2014 08:27:19 -0800 (PST)
-Date: Thu, 18 Dec 2014 17:27:18 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 0/4] OOM vs PM freezer fixes
-Message-ID: <20141218162718.GE832@dhcp22.suse.cz>
-References: <20141110163055.GC18373@dhcp22.suse.cz>
- <1417797707-31699-1-git-send-email-mhocko@suse.cz>
- <20141207100953.GC15892@dhcp22.suse.cz>
- <20141207135551.GA19034@htj.dyndns.org>
- <20141207190026.GB29065@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141207190026.GB29065@dhcp22.suse.cz>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Thu, 18 Dec 2014 08:33:25 -0800 (PST)
+Date: Thu, 18 Dec 2014 10:33:23 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: [PATCH] Slab infrastructure for array operations
+Message-ID: <alpine.DEB.2.11.1412181031520.2962@gentwo.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-pm@vger.kernel.org
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: akpm@linuxfoundation.org, Steven Rostedt <rostedt@goodmis.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>
 
-On Sun 07-12-14 20:00:26, Michal Hocko wrote:
-> On Sun 07-12-14 08:55:51, Tejun Heo wrote:
-> > On Sun, Dec 07, 2014 at 11:09:53AM +0100, Michal Hocko wrote:
-> > > this is another attempt to address OOM vs. PM interaction. More
-> > > about the issue is described in the last patch. The other 4 patches
-> > > are just clean ups. This is based on top of 3.18-rc3 + Johannes'
-> > > http://marc.info/?l=linux-kernel&m=141779091114777 which is not in the
-> > > Andrew's tree yet but I wanted to prevent from later merge conflicts.
-> > 
-> > When the patches are based on a custom tree, it's often a good idea to
-> > create a git branch of the patches to help reviewing.
-> 
-> git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git to-review/make-oom-vs-pm-freezing-more-robust-2
+This patch adds the basic infrastructure for alloc / free operations
+on pointer arrays. It includes a fallback function.
 
-Are there any other concerns? Should I just resubmit (after rc1)?
--- 
-Michal Hocko
-SUSE Labs
+Allocators must define _HAVE_SLAB_ALLOCATOR_OPERATIONS in their
+header files in order to implement their own fast version for
+these array operations.
+
+Signed-off-by: Christoph Lameter <cl@linux.com>
+
+Index: linux/include/linux/slab.h
+===================================================================
+--- linux.orig/include/linux/slab.h	2014-12-16 09:27:26.369447763 -0600
++++ linux/include/linux/slab.h	2014-12-18 10:30:33.394927526 -0600
+@@ -123,6 +123,7 @@ struct kmem_cache *memcg_create_kmem_cac
+ void kmem_cache_destroy(struct kmem_cache *);
+ int kmem_cache_shrink(struct kmem_cache *);
+ void kmem_cache_free(struct kmem_cache *, void *);
++void kmem_cache_free_array(struct kmem_cache *, int, void **);
+
+ /*
+  * Please use this macro to create slab caches. Simply specify the
+@@ -289,6 +290,7 @@ static __always_inline int kmalloc_index
+
+ void *__kmalloc(size_t size, gfp_t flags);
+ void *kmem_cache_alloc(struct kmem_cache *, gfp_t flags);
++int kmem_cache_alloc_array(struct kmem_cache *, gfp_t, int, void **);
+
+ #ifdef CONFIG_NUMA
+ void *__kmalloc_node(size_t size, gfp_t flags, int node);
+Index: linux/mm/slab_common.c
+===================================================================
+--- linux.orig/mm/slab_common.c	2014-12-12 10:27:49.360799479 -0600
++++ linux/mm/slab_common.c	2014-12-18 10:25:41.695889129 -0600
+@@ -105,6 +105,31 @@ static inline int kmem_cache_sanity_chec
+ }
+ #endif
+
++#ifndef _HAVE_SLAB_ALLOCATOR_ARRAY_OPERATIONS
++int kmem_cache_alloc_array(struct kmem_cache *s, gfp_t flags, int nr, void **p)
++{
++	int i;
++
++	for (i=0; i < nr; i++) {
++		void *x = p[i] = kmem_cache_alloc(s, flags);
++		if (!x)
++			return i;
++	}
++	return nr;
++}
++EXPORT_SYMBOL(kmem_cache_alloc_array);
++
++void kmem_cache_free_array(struct kmem_cache *s, int nr, void **p)
++{
++	int i;
++
++	for (i=0; i < nr; i++)
++		kmem_cache_free(s, p[i]);
++}
++EXPORT_SYMBOL(kmem_cache_free_array);
++
++#endif
++
+ #ifdef CONFIG_MEMCG_KMEM
+ static int memcg_alloc_cache_params(struct mem_cgroup *memcg,
+ 		struct kmem_cache *s, struct kmem_cache *root_cache)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
