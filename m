@@ -1,111 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id B27886B0032
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2014 18:05:59 -0500 (EST)
-Received: by mail-wg0-f53.google.com with SMTP id l18so2526006wgh.12
-        for <linux-mm@kvack.org>; Fri, 19 Dec 2014 15:05:59 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id er1si19711203wjd.152.2014.12.19.15.05.58
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id D47446B0032
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2014 18:39:48 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id rd3so2107595pab.35
+        for <linux-mm@kvack.org>; Fri, 19 Dec 2014 15:39:48 -0800 (PST)
+Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
+        by mx.google.com with ESMTPS id ks1si4266092pbc.242.2014.12.19.15.39.46
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 19 Dec 2014 15:05:58 -0800 (PST)
-Message-ID: <5494AF56.9070001@suse.cz>
-Date: Sat, 20 Dec 2014 00:05:58 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        Fri, 19 Dec 2014 15:39:47 -0800 (PST)
+Received: by mail-pa0-f42.google.com with SMTP id et14so2140709pad.1
+        for <linux-mm@kvack.org>; Fri, 19 Dec 2014 15:39:46 -0800 (PST)
+Date: Sat, 20 Dec 2014 08:39:37 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v2] mm/zsmalloc: add statistics support
+Message-ID: <20141219233937.GA11975@blaptop>
+References: <1418993719-14291-1-git-send-email-opensource.ganesh@gmail.com>
+ <20141219143244.1e5fabad8b6733204486f5bc@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] mm, vmscan: prevent kswapd livelock due to pfmemalloc-throttled
- process being killed
-References: <1418994116-23665-1-git-send-email-vbabka@suse.cz> <20141219155747.GA31756@dhcp22.suse.cz> <20141219182815.GK18274@esperanza>
-In-Reply-To: <20141219182815.GK18274@esperanza>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141219143244.1e5fabad8b6733204486f5bc@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>, Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, stable@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ganesh Mahendran <opensource.ganesh@gmail.com>, ngupta@vflare.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 19.12.2014 19:28, Vladimir Davydov wrote:
-> Hi,
->
-> On Fri, Dec 19, 2014 at 04:57:47PM +0100, Michal Hocko wrote:
->> On Fri 19-12-14 14:01:55, Vlastimil Babka wrote:
->>> Charles Shirron and Paul Cassella from Cray Inc have reported kswapd stuck
->>> in a busy loop with nothing left to balance, but kswapd_try_to_sleep() failing
->>> to sleep. Their analysis found the cause to be a combination of several
->>> factors:
->>>
->>> 1. A process is waiting in throttle_direct_reclaim() on pgdat->pfmemalloc_wait
->>>
->>> 2. The process has been killed (by OOM in this case), but has not yet been
->>>     scheduled to remove itself from the waitqueue and die.
->> pfmemalloc_wait is used as wait_event and that one uses
->> autoremove_wake_function for wake ups so the task shouldn't stay on the
->> queue if it was woken up. Moreover pfmemalloc_wait sleeps are killable
->> by the OOM killer AFAICS.
->>
->> $ git grep "wait_event.*pfmemalloc_wait"
->> mm/vmscan.c:
->> wait_event_interruptible_timeout(pgdat->pfmemalloc_wait,
->> mm/vmscan.c:    wait_event_killable(zone->zone_pgdat->pfmemalloc_wait,))
->>
->> So OOM killer would wake it up already and kswapd shouldn't see this
->> task on the waitqueue anymore.
-> OOM killer will wake up the process, but it won't remove it from the
-> pfmemalloc_wait queue. Therefore, if kswapd gets scheduled before the
-> dying process, it will see the wait queue being still active, but won't
-> be able to wake anyone up, because the waiting process has already been
-> woken by SIGKILL. I think this is what Vlastimil means.
+On Fri, Dec 19, 2014 at 02:32:44PM -0800, Andrew Morton wrote:
+> On Fri, 19 Dec 2014 20:55:19 +0800 Ganesh Mahendran <opensource.ganesh@gmail.com> wrote:
+> 
+> > Keeping fragmentation of zsmalloc in a low level is our target. But now
+> > we still need to add the debug code in zsmalloc to get the quantitative data.
+> > 
+> > This patch adds a new configuration CONFIG_ZSMALLOC_STAT to enable the
+> > statistics collection for developers. Currently only the objects statatitics
+> > in each class are collected. User can get the information via debugfs.
+> >      cat /sys/kernel/debug/zsmalloc/pool-1/...
+> 
+> Is everyone OK with this now?
 
-Yes, that's exactly what I think happens.
+Hmm, how about passing straightforward name from the user(ex, zram) when
+it creates zsmalloc? (ex, ex, zs_create_pool(gfp, zram0)).
+Then, we should fix debugfs_create_dir can return errno to propagate the error
+to end user who can know it was failed ENOMEM or EEXIST.
 
-> So AFAIU the problem does exist. However, I think it could be fixed by
-> simply waking up all processes waiting on pfmemalloc_wait before putting
-> kswapd to sleep:
-
-Hm I don't see how it helps? If any of the waiting processes were killed
-and wants to run on kswapd's CPU to remove itself from the waitqueue,
-it will still remain on the waitqueue, no?
-
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 744e2b491527..2a123634c220 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2984,6 +2984,9 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
->   	if (remaining)
->   		return false;
->   
-> +	if (!pgdat_balanced(pgdat, order, classzone_idx))
-> +		return false;
-> +
->   	/*
->   	 * There is a potential race between when kswapd checks its watermarks
->   	 * and a process gets throttled. There is also a potential race if
-> @@ -2993,12 +2996,9 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
->   	 * so wake them now if necessary. If necessary, processes will wake
->   	 * kswapd and get throttled again
->   	 */
-> -	if (waitqueue_active(&pgdat->pfmemalloc_wait)) {
-> -		wake_up(&pgdat->pfmemalloc_wait);
-> -		return false;
-> -	}
-> +	wake_up_all(&pgdat->pfmemalloc_wait);
->   
-> -	return pgdat_balanced(pgdat, order, classzone_idx);
-> +	return true;
->   }
->   
->   /*
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
-
----
-This email has been checked for viruses by Avast antivirus software.
-http://www.avast.com
+> 
+> > --- a/include/linux/zsmalloc.h
+> > +++ b/include/linux/zsmalloc.h
+> > @@ -48,4 +48,13 @@ void zs_unmap_object(struct zs_pool *pool, unsigned long handle);
+> >  
+> >  unsigned long zs_get_total_pages(struct zs_pool *pool);
+> >  
+> > +#ifdef CONFIG_ZSMALLOC_STAT
+> > +int get_zs_pool_index(struct zs_pool *pool);
+> 
+> The name is inconsistent with the rest of zsmalloc and with preferred
+> kernel naming conventions.  Should be "zs_get_pool_index".
+> 
+> > +#else
+> > +static inline int get_zs_pool_index(struct zs_pool *pool)
+> > +{
+> > +	return -1;
+> > +}
+> > +#endif
+> > +
+> >  #endif
+> > diff --git a/mm/Kconfig b/mm/Kconfig
+> > index 1d1ae6b..95c5728 100644
+> > --- a/mm/Kconfig
+> > +++ b/mm/Kconfig
+> >
+> > ...
+> >
+> > +static int zs_stats_size_show(struct seq_file *s, void *v)
+> > +{
+> > +	int i;
+> > +	struct zs_pool *pool = (struct zs_pool *)s->private;
+> 
+> The typecast is unneeded and undesirable (it defeats typechecking).
+> 
+> > +	struct size_class *class;
+> > +	int objs_per_zspage;
+> > +	unsigned long obj_allocated, obj_used, pages_used;
+> > +	unsigned long total_objs = 0, total_used_objs = 0, total_pages = 0;
+> > +
+> > +	seq_printf(s, " %5s %5s %13s %10s %10s\n", "class", "size",
+> > +				"obj_allocated", "obj_used", "pages_used");
+> > +
+> > +	for (i = 0; i < zs_size_classes; i++) {
+> > +		class = pool->size_class[i];
+> > +
+> > +		if (class->index != i)
+> > +			continue;
+> > +
+> > +		spin_lock(&class->lock);
+> > +		obj_allocated = zs_stat_get(class, OBJ_ALLOCATED);
+> > +		obj_used = zs_stat_get(class, OBJ_USED);
+> > +		spin_unlock(&class->lock);
+> > +
+> > +		objs_per_zspage = get_maxobj_per_zspage(class->size,
+> > +				class->pages_per_zspage);
+> > +		pages_used = obj_allocated / objs_per_zspage *
+> > +				class->pages_per_zspage;
+> > +
+> > +		seq_printf(s, " %5u %5u    %10lu %10lu %10lu\n", i,
+> > +			class->size, obj_allocated, obj_used, pages_used);
+> > +
+> > +		total_objs += obj_allocated;
+> > +		total_used_objs += obj_used;
+> > +		total_pages += pages_used;
+> > +	}
+> > +
+> > +	seq_puts(s, "\n");
+> > +	seq_printf(s, " %5s %5s    %10lu %10lu %10lu\n", "Total", "",
+> > +			total_objs, total_used_objs, total_pages);
+> > +
+> > +	return 0;
+> > +}
+> >
+> > ...
+> >
+> > +static int zs_pool_stat_create(struct zs_pool *pool)
+> > +{
+> > +	char name[10];
+> 
+> This is not good.  If the kernel creates and then destroys a pool 10000
+> times, zs_pool_index==10000 and we overrun the buffer.  Could use
+> kasprintf() in here to fix this.
+> 
+> zs_pool_index isn't a very good name - it doesn't index anything. 
+> zs_pool_id would be better.
+> 
+> > +	struct dentry *entry;
+> > +
+> > +	if (!zs_stat_root)
+> > +		return -ENODEV;
+> > +
+> > +	pool->index = atomic_inc_return(&zs_pool_index);
+> > +	snprintf(name, sizeof(name), "pool-%d", pool->index);
+> > +	entry = debugfs_create_dir(name, zs_stat_root);
+> > +	if (!entry) {
+> > +		pr_warn("pool %d, debugfs dir <%s> creation failed\n",
+> > +				pool->index, name);
+> > +		return -ENOMEM;
+> 
+> Sigh.  The debugfs interface does suck.  Doesn't matter much.
+> 
+> > +	}
+> > +	pool->stat_dentry = entry;
+> > +
+> > +	entry = debugfs_create_file("obj_in_classes", S_IFREG | S_IRUGO,
+> > +			pool->stat_dentry, pool, &zs_stat_size_ops);
+> > +	if (!entry) {
+> > +		pr_warn("pool %d, debugfs file entry <%s> creation failed\n",
+> > +				pool->index, "obj_in_classes");
+> > +		return -ENOMEM;
+> > +	}
+> > +
+> > +	return 0;
+> > +}
+> >
+> > ...
+> >
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
