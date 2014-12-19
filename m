@@ -1,96 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id ABF5F6B006C
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2014 13:28:40 -0500 (EST)
-Received: by mail-pd0-f181.google.com with SMTP id v10so1669935pde.40
-        for <linux-mm@kvack.org>; Fri, 19 Dec 2014 10:28:40 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id kb9si15303593pbb.74.2014.12.19.10.28.38
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EDF46B0032
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2014 14:53:37 -0500 (EST)
+Received: by mail-wi0-f182.google.com with SMTP id h11so2864982wiw.9
+        for <linux-mm@kvack.org>; Fri, 19 Dec 2014 11:53:36 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j9si19270168wjf.10.2014.12.19.11.53.34
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Dec 2014 10:28:39 -0800 (PST)
-Date: Fri, 19 Dec 2014 21:28:15 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH 1/2] mm, vmscan: prevent kswapd livelock due to
- pfmemalloc-throttled process being killed
-Message-ID: <20141219182815.GK18274@esperanza>
-References: <1418994116-23665-1-git-send-email-vbabka@suse.cz>
- <20141219155747.GA31756@dhcp22.suse.cz>
+        Fri, 19 Dec 2014 11:53:35 -0800 (PST)
+Date: Fri, 19 Dec 2014 14:53:27 -0500
+From: Mike Snitzer <snitzer@redhat.com>
+Subject: Re: mempool.c: Replace io_schedule_timeout with io_schedule
+Message-ID: <20141219195327.GC8697@redhat.com>
+References: <1418863222-25096-1-git-send-email-nefelim4ag@gmail.com>
+ <20141218153709.GC2293@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20141219155747.GA31756@dhcp22.suse.cz>
+In-Reply-To: <20141218153709.GC2293@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, stable@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
+To: Timofey Titovets <nefelim4ag@gmail.com>
+Cc: Tejun Heo <tj@kernel.org>, Heinz Mauelshagen <heinzm@redhat.com>, dm-devel@redhat.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-Hi,
+On Thu, Dec 18 2014 at 10:37am -0500,
+Mike Snitzer <snitzer@redhat.com> wrote:
 
-On Fri, Dec 19, 2014 at 04:57:47PM +0100, Michal Hocko wrote:
-> On Fri 19-12-14 14:01:55, Vlastimil Babka wrote:
-> > Charles Shirron and Paul Cassella from Cray Inc have reported kswapd stuck
-> > in a busy loop with nothing left to balance, but kswapd_try_to_sleep() failing
-> > to sleep. Their analysis found the cause to be a combination of several
-> > factors:
+> On Wed, Dec 17 2014 at  7:40pm -0500,
+> Timofey Titovets <nefelim4ag@gmail.com> wrote:
+> 
+> > io_schedule_timeout(5*HZ);
+> > Introduced for avoidance dm bug:
+> > http://linux.derkeiler.com/Mailing-Lists/Kernel/2006-08/msg04869.html
+> > According to description must be replaced with io_schedule()
 > > 
-> > 1. A process is waiting in throttle_direct_reclaim() on pgdat->pfmemalloc_wait
+> > Can you test it and answer: it produce any regression?
 > > 
-> > 2. The process has been killed (by OOM in this case), but has not yet been
-> >    scheduled to remove itself from the waitqueue and die.
+> > I replace it and recompile kernel, tested it by following script:
+> > ---
+> > dev=""
+> > block_dev=zram #loop
+> > if [ "$block_dev" == "loop" ]; then
+> >         f1=$RANDOM
+> >         f2=${f1}_2
+> >         truncate -s 256G ./$f1
+> >         truncate -s 256G ./$f2
+> >         dev="$(losetup -f --show ./$f1) $(losetup -f --show ./$f2)"
+> >         rm ./$f1 ./$f2
+> > else
+> >         modprobe zram num_devices=8
+> >         # needed ~1g free ram for test
+> >         echo 128G > /sys/block/zram7/disksize
+> >         echo 128G > /sys/block/zram6/disksize
+> >         dev="/dev/zram7 /dev/zram6"
+> > fi
+> > 
+> > md=/dev/md$[$RANDOM%8]
+> > echo "y\n" | mdadm --create $md --chunk=4 --level=1 --raid-devices=2 $(echo $dev)
 > 
-> pfmemalloc_wait is used as wait_event and that one uses
-> autoremove_wake_function for wake ups so the task shouldn't stay on the
-> queue if it was woken up. Moreover pfmemalloc_wait sleeps are killable
-> by the OOM killer AFAICS.
+> You didn't test using DM, you used MD.
 > 
-> $ git grep "wait_event.*pfmemalloc_wait"
-> mm/vmscan.c:
-> wait_event_interruptible_timeout(pgdat->pfmemalloc_wait,
-> mm/vmscan.c:    wait_event_killable(zone->zone_pgdat->pfmemalloc_wait,))
-> 
-> So OOM killer would wake it up already and kswapd shouldn't see this
-> task on the waitqueue anymore.
+> And in the context of 2.6.18 the old dm-raid1 target was all DM had
+> (whereas now we also have a DM wrapper around MD raid with the dm-raid
+> module).  Should we just kill dm-raid1 now that we have dm-raid?  But
+> that is tangential to the question being posed here.
 
-OOM killer will wake up the process, but it won't remove it from the
-pfmemalloc_wait queue. Therefore, if kswapd gets scheduled before the
-dying process, it will see the wait queue being still active, but won't
-be able to wake anyone up, because the waiting process has already been
-woken by SIGKILL. I think this is what Vlastimil means.
+Heinz pointed out that dm-raid1 handles clustered raid1 capabilities.
+So we cannot easily replace with dm-raid.
+ 
+> So I'll have to read the thread you linked to to understand if DM raid1
+> (or DM core) still suffers from the problem that this hack papered over.
 
-So AFAIU the problem does exist. However, I think it could be fixed by
-simply waking up all processes waiting on pfmemalloc_wait before putting
-kswapd to sleep:
+Heinz also pointed out that the primary issue that forced the use of
+io_schedule_timeout() was that dm-log-userspace (used by dm-raid1) makes
+use of a single shared mempool for multiple devices.  Unfortunately,
+dm-log-userspace still has this shared mempool (flush_entry_pool).  So
+we'll need to fix that up to be per-device before mm/mempool.c code can
+be switched to use io_schedule().
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 744e2b491527..2a123634c220 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2984,6 +2984,9 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
- 	if (remaining)
- 		return false;
- 
-+	if (!pgdat_balanced(pgdat, order, classzone_idx))
-+		return false;
-+
- 	/*
- 	 * There is a potential race between when kswapd checks its watermarks
- 	 * and a process gets throttled. There is also a potential race if
-@@ -2993,12 +2996,9 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
- 	 * so wake them now if necessary. If necessary, processes will wake
- 	 * kswapd and get throttled again
- 	 */
--	if (waitqueue_active(&pgdat->pfmemalloc_wait)) {
--		wake_up(&pgdat->pfmemalloc_wait);
--		return false;
--	}
-+	wake_up_all(&pgdat->pfmemalloc_wait);
- 
--	return pgdat_balanced(pgdat, order, classzone_idx);
-+	return true;
- }
- 
- /*
+I'll add this to my TODO.  But it'll have to wait until after the new
+year.
+
+Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
