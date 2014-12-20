@@ -1,86 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id DA6376B0032
-	for <linux-mm@kvack.org>; Sat, 20 Dec 2014 09:18:47 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id kq14so3015718pab.34
-        for <linux-mm@kvack.org>; Sat, 20 Dec 2014 06:18:47 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id id2si18179025pad.93.2014.12.20.06.18.45
+Received: from mail-qc0-f177.google.com (mail-qc0-f177.google.com [209.85.216.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 02C6C6B006E
+	for <linux-mm@kvack.org>; Sat, 20 Dec 2014 09:36:17 -0500 (EST)
+Received: by mail-qc0-f177.google.com with SMTP id x3so1804996qcv.8
+        for <linux-mm@kvack.org>; Sat, 20 Dec 2014 06:36:16 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 88si14343640qgg.124.2014.12.20.06.36.14
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 20 Dec 2014 06:18:46 -0800 (PST)
-Date: Sat, 20 Dec 2014 17:18:24 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH 1/2] mm, vmscan: prevent kswapd livelock due to
- pfmemalloc-throttled process being killed
-Message-ID: <20141220141824.GM18274@esperanza>
-References: <1418994116-23665-1-git-send-email-vbabka@suse.cz>
- <20141219155747.GA31756@dhcp22.suse.cz>
- <20141219182815.GK18274@esperanza>
- <20141220104746.GB6306@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20141220104746.GB6306@dhcp22.suse.cz>
+        Sat, 20 Dec 2014 06:36:15 -0800 (PST)
+From: Rafael Aquini <aquini@redhat.com>
+Subject: [PATCH] proc: task_mmu: show page size in /proc/<pid>/numa_maps
+Date: Sat, 20 Dec 2014 08:54:45 -0500
+Message-Id: <c97f30472ec5fe79cb8fa8be66cc3d8509777990.1419079617.git.aquini@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, stable@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
+To: linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, oleg@redhat.com, dave.hansen@linux.intel.com, rientjes@google.com, linux-mm@kvack.org
 
-On Sat, Dec 20, 2014 at 11:47:46AM +0100, Michal Hocko wrote:
-> On Fri 19-12-14 21:28:15, Vladimir Davydov wrote:
-> > So AFAIU the problem does exist. However, I think it could be fixed by
-> > simply waking up all processes waiting on pfmemalloc_wait before putting
-> > kswapd to sleep:
-> 
-> I think that a simple cond_resched() in kswapd_try_to_sleep should be
-> sufficient and less risky fix, so basically what Vlastimil was proposing
-> in the beginning.
+This patch introduces 'pagesize' line element to /proc/<pid>/numa_maps
+report file in order to help disambiguating the size of pages that are
+backing memory areas mapped by a task. When the VMA backing page size
+is observed different from kernel's default PAGE_SIZE, the new element 
+is printed out to complement report output. This is specially useful to
+help differentiating between HUGE and GIGANTIC page VMAs.
 
-With such a solution we implicitly rely upon the scheduler
-implementation, which AFAIU is wrong. E.g. suppose processes are
-governed by FIFO and kswapd happens to have a higher prio than the
-process killed by OOM. Then after cond_resched kswapd will be picked for
-execution again, and the killing process won't have a chance to remove
-itself from the wait queue.
+This patch is based on Dave Hansen's proposal and reviewer's follow ups 
+taken from this dicussion: https://lkml.org/lkml/2011/9/21/454
 
-> 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 744e2b491527..2a123634c220 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -2984,6 +2984,9 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
-> >  	if (remaining)
-> >  		return false;
-> >  
-> > +	if (!pgdat_balanced(pgdat, order, classzone_idx))
-> > +		return false;
-> > +
-> 
-> What would be consequences of not waking up pfmemalloc waiters while the
-> node is not balanced?
+Signed-off-by: Rafael Aquini <aquini@redhat.com>
+---
+ fs/proc/task_mmu.c | 5 +++++
+ 1 file changed, 5 insertions(+)
 
-They will get woken up a bit later in balanced_pgdat. This might result
-in latency spikes though. In order not to change the original behaviour
-we could always wake all pfmemalloc waiters no matter if we are going to
-sleep or not:
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 744e2b491527..a21e0bd563c3 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2993,10 +2993,7 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
- 	 * so wake them now if necessary. If necessary, processes will wake
- 	 * kswapd and get throttled again
- 	 */
--	if (waitqueue_active(&pgdat->pfmemalloc_wait)) {
--		wake_up(&pgdat->pfmemalloc_wait);
--		return false;
--	}
-+	wake_up_all(&pgdat->pfmemalloc_wait);
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 246eae8..9f2e2c8 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -1479,6 +1479,7 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	struct mm_walk walk = {};
+ 	struct mempolicy *pol;
++	unsigned long page_size;
+ 	char buffer[64];
+ 	int nid;
  
- 	return pgdat_balanced(pgdat, order, classzone_idx);
- }
+@@ -1533,6 +1534,10 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
+ 	if (!md->pages)
+ 		goto out;
+ 
++	page_size = vma_kernel_pagesize(vma);
++	if (page_size != PAGE_SIZE)
++		seq_printf(m, " pagesize=%lu", page_size);
++
+ 	if (md->anon)
+ 		seq_printf(m, " anon=%lu", md->anon);
+ 
+-- 
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
