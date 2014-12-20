@@ -1,52 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id B2DE26B0032
-	for <linux-mm@kvack.org>; Sat, 20 Dec 2014 01:51:43 -0500 (EST)
-Received: by mail-wi0-f176.google.com with SMTP id ex7so3812749wid.15
-        for <linux-mm@kvack.org>; Fri, 19 Dec 2014 22:51:43 -0800 (PST)
-Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [2002:c35c:fd02::1])
-        by mx.google.com with ESMTPS id hg10si21132078wjb.144.2014.12.19.22.51.42
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id B475E6B0032
+	for <linux-mm@kvack.org>; Sat, 20 Dec 2014 04:25:20 -0500 (EST)
+Received: by mail-pd0-f182.google.com with SMTP id p10so2732036pdj.13
+        for <linux-mm@kvack.org>; Sat, 20 Dec 2014 01:25:20 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id m2si17255367pdr.187.2014.12.20.01.25.18
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 19 Dec 2014 22:51:42 -0800 (PST)
-Date: Sat, 20 Dec 2014 06:51:33 +0000
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [PATCH 2/8] swap: lock i_mutex for swap_writepage direct_IO
-Message-ID: <20141220065133.GC22149@ZenIV.linux.org.uk>
-References: <cover.1418618044.git.osandov@osandov.com>
- <a59510f4552a5d3557958cdb0ce1b23b3abfc75b.1418618044.git.osandov@osandov.com>
- <20141215162705.GA23887@quack.suse.cz>
- <20141215165615.GA19041@infradead.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 20 Dec 2014 01:25:19 -0800 (PST)
+Date: Sat, 20 Dec 2014 12:24:54 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH 1/2] mm, vmscan: prevent kswapd livelock due to
+ pfmemalloc-throttled process being killed
+Message-ID: <20141220092454.GL18274@esperanza>
+References: <1418994116-23665-1-git-send-email-vbabka@suse.cz>
+ <20141219155747.GA31756@dhcp22.suse.cz>
+ <20141219182815.GK18274@esperanza>
+ <5494AF56.9070001@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20141215165615.GA19041@infradead.org>
+In-Reply-To: <5494AF56.9070001@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Jan Kara <jack@suse.cz>, Omar Sandoval <osandov@osandov.com>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, David Sterba <dsterba@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, stable@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
 
-On Mon, Dec 15, 2014 at 08:56:15AM -0800, Christoph Hellwig wrote:
-> On Mon, Dec 15, 2014 at 05:27:05PM +0100, Jan Kara wrote:
-> > On Sun 14-12-14 21:26:56, Omar Sandoval wrote:
-> > > The generic write code locks i_mutex for a direct_IO. Swap-over-NFS
-> > > doesn't grab the mutex because nfs_direct_IO doesn't expect i_mutex to
-> > > be held, but most direct_IO implementations do.
-> >   I think you are speaking about direct IO writes only, aren't you? For DIO
-> > reads we don't hold i_mutex AFAICS. And also for DIO writes we don't
-> > necessarily hold i_mutex - see for example XFS which doesn't take i_mutex
-> > for direct IO writes. It uses it's internal rwlock for this (see
-> > xfs_file_dio_aio_write()). So I think this is just wrong.
+On Sat, Dec 20, 2014 at 12:05:58AM +0100, Vlastimil Babka wrote:
+> On 19.12.2014 19:28, Vladimir Davydov wrote:
+> >So AFAIU the problem does exist. However, I think it could be fixed by
+> >simply waking up all processes waiting on pfmemalloc_wait before putting
+> >kswapd to sleep:
 > 
-> The problem is that the use of ->direct_IO by the swap code is a gross
-> layering violation.  ->direct_IO is a callback for the filesystem, and
-> the swap code need to call ->read_iter instead of ->readpage and
-> ->write_tier instead of ->direct_IO, and leave the locking to the
-> filesystem.
+> Hm I don't see how it helps? If any of the waiting processes were killed
+> and wants to run on kswapd's CPU to remove itself from the waitqueue,
+> it will still remain on the waitqueue, no?
 
-The thing is, ->read_iter() and ->write_iter() might decide to fall back to 
-buffered IO path.  XFS is unusual in that respect - there O_DIRECT ends up
-with short write in such case.  Other filesystems, OTOH...
+Yes, but do we really want all waiting processes to be removed from the
+wait queue? AFAIU we just want them to be awake before putting kswapd to
+sleep. If there's a process killed (and therefore woken) by the OOM
+killer left on the wait queue after we called wake_up_all, it will see
+pgdat_balanced=true as soon as it gets scheduled and pass away quickly.
+All we have to do is drop the waitqueue_active check from kswapd.
+
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
