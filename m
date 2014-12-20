@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CBB46B006E
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2014 19:23:13 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id ey11so2167056pad.38
-        for <linux-mm@kvack.org>; Fri, 19 Dec 2014 16:23:13 -0800 (PST)
-Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
-        by mx.google.com with ESMTPS id fk2si12219927pab.155.2014.12.19.16.23.11
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id A155A6B0032
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2014 19:55:09 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id eu11so2192323pac.36
+        for <linux-mm@kvack.org>; Fri, 19 Dec 2014 16:55:09 -0800 (PST)
+Received: from mail-pd0-x229.google.com (mail-pd0-x229.google.com. [2607:f8b0:400e:c02::229])
+        by mx.google.com with ESMTPS id xy7si16265783pab.91.2014.12.19.16.55.07
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 19 Dec 2014 16:23:12 -0800 (PST)
-Received: by mail-pa0-f53.google.com with SMTP id kq14so2132830pab.26
-        for <linux-mm@kvack.org>; Fri, 19 Dec 2014 16:23:11 -0800 (PST)
-Date: Sat, 20 Dec 2014 09:23:03 +0900
+        Fri, 19 Dec 2014 16:55:08 -0800 (PST)
+Received: by mail-pd0-f169.google.com with SMTP id z10so2202052pdj.14
+        for <linux-mm@kvack.org>; Fri, 19 Dec 2014 16:55:07 -0800 (PST)
+Date: Sat, 20 Dec 2014 09:54:58 +0900
 From: Minchan Kim <minchan@kernel.org>
 Subject: Re: [PATCH v2] mm/zsmalloc: add statistics support
-Message-ID: <20141220002303.GD11975@blaptop>
+Message-ID: <20141220005458.GA15630@blaptop>
 References: <1418993719-14291-1-git-send-email-opensource.ganesh@gmail.com>
  <20141219143244.1e5fabad8b6733204486f5bc@linux-foundation.org>
  <20141219233937.GA11975@blaptop>
@@ -23,34 +23,40 @@ References: <1418993719-14291-1-git-send-email-opensource.ganesh@gmail.com>
  <20141219160648.5cea8a6b0c764caa6100a585@linux-foundation.org>
  <20141220001043.GC11975@blaptop>
  <20141219161756.bcf7421acb4bc7a286c1afa3@linux-foundation.org>
+ <20141220002303.GD11975@blaptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20141219161756.bcf7421acb4bc7a286c1afa3@linux-foundation.org>
+In-Reply-To: <20141220002303.GD11975@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Ganesh Mahendran <opensource.ganesh@gmail.com>, ngupta@vflare.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Dec 19, 2014 at 04:17:56PM -0800, Andrew Morton wrote:
-> On Sat, 20 Dec 2014 09:10:43 +0900 Minchan Kim <minchan@kernel.org> wrote:
-> 
-> > > It involves rehashing a lengthy argument with Greg.
+On Sat, Dec 20, 2014 at 09:23:03AM +0900, Minchan Kim wrote:
+> On Fri, Dec 19, 2014 at 04:17:56PM -0800, Andrew Morton wrote:
+> > On Sat, 20 Dec 2014 09:10:43 +0900 Minchan Kim <minchan@kernel.org> wrote:
 > > 
-> > Okay. Then, Ganesh,
-> > please add warn message about duplicaed name possibility althoug
-> > it's unlikely as it is.
+> > > > It involves rehashing a lengthy argument with Greg.
+> > > 
+> > > Okay. Then, Ganesh,
+> > > please add warn message about duplicaed name possibility althoug
+> > > it's unlikely as it is.
+> > 
+> > Oh, getting EEXIST is easy with this patch.  Just create and destroy a
+> > pool 2^32 times and the counter wraps ;) It's hardly a serious issue
+> > for a debugging patch.
 > 
-> Oh, getting EEXIST is easy with this patch.  Just create and destroy a
-> pool 2^32 times and the counter wraps ;) It's hardly a serious issue
-> for a debugging patch.
+> I meant that I wanted to change from index to name passed from caller like this
+> 
+> zram:
+> 	zs_create_pool(GFP_NOIO | __GFP_HIGHMEM, zram->disk->first_minor);
 
-I meant that I wanted to change from index to name passed from caller like this
+Correction for clear my intention
 
-zram:
-	zs_create_pool(GFP_NOIO | __GFP_HIGHMEM, zram->disk->first_minor);
-
-So, duplication should be rare. :)
+	sprintf(buf, "%zram%d", zram->disk->first_minor);
+ 	zs_create_pool(GFP_NOIO | __GFP_HIGHMEM, buf);
+	
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
