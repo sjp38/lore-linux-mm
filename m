@@ -1,63 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f177.google.com (mail-qc0-f177.google.com [209.85.216.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 02C6C6B006E
-	for <linux-mm@kvack.org>; Sat, 20 Dec 2014 09:36:17 -0500 (EST)
-Received: by mail-qc0-f177.google.com with SMTP id x3so1804996qcv.8
-        for <linux-mm@kvack.org>; Sat, 20 Dec 2014 06:36:16 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 88si14343640qgg.124.2014.12.20.06.36.14
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 20 Dec 2014 06:36:15 -0800 (PST)
-From: Rafael Aquini <aquini@redhat.com>
-Subject: [PATCH] proc: task_mmu: show page size in /proc/<pid>/numa_maps
-Date: Sat, 20 Dec 2014 08:54:45 -0500
-Message-Id: <c97f30472ec5fe79cb8fa8be66cc3d8509777990.1419079617.git.aquini@redhat.com>
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id D84F16B0032
+	for <linux-mm@kvack.org>; Sat, 20 Dec 2014 11:41:10 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id et14so3162279pad.17
+        for <linux-mm@kvack.org>; Sat, 20 Dec 2014 08:41:10 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id wr6si18523055pbc.82.2014.12.20.08.41.08
+        for <linux-mm@kvack.org>;
+        Sat, 20 Dec 2014 08:41:09 -0800 (PST)
+Message-ID: <5495A698.4050707@linux.intel.com>
+Date: Sat, 20 Dec 2014 08:40:56 -0800
+From: Dave Hansen <dave.hansen@linux.intel.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] proc: task_mmu: show page size in /proc/<pid>/numa_maps
+References: <c97f30472ec5fe79cb8fa8be66cc3d8509777990.1419079617.git.aquini@redhat.com>
+In-Reply-To: <c97f30472ec5fe79cb8fa8be66cc3d8509777990.1419079617.git.aquini@redhat.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, oleg@redhat.com, dave.hansen@linux.intel.com, rientjes@google.com, linux-mm@kvack.org
+To: Rafael Aquini <aquini@redhat.com>, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, oleg@redhat.com, rientjes@google.com, linux-mm@kvack.org
 
-This patch introduces 'pagesize' line element to /proc/<pid>/numa_maps
-report file in order to help disambiguating the size of pages that are
-backing memory areas mapped by a task. When the VMA backing page size
-is observed different from kernel's default PAGE_SIZE, the new element 
-is printed out to complement report output. This is specially useful to
-help differentiating between HUGE and GIGANTIC page VMAs.
+On 12/20/2014 05:54 AM, Rafael Aquini wrote:
+> This patch introduces 'pagesize' line element to /proc/<pid>/numa_maps
+> report file in order to help disambiguating the size of pages that are
+> backing memory areas mapped by a task. When the VMA backing page size
+> is observed different from kernel's default PAGE_SIZE, the new element 
+> is printed out to complement report output. This is specially useful to
+> help differentiating between HUGE and GIGANTIC page VMAs.
 
-This patch is based on Dave Hansen's proposal and reviewer's follow ups 
-taken from this dicussion: https://lkml.org/lkml/2011/9/21/454
+Heh, I completely forgot about this.  Thanks for picking it back up.
 
-Signed-off-by: Rafael Aquini <aquini@redhat.com>
----
- fs/proc/task_mmu.c | 5 +++++
- 1 file changed, 5 insertions(+)
+I sometimes wonder what 'numa_maps' purpose is any if we should have
+_some_ kind of policy about what goes in there vs. smaps.  numa_maps
+seems to be turning in to smaps, minus the \n. :)
 
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 246eae8..9f2e2c8 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -1479,6 +1479,7 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
- 	struct mm_struct *mm = vma->vm_mm;
- 	struct mm_walk walk = {};
- 	struct mempolicy *pol;
-+	unsigned long page_size;
- 	char buffer[64];
- 	int nid;
- 
-@@ -1533,6 +1534,10 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
- 	if (!md->pages)
- 		goto out;
- 
-+	page_size = vma_kernel_pagesize(vma);
-+	if (page_size != PAGE_SIZE)
-+		seq_printf(m, " pagesize=%lu", page_size);
-+
- 	if (md->anon)
- 		seq_printf(m, " anon=%lu", md->anon);
- 
--- 
-1.9.3
+But that isn't the case for this patch.  The "anon=50 dirty=50 N0=50"
+output of numa_maps is wholly *useless* without either this patch or
+some other mechanism to find out of hugetbfs memory is present.  I think
+that needs to make it in to the description.
+
+I'm fine with the code, though.  Feel free to add my acked-by.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
