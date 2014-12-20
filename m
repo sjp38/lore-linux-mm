@@ -1,131 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FDAB6B0032
-	for <linux-mm@kvack.org>; Sat, 20 Dec 2014 04:52:29 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id kq14so2728522pab.26
-        for <linux-mm@kvack.org>; Sat, 20 Dec 2014 01:52:28 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id hv5si17551778pad.40.2014.12.20.01.52.26
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 003666B0032
+	for <linux-mm@kvack.org>; Sat, 20 Dec 2014 05:47:50 -0500 (EST)
+Received: by mail-wi0-f182.google.com with SMTP id h11so4040746wiw.3
+        for <linux-mm@kvack.org>; Sat, 20 Dec 2014 02:47:50 -0800 (PST)
+Received: from mail-wg0-x231.google.com (mail-wg0-x231.google.com. [2a00:1450:400c:c00::231])
+        by mx.google.com with ESMTPS id ll9si22110867wjb.28.2014.12.20.02.47.48
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 20 Dec 2014 01:52:27 -0800 (PST)
-Subject: Re: [RFC PATCH] oom: Don't count on mm-less current process.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20141217130807.GB24704@dhcp22.suse.cz>
-	<201412182111.JCE48417.QFOJSFtMOHFLOV@I-love.SAKURA.ne.jp>
-	<20141218153341.GB832@dhcp22.suse.cz>
-	<201412192107.IGJ09885.OFHSMJtLFFOVQO@I-love.SAKURA.ne.jp>
-	<20141219124903.GB18397@dhcp22.suse.cz>
-In-Reply-To: <20141219124903.GB18397@dhcp22.suse.cz>
-Message-Id: <201412201813.JJF95860.VSLOQOFHFJOFtM@I-love.SAKURA.ne.jp>
-Date: Sat, 20 Dec 2014 18:13:40 +0900
-Mime-Version: 1.0
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 20 Dec 2014 02:47:49 -0800 (PST)
+Received: by mail-wg0-f49.google.com with SMTP id n12so3237461wgh.36
+        for <linux-mm@kvack.org>; Sat, 20 Dec 2014 02:47:48 -0800 (PST)
+Date: Sat, 20 Dec 2014 11:47:46 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/2] mm, vmscan: prevent kswapd livelock due to
+ pfmemalloc-throttled process being killed
+Message-ID: <20141220104746.GB6306@dhcp22.suse.cz>
+References: <1418994116-23665-1-git-send-email-vbabka@suse.cz>
+ <20141219155747.GA31756@dhcp22.suse.cz>
+ <20141219182815.GK18274@esperanza>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141219182815.GK18274@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.cz, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, stable@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
 
-Michal Hocko wrote:
-> On Fri 19-12-14 21:07:53, Tetsuo Handa wrote:
-> [...]
-> > >From 3c68c66a72f0dbfc66f9799a00fbaa1f0217befb Mon Sep 17 00:00:00 2001
-> > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > Date: Fri, 19 Dec 2014 20:49:06 +0900
-> > Subject: [PATCH v2] oom: Don't count on mm-less current process.
+On Fri 19-12-14 21:28:15, Vladimir Davydov wrote:
+> Hi,
+> 
+> On Fri, Dec 19, 2014 at 04:57:47PM +0100, Michal Hocko wrote:
+> > On Fri 19-12-14 14:01:55, Vlastimil Babka wrote:
+> > > Charles Shirron and Paul Cassella from Cray Inc have reported kswapd stuck
+> > > in a busy loop with nothing left to balance, but kswapd_try_to_sleep() failing
+> > > to sleep. Their analysis found the cause to be a combination of several
+> > > factors:
+> > > 
+> > > 1. A process is waiting in throttle_direct_reclaim() on pgdat->pfmemalloc_wait
+> > > 
+> > > 2. The process has been killed (by OOM in this case), but has not yet been
+> > >    scheduled to remove itself from the waitqueue and die.
 > > 
-> > out_of_memory() doesn't trigger the OOM killer if the current task is already
-> > exiting or it has fatal signals pending, and gives the task access to memory
-> > reserves instead. However, doing so is wrong if out_of_memory() is called by
-> > an allocation (e.g. from exit_task_work()) after the current task has already
-> > released its memory and cleared TIF_MEMDIE at exit_mm(). If we again set
-> > TIF_MEMDIE to post-exit_mm() current task, the OOM killer will be blocked by
-> > the task sitting in the final schedule() waiting for its parent to reap it.
-> > It will trigger an OOM livelock if its parent is unable to reap it due to
-> > doing an allocation and waiting for the OOM killer to kill it.
+> > pfmemalloc_wait is used as wait_event and that one uses
+> > autoremove_wake_function for wake ups so the task shouldn't stay on the
+> > queue if it was woken up. Moreover pfmemalloc_wait sleeps are killable
+> > by the OOM killer AFAICS.
 > > 
-> > Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > $ git grep "wait_event.*pfmemalloc_wait"
+> > mm/vmscan.c:
+> > wait_event_interruptible_timeout(pgdat->pfmemalloc_wait,
+> > mm/vmscan.c:    wait_event_killable(zone->zone_pgdat->pfmemalloc_wait,))
+> > 
+> > So OOM killer would wake it up already and kswapd shouldn't see this
+> > task on the waitqueue anymore.
 > 
-> Acked-by: Michal Hocko <mhocko@suse.cz>
-> 
-> Just a nit, You could start the condition with current->mm because it
-> is the simplest check. We do not have to check for signals pending or
-> PF_EXITING at all if it is NULL. But this is not a hot path so it
-> doesn't matter much. It is just a good practice to start with the
-> simplest tests first.
-> 
-> Please also make sure to add Andrew to CC when sending the patch again
-> so that he knows about it and picks it up.
-> 
-> Thanks!
-> 
-I see. Here is v3 patch. Andrew, would you please pick this up?
+> OOM killer will wake up the process, but it won't remove it from the
+> pfmemalloc_wait queue. Therefore, if kswapd gets scheduled before the
+> dying process, it will see the wait queue being still active, but won't
+> be able to wake anyone up, because the waiting process has already been
+> woken by SIGKILL. I think this is what Vlastimil means.
 
-By the way, Michal, I think there is still an unlikely race window at
-set_tsk_thread_flag(p, TIF_MEMDIE) in oom_kill_process(). For example,
-task1 calls out_of_memory() and select_bad_process() is called from
-out_of_memory(). oom_scan_process_thread(task2) is called from
-select_bad_process(). oom_scan_process_thread() returns OOM_SCAN_OK
-because task2->mm != NULL and task_will_free_mem(task2) == false.
-select_bad_process() calls get_task_struct(task2) and returns task2.
-Task1 goes to sleep and task2 is woken up. Task2 enters into do_exit()
-and gets PF_EXITING at exit_signals() and releases mm at exit_mm().
-Task2 goes to sleep and task1 is woken up. Task1 calls
-oom_kill_process(task2). oom_kill_process() sets TIF_MEMDIE on task2
-because task_will_free_mem(task2) == true due to PF_EXITING already set...
-Should we do like
+OK, I see the point now. I didn't realize that autoremove_wake_function
+doesn't remove the waiter from the queue if the state doesn't change.
 
-        if (task_will_free_mem(p)) {
-		if (p->mm)
-	                set_tsk_thread_flag(p, TIF_MEMDIE);
-                put_task_struct(p);
-                return;
-        }
+> So AFAIU the problem does exist. However, I think it could be fixed by
+> simply waking up all processes waiting on pfmemalloc_wait before putting
+> kswapd to sleep:
 
-at oom_kill_process() ? Or even if we do so, how to check if task1 went
-to sleep between task2->mm and set_tsk_thread_flag(task2, TIF_MEMDIE) ?
-This race window is very very unlikely because releasing task2->mm is
-expected to release some memory. But if somebody else consumed memory
-released by exit_mm(task2), I think there is nothing to protect.
-----------------------------------------
->From 3a75c92a03cf17d9505bbb7fc9c81603daac9da0 Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Sat, 20 Dec 2014 17:18:37 +0900
-Subject: [PATCH v3] oom: Don't count on mm-less current process.
+I think that a simple cond_resched() in kswapd_try_to_sleep should be
+sufficient and less risky fix, so basically what Vlastimil was proposing
+in the beginning.
 
-out_of_memory() doesn't trigger the OOM killer if the current task is already
-exiting or it has fatal signals pending, and gives the task access to memory
-reserves instead. However, doing so is wrong if out_of_memory() is called by
-an allocation (e.g. from exit_task_work()) after the current task has already
-released its memory and cleared TIF_MEMDIE at exit_mm(). If we again set
-TIF_MEMDIE to post-exit_mm() current task, the OOM killer will be blocked by
-the task sitting in the final schedule() waiting for its parent to reap it.
-It will trigger an OOM livelock if its parent is unable to reap it due to
-doing an allocation and waiting for the OOM killer to kill it.
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 744e2b491527..2a123634c220 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2984,6 +2984,9 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
+>  	if (remaining)
+>  		return false;
+>  
+> +	if (!pgdat_balanced(pgdat, order, classzone_idx))
+> +		return false;
+> +
 
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Acked-by: Michal Hocko <mhocko@suse.cz>
+What would be consequences of not waking up pfmemalloc waiters while the
+node is not balanced?
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index d503e9c..f82dd13 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -643,8 +643,12 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
- 	 * If current has a pending SIGKILL or is exiting, then automatically
- 	 * select it.  The goal is to allow it to allocate so that it may
- 	 * quickly exit and free its memory.
-+	 *
-+	 * But don't select if current has already released its mm and cleared
-+	 * TIF_MEMDIE flag at exit_mm(), otherwise an OOM livelock may occur.
- 	 */
--	if (fatal_signal_pending(current) || task_will_free_mem(current)) {
-+	if (current->mm &&
-+	    (fatal_signal_pending(current) || task_will_free_mem(current))) {
- 		set_thread_flag(TIF_MEMDIE);
- 		return;
- 	}
+>  	/*
+>  	 * There is a potential race between when kswapd checks its watermarks
+>  	 * and a process gets throttled. There is also a potential race if
+> @@ -2993,12 +2996,9 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
+>  	 * so wake them now if necessary. If necessary, processes will wake
+>  	 * kswapd and get throttled again
+>  	 */
+> -	if (waitqueue_active(&pgdat->pfmemalloc_wait)) {
+> -		wake_up(&pgdat->pfmemalloc_wait);
+> -		return false;
+> -	}
+> +	wake_up_all(&pgdat->pfmemalloc_wait);
+>  
+> -	return pgdat_balanced(pgdat, order, classzone_idx);
+> +	return true;
+>  }
+>  
+>  /*
+
 -- 
-1.8.3.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
