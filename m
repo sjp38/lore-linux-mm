@@ -1,69 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f54.google.com (mail-oi0-f54.google.com [209.85.218.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F5186B0032
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2014 20:43:38 -0500 (EST)
-Received: by mail-oi0-f54.google.com with SMTP id u20so3963658oif.13
-        for <linux-mm@kvack.org>; Fri, 19 Dec 2014 17:43:37 -0800 (PST)
-Received: from mail-ob0-x22e.google.com (mail-ob0-x22e.google.com. [2607:f8b0:4003:c01::22e])
-        by mx.google.com with ESMTPS id w6si6977573obv.56.2014.12.19.17.43.34
+Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
+	by kanga.kvack.org (Postfix) with ESMTP id EEF386B0032
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2014 21:03:47 -0500 (EST)
+Received: by mail-qc0-f174.google.com with SMTP id c9so1466574qcz.19
+        for <linux-mm@kvack.org>; Fri, 19 Dec 2014 18:03:47 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u5si13555262qas.116.2014.12.19.18.03.46
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 19 Dec 2014 17:43:36 -0800 (PST)
-Received: by mail-ob0-f174.google.com with SMTP id nt9so16721378obb.5
-        for <linux-mm@kvack.org>; Fri, 19 Dec 2014 17:43:34 -0800 (PST)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 19 Dec 2014 18:03:47 -0800 (PST)
+Date: Sat, 20 Dec 2014 13:03:31 +1100
+From: Dave Chinner <dchinner@redhat.com>
+Subject: Re: How to handle TIF_MEMDIE stalls?
+Message-ID: <20141220020331.GM1942@devil.localdomain>
+References: <20141216124714.GF22914@dhcp22.suse.cz>
+ <201412172054.CFJ78687.HFFLtVMOOJSQFO@I-love.SAKURA.ne.jp>
+ <20141217130807.GB24704@dhcp22.suse.cz>
+ <201412182111.JCE48417.QFOJSFtMOHFLOV@I-love.SAKURA.ne.jp>
+ <20141218153341.GB832@dhcp22.suse.cz>
+ <201412192122.DJI13055.OOVSQLOtFHFFMJ@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20141220002303.GD11975@blaptop>
-References: <1418993719-14291-1-git-send-email-opensource.ganesh@gmail.com>
-	<20141219143244.1e5fabad8b6733204486f5bc@linux-foundation.org>
-	<20141219233937.GA11975@blaptop>
-	<20141219154548.3aa4cc02b3322f926aa4c1d6@linux-foundation.org>
-	<20141219235852.GB11975@blaptop>
-	<20141219160648.5cea8a6b0c764caa6100a585@linux-foundation.org>
-	<20141220001043.GC11975@blaptop>
-	<20141219161756.bcf7421acb4bc7a286c1afa3@linux-foundation.org>
-	<20141220002303.GD11975@blaptop>
-Date: Sat, 20 Dec 2014 09:43:34 +0800
-Message-ID: <CADAEsF-=RwwR2D_LzhVYKhfmfPCsQE73bJYyH=tjn4BtHVrdew@mail.gmail.com>
-Subject: Re: [PATCH v2] mm/zsmalloc: add statistics support
-From: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201412192122.DJI13055.OOVSQLOtFHFFMJ@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: mhocko@suse.cz, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, david@fromorbit.com
 
-2014-12-20 8:23 GMT+08:00 Minchan Kim <minchan@kernel.org>:
-> On Fri, Dec 19, 2014 at 04:17:56PM -0800, Andrew Morton wrote:
->> On Sat, 20 Dec 2014 09:10:43 +0900 Minchan Kim <minchan@kernel.org> wrote:
->>
->> > > It involves rehashing a lengthy argument with Greg.
->> >
->> > Okay. Then, Ganesh,
->> > please add warn message about duplicaed name possibility althoug
->> > it's unlikely as it is.
->>
->> Oh, getting EEXIST is easy with this patch.  Just create and destroy a
->> pool 2^32 times and the counter wraps ;) It's hardly a serious issue
->> for a debugging patch.
->
-> I meant that I wanted to change from index to name passed from caller like this
->
-> zram:
->         zs_create_pool(GFP_NOIO | __GFP_HIGHMEM, zram->disk->first_minor);
->
-> So, duplication should be rare. :)
+On Fri, Dec 19, 2014 at 09:22:49PM +0900, Tetsuo Handa wrote:
+> (Renamed thread's title and invited Dave Chinner. A memory stressing program
+> at http://marc.info/?l=linux-mm&m=141890469424353&w=2 can trigger stalls on
+> a system with 4 CPUs/2048MB of RAM/no swap. I want to hear your opinion.)
+> 
+> Michal Hocko wrote:
+> > > My question is quite simple. How can we avoid memory allocation stalls when
+> > >
+> > >   System has 2048MB of RAM and no swap.
+> > >   Memcg1 for task1 has quota 512MB and 400MB in use.
+> > >   Memcg2 for task2 has quota 512MB and 400MB in use.
+> > >   Memcg3 for task3 has quota 512MB and 400MB in use.
+> > >   Memcg4 for task4 has quota 512MB and 400MB in use.
+> > >   Memcg5 for task5 has quota 512MB and 1MB in use.
+> > >
+> > > and task5 launches below memory consumption program which would trigger
+> > > the global OOM killer before triggering the memcg OOM killer?
+> > >
+> > [...]
+> > > The global OOM killer will try to kill this program because this program
+> > > will be using 400MB+ of RAM by the time the global OOM killer is triggered.
+> > > But sometimes this program cannot be terminated by the global OOM killer
+> > > due to XFS lock dependency.
+> > >
+> > > You can see what is happening from OOM traces after uptime > 320 seconds of
+> > > http://I-love.SAKURA.ne.jp/tmp/serial-20141213.txt.xz though memcg is not
+> > > configured on this program.
+> >
+> > This is clearly a separate issue. It is a lock dependency and that alone
+> > _cannot_ be handled from OOM killer as it doesn't understand lock
+> > dependencies. This should be addressed from the xfs point of view IMHO
+> > but I am not familiar with this filesystem to tell you how or whether it
+> > is possible.
 
-We still can not know whether the name is duplicated if we do not
-change the debugfs API.
-The API does not return the errno to us.
+What XFS lock dependency? I see nothing in that output file that indicates a
+lock dependency problem - can you point out what the issue is here?
 
-How about just zsmalloc decides the name of the pool-id, like pool-x.
-When the pool-id reaches
-0xffff.ffff, we print warn message about duplicated name, and stop
-creating the debugfs entry
-for the user.
+> Then, let's ask Dave Chinner whether he can address it. My opinion is that
+> everybody is doing __GFP_WAIT memory allocation without understanding the
+> entire dependencies. Everybody is only prepared for allocation failures
+> because everybody is expecting that the OOM killer shall somehow solve the
+> OOM condition (except that some are expecting that memory stress that will
+> trigger the OOM killer must not be given). I am neither familiar with XFS,
+> but I don't think this issue can be addressed from the XFS point of view.
 
-Thanks.
+Well, I can't comment (nor am I going to waste time speculating)
+until someone actually explains the XFS lock dependency that is
+apparently causing reclaim problems.
+
+Has lockdep reported any problems?
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+dchinner@redhat.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
