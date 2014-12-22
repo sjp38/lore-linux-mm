@@ -1,72 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A8476B0072
-	for <linux-mm@kvack.org>; Mon, 22 Dec 2014 14:04:41 -0500 (EST)
-Received: by mail-ob0-f172.google.com with SMTP id va8so22448819obc.3
-        for <linux-mm@kvack.org>; Mon, 22 Dec 2014 11:04:41 -0800 (PST)
-Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
-        by mx.google.com with ESMTPS id m38si11182149oik.13.2014.12.22.11.04.38
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 22 Dec 2014 11:04:39 -0800 (PST)
-Message-ID: <1419275072.8812.1.camel@stgolabs.net>
+Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
+	by kanga.kvack.org (Postfix) with ESMTP id F13746B0072
+	for <linux-mm@kvack.org>; Mon, 22 Dec 2014 14:17:34 -0500 (EST)
+Received: by mail-lb0-f172.google.com with SMTP id u10so4398285lbd.17
+        for <linux-mm@kvack.org>; Mon, 22 Dec 2014 11:17:34 -0800 (PST)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.195])
+        by mx.google.com with ESMTP id ap1si19337820lbc.100.2014.12.22.11.17.32
+        for <linux-mm@kvack.org>;
+        Mon, 22 Dec 2014 11:17:33 -0800 (PST)
+Date: Mon, 22 Dec 2014 21:14:52 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
 Subject: Re: mm: NULL ptr deref in unlink_file_vma
-From: Davidlohr Bueso <dave@stgolabs.net>
-Date: Mon, 22 Dec 2014 11:04:32 -0800
-In-Reply-To: <20141222180420.GA20261@node.dhcp.inet.fi>
+Message-ID: <20141222191452.GA20295@node.dhcp.inet.fi>
 References: <549832E2.8060609@oracle.com>
-	 <20141222180102.GA8072@node.dhcp.inet.fi>
-	 <20141222180420.GA20261@node.dhcp.inet.fi>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+ <20141222180102.GA8072@node.dhcp.inet.fi>
+ <54985D59.5010506@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <54985D59.5010506@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Sasha Levin <sasha.levin@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>
+To: Sasha Levin <sasha.levin@oracle.com>, Davidlohr Bueso <dave@stgolabs.net>, Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Mon, 2014-12-22 at 20:04 +0200, Kirill A. Shutemov wrote:
-> [ fixed Davidlohr's address. ]
-> 
-> On Mon, Dec 22, 2014 at 08:01:02PM +0200, Kirill A. Shutemov wrote:
+On Mon, Dec 22, 2014 at 01:05:13PM -0500, Sasha Levin wrote:
+> On 12/22/2014 01:01 PM, Kirill A. Shutemov wrote:
 > > On Mon, Dec 22, 2014 at 10:04:02AM -0500, Sasha Levin wrote:
-> > > Hi all,
-> > > 
-> > > While fuzzing with trinity inside a KVM tools guest running the latest -next
-> > > kernel, I've stumbled on the following spew:
-> > > 
-> > > [  432.376425] BUG: unable to handle kernel NULL pointer dereference at 0000000000000038
-> > > [  432.378876] IP: down_write (./arch/x86/include/asm/rwsem.h:105 ./arch/x86/include/asm/rwsem.h:121 kernel/locking/rwsem.c:71)
-> > 
+> >> > Hi all,
+> >> > 
+> >> > While fuzzing with trinity inside a KVM tools guest running the latest -next
+> >> > kernel, I've stumbled on the following spew:
+> >> > 
+> >> > [  432.376425] BUG: unable to handle kernel NULL pointer dereference at 0000000000000038
+> >> > [  432.378876] IP: down_write (./arch/x86/include/asm/rwsem.h:105 ./arch/x86/include/asm/rwsem.h:121 kernel/locking/rwsem.c:71)
 > > Looks like vma->vm_file->mapping is NULL. Somebody freed ->vm_file from
 > > under us?
 > > 
 > > I suspect Davidlohr's patchset on i_mmap_lock, but I cannot find any code
 > > path which could lead to the crash.
+> 
+> I've reported a different issue which that patchset: https://lkml.org/lkml/2014/12/9/741
+> 
+> I guess it could be related?
 
-Sasha, does this still occur if you revert c8475d144abb?
+Maybe.
 
-> > I've noticed one strange code path, which probably is not related to the
-> > issue:
-> > 
-> > unmap_mapping_range()
-> >   i_mmap_lock_read(mapping);
-> >   unmap_mapping_range_tree()
-> >     unmap_mapping_range_vma()
-> >       zap_page_range_single()
-> >         unmap_single_vma()
-> > 	  if (unlikely(is_vm_hugetlb_page(vma))) {
-> > 	    i_mmap_lock_write(vma->vm_file->f_mapping);
+Other thing:
 
-Right, this is would be completely bogus. But the deadlock cannot happen
-in reality as hugetlb uses its own handlers and thus never calls
-unmap_mapping_range.
+ unmap_mapping_range()
+   i_mmap_lock_read(mapping);
+   unmap_mapping_range_tree()
+     unmap_mapping_range_vma()
+       zap_page_range_single()
+         unmap_single_vma()
+	   untrack_pfn()
+	     vma->vm_flags &= ~VM_PAT;
 
-Thanks,
-Davidlohr
+It seems we modify ->vm_flags without mmap_sem taken, means we can corrupt
+them.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Sasha could you check if you hit untrack_pfn()?
+
+The problem probably was hidden by exclusive i_mmap_lock on
+unmap_mapping_range(), but it's not exclusive anymore afrer Dave's
+patchset.
+
+Konstantin, you've modified untrack_pfn() back in 2012 to change
+->vm_flags. Any coments?
+
+For now, I would propose to revert the commit and probably re-introduce it
+after v3.19:
