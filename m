@@ -1,98 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C9F86B0032
-	for <linux-mm@kvack.org>; Mon, 22 Dec 2014 05:30:25 -0500 (EST)
-Received: by mail-wi0-f182.google.com with SMTP id h11so7482186wiw.3
-        for <linux-mm@kvack.org>; Mon, 22 Dec 2014 02:30:24 -0800 (PST)
-Received: from mail-wg0-x234.google.com (mail-wg0-x234.google.com. [2a00:1450:400c:c00::234])
-        by mx.google.com with ESMTPS id n6si32053776wjy.39.2014.12.22.02.30.22
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id D2B486B0032
+	for <linux-mm@kvack.org>; Mon, 22 Dec 2014 09:24:38 -0500 (EST)
+Received: by mail-wi0-f181.google.com with SMTP id r20so8097417wiv.8
+        for <linux-mm@kvack.org>; Mon, 22 Dec 2014 06:24:38 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ds1si19106474wib.36.2014.12.22.06.24.37
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 22 Dec 2014 02:30:22 -0800 (PST)
-Received: by mail-wg0-f52.google.com with SMTP id x12so6266962wgg.25
-        for <linux-mm@kvack.org>; Mon, 22 Dec 2014 02:30:22 -0800 (PST)
+        Mon, 22 Dec 2014 06:24:37 -0800 (PST)
+Date: Mon, 22 Dec 2014 15:24:35 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/2] mm, vmscan: prevent kswapd livelock due to
+ pfmemalloc-throttled process being killed
+Message-ID: <20141222142435.GA2900@dhcp22.suse.cz>
+References: <1418994116-23665-1-git-send-email-vbabka@suse.cz>
+ <20141219155747.GA31756@dhcp22.suse.cz>
+ <20141219182815.GK18274@esperanza>
+ <20141220104746.GB6306@dhcp22.suse.cz>
+ <20141220141824.GM18274@esperanza>
 MIME-Version: 1.0
-In-Reply-To: <20141219010452.GC1538@bbox>
-References: <35FD53F367049845BC99AC72306C23D103E688B313EE@CNBJMBX05.corpusers.net>
-	<CALYGNiOuBKz8shHSrFCp0BT5AV6XkNOCHj+LJedQQ-2YdZtM7w@mail.gmail.com>
-	<35FD53F367049845BC99AC72306C23D103E688B313F2@CNBJMBX05.corpusers.net>
-	<20141205143134.37139da2208c654a0d3cd942@linux-foundation.org>
-	<35FD53F367049845BC99AC72306C23D103E688B313F4@CNBJMBX05.corpusers.net>
-	<20141208114601.GA28846@node.dhcp.inet.fi>
-	<35FD53F367049845BC99AC72306C23D103E688B313FB@CNBJMBX05.corpusers.net>
-	<CALYGNiMEytHuND37f+hNdMKqCPzN0k_uha6CaeL_fyzrj-obNQ@mail.gmail.com>
-	<35FD53F367049845BC99AC72306C23D103E688B31408@CNBJMBX05.corpusers.net>
-	<35FD53F367049845BC99AC72306C23D103EDAF89E14C@CNBJMBX05.corpusers.net>
-	<20141219010452.GC1538@bbox>
-Date: Mon, 22 Dec 2014 14:30:22 +0400
-Message-ID: <CALYGNiPbwCDtYNO+JrNDNJkqXHdwPVduT4fz0tQ_cM0SrXTJ4Q@mail.gmail.com>
-Subject: Re: [RFC] MADV_FREE doesn't work when doesn't have swap partition
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141220141824.GM18274@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: "Wang, Yalin" <Yalin.Wang@sonymobile.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "n-horiguchi@ah.jp.nec.com" <n-horiguchi@ah.jp.nec.com>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, stable@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
 
-On Fri, Dec 19, 2014 at 4:04 AM, Minchan Kim <minchan@kernel.org> wrote:
-> On Thu, Dec 18, 2014 at 11:50:01AM +0800, Wang, Yalin wrote:
->> I notice this commit:
->> mm: support madvise(MADV_FREE),
->>
->> it can free clean anonymous pages directly,
->> doesn't need pageout to swap partition,
->>
->> but I found it doesn't work on my platform,
->> which don't enable any swap partitions.
->
-> Current implementation, if there is no empty slot in swap, it does
-> instant free instead of delayed free. Look at madvise_vma.
->
->>
->> I make a change for this.
->> Just to explain my issue clearly,
->> Do we need some other checks to still scan anonymous pages even
->> Don't have swap partition but have clean anonymous pages?
->
-> There is a few places we should consider if you want to scan anonymous page
-> withotu swap. Refer 69c854817566 and 74e3f3c3391d.
->
-> However, it's not simple at the moment. If we reenable anonymous scan without swap,
-> it would make much regress of reclaim. So my direction is move normal anonymos pages
-> into unevictable LRU list because they're real unevictable without swap and
-> put delayed freeing pages into anon LRU list and age them.
+On Sat 20-12-14 17:18:24, Vladimir Davydov wrote:
+> On Sat, Dec 20, 2014 at 11:47:46AM +0100, Michal Hocko wrote:
+> > On Fri 19-12-14 21:28:15, Vladimir Davydov wrote:
+> > > So AFAIU the problem does exist. However, I think it could be fixed by
+> > > simply waking up all processes waiting on pfmemalloc_wait before putting
+> > > kswapd to sleep:
+> > 
+> > I think that a simple cond_resched() in kswapd_try_to_sleep should be
+> > sufficient and less risky fix, so basically what Vlastimil was proposing
+> > in the beginning.
+> 
+> With such a solution we implicitly rely upon the scheduler
+> implementation, which AFAIU is wrong.
 
-This sounds reasonable. In this case swapon must either scan
-unevictable pages and make
-some of them evictable again or just move all unevictable pages into
-active list and postpone
-this job till reclaimer invocation.
+But this is a scheduling problem, isn't it? !PREEMPT kernel with a
+kernel thread looping without a scheduling point which prevents the
+woken task to run due to cpu affinity...
 
->
->> ---
->> diff --git a/mm/vmscan.c b/mm/vmscan.c
->> index 5e8772b..8258f3a 100644
->> --- a/mm/vmscan.c
->> +++ b/mm/vmscan.c
->> @@ -1941,7 +1941,7 @@ static void get_scan_count(struct lruvec *lruvec, int swappiness,
->>                 force_scan = true;
->>
->>         /* If we have no swap space, do not bother scanning anon pages. */
->> -       if (!sc->may_swap || (get_nr_swap_pages() <= 0)) {
->> +       if (!sc->may_swap) {
->>                 scan_balance = SCAN_FILE;
->>                 goto out;
->>         }
->
-> --
-> Kind regards,
-> Minchan Kim
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> E.g. suppose processes are
+> governed by FIFO and kswapd happens to have a higher prio than the
+> process killed by OOM. Then after cond_resched kswapd will be picked for
+> execution again, and the killing process won't have a chance to remove
+> itself from the wait queue.
+
+Except that kswapd runs as SCHED_NORMAL with 0 priority.
+
+> > > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > > index 744e2b491527..2a123634c220 100644
+> > > --- a/mm/vmscan.c
+> > > +++ b/mm/vmscan.c
+> > > @@ -2984,6 +2984,9 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
+> > >  	if (remaining)
+> > >  		return false;
+> > >  
+> > > +	if (!pgdat_balanced(pgdat, order, classzone_idx))
+> > > +		return false;
+> > > +
+> > 
+> > What would be consequences of not waking up pfmemalloc waiters while the
+> > node is not balanced?
+> 
+> They will get woken up a bit later in balanced_pgdat. This might result
+> in latency spikes though. In order not to change the original behaviour
+> we could always wake all pfmemalloc waiters no matter if we are going to
+> sleep or not:
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 744e2b491527..a21e0bd563c3 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2993,10 +2993,7 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
+>  	 * so wake them now if necessary. If necessary, processes will wake
+>  	 * kswapd and get throttled again
+>  	 */
+> -	if (waitqueue_active(&pgdat->pfmemalloc_wait)) {
+> -		wake_up(&pgdat->pfmemalloc_wait);
+> -		return false;
+> -	}
+> +	wake_up_all(&pgdat->pfmemalloc_wait);
+>  
+>  	return pgdat_balanced(pgdat, order, classzone_idx);
+
+So you are relying on scheduling points somewhere down the
+balance_pgdat. That should be sufficient. I am still quite surprised
+that we have an OOM victim still on the queue and balanced pgdat here
+because OOM victim didn't have chance to free memory. So somebody else
+must have released a lot of memory after OOM.
+
+This patch seems better than the one from Vlastimil. Care to post it
+with the full changelog, please?
+
+Thanks!
+
+>  }
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
