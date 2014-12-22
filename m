@@ -1,57 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f43.google.com (mail-qa0-f43.google.com [209.85.216.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 2753F6B0032
-	for <linux-mm@kvack.org>; Sun, 21 Dec 2014 18:16:16 -0500 (EST)
-Received: by mail-qa0-f43.google.com with SMTP id x12so2615342qac.2
-        for <linux-mm@kvack.org>; Sun, 21 Dec 2014 15:16:15 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z5si18526182qab.9.2014.12.21.15.16.13
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C4DB6B0032
+	for <linux-mm@kvack.org>; Mon, 22 Dec 2014 02:12:22 -0500 (EST)
+Received: by mail-pa0-f52.google.com with SMTP id eu11so5375895pac.11
+        for <linux-mm@kvack.org>; Sun, 21 Dec 2014 23:12:22 -0800 (PST)
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com. [209.85.192.178])
+        by mx.google.com with ESMTPS id bg5si24054189pbc.38.2014.12.21.23.12.20
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 21 Dec 2014 15:16:15 -0800 (PST)
-Date: Sun, 21 Dec 2014 20:28:51 -0200
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH] proc: task_mmu: show page size in /proc/<pid>/numa_maps
-Message-ID: <20141221222850.GA2038@x61.redhat.com>
-References: <c97f30472ec5fe79cb8fa8be66cc3d8509777990.1419079617.git.aquini@redhat.com>
- <20141220183613.GA19229@phnom.home.cmpxchg.org>
- <20141220194457.GA3166@x61.redhat.com>
- <54970B49.3070104@linux.intel.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 21 Dec 2014 23:12:21 -0800 (PST)
+Received: by mail-pd0-f178.google.com with SMTP id r10so5276862pdi.23
+        for <linux-mm@kvack.org>; Sun, 21 Dec 2014 23:12:20 -0800 (PST)
+Date: Sun, 21 Dec 2014 23:12:16 -0800
+From: Omar Sandoval <osandov@osandov.com>
+Subject: Re: [PATCH v2 2/5] direct-io: don't dirty ITER_BVEC pages on read
+Message-ID: <20141222071216.GA24722@mew>
+References: <cover.1419044605.git.osandov@osandov.com>
+ <f9b69250ba0598807d96857e9b736d57e6841ba3.1419044605.git.osandov@osandov.com>
+ <20141220060130.GA22149@ZenIV.linux.org.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <54970B49.3070104@linux.intel.com>
+In-Reply-To: <20141220060130.GA22149@ZenIV.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, oleg@redhat.com, rientjes@google.com, linux-mm@kvack.org
+To: Al Viro <viro@ZenIV.linux.org.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org, Ming Lei <ming.lei@canonical.com>
 
-On Sun, Dec 21, 2014 at 10:02:49AM -0800, Dave Hansen wrote:
-> On 12/20/2014 11:44 AM, Rafael Aquini wrote:
-> >> > 
-> >> > It would be simpler to include this unconditionally.  Otherwise you
-> >> > are forcing everybody parsing the file and trying to run calculations
-> >> > of it to check for its presence, and then have them fall back and get
-> >> > the value from somewhere else if not.
-> > I'm fine either way, it makes the change even simpler. Also, if we
-> > decide to get rid of page_size != PAGE_SIZE condition I believe we can 
-> > also get rid of that "huge" hint being conditionally printed out too.
+On Sat, Dec 20, 2014 at 06:01:30AM +0000, Al Viro wrote:
+> On Fri, Dec 19, 2014 at 07:18:26PM -0800, Omar Sandoval wrote:
+> > Reads through the iov_iter infrastructure for kernel pages shouldn't be
+> > dirtied by the direct I/O code.
+> > 
+> > This is based on Dave Kleikamp's and Ming Lei's previously posted
+> > patches.
 > 
-> That would break existing users of the "huge" flag.  That makes it out
-> of the question, right?
->
-Yeah, but it sort of follows the same complaint Johannes did for the 
-conditional page size printouts. If we start to print out page size
-deliberately for each map regardless their backing pages being PAGE_SIZE 
-long or bigger, I don't see much point on keep conditionally printing out 
-the 'huge' hint out. As I said before, I'm fine either way though I think 
-we can keep the current behaviour, and just disambiguate page sizes !=
-PAGE_SIZE as in the current proposal.
+> Umm...  
+> 
+> > +	dio->should_dirty = !iov_iter_is_bvec(iter);
+> 
+> 	dio->should_dirty = iter_is_iovec(iter);
+> 
+> perhaps?
 
-Looking forward more of your thoughts!
+Mm, yeah, I'll do that. That helper snuck in without me noticing it... I
+see that we can't do iov_iter_get_pages on an ITER_KVEC, so a kvec
+doesn't work for blockdev_direct_IO anyways, right?
 
-Cheers,
--- Rafael
+-- 
+Omar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
