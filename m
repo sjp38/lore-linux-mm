@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f175.google.com (mail-qc0-f175.google.com [209.85.216.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B0E76B0080
-	for <linux-mm@kvack.org>; Mon, 22 Dec 2014 11:49:33 -0500 (EST)
-Received: by mail-qc0-f175.google.com with SMTP id b13so4046230qcw.34
-        for <linux-mm@kvack.org>; Mon, 22 Dec 2014 08:49:33 -0800 (PST)
-Received: from mail-qc0-x22f.google.com (mail-qc0-x22f.google.com. [2607:f8b0:400d:c01::22f])
-        by mx.google.com with ESMTPS id 31si20531671qgi.56.2014.12.22.08.49.31
+Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A00D6B0082
+	for <linux-mm@kvack.org>; Mon, 22 Dec 2014 11:49:36 -0500 (EST)
+Received: by mail-qc0-f170.google.com with SMTP id x3so3594829qcv.15
+        for <linux-mm@kvack.org>; Mon, 22 Dec 2014 08:49:36 -0800 (PST)
+Received: from mail-qc0-x22c.google.com (mail-qc0-x22c.google.com. [2607:f8b0:400d:c01::22c])
+        by mx.google.com with ESMTPS id 61si20574200qgx.12.2014.12.22.08.49.34
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 22 Dec 2014 08:49:31 -0800 (PST)
-Received: by mail-qc0-f175.google.com with SMTP id b13so4030871qcw.6
-        for <linux-mm@kvack.org>; Mon, 22 Dec 2014 08:49:31 -0800 (PST)
+        Mon, 22 Dec 2014 08:49:35 -0800 (PST)
+Received: by mail-qc0-f172.google.com with SMTP id m20so3619060qcx.31
+        for <linux-mm@kvack.org>; Mon, 22 Dec 2014 08:49:34 -0800 (PST)
 From: j.glisse@gmail.com
-Subject: [PATCH 5/7] HMM: add per mirror page table.
-Date: Mon, 22 Dec 2014 11:48:59 -0500
-Message-Id: <1419266940-5440-6-git-send-email-j.glisse@gmail.com>
+Subject: [PATCH 6/7] HMM: add device page fault support.
+Date: Mon, 22 Dec 2014 11:49:00 -0500
+Message-Id: <1419266940-5440-7-git-send-email-j.glisse@gmail.com>
 In-Reply-To: <1419266940-5440-1-git-send-email-j.glisse@gmail.com>
 References: <1419266940-5440-1-git-send-email-j.glisse@gmail.com>
 MIME-Version: 1.0
@@ -27,15 +27,9 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@l
 
 From: JA(C)rA'me Glisse <jglisse@redhat.com>
 
-This patch add the per mirror page table. It also propagate CPU page table
-update to this per mirror page table using mmu_notifier callback. All update
-are contextualized with an HMM event structure that convey all information
-needed by device driver to take proper actions (update its own mmu to reflect
-changes and schedule proper flushing).
-
-Core HMM is responsible for updating the per mirror page table once the device
-driver is done with its update. Most importantly HMM will properly propagate
-HMM page table dirty bit to underlying page.
+This patch add helper for device page fault. Device page fault helper will
+fill the mirror page table using the CPU page table all this synchronized
+with any update to CPU page table.
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
 Signed-off-by: Sherry Cheung <SCheung@nvidia.com>
@@ -44,516 +38,473 @@ Signed-off-by: Mark Hairgrove <mhairgrove@nvidia.com>
 Signed-off-by: John Hubbard <jhubbard@nvidia.com>
 Signed-off-by: Jatin Kumar <jakumar@nvidia.com>
 ---
- include/linux/hmm.h | 136 +++++++++++++++++++++++++++
- mm/hmm.c            | 263 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 399 insertions(+)
+ include/linux/hmm.h |   1 +
+ mm/hmm.c            | 384 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 385 insertions(+)
 
 diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index 8eddc15..dd34572 100644
+index dd34572..72e168b 100644
 --- a/include/linux/hmm.h
 +++ b/include/linux/hmm.h
-@@ -46,12 +46,65 @@
- #include <linux/mmu_notifier.h>
- #include <linux/workqueue.h>
- #include <linux/mman.h>
-+#include <linux/hmm_pt.h>
- 
- 
- struct hmm_device;
- struct hmm_mirror;
-+struct hmm_fence;
- struct hmm;
- 
-+/* hmm_fence - Device driver fence allowing to batch update and delay wait.
-+ *
-+ * @mirror: The HMM mirror this fence is associated with.
-+ * @list: List of fence.
-+ *
-+ * Each time HMM callback into a device driver for update the device driver can
-+ * return fence which core HMM will wait on. This allow HMM to batch update to
-+ * several different device driver and then wait for each of them to complete.
-+ *
-+ * The hmm_fence structure is intended to be embedded inside a device driver
-+ * specific fence structure.
-+ */
-+struct hmm_fence {
-+	struct hmm_mirror	*mirror;
-+	struct list_head	list;
-+};
-+
-+
-+/*
-+ * hmm_event - each event is described by a type associated with a struct.
-+ */
-+enum hmm_etype {
-+	HMM_NONE = 0,
-+	HMM_ISDIRTY,
-+	HMM_MIGRATE,
-+	HMM_MUNMAP,
-+	HMM_DEVICE_RFAULT,
-+	HMM_DEVICE_WFAULT,
-+	HMM_WRITE_PROTECT,
-+};
-+
-+/* struct hmm_event - memory event information.
-+ *
-+ * @list: So HMM can keep track of all active events.
-+ * @start: First address (inclusive).
-+ * @end: Last address (exclusive).
-+ * @fences: List of device fences associated with this event.
-+ * @pte_mask: HMM pte update mask (bit(s) that are still valid).
-+ * @etype: Event type (munmap, migrate, truncate, ...).
-+ * @backoff: Only meaningful for device page fault.
-+ */
-+struct hmm_event {
-+	struct list_head	list;
-+	unsigned long		start;
-+	unsigned long		end;
-+	struct list_head	fences;
-+	dma_addr_t		pte_mask;
-+	enum hmm_etype		etype;
-+	bool			backoff;
-+};
-+
- 
- /* hmm_device - Each device must register one and only one hmm_device.
-  *
-@@ -72,6 +125,87 @@ struct hmm_device_ops {
- 	 * from the mirror page table.
- 	 */
- 	void (*release)(struct hmm_mirror *mirror);
-+
-+	/* fence_wait() - to wait on device driver fence.
-+	 *
-+	 * @fence: The device driver fence struct.
-+	 * Returns: 0 on success,-EIO on error, -EAGAIN to wait again.
-+	 *
-+	 * Called when hmm want to wait for all operations associated with a
-+	 * fence to complete (including device cache flush if the event mandate
-+	 * it).
-+	 *
-+	 * Device driver must free fence and associated resources if it returns
-+	 * something else thant -EAGAIN. On -EAGAIN the fence must not be free
-+	 * as hmm will call back again.
-+	 *
-+	 * Return error if scheduled operation failed or if need to wait again.
-+	 * -EIO Some input/output error with the device.
-+	 * -EAGAIN The fence not yet signaled, hmm reschedule waiting thread.
-+	 *
-+	 * All other return value trigger warning and are transformed to -EIO.
-+	 */
-+	int (*fence_wait)(struct hmm_fence *fence);
-+
-+	/* fence_ref() - take a reference fence structure.
-+	 *
-+	 * @fence: Fence structure hmm is referencing.
-+	 */
-+	void (*fence_ref)(struct hmm_fence *fence);
-+
-+	/* fence_unref() - drop a reference fence structure.
-+	 *
-+	 * @fence: Fence structure hmm is dereferencing.
-+	 */
-+	void (*fence_unref)(struct hmm_fence *fence);
-+
-+	/* update() - update device mmu following an event.
-+	 *
-+	 * @mirror: The mirror that link process address space with the device.
-+	 * @event: The event that triggered the update.
-+	 * Returns: Valid fence ptr or NULL on success otherwise ERR_PTR.
-+	 *
-+	 * Called to update device page table for a range of address.
-+	 * The event type provide the nature of the update :
-+	 *   - Range is no longer valid (munmap).
-+	 *   - Range protection changes (mprotect, COW, ...).
-+	 *   - Range is unmapped (swap, reclaim, page migration, ...).
-+	 *   - Device page fault.
-+	 *   - ...
-+	 *
-+	 * Thought most device driver only need to use pte_mask as it reflects
-+	 * change that will happen to the HMM page table ie :
-+	 *   new_pte = old_pte & event->pte_mask;
-+	 *
-+	 * Device driver must not update the HMM mirror page table. Core HMM
-+	 * will update HMM page table after the update is done (ie if a fence
-+	 * is returned after ->fence_wait() report fence is done).
-+	 *
-+	 * Any event that block further write to the memory must also trigger a
-+	 * device cache flush and everything has to be flush to local memory by
-+	 * the time the wait callback return (if this callback returned a fence
-+	 * otherwise everything must be flush by the time the callback return).
-+	 *
-+	 * Device must properly set the dirty bit using hmm_pte_mk_dirty helper
-+	 * on each HMM page table entry.
-+	 *
-+	 * The driver should return a fence pointer or NULL on success. Device
-+	 * driver should return fence and delay wait for the operation to the
-+	 * fence wait callback. Returning a fence allow hmm to batch update to
-+	 * several devices and delay wait on those once they all have scheduled
-+	 * the update.
-+	 *
-+	 * Device driver must not fail lightly, any failure result in device
-+	 * process being kill.
-+	 *
-+	 * Return fence or NULL on success, error value otherwise :
-+	 * -ENOMEM Not enough memory for performing the operation.
-+	 * -EIO    Some input/output error with the device.
-+	 *
-+	 * All other return value trigger warning and are transformed to -EIO.
-+	 */
-+	struct hmm_fence *(*update)(struct hmm_mirror *mirror,
-+				    const struct hmm_event *event);
- };
- 
- /* struct hmm_device - per device HMM structure
-@@ -108,6 +242,7 @@ int hmm_device_unregister(struct hmm_device *device);
-  * @hmm: The hmm struct this hmm_mirror is associated to.
-  * @dlist: List of all hmm_mirror for same device.
-  * @mlist: List of all hmm_mirror for same process.
-+ * @pt: Mirror page table.
-  *
-  * Each device that want to mirror an address space must register one of this
-  * struct for each of the address space it wants to mirror. Same device can
-@@ -119,6 +254,7 @@ struct hmm_mirror {
- 	struct hmm		*hmm;
- 	struct list_head	dlist;
- 	struct hlist_node	mlist;
-+	struct hmm_pt		pt;
- };
+@@ -259,6 +259,7 @@ struct hmm_mirror {
  
  int hmm_mirror_register(struct hmm_mirror *mirror, struct hmm_device *device);
+ void hmm_mirror_unregister(struct hmm_mirror *mirror);
++int hmm_mirror_fault(struct hmm_mirror *mirror, struct hmm_event *event);
+ 
+ 
+ #endif /* CONFIG_HMM */
 diff --git a/mm/hmm.c b/mm/hmm.c
-index 55afec0..90ebe75 100644
+index 90ebe75..5fb7e19 100644
 --- a/mm/hmm.c
 +++ b/mm/hmm.c
-@@ -71,6 +71,72 @@ struct hmm {
+@@ -55,6 +55,9 @@ static struct srcu_struct srcu;
+  * @lock: Serialize the mirror list modifications.
+  * @kref: Reference counter
+  * @mmu_notifier: The mmu_notifier of this mm.
++ * @device_faults: List of all active device page faults.
++ * @ndevice_faults: Number of active device page faults.
++ * @wait_queue: Wait queue for event synchronization.
+  *
+  * For each process address space (mm_struct) there is one and only one hmm
+  * struct. hmm functions will redispatch to each devices the change made to
+@@ -67,6 +70,9 @@ struct hmm {
+ 	spinlock_t		lock;
+ 	struct kref		kref;
+ 	struct mmu_notifier	mmu_notifier;
++	struct list_head	device_faults;
++	unsigned		ndevice_faults;
++	wait_queue_head_t	wait_queue;
+ };
  
  static struct mmu_notifier_ops hmm_notifier_ops;
+@@ -88,6 +94,11 @@ static void hmm_mirror_update_pt(struct hmm_mirror *mirror,
+  * help dealing with all this.
+  */
  
-+static void hmm_device_fence_wait(struct hmm_device *device,
-+				  struct hmm_fence *fence);
-+static void hmm_mirror_release(struct hmm_mirror *mirror);
-+static inline int hmm_mirror_update(struct hmm_mirror *mirror,
-+				    struct hmm_event *event);
-+static void hmm_mirror_update_pt(struct hmm_mirror *mirror,
-+				 struct hmm_event *event);
-+
-+
-+/* hmm_event - use to track information relating to an event.
-+ *
-+ * Each change to cpu page table or fault from a device is considered as an
-+ * event by hmm. For each event there is a common set of things that need to
-+ * be tracked. The hmm_event struct centralize those and the helper functions
-+ * help dealing with all this.
-+ */
-+
-+static inline int hmm_event_init(struct hmm_event *event,
-+				 struct hmm *hmm,
-+				 unsigned long start,
-+				 unsigned long end,
-+				 enum hmm_etype etype)
++static inline bool hmm_event_overlap(struct hmm_event *a, struct hmm_event *b)
 +{
-+	event->start = start & PAGE_MASK;
-+	event->end = min(end, hmm->vm_end);
-+	if (event->start >= event->end)
-+		return -EINVAL;
-+	event->etype = etype;
-+	INIT_LIST_HEAD(&event->fences);
-+	switch (etype) {
-+	case HMM_ISDIRTY:
-+		event->pte_mask = HMM_PTE_VALID | HMM_PTE_WRITE |
-+				  HMM_PTE_DIRTY | HMM_PFN_MASK;
-+		break;
-+	case HMM_DEVICE_RFAULT:
-+	case HMM_DEVICE_WFAULT:
-+		event->pte_mask = HMM_PTE_VALID | HMM_PTE_WRITE |
-+				  HMM_PFN_MASK;
-+		break;
-+	case HMM_WRITE_PROTECT:
-+		event->pte_mask = HMM_PTE_VALID | HMM_PFN_MASK;
-+		break;
-+	case HMM_MIGRATE:
-+	case HMM_MUNMAP:
-+		event->pte_mask = 0;
-+		break;
-+	default:
-+		return -EINVAL;
-+	}
-+	return 0;
++	return !((a->end <= b->start) || (a->start >= b->end));
 +}
 +
-+static inline void hmm_event_wait(struct hmm_event *event)
-+{
-+	struct hmm_fence *fence, *tmp;
-+
-+	if (list_empty(&event->fences))
-+		/* Nothing to wait for. */
-+		return;
-+
-+	io_schedule();
-+
-+	list_for_each_entry_safe(fence, tmp, &event->fences, list)
-+		hmm_device_fence_wait(fence->mirror->device, fence);
-+}
-+
+ static inline int hmm_event_init(struct hmm_event *event,
+ 				 struct hmm *hmm,
+ 				 unsigned long start,
+@@ -149,6 +160,9 @@ static int hmm_init(struct hmm *hmm)
+ 	hmm->vm_end = TASK_SIZE;
+ 	kref_init(&hmm->kref);
+ 	INIT_HLIST_HEAD(&hmm->mirrors);
++	INIT_LIST_HEAD(&hmm->device_faults);
++	hmm->ndevice_faults = 0;
++	init_waitqueue_head(&hmm->wait_queue);
+ 	spin_lock_init(&hmm->lock);
  
- /* hmm - core HMM functions.
-  *
-@@ -139,6 +205,29 @@ static inline struct hmm *hmm_unref(struct hmm *hmm)
+ 	/* register notifier */
+@@ -205,6 +219,60 @@ static inline struct hmm *hmm_unref(struct hmm *hmm)
  	return NULL;
  }
  
-+static void hmm_update(struct hmm *hmm, struct hmm_event *event)
++static int hmm_device_fault_start(struct hmm *hmm, struct hmm_event *event)
 +{
-+	struct hmm_mirror *mirror;
-+	int id;
++	int ret = 0;
 +
-+	/* Is this hmm already fully stop ? */
-+	if (hmm->mm->hmm != hmm)
-+		return;
++	mmu_notifier_range_wait_valid(hmm->mm, event->start, event->end);
 +
-+	id = srcu_read_lock(&srcu);
++	spin_lock(&hmm->lock);
++	if (mmu_notifier_range_is_valid(hmm->mm, event->start, event->end)) {
++		list_add_tail(&event->list, &hmm->device_faults);
++		hmm->ndevice_faults++;
++		event->backoff = false;
++	} else
++		ret = -EAGAIN;
++	spin_unlock(&hmm->lock);
 +
-+	hlist_for_each_entry_rcu(mirror, &hmm->mirrors, mlist)
-+		if (hmm_mirror_update(mirror, event))
-+			hmm_mirror_release(mirror);
++	wake_up(&hmm->wait_queue);
 +
++	return ret;
++}
++
++static void hmm_device_fault_end(struct hmm *hmm, struct hmm_event *event)
++{
 +	hmm_event_wait(event);
 +
-+	hlist_for_each_entry_rcu(mirror, &hmm->mirrors, mlist)
-+		hmm_mirror_update_pt(mirror, event);
++	spin_lock(&hmm->lock);
++	list_del_init(&event->list);
++	hmm->ndevice_faults--;
++	spin_unlock(&hmm->lock);
 +
-+	srcu_read_unlock(&srcu, id);
++	wake_up(&hmm->wait_queue);
 +}
 +
++static void hmm_wait_device_fault(struct hmm *hmm, struct hmm_event *ievent)
++{
++	struct hmm_event *fevent;
++	unsigned long wait_for = 0;
++
++again:
++	spin_lock(&hmm->lock);
++	list_for_each_entry(fevent, &hmm->device_faults, list) {
++		if (!hmm_event_overlap(fevent, ievent))
++			continue;
++		fevent->backoff = true;
++		wait_for = hmm->ndevice_faults;
++	}
++	spin_unlock(&hmm->lock);
++
++	if (wait_for > 0) {
++		wait_event(hmm->wait_queue, wait_for != hmm->ndevice_faults);
++		wait_for = 0;
++		goto again;
++	}
++}
++
+ static void hmm_update(struct hmm *hmm, struct hmm_event *event)
+ {
+ 	struct hmm_mirror *mirror;
+@@ -214,6 +282,8 @@ static void hmm_update(struct hmm *hmm, struct hmm_event *event)
+ 	if (hmm->mm->hmm != hmm)
+ 		return;
  
- /* hmm_notifier - HMM callback for mmu_notifier tracking change to process mm.
-  *
-@@ -180,8 +269,87 @@ static void hmm_notifier_release(struct mmu_notifier *mn, struct mm_struct *mm)
++	hmm_wait_device_fault(hmm, event);
++
+ 	id = srcu_read_lock(&srcu);
+ 
+ 	hlist_for_each_entry_rcu(mirror, &hmm->mirrors, mlist)
+@@ -226,6 +296,35 @@ static void hmm_update(struct hmm *hmm, struct hmm_event *event)
+ 		hmm_mirror_update_pt(mirror, event);
+ 
  	srcu_read_unlock(&srcu, id);
++
++	wake_up(&hmm->wait_queue);
++}
++
++static int hmm_mm_fault(struct hmm *hmm,
++			struct hmm_event *event,
++			struct vm_area_struct *vma,
++			unsigned long addr)
++{
++	struct mm_struct *mm = vma->vm_mm;
++	unsigned flags;
++	int r;
++
++	flags = (event->etype == HMM_DEVICE_WFAULT) ? FAULT_FLAG_WRITE : 0;
++	for (addr &= PAGE_MASK; addr < event->end; addr += PAGE_SIZE) {
++
++		flags |= FAULT_FLAG_ALLOW_RETRY;
++		do {
++			r = handle_mm_fault(mm, vma, addr, flags);
++			if (!(r & VM_FAULT_RETRY) && (r & VM_FAULT_ERROR)) {
++				if (r & VM_FAULT_OOM)
++					return -ENOMEM;
++				/* Same error code for all other cases. */
++				return -EFAULT;
++			}
++			flags &= ~FAULT_FLAG_ALLOW_RETRY;
++		} while (r & VM_FAULT_RETRY);
++	}
++	return 0;
  }
  
-+static void hmm_mmu_mprot_to_etype(struct mm_struct *mm,
-+				   unsigned long addr,
-+				   enum mmu_event mmu_event,
-+				   enum hmm_etype *etype)
+ 
+@@ -267,6 +366,8 @@ static void hmm_notifier_release(struct mmu_notifier *mn, struct mm_struct *mm)
+ 	spin_unlock(&hmm->lock);
+ 
+ 	srcu_read_unlock(&srcu, id);
++
++	wake_up(&hmm->wait_queue);
+ }
+ 
+ static void hmm_mmu_mprot_to_etype(struct mm_struct *mm,
+@@ -422,6 +523,289 @@ static void hmm_mirror_update_pt(struct hmm_mirror *mirror,
+ 	hmm_pt_iter_fini(&iter, &mirror->pt);
+ }
+ 
++static inline bool hmm_mirror_is_stopped(struct hmm_mirror *mirror)
 +{
-+	struct vm_area_struct *vma;
-+
-+	vma = find_vma(mm, addr);
-+	if (!vma || vma->vm_start > addr || !(vma->vm_flags & VM_READ)) {
-+		*etype = HMM_MUNMAP;
-+		return;
-+	}
-+
-+	if (!(vma->vm_flags & VM_WRITE)) {
-+		*etype = HMM_WRITE_PROTECT;
-+		return;
-+	}
-+
-+	*etype = HMM_NONE;
++	if (hlist_unhashed(&mirror->mlist) || list_empty(&mirror->dlist))
++		return true;
++	return false;
 +}
 +
-+static void hmm_notifier_invalidate_range_start(struct mmu_notifier *mn,
-+						struct mm_struct *mm,
-+						const struct mmu_notifier_range *range)
++struct hmm_mirror_fault {
++	struct hmm_mirror	*mirror;
++	struct hmm_event	*event;
++	struct vm_area_struct	*vma;
++	unsigned long		addr;
++	struct hmm_pt_iter	*iter;
++};
++
++static int hmm_mirror_fault_hpmd(struct hmm_mirror *mirror,
++				 struct hmm_event *event,
++				 struct vm_area_struct *vma,
++				 struct hmm_pt_iter *iter,
++				 pmd_t *pmdp,
++				 struct hmm_mirror_fault *mirror_fault,
++				 unsigned long start,
++				 unsigned long end)
 +{
-+	struct hmm_event event;
-+	unsigned long start = range->start, end = range->end;
-+	struct hmm *hmm;
++	struct page *page;
++	unsigned long addr, pfn;
++	unsigned flags = FOLL_TOUCH;
++	spinlock_t *ptl;
++	int ret;
 +
-+	hmm = container_of(mn, struct hmm, mmu_notifier);
-+	if (start >= hmm->vm_end)
-+		return;
++	ptl = pmd_lock(mirror->hmm->mm, pmdp);
++	if (unlikely(!pmd_trans_huge(*pmdp))) {
++		spin_unlock(ptl);
++		return -EAGAIN;
++	}
++	if (unlikely(pmd_trans_splitting(*pmdp))) {
++		spin_unlock(ptl);
++		wait_split_huge_page(vma->anon_vma, pmdp);
++		return -EAGAIN;
++	}
++	flags |= event->etype == HMM_DEVICE_WFAULT ? FOLL_WRITE : 0;
++	page = follow_trans_huge_pmd(vma, start, pmdp, flags);
++	pfn = page_to_pfn(page);
++	spin_unlock(ptl);
 +
-+	switch (range->event) {
-+	case MMU_MUNLOCK:
-+		/* Still same physical ram backing same address. */
-+		return;
-+	case MMU_MPROT:
-+		hmm_mmu_mprot_to_etype(mm, start, range->event, &event.etype);
-+		if (event.etype == HMM_NONE)
-+			return;
-+		break;
-+	case MMU_WRITE_BACK:
-+	case MMU_WRITE_PROTECT:
-+		event.etype = HMM_WRITE_PROTECT;
-+		break;
-+	case MMU_ISDIRTY:
-+		event.etype = HMM_ISDIRTY;
-+		break;
-+	case MMU_HSPLIT:
-+	case MMU_MUNMAP:
-+		event.etype = HMM_MUNMAP;
-+		break;
-+	case MMU_MIGRATE:
-+	default:
-+		event.etype = HMM_MIGRATE;
-+		break;
++	/* Just fault in the whole PMD. */
++	start &= PMD_MASK;
++	end = start + PMD_SIZE - 1;
++
++	if (!pmd_write(*pmdp) && event->etype == HMM_DEVICE_WFAULT)
++			return -ENOENT;
++
++	for (ret = 0, addr = start; !ret && addr < end;) {
++		unsigned long i = 0, hmm_end, next;
++		dma_addr_t *hmm_pte;
++
++		hmm_pte = hmm_pt_iter_fault(iter, &mirror->pt, addr);
++		if (!hmm_pte)
++			return -ENOMEM;
++
++		hmm_end = hmm_pt_level_next(&mirror->pt, addr, end,
++					    mirror->pt.llevel - 1);
++		hmm_pt_iter_directory_lock(iter, &mirror->pt);
++		do {
++			next = hmm_pt_level_next(&mirror->pt, addr, hmm_end,
++						 mirror->pt.llevel);
++
++			if (!(hmm_pte[i] & HMM_PTE_VALID)) {
++				hmm_pte[i] = hmm_pte_from_pfn(pfn);
++				hmm_pt_iter_directory_ref(iter,
++							  mirror->pt.llevel);
++			}
++			BUG_ON(hmm_pte_pfn(hmm_pte[i]) != pfn);
++			hmm_pte[i] |= pmd_write(*pmdp) ? HMM_PTE_WRITE : 0;
++		} while (addr = next, pfn++, i++, addr != hmm_end);
++		hmm_pt_iter_directory_unlock(iter, &mirror->pt);
++		mirror_fault->addr = addr;
 +	}
 +
-+	hmm_event_init(&event, hmm, start, end, event.etype);
-+
-+	hmm_update(hmm, &event);
-+}
-+
-+static void hmm_notifier_invalidate_page(struct mmu_notifier *mn,
-+					 struct mm_struct *mm,
-+					 unsigned long addr,
-+					 enum mmu_event mmu_event)
-+{
-+	struct mmu_notifier_range range;
-+
-+	range.start = addr & PAGE_MASK;
-+	range.end = range.start + PAGE_SIZE;
-+	range.event = mmu_event;
-+	hmm_notifier_invalidate_range_start(mn, mm, &range);
-+}
-+
- static struct mmu_notifier_ops hmm_notifier_ops = {
- 	.release		= hmm_notifier_release,
-+	.invalidate_page	= hmm_notifier_invalidate_page,
-+	.invalidate_range_start	= hmm_notifier_invalidate_range_start,
- };
- 
- 
-@@ -196,6 +364,64 @@ static struct mmu_notifier_ops hmm_notifier_ops = {
-  * the device driver to fault in range of memory in the device page table.
-  */
- 
-+static inline int hmm_mirror_update(struct hmm_mirror *mirror,
-+				    struct hmm_event *event)
-+{
-+	struct hmm_device *device = mirror->device;
-+	struct hmm_fence *fence;
-+
-+	fence = device->ops->update(mirror, event);
-+	if (fence) {
-+		if (IS_ERR(fence))
-+			return PTR_ERR(fence);
-+		fence->mirror = mirror;
-+		list_add_tail(&fence->list, &event->fences);
-+	}
 +	return 0;
 +}
 +
-+static void hmm_mirror_update_pt(struct hmm_mirror *mirror,
-+				 struct hmm_event *event)
++static int hmm_mirror_fault_pmd(pmd_t *pmdp,
++				unsigned long start,
++				unsigned long end,
++				struct mm_walk *walk)
 +{
++	struct hmm_mirror_fault *mirror_fault = walk->private;
++	struct hmm_mirror *mirror = mirror_fault->mirror;
++	struct hmm_event *event = mirror_fault->event;
++	struct hmm_pt_iter *iter = mirror_fault->iter;
++	bool write = (event->etype == HMM_DEVICE_WFAULT);
 +	unsigned long addr;
-+	struct hmm_pt_iter iter;
++	int ret = 0;
 +
-+	hmm_pt_iter_init(&iter);
-+	for (addr = event->start; addr != event->end;) {
-+		unsigned long end, next;
++	/* Make sure there was no gap. */
++	if (start != mirror_fault->addr)
++		return -ENOENT;
++
++	if (event->backoff)
++		return -EAGAIN;
++
++	if (pmd_none(*pmdp))
++		return -ENOENT;
++
++	if (pmd_trans_huge(*pmdp))
++		return hmm_mirror_fault_hpmd(mirror, event, mirror_fault->vma,
++					     iter, pmdp, mirror_fault, start,
++					     end);
++
++	if (pmd_none_or_trans_huge_or_clear_bad(pmdp))
++		return -EFAULT;
++
++	for (ret = 0, addr = start; !ret && addr < end;) {
++		unsigned long i = 0, hmm_end, next;
 +		dma_addr_t *hmm_pte;
++		pte_t *ptep;
 +
-+		hmm_pte = hmm_pt_iter_update(&iter, &mirror->pt, addr);
-+		if (!hmm_pte) {
-+			addr = hmm_pt_iter_next(&iter, &mirror->pt,
-+						addr, event->end);
-+			continue;
-+		}
-+		end = hmm_pt_level_next(&mirror->pt, addr, event->end,
-+					 mirror->pt.llevel - 1);
-+		hmm_pt_iter_directory_lock(&iter, &mirror->pt);
++		hmm_pte = hmm_pt_iter_fault(iter, &mirror->pt, addr);
++		if (!hmm_pte)
++			return -ENOMEM;
++
++		hmm_end = hmm_pt_level_next(&mirror->pt, addr, end,
++					    mirror->pt.llevel - 1);
++		ptep = pte_offset_map(pmdp, start);
++		hmm_pt_iter_directory_lock(iter, &mirror->pt);
 +		do {
-+			next = hmm_pt_level_next(&mirror->pt, addr, end,
++			next = hmm_pt_level_next(&mirror->pt, addr, hmm_end,
 +						 mirror->pt.llevel);
-+			if (!((*hmm_pte) & HMM_PTE_VALID))
-+				continue;
-+			if ((*hmm_pte) & HMM_PTE_DIRTY) {
-+				struct page *page;
-+
-+				page = pfn_to_page(hmm_pte_pfn(*hmm_pte));
-+				set_page_dirty(page);
-+				*hmm_pte &= ~HMM_PTE_DIRTY;
++			if (!pte_present(*ptep) || (write && !pte_write(*ptep))) {
++				ret = -ENOENT;
++				ptep++;
++				break;
 +			}
-+			*hmm_pte &= event->pte_mask;
-+			if (((*hmm_pte) & HMM_PTE_VALID))
-+				continue;
-+			hmm_pt_iter_directory_unref(&iter, mirror->pt.llevel);
-+		} while (addr = next, hmm_pte++, addr != end);
-+		hmm_pt_iter_directory_unlock(&iter, &mirror->pt);
++
++			if (!(hmm_pte[i] & HMM_PTE_VALID)) {
++				hmm_pte[i] = hmm_pte_from_pfn(pte_pfn(*ptep));
++				hmm_pt_iter_directory_ref(iter,
++							  mirror->pt.llevel);
++			}
++			BUG_ON(hmm_pte_pfn(hmm_pte[i]) != pte_pfn(*ptep));
++			hmm_pte[i] |= pte_write(*ptep) ? HMM_PTE_WRITE : 0;
++		} while (addr = next, ptep++, i++, addr != hmm_end);
++		hmm_pt_iter_directory_unlock(iter, &mirror->pt);
++		pte_unmap(ptep - 1);
++		mirror_fault->addr = addr;
 +	}
-+	hmm_pt_iter_fini(&iter, &mirror->pt);
++
++	return ret;
 +}
++
++static int hmm_mirror_handle_fault(struct hmm_mirror *mirror,
++				   struct hmm_event *event,
++				   struct vm_area_struct *vma,
++				   struct hmm_pt_iter *iter)
++{
++	struct hmm_mirror_fault mirror_fault;
++	unsigned long addr = event->start;
++	struct mm_walk walk = {0};
++	int ret = 0;
++
++	if ((event->etype == HMM_DEVICE_WFAULT) && !(vma->vm_flags & VM_WRITE))
++		return -EACCES;
++
++	ret = hmm_device_fault_start(mirror->hmm, event);
++	if (ret)
++		return ret;
++
++again:
++	if (event->backoff) {
++		ret = -EAGAIN;
++		goto out;
++	}
++	if (addr >= event->end)
++		goto out;
++
++	mirror_fault.event = event;
++	mirror_fault.mirror = mirror;
++	mirror_fault.vma = vma;
++	mirror_fault.addr = addr;
++	mirror_fault.iter = iter;
++	walk.mm = mirror->hmm->mm;
++	walk.private = &mirror_fault;
++	walk.pmd_entry = hmm_mirror_fault_pmd;
++	ret = walk_page_range(addr, event->end, &walk);
++	if (!ret) {
++		struct hmm_fence *fence;
++
++		fence = mirror->device->ops->update(mirror, event);
++		if (fence) {
++			if (IS_ERR(fence)) {
++				ret = PTR_ERR(fence);
++				goto out;
++			} else {
++				fence->mirror = mirror;
++				list_add_tail(&fence->list, &event->fences);
++			}
++		}
++		addr = mirror_fault.addr;
++		goto again;
++	}
++
++out:
++	hmm_device_fault_end(mirror->hmm, event);
++	if (ret == -ENOENT) {
++		ret = hmm_mm_fault(mirror->hmm, event, vma, addr);
++		ret = ret ? ret : -EAGAIN;
++	}
++	return ret;
++}
++
++int hmm_mirror_fault(struct hmm_mirror *mirror, struct hmm_event *event)
++{
++	struct vm_area_struct *vma;
++	struct hmm_pt_iter iter;
++	int ret = 0;
++
++	if (!mirror || event->start >= mirror->hmm->vm_end)
++		return -EINVAL;
++	if (hmm_event_init(event, mirror->hmm, event->start,
++			   event->end, event->etype))
++		return -EINVAL;
++	hmm_pt_iter_init(&iter);
++
++retry:
++	if (hmm_mirror_is_stopped(mirror))
++		return -ENODEV;
++
++	/*
++	 * So synchronization with the cpu page table is the most important
++	 * and tedious aspect of device page fault. There must be a strong
++	 * ordering btw call to device->update() for device page fault and
++	 * device->update() for cpu page table invalidation/update.
++	 *
++	 * Page that are exposed to device driver must stay valid while the
++	 * callback is in progress ie any cpu page table invalidation that
++	 * render those pages obsolete must call device->update() after the
++	 * device->update() call that faulted those pages.
++	 *
++	 * To achieve this we rely on few things. First the mmap_sem insure
++	 * us that any munmap() syscall will serialize with us. So issue are
++	 * with unmap_mapping_range() and with migrate or merge page. For this
++	 * hmm keep track of affected range of address and block device page
++	 * fault that hit overlapping range.
++	 */
++	down_read(&mirror->hmm->mm->mmap_sem);
++	vma = find_vma_intersection(mirror->hmm->mm, event->start, event->end);
++	if (!vma) {
++		ret = -EFAULT;
++		goto out;
++	}
++	if (vma->vm_start > event->start) {
++		event->end = vma->vm_start;
++		ret = -EFAULT;
++		goto out;
++	}
++	event->end = min(event->end, vma->vm_end) & PAGE_MASK;
++	if ((vma->vm_flags & (VM_IO | VM_PFNMAP | VM_MIXEDMAP | VM_HUGETLB))) {
++		ret = -EFAULT;
++		goto out;
++	}
++
++	switch (event->etype) {
++	case HMM_DEVICE_RFAULT:
++	case HMM_DEVICE_WFAULT:
++		ret = hmm_mirror_handle_fault(mirror, event, vma, &iter);
++		break;
++	default:
++		ret = -EINVAL;
++		break;
++	}
++
++out:
++	/* Drop the mmap_sem so anyone waiting on it have a chance. */
++	up_read(&mirror->hmm->mm->mmap_sem);
++	wake_up(&mirror->hmm->wait_queue);
++	if (ret == -EAGAIN)
++		goto retry;
++	hmm_pt_iter_fini(&iter, &mirror->pt);
++	return ret;
++}
++EXPORT_SYMBOL(hmm_mirror_fault);
 +
  /* hmm_mirror_register() - register mirror against current process for a device.
   *
   * @mirror: The mirror struct being registered.
-@@ -226,6 +452,11 @@ int hmm_mirror_register(struct hmm_mirror *mirror, struct hmm_device *device)
- 	 * Initialize the mirror struct fields, the mlist init and del dance is
- 	 * necessary to make the error path easier for driver and for hmm.
- 	 */
-+	mirror->pt.last = TASK_SIZE - 1;
-+	if (hmm_pt_init(&mirror->pt)) {
-+		kfree(mirror);
-+		return -ENOMEM;
-+	}
- 	INIT_HLIST_NODE(&mirror->mlist);
- 	INIT_LIST_HEAD(&mirror->dlist);
- 	mutex_lock(&device->mutex);
-@@ -263,6 +494,7 @@ int hmm_mirror_register(struct hmm_mirror *mirror, struct hmm_device *device)
- 		hmm_unref(hmm);
- 		goto error;
- 	}
-+	BUG_ON(mirror->pt.last >= hmm->vm_end);
- 	return 0;
- 
- error:
-@@ -275,6 +507,14 @@ EXPORT_SYMBOL(hmm_mirror_register);
- 
- static void hmm_mirror_release(struct hmm_mirror *mirror)
- {
-+	struct hmm_event event;
-+
-+	/* Make sure everything is unmapped. */
-+	hmm_event_init(&event, mirror->hmm, 0, -1UL, HMM_MUNMAP);
-+	hmm_mirror_update(mirror, &event);
-+	hmm_event_wait(&event);
-+	hmm_mirror_update_pt(mirror, &event);
-+
- 	spin_lock(&mirror->hmm->lock);
- 	if (!hlist_unhashed(&mirror->mlist)) {
- 		hlist_del_init_rcu(&mirror->mlist);
-@@ -310,6 +550,7 @@ void hmm_mirror_unregister(struct hmm_mirror *mirror)
- 	 */
- 	synchronize_srcu(&srcu);
- 
-+	hmm_pt_fini(&mirror->pt);
- 	mirror->hmm = hmm_unref(mirror->hmm);
- }
- EXPORT_SYMBOL(hmm_mirror_unregister);
-@@ -366,6 +607,28 @@ int hmm_device_unregister(struct hmm_device *device)
- }
- EXPORT_SYMBOL(hmm_device_unregister);
- 
-+static void hmm_device_fence_wait(struct hmm_device *device,
-+				  struct hmm_fence *fence)
-+{
-+	struct hmm_mirror *mirror;
-+	int r;
-+
-+	if (fence == NULL)
-+		return;
-+
-+	list_del_init(&fence->list);
-+	do {
-+		r = device->ops->fence_wait(fence);
-+		if (r == -EAGAIN)
-+			io_schedule();
-+	} while (r == -EAGAIN);
-+
-+	mirror = fence->mirror;
-+	device->ops->fence_unref(fence);
-+	if (r)
-+		hmm_mirror_release(mirror);
-+}
-+
- 
- static int __init hmm_subsys_init(void)
- {
 -- 
 1.9.3
 
