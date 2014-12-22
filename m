@@ -1,92 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 26F416B006C
-	for <linux-mm@kvack.org>; Mon, 22 Dec 2014 16:31:26 -0500 (EST)
-Received: by mail-pd0-f169.google.com with SMTP id z10so6576480pdj.28
-        for <linux-mm@kvack.org>; Mon, 22 Dec 2014 13:31:25 -0800 (PST)
-Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
-        by mx.google.com with ESMTP id wp13si26556918pac.230.2014.12.22.13.31.22
-        for <linux-mm@kvack.org>;
-        Mon, 22 Dec 2014 13:31:24 -0800 (PST)
-Date: Tue, 23 Dec 2014 08:30:58 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: How to handle TIF_MEMDIE stalls?
-Message-ID: <20141222213058.GQ15665@dastard>
-References: <20141218153341.GB832@dhcp22.suse.cz>
- <201412192122.DJI13055.OOVSQLOtFHFFMJ@I-love.SAKURA.ne.jp>
- <20141220020331.GM1942@devil.localdomain>
- <201412202141.ADF87596.tOSLJHFFOOFMVQ@I-love.SAKURA.ne.jp>
- <20141220223504.GI15665@dastard>
- <201412211745.ECD69212.LQOFHtFOJMSOFV@I-love.SAKURA.ne.jp>
- <20141221204249.GL15665@dastard>
- <20141222165736.GB2900@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141222165736.GB2900@dhcp22.suse.cz>
+Received: from mail-oi0-f47.google.com (mail-oi0-f47.google.com [209.85.218.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EA846B0032
+	for <linux-mm@kvack.org>; Mon, 22 Dec 2014 17:12:13 -0500 (EST)
+Received: by mail-oi0-f47.google.com with SMTP id v63so11657088oia.6
+        for <linux-mm@kvack.org>; Mon, 22 Dec 2014 14:12:13 -0800 (PST)
+Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
+        by mx.google.com with ESMTPS id dm7si11360457oeb.48.2014.12.22.14.12.11
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 22 Dec 2014 14:12:12 -0800 (PST)
+Message-ID: <1419286325.8812.3.camel@stgolabs.net>
+Subject: Re: mm: NULL ptr deref in unlink_file_vma
+From: Davidlohr Bueso <dave@stgolabs.net>
+Date: Mon, 22 Dec 2014 14:12:05 -0800
+In-Reply-To: <20141222191452.GA20295@node.dhcp.inet.fi>
+References: <549832E2.8060609@oracle.com>
+	 <20141222180102.GA8072@node.dhcp.inet.fi> <54985D59.5010506@oracle.com>
+	 <20141222191452.GA20295@node.dhcp.inet.fi>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Mon, Dec 22, 2014 at 05:57:36PM +0100, Michal Hocko wrote:
-> On Mon 22-12-14 07:42:49, Dave Chinner wrote:
-> [...]
-> > "memory reclaim gave up"? So why the hell isn't it returning a
-> > failure to the caller?
-> > 
-> > i.e. We have a perfectly good page cache allocation failure error
-> > path here all the way back to userspace, but we're invoking the
-> > OOM-killer to kill random processes rather than returning ENOMEM to
-> > the processes that are generating the memory demand?
-> > 
-> > Further: when did the oom-killer become the primary method
-> > of handling situations when memory allocation needs to fail?
-> > __GFP_WAIT does *not* mean memory allocation can't fail - that's what
-> > __GFP_NOFAIL means. And none of the page cache allocations use
-> > __GFP_NOFAIL, so why aren't we getting an allocation failure before
-> > the oom-killer is kicked?
+On Mon, 2014-12-22 at 21:14 +0200, Kirill A. Shutemov wrote:
+> Other thing:
 > 
-> Well, it has been an unwritten rule that GFP_KERNEL allocations for
-> low-order (<=PAGE_ALLOC_COSTLY_ORDER) never fail. This is a long ago
-> decision which would be tricky to fix now without silently breaking a
-> lot of code. Sad...
+>  unmap_mapping_range()
+>    i_mmap_lock_read(mapping);
+>    unmap_mapping_range_tree()
+>      unmap_mapping_range_vma()
+>        zap_page_range_single()
+>          unmap_single_vma()
+> 	   untrack_pfn()
+> 	     vma->vm_flags &= ~VM_PAT;
+> 
+> It seems we modify ->vm_flags without mmap_sem taken, means we can corrupt
+> them.
 
-Wow.
+yep. Although one thing that wouldn't match this would be the mlock'd
+bad page when freeing in both of Sasha's previous reports, as we would
+need to have VM_PFNMAP when calling untrack_pfn().
 
-We have *always* been told memory allocations are not guaranteed to
-succeed, ever, unless __GFP_NOFAIL is set, but that's deprecated and
-nobody is allowed to use it any more.
+> Sasha could you check if you hit untrack_pfn()?
+> 
+> The problem probably was hidden by exclusive i_mmap_lock on
+> unmap_mapping_range(), but it's not exclusive anymore afrer Dave's
+> patchset.
+> 
+> Konstantin, you've modified untrack_pfn() back in 2012 to change
+> ->vm_flags. Any coments?
+> 
+> For now, I would propose to revert the commit and probably re-introduce it
+> after v3.19:
+> 
+> From 14392c69fcfeeda34eb9f75d983dad32698cdd5c Mon Sep 17 00:00:00 2001
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Date: Mon, 22 Dec 2014 21:01:54 +0200
+> Subject: [PATCH] Revert "mm/memory.c: share the i_mmap_rwsem"
+> 
+> This reverts commit c8475d144abb1e62958cc5ec281d2a9e161c1946.
+> 
+> There are several[1][2] of bug reports which points to this commit as potential
+> cause[3].
+> 
+> Let's revert it until we figure out what's going on.
+> 
+> [1] https://lkml.org/lkml/2014/11/14/342
+> [2] https://lkml.org/lkml/2014/12/22/213
+> [3] https://lkml.org/lkml/2014/12/9/741
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Reported-by: Sasha Levin <sasha.levin@oracle.com>
+> Cc: Davidlohr Bueso <dave@stgolabs.net>
 
-Lots of code has dependencies on memory allocation making progress
-or failing for the system to work in low memory situations. The page
-cache is one of them, which means all filesystems have that
-dependency. We don't explicitly ask memory allocations to fail, we
-*expect* the memory allocation failures will occur in low memory
-conditions. We've been designing and writing code with this in mind
-for the past 15 years.
+I certainly have no problem with this. Furthermore we snuck this one in
+kinda last minute, so:
 
-How did we get so far away from the message of "the memory allocator
-never guarantees success" that it will never fail to allocate memory
-even if it means we livelock the entire system?
+Acked-by: Davidlohr Bueso <dave@stgolabs.net>
 
-> Nevertheless the caller can prevent from an endless loop by using
-> __GFP_NORETRY so this could be used as a workaround.
-
-That's just a never-ending game of whack-a-mole that we will
-continually lose. It's not a workable solution.
-
-> The default should be opposite IMO and only those who really
-> require some guarantee should use a special flag for that purpose.
-
-Yup, totally agree.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
