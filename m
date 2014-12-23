@@ -1,109 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id CF7596B0032
-	for <linux-mm@kvack.org>; Tue, 23 Dec 2014 04:52:02 -0500 (EST)
-Received: by mail-wi0-f169.google.com with SMTP id r20so12635648wiv.4
-        for <linux-mm@kvack.org>; Tue, 23 Dec 2014 01:52:02 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id mn7si37799331wjc.31.2014.12.23.01.52.01
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 45BE96B006E
+	for <linux-mm@kvack.org>; Tue, 23 Dec 2014 05:00:31 -0500 (EST)
+Received: by mail-pd0-f170.google.com with SMTP id v10so7511492pde.15
+        for <linux-mm@kvack.org>; Tue, 23 Dec 2014 02:00:31 -0800 (PST)
+Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
+        by mx.google.com with ESMTPS id pj2si12186807pbb.174.2014.12.23.02.00.28
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 23 Dec 2014 01:52:01 -0800 (PST)
-Date: Tue, 23 Dec 2014 10:51:59 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC PATCH] oom: Don't count on mm-less current process.
-Message-ID: <20141223095159.GA28549@dhcp22.suse.cz>
-References: <201412192107.IGJ09885.OFHSMJtLFFOVQO@I-love.SAKURA.ne.jp>
- <20141219124903.GB18397@dhcp22.suse.cz>
- <201412201813.JJF95860.VSLOQOFHFJOFtM@I-love.SAKURA.ne.jp>
- <201412202042.ECJ64551.FHOOJOQLFFtVMS@I-love.SAKURA.ne.jp>
- <20141222202511.GA9485@dhcp22.suse.cz>
- <201412231000.AFG78139.SJMtOOLFVFFQOH@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201412231000.AFG78139.SJMtOOLFVFFQOH@I-love.SAKURA.ne.jp>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Tue, 23 Dec 2014 02:00:29 -0800 (PST)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout3.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NH10039Q5BGL780@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 23 Dec 2014 10:04:28 +0000 (GMT)
+From: Dmitry Safonov <d.safonov@partner.samsung.com>
+Subject: [RFC][PATCH RESEND] mm: vmalloc: remove ioremap align constraint
+Date: Tue, 23 Dec 2014 13:00:13 +0300
+Message-id: <1419328813-2211-1-git-send-email-d.safonov@partner.samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Dmitry Safonov <d.safonov@partner.samsung.com>, Russell King <linux@arm.linux.org.uk>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Nicolas Pitre <nicolas.pitre@linaro.org>, James Bottomley <JBottomley@parallels.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd.bergmann@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Dyasly Sergey <s.dyasly@samsung.com>
 
-On Tue 23-12-14 10:00:00, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > OOM killer tries to exlude tasks which do not have mm_struct associated
-> s/exlude/exclude/
+ioremap uses __get_vm_area_node which sets alignment to fls of requested size.
+I couldn't find any reason for such big align. Does it decrease TLB misses?
+I tested it on custom ARM board with 200+ Mb of ioremap and it works.
+What am I missing?
 
-Fixed
+Alignment restriction for ioremap region was introduced with the commit:
 
-> > Fix this by checking task->mm and setting TIF_MEMDIE flag under task_lock
-> > which will serialize the OOM killer with exit_mm which sets task->mm to
-> > NULL.
-> Nice idea.
+> Author: James Bottomley <jejb@mulgrave.(none)>
+> Date:   Wed Jun 30 11:11:14 2004 -0500
 > 
-> By the way, find_lock_task_mm(victim) may succeed if victim->mm == NULL and
-> one of threads in victim thread-group has non-NULL mm. That case is handled
-> by victim != p branch below. But where was p->signal->oom_score_adj !=
-> OOM_SCORE_ADJ_MIN checked?
->
-> (In other words, don't we need to check like
-> t->mm && t->signal->oom_score_adj != OOM_SCORE_ADJ_MIN at find_lock_task_mm()
-> for OOM-kill case?)
-
-oom_score_adj is shared between threads.
-
-> Also, why not to call set_tsk_thread_flag() and do_send_sig_info() together
-> like below
-
-What would be an advantage? I am not really sure whether the two locks
-might nest as well.
-
->  	p = find_lock_task_mm(victim);
->  	if (!p) {
->  		put_task_struct(victim);
->  		return;
->  	} else if (victim != p) {
->  		get_task_struct(p);
->  		put_task_struct(victim);
->  		victim = p;
->  	}
->  
->  	/* mm cannot safely be dereferenced after task_unlock(victim) */
->  	mm = victim->mm;
-> +	set_tsk_thread_flag(victim, TIF_MEMDIE);
-> +	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
->  	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
->  		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
->  		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
->  		K(get_mm_counter(victim->mm, MM_FILEPAGES)));
->  	task_unlock(victim);
+>     Add vmalloc alignment constraints
 > 
-> than wait for for_each_process() loop in case current task went to sleep
-> immediately after task_unlock(victim)? Or is there a reason we had been
-> setting TIF_MEMDIE after the for_each_process() loop? If the reason was
-> to minimize the duration of OOM killer being disabled due to TIF_MEMDIE,
-> shouldn't we do like below?
+>     vmalloc is used by ioremap() to get regions for
+>     remapping I/O space.  To feed these regions back
+>     into a __get_free_pages() type memory allocator,
+>     they are expected to have more alignment than
+>     get_vm_area() proves.  So add additional alignment
+>     constraints for VM_IOREMAP.
+> 
+>     Signed-off-by: James Bottomley <James.Bottomley@SteelEye.com>
 
-No, global parallel OOM killer is disabled by oom zonelist lock at this
-moment for most paths so TIF_MEMDIE setting little bit earlier doesn't
-make any difference.
+Cc: Russell King <linux@arm.linux.org.uk>
+Cc: Guan Xuetao <gxt@mprc.pku.edu.cn>
+Cc: Nicolas Pitre <nicolas.pitre@linaro.org>
+Cc: James Bottomley <JBottomley@parallels.com>
+Cc: Will Deacon <will.deacon@arm.com>
+Cc: Arnd Bergmann <arnd.bergmann@linaro.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dyasly Sergey <s.dyasly@samsung.com>
+Signed-off-by: Dmitry Safonov <d.safonov@partner.samsung.com>
+---
+ arch/arm/include/asm/memory.h       | 5 -----
+ arch/unicore32/include/asm/memory.h | 5 -----
+ include/linux/vmalloc.h             | 8 --------
+ mm/vmalloc.c                        | 2 --
+ 4 files changed, 20 deletions(-)
 
->  	rcu_read_unlock();
->  
-> -	set_tsk_thread_flag(victim, TIF_MEMDIE);
-> +	task_lock(victim);
-> +	if (victim->mm)
-> +		set_tsk_thread_flag(victim, TIF_MEMDIE);
-> +	task_unlock(victim);
->  	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
->  	put_task_struct(victim);
-
-This would work as well but I am not sure it is much more nicer. It is
-the find_lock_task_mm() part which tells the final victim so setting
-TIF_MEMDIE is logical there.
-
+diff --git a/arch/arm/include/asm/memory.h b/arch/arm/include/asm/memory.h
+index 184def0..b333245 100644
+--- a/arch/arm/include/asm/memory.h
++++ b/arch/arm/include/asm/memory.h
+@@ -78,11 +78,6 @@
+  */
+ #define XIP_VIRT_ADDR(physaddr)  (MODULES_VADDR + ((physaddr) & 0x000fffff))
+ 
+-/*
+- * Allow 16MB-aligned ioremap pages
+- */
+-#define IOREMAP_MAX_ORDER	24
+-
+ #else /* CONFIG_MMU */
+ 
+ /*
+diff --git a/arch/unicore32/include/asm/memory.h b/arch/unicore32/include/asm/memory.h
+index debafc4..ffae189 100644
+--- a/arch/unicore32/include/asm/memory.h
++++ b/arch/unicore32/include/asm/memory.h
+@@ -46,11 +46,6 @@
+ #define MODULES_END		(PAGE_OFFSET)
+ 
+ /*
+- * Allow 16MB-aligned ioremap pages
+- */
+-#define IOREMAP_MAX_ORDER	24
+-
+-/*
+  * Physical vs virtual RAM address space conversion.  These are
+  * private definitions which should NOT be used outside memory.h
+  * files.  Use virt_to_phys/phys_to_virt/__pa/__va instead.
+diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+index b87696f..2f428e8 100644
+--- a/include/linux/vmalloc.h
++++ b/include/linux/vmalloc.h
+@@ -18,14 +18,6 @@ struct vm_area_struct;		/* vma defining user mapping in mm_types.h */
+ #define VM_UNINITIALIZED	0x00000020	/* vm_struct is not fully initialized */
+ /* bits [20..32] reserved for arch specific ioremap internals */
+ 
+-/*
+- * Maximum alignment for ioremap() regions.
+- * Can be overriden by arch-specific value.
+- */
+-#ifndef IOREMAP_MAX_ORDER
+-#define IOREMAP_MAX_ORDER	(7 + PAGE_SHIFT)	/* 128 pages */
+-#endif
+-
+ struct vm_struct {
+ 	struct vm_struct	*next;
+ 	void			*addr;
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 39c3388..c4f480dd 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1313,8 +1313,6 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
+ 	struct vm_struct *area;
+ 
+ 	BUG_ON(in_interrupt());
+-	if (flags & VM_IOREMAP)
+-		align = 1ul << clamp(fls(size), PAGE_SHIFT, IOREMAP_MAX_ORDER);
+ 
+ 	size = PAGE_ALIGN(size);
+ 	if (unlikely(!size))
 -- 
-Michal Hocko
-SUSE Labs
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
