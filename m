@@ -1,61 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 729E66B006C
-	for <linux-mm@kvack.org>; Tue, 23 Dec 2014 08:09:13 -0500 (EST)
-Received: by mail-la0-f41.google.com with SMTP id hv19so5535260lab.28
-        for <linux-mm@kvack.org>; Tue, 23 Dec 2014 05:09:12 -0800 (PST)
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id B57E96B0032
+	for <linux-mm@kvack.org>; Tue, 23 Dec 2014 08:43:12 -0500 (EST)
+Received: by mail-wi0-f181.google.com with SMTP id r20so10866679wiv.8
+        for <linux-mm@kvack.org>; Tue, 23 Dec 2014 05:43:12 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id jt19si20826874lab.35.2014.12.23.05.09.11
+        by mx.google.com with ESMTPS id ee8si24988398wib.54.2014.12.23.05.43.11
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 23 Dec 2014 05:09:11 -0800 (PST)
-Date: Tue, 23 Dec 2014 14:09:09 +0100
+        Tue, 23 Dec 2014 05:43:11 -0800 (PST)
+Date: Tue, 23 Dec 2014 14:43:09 +0100
 From: Michal Hocko <mhocko@suse.cz>
 Subject: Re: [RFC PATCH] oom: Don't count on mm-less current process.
-Message-ID: <20141223130909.GE28549@dhcp22.suse.cz>
-References: <20141222202511.GA9485@dhcp22.suse.cz>
- <201412231000.AFG78139.SJMtOOLFVFFQOH@I-love.SAKURA.ne.jp>
- <20141223095159.GA28549@dhcp22.suse.cz>
+Message-ID: <20141223134309.GF28549@dhcp22.suse.cz>
+References: <20141223095159.GA28549@dhcp22.suse.cz>
  <201412232046.FHB81206.OVMOOSJHQFFFLt@I-love.SAKURA.ne.jp>
  <20141223122401.GC28549@dhcp22.suse.cz>
  <201412232200.BCI48944.LJFSFVOFHMOtQO@I-love.SAKURA.ne.jp>
+ <20141223130909.GE28549@dhcp22.suse.cz>
+ <201412232220.IIJ57305.OMOOSVFtFFHQLJ@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201412232200.BCI48944.LJFSFVOFHMOtQO@I-love.SAKURA.ne.jp>
+In-Reply-To: <201412232220.IIJ57305.OMOOSVFtFFHQLJ@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com
 
-On Tue 23-12-14 22:00:52, Tetsuo Handa wrote:
+On Tue 23-12-14 22:20:57, Tetsuo Handa wrote:
 > Michal Hocko wrote:
-> > > and finally sets SIGKILL on that victim thread. If such a delay
-> > > happened, that victim thread is free to abuse TIF_MEMDIE for that period.
-> > > Thus, I thought sending SIGKILL followed by setting TIF_MEMDIE is better.
-> > 
-> > I don't know, I can hardly find a scenario where it would make any
-> > difference in the real life. If the victim needs to allocate a memory to
-> > finish then it would trigger OOM again and have to wait/loop until this
-> > OOM killer releases the oom zonelist lock just to find out it already
-> > has TIF_MEMDIE set and can dive into memory reserves. Which way is more
-> > correct is a question but I wouldn't change it without having a really
-> > good reason. This whole code is subtle already, let's not make it even
-> > more so.
-> 
-> gfp_to_alloc_flags() in mm/page_alloc.c sets ALLOC_NO_WATERMARKS if
-> the victim task has TIF_MEMDIE flag, doesn't it?
-
-This is the whole point of TIF_MEMDIE.
-
+> > On Tue 23-12-14 22:00:52, Tetsuo Handa wrote:
 [...]
+> > > Then, I think deferring SIGKILL might widen race window for abusing TIF_MEMDIE.
+> > 
+> > How would it abuse the flag? The OOM victim has to die and if it needs
+> > to allocate then we have to allow it to do so otherwise the whole
+> > exercise was pointless. fatal_signal_pending check is not so widespread
+> > in the kernel that the task would notice it immediately.
+> 
+> I'm talking about possible delay between TIF_MEMDIE was set on the victim
+> and SIGKILL is delivered to the victim.
 
-> Then, I think deferring SIGKILL might widen race window for abusing TIF_MEMDIE.
+I can read what you wrote. You are just ignoring my questions it seems
+because I haven't got any reason _why it matters_. My point was that the
+victim might be looping in the kernel and doing other allocations until
+it notices it has fatal_signal_pending and bail out. So the delay
+between setting the flag and sending the signal is not that important
+AFAICS.
 
-How would it abuse the flag? The OOM victim has to die and if it needs
-to allocate then we have to allow it to do so otherwise the whole
-exercise was pointless. fatal_signal_pending check is not so widespread
-in the kernel that the task would notice it immediately.
+> Why the victim has to die before receiving SIGKILL?
+
+It has to die to resolve the current OOM condition. I haven't written
+anything about dying before receiving SIGKILL.
+
+> The victim can access memory reserves until SIGKILL is delivered,
+> can't it?
+
+And why does that matter? It would have to do such an allocation anyway
+because it wouldn't proceed without it... And the only difference
+between having the flag and not having it is that the allocation has
+higher chance to succeed with the flag so it will not trigger the OOM
+killer again right away. See the point or am I missing something here?
 
 -- 
 Michal Hocko
