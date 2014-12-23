@@ -1,131 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 45BE96B006E
-	for <linux-mm@kvack.org>; Tue, 23 Dec 2014 05:00:31 -0500 (EST)
-Received: by mail-pd0-f170.google.com with SMTP id v10so7511492pde.15
-        for <linux-mm@kvack.org>; Tue, 23 Dec 2014 02:00:31 -0800 (PST)
-Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
-        by mx.google.com with ESMTPS id pj2si12186807pbb.174.2014.12.23.02.00.28
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E5466B006E
+	for <linux-mm@kvack.org>; Tue, 23 Dec 2014 05:16:11 -0500 (EST)
+Received: by mail-wi0-f176.google.com with SMTP id ex7so10366991wid.9
+        for <linux-mm@kvack.org>; Tue, 23 Dec 2014 02:16:10 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id mu4si23894584wib.3.2014.12.23.02.16.10
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Tue, 23 Dec 2014 02:00:29 -0800 (PST)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout3.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NH10039Q5BGL780@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 23 Dec 2014 10:04:28 +0000 (GMT)
-From: Dmitry Safonov <d.safonov@partner.samsung.com>
-Subject: [RFC][PATCH RESEND] mm: vmalloc: remove ioremap align constraint
-Date: Tue, 23 Dec 2014 13:00:13 +0300
-Message-id: <1419328813-2211-1-git-send-email-d.safonov@partner.samsung.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 23 Dec 2014 02:16:10 -0800 (PST)
+Date: Tue, 23 Dec 2014 11:16:08 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/2] mm, vmscan: prevent kswapd livelock due to
+ pfmemalloc-throttled process being killed
+Message-ID: <20141223101608.GB28549@dhcp22.suse.cz>
+References: <1418994116-23665-1-git-send-email-vbabka@suse.cz>
+ <20141219155747.GA31756@dhcp22.suse.cz>
+ <20141219182815.GK18274@esperanza>
+ <20141220104746.GB6306@dhcp22.suse.cz>
+ <20141220141824.GM18274@esperanza>
+ <20141222142435.GA2900@dhcp22.suse.cz>
+ <20141222162558.GA21211@esperanza>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141222162558.GA21211@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Dmitry Safonov <d.safonov@partner.samsung.com>, Russell King <linux@arm.linux.org.uk>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Nicolas Pitre <nicolas.pitre@linaro.org>, James Bottomley <JBottomley@parallels.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd.bergmann@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Dyasly Sergey <s.dyasly@samsung.com>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, stable@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
 
-ioremap uses __get_vm_area_node which sets alignment to fls of requested size.
-I couldn't find any reason for such big align. Does it decrease TLB misses?
-I tested it on custom ARM board with 200+ Mb of ioremap and it works.
-What am I missing?
-
-Alignment restriction for ioremap region was introduced with the commit:
-
-> Author: James Bottomley <jejb@mulgrave.(none)>
-> Date:   Wed Jun 30 11:11:14 2004 -0500
+On Mon 22-12-14 19:25:58, Vladimir Davydov wrote:
+[...]
+> From: Vlastimil Babka <vbabka@suse.cz>
+> Subject: [PATCH] mm, vmscan: prevent kswapd livelock due to
+>  pfmemalloc-throttled process being killed
 > 
->     Add vmalloc alignment constraints
+> Charles Shirron and Paul Cassella from Cray Inc have reported kswapd stuck
+> in a busy loop with nothing left to balance, but kswapd_try_to_sleep() failing
+> to sleep. Their analysis found the cause to be a combination of several
+> factors:
 > 
->     vmalloc is used by ioremap() to get regions for
->     remapping I/O space.  To feed these regions back
->     into a __get_free_pages() type memory allocator,
->     they are expected to have more alignment than
->     get_vm_area() proves.  So add additional alignment
->     constraints for VM_IOREMAP.
+> 1. A process is waiting in throttle_direct_reclaim() on pgdat->pfmemalloc_wait
 > 
->     Signed-off-by: James Bottomley <James.Bottomley@SteelEye.com>
+> 2. The process has been killed (by OOM in this case), but has not yet been
+>    scheduled to remove itself from the waitqueue and die.
+> 
+> 3. kswapd checks for throttled processes in prepare_kswapd_sleep() and
+>    do not put itself to sleep if there are any:
+> 
+>         if (waitqueue_active(&pgdat->pfmemalloc_wait)) {
+>                 wake_up(&pgdat->pfmemalloc_wait);
+>                 return false;
+>         }
+> 
+>    However, for a process that was already killed, wake_up() does not remove
+>    the process from the waitqueue, since try_to_wake_up() checks its state
+>    first and returns false when the process is no longer waiting.
+> 
+> 4. kswapd is running on the same CPU as the only CPU that the process is
+>    allowed to run on (through cpus_allowed, or possibly single-cpu system).
+> 
+> 5. CONFIG_PREEMPT_NONE=y kernel is used. If there's nothing to balance, kswapd
+>    encounters no voluntary preemption points and repeatedly fails
+>    prepare_kswapd_sleep(), blocking the process from running and removing
+>    itself from the waitqueue, which would let kswapd sleep.
+> 
+> So, the source of the problem is that we prevent kswapd from going to
+> sleep until there are processes waiting on the pfmemalloc_wait queue,
+> and a process waiting on a queue is guaranteed to be removed from the
+> queue only when it gets scheduled. This was done to avoid the race
+> between kswapd checking pfmemalloc_wait and a process getting throttled
+> as the comment in prepare_kswapd_sleep() explains.
+> 
+> However, it isn't necessary to postpone kswapd sleep until the
+> pfmemalloc_wait queue empties. To eliminate the race, it's actually
+> enough to guarantee that all processes waiting on pfmemalloc_wait queue
+> have been woken up by the time we put kswapd to sleep.
+> 
+> This patch therefore fixes this issue by substituting 'wake_up' with
+> 'wake_up_all' and removing 'return false' in the code snippet from
+> prepare_kswapd_sleep() above.
+> 
+> Also, it replaces wake_up with wake_up_all in balance_pgdat(), because:
+>  - using wake_up there might leave processes waiting for longer than
+>    necessary, until the check is reached in the next loop iteration;
+>  - processes might also be left waiting even if zone was fully balanced
+>    in single iteration;
+>  - the comment says "wake them" so the author of the commit that
+>    introduced pfmemalloc_wait seemed to mean wake_up_all;
+>  - this corresponds to how we wake processes waiting on pfmemalloc_wait
+>    in prepare_kswapd_sleep.
 
-Cc: Russell King <linux@arm.linux.org.uk>
-Cc: Guan Xuetao <gxt@mprc.pku.edu.cn>
-Cc: Nicolas Pitre <nicolas.pitre@linaro.org>
-Cc: James Bottomley <JBottomley@parallels.com>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: Arnd Bergmann <arnd.bergmann@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dyasly Sergey <s.dyasly@samsung.com>
-Signed-off-by: Dmitry Safonov <d.safonov@partner.samsung.com>
----
- arch/arm/include/asm/memory.h       | 5 -----
- arch/unicore32/include/asm/memory.h | 5 -----
- include/linux/vmalloc.h             | 8 --------
- mm/vmalloc.c                        | 2 --
- 4 files changed, 20 deletions(-)
+I would still separate this into a separate patch because it is not
+directly related to the issue. It also doesn't need to be backported to
+the stable tree AFAIU.
 
-diff --git a/arch/arm/include/asm/memory.h b/arch/arm/include/asm/memory.h
-index 184def0..b333245 100644
---- a/arch/arm/include/asm/memory.h
-+++ b/arch/arm/include/asm/memory.h
-@@ -78,11 +78,6 @@
-  */
- #define XIP_VIRT_ADDR(physaddr)  (MODULES_VADDR + ((physaddr) & 0x000fffff))
- 
--/*
-- * Allow 16MB-aligned ioremap pages
-- */
--#define IOREMAP_MAX_ORDER	24
--
- #else /* CONFIG_MMU */
- 
- /*
-diff --git a/arch/unicore32/include/asm/memory.h b/arch/unicore32/include/asm/memory.h
-index debafc4..ffae189 100644
---- a/arch/unicore32/include/asm/memory.h
-+++ b/arch/unicore32/include/asm/memory.h
-@@ -46,11 +46,6 @@
- #define MODULES_END		(PAGE_OFFSET)
- 
- /*
-- * Allow 16MB-aligned ioremap pages
-- */
--#define IOREMAP_MAX_ORDER	24
--
--/*
-  * Physical vs virtual RAM address space conversion.  These are
-  * private definitions which should NOT be used outside memory.h
-  * files.  Use virt_to_phys/phys_to_virt/__pa/__va instead.
-diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index b87696f..2f428e8 100644
---- a/include/linux/vmalloc.h
-+++ b/include/linux/vmalloc.h
-@@ -18,14 +18,6 @@ struct vm_area_struct;		/* vma defining user mapping in mm_types.h */
- #define VM_UNINITIALIZED	0x00000020	/* vm_struct is not fully initialized */
- /* bits [20..32] reserved for arch specific ioremap internals */
- 
--/*
-- * Maximum alignment for ioremap() regions.
-- * Can be overriden by arch-specific value.
-- */
--#ifndef IOREMAP_MAX_ORDER
--#define IOREMAP_MAX_ORDER	(7 + PAGE_SHIFT)	/* 128 pages */
--#endif
--
- struct vm_struct {
- 	struct vm_struct	*next;
- 	void			*addr;
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 39c3388..c4f480dd 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1313,8 +1313,6 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
- 	struct vm_struct *area;
- 
- 	BUG_ON(in_interrupt());
--	if (flags & VM_IOREMAP)
--		align = 1ul << clamp(fls(size), PAGE_SHIFT, IOREMAP_MAX_ORDER);
- 
- 	size = PAGE_ALIGN(size);
- 	if (unlikely(!size))
+> Fixes: 5515061d22f0 ("mm: throttle direct reclaimers if PF_MEMALLOC reserves
+>                       are low and swap is backed by network storage")
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+> Cc: <stable@vger.kernel.org>   # v3.6+
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Rik van Riel <riel@redhat.com>
+
+Other than that the patch looks good to me.
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+> Changes in v2:
+>  - instead of introducing yet another schedule() point in
+>    kswapd_try_to_sleep(), allow kswapd to sleep even if the
+>    pfmemalloc_wait queue is active, waking *all* throttled
+>    processes before going to sleep
+> 
+>  mm/vmscan.c |    8 +++-----
+>  1 file changed, 3 insertions(+), 5 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 5e8772b2b9ef..65287944b2cf 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2961,10 +2961,8 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
+>  	 * so wake them now if necessary. If necessary, processes will wake
+>  	 * kswapd and get throttled again
+>  	 */
+> -	if (waitqueue_active(&pgdat->pfmemalloc_wait)) {
+> -		wake_up(&pgdat->pfmemalloc_wait);
+> -		return false;
+> -	}
+> +	if (waitqueue_active(&pgdat->pfmemalloc_wait))
+> +		wake_up_all(&pgdat->pfmemalloc_wait);
+>  
+>  	return pgdat_balanced(pgdat, order, classzone_idx);
+>  }
+> @@ -3205,7 +3203,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+>  		 */
+>  		if (waitqueue_active(&pgdat->pfmemalloc_wait) &&
+>  				pfmemalloc_watermark_ok(pgdat))
+> -			wake_up(&pgdat->pfmemalloc_wait);
+> +			wake_up_all(&pgdat->pfmemalloc_wait);
+>  
+>  		/*
+>  		 * Fragmentation may mean that the system cannot be rebalanced
+> -- 
+> 1.7.10.4
+> 
+
 -- 
-1.9.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
