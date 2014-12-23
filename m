@@ -1,157 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E5466B006E
-	for <linux-mm@kvack.org>; Tue, 23 Dec 2014 05:16:11 -0500 (EST)
-Received: by mail-wi0-f176.google.com with SMTP id ex7so10366991wid.9
-        for <linux-mm@kvack.org>; Tue, 23 Dec 2014 02:16:10 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id mu4si23894584wib.3.2014.12.23.02.16.10
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F6D96B0032
+	for <linux-mm@kvack.org>; Tue, 23 Dec 2014 07:22:30 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id fb1so7779652pad.41
+        for <linux-mm@kvack.org>; Tue, 23 Dec 2014 04:22:30 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id gr3si28936643pbc.207.2014.12.23.04.22.27
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 23 Dec 2014 02:16:10 -0800 (PST)
-Date: Tue, 23 Dec 2014 11:16:08 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/2] mm, vmscan: prevent kswapd livelock due to
- pfmemalloc-throttled process being killed
-Message-ID: <20141223101608.GB28549@dhcp22.suse.cz>
-References: <1418994116-23665-1-git-send-email-vbabka@suse.cz>
- <20141219155747.GA31756@dhcp22.suse.cz>
- <20141219182815.GK18274@esperanza>
- <20141220104746.GB6306@dhcp22.suse.cz>
- <20141220141824.GM18274@esperanza>
- <20141222142435.GA2900@dhcp22.suse.cz>
- <20141222162558.GA21211@esperanza>
-MIME-Version: 1.0
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 23 Dec 2014 04:22:28 -0800 (PST)
+Subject: Re: [RFC PATCH] oom: Don't count on mm-less current process.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201412201813.JJF95860.VSLOQOFHFJOFtM@I-love.SAKURA.ne.jp>
+	<201412202042.ECJ64551.FHOOJOQLFFtVMS@I-love.SAKURA.ne.jp>
+	<20141222202511.GA9485@dhcp22.suse.cz>
+	<201412231000.AFG78139.SJMtOOLFVFFQOH@I-love.SAKURA.ne.jp>
+	<20141223095159.GA28549@dhcp22.suse.cz>
+In-Reply-To: <20141223095159.GA28549@dhcp22.suse.cz>
+Message-Id: <201412232046.FHB81206.OVMOOSJHQFFFLt@I-love.SAKURA.ne.jp>
+Date: Tue, 23 Dec 2014 20:46:07 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141222162558.GA21211@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, stable@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
+To: mhocko@suse.cz
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com
 
-On Mon 22-12-14 19:25:58, Vladimir Davydov wrote:
-[...]
-> From: Vlastimil Babka <vbabka@suse.cz>
-> Subject: [PATCH] mm, vmscan: prevent kswapd livelock due to
->  pfmemalloc-throttled process being killed
+Michal Hocko wrote:
+> > Also, why not to call set_tsk_thread_flag() and do_send_sig_info() together
+> > like below
 > 
-> Charles Shirron and Paul Cassella from Cray Inc have reported kswapd stuck
-> in a busy loop with nothing left to balance, but kswapd_try_to_sleep() failing
-> to sleep. Their analysis found the cause to be a combination of several
-> factors:
-> 
-> 1. A process is waiting in throttle_direct_reclaim() on pgdat->pfmemalloc_wait
-> 
-> 2. The process has been killed (by OOM in this case), but has not yet been
->    scheduled to remove itself from the waitqueue and die.
-> 
-> 3. kswapd checks for throttled processes in prepare_kswapd_sleep() and
->    do not put itself to sleep if there are any:
-> 
->         if (waitqueue_active(&pgdat->pfmemalloc_wait)) {
->                 wake_up(&pgdat->pfmemalloc_wait);
->                 return false;
->         }
-> 
->    However, for a process that was already killed, wake_up() does not remove
->    the process from the waitqueue, since try_to_wake_up() checks its state
->    first and returns false when the process is no longer waiting.
-> 
-> 4. kswapd is running on the same CPU as the only CPU that the process is
->    allowed to run on (through cpus_allowed, or possibly single-cpu system).
-> 
-> 5. CONFIG_PREEMPT_NONE=y kernel is used. If there's nothing to balance, kswapd
->    encounters no voluntary preemption points and repeatedly fails
->    prepare_kswapd_sleep(), blocking the process from running and removing
->    itself from the waitqueue, which would let kswapd sleep.
-> 
-> So, the source of the problem is that we prevent kswapd from going to
-> sleep until there are processes waiting on the pfmemalloc_wait queue,
-> and a process waiting on a queue is guaranteed to be removed from the
-> queue only when it gets scheduled. This was done to avoid the race
-> between kswapd checking pfmemalloc_wait and a process getting throttled
-> as the comment in prepare_kswapd_sleep() explains.
-> 
-> However, it isn't necessary to postpone kswapd sleep until the
-> pfmemalloc_wait queue empties. To eliminate the race, it's actually
-> enough to guarantee that all processes waiting on pfmemalloc_wait queue
-> have been woken up by the time we put kswapd to sleep.
-> 
-> This patch therefore fixes this issue by substituting 'wake_up' with
-> 'wake_up_all' and removing 'return false' in the code snippet from
-> prepare_kswapd_sleep() above.
-> 
-> Also, it replaces wake_up with wake_up_all in balance_pgdat(), because:
->  - using wake_up there might leave processes waiting for longer than
->    necessary, until the check is reached in the next loop iteration;
->  - processes might also be left waiting even if zone was fully balanced
->    in single iteration;
->  - the comment says "wake them" so the author of the commit that
->    introduced pfmemalloc_wait seemed to mean wake_up_all;
->  - this corresponds to how we wake processes waiting on pfmemalloc_wait
->    in prepare_kswapd_sleep.
+> What would be an advantage? I am not really sure whether the two locks
+> might nest as well.
 
-I would still separate this into a separate patch because it is not
-directly related to the issue. It also doesn't need to be backported to
-the stable tree AFAIU.
+I imagined that current thread sets TIF_MEMDIE on a victim thread, then
+sleeps for 30 seconds immediately after task_unlock() (it's an overdone
+delay), and finally sets SIGKILL on that victim thread. If such a delay
+happened, that victim thread is free to abuse TIF_MEMDIE for that period.
+Thus, I thought sending SIGKILL followed by setting TIF_MEMDIE is better.
 
-> Fixes: 5515061d22f0 ("mm: throttle direct reclaimers if PF_MEMALLOC reserves
->                       are low and swap is backed by network storage")
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-> Cc: <stable@vger.kernel.org>   # v3.6+
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: Rik van Riel <riel@redhat.com>
+ 	rcu_read_unlock();
+ 
+-	set_tsk_thread_flag(victim, TIF_MEMDIE);
+ 	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
++	task_lock(victim);
++	if (victim->mm)
++		set_tsk_thread_flag(victim, TIF_MEMDIE);
++	task_unlock(victim);
+ 	put_task_struct(victim);
 
-Other than that the patch looks good to me.
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
-
-> ---
-> Changes in v2:
->  - instead of introducing yet another schedule() point in
->    kswapd_try_to_sleep(), allow kswapd to sleep even if the
->    pfmemalloc_wait queue is active, waking *all* throttled
->    processes before going to sleep
-> 
->  mm/vmscan.c |    8 +++-----
->  1 file changed, 3 insertions(+), 5 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 5e8772b2b9ef..65287944b2cf 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2961,10 +2961,8 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
->  	 * so wake them now if necessary. If necessary, processes will wake
->  	 * kswapd and get throttled again
->  	 */
-> -	if (waitqueue_active(&pgdat->pfmemalloc_wait)) {
-> -		wake_up(&pgdat->pfmemalloc_wait);
-> -		return false;
-> -	}
-> +	if (waitqueue_active(&pgdat->pfmemalloc_wait))
-> +		wake_up_all(&pgdat->pfmemalloc_wait);
->  
->  	return pgdat_balanced(pgdat, order, classzone_idx);
->  }
-> @@ -3205,7 +3203,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->  		 */
->  		if (waitqueue_active(&pgdat->pfmemalloc_wait) &&
->  				pfmemalloc_watermark_ok(pgdat))
-> -			wake_up(&pgdat->pfmemalloc_wait);
-> +			wake_up_all(&pgdat->pfmemalloc_wait);
->  
->  		/*
->  		 * Fragmentation may mean that the system cannot be rebalanced
-> -- 
-> 1.7.10.4
-> 
-
--- 
-Michal Hocko
-SUSE Labs
+If such a delay is theoretically impossible, I'm OK with your patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
