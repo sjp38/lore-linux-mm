@@ -1,60 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f180.google.com (mail-ob0-f180.google.com [209.85.214.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E4226B0032
-	for <linux-mm@kvack.org>; Mon, 22 Dec 2014 18:51:34 -0500 (EST)
-Received: by mail-ob0-f180.google.com with SMTP id wp4so23359961obc.11
-        for <linux-mm@kvack.org>; Mon, 22 Dec 2014 15:51:34 -0800 (PST)
-Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
-        by mx.google.com with ESMTPS id qt3si11444651oeb.63.2014.12.22.15.51.32
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 98A916B0032
+	for <linux-mm@kvack.org>; Mon, 22 Dec 2014 20:52:29 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id kx10so6955718pab.16
+        for <linux-mm@kvack.org>; Mon, 22 Dec 2014 17:52:29 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id zs6si27371816pac.109.2014.12.22.17.52.26
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 22 Dec 2014 15:51:33 -0800 (PST)
-Message-ID: <1419292284.8812.5.camel@stgolabs.net>
-Subject: [LSF/MM ATTEND] mmap_sem and mm performance testing
-From: Davidlohr Bueso <dave@stgolabs.net>
-Date: Mon, 22 Dec 2014 15:51:24 -0800
-Content-Type: text/plain; charset="UTF-8"
+        Mon, 22 Dec 2014 17:52:27 -0800 (PST)
+Subject: Re: [RFC PATCH] oom: Don't count on mm-less current process.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201412192107.IGJ09885.OFHSMJtLFFOVQO@I-love.SAKURA.ne.jp>
+	<20141219124903.GB18397@dhcp22.suse.cz>
+	<201412201813.JJF95860.VSLOQOFHFJOFtM@I-love.SAKURA.ne.jp>
+	<201412202042.ECJ64551.FHOOJOQLFFtVMS@I-love.SAKURA.ne.jp>
+	<20141222202511.GA9485@dhcp22.suse.cz>
+In-Reply-To: <20141222202511.GA9485@dhcp22.suse.cz>
+Message-Id: <201412231000.AFG78139.SJMtOOLFVFFQOH@I-love.SAKURA.ne.jp>
+Date: Tue, 23 Dec 2014 10:00:00 +0900
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: linux-mm@kvack.org
+To: mhocko@suse.cz
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com
 
-Hello,
+Michal Hocko wrote:
+> OOM killer tries to exlude tasks which do not have mm_struct associated
+s/exlude/exclude/
 
-I would like to attend LSF/MM 2015. While I am very much interested in
-general mm performance topics, I would particularly like to discuss:
+> Fix this by checking task->mm and setting TIF_MEMDIE flag under task_lock
+> which will serialize the OOM killer with exit_mm which sets task->mm to
+> NULL.
+Nice idea.
 
-(1) Where we are at with the mmap_sem issues and progress. This topic
-constantly comes up each year [1,2,3] without much changing. While the
-issues are very clear (both long hold times, specially in fs paths and
-coarse lock granularity) it would be good to detail exactly *where*
-these problems are and what are some of the show stoppers. In addition,
-present overall progress and benchmark numbers on fine graining via
-range locking (I am currently working on this as a follow on to recent
-i_mmap locking patches) and experimental work,
-such as speculative page fault patches[4]. If nothing else, this session
-can/should produce a list of tangible todo items.
+By the way, find_lock_task_mm(victim) may succeed if victim->mm == NULL and
+one of threads in victim thread-group has non-NULL mm. That case is handled
+by victim != p branch below. But where was p->signal->oom_score_adj !=
+OOM_SCORE_ADJ_MIN checked? (In other words, don't we need to check like
+t->mm && t->signal->oom_score_adj != OOM_SCORE_ADJ_MIN at find_lock_task_mm()
+for OOM-kill case?)
 
-(2) Expanding our mm performance testing. I am working on incorporating
-multiple VM-intensive benchmarks taken from system research papers into
-mmtests. Academics tend to choose their benchmarking material carefully
-and there's no reason we cannot learn from that. The downside is that
-their tools are painfully complex to use, and thus not very popular in
-the kernel community. Two examples are popular suites such as mosbench
-and PARSEC. The idea would be to present easy to use, higher level
-benchmarks to expose in-memory scalability issues that be useful to
-kernel hackers. Additionally, possibly discuss other tools folks use
-that can be beneficial to our internal automation.
+Also, why not to call set_tsk_thread_flag() and do_send_sig_info() together
+like below
 
-[1] http://lwn.net/Articles/490501/
-[2] http://lwn.net/Articles/548098/
-[3] http://lwn.net/Articles/591978/
-[4] http://lwn.net/Articles/617344/
+ 	p = find_lock_task_mm(victim);
+ 	if (!p) {
+ 		put_task_struct(victim);
+ 		return;
+ 	} else if (victim != p) {
+ 		get_task_struct(p);
+ 		put_task_struct(victim);
+ 		victim = p;
+ 	}
+ 
+ 	/* mm cannot safely be dereferenced after task_unlock(victim) */
+ 	mm = victim->mm;
++	set_tsk_thread_flag(victim, TIF_MEMDIE);
++	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
+ 	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
+ 		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
+ 		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
+ 		K(get_mm_counter(victim->mm, MM_FILEPAGES)));
+ 	task_unlock(victim);
 
-Thanks,
-Davidlohr
+than wait for for_each_process() loop in case current task went to sleep
+immediately after task_unlock(victim)? Or is there a reason we had been
+setting TIF_MEMDIE after the for_each_process() loop? If the reason was
+to minimize the duration of OOM killer being disabled due to TIF_MEMDIE,
+shouldn't we do like below?
+
+ 	rcu_read_unlock();
+ 
+-	set_tsk_thread_flag(victim, TIF_MEMDIE);
++	task_lock(victim);
++	if (victim->mm)
++		set_tsk_thread_flag(victim, TIF_MEMDIE);
++	task_unlock(victim);
+ 	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
+ 	put_task_struct(victim);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
