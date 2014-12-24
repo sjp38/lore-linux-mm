@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 0EAE66B0080
-	for <linux-mm@kvack.org>; Wed, 24 Dec 2014 07:23:31 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id rd3so9971804pab.14
-        for <linux-mm@kvack.org>; Wed, 24 Dec 2014 04:23:30 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id ue3si34270052pab.125.2014.12.24.04.23.08
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 94F636B0082
+	for <linux-mm@kvack.org>; Wed, 24 Dec 2014 07:23:33 -0500 (EST)
+Received: by mail-pd0-f174.google.com with SMTP id fp1so9874344pdb.33
+        for <linux-mm@kvack.org>; Wed, 24 Dec 2014 04:23:33 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id j2si34277738pdo.128.2014.12.24.04.23.09
         for <linux-mm@kvack.org>;
-        Wed, 24 Dec 2014 04:23:09 -0800 (PST)
+        Wed, 24 Dec 2014 04:23:10 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 17/38] frv: drop _PAGE_FILE and pte_file()-related helpers
-Date: Wed, 24 Dec 2014 14:22:25 +0200
-Message-Id: <1419423766-114457-18-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 18/38] hexagon: drop _PAGE_FILE and pte_file()-related helpers
+Date: Wed, 24 Dec 2014 14:22:26 +0200
+Message-Id: <1419423766-114457-19-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1419423766-114457-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1419423766-114457-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: peterz@infradead.org, mingo@kernel.org, davej@redhat.com, sasha.levin@oracle.com, hughd@google.com, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Howells <dhowells@redhat.com>
+Cc: peterz@infradead.org, mingo@kernel.org, davej@redhat.com, sasha.levin@oracle.com, hughd@google.com, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Richard Kuo <rkuo@codeaurora.org>
 
 We've replaced remap_file_pages(2) implementation with emulation.
 Nobody creates non-linear mapping anymore.
@@ -25,67 +25,103 @@ Nobody creates non-linear mapping anymore.
 This patch also increase number of bits availble for swap offset.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: David Howells <dhowells@redhat.com>
+Cc: Richard Kuo <rkuo@codeaurora.org>
 ---
- arch/frv/include/asm/pgtable.h | 27 +++++----------------------
- 1 file changed, 5 insertions(+), 22 deletions(-)
+ arch/hexagon/include/asm/pgtable.h | 60 ++++++++++----------------------------
+ 1 file changed, 16 insertions(+), 44 deletions(-)
 
-diff --git a/arch/frv/include/asm/pgtable.h b/arch/frv/include/asm/pgtable.h
-index eb0110acd19b..c49699d5902d 100644
---- a/arch/frv/include/asm/pgtable.h
-+++ b/arch/frv/include/asm/pgtable.h
-@@ -62,10 +62,6 @@ typedef pte_t *pte_addr_t;
- #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
- #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
+diff --git a/arch/hexagon/include/asm/pgtable.h b/arch/hexagon/include/asm/pgtable.h
+index d8bd54fa431e..6e35e71d2aea 100644
+--- a/arch/hexagon/include/asm/pgtable.h
++++ b/arch/hexagon/include/asm/pgtable.h
+@@ -62,13 +62,6 @@ extern unsigned long zero_page_mask;
+ #define _PAGE_ACCESSED	(1<<2)
  
--#ifndef __ASSEMBLY__
--static inline int pte_file(pte_t pte) { return 0; }
--#endif
+ /*
+- * _PAGE_FILE is only meaningful if _PAGE_PRESENT is false, while
+- * _PAGE_DIRTY is only meaningful if _PAGE_PRESENT is true.
+- * So we can overload the bit...
+- */
+-#define _PAGE_FILE	_PAGE_DIRTY /* set:  pagecache, unset = swap */
 -
- #define ZERO_PAGE(vaddr)	({ BUG(); NULL; })
+-/*
+  * For now, let's say that Valid and Present are the same thing.
+  * Alternatively, we could say that it's the "or" of R, W, and X
+  * permissions.
+@@ -456,57 +449,36 @@ static inline int pte_exec(pte_t pte)
+ #define pgtable_cache_init()    do { } while (0)
  
- #define swapper_pg_dir		((pgd_t *) NULL)
-@@ -298,7 +294,6 @@ static inline pmd_t *pmd_offset(pud_t *dir, unsigned long address)
- 
- #define _PAGE_RESERVED_MASK	(xAMPRx_RESERVED8 | xAMPRx_RESERVED13)
- 
--#define _PAGE_FILE		0x002	/* set:pagecache unset:swap */
- #define _PAGE_PROTNONE		0x000	/* If not present */
- 
- #define _PAGE_CHG_MASK		(PTE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
-@@ -463,27 +458,15 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
-  * Handle swap and file entries
-  * - the PTE is encoded in the following format:
-  *	bit 0:		Must be 0 (!_PAGE_PRESENT)
-- *	bit 1:		Type: 0 for swap, 1 for file (_PAGE_FILE)
-- *	bits 2-7:	Swap type
-- *	bits 8-31:	Swap offset
-- *	bits 2-31:	File pgoff
-+ *	bits 1-6:	Swap type
-+ *	bits 7-31:	Swap offset
+ /*
+- * Swap/file PTE definitions.  If _PAGE_PRESENT is zero, the rest of the
+- * PTE is interpreted as swap information.  Depending on the _PAGE_FILE
+- * bit, the remaining free bits are eitehr interpreted as a file offset
+- * or a swap type/offset tuple.  Rather than have the TLB fill handler
+- * test _PAGE_PRESENT, we're going to reserve the permissions bits
+- * and set them to all zeros for swap entries, which speeds up the
+- * miss handler at the cost of 3 bits of offset.  That trade-off can
+- * be revisited if necessary, but Hexagon processor architecture and
+- * target applications suggest a lot of TLB misses and not much swap space.
++ * Swap/file PTE definitions.  If _PAGE_PRESENT is zero, the rest of the PTE is
++ * interpreted as swap information.  The remaining free bits are interpreted as
++ * swap type/offset tuple.  Rather than have the TLB fill handler test
++ * _PAGE_PRESENT, we're going to reserve the permissions bits and set them to
++ * all zeros for swap entries, which speeds up the miss handler at the cost of
++ * 3 bits of offset.  That trade-off can be revisited if necessary, but Hexagon
++ * processor architecture and target applications suggest a lot of TLB misses
++ * and not much swap space.
+  *
+  * Format of swap PTE:
+  *	bit	0:	Present (zero)
+- *	bit	1:	_PAGE_FILE (zero)
+- *	bits	2-6:	swap type (arch independent layer uses 5 bits max)
+- *	bits	7-9:	bits 2:0 of offset
+- *	bits 10-12:	effectively _PAGE_PROTNONE (all zero)
+- *	bits 13-31:  bits 21:3 of swap offset
+- *
+- * Format of file PTE:
+- *	bit	0:	Present (zero)
+- *	bit	1:	_PAGE_FILE (zero)
+- *	bits	2-9:	bits 7:0 of offset
+- *	bits 10-12:	effectively _PAGE_PROTNONE (all zero)
+- *	bits 13-31:  bits 26:8 of swap offset
++ *	bits	1-5:	swap type (arch independent layer uses 5 bits max)
++ *	bits	6-9:	bits 3:0 of offset
++ *	bits	10-12:	effectively _PAGE_PROTNONE (all zero)
++ *	bits	13-31:  bits 22:4 of swap offset
+  *
+  * The split offset makes some of the following macros a little gnarly,
+  * but there's plenty of precedent for this sort of thing.
   */
--#define __swp_type(x)			(((x).val >> 2) & 0x1f)
--#define __swp_offset(x)			((x).val >> 8)
--#define __swp_entry(type, offset)	((swp_entry_t) { ((type) << 2) | ((offset) << 8) })
-+#define __swp_type(x)			(((x).val >> 1) & 0x1f)
-+#define __swp_offset(x)			((x).val >> 7)
-+#define __swp_entry(type, offset)	((swp_entry_t) { ((type) << 1) | ((offset) << 7) })
- #define __pte_to_swp_entry(_pte)	((swp_entry_t) { (_pte).pte })
- #define __swp_entry_to_pte(x)		((pte_t) { (x).val })
+-#define PTE_FILE_MAX_BITS     27
  
--static inline int pte_file(pte_t pte)
--{
--	return pte.pte & _PAGE_FILE;
--}
+ /* Used for swap PTEs */
+-#define __swp_type(swp_pte)		(((swp_pte).val >> 2) & 0x1f)
++#define __swp_type(swp_pte)		(((swp_pte).val >> 1) & 0x1f)
+ 
+ #define __swp_offset(swp_pte) \
+-	((((swp_pte).val >> 7) & 0x7) | (((swp_pte).val >> 10) & 0x003ffff8))
++	((((swp_pte).val >> 6) & 0xf) | (((swp_pte).val >> 9) & 0x7ffff0))
+ 
+ #define __swp_entry(type, offset) \
+ 	((swp_entry_t)	{ \
+-		((type << 2) | \
+-		 ((offset & 0x3ffff8) << 10) | ((offset & 0x7) << 7)) })
 -
--#define PTE_FILE_MAX_BITS	29
+-/* Used for file PTEs */
+-#define pte_file(pte) \
+-	((pte_val(pte) & (_PAGE_FILE | _PAGE_PRESENT)) == _PAGE_FILE)
 -
--#define pte_to_pgoff(PTE)	((PTE).pte >> 2)
--#define pgoff_to_pte(off)	__pte((off) << 2 | _PAGE_FILE)
+-#define pte_to_pgoff(pte) \
+-	(((pte_val(pte) >> 2) & 0xff) | ((pte_val(pte) >> 5) & 0x07ffff00))
 -
- /* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
- #define PageSkip(page)		(0)
- #define kern_addr_valid(addr)	(1)
+-#define pgoff_to_pte(off) \
+-	((pte_t) { ((((off) & 0x7ffff00) << 5) | (((off) & 0xff) << 2)\
+-	| _PAGE_FILE) })
++		((type << 1) | \
++		 ((offset & 0x7ffff0) << 9) | ((offset & 0xf) << 6)) })
+ 
+ /*  Oh boy.  There are a lot of possible arch overrides found in this file.  */
+ #include <asm-generic/pgtable.h>
 -- 
 2.1.3
 
