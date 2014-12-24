@@ -1,76 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 937896B009A
-	for <linux-mm@kvack.org>; Wed, 24 Dec 2014 07:24:00 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id et14so9967141pad.15
-        for <linux-mm@kvack.org>; Wed, 24 Dec 2014 04:24:00 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id kv12si34099307pab.232.2014.12.24.04.23.42
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 2746A6B009D
+	for <linux-mm@kvack.org>; Wed, 24 Dec 2014 07:24:03 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id kx10so10028107pab.30
+        for <linux-mm@kvack.org>; Wed, 24 Dec 2014 04:24:02 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id pr2si34246255pbb.88.2014.12.24.04.23.58
         for <linux-mm@kvack.org>;
-        Wed, 24 Dec 2014 04:23:43 -0800 (PST)
+        Wed, 24 Dec 2014 04:23:59 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 28/38] parisc: drop _PAGE_FILE and pte_file()-related helpers
-Date: Wed, 24 Dec 2014 14:22:36 +0200
-Message-Id: <1419423766-114457-29-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 02/38] mm: drop support of non-linear mapping from fault codepath
+Date: Wed, 24 Dec 2014 14:22:10 +0200
+Message-Id: <1419423766-114457-3-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1419423766-114457-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1419423766-114457-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: peterz@infradead.org, mingo@kernel.org, davej@redhat.com, sasha.levin@oracle.com, hughd@google.com, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>
+Cc: peterz@infradead.org, mingo@kernel.org, davej@redhat.com, sasha.levin@oracle.com, hughd@google.com, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-We've replaced remap_file_pages(2) implementation with emulation.
-Nobody creates non-linear mapping anymore.
+We don't create non-linear mappings anymore. Let's drop code which
+handles them on page fault.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: "James E.J. Bottomley" <jejb@parisc-linux.org>
-Cc: Helge Deller <deller@gmx.de>
 ---
- arch/parisc/include/asm/pgtable.h | 10 ----------
- 1 file changed, 10 deletions(-)
+ include/linux/mm.h | 16 ++++++--------
+ mm/memory.c        | 65 ++++++++----------------------------------------------
+ 2 files changed, 16 insertions(+), 65 deletions(-)
 
-diff --git a/arch/parisc/include/asm/pgtable.h b/arch/parisc/include/asm/pgtable.h
-index 22b89d1edba7..1d49a4a7749b 100644
---- a/arch/parisc/include/asm/pgtable.h
-+++ b/arch/parisc/include/asm/pgtable.h
-@@ -146,7 +146,6 @@ extern void purge_tlb_entries(struct mm_struct *, unsigned long);
- #define _PAGE_GATEWAY_BIT  28   /* (0x008) privilege promotion allowed */
- #define _PAGE_DMB_BIT      27   /* (0x010) Data Memory Break enable (B bit) */
- #define _PAGE_DIRTY_BIT    26   /* (0x020) Page Dirty (D bit) */
--#define _PAGE_FILE_BIT	_PAGE_DIRTY_BIT	/* overload this bit */
- #define _PAGE_REFTRAP_BIT  25   /* (0x040) Page Ref. Trap enable (T bit) */
- #define _PAGE_NO_CACHE_BIT 24   /* (0x080) Uncached Page (U bit) */
- #define _PAGE_ACCESSED_BIT 23   /* (0x100) Software: Page Accessed */
-@@ -167,13 +166,6 @@ extern void purge_tlb_entries(struct mm_struct *, unsigned long);
- /* PFN_PTE_SHIFT defines the shift of a PTE value to access the PFN field */
- #define PFN_PTE_SHIFT		12
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 07574d8072f4..7c7761536f5f 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -206,21 +206,19 @@ extern unsigned int kobjsize(const void *objp);
+ extern pgprot_t protection_map[16];
  
--
--/* this is how many bits may be used by the file functions */
--#define PTE_FILE_MAX_BITS	(BITS_PER_LONG - PTE_SHIFT)
--
--#define pte_to_pgoff(pte) (pte_val(pte) >> PTE_SHIFT)
--#define pgoff_to_pte(off) ((pte_t) { ((off) << PTE_SHIFT) | _PAGE_FILE })
--
- #define _PAGE_READ     (1 << xlate_pabit(_PAGE_READ_BIT))
- #define _PAGE_WRITE    (1 << xlate_pabit(_PAGE_WRITE_BIT))
- #define _PAGE_RW       (_PAGE_READ | _PAGE_WRITE)
-@@ -186,7 +178,6 @@ extern void purge_tlb_entries(struct mm_struct *, unsigned long);
- #define _PAGE_ACCESSED (1 << xlate_pabit(_PAGE_ACCESSED_BIT))
- #define _PAGE_PRESENT  (1 << xlate_pabit(_PAGE_PRESENT_BIT))
- #define _PAGE_USER     (1 << xlate_pabit(_PAGE_USER_BIT))
--#define _PAGE_FILE     (1 << xlate_pabit(_PAGE_FILE_BIT))
+ #define FAULT_FLAG_WRITE	0x01	/* Fault was a write access */
+-#define FAULT_FLAG_NONLINEAR	0x02	/* Fault was via a nonlinear mapping */
+-#define FAULT_FLAG_MKWRITE	0x04	/* Fault was mkwrite of existing pte */
+-#define FAULT_FLAG_ALLOW_RETRY	0x08	/* Retry fault if blocking */
+-#define FAULT_FLAG_RETRY_NOWAIT	0x10	/* Don't drop mmap_sem and wait when retrying */
+-#define FAULT_FLAG_KILLABLE	0x20	/* The fault task is in SIGKILL killable region */
+-#define FAULT_FLAG_TRIED	0x40	/* second try */
+-#define FAULT_FLAG_USER		0x80	/* The fault originated in userspace */
++#define FAULT_FLAG_MKWRITE	0x02	/* Fault was mkwrite of existing pte */
++#define FAULT_FLAG_ALLOW_RETRY	0x04	/* Retry fault if blocking */
++#define FAULT_FLAG_RETRY_NOWAIT	0x08	/* Don't drop mmap_sem and wait when retrying */
++#define FAULT_FLAG_KILLABLE	0x10	/* The fault task is in SIGKILL killable region */
++#define FAULT_FLAG_TRIED	0x20	/* Second try */
++#define FAULT_FLAG_USER		0x40	/* The fault originated in userspace */
  
- #define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE |  _PAGE_DIRTY | _PAGE_ACCESSED)
- #define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
-@@ -344,7 +335,6 @@ static inline void pgd_clear(pgd_t * pgdp)	{ }
- static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
- static inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
- static inline int pte_write(pte_t pte)		{ return pte_val(pte) & _PAGE_WRITE; }
--static inline int pte_file(pte_t pte)		{ return pte_val(pte) & _PAGE_FILE; }
- static inline int pte_special(pte_t pte)	{ return 0; }
+ /*
+  * vm_fault is filled by the the pagefault handler and passed to the vma's
+  * ->fault function. The vma's ->fault is responsible for returning a bitmask
+  * of VM_FAULT_xxx flags that give details about how the fault was handled.
+  *
+- * pgoff should be used in favour of virtual_address, if possible. If pgoff
+- * is used, one may implement ->remap_pages to get nonlinear mapping support.
++ * pgoff should be used in favour of virtual_address, if possible.
+  */
+ struct vm_fault {
+ 	unsigned int flags;		/* FAULT_FLAG_xxx flags */
+diff --git a/mm/memory.c b/mm/memory.c
+index 5216b91a714a..587522630b10 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1899,12 +1899,11 @@ int apply_to_page_range(struct mm_struct *mm, unsigned long addr,
+ EXPORT_SYMBOL_GPL(apply_to_page_range);
  
- static inline pte_t pte_mkclean(pte_t pte)	{ pte_val(pte) &= ~_PAGE_DIRTY; return pte; }
+ /*
+- * handle_pte_fault chooses page fault handler according to an entry
+- * which was read non-atomically.  Before making any commitment, on
+- * those architectures or configurations (e.g. i386 with PAE) which
+- * might give a mix of unmatched parts, do_swap_page and do_nonlinear_fault
+- * must check under lock before unmapping the pte and proceeding
+- * (but do_wp_page is only called after already making such a check;
++ * handle_pte_fault chooses page fault handler according to an entry which was
++ * read non-atomically.  Before making any commitment, on those architectures
++ * or configurations (e.g. i386 with PAE) which might give a mix of unmatched
++ * parts, do_swap_page must check under lock before unmapping the pte and
++ * proceeding (but do_wp_page is only called after already making such a check;
+  * and do_anonymous_page can safely check later on).
+  */
+ static inline int pte_unmap_same(struct mm_struct *mm, pmd_t *pmd,
+@@ -2703,8 +2702,6 @@ void do_set_pte(struct vm_area_struct *vma, unsigned long address,
+ 	entry = mk_pte(page, vma->vm_page_prot);
+ 	if (write)
+ 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+-	else if (pte_file(*pte) && pte_file_soft_dirty(*pte))
+-		entry = pte_mksoft_dirty(entry);
+ 	if (anon) {
+ 		inc_mm_counter_fast(vma->vm_mm, MM_ANONPAGES);
+ 		page_add_new_anon_rmap(page, vma, address);
+@@ -2839,8 +2836,7 @@ static int do_read_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	 * if page by the offset is not ready to be mapped (cold cache or
+ 	 * something).
+ 	 */
+-	if (vma->vm_ops->map_pages && !(flags & FAULT_FLAG_NONLINEAR) &&
+-	    fault_around_bytes >> PAGE_SHIFT > 1) {
++	if (vma->vm_ops->map_pages && fault_around_bytes >> PAGE_SHIFT > 1) {
+ 		pte = pte_offset_map_lock(mm, pmd, address, &ptl);
+ 		do_fault_around(vma, address, pte, pgoff, flags);
+ 		if (!pte_same(*pte, orig_pte))
+@@ -2987,7 +2983,7 @@ static int do_shared_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+  * The mmap_sem may have been released depending on flags and our
+  * return value.  See filemap_fault() and __lock_page_or_retry().
+  */
+-static int do_linear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
++static int do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		unsigned long address, pte_t *page_table, pmd_t *pmd,
+ 		unsigned int flags, pte_t orig_pte)
+ {
+@@ -3004,46 +3000,6 @@ static int do_linear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	return do_shared_fault(mm, vma, address, pmd, pgoff, flags, orig_pte);
+ }
+ 
+-/*
+- * Fault of a previously existing named mapping. Repopulate the pte
+- * from the encoded file_pte if possible. This enables swappable
+- * nonlinear vmas.
+- *
+- * We enter with non-exclusive mmap_sem (to exclude vma changes,
+- * but allow concurrent faults), and pte mapped but not yet locked.
+- * We return with pte unmapped and unlocked.
+- * The mmap_sem may have been released depending on flags and our
+- * return value.  See filemap_fault() and __lock_page_or_retry().
+- */
+-static int do_nonlinear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+-		unsigned long address, pte_t *page_table, pmd_t *pmd,
+-		unsigned int flags, pte_t orig_pte)
+-{
+-	pgoff_t pgoff;
+-
+-	flags |= FAULT_FLAG_NONLINEAR;
+-
+-	if (!pte_unmap_same(mm, pmd, page_table, orig_pte))
+-		return 0;
+-
+-	if (unlikely(!(vma->vm_flags & VM_NONLINEAR))) {
+-		/*
+-		 * Page table corrupted: show pte and kill process.
+-		 */
+-		print_bad_pte(vma, address, orig_pte, NULL);
+-		return VM_FAULT_SIGBUS;
+-	}
+-
+-	pgoff = pte_to_pgoff(orig_pte);
+-	if (!(flags & FAULT_FLAG_WRITE))
+-		return do_read_fault(mm, vma, address, pmd, pgoff, flags,
+-				orig_pte);
+-	if (!(vma->vm_flags & VM_SHARED))
+-		return do_cow_fault(mm, vma, address, pmd, pgoff, flags,
+-				orig_pte);
+-	return do_shared_fault(mm, vma, address, pmd, pgoff, flags, orig_pte);
+-}
+-
+ static int numa_migrate_prep(struct page *page, struct vm_area_struct *vma,
+ 				unsigned long addr, int page_nid,
+ 				int *flags)
+@@ -3171,15 +3127,12 @@ static int handle_pte_fault(struct mm_struct *mm,
+ 		if (pte_none(entry)) {
+ 			if (vma->vm_ops) {
+ 				if (likely(vma->vm_ops->fault))
+-					return do_linear_fault(mm, vma, address,
+-						pte, pmd, flags, entry);
++					return do_fault(mm, vma, address, pte,
++							pmd, flags, entry);
+ 			}
+ 			return do_anonymous_page(mm, vma, address,
+ 						 pte, pmd, flags);
+ 		}
+-		if (pte_file(entry))
+-			return do_nonlinear_fault(mm, vma, address,
+-					pte, pmd, flags, entry);
+ 		return do_swap_page(mm, vma, address,
+ 					pte, pmd, flags, entry);
+ 	}
 -- 
 2.1.3
 
