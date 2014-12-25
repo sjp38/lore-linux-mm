@@ -1,47 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 6907C6B0032
-	for <linux-mm@kvack.org>; Thu, 25 Dec 2014 04:57:13 -0500 (EST)
-Received: by mail-pd0-f169.google.com with SMTP id z10so11445235pdj.14
-        for <linux-mm@kvack.org>; Thu, 25 Dec 2014 01:57:13 -0800 (PST)
-Received: from mx1.mxmail.xiaomi.com ([58.68.235.87])
-        by mx.google.com with ESMTP id kk6si21092313pbc.100.2014.12.25.01.57.10
-        for <linux-mm@kvack.org>;
-        Thu, 25 Dec 2014 01:57:11 -0800 (PST)
-From: Hui Zhu <zhuhui@xiaomi.com>
-Subject: [PATCH 0/3] CMA: Handle the issues of aggressively allocate the
-Date: Thu, 25 Dec 2014 17:43:25 +0800
-Message-ID: <1419500608-11656-1-git-send-email-zhuhui@xiaomi.com>
+Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
+	by kanga.kvack.org (Postfix) with ESMTP id C17536B0032
+	for <linux-mm@kvack.org>; Thu, 25 Dec 2014 05:08:13 -0500 (EST)
+Received: by mail-la0-f44.google.com with SMTP id gd6so7961141lab.17
+        for <linux-mm@kvack.org>; Thu, 25 Dec 2014 02:08:12 -0800 (PST)
+Received: from mail-la0-x22d.google.com (mail-la0-x22d.google.com. [2a00:1450:4010:c03::22d])
+        by mx.google.com with ESMTPS id jq5si5591795lbc.39.2014.12.25.02.08.12
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 25 Dec 2014 02:08:12 -0800 (PST)
+Received: by mail-la0-f45.google.com with SMTP id gq15so7958338lab.18
+        for <linux-mm@kvack.org>; Thu, 25 Dec 2014 02:08:12 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <1419423766-114457-25-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1419423766-114457-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<1419423766-114457-25-git-send-email-kirill.shutemov@linux.intel.com>
+Date: Thu, 25 Dec 2014 11:08:11 +0100
+Message-ID: <CAMuHMdWKNEeb3uOJ+gct06mbuD4RqP7F32FhMtax-tG7d_Yj1g@mail.gmail.com>
+Subject: Re: [PATCH 24/38] mips: drop _PAGE_FILE and pte_file()-related helpers
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: m.szyprowski@samsung.com, mina86@mina86.com, akpm@linux-foundation.org, iamjoonsoo.kim@lge.com, aneesh.kumar@linux.vnet.ibm.com, pintu.k@samsung.com, weijie.yang@samsung.com, mgorman@suse.de, hannes@cmpxchg.org, riel@redhat.com, vbabka@suse.cz, laurent.pinchart+renesas@ideasonboard.com, rientjes@google.com, sasha.levin@oracle.com, liuweixing@xiaomi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: teawater@gmail.com, Hui Zhu <zhuhui@xiaomi.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Dave Jones <davej@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Hugh Dickins <hughd@google.com>, Linux MM <linux-mm@kvack.org>, Linux-Arch <linux-arch@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ralf Baechle <ralf@linux-mips.org>
 
-I tried the Joonsoo's CMA patches [1] in my part and found that they works
-better than mine [2] about handle LRU and other issues even if they
-don't shrink the memory before cma_alloc.  So I began to test it in my
-part.
-But my colleague Weixing found some issues around it.  So we make 2 patches to
-handle the issues.
-And I merged cma_alloc_counter from [2] to cma_alloc work better.
+On Wed, Dec 24, 2014 at 1:22 PM, Kirill A. Shutemov
+<kirill.shutemov@linux.intel.com> wrote:
+> We've replaced remap_file_pages(2) implementation with emulation.
+> Nobody creates non-linear mapping anymore.
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Ralf Baechle <ralf@linux-mips.org>
+> ---
+>  arch/m68k/include/asm/mcf_pgtable.h  |  6 ++----
 
-This patchset is based on aa39477b5692611b91ac9455ae588738852b3f60 and [1].
+This contains a change to an m68k header file.
+The same file was modified in the m68k part of the series, but this change was
+not included?
 
-[1] https://lkml.org/lkml/2014/5/28/64
-[2] https://lkml.org/lkml/2014/10/15/623
+> --- a/arch/m68k/include/asm/mcf_pgtable.h
+> +++ b/arch/m68k/include/asm/mcf_pgtable.h
+> @@ -385,15 +385,13 @@ static inline void cache_page(void *vaddr)
+>         *ptep = pte_mkcache(*ptep);
+>  }
+>
+> -#define PTE_FILE_SHIFT         11
+> -
+>  /*
+>   * Encode and de-code a swap entry (must be !pte_none(e) && !pte_present(e))
+>   */
+>  #define __swp_type(x)          ((x).val & 0xFF)
+> -#define __swp_offset(x)                ((x).val >> PTE_FILE_SHIFT)
+> +#define __swp_offset(x)                ((x).val >> 11)
+>  #define __swp_entry(typ, off)  ((swp_entry_t) { (typ) | \
+> -                                       (off << PTE_FILE_SHIFT) })
+> +                                       (off << 11) })
+>  #define __pte_to_swp_entry(pte)        ((swp_entry_t) { pte_val(pte) })
+>  #define __swp_entry_to_pte(x)  (__pte((x).val))
 
-Hui Zhu (3):
-CMA: Fix the bug that CMA's page number is substructed twice
-CMA: Fix the issue that nr_try_movable just count MIGRATE_MOVABLE memory
-CMA: Add cma_alloc_counter to make cma_alloc work better if it meet busy range
+Gr{oetje,eeting}s,
 
- include/linux/cma.h    |    2 +
- include/linux/mmzone.h |    3 +
- mm/cma.c               |    6 +++
- mm/page_alloc.c        |   76 ++++++++++++++++++++++++++++++++++---------------
- 4 files changed, 65 insertions(+), 22 deletions(-)
+                        Geert
+
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+                                -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
