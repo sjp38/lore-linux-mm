@@ -1,111 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AE706B0032
-	for <linux-mm@kvack.org>; Thu, 25 Dec 2014 03:30:38 -0500 (EST)
-Received: by mail-wg0-f51.google.com with SMTP id x12so12698593wgg.10
-        for <linux-mm@kvack.org>; Thu, 25 Dec 2014 00:30:38 -0800 (PST)
-Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0066.outbound.protection.outlook.com. [157.55.234.66])
-        by mx.google.com with ESMTPS id d7si36243553wix.90.2014.12.25.00.30.37
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 25 Dec 2014 00:30:37 -0800 (PST)
-Message-ID: <549BCAF8.1070500@mellanox.com>
-Date: Thu, 25 Dec 2014 10:29:44 +0200
-From: Haggai Eran <haggaie@mellanox.com>
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 87C5E6B0032
+	for <linux-mm@kvack.org>; Thu, 25 Dec 2014 04:53:17 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id et14so11596792pad.31
+        for <linux-mm@kvack.org>; Thu, 25 Dec 2014 01:53:17 -0800 (PST)
+Received: from mx1.mxmail.xiaomi.com ([58.68.235.87])
+        by mx.google.com with ESMTP id ke10si36852390pbc.235.2014.12.25.01.53.14
+        for <linux-mm@kvack.org>;
+        Thu, 25 Dec 2014 01:53:16 -0800 (PST)
+From: Hui Zhu <zhuhui@xiaomi.com>
+Subject: [PATCH 2/3] CMA: Fix the issue that nr_try_movable just count MIGRATE_MOVABLE memory
+Date: Thu, 25 Dec 2014 17:43:27 +0800
+Message-ID: <1419500608-11656-3-git-send-email-zhuhui@xiaomi.com>
+In-Reply-To: <1419500608-11656-1-git-send-email-zhuhui@xiaomi.com>
+References: <1419500608-11656-1-git-send-email-zhuhui@xiaomi.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/7] mmu_notifier: keep track of active invalidation ranges
- v2
-References: <1419266940-5440-1-git-send-email-j.glisse@gmail.com>
- <1419266940-5440-3-git-send-email-j.glisse@gmail.com>
-In-Reply-To: <1419266940-5440-3-git-send-email-j.glisse@gmail.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: j.glisse@gmail.com, akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes
- Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van
- Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron
- Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul
- Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
+To: m.szyprowski@samsung.com, mina86@mina86.com, akpm@linux-foundation.org, iamjoonsoo.kim@lge.com, aneesh.kumar@linux.vnet.ibm.com, pintu.k@samsung.com, weijie.yang@samsung.com, mgorman@suse.de, hannes@cmpxchg.org, riel@redhat.com, vbabka@suse.cz, laurent.pinchart+renesas@ideasonboard.com, rientjes@google.com, sasha.levin@oracle.com, liuweixing@xiaomi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: teawater@gmail.com, Hui Zhu <zhuhui@xiaomi.com>
 
-On 22/12/2014 18:48, j.glisse@gmail.com wrote:
->  static inline void mmu_notifier_invalidate_range_start(struct mm_struct *mm,
-> -						       unsigned long start,
-> -						       unsigned long end,
-> -						       enum mmu_event event)
-> +						       struct mmu_notifier_range *range)
->  {
-> +	/*
-> +	 * Initialize list no matter what in case a mmu_notifier register after
-> +	 * a range_start but before matching range_end.
-> +	 */
-> +	INIT_LIST_HEAD(&range->list);
+One of my plotform that use Joonsoo's CMA patch [1] has a device that
+will alloc a lot of MIGRATE_UNMOVABLE memory when it works in a zone.
+When this device works, the memory status of this zone is not OK.  Most of
+CMA is not allocated but most normal memory is allocated.
+This issue is because in __rmqueue:
+	if (IS_ENABLED(CONFIG_CMA) &&
+		migratetype == MIGRATE_MOVABLE && zone->managed_cma_pages)
+		page = __rmqueue_cma(zone, order);
+Just allocated MIGRATE_MOVABLE will be record in nr_try_movable in function
+__rmqueue_cma but not the others.  This device allocated a lot of
+MIGRATE_UNMOVABLE memory affect the behavior of this zone memory allocation.
 
-I don't see how can an mmu_notifier register after a range_start but
-before a matching range_end. The mmu_notifier registration locks all mm
-locks, and that should prevent any invalidation from running, right?
+This patch change __rmqueue to let nr_try_movable record all the memory
+allocation of normal memory.
 
->  	if (mm_has_notifiers(mm))
-> -		__mmu_notifier_invalidate_range_start(mm, start, end, event);
-> +		__mmu_notifier_invalidate_range_start(mm, range);
->  }
+[1] https://lkml.org/lkml/2014/5/28/64
 
-...
+Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
+Signed-off-by: Weixing Liu <liuweixing@xiaomi.com>
+---
+ mm/page_alloc.c | 41 ++++++++++++++++++++---------------------
+ 1 file changed, 20 insertions(+), 21 deletions(-)
 
->  void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
-> -					   unsigned long start,
-> -					   unsigned long end,
-> -					   enum mmu_event event)
-> +					   struct mmu_notifier_range *range)
->  
->  {
->  	struct mmu_notifier *mn;
-> @@ -185,21 +183,36 @@ void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
->  	id = srcu_read_lock(&srcu);
->  	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
->  		if (mn->ops->invalidate_range_start)
-> -			mn->ops->invalidate_range_start(mn, mm, start,
-> -							end, event);
-> +			mn->ops->invalidate_range_start(mn, mm, range);
->  	}
->  	srcu_read_unlock(&srcu, id);
-> +
-> +	/*
-> +	 * This must happen after the callback so that subsystem can block on
-> +	 * new invalidation range to synchronize itself.
-> +	 */
-> +	spin_lock(&mm->mmu_notifier_mm->lock);
-> +	list_add_tail(&range->list, &mm->mmu_notifier_mm->ranges);
-> +	mm->mmu_notifier_mm->nranges++;
-> +	spin_unlock(&mm->mmu_notifier_mm->lock);
->  }
->  EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_start);
-
-Don't you have a race here because you add the range struct after the
-callback?
-
--------------------------------------------------------------------------
-Thread A                    | Thread B
--------------------------------------------------------------------------
-call mmu notifier callback  |
-  clear SPTE                |
-                            | device page fault
-                            |   mmu_notifier_range_is_valid returns true
-                            |   install new SPTE
-add event struct to list    |
-mm clears/modifies the PTE  |
--------------------------------------------------------------------------
-
-So we are left with different entries in the host page table and the
-secondary page table.
-
-I would think you'd want the event struct to be added to the list before
-the callback is run.
-
-Best regards,
-Haggai
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index a8d9f03..a5bbc38 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1301,28 +1301,23 @@ static struct page *__rmqueue_cma(struct zone *zone, unsigned int order)
+ {
+ 	struct page *page;
+ 
+-	if (zone->nr_try_movable > 0)
+-		goto alloc_movable;
++	if (zone->nr_try_cma <= 0) {
++		/* Reset counter */
++		zone->nr_try_movable = zone->max_try_movable;
++		zone->nr_try_cma = zone->max_try_cma;
+ 
+-	if (zone->nr_try_cma > 0) {
+-		/* Okay. Now, we can try to allocate the page from cma region */
+-		zone->nr_try_cma -= 1 << order;
+-		page = __rmqueue_smallest(zone, order, MIGRATE_CMA);
+-
+-		/* CMA pages can vanish through CMA allocation */
+-		if (unlikely(!page && order == 0))
+-			zone->nr_try_cma = 0;
+-
+-		return page;
++		return NULL;
+ 	}
+ 
+-	/* Reset counter */
+-	zone->nr_try_movable = zone->max_try_movable;
+-	zone->nr_try_cma = zone->max_try_cma;
++	/* Okay. Now, we can try to allocate the page from cma region */
++	zone->nr_try_cma -= 1 << order;
++	page = __rmqueue_smallest(zone, order, MIGRATE_CMA);
+ 
+-alloc_movable:
+-	zone->nr_try_movable -= 1 << order;
+-	return NULL;
++	/* CMA pages can vanish through CMA allocation */
++	if (unlikely(!page && order == 0))
++		zone->nr_try_cma = 0;
++
++	return page;
+ }
+ #endif
+ 
+@@ -1335,9 +1330,13 @@ static struct page *__rmqueue(struct zone *zone, unsigned int order,
+ {
+ 	struct page *page = NULL;
+ 
+-	if (IS_ENABLED(CONFIG_CMA) &&
+-		migratetype == MIGRATE_MOVABLE && zone->managed_cma_pages)
+-		page = __rmqueue_cma(zone, order);
++	if (IS_ENABLED(CONFIG_CMA) && zone->managed_cma_pages) {
++		if (migratetype == MIGRATE_MOVABLE
++		    && zone->nr_try_movable <= 0)
++			page = __rmqueue_cma(zone, order);
++		else
++			zone->nr_try_movable -= 1 << order;
++	}
+ 
+ retry_reserve:
+ 	if (!page)
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
