@@ -1,19 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 685736B006C
-	for <linux-mm@kvack.org>; Thu, 25 Dec 2014 04:55:43 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id kx10so11617829pab.2
-        for <linux-mm@kvack.org>; Thu, 25 Dec 2014 01:55:43 -0800 (PST)
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 6907C6B0032
+	for <linux-mm@kvack.org>; Thu, 25 Dec 2014 04:57:13 -0500 (EST)
+Received: by mail-pd0-f169.google.com with SMTP id z10so11445235pdj.14
+        for <linux-mm@kvack.org>; Thu, 25 Dec 2014 01:57:13 -0800 (PST)
 Received: from mx1.mxmail.xiaomi.com ([58.68.235.87])
-        by mx.google.com with ESMTP id fr15si37504934pdb.245.2014.12.25.01.55.40
+        by mx.google.com with ESMTP id kk6si21092313pbc.100.2014.12.25.01.57.10
         for <linux-mm@kvack.org>;
-        Thu, 25 Dec 2014 01:55:42 -0800 (PST)
+        Thu, 25 Dec 2014 01:57:11 -0800 (PST)
 From: Hui Zhu <zhuhui@xiaomi.com>
-Subject: [PATCH 3/3] CMA: Add cma_alloc_counter to make cma_alloc work better if it meet busy range
-Date: Thu, 25 Dec 2014 17:43:28 +0800
-Message-ID: <1419500608-11656-4-git-send-email-zhuhui@xiaomi.com>
-In-Reply-To: <1419500608-11656-1-git-send-email-zhuhui@xiaomi.com>
-References: <1419500608-11656-1-git-send-email-zhuhui@xiaomi.com>
+Subject: [PATCH 0/3] CMA: Handle the issues of aggressively allocate the
+Date: Thu, 25 Dec 2014 17:43:25 +0800
+Message-ID: <1419500608-11656-1-git-send-email-zhuhui@xiaomi.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -21,96 +19,29 @@ List-ID: <linux-mm.kvack.org>
 To: m.szyprowski@samsung.com, mina86@mina86.com, akpm@linux-foundation.org, iamjoonsoo.kim@lge.com, aneesh.kumar@linux.vnet.ibm.com, pintu.k@samsung.com, weijie.yang@samsung.com, mgorman@suse.de, hannes@cmpxchg.org, riel@redhat.com, vbabka@suse.cz, laurent.pinchart+renesas@ideasonboard.com, rientjes@google.com, sasha.levin@oracle.com, liuweixing@xiaomi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: teawater@gmail.com, Hui Zhu <zhuhui@xiaomi.com>
 
-In [1], Joonsoo said that cma_alloc_counter is useless because pageblock
-is isolated.
-But if alloc_contig_range meet a busy range, it will undo_isolate_page_range
-before goto try next range. At this time, __rmqueue_cma can begin allocd
-CMA memory from the range.
+I tried the Joonsoo's CMA patches [1] in my part and found that they works
+better than mine [2] about handle LRU and other issues even if they
+don't shrink the memory before cma_alloc.  So I began to test it in my
+part.
+But my colleague Weixing found some issues around it.  So we make 2 patches to
+handle the issues.
+And I merged cma_alloc_counter from [2] to cma_alloc work better.
 
-So I add cma_alloc_counter let __rmqueue doesn't call __rmqueue_cma when
-cma_alloc works.
+This patchset is based on aa39477b5692611b91ac9455ae588738852b3f60 and [1].
 
-[1] https://lkml.org/lkml/2014/10/24/26
+[1] https://lkml.org/lkml/2014/5/28/64
+[2] https://lkml.org/lkml/2014/10/15/623
 
-Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
----
- include/linux/cma.h | 2 ++
- mm/cma.c            | 6 ++++++
- mm/page_alloc.c     | 8 +++++++-
- 3 files changed, 15 insertions(+), 1 deletion(-)
+Hui Zhu (3):
+CMA: Fix the bug that CMA's page number is substructed twice
+CMA: Fix the issue that nr_try_movable just count MIGRATE_MOVABLE memory
+CMA: Add cma_alloc_counter to make cma_alloc work better if it meet busy range
 
-diff --git a/include/linux/cma.h b/include/linux/cma.h
-index 9384ba6..155158f 100644
---- a/include/linux/cma.h
-+++ b/include/linux/cma.h
-@@ -26,6 +26,8 @@ extern int __init cma_declare_contiguous(phys_addr_t base,
- extern int cma_init_reserved_mem(phys_addr_t base,
- 					phys_addr_t size, int order_per_bit,
- 					struct cma **res_cma);
-+
-+extern atomic_t cma_alloc_counter;
- extern struct page *cma_alloc(struct cma *cma, int count, unsigned int align);
- extern bool cma_release(struct cma *cma, struct page *pages, int count);
- #endif
-diff --git a/mm/cma.c b/mm/cma.c
-index 6707b5d..b63f6be 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -348,6 +348,8 @@ err:
- 	return ret;
- }
- 
-+atomic_t cma_alloc_counter = ATOMIC_INIT(0);
-+
- /**
-  * cma_alloc() - allocate pages from contiguous area
-  * @cma:   Contiguous memory region for which the allocation is performed.
-@@ -378,6 +380,8 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
- 	bitmap_maxno = cma_bitmap_maxno(cma);
- 	bitmap_count = cma_bitmap_pages_to_bits(cma, count);
- 
-+	atomic_inc(&cma_alloc_counter);
-+
- 	for (;;) {
- 		mutex_lock(&cma->lock);
- 		bitmap_no = bitmap_find_next_zero_area_off(cma->bitmap,
-@@ -415,6 +419,8 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
- 		start = bitmap_no + mask + 1;
- 	}
- 
-+	atomic_dec(&cma_alloc_counter);
-+
- 	pr_debug("%s(): returned %p\n", __func__, page);
- 	return page;
- }
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a5bbc38..0622c4c 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -66,6 +66,10 @@
- #include <asm/div64.h>
- #include "internal.h"
- 
-+#ifdef CONFIG_CMA
-+#include <linux/cma.h>
-+#endif
-+
- /* prevent >1 _updater_ of zone percpu pageset ->high and ->batch fields */
- static DEFINE_MUTEX(pcp_batch_high_lock);
- #define MIN_PERCPU_PAGELIST_FRACTION	(8)
-@@ -1330,7 +1334,9 @@ static struct page *__rmqueue(struct zone *zone, unsigned int order,
- {
- 	struct page *page = NULL;
- 
--	if (IS_ENABLED(CONFIG_CMA) && zone->managed_cma_pages) {
-+	if (IS_ENABLED(CONFIG_CMA)
-+	    && zone->managed_cma_pages
-+	    && atomic_read(&cma_alloc_counter) == 0) {
- 		if (migratetype == MIGRATE_MOVABLE
- 		    && zone->nr_try_movable <= 0)
- 			page = __rmqueue_cma(zone, order);
--- 
-1.9.1
+ include/linux/cma.h    |    2 +
+ include/linux/mmzone.h |    3 +
+ mm/cma.c               |    6 +++
+ mm/page_alloc.c        |   76 ++++++++++++++++++++++++++++++++++---------------
+ 4 files changed, 65 insertions(+), 22 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
