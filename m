@@ -1,112 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FC3C6B0072
-	for <linux-mm@kvack.org>; Fri, 26 Dec 2014 09:40:35 -0500 (EST)
-Received: by mail-pd0-f172.google.com with SMTP id y13so13219262pdi.3
-        for <linux-mm@kvack.org>; Fri, 26 Dec 2014 06:40:34 -0800 (PST)
-Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
-        by mx.google.com with ESMTPS id si2si14355504pac.97.2014.12.26.06.40.32
+Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com [209.85.216.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F7C76B0032
+	for <linux-mm@kvack.org>; Fri, 26 Dec 2014 11:00:20 -0500 (EST)
+Received: by mail-qc0-f182.google.com with SMTP id r5so7487982qcx.13
+        for <linux-mm@kvack.org>; Fri, 26 Dec 2014 08:00:19 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id ye4si21897347pab.61.2014.12.25.05.52.27
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Fri, 26 Dec 2014 06:40:33 -0800 (PST)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout2.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NH700C4O2AAQW80@mailout2.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 26 Dec 2014 14:44:34 +0000 (GMT)
-From: "Stefan I. Strogin" <s.strogin@partner.samsung.com>
-Subject: [PATCH 3/3] cma: add functions to get region pages counters
-Date: Fri, 26 Dec 2014 17:39:04 +0300
-Message-id: 
- <dfddb08aba9a05e6e7b43e9861ab09b7ac1c89cd.1419602920.git.s.strogin@partner.samsung.com>
-In-reply-to: <cover.1419602920.git.s.strogin@partner.samsung.com>
-References: <cover.1419602920.git.s.strogin@partner.samsung.com>
-In-reply-to: <cover.1419602920.git.s.strogin@partner.samsung.com>
-References: <cover.1419602920.git.s.strogin@partner.samsung.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 25 Dec 2014 05:52:28 -0800 (PST)
+Subject: [RequestForTesters] SystemTap-based memory allocation failure injection
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-Id: <201412252209.JFG45986.QHLOOFFMtFSOJV@I-love.SAKURA.ne.jp>
+Date: Thu, 25 Dec 2014 22:09:54 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Dmitry Safonov <d.safonov@partner.samsung.com>, s.strogin@partner.samsung.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Minchan Kim <minchan@kernel.org>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>
+To: linux-kernel@vger.kernel.org
+Cc: david@fromorbit.com, hannes@cmpxchg.org, mhocko@suse.cz, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, akpm@linux-foundation.org, torvalds@linux-foundation.org
 
-From: Dmitry Safonov <d.safonov@partner.samsung.com>
+Since it has been an unwritten rule that GFP_KERNEL allocations for
+low-order (<=PAGE_ALLOC_COSTLY_ORDER) never fail unless chosen by
+the OOM killer, there are a lot of code where allocation failure error
+paths are hardly tested.
 
-Here are two functions that provide interface to compute/get used size
-and size of biggest free chunk in cma region.
-Added that information in cmainfo.
+This is an update of memory allocation failure injection tester
+which I used at http://marc.info/?l=linux-fsdevel&m=137104297905865&w=2 .
 
-Signed-off-by: Dmitry Safonov <d.safonov@partner.samsung.com>
----
- include/linux/cma.h |  2 ++
- mm/cma.c            | 34 ++++++++++++++++++++++++++++++++++
- 2 files changed, 36 insertions(+)
+Since SystemTap can generate backtraces without garbage lines,
+we can uniquely identify and inject only once per each backtrace,
+making it possible to test every memory allocation callers.
 
-diff --git a/include/linux/cma.h b/include/linux/cma.h
-index 9384ba6..855e6f2 100644
---- a/include/linux/cma.h
-+++ b/include/linux/cma.h
-@@ -18,6 +18,8 @@ struct cma;
- extern unsigned long totalcma_pages;
- extern phys_addr_t cma_get_base(struct cma *cma);
- extern unsigned long cma_get_size(struct cma *cma);
-+extern unsigned long cma_get_used(struct cma *cma);
-+extern unsigned long cma_get_maxchunk(struct cma *cma);
- 
- extern int __init cma_declare_contiguous(phys_addr_t base,
- 			phys_addr_t size, phys_addr_t limit,
-diff --git a/mm/cma.c b/mm/cma.c
-index ffaea26..5e560ed 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -78,6 +78,36 @@ unsigned long cma_get_size(struct cma *cma)
- 	return cma->count << PAGE_SHIFT;
- }
- 
-+unsigned long cma_get_used(struct cma *cma)
-+{
-+	unsigned long ret = 0;
-+
-+	mutex_lock(&cma->lock);
-+	/* pages counter is smaller than sizeof(int) */
-+	ret = bitmap_weight(cma->bitmap, (int)cma->count);
-+	mutex_unlock(&cma->lock);
-+
-+	return ret << (PAGE_SHIFT + cma->order_per_bit);
-+}
-+
-+unsigned long cma_get_maxchunk(struct cma *cma)
-+{
-+	unsigned long maxchunk = 0;
-+	unsigned long start, end = 0;
-+
-+	mutex_lock(&cma->lock);
-+	for (;;) {
-+		start = find_next_zero_bit(cma->bitmap, cma->count, end);
-+		if (start >= cma->count)
-+			break;
-+		end = find_next_bit(cma->bitmap, cma->count, start);
-+		maxchunk = max(end - start, maxchunk);
-+	}
-+	mutex_unlock(&cma->lock);
-+
-+	return maxchunk << (PAGE_SHIFT + cma->order_per_bit);
-+}
-+
- static unsigned long cma_bitmap_aligned_mask(struct cma *cma, int align_order)
- {
- 	if (align_order <= cma->order_per_bit)
-@@ -591,6 +621,10 @@ static int s_show(struct seq_file *m, void *p)
- 	struct cma_buffer *cmabuf;
- 	struct stack_trace trace;
- 
-+	seq_printf(m, "CMARegion stat: %8lu kB total, %8lu kB used, %8lu kB max contiguous chunk\n\n",
-+		   cma_get_size(cma) >> 10,
-+		   cma_get_used(cma) >> 10,
-+		   cma_get_maxchunk(cma) >> 10);
- 	mutex_lock(&cma->list_lock);
- 
- 	list_for_each_entry(cmabuf, &cma->buffers_list, list) {
--- 
-2.1.0
+Steps for installation and testing are described below.
+
+---------- installation start ----------
+wget http://sourceware.org/systemtap/ftp/releases/systemtap-2.6.tar.gz
+echo '65e6745f0ec103758c711dd1d12fb6bf  systemtap-2.6.tar.gz' | md5sum --check -
+tar -zxf systemtap-2.6.tar.gz
+cd systemtap-2.6
+./configure --prefix=$HOME/systemtap.tmp
+make -s
+make -s install
+---------- installation end ----------
+
+---------- preparation (optional) start ----------
+Start kdump service and set 1 to /proc/sys/vm/panic_on_oops as root user
+so that we can obtain vmcore upon kernel oops.
+---------- preparation (optional) end ----------
+
+---------- testing start ----------
+Run
+
+$HOME/systemtap.tmp/bin/staprun fault_injection.ko
+
+and operate as you like, and see whether your system can survive or not.
+---------- testing end ----------
+
+The fault_injection.ko is generated by commands shown below.
+Scripts shown below checks only sleepable allocations. If you
+replace %{ __GFP_WAIT %} with 0, you can check atomic allocations.
+
+---------- For testing __kmalloc() failure ----------
+$HOME/systemtap.tmp/bin/stap -p4 -m fault_injection -g -DSTP_NO_OVERLOAD -e '
+global traces_bt[65536];
+probe begin { printf("Probe start!\n"); }
+probe kernel.function("__kmalloc") {
+  if (($flags & %{ __GFP_NOFAIL | __GFP_WAIT %} ) == %{ __GFP_WAIT %} && execname() != "stapio") {
+    bt = backtrace();
+    if (traces_bt[bt]++ == 0) {
+      print_stack(bt);
+      printf("\n\n");
+      $size = 1 << 30;
+    }
+  }
+}
+probe end { delete traces_bt; }'
+---------- For testing __kmalloc() failure ----------
+
+Below one might be too aggressive because it triggers OOM killer
+when page fault handler fails.
+
+---------- For testing __alloc_pages_nodemask() failure ----------
+$HOME/systemtap.tmp/bin/stap -p4 -m fault_injection -g -DSTP_NO_OVERLOAD -e '
+global traces_bt[65536];
+probe begin { printf("Probe start!\n"); }
+probe kernel.function("__alloc_pages_nodemask") {
+  if (($gfp_mask & %{ __GFP_NOFAIL | __GFP_WAIT %} ) == %{ __GFP_WAIT %} && execname() != "stapio") {
+    bt = backtrace();
+    if (traces_bt[bt]++ == 0) {
+      print_stack(bt);
+      printf("\n\n");
+      $order = 1 << 30;
+      $gfp_mask = $gfp_mask | %{ __GFP_NORETRY %};
+    }
+  }
+}
+probe end { delete traces_bt; }'
+---------- For testing __alloc_pages_nodemask() failure ----------
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
