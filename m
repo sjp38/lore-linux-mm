@@ -1,124 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 14B4D6B0071
-	for <linux-mm@kvack.org>; Fri, 26 Dec 2014 11:10:52 -0500 (EST)
-Received: by mail-wi0-f173.google.com with SMTP id r20so17337507wiv.6
-        for <linux-mm@kvack.org>; Fri, 26 Dec 2014 08:10:51 -0800 (PST)
-Received: from mail-wg0-x22e.google.com (mail-wg0-x22e.google.com. [2a00:1450:400c:c00::22e])
-        by mx.google.com with ESMTPS id i17si43101980wiv.21.2014.12.26.08.10.51
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 04C5C6B0038
+	for <linux-mm@kvack.org>; Fri, 26 Dec 2014 14:02:37 -0500 (EST)
+Received: by mail-wg0-f48.google.com with SMTP id y19so14932182wgg.35
+        for <linux-mm@kvack.org>; Fri, 26 Dec 2014 11:02:36 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o3si43712459wic.59.2014.12.26.11.02.35
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 26 Dec 2014 08:10:51 -0800 (PST)
-Received: by mail-wg0-f46.google.com with SMTP id x13so14656550wgg.19
-        for <linux-mm@kvack.org>; Fri, 26 Dec 2014 08:10:51 -0800 (PST)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH 3/3] cma: add functions to get region pages counters
-In-Reply-To: <dfddb08aba9a05e6e7b43e9861ab09b7ac1c89cd.1419602920.git.s.strogin@partner.samsung.com>
-References: <cover.1419602920.git.s.strogin@partner.samsung.com> <dfddb08aba9a05e6e7b43e9861ab09b7ac1c89cd.1419602920.git.s.strogin@partner.samsung.com>
-Date: Fri, 26 Dec 2014 17:10:47 +0100
-Message-ID: <xa1twq5ez914.fsf@mina86.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 Dec 2014 11:02:35 -0800 (PST)
+Date: Fri, 26 Dec 2014 20:01:50 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: [PATCH 0/1] blackfin: bf533-stamp: add linux/delay.h
+Message-ID: <20141226190150.GA15032@redhat.com>
+References: <201412252014.vyXxH1Bh%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201412252014.vyXxH1Bh%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Stefan I. Strogin" <s.strogin@partner.samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Dmitry Safonov <d.safonov@partner.samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Minchan Kim <minchan@kernel.org>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>
+To: kbuild test robot <fengguang.wu@intel.com>, Steven Miao <realmz6@gmail.com>, Mike Frysinger <vapier@gentoo.org>
+Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Fri, Dec 26 2014, "Stefan I. Strogin" <s.strogin@partner.samsung.com> wr=
-ote:
-> From: Dmitry Safonov <d.safonov@partner.samsung.com>
+On 12/25, kbuild test robot wrote:
 >
-> Here are two functions that provide interface to compute/get used size
-> and size of biggest free chunk in cma region.
-> Added that information in cmainfo.
+> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
+> head:   53262d12d1658669029ab39a63e3d314108abe66
+> commit: a1fd3e24d8a484b3265a6d485202afe093c058f3 percpu_rw_semaphore: reimplement to not block the readers unnecessarily
+> date:   2 years ago
+> config: blackfin-allyesconfig (attached as .config)
+> reproduce:
+>   wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
+>   chmod +x ~/bin/make.cross
+>   git checkout a1fd3e24d8a484b3265a6d485202afe093c058f3
+>   # save the attached .config to linux build tree
+>   make.cross ARCH=blackfin
 >
-> Signed-off-by: Dmitry Safonov <d.safonov@partner.samsung.com>
+> All error/warnings:
+>
+>    arch/blackfin/mach-bf533/boards/stamp.c: In function 'net2272_init':
+> >> arch/blackfin/mach-bf533/boards/stamp.c:834:2: error: implicit declaration of function 'mdelay' [-Werror=implicit-function-declaration]
+>    cc1: some warnings being treated as errors
 
-Acked-by: Michal Nazarewicz <mina86@mina86.com>
+That commit removed linux/delay.h from percpu-rwsem.h. But stamp.c
+obviously should not rely on percpu-rwsem.h, and in fact fs.h includes
+it by mistake (this needs another patch).
 
+I think mach-bf533/boards/stamp.c needs the trivial fix.
+
+
+
+
+> vim +/mdelay +834 arch/blackfin/mach-bf533/boards/stamp.c
+>
+> 9be8631b Mike Frysinger 2011-05-04  818  		gpio_free(GPIO_PF0);
+> 9be8631b Mike Frysinger 2011-05-04  819  		return ret;
+> 9be8631b Mike Frysinger 2011-05-04  820  	}
+> 9be8631b Mike Frysinger 2011-05-04  821
+> 9be8631b Mike Frysinger 2011-05-04  822  	ret = gpio_request(GPIO_PF11, "net2272");
+> 9be8631b Mike Frysinger 2011-05-04  823  	if (ret) {
+> 9be8631b Mike Frysinger 2011-05-04  824  		gpio_free(GPIO_PF0);
+> 9be8631b Mike Frysinger 2011-05-04  825  		gpio_free(GPIO_PF1);
+> 9be8631b Mike Frysinger 2011-05-04  826  		return ret;
+> 9be8631b Mike Frysinger 2011-05-04  827  	}
+> 9be8631b Mike Frysinger 2011-05-04  828
+> 9be8631b Mike Frysinger 2011-05-04  829  	gpio_direction_output(GPIO_PF0, 0);
+> 9be8631b Mike Frysinger 2011-05-04  830  	gpio_direction_output(GPIO_PF1, 1);
+> 9be8631b Mike Frysinger 2011-05-04  831
+> 9be8631b Mike Frysinger 2011-05-04  832  	/* Reset the USB chip */
+> 9be8631b Mike Frysinger 2011-05-04  833  	gpio_direction_output(GPIO_PF11, 0);
+> 9be8631b Mike Frysinger 2011-05-04 @834  	mdelay(2);
+> 9be8631b Mike Frysinger 2011-05-04  835  	gpio_set_value(GPIO_PF11, 1);
+> 9be8631b Mike Frysinger 2011-05-04  836  #endif
+> 9be8631b Mike Frysinger 2011-05-04  837
+> 9be8631b Mike Frysinger 2011-05-04  838  	return 0;
+> 9be8631b Mike Frysinger 2011-05-04  839  }
+> 9be8631b Mike Frysinger 2011-05-04  840
+> 1394f032 Bryan Wu       2007-05-06  841  static int __init stamp_init(void)
+> 1394f032 Bryan Wu       2007-05-06  842  {
+>
+> :::::: The code at line 834 was first introduced by commit
+> :::::: 9be8631b8a7d11fa6d206fcf0a7a2005ed39f41b Blackfin: net2272: move pin setup to boards files
+>
+> :::::: TO: Mike Frysinger <vapier@gentoo.org>
+> :::::: CC: Mike Frysinger <vapier@gentoo.org>
+>
 > ---
->  include/linux/cma.h |  2 ++
->  mm/cma.c            | 34 ++++++++++++++++++++++++++++++++++
->  2 files changed, 36 insertions(+)
->
-> diff --git a/include/linux/cma.h b/include/linux/cma.h
-> index 9384ba6..855e6f2 100644
-> --- a/include/linux/cma.h
-> +++ b/include/linux/cma.h
-> @@ -18,6 +18,8 @@ struct cma;
->  extern unsigned long totalcma_pages;
->  extern phys_addr_t cma_get_base(struct cma *cma);
->  extern unsigned long cma_get_size(struct cma *cma);
-> +extern unsigned long cma_get_used(struct cma *cma);
-> +extern unsigned long cma_get_maxchunk(struct cma *cma);
->=20=20
->  extern int __init cma_declare_contiguous(phys_addr_t base,
->  			phys_addr_t size, phys_addr_t limit,
-> diff --git a/mm/cma.c b/mm/cma.c
-> index ffaea26..5e560ed 100644
-> --- a/mm/cma.c
-> +++ b/mm/cma.c
-> @@ -78,6 +78,36 @@ unsigned long cma_get_size(struct cma *cma)
->  	return cma->count << PAGE_SHIFT;
->  }
->=20=20
-> +unsigned long cma_get_used(struct cma *cma)
-> +{
-> +	unsigned long ret =3D 0;
-> +
-> +	mutex_lock(&cma->lock);
-> +	/* pages counter is smaller than sizeof(int) */
-> +	ret =3D bitmap_weight(cma->bitmap, (int)cma->count);
-> +	mutex_unlock(&cma->lock);
-> +
-> +	return ret << (PAGE_SHIFT + cma->order_per_bit);
-> +}
-> +
-> +unsigned long cma_get_maxchunk(struct cma *cma)
-> +{
-> +	unsigned long maxchunk =3D 0;
-> +	unsigned long start, end =3D 0;
-> +
-> +	mutex_lock(&cma->lock);
-> +	for (;;) {
-> +		start =3D find_next_zero_bit(cma->bitmap, cma->count, end);
-> +		if (start >=3D cma->count)
-> +			break;
-> +		end =3D find_next_bit(cma->bitmap, cma->count, start);
-> +		maxchunk =3D max(end - start, maxchunk);
-> +	}
-> +	mutex_unlock(&cma->lock);
-> +
-> +	return maxchunk << (PAGE_SHIFT + cma->order_per_bit);
-> +}
-> +
->  static unsigned long cma_bitmap_aligned_mask(struct cma *cma, int align_=
-order)
->  {
->  	if (align_order <=3D cma->order_per_bit)
-> @@ -591,6 +621,10 @@ static int s_show(struct seq_file *m, void *p)
->  	struct cma_buffer *cmabuf;
->  	struct stack_trace trace;
->=20=20
-> +	seq_printf(m, "CMARegion stat: %8lu kB total, %8lu kB used, %8lu kB max=
- contiguous chunk\n\n",
-> +		   cma_get_size(cma) >> 10,
-> +		   cma_get_used(cma) >> 10,
-> +		   cma_get_maxchunk(cma) >> 10);
->  	mutex_lock(&cma->list_lock);
->=20=20
->  	list_for_each_entry(cmabuf, &cma->buffers_list, list) {
-> --=20
-> 2.1.0
->
+> 0-DAY kernel test infrastructure                Open Source Technology Center
+> http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
---=20
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
- (o o)
-ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
