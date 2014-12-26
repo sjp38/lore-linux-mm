@@ -1,40 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id EFE016B006E
-	for <linux-mm@kvack.org>; Thu, 25 Dec 2014 18:34:25 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id kx10so12349516pab.30
-        for <linux-mm@kvack.org>; Thu, 25 Dec 2014 15:34:25 -0800 (PST)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id x4si22780029pda.9.2014.12.25.15.34.23
-        for <linux-mm@kvack.org>;
-        Thu, 25 Dec 2014 15:34:24 -0800 (PST)
-Date: Thu, 25 Dec 2014 18:34:20 -0500 (EST)
-Message-Id: <20141225.183420.2288499637535959481.davem@davemloft.net>
-Subject: Re: [PATCH 33/38] sparc: drop pte_file()-related helpers
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <1419423766-114457-34-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 25FBD6B006E
+	for <linux-mm@kvack.org>; Fri, 26 Dec 2014 00:52:29 -0500 (EST)
+Received: by mail-la0-f42.google.com with SMTP id gd6so8612794lab.1
+        for <linux-mm@kvack.org>; Thu, 25 Dec 2014 21:52:28 -0800 (PST)
+Received: from mail-la0-x233.google.com (mail-la0-x233.google.com. [2a00:1450:4010:c03::233])
+        by mx.google.com with ESMTPS id o12si30500305lal.38.2014.12.25.21.52.27
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 25 Dec 2014 21:52:27 -0800 (PST)
+Received: by mail-la0-f51.google.com with SMTP id ms9so8439245lab.38
+        for <linux-mm@kvack.org>; Thu, 25 Dec 2014 21:52:27 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20141225123014.GO16916@distanz.ch>
 References: <1419423766-114457-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<1419423766-114457-34-git-send-email-kirill.shutemov@linux.intel.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+	<1419423766-114457-27-git-send-email-kirill.shutemov@linux.intel.com>
+	<20141225123014.GO16916@distanz.ch>
+Date: Fri, 26 Dec 2014 13:52:27 +0800
+Message-ID: <CAFiDJ59P7DPTfBN5PrhXjTLhku0U+ZYBv_0qdmjtbBNN0T2h3A@mail.gmail.com>
+Subject: Re: [PATCH 26/38] nios2: drop _PAGE_FILE and pte_file()-related helpers
+From: Ley Foon Tan <lftan@altera.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kirill.shutemov@linux.intel.com
-Cc: akpm@linux-foundation.org, peterz@infradead.org, mingo@kernel.org, davej@redhat.com, sasha.levin@oracle.com, hughd@google.com, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Tobias Klauser <tklauser@distanz.ch>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, akpm@linux-foundation.org, peterz@infradead.org, mingo@kernel.org, davej@redhat.com, sasha.levin@oracle.com, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Linux-Arch <linux-arch@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Date: Wed, 24 Dec 2014 14:22:41 +0200
+On Thu, Dec 25, 2014 at 8:30 PM, Tobias Klauser <tklauser@distanz.ch> wrote:
+> On 2014-12-24 at 13:22:34 +0100, Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
+>> We've replaced remap_file_pages(2) implementation with emulation.
+>> Nobody creates non-linear mapping anymore.
+>>
+>> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+>> Cc: Ley Foon Tan <lftan@altera.com>
+>
+> Reviewed-by: Tobias Klauser <tklauser@distanz.ch>
 
-> We've replaced remap_file_pages(2) implementation with emulation.
-> Nobody creates non-linear mapping anymore.
-> 
-> This patch also increase number of bits availble for swap offset.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: "David S. Miller" <davem@davemloft.net>
-
-Acked-by: David S. Miller <davem@davemloft.net>
+Acked-by: Ley Foon Tan <lftan@altera.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
