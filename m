@@ -1,123 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
-	by kanga.kvack.org (Postfix) with ESMTP id D99D86B006E
-	for <linux-mm@kvack.org>; Fri, 26 Dec 2014 02:20:39 -0500 (EST)
-Received: by mail-qc0-f170.google.com with SMTP id x3so7171626qcv.1
-        for <linux-mm@kvack.org>; Thu, 25 Dec 2014 23:20:39 -0800 (PST)
-Received: from mail-qc0-x236.google.com (mail-qc0-x236.google.com. [2607:f8b0:400d:c01::236])
-        by mx.google.com with ESMTPS id z3si31123432qaj.112.2014.12.25.23.20.38
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id C7A5A6B006E
+	for <linux-mm@kvack.org>; Fri, 26 Dec 2014 06:57:26 -0500 (EST)
+Received: by mail-pd0-f171.google.com with SMTP id y13so12987462pdi.16
+        for <linux-mm@kvack.org>; Fri, 26 Dec 2014 03:57:26 -0800 (PST)
+Received: from cnbjrel02.sonyericsson.com (cnbjrel02.sonyericsson.com. [219.141.167.166])
+        by mx.google.com with ESMTPS id g8si41719893pdf.6.2014.12.26.03.57.23
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 25 Dec 2014 23:20:38 -0800 (PST)
-Received: by mail-qc0-f182.google.com with SMTP id r5so7253526qcx.27
-        for <linux-mm@kvack.org>; Thu, 25 Dec 2014 23:20:38 -0800 (PST)
-Date: Fri, 26 Dec 2014 02:20:32 -0500
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [PATCH 2/7] mmu_notifier: keep track of active invalidation
- ranges v2
-Message-ID: <20141226071112.GA4408@gmail.com>
-References: <1419266940-5440-1-git-send-email-j.glisse@gmail.com>
- <1419266940-5440-3-git-send-email-j.glisse@gmail.com>
- <549BCAF8.1070500@mellanox.com>
+        Fri, 26 Dec 2014 03:57:25 -0800 (PST)
+From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Date: Fri, 26 Dec 2014 19:56:49 +0800
+Subject: [RFC] mm:change meminfo cached calculation
+Message-ID: <35FD53F367049845BC99AC72306C23D103EDAF89E160@CNBJMBX05.corpusers.net>
+References: <35FD53F367049845BC99AC72306C23D103E688B313EE@CNBJMBX05.corpusers.net>
+	<CALYGNiOuBKz8shHSrFCp0BT5AV6XkNOCHj+LJedQQ-2YdZtM7w@mail.gmail.com>
+	<35FD53F367049845BC99AC72306C23D103E688B313F2@CNBJMBX05.corpusers.net>
+	<20141205143134.37139da2208c654a0d3cd942@linux-foundation.org>
+	<35FD53F367049845BC99AC72306C23D103E688B313F4@CNBJMBX05.corpusers.net>
+	<20141208114601.GA28846@node.dhcp.inet.fi>
+	<35FD53F367049845BC99AC72306C23D103E688B313FB@CNBJMBX05.corpusers.net>
+ <CALYGNiMEytHuND37f+hNdMKqCPzN0k_uha6CaeL_fyzrj-obNQ@mail.gmail.com>
+ <35FD53F367049845BC99AC72306C23D103E688B31408@CNBJMBX05.corpusers.net>
+ <35FD53F367049845BC99AC72306C23D103EDAF89E14C@CNBJMBX05.corpusers.net>
+In-Reply-To: <35FD53F367049845BC99AC72306C23D103EDAF89E14C@CNBJMBX05.corpusers.net>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <549BCAF8.1070500@mellanox.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Haggai Eran <haggaie@mellanox.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
+To: "'minchan@kernel.org'" <minchan@kernel.org>, 'Konstantin Khlebnikov' <koct9i@gmail.com>, "'Kirill A. Shutemov'" <kirill@shutemov.name>, 'Andrew Morton' <akpm@linux-foundation.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'n-horiguchi@ah.jp.nec.com'" <n-horiguchi@ah.jp.nec.com>, "'pintu.k@samsung.com'" <pintu.k@samsung.com>
 
-On Thu, Dec 25, 2014 at 10:29:44AM +0200, Haggai Eran wrote:
-> On 22/12/2014 18:48, j.glisse@gmail.com wrote:
-> >  static inline void mmu_notifier_invalidate_range_start(struct mm_struct *mm,
-> > -						       unsigned long start,
-> > -						       unsigned long end,
-> > -						       enum mmu_event event)
-> > +						       struct mmu_notifier_range *range)
-> >  {
-> > +	/*
-> > +	 * Initialize list no matter what in case a mmu_notifier register after
-> > +	 * a range_start but before matching range_end.
-> > +	 */
-> > +	INIT_LIST_HEAD(&range->list);
-> 
-> I don't see how can an mmu_notifier register after a range_start but
-> before a matching range_end. The mmu_notifier registration locks all mm
-> locks, and that should prevent any invalidation from running, right?
-
-File invalidation (like truncation) can lead to this case.
-
-> 
-> >  	if (mm_has_notifiers(mm))
-> > -		__mmu_notifier_invalidate_range_start(mm, start, end, event);
-> > +		__mmu_notifier_invalidate_range_start(mm, range);
-> >  }
-> 
-> ...
-> 
-> >  void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
-> > -					   unsigned long start,
-> > -					   unsigned long end,
-> > -					   enum mmu_event event)
-> > +					   struct mmu_notifier_range *range)
-> >  
-> >  {
-> >  	struct mmu_notifier *mn;
-> > @@ -185,21 +183,36 @@ void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
-> >  	id = srcu_read_lock(&srcu);
-> >  	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
-> >  		if (mn->ops->invalidate_range_start)
-> > -			mn->ops->invalidate_range_start(mn, mm, start,
-> > -							end, event);
-> > +			mn->ops->invalidate_range_start(mn, mm, range);
-> >  	}
-> >  	srcu_read_unlock(&srcu, id);
-> > +
-> > +	/*
-> > +	 * This must happen after the callback so that subsystem can block on
-> > +	 * new invalidation range to synchronize itself.
-> > +	 */
-> > +	spin_lock(&mm->mmu_notifier_mm->lock);
-> > +	list_add_tail(&range->list, &mm->mmu_notifier_mm->ranges);
-> > +	mm->mmu_notifier_mm->nranges++;
-> > +	spin_unlock(&mm->mmu_notifier_mm->lock);
-> >  }
-> >  EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_start);
-> 
-> Don't you have a race here because you add the range struct after the
-> callback?
-> 
-> -------------------------------------------------------------------------
-> Thread A                    | Thread B
-> -------------------------------------------------------------------------
-> call mmu notifier callback  |
->   clear SPTE                |
->                             | device page fault
->                             |   mmu_notifier_range_is_valid returns true
->                             |   install new SPTE
-> add event struct to list    |
-> mm clears/modifies the PTE  |
-> -------------------------------------------------------------------------
-> 
-> So we are left with different entries in the host page table and the
-> secondary page table.
-> 
-> I would think you'd want the event struct to be added to the list before
-> the callback is run.
-> 
-
-Yes you right, but the comment i left trigger memory that i did that on
-purpose a one point probably with a different synch mecanism inside hmm.
-I will try to medidate a bit see if i can bring back memory why i did it
-that way in respect to previous design.
-
-In all case i will respin with that order modified. Can i add you review
-by after doing so ?
-
-Cheers,
-Jerome
+VGhpcyBwYXRjaCBzdWJ0cmFjdCBzaGFyZWRyYW0gZnJvbSBjYWNoZWQsDQpzaGFyZWRyYW0gY2Fu
+IG9ubHkgYmUgc3dhcCBpbnRvIHN3YXAgcGFydGl0aW9ucywNCnRoZXkgc2hvdWxkIGJlIHRyZWF0
+ZWQgYXMgc3dhcCBwYWdlcywgbm90IGFzIGNhY2hlZCBwYWdlcy4NCg0KU2lnbmVkLW9mZi1ieTog
+WWFsaW4gV2FuZyA8eWFsaW4ud2FuZ0Bzb255bW9iaWxlLmNvbT4NCi0tLQ0KIGZzL3Byb2MvbWVt
+aW5mby5jIHwgMiArLQ0KIDEgZmlsZSBjaGFuZ2VkLCAxIGluc2VydGlvbigrKSwgMSBkZWxldGlv
+bigtKQ0KDQpkaWZmIC0tZ2l0IGEvZnMvcHJvYy9tZW1pbmZvLmMgYi9mcy9wcm9jL21lbWluZm8u
+Yw0KaW5kZXggZDNlYmYyZS4uMmI1OThhNiAxMDA2NDQNCi0tLSBhL2ZzL3Byb2MvbWVtaW5mby5j
+DQorKysgYi9mcy9wcm9jL21lbWluZm8uYw0KQEAgLTQ1LDcgKzQ1LDcgQEAgc3RhdGljIGludCBt
+ZW1pbmZvX3Byb2Nfc2hvdyhzdHJ1Y3Qgc2VxX2ZpbGUgKm0sIHZvaWQgKnYpDQogCWNvbW1pdHRl
+ZCA9IHBlcmNwdV9jb3VudGVyX3JlYWRfcG9zaXRpdmUoJnZtX2NvbW1pdHRlZF9hcyk7DQogDQog
+CWNhY2hlZCA9IGdsb2JhbF9wYWdlX3N0YXRlKE5SX0ZJTEVfUEFHRVMpIC0NCi0JCQl0b3RhbF9z
+d2FwY2FjaGVfcGFnZXMoKSAtIGkuYnVmZmVycmFtOw0KKwkJCXRvdGFsX3N3YXBjYWNoZV9wYWdl
+cygpIC0gaS5idWZmZXJyYW0gLSBpLnNoYXJlZHJhbTsNCiAJaWYgKGNhY2hlZCA8IDApDQogCQlj
+YWNoZWQgPSAwOw0KIA0KLS0gDQoyLjEuMw0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
