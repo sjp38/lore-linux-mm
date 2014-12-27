@@ -1,87 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f176.google.com (mail-yk0-f176.google.com [209.85.160.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DA5A6B0038
-	for <linux-mm@kvack.org>; Fri, 26 Dec 2014 16:11:54 -0500 (EST)
-Received: by mail-yk0-f176.google.com with SMTP id q200so5168430ykb.7
-        for <linux-mm@kvack.org>; Fri, 26 Dec 2014 13:11:54 -0800 (PST)
-Received: from devils.ext.ti.com (devils.ext.ti.com. [198.47.26.153])
-        by mx.google.com with ESMTPS id t28si948296yhg.40.2014.12.26.13.11.52
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 797A06B0038
+	for <linux-mm@kvack.org>; Sat, 27 Dec 2014 02:03:22 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id ey11so14155563pad.24
+        for <linux-mm@kvack.org>; Fri, 26 Dec 2014 23:03:22 -0800 (PST)
+Received: from mail-pd0-x229.google.com (mail-pd0-x229.google.com. [2607:f8b0:400e:c02::229])
+        by mx.google.com with ESMTPS id kn8si16401860pbc.244.2014.12.26.23.03.20
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 26 Dec 2014 13:11:53 -0800 (PST)
-Date: Fri, 26 Dec 2014 15:10:55 -0600
-From: Felipe Balbi <balbi@ti.com>
-Subject: Re: [PATCH 00/38] mm: remove non-linear mess
-Message-ID: <20141226211055.GM17430@saruman>
-Reply-To: <balbi@ti.com>
-References: <1419423766-114457-1-git-send-email-kirill.shutemov@linux.intel.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 26 Dec 2014 23:03:21 -0800 (PST)
+Received: by mail-pd0-f169.google.com with SMTP id z10so14116327pdj.0
+        for <linux-mm@kvack.org>; Fri, 26 Dec 2014 23:03:20 -0800 (PST)
+From: SeongJae Park <sj38.park@gmail.com>
+Date: Sat, 27 Dec 2014 16:04:04 +0900 (KST)
+Subject: Re: [PATCH 1/3] stacktrace: add seq_print_stack_trace()
+In-Reply-To: <00bfb81bf8749f3be738d20dd263b81490693309.1419602920.git.s.strogin@partner.samsung.com>
+Message-ID: <alpine.DEB.2.10.1412271602580.1819@hxeon>
+References: <cover.1419602920.git.s.strogin@partner.samsung.com> <00bfb81bf8749f3be738d20dd263b81490693309.1419602920.git.s.strogin@partner.samsung.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="q8dntDJTu318bll0"
-Content-Disposition: inline
-In-Reply-To: <1419423766-114457-1-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: TEXT/PLAIN; format=flowed; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: akpm@linux-foundation.org, peterz@infradead.org, mingo@kernel.org, davej@redhat.com, sasha.levin@oracle.com, hughd@google.com, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+To: "Stefan I. Strogin" <s.strogin@partner.samsung.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Dmitry Safonov <d.safonov@partner.samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Minchan Kim <minchan@kernel.org>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>
 
---q8dntDJTu318bll0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
 
-On Wed, Dec 24, 2014 at 02:22:08PM +0200, Kirill A. Shutemov wrote:
-> We have remap_file_pages(2) emulation in -mm tree for few release cycles
-> and we plan to have it mainline in v3.20. This patchset removes rest of
-> VM_NONLINEAR infrastructure.
->=20
-> Patches 1-8 take care about generic code. They are pretty
-> straight-forward and can be applied without other of patches.
->=20
-> Rest patches removes pte_file()-related stuff from architecture-specific
-> code. It usually frees up one bit in non-present pte. I've tried to reuse
-> that bit for swap offset, where I was able to figure out how to do that.
->=20
-> For obvious reason I cannot test all that arch-specific code and would
-> like to see acks from maintainers.
->=20
-> In total, remap_file_pages(2) required about 1.4K lines of not-so-trivial
-> kernel code. That's too much for functionality nobody uses.
->=20
-> git://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git remap_file_pa=
-ges
 
-have been running this for a while on a three different ARM boards I
-have around, haven't noticed anything wrong.
+On Fri, 26 Dec 2014, Stefan I. Strogin wrote:
 
-Tested-by: Felipe Balbi <balbi@ti.com>
+> Add a function seq_print_stack_trace() which prints stacktraces to seq_files.
+>
+> Signed-off-by: Stefan I. Strogin <s.strogin@partner.samsung.com>
 
---=20
-balbi
+Reviewed-by: SeongJae Park <sj38.park@gmail.com>
 
---q8dntDJTu318bll0
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iQIcBAEBAgAGBQJUnc7fAAoJEIaOsuA1yqREWbsQAIONHDDofx75YXCcFBBg1zDy
-idy1wuwS2Dk3Po1MGqXvAo/xwmAVTI1xq6cDSyz16gUYnWc553l1seeSIHU0AnON
-Vz5Ik/Hhdnm7S4z2bDWFmsLDyEq5OH7MSc31GvTnKNPXUs0ZXqp58kiGDxQHN4JN
-5qrEVYhkqNWKsONprnZ0Tu4lTkz8fZb1hY2tBeBEeyJFrxTmgVwMavcEk8is3Fwm
-M2vibrHWSMyBlBl6daPV9aCoqdcxFnwdW+g0TILL7u7tWJnb7HxVaSOJ9avZxQVK
-lxBXvwKAWHuqZPWP9eScUWEZklpl2U3E/SDOm5156HNq3N8LFmVQUfTndARwYr1W
-2hmopRMignA+EuH0fRdpUXXjv5RGZnFUWHyZkWOsYvwe0WfhBRgbE8Q4Shagn+6z
-OzaH94Gg3104OCE5Ro3WITfpcbr6rUzClNtUvcfTe/8A4dAEvTKGZhdbB48LnBJp
-N0/bhyU0O0MKSE51BZM7s65L5uL+cMRBQmScCCmqB0QphjvMMZy3gWuiVOn7knJg
-ZSac+3mKz0I9sRFm33rB59/6QyCP3CzGk4omNiNyqdFdaHsKf7kJ5P3/nuVAeRTU
-50/phJWyQsXxo5Isdgnz5Lgbx5AOeuHulaLHdTOYNVNJTmt8V0VI9tE05/kNpTHG
-4SlaWuL1So+z26SMg3E9
-=pBan
------END PGP SIGNATURE-----
-
---q8dntDJTu318bll0--
+> ---
+> include/linux/stacktrace.h |  4 ++++
+> kernel/stacktrace.c        | 17 +++++++++++++++++
+> 2 files changed, 21 insertions(+)
+>
+> diff --git a/include/linux/stacktrace.h b/include/linux/stacktrace.h
+> index 669045a..6d62484 100644
+> --- a/include/linux/stacktrace.h
+> +++ b/include/linux/stacktrace.h
+> @@ -2,6 +2,7 @@
+> #define __LINUX_STACKTRACE_H
+>
+> #include <linux/types.h>
+> +#include <linux/seq_file.h>
+>
+> struct task_struct;
+> struct pt_regs;
+> @@ -24,6 +25,8 @@ extern void save_stack_trace_tsk(struct task_struct *tsk,
+> extern void print_stack_trace(struct stack_trace *trace, int spaces);
+> extern int snprint_stack_trace(char *buf, size_t size,
+> 			struct stack_trace *trace, int spaces);
+> +extern void seq_print_stack_trace(struct seq_file *m,
+> +			struct stack_trace *trace, int spaces);
+>
+> #ifdef CONFIG_USER_STACKTRACE_SUPPORT
+> extern void save_stack_trace_user(struct stack_trace *trace);
+> @@ -37,6 +40,7 @@ extern void save_stack_trace_user(struct stack_trace *trace);
+> # define save_stack_trace_user(trace)			do { } while (0)
+> # define print_stack_trace(trace, spaces)		do { } while (0)
+> # define snprint_stack_trace(buf, size, trace, spaces)	do { } while (0)
+> +# define seq_print_stack_trace(m, trace, spaces)	do { } while (0)
+> #endif
+>
+> #endif
+> diff --git a/kernel/stacktrace.c b/kernel/stacktrace.c
+> index b6e4c16..66ef6f4 100644
+> --- a/kernel/stacktrace.c
+> +++ b/kernel/stacktrace.c
+> @@ -57,6 +57,23 @@ int snprint_stack_trace(char *buf, size_t size,
+> }
+> EXPORT_SYMBOL_GPL(snprint_stack_trace);
+>
+> +void seq_print_stack_trace(struct seq_file *m, struct stack_trace *trace,
+> +			int spaces)
+> +{
+> +	int i;
+> +
+> +	if (WARN_ON(!trace->entries))
+> +		return;
+> +
+> +	for (i = 0; i < trace->nr_entries; i++) {
+> +		unsigned long ip = trace->entries[i];
+> +
+> +		seq_printf(m, "%*c[<%p>] %pS\n", 1 + spaces, ' ',
+> +				(void *) ip, (void *) ip);
+> +	}
+> +}
+> +EXPORT_SYMBOL_GPL(seq_print_stack_trace);
+> +
+> /*
+>  * Architectures that do not implement save_stack_trace_tsk or
+>  * save_stack_trace_regs get this weak alias and a once-per-bootup warning
+> -- 
+> 2.1.0
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
