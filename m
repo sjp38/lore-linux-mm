@@ -1,43 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 25C5D6B006C
-	for <linux-mm@kvack.org>; Mon, 29 Dec 2014 09:12:57 -0500 (EST)
-Received: by mail-wg0-f53.google.com with SMTP id x13so1198548wgg.12
-        for <linux-mm@kvack.org>; Mon, 29 Dec 2014 06:12:56 -0800 (PST)
-Received: from mail-wi0-x22c.google.com (mail-wi0-x22c.google.com. [2a00:1450:400c:c05::22c])
-        by mx.google.com with ESMTPS id eu5si59246273wid.20.2014.12.29.06.12.56
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 39EBA6B0038
+	for <linux-mm@kvack.org>; Mon, 29 Dec 2014 09:50:03 -0500 (EST)
+Received: by mail-pd0-f175.google.com with SMTP id g10so17380133pdj.34
+        for <linux-mm@kvack.org>; Mon, 29 Dec 2014 06:50:03 -0800 (PST)
+Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
+        by mx.google.com with ESMTPS id wq3si47421pbc.91.2014.12.29.06.50.00
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 29 Dec 2014 06:12:56 -0800 (PST)
-Received: by mail-wi0-f172.google.com with SMTP id n3so22125790wiv.17
-        for <linux-mm@kvack.org>; Mon, 29 Dec 2014 06:12:56 -0800 (PST)
-Message-ID: <54A1616B.4000005@gmail.com>
-Date: Mon, 29 Dec 2014 15:12:59 +0100
-From: Stefan Strogin <stefan.strogin@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] cma: add functions to get region pages counters
-References: <cover.1419602920.git.s.strogin@partner.samsung.com> <dfddb08aba9a05e6e7b43e9861ab09b7ac1c89cd.1419602920.git.s.strogin@partner.samsung.com> <alpine.DEB.2.10.1412271616450.1819@hxeon> <54A0ED19.1040003@partner.samsung.com>
-In-Reply-To: <54A0ED19.1040003@partner.samsung.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Mon, 29 Dec 2014 06:50:01 -0800 (PST)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout3.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NHC00INNMQ0K530@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 29 Dec 2014 14:54:00 +0000 (GMT)
+From: Andrzej Hajda <a.hajda@samsung.com>
+Subject: [RFC PATCH 0/4] kstrdup optimization
+Date: Mon, 29 Dec 2014 15:48:26 +0100
+Message-id: <1419864510-24834-1-git-send-email-a.hajda@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Safonov Dmitry <d.safonov@partner.samsung.com>, SeongJae Park <sj38.park@gmail.com>, "Stefan I. Strogin" <s.strogin@partner.samsung.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, Hui Zhu <zhuhui@xiaomi.com>, Minchan Kim <minchan@kernel.org>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>
+To: linux-mm@kvack.org
+Cc: Andrzej Hajda <a.hajda@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org
 
-29.12.2014 06:56, Safonov Dmitry D?D,N?DuN?:
->
-> On 12/27/2014 10:18 AM, SeongJae Park wrote:
->> Hello,
->>
->> How about 'CMA Region' rather than 'CMARegion'?
-> Sure.
->
+Hi,
 
-I would like "CMA area..." :)
-Or rather "CMA area #%u: base 0x%llx...",
-		   cma - &cma_areas[0],
-		   (unsigned long long)cma_get_base(cma),
+kstrdup if often used to duplicate strings where neither source neither
+destination will be ever modified. In such case we can just reuse the source
+instead of duplicating it. The problem is that we must be sure that
+the source is non-modifiable and its life-time is long enough.
+
+I suspect the good candidates for such strings are strings located in kernel
+.rodata section, they cannot be modifed because the section is read-only and
+their life-time is equal to kernel life-time.
+
+This small patchset proposes alternative version of kstrdup - kstrdup_const,
+which returns source string if it is located in .rodata otherwise it fallbacks
+to kstrdup.
+To verify if the source is in .rodata function checks if the address is between
+sentinels __start_rodata, __end_rodata, I think it is OK, but maybe sombebody
+with deeper knowledge can say if it is OK for all supported architectures and
+configuration options.
+
+The main patch is accompanied by three patches constifying kstrdup for cases
+where situtation described above happens frequently.
+
+The patchset is based on next-20141226.
+
+As I have tested it on mobile platform (exynos4210-trats) it saves above 2600
+string duplications. Below simple stats about the most frequent duplications:
+Count String
+  880 power
+  874 subsystem
+  130 device
+  126 parameters
+   61 iommu_group
+   40 driver
+   28 bdi
+   28 none
+   25 sclk_mpll
+   23 sclk_usbphy0
+   23 sclk_hdmi24m
+   23 xusbxti
+   22 sclk_vpll
+   22 sclk_epll
+   22 xxti
+   20 sclk_hdmiphy
+   11 aclk100
+
+Regards
+Andrzej
+
+
+Andrzej Hajda (4):
+  mm/util: add kstrdup_const
+  kernfs: use kstrdup_const for node name allocation
+  clk: use kstrdup_const for clock name allocations
+  mm/slab: use kstrdup_const for allocating cache names
+
+ drivers/clk/clk.c      | 12 ++++++------
+ fs/kernfs/dir.c        | 12 ++++++------
+ include/linux/string.h |  3 +++
+ mm/slab_common.c       |  6 +++---
+ mm/util.c              | 22 ++++++++++++++++++++++
+ 5 files changed, 40 insertions(+), 15 deletions(-)
+
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
