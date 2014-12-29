@@ -1,72 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id B60576B0071
-	for <linux-mm@kvack.org>; Mon, 29 Dec 2014 09:50:20 -0500 (EST)
-Received: by mail-pd0-f181.google.com with SMTP id v10so17375859pde.12
-        for <linux-mm@kvack.org>; Mon, 29 Dec 2014 06:50:20 -0800 (PST)
-Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
-        by mx.google.com with ESMTPS id ew2si35848596pdb.190.2014.12.29.06.50.16
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 9501C6B0038
+	for <linux-mm@kvack.org>; Mon, 29 Dec 2014 10:54:57 -0500 (EST)
+Received: by mail-pd0-f179.google.com with SMTP id fp1so17389309pdb.24
+        for <linux-mm@kvack.org>; Mon, 29 Dec 2014 07:54:57 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id fc3si54312318pad.15.2014.12.29.07.54.55
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Mon, 29 Dec 2014 06:50:17 -0800 (PST)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout3.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NHC00IQEMQF2C30@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Mon, 29 Dec 2014 14:54:15 +0000 (GMT)
-From: Andrzej Hajda <a.hajda@samsung.com>
-Subject: [RFC PATCH 4/4] mm/slab: use kstrdup_const for allocating cache names
-Date: Mon, 29 Dec 2014 15:48:30 +0100
-Message-id: <1419864510-24834-5-git-send-email-a.hajda@samsung.com>
-In-reply-to: <1419864510-24834-1-git-send-email-a.hajda@samsung.com>
-References: <1419864510-24834-1-git-send-email-a.hajda@samsung.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 Dec 2014 07:54:56 -0800 (PST)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH] memcg: fix destination cgroup leak on task charges migration
+Date: Mon, 29 Dec 2014 18:54:43 +0300
+Message-ID: <1419868483-30612-1-git-send-email-vdavydov@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrzej Hajda <a.hajda@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-slab frequently performs duplication of strings located
-in read-only memory section. Replacing kstrdup by kstrdup_const
-allows to avoid such operations.
+We are supposed to take one css reference per each memory page and per
+each swap entry accounted to a memory cgroup. However, during task
+charges migration we take a reference to the destination cgroup twice
+per each swap entry: first in mem_cgroup_do_precharge()->try_charge()
+and then in mem_cgroup_move_swap_account(), permanently leaking the
+destination cgroup.
 
-Signed-off-by: Andrzej Hajda <a.hajda@samsung.com>
+The hunk taking the second reference seems to be a leftover from the
+pre-00501b531c472 ("mm: memcontrol: rewrite charge API") era. Remove it
+to fix the leak.
+
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 ---
- mm/slab_common.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ mm/memcontrol.c |   12 ------------
+ 1 file changed, 12 deletions(-)
 
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index e03dd6f..2d94d1a 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -390,7 +390,7 @@ kmem_cache_create(const char *name, size_t size, size_t align,
- 	if (s)
- 		goto out_unlock;
- 
--	cache_name = kstrdup(name, GFP_KERNEL);
-+	cache_name = kstrdup_const(name, GFP_KERNEL);
- 	if (!cache_name) {
- 		err = -ENOMEM;
- 		goto out_unlock;
-@@ -401,7 +401,7 @@ kmem_cache_create(const char *name, size_t size, size_t align,
- 				 flags, ctor, NULL, NULL);
- 	if (IS_ERR(s)) {
- 		err = PTR_ERR(s);
--		kfree(cache_name);
-+		kfree_const(cache_name);
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index ef91e856c7e4..d62c335dfef4 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3043,18 +3043,6 @@ static int mem_cgroup_move_swap_account(swp_entry_t entry,
+ 	if (swap_cgroup_cmpxchg(entry, old_id, new_id) == old_id) {
+ 		mem_cgroup_swap_statistics(from, false);
+ 		mem_cgroup_swap_statistics(to, true);
+-		/*
+-		 * This function is only called from task migration context now.
+-		 * It postpones page_counter and refcount handling till the end
+-		 * of task migration(mem_cgroup_clear_mc()) for performance
+-		 * improvement. But we cannot postpone css_get(to)  because if
+-		 * the process that has been moved to @to does swap-in, the
+-		 * refcount of @to might be decreased to 0.
+-		 *
+-		 * We are in attach() phase, so the cgroup is guaranteed to be
+-		 * alive, so we can just call css_get().
+-		 */
+-		css_get(&to->css);
+ 		return 0;
  	}
- 
- out_unlock:
-@@ -494,7 +494,7 @@ static int memcg_cleanup_cache_params(struct kmem_cache *s)
- 
- void slab_kmem_cache_release(struct kmem_cache *s)
- {
--	kfree(s->name);
-+	kfree_const(s->name);
- 	kmem_cache_free(kmem_cache, s);
- }
- 
+ 	return -EINVAL;
 -- 
-1.9.1
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
