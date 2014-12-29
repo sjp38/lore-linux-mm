@@ -1,199 +1,219 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id EB78B6B0073
-	for <linux-mm@kvack.org>; Mon, 29 Dec 2014 07:18:02 -0500 (EST)
-Received: by mail-wi0-f171.google.com with SMTP id bs8so21832406wib.16
-        for <linux-mm@kvack.org>; Mon, 29 Dec 2014 04:18:00 -0800 (PST)
-Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.203])
-        by mx.google.com with ESMTP id f9si58510788wiy.38.2014.12.29.04.17.59
-        for <linux-mm@kvack.org>;
-        Mon, 29 Dec 2014 04:18:00 -0800 (PST)
-Date: Mon, 29 Dec 2014 14:17:29 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: [PATCHv2 24/38] mips: drop _PAGE_FILE and pte_file()-related helpers
-Message-ID: <20141229121729.GC379@node.dhcp.inet.fi>
-References: <1419423766-114457-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1419423766-114457-25-git-send-email-kirill.shutemov@linux.intel.com>
- <CAMuHMdWKNEeb3uOJ+gct06mbuD4RqP7F32FhMtax-tG7d_Yj1g@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAMuHMdWKNEeb3uOJ+gct06mbuD4RqP7F32FhMtax-tG7d_Yj1g@mail.gmail.com>
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 2ED066B0038
+	for <linux-mm@kvack.org>; Mon, 29 Dec 2014 07:28:07 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id lf10so17251559pab.5
+        for <linux-mm@kvack.org>; Mon, 29 Dec 2014 04:28:06 -0800 (PST)
+Received: from mail-pd0-x231.google.com (mail-pd0-x231.google.com. [2607:f8b0:400e:c02::231])
+        by mx.google.com with ESMTPS id gg7si6872155pbc.108.2014.12.29.04.28.04
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 29 Dec 2014 04:28:05 -0800 (PST)
+Received: by mail-pd0-f177.google.com with SMTP id ft15so16990513pdb.22
+        for <linux-mm@kvack.org>; Mon, 29 Dec 2014 04:28:04 -0800 (PST)
+From: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Subject: [PATCH V2 1/2] mm/zpool: add name argument to create zpool
+Date: Mon, 29 Dec 2014 20:27:47 +0800
+Message-Id: <1419856067-6180-1-git-send-email-opensource.ganesh@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Dave Jones <davej@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Hugh Dickins <hughd@google.com>, Linux MM <linux-mm@kvack.org>, Linux-Arch <linux-arch@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ralf Baechle <ralf@linux-mips.org>
+To: minchan@kernel.org, ngupta@vflare.org, sjennings@variantweb.net, ddstreet@ieee.org, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ganesh Mahendran <opensource.ganesh@gmail.com>
 
-We've replaced remap_file_pages(2) implementation with emulation.
-Nobody creates non-linear mapping anymore.
+Currently the underlay of zpool: zsmalloc/zbud, do not know
+who creates them. There is not a method to let zsmalloc/zbud
+find which caller they belogs to.
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Ralf Baechle <ralf@linux-mips.org>
+Now we want to add statistics collection in zsmalloc. We need
+to name the debugfs dir for each pool created. The way suggested
+by Minchan Kim is to use a name passed by caller(such as zram)
+to create the zsmalloc pool.
+    /sys/kernel/debug/zsmalloc/zram0
+
+This patch adds a argument *name* to zs_create_pool() and other
+related functions.
+
+Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Cc: Seth Jennings <sjennings@variantweb.net>
+Cc: Nitin Gupta <ngupta@vflare.org>
+Cc: Dan Streetman <ddstreet@ieee.org>
+Acked-by: Minchan Kim <minchan@kernel.org>
+
 ---
- v2: fix patch miss-fold -- move out m68k changes from mips commit
+Change in V2:
+    add @name description in zpool_create_pool() function description
 ---
- arch/mips/include/asm/pgtable-32.h   | 36 ------------------------------------
- arch/mips/include/asm/pgtable-64.h   |  9 ---------
- arch/mips/include/asm/pgtable-bits.h |  9 ---------
- arch/mips/include/asm/pgtable.h      |  2 --
- 4 files changed, 56 deletions(-)
+ drivers/block/zram/zram_drv.c |    8 +++++---
+ include/linux/zpool.h         |    5 +++--
+ include/linux/zsmalloc.h      |    2 +-
+ mm/zbud.c                     |    3 ++-
+ mm/zpool.c                    |    6 ++++--
+ mm/zsmalloc.c                 |    6 +++---
+ mm/zswap.c                    |    5 +++--
+ 7 files changed, 21 insertions(+), 14 deletions(-)
 
-diff --git a/arch/mips/include/asm/pgtable-32.h b/arch/mips/include/asm/pgtable-32.h
-index 68984b612f9d..16aa9f23e17b 100644
---- a/arch/mips/include/asm/pgtable-32.h
-+++ b/arch/mips/include/asm/pgtable-32.h
-@@ -161,22 +161,6 @@ pfn_pte(unsigned long pfn, pgprot_t prot)
- #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) })
- #define __swp_entry_to_pte(x)		((pte_t) { (x).val })
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index bd8bda3..ebae0d9 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -314,9 +314,10 @@ static void zram_meta_free(struct zram_meta *meta)
+ 	kfree(meta);
+ }
  
--/*
-- * Encode and decode a nonlinear file mapping entry
-- */
--#define pte_to_pgoff(_pte)		((((_pte).pte >> 1 ) & 0x07) | \
--					 (((_pte).pte >> 2 ) & 0x38) | \
--					 (((_pte).pte >> 10) <<	 6 ))
--
--#define pgoff_to_pte(off)		((pte_t) { (((off) & 0x07) << 1 ) | \
--						   (((off) & 0x38) << 2 ) | \
--						   (((off) >>  6 ) << 10) | \
--						   _PAGE_FILE })
--
--/*
-- * Bits 0, 4, 8, and 9 are taken, split up 28 bits of offset into this range:
-- */
--#define PTE_FILE_MAX_BITS		28
- #else
+-static struct zram_meta *zram_meta_alloc(u64 disksize)
++static struct zram_meta *zram_meta_alloc(int device_id, u64 disksize)
+ {
+ 	size_t num_pages;
++	char pool_name[8];
+ 	struct zram_meta *meta = kmalloc(sizeof(*meta), GFP_KERNEL);
+ 	if (!meta)
+ 		goto out;
+@@ -328,7 +329,8 @@ static struct zram_meta *zram_meta_alloc(u64 disksize)
+ 		goto free_meta;
+ 	}
  
- #if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
-@@ -188,13 +172,6 @@ pfn_pte(unsigned long pfn, pgprot_t prot)
- #define __pte_to_swp_entry(pte)		((swp_entry_t) { (pte).pte_high })
- #define __swp_entry_to_pte(x)		((pte_t) { 0, (x).val })
+-	meta->mem_pool = zs_create_pool(GFP_NOIO | __GFP_HIGHMEM);
++	snprintf(pool_name, sizeof(pool_name), "zram%d", device_id);
++	meta->mem_pool = zs_create_pool(pool_name, GFP_NOIO | __GFP_HIGHMEM);
+ 	if (!meta->mem_pool) {
+ 		pr_err("Error creating memory pool\n");
+ 		goto free_table;
+@@ -765,7 +767,7 @@ static ssize_t disksize_store(struct device *dev,
+ 		return -EINVAL;
  
--/*
-- * Bits 0 and 1 of pte_high are taken, use the rest for the page offset...
-- */
--#define pte_to_pgoff(_pte)		((_pte).pte_high >> 2)
--#define pgoff_to_pte(off)		((pte_t) { _PAGE_FILE, (off) << 2 })
--
--#define PTE_FILE_MAX_BITS		30
- #else
- /*
-  * Constraints:
-@@ -209,19 +186,6 @@ pfn_pte(unsigned long pfn, pgprot_t prot)
- #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) })
- #define __swp_entry_to_pte(x)		((pte_t) { (x).val })
+ 	disksize = PAGE_ALIGN(disksize);
+-	meta = zram_meta_alloc(disksize);
++	meta = zram_meta_alloc(zram->disk->first_minor, disksize);
+ 	if (!meta)
+ 		return -ENOMEM;
  
--/*
-- * Encode and decode a nonlinear file mapping entry
-- */
--#define pte_to_pgoff(_pte)		((((_pte).pte >> 1) & 0x7) | \
--					 (((_pte).pte >> 2) & 0x8) | \
--					 (((_pte).pte >> 8) <<	4))
--
--#define pgoff_to_pte(off)		((pte_t) { (((off) & 0x7) << 1) | \
--						   (((off) & 0x8) << 2) | \
--						   (((off) >>  4) << 8) | \
--						   _PAGE_FILE })
--
--#define PTE_FILE_MAX_BITS		28
- #endif /* defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32) */
+diff --git a/include/linux/zpool.h b/include/linux/zpool.h
+index f14bd75..56529b3 100644
+--- a/include/linux/zpool.h
++++ b/include/linux/zpool.h
+@@ -36,7 +36,8 @@ enum zpool_mapmode {
+ 	ZPOOL_MM_DEFAULT = ZPOOL_MM_RW
+ };
  
- #endif /* defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX) */
-diff --git a/arch/mips/include/asm/pgtable-64.h b/arch/mips/include/asm/pgtable-64.h
-index e1c49a96807d..1659bb91ae21 100644
---- a/arch/mips/include/asm/pgtable-64.h
-+++ b/arch/mips/include/asm/pgtable-64.h
-@@ -291,13 +291,4 @@ static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
- #define __pte_to_swp_entry(pte) ((swp_entry_t) { pte_val(pte) })
- #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
+-struct zpool *zpool_create_pool(char *type, gfp_t gfp, struct zpool_ops *ops);
++struct zpool *zpool_create_pool(char *type, char *name,
++			gfp_t gfp, struct zpool_ops *ops);
  
--/*
-- * Bits 0, 4, 6, and 7 are taken. Let's leave bits 1, 2, 3, and 5 alone to
-- * make things easier, and only use the upper 56 bits for the page offset...
-- */
--#define PTE_FILE_MAX_BITS	56
--
--#define pte_to_pgoff(_pte)	((_pte).pte >> 8)
--#define pgoff_to_pte(off)	((pte_t) { ((off) << 8) | _PAGE_FILE })
--
- #endif /* _ASM_PGTABLE_64_H */
-diff --git a/arch/mips/include/asm/pgtable-bits.h b/arch/mips/include/asm/pgtable-bits.h
-index ca11f14f40a3..fc807aa5ec8d 100644
---- a/arch/mips/include/asm/pgtable-bits.h
-+++ b/arch/mips/include/asm/pgtable-bits.h
-@@ -48,8 +48,6 @@
+ char *zpool_get_type(struct zpool *pool);
  
- /*
-  * The following bits are implemented in software
-- *
-- * _PAGE_FILE semantics: set:pagecache unset:swap
-  */
- #define _PAGE_PRESENT_SHIFT	(_CACHE_SHIFT + 3)
- #define _PAGE_PRESENT		(1 << _PAGE_PRESENT_SHIFT)
-@@ -64,7 +62,6 @@
+@@ -80,7 +81,7 @@ struct zpool_driver {
+ 	atomic_t refcount;
+ 	struct list_head list;
  
- #define _PAGE_SILENT_READ	_PAGE_VALID
- #define _PAGE_SILENT_WRITE	_PAGE_DIRTY
--#define _PAGE_FILE		_PAGE_MODIFIED
+-	void *(*create)(gfp_t gfp, struct zpool_ops *ops);
++	void *(*create)(char *name, gfp_t gfp, struct zpool_ops *ops);
+ 	void (*destroy)(void *pool);
  
- #define _PFN_SHIFT		(PAGE_SHIFT - 12 + _CACHE_SHIFT + 3)
+ 	int (*malloc)(void *pool, size_t size, gfp_t gfp,
+diff --git a/include/linux/zsmalloc.h b/include/linux/zsmalloc.h
+index 05c2147..3283c6a 100644
+--- a/include/linux/zsmalloc.h
++++ b/include/linux/zsmalloc.h
+@@ -36,7 +36,7 @@ enum zs_mapmode {
  
-@@ -72,8 +69,6 @@
+ struct zs_pool;
  
- /*
-  * The following are implemented by software
-- *
-- * _PAGE_FILE semantics: set:pagecache unset:swap
-  */
- #define _PAGE_PRESENT_SHIFT	0
- #define _PAGE_PRESENT		(1 <<  _PAGE_PRESENT_SHIFT)
-@@ -85,8 +80,6 @@
- #define _PAGE_ACCESSED		(1 <<  _PAGE_ACCESSED_SHIFT)
- #define _PAGE_MODIFIED_SHIFT	4
- #define _PAGE_MODIFIED		(1 <<  _PAGE_MODIFIED_SHIFT)
--#define _PAGE_FILE_SHIFT	4
--#define _PAGE_FILE		(1 <<  _PAGE_FILE_SHIFT)
+-struct zs_pool *zs_create_pool(gfp_t flags);
++struct zs_pool *zs_create_pool(char *name, gfp_t flags);
+ void zs_destroy_pool(struct zs_pool *pool);
  
- /*
-  * And these are the hardware TLB bits
-@@ -116,7 +109,6 @@
-  * The following bits are implemented in software
+ unsigned long zs_malloc(struct zs_pool *pool, size_t size);
+diff --git a/mm/zbud.c b/mm/zbud.c
+index db8de74..6d7f128 100644
+--- a/mm/zbud.c
++++ b/mm/zbud.c
+@@ -130,7 +130,8 @@ static struct zbud_ops zbud_zpool_ops = {
+ 	.evict =	zbud_zpool_evict
+ };
+ 
+-static void *zbud_zpool_create(gfp_t gfp, struct zpool_ops *zpool_ops)
++static void *zbud_zpool_create(char *name, gfp_t gfp,
++			struct zpool_ops *zpool_ops)
+ {
+ 	return zbud_create_pool(gfp, zpool_ops ? &zbud_zpool_ops : NULL);
+ }
+diff --git a/mm/zpool.c b/mm/zpool.c
+index 739cdf0..bacdab6 100644
+--- a/mm/zpool.c
++++ b/mm/zpool.c
+@@ -129,6 +129,7 @@ static void zpool_put_driver(struct zpool_driver *driver)
+ /**
+  * zpool_create_pool() - Create a new zpool
+  * @type	The type of the zpool to create (e.g. zbud, zsmalloc)
++ * @name	The name of the zpool (e.g. zram0, zswap)
+  * @gfp		The GFP flags to use when allocating the pool.
+  * @ops		The optional ops callback.
   *
-  * _PAGE_READ / _PAGE_READ_SHIFT should be unused if cpu_has_rixi.
-- * _PAGE_FILE semantics: set:pagecache unset:swap
+@@ -140,7 +141,8 @@ static void zpool_put_driver(struct zpool_driver *driver)
+  *
+  * Returns: New zpool on success, NULL on failure.
   */
- #define _PAGE_PRESENT_SHIFT	(0)
- #define _PAGE_PRESENT		(1 << _PAGE_PRESENT_SHIFT)
-@@ -128,7 +120,6 @@
- #define _PAGE_ACCESSED		(1 << _PAGE_ACCESSED_SHIFT)
- #define _PAGE_MODIFIED_SHIFT	(_PAGE_ACCESSED_SHIFT + 1)
- #define _PAGE_MODIFIED		(1 << _PAGE_MODIFIED_SHIFT)
--#define _PAGE_FILE		(_PAGE_MODIFIED)
- 
- #ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
- /* huge tlb page */
-diff --git a/arch/mips/include/asm/pgtable.h b/arch/mips/include/asm/pgtable.h
-index 62a6ba383d4f..583ff4215479 100644
---- a/arch/mips/include/asm/pgtable.h
-+++ b/arch/mips/include/asm/pgtable.h
-@@ -231,7 +231,6 @@ extern pgd_t swapper_pg_dir[];
- static inline int pte_write(pte_t pte)	{ return pte.pte_low & _PAGE_WRITE; }
- static inline int pte_dirty(pte_t pte)	{ return pte.pte_low & _PAGE_MODIFIED; }
- static inline int pte_young(pte_t pte)	{ return pte.pte_low & _PAGE_ACCESSED; }
--static inline int pte_file(pte_t pte)	{ return pte.pte_low & _PAGE_FILE; }
- 
- static inline pte_t pte_wrprotect(pte_t pte)
+-struct zpool *zpool_create_pool(char *type, gfp_t gfp, struct zpool_ops *ops)
++struct zpool *zpool_create_pool(char *type, char *name, gfp_t gfp,
++		struct zpool_ops *ops)
  {
-@@ -287,7 +286,6 @@ static inline pte_t pte_mkyoung(pte_t pte)
- static inline int pte_write(pte_t pte)	{ return pte_val(pte) & _PAGE_WRITE; }
- static inline int pte_dirty(pte_t pte)	{ return pte_val(pte) & _PAGE_MODIFIED; }
- static inline int pte_young(pte_t pte)	{ return pte_val(pte) & _PAGE_ACCESSED; }
--static inline int pte_file(pte_t pte)	{ return pte_val(pte) & _PAGE_FILE; }
+ 	struct zpool_driver *driver;
+ 	struct zpool *zpool;
+@@ -168,7 +170,7 @@ struct zpool *zpool_create_pool(char *type, gfp_t gfp, struct zpool_ops *ops)
  
- static inline pte_t pte_wrprotect(pte_t pte)
+ 	zpool->type = driver->type;
+ 	zpool->driver = driver;
+-	zpool->pool = driver->create(gfp, ops);
++	zpool->pool = driver->create(name, gfp, ops);
+ 	zpool->ops = ops;
+ 
+ 	if (!zpool->pool) {
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index b724039..2359e61 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -246,9 +246,9 @@ struct mapping_area {
+ 
+ #ifdef CONFIG_ZPOOL
+ 
+-static void *zs_zpool_create(gfp_t gfp, struct zpool_ops *zpool_ops)
++static void *zs_zpool_create(char *name, gfp_t gfp, struct zpool_ops *zpool_ops)
  {
+-	return zs_create_pool(gfp);
++	return zs_create_pool(name, gfp);
+ }
+ 
+ static void zs_zpool_destroy(void *pool)
+@@ -1148,7 +1148,7 @@ EXPORT_SYMBOL_GPL(zs_free);
+  * On success, a pointer to the newly created pool is returned,
+  * otherwise NULL.
+  */
+-struct zs_pool *zs_create_pool(gfp_t flags)
++struct zs_pool *zs_create_pool(char *name, gfp_t flags)
+ {
+ 	int i;
+ 	struct zs_pool *pool;
+diff --git a/mm/zswap.c b/mm/zswap.c
+index 373326b..a358823 100644
+--- a/mm/zswap.c
++++ b/mm/zswap.c
+@@ -906,11 +906,12 @@ static int __init init_zswap(void)
+ 
+ 	pr_info("loading zswap\n");
+ 
+-	zswap_pool = zpool_create_pool(zswap_zpool_type, gfp, &zswap_zpool_ops);
++	zswap_pool = zpool_create_pool(zswap_zpool_type, "zswap", gfp,
++					&zswap_zpool_ops);
+ 	if (!zswap_pool && strcmp(zswap_zpool_type, ZSWAP_ZPOOL_DEFAULT)) {
+ 		pr_info("%s zpool not available\n", zswap_zpool_type);
+ 		zswap_zpool_type = ZSWAP_ZPOOL_DEFAULT;
+-		zswap_pool = zpool_create_pool(zswap_zpool_type, gfp,
++		zswap_pool = zpool_create_pool(zswap_zpool_type, "zswap", gfp,
+ 					&zswap_zpool_ops);
+ 	}
+ 	if (!zswap_pool) {
 -- 
-2.1.4
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
