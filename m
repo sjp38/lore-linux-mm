@@ -1,60 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id EDF3E6B0038
-	for <linux-mm@kvack.org>; Mon, 29 Dec 2014 05:40:43 -0500 (EST)
-Received: by mail-wg0-f53.google.com with SMTP id x13so740845wgg.26
-        for <linux-mm@kvack.org>; Mon, 29 Dec 2014 02:40:43 -0800 (PST)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.203])
-        by mx.google.com with ESMTP id bc4si58068973wib.2.2014.12.29.02.40.42
-        for <linux-mm@kvack.org>;
-        Mon, 29 Dec 2014 02:40:43 -0800 (PST)
-Date: Mon, 29 Dec 2014 12:37:57 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 30/38] s390: drop pte_file()-related helpers
-Message-ID: <20141229103757.GA379@node.dhcp.inet.fi>
-References: <1419423766-114457-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1419423766-114457-31-git-send-email-kirill.shutemov@linux.intel.com>
- <20141229110727.75afa56d@mschwide>
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 764256B0038
+	for <linux-mm@kvack.org>; Mon, 29 Dec 2014 06:59:14 -0500 (EST)
+Received: by mail-pd0-f169.google.com with SMTP id z10so17018335pdj.14
+        for <linux-mm@kvack.org>; Mon, 29 Dec 2014 03:59:14 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id fh5si53035486pad.163.2014.12.29.03.59.12
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 Dec 2014 03:59:12 -0800 (PST)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH TRIVIAL] swap: remove unused mem_cgroup_uncharge_swapcache declaration
+Date: Mon, 29 Dec 2014 14:58:57 +0300
+Message-ID: <1419854337-15161-1-git-send-email-vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141229110727.75afa56d@mschwide>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, akpm@linux-foundation.org, peterz@infradead.org, mingo@kernel.org, davej@redhat.com, sasha.levin@oracle.com, hughd@google.com, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Heiko Carstens <heiko.carstens@de.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Dec 29, 2014 at 11:07:27AM +0100, Martin Schwidefsky wrote:
-> On Wed, 24 Dec 2014 14:22:38 +0200
-> "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
-> 
-> > We've replaced remap_file_pages(2) implementation with emulation.
-> > Nobody creates non-linear mapping anymore.
-> > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> > Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-> > ---
-> > @@ -279,7 +279,6 @@ static inline int is_module_addr(void *addr)
-> >   *
-> >   * pte_present is true for the bit pattern .xx...xxxxx1, (pte & 0x001) == 0x001
-> >   * pte_none    is true for the bit pattern .10...xxxx00, (pte & 0x603) == 0x400
-> > - * pte_file    is true for the bit pattern .11...xxxxx0, (pte & 0x601) == 0x600
-> >   * pte_swap    is true for the bit pattern .10...xxxx10, (pte & 0x603) == 0x402
-> >   */
->  
-> Nice, once this is upstream I can free up one of the software bits in
-> the pte by redefining the type bits. Right now all of them are used up.
-> Is the removal of non-linear mappings a done deal ?
+The body of this function was removed by commit 0a31bc97c80c ("mm:
+memcontrol: rewrite uncharge API").
 
-Yes, if no horrible regression will be reported. We don't create
-non-linear mapping in -mm (and -next) tree for a few release cycles.
-Nobody complained so far.
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+---
+ include/linux/swap.h |   15 ---------------
+ mm/shmem.c           |    2 +-
+ 2 files changed, 1 insertion(+), 16 deletions(-)
 
-Ack?
-
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 34e8b60ab973..7067eca501e2 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -437,16 +437,6 @@ extern int reuse_swap_page(struct page *);
+ extern int try_to_free_swap(struct page *);
+ struct backing_dev_info;
+ 
+-#ifdef CONFIG_MEMCG
+-extern void
+-mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout);
+-#else
+-static inline void
+-mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout)
+-{
+-}
+-#endif
+-
+ #else /* CONFIG_SWAP */
+ 
+ #define swap_address_space(entry)		(NULL)
+@@ -547,11 +537,6 @@ static inline swp_entry_t get_swap_page(void)
+ 	return entry;
+ }
+ 
+-static inline void
+-mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent)
+-{
+-}
+-
+ #endif /* CONFIG_SWAP */
+ #endif /* __KERNEL__*/
+ #endif /* _LINUX_SWAP_H */
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 185836ba53ef..0c92e925c4bf 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1131,7 +1131,7 @@ repeat:
+ 			 * truncated or holepunched since swap was confirmed.
+ 			 * shmem_undo_range() will have done some of the
+ 			 * unaccounting, now delete_from_swap_cache() will do
+-			 * the rest (including mem_cgroup_uncharge_swapcache).
++			 * the rest.
+ 			 * Reset swap.val? No, leave it so "failed" goes back to
+ 			 * "repeat": reading a hole and writing should succeed.
+ 			 */
 -- 
- Kirill A. Shutemov
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
