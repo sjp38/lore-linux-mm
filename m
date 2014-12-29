@@ -1,30 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 594286B0038
-	for <linux-mm@kvack.org>; Mon, 29 Dec 2014 16:03:04 -0500 (EST)
-Received: by mail-ig0-f169.google.com with SMTP id z20so998644igj.4
-        for <linux-mm@kvack.org>; Mon, 29 Dec 2014 13:03:04 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id be3si72620586wjb.76.2014.12.29.04.32.27
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E00A6B0038
+	for <linux-mm@kvack.org>; Mon, 29 Dec 2014 16:11:29 -0500 (EST)
+Received: by mail-ig0-f182.google.com with SMTP id hn15so11846377igb.15
+        for <linux-mm@kvack.org>; Mon, 29 Dec 2014 13:11:29 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id w6si6619607icy.84.2014.12.29.13.11.27
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 29 Dec 2014 04:32:27 -0800 (PST)
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH 0/2] oom and TIF_MEMDIE setting to mm-less tasks fixes
-Date: Mon, 29 Dec 2014 13:32:05 +0100
-Message-Id: <1419856327-673-1-git-send-email-mhocko@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 Dec 2014 13:11:28 -0800 (PST)
+Message-ID: <54A1C37D.5000106@codeaurora.org>
+Date: Mon, 29 Dec 2014 13:11:25 -0800
+From: Laura Abbott <lauraa@codeaurora.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/3] mm: cma: introduce /proc/cmainfo
+References: <cover.1419602920.git.s.strogin@partner.samsung.com> <264ce8ad192124f2afec9a71a2fc28779d453ba7.1419602920.git.s.strogin@partner.samsung.com>
+In-Reply-To: <264ce8ad192124f2afec9a71a2fc28779d453ba7.1419602920.git.s.strogin@partner.samsung.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: "Stefan I. Strogin" <s.strogin@partner.samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Dmitry Safonov <d.safonov@partner.samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Minchan Kim <minchan@kernel.org>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>
 
-Hi Andrew,
-could you pick up these two fixes which came out of a longer discussion
-started here: http://marc.info/?l=linux-mm&m=141839249819519. The thread
-became quite confusing as multiple issues were discussed there so I think
-reposting them in a new thread will make more sense.
+On 12/26/2014 6:39 AM, Stefan I. Strogin wrote:
+> /proc/cmainfo contains a list of currently allocated CMA buffers for every
+> CMA area when CONFIG_CMA_DEBUG is enabled.
+>
+> Format is:
+>
+> <base_phys_addr> - <end_phys_addr> (<size> kB), allocated by <PID>\
+> 		(<command name>), latency <allocation latency> us
+>   <stack backtrace when the buffer had been allocated>
+>
+> Signed-off-by: Stefan I. Strogin <s.strogin@partner.samsung.com>
+> ---
+...
+> +static int __init proc_cmainfo_init(void)
+> +{
+> +	proc_create("cmainfo", S_IRUSR, NULL, &proc_cmainfo_operations);
+> +	return 0;
+> +}
+> +
+> +module_init(proc_cmainfo_init);
+> +#endif /* CONFIG_CMA_DEBUG */
+>
 
-Thanks
+This seems better suited to debugfs over procfs, especially since the
+option can be turned off. It would be helpful to break it
+down by cma region as well to make it easier on systems with a lot
+of regions.
+
+Thanks,
+Laura
+
+-- 
+Qualcomm Innovation Center, Inc.
+Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
+a Linux Foundation Collaborative Project
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
