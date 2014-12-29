@@ -1,217 +1,505 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 2ED066B0038
-	for <linux-mm@kvack.org>; Mon, 29 Dec 2014 07:28:07 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id lf10so17251559pab.5
-        for <linux-mm@kvack.org>; Mon, 29 Dec 2014 04:28:06 -0800 (PST)
-Received: from mail-pd0-x231.google.com (mail-pd0-x231.google.com. [2607:f8b0:400e:c02::231])
-        by mx.google.com with ESMTPS id gg7si6872155pbc.108.2014.12.29.04.28.04
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id DC5A86B006C
+	for <linux-mm@kvack.org>; Mon, 29 Dec 2014 07:29:03 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id bj1so17287134pad.23
+        for <linux-mm@kvack.org>; Mon, 29 Dec 2014 04:29:03 -0800 (PST)
+Received: from mail-pd0-x22b.google.com (mail-pd0-x22b.google.com. [2607:f8b0:400e:c02::22b])
+        by mx.google.com with ESMTPS id km10si53208391pbd.45.2014.12.29.04.29.01
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 29 Dec 2014 04:28:05 -0800 (PST)
-Received: by mail-pd0-f177.google.com with SMTP id ft15so16990513pdb.22
-        for <linux-mm@kvack.org>; Mon, 29 Dec 2014 04:28:04 -0800 (PST)
+        Mon, 29 Dec 2014 04:29:02 -0800 (PST)
+Received: by mail-pd0-f171.google.com with SMTP id y13so17077020pdi.16
+        for <linux-mm@kvack.org>; Mon, 29 Dec 2014 04:29:01 -0800 (PST)
 From: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Subject: [PATCH V2 1/2] mm/zpool: add name argument to create zpool
-Date: Mon, 29 Dec 2014 20:27:47 +0800
-Message-Id: <1419856067-6180-1-git-send-email-opensource.ganesh@gmail.com>
+Subject: [PATCH V2 2/2] mm/zsmalloc: add statistics support
+Date: Mon, 29 Dec 2014 20:28:44 +0800
+Message-Id: <1419856124-6232-1-git-send-email-opensource.ganesh@gmail.com>
+In-Reply-To: <y>
+References: <y>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: minchan@kernel.org, ngupta@vflare.org, sjennings@variantweb.net, ddstreet@ieee.org, akpm@linux-foundation.org
+To: minchan@kernel.org, ngupta@vflare.org, akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ganesh Mahendran <opensource.ganesh@gmail.com>
 
-Currently the underlay of zpool: zsmalloc/zbud, do not know
-who creates them. There is not a method to let zsmalloc/zbud
-find which caller they belogs to.
+Keeping fragmentation of zsmalloc in a low level is our target. But now
+we still need to add the debug code in zsmalloc to get the quantitative data.
 
-Now we want to add statistics collection in zsmalloc. We need
-to name the debugfs dir for each pool created. The way suggested
-by Minchan Kim is to use a name passed by caller(such as zram)
-to create the zsmalloc pool.
-    /sys/kernel/debug/zsmalloc/zram0
+This patch adds a new configuration CONFIG_ZSMALLOC_STAT to enable the
+statistics collection for developers. Currently only the objects statatitics
+in each class are collected. User can get the information via debugfs.
+     cat /sys/kernel/debug/zsmalloc/zram0/...
 
-This patch adds a argument *name* to zs_create_pool() and other
-related functions.
+For example:
+
+After I copied "jdk-8u25-linux-x64.tar.gz" to zram with ext4 filesystem:
+ class  size obj_allocated   obj_used pages_used
+     0    32             0          0          0
+     1    48           256         12          3
+     2    64            64         14          1
+     3    80            51          7          1
+     4    96           128          5          3
+     5   112            73          5          2
+     6   128            32          4          1
+     7   144             0          0          0
+     8   160             0          0          0
+     9   176             0          0          0
+    10   192             0          0          0
+    11   208             0          0          0
+    12   224             0          0          0
+    13   240             0          0          0
+    14   256            16          1          1
+    15   272            15          9          1
+    16   288             0          0          0
+    17   304             0          0          0
+    18   320             0          0          0
+    19   336             0          0          0
+    20   352             0          0          0
+    21   368             0          0          0
+    22   384             0          0          0
+    23   400             0          0          0
+    24   416             0          0          0
+    25   432             0          0          0
+    26   448             0          0          0
+    27   464             0          0          0
+    28   480             0          0          0
+    29   496            33          1          4
+    30   512             0          0          0
+    31   528             0          0          0
+    32   544             0          0          0
+    33   560             0          0          0
+    34   576             0          0          0
+    35   592             0          0          0
+    36   608             0          0          0
+    37   624             0          0          0
+    38   640             0          0          0
+    40   672             0          0          0
+    42   704             0          0          0
+    43   720            17          1          3
+    44   736             0          0          0
+    46   768             0          0          0
+    49   816             0          0          0
+    51   848             0          0          0
+    52   864            14          1          3
+    54   896             0          0          0
+    57   944            13          1          3
+    58   960             0          0          0
+    62  1024             4          1          1
+    66  1088            15          2          4
+    67  1104             0          0          0
+    71  1168             0          0          0
+    74  1216             0          0          0
+    76  1248             0          0          0
+    83  1360             3          1          1
+    91  1488            11          1          4
+    94  1536             0          0          0
+   100  1632             5          1          2
+   107  1744             0          0          0
+   111  1808             9          1          4
+   126  2048             4          4          2
+   144  2336             7          3          4
+   151  2448             0          0          0
+   168  2720            15         15         10
+   190  3072            28         27         21
+   202  3264             0          0          0
+   254  4096         36209      36209      36209
+
+ Total               37022      36326      36288
+
+We can calculate the overall fragentation by the last line:
+    Total               37022      36326      36288
+    (37022 - 36326) / 37022 = 1.87%
+
+Also by analysing objects alocated in every class we know why we got so low fragmentation:
+    Most of the allocated objects is in <class 254>. And there is only 1 page in class
+    254 zspage.  So, No fragmentation will be introduced by allocating objs in class 254.
+
+And in the future, we can collect other zsmalloc statistics as we need and analyse them.
 
 Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Cc: Seth Jennings <sjennings@variantweb.net>
+Suggested-by: Minchan Kim <minchan@kernel.org>
 Cc: Nitin Gupta <ngupta@vflare.org>
-Cc: Dan Streetman <ddstreet@ieee.org>
 Acked-by: Minchan Kim <minchan@kernel.org>
 
 ---
 Change in V2:
-    add @name description in zpool_create_pool() function description
+    use array in struct zs_size_stat -- Minchan
 ---
- drivers/block/zram/zram_drv.c |    8 +++++---
- include/linux/zpool.h         |    5 +++--
- include/linux/zsmalloc.h      |    2 +-
- mm/zbud.c                     |    3 ++-
- mm/zpool.c                    |    6 ++++--
- mm/zsmalloc.c                 |    6 +++---
- mm/zswap.c                    |    5 +++--
- 7 files changed, 21 insertions(+), 14 deletions(-)
+ mm/Kconfig    |   10 +++
+ mm/zsmalloc.c |  233 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 239 insertions(+), 4 deletions(-)
 
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index bd8bda3..ebae0d9 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -314,9 +314,10 @@ static void zram_meta_free(struct zram_meta *meta)
- 	kfree(meta);
- }
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 1d1ae6b..95c5728 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -601,6 +601,16 @@ config PGTABLE_MAPPING
+ 	  You can check speed with zsmalloc benchmark:
+ 	  https://github.com/spartacus06/zsmapbench
  
--static struct zram_meta *zram_meta_alloc(u64 disksize)
-+static struct zram_meta *zram_meta_alloc(int device_id, u64 disksize)
- {
- 	size_t num_pages;
-+	char pool_name[8];
- 	struct zram_meta *meta = kmalloc(sizeof(*meta), GFP_KERNEL);
- 	if (!meta)
- 		goto out;
-@@ -328,7 +329,8 @@ static struct zram_meta *zram_meta_alloc(u64 disksize)
- 		goto free_meta;
- 	}
++config ZSMALLOC_STAT
++	bool "Export zsmalloc statistics"
++	depends on ZSMALLOC
++	select DEBUG_FS
++	help
++	  This option enables code in the zsmalloc to collect various
++	  statistics about whats happening in zsmalloc and exports that
++	  information to userspace via debugfs.
++	  If unsure, say N.
++
+ config GENERIC_EARLY_IOREMAP
+ 	bool
  
--	meta->mem_pool = zs_create_pool(GFP_NOIO | __GFP_HIGHMEM);
-+	snprintf(pool_name, sizeof(pool_name), "zram%d", device_id);
-+	meta->mem_pool = zs_create_pool(pool_name, GFP_NOIO | __GFP_HIGHMEM);
- 	if (!meta->mem_pool) {
- 		pr_err("Error creating memory pool\n");
- 		goto free_table;
-@@ -765,7 +767,7 @@ static ssize_t disksize_store(struct device *dev,
- 		return -EINVAL;
- 
- 	disksize = PAGE_ALIGN(disksize);
--	meta = zram_meta_alloc(disksize);
-+	meta = zram_meta_alloc(zram->disk->first_minor, disksize);
- 	if (!meta)
- 		return -ENOMEM;
- 
-diff --git a/include/linux/zpool.h b/include/linux/zpool.h
-index f14bd75..56529b3 100644
---- a/include/linux/zpool.h
-+++ b/include/linux/zpool.h
-@@ -36,7 +36,8 @@ enum zpool_mapmode {
- 	ZPOOL_MM_DEFAULT = ZPOOL_MM_RW
- };
- 
--struct zpool *zpool_create_pool(char *type, gfp_t gfp, struct zpool_ops *ops);
-+struct zpool *zpool_create_pool(char *type, char *name,
-+			gfp_t gfp, struct zpool_ops *ops);
- 
- char *zpool_get_type(struct zpool *pool);
- 
-@@ -80,7 +81,7 @@ struct zpool_driver {
- 	atomic_t refcount;
- 	struct list_head list;
- 
--	void *(*create)(gfp_t gfp, struct zpool_ops *ops);
-+	void *(*create)(char *name, gfp_t gfp, struct zpool_ops *ops);
- 	void (*destroy)(void *pool);
- 
- 	int (*malloc)(void *pool, size_t size, gfp_t gfp,
-diff --git a/include/linux/zsmalloc.h b/include/linux/zsmalloc.h
-index 05c2147..3283c6a 100644
---- a/include/linux/zsmalloc.h
-+++ b/include/linux/zsmalloc.h
-@@ -36,7 +36,7 @@ enum zs_mapmode {
- 
- struct zs_pool;
- 
--struct zs_pool *zs_create_pool(gfp_t flags);
-+struct zs_pool *zs_create_pool(char *name, gfp_t flags);
- void zs_destroy_pool(struct zs_pool *pool);
- 
- unsigned long zs_malloc(struct zs_pool *pool, size_t size);
-diff --git a/mm/zbud.c b/mm/zbud.c
-index db8de74..6d7f128 100644
---- a/mm/zbud.c
-+++ b/mm/zbud.c
-@@ -130,7 +130,8 @@ static struct zbud_ops zbud_zpool_ops = {
- 	.evict =	zbud_zpool_evict
- };
- 
--static void *zbud_zpool_create(gfp_t gfp, struct zpool_ops *zpool_ops)
-+static void *zbud_zpool_create(char *name, gfp_t gfp,
-+			struct zpool_ops *zpool_ops)
- {
- 	return zbud_create_pool(gfp, zpool_ops ? &zbud_zpool_ops : NULL);
- }
-diff --git a/mm/zpool.c b/mm/zpool.c
-index 739cdf0..bacdab6 100644
---- a/mm/zpool.c
-+++ b/mm/zpool.c
-@@ -129,6 +129,7 @@ static void zpool_put_driver(struct zpool_driver *driver)
- /**
-  * zpool_create_pool() - Create a new zpool
-  * @type	The type of the zpool to create (e.g. zbud, zsmalloc)
-+ * @name	The name of the zpool (e.g. zram0, zswap)
-  * @gfp		The GFP flags to use when allocating the pool.
-  * @ops		The optional ops callback.
-  *
-@@ -140,7 +141,8 @@ static void zpool_put_driver(struct zpool_driver *driver)
-  *
-  * Returns: New zpool on success, NULL on failure.
-  */
--struct zpool *zpool_create_pool(char *type, gfp_t gfp, struct zpool_ops *ops)
-+struct zpool *zpool_create_pool(char *type, char *name, gfp_t gfp,
-+		struct zpool_ops *ops)
- {
- 	struct zpool_driver *driver;
- 	struct zpool *zpool;
-@@ -168,7 +170,7 @@ struct zpool *zpool_create_pool(char *type, gfp_t gfp, struct zpool_ops *ops)
- 
- 	zpool->type = driver->type;
- 	zpool->driver = driver;
--	zpool->pool = driver->create(gfp, ops);
-+	zpool->pool = driver->create(name, gfp, ops);
- 	zpool->ops = ops;
- 
- 	if (!zpool->pool) {
 diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index b724039..2359e61 100644
+index 2359e61..2d5f5be 100644
 --- a/mm/zsmalloc.c
 +++ b/mm/zsmalloc.c
-@@ -246,9 +246,9 @@ struct mapping_area {
+@@ -91,6 +91,7 @@
+ #include <linux/hardirq.h>
+ #include <linux/spinlock.h>
+ #include <linux/types.h>
++#include <linux/debugfs.h>
+ #include <linux/zsmalloc.h>
+ #include <linux/zpool.h>
  
- #ifdef CONFIG_ZPOOL
+@@ -168,6 +169,22 @@ enum fullness_group {
+ 	ZS_FULL
+ };
  
--static void *zs_zpool_create(gfp_t gfp, struct zpool_ops *zpool_ops)
-+static void *zs_zpool_create(char *name, gfp_t gfp, struct zpool_ops *zpool_ops)
- {
--	return zs_create_pool(gfp);
-+	return zs_create_pool(name, gfp);
++enum zs_stat_type {
++	OBJ_ALLOCATED,
++	OBJ_USED,
++	NR_ZS_STAT_TYPE,
++};
++
++#ifdef CONFIG_ZSMALLOC_STAT
++
++static struct dentry *zs_stat_root;
++
++struct zs_size_stat {
++	unsigned long objs[NR_ZS_STAT_TYPE];
++};
++
++#endif
++
+ /*
+  * number of size_classes
+  */
+@@ -200,6 +217,10 @@ struct size_class {
+ 	/* Number of PAGE_SIZE sized pages to combine to form a 'zspage' */
+ 	int pages_per_zspage;
+ 
++#ifdef CONFIG_ZSMALLOC_STAT
++	struct zs_size_stat stats;
++#endif
++
+ 	spinlock_t lock;
+ 
+ 	struct page *fullness_list[_ZS_NR_FULLNESS_GROUPS];
+@@ -217,10 +238,16 @@ struct link_free {
+ };
+ 
+ struct zs_pool {
++	char *name;
++
+ 	struct size_class **size_class;
+ 
+ 	gfp_t flags;	/* allocation flags used when growing pool */
+ 	atomic_long_t pages_allocated;
++
++#ifdef CONFIG_ZSMALLOC_STAT
++	struct dentry *stat_dentry;
++#endif
+ };
+ 
+ /*
+@@ -942,6 +969,166 @@ static bool can_merge(struct size_class *prev, int size, int pages_per_zspage)
+ 	return true;
  }
  
- static void zs_zpool_destroy(void *pool)
-@@ -1148,7 +1148,7 @@ EXPORT_SYMBOL_GPL(zs_free);
-  * On success, a pointer to the newly created pool is returned,
-  * otherwise NULL.
-  */
--struct zs_pool *zs_create_pool(gfp_t flags)
-+struct zs_pool *zs_create_pool(char *name, gfp_t flags)
++#ifdef CONFIG_ZSMALLOC_STAT
++
++static inline void zs_stat_inc(struct size_class *class,
++				enum zs_stat_type type, unsigned long cnt)
++{
++	class->stats.objs[type] += cnt;
++}
++
++static inline void zs_stat_dec(struct size_class *class,
++				enum zs_stat_type type, unsigned long cnt)
++{
++	class->stats.objs[type] -= cnt;
++}
++
++static inline unsigned long zs_stat_get(struct size_class *class,
++				enum zs_stat_type type)
++{
++	return class->stats.objs[type];
++}
++
++static int __init zs_stat_init(void)
++{
++	if (!debugfs_initialized())
++		return -ENODEV;
++
++	zs_stat_root = debugfs_create_dir("zsmalloc", NULL);
++	if (!zs_stat_root)
++		return -ENOMEM;
++
++	return 0;
++}
++
++static void __exit zs_stat_exit(void)
++{
++	debugfs_remove_recursive(zs_stat_root);
++}
++
++static int zs_stats_size_show(struct seq_file *s, void *v)
++{
++	int i;
++	struct zs_pool *pool = s->private;
++	struct size_class *class;
++	int objs_per_zspage;
++	unsigned long obj_allocated, obj_used, pages_used;
++	unsigned long total_objs = 0, total_used_objs = 0, total_pages = 0;
++
++	seq_printf(s, " %5s %5s %13s %10s %10s\n", "class", "size",
++				"obj_allocated", "obj_used", "pages_used");
++
++	for (i = 0; i < zs_size_classes; i++) {
++		class = pool->size_class[i];
++
++		if (class->index != i)
++			continue;
++
++		spin_lock(&class->lock);
++		obj_allocated = zs_stat_get(class, OBJ_ALLOCATED);
++		obj_used = zs_stat_get(class, OBJ_USED);
++		spin_unlock(&class->lock);
++
++		objs_per_zspage = get_maxobj_per_zspage(class->size,
++				class->pages_per_zspage);
++		pages_used = obj_allocated / objs_per_zspage *
++				class->pages_per_zspage;
++
++		seq_printf(s, " %5u %5u    %10lu %10lu %10lu\n", i,
++			class->size, obj_allocated, obj_used, pages_used);
++
++		total_objs += obj_allocated;
++		total_used_objs += obj_used;
++		total_pages += pages_used;
++	}
++
++	seq_puts(s, "\n");
++	seq_printf(s, " %5s %5s    %10lu %10lu %10lu\n", "Total", "",
++			total_objs, total_used_objs, total_pages);
++
++	return 0;
++}
++
++static int zs_stats_size_open(struct inode *inode, struct file *file)
++{
++	return single_open(file, zs_stats_size_show, inode->i_private);
++}
++
++static const struct file_operations zs_stat_size_ops = {
++	.open           = zs_stats_size_open,
++	.read           = seq_read,
++	.llseek         = seq_lseek,
++	.release        = single_release,
++};
++
++static int zs_pool_stat_create(char *name, struct zs_pool *pool)
++{
++	struct dentry *entry;
++
++	if (!zs_stat_root)
++		return -ENODEV;
++
++	entry = debugfs_create_dir(name, zs_stat_root);
++	if (!entry) {
++		pr_warn("debugfs dir <%s> creation failed\n", name);
++		return -ENOMEM;
++	}
++	pool->stat_dentry = entry;
++
++	entry = debugfs_create_file("obj_in_classes", S_IFREG | S_IRUGO,
++			pool->stat_dentry, pool, &zs_stat_size_ops);
++	if (!entry) {
++		pr_warn("%s: debugfs file entry <%s> creation failed\n",
++				name, "obj_in_classes");
++		return -ENOMEM;
++	}
++
++	return 0;
++}
++
++static void zs_pool_stat_destroy(struct zs_pool *pool)
++{
++	debugfs_remove_recursive(pool->stat_dentry);
++}
++
++#else /* CONFIG_ZSMALLOC_STAT */
++
++static inline void zs_stat_inc(struct size_class *class,
++				enum zs_stat_type type, unsigned long cnt)
++{
++}
++
++static inline void zs_stat_dec(struct size_class *class,
++				enum zs_stat_type type, unsigned long cnt)
++{
++}
++
++static inline unsigned long zs_stat_get(struct size_class *class,
++				enum zs_stat_type type)
++{
++	return 0;
++}
++
++static int __init zs_stat_init(void)
++{
++	return 0;
++}
++
++static void __exit zs_stat_exit(void)
++{
++}
++
++static inline int zs_pool_stat_create(struct zs_pool *pool)
++{
++	return 0;
++}
++
++static inline void zs_pool_stat_destroy(struct zs_pool *pool)
++{
++}
++
++#endif
++
+ unsigned long zs_get_total_pages(struct zs_pool *pool)
+ {
+ 	return atomic_long_read(&pool->pages_allocated);
+@@ -1074,7 +1261,10 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+ 		set_zspage_mapping(first_page, class->index, ZS_EMPTY);
+ 		atomic_long_add(class->pages_per_zspage,
+ 					&pool->pages_allocated);
++
+ 		spin_lock(&class->lock);
++		zs_stat_inc(class, OBJ_ALLOCATED, get_maxobj_per_zspage(
++				class->size, class->pages_per_zspage));
+ 	}
+ 
+ 	obj = (unsigned long)first_page->freelist;
+@@ -1088,6 +1278,7 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+ 	kunmap_atomic(vaddr);
+ 
+ 	first_page->inuse++;
++	zs_stat_inc(class, OBJ_USED, 1);
+ 	/* Now move the zspage to another fullness group, if required */
+ 	fix_fullness_group(pool, first_page);
+ 	spin_unlock(&class->lock);
+@@ -1128,6 +1319,12 @@ void zs_free(struct zs_pool *pool, unsigned long obj)
+ 
+ 	first_page->inuse--;
+ 	fullness = fix_fullness_group(pool, first_page);
++
++	zs_stat_dec(class, OBJ_USED, 1);
++	if (fullness == ZS_EMPTY)
++		zs_stat_dec(class, OBJ_ALLOCATED, get_maxobj_per_zspage(
++				class->size, class->pages_per_zspage));
++
+ 	spin_unlock(&class->lock);
+ 
+ 	if (fullness == ZS_EMPTY) {
+@@ -1158,9 +1355,16 @@ struct zs_pool *zs_create_pool(char *name, gfp_t flags)
+ 	if (!pool)
+ 		return NULL;
+ 
++	pool->name = kstrdup(name, GFP_KERNEL);
++	if (!pool->name) {
++		kfree(pool);
++		return NULL;
++	}
++
+ 	pool->size_class = kcalloc(zs_size_classes, sizeof(struct size_class *),
+ 			GFP_KERNEL);
+ 	if (!pool->size_class) {
++		kfree(pool->name);
+ 		kfree(pool);
+ 		return NULL;
+ 	}
+@@ -1210,6 +1414,9 @@ struct zs_pool *zs_create_pool(char *name, gfp_t flags)
+ 
+ 	pool->flags = flags;
+ 
++	if (zs_pool_stat_create(name, pool))
++		goto err;
++
+ 	return pool;
+ 
+ err:
+@@ -1222,6 +1429,8 @@ void zs_destroy_pool(struct zs_pool *pool)
  {
  	int i;
- 	struct zs_pool *pool;
-diff --git a/mm/zswap.c b/mm/zswap.c
-index 373326b..a358823 100644
---- a/mm/zswap.c
-+++ b/mm/zswap.c
-@@ -906,11 +906,12 @@ static int __init init_zswap(void)
  
- 	pr_info("loading zswap\n");
- 
--	zswap_pool = zpool_create_pool(zswap_zpool_type, gfp, &zswap_zpool_ops);
-+	zswap_pool = zpool_create_pool(zswap_zpool_type, "zswap", gfp,
-+					&zswap_zpool_ops);
- 	if (!zswap_pool && strcmp(zswap_zpool_type, ZSWAP_ZPOOL_DEFAULT)) {
- 		pr_info("%s zpool not available\n", zswap_zpool_type);
- 		zswap_zpool_type = ZSWAP_ZPOOL_DEFAULT;
--		zswap_pool = zpool_create_pool(zswap_zpool_type, gfp,
-+		zswap_pool = zpool_create_pool(zswap_zpool_type, "zswap", gfp,
- 					&zswap_zpool_ops);
++	zs_pool_stat_destroy(pool);
++
+ 	for (i = 0; i < zs_size_classes; i++) {
+ 		int fg;
+ 		struct size_class *class = pool->size_class[i];
+@@ -1242,6 +1451,7 @@ void zs_destroy_pool(struct zs_pool *pool)
  	}
- 	if (!zswap_pool) {
+ 
+ 	kfree(pool->size_class);
++	kfree(pool->name);
+ 	kfree(pool);
+ }
+ EXPORT_SYMBOL_GPL(zs_destroy_pool);
+@@ -1250,17 +1460,30 @@ static int __init zs_init(void)
+ {
+ 	int ret = zs_register_cpu_notifier();
+ 
+-	if (ret) {
+-		zs_unregister_cpu_notifier();
+-		return ret;
+-	}
++	if (ret)
++		goto notifier_fail;
+ 
+ 	init_zs_size_classes();
+ 
+ #ifdef CONFIG_ZPOOL
+ 	zpool_register_driver(&zs_zpool_driver);
+ #endif
++
++	ret = zs_stat_init();
++	if (ret) {
++		pr_err("zs stat initialization failed\n");
++		goto stat_fail;
++	}
+ 	return 0;
++
++stat_fail:
++#ifdef CONFIG_ZPOOL
++	zpool_unregister_driver(&zs_zpool_driver);
++#endif
++notifier_fail:
++	zs_unregister_cpu_notifier();
++
++	return ret;
+ }
+ 
+ static void __exit zs_exit(void)
+@@ -1269,6 +1492,8 @@ static void __exit zs_exit(void)
+ 	zpool_unregister_driver(&zs_zpool_driver);
+ #endif
+ 	zs_unregister_cpu_notifier();
++
++	zs_stat_exit();
+ }
+ 
+ module_init(zs_init);
 -- 
 1.7.9.5
 
