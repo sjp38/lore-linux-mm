@@ -1,43 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 797AF6B0038
-	for <linux-mm@kvack.org>; Mon, 29 Dec 2014 03:43:14 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id kx10so16930292pab.16
-        for <linux-mm@kvack.org>; Mon, 29 Dec 2014 00:43:14 -0800 (PST)
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B83B6B0038
+	for <linux-mm@kvack.org>; Mon, 29 Dec 2014 03:47:37 -0500 (EST)
+Received: by mail-pd0-f173.google.com with SMTP id ft15so16647828pdb.18
+        for <linux-mm@kvack.org>; Mon, 29 Dec 2014 00:47:36 -0800 (PST)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id rm3si2599514pbc.142.2014.12.29.00.43.12
+        by mx.google.com with ESMTPS id qs1si52102346pbb.167.2014.12.29.00.47.35
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Dec 2014 00:43:13 -0800 (PST)
-Date: Mon, 29 Dec 2014 11:42:59 +0300
+        Mon, 29 Dec 2014 00:47:35 -0800 (PST)
+Date: Mon, 29 Dec 2014 11:47:28 +0300
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [patch] mm: memcontrol: switch soft limit default back to
- infinity
-Message-ID: <20141229084259.GA9984@esperanza>
-References: <1419792468-9278-1-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [RFC PATCH 1/2] memcg: account swap instead of memory+swap
+Message-ID: <20141229084728.GB9984@esperanza>
+References: <dd99dc0de2ce6fd9aa18b25851819b71a58dca7d.1419782051.git.vdavydov@parallels.com>
+ <20141228190020.GA9385@phnom.home.cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <1419792468-9278-1-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <20141228190020.GA9385@phnom.home.cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Sun, Dec 28, 2014 at 01:47:48PM -0500, Johannes Weiner wrote:
-> 3e32cb2e0a12 ("mm: memcontrol: lockless page counters") accidentally
-> switched the soft limit default from infinity to zero, which turns all
-> memcgs with even a single page into soft limit excessors and engages
-> soft limit reclaim on all of them during global memory pressure.  This
-> makes global reclaim generally more aggressive, but also inverts the
-> meaning of existing soft limit configurations where unset soft limits
-> are usually more generous than set ones.
+On Sun, Dec 28, 2014 at 02:00:20PM -0500, Johannes Weiner wrote:
+> On Sun, Dec 28, 2014 at 07:19:12PM +0300, Vladimir Davydov wrote:
+> > The design of swap limits for memory cgroups looks broken. Instead of a
+> > separate swap limit, there is the memory.memsw.limit_in_bytes knob,
+> > which limits total memory+swap consumption. As a result, under global
+> > memory pressure, a cgroup can eat up to memsw.limit of *swap*, so it's
+> > just impossible to set the swap limit to be less than the memory limit
+> > with such a design. In particular, this means that we have to leave swap
+> > unlimited if we want to partition system memory dynamically using soft
+> > limits.
+> > 
+> > This patch therefore attempts to move from memory+swap to pure swap
+> > accounting so that we will be able to separate memory and swap resources
+> > in the sane cgroup hierarchy, which is the business of the following
+> > patch.
+> > 
+> > The old interface acts on memory and swap limits as follows:
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> The implementation seems fine to me, but there is no point in cramming
+> this into the old interface.  Let's just leave it alone and implement
+> proper swap accounting and limiting in the default/unified hierarchy.
 
-Overlooked that :-/
+Agree - the patch will be cleaner, and we won't need to bother about
+compatibility issues then.
 
-Acked-by: Vladimir Davydov <vdavydov@parallels.com>
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
