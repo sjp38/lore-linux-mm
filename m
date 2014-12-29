@@ -1,66 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 9501C6B0038
-	for <linux-mm@kvack.org>; Mon, 29 Dec 2014 10:54:57 -0500 (EST)
-Received: by mail-pd0-f179.google.com with SMTP id fp1so17389309pdb.24
-        for <linux-mm@kvack.org>; Mon, 29 Dec 2014 07:54:57 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id fc3si54312318pad.15.2014.12.29.07.54.55
+Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 37DFD6B0038
+	for <linux-mm@kvack.org>; Mon, 29 Dec 2014 12:03:16 -0500 (EST)
+Received: by mail-lb0-f175.google.com with SMTP id z11so3400438lbi.34
+        for <linux-mm@kvack.org>; Mon, 29 Dec 2014 09:03:15 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id hg6si74273653wjc.36.2014.12.29.09.03.15
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Dec 2014 07:54:56 -0800 (PST)
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH] memcg: fix destination cgroup leak on task charges migration
-Date: Mon, 29 Dec 2014 18:54:43 +0300
-Message-ID: <1419868483-30612-1-git-send-email-vdavydov@parallels.com>
+        Mon, 29 Dec 2014 09:03:15 -0800 (PST)
+Date: Mon, 29 Dec 2014 12:03:03 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH TRIVIAL] swap: remove unused
+ mem_cgroup_uncharge_swapcache declaration
+Message-ID: <20141229170303.GA12389@phnom.home.cmpxchg.org>
+References: <1419854337-15161-1-git-send-email-vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1419854337-15161-1-git-send-email-vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-We are supposed to take one css reference per each memory page and per
-each swap entry accounted to a memory cgroup. However, during task
-charges migration we take a reference to the destination cgroup twice
-per each swap entry: first in mem_cgroup_do_precharge()->try_charge()
-and then in mem_cgroup_move_swap_account(), permanently leaking the
-destination cgroup.
+On Mon, Dec 29, 2014 at 02:58:57PM +0300, Vladimir Davydov wrote:
+> The body of this function was removed by commit 0a31bc97c80c ("mm:
+> memcontrol: rewrite uncharge API").
+> 
+> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 
-The hunk taking the second reference seems to be a leftover from the
-pre-00501b531c472 ("mm: memcontrol: rewrite charge API") era. Remove it
-to fix the leak.
-
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
----
- mm/memcontrol.c |   12 ------------
- 1 file changed, 12 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index ef91e856c7e4..d62c335dfef4 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3043,18 +3043,6 @@ static int mem_cgroup_move_swap_account(swp_entry_t entry,
- 	if (swap_cgroup_cmpxchg(entry, old_id, new_id) == old_id) {
- 		mem_cgroup_swap_statistics(from, false);
- 		mem_cgroup_swap_statistics(to, true);
--		/*
--		 * This function is only called from task migration context now.
--		 * It postpones page_counter and refcount handling till the end
--		 * of task migration(mem_cgroup_clear_mc()) for performance
--		 * improvement. But we cannot postpone css_get(to)  because if
--		 * the process that has been moved to @to does swap-in, the
--		 * refcount of @to might be decreased to 0.
--		 *
--		 * We are in attach() phase, so the cgroup is guaranteed to be
--		 * alive, so we can just call css_get().
--		 */
--		css_get(&to->css);
- 		return 0;
- 	}
- 	return -EINVAL;
--- 
-1.7.10.4
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
