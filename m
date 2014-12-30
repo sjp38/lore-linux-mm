@@ -1,231 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EA056B0038
-	for <linux-mm@kvack.org>; Mon, 29 Dec 2014 23:38:18 -0500 (EST)
-Received: by mail-pd0-f182.google.com with SMTP id p10so18420913pdj.41
-        for <linux-mm@kvack.org>; Mon, 29 Dec 2014 20:38:18 -0800 (PST)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id oj3si19726047pbb.12.2014.12.29.20.38.15
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id AB7956B0038
+	for <linux-mm@kvack.org>; Mon, 29 Dec 2014 23:45:21 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id eu11so18765318pac.22
+        for <linux-mm@kvack.org>; Mon, 29 Dec 2014 20:45:21 -0800 (PST)
+Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id ns5si18271572pbc.178.2014.12.29.20.45.18
         for <linux-mm@kvack.org>;
-        Mon, 29 Dec 2014 20:38:17 -0800 (PST)
-Date: Tue, 30 Dec 2014 13:38:14 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 2/3] mm: cma: introduce /proc/cmainfo
-Message-ID: <20141230043814.GB4588@js1304-P5Q-DELUXE>
+        Mon, 29 Dec 2014 20:45:20 -0800 (PST)
+Date: Tue, 30 Dec 2014 13:47:26 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 0/3] mm: cma: /proc/cmainfo
+Message-ID: <20141230044726.GA22342@bbox>
 References: <cover.1419602920.git.s.strogin@partner.samsung.com>
- <264ce8ad192124f2afec9a71a2fc28779d453ba7.1419602920.git.s.strogin@partner.samsung.com>
+ <20141229023639.GC27095@bbox>
+ <54A1B11A.6020307@codeaurora.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <264ce8ad192124f2afec9a71a2fc28779d453ba7.1419602920.git.s.strogin@partner.samsung.com>
+In-Reply-To: <54A1B11A.6020307@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Stefan I. Strogin" <s.strogin@partner.samsung.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Dmitry Safonov <d.safonov@partner.samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Minchan Kim <minchan@kernel.org>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>
+To: Laura Abbott <lauraa@codeaurora.org>
+Cc: "Stefan I. Strogin" <s.strogin@partner.samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Dmitry Safonov <d.safonov@partner.samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>, rostedt@goodmis.org, namhyung@kernel.org
 
-On Fri, Dec 26, 2014 at 05:39:03PM +0300, Stefan I. Strogin wrote:
-> /proc/cmainfo contains a list of currently allocated CMA buffers for every
-> CMA area when CONFIG_CMA_DEBUG is enabled.
+On Mon, Dec 29, 2014 at 11:52:58AM -0800, Laura Abbott wrote:
+> On 12/28/2014 6:36 PM, Minchan Kim wrote:
+> >Hello,
+> >
+> >On Fri, Dec 26, 2014 at 05:39:01PM +0300, Stefan I. Strogin wrote:
+> >>Hello all,
+> >>
+> >>Here is a patch set that adds /proc/cmainfo.
+> >>
+> >>When compiled with CONFIG_CMA_DEBUG /proc/cmainfo will contain information
+> >>about about total, used, maximum free contiguous chunk and all currently
+> >>allocated contiguous buffers in CMA regions. The information about allocated
+> >>CMA buffers includes pid, comm, allocation latency and stacktrace at the
+> >>moment of allocation.
+> >
+> >It just says what you are doing but you didn't say why we need it.
+> >I can guess but clear description(ie, the problem what you want to
+> >solve with this patchset) would help others to review, for instance,
+> >why we need latency, why we need callstack, why we need new wheel
+> >rather than ftrace and so on.
+> >
+> >Thanks.
+> >
+> 
+> 
+> I've been meaning to write something like this for a while so I'm
+> happy to see an attempt made to fix this. I can't speak for the
+> author's reasons for wanting this information but there are
+> several reasons why I was thinking of something similar.
+> 
+> The most common bug reports seen internally on CMA are 1) CMA is
+> too slow and 2) CMA failed to allocate memory. For #1, not all
+> allocations may be slow so it's useful to be able to keep track
+> of which allocations are taking too long. For #2, migration
 
-Hello,
+Then, I don't think we could keep all of allocations. What we need
+is only slow allocations. I hope we can do that with ftrace.
 
-I think that providing these information looks useful, but, we need better
-implementation. As Laura said, it is better to use debugfs. And,
-instead of re-implementing the wheel, how about using tracepoint
-to print these information? See below comments.
+ex)
+
+# cd /sys/kernel/debug/tracing
+# echo 1 > options/stacktrace
+# echo cam_alloc > set_ftrace_filter
+# echo your_threshold > tracing_thresh
+
+I know it doesn't work now but I think it's more flexible
+and general way to handle such issues(ie, latency of some functions).
+So, I hope we could enhance ftrace rather than new wheel.
+Ccing ftrace people.
+
+Futhermore, if we really need to have such information, we need more data
+(ex, how many of pages were migrated out, how many pages were dropped
+without migrated, how many pages were written back, how many pages were
+retried with the page lock and so on).
+In this case, event trace would be better.
+
+
+> failure is fairly common but it's still important to rule out
+> a memory leak from a dma client. Seeing all the allocations is
+> also very useful for memory tuning (e.g. how big does the CMA
+> region need to be, which clients are actually allocating memory).
+
+Memory leak is really general problem and could we handle it with
+page_owner?
 
 > 
-> Format is:
+> ftrace is certainly usable for tracing CMA allocation callers and
+> latency. ftrace is still only a fixed size buffer though so it's
+> possible for information to be lost if other logging is enabled.
+
+Sorry, I don't get with only above reasons why we need this. :(
+
+> For most of the CMA use cases, there is a very high cost if the
+> proper debugging information is not available so the more that
+> can be guaranteed the better.
 > 
-> <base_phys_addr> - <end_phys_addr> (<size> kB), allocated by <PID>\
-> 		(<command name>), latency <allocation latency> us
->  <stack backtrace when the buffer had been allocated>
+> It's also worth noting that the SLUB allocator has a sysfs
+> interface for showing allocation callers when CONFIG_SLUB_DEBUG
+> is enabled.
 > 
-> Signed-off-by: Stefan I. Strogin <s.strogin@partner.samsung.com>
-> ---
->  mm/cma.c | 202 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
->  1 file changed, 202 insertions(+)
+> Thanks,
+> Laura
 > 
-> diff --git a/mm/cma.c b/mm/cma.c
-> index a85ae28..ffaea26 100644
-> --- a/mm/cma.c
-> +++ b/mm/cma.c
-> @@ -34,6 +34,10 @@
->  #include <linux/cma.h>
->  #include <linux/highmem.h>
->  #include <linux/io.h>
-> +#include <linux/list.h>
-> +#include <linux/proc_fs.h>
-> +#include <linux/uaccess.h>
-> +#include <linux/time.h>
->  
->  struct cma {
->  	unsigned long	base_pfn;
-> @@ -41,8 +45,25 @@ struct cma {
->  	unsigned long	*bitmap;
->  	unsigned int order_per_bit; /* Order of pages represented by one bit */
->  	struct mutex	lock;
-> +#ifdef CONFIG_CMA_DEBUG
-> +	struct list_head buffers_list;
-> +	struct mutex	list_lock;
-> +#endif
->  };
->  
-> +#ifdef CONFIG_CMA_DEBUG
-> +struct cma_buffer {
-> +	unsigned long pfn;
-> +	unsigned long count;
-> +	pid_t pid;
-> +	char comm[TASK_COMM_LEN];
-> +	unsigned int latency;
-> +	unsigned long trace_entries[16];
-> +	unsigned int nr_entries;
-> +	struct list_head list;
-> +};
-> +#endif
-> +
->  static struct cma cma_areas[MAX_CMA_AREAS];
->  static unsigned cma_area_count;
->  static DEFINE_MUTEX(cma_mutex);
-> @@ -132,6 +153,10 @@ static int __init cma_activate_area(struct cma *cma)
->  	} while (--i);
->  
->  	mutex_init(&cma->lock);
-> +#ifdef CONFIG_CMA_DEBUG
-> +	INIT_LIST_HEAD(&cma->buffers_list);
-> +	mutex_init(&cma->list_lock);
-> +#endif
->  	return 0;
->  
->  err:
-> @@ -347,6 +372,86 @@ err:
->  	return ret;
->  }
->  
-> +#ifdef CONFIG_CMA_DEBUG
-> +/**
-> + * cma_buffer_list_add() - add a new entry to a list of allocated buffers
-> + * @cma:     Contiguous memory region for which the allocation is performed.
-> + * @pfn:     Base PFN of the allocated buffer.
-> + * @count:   Number of allocated pages.
-> + * @latency: Nanoseconds spent to allocate the buffer.
-> + *
-> + * This function adds a new entry to the list of allocated contiguous memory
-> + * buffers in a CMA area. It uses the CMA area specificated by the device
-> + * if available or the default global one otherwise.
-> + */
-> +static int cma_buffer_list_add(struct cma *cma, unsigned long pfn,
-> +			       int count, s64 latency)
-> +{
-> +	struct cma_buffer *cmabuf;
-> +	struct stack_trace trace;
-> +
-> +	cmabuf = kmalloc(sizeof(struct cma_buffer), GFP_KERNEL);
-> +	if (!cmabuf)
-> +		return -ENOMEM;
-> +
-> +	trace.nr_entries = 0;
-> +	trace.max_entries = ARRAY_SIZE(cmabuf->trace_entries);
-> +	trace.entries = &cmabuf->trace_entries[0];
-> +	trace.skip = 2;
-> +	save_stack_trace(&trace);
-> +
-> +	cmabuf->pfn = pfn;
-> +	cmabuf->count = count;
-> +	cmabuf->pid = task_pid_nr(current);
-> +	cmabuf->nr_entries = trace.nr_entries;
-> +	get_task_comm(cmabuf->comm, current);
-> +	cmabuf->latency = (unsigned int) div_s64(latency, NSEC_PER_USEC);
-> +
-> +	mutex_lock(&cma->list_lock);
-> +	list_add_tail(&cmabuf->list, &cma->buffers_list);
-> +	mutex_unlock(&cma->list_lock);
-> +
-> +	return 0;
-> +}
-> +
-> +/**
-> + * cma_buffer_list_del() - delete an entry from a list of allocated buffers
-> + * @cma:   Contiguous memory region for which the allocation was performed.
-> + * @pfn:   Base PFN of the released buffer.
-> + *
-> + * This function deletes a list entry added by cma_buffer_list_add().
-> + */
-> +static void cma_buffer_list_del(struct cma *cma, unsigned long pfn)
-> +{
-> +	struct cma_buffer *cmabuf;
-> +
-> +	mutex_lock(&cma->list_lock);
-> +
-> +	list_for_each_entry(cmabuf, &cma->buffers_list, list)
-> +		if (cmabuf->pfn == pfn) {
-> +			list_del(&cmabuf->list);
-> +			kfree(cmabuf);
-> +			goto out;
-> +		}
-> +
+> -- 
+> Qualcomm Innovation Center, Inc.
+> Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
+> a Linux Foundation Collaborative Project
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Is there more elegant way to find buffer? This linear search overhead
-would change system behaviour if there are lots of buffers.
-
-> +	pr_err("%s(pfn %lu): couldn't find buffers list entry\n",
-> +	       __func__, pfn);
-> +
-> +out:
-> +	mutex_unlock(&cma->list_lock);
-> +}
-> +#else
-> +static int cma_buffer_list_add(struct cma *cma, unsigned long pfn,
-> +			       int count, s64 latency)
-> +{
-> +	return 0;
-> +}
-> +
-> +static void cma_buffer_list_del(struct cma *cma, unsigned long pfn)
-> +{
-> +}
-> +#endif /* CONFIG_CMA_DEBUG */
-> +
->  /**
->   * cma_alloc() - allocate pages from contiguous area
->   * @cma:   Contiguous memory region for which the allocation is performed.
-> @@ -361,11 +466,15 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
->  	unsigned long mask, offset, pfn, start = 0;
->  	unsigned long bitmap_maxno, bitmap_no, bitmap_count;
->  	struct page *page = NULL;
-> +	struct timespec ts1, ts2;
-> +	s64 latency;
->  	int ret;
->  
->  	if (!cma || !cma->count)
->  		return NULL;
->  
-> +	getnstimeofday(&ts1);
-> +
->  	pr_debug("%s(cma %p, count %d, align %d)\n", __func__, (void *)cma,
->  		 count, align);
->  
-> @@ -413,6 +522,19 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
->  		start = bitmap_no + mask + 1;
->  	}
->  
-> +	getnstimeofday(&ts2);
-> +	latency = timespec_to_ns(&ts2) - timespec_to_ns(&ts1);
-> +
-> +	if (page) {
-> +		ret = cma_buffer_list_add(cma, pfn, count, latency);
-> +		if (ret) {
-> +			pr_warn("%s(): cma_buffer_list_add() returned %d\n",
-> +				__func__, ret);
-> +			cma_release(cma, page, count);
-> +			page = NULL;
-> +		}
-
-So, we would fail to allocate CMA memory if we can't allocate buffer
-for debugging. I don't think it makes sense. With tracepoint,
-we don't need to allocate buffer in runtime.
-
-Thanks.
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
