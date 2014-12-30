@@ -1,38 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 51AD36B0038
-	for <linux-mm@kvack.org>; Mon, 29 Dec 2014 19:32:24 -0500 (EST)
-Received: by mail-ig0-f175.google.com with SMTP id h15so11938218igd.14
-        for <linux-mm@kvack.org>; Mon, 29 Dec 2014 16:32:24 -0800 (PST)
-Received: from mail-ie0-x22b.google.com (mail-ie0-x22b.google.com. [2607:f8b0:4001:c03::22b])
-        by mx.google.com with ESMTPS id j4si20138489igg.4.2014.12.29.16.32.22
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 29 Dec 2014 16:32:23 -0800 (PST)
-Received: by mail-ie0-f171.google.com with SMTP id ar1so12909747iec.16
-        for <linux-mm@kvack.org>; Mon, 29 Dec 2014 16:32:22 -0800 (PST)
-Date: Mon, 29 Dec 2014 16:32:20 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm/debug_pagealloc: remove obsolete Kconfig options
-In-Reply-To: <1419310437-9193-1-git-send-email-iamjoonsoo.kim@lge.com>
-Message-ID: <alpine.DEB.2.10.1412291632010.23782@chino.kir.corp.google.com>
-References: <1419310437-9193-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id E2A056B0038
+	for <linux-mm@kvack.org>; Mon, 29 Dec 2014 21:10:33 -0500 (EST)
+Received: by mail-pd0-f180.google.com with SMTP id fl12so2704129pdb.25
+        for <linux-mm@kvack.org>; Mon, 29 Dec 2014 18:10:33 -0800 (PST)
+Received: from cdptpa-oedge-vip.email.rr.com (cdptpa-outbound-snat.email.rr.com. [107.14.166.231])
+        by mx.google.com with ESMTP id lp6si53800381pab.176.2014.12.29.18.10.31
+        for <linux-mm@kvack.org>;
+        Mon, 29 Dec 2014 18:10:32 -0800 (PST)
+Message-ID: <54A20996.5040105@ubuntu.com>
+Date: Mon, 29 Dec 2014 21:10:30 -0500
+From: Phillip Susi <psusi@ubuntu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Memory / swap leak?
+References: <54A0A3BB.1070908@ubuntu.com> <alpine.LSU.2.11.1412291026140.2692@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1412291026140.2692@eggly.anvils>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Paul Bolle <pebolle@tiscali.nl>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, 23 Dec 2014, Joonsoo Kim wrote:
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
 
-> These are obsolete since commit e30825f1869a ("mm/debug-pagealloc:
-> prepare boottime configurable on/off") is merged. Remove them.
-> 
-> Reported-by: Paul Bolle <pebolle@tiscali.nl>
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On 12/29/2014 01:49 PM, Hugh Dickins wrote:
+> shmem (tmpfs) uses swap, when it won't all fit in memory.  df or du
+> on tmpfs mounts in /proc/mounts will report on some of it (and the
+> difference between df and du should show if there are unlinked but
+> still open files). ipcs -m will report on SysV SHM.
+> /sys/kernel/debug/dri/*/i915_gem_objects or similar should report
+> on GEM objects.
 
-Acked-by: David Rientjes <rientjes@google.com>
+Thanks, I didn't think about tmpfs.  Turns out the Ubuntu bootchart
+package filled the max 2G of the /dev tmpfs.
+
+
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQEcBAEBCgAGBQJUogmVAAoJENRVrw2cjl5RBMsIAKpU5WYeR2w7S0w7j532Imom
+G3bwXkFdsDaZ0UUbK6H7uBneqgnMRGGGAjBUtGsjb2TWva4mV+StqkGoqdcVTrgP
+NMQ7X/ypgYNa2Zisu4NO8AnyhHkR+ca1JQ0h806puyyHK8EFAoeleUCkzhemCFgT
+PfI3pLA/l5x96+jBtEDrgELjVBDwuUGXt8txVLEV3WJfcfRpzR/DfUITyMQTQZjV
+O++yeZJnVYWHWRmPjQmGM1bSxmpvovyOXwiVQhiKUd8nb9rvUDnvCSPLfiVrLrUK
+cO4cIraHaVJ4KbVjrY7b+zFeDw1NeKakYpO0qW0pR2CPBk39jFSTy/flv+oe/Tk=
+=NMKa
+-----END PGP SIGNATURE-----
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
