@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 45B8D6B0070
-	for <linux-mm@kvack.org>; Tue, 30 Dec 2014 03:58:32 -0500 (EST)
-Received: by mail-wg0-f50.google.com with SMTP id a1so20380718wgh.37
-        for <linux-mm@kvack.org>; Tue, 30 Dec 2014 00:58:31 -0800 (PST)
+Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A8AB6B0071
+	for <linux-mm@kvack.org>; Tue, 30 Dec 2014 03:58:34 -0500 (EST)
+Received: by mail-wg0-f43.google.com with SMTP id k14so2533955wgh.16
+        for <linux-mm@kvack.org>; Tue, 30 Dec 2014 00:58:33 -0800 (PST)
 Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id h6si63697758wix.79.2014.12.30.00.58.27
+        by mx.google.com with ESMTPS id l17si63635925wiv.106.2014.12.30.00.58.28
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Dec 2014 00:58:27 -0800 (PST)
+        Tue, 30 Dec 2014 00:58:28 -0800 (PST)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 4/8] block_dev: only write bdev inode on close
-Date: Tue, 30 Dec 2014 09:57:35 +0100
-Message-Id: <1419929859-24427-5-git-send-email-hch@lst.de>
+Subject: [PATCH 5/8] block_dev: get bdev inode bdi directly from the block device
+Date: Tue, 30 Dec 2014 09:57:36 +0100
+Message-Id: <1419929859-24427-6-git-send-email-hch@lst.de>
 In-Reply-To: <1419929859-24427-1-git-send-email-hch@lst.de>
 References: <1419929859-24427-1-git-send-email-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,74 +20,32 @@ List-ID: <linux-mm.kvack.org>
 To: Jens Axboe <axboe@fb.com>
 Cc: David Howells <dhowells@redhat.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-mtd@lists.infradead.org
 
-Since "bdi: reimplement bdev_inode_switch_bdi()" the block device code
-writes out all dirty data whenever switching the backing_dev_info for
-a block device inode.  But a block device inode can only be dirtied
-when it is in use, which means we only have to write it out on the
-final blkdev_put, but not when doing a blkdev_get.
+Directly grab the backing_dev_info from the request_queue instead of
+detouring through the address_space.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/block_dev.c | 31 +++++++++++++++++++------------
- 1 file changed, 19 insertions(+), 12 deletions(-)
+ fs/fs-writeback.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/fs/block_dev.c b/fs/block_dev.c
-index b48c41b..288ba70 100644
---- a/fs/block_dev.c
-+++ b/fs/block_dev.c
-@@ -49,6 +49,17 @@ inline struct block_device *I_BDEV(struct inode *inode)
- }
- EXPORT_SYMBOL(I_BDEV);
- 
-+static void bdev_write_inode(struct inode *inode)
-+{
-+	spin_lock(&inode->i_lock);
-+	while (inode->i_state & I_DIRTY) {
-+		spin_unlock(&inode->i_lock);
-+		WARN_ON_ONCE(write_inode_now(inode, true));
-+		spin_lock(&inode->i_lock);
-+	}
-+	spin_unlock(&inode->i_lock);
-+}
-+
- /*
-  * Move the inode from its current bdi to a new bdi.  Make sure the inode
-  * is clean before moving so that it doesn't linger on the old bdi.
-@@ -56,16 +67,10 @@ EXPORT_SYMBOL(I_BDEV);
- static void bdev_inode_switch_bdi(struct inode *inode,
- 			struct backing_dev_info *dst)
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index 2d609a5..e8116a4 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -69,10 +69,10 @@ EXPORT_SYMBOL(writeback_in_progress);
+ static inline struct backing_dev_info *inode_to_bdi(struct inode *inode)
  {
--	while (true) {
--		spin_lock(&inode->i_lock);
--		if (!(inode->i_state & I_DIRTY)) {
--			inode->i_data.backing_dev_info = dst;
--			spin_unlock(&inode->i_lock);
--			return;
--		}
--		spin_unlock(&inode->i_lock);
--		WARN_ON_ONCE(write_inode_now(inode, true));
--	}
-+	spin_lock(&inode->i_lock);
-+	WARN_ON_ONCE(inode->i_state & I_DIRTY);
-+	inode->i_data.backing_dev_info = dst;
-+	spin_unlock(&inode->i_lock);
+ 	struct super_block *sb = inode->i_sb;
+-
++#ifdef CONFIG_BLOCK
+ 	if (sb_is_blkdev_sb(sb))
+-		return inode->i_mapping->backing_dev_info;
+-
++		return blk_get_backing_dev_info(I_BDEV(inode));
++#endif
+ 	return sb->s_bdi;
  }
  
- /* Kill _all_ buffers and pagecache , dirty or not.. */
-@@ -1464,9 +1469,11 @@ static void __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
- 		WARN_ON_ONCE(bdev->bd_holders);
- 		sync_blockdev(bdev);
- 		kill_bdev(bdev);
--		/* ->release can cause the old bdi to disappear,
--		 * so must switch it out first
-+		/*
-+		 * ->release can cause the queue to disappaear, so flush all
-+		 * dirty data before.
- 		 */
-+		bdev_write_inode(bdev->bd_inode);
- 		bdev_inode_switch_bdi(bdev->bd_inode,
- 					&default_backing_dev_info);
- 	}
 -- 
 1.9.1
 
