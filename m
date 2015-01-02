@@ -1,47 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id A3A8A6B0038
-	for <linux-mm@kvack.org>; Thu,  1 Jan 2015 22:03:34 -0500 (EST)
-Received: by mail-pd0-f182.google.com with SMTP id p10so23029674pdj.13
-        for <linux-mm@kvack.org>; Thu, 01 Jan 2015 19:03:34 -0800 (PST)
-Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
-        by mx.google.com with ESMTPS id x2si20648838pas.236.2015.01.01.19.03.32
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 01 Jan 2015 19:03:33 -0800 (PST)
-Received: by mail-pa0-f52.google.com with SMTP id eu11so23266213pac.25
-        for <linux-mm@kvack.org>; Thu, 01 Jan 2015 19:03:32 -0800 (PST)
-From: Masanari Iida <standby24x7@gmail.com>
-Subject: [PATCH] Documentation: mm: Fix typo in vm.txt
-Date: Fri,  2 Jan 2015 12:03:19 +0900
-Message-Id: <1420167799-9587-1-git-send-email-standby24x7@gmail.com>
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id C759C6B0038
+	for <linux-mm@kvack.org>; Fri,  2 Jan 2015 00:11:14 -0500 (EST)
+Received: by mail-wi0-f171.google.com with SMTP id bs8so27270871wib.10
+        for <linux-mm@kvack.org>; Thu, 01 Jan 2015 21:11:14 -0800 (PST)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTP id m1si41651716wje.153.2015.01.01.21.11.12
+        for <linux-mm@kvack.org>;
+        Thu, 01 Jan 2015 21:11:12 -0800 (PST)
+Date: Fri, 2 Jan 2015 06:11:11 +0100
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH 0/3] mm: cma: /proc/cmainfo
+Message-ID: <20150102051111.GC4873@amd>
+References: <cover.1419602920.git.s.strogin@partner.samsung.com>
+ <20141229023639.GC27095@bbox>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141229023639.GC27095@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: corbet@lwn.net, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org
-Cc: linux-mm@kvack.org, Masanari Iida <standby24x7@gmail.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: "Stefan I. Strogin" <s.strogin@partner.samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Dmitry Safonov <d.safonov@partner.samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>
 
-This patch fix a spelling typo in Documentation/sysctl/vm.txt
+On Mon 2014-12-29 11:36:39, Minchan Kim wrote:
+> Hello,
+> 
+> On Fri, Dec 26, 2014 at 05:39:01PM +0300, Stefan I. Strogin wrote:
+> > Hello all,
+> > 
+> > Here is a patch set that adds /proc/cmainfo.
+> > 
+> > When compiled with CONFIG_CMA_DEBUG /proc/cmainfo will contain information
+> > about about total, used, maximum free contiguous chunk and all currently
+> > allocated contiguous buffers in CMA regions. The information about allocated
+> > CMA buffers includes pid, comm, allocation latency and stacktrace at the
+> > moment of allocation.
 
-Signed-off-by: Masanari Iida <standby24x7@gmail.com>
----
- Documentation/sysctl/vm.txt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+We should not add new non-process related files in
+/proc. So... NAK. Should this go to debugfs instead?
 
-diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-index 4415aa9..de3afef 100644
---- a/Documentation/sysctl/vm.txt
-+++ b/Documentation/sysctl/vm.txt
-@@ -728,7 +728,7 @@ The default value is 60.
- 
- - user_reserve_kbytes
- 
--When overcommit_memory is set to 2, "never overommit" mode, reserve
-+When overcommit_memory is set to 2, "never overcommit" mode, reserve
- min(3% of current process size, user_reserve_kbytes) of free memory.
- This is intended to prevent a user from starting a single memory hogging
- process, such that they cannot recover (kill the hog).
+> It just says what you are doing but you didn't say why we need it.
+> I can guess but clear description(ie, the problem what you want to
+> solve with this patchset) would help others to review, for instance,
+> why we need latency, why we need callstack, why we need new wheel
+> rather than ftrace and so on.
+> 
+> Thanks.
+> 
+> > 
+> > Example:
+> > 
+> > # cat /proc/cmainfo 
+> > CMARegion stat:    65536 kB total,      248 kB used,    65216 kB max contiguous chunk
+
+
 -- 
-2.2.1.62.g3f15098
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
