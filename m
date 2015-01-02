@@ -1,67 +1,50 @@
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [RFC v2] arm:extend the reserved mrmory for initrd to be page
- aligned
-Date: Fri, 5 Dec 2014 17:27:02 +0000
-Message-ID: <20141205172701.GW11285@n2100.arm.linux.org.uk>
-References: <35FD53F367049845BC99AC72306C23D103D6DB491609@CNBJMBX05.corpusers.net>
- <20140915113325.GD12361@n2100.arm.linux.org.uk>
- <20141204120305.GC17783@e104818-lin.cambridge.arm.com>
- <20141205120506.GH1630@arm.com>
- <20141205170745.GA31222@e104818-lin.cambridge.arm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Return-path: <linux-kernel-owner@vger.kernel.org>
-Content-Disposition: inline
-In-Reply-To: <20141205170745.GA31222@e104818-lin.cambridge.arm.com>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Will Deacon <will.deacon@arm.com>, "Wang, Yalin" <Yalin.Wang@sonymobile.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'linux-arm-msm@vger.kernel.org'" <linux-arm-msm@vger.kernel.org>, Peter Maydell <Peter.Maydell@arm.com>
-List-Id: linux-mm.kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id A3A8A6B0038
+	for <linux-mm@kvack.org>; Thu,  1 Jan 2015 22:03:34 -0500 (EST)
+Received: by mail-pd0-f182.google.com with SMTP id p10so23029674pdj.13
+        for <linux-mm@kvack.org>; Thu, 01 Jan 2015 19:03:34 -0800 (PST)
+Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
+        by mx.google.com with ESMTPS id x2si20648838pas.236.2015.01.01.19.03.32
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 01 Jan 2015 19:03:33 -0800 (PST)
+Received: by mail-pa0-f52.google.com with SMTP id eu11so23266213pac.25
+        for <linux-mm@kvack.org>; Thu, 01 Jan 2015 19:03:32 -0800 (PST)
+From: Masanari Iida <standby24x7@gmail.com>
+Subject: [PATCH] Documentation: mm: Fix typo in vm.txt
+Date: Fri,  2 Jan 2015 12:03:19 +0900
+Message-Id: <1420167799-9587-1-git-send-email-standby24x7@gmail.com>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: corbet@lwn.net, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org
+Cc: linux-mm@kvack.org, Masanari Iida <standby24x7@gmail.com>
 
-On Fri, Dec 05, 2014 at 05:07:45PM +0000, Catalin Marinas wrote:
-> On Fri, Dec 05, 2014 at 12:05:06PM +0000, Will Deacon wrote:
-> > Care to submit this as a proper patch? We should at least fix Peter's issue
-> > before doing things like extending headers, which won't work for older
-> > kernels anyway.
-> 
-> Quick fix is the revert of the whole patch, together with removing
-> PAGE_ALIGN(end) in poison_init_mem() on arm32. If Russell is ok with
-> this patch, we can take it via the arm64 tree, otherwise I'll send you a
-> partial revert only for the arm64 part.
+This patch fix a spelling typo in Documentation/sysctl/vm.txt
 
-Not really.  Let's look at the history.
+Signed-off-by: Masanari Iida <standby24x7@gmail.com>
+---
+ Documentation/sysctl/vm.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-For years, we've been poisoning memory, page aligning the end pointer.
-This has never been an issue.
-
-However, patch 8167/1 changed things so we freed the overlapping pages.
-Since we've always poisoned up to the end of the final page, freeing it
-should not be a problem, especially as (I said above) we've been poisoning
-it for years.
-
-The issue is more about what happens at the start.
-
-In any case:
-
-> >From 8e317c6be00abe280de4dcdd598d2e92009174b6 Mon Sep 17 00:00:00 2001
-> From: Catalin Marinas <catalin.marinas@arm.com>
-> Date: Fri, 5 Dec 2014 16:41:52 +0000
-> Subject: [PATCH] Revert "ARM: 8167/1: extend the reserved memory for initrd to
->  be page aligned"
-> 
-> This reverts commit 421520ba98290a73b35b7644e877a48f18e06004. There is
-> no guarantee that the boot-loader places other images like dtb in a
-> different page than initrd start/end. When this happens, such pages must
-> not be freed. The free_reserved_area() already takes care of rounding up
-> "start" and rounding down "end" to avoid freeing partially used pages.
-> 
-> In addition to the revert, this patch also removes the arm32
-> PAGE_ALIGN(end) when calculating the size of the memory to be poisoned.
-
-which makes the summary line rather misleading, and I really don't think
-we need to do this on ARM for the simple reason that we've been doing it
-for soo long that it can't be an issue.
-
+diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+index 4415aa9..de3afef 100644
+--- a/Documentation/sysctl/vm.txt
++++ b/Documentation/sysctl/vm.txt
+@@ -728,7 +728,7 @@ The default value is 60.
+ 
+ - user_reserve_kbytes
+ 
+-When overcommit_memory is set to 2, "never overommit" mode, reserve
++When overcommit_memory is set to 2, "never overcommit" mode, reserve
+ min(3% of current process size, user_reserve_kbytes) of free memory.
+ This is intended to prevent a user from starting a single memory hogging
+ process, such that they cannot recover (kill the hog).
 -- 
-FTTC broadband for 0.8mile line: currently at 9.5Mbps down 400kbps up
-according to speedtest.net.
+2.2.1.62.g3f15098
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
