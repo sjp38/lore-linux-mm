@@ -1,98 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 6780A6B0032
-	for <linux-mm@kvack.org>; Sat,  3 Jan 2015 11:04:45 -0500 (EST)
-Received: by mail-we0-f180.google.com with SMTP id w62so5757357wes.39
-        for <linux-mm@kvack.org>; Sat, 03 Jan 2015 08:04:45 -0800 (PST)
-Received: from mailrelay007.isp.belgacom.be (mailrelay007.isp.belgacom.be. [195.238.6.173])
-        by mx.google.com with ESMTP id r3si5289371wix.30.2015.01.03.08.04.44
-        for <linux-mm@kvack.org>;
-        Sat, 03 Jan 2015 08:04:44 -0800 (PST)
-From: Fabian Frederick <fabf@skynet.be>
-Subject: [PATCH 1/1 linux-next] mm,compaction: move suitable_migration_target() under CONFIG_COMPACTION
-Date: Sat,  3 Jan 2015 17:04:28 +0100
-Message-Id: <1420301068-19447-1-git-send-email-fabf@skynet.be>
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 845AD6B0032
+	for <linux-mm@kvack.org>; Sun,  4 Jan 2015 03:18:46 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id rd3so26548758pab.14
+        for <linux-mm@kvack.org>; Sun, 04 Jan 2015 00:18:46 -0800 (PST)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id nh6si77667279pdb.201.2015.01.04.00.18.43
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 04 Jan 2015 00:18:44 -0800 (PST)
+Received: by mail-pa0-f43.google.com with SMTP id kx10so26639023pab.2
+        for <linux-mm@kvack.org>; Sun, 04 Jan 2015 00:18:43 -0800 (PST)
+Date: Sun, 04 Jan 2015 17:18:38 +0900 (JST)
+Message-Id: <20150104.171838.243342727322803372.konishi.ryusuke@lab.ntt.co.jp>
+Subject: Re: [PATCH 6/8] nilfs2: set up s_bdi like the generic mount_bdev
+ code
+From: Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>
+In-Reply-To: <1419929859-24427-7-git-send-email-hch@lst.de>
+References: <1419929859-24427-1-git-send-email-hch@lst.de>
+	<1419929859-24427-7-git-send-email-hch@lst.de>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Fabian Frederick <fabf@skynet.be>, linux-mm@kvack.org
+To: Christoph Hellwig <hch@lst.de>
+Cc: Jens Axboe <axboe@fb.com>, David Howells <dhowells@redhat.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-mtd@lists.infradead.org
 
-suitable_migration_target() is only used by isolate_freepages()
-Define it under CONFIG_COMPACTION || CONFIG_CMA is not needed.
+On Tue, 30 Dec 2014 09:57:37 +0100, Christoph Hellwig <hch@lst.de> wrote:
+> mapping->backing_dev_info will go away, so don't rely on it.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
 
-Fix the following warning:
-mm/compaction.c:311:13: warning: 'suitable_migration_target' defined
-but not used [-Wunused-function]
+Looks good for me.
 
-Signed-off-by: Fabian Frederick <fabf@skynet.be>
----
- mm/compaction.c | 44 ++++++++++++++++++++++----------------------
- 1 file changed, 22 insertions(+), 22 deletions(-)
+Acked-by: Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 546e571..38b151c 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -307,28 +307,6 @@ static inline bool compact_should_abort(struct compact_control *cc)
- 	return false;
- }
- 
--/* Returns true if the page is within a block suitable for migration to */
--static bool suitable_migration_target(struct page *page)
--{
--	/* If the page is a large free page, then disallow migration */
--	if (PageBuddy(page)) {
--		/*
--		 * We are checking page_order without zone->lock taken. But
--		 * the only small danger is that we skip a potentially suitable
--		 * pageblock, so it's not worth to check order for valid range.
--		 */
--		if (page_order_unsafe(page) >= pageblock_order)
--			return false;
--	}
--
--	/* If the block is MIGRATE_MOVABLE or MIGRATE_CMA, allow migration */
--	if (migrate_async_suitable(get_pageblock_migratetype(page)))
--		return true;
--
--	/* Otherwise skip the block */
--	return false;
--}
--
- /*
-  * Isolate free pages onto a private freelist. If @strict is true, will abort
-  * returning 0 on any invalid PFNs or non-free pages inside of the pageblock
-@@ -802,6 +780,28 @@ isolate_migratepages_range(struct compact_control *cc, unsigned long start_pfn,
- 
- #endif /* CONFIG_COMPACTION || CONFIG_CMA */
- #ifdef CONFIG_COMPACTION
-+/* Returns true if the page is within a block suitable for migration to */
-+static bool suitable_migration_target(struct page *page)
-+{
-+	/* If the page is a large free page, then disallow migration */
-+	if (PageBuddy(page)) {
-+		/*
-+		 * We are checking page_order without zone->lock taken. But
-+		 * the only small danger is that we skip a potentially suitable
-+		 * pageblock, so it's not worth to check order for valid range.
-+		 */
-+		if (page_order_unsafe(page) >= pageblock_order)
-+			return false;
-+	}
-+
-+	/* If the block is MIGRATE_MOVABLE or MIGRATE_CMA, allow migration */
-+	if (migrate_async_suitable(get_pageblock_migratetype(page)))
-+		return true;
-+
-+	/* Otherwise skip the block */
-+	return false;
-+}
-+
- /*
-  * Based on information in the current compact_control, find blocks
-  * suitable for isolating free pages from and then isolate them.
--- 
-2.1.0
+> ---
+>  fs/nilfs2/super.c | 4 +---
+>  1 file changed, 1 insertion(+), 3 deletions(-)
+> 
+> diff --git a/fs/nilfs2/super.c b/fs/nilfs2/super.c
+> index 2e5b3ec..3d4bbac 100644
+> --- a/fs/nilfs2/super.c
+> +++ b/fs/nilfs2/super.c
+> @@ -1057,7 +1057,6 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent)
+>  {
+>  	struct the_nilfs *nilfs;
+>  	struct nilfs_root *fsroot;
+> -	struct backing_dev_info *bdi;
+>  	__u64 cno;
+>  	int err;
+>  
+> @@ -1077,8 +1076,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent)
+>  	sb->s_time_gran = 1;
+>  	sb->s_max_links = NILFS_LINK_MAX;
+>  
+> -	bdi = sb->s_bdev->bd_inode->i_mapping->backing_dev_info;
+> -	sb->s_bdi = bdi ? : &default_backing_dev_info;
+> +	sb->s_bdi = &bdev_get_queue(sb->s_bdev)->backing_dev_info;
+>  
+>  	err = load_nilfs(nilfs, sb);
+>  	if (err)
+> -- 
+> 1.9.1
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
