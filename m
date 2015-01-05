@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 135AD6B0071
-	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 05:54:24 -0500 (EST)
-Received: by mail-wg0-f44.google.com with SMTP id b13so27527665wgh.31
-        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 02:54:23 -0800 (PST)
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D19A6B0071
+	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 05:54:26 -0500 (EST)
+Received: by mail-wi0-f172.google.com with SMTP id n3so2991890wiv.11
+        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 02:54:25 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e12si112408457wjn.108.2015.01.05.02.54.18
+        by mx.google.com with ESMTPS id r5si112531963wju.58.2015.01.05.02.54.20
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 05 Jan 2015 02:54:18 -0800 (PST)
+        Mon, 05 Jan 2015 02:54:20 -0800 (PST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 04/10] ppc64: Add paranoid warnings for unexpected DSISR_PROTFAULT
-Date: Mon,  5 Jan 2015 10:54:05 +0000
-Message-Id: <1420455251-13644-5-git-send-email-mgorman@suse.de>
+Subject: [PATCH 05/10] mm: Convert p[te|md]_mknonnuma and remaining page table manipulations
+Date: Mon,  5 Jan 2015 10:54:06 +0000
+Message-Id: <1420455251-13644-6-git-send-email-mgorman@suse.de>
 In-Reply-To: <1420455251-13644-1-git-send-email-mgorman@suse.de>
 References: <1420455251-13644-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,84 +20,176 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@redhat.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Sasha Levin <sasha.levin@oracle.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LinuxPPC-dev <linuxppc-dev@lists.ozlabs.org>, Mel Gorman <mgorman@suse.de>
 
-ppc64 should not be depending on DSISR_PROTFAULT and it's unexpected
-if they are triggered. This patch adds warnings just in case they
-are being accidentally depended upon.
+With PROT_NONE, the traditional page table manipulation functions are
+sufficient.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
-Acked-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Acked-by: Linus Torvalds <torvalds@linux-foundation.org>
+Acked-by: Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>
 Tested-by: Sasha Levin <sasha.levin@oracle.com>
 ---
- arch/powerpc/mm/copro_fault.c |  8 ++++++--
- arch/powerpc/mm/fault.c       | 20 +++++++++-----------
- 2 files changed, 15 insertions(+), 13 deletions(-)
+ include/linux/huge_mm.h |  3 +--
+ mm/huge_memory.c        | 33 +++++++--------------------------
+ mm/memory.c             | 10 ++++++----
+ mm/mempolicy.c          |  2 +-
+ mm/migrate.c            |  2 +-
+ mm/mprotect.c           |  2 +-
+ mm/pgtable-generic.c    |  2 --
+ 7 files changed, 17 insertions(+), 37 deletions(-)
 
-diff --git a/arch/powerpc/mm/copro_fault.c b/arch/powerpc/mm/copro_fault.c
-index 5a236f0..0450d68 100644
---- a/arch/powerpc/mm/copro_fault.c
-+++ b/arch/powerpc/mm/copro_fault.c
-@@ -64,10 +64,14 @@ int copro_handle_mm_fault(struct mm_struct *mm, unsigned long ea,
- 		if (!(vma->vm_flags & VM_WRITE))
- 			goto out_unlock;
- 	} else {
--		if (dsisr & DSISR_PROTFAULT)
--			goto out_unlock;
- 		if (!(vma->vm_flags & (VM_READ | VM_EXEC)))
- 			goto out_unlock;
-+		/*
-+		 * protfault should only happen due to us
-+		 * mapping a region readonly temporarily. PROT_NONE
-+		 * is also covered by the VMA check above.
-+		 */
-+		WARN_ON_ONCE(dsisr & DSISR_PROTFAULT);
- 	}
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index ad9051b..554bbe3 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -31,8 +31,7 @@ extern int move_huge_pmd(struct vm_area_struct *vma,
+ 			 unsigned long new_addr, unsigned long old_end,
+ 			 pmd_t *old_pmd, pmd_t *new_pmd);
+ extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+-			unsigned long addr, pgprot_t newprot,
+-			int prot_numa);
++			unsigned long addr, pgprot_t newprot);
  
- 	ret = 0;
-diff --git a/arch/powerpc/mm/fault.c b/arch/powerpc/mm/fault.c
-index b434153..1bcd378 100644
---- a/arch/powerpc/mm/fault.c
-+++ b/arch/powerpc/mm/fault.c
-@@ -389,17 +389,6 @@ good_area:
- #endif /* CONFIG_8xx */
- 
- 	if (is_exec) {
--#ifdef CONFIG_PPC_STD_MMU
--		/* Protection fault on exec go straight to failure on
--		 * Hash based MMUs as they either don't support per-page
--		 * execute permission, or if they do, it's handled already
--		 * at the hash level. This test would probably have to
--		 * be removed if we change the way this works to make hash
--		 * processors use the same I/D cache coherency mechanism
--		 * as embedded.
--		 */
--#endif /* CONFIG_PPC_STD_MMU */
+ enum transparent_hugepage_flag {
+ 	TRANSPARENT_HUGEPAGE_FLAG,
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index f81fddf..5618e22 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1366,9 +1366,8 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	goto out;
+ clear_pmdnuma:
+ 	BUG_ON(!PageLocked(page));
+-	pmd = pmd_mknonnuma(pmd);
++	pmd = pmd_modify(pmd, vma->vm_page_prot);
+ 	set_pmd_at(mm, haddr, pmdp, pmd);
+-	VM_BUG_ON(pmd_protnone(*pmdp));
+ 	update_mmu_cache_pmd(vma, addr, pmdp);
+ 	unlock_page(page);
+ out_unlock:
+@@ -1503,7 +1502,7 @@ out:
+  *  - HPAGE_PMD_NR is protections changed and TLB flush necessary
+  */
+ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+-		unsigned long addr, pgprot_t newprot, int prot_numa)
++		unsigned long addr, pgprot_t newprot)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	spinlock_t *ptl;
+@@ -1512,29 +1511,11 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 	if (__pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
+ 		pmd_t entry;
+ 		ret = 1;
+-		if (!prot_numa) {
+-			entry = pmdp_get_and_clear_notify(mm, addr, pmd);
+-			if (pmd_protnone(entry))
+-				entry = pmd_mknonnuma(entry);
+-			entry = pmd_modify(entry, newprot);
+-			ret = HPAGE_PMD_NR;
+-			set_pmd_at(mm, addr, pmd, entry);
+-			BUG_ON(pmd_write(entry));
+-		} else {
+-			struct page *page = pmd_page(*pmd);
 -
- 		/*
- 		 * Allow execution from readable areas if the MMU does not
- 		 * provide separate controls over reading and executing.
-@@ -414,6 +403,14 @@ good_area:
- 		    (cpu_has_feature(CPU_FTR_NOEXECUTE) ||
- 		     !(vma->vm_flags & (VM_READ | VM_WRITE))))
- 			goto bad_area;
-+#ifdef CONFIG_PPC_STD_MMU
-+		/*
-+		 * protfault should only happen due to us
-+		 * mapping a region readonly temporarily. PROT_NONE
-+		 * is also covered by the VMA check above.
-+		 */
-+		WARN_ON_ONCE(error_code & DSISR_PROTFAULT);
-+#endif /* CONFIG_PPC_STD_MMU */
- 	/* a write */
- 	} else if (is_write) {
- 		if (!(vma->vm_flags & VM_WRITE))
-@@ -423,6 +420,7 @@ good_area:
- 	} else {
- 		if (!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)))
- 			goto bad_area;
-+		WARN_ON_ONCE(error_code & DSISR_PROTFAULT);
+-			/*
+-			 * Do not trap faults against the zero page. The
+-			 * read-only data is likely to be read-cached on the
+-			 * local CPU cache and it is less useful to know about
+-			 * local vs remote hits on the zero page.
+-			 */
+-			if (!is_huge_zero_page(page) &&
+-			    !pmd_protnone(*pmd)) {
+-				pmdp_set_numa(mm, addr, pmd);
+-				ret = HPAGE_PMD_NR;
+-			}
+-		}
++		entry = pmdp_get_and_clear_notify(mm, addr, pmd);
++		entry = pmd_modify(entry, newprot);
++		ret = HPAGE_PMD_NR;
++		set_pmd_at(mm, addr, pmd, entry);
++		BUG_ON(pmd_write(entry));
+ 		spin_unlock(ptl);
  	}
  
- 	/*
+diff --git a/mm/memory.c b/mm/memory.c
+index 47aa715..debe3f4 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3113,9 +3113,9 @@ static int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	* validation through pte_unmap_same(). It's of NUMA type but
+ 	* the pfn may be screwed if the read is non atomic.
+ 	*
+-	* ptep_modify_prot_start is not called as this is clearing
+-	* the _PAGE_NUMA bit and it is not really expected that there
+-	* would be concurrent hardware modifications to the PTE.
++	* We can safely just do a "set_pte_at()", because the old
++	* page table entry is not accessible, so there would be no
++	* concurrent hardware modifications to the PTE.
+ 	*/
+ 	ptl = pte_lockptr(mm, pmd);
+ 	spin_lock(ptl);
+@@ -3124,7 +3124,9 @@ static int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		goto out;
+ 	}
+ 
+-	pte = pte_mknonnuma(pte);
++	/* Make it present again */
++	pte = pte_modify(pte, vma->vm_page_prot);
++	pte = pte_mkyoung(pte);
+ 	set_pte_at(mm, addr, ptep, pte);
+ 	update_mmu_cache(vma, addr, ptep);
+ 
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 0e0961b..4fcbf12 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -627,7 +627,7 @@ unsigned long change_prot_numa(struct vm_area_struct *vma,
+ {
+ 	int nr_updated;
+ 
+-	nr_updated = change_protection(vma, addr, end, vma->vm_page_prot, 0, 1);
++	nr_updated = change_protection(vma, addr, end, PAGE_NONE, 0, 1);
+ 	if (nr_updated)
+ 		count_vm_numa_events(NUMA_PTE_UPDATES, nr_updated);
+ 
+diff --git a/mm/migrate.c b/mm/migrate.c
+index e6a5ff1..8491bee 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1878,7 +1878,7 @@ out_fail:
+ out_dropref:
+ 	ptl = pmd_lock(mm, pmd);
+ 	if (pmd_same(*pmd, entry)) {
+-		entry = pmd_mknonnuma(entry);
++		entry = pmd_modify(entry, vma->vm_page_prot);
+ 		set_pmd_at(mm, mmun_start, pmd, entry);
+ 		update_mmu_cache_pmd(vma, address, &entry);
+ 	}
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index e93ddac..dc65c0f 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -141,7 +141,7 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
+ 				split_huge_page_pmd(vma, addr, pmd);
+ 			else {
+ 				int nr_ptes = change_huge_pmd(vma, pmd, addr,
+-						newprot, prot_numa);
++						newprot);
+ 
+ 				if (nr_ptes) {
+ 					if (nr_ptes == HPAGE_PMD_NR) {
+diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
+index 4b8ad76..c25f94b 100644
+--- a/mm/pgtable-generic.c
++++ b/mm/pgtable-generic.c
+@@ -193,8 +193,6 @@ void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
+ 		     pmd_t *pmdp)
+ {
+ 	pmd_t entry = *pmdp;
+-	if (pmd_protnone(entry))
+-		entry = pmd_mknonnuma(entry);
+ 	set_pmd_at(vma->vm_mm, address, pmdp, pmd_mknotpresent(entry));
+ 	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+ }
 -- 
 2.1.2
 
