@@ -1,286 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 5252F6B0032
-	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 04:51:17 -0500 (EST)
-Received: by mail-wg0-f44.google.com with SMTP id b13so27433823wgh.31
-        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 01:51:16 -0800 (PST)
-Received: from mail-wi0-x236.google.com (mail-wi0-x236.google.com. [2a00:1450:400c:c05::236])
-        by mx.google.com with ESMTPS id gq9si15294836wib.97.2015.01.05.01.51.16
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 2666C6B0032
+	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 05:54:17 -0500 (EST)
+Received: by mail-wi0-f170.google.com with SMTP id bs8so3862556wib.1
+        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 02:54:16 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id fk10si15753577wib.26.2015.01.05.02.54.15
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 05 Jan 2015 01:51:16 -0800 (PST)
-Received: by mail-wi0-f182.google.com with SMTP id h11so2878816wiw.3
-        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 01:51:15 -0800 (PST)
-Date: Mon, 5 Jan 2015 10:51:13 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] mm: memcontrol: track move_lock state internally
-Message-ID: <20150105095113.GB7687@dhcp22.suse.cz>
-References: <1420232327-13316-1-git-send-email-hannes@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1420232327-13316-1-git-send-email-hannes@cmpxchg.org>
+        Mon, 05 Jan 2015 02:54:16 -0800 (PST)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 01/10] mm: numa: Do not dereference pmd outside of the lock during NUMA hinting fault
+Date: Mon,  5 Jan 2015 10:54:02 +0000
+Message-Id: <1420455251-13644-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1420455251-13644-1-git-send-email-mgorman@suse.de>
+References: <1420455251-13644-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@redhat.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Sasha Levin <sasha.levin@oracle.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LinuxPPC-dev <linuxppc-dev@lists.ozlabs.org>, Mel Gorman <mgorman@suse.de>
 
-On Fri 02-01-15 15:58:47, Johannes Weiner wrote:
-> The complexity of memcg page stat synchronization is currently leaking
-> into the callsites, forcing them to keep track of the move_lock state
-> and the IRQ flags.  Simplify the API by tracking it in the memcg.
+A transhuge NUMA hinting fault may find the page is migrating and should
+wait until migration completes. The check is race-prone because the pmd
+is deferenced outside of the page lock and while the race is tiny, it'll
+be larger if the PMD is cleared while marking PMDs for hinting fault.
+This patch closes the race.
 
-OK, 16B per memcg is OK considering the trickiness stays in memcg.
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ include/linux/migrate.h | 4 ----
+ mm/huge_memory.c        | 3 ++-
+ mm/migrate.c            | 6 ------
+ 3 files changed, 2 insertions(+), 11 deletions(-)
+
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index fab9b32..78baed5 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -67,7 +67,6 @@ static inline int migrate_huge_page_move_mapping(struct address_space *mapping,
  
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-
-Acked-by: Michal Hocko <mhocko@suse.cz>
-
-Thanks!
-
-> ---
->  include/linux/memcontrol.h |  6 ++--
->  mm/memcontrol.c            | 68 ++++++++++++++++++++++++++--------------------
->  mm/page-writeback.c        | 12 +++-----
->  mm/rmap.c                  | 12 +++-----
->  4 files changed, 49 insertions(+), 49 deletions(-)
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index fb212e1d700d..04d3c2028782 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -138,12 +138,10 @@ static inline bool mem_cgroup_disabled(void)
->  	return false;
->  }
->  
-> -struct mem_cgroup *mem_cgroup_begin_page_stat(struct page *page, bool *locked,
-> -					      unsigned long *flags);
-> -void mem_cgroup_end_page_stat(struct mem_cgroup *memcg, bool *locked,
-> -			      unsigned long *flags);
-> +struct mem_cgroup *mem_cgroup_begin_page_stat(struct page *page);
->  void mem_cgroup_update_page_stat(struct mem_cgroup *memcg,
->  				 enum mem_cgroup_stat_index idx, int val);
-> +void mem_cgroup_end_page_stat(struct mem_cgroup *memcg);
->  
->  static inline void mem_cgroup_inc_page_stat(struct mem_cgroup *memcg,
->  					    enum mem_cgroup_stat_index idx)
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index a855848627a5..eccc0ed3b6f3 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -325,9 +325,11 @@ struct mem_cgroup {
->  	/*
->  	 * set > 0 if pages under this cgroup are moving to other cgroup.
->  	 */
-> -	atomic_t	moving_account;
-> +	atomic_t		moving_account;
->  	/* taken only while moving_account > 0 */
-> -	spinlock_t	move_lock;
-> +	spinlock_t		move_lock;
-> +	struct task_struct	*move_lock_task;
-> +	unsigned long		move_lock_flags;
->  	/*
->  	 * percpu counter.
->  	 */
-> @@ -1977,34 +1979,33 @@ cleanup:
->  /**
->   * mem_cgroup_begin_page_stat - begin a page state statistics transaction
->   * @page: page that is going to change accounted state
-> - * @locked: &memcg->move_lock slowpath was taken
-> - * @flags: IRQ-state flags for &memcg->move_lock
->   *
->   * This function must mark the beginning of an accounted page state
->   * change to prevent double accounting when the page is concurrently
->   * being moved to another memcg:
->   *
-> - *   memcg = mem_cgroup_begin_page_stat(page, &locked, &flags);
-> + *   memcg = mem_cgroup_begin_page_stat(page);
->   *   if (TestClearPageState(page))
->   *     mem_cgroup_update_page_stat(memcg, state, -1);
-> - *   mem_cgroup_end_page_stat(memcg, locked, flags);
-> - *
-> - * The RCU lock is held throughout the transaction.  The fast path can
-> - * get away without acquiring the memcg->move_lock (@locked is false)
-> - * because page moving starts with an RCU grace period.
-> - *
-> - * The RCU lock also protects the memcg from being freed when the page
-> - * state that is going to change is the only thing preventing the page
-> - * from being uncharged.  E.g. end-writeback clearing PageWriteback(),
-> - * which allows migration to go ahead and uncharge the page before the
-> - * account transaction might be complete.
-> + *   mem_cgroup_end_page_stat(memcg);
->   */
-> -struct mem_cgroup *mem_cgroup_begin_page_stat(struct page *page,
-> -					      bool *locked,
-> -					      unsigned long *flags)
-> +struct mem_cgroup *mem_cgroup_begin_page_stat(struct page *page)
->  {
->  	struct mem_cgroup *memcg;
-> +	unsigned long flags;
->  
-> +	/*
-> +	 * The RCU lock is held throughout the transaction.  The fast
-> +	 * path can get away without acquiring the memcg->move_lock
-> +	 * because page moving starts with an RCU grace period.
-> +	 *
-> +	 * The RCU lock also protects the memcg from being freed when
-> +	 * the page state that is going to change is the only thing
-> +	 * preventing the page from being uncharged.
-> +	 * E.g. end-writeback clearing PageWriteback(), which allows
-> +	 * migration to go ahead and uncharge the page before the
-> +	 * account transaction might be complete.
-> +	 */
->  	rcu_read_lock();
->  
->  	if (mem_cgroup_disabled())
-> @@ -2014,16 +2015,22 @@ again:
->  	if (unlikely(!memcg))
->  		return NULL;
->  
-> -	*locked = false;
->  	if (atomic_read(&memcg->moving_account) <= 0)
->  		return memcg;
->  
-> -	spin_lock_irqsave(&memcg->move_lock, *flags);
-> +	spin_lock_irqsave(&memcg->move_lock, flags);
->  	if (memcg != page->mem_cgroup) {
-> -		spin_unlock_irqrestore(&memcg->move_lock, *flags);
-> +		spin_unlock_irqrestore(&memcg->move_lock, flags);
->  		goto again;
->  	}
-> -	*locked = true;
-> +
-> +	/*
-> +	 * When charge migration first begins, we can have locked and
-> +	 * unlocked page stat updates happening concurrently.  Track
-> +	 * the task who has the lock for mem_cgroup_end_page_stat().
-> +	 */
-> +	memcg->move_lock_task = current;
-> +	memcg->move_lock_flags = flags;
->  
->  	return memcg;
->  }
-> @@ -2031,14 +2038,17 @@ again:
->  /**
->   * mem_cgroup_end_page_stat - finish a page state statistics transaction
->   * @memcg: the memcg that was accounted against
-> - * @locked: value received from mem_cgroup_begin_page_stat()
-> - * @flags: value received from mem_cgroup_begin_page_stat()
->   */
-> -void mem_cgroup_end_page_stat(struct mem_cgroup *memcg, bool *locked,
-> -			      unsigned long *flags)
-> +void mem_cgroup_end_page_stat(struct mem_cgroup *memcg)
->  {
-> -	if (memcg && *locked)
-> -		spin_unlock_irqrestore(&memcg->move_lock, *flags);
-> +	if (memcg && memcg->move_lock_task == current) {
-> +		unsigned long flags = memcg->move_lock_flags;
-> +
-> +		memcg->move_lock_task = NULL;
-> +		memcg->move_lock_flags = 0;
-> +
-> +		spin_unlock_irqrestore(&memcg->move_lock, flags);
-> +	}
->  
->  	rcu_read_unlock();
->  }
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index 6f4335238e33..fb71e9deca85 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -2308,12 +2308,10 @@ EXPORT_SYMBOL(clear_page_dirty_for_io);
->  int test_clear_page_writeback(struct page *page)
->  {
->  	struct address_space *mapping = page_mapping(page);
-> -	unsigned long memcg_flags;
->  	struct mem_cgroup *memcg;
-> -	bool locked;
->  	int ret;
->  
-> -	memcg = mem_cgroup_begin_page_stat(page, &locked, &memcg_flags);
-> +	memcg = mem_cgroup_begin_page_stat(page);
->  	if (mapping) {
->  		struct backing_dev_info *bdi = mapping->backing_dev_info;
->  		unsigned long flags;
-> @@ -2338,19 +2336,17 @@ int test_clear_page_writeback(struct page *page)
->  		dec_zone_page_state(page, NR_WRITEBACK);
->  		inc_zone_page_state(page, NR_WRITTEN);
->  	}
-> -	mem_cgroup_end_page_stat(memcg, &locked, &memcg_flags);
-> +	mem_cgroup_end_page_stat(memcg);
->  	return ret;
->  }
->  
->  int __test_set_page_writeback(struct page *page, bool keep_write)
->  {
->  	struct address_space *mapping = page_mapping(page);
-> -	unsigned long memcg_flags;
->  	struct mem_cgroup *memcg;
-> -	bool locked;
->  	int ret;
->  
-> -	memcg = mem_cgroup_begin_page_stat(page, &locked, &memcg_flags);
-> +	memcg = mem_cgroup_begin_page_stat(page);
->  	if (mapping) {
->  		struct backing_dev_info *bdi = mapping->backing_dev_info;
->  		unsigned long flags;
-> @@ -2380,7 +2376,7 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
->  		mem_cgroup_inc_page_stat(memcg, MEM_CGROUP_STAT_WRITEBACK);
->  		inc_zone_page_state(page, NR_WRITEBACK);
->  	}
-> -	mem_cgroup_end_page_stat(memcg, &locked, &memcg_flags);
-> +	mem_cgroup_end_page_stat(memcg);
->  	return ret;
->  
->  }
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index c325f8bd2cc4..5e995a9da902 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -1112,24 +1112,20 @@ void page_add_new_anon_rmap(struct page *page,
->  void page_add_file_rmap(struct page *page)
->  {
->  	struct mem_cgroup *memcg;
-> -	unsigned long flags;
-> -	bool locked;
->  
-> -	memcg = mem_cgroup_begin_page_stat(page, &locked, &flags);
-> +	memcg = mem_cgroup_begin_page_stat(page);
->  	if (atomic_inc_and_test(&page->_mapcount)) {
->  		__inc_zone_page_state(page, NR_FILE_MAPPED);
->  		mem_cgroup_inc_page_stat(memcg, MEM_CGROUP_STAT_FILE_MAPPED);
->  	}
-> -	mem_cgroup_end_page_stat(memcg, &locked, &flags);
-> +	mem_cgroup_end_page_stat(memcg);
->  }
->  
->  static void page_remove_file_rmap(struct page *page)
->  {
->  	struct mem_cgroup *memcg;
-> -	unsigned long flags;
-> -	bool locked;
->  
-> -	memcg = mem_cgroup_begin_page_stat(page, &locked, &flags);
-> +	memcg = mem_cgroup_begin_page_stat(page);
->  
->  	/* page still mapped by someone else? */
->  	if (!atomic_add_negative(-1, &page->_mapcount))
-> @@ -1150,7 +1146,7 @@ static void page_remove_file_rmap(struct page *page)
->  	if (unlikely(PageMlocked(page)))
->  		clear_page_mlock(page);
->  out:
-> -	mem_cgroup_end_page_stat(memcg, &locked, &flags);
-> +	mem_cgroup_end_page_stat(memcg);
->  }
->  
->  /**
-> -- 
-> 2.2.0
-> 
-
+ #ifdef CONFIG_NUMA_BALANCING
+ extern bool pmd_trans_migrating(pmd_t pmd);
+-extern void wait_migrate_huge_page(struct anon_vma *anon_vma, pmd_t *pmd);
+ extern int migrate_misplaced_page(struct page *page,
+ 				  struct vm_area_struct *vma, int node);
+ extern bool migrate_ratelimited(int node);
+@@ -76,9 +75,6 @@ static inline bool pmd_trans_migrating(pmd_t pmd)
+ {
+ 	return false;
+ }
+-static inline void wait_migrate_huge_page(struct anon_vma *anon_vma, pmd_t *pmd)
+-{
+-}
+ static inline int migrate_misplaced_page(struct page *page,
+ 					 struct vm_area_struct *vma, int node)
+ {
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 817a875..a2cd021 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1283,8 +1283,9 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	 * check_same as the page may no longer be mapped.
+ 	 */
+ 	if (unlikely(pmd_trans_migrating(*pmdp))) {
++		page = pmd_page(*pmdp);
+ 		spin_unlock(ptl);
+-		wait_migrate_huge_page(vma->anon_vma, pmdp);
++		wait_on_page_locked(page);
+ 		goto out;
+ 	}
+ 
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 344cdf6..e6a5ff1 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1685,12 +1685,6 @@ bool pmd_trans_migrating(pmd_t pmd)
+ 	return PageLocked(page);
+ }
+ 
+-void wait_migrate_huge_page(struct anon_vma *anon_vma, pmd_t *pmd)
+-{
+-	struct page *page = pmd_page(*pmd);
+-	wait_on_page_locked(page);
+-}
+-
+ /*
+  * Attempt to migrate a misplaced page to the specified destination
+  * node. Caller is expected to have an elevated reference count on
 -- 
-Michal Hocko
-SUSE Labs
+2.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
