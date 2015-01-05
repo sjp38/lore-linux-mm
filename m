@@ -1,180 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id C62776B0032
-	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 03:39:17 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id kq14so28264084pab.20
-        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 00:39:17 -0800 (PST)
-Received: from out11.biz.mail.alibaba.com (out114-135.biz.mail.alibaba.com. [205.204.114.135])
-        by mx.google.com with ESMTP id y5si49932810pas.143.2015.01.05.00.39.14
-        for <linux-mm@kvack.org>;
-        Mon, 05 Jan 2015 00:39:16 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-Subject: Re: [PATCH 1/2] mm/slub: optimize alloc/free fastpath by removing preemption on/off
-Date: Mon, 05 Jan 2015 16:37:35 +0800
-Message-ID: <023701d028c2$dba2cb30$92e86190$@alibaba-inc.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
+	by kanga.kvack.org (Postfix) with ESMTP id A61E96B006C
+	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 03:56:57 -0500 (EST)
+Received: by mail-we0-f173.google.com with SMTP id q58so7456249wes.32
+        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 00:56:57 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id wo6si48018514wjc.129.2015.01.05.00.56.56
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 05 Jan 2015 00:56:56 -0800 (PST)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH V3 1/2] mm, vmscan: prevent kswapd livelock due to pfmemalloc-throttled process being killed
+Date: Mon,  5 Jan 2015 09:56:42 +0100
+Message-Id: <1420448203-30212-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Joonsoo Kim' <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, 'Christoph Lameter' <cl@linux.com>, 'Pekka Enberg' <penberg@kernel.org>, 'David Rientjes' <rientjes@google.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Steven Rostedt <rostedt@goodmis.org>, 'Jesper Dangaard Brouer' <brouer@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Vladimir Davydov <vdavydov@parallels.com>, stable@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>
 
-> 
-> We had to insert a preempt enable/disable in the fastpath a while ago
-> in order to guarantee that tid and kmem_cache_cpu are retrieved on the
-> same cpu. It is the problem only for CONFIG_PREEMPT in which scheduler
-> can move the process to other cpu during retrieving data.
-> 
-> Now, I reach the solution to remove preempt enable/disable in the fastpath.
-> If tid is matched with kmem_cache_cpu's tid after tid and kmem_cache_cpu
-> are retrieved by separate this_cpu operation, it means that they are
-> retrieved on the same cpu. If not matched, we just have to retry it.
-> 
-> With this guarantee, preemption enable/disable isn't need at all even if
-> CONFIG_PREEMPT, so this patch removes it.
-> 
-> I saw roughly 5% win in a fast-path loop over kmem_cache_alloc/free
-> in CONFIG_PREEMPT. (14.821 ns -> 14.049 ns)
-> 
-> Below is the result of Christoph's slab_test reported by
-> Jesper Dangaard Brouer.
-> 
-> * Before
-> 
->  Single thread testing
->  =====================
->  1. Kmalloc: Repeatedly allocate then free test
->  10000 times kmalloc(8) -> 49 cycles kfree -> 62 cycles
->  10000 times kmalloc(16) -> 48 cycles kfree -> 64 cycles
->  10000 times kmalloc(32) -> 53 cycles kfree -> 70 cycles
->  10000 times kmalloc(64) -> 64 cycles kfree -> 77 cycles
->  10000 times kmalloc(128) -> 74 cycles kfree -> 84 cycles
->  10000 times kmalloc(256) -> 84 cycles kfree -> 114 cycles
->  10000 times kmalloc(512) -> 83 cycles kfree -> 116 cycles
->  10000 times kmalloc(1024) -> 81 cycles kfree -> 120 cycles
->  10000 times kmalloc(2048) -> 104 cycles kfree -> 136 cycles
->  10000 times kmalloc(4096) -> 142 cycles kfree -> 165 cycles
->  10000 times kmalloc(8192) -> 238 cycles kfree -> 226 cycles
->  10000 times kmalloc(16384) -> 403 cycles kfree -> 264 cycles
->  2. Kmalloc: alloc/free test
->  10000 times kmalloc(8)/kfree -> 68 cycles
->  10000 times kmalloc(16)/kfree -> 68 cycles
->  10000 times kmalloc(32)/kfree -> 69 cycles
->  10000 times kmalloc(64)/kfree -> 68 cycles
->  10000 times kmalloc(128)/kfree -> 68 cycles
->  10000 times kmalloc(256)/kfree -> 68 cycles
->  10000 times kmalloc(512)/kfree -> 74 cycles
->  10000 times kmalloc(1024)/kfree -> 75 cycles
->  10000 times kmalloc(2048)/kfree -> 74 cycles
->  10000 times kmalloc(4096)/kfree -> 74 cycles
->  10000 times kmalloc(8192)/kfree -> 75 cycles
->  10000 times kmalloc(16384)/kfree -> 510 cycles
-> 
-> * After
-> 
->  Single thread testing
->  =====================
->  1. Kmalloc: Repeatedly allocate then free test
->  10000 times kmalloc(8) -> 46 cycles kfree -> 61 cycles
->  10000 times kmalloc(16) -> 46 cycles kfree -> 63 cycles
->  10000 times kmalloc(32) -> 49 cycles kfree -> 69 cycles
->  10000 times kmalloc(64) -> 57 cycles kfree -> 76 cycles
->  10000 times kmalloc(128) -> 66 cycles kfree -> 83 cycles
->  10000 times kmalloc(256) -> 84 cycles kfree -> 110 cycles
->  10000 times kmalloc(512) -> 77 cycles kfree -> 114 cycles
->  10000 times kmalloc(1024) -> 80 cycles kfree -> 116 cycles
->  10000 times kmalloc(2048) -> 102 cycles kfree -> 131 cycles
->  10000 times kmalloc(4096) -> 135 cycles kfree -> 163 cycles
->  10000 times kmalloc(8192) -> 238 cycles kfree -> 218 cycles
->  10000 times kmalloc(16384) -> 399 cycles kfree -> 262 cycles
->  2. Kmalloc: alloc/free test
->  10000 times kmalloc(8)/kfree -> 65 cycles
->  10000 times kmalloc(16)/kfree -> 66 cycles
->  10000 times kmalloc(32)/kfree -> 65 cycles
->  10000 times kmalloc(64)/kfree -> 66 cycles
->  10000 times kmalloc(128)/kfree -> 66 cycles
->  10000 times kmalloc(256)/kfree -> 71 cycles
->  10000 times kmalloc(512)/kfree -> 72 cycles
->  10000 times kmalloc(1024)/kfree -> 71 cycles
->  10000 times kmalloc(2048)/kfree -> 71 cycles
->  10000 times kmalloc(4096)/kfree -> 71 cycles
->  10000 times kmalloc(8192)/kfree -> 65 cycles
->  10000 times kmalloc(16384)/kfree -> 511 cycles
-> 
-> Most of the results are better than before.
-> 
-> Note that this change slightly worses performance in !CONFIG_PREEMPT,
-> roughly 0.3%. Implementing each case separately would help performance,
-> but, since it's so marginal, I didn't do that. This would help
-> maintanance since we have same code for all cases.
-> 
-> Tested-by: Jesper Dangaard Brouer <brouer@redhat.com>
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> ---
->  mm/slub.c |   26 +++++++++++++-------------
->  1 file changed, 13 insertions(+), 13 deletions(-)
-> 
-> diff --git a/mm/slub.c b/mm/slub.c
-> index fe376fe..0624608 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -2398,13 +2398,15 @@ redo:
->  	 * reading from one cpu area. That does not matter as long
->  	 * as we end up on the original cpu again when doing the cmpxchg.
->  	 *
-> -	 * Preemption is disabled for the retrieval of the tid because that
-> -	 * must occur from the current processor. We cannot allow rescheduling
-> -	 * on a different processor between the determination of the pointer
-> -	 * and the retrieval of the tid.
-> +	 * We should guarantee that tid and kmem_cache are retrieved on
-> +	 * the same cpu. It could be different if CONFIG_PREEMPT so we need
-> +	 * to check if it is matched or not.
->  	 */
-> -	preempt_disable();
-> -	c = this_cpu_ptr(s->cpu_slab);
-> +	do {
-> +		tid = this_cpu_read(s->cpu_slab->tid);
-> +		c = this_cpu_ptr(s->cpu_slab);
-> +	} while (IS_ENABLED(CONFIG_PREEMPT) && unlikely(tid != c->tid));
-> +	barrier();
+Charles Shirron and Paul Cassella from Cray Inc have reported kswapd stuck
+in a busy loop with nothing left to balance, but kswapd_try_to_sleep() failing
+to sleep. Their analysis found the cause to be a combination of several
+factors:
 
-Help maintenance more if barrier is documented in commit message.
-> 
->  	/*
->  	 * The transaction ids are globally unique per cpu and per operation on
-> @@ -2412,8 +2414,6 @@ redo:
->  	 * occurs on the right processor and that there was no operation on the
->  	 * linked list in between.
->  	 */
-> -	tid = c->tid;
-> -	preempt_enable();
-> 
->  	object = c->freelist;
->  	page = c->page;
-> @@ -2659,11 +2659,11 @@ redo:
->  	 * data is retrieved via this pointer. If we are on the same cpu
->  	 * during the cmpxchg then the free will succedd.
->  	 */
-> -	preempt_disable();
-> -	c = this_cpu_ptr(s->cpu_slab);
-> -
-> -	tid = c->tid;
-> -	preempt_enable();
-> +	do {
-> +		tid = this_cpu_read(s->cpu_slab->tid);
-> +		c = this_cpu_ptr(s->cpu_slab);
-> +	} while (IS_ENABLED(CONFIG_PREEMPT) && unlikely(tid != c->tid));
-> +	barrier();
-> 
-ditto
->  	if (likely(page == c->page)) {
->  		set_freepointer(s, object, c->freelist);
-> --
-> 1.7.9.5
+1. A process is waiting in throttle_direct_reclaim() on pgdat->pfmemalloc_wait
+
+2. The process has been killed (by OOM in this case), but has not yet been
+   scheduled to remove itself from the waitqueue and die.
+
+3. kswapd checks for throttled processes in prepare_kswapd_sleep():
+
+        if (waitqueue_active(&pgdat->pfmemalloc_wait)) {
+                wake_up(&pgdat->pfmemalloc_wait);
+		return false; // kswapd will not go to sleep
+	}
+
+   However, for a process that was already killed, wake_up() does not remove
+   the process from the waitqueue, since try_to_wake_up() checks its state
+   first and returns false when the process is no longer waiting.
+
+4. kswapd is running on the same CPU as the only CPU that the process is
+   allowed to run on (through cpus_allowed, or possibly single-cpu system).
+
+5. CONFIG_PREEMPT_NONE=y kernel is used. If there's nothing to balance, kswapd
+   encounters no voluntary preemption points and repeatedly fails
+   prepare_kswapd_sleep(), blocking the process from running and removing
+   itself from the waitqueue, which would let kswapd sleep.
+
+So, the source of the problem is that we prevent kswapd from going to sleep
+until there are processes waiting on the pfmemalloc_wait queue, and a process
+waiting on a queue is guaranteed to be removed from the queue only when it
+gets scheduled. This was done to make sure that no process is left sleeping
+on pfmemalloc_wait when kswapd itself goes to sleep.
+
+However, it isn't necessary to postpone kswapd sleep until the pfmemalloc_wait
+queue actually empties. To prevent processes from being left sleeping, it's
+actually enough to guarantee that all processes waiting on pfmemalloc_wait
+queue have been woken up by the time we put kswapd to sleep.
+
+This patch therefore fixes this issue by substituting 'wake_up' with
+'wake_up_all' and removing 'return false' in the code snippet from
+prepare_kswapd_sleep() above. Note that if any process puts itself in the
+queue after this waitqueue_active() check, or after the wake up itself, it
+means that the process will also wake up kswapd - and since we are under
+prepare_to_wait(), the wake up won't be missed. Also we update the comment
+prepare_kswapd_sleep() to hopefully more clearly describe the races it is
+preventing.
+
+Fixes: 5515061d22f0 ("mm: throttle direct reclaimers if PF_MEMALLOC reserves
+                      are low and swap is backed by network storage")
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+Cc: <stable@vger.kernel.org>   # v3.6+
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Rik van Riel <riel@redhat.com>
+---
+Changes in v3 (v2 was sent by Vladimir Davydov, thanks for his new solution):
+
+- split to two patches again, as I (and Michal Hocko) think it's more correct
+- some rewording in changelog
+- change the code comment again as in v1 with small updates (v2 dropped this
+  part), since it has been clearly a source of confusion so far
+
+ mm/vmscan.c | 24 +++++++++++++-----------
+ 1 file changed, 13 insertions(+), 11 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index bd9a72b..ab2505c 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2921,18 +2921,20 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
+ 		return false;
+ 
+ 	/*
+-	 * There is a potential race between when kswapd checks its watermarks
+-	 * and a process gets throttled. There is also a potential race if
+-	 * processes get throttled, kswapd wakes, a large process exits therby
+-	 * balancing the zones that causes kswapd to miss a wakeup. If kswapd
+-	 * is going to sleep, no process should be sleeping on pfmemalloc_wait
+-	 * so wake them now if necessary. If necessary, processes will wake
+-	 * kswapd and get throttled again
++	 * The throttled processes are normally woken up in balance_pgdat() as
++	 * soon as pfmemalloc_watermark_ok() is true. But there is a potential
++	 * race between when kswapd checks the watermarks and a process gets
++	 * throttled. There is also a potential race if processes get
++	 * throttled, kswapd wakes, a large process exits thereby balancing the
++	 * zones, which causes kswapd to exit balance_pgdat() before reaching
++	 * the wake up checks. If kswapd is going to sleep, no process should
++	 * be sleeping on pfmemalloc_wait, so wake them now if necessary. If
++	 * the wake up is premature, processes will wake kswapd and get
++	 * throttled again. The difference from wake ups in balance_pgdat() is
++	 * that here we are under prepare_to_wait().
+ 	 */
+-	if (waitqueue_active(&pgdat->pfmemalloc_wait)) {
+-		wake_up(&pgdat->pfmemalloc_wait);
+-		return false;
+-	}
++	if (waitqueue_active(&pgdat->pfmemalloc_wait))
++		wake_up_all(&pgdat->pfmemalloc_wait);
+ 
+ 	return pgdat_balanced(pgdat, order, classzone_idx);
+ }
+-- 
+2.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
