@@ -1,58 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FFB36B0032
-	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 09:22:46 -0500 (EST)
-Received: by mail-we0-f176.google.com with SMTP id w61so7969652wes.35
-        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 06:22:46 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id dd4si54700516wjc.65.2015.01.05.06.22.44
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id A4C376B0032
+	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 09:41:08 -0500 (EST)
+Received: by mail-pd0-f182.google.com with SMTP id p10so28289500pdj.13
+        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 06:41:08 -0800 (PST)
+Received: from mx12.netapp.com (mx12.netapp.com. [216.240.18.77])
+        by mx.google.com with ESMTPS id e1si66957230pdo.117.2015.01.05.06.41.06
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 05 Jan 2015 06:22:45 -0800 (PST)
-Message-ID: <54AA9E09.7040308@suse.cz>
-Date: Mon, 05 Jan 2015 15:22:01 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        Mon, 05 Jan 2015 06:41:07 -0800 (PST)
+Message-ID: <54AAA27C.6040906@Netapp.com>
+Date: Mon, 5 Jan 2015 09:41:00 -0500
+From: Anna Schumaker <Anna.Schumaker@netapp.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH V3 0/4] Reducing parameters of alloc_pages* family of
- functions
-References: <1418400805-4661-1-git-send-email-vbabka@suse.cz> <20141218132619.4e6b349d0aa1744c41f985c7@linux-foundation.org>
-In-Reply-To: <20141218132619.4e6b349d0aa1744c41f985c7@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252
+Subject: Re: [PATCH v2 3/5] nfs: don't dirty ITER_BVEC pages read through
+ direct I/O
+References: <cover.1419044605.git.osandov@osandov.com> <b42b9a61d22260ee44b312d0119f1856e8f5840d.1419044605.git.osandov@osandov.com>
+In-Reply-To: <b42b9a61d22260ee44b312d0119f1856e8f5840d.1419044605.git.osandov@osandov.com>
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: Omar Sandoval <osandov@osandov.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 12/18/2014 10:26 PM, Andrew Morton wrote:
-> On Fri, 12 Dec 2014 17:13:21 +0100 Vlastimil Babka <vbabka@suse.cz> wrote:
+Hi Omar,
+
+On 12/19/2014 10:18 PM, Omar Sandoval wrote:
+> As with the generic blockdev code, kernel pages shouldn't be dirtied by
+> the direct I/O path.
 > 
->> Vlastimil Babka (4):
->>   mm: set page->pfmemalloc in prep_new_page()
->>   mm, page_alloc: reduce number of alloc_pages* functions' parameters
->>   mm: reduce try_to_compact_pages parameters
->>   mm: microoptimize zonelist operations
+> Signed-off-by: Omar Sandoval <osandov@osandov.com>
+> ---
+>  fs/nfs/direct.c | 5 ++++-
+>  1 file changed, 4 insertions(+), 1 deletion(-)
 > 
-> That all looks pretty straightforward.  It would be nice to have a
-> summary of the code-size and stack-usage changes for the whole
-> patchset.
+> diff --git a/fs/nfs/direct.c b/fs/nfs/direct.c
+> index 10bf072..b6ca65c 100644
+> --- a/fs/nfs/direct.c
+> +++ b/fs/nfs/direct.c
+> @@ -88,6 +88,7 @@ struct nfs_direct_req {
+>  	struct pnfs_ds_commit_info ds_cinfo;	/* Storage for cinfo */
+>  	struct work_struct	work;
+>  	int			flags;
+> +	int			should_dirty;	/* should we mark read pages dirty? */
+>  #define NFS_ODIRECT_DO_COMMIT		(1)	/* an unstable reply was received */
+>  #define NFS_ODIRECT_RESCHED_WRITES	(2)	/* write verification failed */
+>  	struct nfs_writeverf	verf;		/* unstable write verifier */
 
-OK
+Can you add should_dirty after the NFS_ODIRECT_* flags?
 
-> Can we move `struct alloc_context' into mm/internal.h?
+Thanks,
+Anna
 
-Only if we moved also try_to_compact_pages() declaration from
-include/linux/compaction.h to mm/internal.h. I guess it's not a bad idea, as
-it's a MM-only function and mm/internal.h already contains compaction stuff.
-
-> I pity the poor schmuck who has to maintain this patchset for 2 months.
-> [2/4] already throws a large pile of rejects against page_alloc.c so
-> can you please refresh/retest/resend?
-
-Right :)
-
-Vlastimil
-
+> @@ -370,7 +371,8 @@ static void nfs_direct_read_completion(struct nfs_pgio_header *hdr)
+>  		struct nfs_page *req = nfs_list_entry(hdr->pages.next);
+>  		struct page *page = req->wb_page;
+>  
+> -		if (!PageCompound(page) && bytes < hdr->good_bytes)
+> +		if (!PageCompound(page) && bytes < hdr->good_bytes &&
+> +		    dreq->should_dirty)
+>  			set_page_dirty(page);
+>  		bytes += req->wb_bytes;
+>  		nfs_list_remove_request(req);
+> @@ -542,6 +544,7 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, struct iov_iter *iter,
+>  	dreq->inode = inode;
+>  	dreq->bytes_left = count;
+>  	dreq->ctx = get_nfs_open_context(nfs_file_open_context(iocb->ki_filp));
+> +	dreq->should_dirty = !iov_iter_is_bvec(iter);
+>  	l_ctx = nfs_get_lock_context(dreq->ctx);
+>  	if (IS_ERR(l_ctx)) {
+>  		result = PTR_ERR(l_ctx);
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
