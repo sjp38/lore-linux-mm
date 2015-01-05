@@ -1,77 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 07C266B007D
-	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 05:54:39 -0500 (EST)
-Received: by mail-we0-f179.google.com with SMTP id q59so7629761wes.10
-        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 02:54:38 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ec2si15601607wib.90.2015.01.05.02.54.25
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 05 Jan 2015 02:54:25 -0800 (PST)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 10/10] mm: numa: Avoid unnecessary TLB flushes when setting NUMA hinting entries
-Date: Mon,  5 Jan 2015 10:54:11 +0000
-Message-Id: <1420455251-13644-11-git-send-email-mgorman@suse.de>
-In-Reply-To: <1420455251-13644-1-git-send-email-mgorman@suse.de>
-References: <1420455251-13644-1-git-send-email-mgorman@suse.de>
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 83CC86B0032
+	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 06:46:28 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id fb1so28633411pad.27
+        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 03:46:28 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id lo1si82993568pab.201.2015.01.05.03.46.26
+        for <linux-mm@kvack.org>;
+        Mon, 05 Jan 2015 03:46:27 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] mm/page_alloc.c: drop dead destroy_compound_page()
+Date: Mon,  5 Jan 2015 13:46:22 +0200
+Message-Id: <1420458382-161038-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@redhat.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Sasha Levin <sasha.levin@oracle.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LinuxPPC-dev <linuxppc-dev@lists.ozlabs.org>, Mel Gorman <mgorman@suse.de>
+To: akpm@linux-foundation.org
+Cc: aarcange@redhat.com, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-If a PTE or PMD is already marked NUMA when scanning to mark entries
-for NUMA hinting then it is not necessary to update the entry and
-incur a TLB flush penalty. Avoid the avoidhead where possible.
+The only caller is __free_one_page(). By the time we should have
+page->flags to be cleared already:
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
+ - for 0-order pages though PCP list:
+	free_hot_cold_page()
+		free_pages_prepare()
+			free_pages_check()
+				page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
+		<put the page to PCP list>
+
+	free_pcppages_bulk()
+		page = <withdraw pages from PCP list>
+		__free_one_page(page)
+
+ - for non-0-order pages:
+	__free_pages_ok()
+		free_pages_prepare()
+			free_pages_check()
+				page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
+		free_one_page()
+			__free_one_page()
+
+So there's no way PageCompound() will return true in __free_one_page().
+Let's remove dead destroy_compound_page() and put assert for page->flags
+there instead.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/huge_memory.c | 14 ++++++++------
- mm/mprotect.c    |  4 ++++
- 2 files changed, 12 insertions(+), 6 deletions(-)
+ mm/page_alloc.c | 35 +----------------------------------
+ 1 file changed, 1 insertion(+), 34 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 8546654..f2bf521 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1524,12 +1524,14 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 			return 0;
- 		}
- 
--		ret = 1;
--		entry = pmdp_get_and_clear_notify(mm, addr, pmd);
--		entry = pmd_modify(entry, newprot);
--		ret = HPAGE_PMD_NR;
--		set_pmd_at(mm, addr, pmd, entry);
--		BUG_ON(pmd_write(entry));
-+		if (!prot_numa || !pmd_protnone(*pmd)) {
-+			ret = 1;
-+			entry = pmdp_get_and_clear_notify(mm, addr, pmd);
-+			entry = pmd_modify(entry, newprot);
-+			ret = HPAGE_PMD_NR;
-+			set_pmd_at(mm, addr, pmd, entry);
-+			BUG_ON(pmd_write(entry));
-+		}
- 		spin_unlock(ptl);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 1bb65e6f48dd..5e75380dacab 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -381,36 +381,6 @@ void prep_compound_page(struct page *page, unsigned long order)
  	}
+ }
  
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 33dfafb..109e7aa 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -86,6 +86,10 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 				page = vm_normal_page(vma, addr, oldpte);
- 				if (!page || PageKsm(page))
- 					continue;
-+
-+				/* Avoid TLB flush if possible */
-+				if (pte_protnone(oldpte))
-+					continue;
- 			}
+-/* update __split_huge_page_refcount if you change this function */
+-static int destroy_compound_page(struct page *page, unsigned long order)
+-{
+-	int i;
+-	int nr_pages = 1 << order;
+-	int bad = 0;
+-
+-	if (unlikely(compound_order(page) != order)) {
+-		bad_page(page, "wrong compound order", 0);
+-		bad++;
+-	}
+-
+-	__ClearPageHead(page);
+-
+-	for (i = 1; i < nr_pages; i++) {
+-		struct page *p = page + i;
+-
+-		if (unlikely(!PageTail(p))) {
+-			bad_page(page, "PageTail not set", 0);
+-			bad++;
+-		} else if (unlikely(p->first_page != page)) {
+-			bad_page(page, "first_page not consistent", 0);
+-			bad++;
+-		}
+-		__ClearPageTail(p);
+-	}
+-
+-	return bad;
+-}
+-
+ static inline void prep_zero_page(struct page *page, unsigned int order,
+ 							gfp_t gfp_flags)
+ {
+@@ -613,10 +583,7 @@ static inline void __free_one_page(struct page *page,
+ 	int max_order = MAX_ORDER;
  
- 			ptent = ptep_modify_prot_start(mm, addr, pte);
+ 	VM_BUG_ON(!zone_is_initialized(zone));
+-
+-	if (unlikely(PageCompound(page)))
+-		if (unlikely(destroy_compound_page(page, order)))
+-			return;
++	VM_BUG_ON_PAGE(page->flags & PAGE_FLAGS_CHECK_AT_PREP, page);
+ 
+ 	VM_BUG_ON(migratetype == -1);
+ 	if (is_migrate_isolate(migratetype)) {
 -- 
-2.1.2
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
