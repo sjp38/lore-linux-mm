@@ -1,89 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BB766B0032
-	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 12:21:41 -0500 (EST)
-Received: by mail-we0-f174.google.com with SMTP id k48so8309857wev.33
-        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 09:21:40 -0800 (PST)
-Received: from rhlx01.hs-esslingen.de (rhlx01.hs-esslingen.de. [129.143.116.10])
-        by mx.google.com with ESMTPS id r7si17904019wiy.81.2015.01.05.09.21.40
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Jan 2015 09:21:40 -0800 (PST)
-Date: Mon, 5 Jan 2015 18:21:39 +0100
-From: Andreas Mohr <andi@lisas.de>
-Subject: Re: [PATCH 6/6] mm/slab: allocation fastpath without disabling irq
-Message-ID: <20150105172139.GA11201@rhlx01.hs-esslingen.de>
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 24AEE6B0032
+	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 12:28:29 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id rd3so29212838pab.0
+        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 09:28:28 -0800 (PST)
+Received: from relay.sgi.com (relay2.sgi.com. [192.48.180.65])
+        by mx.google.com with ESMTP id ua8si84238650pbc.215.2015.01.05.09.28.26
+        for <linux-mm@kvack.org>;
+        Mon, 05 Jan 2015 09:28:27 -0800 (PST)
+From: James Custer <jcuster@sgi.com>
+Subject: RE: [patch 4/6] mm: fix invalid use of pfn_valid_within in
+ test_pages_in_a_zone
+Date: Mon, 5 Jan 2015 17:27:49 +0000
+Message-ID: <E0FB9EDDBE1AAD4EA62C90D3B6E4783B739EE100@P-EXMB2-DC21.corp.sgi.com>
+References: <548f68bb.wuNDZDL8qk6xEWTm%akpm@linux-foundation.org>,<alpine.DEB.2.10.1412171537560.16260@chino.kir.corp.google.com>,<E0FB9EDDBE1AAD4EA62C90D3B6E4783B739E6CA4@P-EXMB2-DC21.corp.sgi.com>
+In-Reply-To: <E0FB9EDDBE1AAD4EA62C90D3B6E4783B739E6CA4@P-EXMB2-DC21.corp.sgi.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1420421851-3281-7-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>
+To: David Rientjes <rientjes@google.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, Russ
+ Anderson <rja@sgi.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>
 
-Hi,
-
-Joonsoo Kim wrote:
-> + * Calculate the next globally unique transaction for disambiguiation
-
-"disambiguation"
-
-
-> +	ac->tid = next_tid(ac->tid);
-(and all others)
-
-object oriented:
-array_cache_next_tid(ac);
-(or perhaps rather: array_cache_start_transaction(ac);?).
-
-
-> +	/*
-> +	 * Because we disable irq just now, cpu can be changed
-> +	 * and we are on different node with object node. In this rare
-> +	 * case, just return pfmemalloc object for simplicity.
-> +	 */
-
-"are on a node which is different from object's node"
-
-
-
-
-General thoughts (maybe just rambling, but that's just my feelings vs.
-this mechanism, so maybe it's food for thought):
-To me, the existing implementation seems too fond of IRQ fumbling
-(i.e., affecting of oh so nicely *unrelated*
-outer global environment context stuff).
-A proper implementation wouldn't need *any* knowledge of this
-(i.e., modifying such "IRQ disable" side effects,
-to avoid having a scheduler hit and possibly ending up on another node).
-
-Thus to me, the whole handling seems somewhat wrong and split
-(since there remains the need to deal with scheduler distortion/disruption).
-The bare-metal "inner" algorithm should not need to depend on such shenanigans
-but simply be able to carry out its task unaffected,
-where IRQs are simply always left enabled
-(or at least potentially disabled by other kernel components only)
-and the code then elegantly/inherently deals with IRQ complications.
-
-Since the node change is scheduler-driven (I assume),
-any (changes of) context attributes
-which are relevant to (affect) SLAB-internal operations
-ought to be implicitly/automatically re-assigned by the scheduler,
-and then the most that should be needed is a *final* check in SLAB
-(possibly in an outer user-facing layer of it)
-whether the current final calculation result still matches expectations,
-i.e. whether there was no disruption
-(in which case we'd also do a goto redo: operation or some such :).
-
-These thoughts also mean that I'm unsure (difficult to determine)
-of whether this change is good (i.e. a clean step in the right direction),
-or whether instead the implementation could easily directly be made
-fully independent from IRQ constraints.
-
-Thanks,
-
-Andreas Mohr
+Hi David,=0A=
+=0A=
+I was just wondering if you saw my message. I know I sent it before the hol=
+idays, just wanted to make sure it didn't get lost.=0A=
+=0A=
+Regards,=0A=
+James=0A=
+________________________________________=0A=
+From: James Custer=0A=
+Sent: Thursday, December 18, 2014 11:16 AM=0A=
+To: David Rientjes; akpm@linux-foundation.org=0A=
+Cc: linux-mm@kvack.org; isimatu.yasuaki@jp.fujitsu.com; kamezawa.hiroyu@jp.=
+fujitsu.com; Russ Anderson; stable@vger.kernel.org=0A=
+Subject: RE: [patch 4/6] mm: fix invalid use of pfn_valid_within in test_pa=
+ges_in_a_zone=0A=
+=0A=
+Reading the documentation on pageblock_pfn_to_page it checks to see if all =
+of [start_pfn, end_pfn) is valid and within the same zone. But the validity=
+ in the entirety of [start_pfn, end_pfn) doesn't seem to be a requirement o=
+f test_pages_in_a_zone, unless I'm missing something.=0A=
+=0A=
+Disclaimer: I'm very much not familiar with this area of code, and I fixed =
+this bug based off of documentation that I read.=0A=
+=0A=
+Regards,=0A=
+James=0A=
+________________________________________=0A=
+From: David Rientjes [rientjes@google.com]=0A=
+Sent: Wednesday, December 17, 2014 5:40 PM=0A=
+To: akpm@linux-foundation.org=0A=
+Cc: linux-mm@kvack.org; James Custer; isimatu.yasuaki@jp.fujitsu.com; kamez=
+awa.hiroyu@jp.fujitsu.com; Russ Anderson; stable@vger.kernel.org=0A=
+Subject: Re: [patch 4/6] mm: fix invalid use of pfn_valid_within in test_pa=
+ges_in_a_zone=0A=
+=0A=
+On Mon, 15 Dec 2014, akpm@linux-foundation.org wrote:=0A=
+=0A=
+> diff -puN mm/memory_hotplug.c~mm-fix-invalid-use-of-pfn_valid_within-in-t=
+est_pages_in_a_zone mm/memory_hotplug.c=0A=
+> --- a/mm/memory_hotplug.c~mm-fix-invalid-use-of-pfn_valid_within-in-test_=
+pages_in_a_zone=0A=
+> +++ a/mm/memory_hotplug.c=0A=
+> @@ -1331,7 +1331,7 @@ int is_mem_section_removable(unsigned lo=0A=
+>  }=0A=
+>=0A=
+>  /*=0A=
+> - * Confirm all pages in a range [start, end) is belongs to the same zone=
+.=0A=
+> + * Confirm all pages in a range [start, end) belong to the same zone.=0A=
+>   */=0A=
+>  int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)=
+=0A=
+>  {=0A=
+> @@ -1342,10 +1342,11 @@ int test_pages_in_a_zone(unsigned long s=0A=
+>       for (pfn =3D start_pfn;=0A=
+>            pfn < end_pfn;=0A=
+>            pfn +=3D MAX_ORDER_NR_PAGES) {=0A=
+> -             i =3D 0;=0A=
+> -             /* This is just a CONFIG_HOLES_IN_ZONE check.*/=0A=
+> -             while ((i < MAX_ORDER_NR_PAGES) && !pfn_valid_within(pfn + =
+i))=0A=
+> -                     i++;=0A=
+> +             /* Find the first valid pfn in this pageblock */=0A=
+> +             for (i =3D 0; i < MAX_ORDER_NR_PAGES; i++) {=0A=
+> +                     if (pfn_valid(pfn + i))=0A=
+> +                             break;=0A=
+> +             }=0A=
+>               if (i =3D=3D MAX_ORDER_NR_PAGES)=0A=
+>                       continue;=0A=
+>               page =3D pfn_to_page(pfn + i);=0A=
+=0A=
+I think it would be much better to implement test_pages_in_a_zone() as a=0A=
+wrapper around the logic in memory compaction's pageblock_pfn_to_page()=0A=
+that does this exact same check for a pageblock.  It would only need to=0A=
+iterate the valid pageblocks in the [start_pfn, end_pfn) range and find=0A=
+the zone of the first pfn of the first valid pageblock.  This not only=0A=
+removes code, but it also unifies the implementation since your=0A=
+implementation above would be slower.=0A=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
