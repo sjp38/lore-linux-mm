@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qa0-f45.google.com (mail-qa0-f45.google.com [209.85.216.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B5D56B0032
-	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 09:52:35 -0500 (EST)
-Received: by mail-qa0-f45.google.com with SMTP id f12so13649167qad.32
-        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 06:52:35 -0800 (PST)
-Received: from resqmta-ch2-06v.sys.comcast.net (resqmta-ch2-06v.sys.comcast.net. [2001:558:fe21:29:69:252:207:38])
-        by mx.google.com with ESMTPS id r8si30021973qak.127.2015.01.05.06.52.33
+	by kanga.kvack.org (Postfix) with ESMTP id BE0186B006C
+	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 09:53:22 -0500 (EST)
+Received: by mail-qa0-f45.google.com with SMTP id f12so13470557qad.4
+        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 06:53:22 -0800 (PST)
+Received: from resqmta-ch2-09v.sys.comcast.net (resqmta-ch2-09v.sys.comcast.net. [2001:558:fe21:29:69:252:207:41])
+        by mx.google.com with ESMTPS id s106si60542966qgd.103.2015.01.05.06.53.21
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Mon, 05 Jan 2015 06:52:34 -0800 (PST)
-Date: Mon, 5 Jan 2015 08:52:30 -0600 (CST)
+        Mon, 05 Jan 2015 06:53:21 -0800 (PST)
+Date: Mon, 5 Jan 2015 08:53:20 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 1/2] mm/slub: optimize alloc/free fastpath by removing
- preemption on/off
-In-Reply-To: <1420421765-3209-1-git-send-email-iamjoonsoo.kim@lge.com>
-Message-ID: <alpine.DEB.2.11.1501050852060.24090@gentwo.org>
-References: <1420421765-3209-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 2/2] mm: don't use compound_head() in
+ virt_to_head_page()
+In-Reply-To: <1420421765-3209-2-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <alpine.DEB.2.11.1501050852380.24090@gentwo.org>
+References: <1420421765-3209-1-git-send-email-iamjoonsoo.kim@lge.com> <1420421765-3209-2-git-send-email-iamjoonsoo.kim@lge.com>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -24,10 +24,11 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>
 
 On Mon, 5 Jan 2015, Joonsoo Kim wrote:
 
-> Now, I reach the solution to remove preempt enable/disable in the fastpath.
-> If tid is matched with kmem_cache_cpu's tid after tid and kmem_cache_cpu
-> are retrieved by separate this_cpu operation, it means that they are
-> retrieved on the same cpu. If not matched, we just have to retry it.
+> This patch implements compound_head_fast() which is similar with
+> compound_head() except tail flag race handling. And then,
+> virt_to_head_page() uses this optimized function to improve performance.
+
+Yeah that is how it was before and how it should be
 
 Acked-by: Christoph Lameter <cl@linux.com>
 
