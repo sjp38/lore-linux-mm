@@ -1,41 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f42.google.com (mail-qa0-f42.google.com [209.85.216.42])
-	by kanga.kvack.org (Postfix) with ESMTP id A50386B0032
-	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 12:52:38 -0500 (EST)
-Received: by mail-qa0-f42.google.com with SMTP id n8so15456820qaq.1
-        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 09:52:38 -0800 (PST)
-Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
-        by mx.google.com with ESMTPS id 8si44276876qcp.5.2015.01.05.09.52.36
+Received: from mail-qc0-f178.google.com (mail-qc0-f178.google.com [209.85.216.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 79EB36B0038
+	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 13:36:21 -0500 (EST)
+Received: by mail-qc0-f178.google.com with SMTP id b13so17590788qcw.37
+        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 10:36:21 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w2si39092175qat.24.2015.01.05.10.36.19
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Mon, 05 Jan 2015 09:52:37 -0800 (PST)
-Date: Mon, 5 Jan 2015 11:52:35 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 6/6] mm/slab: allocation fastpath without disabling irq
-In-Reply-To: <20150105172139.GA11201@rhlx01.hs-esslingen.de>
-Message-ID: <alpine.DEB.2.11.1501051151200.25076@gentwo.org>
-References: <20150105172139.GA11201@rhlx01.hs-esslingen.de>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Jan 2015 10:36:20 -0800 (PST)
+From: Rafael Aquini <aquini@redhat.com>
+Subject: [PATCH v2] fs: proc: task_mmu: show page size in /proc/<pid>/numa_maps
+Date: Mon,  5 Jan 2015 12:44:31 -0500
+Message-Id: <734bca19b3a8f4e191ccc9055ad4740744b5b2b6.1420464466.git.aquini@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andreas Mohr <andi@lisas.de>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>
+To: linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, jweiner@redhat.com, dave.hansen@linux.intel.com, rientjes@google.com, linux-mm@kvack.org
 
-On Mon, 5 Jan 2015, Andreas Mohr wrote:
+This patch introduces 'kernelpagesize_kB' line element to /proc/<pid>/numa_maps
+report file in order to help identifying the size of pages that are backing
+memory areas mapped by a given task. This is specially useful to
+help differentiating between HUGE and GIGANTIC page backed VMAs.
 
-> These thoughts also mean that I'm unsure (difficult to determine)
-> of whether this change is good (i.e. a clean step in the right direction),
-> or whether instead the implementation could easily directly be made
-> fully independent from IRQ constraints.
+This patch is based on Dave Hansen's proposal and reviewer's follow-ups
+taken from the following dicussion threads:
+ * https://lkml.org/lkml/2011/9/21/454
+ * https://lkml.org/lkml/2014/12/20/66
 
-We have thought a couple of times about making it independent of
-interrupts. We can do that if there is guarantee that no slab operations
-are going to be performed from an interrupt context. That in turn will
-simplify allocator design significantly.
+Signed-off-by: Rafael Aquini <aquini@redhat.com>
+---
+* v2 changelog:
+  . print kernel page size unconditionally (jweiner, dhansen)
+  . rename pagesize to match smaps terminology (dhansen, drientjes)
 
-Regarding this patchset: I think this has the character of an RFC at this
-point. There are some good ideas here but this needs to mature a bit and
-get lots of feedback.
+ fs/proc/task_mmu.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 246eae8..3688d64 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -1533,6 +1533,8 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
+ 	if (!md->pages)
+ 		goto out;
+ 
++	seq_printf(m, " kernelpagesize_kB=%lu", vma_kernel_pagesize(vma) >> 10);
++
+ 	if (md->anon)
+ 		seq_printf(m, " anon=%lu", md->anon);
+ 
+-- 
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
