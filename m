@@ -1,41 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 47A736B0032
-	for <linux-mm@kvack.org>; Sun,  4 Jan 2015 21:33:56 -0500 (EST)
-Received: by mail-pd0-f175.google.com with SMTP id g10so27213347pdj.20
-        for <linux-mm@kvack.org>; Sun, 04 Jan 2015 18:33:56 -0800 (PST)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id v1si81139600pdp.252.2015.01.04.18.33.53
-        for <linux-mm@kvack.org>;
-        Sun, 04 Jan 2015 18:33:55 -0800 (PST)
-Date: Mon, 5 Jan 2015 11:33:52 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 1/3] mm/compaction: enhance trace output to know more
- about compaction internals
-Message-ID: <20150105023352.GB3534@js1304-P5Q-DELUXE>
-References: <1417593127-6819-1-git-send-email-iamjoonsoo.kim@lge.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1417593127-6819-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id F410C6B0032
+	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 00:04:04 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id lf10so27840794pab.19
+        for <linux-mm@kvack.org>; Sun, 04 Jan 2015 21:04:04 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id a10si37266635pat.37.2015.01.04.21.04.02
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 04 Jan 2015 21:04:03 -0800 (PST)
+Message-ID: <1420434223.3860.1.camel@ellerman.id.au>
+Subject: Re: [PATCH 29/38] powerpc: drop _PAGE_FILE and pte_file()-related
+ helpers
+From: Michael Ellerman <mpe@ellerman.id.au>
+Date: Mon, 05 Jan 2015 16:03:43 +1100
+In-Reply-To: <1419423766-114457-30-git-send-email-kirill.shutemov@linux.intel.com>
+References: 
+	<1419423766-114457-1-git-send-email-kirill.shutemov@linux.intel.com>
+	 <1419423766-114457-30-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>
 
-On Wed, Dec 03, 2014 at 04:52:05PM +0900, Joonsoo Kim wrote:
-> It'd be useful to know where the both scanner is start. And, it also be
-> useful to know current range where compaction work. It will help to find
-> odd behaviour or problem on compaction.
+On Wed, 2014-12-24 at 14:22 +0200, Kirill A. Shutemov wrote:
+> We've replaced remap_file_pages(2) implementation with emulation.
+> Nobody creates non-linear mapping anymore.
 > 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> Cc: Paul Mackerras <paulus@samba.org>
+> Cc: Michael Ellerman <mpe@ellerman.id.au>
+> ---
+>  arch/powerpc/include/asm/pgtable-ppc32.h | 9 ++-------
+>  arch/powerpc/include/asm/pgtable-ppc64.h | 5 +----
+>  arch/powerpc/include/asm/pgtable.h       | 1 -
+>  arch/powerpc/include/asm/pte-40x.h       | 1 -
+>  arch/powerpc/include/asm/pte-44x.h       | 5 -----
+>  arch/powerpc/include/asm/pte-8xx.h       | 1 -
+>  arch/powerpc/include/asm/pte-book3e.h    | 1 -
+>  arch/powerpc/include/asm/pte-fsl-booke.h | 3 ---
+>  arch/powerpc/include/asm/pte-hash32.h    | 1 -
+>  arch/powerpc/include/asm/pte-hash64.h    | 1 -
+>  arch/powerpc/mm/pgtable_64.c             | 2 +-
+>  11 files changed, 4 insertions(+), 26 deletions(-)
 
-Hello, Andrew and Vlastimil.
+These bits look fine to me.
 
-Could you review or merge this patchset?
-It would help to trace compaction behaviour.
+Acked-by: Michael Ellerman <mpe@ellerman.id.au>
 
-Thanks.
+cheers
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
