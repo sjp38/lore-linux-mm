@@ -1,36 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f45.google.com (mail-qa0-f45.google.com [209.85.216.45])
-	by kanga.kvack.org (Postfix) with ESMTP id BE0186B006C
-	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 09:53:22 -0500 (EST)
-Received: by mail-qa0-f45.google.com with SMTP id f12so13470557qad.4
-        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 06:53:22 -0800 (PST)
-Received: from resqmta-ch2-09v.sys.comcast.net (resqmta-ch2-09v.sys.comcast.net. [2001:558:fe21:29:69:252:207:41])
-        by mx.google.com with ESMTPS id s106si60542966qgd.103.2015.01.05.06.53.21
+Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 528BF6B0032
+	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 10:28:17 -0500 (EST)
+Received: by mail-qc0-f180.google.com with SMTP id i8so15781705qcq.11
+        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 07:28:17 -0800 (PST)
+Received: from resqmta-ch2-07v.sys.comcast.net (resqmta-ch2-07v.sys.comcast.net. [2001:558:fe21:29:69:252:207:39])
+        by mx.google.com with ESMTPS id a1si60673954qar.108.2015.01.05.07.28.15
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Mon, 05 Jan 2015 06:53:21 -0800 (PST)
-Date: Mon, 5 Jan 2015 08:53:20 -0600 (CST)
+        Mon, 05 Jan 2015 07:28:16 -0800 (PST)
+Date: Mon, 5 Jan 2015 09:28:14 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 2/2] mm: don't use compound_head() in
- virt_to_head_page()
-In-Reply-To: <1420421765-3209-2-git-send-email-iamjoonsoo.kim@lge.com>
-Message-ID: <alpine.DEB.2.11.1501050852380.24090@gentwo.org>
-References: <1420421765-3209-1-git-send-email-iamjoonsoo.kim@lge.com> <1420421765-3209-2-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 6/6] mm/slab: allocation fastpath without disabling irq
+In-Reply-To: <1420421851-3281-7-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <alpine.DEB.2.11.1501050859520.24213@gentwo.org>
+References: <1420421851-3281-1-git-send-email-iamjoonsoo.kim@lge.com> <1420421851-3281-7-git-send-email-iamjoonsoo.kim@lge.com>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>, rostedt@goodmis.org, Thomas Gleixner <tglx@linutronix.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>
 
 On Mon, 5 Jan 2015, Joonsoo Kim wrote:
 
-> This patch implements compound_head_fast() which is similar with
-> compound_head() except tail flag race handling. And then,
-> virt_to_head_page() uses this optimized function to improve performance.
+> index 449fc6b..54656f0 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -168,6 +168,41 @@ typedef unsigned short freelist_idx_t;
+>
+>  #define SLAB_OBJ_MAX_NUM ((1 << sizeof(freelist_idx_t) * BITS_PER_BYTE) - 1)
+>
+> +#ifdef CONFIG_PREEMPT
+> +/*
+> + * Calculate the next globally unique transaction for disambiguiation
+> + * during cmpxchg. The transactions start with the cpu number and are then
+> + * incremented by CONFIG_NR_CPUS.
+> + */
+> +#define TID_STEP  roundup_pow_of_two(CONFIG_NR_CPUS)
+> +#else
+> +/*
+> + * No preemption supported therefore also no need to check for
+> + * different cpus.
+> + */
+> +#define TID_STEP 1
+> +#endif
+> +
+> +static inline unsigned long next_tid(unsigned long tid)
+> +{
+> +	return tid + TID_STEP;
+> +}
+> +
+> +static inline unsigned int tid_to_cpu(unsigned long tid)
+> +{
+> +	return tid % TID_STEP;
+> +}
+> +
+> +static inline unsigned long tid_to_event(unsigned long tid)
+> +{
+> +	return tid / TID_STEP;
+> +}
+> +
+> +static inline unsigned int init_tid(int cpu)
+> +{
+> +	return cpu;
+> +}
+> +
 
-Yeah that is how it was before and how it should be
+Ok the above stuff needs to go into the common code. Maybe in mm/slab.h?
+And its a significant feature contributed by me so I'd like to have an
+attribution here.
 
-Acked-by: Christoph Lameter <cl@linux.com>
+>  /*
+>   * true if a page was allocated from pfmemalloc reserves for network-based
+>   * swap
+> @@ -187,7 +222,8 @@ static bool pfmemalloc_active __read_mostly;
+>   *
+>   */
+>  struct array_cache {
+> -	unsigned int avail;
+> +	unsigned long avail;
+> +	unsigned long tid;
+>  	unsigned int limit;
+>  	unsigned int batchcount;
+>  	unsigned int touched;
+> @@ -657,7 +693,8 @@ static void start_cpu_timer(int cpu)
+>  	}
+>  }
+
+This increases the per cpu struct size and should lead to a small
+performance penalty.
+
+> -	 */
+> -	if (likely(objp)) {
+> -		STATS_INC_ALLOCHIT(cachep);
+> -		goto out;
+> +	objp = ac->entry[avail - 1];
+> +	if (unlikely(!this_cpu_cmpxchg_double(
+> +		cachep->cpu_cache->avail, cachep->cpu_cache->tid,
+> +		avail, tid,
+> +		avail - 1, next_tid(tid))))
+> +		goto redo;
+
+
+Hmm... Ok that looks good.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
