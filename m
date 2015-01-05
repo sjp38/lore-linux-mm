@@ -1,128 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
-	by kanga.kvack.org (Postfix) with ESMTP id A61E96B006C
-	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 03:56:57 -0500 (EST)
-Received: by mail-we0-f173.google.com with SMTP id q58so7456249wes.32
+Received: from mail-we0-f178.google.com (mail-we0-f178.google.com [74.125.82.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AEF16B006E
+	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 03:56:58 -0500 (EST)
+Received: by mail-we0-f178.google.com with SMTP id p10so7498578wes.9
         for <linux-mm@kvack.org>; Mon, 05 Jan 2015 00:56:57 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id wo6si48018514wjc.129.2015.01.05.00.56.56
+        by mx.google.com with ESMTPS id d6si15239548wie.24.2015.01.05.00.56.56
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Mon, 05 Jan 2015 00:56:56 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH V3 1/2] mm, vmscan: prevent kswapd livelock due to pfmemalloc-throttled process being killed
-Date: Mon,  5 Jan 2015 09:56:42 +0100
-Message-Id: <1420448203-30212-1-git-send-email-vbabka@suse.cz>
+Subject: [PATCH V3 2/2] mm, vmscan: wake up all pfmemalloc-throttled processes at once
+Date: Mon,  5 Jan 2015 09:56:43 +0100
+Message-Id: <1420448203-30212-2-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1420448203-30212-1-git-send-email-vbabka@suse.cz>
+References: <1420448203-30212-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Vladimir Davydov <vdavydov@parallels.com>, stable@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@parallels.com>, Rik van Riel <riel@redhat.com>, stable@vger.kernel.org
 
-Charles Shirron and Paul Cassella from Cray Inc have reported kswapd stuck
-in a busy loop with nothing left to balance, but kswapd_try_to_sleep() failing
-to sleep. Their analysis found the cause to be a combination of several
-factors:
+Kswapd in balance_pgdate() currently uses wake_up() on processes waiting in
+throttle_direct_reclaim(), which only wakes up a single process. This might
+leave processes waiting for longer than necessary, until the check is reached
+in the next loop iteration. Processes might also be left waiting if zone was
+fully balanced in single iteration. Note that the comment in balance_pgdat()
+also says "Wake them", so waking up a single process does not seem intentional.
 
-1. A process is waiting in throttle_direct_reclaim() on pgdat->pfmemalloc_wait
+Thus, replace wake_up() with wake_up_all().
 
-2. The process has been killed (by OOM in this case), but has not yet been
-   scheduled to remove itself from the waitqueue and die.
-
-3. kswapd checks for throttled processes in prepare_kswapd_sleep():
-
-        if (waitqueue_active(&pgdat->pfmemalloc_wait)) {
-                wake_up(&pgdat->pfmemalloc_wait);
-		return false; // kswapd will not go to sleep
-	}
-
-   However, for a process that was already killed, wake_up() does not remove
-   the process from the waitqueue, since try_to_wake_up() checks its state
-   first and returns false when the process is no longer waiting.
-
-4. kswapd is running on the same CPU as the only CPU that the process is
-   allowed to run on (through cpus_allowed, or possibly single-cpu system).
-
-5. CONFIG_PREEMPT_NONE=y kernel is used. If there's nothing to balance, kswapd
-   encounters no voluntary preemption points and repeatedly fails
-   prepare_kswapd_sleep(), blocking the process from running and removing
-   itself from the waitqueue, which would let kswapd sleep.
-
-So, the source of the problem is that we prevent kswapd from going to sleep
-until there are processes waiting on the pfmemalloc_wait queue, and a process
-waiting on a queue is guaranteed to be removed from the queue only when it
-gets scheduled. This was done to make sure that no process is left sleeping
-on pfmemalloc_wait when kswapd itself goes to sleep.
-
-However, it isn't necessary to postpone kswapd sleep until the pfmemalloc_wait
-queue actually empties. To prevent processes from being left sleeping, it's
-actually enough to guarantee that all processes waiting on pfmemalloc_wait
-queue have been woken up by the time we put kswapd to sleep.
-
-This patch therefore fixes this issue by substituting 'wake_up' with
-'wake_up_all' and removing 'return false' in the code snippet from
-prepare_kswapd_sleep() above. Note that if any process puts itself in the
-queue after this waitqueue_active() check, or after the wake up itself, it
-means that the process will also wake up kswapd - and since we are under
-prepare_to_wait(), the wake up won't be missed. Also we update the comment
-prepare_kswapd_sleep() to hopefully more clearly describe the races it is
-preventing.
-
-Fixes: 5515061d22f0 ("mm: throttle direct reclaimers if PF_MEMALLOC reserves
-                      are low and swap is backed by network storage")
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-Cc: <stable@vger.kernel.org>   # v3.6+
 Cc: Mel Gorman <mgorman@suse.de>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Vladimir Davydov <vdavydov@parallels.com>
 Cc: Rik van Riel <riel@redhat.com>
 ---
-Changes in v3 (v2 was sent by Vladimir Davydov, thanks for his new solution):
-
-- split to two patches again, as I (and Michal Hocko) think it's more correct
-- some rewording in changelog
-- change the code comment again as in v1 with small updates (v2 dropped this
-  part), since it has been clearly a source of confusion so far
-
- mm/vmscan.c | 24 +++++++++++++-----------
- 1 file changed, 13 insertions(+), 11 deletions(-)
+ mm/vmscan.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index bd9a72b..ab2505c 100644
+index ab2505c..f73afa3 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -2921,18 +2921,20 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
- 		return false;
+@@ -3175,7 +3175,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+ 		 */
+ 		if (waitqueue_active(&pgdat->pfmemalloc_wait) &&
+ 				pfmemalloc_watermark_ok(pgdat))
+-			wake_up(&pgdat->pfmemalloc_wait);
++			wake_up_all(&pgdat->pfmemalloc_wait);
  
- 	/*
--	 * There is a potential race between when kswapd checks its watermarks
--	 * and a process gets throttled. There is also a potential race if
--	 * processes get throttled, kswapd wakes, a large process exits therby
--	 * balancing the zones that causes kswapd to miss a wakeup. If kswapd
--	 * is going to sleep, no process should be sleeping on pfmemalloc_wait
--	 * so wake them now if necessary. If necessary, processes will wake
--	 * kswapd and get throttled again
-+	 * The throttled processes are normally woken up in balance_pgdat() as
-+	 * soon as pfmemalloc_watermark_ok() is true. But there is a potential
-+	 * race between when kswapd checks the watermarks and a process gets
-+	 * throttled. There is also a potential race if processes get
-+	 * throttled, kswapd wakes, a large process exits thereby balancing the
-+	 * zones, which causes kswapd to exit balance_pgdat() before reaching
-+	 * the wake up checks. If kswapd is going to sleep, no process should
-+	 * be sleeping on pfmemalloc_wait, so wake them now if necessary. If
-+	 * the wake up is premature, processes will wake kswapd and get
-+	 * throttled again. The difference from wake ups in balance_pgdat() is
-+	 * that here we are under prepare_to_wait().
- 	 */
--	if (waitqueue_active(&pgdat->pfmemalloc_wait)) {
--		wake_up(&pgdat->pfmemalloc_wait);
--		return false;
--	}
-+	if (waitqueue_active(&pgdat->pfmemalloc_wait))
-+		wake_up_all(&pgdat->pfmemalloc_wait);
- 
- 	return pgdat_balanced(pgdat, order, classzone_idx);
- }
+ 		/*
+ 		 * Fragmentation may mean that the system cannot be rebalanced
 -- 
 2.1.2
 
