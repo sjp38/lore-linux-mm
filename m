@@ -1,57 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f178.google.com (mail-qc0-f178.google.com [209.85.216.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 79EB36B0038
-	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 13:36:21 -0500 (EST)
-Received: by mail-qc0-f178.google.com with SMTP id b13so17590788qcw.37
-        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 10:36:21 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w2si39092175qat.24.2015.01.05.10.36.19
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DC2B6B0038
+	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 13:41:56 -0500 (EST)
+Received: by mail-pd0-f169.google.com with SMTP id z10so28847567pdj.0
+        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 10:41:55 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id gt5si84914574pbc.5.2015.01.05.10.41.52
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Jan 2015 10:36:20 -0800 (PST)
-From: Rafael Aquini <aquini@redhat.com>
-Subject: [PATCH v2] fs: proc: task_mmu: show page size in /proc/<pid>/numa_maps
-Date: Mon,  5 Jan 2015 12:44:31 -0500
-Message-Id: <734bca19b3a8f4e191ccc9055ad4740744b5b2b6.1420464466.git.aquini@redhat.com>
+        Mon, 05 Jan 2015 10:41:53 -0800 (PST)
+Date: Mon, 5 Jan 2015 10:41:43 -0800
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH v12 00/20] DAX: Page cache bypass for filesystems on
+ memory storage
+Message-ID: <20150105184143.GA665@infradead.org>
+References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
+ <20141210140347.GA23252@infradead.org>
+ <20141210141211.GD2220@wil.cx>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141210141211.GD2220@wil.cx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, jweiner@redhat.com, dave.hansen@linux.intel.com, rientjes@google.com, linux-mm@kvack.org
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-This patch introduces 'kernelpagesize_kB' line element to /proc/<pid>/numa_maps
-report file in order to help identifying the size of pages that are backing
-memory areas mapped by a given task. This is specially useful to
-help differentiating between HUGE and GIGANTIC page backed VMAs.
+On Wed, Dec 10, 2014 at 09:12:11AM -0500, Matthew Wilcox wrote:
+> On Wed, Dec 10, 2014 at 06:03:47AM -0800, Christoph Hellwig wrote:
+> > What is the status of this patch set?
+> 
+> I have no outstanding bug reports against it.  Linus told me that he
+> wants to see it come through Andrew's tree.  I have an email two weeks
+> ago from Andrew saying that it's on his list.  I would love to see it
+> merged since it's almost a year old at this point.
 
-This patch is based on Dave Hansen's proposal and reviewer's follow-ups
-taken from the following dicussion threads:
- * https://lkml.org/lkml/2011/9/21/454
- * https://lkml.org/lkml/2014/12/20/66
+And since then another month and aother merge window has passed.  Is
+there any way to speed up merging big patch sets like this one?
 
-Signed-off-by: Rafael Aquini <aquini@redhat.com>
----
-* v2 changelog:
-  . print kernel page size unconditionally (jweiner, dhansen)
-  . rename pagesize to match smaps terminology (dhansen, drientjes)
-
- fs/proc/task_mmu.c | 2 ++
- 1 file changed, 2 insertions(+)
-
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 246eae8..3688d64 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -1533,6 +1533,8 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
- 	if (!md->pages)
- 		goto out;
- 
-+	seq_printf(m, " kernelpagesize_kB=%lu", vma_kernel_pagesize(vma) >> 10);
-+
- 	if (md->anon)
- 		seq_printf(m, " anon=%lu", md->anon);
- 
--- 
-1.9.3
+Another one is non-blocking read one that has real life use on one
+of the biggest server side webapp frameworks but doesn't seem to make
+progress, which is a bit frustrating.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
