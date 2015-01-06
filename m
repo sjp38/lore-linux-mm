@@ -1,99 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D2806B00AC
-	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 03:23:37 -0500 (EST)
-Received: by mail-pd0-f176.google.com with SMTP id r10so29918707pdi.35
-        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 00:23:37 -0800 (PST)
-Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id ym5si23241688pac.188.2015.01.06.00.23.34
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 9776D6B00AE
+	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 03:27:25 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id kx10so30638511pab.30
+        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 00:27:25 -0800 (PST)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id n3si58979167pap.106.2015.01.06.00.27.22
         for <linux-mm@kvack.org>;
-        Tue, 06 Jan 2015 00:23:36 -0800 (PST)
-Date: Tue, 6 Jan 2015 17:23:29 +0900
+        Tue, 06 Jan 2015 00:27:24 -0800 (PST)
+Date: Tue, 6 Jan 2015 17:27:23 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 2/3] CMA: aggressively allocate the pages on cma
- reserved memory when not used
-Message-ID: <20150106082329.GB18346@js1304-P5Q-DELUXE>
-References: <1401260672-28339-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1401260672-28339-3-git-send-email-iamjoonsoo.kim@lge.com>
- <CADtm3G5Cb2vzVo61qDJ7-1ZNzQ2zOisfjb7GiFXvZR0ocKZy0A@mail.gmail.com>
- <CADtm3G4CEhpmrohufmthB_1a49bKEVdVUAQxjWtigq07G4QeTQ@mail.gmail.com>
+Subject: Re: [PATCH 1/2] mm/slub: optimize alloc/free fastpath by removing
+ preemption on/off
+Message-ID: <20150106082723.GC18346@js1304-P5Q-DELUXE>
+References: <023701d028c2$dba2cb30$92e86190$@alibaba-inc.com>
+ <20150106013247.GC17222@js1304-P5Q-DELUXE>
+ <20150105212502.1bdc4f67@gandalf.local.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CADtm3G4CEhpmrohufmthB_1a49bKEVdVUAQxjWtigq07G4QeTQ@mail.gmail.com>
+In-Reply-To: <20150105212502.1bdc4f67@gandalf.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gregory Fong <gregory.0xf0@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Heesub Shin <heesub.shin@samsung.com>, Marek@jasper.es, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, Andrew Morton <akpm@linux-foundation.org>, 'Christoph Lameter' <cl@linux.com>, 'Pekka Enberg' <penberg@kernel.org>, 'David Rientjes' <rientjes@google.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, 'Jesper Dangaard Brouer' <brouer@redhat.com>
 
-On Mon, Jan 05, 2015 at 08:01:45PM -0800, Gregory Fong wrote:
-> +linux-mm and linux-kernel (not sure how those got removed from cc,
-> sorry about that)
+On Mon, Jan 05, 2015 at 09:25:02PM -0500, Steven Rostedt wrote:
+> On Tue, 6 Jan 2015 10:32:47 +0900
+> Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
 > 
-> On Mon, Jan 5, 2015 at 7:58 PM, Gregory Fong <gregory.0xf0@gmail.com> wrote:
-> > Hi Joonsoo,
-> >
-> > On Wed, May 28, 2014 at 12:04 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> >> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> >> index 674ade7..ca678b6 100644
-> >> --- a/mm/page_alloc.c
-> >> +++ b/mm/page_alloc.c
-> >> @@ -788,6 +788,56 @@ void __init __free_pages_bootmem(struct page *page, unsigned int order)
-> >>  }
-> >>
-> >>  #ifdef CONFIG_CMA
-> >> +void adjust_managed_cma_page_count(struct zone *zone, long count)
-> >> +{
-> >> +       unsigned long flags;
-> >> +       long total, cma, movable;
-> >> +
-> >> +       spin_lock_irqsave(&zone->lock, flags);
-> >> +       zone->managed_cma_pages += count;
-> >> +
-> >> +       total = zone->managed_pages;
-> >> +       cma = zone->managed_cma_pages;
-> >> +       movable = total - cma - high_wmark_pages(zone);
-> >> +
-> >> +       /* No cma pages, so do only movable allocation */
-> >> +       if (cma <= 0) {
-> >> +               zone->max_try_movable = pageblock_nr_pages;
-> >> +               zone->max_try_cma = 0;
-> >> +               goto out;
-> >> +       }
-> >> +
-> >> +       /*
-> >> +        * We want to consume cma pages with well balanced ratio so that
-> >> +        * we have consumed enough cma pages before the reclaim. For this
-> >> +        * purpose, we can use the ratio, movable : cma. And we doesn't
-> >> +        * want to switch too frequently, because it prevent allocated pages
-> >> +        * from beging successive and it is bad for some sorts of devices.
-> >> +        * I choose pageblock_nr_pages for the minimum amount of successive
-> >> +        * allocation because it is the size of a huge page and fragmentation
-> >> +        * avoidance is implemented based on this size.
-> >> +        *
-> >> +        * To meet above criteria, I derive following equation.
-> >> +        *
-> >> +        * if (movable > cma) then; movable : cma = X : pageblock_nr_pages
-> >> +        * else (movable <= cma) then; movable : cma = pageblock_nr_pages : X
-> >> +        */
-> >> +       if (movable > cma) {
-> >> +               zone->max_try_movable =
-> >> +                       (movable * pageblock_nr_pages) / cma;
-> >> +               zone->max_try_cma = pageblock_nr_pages;
-> >> +       } else {
-> >> +               zone->max_try_movable = pageblock_nr_pages;
-> >> +               zone->max_try_cma = cma * pageblock_nr_pages / movable;
-> >
-> > I don't know if anyone's already pointed this out (didn't see anything
-> > when searching lkml), but while testing this, I noticed this can
-> > result in a div by zero under memory pressure (movable becomes 0).
-> > This is not unlikely when the majority of pages are in CMA regions
-> > (this may seem pathological but we do actually do this right now).
+> 
+> > > > +++ b/mm/slub.c
+> > > > @@ -2398,13 +2398,15 @@ redo:
+> > > >  	 * reading from one cpu area. That does not matter as long
+> > > >  	 * as we end up on the original cpu again when doing the cmpxchg.
+> > > >  	 *
+> > > > -	 * Preemption is disabled for the retrieval of the tid because that
+> > > > -	 * must occur from the current processor. We cannot allow rescheduling
+> > > > -	 * on a different processor between the determination of the pointer
+> > > > -	 * and the retrieval of the tid.
+> > > > +	 * We should guarantee that tid and kmem_cache are retrieved on
+> > > > +	 * the same cpu. It could be different if CONFIG_PREEMPT so we need
+> > > > +	 * to check if it is matched or not.
+> > > >  	 */
+> > > > -	preempt_disable();
+> > > > -	c = this_cpu_ptr(s->cpu_slab);
+> > > > +	do {
+> > > > +		tid = this_cpu_read(s->cpu_slab->tid);
+> > > > +		c = this_cpu_ptr(s->cpu_slab);
+> > > > +	} while (IS_ENABLED(CONFIG_PREEMPT) && unlikely(tid != c->tid));
+> > > > +	barrier();
+> > > 
+> > > Help maintenance more if barrier is documented in commit message.
+> > 
+> > Hello,
+> > 
+> > Okay. Will add some information about this barrier in commit message.
+> 
+> A comment in the commit message is useless. Adding a small comment
+> above the barrier() call itself would be much more useful.
 
-Hello,
-
-Yes, you are right. Thanks for pointing this out.
-I will fix it on next version.
+Okay. Will do.
 
 Thanks.
 
