@@ -1,60 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f178.google.com (mail-we0-f178.google.com [74.125.82.178])
-	by kanga.kvack.org (Postfix) with ESMTP id CCEAC6B00D7
-	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 11:26:25 -0500 (EST)
-Received: by mail-we0-f178.google.com with SMTP id p10so9990924wes.9
-        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 08:26:25 -0800 (PST)
-Received: from rhlx01.hs-esslingen.de (rhlx01.hs-esslingen.de. [129.143.116.10])
-        by mx.google.com with ESMTPS id z5si25320973wiy.33.2015.01.06.08.26.24
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id EEFCF6B00DA
+	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 12:02:33 -0500 (EST)
+Received: by mail-pd0-f171.google.com with SMTP id y13so30792522pdi.2
+        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 09:02:33 -0800 (PST)
+Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
+        by mx.google.com with ESMTPS id xr7si90050286pab.168.2015.01.06.09.02.30
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Jan 2015 08:26:24 -0800 (PST)
-Date: Tue, 6 Jan 2015 17:26:24 +0100
-From: Andreas Mohr <andi@lisas.de>
-Subject: Re: [PATCH 6/6] mm/slab: allocation fastpath without disabling irq
-Message-ID: <20150106162624.GB24898@rhlx01.hs-esslingen.de>
-References: <1420421851-3281-7-git-send-email-iamjoonsoo.kim@lge.com>
- <20150105172139.GA11201@rhlx01.hs-esslingen.de>
- <20150106013122.GB17222@js1304-P5Q-DELUXE>
- <20150106103439.GA8669@rhlx01.hs-esslingen.de>
- <alpine.DEB.2.11.1501060931500.31349@gentwo.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.11.1501060931500.31349@gentwo.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 06 Jan 2015 09:02:31 -0800 (PST)
+Message-ID: <1420563737.24290.7.camel@stgolabs.net>
+Subject: Re: [PATCH 1/2] mm/slub: optimize alloc/free fastpath by removing
+ preemption on/off
+From: Davidlohr Bueso <dave@stgolabs.net>
+Date: Tue, 06 Jan 2015 09:02:17 -0800
+In-Reply-To: <20150106080948.GA18346@js1304-P5Q-DELUXE>
+References: <1420421765-3209-1-git-send-email-iamjoonsoo.kim@lge.com>
+	 <1420513392.24290.2.camel@stgolabs.net>
+	 <20150106080948.GA18346@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andreas Mohr <andi@lisas.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>, rostedt@goodmis.org, Thomas Gleixner <tglx@linutronix.de>
 
-On Tue, Jan 06, 2015 at 09:33:15AM -0600, Christoph Lameter wrote:
-> On Tue, 6 Jan 2015, Andreas Mohr wrote:
-> > by merely queuing them into a simple submission queue
-> > which then will be delay-applied by main-context
-> > either once main-context enters a certain "quiet" state (e.g. context switch?),
-> > or once main-context needs to actively take into account
+On Tue, 2015-01-06 at 17:09 +0900, Joonsoo Kim wrote:
+> On Mon, Jan 05, 2015 at 07:03:12PM -0800, Davidlohr Bueso wrote:
+> > On Mon, 2015-01-05 at 10:36 +0900, Joonsoo Kim wrote:
+> > > -	preempt_disable();
+> > > -	c = this_cpu_ptr(s->cpu_slab);
+> > > +	do {
+> > > +		tid = this_cpu_read(s->cpu_slab->tid);
+> > > +		c = this_cpu_ptr(s->cpu_slab);
+> > > +	} while (IS_ENABLED(CONFIG_PREEMPT) && unlikely(tid != c->tid));
+> > > +	barrier();
+> > 
+> > I don't see the compiler reodering the object/page stores below, since c
+> > is updated in the loop anyway. Is this really necessary (same goes for
+> > slab_free)? The generated code by gcc 4.8 looks correct without it.
+> > Additionally, the implied barriers for preemption control aren't really
+> > the same semantics used here (if that is actually the reason why you are
+> > using them).
 > 
-> This is basically the same approach as you mentioned before and would
-> multiply the resources needed. I think we are close to be able to avoid
-> allocations from interrupt contexts. Someone would need to perform an
-> audit to see what is left to be done. If so then lots of allocator paths
-> both in the page allocator and slab allocator can be dramatically
-> simplified.
+> Hello,
+> 
+> I'd like to use tid as a pivot so it should be fetched before fetching
+> anything on c. Is it impossible even if !CONFIG_PREEMPT without
+> barrier()?
 
-OK, so we seem to be already well near the finishing line of single-context
-operation.
-
-In case of multi-context access, in general I'd guess
-that challenges are similar to
-"traditional" multi-thread-capable heap allocator implementations in userspace,
-where I'm sure large amounts of research papers (some dead-tree?)
-have been written about how to achieve scalable low-contention
-multi-thread access arbitration to the same shared underlying memory resource
-(but since in Linux circles some implementations exceed usual
-accumulated research knowledge / Best Practice, such papers may or may not be
-of much help ;)
-
-Andreas Mohr
+You'd need a smp_wmb() in between tid and c in the loop then, which
+looks quite unpleasant. All in all disabling preemption isn't really
+that expensive, and you should redo your performance number if you go
+this way.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
