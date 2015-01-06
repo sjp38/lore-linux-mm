@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A8996B012B
-	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 16:26:38 -0500 (EST)
-Received: by mail-qg0-f52.google.com with SMTP id i50so73348qgf.11
-        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 13:26:38 -0800 (PST)
-Received: from mail-qa0-x229.google.com (mail-qa0-x229.google.com. [2607:f8b0:400d:c00::229])
-        by mx.google.com with ESMTPS id o43si14323399qge.107.2015.01.06.13.26.36
+Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 67BDF6B012C
+	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 16:26:40 -0500 (EST)
+Received: by mail-qg0-f49.google.com with SMTP id f51so65595qge.22
+        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 13:26:40 -0800 (PST)
+Received: from mail-qc0-x229.google.com (mail-qc0-x229.google.com. [2607:f8b0:400d:c01::229])
+        by mx.google.com with ESMTPS id 7si23379227qgk.40.2015.01.06.13.26.38
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 06 Jan 2015 13:26:37 -0800 (PST)
-Received: by mail-qa0-f41.google.com with SMTP id s7so242250qap.0
-        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 13:26:36 -0800 (PST)
+        Tue, 06 Jan 2015 13:26:38 -0800 (PST)
+Received: by mail-qc0-f169.google.com with SMTP id w7so64028qcr.28
+        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 13:26:38 -0800 (PST)
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 04/45] memcg, writeback: implement memcg_blkcg_ptr
-Date: Tue,  6 Jan 2015 16:25:41 -0500
-Message-Id: <1420579582-8516-5-git-send-email-tj@kernel.org>
+Subject: [PATCH 05/45] writeback: make backing_dev_info host cgroup-specific bdi_writebacks
+Date: Tue,  6 Jan 2015 16:25:42 -0500
+Message-Id: <1420579582-8516-6-git-send-email-tj@kernel.org>
 In-Reply-To: <1420579582-8516-1-git-send-email-tj@kernel.org>
 References: <1420579582-8516-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,772 +22,593 @@ List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk
 Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, Tejun Heo <tj@kernel.org>
 
-One of the challenges in implementing cgroup writeback support is
-determining the blkcg to attribute each page to.  we can add a
-per-page pointer pointing to the blkcg of the dirtier similar to
-page->mem_cgroup; however, this is quite a bit of overhead for
-information which is mostly duplicate to the existing
-page->mem_cgroup.
+For the planned cgroup writeback support, on each bdi
+(backing_dev_info), each cgroup will be served by a separate wb
+(bdi_writeback).  This patch updates bdi so that a bdi can host
+multiple wbs (bdi_writebacks).
 
-When a page is charged to a memcg, the page is attributed to the
-memcg.  Writeback is tied to memory pressure which is determined by
-memcg membership, so it makes an inherent sense to attribute writeback
-of a page to the blkcg which corresponds to the page's memcg.
+bdi->wb remains unchanged and will keep serving the root cgroup.
+cgwb's (cgroup wb's) for non-root cgroups are created on-demand or
+looked up during init_cgwb_dirty_page_contex() according to the dirty
+blkcg of the page being dirtied.  Each cgwb is indexed on
+bdi->cgwb_tree by its blkcg id.
 
-If we assume that memcg and blkcg are always enabled and disable
-together, this can be trivially implemented by adding a pointer to the
-corresponding blkcg to each memcg and using that whenever issuing
-writeback IO; however, on the unified hierarchy, the controllers can
-be enabled and disabled separately meaning that the corresponding
-blkcg for a given memcg may change dynamically.  To accomodate this,
-two reference counted colored pointers are used.  The active pointer
-is used whenever dirtying a new page.  When the association changes,
-the other pointer is updated to point to the new blkcg and becomes
-active while the currently active one becomes inactive and drained.
+Once dirty_context is initialized for a page, the page's wb can be
+looked up using page_cgwb_{dirty|wb}() while the page is dirty or
+under writeback respectively.  Once created, a cgwb is destroyed iff
+either its associated bdi or blkcg is destroyed, meaning that as long
+as a page is dirty or under writeback, its associated cgwb is
+accessible without further locking.
 
-This way, each page can point to the blkcg it's associated with using,
-theoretically, just single bit selecting between the two blkcg
-pointers of its memcg while still allowing dynamic change of the
-corresponding blkcg for the memcg.
+dirty_context grew a new field ->wb which caches the selected wb and
+account_page_dirtied() is updated to use that instead of
+unconditionally using bdi->wb.
 
-In practice, we end up having to use four bits - two separate
-associations each of which occupying two bits.  Each association takes
-two bits because we must always be able to fall back to the root memcg
-due to, for example, memory allocation failure, and we two two
-separate associations for dirtied and writeback phases and to prevent
-pages being repeatedly redirtied while being written from indefinitely
-delaying inactive pointer draining.  Refer to comments in
-mm/memcontrol.c for more details.
-
-The page to blkcg association established by this patch will be used
-as the basis of cgroup writeback support.
+Currently, none of the filesystems has FS_CGROUP_WRITEBACK and all
+pages will keep being associated with bdi->wb.
 
 Signed-off-by: Tejun Heo <tj@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>
 Cc: Jens Axboe <axboe@kernel.dk>
 Cc: Jan Kara <jack@suse.cz>
 ---
- fs/fs-writeback.c           |  32 ++++
- include/linux/backing-dev.h |   1 +
- include/linux/memcontrol.h  |  56 ++++++
- mm/filemap.c                |   1 +
- mm/memcontrol.c             | 438 +++++++++++++++++++++++++++++++++++++++++++-
- mm/page-writeback.c         |   6 +-
- mm/truncate.c               |   1 +
- 7 files changed, 532 insertions(+), 3 deletions(-)
+ block/blk-cgroup.c               |  11 ++-
+ fs/fs-writeback.c                |  19 +++-
+ include/linux/backing-dev-defs.h |  17 +++-
+ include/linux/backing-dev.h      | 123 +++++++++++++++++++++++++
+ include/linux/blk-cgroup.h       |   4 +
+ mm/backing-dev.c                 | 189 +++++++++++++++++++++++++++++++++++++++
+ mm/page-writeback.c              |   4 +-
+ 7 files changed, 361 insertions(+), 6 deletions(-)
 
+diff --git a/block/blk-cgroup.c b/block/blk-cgroup.c
+index 9e0fe38..8bebaa9 100644
+--- a/block/blk-cgroup.c
++++ b/block/blk-cgroup.c
+@@ -15,6 +15,7 @@
+ #include <linux/module.h>
+ #include <linux/err.h>
+ #include <linux/blkdev.h>
++#include <linux/backing-dev.h>
+ #include <linux/slab.h>
+ #include <linux/genhd.h>
+ #include <linux/delay.h>
+@@ -813,6 +814,11 @@ static void blkcg_css_offline(struct cgroup_subsys_state *css)
+ 	spin_unlock_irq(&blkcg->lock);
+ }
+ 
++static void blkcg_css_released(struct cgroup_subsys_state *css)
++{
++	cgwb_blkcg_released(css);
++}
++
+ static void blkcg_css_free(struct cgroup_subsys_state *css)
+ {
+ 	struct blkcg *blkcg = css_to_blkcg(css);
+@@ -841,7 +847,9 @@ done:
+ 	spin_lock_init(&blkcg->lock);
+ 	INIT_RADIX_TREE(&blkcg->blkg_tree, GFP_ATOMIC);
+ 	INIT_HLIST_HEAD(&blkcg->blkg_list);
+-
++#ifdef CONFIG_CGROUP_WRITEBACK
++	INIT_LIST_HEAD(&blkcg->cgwb_list);
++#endif
+ 	return &blkcg->css;
+ }
+ 
+@@ -926,6 +934,7 @@ static int blkcg_can_attach(struct cgroup_subsys_state *css,
+ struct cgroup_subsys blkio_cgrp_subsys = {
+ 	.css_alloc = blkcg_css_alloc,
+ 	.css_offline = blkcg_css_offline,
++	.css_released = blkcg_css_released,
+ 	.css_free = blkcg_css_free,
+ 	.can_attach = blkcg_can_attach,
+ 	.legacy_cftypes = blkcg_files,
 diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index 97c92b3..138a5ea 100644
+index 138a5ea..3b54835 100644
 --- a/fs/fs-writeback.c
 +++ b/fs/fs-writeback.c
-@@ -106,6 +106,36 @@ out_unlock:
- 	spin_unlock_bh(&wb->work_lock);
- }
- 
-+#ifdef CONFIG_CGROUP_WRITEBACK
+@@ -117,21 +117,37 @@ out_unlock:
+  */
+ static void init_cgwb_dirty_page_context(struct dirty_context *dctx)
+ {
++	struct backing_dev_info *bdi = dctx->mapping->backing_dev_info;
++	struct cgroup_subsys_state *blkcg_css;
 +
-+/**
-+ * init_cgwb_dirty_page_context - init cgwb part of dirty_context
-+ * @dctx: dirty_context being initialized
-+ *
-+ * @dctx is being initialized by init_dirty_page_context().  Initialize
-+ * cgroup writeback part of it.
-+ */
-+static void init_cgwb_dirty_page_context(struct dirty_context *dctx)
-+{
-+	/* cgroup writeback requires support from both the bdi and filesystem */
-+	if (!mapping_cgwb_enabled(dctx->mapping))
+ 	/* cgroup writeback requires support from both the bdi and filesystem */
+ 	if (!mapping_cgwb_enabled(dctx->mapping))
+ 		goto force_root;
+ 
+-	page_blkcg_attach_dirty(dctx->page);
++	/*
++	 * @dctx->page is a candidate for cgroup writeback and about to be
++	 * dirtied.  Attach the dirty blkcg to the page and pre-allocate
++	 * all resources necessary for cgroup writeback.  On failure, fall
++	 * back to the root blkcg.
++	 */
++	blkcg_css = page_blkcg_attach_dirty(dctx->page);
++	dctx->wb = cgwb_lookup_create(bdi, blkcg_css);
++	if (!dctx->wb) {
++		page_blkcg_detach_dirty(dctx->page);
 +		goto force_root;
-+
-+	page_blkcg_attach_dirty(dctx->page);
-+	return;
-+
-+force_root:
-+	page_blkcg_force_root_dirty(dctx->page);
-+}
-+
-+#else	/* CONFIG_CGROUP_WRITEBACK */
-+
-+static void init_cgwb_dirty_page_context(struct dirty_context *dctx)
-+{
-+}
-+
-+#endif	/* CONFIG_CGROUP_WRITEBACK */
-+
- /**
-  * init_dirty_page_context - init dirty_context for page dirtying
-  * @dctx: dirty_context to initialize
-@@ -129,6 +159,8 @@ void init_dirty_page_context(struct dirty_context *dctx, struct page *page,
- 	dctx->mapping = page_mapping(page);
++	}
+ 	return;
  
- 	BUG_ON(dctx->mapping != mapping);
-+
-+	init_cgwb_dirty_page_context(dctx);
+ force_root:
+ 	page_blkcg_force_root_dirty(dctx->page);
++	dctx->wb = &bdi->wb;
  }
- EXPORT_SYMBOL_GPL(init_dirty_page_context);
  
+ #else	/* CONFIG_CGROUP_WRITEBACK */
+ 
+ static void init_cgwb_dirty_page_context(struct dirty_context *dctx)
+ {
++	dctx->wb = &dctx->mapping->backing_dev_info->wb;
+ }
+ 
+ #endif	/* CONFIG_CGROUP_WRITEBACK */
+@@ -176,6 +192,7 @@ void init_dirty_inode_context(struct dirty_context *dctx, struct inode *inode)
+ {
+ 	memset(dctx, 0, sizeof(*dctx));
+ 	dctx->inode = inode;
++	dctx->wb = &inode_to_bdi(inode)->wb;
+ }
+ 
+ static void __wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
+diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
+index bf20ef1..511066f 100644
+--- a/include/linux/backing-dev-defs.h
++++ b/include/linux/backing-dev-defs.h
+@@ -2,6 +2,7 @@
+ #define __LINUX_BACKING_DEV_DEFS_H
+ 
+ #include <linux/list.h>
++#include <linux/radix-tree.h>
+ #include <linux/spinlock.h>
+ #include <linux/percpu_counter.h>
+ #include <linux/flex_proportions.h>
+@@ -68,6 +69,15 @@ struct bdi_writeback {
+ 	spinlock_t work_lock;		/* protects work_list & dwork scheduling */
+ 	struct list_head work_list;
+ 	struct delayed_work dwork;	/* work item used for writeback */
++
++#ifdef CONFIG_CGROUP_WRITEBACK
++	struct cgroup_subsys_state *blkcg_css; /* the blkcg we belong to */
++	struct list_head blkcg_node;	/* anchored at blkcg->wb_list */
++	union {
++		struct list_head shutdown_node;
++		struct rcu_head rcu;
++	};
++#endif
+ };
+ 
+ struct backing_dev_info {
+@@ -82,8 +92,10 @@ struct backing_dev_info {
+ 	unsigned int min_ratio;
+ 	unsigned int max_ratio, max_prop_frac;
+ 
+-	struct bdi_writeback wb;  /* default writeback info for this bdi */
+-
++	struct bdi_writeback wb; /* the root writeback info for this bdi */
++#ifdef CONFIG_CGROUP_WRITEBACK
++	struct radix_tree_root cgwb_tree; /* radix tree of !root cgroup wbs */
++#endif
+ 	struct device *dev;
+ 
+ 	struct timer_list laptop_mode_wb_timer;
+@@ -102,6 +114,7 @@ struct dirty_context {
+ 	struct page		*page;
+ 	struct inode		*inode;
+ 	struct address_space	*mapping;
++	struct bdi_writeback	*wb;
+ };
+ 
+ enum {
 diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-index 68c2fd7..7a20cff 100644
+index 7a20cff..3722796 100644
 --- a/include/linux/backing-dev.h
 +++ b/include/linux/backing-dev.h
-@@ -12,6 +12,7 @@
- #include <linux/fs.h>
+@@ -13,6 +13,7 @@
  #include <linux/sched.h>
  #include <linux/writeback.h>
-+#include <linux/memcontrol.h>
+ #include <linux/memcontrol.h>
++#include <linux/blk-cgroup.h>
  
  #include <linux/backing-dev-defs.h>
  
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 04d3c20..27dad0b 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -23,6 +23,8 @@
- #include <linux/vm_event_item.h>
- #include <linux/hardirq.h>
- #include <linux/jump_label.h>
-+#include <linux/percpu-refcount.h>
-+#include <linux/blk-cgroup.h>
+@@ -273,6 +274,10 @@ void init_dirty_inode_context(struct dirty_context *dctx, struct inode *inode);
  
- struct mem_cgroup;
- struct page;
-@@ -536,5 +538,59 @@ static inline void memcg_kmem_put_cache(struct kmem_cache *cachep)
- {
- }
- #endif /* CONFIG_MEMCG_KMEM */
-+
-+#ifdef CONFIG_CGROUP_WRITEBACK
-+
-+struct cgroup_subsys_state *page_blkcg_dirty(struct page *page);
-+struct cgroup_subsys_state *page_blkcg_wb(struct page *page);
-+struct cgroup_subsys_state *page_blkcg_attach_dirty(struct page *page);
-+struct cgroup_subsys_state *page_blkcg_attach_wb(struct page *page);
-+void page_blkcg_detach_dirty(struct page *page);
-+void page_blkcg_detach_wb(struct page *page);
-+void page_blkcg_force_root_dirty(struct page *page);
-+void page_blkcg_force_root_wb(struct page *page);
-+
-+#else /* CONFIG_CGROUP_WRITEBACK */
-+
-+static inline struct cgroup_subsys_state *page_blkcg_dirty(struct page *page)
-+{
-+	return blkcg_root_css;
-+}
-+
-+static inline struct cgroup_subsys_state *page_blkcg_wb(struct page *page)
-+{
-+	return blkcg_root_css;
-+}
-+
-+static inline struct cgroup_subsys_state *
-+page_blkcg_attach_dirty(struct page *page)
-+{
-+	return blkcg_root_css;
-+}
-+
-+static inline struct cgroup_subsys_state *
-+page_blkcg_attach_wb(struct page *page)
-+{
-+	return blkcg_root_css;
-+}
-+
-+static inline void page_blkcg_detach_dirty(struct page *page)
-+{
-+}
-+
-+static inline void page_blkcg_detach_wb(struct page *page)
-+{
-+}
-+
-+static inline void page_blkcg_force_root_dirty(struct page *page)
-+{
-+}
-+
-+static inline void page_blkcg_force_root_wb(struct page *page)
-+{
-+}
-+
-+#endif /* CONFIG_CGROUP_WRITEBACK */
-+
- #endif /* _LINUX_MEMCONTROL_H */
+ #ifdef CONFIG_CGROUP_WRITEBACK
  
-diff --git a/mm/filemap.c b/mm/filemap.c
-index fdb4288..98a6675 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -212,6 +212,7 @@ void __delete_from_page_cache(struct page *page, void *shadow)
- 	if (PageDirty(page) && mapping_cap_account_dirty(mapping)) {
- 		dec_zone_page_state(page, NR_FILE_DIRTY);
- 		dec_wb_stat(&mapping->backing_dev_info->wb, WB_RECLAIMABLE);
-+		page_blkcg_detach_dirty(page);
- 	}
++void cgwb_blkcg_released(struct cgroup_subsys_state *blkcg_css);
++int __cgwb_create(struct backing_dev_info *bdi,
++		  struct cgroup_subsys_state *blkcg_css);
++
+ /**
+  * mapping_cgwb_enabled - test whether cgroup writeback is enabled on a mapping
+  * @mapping: address_space of interest
+@@ -290,6 +295,97 @@ static inline bool mapping_cgwb_enabled(struct address_space *mapping)
+ 		inode && (inode->i_sb->s_type->fs_flags & FS_CGROUP_WRITEBACK);
  }
  
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 3ab3f04..aa0812b 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -56,6 +56,7 @@
- #include <linux/oom.h>
- #include <linux/lockdep.h>
- #include <linux/file.h>
-+#include <linux/blkdev.h>
- #include "internal.h"
- #include <net/sock.h>
- #include <net/ip.h>
-@@ -94,7 +95,23 @@ static int really_do_swap_account __initdata;
-  * are cleared together with it.
-  */
- enum page_cgflags {
-+#ifdef CONFIG_CGROUP_WRITEBACK
++/**
++ * cgwb_lookup - lookup cgwb for a given blkcg on a bdi
++ * @bdi: target bdi
++ * @blkcg_css: target blkcg
++ *
++ * Look up the cgwb (cgroup bdi_writeback) for @blkcg_css on @bdi.  The
++ * returned cgwb is accessible as long as @bdi and @blkcg_css stay alive.
++ *
++ * Returns the pointer to the found cgwb on success, NULL on failure.
++ */
++static inline struct bdi_writeback *
++cgwb_lookup(struct backing_dev_info *bdi, struct cgroup_subsys_state *blkcg_css)
++{
++	struct bdi_writeback *cgwb;
++
++	if (blkcg_css == blkcg_root_css)
++		return &bdi->wb;
++
 +	/*
-+	 * Flags to associate a page with blkcgs.  There are two
-+	 * associations - one for dirtying, the other for writeback.  If
-+	 * VALID is clear, the root blkcg is used.  If not, the COLOR bit
-+	 * indexes page_memcg(page)->blkcg_ptr[].  The COLOR bits must
-+	 * immediately follow the corresponding VALID bits.  See
-+	 * memcg_blkcg_ptr implementation for more info.
++	 * RCU locking protects the radix tree itself.  The looked up cgwb
++	 * is protected by the caller ensuring that @bdi and the blkcg w/
++	 * @blkcg_id are alive.
 +	 */
-+	PCG_BLKCG_DIRTY_VALID	= 1UL << 0,
-+	PCG_BLKCG_DIRTY_COLOR	= 1UL << 1,
-+	PCG_BLKCG_WB_VALID	= 1UL << 2,
-+	PCG_BLKCG_WB_COLOR	= 1UL << 3,
-+	PCG_FLAGS_BITS		= 4,
-+#else
- 	PCG_FLAGS_BITS		= 0,
++	rcu_read_lock();
++	cgwb = radix_tree_lookup(&bdi->cgwb_tree, blkcg_css->id);
++	rcu_read_unlock();
++	return cgwb;
++}
++
++/**
++ * cgwb_lookup_create - try to lookup cgwb and create one if not found
++ * @bdi: target bdi
++ * @blkcg_css: cgroup_subsys_state of the target blkcg
++ *
++ * Try to look up the cgwb (cgroup bdi_writeback) for the blkcg with
++ * @blkcg_css on @bdi.  If it doesn't exist, try to create one.  This
++ * function can be called under any context without locking as long as @bdi
++ * and @blkcg_css are kept alive.  See cgwb_lookup() for details.
++ *
++ * Returns the pointer to the found cgwb on success, NULL if such cgwb
++ * doesn't exist and creation failed due to memory pressure.
++ */
++static inline struct bdi_writeback *
++cgwb_lookup_create(struct backing_dev_info *bdi,
++		   struct cgroup_subsys_state *blkcg_css)
++{
++	struct bdi_writeback *wb;
++
++	do {
++		wb = cgwb_lookup(bdi, blkcg_css);
++		if (wb)
++			return wb;
++	} while (!__cgwb_create(bdi, blkcg_css));
++
++	return NULL;
++}
++
++/**
++ * page_cgwb_dirty - lookup the dirty cgwb of a page
++ * @page: target page
++ *
++ * Returns the dirty cgwb (cgroup bdi_writeback) of @page.  The returned
++ * wb is accessible as long as @page is dirty.
++ */
++static inline struct bdi_writeback *page_cgwb_dirty(struct page *page)
++{
++	struct backing_dev_info *bdi = page->mapping->backing_dev_info;
++	struct bdi_writeback *wb = cgwb_lookup(bdi, page_blkcg_dirty(page));
++
++	if (WARN_ON_ONCE(!wb))
++		return &bdi->wb;
++	return wb;
++}
++
++/**
++ * page_cgwb_wb - lookup the writeback cgwb of a page
++ * @page: target page
++ *
++ * Returns the writeback cgwb (cgroup bdi_writeback) of @page.  The
++ * returned wb is accessible as long as @page is under writeback.
++ */
++static inline struct bdi_writeback *page_cgwb_wb(struct page *page)
++{
++	struct backing_dev_info *bdi = page->mapping->backing_dev_info;
++	struct bdi_writeback *wb = cgwb_lookup(bdi, page_blkcg_wb(page));
++
++	if (WARN_ON_ONCE(!wb))
++		return &bdi->wb;
++	return wb;
++}
++
+ #else	/* CONFIG_CGROUP_WRITEBACK */
+ 
+ static inline bool mapping_cgwb_enabled(struct address_space *mapping)
+@@ -297,6 +393,33 @@ static inline bool mapping_cgwb_enabled(struct address_space *mapping)
+ 	return false;
+ }
+ 
++static inline void cgwb_blkcg_released(struct cgroup_subsys_state *blkcg_css)
++{
++}
++
++static inline struct bdi_writeback *
++cgwb_lookup(struct backing_dev_info *bdi, struct cgroup_subsys_state *blkcg_css)
++{
++	return &bdi->wb;
++}
++
++static inline struct bdi_writeback *
++cgwb_lookup_create(struct backing_dev_info *bdi,
++		   struct cgroup_subsys_state *blkcg_css)
++{
++	return &bdi->wb;
++}
++
++static inline struct bdi_writeback *page_cgwb_dirty(struct page *page)
++{
++	return &page->mapping->backing_dev_info->wb;
++}
++
++static inline struct bdi_writeback *page_cgwb_wb(struct page *page)
++{
++	return &page->mapping->backing_dev_info->wb;
++}
++
+ #endif	/* CONFIG_CGROUP_WRITEBACK */
+ 
+ #endif		/* _LINUX_BACKING_DEV_H */
+diff --git a/include/linux/blk-cgroup.h b/include/linux/blk-cgroup.h
+index 4dc643f..3033eb1 100644
+--- a/include/linux/blk-cgroup.h
++++ b/include/linux/blk-cgroup.h
+@@ -53,6 +53,10 @@ struct blkcg {
+ 	/* TODO: per-policy storage in blkcg */
+ 	unsigned int			cfq_weight;	/* belongs to cfq */
+ 	unsigned int			cfq_leaf_weight;
++
++#ifdef CONFIG_CGROUP_WRITEBACK
++	struct list_head		cgwb_list;
 +#endif
- 	PCG_FLAGS_MASK		= ((1UL << PCG_FLAGS_BITS) - 1),
  };
  
-@@ -294,6 +311,15 @@ struct mem_cgroup_event {
- static void mem_cgroup_threshold(struct mem_cgroup *memcg);
- static void mem_cgroup_oom_notify(struct mem_cgroup *memcg);
- 
-+#ifdef CONFIG_CGROUP_WRITEBACK
-+struct memcg_blkcg_ptr {
-+	struct cgroup_subsys_state	*css;
-+	struct percpu_ref		ref;
-+	struct mem_cgroup		*memcg;
-+	struct work_struct		release_work;
-+};
-+#endif
-+
- /*
-  * The memory controller data structure. The memory controller controls both
-  * page cache and RSS per cgroup. We would eventually like to provide
-@@ -385,6 +411,11 @@ struct mem_cgroup {
- 	atomic_t	numainfo_updating;
- #endif
- 
-+#ifdef CONFIG_CGROUP_WRITEBACK
-+	int				blkcg_color;
-+	struct memcg_blkcg_ptr		blkcg_ptr[2];
-+#endif
-+
- 	/* List of events which userspace want to receive */
- 	struct list_head event_list;
- 	spinlock_t event_list_lock;
-@@ -3418,6 +3449,397 @@ static int memcg_update_kmem_limit(struct mem_cgroup *memcg,
+ struct blkg_stat {
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index 1c9b70e..c6dda82 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -440,6 +440,192 @@ static void wb_exit(struct bdi_writeback *wb)
+ 	fprop_local_destroy_percpu(&wb->completions);
  }
- #endif /* CONFIG_MEMCG_KMEM */
  
 +#ifdef CONFIG_CGROUP_WRITEBACK
 +
 +/*
-+ * memcg_blkcg_ptr implementation.
-+ *
-+ * A charged page is associated with a memcg.  When the page gets dirtied
-+ * and written back, we want to associate the dirtying and writeback to the
-+ * matching blkcg so that the writeback IOs can be attributed to the
-+ * originating cgroup and controlled accordingly.
-+ *
-+ * As adding another per-page pointer to track blkcg is undesirable and the
-+ * matching effective blkcg for a given memcg is mostly static, it makes
-+ * sense to track a page's associated blkcg through its associated memcg.
-+ *
-+ * If the relationship between memcg and blkcg were static, this would be
-+ * trivial - a single pointer, e.g. page_memcg(page)->blkcg_css, would
-+ * suffice; however, the corresponding blkcg may change as controllers are
-+ * enabled and disabled.  To accommodate this, pointer coloring is used.
-+ *
-+ * There are two reference counted pointers and one of the two is the
-+ * active one.  When a new page needs to be associated with its blkcg, the
-+ * reference count for the active color pointer is incremented and the
-+ * blkcg it points to is used.  The page only needs to record the one bit
-+ * color to determine the associated blkcg.  If the corresponding blkcg
-+ * changes, the other pointer is updated to point to the new blkcg and the
-+ * active color is flipped.  The now inactive color pointer is maintained
-+ * until all referencing pages are drained.
-+ *
-+ * Note that this two pointer scheme can only accommodate single on-going
-+ * blkcg change.  If the matching effective blkcg changes again while the
-+ * inactive pointer is still being drained from the previous round, the new
-+ * update is delayed until the draining is complete.
-+ *
-+ * A page needs to be associated with its blkcg while it's dirty and being
-+ * written back.  The page may be re-dirtied repeatedly while being written
-+ * back, which can prevent blkcg pointer draining from making progress as
-+ * the reference the page holds may never be put.  To break this possible
-+ * live-lock, a page uses two separate pointer colors for dirtying and
-+ * writeback where the latter inherits the former on writeback start.
-+ * Splitting the writeback association from the dirty one ensures that the
-+ * current color is guaranteed to drain after a single writeback cycle as
-+ * new dirtying can always take on the current active color.
++ * cgwb_lock protects bdi->cgwb_tree and blkcg->cgwb_list where the former
++ * is also RCU protected.  cgwb_shutdown_mutex synchronizes shutdown
++ * attempts from bdi and blkcg destructions.  For details, see
++ * cgwb_shutdown_prepare/commit().
 + */
++static DEFINE_SPINLOCK(cgwb_lock);
++static DEFINE_MUTEX(cgwb_shutdown_mutex);
 +
-+static DEFINE_MUTEX(memcg_blkcg_ptr_mutex);
-+static DECLARE_WAIT_QUEUE_HEAD(memcg_blkcg_ptr_waitq);
-+
-+/**
-+ * memcg_blkcg_ptr_update_locked - update the memcg blkcg ptr
-+ * @memcg: target mem_cgroup
-+ *
-+ * This function is called when the matching effective blkcg of @memcg may
-+ * have changed.  If different from the currently active pointer and the
-+ * inactive one is free, this function updates the inactive pointer to
-+ * point to the corresponding blkcg, flips the active color and starts
-+ * draining the previous one.
-+ *
-+ * This function should be called under memcg_blkcg_ptr_mutex.
-+ */
-+static void memcg_blkcg_ptr_update_locked(struct mem_cgroup *memcg)
++int __cgwb_create(struct backing_dev_info *bdi,
++		  struct cgroup_subsys_state *blkcg_css)
 +{
-+	int cur_color = memcg->blkcg_color;
-+	int next_color = !cur_color;
-+	struct memcg_blkcg_ptr *cur_ptr = &memcg->blkcg_ptr[cur_color];
-+	struct memcg_blkcg_ptr *next_ptr = &memcg->blkcg_ptr[next_color];
-+	struct cgroup_subsys_state *blkcg_css;
++	struct blkcg *blkcg = css_to_blkcg(blkcg_css);
++	struct bdi_writeback *wb;
++	unsigned long flags;
++	int ret;
 +
-+	lockdep_assert_held(&memcg_blkcg_ptr_mutex);
++	wb = kzalloc(sizeof(*wb), GFP_ATOMIC);
++	if (!wb)
++		return -ENOMEM;
 +
-+	/*
-+	 * Negative cur_color indicates that @memcg is defunct and no more
-+	 * pointer update can happen till the previous one is complete.
-+	 */
-+	if (cur_color < 0 || next_ptr->css)
-+		return;
-+
-+	/* acquire current matching blkcg and see whether update is needed */
-+	blkcg_css = cgroup_get_e_css(memcg->css.cgroup, &blkio_cgrp_subsys);
-+	if (blkcg_css == cur_ptr->css) {
-+		css_put(blkcg_css);
-+		return;
++	ret = wb_init(wb, bdi, GFP_ATOMIC);
++	if (ret) {
++		kfree(wb);
++		return -ENOMEM;
 +	}
 +
-+	/* init the next ptr, flip the color and start draining the prev */
-+	next_ptr->css = blkcg_css;
-+	percpu_ref_reinit(&next_ptr->ref);
-+	memcg->blkcg_color = next_color;
++	wb->blkcg_css = blkcg_css;
++	set_bit(WB_registered, &wb->state); /* cgwbs are always registered */
 +
-+	if (cur_ptr->css)
-+		percpu_ref_kill(&cur_ptr->ref);
-+}
-+
-+static void memcg_blkcg_ptr_update(struct mem_cgroup *memcg)
-+{
-+	mutex_lock(&memcg_blkcg_ptr_mutex);
-+	memcg_blkcg_ptr_update_locked(memcg);
-+	mutex_unlock(&memcg_blkcg_ptr_mutex);
-+}
-+
-+static void memcg_blkcg_ref_release_workfn(struct work_struct *work)
-+{
-+	struct memcg_blkcg_ptr *ptr =
-+		container_of(work, struct memcg_blkcg_ptr, release_work);
-+	struct mem_cgroup *memcg = ptr->memcg;
-+
-+	/* @ptr just finished draining, put the blkcg it was pointing to */
-+	css_put(ptr->css);
-+
-+	/*
-+	 * Mark @ptr free and try updating as previous update attempts may
-+	 * have been delayed because @ptr was occupied.
-+	 */
-+	mutex_lock(&memcg_blkcg_ptr_mutex);
-+	ptr->css = NULL;
-+	memcg_blkcg_ptr_update_locked(memcg);
-+	mutex_unlock(&memcg_blkcg_ptr_mutex);
-+
-+	wake_up_all(&memcg_blkcg_ptr_waitq);
-+}
-+
-+static void memcg_blkcg_ref_release(struct percpu_ref *ref)
-+{
-+	struct memcg_blkcg_ptr *ptr =
-+		container_of(ref, struct memcg_blkcg_ptr, ref);
-+
-+	schedule_work(&ptr->release_work);
-+}
-+
-+static int memcg_blkcg_ptr_init(struct mem_cgroup *memcg)
-+{
-+	int i, ret;
-+
-+	/*
-+	 * The first ptr_update always flips the color.  Let's init w/ 1 so
-+	 * that we start with 0 after the initial ptr_update.
-+	 */
-+	memcg->blkcg_color = 1;
-+
-+	for (i = 0; i < ARRAY_SIZE(memcg->blkcg_ptr); i++) {
-+		struct memcg_blkcg_ptr *ptr = &memcg->blkcg_ptr[i];
-+
-+		/* start dead, ptr_update will reinit the next ptr */
-+		ret = percpu_ref_init(&ptr->ref, memcg_blkcg_ref_release,
-+				      PERCPU_REF_INIT_DEAD, GFP_KERNEL);
-+		if (ret) {
-+			while (--i >= 0)
-+				percpu_ref_exit(&memcg->blkcg_ptr[i].ref);
++	ret = -ENODEV;
++	spin_lock_irqsave(&cgwb_lock, flags);
++	/* the root wb determines the registered state of the whole bdi */
++	if (test_bit(WB_registered, &bdi->wb.state)) {
++		/* we might have raced w/ another instance of this function */
++		ret = radix_tree_insert(&bdi->cgwb_tree, blkcg_css->id, wb);
++		if (!ret)
++			list_add_tail(&wb->blkcg_node, &blkcg->cgwb_list);
++	}
++	spin_unlock_irqrestore(&cgwb_lock, flags);
++	if (ret) {
++		wb_exit(wb);
++		if (ret != -EEXIST)
 +			return ret;
-+		}
-+
-+		ptr->memcg = memcg;
-+		INIT_WORK(&ptr->release_work, memcg_blkcg_ref_release_workfn);
 +	}
-+
 +	return 0;
 +}
 +
-+static void memcg_blkcg_ptr_exit(struct mem_cgroup *memcg)
++/**
++ * cgwb_shutdown_prepare - prepare to shutdown a cgwb
++ * @wb: cgwb to be shutdown
++ * @to_shutdown: list to queue @wb on
++ *
++ * This function is called to queue @wb for shutdown on @to_shutdown.  The
++ * bdi_writeback indexes use the cgwb_lock spinlock but wb_shutdown() needs
++ * process context, so this function can be called while holding cgwb_lock
++ * and cgwb_shutdown_mutex to queue cgwbs for shutdown.  Once all target
++ * cgwbs are queued, the caller should release cgwb_lock and invoke
++ * cgwb_shutdown_commit().
++ */
++static void cgwb_shutdown_prepare(struct bdi_writeback *wb,
++				  struct list_head *to_shutdown)
 +{
-+	int i;
++	lockdep_assert_held(&cgwb_lock);
++	lockdep_assert_held(&cgwb_shutdown_mutex);
 +
-+	mutex_lock(&memcg_blkcg_ptr_mutex);
++	WARN_ON(!test_bit(WB_registered, &wb->state));
++	clear_bit(WB_registered, &wb->state);
++	list_add_tail(&wb->shutdown_node, to_shutdown);
++}
 +
-+	/* disable further ptr_update */
-+	memcg->blkcg_color = -1;
++/**
++ * cgwb_shutdown_commit - commit cgwb shutdowns
++ * @to_shutdown: list of cgwbs to shutdown
++ *
++ * This function is called after @to_shutdown is built by calls to
++ * cgwb_shutdown_prepare() and cgwb_lock is released.  It invokes
++ * wb_shutdown() on all cgwbs on the list.  bdi and blkcg may try to
++ * shutdown the same cgwbs and should wait till completion if shutdown is
++ * initiated by the other.  This synchronization is achieved through
++ * cgwb_shutdown_mutex which should have been acquired before the
++ * cgwb_shutdown_prepare() invocations.
++ */
++static void cgwb_shutdown_commit(struct list_head *to_shutdown)
++{
++	struct bdi_writeback *wb;
 +
-+	for (i = 0; i < ARRAY_SIZE(memcg->blkcg_ptr); i++) {
-+		struct memcg_blkcg_ptr *ptr = &memcg->blkcg_ptr[i];
++	lockdep_assert_held(&cgwb_shutdown_mutex);
 +
-+		/* force start draining and wait for its completion */
-+		if (!percpu_ref_is_dying(&ptr->ref))
-+			percpu_ref_kill(&ptr->ref);
-+		if (ptr->css) {
-+			mutex_unlock(&memcg_blkcg_ptr_mutex);
-+			wait_event(memcg_blkcg_ptr_waitq, !ptr->css);
-+			mutex_lock(&memcg_blkcg_ptr_mutex);
-+		}
-+		percpu_ref_exit(&ptr->ref);
++	list_for_each_entry(wb, to_shutdown, shutdown_node)
++		wb_shutdown(wb);
++}
++
++static void cgwb_exit(struct bdi_writeback *wb)
++{
++	WARN_ON(!radix_tree_delete(&wb->bdi->cgwb_tree, wb->blkcg_css->id));
++	list_del(&wb->blkcg_node);
++	wb_exit(wb);
++	kfree_rcu(wb, rcu);
++}
++
++static void cgwb_bdi_init(struct backing_dev_info *bdi)
++{
++	bdi->wb.blkcg_css = blkcg_root_css;
++	INIT_RADIX_TREE(&bdi->cgwb_tree, GFP_ATOMIC);
++}
++
++/**
++ * cgwb_bdi_shutdown - @bdi is being shut down, shut down all cgwbs
++ * @bdi: bdi being shut down
++ */
++static void cgwb_bdi_shutdown(struct backing_dev_info *bdi)
++{
++	LIST_HEAD(to_shutdown);
++	struct radix_tree_iter iter;
++	void **slot;
++
++	WARN_ON(test_bit(WB_registered, &bdi->wb.state));
++
++	mutex_lock(&cgwb_shutdown_mutex);
++	spin_lock_irq(&cgwb_lock);
++
++	radix_tree_for_each_slot(slot, &bdi->cgwb_tree, &iter, 0)
++		cgwb_shutdown_prepare(*slot, &to_shutdown);
++
++	spin_unlock_irq(&cgwb_lock);
++	cgwb_shutdown_commit(&to_shutdown);
++	mutex_unlock(&cgwb_shutdown_mutex);
++}
++
++/**
++ * cgwb_bdi_exit - @bdi is being exit, exit all its cgwbs
++ * @bdi: bdi being shut down
++ */
++static void cgwb_bdi_exit(struct backing_dev_info *bdi)
++{
++	LIST_HEAD(to_free);
++	struct radix_tree_iter iter;
++	void **slot;
++
++	spin_lock_irq(&cgwb_lock);
++	radix_tree_for_each_slot(slot, &bdi->cgwb_tree, &iter, 0) {
++		struct bdi_writeback *wb = *slot;
++
++		WARN_ON(test_bit(WB_registered, &wb->state));
++		cgwb_exit(wb);
 +	}
-+
-+	mutex_unlock(&memcg_blkcg_ptr_mutex);
-+}
-+
-+static __always_inline struct cgroup_subsys_state *
-+page_blkcg(struct page *page, unsigned int valid_flag, unsigned int color_flag)
-+{
-+	struct mem_cgroup *memcg = page_memcg(page);
-+	unsigned long memcg_v = page->mem_cgroup;
-+	int color;
-+
-+	if (!(memcg_v & valid_flag))
-+		return blkcg_root_css;
-+
-+	color = (bool)(memcg_v & color_flag);
-+	return memcg->blkcg_ptr[color].css;
++	spin_unlock_irq(&cgwb_lock);
 +}
 +
 +/**
-+ * page_blkcg_dirty - the blkcg a page is associated with for dirtying
-+ * @page: page in question
++ * cgwb_blkcg_released - a blkcg is being destroyed, release all matching cgwbs
++ * @blkcg_css: blkcg being destroyed
 + */
-+struct cgroup_subsys_state *page_blkcg_dirty(struct page *page)
++void cgwb_blkcg_released(struct cgroup_subsys_state *blkcg_css)
 +{
-+	return page_blkcg(page, PCG_BLKCG_DIRTY_VALID, PCG_BLKCG_DIRTY_COLOR);
-+}
++	LIST_HEAD(to_shutdown);
++	struct blkcg *blkcg = css_to_blkcg(blkcg_css);
++	struct bdi_writeback *wb, *next;
 +
-+/**
-+ * page_blkcg_writeback - the blkcg a page is associated with for writeback
-+ * @page: page in question
-+ */
-+struct cgroup_subsys_state *page_blkcg_wb(struct page *page)
-+{
-+	return page_blkcg(page, PCG_BLKCG_WB_VALID, PCG_BLKCG_WB_COLOR);
-+}
++	mutex_lock(&cgwb_shutdown_mutex);
++	spin_lock_irq(&cgwb_lock);
 +
-+static __always_inline void page_cgflags_update(struct page *page,
-+						unsigned long cgflags_mask,
-+						unsigned long cgflags_target)
-+{
-+	unsigned long memcg_v = page->mem_cgroup;
++	list_for_each_entry_safe(wb, next, &blkcg->cgwb_list, blkcg_node)
++		cgwb_shutdown_prepare(wb, &to_shutdown);
 +
-+	WARN_ON_ONCE(!memcg_v);
++	spin_unlock_irq(&cgwb_lock);
++	cgwb_shutdown_commit(&to_shutdown);
++	mutex_unlock(&cgwb_shutdown_mutex);
 +
-+	/* dirty the cacheline only when necessary */
-+	if ((memcg_v & cgflags_mask) != cgflags_target)
-+		page->mem_cgroup = (memcg_v & ~cgflags_mask) | cgflags_target;
-+}
-+
-+/**
-+ * page_blkcg_attach_dirty - associate a page with its dirtying blkcg
-+ * @page: target page
-+ *
-+ * This function is to be called when @page is being newly dirtied and
-+ * makes the active corresponding blkcg of its memcg its dirty blkcg.  This
-+ * blkcg can be retrieved using page_blkcg_dirty().
-+ */
-+struct cgroup_subsys_state *page_blkcg_attach_dirty(struct page *page)
-+{
-+	struct mem_cgroup *memcg = page_memcg(page);
-+	struct memcg_blkcg_ptr *ptr;
-+	int color;
-+
-+	while (true) {
-+		color = memcg->blkcg_color;
-+		ptr = &memcg->blkcg_ptr[color];
-+		if (ptr->css == blkcg_root_css)
-+			goto root_css;
-+		if (likely(percpu_ref_tryget(&ptr->ref)))
-+			break;
-+		cpu_relax();
-+	}
-+
-+	page_cgflags_update(page, PCG_BLKCG_DIRTY_VALID | PCG_BLKCG_DIRTY_COLOR,
-+			    PCG_BLKCG_DIRTY_VALID |
-+			    (color ? PCG_BLKCG_DIRTY_COLOR : 0));
-+	return ptr->css;
-+root_css:
-+	page_cgflags_update(page, PCG_BLKCG_DIRTY_VALID, 0);
-+	return blkcg_root_css;
-+}
-+
-+/**
-+ * page_blkcg_attach_wb - associate a page with its writeback blkcg
-+ * @page: target page
-+ *
-+ * This function is to be called when @page is about to be written back and
-+ * makes its dirty blkcg its writeback blkcg.  This blkcg can be retrieved
-+ * using page_blkcg_wb().
-+ */
-+struct cgroup_subsys_state *page_blkcg_attach_wb(struct page *page)
-+{
-+	unsigned long memcg_v = page->mem_cgroup;
-+	struct mem_cgroup *memcg = page_memcg(page);
-+	struct memcg_blkcg_ptr *ptr;
-+	int color;
-+
-+	if (!(memcg_v & PCG_BLKCG_DIRTY_VALID))
-+		goto root_css;
-+
-+	/*
-+	 * Inherit @page's dirty color.  @page's dirty color is already
-+	 * detached at this point, and, if the associated memcg's active
-+	 * color has flipped, the page may already have been redirtied with
-+	 * a different color or the blkcg_ptr released.
-+	 *
-+	 * If @page has been redirtied to a different blkcg before
-+	 * writeback starts on the previous dirty state, the writeback is
-+	 * attributed to the new blkcg.  The race window isn't huge and
-+	 * charging to the new blkcg isn't strictly wrong as @page got
-+	 * redirtied to the new blkcg after all.
-+	 *
-+	 * If @page's dirty blkcg_ptr already got released, we fall back to
-+	 * the root blkcg.  This can only happen if blkcg_ptr's reference
-+	 * count reached zero since the put of @page's dirty reference
-+	 * making it highly unlikely to happen to more than few pages.
-+	 *
-+	 * We may attach some pages to the wrong blkcg across memcg-blkcg
-+	 * correspondence change but such changes are rare to begin with
-+	 * and the number of pages we may misattribute is pretty limited.
-+	 */
-+	color = (bool)(memcg_v & PCG_BLKCG_DIRTY_COLOR);
-+	ptr = &memcg->blkcg_ptr[color];
-+	if (unlikely(!percpu_ref_tryget(&ptr->ref)))
-+		goto root_css;
-+
-+	page_cgflags_update(page, PCG_BLKCG_WB_VALID | PCG_BLKCG_WB_COLOR,
-+			    PCG_BLKCG_WB_VALID |
-+			    (color ? PCG_BLKCG_WB_COLOR : 0));
-+	return ptr->css;
-+root_css:
-+	page_cgflags_update(page, PCG_BLKCG_WB_VALID, 0);
-+	return blkcg_root_css;
-+}
-+
-+static __always_inline void
-+page_blkcg_detach(struct page *page, unsigned valid_flag, unsigned color_flag)
-+{
-+	unsigned long memcg_v = page->mem_cgroup;
-+	struct mem_cgroup *memcg = page_memcg(page);
-+	int color;
-+
-+	if (!(memcg_v & valid_flag))
-+		return;
-+
-+	color = (bool)(memcg_v & color_flag);
-+	percpu_ref_put(&memcg->blkcg_ptr[color].ref);
-+}
-+
-+/**
-+ * page_blkcg_detach_dirty - disassociate a page from its dirty blkcg
-+ * @page: target page
-+ *
-+ * Put @page's current dirty blkcg association.  This function must be
-+ * called before @page's dirtiness is cleared.
-+ */
-+void page_blkcg_detach_dirty(struct page *page)
-+{
-+	page_blkcg_detach(page, PCG_BLKCG_DIRTY_VALID, PCG_BLKCG_DIRTY_COLOR);
-+}
-+
-+/**
-+ * page_blkcg_detach_wb - disassociate a page from its writeback blkcg
-+ * @page: target page
-+ *
-+ * Put @page's current writeback blkcg association.  This funtion must be
-+ * called before @page's writeback is complete.
-+ */
-+void page_blkcg_detach_wb(struct page *page)
-+{
-+	page_blkcg_detach(page, PCG_BLKCG_WB_VALID, PCG_BLKCG_WB_COLOR);
-+}
-+
-+/**
-+ * page_blkcg_force_root_dirty - force a page's dirty blkcg to be the root one
-+ * @page: target page
-+ *
-+ * The caller must ensure that @page doesn't have dirty blkcg attached.
-+ */
-+void page_blkcg_force_root_dirty(struct page *page)
-+{
-+	page_cgflags_update(page, PCG_BLKCG_DIRTY_VALID, 0);
-+}
-+
-+/**
-+ * page_blkcg_force_root_wb - force a page's writeback blkcg to be the root one
-+ * @page: target page
-+ *
-+ * The caller must ensure that @page doesn't have writeback blkcg attached.
-+ */
-+void page_blkcg_force_root_wb(struct page *page)
-+{
-+	page_cgflags_update(page, PCG_BLKCG_WB_VALID, 0);
++	spin_lock_irq(&cgwb_lock);
++	list_for_each_entry_safe(wb, next, &blkcg->cgwb_list, blkcg_node)
++		cgwb_exit(wb);
++	spin_unlock_irq(&cgwb_lock);
 +}
 +
 +#else	/* CONFIG_CGROUP_WRITEBACK */
 +
-+static void memcg_blkcg_ptr_update(struct mem_cgroup *memcg)
-+{
-+}
-+
-+static int memcg_blkcg_ptr_init(struct mem_cgroup *memcg)
-+{
-+	return 0;
-+}
-+
-+static void memcg_blkcg_ptr_exit(struct mem_cgroup *memcg)
-+{
-+}
++static void cgwb_bdi_init(struct backing_dev_info *bdi) { }
++static void cgwb_bdi_shutdown(struct backing_dev_info *bdi) { }
++static void cgwb_bdi_exit(struct backing_dev_info *bdi) { }
 +
 +#endif	/* CONFIG_CGROUP_WRITEBACK */
 +
- /*
-  * The user of this function is...
-  * RES_LIMIT.
-@@ -4560,6 +4982,10 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
- 		if (alloc_mem_cgroup_per_zone_info(memcg, node))
- 			goto free_out;
+ int bdi_init(struct backing_dev_info *bdi)
+ {
+ 	int err;
+@@ -455,6 +641,7 @@ int bdi_init(struct backing_dev_info *bdi)
+ 	if (err)
+ 		return err;
  
-+	error = memcg_blkcg_ptr_init(memcg);
-+	if (error)
-+		goto free_out;
-+
- 	/* root ? */
- 	if (parent_css == NULL) {
- 		root_mem_cgroup = memcg;
-@@ -4599,7 +5025,7 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
- 		return -ENOSPC;
- 
- 	if (!parent)
--		return 0;
-+		goto done;
- 
- 	mutex_lock(&memcg_create_mutex);
- 
-@@ -4642,7 +5068,8 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
- 	 * reading the memcg members.
- 	 */
- 	smp_store_release(&memcg->initialized, 1);
--
-+done:
-+	memcg_blkcg_ptr_update(memcg);
++	cgwb_bdi_init(bdi);
  	return 0;
  }
+ EXPORT_SYMBOL(bdi_init);
+@@ -532,6 +719,7 @@ void bdi_unregister(struct backing_dev_info *bdi)
+ 			/* make sure nobody finds us on the bdi_list anymore */
+ 			bdi_remove_from_list(bdi);
+ 			wb_shutdown(&bdi->wb);
++			cgwb_bdi_shutdown(bdi);
+ 		}
  
-@@ -4671,6 +5098,7 @@ static void mem_cgroup_css_free(struct cgroup_subsys_state *css)
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
- 
- 	memcg_destroy_kmem(memcg);
-+	memcg_blkcg_ptr_exit(memcg);
- 	__mem_cgroup_free(memcg);
+ 		bdi_debug_unregister(bdi);
+@@ -544,6 +732,7 @@ EXPORT_SYMBOL(bdi_unregister);
+ void bdi_destroy(struct backing_dev_info *bdi)
+ {
+ 	bdi_unregister(bdi);
++	cgwb_bdi_exit(bdi);
+ 	wb_exit(&bdi->wb);
  }
- 
-@@ -4697,6 +5125,11 @@ static void mem_cgroup_css_reset(struct cgroup_subsys_state *css)
- 	memcg->soft_limit = PAGE_COUNTER_MAX;
- }
- 
-+static void mem_cgroup_css_e_css_changed(struct cgroup_subsys_state *css)
-+{
-+	memcg_blkcg_ptr_update(mem_cgroup_from_css(css));
-+}
-+
- #ifdef CONFIG_MMU
- /* Handlers for move charge at task migration. */
- static int mem_cgroup_do_precharge(unsigned long count)
-@@ -5288,6 +5721,7 @@ struct cgroup_subsys memory_cgrp_subsys = {
- 	.css_offline = mem_cgroup_css_offline,
- 	.css_free = mem_cgroup_css_free,
- 	.css_reset = mem_cgroup_css_reset,
-+	.css_e_css_changed = mem_cgroup_css_e_css_changed,
- 	.can_attach = mem_cgroup_can_attach,
- 	.cancel_attach = mem_cgroup_cancel_attach,
- 	.attach = mem_cgroup_move_task,
+ EXPORT_SYMBOL(bdi_destroy);
 diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 0e35ff4..72a0edf 100644
+index 72a0edf..6475504 100644
 --- a/mm/page-writeback.c
 +++ b/mm/page-writeback.c
-@@ -2303,6 +2303,7 @@ int clear_page_dirty_for_io(struct page *page)
- 			dec_zone_page_state(page, NR_FILE_DIRTY);
- 			dec_wb_stat(&mapping->backing_dev_info->wb,
- 				    WB_RECLAIMABLE);
-+			page_blkcg_detach_dirty(page);
- 			return 1;
- 		}
- 		return 0;
-@@ -2330,6 +2331,7 @@ int test_clear_page_writeback(struct page *page)
- 						PAGECACHE_TAG_WRITEBACK);
- 			if (bdi_cap_account_writeback(bdi)) {
- 				__dec_wb_stat(&bdi->wb, WB_WRITEBACK);
-+				page_blkcg_detach_wb(page);
- 				__wb_writeout_inc(&bdi->wb);
- 			}
- 		}
-@@ -2363,8 +2365,10 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
- 			radix_tree_tag_set(&mapping->page_tree,
- 						page_index(page),
- 						PAGECACHE_TAG_WRITEBACK);
--			if (bdi_cap_account_writeback(bdi))
-+			if (bdi_cap_account_writeback(bdi)) {
- 				__inc_wb_stat(&bdi->wb, WB_WRITEBACK);
-+				page_blkcg_attach_wb(page);
-+			}
- 		}
- 		if (!PageDirty(page))
- 			radix_tree_tag_clear(&mapping->page_tree,
-diff --git a/mm/truncate.c b/mm/truncate.c
-index 3fcd662..caae624 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -116,6 +116,7 @@ void cancel_dirty_page(struct page *page, unsigned int account_size)
- 				    WB_RECLAIMABLE);
- 			if (account_size)
- 				task_io_account_cancelled_write(account_size);
-+			page_blkcg_detach_dirty(page);
- 		}
- 	}
- }
+@@ -2102,8 +2102,8 @@ void account_page_dirtied(struct dirty_context *dctx)
+ 
+ 	__inc_zone_page_state(page, NR_FILE_DIRTY);
+ 	__inc_zone_page_state(page, NR_DIRTIED);
+-	__inc_wb_stat(&mapping->backing_dev_info->wb, WB_RECLAIMABLE);
+-	__inc_wb_stat(&mapping->backing_dev_info->wb, WB_DIRTIED);
++	__inc_wb_stat(dctx->wb, WB_RECLAIMABLE);
++	__inc_wb_stat(dctx->wb, WB_DIRTIED);
+ 	task_io_account_write(PAGE_CACHE_SIZE);
+ 	current->nr_dirtied++;
+ 	this_cpu_inc(bdp_ratelimits);
 -- 
 2.1.0
 
