@@ -1,68 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 9776D6B00AE
-	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 03:27:25 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id kx10so30638511pab.30
-        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 00:27:25 -0800 (PST)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id n3si58979167pap.106.2015.01.06.00.27.22
-        for <linux-mm@kvack.org>;
-        Tue, 06 Jan 2015 00:27:24 -0800 (PST)
-Date: Tue, 6 Jan 2015 17:27:23 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 1/2] mm/slub: optimize alloc/free fastpath by removing
- preemption on/off
-Message-ID: <20150106082723.GC18346@js1304-P5Q-DELUXE>
-References: <023701d028c2$dba2cb30$92e86190$@alibaba-inc.com>
- <20150106013247.GC17222@js1304-P5Q-DELUXE>
- <20150105212502.1bdc4f67@gandalf.local.home>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150105212502.1bdc4f67@gandalf.local.home>
+Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 9925E6B00B0
+	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 03:47:21 -0500 (EST)
+Received: by mail-ie0-f182.google.com with SMTP id x19so1626159ier.13
+        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 00:47:21 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id w3si6899002igl.34.2015.01.06.00.47.19
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Jan 2015 00:47:20 -0800 (PST)
+Date: Tue, 6 Jan 2015 00:47:14 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v12 00/20] DAX: Page cache bypass for filesystems on
+ memory storage
+Message-Id: <20150106004714.6d63023c.akpm@linux-foundation.org>
+In-Reply-To: <20150105184143.GA665@infradead.org>
+References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
+	<20141210140347.GA23252@infradead.org>
+	<20141210141211.GD2220@wil.cx>
+	<20150105184143.GA665@infradead.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, Andrew Morton <akpm@linux-foundation.org>, 'Christoph Lameter' <cl@linux.com>, 'Pekka Enberg' <penberg@kernel.org>, 'David Rientjes' <rientjes@google.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, 'Jesper Dangaard Brouer' <brouer@redhat.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Matthew Wilcox <willy@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Milosz Tanski <milosz@adfin.com>
 
-On Mon, Jan 05, 2015 at 09:25:02PM -0500, Steven Rostedt wrote:
-> On Tue, 6 Jan 2015 10:32:47 +0900
-> Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> 
-> 
-> > > > +++ b/mm/slub.c
-> > > > @@ -2398,13 +2398,15 @@ redo:
-> > > >  	 * reading from one cpu area. That does not matter as long
-> > > >  	 * as we end up on the original cpu again when doing the cmpxchg.
-> > > >  	 *
-> > > > -	 * Preemption is disabled for the retrieval of the tid because that
-> > > > -	 * must occur from the current processor. We cannot allow rescheduling
-> > > > -	 * on a different processor between the determination of the pointer
-> > > > -	 * and the retrieval of the tid.
-> > > > +	 * We should guarantee that tid and kmem_cache are retrieved on
-> > > > +	 * the same cpu. It could be different if CONFIG_PREEMPT so we need
-> > > > +	 * to check if it is matched or not.
-> > > >  	 */
-> > > > -	preempt_disable();
-> > > > -	c = this_cpu_ptr(s->cpu_slab);
-> > > > +	do {
-> > > > +		tid = this_cpu_read(s->cpu_slab->tid);
-> > > > +		c = this_cpu_ptr(s->cpu_slab);
-> > > > +	} while (IS_ENABLED(CONFIG_PREEMPT) && unlikely(tid != c->tid));
-> > > > +	barrier();
-> > > 
-> > > Help maintenance more if barrier is documented in commit message.
+On Mon, 5 Jan 2015 10:41:43 -0800 Christoph Hellwig <hch@infradead.org> wrote:
+
+> On Wed, Dec 10, 2014 at 09:12:11AM -0500, Matthew Wilcox wrote:
+> > On Wed, Dec 10, 2014 at 06:03:47AM -0800, Christoph Hellwig wrote:
+> > > What is the status of this patch set?
 > > 
-> > Hello,
-> > 
-> > Okay. Will add some information about this barrier in commit message.
+> > I have no outstanding bug reports against it.  Linus told me that he
+> > wants to see it come through Andrew's tree.  I have an email two weeks
+> > ago from Andrew saying that it's on his list.  I would love to see it
+> > merged since it's almost a year old at this point.
 > 
-> A comment in the commit message is useless. Adding a small comment
-> above the barrier() call itself would be much more useful.
+> And since then another month and aother merge window has passed.  Is
+> there any way to speed up merging big patch sets like this one?
 
-Okay. Will do.
+I took a look at dax last time and found it to be unreviewable due to
+lack of design description, objectives and code comments.  Hopefully
+that's been addressed - I should get back to it fairly soon as I chew
+through merge window and holiday backlog.
 
-Thanks.
+> Another one is non-blocking read one that has real life use on one
+> of the biggest server side webapp frameworks but doesn't seem to make
+> progress, which is a bit frustrating.
+
+I took a look at pread2() as well and I have two main issues:
+
+- The patchset includes a pwrite2() syscall which has nothing to do
+  with nonblocking reads and which was poorly described and had little
+  justification for inclusion.
+
+- We've talked for years about implementing this via fincore+pread
+  and at least two fincore implementations are floating about.  Now
+  along comes pread2() which does it all in one hit.
+
+  Which approach is best?  I expect fincore+pread is simpler, more
+  flexible and more maintainable.  But pread2() will have lower CPU
+  consumption and lower average-case latency.
+
+  But how *much* better is pread2()?  I expect the difference will be
+  minor because these operations are associated with a great big
+  cache-stomping memcpy.  If the pread2() advantage is "insignificant
+  for real world workloads" then perhaps it isn't the best way to go.
+
+  I just don't know, and diligence requires that we answer the
+  question.  But all I've seen in response to these questions is
+  handwaving.  It would be a shame to make a mistake because nobody
+  found the time to perform the investigation.
+
+Also, integration of pread2() into xfstests is (or was) happening and
+the results of that aren't yet known.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
