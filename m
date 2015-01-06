@@ -1,224 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 933B36B011D
-	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 16:06:23 -0500 (EST)
-Received: by mail-ob0-f182.google.com with SMTP id wo20so106873obc.13
-        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 13:06:23 -0800 (PST)
-Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
-        by mx.google.com with ESMTPS id xt7si3445757oeb.28.2015.01.06.13.06.21
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 555316B011F
+	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 16:11:00 -0500 (EST)
+Received: by mail-wi0-f172.google.com with SMTP id n3so6200198wiv.5
+        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 13:11:00 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r2si123855799wjx.64.2015.01.06.13.10.59
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Jan 2015 13:06:22 -0800 (PST)
-From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH v7 7/7] x86, mm: Add set_memory_wt() for WT
-Date: Tue,  6 Jan 2015 13:49:52 -0700
-Message-Id: <1420577392-21235-8-git-send-email-toshi.kani@hp.com>
-In-Reply-To: <1420577392-21235-1-git-send-email-toshi.kani@hp.com>
-References: <1420577392-21235-1-git-send-email-toshi.kani@hp.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 06 Jan 2015 13:10:59 -0800 (PST)
+Message-ID: <54AC4F5F.90306@suse.cz>
+Date: Tue, 06 Jan 2015 22:10:55 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
+MIME-Version: 1.0
+Subject: Re: [PATCH V4 1/4] mm: set page->pfmemalloc in prep_new_page()
+References: <1420478263-25207-1-git-send-email-vbabka@suse.cz> <1420478263-25207-2-git-send-email-vbabka@suse.cz> <20150106143008.GA20860@dhcp22.suse.cz>
+In-Reply-To: <20150106143008.GA20860@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Elliott@hp.com, Toshi Kani <toshi.kani@hp.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-This patch adds set_memory_wt(), set_memory_array_wt() and
-set_pages_array_wt() for setting specified range(s) of the
-regular memory to WT.
+On 01/06/2015 03:30 PM, Michal Hocko wrote:
+> On Mon 05-01-15 18:17:40, Vlastimil Babka wrote:
+>> The function prep_new_page() sets almost everything in the struct page of the
+>> page being allocated, except page->pfmemalloc. This is not obvious and has at
+>> least once led to a bug where page->pfmemalloc was forgotten to be set
+>> correctly, see commit 8fb74b9fb2b1 ("mm: compaction: partially revert capture
+>> of suitable high-order page").
+>> 
+>> This patch moves the pfmemalloc setting to prep_new_page(), which means it
+>> needs to gain alloc_flags parameter. The call to prep_new_page is moved from
+>> buffered_rmqueue() to get_page_from_freelist(), which also leads to simpler
+>> code. An obsolete comment for buffered_rmqueue() is replaced.
+>> 
+>> In addition to better maintainability there is a small reduction of code and
+>> stack usage for get_page_from_freelist(), which inlines the other functions
+>> involved.
+>> 
+>> add/remove: 0/0 grow/shrink: 0/1 up/down: 0/-145 (-145)
+>> function                                     old     new   delta
+>> get_page_from_freelist                      2670    2525    -145
+>> 
+>> Stack usage is reduced from 184 to 168 bytes.
+>> 
+>> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+>> Cc: Mel Gorman <mgorman@suse.de>
+>> Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+>> Cc: Minchan Kim <minchan@kernel.org>
+>> Cc: David Rientjes <rientjes@google.com>
+>> Cc: Rik van Riel <riel@redhat.com>
+>> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+>> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+>> Cc: Johannes Weiner <hannes@cmpxchg.org>
+>> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>> Cc: Michal Hocko <mhocko@suse.cz>
+> 
+> get_page_from_freelist has grown too hairy. I agree that it is tiny less
+> confusing now because we are not breaking out of the loop in the
+> successful case.
 
-Signed-off-by: Toshi Kani <toshi.kani@hp.com>
----
- Documentation/x86/pat.txt         |    9 ++++--
- arch/x86/include/asm/cacheflush.h |    6 +++-
- arch/x86/mm/pageattr.c            |   58 +++++++++++++++++++++++++++++++++----
- 3 files changed, 63 insertions(+), 10 deletions(-)
+Well, we are returning instead. So there's no more code to follow by anyone
+reading the function.
 
-diff --git a/Documentation/x86/pat.txt b/Documentation/x86/pat.txt
-index be7b8c2..bf4339c 100644
---- a/Documentation/x86/pat.txt
-+++ b/Documentation/x86/pat.txt
-@@ -46,6 +46,9 @@ set_memory_uc          |    UC-   |    --      |       --         |
- set_memory_wc          |    WC    |    --      |       --         |
-  set_memory_wb         |          |            |                  |
-                        |          |            |                  |
-+set_memory_wt          |    WT    |    --      |       --         |
-+ set_memory_wb         |          |            |                  |
-+                       |          |            |                  |
- pci sysfs resource     |    --    |    --      |       UC-        |
-                        |          |            |                  |
- pci sysfs resource_wc  |    --    |    --      |       WC         |
-@@ -117,8 +120,8 @@ can be more restrictive, in case of any existing aliasing for that address.
- For example: If there is an existing uncached mapping, a new ioremap_wc can
- return uncached mapping in place of write-combine requested.
- 
--set_memory_[uc|wc] and set_memory_wb should be used in pairs, where driver will
--first make a region uc or wc and switch it back to wb after use.
-+set_memory_[uc|wc|wt] and set_memory_wb should be used in pairs, where driver
-+will first make a region uc, wc or wt and switch it back to wb after use.
- 
- Over time writes to /proc/mtrr will be deprecated in favor of using PAT based
- interfaces. Users writing to /proc/mtrr are suggested to use above interfaces.
-@@ -126,7 +129,7 @@ interfaces. Users writing to /proc/mtrr are suggested to use above interfaces.
- Drivers should use ioremap_[uc|wc] to access PCI BARs with [uc|wc] access
- types.
- 
--Drivers should use set_memory_[uc|wc] to set access type for RAM ranges.
-+Drivers should use set_memory_[uc|wc|wt] to set access type for RAM ranges.
- 
- 
- PAT debugging
-diff --git a/arch/x86/include/asm/cacheflush.h b/arch/x86/include/asm/cacheflush.h
-index 47c8e32..b6f7457 100644
---- a/arch/x86/include/asm/cacheflush.h
-+++ b/arch/x86/include/asm/cacheflush.h
-@@ -8,7 +8,7 @@
- /*
-  * The set_memory_* API can be used to change various attributes of a virtual
-  * address range. The attributes include:
-- * Cachability   : UnCached, WriteCombining, WriteBack
-+ * Cachability   : UnCached, WriteCombining, WriteThrough, WriteBack
-  * Executability : eXeutable, NoteXecutable
-  * Read/Write    : ReadOnly, ReadWrite
-  * Presence      : NotPresent
-@@ -35,9 +35,11 @@
- 
- int _set_memory_uc(unsigned long addr, int numpages);
- int _set_memory_wc(unsigned long addr, int numpages);
-+int _set_memory_wt(unsigned long addr, int numpages);
- int _set_memory_wb(unsigned long addr, int numpages);
- int set_memory_uc(unsigned long addr, int numpages);
- int set_memory_wc(unsigned long addr, int numpages);
-+int set_memory_wt(unsigned long addr, int numpages);
- int set_memory_wb(unsigned long addr, int numpages);
- int set_memory_x(unsigned long addr, int numpages);
- int set_memory_nx(unsigned long addr, int numpages);
-@@ -48,10 +50,12 @@ int set_memory_4k(unsigned long addr, int numpages);
- 
- int set_memory_array_uc(unsigned long *addr, int addrinarray);
- int set_memory_array_wc(unsigned long *addr, int addrinarray);
-+int set_memory_array_wt(unsigned long *addr, int addrinarray);
- int set_memory_array_wb(unsigned long *addr, int addrinarray);
- 
- int set_pages_array_uc(struct page **pages, int addrinarray);
- int set_pages_array_wc(struct page **pages, int addrinarray);
-+int set_pages_array_wt(struct page **pages, int addrinarray);
- int set_pages_array_wb(struct page **pages, int addrinarray);
- 
- /*
-diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-index 1965fc8..9308527 100644
---- a/arch/x86/mm/pageattr.c
-+++ b/arch/x86/mm/pageattr.c
-@@ -1504,12 +1504,10 @@ EXPORT_SYMBOL(set_memory_uc);
- static int _set_memory_array(unsigned long *addr, int addrinarray,
- 		enum page_cache_mode new_type)
- {
-+	enum page_cache_mode set_type;
- 	int i, j;
- 	int ret;
- 
--	/*
--	 * for now UC MINUS. see comments in ioremap_nocache()
--	 */
- 	for (i = 0; i < addrinarray; i++) {
- 		ret = reserve_memtype(__pa(addr[i]), __pa(addr[i]) + PAGE_SIZE,
- 					new_type, NULL);
-@@ -1517,9 +1515,12 @@ static int _set_memory_array(unsigned long *addr, int addrinarray,
- 			goto out_free;
- 	}
- 
-+	/* If WC, set to UC- first and then WC */
-+	set_type = (new_type == _PAGE_CACHE_MODE_WC) ?
-+				_PAGE_CACHE_MODE_UC_MINUS : new_type;
-+
- 	ret = change_page_attr_set(addr, addrinarray,
--				   cachemode2pgprot(_PAGE_CACHE_MODE_UC_MINUS),
--				   1);
-+				   cachemode2pgprot(set_type), 1);
- 
- 	if (!ret && new_type == _PAGE_CACHE_MODE_WC)
- 		ret = change_page_attr_set_clr(addr, addrinarray,
-@@ -1551,6 +1552,12 @@ int set_memory_array_wc(unsigned long *addr, int addrinarray)
- }
- EXPORT_SYMBOL(set_memory_array_wc);
- 
-+int set_memory_array_wt(unsigned long *addr, int addrinarray)
-+{
-+	return _set_memory_array(addr, addrinarray, _PAGE_CACHE_MODE_WT);
-+}
-+EXPORT_SYMBOL(set_memory_array_wt);
-+
- int _set_memory_wc(unsigned long addr, int numpages)
- {
- 	int ret;
-@@ -1591,6 +1598,34 @@ out_err:
- }
- EXPORT_SYMBOL(set_memory_wc);
- 
-+int _set_memory_wt(unsigned long addr, int numpages)
-+{
-+	return change_page_attr_set(&addr, numpages,
-+				    cachemode2pgprot(_PAGE_CACHE_MODE_WT), 0);
-+}
-+
-+int set_memory_wt(unsigned long addr, int numpages)
-+{
-+	int ret;
-+
-+	ret = reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
-+			      _PAGE_CACHE_MODE_WT, NULL);
-+	if (ret)
-+		goto out_err;
-+
-+	ret = _set_memory_wt(addr, numpages);
-+	if (ret)
-+		goto out_free;
-+
-+	return 0;
-+
-+out_free:
-+	free_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
-+out_err:
-+	return ret;
-+}
-+EXPORT_SYMBOL(set_memory_wt);
-+
- int _set_memory_wb(unsigned long addr, int numpages)
- {
- 	/* WB cache mode is hard wired to all cache attribute bits being 0 */
-@@ -1683,6 +1718,7 @@ static int _set_pages_array(struct page **pages, int addrinarray,
- {
- 	unsigned long start;
- 	unsigned long end;
-+	enum page_cache_mode set_type;
- 	int i;
- 	int free_idx;
- 	int ret;
-@@ -1696,8 +1732,12 @@ static int _set_pages_array(struct page **pages, int addrinarray,
- 			goto err_out;
- 	}
- 
-+	/* If WC, set to UC- first and then WC */
-+	set_type = (new_type == _PAGE_CACHE_MODE_WC) ?
-+				_PAGE_CACHE_MODE_UC_MINUS : new_type;
-+
- 	ret = cpa_set_pages_array(pages, addrinarray,
--			cachemode2pgprot(_PAGE_CACHE_MODE_UC_MINUS));
-+				  cachemode2pgprot(set_type));
- 	if (!ret && new_type == _PAGE_CACHE_MODE_WC)
- 		ret = change_page_attr_set_clr(NULL, addrinarray,
- 					       cachemode2pgprot(
-@@ -1731,6 +1771,12 @@ int set_pages_array_wc(struct page **pages, int addrinarray)
- }
- EXPORT_SYMBOL(set_pages_array_wc);
- 
-+int set_pages_array_wt(struct page **pages, int addrinarray)
-+{
-+	return _set_pages_array(pages, addrinarray, _PAGE_CACHE_MODE_WT);
-+}
-+EXPORT_SYMBOL(set_pages_array_wt);
-+
- int set_pages_wb(struct page *page, int numpages)
- {
- 	unsigned long addr = (unsigned long)page_address(page);
+> Acked-by: Michal Hocko <mhocko@suse.cz>
+> 
+> [...]
+>> @@ -2177,25 +2181,16 @@ zonelist_scan:
+>>  try_this_zone:
+>>  		page = buffered_rmqueue(preferred_zone, zone, order,
+>>  						gfp_mask, migratetype);
+>> -		if (page)
+>> -			break;
+>> +		if (page) {
+>> +			if (prep_new_page(page, order, gfp_mask, alloc_flags))
+>> +				goto try_this_zone;
+>> +			return page;
+>> +		}
+> 
+> I would probably liked `do {} while ()' more because it wouldn't use the
+> goto, but this is up to you:
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 1bb65e6f48dd..1682d766cb8e 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2175,10 +2175,11 @@ zonelist_scan:
+>  		}
+>  
+>  try_this_zone:
+> -		page = buffered_rmqueue(preferred_zone, zone, order,
+> +		do {
+> +			page = buffered_rmqueue(preferred_zone, zone, order,
+>  						gfp_mask, migratetype);
+> -		if (page)
+> -			break;
+> +		} while (page && prep_new_page(page, order, gfp_mask,
+> +					       alloc_flags));
+
+Hm but here we wouldn't return page on success. I wonder if you overlooked the
+return, hence your "not breaking out of the loop" remark?
+
+>  this_zone_full:
+>  		if (IS_ENABLED(CONFIG_NUMA) && zlc_active)
+>  			zlc_mark_zone_full(zonelist, z);
+> 
+> [...]
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
