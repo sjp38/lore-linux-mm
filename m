@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 32A526B0141
-	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 16:26:57 -0500 (EST)
-Received: by mail-qa0-f49.google.com with SMTP id dc16so200397qab.8
-        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 13:26:57 -0800 (PST)
-Received: from mail-qa0-x233.google.com (mail-qa0-x233.google.com. [2607:f8b0:400d:c00::233])
-        by mx.google.com with ESMTPS id o9si65698230qas.74.2015.01.06.13.26.55
+Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
+	by kanga.kvack.org (Postfix) with ESMTP id A80DE6B0143
+	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 16:26:58 -0500 (EST)
+Received: by mail-qg0-f45.google.com with SMTP id z107so59635qgd.32
+        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 13:26:58 -0800 (PST)
+Received: from mail-qc0-x232.google.com (mail-qc0-x232.google.com. [2607:f8b0:400d:c01::232])
+        by mx.google.com with ESMTPS id l10si62334760qaf.58.2015.01.06.13.26.57
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 06 Jan 2015 13:26:56 -0800 (PST)
-Received: by mail-qa0-f51.google.com with SMTP id i13so194228qae.10
-        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 13:26:55 -0800 (PST)
+        Tue, 06 Jan 2015 13:26:57 -0800 (PST)
+Received: by mail-qc0-f178.google.com with SMTP id p6so66130qcv.23
+        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 13:26:57 -0800 (PST)
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 15/45] writeback: make bdi_has_dirty_io() take multiple bdi_writeback's into account
-Date: Tue,  6 Jan 2015 16:25:52 -0500
-Message-Id: <1420579582-8516-16-git-send-email-tj@kernel.org>
+Subject: [PATCH 16/45] writeback: don't issue wb_writeback_work if clean
+Date: Tue,  6 Jan 2015 16:25:53 -0500
+Message-Id: <1420579582-8516-17-git-send-email-tj@kernel.org>
 In-Reply-To: <1420579582-8516-1-git-send-email-tj@kernel.org>
 References: <1420579582-8516-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,152 +22,90 @@ List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk
 Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, Tejun Heo <tj@kernel.org>
 
-bdi_has_dirty_io() used to only reflect whether the root wb
-(bdi_writeback) has dirty inodes.  For cgroup writeback support, it
-needs to take all active wb's into account.  If any wb on the bdi has
-dirty inodes, bdi_has_dirty_io() should return true.
+There are several places in fs/fs-writeback.c which queues
+wb_writeback_work without checking whether the target wb
+(bdi_writeback) has dirty inodes or not.  The only thing
+wb_writeback_work does is writing back the dirty inodes for the target
+wb and queueing a work item for a clean wb is essentially noop.  There
+are some side effects such as bandwidth stats being updated and
+triggering tracepoints but these don't affect the operation in any
+meaningful way.
 
-To achieve that, as inode_wb_list_{move|del}_locked() now keep track
-of the dirty state transition of each wb, the number of dirty wbs can
-be counted in the bdi; however, bdi is already aggregating
-wb->avg_write_bandwidth which can easily be guaranteed to be > 0 if
-there are any dirty inodes by ensuring wb->avg_write_bandwidth can't
-dip below 1.  bdi_has_dirty_io() can simply test whether
-bdi->tot_write_bandwidth is zero or not.
+This patch makes all writeback_inodes_sb_nr() and sync_inodes_sb()
+skip wb_queue_work() if the target bdi is clean.  Also, it moves
+dirtiness check from wakeup_flusher_threads() to
+__wb_start_writeback() so that all its callers benefit from the check.
 
-While this bumps the value of wb->avg_write_bandwidth to one when it
-used to be zero, this shouldn't cause any meaningful behavior
-difference.
-
-bdi_has_dirty_io() is made an inline function which tests whether
-->tot_write_bandwidth is non-zero.  Also, WARN_ON_ONCE()'s on its
-value are added to inode_wb_list_{move|del}_locked().
+While the overhead incurred by scheduling a noop work isn't currently
+significant, the overhead may be higher with cgroup writeback support
+as we may end up issuing noop work items to a lot of clean wb's.
 
 Signed-off-by: Tejun Heo <tj@kernel.org>
 Cc: Jens Axboe <axboe@kernel.dk>
 Cc: Jan Kara <jack@suse.cz>
 ---
- fs/fs-writeback.c                |  5 +++--
- include/linux/backing-dev-defs.h |  8 ++++++--
- include/linux/backing-dev.h      | 10 +++++++++-
- mm/backing-dev.c                 |  5 -----
- mm/page-writeback.c              | 10 +++++++---
- 5 files changed, 25 insertions(+), 13 deletions(-)
+ fs/fs-writeback.c | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)
 
 diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index d41728b..35d32ad 100644
+index 35d32ad..bb8dbe8 100644
 --- a/fs/fs-writeback.c
 +++ b/fs/fs-writeback.c
-@@ -312,6 +312,7 @@ static bool inode_wb_list_move_locked(struct inode *inode,
- 		return false;
- 	} else {
- 		set_bit(WB_has_dirty_io, &wb->state);
-+		WARN_ON_ONCE(!wb->avg_write_bandwidth);
- 		atomic_long_add(wb->avg_write_bandwidth,
- 				&wb->bdi->tot_write_bandwidth);
- 		return true;
-@@ -336,8 +337,8 @@ static void inode_wb_list_del_locked(struct inode *inode,
- 	if (wb_has_dirty_io(wb) && list_empty(&wb->b_dirty) &&
- 	    list_empty(&wb->b_io) && list_empty(&wb->b_more_io)) {
- 		clear_bit(WB_has_dirty_io, &wb->state);
--		atomic_long_sub(wb->avg_write_bandwidth,
--				&wb->bdi->tot_write_bandwidth);
-+		WARN_ON_ONCE(atomic_long_sub_return(wb->avg_write_bandwidth,
-+					&wb->bdi->tot_write_bandwidth) < 0);
- 	}
- }
- 
-diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
-index e1f5f08..4ceda83 100644
---- a/include/linux/backing-dev-defs.h
-+++ b/include/linux/backing-dev-defs.h
-@@ -60,7 +60,7 @@ struct bdi_writeback {
- 	unsigned long dirtied_stamp;
- 	unsigned long written_stamp;	/* pages written at bw_time_stamp */
- 	unsigned long write_bandwidth;	/* the estimated write bandwidth */
--	unsigned long avg_write_bandwidth; /* further smoothed write bw */
-+	unsigned long avg_write_bandwidth; /* further smoothed write bw, > 0 */
- 
- 	/*
- 	 * The base dirty throttle rate, re-calculated on every 200ms.
-@@ -100,7 +100,11 @@ struct backing_dev_info {
- 	unsigned int min_ratio;
- 	unsigned int max_ratio, max_prop_frac;
- 
--	atomic_long_t tot_write_bandwidth; /* sum of active avg_write_bw */
-+	/*
-+	 * Sum of avg_write_bw of wbs with dirty inodes.  > 0 if there are
-+	 * any dirty wbs, which is depended upon by bdi_has_dirty().
-+	 */
-+	atomic_long_t tot_write_bandwidth;
- 
- 	struct bdi_writeback wb; /* the root writeback info for this bdi */
- #ifdef CONFIG_CGROUP_WRITEBACK
-diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-index 533ff86..49feb0b 100644
---- a/include/linux/backing-dev.h
-+++ b/include/linux/backing-dev.h
-@@ -30,7 +30,6 @@ void bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages,
- 			enum wb_reason reason);
- void bdi_start_background_writeback(struct backing_dev_info *bdi);
- void wb_workfn(struct work_struct *work);
--bool bdi_has_dirty_io(struct backing_dev_info *bdi);
- void wb_wakeup_delayed(struct bdi_writeback *wb);
- 
- extern spinlock_t bdi_lock;
-@@ -43,6 +42,15 @@ static inline bool wb_has_dirty_io(struct bdi_writeback *wb)
- 	return test_bit(WB_has_dirty_io, &wb->state);
- }
- 
-+static inline bool bdi_has_dirty_io(struct backing_dev_info *bdi)
-+{
-+	/*
-+	 * @bdi->tot_write_bandwidth is guaranteed to be > 0 if there are
-+	 * any dirty wbs.  See wb_update_write_bandwidth().
-+	 */
-+	return atomic_long_read(&bdi->tot_write_bandwidth);
-+}
-+
- static inline void __add_wb_stat(struct bdi_writeback *wb,
- 				 enum wb_stat_item item, s64 amount)
+@@ -234,6 +234,9 @@ static void __wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
  {
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index 9d69e7c..b4a5d9b 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -307,11 +307,6 @@ static int __init default_bdi_init(void)
- }
- subsys_initcall(default_bdi_init);
+ 	struct wb_writeback_work *work;
  
--bool bdi_has_dirty_io(struct backing_dev_info *bdi)
--{
--	return wb_has_dirty_io(&bdi->wb);
--}
--
- /*
-  * This function is used when the first inode for this wb is marked dirty. It
-  * wakes-up the corresponding bdi thread which should then take care of the
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 176d0fb..cc0ce70 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -879,9 +879,13 @@ static void wb_update_write_bandwidth(struct bdi_writeback *wb,
- 		avg += (old - avg) >> 3;
++	if (!wb_has_dirty_io(wb))
++		return;
++
+ 	/*
+ 	 * This is WB_SYNC_NONE writeback, so if allocation fails just
+ 	 * wakeup the thread for old dirty data writeback
+@@ -1249,11 +1252,8 @@ void wakeup_flusher_threads(long nr_pages, enum wb_reason reason)
+ 		nr_pages = get_nr_dirty_pages();
  
- out:
--	if (wb_has_dirty_io(wb))
--		atomic_long_add(avg - wb->avg_write_bandwidth,
--				&wb->bdi->tot_write_bandwidth);
-+	/* keep avg > 0 to guarantee that tot > 0 if there are dirty wbs */
-+	avg = max(avg, 1LU);
-+	if (wb_has_dirty_io(wb)) {
-+		long delta = avg - wb->avg_write_bandwidth;
-+		WARN_ON_ONCE(atomic_long_add_return(delta,
-+					&wb->bdi->tot_write_bandwidth) <= 0);
-+	}
- 	wb->write_bandwidth = bw;
- 	wb->avg_write_bandwidth = avg;
+ 	rcu_read_lock();
+-	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list) {
+-		if (!bdi_has_dirty_io(bdi))
+-			continue;
++	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list)
+ 		__wb_start_writeback(&bdi->wb, nr_pages, false, reason);
+-	}
+ 	rcu_read_unlock();
  }
+ 
+@@ -1481,11 +1481,12 @@ void writeback_inodes_sb_nr(struct super_block *sb,
+ 		.nr_pages		= nr,
+ 		.reason			= reason,
+ 	};
++	struct backing_dev_info *bdi = sb->s_bdi;
+ 
+-	if (sb->s_bdi == &noop_backing_dev_info)
++	if (!bdi_has_dirty_io(bdi) || bdi == &noop_backing_dev_info)
+ 		return;
+ 	WARN_ON(!rwsem_is_locked(&sb->s_umount));
+-	wb_queue_work(&sb->s_bdi->wb, &work);
++	wb_queue_work(&bdi->wb, &work);
+ 	wait_for_completion(&done);
+ }
+ EXPORT_SYMBOL(writeback_inodes_sb_nr);
+@@ -1563,13 +1564,14 @@ void sync_inodes_sb(struct super_block *sb)
+ 		.reason		= WB_REASON_SYNC,
+ 		.for_sync	= 1,
+ 	};
++	struct backing_dev_info *bdi = sb->s_bdi;
+ 
+ 	/* Nothing to do? */
+-	if (sb->s_bdi == &noop_backing_dev_info)
++	if (!bdi_has_dirty_io(bdi) || bdi == &noop_backing_dev_info)
+ 		return;
+ 	WARN_ON(!rwsem_is_locked(&sb->s_umount));
+ 
+-	wb_queue_work(&sb->s_bdi->wb, &work);
++	wb_queue_work(&bdi->wb, &work);
+ 	wait_for_completion(&done);
+ 
+ 	wait_sb_inodes(sb);
 -- 
 2.1.0
 
