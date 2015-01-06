@@ -1,75 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f175.google.com (mail-qc0-f175.google.com [209.85.216.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 80B506B0182
-	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 16:44:31 -0500 (EST)
-Received: by mail-qc0-f175.google.com with SMTP id p6so100065qcv.6
-        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 13:44:31 -0800 (PST)
-Received: from mail-qg0-x234.google.com (mail-qg0-x234.google.com. [2607:f8b0:400d:c04::234])
-        by mx.google.com with ESMTPS id kz1si48658056qcb.14.2015.01.06.13.44.30
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id C09BF6B0184
+	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 16:58:57 -0500 (EST)
+Received: by mail-ig0-f178.google.com with SMTP id b16so320187igk.17
+        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 13:58:57 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id d17si167445icm.9.2015.01.06.13.58.55
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 06 Jan 2015 13:44:30 -0800 (PST)
-Received: by mail-qg0-f52.google.com with SMTP id i50so81990qgf.25
-        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 13:44:30 -0800 (PST)
-Date: Tue, 6 Jan 2015 16:44:26 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCHSET RFC block/for-next] writeback: cgroup writeback support
-Message-ID: <20150106214426.GA24106@htj.dyndns.org>
-References: <1420579582-8516-1-git-send-email-tj@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1420579582-8516-1-git-send-email-tj@kernel.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Jan 2015 13:58:56 -0800 (PST)
+Date: Tue, 6 Jan 2015 13:58:54 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [cgroup:review-cgroup-writeback-20150106 86/265]
+ fs/proc/task_mmu.c:858:2: warning: ISO C90 forbids mixed declarations and
+ code
+Message-Id: <20150106135854.519dbf3c5cfbdb75ff4dfe4e@linux-foundation.org>
+In-Reply-To: <201501070338.SBIfROhh%fengguang.wu@intel.com>
+References: <201501070338.SBIfROhh%fengguang.wu@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: axboe@kernel.dk
-Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: Petr Cermak <petrcermak@chromium.org>, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-Hello, again.  A bit of addition.
+On Wed, 7 Jan 2015 03:30:42 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
 
-On Tue, Jan 06, 2015 at 04:25:37PM -0500, Tejun Heo wrote:
-...
-> Overall design
-> --------------
+> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git review-cgroup-writeback-20150106
+> head:   393b71c00e25227a020f9dbf8ffdddebac4fdf1e
+> commit: d3ef989a8ce459778acbb511fc03d0d85f11d4cc [86/265] fs/proc/task_mmu.c: reduce excessive indentation in clear_refs_write
+> config: parisc-c3000_defconfig (attached as .config)
+> reproduce:
+>   wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
+>   chmod +x ~/bin/make.cross
+>   git checkout d3ef989a8ce459778acbb511fc03d0d85f11d4cc
+>   # save the attached .config to linux build tree
+>   make.cross ARCH=parisc 
+> 
+> All warnings:
+> 
+>    fs/proc/task_mmu.c: In function 'clear_refs_write':
+> >> fs/proc/task_mmu.c:858:2: warning: ISO C90 forbids mixed declarations and code [-Wdeclaration-after-statement]
+>      struct clear_refs_private cp = {
+>      ^
 
-What's going on in this patchset is fairly straight forward.  The main
-thing which is happening is that a bdi is being split into multiple
-per-cgroup pieces.  Each split bdi, represented by bdi_writeback,
-behaves mostly identically with how bdi behaved before.
+I wasn't able to find a way of fixing this which I liked, so I dropped it.
 
-Complications mostly arise from filesystems and inodes having to deal
-with multiple split bdi's instead of one, but those are mostly
-straight-forward 1:N mapping issues.  It does get tedious here and
-there but doesn't complicate the overall picture.  This
-straight-forwardness pays off when dealing with interaction issues
-which would have been extremely hairy otherwise.  More on this while
-discussing balance_dirty_pages.
+task_mmu-add-user-space-support-for-resetting-mm-hiwater_rss-peak-rss.patch
+needed rework.  Peter, please check carefully:
 
-...
-> Missing pieces
-> --------------
-...
-> * balance_dirty_pages currently doesn't consider the task's memcg when
->   calculating the number of dirtyable pages.  This means that tasks in
->   memcg won't have the benefit of smooth background writeback and will
->   bump into direct reclaim all the time.  This has always been like
->   this but with cgroup writeback support, this is also finally
->   fixable.  I'll work on this as the earlier part gets settled.
+From: Petr Cermak <petrcermak@chromium.org>
+Subject: fs/proc/task_mmu.c: add user-space support for resetting mm->hiwater_rss (peak RSS)
 
-This has always been a really thorny issue but now that each wb
-behaves as an independent writeback domain, this can be solved nicely.
-Each cgroup can carry the fraction of writebandwidth against the whole
-system and each task can carry its fraction against its memcg.
-balance_dirty_pages can now stagger these two ratios and then apply it
-against the memory which *may* be dirtyable to the task's memcg and
-then throttle the dirtier accordingly.  This works out exactly as a
-straight-forward extension of the global logic which is proven to
-work.  This really is pieces falling into places.
+Peak resident size of a process can be reset back to the process's current
+rss value by writing "5" to /proc/pid/clear_refs.  The driving use-case
+for this would be getting the peak RSS value, which can be retrieved from
+the VmHWM field in /proc/pid/status, per benchmark iteration or test
+scenario.
 
-Thanks.
+[akpm@linux-foundation.org: clarify behaviour in documentation]
+Signed-off-by: Petr Cermak <petrcermak@chromium.org>
+Cc: Bjorn Helgaas <bhelgaas@google.com>
+Cc: Primiano Tucci <primiano@chromium.org>
+Cc: Petr Cermak <petrcermak@chromium.org>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
 
--- 
-tejun
+ Documentation/filesystems/proc.txt |    4 ++++
+ fs/proc/task_mmu.c                 |   14 ++++++++++++++
+ include/linux/mm.h                 |    5 +++++
+ 3 files changed, 23 insertions(+)
+
+diff -puN Documentation/filesystems/proc.txt~task_mmu-add-user-space-support-for-resetting-mm-hiwater_rss-peak-rss Documentation/filesystems/proc.txt
+--- a/Documentation/filesystems/proc.txt~task_mmu-add-user-space-support-for-resetting-mm-hiwater_rss-peak-rss
++++ a/Documentation/filesystems/proc.txt
+@@ -488,6 +488,10 @@ To clear the bits for the file mapped pa
+ To clear the soft-dirty bit
+     > echo 4 > /proc/PID/clear_refs
+ 
++To reset the peak resident set size ("high water mark") to the process's
++current value:
++    > echo 5 > /proc/PID/clear_refs
++
+ Any other value written to /proc/PID/clear_refs will have no effect.
+ 
+ The /proc/pid/pagemap gives the PFN, which can be used to find the pageflags
+diff -puN fs/proc/task_mmu.c~task_mmu-add-user-space-support-for-resetting-mm-hiwater_rss-peak-rss fs/proc/task_mmu.c
+--- a/fs/proc/task_mmu.c~task_mmu-add-user-space-support-for-resetting-mm-hiwater_rss-peak-rss
++++ a/fs/proc/task_mmu.c
+@@ -747,6 +747,7 @@ enum clear_refs_types {
+ 	CLEAR_REFS_ANON,
+ 	CLEAR_REFS_MAPPED,
+ 	CLEAR_REFS_SOFT_DIRTY,
++	CLEAR_REFS_MM_HIWATER_RSS,
+ 	CLEAR_REFS_LAST,
+ };
+ 
+@@ -861,6 +862,18 @@ static ssize_t clear_refs_write(struct f
+ 			.mm = mm,
+ 			.private = &cp,
+ 		};
++
++		if (type == CLEAR_REFS_MM_HIWATER_RSS) {
++			/*
++			 * Writing 5 to /proc/pid/clear_refs resets the peak
++			 * resident set size to this mm's current rss value.
++			 */
++			down_write(&mm->mmap_sem);
++			reset_mm_hiwater_rss(mm);
++			up_write(&mm->mmap_sem);
++			goto out_mm;
++		}
++	
+ 		down_read(&mm->mmap_sem);
+ 		if (type == CLEAR_REFS_SOFT_DIRTY) {
+ 			for (vma = mm->mmap; vma; vma = vma->vm_next) {
+@@ -903,6 +916,7 @@ static ssize_t clear_refs_write(struct f
+ 			mmu_notifier_invalidate_range_end(mm, 0, -1);
+ 		flush_tlb_mm(mm);
+ 		up_read(&mm->mmap_sem);
++out_mm:
+ 		mmput(mm);
+ 	}
+ 	put_task_struct(task);
+diff -puN include/linux/mm.h~task_mmu-add-user-space-support-for-resetting-mm-hiwater_rss-peak-rss include/linux/mm.h
+--- a/include/linux/mm.h~task_mmu-add-user-space-support-for-resetting-mm-hiwater_rss-peak-rss
++++ a/include/linux/mm.h
+@@ -1366,6 +1366,11 @@ static inline void update_hiwater_vm(str
+ 		mm->hiwater_vm = mm->total_vm;
+ }
+ 
++static inline void reset_mm_hiwater_rss(struct mm_struct *mm)
++{
++	mm->hiwater_rss = get_mm_rss(mm);
++}
++
+ static inline void setmax_mm_hiwater_rss(unsigned long *maxrss,
+ 					 struct mm_struct *mm)
+ {
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
