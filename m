@@ -1,244 +1,348 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B1596B0124
-	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 16:26:29 -0500 (EST)
-Received: by mail-qg0-f50.google.com with SMTP id z60so75080qgd.9
-        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 13:26:29 -0800 (PST)
-Received: from mail-qa0-x22b.google.com (mail-qa0-x22b.google.com. [2607:f8b0:400d:c00::22b])
-        by mx.google.com with ESMTPS id b8si65730678qaa.41.2015.01.06.13.26.27
+Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 4570C6B0126
+	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 16:26:32 -0500 (EST)
+Received: by mail-qc0-f180.google.com with SMTP id i8so55551qcq.39
+        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 13:26:32 -0800 (PST)
+Received: from mail-qg0-x229.google.com (mail-qg0-x229.google.com. [2607:f8b0:400d:c04::229])
+        by mx.google.com with ESMTPS id l6si29397714qao.88.2015.01.06.13.26.30
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 06 Jan 2015 13:26:28 -0800 (PST)
-Received: by mail-qa0-f43.google.com with SMTP id n4so230242qaq.2
-        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 13:26:27 -0800 (PST)
+        Tue, 06 Jan 2015 13:26:31 -0800 (PST)
+Received: by mail-qg0-f41.google.com with SMTP id e89so71120qgf.14
+        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 13:26:30 -0800 (PST)
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCHSET RFC block/for-next] writeback: cgroup writeback support
-Date: Tue,  6 Jan 2015 16:25:37 -0500
-Message-Id: <1420579582-8516-1-git-send-email-tj@kernel.org>
+Subject: [PATCH 01/45] writeback: add struct dirty_context
+Date: Tue,  6 Jan 2015 16:25:38 -0500
+Message-Id: <1420579582-8516-2-git-send-email-tj@kernel.org>
+In-Reply-To: <1420579582-8516-1-git-send-email-tj@kernel.org>
+References: <1420579582-8516-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk
-Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com
+Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, Tejun Heo <tj@kernel.org>
 
-Hello,
+Add struct dirty_context and make page and inode dirty paths use it as
+the parameter carrier.  dirty_context currently hosts ->page,
+->mapping and ->inode and is initialized by init_dirty_inode_context()
+or init_dirty_page_context() for non-data inode and data page dirtying
+respectively.
 
-blkio cgroup (blkcg) is severely crippled in that it can only control
-read and direct write IOs.  blkcg can't tell which cgroup should be
-held responsible for a given writeback IO and charges all of them to
-the root cgroup - all normal write traffic ends up in the root cgroup.
-Although the problem has been identified years ago, mainly because it
-interacts with so many subsystems, it hasn't been solved yet.
+For non-data dirtying, mark_inode_dirty_dctx() is added and
+__mark_inode_dirty() is made a simple wrapper on top of it as
+__mark_inode_dirty() has quite a few users.  For page dirtying,
+account_page_dirtied() is updated to take dirty_context so that both
+the inode and page dirtying can use the same dirty_context.
 
-This patchset finally implements cgroup writeback support so that
-writeback of a page is attributed to the corresponding blkcg of the
-memcg that the page belongs to.
+This currently doesn't make any functional difference but cgroup
+writeback support will add more fields to the struct and use them to
+share context between page and inode dirtying.
 
-Overall design
---------------
+Include of backing-dev-defs.h is added to fs.h and mm.h for
+dirty_context and the now unnecessary explicit declaration of
+backing_def_info is removed from fs.h.
 
-* This requires cooperation between memcg and blkcg.  The IOs are
-  charged to the blkcg that the page's memcg corresponds to.  This
-  currently works only on the unified hierarchy.
+Signed-off-by: Tejun Heo <tj@kernel.org>
+Cc: Jens Axboe <axboe@kernel.dk>
+Cc: Jan Kara <jack@suse.cz>
+---
+ fs/buffer.c                      |  9 ++++---
+ fs/fs-writeback.c                | 56 +++++++++++++++++++++++++++++++++++++---
+ fs/xfs/xfs_aops.c                |  7 +++--
+ include/linux/backing-dev-defs.h | 10 +++++++
+ include/linux/backing-dev.h      |  4 +++
+ include/linux/fs.h               |  3 ++-
+ include/linux/mm.h               |  3 ++-
+ mm/page-writeback.c              | 14 ++++++----
+ 8 files changed, 91 insertions(+), 15 deletions(-)
 
-* Each memcg maintains reference counted front and back pointers to
-  the correspending blkcg.  Whenever a page gets dirtied or initiates
-  writeback, it uses the blkcg the front one points to.  The reference
-  counting ensures that the association remains till the page is done
-  and having front and back pointers guarantees that the association
-  can change without being live-locked by pages being contiuously
-  dirtied.
-
-* struct bdi_writeback (wb) was always embedded in struct
-  backing_dev_info (bdi) and the distinction between the two wasn't
-  clear.  This patchset makes wb operate as an independent writeback
-
-  execution.  bdi->wb is still embedded and serves the root cgroup but
-  other wb's can be associated with a single bdi each serving a
-  non-root wb.
-
-* All writeback operations are made per-wb instead of per-bdi.
-  bdi-wide operations are split across all member wb's.  If some
-  finite amount needs to be distributed, be it number of pages to
-  writeback or bdi->min/max_ratio, it's distributed according to the
-  bandwidth proportion a wb has in the bdi.
-
-* Non-root wb's host and write back only dirty pages (I_DIRTY_PAGES).
-  I_DIRTY_[DATA]SYNC is always handled by the root wb.
-
-* An inode may have pages dirtied by different memcgs, which naturally
-  means that it should be able to be dirtied against multiple wb's.
-  To support linking an inode against multiple wb's, iwbl
-  (inode_wb_link) is introduced.  An inode has multiple iwbl's
-  associated with it if it's dirty against multiple wb's.
-
-* Overall, cgroup writeback support adds 2.5 pointers to struct inode
-  where the 0.5 is masked by alignment if !CONFIG_IMA.
-
-
-Missing pieces
---------------
-
-* It requires some cooperation from the filesystem and currently only
-  works with ext2.  The changes necessary on the filesystem side
-  aren't too big.  I'll write up a documentation on it.
-
-* When an inode has multiple iwbls, they're put on a sorted list.
-  Depending on the usage, this list can grow quite long.  We really
-  want an RCU-safe balanced tree here, which doesn't exist in the
-  kernel yet.  Bonsai tree should do.
-
-* balance_dirty_pages currently doesn't consider the task's memcg when
-  calculating the number of dirtyable pages.  This means that tasks in
-  memcg won't have the benefit of smooth background writeback and will
-  bump into direct reclaim all the time.  This has always been like
-  this but with cgroup writeback support, this is also finally
-  fixable.  I'll work on this as the earlier part gets settled.
-
-* balance_dirty_pages sleeps while holding i_mutex, which means that
-  when an inode is being dirtied actively by multiple cgroups, the
-  slowest writeback will choke others by sleeping most of the time
-  while holding i_mutex.  Once the above per-memcg dirty ratio issue
-  is solved, this can be worked around by deferring the actual pausing
-  to right before control returns to userland.  This would lead to
-  partial write completions when the inode is contended for writes by
-  multiple cgroups.
-
-* blk-throttle works but cfq-iosched isn't ready for writebacks coming
-  down with different cgroups.  cfq-iosched should be updated to have
-  a writeback ioc per cgroup and route writeback IOs through it.
-
-* More testing and polishing.
-
-
-How to test
------------
-
-* Boot with kernel option "cgroup__DEVEL__legacy_files_on_dfl".
-
-* umount /sys/fs/cgroup/memory
-  umount /sys/fs/cgroup/blkio
-  mkdir /sys/fs/cgroup/unified
-  mount -t cgroup -o __DEVEL__sane_behavior cgroup /sys/fs/cgroup/unified
-  echo +blkio > /sys/fs/cgroup/unified/cgroup.subtree_control
-
-* Build the cgroup hierarchy (don't forget to enable blkio using
-  subtree_control) and put processes in cgroups and run tests on ext2
-  filesystems and blkio.throttle.* knobs.
-
-
-This patchset contains the following 45 patches.
-
- 0001-writeback-add-struct-dirty_context.patch
- 0002-writeback-add-CONFIG-BDI_CAP-FS-_CGROUP_WRITEBACK.patch
- 0003-memcg-encode-page_cgflags-in-the-lower-bits-of-page-.patch
- 0004-memcg-writeback-implement-memcg_blkcg_ptr.patch
- 0005-writeback-make-backing_dev_info-host-cgroup-specific.patch
- 0006-writeback-blkcg-associate-each-blkcg_gq-with-the-cor.patch
- 0007-writeback-attribute-stats-to-the-matching-per-cgroup.patch
- 0008-writeback-let-balance_dirty_pages-work-on-the-matchi.patch
- 0009-writeback-make-congestion-functions-per-bdi_writebac.patch
- 0010-writeback-blkcg-restructure-blk_-set-clear-_queue_co.patch
- 0011-writeback-blkcg-propagate-non-root-blkcg-congestion-.patch
- 0012-writeback-implement-and-use-mapping_congested.patch
- 0013-writeback-implement-WB_has_dirty_io-wb_state-flag.patch
- 0014-writeback-implement-backing_dev_info-tot_write_bandw.patch
- 0015-writeback-make-bdi_has_dirty_io-take-multiple-bdi_wr.patch
- 0016-writeback-don-t-issue-wb_writeback_work-if-clean.patch
- 0017-writeback-make-bdi-min-max_ratio-handling-cgroup-wri.patch
- 0018-writeback-implement-bdi_for_each_wb.patch
- 0019-writeback-remove-bdi_start_writeback.patch
- 0020-writeback-make-laptop_mode_timer_fn-handle-multiple-.patch
- 0021-writeback-make-writeback_in_progress-take-bdi_writeb.patch
- 0022-writeback-make-bdi_start_background_writeback-take-b.patch
- 0023-writeback-make-wakeup_flusher_threads-handle-multipl.patch
- 0024-writeback-add-wb_writeback_work-auto_free.patch
- 0025-writeback-implement-bdi_wait_for_completion.patch
- 0026-writeback-implement-wb_wait_for_single_work.patch
- 0027-writeback-restructure-try_writeback_inodes_sb-_nr.patch
- 0028-writeback-make-writeback-initiation-functions-handle.patch
- 0029-writeback-move-i_wb_list-emptiness-test-into-inode_w.patch
- 0030-vfs-writeback-introduce-struct-inode_wb_link.patch
- 0031-vfs-writeback-add-inode_wb_link-data-point-to-the-as.patch
- 0032-vfs-writeback-move-inode-dirtied_when-into-inode-i_w.patch
- 0033-writeback-minor-reorganization-of-fs-fs-writeback.c.patch
- 0034-vfs-writeback-implement-support-for-multiple-inode_w.patch
- 0035-vfs-writeback-implement-inode-i_nr_syncs.patch
- 0036-writeback-dirty-inodes-against-their-matching-cgroup.patch
- 0037-writeback-make-writeback_control-carry-the-inode_wb_.patch
- 0038-writeback-make-cyclic-writeback-cursor-cgroup-writeb.patch
- 0039-writeback-make-DIRTY_PAGES-tracking-cgroup-writeback.patch
- 0040-writeback-make-write_cache_pages-cgroup-writeback-aw.patch
- 0041-writeback-make-__writeback_single_inode-cgroup-write.patch
- 0042-writeback-make-__filemap_fdatawrite_range-croup-writ.patch
- 0043-buffer-writeback-make-__block_write_full_page-honor-.patch
- 0044-mpage-make-__mpage_writepage-honor-cgroup-writeback.patch
- 0045-ext2-enable-cgroup-writeback-support.patch
-
-0001-0002 are basic preps.
-
-0003-0004 implement memcg-blkcg association that dirty and
-under-writeback pages can use.
-
-0005-0029 gradually convert writeback code so that wb (bdi_writeback)
-operates as an independent writeback domain instead of bdi
-(backing_dev_info), a single bdi can have multiple per-cgroup wb's
-working for it, and per-bdi operations are translated and distributed
-to all its member wb's.
-
-0030-0042 introduce iwbl (inode_wb_link) so that an inode can be
-associated against multiple wb's as it gets dirtied by different
-cgroups and make inode-wide operations be distributed across them.
-
-0043-0045 make lower layers to properly propagate the cgroup
-association from the writeback layer and enable cgroup writeback on
-ext2.
-
-This patchset is on top of
-
-  -mm + percpu/for-3.20 + cgroup/for-3.20 as of today (2016-01-06)
-  + [1] [PATCHSET v2] writeback: prepare for cgroup writeback support
-
-and available in the following git branch.
-
- git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git review-cgroup-writeback-20150106
-
-diffstat follows.  Thanks.
-
- block/blk-cgroup.c               |   26 
- block/blk-core.c                 |   68 +
- fs/block_dev.c                   |    1 
- fs/buffer.c                      |   30 
- fs/ext2/super.c                  |    2 
- fs/fs-writeback.c                | 1450 +++++++++++++++++++++++++++++++--------
- fs/inode.c                       |   12 
- fs/mpage.c                       |    6 
- fs/xfs/xfs_aops.c                |    7 
- include/linux/backing-dev-defs.h |  153 +++-
- include/linux/backing-dev.h      |  626 ++++++++++++++++
- include/linux/blk-cgroup.h       |   10 
- include/linux/blkdev.h           |   19 
- include/linux/fs.h               |   14 
- include/linux/memcontrol.h       |   56 +
- include/linux/mm.h               |    3 
- include/linux/mm_types.h         |    3 
- include/linux/writeback.h        |   10 
- include/trace/events/writeback.h |    4 
- init/Kconfig                     |    5 
- mm/backing-dev.c                 |  304 +++++++-
- mm/debug.c                       |    2 
- mm/fadvise.c                     |    2 
- mm/filemap.c                     |    5 
- mm/memcontrol.c                  |  522 +++++++++++++-
- mm/page-writeback.c              |  184 ++++
- mm/readahead.c                   |    2 
- mm/truncate.c                    |    4 
- mm/vmscan.c                      |   12 
- 29 files changed, 3074 insertions(+), 468 deletions(-)
-
---
-tejun
-
-[1] http://lkml.kernel.org/g/1420572557-11572-1-git-send-email-tj@kernel.org
+diff --git a/fs/buffer.c b/fs/buffer.c
+index 20805db..2dab7dd 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -26,6 +26,7 @@
+ #include <linux/slab.h>
+ #include <linux/capability.h>
+ #include <linux/blkdev.h>
++#include <linux/backing-dev.h>
+ #include <linux/file.h>
+ #include <linux/quotaops.h>
+ #include <linux/highmem.h>
+@@ -627,17 +628,19 @@ EXPORT_SYMBOL(mark_buffer_dirty_inode);
+ static void __set_page_dirty(struct page *page,
+ 		struct address_space *mapping, int warn)
+ {
++	struct dirty_context dctx;
+ 	unsigned long flags;
+ 
+ 	spin_lock_irqsave(&mapping->tree_lock, flags);
+-	if (page->mapping) {	/* Race with truncate? */
++	init_dirty_page_context(&dctx, page, mapping);
++	if (dctx.mapping) {	/* Race with truncate? */
+ 		WARN_ON_ONCE(warn && !PageUptodate(page));
+-		account_page_dirtied(page, mapping);
++		account_page_dirtied(&dctx);
+ 		radix_tree_tag_set(&mapping->page_tree,
+ 				page_index(page), PAGECACHE_TAG_DIRTY);
+ 	}
+ 	spin_unlock_irqrestore(&mapping->tree_lock, flags);
+-	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
++	mark_inode_dirty_dctx(&dctx, I_DIRTY_PAGES);
+ }
+ 
+ /*
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index 5130895..97c92b3 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -106,6 +106,46 @@ out_unlock:
+ 	spin_unlock_bh(&wb->work_lock);
+ }
+ 
++/**
++ * init_dirty_page_context - init dirty_context for page dirtying
++ * @dctx: dirty_context to initialize
++ * @page: page to be dirtied
++ *
++ * @page is about to be dirtied, prepare @dctx accordingly.  Must be called
++ * with @mapping->tree_lock held.  The inode dirtying due to @page dirtying
++ * should use the same @dctx.
++ *
++ * @mapping may have been obtained before the lock was acquired and
++ * @dctx->mapping can be set to NULL even if @mapping isn't if truncate
++ * took place in-between.  @dctx->inode is always set to @mapping->inode.
++ */
++void init_dirty_page_context(struct dirty_context *dctx, struct page *page,
++			     struct address_space *mapping)
++{
++	lockdep_assert_held(&mapping->tree_lock);
++
++	dctx->page = page;
++	dctx->inode = mapping->host;
++	dctx->mapping = page_mapping(page);
++
++	BUG_ON(dctx->mapping != mapping);
++}
++EXPORT_SYMBOL_GPL(init_dirty_page_context);
++
++/**
++ * init_dirty_inode_context - init dirty_context for inode dirtying
++ * @dctx: dirty_context to initialize
++ * @inode: inode to be dirtied
++ *
++ * @inode is about to be dirtied w/o a page belonging to it being dirtied,
++ * prepare @dctx accordingly.
++ */
++void init_dirty_inode_context(struct dirty_context *dctx, struct inode *inode)
++{
++	memset(dctx, 0, sizeof(*dctx));
++	dctx->inode = inode;
++}
++
+ static void __wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
+ 				 bool range_cyclic, enum wb_reason reason)
+ {
+@@ -1107,8 +1147,8 @@ static noinline void block_dump___mark_inode_dirty(struct inode *inode)
+ }
+ 
+ /**
+- *	__mark_inode_dirty -	internal function
+- *	@inode: inode to mark
++ *	mark_inode_dirty_dctx -	internal function
++ *	@dctx: dirty_context containing the target inode
+  *	@flags: what kind of dirty (i.e. I_DIRTY_SYNC)
+  *	Mark an inode as dirty. Callers should use mark_inode_dirty or
+  *  	mark_inode_dirty_sync.
+@@ -1130,8 +1170,9 @@ static noinline void block_dump___mark_inode_dirty(struct inode *inode)
+  * page->mapping->host, so the page-dirtying time is recorded in the internal
+  * blockdev inode.
+  */
+-void __mark_inode_dirty(struct inode *inode, int flags)
++void mark_inode_dirty_dctx(struct dirty_context *dctx, int flags)
+ {
++	struct inode *inode = dctx->inode;
+ 	struct super_block *sb = inode->i_sb;
+ 	struct backing_dev_info *bdi = NULL;
+ 
+@@ -1222,6 +1263,15 @@ out_unlock_inode:
+ 	spin_unlock(&inode->i_lock);
+ 
+ }
++EXPORT_SYMBOL(mark_inode_dirty_dctx);
++
++void __mark_inode_dirty(struct inode *inode, int flags)
++{
++	struct dirty_context dctx;
++
++	init_dirty_inode_context(&dctx, inode);
++	mark_inode_dirty_dctx(&dctx, flags);
++}
+ EXPORT_SYMBOL(__mark_inode_dirty);
+ 
+ static void wait_sb_inodes(struct super_block *sb)
+diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
+index 18e2f3b..fb94975 100644
+--- a/fs/xfs/xfs_aops.c
++++ b/fs/xfs/xfs_aops.c
+@@ -36,6 +36,7 @@
+ #include <linux/mpage.h>
+ #include <linux/pagevec.h>
+ #include <linux/writeback.h>
++#include <linux/backing-dev.h>
+ 
+ void
+ xfs_count_page_state(
+@@ -1814,17 +1815,19 @@ xfs_vm_set_page_dirty(
+ 
+ 	if (newly_dirty) {
+ 		/* sigh - __set_page_dirty() is static, so copy it here, too */
++		struct dirty_context dctx;
+ 		unsigned long flags;
+ 
+ 		spin_lock_irqsave(&mapping->tree_lock, flags);
++		init_dirty_page_context(&dctx, page, mapping);
+ 		if (page->mapping) {	/* Race with truncate? */
+ 			WARN_ON_ONCE(!PageUptodate(page));
+-			account_page_dirtied(page, mapping);
++			account_page_dirtied(&dctx);
+ 			radix_tree_tag_set(&mapping->page_tree,
+ 					page_index(page), PAGECACHE_TAG_DIRTY);
+ 		}
+ 		spin_unlock_irqrestore(&mapping->tree_lock, flags);
+-		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
++		mark_inode_dirty_dctx(&dctx, I_DIRTY_PAGES);
+ 	}
+ 	return newly_dirty;
+ }
+diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
+index 2874d83..bf20ef1 100644
+--- a/include/linux/backing-dev-defs.h
++++ b/include/linux/backing-dev-defs.h
+@@ -94,6 +94,16 @@ struct backing_dev_info {
+ #endif
+ };
+ 
++/*
++ * The following structure carries context used during page and inode
++ * dirtying.  Should be initialized with init_dirty_{inode|page}_context().
++ */
++struct dirty_context {
++	struct page		*page;
++	struct inode		*inode;
++	struct address_space	*mapping;
++};
++
+ enum {
+ 	BLK_RW_ASYNC	= 0,
+ 	BLK_RW_SYNC	= 1,
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index 3c6fd34..34fe620 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -263,4 +263,8 @@ static inline struct backing_dev_info *inode_to_bdi(struct inode *inode)
+ 	return sb->s_bdi;
+ }
+ 
++void init_dirty_page_context(struct dirty_context *dctx, struct page *page,
++			     struct address_space *mapping);
++void init_dirty_inode_context(struct dirty_context *dctx, struct inode *inode);
++
+ #endif		/* _LINUX_BACKING_DEV_H */
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 8639770..9b63758 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -30,6 +30,7 @@
+ #include <linux/lockdep.h>
+ #include <linux/percpu-rwsem.h>
+ #include <linux/blk_types.h>
++#include <linux/backing-dev-defs.h>
+ 
+ #include <asm/byteorder.h>
+ #include <uapi/linux/fs.h>
+@@ -394,7 +395,6 @@ int pagecache_write_end(struct file *, struct address_space *mapping,
+ 				loff_t pos, unsigned len, unsigned copied,
+ 				struct page *page, void *fsdata);
+ 
+-struct backing_dev_info;
+ struct address_space {
+ 	struct inode		*host;		/* owner: inode, block_device */
+ 	struct radix_tree_root	page_tree;	/* radix tree of all pages */
+@@ -1749,6 +1749,7 @@ struct super_operations {
+ 
+ #define I_DIRTY (I_DIRTY_SYNC | I_DIRTY_DATASYNC | I_DIRTY_PAGES)
+ 
++extern void mark_inode_dirty_dctx(struct dirty_context *dctx, int flags);
+ extern void __mark_inode_dirty(struct inode *, int);
+ static inline void mark_inode_dirty(struct inode *inode)
+ {
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 0c15841..825acb8 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -20,6 +20,7 @@
+ #include <linux/shrinker.h>
+ #include <linux/resource.h>
+ #include <linux/page_ext.h>
++#include <linux/backing-dev-defs.h>
+ 
+ struct mempolicy;
+ struct anon_vma;
+@@ -1250,7 +1251,7 @@ int __set_page_dirty_nobuffers(struct page *page);
+ int __set_page_dirty_no_writeback(struct page *page);
+ int redirty_page_for_writepage(struct writeback_control *wbc,
+ 				struct page *page);
+-void account_page_dirtied(struct page *page, struct address_space *mapping);
++void account_page_dirtied(struct dirty_context *dctx);
+ int set_page_dirty(struct page *page);
+ int set_page_dirty_lock(struct page *page);
+ int clear_page_dirty_for_io(struct page *page);
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 0632a43..0e35ff4 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -2090,8 +2090,11 @@ int __set_page_dirty_no_writeback(struct page *page)
+  * Helper function for set_page_dirty family.
+  * NOTE: This relies on being atomic wrt interrupts.
+  */
+-void account_page_dirtied(struct page *page, struct address_space *mapping)
++void account_page_dirtied(struct dirty_context *dctx)
+ {
++	struct page *page = dctx->page;
++	struct address_space *mapping = dctx->mapping;
++
+ 	trace_writeback_dirty_page(page, mapping);
+ 
+ 	if (!mapping_cap_account_dirty(mapping))
+@@ -2123,21 +2126,22 @@ int __set_page_dirty_nobuffers(struct page *page)
+ {
+ 	if (!TestSetPageDirty(page)) {
+ 		struct address_space *mapping = page_mapping(page);
++		struct dirty_context dctx;
+ 		unsigned long flags;
+ 
+ 		if (!mapping)
+ 			return 1;
+ 
+ 		spin_lock_irqsave(&mapping->tree_lock, flags);
+-		BUG_ON(page_mapping(page) != mapping);
++		init_dirty_page_context(&dctx, page, mapping);
+ 		WARN_ON_ONCE(!PagePrivate(page) && !PageUptodate(page));
+-		account_page_dirtied(page, mapping);
++		account_page_dirtied(&dctx);
+ 		radix_tree_tag_set(&mapping->page_tree, page_index(page),
+ 				   PAGECACHE_TAG_DIRTY);
+ 		spin_unlock_irqrestore(&mapping->tree_lock, flags);
+-		if (mapping->host) {
++		if (dctx.inode) {
+ 			/* !PageAnon && !swapper_space */
+-			__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
++			mark_inode_dirty_dctx(&dctx, I_DIRTY_PAGES);
+ 		}
+ 		return 1;
+ 	}
+-- 
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
