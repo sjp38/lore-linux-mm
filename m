@@ -1,157 +1,272 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 24FE06B00B8
-	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 05:34:41 -0500 (EST)
-Received: by mail-wi0-f178.google.com with SMTP id em10so5024797wid.11
-        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 02:34:40 -0800 (PST)
-Received: from rhlx01.hs-esslingen.de (rhlx01.hs-esslingen.de. [129.143.116.10])
-        by mx.google.com with ESMTPS id e6si92332079wja.82.2015.01.06.02.34.39
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 337216B00BA
+	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 06:04:32 -0500 (EST)
+Received: by mail-wi0-f177.google.com with SMTP id l15so5104018wiw.4
+        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 03:04:31 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ew2si23369189wib.32.2015.01.06.03.04.30
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Jan 2015 02:34:40 -0800 (PST)
-Date: Tue, 6 Jan 2015 11:34:39 +0100
-From: Andreas Mohr <andi@lisas.de>
-Subject: Re: [PATCH 6/6] mm/slab: allocation fastpath without disabling irq
-Message-ID: <20150106103439.GA8669@rhlx01.hs-esslingen.de>
-References: <1420421851-3281-7-git-send-email-iamjoonsoo.kim@lge.com>
- <20150105172139.GA11201@rhlx01.hs-esslingen.de>
- <20150106013122.GB17222@js1304-P5Q-DELUXE>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 06 Jan 2015 03:04:30 -0800 (PST)
+Message-ID: <54ABC13C.4030403@suse.cz>
+Date: Tue, 06 Jan 2015 12:04:28 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150106013122.GB17222@js1304-P5Q-DELUXE>
+Subject: Re: [PATCH 2/3] mm/compaction: add more trace to understand compaction
+ start/finish condition
+References: <1417593127-6819-1-git-send-email-iamjoonsoo.kim@lge.com> <1417593127-6819-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1417593127-6819-2-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset=iso-8859-2
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andreas Mohr <andi@lisas.de>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Jan 06, 2015 at 10:31:22AM +0900, Joonsoo Kim wrote:
-> Hello,
+On 12/03/2014 08:52 AM, Joonsoo Kim wrote:
+> It is not well analyzed that when compaction start and when compaction
+> finish. With this tracepoint for compaction start/finish condition, I can
+> find following bug.
 > 
-> On Mon, Jan 05, 2015 at 06:21:39PM +0100, Andreas Mohr wrote:
-> > Hi,
-> > 
-> > Joonsoo Kim wrote:
-> > > +	ac->tid = next_tid(ac->tid);
-> > (and all others)
-> > 
-> > object oriented:
-> > array_cache_next_tid(ac);
-> > (or perhaps rather: array_cache_start_transaction(ac);?).
+> http://www.spinics.net/lists/linux-mm/msg81582.html
 > 
-> Okay. Christoph request common transaction id management code. If
-> above object oriented design fit that, I will do it.
-
-Yeah, that may easily have been the same thing.
-This function would then obviously and simply do a
-    ac->tid = next_tid(ac->tid);
-dance internally
-(thereby likely introducing some nice instruction cache savings, too).
-
-
-> > General thoughts (maybe just rambling, but that's just my feelings vs.
-> > this mechanism, so maybe it's food for thought):
-> > To me, the existing implementation seems too fond of IRQ fumbling
-> > (i.e., affecting of oh so nicely *unrelated*
-> > outer global environment context stuff).
-> > A proper implementation wouldn't need *any* knowledge of this
-> > (i.e., modifying such "IRQ disable" side effects,
-> > to avoid having a scheduler hit and possibly ending up on another node).
-> > 
-> > Thus to me, the whole handling seems somewhat wrong and split
-> > (since there remains the need to deal with scheduler distortion/disruption).
-> > The bare-metal "inner" algorithm should not need to depend on such shenanigans
-> > but simply be able to carry out its task unaffected,
-> > where IRQs are simply always left enabled
-> > (or at least potentially disabled by other kernel components only)
-> > and the code then elegantly/inherently deals with IRQ complications.
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> ---
+>  include/linux/compaction.h        |    2 +
+>  include/trace/events/compaction.h |   91 +++++++++++++++++++++++++++++++++++++
+>  mm/compaction.c                   |   40 ++++++++++++++--
+>  3 files changed, 129 insertions(+), 4 deletions(-)
 > 
-> I'm not sure I understand your opinion correctly. If my response is
-> wrong, please let me know your thought more correctly.
+> diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+> index a9547b6..bdb4b99 100644
+> --- a/include/linux/compaction.h
+> +++ b/include/linux/compaction.h
+> @@ -12,6 +12,8 @@
+>  #define COMPACT_PARTIAL		3
+>  /* The full zone was compacted */
+>  #define COMPACT_COMPLETE	4
+> +/* For more detailed tracepoint output, will be converted to COMPACT_CONTINUE */
+> +#define COMPACT_NOT_SUITABLE	5
 
-I have to admit that I was talking general implementation guidelines
-rather than having a very close look at what can be done *here*.
-Put differently, my goal at this point was just to state weird questions,
-for people to then reason about the bigger picture
-and come to possibly brilliant conclusions ;)
+So this makes it sound like the value means "compaction was not suitable to do
+in this zone", but later it means something different.
 
+>  /* When adding new state, please change compaction_status_string, too */
+>  
+>  /* Used to signal whether compaction detected need_sched() or lock contention */
+> diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
+> index 139020b..5e47cb2 100644
+> --- a/include/trace/events/compaction.h
+> +++ b/include/trace/events/compaction.h
+> @@ -164,6 +164,97 @@ TRACE_EVENT(mm_compaction_end,
+>  		compaction_status_string[__entry->status])
+>  );
+>  
+> +TRACE_EVENT(mm_compaction_try_to_compact_pages,
+> +
+> +	TP_PROTO(
+> +		unsigned int order,
+> +		gfp_t gfp_mask,
+> +		enum migrate_mode mode,
+> +		int alloc_flags,
+> +		int classzone_idx),
+> +
+> +	TP_ARGS(order, gfp_mask, mode, alloc_flags, classzone_idx),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(unsigned int, order)
+> +		__field(gfp_t, gfp_mask)
+> +		__field(enum migrate_mode, mode)
+> +		__field(int, alloc_flags)
+> +		__field(int, classzone_idx)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->order = order;
+> +		__entry->gfp_mask = gfp_mask;
+> +		__entry->mode = mode;
+> +		__entry->alloc_flags = alloc_flags;
+> +		__entry->classzone_idx = classzone_idx;
+> +	),
+> +
+> +	TP_printk("order=%u gfp_mask=0x%x mode=%d alloc_flags=0x%x classzone_idx=%d",
+> +		__entry->order,
+> +		__entry->gfp_mask,
+> +		(int)__entry->mode,
+> +		__entry->alloc_flags,
+> +		__entry->classzone_idx)
+> +);
+> +
+> +DECLARE_EVENT_CLASS(mm_compaction_suitable_template,
+> +
+> +	TP_PROTO(struct zone *zone,
+> +		unsigned int order,
+> +		int alloc_flags,
+> +		int classzone_idx,
+> +		int ret),
+> +
+> +	TP_ARGS(zone, order, alloc_flags, classzone_idx, ret),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(char *, name)
+> +		__field(unsigned int, order)
+> +		__field(int, alloc_flags)
+> +		__field(int, classzone_idx)
+> +		__field(int, ret)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->name = (char *)zone->name;
 
-> IRQ manipulation is done for synchronization of array cache, not for
-> freezing allocation context. That is just side-effect. As Christoph
-> said, slab operation could be executed in interrupt context so we
-> should protect array cache even if we are in process context.
+This does not identify the NUMA node, just the zone type, isn't it?
 
-Ah, that clarifies collision areas, thanks!
+> +		__entry->order = order;
+> +		__entry->alloc_flags = alloc_flags;
+> +		__entry->classzone_idx = classzone_idx;
+> +		__entry->ret = ret;
+> +	),
+> +
+> +	TP_printk("zone=%-8s order=%u alloc_flags=0x%x classzone_idx=%d ret=%s",
+> +		__entry->name,
+> +		__entry->order,
+> +		__entry->alloc_flags,
+> +		__entry->classzone_idx,
+> +		compaction_status_string[__entry->ret])
+> +);
+> +
+> +DEFINE_EVENT(mm_compaction_suitable_template, mm_compaction_finished,
+> +
+> +	TP_PROTO(struct zone *zone,
+> +		unsigned int order,
+> +		int alloc_flags,
+> +		int classzone_idx,
+> +		int ret),
+> +
+> +	TP_ARGS(zone, order, alloc_flags, classzone_idx, ret)
+> +);
+> +
+> +DEFINE_EVENT(mm_compaction_suitable_template, mm_compaction_suitable,
+> +
+> +	TP_PROTO(struct zone *zone,
+> +		unsigned int order,
+> +		int alloc_flags,
+> +		int classzone_idx,
+> +		int ret),
+> +
+> +	TP_ARGS(zone, order, alloc_flags, classzone_idx, ret)
+> +);
+> +
+>  #endif /* _TRACE_COMPACTION_H */
+>  
+>  /* This part must be outside protection */
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 4c7b837..f5d2405 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -25,6 +25,7 @@ char *compaction_status_string[] = {
+>  	"continue",
+>  	"partial",
+>  	"complete",
+> +	"not_suitable_page",
 
-In general the goal likely should be
-to attempt to do as many things "in parallel" (guaranteed-collision-free,
-via cleanly instance-separate data) as possible,
-and then once the result has been calculated,
-do quick/short updating (insertion/deletion)
-of the shared/contended resource (here: array cache)
-with the necessary protection (IRQs disabled, in this case).
-Via some layering tricks, one could manage to do all the calculation handling
-without even drawing in any "IRQ management" dependency
-to that inner code part ("code file"?),
-but the array cache management would then remain IRQ-affected
-(in those outer layers which know that they are unfortunately still drawn down
-by an annoying dependency on IRQ shenanigans).
-Or, in other words: achieve a clean separation of layers
-so that it's obvious which ones get hampered by annoying dependencies
-and which ones are able to carry out their job unaffected.
+So here COMPACT_NOT_SUITABLE is interpreted as "no suitable page was found".
 
+>  };
+>  
+>  static inline void count_compact_event(enum vm_event_item item)
+> @@ -1048,7 +1049,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+>  	return cc->nr_migratepages ? ISOLATE_SUCCESS : ISOLATE_NONE;
+>  }
+>  
+> -static int compact_finished(struct zone *zone, struct compact_control *cc,
+> +static int __compact_finished(struct zone *zone, struct compact_control *cc,
+>  			    const int migratetype)
+>  {
+>  	unsigned int order;
+> @@ -1103,7 +1104,21 @@ static int compact_finished(struct zone *zone, struct compact_control *cc,
+>  			return COMPACT_PARTIAL;
+>  	}
+>  
+> -	return COMPACT_CONTINUE;
+> +	return COMPACT_NOT_SUITABLE;
 
-And for the "disruption via interrupt context" part:
-we currently seem to have "synchronous" handling,
-where one needs to forcefully block access to a shared/contended resource
-(which would be done
-either via annoying mutex contention,
-or even via wholesale blocking of IRQ execution).
-To remove/reduce friction,
-one should either remove any additional foreign-context access to that resource,
-thereby making this implementation cleanly (if woefully)
-single-context only (as Christoph seems to be intending,
-by removing SLAB access from IRQ handlers?),
-or ideally implement fully parallel instance-separate data management
-(but I guess that's not what one would want
-for a global multi-sized-area and thus fragmentation-avoiding SL*B allocator,
-since that would mean splitting global memory resources
-into per-instance areas?).
+So for compact_finished tracepoint you print "not_suitable_page" and it's what
+it really means - watermarks were met, but no suitable page was actually found.
+But you use "COMPACT_NOT_SUITABLE" which hints at a different meaning.
 
-Alternatively, one could go for "asynchronous" handling,
-where SL*B updates of any foreign-context (but not main-context)
-are *delayed*,
-by merely queuing them into a simple submission queue
-which then will be delay-applied by main-context
-either once main-context enters a certain "quiet" state (e.g. context switch?),
-or once main-context needs to actively take into account
-these effects of foreign-context registrations.
-But for an allocator (memory manager),
-such "asynchronous" handling might be completely impossible anyway,
-since it might need to have a consistent global view,
-of all resources at all times
-(--> we're back to having a synchronous handling requirement,
-via lock contention).
+> +}
+> +
+> +static int compact_finished(struct zone *zone, struct compact_control *cc,
+> +			    const int migratetype)
+> +{
+> +	int ret;
+> +
+> +	ret = __compact_finished(zone, cc, migratetype);
+> +	trace_mm_compaction_finished(zone, cc->order, cc->alloc_flags,
+> +						cc->classzone_idx, ret);
+> +	if (ret == COMPACT_NOT_SUITABLE)
+> +		ret = COMPACT_CONTINUE;
+> +
+> +	return ret;
+>  }
+>  
+>  /*
+> @@ -1113,7 +1128,7 @@ static int compact_finished(struct zone *zone, struct compact_control *cc,
+>   *   COMPACT_PARTIAL  - If the allocation would succeed without compaction
+>   *   COMPACT_CONTINUE - If compaction should run now
+>   */
+> -unsigned long compaction_suitable(struct zone *zone, int order,
+> +static unsigned long __compaction_suitable(struct zone *zone, int order,
+>  					int alloc_flags, int classzone_idx)
+>  {
+>  	int fragindex;
+> @@ -1157,11 +1172,25 @@ unsigned long compaction_suitable(struct zone *zone, int order,
+>  	 */
+>  	fragindex = fragmentation_index(zone, order);
+>  	if (fragindex >= 0 && fragindex <= sysctl_extfrag_threshold)
+> -		return COMPACT_SKIPPED;
+> +		return COMPACT_NOT_SUITABLE;
 
+But here in compaction_suitable, return here means that fragmentation seems to
+be low and it's unlikely that compaction will help. COMPACT_NOT_SUITABLE sounds
+like a good name, but then tracepoint prints "not_suitable_page" and that's
+something different.
 
-> > These thoughts also mean that I'm unsure (difficult to determine)
-> > of whether this change is good (i.e. a clean step in the right direction),
-> > or whether instead the implementation could easily directly be made
-> > fully independent from IRQ constraints.
+>  	return COMPACT_CONTINUE;
+>  }
+>  
+> +unsigned long compaction_suitable(struct zone *zone, int order,
+> +					int alloc_flags, int classzone_idx)
+> +{
+> +	unsigned long ret;
+> +
+> +	ret = __compaction_suitable(zone, order, alloc_flags, classzone_idx);
+> +	trace_mm_compaction_suitable(zone, order, alloc_flags,
+> +						classzone_idx, ret);
+> +	if (ret == COMPACT_NOT_SUITABLE)
+> +		ret = COMPACT_SKIPPED;
+
+I don't like this wrapping just for tracepints, but I don't know of a better way :/
+
+> +
+> +	return ret;
+> +}
+> +
+>  static int compact_zone(struct zone *zone, struct compact_control *cc)
+>  {
+>  	int ret;
+> @@ -1375,6 +1404,9 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
+>  	if (!order || !may_enter_fs || !may_perform_io)
+>  		return COMPACT_SKIPPED;
+>  
+> +	trace_mm_compaction_try_to_compact_pages(order, gfp_mask, mode,
+> +					alloc_flags, classzone_idx);
+> +
+>  	/* Compact each zone in the list */
+>  	for_each_zone_zonelist_nodemask(zone, z, zonelist, high_zoneidx,
+>  								nodemask) {
 > 
-> Is there any issue that this change prevent further improvment?
-> I think that we can go right direction easily as soon as we find
-> a better solution even if this change is merged.
-
-Ah, I see you're skillfully asking the right forward progress question ;)
-
-To which I'm currently limited to saying
-that from my side there are no objections to be added to the list
-(other than the minor mechanical parts directly stated in my review).
-
-Thanks,
-
-Andreas Mohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
