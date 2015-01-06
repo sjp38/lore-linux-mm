@@ -1,106 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f176.google.com (mail-qc0-f176.google.com [209.85.216.176])
-	by kanga.kvack.org (Postfix) with ESMTP id C549C6B0095
-	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 19:35:22 -0500 (EST)
-Received: by mail-qc0-f176.google.com with SMTP id i17so16522782qcy.35
-        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 16:35:22 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h10si22715690qcm.42.2015.01.05.16.35.20
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Jan 2015 16:35:21 -0800 (PST)
-Date: Mon, 5 Jan 2015 19:21:35 -0500
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH v2] fs: proc: task_mmu: show page size in
- /proc/<pid>/numa_maps
-Message-ID: <20150106002134.GC28105@t510.redhat.com>
-References: <734bca19b3a8f4e191ccc9055ad4740744b5b2b6.1420464466.git.aquini@redhat.com>
- <20150105133500.e0ce4b090e6b378c3edc9c56@linux-foundation.org>
- <20150105225504.GC1795@t510.redhat.com>
- <20150105152037.5a33e34652db6b82fcfd46bf@linux-foundation.org>
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 23BD36B0096
+	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 20:04:45 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id et14so29927502pad.1
+        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 17:04:44 -0800 (PST)
+Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id ys3si14832896pac.119.2015.01.05.17.04.42
+        for <linux-mm@kvack.org>;
+        Mon, 05 Jan 2015 17:04:43 -0800 (PST)
+Date: Tue, 6 Jan 2015 10:04:43 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 6/6] mm/slab: allocation fastpath without disabling irq
+Message-ID: <20150106010442.GA17222@js1304-P5Q-DELUXE>
+References: <1420421851-3281-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1420421851-3281-7-git-send-email-iamjoonsoo.kim@lge.com>
+ <alpine.DEB.2.11.1501050859520.24213@gentwo.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150105152037.5a33e34652db6b82fcfd46bf@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.11.1501050859520.24213@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, jweiner@redhat.com, dave.hansen@linux.intel.com, rientjes@google.com, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>
 
-On Mon, Jan 05, 2015 at 03:20:37PM -0800, Andrew Morton wrote:
-> On Mon, 5 Jan 2015 17:55:05 -0500 Rafael Aquini <aquini@redhat.com> wrote:
+On Mon, Jan 05, 2015 at 09:28:14AM -0600, Christoph Lameter wrote:
+> On Mon, 5 Jan 2015, Joonsoo Kim wrote:
 > 
-> > On Mon, Jan 05, 2015 at 01:35:00PM -0800, Andrew Morton wrote:
-> > > On Mon,  5 Jan 2015 12:44:31 -0500 Rafael Aquini <aquini@redhat.com> wrote:
-> > > 
-> > > > This patch introduces 'kernelpagesize_kB' line element to /proc/<pid>/numa_maps
-> > > > report file in order to help identifying the size of pages that are backing
-> > > > memory areas mapped by a given task. This is specially useful to
-> > > > help differentiating between HUGE and GIGANTIC page backed VMAs.
-> > > > 
-> > > > This patch is based on Dave Hansen's proposal and reviewer's follow-ups
-> > > > taken from the following dicussion threads:
-> > > >  * https://lkml.org/lkml/2011/9/21/454
-> > > 
-> > > Dave's changelog contains useful information which this one lacked.  I
-> > > stole some of it.
-> > > 
-> > > : The output of /proc/$pid/numa_maps is in terms of number of pages like
-> > > : anon=22 or dirty=54.  Here's some output:
-> > > : 
-> > > : 7f4680000000 default file=/hugetlb/bigfile anon=50 dirty=50 N0=50
-> > > : 7f7659600000 default file=/anon_hugepage\040(deleted) anon=50 dirty=50 N0=50
-> > > : 7fff8d425000 default stack anon=50 dirty=50 N0=50
-> > > : Looks like we have a stack and a couple of anonymous hugetlbfs
-> > > : areas page which both use the same amount of memory.  They don't.
-> > > : 
-> > > : The 'bigfile' uses 1GB pages and takes up ~50GB of space.  The
-> > > : anon_hugepage uses 2MB pages and takes up ~100MB of space while the stack
-> > > : uses normal 4k pages.  You can go over to smaps to figure out what the
-> > > : page size _really_ is with KernelPageSize or MMUPageSize.  But, I think
-> > > : this is a pretty nasty and counterintuitive interface as it stands.
-> > > : 
-> > > : This patch introduces 'kernelpagesize_kB' line element to
-> > > : /proc/<pid>/numa_maps report file in order to help identifying the size of
-> > > : pages that are backing memory areas mapped by a given task.  This is
-> > > : specially useful to help differentiating between HUGE and GIGANTIC page
-> > > : backed VMAs.
-> > > : 
-> > > : This patch is based on Dave Hansen's proposal and reviewer's follow-ups
-> > > : taken from the following dicussion threads:
-> > > :  * https://lkml.org/lkml/2011/9/21/454
-> > > :  * https://lkml.org/lkml/2014/12/20/66
-> > > 
-> > > 
-> > > > +	seq_printf(m, " kernelpagesize_kB=%lu", vma_kernel_pagesize(vma) >> 10);
-> > > 
-> > > This changes the format of the numa_maps file and can potentially break
-> > > existing parsers.  Please discuss.
+> > index 449fc6b..54656f0 100644
+> > --- a/mm/slab.c
+> > +++ b/mm/slab.c
+> > @@ -168,6 +168,41 @@ typedef unsigned short freelist_idx_t;
+> >
+> >  #define SLAB_OBJ_MAX_NUM ((1 << sizeof(freelist_idx_t) * BITS_PER_BYTE) - 1)
+> >
+> > +#ifdef CONFIG_PREEMPT
+> > +/*
+> > + * Calculate the next globally unique transaction for disambiguiation
+> > + * during cmpxchg. The transactions start with the cpu number and are then
+> > + * incremented by CONFIG_NR_CPUS.
+> > + */
+> > +#define TID_STEP  roundup_pow_of_two(CONFIG_NR_CPUS)
+> > +#else
+> > +/*
+> > + * No preemption supported therefore also no need to check for
+> > + * different cpus.
+> > + */
+> > +#define TID_STEP 1
+> > +#endif
+> > +
+> > +static inline unsigned long next_tid(unsigned long tid)
+> > +{
+> > +	return tid + TID_STEP;
+> > +}
+> > +
+> > +static inline unsigned int tid_to_cpu(unsigned long tid)
+> > +{
+> > +	return tid % TID_STEP;
+> > +}
+> > +
+> > +static inline unsigned long tid_to_event(unsigned long tid)
+> > +{
+> > +	return tid / TID_STEP;
+> > +}
+> > +
+> > +static inline unsigned int init_tid(int cpu)
+> > +{
+> > +	return cpu;
+> > +}
+> > +
 > 
-> ^^ ??
->
-Sorry I overlooked it.
+> Ok the above stuff needs to go into the common code. Maybe in mm/slab.h?
+> And its a significant feature contributed by me so I'd like to have an
+> attribution here.
 
-Parsers indeed would have to be adjusted to cope with an extra line element
-(they already have to do so, similarly, for the conditional 'huge' hint).
-Despite I don't think of it as a showstopper (as is), I think we can consider
-moving it to EOL, if its actual printout position turns out to be an issue.
- 
+Okay. I will try!
 
-For instance, with this patch a numa_maps line would look like the following:
+> 
+> >  /*
+> >   * true if a page was allocated from pfmemalloc reserves for network-based
+> >   * swap
+> > @@ -187,7 +222,8 @@ static bool pfmemalloc_active __read_mostly;
+> >   *
+> >   */
+> >  struct array_cache {
+> > -	unsigned int avail;
+> > +	unsigned long avail;
+> > +	unsigned long tid;
+> >  	unsigned int limit;
+> >  	unsigned int batchcount;
+> >  	unsigned int touched;
+> > @@ -657,7 +693,8 @@ static void start_cpu_timer(int cpu)
+> >  	}
+> >  }
+> 
+> This increases the per cpu struct size and should lead to a small
+> performance penalty.
 
- 7ff965200000 default file=/anon_hugepage\040(deleted) huge kernelpagesize_kB=2048 anon=5 dirty=5 N0=5
+Yes, but, it's marginal than improvement of this patchset.
+> 
+> > -	 */
+> > -	if (likely(objp)) {
+> > -		STATS_INC_ALLOCHIT(cachep);
+> > -		goto out;
+> > +	objp = ac->entry[avail - 1];
+> > +	if (unlikely(!this_cpu_cmpxchg_double(
+> > +		cachep->cpu_cache->avail, cachep->cpu_cache->tid,
+> > +		avail, tid,
+> > +		avail - 1, next_tid(tid))))
+> > +		goto redo;
+> 
+> 
+> Hmm... Ok that looks good.
 
-
-or it could look like this, if we decide to switch kernelpagesize_kB position to EOL,
-for the sake of parsers:
-
- 7ff965200000 default file=/anon_hugepage\040(deleted) huge anon=5 dirty=5 N0=5 kernelpagesize_kB=2048
- 
-
-
-Cheers,
--- Rafael
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
