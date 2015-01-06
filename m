@@ -1,117 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 23BD36B0096
-	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 20:04:45 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id et14so29927502pad.1
-        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 17:04:44 -0800 (PST)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id ys3si14832896pac.119.2015.01.05.17.04.42
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 966706B009A
+	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 20:31:23 -0500 (EST)
+Received: by mail-pd0-f170.google.com with SMTP id v10so29229803pde.15
+        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 17:31:23 -0800 (PST)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id dr6si58971512pdb.16.2015.01.05.17.31.20
         for <linux-mm@kvack.org>;
-        Mon, 05 Jan 2015 17:04:43 -0800 (PST)
-Date: Tue, 6 Jan 2015 10:04:43 +0900
+        Mon, 05 Jan 2015 17:31:22 -0800 (PST)
+Date: Tue, 6 Jan 2015 10:31:22 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Subject: Re: [PATCH 6/6] mm/slab: allocation fastpath without disabling irq
-Message-ID: <20150106010442.GA17222@js1304-P5Q-DELUXE>
-References: <1420421851-3281-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1420421851-3281-7-git-send-email-iamjoonsoo.kim@lge.com>
- <alpine.DEB.2.11.1501050859520.24213@gentwo.org>
+Message-ID: <20150106013122.GB17222@js1304-P5Q-DELUXE>
+References: <1420421851-3281-7-git-send-email-iamjoonsoo.kim@lge.com>
+ <20150105172139.GA11201@rhlx01.hs-esslingen.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.11.1501050859520.24213@gentwo.org>
+In-Reply-To: <20150105172139.GA11201@rhlx01.hs-esslingen.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>
+To: Andreas Mohr <andi@lisas.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>
 
-On Mon, Jan 05, 2015 at 09:28:14AM -0600, Christoph Lameter wrote:
-> On Mon, 5 Jan 2015, Joonsoo Kim wrote:
+Hello,
+
+On Mon, Jan 05, 2015 at 06:21:39PM +0100, Andreas Mohr wrote:
+> Hi,
 > 
-> > index 449fc6b..54656f0 100644
-> > --- a/mm/slab.c
-> > +++ b/mm/slab.c
-> > @@ -168,6 +168,41 @@ typedef unsigned short freelist_idx_t;
-> >
-> >  #define SLAB_OBJ_MAX_NUM ((1 << sizeof(freelist_idx_t) * BITS_PER_BYTE) - 1)
-> >
-> > +#ifdef CONFIG_PREEMPT
-> > +/*
+> Joonsoo Kim wrote:
 > > + * Calculate the next globally unique transaction for disambiguiation
-> > + * during cmpxchg. The transactions start with the cpu number and are then
-> > + * incremented by CONFIG_NR_CPUS.
-> > + */
-> > +#define TID_STEP  roundup_pow_of_two(CONFIG_NR_CPUS)
-> > +#else
-> > +/*
-> > + * No preemption supported therefore also no need to check for
-> > + * different cpus.
-> > + */
-> > +#define TID_STEP 1
-> > +#endif
-> > +
-> > +static inline unsigned long next_tid(unsigned long tid)
-> > +{
-> > +	return tid + TID_STEP;
-> > +}
-> > +
-> > +static inline unsigned int tid_to_cpu(unsigned long tid)
-> > +{
-> > +	return tid % TID_STEP;
-> > +}
-> > +
-> > +static inline unsigned long tid_to_event(unsigned long tid)
-> > +{
-> > +	return tid / TID_STEP;
-> > +}
-> > +
-> > +static inline unsigned int init_tid(int cpu)
-> > +{
-> > +	return cpu;
-> > +}
-> > +
 > 
-> Ok the above stuff needs to go into the common code. Maybe in mm/slab.h?
-> And its a significant feature contributed by me so I'd like to have an
-> attribution here.
+> "disambiguation"
 
-Okay. I will try!
+Okay.
 
 > 
-> >  /*
-> >   * true if a page was allocated from pfmemalloc reserves for network-based
-> >   * swap
-> > @@ -187,7 +222,8 @@ static bool pfmemalloc_active __read_mostly;
-> >   *
-> >   */
-> >  struct array_cache {
-> > -	unsigned int avail;
-> > +	unsigned long avail;
-> > +	unsigned long tid;
-> >  	unsigned int limit;
-> >  	unsigned int batchcount;
-> >  	unsigned int touched;
-> > @@ -657,7 +693,8 @@ static void start_cpu_timer(int cpu)
-> >  	}
-> >  }
+> > +	ac->tid = next_tid(ac->tid);
+> (and all others)
 > 
-> This increases the per cpu struct size and should lead to a small
-> performance penalty.
+> object oriented:
+> array_cache_next_tid(ac);
+> (or perhaps rather: array_cache_start_transaction(ac);?).
 
-Yes, but, it's marginal than improvement of this patchset.
+Okay. Christoph request common transaction id management code. If
+above object oriented design fit that, I will do it.
 > 
-> > -	 */
-> > -	if (likely(objp)) {
-> > -		STATS_INC_ALLOCHIT(cachep);
-> > -		goto out;
-> > +	objp = ac->entry[avail - 1];
-> > +	if (unlikely(!this_cpu_cmpxchg_double(
-> > +		cachep->cpu_cache->avail, cachep->cpu_cache->tid,
-> > +		avail, tid,
-> > +		avail - 1, next_tid(tid))))
-> > +		goto redo;
+> > +	/*
+> > +	 * Because we disable irq just now, cpu can be changed
+> > +	 * and we are on different node with object node. In this rare
+> > +	 * case, just return pfmemalloc object for simplicity.
+> > +	 */
+> 
+> "are on a node which is different from object's node"
+> 
+
+Thanks. :)
+
 > 
 > 
-> Hmm... Ok that looks good.
+> General thoughts (maybe just rambling, but that's just my feelings vs.
+> this mechanism, so maybe it's food for thought):
+> To me, the existing implementation seems too fond of IRQ fumbling
+> (i.e., affecting of oh so nicely *unrelated*
+> outer global environment context stuff).
+> A proper implementation wouldn't need *any* knowledge of this
+> (i.e., modifying such "IRQ disable" side effects,
+> to avoid having a scheduler hit and possibly ending up on another node).
+> 
+> Thus to me, the whole handling seems somewhat wrong and split
+> (since there remains the need to deal with scheduler distortion/disruption).
+> The bare-metal "inner" algorithm should not need to depend on such shenanigans
+> but simply be able to carry out its task unaffected,
+> where IRQs are simply always left enabled
+> (or at least potentially disabled by other kernel components only)
+> and the code then elegantly/inherently deals with IRQ complications.
+
+I'm not sure I understand your opinion correctly. If my response is
+wrong, please let me know your thought more correctly.
+
+IRQ manipulation is done for synchronization of array cache, not for
+freezing allocation context. That is just side-effect. As Christoph
+said, slab operation could be executed in interrupt context so we
+should protect array cache even if we are in process context.
+
+> Since the node change is scheduler-driven (I assume),
+> any (changes of) context attributes
+> which are relevant to (affect) SLAB-internal operations
+> ought to be implicitly/automatically re-assigned by the scheduler,
+> and then the most that should be needed is a *final* check in SLAB
+> (possibly in an outer user-facing layer of it)
+> whether the current final calculation result still matches expectations,
+> i.e. whether there was no disruption
+> (in which case we'd also do a goto redo: operation or some such :).
+
+If we can do whole procedure without IRQ manipulation, final check
+would be more elegant solution. But, current implementation necessarily
+needs IRQ manipulation for synchronization at pretty early phase. In this
+situation, doing context check and adjusting context at first step may
+be better than final check and redo.
+
+> These thoughts also mean that I'm unsure (difficult to determine)
+> of whether this change is good (i.e. a clean step in the right direction),
+> or whether instead the implementation could easily directly be made
+> fully independent from IRQ constraints.
+
+Is there any issue that this change prevent further improvment?
+I think that we can go right direction easily as soon as we find
+a better solution even if this change is merged.
 
 Thanks.
 
