@@ -1,110 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f51.google.com (mail-la0-f51.google.com [209.85.215.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4917B6B00DC
-	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 12:21:26 -0500 (EST)
-Received: by mail-la0-f51.google.com with SMTP id ms9so20120124lab.24
-        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 09:21:24 -0800 (PST)
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 990BF6B00DE
+	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 12:43:52 -0500 (EST)
+Received: by mail-wi0-f182.google.com with SMTP id h11so5850115wiw.9
+        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 09:43:52 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j2si30502909wiz.3.2015.01.06.09.21.23
+        by mx.google.com with ESMTPS id a5si25832302wix.30.2015.01.06.09.43.51
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 06 Jan 2015 09:21:23 -0800 (PST)
-Message-ID: <54AC1991.9060908@suse.cz>
-Date: Tue, 06 Jan 2015 18:21:21 +0100
+        Tue, 06 Jan 2015 09:43:51 -0800 (PST)
+Message-ID: <54AC1ED5.2050101@suse.cz>
+Date: Tue, 06 Jan 2015 18:43:49 +0100
 From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/1 linux-next] mm,compaction: move suitable_migration_target()
- under CONFIG_COMPACTION
-References: <1420301068-19447-1-git-send-email-fabf@skynet.be>
-In-Reply-To: <1420301068-19447-1-git-send-email-fabf@skynet.be>
+Subject: Re: [PATCH] mm/page_alloc.c: drop dead destroy_compound_page()
+References: <1420458382-161038-1-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1420458382-161038-1-git-send-email-kirill.shutemov@linux.intel.com>
 Content-Type: text/plain; charset=iso-8859-2
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fabian Frederick <fabf@skynet.be>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, akpm@linux-foundation.org
+Cc: aarcange@redhat.com, linux-mm@kvack.org
 
-On 01/03/2015 05:04 PM, Fabian Frederick wrote:
-> suitable_migration_target() is only used by isolate_freepages()
-> Define it under CONFIG_COMPACTION || CONFIG_CMA is not needed.
+On 01/05/2015 12:46 PM, Kirill A. Shutemov wrote:
+> The only caller is __free_one_page(). By the time we should have
+> page->flags to be cleared already:
 > 
-> Fix the following warning:
-> mm/compaction.c:311:13: warning: 'suitable_migration_target' defined
-> but not used [-Wunused-function]
+>  - for 0-order pages though PCP list:
+
+Can there even be a 0-order compound page? I guess not, so this is just confusing?
+
+Otherwise it seems like you are right and it's a dead code to be removed. I
+tried to check history to see when it was actually needed, but seems it predates
+git.
+
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+
+> 	free_hot_cold_page()
+> 		free_pages_prepare()
+> 			free_pages_check()
+> 				page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
+> 		<put the page to PCP list>
 > 
-> Signed-off-by: Fabian Frederick <fabf@skynet.be>
-
-I agree, I would just move it to the section where isolation_suitable() and
-related others are, maybe at the end of this section below update_pageblock_skip()?
-
-Vlastimil
-
+> 	free_pcppages_bulk()
+> 		page = <withdraw pages from PCP list>
+> 		__free_one_page(page)
+> 
+>  - for non-0-order pages:
+> 	__free_pages_ok()
+> 		free_pages_prepare()
+> 			free_pages_check()
+> 				page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
+> 		free_one_page()
+> 			__free_one_page()
+> 
+> So there's no way PageCompound() will return true in __free_one_page().
+> Let's remove dead destroy_compound_page() and put assert for page->flags
+> there instead.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 > ---
->  mm/compaction.c | 44 ++++++++++++++++++++++----------------------
->  1 file changed, 22 insertions(+), 22 deletions(-)
+>  mm/page_alloc.c | 35 +----------------------------------
+>  1 file changed, 1 insertion(+), 34 deletions(-)
 > 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 546e571..38b151c 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -307,28 +307,6 @@ static inline bool compact_should_abort(struct compact_control *cc)
->  	return false;
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 1bb65e6f48dd..5e75380dacab 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -381,36 +381,6 @@ void prep_compound_page(struct page *page, unsigned long order)
+>  	}
 >  }
 >  
-> -/* Returns true if the page is within a block suitable for migration to */
-> -static bool suitable_migration_target(struct page *page)
+> -/* update __split_huge_page_refcount if you change this function */
+> -static int destroy_compound_page(struct page *page, unsigned long order)
 > -{
-> -	/* If the page is a large free page, then disallow migration */
-> -	if (PageBuddy(page)) {
-> -		/*
-> -		 * We are checking page_order without zone->lock taken. But
-> -		 * the only small danger is that we skip a potentially suitable
-> -		 * pageblock, so it's not worth to check order for valid range.
-> -		 */
-> -		if (page_order_unsafe(page) >= pageblock_order)
-> -			return false;
+> -	int i;
+> -	int nr_pages = 1 << order;
+> -	int bad = 0;
+> -
+> -	if (unlikely(compound_order(page) != order)) {
+> -		bad_page(page, "wrong compound order", 0);
+> -		bad++;
 > -	}
 > -
-> -	/* If the block is MIGRATE_MOVABLE or MIGRATE_CMA, allow migration */
-> -	if (migrate_async_suitable(get_pageblock_migratetype(page)))
-> -		return true;
+> -	__ClearPageHead(page);
 > -
-> -	/* Otherwise skip the block */
-> -	return false;
+> -	for (i = 1; i < nr_pages; i++) {
+> -		struct page *p = page + i;
+> -
+> -		if (unlikely(!PageTail(p))) {
+> -			bad_page(page, "PageTail not set", 0);
+> -			bad++;
+> -		} else if (unlikely(p->first_page != page)) {
+> -			bad_page(page, "first_page not consistent", 0);
+> -			bad++;
+> -		}
+> -		__ClearPageTail(p);
+> -	}
+> -
+> -	return bad;
 > -}
 > -
->  /*
->   * Isolate free pages onto a private freelist. If @strict is true, will abort
->   * returning 0 on any invalid PFNs or non-free pages inside of the pageblock
-> @@ -802,6 +780,28 @@ isolate_migratepages_range(struct compact_control *cc, unsigned long start_pfn,
+>  static inline void prep_zero_page(struct page *page, unsigned int order,
+>  							gfp_t gfp_flags)
+>  {
+> @@ -613,10 +583,7 @@ static inline void __free_one_page(struct page *page,
+>  	int max_order = MAX_ORDER;
 >  
->  #endif /* CONFIG_COMPACTION || CONFIG_CMA */
->  #ifdef CONFIG_COMPACTION
-> +/* Returns true if the page is within a block suitable for migration to */
-> +static bool suitable_migration_target(struct page *page)
-> +{
-> +	/* If the page is a large free page, then disallow migration */
-> +	if (PageBuddy(page)) {
-> +		/*
-> +		 * We are checking page_order without zone->lock taken. But
-> +		 * the only small danger is that we skip a potentially suitable
-> +		 * pageblock, so it's not worth to check order for valid range.
-> +		 */
-> +		if (page_order_unsafe(page) >= pageblock_order)
-> +			return false;
-> +	}
-> +
-> +	/* If the block is MIGRATE_MOVABLE or MIGRATE_CMA, allow migration */
-> +	if (migrate_async_suitable(get_pageblock_migratetype(page)))
-> +		return true;
-> +
-> +	/* Otherwise skip the block */
-> +	return false;
-> +}
-> +
->  /*
->   * Based on information in the current compact_control, find blocks
->   * suitable for isolating free pages from and then isolate them.
+>  	VM_BUG_ON(!zone_is_initialized(zone));
+> -
+> -	if (unlikely(PageCompound(page)))
+> -		if (unlikely(destroy_compound_page(page, order)))
+> -			return;
+> +	VM_BUG_ON_PAGE(page->flags & PAGE_FLAGS_CHECK_AT_PREP, page);
+>  
+>  	VM_BUG_ON(migratetype == -1);
+>  	if (is_migrate_isolate(migratetype)) {
 > 
 
 --
