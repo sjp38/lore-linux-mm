@@ -1,124 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 990BF6B00DE
-	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 12:43:52 -0500 (EST)
-Received: by mail-wi0-f182.google.com with SMTP id h11so5850115wiw.9
-        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 09:43:52 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a5si25832302wix.30.2015.01.06.09.43.51
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id AC9926B00E0
+	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 12:55:01 -0500 (EST)
+Received: by mail-wi0-f171.google.com with SMTP id bs8so5857912wib.10
+        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 09:55:01 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id eh3si16600610wib.85.2015.01.06.09.54.59
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 06 Jan 2015 09:43:51 -0800 (PST)
-Message-ID: <54AC1ED5.2050101@suse.cz>
-Date: Tue, 06 Jan 2015 18:43:49 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Jan 2015 09:55:00 -0800 (PST)
+Date: Tue, 6 Jan 2015 12:54:43 -0500 (EST)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: Dirty pages underflow on 3.14.23
+In-Reply-To: <20150106150250.GA26895@phnom.home.cmpxchg.org>
+Message-ID: <alpine.LRH.2.02.1501061246400.16437@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1501051744020.5119@file01.intranet.prod.int.rdu2.redhat.com> <20150106150250.GA26895@phnom.home.cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/page_alloc.c: drop dead destroy_compound_page()
-References: <1420458382-161038-1-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1420458382-161038-1-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset=iso-8859-2
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, akpm@linux-foundation.org
-Cc: aarcange@redhat.com, linux-mm@kvack.org
-
-On 01/05/2015 12:46 PM, Kirill A. Shutemov wrote:
-> The only caller is __free_one_page(). By the time we should have
-> page->flags to be cleared already:
-> 
->  - for 0-order pages though PCP list:
-
-Can there even be a 0-order compound page? I guess not, so this is just confusing?
-
-Otherwise it seems like you are right and it's a dead code to be removed. I
-tried to check history to see when it was actually needed, but seems it predates
-git.
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Leon Romanovsky <leon@leon.nu>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 
-> 	free_hot_cold_page()
-> 		free_pages_prepare()
-> 			free_pages_check()
-> 				page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
-> 		<put the page to PCP list>
+
+On Tue, 6 Jan 2015, Johannes Weiner wrote:
+
+> > The bug probably happened during git pull or apt-get update, though one 
+> > can't be sure that these commands caused it.
+> > 
+> > I see that 3.14.24 containes some fix for underflow (commit 
+> > 6619741f17f541113a02c30f22a9ca22e32c9546, upstream commit 
+> > abe5f972912d086c080be4bde67750630b6fb38b), but it doesn't seem that that 
+> > commit fixes this condition. If you have a commit that could fix this, say 
+> > it.
 > 
-> 	free_pcppages_bulk()
-> 		page = <withdraw pages from PCP list>
-> 		__free_one_page(page)
+> That's an unrelated counter, but there is a known dirty underflow
+> problem that was addressed in 87a7e00b206a ("mm: protect
+> set_page_dirty() from ongoing truncation").  It should make it into
+> the stable kernels in the near future.  Can you reproduce this issue?
 > 
->  - for non-0-order pages:
-> 	__free_pages_ok()
-> 		free_pages_prepare()
-> 			free_pages_check()
-> 				page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
-> 		free_one_page()
-> 			__free_one_page()
-> 
-> So there's no way PageCompound() will return true in __free_one_page().
-> Let's remove dead destroy_compound_page() and put assert for page->flags
-> there instead.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  mm/page_alloc.c | 35 +----------------------------------
->  1 file changed, 1 insertion(+), 34 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 1bb65e6f48dd..5e75380dacab 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -381,36 +381,6 @@ void prep_compound_page(struct page *page, unsigned long order)
->  	}
->  }
->  
-> -/* update __split_huge_page_refcount if you change this function */
-> -static int destroy_compound_page(struct page *page, unsigned long order)
-> -{
-> -	int i;
-> -	int nr_pages = 1 << order;
-> -	int bad = 0;
-> -
-> -	if (unlikely(compound_order(page) != order)) {
-> -		bad_page(page, "wrong compound order", 0);
-> -		bad++;
-> -	}
-> -
-> -	__ClearPageHead(page);
-> -
-> -	for (i = 1; i < nr_pages; i++) {
-> -		struct page *p = page + i;
-> -
-> -		if (unlikely(!PageTail(p))) {
-> -			bad_page(page, "PageTail not set", 0);
-> -			bad++;
-> -		} else if (unlikely(p->first_page != page)) {
-> -			bad_page(page, "first_page not consistent", 0);
-> -			bad++;
-> -		}
-> -		__ClearPageTail(p);
-> -	}
-> -
-> -	return bad;
-> -}
-> -
->  static inline void prep_zero_page(struct page *page, unsigned int order,
->  							gfp_t gfp_flags)
->  {
-> @@ -613,10 +583,7 @@ static inline void __free_one_page(struct page *page,
->  	int max_order = MAX_ORDER;
->  
->  	VM_BUG_ON(!zone_is_initialized(zone));
-> -
-> -	if (unlikely(PageCompound(page)))
-> -		if (unlikely(destroy_compound_page(page, order)))
-> -			return;
-> +	VM_BUG_ON_PAGE(page->flags & PAGE_FLAGS_CHECK_AT_PREP, page);
->  
->  	VM_BUG_ON(migratetype == -1);
->  	if (is_migrate_isolate(migratetype)) {
-> 
+> Thanks,
+> Johannes
+
+I can't reprodce it. It happened just once.
+
+That patch is supposed to fix an occasional underflow by a single page - 
+while my meminfo showed underflow by 22952KiB (5738 pages).
+
+Mikulas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
