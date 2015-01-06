@@ -1,113 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 966706B009A
-	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 20:31:23 -0500 (EST)
-Received: by mail-pd0-f170.google.com with SMTP id v10so29229803pde.15
-        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 17:31:23 -0800 (PST)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id dr6si58971512pdb.16.2015.01.05.17.31.20
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id ECC306B009B
+	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 20:32:48 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id lf10so29775064pab.19
+        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 17:32:48 -0800 (PST)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id ou2si85987585pbb.214.2015.01.05.17.32.45
         for <linux-mm@kvack.org>;
-        Mon, 05 Jan 2015 17:31:22 -0800 (PST)
-Date: Tue, 6 Jan 2015 10:31:22 +0900
+        Mon, 05 Jan 2015 17:32:47 -0800 (PST)
+Date: Tue, 6 Jan 2015 10:32:47 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 6/6] mm/slab: allocation fastpath without disabling irq
-Message-ID: <20150106013122.GB17222@js1304-P5Q-DELUXE>
-References: <1420421851-3281-7-git-send-email-iamjoonsoo.kim@lge.com>
- <20150105172139.GA11201@rhlx01.hs-esslingen.de>
+Subject: Re: [PATCH 1/2] mm/slub: optimize alloc/free fastpath by removing
+ preemption on/off
+Message-ID: <20150106013247.GC17222@js1304-P5Q-DELUXE>
+References: <023701d028c2$dba2cb30$92e86190$@alibaba-inc.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150105172139.GA11201@rhlx01.hs-esslingen.de>
+In-Reply-To: <023701d028c2$dba2cb30$92e86190$@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andreas Mohr <andi@lisas.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>
+To: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, 'Christoph Lameter' <cl@linux.com>, 'Pekka Enberg' <penberg@kernel.org>, 'David Rientjes' <rientjes@google.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Steven Rostedt <rostedt@goodmis.org>, 'Jesper Dangaard Brouer' <brouer@redhat.com>
+
+On Mon, Jan 05, 2015 at 04:37:35PM +0800, Hillf Danton wrote:
+> > 
+> > We had to insert a preempt enable/disable in the fastpath a while ago
+> > in order to guarantee that tid and kmem_cache_cpu are retrieved on the
+> > same cpu. It is the problem only for CONFIG_PREEMPT in which scheduler
+> > can move the process to other cpu during retrieving data.
+> > 
+> > Now, I reach the solution to remove preempt enable/disable in the fastpath.
+> > If tid is matched with kmem_cache_cpu's tid after tid and kmem_cache_cpu
+> > are retrieved by separate this_cpu operation, it means that they are
+> > retrieved on the same cpu. If not matched, we just have to retry it.
+> > 
+> > With this guarantee, preemption enable/disable isn't need at all even if
+> > CONFIG_PREEMPT, so this patch removes it.
+> > 
+> > I saw roughly 5% win in a fast-path loop over kmem_cache_alloc/free
+> > in CONFIG_PREEMPT. (14.821 ns -> 14.049 ns)
+> > 
+> > Below is the result of Christoph's slab_test reported by
+> > Jesper Dangaard Brouer.
+> > 
+> > * Before
+> > 
+> >  Single thread testing
+> >  =====================
+> >  1. Kmalloc: Repeatedly allocate then free test
+> >  10000 times kmalloc(8) -> 49 cycles kfree -> 62 cycles
+> >  10000 times kmalloc(16) -> 48 cycles kfree -> 64 cycles
+> >  10000 times kmalloc(32) -> 53 cycles kfree -> 70 cycles
+> >  10000 times kmalloc(64) -> 64 cycles kfree -> 77 cycles
+> >  10000 times kmalloc(128) -> 74 cycles kfree -> 84 cycles
+> >  10000 times kmalloc(256) -> 84 cycles kfree -> 114 cycles
+> >  10000 times kmalloc(512) -> 83 cycles kfree -> 116 cycles
+> >  10000 times kmalloc(1024) -> 81 cycles kfree -> 120 cycles
+> >  10000 times kmalloc(2048) -> 104 cycles kfree -> 136 cycles
+> >  10000 times kmalloc(4096) -> 142 cycles kfree -> 165 cycles
+> >  10000 times kmalloc(8192) -> 238 cycles kfree -> 226 cycles
+> >  10000 times kmalloc(16384) -> 403 cycles kfree -> 264 cycles
+> >  2. Kmalloc: alloc/free test
+> >  10000 times kmalloc(8)/kfree -> 68 cycles
+> >  10000 times kmalloc(16)/kfree -> 68 cycles
+> >  10000 times kmalloc(32)/kfree -> 69 cycles
+> >  10000 times kmalloc(64)/kfree -> 68 cycles
+> >  10000 times kmalloc(128)/kfree -> 68 cycles
+> >  10000 times kmalloc(256)/kfree -> 68 cycles
+> >  10000 times kmalloc(512)/kfree -> 74 cycles
+> >  10000 times kmalloc(1024)/kfree -> 75 cycles
+> >  10000 times kmalloc(2048)/kfree -> 74 cycles
+> >  10000 times kmalloc(4096)/kfree -> 74 cycles
+> >  10000 times kmalloc(8192)/kfree -> 75 cycles
+> >  10000 times kmalloc(16384)/kfree -> 510 cycles
+> > 
+> > * After
+> > 
+> >  Single thread testing
+> >  =====================
+> >  1. Kmalloc: Repeatedly allocate then free test
+> >  10000 times kmalloc(8) -> 46 cycles kfree -> 61 cycles
+> >  10000 times kmalloc(16) -> 46 cycles kfree -> 63 cycles
+> >  10000 times kmalloc(32) -> 49 cycles kfree -> 69 cycles
+> >  10000 times kmalloc(64) -> 57 cycles kfree -> 76 cycles
+> >  10000 times kmalloc(128) -> 66 cycles kfree -> 83 cycles
+> >  10000 times kmalloc(256) -> 84 cycles kfree -> 110 cycles
+> >  10000 times kmalloc(512) -> 77 cycles kfree -> 114 cycles
+> >  10000 times kmalloc(1024) -> 80 cycles kfree -> 116 cycles
+> >  10000 times kmalloc(2048) -> 102 cycles kfree -> 131 cycles
+> >  10000 times kmalloc(4096) -> 135 cycles kfree -> 163 cycles
+> >  10000 times kmalloc(8192) -> 238 cycles kfree -> 218 cycles
+> >  10000 times kmalloc(16384) -> 399 cycles kfree -> 262 cycles
+> >  2. Kmalloc: alloc/free test
+> >  10000 times kmalloc(8)/kfree -> 65 cycles
+> >  10000 times kmalloc(16)/kfree -> 66 cycles
+> >  10000 times kmalloc(32)/kfree -> 65 cycles
+> >  10000 times kmalloc(64)/kfree -> 66 cycles
+> >  10000 times kmalloc(128)/kfree -> 66 cycles
+> >  10000 times kmalloc(256)/kfree -> 71 cycles
+> >  10000 times kmalloc(512)/kfree -> 72 cycles
+> >  10000 times kmalloc(1024)/kfree -> 71 cycles
+> >  10000 times kmalloc(2048)/kfree -> 71 cycles
+> >  10000 times kmalloc(4096)/kfree -> 71 cycles
+> >  10000 times kmalloc(8192)/kfree -> 65 cycles
+> >  10000 times kmalloc(16384)/kfree -> 511 cycles
+> > 
+> > Most of the results are better than before.
+> > 
+> > Note that this change slightly worses performance in !CONFIG_PREEMPT,
+> > roughly 0.3%. Implementing each case separately would help performance,
+> > but, since it's so marginal, I didn't do that. This would help
+> > maintanance since we have same code for all cases.
+> > 
+> > Tested-by: Jesper Dangaard Brouer <brouer@redhat.com>
+> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > ---
+> >  mm/slub.c |   26 +++++++++++++-------------
+> >  1 file changed, 13 insertions(+), 13 deletions(-)
+> > 
+> > diff --git a/mm/slub.c b/mm/slub.c
+> > index fe376fe..0624608 100644
+> > --- a/mm/slub.c
+> > +++ b/mm/slub.c
+> > @@ -2398,13 +2398,15 @@ redo:
+> >  	 * reading from one cpu area. That does not matter as long
+> >  	 * as we end up on the original cpu again when doing the cmpxchg.
+> >  	 *
+> > -	 * Preemption is disabled for the retrieval of the tid because that
+> > -	 * must occur from the current processor. We cannot allow rescheduling
+> > -	 * on a different processor between the determination of the pointer
+> > -	 * and the retrieval of the tid.
+> > +	 * We should guarantee that tid and kmem_cache are retrieved on
+> > +	 * the same cpu. It could be different if CONFIG_PREEMPT so we need
+> > +	 * to check if it is matched or not.
+> >  	 */
+> > -	preempt_disable();
+> > -	c = this_cpu_ptr(s->cpu_slab);
+> > +	do {
+> > +		tid = this_cpu_read(s->cpu_slab->tid);
+> > +		c = this_cpu_ptr(s->cpu_slab);
+> > +	} while (IS_ENABLED(CONFIG_PREEMPT) && unlikely(tid != c->tid));
+> > +	barrier();
+> 
+> Help maintenance more if barrier is documented in commit message.
 
 Hello,
 
-On Mon, Jan 05, 2015 at 06:21:39PM +0100, Andreas Mohr wrote:
-> Hi,
-> 
-> Joonsoo Kim wrote:
-> > + * Calculate the next globally unique transaction for disambiguiation
-> 
-> "disambiguation"
-
-Okay.
-
-> 
-> > +	ac->tid = next_tid(ac->tid);
-> (and all others)
-> 
-> object oriented:
-> array_cache_next_tid(ac);
-> (or perhaps rather: array_cache_start_transaction(ac);?).
-
-Okay. Christoph request common transaction id management code. If
-above object oriented design fit that, I will do it.
-> 
-> > +	/*
-> > +	 * Because we disable irq just now, cpu can be changed
-> > +	 * and we are on different node with object node. In this rare
-> > +	 * case, just return pfmemalloc object for simplicity.
-> > +	 */
-> 
-> "are on a node which is different from object's node"
-> 
-
-Thanks. :)
-
-> 
-> 
-> General thoughts (maybe just rambling, but that's just my feelings vs.
-> this mechanism, so maybe it's food for thought):
-> To me, the existing implementation seems too fond of IRQ fumbling
-> (i.e., affecting of oh so nicely *unrelated*
-> outer global environment context stuff).
-> A proper implementation wouldn't need *any* knowledge of this
-> (i.e., modifying such "IRQ disable" side effects,
-> to avoid having a scheduler hit and possibly ending up on another node).
-> 
-> Thus to me, the whole handling seems somewhat wrong and split
-> (since there remains the need to deal with scheduler distortion/disruption).
-> The bare-metal "inner" algorithm should not need to depend on such shenanigans
-> but simply be able to carry out its task unaffected,
-> where IRQs are simply always left enabled
-> (or at least potentially disabled by other kernel components only)
-> and the code then elegantly/inherently deals with IRQ complications.
-
-I'm not sure I understand your opinion correctly. If my response is
-wrong, please let me know your thought more correctly.
-
-IRQ manipulation is done for synchronization of array cache, not for
-freezing allocation context. That is just side-effect. As Christoph
-said, slab operation could be executed in interrupt context so we
-should protect array cache even if we are in process context.
-
-> Since the node change is scheduler-driven (I assume),
-> any (changes of) context attributes
-> which are relevant to (affect) SLAB-internal operations
-> ought to be implicitly/automatically re-assigned by the scheduler,
-> and then the most that should be needed is a *final* check in SLAB
-> (possibly in an outer user-facing layer of it)
-> whether the current final calculation result still matches expectations,
-> i.e. whether there was no disruption
-> (in which case we'd also do a goto redo: operation or some such :).
-
-If we can do whole procedure without IRQ manipulation, final check
-would be more elegant solution. But, current implementation necessarily
-needs IRQ manipulation for synchronization at pretty early phase. In this
-situation, doing context check and adjusting context at first step may
-be better than final check and redo.
-
-> These thoughts also mean that I'm unsure (difficult to determine)
-> of whether this change is good (i.e. a clean step in the right direction),
-> or whether instead the implementation could easily directly be made
-> fully independent from IRQ constraints.
-
-Is there any issue that this change prevent further improvment?
-I think that we can go right direction easily as soon as we find
-a better solution even if this change is merged.
+Okay. Will add some information about this barrier in commit message.
 
 Thanks.
 
