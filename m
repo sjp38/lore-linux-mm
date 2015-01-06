@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f176.google.com (mail-qc0-f176.google.com [209.85.216.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 78B1A6B0167
-	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 16:27:32 -0500 (EST)
-Received: by mail-qc0-f176.google.com with SMTP id i17so61167qcy.35
-        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 13:27:32 -0800 (PST)
-Received: from mail-qg0-x235.google.com (mail-qg0-x235.google.com. [2607:f8b0:400d:c04::235])
-        by mx.google.com with ESMTPS id c79si15821387qge.26.2015.01.06.13.27.31
+Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
+	by kanga.kvack.org (Postfix) with ESMTP id BFD896B0169
+	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 16:27:33 -0500 (EST)
+Received: by mail-qg0-f51.google.com with SMTP id i50so56130qgf.38
+        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 13:27:33 -0800 (PST)
+Received: from mail-qc0-x236.google.com (mail-qc0-x236.google.com. [2607:f8b0:400d:c01::236])
+        by mx.google.com with ESMTPS id d33si40541194qge.52.2015.01.06.13.27.32
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 06 Jan 2015 13:27:31 -0800 (PST)
-Received: by mail-qg0-f53.google.com with SMTP id l89so54020qgf.40
-        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 13:27:31 -0800 (PST)
+        Tue, 06 Jan 2015 13:27:33 -0800 (PST)
+Received: by mail-qc0-f182.google.com with SMTP id r5so67196qcx.27
+        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 13:27:32 -0800 (PST)
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 34/45] vfs, writeback: implement support for multiple inode_wb_link's
-Date: Tue,  6 Jan 2015 16:26:11 -0500
-Message-Id: <1420579582-8516-35-git-send-email-tj@kernel.org>
+Subject: [PATCH 35/45] vfs, writeback: implement inode->i_nr_syncs
+Date: Tue,  6 Jan 2015 16:26:12 -0500
+Message-Id: <1420579582-8516-36-git-send-email-tj@kernel.org>
 In-Reply-To: <1420579582-8516-1-git-send-email-tj@kernel.org>
 References: <1420579582-8516-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,37 +22,29 @@ List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk
 Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, Tejun Heo <tj@kernel.org>, Alexander Viro <viro@zeniv.linux.org.uk>
 
-An inode may be written to from more than one cgroups and for cgroup
-writeback support to work properly the inode needs to be on the dirty
-lists of all wb's (bdi_writeback's) corresponding to the dirtying
-cgroups so that writeback on each cgroup can keep track of and process
-the inode.
+Currently, I_SYNC is used to keep track of whether writeback is in
+progress on the inode or not.  With cgroup writeback support, multiple
+writebacks could be in progress simultaneously and a single bit in
+inode->i_state isn't sufficient.
 
-The previous patches separated out iwbl (inode_wb_link which) is used
-to dirty an inode against a wb (bdi_writeback).  Currently, there's
-only one embedded iwbl per inode which can be used to dirty the inode
-against the root wb.  This patch introduces icgwbl (inode_cgwb_link)
-which includes iwbl and can be used to link an inode to a non-root
-cgroup wb.
+If CONFIG_CGROUP_WRITEBACK, this patch makes each iwbl (inode_wb_link)
+track whether writeback is in progress using the new IWBL_SYNC flag on
+iwbl->data and inode->i_nr_syncs aggregate total number of writebacks
+in progress on the inode.  New helpers, iwbl_{test|set|clear}_sync(),
+iwbl_sync_wakeup() and __iwbl_wait_for_writeback() are added to
+manipulate these states and inode_sleep_on_writeback() is converted to
+iwbl_sleep_on_writeback().  I_SYNC retains the same meaning - it's set
+if any writeback is in progress and cleared if none.
 
-Each icgwbl points to the associated inode directly and wb through its
-iwbl, and is linked on inode->i_cgwb_links and wb->icgwbls.  They're
-created on demand and destroyed only when either the associated inode
-or wb is destroyed.  When a page is about to be dirtied, the matching
-i[cg]wbl is looked up or created and recorded in the newly added
-dirty_context->iwbl field.  The next patch will use the field to link
-inodes against their matching cgroup wb's.
+If !CONFIG_CGROUP_WRITEBACK, the helpers simply operate on I_SYNC
+directly and there's no behavioral changes compared to before.  When
+CONFIG_CGROUP_WRITEBACK, this adds an atomic_t to struct inode.  This
+competes for the same left over 4 byte slot w/ i_readcount from
+CONFIG_IMA on 64 bit, and, as long as CONFIG_IMA isn't enabled, it
+doesn't increase the size of struct inode on 64 bit.
 
-Currently, icgwbls are linked on a linked list on each inode and
-linearly looked up on each dirtying attempt, which is an obvious
-scalability bottleneck.  We want an RCU-safe balanced tree here but
-the kernel doesn't have such indexing structure in tree yet.  Given
-that dirtying the same inode from numerous different cgroups isn't too
-frequent, I think the linear list is a bandaid we can use for now but
-we really should switch to something proper (e.g. a bonsai tree) soon.
-
-This patch adds a struct hlist_head to struct inode when
-CONFIG_CGROUP_WRITEBACK adding the size of a pointer to it.
+This allows keeping track of writeback in-progress state per cgroup
+bdi_writeback.
 
 Signed-off-by: Tejun Heo <tj@kernel.org>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>
@@ -60,515 +52,382 @@ Cc: Christoph Hellwig <hch@infradead.org>
 Cc: Jens Axboe <axboe@kernel.dk>
 Cc: Jan Kara <jack@suse.cz>
 ---
- fs/fs-writeback.c                | 121 ++++++++++++++++++++++++++++++++++-----
- fs/inode.c                       |   3 +
- include/linux/backing-dev-defs.h |  34 +++++++++++
- include/linux/backing-dev.h      |  77 +++++++++++++++++++++++--
+ fs/fs-writeback.c                | 172 +++++++++++++++++++++++++++++++++------
+ include/linux/backing-dev-defs.h |   7 ++
  include/linux/fs.h               |   3 +
- mm/backing-dev.c                 |  80 ++++++++++++++++++++++++++
- 6 files changed, 300 insertions(+), 18 deletions(-)
+ mm/backing-dev.c                 |   1 +
+ 4 files changed, 160 insertions(+), 23 deletions(-)
 
 diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index ab77ed2..d10c231 100644
+index d10c231..df99b5b 100644
 --- a/fs/fs-writeback.c
 +++ b/fs/fs-writeback.c
-@@ -182,6 +182,18 @@ static void iwbl_del_locked(struct inode_wb_link *iwbl,
- 	}
+@@ -430,26 +430,113 @@ restart:
+ 	rcu_read_unlock();
  }
  
-+static void iwbl_del(struct inode_wb_link *iwbl)
++/**
++ * iwbl_test_sync - test whether writeback is in progress on an inode_wb_link
++ * @iwbl: target inode_wb_link
++ *
++ * Test whether writeback is in progress for the inode on the bdi_writeback
++ * specified by @iwbl.  The caller is responsible for synchornization.
++ */
++static bool iwbl_test_sync(struct inode_wb_link *iwbl)
 +{
-+	struct bdi_writeback *wb = iwbl_to_wb(iwbl);
++	return test_bit(IWBL_SYNC, &iwbl->data);
++}
 +
-+	if (list_empty(&iwbl->dirty_list))
-+		return;
++/**
++ * iwbl_set_sync - mark an inode_wb_link that writeback is in progress
++ * @iwbl: target inode_wb_link
++ * @inode: inode @iwbl is associated with
++ *
++ * Mark that writeback is in progress for @inode on the bdi_writeback
++ * specified by @iwbl.  iwbl_test_sync() will return %true on @iwbl and
++ * %I_SYNC is set on @inode while there's any writeback in progress on it.
++ */
++static void iwbl_set_sync(struct inode_wb_link *iwbl, struct inode *inode)
++{
++	lockdep_assert_held(&inode->i_lock);
++	WARN_ON_ONCE(iwbl_test_sync(iwbl));
 +
-+	spin_lock(&wb->list_lock);
-+	iwbl_del_locked(iwbl, wb);
-+	spin_unlock(&wb->list_lock);
++	set_bit(IWBL_SYNC, &iwbl->data);
++	inode->i_nr_syncs++;
++	inode->i_state |= I_SYNC;
++}
++
++/**
++ * iwbl_clear_sync - undo iwbl_set_sync()
++ * @iwbl: target inode_wb_link
++ * @inode: inode @iwbl is associated with
++ *
++ * Returns %true if this was the last writeback in progress on @inode;
++ * %false, otherwise.
++ */
++static bool iwbl_clear_sync(struct inode_wb_link *iwbl, struct inode *inode)
++{
++	bool sync_complete;
++
++	lockdep_assert_held(&inode->i_lock);
++	WARN_ON_ONCE(!iwbl_test_sync(iwbl));
++
++	clear_bit(IWBL_SYNC, &iwbl->data);
++	sync_complete = !--inode->i_nr_syncs;
++	if (sync_complete)
++		inode->i_state &= ~I_SYNC;
++	return sync_complete;
++}
++
++/**
++ * iwbl_wait_for_writeback - wait for writeback in progree on an inode_wb_link
++ * @iwbl: target inode_wb_link
++ *
++ * Wait for the writeback in progress for the inode on the bdi_writeback
++ * specified by @iwbl.
++ */
++static void iwbl_wait_for_writeback(struct inode_wb_link *iwbl)
++	__releases(inode->i_lock)
++	__acquires(inode->i_lock)
++{
++	struct inode *inode = iwbl_to_inode(iwbl);
++	DEFINE_WAIT_BIT(wq, &iwbl->data, IWBL_SYNC);
++	wait_queue_head_t *wqh;
++
++	lockdep_assert_held(&inode->i_lock);
++
++	wqh = bit_waitqueue(&iwbl->data, IWBL_SYNC);
++	while (test_bit(IWBL_SYNC, &iwbl->data)) {
++		spin_unlock(&inode->i_lock);
++		__wait_on_bit(wqh, &wq, bit_wait, TASK_UNINTERRUPTIBLE);
++		spin_lock(&inode->i_lock);
++	}
 +}
 +
  /*
-  * Wait for writeback on an inode to complete. Called with i_lock held.
-  * Caller must make sure inode cannot go away when we drop i_lock.
-@@ -260,16 +272,34 @@ static void init_cgwb_dirty_page_context(struct dirty_context *dctx)
- 	 * back to the root blkcg.
+  * Sleep until I_SYNC is cleared. This function must be called with i_lock
+  * held and drops it. It is aimed for callers not holding any inode reference
+  * so once i_lock is dropped, inode can go away.
+  */
+-static void inode_sleep_on_writeback(struct inode *inode)
+-	__releases(inode->i_lock)
++static void iwbl_sleep_on_writeback(struct inode_wb_link *iwbl)
+ {
+ 	DEFINE_WAIT(wait);
+-	wait_queue_head_t *wqh = bit_waitqueue(&inode->i_state, __I_SYNC);
++	struct inode *inode = iwbl_to_inode(iwbl);
++	wait_queue_head_t *wqh = bit_waitqueue(&iwbl->data, IWBL_SYNC);
+ 	int sleep;
+ 
+ 	prepare_to_wait(wqh, &wait, TASK_UNINTERRUPTIBLE);
+-	sleep = inode->i_state & I_SYNC;
++	sleep = test_bit(IWBL_SYNC, &iwbl->data);
+ 	spin_unlock(&inode->i_lock);
+ 	if (sleep)
+ 		schedule();
+ 	finish_wait(wqh, &wait);
+ }
+ 
++/**
++ * iwbl_sync_wakeup - wakeup iwbl_{wait_for|sleep_on}_writeback() waiter
++ * @iwbl: target inode_wb_link
++ */
++static void iwbl_sync_wakeup(struct inode_wb_link *iwbl)
++{
++	wake_up_bit(&iwbl->data, IWBL_SYNC);
++}
++
+ static inline struct inode_cgwb_link *icgwbl_first(struct inode *inode)
+ {
+ 	struct hlist_node *node =
+@@ -504,6 +591,7 @@ static void inode_icgwbls_del(struct inode *inode)
+ 	 * bdi->icgwbls_lock.
  	 */
- 	blkcg_css = page_blkcg_attach_dirty(dctx->page);
--	dctx->wb = cgwb_lookup_create(bdi, blkcg_css);
--	if (!dctx->wb) {
--		page_blkcg_detach_dirty(dctx->page);
--		goto force_root;
-+
-+	/* if iwbl already exists, wb can be determined from that too */
-+	dctx->iwbl = iwbl_lookup(dctx->inode, blkcg_css);
-+	if (dctx->iwbl) {
-+		dctx->wb = iwbl_to_wb(dctx->iwbl);
-+		return;
+ 	inode_for_each_icgwbl(icgwbl, next, inode) {
++		WARN_ON_ONCE(test_bit(IWBL_SYNC, &icgwbl->iwbl.data));
+ 		hlist_del_rcu(&icgwbl->inode_node);
+ 		list_move(&icgwbl->wb_node, &to_free);
  	}
-+
-+	/* slow path, let's create wb and iwbl */
-+	dctx->wb = cgwb_lookup_create(bdi, blkcg_css);
-+	if (!dctx->wb)
-+		goto detach_dirty;
-+
-+	dctx->iwbl = iwbl_create(dctx->inode, dctx->wb);
-+	if (!dctx->iwbl)
-+		goto detach_dirty;
-+
- 	return;
- 
-+detach_dirty:
-+	page_blkcg_detach_dirty(dctx->page);
- force_root:
- 	page_blkcg_force_root_dirty(dctx->page);
- 	dctx->wb = &bdi->wb;
-+	if (dctx->inode)
-+		dctx->iwbl = &dctx->inode->i_wb_link;
-+	else
-+		dctx->iwbl = NULL;
+@@ -544,15 +632,39 @@ static void bdi_split_work_to_wbs(struct backing_dev_info *bdi,
+ 	}
  }
  
- /**
-@@ -420,11 +450,78 @@ static void inode_sleep_on_writeback(struct inode *inode)
- 	finish_wait(wqh, &wait);
- }
- 
-+static inline struct inode_cgwb_link *icgwbl_first(struct inode *inode)
++static bool iwbl_test_sync(struct inode_wb_link *iwbl)
 +{
-+	struct hlist_node *node =
-+		rcu_dereference_check(hlist_first_rcu(&inode->i_cgwb_links),
-+			lockdep_is_held(&inode_to_bdi(inode)->icgwbls_lock));
++	struct inode *inode = iwbl_to_inode(iwbl);
 +
-+	return hlist_entry_safe(node, struct inode_cgwb_link, inode_node);
++	return inode->i_state & I_SYNC;
 +}
 +
-+static inline struct inode_cgwb_link *icgwbl_next(struct inode_cgwb_link *pos,
-+						  struct inode *inode)
++static void iwbl_set_sync(struct inode_wb_link *iwbl, struct inode *inode)
 +{
-+	struct hlist_node *node =
-+		rcu_dereference_check(hlist_next_rcu(&pos->inode_node),
-+			lockdep_is_held(&inode_to_bdi(inode)->icgwbls_lock));
-+
-+	return hlist_entry_safe(node, struct inode_cgwb_link, inode_node);
++	inode->i_state |= I_SYNC;
 +}
 +
-+/**
-+ * inode_for_each_icgwbl - walk all icgwbl's of an inode
-+ * @cur: cursor struct inode_cgwb_link pointer
-+ * @nxt: temp struct inode_cgwb_link pointer
-+ * @inode: inode to walk icgwbl's of
-+ *
-+ * Walk @inode's icgwbl's (inode_cgwb_link's).  rcu_read_lock() must be
-+ * held throughout iteration.
-+ */
-+#define inode_for_each_icgwbl(cur, nxt, inode)				\
-+	for ((cur) = icgwbl_first((inode)),				\
-+	     (nxt) = (cur) ? icgwbl_next((cur), (inode)) : NULL;	\
-+	     (cur);							\
-+	     (cur) = (nxt),						\
-+	     (nxt) = (nxt) ? icgwbl_next((nxt), (inode)) : NULL)
-+
-+static void inode_icgwbls_del(struct inode *inode)
++static bool iwbl_clear_sync(struct inode_wb_link *iwbl, struct inode *inode)
 +{
-+	LIST_HEAD(to_free);
-+	struct backing_dev_info *bdi = inode_to_bdi(inode);
-+	struct inode_cgwb_link *icgwbl, *next;
-+	unsigned long flags;
-+
-+	spin_lock_irqsave(&bdi->icgwbls_lock, flags);
-+
-+	/* I_FREEING must be set here to disallow further iwbl_create() */
-+	WARN_ON_ONCE(!(inode->i_state & I_FREEING));
-+
-+	/*
-+	 * We don't wanna nest wb->list_lock under bdi->icgwbls_lock as the
-+	 * latter is irq-safe and the former isn't.  Queue icgwbls on
-+	 * @to_free and perform iwbl_del() and freeing after releasing
-+	 * bdi->icgwbls_lock.
-+	 */
-+	inode_for_each_icgwbl(icgwbl, next, inode) {
-+		hlist_del_rcu(&icgwbl->inode_node);
-+		list_move(&icgwbl->wb_node, &to_free);
-+	}
-+
-+	spin_unlock_irqrestore(&bdi->icgwbls_lock, flags);
-+
-+	list_for_each_entry_safe(icgwbl, next, &to_free, wb_node) {
-+		iwbl_del(&icgwbl->iwbl);
-+		kfree_rcu(icgwbl, rcu);
-+	}
-+}
-+
- #else	/* CONFIG_CGROUP_WRITEBACK */
- 
- static void init_cgwb_dirty_page_context(struct dirty_context *dctx)
- {
- 	dctx->wb = &dctx->mapping->backing_dev_info->wb;
-+	dctx->iwbl = dctx->inode ? &dctx->inode->i_wb_link : NULL;
- }
- 
- static long wb_split_bdi_pages(struct bdi_writeback *wb, long nr_pages)
-@@ -467,6 +564,10 @@ static void inode_sleep_on_writeback(struct inode *inode)
- 	finish_wait(wqh, &wait);
- }
- 
-+static void inode_icgwbls_del(struct inode *inode)
-+{
-+}
-+
- #endif	/* CONFIG_CGROUP_WRITEBACK */
- 
- /**
-@@ -510,6 +611,7 @@ void init_dirty_inode_context(struct dirty_context *dctx, struct inode *inode)
- 	memset(dctx, 0, sizeof(*dctx));
- 	dctx->inode = inode;
- 	dctx->wb = &inode_to_bdi(inode)->wb;
-+	dctx->iwbl = &inode->i_wb_link;
- }
- 
- void wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
-@@ -565,15 +667,8 @@ void wb_start_background_writeback(struct bdi_writeback *wb)
-  */
- void inode_wb_list_del(struct inode *inode)
- {
--	struct inode_wb_link *iwbl = &inode->i_wb_link;
--	struct bdi_writeback *wb = iwbl_to_wb(iwbl);
--
--	if (list_empty(&iwbl->dirty_list))
--		return;
--
--	spin_lock(&wb->list_lock);
--	iwbl_del_locked(iwbl, wb);
--	spin_unlock(&wb->list_lock);
-+	iwbl_del(&inode->i_wb_link);
-+	inode_icgwbls_del(inode);
- }
- 
- /*
-diff --git a/fs/inode.c b/fs/inode.c
-index 66c9b68..8a55494 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -374,6 +374,9 @@ void inode_init_once(struct inode *inode)
- 	INIT_LIST_HEAD(&inode->i_lru);
- 	address_space_init_once(&inode->i_data);
- 	i_size_ordered_init(inode);
-+#ifdef CONFIG_CGROUP_WRITEBACK
-+	INIT_HLIST_HEAD(&inode->i_cgwb_links);
-+#endif
- #ifdef CONFIG_FSNOTIFY
- 	INIT_HLIST_HEAD(&inode->i_fsnotify_marks);
- #endif
-diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
-index 01f27e3..e448edc 100644
---- a/include/linux/backing-dev-defs.h
-+++ b/include/linux/backing-dev-defs.h
-@@ -99,6 +99,7 @@ struct bdi_writeback {
- #ifdef CONFIG_CGROUP_WRITEBACK
- 	struct cgroup_subsys_state *blkcg_css; /* the blkcg we belong to */
- 	struct list_head blkcg_node;	/* anchored at blkcg->wb_list */
-+	struct list_head icgwbls;	/* inode_cgwb_links of this wb */
- 	union {
- 		struct list_head shutdown_node;
- 		struct rcu_head rcu;
-@@ -127,6 +128,7 @@ struct backing_dev_info {
- 	struct bdi_writeback wb; /* the root writeback info for this bdi */
- #ifdef CONFIG_CGROUP_WRITEBACK
- 	struct radix_tree_root cgwb_tree; /* radix tree of !root cgroup wbs */
-+	spinlock_t icgwbls_lock; /* protects wb->icgwbls and inode->i_cgwb_links */
- #endif
- 	wait_queue_head_t wb_waitq;
- 
-@@ -157,6 +159,37 @@ struct inode_wb_link {
- };
- 
- /*
-+ * Used to link a dirty inode on a non-root wb (bdi_writeback).  An inode
-+ * may have multiple of these as it gets dirtied on non-root wb's.  Linked
-+ * on both the inode and wb and destroyed when either goes away.
-+ *
-+ * TODO: When an inode is being dirtied against a non-root wb, its
-+ * ->i_wb_link is searched linearly to locate the matching icgwbl
-+ * (inode_cgwb_link).  The linear search is a scalability bottleneck but
-+ * the kernel currently don't have an indexing data structure which would
-+ * fit this use case.  A balanced tree which can be walked under RCU read
-+ * lock is necessary (e.g. bonsai tree).  Once such indexing data structure
-+ * is necessary, icgwbl should be converted to use that.
-+ */
-+struct inode_cgwb_link {
-+	struct inode_wb_link	iwbl;
-+
-+	struct inode		*inode;		/* the associated inode */
-+
-+	/*
-+	 * ->inode_node is anchored at inode->i_wb_links and ->wb_node at
-+	 * bdi_writeback->icgwbls.  Both are write-protected by
-+	 * bdi->icgwbls_lock but the former can be traversed under RCU and
-+	 * is sorted by the associated blkcg ID to allow traversal
-+	 * continuation after dropping RCU read lock.
-+	 */
-+	struct hlist_node	inode_node;	/* RCU-safe, sorted */
-+	struct list_head	wb_node;
-+
-+	struct rcu_head		rcu;
-+};
-+
-+/*
-  * The following structure carries context used during page and inode
-  * dirtying.  Should be initialized with init_dirty_{inode|page}_context().
-  */
-@@ -165,6 +198,7 @@ struct dirty_context {
- 	struct inode		*inode;
- 	struct address_space	*mapping;
- 	struct bdi_writeback	*wb;
-+	struct inode_wb_link	*iwbl;
- };
- 
- enum {
-diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-index bc69c7f..6c16d10 100644
---- a/include/linux/backing-dev.h
-+++ b/include/linux/backing-dev.h
-@@ -274,16 +274,13 @@ void init_dirty_page_context(struct dirty_context *dctx, struct page *page,
- 			     struct address_space *mapping);
- void init_dirty_inode_context(struct dirty_context *dctx, struct inode *inode);
- 
--static inline struct inode *iwbl_to_inode(struct inode_wb_link *iwbl)
--{
--	return container_of(iwbl, struct inode, i_wb_link);
--}
--
- #ifdef CONFIG_CGROUP_WRITEBACK
- 
- void cgwb_blkcg_released(struct cgroup_subsys_state *blkcg_css);
- int __cgwb_create(struct backing_dev_info *bdi,
- 		  struct cgroup_subsys_state *blkcg_css);
-+struct inode_wb_link *iwbl_create(struct inode *inode,
-+				  struct bdi_writeback *wb);
- int mapping_congested(struct address_space *mapping, struct task_struct *task,
- 		      int bdi_bits);
- 
-@@ -469,6 +466,60 @@ static inline struct bdi_writeback *iwbl_to_wb(struct inode_wb_link *iwbl)
- 	return (void *)(iwbl->data & ~IWBL_FLAGS_MASK);
- }
- 
-+static inline bool iwbl_is_root(struct inode_wb_link *iwbl)
-+{
-+	struct bdi_writeback *wb = iwbl_to_wb(iwbl);
-+
-+	return wb->blkcg_css == blkcg_root_css;
-+}
-+
-+static inline struct inode *iwbl_to_inode(struct inode_wb_link *iwbl)
-+{
-+	if (iwbl_is_root(iwbl)) {
-+		return container_of(iwbl, struct inode, i_wb_link);
-+	} else {
-+		struct inode_cgwb_link *icgwbl =
-+			container_of(iwbl, struct inode_cgwb_link, iwbl);
-+		return icgwbl->inode;
-+	}
-+}
-+
-+/**
-+ * iwbl_lookup - lookup iwbl for dirtying an inode against a blkcg_css
-+ * @inode: target inode
-+ * @blkcg_css: target blkcg_css
-+ *
-+ * Lookup iwbl (inode_wb_link) for dirtying @inode against @blkcg_css.  If
-+ * found, the returned iwbl is associated with the bdi_writeback of
-+ * @blkcg_css on @inode's bdi.  If not found, %NULL is returned.
-+ *
-+ * The returned iwbl remains accessible as long as both @inode and
-+ * @blkcg_css are alive.
-+ */
-+static inline struct inode_wb_link *
-+iwbl_lookup(struct inode *inode, struct cgroup_subsys_state *blkcg_css)
-+{
-+	struct inode_wb_link *iwbl = NULL;
-+	struct inode_cgwb_link *icgwbl;
-+
-+	if (blkcg_css == blkcg_root_css)
-+		return &inode->i_wb_link;
-+
-+	/*
-+	 * RCU protects the lookup itself.  Once looked up, the iwbl's
-+	 * lifetime is governed by those of @inode and @blkcg_css.
-+	 */
-+	rcu_read_lock();
-+	hlist_for_each_entry_rcu(icgwbl, &inode->i_cgwb_links, inode_node) {
-+		if (iwbl_to_wb(&icgwbl->iwbl)->blkcg_css == blkcg_css) {
-+			iwbl = &icgwbl->iwbl;
-+			break;
-+		}
-+	}
-+	rcu_read_unlock();
-+	return iwbl;
-+}
-+
- #else	/* CONFIG_CGROUP_WRITEBACK */
- 
- static inline bool mapping_cgwb_enabled(struct address_space *mapping)
-@@ -522,6 +573,11 @@ static inline void init_i_wb_link(struct inode *inode)
- {
- }
- 
-+static inline struct inode *iwbl_to_inode(struct inode_wb_link *iwbl)
-+{
-+	return container_of(iwbl, struct inode, i_wb_link);
-+}
-+
- static inline struct bdi_writeback *iwbl_to_wb(struct inode_wb_link *iwbl)
- {
- 	struct inode *inode = iwbl_to_inode(iwbl);
-@@ -529,6 +585,17 @@ static inline struct bdi_writeback *iwbl_to_wb(struct inode_wb_link *iwbl)
- 	return &inode_to_bdi(inode)->wb;
- }
- 
-+static inline bool iwbl_is_root(struct inode_wb_link *iwbl)
-+{
++	inode->i_state &= ~I_SYNC;
 +	return true;
 +}
 +
-+static inline struct inode_wb_link *
-+iwbl_lookup(struct inode *inode, struct cgroup_subsys_state *blkcg_css)
++static void iwbl_wait_for_writeback(struct inode_wb_link *iwbl)
 +{
-+	return &inode->i_wb_link;
++	__inode_wait_for_writeback(iwbl_to_inode(iwbl));
 +}
 +
- #endif	/* CONFIG_CGROUP_WRITEBACK */
+ /*
+  * Sleep until I_SYNC is cleared. This function must be called with i_lock
+  * held and drops it. It is aimed for callers not holding any inode reference
+  * so once i_lock is dropped, inode can go away.
+  */
+-static void inode_sleep_on_writeback(struct inode *inode)
++static void iwbl_sleep_on_writeback(struct inode_wb_link *iwbl)
+ 	__releases(inode->i_lock)
+ {
+ 	DEFINE_WAIT(wait);
++	struct inode *inode = iwbl_to_inode(iwbl);
+ 	wait_queue_head_t *wqh = bit_waitqueue(&inode->i_state, __I_SYNC);
+ 	int sleep;
  
- static inline int mapping_read_congested(struct address_space *mapping,
+@@ -564,6 +676,11 @@ static void inode_sleep_on_writeback(struct inode *inode)
+ 	finish_wait(wqh, &wait);
+ }
+ 
++static void iwbl_sync_wakeup(struct inode_wb_link *iwbl)
++{
++	/* noop, __I_SYNC wakeup is enough */
++}
++
+ static void inode_icgwbls_del(struct inode *inode)
+ {
+ }
+@@ -700,14 +817,22 @@ static void requeue_io(struct inode_wb_link *iwbl, struct bdi_writeback *wb)
+ 	iwbl_move_locked(iwbl, wb, &wb->b_more_io);
+ }
+ 
+-static void inode_sync_complete(struct inode *inode)
++static void iwbl_sync_complete(struct inode_wb_link *iwbl)
+ {
+-	inode->i_state &= ~I_SYNC;
++	struct inode *inode = iwbl_to_inode(iwbl);
++	bool sync_complete;
++
++	sync_complete = iwbl_clear_sync(iwbl, inode);
+ 	/* If inode is clean an unused, put it into LRU now... */
+-	inode_add_lru(inode);
++	if (sync_complete)
++		inode_add_lru(inode);
++
+ 	/* Waiters must see I_SYNC cleared before being woken up */
+ 	smp_mb();
+-	wake_up_bit(&inode->i_state, __I_SYNC);
++
++	iwbl_sync_wakeup(iwbl);
++	if (sync_complete)
++		wake_up_bit(&inode->i_state, __I_SYNC);
+ }
+ 
+ static bool iwbl_dirtied_after(struct inode_wb_link *iwbl, unsigned long t)
+@@ -888,17 +1013,18 @@ static void requeue_inode(struct inode_wb_link *iwbl, struct bdi_writeback *wb,
+ /*
+  * Write out an inode and its dirty pages. Do not update the writeback list
+  * linkage. That is left to the caller. The caller is also responsible for
+- * setting I_SYNC flag and calling inode_sync_complete() to clear it.
++ * setting I_SYNC flag and calling iwbl_sync_complete() to clear it.
+  */
+ static int
+ __writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
+ {
+ 	struct address_space *mapping = inode->i_mapping;
++	struct inode_wb_link *iwbl = &inode->i_wb_link;
+ 	long nr_to_write = wbc->nr_to_write;
+ 	unsigned dirty;
+ 	int ret;
+ 
+-	WARN_ON(!(inode->i_state & I_SYNC));
++	WARN_ON(!iwbl_test_sync(iwbl));
+ 
+ 	trace_writeback_single_inode_start(inode, wbc, nr_to_write);
+ 
+@@ -976,7 +1102,7 @@ writeback_single_inode(struct inode *inode, struct bdi_writeback *wb,
+ 	else
+ 		WARN_ON(inode->i_state & I_WILL_FREE);
+ 
+-	if (inode->i_state & I_SYNC) {
++	if (iwbl_test_sync(iwbl)) {
+ 		if (wbc->sync_mode != WB_SYNC_ALL)
+ 			goto out;
+ 		/*
+@@ -984,9 +1110,9 @@ writeback_single_inode(struct inode *inode, struct bdi_writeback *wb,
+ 		 * inode reference or inode has I_WILL_FREE set, it cannot go
+ 		 * away under us.
+ 		 */
+-		__inode_wait_for_writeback(inode);
++		iwbl_wait_for_writeback(iwbl);
+ 	}
+-	WARN_ON(inode->i_state & I_SYNC);
++	WARN_ON(iwbl_test_sync(iwbl));
+ 	/*
+ 	 * Skip inode if it is clean and we have no outstanding writeback in
+ 	 * WB_SYNC_ALL mode. We don't want to mess with writeback lists in this
+@@ -999,7 +1125,7 @@ writeback_single_inode(struct inode *inode, struct bdi_writeback *wb,
+ 	    (wbc->sync_mode != WB_SYNC_ALL ||
+ 	     !mapping_tagged(inode->i_mapping, PAGECACHE_TAG_WRITEBACK)))
+ 		goto out;
+-	inode->i_state |= I_SYNC;
++	iwbl_set_sync(iwbl, inode);
+ 	spin_unlock(&inode->i_lock);
+ 
+ 	ret = __writeback_single_inode(inode, wbc);
+@@ -1013,7 +1139,7 @@ writeback_single_inode(struct inode *inode, struct bdi_writeback *wb,
+ 	if (!(inode->i_state & I_DIRTY))
+ 		iwbl_del_locked(iwbl, wb);
+ 	spin_unlock(&wb->list_lock);
+-	inode_sync_complete(inode);
++	iwbl_sync_complete(iwbl);
+ out:
+ 	spin_unlock(&inode->i_lock);
+ 	return ret;
+@@ -1107,7 +1233,7 @@ static long writeback_sb_inodes(struct super_block *sb,
+ 			redirty_tail(iwbl, wb);
+ 			continue;
+ 		}
+-		if ((inode->i_state & I_SYNC) && wbc.sync_mode != WB_SYNC_ALL) {
++		if (iwbl_test_sync(iwbl) && wbc.sync_mode != WB_SYNC_ALL) {
+ 			/*
+ 			 * If this inode is locked for writeback and we are not
+ 			 * doing writeback-for-data-integrity, move it to
+@@ -1129,14 +1255,14 @@ static long writeback_sb_inodes(struct super_block *sb,
+ 		 * are doing WB_SYNC_NONE writeback. So this catches only the
+ 		 * WB_SYNC_ALL case.
+ 		 */
+-		if (inode->i_state & I_SYNC) {
++		if (iwbl_test_sync(iwbl)) {
+ 			/* Wait for I_SYNC. This function drops i_lock... */
+-			inode_sleep_on_writeback(inode);
++			iwbl_sleep_on_writeback(iwbl);
+ 			/* Inode may be gone, start again */
+ 			spin_lock(&wb->list_lock);
+ 			continue;
+ 		}
+-		inode->i_state |= I_SYNC;
++		iwbl_set_sync(iwbl, inode);
+ 		spin_unlock(&inode->i_lock);
+ 
+ 		write_chunk = writeback_chunk_size(wb, work);
+@@ -1156,7 +1282,7 @@ static long writeback_sb_inodes(struct super_block *sb,
+ 		if (!(inode->i_state & I_DIRTY))
+ 			wrote++;
+ 		requeue_inode(iwbl, wb, &wbc);
+-		inode_sync_complete(inode);
++		iwbl_sync_complete(iwbl);
+ 		spin_unlock(&inode->i_lock);
+ 		cond_resched_lock(&wb->list_lock);
+ 		/*
+@@ -1356,7 +1482,7 @@ static long wb_writeback(struct bdi_writeback *wb,
+ 			spin_lock(&inode->i_lock);
+ 			spin_unlock(&wb->list_lock);
+ 			/* This function drops i_lock... */
+-			inode_sleep_on_writeback(inode);
++			iwbl_sleep_on_writeback(iwbl);
+ 			spin_lock(&wb->list_lock);
+ 		}
+ 	}
+@@ -1648,7 +1774,7 @@ void mark_inode_dirty_dctx(struct dirty_context *dctx, int flags)
+ 		 * The unlocker will place the inode on the appropriate
+ 		 * superblock list, based upon its state.
+ 		 */
+-		if (inode->i_state & I_SYNC)
++		if (iwbl_test_sync(iwbl))
+ 			goto out_unlock_inode;
+ 
+ 		/*
+diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
+index e448edc..e3b18f3 100644
+--- a/include/linux/backing-dev-defs.h
++++ b/include/linux/backing-dev-defs.h
+@@ -47,8 +47,15 @@ enum wb_stat_item {
+  * IWBL_* flags which occupy the lower bits of inode_wb_link->data.  The
+  * upper bits point to bdi_writeback, so the number of these flags
+  * determines the minimum alignment of bdi_writeback.
++ *
++ * IWBL_SYNC
++ *
++ *  Tracks whether writeback is in progress for an iwbl.  If this bit is
++ *  set for any iwbl on an inode, the inode's I_SYNC is set too.
+  */
+ enum {
++	IWBL_SYNC		= 0,
++
+ 	IWBL_FLAGS_BITS,
+ 	IWBL_FLAGS_MASK		= (1UL << IWBL_FLAGS_BITS) - 1,
+ };
 diff --git a/include/linux/fs.h b/include/linux/fs.h
-index fb261b4..b394821 100644
+index b394821..4c22824 100644
 --- a/include/linux/fs.h
 +++ b/include/linux/fs.h
-@@ -609,6 +609,9 @@ struct inode {
- 
- 	struct hlist_node	i_hash;
- 	struct inode_wb_link	i_wb_link;	/* backing dev IO list */
+@@ -625,6 +625,9 @@ struct inode {
+ #ifdef CONFIG_IMA
+ 	atomic_t		i_readcount; /* struct files open RO */
+ #endif
 +#ifdef CONFIG_CGROUP_WRITEBACK
-+	struct hlist_head	i_cgwb_links;	/* sorted inode_cgwb_links */
++	unsigned int		i_nr_syncs;
 +#endif
- 	struct list_head	i_lru;		/* inode LRU list */
- 	struct list_head	i_sb_list;
- 	union {
+ 	const struct file_operations	*i_fop;	/* former ->i_op->default_file_ops */
+ 	struct file_lock	*i_flock;
+ 	struct address_space	i_data;
 diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index cc8d21a..e4db465 100644
+index e4db465..1399ad6 100644
 --- a/mm/backing-dev.c
 +++ b/mm/backing-dev.c
-@@ -464,6 +464,7 @@ int __cgwb_create(struct backing_dev_info *bdi,
- 		return -ENOMEM;
- 	}
- 
-+	INIT_LIST_HEAD(&wb->icgwbls);
- 	wb->blkcg_css = blkcg_css;
- 	set_bit(WB_registered, &wb->state); /* cgwbs are always registered */
- 
-@@ -532,16 +533,31 @@ static void cgwb_shutdown_commit(struct list_head *to_shutdown)
- 
- static void cgwb_exit(struct bdi_writeback *wb)
- {
-+	struct inode_cgwb_link *icgwbl, *next;
-+	unsigned long flags;
-+
-+	spin_lock_irqsave(&wb->bdi->icgwbls_lock, flags);
-+	list_for_each_entry_safe(icgwbl, next, &wb->icgwbls, wb_node) {
-+		WARN_ON_ONCE(!list_empty(&icgwbl->iwbl.dirty_list));
-+		hlist_del_rcu(&icgwbl->inode_node);
-+		list_del(&icgwbl->wb_node);
-+		kfree_rcu(icgwbl, rcu);
-+	}
-+	spin_unlock_irqrestore(&wb->bdi->icgwbls_lock, flags);
-+
- 	WARN_ON(!radix_tree_delete(&wb->bdi->cgwb_tree, wb->blkcg_css->id));
- 	list_del(&wb->blkcg_node);
-+
- 	wb_exit(wb);
- 	kfree_rcu(wb, rcu);
- }
- 
- static void cgwb_bdi_init(struct backing_dev_info *bdi)
- {
-+	INIT_LIST_HEAD(&bdi->wb.icgwbls);
- 	bdi->wb.blkcg_css = blkcg_root_css;
- 	INIT_RADIX_TREE(&bdi->cgwb_tree, GFP_ATOMIC);
-+	spin_lock_init(&bdi->icgwbls_lock);
- }
- 
- /**
-@@ -613,6 +629,70 @@ void cgwb_blkcg_released(struct cgroup_subsys_state *blkcg_css)
- 	spin_unlock_irq(&cgwb_lock);
- }
- 
-+/**
-+ * iwbl_create - create an inode_cgwb_link
-+ * @inode: target inode
-+ * @wb: target bdi_writeback
-+ *
-+ * Try to create an iwbl (inode_wb_link) for dirtying @inode against @wb.
-+ * This function can be called under any context without locking as long as
-+ * @inode and @wb are kept alive.  See iwbl_lookup() for details.
-+ *
-+ * Returns the pointer to the created or found icgwbl on success, %NULL on
-+ * failure.
-+ */
-+struct inode_wb_link *iwbl_create(struct inode *inode, struct bdi_writeback *wb)
-+{
-+	struct inode_wb_link *iwbl = NULL;
-+	struct inode_cgwb_link *icgwbl;
-+	unsigned long flags;
-+
-+	icgwbl = kzalloc(sizeof(*icgwbl), GFP_ATOMIC);
-+	if (!icgwbl)
-+		return NULL;
-+
-+	icgwbl->iwbl.data = (unsigned long)wb;
-+	INIT_LIST_HEAD(&icgwbl->iwbl.dirty_list);
-+	icgwbl->inode = inode;
-+
-+	spin_lock_irqsave(&wb->bdi->icgwbls_lock, flags);
-+
-+	/*
-+	 * Testing I_FREEING under icgwbls_lock guarantees that no new
-+	 * icgwbl's will be created after inode_icgwbls_del().
-+	 */
-+	if (inode->i_state & I_FREEING)
-+		goto out_unlock;
-+
-+	iwbl = iwbl_lookup(inode, wb->blkcg_css);
-+	if (!iwbl) {
-+		struct inode_cgwb_link *prev = NULL, *pos;
-+		int blkcg_id = wb->blkcg_css->id;
-+
-+		/* i_cgwb_links is sorted by blkcg ID */
-+		hlist_for_each_entry_rcu(pos, &inode->i_cgwb_links, inode_node) {
-+			if (iwbl_to_wb(&pos->iwbl)->blkcg_css->id > blkcg_id)
-+				break;
-+			prev = pos;
-+		}
-+		if (prev)
-+			hlist_add_behind_rcu(&icgwbl->inode_node,
-+					     &prev->inode_node);
-+		else
-+			hlist_add_head_rcu(&icgwbl->inode_node,
-+					   &inode->i_cgwb_links);
-+
-+		list_add(&icgwbl->wb_node, &wb->icgwbls);
-+
-+		iwbl = &icgwbl->iwbl;
-+		icgwbl = NULL;
-+	}
-+out_unlock:
-+	spin_unlock_irqrestore(&wb->bdi->icgwbls_lock, flags);
-+	kfree(icgwbl);
-+	return iwbl;
-+}
-+
- #else	/* CONFIG_CGROUP_WRITEBACK */
- 
- static void cgwb_bdi_init(struct backing_dev_info *bdi) { }
+@@ -539,6 +539,7 @@ static void cgwb_exit(struct bdi_writeback *wb)
+ 	spin_lock_irqsave(&wb->bdi->icgwbls_lock, flags);
+ 	list_for_each_entry_safe(icgwbl, next, &wb->icgwbls, wb_node) {
+ 		WARN_ON_ONCE(!list_empty(&icgwbl->iwbl.dirty_list));
++		WARN_ON_ONCE(test_bit(IWBL_SYNC, &icgwbl->iwbl.data));
+ 		hlist_del_rcu(&icgwbl->inode_node);
+ 		list_del(&icgwbl->wb_node);
+ 		kfree_rcu(icgwbl, rcu);
 -- 
 2.1.0
 
