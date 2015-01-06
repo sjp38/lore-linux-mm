@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 75DA36B013C
-	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 16:26:52 -0500 (EST)
-Received: by mail-qg0-f53.google.com with SMTP id l89so53371qgf.40
-        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 13:26:52 -0800 (PST)
-Received: from mail-qa0-x22c.google.com (mail-qa0-x22c.google.com. [2607:f8b0:400d:c00::22c])
-        by mx.google.com with ESMTPS id k10si65721108qay.56.2015.01.06.13.26.50
+Received: from mail-qa0-f48.google.com (mail-qa0-f48.google.com [209.85.216.48])
+	by kanga.kvack.org (Postfix) with ESMTP id CDA9F6B013D
+	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 16:26:53 -0500 (EST)
+Received: by mail-qa0-f48.google.com with SMTP id k15so206123qaq.7
+        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 13:26:53 -0800 (PST)
+Received: from mail-qa0-x22e.google.com (mail-qa0-x22e.google.com. [2607:f8b0:400d:c00::22e])
+        by mx.google.com with ESMTPS id m8si2717742qay.103.2015.01.06.13.26.52
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 06 Jan 2015 13:26:51 -0800 (PST)
-Received: by mail-qa0-f44.google.com with SMTP id bm13so227152qab.3
-        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 13:26:50 -0800 (PST)
+        Tue, 06 Jan 2015 13:26:52 -0800 (PST)
+Received: by mail-qa0-f46.google.com with SMTP id w8so219077qac.5
+        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 13:26:52 -0800 (PST)
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 12/45] writeback: implement and use mapping_congested()
-Date: Tue,  6 Jan 2015 16:25:49 -0500
-Message-Id: <1420579582-8516-13-git-send-email-tj@kernel.org>
+Subject: [PATCH 13/45] writeback: implement WB_has_dirty_io wb_state flag
+Date: Tue,  6 Jan 2015 16:25:50 -0500
+Message-Id: <1420579582-8516-14-git-send-email-tj@kernel.org>
 In-Reply-To: <1420579582-8516-1-git-send-email-tj@kernel.org>
 References: <1420579582-8516-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,198 +22,256 @@ List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk
 Cc: linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com, david@fromorbit.com, Tejun Heo <tj@kernel.org>
 
-In several places, bdi_congested() and its wrappers are used to
-determine whether more IOs should be issued.  With cgroup writeback
-support, this question can't be answered solely based on the bdi
-(backing_dev_info).  It's dependent on whether the filesystem and bdi
-support cgroup writeback and the blkcg the asking task belongs to.
+Currently, wb_has_dirty_io() determines whether a wb (bdi_writeback)
+has any dirty inode by testing all three IO lists on each invocation
+without actively keeping track.  For cgroup writeback support, a
+single bdi will host multiple wb's each of which will host dirty
+inodes separately and we'll need to make bdi_has_dirty_io(), which
+currently only represents the root wb, aggregate has_dirty_io from all
+member wb's, which requires tracking transitions in has_dirty_io state
+on each wb.
 
-This patch implements mapping_congested() and its wrappers which take
-@mapping and @task and determines the congestion state considering
-cgroup writeback for the combination.  The new functions replace
-bdi_*congested() calls in places where the query is about specific
-mapping and task.
+This patch adds inode_wb_list_move_locked() and
+inode_wb_list_del_locked() replace direct inode->i_wb_list operations
+with them.  In addition to the list operations, the two functions keep
+track of whether the wb has dirty inodes or not and record it using
+the new WB_has_dirty_io flag.  inode_wb_list_moved_locked()'s return
+value indicates whether the wb had no dirty inodes before.
 
-There are several filesystem users which also fit this criteria but
-they should be updated when each filesystem implements cgroup
-writeback support.
+mark_inode_dirty_dctx() is restructured so that the return value of
+inode_wb_list_move_locked() can be used for deciding whether to wake
+up the wb.
+
+While at it, change {bdi|wb}_has_dirty_io()'s return values to bool.
+These functions were returning 0 and 1 before.  Also, add a comment
+explaining the synchronization of wb_state flags.
 
 Signed-off-by: Tejun Heo <tj@kernel.org>
 Cc: Jens Axboe <axboe@kernel.dk>
 Cc: Jan Kara <jack@suse.cz>
-Cc: Vivek Goyal <vgoyal@redhat.com>
 ---
- fs/fs-writeback.c           | 34 ++++++++++++++++++++++++++++++++++
- include/linux/backing-dev.h | 27 +++++++++++++++++++++++++++
- mm/fadvise.c                |  2 +-
- mm/readahead.c              |  2 +-
- mm/vmscan.c                 | 12 ++++++------
- 5 files changed, 69 insertions(+), 8 deletions(-)
+ fs/fs-writeback.c                | 88 +++++++++++++++++++++++++++++-----------
+ include/linux/backing-dev-defs.h |  8 ++++
+ include/linux/backing-dev.h      |  8 ++--
+ mm/backing-dev.c                 |  2 +-
+ 4 files changed, 77 insertions(+), 29 deletions(-)
 
 diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index 3b54835..43c1fb2 100644
+index 43c1fb2..1718f5f 100644
 --- a/fs/fs-writeback.c
 +++ b/fs/fs-writeback.c
-@@ -109,6 +109,40 @@ out_unlock:
- #ifdef CONFIG_CGROUP_WRITEBACK
+@@ -291,16 +291,62 @@ void bdi_start_background_writeback(struct backing_dev_info *bdi)
+ 	wb_wakeup(&bdi->wb);
+ }
  
- /**
-+ * mapping_congested - test whether a mapping is congested for a task
-+ * @mapping: address space to test for congestion
-+ * @task: task to test congestion for
-+ * @bdi_bits: mask of WB_[a]sync_congested bits to test
++/**
++ * inode_wb_list_move_locked - move an inode onto a bdi_writeback IO list
++ * @inode: inode to be moved
++ * @wb: target bdi_writeback
++ * @head: one of @wb->b_{dirty|io|more_io}
 + *
-+ * Tests whether @mapping is congested for @task.  @bdi_bits is the mask of
-+ * congestion bits to test and the return value is the mask of set bits.
-+ *
-+ * If cgroup writeback is enabled for @mapping, its congestion state for
-+ * @task is determined by whether the cgwb (cgroup bdi_writeback) for the
-+ * blkcg of %current on @mapping->backing_dev_info is congested; otherwise,
-+ * the root's congestion state is used.
++ * Move @inode->i_wb_list to @list of @wb and set %WB_has_dirty_io.
++ * Returns %true if all IO lists were empty before; otherwise, %false.
 + */
-+int mapping_congested(struct address_space *mapping,
-+		      struct task_struct *task, int bdi_bits)
++static bool inode_wb_list_move_locked(struct inode *inode,
++				      struct bdi_writeback *wb,
++				      struct list_head *head)
 +{
-+	struct backing_dev_info *bdi = mapping->backing_dev_info;
-+	struct bdi_writeback *wb;
-+	int ret = 0;
++	assert_spin_locked(&wb->list_lock);
 +
-+	if (!mapping_cgwb_enabled(mapping))
-+		return wb_congested(&bdi->wb, bdi_bits);
++	list_move(&inode->i_wb_list, head);
 +
-+	rcu_read_lock();
-+	wb = cgwb_lookup(bdi, task_css(task, blkio_cgrp_id));
-+	if (wb)
-+		ret = wb_congested(wb, bdi_bits);
-+	rcu_read_unlock();
-+
-+	return ret;
++	if (wb_has_dirty_io(wb)) {
++		return false;
++	} else {
++		set_bit(WB_has_dirty_io, &wb->state);
++		return true;
++	}
 +}
-+EXPORT_SYMBOL_GPL(mapping_congested);
 +
 +/**
-  * init_cgwb_dirty_page_context - init cgwb part of dirty_context
-  * @dctx: dirty_context being initialized
-  *
++ * inode_wb_list_del_locked - remove an inode from its bdi_writeback IO list
++ * @inode: inode to be removed
++ * @wb: bdi_writeback @inode is being removed from
++ *
++ * Remove @inode which may be on one of @wb->b_{dirty|io|more_io} lists and
++ * clear %WB_has_dirty_io if all are empty afterwards.
++ */
++static void inode_wb_list_del_locked(struct inode *inode,
++				     struct bdi_writeback *wb)
++{
++	assert_spin_locked(&wb->list_lock);
++
++	list_del_init(&inode->i_wb_list);
++
++	if (wb_has_dirty_io(wb) && list_empty(&wb->b_dirty) &&
++	    list_empty(&wb->b_io) && list_empty(&wb->b_more_io))
++		clear_bit(WB_has_dirty_io, &wb->state);
++}
++
+ /*
+  * Remove the inode from the writeback list it is on.
+  */
+ void inode_wb_list_del(struct inode *inode)
+ {
+ 	struct backing_dev_info *bdi = inode_to_bdi(inode);
++	struct bdi_writeback *wb = &bdi->wb;
+ 
+-	spin_lock(&bdi->wb.list_lock);
+-	list_del_init(&inode->i_wb_list);
+-	spin_unlock(&bdi->wb.list_lock);
++	spin_lock(&wb->list_lock);
++	inode_wb_list_del_locked(inode, wb);
++	spin_unlock(&wb->list_lock);
+ }
+ 
+ /*
+@@ -314,7 +360,6 @@ void inode_wb_list_del(struct inode *inode)
+  */
+ static void redirty_tail(struct inode *inode, struct bdi_writeback *wb)
+ {
+-	assert_spin_locked(&wb->list_lock);
+ 	if (!list_empty(&wb->b_dirty)) {
+ 		struct inode *tail;
+ 
+@@ -322,7 +367,7 @@ static void redirty_tail(struct inode *inode, struct bdi_writeback *wb)
+ 		if (time_before(inode->dirtied_when, tail->dirtied_when))
+ 			inode->dirtied_when = jiffies;
+ 	}
+-	list_move(&inode->i_wb_list, &wb->b_dirty);
++	inode_wb_list_move_locked(inode, wb, &wb->b_dirty);
+ }
+ 
+ /*
+@@ -330,8 +375,7 @@ static void redirty_tail(struct inode *inode, struct bdi_writeback *wb)
+  */
+ static void requeue_io(struct inode *inode, struct bdi_writeback *wb)
+ {
+-	assert_spin_locked(&wb->list_lock);
+-	list_move(&inode->i_wb_list, &wb->b_more_io);
++	inode_wb_list_move_locked(inode, wb, &wb->b_more_io);
+ }
+ 
+ static void inode_sync_complete(struct inode *inode)
+@@ -549,7 +593,7 @@ static void requeue_inode(struct inode *inode, struct bdi_writeback *wb,
+ 		redirty_tail(inode, wb);
+ 	} else {
+ 		/* The inode is clean. Remove from writeback lists. */
+-		list_del_init(&inode->i_wb_list);
++		inode_wb_list_del_locked(inode, wb);
+ 	}
+ }
+ 
+@@ -678,7 +722,7 @@ writeback_single_inode(struct inode *inode, struct bdi_writeback *wb,
+ 	 * touch it. See comment above for explanation.
+ 	 */
+ 	if (!(inode->i_state & I_DIRTY))
+-		list_del_init(&inode->i_wb_list);
++		inode_wb_list_del_locked(inode, wb);
+ 	spin_unlock(&wb->list_lock);
+ 	inode_sync_complete(inode);
+ out:
+@@ -1319,25 +1363,23 @@ void mark_inode_dirty_dctx(struct dirty_context *dctx, int flags)
+ 
+ 			spin_unlock(&inode->i_lock);
+ 			spin_lock(&bdi->wb.list_lock);
+-			if (bdi_cap_writeback_dirty(bdi)) {
+-				WARN(!test_bit(WB_registered, &bdi->wb.state),
+-				     "bdi-%s not registered\n", bdi->name);
+ 
+-				/*
+-				 * If this is the first dirty inode for this
+-				 * bdi, we have to wake-up the corresponding
+-				 * bdi thread to make sure background
+-				 * write-back happens later.
+-				 */
+-				if (!wb_has_dirty_io(&bdi->wb))
+-					wakeup_bdi = true;
+-			}
++			WARN(bdi_cap_writeback_dirty(bdi) &&
++			     !test_bit(WB_registered, &bdi->wb.state),
++			     "bdi-%s not registered\n", bdi->name);
+ 
+ 			inode->dirtied_when = jiffies;
+-			list_move(&inode->i_wb_list, &bdi->wb.b_dirty);
++			wakeup_bdi = inode_wb_list_move_locked(inode, &bdi->wb,
++							      &bdi->wb.b_dirty);
+ 			spin_unlock(&bdi->wb.list_lock);
+ 
+-			if (wakeup_bdi)
++			/*
++			 * If this is the first dirty inode for this bdi,
++			 * we have to wake-up the corresponding bdi thread
++			 * to make sure background write-back happens
++			 * later.
++			 */
++			if (bdi_cap_writeback_dirty(bdi) && wakeup_bdi)
+ 				wb_wakeup_delayed(&bdi->wb);
+ 			return;
+ 		}
+diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
+index 54a3a9c..d1c0bf4 100644
+--- a/include/linux/backing-dev-defs.h
++++ b/include/linux/backing-dev-defs.h
+@@ -17,10 +17,18 @@ struct dentry;
+  * Bits in bdi_writeback.state
+  */
+ enum wb_state {
++	/*
++	 * The two congested flags are modified asynchronously and must be
++	 * atomic.  The other flags are protected either by wb->list_lock
++	 * or ->work_lock and don't need to be atomic if placed on separate
++	 * fields.  The extra atomic operations don't really matter here.
++	 * Let's keep them together and use atomic bitops.
++	 */
+ 	WB_async_congested,	/* The async (write) queue is getting full */
+ 	WB_sync_congested,	/* The sync queue is getting full */
+ 	WB_registered,		/* bdi_register() was done */
+ 	WB_writeback_running,	/* Writeback is in progress */
++	WB_has_dirty_io,	/* Dirty inodes on ->b_{dirty|io|more_io} */
+ };
+ 
+ typedef int (congested_fn)(void *, int);
 diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-index be66668..0b1ac4b 100644
+index 0b1ac4b..533ff86 100644
 --- a/include/linux/backing-dev.h
 +++ b/include/linux/backing-dev.h
-@@ -263,6 +263,8 @@ void init_dirty_inode_context(struct dirty_context *dctx, struct inode *inode);
- void cgwb_blkcg_released(struct cgroup_subsys_state *blkcg_css);
- int __cgwb_create(struct backing_dev_info *bdi,
- 		  struct cgroup_subsys_state *blkcg_css);
-+int mapping_congested(struct address_space *mapping, struct task_struct *task,
-+		      int bdi_bits);
+@@ -30,7 +30,7 @@ void bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages,
+ 			enum wb_reason reason);
+ void bdi_start_background_writeback(struct backing_dev_info *bdi);
+ void wb_workfn(struct work_struct *work);
+-int bdi_has_dirty_io(struct backing_dev_info *bdi);
++bool bdi_has_dirty_io(struct backing_dev_info *bdi);
+ void wb_wakeup_delayed(struct bdi_writeback *wb);
  
- /**
-  * mapping_cgwb_enabled - test whether cgroup writeback is enabled on a mapping
-@@ -383,6 +385,12 @@ static inline void cgwb_blkcg_released(struct cgroup_subsys_state *blkcg_css)
+ extern spinlock_t bdi_lock;
+@@ -38,11 +38,9 @@ extern struct list_head bdi_list;
+ 
+ extern struct workqueue_struct *bdi_wq;
+ 
+-static inline int wb_has_dirty_io(struct bdi_writeback *wb)
++static inline bool wb_has_dirty_io(struct bdi_writeback *wb)
  {
+-	return !list_empty(&wb->b_dirty) ||
+-	       !list_empty(&wb->b_io) ||
+-	       !list_empty(&wb->b_more_io);
++	return test_bit(WB_has_dirty_io, &wb->state);
  }
  
-+static inline int mapping_congested(struct address_space *mapping,
-+				    struct task_struct *task, int bdi_bits)
-+{
-+	return wb_congested(&mapping->backing_dev_info->wb, bdi_bits);
-+}
-+
- static inline struct bdi_writeback *
- cgwb_lookup(struct backing_dev_info *bdi, struct cgroup_subsys_state *blkcg_css)
- {
-@@ -408,6 +416,25 @@ static inline struct bdi_writeback *page_cgwb_wb(struct page *page)
- 
- #endif	/* CONFIG_CGROUP_WRITEBACK */
- 
-+static inline int mapping_read_congested(struct address_space *mapping,
-+					 struct task_struct *task)
-+{
-+	return mapping_congested(mapping, task, 1 << WB_sync_congested);
-+}
-+
-+static inline int mapping_write_congested(struct address_space *mapping,
-+					  struct task_struct *task)
-+{
-+	return mapping_congested(mapping, task, 1 << WB_async_congested);
-+}
-+
-+static inline int mapping_rw_congested(struct address_space *mapping,
-+				       struct task_struct *task)
-+{
-+	return mapping_congested(mapping, task, (1 << WB_sync_congested) |
-+						(1 << WB_async_congested));
-+}
-+
- static inline int bdi_congested(struct backing_dev_info *bdi, int bdi_bits)
- {
- 	return wb_congested(&bdi->wb, bdi_bits);
-diff --git a/mm/fadvise.c b/mm/fadvise.c
-index 2ad7adf..c7347d7 100644
---- a/mm/fadvise.c
-+++ b/mm/fadvise.c
-@@ -113,7 +113,7 @@ SYSCALL_DEFINE4(fadvise64_64, int, fd, loff_t, offset, loff_t, len, int, advice)
- 	case POSIX_FADV_NOREUSE:
- 		break;
- 	case POSIX_FADV_DONTNEED:
--		if (!bdi_write_congested(mapping->backing_dev_info))
-+		if (!mapping_write_congested(mapping, current))
- 			__filemap_fdatawrite_range(mapping, offset, endbyte,
- 						   WB_SYNC_NONE);
- 
-diff --git a/mm/readahead.c b/mm/readahead.c
-index 17b9172..beb930c 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -541,7 +541,7 @@ page_cache_async_readahead(struct address_space *mapping,
- 	/*
- 	 * Defer asynchronous read-ahead on IO congestion.
- 	 */
--	if (bdi_read_congested(mapping->backing_dev_info))
-+	if (mapping_read_congested(mapping, current))
- 		return;
- 
- 	/* do read-ahead */
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 5e8772b..95b98c7 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -411,14 +411,14 @@ static inline int is_page_cache_freeable(struct page *page)
- 	return page_count(page) - page_has_private(page) == 2;
+ static inline void __add_wb_stat(struct bdi_writeback *wb,
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index 2851278..9d69e7c 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -307,7 +307,7 @@ static int __init default_bdi_init(void)
  }
+ subsys_initcall(default_bdi_init);
  
--static int may_write_to_queue(struct backing_dev_info *bdi,
--			      struct scan_control *sc)
-+static int may_write_to_mapping(struct address_space *mapping,
-+				struct scan_control *sc)
+-int bdi_has_dirty_io(struct backing_dev_info *bdi)
++bool bdi_has_dirty_io(struct backing_dev_info *bdi)
  {
- 	if (current->flags & PF_SWAPWRITE)
- 		return 1;
--	if (!bdi_write_congested(bdi))
-+	if (!mapping_write_congested(mapping, current))
- 		return 1;
--	if (bdi == current->backing_dev_info)
-+	if (mapping->backing_dev_info == current->backing_dev_info)
- 		return 1;
- 	return 0;
+ 	return wb_has_dirty_io(&bdi->wb);
  }
-@@ -497,7 +497,7 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
- 	}
- 	if (mapping->a_ops->writepage == NULL)
- 		return PAGE_ACTIVATE;
--	if (!may_write_to_queue(mapping->backing_dev_info, sc))
-+	if (!may_write_to_mapping(mapping, sc))
- 		return PAGE_KEEP;
- 
- 	if (clear_page_dirty_for_io(page)) {
-@@ -885,7 +885,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		 */
- 		mapping = page_mapping(page);
- 		if (((dirty || writeback) && mapping &&
--		     bdi_write_congested(mapping->backing_dev_info)) ||
-+		     mapping_write_congested(mapping, current)) ||
- 		    (writeback && PageReclaim(page)))
- 			nr_congested++;
- 
 -- 
 2.1.0
 
