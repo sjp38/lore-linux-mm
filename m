@@ -1,64 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CCC86B00A4
-	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 21:58:21 -0500 (EST)
-Received: by mail-wg0-f50.google.com with SMTP id a1so28654267wgh.37
-        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 18:58:21 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id cu6si21067700wib.36.2015.01.05.18.58.19
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 381306B00A5
+	for <linux-mm@kvack.org>; Mon,  5 Jan 2015 22:03:27 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id bj1so30010786pad.37
+        for <linux-mm@kvack.org>; Mon, 05 Jan 2015 19:03:27 -0800 (PST)
+Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
+        by mx.google.com with ESMTPS id j2si86636616pdo.128.2015.01.05.19.03.24
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Jan 2015 18:58:20 -0800 (PST)
-Message-ID: <54AB4F3F.50103@redhat.com>
-Date: Mon, 05 Jan 2015 21:58:07 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH V3 2/2] mm, vmscan: wake up all pfmemalloc-throttled processes
- at once
-References: <1420448203-30212-1-git-send-email-vbabka@suse.cz> <1420448203-30212-2-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1420448203-30212-2-git-send-email-vbabka@suse.cz>
-Content-Type: text/plain; charset=utf-8
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 05 Jan 2015 19:03:25 -0800 (PST)
+Message-ID: <1420513392.24290.2.camel@stgolabs.net>
+Subject: Re: [PATCH 1/2] mm/slub: optimize alloc/free fastpath by removing
+ preemption on/off
+From: Davidlohr Bueso <dave@stgolabs.net>
+Date: Mon, 05 Jan 2015 19:03:12 -0800
+In-Reply-To: <1420421765-3209-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1420421765-3209-1-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@parallels.com>, stable@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>, rostedt@goodmis.org, Thomas Gleixner <tglx@linutronix.de>
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
+On Mon, 2015-01-05 at 10:36 +0900, Joonsoo Kim wrote:
+> -	preempt_disable();
+> -	c = this_cpu_ptr(s->cpu_slab);
+> +	do {
+> +		tid = this_cpu_read(s->cpu_slab->tid);
+> +		c = this_cpu_ptr(s->cpu_slab);
+> +	} while (IS_ENABLED(CONFIG_PREEMPT) && unlikely(tid != c->tid));
+> +	barrier();
 
-On 01/05/2015 03:56 AM, Vlastimil Babka wrote:
-> Kswapd in balance_pgdate() currently uses wake_up() on processes
-> waiting in throttle_direct_reclaim(), which only wakes up a single
-> process. This might leave processes waiting for longer than
-> necessary, until the check is reached in the next loop iteration.
-> Processes might also be left waiting if zone was fully balanced in
-> single iteration. Note that the comment in balance_pgdat() also
-> says "Wake them", so waking up a single process does not seem
-> intentional.
-> 
-> Thus, replace wake_up() with wake_up_all().
-> 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz> Cc: Mel Gorman
-> <mgorman@suse.de> Cc: Johannes Weiner <hannes@cmpxchg.org> Cc:
-> Michal Hocko <mhocko@suse.cz> Cc: Vladimir Davydov
-> <vdavydov@parallels.com> Cc: Rik van Riel <riel@redhat.com>
+I don't see the compiler reodering the object/page stores below, since c
+is updated in the loop anyway. Is this really necessary (same goes for
+slab_free)? The generated code by gcc 4.8 looks correct without it.
+Additionally, the implied barriers for preemption control aren't really
+the same semantics used here (if that is actually the reason why you are
+using them).
 
-Acked-by: Rik van Riel <riel@redhat.com>
-
-- -- 
-All rights reversed
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iQEcBAEBAgAGBQJUq08+AAoJEM553pKExN6D9bEIAKV916k0OguiyAGIXrgjPrba
-3W2eQ2FFWIm6KwumPas7t6jBzR11yFhpAIACf6nNt12EmH73UwaW2z6vdYque4c+
-HU79DXTNTQ91xJfXI8XfNsZW/s8zpCZ+Sm08N7/O7k6c76yKR+owXmoSnjb2Q4N9
-O0F0db3Jkd52sH/2l+LCUKrTeI9fRBrKnpAv7FAhZ5go8N7tdtIjYv8hhpIZ/83F
-WSRsORt0VKOx0an+JO09e5f6R+RF7RAqiU6yUdDAk52CJzyRqECksLxDOvw81OHD
-QUT5TuMVNoqXNJxFpQvyI8Dn82d1CiisX2Wztcic4OlxPJQ6gK04SmeWMXw8Ijw=
-=pnD6
------END PGP SIGNATURE-----
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
