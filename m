@@ -1,130 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 05DFA6B00E5
-	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 14:15:50 -0500 (EST)
-Received: by mail-pd0-f171.google.com with SMTP id y13so31070601pdi.30
-        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 11:15:49 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id ph9si23854049pbb.236.2015.01.06.11.15.47
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 1121E6B00E8
+	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 14:23:14 -0500 (EST)
+Received: by mail-pd0-f170.google.com with SMTP id v10so31135216pde.29
+        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 11:23:13 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id m4si70948715pap.111.2015.01.06.11.23.11
         for <linux-mm@kvack.org>;
-        Tue, 06 Jan 2015 11:15:48 -0800 (PST)
-Date: Wed, 7 Jan 2015 03:15:00 +0800
+        Tue, 06 Jan 2015 11:23:12 -0800 (PST)
+Date: Wed, 7 Jan 2015 03:22:14 +0800
 From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [cgroup:review-cgroup-writeback-20150106 63/265]
- mm/page_alloc.c:654:27: error: 'struct free_area' has no member named
- 'cma_nr_free'
-Message-ID: <201501070358.qiFdxmfv%fengguang.wu@intel.com>
+Subject: [cgroup:review-cgroup-writeback-20150106 65/265]
+ mm/page-writeback.c:2314:10: error: too few arguments to function
+ 'mem_cgroup_begin_page_stat'
+Message-ID: <201501070312.c0o38bh9%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="AqsLC8rIMeq19msA"
+Content-Type: multipart/mixed; boundary="u3/rZRmxL6MmkK24"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hui Zhu <zhuhui@xiaomi.com>
-Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Weixing Liu <liuweixing@xiaomi.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
 
---AqsLC8rIMeq19msA
+--u3/rZRmxL6MmkK24
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 
 tree:   git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git review-cgroup-writeback-20150106
 head:   393b71c00e25227a020f9dbf8ffdddebac4fdf1e
-commit: c2b42c0f94035f23cd0524c2cece2f3e05d28255 [63/265] CMA: fix CMA's page number is substructed twice in __zone_watermark_ok
+commit: db73c712993c8bea02a97a5e936f965efc1de435 [65/265] mm: memcontrol: track move_lock state internally
 config: parisc-c3000_defconfig (attached as .config)
 reproduce:
   wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
   chmod +x ~/bin/make.cross
-  git checkout c2b42c0f94035f23cd0524c2cece2f3e05d28255
+  git checkout db73c712993c8bea02a97a5e936f965efc1de435
   # save the attached .config to linux build tree
   make.cross ARCH=parisc 
 
 All error/warnings:
 
-   mm/page_alloc.c: In function '__free_one_page':
->> mm/page_alloc.c:654:27: error: 'struct free_area' has no member named 'cma_nr_free'
-        zone->free_area[order].cma_nr_free--;
-                              ^
->> mm/page_alloc.c:689:25: error: 'struct free_area' has no member named 'cma_nr_free'
-      zone->free_area[order].cma_nr_free++;
-                            ^
-   mm/page_alloc.c: In function 'expand':
->> mm/page_alloc.c:945:8: error: 'struct free_area' has no member named 'cma_nr_free'
-       area->cma_nr_free++;
-           ^
-   mm/page_alloc.c: In function '__rmqueue_smallest':
->> mm/page_alloc.c:1030:8: error: 'struct free_area' has no member named 'cma_nr_free'
-       area->cma_nr_free--;
-           ^
-   mm/page_alloc.c: In function '__rmqueue_fallback':
->> mm/page_alloc.c:1220:9: error: 'struct free_area' has no member named 'cma_nr_free'
-        area->cma_nr_free--;
-            ^
-   mm/page_alloc.c: In function '__isolate_free_page':
->> mm/page_alloc.c:1611:25: error: 'struct free_area' has no member named 'cma_nr_free'
-      zone->free_area[order].cma_nr_free--;
-                            ^
-   mm/page_alloc.c: In function '__zone_watermark_ok':
->> mm/page_alloc.c:1847:33: error: 'struct free_area' has no member named 'cma_nr_free'
-       free_pages += z->free_area[o].cma_nr_free << o;
-                                    ^
-   mm/page_alloc.c: In function 'zone_init_free_lists':
->> mm/page_alloc.c:4250:25: error: 'struct free_area' has no member named 'cma_nr_free'
-      zone->free_area[order].cma_nr_free = 0;
-                            ^
+   mm/page-writeback.c: In function 'test_clear_page_writeback':
+>> mm/page-writeback.c:2314:10: error: too few arguments to function 'mem_cgroup_begin_page_stat'
+     memcg = mem_cgroup_begin_page_stat(page);
+             ^
+   In file included from include/linux/swap.h:8:0,
+                    from mm/page-writeback.c:19:
+   include/linux/memcontrol.h:286:34: note: declared here
+    static inline struct mem_cgroup *mem_cgroup_begin_page_stat(struct page *page,
+                                     ^
+>> mm/page-writeback.c:2339:2: error: too few arguments to function 'mem_cgroup_end_page_stat'
+     mem_cgroup_end_page_stat(memcg);
+     ^
+   In file included from include/linux/swap.h:8:0,
+                    from mm/page-writeback.c:19:
+   include/linux/memcontrol.h:292:20: note: declared here
+    static inline void mem_cgroup_end_page_stat(struct mem_cgroup *memcg,
+                       ^
+   mm/page-writeback.c: In function '__test_set_page_writeback':
+>> mm/page-writeback.c:2349:10: error: too few arguments to function 'mem_cgroup_begin_page_stat'
+     memcg = mem_cgroup_begin_page_stat(page);
+             ^
+   In file included from include/linux/swap.h:8:0,
+                    from mm/page-writeback.c:19:
+   include/linux/memcontrol.h:286:34: note: declared here
+    static inline struct mem_cgroup *mem_cgroup_begin_page_stat(struct page *page,
+                                     ^
+>> mm/page-writeback.c:2379:2: error: too few arguments to function 'mem_cgroup_end_page_stat'
+     mem_cgroup_end_page_stat(memcg);
+     ^
+   In file included from include/linux/swap.h:8:0,
+                    from mm/page-writeback.c:19:
+   include/linux/memcontrol.h:292:20: note: declared here
+    static inline void mem_cgroup_end_page_stat(struct mem_cgroup *memcg,
+                       ^
+--
+   mm/rmap.c: In function 'page_add_file_rmap':
+>> mm/rmap.c:1090:10: error: too few arguments to function 'mem_cgroup_begin_page_stat'
+     memcg = mem_cgroup_begin_page_stat(page);
+             ^
+   In file included from include/linux/swap.h:8:0,
+                    from mm/rmap.c:47:
+   include/linux/memcontrol.h:286:34: note: declared here
+    static inline struct mem_cgroup *mem_cgroup_begin_page_stat(struct page *page,
+                                     ^
+>> mm/rmap.c:1095:2: error: too few arguments to function 'mem_cgroup_end_page_stat'
+     mem_cgroup_end_page_stat(memcg);
+     ^
+   In file included from include/linux/swap.h:8:0,
+                    from mm/rmap.c:47:
+   include/linux/memcontrol.h:292:20: note: declared here
+    static inline void mem_cgroup_end_page_stat(struct mem_cgroup *memcg,
+                       ^
+   mm/rmap.c: In function 'page_remove_file_rmap':
+>> mm/rmap.c:1102:10: error: too few arguments to function 'mem_cgroup_begin_page_stat'
+     memcg = mem_cgroup_begin_page_stat(page);
+             ^
+   In file included from include/linux/swap.h:8:0,
+                    from mm/rmap.c:47:
+   include/linux/memcontrol.h:286:34: note: declared here
+    static inline struct mem_cgroup *mem_cgroup_begin_page_stat(struct page *page,
+                                     ^
+>> mm/rmap.c:1123:2: error: too few arguments to function 'mem_cgroup_end_page_stat'
+     mem_cgroup_end_page_stat(memcg);
+     ^
+   In file included from include/linux/swap.h:8:0,
+                    from mm/rmap.c:47:
+   include/linux/memcontrol.h:292:20: note: declared here
+    static inline void mem_cgroup_end_page_stat(struct mem_cgroup *memcg,
+                       ^
 
-vim +654 mm/page_alloc.c
+vim +/mem_cgroup_begin_page_stat +2314 mm/page-writeback.c
 
-   648			if (page_is_guard(buddy)) {
-   649				clear_page_guard(zone, buddy, order, migratetype);
-   650			} else {
-   651				list_del(&buddy->lru);
-   652				zone->free_area[order].nr_free--;
-   653				if (is_migrate_cma(migratetype))
- > 654					zone->free_area[order].cma_nr_free--;
-   655				rmv_page_order(buddy);
-   656			}
-   657			combined_idx = buddy_idx & page_idx;
-   658			page = page + (combined_idx - page_idx);
-   659			page_idx = combined_idx;
-   660			order++;
-   661		}
-   662		set_page_order(page, order);
-   663	
-   664		/*
-   665		 * If this is not the largest possible page, check if the buddy
-   666		 * of the next-highest order is free. If it is, it's possible
-   667		 * that pages are being freed that will coalesce soon. In case,
-   668		 * that is happening, add the free page to the tail of the list
-   669		 * so it's less likely to be used soon and more likely to be merged
-   670		 * as a higher order page
-   671		 */
-   672		if ((order < MAX_ORDER-2) && pfn_valid_within(page_to_pfn(buddy))) {
-   673			struct page *higher_page, *higher_buddy;
-   674			combined_idx = buddy_idx & page_idx;
-   675			higher_page = page + (combined_idx - page_idx);
-   676			buddy_idx = __find_buddy_index(combined_idx, order + 1);
-   677			higher_buddy = higher_page + (buddy_idx - combined_idx);
-   678			if (page_is_buddy(higher_page, higher_buddy, order + 1)) {
-   679				list_add_tail(&page->lru,
-   680					&zone->free_area[order].free_list[migratetype]);
-   681				goto out;
-   682			}
-   683		}
-   684	
-   685		list_add(&page->lru, &zone->free_area[order].free_list[migratetype]);
-   686	out:
-   687		zone->free_area[order].nr_free++;
-   688		if (is_migrate_cma(migratetype))
- > 689			zone->free_area[order].cma_nr_free++;
-   690	}
-   691	
-   692	static inline int free_pages_check(struct page *page)
+  2308	int test_clear_page_writeback(struct page *page)
+  2309	{
+  2310		struct address_space *mapping = page_mapping(page);
+  2311		struct mem_cgroup *memcg;
+  2312		int ret;
+  2313	
+> 2314		memcg = mem_cgroup_begin_page_stat(page);
+  2315		if (mapping) {
+  2316			struct backing_dev_info *bdi = mapping->backing_dev_info;
+  2317			unsigned long flags;
+  2318	
+  2319			spin_lock_irqsave(&mapping->tree_lock, flags);
+  2320			ret = TestClearPageWriteback(page);
+  2321			if (ret) {
+  2322				radix_tree_tag_clear(&mapping->page_tree,
+  2323							page_index(page),
+  2324							PAGECACHE_TAG_WRITEBACK);
+  2325				if (bdi_cap_account_writeback(bdi)) {
+  2326					__dec_bdi_stat(bdi, BDI_WRITEBACK);
+  2327					__bdi_writeout_inc(bdi);
+  2328				}
+  2329			}
+  2330			spin_unlock_irqrestore(&mapping->tree_lock, flags);
+  2331		} else {
+  2332			ret = TestClearPageWriteback(page);
+  2333		}
+  2334		if (ret) {
+  2335			mem_cgroup_dec_page_stat(memcg, MEM_CGROUP_STAT_WRITEBACK);
+  2336			dec_zone_page_state(page, NR_WRITEBACK);
+  2337			inc_zone_page_state(page, NR_WRITTEN);
+  2338		}
+> 2339		mem_cgroup_end_page_stat(memcg);
+  2340		return ret;
+  2341	}
+  2342	
+  2343	int __test_set_page_writeback(struct page *page, bool keep_write)
+  2344	{
+  2345		struct address_space *mapping = page_mapping(page);
+  2346		struct mem_cgroup *memcg;
+  2347		int ret;
+  2348	
+> 2349		memcg = mem_cgroup_begin_page_stat(page);
+  2350		if (mapping) {
+  2351			struct backing_dev_info *bdi = mapping->backing_dev_info;
+  2352			unsigned long flags;
+  2353	
+  2354			spin_lock_irqsave(&mapping->tree_lock, flags);
+  2355			ret = TestSetPageWriteback(page);
+  2356			if (!ret) {
+  2357				radix_tree_tag_set(&mapping->page_tree,
+  2358							page_index(page),
+  2359							PAGECACHE_TAG_WRITEBACK);
+  2360				if (bdi_cap_account_writeback(bdi))
+  2361					__inc_bdi_stat(bdi, BDI_WRITEBACK);
+  2362			}
+  2363			if (!PageDirty(page))
+  2364				radix_tree_tag_clear(&mapping->page_tree,
+  2365							page_index(page),
+  2366							PAGECACHE_TAG_DIRTY);
+  2367			if (!keep_write)
+  2368				radix_tree_tag_clear(&mapping->page_tree,
+  2369							page_index(page),
+  2370							PAGECACHE_TAG_TOWRITE);
+  2371			spin_unlock_irqrestore(&mapping->tree_lock, flags);
+  2372		} else {
+  2373			ret = TestSetPageWriteback(page);
+  2374		}
+  2375		if (!ret) {
+  2376			mem_cgroup_inc_page_stat(memcg, MEM_CGROUP_STAT_WRITEBACK);
+  2377			inc_zone_page_state(page, NR_WRITEBACK);
+  2378		}
+> 2379		mem_cgroup_end_page_stat(memcg);
+  2380		return ret;
+  2381	
+  2382	}
 
 ---
 0-DAY kernel test infrastructure                Open Source Technology Center
 http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
---AqsLC8rIMeq19msA
+--u3/rZRmxL6MmkK24
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: attachment; filename=".config"
 
@@ -2304,7 +2372,7 @@ CONFIG_FONT_8x8=y
 CONFIG_FONT_8x16=y
 # CONFIG_ARCH_HAS_SG_CHAIN is not set
 
---AqsLC8rIMeq19msA--
+--u3/rZRmxL6MmkK24--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
