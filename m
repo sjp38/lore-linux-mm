@@ -1,51 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
-	by kanga.kvack.org (Postfix) with ESMTP id A26E66B0038
-	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 18:27:31 -0500 (EST)
-Received: by mail-ie0-f182.google.com with SMTP id x19so737305ier.13
-        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 15:27:31 -0800 (PST)
-Received: from mail-ie0-x232.google.com (mail-ie0-x232.google.com. [2607:f8b0:4001:c03::232])
-        by mx.google.com with ESMTPS id 12si41732900iot.89.2015.01.06.15.27.29
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FB266B006E
+	for <linux-mm@kvack.org>; Tue,  6 Jan 2015 19:43:44 -0500 (EST)
+Received: by mail-ig0-f171.google.com with SMTP id z20so5063053igj.16
+        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 16:43:43 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id v14si386101icn.79.2015.01.06.16.43.42
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 06 Jan 2015 15:27:30 -0800 (PST)
-Received: by mail-ie0-f178.google.com with SMTP id vy18so763786iec.9
-        for <linux-mm@kvack.org>; Tue, 06 Jan 2015 15:27:29 -0800 (PST)
-References: <20150106161435.GF20860@dhcp22.suse.cz>
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [LSF/MM TOPIC ATTEND]
-In-reply-to: <20150106161435.GF20860@dhcp22.suse.cz>
-Date: Tue, 06 Jan 2015 15:27:27 -0800
-Message-ID: <xr93k30zij6o.fsf@gthelen.mtv.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Jan 2015 16:43:42 -0800 (PST)
+Date: Tue, 6 Jan 2015 16:43:40 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC] mm:change meminfo cached calculation
+Message-Id: <20150106164340.55e83f742d6f57c19e6500ff@linux-foundation.org>
+In-Reply-To: <35FD53F367049845BC99AC72306C23D103EDAF89E160@CNBJMBX05.corpusers.net>
+References: <35FD53F367049845BC99AC72306C23D103E688B313EE@CNBJMBX05.corpusers.net>
+	<CALYGNiOuBKz8shHSrFCp0BT5AV6XkNOCHj+LJedQQ-2YdZtM7w@mail.gmail.com>
+	<35FD53F367049845BC99AC72306C23D103E688B313F2@CNBJMBX05.corpusers.net>
+	<20141205143134.37139da2208c654a0d3cd942@linux-foundation.org>
+	<35FD53F367049845BC99AC72306C23D103E688B313F4@CNBJMBX05.corpusers.net>
+	<20141208114601.GA28846@node.dhcp.inet.fi>
+	<35FD53F367049845BC99AC72306C23D103E688B313FB@CNBJMBX05.corpusers.net>
+	<CALYGNiMEytHuND37f+hNdMKqCPzN0k_uha6CaeL_fyzrj-obNQ@mail.gmail.com>
+	<35FD53F367049845BC99AC72306C23D103E688B31408@CNBJMBX05.corpusers.net>
+	<35FD53F367049845BC99AC72306C23D103EDAF89E14C@CNBJMBX05.corpusers.net>
+	<35FD53F367049845BC99AC72306C23D103EDAF89E160@CNBJMBX05.corpusers.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
+To: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Cc: "'minchan@kernel.org'" <minchan@kernel.org>, 'Konstantin Khlebnikov' <koct9i@gmail.com>, "'Kirill A. Shutemov'" <kirill@shutemov.name>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'n-horiguchi@ah.jp.nec.com'" <n-horiguchi@ah.jp.nec.com>, "'pintu.k@samsung.com'" <pintu.k@samsung.com>, Hugh Dickins <hughd@google.com>linux-mm@kvack.org
 
-On Tue, Jan 06 2015, Michal Hocko wrote:
+On Fri, 26 Dec 2014 19:56:49 +0800 "Wang, Yalin" <Yalin.Wang@sonymobile.com> wrote:
 
-> - As it turned out recently GFP_KERNEL mimicing GFP_NOFAIL for !costly
->   allocation is sometimes kicking us back because we are basically
->   creating an invisible lock dependencies which might livelock the whole
->   system under OOM conditions.
->   That leads to attempts to add more hacks into the OOM killer
->   which is tricky enough as is. Changing the current state is
->   quite risky because we do not really know how many places in the
->   kernel silently depend on this behavior. As per Johannes attempt
->   (http://marc.info/?l=linux-mm&m=141932770811346) it is clear that
->   we are not yet there! I do not have very good ideas how to deal with
->   this unfortunatelly...
+> This patch subtract sharedram from cached,
+> sharedram can only be swap into swap partitions,
+> they should be treated as swap pages, not as cached pages.
+> 
+> ...
+>
+> --- a/fs/proc/meminfo.c
+> +++ b/fs/proc/meminfo.c
+> @@ -45,7 +45,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+>  	committed = percpu_counter_read_positive(&vm_committed_as);
+>  
+>  	cached = global_page_state(NR_FILE_PAGES) -
+> -			total_swapcache_pages() - i.bufferram;
+> +			total_swapcache_pages() - i.bufferram - i.sharedram;
+>  	if (cached < 0)
+>  		cached = 0;
 
-We've internally been fighting similar deadlocks between memcg kmem
-accounting and memcg oom killer.  I wouldn't call it a very good idea,
-because it falls in the realm of further complicating the oom killer,
-but what about introducing an async oom killer which runs outside of the
-context of the current task.  An async killer won't hold any locks so it
-won't block the indented oom victim from terminating.  After queuing a
-deferred oom kill the allocating thread would then be able to dip into
-memory reserves to satisfy its too-small-to-fail allocation.
+Documentation/filesystems/proc.txt says
+
+:      Cached: in-memory cache for files read from the disk (the
+:              pagecache).  Doesn't include SwapCached
+
+So yes, I guess it should not include shmem.
+
+And why not do this as well?
+
+
+--- a/Documentation/filesystems/proc.txt~mm-change-meminfo-cached-calculation-fix
++++ a/Documentation/filesystems/proc.txt
+@@ -811,7 +811,7 @@ MemAvailable: An estimate of how much me
+      Buffers: Relatively temporary storage for raw disk blocks
+               shouldn't get tremendously large (20MB or so)
+       Cached: in-memory cache for files read from the disk (the
+-              pagecache).  Doesn't include SwapCached
++              pagecache).  Doesn't include SwapCached or Shmem.
+   SwapCached: Memory that once was swapped out, is swapped back in but
+               still also is in the swapfile (if memory is needed it
+               doesn't need to be swapped out AGAIN because it is already
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
