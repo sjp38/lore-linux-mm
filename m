@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 697CA6B006C
-	for <linux-mm@kvack.org>; Wed,  7 Jan 2015 17:26:10 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id kq14so7603478pab.6
-        for <linux-mm@kvack.org>; Wed, 07 Jan 2015 14:26:10 -0800 (PST)
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DCA86B0070
+	for <linux-mm@kvack.org>; Wed,  7 Jan 2015 17:26:12 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id eu11so7591810pac.8
+        for <linux-mm@kvack.org>; Wed, 07 Jan 2015 14:26:12 -0800 (PST)
 Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id oz9si5542107pdb.15.2015.01.07.14.26.07
+        by mx.google.com with ESMTP id oz9si5542107pdb.15.2015.01.07.14.26.09
         for <linux-mm@kvack.org>;
-        Wed, 07 Jan 2015 14:26:08 -0800 (PST)
+        Wed, 07 Jan 2015 14:26:11 -0800 (PST)
 From: Dave Chinner <david@fromorbit.com>
-Subject: [RFC PATCH 6/6] xfs: lock out page faults from extent swap operations
-Date: Thu,  8 Jan 2015 09:25:43 +1100
-Message-Id: <1420669543-8093-7-git-send-email-david@fromorbit.com>
+Subject: [RFC PATCH 2/6] xfs: use i_mmaplock on read faults
+Date: Thu,  8 Jan 2015 09:25:39 +1100
+Message-Id: <1420669543-8093-3-git-send-email-david@fromorbit.com>
 In-Reply-To: <1420669543-8093-1-git-send-email-david@fromorbit.com>
 References: <1420669543-8093-1-git-send-email-david@fromorbit.com>
 Sender: owner-linux-mm@kvack.org
@@ -21,56 +21,79 @@ Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
 From: Dave Chinner <dchinner@redhat.com>
 
-Extent swap operations are another extent manipulation operation
-that we need to ensure does not race against mmap page faults. The
-current code returns if the file is mapped prior to the swap being
-done, but it could potentially race against new page faults while
-the swap is in progress. Hence we should use the XFS_MMAPLOCK_EXCL
-for this operation, too.
+Take the i_mmaplock over read page faults. These come through the
+->fault callout, so we need to wrap the generic implementation
+with the i_mmaplock. While there, add tracepoints for the read
+fault as it passes through XFS.
+
+This gives us a lock order of mmap_sem -> i_mmaplock -> page_lock
+-> i_lock.
 
 Signed-off-by: Dave Chinner <dchinner@redhat.com>
 ---
- fs/xfs/xfs_bmap_util.c | 18 ++++++------------
- 1 file changed, 6 insertions(+), 12 deletions(-)
+ fs/xfs/xfs_file.c  | 28 +++++++++++++++++++++++++++-
+ fs/xfs/xfs_trace.h |  2 ++
+ 2 files changed, 29 insertions(+), 1 deletion(-)
 
-diff --git a/fs/xfs/xfs_bmap_util.c b/fs/xfs/xfs_bmap_util.c
-index 22a5dcb..1420caf 100644
---- a/fs/xfs/xfs_bmap_util.c
-+++ b/fs/xfs/xfs_bmap_util.c
-@@ -1599,13 +1599,6 @@ xfs_swap_extent_flush(
- 	/* Verify O_DIRECT for ftmp */
- 	if (VFS_I(ip)->i_mapping->nrpages)
- 		return -EINVAL;
--
--	/*
--	 * Don't try to swap extents on mmap()d files because we can't lock
--	 * out races against page faults safely.
--	 */
--	if (mapping_mapped(VFS_I(ip)->i_mapping))
--		return -EBUSY;
- 	return 0;
+diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
+index 13e974e..87535e6 100644
+--- a/fs/xfs/xfs_file.c
++++ b/fs/xfs/xfs_file.c
+@@ -1349,6 +1349,32 @@ xfs_file_llseek(
+ 	}
  }
  
-@@ -1633,13 +1626,14 @@ xfs_swap_extents(
- 	}
++/*
++ * Locking for serialisation of IO during page faults. This results in a lock
++ * ordering of:
++ *
++ * mmap_sem (MM)
++ *   i_mmap_lock (XFS - truncate serialisation)
++ *     page_lock (MM)
++ *       i_lock (XFS - extent map serialisation)
++ */
++STATIC int
++xfs_filemap_fault(
++	struct vm_area_struct	*vma,
++	struct vm_fault		*vmf)
++{
++	struct xfs_inode	*ip = XFS_I(vma->vm_file->f_mapping->host);
++	int			error;
++
++	trace_xfs_filemap_fault(ip);
++
++	xfs_ilock(ip, XFS_MMAPLOCK_SHARED);
++	error = filemap_fault(vma, vmf);
++	xfs_iunlock(ip, XFS_MMAPLOCK_SHARED);
++
++	return error;
++}
++
+ const struct file_operations xfs_file_operations = {
+ 	.llseek		= xfs_file_llseek,
+ 	.read		= new_sync_read,
+@@ -1381,7 +1407,7 @@ const struct file_operations xfs_dir_file_operations = {
+ };
  
- 	/*
--	 * Lock up the inodes against other IO and truncate to begin with.
--	 * Then we can ensure the inodes are flushed and have no page cache
--	 * safely. Once we have done this we can take the ilocks and do the rest
--	 * of the checks.
-+	 * Lock the inodes against other IO, page faults and truncate to
-+	 * begin with.  Then we can ensure the inodes are flushed and have no
-+	 * page cache safely. Once we have done this we can take the ilocks and
-+	 * do the rest of the checks.
- 	 */
--	lock_flags = XFS_IOLOCK_EXCL;
-+	lock_flags = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
- 	xfs_lock_two_inodes(ip, tip, XFS_IOLOCK_EXCL);
-+	xfs_lock_two_inodes(ip, tip, XFS_MMAPLOCK_EXCL);
+ static const struct vm_operations_struct xfs_file_vm_ops = {
+-	.fault		= filemap_fault,
++	.fault		= xfs_filemap_fault,
+ 	.map_pages	= filemap_map_pages,
+ 	.page_mkwrite	= xfs_vm_page_mkwrite,
+ 	.remap_pages	= generic_file_remap_pages,
+diff --git a/fs/xfs/xfs_trace.h b/fs/xfs/xfs_trace.h
+index 51372e3..c496153 100644
+--- a/fs/xfs/xfs_trace.h
++++ b/fs/xfs/xfs_trace.h
+@@ -685,6 +685,8 @@ DEFINE_INODE_EVENT(xfs_inode_set_eofblocks_tag);
+ DEFINE_INODE_EVENT(xfs_inode_clear_eofblocks_tag);
+ DEFINE_INODE_EVENT(xfs_inode_free_eofblocks_invalid);
  
- 	/* Verify that both files have the same format */
- 	if ((ip->i_d.di_mode & S_IFMT) != (tip->i_d.di_mode & S_IFMT)) {
++DEFINE_INODE_EVENT(xfs_filemap_fault);
++
+ DECLARE_EVENT_CLASS(xfs_iref_class,
+ 	TP_PROTO(struct xfs_inode *ip, unsigned long caller_ip),
+ 	TP_ARGS(ip, caller_ip),
 -- 
 2.0.0
 
