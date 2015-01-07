@@ -1,65 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id AD9C16B0038
-	for <linux-mm@kvack.org>; Wed,  7 Jan 2015 05:16:15 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id et14so4014815pad.1
-        for <linux-mm@kvack.org>; Wed, 07 Jan 2015 02:16:15 -0800 (PST)
-Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
-        by mx.google.com with ESMTPS id vu3si2132052pab.137.2015.01.07.02.16.13
+Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
+	by kanga.kvack.org (Postfix) with ESMTP id DB7D56B006E
+	for <linux-mm@kvack.org>; Wed,  7 Jan 2015 05:54:49 -0500 (EST)
+Received: by mail-we0-f171.google.com with SMTP id u56so948845wes.2
+        for <linux-mm@kvack.org>; Wed, 07 Jan 2015 02:54:49 -0800 (PST)
+Received: from mail-wi0-x231.google.com (mail-wi0-x231.google.com. [2a00:1450:400c:c05::231])
+        by mx.google.com with ESMTPS id ve6si2938211wjc.163.2015.01.07.02.54.48
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Wed, 07 Jan 2015 02:16:14 -0800 (PST)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout1.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NHS00E11Y1T4H20@mailout1.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 07 Jan 2015 10:20:17 +0000 (GMT)
-From: Marcin Jabrzyk <m.jabrzyk@samsung.com>
-Subject: [PATCH] mm: fix cleancache debugfs directory path
-Date: Wed, 07 Jan 2015 11:14:41 +0100
-Message-id: <1420625681-13819-1-git-send-email-m.jabrzyk@samsung.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 07 Jan 2015 02:54:48 -0800 (PST)
+Received: by mail-wi0-f177.google.com with SMTP id l15so1295180wiw.16
+        for <linux-mm@kvack.org>; Wed, 07 Jan 2015 02:54:48 -0800 (PST)
+Date: Wed, 7 Jan 2015 11:54:45 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH V4 1/4] mm: set page->pfmemalloc in prep_new_page()
+Message-ID: <20150107105445.GB16553@dhcp22.suse.cz>
+References: <1420478263-25207-1-git-send-email-vbabka@suse.cz>
+ <1420478263-25207-2-git-send-email-vbabka@suse.cz>
+ <20150106143008.GA20860@dhcp22.suse.cz>
+ <54AC4F5F.90306@suse.cz>
+ <20150106214416.GA8391@dhcp22.suse.cz>
+ <54ACFE3A.4070502@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <54ACFE3A.4070502@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: konrad.wilk@oracle.com, trivial@kernel.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kyungmin.park@samsung.com, b.zolnierkie@samsung.com, Marcin Jabrzyk <m.jabrzyk@samsung.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Minor fixes for cleancache about wrong debugfs paths
-in documentation and code comment.
+On Wed 07-01-15 10:36:58, Vlastimil Babka wrote:
+> On 01/06/2015 10:44 PM, Michal Hocko wrote:
+> > On Tue 06-01-15 22:10:55, Vlastimil Babka wrote:
+> >> On 01/06/2015 03:30 PM, Michal Hocko wrote:
+> > [...]
+> >> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> >> > index 1bb65e6f48dd..1682d766cb8e 100644
+> >> > --- a/mm/page_alloc.c
+> >> > +++ b/mm/page_alloc.c
+> >> > @@ -2175,10 +2175,11 @@ zonelist_scan:
+> >> >  		}
+> >> >  
+> >> >  try_this_zone:
+> >> > -		page = buffered_rmqueue(preferred_zone, zone, order,
+> >> > +		do {
+> >> > +			page = buffered_rmqueue(preferred_zone, zone, order,
+> >> >  						gfp_mask, migratetype);
+> >> > -		if (page)
+> >> > -			break;
+> >> > +		} while (page && prep_new_page(page, order, gfp_mask,
+> >> > +					       alloc_flags));
+> >> 
+> >> Hm but here we wouldn't return page on success.
+> > 
+> > Right.
+> > 
+> >> I wonder if you overlooked the return, hence your "not breaking out of
+> >> the loop" remark?
+> > 
+> > This was merely to show the intention. Sorry for not being clear enough.
+> 
+> OK, but I don't see other way than to follow this do-while with another
+> 
+> if (page)
+>     return page;
+> 
+> So I think it would be more complicated than now. We wouldn't even be able to
+> remove the 'try_this_zone' label, since it's used for goto from elsewhere as well.
 
-Signed-off-by: Marcin Jabrzyk <m.jabrzyk@samsung.com>
----
- Documentation/vm/cleancache.txt | 2 +-
- mm/cleancache.c                 | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+Getting rid of the label wasn't the intention. I just found the
+allocation retry easier to follow this way. I have no objection if you
+keep the code as is.
 
-diff --git a/Documentation/vm/cleancache.txt b/Documentation/vm/cleancache.txt
-index 142fbb0f325a..01d76282444e 100644
---- a/Documentation/vm/cleancache.txt
-+++ b/Documentation/vm/cleancache.txt
-@@ -85,7 +85,7 @@ lock the page to ensure serial behavior.
- CLEANCACHE PERFORMANCE METRICS
- 
- If properly configured, monitoring of cleancache is done via debugfs in
--the /sys/kernel/debug/mm/cleancache directory.  The effectiveness of cleancache
-+the /sys/kernel/debug/cleancache directory.  The effectiveness of cleancache
- can be measured (across all filesystems) with:
- 
- succ_gets	- number of gets that were successful
-diff --git a/mm/cleancache.c b/mm/cleancache.c
-index d0eac4350403..053bcd8f12fb 100644
---- a/mm/cleancache.c
-+++ b/mm/cleancache.c
-@@ -25,7 +25,7 @@
- static struct cleancache_ops *cleancache_ops __read_mostly;
- 
- /*
-- * Counters available via /sys/kernel/debug/frontswap (if debugfs is
-+ * Counters available via /sys/kernel/debug/cleancache (if debugfs is
-  * properly configured.  These are for information only so are not protected
-  * against increment races.
-  */
+> Now that I'm thinking of it, maybe we should have a "goto zonelist_scan" there
+> instead. We discard a bad page and might come below the watermarks. But the
+> chances of this mattering are tiny I guess.
+
+If anything this would be worth a separate patch.
+
 -- 
-1.9.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
