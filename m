@@ -1,326 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id CFCB56B0075
-	for <linux-mm@kvack.org>; Wed,  7 Jan 2015 17:26:23 -0500 (EST)
-Received: by mail-pa0-f54.google.com with SMTP id fb1so7570574pad.13
-        for <linux-mm@kvack.org>; Wed, 07 Jan 2015 14:26:23 -0800 (PST)
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CC0F6B0032
+	for <linux-mm@kvack.org>; Wed,  7 Jan 2015 18:46:03 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id ey11so7923799pad.10
+        for <linux-mm@kvack.org>; Wed, 07 Jan 2015 15:46:02 -0800 (PST)
 Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id oz9si5542107pdb.15.2015.01.07.14.26.13
+        by mx.google.com with ESMTP id dx4si5660838pbb.90.2015.01.07.15.46.00
         for <linux-mm@kvack.org>;
-        Wed, 07 Jan 2015 14:26:15 -0800 (PST)
+        Wed, 07 Jan 2015 15:46:01 -0800 (PST)
+Date: Thu, 8 Jan 2015 10:45:32 +1100
 From: Dave Chinner <david@fromorbit.com>
-Subject: [RFC PATCH 1/6] xfs: introduce mmap/truncate lock
-Date: Thu,  8 Jan 2015 09:25:38 +1100
-Message-Id: <1420669543-8093-2-git-send-email-david@fromorbit.com>
-In-Reply-To: <1420669543-8093-1-git-send-email-david@fromorbit.com>
-References: <1420669543-8093-1-git-send-email-david@fromorbit.com>
+Subject: Re: [PATCHSET RFC block/for-next] writeback: cgroup writeback support
+Message-ID: <20150107234532.GD25000@dastard>
+References: <1420579582-8516-1-git-send-email-tj@kernel.org>
+ <20150106214426.GA24106@htj.dyndns.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150106214426.GA24106@htj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: xfs@oss.sgi.com
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Tejun Heo <tj@kernel.org>
+Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com
 
-From: Dave Chinner <dchinner@redhat.com>
+On Tue, Jan 06, 2015 at 04:44:26PM -0500, Tejun Heo wrote:
+> Hello, again.  A bit of addition.
+> 
+> On Tue, Jan 06, 2015 at 04:25:37PM -0500, Tejun Heo wrote:
+> ...
+> > Overall design
+> > --------------
+> 
+> What's going on in this patchset is fairly straight forward.  The main
+> thing which is happening is that a bdi is being split into multiple
+> per-cgroup pieces.  Each split bdi, represented by bdi_writeback,
+> behaves mostly identically with how bdi behaved before.
 
-Right now we cannot serialise mmap against truncate or hole punch
-sanely. ->page_mkwrite is not able to take locks that the read IO
-path normally takes (i.e. the inode iolock) because that could
-result in lock inversions (read - iolock - page fault - page_mkwrite
-- iolock) and so we cannot use an IO path lock to serialise page
-write faults against truncate operations.
+I like the overall direction you've taken, Tejun, but I have
+a couple of questions...
 
-Instead, introduce a new lock that is used *only* in the
-->page_mkwrite path that is the equivalent of the iolock. The lock
-ordering in a page fault is i_mmaplock -> page lock -> i_ilock,
-and so in truncate we can i_iolock -> i_mmaplock and so lock out
-new write faults during the process of truncation.
+> Complications mostly arise from filesystems and inodes having to deal
+> with multiple split bdi's instead of one, but those are mostly
+> straight-forward 1:N mapping issues.  It does get tedious here and
+> there but doesn't complicate the overall picture.
 
-Because i_mmap_lock is outside the page lock, we can hold it across
-all the same operations we hold the i_iolock for. The only
-difference is that we never hold the i_mmaplock in the normal IO
-path and so do not ever have the possibility that we can page fault
-inside it. Hence there are no recursion issues on the i_mmap_lock
-and so we can use it to serialise page fault IO against inode
-modification operations that affect the IO path.
+Some filesystems don't track metadata-dirty inode state in the bdi
+lists, and instead track that in their own lists (usually deep
+inside the journalling subsystem). i.e. I_DIRTY_PAGES are the only
+dirty state that is tracked in the VFS. i.e. inode metadata
+writeback will still be considered global, but pages won't be. Hence
+you might get pages written back quickly, but the inodes are going
+to remain dirty and unreclaimable until the filesystem flushes some
+time in the future after the journal is committed and the inode
+written...
 
-This patch introduces the i_mmaplock infrastructure, lockdep
-annotations and initialisation/destruction code. Use of the new lock
-will be in subsequent patches.
+There has also been talk of allowing filesystems to directly track
+dirty page state as well - the discussion came out of the way tux3
+was tracking and committing delta changes to file data. Now that
+hasn't gone anywhere, but I'm wondering what impact this patch set
+would have on such proposals?
 
-Signed-off-by: Dave Chinner <dchinner@redhat.com>
----
- fs/xfs/xfs_inode.c | 86 ++++++++++++++++++++++++++++++++++++++++++++----------
- fs/xfs/xfs_inode.h | 29 +++++++++++++-----
- fs/xfs/xfs_super.c |  2 ++
- 3 files changed, 95 insertions(+), 22 deletions(-)
+Similarly, I'm concerned about additional overhead in the writeback
+path - we can easily drive the flusher thread to be CPU bound on IO
+subsystems that have decent bandwidth (low GB/s), so adding more
+overhead to every page we have to flush is going to reduce
+performance on these systems. Do you have any idea what impact
+just enabling the memcg/blkcg tracking has on writeback performance
+and CPU consumption?
 
-diff --git a/fs/xfs/xfs_inode.c b/fs/xfs/xfs_inode.c
-index 400791a..573b49c 100644
---- a/fs/xfs/xfs_inode.c
-+++ b/fs/xfs/xfs_inode.c
-@@ -150,6 +150,8 @@ xfs_ilock(
- 	 */
- 	ASSERT((lock_flags & (XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL)) !=
- 	       (XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL));
-+	ASSERT((lock_flags & (XFS_MMAPLOCK_SHARED | XFS_MMAPLOCK_EXCL)) !=
-+	       (XFS_MMAPLOCK_SHARED | XFS_MMAPLOCK_EXCL));
- 	ASSERT((lock_flags & (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL)) !=
- 	       (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
- 	ASSERT((lock_flags & ~(XFS_LOCK_MASK | XFS_LOCK_DEP_MASK)) == 0);
-@@ -159,6 +161,11 @@ xfs_ilock(
- 	else if (lock_flags & XFS_IOLOCK_SHARED)
- 		mraccess_nested(&ip->i_iolock, XFS_IOLOCK_DEP(lock_flags));
- 
-+	if (lock_flags & XFS_MMAPLOCK_EXCL)
-+		mrupdate_nested(&ip->i_mmaplock, XFS_IOLOCK_DEP(lock_flags));
-+	else if (lock_flags & XFS_MMAPLOCK_SHARED)
-+		mraccess_nested(&ip->i_mmaplock, XFS_IOLOCK_DEP(lock_flags));
-+
- 	if (lock_flags & XFS_ILOCK_EXCL)
- 		mrupdate_nested(&ip->i_lock, XFS_ILOCK_DEP(lock_flags));
- 	else if (lock_flags & XFS_ILOCK_SHARED)
-@@ -191,6 +198,8 @@ xfs_ilock_nowait(
- 	 */
- 	ASSERT((lock_flags & (XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL)) !=
- 	       (XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL));
-+	ASSERT((lock_flags & (XFS_MMAPLOCK_SHARED | XFS_MMAPLOCK_EXCL)) !=
-+	       (XFS_MMAPLOCK_SHARED | XFS_MMAPLOCK_EXCL));
- 	ASSERT((lock_flags & (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL)) !=
- 	       (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
- 	ASSERT((lock_flags & ~(XFS_LOCK_MASK | XFS_LOCK_DEP_MASK)) == 0);
-@@ -202,21 +211,35 @@ xfs_ilock_nowait(
- 		if (!mrtryaccess(&ip->i_iolock))
- 			goto out;
- 	}
-+
-+	if (lock_flags & XFS_MMAPLOCK_EXCL) {
-+		if (!mrtryupdate(&ip->i_mmaplock))
-+			goto out_undo_iolock;
-+	} else if (lock_flags & XFS_MMAPLOCK_SHARED) {
-+		if (!mrtryaccess(&ip->i_mmaplock))
-+			goto out_undo_iolock;
-+	}
-+
- 	if (lock_flags & XFS_ILOCK_EXCL) {
- 		if (!mrtryupdate(&ip->i_lock))
--			goto out_undo_iolock;
-+			goto out_undo_mmaplock;
- 	} else if (lock_flags & XFS_ILOCK_SHARED) {
- 		if (!mrtryaccess(&ip->i_lock))
--			goto out_undo_iolock;
-+			goto out_undo_mmaplock;
- 	}
- 	return 1;
- 
-- out_undo_iolock:
-+out_undo_mmaplock:
-+	if (lock_flags & XFS_MMAPLOCK_EXCL)
-+		mrunlock_excl(&ip->i_mmaplock);
-+	else if (lock_flags & XFS_MMAPLOCK_SHARED)
-+		mrunlock_shared(&ip->i_mmaplock);
-+out_undo_iolock:
- 	if (lock_flags & XFS_IOLOCK_EXCL)
- 		mrunlock_excl(&ip->i_iolock);
- 	else if (lock_flags & XFS_IOLOCK_SHARED)
- 		mrunlock_shared(&ip->i_iolock);
-- out:
-+out:
- 	return 0;
- }
- 
-@@ -244,6 +267,8 @@ xfs_iunlock(
- 	 */
- 	ASSERT((lock_flags & (XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL)) !=
- 	       (XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL));
-+	ASSERT((lock_flags & (XFS_MMAPLOCK_SHARED | XFS_MMAPLOCK_EXCL)) !=
-+	       (XFS_MMAPLOCK_SHARED | XFS_MMAPLOCK_EXCL));
- 	ASSERT((lock_flags & (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL)) !=
- 	       (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
- 	ASSERT((lock_flags & ~(XFS_LOCK_MASK | XFS_LOCK_DEP_MASK)) == 0);
-@@ -254,6 +279,11 @@ xfs_iunlock(
- 	else if (lock_flags & XFS_IOLOCK_SHARED)
- 		mrunlock_shared(&ip->i_iolock);
- 
-+	if (lock_flags & XFS_MMAPLOCK_EXCL)
-+		mrunlock_excl(&ip->i_mmaplock);
-+	else if (lock_flags & XFS_MMAPLOCK_SHARED)
-+		mrunlock_shared(&ip->i_mmaplock);
-+
- 	if (lock_flags & XFS_ILOCK_EXCL)
- 		mrunlock_excl(&ip->i_lock);
- 	else if (lock_flags & XFS_ILOCK_SHARED)
-@@ -271,11 +301,14 @@ xfs_ilock_demote(
- 	xfs_inode_t		*ip,
- 	uint			lock_flags)
- {
--	ASSERT(lock_flags & (XFS_IOLOCK_EXCL|XFS_ILOCK_EXCL));
--	ASSERT((lock_flags & ~(XFS_IOLOCK_EXCL|XFS_ILOCK_EXCL)) == 0);
-+	ASSERT(lock_flags & (XFS_IOLOCK_EXCL|XFS_MMAPLOCK_EXCL|XFS_ILOCK_EXCL));
-+	ASSERT((lock_flags &
-+		~(XFS_IOLOCK_EXCL|XFS_MMAPLOCK_EXCL|XFS_ILOCK_EXCL)) == 0);
- 
- 	if (lock_flags & XFS_ILOCK_EXCL)
- 		mrdemote(&ip->i_lock);
-+	if (lock_flags & XFS_MMAPLOCK_EXCL)
-+		mrdemote(&ip->i_mmaplock);
- 	if (lock_flags & XFS_IOLOCK_EXCL)
- 		mrdemote(&ip->i_iolock);
- 
-@@ -294,6 +327,12 @@ xfs_isilocked(
- 		return rwsem_is_locked(&ip->i_lock.mr_lock);
- 	}
- 
-+	if (lock_flags & (XFS_MMAPLOCK_EXCL|XFS_MMAPLOCK_SHARED)) {
-+		if (!(lock_flags & XFS_MMAPLOCK_SHARED))
-+			return !!ip->i_mmaplock.mr_writer;
-+		return rwsem_is_locked(&ip->i_mmaplock.mr_lock);
-+	}
-+
- 	if (lock_flags & (XFS_IOLOCK_EXCL|XFS_IOLOCK_SHARED)) {
- 		if (!(lock_flags & XFS_IOLOCK_SHARED))
- 			return !!ip->i_iolock.mr_writer;
-@@ -314,14 +353,27 @@ int xfs_lock_delays;
- #endif
- 
- /*
-- * Bump the subclass so xfs_lock_inodes() acquires each lock with
-- * a different value
-+ * Bump the subclass so xfs_lock_inodes() acquires each lock with a different
-+ * value. This shouldn't be called for page fault locking, but we also need to
-+ * ensure we don't overrun the number of lockdep subclasses for the iolock or
-+ * mmaplock as that is limited to 12 by the mmap lock lockdep annotations.
-  */
- static inline int
- xfs_lock_inumorder(int lock_mode, int subclass)
- {
--	if (lock_mode & (XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL))
-+	if (lock_mode & (XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL)) {
-+		ASSERT(subclass + XFS_LOCK_INUMORDER <
-+			(1 << (XFS_MMAPLOCK_SHIFT - XFS_IOLOCK_SHIFT)));
- 		lock_mode |= (subclass + XFS_LOCK_INUMORDER) << XFS_IOLOCK_SHIFT;
-+	}
-+
-+	if (lock_mode & (XFS_MMAPLOCK_SHARED|XFS_MMAPLOCK_EXCL)) {
-+		ASSERT(subclass + XFS_LOCK_INUMORDER <
-+			(1 << (XFS_ILOCK_SHIFT - XFS_MMAPLOCK_SHIFT)));
-+		lock_mode |= (subclass + XFS_LOCK_INUMORDER) <<
-+							XFS_MMAPLOCK_SHIFT;
-+	}
-+
- 	if (lock_mode & (XFS_ILOCK_SHARED|XFS_ILOCK_EXCL))
- 		lock_mode |= (subclass + XFS_LOCK_INUMORDER) << XFS_ILOCK_SHIFT;
- 
-@@ -440,10 +492,10 @@ again:
- }
- 
- /*
-- * xfs_lock_two_inodes() can only be used to lock one type of lock
-- * at a time - the iolock or the ilock, but not both at once. If
-- * we lock both at once, lockdep will report false positives saying
-- * we have violated locking orders.
-+ * xfs_lock_two_inodes() can only be used to lock one type of lock at a time -
-+ * the iolock, the mmaplock or the ilock, but not more than one at a time. If we
-+ * lock more than one at a time, lockdep will report false positives saying we
-+ * have violated locking orders.
-  */
- void
- xfs_lock_two_inodes(
-@@ -455,8 +507,12 @@ xfs_lock_two_inodes(
- 	int			attempts = 0;
- 	xfs_log_item_t		*lp;
- 
--	if (lock_mode & (XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL))
--		ASSERT((lock_mode & (XFS_ILOCK_SHARED|XFS_ILOCK_EXCL)) == 0);
-+	if (lock_mode & (XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL)) {
-+		ASSERT(!(lock_mode & (XFS_MMAPLOCK_SHARED|XFS_MMAPLOCK_EXCL)));
-+		ASSERT(!(lock_mode & (XFS_ILOCK_SHARED|XFS_ILOCK_EXCL)));
-+	} else if (lock_mode & (XFS_MMAPLOCK_SHARED|XFS_MMAPLOCK_EXCL))
-+		ASSERT(!(lock_mode & (XFS_ILOCK_SHARED|XFS_ILOCK_EXCL)));
-+
- 	ASSERT(ip0->i_ino != ip1->i_ino);
- 
- 	if (ip0->i_ino > ip1->i_ino) {
-diff --git a/fs/xfs/xfs_inode.h b/fs/xfs/xfs_inode.h
-index de97ccc..8e7a12a 100644
---- a/fs/xfs/xfs_inode.h
-+++ b/fs/xfs/xfs_inode.h
-@@ -56,6 +56,7 @@ typedef struct xfs_inode {
- 	struct xfs_inode_log_item *i_itemp;	/* logging information */
- 	mrlock_t		i_lock;		/* inode lock */
- 	mrlock_t		i_iolock;	/* inode IO lock */
-+	mrlock_t		i_mmaplock;	/* inode mmap IO lock */
- 	atomic_t		i_pincount;	/* inode pin count */
- 	spinlock_t		i_flags_lock;	/* inode i_flags lock */
- 	/* Miscellaneous state. */
-@@ -263,15 +264,20 @@ static inline int xfs_isiflocked(struct xfs_inode *ip)
- #define	XFS_IOLOCK_SHARED	(1<<1)
- #define	XFS_ILOCK_EXCL		(1<<2)
- #define	XFS_ILOCK_SHARED	(1<<3)
-+#define	XFS_MMAPLOCK_EXCL	(1<<4)
-+#define	XFS_MMAPLOCK_SHARED	(1<<5)
- 
- #define XFS_LOCK_MASK		(XFS_IOLOCK_EXCL | XFS_IOLOCK_SHARED \
--				| XFS_ILOCK_EXCL | XFS_ILOCK_SHARED)
-+				| XFS_ILOCK_EXCL | XFS_ILOCK_SHARED \
-+				| XFS_MMAPLOCK_EXCL | XFS_MMAPLOCK_SHARED)
- 
- #define XFS_LOCK_FLAGS \
- 	{ XFS_IOLOCK_EXCL,	"IOLOCK_EXCL" }, \
- 	{ XFS_IOLOCK_SHARED,	"IOLOCK_SHARED" }, \
- 	{ XFS_ILOCK_EXCL,	"ILOCK_EXCL" }, \
--	{ XFS_ILOCK_SHARED,	"ILOCK_SHARED" }
-+	{ XFS_ILOCK_SHARED,	"ILOCK_SHARED" }, \
-+	{ XFS_MMAPLOCK_EXCL,	"MMAPLOCK_EXCL" }, \
-+	{ XFS_MMAPLOCK_SHARED,	"MMAPLOCK_SHARED" }
- 
- 
- /*
-@@ -302,17 +308,26 @@ static inline int xfs_isiflocked(struct xfs_inode *ip)
- #define XFS_IOLOCK_SHIFT	16
- #define	XFS_IOLOCK_PARENT	(XFS_LOCK_PARENT << XFS_IOLOCK_SHIFT)
- 
-+#define XFS_MMAPLOCK_SHIFT	20
-+
- #define XFS_ILOCK_SHIFT		24
- #define	XFS_ILOCK_PARENT	(XFS_LOCK_PARENT << XFS_ILOCK_SHIFT)
- #define	XFS_ILOCK_RTBITMAP	(XFS_LOCK_RTBITMAP << XFS_ILOCK_SHIFT)
- #define	XFS_ILOCK_RTSUM		(XFS_LOCK_RTSUM << XFS_ILOCK_SHIFT)
- 
--#define XFS_IOLOCK_DEP_MASK	0x00ff0000
-+#define XFS_IOLOCK_DEP_MASK	0x000f0000
-+#define XFS_MMAPLOCK_DEP_MASK	0x00f00000
- #define XFS_ILOCK_DEP_MASK	0xff000000
--#define XFS_LOCK_DEP_MASK	(XFS_IOLOCK_DEP_MASK | XFS_ILOCK_DEP_MASK)
--
--#define XFS_IOLOCK_DEP(flags)	(((flags) & XFS_IOLOCK_DEP_MASK) >> XFS_IOLOCK_SHIFT)
--#define XFS_ILOCK_DEP(flags)	(((flags) & XFS_ILOCK_DEP_MASK) >> XFS_ILOCK_SHIFT)
-+#define XFS_LOCK_DEP_MASK	(XFS_IOLOCK_DEP_MASK | \
-+				 XFS_MMAPLOCK_DEP_MASK | \
-+				 XFS_ILOCK_DEP_MASK)
-+
-+#define XFS_IOLOCK_DEP(flags)	(((flags) & XFS_IOLOCK_DEP_MASK) \
-+					>> XFS_IOLOCK_SHIFT)
-+#define XFS_MMAPLOCK_DEP(flags)	(((flags) & XFS_MMAPLOCK_DEP_MASK) \
-+					>> XFS_MMAPLOCK_SHIFT)
-+#define XFS_ILOCK_DEP(flags)	(((flags) & XFS_ILOCK_DEP_MASK) \
-+					>> XFS_ILOCK_SHIFT)
- 
- /*
-  * For multiple groups support: if S_ISGID bit is set in the parent
-diff --git a/fs/xfs/xfs_super.c b/fs/xfs/xfs_super.c
-index afd6bae..40d2ac5 100644
---- a/fs/xfs/xfs_super.c
-+++ b/fs/xfs/xfs_super.c
-@@ -986,6 +986,8 @@ xfs_fs_inode_init_once(
- 	atomic_set(&ip->i_pincount, 0);
- 	spin_lock_init(&ip->i_flags_lock);
- 
-+	mrlock_init(&ip->i_mmaplock, MRLOCK_ALLOW_EQUAL_PRI|MRLOCK_BARRIER,
-+		     "xfsino", ip->i_ino);
- 	mrlock_init(&ip->i_lock, MRLOCK_ALLOW_EQUAL_PRI|MRLOCK_BARRIER,
- 		     "xfsino", ip->i_ino);
- }
+A further complication for data writeback is that some filesystems
+do their own adjacent page write clustering own inside their own
+->writepages/->writepage implementations. Both ext4 and XFS do this,
+and it makes no sense from a system and filesystem performance
+perspective to turn sequential ranges of dirty pages into much
+slower, semi-random IO just because the pages belong to different
+memcgs. It's not a good idea to compromise bulk writeback
+throughput under memory pressure just because a different memcgs
+write to the same files, so what is going to be the impact of
+filesystems ignoring memcg ownership during writeback clustering?
+
+Finally, distros are going to ship with this always enabled, so what
+is the overall increase in the size of the struct inode on a 64
+bit system with it enabled?
+
+Cheers,
+
+Dave.
 -- 
-2.0.0
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
