@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C7556B006C
-	for <linux-mm@kvack.org>; Wed,  7 Jan 2015 12:07:48 -0500 (EST)
-Received: by mail-wi0-f179.google.com with SMTP id ex7so2091832wid.6
-        for <linux-mm@kvack.org>; Wed, 07 Jan 2015 09:07:47 -0800 (PST)
-Received: from mail-wi0-x22d.google.com (mail-wi0-x22d.google.com. [2a00:1450:400c:c05::22d])
-        by mx.google.com with ESMTPS id un10si5417997wjc.103.2015.01.07.09.07.47
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 13DBC6B006E
+	for <linux-mm@kvack.org>; Wed,  7 Jan 2015 12:08:09 -0500 (EST)
+Received: by mail-wi0-f180.google.com with SMTP id n3so2090863wiv.7
+        for <linux-mm@kvack.org>; Wed, 07 Jan 2015 09:08:08 -0800 (PST)
+Received: from mail-we0-x22a.google.com (mail-we0-x22a.google.com. [2a00:1450:400c:c03::22a])
+        by mx.google.com with ESMTPS id p9si5351402wjz.137.2015.01.07.09.08.07
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 07 Jan 2015 09:07:47 -0800 (PST)
-Received: by mail-wi0-f173.google.com with SMTP id r20so7959758wiv.0
-        for <linux-mm@kvack.org>; Wed, 07 Jan 2015 09:07:47 -0800 (PST)
+        Wed, 07 Jan 2015 09:08:07 -0800 (PST)
+Received: by mail-we0-f170.google.com with SMTP id w61so1552054wes.15
+        for <linux-mm@kvack.org>; Wed, 07 Jan 2015 09:08:07 -0800 (PST)
 From: Petr Cermak <petrcermak@chromium.org>
-Subject: [PATCH v2 1/2] task_mmu: Reduce excessive indentation in clear_refs_write
-Date: Wed,  7 Jan 2015 17:06:53 +0000
-Message-Id: <ebf1cce7f112b917e5a667016f4bdfbaea6e8c07.1420643264.git.petrcermak@chromium.org>
+Subject: [PATCH v2 2/2] task_mmu: Add user-space support for resetting mm->hiwater_rss (peak RSS)
+Date: Wed,  7 Jan 2015 17:06:54 +0000
+Message-Id: <be6c14c9ac4551e94b814c5789242b4874a25dd3.1420643264.git.petrcermak@chromium.org>
 In-Reply-To: <cover.1420643264.git.petrcermak@chromium.org>
 References: <cover.1420643264.git.petrcermak@chromium.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,139 +22,89 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Bjorn Helgaas <bhelgaas@google.com>, Primiano Tucci <primiano@chromium.org>, Petr Cermak <petrcermak@chromium.org>
 
-This is a purely cosmetic fix for clear_refs_write(). It removes excessive
-indentation as suggested by Bjorn Helgaas <bhelgaas@google.com>. This is to
-make upcoming changes to the file more readable.
+Peak resident size of a process can be reset by writing "5" to
+/proc/pid/clear_refs. The driving use-case for this would be getting the
+peak RSS value, which can be retrieved from the VmHWM field in
+/proc/pid/status, per benchmark iteration or test scenario.
 
 Signed-off-by: Petr Cermak <petrcermak@chromium.org>
 ---
- fs/proc/task_mmu.c | 102 ++++++++++++++++++++++++++++-------------------------
- 1 file changed, 53 insertions(+), 49 deletions(-)
+ Documentation/filesystems/proc.txt |  3 +++
+ fs/proc/task_mmu.c                 | 15 ++++++++++++++-
+ include/linux/mm.h                 |  5 +++++
+ 3 files changed, 22 insertions(+), 1 deletion(-)
 
+diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+index aae9dd1..7a3c689 100644
+--- a/Documentation/filesystems/proc.txt
++++ b/Documentation/filesystems/proc.txt
+@@ -488,6 +488,9 @@ To clear the bits for the file mapped pages associated with the process
+ To clear the soft-dirty bit
+     > echo 4 > /proc/PID/clear_refs
+ 
++To reset the peak resident set size ("high water mark") to the current value
++    > echo 5 > /proc/PID/clear_refs
++
+ Any other value written to /proc/PID/clear_refs will have no effect.
+ 
+ The /proc/pid/pagemap gives the PFN, which can be used to find the pageflags
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 246eae8..500d310 100644
+index 500d310..881a708 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
-@@ -828,6 +828,8 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
- 	enum clear_refs_types type;
- 	int itype;
- 	int rv;
-+	struct clear_refs_private cp;
-+	struct mm_walk clear_refs_walk;
+@@ -747,6 +747,7 @@ enum clear_refs_types {
+ 	CLEAR_REFS_ANON,
+ 	CLEAR_REFS_MAPPED,
+ 	CLEAR_REFS_SOFT_DIRTY,
++	CLEAR_REFS_MM_HIWATER_RSS,
+ 	CLEAR_REFS_LAST,
+ };
  
- 	memset(buffer, 0, sizeof(buffer));
- 	if (count > sizeof(buffer) - 1)
-@@ -852,59 +854,61 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
- 	if (!task)
- 		return -ESRCH;
- 	mm = get_task_mm(task);
--	if (mm) {
--		struct clear_refs_private cp = {
--			.type = type,
--		};
--		struct mm_walk clear_refs_walk = {
--			.pmd_entry = clear_refs_pte_range,
--			.mm = mm,
--			.private = &cp,
--		};
--		down_read(&mm->mmap_sem);
--		if (type == CLEAR_REFS_SOFT_DIRTY) {
--			for (vma = mm->mmap; vma; vma = vma->vm_next) {
--				if (!(vma->vm_flags & VM_SOFTDIRTY))
--					continue;
--				up_read(&mm->mmap_sem);
--				down_write(&mm->mmap_sem);
--				for (vma = mm->mmap; vma; vma = vma->vm_next) {
--					vma->vm_flags &= ~VM_SOFTDIRTY;
--					vma_set_page_prot(vma);
--				}
--				downgrade_write(&mm->mmap_sem);
--				break;
--			}
--			mmu_notifier_invalidate_range_start(mm, 0, -1);
--		}
-+	if (!mm)
-+		goto out_task;
-+
-+	cp = (struct clear_refs_private) {
-+		.type = type
-+	};
-+	clear_refs_walk = (struct mm_walk) {
-+		.pmd_entry = clear_refs_pte_range,
-+		.mm = mm,
-+		.private = &cp
-+	};
-+	down_read(&mm->mmap_sem);
-+	if (type == CLEAR_REFS_SOFT_DIRTY) {
- 		for (vma = mm->mmap; vma; vma = vma->vm_next) {
--			cp.vma = vma;
--			if (is_vm_hugetlb_page(vma))
--				continue;
--			/*
--			 * Writing 1 to /proc/pid/clear_refs affects all pages.
--			 *
--			 * Writing 2 to /proc/pid/clear_refs only affects
--			 * Anonymous pages.
--			 *
--			 * Writing 3 to /proc/pid/clear_refs only affects file
--			 * mapped pages.
--			 *
--			 * Writing 4 to /proc/pid/clear_refs affects all pages.
--			 */
--			if (type == CLEAR_REFS_ANON && vma->vm_file)
-+			if (!(vma->vm_flags & VM_SOFTDIRTY))
- 				continue;
--			if (type == CLEAR_REFS_MAPPED && !vma->vm_file)
--				continue;
--			walk_page_range(vma->vm_start, vma->vm_end,
--					&clear_refs_walk);
-+			up_read(&mm->mmap_sem);
-+			down_write(&mm->mmap_sem);
-+			for (vma = mm->mmap; vma; vma = vma->vm_next) {
-+				vma->vm_flags &= ~VM_SOFTDIRTY;
-+				vma_set_page_prot(vma);
-+			}
-+			downgrade_write(&mm->mmap_sem);
-+			break;
- 		}
--		if (type == CLEAR_REFS_SOFT_DIRTY)
--			mmu_notifier_invalidate_range_end(mm, 0, -1);
--		flush_tlb_mm(mm);
--		up_read(&mm->mmap_sem);
--		mmput(mm);
-+		mmu_notifier_invalidate_range_start(mm, 0, -1);
- 	}
-+	for (vma = mm->mmap; vma; vma = vma->vm_next) {
-+		cp.vma = vma;
-+		if (is_vm_hugetlb_page(vma))
-+			continue;
+@@ -857,6 +858,17 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
+ 	if (!mm)
+ 		goto out_task;
+ 
++	if (type == CLEAR_REFS_MM_HIWATER_RSS) {
 +		/*
-+		 * Writing 1 to /proc/pid/clear_refs affects all pages.
-+		 *
-+		 * Writing 2 to /proc/pid/clear_refs only affects anonymous
-+		 * pages.
-+		 *
-+		 * Writing 3 to /proc/pid/clear_refs only affects file mapped
-+		 * pages.
-+		 *
-+		 * Writing 4 to /proc/pid/clear_refs affects all pages.
++		 * Writing 5 to /proc/pid/clear_refs resets the peak resident
++		 * set size to the current value.
 +		 */
-+		if (type == CLEAR_REFS_ANON && vma->vm_file)
-+			continue;
-+		if (type == CLEAR_REFS_MAPPED && !vma->vm_file)
-+			continue;
-+		walk_page_range(vma->vm_start, vma->vm_end, &clear_refs_walk);
++		down_write(&mm->mmap_sem);
++		reset_mm_hiwater_rss(mm);
++		up_write(&mm->mmap_sem);
++		goto out_mm;
 +	}
-+	if (type == CLEAR_REFS_SOFT_DIRTY)
-+		mmu_notifier_invalidate_range_end(mm, 0, -1);
-+	flush_tlb_mm(mm);
-+	up_read(&mm->mmap_sem);
-+	mmput(mm);
 +
-+out_task:
+ 	cp = (struct clear_refs_private) {
+ 		.type = type
+ 	};
+@@ -906,8 +918,9 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
+ 		mmu_notifier_invalidate_range_end(mm, 0, -1);
+ 	flush_tlb_mm(mm);
+ 	up_read(&mm->mmap_sem);
+-	mmput(mm);
+ 
++out_mm:
++	mmput(mm);
+ out_task:
  	put_task_struct(task);
  
- 	return count;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index f80d019..dabb6cd 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1366,6 +1366,11 @@ static inline void update_hiwater_vm(struct mm_struct *mm)
+ 		mm->hiwater_vm = mm->total_vm;
+ }
+ 
++static inline void reset_mm_hiwater_rss(struct mm_struct *mm)
++{
++	mm->hiwater_rss = get_mm_rss(mm);
++}
++
+ static inline void setmax_mm_hiwater_rss(unsigned long *maxrss,
+ 					 struct mm_struct *mm)
+ {
 -- 
 2.2.0.rc0.207.ga3a616c
 
