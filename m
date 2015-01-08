@@ -1,84 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f43.google.com (mail-la0-f43.google.com [209.85.215.43])
-	by kanga.kvack.org (Postfix) with ESMTP id D06FF6B0032
-	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 06:34:59 -0500 (EST)
-Received: by mail-la0-f43.google.com with SMTP id s18so8629920lam.2
-        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 03:34:59 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ql3si7494005lbb.133.2015.01.08.03.34.58
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id BE59A6B0032
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 06:49:53 -0500 (EST)
+Received: by mail-pd0-f174.google.com with SMTP id fp1so10809467pdb.5
+        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 03:49:53 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id ib3si8035257pbb.224.2015.01.08.03.49.51
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 08 Jan 2015 03:34:58 -0800 (PST)
-Date: Thu, 8 Jan 2015 12:34:54 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [RFC PATCH 0/6] xfs: truncate vs page fault IO exclusion
-Message-ID: <20150108113454.GA25807@quack.suse.cz>
-References: <1420669543-8093-1-git-send-email-david@fromorbit.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Jan 2015 03:49:52 -0800 (PST)
+Date: Thu, 8 Jan 2015 03:49:50 -0800
+From: Christoph Hellwig <hch@infradead.org>
+Subject: pread2/ pwrite2
+Message-ID: <20150108114950.GB3351@infradead.org>
+References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
+ <20141210140347.GA23252@infradead.org>
+ <20141210141211.GD2220@wil.cx>
+ <20150105184143.GA665@infradead.org>
+ <20150106004714.6d63023c.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1420669543-8093-1-git-send-email-david@fromorbit.com>
+In-Reply-To: <20150106004714.6d63023c.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: xfs@oss.sgi.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Milosz Tanski <milosz@adfin.com>
 
-  Hi,
+On Tue, Jan 06, 2015 at 12:47:14AM -0800, Andrew Morton wrote:
+> > progress, which is a bit frustrating.
+> 
+> I took a look at pread2() as well and I have two main issues:
+> 
+> - The patchset includes a pwrite2() syscall which has nothing to do
+>   with nonblocking reads and which was poorly described and had little
+>   justification for inclusion.
 
-On Thu 08-01-15 09:25:37, Dave Chinner wrote:
-> This patch set is an attempt to address issues with XFS
-> truncate and hole-punch code from racing with page faults that enter
-> the IO path. This is traditionally deadlock prone due to the
-> inversion of filesystem IO path locks and the mmap_sem.
-> 
-> To avoid this issue, I have introduced a new "i_mmaplock" rwsem into
-> the XFS code similar to the IO lock, but this lock is only taken in
-> the mmap fault paths on entry into the filesystem (i.e. ->fault and
-> ->page_mkwrite).
-> 
-> The concept is that if we invalidate the page cache over a range
-> after taking both the existing i_iolock and the new i_mmaplock, we
-> will have prevented any vector for repopulation of the page cache
-> over the invalidated range until one of the io and mmap locks has
-> been dropped. i.e. we can guarantee that both the syscall IO path
-> and page faults won't race with whatever operation the filesystem is
-> performing...
-> 
-> The introduction of a new lock is necessary to avoid deadlocks due
-> to mmap_sem entanglement. It has a defined lock order during page
-> faults of:
-> 
-> mmap_sem
-> -> i_mmaplock (read)
->    -> page lock
->       -> i_ilock (get blocks)
-> 
-> This lock is then taken by any extent manipulation code in XFS in
-> addition to the IO lock which has the lock ordering of
-> 
-> i_iolock (write)
-> -> i_mmaplock (write)
->    -> page lock (data writeback, page invalidation)
->       -> i_lock (data writeback)
->    -> i_lock (modification transaction)
-> 
-> Hence we have consistent lock ordering (which has been validated so
-> far by testing with lockdep enabled) for page fault IO vs
-> truncate, hole punch, extent shifts, etc.
-> 
-> This patchset passes xfstests and various benchmarks and stress
-> workloads, so the real question is now:
-> 
-> 	What have I missed?
-> 
-> Comments, thoughts, flames?
-  I had a look at the patches and as far as I can tell this should work
-fine (at least from the VFS / MM POV).
+It allows to do O_SYNC writes on a per-I/O basis.  This is very useful
+for file servers (smb, cifs) as well as storage target devices.
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Note: that part was my addition, and the complaint about lacking
+description ever made it to me.  Can you point to the relevant
+questions?
+
+> - We've talked for years about implementing this via fincore+pread
+>   and at least two fincore implementations are floating about.  Now
+>   along comes pread2() which does it all in one hit.
+> 
+>   Which approach is best?  I expect fincore+pread is simpler, more
+>   flexible and more maintainable.  But pread2() will have lower CPU
+>   consumption and lower average-case latency.
+
+fincore+pread is inherently racy and thus entirely unsuitable for the
+use case of a non-blockign main thread.
+
+Nevermind that the pread2 path is way simpler than any of the proposed
+fincore patches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
