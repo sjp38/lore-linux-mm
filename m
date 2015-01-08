@@ -1,94 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CC0F6B0032
-	for <linux-mm@kvack.org>; Wed,  7 Jan 2015 18:46:03 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id ey11so7923799pad.10
-        for <linux-mm@kvack.org>; Wed, 07 Jan 2015 15:46:02 -0800 (PST)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id dx4si5660838pbb.90.2015.01.07.15.46.00
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 74FDA6B0032
+	for <linux-mm@kvack.org>; Wed,  7 Jan 2015 20:04:29 -0500 (EST)
+Received: by mail-pa0-f47.google.com with SMTP id kq14so8302338pab.6
+        for <linux-mm@kvack.org>; Wed, 07 Jan 2015 17:04:29 -0800 (PST)
+Received: from peace.netnation.com (peace.netnation.com. [204.174.223.2])
+        by mx.google.com with ESMTP id wq3si5890749pbc.91.2015.01.07.17.04.27
         for <linux-mm@kvack.org>;
-        Wed, 07 Jan 2015 15:46:01 -0800 (PST)
-Date: Thu, 8 Jan 2015 10:45:32 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCHSET RFC block/for-next] writeback: cgroup writeback support
-Message-ID: <20150107234532.GD25000@dastard>
-References: <1420579582-8516-1-git-send-email-tj@kernel.org>
- <20150106214426.GA24106@htj.dyndns.org>
+        Wed, 07 Jan 2015 17:04:28 -0800 (PST)
+Date: Wed, 7 Jan 2015 17:04:26 -0800
+From: Simon Kirby <sim@hostway.ca>
+Subject: Re: Dirty pages underflow on 3.14.23
+Message-ID: <20150108010426.GB6664@hostway.ca>
+References: <alpine.LRH.2.02.1501051744020.5119@file01.intranet.prod.int.rdu2.redhat.com>
+ <20150106150250.GA26895@phnom.home.cmpxchg.org>
+ <alpine.LRH.2.02.1501061246400.16437@file01.intranet.prod.int.rdu2.redhat.com>
+ <pan.2015.01.07.10.57.46@googlemail.com>
+ <20150107212858.GA6664@hostway.ca>
+ <54ADA99A.90501@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150106214426.GA24106@htj.dyndns.org>
+In-Reply-To: <54ADA99A.90501@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: axboe@kernel.dk, linux-kernel@vger.kernel.org, jack@suse.cz, hch@infradead.org, hannes@cmpxchg.org, linux-fsdevel@vger.kernel.org, vgoyal@redhat.com, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, clm@fb.com, fengguang.wu@intel.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Holger Hoffst?tte <holger.hoffstaette@googlemail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Jan 06, 2015 at 04:44:26PM -0500, Tejun Heo wrote:
-> Hello, again.  A bit of addition.
+On Wed, Jan 07, 2015 at 10:48:10PM +0100, Vlastimil Babka wrote:
+
+> On 01/07/2015 10:28 PM, Simon Kirby wrote:
+>
+> > Hmm...A possibly-related issue...Before trying this, after a fresh boot,
+> > /proc/vmstat showed:
+> > 
+> > nr_alloc_batch 4294541205
 > 
-> On Tue, Jan 06, 2015 at 04:25:37PM -0500, Tejun Heo wrote:
-> ...
-> > Overall design
-> > --------------
+> This can happen, and not be a problem in general. However, there was a fix
+> abe5f972912d086c080be4bde67750630b6fb38b in 3.17 for a potential performance
+> issue if this counter overflows on single processor configuration. It was marked
+> stable, but the 3.16 series was discontinued before the fix could be backported.
+> So if you are on single-core, you might hit the performance issue.
+
+That particular commit seems to just change the code path in that case,
+but should it be underflowing at all on UP?
+
+> > Still, nr_alloc_batch reads as 4294254379 after MySQL restart, and now
+> > seems to stay up there.
 > 
-> What's going on in this patchset is fairly straight forward.  The main
-> thing which is happening is that a bdi is being split into multiple
-> per-cgroup pieces.  Each split bdi, represented by bdi_writeback,
-> behaves mostly identically with how bdi behaved before.
+> Hm if it stays there, then you are probably hitting the performance issue. Look
+> at /proc/zoneinfo, which zone has the underflow. It means this zone will get
+> unfair amount of allocations, while others may contain stale data and would be
+> better candidates.
 
-I like the overall direction you've taken, Tejun, but I have
-a couple of questions...
+In this case, it has only 640MB, and there's only DMA and Normal. This is
+affecting Normal, and DMA is so small that it probably doesn't matter.
 
-> Complications mostly arise from filesystems and inodes having to deal
-> with multiple split bdi's instead of one, but those are mostly
-> straight-forward 1:N mapping issues.  It does get tedious here and
-> there but doesn't complicate the overall picture.
-
-Some filesystems don't track metadata-dirty inode state in the bdi
-lists, and instead track that in their own lists (usually deep
-inside the journalling subsystem). i.e. I_DIRTY_PAGES are the only
-dirty state that is tracked in the VFS. i.e. inode metadata
-writeback will still be considered global, but pages won't be. Hence
-you might get pages written back quickly, but the inodes are going
-to remain dirty and unreclaimable until the filesystem flushes some
-time in the future after the journal is committed and the inode
-written...
-
-There has also been talk of allowing filesystems to directly track
-dirty page state as well - the discussion came out of the way tux3
-was tracking and committing delta changes to file data. Now that
-hasn't gone anywhere, but I'm wondering what impact this patch set
-would have on such proposals?
-
-Similarly, I'm concerned about additional overhead in the writeback
-path - we can easily drive the flusher thread to be CPU bound on IO
-subsystems that have decent bandwidth (low GB/s), so adding more
-overhead to every page we have to flush is going to reduce
-performance on these systems. Do you have any idea what impact
-just enabling the memcg/blkcg tracking has on writeback performance
-and CPU consumption?
-
-A further complication for data writeback is that some filesystems
-do their own adjacent page write clustering own inside their own
-->writepages/->writepage implementations. Both ext4 and XFS do this,
-and it makes no sense from a system and filesystem performance
-perspective to turn sequential ranges of dirty pages into much
-slower, semi-random IO just because the pages belong to different
-memcgs. It's not a good idea to compromise bulk writeback
-throughput under memory pressure just because a different memcgs
-write to the same files, so what is going to be the impact of
-filesystems ignoring memcg ownership during writeback clustering?
-
-Finally, distros are going to ship with this always enabled, so what
-is the overall increase in the size of the struct inode on a 64
-bit system with it enabled?
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Simon-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
