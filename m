@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id B63D66B0070
-	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 05:33:31 -0500 (EST)
-Received: by mail-wg0-f53.google.com with SMTP id x13so1793602wgg.12
-        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 02:33:31 -0800 (PST)
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id BD8FB6B0071
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 05:33:33 -0500 (EST)
+Received: by mail-wg0-f49.google.com with SMTP id n12so1794640wgh.8
+        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 02:33:33 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u2si11441794wju.9.2015.01.08.02.33.25
+        by mx.google.com with ESMTPS id y9si11138216wjx.151.2015.01.08.02.33.26
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 08 Jan 2015 02:33:25 -0800 (PST)
+        Thu, 08 Jan 2015 02:33:26 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH V5 3/4] mm: reduce try_to_compact_pages parameters
-Date: Thu,  8 Jan 2015 11:33:10 +0100
-Message-Id: <1420713191-17509-4-git-send-email-vbabka@suse.cz>
+Subject: [PATCH V5 4/4] mm: microoptimize zonelist operations
+Date: Thu,  8 Jan 2015 11:33:11 +0100
+Message-Id: <1420713191-17509-5-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1420713191-17509-1-git-send-email-vbabka@suse.cz>
 References: <1420713191-17509-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,26 +20,25 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>
 
-Expand the usage of the struct alloc_context introduced in the previous patch
-also for calling try_to_compact_pages(), to reduce the number of its
-parameters. Since the function is in different compilation unit, we need to
-move alloc_context definition in the shared mm/internal.h header.
+The function next_zones_zonelist() returns zoneref pointer, as well as zone
+pointer via extra parameter. Since the latter can be trivially obtained by
+dereferencing the former, the overhead of the extra parameter is unjustified.
 
-With this change we get simpler code and small savings of code size and stack
-usage:
+This patch thus removes the zone parameter from next_zones_zonelist(). Both
+callers happen to be in the same header file, so it's simple to add the
+zoneref dereference inline. We save some bytes of code size.
 
-add/remove: 0/0 grow/shrink: 0/1 up/down: 0/-27 (-27)
+add/remove: 0/0 grow/shrink: 0/3 up/down: 0/-105 (-105)
 function                                     old     new   delta
-__alloc_pages_direct_compact                 283     256     -27
-add/remove: 0/0 grow/shrink: 0/1 up/down: 0/-13 (-13)
-function                                     old     new   delta
-try_to_compact_pages                         582     569     -13
+nr_free_zone_pages                           129     115     -14
+__alloc_pages_nodemask                      2300    2285     -15
+get_page_from_freelist                      2652    2576     -76
 
-Stack usage of __alloc_pages_direct_compact goes from 24 to none (per
-scripts/checkstack.pl).
+add/remove: 0/0 grow/shrink: 1/0 up/down: 10/0 (10)
+function                                     old     new   delta
+try_to_compact_pages                         569     579     +10
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Acked-by: Michal Hocko <mhocko@suse.cz>
 Cc: Mel Gorman <mgorman@suse.de>
 Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 Cc: Minchan Kim <minchan@kernel.org>
@@ -49,196 +48,79 @@ Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Michal Hocko <mhocko@suse.cz>
 ---
- include/linux/compaction.h | 17 +++++++++--------
- mm/compaction.c            | 23 +++++++++++------------
- mm/internal.h              | 22 ++++++++++++++++++++++
- mm/page_alloc.c            | 27 ++-------------------------
- 4 files changed, 44 insertions(+), 45 deletions(-)
+ include/linux/mmzone.h | 13 +++++++------
+ mm/mmzone.c            |  4 +---
+ 2 files changed, 8 insertions(+), 9 deletions(-)
 
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index 3238ffa..f2efda2 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -21,6 +21,8 @@
- /* Zone lock or lru_lock was contended in async compaction */
- #define COMPACT_CONTENDED_LOCK	2
- 
-+struct alloc_context; /* in mm/internal.h */
-+
- #ifdef CONFIG_COMPACTION
- extern int sysctl_compact_memory;
- extern int sysctl_compaction_handler(struct ctl_table *table, int write,
-@@ -30,10 +32,9 @@ extern int sysctl_extfrag_handler(struct ctl_table *table, int write,
- 			void __user *buffer, size_t *length, loff_t *ppos);
- 
- extern int fragmentation_index(struct zone *zone, unsigned int order);
--extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
--			int order, gfp_t gfp_mask, nodemask_t *mask,
--			enum migrate_mode mode, int *contended,
--			int alloc_flags, int classzone_idx);
-+extern unsigned long try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
-+			int alloc_flags, const struct alloc_context *ac,
-+			enum migrate_mode mode, int *contended);
- extern void compact_pgdat(pg_data_t *pgdat, int order);
- extern void reset_isolation_suitable(pg_data_t *pgdat);
- extern unsigned long compaction_suitable(struct zone *zone, int order,
-@@ -101,10 +102,10 @@ static inline bool compaction_restarting(struct zone *zone, int order)
- }
- 
- #else
--static inline unsigned long try_to_compact_pages(struct zonelist *zonelist,
--			int order, gfp_t gfp_mask, nodemask_t *nodemask,
--			enum migrate_mode mode, int *contended,
--			int alloc_flags, int classzone_idx)
-+static inline unsigned long try_to_compact_pages(gfp_t gfp_mask,
-+			unsigned int order, int alloc_flags,
-+			const struct alloc_context *ac,
-+			enum migrate_mode mode, int *contended)
- {
- 	return COMPACT_CONTINUE;
- }
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 546e571..9c7e690 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1335,22 +1335,20 @@ int sysctl_extfrag_threshold = 500;
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index b418297..f279d9c 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -970,7 +970,6 @@ static inline int zonelist_node_idx(struct zoneref *zoneref)
+  * @z - The cursor used as a starting point for the search
+  * @highest_zoneidx - The zone index of the highest zone to return
+  * @nodes - An optional nodemask to filter the zonelist with
+- * @zone - The first suitable zone found is returned via this parameter
+  *
+  * This function returns the next zone at or below a given zone index that is
+  * within the allowed nodemask using a cursor as the starting point for the
+@@ -980,8 +979,7 @@ static inline int zonelist_node_idx(struct zoneref *zoneref)
+  */
+ struct zoneref *next_zones_zonelist(struct zoneref *z,
+ 					enum zone_type highest_zoneidx,
+-					nodemask_t *nodes,
+-					struct zone **zone);
++					nodemask_t *nodes);
  
  /**
-  * try_to_compact_pages - Direct compact to satisfy a high-order allocation
-- * @zonelist: The zonelist used for the current allocation
-- * @order: The order of the current allocation
-  * @gfp_mask: The GFP mask of the current allocation
-- * @nodemask: The allowed nodes to allocate from
-+ * @order: The order of the current allocation
-+ * @alloc_flags: The allocation flags of the current allocation
-+ * @ac: The context of current allocation
-  * @mode: The migration mode for async, sync light, or sync migration
-  * @contended: Return value that determines if compaction was aborted due to
-  *	       need_resched() or lock contention
-  *
-  * This is the main entry point for direct page compaction.
-  */
--unsigned long try_to_compact_pages(struct zonelist *zonelist,
--			int order, gfp_t gfp_mask, nodemask_t *nodemask,
--			enum migrate_mode mode, int *contended,
--			int alloc_flags, int classzone_idx)
-+unsigned long try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
-+			int alloc_flags, const struct alloc_context *ac,
-+			enum migrate_mode mode, int *contended)
+  * first_zones_zonelist - Returns the first zone at or below highest_zoneidx within the allowed nodemask in a zonelist
+@@ -1000,8 +998,10 @@ static inline struct zoneref *first_zones_zonelist(struct zonelist *zonelist,
+ 					nodemask_t *nodes,
+ 					struct zone **zone)
  {
--	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
- 	int may_enter_fs = gfp_mask & __GFP_FS;
- 	int may_perform_io = gfp_mask & __GFP_IO;
- 	struct zoneref *z;
-@@ -1365,8 +1363,8 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 		return COMPACT_SKIPPED;
+-	return next_zones_zonelist(zonelist->_zonerefs, highest_zoneidx, nodes,
+-								zone);
++	struct zoneref *z = next_zones_zonelist(zonelist->_zonerefs,
++							highest_zoneidx, nodes);
++	*zone = zonelist_zone(z);
++	return z;
+ }
  
- 	/* Compact each zone in the list */
--	for_each_zone_zonelist_nodemask(zone, z, zonelist, high_zoneidx,
--								nodemask) {
-+	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->high_zoneidx,
-+								ac->nodemask) {
- 		int status;
- 		int zone_contended;
+ /**
+@@ -1018,7 +1018,8 @@ static inline struct zoneref *first_zones_zonelist(struct zonelist *zonelist,
+ #define for_each_zone_zonelist_nodemask(zone, z, zlist, highidx, nodemask) \
+ 	for (z = first_zones_zonelist(zlist, highidx, nodemask, &zone);	\
+ 		zone;							\
+-		z = next_zones_zonelist(++z, highidx, nodemask, &zone))	\
++		z = next_zones_zonelist(++z, highidx, nodemask),	\
++			zone = zonelist_zone(z))			\
  
-@@ -1374,7 +1372,8 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 			continue;
+ /**
+  * for_each_zone_zonelist - helper macro to iterate over valid zones in a zonelist at or below a given zone index
+diff --git a/mm/mmzone.c b/mm/mmzone.c
+index bf34fb8..7d87ebb 100644
+--- a/mm/mmzone.c
++++ b/mm/mmzone.c
+@@ -54,8 +54,7 @@ static inline int zref_in_nodemask(struct zoneref *zref, nodemask_t *nodes)
+ /* Returns the next zone at or below highest_zoneidx in a zonelist */
+ struct zoneref *next_zones_zonelist(struct zoneref *z,
+ 					enum zone_type highest_zoneidx,
+-					nodemask_t *nodes,
+-					struct zone **zone)
++					nodemask_t *nodes)
+ {
+ 	/*
+ 	 * Find the next suitable zone to use for the allocation.
+@@ -69,7 +68,6 @@ struct zoneref *next_zones_zonelist(struct zoneref *z,
+ 				(z->zone && !zref_in_nodemask(z, nodes)))
+ 			z++;
  
- 		status = compact_zone_order(zone, order, gfp_mask, mode,
--				&zone_contended, alloc_flags, classzone_idx);
-+				&zone_contended, alloc_flags,
-+				ac->classzone_idx);
- 		rc = max(status, rc);
- 		/*
- 		 * It takes at least one zone that wasn't lock contended
-@@ -1384,7 +1383,7 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
+-	*zone = zonelist_zone(z);
+ 	return z;
+ }
  
- 		/* If a normal allocation would succeed, stop compacting */
- 		if (zone_watermark_ok(zone, order, low_wmark_pages(zone),
--					classzone_idx, alloc_flags)) {
-+					ac->classzone_idx, alloc_flags)) {
- 			/*
- 			 * We think the allocation will succeed in this zone,
- 			 * but it is not certain, hence the false. The caller
-diff --git a/mm/internal.h b/mm/internal.h
-index efad241..c4d6c9b 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -110,6 +110,28 @@ extern pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
-  */
- 
- /*
-+ * Structure for holding the mostly immutable allocation parameters passed
-+ * between functions involved in allocations, including the alloc_pages*
-+ * family of functions.
-+ *
-+ * nodemask, migratetype and high_zoneidx are initialized only once in
-+ * __alloc_pages_nodemask() and then never change.
-+ *
-+ * zonelist, preferred_zone and classzone_idx are set first in
-+ * __alloc_pages_nodemask() for the fast path, and might be later changed
-+ * in __alloc_pages_slowpath(). All other functions pass the whole strucure
-+ * by a const pointer.
-+ */
-+struct alloc_context {
-+	struct zonelist *zonelist;
-+	nodemask_t *nodemask;
-+	struct zone *preferred_zone;
-+	int classzone_idx;
-+	int migratetype;
-+	enum zone_type high_zoneidx;
-+};
-+
-+/*
-  * Locate the struct page for both the matching buddy in our
-  * pair (buddy1) and the combined O(n+1) page they form (page).
-  *
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index bdbae0a..12d55b8 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -232,27 +232,6 @@ EXPORT_SYMBOL(nr_node_ids);
- EXPORT_SYMBOL(nr_online_nodes);
- #endif
- 
--/*
-- * Structure for holding the mostly immutable allocation parameters passed
-- * between alloc_pages* family of functions.
-- *
-- * nodemask, migratetype and high_zoneidx are initialized only once in
-- * __alloc_pages_nodemask() and then never change.
-- *
-- * zonelist, preferred_zone and classzone_idx are set first in
-- * __alloc_pages_nodemask() for the fast path, and might be later changed
-- * in __alloc_pages_slowpath(). All other functions pass the whole strucure
-- * by a const pointer.
-- */
--struct alloc_context {
--	struct zonelist *zonelist;
--	nodemask_t *nodemask;
--	struct zone *preferred_zone;
--	int classzone_idx;
--	int migratetype;
--	enum zone_type high_zoneidx;
--};
--
- int page_group_by_mobility_disabled __read_mostly;
- 
- void set_pageblock_migratetype(struct page *page, int migratetype)
-@@ -2396,10 +2375,8 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- 		return NULL;
- 
- 	current->flags |= PF_MEMALLOC;
--	compact_result = try_to_compact_pages(ac->zonelist, order, gfp_mask,
--						ac->nodemask, mode,
--						contended_compaction,
--						alloc_flags, ac->classzone_idx);
-+	compact_result = try_to_compact_pages(gfp_mask, order, alloc_flags, ac,
-+						mode, contended_compaction);
- 	current->flags &= ~PF_MEMALLOC;
- 
- 	switch (compact_result) {
 -- 
 2.1.2
 
