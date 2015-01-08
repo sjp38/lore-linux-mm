@@ -1,110 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id BC86C6B0032
-	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 09:51:20 -0500 (EST)
-Received: by mail-pd0-f170.google.com with SMTP id v10so11612555pde.1
-        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 06:51:20 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id e9si9087749pas.9.2015.01.08.06.51.18
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FCDF6B0032
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 10:08:54 -0500 (EST)
+Received: by mail-wg0-f52.google.com with SMTP id x12so3108931wgg.11
+        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 07:08:54 -0800 (PST)
+Received: from mail-wi0-x22d.google.com (mail-wi0-x22d.google.com. [2a00:1450:400c:c05::22d])
+        by mx.google.com with ESMTPS id k9si13883475wiw.32.2015.01.08.07.08.53
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Jan 2015 06:51:19 -0800 (PST)
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH] vmscan: force scan offline memory cgroups
-Date: Thu, 8 Jan 2015 17:51:09 +0300
-Message-ID: <1420728669-16889-1-git-send-email-vdavydov@parallels.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 08 Jan 2015 07:08:53 -0800 (PST)
+Received: by mail-wi0-f173.google.com with SMTP id r20so3866866wiv.0
+        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 07:08:53 -0800 (PST)
+Date: Thu, 8 Jan 2015 16:08:50 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: Linux 3.19-rc3
+Message-ID: <20150108150850.GD5658@dhcp22.suse.cz>
+References: <CA+55aFwsxoyLb9OWMSCL3doe_cz_EQtKsEFCyPUYn_T87pbz0A@mail.gmail.com>
+ <54AE7D53.2020305@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <54AE7D53.2020305@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mark Langsdorf <mlangsdo@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Marek Szyprowski <m.szyprowski@samsung.com>
 
-Since commit b2052564e66d ("mm: memcontrol: continue cache reclaim from
-offlined groups") pages charged to a memory cgroup are not reparented
-when the cgroup is removed. Instead, they are supposed to be reclaimed
-in a regular way, along with pages accounted to online memory cgroups.
+[CCing linux-mm and CMA people]
+[Full message here:
+http://article.gmane.org/gmane.linux.ports.arm.kernel/383669]
 
-However, an lruvec of an offline memory cgroup will sooner or later get
-so small that it will be scanned only at low scan priorities (see
-get_scan_count()). Therefore, if there are enough reclaimable pages in
-big lruvecs, pages accounted to offline memory cgroups will never be
-scanned at all, wasting memory.
+On Thu 08-01-15 06:51:31, Mark Langsdorf wrote:
+[...]
+> [ 1053.968815] active_anon:207417 inactive_anon:25722 isolated_anon:0
+> [ 1053.968815]  active_file:1300 inactive_file:21234 isolated_file:0
+> [ 1053.968815]  unevictable:0 dirty:0 writeback:0 unstable:0
+> [ 1053.968815]  free:1014 slab_reclaimable:1047 slab_unreclaimable:1758
+> [ 1053.968815]  mapped:733 shmem:58 pagetables:267 bounce:0
+> [ 1053.968815]  free_cma:1
 
-Fix this by unconditionally forcing scanning dead lruvecs from kswapd.
+Still a lot of pages (~80M) on the file LRU list which should be reclaimable
+because they are not dirty apparently.
+Anon pages can be reclaimed as well because the swap is basically
+unused.
 
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
----
- include/linux/memcontrol.h |    6 ++++++
- mm/memcontrol.c            |   14 ++++++++++++++
- mm/vmscan.c                |    3 ++-
- 3 files changed, 22 insertions(+), 1 deletion(-)
+[...]
+> [ 1054.095277] DMA: 109*64kB (UR) 53*128kB (R) 8*256kB (R) 0*512kB 0*1024kB
+> 0*2048kB 1*4096kB (R) 0*8192kB 0*16384kB 1*32768kB (R) 0*65536kB = 52672kB
+> [ 1054.108621] Normal: 191*64kB (MR) 0*128kB 0*256kB 0*512kB 0*1024kB
+> 0*2048kB 0*4096kB 0*8192kB 0*16384kB 0*32768kB 0*65536kB = 12224kB
+[...]
+> [ 1054.142545] Free swap  = 6598400kB
+> [ 1054.145928] Total swap = 8388544kB
+> [ 1054.149317] 262112 pages RAM
+> [ 1054.152180] 0 pages HighMem/MovableOnly
+> [ 1054.155995] 18446744073709544361 pages reserved
+> [ 1054.160505] 8192 pages cma reserved
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 76b4084b8d08..764d8801f3d1 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -102,6 +102,7 @@ void mem_cgroup_iter_break(struct mem_cgroup *, struct mem_cgroup *);
-  * For memory reclaim.
-  */
- int mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec);
-+bool mem_cgroup_need_force_scan(struct lruvec *lruvec);
- int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
- unsigned long mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list);
- void mem_cgroup_update_lru_size(struct lruvec *, enum lru_list, int);
-@@ -266,6 +267,11 @@ mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
- 	return 1;
- }
- 
-+bool mem_cgroup_need_force_scan(struct lruvec *lruvec)
-+{
-+	return false;
-+}
-+
- static inline unsigned long
- mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list lru)
- {
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index bfa1a849d113..a146ea8060dc 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1367,6 +1367,20 @@ int mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
- 	return inactive * inactive_ratio < active;
- }
- 
-+bool mem_cgroup_need_force_scan(struct lruvec *lruvec)
-+{
-+	struct mem_cgroup_per_zone *mz;
-+	struct mem_cgroup *memcg;
-+
-+	if (mem_cgroup_disabled())
-+		return false;
-+
-+	mz = container_of(lruvec, struct mem_cgroup_per_zone, lruvec);
-+	memcg = mz->memcg;
-+
-+	return !(memcg->css.flags & CSS_ONLINE);
-+}
-+
- #define mem_cgroup_from_counter(counter, member)	\
- 	container_of(counter, struct mem_cgroup, member)
- 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index e29f411b38ac..2de646271f89 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1935,7 +1935,8 @@ static void get_scan_count(struct lruvec *lruvec, int swappiness,
- 	 * latencies, so it's better to scan a minimum amount there as
- 	 * well.
- 	 */
--	if (current_is_kswapd() && !zone_reclaimable(zone))
-+	if (current_is_kswapd() &&
-+	    (!zone_reclaimable(zone) || mem_cgroup_need_force_scan(lruvec)))
- 		force_scan = true;
- 	if (!global_reclaim(sc))
- 		force_scan = true;
+Besides underflow in the reserved pages accounting mentioned in other
+email the free lists look strange as well. All free blocks with some memory
+are marked as reserved. I would suspect something CMA related.
+
 -- 
-1.7.10.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
