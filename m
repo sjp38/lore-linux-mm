@@ -1,84 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f173.google.com (mail-vc0-f173.google.com [209.85.220.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E5AF6B0038
-	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 10:43:05 -0500 (EST)
-Received: by mail-vc0-f173.google.com with SMTP id kv19so1333989vcb.4
-        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 07:43:05 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m1si12784394wje.153.2015.01.08.07.43.03
+Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com [209.85.217.169])
+	by kanga.kvack.org (Postfix) with ESMTP id B62876B0038
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 11:28:42 -0500 (EST)
+Received: by mail-lb0-f169.google.com with SMTP id p9so3768144lbv.0
+        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 08:28:42 -0800 (PST)
+Received: from mail-la0-f42.google.com (mail-la0-f42.google.com. [209.85.215.42])
+        by mx.google.com with ESMTPS id ay17si9078569lab.132.2015.01.08.08.28.41
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 08 Jan 2015 07:43:03 -0800 (PST)
-From: Juergen Gross <jgross@suse.com>
-Subject: [PATCH] mm: use correct format specifiers when printing address ranges
-Date: Thu,  8 Jan 2015 16:41:37 +0100
-Message-Id: <1420731697-12134-1-git-send-email-jgross@suse.com>
+        Thu, 08 Jan 2015 08:28:41 -0800 (PST)
+Received: by mail-la0-f42.google.com with SMTP id gd6so10136723lab.1
+        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 08:28:40 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20150106004714.6d63023c.akpm@linux-foundation.org>
+References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
+	<20141210140347.GA23252@infradead.org>
+	<20141210141211.GD2220@wil.cx>
+	<20150105184143.GA665@infradead.org>
+	<20150106004714.6d63023c.akpm@linux-foundation.org>
+Date: Thu, 8 Jan 2015 11:28:40 -0500
+Message-ID: <CANP1eJHOMSP8GYc_1pi8ciZZFWR0dH=N5a4HA=RYezohDmm+Rg@mail.gmail.com>
+Subject: Re: [PATCH v12 00/20] DAX: Page cache bypass for filesystems on
+ memory storage
+From: Milosz Tanski <milosz@adfin.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: Juergen Gross <jgross@suse.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Hellwig <hch@infradead.org>, Matthew Wilcox <willy@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-Especially on 32 bit kernels memory node ranges are printed with
-32 bit wide addresses only. Use u64 types and %llx specifiers to
-print full width of addresses.
+On Tue, Jan 6, 2015 at 3:47 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Mon, 5 Jan 2015 10:41:43 -0800 Christoph Hellwig <hch@infradead.org> wrote:
+>
+>> On Wed, Dec 10, 2014 at 09:12:11AM -0500, Matthew Wilcox wrote:
+>> > On Wed, Dec 10, 2014 at 06:03:47AM -0800, Christoph Hellwig wrote:
+>> > > What is the status of this patch set?
+>> >
+>> > I have no outstanding bug reports against it.  Linus told me that he
+>> > wants to see it come through Andrew's tree.  I have an email two weeks
+>> > ago from Andrew saying that it's on his list.  I would love to see it
+>> > merged since it's almost a year old at this point.
+>>
+>> And since then another month and aother merge window has passed.  Is
+>> there any way to speed up merging big patch sets like this one?
+>
+> I took a look at dax last time and found it to be unreviewable due to
+> lack of design description, objectives and code comments.  Hopefully
+> that's been addressed - I should get back to it fairly soon as I chew
+> through merge window and holiday backlog.
+>
+>> Another one is non-blocking read one that has real life use on one
+>> of the biggest server side webapp frameworks but doesn't seem to make
+>> progress, which is a bit frustrating.
+>
+> I took a look at pread2() as well and I have two main issues:
+>
+> - The patchset includes a pwrite2() syscall which has nothing to do
+>   with nonblocking reads and which was poorly described and had little
+>   justification for inclusion.
+>
+> - We've talked for years about implementing this via fincore+pread
+>   and at least two fincore implementations are floating about.  Now
+>   along comes pread2() which does it all in one hit.
+>
+>   Which approach is best?  I expect fincore+pread is simpler, more
+>   flexible and more maintainable.  But pread2() will have lower CPU
+>   consumption and lower average-case latency.
+>
+>   But how *much* better is pread2()?  I expect the difference will be
+>   minor because these operations are associated with a great big
+>   cache-stomping memcpy.  If the pread2() advantage is "insignificant
+>   for real world workloads" then perhaps it isn't the best way to go.
+>
+>   I just don't know, and diligence requires that we answer the
+>   question.  But all I've seen in response to these questions is
+>   handwaving.  It would be a shame to make a mistake because nobody
+>   found the time to perform the investigation.
+>
+> Also, integration of pread2() into xfstests is (or was) happening and
+> the results of that aren't yet known.
+>
 
-Signed-off-by: Juergen Gross <jgross@suse.com>
----
- mm/page_alloc.c | 20 +++++++++++---------
- 1 file changed, 11 insertions(+), 9 deletions(-)
+Andrew I  got busier with my other job related things between the
+Thanksgiving & Christmas then anticipated. However, I have updated and
+taken apart the patchset into two pieces (preadv2 and pwritev2). That
+should make evaluating the two separately easier. With the help of
+Volker I hacked up preadv2 support into samba and I hopefully have
+some numbers from it soon. Finally, I'm putting together a test case
+for the typical webapp middle-tier service (epoll + threadpool for
+diskio).
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 7633c50..4bbe4da 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5059,8 +5059,8 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
- 	pgdat->node_start_pfn = node_start_pfn;
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- 	get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
--	printk(KERN_INFO "Initmem setup node %d [mem %#010Lx-%#010Lx]\n", nid,
--			(u64) start_pfn << PAGE_SHIFT, (u64) (end_pfn << PAGE_SHIFT) - 1);
-+	pr_info("Initmem setup node %d [mem %#018Lx-%#018Lx]\n", nid,
-+		(u64)start_pfn << PAGE_SHIFT, ((u64)end_pfn << PAGE_SHIFT) - 1);
- #endif
- 	calculate_node_totalpages(pgdat, start_pfn, end_pfn,
- 				  zones_size, zholes_size);
-@@ -5432,9 +5432,10 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
- 				arch_zone_highest_possible_pfn[i])
- 			pr_cont("empty\n");
- 		else
--			pr_cont("[mem %0#10lx-%0#10lx]\n",
--				arch_zone_lowest_possible_pfn[i] << PAGE_SHIFT,
--				(arch_zone_highest_possible_pfn[i]
-+			pr_cont("[mem %#018Lx-%#018Lx]\n",
-+				(u64)arch_zone_lowest_possible_pfn[i]
-+					<< PAGE_SHIFT,
-+				((u64)arch_zone_highest_possible_pfn[i]
- 					<< PAGE_SHIFT) - 1);
- 	}
- 
-@@ -5442,15 +5443,16 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
- 	pr_info("Movable zone start for each node\n");
- 	for (i = 0; i < MAX_NUMNODES; i++) {
- 		if (zone_movable_pfn[i])
--			pr_info("  Node %d: %#010lx\n", i,
--			       zone_movable_pfn[i] << PAGE_SHIFT);
-+			pr_info("  Node %d: %#018Lx\n", i,
-+			       (u64)zone_movable_pfn[i] << PAGE_SHIFT);
- 	}
- 
- 	/* Print out the early node map */
- 	pr_info("Early memory node ranges\n");
- 	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid)
--		pr_info("  node %3d: [mem %#010lx-%#010lx]\n", nid,
--		       start_pfn << PAGE_SHIFT, (end_pfn << PAGE_SHIFT) - 1);
-+		pr_info("  node %3d: [mem %#018Lx-%#018Lx]\n", nid,
-+			(u64)start_pfn << PAGE_SHIFT,
-+			((u64)end_pfn << PAGE_SHIFT) - 1);
- 
- 	/* Initialise every node */
- 	mminit_verify_pageflags_layout();
+Haven't stopped, just progressing on that slower due to external factors.
+
+P.S: Sorry for re-send. On the road and was using gmail to respond
+with... it randomly forgets plain-text only settings.
+
 -- 
-2.1.2
+Milosz Tanski
+CTO
+16 East 34th Street, 15th floor
+New York, NY 10016
+
+p: 646-253-9055
+e: milosz@adfin.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
