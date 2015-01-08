@@ -1,53 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f53.google.com (mail-yh0-f53.google.com [209.85.213.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DB056B006E
-	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 11:37:57 -0500 (EST)
-Received: by mail-yh0-f53.google.com with SMTP id i57so1688364yha.12
-        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 08:37:57 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d5si7502868qam.110.2015.01.08.08.37.55
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F5096B0038
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 12:04:02 -0500 (EST)
+Received: by mail-wi0-f175.google.com with SMTP id l15so4587190wiw.2
+        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 09:04:02 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id ep2si14556804wib.0.2015.01.08.09.04.00
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Jan 2015 08:37:56 -0800 (PST)
-Message-ID: <54AEB25E.9050205@redhat.com>
-Date: Thu, 08 Jan 2015 10:37:50 -0600
-From: Mark Langsdorf <mlangsdo@redhat.com>
+        Thu, 08 Jan 2015 09:04:00 -0800 (PST)
+Date: Thu, 8 Jan 2015 12:03:49 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] vmscan: force scan offline memory cgroups
+Message-ID: <20150108170349.GA32079@phnom.home.cmpxchg.org>
+References: <1420728669-16889-1-git-send-email-vdavydov@parallels.com>
 MIME-Version: 1.0
-Subject: Re: Linux 3.19-rc3
-References: <CA+55aFwsxoyLb9OWMSCL3doe_cz_EQtKsEFCyPUYn_T87pbz0A@mail.gmail.com> <54AE7D53.2020305@redhat.com> <20150108150850.GD5658@dhcp22.suse.cz>
-In-Reply-To: <20150108150850.GD5658@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1420728669-16889-1-git-send-email-vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 01/08/2015 09:08 AM, Michal Hocko wrote:
-> [CCing linux-mm and CMA people]
-> [Full message here:
-> http://article.gmane.org/gmane.linux.ports.arm.kernel/383669]
+On Thu, Jan 08, 2015 at 05:51:09PM +0300, Vladimir Davydov wrote:
+> Since commit b2052564e66d ("mm: memcontrol: continue cache reclaim from
+> offlined groups") pages charged to a memory cgroup are not reparented
+> when the cgroup is removed. Instead, they are supposed to be reclaimed
+> in a regular way, along with pages accounted to online memory cgroups.
+> 
+> However, an lruvec of an offline memory cgroup will sooner or later get
+> so small that it will be scanned only at low scan priorities (see
+> get_scan_count()). Therefore, if there are enough reclaimable pages in
+> big lruvecs, pages accounted to offline memory cgroups will never be
+> scanned at all, wasting memory.
+> 
+> Fix this by unconditionally forcing scanning dead lruvecs from kswapd.
+> 
+> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 
->> [ 1054.095277] DMA: 109*64kB (UR) 53*128kB (R) 8*256kB (R) 0*512kB 0*1024kB
->> 0*2048kB 1*4096kB (R) 0*8192kB 0*16384kB 1*32768kB (R) 0*65536kB = 52672kB
->> [ 1054.108621] Normal: 191*64kB (MR) 0*128kB 0*256kB 0*512kB 0*1024kB
->> 0*2048kB 0*4096kB 0*8192kB 0*16384kB 0*32768kB 0*65536kB = 12224kB
-> [...]
->> [ 1054.142545] Free swap  = 6598400kB
->> [ 1054.145928] Total swap = 8388544kB
->> [ 1054.149317] 262112 pages RAM
->> [ 1054.152180] 0 pages HighMem/MovableOnly
->> [ 1054.155995] 18446744073709544361 pages reserved
->> [ 1054.160505] 8192 pages cma reserved
->
-> Besides underflow in the reserved pages accounting mentioned in other
-> email the free lists look strange as well. All free blocks with some memory
-> are marked as reserved. I would suspect something CMA related.
+Yes, it makes sense to continue draining them at this point.  I just
+have a few comments inline:
 
-I get the same failure with CMA turned off entirely. I assume that means
-CMA is not the culprit.
+> @@ -1367,6 +1367,20 @@ int mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
+>  	return inactive * inactive_ratio < active;
+>  }
+>  
+> +bool mem_cgroup_need_force_scan(struct lruvec *lruvec)
+> +{
+> +	struct mem_cgroup_per_zone *mz;
+> +	struct mem_cgroup *memcg;
+> +
+> +	if (mem_cgroup_disabled())
+> +		return false;
+> +
+> +	mz = container_of(lruvec, struct mem_cgroup_per_zone, lruvec);
+> +	memcg = mz->memcg;
+> +
+> +	return !(memcg->css.flags & CSS_ONLINE);
+> +}
 
---Mark Langsdorf
+It's better to name functions after what they do, rather than what
+they are used for, to make reuse easy.  mem_cgroup_lruvec_online()?
+
+> @@ -1935,7 +1935,8 @@ static void get_scan_count(struct lruvec *lruvec, int swappiness,
+>  	 * latencies, so it's better to scan a minimum amount there as
+>  	 * well.
+>  	 */
+> -	if (current_is_kswapd() && !zone_reclaimable(zone))
+> +	if (current_is_kswapd() &&
+> +	    (!zone_reclaimable(zone) || mem_cgroup_need_force_scan(lruvec)))
+>  		force_scan = true;
+
+This would probably be easier on the eyes if you broke that up:
+
+if (current_is_kswapd()) {
+        if (!zone_reclaimable(zone))
+                force_scan = true;
+        else if (!mem_cgroup_online_from_lruvec(lruvec))
+                force_scan = true;
+} else if (!global_reclaim(sc)) {
+                force_scan = true;
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
