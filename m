@@ -1,128 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id BD8FB6B0071
-	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 05:33:33 -0500 (EST)
-Received: by mail-wg0-f49.google.com with SMTP id n12so1794640wgh.8
-        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 02:33:33 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y9si11138216wjx.151.2015.01.08.02.33.26
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 4ED8A6B0032
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 05:53:37 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id eu11so11059960pac.8
+        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 02:53:37 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id ue3si7961684pab.125.2015.01.08.02.53.35
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 08 Jan 2015 02:33:26 -0800 (PST)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH V5 4/4] mm: microoptimize zonelist operations
-Date: Thu,  8 Jan 2015 11:33:11 +0100
-Message-Id: <1420713191-17509-5-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1420713191-17509-1-git-send-email-vbabka@suse.cz>
-References: <1420713191-17509-1-git-send-email-vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Jan 2015 02:53:35 -0800 (PST)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH -mm v3 0/9] Per memcg slab shrinkers
+Date: Thu, 8 Jan 2015 13:53:10 +0300
+Message-ID: <cover.1420711973.git.vdavydov@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@gmail.com>, Dave Chinner <david@fromorbit.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The function next_zones_zonelist() returns zoneref pointer, as well as zone
-pointer via extra parameter. Since the latter can be trivially obtained by
-dereferencing the former, the overhead of the extra parameter is unjustified.
+Hi,
 
-This patch thus removes the zone parameter from next_zones_zonelist(). Both
-callers happen to be in the same header file, so it's simple to add the
-zoneref dereference inline. We save some bytes of code size.
+Kmem accounting of memcg is unusable now, because it lacks slab shrinker
+support. That means when we hit the limit we will get ENOMEM w/o any
+chance to recover. What we should do then is to call shrink_slab, which
+would reclaim old inode/dentry caches from this cgroup. This is what
+this patch set is intended to do.
 
-add/remove: 0/0 grow/shrink: 0/3 up/down: 0/-105 (-105)
-function                                     old     new   delta
-nr_free_zone_pages                           129     115     -14
-__alloc_pages_nodemask                      2300    2285     -15
-get_page_from_freelist                      2652    2576     -76
+Basically, it does two things. First, it introduces the notion of
+per-memcg slab shrinker. A shrinker that wants to reclaim objects per
+cgroup should mark itself as SHRINKER_MEMCG_AWARE. Then it will be
+passed the memory cgroup to scan from in shrink_control->memcg. For such
+shrinkers shrink_slab iterates over the whole cgroup subtree under the
+target cgroup and calls the shrinker for each kmem-active memory cgroup.
 
-add/remove: 0/0 grow/shrink: 1/0 up/down: 10/0 (10)
-function                                     old     new   delta
-try_to_compact_pages                         569     579     +10
+Secondly, this patch set makes the list_lru structure per-memcg. It's
+done transparently to list_lru users - everything they have to do is to
+tell list_lru_init that they want memcg-aware list_lru. Then the
+list_lru will automatically distribute objects among per-memcg lists
+basing on which cgroup the object is accounted to. This way to make FS
+shrinkers (icache, dcache) memcg-aware we only need to make them use
+memcg-aware list_lru, and this is what this patch set does.
 
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Michal Hocko <mhocko@suse.cz>
----
- include/linux/mmzone.h | 13 +++++++------
- mm/mmzone.c            |  4 +---
- 2 files changed, 8 insertions(+), 9 deletions(-)
+As before, this patch set only enables per-memcg kmem reclaim when the
+pressure goes from memory.limit, not from memory.kmem.limit. Handling
+memory.kmem.limit is going to be tricky due to GFP_NOFS allocations, and
+it is still unclear whether we will have this knob in the unified
+hierarchy.
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index b418297..f279d9c 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -970,7 +970,6 @@ static inline int zonelist_node_idx(struct zoneref *zoneref)
-  * @z - The cursor used as a starting point for the search
-  * @highest_zoneidx - The zone index of the highest zone to return
-  * @nodes - An optional nodemask to filter the zonelist with
-- * @zone - The first suitable zone found is returned via this parameter
-  *
-  * This function returns the next zone at or below a given zone index that is
-  * within the allowed nodemask using a cursor as the starting point for the
-@@ -980,8 +979,7 @@ static inline int zonelist_node_idx(struct zoneref *zoneref)
-  */
- struct zoneref *next_zones_zonelist(struct zoneref *z,
- 					enum zone_type highest_zoneidx,
--					nodemask_t *nodes,
--					struct zone **zone);
-+					nodemask_t *nodes);
- 
- /**
-  * first_zones_zonelist - Returns the first zone at or below highest_zoneidx within the allowed nodemask in a zonelist
-@@ -1000,8 +998,10 @@ static inline struct zoneref *first_zones_zonelist(struct zonelist *zonelist,
- 					nodemask_t *nodes,
- 					struct zone **zone)
- {
--	return next_zones_zonelist(zonelist->_zonerefs, highest_zoneidx, nodes,
--								zone);
-+	struct zoneref *z = next_zones_zonelist(zonelist->_zonerefs,
-+							highest_zoneidx, nodes);
-+	*zone = zonelist_zone(z);
-+	return z;
- }
- 
- /**
-@@ -1018,7 +1018,8 @@ static inline struct zoneref *first_zones_zonelist(struct zonelist *zonelist,
- #define for_each_zone_zonelist_nodemask(zone, z, zlist, highidx, nodemask) \
- 	for (z = first_zones_zonelist(zlist, highidx, nodemask, &zone);	\
- 		zone;							\
--		z = next_zones_zonelist(++z, highidx, nodemask, &zone))	\
-+		z = next_zones_zonelist(++z, highidx, nodemask),	\
-+			zone = zonelist_zone(z))			\
- 
- /**
-  * for_each_zone_zonelist - helper macro to iterate over valid zones in a zonelist at or below a given zone index
-diff --git a/mm/mmzone.c b/mm/mmzone.c
-index bf34fb8..7d87ebb 100644
---- a/mm/mmzone.c
-+++ b/mm/mmzone.c
-@@ -54,8 +54,7 @@ static inline int zref_in_nodemask(struct zoneref *zref, nodemask_t *nodes)
- /* Returns the next zone at or below highest_zoneidx in a zonelist */
- struct zoneref *next_zones_zonelist(struct zoneref *z,
- 					enum zone_type highest_zoneidx,
--					nodemask_t *nodes,
--					struct zone **zone)
-+					nodemask_t *nodes)
- {
- 	/*
- 	 * Find the next suitable zone to use for the allocation.
-@@ -69,7 +68,6 @@ struct zoneref *next_zones_zonelist(struct zoneref *z,
- 				(z->zone && !zref_in_nodemask(z, nodes)))
- 			z++;
- 
--	*zone = zonelist_zone(z);
- 	return z;
- }
- 
+Changes in v3:
+ - Removed extra walk over all memory cgroups for shrinking per memcg
+   slab caches; shrink_slab is now called per memcg from the loop in
+   shrink_zone, as suggested by Johannes
+ - Reworked list_lru per memcg arrays init/destroy/update functions,
+   hopefully making them more readable
+ - Rebased on top of v3.19-rc3-mmotm-2015-01-07-17-07
+
+v2: https://lkml.org/lkml/2014/10/24/219
+v1: https://lkml.org/lkml/2014/9/21/64
+
+The patch set is organized as follows:
+
+ - Patches 1-3 implement per-memcg shrinker core with patches 1 and 2
+   preparing list_lru users for upcoming changes and patch 3 tuning
+   shrink_slab.
+
+ - Patches 4 and 5 cleanup handling of max memcg_cache_id in the memcg
+   core.
+
+ - Patch 6 gets rid of the useless list_lru->active_nodes, and patch 7
+   links all list_lrus to a list, which is required by memcg.
+
+ - Patch 8 adds per-memcg lrus to the list_lru structure, and finally
+   patch 9 marks fs shrinkers as memcg aware.
+
+Thanks,
+
+Vladimir Davydov (9):
+  list_lru: introduce list_lru_shrink_{count,walk}
+  fs: consolidate {nr,free}_cached_objects args in shrink_control
+  vmscan: per memory cgroup slab shrinkers
+  memcg: rename some cache id related variables
+  memcg: add rwsem to synchronize against memcg_caches arrays
+    relocation
+  list_lru: get rid of ->active_nodes
+  list_lru: organize all list_lrus to list
+  list_lru: introduce per-memcg lists
+  fs: make shrinker memcg aware
+
+ fs/dcache.c                |   14 +-
+ fs/drop_caches.c           |   14 --
+ fs/gfs2/quota.c            |    6 +-
+ fs/inode.c                 |    7 +-
+ fs/internal.h              |    7 +-
+ fs/super.c                 |   44 +++--
+ fs/xfs/xfs_buf.c           |    7 +-
+ fs/xfs/xfs_qm.c            |    7 +-
+ fs/xfs/xfs_super.c         |    7 +-
+ include/linux/fs.h         |    6 +-
+ include/linux/list_lru.h   |   70 ++++++--
+ include/linux/memcontrol.h |   37 +++-
+ include/linux/mm.h         |    5 +-
+ include/linux/shrinker.h   |    6 +-
+ mm/list_lru.c              |  412 +++++++++++++++++++++++++++++++++++++++++---
+ mm/memcontrol.c            |   68 +++++---
+ mm/memory-failure.c        |   11 +-
+ mm/slab_common.c           |   13 +-
+ mm/vmscan.c                |   86 ++++++---
+ mm/workingset.c            |    6 +-
+ 20 files changed, 657 insertions(+), 176 deletions(-)
+
 -- 
-2.1.2
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
