@@ -1,101 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 459166B0071
-	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 03:34:02 -0500 (EST)
-Received: by mail-pd0-f179.google.com with SMTP id fp1so9889412pdb.10
-        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 00:34:02 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id sy7si7395270pbc.64.2015.01.08.00.34.00
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id BC8C46B0073
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 03:46:30 -0500 (EST)
+Received: by mail-wi0-f179.google.com with SMTP id ex7so1743919wid.0
+        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 00:46:30 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id hz2si10467329wjb.173.2015.01.08.00.46.29
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Jan 2015 00:34:00 -0800 (PST)
-Date: Thu, 8 Jan 2015 11:33:53 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [LSF/MM TOPIC ATTEND]
-Message-ID: <20150108083353.GB2110@esperanza>
-References: <20150106161435.GF20860@dhcp22.suse.cz>
- <20150107085828.GA2110@esperanza>
- <20150107143858.GE16553@dhcp22.suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 08 Jan 2015 00:46:29 -0800 (PST)
+Message-ID: <54AE43E3.60209@suse.cz>
+Date: Thu, 08 Jan 2015 09:46:27 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20150107143858.GE16553@dhcp22.suse.cz>
+Subject: Re: [PATCH 1/3] mm/compaction: enhance trace output to know more
+ about compaction internals
+References: <1417593127-6819-1-git-send-email-iamjoonsoo.kim@lge.com> <54ABA563.1040103@suse.cz> <20150108081835.GC25453@js1304-P5Q-DELUXE>
+In-Reply-To: <20150108081835.GC25453@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jan 07, 2015 at 03:38:58PM +0100, Michal Hocko wrote:
-> On Wed 07-01-15 11:58:28, Vladimir Davydov wrote:
-> > On Tue, Jan 06, 2015 at 05:14:35PM +0100, Michal Hocko wrote:
-> > [...]
-> > > And as a memcg co-maintainer I would like to also discuss the following
-> > > topics.
-> > > - We should finally settle down with a set of core knobs exported with
-> > >   the new unified hierarchy cgroups API. I have proposed this already
-> > >   http://marc.info/?l=linux-mm&m=140552160325228&w=2 but there is no
-> > >   clear consensus and the discussion has died later on. I feel it would
-> > >   be more productive to sit together and come up with a reasonable
-> > >   compromise between - let's start from the begining and keep useful and
-> > >   reasonable features.
-> > >   
-> > > - kmem accounting is seeing a lot of activity mainly thanks to Vladimir.
-> > >   He is basically the only active developer in this area. I would be
-> > >   happy if he can attend as well and discuss his future plans in the
-> > >   area. The work overlaps with slab allocators and slab shrinkers so
-> > >   having people familiar with these areas would be more than welcome
-> > 
-> > One more memcg related topic that is worth discussing IMO:
-> > 
-> >  - On global memory pressure we walk over all memory cgroups and scan
-> >    pages from each of them. Since there can be hundreds or even
-> >    thousands of memory cgroups, such a walk can be quite expensive,
-> >    especially if the cgroups are small so that to reclaim anything from
-> >    them we have to descend to a lower scan priority.
+On 01/08/2015 09:18 AM, Joonsoo Kim wrote:
+> On Tue, Jan 06, 2015 at 10:05:39AM +0100, Vlastimil Babka wrote:
+>> On 12/03/2014 08:52 AM, Joonsoo Kim wrote:
+>> > It'd be useful to know where the both scanner is start. And, it also be
+>> > useful to know current range where compaction work. It will help to find
+>> > odd behaviour or problem on compaction.
+>> 
+>> Overall it looks good, just two questions:
+>> 1) Why change the pfn output to hexadecimal with different printf layout and
+>> change the variable names and? Is it that better to warrant people having to
+>> potentially modify their scripts parsing the old output?
 > 
->      We do not get to lower priorities just to scan small cgroups. They
->      will simply get ignored unless we are force scanning them.
+> Deciaml output has really bad readability since we manage all pages by order
+> of 2 which is well represented by hexadecimal. With hex output, we can
+> easily notice whether we move out from one pageblock to another one.
 
-That means that small cgroups (< 16 M) may not be scanned at all if
-there are enough reclaimable pages in bigger cgroups. I'm not sure if
-anyone will mix small and big cgroups on the same host though. However,
-currently this may render offline memory cgroups hanging around forever
-if they have some memory on destruction, because they will become small
-due to global reclaim sooner or later. OTOH, we could always forcefully
-scan lruvecs that belong to dead cgroups, or limit the maximal number of
-dead cgroups, w/o reworking the reclaimer.
+OK. I don't have any strong objection, maybe Mel should comment on this as the
+author of most of the tracepoints? But if it happens, I think converting the old
+tracepoints to new hexadecimal format should be a separate patch from adding the
+new ones.
 
+>> 2) Would it be useful to also print in the mm_compaction_isolate_template based
+>> tracepoints, pfn of where the particular scanner left off a block prematurely?
+>> It doesn't always match start_pfn + nr_scanned.
 > 
-> >    The problem is
-> >    augmented by offline memory cgroups, which now can be dangling for
-> >    indefinitely long time.
+> With start_pfn and end_pfn, detailed analysis is possible. We can know pageblock
+> where we actually scan and isolate and how much pages we try in that
+> pageblock and can guess why it doesn't become freepage with pageblock
+> order roughly.
 > 
-> OK, but shrink_lruvec shouldn't do too much work on a memcg which
-> doesn't have any pages to scan for the given priority. Or have you
-> seen this in some profiles?
+> nr_scanned is just different metric. end_pfn don't need to match with
+> start_pfn + nr_scanned.
 
-In real life, no.
+Well that's part of my point. end_pfn is the end of the pageblock. nr_scanned
+might be lower than end_pfn - start_pfn, because we terminate in the middle of
+the pageblock. But it might be also lower, because we e.g. skip higher-order
+free pages. So we don't recognize where we terminated early.
 
+> Thanks.
 > 
-> >    That's why I think we should work out a better algorithm for the
-> >    memory reclaimer. May be, we could rank memory cgroups somehow (by
-> >    their age, memory consumption?) and try to scan only the top ranked
-> >    cgroup during a reclaimer run.
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
-> We still have to keep some fairness and reclaim all groups
-> proportionally and balancing this would be quite non-trivial. I am not
-> saying we couldn't implement our iterators in a more intelligent way but
-> this code is quite complex already and I haven't seen this as a big
-> problem yet. Some overhead is to be expected when thousands of groups
-> are configured, right?
-
-Right, sounds convincing. Let's cross out this topic then until we see
-complains from real users. No need to spend time on it right now.
-
-Sorry for the noise.
-
-Thanks,
-Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
