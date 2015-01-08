@@ -1,164 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 727506B0082
-	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 12:46:55 -0500 (EST)
-Received: by mail-wi0-f178.google.com with SMTP id em10so4893761wid.5
-        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 09:46:55 -0800 (PST)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id a10si14584640wiw.58.2015.01.08.09.46.41
+Received: from mail-yk0-f180.google.com (mail-yk0-f180.google.com [209.85.160.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F3716B0038
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 12:50:30 -0500 (EST)
+Received: by mail-yk0-f180.google.com with SMTP id 9so1880116ykp.11
+        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 09:50:30 -0800 (PST)
+Received: from SMTP.CITRIX.COM (smtp.citrix.com. [66.165.176.89])
+        by mx.google.com with ESMTPS id z1si3409262ykb.29.2015.01.08.09.50.28
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Jan 2015 09:46:41 -0800 (PST)
-From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 12/12] fs: remove default_backing_dev_info
-Date: Thu,  8 Jan 2015 18:45:33 +0100
-Message-Id: <1420739133-27514-13-git-send-email-hch@lst.de>
-In-Reply-To: <1420739133-27514-1-git-send-email-hch@lst.de>
-References: <1420739133-27514-1-git-send-email-hch@lst.de>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 08 Jan 2015 09:50:29 -0800 (PST)
+Message-ID: <54AEC358.9000001@citrix.com>
+Date: Thu, 8 Jan 2015 17:50:16 +0000
+From: David Vrabel <david.vrabel@citrix.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/2] mm: allow for an alternate set of pages for userspace
+ mappings
+References: <1420730924-22811-1-git-send-email-david.vrabel@citrix.com> <1420730924-22811-2-git-send-email-david.vrabel@citrix.com> <20150108172007.GB32079@phnom.home.cmpxchg.org>
+In-Reply-To: <20150108172007.GB32079@phnom.home.cmpxchg.org>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@fb.com>
-Cc: David Howells <dhowells@redhat.com>, Tejun Heo <tj@kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-mtd@lists.infradead.org, linux-nfs@vger.kernel.org, ceph-devel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
 
-Now that default_backing_dev_info is not used for writeback purposes we can
-git rid of it easily:
+On 08/01/15 17:20, Johannes Weiner wrote:
+> On Thu, Jan 08, 2015 at 03:28:43PM +0000, David Vrabel wrote:
+>> Add an optional array of pages to struct vm_area_struct that can be
+>> used find the page backing a VMA.  This is useful in cases where the
+>> normal mechanisms for finding the page don't work.  This array is only
+>> inspected if the PTE is special.
+>>
+>> Splitting a VMA with such an array of pages is trivially done by
+>> adjusting vma->pages.  The original creator of the VMA must only free
+>> the page array once all sub-VMAs are closed (e.g., by ref-counting in
+>> vm_ops->open and vm_ops->close).
+>>
+>> One use case is a Xen PV guest mapping foreign pages into userspace.
+>>
+>> In a Xen PV guest, the PTEs contain MFNs so get_user_pages() (for
+>> example) must do an MFN to PFN (M2P) lookup before it can get the
+>> page.  For foreign pages (those owned by another guest) the M2P lookup
+>> returns the PFN as seen by the foreign guest (which would be
+>> completely the wrong page for the local guest).
+>>
+>> This cannot be fixed up improving the M2P lookup since one MFN may be
+>> mapped onto two or more pages so getting the right page is impossible
+>> given just the MFN.
+[...]
+>> --- a/include/linux/mm_types.h
+>> +++ b/include/linux/mm_types.h
+>> @@ -309,6 +309,14 @@ struct vm_area_struct {
+>>  #ifdef CONFIG_NUMA
+>>  	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
+>>  #endif
+>> +	/*
+>> +	 * Array of pages to override the default vm_normal_page()
+>> +	 * result iff the PTE is special.
+>> +	 *
+>> +	 * The memory for this should be refcounted in vm_ops->open
+>> +	 * and vm_ops->close.
+>> +	 */
+>> +	struct page **pages;
+> 
+> Please make this configuration-dependent, not every Linux user should
+> have to pay for a Xen optimization.
 
- - instead of using it's name for tracing unregistered bdi we just use
-   "unknown"
- - btrfs and ceph can just assign the default read ahead window themselves
-   like several other filesystems already do.
- - we can assign noop_backing_dev_info as the default one in alloc_super.
-   All filesystems already either assigned their own or
-   noop_backing_dev_info.
+If the additional field in struct vm_area_struct is a concern, I would
+prefer to use a vm_flag bit and union pages with an existing field.
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
----
- fs/btrfs/disk-io.c               | 2 +-
- fs/ceph/super.c                  | 2 +-
- fs/super.c                       | 8 ++------
- include/linux/backing-dev.h      | 1 -
- include/trace/events/writeback.h | 6 ++----
- mm/backing-dev.c                 | 9 ---------
- 6 files changed, 6 insertions(+), 22 deletions(-)
+Perhaps using VM_PFNMAP and reusing vm_file?
 
-diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
-index 1ec872e..1afb182 100644
---- a/fs/btrfs/disk-io.c
-+++ b/fs/btrfs/disk-io.c
-@@ -1719,7 +1719,7 @@ static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)
- 	if (err)
- 		return err;
- 
--	bdi->ra_pages	= default_backing_dev_info.ra_pages;
-+	bdi->ra_pages = VM_MAX_READAHEAD * 1024 / PAGE_CACHE_SIZE;
- 	bdi->congested_fn	= btrfs_congested_fn;
- 	bdi->congested_data	= info;
- 	return 0;
-diff --git a/fs/ceph/super.c b/fs/ceph/super.c
-index e350cc1..5ae6258 100644
---- a/fs/ceph/super.c
-+++ b/fs/ceph/super.c
-@@ -899,7 +899,7 @@ static int ceph_register_bdi(struct super_block *sb,
- 			>> PAGE_SHIFT;
- 	else
- 		fsc->backing_dev_info.ra_pages =
--			default_backing_dev_info.ra_pages;
-+			VM_MAX_READAHEAD * 1024 / PAGE_CACHE_SIZE;
- 
- 	err = bdi_register(&fsc->backing_dev_info, NULL, "ceph-%ld",
- 			   atomic_long_inc_return(&bdi_seq));
-diff --git a/fs/super.c b/fs/super.c
-index eae088f..3b4dada 100644
---- a/fs/super.c
-+++ b/fs/super.c
-@@ -185,8 +185,8 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
- 	}
- 	init_waitqueue_head(&s->s_writers.wait);
- 	init_waitqueue_head(&s->s_writers.wait_unfrozen);
-+	s->s_bdi = &noop_backing_dev_info;
- 	s->s_flags = flags;
--	s->s_bdi = &default_backing_dev_info;
- 	INIT_HLIST_NODE(&s->s_instances);
- 	INIT_HLIST_BL_HEAD(&s->s_anon);
- 	INIT_LIST_HEAD(&s->s_inodes);
-@@ -863,10 +863,7 @@ EXPORT_SYMBOL(free_anon_bdev);
- 
- int set_anon_super(struct super_block *s, void *data)
- {
--	int error = get_anon_bdev(&s->s_dev);
--	if (!error)
--		s->s_bdi = &noop_backing_dev_info;
--	return error;
-+	return get_anon_bdev(&s->s_dev);
- }
- 
- EXPORT_SYMBOL(set_anon_super);
-@@ -1111,7 +1108,6 @@ mount_fs(struct file_system_type *type, int flags, const char *name, void *data)
- 	sb = root->d_sb;
- 	BUG_ON(!sb);
- 	WARN_ON(!sb->s_bdi);
--	WARN_ON(sb->s_bdi == &default_backing_dev_info);
- 	sb->s_flags |= MS_BORN;
- 
- 	error = security_sb_kern_mount(sb, flags, secdata);
-diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-index ed59dee..d94077f 100644
---- a/include/linux/backing-dev.h
-+++ b/include/linux/backing-dev.h
-@@ -241,7 +241,6 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
- #define BDI_CAP_NO_ACCT_AND_WRITEBACK \
- 	(BDI_CAP_NO_WRITEBACK | BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_ACCT_WB)
- 
--extern struct backing_dev_info default_backing_dev_info;
- extern struct backing_dev_info noop_backing_dev_info;
- 
- int writeback_in_progress(struct backing_dev_info *bdi);
-diff --git a/include/trace/events/writeback.h b/include/trace/events/writeback.h
-index 74f5207..0e93109 100644
---- a/include/trace/events/writeback.h
-+++ b/include/trace/events/writeback.h
-@@ -156,10 +156,8 @@ DECLARE_EVENT_CLASS(writeback_work_class,
- 		__field(int, reason)
- 	),
- 	TP_fast_assign(
--		struct device *dev = bdi->dev;
--		if (!dev)
--			dev = default_backing_dev_info.dev;
--		strncpy(__entry->name, dev_name(dev), 32);
-+		strncpy(__entry->name,
-+			bdi->dev ? dev_name(bdi->dev) : "(unknown)", 32);
- 		__entry->nr_pages = work->nr_pages;
- 		__entry->sb_dev = work->sb ? work->sb->s_dev : 0;
- 		__entry->sync_mode = work->sync_mode;
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index 3ebba25..c49026d 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -14,12 +14,6 @@
- 
- static atomic_long_t bdi_seq = ATOMIC_LONG_INIT(0);
- 
--struct backing_dev_info default_backing_dev_info = {
--	.name		= "default",
--	.ra_pages	= VM_MAX_READAHEAD * 1024 / PAGE_CACHE_SIZE,
--};
--EXPORT_SYMBOL_GPL(default_backing_dev_info);
--
- struct backing_dev_info noop_backing_dev_info = {
- 	.name		= "noop",
- 	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
-@@ -250,9 +244,6 @@ static int __init default_bdi_init(void)
- 	if (!bdi_wq)
- 		return -ENOMEM;
- 
--	err = bdi_init(&default_backing_dev_info);
--	if (!err)
--		bdi_register(&default_backing_dev_info, NULL, "default");
- 	err = bdi_init(&noop_backing_dev_info);
- 
- 	return err;
--- 
-1.9.1
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
