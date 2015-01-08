@@ -1,39 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F84B6B0032
-	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 07:24:52 -0500 (EST)
-Received: by mail-pa0-f54.google.com with SMTP id fb1so11457625pad.13
-        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 04:24:52 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id z9si8201882par.226.2015.01.08.04.24.50
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Jan 2015 04:24:51 -0800 (PST)
-Date: Thu, 8 Jan 2015 04:24:48 -0800
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [RFC PATCH 0/6] xfs: truncate vs page fault IO exclusion
-Message-ID: <20150108122448.GA18034@infradead.org>
-References: <1420669543-8093-1-git-send-email-david@fromorbit.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1420669543-8093-1-git-send-email-david@fromorbit.com>
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id D12266B0032
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 09:11:07 -0500 (EST)
+Received: by mail-pd0-f181.google.com with SMTP id v10so11363093pde.12
+        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 06:11:07 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id 12si8710707pde.142.2015.01.08.06.11.04
+        for <linux-mm@kvack.org>;
+        Thu, 08 Jan 2015 06:11:05 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <20150107134039.25d4edfad92b62f3eee8b570@linux-foundation.org>
+References: <1420458382-161038-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <20150107134039.25d4edfad92b62f3eee8b570@linux-foundation.org>
+Subject: Re: [PATCH] mm/page_alloc.c: drop dead destroy_compound_page()
+Content-Transfer-Encoding: 7bit
+Message-Id: <20150108141004.AB3461A2@black.fi.intel.com>
+Date: Thu,  8 Jan 2015 16:10:04 +0200 (EET)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: xfs@oss.sgi.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, aarcange@redhat.com, linux-mm@kvack.org
 
-> This patchset passes xfstests and various benchmarks and stress
-> workloads, so the real question is now:
+Andrew Morton wrote:
+> On Mon,  5 Jan 2015 13:46:22 +0200 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
 > 
-> 	What have I missed?
+> > The only caller is __free_one_page(). By the time we should have
+> > page->flags to be cleared already:
+> > 
+> >  - for 0-order pages though PCP list:
+> > 	free_hot_cold_page()
+> > 		free_pages_prepare()
+> > 			free_pages_check()
+> > 				page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
+> > 		<put the page to PCP list>
+> > 
+> > 	free_pcppages_bulk()
+> > 		page = <withdraw pages from PCP list>
+> > 		__free_one_page(page)
+> > 
+> >  - for non-0-order pages:
+> > 	__free_pages_ok()
+> > 		free_pages_prepare()
+> > 			free_pages_check()
+> > 				page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
+> > 		free_one_page()
+> > 			__free_one_page()
+> > 
+> > So there's no way PageCompound() will return true in __free_one_page().
+> > Let's remove dead destroy_compound_page() and put assert for page->flags
+> > there instead.
 > 
-> Comments, thoughts, flames?
+> Well.  An alternative would be to fix up the call site so those
+> useful-looking checks actually get to check things.  Perhaps under
+> CONFIG_DEBUG_VM.
 
-Why is this done in XFS and not in generic code?
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Something like this?
