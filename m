@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E47C76B0080
-	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 12:46:54 -0500 (EST)
-Received: by mail-wg0-f51.google.com with SMTP id x12so3945437wgg.10
-        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 09:46:53 -0800 (PST)
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 727506B0082
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 12:46:55 -0500 (EST)
+Received: by mail-wi0-f178.google.com with SMTP id em10so4893761wid.5
+        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 09:46:55 -0800 (PST)
 Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id hw9si13431016wjb.136.2015.01.08.09.46.39
+        by mx.google.com with ESMTPS id a10si14584640wiw.58.2015.01.08.09.46.41
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Jan 2015 09:46:39 -0800 (PST)
+        Thu, 08 Jan 2015 09:46:41 -0800 (PST)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 11/12] fs: don't reassign dirty inodes to default_backing_dev_info
-Date: Thu,  8 Jan 2015 18:45:32 +0100
-Message-Id: <1420739133-27514-12-git-send-email-hch@lst.de>
+Subject: [PATCH 12/12] fs: remove default_backing_dev_info
+Date: Thu,  8 Jan 2015 18:45:33 +0100
+Message-Id: <1420739133-27514-13-git-send-email-hch@lst.de>
 In-Reply-To: <1420739133-27514-1-git-send-email-hch@lst.de>
 References: <1420739133-27514-1-git-send-email-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,159 +20,143 @@ List-ID: <linux-mm.kvack.org>
 To: Jens Axboe <axboe@fb.com>
 Cc: David Howells <dhowells@redhat.com>, Tejun Heo <tj@kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-mtd@lists.infradead.org, linux-nfs@vger.kernel.org, ceph-devel@vger.kernel.org
 
-If we have dirty inodes we need to call the filesystem for it, even if the
-device has been removed and the filesystem will error out early.  The
-current code does that by reassining all dirty inodes to the default
-backing_dev_info when a bdi is unlinked, but that's pretty pointless given
-that the bdi must always outlive the super block.
+Now that default_backing_dev_info is not used for writeback purposes we can
+git rid of it easily:
+
+ - instead of using it's name for tracing unregistered bdi we just use
+   "unknown"
+ - btrfs and ceph can just assign the default read ahead window themselves
+   like several other filesystems already do.
+ - we can assign noop_backing_dev_info as the default one in alloc_super.
+   All filesystems already either assigned their own or
+   noop_backing_dev_info.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- mm/backing-dev.c | 91 +++++++++++++++-----------------------------------------
- 1 file changed, 24 insertions(+), 67 deletions(-)
+ fs/btrfs/disk-io.c               | 2 +-
+ fs/ceph/super.c                  | 2 +-
+ fs/super.c                       | 8 ++------
+ include/linux/backing-dev.h      | 1 -
+ include/trace/events/writeback.h | 6 ++----
+ mm/backing-dev.c                 | 9 ---------
+ 6 files changed, 6 insertions(+), 22 deletions(-)
 
+diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
+index 1ec872e..1afb182 100644
+--- a/fs/btrfs/disk-io.c
++++ b/fs/btrfs/disk-io.c
+@@ -1719,7 +1719,7 @@ static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)
+ 	if (err)
+ 		return err;
+ 
+-	bdi->ra_pages	= default_backing_dev_info.ra_pages;
++	bdi->ra_pages = VM_MAX_READAHEAD * 1024 / PAGE_CACHE_SIZE;
+ 	bdi->congested_fn	= btrfs_congested_fn;
+ 	bdi->congested_data	= info;
+ 	return 0;
+diff --git a/fs/ceph/super.c b/fs/ceph/super.c
+index e350cc1..5ae6258 100644
+--- a/fs/ceph/super.c
++++ b/fs/ceph/super.c
+@@ -899,7 +899,7 @@ static int ceph_register_bdi(struct super_block *sb,
+ 			>> PAGE_SHIFT;
+ 	else
+ 		fsc->backing_dev_info.ra_pages =
+-			default_backing_dev_info.ra_pages;
++			VM_MAX_READAHEAD * 1024 / PAGE_CACHE_SIZE;
+ 
+ 	err = bdi_register(&fsc->backing_dev_info, NULL, "ceph-%ld",
+ 			   atomic_long_inc_return(&bdi_seq));
+diff --git a/fs/super.c b/fs/super.c
+index eae088f..3b4dada 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -185,8 +185,8 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
+ 	}
+ 	init_waitqueue_head(&s->s_writers.wait);
+ 	init_waitqueue_head(&s->s_writers.wait_unfrozen);
++	s->s_bdi = &noop_backing_dev_info;
+ 	s->s_flags = flags;
+-	s->s_bdi = &default_backing_dev_info;
+ 	INIT_HLIST_NODE(&s->s_instances);
+ 	INIT_HLIST_BL_HEAD(&s->s_anon);
+ 	INIT_LIST_HEAD(&s->s_inodes);
+@@ -863,10 +863,7 @@ EXPORT_SYMBOL(free_anon_bdev);
+ 
+ int set_anon_super(struct super_block *s, void *data)
+ {
+-	int error = get_anon_bdev(&s->s_dev);
+-	if (!error)
+-		s->s_bdi = &noop_backing_dev_info;
+-	return error;
++	return get_anon_bdev(&s->s_dev);
+ }
+ 
+ EXPORT_SYMBOL(set_anon_super);
+@@ -1111,7 +1108,6 @@ mount_fs(struct file_system_type *type, int flags, const char *name, void *data)
+ 	sb = root->d_sb;
+ 	BUG_ON(!sb);
+ 	WARN_ON(!sb->s_bdi);
+-	WARN_ON(sb->s_bdi == &default_backing_dev_info);
+ 	sb->s_flags |= MS_BORN;
+ 
+ 	error = security_sb_kern_mount(sb, flags, secdata);
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index ed59dee..d94077f 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -241,7 +241,6 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
+ #define BDI_CAP_NO_ACCT_AND_WRITEBACK \
+ 	(BDI_CAP_NO_WRITEBACK | BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_ACCT_WB)
+ 
+-extern struct backing_dev_info default_backing_dev_info;
+ extern struct backing_dev_info noop_backing_dev_info;
+ 
+ int writeback_in_progress(struct backing_dev_info *bdi);
+diff --git a/include/trace/events/writeback.h b/include/trace/events/writeback.h
+index 74f5207..0e93109 100644
+--- a/include/trace/events/writeback.h
++++ b/include/trace/events/writeback.h
+@@ -156,10 +156,8 @@ DECLARE_EVENT_CLASS(writeback_work_class,
+ 		__field(int, reason)
+ 	),
+ 	TP_fast_assign(
+-		struct device *dev = bdi->dev;
+-		if (!dev)
+-			dev = default_backing_dev_info.dev;
+-		strncpy(__entry->name, dev_name(dev), 32);
++		strncpy(__entry->name,
++			bdi->dev ? dev_name(bdi->dev) : "(unknown)", 32);
+ 		__entry->nr_pages = work->nr_pages;
+ 		__entry->sb_dev = work->sb ? work->sb->s_dev : 0;
+ 		__entry->sync_mode = work->sync_mode;
 diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index 52e0c76..3ebba25 100644
+index 3ebba25..c49026d 100644
 --- a/mm/backing-dev.c
 +++ b/mm/backing-dev.c
-@@ -37,17 +37,6 @@ LIST_HEAD(bdi_list);
- /* bdi_wq serves all asynchronous writeback tasks */
- struct workqueue_struct *bdi_wq;
+@@ -14,12 +14,6 @@
  
--static void bdi_lock_two(struct bdi_writeback *wb1, struct bdi_writeback *wb2)
--{
--	if (wb1 < wb2) {
--		spin_lock(&wb1->list_lock);
--		spin_lock_nested(&wb2->list_lock, 1);
--	} else {
--		spin_lock(&wb2->list_lock);
--		spin_lock_nested(&wb1->list_lock, 1);
--	}
--}
+ static atomic_long_t bdi_seq = ATOMIC_LONG_INIT(0);
+ 
+-struct backing_dev_info default_backing_dev_info = {
+-	.name		= "default",
+-	.ra_pages	= VM_MAX_READAHEAD * 1024 / PAGE_CACHE_SIZE,
+-};
+-EXPORT_SYMBOL_GPL(default_backing_dev_info);
 -
- #ifdef CONFIG_DEBUG_FS
- #include <linux/debugfs.h>
- #include <linux/seq_file.h>
-@@ -352,19 +341,19 @@ EXPORT_SYMBOL(bdi_register_dev);
-  */
- static void bdi_wb_shutdown(struct backing_dev_info *bdi)
- {
--	if (!bdi_cap_writeback_dirty(bdi))
-+	/* Make sure nobody queues further work */
-+	spin_lock_bh(&bdi->wb_lock);
-+	if (!test_and_clear_bit(BDI_registered, &bdi->state)) {
-+		spin_unlock_bh(&bdi->wb_lock);
- 		return;
-+	}
-+	spin_unlock_bh(&bdi->wb_lock);
+ struct backing_dev_info noop_backing_dev_info = {
+ 	.name		= "noop",
+ 	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
+@@ -250,9 +244,6 @@ static int __init default_bdi_init(void)
+ 	if (!bdi_wq)
+ 		return -ENOMEM;
  
- 	/*
- 	 * Make sure nobody finds us on the bdi_list anymore
- 	 */
- 	bdi_remove_from_list(bdi);
+-	err = bdi_init(&default_backing_dev_info);
+-	if (!err)
+-		bdi_register(&default_backing_dev_info, NULL, "default");
+ 	err = bdi_init(&noop_backing_dev_info);
  
--	/* Make sure nobody queues further work */
--	spin_lock_bh(&bdi->wb_lock);
--	clear_bit(BDI_registered, &bdi->state);
--	spin_unlock_bh(&bdi->wb_lock);
--
- 	/*
- 	 * Drain work list and shutdown the delayed_work.  At this point,
- 	 * @bdi->bdi_list is empty telling bdi_Writeback_workfn() that @bdi
-@@ -372,37 +361,22 @@ static void bdi_wb_shutdown(struct backing_dev_info *bdi)
- 	 */
- 	mod_delayed_work(bdi_wq, &bdi->wb.dwork, 0);
- 	flush_delayed_work(&bdi->wb.dwork);
--	WARN_ON(!list_empty(&bdi->work_list));
--	WARN_ON(delayed_work_pending(&bdi->wb.dwork));
- }
- 
- /*
-- * This bdi is going away now, make sure that no super_blocks point to it
-+ * Called when the device behind @bdi has been removed or ejected.
-+ *
-+ * We can't really do much here except for reducing the dirty ratio at
-+ * the moment.  In the future we should be able to set a flag so that
-+ * the filesystem can handle errors at mark_inode_dirty time instead
-+ * of only at writeback time.
-  */
--static void bdi_prune_sb(struct backing_dev_info *bdi)
--{
--	struct super_block *sb;
--
--	spin_lock(&sb_lock);
--	list_for_each_entry(sb, &super_blocks, s_list) {
--		if (sb->s_bdi == bdi)
--			sb->s_bdi = &default_backing_dev_info;
--	}
--	spin_unlock(&sb_lock);
--}
--
- void bdi_unregister(struct backing_dev_info *bdi)
- {
--	if (bdi->dev) {
--		bdi_set_min_ratio(bdi, 0);
--		trace_writeback_bdi_unregister(bdi);
--		bdi_prune_sb(bdi);
-+	if (WARN_ON_ONCE(!bdi->dev))
-+		return;
- 
--		bdi_wb_shutdown(bdi);
--		bdi_debug_unregister(bdi);
--		device_unregister(bdi->dev);
--		bdi->dev = NULL;
--	}
-+	bdi_set_min_ratio(bdi, 0);
- }
- EXPORT_SYMBOL(bdi_unregister);
- 
-@@ -471,37 +445,20 @@ void bdi_destroy(struct backing_dev_info *bdi)
- {
- 	int i;
- 
--	/*
--	 * Splice our entries to the default_backing_dev_info.  This
--	 * condition shouldn't happen.  @wb must be empty at this point and
--	 * dirty inodes on it might cause other issues.  This workaround is
--	 * added by ce5f8e779519 ("writeback: splice dirty inode entries to
--	 * default bdi on bdi_destroy()") without root-causing the issue.
--	 *
--	 * http://lkml.kernel.org/g/1253038617-30204-11-git-send-email-jens.axboe@oracle.com
--	 * http://thread.gmane.org/gmane.linux.file-systems/35341/focus=35350
--	 *
--	 * We should probably add WARN_ON() to find out whether it still
--	 * happens and track it down if so.
--	 */
--	if (bdi_has_dirty_io(bdi)) {
--		struct bdi_writeback *dst = &default_backing_dev_info.wb;
--
--		bdi_lock_two(&bdi->wb, dst);
--		list_splice(&bdi->wb.b_dirty, &dst->b_dirty);
--		list_splice(&bdi->wb.b_io, &dst->b_io);
--		list_splice(&bdi->wb.b_more_io, &dst->b_more_io);
--		spin_unlock(&bdi->wb.list_lock);
--		spin_unlock(&dst->list_lock);
--	}
--
--	bdi_unregister(bdi);
-+	bdi_wb_shutdown(bdi);
- 
-+	WARN_ON(!list_empty(&bdi->work_list));
-+	WARN_ON(delayed_work_pending(&bdi->wb.dwork));
- 	WARN_ON(delayed_work_pending(&bdi->wb.dwork));
- 
-+	if (bdi->dev) {
-+		bdi_debug_unregister(bdi);
-+		device_unregister(bdi->dev);
-+		bdi->dev = NULL;
-+	}
-+
- 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
- 		percpu_counter_destroy(&bdi->bdi_stat[i]);
--
- 	fprop_local_destroy_percpu(&bdi->completions);
- }
- EXPORT_SYMBOL(bdi_destroy);
+ 	return err;
 -- 
 1.9.1
 
