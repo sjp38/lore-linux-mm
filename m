@@ -1,61 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id BE59A6B0032
-	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 06:49:53 -0500 (EST)
-Received: by mail-pd0-f174.google.com with SMTP id fp1so10809467pdb.5
-        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 03:49:53 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id ib3si8035257pbb.224.2015.01.08.03.49.51
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A5F96B0032
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 06:51:28 -0500 (EST)
+Received: by mail-wi0-f174.google.com with SMTP id h11so2707140wiw.1
+        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 03:51:28 -0800 (PST)
+Received: from mail-wg0-x230.google.com (mail-wg0-x230.google.com. [2a00:1450:400c:c00::230])
+        by mx.google.com with ESMTPS id cd10si12891832wib.15.2015.01.08.03.51.27
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Jan 2015 03:49:52 -0800 (PST)
-Date: Thu, 8 Jan 2015 03:49:50 -0800
-From: Christoph Hellwig <hch@infradead.org>
-Subject: pread2/ pwrite2
-Message-ID: <20150108114950.GB3351@infradead.org>
-References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
- <20141210140347.GA23252@infradead.org>
- <20141210141211.GD2220@wil.cx>
- <20150105184143.GA665@infradead.org>
- <20150106004714.6d63023c.akpm@linux-foundation.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 08 Jan 2015 03:51:27 -0800 (PST)
+Received: by mail-wg0-f48.google.com with SMTP id l2so2143393wgh.7
+        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 03:51:27 -0800 (PST)
+Date: Thu, 8 Jan 2015 12:51:24 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH -v2 5/5] OOM, PM: make OOM detection in the freezer path
+ raceless
+Message-ID: <20150108115124.GA6027@dhcp22.suse.cz>
+References: <20141110163055.GC18373@dhcp22.suse.cz>
+ <1417797707-31699-1-git-send-email-mhocko@suse.cz>
+ <1417797707-31699-6-git-send-email-mhocko@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150106004714.6d63023c.akpm@linux-foundation.org>
+In-Reply-To: <1417797707-31699-6-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Milosz Tanski <milosz@adfin.com>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-pm@vger.kernel.org
 
-On Tue, Jan 06, 2015 at 12:47:14AM -0800, Andrew Morton wrote:
-> > progress, which is a bit frustrating.
-> 
-> I took a look at pread2() as well and I have two main issues:
-> 
-> - The patchset includes a pwrite2() syscall which has nothing to do
->   with nonblocking reads and which was poorly described and had little
->   justification for inclusion.
+On Fri 05-12-14 17:41:47, Michal Hocko wrote:
+[...]
+> +bool oom_killer_disable(void)
+> +{
+> +	/*
+> +	 * Make sure to not race with an ongoing OOM killer
+> +	 * and that the current is not the victim.
+> +	 */
+> +	down_write(&oom_sem);
+> +	if (test_thread_flag(TIF_MEMDIE)) {
+> +		up_write(&oom_sem);
+> +		return false;
+> +	}
+> +
+> +	oom_killer_disabled = true;
+> +	up_write(&oom_sem);
+> +
+> +	wait_event(oom_victims_wait, atomic_read(&oom_victims));
 
-It allows to do O_SYNC writes on a per-I/O basis.  This is very useful
-for file servers (smb, cifs) as well as storage target devices.
+Ups brainfart... Should be !atomic_read(&oom_victims). Condition says
+for what we are waiting not when we are waiting.
 
-Note: that part was my addition, and the complaint about lacking
-description ever made it to me.  Can you point to the relevant
-questions?
-
-> - We've talked for years about implementing this via fincore+pread
->   and at least two fincore implementations are floating about.  Now
->   along comes pread2() which does it all in one hit.
-> 
->   Which approach is best?  I expect fincore+pread is simpler, more
->   flexible and more maintainable.  But pread2() will have lower CPU
->   consumption and lower average-case latency.
-
-fincore+pread is inherently racy and thus entirely unsuitable for the
-use case of a non-blockign main thread.
-
-Nevermind that the pread2 path is way simpler than any of the proposed
-fincore patches.
+> +
+> +	return true;
+> +}
+[...]
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
