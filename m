@@ -1,116 +1,362 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 4ED8A6B0032
-	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 05:53:37 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id eu11so11059960pac.8
-        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 02:53:37 -0800 (PST)
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id B289D6B006C
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 05:53:38 -0500 (EST)
+Received: by mail-pd0-f171.google.com with SMTP id y13so10599276pdi.2
+        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 02:53:38 -0800 (PST)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id ue3si7961684pab.125.2015.01.08.02.53.35
+        by mx.google.com with ESMTPS id cl8si7766625pdb.257.2015.01.08.02.53.35
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Jan 2015 02:53:35 -0800 (PST)
+        Thu, 08 Jan 2015 02:53:36 -0800 (PST)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm v3 0/9] Per memcg slab shrinkers
-Date: Thu, 8 Jan 2015 13:53:10 +0300
-Message-ID: <cover.1420711973.git.vdavydov@parallels.com>
+Subject: [PATCH -mm v3 1/9] list_lru: introduce list_lru_shrink_{count,walk}
+Date: Thu, 8 Jan 2015 13:53:11 +0300
+Message-ID: <9111144f6b0b3dc0593f94473ab3714be49a166d.1420711973.git.vdavydov@parallels.com>
+In-Reply-To: <cover.1420711973.git.vdavydov@parallels.com>
+References: <cover.1420711973.git.vdavydov@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@gmail.com>, Dave Chinner <david@fromorbit.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Dave Chinner <david@fromorbit.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi,
+NUMA aware slab shrinkers use the list_lru structure to distribute
+objects coming from different NUMA nodes to different lists. Whenever
+such a shrinker needs to count or scan objects from a particular node,
+it issues commands like this:
 
-Kmem accounting of memcg is unusable now, because it lacks slab shrinker
-support. That means when we hit the limit we will get ENOMEM w/o any
-chance to recover. What we should do then is to call shrink_slab, which
-would reclaim old inode/dentry caches from this cgroup. This is what
-this patch set is intended to do.
+        count = list_lru_count_node(lru, sc->nid);
+        freed = list_lru_walk_node(lru, sc->nid, isolate_func,
+                                   isolate_arg, &sc->nr_to_scan);
 
-Basically, it does two things. First, it introduces the notion of
-per-memcg slab shrinker. A shrinker that wants to reclaim objects per
-cgroup should mark itself as SHRINKER_MEMCG_AWARE. Then it will be
-passed the memory cgroup to scan from in shrink_control->memcg. For such
-shrinkers shrink_slab iterates over the whole cgroup subtree under the
-target cgroup and calls the shrinker for each kmem-active memory cgroup.
+where sc is an instance of the shrink_control structure passed to it
+from vmscan.
 
-Secondly, this patch set makes the list_lru structure per-memcg. It's
-done transparently to list_lru users - everything they have to do is to
-tell list_lru_init that they want memcg-aware list_lru. Then the
-list_lru will automatically distribute objects among per-memcg lists
-basing on which cgroup the object is accounted to. This way to make FS
-shrinkers (icache, dcache) memcg-aware we only need to make them use
-memcg-aware list_lru, and this is what this patch set does.
+To simplify this, let's add special list_lru functions to be used by
+shrinkers, list_lru_shrink_count() and list_lru_shrink_walk(), which
+consolidate the nid and nr_to_scan arguments in the shrink_control
+structure.
 
-As before, this patch set only enables per-memcg kmem reclaim when the
-pressure goes from memory.limit, not from memory.kmem.limit. Handling
-memory.kmem.limit is going to be tricky due to GFP_NOFS allocations, and
-it is still unclear whether we will have this knob in the unified
-hierarchy.
+This will also allow us to avoid patching shrinkers that use list_lru
+when we make shrink_slab() per-memcg - all we will have to do is extend
+the shrink_control structure to include the target memcg and make
+list_lru_shrink_{count,walk} handle this appropriately.
 
-Changes in v3:
- - Removed extra walk over all memory cgroups for shrinking per memcg
-   slab caches; shrink_slab is now called per memcg from the loop in
-   shrink_zone, as suggested by Johannes
- - Reworked list_lru per memcg arrays init/destroy/update functions,
-   hopefully making them more readable
- - Rebased on top of v3.19-rc3-mmotm-2015-01-07-17-07
+Suggested-by: Dave Chinner <david@fromorbit.com>
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+---
+ fs/dcache.c              |   14 ++++++--------
+ fs/gfs2/quota.c          |    6 +++---
+ fs/inode.c               |    7 +++----
+ fs/internal.h            |    7 +++----
+ fs/super.c               |   24 +++++++++++-------------
+ fs/xfs/xfs_buf.c         |    7 +++----
+ fs/xfs/xfs_qm.c          |    7 +++----
+ include/linux/list_lru.h |   16 ++++++++++++++++
+ mm/workingset.c          |    6 +++---
+ 9 files changed, 51 insertions(+), 43 deletions(-)
 
-v2: https://lkml.org/lkml/2014/10/24/219
-v1: https://lkml.org/lkml/2014/9/21/64
-
-The patch set is organized as follows:
-
- - Patches 1-3 implement per-memcg shrinker core with patches 1 and 2
-   preparing list_lru users for upcoming changes and patch 3 tuning
-   shrink_slab.
-
- - Patches 4 and 5 cleanup handling of max memcg_cache_id in the memcg
-   core.
-
- - Patch 6 gets rid of the useless list_lru->active_nodes, and patch 7
-   links all list_lrus to a list, which is required by memcg.
-
- - Patch 8 adds per-memcg lrus to the list_lru structure, and finally
-   patch 9 marks fs shrinkers as memcg aware.
-
-Thanks,
-
-Vladimir Davydov (9):
-  list_lru: introduce list_lru_shrink_{count,walk}
-  fs: consolidate {nr,free}_cached_objects args in shrink_control
-  vmscan: per memory cgroup slab shrinkers
-  memcg: rename some cache id related variables
-  memcg: add rwsem to synchronize against memcg_caches arrays
-    relocation
-  list_lru: get rid of ->active_nodes
-  list_lru: organize all list_lrus to list
-  list_lru: introduce per-memcg lists
-  fs: make shrinker memcg aware
-
- fs/dcache.c                |   14 +-
- fs/drop_caches.c           |   14 --
- fs/gfs2/quota.c            |    6 +-
- fs/inode.c                 |    7 +-
- fs/internal.h              |    7 +-
- fs/super.c                 |   44 +++--
- fs/xfs/xfs_buf.c           |    7 +-
- fs/xfs/xfs_qm.c            |    7 +-
- fs/xfs/xfs_super.c         |    7 +-
- include/linux/fs.h         |    6 +-
- include/linux/list_lru.h   |   70 ++++++--
- include/linux/memcontrol.h |   37 +++-
- include/linux/mm.h         |    5 +-
- include/linux/shrinker.h   |    6 +-
- mm/list_lru.c              |  412 +++++++++++++++++++++++++++++++++++++++++---
- mm/memcontrol.c            |   68 +++++---
- mm/memory-failure.c        |   11 +-
- mm/slab_common.c           |   13 +-
- mm/vmscan.c                |   86 ++++++---
- mm/workingset.c            |    6 +-
- 20 files changed, 657 insertions(+), 176 deletions(-)
-
+diff --git a/fs/dcache.c b/fs/dcache.c
+index 40432e59d72e..9d71d6d2478a 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -930,24 +930,22 @@ dentry_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
+ /**
+  * prune_dcache_sb - shrink the dcache
+  * @sb: superblock
+- * @nr_to_scan : number of entries to try to free
+- * @nid: which node to scan for freeable entities
++ * @sc: shrink control, passed to list_lru_shrink_walk()
+  *
+- * Attempt to shrink the superblock dcache LRU by @nr_to_scan entries. This is
+- * done when we need more memory an called from the superblock shrinker
++ * Attempt to shrink the superblock dcache LRU by @sc->nr_to_scan entries. This
++ * is done when we need more memory and called from the superblock shrinker
+  * function.
+  *
+  * This function may fail to free any resources if all the dentries are in
+  * use.
+  */
+-long prune_dcache_sb(struct super_block *sb, unsigned long nr_to_scan,
+-		     int nid)
++long prune_dcache_sb(struct super_block *sb, struct shrink_control *sc)
+ {
+ 	LIST_HEAD(dispose);
+ 	long freed;
+ 
+-	freed = list_lru_walk_node(&sb->s_dentry_lru, nid, dentry_lru_isolate,
+-				       &dispose, &nr_to_scan);
++	freed = list_lru_shrink_walk(&sb->s_dentry_lru, sc,
++				     dentry_lru_isolate, &dispose);
+ 	shrink_dentry_list(&dispose);
+ 	return freed;
+ }
+diff --git a/fs/gfs2/quota.c b/fs/gfs2/quota.c
+index c8b148bbdc8b..56db71d5c95f 100644
+--- a/fs/gfs2/quota.c
++++ b/fs/gfs2/quota.c
+@@ -171,8 +171,8 @@ static unsigned long gfs2_qd_shrink_scan(struct shrinker *shrink,
+ 	if (!(sc->gfp_mask & __GFP_FS))
+ 		return SHRINK_STOP;
+ 
+-	freed = list_lru_walk_node(&gfs2_qd_lru, sc->nid, gfs2_qd_isolate,
+-				   &dispose, &sc->nr_to_scan);
++	freed = list_lru_shrink_walk(&gfs2_qd_lru, sc,
++				     gfs2_qd_isolate, &dispose);
+ 
+ 	gfs2_qd_dispose(&dispose);
+ 
+@@ -182,7 +182,7 @@ static unsigned long gfs2_qd_shrink_scan(struct shrinker *shrink,
+ static unsigned long gfs2_qd_shrink_count(struct shrinker *shrink,
+ 					  struct shrink_control *sc)
+ {
+-	return vfs_pressure_ratio(list_lru_count_node(&gfs2_qd_lru, sc->nid));
++	return vfs_pressure_ratio(list_lru_shrink_count(&gfs2_qd_lru, sc));
+ }
+ 
+ struct shrinker gfs2_qd_shrinker = {
+diff --git a/fs/inode.c b/fs/inode.c
+index c760fac33c92..b80b17a09d36 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -750,14 +750,13 @@ inode_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
+  * to trim from the LRU. Inodes to be freed are moved to a temporary list and
+  * then are freed outside inode_lock by dispose_list().
+  */
+-long prune_icache_sb(struct super_block *sb, unsigned long nr_to_scan,
+-		     int nid)
++long prune_icache_sb(struct super_block *sb, struct shrink_control *sc)
+ {
+ 	LIST_HEAD(freeable);
+ 	long freed;
+ 
+-	freed = list_lru_walk_node(&sb->s_inode_lru, nid, inode_lru_isolate,
+-				       &freeable, &nr_to_scan);
++	freed = list_lru_shrink_walk(&sb->s_inode_lru, sc,
++				     inode_lru_isolate, &freeable);
+ 	dispose_list(&freeable);
+ 	return freed;
+ }
+diff --git a/fs/internal.h b/fs/internal.h
+index e9a61fe67575..d92c346a793d 100644
+--- a/fs/internal.h
++++ b/fs/internal.h
+@@ -14,6 +14,7 @@ struct file_system_type;
+ struct linux_binprm;
+ struct path;
+ struct mount;
++struct shrink_control;
+ 
+ /*
+  * block_dev.c
+@@ -111,8 +112,7 @@ extern int open_check_o_direct(struct file *f);
+  * inode.c
+  */
+ extern spinlock_t inode_sb_list_lock;
+-extern long prune_icache_sb(struct super_block *sb, unsigned long nr_to_scan,
+-			    int nid);
++extern long prune_icache_sb(struct super_block *sb, struct shrink_control *sc);
+ extern void inode_add_lru(struct inode *inode);
+ 
+ /*
+@@ -129,8 +129,7 @@ extern int invalidate_inodes(struct super_block *, bool);
+  */
+ extern struct dentry *__d_alloc(struct super_block *, const struct qstr *);
+ extern int d_set_mounted(struct dentry *dentry);
+-extern long prune_dcache_sb(struct super_block *sb, unsigned long nr_to_scan,
+-			    int nid);
++extern long prune_dcache_sb(struct super_block *sb, struct shrink_control *sc);
+ 
+ /*
+  * read_write.c
+diff --git a/fs/super.c b/fs/super.c
+index eae088f6aaae..4554ac257647 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -77,8 +77,8 @@ static unsigned long super_cache_scan(struct shrinker *shrink,
+ 	if (sb->s_op->nr_cached_objects)
+ 		fs_objects = sb->s_op->nr_cached_objects(sb, sc->nid);
+ 
+-	inodes = list_lru_count_node(&sb->s_inode_lru, sc->nid);
+-	dentries = list_lru_count_node(&sb->s_dentry_lru, sc->nid);
++	inodes = list_lru_shrink_count(&sb->s_inode_lru, sc);
++	dentries = list_lru_shrink_count(&sb->s_dentry_lru, sc);
+ 	total_objects = dentries + inodes + fs_objects + 1;
+ 	if (!total_objects)
+ 		total_objects = 1;
+@@ -86,20 +86,20 @@ static unsigned long super_cache_scan(struct shrinker *shrink,
+ 	/* proportion the scan between the caches */
+ 	dentries = mult_frac(sc->nr_to_scan, dentries, total_objects);
+ 	inodes = mult_frac(sc->nr_to_scan, inodes, total_objects);
++	fs_objects = mult_frac(sc->nr_to_scan, fs_objects, total_objects);
+ 
+ 	/*
+ 	 * prune the dcache first as the icache is pinned by it, then
+ 	 * prune the icache, followed by the filesystem specific caches
+ 	 */
+-	freed = prune_dcache_sb(sb, dentries, sc->nid);
+-	freed += prune_icache_sb(sb, inodes, sc->nid);
++	sc->nr_to_scan = dentries;
++	freed = prune_dcache_sb(sb, sc);
++	sc->nr_to_scan = inodes;
++	freed += prune_icache_sb(sb, sc);
+ 
+-	if (fs_objects) {
+-		fs_objects = mult_frac(sc->nr_to_scan, fs_objects,
+-								total_objects);
++	if (fs_objects)
+ 		freed += sb->s_op->free_cached_objects(sb, fs_objects,
+ 						       sc->nid);
+-	}
+ 
+ 	drop_super(sb);
+ 	return freed;
+@@ -118,17 +118,15 @@ static unsigned long super_cache_count(struct shrinker *shrink,
+ 	 * scalability bottleneck. The counts could get updated
+ 	 * between super_cache_count and super_cache_scan anyway.
+ 	 * Call to super_cache_count with shrinker_rwsem held
+-	 * ensures the safety of call to list_lru_count_node() and
++	 * ensures the safety of call to list_lru_shrink_count() and
+ 	 * s_op->nr_cached_objects().
+ 	 */
+ 	if (sb->s_op && sb->s_op->nr_cached_objects)
+ 		total_objects = sb->s_op->nr_cached_objects(sb,
+ 						 sc->nid);
+ 
+-	total_objects += list_lru_count_node(&sb->s_dentry_lru,
+-						 sc->nid);
+-	total_objects += list_lru_count_node(&sb->s_inode_lru,
+-						 sc->nid);
++	total_objects += list_lru_shrink_count(&sb->s_dentry_lru, sc);
++	total_objects += list_lru_shrink_count(&sb->s_inode_lru, sc);
+ 
+ 	total_objects = vfs_pressure_ratio(total_objects);
+ 	return total_objects;
+diff --git a/fs/xfs/xfs_buf.c b/fs/xfs/xfs_buf.c
+index bb502a391792..15c9d224c721 100644
+--- a/fs/xfs/xfs_buf.c
++++ b/fs/xfs/xfs_buf.c
+@@ -1583,10 +1583,9 @@ xfs_buftarg_shrink_scan(
+ 					struct xfs_buftarg, bt_shrinker);
+ 	LIST_HEAD(dispose);
+ 	unsigned long		freed;
+-	unsigned long		nr_to_scan = sc->nr_to_scan;
+ 
+-	freed = list_lru_walk_node(&btp->bt_lru, sc->nid, xfs_buftarg_isolate,
+-				       &dispose, &nr_to_scan);
++	freed = list_lru_shrink_walk(&btp->bt_lru, sc,
++				     xfs_buftarg_isolate, &dispose);
+ 
+ 	while (!list_empty(&dispose)) {
+ 		struct xfs_buf *bp;
+@@ -1605,7 +1604,7 @@ xfs_buftarg_shrink_count(
+ {
+ 	struct xfs_buftarg	*btp = container_of(shrink,
+ 					struct xfs_buftarg, bt_shrinker);
+-	return list_lru_count_node(&btp->bt_lru, sc->nid);
++	return list_lru_shrink_count(&btp->bt_lru, sc);
+ }
+ 
+ void
+diff --git a/fs/xfs/xfs_qm.c b/fs/xfs/xfs_qm.c
+index 79fb19dd9c83..d77bf6d8312a 100644
+--- a/fs/xfs/xfs_qm.c
++++ b/fs/xfs/xfs_qm.c
+@@ -523,7 +523,6 @@ xfs_qm_shrink_scan(
+ 	struct xfs_qm_isolate	isol;
+ 	unsigned long		freed;
+ 	int			error;
+-	unsigned long		nr_to_scan = sc->nr_to_scan;
+ 
+ 	if ((sc->gfp_mask & (__GFP_FS|__GFP_WAIT)) != (__GFP_FS|__GFP_WAIT))
+ 		return 0;
+@@ -531,8 +530,8 @@ xfs_qm_shrink_scan(
+ 	INIT_LIST_HEAD(&isol.buffers);
+ 	INIT_LIST_HEAD(&isol.dispose);
+ 
+-	freed = list_lru_walk_node(&qi->qi_lru, sc->nid, xfs_qm_dquot_isolate, &isol,
+-					&nr_to_scan);
++	freed = list_lru_shrink_walk(&qi->qi_lru, sc,
++				     xfs_qm_dquot_isolate, &isol);
+ 
+ 	error = xfs_buf_delwri_submit(&isol.buffers);
+ 	if (error)
+@@ -557,7 +556,7 @@ xfs_qm_shrink_count(
+ 	struct xfs_quotainfo	*qi = container_of(shrink,
+ 					struct xfs_quotainfo, qi_shrinker);
+ 
+-	return list_lru_count_node(&qi->qi_lru, sc->nid);
++	return list_lru_shrink_count(&qi->qi_lru, sc);
+ }
+ 
+ /*
+diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
+index f3434533fbf8..f500a2e39b13 100644
+--- a/include/linux/list_lru.h
++++ b/include/linux/list_lru.h
+@@ -9,6 +9,7 @@
+ 
+ #include <linux/list.h>
+ #include <linux/nodemask.h>
++#include <linux/shrinker.h>
+ 
+ /* list_lru_walk_cb has to always return one of those */
+ enum lru_status {
+@@ -81,6 +82,13 @@ bool list_lru_del(struct list_lru *lru, struct list_head *item);
+  * Callers that want such a guarantee need to provide an outer lock.
+  */
+ unsigned long list_lru_count_node(struct list_lru *lru, int nid);
++
++static inline unsigned long list_lru_shrink_count(struct list_lru *lru,
++						  struct shrink_control *sc)
++{
++	return list_lru_count_node(lru, sc->nid);
++}
++
+ static inline unsigned long list_lru_count(struct list_lru *lru)
+ {
+ 	long count = 0;
+@@ -120,6 +128,14 @@ unsigned long list_lru_walk_node(struct list_lru *lru, int nid,
+ 				 unsigned long *nr_to_walk);
+ 
+ static inline unsigned long
++list_lru_shrink_walk(struct list_lru *lru, struct shrink_control *sc,
++		     list_lru_walk_cb isolate, void *cb_arg)
++{
++	return list_lru_walk_node(lru, sc->nid, isolate, cb_arg,
++				  &sc->nr_to_scan);
++}
++
++static inline unsigned long
+ list_lru_walk(struct list_lru *lru, list_lru_walk_cb isolate,
+ 	      void *cb_arg, unsigned long nr_to_walk)
+ {
+diff --git a/mm/workingset.c b/mm/workingset.c
+index f7216fa7da27..d4fa7fb10a52 100644
+--- a/mm/workingset.c
++++ b/mm/workingset.c
+@@ -275,7 +275,7 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
+ 
+ 	/* list_lru lock nests inside IRQ-safe mapping->tree_lock */
+ 	local_irq_disable();
+-	shadow_nodes = list_lru_count_node(&workingset_shadow_nodes, sc->nid);
++	shadow_nodes = list_lru_shrink_count(&workingset_shadow_nodes, sc);
+ 	local_irq_enable();
+ 
+ 	pages = node_present_pages(sc->nid);
+@@ -376,8 +376,8 @@ static unsigned long scan_shadow_nodes(struct shrinker *shrinker,
+ 
+ 	/* list_lru lock nests inside IRQ-safe mapping->tree_lock */
+ 	local_irq_disable();
+-	ret =  list_lru_walk_node(&workingset_shadow_nodes, sc->nid,
+-				  shadow_lru_isolate, NULL, &sc->nr_to_scan);
++	ret =  list_lru_shrink_walk(&workingset_shadow_nodes, sc,
++				    shadow_lru_isolate, NULL);
+ 	local_irq_enable();
+ 	return ret;
+ }
 -- 
 1.7.10.4
 
