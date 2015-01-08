@@ -1,79 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f173.google.com (mail-lb0-f173.google.com [209.85.217.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 5190D6B0038
-	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 12:28:20 -0500 (EST)
-Received: by mail-lb0-f173.google.com with SMTP id z12so4086915lbi.4
-        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 09:28:19 -0800 (PST)
-Received: from gum.cmpxchg.org ([85.214.110.215])
-        by mx.google.com with ESMTPS id p9si9521813lap.51.2015.01.08.09.20.16
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D46F6B0038
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 12:36:15 -0500 (EST)
+Received: by mail-pd0-f182.google.com with SMTP id p10so12355757pdj.13
+        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 09:36:15 -0800 (PST)
+Received: from mail.samba.org (fn.samba.org. [2001:470:1f05:1a07::1])
+        by mx.google.com with ESMTPS id yl3si9712058pac.62.2015.01.08.09.36.13
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Jan 2015 09:20:16 -0800 (PST)
-Date: Thu, 8 Jan 2015 12:20:07 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 1/2] mm: allow for an alternate set of pages for
- userspace mappings
-Message-ID: <20150108172007.GB32079@phnom.home.cmpxchg.org>
-References: <1420730924-22811-1-git-send-email-david.vrabel@citrix.com>
- <1420730924-22811-2-git-send-email-david.vrabel@citrix.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 08 Jan 2015 09:36:13 -0800 (PST)
+Date: Thu, 8 Jan 2015 09:36:10 -0800
+From: Jeremy Allison <jra@samba.org>
+Subject: Re: [PATCH v12 00/20] DAX: Page cache bypass for filesystems on
+ memory storage
+Message-ID: <20150108173610.GB6189@samba2>
+Reply-To: Jeremy Allison <jra@samba.org>
+References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
+ <20141210140347.GA23252@infradead.org>
+ <20141210141211.GD2220@wil.cx>
+ <20150105184143.GA665@infradead.org>
+ <20150106004714.6d63023c.akpm@linux-foundation.org>
+ <CANP1eJHOMSP8GYc_1pi8ciZZFWR0dH=N5a4HA=RYezohDmm+Rg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1420730924-22811-2-git-send-email-david.vrabel@citrix.com>
+In-Reply-To: <CANP1eJHOMSP8GYc_1pi8ciZZFWR0dH=N5a4HA=RYezohDmm+Rg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Vrabel <david.vrabel@citrix.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>
+To: Milosz Tanski <milosz@adfin.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Matthew Wilcox <willy@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Thu, Jan 08, 2015 at 03:28:43PM +0000, David Vrabel wrote:
-> Add an optional array of pages to struct vm_area_struct that can be
-> used find the page backing a VMA.  This is useful in cases where the
-> normal mechanisms for finding the page don't work.  This array is only
-> inspected if the PTE is special.
+On Thu, Jan 08, 2015 at 11:28:40AM -0500, Milosz Tanski wrote:
+> >
 > 
-> Splitting a VMA with such an array of pages is trivially done by
-> adjusting vma->pages.  The original creator of the VMA must only free
-> the page array once all sub-VMAs are closed (e.g., by ref-counting in
-> vm_ops->open and vm_ops->close).
-> 
-> One use case is a Xen PV guest mapping foreign pages into userspace.
-> 
-> In a Xen PV guest, the PTEs contain MFNs so get_user_pages() (for
-> example) must do an MFN to PFN (M2P) lookup before it can get the
-> page.  For foreign pages (those owned by another guest) the M2P lookup
-> returns the PFN as seen by the foreign guest (which would be
-> completely the wrong page for the local guest).
-> 
-> This cannot be fixed up improving the M2P lookup since one MFN may be
-> mapped onto two or more pages so getting the right page is impossible
-> given just the MFN.
-> 
-> Signed-off-by: David Vrabel <david.vrabel@citrix.com>
-> ---
->  include/linux/mm_types.h |    8 ++++++++
->  mm/memory.c              |    2 ++
->  mm/mmap.c                |   12 +++++++++++-
->  3 files changed, 21 insertions(+), 1 deletion(-)
-> 
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index 6d34aa2..4f34609 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -309,6 +309,14 @@ struct vm_area_struct {
->  #ifdef CONFIG_NUMA
->  	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
->  #endif
-> +	/*
-> +	 * Array of pages to override the default vm_normal_page()
-> +	 * result iff the PTE is special.
-> +	 *
-> +	 * The memory for this should be refcounted in vm_ops->open
-> +	 * and vm_ops->close.
-> +	 */
-> +	struct page **pages;
+> Andrew I  got busier with my other job related things between the
+> Thanksgiving & Christmas then anticipated. However, I have updated and
+> taken apart the patchset into two pieces (preadv2 and pwritev2). That
+> should make evaluating the two separately easier. With the help of
+> Volker I hacked up preadv2 support into samba and I hopefully have
+> some numbers from it soon. Finally, I'm putting together a test case
 
-Please make this configuration-dependent, not every Linux user should
-have to pay for a Xen optimization.
+I'd be very interested in seeing that patch code and those
+numbers !
+
+Cheers,
+
+	Jeremy.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
