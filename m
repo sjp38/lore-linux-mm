@@ -1,57 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id D12266B0032
-	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 09:11:07 -0500 (EST)
-Received: by mail-pd0-f181.google.com with SMTP id v10so11363093pde.12
-        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 06:11:07 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id 12si8710707pde.142.2015.01.08.06.11.04
-        for <linux-mm@kvack.org>;
-        Thu, 08 Jan 2015 06:11:05 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <20150107134039.25d4edfad92b62f3eee8b570@linux-foundation.org>
-References: <1420458382-161038-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20150107134039.25d4edfad92b62f3eee8b570@linux-foundation.org>
-Subject: Re: [PATCH] mm/page_alloc.c: drop dead destroy_compound_page()
-Content-Transfer-Encoding: 7bit
-Message-Id: <20150108141004.AB3461A2@black.fi.intel.com>
-Date: Thu,  8 Jan 2015 16:10:04 +0200 (EET)
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id BC86C6B0032
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 09:51:20 -0500 (EST)
+Received: by mail-pd0-f170.google.com with SMTP id v10so11612555pde.1
+        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 06:51:20 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id e9si9087749pas.9.2015.01.08.06.51.18
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Jan 2015 06:51:19 -0800 (PST)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH] vmscan: force scan offline memory cgroups
+Date: Thu, 8 Jan 2015 17:51:09 +0300
+Message-ID: <1420728669-16889-1-git-send-email-vdavydov@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, aarcange@redhat.com, linux-mm@kvack.org
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Andrew Morton wrote:
-> On Mon,  5 Jan 2015 13:46:22 +0200 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
-> 
-> > The only caller is __free_one_page(). By the time we should have
-> > page->flags to be cleared already:
-> > 
-> >  - for 0-order pages though PCP list:
-> > 	free_hot_cold_page()
-> > 		free_pages_prepare()
-> > 			free_pages_check()
-> > 				page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
-> > 		<put the page to PCP list>
-> > 
-> > 	free_pcppages_bulk()
-> > 		page = <withdraw pages from PCP list>
-> > 		__free_one_page(page)
-> > 
-> >  - for non-0-order pages:
-> > 	__free_pages_ok()
-> > 		free_pages_prepare()
-> > 			free_pages_check()
-> > 				page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
-> > 		free_one_page()
-> > 			__free_one_page()
-> > 
-> > So there's no way PageCompound() will return true in __free_one_page().
-> > Let's remove dead destroy_compound_page() and put assert for page->flags
-> > there instead.
-> 
-> Well.  An alternative would be to fix up the call site so those
-> useful-looking checks actually get to check things.  Perhaps under
-> CONFIG_DEBUG_VM.
+Since commit b2052564e66d ("mm: memcontrol: continue cache reclaim from
+offlined groups") pages charged to a memory cgroup are not reparented
+when the cgroup is removed. Instead, they are supposed to be reclaimed
+in a regular way, along with pages accounted to online memory cgroups.
 
-Something like this?
+However, an lruvec of an offline memory cgroup will sooner or later get
+so small that it will be scanned only at low scan priorities (see
+get_scan_count()). Therefore, if there are enough reclaimable pages in
+big lruvecs, pages accounted to offline memory cgroups will never be
+scanned at all, wasting memory.
+
+Fix this by unconditionally forcing scanning dead lruvecs from kswapd.
+
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+---
+ include/linux/memcontrol.h |    6 ++++++
+ mm/memcontrol.c            |   14 ++++++++++++++
+ mm/vmscan.c                |    3 ++-
+ 3 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 76b4084b8d08..764d8801f3d1 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -102,6 +102,7 @@ void mem_cgroup_iter_break(struct mem_cgroup *, struct mem_cgroup *);
+  * For memory reclaim.
+  */
+ int mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec);
++bool mem_cgroup_need_force_scan(struct lruvec *lruvec);
+ int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
+ unsigned long mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list);
+ void mem_cgroup_update_lru_size(struct lruvec *, enum lru_list, int);
+@@ -266,6 +267,11 @@ mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
+ 	return 1;
+ }
+ 
++bool mem_cgroup_need_force_scan(struct lruvec *lruvec)
++{
++	return false;
++}
++
+ static inline unsigned long
+ mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list lru)
+ {
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index bfa1a849d113..a146ea8060dc 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1367,6 +1367,20 @@ int mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
+ 	return inactive * inactive_ratio < active;
+ }
+ 
++bool mem_cgroup_need_force_scan(struct lruvec *lruvec)
++{
++	struct mem_cgroup_per_zone *mz;
++	struct mem_cgroup *memcg;
++
++	if (mem_cgroup_disabled())
++		return false;
++
++	mz = container_of(lruvec, struct mem_cgroup_per_zone, lruvec);
++	memcg = mz->memcg;
++
++	return !(memcg->css.flags & CSS_ONLINE);
++}
++
+ #define mem_cgroup_from_counter(counter, member)	\
+ 	container_of(counter, struct mem_cgroup, member)
+ 
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index e29f411b38ac..2de646271f89 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1935,7 +1935,8 @@ static void get_scan_count(struct lruvec *lruvec, int swappiness,
+ 	 * latencies, so it's better to scan a minimum amount there as
+ 	 * well.
+ 	 */
+-	if (current_is_kswapd() && !zone_reclaimable(zone))
++	if (current_is_kswapd() &&
++	    (!zone_reclaimable(zone) || mem_cgroup_need_force_scan(lruvec)))
+ 		force_scan = true;
+ 	if (!global_reclaim(sc))
+ 		force_scan = true;
+-- 
+1.7.10.4
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
