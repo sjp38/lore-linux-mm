@@ -1,69 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 546A36B0078
-	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 05:54:02 -0500 (EST)
-Received: by mail-pd0-f173.google.com with SMTP id ft15so10588047pdb.4
-        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 02:54:02 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id ki10si8154225pdb.1.2015.01.08.02.54.00
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 590CD6B0032
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 05:55:05 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id lf10so11104316pab.5
+        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 02:55:05 -0800 (PST)
+Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
+        by mx.google.com with ESMTPS id z9si7816765par.226.2015.01.08.02.55.02
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Jan 2015 02:54:00 -0800 (PST)
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm v3 9/9] fs: make shrinker memcg aware
-Date: Thu, 8 Jan 2015 13:53:19 +0300
-Message-ID: <0c7964c3143c16338565430656d5b2c197e0d946.1420711973.git.vdavydov@parallels.com>
-In-Reply-To: <cover.1420711973.git.vdavydov@parallels.com>
-References: <cover.1420711973.git.vdavydov@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Thu, 08 Jan 2015 02:55:04 -0800 (PST)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout3.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NHU00C2KUIE1480@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 08 Jan 2015 10:59:03 +0000 (GMT)
+Message-id: <54AE61F6.808@samsung.com>
+Date: Thu, 08 Jan 2015 11:54:46 +0100
+From: Andrzej Hajda <a.hajda@samsung.com>
+MIME-version: 1.0
+Subject: Re: [RFC PATCH 0/4] kstrdup optimization
+References: <54A25135.5030103@samsung.com>
+ <20141230083230.GA17639@rhlx01.hs-esslingen.de>
+ <20141230212915.GN2915@two.firstfloor.org>
+In-reply-to: <20141230212915.GN2915@two.firstfloor.org>
+Content-type: text/plain; charset=windows-1252
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@gmail.com>, Dave Chinner <david@fromorbit.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andi Kleen <andi@firstfloor.org>, Andreas Mohr <andi@lisas.de>
+Cc: linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org
 
-Now, to make any list_lru-based shrinker memcg aware we should only
-initialize its list_lru as memcg aware. Let's do it for the general FS
-shrinker (super_block::s_shrink).
+Hi Andi, Andreas,
 
-There are other FS-specific shrinkers that use list_lru for storing
-objects, such as XFS and GFS2 dquot cache shrinkers, but since they
-reclaim objects that are shared among different cgroups, there is no
-point making them memcg aware. It's a big question whether we should
-account them to memcg at all.
+Thanks for comments.
 
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
----
- fs/super.c |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+On 12/30/2014 10:29 PM, Andi Kleen wrote:
+>> This symmetry issue probably could be cleanly avoided only
+>> by having kfree() itself contain such an identifying check, as you suggest
+>> (thereby slowing down kfree() performance).
+> 
+> It actually shouldn't slow it down. kfree already complains if you free
+> a non slab page, this could be just in front of the error check.
+> 
+> The bigger concern is that it may hide some programing errors elsewhere
+> though. So it's probably better to keep it a separate function.
 
-diff --git a/fs/super.c b/fs/super.c
-index b027849d92d2..482b4071f4de 100644
---- a/fs/super.c
-+++ b/fs/super.c
-@@ -189,9 +189,9 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
- 	INIT_HLIST_BL_HEAD(&s->s_anon);
- 	INIT_LIST_HEAD(&s->s_inodes);
- 
--	if (list_lru_init(&s->s_dentry_lru))
-+	if (list_lru_init_memcg(&s->s_dentry_lru))
- 		goto fail;
--	if (list_lru_init(&s->s_inode_lru))
-+	if (list_lru_init_memcg(&s->s_inode_lru))
- 		goto fail;
- 
- 	init_rwsem(&s->s_umount);
-@@ -227,7 +227,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
- 	s->s_shrink.scan_objects = super_cache_scan;
- 	s->s_shrink.count_objects = super_cache_count;
- 	s->s_shrink.batch = 1024;
--	s->s_shrink.flags = SHRINKER_NUMA_AWARE;
-+	s->s_shrink.flags = SHRINKER_NUMA_AWARE | SHRINKER_MEMCG_AWARE;
- 	return s;
- 
- fail:
--- 
-1.7.10.4
+Shall I interpret it as preliminary ack?
+
+If yes, I can repost it without RFC prefix. Anyway I need to:
+- add EXPORT_SYMBOL(kstrdup_const),
+- add kerneldocs for both functions.
+
+I can also add patch constifying mnt->mnt_devname in alloc_vfsmnt,
+on my test platform it could save 13 additional allocations.
+
+Regards
+Andrzej
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
