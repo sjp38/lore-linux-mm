@@ -1,64 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f44.google.com (mail-yh0-f44.google.com [209.85.213.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 8ADBE6B006E
-	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 10:29:00 -0500 (EST)
-Received: by mail-yh0-f44.google.com with SMTP id c41so1481740yho.3
-        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 07:29:00 -0800 (PST)
-Received: from SMTP.CITRIX.COM (smtp.citrix.com. [66.165.176.89])
-        by mx.google.com with ESMTPS id q133si3043582yka.13.2015.01.08.07.28.57
+Received: from mail-vc0-f173.google.com (mail-vc0-f173.google.com [209.85.220.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E5AF6B0038
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 10:43:05 -0500 (EST)
+Received: by mail-vc0-f173.google.com with SMTP id kv19so1333989vcb.4
+        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 07:43:05 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m1si12784394wje.153.2015.01.08.07.43.03
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 08 Jan 2015 07:28:57 -0800 (PST)
-From: David Vrabel <david.vrabel@citrix.com>
-Subject: [PATCH 2/2] mm: add 'foreign' alias for the 'pinned' page flag
-Date: Thu, 8 Jan 2015 15:28:44 +0000
-Message-ID: <1420730924-22811-3-git-send-email-david.vrabel@citrix.com>
-In-Reply-To: <1420730924-22811-1-git-send-email-david.vrabel@citrix.com>
-References: <1420730924-22811-1-git-send-email-david.vrabel@citrix.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        Thu, 08 Jan 2015 07:43:03 -0800 (PST)
+From: Juergen Gross <jgross@suse.com>
+Subject: [PATCH] mm: use correct format specifiers when printing address ranges
+Date: Thu,  8 Jan 2015 16:41:37 +0100
+Message-Id: <1420731697-12134-1-git-send-email-jgross@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
-Cc: David Vrabel <david.vrabel@citrix.com>, linux-mm@kvack.org, xen-devel@lists.xenproject.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Jenny Herbert <jennifer.herbert@citrix.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: Juergen Gross <jgross@suse.com>
 
-From: Jenny Herbert <jennifer.herbert@citrix.com>
+Especially on 32 bit kernels memory node ranges are printed with
+32 bit wide addresses only. Use u64 types and %llx specifiers to
+print full width of addresses.
 
-The foreign page flag will be used by Xen guests to mark pages that
-have grant mappings of frames from other (foreign) guests.
-
-The foreign flag is an alias for the existing (Xen-specific) pinned
-flag.  This is safe because pinned is only used on pages used for page
-tables and these cannot also be foreign.
-
-Signed-off-by: Jenny Herbert <jennifer.herbert@citrix.com>
-Signed-off-by: David Vrabel <david.vrabel@citrix.com>
+Signed-off-by: Juergen Gross <jgross@suse.com>
 ---
- include/linux/page-flags.h |    2 ++
- 1 file changed, 2 insertions(+)
+ mm/page_alloc.c | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)
 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index e1f5fcd..7734cc8 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -123,6 +123,7 @@ enum pageflags {
- 	/* XEN */
- 	PG_pinned = PG_owner_priv_1,
- 	PG_savepinned = PG_dirty,
-+	PG_foreign = PG_owner_priv_1,
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 7633c50..4bbe4da 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5059,8 +5059,8 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
+ 	pgdat->node_start_pfn = node_start_pfn;
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ 	get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
+-	printk(KERN_INFO "Initmem setup node %d [mem %#010Lx-%#010Lx]\n", nid,
+-			(u64) start_pfn << PAGE_SHIFT, (u64) (end_pfn << PAGE_SHIFT) - 1);
++	pr_info("Initmem setup node %d [mem %#018Lx-%#018Lx]\n", nid,
++		(u64)start_pfn << PAGE_SHIFT, ((u64)end_pfn << PAGE_SHIFT) - 1);
+ #endif
+ 	calculate_node_totalpages(pgdat, start_pfn, end_pfn,
+ 				  zones_size, zholes_size);
+@@ -5432,9 +5432,10 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
+ 				arch_zone_highest_possible_pfn[i])
+ 			pr_cont("empty\n");
+ 		else
+-			pr_cont("[mem %0#10lx-%0#10lx]\n",
+-				arch_zone_lowest_possible_pfn[i] << PAGE_SHIFT,
+-				(arch_zone_highest_possible_pfn[i]
++			pr_cont("[mem %#018Lx-%#018Lx]\n",
++				(u64)arch_zone_lowest_possible_pfn[i]
++					<< PAGE_SHIFT,
++				((u64)arch_zone_highest_possible_pfn[i]
+ 					<< PAGE_SHIFT) - 1);
+ 	}
  
- 	/* SLOB */
- 	PG_slob_free = PG_private,
-@@ -215,6 +216,7 @@ __PAGEFLAG(Slab, slab)
- PAGEFLAG(Checked, checked)		/* Used by some filesystems */
- PAGEFLAG(Pinned, pinned) TESTSCFLAG(Pinned, pinned)	/* Xen */
- PAGEFLAG(SavePinned, savepinned);			/* Xen */
-+PAGEFLAG(Foreign, foreign);				/* Xen */
- PAGEFLAG(Reserved, reserved) __CLEARPAGEFLAG(Reserved, reserved)
- PAGEFLAG(SwapBacked, swapbacked) __CLEARPAGEFLAG(SwapBacked, swapbacked)
- 	__SETPAGEFLAG(SwapBacked, swapbacked)
+@@ -5442,15 +5443,16 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
+ 	pr_info("Movable zone start for each node\n");
+ 	for (i = 0; i < MAX_NUMNODES; i++) {
+ 		if (zone_movable_pfn[i])
+-			pr_info("  Node %d: %#010lx\n", i,
+-			       zone_movable_pfn[i] << PAGE_SHIFT);
++			pr_info("  Node %d: %#018Lx\n", i,
++			       (u64)zone_movable_pfn[i] << PAGE_SHIFT);
+ 	}
+ 
+ 	/* Print out the early node map */
+ 	pr_info("Early memory node ranges\n");
+ 	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid)
+-		pr_info("  node %3d: [mem %#010lx-%#010lx]\n", nid,
+-		       start_pfn << PAGE_SHIFT, (end_pfn << PAGE_SHIFT) - 1);
++		pr_info("  node %3d: [mem %#018Lx-%#018Lx]\n", nid,
++			(u64)start_pfn << PAGE_SHIFT,
++			((u64)end_pfn << PAGE_SHIFT) - 1);
+ 
+ 	/* Initialise every node */
+ 	mminit_verify_pageflags_layout();
 -- 
-1.7.10.4
+2.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
