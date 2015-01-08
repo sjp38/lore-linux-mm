@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com [209.85.217.176])
-	by kanga.kvack.org (Postfix) with ESMTP id D3A4A6B006E
-	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 05:33:29 -0500 (EST)
-Received: by mail-lb0-f176.google.com with SMTP id p9so2101573lbv.7
-        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 02:33:29 -0800 (PST)
+Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id B63D66B0070
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2015 05:33:31 -0500 (EST)
+Received: by mail-wg0-f53.google.com with SMTP id x13so1793602wgg.12
+        for <linux-mm@kvack.org>; Thu, 08 Jan 2015 02:33:31 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c10si11455071wjy.4.2015.01.08.02.33.25
+        by mx.google.com with ESMTPS id u2si11441794wju.9.2015.01.08.02.33.25
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Thu, 08 Jan 2015 02:33:25 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH V5 1/4] mm: set page->pfmemalloc in prep_new_page()
-Date: Thu,  8 Jan 2015 11:33:08 +0100
-Message-Id: <1420713191-17509-2-git-send-email-vbabka@suse.cz>
+Subject: [PATCH V5 3/4] mm: reduce try_to_compact_pages parameters
+Date: Thu,  8 Jan 2015 11:33:10 +0100
+Message-Id: <1420713191-17509-4-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1420713191-17509-1-git-send-email-vbabka@suse.cz>
 References: <1420713191-17509-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,26 +20,23 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>
 
-The function prep_new_page() sets almost everything in the struct page of the
-page being allocated, except page->pfmemalloc. This is not obvious and has at
-least once led to a bug where page->pfmemalloc was forgotten to be set
-correctly, see commit 8fb74b9fb2b1 ("mm: compaction: partially revert capture
-of suitable high-order page").
+Expand the usage of the struct alloc_context introduced in the previous patch
+also for calling try_to_compact_pages(), to reduce the number of its
+parameters. Since the function is in different compilation unit, we need to
+move alloc_context definition in the shared mm/internal.h header.
 
-This patch moves the pfmemalloc setting to prep_new_page(), which means it
-needs to gain alloc_flags parameter. The call to prep_new_page is moved from
-buffered_rmqueue() to get_page_from_freelist(), which also leads to simpler
-code. An obsolete comment for buffered_rmqueue() is replaced.
+With this change we get simpler code and small savings of code size and stack
+usage:
 
-In addition to better maintainability there is a small reduction of code and
-stack usage for get_page_from_freelist(), which inlines the other functions
-involved.
-
-add/remove: 0/0 grow/shrink: 0/1 up/down: 0/-145 (-145)
+add/remove: 0/0 grow/shrink: 0/1 up/down: 0/-27 (-27)
 function                                     old     new   delta
-get_page_from_freelist                      2670    2525    -145
+__alloc_pages_direct_compact                 283     256     -27
+add/remove: 0/0 grow/shrink: 0/1 up/down: 0/-13 (-13)
+function                                     old     new   delta
+try_to_compact_pages                         582     569     -13
 
-Stack usage is reduced from 184 to 168 bytes.
+Stack usage of __alloc_pages_direct_compact goes from 24 to none (per
+scripts/checkstack.pl).
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 Acked-by: Michal Hocko <mhocko@suse.cz>
@@ -53,97 +50,195 @@ Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/page_alloc.c | 37 ++++++++++++++++---------------------
- 1 file changed, 16 insertions(+), 21 deletions(-)
+ include/linux/compaction.h | 17 +++++++++--------
+ mm/compaction.c            | 23 +++++++++++------------
+ mm/internal.h              | 22 ++++++++++++++++++++++
+ mm/page_alloc.c            | 27 ++-------------------------
+ 4 files changed, 44 insertions(+), 45 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 5ed7f93..4060ad2b 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -937,7 +937,8 @@ static inline int check_new_page(struct page *page)
- 	return 0;
- }
+diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+index 3238ffa..f2efda2 100644
+--- a/include/linux/compaction.h
++++ b/include/linux/compaction.h
+@@ -21,6 +21,8 @@
+ /* Zone lock or lru_lock was contended in async compaction */
+ #define COMPACT_CONTENDED_LOCK	2
  
--static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags)
-+static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
-+								int alloc_flags)
- {
- 	int i;
- 
-@@ -961,6 +962,14 @@ static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags)
- 
- 	set_page_owner(page, order, gfp_flags);
- 
-+	/*
-+	 * page->pfmemalloc is set when ALLOC_NO_WATERMARKS was necessary to
-+	 * allocate the page. The expectation is that the caller is taking
-+	 * steps that will free more memory. The caller should avoid the page
-+	 * being used for !PFMEMALLOC purposes.
-+	 */
-+	page->pfmemalloc = !!(alloc_flags & ALLOC_NO_WATERMARKS);
++struct alloc_context; /* in mm/internal.h */
 +
- 	return 0;
+ #ifdef CONFIG_COMPACTION
+ extern int sysctl_compact_memory;
+ extern int sysctl_compaction_handler(struct ctl_table *table, int write,
+@@ -30,10 +32,9 @@ extern int sysctl_extfrag_handler(struct ctl_table *table, int write,
+ 			void __user *buffer, size_t *length, loff_t *ppos);
+ 
+ extern int fragmentation_index(struct zone *zone, unsigned int order);
+-extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
+-			int order, gfp_t gfp_mask, nodemask_t *mask,
+-			enum migrate_mode mode, int *contended,
+-			int alloc_flags, int classzone_idx);
++extern unsigned long try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
++			int alloc_flags, const struct alloc_context *ac,
++			enum migrate_mode mode, int *contended);
+ extern void compact_pgdat(pg_data_t *pgdat, int order);
+ extern void reset_isolation_suitable(pg_data_t *pgdat);
+ extern unsigned long compaction_suitable(struct zone *zone, int order,
+@@ -101,10 +102,10 @@ static inline bool compaction_restarting(struct zone *zone, int order)
  }
  
-@@ -1609,9 +1618,7 @@ int split_free_page(struct page *page)
+ #else
+-static inline unsigned long try_to_compact_pages(struct zonelist *zonelist,
+-			int order, gfp_t gfp_mask, nodemask_t *nodemask,
+-			enum migrate_mode mode, int *contended,
+-			int alloc_flags, int classzone_idx)
++static inline unsigned long try_to_compact_pages(gfp_t gfp_mask,
++			unsigned int order, int alloc_flags,
++			const struct alloc_context *ac,
++			enum migrate_mode mode, int *contended)
+ {
+ 	return COMPACT_CONTINUE;
  }
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 546e571..9c7e690 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1335,22 +1335,20 @@ int sysctl_extfrag_threshold = 500;
+ 
+ /**
+  * try_to_compact_pages - Direct compact to satisfy a high-order allocation
+- * @zonelist: The zonelist used for the current allocation
+- * @order: The order of the current allocation
+  * @gfp_mask: The GFP mask of the current allocation
+- * @nodemask: The allowed nodes to allocate from
++ * @order: The order of the current allocation
++ * @alloc_flags: The allocation flags of the current allocation
++ * @ac: The context of current allocation
+  * @mode: The migration mode for async, sync light, or sync migration
+  * @contended: Return value that determines if compaction was aborted due to
+  *	       need_resched() or lock contention
+  *
+  * This is the main entry point for direct page compaction.
+  */
+-unsigned long try_to_compact_pages(struct zonelist *zonelist,
+-			int order, gfp_t gfp_mask, nodemask_t *nodemask,
+-			enum migrate_mode mode, int *contended,
+-			int alloc_flags, int classzone_idx)
++unsigned long try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
++			int alloc_flags, const struct alloc_context *ac,
++			enum migrate_mode mode, int *contended)
+ {
+-	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
+ 	int may_enter_fs = gfp_mask & __GFP_FS;
+ 	int may_perform_io = gfp_mask & __GFP_IO;
+ 	struct zoneref *z;
+@@ -1365,8 +1363,8 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
+ 		return COMPACT_SKIPPED;
+ 
+ 	/* Compact each zone in the list */
+-	for_each_zone_zonelist_nodemask(zone, z, zonelist, high_zoneidx,
+-								nodemask) {
++	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->high_zoneidx,
++								ac->nodemask) {
+ 		int status;
+ 		int zone_contended;
+ 
+@@ -1374,7 +1372,8 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
+ 			continue;
+ 
+ 		status = compact_zone_order(zone, order, gfp_mask, mode,
+-				&zone_contended, alloc_flags, classzone_idx);
++				&zone_contended, alloc_flags,
++				ac->classzone_idx);
+ 		rc = max(status, rc);
+ 		/*
+ 		 * It takes at least one zone that wasn't lock contended
+@@ -1384,7 +1383,7 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
+ 
+ 		/* If a normal allocation would succeed, stop compacting */
+ 		if (zone_watermark_ok(zone, order, low_wmark_pages(zone),
+-					classzone_idx, alloc_flags)) {
++					ac->classzone_idx, alloc_flags)) {
+ 			/*
+ 			 * We think the allocation will succeed in this zone,
+ 			 * but it is not certain, hence the false. The caller
+diff --git a/mm/internal.h b/mm/internal.h
+index efad241..c4d6c9b 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -110,6 +110,28 @@ extern pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
+  */
  
  /*
-- * Really, prep_compound_page() should be called from __rmqueue_bulk().  But
-- * we cheat by calling it from here, in the order > 0 path.  Saves a branch
-- * or two.
-+ * Allocate a page from the given zone. Use pcplists for order-0 allocations.
-  */
- static inline
- struct page *buffered_rmqueue(struct zone *preferred_zone,
-@@ -1622,7 +1629,6 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
- 	struct page *page;
- 	bool cold = ((gfp_flags & __GFP_COLD) != 0);
++ * Structure for holding the mostly immutable allocation parameters passed
++ * between functions involved in allocations, including the alloc_pages*
++ * family of functions.
++ *
++ * nodemask, migratetype and high_zoneidx are initialized only once in
++ * __alloc_pages_nodemask() and then never change.
++ *
++ * zonelist, preferred_zone and classzone_idx are set first in
++ * __alloc_pages_nodemask() for the fast path, and might be later changed
++ * in __alloc_pages_slowpath(). All other functions pass the whole strucure
++ * by a const pointer.
++ */
++struct alloc_context {
++	struct zonelist *zonelist;
++	nodemask_t *nodemask;
++	struct zone *preferred_zone;
++	int classzone_idx;
++	int migratetype;
++	enum zone_type high_zoneidx;
++};
++
++/*
+  * Locate the struct page for both the matching buddy in our
+  * pair (buddy1) and the combined O(n+1) page they form (page).
+  *
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index bdbae0a..12d55b8 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -232,27 +232,6 @@ EXPORT_SYMBOL(nr_node_ids);
+ EXPORT_SYMBOL(nr_online_nodes);
+ #endif
  
--again:
- 	if (likely(order == 0)) {
- 		struct per_cpu_pages *pcp;
- 		struct list_head *list;
-@@ -1678,8 +1684,6 @@ again:
- 	local_irq_restore(flags);
- 
- 	VM_BUG_ON_PAGE(bad_range(zone, page), page);
--	if (prep_new_page(page, order, gfp_flags))
--		goto again;
- 	return page;
- 
- failed:
-@@ -2144,25 +2148,16 @@ zonelist_scan:
- try_this_zone:
- 		page = buffered_rmqueue(preferred_zone, zone, order,
- 						gfp_mask, migratetype);
--		if (page)
--			break;
-+		if (page) {
-+			if (prep_new_page(page, order, gfp_mask, alloc_flags))
-+				goto try_this_zone;
-+			return page;
-+		}
- this_zone_full:
- 		if (IS_ENABLED(CONFIG_NUMA) && zlc_active)
- 			zlc_mark_zone_full(zonelist, z);
- 	}
- 
--	if (page) {
--		/*
--		 * page->pfmemalloc is set when ALLOC_NO_WATERMARKS was
--		 * necessary to allocate the page. The expectation is
--		 * that the caller is taking steps that will free more
--		 * memory. The caller should avoid the page being used
--		 * for !PFMEMALLOC purposes.
--		 */
--		page->pfmemalloc = !!(alloc_flags & ALLOC_NO_WATERMARKS);
--		return page;
--	}
+-/*
+- * Structure for holding the mostly immutable allocation parameters passed
+- * between alloc_pages* family of functions.
+- *
+- * nodemask, migratetype and high_zoneidx are initialized only once in
+- * __alloc_pages_nodemask() and then never change.
+- *
+- * zonelist, preferred_zone and classzone_idx are set first in
+- * __alloc_pages_nodemask() for the fast path, and might be later changed
+- * in __alloc_pages_slowpath(). All other functions pass the whole strucure
+- * by a const pointer.
+- */
+-struct alloc_context {
+-	struct zonelist *zonelist;
+-	nodemask_t *nodemask;
+-	struct zone *preferred_zone;
+-	int classzone_idx;
+-	int migratetype;
+-	enum zone_type high_zoneidx;
+-};
 -
- 	/*
- 	 * The first pass makes sure allocations are spread fairly within the
- 	 * local node.  However, the local node might have free pages left
+ int page_group_by_mobility_disabled __read_mostly;
+ 
+ void set_pageblock_migratetype(struct page *page, int migratetype)
+@@ -2396,10 +2375,8 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 		return NULL;
+ 
+ 	current->flags |= PF_MEMALLOC;
+-	compact_result = try_to_compact_pages(ac->zonelist, order, gfp_mask,
+-						ac->nodemask, mode,
+-						contended_compaction,
+-						alloc_flags, ac->classzone_idx);
++	compact_result = try_to_compact_pages(gfp_mask, order, alloc_flags, ac,
++						mode, contended_compaction);
+ 	current->flags &= ~PF_MEMALLOC;
+ 
+ 	switch (compact_result) {
 -- 
 2.1.2
 
