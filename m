@@ -1,148 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 4ADF56B0038
-	for <linux-mm@kvack.org>; Fri,  9 Jan 2015 09:35:35 -0500 (EST)
-Received: by mail-ie0-f171.google.com with SMTP id ar1so15248039iec.2
-        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 06:35:35 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0161.hostedemail.com. [216.40.44.161])
-        by mx.google.com with ESMTP id g4si15174904igh.45.2015.01.09.06.35.33
-        for <linux-mm@kvack.org>;
-        Fri, 09 Jan 2015 06:35:34 -0800 (PST)
-Date: Fri, 9 Jan 2015 09:35:30 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH 0/3] mm: cma: /proc/cmainfo
-Message-ID: <20150109093530.655c845e@gandalf.local.home>
-In-Reply-To: <20150109091904.41294966@gandalf.local.home>
-References: <cover.1419602920.git.s.strogin@partner.samsung.com>
-	<20141229023639.GC27095@bbox>
-	<54A1B11A.6020307@codeaurora.org>
-	<20141230044726.GA22342@bbox>
-	<20150109091904.41294966@gandalf.local.home>
+Received: from mail-la0-f53.google.com (mail-la0-f53.google.com [209.85.215.53])
+	by kanga.kvack.org (Postfix) with ESMTP id EFC6D6B0032
+	for <linux-mm@kvack.org>; Fri,  9 Jan 2015 10:56:46 -0500 (EST)
+Received: by mail-la0-f53.google.com with SMTP id gm9so15564776lab.12
+        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 07:56:46 -0800 (PST)
+Received: from mail-we0-x22b.google.com (mail-we0-x22b.google.com. [2a00:1450:400c:c03::22b])
+        by mx.google.com with ESMTPS id vk1si20277641wjc.12.2015.01.09.07.56.45
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 09 Jan 2015 07:56:45 -0800 (PST)
+Received: by mail-we0-f171.google.com with SMTP id u56so8677125wes.2
+        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 07:56:45 -0800 (PST)
+Date: Fri, 9 Jan 2015 16:56:43 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: Linux 3.19-rc3
+Message-ID: <20150109155643.GC7596@dhcp22.suse.cz>
+References: <CA+55aFwsxoyLb9OWMSCL3doe_cz_EQtKsEFCyPUYn_T87pbz0A@mail.gmail.com>
+ <54AE7D53.2020305@redhat.com>
+ <20150108150850.GD5658@dhcp22.suse.cz>
+ <54AEB25E.9050205@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <54AEB25E.9050205@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Laura Abbott <lauraa@codeaurora.org>, "Stefan I. Strogin" <s.strogin@partner.samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Dmitry Safonov <d.safonov@partner.samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>, namhyung@kernel.org
+To: Mark Langsdorf <mlangsdo@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Marek Szyprowski <m.szyprowski@samsung.com>
 
-On Fri, 9 Jan 2015 09:19:04 -0500
-Steven Rostedt <rostedt@goodmis.org> wrote:
+On Thu 08-01-15 10:37:50, Mark Langsdorf wrote:
+> On 01/08/2015 09:08 AM, Michal Hocko wrote:
+> >[CCing linux-mm and CMA people]
+> >[Full message here:
+> >http://article.gmane.org/gmane.linux.ports.arm.kernel/383669]
+> 
+> >>[ 1054.095277] DMA: 109*64kB (UR) 53*128kB (R) 8*256kB (R) 0*512kB 0*1024kB
+> >>0*2048kB 1*4096kB (R) 0*8192kB 0*16384kB 1*32768kB (R) 0*65536kB = 52672kB
+> >>[ 1054.108621] Normal: 191*64kB (MR) 0*128kB 0*256kB 0*512kB 0*1024kB
+> >>0*2048kB 0*4096kB 0*8192kB 0*16384kB 0*32768kB 0*65536kB = 12224kB
+> >[...]
+> >>[ 1054.142545] Free swap  = 6598400kB
+> >>[ 1054.145928] Total swap = 8388544kB
+> >>[ 1054.149317] 262112 pages RAM
+> >>[ 1054.152180] 0 pages HighMem/MovableOnly
+> >>[ 1054.155995] 18446744073709544361 pages reserved
+> >>[ 1054.160505] 8192 pages cma reserved
+> >
+> >Besides underflow in the reserved pages accounting mentioned in other
+> >email the free lists look strange as well. All free blocks with some memory
+> >are marked as reserved. I would suspect something CMA related.
+> 
+> I get the same failure with CMA turned off entirely. I assume that means
+> CMA is not the culprit.
 
-> task: <...>-2880
->   Event: func: __kmalloc() (74) Total: 53254 Avg: 719 Max: 1095 Min:481
+OK. Do you see all the free page blocks completely reserved without CMA
+as well?
 
-I forgot to mention that all times are in nanoseconds (or whatever the
-trace clock is set at).
-
->           | 
->           + ftrace_ops_list_func (0xffffffff810c229e)
->               100% (74) time:53254 max:1095 min:481 avg:719
->                ftrace_call (0xffffffff81526047)
->                trace_preempt_on (0xffffffff810d28ff)
->                preempt_count_sub (0xffffffff81061c62)
->                __mutex_lock_slowpath (0xffffffff81522807)
->                __kmalloc (0xffffffff811323f3)
->                __kmalloc (0xffffffff811323f3)
-
-The above may be a bit confusing, as the stack trace included more than
-it should have (it's variable and hard to get right).
-ftrace_ops_list_func() did not call kmalloc, but it did call the
-stack trace and was included. You want to look below to find the
-interesting data.
-
-This is still a new feature, and is using some of the kernel tracing
-more than it has been in the past. There's still a few eggs that need
-to be boiled here.
-
-
->                tracing_buffers_splice_read (0xffffffff810ca23e)
-
-All the kmallocs for this task was called by
-tracing_buffers_splice_read() (hmm, I chose to show you the trace-cmd
-profile on itself. If I had included "-F -c" (follow workload only)  or
--e sched_switch I would have known which task to look at).
-
->                 | 
->                 + set_next_entity (0xffffffff81067027)
->                 |   66% (49) time:34925 max:1044 min:481 avg:712
->                 |    __switch_to (0xffffffff810016d7)
->                 |    trace_hardirqs_on (0xffffffff810d28db)
->                 |    _raw_spin_unlock_irq (0xffffffff81523a8e)
->                 |    trace_preempt_on (0xffffffff810d28ff)
->                 |    preempt_count_sub (0xffffffff81061c62)
->                 |    __schedule (0xffffffff815204d3)
->                 |    trace_preempt_on (0xffffffff810d28ff)
->                 |    buffer_spd_release (0xffffffff810c91fd)
->                 |    SyS_splice (0xffffffff8115dccf)
->                 |    system_call_fastpath (0xffffffff81523f92)
->                 | 
->                 + do_read_fault.isra.74 (0xffffffff8111431d)
-
-I'm not sure how much I trust this. I don't have FRAME_POINTERS
-enabled, so the stack traces may not be as accurate.
-
-But you get the idea, and this can show you where the slow paths lie.
-
--- Steve
-
-
->                 |   24% (18) time:12654 max:1008 min:481 avg:703
->                 |     | 
->                 |     + select_task_rq_fair (0xffffffff81067806)
->                 |     |   89% (16) time:11234 max:1008 min:481 avg:702
->                 |     |    trace_preempt_on (0xffffffff810d28ff)
->                 |     |    buffer_spd_release (0xffffffff810c91fd)
->                 |     |    SyS_splice (0xffffffff8115dccf)
->                 |     |    system_call_fastpath (0xffffffff81523f92)
->                 |     | 
->                 |     + handle_mm_fault (0xffffffff81114df4)
->                 |         11% (2) time:1420 max:879 min:541 avg:710
->                 |          trace_preempt_on (0xffffffff810d28ff)
->                 |          buffer_spd_release (0xffffffff810c91fd)
->                 |          SyS_splice (0xffffffff8115dccf)
->                 |          system_call_fastpath (0xffffffff81523f92)
->                 |       
->                 | 
->                 | 
->                 + update_stats_wait_end (0xffffffff81066c5c)
->                 |   6% (4) time:3153 max:1095 min:635 avg:788
->                 |    set_next_entity (0xffffffff81067027)
->                 |    __switch_to (0xffffffff810016d7)
->                 |    trace_hardirqs_on (0xffffffff810d28db)
->                 |    _raw_spin_unlock_irq (0xffffffff81523a8e)
->                 |    trace_preempt_on (0xffffffff810d28ff)
->                 |    preempt_count_sub (0xffffffff81061c62)
->                 |    __schedule (0xffffffff815204d3)
->                 |    trace_preempt_on (0xffffffff810d28ff)
->                 |    buffer_spd_release (0xffffffff810c91fd)
->                 |    SyS_splice (0xffffffff8115dccf)
->                 |    system_call_fastpath (0xffffffff81523f92)
->                 | 
->                 + _raw_spin_unlock (0xffffffff81523af5)
->                 |   3% (2) time:1854 max:936 min:918 avg:927
->                 |    do_read_fault.isra.74 (0xffffffff8111431d)
->                 |    handle_mm_fault (0xffffffff81114df4)
->                 |    buffer_spd_release (0xffffffff810c91fd)
->                 |    SyS_splice (0xffffffff8115dccf)
->                 |    system_call_fastpath (0xffffffff81523f92)
->                 | 
->                 + trace_hardirqs_off (0xffffffff810d2891)
->                     1% (1) time:668 max:668 min:668 avg:668
->                      kmem_cache_free (0xffffffff81130e48)
->                      __dequeue_signal (0xffffffff8104c802)
->                      trace_preempt_on (0xffffffff810d28ff)
->                      preempt_count_sub (0xffffffff81061c62)
->                      _raw_spin_unlock_irq (0xffffffff81523a8e)
->                      recalc_sigpending (0xffffffff8104c5d1)
->                      __set_task_blocked (0xffffffff8104cd2e)
->                      trace_preempt_on (0xffffffff810d28ff)
->                      preempt_count_sub (0xffffffff81061c62)
->                      preempt_count_sub (0xffffffff81061c62)
->                      buffer_spd_release (0xffffffff810c91fd)
->                      SyS_splice (0xffffffff8115dccf)
->                      system_call_fastpath (0xffffffff81523f92)
->                   
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
