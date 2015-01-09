@@ -1,49 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id E78136B0038
-	for <linux-mm@kvack.org>; Fri,  9 Jan 2015 05:37:03 -0500 (EST)
-Received: by mail-wi0-f180.google.com with SMTP id n3so1396034wiv.1
-        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 02:37:03 -0800 (PST)
+Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
+	by kanga.kvack.org (Postfix) with ESMTP id D5FF96B0038
+	for <linux-mm@kvack.org>; Fri,  9 Jan 2015 05:57:15 -0500 (EST)
+Received: by mail-we0-f181.google.com with SMTP id q58so7302818wes.12
+        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 02:57:15 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h3si18541433wjx.28.2015.01.09.02.37.03
+        by mx.google.com with ESMTPS id cj7si46574760wib.43.2015.01.09.02.57.15
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 09 Jan 2015 02:37:03 -0800 (PST)
-Date: Fri, 9 Jan 2015 10:36:59 +0000
+        Fri, 09 Jan 2015 02:57:15 -0800 (PST)
+Date: Fri, 9 Jan 2015 10:57:10 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: LSF/MM 2015 Reminder about call for proposals
-Message-ID: <20150109103659.GI2395@suse.de>
+Subject: Re: [PATCH 1/3] mm/compaction: enhance trace output to know more
+ about compaction internals
+Message-ID: <20150109105710.GN2395@suse.de>
+References: <1417593127-6819-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <54ABA563.1040103@suse.cz>
+ <20150108081835.GC25453@js1304-P5Q-DELUXE>
+ <54AE43E3.60209@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
+In-Reply-To: <54AE43E3.60209@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-ide@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org, lsf-pc@lists.linux-foundation.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This is a reminder that the deadline for the LSF/MM 2015 CFP is approaching
--- see http://lwn.net/Articles/623534/ for the original announcement. The
-deadline for ATTEND and TOPIC requests is January 16th so now is the time
-to get them sent in if you're interested in attending.
+On Thu, Jan 08, 2015 at 09:46:27AM +0100, Vlastimil Babka wrote:
+> On 01/08/2015 09:18 AM, Joonsoo Kim wrote:
+> > On Tue, Jan 06, 2015 at 10:05:39AM +0100, Vlastimil Babka wrote:
+> >> On 12/03/2014 08:52 AM, Joonsoo Kim wrote:
+> >> > It'd be useful to know where the both scanner is start. And, it also be
+> >> > useful to know current range where compaction work. It will help to find
+> >> > odd behaviour or problem on compaction.
+> >> 
+> >> Overall it looks good, just two questions:
+> >> 1) Why change the pfn output to hexadecimal with different printf layout and
+> >> change the variable names and? Is it that better to warrant people having to
+> >> potentially modify their scripts parsing the old output?
+> > 
+> > Deciaml output has really bad readability since we manage all pages by order
+> > of 2 which is well represented by hexadecimal. With hex output, we can
+> > easily notice whether we move out from one pageblock to another one.
+> 
+> OK. I don't have any strong objection, maybe Mel should comment on this as the
+> author of most of the tracepoints? But if it happens, I think converting the old
+> tracepoints to new hexadecimal format should be a separate patch from adding the
+> new ones.
+> 
 
-Thank you on behalf of the program committee:
-
-Storage:
-	James Bottomley 
-	Martin Petersen 
-	Christoph Hellwig 
-
-Filesystem:
-	Jeff Layton 
-	Ric Wheeler 
-	Jan Kara 
-	Trond Myklebust 
-	Theodore Ts'o
-
-MM:
-	Rik van Riel 
-	Michel Lespinasse 
-	Sasha Levin
+To date, I'm not aware of any user-space programs that heavily depend on
+the formatting. The scripts I am aware of are ad-hoc and easily modified
+to adapt to format changes. LTT-NG is the only tool that might be
+depending on trace point formats but I severely doubt it's interested in
+this particular tracepoint.
 
 -- 
 Mel Gorman
