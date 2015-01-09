@@ -1,64 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f53.google.com (mail-la0-f53.google.com [209.85.215.53])
-	by kanga.kvack.org (Postfix) with ESMTP id EFC6D6B0032
-	for <linux-mm@kvack.org>; Fri,  9 Jan 2015 10:56:46 -0500 (EST)
-Received: by mail-la0-f53.google.com with SMTP id gm9so15564776lab.12
-        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 07:56:46 -0800 (PST)
-Received: from mail-we0-x22b.google.com (mail-we0-x22b.google.com. [2a00:1450:400c:c03::22b])
-        by mx.google.com with ESMTPS id vk1si20277641wjc.12.2015.01.09.07.56.45
+Received: from mail-vc0-f178.google.com (mail-vc0-f178.google.com [209.85.220.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E5366B0032
+	for <linux-mm@kvack.org>; Fri,  9 Jan 2015 11:46:01 -0500 (EST)
+Received: by mail-vc0-f178.google.com with SMTP id hq11so3508502vcb.9
+        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 08:46:00 -0800 (PST)
+Received: from mail-vc0-x22a.google.com (mail-vc0-x22a.google.com. [2607:f8b0:400c:c03::22a])
+        by mx.google.com with ESMTPS id ea10si4275597vdc.73.2015.01.09.08.45.59
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 09 Jan 2015 07:56:45 -0800 (PST)
-Received: by mail-we0-f171.google.com with SMTP id u56so8677125wes.2
-        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 07:56:45 -0800 (PST)
-Date: Fri, 9 Jan 2015 16:56:43 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: Linux 3.19-rc3
-Message-ID: <20150109155643.GC7596@dhcp22.suse.cz>
-References: <CA+55aFwsxoyLb9OWMSCL3doe_cz_EQtKsEFCyPUYn_T87pbz0A@mail.gmail.com>
- <54AE7D53.2020305@redhat.com>
- <20150108150850.GD5658@dhcp22.suse.cz>
- <54AEB25E.9050205@redhat.com>
+        Fri, 09 Jan 2015 08:45:59 -0800 (PST)
+Received: by mail-vc0-f170.google.com with SMTP id hy4so3501049vcb.1
+        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 08:45:59 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <54AEB25E.9050205@redhat.com>
+In-Reply-To: <20150108223024.da818218.akpm@linux-foundation.org>
+References: <CAA25o9Sf62u3mJtBp_swLL0RS2Zb=EjZtWERJqyrbBpk7-bP-A@mail.gmail.com>
+	<20150108223024.da818218.akpm@linux-foundation.org>
+Date: Fri, 9 Jan 2015 08:45:59 -0800
+Message-ID: <CAA25o9SQfb3yO2D4ABeeYoZkurhxramAgckr9DVOG1=DwVF0qg@mail.gmail.com>
+Subject: Re: mm performance with zram
+From: Luigi Semenzato <semenzato@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Langsdorf <mlangsdo@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 
-On Thu 08-01-15 10:37:50, Mark Langsdorf wrote:
-> On 01/08/2015 09:08 AM, Michal Hocko wrote:
-> >[CCing linux-mm and CMA people]
-> >[Full message here:
-> >http://article.gmane.org/gmane.linux.ports.arm.kernel/383669]
-> 
-> >>[ 1054.095277] DMA: 109*64kB (UR) 53*128kB (R) 8*256kB (R) 0*512kB 0*1024kB
-> >>0*2048kB 1*4096kB (R) 0*8192kB 0*16384kB 1*32768kB (R) 0*65536kB = 52672kB
-> >>[ 1054.108621] Normal: 191*64kB (MR) 0*128kB 0*256kB 0*512kB 0*1024kB
-> >>0*2048kB 0*4096kB 0*8192kB 0*16384kB 0*32768kB 0*65536kB = 12224kB
-> >[...]
-> >>[ 1054.142545] Free swap  = 6598400kB
-> >>[ 1054.145928] Total swap = 8388544kB
-> >>[ 1054.149317] 262112 pages RAM
-> >>[ 1054.152180] 0 pages HighMem/MovableOnly
-> >>[ 1054.155995] 18446744073709544361 pages reserved
-> >>[ 1054.160505] 8192 pages cma reserved
-> >
-> >Besides underflow in the reserved pages accounting mentioned in other
-> >email the free lists look strange as well. All free blocks with some memory
-> >are marked as reserved. I would suspect something CMA related.
-> 
-> I get the same failure with CMA turned off entirely. I assume that means
-> CMA is not the culprit.
+On Thu, Jan 8, 2015 at 10:30 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Thu, 8 Jan 2015 14:49:45 -0800 Luigi Semenzato <semenzato@google.com> wrote:
+>
+>> I am taking a closer look at the performance of the Linux MM in the
+>> context of heavy zram usage.  The bottom line is that there is
+>> surprisingly high overhead (35-40%) from MM code other than
+>> compression/decompression routines.
+>
+> Those images hurt my eyes.
 
-OK. Do you see all the free page blocks completely reserved without CMA
-as well?
+Sorry about that.  I didn't find other ways of computing the
+cumulative cost of functions (i.e. time spent in a function and all
+its descendants, like in gprof).  I couldn't get perf to do that
+either.  A flat profile shows most functions take a fracion of 1%, so
+it's not useful.  If anybody knows a better way I'll be glad to use
+it.
 
--- 
-Michal Hocko
-SUSE Labs
+> Did you work out where the time is being spent?
+
+No, unfortunately it's difficult to make sense of the graph profile as
+well, especially with my low familiarity with the code.  There is a
+surprising number of different callers into the heaviest nodes and I
+cannot tell which paths correspond to which high-level actions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
