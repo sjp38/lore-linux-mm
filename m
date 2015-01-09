@@ -1,71 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F5A76B0032
-	for <linux-mm@kvack.org>; Fri,  9 Jan 2015 12:25:54 -0500 (EST)
-Received: by mail-qg0-f44.google.com with SMTP id q107so9948192qgd.3
-        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 09:25:54 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id 65si12910184qgx.47.2015.01.09.09.25.52
+Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 06A546B0032
+	for <linux-mm@kvack.org>; Fri,  9 Jan 2015 12:43:23 -0500 (EST)
+Received: by mail-qa0-f49.google.com with SMTP id dc16so7945621qab.8
+        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 09:43:22 -0800 (PST)
+Received: from service87.mimecast.com (service87.mimecast.com. [91.220.42.44])
+        by mx.google.com with ESMTP id u9si11991811qab.87.2015.01.09.09.43.21
         for <linux-mm@kvack.org>;
-        Fri, 09 Jan 2015 09:25:52 -0800 (PST)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] x86, mpx: Ensure unused arguments of prctl() MPX requests are 0
-References: <54AE5BE8.1050701@gmail.com>
-Date: Fri, 09 Jan 2015 09:25:51 -0800
-In-Reply-To: <54AE5BE8.1050701@gmail.com> (Michael Kerrisk's message of "Thu,
-	08 Jan 2015 11:28:56 +0100")
-Message-ID: <87r3v350io.fsf@tassilo.jf.intel.com>
+        Fri, 09 Jan 2015 09:43:22 -0800 (PST)
+Message-ID: <54B01335.4060901@arm.com>
+Date: Fri, 09 Jan 2015 17:43:17 +0000
+From: "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: [Regression] 3.19-rc3 : memcg: Hang in mount memcg
+Content-Type: text/plain; charset=WINDOWS-1252; format=flowed
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, Qiaowei Ren <qiaowei.ren@intel.com>, lkml <linux-kernel@vger.kernel.org>
+To: Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Will Deacon <Will.Deacon@arm.com>
 
-"Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com> writes:
+Hi
 
-> From: Michael Kerrisk <mtk.manpages@gmail.com>
->
-> commit fe8c7f5cbf91124987106faa3bdf0c8b955c4cf7 added two new prctl()
-> operations, PR_MPX_ENABLE_MANAGEMENT and PR_MPX_DISABLE_MANAGEMENT.
-> However, no checks were included to ensure that unused arguments
-> are zero, as is done in many existing prctl()s and as should be 
-> done for all new prctl()s. This patch adds the required checks.
+We have hit a hang on ARM64 defconfig, while running LTP tests on=20
+3.19-rc3. We are
+in the process of a git bisect and will update the results as and
+when we find the commit.
 
-This will break the existing gcc run time, which doesn't zero these
-arguments.
+During the ksm ltp run, the test hangs trying to mount memcg with the=20
+following strace
+output:
 
--ANdi
+mount("memcg", "/dev/cgroup", "cgroup", 0, "memory") =3D ? ERESTARTNOINTR=
+=20
+(To be restarted)
+mount("memcg", "/dev/cgroup", "cgroup", 0, "memory") =3D ? ERESTARTNOINTR=
+=20
+(To be restarted)
+[ ... repeated forever ... ]
 
->
-> Signed-off-by: Michael Kerrisk <mtk.manpages@gmail.com>
-> ---
->  kernel/sys.c | 4 ++++
->  1 file changed, 4 insertions(+)
->
-> diff --git a/kernel/sys.c b/kernel/sys.c
-> index a8c9f5a..ea9c881 100644
-> --- a/kernel/sys.c
-> +++ b/kernel/sys.c
-> @@ -2210,9 +2210,13 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
->  		up_write(&me->mm->mmap_sem);
->  		break;
->  	case PR_MPX_ENABLE_MANAGEMENT:
-> +		if (arg2 || arg3 || arg4 || arg5)
-> +			return -EINVAL;
->  		error = MPX_ENABLE_MANAGEMENT(me);
->  		break;
->  	case PR_MPX_DISABLE_MANAGEMENT:
-> +		if (arg2 || arg3 || arg4 || arg5)
-> +			return -EINVAL;
->  		error = MPX_DISABLE_MANAGEMENT(me);
->  		break;
->  	default:
-> -- 
-> 1.9.3
+At this point, one can try mounting the memcg to verify the problem.
+# mount -t cgroup -o memory memcg memcg_dir
+--hangs--
 
--- 
-ak@linux.intel.com -- Speaking for myself only
+Strangely, if we run the mount command from a cold boot (i.e. without=20
+running LTP first),
+then it succeeds.
+
+Upon a quick look we are hitting the following code :
+kernel/cgroup.c: cgroup_mount() :
+
+1779         for_each_subsys(ss, i) {
+1780                 if (!(opts.subsys_mask & (1 << i)) ||
+1781                     ss->root =3D=3D &cgrp_dfl_root)
+1782                         continue;
+1783
+1784                 if=20
+(!percpu_ref_tryget_live(&ss->root->cgrp.self.refcnt)) {
+1785                         mutex_unlock(&cgroup_mutex);
+1786                         msleep(10);
+1787                         ret =3D restart_syscall(); <=3D=3D=3D=3D=3D
+1788                         goto out_free;
+1789                 }
+1790                 cgroup_put(&ss->root->cgrp);
+1791         }
+
+with ss->root->cgrp.self.refct.percpu_count_ptr =3D=3D __PERCPU_REF_ATOMIC_=
+DEAD
+
+Any ideas?
+
+Thanks
+Suzuki
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
