@@ -1,54 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f178.google.com (mail-vc0-f178.google.com [209.85.220.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E5366B0032
-	for <linux-mm@kvack.org>; Fri,  9 Jan 2015 11:46:01 -0500 (EST)
-Received: by mail-vc0-f178.google.com with SMTP id hq11so3508502vcb.9
-        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 08:46:00 -0800 (PST)
-Received: from mail-vc0-x22a.google.com (mail-vc0-x22a.google.com. [2607:f8b0:400c:c03::22a])
-        by mx.google.com with ESMTPS id ea10si4275597vdc.73.2015.01.09.08.45.59
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 09 Jan 2015 08:45:59 -0800 (PST)
-Received: by mail-vc0-f170.google.com with SMTP id hy4so3501049vcb.1
-        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 08:45:59 -0800 (PST)
+Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F5A76B0032
+	for <linux-mm@kvack.org>; Fri,  9 Jan 2015 12:25:54 -0500 (EST)
+Received: by mail-qg0-f44.google.com with SMTP id q107so9948192qgd.3
+        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 09:25:54 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id 65si12910184qgx.47.2015.01.09.09.25.52
+        for <linux-mm@kvack.org>;
+        Fri, 09 Jan 2015 09:25:52 -0800 (PST)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] x86, mpx: Ensure unused arguments of prctl() MPX requests are 0
+References: <54AE5BE8.1050701@gmail.com>
+Date: Fri, 09 Jan 2015 09:25:51 -0800
+In-Reply-To: <54AE5BE8.1050701@gmail.com> (Michael Kerrisk's message of "Thu,
+	08 Jan 2015 11:28:56 +0100")
+Message-ID: <87r3v350io.fsf@tassilo.jf.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20150108223024.da818218.akpm@linux-foundation.org>
-References: <CAA25o9Sf62u3mJtBp_swLL0RS2Zb=EjZtWERJqyrbBpk7-bP-A@mail.gmail.com>
-	<20150108223024.da818218.akpm@linux-foundation.org>
-Date: Fri, 9 Jan 2015 08:45:59 -0800
-Message-ID: <CAA25o9SQfb3yO2D4ABeeYoZkurhxramAgckr9DVOG1=DwVF0qg@mail.gmail.com>
-Subject: Re: mm performance with zram
-From: Luigi Semenzato <semenzato@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, Qiaowei Ren <qiaowei.ren@intel.com>, lkml <linux-kernel@vger.kernel.org>
 
-On Thu, Jan 8, 2015 at 10:30 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Thu, 8 Jan 2015 14:49:45 -0800 Luigi Semenzato <semenzato@google.com> wrote:
+"Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com> writes:
+
+> From: Michael Kerrisk <mtk.manpages@gmail.com>
 >
->> I am taking a closer look at the performance of the Linux MM in the
->> context of heavy zram usage.  The bottom line is that there is
->> surprisingly high overhead (35-40%) from MM code other than
->> compression/decompression routines.
+> commit fe8c7f5cbf91124987106faa3bdf0c8b955c4cf7 added two new prctl()
+> operations, PR_MPX_ENABLE_MANAGEMENT and PR_MPX_DISABLE_MANAGEMENT.
+> However, no checks were included to ensure that unused arguments
+> are zero, as is done in many existing prctl()s and as should be 
+> done for all new prctl()s. This patch adds the required checks.
+
+This will break the existing gcc run time, which doesn't zero these
+arguments.
+
+-ANdi
+
 >
-> Those images hurt my eyes.
+> Signed-off-by: Michael Kerrisk <mtk.manpages@gmail.com>
+> ---
+>  kernel/sys.c | 4 ++++
+>  1 file changed, 4 insertions(+)
+>
+> diff --git a/kernel/sys.c b/kernel/sys.c
+> index a8c9f5a..ea9c881 100644
+> --- a/kernel/sys.c
+> +++ b/kernel/sys.c
+> @@ -2210,9 +2210,13 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
+>  		up_write(&me->mm->mmap_sem);
+>  		break;
+>  	case PR_MPX_ENABLE_MANAGEMENT:
+> +		if (arg2 || arg3 || arg4 || arg5)
+> +			return -EINVAL;
+>  		error = MPX_ENABLE_MANAGEMENT(me);
+>  		break;
+>  	case PR_MPX_DISABLE_MANAGEMENT:
+> +		if (arg2 || arg3 || arg4 || arg5)
+> +			return -EINVAL;
+>  		error = MPX_DISABLE_MANAGEMENT(me);
+>  		break;
+>  	default:
+> -- 
+> 1.9.3
 
-Sorry about that.  I didn't find other ways of computing the
-cumulative cost of functions (i.e. time spent in a function and all
-its descendants, like in gprof).  I couldn't get perf to do that
-either.  A flat profile shows most functions take a fracion of 1%, so
-it's not useful.  If anybody knows a better way I'll be glad to use
-it.
-
-> Did you work out where the time is being spent?
-
-No, unfortunately it's difficult to make sense of the graph profile as
-well, especially with my low familiarity with the code.  There is a
-surprising number of different callers into the heaviest nodes and I
-cannot tell which paths correspond to which high-level actions.
+-- 
+ak@linux.intel.com -- Speaking for myself only
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
