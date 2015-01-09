@@ -1,179 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 6450C6B0038
-	for <linux-mm@kvack.org>; Fri,  9 Jan 2015 03:59:10 -0500 (EST)
-Received: by mail-pd0-f178.google.com with SMTP id r10so16334331pdi.9
-        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 00:59:10 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id pz1si12567408pdb.159.2015.01.09.00.59.08
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C2176B0038
+	for <linux-mm@kvack.org>; Fri,  9 Jan 2015 04:45:39 -0500 (EST)
+Received: by mail-wg0-f45.google.com with SMTP id b13so7106808wgh.4
+        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 01:45:38 -0800 (PST)
+Received: from mail-wi0-x234.google.com (mail-wi0-x234.google.com. [2a00:1450:400c:c05::234])
+        by mx.google.com with ESMTPS id hs6si18210550wjb.68.2015.01.09.01.45.38
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Jan 2015 00:59:08 -0800 (PST)
-Date: Fri, 9 Jan 2015 11:58:55 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH -mm v3 3/9] vmscan: per memory cgroup slab shrinkers
-Message-ID: <20150109085855.GC2110@esperanza>
-References: <063c01d02bd6$38c64ce0$aa52e6a0$@alibaba-inc.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 09 Jan 2015 01:45:38 -0800 (PST)
+Received: by mail-wi0-f180.google.com with SMTP id n3so1117430wiv.1
+        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 01:45:38 -0800 (PST)
+Date: Fri, 9 Jan 2015 10:45:35 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2] vmscan: force scan offline memory cgroups
+Message-ID: <20150109094535.GB7596@dhcp22.suse.cz>
+References: <20150108170349.GA32079@phnom.home.cmpxchg.org>
+ <1420790983-20270-1-git-send-email-vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <063c01d02bd6$38c64ce0$aa52e6a0$@alibaba-inc.com>
+In-Reply-To: <1420790983-20270-1-git-send-email-vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Michal Hocko' <mhocko@suse.cz>, 'Greg Thelen' <gthelen@google.com>, 'Glauber Costa' <glommer@gmail.com>, 'Dave Chinner' <david@fromorbit.com>, 'Alexander Viro' <viro@zeniv.linux.org.uk>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jan 09, 2015 at 02:33:46PM +0800, Hillf Danton wrote:
-> > @@ -2318,16 +2357,22 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
-> > 
-> >  		memcg = mem_cgroup_iter(root, NULL, &reclaim);
-> >  		do {
-> > -			unsigned long lru_pages;
-> > +			unsigned long lru_pages, scanned;
-> >  			struct lruvec *lruvec;
-> >  			int swappiness;
-> > 
-> >  			lruvec = mem_cgroup_zone_lruvec(zone, memcg);
-> >  			swappiness = mem_cgroup_swappiness(memcg);
-> > +			scanned = sc->nr_scanned;
-> > 
-> >  			shrink_lruvec(lruvec, swappiness, sc, &lru_pages);
-> >  			zone_lru_pages += lru_pages;
-> > 
-> > +			if (memcg && is_classzone)
-> > +				shrink_slab(sc->gfp_mask, zone_to_nid(zone),
-> > +					    memcg, sc->nr_scanned - scanned,
-> > +					    lru_pages);
-> > +
-> Looks sc->nr_reclaimed has to be updated for "limit reclaim".
+On Fri 09-01-15 11:09:43, Vladimir Davydov wrote:
+> Since commit b2052564e66d ("mm: memcontrol: continue cache reclaim from
+> offlined groups") pages charged to a memory cgroup are not reparented
+> when the cgroup is removed. Instead, they are supposed to be reclaimed
+> in a regular way, along with pages accounted to online memory cgroups.
+> 
+> However, an lruvec of an offline memory cgroup will sooner or later get
+> so small that it will be scanned only at low scan priorities (see
+> get_scan_count()). Therefore, if there are enough reclaimable pages in
+> big lruvecs, pages accounted to offline memory cgroups will never be
+> scanned at all, wasting memory.
+> 
+> Fix this by unconditionally forcing scanning dead lruvecs from kswapd.
+> 
+> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
+Thanks!
+
+> ---
+> Changes in v2:
+>  - code style fixes (Johannes)
+> 
+>  include/linux/memcontrol.h |    6 ++++++
+>  mm/memcontrol.c            |   14 ++++++++++++++
+>  mm/vmscan.c                |    8 ++++++--
+>  3 files changed, 26 insertions(+), 2 deletions(-)
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 76b4084b8d08..68f3b44ef27c 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -102,6 +102,7 @@ void mem_cgroup_iter_break(struct mem_cgroup *, struct mem_cgroup *);
+>   * For memory reclaim.
+>   */
+>  int mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec);
+> +bool mem_cgroup_lruvec_online(struct lruvec *lruvec);
+>  int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
+>  unsigned long mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list);
+>  void mem_cgroup_update_lru_size(struct lruvec *, enum lru_list, int);
+> @@ -266,6 +267,11 @@ mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
+>  	return 1;
+>  }
+>  
+> +bool mem_cgroup_lruvec_online(struct lruvec *lruvec)
+> +{
+> +	return true;
+> +}
+> +
+>  static inline unsigned long
+>  mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list lru)
+>  {
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index bfa1a849d113..67c936bbaa13 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1367,6 +1367,20 @@ int mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
+>  	return inactive * inactive_ratio < active;
+>  }
+>  
+> +bool mem_cgroup_lruvec_online(struct lruvec *lruvec)
+> +{
+> +	struct mem_cgroup_per_zone *mz;
+> +	struct mem_cgroup *memcg;
+> +
+> +	if (mem_cgroup_disabled())
+> +		return true;
+> +
+> +	mz = container_of(lruvec, struct mem_cgroup_per_zone, lruvec);
+> +	memcg = mz->memcg;
+> +
+> +	return !!(memcg->css.flags & CSS_ONLINE);
+> +}
+> +
+>  #define mem_cgroup_from_counter(counter, member)	\
+>  	container_of(counter, struct mem_cgroup, member)
+>  
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index e29f411b38ac..38173d9a2a87 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1935,8 +1935,12 @@ static void get_scan_count(struct lruvec *lruvec, int swappiness,
+>  	 * latencies, so it's better to scan a minimum amount there as
+>  	 * well.
+>  	 */
+> -	if (current_is_kswapd() && !zone_reclaimable(zone))
+> -		force_scan = true;
+> +	if (current_is_kswapd()) {
+> +		if (!zone_reclaimable(zone))
+> +			force_scan = true;
+> +		if (!mem_cgroup_lruvec_online(lruvec))
+> +			force_scan = true;
+> +	}
+>  	if (!global_reclaim(sc))
+>  		force_scan = true;
+>  
+> -- 
+> 1.7.10.4
 > 
 
-That's true, thank you for catching this!
-
-I think we should move reclaim_state handling to shrink_slab(), as this
-incremental patch does:
-
----
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 16f3e45742d6..6961bf0a47af 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -347,6 +347,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
-  * @memcg: memory cgroup whose slab caches to target
-  * @nr_scanned: pressure numerator
-  * @nr_eligible: pressure denominator
-+ * @nr_reclaimed: number of reclaimed slab pages
-  *
-  * Call the shrink functions to age shrinkable caches.
-  *
-@@ -372,8 +373,10 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
- static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
- 				 struct mem_cgroup *memcg,
- 				 unsigned long nr_scanned,
--				 unsigned long nr_eligible)
-+				 unsigned long nr_eligible,
-+				 unsigned long *nr_reclaimed)
- {
-+	struct reclaim_state *reclaim_state = current->reclaim_state;
- 	struct shrinker *shrinker;
- 	unsigned long freed = 0;
- 
-@@ -394,6 +397,9 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
- 		goto out;
- 	}
- 
-+	if (reclaim_state)
-+		reclaim_state->reclaimed_slab = 0;
-+
- 	list_for_each_entry(shrinker, &shrinker_list, list) {
- 		struct shrink_control sc = {
- 			.gfp_mask = gfp_mask,
-@@ -410,6 +416,9 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
- 		freed += do_shrink_slab(&sc, shrinker, nr_scanned, nr_eligible);
- 	}
- 
-+	if (reclaim_state)
-+		*nr_reclaimed += reclaim_state->reclaimed_slab;
-+
- 	up_read(&shrinker_rwsem);
- out:
- 	cond_resched();
-@@ -419,6 +428,7 @@ out:
- void drop_slab_node(int nid)
- {
- 	unsigned long freed;
-+	unsigned long nr_reclaimed = 0;
- 
- 	do {
- 		struct mem_cgroup *memcg = NULL;
-@@ -426,7 +436,7 @@ void drop_slab_node(int nid)
- 		freed = 0;
- 		do {
- 			freed += shrink_slab(GFP_KERNEL, nid, memcg,
--					     1000, 1000);
-+					     1000, 1000, &nr_reclaimed);
- 		} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)) != NULL);
- 	} while (freed > 10);
- }
-@@ -2339,7 +2349,6 @@ static inline bool should_continue_reclaim(struct zone *zone,
- static bool shrink_zone(struct zone *zone, struct scan_control *sc,
- 			bool is_classzone)
- {
--	struct reclaim_state *reclaim_state = current->reclaim_state;
- 	unsigned long nr_reclaimed, nr_scanned;
- 	bool reclaimable = false;
- 
-@@ -2371,7 +2380,7 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
- 			if (memcg && is_classzone)
- 				shrink_slab(sc->gfp_mask, zone_to_nid(zone),
- 					    memcg, sc->nr_scanned - scanned,
--					    lru_pages);
-+					    lru_pages, &sc->nr_reclaimed);
- 
- 			/*
- 			 * Direct reclaim and kswapd have to scan all memory
-@@ -2398,12 +2407,7 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
- 		if (global_reclaim(sc) && is_classzone)
- 			shrink_slab(sc->gfp_mask, zone_to_nid(zone), NULL,
- 				    sc->nr_scanned - nr_scanned,
--				    zone_lru_pages);
--
--		if (reclaim_state) {
--			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
--			reclaim_state->reclaimed_slab = 0;
--		}
-+				    zone_lru_pages, &sc->nr_reclaimed);
- 
- 		vmpressure(sc->gfp_mask, sc->target_mem_cgroup,
- 			   sc->nr_scanned - nr_scanned,
-@@ -3367,10 +3371,7 @@ static int kswapd(void *p)
- 	int balanced_classzone_idx;
- 	pg_data_t *pgdat = (pg_data_t*)p;
- 	struct task_struct *tsk = current;
--
--	struct reclaim_state reclaim_state = {
--		.reclaimed_slab = 0,
--	};
-+	struct reclaim_state reclaim_state;
- 	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
- 
- 	lockdep_set_current_reclaim_state(GFP_KERNEL);
-@@ -3508,7 +3509,6 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
- 
- 	p->flags |= PF_MEMALLOC;
- 	lockdep_set_current_reclaim_state(sc.gfp_mask);
--	reclaim_state.reclaimed_slab = 0;
- 	p->reclaim_state = &reclaim_state;
- 
- 	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
-@@ -3697,7 +3697,6 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- 	 */
- 	p->flags |= PF_MEMALLOC | PF_SWAPWRITE;
- 	lockdep_set_current_reclaim_state(gfp_mask);
--	reclaim_state.reclaimed_slab = 0;
- 	p->reclaim_state = &reclaim_state;
- 
- 	if (zone_pagecache_reclaimable(zone) > zone->min_unmapped_pages) {
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
