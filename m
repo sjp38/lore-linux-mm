@@ -1,55 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f177.google.com (mail-qc0-f177.google.com [209.85.216.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 8027D6B0032
-	for <linux-mm@kvack.org>; Fri,  9 Jan 2015 13:34:43 -0500 (EST)
-Received: by mail-qc0-f177.google.com with SMTP id x3so10361238qcv.8
-        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 10:34:43 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id m8si13092679qay.103.2015.01.09.10.34.41
-        for <linux-mm@kvack.org>;
-        Fri, 09 Jan 2015 10:34:42 -0800 (PST)
-Message-ID: <54B01F41.10001@intel.com>
-Date: Fri, 09 Jan 2015 10:34:41 -0800
-From: Dave Hansen <dave.hansen@intel.com>
+Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
+	by kanga.kvack.org (Postfix) with ESMTP id CCD3E6B0032
+	for <linux-mm@kvack.org>; Fri,  9 Jan 2015 14:30:54 -0500 (EST)
+Received: by mail-qg0-f47.google.com with SMTP id q108so10483840qgd.6
+        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 11:30:54 -0800 (PST)
+Received: from mail-qa0-x22c.google.com (mail-qa0-x22c.google.com. [2607:f8b0:400d:c00::22c])
+        by mx.google.com with ESMTPS id k32si13386086qge.43.2015.01.09.11.30.52
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 09 Jan 2015 11:30:53 -0800 (PST)
+Received: by mail-qa0-f44.google.com with SMTP id w8so699916qac.3
+        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 11:30:52 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH] x86, mpx: Ensure unused arguments of prctl() MPX requests
- are 0
-References: <54AE5BE8.1050701@gmail.com> <87r3v350io.fsf@tassilo.jf.intel.com> <CAKgNAki3Fh8N=jyPHxxFpicjyJ=0kA75SJ65QjYzPmWnvy4nsw@mail.gmail.com>
-In-Reply-To: <CAKgNAki3Fh8N=jyPHxxFpicjyJ=0kA75SJ65QjYzPmWnvy4nsw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20150108114950.GB3351@infradead.org>
+References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
+ <20141210140347.GA23252@infradead.org> <20141210141211.GD2220@wil.cx>
+ <20150105184143.GA665@infradead.org> <20150106004714.6d63023c.akpm@linux-foundation.org>
+ <20150108114950.GB3351@infradead.org>
+From: Steve French <smfrench@gmail.com>
+Date: Fri, 9 Jan 2015 13:30:31 -0600
+Message-ID: <CAH2r5mtwQEJ1q=a_4TSQyY=Qt7TZ7Dtj9oVGfCHJ+Enrj8v5qQ@mail.gmail.com>
+Subject: Re: pread2/ pwrite2
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mtk.manpages@gmail.com, Andi Kleen <andi@firstfloor.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Qiaowei Ren <qiaowei.ren@intel.com>, lkml <linux-kernel@vger.kernel.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Milosz Tanski <milosz@adfin.com>
 
-On 01/09/2015 10:25 AM, Michael Kerrisk (man-pages) wrote:
-> On 9 January 2015 at 18:25, Andi Kleen <andi@firstfloor.org> wrote:
->> "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com> writes:
->>> From: Michael Kerrisk <mtk.manpages@gmail.com>
->>>
->>> commit fe8c7f5cbf91124987106faa3bdf0c8b955c4cf7 added two new prctl()
->>> operations, PR_MPX_ENABLE_MANAGEMENT and PR_MPX_DISABLE_MANAGEMENT.
->>> However, no checks were included to ensure that unused arguments
->>> are zero, as is done in many existing prctl()s and as should be
->>> done for all new prctl()s. This patch adds the required checks.
+On Thu, Jan 8, 2015 at 5:49 AM, Christoph Hellwig <hch@infradead.org> wrote:
+> On Tue, Jan 06, 2015 at 12:47:14AM -0800, Andrew Morton wrote:
+>> > progress, which is a bit frustrating.
 >>
->> This will break the existing gcc run time, which doesn't zero these
->> arguments.
-> 
-> I'm a little lost here. Weren't these flags new in the
-> as-yet-unreleased 3.19? How does gcc run-time depends on them already?
+>> I took a look at pread2() as well and I have two main issues:
+>>
+>> - The patchset includes a pwrite2() syscall which has nothing to do
+>>   with nonblocking reads and which was poorly described and had little
+>>   justification for inclusion.
+>
+> It allows to do O_SYNC writes on a per-I/O basis.  This is very useful
+> for file servers (smb, cifs) as well as storage target devices.
 
-These prctl()s have been around in some form or another for a few months
-since the patches had not yet been merged in to the kernel.  There is
-support for them in a set of (yet unmerged) gcc patches, as well as some
-tests which are only internal to Intel.
+This would be particularly useful for SMB3 as the protocol now allows
+write-through vs. no-write-through flag on every write request (not just
+on an open, it can be changed on a particular i/o to write-through).
+There is also a cache/no-cache hint that can be sent on reads/writes in
+the newest SMB3 dialect well (but it is less clear to me how we would
+ever decide to set that on the Linux client).
 
-This change will, indeed, break those internal tests as well as the gcc
-patches.  As far as I know, the code is not in production anywhere and
-can be changed.  The prctl() numbers have changed while the patches were
-out of tree and it's a somewhat painful process each time it changes.
-It's not impossible, just painful.
+
+
+
+-- 
+Thanks,
+
+Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
