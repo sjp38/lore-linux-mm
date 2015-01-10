@@ -1,345 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f178.google.com (mail-we0-f178.google.com [74.125.82.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 668E06B006E
-	for <linux-mm@kvack.org>; Fri,  9 Jan 2015 21:14:13 -0500 (EST)
-Received: by mail-we0-f178.google.com with SMTP id p10so10807168wes.9
-        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 18:14:13 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id v10si1100929wix.4.2015.01.09.18.14.12
+Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CF8D6B0032
+	for <linux-mm@kvack.org>; Sat, 10 Jan 2015 01:48:48 -0500 (EST)
+Received: by mail-qc0-f170.google.com with SMTP id x3so12292865qcv.1
+        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 22:48:48 -0800 (PST)
+Received: from mail-qc0-x229.google.com (mail-qc0-x229.google.com. [2607:f8b0:400d:c01::229])
+        by mx.google.com with ESMTPS id h10si15166027qcm.42.2015.01.09.22.48.47
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Jan 2015 18:14:12 -0800 (PST)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 3/3] mm: memcontrol: consolidate swap controller code
-Date: Fri,  9 Jan 2015 21:14:01 -0500
-Message-Id: <1420856041-27647-3-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1420856041-27647-1-git-send-email-hannes@cmpxchg.org>
-References: <1420856041-27647-1-git-send-email-hannes@cmpxchg.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 09 Jan 2015 22:48:47 -0800 (PST)
+Received: by mail-qc0-f169.google.com with SMTP id w7so12193819qcr.0
+        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 22:48:46 -0800 (PST)
+Date: Sat, 10 Jan 2015 01:48:32 -0500
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: [PATCH 5/6] HMM: add per mirror page table.
+Message-ID: <20150110064831.GA19689@gmail.com>
+References: <1420497889-10088-1-git-send-email-j.glisse@gmail.com>
+ <1420497889-10088-6-git-send-email-j.glisse@gmail.com>
+ <54AE6485.60402@mellanox.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <54AE6485.60402@mellanox.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Haggai Eran <haggaie@mellanox.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Jatin Kumar <jakumar@nvidia.com>
 
-The swap controller code is scattered all over the file.  Gather all
-the code that isn't directly needed by the memory controller at the
-end of the file in its own CONFIG_MEMCG_SWAP section.
+On Thu, Jan 08, 2015 at 01:05:41PM +0200, Haggai Eran wrote:
+> On 06/01/2015 00:44, j.glisse@gmail.com wrote:
+> > +	/* fence_wait() - to wait on device driver fence.
+> > +	 *
+> > +	 * @fence: The device driver fence struct.
+> > +	 * Returns: 0 on success,-EIO on error, -EAGAIN to wait again.
+> > +	 *
+> > +	 * Called when hmm want to wait for all operations associated with a
+> > +	 * fence to complete (including device cache flush if the event mandate
+> > +	 * it).
+> > +	 *
+> > +	 * Device driver must free fence and associated resources if it returns
+> > +	 * something else thant -EAGAIN. On -EAGAIN the fence must not be free
+> > +	 * as hmm will call back again.
+> > +	 *
+> > +	 * Return error if scheduled operation failed or if need to wait again.
+> > +	 * -EIO Some input/output error with the device.
+> > +	 * -EAGAIN The fence not yet signaled, hmm reschedule waiting thread.
+> > +	 *
+> > +	 * All other return value trigger warning and are transformed to -EIO.
+> > +	 */
+> > +	int (*fence_wait)(struct hmm_fence *fence);
+> 
+> According to the comment, the device frees the fence struct when the
+> fence_wait callback returns zero or -EIO, but the code below calls
+> fence_unref after fence_wait on the same fence.
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- mm/memcontrol.c | 264 +++++++++++++++++++++++++++-----------------------------
- 1 file changed, 125 insertions(+), 139 deletions(-)
+Yes comment is out of date, i wanted to simplify fence before readding
+it once needed (by device memory migration).
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index f66bb8f83ac9..5a5769e8b12c 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -72,22 +72,13 @@ EXPORT_SYMBOL(memory_cgrp_subsys);
- #define MEM_CGROUP_RECLAIM_RETRIES	5
- static struct mem_cgroup *root_mem_cgroup __read_mostly;
- 
-+/* Whether the swap controller is active */
- #ifdef CONFIG_MEMCG_SWAP
--/* Turned on only when memory cgroup is enabled && really_do_swap_account = 1 */
- int do_swap_account __read_mostly;
--
--/* for remember boot option*/
--#ifdef CONFIG_MEMCG_SWAP_ENABLED
--static int really_do_swap_account __initdata = 1;
--#else
--static int really_do_swap_account __initdata;
--#endif
--
- #else
- #define do_swap_account		0
- #endif
- 
--
- static const char * const mem_cgroup_stat_names[] = {
- 	"cache",
- 	"rss",
-@@ -4382,34 +4373,6 @@ static struct cftype mem_cgroup_legacy_files[] = {
- 	{ },	/* terminate */
- };
- 
--#ifdef CONFIG_MEMCG_SWAP
--static struct cftype memsw_cgroup_files[] = {
--	{
--		.name = "memsw.usage_in_bytes",
--		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_USAGE),
--		.read_u64 = mem_cgroup_read_u64,
--	},
--	{
--		.name = "memsw.max_usage_in_bytes",
--		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_MAX_USAGE),
--		.write = mem_cgroup_reset,
--		.read_u64 = mem_cgroup_read_u64,
--	},
--	{
--		.name = "memsw.limit_in_bytes",
--		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_LIMIT),
--		.write = mem_cgroup_write,
--		.read_u64 = mem_cgroup_read_u64,
--	},
--	{
--		.name = "memsw.failcnt",
--		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_FAILCNT),
--		.write = mem_cgroup_reset,
--		.read_u64 = mem_cgroup_read_u64,
--	},
--	{ },	/* terminate */
--};
--#endif
- static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
- {
- 	struct mem_cgroup_per_node *pn;
-@@ -5415,37 +5378,6 @@ struct cgroup_subsys memory_cgrp_subsys = {
- 	.early_init = 0,
- };
- 
--#ifdef CONFIG_MEMCG_SWAP
--static int __init enable_swap_account(char *s)
--{
--	if (!strcmp(s, "1"))
--		really_do_swap_account = 1;
--	else if (!strcmp(s, "0"))
--		really_do_swap_account = 0;
--	return 1;
--}
--__setup("swapaccount=", enable_swap_account);
--
--static void __init memsw_file_init(void)
--{
--	WARN_ON(cgroup_add_legacy_cftypes(&memory_cgrp_subsys,
--					  memsw_cgroup_files));
--}
--
--static void __init enable_swap_cgroup(void)
--{
--	if (!mem_cgroup_disabled() && really_do_swap_account) {
--		do_swap_account = 1;
--		memsw_file_init();
--	}
--}
--
--#else
--static void __init enable_swap_cgroup(void)
--{
--}
--#endif
--
- /**
-  * mem_cgroup_events - count memory events against a cgroup
-  * @memcg: the memory cgroup
-@@ -5496,74 +5428,6 @@ bool mem_cgroup_low(struct mem_cgroup *root, struct mem_cgroup *memcg)
- 	return true;
- }
- 
--#ifdef CONFIG_MEMCG_SWAP
--/**
-- * mem_cgroup_swapout - transfer a memsw charge to swap
-- * @page: page whose memsw charge to transfer
-- * @entry: swap entry to move the charge to
-- *
-- * Transfer the memsw charge of @page to @entry.
-- */
--void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
--{
--	struct mem_cgroup *memcg;
--	unsigned short oldid;
--
--	VM_BUG_ON_PAGE(PageLRU(page), page);
--	VM_BUG_ON_PAGE(page_count(page), page);
--
--	if (!do_swap_account)
--		return;
--
--	memcg = page->mem_cgroup;
--
--	/* Readahead page, never charged */
--	if (!memcg)
--		return;
--
--	oldid = swap_cgroup_record(entry, mem_cgroup_id(memcg));
--	VM_BUG_ON_PAGE(oldid, page);
--	mem_cgroup_swap_statistics(memcg, true);
--
--	page->mem_cgroup = NULL;
--
--	if (!mem_cgroup_is_root(memcg))
--		page_counter_uncharge(&memcg->memory, 1);
--
--	/* XXX: caller holds IRQ-safe mapping->tree_lock */
--	VM_BUG_ON(!irqs_disabled());
--
--	mem_cgroup_charge_statistics(memcg, page, -1);
--	memcg_check_events(memcg, page);
--}
--
--/**
-- * mem_cgroup_uncharge_swap - uncharge a swap entry
-- * @entry: swap entry to uncharge
-- *
-- * Drop the memsw charge associated with @entry.
-- */
--void mem_cgroup_uncharge_swap(swp_entry_t entry)
--{
--	struct mem_cgroup *memcg;
--	unsigned short id;
--
--	if (!do_swap_account)
--		return;
--
--	id = swap_cgroup_record(entry, 0);
--	rcu_read_lock();
--	memcg = mem_cgroup_lookup(id);
--	if (memcg) {
--		if (!mem_cgroup_is_root(memcg))
--			page_counter_uncharge(&memcg->memsw, 1);
--		mem_cgroup_swap_statistics(memcg, false);
--		css_put(&memcg->css);
--	}
--	rcu_read_unlock();
--}
--#endif
--
- /**
-  * mem_cgroup_try_charge - try charging a page
-  * @page: page to charge
-@@ -5920,8 +5784,130 @@ static int __init mem_cgroup_init(void)
- 		soft_limit_tree.rb_tree_per_node[nid] = rtpn;
- 	}
- 
--	enable_swap_cgroup();
--
- 	return 0;
- }
- subsys_initcall(mem_cgroup_init);
-+
-+#ifdef CONFIG_MEMCG_SWAP
-+/**
-+ * mem_cgroup_swapout - transfer a memsw charge to swap
-+ * @page: page whose memsw charge to transfer
-+ * @entry: swap entry to move the charge to
-+ *
-+ * Transfer the memsw charge of @page to @entry.
-+ */
-+void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
-+{
-+	struct mem_cgroup *memcg;
-+	unsigned short oldid;
-+
-+	VM_BUG_ON_PAGE(PageLRU(page), page);
-+	VM_BUG_ON_PAGE(page_count(page), page);
-+
-+	if (!do_swap_account)
-+		return;
-+
-+	memcg = page->mem_cgroup;
-+
-+	/* Readahead page, never charged */
-+	if (!memcg)
-+		return;
-+
-+	oldid = swap_cgroup_record(entry, mem_cgroup_id(memcg));
-+	VM_BUG_ON_PAGE(oldid, page);
-+	mem_cgroup_swap_statistics(memcg, true);
-+
-+	page->mem_cgroup = NULL;
-+
-+	if (!mem_cgroup_is_root(memcg))
-+		page_counter_uncharge(&memcg->memory, 1);
-+
-+	/* XXX: caller holds IRQ-safe mapping->tree_lock */
-+	VM_BUG_ON(!irqs_disabled());
-+
-+	mem_cgroup_charge_statistics(memcg, page, -1);
-+	memcg_check_events(memcg, page);
-+}
-+
-+/**
-+ * mem_cgroup_uncharge_swap - uncharge a swap entry
-+ * @entry: swap entry to uncharge
-+ *
-+ * Drop the memsw charge associated with @entry.
-+ */
-+void mem_cgroup_uncharge_swap(swp_entry_t entry)
-+{
-+	struct mem_cgroup *memcg;
-+	unsigned short id;
-+
-+	if (!do_swap_account)
-+		return;
-+
-+	id = swap_cgroup_record(entry, 0);
-+	rcu_read_lock();
-+	memcg = mem_cgroup_lookup(id);
-+	if (memcg) {
-+		if (!mem_cgroup_is_root(memcg))
-+			page_counter_uncharge(&memcg->memsw, 1);
-+		mem_cgroup_swap_statistics(memcg, false);
-+		css_put(&memcg->css);
-+	}
-+	rcu_read_unlock();
-+}
-+
-+/* for remember boot option*/
-+#ifdef CONFIG_MEMCG_SWAP_ENABLED
-+static int really_do_swap_account __initdata = 1;
-+#else
-+static int really_do_swap_account __initdata;
-+#endif
-+
-+static int __init enable_swap_account(char *s)
-+{
-+	if (!strcmp(s, "1"))
-+		really_do_swap_account = 1;
-+	else if (!strcmp(s, "0"))
-+		really_do_swap_account = 0;
-+	return 1;
-+}
-+__setup("swapaccount=", enable_swap_account);
-+
-+static struct cftype memsw_cgroup_files[] = {
-+	{
-+		.name = "memsw.usage_in_bytes",
-+		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_USAGE),
-+		.read_u64 = mem_cgroup_read_u64,
-+	},
-+	{
-+		.name = "memsw.max_usage_in_bytes",
-+		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_MAX_USAGE),
-+		.write = mem_cgroup_reset,
-+		.read_u64 = mem_cgroup_read_u64,
-+	},
-+	{
-+		.name = "memsw.limit_in_bytes",
-+		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_LIMIT),
-+		.write = mem_cgroup_write,
-+		.read_u64 = mem_cgroup_read_u64,
-+	},
-+	{
-+		.name = "memsw.failcnt",
-+		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_FAILCNT),
-+		.write = mem_cgroup_reset,
-+		.read_u64 = mem_cgroup_read_u64,
-+	},
-+	{ },	/* terminate */
-+};
-+
-+static int __init mem_cgroup_swap_init(void)
-+{
-+	if (!mem_cgroup_disabled() && really_do_swap_account) {
-+		do_swap_account = 1;
-+		WARN_ON(cgroup_add_legacy_cftypes(&memory_cgrp_subsys,
-+						  memsw_cgroup_files));
-+	}
-+	return 0;
-+}
-+subsys_initcall(mem_cgroup_swap_init);
-+
-+#endif /* CONFIG_MEMCG_SWAP */
--- 
-2.2.0
+> 
+> > +
+> > +	/* fence_ref() - take a reference fence structure.
+> > +	 *
+> > +	 * @fence: Fence structure hmm is referencing.
+> > +	 */
+> > +	void (*fence_ref)(struct hmm_fence *fence);
+> 
+> I don't see fence_ref being called anywhere in the patchset. Is it
+> actually needed?
+
+Not right now but the page migration to device memory use it. But i
+can remove it now.
+
+I can respin to make comment match code but i would like to know where
+i stand on everythings else.
+
+Cheers,
+Jerome
+
+> 
+> > +static void hmm_device_fence_wait(struct hmm_device *device,
+> > +				  struct hmm_fence *fence)
+> > +{
+> > +	struct hmm_mirror *mirror;
+> > +	int r;
+> > +
+> > +	if (fence == NULL)
+> > +		return;
+> > +
+> > +	list_del_init(&fence->list);
+> > +	do {
+> > +		r = device->ops->fence_wait(fence);
+> > +		if (r == -EAGAIN)
+> > +			io_schedule();
+> > +	} while (r == -EAGAIN);
+> > +
+> > +	mirror = fence->mirror;
+> > +	device->ops->fence_unref(fence);
+> > +	if (r)
+> > +		hmm_mirror_release(mirror);
+> > +}
+> > +
+> 
+> Regards,
+> Haggai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
