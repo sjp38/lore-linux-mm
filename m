@@ -1,141 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A1716B0032
-	for <linux-mm@kvack.org>; Fri,  9 Jan 2015 19:54:34 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id kq14so21448289pab.12
-        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 16:54:33 -0800 (PST)
-Received: from mail-pd0-x229.google.com (mail-pd0-x229.google.com. [2607:f8b0:400e:c02::229])
-        by mx.google.com with ESMTPS id c8si15432321pat.105.2015.01.09.16.54.31
+Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 357566B0032
+	for <linux-mm@kvack.org>; Fri,  9 Jan 2015 20:06:52 -0500 (EST)
+Received: by mail-ie0-f182.google.com with SMTP id x19so17901592ier.13
+        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 17:06:52 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id o17si335128igx.24.2015.01.09.17.06.50
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 09 Jan 2015 16:54:32 -0800 (PST)
-Received: by mail-pd0-f169.google.com with SMTP id z10so20329621pdj.0
-        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 16:54:31 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1420801555-22659-6-git-send-email-mhocko@suse.cz>
-References: <1420801555-22659-1-git-send-email-mhocko@suse.cz>
-	<1420801555-22659-6-git-send-email-mhocko@suse.cz>
-Date: Fri, 9 Jan 2015 16:54:31 -0800
-Message-ID: <CAM_iQpVZT4Wd+5CX4MxaCtuPzU8u7fXn+XfJVdXq4LZ8jXNu6Q@mail.gmail.com>
-Subject: Re: [PATCH -v3 5/5] oom, PM: make OOM detection in the freezer path raceless
-From: Cong Wang <xiyou.wangcong@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 09 Jan 2015 17:06:51 -0800 (PST)
+Date: Fri, 9 Jan 2015 17:06:42 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/page_alloc.c: drop dead destroy_compound_page()
+Message-Id: <20150109170642.14a01c7e.akpm@linux-foundation.org>
+In-Reply-To: <20150110004143.GA32424@node.dhcp.inet.fi>
+References: <1420458382-161038-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<20150107134039.25d4edfad92b62f3eee8b570@linux-foundation.org>
+	<20150108141004.AB3461A2@black.fi.intel.com>
+	<20150109162419.b52796aee45d6747399d2ebb@linux-foundation.org>
+	<20150110004143.GA32424@node.dhcp.inet.fi>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, "\\Rafael J. Wysocki\\" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Linux PM <linux-pm@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, aarcange@redhat.com, linux-mm@kvack.org
 
-On Fri, Jan 9, 2015 at 3:05 AM, Michal Hocko <mhocko@suse.cz> wrote:
->  /**
->   * freeze_processes - Signal user space processes to enter the refrigerator.
->   * The current thread will not be frozen.  The same process that calls
-> @@ -142,7 +118,6 @@ static bool check_frozen_processes(void)
->  int freeze_processes(void)
->  {
->         int error;
-> -       int oom_kills_saved;
->
->         error = __usermodehelper_disable(UMH_FREEZING);
->         if (error)
-> @@ -157,29 +132,22 @@ int freeze_processes(void)
->         pm_wakeup_clear();
->         pr_info("Freezing user space processes ... ");
->         pm_freezing = true;
-> -       oom_kills_saved = oom_kills_count();
->         error = try_to_freeze_tasks(true);
->         if (!error) {
->                 __usermodehelper_set_disable_depth(UMH_DISABLED);
-> -               oom_killer_disable();
-> -
-> -               /*
-> -                * There might have been an OOM kill while we were
-> -                * freezing tasks and the killed task might be still
-> -                * on the way out so we have to double check for race.
-> -                */
-> -               if (oom_kills_count() != oom_kills_saved &&
-> -                   !check_frozen_processes()) {
-> -                       __usermodehelper_set_disable_depth(UMH_ENABLED);
-> -                       pr_cont("OOM in progress.");
-> -                       error = -EBUSY;
-> -               } else {
-> -                       pr_cont("done.");
-> -               }
-> +               pr_cont("done.");
->         }
->         pr_cont("\n");
->         BUG_ON(in_atomic());
->
-> +       /*
-> +        * Now that the whole userspace is frozen we need to disbale
+On Sat, 10 Jan 2015 02:41:43 +0200 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
 
+> On Fri, Jan 09, 2015 at 04:24:19PM -0800, Andrew Morton wrote:
+> > On Thu,  8 Jan 2015 16:10:04 +0200 (EET) "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+> > 
+> > > Something like this?
+> > > 
+> > > >From 5fd481c1c521112e9cea407f5a2644c9f93d0e14 Mon Sep 17 00:00:00 2001
+> > > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> > > Date: Thu, 8 Jan 2015 15:59:23 +0200
+> > > Subject: [PATCH] mm: more checks on free_pages_prepare() for tail pages
+> > > 
+> > > Apart form being dead, destroy_compound_page() did some potentially
+> > > useful checks. Let's re-introduce them in free_pages_prepare(), where
+> > > they can be acctually triggered.
+> > > 
+> > > compound_order() assert is already in free_pages_prepare(). We have few
+> > > checks for tail pages left.
+> > > 
+> > 
+> > I'm thinking we avoid the overhead unless CONFIG_DEBUG_VM?
+> 
+> That's why there's "if (!IS_ENABLED(CONFIG_DEBUG_VM))". Is it wrong in
+> some way?
+> I didn't check, but I assume compiler is smart enough to get rid of
+> free_tail_pages_check() if CONFIG_DEBUG_VM is not defined. No?
 
-disable
+doh, OK.  I updated the
+mm-more-checks-on-free_pages_prepare-for-tail-pages.patch changelog to
+reflect this and did
 
-
-> +        * the OOM killer to disallow any further interference with
-> +        * killable tasks.
-> +        */
-> +       if (!error && !oom_killer_disable())
-> +               error = -EBUSY;
-> +
-[...]
->  void unmark_oom_victim(void)
->  {
-> -       clear_thread_flag(TIF_MEMDIE);
-> +       if (!test_and_clear_thread_flag(TIF_MEMDIE))
-> +               return;
-> +
-> +       down_read(&oom_sem);
-> +       /*
-> +        * There is no need to signal the lasst oom_victim if there
-
-last
-
-> +        * is nobody who cares.
-> +        */
-> +       if (!atomic_dec_return(&oom_victims) && oom_killer_disabled)
-> +               wake_up_all(&oom_victims_wait);
-> +       up_read(&oom_sem);
-> +}
-[...]
->  /*
->   * The pagefault handler calls here because it is out of memory, so kill a
->   * memory-hogging task.  If any populated zone has ZONE_OOM_LOCKED set, a
-> @@ -727,12 +806,25 @@ void pagefault_out_of_memory(void)
->  {
->         struct zonelist *zonelist;
->
-> +       down_read(&oom_sem);
->         if (mem_cgroup_oom_synchronize(true))
-> -               return;
-> +               goto unlock;
->
->         zonelist = node_zonelist(first_memory_node, GFP_KERNEL);
->         if (oom_zonelist_trylock(zonelist, GFP_KERNEL)) {
-> -               out_of_memory(NULL, 0, 0, NULL, false);
-> +               if (!oom_killer_disabled)
-> +                       __out_of_memory(NULL, 0, 0, NULL, false);
-> +               else
-> +                       /*
-> +                        * There shouldn't be any user tasks runable while the
-
-runnable
-
-
-> +                        * OOM killer is disabled so the current task has to
-> +                        * be a racing OOM victim for which oom_killer_disable()
-> +                        * is waiting for.
-> +                        */
-> +                       WARN_ON(test_thread_flag(TIF_MEMDIE));
-> +
->                 oom_zonelist_unlock(zonelist, GFP_KERNEL);
->         }
-> +unlock:
-> +       up_read(&oom_sem);
->  }
-
-
-Thanks!
+--- a/mm/page_alloc.c~mm-more-checks-on-free_pages_prepare-for-tail-pages-fix
++++ a/mm/page_alloc.c
+@@ -764,19 +764,18 @@ static void free_one_page(struct zone *z
+ 	spin_unlock(&zone->lock);
+ }
+ 
+-static int free_tail_pages_check(struct page *head_page, struct page *page)
++static void free_tail_pages_check(struct page *head_page, struct page *page)
+ {
+ 	if (!IS_ENABLED(CONFIG_DEBUG_VM))
+-		return 0;
++		return;
+ 	if (unlikely(!PageTail(page))) {
+ 		bad_page(page, "PageTail not set", 0);
+-		return 1;
++		return;
+ 	}
+ 	if (unlikely(page->first_page != head_page)) {
+ 		bad_page(page, "first_page not consistent", 0);
+-		return 1;
++		return;
+ 	}
+-	return 0;
+ }
+ 
+ static bool free_pages_prepare(struct page *page, unsigned int order)
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
