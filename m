@@ -1,89 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B805B6B0032
-	for <linux-mm@kvack.org>; Sat, 10 Jan 2015 03:55:40 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id ey11so22968355pad.10
-        for <linux-mm@kvack.org>; Sat, 10 Jan 2015 00:55:40 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id yr3si16241504pbb.248.2015.01.10.00.55.38
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id DA5756B0032
+	for <linux-mm@kvack.org>; Sat, 10 Jan 2015 08:49:12 -0500 (EST)
+Received: by mail-wg0-f50.google.com with SMTP id a1so12452942wgh.9
+        for <linux-mm@kvack.org>; Sat, 10 Jan 2015 05:49:12 -0800 (PST)
+Received: from mail-wi0-x231.google.com (mail-wi0-x231.google.com. [2a00:1450:400c:c05::231])
+        by mx.google.com with ESMTPS id hm5si25154308wjb.117.2015.01.10.05.49.11
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 10 Jan 2015 00:55:39 -0800 (PST)
-Date: Sat, 10 Jan 2015 11:55:25 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [Regression] 3.19-rc3 : memcg: Hang in mount memcg
-Message-ID: <20150110085525.GD2110@esperanza>
-References: <54B01335.4060901@arm.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 10 Jan 2015 05:49:11 -0800 (PST)
+Received: by mail-wi0-f177.google.com with SMTP id l15so7252648wiw.4
+        for <linux-mm@kvack.org>; Sat, 10 Jan 2015 05:49:11 -0800 (PST)
+Message-ID: <54B12DD3.5020605@gmail.com>
+Date: Sat, 10 Jan 2015 14:49:07 +0100
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <54B01335.4060901@arm.com>
+Subject: Re: [PATCH] x86, mpx: Ensure unused arguments of prctl() MPX requests
+ are 0
+References: <54AE5BE8.1050701@gmail.com> <87r3v350io.fsf@tassilo.jf.intel.com> <CAKgNAki3Fh8N=jyPHxxFpicjyJ=0kA75SJ65QjYzPmWnvy4nsw@mail.gmail.com> <54B01F41.10001@intel.com>
+In-Reply-To: <54B01F41.10001@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>
-Cc: Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Will Deacon <Will.Deacon@arm.com>
+To: Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>
+Cc: mtk.manpages@gmail.com, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Qiaowei Ren <qiaowei.ren@intel.com>, lkml <linux-kernel@vger.kernel.org>
 
-On Fri, Jan 09, 2015 at 05:43:17PM +0000, Suzuki K. Poulose wrote:
-> Hi
+On 01/09/2015 07:34 PM, Dave Hansen wrote:
+> On 01/09/2015 10:25 AM, Michael Kerrisk (man-pages) wrote:
+>> On 9 January 2015 at 18:25, Andi Kleen <andi@firstfloor.org> wrote:
+>>> "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com> writes:
+>>>> From: Michael Kerrisk <mtk.manpages@gmail.com>
+>>>>
+>>>> commit fe8c7f5cbf91124987106faa3bdf0c8b955c4cf7 added two new prctl()
+>>>> operations, PR_MPX_ENABLE_MANAGEMENT and PR_MPX_DISABLE_MANAGEMENT.
+>>>> However, no checks were included to ensure that unused arguments
+>>>> are zero, as is done in many existing prctl()s and as should be
+>>>> done for all new prctl()s. This patch adds the required checks.
+>>>
+>>> This will break the existing gcc run time, which doesn't zero these
+>>> arguments.
+>>
+>> I'm a little lost here. Weren't these flags new in the
+>> as-yet-unreleased 3.19? How does gcc run-time depends on them already?
 > 
-> We have hit a hang on ARM64 defconfig, while running LTP tests on
-> 3.19-rc3. We are
-> in the process of a git bisect and will update the results as and
-> when we find the commit.
+> These prctl()s have been around in some form or another for a few months
+> since the patches had not yet been merged in to the kernel.  There is
+> support for them in a set of (yet unmerged) gcc patches, as well as some
+> tests which are only internal to Intel.
 > 
-> During the ksm ltp run, the test hangs trying to mount memcg with
-> the following strace
-> output:
-> 
-> mount("memcg", "/dev/cgroup", "cgroup", 0, "memory") = ?
-> ERESTARTNOINTR (To be restarted)
-> mount("memcg", "/dev/cgroup", "cgroup", 0, "memory") = ?
-> ERESTARTNOINTR (To be restarted)
-> [ ... repeated forever ... ]
-> 
-> At this point, one can try mounting the memcg to verify the problem.
-> # mount -t cgroup -o memory memcg memcg_dir
-> --hangs--
-> 
-> Strangely, if we run the mount command from a cold boot (i.e.
-> without running LTP first),
-> then it succeeds.
-> 
-> Upon a quick look we are hitting the following code :
-> kernel/cgroup.c: cgroup_mount() :
-> 
-> 1779         for_each_subsys(ss, i) {
-> 1780                 if (!(opts.subsys_mask & (1 << i)) ||
-> 1781                     ss->root == &cgrp_dfl_root)
-> 1782                         continue;
-> 1783
-> 1784                 if
-> (!percpu_ref_tryget_live(&ss->root->cgrp.self.refcnt)) {
-> 1785                         mutex_unlock(&cgroup_mutex);
-> 1786                         msleep(10);
-> 1787                         ret = restart_syscall(); <=====
-> 1788                         goto out_free;
-> 1789                 }
-> 1790                 cgroup_put(&ss->root->cgrp);
-> 1791         }
-> 
-> with ss->root->cgrp.self.refct.percpu_count_ptr == __PERCPU_REF_ATOMIC_DEAD
-> 
-> Any ideas?
+> This change will, indeed, break those internal tests as well as the gcc
+> patches.  As far as I know, the code is not in production anywhere and
+> can be changed.  The prctl() numbers have changed while the patches were
+> out of tree and it's a somewhat painful process each time it changes.
+> It's not impossible, just painful.
 
-The problem is that the memory cgroup controller takes a css reference
-per each charged page and does not reparent charged pages on css
-offline, while cgroup_mount/cgroup_kill_sb expect all css references to
-offline cgroups to be gone soon, restarting the syscall if the ref count
-!= 0. As a result, if you create a memory cgroup, charge some page cache
-to it, and then remove it, unmount/mount will hang forever.
+So, sounds like thinks can be fixed (with mild inconvenience), and they
+should be fixed before 3.19 is actually released.
 
-May be, we should kill the ref counter to the memory controller root in
-cgroup_kill_sb only if there is no children at all, neither online nor
-offline.
+Cheers,
 
-Thanks,
-Vladimir
+Michael
+
+
+
+-- 
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
