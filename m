@@ -1,64 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f45.google.com (mail-qa0-f45.google.com [209.85.216.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 350556B0032
-	for <linux-mm@kvack.org>; Fri,  9 Jan 2015 16:46:53 -0500 (EST)
-Received: by mail-qa0-f45.google.com with SMTP id f12so8874286qad.4
-        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 13:46:53 -0800 (PST)
-Received: from mail-qc0-x22a.google.com (mail-qc0-x22a.google.com. [2607:f8b0:400d:c01::22a])
-        by mx.google.com with ESMTPS id 39si13898199qgp.25.2015.01.09.13.46.51
+Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 833436B0032
+	for <linux-mm@kvack.org>; Fri,  9 Jan 2015 19:06:50 -0500 (EST)
+Received: by mail-ob0-f178.google.com with SMTP id gq1so15619529obb.9
+        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 16:06:50 -0800 (PST)
+Received: from mail-oi0-x234.google.com (mail-oi0-x234.google.com. [2607:f8b0:4003:c06::234])
+        by mx.google.com with ESMTPS id r4si6369074obk.41.2015.01.09.16.06.48
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 09 Jan 2015 13:46:52 -0800 (PST)
-Received: by mail-qc0-f170.google.com with SMTP id x3so11220698qcv.1
-        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 13:46:51 -0800 (PST)
-Date: Fri, 9 Jan 2015 16:46:49 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [Regression] 3.19-rc3 : memcg: Hang in mount memcg
-Message-ID: <20150109214649.GF2785@htj.dyndns.org>
-References: <54B01335.4060901@arm.com>
+        Fri, 09 Jan 2015 16:06:48 -0800 (PST)
+Received: by mail-oi0-f52.google.com with SMTP id a3so14154240oib.11
+        for <linux-mm@kvack.org>; Fri, 09 Jan 2015 16:06:48 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <54B01335.4060901@arm.com>
+In-Reply-To: <CAA25o9SQfb3yO2D4ABeeYoZkurhxramAgckr9DVOG1=DwVF0qg@mail.gmail.com>
+References: <CAA25o9Sf62u3mJtBp_swLL0RS2Zb=EjZtWERJqyrbBpk7-bP-A@mail.gmail.com>
+	<20150108223024.da818218.akpm@linux-foundation.org>
+	<CAA25o9SQfb3yO2D4ABeeYoZkurhxramAgckr9DVOG1=DwVF0qg@mail.gmail.com>
+Date: Sat, 10 Jan 2015 09:06:48 +0900
+Message-ID: <CAAmzW4Oqo7KoYD5Mx+jVpo1Yt3xSt+vKuTSgf=AMXsu-nRDtwQ@mail.gmail.com>
+Subject: Re: mm performance with zram
+From: Joonsoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Will Deacon <Will.Deacon@arm.com>
+To: Luigi Semenzato <semenzato@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Fri, Jan 09, 2015 at 05:43:17PM +0000, Suzuki K. Poulose wrote:
-> We have hit a hang on ARM64 defconfig, while running LTP tests on 3.19-rc3.
-> We are
-> in the process of a git bisect and will update the results as and
-> when we find the commit.
-> 
-> During the ksm ltp run, the test hangs trying to mount memcg with the
-> following strace
-> output:
-> 
-> mount("memcg", "/dev/cgroup", "cgroup", 0, "memory") = ? ERESTARTNOINTR (To
-> be restarted)
-> mount("memcg", "/dev/cgroup", "cgroup", 0, "memory") = ? ERESTARTNOINTR (To
-> be restarted)
-> [ ... repeated forever ... ]
-> 
-> At this point, one can try mounting the memcg to verify the problem.
-> # mount -t cgroup -o memory memcg memcg_dir
-> --hangs--
-> 
-> Strangely, if we run the mount command from a cold boot (i.e. without
-> running LTP first),
-> then it succeeds.
+2015-01-10 1:45 GMT+09:00 Luigi Semenzato <semenzato@google.com>:
+> On Thu, Jan 8, 2015 at 10:30 PM, Andrew Morton
+> <akpm@linux-foundation.org> wrote:
+>> On Thu, 8 Jan 2015 14:49:45 -0800 Luigi Semenzato <semenzato@google.com> wrote:
+>>
+>>> I am taking a closer look at the performance of the Linux MM in the
+>>> context of heavy zram usage.  The bottom line is that there is
+>>> surprisingly high overhead (35-40%) from MM code other than
+>>> compression/decompression routines.
+>>
+>> Those images hurt my eyes.
+>
+> Sorry about that.  I didn't find other ways of computing the
+> cumulative cost of functions (i.e. time spent in a function and all
+> its descendants, like in gprof).  I couldn't get perf to do that
+> either.  A flat profile shows most functions take a fracion of 1%, so
+> it's not useful.  If anybody knows a better way I'll be glad to use
+> it.
 
-I don't know what LTP is doing and this could actually be hitting on
-an actual bug but if it's trying to move memcg back from unified
-hierarchy to an old one, that might hang - it should prolly made to
-just fail at that point.  Anyways, any chance you can find out what
-happened, in terms of cgroup mounting, to memcg upto that point?
+Hello,
+
+Recent version of perf has an ability to compute cumulative cost of functions.
+And, it's a default configuration. :)
+If you change your perf to recent version, you can easily get the data.
 
 Thanks.
-
--- 
-tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
