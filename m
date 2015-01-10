@@ -1,83 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id D42B86B0032
-	for <linux-mm@kvack.org>; Sat, 10 Jan 2015 13:39:14 -0500 (EST)
-Received: by mail-wg0-f54.google.com with SMTP id z12so13164681wgg.13
-        for <linux-mm@kvack.org>; Sat, 10 Jan 2015 10:39:14 -0800 (PST)
-Received: from one.firstfloor.org (one.firstfloor.org. [193.170.194.197])
-        by mx.google.com with ESMTPS id v4si26341167wjx.164.2015.01.10.10.39.13
+Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 3ADC76B0032
+	for <linux-mm@kvack.org>; Sat, 10 Jan 2015 14:43:27 -0500 (EST)
+Received: by mail-qg0-f41.google.com with SMTP id e89so13238498qgf.0
+        for <linux-mm@kvack.org>; Sat, 10 Jan 2015 11:43:27 -0800 (PST)
+Received: from mail-qa0-x233.google.com (mail-qa0-x233.google.com. [2607:f8b0:400d:c00::233])
+        by mx.google.com with ESMTPS id a8si17038866qga.3.2015.01.10.11.43.25
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 10 Jan 2015 10:39:13 -0800 (PST)
-Date: Sat, 10 Jan 2015 19:39:11 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] x86, mpx: Ensure unused arguments of prctl() MPX
- requests are 0
-Message-ID: <20150110183911.GB2915@two.firstfloor.org>
-References: <54AE5BE8.1050701@gmail.com>
- <87r3v350io.fsf@tassilo.jf.intel.com>
- <CAKgNAki3Fh8N=jyPHxxFpicjyJ=0kA75SJ65QjYzPmWnvy4nsw@mail.gmail.com>
- <54B01F41.10001@intel.com>
- <54B12DD3.5020605@gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 10 Jan 2015 11:43:26 -0800 (PST)
+Received: by mail-qa0-f51.google.com with SMTP id i13so11143252qae.10
+        for <linux-mm@kvack.org>; Sat, 10 Jan 2015 11:43:25 -0800 (PST)
+Date: Sat, 10 Jan 2015 14:43:22 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH -v3 5/5] oom, PM: make OOM detection in the freezer path
+ raceless
+Message-ID: <20150110194322.GE25319@htj.dyndns.org>
+References: <1420801555-22659-1-git-send-email-mhocko@suse.cz>
+ <1420801555-22659-6-git-send-email-mhocko@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <54B12DD3.5020605@gmail.com>
+In-Reply-To: <1420801555-22659-6-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Qiaowei Ren <qiaowei.ren@intel.com>, lkml <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-pm@vger.kernel.org
 
-On Sat, Jan 10, 2015 at 02:49:07PM +0100, Michael Kerrisk (man-pages) wrote:
-> On 01/09/2015 07:34 PM, Dave Hansen wrote:
-> > On 01/09/2015 10:25 AM, Michael Kerrisk (man-pages) wrote:
-> >> On 9 January 2015 at 18:25, Andi Kleen <andi@firstfloor.org> wrote:
-> >>> "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com> writes:
-> >>>> From: Michael Kerrisk <mtk.manpages@gmail.com>
-> >>>>
-> >>>> commit fe8c7f5cbf91124987106faa3bdf0c8b955c4cf7 added two new prctl()
-> >>>> operations, PR_MPX_ENABLE_MANAGEMENT and PR_MPX_DISABLE_MANAGEMENT.
-> >>>> However, no checks were included to ensure that unused arguments
-> >>>> are zero, as is done in many existing prctl()s and as should be
-> >>>> done for all new prctl()s. This patch adds the required checks.
-> >>>
-> >>> This will break the existing gcc run time, which doesn't zero these
-> >>> arguments.
-> >>
-> >> I'm a little lost here. Weren't these flags new in the
-> >> as-yet-unreleased 3.19? How does gcc run-time depends on them already?
-> > 
-> > These prctl()s have been around in some form or another for a few months
-> > since the patches had not yet been merged in to the kernel.  There is
-> > support for them in a set of (yet unmerged) gcc patches, as well as some
-> > tests which are only internal to Intel.
-> > 
-> > This change will, indeed, break those internal tests as well as the gcc
-> > patches.  As far as I know, the code is not in production anywhere and
-> > can be changed.  The prctl() numbers have changed while the patches were
-> > out of tree and it's a somewhat painful process each time it changes.
-> > It's not impossible, just painful.
-> 
-> So, sounds like thinks can be fixed (with mild inconvenience), and they
-> should be fixed before 3.19 is actually released.
+On Fri, Jan 09, 2015 at 12:05:55PM +0100, Michal Hocko wrote:
+...
+> @@ -142,7 +118,6 @@ static bool check_frozen_processes(void)
+>  int freeze_processes(void)
+>  {
+>  	int error;
+> -	int oom_kills_saved;
+>  
+>  	error = __usermodehelper_disable(UMH_FREEZING);
+>  	if (error)
+> @@ -157,29 +132,22 @@ int freeze_processes(void)
+>  	pm_wakeup_clear();
+>  	pr_info("Freezing user space processes ... ");
+>  	pm_freezing = true;
+> -	oom_kills_saved = oom_kills_count();
+>  	error = try_to_freeze_tasks(true);
+>  	if (!error) {
+>  		__usermodehelper_set_disable_depth(UMH_DISABLED);
+> -		oom_killer_disable();
+> -
+> -		/*
+> -		 * There might have been an OOM kill while we were
+> -		 * freezing tasks and the killed task might be still
+> -		 * on the way out so we have to double check for race.
+> -		 */
+> -		if (oom_kills_count() != oom_kills_saved &&
+> -		    !check_frozen_processes()) {
+> -			__usermodehelper_set_disable_depth(UMH_ENABLED);
+> -			pr_cont("OOM in progress.");
+> -			error = -EBUSY;
+> -		} else {
+> -			pr_cont("done.");
+> -		}
+> +		pr_cont("done.");
+>  	}
+>  	pr_cont("\n");
+>  	BUG_ON(in_atomic());
+>  
+> +	/*
+> +	 * Now that the whole userspace is frozen we need to disbale
+> +	 * the OOM killer to disallow any further interference with
+> +	 * killable tasks.
+> +	 */
+> +	if (!error && !oom_killer_disable())
 
-FWIW I added these checks to prctl first, but in hindsight it was a
-mistake.
+So, previously, oom killer was disabled at the top of
+freeze_kernel_threads(), right?  I think that was the better spot to
+do that.  We don't want to disable oom killer before the system is
+just about to enter total quiescence which is freeze_kernel_threads().
+We want to delay this as long as possible.  Let's please disable oom
+killing in at the top of freeze_kernel_threads() and re-enable at the
+bottom of thaw_kernel_threads().
 
-The glibc prctl() function is stdarg. Often you only have a single
-extra argument, so you need to add 4 zeroes. There is no compile
-time checking. It is very easy to get wrong and miscount the zeroes, 
-happened several times.  The failure may be hard to catch, because
-it only happens at runtime.
+Thanks.
 
-Also the extra zeroes look ugly in the source.
-
-And it doesn't really buy you anything because it's very cheap
-to add new prctl numbers if you want to extend something.
-
-So I would advise against it.
-
--Andi
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
