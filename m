@@ -1,151 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f171.google.com (mail-qc0-f171.google.com [209.85.216.171])
-	by kanga.kvack.org (Postfix) with ESMTP id CD7C46B0032
-	for <linux-mm@kvack.org>; Sat, 10 Jan 2015 16:43:21 -0500 (EST)
-Received: by mail-qc0-f171.google.com with SMTP id r5so13853396qcx.2
-        for <linux-mm@kvack.org>; Sat, 10 Jan 2015 13:43:21 -0800 (PST)
-Received: from mail-qg0-x22f.google.com (mail-qg0-x22f.google.com. [2607:f8b0:400d:c04::22f])
-        by mx.google.com with ESMTPS id ep4si17231848qcb.44.2015.01.10.13.43.20
+Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 43C146B006E
+	for <linux-mm@kvack.org>; Sat, 10 Jan 2015 18:11:38 -0500 (EST)
+Received: by mail-oi0-f41.google.com with SMTP id i138so16461922oig.0
+        for <linux-mm@kvack.org>; Sat, 10 Jan 2015 15:11:38 -0800 (PST)
+Received: from vps01.winsoft.pl (vps01.winsoft.pl. [5.133.9.51])
+        by mx.google.com with ESMTPS id o4si3145155wia.79.2015.01.10.04.15.39
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 10 Jan 2015 13:43:20 -0800 (PST)
-Received: by mail-qg0-f47.google.com with SMTP id q108so13502941qgd.6
-        for <linux-mm@kvack.org>; Sat, 10 Jan 2015 13:43:20 -0800 (PST)
-Date: Sat, 10 Jan 2015 16:43:16 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH cgroup/for-3.19-fixes] cgroup: implement
- cgroup_subsys->unbind() callback
-Message-ID: <20150110214316.GF25319@htj.dyndns.org>
-References: <54B01335.4060901@arm.com>
- <20150110085525.GD2110@esperanza>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150110085525.GD2110@esperanza>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 10 Jan 2015 04:15:39 -0800 (PST)
+Subject: probably commit b3d574ae ( Linus github 10-01-2015) causes oops after
+ run Android SDK Manager from Eclipse
+From: Krzysztof Kolasa <kkolasa@winsoft.pl>
+message-id: <54B117C9.5080805@winsoft.pl>
+Date: Sat, 10 Jan 2015 13:15:05 +0100
+mime-version: 1.0
+Content-Type: text/plain; charset=iso-8859-2; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Will Deacon <Will.Deacon@arm.com>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org
 
-Currently, if a hierarchy doesn't have any live children when it's
-unmounted, the hierarchy starts dying by killing its refcnt.  The
-expectation is that even if there are lingering dead children which
-are lingering due to remaining references, they'll be put in a finite
-amount of time.  When the children are finally released, the hierarchy
-is destroyed and all controllers bound to it also are released.
-
-However, for memcg, the premise that the lingering refs will be put in
-a finite amount time is not true.  In the absense of memory pressure,
-dead memcg's may hang around indefinitely pinned by its pages.  This
-unfortunately may lead to indefinite hang on the next mount attempt
-involving memcg as the mount logic waits for it to get released.
-
-While we can change hierarchy destruction logic such that a hierarchy
-is only destroyed when it's not mounted anywhere and all its children,
-live or dead, are gone, this makes whether the hierarchy gets
-destroyed or not to be determined by factors opaque to userland.
-Userland may or may not get a new hierarchy on the next mount attempt.
-Worse, if it explicitly wants to create a new hierarchy with different
-options or controller compositions involving memcg, it will fail in an
-essentially arbitrary manner.
-
-We want to guarantee that a hierarchy is destroyed once the
-conditions, unmounted and no visible children, are met.  To aid it,
-this patch introduces a new callback cgroup_subsys->unbind() which is
-invoked right before the hierarchy a subsystem is bound to starts
-dying.  memcg can implement this callback and initiate draining of
-remaining refs so that the hierarchy can eventually be released in a
-finite amount of time.
-
-Signed-off-by: Tejun Heo <tj@kernel.org>
-Cc: Li Zefan <lizefan@huawei.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Vladimir Davydov <vdavydov@parallels.com>
----
-Hello,
-
-> May be, we should kill the ref counter to the memory controller root in
-> cgroup_kill_sb only if there is no children at all, neither online nor
-> offline.
-
-Ah, thanks for the analysis, but I really wanna avoid making hierarchy
-destruction conditions opaque to userland.  This is userland visible
-behavior.  It shouldn't be determined by kernel internals invisible
-outside.  This patch adds ss->unbind() which memcg can hook into to
-kick off draining of residual refs.  If this would work, I'll add this
-patch to cgroup/for-3.19-fixes, possibly with stable cc'd.
-
-Thanks.
-
- Documentation/cgroups/cgroups.txt |   12 +++++++++++-
- include/linux/cgroup.h            |    1 +
- kernel/cgroup.c                   |   14 ++++++++++++--
- 3 files changed, 24 insertions(+), 3 deletions(-)
-
---- a/Documentation/cgroups/cgroups.txt
-+++ b/Documentation/cgroups/cgroups.txt
-@@ -637,7 +637,7 @@ void exit(struct task_struct *task)
- 
- Called during task exit.
- 
--void bind(struct cgroup *root)
-+void bind(struct cgroup_subsys_state *root_css)
- (cgroup_mutex held by caller)
- 
- Called when a cgroup subsystem is rebound to a different hierarchy
-@@ -645,6 +645,16 @@ and root cgroup. Currently this will onl
- the default hierarchy (which never has sub-cgroups) and a hierarchy
- that is being created/destroyed (and hence has no sub-cgroups).
- 
-+void unbind(struct cgroup_subsys_state *root_css)
-+(cgroup_mutex held by caller)
-+
-+Called when a cgroup subsys is unbound from its current hierarchy. The
-+subsystem must guarantee that all offline cgroups are going to be
-+released in a finite amount of time after this function is called.
-+Such draining can be asynchronous. The following binding of the
-+subsystem to a hierarchy will be delayed till the draining is
-+complete.
-+
- 4. Extended attribute usage
- ===========================
- 
---- a/include/linux/cgroup.h
-+++ b/include/linux/cgroup.h
-@@ -654,6 +654,7 @@ struct cgroup_subsys {
- 		     struct cgroup_subsys_state *old_css,
- 		     struct task_struct *task);
- 	void (*bind)(struct cgroup_subsys_state *root_css);
-+	void (*unbind)(struct cgroup_subsys_state *root_css);
- 
- 	int disabled;
- 	int early_init;
---- a/kernel/cgroup.c
-+++ b/kernel/cgroup.c
-@@ -1910,10 +1910,20 @@ static void cgroup_kill_sb(struct super_
- 	 * And don't kill the default root.
- 	 */
- 	if (css_has_online_children(&root->cgrp.self) ||
--	    root == &cgrp_dfl_root)
-+	    root == &cgrp_dfl_root) {
- 		cgroup_put(&root->cgrp);
--	else
-+	} else {
-+		struct cgroup_subsys *ss;
-+		int i;
-+
-+		mutex_lock(&cgroup_mutex);
-+		for_each_subsys(ss, i)
-+			if ((root->subsys_mask & (1UL << i)) && ss->unbind)
-+				ss->unbind(cgroup_css(&root->cgrp, ss));
-+		mutex_unlock(&cgroup_mutex);
-+
- 		percpu_ref_kill(&root->cgrp.self.refcnt);
-+	}
- 
- 	kernfs_kill_sb(sb);
- }
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.320920] ------------[ cut 
+here ]------------
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.320927] Kernel BUG at 
+ffffffff81187f1f [verbose debug info unavailable]
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.320929] invalid opcode: 0000 
+[#3] SMP
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.320932] Modules linked in: 
+dm_crypt(E) pci_stub(E) vboxpci(OE) vboxnetadp(OE) vboxnetflt(OE) 
+vboxdrv(OE) c
+use(E) arc4(E) md4(E) bnep(E) rfcomm(E) bluetooth(E) nls_utf8(E) cifs(E) 
+fscache(E) binfmt_misc(E) fglrx(OE) uvcvideo(E) videobuf2_vmalloc(E) 
+x86_pkg_
+temp_thermal(E) videobuf2_memops(E) videobuf2_core(E) hp_wmi(E) 
+v4l2_common(E) wl(POE) kvm_intel(E) sparse_keymap(E) videodev(E) kvm(E) 
+ghash_clmulni_
+intel(E) aesni_intel(E) aes_x86_64(E) lrw(E) gf128mul(E) 
+snd_hda_codec_idt(E) snd_hda_codec_hdmi(E) snd_hda_codec_generic(E) 
+glue_helper(E) ablk_helpe
+r(E) snd_hda_intel(E) cryptd(E) snd_hda_controller(E) snd_hda_codec(E) 
+snd_hwdep(E) snd_pcm(E) snd_seq_midi(E) snd_seq_midi_event(E) 
+microcode(E) snd_
+rawmidi(E) snd_seq(E) snd_seq_device(E) snd_timer(E) snd(E) cfg80211(E) 
+soundcore(E) joydev(E) lpc_ich(E) hp_accel(E) wmi(E) serio_raw(E) 
+tpm_infineon
+(E) lis3lv02d(E) amd_iommu_v2(E) input_polldev(E) video(E) tpm_tis(E) 
+mac_hid(E) parport_pc(E) ppdev(E) coretemp(E) lp(E) parport(E) 
+hid_generic(E) us
+bhid(E) hid(E) mmc_block(E) psmouse(E) firewire_ohci(E) ahci(E) 
+libahci(E) sdhci_pci(E) e1000e(E) firewire_core(E) sdhci(E) crc_itu_t(E) 
+ptp(E) pps_co
+re(E)
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.320979] CPU: 1 PID: 6871 
+Comm: Sweeper thread Tainted: P      D    OE 3.19.0-rc3-winsoft-x64+ #10
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.320981] Hardware name: 
+Hewlett-Packard HP ProBook 6560b/1619, BIOS 68SCE Ver. F.50 08/04/2014
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.320983] task: 
+ffff88005d95b1c0 ti: ffff88018ee18000 task.ti: ffff88018ee18000
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.320985] RIP: 
+0010:[<ffffffff81187f1f>]  [<ffffffff81187f1f>] unlink_anon_vmas+0x1af/0x200
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.320993] RSP: 
+0018:ffff88018ee1bba8  EFLAGS: 00010286
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.320994] RAX: 
+ffff880182a47c50 RBX: ffff880182a47c40 RCX: ffff8801b9e1d638
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.320996] RDX: 
+00000000ffffffff RSI: ffff8801abb60630 RDI: ffff8801abb605f0
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.320998] RBP: 
+ffff88018ee1bbe8 R08: 00000000f70a2000 R09: 0000000000000000
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.321000] R10: 
+ffff880182a47c60 R11: ffffea00060a91c0 R12: ffff8801b9e1d628
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.321001] R13: 
+ffff8801b9e1d638 R14: ffff8801abb605f0 R15: ffff8801abb605f0
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.321003] FS: 
+0000000000000000(0000) GS:ffff88023f440000(0000) knlGS:0000000000000000
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.321005] CS:  0010 DS: 002b 
+ES: 002b CR0: 0000000080050033
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.321007] CR2: 
+00000000f653e70c CR3: 0000000001c12000 CR4: 00000000000407e0
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.321008] Stack:
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.321010] ffff8801b9e1d5c0 
+ffff8801abb605f0 ffff88018ee1bbe8 ffff88006a1d70b8
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.321013] 00000000a3255000 
+0000000000000000 ffff88018ee1bc58 ffff8801b9e1d5c0
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.321016] ffff88018ee1bc38 
+ffffffff81179b58 ffff88018ee1bc38 0000000000000000
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.321019] Call Trace:
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.321025] [<ffffffff81179b58>] 
+free_pgtables+0xa8/0x120
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.321029] [<ffffffff81183e5f>] 
+exit_mmap+0xdf/0x170
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.321033] [<ffffffff81055984>] 
+mmput+0x64/0x130
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.321036] [<ffffffff8105ab2f>] 
+do_exit+0x26f/0xb10
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.321039] [<ffffffff8105b45f>] 
+do_group_exit+0x3f/0xa0
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.321044] [<ffffffff81066d48>] 
+get_signal+0x1d8/0x5f0
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.321047] [<ffffffff81002e10>] 
+do_signal+0x20/0x120
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.321052] [<ffffffff810d0d01>] 
+? compat_SyS_futex+0x71/0x140
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.321055] [<ffffffff81002f80>] 
+do_notify_resume+0x70/0xa0
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.321059] [<ffffffff8171ebc7>] 
+int_signal+0x12/0x17
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.321061] Code: 44 24 10 48 8d 
+50 f0 49 8d 44 24 10 49 39 c5 75 9b 48 83 c4 18 5b 41 5c 41 5d 41 5e 41 
+5f 5d
+  c3 0f 1f 40 00 e8 c3 fa ff ff eb 99 <0f> 0b 80 3d ea 8e b6 00 00 74 16 
+49 8d 7e 08 48 89 55 c8 e8 09
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.321088] RIP 
+[<ffffffff81187f1f>] unlink_anon_vmas+0x1af/0x200
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.321091]  RSP <ffff88018ee1bba8>
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.321094] ---[ end trace 
+1c9e464233c6be56 ]---
+Jan 10 12:33:57 krzysiek-hp1 kernel: [ 3872.321096] Fixing recursive 
+fault but reboot is needed!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
