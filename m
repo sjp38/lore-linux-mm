@@ -1,54 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f173.google.com (mail-qc0-f173.google.com [209.85.216.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 532F66B006C
-	for <linux-mm@kvack.org>; Sun, 11 Jan 2015 13:39:28 -0500 (EST)
-Received: by mail-qc0-f173.google.com with SMTP id i17so15578651qcy.4
-        for <linux-mm@kvack.org>; Sun, 11 Jan 2015 10:39:28 -0800 (PST)
-Received: from mail-qa0-x232.google.com (mail-qa0-x232.google.com. [2607:f8b0:400d:c00::232])
-        by mx.google.com with ESMTPS id s18si19892194qam.4.2015.01.11.10.39.27
+Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D7B86B0032
+	for <linux-mm@kvack.org>; Sun, 11 Jan 2015 15:55:58 -0500 (EST)
+Received: by mail-we0-f182.google.com with SMTP id w62so16021002wes.13
+        for <linux-mm@kvack.org>; Sun, 11 Jan 2015 12:55:58 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id hs6si31871436wjb.68.2015.01.11.12.55.57
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 11 Jan 2015 10:39:27 -0800 (PST)
-Received: by mail-qa0-f50.google.com with SMTP id k15so2895101qaq.9
-        for <linux-mm@kvack.org>; Sun, 11 Jan 2015 10:39:27 -0800 (PST)
-Date: Sun, 11 Jan 2015 13:39:24 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 12/12] fs: remove default_backing_dev_info
-Message-ID: <20150111183924.GQ25319@htj.dyndns.org>
-References: <1420739133-27514-1-git-send-email-hch@lst.de>
- <1420739133-27514-13-git-send-email-hch@lst.de>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 11 Jan 2015 12:55:57 -0800 (PST)
+Date: Sun, 11 Jan 2015 15:55:43 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH cgroup/for-3.19-fixes] cgroup: implement
+ cgroup_subsys->unbind() callback
+Message-ID: <20150111205543.GA5480@phnom.home.cmpxchg.org>
+References: <54B01335.4060901@arm.com>
+ <20150110085525.GD2110@esperanza>
+ <20150110214316.GF25319@htj.dyndns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1420739133-27514-13-git-send-email-hch@lst.de>
+In-Reply-To: <20150110214316.GF25319@htj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Jens Axboe <axboe@fb.com>, David Howells <dhowells@redhat.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-mtd@lists.infradead.org, linux-nfs@vger.kernel.org, ceph-devel@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Vladimir Davydov <vdavydov@parallels.com>, "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Will Deacon <Will.Deacon@arm.com>
 
-On Thu, Jan 08, 2015 at 06:45:33PM +0100, Christoph Hellwig wrote:
-> Now that default_backing_dev_info is not used for writeback purposes we can
-> git rid of it easily:
+On Sat, Jan 10, 2015 at 04:43:16PM -0500, Tejun Heo wrote:
+> Currently, if a hierarchy doesn't have any live children when it's
+> unmounted, the hierarchy starts dying by killing its refcnt.  The
+> expectation is that even if there are lingering dead children which
+> are lingering due to remaining references, they'll be put in a finite
+> amount of time.  When the children are finally released, the hierarchy
+> is destroyed and all controllers bound to it also are released.
 > 
->  - instead of using it's name for tracing unregistered bdi we just use
->    "unknown"
->  - btrfs and ceph can just assign the default read ahead window themselves
->    like several other filesystems already do.
->  - we can assign noop_backing_dev_info as the default one in alloc_super.
->    All filesystems already either assigned their own or
->    noop_backing_dev_info.
+> However, for memcg, the premise that the lingering refs will be put in
+> a finite amount time is not true.  In the absense of memory pressure,
+> dead memcg's may hang around indefinitely pinned by its pages.  This
+> unfortunately may lead to indefinite hang on the next mount attempt
+> involving memcg as the mount logic waits for it to get released.
 > 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> While we can change hierarchy destruction logic such that a hierarchy
+> is only destroyed when it's not mounted anywhere and all its children,
+> live or dead, are gone, this makes whether the hierarchy gets
+> destroyed or not to be determined by factors opaque to userland.
+> Userland may or may not get a new hierarchy on the next mount attempt.
+> Worse, if it explicitly wants to create a new hierarchy with different
+> options or controller compositions involving memcg, it will fail in an
+> essentially arbitrary manner.
+> 
+> We want to guarantee that a hierarchy is destroyed once the
+> conditions, unmounted and no visible children, are met.  To aid it,
+> this patch introduces a new callback cgroup_subsys->unbind() which is
+> invoked right before the hierarchy a subsystem is bound to starts
+> dying.  memcg can implement this callback and initiate draining of
+> remaining refs so that the hierarchy can eventually be released in a
+> finite amount of time.
+> 
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+> Cc: Li Zefan <lizefan@huawei.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Vladimir Davydov <vdavydov@parallels.com>
+> ---
+> Hello,
+> 
+> > May be, we should kill the ref counter to the memory controller root in
+> > cgroup_kill_sb only if there is no children at all, neither online nor
+> > offline.
+> 
+> Ah, thanks for the analysis, but I really wanna avoid making hierarchy
+> destruction conditions opaque to userland.  This is userland visible
+> behavior.  It shouldn't be determined by kernel internals invisible
+> outside.  This patch adds ss->unbind() which memcg can hook into to
+> kick off draining of residual refs.  If this would work, I'll add this
+> patch to cgroup/for-3.19-fixes, possibly with stable cc'd.
 
-Reviewed-by: Tejun Heo <tj@kernel.org>
-
-Thanks.
-
--- 
-tejun
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+How about this ->unbind() for memcg?
