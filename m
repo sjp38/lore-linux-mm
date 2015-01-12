@@ -1,99 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f44.google.com (mail-oi0-f44.google.com [209.85.218.44])
-	by kanga.kvack.org (Postfix) with ESMTP id AAE526B0032
-	for <linux-mm@kvack.org>; Sun, 11 Jan 2015 21:06:02 -0500 (EST)
-Received: by mail-oi0-f44.google.com with SMTP id a141so18735543oig.3
-        for <linux-mm@kvack.org>; Sun, 11 Jan 2015 18:06:02 -0800 (PST)
-Received: from cnbjrel02.sonyericsson.com (cnbjrel02.sonyericsson.com. [219.141.167.166])
-        by mx.google.com with ESMTPS id ks8si328730oeb.66.2015.01.11.18.05.59
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id C1E126B0032
+	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 03:01:25 -0500 (EST)
+Received: by mail-pd0-f181.google.com with SMTP id v10so29106897pde.12
+        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 00:01:25 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id va1si22220596pbc.211.2015.01.12.00.01.23
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 11 Jan 2015 18:06:01 -0800 (PST)
-From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Date: Mon, 12 Jan 2015 10:05:30 +0800
-Subject: FW: [RFC V6 2/3 resend] arm:add bitrev.h file to support rbit
- instruction   
-Message-ID: <35FD53F367049845BC99AC72306C23D103EDAF89E19A@CNBJMBX05.corpusers.net>
-Content-Language: en-US
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 12 Jan 2015 00:01:24 -0800 (PST)
+Date: Mon, 12 Jan 2015 11:01:14 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH cgroup/for-3.19-fixes] cgroup: implement
+ cgroup_subsys->unbind() callback
+Message-ID: <20150112080114.GE2110@esperanza>
+References: <54B01335.4060901@arm.com>
+ <20150110085525.GD2110@esperanza>
+ <20150110214316.GF25319@htj.dyndns.org>
+ <20150111205543.GA5480@phnom.home.cmpxchg.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20150111205543.GA5480@phnom.home.cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Russell King - ARM Linux' <linux@arm.linux.org.uk>
-Cc: 'Ard Biesheuvel' <ard.biesheuvel@linaro.org>, 'Will Deacon' <will.deacon@arm.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'akinobu.mita@gmail.com'" <akinobu.mita@gmail.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, 'Joe Perches' <joe@perches.com>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Tejun Heo <tj@kernel.org>, "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Will Deacon <Will.Deacon@arm.com>
 
-> -----Original Message-----
-> From: Russell King - ARM Linux [mailto:linux@arm.linux.org.uk]
-> Sent: Friday, January 09, 2015 7:11 PM
-> To: Wang, Yalin
-> Cc: 'Ard Biesheuvel'; 'Will Deacon'; 'linux-kernel@vger.kernel.org';=20
-> 'akinobu.mita@gmail.com'; 'linux-mm@kvack.org'; 'Joe Perches';=20
-> 'linux-arm- kernel@lists.infradead.org'
-> Subject: Re: [RFC V6 2/3] arm:add bitrev.h file to support rbit=20
-> instruction
->=20
-> On Fri, Jan 09, 2015 at 10:16:32AM +0800, Wang, Yalin wrote:
-> > > -----Original Message-----
-> > > From: Russell King - ARM Linux [mailto:linux@arm.linux.org.uk]
-> > > Sent: Friday, January 09, 2015 2:41 AM
-> > > To: Wang, Yalin
-> > > Cc: 'Will Deacon'; 'Ard Biesheuvel';=20
-> > > 'linux-kernel@vger.kernel.org'; 'akinobu.mita@gmail.com';=20
-> > > 'linux-mm@kvack.org'; 'Joe Perches';
-> > > 'linux-arm- kernel@lists.infradead.org'
-> > > Subject: Re: [RFC V6 2/3] arm:add bitrev.h file to support rbit=20
-> > > instruction
-> > >
-> > > The root cause is that the kernel being built is supposed to=20
-> > > support both
-> > > ARMv7 and ARMv6K CPUs.  However, "rbit" is only available on
-> > > ARMv6T2 (thumb2) and ARMv7, and not plain ARMv6 or ARMv6K CPUs.
-> > >
-> > In the patch that you applied:
-> > 8205/1 	add bitrev.h file to support rbit instruction
-> >
-> > I have add :
-> > +	select HAVE_ARCH_BITREVERSE if ((CPU_V7M || CPU_V7) && !CPU_V6)
-> >
-> > If you build kernel support ARMv6K, should CONFIG_CPU_V6=3Dy, isn't it =
-?
-> > Then will not build hardware rbit instruction, isn't it ?
->=20
-> The config has:
->=20
-> CONFIG_CPU_PJ4=3Dy
-> # CONFIG_CPU_V6 is not set
-> CONFIG_CPU_V6K=3Dy
-> CONFIG_CPU_V7=3Dy
-> CONFIG_CPU_32v6=3Dy
-> CONFIG_CPU_32v6K=3Dy
-> CONFIG_CPU_32v7=3Dy
->=20
-> And no, the CONFIG_CPU_V* flags refer to the CPUs.  The
-> CONFIG_CPU_32v* symbols refer to the CPU architectures.
->=20
-Oh, I see,
-How about change like this:
-+	select HAVE_ARCH_BITREVERSE if ((CPU_V7M || CPU_V7) && !CPU_V6 &&=20
-+!CPU_V6K)
-I am not sure if I also need add some older CPU types like !CPU_ARM9TDMI &&=
-=1B$B!!=1B(B!CPU_ARM940T ?
+On Sun, Jan 11, 2015 at 03:55:43PM -0500, Johannes Weiner wrote:
+> On Sat, Jan 10, 2015 at 04:43:16PM -0500, Tejun Heo wrote:
+> > > May be, we should kill the ref counter to the memory controller root in
+> > > cgroup_kill_sb only if there is no children at all, neither online nor
+> > > offline.
+> > 
+> > Ah, thanks for the analysis, but I really wanna avoid making hierarchy
+> > destruction conditions opaque to userland.  This is userland visible
+> > behavior.  It shouldn't be determined by kernel internals invisible
+> > outside.  This patch adds ss->unbind() which memcg can hook into to
+> > kick off draining of residual refs.  If this would work, I'll add this
+> > patch to cgroup/for-3.19-fixes, possibly with stable cc'd.
+> 
+> How about this ->unbind() for memcg?
+> 
+> From d527ba1dbfdb58e1f7c7c4ee12b32ef2e5461990 Mon Sep 17 00:00:00 2001
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Date: Sun, 11 Jan 2015 10:29:05 -0500
+> Subject: [patch] mm: memcontrol: zap outstanding cache/swap references during
+>  unbind
+> 
+> Cgroup core assumes that any outstanding css references after
+> offlining are temporary in nature, and e.g. mount waits for them to
+> disappear and release the root cgroup.  But leftover page cache and
+> swapout records in an offlined memcg are only dropped when the pages
+> get reclaimed under pressure or the swapped out pages get faulted in
+> from other cgroups, and so those cgroup operations can hang forever.
+> 
+> Implement the ->unbind() callback to actively get rid of outstanding
+> references when cgroup core wants them gone.  Swap out records are
+> deleted, such that the swap-in path will charge those pages to the
+> faulting task.  Page cache pages are moved to the root memory cgroup.
 
-Another solution is:
-+	select HAVE_ARCH_BITREVERSE if ((CPU_32V7M || CPU_32V7) && !CPU_32V6=20
-+&& !CPU_32V5 && !CPU_32V4 && !CPU_32V4T && !CPU_32V3)
+... and kmem pages are ignored. I reckon we could reparent them (I
+submitted the patch set some time ago), but that's going to be tricky
+and will complicate regular kmem charge/uncharge paths, as well as
+list_lru_add/del. I don't think we can put up with it, provided we only
+want reparenting on unmount, do we not?
 
-By the way, I am not clear about the difference between CPU_V6 and CPU_V6K,=
- could you tell me? :)
+Come to think of it, I wonder how many users actually want to mount
+different controllers subset after unmount. Because we could allow
+mounting the same subset perfectly well, even if it includes memcg. BTW,
+AFAIU in the unified hierarchy we won't have this problem at all,
+because by definition it mounts all controllers IIRC, so do we need to
+bother fixing this in such a complicated manner at all for the setup
+that's going to be deprecated anyway?
 
-Thank you=20
-
-
-
-
-
-
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
