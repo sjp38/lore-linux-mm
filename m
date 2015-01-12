@@ -1,67 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 774D06B0032
-	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 12:13:55 -0500 (EST)
-Received: by mail-ig0-f178.google.com with SMTP id b16so12645532igk.5
-        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 09:13:55 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0133.hostedemail.com. [216.40.44.133])
-        by mx.google.com with ESMTP id m5si12384617icr.70.2015.01.12.09.13.53
-        for <linux-mm@kvack.org>;
-        Mon, 12 Jan 2015 09:13:54 -0800 (PST)
-Message-ID: <1421082828.9233.13.camel@perches.com>
-Subject: Re: [PATCH 1/5] mm/util: add kstrdup_const
-From: Joe Perches <joe@perches.com>
-Date: Mon, 12 Jan 2015 09:13:48 -0800
-In-Reply-To: <1421054323-14430-2-git-send-email-a.hajda@samsung.com>
-References: <1421054323-14430-1-git-send-email-a.hajda@samsung.com>
-	 <1421054323-14430-2-git-send-email-a.hajda@samsung.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 013216B0032
+	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 12:22:57 -0500 (EST)
+Received: by mail-qg0-f42.google.com with SMTP id q108so18591016qgd.1
+        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 09:22:56 -0800 (PST)
+Received: from mail-qc0-x231.google.com (mail-qc0-x231.google.com. [2607:f8b0:400d:c01::231])
+        by mx.google.com with ESMTPS id o6si11582389qab.66.2015.01.12.09.22.55
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 12 Jan 2015 09:22:55 -0800 (PST)
+Received: by mail-qc0-f177.google.com with SMTP id x3so18979397qcv.8
+        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 09:22:55 -0800 (PST)
+Date: Mon, 12 Jan 2015 12:22:51 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH -v3 5/5] oom, PM: make OOM detection in the freezer path
+ raceless
+Message-ID: <20150112172251.GB22156@htj.dyndns.org>
+References: <1420801555-22659-1-git-send-email-mhocko@suse.cz>
+ <1420801555-22659-6-git-send-email-mhocko@suse.cz>
+ <20150110194322.GE25319@htj.dyndns.org>
+ <20150112161011.GE4877@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150112161011.GE4877@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrzej Hajda <a.hajda@samsung.com>
-Cc: linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, linux-kernel@vger.kernel.org, andi@firstfloor.org, andi@lisas.de, Mike Turquette <mturquette@linaro.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-pm@vger.kernel.org
 
-On Mon, 2015-01-12 at 10:18 +0100, Andrzej Hajda wrote:
-> The patch adds alternative version of kstrdup which returns pointer
-> to constant char array. The function checks if input string is in
-> persistent and read-only memory section, if yes it returns the input string,
-> otherwise it fallbacks to kstrdup.
-> kstrdup_const is accompanied by kfree_const performing conditional memory
-> deallocation of the string.
+On Mon, Jan 12, 2015 at 05:10:11PM +0100, Michal Hocko wrote:
+> Yes I had it this way but it didn't work out because thaw_kernel_threads
+> is not called on the resume because it is only used as a fail
+> path when kernel threads freezing fails. I would rather keep the
 
-trivia:
+Ooh, that's kinda asymmetric.
 
-> diff --git a/mm/util.c b/mm/util.c
-[]
-> +void kfree_const(const void *x)
-> +{
-> +	if (!is_kernel_rodata((unsigned long)x))
-> +		kfree(x);
-> +}
-> +EXPORT_SYMBOL(kfree_const);
-[]
-> +const char *kstrdup_const(const char *s, gfp_t gfp)
-> +{
-> +	if (is_kernel_rodata((unsigned long)s))
-> +		return s;
-> +
-> +	return kstrdup(s, gfp);
-> +}
-> +EXPORT_SYMBOL(kstrdup_const);
+> enabling/disabling points as we had them. This is less risky IMHO.
 
-I think it'd be nicer if these used the same form
-even if it's a vertical line or 2 longer
+Okay, please feel free to add
 
-void kfree_const(const void *x)
-{
-	if (is_kernel_rodata((unsigned long)x))
-		return;
+ Acked-by: Tejun Heo <tj@kernel.org>
 
-	kfree(x);
-}
+Thanks.
 
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
