@@ -1,88 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f177.google.com (mail-yk0-f177.google.com [209.85.160.177])
-	by kanga.kvack.org (Postfix) with ESMTP id D665C6B0078
-	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 18:10:14 -0500 (EST)
-Received: by mail-yk0-f177.google.com with SMTP id 9so10556910ykp.8
-        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 15:10:14 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id o1si9830601yhp.172.2015.01.12.15.10.13
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id E6F946B006E
+	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 18:11:12 -0500 (EST)
+Received: by mail-pd0-f174.google.com with SMTP id fp1so32967043pdb.5
+        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 15:11:12 -0800 (PST)
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com. [209.85.192.180])
+        by mx.google.com with ESMTPS id ak2si25047064pad.85.2015.01.12.15.11.10
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Jan 2015 15:10:14 -0800 (PST)
-Date: Mon, 12 Jan 2015 15:10:12 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v12 18/20] dax: Add dax_zero_page_range
-Message-Id: <20150112151012.b576357217d5f91cd3ddf63b@linux-foundation.org>
-In-Reply-To: <1414185652-28663-19-git-send-email-matthew.r.wilcox@intel.com>
-References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
-	<1414185652-28663-19-git-send-email-matthew.r.wilcox@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 12 Jan 2015 15:11:11 -0800 (PST)
+Received: by mail-pd0-f180.google.com with SMTP id fl12so32912306pdb.11
+        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 15:11:10 -0800 (PST)
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: quoted-printable
+From: Mike Turquette <mturquette@linaro.org>
+In-Reply-To: <1421054323-14430-4-git-send-email-a.hajda@samsung.com>
+References: <1421054323-14430-1-git-send-email-a.hajda@samsung.com>
+ <1421054323-14430-4-git-send-email-a.hajda@samsung.com>
+Message-ID: <20150112231104.20842.5239@quantum>
+Subject: Re: [PATCH 3/5] clk: convert clock name allocations to kstrdup_const
+Date: Mon, 12 Jan 2015 15:11:04 -0800
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@linux.intel.com, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Andrzej Hajda <a.hajda@samsung.com>, linux-mm@kvack.org
+Cc: "Andrzej Hajda <a.hajda@samsung.com>,
+ Marek Szyprowski <m.szyprowski@samsung.com>,
+ Kyungmin Park <kyungmin.park@samsung.com>, linux-kernel@vger.kernel.org,
+ andi@firstfloor.org, andi@lisas.de, Alexander Viro <viro@zeniv.linux.org.uk>,
+ Andrew Morton" <akpm@linux-foundation.org>, sboyd@codeaurora.org
 
-On Fri, 24 Oct 2014 17:20:50 -0400 Matthew Wilcox <matthew.r.wilcox@intel.com> wrote:
+Quoting Andrzej Hajda (2015-01-12 01:18:41)
+> Clock subsystem frequently performs duplication of strings located
+> in read-only memory section. Replacing kstrdup by kstrdup_const
+> allows to avoid such operations.
+> =
 
-> Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
-> [ported to 3.13-rc2]
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Signed-off-by: Andrzej Hajda <a.hajda@samsung.com>
 
-I never know what this means :(
+Looks OK to me. Is there an easy trick to measuring the number of string
+duplications saved short of instrumenting your code with a counter?
 
-I switched it to 
+Regards,
+Mike
 
-[ross.zwisler@linux.intel.com: ported to 3.13-rc2]
-Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> ---
+>  drivers/clk/clk.c | 12 ++++++------
+>  1 file changed, 6 insertions(+), 6 deletions(-)
+> =
 
-but perhaps that was wrong?
+> diff --git a/drivers/clk/clk.c b/drivers/clk/clk.c
+> index f4963b7..27e644a 100644
+> --- a/drivers/clk/clk.c
+> +++ b/drivers/clk/clk.c
+> @@ -2048,7 +2048,7 @@ struct clk *clk_register(struct device *dev, struct=
+ clk_hw *hw)
+>                 goto fail_out;
+>         }
+>  =
 
+> -       clk->name =3D kstrdup(hw->init->name, GFP_KERNEL);
+> +       clk->name =3D kstrdup_const(hw->init->name, GFP_KERNEL);
+>         if (!clk->name) {
+>                 pr_err("%s: could not allocate clk->name\n", __func__);
+>                 ret =3D -ENOMEM;
+> @@ -2075,7 +2075,7 @@ struct clk *clk_register(struct device *dev, struct=
+ clk_hw *hw)
+>  =
 
+>         /* copy each string name in case parent_names is __initdata */
+>         for (i =3D 0; i < clk->num_parents; i++) {
+> -               clk->parent_names[i] =3D kstrdup(hw->init->parent_names[i=
+],
+> +               clk->parent_names[i] =3D kstrdup_const(hw->init->parent_n=
+ames[i],
+>                                                 GFP_KERNEL);
+>                 if (!clk->parent_names[i]) {
+>                         pr_err("%s: could not copy parent_names\n", __fun=
+c__);
+> @@ -2090,10 +2090,10 @@ struct clk *clk_register(struct device *dev, stru=
+ct clk_hw *hw)
+>  =
 
-also, coupla typos:
+>  fail_parent_names_copy:
+>         while (--i >=3D 0)
+> -               kfree(clk->parent_names[i]);
+> +               kfree_const(clk->parent_names[i]);
+>         kfree(clk->parent_names);
+>  fail_parent_names:
+> -       kfree(clk->name);
+> +       kfree_const(clk->name);
+>  fail_name:
+>         kfree(clk);
+>  fail_out:
+> @@ -2112,10 +2112,10 @@ static void __clk_release(struct kref *ref)
+>  =
 
+>         kfree(clk->parents);
+>         while (--i >=3D 0)
+> -               kfree(clk->parent_names[i]);
+> +               kfree_const(clk->parent_names[i]);
+>  =
 
-diff -puN fs/dax.c~dax-add-dax_zero_page_range-fix fs/dax.c
---- a/fs/dax.c~dax-add-dax_zero_page_range-fix
-+++ a/fs/dax.c
-@@ -475,7 +475,7 @@ EXPORT_SYMBOL_GPL(dax_fault);
-  * block_truncate_page(), but we could go down to PAGE_SIZE if the filesystem
-  * took care of disposing of the unnecessary blocks.  Even if the filesystem
-  * block size is smaller than PAGE_SIZE, we have to zero the rest of the page
-- * since the file might be mmaped.
-+ * since the file might be mmapped.
-  */
- int dax_zero_page_range(struct inode *inode, loff_t from, unsigned length,
- 							get_block_t get_block)
-@@ -514,13 +514,13 @@ EXPORT_SYMBOL_GPL(dax_zero_page_range);
-  * @get_block: The filesystem method used to translate file offsets to blocks
-  *
-  * Similar to block_truncate_page(), this function can be called by a
-- * filesystem when it is truncating an DAX file to handle the partial page.
-+ * filesystem when it is truncating a DAX file to handle the partial page.
-  *
-  * We work in terms of PAGE_CACHE_SIZE here for commonality with
-  * block_truncate_page(), but we could go down to PAGE_SIZE if the filesystem
-  * took care of disposing of the unnecessary blocks.  Even if the filesystem
-  * block size is smaller than PAGE_SIZE, we have to zero the rest of the page
-- * since the file might be mmaped.
-+ * since the file might be mmapped.
-  */
- int dax_truncate_page(struct inode *inode, loff_t from, get_block_t get_block)
- {
-diff -puN include/linux/fs.h~dax-add-dax_zero_page_range-fix include/linux/fs.h
-_
+>         kfree(clk->parent_names);
+> -       kfree(clk->name);
+> +       kfree_const(clk->name);
+>         kfree(clk);
+>  }
+>  =
 
+> -- =
 
-akpm3:/usr/src/linux-3.19-rc4> grep -r mmaped .| wc -l
-70
-akpm3:/usr/src/linux-3.19-rc4> grep -r mmapped .| wc -l 
-107
-
-lol.
+> 1.9.1
+>=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
