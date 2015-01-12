@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
-	by kanga.kvack.org (Postfix) with ESMTP id E9BA26B0032
-	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 09:32:56 -0500 (EST)
-Received: by mail-we0-f179.google.com with SMTP id q59so19364511wes.10
-        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 06:32:56 -0800 (PST)
+Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 057CD6B0032
+	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 09:34:57 -0500 (EST)
+Received: by mail-we0-f176.google.com with SMTP id w61so19363016wes.7
+        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 06:34:56 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n2si14327607wiy.31.2015.01.12.06.32.55
+        by mx.google.com with ESMTPS id o9si36098086wjw.15.2015.01.12.06.34.55
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 12 Jan 2015 06:32:55 -0800 (PST)
-Message-ID: <54B3DB16.8030205@suse.cz>
-Date: Mon, 12 Jan 2015 15:32:54 +0100
+        Mon, 12 Jan 2015 06:34:55 -0800 (PST)
+Message-ID: <54B3DB8D.3000005@suse.cz>
+Date: Mon, 12 Jan 2015 15:34:53 +0100
 From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 2/5] mm/compaction: enhance tracepoint output for compaction
- begin/end
-References: <1421050875-26332-1-git-send-email-iamjoonsoo.kim@lge.com> <1421050875-26332-2-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1421050875-26332-2-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 3/5] mm/compaction: print current range where compaction
+ work
+References: <1421050875-26332-1-git-send-email-iamjoonsoo.kim@lge.com> <1421050875-26332-3-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1421050875-26332-3-git-send-email-iamjoonsoo.kim@lge.com>
 Content-Type: text/plain; charset=iso-8859-2
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -25,174 +25,124 @@ To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.o
 Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 On 01/12/2015 09:21 AM, Joonsoo Kim wrote:
-> We now have tracepoint for begin event of compaction and it prints
-> start position of both scanners, but, tracepoint for end event of
-> compaction doesn't print finish position of both scanners. It'd be
-> also useful to know finish position of both scanners so this patch
-> add it. It will help to find odd behavior or problem on compaction
-> internal logic.
-> 
-> And, mode is added to both begin/end tracepoint output, since
-> according to mode, compaction behavior is quite different.
-> 
-> And, lastly, status format is changed to string rather than
-> status number for readability.
+> It'd be useful to know current range where compaction work for detailed
+> analysis. With it, we can know pageblock where we actually scan and
+> isolate, and, how much pages we try in that pageblock and can guess why
+> it doesn't become freepage with pageblock order roughly.
 > 
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
 Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 > ---
->  include/linux/compaction.h        |    2 ++
->  include/trace/events/compaction.h |   49 ++++++++++++++++++++++++++-----------
->  mm/compaction.c                   |   14 +++++++++--
->  3 files changed, 49 insertions(+), 16 deletions(-)
+>  include/trace/events/compaction.h |   30 +++++++++++++++++++++++-------
+>  mm/compaction.c                   |    9 ++++++---
+>  2 files changed, 29 insertions(+), 10 deletions(-)
 > 
-> diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-> index 3238ffa..a9547b6 100644
-> --- a/include/linux/compaction.h
-> +++ b/include/linux/compaction.h
-> @@ -12,6 +12,7 @@
->  #define COMPACT_PARTIAL		3
->  /* The full zone was compacted */
->  #define COMPACT_COMPLETE	4
-> +/* When adding new state, please change compaction_status_string, too */
->  
->  /* Used to signal whether compaction detected need_sched() or lock contention */
->  /* No contention detected */
-> @@ -22,6 +23,7 @@
->  #define COMPACT_CONTENDED_LOCK	2
->  
->  #ifdef CONFIG_COMPACTION
-> +extern char *compaction_status_string[];
->  extern int sysctl_compact_memory;
->  extern int sysctl_compaction_handler(struct ctl_table *table, int write,
->  			void __user *buffer, size_t *length, loff_t *ppos);
 > diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
-> index 1337d9e..839f6fa 100644
+> index 839f6fa..139020b 100644
 > --- a/include/trace/events/compaction.h
 > +++ b/include/trace/events/compaction.h
-> @@ -85,46 +85,67 @@ TRACE_EVENT(mm_compaction_migratepages,
->  );
+> @@ -11,39 +11,55 @@
 >  
->  TRACE_EVENT(mm_compaction_begin,
-> -	TP_PROTO(unsigned long zone_start, unsigned long migrate_start,
-> -		unsigned long free_start, unsigned long zone_end),
-> +	TP_PROTO(unsigned long zone_start, unsigned long migrate_pfn,
-> +		unsigned long free_pfn, unsigned long zone_end, bool sync),
+>  DECLARE_EVENT_CLASS(mm_compaction_isolate_template,
 >  
-> -	TP_ARGS(zone_start, migrate_start, free_start, zone_end),
-> +	TP_ARGS(zone_start, migrate_pfn, free_pfn, zone_end, sync),
+> -	TP_PROTO(unsigned long nr_scanned,
+> +	TP_PROTO(
+> +		unsigned long start_pfn,
+> +		unsigned long end_pfn,
+> +		unsigned long nr_scanned,
+>  		unsigned long nr_taken),
+>  
+> -	TP_ARGS(nr_scanned, nr_taken),
+> +	TP_ARGS(start_pfn, end_pfn, nr_scanned, nr_taken),
 >  
 >  	TP_STRUCT__entry(
->  		__field(unsigned long, zone_start)
-> -		__field(unsigned long, migrate_start)
-> -		__field(unsigned long, free_start)
-> +		__field(unsigned long, migrate_pfn)
-> +		__field(unsigned long, free_pfn)
->  		__field(unsigned long, zone_end)
-> +		__field(bool, sync)
+> +		__field(unsigned long, start_pfn)
+> +		__field(unsigned long, end_pfn)
+>  		__field(unsigned long, nr_scanned)
+>  		__field(unsigned long, nr_taken)
 >  	),
 >  
 >  	TP_fast_assign(
->  		__entry->zone_start = zone_start;
-> -		__entry->migrate_start = migrate_start;
-> -		__entry->free_start = free_start;
-> +		__entry->migrate_pfn = migrate_pfn;
-> +		__entry->free_pfn = free_pfn;
->  		__entry->zone_end = zone_end;
-> +		__entry->sync = sync;
+> +		__entry->start_pfn = start_pfn;
+> +		__entry->end_pfn = end_pfn;
+>  		__entry->nr_scanned = nr_scanned;
+>  		__entry->nr_taken = nr_taken;
 >  	),
 >  
-> -	TP_printk("zone_start=0x%lx migrate_start=0x%lx free_start=0x%lx zone_end=0x%lx",
-> +	TP_printk("zone_start=0x%lx migrate_pfn=0x%lx free_pfn=0x%lx zone_end=0x%lx, mode=%s",
->  		__entry->zone_start,
-> -		__entry->migrate_start,
-> -		__entry->free_start,
-> -		__entry->zone_end)
-> +		__entry->migrate_pfn,
-> +		__entry->free_pfn,
-> +		__entry->zone_end,
-> +		__entry->sync ? "sync" : "async")
+> -	TP_printk("nr_scanned=%lu nr_taken=%lu",
+> +	TP_printk("range=(0x%lx ~ 0x%lx) nr_scanned=%lu nr_taken=%lu",
+> +		__entry->start_pfn,
+> +		__entry->end_pfn,
+>  		__entry->nr_scanned,
+>  		__entry->nr_taken)
 >  );
 >  
->  TRACE_EVENT(mm_compaction_end,
-> -	TP_PROTO(int status),
-> +	TP_PROTO(unsigned long zone_start, unsigned long migrate_pfn,
-> +		unsigned long free_pfn, unsigned long zone_end, bool sync,
-> +		int status),
+>  DEFINE_EVENT(mm_compaction_isolate_template, mm_compaction_isolate_migratepages,
 >  
-> -	TP_ARGS(status),
-> +	TP_ARGS(zone_start, migrate_pfn, free_pfn, zone_end, sync, status),
+> -	TP_PROTO(unsigned long nr_scanned,
+> +	TP_PROTO(
+> +		unsigned long start_pfn,
+> +		unsigned long end_pfn,
+> +		unsigned long nr_scanned,
+>  		unsigned long nr_taken),
 >  
->  	TP_STRUCT__entry(
-> +		__field(unsigned long, zone_start)
-> +		__field(unsigned long, migrate_pfn)
-> +		__field(unsigned long, free_pfn)
-> +		__field(unsigned long, zone_end)
-> +		__field(bool, sync)
->  		__field(int, status)
->  	),
->  
->  	TP_fast_assign(
-> +		__entry->zone_start = zone_start;
-> +		__entry->migrate_pfn = migrate_pfn;
-> +		__entry->free_pfn = free_pfn;
-> +		__entry->zone_end = zone_end;
-> +		__entry->sync = sync;
->  		__entry->status = status;
->  	),
->  
-> -	TP_printk("status=%d", __entry->status)
-> +	TP_printk("zone_start=0x%lx migrate_pfn=0x%lx free_pfn=0x%lx zone_end=0x%lx, mode=%s status=%s",
-> +		__entry->zone_start,
-> +		__entry->migrate_pfn,
-> +		__entry->free_pfn,
-> +		__entry->zone_end,
-> +		__entry->sync ? "sync" : "async",
-> +		compaction_status_string[__entry->status])
+> -	TP_ARGS(nr_scanned, nr_taken)
+> +	TP_ARGS(start_pfn, end_pfn, nr_scanned, nr_taken)
 >  );
 >  
->  #endif /* _TRACE_COMPACTION_H */
+>  DEFINE_EVENT(mm_compaction_isolate_template, mm_compaction_isolate_freepages,
+> -	TP_PROTO(unsigned long nr_scanned,
+> +
+> +	TP_PROTO(
+> +		unsigned long start_pfn,
+> +		unsigned long end_pfn,
+> +		unsigned long nr_scanned,
+>  		unsigned long nr_taken),
+>  
+> -	TP_ARGS(nr_scanned, nr_taken)
+> +	TP_ARGS(start_pfn, end_pfn, nr_scanned, nr_taken)
+>  );
+>  
+>  TRACE_EVENT(mm_compaction_migratepages,
 > diff --git a/mm/compaction.c b/mm/compaction.c
-> index 546e571..2d86a20 100644
+> index 2d86a20..be28469 100644
 > --- a/mm/compaction.c
 > +++ b/mm/compaction.c
-> @@ -19,6 +19,14 @@
->  #include "internal.h"
+> @@ -429,11 +429,12 @@ isolate_fail:
 >  
->  #ifdef CONFIG_COMPACTION
-> +char *compaction_status_string[] = {
-> +	"deferred",
-> +	"skipped",
-> +	"continue",
-> +	"partial",
-> +	"complete",
-> +};
+>  	}
+>  
+> +	trace_mm_compaction_isolate_freepages(*start_pfn, blockpfn,
+> +					nr_scanned, total_isolated);
 > +
->  static inline void count_compact_event(enum vm_event_item item)
->  {
->  	count_vm_event(item);
-> @@ -1197,7 +1205,8 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
->  		zone->compact_cached_migrate_pfn[1] = cc->migrate_pfn;
->  	}
+>  	/* Record how far we have got within the block */
+>  	*start_pfn = blockpfn;
 >  
-> -	trace_mm_compaction_begin(start_pfn, cc->migrate_pfn, cc->free_pfn, end_pfn);
-> +	trace_mm_compaction_begin(start_pfn, cc->migrate_pfn,
-> +				cc->free_pfn, end_pfn, sync);
+> -	trace_mm_compaction_isolate_freepages(nr_scanned, total_isolated);
+> -
+>  	/*
+>  	 * If strict isolation is requested by CMA then check that all the
+>  	 * pages requested were isolated. If there were any failures, 0 is
+> @@ -589,6 +590,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+>  	unsigned long flags = 0;
+>  	bool locked = false;
+>  	struct page *page = NULL, *valid_page = NULL;
+> +	unsigned long start_pfn = low_pfn;
 >  
->  	migrate_prep_local();
+>  	/*
+>  	 * Ensure that there are not too many pages isolated from the LRU
+> @@ -749,7 +751,8 @@ isolate_success:
+>  	if (low_pfn == end_pfn)
+>  		update_pageblock_skip(cc, valid_page, nr_isolated, true);
 >  
-> @@ -1299,7 +1308,8 @@ out:
->  			zone->compact_cached_free_pfn = free_pfn;
->  	}
+> -	trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
+> +	trace_mm_compaction_isolate_migratepages(start_pfn, low_pfn,
+> +						nr_scanned, nr_isolated);
 >  
-> -	trace_mm_compaction_end(ret);
-> +	trace_mm_compaction_end(start_pfn, cc->migrate_pfn,
-> +				cc->free_pfn, end_pfn, sync, ret);
->  
->  	return ret;
->  }
+>  	count_compact_events(COMPACTMIGRATE_SCANNED, nr_scanned);
+>  	if (nr_isolated)
 > 
 
 --
