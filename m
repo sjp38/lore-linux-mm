@@ -1,67 +1,305 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 357ED6B006C
-	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 11:19:29 -0500 (EST)
-Received: by mail-ig0-f179.google.com with SMTP id r2so12383374igi.0
-        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 08:19:29 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id ly5si12235764icb.101.2015.01.12.08.19.27
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 939DA6B006C
+	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 11:35:51 -0500 (EST)
+Received: by mail-wi0-f171.google.com with SMTP id bs8so15644567wib.4
+        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 08:35:51 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ey8si36772007wjd.7.2015.01.12.08.35.50
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Jan 2015 08:19:27 -0800 (PST)
-From: Chintan Pandya <cpandya@codeaurora.org>
-Subject: [PATCH] lowmemorykiller: Avoid excessive/redundant calling of LMK
-Date: Mon, 12 Jan 2015 21:49:14 +0530
-Message-Id: <1421079554-30899-1-git-send-email-cpandya@codeaurora.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 12 Jan 2015 08:35:50 -0800 (PST)
+Message-ID: <54B3F7E3.4000803@suse.cz>
+Date: Mon, 12 Jan 2015 17:35:47 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2 5/5] mm/compaction: add tracepoint to observe behaviour
+ of compaction defer
+References: <1421050875-26332-1-git-send-email-iamjoonsoo.kim@lge.com> <1421050875-26332-5-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1421050875-26332-5-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset=iso-8859-2
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Weijie Yang <weijie.yang@samsung.com>, David Rientjes <rientjes@google.com>
-Cc: devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, Chintan Pandya <cpandya@codeaurora.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The global shrinker will invoke lowmem_shrink in a loop.
-The loop will be run (total_scan_pages/batch_size) times.
-The default batch_size will be 128 which will make
-shrinker invoking 100s of times. LMK does meaningful
-work only during first 2-3 times and then rest of the
-invocations are just CPU cycle waste. Fix that by returning
-to the shrinker with SHRINK_STOP when LMK doesn't find any
-more work to do. The deciding factor here is, no process
-found in the selected LMK bucket or memory conditions are
-sane.
+On 01/12/2015 09:21 AM, Joonsoo Kim wrote:
+> compaction deferring logic is heavy hammer that block the way to
+> the compaction. It doesn't consider overall system state, so it
+> could prevent user from doing compaction falsely. In other words,
+> even if system has enough range of memory to compact, compaction would be
+> skipped due to compaction deferring logic. This patch add new tracepoint
+> to understand work of deferring logic. This will also help to check
+> compaction success and fail.
+> 
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> ---
+>  include/linux/compaction.h        |   65 +++------------------------------
+>  include/trace/events/compaction.h |   55 ++++++++++++++++++++++++++++
+>  mm/compaction.c                   |   72 +++++++++++++++++++++++++++++++++++++
+>  3 files changed, 132 insertions(+), 60 deletions(-)
+> 
+> diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+> index d82181a..026ff64 100644
+> --- a/include/linux/compaction.h
+> +++ b/include/linux/compaction.h
+> @@ -44,66 +44,11 @@ extern void reset_isolation_suitable(pg_data_t *pgdat);
+>  extern unsigned long compaction_suitable(struct zone *zone, int order,
+>  					int alloc_flags, int classzone_idx);
+>  
+> -/* Do not skip compaction more than 64 times */
+> -#define COMPACT_MAX_DEFER_SHIFT 6
+> -
+> -/*
+> - * Compaction is deferred when compaction fails to result in a page
+> - * allocation success. 1 << compact_defer_limit compactions are skipped up
+> - * to a limit of 1 << COMPACT_MAX_DEFER_SHIFT
+> - */
+> -static inline void defer_compaction(struct zone *zone, int order)
+> -{
+> -	zone->compact_considered = 0;
+> -	zone->compact_defer_shift++;
+> -
+> -	if (order < zone->compact_order_failed)
+> -		zone->compact_order_failed = order;
+> -
+> -	if (zone->compact_defer_shift > COMPACT_MAX_DEFER_SHIFT)
+> -		zone->compact_defer_shift = COMPACT_MAX_DEFER_SHIFT;
+> -}
+> -
+> -/* Returns true if compaction should be skipped this time */
+> -static inline bool compaction_deferred(struct zone *zone, int order)
+> -{
+> -	unsigned long defer_limit = 1UL << zone->compact_defer_shift;
+> -
+> -	if (order < zone->compact_order_failed)
+> -		return false;
+> -
+> -	/* Avoid possible overflow */
+> -	if (++zone->compact_considered > defer_limit)
+> -		zone->compact_considered = defer_limit;
+> -
+> -	return zone->compact_considered < defer_limit;
+> -}
+> -
+> -/*
+> - * Update defer tracking counters after successful compaction of given order,
+> - * which means an allocation either succeeded (alloc_success == true) or is
+> - * expected to succeed.
+> - */
+> -static inline void compaction_defer_reset(struct zone *zone, int order,
+> -		bool alloc_success)
+> -{
+> -	if (alloc_success) {
+> -		zone->compact_considered = 0;
+> -		zone->compact_defer_shift = 0;
+> -	}
+> -	if (order >= zone->compact_order_failed)
+> -		zone->compact_order_failed = order + 1;
+> -}
+> -
+> -/* Returns true if restarting compaction after many failures */
+> -static inline bool compaction_restarting(struct zone *zone, int order)
+> -{
+> -	if (order < zone->compact_order_failed)
+> -		return false;
+> -
+> -	return zone->compact_defer_shift == COMPACT_MAX_DEFER_SHIFT &&
+> -		zone->compact_considered >= 1UL << zone->compact_defer_shift;
+> -}
+> +extern void defer_compaction(struct zone *zone, int order);
+> +extern bool compaction_deferred(struct zone *zone, int order);
+> +extern void compaction_defer_reset(struct zone *zone, int order,
+> +				bool alloc_success);
+> +extern bool compaction_restarting(struct zone *zone, int order);
+>  
+>  #else
+>  static inline unsigned long try_to_compact_pages(struct zonelist *zonelist,
+> diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
+> index 839dd4f..f879f41 100644
+> --- a/include/trace/events/compaction.h
+> +++ b/include/trace/events/compaction.h
+> @@ -258,6 +258,61 @@ DEFINE_EVENT(mm_compaction_suitable_template, mm_compaction_suitable,
+>  	TP_ARGS(zone, order, alloc_flags, classzone_idx, ret)
+>  );
+>  
+> +DECLARE_EVENT_CLASS(mm_compaction_defer_template,
+> +
+> +	TP_PROTO(struct zone *zone, int order),
+> +
+> +	TP_ARGS(zone, order),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(int, nid)
+> +		__field(char *, name)
+> +		__field(int, order)
+> +		__field(unsigned int, considered)
+> +		__field(unsigned int, defer_shift)
+> +		__field(int, order_failed)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->nid = zone_to_nid(zone);
+> +		__entry->name = (char *)zone->name;
+> +		__entry->order = order;
+> +		__entry->considered = zone->compact_considered;
+> +		__entry->defer_shift = zone->compact_defer_shift;
+> +		__entry->order_failed = zone->compact_order_failed;
+> +	),
+> +
+> +	TP_printk("node=%d zone=%-8s order=%d order_failed=%d reason=%s consider=%u limit=%lu",
+> +		__entry->nid,
+> +		__entry->name,
+> +		__entry->order,
+> +		__entry->order_failed,
+> +		__entry->order < __entry->order_failed ? "order" : "try",
 
-Signed-off-by: Chintan Pandya <cpandya@codeaurora.org>
----
- drivers/staging/android/lowmemorykiller.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+This "reason" only makes sense for compaction_deferred, no? And "order" would
+never be printed there anyway, because of bug below. Also it's quite trivial to
+derive from the other data printed, so I would just remove it.
 
-diff --git a/drivers/staging/android/lowmemorykiller.c b/drivers/staging/android/lowmemorykiller.c
-index b545d3d..5bf483f 100644
---- a/drivers/staging/android/lowmemorykiller.c
-+++ b/drivers/staging/android/lowmemorykiller.c
-@@ -110,7 +110,7 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
- 	if (min_score_adj == OOM_SCORE_ADJ_MAX + 1) {
- 		lowmem_print(5, "lowmem_scan %lu, %x, return 0\n",
- 			     sc->nr_to_scan, sc->gfp_mask);
--		return 0;
-+		return SHRINK_STOP;
- 	}
- 
- 	selected_oom_score_adj = min_score_adj;
-@@ -163,6 +163,9 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
- 		set_tsk_thread_flag(selected, TIF_MEMDIE);
- 		send_sig(SIGKILL, selected, 0);
- 		rem += selected_tasksize;
-+	} else {
-+		rcu_read_unlock();
-+		return SHRINK_STOP;
- 	}
- 
- 	lowmem_print(4, "lowmem_scan %lu, %x, return %lu\n",
--- 
-Chintan Pandya
+> +		__entry->considered,
+> +		1UL << __entry->defer_shift)
+> +);
+> +
+> +DEFINE_EVENT(mm_compaction_defer_template, mm_compaction_deffered,
 
-QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
-member of the Code Aurora Forum, hosted by The Linux Foundation
+                                                            _deferred
+
+> +
+> +	TP_PROTO(struct zone *zone, int order),
+> +
+> +	TP_ARGS(zone, order)
+> +);
+> +
+> +DEFINE_EVENT(mm_compaction_defer_template, mm_compaction_defer_compaction,
+> +
+> +	TP_PROTO(struct zone *zone, int order),
+> +
+> +	TP_ARGS(zone, order)
+> +);
+> +
+> +DEFINE_EVENT(mm_compaction_defer_template, mm_compaction_defer_reset,
+> +
+> +	TP_PROTO(struct zone *zone, int order),
+> +
+> +	TP_ARGS(zone, order)
+> +);
+> +
+>  #endif /* _TRACE_COMPACTION_H */
+>  
+>  /* This part must be outside protection */
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 7500f01..7aa4249 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -123,6 +123,77 @@ static struct page *pageblock_pfn_to_page(unsigned long start_pfn,
+>  }
+>  
+>  #ifdef CONFIG_COMPACTION
+> +
+> +/* Do not skip compaction more than 64 times */
+> +#define COMPACT_MAX_DEFER_SHIFT 6
+> +
+> +/*
+> + * Compaction is deferred when compaction fails to result in a page
+> + * allocation success. 1 << compact_defer_limit compactions are skipped up
+> + * to a limit of 1 << COMPACT_MAX_DEFER_SHIFT
+> + */
+> +void defer_compaction(struct zone *zone, int order)
+> +{
+> +	zone->compact_considered = 0;
+> +	zone->compact_defer_shift++;
+> +
+> +	if (order < zone->compact_order_failed)
+> +		zone->compact_order_failed = order;
+> +
+> +	if (zone->compact_defer_shift > COMPACT_MAX_DEFER_SHIFT)
+> +		zone->compact_defer_shift = COMPACT_MAX_DEFER_SHIFT;
+> +
+> +	trace_mm_compaction_defer_compaction(zone, order);
+> +}
+> +
+> +/* Returns true if compaction should be skipped this time */
+> +bool compaction_deferred(struct zone *zone, int order)
+> +{
+> +	unsigned long defer_limit = 1UL << zone->compact_defer_shift;
+> +
+> +	if (order < zone->compact_order_failed)
+
+- no tracepoint (with reason="order") in this case?
+
+> +		return false;
+> +
+> +	/* Avoid possible overflow */
+> +	if (++zone->compact_considered > defer_limit)
+> +		zone->compact_considered = defer_limit;
+> +
+> +	if (zone->compact_considered >= defer_limit)
+
+- no tracepoint here as well? Oh did you want to trace just when it's true? That
+makes sense, but then just remove the reason part.
+
+Hm what if we avoided dirtying the cache line in the non-deferred case? Would be
+simpler, too?
+
+if (zone->compact_considered + 1 >= defer_limit)
+     return false;
+
+zone->compact_considered++;
+
+trace_mm_compaction_defer_compaction(zone, order);
+
+return true;
+
+> +		return false;
+> +
+> +	trace_mm_compaction_deffered(zone, order);
+> +
+> +	return true;
+> +}
+> +
+> +/*
+> + * Update defer tracking counters after successful compaction of given order,
+> + * which means an allocation either succeeded (alloc_success == true) or is
+> + * expected to succeed.
+> + */
+> +void compaction_defer_reset(struct zone *zone, int order,
+> +		bool alloc_success)
+> +{
+> +	if (alloc_success) {
+> +		zone->compact_considered = 0;
+> +		zone->compact_defer_shift = 0;
+> +	}
+> +	if (order >= zone->compact_order_failed)
+> +		zone->compact_order_failed = order + 1;
+> +
+> +	trace_mm_compaction_defer_reset(zone, order);
+> +}
+> +
+> +/* Returns true if restarting compaction after many failures */
+> +bool compaction_restarting(struct zone *zone, int order)
+> +{
+> +	if (order < zone->compact_order_failed)
+> +		return false;
+> +
+> +	return zone->compact_defer_shift == COMPACT_MAX_DEFER_SHIFT &&
+> +		zone->compact_considered >= 1UL << zone->compact_defer_shift;
+> +}
+> +
+>  /* Returns true if the pageblock should be scanned for pages to isolate. */
+>  static inline bool isolation_suitable(struct compact_control *cc,
+>  					struct page *page)
+> @@ -1438,6 +1509,7 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
+>  			 * succeeds in this zone.
+>  			 */
+>  			compaction_defer_reset(zone, order, false);
+> +
+>  			/*
+>  			 * It is possible that async compaction aborted due to
+>  			 * need_resched() and the watermarks were ok thanks to
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
