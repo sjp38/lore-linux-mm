@@ -1,131 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f53.google.com (mail-qa0-f53.google.com [209.85.216.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 021046B0032
-	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 15:07:16 -0500 (EST)
-Received: by mail-qa0-f53.google.com with SMTP id n4so9272463qaq.12
-        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 12:07:15 -0800 (PST)
-Received: from smtp.variantweb.net (smtp.variantweb.net. [104.131.104.118])
-        by mx.google.com with ESMTPS id hj6si23874226qcb.49.2015.01.12.12.07.14
+Received: from mail-yh0-f53.google.com (mail-yh0-f53.google.com [209.85.213.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F0986B0032
+	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 15:21:41 -0500 (EST)
+Received: by mail-yh0-f53.google.com with SMTP id i57so10665171yha.12
+        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 12:21:40 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id n124si9696969ykf.69.2015.01.12.12.21.39
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Jan 2015 12:07:14 -0800 (PST)
-Date: Mon, 12 Jan 2015 14:07:11 -0600
-From: Seth Jennings <sjennings@variantweb.net>
-Subject: Re: [PATCH v2] mm/zsmalloc: add statistics support
-Message-ID: <20150112200711.GA17340@cerebellum.variantweb.net>
-References: <20141219154548.3aa4cc02b3322f926aa4c1d6@linux-foundation.org>
- <20141219235852.GB11975@blaptop>
- <20141219160648.5cea8a6b0c764caa6100a585@linux-foundation.org>
- <20141220001043.GC11975@blaptop>
- <20141219161756.bcf7421acb4bc7a286c1afa3@linux-foundation.org>
- <20141220002303.GD11975@blaptop>
- <CADAEsF-=RwwR2D_LzhVYKhfmfPCsQE73bJYyH=tjn4BtHVrdew@mail.gmail.com>
- <20141220022557.GA19822@blaptop>
- <CADAEsF-Rtc00hP9Dd-Lx2pq9panQFyoUEi9U7eO1SOW6-zWJvw@mail.gmail.com>
- <20141223024045.GA30174@bbox>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141223024045.GA30174@bbox>
+        Mon, 12 Jan 2015 12:21:40 -0800 (PST)
+Date: Mon, 12 Jan 2015 12:21:38 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: fix corner case in anon_vma endless growing
+ prevention
+Message-Id: <20150112122138.f173c6279af0b49565e956d3@linux-foundation.org>
+In-Reply-To: <20150111135406.13266.42007.stgit@zurg>
+References: <20150111135406.13266.42007.stgit@zurg>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Ganesh Mahendran <opensource.ganesh@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Dan Streetman <ddstreet@ieee.org>
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, "Elifaz, Dana" <Dana.Elifaz@amd.com>, "Bridgman, John" <John.Bridgman@amd.com>, Daniel Forrest <dan.forrest@ssec.wisc.edu>, Chris Clayton <chris2553@googlemail.com>, Oded Gabbay <oded.gabbay@amd.com>, Michal Hocko <mhocko@suse.cz>, Greg KH <gregkh@suse.de>
 
-On Tue, Dec 23, 2014 at 11:40:45AM +0900, Minchan Kim wrote:
-> Hi Ganesh,
-> 
-> On Tue, Dec 23, 2014 at 10:26:12AM +0800, Ganesh Mahendran wrote:
-> > Hello Minchan
-> > 
-> > 2014-12-20 10:25 GMT+08:00 Minchan Kim <minchan@kernel.org>:
-> > > Hey Ganesh,
-> > >
-> > > On Sat, Dec 20, 2014 at 09:43:34AM +0800, Ganesh Mahendran wrote:
-> > >> 2014-12-20 8:23 GMT+08:00 Minchan Kim <minchan@kernel.org>:
-> > >> > On Fri, Dec 19, 2014 at 04:17:56PM -0800, Andrew Morton wrote:
-> > >> >> On Sat, 20 Dec 2014 09:10:43 +0900 Minchan Kim <minchan@kernel.org> wrote:
-> > >> >>
-> > >> >> > > It involves rehashing a lengthy argument with Greg.
-> > >> >> >
-> > >> >> > Okay. Then, Ganesh,
-> > >> >> > please add warn message about duplicaed name possibility althoug
-> > >> >> > it's unlikely as it is.
-> > >> >>
-> > >> >> Oh, getting EEXIST is easy with this patch.  Just create and destroy a
-> > >> >> pool 2^32 times and the counter wraps ;) It's hardly a serious issue
-> > >> >> for a debugging patch.
-> > >> >
-> > >> > I meant that I wanted to change from index to name passed from caller like this
-> > >> >
-> > >> > zram:
-> > >> >         zs_create_pool(GFP_NOIO | __GFP_HIGHMEM, zram->disk->first_minor);
-> > >> >
-> > >> > So, duplication should be rare. :)
-> > >>
-> > >> We still can not know whether the name is duplicated if we do not
-> > >> change the debugfs API.
-> > >> The API does not return the errno to us.
-> > >>
-> > >> How about just zsmalloc decides the name of the pool-id, like pool-x.
-> > >> When the pool-id reaches
-> > >> 0xffff.ffff, we print warn message about duplicated name, and stop
-> > >> creating the debugfs entry
-> > >> for the user.
-> > >
-> > > The idea is from the developer point of view to implement thing easy
-> > > but my point is we should take care of user(ie, admin) rather than
-> > > developer(ie, we).
-> > 
-> > Yes. I got it.
-> > 
-> > >
-> > > For user, /sys/kernel/debug/zsmalloc/zram0 would be more
-> > > straightforward and even it doesn't need zram to export
-> > > /sys/block/zram0/pool-id.
-> > 
-> > BTW, If we add a new argument in zs_create_pool(). It seems we also need to
-> > add argument in zs_zpool_create(). So, zpool/zswap/zbud will be
-> > modified to support
-> > the new API.
-> > Is that acceptable?
-> 
-> I think it's doable.
-> The zpool_create_pool has already zswap_zpool_type.
-> Ccing maintainers for double check.
+On Sun, 11 Jan 2015 16:54:06 +0300 Konstantin Khlebnikov <koct9i@gmail.com> wrote:
 
-Late response, but fine by me.
+> Fix for BUG_ON(anon_vma->degree) splashes in unlink_anon_vmas()
+> ("kernel BUG at mm/rmap.c:399!").
+> 
+> Anon_vma_clone() is usually called for a copy of source vma in destination
+> argument. If source vma has anon_vma it should be already in dst->anon_vma.
+> NULL in dst->anon_vma is used as a sign that it's called from anon_vma_fork().
+> In this case anon_vma_clone() finds anon_vma for reusing.
+> 
+> Vma_adjust() calls it differently and this breaks anon_vma reusing logic:
+> anon_vma_clone() links vma to old anon_vma and updates degree counters but
+> vma_adjust() overrides vma->anon_vma right after that. As a result final
+> unlink_anon_vmas() decrements degree for wrong anon_vma.
+> 
+> This patch assigns ->anon_vma before calling anon_vma_clone().
+> 
+> Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
+> Fixes: 7a3ef208e662 ("mm: prevent endless growth of anon_vma hierarchy")
 
-Seth
+I've asked Greg not to take 7a3ef208e662 into -stable because of this
+problem.  So if you still think we should fix this in -stable, could
+you please prepare an updated patch and send it to Greg?
 
-> 
-> Many thanks.
-> 
-> 
-> > 
-> > Thanks.
-> > 
-> > >
-> > > Thanks.
-> > >
-> > >>
-> > >> Thanks.
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> -- 
-> Kind regards,
-> Minchan Kim
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Tested-by: Chris Clayton <chris2553@googlemail.com>
+> Tested-by: Oded Gabbay <oded.gabbay@amd.com>
+> Cc: Daniel Forrest <dan.forrest@ssec.wisc.edu>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
