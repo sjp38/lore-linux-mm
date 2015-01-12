@@ -1,66 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 611B96B006E
-	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 11:08:58 -0500 (EST)
-Received: by mail-ie0-f174.google.com with SMTP id at20so25987270iec.5
-        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 08:08:58 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id hb11si12225228icb.97.2015.01.12.08.08.56
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 773B16B0032
+	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 11:10:16 -0500 (EST)
+Received: by mail-wi0-f169.google.com with SMTP id r20so14847203wiv.0
+        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 08:10:16 -0800 (PST)
+Received: from mail-wi0-x231.google.com (mail-wi0-x231.google.com. [2a00:1450:400c:c05::231])
+        by mx.google.com with ESMTPS id fz7si36430145wjb.100.2015.01.12.08.10.13
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Jan 2015 08:08:57 -0800 (PST)
-From: Chintan Pandya <cpandya@codeaurora.org>
-Subject: [PATCH] lowmemorykiller: Avoid excessive/redundant calling of LMK
-Date: Mon, 12 Jan 2015 21:38:43 +0530
-Message-Id: <1421078923-29485-1-git-send-email-cpandya@codeaurora.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 12 Jan 2015 08:10:13 -0800 (PST)
+Received: by mail-wi0-f177.google.com with SMTP id l15so15718591wiw.4
+        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 08:10:13 -0800 (PST)
+Date: Mon, 12 Jan 2015 17:10:11 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH -v3 5/5] oom, PM: make OOM detection in the freezer path
+ raceless
+Message-ID: <20150112161011.GE4877@dhcp22.suse.cz>
+References: <1420801555-22659-1-git-send-email-mhocko@suse.cz>
+ <1420801555-22659-6-git-send-email-mhocko@suse.cz>
+ <20150110194322.GE25319@htj.dyndns.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150110194322.GE25319@htj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Weijie Yang <weijie.yang@samsung.com>, David Rientjes <rientjes@google.com>
-Cc: devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, Chintan Pandya <cpandya@codeaurora.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-pm@vger.kernel.org
 
-The global shrinker will invoke lowmem_shrink in a loop.
-The loop will be run (total_scan_pages/batch_size) times.
-The default batch_size will be 128 which will make
-shrinker invoking 100s of times. LMK does meaningful
-work only during first 2-3 times and then rest of the
-invocations are just CPU cycle waste. Fix that by giving
-excessively large batch size so that lowmem_shrink will
-be called just once and in the same try LMK does the
-needful.
+On Sat 10-01-15 14:43:22, Tejun Heo wrote:
+> On Fri, Jan 09, 2015 at 12:05:55PM +0100, Michal Hocko wrote:
+> ...
+> > @@ -142,7 +118,6 @@ static bool check_frozen_processes(void)
+> >  int freeze_processes(void)
+> >  {
+> >  	int error;
+> > -	int oom_kills_saved;
+> >  
+> >  	error = __usermodehelper_disable(UMH_FREEZING);
+> >  	if (error)
+> > @@ -157,29 +132,22 @@ int freeze_processes(void)
+> >  	pm_wakeup_clear();
+> >  	pr_info("Freezing user space processes ... ");
+> >  	pm_freezing = true;
+> > -	oom_kills_saved = oom_kills_count();
+> >  	error = try_to_freeze_tasks(true);
+> >  	if (!error) {
+> >  		__usermodehelper_set_disable_depth(UMH_DISABLED);
+> > -		oom_killer_disable();
+> > -
+> > -		/*
+> > -		 * There might have been an OOM kill while we were
+> > -		 * freezing tasks and the killed task might be still
+> > -		 * on the way out so we have to double check for race.
+> > -		 */
+> > -		if (oom_kills_count() != oom_kills_saved &&
+> > -		    !check_frozen_processes()) {
+> > -			__usermodehelper_set_disable_depth(UMH_ENABLED);
+> > -			pr_cont("OOM in progress.");
+> > -			error = -EBUSY;
+> > -		} else {
+> > -			pr_cont("done.");
+> > -		}
+> > +		pr_cont("done.");
+> >  	}
+> >  	pr_cont("\n");
+> >  	BUG_ON(in_atomic());
+> >  
+> > +	/*
+> > +	 * Now that the whole userspace is frozen we need to disbale
+> > +	 * the OOM killer to disallow any further interference with
+> > +	 * killable tasks.
+> > +	 */
+> > +	if (!error && !oom_killer_disable())
+> 
+> So, previously, oom killer was disabled at the top of
+> freeze_kernel_threads(), right?  I think that was the better spot to
+> do that.  We don't want to disable oom killer before the system is
+> just about to enter total quiescence which is freeze_kernel_threads().
+> We want to delay this as long as possible.  Let's please disable oom
+> killing in at the top of freeze_kernel_threads() and re-enable at the
+> bottom of thaw_kernel_threads().
 
-Signed-off-by: Chintan Pandya <cpandya@codeaurora.org>
----
- drivers/staging/android/lowmemorykiller.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+Yes I had it this way but it didn't work out because thaw_kernel_threads
+is not called on the resume because it is only used as a fail
+path when kernel threads freezing fails. I would rather keep the
+enabling/disabling points as we had them. This is less risky IMHO.
 
-diff --git a/drivers/staging/android/lowmemorykiller.c b/drivers/staging/android/lowmemorykiller.c
-index b545d3d..5bf483f 100644
---- a/drivers/staging/android/lowmemorykiller.c
-+++ b/drivers/staging/android/lowmemorykiller.c
-@@ -110,7 +110,7 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
- 	if (min_score_adj == OOM_SCORE_ADJ_MAX + 1) {
- 		lowmem_print(5, "lowmem_scan %lu, %x, return 0\n",
- 			     sc->nr_to_scan, sc->gfp_mask);
--		return 0;
-+		return SHRINK_STOP;
- 	}
- 
- 	selected_oom_score_adj = min_score_adj;
-@@ -163,6 +163,9 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
- 		set_tsk_thread_flag(selected, TIF_MEMDIE);
- 		send_sig(SIGKILL, selected, 0);
- 		rem += selected_tasksize;
-+	} else {
-+		rcu_read_unlock();
-+		return SHRINK_STOP;
- 	}
- 
- 	lowmem_print(4, "lowmem_scan %lu, %x, return %lu\n",
 -- 
-Chintan Pandya
-
-QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
-member of the Code Aurora Forum, hosted by The Linux Foundation
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
