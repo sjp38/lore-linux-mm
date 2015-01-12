@@ -1,53 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 50C596B0032
-	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 12:35:18 -0500 (EST)
-Received: by mail-wg0-f48.google.com with SMTP id l2so20686628wgh.7
-        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 09:35:18 -0800 (PST)
-Received: from mail-wi0-x229.google.com (mail-wi0-x229.google.com. [2a00:1450:400c:c05::229])
-        by mx.google.com with ESMTPS id dk6si36864526wjb.113.2015.01.12.09.35.17
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id AC3646B0032
+	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 12:43:03 -0500 (EST)
+Received: by mail-wi0-f171.google.com with SMTP id bs8so16085916wib.4
+        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 09:43:03 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id fb12si36819459wjc.160.2015.01.12.09.43.02
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 12 Jan 2015 09:35:17 -0800 (PST)
-Received: by mail-wi0-f169.google.com with SMTP id n3so211588wiv.0
-        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 09:35:17 -0800 (PST)
-Date: Mon, 12 Jan 2015 18:35:15 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -v3 5/5] oom, PM: make OOM detection in the freezer path
- raceless
-Message-ID: <20150112173515.GF4877@dhcp22.suse.cz>
-References: <1420801555-22659-1-git-send-email-mhocko@suse.cz>
- <1420801555-22659-6-git-send-email-mhocko@suse.cz>
- <20150110194322.GE25319@htj.dyndns.org>
- <20150112161011.GE4877@dhcp22.suse.cz>
- <20150112172251.GB22156@htj.dyndns.org>
+        Mon, 12 Jan 2015 09:43:02 -0800 (PST)
+Date: Mon, 12 Jan 2015 18:42:58 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [RFC PATCH 0/6] xfs: truncate vs page fault IO exclusion
+Message-ID: <20150112174258.GN4468@quack.suse.cz>
+References: <1420669543-8093-1-git-send-email-david@fromorbit.com>
+ <20150108122448.GA18034@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150112172251.GB22156@htj.dyndns.org>
+In-Reply-To: <20150108122448.GA18034@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-pm@vger.kernel.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Dave Chinner <david@fromorbit.com>, xfs@oss.sgi.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon 12-01-15 12:22:51, Tejun Heo wrote:
-> On Mon, Jan 12, 2015 at 05:10:11PM +0100, Michal Hocko wrote:
-> > Yes I had it this way but it didn't work out because thaw_kernel_threads
-> > is not called on the resume because it is only used as a fail
-> > path when kernel threads freezing fails. I would rather keep the
+On Thu 08-01-15 04:24:48, Christoph Hellwig wrote:
+> > This patchset passes xfstests and various benchmarks and stress
+> > workloads, so the real question is now:
+> > 
+> > 	What have I missed?
+> > 
+> > Comments, thoughts, flames?
 > 
-> Ooh, that's kinda asymmetric.
-> 
-> > enabling/disabling points as we had them. This is less risky IMHO.
-> 
-> Okay, please feel free to add
-> 
->  Acked-by: Tejun Heo <tj@kernel.org>
+> Why is this done in XFS and not in generic code?
+  I was also thinking about this. In the end I decided not to propose this
+since the new rw-lock would grow struct inode and is actually necessary
+only for filesystems implementing hole punching AFAICS. And that isn't
+supported by that many filesystems. So fs private implementation which
+isn't that complicated looked like a reasonable solution to me...
 
-Thanks!
+								Honza
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
