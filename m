@@ -1,148 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 613A96B0070
-	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 04:30:57 -0500 (EST)
-Received: by mail-pa0-f50.google.com with SMTP id bj1so31017812pad.9
-        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 01:30:57 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id v8si22483909pdq.235.2015.01.12.01.30.55
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id CA8716B0032
+	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 04:50:49 -0500 (EST)
+Received: by mail-wi0-f170.google.com with SMTP id bs8so12697386wib.1
+        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 01:50:49 -0800 (PST)
+Received: from mail-wi0-x233.google.com (mail-wi0-x233.google.com. [2a00:1450:400c:c05::233])
+        by mx.google.com with ESMTPS id p16si12757163wiw.104.2015.01.12.01.50.48
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Jan 2015 01:30:55 -0800 (PST)
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm 1/2] mm: vmscan: account slab pages on memcg reclaim
-Date: Mon, 12 Jan 2015 12:30:37 +0300
-Message-ID: <880700a513472a8b86fd3100aef674322c66c68e.1421054931.git.vdavydov@parallels.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 12 Jan 2015 01:50:48 -0800 (PST)
+Received: by mail-wi0-f179.google.com with SMTP id ex7so13364615wid.0
+        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 01:50:48 -0800 (PST)
+Date: Mon, 12 Jan 2015 10:50:46 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm: fix corner case in anon_vma endless growing
+ prevention
+Message-ID: <20150112095046.GB4877@dhcp22.suse.cz>
+References: <20150111135406.13266.42007.stgit@zurg>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150111135406.13266.42007.stgit@zurg>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, "Elifaz, Dana" <Dana.Elifaz@amd.com>, "Bridgman, John" <John.Bridgman@amd.com>, Daniel Forrest <dan.forrest@ssec.wisc.edu>, Chris Clayton <chris2553@googlemail.com>, Oded Gabbay <oded.gabbay@amd.com>
 
-Since try_to_free_mem_cgroup_pages() can now call slab shrinkers, we
-should initialize reclaim_state and account reclaimed slab pages in
-scan_control->nr_reclaimed.
+On Sun 11-01-15 16:54:06, Konstantin Khlebnikov wrote:
+> Fix for BUG_ON(anon_vma->degree) splashes in unlink_anon_vmas()
+> ("kernel BUG at mm/rmap.c:399!").
+> 
+> Anon_vma_clone() is usually called for a copy of source vma in destination
+> argument. If source vma has anon_vma it should be already in dst->anon_vma.
+> NULL in dst->anon_vma is used as a sign that it's called from anon_vma_fork().
+> In this case anon_vma_clone() finds anon_vma for reusing.
+> 
+> Vma_adjust() calls it differently and this breaks anon_vma reusing logic:
+> anon_vma_clone() links vma to old anon_vma and updates degree counters but
+> vma_adjust() overrides vma->anon_vma right after that. As a result final
+> unlink_anon_vmas() decrements degree for wrong anon_vma.
+> 
+> This patch assigns ->anon_vma before calling anon_vma_clone().
+> 
+> Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
+> Fixes: 7a3ef208e662 ("mm: prevent endless growth of anon_vma hierarchy")
+> Tested-by: Chris Clayton <chris2553@googlemail.com>
+> Tested-by: Oded Gabbay <oded.gabbay@amd.com>
+> Cc: Daniel Forrest <dan.forrest@ssec.wisc.edu>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Rik van Riel <riel@redhat.com>
 
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
----
- mm/vmscan.c |   33 ++++++++++++++++++++++-----------
- 1 file changed, 22 insertions(+), 11 deletions(-)
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 16f3e45742d6..b2c041139a51 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -367,13 +367,16 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
-  * the ->seeks setting of the shrink function, which indicates the
-  * cost to recreate an object relative to that of an LRU page.
-  *
-- * Returns the number of reclaimed slab objects.
-+ * Returns the number of reclaimed slab objects. The number of reclaimed
-+ * pages is added to *@ret_nr_reclaimed.
-  */
- static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
- 				 struct mem_cgroup *memcg,
- 				 unsigned long nr_scanned,
--				 unsigned long nr_eligible)
-+				 unsigned long nr_eligible,
-+				 unsigned long *ret_nr_reclaimed)
- {
-+	struct reclaim_state *reclaim_state = current->reclaim_state;
- 	struct shrinker *shrinker;
- 	unsigned long freed = 0;
- 
-@@ -412,6 +415,10 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
- 
- 	up_read(&shrinker_rwsem);
- out:
-+	if (reclaim_state) {
-+		*ret_nr_reclaimed += reclaim_state->reclaimed_slab;
-+		reclaim_state->reclaimed_slab = 0;
-+	}
- 	cond_resched();
- 	return freed;
- }
-@@ -419,6 +426,7 @@ out:
- void drop_slab_node(int nid)
- {
- 	unsigned long freed;
-+	unsigned long nr_reclaimed = 0;
- 
- 	do {
- 		struct mem_cgroup *memcg = NULL;
-@@ -426,7 +434,7 @@ void drop_slab_node(int nid)
- 		freed = 0;
- 		do {
- 			freed += shrink_slab(GFP_KERNEL, nid, memcg,
--					     1000, 1000);
-+					     1000, 1000, &nr_reclaimed);
- 		} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)) != NULL);
- 	} while (freed > 10);
- }
-@@ -2339,7 +2347,6 @@ static inline bool should_continue_reclaim(struct zone *zone,
- static bool shrink_zone(struct zone *zone, struct scan_control *sc,
- 			bool is_classzone)
- {
--	struct reclaim_state *reclaim_state = current->reclaim_state;
- 	unsigned long nr_reclaimed, nr_scanned;
- 	bool reclaimable = false;
- 
-@@ -2371,7 +2378,7 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
- 			if (memcg && is_classzone)
- 				shrink_slab(sc->gfp_mask, zone_to_nid(zone),
- 					    memcg, sc->nr_scanned - scanned,
--					    lru_pages);
-+					    lru_pages, &sc->nr_reclaimed);
- 
- 			/*
- 			 * Direct reclaim and kswapd have to scan all memory
-@@ -2398,12 +2405,7 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
- 		if (global_reclaim(sc) && is_classzone)
- 			shrink_slab(sc->gfp_mask, zone_to_nid(zone), NULL,
- 				    sc->nr_scanned - nr_scanned,
--				    zone_lru_pages);
--
--		if (reclaim_state) {
--			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
--			reclaim_state->reclaimed_slab = 0;
--		}
-+				    zone_lru_pages, &sc->nr_reclaimed);
- 
- 		vmpressure(sc->gfp_mask, sc->target_mem_cgroup,
- 			   sc->nr_scanned - nr_scanned,
-@@ -2865,6 +2867,9 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
- 		.may_unmap = 1,
- 		.may_swap = may_swap,
- 	};
-+	struct reclaim_state reclaim_state = {
-+		.reclaimed_slab = 0,
-+	};
- 
- 	/*
- 	 * Unlike direct reclaim via alloc_pages(), memcg's reclaim doesn't
-@@ -2875,6 +2880,9 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
- 
- 	zonelist = NODE_DATA(nid)->node_zonelists;
- 
-+	lockdep_set_current_reclaim_state(gfp_mask);
-+	current->reclaim_state = &reclaim_state;
-+
- 	trace_mm_vmscan_memcg_reclaim_begin(0,
- 					    sc.may_writepage,
- 					    sc.gfp_mask);
-@@ -2883,6 +2891,9 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
- 
- 	trace_mm_vmscan_memcg_reclaim_end(nr_reclaimed);
- 
-+	current->reclaim_state = NULL;
-+	lockdep_clear_current_reclaim_state();
-+
- 	return nr_reclaimed;
- }
- #endif
+> ---
+>  mm/mmap.c |    6 ++++--
+>  1 file changed, 4 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 7b36aa7..12616c5 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -778,10 +778,12 @@ again:			remove_next = 1 + (end > next->vm_end);
+>  		if (exporter && exporter->anon_vma && !importer->anon_vma) {
+>  			int error;
+>  
+> +			importer->anon_vma = exporter->anon_vma;
+>  			error = anon_vma_clone(importer, exporter);
+> -			if (error)
+> +			if (error) {
+> +				importer->anon_vma = NULL;
+>  				return error;
+> -			importer->anon_vma = exporter->anon_vma;
+> +			}
+>  		}
+>  	}
+>  
+> 
+
 -- 
-1.7.10.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
