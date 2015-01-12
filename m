@@ -1,81 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id C1E126B0032
-	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 03:01:25 -0500 (EST)
-Received: by mail-pd0-f181.google.com with SMTP id v10so29106897pde.12
-        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 00:01:25 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id va1si22220596pbc.211.2015.01.12.00.01.23
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Jan 2015 00:01:24 -0800 (PST)
-Date: Mon, 12 Jan 2015 11:01:14 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH cgroup/for-3.19-fixes] cgroup: implement
- cgroup_subsys->unbind() callback
-Message-ID: <20150112080114.GE2110@esperanza>
-References: <54B01335.4060901@arm.com>
- <20150110085525.GD2110@esperanza>
- <20150110214316.GF25319@htj.dyndns.org>
- <20150111205543.GA5480@phnom.home.cmpxchg.org>
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 929916B0032
+	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 03:20:37 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id lf10so30784055pab.5
+        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 00:20:37 -0800 (PST)
+Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id ao1si22368736pad.182.2015.01.12.00.20.34
+        for <linux-mm@kvack.org>;
+        Mon, 12 Jan 2015 00:20:36 -0800 (PST)
+Date: Mon, 12 Jan 2015 17:20:57 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 1/3] mm/compaction: enhance trace output to know more
+ about compaction internals
+Message-ID: <20150112082057.GA26078@js1304-P5Q-DELUXE>
+References: <1417593127-6819-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <54ABA563.1040103@suse.cz>
+ <20150108081835.GC25453@js1304-P5Q-DELUXE>
+ <54AE43E3.60209@suse.cz>
+ <20150109105710.GN2395@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150111205543.GA5480@phnom.home.cmpxchg.org>
+In-Reply-To: <20150109105710.GN2395@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Tejun Heo <tj@kernel.org>, "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Will Deacon <Will.Deacon@arm.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, Jan 11, 2015 at 03:55:43PM -0500, Johannes Weiner wrote:
-> On Sat, Jan 10, 2015 at 04:43:16PM -0500, Tejun Heo wrote:
-> > > May be, we should kill the ref counter to the memory controller root in
-> > > cgroup_kill_sb only if there is no children at all, neither online nor
-> > > offline.
+On Fri, Jan 09, 2015 at 10:57:10AM +0000, Mel Gorman wrote:
+> On Thu, Jan 08, 2015 at 09:46:27AM +0100, Vlastimil Babka wrote:
+> > On 01/08/2015 09:18 AM, Joonsoo Kim wrote:
+> > > On Tue, Jan 06, 2015 at 10:05:39AM +0100, Vlastimil Babka wrote:
+> > >> On 12/03/2014 08:52 AM, Joonsoo Kim wrote:
+> > >> > It'd be useful to know where the both scanner is start. And, it also be
+> > >> > useful to know current range where compaction work. It will help to find
+> > >> > odd behaviour or problem on compaction.
+> > >> 
+> > >> Overall it looks good, just two questions:
+> > >> 1) Why change the pfn output to hexadecimal with different printf layout and
+> > >> change the variable names and? Is it that better to warrant people having to
+> > >> potentially modify their scripts parsing the old output?
+> > > 
+> > > Deciaml output has really bad readability since we manage all pages by order
+> > > of 2 which is well represented by hexadecimal. With hex output, we can
+> > > easily notice whether we move out from one pageblock to another one.
 > > 
-> > Ah, thanks for the analysis, but I really wanna avoid making hierarchy
-> > destruction conditions opaque to userland.  This is userland visible
-> > behavior.  It shouldn't be determined by kernel internals invisible
-> > outside.  This patch adds ss->unbind() which memcg can hook into to
-> > kick off draining of residual refs.  If this would work, I'll add this
-> > patch to cgroup/for-3.19-fixes, possibly with stable cc'd.
+> > OK. I don't have any strong objection, maybe Mel should comment on this as the
+> > author of most of the tracepoints? But if it happens, I think converting the old
+> > tracepoints to new hexadecimal format should be a separate patch from adding the
+> > new ones.
+> > 
 > 
-> How about this ->unbind() for memcg?
-> 
-> From d527ba1dbfdb58e1f7c7c4ee12b32ef2e5461990 Mon Sep 17 00:00:00 2001
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Date: Sun, 11 Jan 2015 10:29:05 -0500
-> Subject: [patch] mm: memcontrol: zap outstanding cache/swap references during
->  unbind
-> 
-> Cgroup core assumes that any outstanding css references after
-> offlining are temporary in nature, and e.g. mount waits for them to
-> disappear and release the root cgroup.  But leftover page cache and
-> swapout records in an offlined memcg are only dropped when the pages
-> get reclaimed under pressure or the swapped out pages get faulted in
-> from other cgroups, and so those cgroup operations can hang forever.
-> 
-> Implement the ->unbind() callback to actively get rid of outstanding
-> references when cgroup core wants them gone.  Swap out records are
-> deleted, such that the swap-in path will charge those pages to the
-> faulting task.  Page cache pages are moved to the root memory cgroup.
+> To date, I'm not aware of any user-space programs that heavily depend on
+> the formatting. The scripts I am aware of are ad-hoc and easily modified
+> to adapt to format changes. LTT-NG is the only tool that might be
+> depending on trace point formats but I severely doubt it's interested in
+> this particular tracepoint.
 
-... and kmem pages are ignored. I reckon we could reparent them (I
-submitted the patch set some time ago), but that's going to be tricky
-and will complicate regular kmem charge/uncharge paths, as well as
-list_lru_add/del. I don't think we can put up with it, provided we only
-want reparenting on unmount, do we not?
+Okay. Thanks for confirmation!
 
-Come to think of it, I wonder how many users actually want to mount
-different controllers subset after unmount. Because we could allow
-mounting the same subset perfectly well, even if it includes memcg. BTW,
-AFAIU in the unified hierarchy we won't have this problem at all,
-because by definition it mounts all controllers IIRC, so do we need to
-bother fixing this in such a complicated manner at all for the setup
-that's going to be deprecated anyway?
-
-Thanks,
-Vladimir
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
