@@ -1,53 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f48.google.com (mail-yh0-f48.google.com [209.85.213.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BB5B6B0070
-	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 11:11:48 -0500 (EST)
-Received: by mail-yh0-f48.google.com with SMTP id i57so9977689yha.7
-        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 08:11:48 -0800 (PST)
-Received: from SMTP.CITRIX.COM (smtp.citrix.com. [66.165.176.89])
-        by mx.google.com with ESMTPS id e68si735697yhe.175.2015.01.12.08.11.42
+Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id A554E6B006C
+	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 11:14:34 -0500 (EST)
+Received: by mail-ie0-f171.google.com with SMTP id ar1so26060000iec.2
+        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 08:14:34 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id ag10si12305118icc.28.2015.01.12.08.14.32
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 12 Jan 2015 08:11:43 -0800 (PST)
-From: David Vrabel <david.vrabel@citrix.com>
-Subject: [PATCHv2 0/2] mm: infrastructure for correctly handling foreign pages on Xen
-Date: Mon, 12 Jan 2015 15:53:11 +0000
-Message-ID: <1421077993-7909-1-git-send-email-david.vrabel@citrix.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 12 Jan 2015 08:14:33 -0800 (PST)
+Message-ID: <54B3F2E3.7050208@codeaurora.org>
+Date: Mon, 12 Jan 2015 21:44:27 +0530
+From: Chintan Pandya <cpandya@codeaurora.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [PATCH] lowmemorykiller: Avoid excessive/redundant calling of
+ LMK
+References: <1421078923-29485-1-git-send-email-cpandya@codeaurora.org>
+In-Reply-To: <1421078923-29485-1-git-send-email-cpandya@codeaurora.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
-Cc: David Vrabel <david.vrabel@citrix.com>, linux-mm@kvack.org
+To: Chintan Pandya <cpandya@codeaurora.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Weijie Yang <weijie.yang@samsung.com>, David Rientjes <rientjes@google.com>, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org
 
-These two patches are the common parts of a larger Xen series[1]
-fixing several long-standing bugs the handling of foreign[2] pages in
-Xen guests.
+Please ignore this patch. My extreme bad that I merged commit messages 
+applicable to some very old kernel into this patch. Updating shortly.
 
-The first patch is required to fix get_user_pages[_fast]() with
-userspace space mappings of such foreign pages.  Basically, pte_page()
-doesn't work so an alternate mechanism is needed to get the page from
-a VMA and address.  By requiring mappings needing this method are
-'special' this should not have an impact on the common use cases.
+On 01/12/2015 09:38 PM, Chintan Pandya wrote:
+> The global shrinker will invoke lowmem_shrink in a loop.
+> The loop will be run (total_scan_pages/batch_size) times.
+> The default batch_size will be 128 which will make
+> shrinker invoking 100s of times. LMK does meaningful
+> work only during first 2-3 times and then rest of the
+> invocations are just CPU cycle waste. Fix that by giving
+> excessively large batch size so that lowmem_shrink will
+> be called just once and in the same try LMK does the
+> needful.
+>
+> Signed-off-by: Chintan Pandya<cpandya@codeaurora.org>
+> ---
+>   drivers/staging/android/lowmemorykiller.c | 5 ++++-
+>   1 file changed, 4 insertions(+), 1 deletion(-)
+>
+> diff --git a/drivers/staging/android/lowmemorykiller.c b/drivers/staging/android/lowmemorykiller.c
+> index b545d3d..5bf483f 100644
+> --- a/drivers/staging/android/lowmemorykiller.c
+> +++ b/drivers/staging/android/lowmemorykiller.c
+> @@ -110,7 +110,7 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
+>   	if (min_score_adj == OOM_SCORE_ADJ_MAX + 1) {
+>   		lowmem_print(5, "lowmem_scan %lu, %x, return 0\n",
+>   			     sc->nr_to_scan, sc->gfp_mask);
+> -		return 0;
+> +		return SHRINK_STOP;
+>   	}
+>
+>   	selected_oom_score_adj = min_score_adj;
+> @@ -163,6 +163,9 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
+>   		set_tsk_thread_flag(selected, TIF_MEMDIE);
+>   		send_sig(SIGKILL, selected, 0);
+>   		rem += selected_tasksize;
+> +	} else {
+> +		rcu_read_unlock();
+> +		return SHRINK_STOP;
+>   	}
+>
+>   	lowmem_print(4, "lowmem_scan %lu, %x, return %lu\n",
 
-The second patch isn't essential but helps with readability of the
-resulting user of the page flag.
 
-For further background reading see:
+-- 
+Chintan Pandya
 
-  http://xenbits.xen.org/people/dvrabel/grant-improvements-C.pdf
-
-Changes in v2:
-
-- Add a find_page VMA op instead of the pages field so: a) the size of
-  struct vm_area_struct does not increase; and b) the common code need
-  not handling splitting the pages area.
-
-David
-
-[1] http://lists.xen.org/archives/html/xen-devel/2015-01/msg00979.html
-
-[2] Another guest's page temporarily granted to this guest.
+QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
+member of the Code Aurora Forum, hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
