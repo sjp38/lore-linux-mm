@@ -1,95 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 773B16B0032
-	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 11:10:16 -0500 (EST)
-Received: by mail-wi0-f169.google.com with SMTP id r20so14847203wiv.0
-        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 08:10:16 -0800 (PST)
-Received: from mail-wi0-x231.google.com (mail-wi0-x231.google.com. [2a00:1450:400c:c05::231])
-        by mx.google.com with ESMTPS id fz7si36430145wjb.100.2015.01.12.08.10.13
+Received: from mail-yk0-f179.google.com (mail-yk0-f179.google.com [209.85.160.179])
+	by kanga.kvack.org (Postfix) with ESMTP id E1FEA6B006C
+	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 11:11:44 -0500 (EST)
+Received: by mail-yk0-f179.google.com with SMTP id 19so9558509ykq.10
+        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 08:11:44 -0800 (PST)
+Received: from SMTP.CITRIX.COM (smtp.citrix.com. [66.165.176.89])
+        by mx.google.com with ESMTPS id e68si735697yhe.175.2015.01.12.08.11.41
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 12 Jan 2015 08:10:13 -0800 (PST)
-Received: by mail-wi0-f177.google.com with SMTP id l15so15718591wiw.4
-        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 08:10:13 -0800 (PST)
-Date: Mon, 12 Jan 2015 17:10:11 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -v3 5/5] oom, PM: make OOM detection in the freezer path
- raceless
-Message-ID: <20150112161011.GE4877@dhcp22.suse.cz>
-References: <1420801555-22659-1-git-send-email-mhocko@suse.cz>
- <1420801555-22659-6-git-send-email-mhocko@suse.cz>
- <20150110194322.GE25319@htj.dyndns.org>
+        Mon, 12 Jan 2015 08:11:42 -0800 (PST)
+From: David Vrabel <david.vrabel@citrix.com>
+Subject: [PATCH 1/2] mm: provide a find_page vma operation
+Date: Mon, 12 Jan 2015 15:53:12 +0000
+Message-ID: <1421077993-7909-2-git-send-email-david.vrabel@citrix.com>
+In-Reply-To: <1421077993-7909-1-git-send-email-david.vrabel@citrix.com>
+References: <1421077993-7909-1-git-send-email-david.vrabel@citrix.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150110194322.GE25319@htj.dyndns.org>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Oleg Nesterov <oleg@redhat.com>, Cong Wang <xiyou.wangcong@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-pm@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+Cc: David Vrabel <david.vrabel@citrix.com>, linux-mm@kvack.org
 
-On Sat 10-01-15 14:43:22, Tejun Heo wrote:
-> On Fri, Jan 09, 2015 at 12:05:55PM +0100, Michal Hocko wrote:
-> ...
-> > @@ -142,7 +118,6 @@ static bool check_frozen_processes(void)
-> >  int freeze_processes(void)
-> >  {
-> >  	int error;
-> > -	int oom_kills_saved;
-> >  
-> >  	error = __usermodehelper_disable(UMH_FREEZING);
-> >  	if (error)
-> > @@ -157,29 +132,22 @@ int freeze_processes(void)
-> >  	pm_wakeup_clear();
-> >  	pr_info("Freezing user space processes ... ");
-> >  	pm_freezing = true;
-> > -	oom_kills_saved = oom_kills_count();
-> >  	error = try_to_freeze_tasks(true);
-> >  	if (!error) {
-> >  		__usermodehelper_set_disable_depth(UMH_DISABLED);
-> > -		oom_killer_disable();
-> > -
-> > -		/*
-> > -		 * There might have been an OOM kill while we were
-> > -		 * freezing tasks and the killed task might be still
-> > -		 * on the way out so we have to double check for race.
-> > -		 */
-> > -		if (oom_kills_count() != oom_kills_saved &&
-> > -		    !check_frozen_processes()) {
-> > -			__usermodehelper_set_disable_depth(UMH_ENABLED);
-> > -			pr_cont("OOM in progress.");
-> > -			error = -EBUSY;
-> > -		} else {
-> > -			pr_cont("done.");
-> > -		}
-> > +		pr_cont("done.");
-> >  	}
-> >  	pr_cont("\n");
-> >  	BUG_ON(in_atomic());
-> >  
-> > +	/*
-> > +	 * Now that the whole userspace is frozen we need to disbale
-> > +	 * the OOM killer to disallow any further interference with
-> > +	 * killable tasks.
-> > +	 */
-> > +	if (!error && !oom_killer_disable())
-> 
-> So, previously, oom killer was disabled at the top of
-> freeze_kernel_threads(), right?  I think that was the better spot to
-> do that.  We don't want to disable oom killer before the system is
-> just about to enter total quiescence which is freeze_kernel_threads().
-> We want to delay this as long as possible.  Let's please disable oom
-> killing in at the top of freeze_kernel_threads() and re-enable at the
-> bottom of thaw_kernel_threads().
+The optional find_page VMA operation is used to lookup the pages
+backing a VMA.  This is useful in cases where the normal mechanisms
+for finding the page don't work.  This is only called if the PTE is
+special.
 
-Yes I had it this way but it didn't work out because thaw_kernel_threads
-is not called on the resume because it is only used as a fail
-path when kernel threads freezing fails. I would rather keep the
-enabling/disabling points as we had them. This is less risky IMHO.
+One use case is a Xen PV guest mapping foreign pages into userspace.
 
+In a Xen PV guest, the PTEs contain MFNs so get_user_pages() (for
+example) must do an MFN to PFN (M2P) lookup before it can get the
+page.  For foreign pages (those owned by another guest) the M2P lookup
+returns the PFN as seen by the foreign guest (which would be
+completely the wrong page for the local guest).
+
+This cannot be fixed up improving the M2P lookup since one MFN may be
+mapped onto two or more pages so getting the right page is impossible
+given just the MFN.
+
+Signed-off-by: David Vrabel <david.vrabel@citrix.com>
+---
+ include/linux/mm.h |    3 +++
+ mm/memory.c        |    2 ++
+ 2 files changed, 5 insertions(+)
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 80fc92a..1306643 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -290,6 +290,9 @@ struct vm_operations_struct {
+ 	/* called by sys_remap_file_pages() to populate non-linear mapping */
+ 	int (*remap_pages)(struct vm_area_struct *vma, unsigned long addr,
+ 			   unsigned long size, pgoff_t pgoff);
++
++	struct page * (*find_page)(struct vm_area_struct *vma,
++				   unsigned long addr);
+ };
+ 
+ struct mmu_gather;
+diff --git a/mm/memory.c b/mm/memory.c
+index c6565f0..f23a862 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -754,6 +754,8 @@ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+ 	if (HAVE_PTE_SPECIAL) {
+ 		if (likely(!pte_special(pte)))
+ 			goto check_pfn;
++		if (vma->vm_ops && vma->vm_ops->find_page)
++			return vma->vm_ops->find_page(vma, addr);
+ 		if (vma->vm_flags & (VM_PFNMAP | VM_MIXEDMAP))
+ 			return NULL;
+ 		if (!is_zero_pfn(pfn))
 -- 
-Michal Hocko
-SUSE Labs
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
