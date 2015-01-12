@@ -1,149 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 057CD6B0032
-	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 09:34:57 -0500 (EST)
-Received: by mail-we0-f176.google.com with SMTP id w61so19363016wes.7
-        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 06:34:56 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o9si36098086wjw.15.2015.01.12.06.34.55
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 12 Jan 2015 06:34:55 -0800 (PST)
-Message-ID: <54B3DB8D.3000005@suse.cz>
-Date: Mon, 12 Jan 2015 15:34:53 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 633DD6B0032
+	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 09:48:36 -0500 (EST)
+Received: by mail-qc0-f180.google.com with SMTP id i8so18203526qcq.11
+        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 06:48:36 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id y4si22680497qcl.31.2015.01.12.06.48.33
+        for <linux-mm@kvack.org>;
+        Mon, 12 Jan 2015 06:48:33 -0800 (PST)
+Date: Mon, 12 Jan 2015 09:47:57 -0500
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Re: [PATCH v12 00/20] DAX: Page cache bypass for filesystems on
+ memory storage
+Message-ID: <20150112144757.GE5661@wil.cx>
+References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
+ <20141210140347.GA23252@infradead.org>
+ <20141210141211.GD2220@wil.cx>
+ <20150105184143.GA665@infradead.org>
+ <20150106004714.6d63023c.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 3/5] mm/compaction: print current range where compaction
- work
-References: <1421050875-26332-1-git-send-email-iamjoonsoo.kim@lge.com> <1421050875-26332-3-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1421050875-26332-3-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=iso-8859-2
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150106004714.6d63023c.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Hellwig <hch@infradead.org>, Matthew Wilcox <willy@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Milosz Tanski <milosz@adfin.com>
 
-On 01/12/2015 09:21 AM, Joonsoo Kim wrote:
-> It'd be useful to know current range where compaction work for detailed
-> analysis. With it, we can know pageblock where we actually scan and
-> isolate, and, how much pages we try in that pageblock and can guess why
-> it doesn't become freepage with pageblock order roughly.
+On Tue, Jan 06, 2015 at 12:47:14AM -0800, Andrew Morton wrote:
+> On Mon, 5 Jan 2015 10:41:43 -0800 Christoph Hellwig <hch@infradead.org> wrote:
 > 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > On Wed, Dec 10, 2014 at 09:12:11AM -0500, Matthew Wilcox wrote:
+> > > On Wed, Dec 10, 2014 at 06:03:47AM -0800, Christoph Hellwig wrote:
+> > > > What is the status of this patch set?
+> > > 
+> > > I have no outstanding bug reports against it.  Linus told me that he
+> > > wants to see it come through Andrew's tree.  I have an email two weeks
+> > > ago from Andrew saying that it's on his list.  I would love to see it
+> > > merged since it's almost a year old at this point.
+> > 
+> > And since then another month and aother merge window has passed.  Is
+> > there any way to speed up merging big patch sets like this one?
+> 
+> I took a look at dax last time and found it to be unreviewable due to
+> lack of design description, objectives and code comments.  Hopefully
+> that's been addressed - I should get back to it fairly soon as I chew
+> through merge window and holiday backlog.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-> ---
->  include/trace/events/compaction.h |   30 +++++++++++++++++++++++-------
->  mm/compaction.c                   |    9 ++++++---
->  2 files changed, 29 insertions(+), 10 deletions(-)
-> 
-> diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
-> index 839f6fa..139020b 100644
-> --- a/include/trace/events/compaction.h
-> +++ b/include/trace/events/compaction.h
-> @@ -11,39 +11,55 @@
->  
->  DECLARE_EVENT_CLASS(mm_compaction_isolate_template,
->  
-> -	TP_PROTO(unsigned long nr_scanned,
-> +	TP_PROTO(
-> +		unsigned long start_pfn,
-> +		unsigned long end_pfn,
-> +		unsigned long nr_scanned,
->  		unsigned long nr_taken),
->  
-> -	TP_ARGS(nr_scanned, nr_taken),
-> +	TP_ARGS(start_pfn, end_pfn, nr_scanned, nr_taken),
->  
->  	TP_STRUCT__entry(
-> +		__field(unsigned long, start_pfn)
-> +		__field(unsigned long, end_pfn)
->  		__field(unsigned long, nr_scanned)
->  		__field(unsigned long, nr_taken)
->  	),
->  
->  	TP_fast_assign(
-> +		__entry->start_pfn = start_pfn;
-> +		__entry->end_pfn = end_pfn;
->  		__entry->nr_scanned = nr_scanned;
->  		__entry->nr_taken = nr_taken;
->  	),
->  
-> -	TP_printk("nr_scanned=%lu nr_taken=%lu",
-> +	TP_printk("range=(0x%lx ~ 0x%lx) nr_scanned=%lu nr_taken=%lu",
-> +		__entry->start_pfn,
-> +		__entry->end_pfn,
->  		__entry->nr_scanned,
->  		__entry->nr_taken)
->  );
->  
->  DEFINE_EVENT(mm_compaction_isolate_template, mm_compaction_isolate_migratepages,
->  
-> -	TP_PROTO(unsigned long nr_scanned,
-> +	TP_PROTO(
-> +		unsigned long start_pfn,
-> +		unsigned long end_pfn,
-> +		unsigned long nr_scanned,
->  		unsigned long nr_taken),
->  
-> -	TP_ARGS(nr_scanned, nr_taken)
-> +	TP_ARGS(start_pfn, end_pfn, nr_scanned, nr_taken)
->  );
->  
->  DEFINE_EVENT(mm_compaction_isolate_template, mm_compaction_isolate_freepages,
-> -	TP_PROTO(unsigned long nr_scanned,
-> +
-> +	TP_PROTO(
-> +		unsigned long start_pfn,
-> +		unsigned long end_pfn,
-> +		unsigned long nr_scanned,
->  		unsigned long nr_taken),
->  
-> -	TP_ARGS(nr_scanned, nr_taken)
-> +	TP_ARGS(start_pfn, end_pfn, nr_scanned, nr_taken)
->  );
->  
->  TRACE_EVENT(mm_compaction_migratepages,
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 2d86a20..be28469 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -429,11 +429,12 @@ isolate_fail:
->  
->  	}
->  
-> +	trace_mm_compaction_isolate_freepages(*start_pfn, blockpfn,
-> +					nr_scanned, total_isolated);
-> +
->  	/* Record how far we have got within the block */
->  	*start_pfn = blockpfn;
->  
-> -	trace_mm_compaction_isolate_freepages(nr_scanned, total_isolated);
-> -
->  	/*
->  	 * If strict isolation is requested by CMA then check that all the
->  	 * pages requested were isolated. If there were any failures, 0 is
-> @@ -589,6 +590,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
->  	unsigned long flags = 0;
->  	bool locked = false;
->  	struct page *page = NULL, *valid_page = NULL;
-> +	unsigned long start_pfn = low_pfn;
->  
->  	/*
->  	 * Ensure that there are not too many pages isolated from the LRU
-> @@ -749,7 +751,8 @@ isolate_success:
->  	if (low_pfn == end_pfn)
->  		update_pageblock_skip(cc, valid_page, nr_isolated, true);
->  
-> -	trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
-> +	trace_mm_compaction_isolate_migratepages(start_pfn, low_pfn,
-> +						nr_scanned, nr_isolated);
->  
->  	count_compact_events(COMPACTMIGRATE_SCANNED, nr_scanned);
->  	if (nr_isolated)
-> 
+Now that Jens has merged patches 1 and 2 into his block tree, you don't
+need to spend any time looking at those.  If I could trouble you to
+merge patches 3 & 4 through mm, the rest of the patches are VFS/ext2,
+and maye we could merge those through Al's tree instead of taking your
+valuable time?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
