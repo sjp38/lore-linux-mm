@@ -1,21 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f177.google.com (mail-yk0-f177.google.com [209.85.160.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 766996B006E
-	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 18:09:32 -0500 (EST)
-Received: by mail-yk0-f177.google.com with SMTP id 9so10555638ykp.8
-        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 15:09:32 -0800 (PST)
+Received: from mail-yh0-f46.google.com (mail-yh0-f46.google.com [209.85.213.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A08D6B0070
+	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 18:09:38 -0500 (EST)
+Received: by mail-yh0-f46.google.com with SMTP id t59so11047640yho.5
+        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 15:09:38 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 48si9806963yhw.195.2015.01.12.15.09.30
+        by mx.google.com with ESMTPS id d204si9941300yka.22.2015.01.12.15.09.37
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Jan 2015 15:09:31 -0800 (PST)
-Date: Mon, 12 Jan 2015 15:09:29 -0800
+        Mon, 12 Jan 2015 15:09:37 -0800 (PST)
+Date: Mon, 12 Jan 2015 15:09:35 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v12 03/20] mm: Fix XIP fault vs truncate race
-Message-Id: <20150112150929.55c31ccb22f466a9dbbde5d6@linux-foundation.org>
-In-Reply-To: <1414185652-28663-4-git-send-email-matthew.r.wilcox@intel.com>
+Subject: Re: [PATCH v12 04/20] mm: Allow page fault handlers to perform the
+ COW
+Message-Id: <20150112150935.e617603089bc07e68f0e657c@linux-foundation.org>
+In-Reply-To: <1414185652-28663-5-git-send-email-matthew.r.wilcox@intel.com>
 References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
-	<1414185652-28663-4-git-send-email-matthew.r.wilcox@intel.com>
+	<1414185652-28663-5-git-send-email-matthew.r.wilcox@intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -24,114 +25,68 @@ List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <matthew.r.wilcox@intel.com>
 Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@linux.intel.com
 
-On Fri, 24 Oct 2014 17:20:35 -0400 Matthew Wilcox <matthew.r.wilcox@intel.com> wrote:
+On Fri, 24 Oct 2014 17:20:36 -0400 Matthew Wilcox <matthew.r.wilcox@intel.com> wrote:
 
-> Pagecache faults recheck i_size after taking the page lock to ensure that
-> the fault didn't race against a truncate.  We don't have a page to lock
-> in the XIP case, so use the i_mmap_mutex instead.  It is locked in the
-> truncate path in unmap_mapping_range() after updating i_size.  So while
-> we hold it in the fault path, we are guaranteed that either i_size has
-> already been updated in the truncate path, or that the truncate will
-> subsequently call zap_page_range_single() and so remove the mapping we
-> have just inserted.
+> Currently COW of an XIP file is done by first bringing in a read-only
+> mapping, then retrying the fault and copying the page.  It is much more
+> efficient to tell the fault handler that a COW is being attempted (by
+> passing in the pre-allocated page in the vm_fault structure), and allow
+> the handler to perform the COW operation itself.
 > 
-> There is a window of time in which i_size has been reduced and the
-> thread has a mapping to a page which will be removed from the file,
-> but this is harmless as the page will not be allocated to a different
-> purpose before the thread's access to it is revoked.
-> 
+> The handler cannot insert the page itself if there is already a read-only
+> mapping at that address, so allow the handler to return VM_FAULT_LOCKED
+> and set the fault_page to be NULL.  This indicates to the MM code that
+> the i_mmap_mutex is held instead of the page lock.
 
-i_mmap_mutex is no more.  I made what are hopefulyl the appropriate
-changes.
+Again, the locking gets a bit subtle.  How can we make this clearer to
+readers of the core code.  I had a shot but it's a bit lame - DAX uses
+i_mmap_lock for what???
 
-Also, that new locking rule is pretty subtle and we need to find a way
-of alerting readers (and modifiers) of mm/memory.c to DAX's use of
-i_mmap_lock().  Please review my suggested addition for accuracy and
-cmopleteness.
+If I know that, I'd know whether to have used i_mmap_lock_read() or
+i_mmap_lock_write() :(
 
 
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm-fix-xip-fault-vs-truncate-race-fix
+Subject: mm-allow-page-fault-handlers-to-perform-the-cow-fix
 
-switch to i_mmap_lock_read(), add comment in unmap_single_vma()
-
-Cc: Jan Kara <jack@suse.cz>
 Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
 Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
 
- mm/filemap_xip.c |   20 +++++++++++++-------
- mm/memory.c      |    5 +++++
- 2 files changed, 18 insertions(+), 7 deletions(-)
+ mm/memory.c |   12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
 
-diff -puN mm/filemap_xip.c~mm-fix-xip-fault-vs-truncate-race-fix mm/filemap_xip.c
---- a/mm/filemap_xip.c~mm-fix-xip-fault-vs-truncate-race-fix
-+++ a/mm/filemap_xip.c
-@@ -255,17 +255,20 @@ again:
- 		__xip_unmap(mapping, vmf->pgoff);
- 
- found:
--		/* We must recheck i_size under i_mmap_mutex */
--		mutex_lock(&mapping->i_mmap_mutex);
-+		/*
-+		 * We must recheck i_size under i_mmap_rwsem to prevent races
-+		 * with truncation
-+		 */
-+		i_mmap_lock_read(mapping);
- 		size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >>
- 							PAGE_CACHE_SHIFT;
- 		if (unlikely(vmf->pgoff >= size)) {
--			mutex_unlock(&mapping->i_mmap_mutex);
-+			i_mmap_unlock_read(mapping);
- 			return VM_FAULT_SIGBUS;
- 		}
- 		err = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
- 							xip_pfn);
--		mutex_unlock(&mapping->i_mmap_mutex);
-+		i_mmap_unlock_read(mapping);
- 		if (err == -ENOMEM)
- 			return VM_FAULT_OOM;
- 		/*
-@@ -290,8 +293,11 @@ found:
- 		if (error != -ENODATA)
- 			goto out;
- 
--		/* We must recheck i_size under i_mmap_mutex */
--		mutex_lock(&mapping->i_mmap_mutex);
-+		/*
-+		 * We must recheck i_size under i_mmap_rwsem to prevent races
-+		 * with truncation
-+		 */
-+		i_mmap_lock_read(mapping);
- 		size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >>
- 							PAGE_CACHE_SHIFT;
- 		if (unlikely(vmf->pgoff >= size)) {
-@@ -309,7 +315,7 @@ found:
- 
- 		ret = VM_FAULT_NOPAGE;
- unlock:
--		mutex_unlock(&mapping->i_mmap_mutex);
-+		i_mmap_unlock_read(mapping);
- out:
- 		write_seqcount_end(&xip_sparse_seq);
- 		mutex_unlock(&xip_sparse_mutex);
-diff -puN mm/memory.c~mm-fix-xip-fault-vs-truncate-race-fix mm/memory.c
---- a/mm/memory.c~mm-fix-xip-fault-vs-truncate-race-fix
+diff -puN include/linux/mm.h~mm-allow-page-fault-handlers-to-perform-the-cow-fix include/linux/mm.h
+diff -puN mm/memory.c~mm-allow-page-fault-handlers-to-perform-the-cow-fix mm/memory.c
+--- a/mm/memory.c~mm-allow-page-fault-handlers-to-perform-the-cow-fix
 +++ a/mm/memory.c
-@@ -1327,6 +1327,11 @@ static void unmap_single_vma(struct mmu_
- 			 * safe to do nothing in this case.
- 			 */
- 			if (vma->vm_file) {
-+				/*
-+				 * Note that DAX uses i_mmap_lock to serialise
-+				 * against file truncate - truncate calls into
-+				 * unmap_single_vma().
-+				 */
- 				i_mmap_lock_write(vma->vm_file->f_mapping);
- 				__unmap_hugepage_range_final(tlb, vma, start, end, NULL);
- 				i_mmap_unlock_write(vma->vm_file->f_mapping);
+@@ -2961,7 +2961,11 @@ static int do_cow_fault(struct mm_struct
+ 			unlock_page(fault_page);
+ 			page_cache_release(fault_page);
+ 		} else {
+-			mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
++			/*
++			 * DAX doesn't have a page to lock, so it uses
++			 * i_mmap_lock()
++			 */
++			i_mmap_unlock_read(&vma->vm_file->f_mapping);
+ 		}
+ 		goto uncharge_out;
+ 	}
+@@ -2973,7 +2977,11 @@ static int do_cow_fault(struct mm_struct
+ 		unlock_page(fault_page);
+ 		page_cache_release(fault_page);
+ 	} else {
+-		mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
++			/*
++			 * DAX doesn't have a page to lock, so it uses
++			 * i_mmap_lock()
++			 */
++			i_mmap_unlock_read(&vma->vm_file->f_mapping);
+ 	}
+ 	return ret;
+ uncharge_out:
 _
 
 --
