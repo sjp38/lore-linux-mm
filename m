@@ -1,305 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 939DA6B006C
-	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 11:35:51 -0500 (EST)
-Received: by mail-wi0-f171.google.com with SMTP id bs8so15644567wib.4
-        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 08:35:51 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ey8si36772007wjd.7.2015.01.12.08.35.50
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 12 Jan 2015 08:35:50 -0800 (PST)
-Message-ID: <54B3F7E3.4000803@suse.cz>
-Date: Mon, 12 Jan 2015 17:35:47 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+Received: from mail-qc0-f177.google.com (mail-qc0-f177.google.com [209.85.216.177])
+	by kanga.kvack.org (Postfix) with ESMTP id CFAC36B0032
+	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 12:02:18 -0500 (EST)
+Received: by mail-qc0-f177.google.com with SMTP id x3so18869556qcv.8
+        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 09:02:17 -0800 (PST)
+Received: from service88.mimecast.com (service88.mimecast.com. [195.130.217.12])
+        by mx.google.com with ESMTP id z20si23243645qax.23.2015.01.12.09.02.16
+        for <linux-mm@kvack.org>;
+        Mon, 12 Jan 2015 09:02:16 -0800 (PST)
+Date: Mon, 12 Jan 2015 17:02:11 +0000
+From: "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>
+Subject: Re: [Regression] 3.19-rc3 : memcg: Hang in mount memcg
+Message-ID: <20150112170210.GA1288@e106634-lin.cambridge.arm.com>
+References: <54B01335.4060901@arm.com>
+ <20150109214649.GF2785@htj.dyndns.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 5/5] mm/compaction: add tracepoint to observe behaviour
- of compaction defer
-References: <1421050875-26332-1-git-send-email-iamjoonsoo.kim@lge.com> <1421050875-26332-5-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1421050875-26332-5-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=iso-8859-2
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20150109214649.GF2785@htj.dyndns.org>
+Content-Type: text/plain; charset=WINDOWS-1252
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: linux-kernel@vger.kernel.org, vdavydov@parallels.com, hannes@cmpxchg.org, Will.Deacon@arm.com, linux-mm@kvack.org, suzuki.poulose@arm.com
 
-On 01/12/2015 09:21 AM, Joonsoo Kim wrote:
-> compaction deferring logic is heavy hammer that block the way to
-> the compaction. It doesn't consider overall system state, so it
-> could prevent user from doing compaction falsely. In other words,
-> even if system has enough range of memory to compact, compaction would be
-> skipped due to compaction deferring logic. This patch add new tracepoint
-> to understand work of deferring logic. This will also help to check
-> compaction success and fail.
-> 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> ---
->  include/linux/compaction.h        |   65 +++------------------------------
->  include/trace/events/compaction.h |   55 ++++++++++++++++++++++++++++
->  mm/compaction.c                   |   72 +++++++++++++++++++++++++++++++++++++
->  3 files changed, 132 insertions(+), 60 deletions(-)
-> 
-> diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-> index d82181a..026ff64 100644
-> --- a/include/linux/compaction.h
-> +++ b/include/linux/compaction.h
-> @@ -44,66 +44,11 @@ extern void reset_isolation_suitable(pg_data_t *pgdat);
->  extern unsigned long compaction_suitable(struct zone *zone, int order,
->  					int alloc_flags, int classzone_idx);
->  
-> -/* Do not skip compaction more than 64 times */
-> -#define COMPACT_MAX_DEFER_SHIFT 6
-> -
-> -/*
-> - * Compaction is deferred when compaction fails to result in a page
-> - * allocation success. 1 << compact_defer_limit compactions are skipped up
-> - * to a limit of 1 << COMPACT_MAX_DEFER_SHIFT
-> - */
-> -static inline void defer_compaction(struct zone *zone, int order)
-> -{
-> -	zone->compact_considered = 0;
-> -	zone->compact_defer_shift++;
-> -
-> -	if (order < zone->compact_order_failed)
-> -		zone->compact_order_failed = order;
-> -
-> -	if (zone->compact_defer_shift > COMPACT_MAX_DEFER_SHIFT)
-> -		zone->compact_defer_shift = COMPACT_MAX_DEFER_SHIFT;
-> -}
-> -
-> -/* Returns true if compaction should be skipped this time */
-> -static inline bool compaction_deferred(struct zone *zone, int order)
-> -{
-> -	unsigned long defer_limit = 1UL << zone->compact_defer_shift;
-> -
-> -	if (order < zone->compact_order_failed)
-> -		return false;
-> -
-> -	/* Avoid possible overflow */
-> -	if (++zone->compact_considered > defer_limit)
-> -		zone->compact_considered = defer_limit;
-> -
-> -	return zone->compact_considered < defer_limit;
-> -}
-> -
-> -/*
-> - * Update defer tracking counters after successful compaction of given order,
-> - * which means an allocation either succeeded (alloc_success == true) or is
-> - * expected to succeed.
-> - */
-> -static inline void compaction_defer_reset(struct zone *zone, int order,
-> -		bool alloc_success)
-> -{
-> -	if (alloc_success) {
-> -		zone->compact_considered = 0;
-> -		zone->compact_defer_shift = 0;
-> -	}
-> -	if (order >= zone->compact_order_failed)
-> -		zone->compact_order_failed = order + 1;
-> -}
-> -
-> -/* Returns true if restarting compaction after many failures */
-> -static inline bool compaction_restarting(struct zone *zone, int order)
-> -{
-> -	if (order < zone->compact_order_failed)
-> -		return false;
-> -
-> -	return zone->compact_defer_shift == COMPACT_MAX_DEFER_SHIFT &&
-> -		zone->compact_considered >= 1UL << zone->compact_defer_shift;
-> -}
-> +extern void defer_compaction(struct zone *zone, int order);
-> +extern bool compaction_deferred(struct zone *zone, int order);
-> +extern void compaction_defer_reset(struct zone *zone, int order,
-> +				bool alloc_success);
-> +extern bool compaction_restarting(struct zone *zone, int order);
->  
->  #else
->  static inline unsigned long try_to_compact_pages(struct zonelist *zonelist,
-> diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
-> index 839dd4f..f879f41 100644
-> --- a/include/trace/events/compaction.h
-> +++ b/include/trace/events/compaction.h
-> @@ -258,6 +258,61 @@ DEFINE_EVENT(mm_compaction_suitable_template, mm_compaction_suitable,
->  	TP_ARGS(zone, order, alloc_flags, classzone_idx, ret)
->  );
->  
-> +DECLARE_EVENT_CLASS(mm_compaction_defer_template,
-> +
-> +	TP_PROTO(struct zone *zone, int order),
-> +
-> +	TP_ARGS(zone, order),
-> +
-> +	TP_STRUCT__entry(
-> +		__field(int, nid)
-> +		__field(char *, name)
-> +		__field(int, order)
-> +		__field(unsigned int, considered)
-> +		__field(unsigned int, defer_shift)
-> +		__field(int, order_failed)
-> +	),
-> +
-> +	TP_fast_assign(
-> +		__entry->nid = zone_to_nid(zone);
-> +		__entry->name = (char *)zone->name;
-> +		__entry->order = order;
-> +		__entry->considered = zone->compact_considered;
-> +		__entry->defer_shift = zone->compact_defer_shift;
-> +		__entry->order_failed = zone->compact_order_failed;
-> +	),
-> +
-> +	TP_printk("node=%d zone=%-8s order=%d order_failed=%d reason=%s consider=%u limit=%lu",
-> +		__entry->nid,
-> +		__entry->name,
-> +		__entry->order,
-> +		__entry->order_failed,
-> +		__entry->order < __entry->order_failed ? "order" : "try",
+On Fri, Jan 09, 2015 at 09:46:49PM +0000, Tejun Heo wrote:
+> On Fri, Jan 09, 2015 at 05:43:17PM +0000, Suzuki K. Poulose wrote:
+> > We have hit a hang on ARM64 defconfig, while running LTP tests on 3.19-=
+rc3.
+> > We are
+> > in the process of a git bisect and will update the results as and
+> > when we find the commit.
+> >
+> > During the ksm ltp run, the test hangs trying to mount memcg with the
+> > following strace
+> > output:
+> >
+> > mount("memcg", "/dev/cgroup", "cgroup", 0, "memory") =3D ? ERESTARTNOIN=
+TR (To
+> > be restarted)
+> > mount("memcg", "/dev/cgroup", "cgroup", 0, "memory") =3D ? ERESTARTNOIN=
+TR (To
+> > be restarted)
+> > [ ... repeated forever ... ]
+> >
+> > At this point, one can try mounting the memcg to verify the problem.
+> > # mount -t cgroup -o memory memcg memcg_dir
+> > --hangs--
+> >
+> > Strangely, if we run the mount command from a cold boot (i.e. without
+> > running LTP first),
+> > then it succeeds.
+>
+> I don't know what LTP is doing and this could actually be hitting on
+> an actual bug but if it's trying to move memcg back from unified
+> hierarchy to an old one, that might hang - it should prolly made to
+> just fail at that point.  Anyways, any chance you can find out what
+> happened, in terms of cgroup mounting, to memcg upto that point?
+>
 
-This "reason" only makes sense for compaction_deferred, no? And "order" would
-never be printed there anyway, because of bug below. Also it's quite trivial to
-derive from the other data printed, so I would just remove it.
+This is what the test(ksm03) does, roughly from strace :
 
-> +		__entry->considered,
-> +		1UL << __entry->defer_shift)
-> +);
-> +
-> +DEFINE_EVENT(mm_compaction_defer_template, mm_compaction_deffered,
+faccessat(AT_FDCWD, "/sys/kernel/mm/ksm/", F_OK) =3D 0
+faccessat(AT_FDCWD, "/sys/kernel/mm/ksm/merge_across_nodes", F_OK) =3D -1 E=
+NOENT (No such file or directory)
+mkdirat(AT_FDCWD, "/dev/cgroup", 0777)  =3D 0
+mount("memcg", "/dev/cgroup", "cgroup", 0, "memory") =3D 0
 
-                                                            _deferred
+--- set memory limit. Create a new set /dev/cgroups/1 and moves test to tha=
+t group ---
+mkdirat(AT_FDCWD, "/dev/cgroup/1", 0777) =3D 0
+openat(AT_FDCWD, "/dev/cgroup/1/memory.limit_in_bytes", O_WRONLY|O_CREAT|O_=
+TRUNC, 0666) =3D 3
+fstat(3, {st_dev=3Dmakedev(0, 24), st_ino=3D41, st_mode=3DS_IFREG|0644, st_=
+nlink=3D1, st_uid=3D0, st_gid=3D0, st_blksize=3D4096, st_blocks=3D0, st_siz=
+e=3D0, st_atime=3D2015/01/12-15:10:13, st_mtime=3D2015/01/12-15:10:13, st_c=
+time=3D2015/01/12-15:10:13}) =3D 0
+mmap(NULL, 65536, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) =
+=3D 0x7fb2903000
+write(3, "1073741824", 10)              =3D 10
+close(3)                                =3D 0
+munmap(0x7fb2903000, 65536)             =3D 0
+getpid()                                =3D 1324
+openat(AT_FDCWD, "/dev/cgroup/1/tasks", O_WRONLY|O_CREAT|O_TRUNC, 0666) =3D=
+ 3
+fstat(3, {st_dev=3Dmakedev(0, 24), st_ino=3D37, st_mode=3DS_IFREG|0644, st_=
+nlink=3D1, st_uid=3D0, st_gid=3D0, st_blksize=3D4096, st_blocks=3D0, st_siz=
+e=3D0, st_atime=3D2015/01/12-15:10:13, st_mtime=3D2015/01/12-15:10:13, st_c=
+time=3D2015/01/12-15:10:13}) =3D 0
+mmap(NULL, 65536, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) =
+=3D 0x7fb2903000
+write(3, "1324", 4)                     =3D 4
+close(3)                                =3D 0
+munmap(0x7fb2903000, 65536)             =3D 0
 
-> +
-> +	TP_PROTO(struct zone *zone, int order),
-> +
-> +	TP_ARGS(zone, order)
-> +);
-> +
-> +DEFINE_EVENT(mm_compaction_defer_template, mm_compaction_defer_compaction,
-> +
-> +	TP_PROTO(struct zone *zone, int order),
-> +
-> +	TP_ARGS(zone, order)
-> +);
-> +
-> +DEFINE_EVENT(mm_compaction_defer_template, mm_compaction_defer_reset,
-> +
-> +	TP_PROTO(struct zone *zone, int order),
-> +
-> +	TP_ARGS(zone, order)
-> +);
-> +
->  #endif /* _TRACE_COMPACTION_H */
->  
->  /* This part must be outside protection */
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 7500f01..7aa4249 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -123,6 +123,77 @@ static struct page *pageblock_pfn_to_page(unsigned long start_pfn,
->  }
->  
->  #ifdef CONFIG_COMPACTION
-> +
-> +/* Do not skip compaction more than 64 times */
-> +#define COMPACT_MAX_DEFER_SHIFT 6
-> +
-> +/*
-> + * Compaction is deferred when compaction fails to result in a page
-> + * allocation success. 1 << compact_defer_limit compactions are skipped up
-> + * to a limit of 1 << COMPACT_MAX_DEFER_SHIFT
-> + */
-> +void defer_compaction(struct zone *zone, int order)
-> +{
-> +	zone->compact_considered = 0;
-> +	zone->compact_defer_shift++;
-> +
-> +	if (order < zone->compact_order_failed)
-> +		zone->compact_order_failed = order;
-> +
-> +	if (zone->compact_defer_shift > COMPACT_MAX_DEFER_SHIFT)
-> +		zone->compact_defer_shift = COMPACT_MAX_DEFER_SHIFT;
-> +
-> +	trace_mm_compaction_defer_compaction(zone, order);
-> +}
-> +
-> +/* Returns true if compaction should be skipped this time */
-> +bool compaction_deferred(struct zone *zone, int order)
-> +{
-> +	unsigned long defer_limit = 1UL << zone->compact_defer_shift;
-> +
-> +	if (order < zone->compact_order_failed)
+clone(child_stack=3D0, flags=3DCLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGC=
+HLD, child_tidptr=3D0x7fb2a7f0d0) =3D 1325
+clone(child_stack=3D0, flags=3DCLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGC=
+HLD, child_tidptr=3D0x7fb2a7f0d0) =3D 1326
+clone(child_stack=3D0, flags=3DCLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGC=
+HLD, child_tidptr=3D0x7fb2a7f0d0) =3D 1327
 
-- no tracepoint (with reason="order") in this case?
+--- Creates 3 children, perform a lot of memory operations with shared page=
+s
+    verify the ksm for activity and wait for children to exit ---
 
-> +		return false;
-> +
-> +	/* Avoid possible overflow */
-> +	if (++zone->compact_considered > defer_limit)
-> +		zone->compact_considered = defer_limit;
-> +
-> +	if (zone->compact_considered >= defer_limit)
+wait4(-1, [{WIFEXITED(s) && WEXITSTATUS(s) =3D=3D 0}], WSTOPPED|WCONTINUED,=
+ NULL) =3D 1325
+wait4(-1, [{WIFEXITED(s) && WEXITSTATUS(s) =3D=3D 0}], WSTOPPED|WCONTINUED,=
+ NULL) =3D 1326
+wait4(-1, [{WIFEXITED(s) && WEXITSTATUS(s) =3D=3D 0}], WSTOPPED|WCONTINUED,=
+ NULL) =3D 1327
+wait4(-1, 0x7fe5625f3c, WSTOPPED|WCONTINUED, NULL) =3D -1 ECHILD (No child =
+processes)
 
-- no tracepoint here as well? Oh did you want to trace just when it's true? That
-makes sense, but then just remove the reason part.
+--- cleanup: Move tasks under /dev/cgroups/1/ to /dev/cgroups/ and delete s=
+ubdir, umount cgroup ---
 
-Hm what if we avoided dirtying the cache line in the non-deferred case? Would be
-simpler, too?
+faccessat(AT_FDCWD, "/sys/kernel/mm/ksm/merge_across_nodes", F_OK) =3D -1 E=
+NOENT (No such file or directory)
+openat(AT_FDCWD, "/dev/cgroup/tasks", O_WRONLY) =3D 205
+openat(AT_FDCWD, "/dev/cgroup/1/tasks", O_RDONLY) =3D 206
+fstat(206, {st_dev=3Dmakedev(0, 24), st_ino=3D37, st_mode=3DS_IFREG|0644, s=
+t_nlink=3D1, st_uid=3D0, st_gid=3D0, st_blksize=3D4096, st_blocks=3D0, st_s=
+ize=3D0, st_atime=3D2015/01/12-15:10:13, st_mtime=3D2015/01/12-15:10:13, st=
+_ctime=3D2015/01/12-15:10:13}) =3D 0
+mmap(NULL, 65536, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) =
+=3D 0x7fb1c53000
+read(206, "1324\n", 4096)               =3D 5
+write(205, "1324", 4)                   =3D 4
+read(206, "", 4096)                     =3D 0
+close(205)                              =3D 0
+close(206)                              =3D 0
+munmap(0x7fb1c53000, 65536)             =3D 0
+unlinkat(AT_FDCWD, "/dev/cgroup/1", AT_REMOVEDIR) =3D 0
+umount2("/dev/cgroup", 0)               =3D 0
+unlinkat(AT_FDCWD, "/dev/cgroup", AT_REMOVEDIR) =3D 0
+exit_group(0)                           =3D ?
 
-if (zone->compact_considered + 1 >= defer_limit)
-     return false;
 
-zone->compact_considered++;
+The next invocation of the same test fails to mount the cgroup memory.
 
-trace_mm_compaction_defer_compaction(zone, order);
+Thanks
+Suzuki
 
-return true;
+> Thanks.
+>
+> --
+> tejun
+>
 
-> +		return false;
-> +
-> +	trace_mm_compaction_deffered(zone, order);
-> +
-> +	return true;
-> +}
-> +
-> +/*
-> + * Update defer tracking counters after successful compaction of given order,
-> + * which means an allocation either succeeded (alloc_success == true) or is
-> + * expected to succeed.
-> + */
-> +void compaction_defer_reset(struct zone *zone, int order,
-> +		bool alloc_success)
-> +{
-> +	if (alloc_success) {
-> +		zone->compact_considered = 0;
-> +		zone->compact_defer_shift = 0;
-> +	}
-> +	if (order >= zone->compact_order_failed)
-> +		zone->compact_order_failed = order + 1;
-> +
-> +	trace_mm_compaction_defer_reset(zone, order);
-> +}
-> +
-> +/* Returns true if restarting compaction after many failures */
-> +bool compaction_restarting(struct zone *zone, int order)
-> +{
-> +	if (order < zone->compact_order_failed)
-> +		return false;
-> +
-> +	return zone->compact_defer_shift == COMPACT_MAX_DEFER_SHIFT &&
-> +		zone->compact_considered >= 1UL << zone->compact_defer_shift;
-> +}
-> +
->  /* Returns true if the pageblock should be scanned for pages to isolate. */
->  static inline bool isolation_suitable(struct compact_control *cc,
->  					struct page *page)
-> @@ -1438,6 +1509,7 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
->  			 * succeeds in this zone.
->  			 */
->  			compaction_defer_reset(zone, order, false);
-> +
->  			/*
->  			 * It is possible that async compaction aborted due to
->  			 * need_resched() and the watermarks were ok thanks to
-> 
+-- IMPORTANT NOTICE: The contents of this email and any attachments are con=
+fidential and may also be privileged. If you are not the intended recipient=
+, please notify the sender immediately and do not disclose the contents to =
+any other person, use it for any purpose, or store or copy the information =
+in any medium.  Thank you.
+
+ARM Limited, Registered office 110 Fulbourn Road, Cambridge CB1 9NJ, Regist=
+ered in England & Wales, Company No:  2557590
+ARM Holdings plc, Registered office 110 Fulbourn Road, Cambridge CB1 9NJ, R=
+egistered in England & Wales, Company No:  2548782
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
