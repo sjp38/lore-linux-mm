@@ -1,43 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 979316B0071
-	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 16:55:09 -0500 (EST)
-Received: by mail-pd0-f171.google.com with SMTP id y13so5708958pdi.2
-        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 13:55:09 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id o5si22499690pdh.194.2015.01.13.13.55.07
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id B4A8B6B0071
+	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 17:00:43 -0500 (EST)
+Received: by mail-pd0-f173.google.com with SMTP id ft15so5715445pdb.4
+        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 14:00:43 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id oc3si28365632pbb.130.2015.01.13.14.00.41
         for <linux-mm@kvack.org>;
-        Tue, 13 Jan 2015 13:55:08 -0800 (PST)
-Date: Tue, 13 Jan 2015 16:55:05 -0500
-From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Re: [PATCH v12 09/20] dax,ext2: Replace xip_truncate_page with
- dax_truncate_page
-Message-ID: <20150113215505.GL5661@wil.cx>
-References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
- <1414185652-28663-10-git-send-email-matthew.r.wilcox@intel.com>
- <20150112150958.2e6bd85dc3e25b953d28c6cb@linux-foundation.org>
+        Tue, 13 Jan 2015 14:00:41 -0800 (PST)
+Message-ID: <54B5957B.5060900@intel.com>
+Date: Tue, 13 Jan 2015 14:00:27 -0800
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150112150958.2e6bd85dc3e25b953d28c6cb@linux-foundation.org>
+Subject: Re: [LSF/MM TOPIC] The kernel address sanitizer
+References: <CAPAsAGwn=KcWOgrTHeWCS18jWq2wK0JGJxYDT1Y4RUpim6=OuQ@mail.gmail.com>
+In-Reply-To: <CAPAsAGwn=KcWOgrTHeWCS18jWq2wK0JGJxYDT1Y4RUpim6=OuQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@linux.intel.com
+To: Andrey Ryabinin <ryabinin.a.a@gmail.com>, lsf-pc@lists.linux-foundation.org
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Sasha Levin <sasha.levin@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Khlebnikov <koct9i@gmail.com>
 
-On Mon, Jan 12, 2015 at 03:09:58PM -0800, Andrew Morton wrote:
-> > + * Similar to block_truncate_page(), this function can be called by a
-> > + * filesystem when it is truncating an DAX file to handle the partial page.
-> > + *
-> > + * We work in terms of PAGE_CACHE_SIZE here for commonality with
-> > + * block_truncate_page(), but we could go down to PAGE_SIZE if the filesystem
-> > + * took care of disposing of the unnecessary blocks.
-> 
-> But PAGE_SIZE==PAGE_CACHE_SIZE.  Unclear what you're saying here.
+On 12/25/2014 04:01 AM, Andrey Ryabinin wrote:
+> Seems we've come to agreement that KASan is useful and deserves to be
+> in mainline, yet the feedback on patches is poor.
+> It seems like they are stalled, so I would like to discuss the future
+> of it. I hope this will help in pushing it forward.
 
-The last I heard, some people were trying to resurrect the PAGE_CACHE_SIZE
-> PAGE_SIZE patches.  I'd be grateful if the distinction between PAGE_SIZE
-and PAGE_CACHE_SIZE went away, tbh.
+I think this should more broadly be a talk about our memory-related
+debugging options.  This is an especially good audience for seeing what
+gets used and if we need to start culling any of them.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
