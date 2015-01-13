@@ -1,80 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f179.google.com (mail-qc0-f179.google.com [209.85.216.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CCB36B0032
-	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 17:47:57 -0500 (EST)
-Received: by mail-qc0-f179.google.com with SMTP id c9so4764862qcz.10
-        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 14:47:57 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id b7si11790100qce.33.2015.01.13.14.47.55
+Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
+	by kanga.kvack.org (Postfix) with ESMTP id BCA486B0032
+	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 18:20:34 -0500 (EST)
+Received: by mail-ie0-f178.google.com with SMTP id vy18so5833569iec.9
+        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 15:20:34 -0800 (PST)
+Received: from mail-ig0-x230.google.com (mail-ig0-x230.google.com. [2607:f8b0:4001:c05::230])
+        by mx.google.com with ESMTPS id pi2si7680248igb.60.2015.01.13.15.20.33
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Jan 2015 14:47:56 -0800 (PST)
-Date: Tue, 13 Jan 2015 14:47:53 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v12 08/20] dax,ext2: Replace the XIP page fault handler
- with the DAX page fault handler
-Message-Id: <20150113144753.ea2658cdf1a78e1b8cbdb576@linux-foundation.org>
-In-Reply-To: <20150113215334.GK5661@wil.cx>
-References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
-	<1414185652-28663-9-git-send-email-matthew.r.wilcox@intel.com>
-	<20150112150952.b44ee750a6292284e7a909ff@linux-foundation.org>
-	<20150113215334.GK5661@wil.cx>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 13 Jan 2015 15:20:33 -0800 (PST)
+Received: by mail-ig0-f176.google.com with SMTP id b16so4130461igk.3
+        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 15:20:33 -0800 (PST)
+References: <1420776904-8559-1-git-send-email-hannes@cmpxchg.org> <1420776904-8559-2-git-send-email-hannes@cmpxchg.org>
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [patch 2/2] mm: memcontrol: default hierarchy interface for memory
+In-reply-to: <1420776904-8559-2-git-send-email-hannes@cmpxchg.org>
+Date: Tue, 13 Jan 2015 15:20:08 -0800
+Message-ID: <xr93a91mz2s7.fsf@gthelen.mtv.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@linux.intel.com>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, 13 Jan 2015 16:53:34 -0500 Matthew Wilcox <willy@linux.intel.com> wrote:
 
-> /*
->  * Lock ordering in mm:
->  *
->  * inode->i_mutex       (while writing or truncating, not reading or faulting)
->  *   mm->mmap_sem
-> 
-> > >  	   In the worst case, the file still has blocks
-> > > +	 * allocated past the end of the file.
-> > > +	 */
-> > > +	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
-> > > +	if (unlikely(vmf->pgoff >= size)) {
-> > > +		error = -EIO;
-> > > +		goto out;
-> > > +	}
-> > 
-> > How does this play with holepunching?  Checking i_size won't work there?
-> 
-> It doesn't.  But the same problem exists with non-DAX files too, and
-> when I pointed it out, it was met with a shrug from the crowd.  I saw a
-> patch series just recently that fixes it for XFS, but as far as I know,
-> btrfs and ext4 still don't play well with pagefault vs hole-punch races.
+On Thu, Jan 08 2015, Johannes Weiner wrote:
 
-What are the user-visible effects of the race?
+> Introduce the basic control files to account, partition, and limit
+> memory using cgroups in default hierarchy mode.
+>
+> This interface versioning allows us to address fundamental design
+> issues in the existing memory cgroup interface, further explained
+> below.  The old interface will be maintained indefinitely, but a
+> clearer model and improved workload performance should encourage
+> existing users to switch over to the new one eventually.
+>
+> The control files are thus:
+>
+>   - memory.current shows the current consumption of the cgroup and its
+>     descendants, in bytes.
+>
+>   - memory.low configures the lower end of the cgroup's expected
+>     memory consumption range.  The kernel considers memory below that
+>     boundary to be a reserve - the minimum that the workload needs in
+>     order to make forward progress - and generally avoids reclaiming
+>     it, unless there is an imminent risk of entering an OOM situation.
 
-> > > +	memset(&bh, 0, sizeof(bh));
-> > > +	block = (sector_t)vmf->pgoff << (PAGE_SHIFT - blkbits);
-> > > +	bh.b_size = PAGE_SIZE;
-> > 
-> > ah, there.
-> > 
-> > PAGE_SIZE varies a lot between architectures.  What are the
-> > implications of this>?
-> 
-> At the moment, you can only do DAX for blocksizes that are equal to
-> PAGE_SIZE.  That's a restriction that existed for the previous XIP code,
-> and I haven't fixed it all for DAX yet.  I'd like to, but it's not high on
-> my list of things to fix.  Since these are in-mmeory filesystems, there's
-> not likely to be high demand to move the filesystem between machines.
-
-hm, I guess not.
-
-This means that our users will need to mkfs their filesystems with
-blocksize==pagesize.  The "error: unsupported blocksize for dax" printk
-should get the message across, but a mention in
-Documentation/filesystems/dax.txt's "Shortcomings" section wouldn't
-hurt.
+So this is try-hard, but no-promises interface.  No complaints.  But I
+assume that an eventual extension is a more rigid memory.min which
+specifies a minimum working set under which an container would prefer an
+oom kill to thrashing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
