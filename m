@@ -1,239 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 71C2A6B0032
-	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 21:27:52 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id rd3so639349pab.7
-        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 18:27:52 -0800 (PST)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id ck1si25622788pdb.2.2015.01.12.18.27.49
-        for <linux-mm@kvack.org>;
-        Mon, 12 Jan 2015 18:27:50 -0800 (PST)
-Date: Tue, 13 Jan 2015 11:27:47 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 0/3] mm: cma: /proc/cmainfo
-Message-ID: <20150113022747.GA14137@bbox>
-References: <cover.1419602920.git.s.strogin@partner.samsung.com>
- <20141229023639.GC27095@bbox>
- <54A1B11A.6020307@codeaurora.org>
- <20141230044726.GA22342@bbox>
- <20150109091904.41294966@gandalf.local.home>
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FA6D6B0032
+	for <linux-mm@kvack.org>; Mon, 12 Jan 2015 21:42:34 -0500 (EST)
+Received: by mail-pd0-f174.google.com with SMTP id fp1so673935pdb.5
+        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 18:42:34 -0800 (PST)
+Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com. [202.81.31.147])
+        by mx.google.com with ESMTPS id r10si25481187pdp.125.2015.01.12.18.42.31
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 12 Jan 2015 18:42:33 -0800 (PST)
+Received: from /spool/local
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Tue, 13 Jan 2015 12:42:26 +1000
+Received: from d23relay10.au.ibm.com (d23relay10.au.ibm.com [9.190.26.77])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 08EC92BB0023
+	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 13:42:22 +1100 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t0D2gLlK49741896
+	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 13:42:21 +1100
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t0D2gLB8020910
+	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 13:42:21 +1100
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH V2] mm/thp: Allocate transparent hugepages on local node
+In-Reply-To: <87fvcwbuyd.fsf@linux.vnet.ibm.com>
+References: <1417412803-27234-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20141201113340.GA545@node.dhcp.inet.fi> <87vblvh3b9.fsf@linux.vnet.ibm.com> <547DD100.30307@suse.cz> <87fvcwbuyd.fsf@linux.vnet.ibm.com>
+Date: Tue, 13 Jan 2015 08:12:10 +0530
+Message-ID: <87vbkb7665.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20150109091904.41294966@gandalf.local.home>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Laura Abbott <lauraa@codeaurora.org>, "Stefan I. Strogin" <s.strogin@partner.samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Dmitry Safonov <d.safonov@partner.samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>, namhyung@kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: akpm@linux-foundation.org, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello, Steven,
+"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> writes:
 
-On Fri, Jan 09, 2015 at 09:19:04AM -0500, Steven Rostedt wrote:
-> 
-> Wow, too much work over the holidays ;-)
+> Vlastimil Babka <vbabka@suse.cz> writes:
+>
+>> On 12/01/2014 03:06 PM, Aneesh Kumar K.V wrote:
+>>> "Kirill A. Shutemov" <kirill@shutemov.name> writes:
+>>>
+>>>> On Mon, Dec 01, 2014 at 11:16:43AM +0530, Aneesh Kumar K.V wrote:
+>>>>> This make sure that we try to allocate hugepages from local node if
+>>>>> allowed by mempolicy. If we can't, we fallback to small page allocation
+>>>>> based on mempolicy. This is based on the observation that allocating pages
+>>>>> on local node is more beneficial that allocating hugepages on remote node.
+>>>>>
+> ........
+> ......
+>
+>>>>> index e58725aff7e9..fa96af5b31f7 100644
+>>>>> --- a/mm/mempolicy.c
+>>>>> +++ b/mm/mempolicy.c
+>>>>> @@ -2041,6 +2041,46 @@ retry_cpuset:
+>>>>>   	return page;
+>>>>>   }
+>>>>>
+>>>>> +struct page *alloc_hugepage_vma(gfp_t gfp, struct vm_area_struct *vma,
+>>>>> +				unsigned long addr, int order)
+>>
+>> It's somewhat confusing that the name talks about hugepages, yet you 
+>> have to supply the order and gfp. Only the policy handling is tailored 
+>> for hugepages. But maybe it's better than calling the function 
+>> "alloc_pages_vma_local_only_unless_interpolate" :/
+>>
+>
+> I did try to do an API that does
+>
+> struct page *alloc_hugepage_vma(struct vm_area_struct *vma, unsigned long addr)
+>
+> But that will result in further #ifdef in mm/mempolicy, because we will
+> then introduce transparent_hugepage_defrag(vma) and HPAGE_PMD_ORDER
+> there. I was not sure whether we really wanted that.
+>
 
-Pretend to be diligent.
+Any update on this ? Should I resend the patch rebasing it to the latest
+upstream ?
 
-> 
-> 
-> On Tue, 30 Dec 2014 13:47:26 +0900
-> Minchan Kim <minchan@kernel.org> wrote:
-> 
-> 
-> > Then, I don't think we could keep all of allocations. What we need
-> > is only slow allocations. I hope we can do that with ftrace.
-> > 
-> > ex)
-> > 
-> > # cd /sys/kernel/debug/tracing
-> > # echo 1 > options/stacktrace
-> > # echo cam_alloc > set_ftrace_filter
-> > # echo your_threshold > tracing_thresh
-> > 
-> > I know it doesn't work now but I think it's more flexible
-> > and general way to handle such issues(ie, latency of some functions).
-> > So, I hope we could enhance ftrace rather than new wheel.
-> > Ccing ftrace people.
-> > 
-> 
-> I've been working on trace-cmd this month and came up with a new
-> "profile" command. I don't have cma_alloc but doing something like this
-> with kmalloc.
-> 
-> 
-> # trace-cmd profile -S -p function_graph -l __kmalloc -l '__kmalloc:stacktrace' --stderr workload 2>profile.out
-> 
-> and this gives me in profile.out, something like this:
-> 
-> ------
-> CPU: 0
-> entries: 0
-> overrun: 0
-> commit overrun: 0
-> bytes: 3560
-> oldest event ts:   349.925480
-> now ts:   356.910819
-> dropped events: 0
-> read events: 36
-> 
-> CPU: 1
-> entries: 0
-> overrun: 0
-> commit overrun: 0
-> bytes: 408
-> oldest event ts:   354.610624
-> now ts:   356.910838
-> dropped events: 0
-> read events: 48
-> 
-> CPU: 2
-> entries: 0
-> overrun: 0
-> commit overrun: 0
-> bytes: 3184
-> oldest event ts:   356.761870
-> now ts:   356.910854
-> dropped events: 0
-> read events: 1830
-> 
-> CPU: 3
-> entries: 6
-> overrun: 0
-> commit overrun: 0
-> bytes: 2664
-> oldest event ts:   356.440675
-> now ts:   356.910875
-> dropped events: 0
-> read events: 717
-> 
-> [...]
-> 
-> task: <...>-2880
->   Event: func: __kmalloc() (74) Total: 53254 Avg: 719 Max: 1095 Min:481
->           | 
->           + ftrace_ops_list_func (0xffffffff810c229e)
->               100% (74) time:53254 max:1095 min:481 avg:719
->                ftrace_call (0xffffffff81526047)
->                trace_preempt_on (0xffffffff810d28ff)
->                preempt_count_sub (0xffffffff81061c62)
->                __mutex_lock_slowpath (0xffffffff81522807)
->                __kmalloc (0xffffffff811323f3)
->                __kmalloc (0xffffffff811323f3)
->                tracing_buffers_splice_read (0xffffffff810ca23e)
->                 | 
->                 + set_next_entity (0xffffffff81067027)
->                 |   66% (49) time:34925 max:1044 min:481 avg:712
->                 |    __switch_to (0xffffffff810016d7)
->                 |    trace_hardirqs_on (0xffffffff810d28db)
->                 |    _raw_spin_unlock_irq (0xffffffff81523a8e)
->                 |    trace_preempt_on (0xffffffff810d28ff)
->                 |    preempt_count_sub (0xffffffff81061c62)
->                 |    __schedule (0xffffffff815204d3)
->                 |    trace_preempt_on (0xffffffff810d28ff)
->                 |    buffer_spd_release (0xffffffff810c91fd)
->                 |    SyS_splice (0xffffffff8115dccf)
->                 |    system_call_fastpath (0xffffffff81523f92)
->                 | 
->                 + do_read_fault.isra.74 (0xffffffff8111431d)
->                 |   24% (18) time:12654 max:1008 min:481 avg:703
->                 |     | 
->                 |     + select_task_rq_fair (0xffffffff81067806)
->                 |     |   89% (16) time:11234 max:1008 min:481 avg:702
->                 |     |    trace_preempt_on (0xffffffff810d28ff)
->                 |     |    buffer_spd_release (0xffffffff810c91fd)
->                 |     |    SyS_splice (0xffffffff8115dccf)
->                 |     |    system_call_fastpath (0xffffffff81523f92)
->                 |     | 
->                 |     + handle_mm_fault (0xffffffff81114df4)
->                 |         11% (2) time:1420 max:879 min:541 avg:710
->                 |          trace_preempt_on (0xffffffff810d28ff)
->                 |          buffer_spd_release (0xffffffff810c91fd)
->                 |          SyS_splice (0xffffffff8115dccf)
->                 |          system_call_fastpath (0xffffffff81523f92)
->                 |       
->                 | 
->                 | 
->                 + update_stats_wait_end (0xffffffff81066c5c)
->                 |   6% (4) time:3153 max:1095 min:635 avg:788
->                 |    set_next_entity (0xffffffff81067027)
->                 |    __switch_to (0xffffffff810016d7)
->                 |    trace_hardirqs_on (0xffffffff810d28db)
->                 |    _raw_spin_unlock_irq (0xffffffff81523a8e)
->                 |    trace_preempt_on (0xffffffff810d28ff)
->                 |    preempt_count_sub (0xffffffff81061c62)
->                 |    __schedule (0xffffffff815204d3)
->                 |    trace_preempt_on (0xffffffff810d28ff)
->                 |    buffer_spd_release (0xffffffff810c91fd)
->                 |    SyS_splice (0xffffffff8115dccf)
->                 |    system_call_fastpath (0xffffffff81523f92)
->                 | 
->                 + _raw_spin_unlock (0xffffffff81523af5)
->                 |   3% (2) time:1854 max:936 min:918 avg:927
->                 |    do_read_fault.isra.74 (0xffffffff8111431d)
->                 |    handle_mm_fault (0xffffffff81114df4)
->                 |    buffer_spd_release (0xffffffff810c91fd)
->                 |    SyS_splice (0xffffffff8115dccf)
->                 |    system_call_fastpath (0xffffffff81523f92)
->                 | 
->                 + trace_hardirqs_off (0xffffffff810d2891)
->                     1% (1) time:668 max:668 min:668 avg:668
->                      kmem_cache_free (0xffffffff81130e48)
->                      __dequeue_signal (0xffffffff8104c802)
->                      trace_preempt_on (0xffffffff810d28ff)
->                      preempt_count_sub (0xffffffff81061c62)
->                      _raw_spin_unlock_irq (0xffffffff81523a8e)
->                      recalc_sigpending (0xffffffff8104c5d1)
->                      __set_task_blocked (0xffffffff8104cd2e)
->                      trace_preempt_on (0xffffffff810d28ff)
->                      preempt_count_sub (0xffffffff81061c62)
->                      preempt_count_sub (0xffffffff81061c62)
->                      buffer_spd_release (0xffffffff810c91fd)
->                      SyS_splice (0xffffffff8115dccf)
->                      system_call_fastpath (0xffffffff81523f92)
->                   
-
-Looks great!
-
-> If you want better names, I would add "-e sched_switch", as that will
-> record the comms of the tasks and you don't end up with a bunch of
-> "<...>".
-
-Good tip.
-
-> 
-> Is this something you are looking for. The profile command does not
-> save to disk, thus it does the analysis live, and you don't need to
-> worry about running out of disk space. Although, since it is live, it
-> may tend to drop more events (see the "overrun values").
-> 
-> You can get trace-cmd from:
-> 
-> git://git.kernel.org/pub/scm/linux/kernel/git/rostedt/trace-cmd.git
-> 
-> You'll need the latest from the master branch, as even 2.5 doesn't have
-> the --stderr yet.
-> 
-> Make sure to do a make install and make install_doc, then you can do:
-> 
->  man trace-cmd-record
->  man trace-cmd-profile
-> 
-> to read about all the options.
-
-Thansk for giving me a chance to use great tool!
-
-> 
-> -- Steve
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
