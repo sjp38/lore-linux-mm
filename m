@@ -1,130 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id B16046B006E
-	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 02:58:03 -0500 (EST)
-Received: by mail-pa0-f54.google.com with SMTP id fb1so2136252pad.13
-        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 23:58:03 -0800 (PST)
-Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
-        by mx.google.com with ESMTPS id qq9si26170038pbb.102.2015.01.12.23.58.01
+Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 67D086B006E
+	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 03:15:40 -0500 (EST)
+Received: by mail-we0-f182.google.com with SMTP id w62so1335313wes.13
+        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 00:15:39 -0800 (PST)
+Received: from mail-wg0-x22d.google.com (mail-wg0-x22d.google.com. [2a00:1450:400c:c00::22d])
+        by mx.google.com with ESMTPS id u8si40220449wjx.141.2015.01.13.00.15.39
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Mon, 12 Jan 2015 23:58:02 -0800 (PST)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout3.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NI300INNVNDKL70@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 13 Jan 2015 08:02:01 +0000 (GMT)
-Message-id: <54B4CFF3.5060100@samsung.com>
-Date: Tue, 13 Jan 2015 08:57:39 +0100
-From: Andrzej Hajda <a.hajda@samsung.com>
-MIME-version: 1.0
-Subject: Re: [PATCH 3/5] clk: convert clock name allocations to kstrdup_const
-References: <1421054323-14430-1-git-send-email-a.hajda@samsung.com>
- <1421054323-14430-4-git-send-email-a.hajda@samsung.com>
- <20150112231104.20842.5239@quantum>
-In-reply-to: <20150112231104.20842.5239@quantum>
-Content-type: text/plain; charset=utf-8
-Content-transfer-encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 13 Jan 2015 00:15:39 -0800 (PST)
+Received: by mail-wg0-f45.google.com with SMTP id y19so1391048wgg.4
+        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 00:15:39 -0800 (PST)
+Date: Tue, 13 Jan 2015 09:15:37 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] memcg: add BUILD_BUG_ON() for string tables
+Message-ID: <20150113081537.GA25318@dhcp22.suse.cz>
+References: <1421088863-14270-1-git-send-email-gthelen@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1421088863-14270-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Turquette <mturquette@linaro.org>, linux-mm@kvack.org
-Cc: Andrzej Hajda <a.hajda@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, linux-kernel@vger.kernel.org, andi@firstfloor.org, andi@lisas.de, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, sboyd@codeaurora.org
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 01/13/2015 12:11 AM, Mike Turquette wrote:
-> Quoting Andrzej Hajda (2015-01-12 01:18:41)
->> Clock subsystem frequently performs duplication of strings located
->> in read-only memory section. Replacing kstrdup by kstrdup_const
->> allows to avoid such operations.
->>
->> Signed-off-by: Andrzej Hajda <a.hajda@samsung.com>
-> Looks OK to me. Is there an easy trick to measuring the number of string
-> duplications saved short of instrumenting your code with a counter?
+On Mon 12-01-15 10:54:23, Greg Thelen wrote:
+> Use BUILD_BUG_ON() to compile assert that memcg string tables are in
+> sync with corresponding enums.  There aren't currently any issues with
+> these tables.  This is just defensive.
+> 
+> Signed-off-by: Greg Thelen <gthelen@google.com>
 
-I have just added pr_err in kstrdup_const:
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-diff --git a/mm/util.c b/mm/util.c
-index c96fc4b..32a97b2 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -56,8 +56,10 @@ EXPORT_SYMBOL(kstrdup);
- 
- const char *kstrdup_const(const char *s, gfp_t gfp)
- {
--       if (is_kernel_rodata((unsigned long)s))
-+       if (is_kernel_rodata((unsigned long)s)) {
-+               pr_err("%s: %pS:%s\n", __func__,
-__builtin_return_address(0), s);
-                return s;
-+       }
- 
-        return kstrdup(s, gfp);
- }
+> ---
+>  mm/memcontrol.c | 4 ++++
+>  1 file changed, 4 insertions(+)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index ef91e856c7e4..8d1ca6c55480 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -3699,6 +3699,10 @@ static int memcg_stat_show(struct seq_file *m, void *v)
+>  	struct mem_cgroup *mi;
+>  	unsigned int i;
+>  
+> +	BUILD_BUG_ON(ARRAY_SIZE(mem_cgroup_stat_names) !=
+> +		     MEM_CGROUP_STAT_NSTATS);
+> +	BUILD_BUG_ON(ARRAY_SIZE(mem_cgroup_events_names) !=
+> +		     MEM_CGROUP_EVENTS_NSTATS);
+>  	BUILD_BUG_ON(ARRAY_SIZE(mem_cgroup_lru_names) != NR_LRU_LISTS);
+>  
+>  	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
+> -- 
+> 2.2.0.rc0.207.ga3a616c
+> 
 
-Probably printk buffer size should be increased:
-CONFIG_LOG_BUF_SHIFT=17
-
-Regards
-Andrzej
-
->
-> Regards,
-> Mike
->
->> ---
->>  drivers/clk/clk.c | 12 ++++++------
->>  1 file changed, 6 insertions(+), 6 deletions(-)
->>
->> diff --git a/drivers/clk/clk.c b/drivers/clk/clk.c
->> index f4963b7..27e644a 100644
->> --- a/drivers/clk/clk.c
->> +++ b/drivers/clk/clk.c
->> @@ -2048,7 +2048,7 @@ struct clk *clk_register(struct device *dev, struct clk_hw *hw)
->>                 goto fail_out;
->>         }
->>  
->> -       clk->name = kstrdup(hw->init->name, GFP_KERNEL);
->> +       clk->name = kstrdup_const(hw->init->name, GFP_KERNEL);
->>         if (!clk->name) {
->>                 pr_err("%s: could not allocate clk->name\n", __func__);
->>                 ret = -ENOMEM;
->> @@ -2075,7 +2075,7 @@ struct clk *clk_register(struct device *dev, struct clk_hw *hw)
->>  
->>         /* copy each string name in case parent_names is __initdata */
->>         for (i = 0; i < clk->num_parents; i++) {
->> -               clk->parent_names[i] = kstrdup(hw->init->parent_names[i],
->> +               clk->parent_names[i] = kstrdup_const(hw->init->parent_names[i],
->>                                                 GFP_KERNEL);
->>                 if (!clk->parent_names[i]) {
->>                         pr_err("%s: could not copy parent_names\n", __func__);
->> @@ -2090,10 +2090,10 @@ struct clk *clk_register(struct device *dev, struct clk_hw *hw)
->>  
->>  fail_parent_names_copy:
->>         while (--i >= 0)
->> -               kfree(clk->parent_names[i]);
->> +               kfree_const(clk->parent_names[i]);
->>         kfree(clk->parent_names);
->>  fail_parent_names:
->> -       kfree(clk->name);
->> +       kfree_const(clk->name);
->>  fail_name:
->>         kfree(clk);
->>  fail_out:
->> @@ -2112,10 +2112,10 @@ static void __clk_release(struct kref *ref)
->>  
->>         kfree(clk->parents);
->>         while (--i >= 0)
->> -               kfree(clk->parent_names[i]);
->> +               kfree_const(clk->parent_names[i]);
->>  
->>         kfree(clk->parent_names);
->> -       kfree(clk->name);
->> +       kfree_const(clk->name);
->>         kfree(clk);
->>  }
->>  
->> -- 
->> 1.9.1
->>
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
