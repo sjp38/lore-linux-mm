@@ -1,110 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id DD7386B0032
-	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 05:18:57 -0500 (EST)
-Received: by mail-wg0-f45.google.com with SMTP id y19so1988105wgg.4
-        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 02:18:57 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id dl3si14511244wjb.119.2015.01.13.02.18.56
+Received: from mail-ie0-f176.google.com (mail-ie0-f176.google.com [209.85.223.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 836736B0032
+	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 06:08:22 -0500 (EST)
+Received: by mail-ie0-f176.google.com with SMTP id tr6so2088795ieb.7
+        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 03:08:22 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id ix7si13993281icb.16.2015.01.13.03.08.20
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 13 Jan 2015 02:18:56 -0800 (PST)
-Message-ID: <54B4F10F.6060005@suse.cz>
-Date: Tue, 13 Jan 2015 11:18:55 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
-MIME-Version: 1.0
-Subject: Re: [patch 4/6] mm: fix invalid use of pfn_valid_within in test_pages_in_a_zone
-References: <548f68bb.wuNDZDL8qk6xEWTm%akpm@linux-foundation.org>,<alpine.DEB.2.10.1412171537560.16260@chino.kir.corp.google.com> <E0FB9EDDBE1AAD4EA62C90D3B6E4783B739E6CA4@P-EXMB2-DC21.corp.sgi.com>
-In-Reply-To: <E0FB9EDDBE1AAD4EA62C90D3B6E4783B739E6CA4@P-EXMB2-DC21.corp.sgi.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Jan 2015 03:08:21 -0800 (PST)
+From: Vinayak Menon <vinmenon@codeaurora.org>
+Subject: [PATCH] mm: vmscan: fix the page state calculation in too_many_isolated
+Date: Tue, 13 Jan 2015 16:37:27 +0530
+Message-Id: <1421147247-10870-1-git-send-email-vinmenon@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Custer <jcuster@sgi.com>, David Rientjes <rientjes@google.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, Russ Anderson <rja@sgi.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, mhocko@suse.cz, mgorman@suse.de, minchan@kernel.org, Vinayak Menon <vinmenon@codeaurora.org>
 
-On 12/18/2014 06:16 PM, James Custer wrote:
-> Reading the documentation on pageblock_pfn_to_page it checks to see if all
-> of
-> [start_pfn, end_pfn) is valid and within the same zone. But the validity in the
-> entirety of [start_pfn, end_pfn) doesn't seem to be a requirement of
-> test_pages_in_a_zone, unless I'm missing something.
+It is observed that sometimes multiple tasks get blocked for long
+in the congestion_wait loop below, in shrink_inactive_list. This
+is because of vm_stat values not being synced.
 
-(please don't top-post in reply, it makes further replying harder)
+(__schedule) from [<c0a03328>]
+(schedule_timeout) from [<c0a04940>]
+(io_schedule_timeout) from [<c01d585c>]
+(congestion_wait) from [<c01cc9d8>]
+(shrink_inactive_list) from [<c01cd034>]
+(shrink_zone) from [<c01cdd08>]
+(try_to_free_pages) from [<c01c442c>]
+(__alloc_pages_nodemask) from [<c01f1884>]
+(new_slab) from [<c09fcf60>]
+(__slab_alloc) from [<c01f1a6c>]
 
-Yes there is a subtle difference you point out. So pageblock_pfn_to_page()
-cannot be readily used. But a similar approach could still work, but I fear we
-might have to distinguish by CONFIG_HOLES_IN_ZONE
+In one such instance, zone_page_state(zone, NR_ISOLATED_FILE)
+had returned 14, zone_page_state(zone, NR_INACTIVE_FILE)
+returned 92, and GFP_IOFS was set, and this resulted
+in too_many_isolated returning true. But one of the CPU's
+pageset vm_stat_diff had NR_ISOLATED_FILE as "-14". So the
+actual isolated count was zero. As there weren't any more
+updates to NR_ISOLATED_FILE and vmstat_update deffered work
+had not been scheduled yet, 7 tasks were spinning in the
+congestion wait loop for around 4 seconds, in the direct
+reclaim path.
 
-a) CONFIG_HOLES_IN_ZONE is disabled, jut check first/last pfn of each pageblock
-for validity. If any is valid, check if it belongs to the zone.
+This patch uses zone_page_state_snapshot instead, but restricts
+its usage to avoid performance penalty.
 
-b) CONFIG_HOLES_IN_ZONE is enabled: try the above first, but if first or last is
-invalid, we probably have to resort to a full pageblock scan, because there
-might be holes containing pageblocks boundaries, and the valid pfn's are in the
-middle?
+Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
+---
+ mm/vmscan.c | 68 ++++++++++++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 49 insertions(+), 19 deletions(-)
 
-Note that compaction just skips over such pageblocks described in case b) if
-such configurations even exist. That might be suboptimal, but not fatal. In case
-of memory offlining, it could be I guess.
-
-
-
-> Disclaimer: I'm very much not familiar with this area of code, and I fixed
-this bug based off of documentation that I read.
-> 
-> Regards, James ________________________________________
-> From: David Rientjes [rientjes@google.com]
-> Sent: Wednesday, December 17, 2014 5:40 PM
-> To: akpm@linux-foundation.org
-> Cc: linux-mm@kvack.org; James Custer; isimatu.yasuaki@jp.fujitsu.com; kamezawa.hiroyu@jp.fujitsu.com; Russ Anderson; stable@vger.kernel.org
-> Subject: Re: [patch 4/6] mm: fix invalid use of pfn_valid_within in test_pages_in_a_zone
-> 
-> On Mon, 15 Dec 2014, akpm@linux-foundation.org wrote:
-> 
->> diff -puN mm/memory_hotplug.c~mm-fix-invalid-use-of-pfn_valid_within-in-test_pages_in_a_zone mm/memory_hotplug.c
->> --- a/mm/memory_hotplug.c~mm-fix-invalid-use-of-pfn_valid_within-in-test_pages_in_a_zone
->> +++ a/mm/memory_hotplug.c
->> @@ -1331,7 +1331,7 @@ int is_mem_section_removable(unsigned lo
->>  }
->>
->>  /*
->> - * Confirm all pages in a range [start, end) is belongs to the same zone.
->> + * Confirm all pages in a range [start, end) belong to the same zone.
->>   */
->>  int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
->>  {
->> @@ -1342,10 +1342,11 @@ int test_pages_in_a_zone(unsigned long s
->>       for (pfn = start_pfn;
->>            pfn < end_pfn;
->>            pfn += MAX_ORDER_NR_PAGES) {
->> -             i = 0;
->> -             /* This is just a CONFIG_HOLES_IN_ZONE check.*/
->> -             while ((i < MAX_ORDER_NR_PAGES) && !pfn_valid_within(pfn + i))
->> -                     i++;
->> +             /* Find the first valid pfn in this pageblock */
->> +             for (i = 0; i < MAX_ORDER_NR_PAGES; i++) {
->> +                     if (pfn_valid(pfn + i))
->> +                             break;
->> +             }
->>               if (i == MAX_ORDER_NR_PAGES)
->>                       continue;
->>               page = pfn_to_page(pfn + i);
-> 
-> I think it would be much better to implement test_pages_in_a_zone() as a
-> wrapper around the logic in memory compaction's pageblock_pfn_to_page()
-> that does this exact same check for a pageblock.  It would only need to
-> iterate the valid pageblocks in the [start_pfn, end_pfn) range and find
-> the zone of the first pfn of the first valid pageblock.  This not only
-> removes code, but it also unifies the implementation since your
-> implementation above would be slower.
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=ilto:"dont@kvack.org"> email@kvack.org </a>
-> 
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 5e8772b..5e9667c 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1392,6 +1392,44 @@ int isolate_lru_page(struct page *page)
+ 	return ret;
+ }
+ 
++static int __too_many_isolated(struct zone *zone, int file,
++	struct scan_control *sc, int safe)
++{
++	unsigned long inactive, isolated;
++
++	if (file) {
++		if (safe) {
++			inactive = zone_page_state_snapshot(zone,
++					NR_INACTIVE_FILE);
++			isolated = zone_page_state_snapshot(zone,
++					NR_ISOLATED_FILE);
++		} else {
++			inactive = zone_page_state(zone, NR_INACTIVE_FILE);
++			isolated = zone_page_state(zone, NR_ISOLATED_FILE);
++		}
++	} else {
++		if (safe) {
++			inactive = zone_page_state_snapshot(zone,
++					NR_INACTIVE_ANON);
++			isolated = zone_page_state_snapshot(zone,
++					NR_ISOLATED_ANON);
++		} else {
++			inactive = zone_page_state(zone, NR_INACTIVE_ANON);
++			isolated = zone_page_state(zone, NR_ISOLATED_ANON);
++		}
++	}
++
++	/*
++	 * GFP_NOIO/GFP_NOFS callers are allowed to isolate more pages, so they
++	 * won't get blocked by normal direct-reclaimers, forming a circular
++	 * deadlock.
++	 */
++	if ((sc->gfp_mask & GFP_IOFS) == GFP_IOFS)
++		inactive >>= 3;
++
++	return isolated > inactive;
++}
++
+ /*
+  * A direct reclaimer may isolate SWAP_CLUSTER_MAX pages from the LRU list and
+  * then get resheduled. When there are massive number of tasks doing page
+@@ -1400,33 +1438,22 @@ int isolate_lru_page(struct page *page)
+  * unnecessary swapping, thrashing and OOM.
+  */
+ static int too_many_isolated(struct zone *zone, int file,
+-		struct scan_control *sc)
++		struct scan_control *sc, int safe)
+ {
+-	unsigned long inactive, isolated;
+-
+ 	if (current_is_kswapd())
+ 		return 0;
+ 
+ 	if (!global_reclaim(sc))
+ 		return 0;
+ 
+-	if (file) {
+-		inactive = zone_page_state(zone, NR_INACTIVE_FILE);
+-		isolated = zone_page_state(zone, NR_ISOLATED_FILE);
+-	} else {
+-		inactive = zone_page_state(zone, NR_INACTIVE_ANON);
+-		isolated = zone_page_state(zone, NR_ISOLATED_ANON);
++	if (unlikely(__too_many_isolated(zone, file, sc, 0))) {
++		if (safe)
++			return __too_many_isolated(zone, file, sc, safe);
++		else
++			return 1;
+ 	}
+ 
+-	/*
+-	 * GFP_NOIO/GFP_NOFS callers are allowed to isolate more pages, so they
+-	 * won't get blocked by normal direct-reclaimers, forming a circular
+-	 * deadlock.
+-	 */
+-	if ((sc->gfp_mask & GFP_IOFS) == GFP_IOFS)
+-		inactive >>= 3;
+-
+-	return isolated > inactive;
++	return 0;
+ }
+ 
+ static noinline_for_stack void
+@@ -1516,15 +1543,18 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 	unsigned long nr_immediate = 0;
+ 	isolate_mode_t isolate_mode = 0;
+ 	int file = is_file_lru(lru);
++	int safe = 0;
+ 	struct zone *zone = lruvec_zone(lruvec);
+ 	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
+ 
+-	while (unlikely(too_many_isolated(zone, file, sc))) {
++	while (unlikely(too_many_isolated(zone, file, sc, safe))) {
+ 		congestion_wait(BLK_RW_ASYNC, HZ/10);
+ 
+ 		/* We are about to die and free our memory. Return now. */
+ 		if (fatal_signal_pending(current))
+ 			return SWAP_CLUSTER_MAX;
++
++		safe = 1;
+ 	}
+ 
+ 	lru_add_drain();
+-- 
+QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
+member of the Code Aurora Forum, hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
