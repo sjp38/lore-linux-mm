@@ -1,55 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 450126B0032
-	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 02:56:08 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id kq14so2136458pab.12
-        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 23:56:07 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id hw10si26278912pab.71.2015.01.12.23.56.06
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id B16046B006E
+	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 02:58:03 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id fb1so2136252pad.13
+        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 23:58:03 -0800 (PST)
+Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
+        by mx.google.com with ESMTPS id qq9si26170038pbb.102.2015.01.12.23.58.01
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Jan 2015 23:56:06 -0800 (PST)
-Date: Tue, 13 Jan 2015 10:55:57 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH -mm 2/2] mm: vmscan: init reclaim_state in
- do_try_to_free_pages
-Message-ID: <20150113075557.GH2110@esperanza>
-References: <880700a513472a8b86fd3100aef674322c66c68e.1421054931.git.vdavydov@parallels.com>
- <20a8ae66cc2b9412b1bf81c0a46f4e8c737aa537.1421054931.git.vdavydov@parallels.com>
- <20150112222634.GC25609@phnom.home.cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20150112222634.GC25609@phnom.home.cmpxchg.org>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Mon, 12 Jan 2015 23:58:02 -0800 (PST)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout3.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NI300INNVNDKL70@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 13 Jan 2015 08:02:01 +0000 (GMT)
+Message-id: <54B4CFF3.5060100@samsung.com>
+Date: Tue, 13 Jan 2015 08:57:39 +0100
+From: Andrzej Hajda <a.hajda@samsung.com>
+MIME-version: 1.0
+Subject: Re: [PATCH 3/5] clk: convert clock name allocations to kstrdup_const
+References: <1421054323-14430-1-git-send-email-a.hajda@samsung.com>
+ <1421054323-14430-4-git-send-email-a.hajda@samsung.com>
+ <20150112231104.20842.5239@quantum>
+In-reply-to: <20150112231104.20842.5239@quantum>
+Content-type: text/plain; charset=utf-8
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mike Turquette <mturquette@linaro.org>, linux-mm@kvack.org
+Cc: Andrzej Hajda <a.hajda@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, linux-kernel@vger.kernel.org, andi@firstfloor.org, andi@lisas.de, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, sboyd@codeaurora.org
 
-On Mon, Jan 12, 2015 at 05:26:34PM -0500, Johannes Weiner wrote:
-> On Mon, Jan 12, 2015 at 12:30:38PM +0300, Vladimir Davydov wrote:
-> > All users of do_try_to_free_pages() want to have current->reclaim_state
-> > set in order to account reclaimed slab pages. So instead of duplicating
-> > the reclaim_state initialization code in each call site, let's do it
-> > directly in do_try_to_free_pages().
-> 
-> Couldn't this be contained in shrink_slab() directly?
+On 01/13/2015 12:11 AM, Mike Turquette wrote:
+> Quoting Andrzej Hajda (2015-01-12 01:18:41)
+>> Clock subsystem frequently performs duplication of strings located
+>> in read-only memory section. Replacing kstrdup by kstrdup_const
+>> allows to avoid such operations.
+>>
+>> Signed-off-by: Andrzej Hajda <a.hajda@samsung.com>
+> Looks OK to me. Is there an easy trick to measuring the number of string
+> duplications saved short of instrumenting your code with a counter?
 
-I had considered this possibility, but finally rejected it, because
+I have just added pr_err in kstrdup_const:
 
- - some slab pages can be reclaimed from shrink_lruvec (e.g.
-   buffer_head's); there shouldn't be too many of them though
+diff --git a/mm/util.c b/mm/util.c
+index c96fc4b..32a97b2 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -56,8 +56,10 @@ EXPORT_SYMBOL(kstrdup);
+ 
+ const char *kstrdup_const(const char *s, gfp_t gfp)
+ {
+-       if (is_kernel_rodata((unsigned long)s))
++       if (is_kernel_rodata((unsigned long)s)) {
++               pr_err("%s: %pS:%s\n", __func__,
+__builtin_return_address(0), s);
+                return s;
++       }
+ 
+        return kstrdup(s, gfp);
+ }
 
- - struct reclaim_state looks to me as a generic placeholder for lots of
-   reclaim-related stuff, though currently it is only used for counting
-   reclaimed slab pages, so IMO it should be initialized before starting
-   reclaim
+Probably printk buffer size should be increased:
+CONFIG_LOG_BUF_SHIFT=17
 
-Both arguments are not rock-solid as you can see, so if you think we can
-neglect them, I'll do.
+Regards
+Andrzej
 
-Thanks,
-Vladimir
+>
+> Regards,
+> Mike
+>
+>> ---
+>>  drivers/clk/clk.c | 12 ++++++------
+>>  1 file changed, 6 insertions(+), 6 deletions(-)
+>>
+>> diff --git a/drivers/clk/clk.c b/drivers/clk/clk.c
+>> index f4963b7..27e644a 100644
+>> --- a/drivers/clk/clk.c
+>> +++ b/drivers/clk/clk.c
+>> @@ -2048,7 +2048,7 @@ struct clk *clk_register(struct device *dev, struct clk_hw *hw)
+>>                 goto fail_out;
+>>         }
+>>  
+>> -       clk->name = kstrdup(hw->init->name, GFP_KERNEL);
+>> +       clk->name = kstrdup_const(hw->init->name, GFP_KERNEL);
+>>         if (!clk->name) {
+>>                 pr_err("%s: could not allocate clk->name\n", __func__);
+>>                 ret = -ENOMEM;
+>> @@ -2075,7 +2075,7 @@ struct clk *clk_register(struct device *dev, struct clk_hw *hw)
+>>  
+>>         /* copy each string name in case parent_names is __initdata */
+>>         for (i = 0; i < clk->num_parents; i++) {
+>> -               clk->parent_names[i] = kstrdup(hw->init->parent_names[i],
+>> +               clk->parent_names[i] = kstrdup_const(hw->init->parent_names[i],
+>>                                                 GFP_KERNEL);
+>>                 if (!clk->parent_names[i]) {
+>>                         pr_err("%s: could not copy parent_names\n", __func__);
+>> @@ -2090,10 +2090,10 @@ struct clk *clk_register(struct device *dev, struct clk_hw *hw)
+>>  
+>>  fail_parent_names_copy:
+>>         while (--i >= 0)
+>> -               kfree(clk->parent_names[i]);
+>> +               kfree_const(clk->parent_names[i]);
+>>         kfree(clk->parent_names);
+>>  fail_parent_names:
+>> -       kfree(clk->name);
+>> +       kfree_const(clk->name);
+>>  fail_name:
+>>         kfree(clk);
+>>  fail_out:
+>> @@ -2112,10 +2112,10 @@ static void __clk_release(struct kref *ref)
+>>  
+>>         kfree(clk->parents);
+>>         while (--i >= 0)
+>> -               kfree(clk->parent_names[i]);
+>> +               kfree_const(clk->parent_names[i]);
+>>  
+>>         kfree(clk->parent_names);
+>> -       kfree(clk->name);
+>> +       kfree_const(clk->name);
+>>         kfree(clk);
+>>  }
+>>  
+>> -- 
+>> 1.9.1
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
