@@ -1,61 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 8169E6B0032
-	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 07:27:12 -0500 (EST)
-Received: by mail-ie0-f171.google.com with SMTP id ar1so2397475iec.2
-        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 04:27:12 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id m81si13730404iom.55.2015.01.13.04.27.10
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D1FA6B0032
+	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 09:15:26 -0500 (EST)
+Received: by mail-wg0-f45.google.com with SMTP id y19so3196405wgg.4
+        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 06:15:26 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id cr3si18881365wib.59.2015.01.13.06.15.24
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Jan 2015 04:27:11 -0800 (PST)
-From: Shiraz Hashim <shashim@codeaurora.org>
-Subject: [PATCH 1/1] mm: pagemap: limit scan to virtual region being asked
-Date: Tue, 13 Jan 2015 17:57:04 +0530
-Message-Id: <1421152024-6204-1-git-send-email-shashim@codeaurora.org>
+        Tue, 13 Jan 2015 06:15:24 -0800 (PST)
+Date: Tue, 13 Jan 2015 09:15:15 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] memcg: remove extra newlines from memcg oom kill log
+Message-ID: <20150113141515.GA8180@phnom.home.cmpxchg.org>
+References: <1421131539-3211-1-git-send-email-gthelen@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1421131539-3211-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, oleg@redhat.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, Shiraz Hashim <shashim@codeaurora.org>
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-pagemap_read scans through the virtual address space of a
-task till it prepares 'count' pagemaps or it reaches end
-of task.
+On Mon, Jan 12, 2015 at 10:45:39PM -0800, Greg Thelen wrote:
+> Commit e61734c55c24 ("cgroup: remove cgroup->name") added two extra
+> newlines to memcg oom kill log messages.  This makes dmesg hard to read
+> and parse.  The issue affects 3.15+.
+> Example:
+>   Task in /t                          <<< extra #1
+>    killed as a result of limit of /t
+>                                       <<< extra #2
+>   memory: usage 102400kB, limit 102400kB, failcnt 274712
+> 
+> Remove the extra newlines from memcg oom kill messages, so the messages
+> look like:
+>   Task in /t killed as a result of limit of /t
+>   memory: usage 102400kB, limit 102400kB, failcnt 240649
+> 
+> Fixes: e61734c55c24 ("cgroup: remove cgroup->name")
+> Signed-off-by: Greg Thelen <gthelen@google.com>
 
-This presents a problem when the page walk doesn't happen
-for vma with VM_PFNMAP set. In which case walk is silently
-skipped and no pagemap is prepare, in turn making
-pagemap_read to scan through task end, even crossing beyond
-'count', landing into a different vma region. This leads to
-wrong presentation of mappings for that vma.
-
-Fix this by limiting end_vaddr to the end of the virtual
-address region being scanned.
-
-Signed-off-by: Shiraz Hashim <shashim@codeaurora.org>
----
- fs/proc/task_mmu.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
-
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 246eae8..04362e4 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -1270,7 +1270,9 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
- 	src = *ppos;
- 	svpfn = src / PM_ENTRY_BYTES;
- 	start_vaddr = svpfn << PAGE_SHIFT;
--	end_vaddr = TASK_SIZE_OF(task);
-+	end_vaddr = start_vaddr + ((count / PM_ENTRY_BYTES) << PAGE_SHIFT);
-+	if ((end_vaddr > TASK_SIZE_OF(task)) || (end_vaddr < start_vaddr))
-+		end_vaddr = TASK_SIZE_OF(task);
- 
- 	/* watch out for wraparound */
- 	if (svpfn > TASK_SIZE_OF(task) >> PAGE_SHIFT)
--- 
-
-QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
-member of the Code Aurora Forum, hosted by The Linux Foundation
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
