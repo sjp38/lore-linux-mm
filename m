@@ -1,94 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
-	by kanga.kvack.org (Postfix) with ESMTP id B55676B0032
-	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 09:25:49 -0500 (EST)
-Received: by mail-we0-f171.google.com with SMTP id u56so3214118wes.2
-        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 06:25:49 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id dc1si42182577wjc.38.2015.01.13.06.25.48
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 320056B0032
+	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 09:50:57 -0500 (EST)
+Received: by mail-wi0-f170.google.com with SMTP id bs8so20664072wib.1
+        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 06:50:56 -0800 (PST)
+Received: from mail-wi0-x234.google.com (mail-wi0-x234.google.com. [2a00:1450:400c:c05::234])
+        by mx.google.com with ESMTPS id hj1si20523218wib.65.2015.01.13.06.50.55
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Jan 2015 06:25:48 -0800 (PST)
-Date: Tue, 13 Jan 2015 09:25:44 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC] A question about memcg/kmem
-Message-ID: <20150113142544.GB8180@phnom.home.cmpxchg.org>
-References: <20150113092424.GJ2110@esperanza>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 13 Jan 2015 06:50:55 -0800 (PST)
+Received: by mail-wi0-f180.google.com with SMTP id n3so4445130wiv.1
+        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 06:50:55 -0800 (PST)
+Date: Tue, 13 Jan 2015 15:50:53 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 1/3] mm: memcontrol: remove unnecessary soft limit tree
+ node test
+Message-ID: <20150113145053.GG25318@dhcp22.suse.cz>
+References: <1420856041-27647-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150113092424.GJ2110@esperanza>
+In-Reply-To: <1420856041-27647-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Jan 13, 2015 at 12:24:24PM +0300, Vladimir Davydov wrote:
-> Hi,
+On Fri 09-01-15 21:13:59, Johannes Weiner wrote:
+> kzalloc_node() automatically falls back to nodes with suitable memory.
 > 
-> There's one thing about kmemcg implementation that's bothering me. It's
-> about arrays holding per-memcg data (e.g. kmem_cache->memcg_params->
-> memcg_caches). On kmalloc or list_lru_{add,del} we want to quickly
-> lookup the copy of kmem_cache or list_lru corresponding to the current
-> cgroup. Currently, we hold all per-memcg caches/lists in an array
-> indexed by mem_cgroup->kmemcg_id. This allows us to lookup quickly, and
-> that's nice, but the arrays can grow indefinitely, because we reserve
-> slots for all cgroups, including offlined, and this is disastrous and
-> must be fixed.
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+>  mm/memcontrol.c | 7 ++-----
+>  1 file changed, 2 insertions(+), 5 deletions(-)
 > 
-> I see several ways how to sort this out, but none of them looks perfect
-> to me, so I can't decide which one to choose. I would appreciate if you
-> could share your thoughts on them. Here they are:
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index fd9e542fc26f..aad254b30708 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4520,13 +4520,10 @@ static void __init mem_cgroup_soft_limit_tree_init(void)
+>  {
+>  	struct mem_cgroup_tree_per_node *rtpn;
+>  	struct mem_cgroup_tree_per_zone *rtpz;
+> -	int tmp, node, zone;
+> +	int node, zone;
+>  
+>  	for_each_node(node) {
+> -		tmp = node;
+> -		if (!node_state(node, N_NORMAL_MEMORY))
+> -			tmp = -1;
+> -		rtpn = kzalloc_node(sizeof(*rtpn), GFP_KERNEL, tmp);
+> +		rtpn = kzalloc_node(sizeof(*rtpn), GFP_KERNEL, node);
+>  		BUG_ON(!rtpn);
+>  
+>  		soft_limit_tree.rb_tree_per_node[node] = rtpn;
+> -- 
+> 2.2.0
 > 
-> 1. When we are about to grow arrays (new kmem-active memcg is created
->    and there's no slot for it), try to reclaim memory from all offline
->    kmem-active cgroups in the hope one of them will pass away and
->    release its slot.
-> 
->    This is not very reliable obviously, because we can fail to reclaim
->    and have to grow arrays anyway.
 
-I don't like this option because the user doesn't expect large swathes
-of page cache to be reclaimed simply because they created a new memcg.
-
-> 2. On css offline, empty all list_lru's corresponding to the dying
->    cgroup by moving items to the parent. Then, we could free kmemcg_id
->    immediately on offline, and the arrays would store entries for online
->    cgroups only, which is fine. This looks as a kind of reparenting, but
->    it doesn't move charges, only list_lru elements, which is much easier
->    to do.
-> 
->    This does not conform to how we treat other charges though.
-
-This seems like the best way to do it to me.  It shouldn't result in a
-user-visible difference in behavior and we get to keep the O(1) lookup
-during the allocation hotpath.  Could even the reparenting be constant
-by using list_splice()?
-
-> 3. Use some reclaimable data structure instead of a raw array. E.g.
->    radix tree, or idr. The structure would grow then, but it would also
->    shrink when css's are reclaimed on memory pressure.
-> 
->    This will probably affect performance, because we do lookups on each
->    kmalloc, so it must be as fast as possible. It could be probably
->    optimized by caching the result of the last lookup (hint), but hints
->    must be per cpu then, which will make list_lru bulky.
-
-I think the tree lookup in the slab allocation hotpath is prohibitive.
-
-> Currently, I incline to #1 or (most preferably) #2. I implemented
-> per-memcg list_lru with this in mind, and I have patches bringing in
-> list_lru "reparenting". #3 popped up in my mind just a few days ago. If
-> we decide to give it a try, I'll have to drop the previous per-memcg
-> list_lru implementation, and do a heavy rework of per-memcg kmem_cache
-> handling as well, but I'm fine with it.
-> 
-> I would be happy if we could opt out some of those design decisions
-> above. E.g. "I really hate #X, it's a no-go, because..." :-) Otherwise,
-> I'll most probably go with #2, which may become a nasty surprise to some
-> of you.
-
-What aspects of #2 do you think are nasty?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
