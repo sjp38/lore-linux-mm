@@ -1,50 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f182.google.com (mail-vc0-f182.google.com [209.85.220.182])
-	by kanga.kvack.org (Postfix) with ESMTP id E763C6B0032
-	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 16:39:07 -0500 (EST)
-Received: by mail-vc0-f182.google.com with SMTP id hq12so1746120vcb.13
-        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 13:39:07 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id hf6si1693001vdb.2.2015.01.13.13.39.06
-        for <linux-mm@kvack.org>;
-        Tue, 13 Jan 2015 13:39:07 -0800 (PST)
-Date: Tue, 13 Jan 2015 16:39:03 -0500
-From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Re: [PATCH v12 07/20] dax,ext2: Replace ext2_clear_xip_target with
- dax_clear_blocks
-Message-ID: <20150113213903.GJ5661@wil.cx>
-References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
- <1414185652-28663-8-git-send-email-matthew.r.wilcox@intel.com>
- <20150112150947.eb6ccb5c45edb4e83cd48b28@linux-foundation.org>
+Received: from mail-la0-f53.google.com (mail-la0-f53.google.com [209.85.215.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 5022B6B0032
+	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 16:43:58 -0500 (EST)
+Received: by mail-la0-f53.google.com with SMTP id gm9so5014899lab.12
+        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 13:43:57 -0800 (PST)
+Received: from mail-lb0-x236.google.com (mail-lb0-x236.google.com. [2a00:1450:4010:c04::236])
+        by mx.google.com with ESMTPS id z4si4032203lae.103.2015.01.13.13.43.57
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 13 Jan 2015 13:43:57 -0800 (PST)
+Received: by mail-lb0-f182.google.com with SMTP id u10so4854940lbd.13
+        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 13:43:57 -0800 (PST)
+Date: Wed, 14 Jan 2015 00:43:55 +0300
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [PATCH 1/2] mm: rename mm->nr_ptes to mm->nr_pgtables
+Message-ID: <20150113214355.GC2253@moon>
+References: <1421176456-21796-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1421176456-21796-2-git-send-email-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150112150947.eb6ccb5c45edb4e83cd48b28@linux-foundation.org>
+In-Reply-To: <1421176456-21796-2-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@linux.intel.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, Pavel Emelyanov <xemul@openvz.org>, linux-kernel@vger.kernel.org
 
-On Mon, Jan 12, 2015 at 03:09:47PM -0800, Andrew Morton wrote:
-> > +int dax_clear_blocks(struct inode *inode, sector_t block, long size)
-> > +{
-...
-> > +			if (pgsz < PAGE_SIZE)
-> > +				memset(addr, 0, pgsz);
-> > +			else
-> > +				clear_page(addr);
+On Tue, Jan 13, 2015 at 09:14:15PM +0200, Kirill A. Shutemov wrote:
+> We're going to account pmd page tables too. Let's rename mm->nr_pgtables
+> to something more generic.
 > 
-> Are there any cache issues in all this code? flush_dcache_page(addr)?
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -64,7 +64,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+>  		data << (PAGE_SHIFT-10),
+>  		mm->stack_vm << (PAGE_SHIFT-10), text, lib,
+>  		(PTRS_PER_PTE * sizeof(pte_t) *
+> -		 atomic_long_read(&mm->nr_ptes)) >> 10,
+> +		 atomic_long_read(&mm->nr_pgtables)) >> 10,
 
-Here, no.  This is only called to initialise a newly allocated block.
+This implies that (PTRS_PER_PTE * sizeof(pte_t)) = (PTRS_PER_PMD * sizeof(pmd_t))
+which might be true for all archs, right?
 
-Elsewhere, maybe.  When i was originally working on this, I think I had
-code that forced mmaps of DAX files to be aligned to SHMLBA, because I
-remember noticing a bug in sparc64's remap_file_range().  Unfortunately,
-in the various rewrites, that got lost.  So it needs to be put back in.
-
-flush_dcache_page() in particular won't work because it needs a struct
-page.
+Other looks good to me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
