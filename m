@@ -1,113 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f48.google.com (mail-yh0-f48.google.com [209.85.213.48])
-	by kanga.kvack.org (Postfix) with ESMTP id AFCEB6B0032
-	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 13:58:32 -0500 (EST)
-Received: by mail-yh0-f48.google.com with SMTP id i57so2357097yha.7
-        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 10:58:32 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id t26si11181369yhg.207.2015.01.13.10.58.31
-        for <linux-mm@kvack.org>;
-        Tue, 13 Jan 2015 10:58:31 -0800 (PST)
-Date: Tue, 13 Jan 2015 13:58:23 -0500
-From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Re: [PATCH v12 04/20] mm: Allow page fault handlers to perform the
- COW
-Message-ID: <20150113185823.GH5661@wil.cx>
-References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
- <1414185652-28663-5-git-send-email-matthew.r.wilcox@intel.com>
- <20150112150935.e617603089bc07e68f0e657c@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150112150935.e617603089bc07e68f0e657c@linux-foundation.org>
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id EF3316B0032
+	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 14:00:16 -0500 (EST)
+Received: by mail-wg0-f45.google.com with SMTP id y19so4778480wgg.4
+        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 11:00:16 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id bd1si43494461wjb.77.2015.01.13.11.00.14
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Jan 2015 11:00:14 -0800 (PST)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch] mm: memcontrol: fold move_anon() and move_file()
+Date: Tue, 13 Jan 2015 13:59:52 -0500
+Message-Id: <1421175592-14179-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@linux.intel.com
+Cc: Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, Jan 12, 2015 at 03:09:35PM -0800, Andrew Morton wrote:
-> On Fri, 24 Oct 2014 17:20:36 -0400 Matthew Wilcox <matthew.r.wilcox@intel.com> wrote:
-> > Currently COW of an XIP file is done by first bringing in a read-only
-> > mapping, then retrying the fault and copying the page.  It is much more
-> > efficient to tell the fault handler that a COW is being attempted (by
-> > passing in the pre-allocated page in the vm_fault structure), and allow
-> > the handler to perform the COW operation itself.
-> > 
-> > The handler cannot insert the page itself if there is already a read-only
-> > mapping at that address, so allow the handler to return VM_FAULT_LOCKED
-> > and set the fault_page to be NULL.  This indicates to the MM code that
-> > the i_mmap_mutex is held instead of the page lock.
-> 
-> Again, the locking gets a bit subtle.  How can we make this clearer to
-> readers of the core code.  I had a shot but it's a bit lame - DAX uses
-> i_mmap_lock for what???
+Turn the move type enum into flags and give the flags field a shorter
+name.  Once that is done, move_anon() and move_file() are simple
+enough to just fold them into the callsites.
 
-It's not just DAX ... any fault handler that wants to optimise its COW
-can use the same technique.  I could turn this around and ask the mm
-people why it is the struct page has to be returned locked; what is it
-protecting against?
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ mm/memcontrol.c | 49 ++++++++++++++++++-------------------------------
+ 1 file changed, 18 insertions(+), 31 deletions(-)
 
-I'm pretty sure the answer is only truncate, and so (as with the previous
-patch), the read lock is perfectly appropriate.
-
-> If I know that, I'd know whether to have used i_mmap_lock_read() or
-> i_mmap_lock_write() :(
-> 
-> 
-> From: Andrew Morton <akpm@linux-foundation.org>
-> Subject: mm-allow-page-fault-handlers-to-perform-the-cow-fix
-> 
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
-> 
->  mm/memory.c |   12 ++++++++++--
->  1 file changed, 10 insertions(+), 2 deletions(-)
-> 
-> diff -puN include/linux/mm.h~mm-allow-page-fault-handlers-to-perform-the-cow-fix include/linux/mm.h
-> diff -puN mm/memory.c~mm-allow-page-fault-handlers-to-perform-the-cow-fix mm/memory.c
-> --- a/mm/memory.c~mm-allow-page-fault-handlers-to-perform-the-cow-fix
-> +++ a/mm/memory.c
-> @@ -2961,7 +2961,11 @@ static int do_cow_fault(struct mm_struct
->  			unlock_page(fault_page);
->  			page_cache_release(fault_page);
->  		} else {
-> -			mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
-> +			/*
-> +			 * DAX doesn't have a page to lock, so it uses
-> +			 * i_mmap_lock()
-> +			 */
-> +			i_mmap_unlock_read(&vma->vm_file->f_mapping);
-
-How about:
-			/*
-			 * The fault handler has no page to lock, so it
-			 * holds i_mmap_lock for read to protect against
-			 * truncate.
-			 */
-
->  		}
->  		goto uncharge_out;
->  	}
-> @@ -2973,7 +2977,11 @@ static int do_cow_fault(struct mm_struct
->  		unlock_page(fault_page);
->  		page_cache_release(fault_page);
->  	} else {
-> -		mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
-> +			/*
-> +			 * DAX doesn't have a page to lock, so it uses
-> +			 * i_mmap_lock()
-> +			 */
-> +			i_mmap_unlock_read(&vma->vm_file->f_mapping);
-
-(as Jan already pointed out, the indentation needs to be fixed here anyway)
-
->  	}
->  	return ret;
->  uncharge_out:
-> _
-> 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 5a5769e8b12c..692e96407627 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -360,21 +360,18 @@ static bool memcg_kmem_is_active(struct mem_cgroup *memcg)
+ 
+ /* Stuffs for move charges at task migration. */
+ /*
+- * Types of charges to be moved. "move_charge_at_immitgrate" and
+- * "immigrate_flags" are treated as a left-shifted bitmap of these types.
++ * Types of charges to be moved.
+  */
+-enum move_type {
+-	MOVE_CHARGE_TYPE_ANON,	/* private anonymous page and swap of it */
+-	MOVE_CHARGE_TYPE_FILE,	/* file page(including tmpfs) and swap of it */
+-	NR_MOVE_TYPE,
+-};
++#define MOVE_ANON	0x1U
++#define MOVE_FILE	0x2U
++#define MOVE_MASK	0x3U
+ 
+ /* "mc" and its members are protected by cgroup_mutex */
+ static struct move_charge_struct {
+ 	spinlock_t	  lock; /* for from, to */
+ 	struct mem_cgroup *from;
+ 	struct mem_cgroup *to;
+-	unsigned long immigrate_flags;
++	unsigned long flags;
+ 	unsigned long precharge;
+ 	unsigned long moved_charge;
+ 	unsigned long moved_swap;
+@@ -385,16 +382,6 @@ static struct move_charge_struct {
+ 	.waitq = __WAIT_QUEUE_HEAD_INITIALIZER(mc.waitq),
+ };
+ 
+-static bool move_anon(void)
+-{
+-	return test_bit(MOVE_CHARGE_TYPE_ANON, &mc.immigrate_flags);
+-}
+-
+-static bool move_file(void)
+-{
+-	return test_bit(MOVE_CHARGE_TYPE_FILE, &mc.immigrate_flags);
+-}
+-
+ /*
+  * Maximum loops in mem_cgroup_hierarchical_reclaim(), used for soft
+  * limit reclaim to prevent infinite loops, if they ever occur.
+@@ -3476,7 +3463,7 @@ static int mem_cgroup_move_charge_write(struct cgroup_subsys_state *css,
+ {
+ 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+ 
+-	if (val >= (1 << NR_MOVE_TYPE))
++	if (val & ~MOVE_MASK)
+ 		return -EINVAL;
+ 
+ 	/*
+@@ -4698,12 +4685,12 @@ static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
+ 	if (!page || !page_mapped(page))
+ 		return NULL;
+ 	if (PageAnon(page)) {
+-		/* we don't move shared anon */
+-		if (!move_anon())
++		if (!(mc.flags & MOVE_ANON))
+ 			return NULL;
+-	} else if (!move_file())
+-		/* we ignore mapcount for file pages */
+-		return NULL;
++	} else {
++		if (!(mc.flags & MOVE_FILE))
++			return NULL;
++	}
+ 	if (!get_page_unless_zero(page))
+ 		return NULL;
+ 
+@@ -4717,7 +4704,7 @@ static struct page *mc_handle_swap_pte(struct vm_area_struct *vma,
+ 	struct page *page = NULL;
+ 	swp_entry_t ent = pte_to_swp_entry(ptent);
+ 
+-	if (!move_anon() || non_swap_entry(ent))
++	if (!(mc.flags & MOVE_ANON) || non_swap_entry(ent))
+ 		return NULL;
+ 	/*
+ 	 * Because lookup_swap_cache() updates some statistics counter,
+@@ -4746,7 +4733,7 @@ static struct page *mc_handle_file_pte(struct vm_area_struct *vma,
+ 
+ 	if (!vma->vm_file) /* anonymous vma */
+ 		return NULL;
+-	if (!move_file())
++	if (!(mc.flags & MOVE_FILE))
+ 		return NULL;
+ 
+ 	mapping = vma->vm_file->f_mapping;
+@@ -4828,7 +4815,7 @@ static enum mc_target_type get_mctgt_type_thp(struct vm_area_struct *vma,
+ 
+ 	page = pmd_page(pmd);
+ 	VM_BUG_ON_PAGE(!page || !PageHead(page), page);
+-	if (!move_anon())
++	if (!(mc.flags & MOVE_ANON))
+ 		return ret;
+ 	if (page->mem_cgroup == mc.from) {
+ 		ret = MC_TARGET_PAGE;
+@@ -4970,15 +4957,15 @@ static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
+ 	struct task_struct *p = cgroup_taskset_first(tset);
+ 	int ret = 0;
+ 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+-	unsigned long move_charge_at_immigrate;
++	unsigned long move_flags;
+ 
+ 	/*
+ 	 * We are now commited to this value whatever it is. Changes in this
+ 	 * tunable will only affect upcoming migrations, not the current one.
+ 	 * So we need to save it, and keep it going.
+ 	 */
+-	move_charge_at_immigrate  = memcg->move_charge_at_immigrate;
+-	if (move_charge_at_immigrate) {
++	move_flags = ACCESS_ONCE(memcg->move_charge_at_immigrate);
++	if (move_flags) {
+ 		struct mm_struct *mm;
+ 		struct mem_cgroup *from = mem_cgroup_from_task(p);
+ 
+@@ -4998,7 +4985,7 @@ static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
+ 			spin_lock(&mc.lock);
+ 			mc.from = from;
+ 			mc.to = memcg;
+-			mc.immigrate_flags = move_charge_at_immigrate;
++			mc.flags = move_flags;
+ 			spin_unlock(&mc.lock);
+ 			/* We set mc.moving_task later */
+ 
+-- 
+2.2.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
