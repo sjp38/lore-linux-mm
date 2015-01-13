@@ -1,56 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
-	by kanga.kvack.org (Postfix) with ESMTP id BCA486B0032
-	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 18:20:34 -0500 (EST)
-Received: by mail-ie0-f178.google.com with SMTP id vy18so5833569iec.9
-        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 15:20:34 -0800 (PST)
-Received: from mail-ig0-x230.google.com (mail-ig0-x230.google.com. [2607:f8b0:4001:c05::230])
-        by mx.google.com with ESMTPS id pi2si7680248igb.60.2015.01.13.15.20.33
+Received: from mail-yh0-f44.google.com (mail-yh0-f44.google.com [209.85.213.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FDFE6B0032
+	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 18:37:34 -0500 (EST)
+Received: by mail-yh0-f44.google.com with SMTP id c41so2975220yho.3
+        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 15:37:34 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id u63si1103923yhu.73.2015.01.13.15.37.32
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 13 Jan 2015 15:20:33 -0800 (PST)
-Received: by mail-ig0-f176.google.com with SMTP id b16so4130461igk.3
-        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 15:20:33 -0800 (PST)
-References: <1420776904-8559-1-git-send-email-hannes@cmpxchg.org> <1420776904-8559-2-git-send-email-hannes@cmpxchg.org>
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [patch 2/2] mm: memcontrol: default hierarchy interface for memory
-In-reply-to: <1420776904-8559-2-git-send-email-hannes@cmpxchg.org>
-Date: Tue, 13 Jan 2015 15:20:08 -0800
-Message-ID: <xr93a91mz2s7.fsf@gthelen.mtv.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Jan 2015 15:37:33 -0800 (PST)
+Date: Tue, 13 Jan 2015 15:37:31 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/5] kstrdup optimization
+Message-Id: <20150113153731.43eefac721964d165396e5af@linux-foundation.org>
+In-Reply-To: <1421054323-14430-1-git-send-email-a.hajda@samsung.com>
+References: <1421054323-14430-1-git-send-email-a.hajda@samsung.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrzej Hajda <a.hajda@samsung.com>
+Cc: linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, linux-kernel@vger.kernel.org, andi@firstfloor.org, andi@lisas.de, Mike Turquette <mturquette@linaro.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Tejun Heo <tj@kernel.org>
 
+On Mon, 12 Jan 2015 10:18:38 +0100 Andrzej Hajda <a.hajda@samsung.com> wrote:
 
-On Thu, Jan 08 2015, Johannes Weiner wrote:
+> Hi,
+> 
+> kstrdup if often used to duplicate strings where neither source neither
+> destination will be ever modified. In such case we can just reuse the source
+> instead of duplicating it. The problem is that we must be sure that
+> the source is non-modifiable and its life-time is long enough.
+> 
+> I suspect the good candidates for such strings are strings located in kernel
+> .rodata section, they cannot be modifed because the section is read-only and
+> their life-time is equal to kernel life-time.
+> 
+> This small patchset proposes alternative version of kstrdup - kstrdup_const,
+> which returns source string if it is located in .rodata otherwise it fallbacks
+> to kstrdup.
+> To verify if the source is in .rodata function checks if the address is between
+> sentinels __start_rodata, __end_rodata. I guess it should work with all
+> architectures.
+> 
+> The main patch is accompanied by four patches constifying kstrdup for cases
+> where situtation described above happens frequently.
+> 
+> As I have tested the patchset on mobile platform (exynos4210-trats) it saves
+> 3272 string allocations. Since minimal allocation is 32 or 64 bytes depending
+> on Kconfig options the patchset saves respectively about 100KB or 200KB of memory.
 
-> Introduce the basic control files to account, partition, and limit
-> memory using cgroups in default hierarchy mode.
->
-> This interface versioning allows us to address fundamental design
-> issues in the existing memory cgroup interface, further explained
-> below.  The old interface will be maintained indefinitely, but a
-> clearer model and improved workload performance should encourage
-> existing users to switch over to the new one eventually.
->
-> The control files are thus:
->
->   - memory.current shows the current consumption of the cgroup and its
->     descendants, in bytes.
->
->   - memory.low configures the lower end of the cgroup's expected
->     memory consumption range.  The kernel considers memory below that
->     boundary to be a reserve - the minimum that the workload needs in
->     order to make forward progress - and generally avoids reclaiming
->     it, unless there is an imminent risk of entering an OOM situation.
+That's a lot of memory.  I wonder where it's all going to.  sysfs,
+probably?
 
-So this is try-hard, but no-promises interface.  No complaints.  But I
-assume that an eventual extension is a more rigid memory.min which
-specifies a minimum working set under which an container would prefer an
-oom kill to thrashing.
+What the heck does (the cheerily undocumented) KERNFS_STATIC_NAME do
+and can we remove it if this patchset is in place?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
