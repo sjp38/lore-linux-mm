@@ -1,85 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f44.google.com (mail-qa0-f44.google.com [209.85.216.44])
-	by kanga.kvack.org (Postfix) with ESMTP id B88B46B0071
-	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 15:53:01 -0500 (EST)
-Received: by mail-qa0-f44.google.com with SMTP id w8so3939094qac.3
-        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 12:53:01 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id d88si28293343qgf.124.2015.01.13.12.53.00
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Jan 2015 12:53:00 -0800 (PST)
-Date: Tue, 13 Jan 2015 12:52:58 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 2/2] mm: memcontrol: default hierarchy interface for
- memory
-Message-Id: <20150113125258.0d7d3da2920234fc9461ef69@linux-foundation.org>
-In-Reply-To: <20150113155040.GC8180@phnom.home.cmpxchg.org>
-References: <1420776904-8559-1-git-send-email-hannes@cmpxchg.org>
-	<1420776904-8559-2-git-send-email-hannes@cmpxchg.org>
-	<20150112153716.d54e90c634b70d49e8bb8688@linux-foundation.org>
-	<20150113155040.GC8180@phnom.home.cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 521C16B0071
+	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 15:59:53 -0500 (EST)
+Received: by mail-qg0-f49.google.com with SMTP id f51so4142602qge.8
+        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 12:59:53 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id q9si28365908qgq.83.2015.01.13.12.59.51
+        for <linux-mm@kvack.org>;
+        Tue, 13 Jan 2015 12:59:52 -0800 (PST)
+Date: Tue, 13 Jan 2015 15:59:49 -0500
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Re: [PATCH v12 06/20] dax,ext2: Replace XIP read and write with DAX
+ I/O
+Message-ID: <20150113205949.GI5661@wil.cx>
+References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
+ <1414185652-28663-7-git-send-email-matthew.r.wilcox@intel.com>
+ <20150112150941.ab63f50561322415cca7eca9@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150112150941.ab63f50561322415cca7eca9@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@parallels.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@linux.intel.com
 
-On Tue, 13 Jan 2015 10:50:40 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Mon, Jan 12, 2015 at 03:09:41PM -0800, Andrew Morton wrote:
+> On Fri, 24 Oct 2014 17:20:38 -0400 Matthew Wilcox <matthew.r.wilcox@intel.com> wrote:
+> > +/*
+> > + * When ext4 encounters a hole, it returns without modifying the buffer_head
+> > + * which means that we can't trust b_size.  To cope with this, we set b_state
+> > + * to 0 before calling get_block and, if any bit is set, we know we can trust
+> > + * b_size.  Unfortunate, really, since ext4 knows precisely how long a hole is
+> > + * and would save us time calling get_block repeatedly.
+> > + */
+> > +static bool buffer_size_valid(struct buffer_head *bh)
+> > +{
+> > +	return bh->b_state != 0;
+> > +}
+> 
+> Yitch.  Is there a cleaner way of doing this?
 
-> On Mon, Jan 12, 2015 at 03:37:16PM -0800, Andrew Morton wrote:
-> > On Thu,  8 Jan 2015 23:15:04 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > 
-> > > Introduce the basic control files to account, partition, and limit
-> > > memory using cgroups in default hierarchy mode.
-> > > 
-> > > This interface versioning allows us to address fundamental design
-> > > issues in the existing memory cgroup interface, further explained
-> > > below.  The old interface will be maintained indefinitely, but a
-> > > clearer model and improved workload performance should encourage
-> > > existing users to switch over to the new one eventually.
-> > > 
-> > > The control files are thus:
-> > > 
-> > >   - memory.current shows the current consumption of the cgroup and its
-> > >     descendants, in bytes.
-> > > 
-> > >   - memory.low configures the lower end of the cgroup's expected
-> > >     memory consumption range.  The kernel considers memory below that
-> > >     boundary to be a reserve - the minimum that the workload needs in
-> > >     order to make forward progress - and generally avoids reclaiming
-> > >     it, unless there is an imminent risk of entering an OOM situation.
-> > 
-> > The code appears to be ascribing a special meaning to low==0: you can
-> > write "none" to set this.  But I'm not seeing any description of this?
-> 
-> Ah, yes.
-> 
-> The memory.limit_in_bytes and memory.soft_limit_in_bytes currently
-> show 18446744073709551615 per default, which is a silly way of saying
-> "this limit is inactive".  And echoing -1 into the control file is an
-> even sillier way of setting this state.  So the new interface just
-> calls this state "none".  Internally, 0 and Very High Number represent
-> this unconfigured state for memory.low and memory.high, respectively.
-> 
-> I added a bullet point at the end of the changelog below.
+I'm hoping to fix ext* and then this problem can go away ...
 
-Added, thanks.
-
-> > This all sounds pretty major.  How much trouble is this change likely to
-> > cause existing memcg users?
+> > +static ssize_t dax_io(int rw, struct inode *inode, struct iov_iter *iter,
+> > +			loff_t start, loff_t end, get_block_t get_block,
+> > +			struct buffer_head *bh)
 > 
-> That is actually entirely up to the user in question.
-> 
-> 1. The old cgroup interface remains in place as long as there are
-> users, so, technically, nothing has to change unless they want to.
+> hm, some documentation would be nice.  I expected "dax_io" to do IO,
+> but this doesn't.  Is it well named?
 
-It would be good to zap the old interface one day.  Maybe we won't ever
-be able to, but we should try.  Once this has all settled down and is
-documented, how about we add a couple of printk_once's to poke people
-in the new direction?
+It does do I/O!
+
+> > +		if (rw == WRITE)
+> > +			len = copy_from_iter(addr, max - pos, iter);
+> > +		else if (!hole)
+> > +			len = copy_to_iter(addr, max - pos, iter);
+> > +		else
+> > +			len = iov_iter_zero(max - pos, iter);
+
+> > + * This function uses the same locking scheme as do_blockdev_direct_IO:
+> > + * If @flags has DIO_LOCKING set, we assume that the i_mutex is held by the
+> > + * caller for writes.  For reads, we take and release the i_mutex ourselves.
+> > + * If DIO_LOCKING is not set, the filesystem takes care of its own locking.
+> > + * As with do_blockdev_direct_IO(), we increment i_dio_count while the I/O
+> > + * is in progress.
+> 
+> It would be helpful here to explain *why* this code uses i_dio_count:
+> what is trying to protect (against)?
+
+Rather than just referencing the documentation in fs/direct_io.c?  I
+find it tends to get stale if we have documentation in multiple places.
+
+> Oh, is that how it works ;)
+> 
+> Perhaps a few BUG_ON(!mutex_is_locked(&inode->i_mutex)) would clarfiy
+> and prevent mistakes.
+
+Perhaps ... although there aren't any in blockdev_direct_IO(), and all the
+callers are of the form:
+
+	if (IS_DAX)
+		dax_do_io()
+	else
+		blockdev_direct_IO()
+
+so they've already got their flags and locking sorted out.
+
+> > + */
+> > +ssize_t dax_do_io(int rw, struct kiocb *iocb, struct inode *inode,
+> > +			struct iov_iter *iter, loff_t pos,
+> > +			get_block_t get_block, dio_iodone_t end_io, int flags)
+> >
+> > ...
+> >
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
