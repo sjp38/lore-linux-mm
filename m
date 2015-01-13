@@ -1,63 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id BBECD6B0032
-	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 01:46:03 -0500 (EST)
-Received: by mail-ig0-f179.google.com with SMTP id l13so1718601iga.0
-        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 22:46:03 -0800 (PST)
-Received: from mail-ie0-x22e.google.com (mail-ie0-x22e.google.com. [2607:f8b0:4001:c03::22e])
-        by mx.google.com with ESMTPS id eh8si6032002igb.48.2015.01.12.22.46.02
+Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
+	by kanga.kvack.org (Postfix) with ESMTP id E34AF6B0032
+	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 01:53:43 -0500 (EST)
+Received: by mail-lb0-f175.google.com with SMTP id z11so1027833lbi.6
+        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 22:53:43 -0800 (PST)
+Received: from mail-lb0-x229.google.com (mail-lb0-x229.google.com. [2a00:1450:4010:c04::229])
+        by mx.google.com with ESMTPS id zy1si5890320lbb.12.2015.01.12.22.53.42
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 12 Jan 2015 22:46:02 -0800 (PST)
-Received: by mail-ie0-f174.google.com with SMTP id at20so1216403iec.5
-        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 22:46:01 -0800 (PST)
-From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH] memcg: remove extra newlines from memcg oom kill log
-Date: Mon, 12 Jan 2015 22:45:39 -0800
-Message-Id: <1421131539-3211-1-git-send-email-gthelen@google.com>
+        Mon, 12 Jan 2015 22:53:42 -0800 (PST)
+Received: by mail-lb0-f169.google.com with SMTP id p9so1049514lbv.0
+        for <linux-mm@kvack.org>; Mon, 12 Jan 2015 22:53:42 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20150112122138.f173c6279af0b49565e956d3@linux-foundation.org>
+References: <20150111135406.13266.42007.stgit@zurg>
+	<20150112122138.f173c6279af0b49565e956d3@linux-foundation.org>
+Date: Tue, 13 Jan 2015 10:53:42 +0400
+Message-ID: <CALYGNiNtMgiHD9qQnczeWZy25wQ10LfQhoEGkW8KTbVfp9mBoA@mail.gmail.com>
+Subject: Re: [PATCH] mm: fix corner case in anon_vma endless growing prevention
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Thelen <gthelen@google.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, "Elifaz, Dana" <Dana.Elifaz@amd.com>, "Bridgman, John" <John.Bridgman@amd.com>, Daniel Forrest <dan.forrest@ssec.wisc.edu>, Chris Clayton <chris2553@googlemail.com>, Oded Gabbay <oded.gabbay@amd.com>, Michal Hocko <mhocko@suse.cz>, Greg KH <gregkh@suse.de>
 
-Commit e61734c55c24 ("cgroup: remove cgroup->name") added two extra
-newlines to memcg oom kill log messages.  This makes dmesg hard to read
-and parse.  The issue affects 3.15+.
-Example:
-  Task in /t                          <<< extra #1
-   killed as a result of limit of /t
-                                      <<< extra #2
-  memory: usage 102400kB, limit 102400kB, failcnt 274712
+On Mon, Jan 12, 2015 at 11:21 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Sun, 11 Jan 2015 16:54:06 +0300 Konstantin Khlebnikov <koct9i@gmail.com> wrote:
+>
+>> Fix for BUG_ON(anon_vma->degree) splashes in unlink_anon_vmas()
+>> ("kernel BUG at mm/rmap.c:399!").
+>>
+>> Anon_vma_clone() is usually called for a copy of source vma in destination
+>> argument. If source vma has anon_vma it should be already in dst->anon_vma.
+>> NULL in dst->anon_vma is used as a sign that it's called from anon_vma_fork().
+>> In this case anon_vma_clone() finds anon_vma for reusing.
+>>
+>> Vma_adjust() calls it differently and this breaks anon_vma reusing logic:
+>> anon_vma_clone() links vma to old anon_vma and updates degree counters but
+>> vma_adjust() overrides vma->anon_vma right after that. As a result final
+>> unlink_anon_vmas() decrements degree for wrong anon_vma.
+>>
+>> This patch assigns ->anon_vma before calling anon_vma_clone().
+>>
+>> Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
+>> Fixes: 7a3ef208e662 ("mm: prevent endless growth of anon_vma hierarchy")
+>
+> I've asked Greg not to take 7a3ef208e662 into -stable because of this
+> problem.  So if you still think we should fix this in -stable, could
+> you please prepare an updated patch and send it to Greg?
 
-Remove the extra newlines from memcg oom kill messages, so the messages
-look like:
-  Task in /t killed as a result of limit of /t
-  memory: usage 102400kB, limit 102400kB, failcnt 240649
+Will do. But let's wait for some just to be sure that is the last bug here.
 
-Fixes: e61734c55c24 ("cgroup: remove cgroup->name")
-Signed-off-by: Greg Thelen <gthelen@google.com>
----
- mm/memcontrol.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 851924fa5170..683b4782019b 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1477,9 +1477,9 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
- 
- 	pr_info("Task in ");
- 	pr_cont_cgroup_path(task_cgroup(p, memory_cgrp_id));
--	pr_info(" killed as a result of limit of ");
-+	pr_cont(" killed as a result of limit of ");
- 	pr_cont_cgroup_path(memcg->css.cgroup);
--	pr_info("\n");
-+	pr_cont("\n");
- 
- 	rcu_read_unlock();
- 
--- 
-2.2.0.rc0.207.ga3a616c
+>
+>> Tested-by: Chris Clayton <chris2553@googlemail.com>
+>> Tested-by: Oded Gabbay <oded.gabbay@amd.com>
+>> Cc: Daniel Forrest <dan.forrest@ssec.wisc.edu>
+>> Cc: Michal Hocko <mhocko@suse.cz>
+>> Cc: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
