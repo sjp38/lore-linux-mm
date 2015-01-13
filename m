@@ -1,364 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 2689D6B0032
-	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 10:01:37 -0500 (EST)
-Received: by mail-lb0-f181.google.com with SMTP id l4so2981710lbv.12
-        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 07:01:36 -0800 (PST)
-Received: from mail-we0-x233.google.com (mail-we0-x233.google.com. [2a00:1450:400c:c03::233])
-        by mx.google.com with ESMTPS id ym7si42269786wjc.83.2015.01.13.07.01.35
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FEF76B006E
+	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 10:20:19 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id et14so4267411pad.1
+        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 07:20:19 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id zx10si27211511pac.241.2015.01.13.07.20.17
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 13 Jan 2015 07:01:35 -0800 (PST)
-Received: by mail-we0-f179.google.com with SMTP id q59so3378006wes.10
-        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 07:01:35 -0800 (PST)
-Date: Tue, 13 Jan 2015 16:01:33 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 3/3] mm: memcontrol: consolidate swap controller code
-Message-ID: <20150113150133.GI25318@dhcp22.suse.cz>
-References: <1420856041-27647-1-git-send-email-hannes@cmpxchg.org>
- <1420856041-27647-3-git-send-email-hannes@cmpxchg.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Jan 2015 07:20:17 -0800 (PST)
+Date: Tue, 13 Jan 2015 18:20:09 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [RFC] A question about memcg/kmem
+Message-ID: <20150113152009.GA11264@esperanza>
+References: <20150113092424.GJ2110@esperanza>
+ <20150113142544.GB8180@phnom.home.cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <1420856041-27647-3-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <20150113142544.GB8180@phnom.home.cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri 09-01-15 21:14:01, Johannes Weiner wrote:
-> The swap controller code is scattered all over the file.  Gather all
-> the code that isn't directly needed by the memory controller at the
-> end of the file in its own CONFIG_MEMCG_SWAP section.
-
-Well, the idea was to stick with corresponding infrastructure I guess.
-memsw_cgroup_files where together with mem_cgroup_files, swap accounting
-with the charge routines. Putting everything together is certainly
-an option as well. I do not feel strongly about either way. I tend
-to dislike code churn but if it makes further changes easier then
-definitely no objections from me.
-
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  mm/memcontrol.c | 264 +++++++++++++++++++++++++++-----------------------------
->  1 file changed, 125 insertions(+), 139 deletions(-)
+On Tue, Jan 13, 2015 at 09:25:44AM -0500, Johannes Weiner wrote:
+> On Tue, Jan 13, 2015 at 12:24:24PM +0300, Vladimir Davydov wrote:
+> > Hi,
+> > 
+> > There's one thing about kmemcg implementation that's bothering me. It's
+> > about arrays holding per-memcg data (e.g. kmem_cache->memcg_params->
+> > memcg_caches). On kmalloc or list_lru_{add,del} we want to quickly
+> > lookup the copy of kmem_cache or list_lru corresponding to the current
+> > cgroup. Currently, we hold all per-memcg caches/lists in an array
+> > indexed by mem_cgroup->kmemcg_id. This allows us to lookup quickly, and
+> > that's nice, but the arrays can grow indefinitely, because we reserve
+> > slots for all cgroups, including offlined, and this is disastrous and
+> > must be fixed.
+> > 
+> > I see several ways how to sort this out, but none of them looks perfect
+> > to me, so I can't decide which one to choose. I would appreciate if you
+> > could share your thoughts on them. Here they are:
+> > 
+> > 1. When we are about to grow arrays (new kmem-active memcg is created
+> >    and there's no slot for it), try to reclaim memory from all offline
+> >    kmem-active cgroups in the hope one of them will pass away and
+> >    release its slot.
+> > 
+> >    This is not very reliable obviously, because we can fail to reclaim
+> >    and have to grow arrays anyway.
 > 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index f66bb8f83ac9..5a5769e8b12c 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -72,22 +72,13 @@ EXPORT_SYMBOL(memory_cgrp_subsys);
->  #define MEM_CGROUP_RECLAIM_RETRIES	5
->  static struct mem_cgroup *root_mem_cgroup __read_mostly;
->  
-> +/* Whether the swap controller is active */
->  #ifdef CONFIG_MEMCG_SWAP
-> -/* Turned on only when memory cgroup is enabled && really_do_swap_account = 1 */
->  int do_swap_account __read_mostly;
-> -
-> -/* for remember boot option*/
-> -#ifdef CONFIG_MEMCG_SWAP_ENABLED
-> -static int really_do_swap_account __initdata = 1;
-> -#else
-> -static int really_do_swap_account __initdata;
-> -#endif
-> -
->  #else
->  #define do_swap_account		0
->  #endif
->  
-> -
->  static const char * const mem_cgroup_stat_names[] = {
->  	"cache",
->  	"rss",
-> @@ -4382,34 +4373,6 @@ static struct cftype mem_cgroup_legacy_files[] = {
->  	{ },	/* terminate */
->  };
->  
-> -#ifdef CONFIG_MEMCG_SWAP
-> -static struct cftype memsw_cgroup_files[] = {
-> -	{
-> -		.name = "memsw.usage_in_bytes",
-> -		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_USAGE),
-> -		.read_u64 = mem_cgroup_read_u64,
-> -	},
-> -	{
-> -		.name = "memsw.max_usage_in_bytes",
-> -		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_MAX_USAGE),
-> -		.write = mem_cgroup_reset,
-> -		.read_u64 = mem_cgroup_read_u64,
-> -	},
-> -	{
-> -		.name = "memsw.limit_in_bytes",
-> -		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_LIMIT),
-> -		.write = mem_cgroup_write,
-> -		.read_u64 = mem_cgroup_read_u64,
-> -	},
-> -	{
-> -		.name = "memsw.failcnt",
-> -		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_FAILCNT),
-> -		.write = mem_cgroup_reset,
-> -		.read_u64 = mem_cgroup_read_u64,
-> -	},
-> -	{ },	/* terminate */
-> -};
-> -#endif
->  static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
->  {
->  	struct mem_cgroup_per_node *pn;
-> @@ -5415,37 +5378,6 @@ struct cgroup_subsys memory_cgrp_subsys = {
->  	.early_init = 0,
->  };
->  
-> -#ifdef CONFIG_MEMCG_SWAP
-> -static int __init enable_swap_account(char *s)
-> -{
-> -	if (!strcmp(s, "1"))
-> -		really_do_swap_account = 1;
-> -	else if (!strcmp(s, "0"))
-> -		really_do_swap_account = 0;
-> -	return 1;
-> -}
-> -__setup("swapaccount=", enable_swap_account);
-> -
-> -static void __init memsw_file_init(void)
-> -{
-> -	WARN_ON(cgroup_add_legacy_cftypes(&memory_cgrp_subsys,
-> -					  memsw_cgroup_files));
-> -}
-> -
-> -static void __init enable_swap_cgroup(void)
-> -{
-> -	if (!mem_cgroup_disabled() && really_do_swap_account) {
-> -		do_swap_account = 1;
-> -		memsw_file_init();
-> -	}
-> -}
-> -
-> -#else
-> -static void __init enable_swap_cgroup(void)
-> -{
-> -}
-> -#endif
-> -
->  /**
->   * mem_cgroup_events - count memory events against a cgroup
->   * @memcg: the memory cgroup
-> @@ -5496,74 +5428,6 @@ bool mem_cgroup_low(struct mem_cgroup *root, struct mem_cgroup *memcg)
->  	return true;
->  }
->  
-> -#ifdef CONFIG_MEMCG_SWAP
-> -/**
-> - * mem_cgroup_swapout - transfer a memsw charge to swap
-> - * @page: page whose memsw charge to transfer
-> - * @entry: swap entry to move the charge to
-> - *
-> - * Transfer the memsw charge of @page to @entry.
-> - */
-> -void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
-> -{
-> -	struct mem_cgroup *memcg;
-> -	unsigned short oldid;
-> -
-> -	VM_BUG_ON_PAGE(PageLRU(page), page);
-> -	VM_BUG_ON_PAGE(page_count(page), page);
-> -
-> -	if (!do_swap_account)
-> -		return;
-> -
-> -	memcg = page->mem_cgroup;
-> -
-> -	/* Readahead page, never charged */
-> -	if (!memcg)
-> -		return;
-> -
-> -	oldid = swap_cgroup_record(entry, mem_cgroup_id(memcg));
-> -	VM_BUG_ON_PAGE(oldid, page);
-> -	mem_cgroup_swap_statistics(memcg, true);
-> -
-> -	page->mem_cgroup = NULL;
-> -
-> -	if (!mem_cgroup_is_root(memcg))
-> -		page_counter_uncharge(&memcg->memory, 1);
-> -
-> -	/* XXX: caller holds IRQ-safe mapping->tree_lock */
-> -	VM_BUG_ON(!irqs_disabled());
-> -
-> -	mem_cgroup_charge_statistics(memcg, page, -1);
-> -	memcg_check_events(memcg, page);
-> -}
-> -
-> -/**
-> - * mem_cgroup_uncharge_swap - uncharge a swap entry
-> - * @entry: swap entry to uncharge
-> - *
-> - * Drop the memsw charge associated with @entry.
-> - */
-> -void mem_cgroup_uncharge_swap(swp_entry_t entry)
-> -{
-> -	struct mem_cgroup *memcg;
-> -	unsigned short id;
-> -
-> -	if (!do_swap_account)
-> -		return;
-> -
-> -	id = swap_cgroup_record(entry, 0);
-> -	rcu_read_lock();
-> -	memcg = mem_cgroup_lookup(id);
-> -	if (memcg) {
-> -		if (!mem_cgroup_is_root(memcg))
-> -			page_counter_uncharge(&memcg->memsw, 1);
-> -		mem_cgroup_swap_statistics(memcg, false);
-> -		css_put(&memcg->css);
-> -	}
-> -	rcu_read_unlock();
-> -}
-> -#endif
-> -
->  /**
->   * mem_cgroup_try_charge - try charging a page
->   * @page: page to charge
-> @@ -5920,8 +5784,130 @@ static int __init mem_cgroup_init(void)
->  		soft_limit_tree.rb_tree_per_node[nid] = rtpn;
->  	}
->  
-> -	enable_swap_cgroup();
-> -
->  	return 0;
->  }
->  subsys_initcall(mem_cgroup_init);
-> +
-> +#ifdef CONFIG_MEMCG_SWAP
-> +/**
-> + * mem_cgroup_swapout - transfer a memsw charge to swap
-> + * @page: page whose memsw charge to transfer
-> + * @entry: swap entry to move the charge to
-> + *
-> + * Transfer the memsw charge of @page to @entry.
-> + */
-> +void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
-> +{
-> +	struct mem_cgroup *memcg;
-> +	unsigned short oldid;
-> +
-> +	VM_BUG_ON_PAGE(PageLRU(page), page);
-> +	VM_BUG_ON_PAGE(page_count(page), page);
-> +
-> +	if (!do_swap_account)
-> +		return;
-> +
-> +	memcg = page->mem_cgroup;
-> +
-> +	/* Readahead page, never charged */
-> +	if (!memcg)
-> +		return;
-> +
-> +	oldid = swap_cgroup_record(entry, mem_cgroup_id(memcg));
-> +	VM_BUG_ON_PAGE(oldid, page);
-> +	mem_cgroup_swap_statistics(memcg, true);
-> +
-> +	page->mem_cgroup = NULL;
-> +
-> +	if (!mem_cgroup_is_root(memcg))
-> +		page_counter_uncharge(&memcg->memory, 1);
-> +
-> +	/* XXX: caller holds IRQ-safe mapping->tree_lock */
-> +	VM_BUG_ON(!irqs_disabled());
-> +
-> +	mem_cgroup_charge_statistics(memcg, page, -1);
-> +	memcg_check_events(memcg, page);
-> +}
-> +
-> +/**
-> + * mem_cgroup_uncharge_swap - uncharge a swap entry
-> + * @entry: swap entry to uncharge
-> + *
-> + * Drop the memsw charge associated with @entry.
-> + */
-> +void mem_cgroup_uncharge_swap(swp_entry_t entry)
-> +{
-> +	struct mem_cgroup *memcg;
-> +	unsigned short id;
-> +
-> +	if (!do_swap_account)
-> +		return;
-> +
-> +	id = swap_cgroup_record(entry, 0);
-> +	rcu_read_lock();
-> +	memcg = mem_cgroup_lookup(id);
-> +	if (memcg) {
-> +		if (!mem_cgroup_is_root(memcg))
-> +			page_counter_uncharge(&memcg->memsw, 1);
-> +		mem_cgroup_swap_statistics(memcg, false);
-> +		css_put(&memcg->css);
-> +	}
-> +	rcu_read_unlock();
-> +}
-> +
-> +/* for remember boot option*/
-> +#ifdef CONFIG_MEMCG_SWAP_ENABLED
-> +static int really_do_swap_account __initdata = 1;
-> +#else
-> +static int really_do_swap_account __initdata;
-> +#endif
-> +
-> +static int __init enable_swap_account(char *s)
-> +{
-> +	if (!strcmp(s, "1"))
-> +		really_do_swap_account = 1;
-> +	else if (!strcmp(s, "0"))
-> +		really_do_swap_account = 0;
-> +	return 1;
-> +}
-> +__setup("swapaccount=", enable_swap_account);
-> +
-> +static struct cftype memsw_cgroup_files[] = {
-> +	{
-> +		.name = "memsw.usage_in_bytes",
-> +		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_USAGE),
-> +		.read_u64 = mem_cgroup_read_u64,
-> +	},
-> +	{
-> +		.name = "memsw.max_usage_in_bytes",
-> +		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_MAX_USAGE),
-> +		.write = mem_cgroup_reset,
-> +		.read_u64 = mem_cgroup_read_u64,
-> +	},
-> +	{
-> +		.name = "memsw.limit_in_bytes",
-> +		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_LIMIT),
-> +		.write = mem_cgroup_write,
-> +		.read_u64 = mem_cgroup_read_u64,
-> +	},
-> +	{
-> +		.name = "memsw.failcnt",
-> +		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_FAILCNT),
-> +		.write = mem_cgroup_reset,
-> +		.read_u64 = mem_cgroup_read_u64,
-> +	},
-> +	{ },	/* terminate */
-> +};
-> +
-> +static int __init mem_cgroup_swap_init(void)
-> +{
-> +	if (!mem_cgroup_disabled() && really_do_swap_account) {
-> +		do_swap_account = 1;
-> +		WARN_ON(cgroup_add_legacy_cftypes(&memory_cgrp_subsys,
-> +						  memsw_cgroup_files));
-> +	}
-> +	return 0;
-> +}
-> +subsys_initcall(mem_cgroup_swap_init);
-> +
-> +#endif /* CONFIG_MEMCG_SWAP */
-> -- 
-> 2.2.0
+> I don't like this option because the user doesn't expect large swathes
+> of page cache to be reclaimed simply because they created a new memcg.
 > 
+> > 2. On css offline, empty all list_lru's corresponding to the dying
+> >    cgroup by moving items to the parent. Then, we could free kmemcg_id
+> >    immediately on offline, and the arrays would store entries for online
+> >    cgroups only, which is fine. This looks as a kind of reparenting, but
+> >    it doesn't move charges, only list_lru elements, which is much easier
+> >    to do.
+> > 
+> >    This does not conform to how we treat other charges though.
+> 
+> This seems like the best way to do it to me.  It shouldn't result in a
+> user-visible difference in behavior and we get to keep the O(1) lookup
+> during the allocation hotpath.  Could even the reparenting be constant
+> by using list_splice()?
 
--- 
-Michal Hocko
-SUSE Labs
+Unfortunately, list_splice() doesn't seem to be an option with the
+list_lru API we have right now, because there's LRU_REMOVED_RETRY. It
+indicates that list_lru_walk callback removed an element, then dropped
+and reacquired the list_lru lock. In this case we first decrement
+nr_items to reflect an item removal, and then restart the loop. If we do
+list_splice() between the item removal and nr_items fix-up (when the
+lock was released) we'll end up with screwed nr_items. So we have to
+move elements one by one.
+
+Come to think of it, I believe we could change the list_lru API so that
+callbacks would fix nr_items by themselves. May be, we could add a
+special helper for walkers to remove items, say list_lru_isolate, that
+would fix nr_items? Anyway, I'll take a closer look in this direction.
+
+> 
+> > 3. Use some reclaimable data structure instead of a raw array. E.g.
+> >    radix tree, or idr. The structure would grow then, but it would also
+> >    shrink when css's are reclaimed on memory pressure.
+> > 
+> >    This will probably affect performance, because we do lookups on each
+> >    kmalloc, so it must be as fast as possible. It could be probably
+> >    optimized by caching the result of the last lookup (hint), but hints
+> >    must be per cpu then, which will make list_lru bulky.
+> 
+> I think the tree lookup in the slab allocation hotpath is prohibitive.
+> 
+> > Currently, I incline to #1 or (most preferably) #2. I implemented
+> > per-memcg list_lru with this in mind, and I have patches bringing in
+> > list_lru "reparenting". #3 popped up in my mind just a few days ago. If
+> > we decide to give it a try, I'll have to drop the previous per-memcg
+> > list_lru implementation, and do a heavy rework of per-memcg kmem_cache
+> > handling as well, but I'm fine with it.
+> > 
+> > I would be happy if we could opt out some of those design decisions
+> > above. E.g. "I really hate #X, it's a no-go, because..." :-) Otherwise,
+> > I'll most probably go with #2, which may become a nasty surprise to some
+> > of you.
+> 
+> What aspects of #2 do you think are nasty?
+
+We wouldn't be able to reclaim dentries/inodes accounted to an offline
+css w/o reclaiming objects accounted to its online ancestor. I'm not
+sure if we will ever want to do it though, so it isn't necessarily bad.
+
+That said, I don't see anything nasty in #2 now, but I may be
+short-sighted. I just want to make sure anyone interested is fine with
+the concept.
+
+Thank you!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
