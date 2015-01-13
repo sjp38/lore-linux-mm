@@ -1,51 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 53F766B0032
-	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 16:35:26 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id lf10so6015200pab.4
-        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 13:35:26 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id z9si28242558par.226.2015.01.13.13.35.24
+Received: from mail-vc0-f182.google.com (mail-vc0-f182.google.com [209.85.220.182])
+	by kanga.kvack.org (Postfix) with ESMTP id E763C6B0032
+	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 16:39:07 -0500 (EST)
+Received: by mail-vc0-f182.google.com with SMTP id hq12so1746120vcb.13
+        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 13:39:07 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id hf6si1693001vdb.2.2015.01.13.13.39.06
         for <linux-mm@kvack.org>;
-        Tue, 13 Jan 2015 13:35:25 -0800 (PST)
-Message-ID: <54B58F9B.4050100@linux.intel.com>
-Date: Tue, 13 Jan 2015 13:35:23 -0800
-From: Dave Hansen <dave.hansen@linux.intel.com>
+        Tue, 13 Jan 2015 13:39:07 -0800 (PST)
+Date: Tue, 13 Jan 2015 16:39:03 -0500
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Re: [PATCH v12 07/20] dax,ext2: Replace ext2_clear_xip_target with
+ dax_clear_blocks
+Message-ID: <20150113213903.GJ5661@wil.cx>
+References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
+ <1414185652-28663-8-git-send-email-matthew.r.wilcox@intel.com>
+ <20150112150947.eb6ccb5c45edb4e83cd48b28@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] mm: rename mm->nr_ptes to mm->nr_pgtables
-References: <1421176456-21796-1-git-send-email-kirill.shutemov@linux.intel.com> <1421176456-21796-2-git-send-email-kirill.shutemov@linux.intel.com> <54B581C7.50206@linux.intel.com> <20150113204144.GA1865@node.dhcp.inet.fi>
-In-Reply-To: <20150113204144.GA1865@node.dhcp.inet.fi>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150112150947.eb6ccb5c45edb4e83cd48b28@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@openvz.org>, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, willy@linux.intel.com
 
-On 01/13/2015 12:41 PM, Kirill A. Shutemov wrote:
-> On Tue, Jan 13, 2015 at 12:36:23PM -0800, Dave Hansen wrote:
->> On 01/13/2015 11:14 AM, Kirill A. Shutemov wrote:
->>>  	pgd_t * pgd;
->>>  	atomic_t mm_users;			/* How many users with user space? */
->>>  	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
->>> -	atomic_long_t nr_ptes;			/* Page table pages */
->>> +	atomic_long_t nr_pgtables;		/* Page table pages */
->>>  	int map_count;				/* number of VMAs */
->>
->> One more crazy idea...
->>
->> There are 2^9 possible pud pages, 2^18 pmd pages and 2^27 pte pages.
->> That's only 54 bits (technically minus one bit each because the upper
->> half of the address space is for the kernel).
+On Mon, Jan 12, 2015 at 03:09:47PM -0800, Andrew Morton wrote:
+> > +int dax_clear_blocks(struct inode *inode, sector_t block, long size)
+> > +{
+...
+> > +			if (pgsz < PAGE_SIZE)
+> > +				memset(addr, 0, pgsz);
+> > +			else
+> > +				clear_page(addr);
 > 
-> Does this math make sense for all architecures? IA64? Power?
+> Are there any cache issues in all this code? flush_dcache_page(addr)?
 
-No, the sizes will be different on the other architectures.  But, 4k
-pages with 64-bit ptes is as bad as it gets, I think.  Larger page sizes
-mean fewer page tables on powerpc.  So the values should at least _fit_
-in a long.
+Here, no.  This is only called to initialise a newly allocated block.
 
-Maybe it's not even worth the trouble.
+Elsewhere, maybe.  When i was originally working on this, I think I had
+code that forced mmaps of DAX files to be aligned to SHMLBA, because I
+remember noticing a bug in sparc64's remap_file_range().  Unfortunately,
+in the various rewrites, that got lost.  So it needs to be put back in.
+
+flush_dcache_page() in particular won't work because it needs a struct
+page.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
