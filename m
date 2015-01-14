@@ -1,150 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E26A6B0032
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2015 02:21:55 -0500 (EST)
-Received: by mail-la0-f49.google.com with SMTP id hs14so6608278lab.8
-        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 23:21:54 -0800 (PST)
-Received: from mail-lb0-x233.google.com (mail-lb0-x233.google.com. [2a00:1450:4010:c04::233])
-        by mx.google.com with ESMTPS id q13si5083079laa.27.2015.01.13.23.21.53
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id A6A066B0032
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2015 02:36:18 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id rd3so8855525pab.7
+        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 23:36:18 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id ez5si29790563pac.108.2015.01.13.23.36.16
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 13 Jan 2015 23:21:53 -0800 (PST)
-Received: by mail-lb0-f179.google.com with SMTP id z11so6473606lbi.10
-        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 23:21:53 -0800 (PST)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Jan 2015 23:36:17 -0800 (PST)
+Date: Wed, 14 Jan 2015 10:36:08 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH -mm] fs: shrinker: always scan at least one object of
+ each type
+Message-ID: <20150114073608.GC11264@esperanza>
+References: <1421058046-2434-1-git-send-email-vdavydov@parallels.com>
+ <20150113155639.53e48aad4b0cfe870ccffac4@linux-foundation.org>
 MIME-Version: 1.0
-Reply-To: mtk.manpages@gmail.com
-In-Reply-To: <20150110183911.GB2915@two.firstfloor.org>
-References: <54AE5BE8.1050701@gmail.com> <87r3v350io.fsf@tassilo.jf.intel.com>
- <CAKgNAki3Fh8N=jyPHxxFpicjyJ=0kA75SJ65QjYzPmWnvy4nsw@mail.gmail.com>
- <54B01F41.10001@intel.com> <54B12DD3.5020605@gmail.com> <20150110183911.GB2915@two.firstfloor.org>
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Date: Wed, 14 Jan 2015 08:21:32 +0100
-Message-ID: <CAKgNAkgtDtU5TsOEpjoLggn-gzSLXuqUOhhieVgc4sOo41Oz=w@mail.gmail.com>
-Subject: Re: [PATCH] x86, mpx: Ensure unused arguments of prctl() MPX requests
- are 0
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20150113155639.53e48aad4b0cfe870ccffac4@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Qiaowei Ren <qiaowei.ren@intel.com>, lkml <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hi Andi,
+On Tue, Jan 13, 2015 at 03:56:39PM -0800, Andrew Morton wrote:
+> On Mon, 12 Jan 2015 13:20:46 +0300 Vladimir Davydov <vdavydov@parallels.com> wrote:
+> 
+> > In super_cache_scan() we divide the number of objects of particular type
+> > by the total number of objects in order to distribute pressure among
+> > different types of fs objects (inodes, dentries, fs-private objects).
+> > As a result, in some corner cases we can get nr_to_scan=0 even if there
+> > are some objects to reclaim, e.g. dentries=1, inodes=1, fs_objects=1,
+> > nr_to_scan=1/3=0.
+> > 
+> > This is unacceptable for per memcg kmem accounting, because this means
+> > that some objects may never get reclaimed after memcg death, preventing
+> > it from being freed.
+> > 
+> > This patch therefore assures that super_cache_scan() will scan at least
+> > one object of each type if any.
+> > 
+> > --- a/fs/super.c
+> > +++ b/fs/super.c
+> > @@ -92,13 +92,13 @@ static unsigned long super_cache_scan(struct shrinker *shrink,
+> >  	 * prune the dcache first as the icache is pinned by it, then
+> >  	 * prune the icache, followed by the filesystem specific caches
+> >  	 */
+> > -	sc->nr_to_scan = dentries;
+> > +	sc->nr_to_scan = dentries + 1;
+> >  	freed = prune_dcache_sb(sb, sc);
+> > -	sc->nr_to_scan = inodes;
+> > +	sc->nr_to_scan = inodes + 1;
+> >  	freed += prune_icache_sb(sb, sc);
+> >  
+> >  	if (fs_objects) {
+> > -		sc->nr_to_scan = fs_objects;
+> > +		sc->nr_to_scan = fs_objects + 1;
+> >  		freed += sb->s_op->free_cached_objects(sb, sc);
+> >  	}
+> 
+> A reader of this code will wonder "why is it adding 1 everywhere". 
+> Let's tell them?
 
-On 10 January 2015 at 19:39, Andi Kleen <andi@firstfloor.org> wrote:
-> On Sat, Jan 10, 2015 at 02:49:07PM +0100, Michael Kerrisk (man-pages) wrote:
->> On 01/09/2015 07:34 PM, Dave Hansen wrote:
->> > On 01/09/2015 10:25 AM, Michael Kerrisk (man-pages) wrote:
->> >> On 9 January 2015 at 18:25, Andi Kleen <andi@firstfloor.org> wrote:
->> >>> "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com> writes:
->> >>>> From: Michael Kerrisk <mtk.manpages@gmail.com>
->> >>>>
->> >>>> commit fe8c7f5cbf91124987106faa3bdf0c8b955c4cf7 added two new prctl()
->> >>>> operations, PR_MPX_ENABLE_MANAGEMENT and PR_MPX_DISABLE_MANAGEMENT.
->> >>>> However, no checks were included to ensure that unused arguments
->> >>>> are zero, as is done in many existing prctl()s and as should be
->> >>>> done for all new prctl()s. This patch adds the required checks.
->> >>>
->> >>> This will break the existing gcc run time, which doesn't zero these
->> >>> arguments.
->> >>
->> >> I'm a little lost here. Weren't these flags new in the
->> >> as-yet-unreleased 3.19? How does gcc run-time depends on them already?
->> >
->> > These prctl()s have been around in some form or another for a few months
->> > since the patches had not yet been merged in to the kernel.  There is
->> > support for them in a set of (yet unmerged) gcc patches, as well as some
->> > tests which are only internal to Intel.
->> >
->> > This change will, indeed, break those internal tests as well as the gcc
->> > patches.  As far as I know, the code is not in production anywhere and
->> > can be changed.  The prctl() numbers have changed while the patches were
->> > out of tree and it's a somewhat painful process each time it changes.
->> > It's not impossible, just painful.
->>
->> So, sounds like thinks can be fixed (with mild inconvenience), and they
->> should be fixed before 3.19 is actually released.
->
-> FWIW I added these checks to prctl first, but in hindsight it was a
-> mistake.
+Yeah, sounds reasonable. Thank you!
 
-(I'm not clear here whether you mean you added them for other prctl()
-operations, of for the MPX operations.)
-
-> The glibc prctl() function is stdarg.
-
-Sigh. Yes. It's ugly.
-
-> Often you only have a single
-> extra argument, so you need to add 4 zeroes.
-
-And more ugliness. As far as I can tell, no prctl() operation even
-uses arg5. PR_SET_MM passes it to its helper routine, but that routine
-requires the argument to be zero. And PR_SET_MM is the only operation
-that uses arg4. That observation inclines me even more to a point I
-thought about recently: PR_SET_MM is sufficiently complicated that it
-really should have been a separate system call, rather than being
-crammed into prctl().
-
-Carrying on with this point, the only operations that use arg3 are
-PR_MCE_KILL, PR_SET_MM, PR_SET_SECCOMP. And, after prodding from me
-and one or two others, the functionality of that last one was
-eventually split off into a separate seccomp() system call instead of
-further overloading prctl().
-
-I know it's ancient history (prctl() dates pack to Linux 2.2 days),
-but one has to wonder what people were thinking of when they decided
-it was a good idea to add a generic multi-argument system call. (Even
-in the first operation that was added, PR_SET_PDEATHSIG, only arg2 was
-used.) Like, "hey ioctl() is a great idea, let's try the same idea
-with even more arguments".
-
-> There is no compile
-> time checking. It is very easy to get wrong and miscount the zeroes,
-> happened several times.
-
-Yes, but (in the case of those prctl() operations that don't check for
-the zeros), what's the harm of getting it wrong?
-
-> The failure may be hard to catch, because
-> it only happens at runtime.
-
-<irony>
-But, I mean, the developer will catch that on the first test, right?
-</irony>
-
-> Also the extra zeroes look ugly in the source.
-
-I don't suppose you can be proposing this as a strong argument, but I
-don''t think this pomit carries much wait at all. Anyway, the
-fundamental point is that it's the API that is ugly, not the zeros.
-
-> And it doesn't really buy you anything because it's very cheap
-> to add new prctl numbers if you want to extend something.
-
-I still tend to disagree. There's already enough completely unrelated
-functionality overloaded onto this API. I don't think we really want
-to follow the philosophy of "oh, we'll just add another operation
-later".
-
-> So I would advise against it.
-
-The counter-argument  here is of course that user-space programmers
-sometimes make the converse error: omitting an argument on some
-prctl() that requires. The consequence of that sort of error can be
-considerably worse than miscounting the zeros required for prctl()
-operations that don't need check their unused arguments. Overall,
-given the messy API, I think it best to encourage user-space
-programmers into a discipline of always supplying the zeros for the
-unused arguments, so I still think this patch should be applied.
-
-Cheers,
-
-Michael
-
--- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+> 
+> --- a/fs/super.c~fs-shrinker-always-scan-at-least-one-object-of-each-type-fix
+> +++ a/fs/super.c
+> @@ -91,6 +91,9 @@ static unsigned long super_cache_scan(st
+>  	/*
+>  	 * prune the dcache first as the icache is pinned by it, then
+>  	 * prune the icache, followed by the filesystem specific caches
+> +	 *
+> +	 * Ensure that we always scan at least one object - memcg kmem
+> +	 * accounting uses this to fully empty the caches.
+>  	 */
+>  	sc->nr_to_scan = dentries + 1;
+>  	freed = prune_dcache_sb(sb, sc);
+> _
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
