@@ -1,59 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 241266B0032
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2015 11:38:18 -0500 (EST)
-Received: by mail-la0-f47.google.com with SMTP id hz20so9094253lab.6
-        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 08:38:17 -0800 (PST)
-Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id cx2si27044861wib.101.2015.01.14.08.38.16
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C8846B006C
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2015 11:50:40 -0500 (EST)
+Received: by mail-wg0-f49.google.com with SMTP id n12so10061316wgh.8
+        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 08:50:39 -0800 (PST)
+Received: from mail-wi0-x234.google.com (mail-wi0-x234.google.com. [2a00:1450:400c:c05::234])
+        by mx.google.com with ESMTPS id t3si4487901wiw.92.2015.01.14.08.50.39
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 14 Jan 2015 08:38:16 -0800 (PST)
-Date: Wed, 14 Jan 2015 16:38:00 +0000
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [RFC V6 2/3] arm:add bitrev.h file to support rbit instruction
-Message-ID: <20150114163800.GZ12302@n2100.arm.linux.org.uk>
-References: <35FD53F367049845BC99AC72306C23D103E010D18273@CNBJMBX05.corpusers.net>
- <35FD53F367049845BC99AC72306C23D103E010D18275@CNBJMBX05.corpusers.net>
- <20141113235322.GC4042@n2100.arm.linux.org.uk>
- <35FD53F367049845BC99AC72306C23D103E010D1829B@CNBJMBX05.corpusers.net>
- <20141114095812.GG4042@n2100.arm.linux.org.uk>
- <35FD53F367049845BC99AC72306C23D103E688B313C6@CNBJMBX05.corpusers.net>
- <20150108184059.GZ12302@n2100.arm.linux.org.uk>
- <35FD53F367049845BC99AC72306C23D103EDAF89E195@CNBJMBX05.corpusers.net>
- <20150109111048.GE12302@n2100.arm.linux.org.uk>
- <35FD53F367049845BC99AC72306C23D103EDAF89E198@CNBJMBX05.corpusers.net>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 14 Jan 2015 08:50:39 -0800 (PST)
+Received: by mail-wi0-f180.google.com with SMTP id n3so12243367wiv.1
+        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 08:50:39 -0800 (PST)
+Date: Wed, 14 Jan 2015 17:50:36 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2] mm: vmscan: fix the page state calculation in
+ too_many_isolated
+Message-ID: <20150114165036.GI4706@dhcp22.suse.cz>
+References: <1421235419-30736-1-git-send-email-vinmenon@codeaurora.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <35FD53F367049845BC99AC72306C23D103EDAF89E198@CNBJMBX05.corpusers.net>
+In-Reply-To: <1421235419-30736-1-git-send-email-vinmenon@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Cc: 'Ard Biesheuvel' <ard.biesheuvel@linaro.org>, 'Will Deacon' <will.deacon@arm.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'akinobu.mita@gmail.com'" <akinobu.mita@gmail.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, 'Joe Perches' <joe@perches.com>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>
+To: Vinayak Menon <vinmenon@codeaurora.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, mgorman@suse.de, minchan@kernel.org
 
-On Fri, Jan 09, 2015 at 08:40:56PM +0800, Wang, Yalin wrote:
-> Oh, I see,
-> How about change like this:
-> +	select HAVE_ARCH_BITREVERSE if ((CPU_V7M || CPU_V7) && !CPU_V6 && !CPU_V6K)
-> I am not sure if I also need add some older CPU types like !CPU_ARM9TDMI &&a??!CPU_ARM940T ?
-> 
-> Another solution is:
-> +	select HAVE_ARCH_BITREVERSE if ((CPU_32V7M || CPU_32V7) && !CPU_32V6 && !CPU_32V5 && !CPU_32V4 && !CPU_32V4T && !CPU_32V3)
-> 
-> By the way, I am not clear about the difference between CPU_V6 and CPU_V6K, could you tell me? :)
+On Wed 14-01-15 17:06:59, Vinayak Menon wrote:
+[...]
+> In one such instance, zone_page_state(zone, NR_ISOLATED_FILE)
+> had returned 14, zone_page_state(zone, NR_INACTIVE_FILE)
+> returned 92, and GFP_IOFS was set, and this resulted
+> in too_many_isolated returning true. But one of the CPU's
+> pageset vm_stat_diff had NR_ISOLATED_FILE as "-14". So the
+> actual isolated count was zero. As there weren't any more
+> updates to NR_ISOLATED_FILE and vmstat_update deffered work
+> had not been scheduled yet, 7 tasks were spinning in the
+> congestion wait loop for around 4 seconds, in the direct
+> reclaim path.
 
-I think
-
-	select HAVE_ARCH_BITREVERSE if (CPU_32v7M || CPU_32v7) && !CPU_32v6
-
-is sufficient - we don't support mixing pre-v6 and v6+ CPU architectures
-into a single kernel.
+Not syncing for such a long time doesn't sound right. I am not familiar
+with the vmstat syncing but sysctl_stat_interval is HZ so it should
+happen much more often that every 4 seconds.
 
 -- 
-FTTC broadband for 0.8mile line: currently at 10.5Mbps down 400kbps up
-according to speedtest.net.
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
