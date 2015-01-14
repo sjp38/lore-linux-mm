@@ -1,114 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 87DA16B0032
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2015 09:55:41 -0500 (EST)
-Received: by mail-wg0-f51.google.com with SMTP id x12so9349937wgg.10
-        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 06:55:41 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m10si48354730wjx.45.2015.01.14.06.55.40
+Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DE3D6B0032
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2015 10:22:30 -0500 (EST)
+Received: by mail-la0-f44.google.com with SMTP id gd6so8715665lab.3
+        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 07:22:29 -0800 (PST)
+Received: from mail-wi0-x236.google.com (mail-wi0-x236.google.com. [2a00:1450:400c:c05::236])
+        by mx.google.com with ESMTPS id m5si26755884wiy.53.2015.01.14.07.22.28
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 14 Jan 2015 06:55:40 -0800 (PST)
-Message-ID: <54B6836B.5030603@suse.cz>
-Date: Wed, 14 Jan 2015 15:55:39 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        Wed, 14 Jan 2015 07:22:29 -0800 (PST)
+Received: by mail-wi0-f182.google.com with SMTP id h11so11573534wiw.3
+        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 07:22:28 -0800 (PST)
+Date: Wed, 14 Jan 2015 15:22:25 +0000
+From: Petr Cermak <petrcermak@chromium.org>
+Subject: Re: [PATCH v2 2/2] task_mmu: Add user-space support for resetting
+ mm->hiwater_rss (peak RSS)
+Message-ID: <20150114152225.GB31484@google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH V2 linux-next] mm,compaction: move suitable_migration_target()
- under CONFIG_COMPACTION
-References: <1421173304-11514-1-git-send-email-fabf@skynet.be>
-In-Reply-To: <1421173304-11514-1-git-send-email-fabf@skynet.be>
-Content-Type: text/plain; charset=iso-8859-2
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150107172452.GA7922@node.dhcp.inet.fi>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fabian Frederick <fabf@skynet.be>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Bjorn Helgaas <bhelgaas@google.com>, Primiano Tucci <primiano@chromium.org>, Hugh Dickins <hughd@google.com>
 
-On 01/13/2015 07:21 PM, Fabian Frederick wrote:
-> suitable_migration_target() is only used by isolate_freepages()
-> Define it under CONFIG_COMPACTION || CONFIG_CMA is not needed.
-> 
-> Fix the following warning:
-> mm/compaction.c:311:13: warning: 'suitable_migration_target' defined
-> but not used [-Wunused-function]
-> 
-> Signed-off-by: Fabian Frederick <fabf@skynet.be>
+On Wed, Jan 07, 2015 at 07:24:52PM +0200, Kirill A. Shutemov wrote:
+> And how it's not an ABI break?
+I don't think this is an ABI break because the current behaviour is not
+changed unless you write "5" to /proc/pid/clear_refs. If you do, you are
+explicitly requesting the new functionality.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> We have never-lowering VmHWM for 9+ years. How can you know that nobody
+> expects this behaviour?
+This is why we sent an RFC [1] several weeks ago. We expect this to be
+used mainly by performance-related tools (e.g. profilers) and from the
+comments in the code [2] VmHWM seems to be a best-effort counter. If this
+is strictly a no-go, I can only think of the following two alternatives:
 
-Thanks.
+  1. Add an extra resettable field to /proc/pid/status (e.g.
+     resettable_hiwater_rss). While this doesn't violate the current
+     definition of VmHWM, it adds an extra line to /proc/pid/status,
+     which I think is a much bigger issue.
+  2. Introduce a new proc fs file to task_mmu (e.g.
+     /proc/pid/profiler_stats), but this feels like overengineering.
 
-> ---
-> v2: move function below update_pageblock_skip() instead of above 
-> isolate_freepages() (suggested by Vlastimil Babka)
-> 
-> 
->  mm/compaction.c | 44 ++++++++++++++++++++++----------------------
->  1 file changed, 22 insertions(+), 22 deletions(-)
-> 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 546e571..580790d 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -207,6 +207,28 @@ static void update_pageblock_skip(struct compact_control *cc,
->  			zone->compact_cached_free_pfn = pfn;
->  	}
->  }
-> +
-> +/* Returns true if the page is within a block suitable for migration to */
-> +static bool suitable_migration_target(struct page *page)
-> +{
-> +	/* If the page is a large free page, then disallow migration */
-> +	if (PageBuddy(page)) {
-> +		/*
-> +		 * We are checking page_order without zone->lock taken. But
-> +		 * the only small danger is that we skip a potentially suitable
-> +		 * pageblock, so it's not worth to check order for valid range.
-> +		 */
-> +		if (page_order_unsafe(page) >= pageblock_order)
-> +			return false;
-> +	}
-> +
-> +	/* If the block is MIGRATE_MOVABLE or MIGRATE_CMA, allow migration */
-> +	if (migrate_async_suitable(get_pageblock_migratetype(page)))
-> +		return true;
-> +
-> +	/* Otherwise skip the block */
-> +	return false;
-> +}
->  #else
->  static inline bool isolation_suitable(struct compact_control *cc,
->  					struct page *page)
-> @@ -307,28 +329,6 @@ static inline bool compact_should_abort(struct compact_control *cc)
->  	return false;
->  }
->  
-> -/* Returns true if the page is within a block suitable for migration to */
-> -static bool suitable_migration_target(struct page *page)
-> -{
-> -	/* If the page is a large free page, then disallow migration */
-> -	if (PageBuddy(page)) {
-> -		/*
-> -		 * We are checking page_order without zone->lock taken. But
-> -		 * the only small danger is that we skip a potentially suitable
-> -		 * pageblock, so it's not worth to check order for valid range.
-> -		 */
-> -		if (page_order_unsafe(page) >= pageblock_order)
-> -			return false;
-> -	}
-> -
-> -	/* If the block is MIGRATE_MOVABLE or MIGRATE_CMA, allow migration */
-> -	if (migrate_async_suitable(get_pageblock_migratetype(page)))
-> -		return true;
-> -
-> -	/* Otherwise skip the block */
-> -	return false;
-> -}
-> -
->  /*
->   * Isolate free pages onto a private freelist. If @strict is true, will abort
->   * returning 0 on any invalid PFNs or non-free pages inside of the pageblock
-> 
+> And why do you reset hiwater_rss, but not hiwater_vm?
+This is a good point. Should we reset both using the same flag, or
+introduce a new one ("6")?
+
+[1] lkml.iu.edu/hypermail/linux/kernel/1412.1/01877.html
+[2] task_mmu.c:32: "... such snapshots can always be inconsistent."
+
+Petr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
