@@ -1,70 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DBEE6B0032
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2015 08:00:27 -0500 (EST)
-Received: by mail-wi0-f176.google.com with SMTP id z2so2258909wiv.3
-        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 05:00:27 -0800 (PST)
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 464C46B0032
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2015 08:05:26 -0500 (EST)
+Received: by mail-wi0-f170.google.com with SMTP id bs8so26380929wib.1
+        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 05:05:25 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id da1si3399444wib.57.2015.01.14.05.00.25
+        by mx.google.com with ESMTPS id lh6si47889994wjc.24.2015.01.14.05.05.25
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 14 Jan 2015 05:00:25 -0800 (PST)
-Date: Wed, 14 Jan 2015 14:00:21 +0100
+        Wed, 14 Jan 2015 05:05:25 -0800 (PST)
+Date: Wed, 14 Jan 2015 14:05:20 +0100
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 05/12] block_dev: get bdev inode bdi directly from the
- block device
-Message-ID: <20150114130021.GG10215@quack.suse.cz>
+Subject: Re: [PATCH 06/12] nilfs2: set up s_bdi like the generic mount_bdev
+ code
+Message-ID: <20150114130520.GH10215@quack.suse.cz>
 References: <1421228561-16857-1-git-send-email-hch@lst.de>
- <1421228561-16857-6-git-send-email-hch@lst.de>
+ <1421228561-16857-7-git-send-email-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1421228561-16857-6-git-send-email-hch@lst.de>
+In-Reply-To: <1421228561-16857-7-git-send-email-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Hellwig <hch@lst.de>
 Cc: Jens Axboe <axboe@fb.com>, David Howells <dhowells@redhat.com>, Tejun Heo <tj@kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-mtd@lists.infradead.org, linux-nfs@vger.kernel.org, ceph-devel@vger.kernel.org
 
-On Wed 14-01-15 10:42:34, Christoph Hellwig wrote:
-> Directly grab the backing_dev_info from the request_queue instead of
-> detouring through the address_space.
+On Wed 14-01-15 10:42:35, Christoph Hellwig wrote:
+> mapping->backing_dev_info will go away, so don't rely on it.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
+> Acked-by: Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>
 > Reviewed-by: Tejun Heo <tj@kernel.org>
-  Looks good. You can add:
+> ---
+>  fs/nilfs2/super.c | 4 +---
+>  1 file changed, 1 insertion(+), 3 deletions(-)
+> 
+> diff --git a/fs/nilfs2/super.c b/fs/nilfs2/super.c
+> index 2e5b3ec..3d4bbac 100644
+> --- a/fs/nilfs2/super.c
+> +++ b/fs/nilfs2/super.c
+> @@ -1077,8 +1076,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent)
+>  	sb->s_time_gran = 1;
+>  	sb->s_max_links = NILFS_LINK_MAX;
+>  
+> -	bdi = sb->s_bdev->bd_inode->i_mapping->backing_dev_info;
+> -	sb->s_bdi = bdi ? : &default_backing_dev_info;
+> +	sb->s_bdi = &bdev_get_queue(sb->s_bdev)->backing_dev_info;
+  Why don't you use blk_get_backing_dev_info() here? Otherwise the patch
+looks fine. So you can add:
+
 Reviewed-by: Jan Kara <jack@suse.cz>
 
 								Honza
 
-> ---
->  fs/fs-writeback.c | 6 +++---
->  1 file changed, 3 insertions(+), 3 deletions(-)
-> 
-> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-> index 2d609a5..e8116a4 100644
-> --- a/fs/fs-writeback.c
-> +++ b/fs/fs-writeback.c
-> @@ -69,10 +69,10 @@ EXPORT_SYMBOL(writeback_in_progress);
->  static inline struct backing_dev_info *inode_to_bdi(struct inode *inode)
->  {
->  	struct super_block *sb = inode->i_sb;
-> -
-> +#ifdef CONFIG_BLOCK
->  	if (sb_is_blkdev_sb(sb))
-> -		return inode->i_mapping->backing_dev_info;
-> -
-> +		return blk_get_backing_dev_info(I_BDEV(inode));
-> +#endif
->  	return sb->s_bdi;
->  }
->  
-> -- 
-> 1.9.1
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 -- 
 Jan Kara <jack@suse.cz>
 SUSE Labs, CR
