@@ -1,65 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 725436B0032
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2015 11:01:09 -0500 (EST)
-Received: by mail-wi0-f178.google.com with SMTP id z2so6396933wiv.5
-        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 08:01:08 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id i4si48672268wjw.50.2015.01.14.08.01.07
+Received: from mail-lb0-f170.google.com (mail-lb0-f170.google.com [209.85.217.170])
+	by kanga.kvack.org (Postfix) with ESMTP id E07FE6B0032
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2015 11:17:50 -0500 (EST)
+Received: by mail-lb0-f170.google.com with SMTP id 10so8778715lbg.1
+        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 08:17:50 -0800 (PST)
+Received: from mail-wi0-x22f.google.com (mail-wi0-x22f.google.com. [2a00:1450:400c:c05::22f])
+        by mx.google.com with ESMTPS id v5si48777499wje.41.2015.01.14.08.17.49
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Jan 2015 08:01:07 -0800 (PST)
-Date: Wed, 14 Jan 2015 11:01:01 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 14 Jan 2015 08:17:49 -0800 (PST)
+Received: by mail-wi0-f175.google.com with SMTP id l15so29310395wiw.2
+        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 08:17:49 -0800 (PST)
+Date: Wed, 14 Jan 2015 17:17:47 +0100
+From: Michal Hocko <mhocko@suse.cz>
 Subject: Re: [patch 2/2] mm: memcontrol: default hierarchy interface for
  memory
-Message-ID: <20150114160101.GA30018@phnom.home.cmpxchg.org>
+Message-ID: <20150114161747.GH4706@dhcp22.suse.cz>
 References: <1420776904-8559-1-git-send-email-hannes@cmpxchg.org>
  <1420776904-8559-2-git-send-email-hannes@cmpxchg.org>
- <xr93a91mz2s7.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <xr93a91mz2s7.fsf@gthelen.mtv.corp.google.com>
+In-Reply-To: <1420776904-8559-2-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Jan 13, 2015 at 03:20:08PM -0800, Greg Thelen wrote:
-> 
-> On Thu, Jan 08 2015, Johannes Weiner wrote:
-> 
-> > Introduce the basic control files to account, partition, and limit
-> > memory using cgroups in default hierarchy mode.
-> >
-> > This interface versioning allows us to address fundamental design
-> > issues in the existing memory cgroup interface, further explained
-> > below.  The old interface will be maintained indefinitely, but a
-> > clearer model and improved workload performance should encourage
-> > existing users to switch over to the new one eventually.
-> >
-> > The control files are thus:
-> >
-> >   - memory.current shows the current consumption of the cgroup and its
-> >     descendants, in bytes.
-> >
-> >   - memory.low configures the lower end of the cgroup's expected
-> >     memory consumption range.  The kernel considers memory below that
-> >     boundary to be a reserve - the minimum that the workload needs in
-> >     order to make forward progress - and generally avoids reclaiming
-> >     it, unless there is an imminent risk of entering an OOM situation.
-> 
-> So this is try-hard, but no-promises interface.  No complaints.  But I
-> assume that an eventual extension is a more rigid memory.min which
-> specifies a minimum working set under which an container would prefer an
-> oom kill to thrashing.
+I have overlooked the `none' setting...
 
-Yes, memory.min would nicely complement memory.max and I wouldn't be
-opposed to adding it.  However, that does require at least some level
-of cgroup-awareness in the global OOM killer in order to route kills
-meaningfully according to cgroup configuration, which is mainly why I
-deferred it in this patch.
+On Thu 08-01-15 23:15:04, Johannes Weiner wrote:
+[...]
+> +static int memory_low_show(struct seq_file *m, void *v)
+> +{
+> +	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+> +	unsigned long low = ACCESS_ONCE(memcg->low);
+> +
+> +	if (low == 0)
+> +		seq_printf(m, "none\n");
+> +	else
+> +		seq_printf(m, "%llu\n", (u64)low * PAGE_SIZE);
+> +
+> +	return 0;
+> +}
+
+This is really confusing. What if somebody wants to protect a group
+from being reclaimed? One possible and natural way would by copying
+memory.max value but then `none' means something else completely.
+
+Besides that why to call 0, which has a clear meaning, any other name?
+
+Now that I think about the naming `none' doesn't sound that great for
+max resp. high either. If for nothing else then for the above copy
+example (who knows what shows up later). Sure, a huge number is bad
+as well for reasons you have mentioned in other email. `resource_max'
+sounds like a better fit to me. But I am lame at naming.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
