@@ -1,58 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f169.google.com (mail-yk0-f169.google.com [209.85.160.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 151646B0032
-	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 19:17:54 -0500 (EST)
-Received: by mail-yk0-f169.google.com with SMTP id 79so2854565ykr.0
-        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 16:17:53 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id p4si11437395yhd.51.2015.01.13.16.17.53
+Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 23F3A6B0032
+	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 20:10:06 -0500 (EST)
+Received: by mail-ob0-f170.google.com with SMTP id wp18so5680338obc.1
+        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 17:10:05 -0800 (PST)
+Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
+        by mx.google.com with ESMTPS id ej6si12708737obb.33.2015.01.13.17.10.03
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Jan 2015 16:17:53 -0800 (PST)
-Date: Tue, 13 Jan 2015 16:17:51 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/5] kstrdup optimization
-Message-Id: <20150113161751.a33361d60cf2627ed079d4bc@linux-foundation.org>
-In-Reply-To: <20150114001057.GA30408@isi.edu>
-References: <1421054323-14430-1-git-send-email-a.hajda@samsung.com>
-	<CAMuHMdV74n3v81xaLRDN_Mn_QGg14yUkXNn6JYaGH4MGgLRM2A@mail.gmail.com>
-	<20150114001057.GA30408@isi.edu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 13 Jan 2015 17:10:04 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 1/1] mm: pagemap: limit scan to virtual region being
+ asked
+Date: Wed, 14 Jan 2015 01:08:40 +0000
+Message-ID: <20150114010830.GA16100@hori1.linux.bs1.fc.nec.co.jp>
+References: <1421152024-6204-1-git-send-email-shashim@codeaurora.org>
+In-Reply-To: <1421152024-6204-1-git-send-email-shashim@codeaurora.org>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <D1A14A54079C204688E385502014D5D0@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Craig Milo Rogers <rogers@isi.edu>
-Cc: Andrzej Hajda <a.hajda@samsung.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Linux MM <linux-mm@kvack.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andi Kleen <andi@firstfloor.org>, Andreas Mohr <andi@lisas.de>, Mike Turquette <mturquette@linaro.org>, Alexander Viro <viro@zeniv.linux.org.uk>
+To: Shiraz Hashim <shashim@codeaurora.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "oleg@redhat.com" <oleg@redhat.com>, "gorcunov@openvz.org" <gorcunov@openvz.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Tue, 13 Jan 2015 16:10:57 -0800 Craig Milo Rogers <rogers@isi.edu> wrote:
+On Tue, Jan 13, 2015 at 05:57:04PM +0530, Shiraz Hashim wrote:
+> pagemap_read scans through the virtual address space of a
+> task till it prepares 'count' pagemaps or it reaches end
+> of task.
+>=20
+> This presents a problem when the page walk doesn't happen
+> for vma with VM_PFNMAP set. In which case walk is silently
+> skipped and no pagemap is prepare, in turn making
+> pagemap_read to scan through task end, even crossing beyond
+> 'count', landing into a different vma region. This leads to
+> wrong presentation of mappings for that vma.
+>=20
+> Fix this by limiting end_vaddr to the end of the virtual
+> address region being scanned.
+>=20
+> Signed-off-by: Shiraz Hashim <shashim@codeaurora.org>
 
-> > As kfree_const() has the exact same signature as kfree(), the risk of
-> > accidentally passing pointers returned from kstrdup_const() to kfree() seems
-> > high, which may lead to memory corruption if the pointer doesn't point to
-> > allocated memory.
-> ...
-> >> To verify if the source is in .rodata function checks if the address is between
-> >> sentinels __start_rodata, __end_rodata. I guess it should work with all
-> >> architectures.
-> 
-> 	kfree() could also check if the region being freed is in .rodata, and
-> ignore the call; kfree_const() would not be needed.  If making this check all
-> the time leads to a significant decrease in performance (numbers needed here),
-> another option is to keep kfree_const() but add a check to kfree(), when
-> compiled for debugging, that issues a suitable complaint if the region being
-> freed is in .rodata.
-> 
+This patch works in some case, but there still seems a problem in another c=
+ase.
 
-Adding overhead to kfree() would be a show-stopper - it's a real
-hotpath.
+Consider that we have two vmas within some narrow (PAGEMAP_WALK_SIZE) regio=
+n.
+One vma in lower address is VM_PFNMAP, and the other vma in higher address =
+is not.
+Then a single call of walk_page_range() skips the first vma and scans the
+second vma, but the pagemap record of the second vma will be stored on the
+wrong offset in the buffer, because we just skip vma(VM_PFNMAP) without cal=
+ling
+any callbacks (within which add_to_pagemap() increments pm.pos).
 
-kstrdup_const() is only used in a small number of places.  Just don't
-screw it up.
+So calling pte_hole() for vma(VM_PFNMAP) looks a better fix to me.
 
+Thanks,
+Naoya Horiguchi
 
-btw, I have vague memories that gcc used to put some strings into .text
-under some circumstances.
+> ---
+>  fs/proc/task_mmu.c | 4 +++-
+>  1 file changed, 3 insertions(+), 1 deletion(-)
+>=20
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index 246eae8..04362e4 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -1270,7 +1270,9 @@ static ssize_t pagemap_read(struct file *file, char=
+ __user *buf,
+>  	src =3D *ppos;
+>  	svpfn =3D src / PM_ENTRY_BYTES;
+>  	start_vaddr =3D svpfn << PAGE_SHIFT;
+> -	end_vaddr =3D TASK_SIZE_OF(task);
+> +	end_vaddr =3D start_vaddr + ((count / PM_ENTRY_BYTES) << PAGE_SHIFT);
+> +	if ((end_vaddr > TASK_SIZE_OF(task)) || (end_vaddr < start_vaddr))
+> +		end_vaddr =3D TASK_SIZE_OF(task);
+> =20
+>  	/* watch out for wraparound */
+>  	if (svpfn > TASK_SIZE_OF(task) >> PAGE_SHIFT)
+> --=20
+>=20
+> QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
+> member of the Code Aurora Forum, hosted by The Linux Foundation
+>=20
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
