@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 22A396B006C
+Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CB0A6B0070
 	for <linux-mm@kvack.org>; Wed, 14 Jan 2015 04:43:44 -0500 (EST)
-Received: by mail-we0-f180.google.com with SMTP id w62so7673359wes.11
-        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 01:43:43 -0800 (PST)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id s9si25223735wiz.16.2015.01.14.01.43.43
+Received: by mail-we0-f177.google.com with SMTP id q59so7659226wes.8
+        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 01:43:44 -0800 (PST)
+Received: from casper.infradead.org ([2001:770:15f::2])
+        by mx.google.com with ESMTPS id s4si10366580wic.28.2015.01.14.01.43.43
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 14 Jan 2015 01:43:43 -0800 (PST)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 02/12] fs: kill BDI_CAP_SWAP_BACKED
-Date: Wed, 14 Jan 2015 10:42:31 +0100
-Message-Id: <1421228561-16857-3-git-send-email-hch@lst.de>
+Subject: [PATCH 01/12] fs: deduplicate noop_backing_dev_info
+Date: Wed, 14 Jan 2015 10:42:30 +0100
+Message-Id: <1421228561-16857-2-git-send-email-hch@lst.de>
 In-Reply-To: <1421228561-16857-1-git-send-email-hch@lst.de>
 References: <1421228561-16857-1-git-send-email-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,208 +20,195 @@ List-ID: <linux-mm.kvack.org>
 To: Jens Axboe <axboe@fb.com>
 Cc: David Howells <dhowells@redhat.com>, Tejun Heo <tj@kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-mtd@lists.infradead.org, linux-nfs@vger.kernel.org, ceph-devel@vger.kernel.org
 
-This bdi flag isn't too useful - we can determine that a vma is backed by
-either swap or shmem trivially in the caller.
-
-This also allows removing the backing_dev_info instaces for swap and shmem
-in favor of noop_backing_dev_info.
+hugetlbfs, kernfs and dlmfs can simply use noop_backing_dev_info instead
+of creating a local duplicate.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Tejun Heo <tj@kernel.org>
+Acked-by: Tejun Heo <tj@kernel.org>
 ---
- include/linux/backing-dev.h | 13 -------------
- mm/madvise.c                | 17 ++++++++++-------
- mm/shmem.c                  | 25 +++++++------------------
- mm/swap.c                   |  2 --
- mm/swap_state.c             |  7 +------
- 5 files changed, 18 insertions(+), 46 deletions(-)
+ fs/hugetlbfs/inode.c        | 14 +-------------
+ fs/kernfs/inode.c           | 14 +-------------
+ fs/kernfs/kernfs-internal.h |  1 -
+ fs/kernfs/mount.c           |  1 -
+ fs/ocfs2/dlmfs/dlmfs.c      | 16 ++--------------
+ 5 files changed, 4 insertions(+), 42 deletions(-)
 
-diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-index 5da6012..e936cea 100644
---- a/include/linux/backing-dev.h
-+++ b/include/linux/backing-dev.h
-@@ -238,8 +238,6 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
-  * BDI_CAP_WRITE_MAP:      Can be mapped for writing
-  * BDI_CAP_EXEC_MAP:       Can be mapped for execution
-  *
-- * BDI_CAP_SWAP_BACKED:    Count shmem/tmpfs objects as swap-backed.
-- *
-  * BDI_CAP_STRICTLIMIT:    Keep number of dirty pages below bdi threshold.
-  */
- #define BDI_CAP_NO_ACCT_DIRTY	0x00000001
-@@ -250,7 +248,6 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
- #define BDI_CAP_WRITE_MAP	0x00000020
- #define BDI_CAP_EXEC_MAP	0x00000040
- #define BDI_CAP_NO_ACCT_WB	0x00000080
--#define BDI_CAP_SWAP_BACKED	0x00000100
- #define BDI_CAP_STABLE_WRITES	0x00000200
- #define BDI_CAP_STRICTLIMIT	0x00000400
- 
-@@ -329,11 +326,6 @@ static inline bool bdi_cap_account_writeback(struct backing_dev_info *bdi)
- 				      BDI_CAP_NO_WRITEBACK));
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index 5eba47f..de7c95c 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -62,12 +62,6 @@ static inline struct hugetlbfs_inode_info *HUGETLBFS_I(struct inode *inode)
+ 	return container_of(inode, struct hugetlbfs_inode_info, vfs_inode);
  }
  
--static inline bool bdi_cap_swap_backed(struct backing_dev_info *bdi)
--{
--	return bdi->capabilities & BDI_CAP_SWAP_BACKED;
--}
--
- static inline bool mapping_cap_writeback_dirty(struct address_space *mapping)
- {
- 	return bdi_cap_writeback_dirty(mapping->backing_dev_info);
-@@ -344,11 +336,6 @@ static inline bool mapping_cap_account_dirty(struct address_space *mapping)
- 	return bdi_cap_account_dirty(mapping->backing_dev_info);
- }
- 
--static inline bool mapping_cap_swap_backed(struct address_space *mapping)
--{
--	return bdi_cap_swap_backed(mapping->backing_dev_info);
--}
--
- static inline int bdi_sched_wait(void *word)
- {
- 	schedule();
-diff --git a/mm/madvise.c b/mm/madvise.c
-index a271adc..1383a89 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -222,19 +222,22 @@ static long madvise_willneed(struct vm_area_struct *vma,
- 	struct file *file = vma->vm_file;
- 
- #ifdef CONFIG_SWAP
--	if (!file || mapping_cap_swap_backed(file->f_mapping)) {
-+	if (!file) {
- 		*prev = vma;
--		if (!file)
--			force_swapin_readahead(vma, start, end);
--		else
--			force_shm_swapin_readahead(vma, start, end,
--						file->f_mapping);
-+		force_swapin_readahead(vma, start, end);
- 		return 0;
- 	}
--#endif
- 
-+	if (shmem_mapping(file->f_mapping)) {
-+		*prev = vma;
-+		force_shm_swapin_readahead(vma, start, end,
-+					file->f_mapping);
-+		return 0;
-+	}
-+#else
- 	if (!file)
- 		return -EBADF;
-+#endif
- 
- 	if (file->f_mapping->a_ops->get_xip_mem) {
- 		/* no bad return value, but ignore advice */
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 73ba1df..1b77eaf 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -191,11 +191,6 @@ static const struct inode_operations shmem_dir_inode_operations;
- static const struct inode_operations shmem_special_inode_operations;
- static const struct vm_operations_struct shmem_vm_ops;
- 
--static struct backing_dev_info shmem_backing_dev_info  __read_mostly = {
+-static struct backing_dev_info hugetlbfs_backing_dev_info = {
+-	.name		= "hugetlbfs",
 -	.ra_pages	= 0,	/* No readahead */
--	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK | BDI_CAP_SWAP_BACKED,
+-	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
 -};
 -
- static LIST_HEAD(shmem_swaplist);
- static DEFINE_MUTEX(shmem_swaplist_mutex);
+ int sysctl_hugetlb_shm_group;
  
-@@ -765,11 +760,11 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
- 		goto redirty;
- 
- 	/*
--	 * shmem_backing_dev_info's capabilities prevent regular writeback or
--	 * sync from ever calling shmem_writepage; but a stacking filesystem
--	 * might use ->writepage of its underlying filesystem, in which case
--	 * tmpfs should write out to swap only in response to memory pressure,
--	 * and not for the writeback threads or sync.
-+	 * Our capabilities prevent regular writeback or sync from ever calling
-+	 * shmem_writepage; but a stacking filesystem might use ->writepage of
-+	 * its underlying filesystem, in which case tmpfs should write out to
-+	 * swap only in response to memory pressure, and not for the writeback
-+	 * threads or sync.
- 	 */
- 	if (!wbc->for_reclaim) {
- 		WARN_ON_ONCE(1);	/* Still happens? Tell us about it! */
-@@ -1415,7 +1410,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode
- 		inode->i_ino = get_next_ino();
- 		inode_init_owner(inode, dir, mode);
- 		inode->i_blocks = 0;
--		inode->i_mapping->backing_dev_info = &shmem_backing_dev_info;
+ enum {
+@@ -498,7 +492,7 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
+ 		lockdep_set_class(&inode->i_mapping->i_mmap_rwsem,
+ 				&hugetlbfs_i_mmap_rwsem_key);
+ 		inode->i_mapping->a_ops = &hugetlbfs_aops;
+-		inode->i_mapping->backing_dev_info =&hugetlbfs_backing_dev_info;
 +		inode->i_mapping->backing_dev_info = &noop_backing_dev_info;
  		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
- 		inode->i_generation = get_seconds();
- 		info = SHMEM_I(inode);
-@@ -1461,7 +1456,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode
+ 		inode->i_mapping->private_data = resv_map;
+ 		info = HUGETLBFS_I(inode);
+@@ -1032,10 +1026,6 @@ static int __init init_hugetlbfs_fs(void)
+ 		return -ENOTSUPP;
+ 	}
  
- bool shmem_mapping(struct address_space *mapping)
- {
--	return mapping->backing_dev_info == &shmem_backing_dev_info;
-+	return mapping->host->i_sb->s_op == &shmem_ops;
- }
- 
- #ifdef CONFIG_TMPFS
-@@ -3226,10 +3221,6 @@ int __init shmem_init(void)
- 	if (shmem_inode_cachep)
- 		return 0;
- 
--	error = bdi_init(&shmem_backing_dev_info);
+-	error = bdi_init(&hugetlbfs_backing_dev_info);
 -	if (error)
--		goto out4;
+-		return error;
 -
- 	error = shmem_init_inodecache();
- 	if (error)
- 		goto out3;
-@@ -3253,8 +3244,6 @@ out1:
- out2:
- 	shmem_destroy_inodecache();
- out3:
--	bdi_destroy(&shmem_backing_dev_info);
--out4:
- 	shm_mnt = ERR_PTR(error);
+ 	error = -ENOMEM;
+ 	hugetlbfs_inode_cachep = kmem_cache_create("hugetlbfs_inode_cache",
+ 					sizeof(struct hugetlbfs_inode_info),
+@@ -1071,7 +1061,6 @@ static int __init init_hugetlbfs_fs(void)
+  out:
+ 	kmem_cache_destroy(hugetlbfs_inode_cachep);
+  out2:
+-	bdi_destroy(&hugetlbfs_backing_dev_info);
  	return error;
  }
-diff --git a/mm/swap.c b/mm/swap.c
-index 8a12b33..4e0109a 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -1138,8 +1138,6 @@ void __init swap_setup(void)
- #ifdef CONFIG_SWAP
- 	int i;
  
--	if (bdi_init(swapper_spaces[0].backing_dev_info))
--		panic("Failed to init swap bdi");
- 	for (i = 0; i < MAX_SWAPFILES; i++) {
- 		spin_lock_init(&swapper_spaces[i].tree_lock);
- 		INIT_LIST_HEAD(&swapper_spaces[i].i_mmap_nonlinear);
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 9711342..1c137b6 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -32,17 +32,12 @@ static const struct address_space_operations swap_aops = {
- #endif
+@@ -1091,7 +1080,6 @@ static void __exit exit_hugetlbfs_fs(void)
+ 	for_each_hstate(h)
+ 		kern_unmount(hugetlbfs_vfsmount[i++]);
+ 	unregister_filesystem(&hugetlbfs_fs_type);
+-	bdi_destroy(&hugetlbfs_backing_dev_info);
+ }
+ 
+ module_init(init_hugetlbfs_fs)
+diff --git a/fs/kernfs/inode.c b/fs/kernfs/inode.c
+index 9852176..06f0688 100644
+--- a/fs/kernfs/inode.c
++++ b/fs/kernfs/inode.c
+@@ -24,12 +24,6 @@ static const struct address_space_operations kernfs_aops = {
+ 	.write_end	= simple_write_end,
  };
  
--static struct backing_dev_info swap_backing_dev_info = {
--	.name		= "swap",
--	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK | BDI_CAP_SWAP_BACKED,
+-static struct backing_dev_info kernfs_bdi = {
+-	.name		= "kernfs",
+-	.ra_pages	= 0,	/* No readahead */
+-	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
 -};
 -
- struct address_space swapper_spaces[MAX_SWAPFILES] = {
- 	[0 ... MAX_SWAPFILES - 1] = {
- 		.page_tree	= RADIX_TREE_INIT(GFP_ATOMIC|__GFP_NOWARN),
- 		.i_mmap_writable = ATOMIC_INIT(0),
- 		.a_ops		= &swap_aops,
--		.backing_dev_info = &swap_backing_dev_info,
-+		.backing_dev_info = &noop_backing_dev_info,
- 	}
+ static const struct inode_operations kernfs_iops = {
+ 	.permission	= kernfs_iop_permission,
+ 	.setattr	= kernfs_iop_setattr,
+@@ -40,12 +34,6 @@ static const struct inode_operations kernfs_iops = {
+ 	.listxattr	= kernfs_iop_listxattr,
  };
  
+-void __init kernfs_inode_init(void)
+-{
+-	if (bdi_init(&kernfs_bdi))
+-		panic("failed to init kernfs_bdi");
+-}
+-
+ static struct kernfs_iattrs *kernfs_iattrs(struct kernfs_node *kn)
+ {
+ 	static DEFINE_MUTEX(iattr_mutex);
+@@ -298,7 +286,7 @@ static void kernfs_init_inode(struct kernfs_node *kn, struct inode *inode)
+ 	kernfs_get(kn);
+ 	inode->i_private = kn;
+ 	inode->i_mapping->a_ops = &kernfs_aops;
+-	inode->i_mapping->backing_dev_info = &kernfs_bdi;
++	inode->i_mapping->backing_dev_info = &noop_backing_dev_info;
+ 	inode->i_op = &kernfs_iops;
+ 
+ 	set_default_inode_attr(inode, kn->mode);
+diff --git a/fs/kernfs/kernfs-internal.h b/fs/kernfs/kernfs-internal.h
+index dc84a3e..af9fa74 100644
+--- a/fs/kernfs/kernfs-internal.h
++++ b/fs/kernfs/kernfs-internal.h
+@@ -88,7 +88,6 @@ int kernfs_iop_removexattr(struct dentry *dentry, const char *name);
+ ssize_t kernfs_iop_getxattr(struct dentry *dentry, const char *name, void *buf,
+ 			    size_t size);
+ ssize_t kernfs_iop_listxattr(struct dentry *dentry, char *buf, size_t size);
+-void kernfs_inode_init(void);
+ 
+ /*
+  * dir.c
+diff --git a/fs/kernfs/mount.c b/fs/kernfs/mount.c
+index f973ae9..8eaf417 100644
+--- a/fs/kernfs/mount.c
++++ b/fs/kernfs/mount.c
+@@ -246,5 +246,4 @@ void __init kernfs_init(void)
+ 	kernfs_node_cache = kmem_cache_create("kernfs_node_cache",
+ 					      sizeof(struct kernfs_node),
+ 					      0, SLAB_PANIC, NULL);
+-	kernfs_inode_init();
+ }
+diff --git a/fs/ocfs2/dlmfs/dlmfs.c b/fs/ocfs2/dlmfs/dlmfs.c
+index 57c40e3..6000d30 100644
+--- a/fs/ocfs2/dlmfs/dlmfs.c
++++ b/fs/ocfs2/dlmfs/dlmfs.c
+@@ -390,12 +390,6 @@ clear_fields:
+ 	ip->ip_conn = NULL;
+ }
+ 
+-static struct backing_dev_info dlmfs_backing_dev_info = {
+-	.name		= "ocfs2-dlmfs",
+-	.ra_pages	= 0,	/* No readahead */
+-	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
+-};
+-
+ static struct inode *dlmfs_get_root_inode(struct super_block *sb)
+ {
+ 	struct inode *inode = new_inode(sb);
+@@ -404,7 +398,7 @@ static struct inode *dlmfs_get_root_inode(struct super_block *sb)
+ 	if (inode) {
+ 		inode->i_ino = get_next_ino();
+ 		inode_init_owner(inode, NULL, mode);
+-		inode->i_mapping->backing_dev_info = &dlmfs_backing_dev_info;
++		inode->i_mapping->backing_dev_info = &noop_backing_dev_info;
+ 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+ 		inc_nlink(inode);
+ 
+@@ -428,7 +422,7 @@ static struct inode *dlmfs_get_inode(struct inode *parent,
+ 
+ 	inode->i_ino = get_next_ino();
+ 	inode_init_owner(inode, parent, mode);
+-	inode->i_mapping->backing_dev_info = &dlmfs_backing_dev_info;
++	inode->i_mapping->backing_dev_info = &noop_backing_dev_info;
+ 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+ 
+ 	ip = DLMFS_I(inode);
+@@ -643,10 +637,6 @@ static int __init init_dlmfs_fs(void)
+ 	int status;
+ 	int cleanup_inode = 0, cleanup_worker = 0;
+ 
+-	status = bdi_init(&dlmfs_backing_dev_info);
+-	if (status)
+-		return status;
+-
+ 	dlmfs_inode_cache = kmem_cache_create("dlmfs_inode_cache",
+ 				sizeof(struct dlmfs_inode_private),
+ 				0, (SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|
+@@ -673,7 +663,6 @@ bail:
+ 			kmem_cache_destroy(dlmfs_inode_cache);
+ 		if (cleanup_worker)
+ 			destroy_workqueue(user_dlm_worker);
+-		bdi_destroy(&dlmfs_backing_dev_info);
+ 	} else
+ 		printk("OCFS2 User DLM kernel interface loaded\n");
+ 	return status;
+@@ -693,7 +682,6 @@ static void __exit exit_dlmfs_fs(void)
+ 	rcu_barrier();
+ 	kmem_cache_destroy(dlmfs_inode_cache);
+ 
+-	bdi_destroy(&dlmfs_backing_dev_info);
+ }
+ 
+ MODULE_AUTHOR("Oracle");
 -- 
 1.9.1
 
