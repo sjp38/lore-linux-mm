@@ -1,165 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 74DD46B0085
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2015 04:44:09 -0500 (EST)
-Received: by mail-wi0-f176.google.com with SMTP id z2so1121755wiv.3
-        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 01:44:09 -0800 (PST)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id ec2si25061067wib.90.2015.01.14.01.44.05
+Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BE9E6B006C
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2015 04:45:41 -0500 (EST)
+Received: by mail-la0-f41.google.com with SMTP id hv19so7146574lab.0
+        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 01:45:40 -0800 (PST)
+Received: from mail-lb0-x235.google.com (mail-lb0-x235.google.com. [2a00:1450:4010:c04::235])
+        by mx.google.com with ESMTPS id qz8si14069160lbc.116.2015.01.14.01.45.39
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Jan 2015 01:44:05 -0800 (PST)
-From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 12/12] fs: remove default_backing_dev_info
-Date: Wed, 14 Jan 2015 10:42:41 +0100
-Message-Id: <1421228561-16857-13-git-send-email-hch@lst.de>
-In-Reply-To: <1421228561-16857-1-git-send-email-hch@lst.de>
-References: <1421228561-16857-1-git-send-email-hch@lst.de>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 14 Jan 2015 01:45:40 -0800 (PST)
+Received: by mail-lb0-f181.google.com with SMTP id l4so6989234lbv.12
+        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 01:45:39 -0800 (PST)
+Date: Wed, 14 Jan 2015 12:45:38 +0300
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [PATCH 1/2] mm: rename mm->nr_ptes to mm->nr_pgtables
+Message-ID: <20150114094538.GD2253@moon>
+References: <1421176456-21796-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1421176456-21796-2-git-send-email-kirill.shutemov@linux.intel.com>
+ <20150113214355.GC2253@moon>
+ <54B592D6.4090406@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <54B592D6.4090406@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@fb.com>
-Cc: David Howells <dhowells@redhat.com>, Tejun Heo <tj@kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-mtd@lists.infradead.org, linux-nfs@vger.kernel.org, ceph-devel@vger.kernel.org
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Pavel Emelyanov <xemul@openvz.org>, linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
-Now that default_backing_dev_info is not used for writeback purposes we can
-git rid of it easily:
+On Tue, Jan 13, 2015 at 01:49:10PM -0800, Dave Hansen wrote:
+> On 01/13/2015 01:43 PM, Cyrill Gorcunov wrote:
+> > On Tue, Jan 13, 2015 at 09:14:15PM +0200, Kirill A. Shutemov wrote:
+> >> We're going to account pmd page tables too. Let's rename mm->nr_pgtables
+> >> to something more generic.
+> >>
+> >> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> >> --- a/fs/proc/task_mmu.c
+> >> +++ b/fs/proc/task_mmu.c
+> >> @@ -64,7 +64,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+> >>  		data << (PAGE_SHIFT-10),
+> >>  		mm->stack_vm << (PAGE_SHIFT-10), text, lib,
+> >>  		(PTRS_PER_PTE * sizeof(pte_t) *
+> >> -		 atomic_long_read(&mm->nr_ptes)) >> 10,
+> >> +		 atomic_long_read(&mm->nr_pgtables)) >> 10,
+> > 
+> > This implies that (PTRS_PER_PTE * sizeof(pte_t)) = (PTRS_PER_PMD * sizeof(pmd_t))
+> > which might be true for all archs, right?
+> 
+> I wonder if powerpc is OK on this front today.  This diagram:
+> 
+> 	http://linux-mm.org/PageTableStructure
+> 
+> says that they use a 128-byte "pte" table when mapping 16M pages.  I
+> wonder if they bump mm->nr_ptes for these.
 
- - instead of using it's name for tracing unregistered bdi we just use
-   "unknown"
- - btrfs and ceph can just assign the default read ahead window themselves
-   like several other filesystems already do.
- - we can assign noop_backing_dev_info as the default one in alloc_super.
-   All filesystems already either assigned their own or
-   noop_backing_dev_info.
-
-Signed-off-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Tejun Heo <tj@kernel.org>
----
- fs/btrfs/disk-io.c               | 2 +-
- fs/ceph/super.c                  | 2 +-
- fs/super.c                       | 8 ++------
- include/linux/backing-dev.h      | 1 -
- include/trace/events/writeback.h | 6 ++----
- mm/backing-dev.c                 | 9 ---------
- 6 files changed, 6 insertions(+), 22 deletions(-)
-
-diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
-index 1ec872e..1afb182 100644
---- a/fs/btrfs/disk-io.c
-+++ b/fs/btrfs/disk-io.c
-@@ -1719,7 +1719,7 @@ static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)
- 	if (err)
- 		return err;
- 
--	bdi->ra_pages	= default_backing_dev_info.ra_pages;
-+	bdi->ra_pages = VM_MAX_READAHEAD * 1024 / PAGE_CACHE_SIZE;
- 	bdi->congested_fn	= btrfs_congested_fn;
- 	bdi->congested_data	= info;
- 	return 0;
-diff --git a/fs/ceph/super.c b/fs/ceph/super.c
-index e350cc1..5ae6258 100644
---- a/fs/ceph/super.c
-+++ b/fs/ceph/super.c
-@@ -899,7 +899,7 @@ static int ceph_register_bdi(struct super_block *sb,
- 			>> PAGE_SHIFT;
- 	else
- 		fsc->backing_dev_info.ra_pages =
--			default_backing_dev_info.ra_pages;
-+			VM_MAX_READAHEAD * 1024 / PAGE_CACHE_SIZE;
- 
- 	err = bdi_register(&fsc->backing_dev_info, NULL, "ceph-%ld",
- 			   atomic_long_inc_return(&bdi_seq));
-diff --git a/fs/super.c b/fs/super.c
-index eae088f..3b4dada 100644
---- a/fs/super.c
-+++ b/fs/super.c
-@@ -185,8 +185,8 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
- 	}
- 	init_waitqueue_head(&s->s_writers.wait);
- 	init_waitqueue_head(&s->s_writers.wait_unfrozen);
-+	s->s_bdi = &noop_backing_dev_info;
- 	s->s_flags = flags;
--	s->s_bdi = &default_backing_dev_info;
- 	INIT_HLIST_NODE(&s->s_instances);
- 	INIT_HLIST_BL_HEAD(&s->s_anon);
- 	INIT_LIST_HEAD(&s->s_inodes);
-@@ -863,10 +863,7 @@ EXPORT_SYMBOL(free_anon_bdev);
- 
- int set_anon_super(struct super_block *s, void *data)
- {
--	int error = get_anon_bdev(&s->s_dev);
--	if (!error)
--		s->s_bdi = &noop_backing_dev_info;
--	return error;
-+	return get_anon_bdev(&s->s_dev);
- }
- 
- EXPORT_SYMBOL(set_anon_super);
-@@ -1111,7 +1108,6 @@ mount_fs(struct file_system_type *type, int flags, const char *name, void *data)
- 	sb = root->d_sb;
- 	BUG_ON(!sb);
- 	WARN_ON(!sb->s_bdi);
--	WARN_ON(sb->s_bdi == &default_backing_dev_info);
- 	sb->s_flags |= MS_BORN;
- 
- 	error = security_sb_kern_mount(sb, flags, secdata);
-diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-index ed59dee..d94077f 100644
---- a/include/linux/backing-dev.h
-+++ b/include/linux/backing-dev.h
-@@ -241,7 +241,6 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
- #define BDI_CAP_NO_ACCT_AND_WRITEBACK \
- 	(BDI_CAP_NO_WRITEBACK | BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_ACCT_WB)
- 
--extern struct backing_dev_info default_backing_dev_info;
- extern struct backing_dev_info noop_backing_dev_info;
- 
- int writeback_in_progress(struct backing_dev_info *bdi);
-diff --git a/include/trace/events/writeback.h b/include/trace/events/writeback.h
-index 74f5207..0e93109 100644
---- a/include/trace/events/writeback.h
-+++ b/include/trace/events/writeback.h
-@@ -156,10 +156,8 @@ DECLARE_EVENT_CLASS(writeback_work_class,
- 		__field(int, reason)
- 	),
- 	TP_fast_assign(
--		struct device *dev = bdi->dev;
--		if (!dev)
--			dev = default_backing_dev_info.dev;
--		strncpy(__entry->name, dev_name(dev), 32);
-+		strncpy(__entry->name,
-+			bdi->dev ? dev_name(bdi->dev) : "(unknown)", 32);
- 		__entry->nr_pages = work->nr_pages;
- 		__entry->sb_dev = work->sb ? work->sb->s_dev : 0;
- 		__entry->sync_mode = work->sync_mode;
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index 3ebba25..c49026d 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -14,12 +14,6 @@
- 
- static atomic_long_t bdi_seq = ATOMIC_LONG_INIT(0);
- 
--struct backing_dev_info default_backing_dev_info = {
--	.name		= "default",
--	.ra_pages	= VM_MAX_READAHEAD * 1024 / PAGE_CACHE_SIZE,
--};
--EXPORT_SYMBOL_GPL(default_backing_dev_info);
--
- struct backing_dev_info noop_backing_dev_info = {
- 	.name		= "noop",
- 	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
-@@ -250,9 +244,6 @@ static int __init default_bdi_init(void)
- 	if (!bdi_wq)
- 		return -ENOMEM;
- 
--	err = bdi_init(&default_backing_dev_info);
--	if (!err)
--		bdi_register(&default_backing_dev_info, NULL, "default");
- 	err = bdi_init(&noop_backing_dev_info);
- 
- 	return err;
--- 
-1.9.1
+It looks like this doesn't matter. The statistics here prints the size
+of summary memory occupied for pte_t entries, here PTRS_PER_PTE * sizeof(pte_t)
+is only valid for, once we start accounting pmd into same counter it implies
+that PTRS_PER_PTE == PTRS_PER_PMD, which is not true for all archs
+(if I understand the idea of accounting here right).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
