@@ -1,86 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id A6A066B0032
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2015 02:36:18 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id rd3so8855525pab.7
-        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 23:36:18 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id ez5si29790563pac.108.2015.01.13.23.36.16
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D49E6B006E
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2015 03:06:35 -0500 (EST)
+Received: by mail-pd0-f171.google.com with SMTP id y13so8433317pdi.2
+        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 00:06:34 -0800 (PST)
+Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
+        by mx.google.com with ESMTPS id c8si29891443pat.105.2015.01.14.00.06.32
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Jan 2015 23:36:17 -0800 (PST)
-Date: Wed, 14 Jan 2015 10:36:08 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH -mm] fs: shrinker: always scan at least one object of
- each type
-Message-ID: <20150114073608.GC11264@esperanza>
-References: <1421058046-2434-1-git-send-email-vdavydov@parallels.com>
- <20150113155639.53e48aad4b0cfe870ccffac4@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20150113155639.53e48aad4b0cfe870ccffac4@linux-foundation.org>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Wed, 14 Jan 2015 00:06:33 -0800 (PST)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout3.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NI500DD4QPKT260@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 14 Jan 2015 08:10:32 +0000 (GMT)
+Message-id: <54B6237C.5090500@samsung.com>
+Date: Wed, 14 Jan 2015 09:06:20 +0100
+From: Andrzej Hajda <a.hajda@samsung.com>
+MIME-version: 1.0
+Subject: Re: [PATCH 0/5] kstrdup optimization
+References: <1421054323-14430-1-git-send-email-a.hajda@samsung.com>
+ <20150113153731.43eefac721964d165396e5af@linux-foundation.org>
+In-reply-to: <20150113153731.43eefac721964d165396e5af@linux-foundation.org>
+Content-type: text/plain; charset=windows-1252
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, linux-kernel@vger.kernel.org, andi@firstfloor.org, andi@lisas.de, Mike Turquette <mturquette@linaro.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Tejun Heo <tj@kernel.org>
 
-On Tue, Jan 13, 2015 at 03:56:39PM -0800, Andrew Morton wrote:
-> On Mon, 12 Jan 2015 13:20:46 +0300 Vladimir Davydov <vdavydov@parallels.com> wrote:
-> 
-> > In super_cache_scan() we divide the number of objects of particular type
-> > by the total number of objects in order to distribute pressure among
-> > different types of fs objects (inodes, dentries, fs-private objects).
-> > As a result, in some corner cases we can get nr_to_scan=0 even if there
-> > are some objects to reclaim, e.g. dentries=1, inodes=1, fs_objects=1,
-> > nr_to_scan=1/3=0.
-> > 
-> > This is unacceptable for per memcg kmem accounting, because this means
-> > that some objects may never get reclaimed after memcg death, preventing
-> > it from being freed.
-> > 
-> > This patch therefore assures that super_cache_scan() will scan at least
-> > one object of each type if any.
-> > 
-> > --- a/fs/super.c
-> > +++ b/fs/super.c
-> > @@ -92,13 +92,13 @@ static unsigned long super_cache_scan(struct shrinker *shrink,
-> >  	 * prune the dcache first as the icache is pinned by it, then
-> >  	 * prune the icache, followed by the filesystem specific caches
-> >  	 */
-> > -	sc->nr_to_scan = dentries;
-> > +	sc->nr_to_scan = dentries + 1;
-> >  	freed = prune_dcache_sb(sb, sc);
-> > -	sc->nr_to_scan = inodes;
-> > +	sc->nr_to_scan = inodes + 1;
-> >  	freed += prune_icache_sb(sb, sc);
-> >  
-> >  	if (fs_objects) {
-> > -		sc->nr_to_scan = fs_objects;
-> > +		sc->nr_to_scan = fs_objects + 1;
-> >  		freed += sb->s_op->free_cached_objects(sb, sc);
-> >  	}
-> 
-> A reader of this code will wonder "why is it adding 1 everywhere". 
-> Let's tell them?
+On 01/14/2015 12:37 AM, Andrew Morton wrote:
+> On Mon, 12 Jan 2015 10:18:38 +0100 Andrzej Hajda <a.hajda@samsung.com> wrote:
+>
+>> Hi,
+>>
+>> kstrdup if often used to duplicate strings where neither source neither
+>> destination will be ever modified. In such case we can just reuse the source
+>> instead of duplicating it. The problem is that we must be sure that
+>> the source is non-modifiable and its life-time is long enough.
+>>
+>> I suspect the good candidates for such strings are strings located in kernel
+>> .rodata section, they cannot be modifed because the section is read-only and
+>> their life-time is equal to kernel life-time.
+>>
+>> This small patchset proposes alternative version of kstrdup - kstrdup_const,
+>> which returns source string if it is located in .rodata otherwise it fallbacks
+>> to kstrdup.
+>> To verify if the source is in .rodata function checks if the address is between
+>> sentinels __start_rodata, __end_rodata. I guess it should work with all
+>> architectures.
+>>
+>> The main patch is accompanied by four patches constifying kstrdup for cases
+>> where situtation described above happens frequently.
+>>
+>> As I have tested the patchset on mobile platform (exynos4210-trats) it saves
+>> 3272 string allocations. Since minimal allocation is 32 or 64 bytes depending
+>> on Kconfig options the patchset saves respectively about 100KB or 200KB of memory.
+> That's a lot of memory.  I wonder where it's all going to.  sysfs,
+> probably?
 
-Yeah, sounds reasonable. Thank you!
+Stats from tested platform.
+By caller:
+  2260 __kernfs_new_node
+    631 clk_register+0xc8/0x1b8
+    318 clk_register+0x34/0x1b8
+      51 kmem_cache_create
+      12 alloc_vfsmnt
 
-> 
-> --- a/fs/super.c~fs-shrinker-always-scan-at-least-one-object-of-each-type-fix
-> +++ a/fs/super.c
-> @@ -91,6 +91,9 @@ static unsigned long super_cache_scan(st
->  	/*
->  	 * prune the dcache first as the icache is pinned by it, then
->  	 * prune the icache, followed by the filesystem specific caches
-> +	 *
-> +	 * Ensure that we always scan at least one object - memcg kmem
-> +	 * accounting uses this to fully empty the caches.
->  	 */
->  	sc->nr_to_scan = dentries + 1;
->  	freed = prune_dcache_sb(sb, sc);
-> _
-> 
+By string (with count >= 5):
+    883 power
+    876 subsystem
+    135 parameters
+    132 device
+     61 iommu_group
+     44 sclk_mpll
+     42 aclk100
+     41 driver
+     36 sclk_vpll
+     35 none
+     34 sclk_epll
+     34 aclk160
+     32 sclk_hdmi24m
+     31 xxti
+     31 xusbxti
+     31 sclk_usbphy0
+     30 sclk_hdmiphy
+     28 bdi
+     28 aclk133
+     14 sclk_apll
+     14 aclk200
+      9 module
+      9 fin_pll
+      5 div_core2
+   
+
+
+>
+> What the heck does (the cheerily undocumented) KERNFS_STATIC_NAME do
+> and can we remove it if this patchset is in place?
+>
+>
+
+The only call path when this flag is set starts from
+sysfs_add_file_mode_ns function.
+But I guess this function can be called also for non-const names.
+
+Regards
+Andrzej
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
