@@ -1,91 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id BD2A46B0032
-	for <linux-mm@kvack.org>; Tue, 13 Jan 2015 22:18:41 -0500 (EST)
-Received: by mail-pd0-f177.google.com with SMTP id ft15so7094364pdb.8
-        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 19:18:41 -0800 (PST)
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com. [209.85.192.179])
-        by mx.google.com with ESMTPS id i8si29199186pdm.106.2015.01.13.19.18.39
+Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E26A6B0032
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2015 02:21:55 -0500 (EST)
+Received: by mail-la0-f49.google.com with SMTP id hs14so6608278lab.8
+        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 23:21:54 -0800 (PST)
+Received: from mail-lb0-x233.google.com (mail-lb0-x233.google.com. [2a00:1450:4010:c04::233])
+        by mx.google.com with ESMTPS id q13si5083079laa.27.2015.01.13.23.21.53
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 13 Jan 2015 19:18:39 -0800 (PST)
-Received: by mail-pd0-f179.google.com with SMTP id fp1so7078911pdb.10
-        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 19:18:39 -0800 (PST)
-Date: Tue, 13 Jan 2015 19:18:36 -0800
-From: Omar Sandoval <osandov@osandov.com>
-Subject: Re: [PATCH v2 0/5] clean up and generalize swap-over-NFS
-Message-ID: <20150114031836.GA21198@mew>
-References: <cover.1419044605.git.osandov@osandov.com>
+        Tue, 13 Jan 2015 23:21:53 -0800 (PST)
+Received: by mail-lb0-f179.google.com with SMTP id z11so6473606lbi.10
+        for <linux-mm@kvack.org>; Tue, 13 Jan 2015 23:21:53 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <cover.1419044605.git.osandov@osandov.com>
+Reply-To: mtk.manpages@gmail.com
+In-Reply-To: <20150110183911.GB2915@two.firstfloor.org>
+References: <54AE5BE8.1050701@gmail.com> <87r3v350io.fsf@tassilo.jf.intel.com>
+ <CAKgNAki3Fh8N=jyPHxxFpicjyJ=0kA75SJ65QjYzPmWnvy4nsw@mail.gmail.com>
+ <54B01F41.10001@intel.com> <54B12DD3.5020605@gmail.com> <20150110183911.GB2915@two.firstfloor.org>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Date: Wed, 14 Jan 2015 08:21:32 +0100
+Message-ID: <CAKgNAkgtDtU5TsOEpjoLggn-gzSLXuqUOhhieVgc4sOo41Oz=w@mail.gmail.com>
+Subject: Re: [PATCH] x86, mpx: Ensure unused arguments of prctl() MPX requests
+ are 0
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Qiaowei Ren <qiaowei.ren@intel.com>, lkml <linux-kernel@vger.kernel.org>
 
-On Fri, Dec 19, 2014 at 07:18:24PM -0800, Omar Sandoval wrote:
-> Hi,
-> 
-> This patch series (based on ecb5ec0 in Linus' tree) contains all of the
-> non-BTRFS work that I've done to implement swapfiles on BTRFS. The BTRFS
-> portion is still undergoing development and is now outweighed by the
-> non-BTRFS changes, so I want to get these in separately.
-> 
-> Version 2 changes the generic swapfile interface to use ->read_iter and
-> ->write_iter instead of using ->direct_IO directly in response to
-> discussion on the previous submission. It also adds the iov_iter_is_bvec
-> helper to factor out some common checks.
-> 
-> Version 1 can be found here: https://lkml.org/lkml/2014/12/15/7
-> 
-> Omar Sandoval (5):
->   iov_iter: add ITER_BVEC helpers
->   direct-io: don't dirty ITER_BVEC pages on read
->   nfs: don't dirty ITER_BVEC pages read through direct I/O
->   swapfile: use ->read_iter and ->write_iter
->   vfs: update swap_{,de}activate documentation
-> 
->  Documentation/filesystems/Locking |  7 ++++---
->  Documentation/filesystems/vfs.txt |  7 ++++---
->  fs/direct-io.c                    |  8 ++++---
->  fs/nfs/direct.c                   |  5 ++++-
->  fs/splice.c                       |  7 ++-----
->  include/linux/uio.h               |  7 +++++++
->  mm/iov_iter.c                     | 12 +++++++++++
->  mm/page_io.c                      | 44 +++++++++++++++++++++++++--------------
->  mm/swapfile.c                     | 11 +++++++++-
->  9 files changed, 76 insertions(+), 32 deletions(-)
-> 
-> -- 
-> 2.2.1
-> 
+Hi Andi,
 
-Hi, everyone,
+On 10 January 2015 at 19:39, Andi Kleen <andi@firstfloor.org> wrote:
+> On Sat, Jan 10, 2015 at 02:49:07PM +0100, Michael Kerrisk (man-pages) wrote:
+>> On 01/09/2015 07:34 PM, Dave Hansen wrote:
+>> > On 01/09/2015 10:25 AM, Michael Kerrisk (man-pages) wrote:
+>> >> On 9 January 2015 at 18:25, Andi Kleen <andi@firstfloor.org> wrote:
+>> >>> "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com> writes:
+>> >>>> From: Michael Kerrisk <mtk.manpages@gmail.com>
+>> >>>>
+>> >>>> commit fe8c7f5cbf91124987106faa3bdf0c8b955c4cf7 added two new prctl()
+>> >>>> operations, PR_MPX_ENABLE_MANAGEMENT and PR_MPX_DISABLE_MANAGEMENT.
+>> >>>> However, no checks were included to ensure that unused arguments
+>> >>>> are zero, as is done in many existing prctl()s and as should be
+>> >>>> done for all new prctl()s. This patch adds the required checks.
+>> >>>
+>> >>> This will break the existing gcc run time, which doesn't zero these
+>> >>> arguments.
+>> >>
+>> >> I'm a little lost here. Weren't these flags new in the
+>> >> as-yet-unreleased 3.19? How does gcc run-time depends on them already?
+>> >
+>> > These prctl()s have been around in some form or another for a few months
+>> > since the patches had not yet been merged in to the kernel.  There is
+>> > support for them in a set of (yet unmerged) gcc patches, as well as some
+>> > tests which are only internal to Intel.
+>> >
+>> > This change will, indeed, break those internal tests as well as the gcc
+>> > patches.  As far as I know, the code is not in production anywhere and
+>> > can be changed.  The prctl() numbers have changed while the patches were
+>> > out of tree and it's a somewhat painful process each time it changes.
+>> > It's not impossible, just painful.
+>>
+>> So, sounds like thinks can be fixed (with mild inconvenience), and they
+>> should be fixed before 3.19 is actually released.
+>
+> FWIW I added these checks to prctl first, but in hindsight it was a
+> mistake.
 
-Thanks for all of the feedback on the last few iterations of this
-series. If it's alright, I'd like to revive the conversation around
-these patches.
+(I'm not clear here whether you mean you added them for other prctl()
+operations, of for the MPX operations.)
 
-There are a couple of issues which we were discussing before the
-holidays:
+> The glibc prctl() function is stdarg.
 
-One concern that Al mentioned was ->read_iter and ->write_iter falling
-back to the buffered I/O case. Like Christoph mentioned, this can be
-prevented by doing the proper checks on the filesystem side (usually
-just making sure that all blocks of a swapfile are allocated, but on
-BTRFS, for example, we also have to check for compressed extents).
+Sigh. Yes. It's ugly.
 
-The other concern which Al brought up was that ->read_iter is passed a
-locked page in the iter_bvec and could end up trying to lock it. I'm not
-too sure under what conditions that would happen -- could someone give
-an example? My intuition is that there's no path which will lead us to
-deadlock on a page in the swapcache, but I don't have anything solid to
-back that up.
+> Often you only have a single
+> extra argument, so you need to add 4 zeroes.
 
-Thanks!
+And more ugliness. As far as I can tell, no prctl() operation even
+uses arg5. PR_SET_MM passes it to its helper routine, but that routine
+requires the argument to be zero. And PR_SET_MM is the only operation
+that uses arg4. That observation inclines me even more to a point I
+thought about recently: PR_SET_MM is sufficiently complicated that it
+really should have been a separate system call, rather than being
+crammed into prctl().
+
+Carrying on with this point, the only operations that use arg3 are
+PR_MCE_KILL, PR_SET_MM, PR_SET_SECCOMP. And, after prodding from me
+and one or two others, the functionality of that last one was
+eventually split off into a separate seccomp() system call instead of
+further overloading prctl().
+
+I know it's ancient history (prctl() dates pack to Linux 2.2 days),
+but one has to wonder what people were thinking of when they decided
+it was a good idea to add a generic multi-argument system call. (Even
+in the first operation that was added, PR_SET_PDEATHSIG, only arg2 was
+used.) Like, "hey ioctl() is a great idea, let's try the same idea
+with even more arguments".
+
+> There is no compile
+> time checking. It is very easy to get wrong and miscount the zeroes,
+> happened several times.
+
+Yes, but (in the case of those prctl() operations that don't check for
+the zeros), what's the harm of getting it wrong?
+
+> The failure may be hard to catch, because
+> it only happens at runtime.
+
+<irony>
+But, I mean, the developer will catch that on the first test, right?
+</irony>
+
+> Also the extra zeroes look ugly in the source.
+
+I don't suppose you can be proposing this as a strong argument, but I
+don''t think this pomit carries much wait at all. Anyway, the
+fundamental point is that it's the API that is ugly, not the zeros.
+
+> And it doesn't really buy you anything because it's very cheap
+> to add new prctl numbers if you want to extend something.
+
+I still tend to disagree. There's already enough completely unrelated
+functionality overloaded onto this API. I don't think we really want
+to follow the philosophy of "oh, we'll just add another operation
+later".
+
+> So I would advise against it.
+
+The counter-argument  here is of course that user-space programmers
+sometimes make the converse error: omitting an argument on some
+prctl() that requires. The consequence of that sort of error can be
+considerably worse than miscounting the zeros required for prctl()
+operations that don't need check their unused arguments. Overall,
+given the messy API, I think it best to encourage user-space
+programmers into a discipline of always supplying the zeros for the
+unused arguments, so I still think this patch should be applied.
+
+Cheers,
+
+Michael
+
 -- 
-Omar
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
