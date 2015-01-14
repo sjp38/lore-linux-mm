@@ -1,44 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f42.google.com (mail-qa0-f42.google.com [209.85.216.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A4356B006C
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2015 09:13:29 -0500 (EST)
-Received: by mail-qa0-f42.google.com with SMTP id dc16so6709731qab.1
-        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 06:13:29 -0800 (PST)
-Received: from mail-qa0-x233.google.com (mail-qa0-x233.google.com. [2607:f8b0:400d:c00::233])
-        by mx.google.com with ESMTPS id n4si31096361qci.46.2015.01.14.06.13.28
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E6A96B0032
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2015 09:28:53 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id rd3so10796245pab.7
+        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 06:28:53 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id c8si30988861pat.105.2015.01.14.06.28.51
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 14 Jan 2015 06:13:28 -0800 (PST)
-Received: by mail-qa0-f51.google.com with SMTP id f12so5848478qad.10
-        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 06:13:28 -0800 (PST)
-Date: Wed, 14 Jan 2015 09:13:25 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 2/5] kernfs: convert node name allocation to kstrdup_const
-Message-ID: <20150114141325.GD3565@htj.dyndns.org>
-References: <1421054323-14430-1-git-send-email-a.hajda@samsung.com>
- <1421054323-14430-3-git-send-email-a.hajda@samsung.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 Jan 2015 06:28:51 -0800 (PST)
+Date: Wed, 14 Jan 2015 17:28:41 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [patch 2/2] mm: memcontrol: default hierarchy interface for
+ memory
+Message-ID: <20150114142841.GE11264@esperanza>
+References: <1420776904-8559-1-git-send-email-hannes@cmpxchg.org>
+ <1420776904-8559-2-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <1421054323-14430-3-git-send-email-a.hajda@samsung.com>
+In-Reply-To: <1420776904-8559-2-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrzej Hajda <a.hajda@samsung.com>
-Cc: linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, linux-kernel@vger.kernel.org, andi@firstfloor.org, andi@lisas.de, Mike Turquette <mturquette@linaro.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, Jan 12, 2015 at 10:18:40AM +0100, Andrzej Hajda wrote:
-> sysfs frequently performs duplication of strings located
-> in read-only memory section. Replacing kstrdup by kstrdup_const
-> allows to avoid such operations.
-> 
-> Signed-off-by: Andrzej Hajda <a.hajda@samsung.com>
+On Thu, Jan 08, 2015 at 11:15:04PM -0500, Johannes Weiner wrote:
+>   - memory.low configures the lower end of the cgroup's expected
+>     memory consumption range.  The kernel considers memory below that
+>     boundary to be a reserve - the minimum that the workload needs in
+>     order to make forward progress - and generally avoids reclaiming
+>     it, unless there is an imminent risk of entering an OOM situation.
 
-Acked-by: Tejun Heo <tj@kernel.org>
+AFAICS, if a cgroup cannot be shrunk back to its low limit (e.g.
+because it consumes anon memory, and there's no swap), it will get on
+with it. Is it considered to be a problem? Are there any plans to fix
+it, e.g. by invoking OOM-killer in a cgroup that is above its low limit
+if we fail to reclaim from it?
 
-Thanks.
-
--- 
-tejun
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
