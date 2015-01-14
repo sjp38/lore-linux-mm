@@ -1,49 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
-	by kanga.kvack.org (Postfix) with ESMTP id B175A6B0032
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2015 09:48:47 -0500 (EST)
-Received: by mail-lb0-f182.google.com with SMTP id u10so8211538lbd.13
-        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 06:48:45 -0800 (PST)
-Received: from mail-la0-x22d.google.com (mail-la0-x22d.google.com. [2a00:1450:4010:c03::22d])
-        by mx.google.com with ESMTPS id h3si6142781lam.29.2015.01.14.06.48.45
+Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 87DA16B0032
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2015 09:55:41 -0500 (EST)
+Received: by mail-wg0-f51.google.com with SMTP id x12so9349937wgg.10
+        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 06:55:41 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m10si48354730wjx.45.2015.01.14.06.55.40
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 14 Jan 2015 06:48:45 -0800 (PST)
-Received: by mail-la0-f45.google.com with SMTP id gq15so8503395lab.4
-        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 06:48:45 -0800 (PST)
-Date: Wed, 14 Jan 2015 17:48:43 +0300
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [PATCH 1/2] mm: rename mm->nr_ptes to mm->nr_pgtables
-Message-ID: <20150114144843.GE2253@moon>
-References: <1421176456-21796-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1421176456-21796-2-git-send-email-kirill.shutemov@linux.intel.com>
- <20150113214355.GC2253@moon>
- <54B592D6.4090406@linux.intel.com>
- <20150114094538.GD2253@moon>
- <20150114143358.GA9820@node.dhcp.inet.fi>
+        Wed, 14 Jan 2015 06:55:40 -0800 (PST)
+Message-ID: <54B6836B.5030603@suse.cz>
+Date: Wed, 14 Jan 2015 15:55:39 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150114143358.GA9820@node.dhcp.inet.fi>
+Subject: Re: [PATCH V2 linux-next] mm,compaction: move suitable_migration_target()
+ under CONFIG_COMPACTION
+References: <1421173304-11514-1-git-send-email-fabf@skynet.be>
+In-Reply-To: <1421173304-11514-1-git-send-email-fabf@skynet.be>
+Content-Type: text/plain; charset=iso-8859-2
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, Pavel Emelyanov <xemul@openvz.org>, linux-kernel@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Fabian Frederick <fabf@skynet.be>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 
-On Wed, Jan 14, 2015 at 04:33:58PM +0200, Kirill A. Shutemov wrote:
-> > 
-> > It looks like this doesn't matter. The statistics here prints the size
-> > of summary memory occupied for pte_t entries, here PTRS_PER_PTE * sizeof(pte_t)
-> > is only valid for, once we start accounting pmd into same counter it implies
-> > that PTRS_PER_PTE == PTRS_PER_PMD, which is not true for all archs
-> > (if I understand the idea of accounting here right).
+On 01/13/2015 07:21 PM, Fabian Frederick wrote:
+> suitable_migration_target() is only used by isolate_freepages()
+> Define it under CONFIG_COMPACTION || CONFIG_CMA is not needed.
 > 
-> Yeah. good catch. Thank you.
+> Fix the following warning:
+> mm/compaction.c:311:13: warning: 'suitable_migration_target' defined
+> but not used [-Wunused-function]
 > 
-> I'll respin with separate counter for pmd tables. It seems the best
-> option.
+> Signed-off-by: Fabian Frederick <fabf@skynet.be>
 
-Sounds good to me, thanks.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+Thanks.
+
+> ---
+> v2: move function below update_pageblock_skip() instead of above 
+> isolate_freepages() (suggested by Vlastimil Babka)
+> 
+> 
+>  mm/compaction.c | 44 ++++++++++++++++++++++----------------------
+>  1 file changed, 22 insertions(+), 22 deletions(-)
+> 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 546e571..580790d 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -207,6 +207,28 @@ static void update_pageblock_skip(struct compact_control *cc,
+>  			zone->compact_cached_free_pfn = pfn;
+>  	}
+>  }
+> +
+> +/* Returns true if the page is within a block suitable for migration to */
+> +static bool suitable_migration_target(struct page *page)
+> +{
+> +	/* If the page is a large free page, then disallow migration */
+> +	if (PageBuddy(page)) {
+> +		/*
+> +		 * We are checking page_order without zone->lock taken. But
+> +		 * the only small danger is that we skip a potentially suitable
+> +		 * pageblock, so it's not worth to check order for valid range.
+> +		 */
+> +		if (page_order_unsafe(page) >= pageblock_order)
+> +			return false;
+> +	}
+> +
+> +	/* If the block is MIGRATE_MOVABLE or MIGRATE_CMA, allow migration */
+> +	if (migrate_async_suitable(get_pageblock_migratetype(page)))
+> +		return true;
+> +
+> +	/* Otherwise skip the block */
+> +	return false;
+> +}
+>  #else
+>  static inline bool isolation_suitable(struct compact_control *cc,
+>  					struct page *page)
+> @@ -307,28 +329,6 @@ static inline bool compact_should_abort(struct compact_control *cc)
+>  	return false;
+>  }
+>  
+> -/* Returns true if the page is within a block suitable for migration to */
+> -static bool suitable_migration_target(struct page *page)
+> -{
+> -	/* If the page is a large free page, then disallow migration */
+> -	if (PageBuddy(page)) {
+> -		/*
+> -		 * We are checking page_order without zone->lock taken. But
+> -		 * the only small danger is that we skip a potentially suitable
+> -		 * pageblock, so it's not worth to check order for valid range.
+> -		 */
+> -		if (page_order_unsafe(page) >= pageblock_order)
+> -			return false;
+> -	}
+> -
+> -	/* If the block is MIGRATE_MOVABLE or MIGRATE_CMA, allow migration */
+> -	if (migrate_async_suitable(get_pageblock_migratetype(page)))
+> -		return true;
+> -
+> -	/* Otherwise skip the block */
+> -	return false;
+> -}
+> -
+>  /*
+>   * Isolate free pages onto a private freelist. If @strict is true, will abort
+>   * returning 0 on any invalid PFNs or non-free pages inside of the pageblock
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
