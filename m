@@ -1,43 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B9416B0032
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2015 03:18:50 -0500 (EST)
-Received: by mail-pd0-f182.google.com with SMTP id p10so8426253pdj.13
-        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 00:18:50 -0800 (PST)
-Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com. [2607:f8b0:400e:c02::22e])
-        by mx.google.com with ESMTPS id fz12si29828761pdb.171.2015.01.14.00.18.48
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 90A826B0032
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2015 04:43:42 -0500 (EST)
+Received: by mail-wi0-f171.google.com with SMTP id bs8so26828411wib.4
+        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 01:43:41 -0800 (PST)
+Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
+        by mx.google.com with ESMTPS id h4si3499117wij.12.2015.01.14.01.43.41
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 14 Jan 2015 00:18:49 -0800 (PST)
-Received: by mail-pd0-f174.google.com with SMTP id fp1so8464382pdb.5
-        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 00:18:48 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <54B5957B.5060900@intel.com>
-References: <CAPAsAGwn=KcWOgrTHeWCS18jWq2wK0JGJxYDT1Y4RUpim6=OuQ@mail.gmail.com>
-	<54B5957B.5060900@intel.com>
-Date: Wed, 14 Jan 2015 12:18:48 +0400
-Message-ID: <CAPAsAGw7AaSVMQdxfOyN8dTiPY=oFSeFzE4bRBFa0EVhZCOe+A@mail.gmail.com>
-Subject: Re: [LSF/MM TOPIC] The kernel address sanitizer
-From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 Jan 2015 01:43:41 -0800 (PST)
+From: Christoph Hellwig <hch@lst.de>
+Subject: backing_dev_info cleanups & lifetime rule fixes V2
+Date: Wed, 14 Jan 2015 10:42:29 +0100
+Message-Id: <1421228561-16857-1-git-send-email-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Sasha Levin <sasha.levin@oracle.com>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Khlebnikov <koct9i@gmail.com>
+To: Jens Axboe <axboe@fb.com>
+Cc: David Howells <dhowells@redhat.com>, Tejun Heo <tj@kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-mtd@lists.infradead.org, linux-nfs@vger.kernel.org, ceph-devel@vger.kernel.org
 
-2015-01-14 1:00 GMT+03:00 Dave Hansen <dave.hansen@intel.com>:
-> On 12/25/2014 04:01 AM, Andrey Ryabinin wrote:
->> Seems we've come to agreement that KASan is useful and deserves to be
->> in mainline, yet the feedback on patches is poor.
->> It seems like they are stalled, so I would like to discuss the future
->> of it. I hope this will help in pushing it forward.
->
-> I think this should more broadly be a talk about our memory-related
-> debugging options.  This is an especially good audience for seeing what
-> gets used and if we need to start culling any of them.
->
+The first 8 patches are unchanged from the series posted a week ago and
+cleans up how we use the backing_dev_info structure in preparation for
+fixing the life time rules for it.  The most important change is to
+split the unrelated nommu mmap flags from it, but it also remove a
+backing_dev_info pointer from the address_space (and thus the inode)
+and cleans up various other minor bits.
 
-No objections, I tend to agree with you.
+The remaining patches sort out the issues around bdi_unlink and now
+let the bdi life until it's embedding structure is freed, which must
+be equal or longer than the superblock using the bdi for writeback,
+and thus gets rid of the whole mess around reassining inodes to new
+bdis.
+
+Changes since V1:
+ - various minor documentation updates based on Feedback from Tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
