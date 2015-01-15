@@ -1,109 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
-	by kanga.kvack.org (Postfix) with ESMTP id B1A0C6B006E
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 12:44:52 -0500 (EST)
-Received: by mail-ob0-f172.google.com with SMTP id va8so14773753obc.3
-        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 09:44:52 -0800 (PST)
-Received: from g2t2353.austin.hp.com (g2t2353.austin.hp.com. [15.217.128.52])
-        by mx.google.com with ESMTPS id os17si366008oeb.32.2015.01.15.09.44.50
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id F2B376B0032
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 12:56:14 -0500 (EST)
+Received: by mail-wg0-f42.google.com with SMTP id k14so16416175wgh.1
+        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 09:56:14 -0800 (PST)
+Received: from mail-wi0-x235.google.com (mail-wi0-x235.google.com. [2a00:1450:400c:c05::235])
+        by mx.google.com with ESMTPS id a5si11740133wix.30.2015.01.15.09.56.13
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Jan 2015 09:44:51 -0800 (PST)
-Message-ID: <1421342920.2493.8.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v7 0/7] Support Write-Through mapping on x86
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Thu, 15 Jan 2015 10:28:40 -0700
-In-Reply-To: <1420577392-21235-1-git-send-email-toshi.kani@hp.com>
-References: <1420577392-21235-1-git-send-email-toshi.kani@hp.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 15 Jan 2015 09:56:13 -0800 (PST)
+Received: by mail-wi0-f181.google.com with SMTP id hi2so19528934wib.2
+        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 09:56:13 -0800 (PST)
+Date: Thu, 15 Jan 2015 18:56:09 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH cgroup/for-3.19-fixes] cgroup: implement
+ cgroup_subsys->unbind() callback
+Message-ID: <20150115175609.GG7008@dhcp22.suse.cz>
+References: <54B01335.4060901@arm.com>
+ <20150110085525.GD2110@esperanza>
+ <20150110214316.GF25319@htj.dyndns.org>
+ <20150111205543.GA5480@phnom.home.cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150111205543.GA5480@phnom.home.cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hpa@zytor.com
-Cc: tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Elliott@hp.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Will Deacon <Will.Deacon@arm.com>
 
-Hi Ingo, Peter, Thomas,
+On Sun 11-01-15 15:55:43, Johannes Weiner wrote:
+> From d527ba1dbfdb58e1f7c7c4ee12b32ef2e5461990 Mon Sep 17 00:00:00 2001
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Date: Sun, 11 Jan 2015 10:29:05 -0500
+> Subject: [patch] mm: memcontrol: zap outstanding cache/swap references during
+>  unbind
+> 
+> Cgroup core assumes that any outstanding css references after
+> offlining are temporary in nature, and e.g. mount waits for them to
+> disappear and release the root cgroup.  But leftover page cache and
+> swapout records in an offlined memcg are only dropped when the pages
+> get reclaimed under pressure or the swapped out pages get faulted in
+> from other cgroups, and so those cgroup operations can hang forever.
+> 
+> Implement the ->unbind() callback to actively get rid of outstanding
+> references when cgroup core wants them gone.  Swap out records are
+> deleted, such that the swap-in path will charge those pages to the
+> faulting task. 
 
-Is there anything else I need to do for accepting this patchset? 
+OK, that makes sense to me.
 
-Thanks,
--Toshi
+> Page cache pages are moved to the root memory cgroup.
 
+OK, this is better than reclaiming them.
 
-On Tue, 2015-01-06 at 13:49 -0700, Toshi Kani wrote:
-> This patchset adds support of Write-Through (WT) mapping on x86.
-> The study below shows that using WT mapping may be useful for
-> non-volatile memory.
-> 
->   http://www.hpl.hp.com/techreports/2012/HPL-2012-236.pdf
-> 
-> All new/modified interfaces have been tested.
-> 
-> v7:
->  - Rebased to 3.19-rc3 as Juergen's patchset for the PAT management
->    has been accepted.
-> 
-> v6:
->  - Dropped the patch moving [set|get]_page_memtype() to pat.c
->    since the tip branch already has this change.
->  - Fixed an issue when CONFIG_X86_PAT is not defined.
-> 
-> v5:
->  - Clarified comment of why using slot 7. (Andy Lutomirski,
->    Thomas Gleixner)
->  - Moved [set|get]_page_memtype() to pat.c. (Thomas Gleixner)
->  - Removed BUG() from set_page_memtype(). (Thomas Gleixner)
-> 
-> v4:
->  - Added set_memory_wt() by adding WT support of regular memory.
-> 
-> v3:
->  - Dropped the set_memory_wt() patch. (Andy Lutomirski)
->  - Refactored the !pat_enabled handling. (H. Peter Anvin,
->    Andy Lutomirski)
->  - Added the picture of PTE encoding. (Konrad Rzeszutek Wilk)
-> 
-> v2:
->  - Changed WT to use slot 7 of the PAT MSR. (H. Peter Anvin,
->    Andy Lutomirski)
->  - Changed to have conservative checks to exclude all Pentium 2, 3,
->    M, and 4 families. (Ingo Molnar, Henrique de Moraes Holschuh,
->    Andy Lutomirski)
->  - Updated documentation to cover WT interfaces and usages.
->    (Andy Lutomirski, Yigal Korman)
-> 
-> ---
-> Toshi Kani (7):
->   1/7 x86, mm, pat: Set WT to PA7 slot of PAT MSR
->   2/7 x86, mm, pat: Change reserve_memtype() to handle WT
->   3/7 x86, mm, asm-gen: Add ioremap_wt() for WT
->   4/7 x86, mm, pat: Add pgprot_writethrough() for WT
->   5/7 x86, mm, pat: Refactor !pat_enable handling
->   6/7 x86, mm, asm: Add WT support to set_page_memtype()
->   7/7 x86, mm: Add set_memory_wt() for WT
-> 
-> ---
->  Documentation/x86/pat.txt            |  13 ++-
->  arch/x86/include/asm/cacheflush.h    |   6 +-
->  arch/x86/include/asm/io.h            |   2 +
->  arch/x86/include/asm/pgtable_types.h |   3 +
->  arch/x86/mm/init.c                   |   6 +-
->  arch/x86/mm/iomap_32.c               |  12 +--
->  arch/x86/mm/ioremap.c                |  26 ++++-
->  arch/x86/mm/pageattr.c               |  61 ++++++++++--
->  arch/x86/mm/pat.c                    | 184 ++++++++++++++++++++++++-----------
->  include/asm-generic/io.h             |   9 ++
->  include/asm-generic/iomap.h          |   4 +
->  include/asm-generic/pgtable.h        |   4 +
->  12 files changed, 244 insertions(+), 86 deletions(-)
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+[...]
+> +static void unbind_lru_list(struct mem_cgroup *memcg,
+> +			    struct zone *zone, enum lru_list lru)
+> +{
+> +	struct lruvec *lruvec = mem_cgroup_zone_lruvec(zone, memcg);
+> +	struct list_head *list = &lruvec->lists[lru];
+> +
+> +	while (!list_empty(list)) {
+> +		unsigned int nr_pages;
+> +		unsigned long flags;
+> +		struct page *page;
+> +
+> +		spin_lock_irqsave(&zone->lru_lock, flags);
+> +		if (list_empty(list)) {
+> +			spin_unlock_irqrestore(&zone->lru_lock, flags);
+> +			break;
+> +		}
+> +		page = list_last_entry(list, struct page, lru);
 
+taking lru_lock for each page calls for troubles. The lock would bounce
+like crazy. It shouldn't be a big problem to list_move to a local list
+and then work on that one without the lock. Those pages wouldn't be
+visible for the reclaim but that would be only temporary. Or if that is
+not acceptable then just batch at least some number of pages (popular
+SWAP_CLUSTER_MAX).
+
+> +		if (!get_page_unless_zero(page)) {
+> +			list_move(&page->lru, list);
+> +			spin_unlock_irqrestore(&zone->lru_lock, flags);
+> +			continue;
+> +		}
+> +		BUG_ON(!PageLRU(page));
+> +		ClearPageLRU(page);
+> +		del_page_from_lru_list(page, lruvec, lru);
+> +		spin_unlock_irqrestore(&zone->lru_lock, flags);
+> +
+> +		compound_lock(page);
+> +		nr_pages = hpage_nr_pages(page);
+> +
+> +		if (!mem_cgroup_move_account(page, nr_pages,
+> +					     memcg, root_mem_cgroup)) {
+> +			/*
+> +			 * root_mem_cgroup page counters are not used,
+> +			 * otherwise we'd have to charge them here.
+> +			 */
+> +			page_counter_uncharge(&memcg->memory, nr_pages);
+> +			if (do_swap_account)
+> +				page_counter_uncharge(&memcg->memsw, nr_pages);
+> +			css_put_many(&memcg->css, nr_pages);
+> +		}
+> +
+> +		compound_unlock(page);
+> +
+> +		putback_lru_page(page);
+> +	}
+> +}
+> +
+> +static void unbind_work_fn(struct work_struct *work)
+> +{
+> +	struct cgroup_subsys_state *css;
+> +retry:
+> +	drain_all_stock(root_mem_cgroup);
+> +
+> +	rcu_read_lock();
+> +	css_for_each_child(css, &root_mem_cgroup->css) {
+> +		struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+> +
+> +		/* Drop references from swap-out records */
+> +		if (do_swap_account) {
+> +			long zapped;
+> +
+> +			zapped = swap_cgroup_zap_records(memcg->css.id);
+> +			page_counter_uncharge(&memcg->memsw, zapped);
+> +			css_put_many(&memcg->css, zapped);
+> +		}
+> +
+> +		/* Drop references from leftover LRU pages */
+> +		css_get(css);
+> +		rcu_read_unlock();
+> +		atomic_inc(&memcg->moving_account);
+> +		synchronize_rcu();
+
+Why do we need this? Who can migrate to/from offline memcgs? 
+
+> +		while (page_counter_read(&memcg->memory) -
+> +		       page_counter_read(&memcg->kmem) > 0) {
+> +			struct zone *zone;
+> +			enum lru_list lru;
+> +
+> +			lru_add_drain_all();
+> +
+> +			for_each_zone(zone)
+> +				for_each_lru(lru)
+> +					unbind_lru_list(memcg, zone, lru);
+> +
+> +			cond_resched();
+> +		}
+> +		atomic_dec(&memcg->moving_account);
+> +		rcu_read_lock();
+> +		css_put(css);
+> +	}
+> +	rcu_read_unlock();
+> +	/*
+> +	 * Swap-in is racy:
+> +	 *
+> +	 * #0                        #1
+> +	 *                           lookup_swap_cgroup_id()
+> +	 *                           rcu_read_lock()
+> +	 *                           mem_cgroup_lookup()
+> +	 *                           css_tryget_online()
+> +	 *                           rcu_read_unlock()
+> +	 * cgroup_kill_sb()
+> +	 *   !css_has_online_children()
+> +	 *     ->unbind()
+> +	 *                           page_counter_try_charge()
+> +	 *                           css_put()
+> +	 *                             css_free()
+> +	 *                           pc->mem_cgroup = dead memcg
+> +	 *                           add page to lru
+> +	 *
+> +	 * Loop until until all references established from previously
+> +	 * existing swap-out records have been transferred to pages on
+> +	 * the LRU and then uncharged from there.
+> +	 */
+> +	if (!list_empty(&root_mem_cgroup->css.children)) {
+
+But what if kmem pages pin the memcg? We would loop for ever. Or am I
+missing something?
+
+> +		msleep(10);
+> +		goto retry;
+> +	}
+> +}
+[...]
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
