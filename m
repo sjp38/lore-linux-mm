@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 33AB96B006C
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 13:49:17 -0500 (EST)
-Received: by mail-lb0-f181.google.com with SMTP id u14so5339192lbd.12
-        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 10:49:16 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 1EBD66B006E
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 13:49:18 -0500 (EST)
+Received: by mail-lb0-f181.google.com with SMTP id u14so5339285lbd.12
+        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 10:49:17 -0800 (PST)
 Received: from forward-corp1m.cmail.yandex.net (forward-corp1m.cmail.yandex.net. [2a02:6b8:b030::69])
-        by mx.google.com with ESMTPS id v2si2198688laj.133.2015.01.15.10.49.15
+        by mx.google.com with ESMTPS id yo1si826123lbb.92.2015.01.15.10.49.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Jan 2015 10:49:16 -0800 (PST)
-Subject: [PATCH 1/6] memcg: inode-based dirty and writeback pages accounting
+        Thu, 15 Jan 2015 10:49:17 -0800 (PST)
+Subject: [PATCH 2/6] memcg: dirty-set limiting and filtered writeback
 From: Konstantin Khebnikov <khlebnikov@yandex-team.ru>
-Date: Thu, 15 Jan 2015 21:49:11 +0300
-Message-ID: <20150115184911.10450.62353.stgit@buzz>
+Date: Thu, 15 Jan 2015 21:49:13 +0300
+Message-ID: <20150115184913.10450.38580.stgit@buzz>
 In-Reply-To: <20150115180242.10450.92.stgit@buzz>
 References: <20150115180242.10450.92.stgit@buzz>
 MIME-Version: 1.0
@@ -25,329 +25,431 @@ Cc: Roman Gushchin <klamm@yandex-team.ru>, Jan Kara <jack@suse.cz>, Dave Chinner
 
 From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 
-This patch links memory cgroup into vfs layer and assigns owner
-memcg for each inode which has dirty or writeback pages within.
-The main goal of this is controlling dirty memory size.
+mem_cgroup_dirty_limits() checks thresholds and schedules per-bdi
+writeback work (where ->for_memcg is set) which writes only inodes
+where dirty limit is exceeded for owner memcg or for whole bdi.
 
-Accounting dirty memory in per-inode manner is much easier (we've
-got locking for free) and more effective because we could use this
-information in in writeback and writeout only inodes which belongs
-to cgroup where amount of dirty memory is beyond of thresholds.
-
-Interface: fs_dirty and fs_writeback in memory.stat attribute.
+Interface: memory.dirty_ratio percent of memory limit used as threshold
+(0 = unlimited, default 50). Background threshold is a half of that.
+And fs_dirty_threshold line in memory.stat shows current threshold.
 
 Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 ---
- fs/inode.c                 |    1 
- include/linux/fs.h         |   11 ++++
- include/linux/memcontrol.h |   13 +++++
- mm/memcontrol.c            |  118 ++++++++++++++++++++++++++++++++++++++++++++
- mm/page-writeback.c        |    7 ++-
- mm/truncate.c              |    1 
- 6 files changed, 150 insertions(+), 1 deletion(-)
+ fs/fs-writeback.c                |   18 ++++-
+ include/linux/backing-dev.h      |    1 
+ include/linux/memcontrol.h       |    6 ++
+ include/linux/writeback.h        |    1 
+ include/trace/events/writeback.h |    1 
+ mm/memcontrol.c                  |  145 ++++++++++++++++++++++++++++++++++++++
+ mm/page-writeback.c              |   25 ++++++-
+ 7 files changed, 190 insertions(+), 7 deletions(-)
 
-diff --git a/fs/inode.c b/fs/inode.c
-index aa149e7..979a548 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -559,6 +559,7 @@ static void evict(struct inode *inode)
- 		bd_forget(inode);
- 	if (S_ISCHR(inode->i_mode) && inode->i_cdev)
- 		cd_forget(inode);
-+	mem_cgroup_forget_mapping(&inode->i_data);
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index 2d609a5..9034768 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -20,6 +20,7 @@
+ #include <linux/sched.h>
+ #include <linux/fs.h>
+ #include <linux/mm.h>
++#include <linux/memcontrol.h>
+ #include <linux/pagemap.h>
+ #include <linux/kthread.h>
+ #include <linux/writeback.h>
+@@ -47,6 +48,7 @@ struct wb_writeback_work {
+ 	unsigned int range_cyclic:1;
+ 	unsigned int for_background:1;
+ 	unsigned int for_sync:1;	/* sync(2) WB_SYNC_ALL writeback */
++	unsigned int for_memcg:1;
+ 	enum wb_reason reason;		/* why was writeback initiated? */
  
- 	remove_inode_hash(inode);
+ 	struct list_head list;		/* pending work list */
+@@ -137,6 +139,7 @@ __bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages,
+ 	work->nr_pages	= nr_pages;
+ 	work->range_cyclic = range_cyclic;
+ 	work->reason	= reason;
++	work->for_memcg = reason == WB_REASON_FOR_MEMCG;
  
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 42efe13..ee2e3c0 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -413,6 +413,9 @@ struct address_space {
- 	spinlock_t		private_lock;	/* for use by the address_space */
- 	struct list_head	private_list;	/* ditto */
- 	void			*private_data;	/* ditto */
-+#ifdef CONFIG_MEMCG
-+	struct mem_cgroup __rcu	*i_memcg;	/* protected by ->tree_lock */
-+#endif
- } __attribute__((aligned(sizeof(long))));
- 	/*
- 	 * On most architectures that alignment is already the case; but
-@@ -489,6 +492,14 @@ static inline void i_mmap_unlock_read(struct address_space *mapping)
+ 	bdi_queue_work(bdi, work);
  }
+@@ -258,15 +261,16 @@ static int move_expired_inodes(struct list_head *delaying_queue,
+ 	LIST_HEAD(tmp);
+ 	struct list_head *pos, *node;
+ 	struct super_block *sb = NULL;
+-	struct inode *inode;
++	struct inode *inode, *next;
+ 	int do_sb_sort = 0;
+ 	int moved = 0;
  
- /*
-+ * Returns bitmap with all page-cache radix-tree tags
-+ */
-+static inline unsigned mapping_tags(struct address_space *mapping)
-+{
-+	return (__force unsigned)mapping->page_tree.gfp_mask >> __GFP_BITS_SHIFT;
-+}
+-	while (!list_empty(delaying_queue)) {
+-		inode = wb_inode(delaying_queue->prev);
++	list_for_each_entry_safe(inode, next, delaying_queue, i_wb_list) {
+ 		if (work->older_than_this &&
+ 		    inode_dirtied_after(inode, *work->older_than_this))
+ 			break;
++		if (work->for_memcg && !mem_cgroup_dirty_exceeded(inode))
++			continue;
+ 		list_move(&inode->i_wb_list, &tmp);
+ 		moved++;
+ 		if (sb_is_blkdev_sb(inode->i_sb))
+@@ -650,6 +654,11 @@ static long writeback_sb_inodes(struct super_block *sb,
+ 			break;
+ 		}
+ 
++		if (work->for_memcg && !mem_cgroup_dirty_exceeded(inode)) {
++			redirty_tail(inode, wb);
++			continue;
++		}
 +
-+/*
-  * Might pages of this file be mapped into userspace?
-  */
- static inline int mapping_mapped(struct address_space *mapping)
+ 		/*
+ 		 * Don't bother with new inodes or inodes being freed, first
+ 		 * kind does not need periodic writeout yet, and for the latter
+@@ -1014,6 +1023,9 @@ static long wb_do_writeback(struct bdi_writeback *wb)
+ 
+ 		wrote += wb_writeback(wb, work);
+ 
++		if (work->for_memcg)
++			clear_bit(BDI_memcg_writeback_running, &bdi->state);
++
+ 		/*
+ 		 * Notify the caller of completion if this is a synchronous
+ 		 * work item, otherwise just free it.
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index 5da6012..91b55d8 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -32,6 +32,7 @@ enum bdi_state {
+ 	BDI_sync_congested,	/* The sync queue is getting full */
+ 	BDI_registered,		/* bdi_register() was done */
+ 	BDI_writeback_running,	/* Writeback is in progress */
++	BDI_memcg_writeback_running,
+ };
+ 
+ typedef int (congested_fn)(void *, int);
 diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 7c95af8..b281333 100644
+index b281333..ae05563 100644
 --- a/include/linux/memcontrol.h
 +++ b/include/linux/memcontrol.h
-@@ -173,6 +173,12 @@ static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
- void mem_cgroup_split_huge_fixup(struct page *head);
- #endif
+@@ -178,6 +178,9 @@ void mem_cgroup_dec_page_dirty(struct address_space *mapping);
+ void mem_cgroup_inc_page_writeback(struct address_space *mapping);
+ void mem_cgroup_dec_page_writeback(struct address_space *mapping);
+ void mem_cgroup_forget_mapping(struct address_space *mapping);
++bool mem_cgroup_dirty_limits(struct address_space *mapping, unsigned long *dirty,
++			     unsigned long *thresh, unsigned long *bg_thresh);
++bool mem_cgroup_dirty_exceeded(struct inode *inode);
  
-+void mem_cgroup_inc_page_dirty(struct address_space *mapping);
-+void mem_cgroup_dec_page_dirty(struct address_space *mapping);
-+void mem_cgroup_inc_page_writeback(struct address_space *mapping);
-+void mem_cgroup_dec_page_writeback(struct address_space *mapping);
-+void mem_cgroup_forget_mapping(struct address_space *mapping);
-+
  #else /* CONFIG_MEMCG */
  struct mem_cgroup;
+@@ -352,6 +355,9 @@ static inline void mem_cgroup_dec_page_dirty(struct address_space *mapping) {}
+ static inline void mem_cgroup_inc_page_writeback(struct address_space *mapping) {}
+ static inline void mem_cgroup_dec_page_writeback(struct address_space *mapping) {}
+ static inline void mem_cgroup_forget_mapping(struct address_space *mapping) {}
++static inline bool mem_cgroup_dirty_limits(struct address_space *mapping, unsigned long *dirty,
++			     unsigned long *thresh, unsigned long *bg_thresh) { return false; }
++static inline bool mem_cgroup_dirty_exceeded(struct inode *inode) { return false; }
  
-@@ -340,6 +346,13 @@ static inline
- void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
- {
- }
-+
-+static inline void mem_cgroup_inc_page_dirty(struct address_space *mapping) {}
-+static inline void mem_cgroup_dec_page_dirty(struct address_space *mapping) {}
-+static inline void mem_cgroup_inc_page_writeback(struct address_space *mapping) {}
-+static inline void mem_cgroup_dec_page_writeback(struct address_space *mapping) {}
-+static inline void mem_cgroup_forget_mapping(struct address_space *mapping) {}
-+
  #endif /* CONFIG_MEMCG */
  
- enum {
+diff --git a/include/linux/writeback.h b/include/linux/writeback.h
+index 0004833..1239fa6 100644
+--- a/include/linux/writeback.h
++++ b/include/linux/writeback.h
+@@ -47,6 +47,7 @@ enum wb_reason {
+ 	WB_REASON_LAPTOP_TIMER,
+ 	WB_REASON_FREE_MORE_MEM,
+ 	WB_REASON_FS_FREE_SPACE,
++	WB_REASON_FOR_MEMCG,
+ 	/*
+ 	 * There is no bdi forker thread any more and works are done
+ 	 * by emergency worker, however, this is TPs userland visible
+diff --git a/include/trace/events/writeback.h b/include/trace/events/writeback.h
+index cee02d6..106a8d7 100644
+--- a/include/trace/events/writeback.h
++++ b/include/trace/events/writeback.h
+@@ -29,6 +29,7 @@
+ 		{WB_REASON_LAPTOP_TIMER,	"laptop_timer"},	\
+ 		{WB_REASON_FREE_MORE_MEM,	"free_more_memory"},	\
+ 		{WB_REASON_FS_FREE_SPACE,	"fs_free_space"},	\
++		{WB_REASON_FOR_MEMCG,		"for_memcg"},		\
+ 		{WB_REASON_FORKER_THREAD,	"forker_thread"}
+ 
+ struct wb_writeback_work;
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 851924f..c5655f1 100644
+index c5655f1..17d966a3b 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -361,6 +361,9 @@ struct mem_cgroup {
- 	struct list_head event_list;
- 	spinlock_t event_list_lock;
+@@ -363,6 +363,10 @@ struct mem_cgroup {
  
-+	struct percpu_counter nr_dirty;
-+	struct percpu_counter nr_writeback;
-+
+ 	struct percpu_counter nr_dirty;
+ 	struct percpu_counter nr_writeback;
++	unsigned long dirty_threshold;
++	unsigned long dirty_background;
++	unsigned int dirty_exceeded;
++	unsigned int dirty_ratio;
+ 
  	struct mem_cgroup_per_node *nodeinfo[0];
  	/* WARNING: nodeinfo must be the last member here */
- };
-@@ -3743,6 +3746,11 @@ static int memcg_stat_show(struct seq_file *m, void *v)
- 		seq_printf(m, "total_%s %llu\n", mem_cgroup_lru_names[i], val);
- 	}
+@@ -3060,6 +3064,8 @@ static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
  
-+	seq_printf(m, "fs_dirty %llu\n", PAGE_SIZE *
-+			percpu_counter_sum_positive(&memcg->nr_dirty));
-+	seq_printf(m, "fs_writeback %llu\n", PAGE_SIZE *
-+			percpu_counter_sum_positive(&memcg->nr_writeback));
+ static DEFINE_MUTEX(memcg_limit_mutex);
+ 
++static void mem_cgroup_update_dirty_thresh(struct mem_cgroup *memcg);
 +
+ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+ 				   unsigned long limit)
+ {
+@@ -3112,6 +3118,9 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+ 	if (!ret && enlarge)
+ 		memcg_oom_recover(memcg);
+ 
++	if (!ret)
++		mem_cgroup_update_dirty_thresh(memcg);
++
+ 	return ret;
+ }
+ 
+@@ -3750,6 +3759,8 @@ static int memcg_stat_show(struct seq_file *m, void *v)
+ 			percpu_counter_sum_positive(&memcg->nr_dirty));
+ 	seq_printf(m, "fs_writeback %llu\n", PAGE_SIZE *
+ 			percpu_counter_sum_positive(&memcg->nr_writeback));
++	seq_printf(m, "fs_dirty_threshold %llu\n", (u64)PAGE_SIZE *
++			memcg->dirty_threshold);
+ 
  #ifdef CONFIG_DEBUG_VM
  	{
- 		int nid, zid;
-@@ -4577,6 +4585,10 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
- 	if (!memcg)
- 		return NULL;
- 
-+	if (percpu_counter_init(&memcg->nr_dirty, 0, GFP_KERNEL) ||
-+	    percpu_counter_init(&memcg->nr_writeback, 0, GFP_KERNEL))
-+		goto out_free;
-+
- 	memcg->stat = alloc_percpu(struct mem_cgroup_stat_cpu);
- 	if (!memcg->stat)
- 		goto out_free;
-@@ -4584,6 +4596,8 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
- 	return memcg;
- 
- out_free:
-+	percpu_counter_destroy(&memcg->nr_dirty);
-+	percpu_counter_destroy(&memcg->nr_writeback);
- 	kfree(memcg);
- 	return NULL;
- }
-@@ -4608,6 +4622,8 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
- 	for_each_node(node)
- 		free_mem_cgroup_per_zone_info(memcg, node);
- 
-+	percpu_counter_destroy(&memcg->nr_dirty);
-+	percpu_counter_destroy(&memcg->nr_writeback);
- 	free_percpu(memcg->stat);
- 
- 	disarm_static_keys(memcg);
-@@ -4750,6 +4766,31 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
+@@ -3803,6 +3814,25 @@ static int mem_cgroup_swappiness_write(struct cgroup_subsys_state *css,
  	return 0;
  }
  
-+static void mem_cgroup_switch_one_sb(struct super_block *sb, void *_memcg)
++static u64 mem_cgroup_dirty_ratio_read(struct cgroup_subsys_state *css,
++				       struct cftype *cft)
 +{
-+	struct mem_cgroup *memcg = _memcg;
-+	struct mem_cgroup *target = parent_mem_cgroup(memcg);
-+	struct address_space *mapping;
-+	struct inode *inode;
-+	extern spinlock_t inode_sb_list_lock;
++	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 +
-+	spin_lock(&inode_sb_list_lock);
-+	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
-+		mapping = inode->i_mapping;
-+		if (likely(rcu_access_pointer(mapping->i_memcg) != memcg))
-+			continue;
-+		spin_lock_irq(&mapping->tree_lock);
-+		if (rcu_access_pointer(mapping->i_memcg) == memcg) {
-+			rcu_assign_pointer(mapping->i_memcg, target);
-+			if (target)
-+				css_get(&target->css);
-+			css_put(&memcg->css);
-+		}
-+		spin_unlock_irq(&mapping->tree_lock);
-+	}
-+	spin_unlock(&inode_sb_list_lock);
++	return memcg->dirty_ratio;
 +}
 +
- static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
++static int mem_cgroup_dirty_ratio_write(struct cgroup_subsys_state *css,
++					struct cftype *cft, u64 val)
++{
++	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
++
++	memcg->dirty_ratio = val;
++	mem_cgroup_update_dirty_thresh(memcg);
++
++	return 0;
++}
++
+ static void __mem_cgroup_threshold(struct mem_cgroup *memcg, bool swap)
  {
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
-@@ -4767,6 +4808,9 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
+ 	struct mem_cgroup_threshold_ary *t;
+@@ -4454,6 +4484,11 @@ static struct cftype mem_cgroup_files[] = {
+ 		.write_u64 = mem_cgroup_swappiness_write,
+ 	},
+ 	{
++		.name = "dirty_ratio",
++		.read_u64 = mem_cgroup_dirty_ratio_read,
++		.write_u64 = mem_cgroup_dirty_ratio_write,
++	},
++	{
+ 		.name = "move_charge_at_immigrate",
+ 		.read_u64 = mem_cgroup_move_charge_read,
+ 		.write_u64 = mem_cgroup_move_charge_write,
+@@ -4686,6 +4721,7 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
+ 		memcg->soft_limit = PAGE_COUNTER_MAX;
+ 		page_counter_init(&memcg->memsw, NULL);
+ 		page_counter_init(&memcg->kmem, NULL);
++		memcg->dirty_ratio = 50; /* default value for cgroups */
  	}
- 	spin_unlock(&memcg->event_list_lock);
  
-+	/* Switch all ->i_memcg references to the parent cgroup */
-+	iterate_supers(mem_cgroup_switch_one_sb, memcg);
+ 	memcg->last_scanned_node = MAX_NUMNODES;
+@@ -4750,6 +4786,10 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
+ 		if (parent != root_mem_cgroup)
+ 			memory_cgrp_subsys.broken_hierarchy = true;
+ 	}
 +
- 	vmpressure_cleanup(&memcg->vmpressure);
++	memcg->dirty_ratio = parent->dirty_ratio;
++	mem_cgroup_update_dirty_thresh(memcg);
++
+ 	mutex_unlock(&memcg_create_mutex);
+ 
+ 	ret = memcg_init_kmem(memcg, &memory_cgrp_subsys);
+@@ -5939,6 +5979,111 @@ void mem_cgroup_forget_mapping(struct address_space *mapping)
+ 	}
  }
  
-@@ -5821,6 +5865,80 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
- 	commit_charge(newpage, memcg, lrucare);
- }
- 
-+static inline struct mem_cgroup *
-+mem_cgroup_from_mapping(struct address_space *mapping)
++static void mem_cgroup_update_dirty_thresh(struct mem_cgroup *memcg)
 +{
-+	return rcu_dereference_check(mapping->i_memcg,
-+			lockdep_is_held(&mapping->tree_lock));
-+}
++	struct cgroup_subsys_state *pos;
 +
-+void mem_cgroup_inc_page_dirty(struct address_space *mapping)
-+{
-+	struct mem_cgroup *memcg = mem_cgroup_from_mapping(mapping);
-+
-+	if (mem_cgroup_disabled())
-+		return;
-+
-+	/* Remember context at dirtying first page in the mapping */
-+	if (unlikely(!(mapping_tags(mapping) &
-+	    (BIT(PAGECACHE_TAG_DIRTY) | BIT(PAGECACHE_TAG_WRITEBACK))))) {
-+		struct mem_cgroup *task_memcg;
-+
-+		rcu_read_lock();
-+		task_memcg = mem_cgroup_from_task(current);
-+		if (task_memcg != memcg) {
-+			if (memcg)
-+				css_put(&memcg->css);
-+			css_get(&task_memcg->css);
-+			memcg = task_memcg;
-+			lockdep_assert_held(&mapping->tree_lock);
-+			rcu_assign_pointer(mapping->i_memcg, memcg);
-+		}
-+		rcu_read_unlock();
++	if (memcg->memory.limit > totalram_pages || !memcg->dirty_ratio) {
++		memcg->dirty_threshold = 0; /* 0 means no limit at all*/
++		memcg->dirty_background = ULONG_MAX;
++	} else {
++		memcg->dirty_threshold = memcg->memory.limit *
++					 memcg->dirty_ratio / 100;
++		memcg->dirty_background = memcg->dirty_threshold / 2;
 +	}
 +
-+	for (; memcg; memcg = parent_mem_cgroup(memcg))
-+		percpu_counter_inc(&memcg->nr_dirty);
-+}
-+
-+void mem_cgroup_dec_page_dirty(struct address_space *mapping)
-+{
-+	struct mem_cgroup *memcg;
-+
++	/* Propogate threshold into childs */
 +	rcu_read_lock();
-+	memcg = mem_cgroup_from_mapping(mapping);
-+	for (; memcg; memcg = parent_mem_cgroup(memcg))
-+		percpu_counter_dec(&memcg->nr_dirty);
++	css_for_each_descendant_pre(pos, &memcg->css) {
++		struct mem_cgroup *memcg = mem_cgroup_from_css(pos);
++		struct mem_cgroup *parent = parent_mem_cgroup(memcg);
++
++		if (!(pos->flags & CSS_ONLINE))
++			continue;
++
++		if (memcg->dirty_threshold == 0 ||
++		    memcg->dirty_threshold == ULONG_MAX) {
++			if (parent && parent->use_hierarchy &&
++				      parent->dirty_threshold)
++				memcg->dirty_threshold = ULONG_MAX;
++			else
++				memcg->dirty_threshold = 0;
++		}
++	}
 +	rcu_read_unlock();
 +}
 +
-+void mem_cgroup_inc_page_writeback(struct address_space *mapping)
++bool mem_cgroup_dirty_limits(struct address_space *mapping,
++			     unsigned long *pdirty,
++			     unsigned long *pthresh,
++			     unsigned long *pbg_thresh)
 +{
-+	struct mem_cgroup *memcg = mem_cgroup_from_mapping(mapping);
-+
-+	for (; memcg; memcg = parent_mem_cgroup(memcg))
-+		percpu_counter_inc(&memcg->nr_writeback);
-+}
-+
-+void mem_cgroup_dec_page_writeback(struct address_space *mapping)
-+{
-+	struct mem_cgroup *memcg = mem_cgroup_from_mapping(mapping);
-+
-+	for (; memcg; memcg = parent_mem_cgroup(memcg))
-+		percpu_counter_dec(&memcg->nr_writeback);
-+}
-+
-+void mem_cgroup_forget_mapping(struct address_space *mapping)
-+{
++	struct backing_dev_info *bdi = mapping->backing_dev_info;
++	unsigned long dirty, threshold, background;
 +	struct mem_cgroup *memcg;
 +
-+	memcg = rcu_dereference_protected(mapping->i_memcg, 1);
-+	if (memcg) {
-+		css_put(&memcg->css);
-+		RCU_INIT_POINTER(mapping->i_memcg, NULL);
++	rcu_read_lock();
++	memcg = mem_cgroup_from_task(current);
++	for (; memcg; memcg = parent_mem_cgroup(memcg)) {
++		/* No limit at all */
++		if (memcg->dirty_threshold == 0)
++			break;
++		/* No limit here, but must check parent */
++		if (memcg->dirty_threshold == ULONG_MAX)
++			continue;
++		dirty = percpu_counter_read_positive(&memcg->nr_dirty) +
++			percpu_counter_read_positive(&memcg->nr_writeback);
++		threshold = memcg->dirty_threshold;
++		background = memcg->dirty_background;
++		if (dirty > background) {
++			if (!memcg->dirty_exceeded)
++				memcg->dirty_exceeded = 1;
++			rcu_read_unlock();
++			if (dirty > (background + threshold) / 2 &&
++			    !test_and_set_bit(BDI_memcg_writeback_running,
++					      &bdi->state))
++				bdi_start_writeback(bdi, dirty - background,
++						    WB_REASON_FOR_MEMCG);
++			*pdirty = dirty;
++			*pthresh = threshold;
++			*pbg_thresh = background;
++			return true;
++		}
 +	}
++	rcu_read_unlock();
++
++	return false;
++}
++
++bool mem_cgroup_dirty_exceeded(struct inode *inode)
++{
++	struct address_space *mapping = inode->i_mapping;
++	struct mem_cgroup *memcg;
++	unsigned long dirty;
++
++	if (mapping->backing_dev_info->dirty_exceeded)
++		return true;
++
++	rcu_read_lock();
++	memcg = rcu_dereference(mapping->i_memcg);
++	for (; memcg; memcg = parent_mem_cgroup(memcg)) {
++		if (!memcg->dirty_threshold) {
++			memcg = NULL;
++			break;
++		}
++		if (!memcg->dirty_exceeded)
++			continue;
++		dirty = percpu_counter_read_positive(&memcg->nr_dirty) +
++			percpu_counter_read_positive(&memcg->nr_writeback);
++		if (dirty > memcg->dirty_background)
++			break;
++		memcg->dirty_exceeded = 0;
++	}
++	rcu_read_unlock();
++
++	return memcg != NULL;
 +}
 +
  /*
   * subsys_initcall() for memory controller.
   *
 diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 6f43352..afaf263 100644
+index afaf263..325510f 100644
 --- a/mm/page-writeback.c
 +++ b/mm/page-writeback.c
-@@ -2098,6 +2098,7 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
- 		__inc_zone_page_state(page, NR_DIRTIED);
- 		__inc_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
- 		__inc_bdi_stat(mapping->backing_dev_info, BDI_DIRTIED);
-+		mem_cgroup_inc_page_dirty(mapping);
- 		task_io_account_write(PAGE_CACHE_SIZE);
- 		current->nr_dirtied++;
- 		this_cpu_inc(bdp_ratelimits);
-@@ -2297,6 +2298,7 @@ int clear_page_dirty_for_io(struct page *page)
- 			dec_zone_page_state(page, NR_FILE_DIRTY);
- 			dec_bdi_stat(mapping->backing_dev_info,
- 					BDI_RECLAIMABLE);
-+			mem_cgroup_dec_page_dirty(mapping);
- 			return 1;
+@@ -1328,6 +1328,17 @@ static inline void bdi_dirty_limits(struct backing_dev_info *bdi,
+ 	}
+ }
+ 
++static unsigned long mem_cgroup_position_ratio(unsigned long dirty,
++		unsigned long thresh, unsigned long bg_thresh)
++{
++	unsigned long setpoint = dirty_freerun_ceiling(thresh, bg_thresh);
++
++	if (dirty > thresh)
++		return 0;
++
++	return pos_ratio_polynom(setpoint, dirty, thresh);
++}
++
+ /*
+  * balance_dirty_pages() must be called by processes which are generating dirty
+  * data.  It looks at the number of dirty pages in the machine and will force
+@@ -1362,6 +1373,7 @@ static void balance_dirty_pages(struct address_space *mapping,
+ 		unsigned long uninitialized_var(bdi_dirty);
+ 		unsigned long dirty;
+ 		unsigned long bg_thresh;
++		bool memcg;
+ 
+ 		/*
+ 		 * Unstable writes are a feature of certain networked
+@@ -1387,6 +1399,8 @@ static void balance_dirty_pages(struct address_space *mapping,
+ 			bg_thresh = background_thresh;
  		}
- 		return 0;
-@@ -2327,6 +2329,7 @@ int test_clear_page_writeback(struct page *page)
- 			if (bdi_cap_account_writeback(bdi)) {
- 				__dec_bdi_stat(bdi, BDI_WRITEBACK);
- 				__bdi_writeout_inc(bdi);
-+				mem_cgroup_dec_page_writeback(mapping);
- 			}
+ 
++		memcg = mem_cgroup_dirty_limits(mapping, &dirty, &thresh, &bg_thresh);
++
+ 		/*
+ 		 * Throttle it only when the background writeback cannot
+ 		 * catch-up. This avoids (excessively) small writeouts
+@@ -1404,7 +1418,7 @@ static void balance_dirty_pages(struct address_space *mapping,
+ 			break;
  		}
- 		spin_unlock_irqrestore(&mapping->tree_lock, flags);
-@@ -2361,8 +2364,10 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
- 			radix_tree_tag_set(&mapping->page_tree,
- 						page_index(page),
- 						PAGECACHE_TAG_WRITEBACK);
--			if (bdi_cap_account_writeback(bdi))
-+			if (bdi_cap_account_writeback(bdi)) {
- 				__inc_bdi_stat(bdi, BDI_WRITEBACK);
-+				mem_cgroup_inc_page_writeback(mapping);
-+			}
- 		}
- 		if (!PageDirty(page))
- 			radix_tree_tag_clear(&mapping->page_tree,
-diff --git a/mm/truncate.c b/mm/truncate.c
-index f1e4d60..37915fe 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -114,6 +114,7 @@ void cancel_dirty_page(struct page *page, unsigned int account_size)
- 			dec_zone_page_state(page, NR_FILE_DIRTY);
- 			dec_bdi_stat(mapping->backing_dev_info,
- 					BDI_RECLAIMABLE);
-+			mem_cgroup_dec_page_dirty(mapping);
- 			if (account_size)
- 				task_io_account_cancelled_write(account_size);
- 		}
+ 
+-		if (unlikely(!writeback_in_progress(bdi)))
++		if (unlikely(!writeback_in_progress(bdi) && !memcg))
+ 			bdi_start_background_writeback(bdi);
+ 
+ 		if (!strictlimit)
+@@ -1421,9 +1435,12 @@ static void balance_dirty_pages(struct address_space *mapping,
+ 				     start_time);
+ 
+ 		dirty_ratelimit = bdi->dirty_ratelimit;
+-		pos_ratio = bdi_position_ratio(bdi, dirty_thresh,
+-					       background_thresh, nr_dirty,
+-					       bdi_thresh, bdi_dirty);
++		if (memcg)
++			pos_ratio = mem_cgroup_position_ratio(dirty, thresh, bg_thresh);
++		else
++			pos_ratio = bdi_position_ratio(bdi, dirty_thresh,
++					background_thresh, nr_dirty,
++					bdi_thresh, bdi_dirty);
+ 		task_ratelimit = ((u64)dirty_ratelimit * pos_ratio) >>
+ 							RATELIMIT_CALC_SHIFT;
+ 		max_pause = bdi_max_pause(bdi, bdi_dirty);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
