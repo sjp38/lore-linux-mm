@@ -1,73 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id C61706B0038
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 02:40:04 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id et14so15898003pad.3
-        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 23:40:04 -0800 (PST)
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 03F736B006C
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 02:40:43 -0500 (EST)
+Received: by mail-pd0-f179.google.com with SMTP id fp1so14730934pdb.10
+        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 23:40:42 -0800 (PST)
 Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id hn2si923098pdb.76.2015.01.14.23.40.00
+        by mx.google.com with ESMTP id ou2si747381pbb.214.2015.01.14.23.40.39
         for <linux-mm@kvack.org>;
-        Wed, 14 Jan 2015 23:40:01 -0800 (PST)
+        Wed, 14 Jan 2015 23:40:41 -0800 (PST)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH v2 2/2] mm: don't use compound_head() in virt_to_head_page()
-Date: Thu, 15 Jan 2015 16:40:33 +0900
-Message-Id: <1421307633-24045-2-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1421307633-24045-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1421307633-24045-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v3 1/5] mm/compaction: change tracepoint format from decimal to hexadecimal
+Date: Thu, 15 Jan 2015 16:41:09 +0900
+Message-Id: <1421307673-24084-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>, rostedt@goodmis.org, Thomas Gleixner <tglx@linutronix.de>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-compound_head() is implemented with assumption that there would be
-race condition when checking tail flag. This assumption is only true
-when we try to access arbitrary positioned struct page.
+To check the range that compaction is working, tracepoint print
+start/end pfn of zone and start pfn of both scanner with decimal format.
+Since we manage all pages in order of 2 and it is well represented by
+hexadecimal, this patch change the tracepoint format from decimal to
+hexadecimal. This would improve readability. For example, it makes us
+easily notice whether current scanner try to compact previously
+attempted pageblock or not.
 
-The situation that virt_to_head_page() is called is different case.
-We call virt_to_head_page() only in the range of allocated pages,
-so there is no race condition on tail flag. In this case, we don't
-need to handle race condition and we can reduce overhead slightly.
-This patch implements compound_head_fast() which is similar with
-compound_head() except tail flag race handling. And then,
-virt_to_head_page() uses this optimized function to improve performance.
-
-I saw 1.8% win in a fast-path loop over kmem_cache_alloc/free,
-(14.063 ns -> 13.810 ns) if target object is on tail page.
-
-Acked-by: Christoph Lameter <cl@linux.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- include/linux/mm.h |   10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ include/trace/events/compaction.h |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index f80d019..0460e2e 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -453,6 +453,13 @@ static inline struct page *compound_head(struct page *page)
- 	return page;
- }
+diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
+index c6814b9..1337d9e 100644
+--- a/include/trace/events/compaction.h
++++ b/include/trace/events/compaction.h
+@@ -104,7 +104,7 @@ TRACE_EVENT(mm_compaction_begin,
+ 		__entry->zone_end = zone_end;
+ 	),
  
-+static inline struct page *compound_head_fast(struct page *page)
-+{
-+	if (unlikely(PageTail(page)))
-+		return page->first_page;
-+	return page;
-+}
-+
- /*
-  * The atomic page->_mapcount, starts from -1: so that transitions
-  * both from it and to it can be tracked, using atomic_inc_and_test
-@@ -531,7 +538,8 @@ static inline void get_page(struct page *page)
- static inline struct page *virt_to_head_page(const void *x)
- {
- 	struct page *page = virt_to_page(x);
--	return compound_head(page);
-+
-+	return compound_head_fast(page);
- }
- 
- /*
+-	TP_printk("zone_start=%lu migrate_start=%lu free_start=%lu zone_end=%lu",
++	TP_printk("zone_start=0x%lx migrate_start=0x%lx free_start=0x%lx zone_end=0x%lx",
+ 		__entry->zone_start,
+ 		__entry->migrate_start,
+ 		__entry->free_start,
 -- 
 1.7.9.5
 
