@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 588136B0071
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 13:49:22 -0500 (EST)
-Received: by mail-lb0-f181.google.com with SMTP id u14so5339616lbd.12
-        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 10:49:21 -0800 (PST)
-Received: from forward-corp1g.mail.yandex.net (forward-corp1g.mail.yandex.net. [2a02:6b8:0:1402::10])
-        by mx.google.com with ESMTPS id la5si2254992lac.64.2015.01.15.10.49.18
+Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 569096B0073
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 13:49:24 -0500 (EST)
+Received: by mail-la0-f41.google.com with SMTP id hv19so15211313lab.0
+        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 10:49:23 -0800 (PST)
+Received: from forward-corp1m.cmail.yandex.net (forward-corp1m.cmail.yandex.net. [5.255.216.100])
+        by mx.google.com with ESMTPS id ny7si773846lbb.135.2015.01.15.10.49.19
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Jan 2015 10:49:18 -0800 (PST)
-Subject: [PATCH 4/6] percpu_ratelimit: high-performance ratelimiting counter
+        Thu, 15 Jan 2015 10:49:19 -0800 (PST)
+Subject: [PATCH 5/6] delay-injection: resource management via procrastination
 From: Konstantin Khebnikov <khlebnikov@yandex-team.ru>
-Date: Thu, 15 Jan 2015 21:49:15 +0300
-Message-ID: <20150115184915.10450.1814.stgit@buzz>
+Date: Thu, 15 Jan 2015 21:49:17 +0300
+Message-ID: <20150115184917.10450.38284.stgit@buzz>
 In-Reply-To: <20150115180242.10450.92.stgit@buzz>
 References: <20150115180242.10450.92.stgit@buzz>
 MIME-Version: 1.0
@@ -25,260 +25,187 @@ Cc: Roman Gushchin <klamm@yandex-team.ru>, Jan Kara <jack@suse.cz>, Dave Chinner
 
 From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 
-Parameters:
-period   - interval between refills (100ms should be fine)
-quota    - events refill per period
-deadline - interval to utilize unused past quota (1s by default)
-latency  - maximum injected delay (10s by default)
+inject_delay() allows to pause current task before returning
+into userspace in place where kernel doesn't hold any locks
+thus wait wouldn't introduce any priority-inversion problems.
 
-Quota sums into 'budget' and spreads across cpus.
+This code abuses existing task-work and 'TASK_PARKED' state.
+Parked tasks are killable and don't contribute into cpu load.
+
+Together with percpu_ratelimit this could be used in this manner:
+
+if (percpu_ratelimit_charge(&ratelimit, events))
+        inject_delay(percpu_ratelimit_target(&ratelimit));
 
 Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 ---
- include/linux/percpu_ratelimit.h |   45 ++++++++++
- lib/Makefile                     |    1 
- lib/percpu_ratelimit.c           |  168 ++++++++++++++++++++++++++++++++++++++
- 3 files changed, 214 insertions(+)
- create mode 100644 include/linux/percpu_ratelimit.h
- create mode 100644 lib/percpu_ratelimit.c
+ include/linux/sched.h        |    7 ++++
+ include/trace/events/sched.h |    7 ++++
+ kernel/sched/core.c          |   66 ++++++++++++++++++++++++++++++++++++++++++
+ kernel/sched/fair.c          |   12 ++++++++
+ 4 files changed, 92 insertions(+)
 
-diff --git a/include/linux/percpu_ratelimit.h b/include/linux/percpu_ratelimit.h
-new file mode 100644
-index 0000000..42c45d4
---- /dev/null
-+++ b/include/linux/percpu_ratelimit.h
-@@ -0,0 +1,45 @@
-+#ifndef _LINUX_PERCPU_RATELIMIT_H
-+#define _LINUX_PERCPU_RATELIMIT_H
-+
-+#include <linux/hrtimer.h>
-+
-+struct percpu_ratelimit {
-+	struct hrtimer  timer;
-+	ktime_t		target;		/* time of next refill */
-+	ktime_t		deadline;	/* interval to utilize past budget */
-+	ktime_t		latency;	/* maximum injected delay */
-+	ktime_t		period;		/* interval between refills */
-+	u64		quota;		/* events refill per period */
-+	u64		budget;		/* amount of available events */
-+	u64		total;		/* consumed and pre-charged events */
-+	raw_spinlock_t	lock;		/* protect the state */
-+	u32		cpu_batch;	/* events in per-cpu precharge */
-+	u32 __percpu	*cpu_budget;	/* per-cpu precharge */
-+};
-+
-+static inline bool percpu_ratelimit_blocked(struct percpu_ratelimit *rl)
-+{
-+       return hrtimer_active(&rl->timer);
-+}
-+
-+static inline ktime_t percpu_ratelimit_target(struct percpu_ratelimit *rl)
-+{
-+	return rl->target;
-+}
-+
-+static inline int percpu_ratelimit_wait(struct percpu_ratelimit *rl)
-+{
-+	ktime_t target = rl->target;
-+
-+	return schedule_hrtimeout_range(&target, ktime_to_ns(rl->period),
-+					HRTIMER_MODE_ABS);
-+}
-+
-+int percpu_ratelimit_init(struct percpu_ratelimit *rl, gfp_t gfp);
-+void percpu_ratelimit_destroy(struct percpu_ratelimit *rl);
-+void percpu_ratelimit_setup(struct percpu_ratelimit *rl, u64 quota, u64 period);
-+u64 percpu_ratelimit_quota(struct percpu_ratelimit *rl, u64 period);
-+bool percpu_ratelimit_charge(struct percpu_ratelimit *rl, u64 events);
-+u64 percpu_ratelimit_sum(struct percpu_ratelimit *rl);
-+
-+#endif /* _LINUX_PERCPU_RATELIMIT_H */
-diff --git a/lib/Makefile b/lib/Makefile
-index 3c3b30b..b20ab47 100644
---- a/lib/Makefile
-+++ b/lib/Makefile
-@@ -21,6 +21,7 @@ lib-$(CONFIG_SMP) += cpumask.o
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 8db31ef..2363918 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1132,6 +1132,7 @@ struct sched_statistics {
+ 	u64			iowait_sum;
  
- lib-y	+= kobject.o klist.o
- obj-y	+= lockref.o
-+obj-y   += percpu_ratelimit.o
+ 	u64			sleep_start;
++	u64			delay_start;
+ 	u64			sleep_max;
+ 	s64			sum_sleep_runtime;
  
- obj-y += bcd.o div64.o sort.o parser.o halfmd4.o debug_locks.o random32.o \
- 	 bust_spinlocks.o hexdump.o kasprintf.o bitmap.o scatterlist.o \
-diff --git a/lib/percpu_ratelimit.c b/lib/percpu_ratelimit.c
-new file mode 100644
-index 0000000..8254683
---- /dev/null
-+++ b/lib/percpu_ratelimit.c
-@@ -0,0 +1,168 @@
-+#include <linux/percpu_ratelimit.h>
+@@ -1662,6 +1663,10 @@ struct task_struct {
+ 	unsigned long timer_slack_ns;
+ 	unsigned long default_timer_slack_ns;
+ 
++	/* Pause task till this time before returning into userspace */
++	ktime_t delay_injection_target;
++	struct callback_head delay_injection_work;
 +
-+static void __percpu_ratelimit_setup(struct percpu_ratelimit *rl,
-+				     u64 period, u64 quota)
-+{
-+	rl->period = ns_to_ktime(period);
-+	rl->quota = quota;
-+	rl->total += quota - rl->budget;
-+	rl->budget = quota;
-+	if (do_div(quota, num_possible_cpus() * 2))
-+		quota++;
-+	rl->cpu_batch = min_t(u64, UINT_MAX, quota);
-+	rl->target = ktime_get();
-+}
+ #ifdef CONFIG_FUNCTION_GRAPH_TRACER
+ 	/* Index of current stored address in ret_stack */
+ 	int curr_ret_stack;
+@@ -2277,6 +2282,8 @@ extern void set_curr_task(int cpu, struct task_struct *p);
+ 
+ void yield(void);
+ 
++extern void inject_delay(ktime_t target);
 +
-+static enum hrtimer_restart ratelimit_unblock(struct hrtimer *t)
-+{
-+	struct percpu_ratelimit *rl = container_of(t, struct percpu_ratelimit, timer);
-+	enum hrtimer_restart ret = HRTIMER_NORESTART;
-+	ktime_t now = t->base->get_time();
-+
-+	raw_spin_lock(&rl->lock);
-+	if (ktime_after(rl->target, now)) {
-+		hrtimer_set_expires_range(t, rl->target, rl->period);
-+		ret = HRTIMER_RESTART;
-+	}
-+	raw_spin_unlock(&rl->lock);
-+
-+	return ret;
-+}
-+
-+int percpu_ratelimit_init(struct percpu_ratelimit *rl, gfp_t gfp)
-+{
-+	memset(rl, 0, sizeof(*rl));
-+	rl->cpu_budget = alloc_percpu_gfp(typeof(*rl->cpu_budget), gfp);
-+	if (!rl->cpu_budget)
-+		return -ENOMEM;
-+	raw_spin_lock_init(&rl->lock);
-+	hrtimer_init(&rl->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
-+	rl->timer.function = ratelimit_unblock;
-+	rl->deadline = ns_to_ktime(NSEC_PER_SEC);
-+	rl->latency  = ns_to_ktime(NSEC_PER_SEC * 10);
-+	__percpu_ratelimit_setup(rl, NSEC_PER_SEC, ULLONG_MAX);
-+	return 0;
-+}
-+EXPORT_SYMBOL_GPL(percpu_ratelimit_init);
-+
-+void percpu_ratelimit_destroy(struct percpu_ratelimit *rl)
-+{
-+	free_percpu(rl->cpu_budget);
-+	hrtimer_cancel(&rl->timer);
-+}
-+EXPORT_SYMBOL_GPL(percpu_ratelimit_destroy);
-+
-+static void percpu_ratelimit_drain(void *info)
-+{
-+	struct percpu_ratelimit *rl = info;
-+
-+	__this_cpu_write(*rl->cpu_budget, 0);
-+}
-+
-+void percpu_ratelimit_setup(struct percpu_ratelimit *rl, u64 quota, u64 period)
-+{
-+	unsigned long flags;
-+
-+	if (!quota || !period) {
-+		quota = ULLONG_MAX;
-+		period = NSEC_PER_SEC;
-+	} else if (period > NSEC_PER_SEC / 10) {
-+		u64 quant = div_u64(quota * NSEC_PER_SEC / 10, period);
-+
-+		if (quant > 20) {
-+			quota = quant;
-+			period = NSEC_PER_SEC / 10;
-+		}
-+	}
-+
-+	raw_spin_lock_irqsave(&rl->lock, flags);
-+	__percpu_ratelimit_setup(rl, period, quota);
-+	raw_spin_unlock_irqrestore(&rl->lock, flags);
-+	on_each_cpu(percpu_ratelimit_drain, rl, 1);
-+	hrtimer_cancel(&rl->timer);
-+}
-+EXPORT_SYMBOL_GPL(percpu_ratelimit_setup);
-+
-+u64 percpu_ratelimit_quota(struct percpu_ratelimit *rl, u64 period)
-+{
-+	unsigned long flags;
-+	u64 quota;
-+
-+	raw_spin_lock_irqsave(&rl->lock, flags);
-+	if (rl->quota == ULLONG_MAX)
-+		quota = 0;
-+	else
-+		quota = div64_u64(rl->quota * period, ktime_to_ns(rl->period));
-+	raw_spin_unlock_irqrestore(&rl->lock, flags);
-+
-+	return quota;
-+}
-+EXPORT_SYMBOL_GPL(percpu_ratelimit_quota);
+ /*
+  * The default (Linux) execution domain.
+  */
+diff --git a/include/trace/events/sched.h b/include/trace/events/sched.h
+index 30fedaf..d35154e 100644
+--- a/include/trace/events/sched.h
++++ b/include/trace/events/sched.h
+@@ -365,6 +365,13 @@ DEFINE_EVENT(sched_stat_template, sched_stat_blocked,
+ 	     TP_ARGS(tsk, delay));
+ 
+ /*
++ * Tracepoint for accounting delay-injection
++ */
++DEFINE_EVENT(sched_stat_template, sched_stat_delayed,
++	     TP_PROTO(struct task_struct *tsk, u64 delay),
++	     TP_ARGS(tsk, delay));
 +
 +/*
-+ * Charges events, returns true if ratelimit is blocked and caller should sleep.
-+ */
-+bool percpu_ratelimit_charge(struct percpu_ratelimit *rl, u64 events)
+  * Tracepoint for accounting runtime (time the task is executing
+  * on a CPU).
+  */
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index c0accc0..7a9d6a1 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -65,6 +65,7 @@
+ #include <linux/unistd.h>
+ #include <linux/pagemap.h>
+ #include <linux/hrtimer.h>
++#include <linux/task_work.h>
+ #include <linux/tick.h>
+ #include <linux/debugfs.h>
+ #include <linux/ctype.h>
+@@ -8377,3 +8378,68 @@ void dump_cpu_task(int cpu)
+ 	pr_info("Task dump for CPU %d:\n", cpu);
+ 	sched_show_task(cpu_curr(cpu));
+ }
++
++#define DELAY_INJECTION_SLACK_NS	(NSEC_PER_SEC / 50)
++
++static enum hrtimer_restart delay_injection_wakeup(struct hrtimer *timer)
 +{
-+	unsigned long flags;
-+	u64 budget, delta;
-+	ktime_t now, deadline;
++	struct hrtimer_sleeper *t =
++		container_of(timer, struct hrtimer_sleeper, timer);
++	struct task_struct *task = t->task;
 +
-+	preempt_disable();
-+	budget = __this_cpu_read(*rl->cpu_budget);
-+	if (likely(budget >= events)) {
-+		__this_cpu_sub(*rl->cpu_budget, events);
-+	} else {
-+		now = ktime_get();
-+		raw_spin_lock_irqsave(&rl->lock, flags);
-+		deadline = ktime_sub(now, rl->deadline);
-+		if (ktime_after(deadline, rl->target))
-+			rl->target = deadline;
-+		budget += rl->budget;
-+		if (budget >= events + rl->cpu_batch) {
-+			budget -= events;
-+		} else {
-+			delta = events + rl->cpu_batch - budget;
-+			if (do_div(delta, rl->quota))
-+				delta++;
-+			rl->target = ktime_add_ns(rl->target,
-+					ktime_to_ns(rl->period) * delta);
-+			deadline = ktime_add(now, rl->latency);
-+			if (ktime_after(rl->target, deadline))
-+				rl->target = deadline;
-+			delta *= rl->quota;
-+			rl->total += delta;
-+			budget += delta - events;
-+		}
-+		rl->budget = budget - rl->cpu_batch;
-+		__this_cpu_write(*rl->cpu_budget, rl->cpu_batch);
-+		if (!hrtimer_active(&rl->timer) && ktime_after(rl->target, now))
-+			hrtimer_start_range_ns(&rl->timer, rl->target,
-+					ktime_to_ns(rl->period),
-+					HRTIMER_MODE_ABS);
-+		raw_spin_unlock_irqrestore(&rl->lock, flags);
-+	}
-+	preempt_enable();
++	t->task = NULL;
++	if (task)
++		wake_up_state(task, TASK_PARKED);
 +
-+	return percpu_ratelimit_blocked(rl);
++	return HRTIMER_NORESTART;
 +}
-+EXPORT_SYMBOL_GPL(percpu_ratelimit_charge);
 +
 +/*
-+ * Returns count of consumed events.
++ * Here delayed task sleeps in 'P'arked state.
 + */
-+u64 percpu_ratelimit_sum(struct percpu_ratelimit *rl)
++static void delay_injection_sleep(struct callback_head *head)
 +{
-+	unsigned long flags;
-+	int cpu;
-+	s64 ret;
++	struct task_struct *task = current;
++	struct hrtimer_sleeper t;
 +
-+	raw_spin_lock_irqsave(&rl->lock, flags);
-+	ret = rl->total - rl->budget;
-+	for_each_online_cpu(cpu)
-+		ret -= per_cpu(*rl->cpu_budget, cpu);
-+	raw_spin_unlock_irqrestore(&rl->lock, flags);
++	head->func = NULL;
++	__set_task_state(task, TASK_WAKEKILL | TASK_PARKED);
++	hrtimer_init_on_stack(&t.timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
++	hrtimer_set_expires_range_ns(&t.timer, current->delay_injection_target,
++				     DELAY_INJECTION_SLACK_NS);
 +
-+	return ret;
++	t.timer.function = delay_injection_wakeup;
++	t.task = task;
++
++	hrtimer_start_expires(&t.timer, HRTIMER_MODE_ABS);
++	if (!hrtimer_active(&t.timer))
++		t.task = NULL;
++
++	if (likely(t.task))
++		schedule();
++
++	hrtimer_cancel(&t.timer);
++	destroy_hrtimer_on_stack(&t.timer);
++
++	__set_task_state(task, TASK_RUNNING);
 +}
-+EXPORT_SYMBOL_GPL(percpu_ratelimit_sum);
++
++/*
++ * inject_delay - injects delay before returning into userspace
++ * @target: absolute monotomic timestamp to sleeping for,
++ *	    task will not return into userspace before this time
++ */
++void inject_delay(ktime_t target)
++{
++	struct task_struct *task = current;
++
++	if (ktime_after(target, task->delay_injection_target)) {
++		task->delay_injection_target = target;
++		if (!task->delay_injection_work.func) {
++			init_task_work(&task->delay_injection_work,
++					delay_injection_sleep);
++			task_work_add(task, &task->delay_injection_work, true);
++		}
++	}
++}
++EXPORT_SYMBOL(inject_delay);
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 40667cb..2e3269b 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -2944,6 +2944,15 @@ static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
+ 			account_scheduler_latency(tsk, delta >> 10, 0);
+ 		}
+ 	}
++	if (se->statistics.delay_start) {
++		u64 delta = rq_clock(rq_of(cfs_rq)) - se->statistics.delay_start;
++
++		if ((s64)delta < 0)
++			delta = 0;
++
++		se->statistics.delay_start = 0;
++		trace_sched_stat_delayed(tsk, delta);
++	}
+ #endif
+ }
+ 
+@@ -3095,6 +3104,9 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
+ 				se->statistics.sleep_start = rq_clock(rq_of(cfs_rq));
+ 			if (tsk->state & TASK_UNINTERRUPTIBLE)
+ 				se->statistics.block_start = rq_clock(rq_of(cfs_rq));
++			if ((tsk->state & TASK_PARKED) &&
++			    tsk->delay_injection_target.tv64)
++				se->statistics.delay_start = rq_clock(rq_of(cfs_rq));
+ 		}
+ #endif
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
