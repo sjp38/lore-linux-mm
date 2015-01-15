@@ -1,111 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id B1CED6B0032
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 09:48:42 -0500 (EST)
-Received: by mail-wg0-f41.google.com with SMTP id l18so15388862wgh.0
-        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 06:48:42 -0800 (PST)
-Received: from mail-wg0-x231.google.com (mail-wg0-x231.google.com. [2a00:1450:400c:c00::231])
-        by mx.google.com with ESMTPS id lh6si3253593wjc.24.2015.01.15.06.48.41
+Received: from mail-la0-f46.google.com (mail-la0-f46.google.com [209.85.215.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 304A06B0032
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 10:52:42 -0500 (EST)
+Received: by mail-la0-f46.google.com with SMTP id ge10so4549583lab.5
+        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 07:52:41 -0800 (PST)
+Received: from forward-corp1f.mail.yandex.net (forward-corp1f.mail.yandex.net. [2a02:6b8:0:801::10])
+        by mx.google.com with ESMTPS id w2si1766309laz.109.2015.01.15.07.52.40
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 15 Jan 2015 06:48:41 -0800 (PST)
-Received: by mail-wg0-f49.google.com with SMTP id n12so15352329wgh.8
-        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 06:48:41 -0800 (PST)
-Date: Thu, 15 Jan 2015 15:48:38 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -mm v2] vmscan: move reclaim_state handling to shrink_slab
-Message-ID: <20150115144838.GI7000@dhcp22.suse.cz>
-References: <1421311073-28130-1-git-send-email-vdavydov@parallels.com>
- <20150115125820.GE7000@dhcp22.suse.cz>
- <20150115132516.GG11264@esperanza>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Jan 2015 07:52:40 -0800 (PST)
+Subject: [PATCH] page_writeback: put account_page_redirty() after
+ set_page_dirty()
+From: Konstantin Khebnikov <khlebnikov@yandex-team.ru>
+Date: Thu, 15 Jan 2015 18:52:38 +0300
+Message-ID: <20150115155238.31251.41331.stgit@buzz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150115132516.GG11264@esperanza>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+Cc: koct9i@gmail.com
 
-On Thu 15-01-15 16:25:16, Vladimir Davydov wrote:
-> On Thu, Jan 15, 2015 at 01:58:20PM +0100, Michal Hocko wrote:
-> > On Thu 15-01-15 11:37:53, Vladimir Davydov wrote:
-> > > current->reclaim_state is only used to count the number of slab pages
-> > > reclaimed by shrink_slab(). So instead of initializing it before we are
-> > > 
-> > > Note that after this patch try_to_free_mem_cgroup_pages() will count not
-> > > only reclaimed user pages, but also slab pages, which is expected,
-> > > because it can reclaim kmem from kmem-active sub cgroups.
-> > 
-> > Except that reclaim_state counts all freed slab objects that have
-> > current->reclaim_state != NULL AFAIR. This includes also kfreed pages
-> > from interrupt context and who knows what else and those pages might be
-> > from a different memcgs, no?
-> 
-> Hmm, true, good point. Can an interrupt handler free a lot of memory
-> though?
+Helper account_page_redirty() fixes dirty pages counter for redirtied pages.
+This patch puts it after dirtying and prevents temporary underflows of
+dirtied pages counters on zone/bdi and current->nr_dirtied.
 
-it is drivers so who knows...
+Signed-off-by: Konstantin Khebnikov <khlebnikov@yandex-team.ru>
+---
+ fs/btrfs/extent_io.c |    2 +-
+ mm/page-writeback.c  |    5 ++++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)
 
-> Does RCU free objects from irq or soft irq context?
-
-and this is another part which I didn't consider at all. RCU callbacks
-are normally processed from kthread context but rcu_init also does
-open_softirq(RCU_SOFTIRQ, rcu_process_callbacks)
-so something is clearly processed from softirq as well. I am not
-familiar with RCU details enough to tell how many callbacks are
-processed this way. Tiny RCU, on the other hand, seem to be processing
-all callbacks via __rcu_process_callbacks and that seems to be processed
-from softirq only.
-
-> > Besides that I am not sure this makes any difference in the end. No
-> > try_to_free_mem_cgroup_pages caller really cares about the exact
-> > number of reclaimed pages. We care only about whether there was any
-> > progress done - and even that not exactly (e.g. try_charge checks
-> > mem_cgroup_margin before retry/oom so if sufficient kmem pages were
-> > uncharged then we will notice that).
-> 
-> Frankly, I thought exactly the same initially, that's why I dropped
-> reclaim_state handling from the initial memcg shrinkers patch set.
-> However, then Hillf noticed that nr_reclaimed is checked right after
-> calling shrink_slab() in the memcg iteration loop in shrink_zone():
-> 
-> 
-> 		memcg = mem_cgroup_iter(root, NULL, &reclaim);
-> 		do {
-> 			[...]
-> 			if (memcg && is_classzone)
-> 				shrink_slab(sc->gfp_mask, zone_to_nid(zone),
-> 					    memcg, sc->nr_scanned - scanned,
-> 					    lru_pages);
-> 
-> 			/*
-> 			 * Direct reclaim and kswapd have to scan all memory
-> 			 * cgroups to fulfill the overall scan target for the
-> 			 * zone.
-> 			 *
-> 			 * Limit reclaim, on the other hand, only cares about
-> 			 * nr_to_reclaim pages to be reclaimed and it will
-> 			 * retry with decreasing priority if one round over the
-> 			 * whole hierarchy is not sufficient.
-> 			 */
-> 			if (!global_reclaim(sc) &&
-> 					sc->nr_reclaimed >= sc->nr_to_reclaim) {
-> 				mem_cgroup_iter_break(root, memcg);
-> 				break;
-> 			}
-> 			memcg = mem_cgroup_iter(root, memcg, &reclaim);
-> 		} while (memcg);
-> 
-> 
-> If we can ignore reclaimed slab pages here (?), let's drop this patch.
-
-I see what you are trying to achieve but can this lead to a serious
-over-reclaim? We should be reclaiming mostly user pages and kmem should
-be only a small portion I would expect.
--- 
-Michal Hocko
-SUSE Labs
+diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
+index 4ebabd2..281bc7e 100644
+--- a/fs/btrfs/extent_io.c
++++ b/fs/btrfs/extent_io.c
+@@ -1407,8 +1407,8 @@ int extent_range_redirty_for_io(struct inode *inode, u64 start, u64 end)
+ 	while (index <= end_index) {
+ 		page = find_get_page(inode->i_mapping, index);
+ 		BUG_ON(!page); /* Pages should be in the extent_io_tree */
+-		account_page_redirty(page);
+ 		__set_page_dirty_nobuffers(page);
++		account_page_redirty(page);
+ 		page_cache_release(page);
+ 		index++;
+ 	}
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 6f43352..4da3cd5 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -2168,9 +2168,12 @@ EXPORT_SYMBOL(account_page_redirty);
+  */
+ int redirty_page_for_writepage(struct writeback_control *wbc, struct page *page)
+ {
++	int ret;
++
+ 	wbc->pages_skipped++;
++	ret = __set_page_dirty_nobuffers(page);
+ 	account_page_redirty(page);
+-	return __set_page_dirty_nobuffers(page);
++	return ret;
+ }
+ EXPORT_SYMBOL(redirty_page_for_writepage);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
