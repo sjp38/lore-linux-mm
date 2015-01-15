@@ -1,57 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f175.google.com (mail-qc0-f175.google.com [209.85.216.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 07BB46B0032
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 13:30:36 -0500 (EST)
-Received: by mail-qc0-f175.google.com with SMTP id p6so13549696qcv.6
-        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 10:30:35 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p19si2990434qgd.27.2015.01.15.10.30.34
+Received: from mail-la0-f51.google.com (mail-la0-f51.google.com [209.85.215.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 846E36B0038
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 13:49:15 -0500 (EST)
+Received: by mail-la0-f51.google.com with SMTP id ms9so15198631lab.10
+        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 10:49:14 -0800 (PST)
+Received: from forward-corp1m.cmail.yandex.net (forward-corp1m.cmail.yandex.net. [2a02:6b8:b030::69])
+        by mx.google.com with ESMTPS id jq5si886855lbc.39.2015.01.15.10.49.13
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Jan 2015 10:30:35 -0800 (PST)
-From: Jeff Moyer <jmoyer@redhat.com>
-Subject: Re: [LSF/MM TOPIC] async buffered diskio read for userspace apps
-References: <CANP1eJF77=iH_tm1y0CgF6PwfhUK6WqU9S92d0xAnCt=WhZVfQ@mail.gmail.com>
-Date: Thu, 15 Jan 2015 13:30:05 -0500
-In-Reply-To: <CANP1eJF77=iH_tm1y0CgF6PwfhUK6WqU9S92d0xAnCt=WhZVfQ@mail.gmail.com>
-	(Milosz Tanski's message of "Thu, 15 Jan 2015 12:43:23 -0500")
-Message-ID: <x49zj9jaocy.fsf@segfault.boston.devel.redhat.com>
+        Thu, 15 Jan 2015 10:49:14 -0800 (PST)
+Subject: [PATCHSET RFC 0/6] memcg: inode-based dirty-set controller
+From: Konstantin Khebnikov <khlebnikov@yandex-team.ru>
+Date: Thu, 15 Jan 2015 21:49:10 +0300
+Message-ID: <20150115180242.10450.92.stgit@buzz>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Milosz Tanski <milosz@adfin.com>
-Cc: lsf-pc@lists.linux-foundation.org, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>
+To: linux-mm@kvack.org, cgroups@vger.kernel.org
+Cc: Roman Gushchin <klamm@yandex-team.ru>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, linux-fsdevel@vger.kernel.org, koct9i@gmail.com
 
-Milosz Tanski <milosz@adfin.com> writes:
+This is ressurection of my old RFC patch for dirty-set accounting cgroup [1]
+Now it's merged into memory cgroup and got bandwidth controller as a bonus.
 
-> I would like to talk about enhancing the user interfaces for doing
-> async buffered disk IO for userspace applications. There's a whole
-> class of distributed web applications (most new applications today)
-> that would benefit from such an API. Most of them today rely on
-> cobbling one together in user space using a threadpool.
->
-> The current in kernel AIO interfaces that only support DIRECTIO, they
-> were generally designed by and for big database vendors. The consensus
-> is that the current AIO interfaces usually lead to decreased
-> performance for those app.
->
-> I've been developing a new read syscall that allows non-blocking
-> diskio read (provided that data is in the page cache). It's analogous
-> to what exists today in the network world with recvmsg with MSG_NOWAIT
-> flag. The work has been previously described by LWN here:
-> https://lwn.net/Articles/612483/
->
-> Previous attempts (over the last 12+ years) at non-blocking buffered
-> diskio has stalled due to their complexity. I would like to talk about
-> the problem, my solution, and get feedback on the course of action.
+That shows alternative solution: less accurate but much less monstrous than
+accurate page-based dirty-set controller from Tejun Heo.
 
-This email seems to conflate async I/O and non-blocking I/O.  Could you
-please be more specific about what you're proposing to talk about?  Is
-it just the non-blocking read support?
+Memory overhead: +1 pointer into struct address_space.
+Perfomance overhead is almost zero, no new locks added.
 
-Cheers,
-Jeff
+Idea is stright forward: link each inode to some cgroup when first dirty
+page appers and account all dirty pages to it. Writeback is implemented
+as single per-bdi writeback work which writes only inodes which belong
+to memory cgroups where amount of dirty memory is beyond thresholds.
+
+Third patch adds trick for handling shared inodes which have dirty pages
+from several cgroups: it marks whole inode as shared and alters writeback
+filter for it.
+
+The rest is an example of bandwith and iops controller build on top of that.
+Design is completely original, I bet nobody ever used task-works for that =)
+
+[1] [PATCH RFC] fsio: filesystem io accounting cgroup
+http://marc.info/?l=linux-kernel&m=137331569501655&w=2
+
+Patches also available here:
+https://github.com/koct9i/linux.git branch memcg_dirty_control
+
+---
+
+Konstantin Khebnikov (6):
+      memcg: inode-based dirty and writeback pages accounting
+      memcg: dirty-set limiting and filtered writeback
+      memcg: track shared inodes with dirty pages
+      percpu_ratelimit: high-performance ratelimiting counter
+      delay-injection: resource management via procrastination
+      memcg: filesystem bandwidth controller
+
+
+ block/blk-core.c                 |    2 
+ fs/direct-io.c                   |    2 
+ fs/fs-writeback.c                |   22 ++
+ fs/inode.c                       |    1 
+ include/linux/backing-dev.h      |    1 
+ include/linux/fs.h               |   14 +
+ include/linux/memcontrol.h       |   27 +++
+ include/linux/percpu_ratelimit.h |   45 ++++
+ include/linux/sched.h            |    7 +
+ include/linux/writeback.h        |    1 
+ include/trace/events/sched.h     |    7 +
+ include/trace/events/writeback.h |    1 
+ kernel/sched/core.c              |   66 +++++++
+ kernel/sched/fair.c              |   12 +
+ lib/Makefile                     |    1 
+ lib/percpu_ratelimit.c           |  168 +++++++++++++++++
+ mm/memcontrol.c                  |  381 ++++++++++++++++++++++++++++++++++++++
+ mm/page-writeback.c              |   32 +++
+ mm/readahead.c                   |    2 
+ mm/truncate.c                    |    1 
+ mm/vmscan.c                      |    4 
+ 21 files changed, 787 insertions(+), 10 deletions(-)
+ create mode 100644 include/linux/percpu_ratelimit.h
+ create mode 100644 lib/percpu_ratelimit.c
+
+--
+Signature
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
