@@ -1,49 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B49C6B0032
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 02:56:26 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id kq14so15962506pab.6
-        for <linux-mm@kvack.org>; Wed, 14 Jan 2015 23:56:26 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id oc17si938454pdb.97.2015.01.14.23.56.23
+Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 142F66B0032
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 03:11:20 -0500 (EST)
+Received: by mail-qc0-f180.google.com with SMTP id r5so4932250qcx.11
+        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 00:11:19 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k32si1076023qge.43.2015.01.15.00.11.18
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Jan 2015 23:56:24 -0800 (PST)
-Date: Thu, 15 Jan 2015 10:56:10 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH -mm] vmscan: move reclaim_state handling to shrink_slab
-Message-ID: <20150115075610.GF11264@esperanza>
-References: <1421243736-21367-1-git-send-email-vdavydov@parallels.com>
- <20150114153449.038bc61b1bd6fc262f9cea01@linux-foundation.org>
+        Thu, 15 Jan 2015 00:11:19 -0800 (PST)
+Date: Thu, 15 Jan 2015 09:10:58 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [PATCH v2 1/2] mm/slub: optimize alloc/free fastpath by
+ removing preemption on/off
+Message-ID: <20150115091058.07d0ae25@redhat.com>
+In-Reply-To: <1421307633-24045-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1421307633-24045-1-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20150114153449.038bc61b1bd6fc262f9cea01@linux-foundation.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rostedt@goodmis.org, Thomas Gleixner <tglx@linutronix.de>, brouer@redhat.com
 
-On Wed, Jan 14, 2015 at 03:34:49PM -0800, Andrew Morton wrote:
-> On Wed, 14 Jan 2015 16:55:36 +0300 Vladimir Davydov <vdavydov@parallels.com> wrote:
-> > This patch also makes shrink_slab() return the number of reclaimed slab
-> > pages (obtained from reclaim_state) instead of the number of reclaimed
-> > objects, because the latter is not of much use - it was only checked by
-> > drop_slab() to decide whether it should continue reclaim or abort. The
-> > number of reclaimed pages is more appropriate, because it also can be
-> > used by shrink_zone() to accumulate scan_control->nr_reclaimed.
+On Thu, 15 Jan 2015 16:40:32 +0900
+Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+
+[...]
 > 
-> Not sure that this is a good change.  If shrink_slab() managed to free
-> some objects but didn't free any pages then that's a good sign that
-> additional calls to shrink_slab() *will* free some pages.  With this
-> change, drop_slab_node() can give up too early.
+> I saw roughly 5% win in a fast-path loop over kmem_cache_alloc/free
+> in CONFIG_PREEMPT. (14.821 ns -> 14.049 ns)
+> 
+> Below is the result of Christoph's slab_test reported by
+> Jesper Dangaard Brouer.
+>
+[...]
 
-Fair enough. We'd better leave the return value intact then. I think we
-should add an additional argument to add the number of reclaimed slab
-pages to, as I intended to do initially. Will resend.
+Acked-by: Jesper Dangaard Brouer <brouer@redhat.com>
 
-Thanks,
-Vladimir
+> Acked-by: Christoph Lameter <cl@linux.com>
+> Tested-by: Jesper Dangaard Brouer <brouer@redhat.com>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> ---
+>  mm/slub.c |   35 +++++++++++++++++++++++------------
+>  1 file changed, 23 insertions(+), 12 deletions(-)
+> 
+> diff --git a/mm/slub.c b/mm/slub.c
+> index fe376fe..ceee1d7 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -2398,13 +2398,24 @@ redo:
+[...]
+>  	 */
+> -	preempt_disable();
+> -	c = this_cpu_ptr(s->cpu_slab);
+> +	do {
+> +		tid = this_cpu_read(s->cpu_slab->tid);
+> +		c = this_cpu_ptr(s->cpu_slab);
+> +	} while (IS_ENABLED(CONFIG_PREEMPT) && unlikely(tid != c->tid));
+> +
+> +	/*
+> +	 * Irqless object alloc/free alogorithm used here depends on sequence
+
+Spelling of algorithm contains a typo ^^ 
+
+> +	 * of fetching cpu_slab's data. tid should be fetched before anything
+> +	 * on c to guarantee that object and page associated with previous tid
+> +	 * won't be used with current tid. If we fetch tid first, object and
+> +	 * page could be one associated with next tid and our alloc/free
+> +	 * request will be failed. In this case, we will retry. So, no problem.
+> +	 */
+> +	barrier();
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Sr. Network Kernel Developer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
