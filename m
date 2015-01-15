@@ -1,258 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
-	by kanga.kvack.org (Postfix) with ESMTP id E496D6B0032
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 10:57:34 -0500 (EST)
-Received: by mail-lb0-f174.google.com with SMTP id 10so13990603lbg.5
-        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 07:57:34 -0800 (PST)
-Received: from forward-corp1f.mail.yandex.net (forward-corp1f.mail.yandex.net. [95.108.130.40])
-        by mx.google.com with ESMTPS id xa7si457944lbb.32.2015.01.15.07.57.33
+Received: from mail-ie0-f175.google.com (mail-ie0-f175.google.com [209.85.223.175])
+	by kanga.kvack.org (Postfix) with ESMTP id C797A6B0032
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 11:08:41 -0500 (EST)
+Received: by mail-ie0-f175.google.com with SMTP id x19so15623168ier.6
+        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 08:08:41 -0800 (PST)
+Received: from mail-ig0-x22a.google.com (mail-ig0-x22a.google.com. [2607:f8b0:4001:c05::22a])
+        by mx.google.com with ESMTPS id q63si1502491ioe.54.2015.01.15.08.08.40
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Jan 2015 07:57:33 -0800 (PST)
-Subject: [PATCH RFC] page_writeback: cleanup mess around cancel_dirty_page()
-From: Konstantin Khebnikov <khlebnikov@yandex-team.ru>
-Date: Thu, 15 Jan 2015 18:57:31 +0300
-Message-ID: <20150115155731.31307.4414.stgit@buzz>
+        Thu, 15 Jan 2015 08:08:40 -0800 (PST)
+Received: by mail-ig0-f170.google.com with SMTP id l13so3834610iga.1
+        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 08:08:40 -0800 (PST)
+Message-ID: <54B7E5FC.3080006@gmail.com>
+Date: Thu, 15 Jan 2015 11:08:28 -0500
+From: Austin S Hemmelgarn <ahferroin7@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Subject: Re: [LSF/MM TOPIC] userfaultfd
+References: <20150114230130.GR6103@redhat.com>
+In-Reply-To: <20150114230130.GR6103@redhat.com>
+Content-Type: multipart/signed; protocol="application/pkcs7-signature"; micalg=sha1; boundary="------------ms070406020203090001000606"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
-Cc: Tejun Heo <tj@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, koct9i@gmail.com, Johannes Weiner <hannes@cmpxchg.org>
+To: Andrea Arcangeli <aarcange@redhat.com>, lsf-pc@lists.linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
 
-This patch replaces cancel_dirty_page() with helper account_page_cleared()
-which only updates counters. It's called from delete_from_page_cache()
-and from try_to_free_buffers() (hack for ext3). Page is locked in both cases.
+This is a cryptographically signed message in MIME format.
 
-Hugetlbfs has no dirty pages accounting, ClearPageDirty() is enough here.
+--------------ms070406020203090001000606
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: quoted-printable
 
-cancel_dirty_page() in nfs_wb_page_cancel() is redundant. This is helper
-for nfs_invalidate_page() and it's called only in case complete invalidation.
+On 2015-01-14 18:01, Andrea Arcangeli wrote:
+> 7) distributed shared memory that could allow simultaneous mapping of
+>     regions marked readonly and collapse them on the first exclusive
+>     write. I'm mentioning it as a corollary, because I'm not aware of
+>     anybody who is planning to use it that way (still I'd like that
+>     this will be possible too just in case it finds its way later on).
+While I haven't actually written any code for it yet, I've been thinking =
 
-Open-coded kludge at the end of __delete_from_page_cache() is redundant too.
+about the possibility to use this to allow qemu to do distributed=20
+emulation of a NUMA system (ie, you could run qemu on a Beowulf cluster=20
+and make it look to the guest OS like it's running on a big NUMA system, =
 
-This mess was started in v2.6.20, after commit 3e67c09 ("truncate: clear page
-dirtiness before running try_to_free_buffers()") reverted back in v2.6.25
-by commit a2b3456 ("Fix dirty page accounting leak with ext3 data=journal").
-Custom fixes were introduced between them. NFS in in v2.6.23 in commit
-1b3b4a1 ("NFS: Fix a write request leak in nfs_invalidate_page()").
-Kludge __delete_from_page_cache() in v2.6.24, commit 3a692790 ("Do dirty
-page accounting when removing a page from the page cache").
+essentially SSI clustering for people who don't have a multi-million=20
+dollar budget).  Having userfaultd to work with would make this=20
+exponentially easier to implement.
 
-It seems safe to leave dirty flag set on truncated page, free_pages_check()
-will clear it before returning page into buddy allocator.
 
-Signed-off-by: Konstantin Khebnikov <khlebnikov@yandex-team.ru>
----
- .../lustre/include/linux/lustre_patchless_compat.h |    1 -
- fs/buffer.c                                        |    4 +--
- fs/hugetlbfs/inode.c                               |    2 +
- fs/nfs/write.c                                     |    5 ---
- include/linux/mm.h                                 |    2 +
- include/linux/page-flags.h                         |    2 -
- mm/filemap.c                                       |   15 ++--------
- mm/page-writeback.c                                |   19 ++++++++++++
- mm/truncate.c                                      |   31 --------------------
- 9 files changed, 27 insertions(+), 54 deletions(-)
+--------------ms070406020203090001000606
+Content-Type: application/pkcs7-signature; name="smime.p7s"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="smime.p7s"
+Content-Description: S/MIME Cryptographic Signature
 
-diff --git a/drivers/staging/lustre/lustre/include/linux/lustre_patchless_compat.h b/drivers/staging/lustre/lustre/include/linux/lustre_patchless_compat.h
-index a260e99..ff5cab2 100644
---- a/drivers/staging/lustre/lustre/include/linux/lustre_patchless_compat.h
-+++ b/drivers/staging/lustre/lustre/include/linux/lustre_patchless_compat.h
-@@ -55,7 +55,6 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
- 	if (PagePrivate(page))
- 		page->mapping->a_ops->invalidatepage(page, 0, PAGE_CACHE_SIZE);
- 
--	cancel_dirty_page(page, PAGE_SIZE);
- 	ClearPageMappedToDisk(page);
- 	ll_delete_from_page_cache(page);
- }
-diff --git a/fs/buffer.c b/fs/buffer.c
-index 20805db..2b99560 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -3243,8 +3243,8 @@ int try_to_free_buffers(struct page *page)
- 	 * to synchronise against __set_page_dirty_buffers and prevent the
- 	 * dirty bit from being lost.
- 	 */
--	if (ret)
--		cancel_dirty_page(page, PAGE_CACHE_SIZE);
-+	if (ret && TestClearPageDirty(page))
-+		account_page_cleared(page, mapping);
- 	spin_unlock(&mapping->private_lock);
- out:
- 	if (buffers_to_free) {
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 5eba47f..d9fc882 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -325,7 +325,7 @@ static int hugetlbfs_write_end(struct file *file, struct address_space *mapping,
- 
- static void truncate_huge_page(struct page *page)
- {
--	cancel_dirty_page(page, /* No IO accounting for huge pages? */0);
-+	ClearPageDirty(page);
- 	ClearPageUptodate(page);
- 	delete_from_page_cache(page);
- }
-diff --git a/fs/nfs/write.c b/fs/nfs/write.c
-index af3af68..cc2183b 100644
---- a/fs/nfs/write.c
-+++ b/fs/nfs/write.c
-@@ -1811,11 +1811,6 @@ int nfs_wb_page_cancel(struct inode *inode, struct page *page)
- 		 * request from the inode / page_private pointer and
- 		 * release it */
- 		nfs_inode_remove_request(req);
--		/*
--		 * In case nfs_inode_remove_request has marked the
--		 * page as being dirty
--		 */
--		cancel_dirty_page(page, PAGE_CACHE_SIZE);
- 		nfs_unlock_and_release_request(req);
- 	}
- 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 80fc92a..3b65a95 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1251,9 +1251,11 @@ int __set_page_dirty_no_writeback(struct page *page);
- int redirty_page_for_writepage(struct writeback_control *wbc,
- 				struct page *page);
- void account_page_dirtied(struct page *page, struct address_space *mapping);
-+void account_page_cleared(struct page *page, struct address_space *mapping);
- int set_page_dirty(struct page *page);
- int set_page_dirty_lock(struct page *page);
- int clear_page_dirty_for_io(struct page *page);
-+
- int get_cmdline(struct task_struct *task, char *buffer, int buflen);
- 
- /* Is the vma a continuation of the stack vma above it? */
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index e1f5fcd..78c4e92 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -323,8 +323,6 @@ static inline void SetPageUptodate(struct page *page)
- 
- CLEARPAGEFLAG(Uptodate, uptodate)
- 
--extern void cancel_dirty_page(struct page *page, unsigned int account_size);
--
- int test_clear_page_writeback(struct page *page);
- int __test_set_page_writeback(struct page *page, bool keep_write);
- 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 673e458..5010882 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -201,18 +201,6 @@ void __delete_from_page_cache(struct page *page, void *shadow)
- 	if (PageSwapBacked(page))
- 		__dec_zone_page_state(page, NR_SHMEM);
- 	BUG_ON(page_mapped(page));
--
--	/*
--	 * Some filesystems seem to re-dirty the page even after
--	 * the VM has canceled the dirty bit (eg ext3 journaling).
--	 *
--	 * Fix it up by doing a final dirty accounting check after
--	 * having removed the page entirely.
--	 */
--	if (PageDirty(page) && mapping_cap_account_dirty(mapping)) {
--		dec_zone_page_state(page, NR_FILE_DIRTY);
--		dec_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
--	}
- }
- 
- /**
-@@ -230,6 +218,9 @@ void delete_from_page_cache(struct page *page)
- 
- 	BUG_ON(!PageLocked(page));
- 
-+	if (PageDirty(page))
-+		account_page_cleared(page, mapping);
-+
- 	freepage = mapping->a_ops->freepage;
- 	spin_lock_irq(&mapping->tree_lock);
- 	__delete_from_page_cache(page, NULL);
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 4da3cd5..f371522 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -2106,6 +2106,25 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
- EXPORT_SYMBOL(account_page_dirtied);
- 
- /*
-+ * Helper function for deaccounting dirty page without doing writeback.
-+ * Doing this should *normally* only ever be done when a page
-+ * is truncated, and is not actually mapped anywhere at all. However,
-+ * fs/buffer.c does this when it notices that somebody has cleaned
-+ * out all the buffers on a page without actually doing it through
-+ * the VM. Can you say "ext3 is horribly ugly"? Tought you could.
-+ */
-+void account_page_cleared(struct page *page, struct address_space *mapping)
-+{
-+	if (mapping_cap_account_dirty(mapping)) {
-+		dec_zone_page_state(page, NR_FILE_DIRTY);
-+		dec_bdi_stat(mapping->backing_dev_info,
-+				BDI_RECLAIMABLE);
-+		task_io_account_cancelled_write(PAGE_CACHE_SIZE);
-+	}
-+}
-+EXPORT_SYMBOL(account_page_cleared);
-+
-+/*
-  * For address_spaces which do not use buffers.  Just tag the page as dirty in
-  * its radix tree.
-  *
-diff --git a/mm/truncate.c b/mm/truncate.c
-index f1e4d60..5ba8cb2 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -93,35 +93,6 @@ void do_invalidatepage(struct page *page, unsigned int offset,
- }
- 
- /*
-- * This cancels just the dirty bit on the kernel page itself, it
-- * does NOT actually remove dirty bits on any mmap's that may be
-- * around. It also leaves the page tagged dirty, so any sync
-- * activity will still find it on the dirty lists, and in particular,
-- * clear_page_dirty_for_io() will still look at the dirty bits in
-- * the VM.
-- *
-- * Doing this should *normally* only ever be done when a page
-- * is truncated, and is not actually mapped anywhere at all. However,
-- * fs/buffer.c does this when it notices that somebody has cleaned
-- * out all the buffers on a page without actually doing it through
-- * the VM. Can you say "ext3 is horribly ugly"? Tought you could.
-- */
--void cancel_dirty_page(struct page *page, unsigned int account_size)
--{
--	if (TestClearPageDirty(page)) {
--		struct address_space *mapping = page->mapping;
--		if (mapping && mapping_cap_account_dirty(mapping)) {
--			dec_zone_page_state(page, NR_FILE_DIRTY);
--			dec_bdi_stat(mapping->backing_dev_info,
--					BDI_RECLAIMABLE);
--			if (account_size)
--				task_io_account_cancelled_write(account_size);
--		}
--	}
--}
--EXPORT_SYMBOL(cancel_dirty_page);
--
--/*
-  * If truncate cannot remove the fs-private metadata from the page, the page
-  * becomes orphaned.  It will be left on the LRU and may even be mapped into
-  * user pagetables if we're racing with filemap_fault().
-@@ -140,8 +111,6 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
- 	if (page_has_private(page))
- 		do_invalidatepage(page, 0, PAGE_CACHE_SIZE);
- 
--	cancel_dirty_page(page, PAGE_CACHE_SIZE);
--
- 	ClearPageMappedToDisk(page);
- 	delete_from_page_cache(page);
- 	return 0;
+MIAGCSqGSIb3DQEHAqCAMIACAQExCzAJBgUrDgMCGgUAMIAGCSqGSIb3DQEHAQAAoIIFuDCC
+BbQwggOcoAMCAQICAw9gVDANBgkqhkiG9w0BAQ0FADB5MRAwDgYDVQQKEwdSb290IENBMR4w
+HAYDVQQLExVodHRwOi8vd3d3LmNhY2VydC5vcmcxIjAgBgNVBAMTGUNBIENlcnQgU2lnbmlu
+ZyBBdXRob3JpdHkxITAfBgkqhkiG9w0BCQEWEnN1cHBvcnRAY2FjZXJ0Lm9yZzAeFw0xNDA4
+MDgxMTMwNDRaFw0xNTAyMDQxMTMwNDRaMGMxGDAWBgNVBAMTD0NBY2VydCBXb1QgVXNlcjEj
+MCEGCSqGSIb3DQEJARYUYWhmZXJyb2luN0BnbWFpbC5jb20xIjAgBgkqhkiG9w0BCQEWE2Fo
+ZW1tZWxnQG9oaW9ndC5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDdmm8R
+BM5D6fGiB6rpogPZbLYu6CkU6834rcJepfmxKnLarYUYM593/VGygfaaHAyuc8qLaRA3u1M0
+Qp29flqmhv1VDTBZ+zFu6JgHjTDniBii1KOZRo0qV3jC5NvaS8KUM67+eQBjm29LhBWVi3+e
+a8jLxmogFXV0NGej+GHIr5zA9qKz2WJOEoGh0EfqZ2MQTmozcGI43/oqIYhRj8fRMkWXLUAF
+WsLzPQMpK19hD8fqwlxQWhBV8gsGRG54K5pyaQsjne7m89SF5M8JkNJPH39tHEvfv2Vhf7EM
+Y4WGyhLAULSlym1AI1uUHR1FfJaj3AChaEJZli/AdajYsqc7AgMBAAGjggFZMIIBVTAMBgNV
+HRMBAf8EAjAAMFYGCWCGSAGG+EIBDQRJFkdUbyBnZXQgeW91ciBvd24gY2VydGlmaWNhdGUg
+Zm9yIEZSRUUgaGVhZCBvdmVyIHRvIGh0dHA6Ly93d3cuQ0FjZXJ0Lm9yZzAOBgNVHQ8BAf8E
+BAMCA6gwQAYDVR0lBDkwNwYIKwYBBQUHAwQGCCsGAQUFBwMCBgorBgEEAYI3CgMEBgorBgEE
+AYI3CgMDBglghkgBhvhCBAEwMgYIKwYBBQUHAQEEJjAkMCIGCCsGAQUFBzABhhZodHRwOi8v
+b2NzcC5jYWNlcnQub3JnMDEGA1UdHwQqMCgwJqAkoCKGIGh0dHA6Ly9jcmwuY2FjZXJ0Lm9y
+Zy9yZXZva2UuY3JsMDQGA1UdEQQtMCuBFGFoZmVycm9pbjdAZ21haWwuY29tgRNhaGVtbWVs
+Z0BvaGlvZ3QuY29tMA0GCSqGSIb3DQEBDQUAA4ICAQCr4klxcZU/PDRBpUtlb+d6JXl2dfto
+OUP/6g19dpx6Ekt2pV1eujpIj5whh5KlCSPUgtHZI7BcksLSczQbxNDvRu6LNKqGJGvcp99k
+cWL1Z6BsgtvxWKkOmy1vB+2aPfDiQQiMCCLAqXwHiNDZhSkwmGsJ7KHMWgF/dRVDnsl6aOQZ
+jAcBMpUZxzA/bv4nY2PylVdqJWp9N7x86TF9sda1zRZiyUwy83eFTDNzefYPtc4MLppcaD4g
+Wt8U6T2ffQfCWVzDirhg4WmDH3MybDItjkSB2/+pgGOS4lgtEBMHzAGQqQ+5PojTHRyqu9Jc
+O59oIGrTaOtKV9nDeDtzNaQZgygJItJi9GoAl68AmIHxpS1rZUNV6X8ydFrEweFdRTVWhUEL
+70Cnx84YBojXv01LYBSZaq18K8cERPLaIrUD2go+2ffjdE9ejvYDhNBllY+ufvRizIjQA1uC
+OdktVAN6auQob94kOOsWpoMSrzHHvOvVW/kbokmKzaLtcs9+nJoL+vPi2AyzbaoQASVZYOGW
+pE3daA0F5FJfcPZKCwd5wdnmT3dU1IRUxa5vMmgjP20lkfP8tCPtvZv2mmI2Nw5SaXNY4gVu
+WQrvkV2in+TnGqgEIwUrLVbx9G6PSYZZs07czhO+Q1iVuKdAwjL/AYK0Us9v50acIzbl5CWw
+ZGj3wjGCA6EwggOdAgEBMIGAMHkxEDAOBgNVBAoTB1Jvb3QgQ0ExHjAcBgNVBAsTFWh0dHA6
+Ly93d3cuY2FjZXJ0Lm9yZzEiMCAGA1UEAxMZQ0EgQ2VydCBTaWduaW5nIEF1dGhvcml0eTEh
+MB8GCSqGSIb3DQEJARYSc3VwcG9ydEBjYWNlcnQub3JnAgMPYFQwCQYFKw4DAhoFAKCCAfUw
+GAYJKoZIhvcNAQkDMQsGCSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMTUwMTE1MTYwODI4
+WjAjBgkqhkiG9w0BCQQxFgQUqVuDIzt1fUNsYHQCs1ZoAthQlc0wbAYJKoZIhvcNAQkPMV8w
+XTALBglghkgBZQMEASowCwYJYIZIAWUDBAECMAoGCCqGSIb3DQMHMA4GCCqGSIb3DQMCAgIA
+gDANBggqhkiG9w0DAgIBQDAHBgUrDgMCBzANBggqhkiG9w0DAgIBKDCBkQYJKwYBBAGCNxAE
+MYGDMIGAMHkxEDAOBgNVBAoTB1Jvb3QgQ0ExHjAcBgNVBAsTFWh0dHA6Ly93d3cuY2FjZXJ0
+Lm9yZzEiMCAGA1UEAxMZQ0EgQ2VydCBTaWduaW5nIEF1dGhvcml0eTEhMB8GCSqGSIb3DQEJ
+ARYSc3VwcG9ydEBjYWNlcnQub3JnAgMPYFQwgZMGCyqGSIb3DQEJEAILMYGDoIGAMHkxEDAO
+BgNVBAoTB1Jvb3QgQ0ExHjAcBgNVBAsTFWh0dHA6Ly93d3cuY2FjZXJ0Lm9yZzEiMCAGA1UE
+AxMZQ0EgQ2VydCBTaWduaW5nIEF1dGhvcml0eTEhMB8GCSqGSIb3DQEJARYSc3VwcG9ydEBj
+YWNlcnQub3JnAgMPYFQwDQYJKoZIhvcNAQEBBQAEggEAo2YtEdyjQvgIG7D+KuWcrlF27rNv
+0KFQguMvWJT7zm7zSqFIm36x20DGh/o9y4i8FWW7ZtVZyTlyI8wm0bEbM/KswXGpK8F8Myhn
+0JyOIww56MkxPoB6uEa3aV1nDWxzalhUfccUcidP+6aRZBQy0DtlrvpuiKMipizm+x4PHMS+
+Mk6L1q2UZ+zPS85Y9Nifef9KlMUiCx7gt0OTC4AgF9hKZTUHX5jsoOL966hT/cMFM6derSmv
+POa5Ho6x+8A7fNTO2aeeBLXil1cPEdjdfTZLez8Q6uLRxpO8D4tahnC9/efDxg18WTvPHKd/
+77JySbYv896XTtKgetgVYrulaQAAAAAAAA==
+--------------ms070406020203090001000606--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
