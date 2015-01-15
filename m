@@ -1,111 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id D1CED6B0032
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 12:03:27 -0500 (EST)
-Received: by mail-wi0-f175.google.com with SMTP id l15so36536006wiw.2
-        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 09:03:27 -0800 (PST)
-Received: from mail-we0-x22f.google.com (mail-we0-x22f.google.com. [2a00:1450:400c:c03::22f])
-        by mx.google.com with ESMTPS id gh9si33092033wib.92.2015.01.15.09.03.26
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CEA36B0032
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 12:07:38 -0500 (EST)
+Received: by mail-pd0-f169.google.com with SMTP id z10so17358201pdj.0
+        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 09:07:37 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id hs3si2567131pbc.30.2015.01.15.09.07.36
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 15 Jan 2015 09:03:26 -0800 (PST)
-Received: by mail-we0-f175.google.com with SMTP id k11so15872596wes.6
-        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 09:03:26 -0800 (PST)
-Date: Thu, 15 Jan 2015 18:03:24 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] lowmemorykiller: Avoid excessive/redundant calling of LMK
-Message-ID: <20150115170324.GD7008@dhcp22.suse.cz>
-References: <1421079554-30899-1-git-send-email-cpandya@codeaurora.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Jan 2015 09:07:36 -0800 (PST)
+Date: Thu, 15 Jan 2015 20:07:26 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH -mm v2] vmscan: move reclaim_state handling to shrink_slab
+Message-ID: <20150115170726.GH11264@esperanza>
+References: <1421311073-28130-1-git-send-email-vdavydov@parallels.com>
+ <20150115125820.GE7000@dhcp22.suse.cz>
+ <20150115132516.GG11264@esperanza>
+ <20150115144838.GI7000@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <1421079554-30899-1-git-send-email-cpandya@codeaurora.org>
+In-Reply-To: <20150115144838.GI7000@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chintan Pandya <cpandya@codeaurora.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Weijie Yang <weijie.yang@samsung.com>, David Rientjes <rientjes@google.com>, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 12-01-15 21:49:14, Chintan Pandya wrote:
-> The global shrinker will invoke lowmem_shrink in a loop.
-> The loop will be run (total_scan_pages/batch_size) times.
-> The default batch_size will be 128 which will make
-> shrinker invoking 100s of times. LMK does meaningful
-> work only during first 2-3 times and then rest of the
-> invocations are just CPU cycle waste. Fix that by returning
-> to the shrinker with SHRINK_STOP when LMK doesn't find any
-> more work to do. The deciding factor here is, no process
-> found in the selected LMK bucket or memory conditions are
-> sane.
-
-lowmemory killer is broken by design and this one of the examples which
-shows why. It simply doesn't fit into shrinkers concept.
-
-The count_object callback simply lies and tells the core that all
-the reclaimable LRU pages are scanable and gives it this as a number
-which the core uses for total_scan. scan_objects callback then happily
-ignore nr_to_reclaim and does its one time job where it iterates over
-_all_ tasks and picks up the victim and returns its rss as a return
-value. This is just a subset of LRU pages of course so it continues
-looping until total_scan goes down to 0 finally.
-
-If this really has to be a shrinker then, shouldn't it evaluate the OOM
-situation in the count callback and return non zero only if OOM and then
-the scan callback would kill and return nr_to_reclaim.
-
-Or even better wouldn't it be much better to use vmpressure to wake
-up a kernel module which would simply check the situation and kill
-something?
-
-Please do not put only cosmetic changes on top of broken concept and try
-to think about a proper solution that is what staging is for AFAIU.
-
-The code is in this state for quite some time and I would really hate if
-it got merged just because it is in staging for too long and it is used
-out there.
-
-> Signed-off-by: Chintan Pandya <cpandya@codeaurora.org>
-> ---
->  drivers/staging/android/lowmemorykiller.c | 5 ++++-
->  1 file changed, 4 insertions(+), 1 deletion(-)
+On Thu, Jan 15, 2015 at 03:48:38PM +0100, Michal Hocko wrote:
+> On Thu 15-01-15 16:25:16, Vladimir Davydov wrote:
+> > 		memcg = mem_cgroup_iter(root, NULL, &reclaim);
+> > 		do {
+> > 			[...]
+> > 			if (memcg && is_classzone)
+> > 				shrink_slab(sc->gfp_mask, zone_to_nid(zone),
+> > 					    memcg, sc->nr_scanned - scanned,
+> > 					    lru_pages);
+> > 
+> > 			/*
+> > 			 * Direct reclaim and kswapd have to scan all memory
+> > 			 * cgroups to fulfill the overall scan target for the
+> > 			 * zone.
+> > 			 *
+> > 			 * Limit reclaim, on the other hand, only cares about
+> > 			 * nr_to_reclaim pages to be reclaimed and it will
+> > 			 * retry with decreasing priority if one round over the
+> > 			 * whole hierarchy is not sufficient.
+> > 			 */
+> > 			if (!global_reclaim(sc) &&
+> > 					sc->nr_reclaimed >= sc->nr_to_reclaim) {
+> > 				mem_cgroup_iter_break(root, memcg);
+> > 				break;
+> > 			}
+> > 			memcg = mem_cgroup_iter(root, memcg, &reclaim);
+> > 		} while (memcg);
+> > 
+> > 
+> > If we can ignore reclaimed slab pages here (?), let's drop this patch.
 > 
-> diff --git a/drivers/staging/android/lowmemorykiller.c b/drivers/staging/android/lowmemorykiller.c
-> index b545d3d..5bf483f 100644
-> --- a/drivers/staging/android/lowmemorykiller.c
-> +++ b/drivers/staging/android/lowmemorykiller.c
-> @@ -110,7 +110,7 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
->  	if (min_score_adj == OOM_SCORE_ADJ_MAX + 1) {
->  		lowmem_print(5, "lowmem_scan %lu, %x, return 0\n",
->  			     sc->nr_to_scan, sc->gfp_mask);
-> -		return 0;
-> +		return SHRINK_STOP;
->  	}
->  
->  	selected_oom_score_adj = min_score_adj;
-> @@ -163,6 +163,9 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
->  		set_tsk_thread_flag(selected, TIF_MEMDIE);
->  		send_sig(SIGKILL, selected, 0);
->  		rem += selected_tasksize;
-> +	} else {
-> +		rcu_read_unlock();
-> +		return SHRINK_STOP;
->  	}
->  
->  	lowmem_print(4, "lowmem_scan %lu, %x, return %lu\n",
-> -- 
-> Chintan Pandya
-> 
-> QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
-> member of the Code Aurora Forum, hosted by The Linux Foundation
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> I see what you are trying to achieve but can this lead to a serious
+> over-reclaim?
 
--- 
-Michal Hocko
-SUSE Labs
+I think it can, but only if we shrink an inode with lots of pages
+attached to its address space (they also count to reclaim_state). In
+this case, we overreclaim anyway though.
+
+I agree that this is a high risk for a vague benefit. Let's drop it
+until we see this problem in real life.
+
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
