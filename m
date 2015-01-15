@@ -1,74 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CEA36B0032
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 12:07:38 -0500 (EST)
-Received: by mail-pd0-f169.google.com with SMTP id z10so17358201pdj.0
-        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 09:07:37 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id hs3si2567131pbc.30.2015.01.15.09.07.36
+Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F11F6B0038
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 12:08:21 -0500 (EST)
+Received: by mail-wg0-f54.google.com with SMTP id z12so16119562wgg.13
+        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 09:08:21 -0800 (PST)
+Received: from mail-wg0-x232.google.com (mail-wg0-x232.google.com. [2a00:1450:400c:c00::232])
+        by mx.google.com with ESMTPS id n2si11518796wiy.31.2015.01.15.09.08.20
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Jan 2015 09:07:36 -0800 (PST)
-Date: Thu, 15 Jan 2015 20:07:26 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH -mm v2] vmscan: move reclaim_state handling to shrink_slab
-Message-ID: <20150115170726.GH11264@esperanza>
-References: <1421311073-28130-1-git-send-email-vdavydov@parallels.com>
- <20150115125820.GE7000@dhcp22.suse.cz>
- <20150115132516.GG11264@esperanza>
- <20150115144838.GI7000@dhcp22.suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 15 Jan 2015 09:08:20 -0800 (PST)
+Received: by mail-wg0-f50.google.com with SMTP id a1so16136871wgh.9
+        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 09:08:20 -0800 (PST)
+Date: Thu, 15 Jan 2015 18:08:17 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 2/2] mm: memcontrol: default hierarchy interface for
+ memory
+Message-ID: <20150115170817.GE7008@dhcp22.suse.cz>
+References: <1420776904-8559-1-git-send-email-hannes@cmpxchg.org>
+ <1420776904-8559-2-git-send-email-hannes@cmpxchg.org>
+ <20150114153425.GF4706@dhcp22.suse.cz>
+ <20150114171944.GB32040@phnom.home.cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150115144838.GI7000@dhcp22.suse.cz>
+In-Reply-To: <20150114171944.GB32040@phnom.home.cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, Jan 15, 2015 at 03:48:38PM +0100, Michal Hocko wrote:
-> On Thu 15-01-15 16:25:16, Vladimir Davydov wrote:
-> > 		memcg = mem_cgroup_iter(root, NULL, &reclaim);
-> > 		do {
-> > 			[...]
-> > 			if (memcg && is_classzone)
-> > 				shrink_slab(sc->gfp_mask, zone_to_nid(zone),
-> > 					    memcg, sc->nr_scanned - scanned,
-> > 					    lru_pages);
+On Wed 14-01-15 12:19:44, Johannes Weiner wrote:
+> On Wed, Jan 14, 2015 at 04:34:25PM +0100, Michal Hocko wrote:
+> > On Thu 08-01-15 23:15:04, Johannes Weiner wrote:
+[...]
+> > > @@ -2322,6 +2325,12 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
+> > >  			struct lruvec *lruvec;
+> > >  			int swappiness;
+> > >  
+> > > +			if (mem_cgroup_low(root, memcg)) {
+> > > +				if (!sc->may_thrash)
+> > > +					continue;
+> > > +				mem_cgroup_events(memcg, MEMCG_LOW, 1);
+> > > +			}
+> > > +
+> > >  			lruvec = mem_cgroup_zone_lruvec(zone, memcg);
+> > >  			swappiness = mem_cgroup_swappiness(memcg);
+> > >  
+> > > @@ -2343,8 +2352,7 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
+> > >  				mem_cgroup_iter_break(root, memcg);
+> > >  				break;
+> > >  			}
+> > > -			memcg = mem_cgroup_iter(root, memcg, &reclaim);
+> > > -		} while (memcg);
+> > > +		} while ((memcg = mem_cgroup_iter(root, memcg, &reclaim)));
 > > 
-> > 			/*
-> > 			 * Direct reclaim and kswapd have to scan all memory
-> > 			 * cgroups to fulfill the overall scan target for the
-> > 			 * zone.
-> > 			 *
-> > 			 * Limit reclaim, on the other hand, only cares about
-> > 			 * nr_to_reclaim pages to be reclaimed and it will
-> > 			 * retry with decreasing priority if one round over the
-> > 			 * whole hierarchy is not sufficient.
-> > 			 */
-> > 			if (!global_reclaim(sc) &&
-> > 					sc->nr_reclaimed >= sc->nr_to_reclaim) {
-> > 				mem_cgroup_iter_break(root, memcg);
-> > 				break;
-> > 			}
-> > 			memcg = mem_cgroup_iter(root, memcg, &reclaim);
-> > 		} while (memcg);
-> > 
-> > 
-> > If we can ignore reclaimed slab pages here (?), let's drop this patch.
+> > I had a similar code but then I could trigger quick priority drop downs
+> > during parallel reclaim with multiple low limited groups. I've tried to
+> > address that by retrying shrink_zone if it hasn't called shrink_lruvec
+> > at all. Still not ideal because it can livelock theoretically, but I
+> > haven't seen that in my testing.
 > 
-> I see what you are trying to achieve but can this lead to a serious
-> over-reclaim?
+> Do you remember the circumstances and the exact configuration?
 
-I think it can, but only if we shrink an inode with lots of pages
-attached to its address space (they also count to reclaim_state). In
-this case, we overreclaim anyway though.
+Well, I was testing heavy parallel memory intensive load (combination of
+anon and file) in one memcg and many (hundreds of) idle memcgs to see
+how much overhead memcg traversing would cost us. And I misconfigured by
+setting idle memcgs low-limit to -1 instead of 0. There is nothing
+running in them.
+I've noticed that I can see more pages reclaimed than expected and also
+higher runtime which turned out to be related to longer stalls during
+reclaim rather than the cost of the memcg reclaim iterator.  Debugging
+has shown that many direct reclaimers were racing over low-limited
+groups and dropped to lower priorities. The race window was apparently
+much much smaller than a noop shrink_lruvec run.
 
-I agree that this is a high risk for a vague benefit. Let's drop it
-until we see this problem in real life.
+So in a sense this was a mis-configured system because I do not expect
+so many low limited groups in real life but there was still something
+reclaimable so the machine wasn't really over-committed. So this points
+to an issue which might happen, albeit in a smaller scale, if there are
+many groups, heavy reclaim and some reclaimers unlucky to race and see
+only low-limited groups.
+ 
+> I tested this with around 30 containerized kernel build jobs whose low
+> boundaries pretty much added up to the available physical memory and
+> never observed this.  That being said, thrashing is an emergency path
+> and users should really watch the memory.events low counter.  After
+> all, if global reclaim frequently has to ignore the reserve settings,
+> what's the point of having them in the first place?
 
-Thanks,
-Vladimir
+Sure, over-committed low limit is a misconfiguration. But this is not
+what happened in my testing.
+
+> So while I see that this might burn some cpu cycles when the system is
+> misconfigured, and that we could definitely be smarter about this, I'm
+> not convinced we have to rush a workaround before moving ahead with
+> this patch, especially not one that is prone to livelock the system.
+
+OK, then do not merge it to the original patch. If for nothing else then
+for bisectability. I will post a patch separately. I still think we
+should consider a way how to address it sooner or later because the
+result would be non trivial to debug.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
