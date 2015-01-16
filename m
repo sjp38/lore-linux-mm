@@ -1,96 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 917176B0032
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 23:06:33 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id eu11so21651583pac.11
-        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 20:06:33 -0800 (PST)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id nq15si3938172pdb.212.2015.01.15.20.06.31
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 15 Jan 2015 20:06:32 -0800 (PST)
-Received: by mail-pa0-f43.google.com with SMTP id kx10so21770567pab.2
-        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 20:06:31 -0800 (PST)
-Date: Thu, 15 Jan 2015 20:06:28 -0800
-From: Brian Norris <computersforpeace@gmail.com>
-Subject: Re: [PATCH 03/12] fs: introduce f_op->mmap_capabilities for nommu
- mmap support
-Message-ID: <20150116040628.GG9759@ld-irv-0074>
-References: <1421228561-16857-1-git-send-email-hch@lst.de>
- <1421228561-16857-4-git-send-email-hch@lst.de>
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DF6C6B0038
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 23:07:27 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id et14so21779664pad.1
+        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 20:07:27 -0800 (PST)
+Received: from cdptpa-oedge-vip.email.rr.com (cdptpa-outbound-snat.email.rr.com. [107.14.166.229])
+        by mx.google.com with ESMTP id c4si4087434pas.96.2015.01.15.20.07.25
+        for <linux-mm@kvack.org>;
+        Thu, 15 Jan 2015 20:07:26 -0800 (PST)
+Date: Thu, 15 Jan 2015 23:07:49 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH v2 1/2] mm/slub: optimize alloc/free fastpath by
+ removing preemption on/off
+Message-ID: <20150115230749.5d73ad49@grimm.local.home>
+In-Reply-To: <alpine.DEB.2.11.1501152155480.14236@gentwo.org>
+References: <1421307633-24045-1-git-send-email-iamjoonsoo.kim@lge.com>
+	<20150115171634.685237a4.akpm@linux-foundation.org>
+	<20150115203045.00e9fb73@grimm.local.home>
+	<alpine.DEB.2.11.1501152126300.13976@gentwo.org>
+	<20150115225130.00c0c99a@grimm.local.home>
+	<alpine.DEB.2.11.1501152155480.14236@gentwo.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1421228561-16857-4-git-send-email-hch@lst.de>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Jens Axboe <axboe@fb.com>, linux-nfs@vger.kernel.org, linux-mm@kvack.org, David Howells <dhowells@redhat.com>, linux-fsdevel@vger.kernel.org, linux-mtd@lists.infradead.org, Tejun Heo <tj@kernel.org>, ceph-devel@vger.kernel.org, David Woodhouse <dwmw2@infradead.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>
 
-+ dwmw2
+On Thu, 15 Jan 2015 21:57:58 -0600 (CST)
+Christoph Lameter <cl@linux.com> wrote:
 
-On Wed, Jan 14, 2015 at 10:42:32AM +0100, Christoph Hellwig wrote:
-> Since "BDI: Provide backing device capability information [try #3]" the
-> backing_dev_info structure also provides flags for the kind of mmap
-> operation available in a nommu environment, which is entirely unrelated
-> to it's original purpose.
+> > I get:
+> >
+> > 		mov    %gs:0x18(%rax),%rdx
+> >
+> > Looks to me that %gs is used.
 > 
-> Introduce a new nommu-only file operation to provide this information to
-> the nommu mmap code instead.  Splitting this from the backing_dev_info
-> structure allows to remove lots of backing_dev_info instance that aren't
-> otherwise needed, and entirely gets rid of the concept of providing a
-> backing_dev_info for a character device.  It also removes the need for
-> the mtd_inodefs filesystem.
-> 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
-> Reviewed-by: Tejun Heo <tj@kernel.org>
-> ---
->  Documentation/nommu-mmap.txt                    |  8 +--
->  block/blk-core.c                                |  2 +-
->  drivers/char/mem.c                              | 64 ++++++++++----------
->  drivers/mtd/mtdchar.c                           | 72 ++++------------------
->  drivers/mtd/mtdconcat.c                         | 10 ----
->  drivers/mtd/mtdcore.c                           | 80 +++++++------------------
->  drivers/mtd/mtdpart.c                           |  1 -
+> %gs is used as a segment prefix. That does not add significant cycles.
+> Retrieving the content of %gs and loading it into another register
+> would be expensive in terms of cpu cycles.
 
-There's a small conflict in mtdcore.c with some stuff I have queued up
-for MTD in linux-next. Should be trivial to resolve later.
+OK, maybe that's what I saw in my previous benchmarks. Again, that was
+a while ago.
 
-I don't have a test platform for nommu, and I'll admit I'm not too
-familiar with this code, but it looks OK to me. So FWIW, for the MTD
-parts:
-
-Acked-by: Brian Norris <computersforpeace@gmail.com>
-
->  drivers/staging/lustre/lustre/llite/llite_lib.c |  2 +-
->  fs/9p/v9fs.c                                    |  2 +-
->  fs/afs/volume.c                                 |  2 +-
->  fs/aio.c                                        | 14 +----
->  fs/btrfs/disk-io.c                              |  3 +-
->  fs/char_dev.c                                   | 24 --------
->  fs/cifs/connect.c                               |  2 +-
->  fs/coda/inode.c                                 |  2 +-
->  fs/configfs/configfs_internal.h                 |  2 -
->  fs/configfs/inode.c                             | 18 +-----
->  fs/configfs/mount.c                             | 11 +---
->  fs/ecryptfs/main.c                              |  2 +-
->  fs/exofs/super.c                                |  2 +-
->  fs/ncpfs/inode.c                                |  2 +-
->  fs/ramfs/file-nommu.c                           |  7 +++
->  fs/ramfs/inode.c                                | 22 +------
->  fs/romfs/mmap-nommu.c                           | 10 ++++
->  fs/ubifs/super.c                                |  2 +-
->  include/linux/backing-dev.h                     | 33 ++--------
->  include/linux/cdev.h                            |  2 -
->  include/linux/fs.h                              | 23 +++++++
->  include/linux/mtd/mtd.h                         |  2 +
->  mm/backing-dev.c                                |  7 +--
->  mm/nommu.c                                      | 69 ++++++++++-----------
->  security/security.c                             | 13 ++--
->  32 files changed, 169 insertions(+), 346 deletions(-)
-[...]
-
-Brian
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
