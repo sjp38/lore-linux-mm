@@ -1,127 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f178.google.com (mail-we0-f178.google.com [74.125.82.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 76A0A6B0032
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2015 04:39:55 -0500 (EST)
-Received: by mail-we0-f178.google.com with SMTP id p10so19219425wes.9
-        for <linux-mm@kvack.org>; Fri, 16 Jan 2015 01:39:54 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id hs6si7369843wjb.68.2015.01.16.01.39.53
+Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 38D916B0032
+	for <linux-mm@kvack.org>; Fri, 16 Jan 2015 04:43:36 -0500 (EST)
+Received: by mail-wg0-f51.google.com with SMTP id x12so19484887wgg.10
+        for <linux-mm@kvack.org>; Fri, 16 Jan 2015 01:43:35 -0800 (PST)
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com. [195.75.94.111])
+        by mx.google.com with ESMTPS id x4si7307683wjf.110.2015.01.16.01.43.35
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 16 Jan 2015 01:39:53 -0800 (PST)
-Date: Fri, 16 Jan 2015 10:37:34 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCHSET RFC 0/6] memcg: inode-based dirty-set controller
-Message-ID: <20150116093734.GD25884@quack.suse.cz>
-References: <20150115180242.10450.92.stgit@buzz>
+        Fri, 16 Jan 2015 01:43:35 -0800 (PST)
+Received: from /spool/local
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
+	Fri, 16 Jan 2015 09:43:35 -0000
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (d06relay12.portsmouth.uk.ibm.com [9.149.109.197])
+	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 023022190056
+	for <linux-mm@kvack.org>; Fri, 16 Jan 2015 09:43:32 +0000 (GMT)
+Received: from d06av10.portsmouth.uk.ibm.com (d06av10.portsmouth.uk.ibm.com [9.149.37.251])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t0G9hXYc51839224
+	for <linux-mm@kvack.org>; Fri, 16 Jan 2015 09:43:33 GMT
+Received: from d06av10.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av10.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t0G9hWxN024393
+	for <linux-mm@kvack.org>; Fri, 16 Jan 2015 02:43:32 -0700
+Message-ID: <54B8DD44.1020402@de.ibm.com>
+Date: Fri, 16 Jan 2015 10:43:32 +0100
+From: Christian Borntraeger <borntraeger@de.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150115180242.10450.92.stgit@buzz>
+Subject: Re: [PATCH 1/8] ppc/kvm: Replace ACCESS_ONCE with READ_ONCE
+References: <1421312314-72330-1-git-send-email-borntraeger@de.ibm.com> <1421312314-72330-2-git-send-email-borntraeger@de.ibm.com> <1421363369.23332.8.camel@ellerman.id.au>
+In-Reply-To: <1421363369.23332.8.camel@ellerman.id.au>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khebnikov <khlebnikov@yandex-team.ru>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Roman Gushchin <klamm@yandex-team.ru>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, linux-fsdevel@vger.kernel.org, koct9i@gmail.com
+To: Michael Ellerman <mpe@ellerman.id.au>
+Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, x86@kernel.org, xen-devel@lists.xenproject.org, linux-mm@kvack.org
 
-  Hello,
+Am 16.01.2015 um 00:09 schrieb Michael Ellerman:
+> On Thu, 2015-01-15 at 09:58 +0100, Christian Borntraeger wrote:
+>> ACCESS_ONCE does not work reliably on non-scalar types. For
+>> example gcc 4.6 and 4.7 might remove the volatile tag for such
+>> accesses during the SRA (scalar replacement of aggregates) step
+>> (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=58145)
+>>
+>> Change the ppc/kvm code to replace ACCESS_ONCE with READ_ONCE.
+>>
+>> Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
+>> ---
+>>  arch/powerpc/kvm/book3s_hv_rm_xics.c |  8 ++++----
+>>  arch/powerpc/kvm/book3s_xics.c       | 16 ++++++++--------
+>>  2 files changed, 12 insertions(+), 12 deletions(-)
+>>
+>> diff --git a/arch/powerpc/kvm/book3s_hv_rm_xics.c b/arch/powerpc/kvm/book3s_hv_rm_xics.c
+>> index 7b066f6..7c22997 100644
+>> --- a/arch/powerpc/kvm/book3s_hv_rm_xics.c
+>> +++ b/arch/powerpc/kvm/book3s_hv_rm_xics.c
+>> @@ -152,7 +152,7 @@ static void icp_rm_down_cppr(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
+>>  	 * in virtual mode.
+>>  	 */
+>>  	do {
+>> -		old_state = new_state = ACCESS_ONCE(icp->state);
+>> +		old_state = new_state = READ_ONCE(icp->state);
+> 
+> These are all icp->state.
+> 
+> Which is a union, but it's only the size of unsigned long. So in practice there
+> shouldn't be a bug here right?
 
-On Thu 15-01-15 21:49:10, Konstantin Khebnikov wrote:
-> This is ressurection of my old RFC patch for dirty-set accounting cgroup [1]
-> Now it's merged into memory cgroup and got bandwidth controller as a bonus.
-> 
-> That shows alternative solution: less accurate but much less monstrous than
-> accurate page-based dirty-set controller from Tejun Heo.
-> 
-> Memory overhead: +1 pointer into struct address_space.
-> Perfomance overhead is almost zero, no new locks added.
-> 
-> Idea is stright forward: link each inode to some cgroup when first dirty
-> page appers and account all dirty pages to it. Writeback is implemented
-> as single per-bdi writeback work which writes only inodes which belong
-> to memory cgroups where amount of dirty memory is beyond thresholds.
-> 
-> Third patch adds trick for handling shared inodes which have dirty pages
-> from several cgroups: it marks whole inode as shared and alters writeback
-> filter for it.
-> 
-> The rest is an example of bandwith and iops controller build on top of that.
-> Design is completely original, I bet nobody ever used task-works for that =)
-  So I like the simplicity of your code but there are a few downsides too
-(please correct me if I've got something wrong - btw the documentation of
-high-level design would be welcome so that one doesn't have to understand
-that from the patches):
-1) The bandwidth controller simply accounts number of bytes submitted for
-IO in submit_bio().  This doesn't reflect HW capabilities in any way. There
-a huge difference between a process submitting single block random IO and a
-process doing the same amount of sequential IO. This could be somewhat
-dealt with by not accounting number of bytes but rather time it took to
-complete a bio (but that somewhat complicates the code and block layer
-already does similar counting so it would be good you used that).
+This bug was that gcc lost the volatile tag when propagating aggregates to scalar types.
+So in theory a union could be affected. See the original problem
+ ( http://marc.info/?i=54611D86.4040306%40de.ibm.com ) 
+which happened on 
 
-2) The controller accounts bio to current task - that makes the limiting
-useless for background writeback. You need to somehow propagate i_memcg
-into submit_bio() so that IO is properly accounted.
+union ipte_control {
+        unsigned long val;
+        struct {
+                unsigned long k  : 1;
+                unsigned long kh : 31;
+                unsigned long kg : 32;
+        };
+};
 
-3) The controller doesn't seem to guarantee any quality of service at the
-IO level like blkcg does. The controller limits amount of IO userspace is
-able to submit to kernel but only after we decide to submit the IO to disk.
-So at that time cgroup may have generated lots of IO - e.g. by dirtying lots
-of pages - and there's nothing to protect other cgroups from starvation
-because of writeback of these pages.
+Christian
 
-Especially the last point seems to be essential to your approach (although
-you could somewhat mitigate the issue by accounting the IO already when
-it is entering the kernel) and I'm not sure whether that's really
-acceptable for potential users of this feature.
-
-								Honza
-> [1] [PATCH RFC] fsio: filesystem io accounting cgroup
-> http://marc.info/?l=linux-kernel&m=137331569501655&w=2
-> 
-> Patches also available here:
-> https://github.com/koct9i/linux.git branch memcg_dirty_control
-> 
-> ---
-> 
-> Konstantin Khebnikov (6):
->       memcg: inode-based dirty and writeback pages accounting
->       memcg: dirty-set limiting and filtered writeback
->       memcg: track shared inodes with dirty pages
->       percpu_ratelimit: high-performance ratelimiting counter
->       delay-injection: resource management via procrastination
->       memcg: filesystem bandwidth controller
-> 
-> 
->  block/blk-core.c                 |    2 
->  fs/direct-io.c                   |    2 
->  fs/fs-writeback.c                |   22 ++
->  fs/inode.c                       |    1 
->  include/linux/backing-dev.h      |    1 
->  include/linux/fs.h               |   14 +
->  include/linux/memcontrol.h       |   27 +++
->  include/linux/percpu_ratelimit.h |   45 ++++
->  include/linux/sched.h            |    7 +
->  include/linux/writeback.h        |    1 
->  include/trace/events/sched.h     |    7 +
->  include/trace/events/writeback.h |    1 
->  kernel/sched/core.c              |   66 +++++++
->  kernel/sched/fair.c              |   12 +
->  lib/Makefile                     |    1 
->  lib/percpu_ratelimit.c           |  168 +++++++++++++++++
->  mm/memcontrol.c                  |  381 ++++++++++++++++++++++++++++++++++++++
->  mm/page-writeback.c              |   32 +++
->  mm/readahead.c                   |    2 
->  mm/truncate.c                    |    1 
->  mm/vmscan.c                      |    4 
->  21 files changed, 787 insertions(+), 10 deletions(-)
->  create mode 100644 include/linux/percpu_ratelimit.h
->  create mode 100644 lib/percpu_ratelimit.c
-> 
-> --
-> Signature
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
