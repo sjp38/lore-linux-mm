@@ -1,47 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f179.google.com (mail-ie0-f179.google.com [209.85.223.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D7356B0032
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2015 11:37:43 -0500 (EST)
-Received: by mail-ie0-f179.google.com with SMTP id rp18so21540620iec.10
-        for <linux-mm@kvack.org>; Fri, 16 Jan 2015 08:37:43 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0063.hostedemail.com. [216.40.44.63])
-        by mx.google.com with ESMTP id hh11si6852424icb.99.2015.01.16.08.37.41
-        for <linux-mm@kvack.org>;
-        Fri, 16 Jan 2015 08:37:42 -0800 (PST)
-Date: Fri, 16 Jan 2015 11:37:36 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v2 1/2] mm/slub: optimize alloc/free fastpath by
- removing preemption on/off
-Message-ID: <20150116113736.59406ea8@gandalf.local.home>
-In-Reply-To: <1421415659.11734.131.camel@edumazet-glaptop2.roam.corp.google.com>
-References: <1421307633-24045-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<20150115171634.685237a4.akpm@linux-foundation.org>
-	<20150115203045.00e9fb73@grimm.local.home>
-	<alpine.DEB.2.11.1501152126300.13976@gentwo.org>
-	<20150115225130.00c0c99a@grimm.local.home>
-	<alpine.DEB.2.11.1501152155480.14236@gentwo.org>
-	<20150115230749.5d73ad49@grimm.local.home>
-	<1421415659.11734.131.camel@edumazet-glaptop2.roam.corp.google.com>
+Received: from mail-vc0-f169.google.com (mail-vc0-f169.google.com [209.85.220.169])
+	by kanga.kvack.org (Postfix) with ESMTP id E84D36B0032
+	for <linux-mm@kvack.org>; Fri, 16 Jan 2015 11:49:02 -0500 (EST)
+Received: by mail-vc0-f169.google.com with SMTP id hy10so7045469vcb.0
+        for <linux-mm@kvack.org>; Fri, 16 Jan 2015 08:49:02 -0800 (PST)
+Received: from mail-vc0-x231.google.com (mail-vc0-x231.google.com. [2607:f8b0:400c:c03::231])
+        by mx.google.com with ESMTPS id il1si1646342vdb.69.2015.01.16.08.49.01
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 16 Jan 2015 08:49:02 -0800 (PST)
+Received: by mail-vc0-f177.google.com with SMTP id la4so888158vcb.8
+        for <linux-mm@kvack.org>; Fri, 16 Jan 2015 08:49:01 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+From: Greg Thelen <gthelen@google.com>
+Date: Fri, 16 Jan 2015 08:48:41 -0800
+Message-ID: <CAHH2K0ZZEBH-h2YXiQB4=TGmcb4o9zwBgwT8AiHOD7CoCxbZtw@mail.gmail.com>
+Subject: [LSF/MM ATTEND] Attend
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>
+To: lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, 16 Jan 2015 05:40:59 -0800
-Eric Dumazet <eric.dumazet@gmail.com> wrote:
-
-> I made same observation about 3 years ago, on old cpus.
-> 
-
-Thank you for letting me know. I was thinking I was going insane!
-
-(yeah yeah, there's lots of people who will still say that I've already
-gone insane, but at least I know my memory is still intact)
-
--- Steve
+I would like to attend this year's LSF/MM conference.  I am interested
+in the MM track for memcg kmem accounting, memcg interface changes,
+and too-small-to-fail page allocations.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
