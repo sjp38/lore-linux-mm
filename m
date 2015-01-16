@@ -1,50 +1,187 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DF6C6B0038
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 23:07:27 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id et14so21779664pad.1
-        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 20:07:27 -0800 (PST)
-Received: from cdptpa-oedge-vip.email.rr.com (cdptpa-outbound-snat.email.rr.com. [107.14.166.229])
-        by mx.google.com with ESMTP id c4si4087434pas.96.2015.01.15.20.07.25
-        for <linux-mm@kvack.org>;
-        Thu, 15 Jan 2015 20:07:26 -0800 (PST)
-Date: Thu, 15 Jan 2015 23:07:49 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v2 1/2] mm/slub: optimize alloc/free fastpath by
- removing preemption on/off
-Message-ID: <20150115230749.5d73ad49@grimm.local.home>
-In-Reply-To: <alpine.DEB.2.11.1501152155480.14236@gentwo.org>
-References: <1421307633-24045-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<20150115171634.685237a4.akpm@linux-foundation.org>
-	<20150115203045.00e9fb73@grimm.local.home>
-	<alpine.DEB.2.11.1501152126300.13976@gentwo.org>
-	<20150115225130.00c0c99a@grimm.local.home>
-	<alpine.DEB.2.11.1501152155480.14236@gentwo.org>
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 55D9C6B0032
+	for <linux-mm@kvack.org>; Fri, 16 Jan 2015 00:10:12 -0500 (EST)
+Received: by mail-ig0-f171.google.com with SMTP id z20so1739540igj.4
+        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 21:10:12 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id fq1si6166801icb.11.2015.01.15.21.10.10
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Jan 2015 21:10:10 -0800 (PST)
+Message-ID: <54B89D29.5000702@codeaurora.org>
+Date: Fri, 16 Jan 2015 10:40:01 +0530
+From: Vinayak Menon <vinmenon@codeaurora.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Subject: Re: [PATCH v2] mm: vmscan: fix the page state calculation in too_many_isolated
+References: <1421235419-30736-1-git-send-email-vinmenon@codeaurora.org> <20150115171728.ebc77a48.akpm@linux-foundation.org>
+In-Reply-To: <20150115171728.ebc77a48.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, hannes@cmpxchg.org, vdavydov@parallels.com, mhocko@suse.cz, mgorman@suse.de, minchan@kernel.org
 
-On Thu, 15 Jan 2015 21:57:58 -0600 (CST)
-Christoph Lameter <cl@linux.com> wrote:
+On 01/16/2015 06:47 AM, Andrew Morton wrote:
+> On Wed, 14 Jan 2015 17:06:59 +0530 Vinayak Menon <vinmenon@codeaurora.org> wrote:
+>
+>> It is observed that sometimes multiple tasks get blocked for long
+>> in the congestion_wait loop below, in shrink_inactive_list. This
+>> is because of vm_stat values not being synced.
+>>
+>> (__schedule) from [<c0a03328>]
+>> (schedule_timeout) from [<c0a04940>]
+>> (io_schedule_timeout) from [<c01d585c>]
+>> (congestion_wait) from [<c01cc9d8>]
+>> (shrink_inactive_list) from [<c01cd034>]
+>> (shrink_zone) from [<c01cdd08>]
+>> (try_to_free_pages) from [<c01c442c>]
+>> (__alloc_pages_nodemask) from [<c01f1884>]
+>> (new_slab) from [<c09fcf60>]
+>> (__slab_alloc) from [<c01f1a6c>]
+>>
+>> In one such instance, zone_page_state(zone, NR_ISOLATED_FILE)
+>> had returned 14, zone_page_state(zone, NR_INACTIVE_FILE)
+>> returned 92, and GFP_IOFS was set, and this resulted
+>> in too_many_isolated returning true. But one of the CPU's
+>> pageset vm_stat_diff had NR_ISOLATED_FILE as "-14". So the
+>> actual isolated count was zero. As there weren't any more
+>> updates to NR_ISOLATED_FILE and vmstat_update deffered work
+>> had not been scheduled yet, 7 tasks were spinning in the
+>> congestion wait loop for around 4 seconds, in the direct
+>> reclaim path.
+>>
+>> This patch uses zone_page_state_snapshot instead, but restricts
+>> its usage to avoid performance penalty.
+>
+> Seems reasonable.
+>
+>>
+>> ...
+>>
+>> @@ -1516,15 +1531,18 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+>>   	unsigned long nr_immediate = 0;
+>>   	isolate_mode_t isolate_mode = 0;
+>>   	int file = is_file_lru(lru);
+>> +	int safe = 0;
+>>   	struct zone *zone = lruvec_zone(lruvec);
+>>   	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
+>>
+>> -	while (unlikely(too_many_isolated(zone, file, sc))) {
+>> +	while (unlikely(too_many_isolated(zone, file, sc, safe))) {
+>>   		congestion_wait(BLK_RW_ASYNC, HZ/10);
+>>
+>>   		/* We are about to die and free our memory. Return now. */
+>>   		if (fatal_signal_pending(current))
+>>   			return SWAP_CLUSTER_MAX;
+>> +
+>> +		safe = 1;
+>>   	}
+>
+> But here and under the circumstances you describe, we'll call
+> congestion_wait() a single time.  That shouldn't have occurred.
+>
+> So how about we put the fallback logic into too_many_isolated() itself?
+>
+>
 
-> > I get:
-> >
-> > 		mov    %gs:0x18(%rax),%rdx
-> >
-> > Looks to me that %gs is used.
-> 
-> %gs is used as a segment prefix. That does not add significant cycles.
-> Retrieving the content of %gs and loading it into another register
-> would be expensive in terms of cpu cycles.
+congestion_wait was allowed to run once as an optimization, considering 
+that __too_many_isolated (unsafe and faster) can be correct in returning 
+true most of the time. So we avoid calling the safe version, in most of 
+the cases. But I agree that we should not call congestion_wait 
+unnecessarily even in those rare cases. So this looks correct to me.
 
-OK, maybe that's what I saw in my previous benchmarks. Again, that was
-a while ago.
 
--- Steve
+>
+> From: Andrew Morton <akpm@linux-foundation.org>
+> Subject: mm-vmscan-fix-the-page-state-calculation-in-too_many_isolated-fix
+>
+> Move the zone_page_state_snapshot() fallback logic into
+> too_many_isolated(), so shrink_inactive_list() doesn't incorrectly call
+> congestion_wait().
+>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Vinayak Menon <vinmenon@codeaurora.org>
+> Cc: Vladimir Davydov <vdavydov@parallels.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+>
+>   mm/vmscan.c |   23 +++++++++++------------
+>   1 file changed, 11 insertions(+), 12 deletions(-)
+>
+> diff -puN mm/vmscan.c~mm-vmscan-fix-the-page-state-calculation-in-too_many_isolated-fix mm/vmscan.c
+> --- a/mm/vmscan.c~mm-vmscan-fix-the-page-state-calculation-in-too_many_isolated-fix
+> +++ a/mm/vmscan.c
+> @@ -1402,7 +1402,7 @@ int isolate_lru_page(struct page *page)
+>   }
+>
+>   static int __too_many_isolated(struct zone *zone, int file,
+> -	struct scan_control *sc, int safe)
+> +			       struct scan_control *sc, int safe)
+>   {
+>   	unsigned long inactive, isolated;
+>
+> @@ -1435,7 +1435,7 @@ static int __too_many_isolated(struct zo
+>    * unnecessary swapping, thrashing and OOM.
+>    */
+>   static int too_many_isolated(struct zone *zone, int file,
+> -		struct scan_control *sc, int safe)
+> +			     struct scan_control *sc)
+>   {
+>   	if (current_is_kswapd())
+>   		return 0;
+> @@ -1443,12 +1443,14 @@ static int too_many_isolated(struct zone
+>   	if (!global_reclaim(sc))
+>   		return 0;
+>
+> -	if (unlikely(__too_many_isolated(zone, file, sc, 0))) {
+> -		if (safe)
+> -			return __too_many_isolated(zone, file, sc, safe);
+> -		else
+> -			return 1;
+> -	}
+> +	/*
+> +	 * __too_many_isolated(safe=0) is fast but inaccurate, because it
+> +	 * doesn't account for the vm_stat_diff[] counters.  So if it looks
+> +	 * like too_many_isolated() is about to return true, fall back to the
+> +	 * slower, more accurate zone_page_state_snapshot().
+> +	 */
+> +	if (unlikely(__too_many_isolated(zone, file, sc, 0)))
+> +		return __too_many_isolated(zone, file, sc, safe);
+>
+>   	return 0;
+>   }
+> @@ -1540,18 +1542,15 @@ shrink_inactive_list(unsigned long nr_to
+>   	unsigned long nr_immediate = 0;
+>   	isolate_mode_t isolate_mode = 0;
+>   	int file = is_file_lru(lru);
+> -	int safe = 0;
+>   	struct zone *zone = lruvec_zone(lruvec);
+>   	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
+>
+> -	while (unlikely(too_many_isolated(zone, file, sc, safe))) {
+> +	while (unlikely(too_many_isolated(zone, file, sc))) {
+>   		congestion_wait(BLK_RW_ASYNC, HZ/10);
+>
+>   		/* We are about to die and free our memory. Return now. */
+>   		if (fatal_signal_pending(current))
+>   			return SWAP_CLUSTER_MAX;
+> -
+> -		safe = 1;
+>   	}
+>
+>   	lru_add_drain();
+> _
+>
+
+
+-- 
+QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
+member of the Code Aurora Forum, hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
