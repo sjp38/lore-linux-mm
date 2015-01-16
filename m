@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 675886B0074
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2015 09:13:34 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id et14so24486069pad.3
-        for <linux-mm@kvack.org>; Fri, 16 Jan 2015 06:13:34 -0800 (PST)
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id E17906B0078
+	for <linux-mm@kvack.org>; Fri, 16 Jan 2015 09:13:36 -0500 (EST)
+Received: by mail-pd0-f177.google.com with SMTP id ft15so22884487pdb.8
+        for <linux-mm@kvack.org>; Fri, 16 Jan 2015 06:13:36 -0800 (PST)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id yt1si5702841pab.64.2015.01.16.06.13.31
+        by mx.google.com with ESMTPS id cm5si5762714pad.14.2015.01.16.06.13.34
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Jan 2015 06:13:32 -0800 (PST)
+        Fri, 16 Jan 2015 06:13:35 -0800 (PST)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm 4/6] memcg: free memcg_caches slot on css offline
-Date: Fri, 16 Jan 2015 17:13:04 +0300
-Message-ID: <0488f6e83839cb30745f0dbe6ad3344152343a37.1421411660.git.vdavydov@parallels.com>
+Subject: [PATCH -mm 5/6] list_lru: add helpers to isolate items
+Date: Fri, 16 Jan 2015 17:13:05 +0300
+Message-ID: <7cd4d58c4559f9c1a324a496701c2e671d4e91b1.1421411660.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1421411660.git.vdavydov@parallels.com>
 References: <cover.1421411660.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -22,241 +22,318 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-We need to look up a kmem_cache in ->memcg_params.memcg_caches arrays
-only on allocations, so there is no need to have the array entries set
-until css free - we can clear them on css offline. This will allow us to
-reuse array entries more efficiently and avoid costly array relocations.
+Currently, the isolate callback passed to the list_lru_walk family of
+functions is supposed to just delete an item from the list upon
+returning LRU_REMOVED or LRU_REMOVED_RETRY, while nr_items counter is
+fixed by __list_lru_walk_one after the callback returns. Since the
+callback is allowed to drop the lock after removing an item (it has to
+return LRU_REMOVED_RETRY then), the nr_items can be less than the actual
+number of elements on the list even if we check them under the lock.
+This makes it difficult to move items from one list_lru_one to another,
+which is required for per-memcg list_lru reparenting - we can't just
+splice the lists, we have to move entries one by one.
+
+This patch therefore introduces helpers that must be used by callback
+functions to isolate items instead of raw list_del/list_move. These are
+list_lru_isolate and list_lru_isolate_move. They not only remove the
+entry from the list, but also fix the nr_items counter, making sure
+nr_items always reflects the actual number of elements on the list if
+checked under the appropriate lock.
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 ---
- include/linux/slab.h |   10 +++++-----
- mm/memcontrol.c      |   38 ++++++++++++++++++++++++++++++++------
- mm/slab_common.c     |   39 ++++++++++++++++++++++++++++-----------
- mm/vmscan.c          |    2 +-
- 4 files changed, 66 insertions(+), 23 deletions(-)
+ fs/dcache.c              |   21 +++++++++++----------
+ fs/gfs2/quota.c          |    5 +++--
+ fs/inode.c               |    8 ++++----
+ fs/xfs/xfs_buf.c         |    6 ++++--
+ fs/xfs/xfs_qm.c          |    5 +++--
+ include/linux/list_lru.h |    9 +++++++--
+ mm/list_lru.c            |   19 ++++++++++++++++---
+ mm/workingset.c          |    3 ++-
+ 8 files changed, 50 insertions(+), 26 deletions(-)
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 26d99f41b410..ed2ffaab59ea 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -115,13 +115,12 @@ int slab_is_available(void);
- struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
- 			unsigned long,
- 			void (*)(void *));
--#ifdef CONFIG_MEMCG_KMEM
--void memcg_create_kmem_cache(struct mem_cgroup *, struct kmem_cache *);
--void memcg_destroy_kmem_caches(struct mem_cgroup *);
--#endif
- void kmem_cache_destroy(struct kmem_cache *);
- int kmem_cache_shrink(struct kmem_cache *);
--void kmem_cache_free(struct kmem_cache *, void *);
-+
-+void memcg_create_kmem_cache(struct mem_cgroup *, struct kmem_cache *);
-+void memcg_deactivate_kmem_caches(struct mem_cgroup *);
-+void memcg_destroy_kmem_caches(struct mem_cgroup *);
+diff --git a/fs/dcache.c b/fs/dcache.c
+index 9d71d6d2478a..fc576d5341ee 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -400,19 +400,20 @@ static void d_shrink_add(struct dentry *dentry, struct list_head *list)
+  * LRU lists entirely, while shrink_move moves it to the indicated
+  * private list.
+  */
+-static void d_lru_isolate(struct dentry *dentry)
++static void d_lru_isolate(struct list_lru_one *lru, struct dentry *dentry)
+ {
+ 	D_FLAG_VERIFY(dentry, DCACHE_LRU_LIST);
+ 	dentry->d_flags &= ~DCACHE_LRU_LIST;
+ 	this_cpu_dec(nr_dentry_unused);
+-	list_del_init(&dentry->d_lru);
++	list_lru_isolate(lru, &dentry->d_lru);
+ }
+ 
+-static void d_lru_shrink_move(struct dentry *dentry, struct list_head *list)
++static void d_lru_shrink_move(struct list_lru_one *lru, struct dentry *dentry,
++			      struct list_head *list)
+ {
+ 	D_FLAG_VERIFY(dentry, DCACHE_LRU_LIST);
+ 	dentry->d_flags |= DCACHE_SHRINK_LIST;
+-	list_move_tail(&dentry->d_lru, list);
++	list_lru_isolate_move(lru, &dentry->d_lru, list);
+ }
  
  /*
-  * Please use this macro to create slab caches. Simply specify the
-@@ -288,6 +287,7 @@ static __always_inline int kmalloc_index(size_t size)
- 
- void *__kmalloc(size_t size, gfp_t flags);
- void *kmem_cache_alloc(struct kmem_cache *, gfp_t flags);
-+void kmem_cache_free(struct kmem_cache *, void *);
- 
- #ifdef CONFIG_NUMA
- void *__kmalloc_node(size_t size, gfp_t flags, int node);
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index f03bd5b2797e..b82ddb68ffd6 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -347,6 +347,7 @@ struct mem_cgroup {
- #if defined(CONFIG_MEMCG_KMEM)
-         /* Index in the kmem_cache->memcg_params.memcg_caches array */
- 	int kmemcg_id;
-+	bool kmem_acct_active;
- #endif
- 
- 	int last_scanned_node;
-@@ -367,7 +368,7 @@ struct mem_cgroup {
- #ifdef CONFIG_MEMCG_KMEM
- bool memcg_kmem_is_active(struct mem_cgroup *memcg)
- {
--	return memcg->kmemcg_id >= 0;
-+	return memcg->kmem_acct_active;
- }
- #endif
- 
-@@ -611,7 +612,7 @@ static void memcg_free_cache_id(int id);
- 
- static void disarm_kmem_keys(struct mem_cgroup *memcg)
- {
--	if (memcg_kmem_is_active(memcg)) {
-+	if (memcg->kmemcg_id >= 0) {
- 		static_key_slow_dec(&memcg_kmem_enabled_key);
- 		memcg_free_cache_id(memcg->kmemcg_id);
+@@ -869,8 +870,8 @@ static void shrink_dentry_list(struct list_head *list)
  	}
-@@ -2675,6 +2676,7 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep)
+ }
+ 
+-static enum lru_status
+-dentry_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
++static enum lru_status dentry_lru_isolate(struct list_head *item,
++		struct list_lru_one *lru, spinlock_t *lru_lock, void *arg)
  {
- 	struct mem_cgroup *memcg;
- 	struct kmem_cache *memcg_cachep;
-+	int kmemcg_id;
+ 	struct list_head *freeable = arg;
+ 	struct dentry	*dentry = container_of(item, struct dentry, d_lru);
+@@ -890,7 +891,7 @@ dentry_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
+ 	 * another pass through the LRU.
+ 	 */
+ 	if (dentry->d_lockref.count) {
+-		d_lru_isolate(dentry);
++		d_lru_isolate(lru, dentry);
+ 		spin_unlock(&dentry->d_lock);
+ 		return LRU_REMOVED;
+ 	}
+@@ -921,7 +922,7 @@ dentry_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
+ 		return LRU_ROTATE;
+ 	}
  
- 	VM_BUG_ON(!is_root_cache(cachep));
+-	d_lru_shrink_move(dentry, freeable);
++	d_lru_shrink_move(lru, dentry, freeable);
+ 	spin_unlock(&dentry->d_lock);
  
-@@ -2682,10 +2684,11 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep)
- 		return cachep;
+ 	return LRU_REMOVED;
+@@ -951,7 +952,7 @@ long prune_dcache_sb(struct super_block *sb, struct shrink_control *sc)
+ }
  
- 	memcg = get_mem_cgroup_from_mm(current->mm);
--	if (!memcg_kmem_is_active(memcg))
-+	kmemcg_id = ACCESS_ONCE(memcg->kmemcg_id);
-+	if (kmemcg_id < 0)
+ static enum lru_status dentry_lru_isolate_shrink(struct list_head *item,
+-						spinlock_t *lru_lock, void *arg)
++		struct list_lru_one *lru, spinlock_t *lru_lock, void *arg)
+ {
+ 	struct list_head *freeable = arg;
+ 	struct dentry	*dentry = container_of(item, struct dentry, d_lru);
+@@ -964,7 +965,7 @@ static enum lru_status dentry_lru_isolate_shrink(struct list_head *item,
+ 	if (!spin_trylock(&dentry->d_lock))
+ 		return LRU_SKIP;
+ 
+-	d_lru_shrink_move(dentry, freeable);
++	d_lru_shrink_move(lru, dentry, freeable);
+ 	spin_unlock(&dentry->d_lock);
+ 
+ 	return LRU_REMOVED;
+diff --git a/fs/gfs2/quota.c b/fs/gfs2/quota.c
+index 56db71d5c95f..5073da38cf06 100644
+--- a/fs/gfs2/quota.c
++++ b/fs/gfs2/quota.c
+@@ -145,7 +145,8 @@ static void gfs2_qd_dispose(struct list_head *list)
+ }
+ 
+ 
+-static enum lru_status gfs2_qd_isolate(struct list_head *item, spinlock_t *lock, void *arg)
++static enum lru_status gfs2_qd_isolate(struct list_head *item,
++		struct list_lru_one *lru, spinlock_t *lru_lock, void *arg)
+ {
+ 	struct list_head *dispose = arg;
+ 	struct gfs2_quota_data *qd = list_entry(item, struct gfs2_quota_data, qd_lru);
+@@ -155,7 +156,7 @@ static enum lru_status gfs2_qd_isolate(struct list_head *item, spinlock_t *lock,
+ 
+ 	if (qd->qd_lockref.count == 0) {
+ 		lockref_mark_dead(&qd->qd_lockref);
+-		list_move(&qd->qd_lru, dispose);
++		list_lru_isolate_move(lru, &qd->qd_lru, dispose);
+ 	}
+ 
+ 	spin_unlock(&qd->qd_lockref.lock);
+diff --git a/fs/inode.c b/fs/inode.c
+index b80b17a09d36..198dbcd6554a 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -684,8 +684,8 @@ int invalidate_inodes(struct super_block *sb, bool kill_dirty)
+  * LRU does not have strict ordering. Hence we don't want to reclaim inodes
+  * with this flag set because they are the inodes that are out of order.
+  */
+-static enum lru_status
+-inode_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
++static enum lru_status inode_lru_isolate(struct list_head *item,
++		struct list_lru_one *lru, spinlock_t *lru_lock, void *arg)
+ {
+ 	struct list_head *freeable = arg;
+ 	struct inode	*inode = container_of(item, struct inode, i_lru);
+@@ -703,7 +703,7 @@ inode_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
+ 	 */
+ 	if (atomic_read(&inode->i_count) ||
+ 	    (inode->i_state & ~I_REFERENCED)) {
+-		list_del_init(&inode->i_lru);
++		list_lru_isolate(lru, &inode->i_lru);
+ 		spin_unlock(&inode->i_lock);
+ 		this_cpu_dec(nr_unused);
+ 		return LRU_REMOVED;
+@@ -737,7 +737,7 @@ inode_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
+ 
+ 	WARN_ON(inode->i_state & I_NEW);
+ 	inode->i_state |= I_FREEING;
+-	list_move(&inode->i_lru, freeable);
++	list_lru_isolate_move(lru, &inode->i_lru, freeable);
+ 	spin_unlock(&inode->i_lock);
+ 
+ 	this_cpu_dec(nr_unused);
+diff --git a/fs/xfs/xfs_buf.c b/fs/xfs/xfs_buf.c
+index 15c9d224c721..1790b00bea7a 100644
+--- a/fs/xfs/xfs_buf.c
++++ b/fs/xfs/xfs_buf.c
+@@ -1488,6 +1488,7 @@ xfs_buf_iomove(
+ static enum lru_status
+ xfs_buftarg_wait_rele(
+ 	struct list_head	*item,
++	struct list_lru_one	*lru,
+ 	spinlock_t		*lru_lock,
+ 	void			*arg)
+ 
+@@ -1509,7 +1510,7 @@ xfs_buftarg_wait_rele(
+ 	 */
+ 	atomic_set(&bp->b_lru_ref, 0);
+ 	bp->b_state |= XFS_BSTATE_DISPOSE;
+-	list_move(item, dispose);
++	list_lru_isolate_move(lru, item, dispose);
+ 	spin_unlock(&bp->b_lock);
+ 	return LRU_REMOVED;
+ }
+@@ -1546,6 +1547,7 @@ xfs_wait_buftarg(
+ static enum lru_status
+ xfs_buftarg_isolate(
+ 	struct list_head	*item,
++	struct list_lru_one	*lru,
+ 	spinlock_t		*lru_lock,
+ 	void			*arg)
+ {
+@@ -1569,7 +1571,7 @@ xfs_buftarg_isolate(
+ 	}
+ 
+ 	bp->b_state |= XFS_BSTATE_DISPOSE;
+-	list_move(item, dispose);
++	list_lru_isolate_move(lru, item, dispose);
+ 	spin_unlock(&bp->b_lock);
+ 	return LRU_REMOVED;
+ }
+diff --git a/fs/xfs/xfs_qm.c b/fs/xfs/xfs_qm.c
+index d77bf6d8312a..3bd04531a349 100644
+--- a/fs/xfs/xfs_qm.c
++++ b/fs/xfs/xfs_qm.c
+@@ -430,6 +430,7 @@ struct xfs_qm_isolate {
+ static enum lru_status
+ xfs_qm_dquot_isolate(
+ 	struct list_head	*item,
++	struct list_lru_one	*lru,
+ 	spinlock_t		*lru_lock,
+ 	void			*arg)
+ 		__releases(lru_lock) __acquires(lru_lock)
+@@ -450,7 +451,7 @@ xfs_qm_dquot_isolate(
+ 		XFS_STATS_INC(xs_qm_dqwants);
+ 
+ 		trace_xfs_dqreclaim_want(dqp);
+-		list_del_init(&dqp->q_lru);
++		list_lru_isolate(lru, &dqp->q_lru);
+ 		XFS_STATS_DEC(xs_qm_dquot_unused);
+ 		return LRU_REMOVED;
+ 	}
+@@ -494,7 +495,7 @@ xfs_qm_dquot_isolate(
+ 	xfs_dqunlock(dqp);
+ 
+ 	ASSERT(dqp->q_nrefs == 0);
+-	list_move_tail(&dqp->q_lru, &isol->dispose);
++	list_lru_isolate_move(lru, &dqp->q_lru, &isol->dispose);
+ 	XFS_STATS_DEC(xs_qm_dquot_unused);
+ 	trace_xfs_dqreclaim_done(dqp);
+ 	XFS_STATS_INC(xs_qm_dqreclaims);
+diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
+index 305b598abac2..7edf9c9ab9eb 100644
+--- a/include/linux/list_lru.h
++++ b/include/linux/list_lru.h
+@@ -125,8 +125,13 @@ static inline unsigned long list_lru_count(struct list_lru *lru)
+ 	return count;
+ }
+ 
+-typedef enum lru_status
+-(*list_lru_walk_cb)(struct list_head *item, spinlock_t *lock, void *cb_arg);
++void list_lru_isolate(struct list_lru_one *list, struct list_head *item);
++void list_lru_isolate_move(struct list_lru_one *list, struct list_head *item,
++			   struct list_head *head);
++
++typedef enum lru_status (*list_lru_walk_cb)(struct list_head *item,
++		struct list_lru_one *list, spinlock_t *lock, void *cb_arg);
++
+ /**
+  * list_lru_walk_one: walk a list_lru, isolating and disposing freeable items.
+  * @lru: the lru pointer.
+diff --git a/mm/list_lru.c b/mm/list_lru.c
+index 79aee70c3b9d..8d9d168c6c38 100644
+--- a/mm/list_lru.c
++++ b/mm/list_lru.c
+@@ -132,6 +132,21 @@ bool list_lru_del(struct list_lru *lru, struct list_head *item)
+ }
+ EXPORT_SYMBOL_GPL(list_lru_del);
+ 
++void list_lru_isolate(struct list_lru_one *list, struct list_head *item)
++{
++	list_del_init(item);
++	list->nr_items--;
++}
++EXPORT_SYMBOL_GPL(list_lru_isolate);
++
++void list_lru_isolate_move(struct list_lru_one *list, struct list_head *item,
++			   struct list_head *head)
++{
++	list_move(item, head);
++	list->nr_items--;
++}
++EXPORT_SYMBOL_GPL(list_lru_isolate_move);
++
+ static unsigned long __list_lru_count_one(struct list_lru *lru,
+ 					  int nid, int memcg_idx)
+ {
+@@ -194,13 +209,11 @@ restart:
+ 			break;
+ 		--*nr_to_walk;
+ 
+-		ret = isolate(item, &nlru->lock, cb_arg);
++		ret = isolate(item, l, &nlru->lock, cb_arg);
+ 		switch (ret) {
+ 		case LRU_REMOVED_RETRY:
+ 			assert_spin_locked(&nlru->lock);
+ 		case LRU_REMOVED:
+-			l->nr_items--;
+-			WARN_ON_ONCE(l->nr_items < 0);
+ 			isolated++;
+ 			/*
+ 			 * If the lru lock has been dropped, our list
+diff --git a/mm/workingset.c b/mm/workingset.c
+index d4fa7fb10a52..aa017133744b 100644
+--- a/mm/workingset.c
++++ b/mm/workingset.c
+@@ -302,6 +302,7 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
+ }
+ 
+ static enum lru_status shadow_lru_isolate(struct list_head *item,
++					  struct list_lru_one *lru,
+ 					  spinlock_t *lru_lock,
+ 					  void *arg)
+ {
+@@ -332,7 +333,7 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
  		goto out;
+ 	}
  
--	memcg_cachep = cache_from_memcg_idx(cachep, memcg_cache_id(memcg));
-+	memcg_cachep = cache_from_memcg_idx(cachep, kmemcg_id);
- 	if (likely(memcg_cachep))
- 		return memcg_cachep;
- 
-@@ -3327,8 +3330,8 @@ static int memcg_activate_kmem(struct mem_cgroup *memcg,
- 	int err = 0;
- 	int memcg_id;
- 
--	if (memcg_kmem_is_active(memcg))
--		return 0;
-+	BUG_ON(memcg->kmemcg_id >= 0);
-+	BUG_ON(memcg->kmem_acct_active);
+-	list_del_init(item);
++	list_lru_isolate(lru, item);
+ 	spin_unlock(lru_lock);
  
  	/*
- 	 * For simplicity, we won't allow this to be disabled.  It also can't
-@@ -3371,6 +3374,7 @@ static int memcg_activate_kmem(struct mem_cgroup *memcg,
- 	 * patched.
- 	 */
- 	memcg->kmemcg_id = memcg_id;
-+	memcg->kmem_acct_active = true;
- out:
- 	return err;
- }
-@@ -4046,6 +4050,22 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
- 	return mem_cgroup_sockets_init(memcg, ss);
- }
- 
-+static void memcg_deactivate_kmem(struct mem_cgroup *memcg)
-+{
-+	if (!memcg->kmem_acct_active)
-+		return;
-+
-+	/*
-+	 * Clear the 'active' flag before clearing memcg_caches arrays entries.
-+	 * Since we take the slab_mutex in memcg_deactivate_kmem_caches(), it
-+	 * guarantees no cache will be created for this cgroup after we are
-+	 * done (see memcg_create_kmem_cache()).
-+	 */
-+	memcg->kmem_acct_active = false;
-+
-+	memcg_deactivate_kmem_caches(memcg);
-+}
-+
- static void memcg_destroy_kmem(struct mem_cgroup *memcg)
- {
- 	memcg_destroy_kmem_caches(memcg);
-@@ -4057,6 +4077,10 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
- 	return 0;
- }
- 
-+static void memcg_deactivate_kmem(struct mem_cgroup *memcg)
-+{
-+}
-+
- static void memcg_destroy_kmem(struct mem_cgroup *memcg)
- {
- }
-@@ -4661,6 +4685,8 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
- 	spin_unlock(&memcg->event_list_lock);
- 
- 	vmpressure_cleanup(&memcg->vmpressure);
-+
-+	memcg_deactivate_kmem(memcg);
- }
- 
- static void mem_cgroup_css_free(struct cgroup_subsys_state *css)
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 512ee119e5c3..741bef834e5e 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -439,18 +439,8 @@ static int do_kmem_cache_shutdown(struct kmem_cache *s,
- 		*need_rcu_barrier = true;
- 
- #ifdef CONFIG_MEMCG_KMEM
--	if (!is_root_cache(s)) {
--		int idx;
--		struct memcg_cache_array *arr;
--
--		idx = memcg_cache_id(s->memcg_params.memcg);
--		arr = rcu_dereference_protected(s->memcg_params.root_cache->
--						memcg_params.memcg_caches,
--						lockdep_is_held(&slab_mutex));
--		BUG_ON(arr->entries[idx] != s);
--		arr->entries[idx] = NULL;
-+	if (!is_root_cache(s))
- 		list_del(&s->memcg_params.list);
--	}
- #endif
- 	list_move(&s->list, release);
- 	return 0;
-@@ -498,6 +488,13 @@ void memcg_create_kmem_cache(struct mem_cgroup *memcg,
- 
- 	mutex_lock(&slab_mutex);
- 
-+	/*
-+	 * The memory cgroup could have been deactivated while the cache
-+	 * creation work was pending.
-+	 */
-+	if (!memcg_kmem_is_active(memcg))
-+		goto out_unlock;
-+
- 	idx = memcg_cache_id(memcg);
- 	arr = rcu_dereference_protected(root_cache->memcg_params.memcg_caches,
- 					lockdep_is_held(&slab_mutex));
-@@ -547,6 +544,26 @@ out_unlock:
- 	put_online_cpus();
- }
- 
-+void memcg_deactivate_kmem_caches(struct mem_cgroup *memcg)
-+{
-+	int idx;
-+	struct memcg_cache_array *arr;
-+	struct kmem_cache *s;
-+
-+	idx = memcg_cache_id(memcg);
-+
-+	mutex_lock(&slab_mutex);
-+	list_for_each_entry(s, &slab_caches, list) {
-+		if (!is_root_cache(s))
-+			continue;
-+
-+		arr = rcu_dereference_protected(s->memcg_params.memcg_caches,
-+						lockdep_is_held(&slab_mutex));
-+		arr->entries[idx] = NULL;
-+	}
-+	mutex_unlock(&slab_mutex);
-+}
-+
- void memcg_destroy_kmem_caches(struct mem_cgroup *memcg)
- {
- 	LIST_HEAD(release);
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 16f3e45742d6..87ef846d5709 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -377,7 +377,7 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
- 	struct shrinker *shrinker;
- 	unsigned long freed = 0;
- 
--	if (memcg && !memcg_kmem_is_active(memcg))
-+	if (memcg_cache_id(memcg) < 0)
- 		return 0;
- 
- 	if (nr_scanned == 0)
 -- 
 1.7.10.4
 
