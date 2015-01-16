@@ -1,81 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 1674C6B0032
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2015 11:55:11 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id kq14so25281308pab.6
-        for <linux-mm@kvack.org>; Fri, 16 Jan 2015 08:55:10 -0800 (PST)
-Received: from mail.samba.org (fn.samba.org. [2001:470:1f05:1a07::1])
-        by mx.google.com with ESMTPS id dt7si6173707pdb.77.2015.01.16.08.55.08
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 68EB26B0032
+	for <linux-mm@kvack.org>; Fri, 16 Jan 2015 12:57:50 -0500 (EST)
+Received: by mail-wi0-f174.google.com with SMTP id n3so4104032wiv.1
+        for <linux-mm@kvack.org>; Fri, 16 Jan 2015 09:57:49 -0800 (PST)
+Received: from mail-we0-x235.google.com (mail-we0-x235.google.com. [2a00:1450:400c:c03::235])
+        by mx.google.com with ESMTPS id l6si5331719wic.97.2015.01.16.09.57.49
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 16 Jan 2015 08:55:09 -0800 (PST)
-Date: Fri, 16 Jan 2015 08:55:06 -0800
-From: Jeremy Allison <jra@samba.org>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] async buffered diskio read for userspace
- apps
-Message-ID: <20150116165506.GA10856@samba2>
-Reply-To: Jeremy Allison <jra@samba.org>
-References: <CANP1eJF77=iH_tm1y0CgF6PwfhUK6WqU9S92d0xAnCt=WhZVfQ@mail.gmail.com>
- <20150115223157.GB25884@quack.suse.cz>
- <CANP1eJGRX4w56Ek4j7d2U+F7GNWp6RyOJonxKxTy0phUCpBM9g@mail.gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 16 Jan 2015 09:57:49 -0800 (PST)
+Received: by mail-we0-f181.google.com with SMTP id q58so21592456wes.12
+        for <linux-mm@kvack.org>; Fri, 16 Jan 2015 09:57:49 -0800 (PST)
+Date: Fri, 16 Jan 2015 18:57:45 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2] mm: vmscan: fix the page state calculation in
+ too_many_isolated
+Message-ID: <20150116175745.GA22136@dhcp22.suse.cz>
+References: <1421235419-30736-1-git-send-email-vinmenon@codeaurora.org>
+ <20150114165036.GI4706@dhcp22.suse.cz>
+ <54B7F7C4.2070105@codeaurora.org>
+ <20150116154922.GB4650@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CANP1eJGRX4w56Ek4j7d2U+F7GNWp6RyOJonxKxTy0phUCpBM9g@mail.gmail.com>
+In-Reply-To: <20150116154922.GB4650@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Milosz Tanski <milosz@adfin.com>
-Cc: Jan Kara <jack@suse.cz>, lsf-pc@lists.linux-foundation.org, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>
+To: Vinayak Menon <vinmenon@codeaurora.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, mgorman@suse.de, minchan@kernel.org, Christoph Lameter <cl@gentwo.org>
 
-On Fri, Jan 16, 2015 at 10:44:12AM -0500, Milosz Tanski wrote:
-> On Thu, Jan 15, 2015 at 5:31 PM, Jan Kara <jack@suse.cz> wrote:
-> > On Thu 15-01-15 12:43:23, Milosz Tanski wrote:
-> >> I would like to talk about enhancing the user interfaces for doing
-> >> async buffered disk IO for userspace applications. There's a whole
-> >> class of distributed web applications (most new applications today)
-> >> that would benefit from such an API. Most of them today rely on
-> >> cobbling one together in user space using a threadpool.
-> >>
-> >> The current in kernel AIO interfaces that only support DIRECTIO, they
-> >> were generally designed by and for big database vendors. The consensus
-> >> is that the current AIO interfaces usually lead to decreased
-> >> performance for those app.
-> >>
-> >> I've been developing a new read syscall that allows non-blocking
-> >> diskio read (provided that data is in the page cache). It's analogous
-> >> to what exists today in the network world with recvmsg with MSG_NOWAIT
-> >> flag. The work has been previously described by LWN here:
-> >> https://lwn.net/Articles/612483/
-> >>
-> >> Previous attempts (over the last 12+ years) at non-blocking buffered
-> >> diskio has stalled due to their complexity. I would like to talk about
-> >> the problem, my solution, and get feedback on the course of action.
-> >>
-> >> Over the years I've been building the low level guys of various "web
-> >> applications". That usually involves async network based applications
-> >> (epoll based servers) and the biggest pain point for the last 8+ years
-> >> has been async disk IO.
-> >   Maybe this topic will be sorted out before LSF/MM. I know Andrew had some
-> > objections about doc and was suggesting a solution using fincore() (which
-> > Christoph refuted as being racy). Also there was a pending question
-> > regarding whether the async read in this form will be used by applications.
-> > But if it doesn't get sorted out a short session on the pending issues
-> > would be probably useful.
-> >
-> >                                                                 Honza
-> > --
-> > Jan Kara <jack@suse.cz>
-> > SUSE Labs, CR
-> 
-> I've spent the better part of yesterday wrapping up the first cut of
-> samba support to FIO so we can test a modified samba file server with
-> these changes in a few scenarios. Right now it's only sync but I hope
-> to have async in the future. I hope that by the time the summit rolls
-> around I'll have data to share from samba and maybe some other common
-> apps (node.js / twisted).
+On Fri 16-01-15 16:49:22, Michal Hocko wrote:
+[...]
+> Why cannot we simply update the global counters from vmstat_shepherd
+> directly?
 
-Don't forget to share the code changes :-). We @ Samba would
-love to see them to keep track !
+OK, I should have checked the updating paths... This would be racy, so
+update from remote is not an option without additional trickery (like
+retries etc.) :/
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
