@@ -1,249 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id E0D4B6B007D
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2015 09:13:39 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id lf10so24484021pab.5
-        for <linux-mm@kvack.org>; Fri, 16 Jan 2015 06:13:39 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id bc8si5486386pad.237.2015.01.16.06.13.37
+Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
+	by kanga.kvack.org (Postfix) with ESMTP id F33636B0032
+	for <linux-mm@kvack.org>; Fri, 16 Jan 2015 09:17:21 -0500 (EST)
+Received: by mail-qa0-f49.google.com with SMTP id v8so15525916qal.8
+        for <linux-mm@kvack.org>; Fri, 16 Jan 2015 06:17:21 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a1si6029111qar.108.2015.01.16.06.17.20
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Jan 2015 06:13:38 -0800 (PST)
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm 6/6] memcg: reparent list_lrus and free kmemcg_id on css offline
-Date: Fri, 16 Jan 2015 17:13:06 +0300
-Message-ID: <8a3066a28a960e8fb0169b4318ed476a99376831.1421411661.git.vdavydov@parallels.com>
-In-Reply-To: <cover.1421411660.git.vdavydov@parallels.com>
-References: <cover.1421411660.git.vdavydov@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        Fri, 16 Jan 2015 06:17:21 -0800 (PST)
+From: Rafael Aquini <aquini@redhat.com>
+Subject: [PATCH 2/2] fs: proc: task_mmu: bump kernelpagesize_kB to EOL in /proc/pid/numa_maps
+Date: Fri, 16 Jan 2015 08:50:51 -0500
+Message-Id: <7baa6d6c187310cd44db0fab6c3029af80de3543.1421415776.git.aquini@redhat.com>
+In-Reply-To: <cover.1421415776.git.aquini@redhat.com>
+References: <cover.1421415776.git.aquini@redhat.com>
+In-Reply-To: <cover.1421415776.git.aquini@redhat.com>
+References: <cover.1421415776.git.aquini@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, jweiner@redhat.com, dave.hansen@linux.intel.com, rientjes@google.com, linux-mm@kvack.org
 
-Now, the only reason to keep kmemcg_id till css free is list_lru, which
-uses it to distribute elements between per-memcg lists. However, it can
-be easily sorted out - we only need to change kmemcg_id of an offline
-cgroup to its parent's id, making further list_lru_add()'s add elements
-to the parent's list, and then move all elements from the offline
-cgroup's list to the one of its parent. It will work, because a racing
-list_lru_del() does not need to know the list it is deleting the element
-from. It can decrement the wrong nr_items counter though, but the
-ongoing reparenting will fix it. After list_lru reparenting is done we
-are free to release kmemcg_id saving a valuable slot in a per-memcg
-array for new cgroups.
+Commit "4dd025c fs: proc: task_mmu: show page size in /proc/<pid>/numa_maps"
+(linux-next) introduces 'kernelpagesize_kB' to numa_maps proc interface.
+This patch, per Andrew Morton suggestion, switchs 'kernelpagesize_kB' position
+to EOL in /proc/<pid>/numa_maps to potentially avoid causing trouble to any
+existent parser that expects numa_maps file line previous layout.
 
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+Signed-off-by: Rafael Aquini <aquini@redhat.com>
 ---
- include/linux/list_lru.h |    3 ++-
- mm/list_lru.c            |   46 +++++++++++++++++++++++++++++++++++++++++++---
- mm/memcontrol.c          |   39 ++++++++++++++++++++++++++++++++++-----
- mm/vmscan.c              |    2 +-
- 4 files changed, 80 insertions(+), 10 deletions(-)
+ Documentation/filesystems/proc.txt | 30 +++++++++++++++---------------
+ fs/proc/task_mmu.c                 |  4 ++--
+ 2 files changed, 17 insertions(+), 17 deletions(-)
 
-diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
-index 7edf9c9ab9eb..2a6b9947aaa3 100644
---- a/include/linux/list_lru.h
-+++ b/include/linux/list_lru.h
-@@ -26,7 +26,7 @@ enum lru_status {
+diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+index 0be178f..a1123c1 100644
+--- a/Documentation/filesystems/proc.txt
++++ b/Documentation/filesystems/proc.txt
+@@ -507,22 +507,22 @@ summarized separated by blank spaces, one mapping per each file line:
  
- struct list_lru_one {
- 	struct list_head	list;
--	/* kept as signed so we can catch imbalance bugs */
-+	/* may become negative during memcg reparenting */
- 	long			nr_items;
- };
+ address   policy    mapping details
  
-@@ -62,6 +62,7 @@ int __list_lru_init(struct list_lru *lru, bool memcg_aware,
- #define list_lru_init_memcg(lru)	__list_lru_init((lru), true, NULL)
+-00400000 default file=/usr/local/bin/app kernelpagesize_kB=4 mapped=1 active=0 N3=1
+-00600000 default file=/usr/local/bin/app kernelpagesize_kB=4 anon=1 dirty=1 N3=1
+-3206000000 default file=/lib64/ld-2.12.so kernelpagesize_kB=4 mapped=26 mapmax=6 N0=24 N3=2
+-320621f000 default file=/lib64/ld-2.12.so kernelpagesize_kB=4 anon=1 dirty=1 N3=1
+-3206220000 default file=/lib64/ld-2.12.so kernelpagesize_kB=4 anon=1 dirty=1 N3=1
+-3206221000 default kernelpagesize_kB=4 anon=1 dirty=1 N3=1
+-3206800000 default file=/lib64/libc-2.12.so kernelpagesize_kB=4 mapped=59 mapmax=21 active=55 N0=41 N3=18
++00400000 default file=/usr/local/bin/app mapped=1 active=0 N3=1 kernelpagesize_kB=4
++00600000 default file=/usr/local/bin/app anon=1 dirty=1 N3=1 kernelpagesize_kB=4
++3206000000 default file=/lib64/ld-2.12.so mapped=26 mapmax=6 N0=24 N3=2 kernelpagesize_kB=4
++320621f000 default file=/lib64/ld-2.12.so anon=1 dirty=1 N3=1 kernelpagesize_kB=4
++3206220000 default file=/lib64/ld-2.12.so anon=1 dirty=1 N3=1 kernelpagesize_kB=4
++3206221000 default anon=1 dirty=1 N3=1 kernelpagesize_kB=4
++3206800000 default file=/lib64/libc-2.12.so mapped=59 mapmax=21 active=55 N0=41 N3=18 kernelpagesize_kB=4
+ 320698b000 default file=/lib64/libc-2.12.so
+-3206b8a000 default file=/lib64/libc-2.12.so kernelpagesize_kB=4 anon=2 dirty=2 N3=2
+-3206b8e000 default file=/lib64/libc-2.12.so kernelpagesize_kB=4 anon=1 dirty=1 N3=1
+-3206b8f000 default kernelpagesize_kB=4 anon=3 dirty=3 active=1 N3=3
+-7f4dc10a2000 default kernelpagesize_kB=4 anon=3 dirty=3 N3=3
+-7f4dc10b4000 default kernelpagesize_kB=4 anon=2 dirty=2 active=1 N3=2
+-7f4dc1200000 default file=/anon_hugepage\040(deleted) huge kernelpagesize_kB=2048 anon=1 dirty=1 N3=1
+-7fff335f0000 default stack kernelpagesize_kB=4 anon=3 dirty=3 N3=3
+-7fff3369d000 default kernelpagesize_kB=4 mapped=1 mapmax=35 active=0 N3=1
++3206b8a000 default file=/lib64/libc-2.12.so anon=2 dirty=2 N3=2 kernelpagesize_kB=4
++3206b8e000 default file=/lib64/libc-2.12.so anon=1 dirty=1 N3=1 kernelpagesize_kB=4
++3206b8f000 default anon=3 dirty=3 active=1 N3=3 kernelpagesize_kB=4
++7f4dc10a2000 default anon=3 dirty=3 N3=3 kernelpagesize_kB=4
++7f4dc10b4000 default anon=2 dirty=2 active=1 N3=2 kernelpagesize_kB=4
++7f4dc1200000 default file=/anon_hugepage\040(deleted) huge anon=1 dirty=1 N3=1 kernelpagesize_kB=2048
++7fff335f0000 default stack anon=3 dirty=3 N3=3 kernelpagesize_kB=4
++7fff3369d000 default mapped=1 mapmax=35 active=0 N3=1 kernelpagesize_kB=4
  
- int memcg_update_all_list_lrus(int num_memcgs);
-+void memcg_drain_all_list_lrus(int src_idx, int dst_idx);
+ Where:
+ "address" is the starting address for the mapping;
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 8faae6f..f896286 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -1531,8 +1531,6 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
+ 	if (!md->pages)
+ 		goto out;
  
- /**
-  * list_lru_add: add an element to the lru list's tail
-diff --git a/mm/list_lru.c b/mm/list_lru.c
-index 8d9d168c6c38..909eca2c820e 100644
---- a/mm/list_lru.c
-+++ b/mm/list_lru.c
-@@ -100,7 +100,6 @@ bool list_lru_add(struct list_lru *lru, struct list_head *item)
- 
- 	spin_lock(&nlru->lock);
- 	l = list_lru_from_kmem(nlru, item);
--	WARN_ON_ONCE(l->nr_items < 0);
- 	if (list_empty(item)) {
- 		list_add_tail(item, &l->list);
- 		l->nr_items++;
-@@ -123,7 +122,6 @@ bool list_lru_del(struct list_lru *lru, struct list_head *item)
- 	if (!list_empty(item)) {
- 		list_del_init(item);
- 		l->nr_items--;
--		WARN_ON_ONCE(l->nr_items < 0);
- 		spin_unlock(&nlru->lock);
- 		return true;
- 	}
-@@ -156,7 +154,6 @@ static unsigned long __list_lru_count_one(struct list_lru *lru,
- 
- 	spin_lock(&nlru->lock);
- 	l = list_lru_from_memcg_idx(nlru, memcg_idx);
--	WARN_ON_ONCE(l->nr_items < 0);
- 	count = l->nr_items;
- 	spin_unlock(&nlru->lock);
- 
-@@ -458,6 +455,49 @@ fail:
- 		memcg_cancel_update_list_lru(lru, old_size, new_size);
- 	goto out;
- }
-+
-+static void memcg_drain_list_lru_node(struct list_lru_node *nlru,
-+				      int src_idx, int dst_idx)
-+{
-+	struct list_lru_one *src, *dst;
-+
-+	/*
-+	 * Since list_lru_{add,del} may be called under an IRQ-safe lock,
-+	 * we have to use IRQ-safe primitives here to avoid deadlock.
-+	 */
-+	spin_lock_irq(&nlru->lock);
-+
-+	src = list_lru_from_memcg_idx(nlru, src_idx);
-+	dst = list_lru_from_memcg_idx(nlru, dst_idx);
-+
-+	list_splice_init(&src->list, &dst->list);
-+	dst->nr_items += src->nr_items;
-+	src->nr_items = 0;
-+
-+	spin_unlock_irq(&nlru->lock);
-+}
-+
-+static void memcg_drain_list_lru(struct list_lru *lru,
-+				 int src_idx, int dst_idx)
-+{
-+	int i;
-+
-+	if (!list_lru_memcg_aware(lru))
-+		return;
-+
-+	for (i = 0; i < nr_node_ids; i++)
-+		memcg_drain_list_lru_node(&lru->node[i], src_idx, dst_idx);
-+}
-+
-+void memcg_drain_all_list_lrus(int src_idx, int dst_idx)
-+{
-+	struct list_lru *lru;
-+
-+	mutex_lock(&list_lrus_mutex);
-+	list_for_each_entry(lru, &list_lrus, list)
-+		memcg_drain_list_lru(lru, src_idx, dst_idx);
-+	mutex_unlock(&list_lrus_mutex);
-+}
- #else
- static int memcg_init_list_lru(struct list_lru *lru, bool memcg_aware)
- {
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index b82ddb68ffd6..850e1fdf3ea9 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -347,6 +347,7 @@ struct mem_cgroup {
- #if defined(CONFIG_MEMCG_KMEM)
-         /* Index in the kmem_cache->memcg_params.memcg_caches array */
- 	int kmemcg_id;
-+	bool kmem_acct_activated;
- 	bool kmem_acct_active;
- #endif
- 
-@@ -608,14 +609,10 @@ void memcg_put_cache_ids(void)
- struct static_key memcg_kmem_enabled_key;
- EXPORT_SYMBOL(memcg_kmem_enabled_key);
- 
--static void memcg_free_cache_id(int id);
+-	seq_printf(m, " kernelpagesize_kB=%lu", vma_kernel_pagesize(vma) >> 10);
 -
- static void disarm_kmem_keys(struct mem_cgroup *memcg)
- {
--	if (memcg->kmemcg_id >= 0) {
-+	if (memcg->kmem_acct_activated)
- 		static_key_slow_dec(&memcg_kmem_enabled_key);
--		memcg_free_cache_id(memcg->kmemcg_id);
--	}
- 	/*
- 	 * This check can't live in kmem destruction function,
- 	 * since the charges will outlive the cgroup
-@@ -3331,6 +3328,7 @@ static int memcg_activate_kmem(struct mem_cgroup *memcg,
- 	int memcg_id;
+ 	if (md->anon)
+ 		seq_printf(m, " anon=%lu", md->anon);
  
- 	BUG_ON(memcg->kmemcg_id >= 0);
-+	BUG_ON(memcg->kmem_acct_activated);
- 	BUG_ON(memcg->kmem_acct_active);
- 
- 	/*
-@@ -3374,6 +3372,7 @@ static int memcg_activate_kmem(struct mem_cgroup *memcg,
- 	 * patched.
- 	 */
- 	memcg->kmemcg_id = memcg_id;
-+	memcg->kmem_acct_activated = true;
- 	memcg->kmem_acct_active = true;
+@@ -1557,6 +1555,8 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
+ 	for_each_node_state(nid, N_MEMORY)
+ 		if (md->node[nid])
+ 			seq_printf(m, " N%d=%lu", nid, md->node[nid]);
++
++	seq_printf(m, " kernelpagesize_kB=%lu", vma_kernel_pagesize(vma) >> 10);
  out:
- 	return err;
-@@ -4052,6 +4051,10 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
- 
- static void memcg_deactivate_kmem(struct mem_cgroup *memcg)
- {
-+	struct cgroup_subsys_state *css;
-+	struct mem_cgroup *parent, *child;
-+	int kmemcg_id;
-+
- 	if (!memcg->kmem_acct_active)
- 		return;
- 
-@@ -4064,6 +4067,32 @@ static void memcg_deactivate_kmem(struct mem_cgroup *memcg)
- 	memcg->kmem_acct_active = false;
- 
- 	memcg_deactivate_kmem_caches(memcg);
-+
-+	kmemcg_id = memcg->kmemcg_id;
-+	BUG_ON(kmemcg_id < 0);
-+
-+	parent = parent_mem_cgroup(memcg);
-+	if (!parent)
-+		parent = root_mem_cgroup;
-+
-+	/*
-+	 * Change kmemcg_id of this cgroup and all its descendants to the
-+	 * parent's id, and then move all entries from this cgroup's list_lrus
-+	 * to ones of the parent. After we have finished, all list_lrus
-+	 * corresponding to this cgroup are guaranteed to remain empty. The
-+	 * ordering is imposed by list_lru_node->lock taken by
-+	 * memcg_drain_all_list_lrus().
-+	 */
-+	css_for_each_descendant_pre(css, &memcg->css) {
-+		child = mem_cgroup_from_css(css);
-+		BUG_ON(child->kmemcg_id != kmemcg_id);
-+		child->kmemcg_id = parent->kmemcg_id;
-+		if (!memcg->use_hierarchy)
-+			break;
-+	}
-+	memcg_drain_all_list_lrus(kmemcg_id, parent->kmemcg_id);
-+
-+	memcg_free_cache_id(kmemcg_id);
- }
- 
- static void memcg_destroy_kmem(struct mem_cgroup *memcg)
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 87ef846d5709..16f3e45742d6 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -377,7 +377,7 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
- 	struct shrinker *shrinker;
- 	unsigned long freed = 0;
- 
--	if (memcg_cache_id(memcg) < 0)
-+	if (memcg && !memcg_kmem_is_active(memcg))
- 		return 0;
- 
- 	if (nr_scanned == 0)
+ 	seq_putc(m, '\n');
+ 	m_cache_vma(m, vma);
 -- 
-1.7.10.4
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
