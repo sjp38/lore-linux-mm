@@ -1,54 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 13EDD6B0032
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 20:21:54 -0500 (EST)
-Received: by mail-ob0-f178.google.com with SMTP id gq1so16702356obb.9
-        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 17:21:53 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id y4si897400obm.66.2015.01.15.17.21.52
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 15 Jan 2015 17:21:53 -0800 (PST)
-Message-ID: <54B867A8.6050900@oracle.com>
-Date: Thu, 15 Jan 2015 20:21:44 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E2036B0032
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 20:30:26 -0500 (EST)
+Received: by mail-pd0-f178.google.com with SMTP id r10so19535093pdi.9
+        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 17:30:26 -0800 (PST)
+Received: from cdptpa-oedge-vip.email.rr.com (cdptpa-outbound-snat.email.rr.com. [107.14.166.229])
+        by mx.google.com with ESMTP id ut9si3776132pac.59.2015.01.15.17.30.24
+        for <linux-mm@kvack.org>;
+        Thu, 15 Jan 2015 17:30:25 -0800 (PST)
+Date: Thu, 15 Jan 2015 20:30:45 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH v2 1/2] mm/slub: optimize alloc/free fastpath by
+ removing preemption on/off
+Message-ID: <20150115203045.00e9fb73@grimm.local.home>
+In-Reply-To: <20150115171634.685237a4.akpm@linux-foundation.org>
+References: <1421307633-24045-1-git-send-email-iamjoonsoo.kim@lge.com>
+	<20150115171634.685237a4.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] Reclaim in the face of really fast I/O
-References: <54B82A57.9060000@intel.com>
-In-Reply-To: <54B82A57.9060000@intel.com>
-Content-Type: text/plain; charset=windows-1252
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, lsf-pc@lists.linux-foundation.org, "Reddy, Dheeraj" <dheeraj.reddy@intel.com>
-Cc: "Kleen, Andi" <andi.kleen@intel.com>, Linux-MM <linux-mm@kvack.org>, "Chen, Tim C" <tim.c.chen@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>
 
-On 01/15/2015 04:00 PM, Dave Hansen wrote:
-> I/O devices are only getting faster.  In fact, they're getting closer
-> and closer to memory in latency and bandwidth.  But the VM is still
-> designed to do very orderly and costly procedures to reclaim memory, and
-> the existing algorithms don't parallelize particularly well.  They hit
-> contention on mmap_sem or the lru locks well before all of the CPU
-> horsepower that we have can be brought to bear on reclaim.
+On Thu, 15 Jan 2015 17:16:34 -0800
+Andrew Morton <akpm@linux-foundation.org> wrote:
+
+> > I saw roughly 5% win in a fast-path loop over kmem_cache_alloc/free
+> > in CONFIG_PREEMPT. (14.821 ns -> 14.049 ns)
 > 
-> Once the latency to bring pages in and out of storage becomes low
-> enough, reclaiming the _right_ pages becomes much less important than
-> doing something useful with the CPU horsepower that we have.
-> 
-> We need to talk about ways to do reclaim with lower CPU overhead and to
-> parallelize more effectively.
-> 
-> There has been some research in this area by some folks at Intel and we
-> could quickly summarize what has been learned so far to help kick off a
-> discussion.
+> I'm surprised.  preempt_disable/enable are pretty fast.  I wonder why
+> this makes a measurable difference.  Perhaps preempt_enable()'s call
+> to preempt_schedule() added pain?
 
-I was actually planning to bring that up. Trinity can cause enough stress
-to a system that the hang watchdog triggers (with a 10 minute timeout!)
-inside reclaim code.
+profiling function tracing I discovered that accessing preempt_count
+was actually quite expensive, even just to read. But it may not be as
+bad since Peter Zijlstra converted preempt_count to a per_cpu variable.
+Although, IIRC, the perf profiling showed the access to the %gs
+register was where the time consuming was happening, which is what
+I believe per_cpu variables still use.
 
-
-Thanks,
-Sasha
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
