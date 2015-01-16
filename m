@@ -1,47 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 209B66B0032
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2015 07:12:27 -0500 (EST)
-Received: by mail-wg0-f45.google.com with SMTP id y19so20227020wgg.4
-        for <linux-mm@kvack.org>; Fri, 16 Jan 2015 04:12:26 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l3si3761537wic.38.2015.01.16.04.12.26
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 16 Jan 2015 04:12:26 -0800 (PST)
-Message-ID: <54B90027.5040103@suse.de>
-Date: Fri, 16 Jan 2015 13:12:23 +0100
-From: Alexander Graf <agraf@suse.de>
+Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
+	by kanga.kvack.org (Postfix) with ESMTP id E59036B0032
+	for <linux-mm@kvack.org>; Fri, 16 Jan 2015 07:18:25 -0500 (EST)
+Received: by mail-we0-f176.google.com with SMTP id w61so19892679wes.7
+        for <linux-mm@kvack.org>; Fri, 16 Jan 2015 04:18:25 -0800 (PST)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.227])
+        by mx.google.com with ESMTP id t10si3835927wif.19.2015.01.16.04.18.25
+        for <linux-mm@kvack.org>;
+        Fri, 16 Jan 2015 04:18:25 -0800 (PST)
+Date: Fri, 16 Jan 2015 14:18:20 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [LSF/MM ATTEND] Transparent huge pages: huge tmpfs
+Message-ID: <20150116121820.GA29085@node.dhcp.inet.fi>
+References: <alpine.LSU.2.11.1501152301470.7987@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/8] current ACCESS_ONCE patch queue
-References: <1421312314-72330-1-git-send-email-borntraeger@de.ibm.com>
-In-Reply-To: <1421312314-72330-1-git-send-email-borntraeger@de.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1501152301470.7987@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christian Borntraeger <borntraeger@de.ibm.com>, linux-kernel@vger.kernel.org
-Cc: linux-arch@vger.kernel.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, x86@kernel.org, xen-devel@lists.xenproject.org, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: lsf-pc@lists.linux-foundation.org, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-
-
-On 15.01.15 09:58, Christian Borntraeger wrote:
-> Folks,
+On Thu, Jan 15, 2015 at 11:54:09PM -0800, Hugh Dickins wrote:
+> I would like to attend LSF/MM this year; and most of all would like
+> to join Kirill Shutemov in his discussion of THP refcounting etc.
 > 
-> fyi, this is my current patch queue for the next merge window. It
-> does contain a patch that will disallow ACCESS_ONCE on non-scalar
-> types.
+> I admit that I have not yet studied his refcounting patchset, but
+> shall have done so by March.  I've been fully occupied these last
+> few months with an alternative approach to THPage cache, huge tmpfs:
+> starting from my belief that compound pages were ideal for hugetlbfs,
+> questionable for anonymous THP, completely unsuited to THPage cache.
 > 
-> The tree is part of linux-next and can be found at
-> git://git.kernel.org/pub/scm/linux/kernel/git/borntraeger/linux.git linux-next
+> We shall try to work out how much we have in common, and where to go
+> from there.
+> 
+> Huge tmpfs is currently implemented on Google's not-so-modern kernel.
+> I intend to port it to v3.19 and post before LSF; but if that ends up
+> like a night-before-the-conference dump of XXX patches, no, I'll spare
+> you and spend more time looking at other people's work instead.
 
-KVM PPC bits are:
+Very interesting! Looking forward for the code.
 
- Acked-by: Alexander Graf <agraf@suse.de>
-
-
-
-Alex
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
