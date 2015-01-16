@@ -1,33 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
-	by kanga.kvack.org (Postfix) with ESMTP id C53AA6B0032
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2015 10:40:25 -0500 (EST)
-Received: by mail-la0-f47.google.com with SMTP id hz20so19547849lab.6
-        for <linux-mm@kvack.org>; Fri, 16 Jan 2015 07:40:24 -0800 (PST)
-Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com. [209.85.217.169])
-        by mx.google.com with ESMTPS id ga1si3260803lbc.122.2015.01.16.07.40.24
+Received: from mail-la0-f52.google.com (mail-la0-f52.google.com [209.85.215.52])
+	by kanga.kvack.org (Postfix) with ESMTP id BC9246B0032
+	for <linux-mm@kvack.org>; Fri, 16 Jan 2015 10:44:13 -0500 (EST)
+Received: by mail-la0-f52.google.com with SMTP id hs14so19600894lab.11
+        for <linux-mm@kvack.org>; Fri, 16 Jan 2015 07:44:12 -0800 (PST)
+Received: from mail-la0-f44.google.com (mail-la0-f44.google.com. [209.85.215.44])
+        by mx.google.com with ESMTPS id v3si4706579lal.96.2015.01.16.07.44.12
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 16 Jan 2015 07:40:24 -0800 (PST)
-Received: by mail-lb0-f169.google.com with SMTP id p9so19095903lbv.0
-        for <linux-mm@kvack.org>; Fri, 16 Jan 2015 07:40:24 -0800 (PST)
+        Fri, 16 Jan 2015 07:44:12 -0800 (PST)
+Received: by mail-la0-f44.google.com with SMTP id gd6so19683713lab.3
+        for <linux-mm@kvack.org>; Fri, 16 Jan 2015 07:44:12 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <x49zj9jaocy.fsf@segfault.boston.devel.redhat.com>
+In-Reply-To: <20150115223157.GB25884@quack.suse.cz>
 References: <CANP1eJF77=iH_tm1y0CgF6PwfhUK6WqU9S92d0xAnCt=WhZVfQ@mail.gmail.com>
-	<x49zj9jaocy.fsf@segfault.boston.devel.redhat.com>
-Date: Fri, 16 Jan 2015 10:40:23 -0500
-Message-ID: <CANP1eJF0m-48--2ysYgymgBXES1nCefU-06SxZOv0hKzia8AUg@mail.gmail.com>
-Subject: Re: [LSF/MM TOPIC] async buffered diskio read for userspace apps
+	<20150115223157.GB25884@quack.suse.cz>
+Date: Fri, 16 Jan 2015 10:44:12 -0500
+Message-ID: <CANP1eJGRX4w56Ek4j7d2U+F7GNWp6RyOJonxKxTy0phUCpBM9g@mail.gmail.com>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] async buffered diskio read for userspace apps
 From: Milosz Tanski <milosz@adfin.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Moyer <jmoyer@redhat.com>
+To: Jan Kara <jack@suse.cz>
 Cc: lsf-pc@lists.linux-foundation.org, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>
 
-On Thu, Jan 15, 2015 at 1:30 PM, Jeff Moyer <jmoyer@redhat.com> wrote:
-> Milosz Tanski <milosz@adfin.com> writes:
->
+On Thu, Jan 15, 2015 at 5:31 PM, Jan Kara <jack@suse.cz> wrote:
+> On Thu 15-01-15 12:43:23, Milosz Tanski wrote:
 >> I would like to talk about enhancing the user interfaces for doing
 >> async buffered disk IO for userspace applications. There's a whole
 >> class of distributed web applications (most new applications today)
@@ -48,27 +47,29 @@ On Thu, Jan 15, 2015 at 1:30 PM, Jeff Moyer <jmoyer@redhat.com> wrote:
 >> Previous attempts (over the last 12+ years) at non-blocking buffered
 >> diskio has stalled due to their complexity. I would like to talk about
 >> the problem, my solution, and get feedback on the course of action.
+>>
+>> Over the years I've been building the low level guys of various "web
+>> applications". That usually involves async network based applications
+>> (epoll based servers) and the biggest pain point for the last 8+ years
+>> has been async disk IO.
+>   Maybe this topic will be sorted out before LSF/MM. I know Andrew had some
+> objections about doc and was suggesting a solution using fincore() (which
+> Christoph refuted as being racy). Also there was a pending question
+> regarding whether the async read in this form will be used by applications.
+> But if it doesn't get sorted out a short session on the pending issues
+> would be probably useful.
 >
-> This email seems to conflate async I/O and non-blocking I/O.  Could you
-> please be more specific about what you're proposing to talk about?  Is
-> it just the non-blocking read support?
->
-> Cheers,
-> Jeff
+>                                                                 Honza
+> --
+> Jan Kara <jack@suse.cz>
+> SUSE Labs, CR
 
-Jeff, I'm sorry if I wasn't clear, let me restate why we should care
-and why it matters.
-
-The current applications that power the lower levels of the web stacks
-as generally process streams of network data. Many of them (and the
-frameworks for building them) are structured as a large async
-processing loop. Disk IO a big pain point; the way are structured
-(threadpools for diskio) introduces additional latency. sendfile() is
-only helpful if you need to do additional processing (say SSL).
-
-Non-blocking diskio can help us lower the response latency in those
-webapps applications in the common cases (cached data, sequential
-scan).
+I've spent the better part of yesterday wrapping up the first cut of
+samba support to FIO so we can test a modified samba file server with
+these changes in a few scenarios. Right now it's only sync but I hope
+to have async in the future. I hope that by the time the summit rolls
+around I'll have data to share from samba and maybe some other common
+apps (node.js / twisted).
 
 -- 
 Milosz Tanski
