@@ -1,84 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f52.google.com (mail-la0-f52.google.com [209.85.215.52])
-	by kanga.kvack.org (Postfix) with ESMTP id BC9246B0032
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2015 10:44:13 -0500 (EST)
-Received: by mail-la0-f52.google.com with SMTP id hs14so19600894lab.11
-        for <linux-mm@kvack.org>; Fri, 16 Jan 2015 07:44:12 -0800 (PST)
-Received: from mail-la0-f44.google.com (mail-la0-f44.google.com. [209.85.215.44])
-        by mx.google.com with ESMTPS id v3si4706579lal.96.2015.01.16.07.44.12
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id CB05B6B0032
+	for <linux-mm@kvack.org>; Fri, 16 Jan 2015 10:49:25 -0500 (EST)
+Received: by mail-wi0-f171.google.com with SMTP id ho1so5047511wib.4
+        for <linux-mm@kvack.org>; Fri, 16 Jan 2015 07:49:25 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id dv4si4885492wib.16.2015.01.16.07.49.24
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 16 Jan 2015 07:44:12 -0800 (PST)
-Received: by mail-la0-f44.google.com with SMTP id gd6so19683713lab.3
-        for <linux-mm@kvack.org>; Fri, 16 Jan 2015 07:44:12 -0800 (PST)
+        Fri, 16 Jan 2015 07:49:24 -0800 (PST)
+Date: Fri, 16 Jan 2015 16:49:22 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2] mm: vmscan: fix the page state calculation in
+ too_many_isolated
+Message-ID: <20150116154922.GB4650@dhcp22.suse.cz>
+References: <1421235419-30736-1-git-send-email-vinmenon@codeaurora.org>
+ <20150114165036.GI4706@dhcp22.suse.cz>
+ <54B7F7C4.2070105@codeaurora.org>
 MIME-Version: 1.0
-In-Reply-To: <20150115223157.GB25884@quack.suse.cz>
-References: <CANP1eJF77=iH_tm1y0CgF6PwfhUK6WqU9S92d0xAnCt=WhZVfQ@mail.gmail.com>
-	<20150115223157.GB25884@quack.suse.cz>
-Date: Fri, 16 Jan 2015 10:44:12 -0500
-Message-ID: <CANP1eJGRX4w56Ek4j7d2U+F7GNWp6RyOJonxKxTy0phUCpBM9g@mail.gmail.com>
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] async buffered diskio read for userspace apps
-From: Milosz Tanski <milosz@adfin.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <54B7F7C4.2070105@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: lsf-pc@lists.linux-foundation.org, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>
+To: Vinayak Menon <vinmenon@codeaurora.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, mgorman@suse.de, minchan@kernel.org, Christoph Lameter <cl@gentwo.org>
 
-On Thu, Jan 15, 2015 at 5:31 PM, Jan Kara <jack@suse.cz> wrote:
-> On Thu 15-01-15 12:43:23, Milosz Tanski wrote:
->> I would like to talk about enhancing the user interfaces for doing
->> async buffered disk IO for userspace applications. There's a whole
->> class of distributed web applications (most new applications today)
->> that would benefit from such an API. Most of them today rely on
->> cobbling one together in user space using a threadpool.
->>
->> The current in kernel AIO interfaces that only support DIRECTIO, they
->> were generally designed by and for big database vendors. The consensus
->> is that the current AIO interfaces usually lead to decreased
->> performance for those app.
->>
->> I've been developing a new read syscall that allows non-blocking
->> diskio read (provided that data is in the page cache). It's analogous
->> to what exists today in the network world with recvmsg with MSG_NOWAIT
->> flag. The work has been previously described by LWN here:
->> https://lwn.net/Articles/612483/
->>
->> Previous attempts (over the last 12+ years) at non-blocking buffered
->> diskio has stalled due to their complexity. I would like to talk about
->> the problem, my solution, and get feedback on the course of action.
->>
->> Over the years I've been building the low level guys of various "web
->> applications". That usually involves async network based applications
->> (epoll based servers) and the biggest pain point for the last 8+ years
->> has been async disk IO.
->   Maybe this topic will be sorted out before LSF/MM. I know Andrew had some
-> objections about doc and was suggesting a solution using fincore() (which
-> Christoph refuted as being racy). Also there was a pending question
-> regarding whether the async read in this form will be used by applications.
-> But if it doesn't get sorted out a short session on the pending issues
-> would be probably useful.
->
->                                                                 Honza
-> --
-> Jan Kara <jack@suse.cz>
-> SUSE Labs, CR
+On Thu 15-01-15 22:54:20, Vinayak Menon wrote:
+> On 01/14/2015 10:20 PM, Michal Hocko wrote:
+> >On Wed 14-01-15 17:06:59, Vinayak Menon wrote:
+> >[...]
+> >>In one such instance, zone_page_state(zone, NR_ISOLATED_FILE)
+> >>had returned 14, zone_page_state(zone, NR_INACTIVE_FILE)
+> >>returned 92, and GFP_IOFS was set, and this resulted
+> >>in too_many_isolated returning true. But one of the CPU's
+> >>pageset vm_stat_diff had NR_ISOLATED_FILE as "-14". So the
+> >>actual isolated count was zero. As there weren't any more
+> >>updates to NR_ISOLATED_FILE and vmstat_update deffered work
+> >>had not been scheduled yet, 7 tasks were spinning in the
+> >>congestion wait loop for around 4 seconds, in the direct
+> >>reclaim path.
+> >
+> >Not syncing for such a long time doesn't sound right. I am not familiar
+> >with the vmstat syncing but sysctl_stat_interval is HZ so it should
+> >happen much more often that every 4 seconds.
+> >
+> 
+> Though the interval is HZ, since the vmstat_work is declared as a
+> deferrable work, IIUC the timer trigger can be deferred to the next
+> non-defferable timer expiry on the CPU which is in idle. This results
+> in the vmstat syncing on an idle CPU delayed by seconds. May be in
+> most cases this behavior is fine, except in cases like this.
 
-I've spent the better part of yesterday wrapping up the first cut of
-samba support to FIO so we can test a modified samba file server with
-these changes in a few scenarios. Right now it's only sync but I hope
-to have async in the future. I hope that by the time the summit rolls
-around I'll have data to share from samba and maybe some other common
-apps (node.js / twisted).
+I am not sure I understand the above because CPU being idle doesn't
+seem important AFAICS. Anyway I have checked the current code which has
+changed quite recently by 7cc36bbddde5 (vmstat: on-demand vmstat workers
+V8). Let's CC Christoph (the thread starts here:
+http://thread.gmane.org/gmane.linux.kernel.mm/127229).
+
+__round_jiffies_relative can easily make timeout 2HZ from 1HZ. Now we
+have vmstat_shepherd which waits to be queued and then wait to run. When
+it runs finally it only queues per-cpu vmstat_work which can also end
+up being 2HZ for some CPUs. So we can indeed have 4 seconds spent just
+for queuing. Not even mentioning work item latencies. Especially when
+workers are overloaded e.g. by fs work items and no additional workers
+cannot be created e.g. due to memory pressure so they are processed only
+by the workqueue rescuer. And latencies would grow a lot.
+
+We have seen an issue where rescuer had to process thousands of work
+items because all workers where blocked on memory allocation - see
+http://thread.gmane.org/gmane.linux.kernel/1816452 - which is mainline
+already 008847f66c38 (workqueue: allow rescuer thread to do more work.)
+the patch reduces the latency considerably but it doesn't remove it
+completely.
+
+If the time between two syncs is large then the per-cpu drift might be
+really large as well. Isn't this going to hurt other places where we
+rely on stats as well?
+
+In this particular case the reclaimers are throttled because they see
+too many isolated pages which was just a result of the per-cpu drift and
+small LRU list. The system seems to be under serious memory pressure
+already because there is basically no file cache. If the reclaimers
+wouldn't be throttled they would fail the reclaim probably and trigger
+OOM killer which might help to resolve the situation. Reclaimers are
+throttled instead.
+
+Why cannot we simply update the global counters from vmstat_shepherd
+directly? Sure we would access remote CPU counters but that wouldn't
+happen often. That still wouldn't be enough because there is the
+workqueue latency. So why cannot we do that whole shepherd thing from a
+kernel thread instead? If the NUMA zone->pageset->pcp thing has to be
+done locally then it could have per-node kthread rather than being part
+of the unrelated vmstat code.
+I might be missing obvious things because I still haven't digested the
+code completely but this whole thing seems overly complicated and I
+do not see a good reason for that. If the primary motivation was cpu
+isolation then kthreads would sound like a better idea because you can
+play with the explicit affinity from the userspace.
+
+> Even in usual cases were the timer triggers in 1-2 secs, is it fine to
+> let the tasks in reclaim path wait that long unnecessarily when there
+> isn't any real congestion?
+
+But how do we find that out?
 
 -- 
-Milosz Tanski
-CTO
-16 East 34th Street, 15th floor
-New York, NY 10016
-
-p: 646-253-9055
-e: milosz@adfin.com
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
