@@ -1,85 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f42.google.com (mail-yh0-f42.google.com [209.85.213.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 3935D6B0070
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 20:17:00 -0500 (EST)
-Received: by mail-yh0-f42.google.com with SMTP id v1so8908935yhn.1
-        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 17:16:59 -0800 (PST)
+Received: from mail-yk0-f170.google.com (mail-yk0-f170.google.com [209.85.160.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D1EB6B006E
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2015 20:17:43 -0500 (EST)
+Received: by mail-yk0-f170.google.com with SMTP id 200so8353578ykr.1
+        for <linux-mm@kvack.org>; Thu, 15 Jan 2015 17:17:42 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 188si1260885ykc.150.2015.01.15.17.16.58
+        by mx.google.com with ESMTPS id 84si1296730ykz.71.2015.01.15.17.17.41
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Jan 2015 17:16:59 -0800 (PST)
-Date: Thu, 15 Jan 2015 17:16:46 -0800
+        Thu, 15 Jan 2015 17:17:42 -0800 (PST)
+Date: Thu, 15 Jan 2015 17:17:28 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 2/2] mm: don't use compound_head() in
- virt_to_head_page()
-Message-Id: <20150115171646.8fec31e2.akpm@linux-foundation.org>
-In-Reply-To: <1421307633-24045-2-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1421307633-24045-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<1421307633-24045-2-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2] mm: vmscan: fix the page state calculation in
+ too_many_isolated
+Message-Id: <20150115171728.ebc77a48.akpm@linux-foundation.org>
+In-Reply-To: <1421235419-30736-1-git-send-email-vinmenon@codeaurora.org>
+References: <1421235419-30736-1-git-send-email-vinmenon@codeaurora.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>, rostedt@goodmis.org, Thomas Gleixner <tglx@linutronix.de>
+To: Vinayak Menon <vinmenon@codeaurora.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, hannes@cmpxchg.org, vdavydov@parallels.com, mhocko@suse.cz, mgorman@suse.de, minchan@kernel.org
 
-On Thu, 15 Jan 2015 16:40:33 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+On Wed, 14 Jan 2015 17:06:59 +0530 Vinayak Menon <vinmenon@codeaurora.org> wrote:
 
-> compound_head() is implemented with assumption that there would be
-> race condition when checking tail flag. This assumption is only true
-> when we try to access arbitrary positioned struct page.
+> It is observed that sometimes multiple tasks get blocked for long
+> in the congestion_wait loop below, in shrink_inactive_list. This
+> is because of vm_stat values not being synced.
 > 
-> The situation that virt_to_head_page() is called is different case.
-> We call virt_to_head_page() only in the range of allocated pages,
-> so there is no race condition on tail flag. In this case, we don't
-> need to handle race condition and we can reduce overhead slightly.
-> This patch implements compound_head_fast() which is similar with
-> compound_head() except tail flag race handling. And then,
-> virt_to_head_page() uses this optimized function to improve performance.
+> (__schedule) from [<c0a03328>]
+> (schedule_timeout) from [<c0a04940>]
+> (io_schedule_timeout) from [<c01d585c>]
+> (congestion_wait) from [<c01cc9d8>]
+> (shrink_inactive_list) from [<c01cd034>]
+> (shrink_zone) from [<c01cdd08>]
+> (try_to_free_pages) from [<c01c442c>]
+> (__alloc_pages_nodemask) from [<c01f1884>]
+> (new_slab) from [<c09fcf60>]
+> (__slab_alloc) from [<c01f1a6c>]
 > 
-> I saw 1.8% win in a fast-path loop over kmem_cache_alloc/free,
-> (14.063 ns -> 13.810 ns) if target object is on tail page.
+> In one such instance, zone_page_state(zone, NR_ISOLATED_FILE)
+> had returned 14, zone_page_state(zone, NR_INACTIVE_FILE)
+> returned 92, and GFP_IOFS was set, and this resulted
+> in too_many_isolated returning true. But one of the CPU's
+> pageset vm_stat_diff had NR_ISOLATED_FILE as "-14". So the
+> actual isolated count was zero. As there weren't any more
+> updates to NR_ISOLATED_FILE and vmstat_update deffered work
+> had not been scheduled yet, 7 tasks were spinning in the
+> congestion wait loop for around 4 seconds, in the direct
+> reclaim path.
+> 
+> This patch uses zone_page_state_snapshot instead, but restricts
+> its usage to avoid performance penalty.
+
+Seems reasonable.
+
 >
 > ...
 >
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -453,6 +453,13 @@ static inline struct page *compound_head(struct page *page)
->  	return page;
->  }
+> @@ -1516,15 +1531,18 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+>  	unsigned long nr_immediate = 0;
+>  	isolate_mode_t isolate_mode = 0;
+>  	int file = is_file_lru(lru);
+> +	int safe = 0;
+>  	struct zone *zone = lruvec_zone(lruvec);
+>  	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
 >  
-> +static inline struct page *compound_head_fast(struct page *page)
-> +{
-> +	if (unlikely(PageTail(page)))
-> +		return page->first_page;
-> +	return page;
-> +}
-
-Can we please have some code comments which let people know when they
-should and shouldn't use compound_head_fast()?  I shouldn't have to say
-this :(
-
->  /*
->   * The atomic page->_mapcount, starts from -1: so that transitions
->   * both from it and to it can be tracked, using atomic_inc_and_test
-> @@ -531,7 +538,8 @@ static inline void get_page(struct page *page)
->  static inline struct page *virt_to_head_page(const void *x)
->  {
->  	struct page *page = virt_to_page(x);
-> -	return compound_head(page);
+> -	while (unlikely(too_many_isolated(zone, file, sc))) {
+> +	while (unlikely(too_many_isolated(zone, file, sc, safe))) {
+>  		congestion_wait(BLK_RW_ASYNC, HZ/10);
+>  
+>  		/* We are about to die and free our memory. Return now. */
+>  		if (fatal_signal_pending(current))
+>  			return SWAP_CLUSTER_MAX;
 > +
-> +	return compound_head_fast(page);
+> +		safe = 1;
+>  	}
 
-And perhaps some explanation here as to why virt_to_head_page() can
-safely use compound_head_fast().  There's an assumption here that
-nobody will be dismantling the compound page while virt_to_head_page()
-is in progress, yes?  And this assumption also holds for the calling
-code, because otherwise the virt_to_head_page() return value is kinda
-meaningless.
+But here and under the circumstances you describe, we'll call
+congestion_wait() a single time.  That shouldn't have occurred.
 
-This is tricky stuff - let's spell it out carefully.
+So how about we put the fallback logic into too_many_isolated() itself?
+
+
+
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: mm-vmscan-fix-the-page-state-calculation-in-too_many_isolated-fix
+
+Move the zone_page_state_snapshot() fallback logic into
+too_many_isolated(), so shrink_inactive_list() doesn't incorrectly call
+congestion_wait().
+
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Vinayak Menon <vinmenon@codeaurora.org>
+Cc: Vladimir Davydov <vdavydov@parallels.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ mm/vmscan.c |   23 +++++++++++------------
+ 1 file changed, 11 insertions(+), 12 deletions(-)
+
+diff -puN mm/vmscan.c~mm-vmscan-fix-the-page-state-calculation-in-too_many_isolated-fix mm/vmscan.c
+--- a/mm/vmscan.c~mm-vmscan-fix-the-page-state-calculation-in-too_many_isolated-fix
++++ a/mm/vmscan.c
+@@ -1402,7 +1402,7 @@ int isolate_lru_page(struct page *page)
+ }
+ 
+ static int __too_many_isolated(struct zone *zone, int file,
+-	struct scan_control *sc, int safe)
++			       struct scan_control *sc, int safe)
+ {
+ 	unsigned long inactive, isolated;
+ 
+@@ -1435,7 +1435,7 @@ static int __too_many_isolated(struct zo
+  * unnecessary swapping, thrashing and OOM.
+  */
+ static int too_many_isolated(struct zone *zone, int file,
+-		struct scan_control *sc, int safe)
++			     struct scan_control *sc)
+ {
+ 	if (current_is_kswapd())
+ 		return 0;
+@@ -1443,12 +1443,14 @@ static int too_many_isolated(struct zone
+ 	if (!global_reclaim(sc))
+ 		return 0;
+ 
+-	if (unlikely(__too_many_isolated(zone, file, sc, 0))) {
+-		if (safe)
+-			return __too_many_isolated(zone, file, sc, safe);
+-		else
+-			return 1;
+-	}
++	/*
++	 * __too_many_isolated(safe=0) is fast but inaccurate, because it
++	 * doesn't account for the vm_stat_diff[] counters.  So if it looks
++	 * like too_many_isolated() is about to return true, fall back to the
++	 * slower, more accurate zone_page_state_snapshot().
++	 */
++	if (unlikely(__too_many_isolated(zone, file, sc, 0)))
++		return __too_many_isolated(zone, file, sc, safe);
+ 
+ 	return 0;
+ }
+@@ -1540,18 +1542,15 @@ shrink_inactive_list(unsigned long nr_to
+ 	unsigned long nr_immediate = 0;
+ 	isolate_mode_t isolate_mode = 0;
+ 	int file = is_file_lru(lru);
+-	int safe = 0;
+ 	struct zone *zone = lruvec_zone(lruvec);
+ 	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
+ 
+-	while (unlikely(too_many_isolated(zone, file, sc, safe))) {
++	while (unlikely(too_many_isolated(zone, file, sc))) {
+ 		congestion_wait(BLK_RW_ASYNC, HZ/10);
+ 
+ 		/* We are about to die and free our memory. Return now. */
+ 		if (fatal_signal_pending(current))
+ 			return SWAP_CLUSTER_MAX;
+-
+-		safe = 1;
+ 	}
+ 
+ 	lru_add_drain();
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
