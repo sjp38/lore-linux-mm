@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E3666B0032
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2015 21:39:17 -0500 (EST)
-Received: by mail-pd0-f177.google.com with SMTP id y13so1201797pdi.8
-        for <linux-mm@kvack.org>; Fri, 16 Jan 2015 18:39:17 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id ok3si7498351pdb.234.2015.01.16.18.39.14
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C6D76B0032
+	for <linux-mm@kvack.org>; Fri, 16 Jan 2015 21:43:17 -0500 (EST)
+Received: by mail-pd0-f175.google.com with SMTP id g10so26031643pdj.6
+        for <linux-mm@kvack.org>; Fri, 16 Jan 2015 18:43:17 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id bl9si7742257pdb.47.2015.01.16.18.43.14
         for <linux-mm@kvack.org>;
-        Fri, 16 Jan 2015 18:39:15 -0800 (PST)
-Date: Sat, 17 Jan 2015 10:38:19 +0800
+        Fri, 16 Jan 2015 18:43:16 -0800 (PST)
+Date: Sat, 17 Jan 2015 10:42:34 +0800
 From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master 166/365] include/trace/events/compaction.h:148:3:
- error: 'compaction_status_string' undeclared
-Message-ID: <201501171018.ByUbHYGV%fengguang.wu@intel.com>
+Subject: [mmotm:master 169/365] include/trace/events/compaction.h:260:29:
+ error: 'struct zone' has no member named 'compact_considered'
+Message-ID: <201501171033.hiDUeyF8%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="tKW2IUtsqtDRztdT"
+Content-Type: multipart/mixed; boundary="3V7upXqbjpZ4EhLz"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -22,26 +22,26 @@ To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
 
---tKW2IUtsqtDRztdT
+--3V7upXqbjpZ4EhLz
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 
 tree:   git://git.cmpxchg.org/linux-mmotm.git master
 head:   59f7a5af1a6c9e19c6e5152f26548c494a2d7338
-commit: 99fd30c500d760208d295a4307d978fd7068d964 [166/365] mm/compaction: enhance tracepoint output for compaction begin/end
+commit: 482e3286d4feecef0f102043bab8fa9f94d7f1b6 [169/365] mm/compaction: add tracepoint to observe behaviour of compaction defer
 config: x86_64-randconfig-ib0-01161502 (attached as .config)
 reproduce:
-  git checkout 99fd30c500d760208d295a4307d978fd7068d964
+  git checkout 482e3286d4feecef0f102043bab8fa9f94d7f1b6
   # save the attached .config to linux build tree
   make ARCH=x86_64 
 
 All error/warnings:
 
    In file included from include/trace/define_trace.h:90:0,
-                    from include/trace/events/compaction.h:154,
-                    from mm/compaction.c:47:
+                    from include/trace/events/compaction.h:298,
+                    from mm/compaction.c:49:
    include/trace/events/compaction.h: In function 'ftrace_raw_output_mm_compaction_end':
->> include/trace/events/compaction.h:148:3: error: 'compaction_status_string' undeclared (first use in this function)
+   include/trace/events/compaction.h:164:3: error: 'compaction_status_string' undeclared (first use in this function)
       compaction_status_string[__entry->status])
       ^
    include/trace/ftrace.h:283:22: note: in definition of macro 'DECLARE_EVENT_CLASS'
@@ -50,13 +50,13 @@ All error/warnings:
    include/trace/ftrace.h:37:9: note: in expansion of macro 'PARAMS'
             PARAMS(print));         \
             ^
->> include/trace/events/compaction.h:117:1: note: in expansion of macro 'TRACE_EVENT'
+   include/trace/events/compaction.h:133:1: note: in expansion of macro 'TRACE_EVENT'
     TRACE_EVENT(mm_compaction_end,
     ^
->> include/trace/events/compaction.h:142:2: note: in expansion of macro 'TP_printk'
+   include/trace/events/compaction.h:158:2: note: in expansion of macro 'TP_printk'
      TP_printk("zone_start=0x%lx migrate_pfn=0x%lx free_pfn=0x%lx zone_end=0x%lx, mode=%s status=%s",
      ^
-   include/trace/events/compaction.h:148:3: note: each undeclared identifier is reported only once for each function it appears in
+   include/trace/events/compaction.h:164:3: note: each undeclared identifier is reported only once for each function it appears in
       compaction_status_string[__entry->status])
       ^
    include/trace/ftrace.h:283:22: note: in definition of macro 'DECLARE_EVENT_CLASS'
@@ -65,69 +65,186 @@ All error/warnings:
    include/trace/ftrace.h:37:9: note: in expansion of macro 'PARAMS'
             PARAMS(print));         \
             ^
->> include/trace/events/compaction.h:117:1: note: in expansion of macro 'TRACE_EVENT'
+   include/trace/events/compaction.h:133:1: note: in expansion of macro 'TRACE_EVENT'
     TRACE_EVENT(mm_compaction_end,
     ^
->> include/trace/events/compaction.h:142:2: note: in expansion of macro 'TP_printk'
+   include/trace/events/compaction.h:158:2: note: in expansion of macro 'TP_printk'
      TP_printk("zone_start=0x%lx migrate_pfn=0x%lx free_pfn=0x%lx zone_end=0x%lx, mode=%s status=%s",
+     ^
+   include/trace/events/compaction.h: In function 'ftrace_raw_output_mm_compaction_suitable_template':
+   include/trace/events/compaction.h:220:3: error: 'compaction_status_string' undeclared (first use in this function)
+      compaction_status_string[__entry->ret])
+      ^
+   include/trace/ftrace.h:283:22: note: in definition of macro 'DECLARE_EVENT_CLASS'
+     trace_seq_printf(s, print);     \
+                         ^
+   include/trace/events/compaction.h:216:2: note: in expansion of macro 'TP_printk'
+     TP_printk("node=%d zone=%-8s order=%d ret=%s",
+     ^
+   In file included from include/trace/define_trace.h:90:0,
+                    from include/trace/events/compaction.h:298,
+                    from mm/compaction.c:49:
+   include/trace/events/compaction.h: In function 'ftrace_raw_event_mm_compaction_defer_template':
+>> include/trace/events/compaction.h:260:29: error: 'struct zone' has no member named 'compact_considered'
+      __entry->considered = zone->compact_considered;
+                                ^
+   include/trace/ftrace.h:645:4: note: in definition of macro 'DECLARE_EVENT_CLASS'
+     { assign; }       \
+       ^
+>> include/trace/events/compaction.h:256:2: note: in expansion of macro 'TP_fast_assign'
+     TP_fast_assign(
+     ^
+>> include/trace/events/compaction.h:261:30: error: 'struct zone' has no member named 'compact_defer_shift'
+      __entry->defer_shift = zone->compact_defer_shift;
+                                 ^
+   include/trace/ftrace.h:645:4: note: in definition of macro 'DECLARE_EVENT_CLASS'
+     { assign; }       \
+       ^
+>> include/trace/events/compaction.h:256:2: note: in expansion of macro 'TP_fast_assign'
+     TP_fast_assign(
+     ^
+>> include/trace/events/compaction.h:262:31: error: 'struct zone' has no member named 'compact_order_failed'
+      __entry->order_failed = zone->compact_order_failed;
+                                  ^
+   include/trace/ftrace.h:645:4: note: in definition of macro 'DECLARE_EVENT_CLASS'
+     { assign; }       \
+       ^
+>> include/trace/events/compaction.h:256:2: note: in expansion of macro 'TP_fast_assign'
+     TP_fast_assign(
+     ^
+   In file included from include/trace/define_trace.h:90:0,
+                    from include/trace/events/compaction.h:298,
+                    from mm/compaction.c:49:
+   include/trace/events/compaction.h: In function 'perf_trace_mm_compaction_defer_template':
+>> include/trace/events/compaction.h:260:29: error: 'struct zone' has no member named 'compact_considered'
+      __entry->considered = zone->compact_considered;
+                                ^
+   include/trace/ftrace.h:793:4: note: in definition of macro 'DECLARE_EVENT_CLASS'
+     { assign; }       \
+       ^
+>> include/trace/events/compaction.h:256:2: note: in expansion of macro 'TP_fast_assign'
+     TP_fast_assign(
+     ^
+>> include/trace/events/compaction.h:261:30: error: 'struct zone' has no member named 'compact_defer_shift'
+      __entry->defer_shift = zone->compact_defer_shift;
+                                 ^
+   include/trace/ftrace.h:793:4: note: in definition of macro 'DECLARE_EVENT_CLASS'
+     { assign; }       \
+       ^
+>> include/trace/events/compaction.h:256:2: note: in expansion of macro 'TP_fast_assign'
+     TP_fast_assign(
+     ^
+>> include/trace/events/compaction.h:262:31: error: 'struct zone' has no member named 'compact_order_failed'
+      __entry->order_failed = zone->compact_order_failed;
+                                  ^
+   include/trace/ftrace.h:793:4: note: in definition of macro 'DECLARE_EVENT_CLASS'
+     { assign; }       \
+       ^
+>> include/trace/events/compaction.h:256:2: note: in expansion of macro 'TP_fast_assign'
+     TP_fast_assign(
      ^
    mm/compaction.c: At top level:
-   mm/compaction.c:319:13: warning: 'suitable_migration_target' defined but not used [-Wunused-function]
+   mm/compaction.c:392:13: warning: 'suitable_migration_target' defined but not used [-Wunused-function]
     static bool suitable_migration_target(struct page *page)
                 ^
 
-vim +/compaction_status_string +148 include/trace/events/compaction.h
+vim +260 include/trace/events/compaction.h
 
-   111			__entry->migrate_pfn,
-   112			__entry->free_pfn,
-   113			__entry->zone_end,
-   114			__entry->sync ? "sync" : "async")
-   115	);
-   116	
- > 117	TRACE_EVENT(mm_compaction_end,
-   118		TP_PROTO(unsigned long zone_start, unsigned long migrate_pfn,
-   119			unsigned long free_pfn, unsigned long zone_end, bool sync,
-   120			int status),
-   121	
-   122		TP_ARGS(zone_start, migrate_pfn, free_pfn, zone_end, sync, status),
-   123	
-   124		TP_STRUCT__entry(
-   125			__field(unsigned long, zone_start)
-   126			__field(unsigned long, migrate_pfn)
-   127			__field(unsigned long, free_pfn)
-   128			__field(unsigned long, zone_end)
-   129			__field(bool, sync)
-   130			__field(int, status)
-   131		),
-   132	
-   133		TP_fast_assign(
-   134			__entry->zone_start = zone_start;
-   135			__entry->migrate_pfn = migrate_pfn;
-   136			__entry->free_pfn = free_pfn;
-   137			__entry->zone_end = zone_end;
-   138			__entry->sync = sync;
-   139			__entry->status = status;
-   140		),
-   141	
- > 142		TP_printk("zone_start=0x%lx migrate_pfn=0x%lx free_pfn=0x%lx zone_end=0x%lx, mode=%s status=%s",
-   143			__entry->zone_start,
-   144			__entry->migrate_pfn,
-   145			__entry->free_pfn,
-   146			__entry->zone_end,
-   147			__entry->sync ? "sync" : "async",
- > 148			compaction_status_string[__entry->status])
-   149	);
-   150	
-   151	#endif /* _TRACE_COMPACTION_H */
-   152	
-   153	/* This part must be outside protection */
- > 154	#include <trace/define_trace.h>
+   210			__entry->nid = zone_to_nid(zone);
+   211			__entry->name = (char *)zone->name;
+   212			__entry->order = order;
+   213			__entry->ret = ret;
+   214		),
+   215	
+ > 216		TP_printk("node=%d zone=%-8s order=%d ret=%s",
+   217			__entry->nid,
+   218			__entry->name,
+   219			__entry->order,
+   220			compaction_status_string[__entry->ret])
+   221	);
+   222	
+   223	DEFINE_EVENT(mm_compaction_suitable_template, mm_compaction_finished,
+   224	
+   225		TP_PROTO(struct zone *zone,
+   226			int order,
+   227			int ret),
+   228	
+   229		TP_ARGS(zone, order, ret)
+   230	);
+   231	
+   232	DEFINE_EVENT(mm_compaction_suitable_template, mm_compaction_suitable,
+   233	
+   234		TP_PROTO(struct zone *zone,
+   235			int order,
+   236			int ret),
+   237	
+   238		TP_ARGS(zone, order, ret)
+   239	);
+   240	
+   241	DECLARE_EVENT_CLASS(mm_compaction_defer_template,
+   242	
+   243		TP_PROTO(struct zone *zone, int order),
+   244	
+   245		TP_ARGS(zone, order),
+   246	
+   247		TP_STRUCT__entry(
+   248			__field(int, nid)
+   249			__field(char *, name)
+   250			__field(int, order)
+   251			__field(unsigned int, considered)
+   252			__field(unsigned int, defer_shift)
+   253			__field(int, order_failed)
+   254		),
+   255	
+ > 256		TP_fast_assign(
+   257			__entry->nid = zone_to_nid(zone);
+   258			__entry->name = (char *)zone->name;
+   259			__entry->order = order;
+ > 260			__entry->considered = zone->compact_considered;
+ > 261			__entry->defer_shift = zone->compact_defer_shift;
+ > 262			__entry->order_failed = zone->compact_order_failed;
+   263		),
+   264	
+   265		TP_printk("node=%d zone=%-8s order=%d order_failed=%d consider=%u limit=%lu",
+   266			__entry->nid,
+   267			__entry->name,
+   268			__entry->order,
+   269			__entry->order_failed,
+   270			__entry->considered,
+   271			1UL << __entry->defer_shift)
+   272	);
+   273	
+   274	DEFINE_EVENT(mm_compaction_defer_template, mm_compaction_deferred,
+   275	
+   276		TP_PROTO(struct zone *zone, int order),
+   277	
+   278		TP_ARGS(zone, order)
+   279	);
+   280	
+   281	DEFINE_EVENT(mm_compaction_defer_template, mm_compaction_defer_compaction,
+   282	
+   283		TP_PROTO(struct zone *zone, int order),
+   284	
+   285		TP_ARGS(zone, order)
+   286	);
+   287	
+   288	DEFINE_EVENT(mm_compaction_defer_template, mm_compaction_defer_reset,
+   289	
+   290		TP_PROTO(struct zone *zone, int order),
+   291	
+   292		TP_ARGS(zone, order)
+   293	);
+   294	
+   295	#endif /* _TRACE_COMPACTION_H */
+   296	
+   297	/* This part must be outside protection */
+ > 298	#include <trace/define_trace.h>
 
 ---
 0-DAY kernel test infrastructure                Open Source Technology Center
 http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
---tKW2IUtsqtDRztdT
+--3V7upXqbjpZ4EhLz
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: attachment; filename=".config"
 
@@ -4267,7 +4384,7 @@ CONFIG_DDR=y
 CONFIG_UCS2_STRING=y
 CONFIG_ARCH_HAS_SG_CHAIN=y
 
---tKW2IUtsqtDRztdT--
+--3V7upXqbjpZ4EhLz--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
