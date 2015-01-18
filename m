@@ -1,99 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 17B216B0032
-	for <linux-mm@kvack.org>; Sun, 18 Jan 2015 05:19:58 -0500 (EST)
-Received: by mail-wi0-f172.google.com with SMTP id bs8so11727159wib.5
-        for <linux-mm@kvack.org>; Sun, 18 Jan 2015 02:19:57 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v4si18276158wja.154.2015.01.18.02.19.57
+Received: from mail-yk0-f172.google.com (mail-yk0-f172.google.com [209.85.160.172])
+	by kanga.kvack.org (Postfix) with ESMTP id A764F6B0032
+	for <linux-mm@kvack.org>; Sun, 18 Jan 2015 06:34:29 -0500 (EST)
+Received: by mail-yk0-f172.google.com with SMTP id q9so2524936ykb.3
+        for <linux-mm@kvack.org>; Sun, 18 Jan 2015 03:34:29 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id s25si3990049yhg.139.2015.01.18.03.34.27
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 18 Jan 2015 02:19:57 -0800 (PST)
-Message-ID: <54BB88CB.7080107@suse.cz>
-Date: Sun, 18 Jan 2015 11:19:55 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 18 Jan 2015 03:34:28 -0800 (PST)
+Message-ID: <54BB9A32.7080703@oracle.com>
+Date: Sun, 18 Jan 2015 06:34:10 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/page_alloc: Fix race conditions on getting migratetype
- in buffered_rmqueue
-References: <1421572634-3399-1-git-send-email-teawater@gmail.com>
-In-Reply-To: <1421572634-3399-1-git-send-email-teawater@gmail.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Subject: Re: [PATCH 3/3] mm: catch memory commitment underflow
+References: <20140624201606.18273.44270.stgit@zurg> <20140624201614.18273.39034.stgit@zurg>
+In-Reply-To: <20140624201614.18273.39034.stgit@zurg>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hui Zhu <teawater@gmail.com>, akpm@linux-foundation.org, mgorman@suse.de, hannes@cmpxchg.org, rientjes@google.com, iamjoonsoo.kim@lge.com, sasha.levin@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Hui Zhu <zhuhui@xiaomi.com>
+To: Konstantin Khlebnikov <koct9i@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>Hugh Dickins <hughd@google.com>
 
-On 18.1.2015 10:17, Hui Zhu wrote:
-> From: Hui Zhu <zhuhui@xiaomi.com>
->
-> To test the patch [1], I use KGTP and a script [2] to show NR_FREE_CMA_PAGES
-> and gross of cma_nr_free.  The values are always not same.
-> I check the code of pages alloc and free and found that race conditions
-> on getting migratetype in buffered_rmqueue.
+On 06/24/2014 04:16 PM, Konstantin Khlebnikov wrote:
+> This patch prints warning (if CONFIG_DEBUG_VM=y) when
+> memory commitment becomes too negative.
+> 
+> Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
 
-Can you elaborate? What does this races with, are you dynamically changing
-the size of CMA area, or what? The migratetype here is based on which free
-list the page was found on. Was it misplaced then? Wasn't Joonsoo's recent
-series supposed to eliminate this?
+Hi Konstantin,
 
-> Then I add move the code of getting migratetype inside the zone->lock
-> protection part.
+I seem to be hitting this warning when fuzzing on the latest -next kernel:
 
-Not just that, you are also reading migratetype from pageblock bitmap
-instead of the one embedded in the free page. Which is more expensive
-and we already do that more often than we would like to because of CMA.
-And it appears to be a wrong fix for a possible misplacement bug. If there's
-such misplacement, the wrong stats are not the only problem.
+[  683.674323] ------------[ cut here ]------------
+[  683.675552] WARNING: CPU: 12 PID: 25654 at mm/mmap.c:157 __vm_enough_memory+0x1b7/0x1d0()
+[  683.676972] memory commitment underflow
+[  683.678212] Modules linked in:
+[  683.678219] CPU: 12 PID: 25654 Comm: trinity-c373 Not tainted 3.19.0-rc4-next-20150116-sasha-00054-g4ad498c-dirty #1744
+[  683.678227]  ffffffff9c6f7e73 ffff8802c0883a58 ffffffff9b439fb2 0000000000000000
+[  683.678231]  ffff8802c0883aa8 ffff8802c0883a98 ffffffff98159e1a ffff8802c0883ae8
+[  683.678236]  0000000000000001 0000000000000000 ffffffffffff76f1 ffff8802a9749000
+[  683.678243] Call Trace:
+[  683.678288] dump_stack (lib/dump_stack.c:52)
+[  683.678297] warn_slowpath_common (kernel/panic.c:447)
+[  683.678302] warn_slowpath_fmt (kernel/panic.c:461)
+[  683.678307] __vm_enough_memory (mm/mmap.c:157 (discriminator 3))
+[  683.678317] cap_vm_enough_memory (security/commoncap.c:958)
+[  683.678323] security_vm_enough_memory_mm (security/security.c:212)
+[  683.678331] shmem_getpage_gfp (mm/shmem.c:1161)
+[  683.678337] shmem_write_begin (mm/shmem.c:1495)
+[  683.678343] generic_perform_write (mm/filemap.c:2491)
+[  683.678447] __generic_file_write_iter (mm/filemap.c:2632)
+[  683.678452] generic_file_write_iter (mm/filemap.c:2659)
+[  683.678458] do_iter_readv_writev (fs/read_write.c:680)
+[  683.678461] do_readv_writev (fs/read_write.c:848)
+[  683.678512] vfs_writev (fs/read_write.c:893)
+[  683.678515] SyS_writev (fs/read_write.c:926 fs/read_write.c:917)
+[  683.678520] tracesys_phase2 (arch/x86/kernel/entry_64.S:529)
 
->
-> Because this issue will affect system even if the Linux kernel does't
-> have [1].  So I post this patch separately.
 
-But we can't test that without [1], right? Maybe the issue is introduced 
-by [1]?
-
->
-> This patchset is based on fc7f0dd381720ea5ee5818645f7d0e9dece41cb0.
->
-> [1] https://lkml.org/lkml/2015/1/18/28
-> [2] https://github.com/teawater/kgtp/blob/dev/add-ons/cma_free.py
->
-> Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
-> ---
->   mm/page_alloc.c | 11 +++++++----
->   1 file changed, 7 insertions(+), 4 deletions(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 7633c50..f3d6922 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1694,11 +1694,12 @@ again:
->   		}
->   		spin_lock_irqsave(&zone->lock, flags);
->   		page = __rmqueue(zone, order, migratetype);
-> +		if (page)
-> +			migratetype = get_pageblock_migratetype(page);
-> +		else
-> +			goto failed_unlock;
->   		spin_unlock(&zone->lock);
-> -		if (!page)
-> -			goto failed;
-> -		__mod_zone_freepage_state(zone, -(1 << order),
-> -					  get_freepage_migratetype(page));
-> +		__mod_zone_freepage_state(zone, -(1 << order), migratetype);
->   	}
->   
->   	__mod_zone_page_state(zone, NR_ALLOC_BATCH, -(1 << order));
-> @@ -1715,6 +1716,8 @@ again:
->   		goto again;
->   	return page;
->   
-> +failed_unlock:
-> +	spin_unlock(&zone->lock);
->   failed:
->   	local_irq_restore(flags);
->   	return NULL;
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
