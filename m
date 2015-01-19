@@ -1,92 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D2896B0038
-	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 23:06:02 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id kx10so33670314pab.11
-        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 20:06:02 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id z4si8192132pda.201.2015.01.28.20.06.01
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 4719E6B006E
+	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 23:14:45 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id lj1so33761801pab.5
+        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 20:14:45 -0800 (PST)
+Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
+        by mx.google.com with ESMTPS id bw17si8418925pdb.34.2015.01.28.20.14.44
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Jan 2015 20:06:01 -0800 (PST)
-Message-ID: <1422504356.6621.4.camel@ellerman.id.au>
-Subject: Re: [PATCH v3] powerpc/mm: fix undefined reference to
- `.__kernel_map_pages' on FSL PPC64
-From: Michael Ellerman <mpe@ellerman.id.au>
-Date: Thu, 29 Jan 2015 15:05:56 +1100
-In-Reply-To: <20150128141417.ba2e413fd8ccc8bfd65196e1@freescale.com>
-References: <20150120140200.aa7ba0eb28d95e456972e178@freescale.com>
-	 <20150120230150.GA14475@cloud>
-	 <20150120160738.edfe64806cc8b943beb1dfa0@linux-foundation.org>
-	 <CAC5umyieZn7ppXkKb45O=C=BF+iv6R_A1Dwfhro=cBJzFeovrA@mail.gmail.com>
-	 <20150122014550.GA21444@js1304-P5Q-DELUXE>
-	 <20150122144147.019eedc41f189eac44c3c4cd@freescale.com>
-	 <CAC5umyiF52cykH2_5TD0yzXb+842gywpe-+XZHEwmrDe0nYCPw@mail.gmail.com>
-	 <20150122212017.4b7032d52a6c75c06d5b4728@freescale.com>
-	 <1421987091.24984.13.camel@ellerman.id.au>
-	 <20150126132222.6477257be204a3332601ef11@freescale.com>
-	 <1422406862.32234.1.camel@ellerman.id.au>
-	 <CAAmzW4M3O81wBFeZ+JEVZnjRwMNwXnPKeL62Zz96xe_6a7WZpg@mail.gmail.com>
-	 <20150127185711.ee819e4b.akpm@linux-foundation.org>
-	 <1422415322.32234.3.camel@ellerman.id.au>
-	 <20150128141417.ba2e413fd8ccc8bfd65196e1@freescale.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Wed, 28 Jan 2015 20:14:44 -0800 (PST)
+Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
+ by mailout1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NIX00H2J7SC5DD0@mailout1.samsung.com> for
+ linux-mm@kvack.org; Thu, 29 Jan 2015 13:14:36 +0900 (KST)
+From: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Subject: [PATCH v2] zram: free meta table in zram_meta_free
+Date: Tue, 20 Jan 2015 07:43:47 +0800
+Message-id: <1421711028-5553-1-git-send-email-opensource.ganesh@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kim Phillips <kim.phillips@freescale.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <js1304@gmail.com>, Akinobu Mita <akinobu.mita@gmail.com>, Konstantin Khlebnikov <k.khlebnikov@samsung.com>, Rik van Riel <riel@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, josh@joshtriplett.org, LKML <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@fb.com>, Minchan Kim <minchan@kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Sasha Levin <sasha.levin@oracle.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Scott Wood <scottwood@freescale.com>
+To: minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ganesh Mahendran <opensource.ganesh@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Wed, 2015-01-28 at 14:14 -0600, Kim Phillips wrote:
-> On Wed, 28 Jan 2015 14:22:02 +1100
-> Michael Ellerman <mpe@ellerman.id.au> wrote:
-> 
-> > On Tue, 2015-01-27 at 18:57 -0800, Andrew Morton wrote:
-> > > On Wed, 28 Jan 2015 10:33:59 +0900 Joonsoo Kim <js1304@gmail.com> wrote:
-> > > 
-> > > > 2015-01-28 10:01 GMT+09:00 Michael Ellerman <mpe@ellerman.id.au>:
-> > > > > On Mon, 2015-01-26 at 13:22 -0600, Kim Phillips wrote:
-> > > > >> arch/powerpc has __kernel_map_pages implementations in mm/pgtable_32.c, and
-> > > > >
-> > > > > I'd be happy to take this through the powerpc tree for 3.20, but for this:
-> > > > >
-> > > > >> depends on:
-> > > > >> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > > > >> Date: Thu, 22 Jan 2015 10:28:58 +0900
-> > > > >> Subject: [PATCH] mm/debug_pagealloc: fix build failure on ppc and some other archs
-> > > > >
-> > > > > I don't have that patch in my tree.
-> > > > >
-> > > > > But in what way does this patch depend on that one?
-> > > > >
-> > > > > It looks to me like it'd be safe to take this on its own, or am I wrong?
-> > > > 
-> > > > Hello,
-> > > > 
-> > > > These two patches are merged to Andrew's tree now.
-> > > 
-> > > That didn't answer either of Michael's questions ;)
-> > > 
-> > > Yes, I think they're independent.  I was holding off on the powerpc
-> 
-> sorry - my bad, they are indeed completely independent.
+zram_meta_alloc() and zram_meta_free() are a pair.
+In zram_meta_alloc(), meta table is allocated. So it it better to free
+it in zram_meta_free().
+
+Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Cc: Nitin Gupta <ngupta@vflare.org>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+---
+v2: use zram->disksize to get num of pages - Sergey
+---
+ drivers/block/zram/zram_drv.c |   33 ++++++++++++++++-----------------
+ 1 file changed, 16 insertions(+), 17 deletions(-)
+
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index 9250b3f..aa5a4c5 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -307,8 +307,21 @@ static inline int valid_io_request(struct zram *zram,
+ 	return 1;
+ }
  
-No worries.
-
-> > > one, waiting to see if it popped up in linux-next via your tree.  I can
-> > > merge both if you like?
-> > 
-> > Right, I didn't think I'd seen it in your tree :)
-> > 
-> > I'm happy to take this one, saves a possible merge conflict.
-> 
-> I'm fine either way (I work on linux-next).
-
-Cool. It's in my next as of now, so should be in linux-next tomorrow (30th).
-
-cheers
-
+-static void zram_meta_free(struct zram_meta *meta)
++static void zram_meta_free(struct zram_meta *meta, u64 disksize)
+ {
++	size_t num_pages = disksize >> PAGE_SHIFT;
++	size_t index;
++
++	/* Free all pages that are still in this zram device */
++	for (index = 0; index < num_pages; index++) {
++		unsigned long handle = meta->table[index].handle;
++
++		if (!handle)
++			continue;
++
++		zs_free(meta->mem_pool, handle);
++	}
++
+ 	zs_destroy_pool(meta->mem_pool);
+ 	vfree(meta->table);
+ 	kfree(meta);
+@@ -706,9 +719,6 @@ static void zram_bio_discard(struct zram *zram, u32 index,
+ 
+ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+ {
+-	size_t index;
+-	struct zram_meta *meta;
+-
+ 	down_write(&zram->init_lock);
+ 
+ 	zram->limit_pages = 0;
+@@ -718,20 +728,9 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+ 		return;
+ 	}
+ 
+-	meta = zram->meta;
+-	/* Free all pages that are still in this zram device */
+-	for (index = 0; index < zram->disksize >> PAGE_SHIFT; index++) {
+-		unsigned long handle = meta->table[index].handle;
+-		if (!handle)
+-			continue;
+-
+-		zs_free(meta->mem_pool, handle);
+-	}
+-
+ 	zcomp_destroy(zram->comp);
+ 	zram->max_comp_streams = 1;
+-
+-	zram_meta_free(zram->meta);
++	zram_meta_free(zram->meta, zram->disksize);
+ 	zram->meta = NULL;
+ 	/* Reset stats */
+ 	memset(&zram->stats, 0, sizeof(zram->stats));
+@@ -803,7 +802,7 @@ out_destroy_comp:
+ 	up_write(&zram->init_lock);
+ 	zcomp_destroy(comp);
+ out_free_meta:
+-	zram_meta_free(meta);
++	zram_meta_free(meta, disksize);
+ 	return err;
+ }
+ 
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
