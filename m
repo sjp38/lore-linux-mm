@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 134216B0038
-	for <linux-mm@kvack.org>; Mon, 19 Jan 2015 05:05:47 -0500 (EST)
-Received: by mail-wg0-f47.google.com with SMTP id n12so689727wgh.6
-        for <linux-mm@kvack.org>; Mon, 19 Jan 2015 02:05:46 -0800 (PST)
+Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A5076B006E
+	for <linux-mm@kvack.org>; Mon, 19 Jan 2015 05:05:50 -0500 (EST)
+Received: by mail-we0-f172.google.com with SMTP id k11so30427951wes.3
+        for <linux-mm@kvack.org>; Mon, 19 Jan 2015 02:05:49 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r7si20327052wiz.23.2015.01.19.02.05.41
+        by mx.google.com with ESMTPS id u8si2803641wia.105.2015.01.19.02.05.42
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 19 Jan 2015 02:05:41 -0800 (PST)
+        Mon, 19 Jan 2015 02:05:42 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH 1/5] mm, compaction: more robust check for scanners meeting
-Date: Mon, 19 Jan 2015 11:05:16 +0100
-Message-Id: <1421661920-4114-2-git-send-email-vbabka@suse.cz>
+Subject: [RFC PATCH 5/5] mm, compaction: set pivot pfn to the pfn when scanners met last time
+Date: Mon, 19 Jan 2015 11:05:20 +0100
+Message-Id: <1421661920-4114-6-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1421661920-4114-1-git-send-email-vbabka@suse.cz>
 References: <1421661920-4114-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,26 +20,37 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>
 
-Compaction should finish when the migration and free scanner meet, i.e. they
-reach the same pageblock. Currently however, the test in compact_finished()
-simply just compares the exact pfns, which may yield a false negative when the
-free scanner position is in the middle of a pageblock and the migration
-scanner reaches the begining of the same pageblock.
+The previous patch has prepared compaction scanners to start at arbitrary
+pivot pfn within the zone, but left the pivot at the first pfn of the zone.
+This patch introduces actual changing of the pivot pfn.
 
-This hasn't been a problem until commit e14c720efdd7 ("mm, compaction:
-remember position within pageblock in free pages scanner") allowed the free
-scanner position to be in the middle of a pageblock between invocations.
-The hot-fix 1d5bfe1ffb5b ("mm, compaction: prevent infinite loop in
-compact_zone") prevented the issue by adding a special check in the migration
-scanner to satisfy the current detection of scanners meeting.
+Our goal is to remove the bias in compaction under memory pressure, where
+the migration scanner scans only the first half (or less) of the zone where
+it cannot succeed anymore. At the same time we want to avoid frequent changes
+of the pivot which would result in migrating pages back and forth without much
+benefit. So the question is how often to change the pivot, and to which pfn
+it should be set.
 
-However, the proper fix is to make the detection more robust. This patch
-introduces the compact_scanners_met() function that returns true when the free
-scanner position is in the same or lower pageblock than the migration scanner.
-The special case in isolate_migratepages() introduced by 1d5bfe1ffb5b is
-removed.
+Another thing to consider is that the scanners mark pageblocks as unsuitable
+for scanning via update_pageblock_skip(), which is a single bit per pageblock.
+However, pageblock being unsuitable as a source of free pages is completely
+different condition from pageblock being unsuitable as the source of
+migratable pages. Thus, changing the pivot should be accompanied with
+resetting the skip bits. The resetting is currently done either when kswapd
+goes to sleep, or when compaction is being restarted from the longest possible
+deferred compaction period.
 
-Suggested-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Thus as a conservative first step, this patch does not increase the frequency
+of skip bits resetting, and ties changing the pivot only to the situations
+where compaction is restarted from being deferred. This happens when
+compaction has failed a lot with the previous pivot, and most pageblocks were
+already marked as unsuitable. Thus, most migrations occured relatively long
+ago and we are not going to frequently migrate back and forth.
+
+The pivot position is simply set to the pageblock where the scanners have met
+during the last finished compaction. This means that migration scanner will
+immediately scan pageblocks that it couldn't reach with the previous pivot.
+
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 Cc: Minchan Kim <minchan@kernel.org>
 Cc: Mel Gorman <mgorman@suse.de>
@@ -50,63 +61,79 @@ Cc: Christoph Lameter <cl@linux.com>
 Cc: Rik van Riel <riel@redhat.com>
 Cc: David Rientjes <rientjes@google.com>
 ---
- mm/compaction.c | 22 ++++++++++++++--------
- 1 file changed, 14 insertions(+), 8 deletions(-)
+ include/linux/mmzone.h |  2 ++
+ mm/compaction.c        | 22 +++++++++++++++++-----
+ 2 files changed, 19 insertions(+), 5 deletions(-)
 
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 47aa181..7801886 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -505,6 +505,8 @@ struct zone {
+ #if defined CONFIG_COMPACTION || defined CONFIG_CMA
+ 	/* pfn where compaction scanners have initially started last time */
+ 	unsigned long		compact_cached_pivot_pfn;
++	/* pfn where compaction scanners have met last time */
++	unsigned long		compact_cached_last_met_pfn;
+ 	/* pfn where compaction free scanner should start */
+ 	unsigned long		compact_cached_free_pfn;
+ 	/* pfn where async and sync compaction migration scanner should start */
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 546e571..5fdbdb8 100644
+index abae89a..70792c5 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -803,6 +803,16 @@ isolate_migratepages_range(struct compact_control *cc, unsigned long start_pfn,
- #endif /* CONFIG_COMPACTION || CONFIG_CMA */
- #ifdef CONFIG_COMPACTION
+@@ -125,10 +125,16 @@ static inline bool isolation_suitable(struct compact_control *cc,
+ 
  /*
-+ * Test whether the free scanner has reached the same or lower pageblock than
-+ * the migration scanner, and compaction should thus terminate.
-+ */
-+static inline bool compact_scanners_met(struct compact_control *cc)
-+{
-+	return (cc->free_pfn >> pageblock_order)
-+		<= (cc->migrate_pfn >> pageblock_order);
-+}
-+
-+/*
-  * Based on information in the current compact_control, find blocks
-  * suitable for isolating free pages from and then isolate them.
+  * Invalidate cached compaction scanner positions, so that compact_zone()
+- * will reinitialize them on the next compaction.
++ * will reinitialize them on the next compaction. Optionally reset the
++ * initial pivot position for the scanners to the position where the scanners
++ * have met the last time.
   */
-@@ -1027,12 +1037,8 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+-static void reset_cached_positions(struct zone *zone)
++static void reset_cached_positions(struct zone *zone, bool update_pivot)
+ {
++	if (update_pivot)
++		zone->compact_cached_pivot_pfn =
++					zone->compact_cached_last_met_pfn;
++
+ 	/* Invalid values are re-initialized in compact_zone */
+ 	zone->compact_cached_migrate_pfn[0] = 0;
+ 	zone->compact_cached_migrate_pfn[1] = 0;
+@@ -1193,7 +1199,13 @@ static int compact_finished(struct zone *zone, struct compact_control *cc,
+ 	/* Compaction run completes if the migrate and free scanner meet */
+ 	if (compact_scanners_met(cc)) {
+ 		/* Let the next compaction start anew. */
+-		reset_cached_positions(zone);
++		reset_cached_positions(zone, false);
++		/* 
++		 * Remember where compaction scanners met for the next time
++		 * the pivot pfn is changed.
++		 */
++		zone->compact_cached_last_met_pfn =
++				cc->migrate_pfn & ~(pageblock_nr_pages-1);
+ 
+ 		/*
+ 		 * Mark that the PG_migrate_skip information should be cleared
+@@ -1321,7 +1333,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+ 	 */
+ 	if (compaction_restarting(zone, cc->order) && !current_is_kswapd()) {
+ 		__reset_isolation_suitable(zone);
+-		reset_cached_positions(zone);
++		reset_cached_positions(zone, true);
  	}
  
- 	acct_isolated(zone, cc);
--	/*
--	 * Record where migration scanner will be restarted. If we end up in
--	 * the same pageblock as the free scanner, make the scanners fully
--	 * meet so that compact_finished() terminates compaction.
--	 */
--	cc->migrate_pfn = (end_pfn <= cc->free_pfn) ? low_pfn : cc->free_pfn;
-+	/* Record where migration scanner will be restarted. */
-+	cc->migrate_pfn = low_pfn;
+ 	/*
+@@ -1334,7 +1346,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+ 		cc->pivot_pfn = start_pfn;
+ 		zone->compact_cached_pivot_pfn = cc->pivot_pfn;
+ 		/* When starting position was invalid, reset the rest */
+-		reset_cached_positions(zone);
++		reset_cached_positions(zone, false);
+ 	}
  
- 	return cc->nr_migratepages ? ISOLATE_SUCCESS : ISOLATE_NONE;
- }
-@@ -1047,7 +1053,7 @@ static int compact_finished(struct zone *zone, struct compact_control *cc,
- 		return COMPACT_PARTIAL;
- 
- 	/* Compaction run completes if the migrate and free scanner meet */
--	if (cc->free_pfn <= cc->migrate_pfn) {
-+	if (compact_scanners_met(cc)) {
- 		/* Let the next compaction start anew. */
- 		zone->compact_cached_migrate_pfn[0] = zone->zone_start_pfn;
- 		zone->compact_cached_migrate_pfn[1] = zone->zone_start_pfn;
-@@ -1238,7 +1244,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
- 			 * migrate_pages() may return -ENOMEM when scanners meet
- 			 * and we want compact_finished() to detect it
- 			 */
--			if (err == -ENOMEM && cc->free_pfn > cc->migrate_pfn) {
-+			if (err == -ENOMEM && !compact_scanners_met(cc)) {
- 				ret = COMPACT_PARTIAL;
- 				goto out;
- 			}
+ 	cc->migrate_pfn = zone->compact_cached_migrate_pfn[sync];
 -- 
 2.1.2
 
