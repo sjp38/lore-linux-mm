@@ -1,89 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id D60946B0032
-	for <linux-mm@kvack.org>; Sun, 18 Jan 2015 23:20:39 -0500 (EST)
-Received: by mail-pa0-f50.google.com with SMTP id bj1so36153453pad.9
-        for <linux-mm@kvack.org>; Sun, 18 Jan 2015 20:20:39 -0800 (PST)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id ko6si14384882pab.77.2015.01.18.20.20.36
-        for <linux-mm@kvack.org>;
-        Sun, 18 Jan 2015 20:20:38 -0800 (PST)
-From: "Zhang, Yanfei" <zhangyanfei@cn.fujitsu.com>
-Subject: =?gb2312?B?tPC4tDogW1BBVENIIHYyIDIvMl0gbW06IGRvbid0IHVzZSBjb21wb3VuZF9o?=
- =?gb2312?B?ZWFkKCkgaW4gdmlydF90b19oZWFkX3BhZ2UoKQ==?=
-Date: Mon, 19 Jan 2015 04:20:33 +0000
-Message-ID: <A2561C5993F09A448DAB2112981CF71749A3C4@G08CNEXMBPEKD03.g08.fujitsu.local>
-References: <1421307633-24045-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<1421307633-24045-2-git-send-email-iamjoonsoo.kim@lge.com>
- <20150115171646.8fec31e2.akpm@linux-foundation.org>
-In-Reply-To: <20150115171646.8fec31e2.akpm@linux-foundation.org>
-Content-Language: zh-CN
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
+Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 27CB16B0032
+	for <linux-mm@kvack.org>; Sun, 18 Jan 2015 23:27:18 -0500 (EST)
+Received: by mail-ie0-f181.google.com with SMTP id vy18so6806196iec.12
+        for <linux-mm@kvack.org>; Sun, 18 Jan 2015 20:27:17 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id a15si11841801icg.87.2015.01.18.20.27.16
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 18 Jan 2015 20:27:17 -0800 (PST)
+Message-ID: <54BC879C.90505@codeaurora.org>
+Date: Mon, 19 Jan 2015 09:57:08 +0530
+From: Vinayak Menon <vinmenon@codeaurora.org>
 MIME-Version: 1.0
+Subject: Re: [PATCH v2] mm: vmscan: fix the page state calculation in too_many_isolated
+References: <1421235419-30736-1-git-send-email-vinmenon@codeaurora.org> <20150114165036.GI4706@dhcp22.suse.cz> <54B7F7C4.2070105@codeaurora.org> <20150116154922.GB4650@dhcp22.suse.cz> <54BA7D3A.40100@codeaurora.org> <alpine.DEB.2.11.1501171347290.25464@gentwo.org>
+In-Reply-To: <alpine.DEB.2.11.1501171347290.25464@gentwo.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jesper Dangaard Brouer <brouer@redhat.com>, "rostedt@goodmis.org" <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>
+To: Christoph Lameter <cl@linux.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, mgorman@suse.de, minchan@kernel.org
 
-SGVsbG8sDQoNCj4gLS0tLS3Tyrz+1K28/i0tLS0tDQo+ILeivP7IyzogbGludXgta2VybmVsLW93
-bmVyQHZnZXIua2VybmVsLm9yZyBbbWFpbHRvOmxpbnV4LWtlcm5lbC0NCj4gb3duZXJAdmdlci5r
-ZXJuZWwub3JnXSC0+rHtIEFuZHJldyBNb3J0b24NCj4gt6LLzcqxvOQ6IDIwMTXE6jHUwjE2yNUg
-OToxNw0KPiDK1bz+yMs6IEpvb25zb28gS2ltDQo+ILOty806IENocmlzdG9waCBMYW1ldGVyOyBQ
-ZWtrYSBFbmJlcmc7IERhdmlkIFJpZW50amVzOyBsaW51eC1tbUBrdmFjay5vcmc7DQo+IGxpbnV4
-LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc7IEplc3BlciBEYW5nYWFyZCBCcm91ZXI7DQo+IHJvc3Rl
-ZHRAZ29vZG1pcy5vcmc7IFRob21hcyBHbGVpeG5lcg0KPiDW98ziOiBSZTogW1BBVENIIHYyIDIv
-Ml0gbW06IGRvbid0IHVzZSBjb21wb3VuZF9oZWFkKCkgaW4NCj4gdmlydF90b19oZWFkX3BhZ2Uo
-KQ0KPiANCj4gT24gVGh1LCAxNSBKYW4gMjAxNSAxNjo0MDozMyArMDkwMCBKb29uc29vIEtpbSA8
-aWFtam9vbnNvby5raW1AbGdlLmNvbT4NCj4gd3JvdGU6DQo+IA0KPiA+IGNvbXBvdW5kX2hlYWQo
-KSBpcyBpbXBsZW1lbnRlZCB3aXRoIGFzc3VtcHRpb24gdGhhdCB0aGVyZSB3b3VsZCBiZQ0KPiA+
-IHJhY2UgY29uZGl0aW9uIHdoZW4gY2hlY2tpbmcgdGFpbCBmbGFnLiBUaGlzIGFzc3VtcHRpb24g
-aXMgb25seSB0cnVlDQo+ID4gd2hlbiB3ZSB0cnkgdG8gYWNjZXNzIGFyYml0cmFyeSBwb3NpdGlv
-bmVkIHN0cnVjdCBwYWdlLg0KPiA+DQo+ID4gVGhlIHNpdHVhdGlvbiB0aGF0IHZpcnRfdG9faGVh
-ZF9wYWdlKCkgaXMgY2FsbGVkIGlzIGRpZmZlcmVudCBjYXNlLg0KPiA+IFdlIGNhbGwgdmlydF90
-b19oZWFkX3BhZ2UoKSBvbmx5IGluIHRoZSByYW5nZSBvZiBhbGxvY2F0ZWQgcGFnZXMsIHNvDQo+
-ID4gdGhlcmUgaXMgbm8gcmFjZSBjb25kaXRpb24gb24gdGFpbCBmbGFnLiBJbiB0aGlzIGNhc2Us
-IHdlIGRvbid0IG5lZWQNCj4gPiB0byBoYW5kbGUgcmFjZSBjb25kaXRpb24gYW5kIHdlIGNhbiBy
-ZWR1Y2Ugb3ZlcmhlYWQgc2xpZ2h0bHkuDQo+ID4gVGhpcyBwYXRjaCBpbXBsZW1lbnRzIGNvbXBv
-dW5kX2hlYWRfZmFzdCgpIHdoaWNoIGlzIHNpbWlsYXIgd2l0aA0KPiA+IGNvbXBvdW5kX2hlYWQo
-KSBleGNlcHQgdGFpbCBmbGFnIHJhY2UgaGFuZGxpbmcuIEFuZCB0aGVuLA0KPiA+IHZpcnRfdG9f
-aGVhZF9wYWdlKCkgdXNlcyB0aGlzIG9wdGltaXplZCBmdW5jdGlvbiB0byBpbXByb3ZlIHBlcmZv
-cm1hbmNlLg0KPiA+DQo+ID4gSSBzYXcgMS44JSB3aW4gaW4gYSBmYXN0LXBhdGggbG9vcCBvdmVy
-IGttZW1fY2FjaGVfYWxsb2MvZnJlZSwNCj4gPiAoMTQuMDYzIG5zIC0+IDEzLjgxMCBucykgaWYg
-dGFyZ2V0IG9iamVjdCBpcyBvbiB0YWlsIHBhZ2UuDQo+ID4NCj4gPiAuLi4NCj4gPg0KPiA+IC0t
-LSBhL2luY2x1ZGUvbGludXgvbW0uaA0KPiA+ICsrKyBiL2luY2x1ZGUvbGludXgvbW0uaA0KPiA+
-IEBAIC00NTMsNiArNDUzLDEzIEBAIHN0YXRpYyBpbmxpbmUgc3RydWN0IHBhZ2UgKmNvbXBvdW5k
-X2hlYWQoc3RydWN0DQo+IHBhZ2UgKnBhZ2UpDQo+ID4gIAlyZXR1cm4gcGFnZTsNCj4gPiAgfQ0K
-PiA+DQo+ID4gK3N0YXRpYyBpbmxpbmUgc3RydWN0IHBhZ2UgKmNvbXBvdW5kX2hlYWRfZmFzdChz
-dHJ1Y3QgcGFnZSAqcGFnZSkgew0KPiA+ICsJaWYgKHVubGlrZWx5KFBhZ2VUYWlsKHBhZ2UpKSkN
-Cj4gPiArCQlyZXR1cm4gcGFnZS0+Zmlyc3RfcGFnZTsNCj4gPiArCXJldHVybiBwYWdlOw0KPiA+
-ICt9DQo+IA0KPiBDYW4gd2UgcGxlYXNlIGhhdmUgc29tZSBjb2RlIGNvbW1lbnRzIHdoaWNoIGxl
-dCBwZW9wbGUga25vdyB3aGVuIHRoZXkNCj4gc2hvdWxkIGFuZCBzaG91bGRuJ3QgdXNlIGNvbXBv
-dW5kX2hlYWRfZmFzdCgpPyAgSSBzaG91bGRuJ3QgaGF2ZSB0byBzYXkNCj4gdGhpcyA6KA0KPiAN
-Cj4gPiAgLyoNCj4gPiAgICogVGhlIGF0b21pYyBwYWdlLT5fbWFwY291bnQsIHN0YXJ0cyBmcm9t
-IC0xOiBzbyB0aGF0IHRyYW5zaXRpb25zDQo+ID4gICAqIGJvdGggZnJvbSBpdCBhbmQgdG8gaXQg
-Y2FuIGJlIHRyYWNrZWQsIHVzaW5nIGF0b21pY19pbmNfYW5kX3Rlc3QNCj4gPiBAQCAtNTMxLDcg
-KzUzOCw4IEBAIHN0YXRpYyBpbmxpbmUgdm9pZCBnZXRfcGFnZShzdHJ1Y3QgcGFnZSAqcGFnZSkN
-Cj4gPiBzdGF0aWMgaW5saW5lIHN0cnVjdCBwYWdlICp2aXJ0X3RvX2hlYWRfcGFnZShjb25zdCB2
-b2lkICp4KSAgew0KPiA+ICAJc3RydWN0IHBhZ2UgKnBhZ2UgPSB2aXJ0X3RvX3BhZ2UoeCk7DQo+
-ID4gLQlyZXR1cm4gY29tcG91bmRfaGVhZChwYWdlKTsNCj4gPiArDQo+ID4gKwlyZXR1cm4gY29t
-cG91bmRfaGVhZF9mYXN0KHBhZ2UpOw0KPiANCj4gQW5kIHBlcmhhcHMgc29tZSBleHBsYW5hdGlv
-biBoZXJlIGFzIHRvIHdoeSB2aXJ0X3RvX2hlYWRfcGFnZSgpIGNhbg0KPiBzYWZlbHkgdXNlIGNv
-bXBvdW5kX2hlYWRfZmFzdCgpLiAgVGhlcmUncyBhbiBhc3N1bXB0aW9uIGhlcmUgdGhhdCBub2Jv
-ZHkNCj4gd2lsbCBiZSBkaXNtYW50bGluZyB0aGUgY29tcG91bmQgcGFnZSB3aGlsZSB2aXJ0X3Rv
-X2hlYWRfcGFnZSgpIGlzIGluDQo+IHByb2dyZXNzLCB5ZXM/ICBBbmQgdGhpcyBhc3N1bXB0aW9u
-IGFsc28gaG9sZHMgZm9yIHRoZSBjYWxsaW5nIGNvZGUsIGJlY2F1c2UNCj4gb3RoZXJ3aXNlIHRo
-ZSB2aXJ0X3RvX2hlYWRfcGFnZSgpIHJldHVybiB2YWx1ZSBpcyBraW5kYSBtZWFuaW5nbGVzcy4N
-Cg0KU28gYW55IG90aGVyIHBsYWNlcyB0aGF0IGNhbGwgY29tcG91bmRfaGVhZCgpIGNvdWxkIGJl
-IHJlcGxhY2VkIHdpdGggY29tcG91bmRfaGVhZF9mYXN0KCkNCmlmIHdlIGFyZSBzdXJlIHRoYXQg
-dGhlcmUgaXMgbm8gcmFjZSBjb25kaXRpb24gb24gdGFpbCBmbGFnPw0KDQpJIGFsc28gdGhpbmsg
-YWRkaW5nIGNvZGUgY29tbWVudHMgaXMgbmVjZXNzYXJ5Lg0KDQpUaGFua3MuDQoNCj4gDQo+IFRo
-aXMgaXMgdHJpY2t5IHN0dWZmIC0gbGV0J3Mgc3BlbGwgaXQgb3V0IGNhcmVmdWxseS4NCj4gLS0N
-Cj4gVG8gdW5zdWJzY3JpYmUgZnJvbSB0aGlzIGxpc3Q6IHNlbmQgdGhlIGxpbmUgInVuc3Vic2Ny
-aWJlIGxpbnV4LWtlcm5lbCIgaW4gdGhlDQo+IGJvZHkgb2YgYSBtZXNzYWdlIHRvIG1ham9yZG9t
-b0B2Z2VyLmtlcm5lbC5vcmcgTW9yZSBtYWpvcmRvbW8gaW5mbyBhdA0KPiBodHRwOi8vdmdlci5r
-ZXJuZWwub3JnL21ham9yZG9tby1pbmZvLmh0bWwNCj4gUGxlYXNlIHJlYWQgdGhlIEZBUSBhdCAg
-aHR0cDovL3d3dy50dXgub3JnL2xrbWwvDQo=
+On 01/18/2015 01:18 AM, Christoph Lameter wrote:
+> On Sat, 17 Jan 2015, Vinayak Menon wrote:
+>
+>> which had not updated the vmstat_diff. This CPU was in idle for around 30
+>> secs. When I looked at the tvec base for this CPU, the timer associated with
+>> vmstat_update had its expiry time less than current jiffies. This timer had
+>> its deferrable flag set, and was tied to the next non-deferrable timer in the
+>
+> We can remove the deferrrable flag now since the vmstat threads are only
+> activated as necessary with the recent changes. Looks like this could fix
+> your issue?
+>
+
+Yes, this should fix my issue.
+But I think we may need the fix in too_many_isolated, since there can 
+still be a delay of few seconds (HZ by default and even more because of 
+reasons pointed out by Michal) which will result in reclaimers 
+unnecessarily entering congestion_wait. No ?
+
+
+-- 
+QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
+member of the Code Aurora Forum, hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
