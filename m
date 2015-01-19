@@ -1,115 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EBB96B0038
-	for <linux-mm@kvack.org>; Mon, 19 Jan 2015 11:27:59 -0500 (EST)
-Received: by mail-wi0-f177.google.com with SMTP id r20so9808517wiv.4
-        for <linux-mm@kvack.org>; Mon, 19 Jan 2015 08:27:57 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k7si26939467wjx.63.2015.01.19.08.27.56
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id E926F6B0032
+	for <linux-mm@kvack.org>; Mon, 19 Jan 2015 11:48:56 -0500 (EST)
+Received: by mail-pa0-f47.google.com with SMTP id kq14so39814359pab.6
+        for <linux-mm@kvack.org>; Mon, 19 Jan 2015 08:48:56 -0800 (PST)
+Received: from mail.samba.org (fn.samba.org. [2001:470:1f05:1a07::1])
+        by mx.google.com with ESMTPS id qf1si1094585pab.192.2015.01.19.08.48.53
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 19 Jan 2015 08:27:56 -0800 (PST)
-Message-ID: <54BD308A.4080905@suse.cz>
-Date: Mon, 19 Jan 2015 17:27:54 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 19 Jan 2015 08:48:54 -0800 (PST)
+Date: Mon, 19 Jan 2015 08:48:57 -0800
+From: Jeremy Allison <jra@samba.org>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] async buffered diskio read for userspace
+ apps
+Message-ID: <20150119164857.GC12308@jeremy-HP>
+Reply-To: Jeremy Allison <jra@samba.org>
+References: <CANP1eJF77=iH_tm1y0CgF6PwfhUK6WqU9S92d0xAnCt=WhZVfQ@mail.gmail.com>
+ <20150115223157.GB25884@quack.suse.cz>
+ <CANP1eJGRX4w56Ek4j7d2U+F7GNWp6RyOJonxKxTy0phUCpBM9g@mail.gmail.com>
+ <20150116165506.GA10856@samba2>
+ <CANP1eJEF33gndXeBJ0duP2_Bvuv-z6k7OLyuai7vjVdVKRYUWw@mail.gmail.com>
+ <20150119071218.GA9747@jeremy-HP>
+ <1421652849.2080.20.camel@HansenPartnership.com>
+ <CANP1eJHYUprjvO1o6wfd197LM=Bmhi55YfdGQkPT0DKRn3=q6A@mail.gmail.com>
+ <54BD234F.3060203@kernel.dk>
+ <1421682581.2080.22.camel@HansenPartnership.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH V3] mm/thp: Allocate transparent hugepages on local node
-References: <1421393196-20915-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20150116160204.544e2bcf9627f5a4043ebf8d@linux-foundation.org>
-In-Reply-To: <20150116160204.544e2bcf9627f5a4043ebf8d@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1421682581.2080.22.camel@HansenPartnership.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: Jens Axboe <axboe@kernel.dk>, Milosz Tanski <milosz@adfin.com>, Volker Lendecke <Volker.Lendecke@sernet.de>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, lsf-pc@lists.linux-foundation.org, Jeremy Allison <jra@samba.org>
 
-On 01/17/2015 01:02 AM, Andrew Morton wrote:
-> On Fri, 16 Jan 2015 12:56:36 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+On Mon, Jan 19, 2015 at 07:49:41AM -0800, James Bottomley wrote:
 > 
->> This make sure that we try to allocate hugepages from local node if
->> allowed by mempolicy. If we can't, we fallback to small page allocation
->> based on mempolicy. This is based on the observation that allocating pages
->> on local node is more beneficial than allocating hugepages on remote node.
-> 
-> The changelog is a bit incomplete.  It doesn't describe the current
-> behaviour, nor what is wrong with it.  What are the before-and-after
-> effects of this change?
-> 
-> And what might be the user-visible effects?
-> 
->> --- a/mm/mempolicy.c
->> +++ b/mm/mempolicy.c
->> @@ -2030,6 +2030,46 @@ retry_cpuset:
->>  	return page;
->>  }
->>  
->> +struct page *alloc_hugepage_vma(gfp_t gfp, struct vm_area_struct *vma,
->> +				unsigned long addr, int order)
-> 
-> alloc_pages_vma() is nicely documented.  alloc_hugepage_vma() is not
-> documented at all.  This makes it a bit had for readers to work out the
-> difference!
-> 
-> Is it possible to scrunch them both into the same function?  Probably
-> too messy?
+> For fio, it likely doesn't matter.  Most people download the repository
+> and compile it themselves when building the tool. In that case, there's
+> no licence violation anyway (all GPL issues, including technical licence
+> incompatibility, manifest on distribution not on use).  It is a problem
+> for the distributors, but they're well used to these type of self
+> inflicted wounds.
 
-Hm that could work, alloc_pages_vma already has an if (MPOL_INTERLEAVE) part, so
-just put the THP specialities into an "else if (huge_page)" part there?
+That's true, but it is setting a bear-trap for distributors.
 
-You could probably test for GFP_TRANSHUGE the same way as __alloc_pages_slowpath
-does. There might be false positives theoretically, but is there anything else
-that would use these flags and not be a THP?
-
-
-
->> +{
->> +	struct page *page;
->> +	nodemask_t *nmask;
->> +	struct mempolicy *pol;
->> +	int node = numa_node_id();
->> +	unsigned int cpuset_mems_cookie;
->> +
->> +retry_cpuset:
->> +	pol = get_vma_policy(vma, addr);
->> +	cpuset_mems_cookie = read_mems_allowed_begin();
->> +
->> +	if (pol->mode != MPOL_INTERLEAVE) {
->> +		/*
->> +		 * For interleave policy, we don't worry about
->> +		 * current node. Otherwise if current node is
->> +		 * in nodemask, try to allocate hugepage from
->> +		 * current node. Don't fall back to other nodes
->> +		 * for THP.
->> +		 */
-> 
-> This code isn't "interleave policy".  It's everything *but* interleave
-> policy.  Comment makes no sense!
-> 
->> +		nmask = policy_nodemask(gfp, pol);
->> +		if (!nmask || node_isset(node, *nmask)) {
->> +			mpol_cond_put(pol);
->> +			page = alloc_pages_exact_node(node, gfp, order);
->> +			if (unlikely(!page &&
->> +				     read_mems_allowed_retry(cpuset_mems_cookie)))
->> +				goto retry_cpuset;
->> +			return page;
->> +		}
->> +	}
->> +	mpol_cond_put(pol);
->> +	/*
->> +	 * if current node is not part of node mask, try
->> +	 * the allocation from any node, and we can do retry
->> +	 * in that case.
->> +	 */
->> +	return alloc_pages_vma(gfp, order, vma, addr, node);
->> +}
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+Might be better to keep the code repositories separate so at
+lease people have a *chance* of noticing there's a problem
+here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
