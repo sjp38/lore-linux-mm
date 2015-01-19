@@ -1,99 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F4D16B0038
-	for <linux-mm@kvack.org>; Mon, 19 Jan 2015 01:08:25 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id rd3so36695393pab.7
-        for <linux-mm@kvack.org>; Sun, 18 Jan 2015 22:08:25 -0800 (PST)
-Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id z1si14646459pas.104.2015.01.18.22.08.21
+	by kanga.kvack.org (Postfix) with ESMTP id 8F72A6B0032
+	for <linux-mm@kvack.org>; Mon, 19 Jan 2015 01:09:57 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id rd3so36702923pab.7
+        for <linux-mm@kvack.org>; Sun, 18 Jan 2015 22:09:57 -0800 (PST)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id xi3si14638180pab.118.2015.01.18.22.09.54
         for <linux-mm@kvack.org>;
-        Sun, 18 Jan 2015 22:08:24 -0800 (PST)
+        Sun, 18 Jan 2015 22:09:56 -0800 (PST)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH v3 2/2] mm: don't use compound_head() in virt_to_head_page()
-Date: Mon, 19 Jan 2015 15:08:50 +0900
-Message-Id: <1421647730-11568-2-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1421647730-11568-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1421647730-11568-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v4 2/5] mm/compaction: enhance tracepoint output for compaction begin/end
+Date: Mon, 19 Jan 2015 15:10:37 +0900
+Message-Id: <1421647840-11614-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1421647840-11614-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1421647840-11614-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>, rostedt@goodmis.org, Thomas Gleixner <tglx@linutronix.de>, Guenter Roeck <linux@roeck-us.net>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-compound_head() is implemented with assumption that there would be
-race condition when checking tail flag. This assumption is only true
-when we try to access arbitrary positioned struct page.
+We now have tracepoint for begin event of compaction and it prints
+start position of both scanners, but, tracepoint for end event of
+compaction doesn't print finish position of both scanners. It'd be
+also useful to know finish position of both scanners so this patch
+add it. It will help to find odd behavior or problem on compaction
+internal logic.
 
-The situation that virt_to_head_page() is called is different case.
-We call virt_to_head_page() only in the range of allocated pages,
-so there is no race condition on tail flag. In this case, we don't
-need to handle race condition and we can reduce overhead slightly.
-This patch implements compound_head_fast() which is similar with
-compound_head() except tail flag race handling. And then,
-virt_to_head_page() uses this optimized function to improve performance.
+And, mode is added to both begin/end tracepoint output, since
+according to mode, compaction behavior is quite different.
 
-I saw 1.8% win in a fast-path loop over kmem_cache_alloc/free,
-(14.063 ns -> 13.810 ns) if target object is on tail page.
+And, lastly, status format is changed to string rather than
+status number for readability.
 
-Change from v2: Add some code comments
+Changes from v3: Build fix for !CONFIG_COMPACTION, !CONFIG_TRACEPOINTS
 
-Acked-by: Christoph Lameter <cl@linux.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- include/linux/mm.h |   27 ++++++++++++++++++++++++++-
- 1 file changed, 26 insertions(+), 1 deletion(-)
+ include/linux/compaction.h        |    1 +
+ include/trace/events/compaction.h |   49 ++++++++++++++++++++++++++-----------
+ mm/compaction.c                   |   15 ++++++++++--
+ 3 files changed, 49 insertions(+), 16 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index f80d019..1148fc6 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -446,6 +446,12 @@ static inline struct page *compound_head_by_tail(struct page *tail)
- 	return tail;
- }
+diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+index 3238ffa..9363c08 100644
+--- a/include/linux/compaction.h
++++ b/include/linux/compaction.h
+@@ -12,6 +12,7 @@
+ #define COMPACT_PARTIAL		3
+ /* The full zone was compacted */
+ #define COMPACT_COMPLETE	4
++/* When adding new state, please change compaction_status_string, too */
  
-+/*
-+ * Since either compound page could be dismantled asynchronously in THP
-+ * or we access asynchronously arbitrary positioned struct page, there
-+ * would be tail flag race. To handle this race, we should call
-+ * smp_rmb() before checking tail flag. compound_head_by_tail() did it.
-+ */
- static inline struct page *compound_head(struct page *page)
- {
- 	if (unlikely(PageTail(page)))
-@@ -454,6 +460,18 @@ static inline struct page *compound_head(struct page *page)
- }
+ /* Used to signal whether compaction detected need_sched() or lock contention */
+ /* No contention detected */
+diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
+index 1337d9e..839f6fa 100644
+--- a/include/trace/events/compaction.h
++++ b/include/trace/events/compaction.h
+@@ -85,46 +85,67 @@ TRACE_EVENT(mm_compaction_migratepages,
+ );
  
- /*
-+ * If we access compound page synchronously such as access to
-+ * allocated page, there is no need to handle tail flag race, so we can
-+ * check tail flag directly without any synchronization primitive.
-+ */
-+static inline struct page *compound_head_fast(struct page *page)
-+{
-+	if (unlikely(PageTail(page)))
-+		return page->first_page;
-+	return page;
-+}
-+
-+/*
-  * The atomic page->_mapcount, starts from -1: so that transitions
-  * both from it and to it can be tracked, using atomic_inc_and_test
-  * and atomic_add_negative(-1).
-@@ -531,7 +549,14 @@ static inline void get_page(struct page *page)
- static inline struct page *virt_to_head_page(const void *x)
- {
- 	struct page *page = virt_to_page(x);
--	return compound_head(page);
-+
-+	/*
-+	 * We don't need to worry about synchronization of tail flag
-+	 * when we call virt_to_head_page() since it is only called for
-+	 * already allocated page and this page won't be freed until
-+	 * this virt_to_head_page() is finished. So use _fast variant.
-+	 */
-+	return compound_head_fast(page);
- }
+ TRACE_EVENT(mm_compaction_begin,
+-	TP_PROTO(unsigned long zone_start, unsigned long migrate_start,
+-		unsigned long free_start, unsigned long zone_end),
++	TP_PROTO(unsigned long zone_start, unsigned long migrate_pfn,
++		unsigned long free_pfn, unsigned long zone_end, bool sync),
  
- /*
+-	TP_ARGS(zone_start, migrate_start, free_start, zone_end),
++	TP_ARGS(zone_start, migrate_pfn, free_pfn, zone_end, sync),
+ 
+ 	TP_STRUCT__entry(
+ 		__field(unsigned long, zone_start)
+-		__field(unsigned long, migrate_start)
+-		__field(unsigned long, free_start)
++		__field(unsigned long, migrate_pfn)
++		__field(unsigned long, free_pfn)
+ 		__field(unsigned long, zone_end)
++		__field(bool, sync)
+ 	),
+ 
+ 	TP_fast_assign(
+ 		__entry->zone_start = zone_start;
+-		__entry->migrate_start = migrate_start;
+-		__entry->free_start = free_start;
++		__entry->migrate_pfn = migrate_pfn;
++		__entry->free_pfn = free_pfn;
+ 		__entry->zone_end = zone_end;
++		__entry->sync = sync;
+ 	),
+ 
+-	TP_printk("zone_start=0x%lx migrate_start=0x%lx free_start=0x%lx zone_end=0x%lx",
++	TP_printk("zone_start=0x%lx migrate_pfn=0x%lx free_pfn=0x%lx zone_end=0x%lx, mode=%s",
+ 		__entry->zone_start,
+-		__entry->migrate_start,
+-		__entry->free_start,
+-		__entry->zone_end)
++		__entry->migrate_pfn,
++		__entry->free_pfn,
++		__entry->zone_end,
++		__entry->sync ? "sync" : "async")
+ );
+ 
+ TRACE_EVENT(mm_compaction_end,
+-	TP_PROTO(int status),
++	TP_PROTO(unsigned long zone_start, unsigned long migrate_pfn,
++		unsigned long free_pfn, unsigned long zone_end, bool sync,
++		int status),
+ 
+-	TP_ARGS(status),
++	TP_ARGS(zone_start, migrate_pfn, free_pfn, zone_end, sync, status),
+ 
+ 	TP_STRUCT__entry(
++		__field(unsigned long, zone_start)
++		__field(unsigned long, migrate_pfn)
++		__field(unsigned long, free_pfn)
++		__field(unsigned long, zone_end)
++		__field(bool, sync)
+ 		__field(int, status)
+ 	),
+ 
+ 	TP_fast_assign(
++		__entry->zone_start = zone_start;
++		__entry->migrate_pfn = migrate_pfn;
++		__entry->free_pfn = free_pfn;
++		__entry->zone_end = zone_end;
++		__entry->sync = sync;
+ 		__entry->status = status;
+ 	),
+ 
+-	TP_printk("status=%d", __entry->status)
++	TP_printk("zone_start=0x%lx migrate_pfn=0x%lx free_pfn=0x%lx zone_end=0x%lx, mode=%s status=%s",
++		__entry->zone_start,
++		__entry->migrate_pfn,
++		__entry->free_pfn,
++		__entry->zone_end,
++		__entry->sync ? "sync" : "async",
++		compaction_status_string[__entry->status])
+ );
+ 
+ #endif /* _TRACE_COMPACTION_H */
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 546e571..f32d456 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -34,6 +34,15 @@ static inline void count_compact_events(enum vm_event_item item, long delta)
+ #endif
+ 
+ #if defined CONFIG_COMPACTION || defined CONFIG_CMA
++#ifdef CONFIG_TRACEPOINTS
++static const char const *compaction_status_string[] = {
++	"deferred",
++	"skipped",
++	"continue",
++	"partial",
++	"complete",
++};
++#endif
+ 
+ #define CREATE_TRACE_POINTS
+ #include <trace/events/compaction.h>
+@@ -1197,7 +1206,8 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+ 		zone->compact_cached_migrate_pfn[1] = cc->migrate_pfn;
+ 	}
+ 
+-	trace_mm_compaction_begin(start_pfn, cc->migrate_pfn, cc->free_pfn, end_pfn);
++	trace_mm_compaction_begin(start_pfn, cc->migrate_pfn,
++				cc->free_pfn, end_pfn, sync);
+ 
+ 	migrate_prep_local();
+ 
+@@ -1299,7 +1309,8 @@ out:
+ 			zone->compact_cached_free_pfn = free_pfn;
+ 	}
+ 
+-	trace_mm_compaction_end(ret);
++	trace_mm_compaction_end(start_pfn, cc->migrate_pfn,
++				cc->free_pfn, end_pfn, sync, ret);
+ 
+ 	return ret;
+ }
 -- 
 1.7.9.5
 
