@@ -1,64 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id F2D646B0038
-	for <linux-mm@kvack.org>; Mon, 19 Jan 2015 09:30:11 -0500 (EST)
-Received: by mail-ig0-f178.google.com with SMTP id hl2so10939313igb.5
-        for <linux-mm@kvack.org>; Mon, 19 Jan 2015 06:30:11 -0800 (PST)
-Received: from mail-ie0-x235.google.com (mail-ie0-x235.google.com. [2607:f8b0:4001:c03::235])
-        by mx.google.com with ESMTPS id n9si8086091ige.49.2015.01.19.06.30.10
+Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DD546B0032
+	for <linux-mm@kvack.org>; Mon, 19 Jan 2015 09:38:40 -0500 (EST)
+Received: by mail-la0-f49.google.com with SMTP id hs14so29242570lab.8
+        for <linux-mm@kvack.org>; Mon, 19 Jan 2015 06:38:39 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o5si13264210lae.100.2015.01.19.06.38.37
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 19 Jan 2015 06:30:10 -0800 (PST)
-Received: by mail-ie0-f181.google.com with SMTP id vy18so8437336iec.12
-        for <linux-mm@kvack.org>; Mon, 19 Jan 2015 06:30:10 -0800 (PST)
+        Mon, 19 Jan 2015 06:38:38 -0800 (PST)
+Message-ID: <54BD16EA.9050007@suse.cz>
+Date: Mon, 19 Jan 2015 15:38:34 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <54BCC153.5060804@gmail.com>
-References: <54AFCE4A.80804@gmail.com>
-	<CANq1E4ScALBHtN5B_1N0ynKFx4HwZaQZNg3RAv4tcn10YLHtAA@mail.gmail.com>
-	<54BCC153.5060804@gmail.com>
-Date: Mon, 19 Jan 2015 15:30:10 +0100
-Message-ID: <CANq1E4TATDWEZDbDk85BN6kQw8ZSiZJ_eSubUaFTkhQm8URMcA@mail.gmail.com>
-Subject: Re: File sealing man pages for review (memfd_create(2), fcntl(2))
-From: David Herrmann <dh.herrmann@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: compaction tracepoint broken with CONFIG_COMPACTION enabled
+References: <54b9a3ce.lQ94nh84G4XJawsQ%akpm@linux-foundation.org> <20150119124210.GC21052@dhcp22.suse.cz>
+In-Reply-To: <20150119124210.GC21052@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Cc: "linux-man@vger.kernel.org" <linux-man@vger.kernel.org>, lkml <linux-kernel@vger.kernel.org>, Lennart Poettering <lennart@poettering.net>, Andy Lutomirski <luto@amacapital.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Florian Weimer <fweimer@redhat.com>, John Stultz <john.stultz@linaro.org>, Carlos O'Donell <carlos@systemhalted.org>
+To: Michal Hocko <mhocko@suse.cz>, akpm@linux-foundation.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au
 
-Hi
+On 01/19/2015 01:42 PM, Michal Hocko wrote:
+> Hi,
+> compaction trace points seem to be broken without CONFIG_COMPACTION
+> enabled after
+> mm-compaction-more-trace-to-understand-when-why-compaction-start-finish.patch.
+> 
+> My config is
+> # CONFIG_COMPACTION is not set
+> CONFIG_CMA=y
 
-On Mon, Jan 19, 2015 at 9:33 AM, Michael Kerrisk (man-pages)
-<mtk.manpages@gmail.com> wrote:
+Joonsoo posted a V4 that should be fixed at least according to description -
+unfortunately it wasn't just fixes on top of what's in mmotm, though.
+
+> which might be a bit unusual but I am getting
+>   CC      mm/compaction.o
+> In file included from include/trace/define_trace.h:90:0,
+>                  from include/trace/events/compaction.h:298,
+>                  from mm/compaction.c:49:
+> include/trace/events/compaction.h: In function a??ftrace_raw_output_mm_compaction_enda??:
+> include/trace/events/compaction.h:164:3: error: a??compaction_status_stringa?? undeclared (first use in this function)
+>    compaction_status_string[__entry->status])
+>    ^
 > [...]
->
-> By the way, I forgot to say that I also added this error under ERRORS:
->
-> [[
-> .TP
-> .B EINVAL
-> .I cmd
-> is
-> .BR F_ADD_SEALS
-> and
-> .I arg
-> includes an unrecognized sealing bit or
-> the filesystem containing the inode referred to by
-> .I fd
-> does not support sealing.
-> ]]
->
-> Look okay?
-
-I thought I already mentioned that somewhere.. eh, seems I didn't :) Looks good!
-
->> Both man-pages look really good. Thanks a lot!
->
-> You're welcome. Thanks for the initial drafts, and this review.
-> The changes will go out with the next man-pages release.
-
-Perfect! Thanks Michael!
-David
+> include/trace/events/compaction.h: In function a??ftrace_raw_output_mm_compaction_suitable_templatea??:
+> include/trace/events/compaction.h:220:3: error: a??compaction_status_stringa?? undeclared (first use in this function)
+>    compaction_status_string[__entry->ret])
+> [...]
+> scripts/Makefile.build:257: recipe for target 'mm/compaction.o' failed
+> make[1]: *** [mm/compaction.o] Error 1
+> Makefile:1528: recipe for target 'mm/compaction.o' failed
+> make: *** [mm/compaction.o] Error 2
+> 
+> Moving compaction_status_string outside of CONFIG_COMPACTION doesn't
+> help much because of other failures:
+> include/trace/events/compaction.h:261:30: error: a??struct zonea?? has no member named a??compact_defer_shifta??
+>    __entry->defer_shift = zone->compact_defer_shift;
+> 
+> So I guess the tracepoint need a better fix.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
