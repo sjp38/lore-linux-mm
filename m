@@ -1,22 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f170.google.com (mail-we0-f170.google.com [74.125.82.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 913566B0072
-	for <linux-mm@kvack.org>; Mon, 19 Jan 2015 05:05:58 -0500 (EST)
-Received: by mail-we0-f170.google.com with SMTP id x3so4027342wes.1
-        for <linux-mm@kvack.org>; Mon, 19 Jan 2015 02:05:58 -0800 (PST)
+Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
+	by kanga.kvack.org (Postfix) with ESMTP id BC2CA6B0032
+	for <linux-mm@kvack.org>; Mon, 19 Jan 2015 05:10:47 -0500 (EST)
+Received: by mail-we0-f179.google.com with SMTP id q59so6941262wes.10
+        for <linux-mm@kvack.org>; Mon, 19 Jan 2015 02:10:44 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cu6si20294608wib.36.2015.01.19.02.05.43
+        by mx.google.com with ESMTPS id fy4si20300235wib.47.2015.01.19.02.10.44
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 19 Jan 2015 02:05:43 -0800 (PST)
+        Mon, 19 Jan 2015 02:10:44 -0800 (PST)
+Message-ID: <54BCD822.6050301@suse.cz>
+Date: Mon, 19 Jan 2015 11:10:42 +0100
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [RFC PATCH 0/5] compaction: changing initial position of scanners
-Date: Mon, 19 Jan 2015 11:05:15 +0100
-Message-Id: <1421661920-4114-1-git-send-email-vbabka@suse.cz>
+MIME-Version: 1.0
+Subject: Re: [RFC PATCH 0/5] compaction: changing initial position of scanners
+References: <1421661920-4114-1-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1421661920-4114-1-git-send-email-vbabka@suse.cz>
+Content-Type: text/plain; charset=iso-8859-2
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rik van Riel <riel@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rik van Riel <riel@redhat.com>
+
+Looks like wrapping got busted in the results part. Let's try again:
+-----
 
 Even after all the patches compaction received in last several versions, it
 turns out that its effectivneess degrades considerably as the system ages
@@ -293,22 +301,6 @@ allocation activity than the stress-highalloc test itself. I will post these
 results when full measurements are done.
 
 [1] http://lwn.net/Articles/368869/
-
-Vlastimil Babka (5):
-  mm, compaction: more robust check for scanners meeting
-  mm, compaction: simplify handling restart position in free pages
-    scanner
-  mm, compaction: encapsulate resetting cached scanner positions
-  mm, compaction: allow scanners to start at any pfn within the zone
-  mm, compaction: set pivot pfn to the pfn when scanners met last time
-
- include/linux/mmzone.h |   4 +
- mm/compaction.c        | 276 ++++++++++++++++++++++++++++++++++++++++---------
- mm/internal.h          |   1 +
- 3 files changed, 234 insertions(+), 47 deletions(-)
-
--- 
-2.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
