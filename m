@@ -1,240 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E3F06B0070
-	for <linux-mm@kvack.org>; Tue, 20 Jan 2015 06:35:58 -0500 (EST)
-Received: by mail-lb0-f171.google.com with SMTP id w7so32941084lbi.2
-        for <linux-mm@kvack.org>; Tue, 20 Jan 2015 03:35:57 -0800 (PST)
-Received: from mail-la0-x234.google.com (mail-la0-x234.google.com. [2a00:1450:4010:c03::234])
-        by mx.google.com with ESMTPS id xu5si16393770lab.9.2015.01.20.03.35.56
+Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AFF86B0073
+	for <linux-mm@kvack.org>; Tue, 20 Jan 2015 06:46:06 -0500 (EST)
+Received: by mail-we0-f171.google.com with SMTP id u56so36557486wes.2
+        for <linux-mm@kvack.org>; Tue, 20 Jan 2015 03:46:05 -0800 (PST)
+Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id eu9si4811347wid.82.2015.01.20.03.46.04
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 20 Jan 2015 03:35:56 -0800 (PST)
-Received: by mail-la0-f52.google.com with SMTP id hs14so33629135lab.11
-        for <linux-mm@kvack.org>; Tue, 20 Jan 2015 03:35:56 -0800 (PST)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 20 Jan 2015 03:46:05 -0800 (PST)
+Date: Tue, 20 Jan 2015 11:45:55 +0000
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [next-20150119]regression (mm)?
+Message-ID: <20150120114555.GA11502@n2100.arm.linux.org.uk>
+References: <54BD33DC.40200@ti.com>
+ <20150119174317.GK20386@saruman>
+ <20150120001643.7D15AA8@black.fi.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <219291421414310@webcorp01h.yandex-team.ru>
-References: <20150115155731.31307.4414.stgit@buzz>
-	<20150115171551.a2e6acb5.akpm@linux-foundation.org>
-	<219291421414310@webcorp01h.yandex-team.ru>
-Date: Tue, 20 Jan 2015 15:35:56 +0400
-Message-ID: <CALYGNiNNRwp7TfEh4tkP+9B=J9oN2n1cET0WP7u_wkCge5Y5bQ@mail.gmail.com>
-Subject: Re: [PATCH RFC] page_writeback: cleanup mess around cancel_dirty_page()
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150120001643.7D15AA8@black.fi.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?B?0JrQvtC90YHRgtCw0L3RgtC40L0g0KXQu9C10LHQvdC40LrQvtCy?= <khlebnikov@yandex-team.ru>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Felipe Balbi <balbi@ti.com>, Nishanth Menon <nm@ti.com>, linux-mm@kvack.org, linux-next <linux-next@vger.kernel.org>, linux-omap <linux-omap@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Fri, Jan 16, 2015 at 4:18 PM, =D0=9A=D0=BE=D0=BD=D1=81=D1=82=D0=B0=D0=BD=
-=D1=82=D0=B8=D0=BD =D0=A5=D0=BB=D0=B5=D0=B1=D0=BD=D0=B8=D0=BA=D0=BE=D0=B2
-<khlebnikov@yandex-team.ru> wrote:
-> 16.01.2015, 04:16, "Andrew Morton" <akpm@linux-foundation.org>:
->> On Thu, 15 Jan 2015 18:57:31 +0300 Konstantin Khebnikov <khlebnikov@yand=
-ex-team.ru> wrote:
->>>  This patch replaces cancel_dirty_page() with helper account_page_clear=
-ed()
->>>  which only updates counters. It's called from delete_from_page_cache()
->>>  and from try_to_free_buffers() (hack for ext3). Page is locked in both=
- cases.
->>>
->>>  Hugetlbfs has no dirty pages accounting, ClearPageDirty() is enough he=
-re.
->>>
->>>  cancel_dirty_page() in nfs_wb_page_cancel() is redundant. This is help=
-er
->>>  for nfs_invalidate_page() and it's called only in case complete invali=
-dation.
->>>
->>>  Open-coded kludge at the end of __delete_from_page_cache() is redundan=
-t too.
->>>
->>>  This mess was started in v2.6.20, after commit 3e67c09 ("truncate: cle=
-ar page
->>>  dirtiness before running try_to_free_buffers()") reverted back in v2.6=
-.25
->>>  by commit a2b3456 ("Fix dirty page accounting leak with ext3 data=3Djo=
-urnal").
->>>  Custom fixes were introduced between them. NFS in in v2.6.23 in commit
->>>  1b3b4a1 ("NFS: Fix a write request leak in nfs_invalidate_page()").
->>>  Kludge __delete_from_page_cache() in v2.6.24, commit 3a692790 ("Do dir=
-ty
->>>  page accounting when removing a page from the page cache").
->>>
->>>  It seems safe to leave dirty flag set on truncated page, free_pages_ch=
-eck()
->>>  will clear it before returning page into buddy allocator.
->>
->> account_page_cleared() is not a good name - "clearing a page" means
->> filling it with zeroes.  account_page_cleaned(), perhaps?
->
-> Ok. account_page_cleaned is better.
->
->>
->> I don't think your email cc'ed all the correct people?  lustre, nfs,
->> ext3?
->
-> oops
->
->>>  ...
->>>
->>>  --- a/fs/buffer.c
->>>  +++ b/fs/buffer.c
->>>  @@ -3243,8 +3243,8 @@ int try_to_free_buffers(struct page *page)
->>>            * to synchronise against __set_page_dirty_buffers and preven=
-t the
->>>            * dirty bit from being lost.
->>>            */
->>>  - if (ret)
->>>  - cancel_dirty_page(page, PAGE_CACHE_SIZE);
->>>  + if (ret && TestClearPageDirty(page))
->>>  + account_page_cleared(page, mapping);
->>
->> OK.
->>>           spin_unlock(&mapping->private_lock);
->>>   out:
->>>           if (buffers_to_free) {
->>>
->>>  ...
->>>
->>>  --- a/fs/nfs/write.c
->>>  +++ b/fs/nfs/write.c
->>>  @@ -1811,11 +1811,6 @@ int nfs_wb_page_cancel(struct inode *inode, str=
-uct page *page)
->>>                    * request from the inode / page_private pointer and
->>>                    * release it */
->>>                   nfs_inode_remove_request(req);
->>>  - /*
->>>  - * In case nfs_inode_remove_request has marked the
->>>  - * page as being dirty
->>>  - */
->>>  - cancel_dirty_page(page, PAGE_CACHE_SIZE);
->>
->> hm, if you say so..
->
-> That is main reason of this patch.
-> I dont like these obsoleted pieces of duct tape here and there.
->
->>>                   nfs_unlock_and_release_request(req);
->>>           }
->>>
->>>  ...
->>>
->>>  --- a/mm/filemap.c
->>>  +++ b/mm/filemap.c
->>>  @@ -201,18 +201,6 @@ void __delete_from_page_cache(struct page *page, =
-void *shadow)
->>>           if (PageSwapBacked(page))
->>>                   __dec_zone_page_state(page, NR_SHMEM);
->>>           BUG_ON(page_mapped(page));
->>>  -
->>>  - /*
->>>  - * Some filesystems seem to re-dirty the page even after
->>>  - * the VM has canceled the dirty bit (eg ext3 journaling).
->>>  - *
->>>  - * Fix it up by doing a final dirty accounting check after
->>>  - * having removed the page entirely.
->>>  - */
->>>  - if (PageDirty(page) && mapping_cap_account_dirty(mapping)) {
->>>  - dec_zone_page_state(page, NR_FILE_DIRTY);
->>>  - dec_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
->>>  - }
->>>   }
->>>
->>>   /**
->>>  @@ -230,6 +218,9 @@ void delete_from_page_cache(struct page *page)
->>>
->>>           BUG_ON(!PageLocked(page));
->>>
->>>  + if (PageDirty(page))
->>>  + account_page_cleared(page, mapping);
->>>  +
->>
->> OK, but we lost the important comment - transplant that?
->>
->> It's strange that we left the dirty bit set after accounting for its
->> clearing.  How does this work?  Presumably the offending fs dirtied the
->> page without accounting for it?  I have a bad feeling I wrote that code =
-:(
->
-> account_page_dirtyed() must be always called after dirtying non-truncated=
- pages.
-> Here page is truncating from mapping, dirty accounting never will see it =
-again.
->
-> This is the only place where dirty page might be truncated. All other pla=
-ces:
-> replace_page_cache_page, invalidate_complete_page2, __remove_mapping
-> (in memory reclaimer) forbid removing dirty pages.
->
-> As I see PageDirty means nothing for truncated pages, it's never be writt=
-en anywhere.
-> We could clear dirty bit here, but probably it might appear again: set_pa=
-ge_dirty()
-> for some reason has branch for pages without page->mapping.
+On Tue, Jan 20, 2015 at 02:16:43AM +0200, Kirill A. Shutemov wrote:
+> Better option would be converting 2-lvl ARM configuration to
+> <asm-generic/pgtable-nopmd.h>, but I'm not sure if it's possible.
 
-Another puzzle here: how mark_buffer_dirty() is synchronized with truncate?
+Well, IMHO the folded approach in asm-generic was done the wrong way
+which barred ARM from ever using it.
 
-do_invalidatepage() called from truncate_complete_page() clears dirty
-buffers and
-tries to release them all but exit code is ignored. So theoretically
-there still might
-be pinned buffer heads and somebody might call mark_buffer_dirty() for them=
-.
+By that, I mean that the asm-generic stuff encapsulates a pgd into a pud,
+and a pud into a pmd:
 
-Funny but mark_buffer_dirty() gets mapping using page_mapping()!
-(Is bh might be attached to anon/slab page?)
-And it seems there is no protection against truncate
-(but it calls __set_page_dirty which checks page->mapping for NULL).
+typedef struct { pgd_t pgd; } pud_t;
+typedef struct { pud_t pud; } pmd_t;
 
-So, if this race is possible the final account_page_cleaned() must be
-placed after
-clearing page->mapping. But I think we can put in outside of mapping->tree_=
-lock
-because mapping cannot run off under us: if truncated page is dirty
-that might be
-only call from truncate where caller holds reference to the inode.
+This, I assert, is the wrong way around.  Think about it when you have a
+real 4 level page table structure - a single pgd points to a set of puds.
+So, one pgd encapsulates via a pointer a set of puds.  One pud does not
+encapsulate a set of pgds.
 
->
->>>           freepage =3D mapping->a_ops->freepage;
->>>           spin_lock_irq(&mapping->tree_lock);
->>>           __delete_from_page_cache(page, NULL);
->>>  diff --git a/mm/page-writeback.c b/mm/page-writeback.c
->>>  index 4da3cd5..f371522 100644
->>>  --- a/mm/page-writeback.c
->>>  +++ b/mm/page-writeback.c
->>>  @@ -2106,6 +2106,25 @@ void account_page_dirtied(struct page *page, st=
-ruct address_space *mapping)
->>>   EXPORT_SYMBOL(account_page_dirtied);
->>>
->>>   /*
->>>  + * Helper function for deaccounting dirty page without doing writebac=
-k.
->>>  + * Doing this should *normally* only ever be done when a page
->>>  + * is truncated, and is not actually mapped anywhere at all. However,
->>>  + * fs/buffer.c does this when it notices that somebody has cleaned
->>>  + * out all the buffers on a page without actually doing it through
->>>  + * the VM. Can you say "ext3 is horribly ugly"? Tought you could.
->>
->> "Thought".
->
-> Ah, ok. That is copy-paste from cancel_dirty_page().
->
->>>  + */
->>>  +void account_page_cleared(struct page *page, struct address_space *ma=
-pping)
->>>  +{
->>>  + if (mapping_cap_account_dirty(mapping)) {
->>>  + dec_zone_page_state(page, NR_FILE_DIRTY);
->>>  + dec_bdi_stat(mapping->backing_dev_info,
->>>  + BDI_RECLAIMABLE);
->>>  + task_io_account_cancelled_write(PAGE_CACHE_SIZE);
->>>  + }
->>>  +}
->>>  +EXPORT_SYMBOL(account_page_cleared);
->>>
->>>  ...
+What we have on ARM is slightly different: because of the sizes of page
+tables, we have a pgd entry which is physically two page table pointers.
+However, there are cases where we want to access these as two separate
+pointers.
+
+So, we define pgd_t to be an array of two u32's, and a pmd_t to be a
+single entry.  This works fine, we set the masks, shifts and sizes
+appropriately so that the pmd code is optimised away, but leaves us with
+the ability to go down to the individual pgd_t entries when we need to
+(eg, for section mappings, writing the pgd pointers for page tables,
+etc.)
+
+I think I also ran into problems with:
+
+#define pmd_val(x)                              (pud_val((x).pud))
+#define __pmd(x)                                ((pmd_t) { __pud(x) } )
+
+too - but it's been a very long time since the nopmd.h stuff was
+introduced, and I last looked at it.
+
+In any case, what we have today is what has worked for well over a decade
+(and pre-dates nopmd.h), and I'm really not interested today in trying to
+rework tonnes of code to make use of nopmd.h - especially as it will most
+likely require nopmd.h to be rewritten too, and we now have real 3 level
+page table support (which I have no way to test.)
+
+-- 
+FTTC broadband for 0.8mile line: currently at 10.5Mbps down 400kbps up
+according to speedtest.net.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
