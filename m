@@ -1,85 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id BFB226B0032
-	for <linux-mm@kvack.org>; Tue, 20 Jan 2015 08:25:21 -0500 (EST)
-Received: by mail-wi0-f180.google.com with SMTP id bs8so23331237wib.1
-        for <linux-mm@kvack.org>; Tue, 20 Jan 2015 05:25:21 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q2si5379703wif.50.2015.01.20.05.25.20
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 504DF6B0038
+	for <linux-mm@kvack.org>; Tue, 20 Jan 2015 08:26:10 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id fb1so11193840pad.10
+        for <linux-mm@kvack.org>; Tue, 20 Jan 2015 05:26:10 -0800 (PST)
+Received: from mail-pd0-x230.google.com (mail-pd0-x230.google.com. [2607:f8b0:400e:c02::230])
+        by mx.google.com with ESMTPS id vu1si4658119pbc.23.2015.01.20.05.26.08
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 20 Jan 2015 05:25:20 -0800 (PST)
-Date: Tue, 20 Jan 2015 14:25:19 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] mm: memcontrol: default hierarchy interface for memory
- fix - high reclaim
-Message-ID: <20150120132519.GH25342@dhcp22.suse.cz>
-References: <1421508079-29293-1-git-send-email-hannes@cmpxchg.org>
+        Tue, 20 Jan 2015 05:26:08 -0800 (PST)
+Received: by mail-pd0-f176.google.com with SMTP id y10so3426416pdj.7
+        for <linux-mm@kvack.org>; Tue, 20 Jan 2015 05:26:08 -0800 (PST)
+Message-ID: <54BE5769.20405@gmail.com>
+Date: Tue, 20 Jan 2015 21:26:01 +0800
+From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1421508079-29293-1-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/5] mm, compaction: more robust check for scanners meeting
+References: <1421661920-4114-1-git-send-email-vbabka@suse.cz> <1421661920-4114-2-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1421661920-4114-2-git-send-email-vbabka@suse.cz>
+Content-Type: text/plain; charset=gbk
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>
 
-On Sat 17-01-15 10:21:19, Johannes Weiner wrote:
-> High limit reclaim can currently overscan in proportion to how many
-> charges are happening concurrently.  Tone it down such that charges
-> don't target the entire high-boundary excess, but instead only the
-> pages they charged themselves when excess is detected.
+OU 2015/1/19 18:05, Vlastimil Babka D'uA:
+> Compaction should finish when the migration and free scanner meet, i.e. they
+> reach the same pageblock. Currently however, the test in compact_finished()
+> simply just compares the exact pfns, which may yield a false negative when the
+> free scanner position is in the middle of a pageblock and the migration
+> scanner reaches the begining of the same pageblock.
 > 
-> Reported-by: Michal Hocko <mhocko@suse.cz>
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> This hasn't been a problem until commit e14c720efdd7 ("mm, compaction:
+> remember position within pageblock in free pages scanner") allowed the free
+> scanner position to be in the middle of a pageblock between invocations.
+> The hot-fix 1d5bfe1ffb5b ("mm, compaction: prevent infinite loop in
+> compact_zone") prevented the issue by adding a special check in the migration
+> scanner to satisfy the current detection of scanners meeting.
+> 
+> However, the proper fix is to make the detection more robust. This patch
+> introduces the compact_scanners_met() function that returns true when the free
+> scanner position is in the same or lower pageblock than the migration scanner.
+> The special case in isolate_migratepages() introduced by 1d5bfe1ffb5b is
+> removed.
+> 
+> Suggested-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 
-I certainly agree with this approach.
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-Is this planned to be folded into the original patch or go on its own. I
-am OK with both ways, maybe having it separate would be better from
-documentation POV.
-
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Cc: Michal Nazarewicz <mina86@mina86.com>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: Christoph Lameter <cl@linux.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: David Rientjes <rientjes@google.com>
 > ---
->  mm/memcontrol.c | 16 +++++-----------
->  1 file changed, 5 insertions(+), 11 deletions(-)
+>  mm/compaction.c | 22 ++++++++++++++--------
+>  1 file changed, 14 insertions(+), 8 deletions(-)
 > 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 323a01fa1833..7adccee9fecb 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2348,19 +2348,13 @@ done_restock:
->  		refill_stock(memcg, batch - nr_pages);
->  	/*
->  	 * If the hierarchy is above the normal consumption range,
-> -	 * make the charging task trim the excess.
-> +	 * make the charging task trim their excess contribution.
->  	 */
->  	do {
-> -		unsigned long nr_pages = page_counter_read(&memcg->memory);
-> -		unsigned long high = ACCESS_ONCE(memcg->high);
-> -
-> -		if (nr_pages > high) {
-> -			mem_cgroup_events(memcg, MEMCG_HIGH, 1);
-> -
-> -			try_to_free_mem_cgroup_pages(memcg, nr_pages - high,
-> -						     gfp_mask, true);
-> -		}
-> -
-> +		if (page_counter_read(&memcg->memory) <= memcg->high)
-> +			continue;
-> +		mem_cgroup_events(memcg, MEMCG_HIGH, 1);
-> +		try_to_free_mem_cgroup_pages(memcg, nr_pages, gfp_mask, true);
->  	} while ((memcg = parent_mem_cgroup(memcg)));
->  done:
->  	return ret;
-> -- 
-> 2.2.0
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 546e571..5fdbdb8 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -803,6 +803,16 @@ isolate_migratepages_range(struct compact_control *cc, unsigned long start_pfn,
+>  #endif /* CONFIG_COMPACTION || CONFIG_CMA */
+>  #ifdef CONFIG_COMPACTION
+>  /*
+> + * Test whether the free scanner has reached the same or lower pageblock than
+> + * the migration scanner, and compaction should thus terminate.
+> + */
+> +static inline bool compact_scanners_met(struct compact_control *cc)
+> +{
+> +	return (cc->free_pfn >> pageblock_order)
+> +		<= (cc->migrate_pfn >> pageblock_order);
+> +}
+> +
+> +/*
+>   * Based on information in the current compact_control, find blocks
+>   * suitable for isolating free pages from and then isolate them.
+>   */
+> @@ -1027,12 +1037,8 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+>  	}
+>  
+>  	acct_isolated(zone, cc);
+> -	/*
+> -	 * Record where migration scanner will be restarted. If we end up in
+> -	 * the same pageblock as the free scanner, make the scanners fully
+> -	 * meet so that compact_finished() terminates compaction.
+> -	 */
+> -	cc->migrate_pfn = (end_pfn <= cc->free_pfn) ? low_pfn : cc->free_pfn;
+> +	/* Record where migration scanner will be restarted. */
+> +	cc->migrate_pfn = low_pfn;
+>  
+>  	return cc->nr_migratepages ? ISOLATE_SUCCESS : ISOLATE_NONE;
+>  }
+> @@ -1047,7 +1053,7 @@ static int compact_finished(struct zone *zone, struct compact_control *cc,
+>  		return COMPACT_PARTIAL;
+>  
+>  	/* Compaction run completes if the migrate and free scanner meet */
+> -	if (cc->free_pfn <= cc->migrate_pfn) {
+> +	if (compact_scanners_met(cc)) {
+>  		/* Let the next compaction start anew. */
+>  		zone->compact_cached_migrate_pfn[0] = zone->zone_start_pfn;
+>  		zone->compact_cached_migrate_pfn[1] = zone->zone_start_pfn;
+> @@ -1238,7 +1244,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+>  			 * migrate_pages() may return -ENOMEM when scanners meet
+>  			 * and we want compact_finished() to detect it
+>  			 */
+> -			if (err == -ENOMEM && cc->free_pfn > cc->migrate_pfn) {
+> +			if (err == -ENOMEM && !compact_scanners_met(cc)) {
+>  				ret = COMPACT_PARTIAL;
+>  				goto out;
+>  			}
 > 
-
--- 
-Michal Hocko
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
