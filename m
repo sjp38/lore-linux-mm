@@ -1,92 +1,5734 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B5456B0032
-	for <linux-mm@kvack.org>; Tue, 20 Jan 2015 04:08:19 -0500 (EST)
-Received: by mail-wi0-f178.google.com with SMTP id em10so10965865wid.5
-        for <linux-mm@kvack.org>; Tue, 20 Jan 2015 01:08:19 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k10si9902583wjn.77.2015.01.20.01.08.18
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 208EE6B0032
+	for <linux-mm@kvack.org>; Tue, 20 Jan 2015 04:38:43 -0500 (EST)
+Received: by mail-pd0-f175.google.com with SMTP id fl12so9009419pdb.6
+        for <linux-mm@kvack.org>; Tue, 20 Jan 2015 01:38:42 -0800 (PST)
+Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
+        by mx.google.com with ESMTPS id u3si19965623pdh.129.2015.01.20.01.38.39
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 20 Jan 2015 01:08:18 -0800 (PST)
-Message-ID: <54BE1B00.3090102@suse.cz>
-Date: Tue, 20 Jan 2015 10:08:16 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
-MIME-Version: 1.0
-Subject: Re: [PATCH V3] mm/thp: Allocate transparent hugepages on local node
-References: <1421393196-20915-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20150116160204.544e2bcf9627f5a4043ebf8d@linux-foundation.org> <54BD308A.4080905@suse.cz> <87fvb6uhfp.fsf@linux.vnet.ibm.com>
-In-Reply-To: <87fvb6uhfp.fsf@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=iso-8859-2
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Tue, 20 Jan 2015 01:38:41 -0800 (PST)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout2.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NIG00D4GYZ2AA30@mailout2.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 20 Jan 2015 09:42:38 +0000 (GMT)
+Message-id: <1421746712.6847.5.camel@AMDC1943>
+Subject: Bisected BUG: using smp_processor_id() in preemptible
+From: Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Date: Tue, 20 Jan 2015 10:38:32 +0100
+Content-type: multipart/mixed; boundary="=-DjC9jZnEo53GjMQpZvlQ"
+MIME-version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Christoph Lameter <cl@linux.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Mo rton <akpm@linux-foundation.org>, BartlomiejZolnierkiewicz <b.zolnierkie@samsung.com>, KyungminPark <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>
 
-On 01/20/2015 06:52 AM, Aneesh Kumar K.V wrote:
-> Vlastimil Babka <vbabka@suse.cz> writes:
-> 
->> On 01/17/2015 01:02 AM, Andrew Morton wrote:
->>> On Fri, 16 Jan 2015 12:56:36 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
->>> 
->>>> This make sure that we try to allocate hugepages from local node if
->>>> allowed by mempolicy. If we can't, we fallback to small page allocation
->>>> based on mempolicy. This is based on the observation that allocating pages
->>>> on local node is more beneficial than allocating hugepages on remote node.
->>> 
->>> The changelog is a bit incomplete.  It doesn't describe the current
->>> behaviour, nor what is wrong with it.  What are the before-and-after
->>> effects of this change?
->>> 
->>> And what might be the user-visible effects?
->>> 
->>>> --- a/mm/mempolicy.c
->>>> +++ b/mm/mempolicy.c
->>>> @@ -2030,6 +2030,46 @@ retry_cpuset:
->>>>  	return page;
->>>>  }
->>>>  
->>>> +struct page *alloc_hugepage_vma(gfp_t gfp, struct vm_area_struct *vma,
->>>> +				unsigned long addr, int order)
->>> 
->>> alloc_pages_vma() is nicely documented.  alloc_hugepage_vma() is not
->>> documented at all.  This makes it a bit had for readers to work out the
->>> difference!
->>> 
->>> Is it possible to scrunch them both into the same function?  Probably
->>> too messy?
->>
->> Hm that could work, alloc_pages_vma already has an if (MPOL_INTERLEAVE) part, so
->> just put the THP specialities into an "else if (huge_page)" part there?
->>
->> You could probably test for GFP_TRANSHUGE the same way as __alloc_pages_slowpath
->> does. There might be false positives theoretically, but is there anything else
->> that would use these flags and not be a THP?
->>
-> 
-> is that check correct ? ie, 
-> 
-> if ((gfp & GFP_TRANSHUGE) == GFP_TRANSHUGE)
-> 
-> may not always indicate transparent hugepage if defrag = 0 . With defrag
-> cleared, we remove __GFP_WAIT from GFP_TRANSHUGE.
 
-Yep, that looks wrong. Sigh. I guess we can't spare an extra GFP flag to
-indicate TRANSHUGE?
+--=-DjC9jZnEo53GjMQpZvlQ
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 
-> static inline gfp_t alloc_hugepage_gfpmask(int defrag, gfp_t extra_gfp)
-> {
-> 	return (GFP_TRANSHUGE & ~(defrag ? 0 : __GFP_WAIT)) | extra_gfp;
-> }
-> 
-> -aneesh
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+Hi,
+
+
+Since next-20150119 booting of Exynos4 based boards is nearly impossible
+because of continuous BUG on messages. The system finally boots... but
+console log is polluted with:
+
+[    9.700828] BUG: using smp_processor_id() in preemptible [00000000] code: udevd/1656
+[    9.708525] caller is kfree+0x8c/0x198
+[    9.712229] CPU: 2 PID: 1656 Comm: udevd Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    9.721501] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    9.727602] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    9.735324] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    9.742525] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[    9.751114] [<c01e79e0>] (check_preemption_disabled) from [<c00c501c>] (kfree+0x8c/0x198)
+[    9.759265] [<c00c501c>] (kfree) from [<c0299b7c>] (uevent_show+0x38/0x104)
+[    9.766210] [<c0299b7c>] (uevent_show) from [<c0299fb8>] (dev_attr_show+0x1c/0x48)
+[    9.773763] [<c0299fb8>] (dev_attr_show) from [<c0122424>] (sysfs_kf_seq_show+0x8c/0x10c)
+[    9.781920] [<c0122424>] (sysfs_kf_seq_show) from [<c0120f90>] (kernfs_seq_show+0x24/0x28)
+[    9.790172] [<c0120f90>] (kernfs_seq_show) from [<c00e93b0>] (seq_read+0x1ac/0x480)
+[    9.797806] [<c00e93b0>] (seq_read) from [<c00cacf4>] (__vfs_read+0x18/0x4c)
+[    9.804833] [<c00cacf4>] (__vfs_read) from [<c00cada4>] (vfs_read+0x7c/0x100)
+[    9.811950] [<c00cada4>] (vfs_read) from [<c00cae68>] (SyS_read+0x40/0x8c)
+[    9.818810] [<c00cae68>] (SyS_read) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+
+I bisected this to:
+
+d2dc80750ee05ceb03c9b13b0531a782116d1ade
+Author: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Date:   Sat Jan 17 11:23:23 2015 +1100
+mm/slub: optimize alloc/free fastpath by removing preemption on/off
+
+Full dmesg and config attached.
+
+Any ideas?
+
+
+Best regards,
+Krzysztof
+
+
+--=-DjC9jZnEo53GjMQpZvlQ
+Content-Disposition: attachment; filename="config-bug-smp-preemptible"
+Content-Type: text/plain; name="config-bug-smp-preemptible"; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+
+#
+# Automatically generated file; DO NOT EDIT.
+# Linux/arm 3.19.0-rc4 Kernel Configuration
+#
+CONFIG_ARM=y
+CONFIG_ARM_HAS_SG_CHAIN=y
+CONFIG_NEED_SG_DMA_LENGTH=y
+CONFIG_ARM_DMA_USE_IOMMU=y
+CONFIG_ARM_DMA_IOMMU_ALIGNMENT=8
+CONFIG_MIGHT_HAVE_PCI=y
+CONFIG_SYS_SUPPORTS_APM_EMULATION=y
+CONFIG_HAVE_PROC_CPU=y
+CONFIG_NO_IOPORT_MAP=y
+CONFIG_STACKTRACE_SUPPORT=y
+CONFIG_LOCKDEP_SUPPORT=y
+CONFIG_TRACE_IRQFLAGS_SUPPORT=y
+CONFIG_RWSEM_XCHGADD_ALGORITHM=y
+CONFIG_ARCH_HAS_BANDGAP=y
+CONFIG_GENERIC_HWEIGHT=y
+CONFIG_GENERIC_CALIBRATE_DELAY=y
+CONFIG_NEED_DMA_MAP_STATE=y
+CONFIG_ARCH_SUPPORTS_UPROBES=y
+CONFIG_VECTORS_BASE=0xffff0000
+CONFIG_ARM_PATCH_PHYS_VIRT=y
+CONFIG_GENERIC_BUG=y
+CONFIG_DEFCONFIG_LIST="/lib/modules/$UNAME_RELEASE/.config"
+CONFIG_IRQ_WORK=y
+CONFIG_BUILDTIME_EXTABLE_SORT=y
+
+#
+# General setup
+#
+CONFIG_INIT_ENV_ARG_LIMIT=32
+CONFIG_CROSS_COMPILE=""
+# CONFIG_COMPILE_TEST is not set
+CONFIG_LOCALVERSION=""
+CONFIG_LOCALVERSION_AUTO=y
+CONFIG_HAVE_KERNEL_GZIP=y
+CONFIG_HAVE_KERNEL_LZMA=y
+CONFIG_HAVE_KERNEL_XZ=y
+CONFIG_HAVE_KERNEL_LZO=y
+CONFIG_HAVE_KERNEL_LZ4=y
+CONFIG_KERNEL_GZIP=y
+# CONFIG_KERNEL_LZMA is not set
+# CONFIG_KERNEL_XZ is not set
+# CONFIG_KERNEL_LZO is not set
+# CONFIG_KERNEL_LZ4 is not set
+CONFIG_DEFAULT_HOSTNAME="(none)"
+CONFIG_SWAP=y
+CONFIG_SYSVIPC=y
+CONFIG_SYSVIPC_SYSCTL=y
+# CONFIG_POSIX_MQUEUE is not set
+CONFIG_CROSS_MEMORY_ATTACH=y
+# CONFIG_FHANDLE is not set
+CONFIG_USELIB=y
+# CONFIG_AUDIT is not set
+CONFIG_HAVE_ARCH_AUDITSYSCALL=y
+
+#
+# IRQ subsystem
+#
+CONFIG_GENERIC_IRQ_PROBE=y
+CONFIG_GENERIC_IRQ_SHOW=y
+CONFIG_HARDIRQS_SW_RESEND=y
+CONFIG_GENERIC_IRQ_CHIP=y
+CONFIG_IRQ_DOMAIN=y
+CONFIG_IRQ_DOMAIN_HIERARCHY=y
+CONFIG_HANDLE_DOMAIN_IRQ=y
+# CONFIG_IRQ_DOMAIN_DEBUG is not set
+CONFIG_IRQ_FORCED_THREADING=y
+CONFIG_SPARSE_IRQ=y
+CONFIG_GENERIC_CLOCKEVENTS=y
+CONFIG_GENERIC_CLOCKEVENTS_BUILD=y
+CONFIG_ARCH_HAS_TICK_BROADCAST=y
+CONFIG_GENERIC_CLOCKEVENTS_BROADCAST=y
+
+#
+# Timers subsystem
+#
+CONFIG_TICK_ONESHOT=y
+CONFIG_NO_HZ_COMMON=y
+# CONFIG_HZ_PERIODIC is not set
+CONFIG_NO_HZ_IDLE=y
+# CONFIG_NO_HZ_FULL is not set
+CONFIG_NO_HZ=y
+CONFIG_HIGH_RES_TIMERS=y
+
+#
+# CPU/Task time and stats accounting
+#
+CONFIG_TICK_CPU_ACCOUNTING=y
+# CONFIG_VIRT_CPU_ACCOUNTING_GEN is not set
+# CONFIG_IRQ_TIME_ACCOUNTING is not set
+# CONFIG_BSD_PROCESS_ACCT is not set
+# CONFIG_TASKSTATS is not set
+
+#
+# RCU Subsystem
+#
+CONFIG_PREEMPT_RCU=y
+# CONFIG_TASKS_RCU is not set
+CONFIG_RCU_STALL_COMMON=y
+# CONFIG_RCU_USER_QS is not set
+CONFIG_RCU_FANOUT=32
+CONFIG_RCU_FANOUT_LEAF=16
+# CONFIG_RCU_FANOUT_EXACT is not set
+# CONFIG_RCU_FAST_NO_HZ is not set
+# CONFIG_TREE_RCU_TRACE is not set
+# CONFIG_RCU_BOOST is not set
+# CONFIG_RCU_NOCB_CPU is not set
+CONFIG_BUILD_BIN2C=y
+CONFIG_IKCONFIG=y
+CONFIG_IKCONFIG_PROC=y
+CONFIG_LOG_BUF_SHIFT=17
+CONFIG_LOG_CPU_MAX_BUF_SHIFT=12
+CONFIG_GENERIC_SCHED_CLOCK=y
+CONFIG_CGROUPS=y
+# CONFIG_CGROUP_DEBUG is not set
+# CONFIG_CGROUP_FREEZER is not set
+# CONFIG_CGROUP_DEVICE is not set
+# CONFIG_CPUSETS is not set
+# CONFIG_CGROUP_CPUACCT is not set
+# CONFIG_MEMCG is not set
+# CONFIG_CGROUP_SCHED is not set
+# CONFIG_BLK_CGROUP is not set
+# CONFIG_CHECKPOINT_RESTORE is not set
+CONFIG_NAMESPACES=y
+CONFIG_UTS_NS=y
+CONFIG_IPC_NS=y
+# CONFIG_USER_NS is not set
+CONFIG_PID_NS=y
+CONFIG_NET_NS=y
+# CONFIG_SCHED_AUTOGROUP is not set
+# CONFIG_SYSFS_DEPRECATED is not set
+# CONFIG_RELAY is not set
+CONFIG_BLK_DEV_INITRD=y
+CONFIG_INITRAMFS_SOURCE=""
+CONFIG_RD_GZIP=y
+CONFIG_RD_BZIP2=y
+CONFIG_RD_LZMA=y
+CONFIG_RD_XZ=y
+CONFIG_RD_LZO=y
+CONFIG_RD_LZ4=y
+CONFIG_INIT_FALLBACK=y
+# CONFIG_CC_OPTIMIZE_FOR_SIZE is not set
+CONFIG_SYSCTL=y
+CONFIG_ANON_INODES=y
+CONFIG_HAVE_UID16=y
+CONFIG_BPF=y
+# CONFIG_EXPERT is not set
+CONFIG_UID16=y
+# CONFIG_SGETMASK_SYSCALL is not set
+CONFIG_SYSFS_SYSCALL=y
+# CONFIG_SYSCTL_SYSCALL is not set
+CONFIG_KALLSYMS=y
+CONFIG_KALLSYMS_ALL=y
+CONFIG_PRINTK=y
+CONFIG_BUG=y
+CONFIG_ELF_CORE=y
+CONFIG_BASE_FULL=y
+CONFIG_FUTEX=y
+CONFIG_EPOLL=y
+CONFIG_SIGNALFD=y
+CONFIG_TIMERFD=y
+CONFIG_EVENTFD=y
+# CONFIG_BPF_SYSCALL is not set
+CONFIG_SHMEM=y
+CONFIG_AIO=y
+CONFIG_ADVISE_SYSCALLS=y
+# CONFIG_EMBEDDED is not set
+CONFIG_HAVE_PERF_EVENTS=y
+CONFIG_PERF_USE_VMALLOC=y
+
+#
+# Kernel Performance Events And Counters
+#
+# CONFIG_PERF_EVENTS is not set
+CONFIG_VM_EVENT_COUNTERS=y
+CONFIG_SLUB_DEBUG=y
+CONFIG_COMPAT_BRK=y
+# CONFIG_SLAB is not set
+CONFIG_SLUB=y
+CONFIG_SLUB_CPU_PARTIAL=y
+# CONFIG_PROFILING is not set
+CONFIG_HAVE_OPROFILE=y
+# CONFIG_KPROBES is not set
+# CONFIG_JUMP_LABEL is not set
+# CONFIG_UPROBES is not set
+# CONFIG_HAVE_64BIT_ALIGNED_ACCESS is not set
+CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS=y
+CONFIG_ARCH_USE_BUILTIN_BSWAP=y
+CONFIG_HAVE_KPROBES=y
+CONFIG_HAVE_KRETPROBES=y
+CONFIG_HAVE_ARCH_TRACEHOOK=y
+CONFIG_HAVE_DMA_ATTRS=y
+CONFIG_HAVE_DMA_CONTIGUOUS=y
+CONFIG_GENERIC_SMP_IDLE_THREAD=y
+CONFIG_GENERIC_IDLE_POLL_SETUP=y
+CONFIG_HAVE_REGS_AND_STACK_ACCESS_API=y
+CONFIG_HAVE_CLK=y
+CONFIG_HAVE_DMA_API_DEBUG=y
+CONFIG_HAVE_PERF_REGS=y
+CONFIG_HAVE_PERF_USER_STACK_DUMP=y
+CONFIG_HAVE_ARCH_JUMP_LABEL=y
+CONFIG_ARCH_WANT_IPC_PARSE_VERSION=y
+CONFIG_HAVE_ARCH_SECCOMP_FILTER=y
+CONFIG_HAVE_CC_STACKPROTECTOR=y
+# CONFIG_CC_STACKPROTECTOR is not set
+CONFIG_CC_STACKPROTECTOR_NONE=y
+# CONFIG_CC_STACKPROTECTOR_REGULAR is not set
+# CONFIG_CC_STACKPROTECTOR_STRONG is not set
+CONFIG_HAVE_CONTEXT_TRACKING=y
+CONFIG_HAVE_VIRT_CPU_ACCOUNTING_GEN=y
+CONFIG_HAVE_IRQ_TIME_ACCOUNTING=y
+CONFIG_HAVE_MOD_ARCH_SPECIFIC=y
+CONFIG_MODULES_USE_ELF_REL=y
+CONFIG_CLONE_BACKWARDS=y
+CONFIG_OLD_SIGSUSPEND3=y
+CONFIG_OLD_SIGACTION=y
+
+#
+# GCOV-based kernel profiling
+#
+# CONFIG_GCOV_KERNEL is not set
+CONFIG_ARCH_HAS_GCOV_PROFILE_ALL=y
+CONFIG_HAVE_GENERIC_DMA_COHERENT=y
+CONFIG_SLABINFO=y
+CONFIG_RT_MUTEXES=y
+CONFIG_BASE_SMALL=0
+CONFIG_MODULES=y
+# CONFIG_MODULE_FORCE_LOAD is not set
+CONFIG_MODULE_UNLOAD=y
+# CONFIG_MODULE_FORCE_UNLOAD is not set
+# CONFIG_MODVERSIONS is not set
+# CONFIG_MODULE_SRCVERSION_ALL is not set
+# CONFIG_MODULE_SIG is not set
+# CONFIG_MODULE_COMPRESS is not set
+CONFIG_STOP_MACHINE=y
+CONFIG_BLOCK=y
+CONFIG_LBDAF=y
+# CONFIG_BLK_DEV_BSG is not set
+# CONFIG_BLK_DEV_BSGLIB is not set
+# CONFIG_BLK_DEV_INTEGRITY is not set
+# CONFIG_BLK_CMDLINE_PARSER is not set
+
+#
+# Partition Types
+#
+CONFIG_PARTITION_ADVANCED=y
+# CONFIG_ACORN_PARTITION is not set
+# CONFIG_AIX_PARTITION is not set
+# CONFIG_OSF_PARTITION is not set
+# CONFIG_AMIGA_PARTITION is not set
+# CONFIG_ATARI_PARTITION is not set
+# CONFIG_MAC_PARTITION is not set
+CONFIG_MSDOS_PARTITION=y
+# CONFIG_BSD_DISKLABEL is not set
+# CONFIG_MINIX_SUBPARTITION is not set
+# CONFIG_SOLARIS_X86_PARTITION is not set
+# CONFIG_UNIXWARE_DISKLABEL is not set
+# CONFIG_LDM_PARTITION is not set
+# CONFIG_SGI_PARTITION is not set
+# CONFIG_ULTRIX_PARTITION is not set
+# CONFIG_SUN_PARTITION is not set
+# CONFIG_KARMA_PARTITION is not set
+CONFIG_EFI_PARTITION=y
+# CONFIG_SYSV68_PARTITION is not set
+# CONFIG_CMDLINE_PARTITION is not set
+
+#
+# IO Schedulers
+#
+CONFIG_IOSCHED_NOOP=y
+CONFIG_IOSCHED_DEADLINE=y
+CONFIG_IOSCHED_CFQ=y
+# CONFIG_DEFAULT_DEADLINE is not set
+CONFIG_DEFAULT_CFQ=y
+# CONFIG_DEFAULT_NOOP is not set
+CONFIG_DEFAULT_IOSCHED="cfq"
+CONFIG_UNINLINE_SPIN_UNLOCK=y
+CONFIG_ARCH_SUPPORTS_ATOMIC_RMW=y
+CONFIG_RWSEM_SPIN_ON_OWNER=y
+CONFIG_FREEZER=y
+
+#
+# System Type
+#
+CONFIG_MMU=y
+CONFIG_ARCH_MULTIPLATFORM=y
+# CONFIG_ARCH_REALVIEW is not set
+# CONFIG_ARCH_VERSATILE is not set
+# CONFIG_ARCH_AT91 is not set
+# CONFIG_ARCH_CLPS711X is not set
+# CONFIG_ARCH_GEMINI is not set
+# CONFIG_ARCH_EBSA110 is not set
+# CONFIG_ARCH_EP93XX is not set
+# CONFIG_ARCH_FOOTBRIDGE is not set
+# CONFIG_ARCH_NETX is not set
+# CONFIG_ARCH_IOP13XX is not set
+# CONFIG_ARCH_IOP32X is not set
+# CONFIG_ARCH_IOP33X is not set
+# CONFIG_ARCH_IXP4XX is not set
+# CONFIG_ARCH_DOVE is not set
+# CONFIG_ARCH_MV78XX0 is not set
+# CONFIG_ARCH_ORION5X is not set
+# CONFIG_ARCH_MMP is not set
+# CONFIG_ARCH_KS8695 is not set
+# CONFIG_ARCH_W90X900 is not set
+# CONFIG_ARCH_LPC32XX is not set
+# CONFIG_ARCH_PXA is not set
+# CONFIG_ARCH_MSM is not set
+# CONFIG_ARCH_SHMOBILE_LEGACY is not set
+# CONFIG_ARCH_RPC is not set
+# CONFIG_ARCH_SA1100 is not set
+# CONFIG_ARCH_S3C24XX is not set
+# CONFIG_ARCH_S3C64XX is not set
+# CONFIG_ARCH_DAVINCI is not set
+# CONFIG_ARCH_OMAP1 is not set
+
+#
+# Multiple platform selection
+#
+
+#
+# CPU Core family selection
+#
+# CONFIG_ARCH_MULTI_V6 is not set
+CONFIG_ARCH_MULTI_V7=y
+CONFIG_ARCH_MULTI_V6_V7=y
+# CONFIG_ARCH_MULTI_CPU_AUTO is not set
+# CONFIG_ARCH_VIRT is not set
+# CONFIG_ARCH_MVEBU is not set
+# CONFIG_ARCH_BCM is not set
+# CONFIG_ARCH_BERLIN is not set
+# CONFIG_ARCH_HIGHBANK is not set
+# CONFIG_ARCH_HISI is not set
+# CONFIG_ARCH_KEYSTONE is not set
+# CONFIG_ARCH_MESON is not set
+# CONFIG_ARCH_MXC is not set
+# CONFIG_ARCH_MEDIATEK is not set
+
+#
+# TI OMAP/AM/DM/DRA Family
+#
+# CONFIG_ARCH_OMAP3 is not set
+# CONFIG_ARCH_OMAP4 is not set
+# CONFIG_SOC_OMAP5 is not set
+# CONFIG_SOC_AM33XX is not set
+# CONFIG_SOC_AM43XX is not set
+# CONFIG_SOC_DRA7XX is not set
+# CONFIG_ARCH_QCOM is not set
+# CONFIG_ARCH_ROCKCHIP is not set
+# CONFIG_ARCH_SOCFPGA is not set
+# CONFIG_PLAT_SPEAR is not set
+# CONFIG_ARCH_STI is not set
+# CONFIG_ARCH_S5PV210 is not set
+CONFIG_ARCH_EXYNOS=y
+CONFIG_ARCH_EXYNOS3=y
+CONFIG_ARCH_EXYNOS4=y
+CONFIG_ARCH_EXYNOS5=y
+
+#
+# EXYNOS SoCs
+#
+CONFIG_SOC_EXYNOS3250=y
+CONFIG_CPU_EXYNOS4210=y
+CONFIG_SOC_EXYNOS4212=y
+CONFIG_SOC_EXYNOS4412=y
+CONFIG_SOC_EXYNOS4415=y
+CONFIG_SOC_EXYNOS5250=y
+CONFIG_SOC_EXYNOS5260=y
+CONFIG_SOC_EXYNOS5410=y
+CONFIG_SOC_EXYNOS5420=y
+CONFIG_SOC_EXYNOS5440=y
+CONFIG_SOC_EXYNOS5800=y
+CONFIG_EXYNOS5420_MCPM=y
+CONFIG_EXYNOS_CPU_SUSPEND=y
+CONFIG_PLAT_SAMSUNG=y
+
+#
+# Samsung Common options
+#
+
+#
+# Boot options
+#
+CONFIG_S5P_DEV_MFC=y
+
+#
+# Power management
+#
+# CONFIG_SAMSUNG_PM_CHECK is not set
+# CONFIG_ARCH_SHMOBILE_MULTI is not set
+# CONFIG_ARCH_SUNXI is not set
+# CONFIG_ARCH_SIRF is not set
+# CONFIG_ARCH_TEGRA is not set
+# CONFIG_ARCH_U8500 is not set
+# CONFIG_ARCH_VEXPRESS is not set
+# CONFIG_ARCH_WM8850 is not set
+# CONFIG_ARCH_ZYNQ is not set
+
+#
+# Processor Type
+#
+CONFIG_CPU_V7=y
+CONFIG_CPU_32v6K=y
+CONFIG_CPU_32v7=y
+CONFIG_CPU_ABRT_EV7=y
+CONFIG_CPU_PABRT_V7=y
+CONFIG_CPU_CACHE_V7=y
+CONFIG_CPU_CACHE_VIPT=y
+CONFIG_CPU_COPY_V6=y
+CONFIG_CPU_TLB_V7=y
+CONFIG_CPU_HAS_ASID=y
+CONFIG_CPU_CP15=y
+CONFIG_CPU_CP15_MMU=y
+
+#
+# Processor Features
+#
+# CONFIG_ARM_LPAE is not set
+# CONFIG_ARCH_PHYS_ADDR_T_64BIT is not set
+CONFIG_ARM_THUMB=y
+# CONFIG_ARM_THUMBEE is not set
+CONFIG_ARM_VIRT_EXT=y
+CONFIG_SWP_EMULATE=y
+# CONFIG_CPU_ICACHE_DISABLE is not set
+# CONFIG_CPU_DCACHE_DISABLE is not set
+# CONFIG_CPU_BPREDICT_DISABLE is not set
+CONFIG_KUSER_HELPERS=y
+CONFIG_OUTER_CACHE=y
+CONFIG_OUTER_CACHE_SYNC=y
+CONFIG_MIGHT_HAVE_CACHE_L2X0=y
+CONFIG_CACHE_L2X0=y
+CONFIG_CACHE_PL310=y
+# CONFIG_PL310_ERRATA_588369 is not set
+# CONFIG_PL310_ERRATA_727915 is not set
+# CONFIG_PL310_ERRATA_753970 is not set
+# CONFIG_PL310_ERRATA_769419 is not set
+CONFIG_ARM_L1_CACHE_SHIFT_6=y
+CONFIG_ARM_L1_CACHE_SHIFT=6
+CONFIG_ARM_DMA_MEM_BUFFERABLE=y
+# CONFIG_ARM_KERNMEM_PERMS is not set
+CONFIG_MULTI_IRQ_HANDLER=y
+# CONFIG_ARM_ERRATA_430973 is not set
+# CONFIG_ARM_ERRATA_643719 is not set
+# CONFIG_ARM_ERRATA_720789 is not set
+# CONFIG_ARM_ERRATA_754322 is not set
+# CONFIG_ARM_ERRATA_754327 is not set
+# CONFIG_ARM_ERRATA_764369 is not set
+# CONFIG_ARM_ERRATA_775420 is not set
+# CONFIG_ARM_ERRATA_798181 is not set
+# CONFIG_ARM_ERRATA_773022 is not set
+
+#
+# Bus support
+#
+# CONFIG_PCI is not set
+# CONFIG_PCI_SYSCALL is not set
+# CONFIG_PCCARD is not set
+
+#
+# Kernel Features
+#
+CONFIG_HAVE_SMP=y
+CONFIG_SMP=y
+CONFIG_SMP_ON_UP=y
+CONFIG_ARM_CPU_TOPOLOGY=y
+# CONFIG_SCHED_MC is not set
+# CONFIG_SCHED_SMT is not set
+CONFIG_HAVE_ARM_SCU=y
+CONFIG_HAVE_ARM_ARCH_TIMER=y
+CONFIG_MCPM=y
+CONFIG_BIG_LITTLE=y
+CONFIG_BL_SWITCHER=y
+CONFIG_BL_SWITCHER_DUMMY_IF=y
+CONFIG_VMSPLIT_3G=y
+# CONFIG_VMSPLIT_2G is not set
+# CONFIG_VMSPLIT_1G is not set
+CONFIG_PAGE_OFFSET=0xC0000000
+CONFIG_NR_CPUS=8
+CONFIG_HOTPLUG_CPU=y
+# CONFIG_ARM_PSCI is not set
+CONFIG_ARCH_NR_GPIO=512
+# CONFIG_PREEMPT_NONE is not set
+# CONFIG_PREEMPT_VOLUNTARY is not set
+CONFIG_PREEMPT=y
+CONFIG_PREEMPT_COUNT=y
+CONFIG_HZ_FIXED=200
+CONFIG_HZ=200
+CONFIG_SCHED_HRTICK=y
+# CONFIG_THUMB2_KERNEL is not set
+CONFIG_AEABI=y
+# CONFIG_OABI_COMPAT is not set
+CONFIG_ARCH_HAS_HOLES_MEMORYMODEL=y
+# CONFIG_ARCH_SPARSEMEM_DEFAULT is not set
+# CONFIG_ARCH_SELECT_MEMORY_MODEL is not set
+CONFIG_HAVE_ARCH_PFN_VALID=y
+CONFIG_HIGHMEM=y
+# CONFIG_HIGHPTE is not set
+CONFIG_ARCH_WANT_GENERAL_HUGETLB=y
+CONFIG_FLATMEM=y
+CONFIG_FLAT_NODE_MEM_MAP=y
+CONFIG_HAVE_MEMBLOCK=y
+CONFIG_NO_BOOTMEM=y
+CONFIG_MEMORY_ISOLATION=y
+# CONFIG_HAVE_BOOTMEM_INFO_NODE is not set
+CONFIG_PAGEFLAGS_EXTENDED=y
+CONFIG_SPLIT_PTLOCK_CPUS=4
+CONFIG_COMPACTION=y
+CONFIG_MIGRATION=y
+# CONFIG_PHYS_ADDR_T_64BIT is not set
+CONFIG_ZONE_DMA_FLAG=0
+CONFIG_BOUNCE=y
+# CONFIG_KSM is not set
+CONFIG_DEFAULT_MMAP_MIN_ADDR=4096
+# CONFIG_CLEANCACHE is not set
+# CONFIG_FRONTSWAP is not set
+CONFIG_CMA=y
+# CONFIG_CMA_DEBUG is not set
+CONFIG_CMA_AREAS=7
+# CONFIG_ZPOOL is not set
+# CONFIG_ZBUD is not set
+# CONFIG_ZSMALLOC is not set
+CONFIG_FORCE_MAX_ZONEORDER=11
+CONFIG_ALIGNMENT_TRAP=y
+# CONFIG_UACCESS_WITH_MEMCPY is not set
+# CONFIG_SECCOMP is not set
+CONFIG_SWIOTLB=y
+CONFIG_IOMMU_HELPER=y
+# CONFIG_XEN is not set
+
+#
+# Boot options
+#
+CONFIG_USE_OF=y
+CONFIG_ATAGS=y
+# CONFIG_DEPRECATED_PARAM_STRUCT is not set
+CONFIG_ZBOOT_ROM_TEXT=0x0
+CONFIG_ZBOOT_ROM_BSS=0x0
+CONFIG_ARM_APPENDED_DTB=y
+CONFIG_ARM_ATAG_DTB_COMPAT=y
+CONFIG_ARM_ATAG_DTB_COMPAT_CMDLINE_FROM_BOOTLOADER=y
+# CONFIG_ARM_ATAG_DTB_COMPAT_CMDLINE_EXTEND is not set
+CONFIG_CMDLINE="root=/dev/ram0 rw ramdisk=8192 initrd=0x41000000,8M console=ttySAC1,115200 init=/linuxrc mem=256M"
+CONFIG_CMDLINE_FROM_BOOTLOADER=y
+# CONFIG_CMDLINE_EXTEND is not set
+# CONFIG_CMDLINE_FORCE is not set
+# CONFIG_KEXEC is not set
+# CONFIG_CRASH_DUMP is not set
+CONFIG_AUTO_ZRELADDR=y
+
+#
+# CPU Power Management
+#
+
+#
+# CPU Frequency scaling
+#
+# CONFIG_CPU_FREQ is not set
+
+#
+# CPU Idle
+#
+# CONFIG_CPU_IDLE is not set
+# CONFIG_ARCH_NEEDS_CPU_IDLE_COUPLED is not set
+
+#
+# Floating point emulation
+#
+
+#
+# At least one emulation must be selected
+#
+CONFIG_VFP=y
+CONFIG_VFPv3=y
+CONFIG_NEON=y
+# CONFIG_KERNEL_MODE_NEON is not set
+
+#
+# Userspace binary formats
+#
+CONFIG_BINFMT_ELF=y
+CONFIG_ARCH_BINFMT_ELF_RANDOMIZE_PIE=y
+CONFIG_CORE_DUMP_DEFAULT_ELF_HEADERS=y
+CONFIG_BINFMT_SCRIPT=y
+# CONFIG_HAVE_AOUT is not set
+# CONFIG_BINFMT_MISC is not set
+CONFIG_COREDUMP=y
+
+#
+# Power management options
+#
+CONFIG_SUSPEND=y
+CONFIG_SUSPEND_FREEZER=y
+# CONFIG_HIBERNATION is not set
+CONFIG_PM_SLEEP=y
+CONFIG_PM_SLEEP_SMP=y
+# CONFIG_PM_AUTOSLEEP is not set
+# CONFIG_PM_WAKELOCKS is not set
+CONFIG_PM=y
+CONFIG_PM_DEBUG=y
+CONFIG_PM_ADVANCED_DEBUG=y
+# CONFIG_PM_TEST_SUSPEND is not set
+CONFIG_PM_SLEEP_DEBUG=y
+# CONFIG_APM_EMULATION is not set
+CONFIG_PM_OPP=y
+CONFIG_PM_CLK=y
+CONFIG_PM_GENERIC_DOMAINS=y
+# CONFIG_WQ_POWER_EFFICIENT_DEFAULT is not set
+CONFIG_PM_GENERIC_DOMAINS_SLEEP=y
+CONFIG_PM_GENERIC_DOMAINS_OF=y
+CONFIG_CPU_PM=y
+CONFIG_ARCH_SUSPEND_POSSIBLE=y
+CONFIG_ARM_CPU_SUSPEND=y
+CONFIG_ARCH_HIBERNATION_POSSIBLE=y
+CONFIG_NET=y
+
+#
+# Networking options
+#
+CONFIG_PACKET=y
+# CONFIG_PACKET_DIAG is not set
+CONFIG_UNIX=y
+# CONFIG_UNIX_DIAG is not set
+CONFIG_XFRM=y
+CONFIG_XFRM_ALGO=y
+# CONFIG_XFRM_USER is not set
+# CONFIG_XFRM_SUB_POLICY is not set
+# CONFIG_XFRM_MIGRATE is not set
+# CONFIG_XFRM_STATISTICS is not set
+CONFIG_NET_KEY=y
+# CONFIG_NET_KEY_MIGRATE is not set
+CONFIG_INET=y
+# CONFIG_IP_MULTICAST is not set
+# CONFIG_IP_ADVANCED_ROUTER is not set
+# CONFIG_IP_PNP is not set
+# CONFIG_NET_IPIP is not set
+# CONFIG_NET_IPGRE_DEMUX is not set
+CONFIG_NET_IP_TUNNEL=m
+# CONFIG_SYN_COOKIES is not set
+# CONFIG_NET_IPVTI is not set
+# CONFIG_NET_UDP_TUNNEL is not set
+# CONFIG_NET_FOU is not set
+# CONFIG_NET_FOU_IP_TUNNELS is not set
+# CONFIG_GENEVE is not set
+# CONFIG_INET_AH is not set
+# CONFIG_INET_ESP is not set
+# CONFIG_INET_IPCOMP is not set
+# CONFIG_INET_XFRM_TUNNEL is not set
+CONFIG_INET_TUNNEL=m
+CONFIG_INET_XFRM_MODE_TRANSPORT=y
+CONFIG_INET_XFRM_MODE_TUNNEL=y
+CONFIG_INET_XFRM_MODE_BEET=y
+CONFIG_INET_LRO=y
+CONFIG_INET_DIAG=y
+CONFIG_INET_TCP_DIAG=y
+# CONFIG_INET_UDP_DIAG is not set
+# CONFIG_TCP_CONG_ADVANCED is not set
+CONFIG_TCP_CONG_CUBIC=y
+CONFIG_DEFAULT_TCP_CONG="cubic"
+# CONFIG_TCP_MD5SIG is not set
+CONFIG_IPV6=m
+# CONFIG_IPV6_ROUTER_PREF is not set
+# CONFIG_IPV6_OPTIMISTIC_DAD is not set
+# CONFIG_INET6_AH is not set
+# CONFIG_INET6_ESP is not set
+# CONFIG_INET6_IPCOMP is not set
+# CONFIG_IPV6_MIP6 is not set
+# CONFIG_INET6_XFRM_TUNNEL is not set
+# CONFIG_INET6_TUNNEL is not set
+CONFIG_INET6_XFRM_MODE_TRANSPORT=m
+CONFIG_INET6_XFRM_MODE_TUNNEL=m
+CONFIG_INET6_XFRM_MODE_BEET=m
+# CONFIG_INET6_XFRM_MODE_ROUTEOPTIMIZATION is not set
+# CONFIG_IPV6_VTI is not set
+CONFIG_IPV6_SIT=m
+# CONFIG_IPV6_SIT_6RD is not set
+CONFIG_IPV6_NDISC_NODETYPE=y
+# CONFIG_IPV6_TUNNEL is not set
+# CONFIG_IPV6_GRE is not set
+# CONFIG_IPV6_MULTIPLE_TABLES is not set
+# CONFIG_IPV6_MROUTE is not set
+# CONFIG_NETWORK_SECMARK is not set
+# CONFIG_NET_PTP_CLASSIFY is not set
+# CONFIG_NETWORK_PHY_TIMESTAMPING is not set
+# CONFIG_NETFILTER is not set
+# CONFIG_IP_DCCP is not set
+# CONFIG_IP_SCTP is not set
+# CONFIG_RDS is not set
+# CONFIG_TIPC is not set
+# CONFIG_ATM is not set
+# CONFIG_L2TP is not set
+# CONFIG_BRIDGE is not set
+CONFIG_HAVE_NET_DSA=y
+# CONFIG_VLAN_8021Q is not set
+# CONFIG_DECNET is not set
+# CONFIG_LLC2 is not set
+# CONFIG_IPX is not set
+# CONFIG_ATALK is not set
+# CONFIG_X25 is not set
+# CONFIG_LAPB is not set
+# CONFIG_PHONET is not set
+# CONFIG_6LOWPAN is not set
+# CONFIG_IEEE802154 is not set
+# CONFIG_NET_SCHED is not set
+# CONFIG_DCB is not set
+# CONFIG_BATMAN_ADV is not set
+# CONFIG_OPENVSWITCH is not set
+# CONFIG_VSOCKETS is not set
+# CONFIG_NETLINK_MMAP is not set
+# CONFIG_NETLINK_DIAG is not set
+# CONFIG_NET_MPLS_GSO is not set
+# CONFIG_HSR is not set
+# CONFIG_NET_SWITCHDEV is not set
+CONFIG_RPS=y
+CONFIG_RFS_ACCEL=y
+CONFIG_XPS=y
+# CONFIG_CGROUP_NET_PRIO is not set
+# CONFIG_CGROUP_NET_CLASSID is not set
+CONFIG_NET_RX_BUSY_POLL=y
+CONFIG_BQL=y
+# CONFIG_BPF_JIT is not set
+CONFIG_NET_FLOW_LIMIT=y
+
+#
+# Network testing
+#
+# CONFIG_NET_PKTGEN is not set
+# CONFIG_HAMRADIO is not set
+# CONFIG_CAN is not set
+# CONFIG_IRDA is not set
+# CONFIG_BT is not set
+# CONFIG_AF_RXRPC is not set
+CONFIG_WIRELESS=y
+CONFIG_CFG80211=y
+# CONFIG_NL80211_TESTMODE is not set
+# CONFIG_CFG80211_DEVELOPER_WARNINGS is not set
+# CONFIG_CFG80211_REG_DEBUG is not set
+CONFIG_CFG80211_DEFAULT_PS=y
+# CONFIG_CFG80211_DEBUGFS is not set
+# CONFIG_CFG80211_INTERNAL_REGDB is not set
+# CONFIG_CFG80211_WEXT is not set
+# CONFIG_LIB80211 is not set
+CONFIG_MAC80211=y
+CONFIG_MAC80211_HAS_RC=y
+CONFIG_MAC80211_RC_MINSTREL=y
+CONFIG_MAC80211_RC_MINSTREL_HT=y
+# CONFIG_MAC80211_RC_MINSTREL_VHT is not set
+CONFIG_MAC80211_RC_DEFAULT_MINSTREL=y
+CONFIG_MAC80211_RC_DEFAULT="minstrel_ht"
+# CONFIG_MAC80211_MESH is not set
+# CONFIG_MAC80211_LEDS is not set
+# CONFIG_MAC80211_DEBUGFS is not set
+# CONFIG_MAC80211_MESSAGE_TRACING is not set
+# CONFIG_MAC80211_DEBUG_MENU is not set
+# CONFIG_WIMAX is not set
+# CONFIG_RFKILL is not set
+CONFIG_RFKILL_REGULATOR=y
+# CONFIG_NET_9P is not set
+# CONFIG_CAIF is not set
+# CONFIG_CEPH_LIB is not set
+# CONFIG_NFC is not set
+CONFIG_HAVE_BPF_JIT=y
+
+#
+# Device Drivers
+#
+CONFIG_ARM_AMBA=y
+# CONFIG_TEGRA_AHB is not set
+
+#
+# Generic Driver Options
+#
+CONFIG_UEVENT_HELPER=y
+CONFIG_UEVENT_HELPER_PATH="/sbin/hotplug"
+CONFIG_DEVTMPFS=y
+CONFIG_DEVTMPFS_MOUNT=y
+CONFIG_STANDALONE=y
+CONFIG_PREVENT_FIRMWARE_BUILD=y
+CONFIG_FW_LOADER=y
+CONFIG_FIRMWARE_IN_KERNEL=y
+CONFIG_EXTRA_FIRMWARE=""
+# CONFIG_FW_LOADER_USER_HELPER_FALLBACK is not set
+CONFIG_ALLOW_DEV_COREDUMP=y
+# CONFIG_DEBUG_DRIVER is not set
+# CONFIG_DEBUG_DEVRES is not set
+# CONFIG_SYS_HYPERVISOR is not set
+# CONFIG_GENERIC_CPU_DEVICES is not set
+CONFIG_REGMAP=y
+CONFIG_REGMAP_I2C=y
+CONFIG_REGMAP_SPI=y
+CONFIG_REGMAP_MMIO=y
+CONFIG_REGMAP_IRQ=y
+CONFIG_DMA_SHARED_BUFFER=y
+# CONFIG_FENCE_TRACE is not set
+CONFIG_DMA_CMA=y
+
+#
+# Default contiguous memory area size:
+#
+CONFIG_CMA_SIZE_MBYTES=64
+CONFIG_CMA_SIZE_SEL_MBYTES=y
+# CONFIG_CMA_SIZE_SEL_PERCENTAGE is not set
+# CONFIG_CMA_SIZE_SEL_MIN is not set
+# CONFIG_CMA_SIZE_SEL_MAX is not set
+CONFIG_CMA_ALIGNMENT=8
+
+#
+# Bus devices
+#
+# CONFIG_BRCMSTB_GISB_ARB is not set
+CONFIG_ARM_CCI=y
+# CONFIG_VEXPRESS_CONFIG is not set
+# CONFIG_CONNECTOR is not set
+# CONFIG_MTD is not set
+CONFIG_DTC=y
+CONFIG_OF=y
+
+#
+# Device Tree and Open Firmware support
+#
+# CONFIG_OF_UNITTEST is not set
+CONFIG_OF_FLATTREE=y
+CONFIG_OF_EARLY_FLATTREE=y
+CONFIG_OF_ADDRESS=y
+CONFIG_OF_IRQ=y
+CONFIG_OF_NET=y
+CONFIG_OF_MDIO=y
+CONFIG_OF_RESERVED_MEM=y
+CONFIG_ARCH_MIGHT_HAVE_PC_PARPORT=y
+# CONFIG_PARPORT is not set
+CONFIG_BLK_DEV=y
+# CONFIG_BLK_DEV_NULL_BLK is not set
+# CONFIG_BLK_DEV_COW_COMMON is not set
+CONFIG_BLK_DEV_LOOP=y
+CONFIG_BLK_DEV_LOOP_MIN_COUNT=8
+CONFIG_BLK_DEV_CRYPTOLOOP=y
+# CONFIG_BLK_DEV_DRBD is not set
+# CONFIG_BLK_DEV_NBD is not set
+CONFIG_BLK_DEV_RAM=y
+CONFIG_BLK_DEV_RAM_COUNT=16
+CONFIG_BLK_DEV_RAM_SIZE=8192
+# CONFIG_BLK_DEV_XIP is not set
+# CONFIG_CDROM_PKTCDVD is not set
+# CONFIG_ATA_OVER_ETH is not set
+# CONFIG_MG_DISK is not set
+# CONFIG_BLK_DEV_RBD is not set
+
+#
+# Misc devices
+#
+# CONFIG_SENSORS_LIS3LV02D is not set
+# CONFIG_AD525X_DPOT is not set
+# CONFIG_DUMMY_IRQ is not set
+# CONFIG_ICS932S401 is not set
+# CONFIG_ENCLOSURE_SERVICES is not set
+# CONFIG_APDS9802ALS is not set
+# CONFIG_ISL29003 is not set
+# CONFIG_ISL29020 is not set
+# CONFIG_SENSORS_TSL2550 is not set
+# CONFIG_SENSORS_BH1780 is not set
+# CONFIG_SENSORS_BH1770 is not set
+# CONFIG_SENSORS_APDS990X is not set
+# CONFIG_HMC6352 is not set
+# CONFIG_DS1682 is not set
+# CONFIG_TI_DAC7512 is not set
+# CONFIG_BMP085_I2C is not set
+# CONFIG_BMP085_SPI is not set
+# CONFIG_USB_SWITCH_FSA9480 is not set
+# CONFIG_LATTICE_ECP3_CONFIG is not set
+CONFIG_SRAM=y
+# CONFIG_C2PORT is not set
+
+#
+# EEPROM support
+#
+# CONFIG_EEPROM_AT24 is not set
+# CONFIG_EEPROM_AT25 is not set
+# CONFIG_EEPROM_LEGACY is not set
+# CONFIG_EEPROM_MAX6875 is not set
+# CONFIG_EEPROM_93CX6 is not set
+# CONFIG_EEPROM_93XX46 is not set
+
+#
+# Texas Instruments shared transport line discipline
+#
+# CONFIG_TI_ST is not set
+# CONFIG_SENSORS_LIS3_SPI is not set
+# CONFIG_SENSORS_LIS3_I2C is not set
+
+#
+# Altera FPGA firmware download module
+#
+# CONFIG_ALTERA_STAPL is not set
+
+#
+# Intel MIC Bus Driver
+#
+
+#
+# Intel MIC Host Driver
+#
+
+#
+# Intel MIC Card Driver
+#
+# CONFIG_ECHO is not set
+# CONFIG_CXL_BASE is not set
+
+#
+# SCSI device support
+#
+CONFIG_SCSI_MOD=y
+# CONFIG_RAID_ATTRS is not set
+CONFIG_SCSI=y
+CONFIG_SCSI_DMA=y
+# CONFIG_SCSI_NETLINK is not set
+# CONFIG_SCSI_MQ_DEFAULT is not set
+CONFIG_SCSI_PROC_FS=y
+
+#
+# SCSI support type (disk, tape, CD-ROM)
+#
+CONFIG_BLK_DEV_SD=y
+# CONFIG_CHR_DEV_ST is not set
+# CONFIG_CHR_DEV_OSST is not set
+# CONFIG_BLK_DEV_SR is not set
+CONFIG_CHR_DEV_SG=y
+# CONFIG_CHR_DEV_SCH is not set
+# CONFIG_SCSI_CONSTANTS is not set
+# CONFIG_SCSI_LOGGING is not set
+# CONFIG_SCSI_SCAN_ASYNC is not set
+
+#
+# SCSI Transports
+#
+# CONFIG_SCSI_SPI_ATTRS is not set
+# CONFIG_SCSI_FC_ATTRS is not set
+# CONFIG_SCSI_ISCSI_ATTRS is not set
+# CONFIG_SCSI_SAS_ATTRS is not set
+# CONFIG_SCSI_SAS_LIBSAS is not set
+# CONFIG_SCSI_SRP_ATTRS is not set
+CONFIG_SCSI_LOWLEVEL=y
+# CONFIG_ISCSI_TCP is not set
+# CONFIG_ISCSI_BOOT_SYSFS is not set
+# CONFIG_SCSI_UFSHCD is not set
+# CONFIG_SCSI_DEBUG is not set
+# CONFIG_SCSI_DH is not set
+# CONFIG_SCSI_OSD_INITIATOR is not set
+# CONFIG_ATA is not set
+CONFIG_MD=y
+# CONFIG_BLK_DEV_MD is not set
+# CONFIG_BCACHE is not set
+CONFIG_BLK_DEV_DM_BUILTIN=y
+CONFIG_BLK_DEV_DM=y
+# CONFIG_DM_DEBUG is not set
+CONFIG_DM_CRYPT=m
+# CONFIG_DM_SNAPSHOT is not set
+# CONFIG_DM_THIN_PROVISIONING is not set
+# CONFIG_DM_CACHE is not set
+# CONFIG_DM_ERA is not set
+# CONFIG_DM_MIRROR is not set
+# CONFIG_DM_RAID is not set
+# CONFIG_DM_ZERO is not set
+# CONFIG_DM_MULTIPATH is not set
+# CONFIG_DM_DELAY is not set
+# CONFIG_DM_UEVENT is not set
+# CONFIG_DM_FLAKEY is not set
+# CONFIG_DM_VERITY is not set
+# CONFIG_DM_SWITCH is not set
+# CONFIG_TARGET_CORE is not set
+CONFIG_NETDEVICES=y
+CONFIG_MII=y
+CONFIG_NET_CORE=y
+# CONFIG_BONDING is not set
+# CONFIG_DUMMY is not set
+# CONFIG_EQUALIZER is not set
+# CONFIG_NET_TEAM is not set
+# CONFIG_MACVLAN is not set
+# CONFIG_IPVLAN is not set
+# CONFIG_VXLAN is not set
+# CONFIG_NETCONSOLE is not set
+# CONFIG_NETPOLL is not set
+# CONFIG_NET_POLL_CONTROLLER is not set
+# CONFIG_TUN is not set
+# CONFIG_VETH is not set
+# CONFIG_NLMON is not set
+
+#
+# CAIF transport drivers
+#
+
+#
+# Distributed Switch Architecture drivers
+#
+# CONFIG_NET_DSA_MV88E6XXX is not set
+# CONFIG_NET_DSA_MV88E6060 is not set
+# CONFIG_NET_DSA_MV88E6XXX_NEED_PPU is not set
+# CONFIG_NET_DSA_MV88E6131 is not set
+# CONFIG_NET_DSA_MV88E6123_61_65 is not set
+# CONFIG_NET_DSA_MV88E6171 is not set
+# CONFIG_NET_DSA_MV88E6352 is not set
+# CONFIG_NET_DSA_BCM_SF2 is not set
+CONFIG_ETHERNET=y
+# CONFIG_ALTERA_TSE is not set
+# CONFIG_NET_XGENE is not set
+CONFIG_NET_VENDOR_ARC=y
+# CONFIG_ARC_EMAC is not set
+# CONFIG_EMAC_ROCKCHIP is not set
+CONFIG_NET_CADENCE=y
+CONFIG_NET_VENDOR_BROADCOM=y
+# CONFIG_B44 is not set
+# CONFIG_BCMGENET is not set
+# CONFIG_SYSTEMPORT is not set
+CONFIG_NET_VENDOR_CIRRUS=y
+# CONFIG_CS89x0 is not set
+# CONFIG_DM9000 is not set
+# CONFIG_DNET is not set
+CONFIG_NET_VENDOR_FARADAY=y
+# CONFIG_FTMAC100 is not set
+# CONFIG_FTGMAC100 is not set
+CONFIG_NET_VENDOR_HISILICON=y
+# CONFIG_HIX5HD2_GMAC is not set
+CONFIG_NET_VENDOR_INTEL=y
+CONFIG_NET_VENDOR_I825XX=y
+CONFIG_NET_VENDOR_MARVELL=y
+# CONFIG_MVMDIO is not set
+CONFIG_NET_VENDOR_MICREL=y
+# CONFIG_KS8842 is not set
+# CONFIG_KS8851 is not set
+# CONFIG_KS8851_MLL is not set
+CONFIG_NET_VENDOR_MICROCHIP=y
+# CONFIG_ENC28J60 is not set
+CONFIG_NET_VENDOR_NATSEMI=y
+CONFIG_NET_VENDOR_8390=y
+# CONFIG_AX88796 is not set
+# CONFIG_ETHOC is not set
+CONFIG_NET_VENDOR_QUALCOMM=y
+# CONFIG_QCA7000 is not set
+CONFIG_NET_VENDOR_ROCKER=y
+CONFIG_NET_VENDOR_SAMSUNG=y
+# CONFIG_SXGBE_ETH is not set
+CONFIG_NET_VENDOR_SEEQ=y
+CONFIG_NET_VENDOR_SMSC=y
+# CONFIG_SMC91X is not set
+# CONFIG_SMC911X is not set
+CONFIG_SMSC911X=y
+# CONFIG_SMSC911X_ARCH_HOOKS is not set
+CONFIG_NET_VENDOR_STMICRO=y
+# CONFIG_STMMAC_ETH is not set
+CONFIG_NET_VENDOR_VIA=y
+# CONFIG_VIA_RHINE is not set
+# CONFIG_VIA_VELOCITY is not set
+CONFIG_NET_VENDOR_WIZNET=y
+# CONFIG_WIZNET_W5100 is not set
+# CONFIG_WIZNET_W5300 is not set
+CONFIG_PHYLIB=y
+
+#
+# MII PHY device drivers
+#
+# CONFIG_AT803X_PHY is not set
+# CONFIG_AMD_PHY is not set
+# CONFIG_AMD_XGBE_PHY is not set
+# CONFIG_MARVELL_PHY is not set
+# CONFIG_DAVICOM_PHY is not set
+# CONFIG_QSEMI_PHY is not set
+# CONFIG_LXT_PHY is not set
+# CONFIG_CICADA_PHY is not set
+# CONFIG_VITESSE_PHY is not set
+# CONFIG_SMSC_PHY is not set
+# CONFIG_BROADCOM_PHY is not set
+# CONFIG_BCM7XXX_PHY is not set
+# CONFIG_BCM87XX_PHY is not set
+# CONFIG_ICPLUS_PHY is not set
+# CONFIG_REALTEK_PHY is not set
+# CONFIG_NATIONAL_PHY is not set
+# CONFIG_STE10XP is not set
+# CONFIG_LSI_ET1011C_PHY is not set
+# CONFIG_MICREL_PHY is not set
+# CONFIG_FIXED_PHY is not set
+# CONFIG_MDIO_BITBANG is not set
+# CONFIG_MDIO_BUS_MUX_GPIO is not set
+# CONFIG_MDIO_BUS_MUX_MMIOREG is not set
+# CONFIG_MDIO_BCM_UNIMAC is not set
+# CONFIG_MICREL_KS8995MA is not set
+# CONFIG_PPP is not set
+# CONFIG_SLIP is not set
+CONFIG_USB_NET_DRIVERS=y
+# CONFIG_USB_CATC is not set
+# CONFIG_USB_KAWETH is not set
+# CONFIG_USB_PEGASUS is not set
+# CONFIG_USB_RTL8150 is not set
+# CONFIG_USB_RTL8152 is not set
+CONFIG_USB_USBNET=y
+CONFIG_USB_NET_AX8817X=y
+CONFIG_USB_NET_AX88179_178A=y
+CONFIG_USB_NET_CDCETHER=y
+# CONFIG_USB_NET_CDC_EEM is not set
+CONFIG_USB_NET_CDC_NCM=y
+# CONFIG_USB_NET_HUAWEI_CDC_NCM is not set
+# CONFIG_USB_NET_CDC_MBIM is not set
+# CONFIG_USB_NET_DM9601 is not set
+# CONFIG_USB_NET_SR9700 is not set
+# CONFIG_USB_NET_SR9800 is not set
+CONFIG_USB_NET_SMSC75XX=y
+CONFIG_USB_NET_SMSC95XX=y
+# CONFIG_USB_NET_GL620A is not set
+CONFIG_USB_NET_NET1080=y
+# CONFIG_USB_NET_PLUSB is not set
+# CONFIG_USB_NET_MCS7830 is not set
+# CONFIG_USB_NET_RNDIS_HOST is not set
+CONFIG_USB_NET_CDC_SUBSET=y
+# CONFIG_USB_ALI_M5632 is not set
+# CONFIG_USB_AN2720 is not set
+CONFIG_USB_BELKIN=y
+CONFIG_USB_ARMLINUX=y
+# CONFIG_USB_EPSON2888 is not set
+# CONFIG_USB_KC2190 is not set
+CONFIG_USB_NET_ZAURUS=y
+# CONFIG_USB_NET_CX82310_ETH is not set
+# CONFIG_USB_NET_KALMIA is not set
+# CONFIG_USB_NET_QMI_WWAN is not set
+# CONFIG_USB_NET_INT51X1 is not set
+# CONFIG_USB_IPHETH is not set
+# CONFIG_USB_SIERRA_NET is not set
+# CONFIG_USB_VL600 is not set
+CONFIG_WLAN=y
+# CONFIG_LIBERTAS_THINFIRM is not set
+# CONFIG_AT76C50X_USB is not set
+# CONFIG_USB_ZD1201 is not set
+# CONFIG_USB_NET_RNDIS_WLAN is not set
+# CONFIG_RTL8187 is not set
+# CONFIG_MAC80211_HWSIM is not set
+# CONFIG_ATH_CARDS is not set
+CONFIG_B43=y
+CONFIG_B43_BCMA=y
+CONFIG_B43_SSB=y
+CONFIG_B43_BUSES_BCMA_AND_SSB=y
+# CONFIG_B43_BUSES_BCMA is not set
+# CONFIG_B43_BUSES_SSB is not set
+# CONFIG_B43_SDIO is not set
+CONFIG_B43_BCMA_PIO=y
+CONFIG_B43_PIO=y
+CONFIG_B43_PHY_G=y
+CONFIG_B43_PHY_N=y
+CONFIG_B43_PHY_LP=y
+CONFIG_B43_PHY_HT=y
+CONFIG_B43_HWRNG=y
+# CONFIG_B43_DEBUG is not set
+# CONFIG_B43LEGACY is not set
+CONFIG_BRCMUTIL=y
+# CONFIG_BRCMSMAC is not set
+CONFIG_BRCMFMAC=y
+CONFIG_BRCMFMAC_PROTO_BCDC=y
+CONFIG_BRCMFMAC_SDIO=y
+# CONFIG_BRCMFMAC_USB is not set
+# CONFIG_BRCM_TRACING is not set
+# CONFIG_BRCMDBG is not set
+# CONFIG_HOSTAP is not set
+# CONFIG_LIBERTAS is not set
+# CONFIG_P54_COMMON is not set
+# CONFIG_RT2X00 is not set
+CONFIG_RTL_CARDS=y
+# CONFIG_RTL8192CU is not set
+# CONFIG_WL_TI is not set
+# CONFIG_ZD1211RW is not set
+# CONFIG_MWIFIEX is not set
+# CONFIG_CW1200 is not set
+# CONFIG_RSI_91X is not set
+
+#
+# Enable WiMAX (Networking options) to see the WiMAX drivers
+#
+# CONFIG_WAN is not set
+# CONFIG_ISDN is not set
+
+#
+# Input device support
+#
+CONFIG_INPUT=y
+# CONFIG_INPUT_FF_MEMLESS is not set
+# CONFIG_INPUT_POLLDEV is not set
+# CONFIG_INPUT_SPARSEKMAP is not set
+CONFIG_INPUT_MATRIXKMAP=y
+
+#
+# Userland interfaces
+#
+CONFIG_INPUT_MOUSEDEV=y
+CONFIG_INPUT_MOUSEDEV_PSAUX=y
+CONFIG_INPUT_MOUSEDEV_SCREEN_X=1024
+CONFIG_INPUT_MOUSEDEV_SCREEN_Y=768
+# CONFIG_INPUT_JOYDEV is not set
+CONFIG_INPUT_EVDEV=y
+# CONFIG_INPUT_EVBUG is not set
+
+#
+# Input Device Drivers
+#
+CONFIG_INPUT_KEYBOARD=y
+# CONFIG_KEYBOARD_ADP5588 is not set
+# CONFIG_KEYBOARD_ADP5589 is not set
+CONFIG_KEYBOARD_ATKBD=y
+# CONFIG_KEYBOARD_QT1070 is not set
+# CONFIG_KEYBOARD_QT2160 is not set
+# CONFIG_KEYBOARD_LKKBD is not set
+CONFIG_KEYBOARD_GPIO=y
+# CONFIG_KEYBOARD_GPIO_POLLED is not set
+# CONFIG_KEYBOARD_TCA6416 is not set
+# CONFIG_KEYBOARD_TCA8418 is not set
+# CONFIG_KEYBOARD_MATRIX is not set
+# CONFIG_KEYBOARD_LM8323 is not set
+# CONFIG_KEYBOARD_LM8333 is not set
+# CONFIG_KEYBOARD_MAX7359 is not set
+# CONFIG_KEYBOARD_MCS is not set
+# CONFIG_KEYBOARD_MPR121 is not set
+# CONFIG_KEYBOARD_NEWTON is not set
+# CONFIG_KEYBOARD_OPENCORES is not set
+CONFIG_KEYBOARD_SAMSUNG=y
+# CONFIG_KEYBOARD_STOWAWAY is not set
+# CONFIG_KEYBOARD_SUNKBD is not set
+# CONFIG_KEYBOARD_OMAP4 is not set
+# CONFIG_KEYBOARD_XTKBD is not set
+CONFIG_KEYBOARD_CROS_EC=y
+# CONFIG_KEYBOARD_CAP11XX is not set
+CONFIG_INPUT_LEDS=y
+CONFIG_INPUT_MOUSE=y
+# CONFIG_MOUSE_PS2 is not set
+# CONFIG_MOUSE_SERIAL is not set
+# CONFIG_MOUSE_APPLETOUCH is not set
+# CONFIG_MOUSE_BCM5974 is not set
+CONFIG_MOUSE_CYAPA=y
+# CONFIG_MOUSE_ELAN_I2C is not set
+# CONFIG_MOUSE_VSXXXAA is not set
+# CONFIG_MOUSE_GPIO is not set
+# CONFIG_MOUSE_SYNAPTICS_I2C is not set
+# CONFIG_MOUSE_SYNAPTICS_USB is not set
+# CONFIG_INPUT_JOYSTICK is not set
+# CONFIG_INPUT_TABLET is not set
+CONFIG_INPUT_TOUCHSCREEN=y
+CONFIG_OF_TOUCHSCREEN=y
+# CONFIG_TOUCHSCREEN_ADS7846 is not set
+# CONFIG_TOUCHSCREEN_AD7877 is not set
+# CONFIG_TOUCHSCREEN_AD7879 is not set
+# CONFIG_TOUCHSCREEN_AR1021_I2C is not set
+CONFIG_TOUCHSCREEN_ATMEL_MXT=y
+# CONFIG_TOUCHSCREEN_AUO_PIXCIR is not set
+# CONFIG_TOUCHSCREEN_BU21013 is not set
+# CONFIG_TOUCHSCREEN_CY8CTMG110 is not set
+# CONFIG_TOUCHSCREEN_CYTTSP_CORE is not set
+# CONFIG_TOUCHSCREEN_CYTTSP4_CORE is not set
+# CONFIG_TOUCHSCREEN_DYNAPRO is not set
+# CONFIG_TOUCHSCREEN_HAMPSHIRE is not set
+# CONFIG_TOUCHSCREEN_EETI is not set
+# CONFIG_TOUCHSCREEN_EGALAX is not set
+# CONFIG_TOUCHSCREEN_FUJITSU is not set
+# CONFIG_TOUCHSCREEN_ILI210X is not set
+# CONFIG_TOUCHSCREEN_GUNZE is not set
+# CONFIG_TOUCHSCREEN_ELAN is not set
+# CONFIG_TOUCHSCREEN_ELO is not set
+# CONFIG_TOUCHSCREEN_WACOM_W8001 is not set
+# CONFIG_TOUCHSCREEN_WACOM_I2C is not set
+# CONFIG_TOUCHSCREEN_MAX11801 is not set
+# CONFIG_TOUCHSCREEN_MCS5000 is not set
+# CONFIG_TOUCHSCREEN_MMS114 is not set
+# CONFIG_TOUCHSCREEN_MTOUCH is not set
+# CONFIG_TOUCHSCREEN_INEXIO is not set
+# CONFIG_TOUCHSCREEN_MK712 is not set
+# CONFIG_TOUCHSCREEN_PENMOUNT is not set
+# CONFIG_TOUCHSCREEN_EDT_FT5X06 is not set
+# CONFIG_TOUCHSCREEN_TOUCHRIGHT is not set
+# CONFIG_TOUCHSCREEN_TOUCHWIN is not set
+# CONFIG_TOUCHSCREEN_PIXCIR is not set
+# CONFIG_TOUCHSCREEN_USB_COMPOSITE is not set
+# CONFIG_TOUCHSCREEN_TOUCHIT213 is not set
+# CONFIG_TOUCHSCREEN_TSC_SERIO is not set
+# CONFIG_TOUCHSCREEN_TSC2005 is not set
+# CONFIG_TOUCHSCREEN_TSC2007 is not set
+# CONFIG_TOUCHSCREEN_ST1232 is not set
+# CONFIG_TOUCHSCREEN_SUR40 is not set
+# CONFIG_TOUCHSCREEN_TPS6507X is not set
+# CONFIG_TOUCHSCREEN_ZFORCE is not set
+# CONFIG_INPUT_MISC is not set
+
+#
+# Hardware I/O ports
+#
+CONFIG_SERIO=y
+CONFIG_SERIO_SERPORT=y
+# CONFIG_SERIO_AMBAKMI is not set
+CONFIG_SERIO_LIBPS2=y
+# CONFIG_SERIO_RAW is not set
+# CONFIG_SERIO_ALTERA_PS2 is not set
+# CONFIG_SERIO_PS2MULT is not set
+# CONFIG_SERIO_ARC_PS2 is not set
+# CONFIG_SERIO_APBPS2 is not set
+# CONFIG_GAMEPORT is not set
+
+#
+# Character devices
+#
+CONFIG_TTY=y
+CONFIG_VT=y
+CONFIG_CONSOLE_TRANSLATIONS=y
+CONFIG_VT_CONSOLE=y
+CONFIG_VT_CONSOLE_SLEEP=y
+CONFIG_HW_CONSOLE=y
+CONFIG_VT_HW_CONSOLE_BINDING=y
+CONFIG_UNIX98_PTYS=y
+# CONFIG_DEVPTS_MULTIPLE_INSTANCES is not set
+CONFIG_LEGACY_PTYS=y
+CONFIG_LEGACY_PTY_COUNT=256
+# CONFIG_SERIAL_NONSTANDARD is not set
+# CONFIG_N_GSM is not set
+# CONFIG_TRACE_SINK is not set
+CONFIG_DEVKMEM=y
+
+#
+# Serial drivers
+#
+CONFIG_SERIAL_8250=y
+CONFIG_SERIAL_8250_DEPRECATED_OPTIONS=y
+# CONFIG_SERIAL_8250_CONSOLE is not set
+CONFIG_SERIAL_8250_DMA=y
+CONFIG_SERIAL_8250_NR_UARTS=4
+CONFIG_SERIAL_8250_RUNTIME_UARTS=4
+# CONFIG_SERIAL_8250_EXTENDED is not set
+# CONFIG_SERIAL_8250_DW is not set
+# CONFIG_SERIAL_8250_EM is not set
+
+#
+# Non-8250 serial port support
+#
+# CONFIG_SERIAL_AMBA_PL010 is not set
+# CONFIG_SERIAL_AMBA_PL011 is not set
+# CONFIG_SERIAL_EARLYCON_ARM_SEMIHOST is not set
+CONFIG_SERIAL_SAMSUNG=y
+CONFIG_SERIAL_SAMSUNG_UARTS_4=y
+CONFIG_SERIAL_SAMSUNG_UARTS=4
+CONFIG_SERIAL_SAMSUNG_CONSOLE=y
+# CONFIG_SERIAL_MAX3100 is not set
+# CONFIG_SERIAL_MAX310X is not set
+CONFIG_SERIAL_CORE=y
+CONFIG_SERIAL_CORE_CONSOLE=y
+CONFIG_SERIAL_OF_PLATFORM=y
+# CONFIG_SERIAL_SCCNXP is not set
+# CONFIG_SERIAL_SC16IS7XX is not set
+# CONFIG_SERIAL_BCM63XX is not set
+# CONFIG_SERIAL_ALTERA_JTAGUART is not set
+# CONFIG_SERIAL_ALTERA_UART is not set
+# CONFIG_SERIAL_IFX6X60 is not set
+# CONFIG_SERIAL_XILINX_PS_UART is not set
+# CONFIG_SERIAL_ARC is not set
+# CONFIG_SERIAL_FSL_LPUART is not set
+# CONFIG_SERIAL_ST_ASC is not set
+# CONFIG_HVC_DCC is not set
+# CONFIG_IPMI_HANDLER is not set
+CONFIG_HW_RANDOM=y
+# CONFIG_HW_RANDOM_TIMERIOMEM is not set
+CONFIG_HW_RANDOM_EXYNOS=y
+CONFIG_HW_RANDOM_TPM=y
+# CONFIG_R3964 is not set
+# CONFIG_RAW_DRIVER is not set
+CONFIG_TCG_TPM=y
+# CONFIG_TCG_TIS_I2C_ATMEL is not set
+CONFIG_TCG_TIS_I2C_INFINEON=y
+# CONFIG_TCG_TIS_I2C_NUVOTON is not set
+# CONFIG_TCG_ST33_I2C is not set
+# CONFIG_XILLYBUS is not set
+
+#
+# I2C support
+#
+CONFIG_I2C=y
+CONFIG_I2C_BOARDINFO=y
+CONFIG_I2C_COMPAT=y
+CONFIG_I2C_CHARDEV=y
+CONFIG_I2C_MUX=y
+
+#
+# Multiplexer I2C Chip support
+#
+CONFIG_I2C_ARB_GPIO_CHALLENGE=y
+# CONFIG_I2C_MUX_GPIO is not set
+# CONFIG_I2C_MUX_PCA9541 is not set
+# CONFIG_I2C_MUX_PCA954x is not set
+# CONFIG_I2C_MUX_PINCTRL is not set
+CONFIG_I2C_HELPER_AUTO=y
+CONFIG_I2C_ALGOBIT=y
+
+#
+# I2C Hardware Bus support
+#
+
+#
+# I2C system bus drivers (mostly embedded / system-on-chip)
+#
+# CONFIG_I2C_CBUS_GPIO is not set
+# CONFIG_I2C_DESIGNWARE_PLATFORM is not set
+CONFIG_I2C_EXYNOS5=y
+CONFIG_I2C_GPIO=y
+# CONFIG_I2C_NOMADIK is not set
+# CONFIG_I2C_OCORES is not set
+# CONFIG_I2C_PCA_PLATFORM is not set
+# CONFIG_I2C_PXA_PCI is not set
+# CONFIG_I2C_RK3X is not set
+CONFIG_HAVE_S3C2410_I2C=y
+CONFIG_I2C_S3C2410=y
+# CONFIG_I2C_SIMTEC is not set
+# CONFIG_I2C_XILINX is not set
+
+#
+# External I2C/SMBus adapter drivers
+#
+# CONFIG_I2C_DIOLAN_U2C is not set
+# CONFIG_I2C_PARPORT_LIGHT is not set
+# CONFIG_I2C_ROBOTFUZZ_OSIF is not set
+# CONFIG_I2C_TAOS_EVM is not set
+# CONFIG_I2C_TINY_USB is not set
+
+#
+# Other I2C/SMBus bus drivers
+#
+CONFIG_I2C_CROS_EC_TUNNEL=y
+# CONFIG_I2C_STUB is not set
+# CONFIG_I2C_SLAVE is not set
+# CONFIG_I2C_DEBUG_CORE is not set
+# CONFIG_I2C_DEBUG_ALGO is not set
+# CONFIG_I2C_DEBUG_BUS is not set
+CONFIG_SPI=y
+# CONFIG_SPI_DEBUG is not set
+CONFIG_SPI_MASTER=y
+
+#
+# SPI Master Controller Drivers
+#
+# CONFIG_SPI_ALTERA is not set
+# CONFIG_SPI_BITBANG is not set
+# CONFIG_SPI_CADENCE is not set
+# CONFIG_SPI_GPIO is not set
+# CONFIG_SPI_FSL_SPI is not set
+# CONFIG_SPI_OC_TINY is not set
+# CONFIG_SPI_PL022 is not set
+# CONFIG_SPI_PXA2XX_PCI is not set
+# CONFIG_SPI_ROCKCHIP is not set
+CONFIG_SPI_S3C64XX=y
+# CONFIG_SPI_SC18IS602 is not set
+# CONFIG_SPI_XCOMM is not set
+# CONFIG_SPI_XILINX is not set
+# CONFIG_SPI_DESIGNWARE is not set
+
+#
+# SPI Protocol Masters
+#
+# CONFIG_SPI_SPIDEV is not set
+# CONFIG_SPI_TLE62X0 is not set
+# CONFIG_SPMI is not set
+# CONFIG_HSI is not set
+
+#
+# PPS support
+#
+# CONFIG_PPS is not set
+
+#
+# PPS generators support
+#
+
+#
+# PTP clock support
+#
+# CONFIG_PTP_1588_CLOCK is not set
+
+#
+# Enable PHYLIB and NETWORK_PHY_TIMESTAMPING to see the additional clocks.
+#
+CONFIG_PINCTRL=y
+
+#
+# Pin controllers
+#
+CONFIG_PINMUX=y
+CONFIG_PINCONF=y
+# CONFIG_DEBUG_PINCTRL is not set
+# CONFIG_PINCTRL_SINGLE is not set
+CONFIG_PINCTRL_SAMSUNG=y
+CONFIG_PINCTRL_EXYNOS=y
+CONFIG_PINCTRL_EXYNOS5440=y
+CONFIG_ARCH_HAVE_CUSTOM_GPIO_H=y
+CONFIG_ARCH_WANT_OPTIONAL_GPIOLIB=y
+CONFIG_ARCH_REQUIRE_GPIOLIB=y
+CONFIG_GPIOLIB=y
+CONFIG_GPIO_DEVRES=y
+CONFIG_OF_GPIO=y
+CONFIG_DEBUG_GPIO=y
+CONFIG_GPIO_SYSFS=y
+
+#
+# Memory mapped GPIO drivers:
+#
+# CONFIG_GPIO_74XX_MMIO is not set
+# CONFIG_GPIO_GENERIC_PLATFORM is not set
+# CONFIG_GPIO_DWAPB is not set
+# CONFIG_GPIO_EM is not set
+# CONFIG_GPIO_ZEVIO is not set
+# CONFIG_GPIO_PL061 is not set
+# CONFIG_GPIO_SCH311X is not set
+# CONFIG_GPIO_SYSCON is not set
+# CONFIG_GPIO_GRGPIO is not set
+
+#
+# I2C GPIO expanders:
+#
+# CONFIG_GPIO_MAX7300 is not set
+# CONFIG_GPIO_MAX732X is not set
+# CONFIG_GPIO_PCA953X is not set
+# CONFIG_GPIO_PCF857X is not set
+# CONFIG_GPIO_SX150X is not set
+# CONFIG_GPIO_ADP5588 is not set
+# CONFIG_GPIO_ADNP is not set
+
+#
+# PCI GPIO expanders:
+#
+
+#
+# SPI GPIO expanders:
+#
+# CONFIG_GPIO_MAX7301 is not set
+# CONFIG_GPIO_MCP23S08 is not set
+# CONFIG_GPIO_MC33880 is not set
+# CONFIG_GPIO_74X164 is not set
+
+#
+# AC97 GPIO expanders:
+#
+
+#
+# LPC GPIO expanders:
+#
+
+#
+# MODULbus GPIO expanders:
+#
+
+#
+# USB GPIO expanders:
+#
+# CONFIG_W1 is not set
+CONFIG_POWER_SUPPLY=y
+# CONFIG_POWER_SUPPLY_DEBUG is not set
+# CONFIG_PDA_POWER is not set
+# CONFIG_GENERIC_ADC_BATTERY is not set
+# CONFIG_TEST_POWER is not set
+# CONFIG_BATTERY_DS2780 is not set
+# CONFIG_BATTERY_DS2781 is not set
+# CONFIG_BATTERY_DS2782 is not set
+CONFIG_BATTERY_SBS=y
+# CONFIG_BATTERY_BQ27x00 is not set
+CONFIG_BATTERY_MAX17040=y
+CONFIG_BATTERY_MAX17042=y
+# CONFIG_CHARGER_MAX8903 is not set
+# CONFIG_CHARGER_LP8727 is not set
+# CONFIG_CHARGER_GPIO is not set
+CONFIG_CHARGER_MANAGER=y
+# CONFIG_CHARGER_MAX8997 is not set
+# CONFIG_CHARGER_BQ2415X is not set
+# CONFIG_CHARGER_BQ24190 is not set
+# CONFIG_CHARGER_BQ24735 is not set
+# CONFIG_CHARGER_SMB347 is not set
+CONFIG_CHARGER_TPS65090=y
+# CONFIG_POWER_RESET is not set
+# CONFIG_POWER_AVS is not set
+# CONFIG_HWMON is not set
+CONFIG_THERMAL=y
+CONFIG_THERMAL_OF=y
+CONFIG_THERMAL_DEFAULT_GOV_STEP_WISE=y
+# CONFIG_THERMAL_DEFAULT_GOV_FAIR_SHARE is not set
+# CONFIG_THERMAL_DEFAULT_GOV_USER_SPACE is not set
+# CONFIG_THERMAL_GOV_FAIR_SHARE is not set
+CONFIG_THERMAL_GOV_STEP_WISE=y
+# CONFIG_THERMAL_GOV_BANG_BANG is not set
+# CONFIG_THERMAL_GOV_USER_SPACE is not set
+# CONFIG_CLOCK_THERMAL is not set
+# CONFIG_THERMAL_EMULATION is not set
+
+#
+# Texas Instruments thermal drivers
+#
+# CONFIG_TI_SOC_THERMAL is not set
+
+#
+# Samsung thermal drivers
+#
+CONFIG_EXYNOS_THERMAL=y
+CONFIG_EXYNOS_THERMAL_CORE=y
+CONFIG_WATCHDOG=y
+CONFIG_WATCHDOG_CORE=y
+# CONFIG_WATCHDOG_NOWAYOUT is not set
+
+#
+# Watchdog Device Drivers
+#
+# CONFIG_SOFT_WATCHDOG is not set
+# CONFIG_GPIO_WATCHDOG is not set
+# CONFIG_XILINX_WATCHDOG is not set
+# CONFIG_ARM_SP805_WATCHDOG is not set
+# CONFIG_CADENCE_WATCHDOG is not set
+CONFIG_HAVE_S3C2410_WATCHDOG=y
+CONFIG_S3C2410_WATCHDOG=y
+# CONFIG_DW_WATCHDOG is not set
+# CONFIG_MAX63XX_WATCHDOG is not set
+# CONFIG_MEN_A21_WDT is not set
+
+#
+# USB-based Watchdog Cards
+#
+# CONFIG_USBPCWATCHDOG is not set
+CONFIG_SSB_POSSIBLE=y
+
+#
+# Sonics Silicon Backplane
+#
+CONFIG_SSB=y
+CONFIG_SSB_BLOCKIO=y
+CONFIG_SSB_SDIOHOST_POSSIBLE=y
+# CONFIG_SSB_SDIOHOST is not set
+# CONFIG_SSB_DEBUG is not set
+# CONFIG_SSB_DRIVER_GPIO is not set
+CONFIG_BCMA_POSSIBLE=y
+
+#
+# Broadcom specific AMBA
+#
+CONFIG_BCMA=y
+CONFIG_BCMA_BLOCKIO=y
+# CONFIG_BCMA_HOST_SOC is not set
+# CONFIG_BCMA_DRIVER_GMAC_CMN is not set
+# CONFIG_BCMA_DRIVER_GPIO is not set
+# CONFIG_BCMA_DEBUG is not set
+
+#
+# Multifunction device drivers
+#
+CONFIG_MFD_CORE=y
+# CONFIG_MFD_AS3711 is not set
+# CONFIG_MFD_AS3722 is not set
+# CONFIG_PMIC_ADP5520 is not set
+# CONFIG_MFD_AAT2870_CORE is not set
+# CONFIG_MFD_ATMEL_HLCDC is not set
+# CONFIG_MFD_BCM590XX is not set
+# CONFIG_MFD_AXP20X is not set
+CONFIG_MFD_CROS_EC=y
+CONFIG_MFD_CROS_EC_I2C=y
+CONFIG_MFD_CROS_EC_SPI=y
+# CONFIG_MFD_ASIC3 is not set
+# CONFIG_PMIC_DA903X is not set
+# CONFIG_MFD_DA9052_SPI is not set
+# CONFIG_MFD_DA9052_I2C is not set
+# CONFIG_MFD_DA9055 is not set
+# CONFIG_MFD_DA9063 is not set
+# CONFIG_MFD_DLN2 is not set
+# CONFIG_MFD_MC13XXX_SPI is not set
+# CONFIG_MFD_MC13XXX_I2C is not set
+# CONFIG_MFD_HI6421_PMIC is not set
+# CONFIG_HTC_EGPIO is not set
+# CONFIG_HTC_PASIC3 is not set
+# CONFIG_HTC_I2CPLD is not set
+# CONFIG_INTEL_SOC_PMIC is not set
+# CONFIG_MFD_KEMPLD is not set
+# CONFIG_MFD_88PM800 is not set
+# CONFIG_MFD_88PM805 is not set
+# CONFIG_MFD_88PM860X is not set
+# CONFIG_MFD_MAX14577 is not set
+CONFIG_MFD_MAX77686=y
+CONFIG_MFD_MAX77693=y
+# CONFIG_MFD_MAX8907 is not set
+# CONFIG_MFD_MAX8925 is not set
+CONFIG_MFD_MAX8997=y
+# CONFIG_MFD_MAX8998 is not set
+# CONFIG_MFD_MENF21BMC is not set
+# CONFIG_EZX_PCAP is not set
+# CONFIG_MFD_VIPERBOARD is not set
+# CONFIG_MFD_RETU is not set
+# CONFIG_MFD_PCF50633 is not set
+# CONFIG_MFD_PM8921_CORE is not set
+# CONFIG_MFD_RTSX_USB is not set
+# CONFIG_MFD_RC5T583 is not set
+# CONFIG_MFD_RK808 is not set
+# CONFIG_MFD_RN5T618 is not set
+CONFIG_MFD_SEC_CORE=y
+# CONFIG_MFD_SI476X_CORE is not set
+# CONFIG_MFD_SM501 is not set
+# CONFIG_MFD_SMSC is not set
+# CONFIG_ABX500_CORE is not set
+# CONFIG_MFD_STMPE is not set
+CONFIG_MFD_SYSCON=y
+# CONFIG_MFD_TI_AM335X_TSCADC is not set
+# CONFIG_MFD_LP3943 is not set
+# CONFIG_MFD_LP8788 is not set
+# CONFIG_MFD_PALMAS is not set
+# CONFIG_TPS6105X is not set
+# CONFIG_TPS65010 is not set
+# CONFIG_TPS6507X is not set
+CONFIG_MFD_TPS65090=y
+# CONFIG_MFD_TPS65217 is not set
+# CONFIG_MFD_TPS65218 is not set
+# CONFIG_MFD_TPS6586X is not set
+# CONFIG_MFD_TPS65910 is not set
+# CONFIG_MFD_TPS65912 is not set
+# CONFIG_MFD_TPS65912_I2C is not set
+# CONFIG_MFD_TPS65912_SPI is not set
+# CONFIG_MFD_TPS80031 is not set
+# CONFIG_TWL4030_CORE is not set
+# CONFIG_TWL6040_CORE is not set
+# CONFIG_MFD_WL1273_CORE is not set
+# CONFIG_MFD_LM3533 is not set
+# CONFIG_MFD_TC3589X is not set
+# CONFIG_MFD_TMIO is not set
+# CONFIG_MFD_T7L66XB is not set
+# CONFIG_MFD_TC6387XB is not set
+# CONFIG_MFD_TC6393XB is not set
+# CONFIG_MFD_ARIZONA_I2C is not set
+# CONFIG_MFD_ARIZONA_SPI is not set
+# CONFIG_MFD_WM8400 is not set
+# CONFIG_MFD_WM831X_I2C is not set
+# CONFIG_MFD_WM831X_SPI is not set
+# CONFIG_MFD_WM8350_I2C is not set
+# CONFIG_MFD_WM8994 is not set
+CONFIG_REGULATOR=y
+# CONFIG_REGULATOR_DEBUG is not set
+CONFIG_REGULATOR_FIXED_VOLTAGE=y
+# CONFIG_REGULATOR_VIRTUAL_CONSUMER is not set
+# CONFIG_REGULATOR_USERSPACE_CONSUMER is not set
+# CONFIG_REGULATOR_ACT8865 is not set
+# CONFIG_REGULATOR_AD5398 is not set
+# CONFIG_REGULATOR_ANATOP is not set
+# CONFIG_REGULATOR_DA9210 is not set
+# CONFIG_REGULATOR_DA9211 is not set
+# CONFIG_REGULATOR_FAN53555 is not set
+CONFIG_REGULATOR_GPIO=y
+# CONFIG_REGULATOR_ISL9305 is not set
+# CONFIG_REGULATOR_ISL6271A is not set
+# CONFIG_REGULATOR_LP3971 is not set
+# CONFIG_REGULATOR_LP3972 is not set
+# CONFIG_REGULATOR_LP872X is not set
+# CONFIG_REGULATOR_LP8755 is not set
+# CONFIG_REGULATOR_LTC3589 is not set
+# CONFIG_REGULATOR_MAX1586 is not set
+# CONFIG_REGULATOR_MAX8649 is not set
+# CONFIG_REGULATOR_MAX8660 is not set
+# CONFIG_REGULATOR_MAX8952 is not set
+# CONFIG_REGULATOR_MAX8973 is not set
+CONFIG_REGULATOR_MAX8997=y
+CONFIG_REGULATOR_MAX77686=y
+CONFIG_REGULATOR_MAX77693=y
+CONFIG_REGULATOR_MAX77802=y
+# CONFIG_REGULATOR_PFUZE100 is not set
+# CONFIG_REGULATOR_PWM is not set
+CONFIG_REGULATOR_S2MPA01=y
+CONFIG_REGULATOR_S2MPS11=y
+CONFIG_REGULATOR_S5M8767=y
+# CONFIG_REGULATOR_TPS51632 is not set
+# CONFIG_REGULATOR_TPS62360 is not set
+# CONFIG_REGULATOR_TPS65023 is not set
+# CONFIG_REGULATOR_TPS6507X is not set
+CONFIG_REGULATOR_TPS65090=y
+# CONFIG_REGULATOR_TPS6524X is not set
+CONFIG_MEDIA_SUPPORT=y
+
+#
+# Multimedia core support
+#
+CONFIG_MEDIA_CAMERA_SUPPORT=y
+# CONFIG_MEDIA_ANALOG_TV_SUPPORT is not set
+# CONFIG_MEDIA_DIGITAL_TV_SUPPORT is not set
+# CONFIG_MEDIA_RADIO_SUPPORT is not set
+# CONFIG_MEDIA_SDR_SUPPORT is not set
+# CONFIG_MEDIA_RC_SUPPORT is not set
+CONFIG_MEDIA_CONTROLLER=y
+CONFIG_VIDEO_DEV=y
+CONFIG_VIDEO_V4L2_SUBDEV_API=y
+CONFIG_VIDEO_V4L2=y
+# CONFIG_VIDEO_ADV_DEBUG is not set
+# CONFIG_VIDEO_FIXED_MINOR_RANGES is not set
+CONFIG_V4L2_MEM2MEM_DEV=y
+CONFIG_VIDEOBUF2_CORE=y
+CONFIG_VIDEOBUF2_MEMOPS=y
+CONFIG_VIDEOBUF2_DMA_CONTIG=y
+# CONFIG_TTPCI_EEPROM is not set
+
+#
+# Media drivers
+#
+# CONFIG_MEDIA_USB_SUPPORT is not set
+CONFIG_V4L_PLATFORM_DRIVERS=y
+# CONFIG_SOC_CAMERA is not set
+CONFIG_VIDEO_SAMSUNG_EXYNOS4_IS=y
+CONFIG_VIDEO_EXYNOS4_IS_COMMON=y
+CONFIG_VIDEO_S5P_FIMC=y
+CONFIG_VIDEO_S5P_MIPI_CSIS=y
+CONFIG_VIDEO_EXYNOS_FIMC_LITE=y
+CONFIG_VIDEO_EXYNOS4_FIMC_IS=y
+CONFIG_VIDEO_EXYNOS4_ISP_DMA_CAPTURE=y
+# CONFIG_VIDEO_SAMSUNG_S5P_TV is not set
+CONFIG_V4L_MEM2MEM_DRIVERS=y
+# CONFIG_VIDEO_MEM2MEM_DEINTERLACE is not set
+CONFIG_VIDEO_SAMSUNG_S5P_G2D=y
+CONFIG_VIDEO_SAMSUNG_S5P_JPEG=y
+CONFIG_VIDEO_SAMSUNG_S5P_MFC=y
+CONFIG_VIDEO_SAMSUNG_EXYNOS_GSC=y
+# CONFIG_VIDEO_SH_VEU is not set
+# CONFIG_V4L_TEST_DRIVERS is not set
+
+#
+# Supported MMC/SDIO adapters
+#
+# CONFIG_CYPRESS_FIRMWARE is not set
+
+#
+# Media ancillary drivers (tuners, sensors, i2c, frontends)
+#
+# CONFIG_MEDIA_SUBDRV_AUTOSELECT is not set
+
+#
+# Encoders, decoders, sensors and other helper chips
+#
+
+#
+# Audio decoders, processors and mixers
+#
+# CONFIG_VIDEO_TVAUDIO is not set
+# CONFIG_VIDEO_TDA7432 is not set
+# CONFIG_VIDEO_TDA9840 is not set
+# CONFIG_VIDEO_TEA6415C is not set
+# CONFIG_VIDEO_TEA6420 is not set
+# CONFIG_VIDEO_MSP3400 is not set
+# CONFIG_VIDEO_CS5345 is not set
+# CONFIG_VIDEO_CS53L32A is not set
+# CONFIG_VIDEO_TLV320AIC23B is not set
+# CONFIG_VIDEO_UDA1342 is not set
+# CONFIG_VIDEO_WM8775 is not set
+# CONFIG_VIDEO_WM8739 is not set
+# CONFIG_VIDEO_VP27SMPX is not set
+# CONFIG_VIDEO_SONY_BTF_MPX is not set
+
+#
+# RDS decoders
+#
+# CONFIG_VIDEO_SAA6588 is not set
+
+#
+# Video decoders
+#
+# CONFIG_VIDEO_ADV7180 is not set
+# CONFIG_VIDEO_ADV7183 is not set
+# CONFIG_VIDEO_ADV7604 is not set
+# CONFIG_VIDEO_ADV7842 is not set
+# CONFIG_VIDEO_BT819 is not set
+# CONFIG_VIDEO_BT856 is not set
+# CONFIG_VIDEO_BT866 is not set
+# CONFIG_VIDEO_KS0127 is not set
+# CONFIG_VIDEO_ML86V7667 is not set
+# CONFIG_VIDEO_SAA7110 is not set
+# CONFIG_VIDEO_SAA711X is not set
+# CONFIG_VIDEO_TVP514X is not set
+# CONFIG_VIDEO_TVP5150 is not set
+# CONFIG_VIDEO_TVP7002 is not set
+# CONFIG_VIDEO_TW2804 is not set
+# CONFIG_VIDEO_TW9903 is not set
+# CONFIG_VIDEO_TW9906 is not set
+# CONFIG_VIDEO_VPX3220 is not set
+
+#
+# Video and audio decoders
+#
+# CONFIG_VIDEO_SAA717X is not set
+# CONFIG_VIDEO_CX25840 is not set
+
+#
+# Video encoders
+#
+# CONFIG_VIDEO_SAA7127 is not set
+# CONFIG_VIDEO_SAA7185 is not set
+# CONFIG_VIDEO_ADV7170 is not set
+# CONFIG_VIDEO_ADV7175 is not set
+# CONFIG_VIDEO_ADV7343 is not set
+# CONFIG_VIDEO_ADV7393 is not set
+# CONFIG_VIDEO_ADV7511 is not set
+# CONFIG_VIDEO_AD9389B is not set
+# CONFIG_VIDEO_AK881X is not set
+# CONFIG_VIDEO_THS8200 is not set
+
+#
+# Camera sensor devices
+#
+# CONFIG_VIDEO_OV7640 is not set
+# CONFIG_VIDEO_OV7670 is not set
+# CONFIG_VIDEO_OV9650 is not set
+# CONFIG_VIDEO_VS6624 is not set
+# CONFIG_VIDEO_MT9M032 is not set
+# CONFIG_VIDEO_MT9P031 is not set
+# CONFIG_VIDEO_MT9T001 is not set
+# CONFIG_VIDEO_MT9V011 is not set
+# CONFIG_VIDEO_MT9V032 is not set
+# CONFIG_VIDEO_SR030PC30 is not set
+# CONFIG_VIDEO_NOON010PC30 is not set
+CONFIG_VIDEO_M5MOLS=y
+CONFIG_VIDEO_S5K6AA=y
+CONFIG_VIDEO_S5K6A3=y
+CONFIG_VIDEO_S5K4ECGX=y
+# CONFIG_VIDEO_S5K5BAF is not set
+# CONFIG_VIDEO_SMIAPP is not set
+CONFIG_VIDEO_S5C73M3=y
+
+#
+# Flash devices
+#
+# CONFIG_VIDEO_ADP1653 is not set
+# CONFIG_VIDEO_AS3645A is not set
+# CONFIG_VIDEO_LM3560 is not set
+# CONFIG_VIDEO_LM3646 is not set
+
+#
+# Video improvement chips
+#
+# CONFIG_VIDEO_UPD64031A is not set
+# CONFIG_VIDEO_UPD64083 is not set
+
+#
+# Audio/Video compression chips
+#
+# CONFIG_VIDEO_SAA6752HS is not set
+
+#
+# Miscellaneous helper chips
+#
+# CONFIG_VIDEO_THS7303 is not set
+# CONFIG_VIDEO_M52790 is not set
+
+#
+# Sensors used on soc_camera driver
+#
+
+#
+# Customise DVB Frontends
+#
+CONFIG_DVB_AU8522=m
+CONFIG_DVB_AU8522_V4L=m
+CONFIG_DVB_TUNER_DIB0070=m
+CONFIG_DVB_TUNER_DIB0090=m
+
+#
+# Tools to develop new frontends
+#
+# CONFIG_DVB_DUMMY_FE is not set
+
+#
+# Graphics support
+#
+
+#
+# Direct Rendering Manager
+#
+CONFIG_DRM=y
+CONFIG_DRM_MIPI_DSI=y
+CONFIG_DRM_KMS_HELPER=y
+CONFIG_DRM_KMS_FB_HELPER=y
+# CONFIG_DRM_LOAD_EDID_FIRMWARE is not set
+
+#
+# I2C encoder or helper chips
+#
+# CONFIG_DRM_I2C_ADV7511 is not set
+# CONFIG_DRM_I2C_CH7006 is not set
+# CONFIG_DRM_I2C_SIL164 is not set
+# CONFIG_DRM_I2C_NXP_TDA998X is not set
+# CONFIG_DRM_PTN3460 is not set
+CONFIG_DRM_EXYNOS=y
+# CONFIG_DRM_EXYNOS_IOMMU is not set
+CONFIG_DRM_EXYNOS_DMABUF=y
+CONFIG_DRM_EXYNOS_FIMD=y
+CONFIG_DRM_EXYNOS_DPI=y
+CONFIG_DRM_EXYNOS_DSI=y
+CONFIG_DRM_EXYNOS_DP=y
+CONFIG_DRM_EXYNOS_HDMI=y
+CONFIG_DRM_EXYNOS_VIDI=y
+CONFIG_DRM_EXYNOS_IPP=y
+CONFIG_DRM_EXYNOS_FIMC=y
+CONFIG_DRM_EXYNOS_ROTATOR=y
+# CONFIG_DRM_UDL is not set
+# CONFIG_DRM_ARMADA is not set
+# CONFIG_DRM_TILCDC is not set
+CONFIG_DRM_PANEL=y
+
+#
+# Display Panels
+#
+# CONFIG_DRM_PANEL_SIMPLE is not set
+# CONFIG_DRM_PANEL_LD9040 is not set
+CONFIG_DRM_PANEL_S6E8AA0=y
+# CONFIG_DRM_PANEL_SHARP_LQ101R1SX01 is not set
+# CONFIG_DRM_STI is not set
+
+#
+# Frame buffer Devices
+#
+CONFIG_FB=y
+# CONFIG_FIRMWARE_EDID is not set
+CONFIG_FB_CMDLINE=y
+# CONFIG_FB_DDC is not set
+# CONFIG_FB_BOOT_VESA_SUPPORT is not set
+CONFIG_FB_CFB_FILLRECT=y
+CONFIG_FB_CFB_COPYAREA=y
+CONFIG_FB_CFB_IMAGEBLIT=y
+# CONFIG_FB_CFB_REV_PIXELS_IN_BYTE is not set
+# CONFIG_FB_SYS_FILLRECT is not set
+# CONFIG_FB_SYS_COPYAREA is not set
+# CONFIG_FB_SYS_IMAGEBLIT is not set
+# CONFIG_FB_FOREIGN_ENDIAN is not set
+# CONFIG_FB_SYS_FOPS is not set
+# CONFIG_FB_SVGALIB is not set
+# CONFIG_FB_MACMODES is not set
+# CONFIG_FB_BACKLIGHT is not set
+CONFIG_FB_MODE_HELPERS=y
+# CONFIG_FB_TILEBLITTING is not set
+
+#
+# Frame buffer hardware drivers
+#
+# CONFIG_FB_ARMCLCD is not set
+# CONFIG_FB_OPENCORES is not set
+# CONFIG_FB_S1D13XXX is not set
+# CONFIG_FB_S3C is not set
+# CONFIG_FB_SMSCUFX is not set
+# CONFIG_FB_UDL is not set
+# CONFIG_FB_VIRTUAL is not set
+# CONFIG_FB_METRONOME is not set
+# CONFIG_FB_BROADSHEET is not set
+# CONFIG_FB_AUO_K190X is not set
+CONFIG_FB_SIMPLE=y
+CONFIG_EXYNOS_VIDEO=y
+CONFIG_EXYNOS_MIPI_DSI=y
+# CONFIG_FB_SSD1307 is not set
+# CONFIG_BACKLIGHT_LCD_SUPPORT is not set
+# CONFIG_VGASTATE is not set
+CONFIG_VIDEOMODE_HELPERS=y
+CONFIG_HDMI=y
+
+#
+# Console display driver support
+#
+CONFIG_DUMMY_CONSOLE=y
+CONFIG_FRAMEBUFFER_CONSOLE=y
+CONFIG_FRAMEBUFFER_CONSOLE_DETECT_PRIMARY=y
+# CONFIG_FRAMEBUFFER_CONSOLE_ROTATION is not set
+CONFIG_LOGO=y
+CONFIG_LOGO_LINUX_MONO=y
+CONFIG_LOGO_LINUX_VGA16=y
+CONFIG_LOGO_LINUX_CLUT224=y
+CONFIG_SOUND=y
+# CONFIG_SOUND_OSS_CORE is not set
+CONFIG_SND=y
+CONFIG_SND_TIMER=y
+CONFIG_SND_PCM=y
+CONFIG_SND_DMAENGINE_PCM=y
+CONFIG_SND_COMPRESS_OFFLOAD=y
+CONFIG_SND_JACK=y
+# CONFIG_SND_SEQUENCER is not set
+# CONFIG_SND_MIXER_OSS is not set
+# CONFIG_SND_PCM_OSS is not set
+# CONFIG_SND_HRTIMER is not set
+# CONFIG_SND_DYNAMIC_MINORS is not set
+CONFIG_SND_SUPPORT_OLD_API=y
+CONFIG_SND_VERBOSE_PROCFS=y
+# CONFIG_SND_VERBOSE_PRINTK is not set
+# CONFIG_SND_DEBUG is not set
+# CONFIG_SND_RAWMIDI_SEQ is not set
+# CONFIG_SND_OPL3_LIB_SEQ is not set
+# CONFIG_SND_OPL4_LIB_SEQ is not set
+# CONFIG_SND_SBAWE_SEQ is not set
+# CONFIG_SND_EMU10K1_SEQ is not set
+CONFIG_SND_DRIVERS=y
+# CONFIG_SND_DUMMY is not set
+# CONFIG_SND_ALOOP is not set
+# CONFIG_SND_MTPAV is not set
+# CONFIG_SND_SERIAL_U16550 is not set
+# CONFIG_SND_MPU401 is not set
+
+#
+# HD-Audio
+#
+CONFIG_SND_ARM=y
+# CONFIG_SND_ARMAACI is not set
+CONFIG_SND_SPI=y
+CONFIG_SND_USB=y
+# CONFIG_SND_USB_AUDIO is not set
+# CONFIG_SND_USB_UA101 is not set
+# CONFIG_SND_USB_CAIAQ is not set
+# CONFIG_SND_USB_6FIRE is not set
+# CONFIG_SND_USB_HIFACE is not set
+# CONFIG_SND_BCD2000 is not set
+CONFIG_SND_SOC=y
+CONFIG_SND_SOC_GENERIC_DMAENGINE_PCM=y
+# CONFIG_SND_ATMEL_SOC is not set
+# CONFIG_SND_DESIGNWARE_I2S is not set
+
+#
+# SoC Audio for Freescale CPUs
+#
+
+#
+# Common SoC Audio options for Freescale CPUs:
+#
+# CONFIG_SND_SOC_FSL_ASRC is not set
+# CONFIG_SND_SOC_FSL_SAI is not set
+# CONFIG_SND_SOC_FSL_SSI is not set
+# CONFIG_SND_SOC_FSL_SPDIF is not set
+# CONFIG_SND_SOC_FSL_ESAI is not set
+# CONFIG_SND_SOC_IMX_AUDMUX is not set
+CONFIG_SND_SOC_SAMSUNG=y
+CONFIG_SND_SAMSUNG_I2S=y
+# CONFIG_SND_SOC_SAMSUNG_SMDK_WM8994 is not set
+# CONFIG_SND_SOC_SAMSUNG_SMDK_SPDIF is not set
+# CONFIG_SND_SOC_SMDK_WM8994_PCM is not set
+CONFIG_SND_SOC_SNOW=y
+# CONFIG_SND_SOC_ODROIDX2 is not set
+# CONFIG_SND_SOC_ARNDALE_RT5631_ALC5631 is not set
+CONFIG_SND_SOC_I2C_AND_SPI=y
+
+#
+# CODEC drivers
+#
+# CONFIG_SND_SOC_ADAU1701 is not set
+# CONFIG_SND_SOC_AK4104 is not set
+# CONFIG_SND_SOC_AK4554 is not set
+# CONFIG_SND_SOC_AK4642 is not set
+# CONFIG_SND_SOC_AK5386 is not set
+# CONFIG_SND_SOC_ALC5623 is not set
+# CONFIG_SND_SOC_CS35L32 is not set
+# CONFIG_SND_SOC_CS42L51_I2C is not set
+# CONFIG_SND_SOC_CS42L52 is not set
+# CONFIG_SND_SOC_CS42L56 is not set
+# CONFIG_SND_SOC_CS42L73 is not set
+# CONFIG_SND_SOC_CS4265 is not set
+# CONFIG_SND_SOC_CS4270 is not set
+# CONFIG_SND_SOC_CS4271_I2C is not set
+# CONFIG_SND_SOC_CS4271_SPI is not set
+# CONFIG_SND_SOC_CS42XX8_I2C is not set
+# CONFIG_SND_SOC_HDMI_CODEC is not set
+# CONFIG_SND_SOC_ES8328 is not set
+CONFIG_SND_SOC_MAX98090=y
+CONFIG_SND_SOC_MAX98095=y
+# CONFIG_SND_SOC_PCM1681 is not set
+# CONFIG_SND_SOC_PCM1792A is not set
+# CONFIG_SND_SOC_PCM512x_I2C is not set
+# CONFIG_SND_SOC_PCM512x_SPI is not set
+# CONFIG_SND_SOC_RT5631 is not set
+# CONFIG_SND_SOC_RT5677_SPI is not set
+# CONFIG_SND_SOC_SGTL5000 is not set
+# CONFIG_SND_SOC_SIRF_AUDIO_CODEC is not set
+# CONFIG_SND_SOC_SPDIF is not set
+# CONFIG_SND_SOC_SSM2602_SPI is not set
+# CONFIG_SND_SOC_SSM2602_I2C is not set
+# CONFIG_SND_SOC_SSM4567 is not set
+# CONFIG_SND_SOC_STA350 is not set
+# CONFIG_SND_SOC_TAS2552 is not set
+# CONFIG_SND_SOC_TAS5086 is not set
+# CONFIG_SND_SOC_TFA9879 is not set
+# CONFIG_SND_SOC_TLV320AIC23_I2C is not set
+# CONFIG_SND_SOC_TLV320AIC23_SPI is not set
+# CONFIG_SND_SOC_TLV320AIC31XX is not set
+# CONFIG_SND_SOC_TLV320AIC3X is not set
+# CONFIG_SND_SOC_TS3A227E is not set
+# CONFIG_SND_SOC_WM8510 is not set
+# CONFIG_SND_SOC_WM8523 is not set
+# CONFIG_SND_SOC_WM8580 is not set
+# CONFIG_SND_SOC_WM8711 is not set
+# CONFIG_SND_SOC_WM8728 is not set
+# CONFIG_SND_SOC_WM8731 is not set
+# CONFIG_SND_SOC_WM8737 is not set
+# CONFIG_SND_SOC_WM8741 is not set
+# CONFIG_SND_SOC_WM8750 is not set
+# CONFIG_SND_SOC_WM8753 is not set
+# CONFIG_SND_SOC_WM8770 is not set
+# CONFIG_SND_SOC_WM8776 is not set
+# CONFIG_SND_SOC_WM8804 is not set
+# CONFIG_SND_SOC_WM8903 is not set
+# CONFIG_SND_SOC_WM8962 is not set
+# CONFIG_SND_SOC_WM8978 is not set
+# CONFIG_SND_SOC_TPA6130A2 is not set
+# CONFIG_SND_SIMPLE_CARD is not set
+# CONFIG_SOUND_PRIME is not set
+
+#
+# HID support
+#
+CONFIG_HID=y
+# CONFIG_HID_BATTERY_STRENGTH is not set
+# CONFIG_HIDRAW is not set
+# CONFIG_UHID is not set
+CONFIG_HID_GENERIC=y
+
+#
+# Special HID drivers
+#
+CONFIG_HID_A4TECH=y
+# CONFIG_HID_ACRUX is not set
+CONFIG_HID_APPLE=y
+# CONFIG_HID_APPLEIR is not set
+# CONFIG_HID_AUREAL is not set
+CONFIG_HID_BELKIN=y
+CONFIG_HID_CHERRY=y
+CONFIG_HID_CHICONY=y
+# CONFIG_HID_PRODIKEYS is not set
+# CONFIG_HID_CP2112 is not set
+CONFIG_HID_CYPRESS=y
+# CONFIG_HID_DRAGONRISE is not set
+# CONFIG_HID_EMS_FF is not set
+# CONFIG_HID_ELECOM is not set
+# CONFIG_HID_ELO is not set
+CONFIG_HID_EZKEY=y
+# CONFIG_HID_HOLTEK is not set
+# CONFIG_HID_GT683R is not set
+# CONFIG_HID_HUION is not set
+# CONFIG_HID_KEYTOUCH is not set
+# CONFIG_HID_KYE is not set
+# CONFIG_HID_UCLOGIC is not set
+# CONFIG_HID_WALTOP is not set
+# CONFIG_HID_GYRATION is not set
+# CONFIG_HID_ICADE is not set
+# CONFIG_HID_TWINHAN is not set
+CONFIG_HID_KENSINGTON=y
+# CONFIG_HID_LCPOWER is not set
+# CONFIG_HID_LENOVO is not set
+CONFIG_HID_LOGITECH=y
+# CONFIG_HID_LOGITECH_HIDPP is not set
+# CONFIG_LOGITECH_FF is not set
+# CONFIG_LOGIRUMBLEPAD2_FF is not set
+# CONFIG_LOGIG940_FF is not set
+# CONFIG_LOGIWHEELS_FF is not set
+# CONFIG_HID_MAGICMOUSE is not set
+CONFIG_HID_MICROSOFT=y
+CONFIG_HID_MONTEREY=y
+# CONFIG_HID_MULTITOUCH is not set
+# CONFIG_HID_NTRIG is not set
+# CONFIG_HID_ORTEK is not set
+# CONFIG_HID_PANTHERLORD is not set
+# CONFIG_HID_PENMOUNT is not set
+# CONFIG_HID_PETALYNX is not set
+# CONFIG_HID_PICOLCD is not set
+CONFIG_HID_PLANTRONICS=y
+# CONFIG_HID_PRIMAX is not set
+# CONFIG_HID_ROCCAT is not set
+# CONFIG_HID_SAITEK is not set
+# CONFIG_HID_SAMSUNG is not set
+# CONFIG_HID_SONY is not set
+# CONFIG_HID_SPEEDLINK is not set
+# CONFIG_HID_STEELSERIES is not set
+# CONFIG_HID_SUNPLUS is not set
+# CONFIG_HID_RMI is not set
+# CONFIG_HID_GREENASIA is not set
+# CONFIG_HID_SMARTJOYPLUS is not set
+# CONFIG_HID_TIVO is not set
+# CONFIG_HID_TOPSEED is not set
+# CONFIG_HID_THINGM is not set
+# CONFIG_HID_THRUSTMASTER is not set
+# CONFIG_HID_WACOM is not set
+# CONFIG_HID_WIIMOTE is not set
+# CONFIG_HID_XINMO is not set
+# CONFIG_HID_ZEROPLUS is not set
+# CONFIG_HID_ZYDACRON is not set
+# CONFIG_HID_SENSOR_HUB is not set
+
+#
+# USB HID support
+#
+CONFIG_USB_HID=y
+# CONFIG_HID_PID is not set
+# CONFIG_USB_HIDDEV is not set
+
+#
+# I2C HID support
+#
+# CONFIG_I2C_HID is not set
+CONFIG_USB_OHCI_LITTLE_ENDIAN=y
+CONFIG_USB_SUPPORT=y
+CONFIG_USB_COMMON=y
+CONFIG_USB_ARCH_HAS_HCD=y
+CONFIG_USB=y
+CONFIG_USB_ANNOUNCE_NEW_DEVICES=y
+
+#
+# Miscellaneous USB options
+#
+CONFIG_USB_DEFAULT_PERSIST=y
+# CONFIG_USB_DYNAMIC_MINORS is not set
+# CONFIG_USB_OTG is not set
+# CONFIG_USB_OTG_WHITELIST is not set
+# CONFIG_USB_OTG_FSM is not set
+# CONFIG_USB_MON is not set
+# CONFIG_USB_WUSB_CBAF is not set
+
+#
+# USB Host Controller Drivers
+#
+# CONFIG_USB_C67X00_HCD is not set
+CONFIG_USB_XHCI_HCD=y
+CONFIG_USB_XHCI_PLATFORM=y
+CONFIG_USB_EHCI_HCD=y
+# CONFIG_USB_EHCI_ROOT_HUB_TT is not set
+CONFIG_USB_EHCI_TT_NEWSCHED=y
+CONFIG_USB_EHCI_EXYNOS=y
+# CONFIG_USB_EHCI_HCD_PLATFORM is not set
+# CONFIG_USB_OXU210HP_HCD is not set
+# CONFIG_USB_ISP116X_HCD is not set
+# CONFIG_USB_ISP1760_HCD is not set
+# CONFIG_USB_ISP1362_HCD is not set
+# CONFIG_USB_FUSBH200_HCD is not set
+# CONFIG_USB_FOTG210_HCD is not set
+# CONFIG_USB_MAX3421_HCD is not set
+CONFIG_USB_OHCI_HCD=y
+# CONFIG_USB_OHCI_HCD_SSB is not set
+CONFIG_USB_OHCI_EXYNOS=y
+# CONFIG_USB_OHCI_HCD_PLATFORM is not set
+# CONFIG_USB_SL811_HCD is not set
+# CONFIG_USB_R8A66597_HCD is not set
+# CONFIG_USB_HCD_BCMA is not set
+# CONFIG_USB_HCD_SSB is not set
+# CONFIG_USB_HCD_TEST_MODE is not set
+
+#
+# USB Device Class drivers
+#
+# CONFIG_USB_ACM is not set
+# CONFIG_USB_PRINTER is not set
+# CONFIG_USB_WDM is not set
+# CONFIG_USB_TMC is not set
+
+#
+# NOTE: USB_STORAGE depends on SCSI but BLK_DEV_SD may
+#
+
+#
+# also be needed; see USB_STORAGE Help for more info
+#
+CONFIG_USB_STORAGE=y
+# CONFIG_USB_STORAGE_DEBUG is not set
+# CONFIG_USB_STORAGE_REALTEK is not set
+# CONFIG_USB_STORAGE_DATAFAB is not set
+# CONFIG_USB_STORAGE_FREECOM is not set
+# CONFIG_USB_STORAGE_ISD200 is not set
+# CONFIG_USB_STORAGE_USBAT is not set
+# CONFIG_USB_STORAGE_SDDR09 is not set
+# CONFIG_USB_STORAGE_SDDR55 is not set
+# CONFIG_USB_STORAGE_JUMPSHOT is not set
+# CONFIG_USB_STORAGE_ALAUDA is not set
+# CONFIG_USB_STORAGE_ONETOUCH is not set
+# CONFIG_USB_STORAGE_KARMA is not set
+# CONFIG_USB_STORAGE_CYPRESS_ATACB is not set
+# CONFIG_USB_STORAGE_ENE_UB6250 is not set
+# CONFIG_USB_UAS is not set
+
+#
+# USB Imaging devices
+#
+# CONFIG_USB_MDC800 is not set
+# CONFIG_USB_MICROTEK is not set
+# CONFIG_USBIP_CORE is not set
+# CONFIG_USB_MUSB_HDRC is not set
+CONFIG_USB_DWC3=y
+# CONFIG_USB_DWC3_HOST is not set
+# CONFIG_USB_DWC3_GADGET is not set
+CONFIG_USB_DWC3_DUAL_ROLE=y
+
+#
+# Platform Glue Driver Support
+#
+CONFIG_USB_DWC3_EXYNOS=y
+
+#
+# Debugging features
+#
+# CONFIG_USB_DWC3_DEBUG is not set
+# CONFIG_DWC3_HOST_USB3_LPM_ENABLE is not set
+# CONFIG_USB_DWC2 is not set
+# CONFIG_USB_CHIPIDEA is not set
+
+#
+# USB port drivers
+#
+# CONFIG_USB_SERIAL is not set
+
+#
+# USB Miscellaneous drivers
+#
+# CONFIG_USB_EMI62 is not set
+# CONFIG_USB_EMI26 is not set
+# CONFIG_USB_ADUTUX is not set
+# CONFIG_USB_SEVSEG is not set
+# CONFIG_USB_RIO500 is not set
+# CONFIG_USB_LEGOTOWER is not set
+# CONFIG_USB_LCD is not set
+# CONFIG_USB_LED is not set
+# CONFIG_USB_CYPRESS_CY7C63 is not set
+# CONFIG_USB_CYTHERM is not set
+# CONFIG_USB_IDMOUSE is not set
+# CONFIG_USB_FTDI_ELAN is not set
+# CONFIG_USB_APPLEDISPLAY is not set
+# CONFIG_USB_SISUSBVGA is not set
+# CONFIG_USB_LD is not set
+# CONFIG_USB_TRANCEVIBRATOR is not set
+# CONFIG_USB_IOWARRIOR is not set
+# CONFIG_USB_TEST is not set
+# CONFIG_USB_EHSET_TEST_FIXTURE is not set
+# CONFIG_USB_ISIGHTFW is not set
+# CONFIG_USB_YUREX is not set
+# CONFIG_USB_EZUSB_FX2 is not set
+CONFIG_USB_HSIC_USB3503=y
+# CONFIG_USB_LINK_LAYER_TEST is not set
+
+#
+# USB Physical Layer drivers
+#
+# CONFIG_USB_PHY is not set
+# CONFIG_NOP_USB_XCEIV is not set
+# CONFIG_AM335X_PHY_USB is not set
+# CONFIG_USB_GPIO_VBUS is not set
+# CONFIG_USB_ISP1301 is not set
+# CONFIG_USB_ULPI is not set
+CONFIG_USB_GADGET=y
+# CONFIG_USB_GADGET_DEBUG is not set
+# CONFIG_USB_GADGET_DEBUG_FILES is not set
+# CONFIG_USB_GADGET_DEBUG_FS is not set
+CONFIG_USB_GADGET_VBUS_DRAW=2
+CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS=2
+
+#
+# USB Peripheral Controller
+#
+# CONFIG_USB_FUSB300 is not set
+# CONFIG_USB_FOTG210_UDC is not set
+# CONFIG_USB_GR_UDC is not set
+# CONFIG_USB_R8A66597 is not set
+# CONFIG_USB_PXA27X is not set
+# CONFIG_USB_MV_UDC is not set
+# CONFIG_USB_MV_U3D is not set
+# CONFIG_USB_M66592 is not set
+# CONFIG_USB_BDC_UDC is not set
+# CONFIG_USB_NET2272 is not set
+# CONFIG_USB_GADGET_XILINX is not set
+# CONFIG_USB_DUMMY_HCD is not set
+# CONFIG_USB_CONFIGFS is not set
+# CONFIG_USB_ZERO is not set
+# CONFIG_USB_AUDIO is not set
+# CONFIG_USB_ETH is not set
+# CONFIG_USB_G_NCM is not set
+# CONFIG_USB_GADGETFS is not set
+# CONFIG_USB_FUNCTIONFS is not set
+# CONFIG_USB_MASS_STORAGE is not set
+# CONFIG_USB_G_SERIAL is not set
+# CONFIG_USB_MIDI_GADGET is not set
+# CONFIG_USB_G_PRINTER is not set
+# CONFIG_USB_CDC_COMPOSITE is not set
+# CONFIG_USB_G_ACM_MS is not set
+# CONFIG_USB_G_MULTI is not set
+# CONFIG_USB_G_HID is not set
+# CONFIG_USB_G_DBGP is not set
+# CONFIG_USB_G_WEBCAM is not set
+# CONFIG_USB_LED_TRIG is not set
+# CONFIG_UWB is not set
+CONFIG_MMC=y
+# CONFIG_MMC_DEBUG is not set
+# CONFIG_MMC_CLKGATE is not set
+
+#
+# MMC/SD/SDIO Card Drivers
+#
+CONFIG_MMC_BLOCK=y
+CONFIG_MMC_BLOCK_MINORS=16
+CONFIG_MMC_BLOCK_BOUNCE=y
+# CONFIG_SDIO_UART is not set
+# CONFIG_MMC_TEST is not set
+
+#
+# MMC/SD/SDIO Host Controller Drivers
+#
+# CONFIG_MMC_ARMMMCI is not set
+CONFIG_MMC_SDHCI=y
+# CONFIG_MMC_SDHCI_PLTFM is not set
+CONFIG_MMC_SDHCI_S3C=y
+CONFIG_MMC_SDHCI_S3C_DMA=y
+CONFIG_MMC_DW=y
+CONFIG_MMC_DW_IDMAC=y
+CONFIG_MMC_DW_PLTFM=y
+CONFIG_MMC_DW_EXYNOS=y
+# CONFIG_MMC_DW_K3 is not set
+# CONFIG_MMC_VUB300 is not set
+# CONFIG_MMC_USHC is not set
+# CONFIG_MMC_USDHI6ROL0 is not set
+# CONFIG_MEMSTICK is not set
+CONFIG_NEW_LEDS=y
+CONFIG_LEDS_CLASS=y
+
+#
+# LED drivers
+#
+# CONFIG_LEDS_LM3530 is not set
+# CONFIG_LEDS_LM3642 is not set
+# CONFIG_LEDS_PCA9532 is not set
+# CONFIG_LEDS_GPIO is not set
+# CONFIG_LEDS_LP3944 is not set
+# CONFIG_LEDS_LP5521 is not set
+# CONFIG_LEDS_LP5523 is not set
+# CONFIG_LEDS_LP5562 is not set
+# CONFIG_LEDS_LP8501 is not set
+# CONFIG_LEDS_LP8860 is not set
+# CONFIG_LEDS_PCA955X is not set
+# CONFIG_LEDS_PCA963X is not set
+# CONFIG_LEDS_DAC124S085 is not set
+# CONFIG_LEDS_PWM is not set
+# CONFIG_LEDS_REGULATOR is not set
+# CONFIG_LEDS_BD2802 is not set
+# CONFIG_LEDS_LT3593 is not set
+# CONFIG_LEDS_TCA6507 is not set
+# CONFIG_LEDS_MAX8997 is not set
+# CONFIG_LEDS_LM355x is not set
+
+#
+# LED driver for blink(1) USB RGB LED is under Special HID drivers (HID_THINGM)
+#
+# CONFIG_LEDS_BLINKM is not set
+# CONFIG_LEDS_SYSCON is not set
+
+#
+# LED Triggers
+#
+CONFIG_LEDS_TRIGGERS=y
+# CONFIG_LEDS_TRIGGER_TIMER is not set
+# CONFIG_LEDS_TRIGGER_ONESHOT is not set
+# CONFIG_LEDS_TRIGGER_HEARTBEAT is not set
+# CONFIG_LEDS_TRIGGER_BACKLIGHT is not set
+# CONFIG_LEDS_TRIGGER_CPU is not set
+# CONFIG_LEDS_TRIGGER_GPIO is not set
+# CONFIG_LEDS_TRIGGER_DEFAULT_ON is not set
+
+#
+# iptables trigger is under Netfilter config (LED target)
+#
+# CONFIG_LEDS_TRIGGER_TRANSIENT is not set
+# CONFIG_LEDS_TRIGGER_CAMERA is not set
+# CONFIG_ACCESSIBILITY is not set
+# CONFIG_EDAC is not set
+CONFIG_RTC_LIB=y
+CONFIG_RTC_CLASS=y
+CONFIG_RTC_HCTOSYS=y
+CONFIG_RTC_SYSTOHC=y
+CONFIG_RTC_HCTOSYS_DEVICE="rtc0"
+# CONFIG_RTC_DEBUG is not set
+
+#
+# RTC interfaces
+#
+CONFIG_RTC_INTF_SYSFS=y
+CONFIG_RTC_INTF_PROC=y
+CONFIG_RTC_INTF_DEV=y
+# CONFIG_RTC_INTF_DEV_UIE_EMUL is not set
+# CONFIG_RTC_DRV_TEST is not set
+
+#
+# I2C RTC drivers
+#
+# CONFIG_RTC_DRV_DS1307 is not set
+# CONFIG_RTC_DRV_DS1374 is not set
+# CONFIG_RTC_DRV_DS1672 is not set
+# CONFIG_RTC_DRV_DS3232 is not set
+# CONFIG_RTC_DRV_HYM8563 is not set
+# CONFIG_RTC_DRV_MAX6900 is not set
+# CONFIG_RTC_DRV_MAX8997 is not set
+CONFIG_RTC_DRV_MAX77686=y
+CONFIG_RTC_DRV_MAX77802=y
+# CONFIG_RTC_DRV_RS5C372 is not set
+# CONFIG_RTC_DRV_ISL1208 is not set
+# CONFIG_RTC_DRV_ISL12022 is not set
+# CONFIG_RTC_DRV_ISL12057 is not set
+# CONFIG_RTC_DRV_X1205 is not set
+# CONFIG_RTC_DRV_PCF2127 is not set
+# CONFIG_RTC_DRV_PCF8523 is not set
+# CONFIG_RTC_DRV_PCF8563 is not set
+# CONFIG_RTC_DRV_PCF85063 is not set
+# CONFIG_RTC_DRV_PCF8583 is not set
+# CONFIG_RTC_DRV_M41T80 is not set
+# CONFIG_RTC_DRV_BQ32K is not set
+# CONFIG_RTC_DRV_S35390A is not set
+# CONFIG_RTC_DRV_FM3130 is not set
+# CONFIG_RTC_DRV_RX8581 is not set
+# CONFIG_RTC_DRV_RX8025 is not set
+# CONFIG_RTC_DRV_EM3027 is not set
+# CONFIG_RTC_DRV_RV3029C2 is not set
+CONFIG_RTC_DRV_S5M=y
+
+#
+# SPI RTC drivers
+#
+# CONFIG_RTC_DRV_M41T93 is not set
+# CONFIG_RTC_DRV_M41T94 is not set
+# CONFIG_RTC_DRV_DS1305 is not set
+# CONFIG_RTC_DRV_DS1343 is not set
+# CONFIG_RTC_DRV_DS1347 is not set
+# CONFIG_RTC_DRV_DS1390 is not set
+# CONFIG_RTC_DRV_MAX6902 is not set
+# CONFIG_RTC_DRV_R9701 is not set
+# CONFIG_RTC_DRV_RS5C348 is not set
+# CONFIG_RTC_DRV_DS3234 is not set
+# CONFIG_RTC_DRV_PCF2123 is not set
+# CONFIG_RTC_DRV_RX4581 is not set
+# CONFIG_RTC_DRV_MCP795 is not set
+
+#
+# Platform RTC drivers
+#
+# CONFIG_RTC_DRV_CMOS is not set
+# CONFIG_RTC_DRV_DS1286 is not set
+# CONFIG_RTC_DRV_DS1511 is not set
+# CONFIG_RTC_DRV_DS1553 is not set
+# CONFIG_RTC_DRV_DS1742 is not set
+# CONFIG_RTC_DRV_DS2404 is not set
+# CONFIG_RTC_DRV_STK17TA8 is not set
+# CONFIG_RTC_DRV_M48T86 is not set
+# CONFIG_RTC_DRV_M48T35 is not set
+# CONFIG_RTC_DRV_M48T59 is not set
+# CONFIG_RTC_DRV_MSM6242 is not set
+# CONFIG_RTC_DRV_BQ4802 is not set
+# CONFIG_RTC_DRV_RP5C01 is not set
+# CONFIG_RTC_DRV_V3020 is not set
+
+#
+# on-CPU RTC drivers
+#
+CONFIG_HAVE_S3C_RTC=y
+CONFIG_RTC_DRV_S3C=y
+# CONFIG_RTC_DRV_PL030 is not set
+# CONFIG_RTC_DRV_PL031 is not set
+# CONFIG_RTC_DRV_SNVS is not set
+# CONFIG_RTC_DRV_XGENE is not set
+
+#
+# HID Sensor RTC drivers
+#
+# CONFIG_RTC_DRV_HID_SENSOR_TIME is not set
+CONFIG_DMADEVICES=y
+# CONFIG_DMADEVICES_DEBUG is not set
+
+#
+# DMA Devices
+#
+# CONFIG_AMBA_PL08X is not set
+# CONFIG_DW_DMAC_CORE is not set
+# CONFIG_DW_DMAC is not set
+CONFIG_PL330_DMA=y
+# CONFIG_FSL_EDMA is not set
+# CONFIG_NBPFAXI_DMA is not set
+CONFIG_DMA_ENGINE=y
+CONFIG_DMA_OF=y
+
+#
+# DMA Clients
+#
+# CONFIG_ASYNC_TX_DMA is not set
+# CONFIG_DMATEST is not set
+# CONFIG_AUXDISPLAY is not set
+# CONFIG_UIO is not set
+# CONFIG_VFIO is not set
+# CONFIG_VIRT_DRIVERS is not set
+
+#
+# Virtio drivers
+#
+# CONFIG_VIRTIO_MMIO is not set
+
+#
+# Microsoft Hyper-V guest support
+#
+# CONFIG_STAGING is not set
+
+#
+# SOC (System On Chip) specific Drivers
+#
+# CONFIG_SOC_TI is not set
+CONFIG_CLKDEV_LOOKUP=y
+CONFIG_HAVE_CLK_PREPARE=y
+CONFIG_COMMON_CLK=y
+
+#
+# Common Clock Framework
+#
+CONFIG_COMMON_CLK_MAX_GEN=y
+CONFIG_COMMON_CLK_MAX77686=y
+CONFIG_COMMON_CLK_MAX77802=y
+# CONFIG_COMMON_CLK_SI5351 is not set
+# CONFIG_COMMON_CLK_SI570 is not set
+CONFIG_COMMON_CLK_S2MPS11=y
+# CONFIG_COMMON_CLK_PXA is not set
+# CONFIG_COMMON_CLK_QCOM is not set
+CONFIG_COMMON_CLK_SAMSUNG=y
+
+#
+# Hardware Spinlock drivers
+#
+
+#
+# Clock Source drivers
+#
+CONFIG_CLKSRC_OF=y
+CONFIG_ARM_ARCH_TIMER=y
+CONFIG_ARM_ARCH_TIMER_EVTSTREAM=y
+# CONFIG_ATMEL_PIT is not set
+CONFIG_CLKSRC_EXYNOS_MCT=y
+CONFIG_CLKSRC_SAMSUNG_PWM=y
+# CONFIG_SH_TIMER_CMT is not set
+# CONFIG_SH_TIMER_MTU2 is not set
+# CONFIG_SH_TIMER_TMU is not set
+# CONFIG_EM_TIMER_STI is not set
+# CONFIG_CLKSRC_VERSATILE is not set
+# CONFIG_MAILBOX is not set
+CONFIG_IOMMU_API=y
+CONFIG_IOMMU_SUPPORT=y
+CONFIG_OF_IOMMU=y
+CONFIG_EXYNOS_IOMMU=y
+# CONFIG_EXYNOS_IOMMU_DEBUG is not set
+
+#
+# Remoteproc drivers
+#
+# CONFIG_STE_MODEM_RPROC is not set
+
+#
+# Rpmsg drivers
+#
+
+#
+# SOC (System On Chip) specific Drivers
+#
+# CONFIG_PM_DEVFREQ is not set
+CONFIG_EXTCON=y
+
+#
+# Extcon Device Drivers
+#
+# CONFIG_EXTCON_ADC_JACK is not set
+# CONFIG_EXTCON_GPIO is not set
+CONFIG_EXTCON_MAX77693=y
+# CONFIG_EXTCON_MAX8997 is not set
+# CONFIG_EXTCON_RT8973A is not set
+# CONFIG_EXTCON_SM5502 is not set
+# CONFIG_MEMORY is not set
+CONFIG_IIO=y
+# CONFIG_IIO_BUFFER is not set
+# CONFIG_IIO_TRIGGER is not set
+
+#
+# Accelerometers
+#
+# CONFIG_BMA180 is not set
+# CONFIG_BMC150_ACCEL is not set
+# CONFIG_IIO_ST_ACCEL_3AXIS is not set
+# CONFIG_KXSD9 is not set
+# CONFIG_MMA8452 is not set
+# CONFIG_KXCJK1013 is not set
+
+#
+# Analog to digital converters
+#
+# CONFIG_AD7266 is not set
+# CONFIG_AD7291 is not set
+# CONFIG_AD7298 is not set
+# CONFIG_AD7476 is not set
+# CONFIG_AD7791 is not set
+# CONFIG_AD7793 is not set
+# CONFIG_AD7887 is not set
+# CONFIG_AD7923 is not set
+# CONFIG_AD799X is not set
+CONFIG_EXYNOS_ADC=y
+# CONFIG_MAX1027 is not set
+# CONFIG_MAX1363 is not set
+# CONFIG_MCP320X is not set
+# CONFIG_MCP3422 is not set
+# CONFIG_NAU7802 is not set
+# CONFIG_TI_ADC081C is not set
+# CONFIG_TI_ADC128S052 is not set
+# CONFIG_VF610_ADC is not set
+
+#
+# Amplifiers
+#
+# CONFIG_AD8366 is not set
+
+#
+# Hid Sensor IIO Common
+#
+
+#
+# Digital to analog converters
+#
+# CONFIG_AD5064 is not set
+# CONFIG_AD5360 is not set
+# CONFIG_AD5380 is not set
+# CONFIG_AD5421 is not set
+# CONFIG_AD5446 is not set
+# CONFIG_AD5449 is not set
+# CONFIG_AD5504 is not set
+# CONFIG_AD5624R_SPI is not set
+# CONFIG_AD5686 is not set
+# CONFIG_AD5755 is not set
+# CONFIG_AD5764 is not set
+# CONFIG_AD5791 is not set
+# CONFIG_AD7303 is not set
+# CONFIG_MAX517 is not set
+# CONFIG_MAX5821 is not set
+# CONFIG_MCP4725 is not set
+# CONFIG_MCP4922 is not set
+
+#
+# Frequency Synthesizers DDS/PLL
+#
+
+#
+# Clock Generator/Distribution
+#
+# CONFIG_AD9523 is not set
+
+#
+# Phase-Locked Loop (PLL) frequency synthesizers
+#
+# CONFIG_ADF4350 is not set
+
+#
+# Digital gyroscope sensors
+#
+# CONFIG_ADIS16080 is not set
+# CONFIG_ADIS16130 is not set
+# CONFIG_ADIS16136 is not set
+# CONFIG_ADIS16260 is not set
+# CONFIG_ADXRS450 is not set
+# CONFIG_BMG160 is not set
+# CONFIG_IIO_ST_GYRO_3AXIS is not set
+# CONFIG_ITG3200 is not set
+
+#
+# Humidity sensors
+#
+# CONFIG_DHT11 is not set
+# CONFIG_SI7005 is not set
+# CONFIG_SI7020 is not set
+
+#
+# Inertial measurement units
+#
+# CONFIG_ADIS16400 is not set
+# CONFIG_ADIS16480 is not set
+# CONFIG_INV_MPU6050_IIO is not set
+
+#
+# Light sensors
+#
+# CONFIG_ADJD_S311 is not set
+# CONFIG_AL3320A is not set
+# CONFIG_APDS9300 is not set
+# CONFIG_CM32181 is not set
+# CONFIG_CM36651 is not set
+# CONFIG_GP2AP020A00F is not set
+# CONFIG_ISL29125 is not set
+# CONFIG_LTR501 is not set
+# CONFIG_TCS3414 is not set
+# CONFIG_TCS3472 is not set
+# CONFIG_SENSORS_TSL2563 is not set
+# CONFIG_TSL4531 is not set
+# CONFIG_VCNL4000 is not set
+
+#
+# Magnetometer sensors
+#
+# CONFIG_AK8975 is not set
+# CONFIG_AK09911 is not set
+# CONFIG_MAG3110 is not set
+# CONFIG_IIO_ST_MAGN_3AXIS is not set
+
+#
+# Inclinometer sensors
+#
+
+#
+# Pressure sensors
+#
+# CONFIG_BMP280 is not set
+# CONFIG_MPL115 is not set
+# CONFIG_MPL3115 is not set
+# CONFIG_IIO_ST_PRESS is not set
+# CONFIG_T5403 is not set
+
+#
+# Lightning sensors
+#
+# CONFIG_AS3935 is not set
+
+#
+# Temperature sensors
+#
+# CONFIG_MLX90614 is not set
+# CONFIG_TMP006 is not set
+CONFIG_PWM=y
+CONFIG_PWM_SYSFS=y
+# CONFIG_PWM_FSL_FTM is not set
+# CONFIG_PWM_PCA9685 is not set
+CONFIG_PWM_SAMSUNG=y
+CONFIG_IRQCHIP=y
+CONFIG_ARM_GIC=y
+CONFIG_GIC_NON_BANKED=y
+# CONFIG_IPACK_BUS is not set
+# CONFIG_RESET_CONTROLLER is not set
+# CONFIG_FMC is not set
+
+#
+# PHY Subsystem
+#
+CONFIG_GENERIC_PHY=y
+CONFIG_PHY_EXYNOS_MIPI_VIDEO=y
+CONFIG_PHY_EXYNOS_DP_VIDEO=y
+# CONFIG_BCM_KONA_USB2_PHY is not set
+CONFIG_PHY_EXYNOS5250_SATA=y
+CONFIG_PHY_SAMSUNG_USB2=y
+CONFIG_PHY_EXYNOS4210_USB2=y
+CONFIG_PHY_EXYNOS4X12_USB2=y
+CONFIG_PHY_EXYNOS5250_USB2=y
+CONFIG_PHY_EXYNOS5_USBDRD=y
+# CONFIG_POWERCAP is not set
+# CONFIG_MCB is not set
+
+#
+# Android
+#
+# CONFIG_ANDROID is not set
+
+#
+# File systems
+#
+CONFIG_DCACHE_WORD_ACCESS=y
+CONFIG_EXT2_FS=y
+# CONFIG_EXT2_FS_XATTR is not set
+# CONFIG_EXT2_FS_XIP is not set
+CONFIG_EXT3_FS=y
+CONFIG_EXT3_DEFAULTS_TO_ORDERED=y
+CONFIG_EXT3_FS_XATTR=y
+# CONFIG_EXT3_FS_POSIX_ACL is not set
+# CONFIG_EXT3_FS_SECURITY is not set
+CONFIG_EXT4_FS=y
+# CONFIG_EXT4_FS_POSIX_ACL is not set
+# CONFIG_EXT4_FS_SECURITY is not set
+# CONFIG_EXT4_DEBUG is not set
+CONFIG_JBD=y
+# CONFIG_JBD_DEBUG is not set
+CONFIG_JBD2=y
+# CONFIG_JBD2_DEBUG is not set
+CONFIG_FS_MBCACHE=y
+# CONFIG_REISERFS_FS is not set
+# CONFIG_JFS_FS is not set
+# CONFIG_XFS_FS is not set
+# CONFIG_GFS2_FS is not set
+# CONFIG_BTRFS_FS is not set
+# CONFIG_NILFS2_FS is not set
+CONFIG_FS_POSIX_ACL=y
+CONFIG_FILE_LOCKING=y
+CONFIG_FSNOTIFY=y
+CONFIG_DNOTIFY=y
+CONFIG_INOTIFY_USER=y
+# CONFIG_FANOTIFY is not set
+# CONFIG_QUOTA is not set
+# CONFIG_QUOTACTL is not set
+# CONFIG_AUTOFS4_FS is not set
+# CONFIG_FUSE_FS is not set
+# CONFIG_OVERLAY_FS is not set
+
+#
+# Caches
+#
+# CONFIG_FSCACHE is not set
+
+#
+# CD-ROM/DVD Filesystems
+#
+# CONFIG_ISO9660_FS is not set
+# CONFIG_UDF_FS is not set
+
+#
+# DOS/FAT/NT Filesystems
+#
+CONFIG_FAT_FS=y
+CONFIG_MSDOS_FS=y
+CONFIG_VFAT_FS=y
+CONFIG_FAT_DEFAULT_CODEPAGE=437
+CONFIG_FAT_DEFAULT_IOCHARSET="iso8859-1"
+# CONFIG_NTFS_FS is not set
+
+#
+# Pseudo filesystems
+#
+CONFIG_PROC_FS=y
+CONFIG_PROC_SYSCTL=y
+CONFIG_PROC_PAGE_MONITOR=y
+CONFIG_KERNFS=y
+CONFIG_SYSFS=y
+CONFIG_TMPFS=y
+CONFIG_TMPFS_POSIX_ACL=y
+CONFIG_TMPFS_XATTR=y
+# CONFIG_HUGETLB_PAGE is not set
+# CONFIG_CONFIGFS_FS is not set
+CONFIG_MISC_FILESYSTEMS=y
+# CONFIG_ADFS_FS is not set
+# CONFIG_AFFS_FS is not set
+# CONFIG_HFS_FS is not set
+# CONFIG_HFSPLUS_FS is not set
+# CONFIG_BEFS_FS is not set
+# CONFIG_BFS_FS is not set
+# CONFIG_EFS_FS is not set
+# CONFIG_LOGFS is not set
+CONFIG_CRAMFS=y
+# CONFIG_SQUASHFS is not set
+# CONFIG_VXFS_FS is not set
+# CONFIG_MINIX_FS is not set
+# CONFIG_OMFS_FS is not set
+# CONFIG_HPFS_FS is not set
+# CONFIG_QNX4FS_FS is not set
+# CONFIG_QNX6FS_FS is not set
+CONFIG_ROMFS_FS=y
+CONFIG_ROMFS_BACKED_BY_BLOCK=y
+CONFIG_ROMFS_ON_BLOCK=y
+# CONFIG_PSTORE is not set
+# CONFIG_SYSV_FS is not set
+# CONFIG_UFS_FS is not set
+# CONFIG_F2FS_FS is not set
+CONFIG_NETWORK_FILESYSTEMS=y
+# CONFIG_NFS_FS is not set
+# CONFIG_NFSD is not set
+# CONFIG_CEPH_FS is not set
+# CONFIG_CIFS is not set
+# CONFIG_NCP_FS is not set
+# CONFIG_CODA_FS is not set
+# CONFIG_AFS_FS is not set
+CONFIG_NLS=y
+CONFIG_NLS_DEFAULT="iso8859-1"
+CONFIG_NLS_CODEPAGE_437=y
+# CONFIG_NLS_CODEPAGE_737 is not set
+# CONFIG_NLS_CODEPAGE_775 is not set
+# CONFIG_NLS_CODEPAGE_850 is not set
+# CONFIG_NLS_CODEPAGE_852 is not set
+# CONFIG_NLS_CODEPAGE_855 is not set
+# CONFIG_NLS_CODEPAGE_857 is not set
+# CONFIG_NLS_CODEPAGE_860 is not set
+# CONFIG_NLS_CODEPAGE_861 is not set
+# CONFIG_NLS_CODEPAGE_862 is not set
+# CONFIG_NLS_CODEPAGE_863 is not set
+# CONFIG_NLS_CODEPAGE_864 is not set
+# CONFIG_NLS_CODEPAGE_865 is not set
+# CONFIG_NLS_CODEPAGE_866 is not set
+# CONFIG_NLS_CODEPAGE_869 is not set
+# CONFIG_NLS_CODEPAGE_936 is not set
+# CONFIG_NLS_CODEPAGE_950 is not set
+# CONFIG_NLS_CODEPAGE_932 is not set
+# CONFIG_NLS_CODEPAGE_949 is not set
+# CONFIG_NLS_CODEPAGE_874 is not set
+# CONFIG_NLS_ISO8859_8 is not set
+# CONFIG_NLS_CODEPAGE_1250 is not set
+# CONFIG_NLS_CODEPAGE_1251 is not set
+CONFIG_NLS_ASCII=y
+CONFIG_NLS_ISO8859_1=y
+# CONFIG_NLS_ISO8859_2 is not set
+# CONFIG_NLS_ISO8859_3 is not set
+# CONFIG_NLS_ISO8859_4 is not set
+# CONFIG_NLS_ISO8859_5 is not set
+# CONFIG_NLS_ISO8859_6 is not set
+# CONFIG_NLS_ISO8859_7 is not set
+# CONFIG_NLS_ISO8859_9 is not set
+# CONFIG_NLS_ISO8859_13 is not set
+# CONFIG_NLS_ISO8859_14 is not set
+# CONFIG_NLS_ISO8859_15 is not set
+# CONFIG_NLS_KOI8_R is not set
+# CONFIG_NLS_KOI8_U is not set
+# CONFIG_NLS_MAC_ROMAN is not set
+# CONFIG_NLS_MAC_CELTIC is not set
+# CONFIG_NLS_MAC_CENTEURO is not set
+# CONFIG_NLS_MAC_CROATIAN is not set
+# CONFIG_NLS_MAC_CYRILLIC is not set
+# CONFIG_NLS_MAC_GAELIC is not set
+# CONFIG_NLS_MAC_GREEK is not set
+# CONFIG_NLS_MAC_ICELAND is not set
+# CONFIG_NLS_MAC_INUIT is not set
+# CONFIG_NLS_MAC_ROMANIAN is not set
+# CONFIG_NLS_MAC_TURKISH is not set
+# CONFIG_NLS_UTF8 is not set
+
+#
+# Kernel hacking
+#
+
+#
+# printk and dmesg options
+#
+CONFIG_PRINTK_TIME=y
+CONFIG_MESSAGE_LOGLEVEL_DEFAULT=4
+# CONFIG_BOOT_PRINTK_DELAY is not set
+CONFIG_DYNAMIC_DEBUG=y
+
+#
+# Compile-time checks and compiler options
+#
+CONFIG_DEBUG_INFO=y
+# CONFIG_DEBUG_INFO_REDUCED is not set
+# CONFIG_DEBUG_INFO_SPLIT is not set
+# CONFIG_DEBUG_INFO_DWARF4 is not set
+CONFIG_ENABLE_WARN_DEPRECATED=y
+CONFIG_ENABLE_MUST_CHECK=y
+CONFIG_FRAME_WARN=1024
+# CONFIG_STRIP_ASM_SYMS is not set
+# CONFIG_READABLE_ASM is not set
+# CONFIG_UNUSED_SYMBOLS is not set
+# CONFIG_PAGE_OWNER is not set
+CONFIG_DEBUG_FS=y
+# CONFIG_HEADERS_CHECK is not set
+# CONFIG_DEBUG_SECTION_MISMATCH is not set
+# CONFIG_DEBUG_FORCE_WEAK_PER_CPU is not set
+CONFIG_MAGIC_SYSRQ=y
+CONFIG_MAGIC_SYSRQ_DEFAULT_ENABLE=0x1
+CONFIG_DEBUG_KERNEL=y
+
+#
+# Memory Debugging
+#
+# CONFIG_PAGE_EXTENSION is not set
+# CONFIG_DEBUG_PAGEALLOC is not set
+# CONFIG_DEBUG_OBJECTS is not set
+# CONFIG_SLUB_DEBUG_ON is not set
+# CONFIG_SLUB_STATS is not set
+CONFIG_HAVE_DEBUG_KMEMLEAK=y
+# CONFIG_DEBUG_KMEMLEAK is not set
+# CONFIG_DEBUG_STACK_USAGE is not set
+# CONFIG_DEBUG_VM is not set
+CONFIG_DEBUG_MEMORY_INIT=y
+# CONFIG_DEBUG_PER_CPU_MAPS is not set
+# CONFIG_DEBUG_HIGHMEM is not set
+# CONFIG_DEBUG_SHIRQ is not set
+
+#
+# Debug Lockups and Hangs
+#
+# CONFIG_LOCKUP_DETECTOR is not set
+CONFIG_DETECT_HUNG_TASK=y
+CONFIG_DEFAULT_HUNG_TASK_TIMEOUT=120
+# CONFIG_BOOTPARAM_HUNG_TASK_PANIC is not set
+CONFIG_BOOTPARAM_HUNG_TASK_PANIC_VALUE=0
+# CONFIG_PANIC_ON_OOPS is not set
+CONFIG_PANIC_ON_OOPS_VALUE=0
+CONFIG_PANIC_TIMEOUT=0
+CONFIG_SCHED_DEBUG=y
+# CONFIG_SCHEDSTATS is not set
+# CONFIG_SCHED_STACK_END_CHECK is not set
+# CONFIG_TIMER_STATS is not set
+CONFIG_DEBUG_PREEMPT=y
+
+#
+# Lock Debugging (spinlocks, mutexes, etc...)
+#
+CONFIG_DEBUG_RT_MUTEXES=y
+CONFIG_DEBUG_SPINLOCK=y
+CONFIG_DEBUG_MUTEXES=y
+# CONFIG_DEBUG_WW_MUTEX_SLOWPATH is not set
+# CONFIG_DEBUG_LOCK_ALLOC is not set
+# CONFIG_PROVE_LOCKING is not set
+# CONFIG_LOCK_STAT is not set
+# CONFIG_DEBUG_ATOMIC_SLEEP is not set
+# CONFIG_DEBUG_LOCKING_API_SELFTESTS is not set
+# CONFIG_LOCK_TORTURE_TEST is not set
+# CONFIG_STACKTRACE is not set
+# CONFIG_DEBUG_KOBJECT is not set
+CONFIG_DEBUG_BUGVERBOSE=y
+# CONFIG_DEBUG_LIST is not set
+# CONFIG_DEBUG_PI_LIST is not set
+# CONFIG_DEBUG_SG is not set
+# CONFIG_DEBUG_NOTIFIERS is not set
+# CONFIG_DEBUG_CREDENTIALS is not set
+
+#
+# RCU Debugging
+#
+# CONFIG_SPARSE_RCU_POINTER is not set
+# CONFIG_TORTURE_TEST is not set
+# CONFIG_RCU_TORTURE_TEST is not set
+CONFIG_RCU_CPU_STALL_TIMEOUT=21
+# CONFIG_RCU_CPU_STALL_INFO is not set
+# CONFIG_RCU_TRACE is not set
+# CONFIG_DEBUG_BLOCK_EXT_DEVT is not set
+# CONFIG_NOTIFIER_ERROR_INJECTION is not set
+# CONFIG_FAULT_INJECTION is not set
+CONFIG_HAVE_FUNCTION_TRACER=y
+CONFIG_HAVE_FUNCTION_GRAPH_TRACER=y
+CONFIG_HAVE_DYNAMIC_FTRACE=y
+CONFIG_HAVE_FTRACE_MCOUNT_RECORD=y
+CONFIG_HAVE_SYSCALL_TRACEPOINTS=y
+CONFIG_HAVE_C_RECORDMCOUNT=y
+CONFIG_TRACING_SUPPORT=y
+CONFIG_FTRACE=y
+# CONFIG_FUNCTION_TRACER is not set
+# CONFIG_IRQSOFF_TRACER is not set
+# CONFIG_PREEMPT_TRACER is not set
+# CONFIG_SCHED_TRACER is not set
+# CONFIG_ENABLE_DEFAULT_TRACERS is not set
+# CONFIG_FTRACE_SYSCALLS is not set
+# CONFIG_TRACER_SNAPSHOT is not set
+CONFIG_BRANCH_PROFILE_NONE=y
+# CONFIG_PROFILE_ANNOTATED_BRANCHES is not set
+# CONFIG_PROFILE_ALL_BRANCHES is not set
+# CONFIG_STACK_TRACER is not set
+# CONFIG_BLK_DEV_IO_TRACE is not set
+# CONFIG_PROBE_EVENTS is not set
+# CONFIG_TRACEPOINT_BENCHMARK is not set
+
+#
+# Runtime Testing
+#
+# CONFIG_LKDTM is not set
+# CONFIG_TEST_LIST_SORT is not set
+# CONFIG_BACKTRACE_SELF_TEST is not set
+# CONFIG_RBTREE_TEST is not set
+# CONFIG_INTERVAL_TREE_TEST is not set
+# CONFIG_PERCPU_TEST is not set
+# CONFIG_ATOMIC64_SELFTEST is not set
+# CONFIG_TEST_STRING_HELPERS is not set
+# CONFIG_TEST_KSTRTOX is not set
+# CONFIG_TEST_RHASHTABLE is not set
+# CONFIG_DMA_API_DEBUG is not set
+# CONFIG_TEST_LKM is not set
+# CONFIG_TEST_USER_COPY is not set
+# CONFIG_TEST_BPF is not set
+# CONFIG_TEST_FIRMWARE is not set
+# CONFIG_TEST_UDELAY is not set
+# CONFIG_SAMPLES is not set
+CONFIG_HAVE_ARCH_KGDB=y
+# CONFIG_KGDB is not set
+# CONFIG_ARM_PTDUMP is not set
+# CONFIG_STRICT_DEVMEM is not set
+CONFIG_ARM_UNWIND=y
+CONFIG_DEBUG_USER=y
+# CONFIG_DEBUG_LL is not set
+CONFIG_DEBUG_LL_INCLUDE="mach/debug-macro.S"
+# CONFIG_DEBUG_UART_PL01X is not set
+# CONFIG_DEBUG_UART_8250 is not set
+# CONFIG_DEBUG_UART_BCM63XX is not set
+CONFIG_UNCOMPRESS_INCLUDE="debug/uncompress.h"
+# CONFIG_PID_IN_CONTEXTIDR is not set
+# CONFIG_DEBUG_SET_MODULE_RONX is not set
+# CONFIG_CORESIGHT is not set
+
+#
+# Security options
+#
+# CONFIG_KEYS is not set
+# CONFIG_SECURITY_DMESG_RESTRICT is not set
+# CONFIG_SECURITY is not set
+CONFIG_SECURITYFS=y
+CONFIG_DEFAULT_SECURITY_DAC=y
+CONFIG_DEFAULT_SECURITY=""
+CONFIG_CRYPTO=y
+
+#
+# Crypto core or helper
+#
+CONFIG_CRYPTO_ALGAPI=y
+CONFIG_CRYPTO_ALGAPI2=y
+CONFIG_CRYPTO_AEAD=y
+CONFIG_CRYPTO_AEAD2=y
+CONFIG_CRYPTO_BLKCIPHER=y
+CONFIG_CRYPTO_BLKCIPHER2=y
+CONFIG_CRYPTO_HASH=y
+CONFIG_CRYPTO_HASH2=y
+CONFIG_CRYPTO_RNG=y
+CONFIG_CRYPTO_RNG2=y
+CONFIG_CRYPTO_PCOMP2=y
+CONFIG_CRYPTO_MANAGER=y
+CONFIG_CRYPTO_MANAGER2=y
+# CONFIG_CRYPTO_USER is not set
+CONFIG_CRYPTO_MANAGER_DISABLE_TESTS=y
+# CONFIG_CRYPTO_GF128MUL is not set
+# CONFIG_CRYPTO_NULL is not set
+# CONFIG_CRYPTO_PCRYPT is not set
+CONFIG_CRYPTO_WORKQUEUE=y
+# CONFIG_CRYPTO_CRYPTD is not set
+# CONFIG_CRYPTO_MCRYPTD is not set
+# CONFIG_CRYPTO_AUTHENC is not set
+# CONFIG_CRYPTO_TEST is not set
+
+#
+# Authenticated Encryption with Associated Data
+#
+CONFIG_CRYPTO_CCM=y
+# CONFIG_CRYPTO_GCM is not set
+CONFIG_CRYPTO_SEQIV=y
+
+#
+# Block modes
+#
+CONFIG_CRYPTO_CBC=y
+CONFIG_CRYPTO_CTR=y
+# CONFIG_CRYPTO_CTS is not set
+# CONFIG_CRYPTO_ECB is not set
+# CONFIG_CRYPTO_LRW is not set
+# CONFIG_CRYPTO_PCBC is not set
+# CONFIG_CRYPTO_XTS is not set
+
+#
+# Hash modes
+#
+# CONFIG_CRYPTO_CMAC is not set
+# CONFIG_CRYPTO_HMAC is not set
+# CONFIG_CRYPTO_XCBC is not set
+# CONFIG_CRYPTO_VMAC is not set
+
+#
+# Digest
+#
+CONFIG_CRYPTO_CRC32C=y
+# CONFIG_CRYPTO_CRC32 is not set
+# CONFIG_CRYPTO_CRCT10DIF is not set
+# CONFIG_CRYPTO_GHASH is not set
+# CONFIG_CRYPTO_MD4 is not set
+# CONFIG_CRYPTO_MD5 is not set
+# CONFIG_CRYPTO_MICHAEL_MIC is not set
+# CONFIG_CRYPTO_RMD128 is not set
+# CONFIG_CRYPTO_RMD160 is not set
+# CONFIG_CRYPTO_RMD256 is not set
+# CONFIG_CRYPTO_RMD320 is not set
+# CONFIG_CRYPTO_SHA1 is not set
+# CONFIG_CRYPTO_SHA1_ARM is not set
+CONFIG_CRYPTO_SHA256=y
+# CONFIG_CRYPTO_SHA512 is not set
+# CONFIG_CRYPTO_TGR192 is not set
+# CONFIG_CRYPTO_WP512 is not set
+
+#
+# Ciphers
+#
+CONFIG_CRYPTO_AES=y
+# CONFIG_CRYPTO_AES_ARM is not set
+# CONFIG_CRYPTO_ANUBIS is not set
+CONFIG_CRYPTO_ARC4=y
+# CONFIG_CRYPTO_BLOWFISH is not set
+# CONFIG_CRYPTO_CAMELLIA is not set
+# CONFIG_CRYPTO_CAST5 is not set
+# CONFIG_CRYPTO_CAST6 is not set
+# CONFIG_CRYPTO_DES is not set
+# CONFIG_CRYPTO_FCRYPT is not set
+# CONFIG_CRYPTO_KHAZAD is not set
+# CONFIG_CRYPTO_SALSA20 is not set
+# CONFIG_CRYPTO_SEED is not set
+# CONFIG_CRYPTO_SERPENT is not set
+# CONFIG_CRYPTO_TEA is not set
+# CONFIG_CRYPTO_TWOFISH is not set
+
+#
+# Compression
+#
+# CONFIG_CRYPTO_DEFLATE is not set
+# CONFIG_CRYPTO_ZLIB is not set
+# CONFIG_CRYPTO_LZO is not set
+# CONFIG_CRYPTO_LZ4 is not set
+# CONFIG_CRYPTO_LZ4HC is not set
+
+#
+# Random Number Generation
+#
+CONFIG_CRYPTO_ANSI_CPRNG=m
+# CONFIG_CRYPTO_DRBG_MENU is not set
+# CONFIG_CRYPTO_USER_API_HASH is not set
+# CONFIG_CRYPTO_USER_API_SKCIPHER is not set
+CONFIG_CRYPTO_HW=y
+# CONFIG_CRYPTO_DEV_S5P is not set
+# CONFIG_BINARY_PRINTF is not set
+
+#
+# Library routines
+#
+CONFIG_BITREVERSE=y
+CONFIG_GENERIC_STRNCPY_FROM_USER=y
+CONFIG_GENERIC_STRNLEN_USER=y
+CONFIG_GENERIC_NET_UTILS=y
+CONFIG_GENERIC_PCI_IOMAP=y
+CONFIG_GENERIC_IO=y
+CONFIG_ARCH_USE_CMPXCHG_LOCKREF=y
+CONFIG_CRC_CCITT=y
+CONFIG_CRC16=y
+# CONFIG_CRC_T10DIF is not set
+# CONFIG_CRC_ITU_T is not set
+CONFIG_CRC32=y
+# CONFIG_CRC32_SELFTEST is not set
+CONFIG_CRC32_SLICEBY8=y
+# CONFIG_CRC32_SLICEBY4 is not set
+# CONFIG_CRC32_SARWATE is not set
+# CONFIG_CRC32_BIT is not set
+# CONFIG_CRC7 is not set
+# CONFIG_LIBCRC32C is not set
+# CONFIG_CRC8 is not set
+# CONFIG_AUDIT_ARCH_COMPAT_GENERIC is not set
+# CONFIG_RANDOM32_SELFTEST is not set
+CONFIG_ZLIB_INFLATE=y
+CONFIG_LZO_COMPRESS=y
+CONFIG_LZO_DECOMPRESS=y
+CONFIG_LZ4_DECOMPRESS=y
+CONFIG_XZ_DEC=y
+CONFIG_XZ_DEC_X86=y
+CONFIG_XZ_DEC_POWERPC=y
+CONFIG_XZ_DEC_IA64=y
+CONFIG_XZ_DEC_ARM=y
+CONFIG_XZ_DEC_ARMTHUMB=y
+CONFIG_XZ_DEC_SPARC=y
+CONFIG_XZ_DEC_BCJ=y
+# CONFIG_XZ_DEC_TEST is not set
+CONFIG_DECOMPRESS_GZIP=y
+CONFIG_DECOMPRESS_BZIP2=y
+CONFIG_DECOMPRESS_LZMA=y
+CONFIG_DECOMPRESS_XZ=y
+CONFIG_DECOMPRESS_LZO=y
+CONFIG_DECOMPRESS_LZ4=y
+CONFIG_GENERIC_ALLOCATOR=y
+CONFIG_HAS_IOMEM=y
+CONFIG_HAS_DMA=y
+CONFIG_CPU_RMAP=y
+CONFIG_DQL=y
+CONFIG_NLATTR=y
+CONFIG_ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE=y
+CONFIG_AVERAGE=y
+# CONFIG_CORDIC is not set
+# CONFIG_DDR is not set
+CONFIG_LIBFDT=y
+CONFIG_FONT_SUPPORT=y
+CONFIG_FONTS=y
+# CONFIG_FONT_8x8 is not set
+# CONFIG_FONT_8x16 is not set
+# CONFIG_FONT_6x11 is not set
+CONFIG_FONT_7x14=y
+# CONFIG_FONT_PEARL_8x8 is not set
+# CONFIG_FONT_ACORN_8x8 is not set
+# CONFIG_FONT_MINI_4x6 is not set
+# CONFIG_FONT_6x10 is not set
+# CONFIG_FONT_SUN8x16 is not set
+# CONFIG_FONT_SUN12x22 is not set
+# CONFIG_FONT_10x18 is not set
+CONFIG_ARCH_HAS_SG_CHAIN=y
+# CONFIG_VIRTUALIZATION is not set
+
+--=-DjC9jZnEo53GjMQpZvlQ
+Content-Disposition: attachment; filename="dmesg-bug-smp-preemptible"
+Content-Type: text/plain; name="dmesg-bug-smp-preemptible"; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+
+[    0.000000] Booting Linux on physical CPU 0xa00
+[    0.000000] Linux version 3.19.0-rc4-00279-gd2dc80750ee0 (k.kozlowski@AMDC1943) (gcc version 4.7.3 (Ubuntu/Linaro 4.7.3-12ubuntu1) ) #1630 SMP PREEMPT Tue Jan 20 10:28:36 CET 2015
+[    0.000000] CPU: ARMv7 Processor [413fc090] revision 0 (ARMv7), cr=10c5387d
+[    0.000000] CPU: PIPT / VIPT nonaliasing data cache, VIPT aliasing instruction cache
+[    0.000000] Machine model: Samsung Trats 2 based on Exynos4412
+[    0.000000] cma: Reserved 64 MiB at 0x7bc00000
+[    0.000000] Memory policy: Data cache writealloc
+[    0.000000] Running under secure firmware.
+[    0.000000] PERCPU: Embedded 9 pages/cpu @eef8e000 s7616 r8192 d21056 u36864
+[    0.000000] Built 1 zonelists in Zone order, mobility grouping on.  Total pages: 260368
+[    0.000000] Kernel command line: root=/dev/mmcblk0p5 rw rootfstype=ext4 rootwait console=ttySAC2,115200n8 fbmem=24M@0x52000000 normal lcd=s6e8ax0 pmic_info=3 resume=179:3 csa=/dev/mmcblk0p1 bootloader_log=1077@0x43908010
+[    0.000000] PID hash table entries: 4096 (order: 2, 16384 bytes)
+[    0.000000] Dentry cache hash table entries: 131072 (order: 7, 524288 bytes)
+[    0.000000] Inode-cache hash table entries: 65536 (order: 6, 262144 bytes)
+[    0.000000] Memory: 963512K/1047552K available (5847K kernel code, 312K rwdata, 2240K rodata, 320K init, 278K bss, 18504K reserved, 65536K cma-reserved, 203776K highmem)
+[    0.000000] Virtual kernel memory layout:
+[    0.000000]     vector  : 0xffff0000 - 0xffff1000   (   4 kB)
+[    0.000000]     fixmap  : 0xffc00000 - 0xfff00000   (3072 kB)
+[    0.000000]     vmalloc : 0xf0000000 - 0xff000000   ( 240 MB)
+[    0.000000]     lowmem  : 0xc0000000 - 0xef800000   ( 760 MB)
+[    0.000000]     pkmap   : 0xbfe00000 - 0xc0000000   (   2 MB)
+[    0.000000]     modules : 0xbf000000 - 0xbfe00000   (  14 MB)
+[    0.000000]       .text : 0xc0008000 - 0xc07edf5c   (8088 kB)
+[    0.000000]       .init : 0xc07ee000 - 0xc083e000   ( 320 kB)
+[    0.000000]       .data : 0xc083e000 - 0xc088c0c0   ( 313 kB)
+[    0.000000]        .bss : 0xc088c0c0 - 0xc08d1c68   ( 279 kB)
+[    0.000000] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=4, Nodes=1
+[    0.000000] Preemptible hierarchical RCU implementation.
+[    0.000000]  RCU restricting CPUs from NR_CPUS=8 to nr_cpu_ids=4.
+[    0.000000] RCU: Adjusting geometry for rcu_fanout_leaf=16, nr_cpu_ids=4
+[    0.000000] NR_IRQS:16 nr_irqs:16 16
+[    0.000000] GIC physical location is 0x10490000
+[    0.000000] L2C: failed to init: -19
+[    0.000000] Exynos4x12 clocks: sclk_apll = 800000000, sclk_mpll = 800000000
+[    0.000000]  sclk_epll = 96000000, sclk_vpll = 108000000, arm_clk = 800000000
+[    0.000000] Switching to timer-based delay loop, resolution 41ns
+[    0.000009] sched_clock: 32 bits at 24MHz, resolution 41ns, wraps every 178956969942ns
+[    0.000320] Console: colour dummy device 80x30
+[    0.000354] Calibrating delay loop (skipped), value calculated using timer frequency.. 48.00 BogoMIPS (lpj=120000)
+[    0.000374] pid_max: default: 32768 minimum: 301
+[    0.000548] Mount-cache hash table entries: 2048 (order: 1, 8192 bytes)
+[    0.000569] Mountpoint-cache hash table entries: 2048 (order: 1, 8192 bytes)
+[    0.001550] CPU: Testing write buffer coherency: ok
+[    0.002368] CPU0: thread -1, cpu 0, socket 10, mpidr 80000a00
+[    0.003787] Setting up static identity map for 0x4058c8e8 - 0x4058c940
+[    0.030829] CPU1: thread -1, cpu 1, socket 10, mpidr 80000a01
+[    0.040835] CPU2: thread -1, cpu 2, socket 10, mpidr 80000a02
+[    0.050814] CPU3: thread -1, cpu 3, socket 10, mpidr 80000a03
+[    0.050945] Brought up 4 CPUs
+[    0.050974] SMP: Total of 4 processors activated (192.00 BogoMIPS).
+[    0.050982] CPU: All CPU(s) started in SVC mode.
+[    0.052003] devtmpfs: initialized
+[    0.053971] VFP support v0.3: implementor 41 architecture 3 part 30 variant 9 rev 4
+[    0.059918] pinctrl core: initialized pinctrl subsystem
+[    0.090513] NET: Registered protocol family 16
+[    0.092392] DMA: preallocated 256 KiB pool for atomic coherent allocations
+[    0.100356] exynos-audss-clk 3810000.clock-controller: setup completed
+[    0.236974] SCSI subsystem initialized
+[    0.238405] usbcore: registered new interface driver usbfs
+[    0.238684] usbcore: registered new interface driver hub
+[    0.239039] usbcore: registered new device driver usb
+[    0.242515] max77693 11-0066: device ID: 0x4
+[    0.250155] i2c-gpio i2c-gpio-1: using pins 143 (SDA) and 144 (SCL)
+[    0.251786] i2c-gpio i2c-gpio-0: using pins 178 (SDA) and 179 (SCL)
+[    0.253207] i2c-gpio i2c-gpio-2: using pins 40 (SDA) and 41 (SCL)
+[    0.254112] s3c-i2c 13860000.i2c: slave address 0x10
+[    0.254137] s3c-i2c 13860000.i2c: bus frequency set to 390 KHz
+[    0.255436] s3c-i2c 13860000.i2c: i2c-0: S3C I2C adapter
+[    0.255969] s3c-i2c 13890000.i2c: slave address 0x10
+[    0.255996] s3c-i2c 13890000.i2c: bus frequency set to 390 KHz
+[    0.257233] s3c-i2c 13890000.i2c: i2c-3: S3C I2C adapter
+[    0.257714] s3c-i2c 138d0000.i2c: slave address 0x10
+[    0.257741] s3c-i2c 138d0000.i2c: bus frequency set to 97 KHz
+[    0.301353] VMEM_VDD_2.8V: Failed to create debugfs directory
+[    0.326139] s3c-i2c 138d0000.i2c: i2c-7: S3C I2C adapter
+[    0.326423] media: Linux media interface: v0.10
+[    0.326635] Linux video capture interface: v2.00
+[    0.328054] Advanced Linux Sound Architecture Driver Initialized.
+[    0.330037] cfg80211: Calling CRDA to update world regulatory domain
+[    0.330579] Switched to clocksource mct-frc
+[    0.360010] NET: Registered protocol family 2
+[    0.361023] TCP established hash table entries: 8192 (order: 3, 32768 bytes)
+[    0.361144] TCP bind hash table entries: 8192 (order: 5, 163840 bytes)
+[    0.361381] TCP: Hash tables configured (established 8192 bind 8192)
+[    0.361518] TCP: reno registered
+[    0.361543] UDP hash table entries: 512 (order: 2, 24576 bytes)
+[    0.361595] UDP-Lite hash table entries: 512 (order: 2, 24576 bytes)
+[    0.361956] NET: Registered protocol family 1
+[    0.365773] futex hash table entries: 1024 (order: 4, 65536 bytes)
+[    0.383716] romfs: ROMFS MTD (C) 2007 Red Hat, Inc.
+[    0.385755] bounce: pool size: 64 pages
+[    0.385790] io scheduler noop registered
+[    0.385810] io scheduler deadline registered
+[    0.386470] io scheduler cfq registered (default)
+[    0.387228] exynos-mipi-video-phy 10020710.video-phy: can't request region for resource [mem 0x10020710-0x10020717]
+[    0.387266] exynos-mipi-video-phy: probe of 10020710.video-phy failed with error -16
+[    0.399281] dma-pl330 12680000.pdma: Loaded driver for PL330 DMAC-141330
+[    0.399308] dma-pl330 12680000.pdma:         DBUFF-32x4bytes Num_Chans-8 Num_Peri-32 Num_Events-32
+[    0.407005] dma-pl330 12690000.pdma: Loaded driver for PL330 DMAC-141330
+[    0.407033] dma-pl330 12690000.pdma:         DBUFF-32x4bytes Num_Chans-8 Num_Peri-32 Num_Events-32
+[    0.409347] dma-pl330 12850000.mdma: Loaded driver for PL330 DMAC-141330
+[    0.409375] dma-pl330 12850000.mdma:         DBUFF-64x8bytes Num_Chans-8 Num_Peri-1 Num_Events-32
+[    0.598849] Serial: 8250/16550 driver, 4 ports, IRQ sharing disabled
+[    0.602485] 13800000.serial: ttySAC0 at MMIO 0x13800000 (irq = 55, base_baud = 0) is a S3C6400/10
+[    0.603470] 13810000.serial: ttySAC1 at MMIO 0x13810000 (irq = 56, base_baud = 0) is a S3C6400/10
+[    0.604452] 13820000.serial: ttySAC2 at MMIO 0x13820000 (irq = 57, base_baud = 0) is a S3C6400/10
+[    1.256886] console [ttySAC2] enabled
+[    1.261436] 13830000.serial: ttySAC3 at MMIO 0x13830000 (irq = 58, base_baud = 0) is a S3C6400/10
+[    1.271799] [drm] Initialized drm 1.1.0 20060810
+[    1.278214] exynos-dsi 11c80000.dsi: failed to get dsim phy
+[    1.282876] lcd0-power-domain: Power-off latency exceeded, new value 274833 ns
+[    1.289608] platform 11c80000.dsi: Driver exynos-dsi requests probe deferral
+[    1.298884] cam-power-domain: Power-off latency exceeded, new value 341750 ns
+[    1.305408] cam-power-domain: Power-on latency exceeded, new value 402625 ns
+[    1.313890] exynos-drm-fimc 11820000.fimc: drm fimc registered successfully.
+[    1.319565] ------------[ cut here ]------------
+[    1.324083] WARNING: CPU: 0 PID: 477 at drivers/clk/clk.c:845 clk_disable+0x24/0x30()
+[    1.331877] Modules linked in:
+[    1.334921] CPU: 0 PID: 477 Comm: kworker/0:1 Not tainted 3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    1.343509] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    1.349593] Workqueue: pm pm_runtime_work
+[    1.353613] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    1.361330] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    1.368533] [<c0585bbc>] (dump_stack) from [<c0022d38>] (warn_slowpath_common+0x74/0xb0)
+[    1.376590] [<c0022d38>] (warn_slowpath_common) from [<c0022d90>] (warn_slowpath_null+0x1c/0x24)
+[    1.385356] [<c0022d90>] (warn_slowpath_null) from [<c044cd2c>] (clk_disable+0x24/0x30)
+[    1.393357] [<c044cd2c>] (clk_disable) from [<c0296db4>] (fimc_clk_ctrl+0x60/0xe4)
+[    1.400909] [<c0296db4>] (fimc_clk_ctrl) from [<c02a3970>] (pm_generic_runtime_suspend+0x2c/0x38)
+[    1.409756] [<c02a3970>] (pm_generic_runtime_suspend) from [<c02aa7f8>] (pm_genpd_default_save_state+0x2c/0x8c)
+[    1.419817] [<c02aa7f8>] (pm_genpd_default_save_state) from [<c02aba1c>] (pm_genpd_poweroff+0x238/0x3d0)
+[    1.429275] [<c02aba1c>] (pm_genpd_poweroff) from [<c02abc90>] (pm_genpd_runtime_suspend+0xb8/0x104)
+[    1.438393] [<c02abc90>] (pm_genpd_runtime_suspend) from [<c02a4e44>] (__rpm_callback+0x2c/0x60)
+[    1.447156] [<c02a4e44>] (__rpm_callback) from [<c02a4e98>] (rpm_callback+0x20/0x80)
+[    1.454881] [<c02a4e98>] (rpm_callback) from [<c02a527c>] (rpm_suspend+0xc8/0x43c)
+[    1.462431] [<c02a527c>] (rpm_suspend) from [<c02a652c>] (pm_runtime_work+0x80/0x90)
+[    1.470165] [<c02a652c>] (pm_runtime_work) from [<c0035318>] (process_one_work+0x120/0x314)
+[    1.478492] [<c0035318>] (process_one_work) from [<c0035570>] (worker_thread+0x30/0x45c)
+[    1.486562] [<c0035570>] (worker_thread) from [<c0039f08>] (kthread+0xd8/0xf4)
+[    1.493772] [<c0039f08>] (kthread) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[    1.500982] ---[ end trace 825aeb5f24a2af95 ]---
+[    1.505731] ------------[ cut here ]------------
+[    1.510180] WARNING: CPU: 0 PID: 477 at drivers/clk/clk.c:754 clk_unprepare+0x20/0x28()
+[    1.518193] Modules linked in:
+[    1.521199] CPU: 0 PID: 477 Comm: kworker/0:1 Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    1.530944] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    1.537020] Workqueue: pm pm_runtime_work
+[    1.541007] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    1.548779] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    1.555972] [<c0585bbc>] (dump_stack) from [<c0022d38>] (warn_slowpath_common+0x74/0xb0)
+[    1.564029] [<c0022d38>] (warn_slowpath_common) from [<c0022d90>] (warn_slowpath_null+0x1c/0x24)
+[    1.572795] [<c0022d90>] (warn_slowpath_null) from [<c044d84c>] (clk_unprepare+0x20/0x28)
+[    1.580965] [<c044d84c>] (clk_unprepare) from [<c0296dbc>] (fimc_clk_ctrl+0x68/0xe4)
+[    1.588686] [<c0296dbc>] (fimc_clk_ctrl) from [<c02a3970>] (pm_generic_runtime_suspend+0x2c/0x38)
+[    1.597538] [<c02a3970>] (pm_generic_runtime_suspend) from [<c02aa7f8>] (pm_genpd_default_save_state+0x2c/0x8c)
+[    1.607600] [<c02aa7f8>] (pm_genpd_default_save_state) from [<c02aba1c>] (pm_genpd_poweroff+0x238/0x3d0)
+[    1.617057] [<c02aba1c>] (pm_genpd_poweroff) from [<c02abc90>] (pm_genpd_runtime_suspend+0xb8/0x104)
+[    1.626178] [<c02abc90>] (pm_genpd_runtime_suspend) from [<c02a4e44>] (__rpm_callback+0x2c/0x60)
+[    1.634940] [<c02a4e44>] (__rpm_callback) from [<c02a4e98>] (rpm_callback+0x20/0x80)
+[    1.642665] [<c02a4e98>] (rpm_callback) from [<c02a527c>] (rpm_suspend+0xc8/0x43c)
+[    1.650213] [<c02a527c>] (rpm_suspend) from [<c02a652c>] (pm_runtime_work+0x80/0x90)
+[    1.657947] [<c02a652c>] (pm_runtime_work) from [<c0035318>] (process_one_work+0x120/0x314)
+[    1.666272] [<c0035318>] (process_one_work) from [<c0035570>] (worker_thread+0x30/0x45c)
+[    1.674342] [<c0035570>] (worker_thread) from [<c0039f08>] (kthread+0xd8/0xf4)
+[    1.681553] [<c0039f08>] (kthread) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[    1.688744] ---[ end trace 825aeb5f24a2af96 ]---
+[    1.693351] ------------[ cut here ]------------
+[    1.697924] WARNING: CPU: 0 PID: 477 at drivers/clk/clk.c:845 clk_disable+0x24/0x30()
+[    1.705724] Modules linked in:
+[    1.708770] CPU: 0 PID: 477 Comm: kworker/0:1 Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    1.718485] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    1.724566] Workqueue: pm pm_runtime_work
+[    1.728574] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    1.736298] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    1.743502] [<c0585bbc>] (dump_stack) from [<c0022d38>] (warn_slowpath_common+0x74/0xb0)
+[    1.751567] [<c0022d38>] (warn_slowpath_common) from [<c0022d90>] (warn_slowpath_null+0x1c/0x24)
+[    1.760331] [<c0022d90>] (warn_slowpath_null) from [<c044cd2c>] (clk_disable+0x24/0x30)
+[    1.768326] [<c044cd2c>] (clk_disable) from [<c0296dc8>] (fimc_clk_ctrl+0x74/0xe4)
+[    1.775878] [<c0296dc8>] (fimc_clk_ctrl) from [<c02a3970>] (pm_generic_runtime_suspend+0x2c/0x38)
+[    1.784729] [<c02a3970>] (pm_generic_runtime_suspend) from [<c02aa7f8>] (pm_genpd_default_save_state+0x2c/0x8c)
+[    1.794791] [<c02aa7f8>] (pm_genpd_default_save_state) from [<c02aba1c>] (pm_genpd_poweroff+0x238/0x3d0)
+[    1.804251] [<c02aba1c>] (pm_genpd_poweroff) from [<c02abc90>] (pm_genpd_runtime_suspend+0xb8/0x104)
+[    1.813368] [<c02abc90>] (pm_genpd_runtime_suspend) from [<c02a4e44>] (__rpm_callback+0x2c/0x60)
+[    1.822132] [<c02a4e44>] (__rpm_callback) from [<c02a4e98>] (rpm_callback+0x20/0x80)
+[    1.829857] [<c02a4e98>] (rpm_callback) from [<c02a527c>] (rpm_suspend+0xc8/0x43c)
+[    1.837408] [<c02a527c>] (rpm_suspend) from [<c02a652c>] (pm_runtime_work+0x80/0x90)
+[    1.845136] [<c02a652c>] (pm_runtime_work) from [<c0035318>] (process_one_work+0x120/0x314)
+[    1.853466] [<c0035318>] (process_one_work) from [<c0035570>] (worker_thread+0x30/0x45c)
+[    1.861537] [<c0035570>] (worker_thread) from [<c0039f08>] (kthread+0xd8/0xf4)
+[    1.868747] [<c0039f08>] (kthread) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[    1.875941] ---[ end trace 825aeb5f24a2af97 ]---
+[    1.880598] ------------[ cut here ]------------
+[    1.885153] WARNING: CPU: 0 PID: 477 at drivers/clk/clk.c:754 clk_unprepare+0x20/0x28()
+[    1.893160] Modules linked in:
+[    1.896173] CPU: 0 PID: 477 Comm: kworker/0:1 Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    1.905914] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    1.911994] Workqueue: pm pm_runtime_work
+[    1.915983] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    1.923732] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    1.930940] [<c0585bbc>] (dump_stack) from [<c0022d38>] (warn_slowpath_common+0x74/0xb0)
+[    1.939000] [<c0022d38>] (warn_slowpath_common) from [<c0022d90>] (warn_slowpath_null+0x1c/0x24)
+[    1.947768] [<c0022d90>] (warn_slowpath_null) from [<c044d84c>] (clk_unprepare+0x20/0x28)
+[    1.955939] [<c044d84c>] (clk_unprepare) from [<c0296dd0>] (fimc_clk_ctrl+0x7c/0xe4)
+[    1.963662] [<c0296dd0>] (fimc_clk_ctrl) from [<c02a3970>] (pm_generic_runtime_suspend+0x2c/0x38)
+[    1.972513] [<c02a3970>] (pm_generic_runtime_suspend) from [<c02aa7f8>] (pm_genpd_default_save_state+0x2c/0x8c)
+[    1.982575] [<c02aa7f8>] (pm_genpd_default_save_state) from [<c02aba1c>] (pm_genpd_poweroff+0x238/0x3d0)
+[    1.992034] [<c02aba1c>] (pm_genpd_poweroff) from [<c02abc90>] (pm_genpd_runtime_suspend+0xb8/0x104)
+[    2.001158] [<c02abc90>] (pm_genpd_runtime_suspend) from [<c02a4e44>] (__rpm_callback+0x2c/0x60)
+[    2.009914] [<c02a4e44>] (__rpm_callback) from [<c02a4e98>] (rpm_callback+0x20/0x80)
+[    2.017641] [<c02a4e98>] (rpm_callback) from [<c02a527c>] (rpm_suspend+0xc8/0x43c)
+[    2.025190] [<c02a527c>] (rpm_suspend) from [<c02a652c>] (pm_runtime_work+0x80/0x90)
+[    2.032920] [<c02a652c>] (pm_runtime_work) from [<c0035318>] (process_one_work+0x120/0x314)
+[    2.041250] [<c0035318>] (process_one_work) from [<c0035570>] (worker_thread+0x30/0x45c)
+[    2.049320] [<c0035570>] (worker_thread) from [<c0039f08>] (kthread+0xd8/0xf4)
+[    2.056532] [<c0039f08>] (kthread) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[    2.063721] ---[ end trace 825aeb5f24a2af98 ]---
+[    2.069086] cam-power-domain: Power-on latency exceeded, new value 404959 ns
+[    2.076460] exynos-drm-fimc 11830000.fimc: drm fimc registered successfully.
+[    2.082649] ------------[ cut here ]------------
+[    2.086966] WARNING: CPU: 2 PID: 17 at drivers/clk/clk.c:845 clk_disable+0x24/0x30()
+[    2.094675] Modules linked in:
+[    2.097721] CPU: 2 PID: 17 Comm: kworker/2:0 Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    2.107348] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    2.113432] Workqueue: pm pm_runtime_work
+[    2.117449] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    2.125166] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    2.132370] [<c0585bbc>] (dump_stack) from [<c0022d38>] (warn_slowpath_common+0x74/0xb0)
+[    2.140430] [<c0022d38>] (warn_slowpath_common) from [<c0022d90>] (warn_slowpath_null+0x1c/0x24)
+[    2.149195] [<c0022d90>] (warn_slowpath_null) from [<c044cd2c>] (clk_disable+0x24/0x30)
+[    2.157195] [<c044cd2c>] (clk_disable) from [<c0296db4>] (fimc_clk_ctrl+0x60/0xe4)
+[    2.164745] [<c0296db4>] (fimc_clk_ctrl) from [<c02a3970>] (pm_generic_runtime_suspend+0x2c/0x38)
+[    2.173594] [<c02a3970>] (pm_generic_runtime_suspend) from [<c02aa7f8>] (pm_genpd_default_save_state+0x2c/0x8c)
+[    2.183657] [<c02aa7f8>] (pm_genpd_default_save_state) from [<c02aba1c>] (pm_genpd_poweroff+0x238/0x3d0)
+[    2.193116] [<c02aba1c>] (pm_genpd_poweroff) from [<c02abc90>] (pm_genpd_runtime_suspend+0xb8/0x104)
+[    2.202233] [<c02abc90>] (pm_genpd_runtime_suspend) from [<c02a4e44>] (__rpm_callback+0x2c/0x60)
+[    2.210997] [<c02a4e44>] (__rpm_callback) from [<c02a4e98>] (rpm_callback+0x20/0x80)
+[    2.218722] [<c02a4e98>] (rpm_callback) from [<c02a527c>] (rpm_suspend+0xc8/0x43c)
+[    2.226272] [<c02a527c>] (rpm_suspend) from [<c02a652c>] (pm_runtime_work+0x80/0x90)
+[    2.234004] [<c02a652c>] (pm_runtime_work) from [<c0035318>] (process_one_work+0x120/0x314)
+[    2.242331] [<c0035318>] (process_one_work) from [<c0035570>] (worker_thread+0x30/0x45c)
+[    2.250402] [<c0035570>] (worker_thread) from [<c0039f08>] (kthread+0xd8/0xf4)
+[    2.257611] [<c0039f08>] (kthread) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[    2.264805] ---[ end trace 825aeb5f24a2af99 ]---
+[    2.270894] ------------[ cut here ]------------
+[    2.274165] WARNING: CPU: 2 PID: 17 at drivers/clk/clk.c:754 clk_unprepare+0x20/0x28()
+[    2.282020] Modules linked in:[    2.282082] exynos-drm-ipp exynos-drm-ipp: drm ipp registered successfully.
+[    2.283962] exynos-drm exynos-drm: bound exynos-drm-vidi (ops vidi_component_ops)
+[    2.283975] [drm] Supports vblank timestamp caching Rev 2 (21.10.2013).
+[    2.283980] [drm] No driver support for vblank timestamp query.
+[    2.284099] [drm] Initialized exynos 1.0.0 20110530 on minor 0
+[    2.298463] brd: module loaded
+[    2.306052] loop: module loaded
+[    2.307317] s3c64xx-spi 13930000.spi: spi bus clock parent not specified, using clock at index 0 as parent
+[    2.307329] s3c64xx-spi 13930000.spi: number of chip select lines not specified, assuming 1 chip select line
+
+[    2.343172]
+[    2.344800] CPU: 2 PID: 17 Comm: kworker/2:0 Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    2.354460] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    2.360539] Workqueue: pm pm_runtime_work
+[    2.364530] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    2.372282] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    2.379485] [<c0585bbc>] (dump_stack) from [<c0022d38>] (warn_slowpath_common+0x74/0xb0)
+[    2.387548] [<c0022d38>] (warn_slowpath_common) from [<c0022d90>] (warn_slowpath_null+0x1c/0x24)
+[    2.396315] [<c0022d90>] (warn_slowpath_null) from [<c044d84c>] (clk_unprepare+0x20/0x28)
+[    2.404486] [<c044d84c>] (clk_unprepare) from [<c0296dbc>] (fimc_clk_ctrl+0x68/0xe4)
+[    2.412213] [<c0296dbc>] (fimc_clk_ctrl) from [<c02a3970>] (pm_generic_runtime_suspend+0x2c/0x38)
+[    2.421061] [<c02a3970>] (pm_generic_runtime_suspend) from [<c02aa7f8>] (pm_genpd_default_save_state+0x2c/0x8c)
+[    2.431119] [<c02aa7f8>] (pm_genpd_default_save_state) from [<c02aba1c>] (pm_genpd_poweroff+0x238/0x3d0)
+[    2.440585] [<c02aba1c>] (pm_genpd_poweroff) from [<c02abc90>] (pm_genpd_runtime_suspend+0xb8/0x104)
+[    2.449693] [<c02abc90>] (pm_genpd_runtime_suspend) from [<c02a4e44>] (__rpm_callback+0x2c/0x60)
+[    2.458457] [<c02a4e44>] (__rpm_callback) from [<c02a4e98>] (rpm_callback+0x20/0x80)
+[    2.466179] [<c02a4e98>] (rpm_callback) from [<c02a527c>] (rpm_suspend+0xc8/0x43c)
+[    2.473730] [<c02a527c>] (rpm_suspend) from [<c02a652c>] (pm_runtime_work+0x80/0x90)
+[    2.481462] [<c02a652c>] (pm_runtime_work) from [<c0035318>] (process_one_work+0x120/0x314)
+[    2.489788] [<c0035318>] (process_one_work) from [<c0035570>] (worker_thread+0x30/0x45c)
+[    2.497861] [<c0035570>] (worker_thread) from [<c0039f08>] (kthread+0xd8/0xf4)
+[    2.505071] [<c0039f08>] (kthread) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[    2.512262] ---[ end trace 825aeb5f24a2af9a ]---
+[    2.516867] ------------[ cut here ]------------
+[    2.521441] WARNING: CPU: 2 PID: 17 at drivers/clk/clk.c:845 clk_disable+0x24/0x30()
+[    2.529152] Modules linked in:
+[    2.532198] CPU: 2 PID: 17 Comm: kworker/2:0 Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    2.541826] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    2.547908] Workqueue: pm pm_runtime_work
+[    2.551918] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    2.559640] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    2.566844] [<c0585bbc>] (dump_stack) from [<c0022d38>] (warn_slowpath_common+0x74/0xb0)
+[    2.574907] [<c0022d38>] (warn_slowpath_common) from [<c0022d90>] (warn_slowpath_null+0x1c/0x24)
+[    2.583672] [<c0022d90>] (warn_slowpath_null) from [<c044cd2c>] (clk_disable+0x24/0x30)
+[    2.591671] [<c044cd2c>] (clk_disable) from [<c0296dc8>] (fimc_clk_ctrl+0x74/0xe4)
+[    2.599221] [<c0296dc8>] (fimc_clk_ctrl) from [<c02a3970>] (pm_generic_runtime_suspend+0x2c/0x38)
+[    2.608071] [<c02a3970>] (pm_generic_runtime_suspend) from [<c02aa7f8>] (pm_genpd_default_save_state+0x2c/0x8c)
+[    2.618135] [<c02aa7f8>] (pm_genpd_default_save_state) from [<c02aba1c>] (pm_genpd_poweroff+0x238/0x3d0)
+[    2.627593] [<c02aba1c>] (pm_genpd_poweroff) from [<c02abc90>] (pm_genpd_runtime_suspend+0xb8/0x104)
+[    2.636710] [<c02abc90>] (pm_genpd_runtime_suspend) from [<c02a4e44>] (__rpm_callback+0x2c/0x60)
+[    2.645474] [<c02a4e44>] (__rpm_callback) from [<c02a4e98>] (rpm_callback+0x20/0x80)
+[    2.653198] [<c02a4e98>] (rpm_callback) from [<c02a527c>] (rpm_suspend+0xc8/0x43c)
+[    2.660749] [<c02a527c>] (rpm_suspend) from [<c02a652c>] (pm_runtime_work+0x80/0x90)
+[    2.668478] [<c02a652c>] (pm_runtime_work) from [<c0035318>] (process_one_work+0x120/0x314)
+[    2.676807] [<c0035318>] (process_one_work) from [<c0035570>] (worker_thread+0x30/0x45c)
+[    2.684879] [<c0035570>] (worker_thread) from [<c0039f08>] (kthread+0xd8/0xf4)
+[    2.692088] [<c0039f08>] (kthread) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[    2.699283] ---[ end trace 825aeb5f24a2af9b ]---
+[    2.703955] ------------[ cut here ]------------
+[    2.708525] WARNING: CPU: 2 PID: 17 at drivers/clk/clk.c:754 clk_unprepare+0x20/0x28()
+[    2.716411] Modules linked in:
+[    2.719426] CPU: 2 PID: 17 Comm: kworker/2:0 Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    2.729083] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    2.735164] Workqueue: pm pm_runtime_work
+[    2.739149] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    2.746903] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    2.754105] [<c0585bbc>] (dump_stack) from [<c0022d38>] (warn_slowpath_common+0x74/0xb0)
+[    2.762171] [<c0022d38>] (warn_slowpath_common) from [<c0022d90>] (warn_slowpath_null+0x1c/0x24)
+[    2.770938] [<c0022d90>] (warn_slowpath_null) from [<c044d84c>] (clk_unprepare+0x20/0x28)
+[    2.779106] [<c044d84c>] (clk_unprepare) from [<c0296dd0>] (fimc_clk_ctrl+0x7c/0xe4)
+[    2.786835] [<c0296dd0>] (fimc_clk_ctrl) from [<c02a3970>] (pm_generic_runtime_suspend+0x2c/0x38)
+[    2.795682] [<c02a3970>] (pm_generic_runtime_suspend) from [<c02aa7f8>] (pm_genpd_default_save_state+0x2c/0x8c)
+[    2.805742] [<c02aa7f8>] (pm_genpd_default_save_state) from [<c02aba1c>] (pm_genpd_poweroff+0x238/0x3d0)
+[    2.815203] [<c02aba1c>] (pm_genpd_poweroff) from [<c02abc90>] (pm_genpd_runtime_suspend+0xb8/0x104)
+[    2.824321] [<c02abc90>] (pm_genpd_runtime_suspend) from [<c02a4e44>] (__rpm_callback+0x2c/0x60)
+[    2.833085] [<c02a4e44>] (__rpm_callback) from [<c02a4e98>] (rpm_callback+0x20/0x80)
+[    2.840809] [<c02a4e98>] (rpm_callback) from [<c02a527c>] (rpm_suspend+0xc8/0x43c)
+[    2.848358] [<c02a527c>] (rpm_suspend) from [<c02a652c>] (pm_runtime_work+0x80/0x90)
+[    2.856088] [<c02a652c>] (pm_runtime_work) from [<c0035318>] (process_one_work+0x120/0x314)
+[    2.864417] [<c0035318>] (process_one_work) from [<c0035570>] (worker_thread+0x30/0x45c)
+[    2.872489] [<c0035570>] (worker_thread) from [<c0039f08>] (kthread+0xd8/0xf4)
+[    2.879699] [<c0039f08>] (kthread) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[    2.886890] ---[ end trace 825aeb5f24a2af9c ]---
+[    2.893695] Broadcom 43xx driver loaded [ Features: N ]
+[    2.898014] usbcore: registered new interface driver asix
+[    2.903217] usbcore: registered new interface driver ax88179_178a
+[    2.909092] usbcore: registered new interface driver cdc_ether
+[    2.914932] usbcore: registered new interface driver smsc75xx
+[    2.920775] usbcore: registered new interface driver smsc95xx
+[    2.926366] usbcore: registered new interface driver net1080
+[    2.932002] usbcore: registered new interface driver cdc_subset
+[    2.937907] usbcore: registered new interface driver zaurus
+[    2.943532] usbcore: registered new interface driver cdc_ncm
+[    2.950051] ehci_hcd: USB 2.0 'Enhanced' Host Controller (EHCI) Driver
+[    2.955530] ehci-exynos: EHCI EXYNOS driver
+[    2.960007] ohci_hcd: USB 1.1 'Open' Host Controller (OHCI) Driver
+[    2.965865] ohci-exynos: OHCI EXYNOS driver
+[    2.970496] usbcore: registered new interface driver usb-storage
+[    2.977201] mousedev: PS/2 mouse device common for all mice
+[    2.982977] max77686-rtc max77686-rtc: max77686_rtc_probe
+[    3.087176] max77686-rtc max77686-rtc: rtc core: registered max77686-rtc as rtc0
+[    3.095691] i2c /dev entries driver
+[    3.103354] i2c 0-003c: Driver S5C73M3 requests probe deferral
+[    3.109231] cam-power-domain: Power-on latency exceeded, new value 429709 ns
+[    3.114976] platform 11880000.csis: Driver s5p-mipi-csis requests probe deferral
+[    3.122249] cam-power-domain: Power-off latency exceeded, new value 7314708 ns
+[    3.130639] platform 11890000.csis: Driver s5p-mipi-csis requests probe deferral
+[    3.140501] i2c 1-0010: Driver S5K6A3 requests probe deferral
+[    3.149650] ERROR: could not get clock /camera/fimc-is@12000000:uart(13)
+[    3.154942] exynos4-fimc-is 12000000.fimc-is: failed to get clock: uart
+[    3.161654] exynos4-fimc-is: probe of 12000000.fimc-is failed with error -2
+[    3.168504] isp-power-domain: Power-off latency exceeded, new value 6942709 ns
+[    3.181501] s5p-fimc-md: Registered fimc.0.m2m as /dev/video0
+[    3.186285] s5p-fimc-md: Registered fimc.0.capture as /dev/video1
+[    3.192355] s5p-fimc-md: Registered fimc.1.m2m as /dev/video2
+[    3.198065] s5p-fimc-md: Registered fimc.1.capture as /dev/video3
+[    3.203815] s5p-fimc-md camera: deferring 11880000.csis device registration
+[    3.211889] s5p-fimc-md: Unregistered all entities
+[    3.215795] platform camera: Driver s5p-fimc-md requests probe deferral
+[    3.225968] exynos-tmu 100c0000.tmu: Failed to register cpufreq cooling device: -38
+[    3.232190] Invalid temperature sensor configuration data
+[    3.237562] exynos-tmu 100c0000.tmu: Failed to register thermal interface: -38
+[    3.244870] exynos-tmu: probe of 100c0000.tmu failed with error -38
+[    3.253289] device-mapper: ioctl: 4.29.0-ioctl (2014-10-28) initialised: dm-devel@redhat.com
+[    3.260328] Driver 'mmcblk' needs updating - please use bus_type methods
+[    3.267194] sdhci: Secure Digital Host Controller Interface driver
+[    3.273148] sdhci: Copyright(c) Pierre Ossman
+[    3.278462] s3c-sdhci 12530000.sdhci: clock source 2: mmc_busclk.2 (50000000 Hz)
+[    3.285067] s3c-sdhci 12530000.sdhci: Got CD GPIO
+[    3.290068] s3c-sdhci 12530000.sdhci: No vqmmc regulator found
+[    3.325957] mmc0: SDHCI controller on samsung-hsmmc [12530000.sdhci] using ADMA
+[    3.332233] Synopsys Designware Multimedia Card Interface Driver
+[    3.339609] dwmmc_exynos 12550000.mmc: IDMAC supports 32-bit address mode.
+[    3.345162] dwmmc_exynos 12550000.mmc: Using internal DMA controller.
+[    3.351509] dwmmc_exynos 12550000.mmc: Version ID is 240a
+[    3.356921] dwmmc_exynos 12550000.mmc: DW MMC controller at irq 99, 32 bit host data width, 128 deep fifo
+[    3.366764] dwmmc_exynos 12550000.mmc: No vqmmc regulator found
+[    3.400754] dwmmc_exynos 12550000.mmc: 1 slots initialized
+[    3.410805] usbcore: registered new interface driver usbhid
+[    3.414964] usbhid: USB HID core driver
+[    3.420933] input: max77693-muic/dock as /devices/platform/i2c-gpio-1/i2c-11/11-0066/max77693-muic/input/input0
+[    3.462546] max77693-muic max77693-muic: CONTROL1 : 0x1b, CONTROL2 : 0x04, state : attached
+[    3.469910] max77693-muic max77693-muic: device ID : 0x8d
+[    3.476195] ERROR: could not get clock /adc@126C0000:adc(0)
+[    3.480379] exynos-adc 126c0000.adc: failed getting clock, err = -2
+[    3.486764] exynos-adc: probe of 126c0000.adc failed with error -2
+[    3.496433] TCP: cubic registered
+[    3.498294] NET: Registered protocol family 17
+[    3.502893] NET: Registered protocol family 15
+[    3.507579] Registering SWP/SWPB emulation handler
+[    3.514508] lcd0-power-domain: Power-on latency exceeded, new value 431208 ns
+[    3.521140] exynos-dsi 11c80000.dsi: failed to get dsim phy
+[    3.526116] lcd0-power-domain: Power-off latency exceeded, new value 278959 ns
+[    3.530676] platform 11c80000.dsi: Driver exynos-dsi requests probe deferral
+[    3.531080] i2c 0-003c: Driver S5C73M3 requests probe deferral
+[    3.531957] platform 11880000.csis: Driver s5p-mipi-csis requests probe deferral
+[    3.533424] platform 11890000.csis: Driver s5p-mipi-csis requests probe deferral
+[    3.533822] i2c 1-0010: Driver S5K6A3 requests probe deferral
+[    3.536301] s5p-fimc-md: Registered fimc.0.m2m as /dev/video0
+[    3.536668] s5p-fimc-md: Registered fimc.0.capture as /dev/video1
+[    3.537037] s5p-fimc-md: Registered fimc.1.m2m as /dev/video2
+[    3.537419] s5p-fimc-md: Registered fimc.1.capture as /dev/video3
+[    3.537497] s5p-fimc-md camera: deferring 11880000.csis device registration
+[    3.538559] s5p-fimc-md: Unregistered all entities
+[    3.538856] platform camera: Driver s5p-fimc-md requests probe deferral
+[    3.540535] input: gpio-keys as /devices/platform/gpio-keys/input/input1
+[    3.540999] gps-alive-power-domain: Power-off latency exceeded, new value 304292 ns
+[    3.541340] gps-power-domain: Power-off latency exceeded, new value 302542 ns
+[    3.541565] tv-power-domain: Power-off latency exceeded, new value 184583 ns
+[    3.541916] g3d-power-domain: Power-off latency exceeded, new value 314625 ns
+[    3.542256] mfc-power-domain: Power-off latency exceeded, new value 303792 ns
+[    3.572091] max77686-rtc max77686-rtc: setting system clock to 2000-01-01 02:00:29 UTC (946692029)
+[    3.600448] CHARGER: disabling
+[    3.602163] ESAFEOUT1: disabling
+[    3.604517] vdd_g3d: disabling
+[    3.606567] LCD_VCC_3.3V: disabling
+[    3.609626] VDDQ_PRE_1.8V: disabling
+[    3.612671] VHSIC_1.8V: disabling
+[    3.614105] VHSIC_1.0V: disabling
+[    3.616120] VUOTG_3.0V: disabling
+[    3.618075] VMIPI_1.0V: disabling
+[    3.619074] LED_A_3.0V: disabling
+[    3.619085] CAM_AF: disabling
+[    3.619092] LCD_VDD_2.2V: disabling
+[    3.619098] CAM_SENSOR_A: disabling
+[    3.624206] mmc_host mmc1: Bus speed (slot 0) = 50000000Hz (slot req 52000000Hz, actual 50000000HZ div = 0)
+[    3.624502] mmc_host mmc1: Bus speed (slot 0) = 100000000Hz (slot req 52000000Hz, actual 50000000HZ div = 1)
+[    3.624659] mmc1: new DDR MMC card at address 0001
+[    3.625342] ALSA device list:
+[    3.625348]   No soundcards found.
+[    3.625485] mmcblk0: mmc1:0001 VTU00M 14.6 GiB
+[    3.625849] mmcblk0boot0: mmc1:0001 VTU00M partition 1 2.00 MiB
+[    3.626094] mmcblk0boot1: mmc1:0001 VTU00M partition 2 2.00 MiB
+[    3.626335] mmcblk0rpmb: mmc1:0001 VTU00M partition 3 128 KiB
+[    3.632879]  mmcblk0: p1 p2 p3 p4 p5 p6 p7
+[    3.760739] lcd0-power-domain: Power-on latency exceeded, new value 451250 ns
+[    3.767020] exynos-dsi 11c80000.dsi: failed to get dsim phy
+[    3.772384] platform 11c80000.dsi: Driver exynos-dsi requests probe deferral
+[    3.780480] i2c 0-003c: Driver S5C73M3 requests probe deferral
+[    3.788188] platform 11880000.csis: Driver s5p-mipi-csis requests probe deferral
+[    3.796030] EXT4-fs (mmcblk0p5): warning: mounting fs with errors, running e2fsck is recommended
+[    3.804043] cam-power-domain: Power-on latency exceeded, new value 450833 ns
+[    3.811314] EXT4-fs (mmcblk0p5): mounted filesystem with ordered data mode. Opts: (null)
+[    3.818542] VFS: Mounted root (ext4 filesystem) on device 179:5.
+[    3.820720] platform 11890000.csis: Driver s5p-mipi-csis requests probe deferral
+[    3.821148] i2c 1-0010: Driver S5K6A3 requests probe deferral
+[    3.823866] s5p-fimc-md: Registered fimc.0.m2m as /dev/video0
+[    3.824377] s5p-fimc-md: Registered fimc.0.capture as /dev/video1
+[    3.824896] s5p-fimc-md: Registered fimc.1.m2m as /dev/video2
+[    3.825438] s5p-fimc-md: Registered fimc.1.capture as /dev/video3
+[    3.825523] s5p-fimc-md camera: deferring 11880000.csis device registration
+[    3.827191] s5p-fimc-md: Unregistered all entities
+[    3.827614] platform camera: Driver s5p-fimc-md requests probe deferral
+[    3.828934] exynos-dsi 11c80000.dsi: failed to get dsim phy
+[    3.829287] platform 11c80000.dsi: Driver exynos-dsi requests probe deferral
+[    3.894705] devtmpfs: mounted
+[    3.897002] Freeing unused kernel memory: 320K (c07ee000 - c083e000)
+[    3.902593] BUG: using smp_processor_id() in preemptible [00000000] code: swapper/0/1
+[    3.910400] caller is kmem_cache_alloc+0x5c/0x158
+[    3.915075] CPU: 0 PID: 1 Comm: swapper/0 Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    3.924440] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    3.930551] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    3.938271] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    3.945471] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[    3.954067] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[    3.963174] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d79dc>] (getname_kernel+0x30/0x70)
+[    3.971240] [<c00d79dc>] (getname_kernel) from [<c0008878>] (run_init_process+0x18/0x28)
+[    3.979310] [<c0008878>] (run_init_process) from [<c0008894>] (try_to_run_init_process+0xc/0x3c)
+[    3.988080] [<c0008894>] (try_to_run_init_process) from [<c0581ec4>] (kernel_init+0x88/0xec)
+[    3.996502] [<c0581ec4>] (kernel_init) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[    4.004042] BUG: using smp_processor_id() in preemptible [00000000] code: swapper/0/1
+[    4.011859] caller is kmem_cache_alloc+0x5c/0x158
+[    4.016538] CPU: 0 PID: 1 Comm: swapper/0 Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    4.025909] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    4.032006] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    4.039732] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    4.046935] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[    4.055526] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[    4.064647] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d03f4>] (do_execveat_common+0x9c/0x5bc)
+[    4.073150] [<c00d03f4>] (do_execveat_common) from [<c00d093c>] (do_execve+0x28/0x30)
+[    4.080954] [<c00d093c>] (do_execve) from [<c0008894>] (try_to_run_init_process+0xc/0x3c)
+[    4.089117] [<c0008894>] (try_to_run_init_process) from [<c0581ec4>] (kernel_init+0x88/0xec)
+[    4.097550] [<c0581ec4>] (kernel_init) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[    4.105087] BUG: using smp_processor_id() in preemptible [00000000] code: swapper/0/1
+[    4.112898] caller is kmem_cache_alloc+0x5c/0x158
+[    4.117576] CPU: 0 PID: 1 Comm: swapper/0 Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    4.126944] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    4.133042] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    4.140767] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    4.147971] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[    4.156560] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[    4.165682] [<c00c4a9c>] (kmem_cache_alloc) from [<c003b5b0>] (prepare_creds+0x24/0x84)
+[    4.173664] [<c003b5b0>] (prepare_creds) from [<c00d0318>] (prepare_bprm_creds+0x30/0x70)
+[    4.181821] [<c00d0318>] (prepare_bprm_creds) from [<c00d0400>] (do_execveat_common+0xa8/0x5bc)
+[    4.190492] [<c00d0400>] (do_execveat_common) from [<c00d093c>] (do_execve+0x28/0x30)
+[    4.198308] [<c00d093c>] (do_execve) from [<c0008894>] (try_to_run_init_process+0xc/0x3c)
+[    4.206471] [<c0008894>] (try_to_run_init_process) from [<c0581ec4>] (kernel_init+0x88/0xec)
+[    4.214888] [<c0581ec4>] (kernel_init) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[    4.222438] BUG: using smp_processor_id() in preemptible [00000000] code: swapper/0/1
+[    4.230249] caller is kmem_cache_alloc+0x5c/0x158
+[    4.234929] CPU: 0 PID: 1 Comm: swapper/0 Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    4.244297] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    4.250395] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    4.258118] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    4.265323] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[    4.273916] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[    4.283027] [<c00c4a9c>] (kmem_cache_alloc) from [<c00cbc3c>] (get_empty_filp+0x6c/0x1d0)
+[    4.291185] [<c00cbc3c>] (get_empty_filp) from [<c00d6b58>] (path_openat+0x24/0x56c)
+[    4.298906] [<c00d6b58>] (path_openat) from [<c00d7c0c>] (do_filp_open+0x2c/0x80)
+[    4.306376] [<c00d7c0c>] (do_filp_open) from [<c00ced48>] (do_open_execat+0x68/0x158)
+[    4.314185] [<c00ced48>] (do_open_execat) from [<c00d04dc>] (do_execveat_common+0x184/0x5bc)
+[    4.322606] [<c00d04dc>] (do_execveat_common) from [<c00d093c>] (do_execve+0x28/0x30)
+[    4.330416] [<c00d093c>] (do_execve) from [<c0008894>] (try_to_run_init_process+0xc/0x3c)
+[    4.338580] [<c0008894>] (try_to_run_init_process) from [<c0581ec4>] (kernel_init+0x88/0xec)
+[    4.346999] [<c0581ec4>] (kernel_init) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[    4.354558] BUG: using smp_processor_id() in preemptible [00000000] code: swapper/0/1
+[    4.362361] caller is kmem_cache_alloc+0x5c/0x158
+[    4.367042] CPU: 0 PID: 1 Comm: swapper/0 Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    4.376409] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    4.382503] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    4.390228] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    4.397434] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[    4.406024] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[    4.415142] [<c00c4a9c>] (kmem_cache_alloc) from [<c00df290>] (__d_alloc+0x1c/0x150)
+[    4.422861] [<c00df290>] (__d_alloc) from [<c00df624>] (d_alloc+0x10/0x60)
+[    4.429715] [<c00df624>] (d_alloc) from [<c00d32b8>] (lookup_dcache+0x7c/0x9c)
+[    4.436919] [<c00d32b8>] (lookup_dcache) from [<c00d32f0>] (__lookup_hash+0x18/0x44)
+[    4.444642] [<c00d32f0>] (__lookup_hash) from [<c00d3354>] (lookup_slow+0x38/0x98)
+[    4.452193] [<c00d3354>] (lookup_slow) from [<c00d5954>] (link_path_walk+0x314/0x830)
+[    4.460007] [<c00d5954>] (link_path_walk) from [<c00d6b88>] (path_openat+0x54/0x56c)
+[    4.467731] [<c00d6b88>] (path_openat) from [<c00d7c0c>] (do_filp_open+0x2c/0x80)
+[    4.475199] [<c00d7c0c>] (do_filp_open) from [<c00ced48>] (do_open_execat+0x68/0x158)
+[    4.483013] [<c00ced48>] (do_open_execat) from [<c00d04dc>] (do_execveat_common+0x184/0x5bc)
+[    4.491432] [<c00d04dc>] (do_execveat_common) from [<c00d093c>] (do_execve+0x28/0x30)
+[    4.499256] [<c00d093c>] (do_execve) from [<c0008894>] (try_to_run_init_process+0xc/0x3c)
+[    4.507411] [<c0008894>] (try_to_run_init_process) from [<c0581ec4>] (kernel_init+0x88/0xec)
+[    4.515847] [<c0581ec4>] (kernel_init) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[    4.523455] BUG: using smp_processor_id() in preemptible [00000000] code: swapper/0/1
+[    4.531199] caller is kmem_cache_alloc+0x5c/0x158
+[    4.535870] CPU: 0 PID: 1 Comm: swapper/0 Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    4.545233] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    4.551337] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    4.559060] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    4.566266] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[    4.574851] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[    4.583971] [<c00c4a9c>] (kmem_cache_alloc) from [<c01567c8>] (ext4_alloc_inode+0x14/0x128)
+[    4.592295] [<c01567c8>] (ext4_alloc_inode) from [<c00e0c1c>] (alloc_inode+0x1c/0x9c)
+[    4.600102] [<c00e0c1c>] (alloc_inode) from [<c00e1760>] (iget_locked+0xa4/0x140)
+[    4.607568] [<c00e1760>] (iget_locked) from [<c0148e10>] (ext4_iget+0x2c/0x95c)
+[    4.614859] [<c0148e10>] (ext4_iget) from [<c0152460>] (ext4_lookup+0x84/0x164)
+[    4.622162] [<c0152460>] (ext4_lookup) from [<c00d2520>] (lookup_real+0x20/0x50)
+[    4.629528] [<c00d2520>] (lookup_real) from [<c00d330c>] (__lookup_hash+0x34/0x44)
+[    4.637080] [<c00d330c>] (__lookup_hash) from [<c00d3354>] (lookup_slow+0x38/0x98)
+[    4.644631] [<c00d3354>] (lookup_slow) from [<c00d5954>] (link_path_walk+0x314/0x830)
+[    4.652444] [<c00d5954>] (link_path_walk) from [<c00d6b88>] (path_openat+0x54/0x56c)
+[    4.660166] [<c00d6b88>] (path_openat) from [<c00d7c0c>] (do_filp_open+0x2c/0x80)
+[    4.667634] [<c00d7c0c>] (do_filp_open) from [<c00ced48>] (do_open_execat+0x68/0x158)
+[    4.675444] [<c00ced48>] (do_open_execat) from [<c00d04dc>] (do_execveat_common+0x184/0x5bc)
+[    4.683867] [<c00d04dc>] (do_execveat_common) from [<c00d093c>] (do_execve+0x28/0x30)
+[    4.691680] [<c00d093c>] (do_execve) from [<c0008894>] (try_to_run_init_process+0xc/0x3c)
+[    4.699842] [<c0008894>] (try_to_run_init_process) from [<c0581ec4>] (kernel_init+0x88/0xec)
+[    4.708264] [<c0581ec4>] (kernel_init) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[    4.715849] BUG: using smp_processor_id() in preemptible [00000000] code: swapper/0/1
+[    4.723628] caller is kmem_cache_alloc+0x5c/0x158
+[    4.728302] CPU: 0 PID: 1 Comm: swapper/0 Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    4.737669] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    4.743768] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    4.751495] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    4.758699] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[    4.767286] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[    4.776404] [<c00c4a9c>] (kmem_cache_alloc) from [<c00df290>] (__d_alloc+0x1c/0x150)
+[    4.784121] [<c00df290>] (__d_alloc) from [<c00df624>] (d_alloc+0x10/0x60)
+[    4.790978] [<c00df624>] (d_alloc) from [<c00d32b8>] (lookup_dcache+0x7c/0x9c)
+[    4.798180] [<c00d32b8>] (lookup_dcache) from [<c00d4e50>] (do_last.isra.37+0x398/0xb88)
+[    4.806252] [<c00d4e50>] (do_last.isra.37) from [<c00d6bb0>] (path_openat+0x7c/0x56c)
+[    4.814063] [<c00d6bb0>] (path_openat) from [<c00d7c0c>] (do_filp_open+0x2c/0x80)
+[    4.821536] [<c00d7c0c>] (do_filp_open) from [<c00ced48>] (do_open_execat+0x68/0x158)
+[    4.829342] [<c00ced48>] (do_open_execat) from [<c00d04dc>] (do_execveat_common+0x184/0x5bc)
+[    4.837765] [<c00d04dc>] (do_execveat_common) from [<c00d093c>] (do_execve+0x28/0x30)
+[    4.845584] [<c00d093c>] (do_execve) from [<c0008894>] (try_to_run_init_process+0xc/0x3c)
+[    4.853737] [<c0008894>] (try_to_run_init_process) from [<c0581ec4>] (kernel_init+0x88/0xec)
+[    4.862158] [<c0581ec4>] (kernel_init) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[    4.869709] BUG: using smp_processor_id() in preemptible [00000000] code: swapper/0/1
+[    4.877519] caller is __kmalloc+0x74/0x194
+[    4.881587] CPU: 0 PID: 1 Comm: swapper/0 Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    4.890960] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    4.897070] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    4.904784] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    4.911988] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[    4.920583] [<c01e79e0>] (check_preemption_disabled) from [<c00c4c90>] (__kmalloc+0x74/0x194)
+[    4.929089] [<c00c4c90>] (__kmalloc) from [<c01626f4>] (ext4_find_extent+0x274/0x33c)
+[    4.936891] [<c01626f4>] (ext4_find_extent) from [<c0165dc0>] (ext4_ext_map_blocks+0x48/0xf98)
+[    4.945479] [<c0165dc0>] (ext4_ext_map_blocks) from [<c0148490>] (ext4_map_blocks+0x78/0x488)
+[    4.953986] [<c0148490>] (ext4_map_blocks) from [<c01488e8>] (ext4_getblk+0x48/0x17c)
+[    4.961798] [<c01488e8>] (ext4_getblk) from [<c0151f60>] (ext4_find_entry+0x158/0x5d4)
+[    4.969695] [<c0151f60>] (ext4_find_entry) from [<c0152418>] (ext4_lookup+0x3c/0x164)
+[    4.977519] [<c0152418>] (ext4_lookup) from [<c00d2520>] (lookup_real+0x20/0x50)
+[    4.984890] [<c00d2520>] (lookup_real) from [<c00d51d8>] (do_last.isra.37+0x720/0xb88)
+[    4.992787] [<c00d51d8>] (do_last.isra.37) from [<c00d6bb0>] (path_openat+0x7c/0x56c)
+[    5.000598] [<c00d6bb0>] (path_openat) from [<c00d7c0c>] (do_filp_open+0x2c/0x80)
+[    5.008061] [<c00d7c0c>] (do_filp_open) from [<c00ced48>] (do_open_execat+0x68/0x158)
+[    5.015876] [<c00ced48>] (do_open_execat) from [<c00d04dc>] (do_execveat_common+0x184/0x5bc)
+[    5.024293] [<c00d04dc>] (do_execveat_common) from [<c00d093c>] (do_execve+0x28/0x30)
+[    5.032109] [<c00d093c>] (do_execve) from [<c0008894>] (try_to_run_init_process+0xc/0x3c)
+[    5.040275] [<c0008894>] (try_to_run_init_process) from [<c0581ec4>] (kernel_init+0x88/0xec)
+[    5.048691] [<c0581ec4>] (kernel_init) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[    5.056238] BUG: using smp_processor_id() in preemptible [00000000] code: swapper/0/1
+[    5.064047] caller is kfree+0x8c/0x198
+[    5.067777] CPU: 0 PID: 1 Comm: swapper/0 Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    5.077144] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    5.083239] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    5.090965] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    5.098169] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[    5.106759] [<c01e79e0>] (check_preemption_disabled) from [<c00c501c>] (kfree+0x8c/0x198)
+[    5.114916] [<c00c501c>] (kfree) from [<c016618c>] (ext4_ext_map_blocks+0x414/0xf98)
+[    5.122640] [<c016618c>] (ext4_ext_map_blocks) from [<c0148490>] (ext4_map_blocks+0x78/0x488)
+[    5.131145] [<c0148490>] (ext4_map_blocks) from [<c01488e8>] (ext4_getblk+0x48/0x17c)
+[    5.138958] [<c01488e8>] (ext4_getblk) from [<c0151f60>] (ext4_find_entry+0x158/0x5d4)
+[    5.146856] [<c0151f60>] (ext4_find_entry) from [<c0152418>] (ext4_lookup+0x3c/0x164)
+[    5.154673] [<c0152418>] (ext4_lookup) from [<c00d2520>] (lookup_real+0x20/0x50)
+[    5.162051] [<c00d2520>] (lookup_real) from [<c00d51d8>] (do_last.isra.37+0x720/0xb88)
+[    5.169945] [<c00d51d8>] (do_last.isra.37) from [<c00d6bb0>] (path_openat+0x7c/0x56c)
+[    5.177756] [<c00d6bb0>] (path_openat) from [<c00d7c0c>] (do_filp_open+0x2c/0x80)
+[    5.185223] [<c00d7c0c>] (do_filp_open) from [<c00ced48>] (do_open_execat+0x68/0x158)
+[    5.193036] [<c00ced48>] (do_open_execat) from [<c00d04dc>] (do_execveat_common+0x184/0x5bc)
+[    5.201454] [<c00d04dc>] (do_execveat_common) from [<c00d093c>] (do_execve+0x28/0x30)
+[    5.209266] [<c00d093c>] (do_execve) from [<c0008894>] (try_to_run_init_process+0xc/0x3c)
+[    5.217431] [<c0008894>] (try_to_run_init_process) from [<c0581ec4>] (kernel_init+0x88/0xec)
+[    5.225849] [<c0581ec4>] (kernel_init) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[    5.233431] BUG: using smp_processor_id() in preemptible [00000000] code: swapper/0/1
+[    5.241218] caller is kmem_cache_alloc+0x5c/0x158
+[    5.245894] CPU: 0 PID: 1 Comm: swapper/0 Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    5.255258] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    5.261358] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    5.269081] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    5.276285] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[    5.284876] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[    5.293990] [<c00c4a9c>] (kmem_cache_alloc) from [<c00f3784>] (alloc_buffer_head+0x14/0x98)
+[    5.302330] [<c00f3784>] (alloc_buffer_head) from [<c00f3e1c>] (alloc_page_buffers+0x2c/0x9c)
+[    5.310826] [<c00f3e1c>] (alloc_page_buffers) from [<c00f45b8>] (__getblk_slow+0x164/0x338)
+[    5.319155] [<c00f45b8>] (__getblk_slow) from [<c0148914>] (ext4_getblk+0x74/0x17c)
+[    5.326797] [<c0148914>] (ext4_getblk) from [<c0151f60>] (ext4_find_entry+0x158/0x5d4)
+[    5.334691] [<c0151f60>] (ext4_find_entry) from [<c0152418>] (ext4_lookup+0x3c/0x164)
+[    5.342511] [<c0152418>] (ext4_lookup) from [<c00d2520>] (lookup_real+0x20/0x50)
+[    5.349884] [<c00d2520>] (lookup_real) from [<c00d51d8>] (do_last.isra.37+0x720/0xb88)
+[    5.357780] [<c00d51d8>] (do_last.isra.37) from [<c00d6bb0>] (path_openat+0x7c/0x56c)
+[    5.365594] [<c00d6bb0>] (path_openat) from [<c00d7c0c>] (do_filp_open+0x2c/0x80)
+[    5.373057] [<c00d7c0c>] (do_filp_open) from [<c00ced48>] (do_open_execat+0x68/0x158)
+[    5.380872] [<c00ced48>] (do_open_execat) from [<c00d04dc>] (do_execveat_common+0x184/0x5bc)
+[    5.389289] [<c00d04dc>] (do_execveat_common) from [<c00d093c>] (do_execve+0x28/0x30)
+[    5.397102] [<c00d093c>] (do_execve) from [<c0008894>] (try_to_run_init_process+0xc/0x3c)
+[    5.405264] [<c0008894>] (try_to_run_init_process) from [<c0581ec4>] (kernel_init+0x88/0xec)
+[    5.413686] [<c0581ec4>] (kernel_init) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+Mount failed for selinuxfs on /sys/fs/selinux:  No such file or directory
+INIT: version 2.88 booting
+[info] Using makefile-style concurrent boot in runlevel S.
+[....] Starting the hotplug events dispatcher: udevd[    6.532377] udevd[1656]: starting version 175
+. ok
+[ ok ] Synthesizing the initial hotplug events...done.
+[....] Waiting for /dev to be fully populated...[    8.905690] check_preemption_disabled: 186434 callbacks suppressed
+[    8.910410] BUG: using smp_processor_id() in preemptible [00000000] code: udevd/1656
+[    8.918197] caller is kmem_cache_alloc+0x5c/0x158
+[    8.922855] CPU: 0 PID: 1656 Comm: udevd Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    8.932154] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    8.938245] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    8.945967] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    8.953166] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[    8.961763] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[    8.970870] [<c00c4a9c>] (kmem_cache_alloc) from [<c0121450>] (kernfs_fop_open+0xb8/0x2e0)
+[    8.979112] [<c0121450>] (kernfs_fop_open) from [<c00c8b1c>] (do_dentry_open.isra.12+0x1b0/0x2f0)
+[    8.987966] [<c00c8b1c>] (do_dentry_open.isra.12) from [<c00d4be0>] (do_last.isra.37+0x128/0xb88)
+[    8.996813] [<c00d4be0>] (do_last.isra.37) from [<c00d6bb0>] (path_openat+0x7c/0x56c)
+[    9.004624] [<c00d6bb0>] (path_openat) from [<c00d7c0c>] (do_filp_open+0x2c/0x80)
+[    9.012088] [<c00d7c0c>] (do_filp_open) from [<c00c9b5c>] (do_sys_open+0x110/0x1cc)
+[    9.019744] [<c00c9b5c>] (do_sys_open) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[    9.027456] BUG: using smp_processor_id() in preemptible [00000000] code: udevd/1656
+[    9.035175] caller is kmem_cache_alloc+0x5c/0x158
+[    9.039859] CPU: 0 PID: 1656 Comm: udevd Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    9.049139] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    9.055239] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    9.062969] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    9.070170] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[    9.078762] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[    9.087882] [<c00c4a9c>] (kmem_cache_alloc) from [<c00e96ec>] (seq_open+0x68/0x88)
+[    9.095423] [<c00e96ec>] (seq_open) from [<c01214f8>] (kernfs_fop_open+0x160/0x2e0)
+[    9.103063] [<c01214f8>] (kernfs_fop_open) from [<c00c8b1c>] (do_dentry_open.isra.12+0x1b0/0x2f0)
+[    9.111914] [<c00c8b1c>] (do_dentry_open.isra.12) from [<c00d4be0>] (do_last.isra.37+0x128/0xb88)
+[    9.120764] [<c00d4be0>] (do_last.isra.37) from [<c00d6bb0>] (path_openat+0x7c/0x56c)
+[    9.128573] [<c00d6bb0>] (path_openat) from [<c00d7c0c>] (do_filp_open+0x2c/0x80)
+[    9.136038] [<c00d7c0c>] (do_filp_open) from [<c00c9b5c>] (do_sys_open+0x110/0x1cc)
+[    9.143680] [<c00c9b5c>] (do_sys_open) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[    9.151405] BUG: using smp_processor_id() in preemptible [00000000] code: udevd/1656
+[    9.159125] caller is kmem_cache_alloc+0x5c/0x158
+[    9.163807] CPU: 0 PID: 1656 Comm: udevd Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    9.173091] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    9.179187] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    9.186917] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    9.194116] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[    9.202708] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[    9.211821] [<c00c4a9c>] (kmem_cache_alloc) from [<c012162c>] (kernfs_fop_open+0x294/0x2e0)
+[    9.220153] [<c012162c>] (kernfs_fop_open) from [<c00c8b1c>] (do_dentry_open.isra.12+0x1b0/0x2f0)
+[    9.229004] [<c00c8b1c>] (do_dentry_open.isra.12) from [<c00d4be0>] (do_last.isra.37+0x128/0xb88)
+[    9.237854] [<c00d4be0>] (do_last.isra.37) from [<c00d6bb0>] (path_openat+0x7c/0x56c)
+[    9.245667] [<c00d6bb0>] (path_openat) from [<c00d7c0c>] (do_filp_open+0x2c/0x80)
+[    9.253131] [<c00d7c0c>] (do_filp_open) from [<c00c9b5c>] (do_sys_open+0x110/0x1cc)
+[    9.260771] [<c00c9b5c>] (do_sys_open) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[    9.268507] BUG: using smp_processor_id() in preemptible [00000000] code: udevd/1656
+[    9.276238] caller is kmem_cache_free+0x8c/0x1b0
+[    9.280820] CPU: 0 PID: 1656 Comm: udevd Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    9.290096] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    9.296198] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    9.303922] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    9.311128] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[    9.319714] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[    9.328737] [<c00c4e3c>] (kmem_cache_free) from [<c00c9bc8>] (do_sys_open+0x17c/0x1cc)
+[    9.336636] [<c00c9bc8>] (do_sys_open) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[    9.344396] BUG: using smp_processor_id() in preemptible [00000000] code: udevd/1656
+[    9.352094] caller is __kmalloc+0x74/0x194
+[    9.356158] CPU: 0 PID: 1656 Comm: udevd Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    9.365439] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    9.371540] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    9.379261] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    9.386468] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[    9.395054] [<c01e79e0>] (check_preemption_disabled) from [<c00c4c90>] (__kmalloc+0x74/0x194)
+[    9.403570] [<c00c4c90>] (__kmalloc) from [<c00e8b7c>] (seq_buf_alloc+0x10/0x34)
+[    9.410939] [<c00e8b7c>] (seq_buf_alloc) from [<c00e95d0>] (seq_read+0x3cc/0x480)
+[    9.418401] [<c00e95d0>] (seq_read) from [<c00cacf4>] (__vfs_read+0x18/0x4c)
+[    9.425426] [<c00cacf4>] (__vfs_read) from [<c00cada4>] (vfs_read+0x7c/0x100)
+[    9.432546] [<c00cada4>] (vfs_read) from [<c00cae68>] (SyS_read+0x40/0x8c)
+[    9.439409] [<c00cae68>] (SyS_read) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[    9.446877] BUG: using smp_processor_id() in preemptible [00000000] code: udevd/1656
+[    9.454597] caller is kmem_cache_alloc+0x5c/0x158
+[    9.459276] CPU: 0 PID: 1656 Comm: udevd Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    9.468556] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    9.474655] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    9.482379] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    9.489585] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[    9.498176] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[    9.507290] [<c00c4a9c>] (kmem_cache_alloc) from [<c0299bcc>] (uevent_show+0x88/0x104)
+[    9.515183] [<c0299bcc>] (uevent_show) from [<c0299fb8>] (dev_attr_show+0x1c/0x48)
+[    9.522755] [<c0299fb8>] (dev_attr_show) from [<c0122424>] (sysfs_kf_seq_show+0x8c/0x10c)
+[    9.530904] [<c0122424>] (sysfs_kf_seq_show) from [<c0120f90>] (kernfs_seq_show+0x24/0x28)
+[    9.539166] [<c0120f90>] (kernfs_seq_show) from [<c00e93b0>] (seq_read+0x1ac/0x480)
+[    9.546786] [<c00e93b0>] (seq_read) from [<c00cacf4>] (__vfs_read+0x18/0x4c)
+[    9.553809] [<c00cacf4>] (__vfs_read) from [<c00cada4>] (vfs_read+0x7c/0x100)
+[    9.560926] [<c00cada4>] (vfs_read) from [<c00cae68>] (SyS_read+0x40/0x8c)
+[    9.567790] [<c00cae68>] (SyS_read) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[    9.575321] BUG: using smp_processor_id() in preemptible [00000000] code: udevd/1656
+[    9.583011] caller is kfree+0x8c/0x198
+[    9.586713] CPU: 1 PID: 1656 Comm: udevd Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    9.595990] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    9.602086] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    9.609811] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    9.617012] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[    9.625599] [<c01e79e0>] (check_preemption_disabled) from [<c00c501c>] (kfree+0x8c/0x198)
+[    9.633752] [<c00c501c>] (kfree) from [<c0299b7c>] (uevent_show+0x38/0x104)
+[    9.640694] [<c0299b7c>] (uevent_show) from [<c0299fb8>] (dev_attr_show+0x1c/0x48)
+[    9.648250] [<c0299fb8>] (dev_attr_show) from [<c0122424>] (sysfs_kf_seq_show+0x8c/0x10c)
+[    9.656407] [<c0122424>] (sysfs_kf_seq_show) from [<c0120f90>] (kernfs_seq_show+0x24/0x28)
+[    9.664660] [<c0120f90>] (kernfs_seq_show) from [<c00e93b0>] (seq_read+0x1ac/0x480)
+[    9.672294] [<c00e93b0>] (seq_read) from [<c00cacf4>] (__vfs_read+0x18/0x4c)
+[    9.679318] [<c00cacf4>] (__vfs_read) from [<c00cada4>] (vfs_read+0x7c/0x100)
+[    9.686436] [<c00cada4>] (vfs_read) from [<c00cae68>] (SyS_read+0x40/0x8c)
+[    9.693298] [<c00cae68>] (SyS_read) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[    9.700828] BUG: using smp_processor_id() in preemptible [00000000] code: udevd/1656
+[    9.708525] caller is kfree+0x8c/0x198
+[    9.712229] CPU: 2 PID: 1656 Comm: udevd Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    9.721501] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    9.727602] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    9.735324] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    9.742525] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[    9.751114] [<c01e79e0>] (check_preemption_disabled) from [<c00c501c>] (kfree+0x8c/0x198)
+[    9.759265] [<c00c501c>] (kfree) from [<c0299b7c>] (uevent_show+0x38/0x104)
+[    9.766210] [<c0299b7c>] (uevent_show) from [<c0299fb8>] (dev_attr_show+0x1c/0x48)
+[    9.773763] [<c0299fb8>] (dev_attr_show) from [<c0122424>] (sysfs_kf_seq_show+0x8c/0x10c)
+[    9.781920] [<c0122424>] (sysfs_kf_seq_show) from [<c0120f90>] (kernfs_seq_show+0x24/0x28)
+[    9.790172] [<c0120f90>] (kernfs_seq_show) from [<c00e93b0>] (seq_read+0x1ac/0x480)
+[    9.797806] [<c00e93b0>] (seq_read) from [<c00cacf4>] (__vfs_read+0x18/0x4c)
+[    9.804833] [<c00cacf4>] (__vfs_read) from [<c00cada4>] (vfs_read+0x7c/0x100)
+[    9.811950] [<c00cada4>] (vfs_read) from [<c00cae68>] (SyS_read+0x40/0x8c)
+[    9.818810] [<c00cae68>] (SyS_read) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[    9.826327] BUG: using smp_processor_id() in preemptible [00000000] code: udevd/1656
+[    9.834013] caller is kfree+0x8c/0x198
+[    9.837729] CPU: 3 PID: 1656 Comm: udevd Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    9.847008] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    9.853105] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    9.860833] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    9.868033] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[    9.876623] [<c01e79e0>] (check_preemption_disabled) from [<c00c501c>] (kfree+0x8c/0x198)
+[    9.884778] [<c00c501c>] (kfree) from [<c0299b7c>] (uevent_show+0x38/0x104)
+[    9.891722] [<c0299b7c>] (uevent_show) from [<c0299fb8>] (dev_attr_show+0x1c/0x48)
+[    9.899272] [<c0299fb8>] (dev_attr_show) from [<c0122424>] (sysfs_kf_seq_show+0x8c/0x10c)
+[    9.905744] BUG: using smp_processor_id() in preemptible [00000000] code: udevadm/1802
+[    9.905757] caller is kmem_cache_alloc+0x5c/0x158
+[    9.920012] [<c0122424>] (sysfs_kf_seq_show) from [<c0120f90>] (kernfs_seq_show+0x24/0x28)
+[    9.928267] [<c0120f90>] (kernfs_seq_show) from [<c00e93b0>] (seq_read+0x1ac/0x480)
+[    9.935904] [<c00e93b0>] (seq_read) from [<c00cacf4>] (__vfs_read+0x18/0x4c)
+[    9.942930] [<c00cacf4>] (__vfs_read) from [<c00cada4>] (vfs_read+0x7c/0x100)
+[    9.950045] [<c00cada4>] (vfs_read) from [<c00cae68>] (SyS_read+0x40/0x8c)
+[    9.956923] [<c00cae68>] (SyS_read) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[    9.964375] CPU: 0 PID: 1802 Comm: udevadm Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[    9.973827] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[    9.979932] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[    9.987740] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[    9.994898] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   10.003446] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   10.012619] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   10.020665] [<c00d74bc>] (getname_flags) from [<c00c9b2c>] (do_sys_open+0xe0/0x1cc)
+[   10.028263] [<c00c9b2c>] (do_sys_open) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+done.
+[ ok ] Activating swap...done.
+[   11.814076] EXT4-fs (mmcblk0p5): re-mounted. Opts: (null)
+[ ok ] Cleaning up temporary files... /tmp.
+[   13.827970] EXT4-fs error (device mmcblk0p5): ext4_mb_generate_buddy:757: group 1, block bitmap and bg descriptor inconsistent: 2 vs 1 free clusters
+[   14.030685] check_preemption_disabled: 176325 callbacks suppressed
+[   14.035472] BUG: using smp_processor_id() in preemptible [00000000] code: mtab.sh/2258
+[   14.035570] BUG: using smp_processor_id() in preemptible [00000000] code: ls/2256
+[   14.035762] caller is kmem_cache_alloc+0x5c/0x158
+[   14.035796] CPU: 3 PID: 2256 Comm: ls Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   14.035837] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   14.035949] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   14.035993] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   14.036016] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   14.036034] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   14.036059] [<c00c4a9c>] (kmem_cache_alloc) from [<c003b5b0>] (prepare_creds+0x24/0x84)
+[   14.036080] [<c003b5b0>] (prepare_creds) from [<c00c92d8>] (SyS_faccessat+0x24/0x1c4)
+[   14.036097] [<c00c92d8>] (SyS_faccessat) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   14.036148] BUG: using smp_processor_id() in preemptible [00000000] code: ls/2256
+[   14.036160] caller is kmem_cache_alloc+0x5c/0x158
+[   14.036171] CPU: 3 PID: 2256 Comm: ls Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   14.036175] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   14.036199] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   14.036218] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   14.036262] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   14.036372] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   14.036468] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   14.036553] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   14.036578] BUG: using smp_processor_id() in preemptible [00000000] code: grep/2257
+[   14.036589] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   14.036593] caller is kmem_cache_alloc+0x5c/0x158
+[   14.036605] [<c00d7b88>] (user_path_at) from [<c00c9340>] (SyS_faccessat+0x8c/0x1c4)
+[   14.036620] [<c00c9340>] (SyS_faccessat) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   14.036633] CPU: 0 PID: 2257 Comm: grep Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   14.036638] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   14.036646] BUG: using smp_processor_id() in preemptible [00000000] code: ls/2256
+[   14.036667] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   14.036670] caller is kmem_cache_free+0x8c/0x1b0
+[   14.036687] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   14.036706] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   14.036718] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   14.036733] [<c00c4a9c>] (kmem_cache_alloc) from [<c00b3060>] (do_brk+0x258/0x2cc)
+[   14.036744] [<c00b3060>] (do_brk) from [<c00b3214>] (SyS_brk+0x140/0x160)
+[   14.036755] [<c00b3214>] (SyS_brk) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   14.036766] CPU: 3 PID: 2256 Comm: ls Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   14.036771] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   14.036780] BUG: using smp_processor_id() in preemptible [00000000] code: grep/2257
+[   14.036793] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   14.036796] caller is kmem_cache_alloc+0x5c/0x158
+[   14.036809] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   14.036822] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   14.036834] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   14.036844] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   14.036854] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   14.036867] [<c00d7b88>] (user_path_at) from [<c00c9340>] (SyS_faccessat+0x8c/0x1c4)
+[   14.036879] [<c00c9340>] (SyS_faccessat) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   14.036889] CPU: 0 PID: 2257 Comm: grep Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   14.036893] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   14.036900] BUG: using smp_processor_id() in preemptible [00000000] code: ls/2256
+[   14.036914] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   14.036916] caller is kmem_cache_alloc+0x5c/0x158
+[   14.036929] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   14.036942] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   14.036953] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   14.036967] [<c00c4a9c>] (kmem_cache_alloc) from [<c00b68c8>] (anon_vma_prepare+0x30/0x148)
+[   14.036978] [<c00b68c8>] (anon_vma_prepare) from [<c00af3b8>] (handle_mm_fault+0x634/0x8a0)
+[   14.036994] [<c00af3b8>] (handle_mm_fault) from [<c0018618>] (do_page_fault+0x190/0x284)
+[   14.037005] [<c0018618>] (do_page_fault) from [<c0008540>] (do_DataAbort+0x34/0x98)
+[   14.037014] [<c0008540>] (do_DataAbort) from [<c001267c>] (__dabt_usr+0x3c/0x40)
+[   14.037019] Exception stack(0xedfadfb0 to 0xedfadff8)
+[   14.037026] dfa0:                                     00056000 00021000 00000000 00021001
+[   14.037034] dfc0: b6ef24fc b6ef24cc 00000018 00000011 00000000 00000000 b6ef24cc 00035000
+[   14.037040] dfe0: b6e359a4 bec70aa8 b6e312b4 b6e31314 60000010 ffffffff
+[   14.037050] CPU: 3 PID: 2256 Comm: ls Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   14.037056] BUG: using smp_processor_id() in preemptible [00000000] code: grep/2257
+[   14.037059] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   14.037063] caller is kmem_cache_alloc+0x5c/0x158
+[   14.037076] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   14.037089] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   14.037102] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   14.037113] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   14.037124] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   14.037135] [<c00d74bc>] (getname_flags) from [<c00c9b2c>] (do_sys_open+0xe0/0x1cc)
+[   14.037146] [<c00c9b2c>] (do_sys_open) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   14.037156] CPU: 0 PID: 2257 Comm: grep Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   14.037161] BUG: using smp_processor_id() in preemptible [00000000] code: ls/2256
+[   14.037164] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   14.037168] caller is kmem_cache_alloc+0x5c/0x158
+[   14.037182] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   14.037195] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   14.037208] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   14.037219] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   14.037231] [<c00c4a9c>] (kmem_cache_alloc) from [<c00b694c>] (anon_vma_prepare+0xb4/0x148)
+[   14.037241] [<c00b694c>] (anon_vma_prepare) from [<c00af3b8>] (handle_mm_fault+0x634/0x8a0)
+[   14.037252] [<c00af3b8>] (handle_mm_fault) from [<c0018618>] (do_page_fault+0x190/0x284)
+[   14.037262] [<c0018618>] (do_page_fault) from [<c0008540>] (do_DataAbort+0x34/0x98)
+[   14.037270] [<c0008540>] (do_DataAbort) from [<c001267c>] (__dabt_usr+0x3c/0x40)
+[   14.037274] Exception stack(0xedfadfb0 to 0xedfadff8)
+[   14.037281] dfa0:                                     00056000 00021000 00000000 00021001
+[   14.037289] dfc0: b6ef24fc b6ef24cc 00000018 00000011 00000000 00000000 b6ef24cc 00035000
+[   14.037296] dfe0: b6e359a4 bec70aa8 b6e312b4 b6e31314 60000010 ffffffff
+[   14.037304] CPU: 3 PID: 2256 Comm: ls Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   14.037308] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   14.037322] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   14.037335] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   14.037348] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   14.037361] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   14.037406] [<c00c4a9c>] (kmem_cache_alloc) from [<c00cbc3c>] (get_empty_filp+0x6c/0x1d0)
+[   14.037514] [<c00cbc3c>] (get_empty_filp) from [<c00d6b58>] (path_openat+0x24/0x56c)
+[   14.037546] [<c00d6b58>] (path_openat) from [<c00d7c0c>] (do_filp_open+0x2c/0x80)
+[   14.037644] [<c00d7c0c>] (do_filp_open) from [<c00c9b5c>] (do_sys_open+0x110/0x1cc)
+[   14.037714] [<c00c9b5c>] (do_sys_open) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   14.037774] BUG: using smp_processor_id() in preemptible [00000000] code: ls/2256
+[   14.037786] caller is kmem_cache_free+0x8c/0x1b0
+[   14.037797] CPU: 3 PID: 2256 Comm: ls Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   14.037801] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   14.037821] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   14.037838] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   14.037854] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   14.037867] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   14.037879] [<c00c4e3c>] (kmem_cache_free) from [<c00c9bc8>] (do_sys_open+0x17c/0x1cc)
+[   14.037890] [<c00c9bc8>] (do_sys_open) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   14.913595] caller is kmem_cache_alloc+0x5c/0x158
+[   14.918280] CPU: 1 PID: 2258 Comm: mtab.sh Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   14.927733] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   14.933841] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   14.941571] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   14.948763] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   14.957356] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   14.966471] [<c00c4a9c>] (kmem_cache_alloc) from [<c003b5b0>] (prepare_creds+0x24/0x84)
+[   14.974455] [<c003b5b0>] (prepare_creds) from [<c00d0318>] (prepare_bprm_creds+0x30/0x70)
+[   14.982607] [<c00d0318>] (prepare_bprm_creds) from [<c00d0400>] (do_execveat_common+0xa8/0x5bc)
+[   14.991286] [<c00d0400>] (do_execveat_common) from [<c00d093c>] (do_execve+0x28/0x30)
+[   14.999099] [<c00d093c>] (do_execve) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   16.496451] JBD2: Spotted dirty metadata buffer (dev = mmcblk0p5, blocknr = 0). There's a risk of filesystem corruption in case of system crash.
+[   16.527193] JBD2: Spotted dirty metadata buffer (dev = mmcblk0p5, blocknr = 0). There's a risk of filesystem corruption in case of system crash.
+[ ok ] Activating lvm and md swap...done.
+[....] Checking file systems...fsck from util-linux 2.20.1
+[   16.956189] EXT4-fs error (device mmcblk0p5): ext4_mb_generate_buddy:757: group 4, block bitmap and bg descriptor inconsistent: 32761 vs 10685 free clusters
+[   16.969241] EXT4-fs error (device mmcblk0p5): ext4_mb_generate_buddy:757: group 5, block bitmap and bg descriptor inconsistent: 32768 vs 30315 free clusters
+done.
+[....] Mounting local filesystems...mount: special device /dev/mmcblk1p1 does not exist
+failed.
+[ ok ] Activating swapfile swap...done.
+[ ok ] Cleaning up temporary files....
+[ ok [   19.036376] check_preemption_disabled: 134963 callbacks suppressed
+[   19.041146] BUG: using smp_processor_id() in preemptible [00000000] code: tput/2784
+[   19.048771] caller is kmem_cache_alloc+0x5c/0x158
+[   19.053461] CPU: 1 PID: 2784 Comm: tput Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   19.062640] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   19.068760] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   19.076475] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   19.083675] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   19.092261] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   19.101379] [<c00c4a9c>] (kmem_cache_alloc) from [<c00b3060>] (do_brk+0x258/0x2cc)
+[   19.108919] [<c00b3060>] (do_brk) from [<c00b3214>] (SyS_brk+0x140/0x160)
+[   19.115693] [<c00b3214>] (SyS_brk) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   19.123074] BUG: using smp_processor_id() in preemptible [00000000] code: tput/2784
+[   19.130706] caller is kmem_cache_alloc+0x5c/0x158
+[   19.135357] CPU: 1 PID: 2784 Comm: tput Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   19.144581] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   19.150678] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   19.158405] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   19.165607] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   19.174195] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   19.183310] [<c00c4a9c>] (kmem_cache_alloc) from [<c00b68c8>] (anon_vma_prepare+0x30/0x148)
+[   19.191640] [<c00b68c8>] (anon_vma_prepare) from [<c00af3b8>] (handle_mm_fault+0x634/0x8a0)
+[   19.199976] [<c00af3b8>] (handle_mm_fault) from [<c0018618>] (do_page_fault+0x190/0x284)
+[   19.208045] [<c0018618>] (do_page_fault) from [<c0008540>] (do_DataAbort+0x34/0x98)
+[   19.215682] [<c0008540>] (do_DataAbort) from [<c001267c>] (__dabt_usr+0x3c/0x40)
+[   19.223047] Exception stack(0xedd41fb0 to 0xedd41ff8)
+[   19.228082] 1fa0:                                     00034000 00021000 00000000 00021001
+[   19.236244] 1fc0: b6ec04fc b6ec04cc 000000b0 000000ac 00000000 00000000 b6ec04cc 00013000
+[   19.244400] 1fe0: b6e039a4 befc3b30 b6dff2b4 b6dff314 60000010 ffffffff
+[   19.251004] BUG: using smp_processor_id() in preemptible [00000000] code: tput/2784
+[   19.258638] caller is kmem_cache_alloc+0x5c/0x158
+[   19.263326] CPU: 1 PID: 2784 Comm: tput Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   19.272521] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   19.278615] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   19.286345] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   19.293563] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   19.302145] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   19.311257] [<c00c4a9c>] (kmem_cache_alloc) from [<c00b694c>] (anon_vma_prepare+0xb4/0x148)
+[   19.319580] [<c00b694c>] (anon_vma_prepare) from [<c00af3b8>] (handle_mm_fault+0x634/0x8a0)
+[   19.327918] [<c00af3b8>] (handle_mm_fault) from [<c0018618>] (do_page_fault+0x190/0x284)
+[   19.335988] [<c0018618>] (do_page_fault) from [<c0008540>] (do_DataAbort+0x34/0x98)
+[   19.343621] [<c0008540>] (do_DataAbort) from [<c001267c>] (__dabt_usr+0x3c/0x40)
+[   19.350991] Exception stack(0xedd41fb0 to 0xedd41ff8)
+[   19.356026] 1fa0:                                     00034000 00021000 00000000 00021001
+[   19.364184] 1fc0: b6ec04fc b6ec04cc 000000b0 000000ac 00000000 00000000 b6ec04cc 00013000
+[   19.372343] 1fe0: b6e039a4 befc3b30 b6dff2b4 b6dff314 60000010 ffffffff
+[   19.379412] BUG: using smp_processor_id() in preemptible [00000000] code: tput/2784
+[   19.386611] caller is kmem_cache_alloc+0x5c/0x158
+[   19.391273] CPU: 1 PID: 2784 Comm: tput Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   19.400466] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   19.406571] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   19.414298] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   19.421496] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   19.430085] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   19.439196] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   19.447263] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   19.455421] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   19.463499] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   19.470962] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   19.478256] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   19.485896] BUG: using smp_processor_id() in preemptible [00000000] code: tput/2784
+[   19.493528] caller is kmem_cache_free+0x8c/0x1b0
+[   19.498122] CPU: 1 PID: 2784 Comm: tput Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   19.507332] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   19.513432] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   19.521150] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   19.528345] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   19.536936] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   19.545959] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   19.554300] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   19.562369] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   19.569827] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   19.577124] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   19.584830] BUG: using smp_processor_id() in preemptible [00000000] code: tput/2784
+[   19.592423] caller is kmem_cache_alloc+0x5c/0x158
+[   19.597085] CPU: 3 PID: 2784 Comm: tput Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   19.606272] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   19.612374] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   19.620096] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   19.627299] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   19.635886] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   19.644997] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   19.653067] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   19.661222] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   19.669298] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   19.676763] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   19.684056] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   19.691781] BUG: using smp_processor_id() in preemptible [00000000] code: tput/2784
+[   19.699346] caller is kmem_cache_free+0x8c/0x1b0
+[   19.703928] CPU: 0 PID: 2784 Comm: tput Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   19.713122] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   19.719217] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   19.726947] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   19.734145] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   19.742736] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   19.751762] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   19.760089] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   19.768163] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   19.775627] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   19.782918] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   19.790586] BUG: using smp_processor_id() in preemptible [00000000] code: tput/2784
+[   19.798192] caller is kmem_cache_alloc+0x5c/0x158
+[   19.802876] CPU: 0 PID: 2784 Comm: tput Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   19.812071] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   19.818165] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   19.825908] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   19.833099] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   19.841690] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   19.850798] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   19.858868] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   19.867026] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   19.875097] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   19.882564] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   19.889857] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   19.897504] BUG: using smp_processor_id() in preemptible [00000000] code: tput/2784
+[   19.905131] caller is kmem_cache_free+0x8c/0x1b0
+[   19.909728] CPU: 0 PID: 2784 Comm: tput Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   19.918920] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   19.925013] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   19.932742] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   19.939943] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   19.948536] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   19.957562] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   19.965893] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   19.973964] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   19.981430] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   19.988721] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   19.996363] BUG: using smp_processor_id() in preemptible [00000000] code: tput/2784
+[   20.003995] caller is kmem_cache_alloc+0x5c/0x158
+[   20.008680] CPU: 0 PID: 2784 Comm: tput Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   20.017873] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   20.023966] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   20.031693] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   20.038894] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   20.047487] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   20.056600] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   20.064668] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   20.072832] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   20.080904] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   20.088379] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   20.095664] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+                                   done.
+[   20.227848] JBD2: Spotted dirty metadata buffer (dev = mmcblk0p5, blocknr = 0). There's a risk of filesystem corruption in case of system crash.
+[   20.239664] random: dd urandom read with 83 bits of entropy available
+[....] Configuring network interfaces...Cannot find device "usb0"
+Failed to bring up usb0.
+done.
+[ ok ] Cleaning up temporary files....
+INIT: Entering runlevel: 2
+[info] Using makefile-style concurrent boot in runlevel 2.
+[ ok ] Starting internet superserver: inetd.
+[ ok ] Starting periodic command scheduler: cron.
+[ ok ] Starting system message bus: dbus.
+/usr/bin/getent: 1: /usr/bin/getent: e: not found
+/usr/bin/getent: 2: /usr/bin/getent: Syntax error: "(" unexpected
+[FAIL] Starting NTP server: ntpd[....] user "ntp" does not exist ... failed!
+[ ok ] Starting OpenBSD Secure Shell server: sshd.
+[FAIL] startpar: service(s) returned failure: ntp ... failed!
+
+Debian GNU/Linux jessie/sid target ttySAC2
+
+target login: root (automatic login)
+
+Last login: Sat Jan  1 02:00:00 UTC 2000 on ttySAC2
+Linux target 3.19.0-rc4-00279-gd2dc80750ee0 #1630 SMP PREEMPT Tue Jan 20 10:28:36 CET 2015 armv7l
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+[   23.516274] max77693-muic max77693-muic: external connector is attached (adc:0x1c, prev_adc:0x1c)
+[   23.523763] max77693-muic max77693-muic: external connector is attached (adc:0x1c)
+[   23.532176] max77693-muic max77693-muic: CONTROL1 : 0x1b, CONTROL2 : 0x04, state : attached
+root@target:~# [   27.495782] check_preemption_disabled: 111011 callbacks suppressed
+[   27.500491] BUG: using smp_processor_id() in preemptible [00000000] code: jbd2/mmcblk0p5-/1530
+[   27.509197] caller is __kmalloc+0x74/0x194
+[   27.513211] CPU: 1 PID: 1530 Comm: jbd2/mmcblk0p5- Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   27.523348] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   27.529461] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   27.537184] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   27.544376] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   27.552967] [<c01e79e0>] (check_preemption_disabled) from [<c00c4c90>] (__kmalloc+0x74/0x194)
+[   27.561483] [<c00c4c90>] (__kmalloc) from [<c01626f4>] (ext4_find_extent+0x274/0x33c)
+[   27.569278] [<c01626f4>] (ext4_find_extent) from [<c0165dc0>] (ext4_ext_map_blocks+0x48/0xf98)
+[   27.577867] [<c0165dc0>] (ext4_ext_map_blocks) from [<c0148490>] (ext4_map_blocks+0x78/0x488)
+[   27.586373] [<c0148490>] (ext4_map_blocks) from [<c0149f10>] (_ext4_get_block+0x84/0x188)
+[   27.594532] [<c0149f10>] (_ext4_get_block) from [<c00f2a28>] (generic_block_bmap+0x44/0x50)
+[   27.602880] [<c00f2a28>] (generic_block_bmap) from [<c014734c>] (ext4_bmap+0x8c/0xf8)
+[   27.610694] [<c014734c>] (ext4_bmap) from [<c00dffd8>] (bmap+0x1c/0x2c)
+[   27.617290] [<c00dffd8>] (bmap) from [<c018f590>] (jbd2_journal_bmap+0x2c/0xa8)
+[   27.624573] [<c018f590>] (jbd2_journal_bmap) from [<c018f820>] (jbd2_journal_get_descriptor_buffer+0x14/0x9c)
+[   27.634467] [<c018f820>] (jbd2_journal_get_descriptor_buffer) from [<c018a254>] (jbd2_journal_commit_transaction+0x988/0x15bc)
+[   27.645834] [<c018a254>] (jbd2_journal_commit_transaction) from [<c018dc44>] (kjournald2+0xbc/0x264)
+[   27.654945] [<c018dc44>] (kjournald2) from [<c0039f08>] (kthread+0xd8/0xf4)
+[   27.661894] [<c0039f08>] (kthread) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[   27.669153] BUG: using smp_processor_id() in preemptible [00000000] code: jbd2/mmcblk0p5-/1530
+[   27.677754] caller is kfree+0x8c/0x198
+[   27.681426] CPU: 3 PID: 1530 Comm: jbd2/mmcblk0p5- Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   27.691570] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   27.697670] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   27.705396] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   27.712597] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   27.721183] [<c01e79e0>] (check_preemption_disabled) from [<c00c501c>] (kfree+0x8c/0x198)
+[   27.729336] [<c00c501c>] (kfree) from [<c016618c>] (ext4_ext_map_blocks+0x414/0xf98)
+[   27.737061] [<c016618c>] (ext4_ext_map_blocks) from [<c0148490>] (ext4_map_blocks+0x78/0x488)
+[   27.745586] [<c0148490>] (ext4_map_blocks) from [<c0149f10>] (_ext4_get_block+0x84/0x188)
+[   27.753722] [<c0149f10>] (_ext4_get_block) from [<c00f2a28>] (generic_block_bmap+0x44/0x50)
+[   27.762069] [<c00f2a28>] (generic_block_bmap) from [<c014734c>] (ext4_bmap+0x8c/0xf8)
+[   27.769878] [<c014734c>] (ext4_bmap) from [<c00dffd8>] (bmap+0x1c/0x2c)
+[   27.776477] [<c00dffd8>] (bmap) from [<c018f590>] (jbd2_journal_bmap+0x2c/0xa8)
+[   27.783764] [<c018f590>] (jbd2_journal_bmap) from [<c018f820>] (jbd2_journal_get_descriptor_buffer+0x14/0x9c)
+[   27.793657] [<c018f820>] (jbd2_journal_get_descriptor_buffer) from [<c018a254>] (jbd2_journal_commit_transaction+0x988/0x15bc)
+[   27.805041] [<c018a254>] (jbd2_journal_commit_transaction) from [<c018dc44>] (kjournald2+0xbc/0x264)
+[   27.814144] [<c018dc44>] (kjournald2) from [<c0039f08>] (kthread+0xd8/0xf4)
+[   27.821088] [<c0039f08>] (kthread) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[   27.828334] BUG: using smp_processor_id() in preemptible [00000000] code: jbd2/mmcblk0p5-/1530
+[   27.836894] caller is kfree+0x8c/0x198
+[   27.840604] CPU: 2 PID: 1530 Comm: jbd2/mmcblk0p5- Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   27.850755] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   27.856853] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   27.864583] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   27.871783] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   27.880368] [<c01e79e0>] (check_preemption_disabled) from [<c00c501c>] (kfree+0x8c/0x198)
+[   27.888526] [<c00c501c>] (kfree) from [<c016618c>] (ext4_ext_map_blocks+0x414/0xf98)
+[   27.896248] [<c016618c>] (ext4_ext_map_blocks) from [<c0148490>] (ext4_map_blocks+0x78/0x488)
+[   27.904752] [<c0148490>] (ext4_map_blocks) from [<c0149f10>] (_ext4_get_block+0x84/0x188)
+[   27.912913] [<c0149f10>] (_ext4_get_block) from [<c00f2a28>] (generic_block_bmap+0x44/0x50)
+[   27.921252] [<c00f2a28>] (generic_block_bmap) from [<c014734c>] (ext4_bmap+0x8c/0xf8)
+[   27.929065] [<c014734c>] (ext4_bmap) from [<c00dffd8>] (bmap+0x1c/0x2c)
+[   27.935660] [<c00dffd8>] (bmap) from [<c018f590>] (jbd2_journal_bmap+0x2c/0xa8)
+[   27.942949] [<c018f590>] (jbd2_journal_bmap) from [<c018f820>] (jbd2_journal_get_descriptor_buffer+0x14/0x9c)
+[   27.952844] [<c018f820>] (jbd2_journal_get_descriptor_buffer) from [<c018a254>] (jbd2_journal_commit_transaction+0x988/0x15bc)
+[   27.964227] [<c018a254>] (jbd2_journal_commit_transaction) from [<c018dc44>] (kjournald2+0xbc/0x264)
+[   27.973331] [<c018dc44>] (kjournald2) from [<c0039f08>] (kthread+0xd8/0xf4)
+[   27.980270] [<c0039f08>] (kthread) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[   27.987472] BUG: using smp_processor_id() in preemptible [00000000] code: jbd2/mmcblk0p5-/1530
+[   27.996065] caller is kfree+0x8c/0x198
+[   27.999767] CPU: 2 PID: 1530 Comm: jbd2/mmcblk0p5- Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   28.009944] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   28.016041] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   28.023770] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   28.030972] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   28.039559] [<c01e79e0>] (check_preemption_disabled) from [<c00c501c>] (kfree+0x8c/0x198)
+[   28.047718] [<c00c501c>] (kfree) from [<c016618c>] (ext4_ext_map_blocks+0x414/0xf98)
+[   28.055437] [<c016618c>] (ext4_ext_map_blocks) from [<c0148490>] (ext4_map_blocks+0x78/0x488)
+[   28.063944] [<c0148490>] (ext4_map_blocks) from [<c0149f10>] (_ext4_get_block+0x84/0x188)
+[   28.072103] [<c0149f10>] (_ext4_get_block) from [<c00f2a28>] (generic_block_bmap+0x44/0x50)
+[   28.080441] [<c00f2a28>] (generic_block_bmap) from [<c014734c>] (ext4_bmap+0x8c/0xf8)
+[   28.088255] [<c014734c>] (ext4_bmap) from [<c00dffd8>] (bmap+0x1c/0x2c)
+[   28.094850] [<c00dffd8>] (bmap) from [<c018f590>] (jbd2_journal_bmap+0x2c/0xa8)
+[   28.102142] [<c018f590>] (jbd2_journal_bmap) from [<c018f820>] (jbd2_journal_get_descriptor_buffer+0x14/0x9c)
+[   28.112036] [<c018f820>] (jbd2_journal_get_descriptor_buffer) from [<c018a254>] (jbd2_journal_commit_transaction+0x988/0x15bc)
+[   28.123405] [<c018a254>] (jbd2_journal_commit_transaction) from [<c018dc44>] (kjournald2+0xbc/0x264)
+[   28.132517] [<c018dc44>] (kjournald2) from [<c0039f08>] (kthread+0xd8/0xf4)
+[   28.139461] [<c0039f08>] (kthread) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[   28.146692] BUG: using smp_processor_id() in preemptible [00000000] code: jbd2/mmcblk0p5-/1530
+[   28.155262] caller is kmem_cache_alloc+0x5c/0x158
+[   28.159941] CPU: 2 PID: 1530 Comm: jbd2/mmcblk0p5- Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   28.170089] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   28.176186] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   28.183914] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   28.191118] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   28.199706] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   28.208821] [<c00c4a9c>] (kmem_cache_alloc) from [<c01da4dc>] (__radix_tree_preload+0x60/0xe4)
+[   28.217420] [<c01da4dc>] (__radix_tree_preload) from [<c008af94>] (add_to_page_cache_lru+0x30/0xb4)
+[   28.226450] [<c008af94>] (add_to_page_cache_lru) from [<c008b0b4>] (pagecache_get_page+0x9c/0x19c)
+[   28.235384] [<c008b0b4>] (pagecache_get_page) from [<c00f4540>] (__getblk_slow+0xec/0x338)
+[   28.243628] [<c00f4540>] (__getblk_slow) from [<c018f840>] (jbd2_journal_get_descriptor_buffer+0x34/0x9c)
+[   28.253173] [<c018f840>] (jbd2_journal_get_descriptor_buffer) from [<c018a254>] (jbd2_journal_commit_transaction+0x988/0x15bc)
+[   28.264543] [<c018a254>] (jbd2_journal_commit_transaction) from [<c018dc44>] (kjournald2+0xbc/0x264)
+[   28.273652] [<c018dc44>] (kjournald2) from [<c0039f08>] (kthread+0xd8/0xf4)
+[   28.280598] [<c0039f08>] (kthread) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[   28.287805] BUG: using smp_processor_id() in preemptible [00000000] code: jbd2/mmcblk0p5-/1530
+[   28.296398] caller is kmem_cache_alloc+0x5c/0x158
+[   28.301079] CPU: 2 PID: 1530 Comm: jbd2/mmcblk0p5- Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   28.311225] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   28.317321] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   28.325049] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   28.332253] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   28.340842] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   28.349953] [<c00c4a9c>] (kmem_cache_alloc) from [<c00f3784>] (alloc_buffer_head+0x14/0x98)
+[   28.358285] [<c00f3784>] (alloc_buffer_head) from [<c00f3e1c>] (alloc_page_buffers+0x2c/0x9c)
+[   28.366790] [<c00f3e1c>] (alloc_page_buffers) from [<c00f45b8>] (__getblk_slow+0x164/0x338)
+[   28.375125] [<c00f45b8>] (__getblk_slow) from [<c018f840>] (jbd2_journal_get_descriptor_buffer+0x34/0x9c)
+[   28.382436] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   28.382450] caller is kmem_cache_alloc+0x5c/0x158
+[   28.396735] [<c018f840>] (jbd2_journal_get_descriptor_buffer) from [<c018a254>] (jbd2_journal_commit_transaction+0x988/0x15bc)
+[   28.408110] [<c018a254>] (jbd2_journal_commit_transaction) from [<c018dc44>] (kjournald2+0xbc/0x264)
+[   28.417220] [<c018dc44>] (kjournald2) from [<c0039f08>] (kthread+0xd8/0xf4)
+[   28.424161] [<c0039f08>] (kthread) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[   28.431374] CPU: 0 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   28.431459] BUG: using smp_processor_id() in preemptible [00000000] code: jbd2/mmcblk0p5-/1530
+[   28.431473] caller is __kmalloc+0x74/0x194
+[   28.452960] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   28.459062] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   28.466791] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   28.473991] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   28.482579] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   28.491690] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   28.499762] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   28.507919] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   28.516011] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   28.523462] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   28.530752] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   28.538390] CPU: 2 PID: 1530 Comm: jbd2/mmcblk0p5- Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   28.538444] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   28.538456] caller is kmem_cache_free+0x8c/0x1b0
+[   28.560491] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   28.566615] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   28.574339] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   28.581542] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   28.590130] [<c01e79e0>] (check_preemption_disabled) from [<c00c4c90>] (__kmalloc+0x74/0x194)
+[   28.598648] [<c00c4c90>] (__kmalloc) from [<c01626f4>] (ext4_find_extent+0x274/0x33c)
+[   28.606448] [<c01626f4>] (ext4_find_extent) from [<c0165dc0>] (ext4_ext_map_blocks+0x48/0xf98)
+[   28.615039] [<c0165dc0>] (ext4_ext_map_blocks) from [<c0148490>] (ext4_map_blocks+0x78/0x488)
+[   28.623545] [<c0148490>] (ext4_map_blocks) from [<c0149f10>] (_ext4_get_block+0x84/0x188)
+[   28.631704] [<c0149f10>] (_ext4_get_block) from [<c00f2a28>] (generic_block_bmap+0x44/0x50)
+[   28.640044] [<c00f2a28>] (generic_block_bmap) from [<c014734c>] (ext4_bmap+0x8c/0xf8)
+[   28.647854] [<c014734c>] (ext4_bmap) from [<c00dffd8>] (bmap+0x1c/0x2c)
+[   28.654451] [<c00dffd8>] (bmap) from [<c018f590>] (jbd2_journal_bmap+0x2c/0xa8)
+[   28.661739] [<c018f590>] (jbd2_journal_bmap) from [<c0189ec0>] (jbd2_journal_commit_transaction+0x5f4/0x15bc)
+[   28.671634] [<c0189ec0>] (jbd2_journal_commit_transaction) from [<c018dc44>] (kjournald2+0xbc/0x264)
+[   28.680745] [<c018dc44>] (kjournald2) from [<c0039f08>] (kthread+0xd8/0xf4)
+[   28.687689] [<c0039f08>] (kthread) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[   28.694896] CPU: 0 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   28.694955] BUG: using smp_processor_id() in preemptible [00000000] code: jbd2/mmcblk0p5-/1530
+[   28.694970] caller is kfree+0x8c/0x198
+[   28.716137] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   28.722238] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   28.729964] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   28.737169] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   28.745756] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   28.754779] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   28.763110] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   28.771186] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   28.778647] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   28.785942] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   28.793583] CPU: 1 PID: 1530 Comm: jbd2/mmcblk0p5- Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   28.803736] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   28.809828] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   28.817556] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   28.824769] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   28.833351] [<c01e79e0>] (check_preemption_disabled) from [<c00c501c>] (kfree+0x8c/0x198)
+[   28.841503] [<c00c501c>] (kfree) from [<c016618c>] (ext4_ext_map_blocks+0x414/0xf98)
+[   28.849225] [<c016618c>] (ext4_ext_map_blocks) from [<c0148490>] (ext4_map_blocks+0x78/0x488)
+[   28.857732] [<c0148490>] (ext4_map_blocks) from [<c0149f10>] (_ext4_get_block+0x84/0x188)
+[   28.865890] [<c0149f10>] (_ext4_get_block) from [<c00f2a28>] (generic_block_bmap+0x44/0x50)
+[   28.874230] [<c00f2a28>] (generic_block_bmap) from [<c014734c>] (ext4_bmap+0x8c/0xf8)
+[   28.882042] [<c014734c>] (ext4_bmap) from [<c00dffd8>] (bmap+0x1c/0x2c)
+[   28.888639] [<c00dffd8>] (bmap) from [<c018f590>] (jbd2_journal_bmap+0x2c/0xa8)
+[   28.895930] [<c018f590>] (jbd2_journal_bmap) from [<c0189ec0>] (jbd2_journal_commit_transaction+0x5f4/0x15bc)
+[   28.905822] [<c0189ec0>] (jbd2_journal_commit_transaction) from [<c018dc44>] (kjournald2+0xbc/0x264)
+[   28.914933] [<c018dc44>] (kjournald2) from [<c0039f08>] (kthread+0xd8/0xf4)
+[   28.921878] [<c0039f08>] (kthread) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[   33.798693] check_preemption_disabled: 107 callbacks suppressed
+[   33.803198] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   33.810580] caller is kmem_cache_alloc+0x5c/0x158
+[   33.815210] CPU: 0 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   33.824177] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   33.830272] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   33.838000] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   33.845200] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   33.853789] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   33.862902] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   33.870969] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   33.879126] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   33.887203] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   33.894665] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   33.901960] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   33.909603] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   33.916976] caller is kmem_cache_free+0x8c/0x1b0
+[   33.921569] CPU: 0 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   33.930501] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   33.936597] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   33.944323] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   33.945764] BUG: using smp_processor_id() in preemptible [00000000] code: kworker/u8:0/6
+[   33.945778] caller is kmem_cache_alloc+0x5c/0x158
+[   33.964280] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   33.972875] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   33.981901] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   33.990228] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   33.998308] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   34.005770] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   34.013062] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   34.020700] CPU: 3 PID: 6 Comm: kworker/u8:0 Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   34.020710] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   34.020722] caller is kmem_cache_alloc+0x5c/0x158
+[   34.042379] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   34.048472] Workqueue: writeback bdi_writeback_workfn (flush-179:0)
+[   34.054707] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   34.062458] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   34.069659] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   34.078247] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   34.087369] [<c00c4a9c>] (kmem_cache_alloc) from [<c008d0e4>] (mempool_alloc+0x3c/0x11c)
+[   34.095446] [<c008d0e4>] (mempool_alloc) from [<c01b6be0>] (bio_alloc_bioset+0x150/0x204)
+[   34.103595] [<c01b6be0>] (bio_alloc_bioset) from [<c00f5150>] (_submit_bh+0x78/0x184)
+[   34.111403] [<c00f5150>] (_submit_bh) from [<c00f7078>] (__block_write_full_page.constprop.25+0x25c/0x43c)
+[   34.121039] [<c00f7078>] (__block_write_full_page.constprop.25) from [<c0092c3c>] (__writepage+0x14/0x3c)
+[   34.130584] [<c0092c3c>] (__writepage) from [<c00930dc>] (write_cache_pages+0x1c4/0x3d4)
+[   34.138653] [<c00930dc>] (write_cache_pages) from [<c009332c>] (generic_writepages+0x40/0x5c)
+[   34.147161] [<c009332c>] (generic_writepages) from [<c009469c>] (do_writepages+0x24/0x38)
+[   34.155326] [<c009469c>] (do_writepages) from [<c00ec8d0>] (__writeback_single_inode+0x28/0x110)
+[   34.164090] [<c00ec8d0>] (__writeback_single_inode) from [<c00ed7ac>] (writeback_sb_inodes+0x1e0/0x31c)
+[   34.173462] [<c00ed7ac>] (writeback_sb_inodes) from [<c00ed958>] (__writeback_inodes_wb+0x70/0xac)
+[   34.182402] [<c00ed958>] (__writeback_inodes_wb) from [<c00edb44>] (wb_writeback+0x1b0/0x1bc)
+[   34.190909] [<c00edb44>] (wb_writeback) from [<c00edd2c>] (bdi_writeback_workfn+0x14c/0x32c)
+[   34.199334] [<c00edd2c>] (bdi_writeback_workfn) from [<c0035318>] (process_one_work+0x120/0x314)
+[   34.208112] [<c0035318>] (process_one_work) from [<c0035570>] (worker_thread+0x30/0x45c)
+[   34.216170] [<c0035570>] (worker_thread) from [<c0039f08>] (kthread+0xd8/0xf4)
+[   34.223372] [<c0039f08>] (kthread) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[   34.230585] CPU: 0 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   34.230605] BUG: using smp_processor_id() in preemptible [00000000] code: kworker/u8:0/6
+[   34.230617] caller is kmem_cache_alloc+0x5c/0x158
+[   34.252264] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   34.258362] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   34.266089] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   34.273294] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   34.281884] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   34.290994] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   34.299065] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   34.307225] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   34.315299] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   34.322778] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   34.330058] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   34.337694] CPU: 3 PID: 6 Comm: kworker/u8:0 Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   34.337712] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   34.337722] caller is kmem_cache_free+0x8c/0x1b0
+[   34.359285] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   34.365372] Workqueue: writeback bdi_writeback_workfn (flush-179:0)
+[   34.371611] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   34.379361] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   34.386562] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   34.395151] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   34.404273] [<c00c4a9c>] (kmem_cache_alloc) from [<c008d0e4>] (mempool_alloc+0x3c/0x11c)
+[   34.412346] [<c008d0e4>] (mempool_alloc) from [<c01bac68>] (get_request+0x298/0x51c)
+[   34.420062] [<c01bac68>] (get_request) from [<c01bce00>] (blk_queue_bio+0xa8/0x22c)
+[   34.427701] [<c01bce00>] (blk_queue_bio) from [<c01ba75c>] (generic_make_request+0xa8/0xd4)
+[   34.436029] [<c01ba75c>] (generic_make_request) from [<c01ba808>] (submit_bio+0x80/0x12c)
+[   34.444192] [<c01ba808>] (submit_bio) from [<c00f5214>] (_submit_bh+0x13c/0x184)
+[   34.451570] [<c00f5214>] (_submit_bh) from [<c00f7078>] (__block_write_full_page.constprop.25+0x25c/0x43c)
+[   34.461207] [<c00f7078>] (__block_write_full_page.constprop.25) from [<c0092c3c>] (__writepage+0x14/0x3c)
+[   34.470767] [<c0092c3c>] (__writepage) from [<c00930dc>] (write_cache_pages+0x1c4/0x3d4)
+[   34.478826] [<c00930dc>] (write_cache_pages) from [<c009332c>] (generic_writepages+0x40/0x5c)
+[   34.487332] [<c009332c>] (generic_writepages) from [<c009469c>] (do_writepages+0x24/0x38)
+[   34.495496] [<c009469c>] (do_writepages) from [<c00ec8d0>] (__writeback_single_inode+0x28/0x110)
+[   34.504260] [<c00ec8d0>] (__writeback_single_inode) from [<c00ed7ac>] (writeback_sb_inodes+0x1e0/0x31c)
+[   34.513633] [<c00ed7ac>] (writeback_sb_inodes) from [<c00ed958>] (__writeback_inodes_wb+0x70/0xac)
+[   34.522571] [<c00ed958>] (__writeback_inodes_wb) from [<c00edb44>] (wb_writeback+0x1b0/0x1bc)
+[   34.531077] [<c00edb44>] (wb_writeback) from [<c00edd2c>] (bdi_writeback_workfn+0x14c/0x32c)
+[   34.539501] [<c00edd2c>] (bdi_writeback_workfn) from [<c0035318>] (process_one_work+0x120/0x314)
+[   34.548265] [<c0035318>] (process_one_work) from [<c0035570>] (worker_thread+0x30/0x45c)
+[   34.556336] [<c0035570>] (worker_thread) from [<c0039f08>] (kthread+0xd8/0xf4)
+[   34.563541] [<c0039f08>] (kthread) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[   34.570749] CPU: 0 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   34.570778] BUG: using smp_processor_id() in preemptible [00000000] code: kworker/u8:0/6
+[   34.570790] caller is kmem_cache_alloc+0x5c/0x158
+[   34.592440] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   34.598533] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   34.606261] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   34.613464] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   34.622054] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   34.631078] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   34.639410] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   34.647486] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   34.654946] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   34.662240] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   34.669877] CPU: 3 PID: 6 Comm: kworker/u8:0 Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   34.679505] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   34.685588] Workqueue: writeback bdi_writeback_workfn (flush-179:0)
+[   34.691818] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   34.699574] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   34.706776] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   34.715365] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   34.724484] [<c00c4a9c>] (kmem_cache_alloc) from [<c008d0e4>] (mempool_alloc+0x3c/0x11c)
+[   34.732580] [<c008d0e4>] (mempool_alloc) from [<c01b6be0>] (bio_alloc_bioset+0x150/0x204)
+[   34.740718] [<c01b6be0>] (bio_alloc_bioset) from [<c00f5150>] (_submit_bh+0x78/0x184)
+[   34.748523] [<c00f5150>] (_submit_bh) from [<c00f7078>] (__block_write_full_page.constprop.25+0x25c/0x43c)
+[   34.758157] [<c00f7078>] (__block_write_full_page.constprop.25) from [<c0092c3c>] (__writepage+0x14/0x3c)
+[   34.767704] [<c0092c3c>] (__writepage) from [<c00930dc>] (write_cache_pages+0x1c4/0x3d4)
+[   34.775773] [<c00930dc>] (write_cache_pages) from [<c009332c>] (generic_writepages+0x40/0x5c)
+[   34.784280] [<c009332c>] (generic_writepages) from [<c009469c>] (do_writepages+0x24/0x38)
+[   34.792446] [<c009469c>] (do_writepages) from [<c00ec8d0>] (__writeback_single_inode+0x28/0x110)
+[   34.801210] [<c00ec8d0>] (__writeback_single_inode) from [<c00ed7ac>] (writeback_sb_inodes+0x1e0/0x31c)
+[   34.810589] [<c00ed7ac>] (writeback_sb_inodes) from [<c00ed958>] (__writeback_inodes_wb+0x70/0xac)
+[   34.819522] [<c00ed958>] (__writeback_inodes_wb) from [<c00edb44>] (wb_writeback+0x1b0/0x1bc)
+[   34.828039] [<c00edb44>] (wb_writeback) from [<c00edd2c>] (bdi_writeback_workfn+0x14c/0x32c)
+[   34.836458] [<c00edd2c>] (bdi_writeback_workfn) from [<c0035318>] (process_one_work+0x120/0x314)
+[   34.845217] [<c0035318>] (process_one_work) from [<c0035570>] (worker_thread+0x30/0x45c)
+[   34.853287] [<c0035570>] (worker_thread) from [<c0039f08>] (kthread+0xd8/0xf4)
+[   34.860493] [<c0039f08>] (kthread) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[   34.867711] BUG: using smp_processor_id() in preemptible [00000000] code: kworker/u8:0/6
+[   34.875770] caller is kmem_cache_alloc+0x5c/0x158
+[   34.880421] CPU: 3 PID: 6 Comm: kworker/u8:0 Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   34.890081] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   34.896162] Workqueue: writeback bdi_writeback_workfn (flush-179:0)
+[   34.902394] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   34.910148] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   34.917355] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   34.925944] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   34.935061] [<c00c4a9c>] (kmem_cache_alloc) from [<c008d0e4>] (mempool_alloc+0x3c/0x11c)
+[   34.943132] [<c008d0e4>] (mempool_alloc) from [<c01bac68>] (get_request+0x298/0x51c)
+[   34.950855] [<c01bac68>] (get_request) from [<c01bce00>] (blk_queue_bio+0xa8/0x22c)
+[   34.958489] [<c01bce00>] (blk_queue_bio) from [<c01ba75c>] (generic_make_request+0xa8/0xd4)
+[   34.966822] [<c01ba75c>] (generic_make_request) from [<c01ba808>] (submit_bio+0x80/0x12c)
+[   34.974981] [<c01ba808>] (submit_bio) from [<c00f5214>] (_submit_bh+0x13c/0x184)
+[   34.982360] [<c00f5214>] (_submit_bh) from [<c00f7078>] (__block_write_full_page.constprop.25+0x25c/0x43c)
+[   34.992011] [<c00f7078>] (__block_write_full_page.constprop.25) from [<c0092c3c>] (__writepage+0x14/0x3c)
+[   35.001546] [<c0092c3c>] (__writepage) from [<c00930dc>] (write_cache_pages+0x1c4/0x3d4)
+[   35.009611] [<c00930dc>] (write_cache_pages) from [<c009332c>] (generic_writepages+0x40/0x5c)
+[   35.018122] [<c009332c>] (generic_writepages) from [<c009469c>] (do_writepages+0x24/0x38)
+[   35.026285] [<c009469c>] (do_writepages) from [<c00ec8d0>] (__writeback_single_inode+0x28/0x110)
+[   35.035049] [<c00ec8d0>] (__writeback_single_inode) from [<c00ed7ac>] (writeback_sb_inodes+0x1e0/0x31c)
+[   35.044423] [<c00ed7ac>] (writeback_sb_inodes) from [<c00ed958>] (__writeback_inodes_wb+0x70/0xac)
+[   35.053361] [<c00ed958>] (__writeback_inodes_wb) from [<c00edb44>] (wb_writeback+0x1b0/0x1bc)
+[   35.061869] [<c00edb44>] (wb_writeback) from [<c00edd2c>] (bdi_writeback_workfn+0x14c/0x32c)
+[   35.070290] [<c00edd2c>] (bdi_writeback_workfn) from [<c0035318>] (process_one_work+0x120/0x314)
+[   35.079057] [<c0035318>] (process_one_work) from [<c0035570>] (worker_thread+0x30/0x45c)
+[   35.087128] [<c0035570>] (worker_thread) from [<c0039f08>] (kthread+0xd8/0xf4)
+[   35.094331] [<c0039f08>] (kthread) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[   35.101558] BUG: using smp_processor_id() in preemptible [00000000] code: kworker/u8:0/6
+[   35.109611] caller is kmem_cache_alloc+0x5c/0x158
+[   35.114291] CPU: 3 PID: 6 Comm: kworker/u8:0 Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   35.123917] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   35.129999] Workqueue: writeback bdi_writeback_workfn (flush-179:0)
+[   35.136236] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   35.143989] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   35.151191] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   35.159781] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   35.168902] [<c00c4a9c>] (kmem_cache_alloc) from [<c008d0e4>] (mempool_alloc+0x3c/0x11c)
+[   35.176978] [<c008d0e4>] (mempool_alloc) from [<c01b6be0>] (bio_alloc_bioset+0x150/0x204)
+[   35.185128] [<c01b6be0>] (bio_alloc_bioset) from [<c00f5150>] (_submit_bh+0x78/0x184)
+[   35.192938] [<c00f5150>] (_submit_bh) from [<c00f7078>] (__block_write_full_page.constprop.25+0x25c/0x43c)
+[   35.202573] [<c00f7078>] (__block_write_full_page.constprop.25) from [<c0092c3c>] (__writepage+0x14/0x3c)
+[   35.212119] [<c0092c3c>] (__writepage) from [<c00930dc>] (write_cache_pages+0x1c4/0x3d4)
+[   35.220190] [<c00930dc>] (write_cache_pages) from [<c009332c>] (generic_writepages+0x40/0x5c)
+[   35.228698] [<c009332c>] (generic_writepages) from [<c009469c>] (do_writepages+0x24/0x38)
+[   35.236862] [<c009469c>] (do_writepages) from [<c00ec8d0>] (__writeback_single_inode+0x28/0x110)
+[   35.245625] [<c00ec8d0>] (__writeback_single_inode) from [<c00ed7ac>] (writeback_sb_inodes+0x1e0/0x31c)
+[   35.255011] [<c00ed7ac>] (writeback_sb_inodes) from [<c00ed958>] (__writeback_inodes_wb+0x70/0xac)
+[   35.263943] [<c00ed958>] (__writeback_inodes_wb) from [<c00edb44>] (wb_writeback+0x1b0/0x1bc)
+[   35.272447] [<c00edb44>] (wb_writeback) from [<c00edd2c>] (bdi_writeback_workfn+0x14c/0x32c)
+[   35.280870] [<c00edd2c>] (bdi_writeback_workfn) from [<c0035318>] (process_one_work+0x120/0x314)
+[   35.289631] [<c0035318>] (process_one_work) from [<c0035570>] (worker_thread+0x30/0x45c)
+[   35.297703] [<c0035570>] (worker_thread) from [<c0039f08>] (kthread+0xd8/0xf4)
+[   35.304907] [<c0039f08>] (kthread) from [<c000f1f8>] (ret_from_fork+0x14/0x3c)
+[   35.306463] BUG: using smp_processor_id() in preemptible [00000000] code: cron/3020
+[   35.306478] caller is kmem_cache_alloc+0x5c/0x158
+[   35.324435] CPU: 0 PID: 3020 Comm: cron Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   35.333647] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   35.339748] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   35.347483] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   35.354668] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   35.363267] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   35.372377] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   35.380448] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   35.388599] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   35.396684] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   35.404135] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   35.411437] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   35.420836] random: nonblocking pool is initialized
+[   39.675039] check_preemption_disabled: 47 callbacks suppressed
+[   39.679498] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   39.686828] caller is kmem_cache_alloc+0x5c/0x158
+[   39.691499] CPU: 2 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   39.700434] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   39.706532] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   39.714256] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   39.721458] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   39.730046] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   39.739157] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   39.747225] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   39.755382] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   39.763462] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   39.770923] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   39.778213] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   39.785926] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   39.793297] caller is kmem_cache_free+0x8c/0x1b0
+[   39.797837] CPU: 3 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   39.806768] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   39.812863] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   39.820596] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   39.827787] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   39.836377] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   39.845398] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   39.853731] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   39.861806] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   39.869270] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   39.876562] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   39.884270] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   39.891590] caller is kmem_cache_alloc+0x5c/0x158
+[   39.896257] CPU: 0 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   39.905189] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   39.911290] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   39.919014] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   39.926216] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   39.934803] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   39.943916] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   39.951987] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   39.960142] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   39.968219] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   39.975684] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   39.982973] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   39.990621] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   39.997990] caller is kmem_cache_free+0x8c/0x1b0
+[   40.002586] CPU: 0 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   40.011534] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   40.017617] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   40.025339] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   40.032545] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   40.041134] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   40.050156] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   40.058490] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   40.066562] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   40.074026] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   40.081320] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   45.094045] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   45.100036] caller is kmem_cache_alloc+0x5c/0x158
+[   45.104695] CPU: 0 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   45.113626] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   45.119720] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   45.127449] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   45.134649] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   45.143241] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   45.152351] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   45.160420] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   45.168579] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   45.176653] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   45.184115] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   45.191410] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   45.199055] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   45.206426] caller is kmem_cache_free+0x8c/0x1b0
+[   45.211018] CPU: 0 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   45.219951] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   45.226048] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   45.233776] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   45.240977] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   45.249567] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   45.258593] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   45.266924] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   45.274995] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   45.282461] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   45.289750] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   45.297399] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   45.304768] caller is kmem_cache_alloc+0x5c/0x158
+[   45.309450] CPU: 0 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   45.318385] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   45.324476] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   45.332204] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   45.339406] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   45.347997] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   45.357124] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   45.365183] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   45.373343] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   45.381416] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   45.388877] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   45.396170] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   45.403813] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   45.411187] caller is kmem_cache_free+0x8c/0x1b0
+[   45.415779] CPU: 0 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   45.424712] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   45.430807] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   45.438532] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   45.445738] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   45.454329] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   45.463353] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   45.471685] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   45.479756] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   45.487223] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   45.494512] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+
+root@target:~# [   50.507249] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   50.513241] caller is kmem_cache_alloc+0x5c/0x158
+[   50.517913] CPU: 0 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   50.526837] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   50.532935] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   50.540656] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   50.547854] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   50.556444] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   50.565553] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   50.573620] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   50.581784] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   50.589855] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   50.597321] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   50.604613] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   50.612337] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   50.619780] caller is kmem_cache_free+0x8c/0x1b0
+[   50.624228] CPU: 1 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   50.633157] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   50.639253] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   50.646981] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   50.654182] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   50.662773] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   50.671795] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   50.680127] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   50.688201] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   50.695666] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   50.702955] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   50.710606] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   50.717971] caller is kmem_cache_alloc+0x5c/0x158
+[   50.722654] CPU: 1 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   50.731587] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   50.737682] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   50.745421] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   50.752617] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   50.761205] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   50.770315] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   50.778385] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   50.786544] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   50.794615] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   50.802082] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   50.809373] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   50.817020] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   50.824388] caller is kmem_cache_free+0x8c/0x1b0
+[   50.828984] CPU: 1 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   50.837919] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   50.844012] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   50.851738] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   50.858943] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   50.867536] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   50.876558] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   50.884888] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   50.892962] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   50.900424] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   50.907720] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   55.920436] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   55.926477] caller is kmem_cache_alloc+0x5c/0x158
+[   55.931094] CPU: 1 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   55.940022] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   55.946114] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   55.953837] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   55.961039] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   55.969627] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   55.978740] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   55.986813] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   55.994968] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   56.003043] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   56.010506] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   56.017801] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   56.025504] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   56.032936] caller is kmem_cache_free+0x8c/0x1b0
+[   56.037417] CPU: 2 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   56.046345] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   56.052440] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   56.060166] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   56.067370] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   56.075962] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   56.084983] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   56.093315] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   56.101388] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   56.108851] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   56.116146] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   56.123788] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   56.131158] caller is kmem_cache_alloc+0x5c/0x158
+[   56.135841] CPU: 2 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   56.144773] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   56.150882] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   56.158598] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   56.165801] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   56.174390] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   56.183501] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   56.191573] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   56.199729] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   56.207803] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   56.215267] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   56.222563] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   56.230205] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   56.237575] caller is kmem_cache_free+0x8c/0x1b0
+[   56.242169] CPU: 2 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   56.251106] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   56.257196] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   56.264924] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   56.272130] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   56.280717] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   56.289743] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   56.298076] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   56.306148] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   56.313614] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   56.320905] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   61.333628] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   61.339644] caller is kmem_cache_alloc+0x5c/0x158
+[   61.344273] CPU: 2 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   61.353201] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   61.359298] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   61.367024] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   61.374221] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   61.382815] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   61.391929] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   61.399995] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   61.408157] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   61.416229] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   61.423692] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   61.430987] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   61.438630] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   61.446001] caller is kmem_cache_free+0x8c/0x1b0
+[   61.450596] CPU: 2 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   61.459529] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   61.465624] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   61.473349] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   61.480554] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   61.489141] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   61.498169] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   61.506499] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   61.514572] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   61.522039] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   61.529329] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   61.536976] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   61.544345] caller is kmem_cache_alloc+0x5c/0x158
+[   61.549027] CPU: 2 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   61.557962] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   61.564053] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   61.571784] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   61.578983] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   61.587574] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   61.596701] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   61.604762] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   61.612919] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   61.620991] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   61.628452] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   61.635748] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   61.643391] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   61.650763] caller is kmem_cache_free+0x8c/0x1b0
+[   61.655328] CPU: 2 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   61.664294] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   61.670383] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   61.678113] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   61.685314] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   61.693906] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   61.702929] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   61.711262] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   61.719334] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   61.726799] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   61.734089] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   66.746814] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   66.752831] caller is kmem_cache_alloc+0x5c/0x158
+[   66.757458] CPU: 2 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   66.766389] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   66.772480] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   66.780210] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   66.787413] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   66.796003] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   66.805112] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   66.813183] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   66.821342] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   66.829415] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   66.836882] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   66.844171] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   66.851818] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   66.859184] caller is kmem_cache_free+0x8c/0x1b0
+[   66.863781] CPU: 2 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   66.872716] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   66.878809] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   66.886537] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   66.893740] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   66.902331] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   66.911356] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   66.919687] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   66.927760] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   66.935221] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   66.942517] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   66.950159] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   66.957530] caller is kmem_cache_alloc+0x5c/0x158
+[   66.962213] CPU: 2 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   66.971147] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   66.977239] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   66.984965] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   66.992173] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   67.000763] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   67.009873] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   67.017957] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   67.026107] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   67.034177] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   67.041642] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   67.048932] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   67.056577] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   67.063948] caller is kmem_cache_free+0x8c/0x1b0
+[   67.068544] CPU: 2 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   67.077479] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   67.083569] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   67.091297] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   67.098502] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   67.107093] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   67.116117] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   67.124448] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   67.132522] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   67.139984] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   67.147278] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   72.159998] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   72.166019] caller is kmem_cache_alloc+0x5c/0x158
+[   72.170645] CPU: 2 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   72.179572] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   72.185670] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   72.193395] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   72.200596] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   72.209190] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   72.218300] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   72.226369] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   72.234527] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   72.242602] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   72.250063] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   72.257360] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   72.265003] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   72.272375] caller is kmem_cache_free+0x8c/0x1b0
+[   72.276968] CPU: 2 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   72.285903] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   72.291995] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   72.299721] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   72.306926] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   72.315517] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   72.324544] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   72.332874] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   72.340945] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   72.348410] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   72.355702] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   72.363345] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   72.370719] caller is kmem_cache_alloc+0x5c/0x158
+[   72.375372] CPU: 2 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   72.384337] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   72.390429] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   72.398155] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   72.405356] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   72.413949] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   72.423060] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   72.431145] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   72.439293] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   72.447364] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   72.454826] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   72.462122] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   72.469763] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   72.477136] caller is kmem_cache_free+0x8c/0x1b0
+[   72.481732] CPU: 2 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   72.490664] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   72.496757] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   72.504482] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   72.511689] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   72.520273] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   72.529304] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   72.537635] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   72.545706] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   72.553170] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   72.560463] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   77.573188] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   77.579204] caller is kmem_cache_alloc+0x5c/0x158
+[   77.583831] CPU: 2 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   77.592762] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   77.598857] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   77.606583] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   77.613782] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   77.622374] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   77.631485] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   77.639555] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   77.647715] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   77.655789] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   77.663251] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   77.670544] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   77.678190] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   77.685576] caller is kmem_cache_free+0x8c/0x1b0
+[   77.690127] CPU: 2 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   77.699091] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   77.705181] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   77.712911] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   77.720111] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   77.728705] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   77.737728] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   77.746060] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   77.754131] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   77.761596] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   77.768887] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   77.776533] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   77.783903] caller is kmem_cache_alloc+0x5c/0x158
+[   77.788585] CPU: 2 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   77.797520] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   77.803614] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   77.811341] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   77.818544] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   77.827136] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   77.836262] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   77.844320] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   77.852477] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   77.860548] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   77.868012] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   77.875305] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   77.882951] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   77.890321] caller is kmem_cache_free+0x8c/0x1b0
+[   77.894916] CPU: 2 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   77.903850] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   77.909942] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   77.917673] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   77.924872] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   77.933465] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   77.942489] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   77.950823] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   77.958892] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   77.966359] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   77.973650] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   82.986374] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   82.992391] caller is kmem_cache_alloc+0x5c/0x158
+[   82.997019] CPU: 2 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   83.005949] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   83.012041] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   83.019768] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   83.026971] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   83.035559] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   83.044669] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   83.052745] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   83.060900] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   83.068975] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   83.076440] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   83.083732] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   83.091377] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   83.098746] caller is kmem_cache_free+0x8c/0x1b0
+[   83.103343] CPU: 2 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   83.112275] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   83.118367] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   83.126097] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   83.133299] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   83.141891] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   83.150916] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   83.159246] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   83.167321] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   83.174783] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   83.182077] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   83.189719] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   83.197092] caller is kmem_cache_alloc+0x5c/0x158
+[   83.201773] CPU: 2 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   83.210706] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   83.216799] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   83.224526] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   83.231732] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   83.240320] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   83.249432] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   83.257517] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   83.265667] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   83.273735] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   83.281202] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   83.288490] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   83.296139] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   83.303508] caller is kmem_cache_free+0x8c/0x1b0
+[   83.308104] CPU: 2 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   83.317037] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   83.323130] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   83.330858] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   83.338060] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   83.346653] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   83.355677] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   83.364006] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   83.372079] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   83.379542] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   83.386837] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   88.399559] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   88.405605] caller is kmem_cache_alloc+0x5c/0x158
+[   88.410170] CPU: 2 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   88.419148] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   88.425235] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   88.432960] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   88.440160] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   88.448751] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   88.457860] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   88.465932] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   88.474088] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   88.482160] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   88.489624] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   88.496918] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   88.504620] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   88.512229] caller is kmem_cache_free+0x8c/0x1b0
+[   88.516531] CPU: 3 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   88.525464] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   88.531563] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   88.539286] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   88.546491] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   88.555081] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   88.564106] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   88.572436] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   88.580507] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   88.587974] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   88.595265] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   88.602912] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   88.610279] caller is kmem_cache_alloc+0x5c/0x158
+[   88.614963] CPU: 3 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   88.623895] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   88.629988] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   88.637730] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   88.644922] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   88.653512] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   88.662622] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   88.670696] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   88.678850] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   88.686924] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   88.694388] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   88.701680] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   88.709325] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   88.716697] caller is kmem_cache_free+0x8c/0x1b0
+[   88.721288] CPU: 3 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   88.730225] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   88.736320] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   88.744044] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   88.751250] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   88.759840] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   88.768867] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   88.777195] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   88.785267] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   88.792735] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   88.800027] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   93.812751] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   93.818774] caller is kmem_cache_alloc+0x5c/0x158
+[   93.823400] CPU: 3 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   93.832330] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   93.838424] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   93.846153] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   93.853352] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   93.861948] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   93.871056] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   93.879126] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   93.887285] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   93.895357] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   93.902824] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   93.910114] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   93.917763] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   93.925130] caller is kmem_cache_free+0x8c/0x1b0
+[   93.929725] CPU: 3 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   93.938658] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   93.944753] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   93.952481] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   93.959682] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   93.968274] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   93.977298] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   93.985630] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   93.993702] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   94.001169] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   94.008458] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   94.016105] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   94.023474] caller is kmem_cache_alloc+0x5c/0x158
+[   94.028156] CPU: 3 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   94.037090] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   94.043182] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   94.050909] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   94.058114] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   94.066706] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   94.075831] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   94.083893] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   94.092048] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   94.100119] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   94.107586] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   94.114879] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   94.122522] BUG: using smp_processor_id() in preemptible [00000000] code: init/1
+[   94.129890] caller is kmem_cache_free+0x8c/0x1b0
+[   94.134487] CPU: 3 PID: 1 Comm: init Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   94.143422] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   94.149514] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   94.157242] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   94.164445] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   94.173036] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   94.182061] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   94.190391] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   94.198464] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   94.205929] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   94.213217] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   95.419352] BUG: using smp_processor_id() in preemptible [00000000] code: cron/3020
+[   95.425650] caller is kmem_cache_alloc+0x5c/0x158
+[   95.430224] CPU: 2 PID: 3020 Comm: cron Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   95.439456] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   95.445544] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   95.453268] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   95.460472] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   95.469063] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   95.478174] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   95.486244] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   95.494402] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   95.502476] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   95.509938] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   95.517228] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   95.524878] BUG: using smp_processor_id() in preemptible [00000000] code: cron/3020
+[   95.532509] caller is kmem_cache_free+0x8c/0x1b0
+[   95.537103] CPU: 2 PID: 3020 Comm: cron Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   95.546298] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   95.552389] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   95.560118] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   95.567323] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   95.575913] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   95.584935] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   95.593268] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   95.601341] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   95.608805] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   95.616096] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   95.623752] BUG: using smp_processor_id() in preemptible [00000000] code: cron/3020
+[   95.631375] caller is kmem_cache_alloc+0x5c/0x158
+[   95.636056] CPU: 2 PID: 3020 Comm: cron Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   95.645247] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   95.651344] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   95.659069] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   95.666272] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   95.674865] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   95.683976] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   95.692062] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   95.700208] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   95.708280] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   95.715743] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   95.723035] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   95.730681] BUG: using smp_processor_id() in preemptible [00000000] code: cron/3020
+[   95.738310] caller is kmem_cache_free+0x8c/0x1b0
+[   95.742905] CPU: 2 PID: 3020 Comm: cron Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   95.752099] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   95.758193] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   95.765922] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   95.773124] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   95.781716] [<c01e79e0>] (check_preemption_disabled) from [<c00c4e3c>] (kmem_cache_free+0x8c/0x1b0)
+[   95.790741] [<c00c4e3c>] (kmem_cache_free) from [<c00d7b58>] (user_path_at_empty+0x60/0x7c)
+[   95.799069] [<c00d7b58>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   95.807142] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   95.814608] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   95.821901] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   95.829543] BUG: using smp_processor_id() in preemptible [00000000] code: cron/3020
+[   95.837175] caller is kmem_cache_alloc+0x5c/0x158
+[   95.841859] CPU: 2 PID: 3020 Comm: cron Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+[   95.851053] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+[   95.857143] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+[   95.864871] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+[   95.872076] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+[   95.880666] [<c01e79e0>] (check_preemption_disabled) from [<c00c4a9c>] (kmem_cache_alloc+0x5c/0x158)
+[   95.889778] [<c00c4a9c>] (kmem_cache_alloc) from [<c00d74bc>] (getname_flags+0x20/0x114)
+[   95.897852] [<c00d74bc>] (getname_flags) from [<c00d7b1c>] (user_path_at_empty+0x24/0x7c)
+[   95.906007] [<c00d7b1c>] (user_path_at_empty) from [<c00d7b88>] (user_path_at+0x14/0x1c)
+[   95.914079] [<c00d7b88>] (user_path_at) from [<c00ce90c>] (vfs_fstatat+0x48/0x94)
+[   95.921545] [<c00ce90c>] (vfs_fstatat) from [<c00ceb18>] (SyS_stat64+0x14/0x30)
+[   95.928837] [<c00ceb18>] (SyS_stat64) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+[   95.936485] BUG: using smp_processor_id() in preemptible [00000000] code: cron/3020
+[   95.944114] caller is kmem_cache_free+0x8c/0x1b0
+
+
+--=-DjC9jZnEo53GjMQpZvlQ--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
