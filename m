@@ -1,62 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f51.google.com (mail-qa0-f51.google.com [209.85.216.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 557AE6B0078
-	for <linux-mm@kvack.org>; Tue, 20 Jan 2015 10:34:22 -0500 (EST)
-Received: by mail-qa0-f51.google.com with SMTP id f12so27899222qad.10
-        for <linux-mm@kvack.org>; Tue, 20 Jan 2015 07:34:22 -0800 (PST)
-Received: from mail-qa0-x236.google.com (mail-qa0-x236.google.com. [2607:f8b0:400d:c00::236])
-        by mx.google.com with ESMTPS id e13si597282qaq.33.2015.01.20.07.34.21
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 402456B0082
+	for <linux-mm@kvack.org>; Tue, 20 Jan 2015 10:45:03 -0500 (EST)
+Received: by mail-wi0-f174.google.com with SMTP id n3so4550569wiv.1
+        for <linux-mm@kvack.org>; Tue, 20 Jan 2015 07:45:02 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id gb2si6181495wib.38.2015.01.20.07.45.02
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 20 Jan 2015 07:34:21 -0800 (PST)
-Received: by mail-qa0-f54.google.com with SMTP id w8so27960436qac.13
-        for <linux-mm@kvack.org>; Tue, 20 Jan 2015 07:34:20 -0800 (PST)
-Message-ID: <54BE7547.6010701@gmail.com>
-Date: Tue, 20 Jan 2015 23:33:27 +0800
-From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 20 Jan 2015 07:45:02 -0800 (PST)
+Date: Tue, 20 Jan 2015 10:44:56 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch] mm: memcontrol: default hierarchy interface for memory
+ fix - high reclaim
+Message-ID: <20150120154456.GA7130@phnom.home.cmpxchg.org>
+References: <1421508079-29293-1-git-send-email-hannes@cmpxchg.org>
+ <20150120132519.GH25342@dhcp22.suse.cz>
+ <20150120141628.GA11181@phnom.home.cmpxchg.org>
+ <20150120143119.GK25342@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH] CMA: treat free cma pages as non-free if not ALLOC_CMA
- on watermark checking
-References: <1421569979-2596-1-git-send-email-teawater@gmail.com> <20150119065544.GA18473@blaptop>
-In-Reply-To: <20150119065544.GA18473@blaptop>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150120143119.GK25342@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Hui Zhu <teawater@gmail.com>
-Cc: akpm@linux-foundation.org, mgorman@suse.de, hannes@cmpxchg.org, riel@redhat.com, vbabka@suse.cz, iamjoonsoo.kim@lge.com, isimatu.yasuaki@jp.fujitsu.com, wangnan0@huawei.com, davidlohr@hp.com, cl@linux.com, rientjes@google.com, sasha.levin@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hui Zhu <zhuhui@xiaomi.com>, Weixing Liu <liuweixing@xiaomi.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hello Minchan,
-
-How are you?
-
-a?? 2015/1/19 14:55, Minchan Kim a??e??:
-> Hello,
+On Tue, Jan 20, 2015 at 03:31:19PM +0100, Michal Hocko wrote:
+> On Tue 20-01-15 09:16:28, Johannes Weiner wrote:
+> > On Tue, Jan 20, 2015 at 02:25:19PM +0100, Michal Hocko wrote:
+> [...]
+> > > Is this planned to be folded into the original patch or go on its own. I
+> > > am OK with both ways, maybe having it separate would be better from
+> > > documentation POV.
+> > 
+> > I submitted them to be folded in.  Which aspect would you like to see
+> > documented?
 > 
-> On Sun, Jan 18, 2015 at 04:32:59PM +0800, Hui Zhu wrote:
->> From: Hui Zhu <zhuhui@xiaomi.com>
->>
->> The original of this patch [1] is part of Joonsoo's CMA patch series.
->> I made a patch [2] to fix the issue of this patch.  Joonsoo reminded me
->> that this issue affect current kernel too.  So made a new one for upstream.
-> 
-> Recently, we found many problems of CMA and Joonsoo tried to add more
-> hooks into MM like agressive allocation but I suggested adding new zone
+> That the excess target reclaim has been attempted and changed with a
+> patch which explains why. So this was kind of "git log as a
+> documentation" thing.
 
-Just out of curiosity, "new zone"? Something like movable zone?
-
-Thanks.
-
-> would be more desirable than more hooks in mm fast path in various aspect.
-> (ie, remove lots of hooks in hot path of MM, don't need reclaim hooks
->  for special CMA pages, don't need custom fair allocation for CMA).
-> 
-> Joonsoo is investigating the direction so please wait.
-> If it turns out we have lots of hurdle to go that way,
-> this direction(ie, putting more hooks) should be second plan.
-> 
-> Thanks.
-> 
+I agreed to soften it because you had reasonable concerns and it was
+still strong enough for my tests.  But we hardly "attempted" this
+version.  Should this turn out to be too weak for other users in
+practice we have to reconsider the stronger approach and actually put
+your theory to the test and see if it holds up in practice.  There is
+no knowledge to record at this point, we just have speculation and no
+real need to push the envelope right now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
