@@ -1,218 +1,240 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id E84426B006E
-	for <linux-mm@kvack.org>; Tue, 20 Jan 2015 06:35:02 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id et14so45153326pad.3
-        for <linux-mm@kvack.org>; Tue, 20 Jan 2015 03:35:02 -0800 (PST)
-Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com. [202.81.31.147])
-        by mx.google.com with ESMTPS id zn6si4448743pac.126.2015.01.20.03.34.59
+Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E3F06B0070
+	for <linux-mm@kvack.org>; Tue, 20 Jan 2015 06:35:58 -0500 (EST)
+Received: by mail-lb0-f171.google.com with SMTP id w7so32941084lbi.2
+        for <linux-mm@kvack.org>; Tue, 20 Jan 2015 03:35:57 -0800 (PST)
+Received: from mail-la0-x234.google.com (mail-la0-x234.google.com. [2a00:1450:4010:c03::234])
+        by mx.google.com with ESMTPS id xu5si16393770lab.9.2015.01.20.03.35.56
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 20 Jan 2015 03:35:01 -0800 (PST)
-Received: from /spool/local
-	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 20 Jan 2015 21:34:55 +1000
-Received: from d23relay07.au.ibm.com (d23relay07.au.ibm.com [9.190.26.37])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id D2D313578048
-	for <linux-mm@kvack.org>; Tue, 20 Jan 2015 22:34:51 +1100 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t0KBYpkG48955448
-	for <linux-mm@kvack.org>; Tue, 20 Jan 2015 22:34:51 +1100
-Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t0KBYooq023470
-	for <linux-mm@kvack.org>; Tue, 20 Jan 2015 22:34:50 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH V4] mm/thp: Allocate transparent hugepages on local node
-Date: Tue, 20 Jan 2015 17:04:31 +0530
-Message-Id: <1421753671-16793-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+        Tue, 20 Jan 2015 03:35:56 -0800 (PST)
+Received: by mail-la0-f52.google.com with SMTP id hs14so33629135lab.11
+        for <linux-mm@kvack.org>; Tue, 20 Jan 2015 03:35:56 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <219291421414310@webcorp01h.yandex-team.ru>
+References: <20150115155731.31307.4414.stgit@buzz>
+	<20150115171551.a2e6acb5.akpm@linux-foundation.org>
+	<219291421414310@webcorp01h.yandex-team.ru>
+Date: Tue, 20 Jan 2015 15:35:56 +0400
+Message-ID: <CALYGNiNNRwp7TfEh4tkP+9B=J9oN2n1cET0WP7u_wkCge5Y5bQ@mail.gmail.com>
+Subject: Re: [PATCH RFC] page_writeback: cleanup mess around cancel_dirty_page()
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, "Kirill A. Shutemov" <kirill@shutemov.name>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: =?UTF-8?B?0JrQvtC90YHRgtCw0L3RgtC40L0g0KXQu9C10LHQvdC40LrQvtCy?= <khlebnikov@yandex-team.ru>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>
 
-This make sure that we try to allocate hugepages from local node if
-allowed by mempolicy. If we can't, we fallback to small page allocation
-based on mempolicy. This is based on the observation that allocating pages
-on local node is more beneficial than allocating hugepages on remote
-node.
+On Fri, Jan 16, 2015 at 4:18 PM, =D0=9A=D0=BE=D0=BD=D1=81=D1=82=D0=B0=D0=BD=
+=D1=82=D0=B8=D0=BD =D0=A5=D0=BB=D0=B5=D0=B1=D0=BD=D0=B8=D0=BA=D0=BE=D0=B2
+<khlebnikov@yandex-team.ru> wrote:
+> 16.01.2015, 04:16, "Andrew Morton" <akpm@linux-foundation.org>:
+>> On Thu, 15 Jan 2015 18:57:31 +0300 Konstantin Khebnikov <khlebnikov@yand=
+ex-team.ru> wrote:
+>>>  This patch replaces cancel_dirty_page() with helper account_page_clear=
+ed()
+>>>  which only updates counters. It's called from delete_from_page_cache()
+>>>  and from try_to_free_buffers() (hack for ext3). Page is locked in both=
+ cases.
+>>>
+>>>  Hugetlbfs has no dirty pages accounting, ClearPageDirty() is enough he=
+re.
+>>>
+>>>  cancel_dirty_page() in nfs_wb_page_cancel() is redundant. This is help=
+er
+>>>  for nfs_invalidate_page() and it's called only in case complete invali=
+dation.
+>>>
+>>>  Open-coded kludge at the end of __delete_from_page_cache() is redundan=
+t too.
+>>>
+>>>  This mess was started in v2.6.20, after commit 3e67c09 ("truncate: cle=
+ar page
+>>>  dirtiness before running try_to_free_buffers()") reverted back in v2.6=
+.25
+>>>  by commit a2b3456 ("Fix dirty page accounting leak with ext3 data=3Djo=
+urnal").
+>>>  Custom fixes were introduced between them. NFS in in v2.6.23 in commit
+>>>  1b3b4a1 ("NFS: Fix a write request leak in nfs_invalidate_page()").
+>>>  Kludge __delete_from_page_cache() in v2.6.24, commit 3a692790 ("Do dir=
+ty
+>>>  page accounting when removing a page from the page cache").
+>>>
+>>>  It seems safe to leave dirty flag set on truncated page, free_pages_ch=
+eck()
+>>>  will clear it before returning page into buddy allocator.
+>>
+>> account_page_cleared() is not a good name - "clearing a page" means
+>> filling it with zeroes.  account_page_cleaned(), perhaps?
+>
+> Ok. account_page_cleaned is better.
+>
+>>
+>> I don't think your email cc'ed all the correct people?  lustre, nfs,
+>> ext3?
+>
+> oops
+>
+>>>  ...
+>>>
+>>>  --- a/fs/buffer.c
+>>>  +++ b/fs/buffer.c
+>>>  @@ -3243,8 +3243,8 @@ int try_to_free_buffers(struct page *page)
+>>>            * to synchronise against __set_page_dirty_buffers and preven=
+t the
+>>>            * dirty bit from being lost.
+>>>            */
+>>>  - if (ret)
+>>>  - cancel_dirty_page(page, PAGE_CACHE_SIZE);
+>>>  + if (ret && TestClearPageDirty(page))
+>>>  + account_page_cleared(page, mapping);
+>>
+>> OK.
+>>>           spin_unlock(&mapping->private_lock);
+>>>   out:
+>>>           if (buffers_to_free) {
+>>>
+>>>  ...
+>>>
+>>>  --- a/fs/nfs/write.c
+>>>  +++ b/fs/nfs/write.c
+>>>  @@ -1811,11 +1811,6 @@ int nfs_wb_page_cancel(struct inode *inode, str=
+uct page *page)
+>>>                    * request from the inode / page_private pointer and
+>>>                    * release it */
+>>>                   nfs_inode_remove_request(req);
+>>>  - /*
+>>>  - * In case nfs_inode_remove_request has marked the
+>>>  - * page as being dirty
+>>>  - */
+>>>  - cancel_dirty_page(page, PAGE_CACHE_SIZE);
+>>
+>> hm, if you say so..
+>
+> That is main reason of this patch.
+> I dont like these obsoleted pieces of duct tape here and there.
+>
+>>>                   nfs_unlock_and_release_request(req);
+>>>           }
+>>>
+>>>  ...
+>>>
+>>>  --- a/mm/filemap.c
+>>>  +++ b/mm/filemap.c
+>>>  @@ -201,18 +201,6 @@ void __delete_from_page_cache(struct page *page, =
+void *shadow)
+>>>           if (PageSwapBacked(page))
+>>>                   __dec_zone_page_state(page, NR_SHMEM);
+>>>           BUG_ON(page_mapped(page));
+>>>  -
+>>>  - /*
+>>>  - * Some filesystems seem to re-dirty the page even after
+>>>  - * the VM has canceled the dirty bit (eg ext3 journaling).
+>>>  - *
+>>>  - * Fix it up by doing a final dirty accounting check after
+>>>  - * having removed the page entirely.
+>>>  - */
+>>>  - if (PageDirty(page) && mapping_cap_account_dirty(mapping)) {
+>>>  - dec_zone_page_state(page, NR_FILE_DIRTY);
+>>>  - dec_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
+>>>  - }
+>>>   }
+>>>
+>>>   /**
+>>>  @@ -230,6 +218,9 @@ void delete_from_page_cache(struct page *page)
+>>>
+>>>           BUG_ON(!PageLocked(page));
+>>>
+>>>  + if (PageDirty(page))
+>>>  + account_page_cleared(page, mapping);
+>>>  +
+>>
+>> OK, but we lost the important comment - transplant that?
+>>
+>> It's strange that we left the dirty bit set after accounting for its
+>> clearing.  How does this work?  Presumably the offending fs dirtied the
+>> page without accounting for it?  I have a bad feeling I wrote that code =
+:(
+>
+> account_page_dirtyed() must be always called after dirtying non-truncated=
+ pages.
+> Here page is truncating from mapping, dirty accounting never will see it =
+again.
+>
+> This is the only place where dirty page might be truncated. All other pla=
+ces:
+> replace_page_cache_page, invalidate_complete_page2, __remove_mapping
+> (in memory reclaimer) forbid removing dirty pages.
+>
+> As I see PageDirty means nothing for truncated pages, it's never be writt=
+en anywhere.
+> We could clear dirty bit here, but probably it might appear again: set_pa=
+ge_dirty()
+> for some reason has branch for pages without page->mapping.
 
-With this patch applied we may find transparent huge page allocation
-failures if the current node doesn't have enough freee hugepages.
-Before this patch such failures result in us retrying the allocation on
-other nodes in the numa node mask.
+Another puzzle here: how mark_buffer_dirty() is synchronized with truncate?
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
-Changes from V3:
-* Add more comments. Update commit message. 
+do_invalidatepage() called from truncate_complete_page() clears dirty
+buffers and
+tries to release them all but exit code is ignored. So theoretically
+there still might
+be pinned buffer heads and somebody might call mark_buffer_dirty() for them=
+.
 
- include/linux/gfp.h |  4 +++
- mm/huge_memory.c    | 24 +++++++-----------
- mm/mempolicy.c      | 70 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 83 insertions(+), 15 deletions(-)
+Funny but mark_buffer_dirty() gets mapping using page_mapping()!
+(Is bh might be attached to anon/slab page?)
+And it seems there is no protection against truncate
+(but it calls __set_page_dirty which checks page->mapping for NULL).
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index b840e3b2770d..60110e06419d 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -335,11 +335,15 @@ alloc_pages(gfp_t gfp_mask, unsigned int order)
- extern struct page *alloc_pages_vma(gfp_t gfp_mask, int order,
- 			struct vm_area_struct *vma, unsigned long addr,
- 			int node);
-+extern struct page *alloc_hugepage_vma(gfp_t gfp, struct vm_area_struct *vma,
-+				       unsigned long addr, int order);
- #else
- #define alloc_pages(gfp_mask, order) \
- 		alloc_pages_node(numa_node_id(), gfp_mask, order)
- #define alloc_pages_vma(gfp_mask, order, vma, addr, node)	\
- 	alloc_pages(gfp_mask, order)
-+#define alloc_hugepage_vma(gfp_mask, vma, addr, order)	\
-+	alloc_pages(gfp_mask, order)
- #endif
- #define alloc_page(gfp_mask) alloc_pages(gfp_mask, 0)
- #define alloc_page_vma(gfp_mask, vma, addr)			\
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 817a875f2b8c..031fb1584bbf 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -766,15 +766,6 @@ static inline gfp_t alloc_hugepage_gfpmask(int defrag, gfp_t extra_gfp)
- 	return (GFP_TRANSHUGE & ~(defrag ? 0 : __GFP_WAIT)) | extra_gfp;
- }
- 
--static inline struct page *alloc_hugepage_vma(int defrag,
--					      struct vm_area_struct *vma,
--					      unsigned long haddr, int nd,
--					      gfp_t extra_gfp)
--{
--	return alloc_pages_vma(alloc_hugepage_gfpmask(defrag, extra_gfp),
--			       HPAGE_PMD_ORDER, vma, haddr, nd);
--}
--
- /* Caller must hold page table lock. */
- static bool set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
- 		struct vm_area_struct *vma, unsigned long haddr, pmd_t *pmd,
-@@ -795,6 +786,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 			       unsigned long address, pmd_t *pmd,
- 			       unsigned int flags)
- {
-+	gfp_t gfp;
- 	struct page *page;
- 	unsigned long haddr = address & HPAGE_PMD_MASK;
- 
-@@ -829,8 +821,8 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		}
- 		return 0;
- 	}
--	page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
--			vma, haddr, numa_node_id(), 0);
-+	gfp = alloc_hugepage_gfpmask(transparent_hugepage_defrag(vma), 0);
-+	page = alloc_hugepage_vma(gfp, vma, haddr, HPAGE_PMD_ORDER);
- 	if (unlikely(!page)) {
- 		count_vm_event(THP_FAULT_FALLBACK);
- 		return VM_FAULT_FALLBACK;
-@@ -1118,10 +1110,12 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	spin_unlock(ptl);
- alloc:
- 	if (transparent_hugepage_enabled(vma) &&
--	    !transparent_hugepage_debug_cow())
--		new_page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
--					      vma, haddr, numa_node_id(), 0);
--	else
-+	    !transparent_hugepage_debug_cow()) {
-+		gfp_t gfp;
-+
-+		gfp = alloc_hugepage_gfpmask(transparent_hugepage_defrag(vma), 0);
-+		new_page = alloc_hugepage_vma(gfp, vma, haddr, HPAGE_PMD_ORDER);
-+	} else
- 		new_page = NULL;
- 
- 	if (unlikely(!new_page)) {
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 0e0961b8c39c..e99e8352cc04 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -2031,6 +2031,76 @@ retry_cpuset:
- }
- 
- /**
-+ * alloc_hugepage_vma: Allocate a hugepage for a VMA
-+ * @gfp:
-+ *   %GFP_USER	  user allocation.
-+ *   %GFP_KERNEL  kernel allocations,
-+ *   %GFP_HIGHMEM highmem/user allocations,
-+ *   %GFP_FS	  allocation should not call back into a file system.
-+ *   %GFP_ATOMIC  don't sleep.
-+ *
-+ * @vma:   Pointer to VMA or NULL if not available.
-+ * @addr:  Virtual Address of the allocation. Must be inside the VMA.
-+ * @order: Order of the hugepage for gfp allocation.
-+ *
-+ * This functions allocate a huge page from the kernel page pool and applies
-+ * a NUMA policy associated with the VMA or the current process.
-+ * For policy other than %MPOL_INTERLEAVE, we make sure we allocate hugepage
-+ * only from the current node if the current node is part of the node mask.
-+ * If we can't allocate a hugepage we fail the allocation and don' try to fallback
-+ * to other nodes in the node mask. If the current node is not part of node mask
-+ * or if the NUMA policy is MPOL_INTERLEAVE we use the allocator that can
-+ * fallback to nodes in the policy node mask.
-+ *
-+ * When VMA is not NULL caller must hold down_read on the mmap_sem of the
-+ * mm_struct of the VMA to prevent it from going away. Should be used for
-+ * all allocations for pages that will be mapped into
-+ * user space. Returns NULL when no page can be allocated.
-+ *
-+ * Should be called with the mm_sem of the vma hold.
-+ *
-+ */
-+struct page *alloc_hugepage_vma(gfp_t gfp, struct vm_area_struct *vma,
-+				unsigned long addr, int order)
-+{
-+	struct page *page;
-+	nodemask_t *nmask;
-+	struct mempolicy *pol;
-+	int node = numa_node_id();
-+	unsigned int cpuset_mems_cookie;
-+
-+retry_cpuset:
-+	pol = get_vma_policy(vma, addr);
-+	cpuset_mems_cookie = read_mems_allowed_begin();
-+	/*
-+	 * For interleave policy, we don't worry about
-+	 * current node. Otherwise if current node is
-+	 * in nodemask, try to allocate hugepage from
-+	 * the current node. Don't fall back to other nodes
-+	 * for THP.
-+	 */
-+	if (unlikely(pol->mode == MPOL_INTERLEAVE))
-+		goto alloc_with_fallback;
-+	nmask = policy_nodemask(gfp, pol);
-+	if (!nmask || node_isset(node, *nmask)) {
-+		mpol_cond_put(pol);
-+		page = alloc_pages_exact_node(node, gfp, order);
-+		if (unlikely(!page &&
-+			     read_mems_allowed_retry(cpuset_mems_cookie)))
-+			goto retry_cpuset;
-+		return page;
-+	}
-+alloc_with_fallback:
-+	mpol_cond_put(pol);
-+	/*
-+	 * if current node is not part of node mask, try
-+	 * the allocation from any node, and we can do retry
-+	 * in that case.
-+	 */
-+	return alloc_pages_vma(gfp, order, vma, addr, node);
-+}
-+
-+/**
-  * 	alloc_pages_current - Allocate pages.
-  *
-  *	@gfp:
--- 
-2.1.0
+So, if this race is possible the final account_page_cleaned() must be
+placed after
+clearing page->mapping. But I think we can put in outside of mapping->tree_=
+lock
+because mapping cannot run off under us: if truncated page is dirty
+that might be
+only call from truncate where caller holds reference to the inode.
+
+>
+>>>           freepage =3D mapping->a_ops->freepage;
+>>>           spin_lock_irq(&mapping->tree_lock);
+>>>           __delete_from_page_cache(page, NULL);
+>>>  diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+>>>  index 4da3cd5..f371522 100644
+>>>  --- a/mm/page-writeback.c
+>>>  +++ b/mm/page-writeback.c
+>>>  @@ -2106,6 +2106,25 @@ void account_page_dirtied(struct page *page, st=
+ruct address_space *mapping)
+>>>   EXPORT_SYMBOL(account_page_dirtied);
+>>>
+>>>   /*
+>>>  + * Helper function for deaccounting dirty page without doing writebac=
+k.
+>>>  + * Doing this should *normally* only ever be done when a page
+>>>  + * is truncated, and is not actually mapped anywhere at all. However,
+>>>  + * fs/buffer.c does this when it notices that somebody has cleaned
+>>>  + * out all the buffers on a page without actually doing it through
+>>>  + * the VM. Can you say "ext3 is horribly ugly"? Tought you could.
+>>
+>> "Thought".
+>
+> Ah, ok. That is copy-paste from cancel_dirty_page().
+>
+>>>  + */
+>>>  +void account_page_cleared(struct page *page, struct address_space *ma=
+pping)
+>>>  +{
+>>>  + if (mapping_cap_account_dirty(mapping)) {
+>>>  + dec_zone_page_state(page, NR_FILE_DIRTY);
+>>>  + dec_bdi_stat(mapping->backing_dev_info,
+>>>  + BDI_RECLAIMABLE);
+>>>  + task_io_account_cancelled_write(PAGE_CACHE_SIZE);
+>>>  + }
+>>>  +}
+>>>  +EXPORT_SYMBOL(account_page_cleared);
+>>>
+>>>  ...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
