@@ -1,77 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AFF86B0073
-	for <linux-mm@kvack.org>; Tue, 20 Jan 2015 06:46:06 -0500 (EST)
-Received: by mail-we0-f171.google.com with SMTP id u56so36557486wes.2
-        for <linux-mm@kvack.org>; Tue, 20 Jan 2015 03:46:05 -0800 (PST)
-Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id eu9si4811347wid.82.2015.01.20.03.46.04
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id BFB226B0032
+	for <linux-mm@kvack.org>; Tue, 20 Jan 2015 08:25:21 -0500 (EST)
+Received: by mail-wi0-f180.google.com with SMTP id bs8so23331237wib.1
+        for <linux-mm@kvack.org>; Tue, 20 Jan 2015 05:25:21 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q2si5379703wif.50.2015.01.20.05.25.20
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 20 Jan 2015 03:46:05 -0800 (PST)
-Date: Tue, 20 Jan 2015 11:45:55 +0000
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [next-20150119]regression (mm)?
-Message-ID: <20150120114555.GA11502@n2100.arm.linux.org.uk>
-References: <54BD33DC.40200@ti.com>
- <20150119174317.GK20386@saruman>
- <20150120001643.7D15AA8@black.fi.intel.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 20 Jan 2015 05:25:20 -0800 (PST)
+Date: Tue, 20 Jan 2015 14:25:19 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch] mm: memcontrol: default hierarchy interface for memory
+ fix - high reclaim
+Message-ID: <20150120132519.GH25342@dhcp22.suse.cz>
+References: <1421508079-29293-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150120001643.7D15AA8@black.fi.intel.com>
+In-Reply-To: <1421508079-29293-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Felipe Balbi <balbi@ti.com>, Nishanth Menon <nm@ti.com>, linux-mm@kvack.org, linux-next <linux-next@vger.kernel.org>, linux-omap <linux-omap@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Jan 20, 2015 at 02:16:43AM +0200, Kirill A. Shutemov wrote:
-> Better option would be converting 2-lvl ARM configuration to
-> <asm-generic/pgtable-nopmd.h>, but I'm not sure if it's possible.
+On Sat 17-01-15 10:21:19, Johannes Weiner wrote:
+> High limit reclaim can currently overscan in proportion to how many
+> charges are happening concurrently.  Tone it down such that charges
+> don't target the entire high-boundary excess, but instead only the
+> pages they charged themselves when excess is detected.
+> 
+> Reported-by: Michal Hocko <mhocko@suse.cz>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Well, IMHO the folded approach in asm-generic was done the wrong way
-which barred ARM from ever using it.
+I certainly agree with this approach.
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-By that, I mean that the asm-generic stuff encapsulates a pgd into a pud,
-and a pud into a pmd:
+Is this planned to be folded into the original patch or go on its own. I
+am OK with both ways, maybe having it separate would be better from
+documentation POV.
 
-typedef struct { pgd_t pgd; } pud_t;
-typedef struct { pud_t pud; } pmd_t;
-
-This, I assert, is the wrong way around.  Think about it when you have a
-real 4 level page table structure - a single pgd points to a set of puds.
-So, one pgd encapsulates via a pointer a set of puds.  One pud does not
-encapsulate a set of pgds.
-
-What we have on ARM is slightly different: because of the sizes of page
-tables, we have a pgd entry which is physically two page table pointers.
-However, there are cases where we want to access these as two separate
-pointers.
-
-So, we define pgd_t to be an array of two u32's, and a pmd_t to be a
-single entry.  This works fine, we set the masks, shifts and sizes
-appropriately so that the pmd code is optimised away, but leaves us with
-the ability to go down to the individual pgd_t entries when we need to
-(eg, for section mappings, writing the pgd pointers for page tables,
-etc.)
-
-I think I also ran into problems with:
-
-#define pmd_val(x)                              (pud_val((x).pud))
-#define __pmd(x)                                ((pmd_t) { __pud(x) } )
-
-too - but it's been a very long time since the nopmd.h stuff was
-introduced, and I last looked at it.
-
-In any case, what we have today is what has worked for well over a decade
-(and pre-dates nopmd.h), and I'm really not interested today in trying to
-rework tonnes of code to make use of nopmd.h - especially as it will most
-likely require nopmd.h to be rewritten too, and we now have real 3 level
-page table support (which I have no way to test.)
+> ---
+>  mm/memcontrol.c | 16 +++++-----------
+>  1 file changed, 5 insertions(+), 11 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 323a01fa1833..7adccee9fecb 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2348,19 +2348,13 @@ done_restock:
+>  		refill_stock(memcg, batch - nr_pages);
+>  	/*
+>  	 * If the hierarchy is above the normal consumption range,
+> -	 * make the charging task trim the excess.
+> +	 * make the charging task trim their excess contribution.
+>  	 */
+>  	do {
+> -		unsigned long nr_pages = page_counter_read(&memcg->memory);
+> -		unsigned long high = ACCESS_ONCE(memcg->high);
+> -
+> -		if (nr_pages > high) {
+> -			mem_cgroup_events(memcg, MEMCG_HIGH, 1);
+> -
+> -			try_to_free_mem_cgroup_pages(memcg, nr_pages - high,
+> -						     gfp_mask, true);
+> -		}
+> -
+> +		if (page_counter_read(&memcg->memory) <= memcg->high)
+> +			continue;
+> +		mem_cgroup_events(memcg, MEMCG_HIGH, 1);
+> +		try_to_free_mem_cgroup_pages(memcg, nr_pages, gfp_mask, true);
+>  	} while ((memcg = parent_mem_cgroup(memcg)));
+>  done:
+>  	return ret;
+> -- 
+> 2.2.0
+> 
 
 -- 
-FTTC broadband for 0.8mile line: currently at 10.5Mbps down 400kbps up
-according to speedtest.net.
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
