@@ -1,50 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 26E1E6B0032
-	for <linux-mm@kvack.org>; Tue, 20 Jan 2015 16:08:25 -0500 (EST)
-Received: by mail-ie0-f181.google.com with SMTP id vy18so14805493iec.12
-        for <linux-mm@kvack.org>; Tue, 20 Jan 2015 13:08:25 -0800 (PST)
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTP id l10si3944778igx.31.2015.01.20.13.08.23
-        for <linux-mm@kvack.org>;
-        Tue, 20 Jan 2015 13:08:24 -0800 (PST)
-Message-ID: <54BEC3C2.7080906@fb.com>
-Date: Tue, 20 Jan 2015 14:08:18 -0700
-From: Jens Axboe <axboe@fb.com>
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id A8FFC6B0032
+	for <linux-mm@kvack.org>; Tue, 20 Jan 2015 18:02:01 -0500 (EST)
+Received: by mail-pd0-f178.google.com with SMTP id y10so6237452pdj.9
+        for <linux-mm@kvack.org>; Tue, 20 Jan 2015 15:02:01 -0800 (PST)
+Received: from relay3-d.mail.gandi.net (relay3-d.mail.gandi.net. [2001:4b98:c:538::195])
+        by mx.google.com with ESMTPS id nj1si5835048pbc.249.2015.01.20.15.01.58
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 20 Jan 2015 15:02:00 -0800 (PST)
+Date: Tue, 20 Jan 2015 15:01:50 -0800
+From: josh@joshtriplett.org
+Subject: Re: [PATCH 2/2] mm: fix undefined reference to `.kernel_map_pages'
+ on PPC builds
+Message-ID: <20150120230150.GA14475@cloud>
+References: <20150120140200.aa7ba0eb28d95e456972e178@freescale.com>
 MIME-Version: 1.0
-Subject: Re: backing_dev_info cleanups & lifetime rule fixes V2
-References: <1421228561-16857-1-git-send-email-hch@lst.de>
-In-Reply-To: <1421228561-16857-1-git-send-email-hch@lst.de>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150120140200.aa7ba0eb28d95e456972e178@freescale.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: David Howells <dhowells@redhat.com>, Tejun Heo <tj@kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-mtd@lists.infradead.org, linux-nfs@vger.kernel.org, ceph-devel@vger.kernel.org
+To: Kim Phillips <kim.phillips@freescale.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Al Viro <viro@zeniv.linux.org.uk>, Konstantin Khlebnikov <k.khlebnikov@samsung.com>, Jens Axboe <axboe@fb.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
-On 01/14/2015 02:42 AM, Christoph Hellwig wrote:
-> The first 8 patches are unchanged from the series posted a week ago and
-> cleans up how we use the backing_dev_info structure in preparation for
-> fixing the life time rules for it.  The most important change is to
-> split the unrelated nommu mmap flags from it, but it also remove a
-> backing_dev_info pointer from the address_space (and thus the inode)
-> and cleans up various other minor bits.
->
-> The remaining patches sort out the issues around bdi_unlink and now
-> let the bdi life until it's embedding structure is freed, which must
-> be equal or longer than the superblock using the bdi for writeback,
-> and thus gets rid of the whole mess around reassining inodes to new
-> bdis.
->
-> Changes since V1:
->   - various minor documentation updates based on Feedback from Tejun
+On Tue, Jan 20, 2015 at 02:02:00PM -0600, Kim Phillips wrote:
+> It's possible to configure DEBUG_PAGEALLOC without PAGE_POISONING on
+> ppc.  Fix building the generic kernel_map_pages() implementation in
+> this case:
+> 
+>   LD      init/built-in.o
+> mm/built-in.o: In function `free_pages_prepare':
+> mm/page_alloc.c:770: undefined reference to `.kernel_map_pages'
+> mm/built-in.o: In function `prep_new_page':
+> mm/page_alloc.c:933: undefined reference to `.kernel_map_pages'
+> mm/built-in.o: In function `map_pages':
+> mm/compaction.c:61: undefined reference to `.kernel_map_pages'
+> make: *** [vmlinux] Error 1
+> 
+> Signed-off-by: Kim Phillips <kim.phillips@freescale.com>
+> ---
+>  mm/Makefile | 1 +
+>  1 file changed, 1 insertion(+)
+> 
+> diff --git a/mm/Makefile b/mm/Makefile
+> index 4bf586e..2956467 100644
+> --- a/mm/Makefile
+> +++ b/mm/Makefile
+> @@ -46,6 +46,7 @@ obj-$(CONFIG_SLOB) += slob.o
+>  obj-$(CONFIG_MMU_NOTIFIER) += mmu_notifier.o
+>  obj-$(CONFIG_KSM) += ksm.o
+>  obj-$(CONFIG_PAGE_POISONING) += debug-pagealloc.o
+> +obj-$(CONFIG_DEBUG_PAGEALLOC) += debug-pagealloc.o
 
-I applied this to for-3.20/bdi, only making the change (noticed by Jan) 
-to kill the extra WARN_ON() in patch #11.
+Does it work correctly to list the same object file twice?  Doesn't seem
+like it would.  Shouldn't this do something like the following instead:
 
+ifneq ($(CONFIG_DEBUG_PAGEALLOC)$(CONFIG_PAGE_POISONING),)
+obj-y += debug-pagealloc.o
+endif
 
--- 
-Jens Axboe
+?
+
+>  obj-$(CONFIG_SLAB) += slab.o
+>  obj-$(CONFIG_SLUB) += slub.o
+>  obj-$(CONFIG_KMEMCHECK) += kmemcheck.o
+> -- 
+> 2.2.2
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
