@@ -1,83 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
-	by kanga.kvack.org (Postfix) with ESMTP id CAF706B0032
-	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 04:37:21 -0500 (EST)
-Received: by mail-la0-f47.google.com with SMTP id hz20so5835656lab.6
-        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 01:37:21 -0800 (PST)
-Received: from mail-la0-x235.google.com (mail-la0-x235.google.com. [2a00:1450:4010:c03::235])
-        by mx.google.com with ESMTPS id s1si16991967lal.3.2015.01.21.01.37.20
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C74E6B006E
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 05:01:12 -0500 (EST)
+Received: by mail-wi0-f172.google.com with SMTP id bs8so34728370wib.5
+        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 02:01:11 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id op9si38141208wjc.165.2015.01.21.02.01.10
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 21 Jan 2015 01:37:20 -0800 (PST)
-Received: by mail-la0-f53.google.com with SMTP id gq15so14649161lab.12
-        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 01:37:20 -0800 (PST)
+        Wed, 21 Jan 2015 02:01:10 -0800 (PST)
+Message-ID: <54BF78E3.7030303@suse.cz>
+Date: Wed, 21 Jan 2015 11:01:07 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20150121092956.4CF89A8@black.fi.intel.com>
-References: <20150121023003.GF30598@verge.net.au>
-	<20150121092956.4CF89A8@black.fi.intel.com>
-Date: Wed, 21 Jan 2015 10:37:20 +0100
-Message-ID: <CAMuHMdWyXaxobndjYDwYwqE=XJCBH_7C9TFBZYr7UpYk-rUa4A@mail.gmail.com>
-Subject: Re: Possible regression in next-20150120 due to "mm: account pmd page
- tables to the process"
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH] mm: compaction: fix the page state calculation in too_many_isolated
+References: <1421832864-30643-1-git-send-email-vinmenon@codeaurora.org>
+In-Reply-To: <1421832864-30643-1-git-send-email-vinmenon@codeaurora.org>
+Content-Type: text/plain; charset=iso-8859-2
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Simon Horman <horms@verge.net.au>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linux MM <linux-mm@kvack.org>, Dave Hansen <dave.hansen@linux.intel.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@openvz.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux-sh list <linux-sh@vger.kernel.org>, Magnus Damm <magnus.damm@gmail.com>
+To: Vinayak Menon <vinmenon@codeaurora.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, mgorman@suse.de, minchan@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com
 
-Hi Kirill, Simon,
+On 01/21/2015 10:34 AM, Vinayak Menon wrote:
+> Commit "3611badc1baa" (mm: vmscan: fix the page state calculation in
 
-On Wed, Jan 21, 2015 at 10:29 AM, Kirill A. Shutemov
-<kirill.shutemov@linux.intel.com> wrote:
-> Simon Horman wrote:
->> Hi,
->>
->> I have observed what appears to be a regression caused
->> by b316feb3c37ff19cd ("mm: account pmd page tables to the process").
->>
->> The problem that I am seeing is that when booting the kzm9g board, which is
->> based on the Renesas r8a73a4 ARM SoC, using its defconfig the following the
+That appears to be a -next commit ID, which won't be the same in Linus' tree, so
+it shouldn't be in commit message, AFAIK.
 
-Renesas sh73a0 ARM SoC, FWIW...
+> too_many_isolated) fixed an issue where a number of tasks were
+> blocked in reclaim path for seconds, because of vmstat_diff not being
+> synced in time. A similar problem can happen in isolate_migratepages_block,
+> similar calculation is performed. This patch fixes that.
 
->> tail boot log below is output repeatedly and the boot does not appear to
->> proceed any further.
->>
->> I have observed this problem using next-20150120 and observed
->> that it does not occur when the patch mentioned above is reverted.
->>
->> I have also observed what appears to be the same problem when
->> booting the following boards using their defconfigs. And perhaps
->> more to the point the problem appears to affect booting all
->> boards based on Renesas ARM SoCs for which there is working support
->> to boot them by initialising them using C (as opposed to device tree).
->>
->> * armadillo800eva, based on the r8a7740 SoC
->> * mackerel, based on the sh7372
->
-> This should be fixed by this:
->
-> http://marc.info/?l=linux-next&m=142176280218627&w=2
->
-> Please, test.
+I guess it's not possible to fix the stats instantly and once in the safe
+versions, so that future readings will be correct without safe, right?
+So until it gets fixed, each reading will have to be safe and thus expensive?
+
+I think in case of async compaction, we could skip the safe stuff and just
+terminate it - it's already done when too_many_isolated returns true, and
+there's no congestion waiting in that case.
+
+So you could extend the too_many_isolated() with "safe" parameter (as you did
+for vmscan) and pass it "cc->mode != MIGRATE_ASYNC" value from
+isolate_migrate_block().
+
+> Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
+> ---
+>  mm/compaction.c | 32 +++++++++++++++++++++++++++-----
+>  1 file changed, 27 insertions(+), 5 deletions(-)
+> 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 546e571..2d9730d 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -537,21 +537,43 @@ static void acct_isolated(struct zone *zone, struct compact_control *cc)
+>  	mod_zone_page_state(zone, NR_ISOLATED_FILE, count[1]);
+>  }
+>  
+> -/* Similar to reclaim, but different enough that they don't share logic */
+> -static bool too_many_isolated(struct zone *zone)
+> +static bool __too_many_isolated(struct zone *zone, int safe)
+>  {
+>  	unsigned long active, inactive, isolated;
+>  
+> -	inactive = zone_page_state(zone, NR_INACTIVE_FILE) +
+> +	if (safe) {
+> +		inactive = zone_page_state_snapshot(zone, NR_INACTIVE_FILE) +
+> +			zone_page_state_snapshot(zone, NR_INACTIVE_ANON);
+> +		active = zone_page_state_snapshot(zone, NR_ACTIVE_FILE) +
+> +			zone_page_state_snapshot(zone, NR_ACTIVE_ANON);
+> +		isolated = zone_page_state_snapshot(zone, NR_ISOLATED_FILE) +
+> +			zone_page_state_snapshot(zone, NR_ISOLATED_ANON);
+> +	} else {
+> +		inactive = zone_page_state(zone, NR_INACTIVE_FILE) +
+>  					zone_page_state(zone, NR_INACTIVE_ANON);
+
+Nit: could you ident the line above (and the other 2 below) the same way as they
+are in the if (safe) part?
 
 Thanks!
 
-Confirmed the issue, and confirmed the fix (on sh73a0/kzm9g-legacy).
-
-Tested-by: Geert Uytterhoeven <geert+renesas@glider.be>
-
-Gr{oetje,eeting}s,
-
-                        Geert
-
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
-
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-                                -- Linus Torvalds
+> -	active = zone_page_state(zone, NR_ACTIVE_FILE) +
+> +		active = zone_page_state(zone, NR_ACTIVE_FILE) +
+>  					zone_page_state(zone, NR_ACTIVE_ANON);
+> -	isolated = zone_page_state(zone, NR_ISOLATED_FILE) +
+> +		isolated = zone_page_state(zone, NR_ISOLATED_FILE) +
+>  					zone_page_state(zone, NR_ISOLATED_ANON);
+> +	}
+>  
+>  	return isolated > (inactive + active) / 2;
+>  }
+>  
+> +/* Similar to reclaim, but different enough that they don't share logic */
+> +static bool too_many_isolated(struct zone *zone)
+> +{
+> +	/*
+> +	 * __too_many_isolated(safe=0) is fast but inaccurate, because it
+> +	 * doesn't account for the vm_stat_diff[] counters.  So if it looks
+> +	 * like too_many_isolated() is about to return true, fall back to the
+> +	 * slower, more accurate zone_page_state_snapshot().
+> +	 */
+> +	if (unlikely(__too_many_isolated(zone, 0)))
+> +		return __too_many_isolated(zone, 1);
+> +	return 0;
+> +}
+> +
+>  /**
+>   * isolate_migratepages_block() - isolate all migrate-able pages within
+>   *				  a single pageblock
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
