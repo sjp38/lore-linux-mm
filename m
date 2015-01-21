@@ -1,49 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f173.google.com (mail-ie0-f173.google.com [209.85.223.173])
-	by kanga.kvack.org (Postfix) with ESMTP id E911B6B0032
-	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 17:44:52 -0500 (EST)
-Received: by mail-ie0-f173.google.com with SMTP id tr6so14834646ieb.4
-        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 14:44:52 -0800 (PST)
-Received: from mail-ie0-x234.google.com (mail-ie0-x234.google.com. [2607:f8b0:4001:c03::234])
-        by mx.google.com with ESMTPS id bc8si510009igb.36.2015.01.21.14.44.51
+Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DD966B0032
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 17:58:52 -0500 (EST)
+Received: by mail-ig0-f179.google.com with SMTP id l13so24287831iga.0
+        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 14:58:52 -0800 (PST)
+Received: from mail-ig0-x22f.google.com (mail-ig0-x22f.google.com. [2607:f8b0:4001:c05::22f])
+        by mx.google.com with ESMTPS id u1si7806216icx.100.2015.01.21.14.58.50
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 21 Jan 2015 14:44:51 -0800 (PST)
-Received: by mail-ie0-f180.google.com with SMTP id rl12so10766329iec.11
-        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 14:44:51 -0800 (PST)
-Date: Wed, 21 Jan 2015 14:44:49 -0800 (PST)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Jan 2015 14:58:51 -0800 (PST)
+Received: by mail-ig0-f175.google.com with SMTP id hn18so3950648igb.2
+        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 14:58:50 -0800 (PST)
+Date: Wed, 21 Jan 2015 14:58:48 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: move MACRO SLAB_NEVER_MERGE and SLAB_MERGE_SAME to
- file linux/slab.h
-In-Reply-To: <CAC2pzGd_p37Pi53ZEQShMj9BAECPXZCsxQwm=kKLACwmSBB99w@mail.gmail.com>
-Message-ID: <alpine.DEB.2.10.1501211443410.2716@chino.kir.corp.google.com>
-References: <CAC2pzGe9Q+19LpyFPwr8+TZ02XfCqwrQzsEsJA8WWB6XhuJyeQ@mail.gmail.com> <alpine.DEB.2.11.1501062114240.5674@gentwo.org> <CAC2pzGd_p37Pi53ZEQShMj9BAECPXZCsxQwm=kKLACwmSBB99w@mail.gmail.com>
+Subject: Re: [PATCH v2 2/2] task_mmu: Add user-space support for resetting
+ mm->hiwater_rss (peak RSS)
+In-Reply-To: <20150114233630.GA14615@node.dhcp.inet.fi>
+Message-ID: <alpine.DEB.2.10.1501211452580.2716@chino.kir.corp.google.com>
+References: <20150107172452.GA7922@node.dhcp.inet.fi> <20150114152225.GB31484@google.com> <20150114233630.GA14615@node.dhcp.inet.fi>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bryton Lee <brytonlee01@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, iamjoonsoo.kim@lge.com, penberg@kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Petr Cermak <petrcermak@chromium.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Bjorn Helgaas <bhelgaas@google.com>, Primiano Tucci <primiano@chromium.org>, Hugh Dickins <hughd@google.com>
 
-On Wed, 7 Jan 2015, Bryton Lee wrote:
+On Thu, 15 Jan 2015, Kirill A. Shutemov wrote:
 
-> thanks for review my patch.
+> I'm not sure if it should be considered ABI break or not. Just asking.
 > 
-> I want to move these macros to linux/slab.h cause I don't want perform
-> merge in slab level.   for example. ss read /proc/slabinfo to finger out
-> how many requests pending in the TCP listern queue.  it  use slabe name
-> "tcp_timewait_sock_ops" search in /proc/slabinfo, although the name is
-> obsolete. so I committed other patch  to iproute2, replaced
-> tcp_timewait_sock_ops by request_sock_TCP, but it still not work, because
-> slab request_sock_TCP  merge into kmalloc-256.
-> 
-> how could I prevent this merge happen.  I'm new to kernel, this is my first
-> time submit a kernel patch, thanks!
-> 
+> I would like to hear opinion from other people.
+>  
 
-Any bit in SLAB_NEVER_MERGE will cause the allocator to not merge the slab 
-caches, it's not necessary to all of them be set as it seems you're 
-implying.
+I think the bigger concern would be that this, and any new line such as 
+resettable_hiwater_rss, invalidates itself entirely.  Any process that 
+checks the hwm will not know of other processes that reset it, so the 
+value itself has no significance anymore.  It would just be the mark since 
+the last clear at an unknown time.  Userspace can monitor the rss of a 
+process by reading /proc/pid/stat, there's no need for the kernel to do 
+something that userspace can do.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
