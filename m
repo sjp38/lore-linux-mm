@@ -1,101 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B3FA6B0032
-	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 14:14:35 -0500 (EST)
-Received: by mail-pd0-f174.google.com with SMTP id ft15so22299045pdb.5
-        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 11:14:35 -0800 (PST)
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com. [209.85.192.180])
-        by mx.google.com with ESMTPS id d7si4715834pdf.238.2015.01.21.11.14.31
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id E98066B0032
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 15:47:43 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id et14so55212424pad.3
+        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 12:47:43 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id kw15si9720738pab.218.2015.01.21.12.47.41
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 21 Jan 2015 11:14:32 -0800 (PST)
-Received: by mail-pd0-f180.google.com with SMTP id ft15so22295593pdb.11
-        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 11:14:31 -0800 (PST)
-Date: Wed, 21 Jan 2015 11:14:22 -0800
-From: Omar Sandoval <osandov@osandov.com>
-Subject: Re: [PATCH v2 0/5] clean up and generalize swap-over-NFS
-Message-ID: <20150121191422.GA4775@mew>
-References: <cover.1419044605.git.osandov@osandov.com>
- <20150114031836.GA21198@mew>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 21 Jan 2015 12:47:42 -0800 (PST)
+Message-ID: <54C01051.7000107@oracle.com>
+Date: Wed, 21 Jan 2015 15:47:13 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150114031836.GA21198@mew>
+Subject: Re: [PATCH v9 07/17] mm: slub: add kernel address sanitizer support
+ for slub allocator
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com> <1421859105-25253-1-git-send-email-a.ryabinin@samsung.com> <1421859105-25253-8-git-send-email-a.ryabinin@samsung.com>
+In-Reply-To: <1421859105-25253-8-git-send-email-a.ryabinin@samsung.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrey Ryabinin <a.ryabinin@samsung.com>, linux-kernel@vger.kernel.org
+Cc: Dmitry Chernenkov <dmitryc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, x86@kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>
 
-On Tue, Jan 13, 2015 at 07:18:36PM -0800, Omar Sandoval wrote:
-> On Fri, Dec 19, 2014 at 07:18:24PM -0800, Omar Sandoval wrote:
-> > Hi,
-> > 
-> > This patch series (based on ecb5ec0 in Linus' tree) contains all of the
-> > non-BTRFS work that I've done to implement swapfiles on BTRFS. The BTRFS
-> > portion is still undergoing development and is now outweighed by the
-> > non-BTRFS changes, so I want to get these in separately.
-> > 
-> > Version 2 changes the generic swapfile interface to use ->read_iter and
-> > ->write_iter instead of using ->direct_IO directly in response to
-> > discussion on the previous submission. It also adds the iov_iter_is_bvec
-> > helper to factor out some common checks.
-> > 
-> > Version 1 can be found here: https://lkml.org/lkml/2014/12/15/7
-> > 
-> > Omar Sandoval (5):
-> >   iov_iter: add ITER_BVEC helpers
-> >   direct-io: don't dirty ITER_BVEC pages on read
-> >   nfs: don't dirty ITER_BVEC pages read through direct I/O
-> >   swapfile: use ->read_iter and ->write_iter
-> >   vfs: update swap_{,de}activate documentation
-> > 
-> >  Documentation/filesystems/Locking |  7 ++++---
-> >  Documentation/filesystems/vfs.txt |  7 ++++---
-> >  fs/direct-io.c                    |  8 ++++---
-> >  fs/nfs/direct.c                   |  5 ++++-
-> >  fs/splice.c                       |  7 ++-----
-> >  include/linux/uio.h               |  7 +++++++
-> >  mm/iov_iter.c                     | 12 +++++++++++
-> >  mm/page_io.c                      | 44 +++++++++++++++++++++++++--------------
-> >  mm/swapfile.c                     | 11 +++++++++-
-> >  9 files changed, 76 insertions(+), 32 deletions(-)
-> > 
-> > -- 
-> > 2.2.1
-> > 
+On 01/21/2015 11:51 AM, Andrey Ryabinin wrote:
+> With this patch kasan will be able to catch bugs in memory allocated
+> by slub.
+> Initially all objects in newly allocated slab page, marked as redzone.
+> Later, when allocation of slub object happens, requested by caller
+> number of bytes marked as accessible, and the rest of the object
+> (including slub's metadata) marked as redzone (inaccessible).
 > 
-> Hi, everyone,
+> We also mark object as accessible if ksize was called for this object.
+> There is some places in kernel where ksize function is called to inquire
+> size of really allocated area. Such callers could validly access whole
+> allocated memory, so it should be marked as accessible.
 > 
-> Thanks for all of the feedback on the last few iterations of this
-> series. If it's alright, I'd like to revive the conversation around
-> these patches.
-> 
-> There are a couple of issues which we were discussing before the
-> holidays:
-> 
-> One concern that Al mentioned was ->read_iter and ->write_iter falling
-> back to the buffered I/O case. Like Christoph mentioned, this can be
-> prevented by doing the proper checks on the filesystem side (usually
-> just making sure that all blocks of a swapfile are allocated, but on
-> BTRFS, for example, we also have to check for compressed extents).
-> 
-> The other concern which Al brought up was that ->read_iter is passed a
-> locked page in the iter_bvec and could end up trying to lock it. I'm not
-> too sure under what conditions that would happen -- could someone give
-> an example? My intuition is that there's no path which will lead us to
-> deadlock on a page in the swapcache, but I don't have anything solid to
-> back that up.
-> 
-> Thanks!
-> -- 
-> Omar
+> Code in slub.c and slab_common.c files could validly access to object's
+> metadata, so instrumentation for this files are disabled.
 
-Hi,
+This one doesn't apply on -next. Is there a missing commit?
 
-Any updates on this?
+Applying: mm: slub: add kernel address sanitizer support for slub allocator
+fatal: sha1 information is lacking or useless (mm/slub.c).
+Repository lacks necessary blobs to fall back on 3-way merge.
+Cannot fall back to three-way merge.
+Patch failed at 0007 mm: slub: add kernel address sanitizer support for slub allocator
+When you have resolved this problem run "git am --resolved".
+If you would prefer to skip this patch, instead run "git am --skip".
+To restore the original branch and stop patching run "git am --abort".
+
 
 Thanks,
--- 
-Omar
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
