@@ -1,115 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C74E6B006E
-	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 05:01:12 -0500 (EST)
-Received: by mail-wi0-f172.google.com with SMTP id bs8so34728370wib.5
-        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 02:01:11 -0800 (PST)
+Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B5E96B0032
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 05:16:01 -0500 (EST)
+Received: by mail-we0-f182.google.com with SMTP id l61so16934292wev.13
+        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 02:16:00 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id op9si38141208wjc.165.2015.01.21.02.01.10
+        by mx.google.com with ESMTPS id f13si37558315wjq.94.2015.01.21.02.16.00
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 21 Jan 2015 02:01:10 -0800 (PST)
-Message-ID: <54BF78E3.7030303@suse.cz>
-Date: Wed, 21 Jan 2015 11:01:07 +0100
+        Wed, 21 Jan 2015 02:16:00 -0800 (PST)
+Message-ID: <54BF7C5E.6050503@suse.cz>
+Date: Wed, 21 Jan 2015 11:15:58 +0100
 From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: compaction: fix the page state calculation in too_many_isolated
-References: <1421832864-30643-1-git-send-email-vinmenon@codeaurora.org>
-In-Reply-To: <1421832864-30643-1-git-send-email-vinmenon@codeaurora.org>
-Content-Type: text/plain; charset=iso-8859-2
+Subject: Re: [PATCH] mm: Don't offset memmap for flatmem
+References: <1421804273-29947-1-git-send-email-lauraa@codeaurora.org>
+In-Reply-To: <1421804273-29947-1-git-send-email-lauraa@codeaurora.org>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vinayak Menon <vinmenon@codeaurora.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, mgorman@suse.de, minchan@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com
+To: Laura Abbott <lauraa@codeaurora.org>, Srinivas Kandagatla <srinivas.kandagatla@linaro.org>, linux-arm-kernel@lists.infradead.org, Russell King - ARM Linux <linux@arm.linux.org.uk>, ssantosh@kernel.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Kevin Kilman <khilman@linaro.org>, Stephen Boyd <sboyd@codeaurora.org>, Arnd Bergman <arnd@arndb.de>, Kumar Gala <galak@codeaurora.org>, linux-mm@kvack.org
 
-On 01/21/2015 10:34 AM, Vinayak Menon wrote:
-> Commit "3611badc1baa" (mm: vmscan: fix the page state calculation in
-
-That appears to be a -next commit ID, which won't be the same in Linus' tree, so
-it shouldn't be in commit message, AFAIK.
-
-> too_many_isolated) fixed an issue where a number of tasks were
-> blocked in reclaim path for seconds, because of vmstat_diff not being
-> synced in time. A similar problem can happen in isolate_migratepages_block,
-> similar calculation is performed. This patch fixes that.
-
-I guess it's not possible to fix the stats instantly and once in the safe
-versions, so that future readings will be correct without safe, right?
-So until it gets fixed, each reading will have to be safe and thus expensive?
-
-I think in case of async compaction, we could skip the safe stuff and just
-terminate it - it's already done when too_many_isolated returns true, and
-there's no congestion waiting in that case.
-
-So you could extend the too_many_isolated() with "safe" parameter (as you did
-for vmscan) and pass it "cc->mode != MIGRATE_ASYNC" value from
-isolate_migrate_block().
-
-> Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
-> ---
->  mm/compaction.c | 32 +++++++++++++++++++++++++++-----
->  1 file changed, 27 insertions(+), 5 deletions(-)
+On 01/21/2015 02:37 AM, Laura Abbott wrote:
+> Srinivas Kandagatla reported bad page messages when trying to
+> remove the bottom 2MB on an ARM based IFC6410 board
 > 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 546e571..2d9730d 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -537,21 +537,43 @@ static void acct_isolated(struct zone *zone, struct compact_control *cc)
->  	mod_zone_page_state(zone, NR_ISOLATED_FILE, count[1]);
->  }
+> BUG: Bad page state in process swapper  pfn:fffa8
+> page:ef7fb500 count:0 mapcount:0 mapping:  (null) index:0x0
+> flags: 0x96640253(locked|error|dirty|active|arch_1|reclaim|mlocked)
+> page dumped because: PAGE_FLAGS_CHECK_AT_FREE flag(s) set
+> bad because of flags:
+> flags: 0x200041(locked|active|mlocked)
+> Modules linked in:
+> CPU: 0 PID: 0 Comm: swapper Not tainted 3.19.0-rc3-00007-g412f9ba-dirty #816
+> Hardware name: Qualcomm (Flattened Device Tree)
+> [<c0218280>] (unwind_backtrace) from [<c0212be8>] (show_stack+0x20/0x24)
+> [<c0212be8>] (show_stack) from [<c0af7124>] (dump_stack+0x80/0x9c)
+> [<c0af7124>] (dump_stack) from [<c0301570>] (bad_page+0xc8/0x128)
+> [<c0301570>] (bad_page) from [<c03018a8>] (free_pages_prepare+0x168/0x1e0)
+> [<c03018a8>] (free_pages_prepare) from [<c030369c>] (free_hot_cold_page+0x3c/0x174)
+> [<c030369c>] (free_hot_cold_page) from [<c0303828>] (__free_pages+0x54/0x58)
+> [<c0303828>] (__free_pages) from [<c030395c>] (free_highmem_page+0x38/0x88)
+> [<c030395c>] (free_highmem_page) from [<c0f62d5c>] (mem_init+0x240/0x430)
+> [<c0f62d5c>] (mem_init) from [<c0f5db3c>] (start_kernel+0x1e4/0x3c8)
+> [<c0f5db3c>] (start_kernel) from [<80208074>] (0x80208074)
+> Disabling lock debugging due to kernel taint
+> 
+> Removing the lower 2MB made the start of the lowmem zone to no longer
+> be page block aligned. IFC6410 uses CONFIG_FLATMEM where
+> alloc_node_mem_map allocates memory for the mem_map. alloc_node_mem_map
+> will offset for unaligned nodes with the assumption the pfn/page
+> translation functions will account for the offset. The functions for
+> CONFIG_FLATMEM do not offset however, resulting in overrunning
+> the memmap array. Just use the allocated memmap without any offset
+> when running with CONFIG_FLATMEM to avoid the overrun.
+> 
+> Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
+> Reported-by: Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
+> ---
+> Srinivas, can you test this version of the patch?
+> ---
+>  mm/page_alloc.c | 5 ++++-
+>  1 file changed, 4 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 7633c50..33cef00 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -5014,6 +5014,7 @@ static void __init_refok alloc_node_mem_map(struct pglist_data *pgdat)
+>  	if (!pgdat->node_mem_map) {
+>  		unsigned long size, start, end;
+>  		struct page *map;
+> +		unsigned long offset = 0;
 >  
-> -/* Similar to reclaim, but different enough that they don't share logic */
-> -static bool too_many_isolated(struct zone *zone)
-> +static bool __too_many_isolated(struct zone *zone, int safe)
->  {
->  	unsigned long active, inactive, isolated;
->  
-> -	inactive = zone_page_state(zone, NR_INACTIVE_FILE) +
-> +	if (safe) {
-> +		inactive = zone_page_state_snapshot(zone, NR_INACTIVE_FILE) +
-> +			zone_page_state_snapshot(zone, NR_INACTIVE_ANON);
-> +		active = zone_page_state_snapshot(zone, NR_ACTIVE_FILE) +
-> +			zone_page_state_snapshot(zone, NR_ACTIVE_ANON);
-> +		isolated = zone_page_state_snapshot(zone, NR_ISOLATED_FILE) +
-> +			zone_page_state_snapshot(zone, NR_ISOLATED_ANON);
-> +	} else {
-> +		inactive = zone_page_state(zone, NR_INACTIVE_FILE) +
->  					zone_page_state(zone, NR_INACTIVE_ANON);
+>  		/*
+>  		 * The zone's endpoints aren't required to be MAX_ORDER
+> @@ -5021,6 +5022,8 @@ static void __init_refok alloc_node_mem_map(struct pglist_data *pgdat)
+>  		 * for the buddy allocator to function correctly.
+>  		 */
+>  		start = pgdat->node_start_pfn & ~(MAX_ORDER_NR_PAGES - 1);
+> +		if (!IS_ENABLED(CONFIG_FLATMEM))
+> +			offset = pgdat->node_start_pfn - start;
+>  		end = pgdat_end_pfn(pgdat);
+>  		end = ALIGN(end, MAX_ORDER_NR_PAGES);
+>  		size =  (end - start) * sizeof(struct page);
+> @@ -5028,7 +5031,7 @@ static void __init_refok alloc_node_mem_map(struct pglist_data *pgdat)
+>  		if (!map)
+>  			map = memblock_virt_alloc_node_nopanic(size,
+>  							       pgdat->node_id);
+> -		pgdat->node_mem_map = map + (pgdat->node_start_pfn - start);
+> +		pgdat->node_mem_map = map + offset;
 
-Nit: could you ident the line above (and the other 2 below) the same way as they
-are in the if (safe) part?
+Hmm, by this patch, you have changed not only mem_map, but also node_mem_map
+itself. So the result of pgdat_page_nr() defined in mmzone.h will now be
+different in the CONFIG_FLAT_NODE_MEM_MAP case?
 
-Thanks!
+#ifdef CONFIG_FLAT_NODE_MEM_MAP
+#define pgdat_page_nr(pgdat, pagenr)    ((pgdat)->node_mem_map + (pagenr))
+#else
+#define pgdat_page_nr(pgdat, pagenr)    pfn_to_page((pgdat)->node_start_pfn +
+(pagenr))
+#define nid_page_nr(nid, pagenr)        pgdat_page_nr(NODE_DATA(nid),(pagenr))
 
-> -	active = zone_page_state(zone, NR_ACTIVE_FILE) +
-> +		active = zone_page_state(zone, NR_ACTIVE_FILE) +
->  					zone_page_state(zone, NR_ACTIVE_ANON);
-> -	isolated = zone_page_state(zone, NR_ISOLATED_FILE) +
-> +		isolated = zone_page_state(zone, NR_ISOLATED_FILE) +
->  					zone_page_state(zone, NR_ISOLATED_ANON);
-> +	}
->  
->  	return isolated > (inactive + active) / 2;
->  }
->  
-> +/* Similar to reclaim, but different enough that they don't share logic */
-> +static bool too_many_isolated(struct zone *zone)
-> +{
-> +	/*
-> +	 * __too_many_isolated(safe=0) is fast but inaccurate, because it
-> +	 * doesn't account for the vm_stat_diff[] counters.  So if it looks
-> +	 * like too_many_isolated() is about to return true, fall back to the
-> +	 * slower, more accurate zone_page_state_snapshot().
-> +	 */
-> +	if (unlikely(__too_many_isolated(zone, 0)))
-> +		return __too_many_isolated(zone, 1);
-> +	return 0;
-> +}
-> +
->  /**
->   * isolate_migratepages_block() - isolate all migrate-able pages within
->   *				  a single pageblock
+It appears that nobody uses pgdat_page_nr, except nid_page_nr, which nobody
+uses. But better not leave it broken, and there's also some arch-specific code
+looking at node_mem_map directly (although not sure if this particular
+combination of CONFIG_ parameters applies there). So it seems to me we should
+rather apply the offset to node_mem_map in any case, but not apply it (i.e.
+subtract it back) to mem_map for !CONFIG_FLATMEM?
+
+Thanks.
+
+>  	}
+>  #ifndef CONFIG_NEED_MULTIPLE_NODES
+>  	/*
 > 
 
 --
