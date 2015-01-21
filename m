@@ -1,81 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 629F66B0032
-	for <linux-mm@kvack.org>; Tue, 20 Jan 2015 19:07:41 -0500 (EST)
-Received: by mail-qc0-f174.google.com with SMTP id s11so13276112qcv.5
-        for <linux-mm@kvack.org>; Tue, 20 Jan 2015 16:07:41 -0800 (PST)
+Received: from mail-qc0-f179.google.com (mail-qc0-f179.google.com [209.85.216.179])
+	by kanga.kvack.org (Postfix) with ESMTP id A97516B0032
+	for <linux-mm@kvack.org>; Tue, 20 Jan 2015 19:48:35 -0500 (EST)
+Received: by mail-qc0-f179.google.com with SMTP id w7so13491593qcr.10
+        for <linux-mm@kvack.org>; Tue, 20 Jan 2015 16:48:35 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id n4si2356649qas.107.2015.01.20.16.07.39
+        by mx.google.com with ESMTPS id 8si2590554qaq.29.2015.01.20.16.48.33
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Jan 2015 16:07:40 -0800 (PST)
-Date: Tue, 20 Jan 2015 16:07:38 -0800
+        Tue, 20 Jan 2015 16:48:34 -0800 (PST)
+Date: Tue, 20 Jan 2015 16:48:32 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/2] mm: fix undefined reference to `.kernel_map_pages'
- on PPC builds
-Message-Id: <20150120160738.edfe64806cc8b943beb1dfa0@linux-foundation.org>
-In-Reply-To: <20150120230150.GA14475@cloud>
-References: <20150120140200.aa7ba0eb28d95e456972e178@freescale.com>
-	<20150120230150.GA14475@cloud>
+Subject: Re: [PATCH V4] mm/thp: Allocate transparent hugepages on local node
+Message-Id: <20150120164832.abe2e47b760e1a8d7bb6055b@linux-foundation.org>
+In-Reply-To: <1421753671-16793-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1421753671-16793-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: josh@joshtriplett.org
-Cc: Kim Phillips <kim.phillips@freescale.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Al Viro <viro@zeniv.linux.org.uk>, Konstantin Khlebnikov <k.khlebnikov@samsung.com>, Jens Axboe <axboe@fb.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, Akinobu Mita <akinobu.mita@gmail.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 20 Jan 2015 15:01:50 -0800 josh@joshtriplett.org wrote:
+On Tue, 20 Jan 2015 17:04:31 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
 
-> On Tue, Jan 20, 2015 at 02:02:00PM -0600, Kim Phillips wrote:
-> > It's possible to configure DEBUG_PAGEALLOC without PAGE_POISONING on
-> > ppc.  Fix building the generic kernel_map_pages() implementation in
-> > this case:
-> > 
-> >   LD      init/built-in.o
-> > mm/built-in.o: In function `free_pages_prepare':
-> > mm/page_alloc.c:770: undefined reference to `.kernel_map_pages'
-> > mm/built-in.o: In function `prep_new_page':
-> > mm/page_alloc.c:933: undefined reference to `.kernel_map_pages'
-> > mm/built-in.o: In function `map_pages':
-> > mm/compaction.c:61: undefined reference to `.kernel_map_pages'
-> > make: *** [vmlinux] Error 1
-> > 
-> > Signed-off-by: Kim Phillips <kim.phillips@freescale.com>
-> > ---
-> >  mm/Makefile | 1 +
-> >  1 file changed, 1 insertion(+)
-> > 
-> > diff --git a/mm/Makefile b/mm/Makefile
-> > index 4bf586e..2956467 100644
-> > --- a/mm/Makefile
-> > +++ b/mm/Makefile
-> > @@ -46,6 +46,7 @@ obj-$(CONFIG_SLOB) += slob.o
-> >  obj-$(CONFIG_MMU_NOTIFIER) += mmu_notifier.o
-> >  obj-$(CONFIG_KSM) += ksm.o
-> >  obj-$(CONFIG_PAGE_POISONING) += debug-pagealloc.o
-> > +obj-$(CONFIG_DEBUG_PAGEALLOC) += debug-pagealloc.o
+> This make sure that we try to allocate hugepages from local node if
+> allowed by mempolicy. If we can't, we fallback to small page allocation
+> based on mempolicy. This is based on the observation that allocating pages
+> on local node is more beneficial than allocating hugepages on remote
+> node.
 > 
-> Does it work correctly to list the same object file twice?  Doesn't seem
-> like it would.  Shouldn't this do something like the following instead:
+> With this patch applied we may find transparent huge page allocation
+> failures if the current node doesn't have enough freee hugepages.
+> Before this patch such failures result in us retrying the allocation on
+> other nodes in the numa node mask.
 > 
-> ifneq ($(CONFIG_DEBUG_PAGEALLOC)$(CONFIG_PAGE_POISONING),)
-> obj-y += debug-pagealloc.o
-> endif
-> 
+>  
+>  /**
+> + * alloc_hugepage_vma: Allocate a hugepage for a VMA
+> + * @gfp:
+> + *   %GFP_USER	  user allocation.
+> + *   %GFP_KERNEL  kernel allocations,
+> + *   %GFP_HIGHMEM highmem/user allocations,
+> + *   %GFP_FS	  allocation should not call back into a file system.
+> + *   %GFP_ATOMIC  don't sleep.
+> + *
+> + * @vma:   Pointer to VMA or NULL if not available.
+> + * @addr:  Virtual Address of the allocation. Must be inside the VMA.
+> + * @order: Order of the hugepage for gfp allocation.
+> + *
+> + * This functions allocate a huge page from the kernel page pool and applies
+> + * a NUMA policy associated with the VMA or the current process.
+> + * For policy other than %MPOL_INTERLEAVE, we make sure we allocate hugepage
+> + * only from the current node if the current node is part of the node mask.
+> + * If we can't allocate a hugepage we fail the allocation and don' try to fallback
+> + * to other nodes in the node mask. If the current node is not part of node mask
+> + * or if the NUMA policy is MPOL_INTERLEAVE we use the allocator that can
+> + * fallback to nodes in the policy node mask.
+> + *
+> + * When VMA is not NULL caller must hold down_read on the mmap_sem of the
+> + * mm_struct of the VMA to prevent it from going away. Should be used for
+> + * all allocations for pages that will be mapped into
+> + * user space. Returns NULL when no page can be allocated.
+> + *
+> + * Should be called with the mm_sem of the vma hold.
 
-I expect it's a Kconfig problem.  DEBUG_PAGEALLOC should be selecting
-PAGE_POISONING.
+That's a pretty cruddy sentence, isn't it?  Copied from
+alloc_pages_vma().  "vma->vm_mm->mmap_sem" would be better.
 
-config DEBUG_PAGEALLOC
-	bool "Debug page memory allocations"
-	depends on DEBUG_KERNEL
-	depends on !HIBERNATION || ARCH_SUPPORTS_DEBUG_PAGEALLOC && !PPC && !SPARC
-	depends on !KMEMCHECK
-	select PAGE_EXTENSION
-	select PAGE_POISONING if !ARCH_SUPPORTS_DEBUG_PAGEALLOC
+And it should tell us whether mmap_sem required a down_read or a
+down_write.  What purpose is it serving?
 
-Culprits cc'ed!
+> + *
+> + */
+> +struct page *alloc_hugepage_vma(gfp_t gfp, struct vm_area_struct *vma,
+> +				unsigned long addr, int order)
+
+This pointlessly bloats the kernel if CONFIG_TRANSPARENT_HUGEPAGE=n?
+
+
+
+--- a/mm/mempolicy.c~mm-thp-allocate-transparent-hugepages-on-local-node-fix
++++ a/mm/mempolicy.c
+@@ -2030,6 +2030,7 @@ retry_cpuset:
+ 	return page;
+ }
+ 
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ /**
+  * alloc_hugepage_vma: Allocate a hugepage for a VMA
+  * @gfp:
+@@ -2057,7 +2058,7 @@ retry_cpuset:
+  * all allocations for pages that will be mapped into
+  * user space. Returns NULL when no page can be allocated.
+  *
+- * Should be called with the mm_sem of the vma hold.
++ * Should be called with vma->vm_mm->mmap_sem held.
+  *
+  */
+ struct page *alloc_hugepage_vma(gfp_t gfp, struct vm_area_struct *vma,
+@@ -2099,6 +2100,7 @@ alloc_with_fallback:
+ 	 */
+ 	return alloc_pages_vma(gfp, order, vma, addr, node);
+ }
++#endif
+ 
+ /**
+  * 	alloc_pages_current - Allocate pages.
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
