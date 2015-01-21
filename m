@@ -1,122 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B5E96B0032
-	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 05:16:01 -0500 (EST)
-Received: by mail-we0-f182.google.com with SMTP id l61so16934292wev.13
-        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 02:16:00 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f13si37558315wjq.94.2015.01.21.02.16.00
+Received: from mail-vc0-f178.google.com (mail-vc0-f178.google.com [209.85.220.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 972AE6B0032
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 05:29:13 -0500 (EST)
+Received: by mail-vc0-f178.google.com with SMTP id im6so5470192vcb.9
+        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 02:29:13 -0800 (PST)
+Received: from mail-vc0-x22b.google.com (mail-vc0-x22b.google.com. [2607:f8b0:400c:c03::22b])
+        by mx.google.com with ESMTPS id ew2si3842455vdc.39.2015.01.21.02.29.11
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 21 Jan 2015 02:16:00 -0800 (PST)
-Message-ID: <54BF7C5E.6050503@suse.cz>
-Date: Wed, 21 Jan 2015 11:15:58 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        Wed, 21 Jan 2015 02:29:12 -0800 (PST)
+Received: by mail-vc0-f171.google.com with SMTP id hq11so4589110vcb.2
+        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 02:29:11 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: Don't offset memmap for flatmem
-References: <1421804273-29947-1-git-send-email-lauraa@codeaurora.org>
-In-Reply-To: <1421804273-29947-1-git-send-email-lauraa@codeaurora.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20150120140546.DDCB8D4@black.fi.intel.com>
+References: <54BD33DC.40200@ti.com>
+	<20150119174317.GK20386@saruman>
+	<20150120001643.7D15AA8@black.fi.intel.com>
+	<20150120114555.GA11502@n2100.arm.linux.org.uk>
+	<20150120140546.DDCB8D4@black.fi.intel.com>
+Date: Wed, 21 Jan 2015 11:29:11 +0100
+Message-ID: <CAJKOXPdBzSTM0EaFv5C_on8fAPDERkHOtTwVyN04kTRErAE+KA@mail.gmail.com>
+Subject: Re: [next-20150119]regression (mm)?
+From: Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <lauraa@codeaurora.org>, Srinivas Kandagatla <srinivas.kandagatla@linaro.org>, linux-arm-kernel@lists.infradead.org, Russell King - ARM Linux <linux@arm.linux.org.uk>, ssantosh@kernel.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Kevin Kilman <khilman@linaro.org>, Stephen Boyd <sboyd@codeaurora.org>, Arnd Bergman <arnd@arndb.de>, Kumar Gala <galak@codeaurora.org>, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, Felipe Balbi <balbi@ti.com>, Nishanth Menon <nm@ti.com>, linux-mm@kvack.org, linux-next <linux-next@vger.kernel.org>, linux-omap <linux-omap@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On 01/21/2015 02:37 AM, Laura Abbott wrote:
-> Srinivas Kandagatla reported bad page messages when trying to
-> remove the bottom 2MB on an ARM based IFC6410 board
-> 
-> BUG: Bad page state in process swapper  pfn:fffa8
-> page:ef7fb500 count:0 mapcount:0 mapping:  (null) index:0x0
-> flags: 0x96640253(locked|error|dirty|active|arch_1|reclaim|mlocked)
-> page dumped because: PAGE_FLAGS_CHECK_AT_FREE flag(s) set
-> bad because of flags:
-> flags: 0x200041(locked|active|mlocked)
-> Modules linked in:
-> CPU: 0 PID: 0 Comm: swapper Not tainted 3.19.0-rc3-00007-g412f9ba-dirty #816
-> Hardware name: Qualcomm (Flattened Device Tree)
-> [<c0218280>] (unwind_backtrace) from [<c0212be8>] (show_stack+0x20/0x24)
-> [<c0212be8>] (show_stack) from [<c0af7124>] (dump_stack+0x80/0x9c)
-> [<c0af7124>] (dump_stack) from [<c0301570>] (bad_page+0xc8/0x128)
-> [<c0301570>] (bad_page) from [<c03018a8>] (free_pages_prepare+0x168/0x1e0)
-> [<c03018a8>] (free_pages_prepare) from [<c030369c>] (free_hot_cold_page+0x3c/0x174)
-> [<c030369c>] (free_hot_cold_page) from [<c0303828>] (__free_pages+0x54/0x58)
-> [<c0303828>] (__free_pages) from [<c030395c>] (free_highmem_page+0x38/0x88)
-> [<c030395c>] (free_highmem_page) from [<c0f62d5c>] (mem_init+0x240/0x430)
-> [<c0f62d5c>] (mem_init) from [<c0f5db3c>] (start_kernel+0x1e4/0x3c8)
-> [<c0f5db3c>] (start_kernel) from [<80208074>] (0x80208074)
-> Disabling lock debugging due to kernel taint
-> 
-> Removing the lower 2MB made the start of the lowmem zone to no longer
-> be page block aligned. IFC6410 uses CONFIG_FLATMEM where
-> alloc_node_mem_map allocates memory for the mem_map. alloc_node_mem_map
-> will offset for unaligned nodes with the assumption the pfn/page
-> translation functions will account for the offset. The functions for
-> CONFIG_FLATMEM do not offset however, resulting in overrunning
-> the memmap array. Just use the allocated memmap without any offset
-> when running with CONFIG_FLATMEM to avoid the overrun.
-> 
-> Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
-> Reported-by: Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
+2015-01-20 15:05 GMT+01:00 Kirill A. Shutemov <kirill.shutemov@linux.intel.com>:
+> Russell King - ARM Linux wrote:
+>> On Tue, Jan 20, 2015 at 02:16:43AM +0200, Kirill A. Shutemov wrote:
+>> > Better option would be converting 2-lvl ARM configuration to
+>> > <asm-generic/pgtable-nopmd.h>, but I'm not sure if it's possible.
+>>
+>> Well, IMHO the folded approach in asm-generic was done the wrong way
+>> which barred ARM from ever using it.
+>
+> Okay, I see.
+>
+> Regarding the topic bug. Completely untested patch is below. Could anybody
+> check if it helps?
+>
+> From 34b9182d08ef2b541829e305fcc91ef1d26b27ea Mon Sep 17 00:00:00 2001
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Date: Tue, 20 Jan 2015 15:47:22 +0200
+> Subject: [PATCH] arm: define __PAGETABLE_PMD_FOLDED for !LPAE
+>
+> ARM uses custom implementation of PMD folding in 2-level page table case.
+> Generic code expects to see __PAGETABLE_PMD_FOLDED to be defined if PMD is
+> folded, but ARM doesn't do this. Let's fix it.
+>
+> Defining __PAGETABLE_PMD_FOLDED will drop out unused __pmd_alloc().
+> It also fixes problems with recently-introduced pmd accounting on ARM
+> without LPAE.
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Reported-by: Nishanth Menon <nm@ti.com>
 > ---
-> Srinivas, can you test this version of the patch?
-> ---
->  mm/page_alloc.c | 5 ++++-
->  1 file changed, 4 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 7633c50..33cef00 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5014,6 +5014,7 @@ static void __init_refok alloc_node_mem_map(struct pglist_data *pgdat)
->  	if (!pgdat->node_mem_map) {
->  		unsigned long size, start, end;
->  		struct page *map;
-> +		unsigned long offset = 0;
->  
->  		/*
->  		 * The zone's endpoints aren't required to be MAX_ORDER
-> @@ -5021,6 +5022,8 @@ static void __init_refok alloc_node_mem_map(struct pglist_data *pgdat)
->  		 * for the buddy allocator to function correctly.
->  		 */
->  		start = pgdat->node_start_pfn & ~(MAX_ORDER_NR_PAGES - 1);
-> +		if (!IS_ENABLED(CONFIG_FLATMEM))
-> +			offset = pgdat->node_start_pfn - start;
->  		end = pgdat_end_pfn(pgdat);
->  		end = ALIGN(end, MAX_ORDER_NR_PAGES);
->  		size =  (end - start) * sizeof(struct page);
-> @@ -5028,7 +5031,7 @@ static void __init_refok alloc_node_mem_map(struct pglist_data *pgdat)
->  		if (!map)
->  			map = memblock_virt_alloc_node_nopanic(size,
->  							       pgdat->node_id);
-> -		pgdat->node_mem_map = map + (pgdat->node_start_pfn - start);
-> +		pgdat->node_mem_map = map + offset;
+>  arch/arm/include/asm/pgtable-2level.h | 2 ++
+>  1 file changed, 2 insertions(+)
 
-Hmm, by this patch, you have changed not only mem_map, but also node_mem_map
-itself. So the result of pgdat_page_nr() defined in mmzone.h will now be
-different in the CONFIG_FLAT_NODE_MEM_MAP case?
+Helps for this issue on Exynos 4412 (Trats2) and Exynos 5420 (Arndale Octa):
+Tested-by: Krzysztof Kozlowski <k.kozlowski@samsung.com>
 
-#ifdef CONFIG_FLAT_NODE_MEM_MAP
-#define pgdat_page_nr(pgdat, pagenr)    ((pgdat)->node_mem_map + (pagenr))
-#else
-#define pgdat_page_nr(pgdat, pagenr)    pfn_to_page((pgdat)->node_start_pfn +
-(pagenr))
-#define nid_page_nr(nid, pagenr)        pgdat_page_nr(NODE_DATA(nid),(pagenr))
+Off-topic: "Using smp_processor_id() in preemptible" still screams [1]
 
-It appears that nobody uses pgdat_page_nr, except nid_page_nr, which nobody
-uses. But better not leave it broken, and there's also some arch-specific code
-looking at node_mem_map directly (although not sure if this particular
-combination of CONFIG_ parameters applies there). So it seems to me we should
-rather apply the offset to node_mem_map in any case, but not apply it (i.e.
-subtract it back) to mem_map for !CONFIG_FLATMEM?
+[1] https://lkml.org/lkml/2015/1/20/162
 
-Thanks.
-
->  	}
->  #ifndef CONFIG_NEED_MULTIPLE_NODES
->  	/*
-> 
+Best regards,
+Krzysztof
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
