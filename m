@@ -1,52 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 8233F6B0078
-	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 12:31:45 -0500 (EST)
-Received: by mail-we0-f174.google.com with SMTP id x3so10903295wes.5
-        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 09:31:45 -0800 (PST)
-Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id q6si13006492wiz.104.2015.01.21.09.31.43
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 21 Jan 2015 09:31:43 -0800 (PST)
-Date: Wed, 21 Jan 2015 17:31:28 +0000
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [RFCv2 2/2] dma-buf: add helpers for sharing attacher
- constraints with dma-parms
-Message-ID: <20150121173128.GV26493@n2100.arm.linux.org.uk>
-References: <1421813807-9178-1-git-send-email-sumit.semwal@linaro.org>
- <1421813807-9178-3-git-send-email-sumit.semwal@linaro.org>
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 148BD6B0032
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 13:57:06 -0500 (EST)
+Received: by mail-wg0-f52.google.com with SMTP id y19so4446345wgg.11
+        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 10:57:05 -0800 (PST)
+Received: from service87.mimecast.com (service87.mimecast.com. [91.220.42.44])
+        by mx.google.com with ESMTP id t1si1452460wje.69.2015.01.21.10.57.04
+        for <linux-mm@kvack.org>;
+        Wed, 21 Jan 2015 10:57:04 -0800 (PST)
+Message-ID: <54BFF679.6010705@arm.com>
+Date: Wed, 21 Jan 2015 18:56:57 +0000
+From: Robin Murphy <robin.murphy@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1421813807-9178-3-git-send-email-sumit.semwal@linaro.org>
+Subject: Re: [RFCv2 1/2] device: add dma_params->max_segment_count
+References: <1421813807-9178-1-git-send-email-sumit.semwal@linaro.org> <1421813807-9178-2-git-send-email-sumit.semwal@linaro.org>
+In-Reply-To: <1421813807-9178-2-git-send-email-sumit.semwal@linaro.org>
+Content-Type: text/plain; charset=WINDOWS-1252; format=flowed
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sumit Semwal <sumit.semwal@linaro.org>
-Cc: linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, t.stanislaws@samsung.com, linaro-kernel@lists.linaro.org, robdclark@gmail.com, daniel@ffwll.ch, m.szyprowski@samsung.com
+To: Sumit Semwal <sumit.semwal@linaro.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "t.stanislaws@samsung.com" <t.stanislaws@samsung.com>, "linaro-kernel@lists.linaro.org" <linaro-kernel@lists.linaro.org>, "robdclark@gmail.com" <robdclark@gmail.com>, "daniel@ffwll.ch" <daniel@ffwll.ch>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>
 
-On Wed, Jan 21, 2015 at 09:46:47AM +0530, Sumit Semwal wrote:
-> +static int calc_constraints(struct device *dev,
-> +			    struct dma_buf_constraints *calc_cons)
-> +{
-> +	struct dma_buf_constraints cons = *calc_cons;
+Hi Sumit,
+
+On 21/01/15 04:16, Sumit Semwal wrote:
+> From: Rob Clark <robdclark@gmail.com>
+>
+> For devices which have constraints about maximum number of segments in
+> an sglist.  For example, a device which could only deal with contiguous
+> buffers would set max_segment_count to 1.
+>
+> The initial motivation is for devices sharing buffers via dma-buf,
+> to allow the buffer exporter to know the constraints of other
+> devices which have attached to the buffer.  The dma_mask and fields
+> in 'struct device_dma_parameters' tell the exporter everything else
+> that is needed, except whether the importer has constraints about
+> maximum number of segments.
+>
+> Signed-off-by: Rob Clark <robdclark@gmail.com>
+>   [sumits: Minor updates wrt comments on the first version]
+> Signed-off-by: Sumit Semwal <sumit.semwal@linaro.org>
+> ---
+>   include/linux/device.h      |  1 +
+>   include/linux/dma-mapping.h | 19 +++++++++++++++++++
+>   2 files changed, 20 insertions(+)
+>
+> diff --git a/include/linux/device.h b/include/linux/device.h
+> index fb50673..a32f9b6 100644
+> --- a/include/linux/device.h
+> +++ b/include/linux/device.h
+> @@ -647,6 +647,7 @@ struct device_dma_parameters {
+>   =09 * sg limitations.
+>   =09 */
+>   =09unsigned int max_segment_size;
+> +=09unsigned int max_segment_count;    /* INT_MAX for unlimited */
+>   =09unsigned long segment_boundary_mask;
+>   };
+>
+> diff --git a/include/linux/dma-mapping.h b/include/linux/dma-mapping.h
+> index c3007cb..38e2835 100644
+> --- a/include/linux/dma-mapping.h
+> +++ b/include/linux/dma-mapping.h
+> @@ -154,6 +154,25 @@ static inline unsigned int dma_set_max_seg_size(stru=
+ct device *dev,
+>   =09=09return -EIO;
+>   }
+>
+> +#define DMA_SEGMENTS_MAX_SEG_COUNT ((unsigned int) INT_MAX)
 > +
-> +	cons.dma_mask &= dma_get_mask(dev);
+> +static inline unsigned int dma_get_max_seg_count(struct device *dev)
+> +{
+> +=09return dev->dma_parms ?
+> +=09=09=09dev->dma_parms->max_segment_count :
+> +=09=09=09DMA_SEGMENTS_MAX_SEG_COUNT;
+> +}
 
-I don't think this makes much sense when you consider that the DMA
-infrastructure supports buses with offsets.  The DMA mask is th
-upper limit of the _bus_ specific address, it is not a mask per-se.
+I know this copies the style of the existing code, but unfortunately it=20
+also copies the subtle brokenness. Plenty of drivers seem to set up a=20
+dma_parms struct just for max_segment_size, thus chances are you'll come=20
+across a max_segment_count of 0 sooner or later. How badly is that going=20
+to break things? I posted a fix recently[1] having hit this problem with=20
+segment_boundary_mask in IOMMU code.
 
-What this means is that &= is not the right operation.  Moreover,
-simply comparing masks which could be from devices on unrelated
-buses doesn't make sense either.
+> +
+> +static inline int dma_set_max_seg_count(struct device *dev,
+> +=09=09=09=09=09=09unsigned int count)
+> +{
+> +=09if (dev->dma_parms) {
+> +=09=09dev->dma_parms->max_segment_count =3D count;
+> +=09=09return 0;
+> +=09} else
 
-However, that said, I don't have an answer for what you want to
-achieve here.
+This "else" is just as unnecessary as the other two I've taken out ;)
 
--- 
-FTTC broadband for 0.8mile line: currently at 10.5Mbps down 400kbps up
-according to speedtest.net.
+
+Robin.
+
+[1]:http://article.gmane.org/gmane.linux.kernel.iommu/8175/
+
+> +=09=09return -EIO;
+> +}
+> +
+>   static inline unsigned long dma_get_seg_boundary(struct device *dev)
+>   {
+>   =09return dev->dma_parms ?
+>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
