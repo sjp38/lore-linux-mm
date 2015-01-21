@@ -1,112 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 148BD6B0032
-	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 13:57:06 -0500 (EST)
-Received: by mail-wg0-f52.google.com with SMTP id y19so4446345wgg.11
-        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 10:57:05 -0800 (PST)
-Received: from service87.mimecast.com (service87.mimecast.com. [91.220.42.44])
-        by mx.google.com with ESMTP id t1si1452460wje.69.2015.01.21.10.57.04
-        for <linux-mm@kvack.org>;
-        Wed, 21 Jan 2015 10:57:04 -0800 (PST)
-Message-ID: <54BFF679.6010705@arm.com>
-Date: Wed, 21 Jan 2015 18:56:57 +0000
-From: Robin Murphy <robin.murphy@arm.com>
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B3FA6B0032
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 14:14:35 -0500 (EST)
+Received: by mail-pd0-f174.google.com with SMTP id ft15so22299045pdb.5
+        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 11:14:35 -0800 (PST)
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com. [209.85.192.180])
+        by mx.google.com with ESMTPS id d7si4715834pdf.238.2015.01.21.11.14.31
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 21 Jan 2015 11:14:32 -0800 (PST)
+Received: by mail-pd0-f180.google.com with SMTP id ft15so22295593pdb.11
+        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 11:14:31 -0800 (PST)
+Date: Wed, 21 Jan 2015 11:14:22 -0800
+From: Omar Sandoval <osandov@osandov.com>
+Subject: Re: [PATCH v2 0/5] clean up and generalize swap-over-NFS
+Message-ID: <20150121191422.GA4775@mew>
+References: <cover.1419044605.git.osandov@osandov.com>
+ <20150114031836.GA21198@mew>
 MIME-Version: 1.0
-Subject: Re: [RFCv2 1/2] device: add dma_params->max_segment_count
-References: <1421813807-9178-1-git-send-email-sumit.semwal@linaro.org> <1421813807-9178-2-git-send-email-sumit.semwal@linaro.org>
-In-Reply-To: <1421813807-9178-2-git-send-email-sumit.semwal@linaro.org>
-Content-Type: text/plain; charset=WINDOWS-1252; format=flowed
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150114031836.GA21198@mew>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sumit Semwal <sumit.semwal@linaro.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "t.stanislaws@samsung.com" <t.stanislaws@samsung.com>, "linaro-kernel@lists.linaro.org" <linaro-kernel@lists.linaro.org>, "robdclark@gmail.com" <robdclark@gmail.com>, "daniel@ffwll.ch" <daniel@ffwll.ch>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>
+To: Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hi Sumit,
+On Tue, Jan 13, 2015 at 07:18:36PM -0800, Omar Sandoval wrote:
+> On Fri, Dec 19, 2014 at 07:18:24PM -0800, Omar Sandoval wrote:
+> > Hi,
+> > 
+> > This patch series (based on ecb5ec0 in Linus' tree) contains all of the
+> > non-BTRFS work that I've done to implement swapfiles on BTRFS. The BTRFS
+> > portion is still undergoing development and is now outweighed by the
+> > non-BTRFS changes, so I want to get these in separately.
+> > 
+> > Version 2 changes the generic swapfile interface to use ->read_iter and
+> > ->write_iter instead of using ->direct_IO directly in response to
+> > discussion on the previous submission. It also adds the iov_iter_is_bvec
+> > helper to factor out some common checks.
+> > 
+> > Version 1 can be found here: https://lkml.org/lkml/2014/12/15/7
+> > 
+> > Omar Sandoval (5):
+> >   iov_iter: add ITER_BVEC helpers
+> >   direct-io: don't dirty ITER_BVEC pages on read
+> >   nfs: don't dirty ITER_BVEC pages read through direct I/O
+> >   swapfile: use ->read_iter and ->write_iter
+> >   vfs: update swap_{,de}activate documentation
+> > 
+> >  Documentation/filesystems/Locking |  7 ++++---
+> >  Documentation/filesystems/vfs.txt |  7 ++++---
+> >  fs/direct-io.c                    |  8 ++++---
+> >  fs/nfs/direct.c                   |  5 ++++-
+> >  fs/splice.c                       |  7 ++-----
+> >  include/linux/uio.h               |  7 +++++++
+> >  mm/iov_iter.c                     | 12 +++++++++++
+> >  mm/page_io.c                      | 44 +++++++++++++++++++++++++--------------
+> >  mm/swapfile.c                     | 11 +++++++++-
+> >  9 files changed, 76 insertions(+), 32 deletions(-)
+> > 
+> > -- 
+> > 2.2.1
+> > 
+> 
+> Hi, everyone,
+> 
+> Thanks for all of the feedback on the last few iterations of this
+> series. If it's alright, I'd like to revive the conversation around
+> these patches.
+> 
+> There are a couple of issues which we were discussing before the
+> holidays:
+> 
+> One concern that Al mentioned was ->read_iter and ->write_iter falling
+> back to the buffered I/O case. Like Christoph mentioned, this can be
+> prevented by doing the proper checks on the filesystem side (usually
+> just making sure that all blocks of a swapfile are allocated, but on
+> BTRFS, for example, we also have to check for compressed extents).
+> 
+> The other concern which Al brought up was that ->read_iter is passed a
+> locked page in the iter_bvec and could end up trying to lock it. I'm not
+> too sure under what conditions that would happen -- could someone give
+> an example? My intuition is that there's no path which will lead us to
+> deadlock on a page in the swapcache, but I don't have anything solid to
+> back that up.
+> 
+> Thanks!
+> -- 
+> Omar
 
-On 21/01/15 04:16, Sumit Semwal wrote:
-> From: Rob Clark <robdclark@gmail.com>
->
-> For devices which have constraints about maximum number of segments in
-> an sglist.  For example, a device which could only deal with contiguous
-> buffers would set max_segment_count to 1.
->
-> The initial motivation is for devices sharing buffers via dma-buf,
-> to allow the buffer exporter to know the constraints of other
-> devices which have attached to the buffer.  The dma_mask and fields
-> in 'struct device_dma_parameters' tell the exporter everything else
-> that is needed, except whether the importer has constraints about
-> maximum number of segments.
->
-> Signed-off-by: Rob Clark <robdclark@gmail.com>
->   [sumits: Minor updates wrt comments on the first version]
-> Signed-off-by: Sumit Semwal <sumit.semwal@linaro.org>
-> ---
->   include/linux/device.h      |  1 +
->   include/linux/dma-mapping.h | 19 +++++++++++++++++++
->   2 files changed, 20 insertions(+)
->
-> diff --git a/include/linux/device.h b/include/linux/device.h
-> index fb50673..a32f9b6 100644
-> --- a/include/linux/device.h
-> +++ b/include/linux/device.h
-> @@ -647,6 +647,7 @@ struct device_dma_parameters {
->   =09 * sg limitations.
->   =09 */
->   =09unsigned int max_segment_size;
-> +=09unsigned int max_segment_count;    /* INT_MAX for unlimited */
->   =09unsigned long segment_boundary_mask;
->   };
->
-> diff --git a/include/linux/dma-mapping.h b/include/linux/dma-mapping.h
-> index c3007cb..38e2835 100644
-> --- a/include/linux/dma-mapping.h
-> +++ b/include/linux/dma-mapping.h
-> @@ -154,6 +154,25 @@ static inline unsigned int dma_set_max_seg_size(stru=
-ct device *dev,
->   =09=09return -EIO;
->   }
->
-> +#define DMA_SEGMENTS_MAX_SEG_COUNT ((unsigned int) INT_MAX)
-> +
-> +static inline unsigned int dma_get_max_seg_count(struct device *dev)
-> +{
-> +=09return dev->dma_parms ?
-> +=09=09=09dev->dma_parms->max_segment_count :
-> +=09=09=09DMA_SEGMENTS_MAX_SEG_COUNT;
-> +}
+Hi,
 
-I know this copies the style of the existing code, but unfortunately it=20
-also copies the subtle brokenness. Plenty of drivers seem to set up a=20
-dma_parms struct just for max_segment_size, thus chances are you'll come=20
-across a max_segment_count of 0 sooner or later. How badly is that going=20
-to break things? I posted a fix recently[1] having hit this problem with=20
-segment_boundary_mask in IOMMU code.
+Any updates on this?
 
-> +
-> +static inline int dma_set_max_seg_count(struct device *dev,
-> +=09=09=09=09=09=09unsigned int count)
-> +{
-> +=09if (dev->dma_parms) {
-> +=09=09dev->dma_parms->max_segment_count =3D count;
-> +=09=09return 0;
-> +=09} else
-
-This "else" is just as unnecessary as the other two I've taken out ;)
-
-
-Robin.
-
-[1]:http://article.gmane.org/gmane.linux.kernel.iommu/8175/
-
-> +=09=09return -EIO;
-> +}
-> +
->   static inline unsigned long dma_get_seg_boundary(struct device *dev)
->   {
->   =09return dev->dma_parms ?
->
-
+Thanks,
+-- 
+Omar
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
