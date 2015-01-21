@@ -1,55 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 063276B0032
-	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 09:18:38 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id ey11so1362863pad.7
-        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 06:18:37 -0800 (PST)
-Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
-        by mx.google.com with ESMTPS id go1si4257525pbb.49.2015.01.21.06.18.35
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AB596B0032
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 09:21:20 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id eu11so18776985pac.13
+        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 06:21:20 -0800 (PST)
+Received: from mail-pd0-x236.google.com (mail-pd0-x236.google.com. [2607:f8b0:400e:c02::236])
+        by mx.google.com with ESMTPS id g8si3900717pdk.182.2015.01.21.06.21.18
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Wed, 21 Jan 2015 06:18:36 -0800 (PST)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout3.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NIJ00JCV6LND670@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 21 Jan 2015 14:22:35 +0000 (GMT)
-Message-id: <54BFB535.6080200@partner.samsung.com>
-Date: Wed, 21 Jan 2015 17:18:29 +0300
-From: Stefan Strogin <s.strogin@partner.samsung.com>
-MIME-version: 1.0
-Subject: Re: [PATCH 2/3] mm: cma: introduce /proc/cmainfo
-References: <cover.1419602920.git.s.strogin@partner.samsung.com>
- <264ce8ad192124f2afec9a71a2fc28779d453ba7.1419602920.git.s.strogin@partner.samsung.com>
- <54A1C37D.5000106@codeaurora.org>
-In-reply-to: <54A1C37D.5000106@codeaurora.org>
-Content-type: text/plain; charset=windows-1252
-Content-transfer-encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 21 Jan 2015 06:21:19 -0800 (PST)
+Received: by mail-pd0-f182.google.com with SMTP id z10so10600972pdj.13
+        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 06:21:18 -0800 (PST)
+Date: Wed, 21 Jan 2015 23:21:53 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [PATCH v1 01/10] zram: avoid calling of zram_meta_free under
+ init_lock
+Message-ID: <20150121142115.GA986@swordfish>
+References: <1421820866-26521-1-git-send-email-minchan@kernel.org>
+ <1421820866-26521-2-git-send-email-minchan@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1421820866-26521-2-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <lauraa@codeaurora.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Dmitry Safonov <d.safonov@partner.samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Minchan Kim <minchan@kernel.org>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>, s.strogin@partner.samsung.com, stefan.strogin@gmail.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjennings@variantweb.net>, Nitin Gupta <ngupta@vflare.org>, Juneho Choi <juno.choi@lge.com>, Gunho Lee <gunho.lee@lge.com>, Luigi Semenzato <semenzato@google.com>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-Hello Laura,
+On (01/21/15 15:14), Minchan Kim wrote:
+> We don't need to call zram_meta_free under init_lock.
+> What we need to prevent race is setting NULL into zram->meta
+> (ie, init_done). This patch does it.
+> 
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  drivers/block/zram/zram_drv.c | 5 +++--
+>  1 file changed, 3 insertions(+), 2 deletions(-)
+> 
+> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> index 9250b3f..7e03d86 100644
+> --- a/drivers/block/zram/zram_drv.c
+> +++ b/drivers/block/zram/zram_drv.c
+> @@ -719,6 +719,8 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+>  	}
+>  
+>  	meta = zram->meta;
+> +	zram->meta = NULL;
+> +
+>  	/* Free all pages that are still in this zram device */
+>  	for (index = 0; index < zram->disksize >> PAGE_SHIFT; index++) {
+>  		unsigned long handle = meta->table[index].handle;
+> @@ -731,8 +733,6 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+>  	zcomp_destroy(zram->comp);
+>  	zram->max_comp_streams = 1;
+>  
+> -	zram_meta_free(zram->meta);
+> -	zram->meta = NULL;
+>  	/* Reset stats */
+>  	memset(&zram->stats, 0, sizeof(zram->stats));
+>  
+> @@ -741,6 +741,7 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+>  		set_capacity(zram->disk, 0);
+>  
+>  	up_write(&zram->init_lock);
+> +	zram_meta_free(meta);
 
-On 30/12/14 00:11, Laura Abbott wrote:
->
-> This seems better suited to debugfs over procfs, especially since the
-> option can be turned off. It would be helpful to break it
-> down by cma region as well to make it easier on systems with a lot
-> of regions.
->
-> Thanks,
-> Laura
->
+Hello,
 
-I thought that cmainfo is very similar to vmallocinfo, therefore put it
-to procfs. However it seems I have no other choice than debugfs as Pavel
-Machek wrote :-)
-> We should not add new non-process related files in /proc.
-(https://lkml.org/lkml/2015/1/2/6)
+since we detached ->meta from zram, this one doesn't really need
+->init_lock protection:
 
-And thanks, I agree that breaking it down by CMA region would be useful.
+	/* Free all pages that are still in this zram device */
+	for (index = 0; index < zram->disksize >> PAGE_SHIFT; index++) {
+		unsigned long handle = meta->table[index].handle;
+		if (!handle)
+			continue;
+
+		zs_free(meta->mem_pool, handle);
+	}
+
+
+	-ss
+
+>  	/*
+>  	 * Revalidate disk out of the init_lock to avoid lockdep splat.
+> -- 
+> 1.9.3
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
