@@ -1,293 +1,191 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 75FCB6B007D
-	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 11:52:43 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id lf10so53966136pab.5
-        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 08:52:43 -0800 (PST)
-Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
-        by mx.google.com with ESMTPS id gl1si8791568pbd.174.2015.01.21.08.52.26
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F2DC6B0080
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 11:52:46 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id eu11so16652773pac.2
+        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 08:52:45 -0800 (PST)
+Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
+        by mx.google.com with ESMTPS id oi7si8808283pbb.169.2015.01.21.08.52.28
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Wed, 21 Jan 2015 08:52:27 -0800 (PST)
+        Wed, 21 Jan 2015 08:52:29 -0800 (PST)
 Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout2.w1.samsung.com
+ by mailout4.w1.samsung.com
  (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NIJ000LVDQ2XNA0@mailout2.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 21 Jan 2015 16:56:26 +0000 (GMT)
+ 17 2011)) with ESMTP id <0NIJ00ILDDQ151A0@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 21 Jan 2015 16:56:25 +0000 (GMT)
 From: Andrey Ryabinin <a.ryabinin@samsung.com>
-Subject: [PATCH v9 11/17] x86_64: kasan: add interceptors for
- memset/memmove/memcpy functions
-Date: Wed, 21 Jan 2015 19:51:39 +0300
-Message-id: <1421859105-25253-12-git-send-email-a.ryabinin@samsung.com>
+Subject: [PATCH v9 12/17] kasan: enable stack instrumentation
+Date: Wed, 21 Jan 2015 19:51:40 +0300
+Message-id: <1421859105-25253-13-git-send-email-a.ryabinin@samsung.com>
 In-reply-to: <1421859105-25253-1-git-send-email-a.ryabinin@samsung.com>
 References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
  <1421859105-25253-1-git-send-email-a.ryabinin@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, x86@kernel.org, linux-mm@kvack.org, Matt Fleming <matt.fleming@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "open list:EXTENSIBLE FIRMWA..." <linux-efi@vger.kernel.org>
+Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, x86@kernel.org, linux-mm@kvack.org, Michal Marek <mmarek@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, "open list:KERNEL BUILD + fi..." <linux-kbuild@vger.kernel.org>
 
-Recently instrumentation of builtin functions calls was removed from GCC 5.0.
-To check the memory accessed by such functions, userspace asan always uses
-interceptors for them.
+Stack instrumentation allows to detect out of bounds
+memory accesses for variables allocated on stack.
+Compiler adds redzones around every variable on stack
+and poisons redzones in function's prologue.
 
-So now we should do this as well. This patch declares memset/memmove/memcpy
-as weak symbols. In mm/kasan/kasan.c we have our own implementation
-of those functions which checks memory before accessing it.
-
-Default memset/memmove/memcpy now now always have aliases with '__' prefix.
-For files that built without kasan instrumentation (e.g. mm/slub.c)
-original mem* replaced (via #define) with prefixed variants,
-cause we don't want to check memory accesses there.
+Such approach significantly increases stack usage,
+so all in-kernel stacks size were doubled.
 
 Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
 ---
- arch/x86/boot/compressed/eboot.c       |  3 +--
- arch/x86/boot/compressed/misc.h        |  1 +
- arch/x86/include/asm/string_64.h       | 18 +++++++++++++++++-
- arch/x86/kernel/x8664_ksyms_64.c       | 10 ++++++++--
- arch/x86/lib/memcpy_64.S               |  6 ++++--
- arch/x86/lib/memmove_64.S              |  4 ++++
- arch/x86/lib/memset_64.S               | 10 ++++++----
- drivers/firmware/efi/libstub/efistub.h |  4 ++++
- mm/kasan/kasan.c                       | 31 ++++++++++++++++++++++++++++++-
- 9 files changed, 75 insertions(+), 12 deletions(-)
+ Makefile                             |  1 +
+ arch/x86/include/asm/page_64_types.h | 12 +++++++++---
+ arch/x86/kernel/Makefile             |  2 ++
+ arch/x86/mm/kasan_init_64.c          |  8 ++++++++
+ include/linux/init_task.h            |  8 ++++++++
+ include/linux/kasan.h                |  9 +++++++++
+ mm/kasan/report.c                    |  6 ++++++
+ 7 files changed, 43 insertions(+), 3 deletions(-)
 
-diff --git a/arch/x86/boot/compressed/eboot.c b/arch/x86/boot/compressed/eboot.c
-index 92b9a5f..ef17683 100644
---- a/arch/x86/boot/compressed/eboot.c
-+++ b/arch/x86/boot/compressed/eboot.c
-@@ -13,8 +13,7 @@
- #include <asm/setup.h>
- #include <asm/desc.h>
+diff --git a/Makefile b/Makefile
+index ee5830b..02530fa 100644
+--- a/Makefile
++++ b/Makefile
+@@ -755,6 +755,7 @@ CFLAGS_KASAN_MINIMAL := $(call cc-option, -fsanitize=kernel-address)
  
--#undef memcpy			/* Use memcpy from misc.c */
--
-+#include "../string.h"
- #include "eboot.h"
+ CFLAGS_KASAN := $(call cc-option, -fsanitize=kernel-address \
+ 		-fasan-shadow-offset=$(CONFIG_KASAN_SHADOW_OFFSET) \
++		--param asan-stack=1 \
+ 		--param asan-instrumentation-with-call-threshold=$(call_threshold))
  
- static efi_system_table_t *sys_table;
-diff --git a/arch/x86/boot/compressed/misc.h b/arch/x86/boot/compressed/misc.h
-index 24e3e56..04477d6 100644
---- a/arch/x86/boot/compressed/misc.h
-+++ b/arch/x86/boot/compressed/misc.h
-@@ -7,6 +7,7 @@
-  * we just keep it from happening
-  */
- #undef CONFIG_PARAVIRT
-+#undef CONFIG_KASAN
- #ifdef CONFIG_X86_32
- #define _ASM_X86_DESC_H 1
- #endif
-diff --git a/arch/x86/include/asm/string_64.h b/arch/x86/include/asm/string_64.h
-index 19e2c46..e466119 100644
---- a/arch/x86/include/asm/string_64.h
-+++ b/arch/x86/include/asm/string_64.h
-@@ -27,11 +27,12 @@ static __always_inline void *__inline_memcpy(void *to, const void *from, size_t
-    function. */
+ ifeq ($(CFLAGS_KASAN_MINIMAL),)
+diff --git a/arch/x86/include/asm/page_64_types.h b/arch/x86/include/asm/page_64_types.h
+index 75450b2..4edd53b 100644
+--- a/arch/x86/include/asm/page_64_types.h
++++ b/arch/x86/include/asm/page_64_types.h
+@@ -1,17 +1,23 @@
+ #ifndef _ASM_X86_PAGE_64_DEFS_H
+ #define _ASM_X86_PAGE_64_DEFS_H
  
- #define __HAVE_ARCH_MEMCPY 1
-+extern void *__memcpy(void *to, const void *from, size_t len);
-+
- #ifndef CONFIG_KMEMCHECK
- #if (__GNUC__ == 4 && __GNUC_MINOR__ >= 3) || __GNUC__ > 4
- extern void *memcpy(void *to, const void *from, size_t len);
- #else
--extern void *__memcpy(void *to, const void *from, size_t len);
- #define memcpy(dst, src, len)					\
- ({								\
- 	size_t __len = (len);					\
-@@ -53,9 +54,11 @@ extern void *__memcpy(void *to, const void *from, size_t len);
- 
- #define __HAVE_ARCH_MEMSET
- void *memset(void *s, int c, size_t n);
-+void *__memset(void *s, int c, size_t n);
- 
- #define __HAVE_ARCH_MEMMOVE
- void *memmove(void *dest, const void *src, size_t count);
-+void *__memmove(void *dest, const void *src, size_t count);
- 
- int memcmp(const void *cs, const void *ct, size_t count);
- size_t strlen(const char *s);
-@@ -63,6 +66,19 @@ char *strcpy(char *dest, const char *src);
- char *strcat(char *dest, const char *src);
- int strcmp(const char *cs, const char *ct);
- 
-+#if defined(CONFIG_KASAN) && !defined(__SANITIZE_ADDRESS__)
-+
-+/*
-+ * For files that not instrumented (e.g. mm/slub.c) we
-+ * should use not instrumented version of mem* functions.
-+ */
-+
-+#undef memcpy
-+#define memcpy(dst, src, len) __memcpy(dst, src, len)
-+#define memmove(dst, src, len) __memmove(dst, src, len)
-+#define memset(s, c, n) __memset(s, c, n)
+-#define THREAD_SIZE_ORDER	2
++#ifdef CONFIG_KASAN
++#define KASAN_STACK_ORDER 1
++#else
++#define KASAN_STACK_ORDER 0
 +#endif
 +
- #endif /* __KERNEL__ */
++#define THREAD_SIZE_ORDER	(2 + KASAN_STACK_ORDER)
+ #define THREAD_SIZE  (PAGE_SIZE << THREAD_SIZE_ORDER)
+ #define CURRENT_MASK (~(THREAD_SIZE - 1))
  
- #endif /* _ASM_X86_STRING_64_H */
-diff --git a/arch/x86/kernel/x8664_ksyms_64.c b/arch/x86/kernel/x8664_ksyms_64.c
-index 0406819..37d8fa4 100644
---- a/arch/x86/kernel/x8664_ksyms_64.c
-+++ b/arch/x86/kernel/x8664_ksyms_64.c
-@@ -50,13 +50,19 @@ EXPORT_SYMBOL(csum_partial);
- #undef memset
- #undef memmove
+-#define EXCEPTION_STACK_ORDER 0
++#define EXCEPTION_STACK_ORDER (0 + KASAN_STACK_ORDER)
+ #define EXCEPTION_STKSZ (PAGE_SIZE << EXCEPTION_STACK_ORDER)
  
-+extern void *__memset(void *, int, __kernel_size_t);
-+extern void *__memcpy(void *, const void *, __kernel_size_t);
-+extern void *__memmove(void *, const void *, __kernel_size_t);
- extern void *memset(void *, int, __kernel_size_t);
- extern void *memcpy(void *, const void *, __kernel_size_t);
--extern void *__memcpy(void *, const void *, __kernel_size_t);
-+extern void *memmove(void *, const void *, __kernel_size_t);
+ #define DEBUG_STACK_ORDER (EXCEPTION_STACK_ORDER + 1)
+ #define DEBUG_STKSZ (PAGE_SIZE << DEBUG_STACK_ORDER)
+ 
+-#define IRQ_STACK_ORDER 2
++#define IRQ_STACK_ORDER (2 + KASAN_STACK_ORDER)
+ #define IRQ_STACK_SIZE (PAGE_SIZE << IRQ_STACK_ORDER)
+ 
+ #define DOUBLEFAULT_STACK 1
+diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
+index 74d3f3e..fae4c4e 100644
+--- a/arch/x86/kernel/Makefile
++++ b/arch/x86/kernel/Makefile
+@@ -17,6 +17,8 @@ CFLAGS_REMOVE_early_printk.o = -pg
+ endif
+ 
+ KASAN_SANITIZE_head$(BITS).o := n
++KASAN_SANITIZE_dumpstack.o := n
++KASAN_SANITIZE_dumpstack_$(BITS).o := n
+ 
+ CFLAGS_irq.o := -I$(src)/../include/asm/trace
+ 
+diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
+index 70e8082..042f404 100644
+--- a/arch/x86/mm/kasan_init_64.c
++++ b/arch/x86/mm/kasan_init_64.c
+@@ -207,9 +207,17 @@ void __init kasan_init(void)
+ 			kasan_mem_to_shadow(KASAN_SHADOW_END));
+ 
+ 	populate_zero_shadow(kasan_mem_to_shadow(KASAN_SHADOW_END),
++			kasan_mem_to_shadow(__START_KERNEL_map));
 +
-+EXPORT_SYMBOL(__memset);
-+EXPORT_SYMBOL(__memcpy);
-+EXPORT_SYMBOL(__memmove);
- 
- EXPORT_SYMBOL(memset);
- EXPORT_SYMBOL(memcpy);
--EXPORT_SYMBOL(__memcpy);
- EXPORT_SYMBOL(memmove);
- 
- #ifndef CONFIG_DEBUG_VIRTUAL
-diff --git a/arch/x86/lib/memcpy_64.S b/arch/x86/lib/memcpy_64.S
-index 56313a3..89b53c9 100644
---- a/arch/x86/lib/memcpy_64.S
-+++ b/arch/x86/lib/memcpy_64.S
-@@ -53,6 +53,8 @@
- .Lmemcpy_e_e:
- 	.previous
- 
-+.weak memcpy
++	vmemmap_populate(kasan_mem_to_shadow((unsigned long)_stext),
++			kasan_mem_to_shadow((unsigned long)_end),
++			NUMA_NO_NODE);
 +
- ENTRY(__memcpy)
- ENTRY(memcpy)
- 	CFI_STARTPROC
-@@ -199,8 +201,8 @@ ENDPROC(__memcpy)
- 	 * only outcome...
- 	 */
- 	.section .altinstructions, "a"
--	altinstruction_entry memcpy,.Lmemcpy_c,X86_FEATURE_REP_GOOD,\
-+	altinstruction_entry __memcpy,.Lmemcpy_c,X86_FEATURE_REP_GOOD,\
- 			     .Lmemcpy_e-.Lmemcpy_c,.Lmemcpy_e-.Lmemcpy_c
--	altinstruction_entry memcpy,.Lmemcpy_c_e,X86_FEATURE_ERMS, \
-+	altinstruction_entry __memcpy,.Lmemcpy_c_e,X86_FEATURE_ERMS, \
- 			     .Lmemcpy_e_e-.Lmemcpy_c_e,.Lmemcpy_e_e-.Lmemcpy_c_e
- 	.previous
-diff --git a/arch/x86/lib/memmove_64.S b/arch/x86/lib/memmove_64.S
-index 65268a6..9c4b530 100644
---- a/arch/x86/lib/memmove_64.S
-+++ b/arch/x86/lib/memmove_64.S
-@@ -24,7 +24,10 @@
-  * Output:
-  * rax: dest
-  */
-+.weak memmove
-+
- ENTRY(memmove)
-+ENTRY(__memmove)
- 	CFI_STARTPROC
++	populate_zero_shadow(kasan_mem_to_shadow(MODULES_VADDR),
+ 			KASAN_SHADOW_END);
  
- 	/* Handle more 32 bytes in loop */
-@@ -220,4 +223,5 @@ ENTRY(memmove)
- 		.Lmemmove_end_forward-.Lmemmove_begin_forward,	\
- 		.Lmemmove_end_forward_efs-.Lmemmove_begin_forward_efs
- 	.previous
-+ENDPROC(__memmove)
- ENDPROC(memmove)
-diff --git a/arch/x86/lib/memset_64.S b/arch/x86/lib/memset_64.S
-index 2dcb380..6f44935 100644
---- a/arch/x86/lib/memset_64.S
-+++ b/arch/x86/lib/memset_64.S
-@@ -56,6 +56,8 @@
- .Lmemset_e_e:
- 	.previous
+ 	memset(kasan_poisoned_page, KASAN_SHADOW_GAP, PAGE_SIZE);
  
-+.weak memset
-+
- ENTRY(memset)
- ENTRY(__memset)
- 	CFI_STARTPROC
-@@ -147,8 +149,8 @@ ENDPROC(__memset)
-          * feature to implement the right patch order.
- 	 */
- 	.section .altinstructions,"a"
--	altinstruction_entry memset,.Lmemset_c,X86_FEATURE_REP_GOOD,\
--			     .Lfinal-memset,.Lmemset_e-.Lmemset_c
--	altinstruction_entry memset,.Lmemset_c_e,X86_FEATURE_ERMS, \
--			     .Lfinal-memset,.Lmemset_e_e-.Lmemset_c_e
-+	altinstruction_entry __memset,.Lmemset_c,X86_FEATURE_REP_GOOD,\
-+			     .Lfinal-__memset,.Lmemset_e-.Lmemset_c
-+	altinstruction_entry __memset,.Lmemset_c_e,X86_FEATURE_ERMS, \
-+			     .Lfinal-__memset,.Lmemset_e_e-.Lmemset_c_e
- 	.previous
-diff --git a/drivers/firmware/efi/libstub/efistub.h b/drivers/firmware/efi/libstub/efistub.h
-index 304ab29..fbe0548 100644
---- a/drivers/firmware/efi/libstub/efistub.h
-+++ b/drivers/firmware/efi/libstub/efistub.h
-@@ -39,4 +39,8 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
- 
- void *get_fdt(efi_system_table_t *sys_table);
- 
-+#undef memcpy
-+#undef memset
-+#undef memmove
-+
+ 	load_cr3(init_level4_pgt);
++	init_task.kasan_depth = 0;
+ }
+diff --git a/include/linux/init_task.h b/include/linux/init_task.h
+index 3037fc0..3932e0a 100644
+--- a/include/linux/init_task.h
++++ b/include/linux/init_task.h
+@@ -175,6 +175,13 @@ extern struct task_group root_task_group;
+ # define INIT_NUMA_BALANCING(tsk)
  #endif
-diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index c52350e..a59c976 100644
---- a/mm/kasan/kasan.c
-+++ b/mm/kasan/kasan.c
-@@ -44,7 +44,7 @@ static void kasan_poison_shadow(const void *address, size_t size, u8 value)
- 	shadow_start = kasan_mem_to_shadow(addr);
- 	shadow_end = kasan_mem_to_shadow(addr + size);
  
--	memset((void *)shadow_start, value, shadow_end - shadow_start);
-+	__memset((void *)shadow_start, value, shadow_end - shadow_start);
++#ifdef CONFIG_KASAN
++# define INIT_KASAN(tsk)						\
++	.kasan_depth = 1,
++#else
++# define INIT_KASAN(tsk)
++#endif
++
+ /*
+  *  INIT_TASK is used to set up the first task table, touch at
+  * your own risk!. Base=0, limit=0x1fffff (=2MB)
+@@ -247,6 +254,7 @@ extern struct task_group root_task_group;
+ 	INIT_RT_MUTEXES(tsk)						\
+ 	INIT_VTIME(tsk)							\
+ 	INIT_NUMA_BALANCING(tsk)					\
++	INIT_KASAN(tsk)							\
  }
  
- void kasan_unpoison_shadow(const void *address, size_t size)
-@@ -248,6 +248,35 @@ static __always_inline void check_memory_region(unsigned long addr,
- 	kasan_report(addr, size, write);
- }
  
-+void __asan_loadN(unsigned long addr, size_t size);
-+void __asan_storeN(unsigned long addr, size_t size);
+diff --git a/include/linux/kasan.h b/include/linux/kasan.h
+index 940fc4f..f8eca6a 100644
+--- a/include/linux/kasan.h
++++ b/include/linux/kasan.h
+@@ -17,6 +17,15 @@ struct page;
+ #define KASAN_KMALLOC_FREE      0xFB  /* object was freed (kmem_cache_free/kfree) */
+ #define KASAN_SHADOW_GAP        0xF9  /* address belongs to shadow memory */
+ 
++/*
++ * Stack redzone shadow values
++ * (Those are compiler's ABI, don't change them)
++ */
++#define KASAN_STACK_LEFT        0xF1
++#define KASAN_STACK_MID         0xF2
++#define KASAN_STACK_RIGHT       0xF3
++#define KASAN_STACK_PARTIAL     0xF4
 +
-+#undef memset
-+void *memset(void *addr, int c, size_t len)
-+{
-+	__asan_storeN((unsigned long)addr, len);
-+
-+	return __memset(addr, c, len);
-+}
-+
-+#undef memmove
-+void *memmove(void *dest, const void *src, size_t len)
-+{
-+	__asan_loadN((unsigned long)src, len);
-+	__asan_storeN((unsigned long)dest, len);
-+
-+	return __memmove(dest, src, len);
-+}
-+
-+#undef memcpy
-+void *memcpy(void *dest, const void *src, size_t len)
-+{
-+	__asan_loadN((unsigned long)src, len);
-+	__asan_storeN((unsigned long)dest, len);
-+
-+	return __memcpy(dest, src, len);
-+}
-+
- void kasan_alloc_pages(struct page *page, unsigned int order)
- {
- 	if (likely(!PageHighMem(page)))
+ #include <asm/kasan.h>
+ #include <linux/sched.h>
+ 
+diff --git a/mm/kasan/report.c b/mm/kasan/report.c
+index f9bc57a..faa07f0 100644
+--- a/mm/kasan/report.c
++++ b/mm/kasan/report.c
+@@ -67,6 +67,12 @@ static void print_error_description(struct access_info *info)
+ 	case KASAN_SHADOW_GAP:
+ 		bug_type = "wild memory access";
+ 		break;
++	case KASAN_STACK_LEFT:
++	case KASAN_STACK_MID:
++	case KASAN_STACK_RIGHT:
++	case KASAN_STACK_PARTIAL:
++		bug_type = "out of bounds on stack";
++		break;
+ 	}
+ 
+ 	pr_err("BUG: AddressSanitizer: %s in %pS at addr %p\n",
 -- 
 2.2.1
 
