@@ -1,59 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id E98066B0032
-	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 15:47:43 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id et14so55212424pad.3
-        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 12:47:43 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id kw15si9720738pab.218.2015.01.21.12.47.41
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id EF29A6B0032
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 16:17:09 -0500 (EST)
+Received: by mail-pd0-f181.google.com with SMTP id g10so19021168pdj.12
+        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 13:17:09 -0800 (PST)
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com. [209.85.220.51])
+        by mx.google.com with ESMTPS id fe8si9787576pad.225.2015.01.21.13.17.05
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 21 Jan 2015 12:47:42 -0800 (PST)
-Message-ID: <54C01051.7000107@oracle.com>
-Date: Wed, 21 Jan 2015 15:47:13 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 21 Jan 2015 13:17:06 -0800 (PST)
+Received: by mail-pa0-f51.google.com with SMTP id fb1so20889818pad.10
+        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 13:17:05 -0800 (PST)
+Message-ID: <54C0174C.9060203@kernel.dk>
+Date: Wed, 21 Jan 2015 14:17:00 -0700
+From: Jens Axboe <axboe@kernel.dk>
 MIME-Version: 1.0
-Subject: Re: [PATCH v9 07/17] mm: slub: add kernel address sanitizer support
- for slub allocator
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com> <1421859105-25253-1-git-send-email-a.ryabinin@samsung.com> <1421859105-25253-8-git-send-email-a.ryabinin@samsung.com>
-In-Reply-To: <1421859105-25253-8-git-send-email-a.ryabinin@samsung.com>
-Content-Type: text/plain; charset=windows-1252
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] async buffered diskio read for userspace
+ apps
+References: <CANP1eJF77=iH_tm1y0CgF6PwfhUK6WqU9S92d0xAnCt=WhZVfQ@mail.gmail.com>	<20150115223157.GB25884@quack.suse.cz>	<CANP1eJGRX4w56Ek4j7d2U+F7GNWp6RyOJonxKxTy0phUCpBM9g@mail.gmail.com>	<20150116165506.GA10856@samba2>	<CANP1eJEF33gndXeBJ0duP2_Bvuv-z6k7OLyuai7vjVdVKRYUWw@mail.gmail.com>	<20150119071218.GA9747@jeremy-HP>	<1421652849.2080.20.camel@HansenPartnership.com>	<CANP1eJHYUprjvO1o6wfd197LM=Bmhi55YfdGQkPT0DKRn3=q6A@mail.gmail.com>	<54BD234F.3060203@kernel.dk>	<54BEAD82.3070501@kernel.dk>	<CANP1eJG36DYG8xezydcuWAw6d-Khz9ULr9WMuJ6kfpPzJEoOXw@mail.gmail.com>	<CANP1eJHqhYZ9_yf16LKaUMvHEJN7eERpKSBYVrtQhr8ZkGVVsQ@mail.gmail.com>	<54BEE436.4020205@kernel.dk>	<54BEE51F.7080400@kernel.dk> <CANP1eJH=-ounu9RCtWntnS4nLFVZYaUJg26AUn1=MZFCpeVFTQ@mail.gmail.com>
+In-Reply-To: <CANP1eJH=-ounu9RCtWntnS4nLFVZYaUJg26AUn1=MZFCpeVFTQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <a.ryabinin@samsung.com>, linux-kernel@vger.kernel.org
-Cc: Dmitry Chernenkov <dmitryc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, x86@kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>
+To: Milosz Tanski <milosz@adfin.com>
+Cc: James Bottomley <James.Bottomley@hansenpartnership.com>, Jeremy Allison <jra@samba.org>, Volker Lendecke <Volker.Lendecke@sernet.de>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, lsf-pc@lists.linux-foundation.org
 
-On 01/21/2015 11:51 AM, Andrey Ryabinin wrote:
-> With this patch kasan will be able to catch bugs in memory allocated
-> by slub.
-> Initially all objects in newly allocated slab page, marked as redzone.
-> Later, when allocation of slub object happens, requested by caller
-> number of bytes marked as accessible, and the rest of the object
-> (including slub's metadata) marked as redzone (inaccessible).
-> 
-> We also mark object as accessible if ksize was called for this object.
-> There is some places in kernel where ksize function is called to inquire
-> size of really allocated area. Such callers could validly access whole
-> allocated memory, so it should be marked as accessible.
-> 
-> Code in slub.c and slab_common.c files could validly access to object's
-> metadata, so instrumentation for this files are disabled.
+On 01/20/2015 04:53 PM, Milosz Tanski wrote:
+> On Tue, Jan 20, 2015 at 6:30 PM, Jens Axboe <axboe@kernel.dk> wrote:
+>> On 01/20/2015 04:26 PM, Jens Axboe wrote:
+>>> On 01/20/2015 04:22 PM, Milosz Tanski wrote:
+>>>> Side note Jens.
+>>>>
+>>>> Can you add a configure flag to disable use of SHM (like for ESX)? It
+>>>> took me a while to figure out the proper define to manually stick in
+>>>> the configure.
+>>>>
+>>>> The motivation for this is using rr (mozila's replay debugger) to
+>>>> debug fio. rr doesn't support SHM. http://rr-project.org/ gdb's
+>>>> reversible debugging is too painfully slow.
+>>>
+>>> Yeah definitely, that's mean that thread=1 would be a requirement,
+>>> obviously. But I'd be fine with adding that flag.
+>>
+>> http://git.kernel.dk/?p=fio.git;a=commit;h=ba40757ed67c00b37dda3639e97c3ba0259840a4
+>
+> Great, thanks for fixing it so quickly. Hopefully it'll be useful to
+> others as well.
 
-This one doesn't apply on -next. Is there a missing commit?
+No problem, it's in the 2.2.5 version as released. Let me know when you 
+are comfortable with me pulling in the cifs engine.
 
-Applying: mm: slub: add kernel address sanitizer support for slub allocator
-fatal: sha1 information is lacking or useless (mm/slub.c).
-Repository lacks necessary blobs to fall back on 3-way merge.
-Cannot fall back to three-way merge.
-Patch failed at 0007 mm: slub: add kernel address sanitizer support for slub allocator
-When you have resolved this problem run "git am --resolved".
-If you would prefer to skip this patch, instead run "git am --skip".
-To restore the original branch and stop patching run "git am --abort".
-
-
-Thanks,
-Sasha
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
