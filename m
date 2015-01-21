@@ -1,59 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f175.google.com (mail-ie0-f175.google.com [209.85.223.175])
-	by kanga.kvack.org (Postfix) with ESMTP id A6B906B0032
-	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 01:13:42 -0500 (EST)
-Received: by mail-ie0-f175.google.com with SMTP id ar1so9213435iec.6
-        for <linux-mm@kvack.org>; Tue, 20 Jan 2015 22:13:42 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id qo12si5087451igb.38.2015.01.20.22.13.40
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Jan 2015 22:13:41 -0800 (PST)
-From: Shiraz Hashim <shashim@codeaurora.org>
-Subject: [PATCH] mm: pagewalk: call pte_hole() for VM_PFNMAP during walk_page_range
-Date: Wed, 21 Jan 2015 11:43:13 +0530
-Message-Id: <1421820793-28883-1-git-send-email-shashim@codeaurora.org>
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id C90E06B006C
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 01:14:37 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id bj1so50760774pad.9
+        for <linux-mm@kvack.org>; Tue, 20 Jan 2015 22:14:37 -0800 (PST)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id ag17si7449445pac.113.2015.01.20.22.14.34
+        for <linux-mm@kvack.org>;
+        Tue, 20 Jan 2015 22:14:36 -0800 (PST)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH v1 01/10] zram: avoid calling of zram_meta_free under init_lock
+Date: Wed, 21 Jan 2015 15:14:17 +0900
+Message-Id: <1421820866-26521-2-git-send-email-minchan@kernel.org>
+In-Reply-To: <1421820866-26521-1-git-send-email-minchan@kernel.org>
+References: <1421820866-26521-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, oleg@redhat.com, gorcunov@openvz.org, linux-kernel@vger.kernel.org, n-horiguchi@ah.jp.nec.com, Shiraz Hashim <shashim@codeaurora.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjennings@variantweb.net>, Nitin Gupta <ngupta@vflare.org>, Juneho Choi <juno.choi@lge.com>, Gunho Lee <gunho.lee@lge.com>, Luigi Semenzato <semenzato@google.com>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim <minchan@kernel.org>
 
-walk_page_range silently skips vma having VM_PFNMAP set,
-which leads to undesirable behaviour at client end (who
-called walk_page_range). For example for pagemap_read,
-when no callbacks are called against VM_PFNMAP vma,
-pagemap_read may prepare pagemap data for next virtual
-address range at wrong index.
+We don't need to call zram_meta_free under init_lock.
+What we need to prevent race is setting NULL into zram->meta
+(ie, init_done). This patch does it.
 
-Signed-off-by: Shiraz Hashim <shashim@codeaurora.org>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
-The fix is revised, based upon the suggestion here at
-http://www.spinics.net/lists/linux-mm/msg83058.html
+ drivers/block/zram/zram_drv.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
- mm/pagewalk.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
-
-diff --git a/mm/pagewalk.c b/mm/pagewalk.c
-index ad83195..b264bda 100644
---- a/mm/pagewalk.c
-+++ b/mm/pagewalk.c
-@@ -199,7 +199,10 @@ int walk_page_range(unsigned long addr, unsigned long end,
- 			 */
- 			if ((vma->vm_start <= addr) &&
- 			    (vma->vm_flags & VM_PFNMAP)) {
--				next = vma->vm_end;
-+				if (walk->pte_hole)
-+					err = walk->pte_hole(addr, next, walk);
-+				if (err)
-+					break;
- 				pgd = pgd_offset(walk->mm, next);
- 				continue;
- 			}
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index 9250b3f..7e03d86 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -719,6 +719,8 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+ 	}
+ 
+ 	meta = zram->meta;
++	zram->meta = NULL;
++
+ 	/* Free all pages that are still in this zram device */
+ 	for (index = 0; index < zram->disksize >> PAGE_SHIFT; index++) {
+ 		unsigned long handle = meta->table[index].handle;
+@@ -731,8 +733,6 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+ 	zcomp_destroy(zram->comp);
+ 	zram->max_comp_streams = 1;
+ 
+-	zram_meta_free(zram->meta);
+-	zram->meta = NULL;
+ 	/* Reset stats */
+ 	memset(&zram->stats, 0, sizeof(zram->stats));
+ 
+@@ -741,6 +741,7 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+ 		set_capacity(zram->disk, 0);
+ 
+ 	up_write(&zram->init_lock);
++	zram_meta_free(meta);
+ 
+ 	/*
+ 	 * Revalidate disk out of the init_lock to avoid lockdep splat.
 -- 
-Shiraz Hashim
-
-QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
-member of the Code Aurora Forum, hosted by The Linux Foundation
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
