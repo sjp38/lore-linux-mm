@@ -1,92 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AB596B0032
-	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 09:21:20 -0500 (EST)
-Received: by mail-pa0-f54.google.com with SMTP id eu11so18776985pac.13
-        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 06:21:20 -0800 (PST)
-Received: from mail-pd0-x236.google.com (mail-pd0-x236.google.com. [2607:f8b0:400e:c02::236])
-        by mx.google.com with ESMTPS id g8si3900717pdk.182.2015.01.21.06.21.18
+Received: from mail-lb0-f170.google.com (mail-lb0-f170.google.com [209.85.217.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 44C916B0032
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 09:39:24 -0500 (EST)
+Received: by mail-lb0-f170.google.com with SMTP id w7so832677lbi.1
+        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 06:39:23 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v3si19509007lae.26.2015.01.21.06.39.22
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 21 Jan 2015 06:21:19 -0800 (PST)
-Received: by mail-pd0-f182.google.com with SMTP id z10so10600972pdj.13
-        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 06:21:18 -0800 (PST)
-Date: Wed, 21 Jan 2015 23:21:53 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [PATCH v1 01/10] zram: avoid calling of zram_meta_free under
- init_lock
-Message-ID: <20150121142115.GA986@swordfish>
-References: <1421820866-26521-1-git-send-email-minchan@kernel.org>
- <1421820866-26521-2-git-send-email-minchan@kernel.org>
+        Wed, 21 Jan 2015 06:39:22 -0800 (PST)
+Date: Wed, 21 Jan 2015 15:39:20 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2] mm: vmscan: fix the page state calculation in
+ too_many_isolated
+Message-ID: <20150121143920.GD23700@dhcp22.suse.cz>
+References: <1421235419-30736-1-git-send-email-vinmenon@codeaurora.org>
+ <20150114165036.GI4706@dhcp22.suse.cz>
+ <54B7F7C4.2070105@codeaurora.org>
+ <20150116154922.GB4650@dhcp22.suse.cz>
+ <54BA7D3A.40100@codeaurora.org>
+ <alpine.DEB.2.11.1501171347290.25464@gentwo.org>
+ <54BC879C.90505@codeaurora.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1421820866-26521-2-git-send-email-minchan@kernel.org>
+In-Reply-To: <54BC879C.90505@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjennings@variantweb.net>, Nitin Gupta <ngupta@vflare.org>, Juneho Choi <juno.choi@lge.com>, Gunho Lee <gunho.lee@lge.com>, Luigi Semenzato <semenzato@google.com>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Vinayak Menon <vinmenon@codeaurora.org>
+Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, mgorman@suse.de, minchan@kernel.org
 
-On (01/21/15 15:14), Minchan Kim wrote:
-> We don't need to call zram_meta_free under init_lock.
-> What we need to prevent race is setting NULL into zram->meta
-> (ie, init_done). This patch does it.
+On Mon 19-01-15 09:57:08, Vinayak Menon wrote:
+> On 01/18/2015 01:18 AM, Christoph Lameter wrote:
+> >On Sat, 17 Jan 2015, Vinayak Menon wrote:
+> >
+> >>which had not updated the vmstat_diff. This CPU was in idle for around 30
+> >>secs. When I looked at the tvec base for this CPU, the timer associated with
+> >>vmstat_update had its expiry time less than current jiffies. This timer had
+> >>its deferrable flag set, and was tied to the next non-deferrable timer in the
+> >
+> >We can remove the deferrrable flag now since the vmstat threads are only
+> >activated as necessary with the recent changes. Looks like this could fix
+> >your issue?
+> >
 > 
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  drivers/block/zram/zram_drv.c | 5 +++--
->  1 file changed, 3 insertions(+), 2 deletions(-)
-> 
-> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-> index 9250b3f..7e03d86 100644
-> --- a/drivers/block/zram/zram_drv.c
-> +++ b/drivers/block/zram/zram_drv.c
-> @@ -719,6 +719,8 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
->  	}
->  
->  	meta = zram->meta;
-> +	zram->meta = NULL;
-> +
->  	/* Free all pages that are still in this zram device */
->  	for (index = 0; index < zram->disksize >> PAGE_SHIFT; index++) {
->  		unsigned long handle = meta->table[index].handle;
-> @@ -731,8 +733,6 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
->  	zcomp_destroy(zram->comp);
->  	zram->max_comp_streams = 1;
->  
-> -	zram_meta_free(zram->meta);
-> -	zram->meta = NULL;
->  	/* Reset stats */
->  	memset(&zram->stats, 0, sizeof(zram->stats));
->  
-> @@ -741,6 +741,7 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
->  		set_capacity(zram->disk, 0);
->  
->  	up_write(&zram->init_lock);
-> +	zram_meta_free(meta);
+> Yes, this should fix my issue.
 
-Hello,
+Does it? Because I would prefer not getting into un-synced state much
+more than playing around one specific place which shows the problems
+right now.
 
-since we detached ->meta from zram, this one doesn't really need
-->init_lock protection:
+> But I think we may need the fix in too_many_isolated, since there can still
+> be a delay of few seconds (HZ by default and even more because of reasons
+> pointed out by Michal) which will result in reclaimers unnecessarily
+> entering congestion_wait. No ?
 
-	/* Free all pages that are still in this zram device */
-	for (index = 0; index < zram->disksize >> PAGE_SHIFT; index++) {
-		unsigned long handle = meta->table[index].handle;
-		if (!handle)
-			continue;
+I think we can solve this as well. We can stick vmstat_shepherd into a
+kernel thread with a loop with the configured timeout and then create a
+mask of CPUs which need the update and run vmstat_update from
+IPI context (smp_call_function_many).
+We would have to drop cond_resched from refresh_cpu_vm_stats of
+course. The nr_zones x NR_VM_ZONE_STAT_ITEMS in the IPI context
+shouldn't be excessive but I haven't measured that so I might be easily
+wrong.
 
-		zs_free(meta->mem_pool, handle);
-	}
+Anyway, that should work more reliably than the current scheme and
+should help to reduce pointless wakeups which the original patchset was
+addressing.  Or am I missing something?
 
-
-	-ss
-
->  	/*
->  	 * Revalidate disk out of the init_lock to avoid lockdep splat.
-> -- 
-> 1.9.3
-> 
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
