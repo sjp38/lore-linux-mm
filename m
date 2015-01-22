@@ -1,130 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f45.google.com (mail-oi0-f45.google.com [209.85.218.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B07D6B0032
-	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 22:46:23 -0500 (EST)
-Received: by mail-oi0-f45.google.com with SMTP id g201so7324920oib.4
-        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 19:46:22 -0800 (PST)
-Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com. [209.85.214.177])
-        by mx.google.com with ESMTPS id h10si10320134obx.98.2015.01.21.19.46.22
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 4152F6B0032
+	for <linux-mm@kvack.org>; Thu, 22 Jan 2015 00:14:12 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id et14so57766847pad.1
+        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 21:14:11 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id v8si6195785pdq.235.2015.01.21.21.14.10
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 21 Jan 2015 19:46:22 -0800 (PST)
-Received: by mail-ob0-f177.google.com with SMTP id uy5so42631811obc.8
-        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 19:46:22 -0800 (PST)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Jan 2015 21:14:11 -0800 (PST)
+Date: Thu, 22 Jan 2015 16:14:02 +1100
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: mmotm:
+ mm-slub-optimize-alloc-free-fastpath-by-removing-preemption-on-off.patch is
+ causing preemptible splats
+Message-ID: <20150122161402.3330eabf@canb.auug.org.au>
+In-Reply-To: <20150121193411.44f96b6c.akpm@linux-foundation.org>
+References: <20150121132308.GB23700@dhcp22.suse.cz>
+	<CAJKOXPdgSsd8cr7ctKOGCwFTRMxcq71k7Pb5mQgYy--tGW8+_w@mail.gmail.com>
+	<20150121141138.GC23700@dhcp22.suse.cz>
+	<20150121142107.e26d5ebf3340aa91759fef1f@linux-foundation.org>
+	<20150122015123.GB21444@js1304-P5Q-DELUXE>
+	<20150121193411.44f96b6c.akpm@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <54BFF679.6010705@arm.com>
-References: <1421813807-9178-1-git-send-email-sumit.semwal@linaro.org>
- <1421813807-9178-2-git-send-email-sumit.semwal@linaro.org> <54BFF679.6010705@arm.com>
-From: Sumit Semwal <sumit.semwal@linaro.org>
-Date: Thu, 22 Jan 2015 09:16:01 +0530
-Message-ID: <CAO_48GHLJKLxDxuPWbcTKP6T1Vdt0RLbYYncRihepL5H7KET=A@mail.gmail.com>
-Subject: Re: [RFCv2 1/2] device: add dma_params->max_segment_count
-Content-Type: text/plain; charset=UTF-8
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ boundary="Sig_/8ef9APx7A7P0hP8pS_M7BQk"; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robin Murphy <robin.murphy@arm.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "t.stanislaws@samsung.com" <t.stanislaws@samsung.com>, "linaro-kernel@lists.linaro.org" <linaro-kernel@lists.linaro.org>, "robdclark@gmail.com" <robdclark@gmail.com>, "daniel@ffwll.ch" <daniel@ffwll.ch>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>, Krzysztof =?UTF-8?B?S296xYJvd3NraQ==?= <k.kozlowski.k@gmail.com>, Christoph Lameter <cl@linux.com>, Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Hi Robin!
+--Sig_/8ef9APx7A7P0hP8pS_M7BQk
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-On 22 January 2015 at 00:26, Robin Murphy <robin.murphy@arm.com> wrote:
-> Hi Sumit,
->
->
-> On 21/01/15 04:16, Sumit Semwal wrote:
->>
->> From: Rob Clark <robdclark@gmail.com>
->>
->> For devices which have constraints about maximum number of segments in
->> an sglist.  For example, a device which could only deal with contiguous
->> buffers would set max_segment_count to 1.
->>
->> The initial motivation is for devices sharing buffers via dma-buf,
->> to allow the buffer exporter to know the constraints of other
->> devices which have attached to the buffer.  The dma_mask and fields
->> in 'struct device_dma_parameters' tell the exporter everything else
->> that is needed, except whether the importer has constraints about
->> maximum number of segments.
->>
->> Signed-off-by: Rob Clark <robdclark@gmail.com>
->>   [sumits: Minor updates wrt comments on the first version]
->> Signed-off-by: Sumit Semwal <sumit.semwal@linaro.org>
->> ---
->>   include/linux/device.h      |  1 +
->>   include/linux/dma-mapping.h | 19 +++++++++++++++++++
->>   2 files changed, 20 insertions(+)
->>
->> diff --git a/include/linux/device.h b/include/linux/device.h
->> index fb50673..a32f9b6 100644
->> --- a/include/linux/device.h
->> +++ b/include/linux/device.h
->> @@ -647,6 +647,7 @@ struct device_dma_parameters {
->>          * sg limitations.
->>          */
->>         unsigned int max_segment_size;
->> +       unsigned int max_segment_count;    /* INT_MAX for unlimited */
->>         unsigned long segment_boundary_mask;
->>   };
->>
->> diff --git a/include/linux/dma-mapping.h b/include/linux/dma-mapping.h
->> index c3007cb..38e2835 100644
->> --- a/include/linux/dma-mapping.h
->> +++ b/include/linux/dma-mapping.h
->> @@ -154,6 +154,25 @@ static inline unsigned int
->> dma_set_max_seg_size(struct device *dev,
->>                 return -EIO;
->>   }
->>
->> +#define DMA_SEGMENTS_MAX_SEG_COUNT ((unsigned int) INT_MAX)
->> +
->> +static inline unsigned int dma_get_max_seg_count(struct device *dev)
->> +{
->> +       return dev->dma_parms ?
->> +                       dev->dma_parms->max_segment_count :
->> +                       DMA_SEGMENTS_MAX_SEG_COUNT;
->> +}
->
->
-> I know this copies the style of the existing code, but unfortunately it also
-> copies the subtle brokenness. Plenty of drivers seem to set up a dma_parms
-> struct just for max_segment_size, thus chances are you'll come across a
-> max_segment_count of 0 sooner or later. How badly is that going to break
-> things? I posted a fix recently[1] having hit this problem with
-> segment_boundary_mask in IOMMU code.
->
-Thanks very much for reviewing this code; and apologies for missing
-your patch that you mentioned here; sure, I will update my patch
-accordingly as well.
->> +
->> +static inline int dma_set_max_seg_count(struct device *dev,
->> +                                               unsigned int count)
->> +{
->> +       if (dev->dma_parms) {
->> +               dev->dma_parms->max_segment_count = count;
->> +               return 0;
->> +       } else
->
->
-> This "else" is just as unnecessary as the other two I've taken out ;)
->
->
-> Robin.
->
-> [1]:http://article.gmane.org/gmane.linux.kernel.iommu/8175/
->
->
->> +               return -EIO;
->> +}
->> +
->>   static inline unsigned long dma_get_seg_boundary(struct device *dev)
->>   {
->>         return dev->dma_parms ?
->>
->
->
+Hi Andrew,
 
-BR,
-Sumit.
+On Wed, 21 Jan 2015 19:34:11 -0800 Andrew Morton <akpm@linux-foundation.org=
+> wrote:
+>
+> On Thu, 22 Jan 2015 10:51:23 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> w=
+rote:
+>=20
+> > > The most recent -mmotm was a bit of a trainwreck.  I'm scrambling to
+> > > get the holes plugged so I can get another mmotm out today.
+> >=20
+> > Another mmotm will fix many issues from me. :/
+>=20
+> I hit a wont-boot-cant-find-init in linux-next so I get to spend
+> tomorrow bisecting that :(
+
+There has been a long discussion about something like that already.
+Subject "Re: linux-next: Tree for Jan 20 -- Kernel panic - Unable to
+mount root fs"
+
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+
+--Sig_/8ef9APx7A7P0hP8pS_M7BQk
+Content-Type: application/pgp-signature
+Content-Description: OpenPGP digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBCAAGBQJUwIcfAAoJEMDTa8Ir7ZwVIuEP/AiVbPc0w8Cw+T4e6ITcRnpW
+xz8PWI1WKF/C1GPaLjydmrED3rlgtHcqNZwtfzolblFYnZ9Qm6Oin2YCIl+XO9++
+4c55oRU/3bKzVs6f9qcq+xykXE/tWPwjvT2Rneujp7wWE8OBmtot4lW6h6g3F/do
+hFrhYnYODZ4prE7E2LFlt5Tk5VS+OTzPrUTHTYeWE3jhtYD4EymEwJ9wX4ytep3y
+dNVqxDKuRYaeXiiMhTue5fEta/buPKoYexb8hgnhDnZT/Vr9iULUzJtikOTo3Obc
+AZzSLJvam4GD5MzeUzRcGDj8NDeS4JsRb4fx308d5ClNAEs1IMkOqC0TFVJYH8f5
+XalwabjFGSnqXkJtGsQr9zacapgMlyp6LQ3xCt5HCSift1XnXywi2V2PMGsBbxtk
+ItBDCJIZYsba6xM9mtex7/Yyuf35fGVZX1GEdnz+ILDFx7inYP0kk3UeMdVnQWSo
+wbgzfHaga0H2Rr4pXMPwLyLlS/93CFzN8UQFcQQkpO/FxiOOTs6EMlytp9y+nsQ2
+UBbxcS4kKgvUkiyj75noq8n/31PTNxXPT20IIcAVXSwYp21C5KvpkdDr54pCMOva
+z4ASowq3JivKgYZNHuV74vYLhrAnfmLH2oxhdqRZl5kpGJBdX4qgkJPxZcv1jQWC
+Gk95VVnIpXgl4DvYpZOr
+=Saoc
+-----END PGP SIGNATURE-----
+
+--Sig_/8ef9APx7A7P0hP8pS_M7BQk--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
