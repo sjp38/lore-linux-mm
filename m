@@ -1,101 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f41.google.com (mail-qa0-f41.google.com [209.85.216.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 582926B0032
-	for <linux-mm@kvack.org>; Thu, 22 Jan 2015 08:41:56 -0500 (EST)
-Received: by mail-qa0-f41.google.com with SMTP id bm13so1137686qab.0
-        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 05:41:56 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q9si4485163qgq.83.2015.01.22.05.41.55
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id C5A6C6B0032
+	for <linux-mm@kvack.org>; Thu, 22 Jan 2015 08:46:06 -0500 (EST)
+Received: by mail-wg0-f50.google.com with SMTP id b13so1792570wgh.9
+        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 05:46:06 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id bt4si10019787wib.2.2015.01.22.05.46.03
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Jan 2015 05:41:55 -0800 (PST)
-Date: Thu, 22 Jan 2015 08:41:52 -0500
-From: Brian Foster <bfoster@redhat.com>
-Subject: Re: [RFC PATCH 6/6] xfs: lock out page faults from extent swap
- operations
-Message-ID: <20150122134152.GC25345@bfoster.bfoster>
-References: <1420669543-8093-1-git-send-email-david@fromorbit.com>
- <1420669543-8093-7-git-send-email-david@fromorbit.com>
+        Thu, 22 Jan 2015 05:46:03 -0800 (PST)
+Date: Thu, 22 Jan 2015 08:45:50 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [Regression] 3.19-rc3 : memcg: Hang in mount memcg
+Message-ID: <20150122134550.GA13876@phnom.home.cmpxchg.org>
+References: <54B01335.4060901@arm.com>
+ <20150110085525.GD2110@esperanza>
+ <54BCFDCF.9090603@arm.com>
+ <20150121163955.GM4549@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1420669543-8093-7-git-send-email-david@fromorbit.com>
+In-Reply-To: <20150121163955.GM4549@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: xfs@oss.sgi.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Will Deacon <will.deacon@arm.com>
+Cc: "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>, Vladimir Davydov <vdavydov@parallels.com>, Tejun Heo <tj@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mhocko@suse.cz" <mhocko@suse.cz>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
-On Thu, Jan 08, 2015 at 09:25:43AM +1100, Dave Chinner wrote:
-> From: Dave Chinner <dchinner@redhat.com>
+On Wed, Jan 21, 2015 at 04:39:55PM +0000, Will Deacon wrote:
+> On Mon, Jan 19, 2015 at 12:51:27PM +0000, Suzuki K. Poulose wrote:
+> > On 10/01/15 08:55, Vladimir Davydov wrote:
+> > > The problem is that the memory cgroup controller takes a css reference
+> > > per each charged page and does not reparent charged pages on css
+> > > offline, while cgroup_mount/cgroup_kill_sb expect all css references to
+> > > offline cgroups to be gone soon, restarting the syscall if the ref count
+> > > != 0. As a result, if you create a memory cgroup, charge some page cache
+> > > to it, and then remove it, unmount/mount will hang forever.
+> > >
+> > > May be, we should kill the ref counter to the memory controller root in
+> > > cgroup_kill_sb only if there is no children at all, neither online nor
+> > > offline.
+> > >
+> > 
+> > Still reproducible on 3.19-rc5 with the same setup.
 > 
-> Extent swap operations are another extent manipulation operation
-> that we need to ensure does not race against mmap page faults. The
-> current code returns if the file is mapped prior to the swap being
-> done, but it could potentially race against new page faults while
-> the swap is in progress. Hence we should use the XFS_MMAPLOCK_EXCL
-> for this operation, too.
+> Yeah, I'm seeing the same failure on my setup too.
 > 
-> Signed-off-by: Dave Chinner <dchinner@redhat.com>
-> ---
->  fs/xfs/xfs_bmap_util.c | 18 ++++++------------
->  1 file changed, 6 insertions(+), 12 deletions(-)
+> > From git bisect, the last good commit is :
+> > 
+> > commit 8df0c2dcf61781d2efa8e6e5b06870f6c6785735
+> > Author: Pranith Kumar <bobby.prani@gmail.com>
+> > Date:   Wed Dec 10 15:42:28 2014 -0800
+> > 
+> >      slab: replace smp_read_barrier_depends() with lockless_dereference()
 > 
-> diff --git a/fs/xfs/xfs_bmap_util.c b/fs/xfs/xfs_bmap_util.c
-> index 22a5dcb..1420caf 100644
-> --- a/fs/xfs/xfs_bmap_util.c
-> +++ b/fs/xfs/xfs_bmap_util.c
-> @@ -1599,13 +1599,6 @@ xfs_swap_extent_flush(
->  	/* Verify O_DIRECT for ftmp */
->  	if (VFS_I(ip)->i_mapping->nrpages)
->  		return -EINVAL;
-> -
-> -	/*
-> -	 * Don't try to swap extents on mmap()d files because we can't lock
-> -	 * out races against page faults safely.
-> -	 */
-> -	if (mapping_mapped(VFS_I(ip)->i_mapping))
-> -		return -EBUSY;
->  	return 0;
->  }
->  
-> @@ -1633,13 +1626,14 @@ xfs_swap_extents(
->  	}
->  
->  	/*
-> -	 * Lock up the inodes against other IO and truncate to begin with.
-> -	 * Then we can ensure the inodes are flushed and have no page cache
-> -	 * safely. Once we have done this we can take the ilocks and do the rest
-> -	 * of the checks.
-> +	 * Lock the inodes against other IO, page faults and truncate to
-> +	 * begin with.  Then we can ensure the inodes are flushed and have no
-> +	 * page cache safely. Once we have done this we can take the ilocks and
-> +	 * do the rest of the checks.
->  	 */
-> -	lock_flags = XFS_IOLOCK_EXCL;
-> +	lock_flags = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
->  	xfs_lock_two_inodes(ip, tip, XFS_IOLOCK_EXCL);
-> +	xfs_lock_two_inodes(ip, tip, XFS_MMAPLOCK_EXCL);
->  
->  	/* Verify that both files have the same format */
->  	if ((ip->i_d.di_mode & S_IFMT) != (tip->i_d.di_mode & S_IFMT)) {
+> So that points at 3e32cb2e0a12 ("mm: memcontrol: lockless page counters")
+> as the offending commit.
 
-Not introduced by this patch, but it looks like we have a couple
-out_trans_cancel->out_unlock error paths after the inodes are joined to
-the transaction (with lock transfer) that can result in double unlocks.
-We might as well fix that up here one way or another as well...
+With b2052564e66d ("mm: memcontrol: continue cache reclaim from
+offlined groups"), page cache can pin an old css and its ancestors
+indefinitely, making that hang in a second mount() very likely.
 
-Brian
+However, swap entries have also been doing that for quite a while now,
+and as Vladimir pointed out, the same is true for kernel memory.  This
+latest change just makes this existing bug easier to trigger.
 
-> -- 
-> 2.0.0
-> 
-> _______________________________________________
-> xfs mailing list
-> xfs@oss.sgi.com
-> http://oss.sgi.com/mailman/listinfo/xfs
+I think we have to update the lifetime rules to reflect reality here:
+memory and swap lifetime is indefinite, so once the memory controller
+is used, it has state that is independent from whether its mounted or
+not.  We can support an identical remount, but have to fail mounting
+with new parameters that would change the behavior of the controller.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Suzuki, Will, could you give the following patch a shot?
+
+Tejun, would that route be acceptable to you?
+
+Thanks
+
+---
