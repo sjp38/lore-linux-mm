@@ -1,136 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f51.google.com (mail-qa0-f51.google.com [209.85.216.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 300006B0032
-	for <linux-mm@kvack.org>; Thu, 22 Jan 2015 08:23:12 -0500 (EST)
-Received: by mail-qa0-f51.google.com with SMTP id f12so1035816qad.10
-        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 05:23:12 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u7si8888889qaj.5.2015.01.22.05.23.10
+Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D9556B0032
+	for <linux-mm@kvack.org>; Thu, 22 Jan 2015 08:27:35 -0500 (EST)
+Received: by mail-ob0-f170.google.com with SMTP id wp4so1350083obc.1
+        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 05:27:35 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id w9si5268691oev.21.2015.01.22.05.27.34
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Jan 2015 05:23:11 -0800 (PST)
-Date: Thu, 22 Jan 2015 08:23:08 -0500
-From: Brian Foster <bfoster@redhat.com>
-Subject: Re: [RFC PATCH 4/6] xfs: take i_mmap_lock on extent manipulation
- operations
-Message-ID: <20150122132307.GB25345@bfoster.bfoster>
-References: <1420669543-8093-1-git-send-email-david@fromorbit.com>
- <1420669543-8093-5-git-send-email-david@fromorbit.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 22 Jan 2015 05:27:34 -0800 (PST)
+Date: Thu, 22 Jan 2015 16:28:13 +0300
+From: Dan Carpenter <dan.carpenter@oracle.com>
+Subject: re: mm: remove rest usage of VM_NONLINEAR and pte_file()
+Message-ID: <20150122132813.GA15803@mwanda>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1420669543-8093-5-git-send-email-david@fromorbit.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: xfs@oss.sgi.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: kirill.shutemov@linux.intel.com
+Cc: linux-mm@kvack.org
 
-On Thu, Jan 08, 2015 at 09:25:41AM +1100, Dave Chinner wrote:
-> From: Dave Chinner <dchinner@redhat.com>
-> 
-> Now we have the i_mmap_lock being held across the page fault IO
-> path, we now add extent manipulation operation exclusion by adding
-> the lock to the paths that directly modify extent maps. This
-> includes truncate, hole punching and other fallocate based
-> operations. The operations will now take both the i_iolock and the
-> i_mmaplock in exclusive mode, thereby ensuring that all IO and page
-> faults block without holding any page locks while the extent
-> manipulation is in progress.
-> 
-> This gives us the lock order during truncate of i_iolock ->
-> i_mmaplock -> page_lock -> i_lock, hence providing the same
-> lock order as the iolock provides the normal IO path without
-> involving the mmap_sem.
-> 
-> Signed-off-by: Dave Chinner <dchinner@redhat.com>
-> ---
->  fs/xfs/xfs_file.c  | 4 ++--
->  fs/xfs/xfs_ioctl.c | 4 ++--
->  fs/xfs/xfs_iops.c  | 6 +++---
->  3 files changed, 7 insertions(+), 7 deletions(-)
-> 
-> diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
-> index e6e7e75..b08c9e6 100644
-> --- a/fs/xfs/xfs_file.c
-> +++ b/fs/xfs/xfs_file.c
-> @@ -794,7 +794,7 @@ xfs_file_fallocate(
->  		     FALLOC_FL_COLLAPSE_RANGE | FALLOC_FL_ZERO_RANGE))
->  		return -EOPNOTSUPP;
->  
-> -	xfs_ilock(ip, XFS_IOLOCK_EXCL);
-> +	xfs_ilock(ip, XFS_IOLOCK_EXCL|XFS_MMAPLOCK_EXCL);
->  	if (mode & FALLOC_FL_PUNCH_HOLE) {
->  		error = xfs_free_file_space(ip, offset, len);
->  		if (error)
-> @@ -874,7 +874,7 @@ xfs_file_fallocate(
->  	}
->  
->  out_unlock:
-> -	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-> +	xfs_iunlock(ip, XFS_IOLOCK_EXCL|XFS_MMAPLOCK_EXCL);
->  	return error;
->  }
->  
-> diff --git a/fs/xfs/xfs_ioctl.c b/fs/xfs/xfs_ioctl.c
-> index a183198..8810959 100644
-> --- a/fs/xfs/xfs_ioctl.c
-> +++ b/fs/xfs/xfs_ioctl.c
-> @@ -634,7 +634,7 @@ xfs_ioc_space(
->  	if (error)
->  		return error;
->  
-> -	xfs_ilock(ip, XFS_IOLOCK_EXCL);
-> +	xfs_ilock(ip, XFS_IOLOCK_EXCL|XFS_MMAPLOCK_EXCL);
->  
->  	switch (bf->l_whence) {
->  	case 0: /*SEEK_SET*/
-> @@ -751,7 +751,7 @@ xfs_ioc_space(
->  	error = xfs_trans_commit(tp, 0);
->  
->  out_unlock:
-> -	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-> +	xfs_iunlock(ip, XFS_IOLOCK_EXCL|XFS_MMAPLOCK_EXCL);
->  	mnt_drop_write_file(filp);
->  	return error;
->  }
-> diff --git a/fs/xfs/xfs_iops.c b/fs/xfs/xfs_iops.c
-> index 8be5bb5..f491860 100644
-> --- a/fs/xfs/xfs_iops.c
-> +++ b/fs/xfs/xfs_iops.c
-> @@ -768,7 +768,7 @@ xfs_setattr_size(
->  	if (error)
->  		return error;
->  
-> -	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
-> +	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL|XFS_MMAPLOCK_EXCL));
+Hello Kirill A. Shutemov,
 
-Only debug code of course, but xfs_isilocked() doesn't appear to support
-what is intended by this call (e.g., verification of multiple locks).
+The patch 05864bbd92f9: "mm: remove rest usage of VM_NONLINEAR and
+pte_file()" from Jan 17, 2015, leads to the following static checker
+warning:
 
-Brian
+	mm/memcontrol.c:4794 mc_handle_file_pte()
+	warn: passing uninitialized 'pgoff'
 
->  	ASSERT(S_ISREG(ip->i_d.di_mode));
->  	ASSERT((iattr->ia_valid & (ATTR_UID|ATTR_GID|ATTR_ATIME|ATTR_ATIME_SET|
->  		ATTR_MTIME_SET|ATTR_KILL_PRIV|ATTR_TIMES_SET)) == 0);
-> @@ -984,9 +984,9 @@ xfs_vn_setattr(
->  	int			error;
->  
->  	if (iattr->ia_valid & ATTR_SIZE) {
-> -		xfs_ilock(ip, XFS_IOLOCK_EXCL);
-> +		xfs_ilock(ip, XFS_IOLOCK_EXCL|XFS_MMAPLOCK_EXCL);
->  		error = xfs_setattr_size(ip, iattr);
-> -		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-> +		xfs_iunlock(ip, XFS_IOLOCK_EXCL|XFS_MMAPLOCK_EXCL);
->  	} else {
->  		error = xfs_setattr_nonsize(ip, iattr, 0);
->  	}
-> -- 
-> 2.0.0
-> 
-> _______________________________________________
-> xfs mailing list
-> xfs@oss.sgi.com
-> http://oss.sgi.com/mailman/listinfo/xfs
+mm/memcontrol.c
+  4774  static struct page *mc_handle_file_pte(struct vm_area_struct *vma,
+  4775                          unsigned long addr, pte_t ptent, swp_entry_t *entry)
+  4776  {
+  4777          struct page *page = NULL;
+  4778          struct address_space *mapping;
+  4779          pgoff_t pgoff;
+  4780  
+  4781          if (!vma->vm_file) /* anonymous vma */
+  4782                  return NULL;
+  4783          if (!(mc.flags & MOVE_FILE))
+  4784                  return NULL;
+  4785  
+  4786          mapping = vma->vm_file->f_mapping;
+  4787          if (pte_none(ptent))
+  4788                  pgoff = linear_page_index(vma, addr);
+
+We used to have an "else pgoff = pte_to_pgoff(ptent);" but now it's just
+uninitialized data.
+
+  4789  
+  4790          /* page is moved even if it's not RSS of this task(page-faulted). */
+  4791  #ifdef CONFIG_SWAP
+  4792          /* shmem/tmpfs may report page out on swap: account for that too. */
+  4793          if (shmem_mapping(mapping)) {
+  4794                  page = find_get_entry(mapping, pgoff);
+                                                       ^^^^^
+
+Used here.
+
+  4795                  if (radix_tree_exceptional_entry(page)) {
+  4796                          swp_entry_t swp = radix_to_swp_entry(page);
+  4797                          if (do_swap_account)
+  4798                                  *entry = swp;
+  4799                          page = find_get_page(swap_address_space(swp), swp.val);
+  4800                  }
+  4801          } else
+  4802                  page = find_get_page(mapping, pgoff);
+  4803  #else
+  4804          page = find_get_page(mapping, pgoff);
+                                              ^^^^^
+And here.
+
+  4805  #endif
+  4806          return page;
+  4807  }
+
+regards,
+dan carpenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
