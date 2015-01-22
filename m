@@ -1,55 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BE5CE6B0032
-	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 20:50:30 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id fb1so22230313pad.10
-        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 17:50:30 -0800 (PST)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id 6si5739852pdk.217.2015.01.21.17.50.28
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 16A876B0032
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 20:52:49 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id ey11so4945267pad.7
+        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 17:52:48 -0800 (PST)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id fn10si10780269pab.65.2015.01.21.17.52.46
         for <linux-mm@kvack.org>;
-        Wed, 21 Jan 2015 17:50:29 -0800 (PST)
-Date: Thu, 22 Jan 2015 10:51:23 +0900
+        Wed, 21 Jan 2015 17:52:47 -0800 (PST)
+Date: Thu, 22 Jan 2015 10:53:44 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: mmotm:
- mm-slub-optimize-alloc-free-fastpath-by-removing-preemption-on-off.patch is
- causing preemptible splats
-Message-ID: <20150122015123.GB21444@js1304-P5Q-DELUXE>
-References: <20150121132308.GB23700@dhcp22.suse.cz>
- <CAJKOXPdgSsd8cr7ctKOGCwFTRMxcq71k7Pb5mQgYy--tGW8+_w@mail.gmail.com>
- <20150121141138.GC23700@dhcp22.suse.cz>
- <20150121142107.e26d5ebf3340aa91759fef1f@linux-foundation.org>
+Subject: Re: Bisected BUG: using smp_processor_id() in preemptible
+Message-ID: <20150122015344.GC21444@js1304-P5Q-DELUXE>
+References: <1421746712.6847.5.camel@AMDC1943>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150121142107.e26d5ebf3340aa91759fef1f@linux-foundation.org>
+In-Reply-To: <1421746712.6847.5.camel@AMDC1943>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Krzysztof =?utf-8?Q?Koz=C5=82owski?= <k.kozlowski.k@gmail.com>, Christoph Lameter <cl@linux.com>, Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Mo rton <akpm@linux-foundation.org>, BartlomiejZolnierkiewicz <b.zolnierkie@samsung.com>, KyungminPark <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>
 
-On Wed, Jan 21, 2015 at 02:21:07PM -0800, Andrew Morton wrote:
-> On Wed, 21 Jan 2015 15:11:38 +0100 Michal Hocko <mhocko@suse.cz> wrote:
+On Tue, Jan 20, 2015 at 10:38:32AM +0100, Krzysztof Kozlowski wrote:
+> Hi,
 > 
-> > On Wed 21-01-15 15:06:03, Krzysztof Koz__owski wrote:
-> > [...]
-> > > Same here :) [1] . So actually only ARM seems affected (both armv7 and
-> > > armv8) because it is the only one which uses smp_processor_id() in
-> > > my_cpu_offset.
-> > 
-> > This was on x86_64 with CONFIG_DEBUG_PREEMPT so it is not only ARM
-> > specific.
-> >  
 > 
-> Hopefully
-> mm-slub-optimize-alloc-free-fastpath-by-removing-preemption-on-off-v3.patch
-> will fix this.
+> Since next-20150119 booting of Exynos4 based boards is nearly impossible
+> because of continuous BUG on messages. The system finally boots... but
+> console log is polluted with:
+> 
+> [    9.700828] BUG: using smp_processor_id() in preemptible [00000000] code: udevd/1656
+> [    9.708525] caller is kfree+0x8c/0x198
+> [    9.712229] CPU: 2 PID: 1656 Comm: udevd Tainted: G        W      3.19.0-rc4-00279-gd2dc80750ee0 #1630
+> [    9.721501] Hardware name: SAMSUNG EXYNOS (Flattened Device Tree)
+> [    9.727602] [<c0014980>] (unwind_backtrace) from [<c0011904>] (show_stack+0x10/0x14)
+> [    9.735324] [<c0011904>] (show_stack) from [<c0585bbc>] (dump_stack+0x70/0xbc)
+> [    9.742525] [<c0585bbc>] (dump_stack) from [<c01e79e0>] (check_preemption_disabled+0xf8/0x128)
+> [    9.751114] [<c01e79e0>] (check_preemption_disabled) from [<c00c501c>] (kfree+0x8c/0x198)
+> [    9.759265] [<c00c501c>] (kfree) from [<c0299b7c>] (uevent_show+0x38/0x104)
+> [    9.766210] [<c0299b7c>] (uevent_show) from [<c0299fb8>] (dev_attr_show+0x1c/0x48)
+> [    9.773763] [<c0299fb8>] (dev_attr_show) from [<c0122424>] (sysfs_kf_seq_show+0x8c/0x10c)
+> [    9.781920] [<c0122424>] (sysfs_kf_seq_show) from [<c0120f90>] (kernfs_seq_show+0x24/0x28)
+> [    9.790172] [<c0120f90>] (kernfs_seq_show) from [<c00e93b0>] (seq_read+0x1ac/0x480)
+> [    9.797806] [<c00e93b0>] (seq_read) from [<c00cacf4>] (__vfs_read+0x18/0x4c)
+> [    9.804833] [<c00cacf4>] (__vfs_read) from [<c00cada4>] (vfs_read+0x7c/0x100)
+> [    9.811950] [<c00cada4>] (vfs_read) from [<c00cae68>] (SyS_read+0x40/0x8c)
+> [    9.818810] [<c00cae68>] (SyS_read) from [<c000f160>] (ret_fast_syscall+0x0/0x30)
+> 
+> I bisected this to:
+> 
+> d2dc80750ee05ceb03c9b13b0531a782116d1ade
+> Author: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Date:   Sat Jan 17 11:23:23 2015 +1100
+> mm/slub: optimize alloc/free fastpath by removing preemption on/off
+> 
+> Full dmesg and config attached.
+> 
+> Any ideas?
 
-Yes, it will fix this error.
+Hello,
 
-> The most recent -mmotm was a bit of a trainwreck.  I'm scrambling to
-> get the holes plugged so I can get another mmotm out today.
+This issue will be fixed in next mmotm release.
+Following patch is next version of
+commit d2dc80750ee05ceb03c9b13b0531a782116d1ade.
 
-Another mmotm will fix many issues from me. :/
+https://lkml.org/lkml/2015/1/19/17
 
 Thanks.
 
