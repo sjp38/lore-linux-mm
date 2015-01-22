@@ -1,74 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id C894A6B0032
-	for <linux-mm@kvack.org>; Thu, 22 Jan 2015 10:13:08 -0500 (EST)
-Received: by mail-pd0-f180.google.com with SMTP id ft15so2126605pdb.11
-        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 07:13:08 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id jz4si12236381pbc.223.2015.01.22.07.13.07
-        for <linux-mm@kvack.org>;
-        Thu, 22 Jan 2015 07:13:07 -0800 (PST)
-From: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>
-Subject: RE: [next:master 4658/4676] undefined reference to `copy_user_page'
-Date: Thu, 22 Jan 2015 15:12:15 +0000
-Message-ID: <100D68C7BA14664A8938383216E40DE040853FB4@FMSMSX114.amr.corp.intel.com>
-References: <201501221315.sbz4rdsB%fengguang.wu@intel.com>
-In-Reply-To: <201501221315.sbz4rdsB%fengguang.wu@intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id EEA956B0032
+	for <linux-mm@kvack.org>; Thu, 22 Jan 2015 10:16:25 -0500 (EST)
+Received: by mail-wg0-f48.google.com with SMTP id x12so2316847wgg.7
+        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 07:16:25 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g6si6908832wjy.43.2015.01.22.07.16.23
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 22 Jan 2015 07:16:24 -0800 (PST)
+Message-ID: <54C11444.2020300@suse.cz>
+Date: Thu, 22 Jan 2015 16:16:20 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
+Subject: Re: [PATCH v2] mm: vmscan: fix the page state calculation in too_many_isolated
+References: <1421235419-30736-1-git-send-email-vinmenon@codeaurora.org> <20150114165036.GI4706@dhcp22.suse.cz> <54B7F7C4.2070105@codeaurora.org> <20150116154922.GB4650@dhcp22.suse.cz> <54BA7D3A.40100@codeaurora.org> <alpine.DEB.2.11.1501171347290.25464@gentwo.org> <54BC879C.90505@codeaurora.org> <20150121143920.GD23700@dhcp22.suse.cz>
+In-Reply-To: <20150121143920.GD23700@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wu, Fengguang" <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "kbuild-all@01.org" <kbuild-all@01.org>, Linux Memory Management List <linux-mm@kvack.org>, "linux-mips@linux-mips.org" <linux-mips@linux-mips.org>
+To: Michal Hocko <mhocko@suse.cz>, Vinayak Menon <vinmenon@codeaurora.org>
+Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, mgorman@suse.de, minchan@kernel.org
 
-Looks like mips *declares* copy_user_page(), but never *defines* an impleme=
-ntation.
+On 01/21/2015 03:39 PM, Michal Hocko wrote:
+> On Mon 19-01-15 09:57:08, Vinayak Menon wrote:
+>> On 01/18/2015 01:18 AM, Christoph Lameter wrote:
+>>> On Sat, 17 Jan 2015, Vinayak Menon wrote:
+>>>
+>>>> which had not updated the vmstat_diff. This CPU was in idle for around 30
+>>>> secs. When I looked at the tvec base for this CPU, the timer associated with
+>>>> vmstat_update had its expiry time less than current jiffies. This timer had
+>>>> its deferrable flag set, and was tied to the next non-deferrable timer in the
+>>>
+>>> We can remove the deferrrable flag now since the vmstat threads are only
+>>> activated as necessary with the recent changes. Looks like this could fix
+>>> your issue?
+>>>
+>>
+>> Yes, this should fix my issue.
+>
+> Does it? Because I would prefer not getting into un-synced state much
+> more than playing around one specific place which shows the problems
+> right now.
+>
+>> But I think we may need the fix in too_many_isolated, since there can still
+>> be a delay of few seconds (HZ by default and even more because of reasons
+>> pointed out by Michal) which will result in reclaimers unnecessarily
+>> entering congestion_wait. No ?
+>
+> I think we can solve this as well. We can stick vmstat_shepherd into a
+> kernel thread with a loop with the configured timeout and then create a
+> mask of CPUs which need the update and run vmstat_update from
+> IPI context (smp_call_function_many).
+> We would have to drop cond_resched from refresh_cpu_vm_stats of
+> course. The nr_zones x NR_VM_ZONE_STAT_ITEMS in the IPI context
+> shouldn't be excessive but I haven't measured that so I might be easily
+> wrong.
+>
+> Anyway, that should work more reliably than the current scheme and
+> should help to reduce pointless wakeups which the original patchset was
+> addressing.  Or am I missing something?
 
-It's documented in Documentation/cachetlb.txt, but it's not (currently) cal=
-led if the architecture defines its own copy_user_highpage(), so some bitro=
-t has occurred.  ARM is currently fixing this, and MIPS will need to do the=
- same.
-
-(We can't use copy_user_highpage() in DAX because we don't necessarily have=
- a struct page for 'from'.)
-
------Original Message-----
-From: Wu, Fengguang=20
-Sent: Wednesday, January 21, 2015 9:40 PM
-To: Andrew Morton
-Cc: kbuild-all@01.org; Linux Memory Management List; Wilcox, Matthew R
-Subject: [next:master 4658/4676] undefined reference to `copy_user_page'
-
-Hi Andrew,
-
-It's probably a bug fix that unveils the link errors.
-
-tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git m=
-aster
-head:   e1e12812e428bcaf19e23f83e09f602d161b8005
-commit: c429f45c501ac95383be9e37467d4e6ca08782c1 [4658/4676] daxext2-replac=
-e-the-xip-page-fault-handler-with-the-dax-page-fault-handler-fix-3
-config: mips-allmodconfig (attached as .config)
-reproduce:
-  wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain=
-/sbin/make.cross -O ~/bin/make.cross
-  chmod +x ~/bin/make.cross
-  git checkout c429f45c501ac95383be9e37467d4e6ca08782c1
-  # save the attached .config to linux build tree
-  make.cross ARCH=3Dmips=20
-
-All error/warnings:
-
-   fs/built-in.o: In function `dax_fault':
->> (.text+0x5dc6c): undefined reference to `copy_user_page'
-
----
-0-DAY kernel test infrastructure                Open Source Technology Cent=
-er
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporati=
-on
+Maybe to further reduce wakeups, a CPU could check and update its 
+counters before going idle? (unless that already happens)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
