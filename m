@@ -1,62 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E32B6B0032
-	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 08:45:58 -0500 (EST)
-Received: by mail-qc0-f172.google.com with SMTP id i8so6262453qcq.3
-        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 05:45:58 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i3si2019180qaf.39.2015.01.23.05.45.56
+Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 010DD6B0032
+	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 08:49:42 -0500 (EST)
+Received: by mail-wg0-f54.google.com with SMTP id b13so7524651wgh.13
+        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 05:49:41 -0800 (PST)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.10])
+        by mx.google.com with ESMTPS id r3si2658245wix.30.2015.01.23.05.49.39
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Jan 2015 05:45:57 -0800 (PST)
-Message-ID: <54C25083.7020603@redhat.com>
-Date: Fri, 23 Jan 2015 14:45:39 +0100
-From: Jerome Marchand <jmarchan@redhat.com>
+        Fri, 23 Jan 2015 05:49:40 -0800 (PST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCH] ARM: use default ioremap alignment for SMP or LPAE
+Date: Thu, 22 Jan 2015 12:03 +0100
+Message-ID: <3060178.HEZJjJCl1e@wuerfel>
+In-Reply-To: <20150122100441.GA19811@e104818-lin.cambridge.arm.com>
+References: <1421911075-8814-1-git-send-email-s.dyasly@samsung.com> <20150122100441.GA19811@e104818-lin.cambridge.arm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] zram: protect zram->stat race with init_lock
-References: <1421992707-32658-1-git-send-email-minchan@kernel.org> <1421992707-32658-2-git-send-email-minchan@kernel.org>
-In-Reply-To: <1421992707-32658-2-git-send-email-minchan@kernel.org>
-Content-Type: multipart/signed; micalg=pgp-sha1;
- protocol="application/pgp-signature";
- boundary="iBVRAcOvgeqUu7hXE6xEwavCrhj59baHX"
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Sergey Dyasly <s.dyasly@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Russell King <linux@arm.linux.org.uk>, Guan Xuetao <gxt@mprc.pku.edu.cn>, "nicolas.pitre@linaro.org" <nicolas.pitre@linaro.org>, James Bottomley <JBottomley@parallels.com>, Will Deacon <Will.Deacon@arm.com>, Arnd Bergmann <arnd.bergmann@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Safonov <d.safonov@partner.samsung.com>
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---iBVRAcOvgeqUu7hXE6xEwavCrhj59baHX
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+On Thursday 22 January 2015 10:04:41 Catalin Marinas wrote:
+> On Thu, Jan 22, 2015 at 07:17:55AM +0000, Sergey Dyasly wrote:
+> > 16MB alignment for ioremap mappings was added by commit a069c896d0d6 ("[ARM]
+> > 3705/1: add supersection support to ioremap()") in order to support supersection
+> > mappings. But __arm_ioremap_pfn_caller uses section and supersection mappings
+> > only in !SMP && !LPAE case. There is no need for such big alignment if either
+> > SMP or LPAE is enabled.
+> [...]
+> > diff --git a/arch/arm/include/asm/memory.h b/arch/arm/include/asm/memory.h
+> > index 184def0..c3ef139 100644
+> > --- a/arch/arm/include/asm/memory.h
+> > +++ b/arch/arm/include/asm/memory.h
+> > @@ -78,10 +78,12 @@
+> >   */
+> >  #define XIP_VIRT_ADDR(physaddr)  (MODULES_VADDR + ((physaddr) & 0x000fffff))
+> >  
+> > +#if !defined(CONFIG_SMP) && !defined(CONFIG_ARM_LPAE)
+> >  /*
+> >   * Allow 16MB-aligned ioremap pages
+> >   */
+> >  #define IOREMAP_MAX_ORDER    24
+> > +#endif
+> 
+> Actually, I think we could make this depend only on CONFIG_IO_36. That's
+> the only scenario where we get the supersections matter, and maybe make
+> CONFIG_IO_36 dependent on !SMP or !ARM_LPAE.
 
-On 01/23/2015 06:58 AM, Minchan Kim wrote:
-> The zram->stat handling should be procted by init_lock.
-> Otherwise, user could see stale value from the stat.
->=20
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
+Good point, I assumed this was just a performance optimization,
+but it is in fact required for dynamic high mappings on XSC3.
 
-Acked-by: Jerome Marchand <jmarchan@redhat.com>
+> My assumption is that we
+> don't support single zImage with CPU_XSC3 enabled (but I haven't
+> followed the latest developments here).
 
+I have said in the past that I do not expect any of the xscale or
+strongarm based platforms to be used with a single zImage kernel.
+This has changed slightly given the work that Robert Jarzmik and
+others are doing on mach-pxa with DT conversion. I still don't
+think it's likely that they will move on to multiplatform, but I
+no longer think it's impossible.
 
+Fortunately, PXA also does not have any high physical address mappings
+that I can see. The only platform we have that has these (see
+'git grep ioremap_pfn') is mach-iop13xx, and I am still seeing
+this in the 'never going to be multiplatform' category.
 
---iBVRAcOvgeqUu7hXE6xEwavCrhj59baHX
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
+Unrelated to this question however is whether we want to keep
+supersection mappings as a performance optimization to save TLBs.
+It seems useful to me, but not critical.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iQEcBAEBAgAGBQJUwlCDAAoJEHTzHJCtsuoCdIcIAJnBlfB3Mgo+kARUZ/tFtg+T
-2MsDY32R0j59OXXLyo4B+fD0ge3WV0W8sX5JFjYmMAnI0bLBwo9RSWKyneLN22Ac
-4zS2cVwSUCc2/3SB0v9RYWW/FLQ7XteXcqCXS7R99j0yjlQWZ+SJ311JsWnmMRk0
-i1zFyMCNbM08/BFoekU7zUnuGZzaoTAr11rzm/7wbRS18ghJMMAr8kNBqwTLJ7te
-+xCVafwPIlN17IwrCq2rJ3pRmdIizO0bYt7rMujn6ytfVLtN3Rgjqc2HTPOQuJdD
-bXCeOLCaXh55zqC1VbmnHNkTY0TkDLXNo+eh88Lib5SQ2q7EwUAqVpxQQGAFazA=
-=N7xA
------END PGP SIGNATURE-----
-
---iBVRAcOvgeqUu7hXE6xEwavCrhj59baHX--
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
