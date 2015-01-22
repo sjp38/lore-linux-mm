@@ -1,76 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 105C86B0032
-	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 22:33:12 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id kq14so5454882pab.0
-        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 19:33:11 -0800 (PST)
-Received: from kirsty.vergenet.net (kirsty.vergenet.net. [202.4.237.240])
-        by mx.google.com with ESMTP id bw2si10712183pab.221.2015.01.21.19.33.10
-        for <linux-mm@kvack.org>;
-        Wed, 21 Jan 2015 19:33:11 -0800 (PST)
-Date: Thu, 22 Jan 2015 12:33:06 +0900
-From: Simon Horman <horms@verge.net.au>
-Subject: Re: Possible regression in next-20150120 due to "mm: account pmd
- page tables to the process"
-Message-ID: <20150122033306.GN31170@verge.net.au>
-References: <20150121023003.GF30598@verge.net.au>
- <20150121092956.4CF89A8@black.fi.intel.com>
- <CAMuHMdWyXaxobndjYDwYwqE=XJCBH_7C9TFBZYr7UpYk-rUa4A@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAMuHMdWyXaxobndjYDwYwqE=XJCBH_7C9TFBZYr7UpYk-rUa4A@mail.gmail.com>
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id BE2A56B0032
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 22:34:30 -0500 (EST)
+Received: by mail-pd0-f172.google.com with SMTP id v10so32382262pde.3
+        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 19:34:30 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id ob9si10708015pbb.57.2015.01.21.19.34.28
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Jan 2015 19:34:29 -0800 (PST)
+Date: Wed, 21 Jan 2015 19:34:11 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: mmotm:
+ mm-slub-optimize-alloc-free-fastpath-by-removing-preemption-on-off.patch is
+ causing preemptible splats
+Message-Id: <20150121193411.44f96b6c.akpm@linux-foundation.org>
+In-Reply-To: <20150122015123.GB21444@js1304-P5Q-DELUXE>
+References: <20150121132308.GB23700@dhcp22.suse.cz>
+	<CAJKOXPdgSsd8cr7ctKOGCwFTRMxcq71k7Pb5mQgYy--tGW8+_w@mail.gmail.com>
+	<20150121141138.GC23700@dhcp22.suse.cz>
+	<20150121142107.e26d5ebf3340aa91759fef1f@linux-foundation.org>
+	<20150122015123.GB21444@js1304-P5Q-DELUXE>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linux MM <linux-mm@kvack.org>, Dave Hansen <dave.hansen@linux.intel.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@openvz.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux-sh list <linux-sh@vger.kernel.org>, Magnus Damm <magnus.damm@gmail.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Krzysztof =?UTF-8?Q?Koz=C5=82owski?= <k.kozlowski.k@gmail.com>, Christoph Lameter <cl@linux.com>, Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Jan 21, 2015 at 10:37:20AM +0100, Geert Uytterhoeven wrote:
-> Hi Kirill, Simon,
-> 
-> On Wed, Jan 21, 2015 at 10:29 AM, Kirill A. Shutemov
-> <kirill.shutemov@linux.intel.com> wrote:
-> > Simon Horman wrote:
-> >> Hi,
-> >>
-> >> I have observed what appears to be a regression caused
-> >> by b316feb3c37ff19cd ("mm: account pmd page tables to the process").
-> >>
-> >> The problem that I am seeing is that when booting the kzm9g board, which is
-> >> based on the Renesas r8a73a4 ARM SoC, using its defconfig the following the
-> 
-> Renesas sh73a0 ARM SoC, FWIW...
-> 
-> >> tail boot log below is output repeatedly and the boot does not appear to
-> >> proceed any further.
-> >>
-> >> I have observed this problem using next-20150120 and observed
-> >> that it does not occur when the patch mentioned above is reverted.
-> >>
-> >> I have also observed what appears to be the same problem when
-> >> booting the following boards using their defconfigs. And perhaps
-> >> more to the point the problem appears to affect booting all
-> >> boards based on Renesas ARM SoCs for which there is working support
-> >> to boot them by initialising them using C (as opposed to device tree).
-> >>
-> >> * armadillo800eva, based on the r8a7740 SoC
-> >> * mackerel, based on the sh7372
-> >
-> > This should be fixed by this:
-> >
-> > http://marc.info/?l=linux-next&m=142176280218627&w=2
-> >
-> > Please, test.
-> 
-> Thanks!
-> 
-> Confirmed the issue, and confirmed the fix (on sh73a0/kzm9g-legacy).
-> 
-> Tested-by: Geert Uytterhoeven <geert+renesas@glider.be>
+On Thu, 22 Jan 2015 10:51:23 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
 
-Thanks, I have also tested the armadillo800eva and mackerel.
+> > The most recent -mmotm was a bit of a trainwreck.  I'm scrambling to
+> > get the holes plugged so I can get another mmotm out today.
+> 
+> Another mmotm will fix many issues from me. :/
 
-Tested-by: Simon Horman <horms+renesas@verge.net.au>
+I hit a wont-boot-cant-find-init in linux-next so I get to spend
+tomorrow bisecting that :(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
