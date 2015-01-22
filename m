@@ -1,70 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AFA66B0032
-	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 18:09:45 -0500 (EST)
-Received: by mail-ig0-f172.google.com with SMTP id l13so25096284iga.5
-        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 15:09:45 -0800 (PST)
-Received: from mail-ig0-x235.google.com (mail-ig0-x235.google.com. [2607:f8b0:4001:c05::235])
-        by mx.google.com with ESMTPS id h2si7558683icu.107.2015.01.21.15.09.43
+Received: from mail-qa0-f51.google.com (mail-qa0-f51.google.com [209.85.216.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D42A96B0032
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2015 19:22:15 -0500 (EST)
+Received: by mail-qa0-f51.google.com with SMTP id f12so34788243qad.10
+        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 16:22:15 -0800 (PST)
+Received: from mail-qa0-x22c.google.com (mail-qa0-x22c.google.com. [2607:f8b0:400d:c00::22c])
+        by mx.google.com with ESMTPS id c65si2390429qgc.124.2015.01.21.16.22.14
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 21 Jan 2015 15:09:44 -0800 (PST)
-Received: by mail-ig0-f181.google.com with SMTP id hn18so10908240igb.2
-        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 15:09:43 -0800 (PST)
-Date: Wed, 21 Jan 2015 15:09:42 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm/util.c: add a none zero check of "len"
-In-Reply-To: <54BE0FB3.1030008@intel.com>
-Message-ID: <alpine.DEB.2.10.1501211506120.2716@chino.kir.corp.google.com>
-References: <54BE0FB3.1030008@intel.com>
+        Wed, 21 Jan 2015 16:22:14 -0800 (PST)
+Received: by mail-qa0-f44.google.com with SMTP id w8so35592364qac.3
+        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 16:22:14 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <alpine.DEB.2.10.1501211452580.2716@chino.kir.corp.google.com>
+References: <20150107172452.GA7922@node.dhcp.inet.fi>
+	<20150114152225.GB31484@google.com>
+	<20150114233630.GA14615@node.dhcp.inet.fi>
+	<alpine.DEB.2.10.1501211452580.2716@chino.kir.corp.google.com>
+Date: Thu, 22 Jan 2015 00:22:14 +0000
+Message-ID: <CA+yH71fNZSYVf1G+UUp3N6BhPhT0VJ4aGY=uPGbSD2raV55E3Q@mail.gmail.com>
+Subject: Re: [PATCH v2 2/2] task_mmu: Add user-space support for resetting
+ mm->hiwater_rss (peak RSS)
+From: Primiano Tucci <primiano@chromium.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pan Xinhui <xinhuix.pan@intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, oleg@redhat.com, bill.c.roberts@gmail.com, yanmin_zhang@linux.intel.com
+To: David Rientjes <rientjes@google.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Petr Cermak <petrcermak@chromium.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Bjorn Helgaas <bhelgaas@google.com>, Hugh Dickins <hughd@google.com>
 
-On Tue, 20 Jan 2015, Pan Xinhui wrote:
+On Wed, Jan 21, 2015 at 10:58 PM, David Rientjes <rientjes@google.com> wrote:
+> I think the bigger concern would be that this, and any new line such as
+> resettable_hiwater_rss, invalidates itself entirely.  Any process that
+> checks the hwm will not know of other processes that reset it, so the
+> value itself has no significance anymore.
+>  It would just be the mark since the last clear at an unknown time.
 
-> Although this check should have been done by caller. But as it's exported to
-> others,
-> It's better to add a none zero check of "len" like other functions.
-> 
-> Signed-off-by: xinhuix.pan <xinhuix.pan@intel.com>
-> ---
->  mm/util.c | 5 +++++
->  1 file changed, 5 insertions(+)
-> 
-> diff --git a/mm/util.c b/mm/util.c
-> index fec39d4..3dc2873 100644
-> --- a/mm/util.c
-> +++ b/mm/util.c
-> @@ -72,6 +72,9 @@ void *kmemdup(const void *src, size_t len, gfp_t gfp)
->  {
->  	void *p;
->  +	if (unlikely(!len))
-> +		return ERR_PTR(-EINVAL);
-> +
->  	p = kmalloc_track_caller(len, gfp);
->  	if (p)
->  		memcpy(p, src, len);
-> @@ -91,6 +94,8 @@ void *memdup_user(const void __user *src, size_t len)
->  {
->  	void *p;
->  +	if (unlikely(!len))
-> +		return ERR_PTR(-EINVAL);
->  	/*
->  	 * Always use GFP_KERNEL, since copy_from_user() can sleep and
->  	 * cause pagefault, which makes it pointless to use GFP_NOFS
+How is that different from the current logic of clear_refs and the
+corresponding PG_Referenced bit?
 
-Nack, there's no need for this since both slab and slub check for 
-ZERO_OR_NULL_PTR() and kmalloc_slab() will return ZERO_SIZE_PTR in these 
-cases.  kmemdup() would then return NULL, which is appropriate since it 
-doesn't return an ERR_PTR() even when memory cannot be allocated.  
-memdup_user() would return -ENOMEM for size == 0, which would arguably be 
-the wrong return value, but I don't think we need to slow down either of 
-these library functions to check for something as stupid as duplicating 
-size == 0.
+> Userspace can monitor the rss of a
+> process by reading /proc/pid/stat, there's no need for the kernel to do
+> something that userspace can do.
+
+I disagree here. The driving motivation of this patch is precisely the
+opposite. There are peak events that last for very short time (order:
+10-100 ms) and are practically invisible from user-space (even doing
+something awkward like polling in a tight loop). Concrete examples
+are: GPU memory transfers, image decoding, compression /
+decompression.
+These kinds of tasks, which use scratch buffers for few ms, can create
+significant (yet short lasting) memory pressure which is desirable to
+monitor.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
