@@ -1,64 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id B42396B0032
-	for <linux-mm@kvack.org>; Thu, 22 Jan 2015 01:30:40 -0500 (EST)
-Received: by mail-wi0-f171.google.com with SMTP id l15so31233893wiw.4
-        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 22:30:40 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u12si2779711wiv.10.2015.01.21.22.30.38
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C64966B0032
+	for <linux-mm@kvack.org>; Thu, 22 Jan 2015 02:18:08 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id fb1so23866335pad.10
+        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 23:18:08 -0800 (PST)
+Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
+        by mx.google.com with ESMTPS id pr1si2645859pbc.194.2015.01.21.23.18.07
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jan 2015 22:30:39 -0800 (PST)
-From: WANG Chao <chaowang@redhat.com>
-Subject: [PATCH] mm, vmacache: Add kconfig VMACACHE_SHIFT
-Date: Thu, 22 Jan 2015 14:29:49 +0800
-Message-Id: <1421908189-18938-1-git-send-email-chaowang@redhat.com>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Wed, 21 Jan 2015 23:18:08 -0800 (PST)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout1.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NIK00H7YHSZ4M50@mailout1.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 22 Jan 2015 07:22:11 +0000 (GMT)
+From: Sergey Dyasly <s.dyasly@samsung.com>
+Subject: [PATCH] ARM: use default ioremap alignment for SMP or LPAE
+Date: Thu, 22 Jan 2015 10:17:55 +0300
+Message-id: <1421911075-8814-1-git-send-email-s.dyasly@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Davidlohr Bueso <dave@stgolabs.net>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-arm-kernel@lists.infradead.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Dyasly <s.dyasly@samsung.com>, Russell King <linux@arm.linux.org.uk>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Nicolas Pitre <nicolas.pitre@linaro.org>, James Bottomley <JBottomley@parallels.com>, Will Deacon <will.deacon@arm.com>, Arnd Bergmann <arnd.bergmann@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Safonov <d.safonov@partner.samsung.com>
 
-Add a new kconfig option VMACACHE_SHIFT (as a power of 2) to specify the
-number of slots vma cache has for each thread. Range is chosen 0-4 (1-16
-slots) to consider both overhead and performance penalty. Default is 2
-(4 slots) as it originally is, which provides good enough balance.
+16MB alignment for ioremap mappings was added by commit a069c896d0d6 ("[ARM]
+3705/1: add supersection support to ioremap()") in order to support supersection
+mappings. But __arm_ioremap_pfn_caller uses section and supersection mappings
+only in !SMP && !LPAE case. There is no need for such big alignment if either
+SMP or LPAE is enabled.
 
-Signed-off-by: WANG Chao <chaowang@redhat.com>
+After this change, ioremap will use default maximum alignment of 128 pages.
+
+Cc: Russell King <linux@arm.linux.org.uk>
+Cc: Guan Xuetao <gxt@mprc.pku.edu.cn>
+Cc: Nicolas Pitre <nicolas.pitre@linaro.org>
+Cc: James Bottomley <JBottomley@parallels.com>
+Cc: Will Deacon <will.deacon@arm.com>
+Cc: Arnd Bergmann <arnd.bergmann@linaro.org>
+Cc: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dmitry Safonov <d.safonov@partner.samsung.com>
+Link: https://lkml.kernel.org/g/1419328813-2211-1-git-send-email-d.safonov@partner.samsung.com
+Signed-off-by: Sergey Dyasly <s.dyasly@samsung.com>
 ---
- include/linux/sched.h | 2 +-
- mm/Kconfig            | 7 +++++++
- 2 files changed, 8 insertions(+), 1 deletion(-)
+ arch/arm/include/asm/memory.h |    2 ++
+ 1 file changed, 2 insertions(+)
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 8db31ef..56fd96d 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -134,7 +134,7 @@ struct perf_event_context;
- struct blk_plug;
- struct filename;
+diff --git a/arch/arm/include/asm/memory.h b/arch/arm/include/asm/memory.h
+index 184def0..c3ef139 100644
+--- a/arch/arm/include/asm/memory.h
++++ b/arch/arm/include/asm/memory.h
+@@ -78,10 +78,12 @@
+  */
+ #define XIP_VIRT_ADDR(physaddr)  (MODULES_VADDR + ((physaddr) & 0x000fffff))
  
--#define VMACACHE_BITS 2
-+#define VMACACHE_BITS CONFIG_VMACACHE_SHIFT
- #define VMACACHE_SIZE (1U << VMACACHE_BITS)
- #define VMACACHE_MASK (VMACACHE_SIZE - 1)
++#if !defined(CONFIG_SMP) && !defined(CONFIG_ARM_LPAE)
+ /*
+  * Allow 16MB-aligned ioremap pages
+  */
+ #define IOREMAP_MAX_ORDER	24
++#endif
  
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 1d1ae6b..7b82a52 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -618,3 +618,10 @@ config MAX_STACK_SIZE_MB
- 	  changed to a smaller value in which case that is used.
+ #else /* CONFIG_MMU */
  
- 	  A sane initial value is 80 MB.
-+
-+config VMACACHE_SHIFT
-+	int "Number of slots in per-thread VMA cache (as a power of 2)"
-+	range 0 4
-+	default 2
-+	help
-+	  This is the number of slots VMA cache has for each thread.
 -- 
-2.1.0
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
