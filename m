@@ -1,86 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 4152F6B0032
-	for <linux-mm@kvack.org>; Thu, 22 Jan 2015 00:14:12 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id et14so57766847pad.1
-        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 21:14:11 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id v8si6195785pdq.235.2015.01.21.21.14.10
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 946EE6B0032
+	for <linux-mm@kvack.org>; Thu, 22 Jan 2015 00:34:58 -0500 (EST)
+Received: by mail-pd0-f174.google.com with SMTP id ft15so25125911pdb.5
+        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 21:34:58 -0800 (PST)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id cv4si11061453pbb.16.2015.01.21.21.34.57
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Jan 2015 21:14:11 -0800 (PST)
-Date: Thu, 22 Jan 2015 16:14:02 +1100
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: mmotm:
- mm-slub-optimize-alloc-free-fastpath-by-removing-preemption-on-off.patch is
- causing preemptible splats
-Message-ID: <20150122161402.3330eabf@canb.auug.org.au>
-In-Reply-To: <20150121193411.44f96b6c.akpm@linux-foundation.org>
-References: <20150121132308.GB23700@dhcp22.suse.cz>
-	<CAJKOXPdgSsd8cr7ctKOGCwFTRMxcq71k7Pb5mQgYy--tGW8+_w@mail.gmail.com>
-	<20150121141138.GC23700@dhcp22.suse.cz>
-	<20150121142107.e26d5ebf3340aa91759fef1f@linux-foundation.org>
-	<20150122015123.GB21444@js1304-P5Q-DELUXE>
-	<20150121193411.44f96b6c.akpm@linux-foundation.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 21 Jan 2015 21:34:57 -0800 (PST)
+Received: by mail-pa0-f53.google.com with SMTP id kx10so13484781pab.12
+        for <linux-mm@kvack.org>; Wed, 21 Jan 2015 21:34:57 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
- boundary="Sig_/8ef9APx7A7P0hP8pS_M7BQk"; protocol="application/pgp-signature"
+In-Reply-To: <54C042D2.4040809@oracle.com>
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
+	<1421859105-25253-1-git-send-email-a.ryabinin@samsung.com>
+	<54C042D2.4040809@oracle.com>
+Date: Thu, 22 Jan 2015 09:34:57 +0400
+Message-ID: <CAPAsAGyXo=AMCU-2TbrrY=MPorg+Nd+WYS5nCAcjELZs91r4AQ@mail.gmail.com>
+Subject: Re: [PATCH v9 00/17] Kernel address sanitizer - runtime memory debugger.
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: multipart/mixed; boundary=001a1137e5f050554f050d370839
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>, Krzysztof =?UTF-8?B?S296xYJvd3NraQ==?= <k.kozlowski.k@gmail.com>, Christoph Lameter <cl@linux.com>, Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, LKML <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Michal Marek <mmarek@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Randy Dunlap <rdunlap@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Jones <davej@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Linus Torvalds <torvalds@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>
 
---Sig_/8ef9APx7A7P0hP8pS_M7BQk
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+--001a1137e5f050554f050d370839
+Content-Type: text/plain; charset=UTF-8
 
-Hi Andrew,
-
-On Wed, 21 Jan 2015 19:34:11 -0800 Andrew Morton <akpm@linux-foundation.org=
-> wrote:
+2015-01-22 3:22 GMT+03:00 Sasha Levin <sasha.levin@oracle.com>:
+> On 01/21/2015 11:51 AM, Andrey Ryabinin wrote:
+>> Changes since v8:
+>>       - Fixed unpoisoned redzones for not-allocated-yet object
+>>           in newly allocated slab page. (from Dmitry C.)
+>>
+>>       - Some minor non-function cleanups in kasan internals.
+>>
+>>       - Added ack from Catalin
+>>
+>>       - Added stack instrumentation. With this we could detect
+>>           out of bounds accesses in stack variables. (patch 12)
+>>
+>>       - Added globals instrumentation - catching out of bounds in
+>>           global varibles. (patches 13-17)
+>>
+>>       - Shadow moved out from vmalloc into hole between vmemmap
+>>           and %esp fixup stacks. For globals instrumentation
+>>           we will need shadow backing modules addresses.
+>>           So we need some sort of a shadow memory allocator
+>>           (something like vmmemap_populate() function, except
+>>           that it should be available after boot).
+>>
+>>           __vmalloc_node_range() suits that purpose, except that
+>>           it can't be used for allocating for shadow in vmalloc
+>>           area because shadow in vmalloc is already 'allocated'
+>>           to protect us from other vmalloc users. So we need
+>>           16TB of unused addresses. And we have big enough hole
+>>           between vmemmap and %esp fixup stacks. So I moved shadow
+>>           there.
 >
-> On Thu, 22 Jan 2015 10:51:23 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> w=
-rote:
->=20
-> > > The most recent -mmotm was a bit of a trainwreck.  I'm scrambling to
-> > > get the holes plugged so I can get another mmotm out today.
-> >=20
-> > Another mmotm will fix many issues from me. :/
->=20
-> I hit a wont-boot-cant-find-init in linux-next so I get to spend
-> tomorrow bisecting that :(
+> I'm not sure which new addition caused it, but I'm getting tons of
+> false positives from platform drivers trying to access memory they
+> don't "own" - because they expect to find hardware there.
+>
 
-There has been a long discussion about something like that already.
-Subject "Re: linux-next: Tree for Jan 20 -- Kernel panic - Unable to
-mount root fs"
+To be sure, that this is really false positives, could you try with
+patches in attachment?
+That should fix some bugs in several platform drivers.
 
---=20
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
+> I suspect we'd need to mark that memory region somehow to prevent
+> accesses to it from triggering warnings?
+>
+>
+> Thanks,
+> Sasha
+>
 
---Sig_/8ef9APx7A7P0hP8pS_M7BQk
-Content-Type: application/pgp-signature
-Content-Description: OpenPGP digital signature
+--001a1137e5f050554f050d370839
+Content-Type: text/x-patch; charset=US-ASCII;
+	name="backlight-da9052_bl-terminate-da9052_wled_ids-array-with-empty-element.patch"
+Content-Disposition: attachment;
+	filename="backlight-da9052_bl-terminate-da9052_wled_ids-array-with-empty-element.patch"
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_i57xbukf0
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
+ZGlmZiAtLWdpdCBhL2RyaXZlcnMvdmlkZW8vYmFja2xpZ2h0L2RhOTA1Ml9ibC5jIGIvZHJpdmVy
+cy92aWRlby9iYWNrbGlnaHQvZGE5MDUyX2JsLmMKaW5kZXggZDRiZDc0YmQuLmIxOTQzZTcgMTAw
+NjQ0Ci0tLSBhL2RyaXZlcnMvdmlkZW8vYmFja2xpZ2h0L2RhOTA1Ml9ibC5jCisrKyBiL2RyaXZl
+cnMvdmlkZW8vYmFja2xpZ2h0L2RhOTA1Ml9ibC5jCkBAIC0xNjUsNiArMTY1LDcgQEAgc3RhdGlj
+IHN0cnVjdCBwbGF0Zm9ybV9kZXZpY2VfaWQgZGE5MDUyX3dsZWRfaWRzW10gPSB7CiAJCS5uYW1l
+CQk9ICJkYTkwNTItd2xlZDMiLAogCQkuZHJpdmVyX2RhdGEJPSBEQTkwNTJfVFlQRV9XTEVEMywK
+IAl9LAorCXsgfSwKIH07CiAKIHN0YXRpYyBzdHJ1Y3QgcGxhdGZvcm1fZHJpdmVyIGRhOTA1Ml93
+bGVkX2RyaXZlciA9IHsK
+--001a1137e5f050554f050d370839
+Content-Type: text/x-patch; charset=US-ASCII;
+	name="crypto-ccp-terminate-ccp_support-array-with-empty-element.patch"
+Content-Disposition: attachment;
+	filename="crypto-ccp-terminate-ccp_support-array-with-empty-element.patch"
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_i57xbum41
 
-iQIcBAEBCAAGBQJUwIcfAAoJEMDTa8Ir7ZwVIuEP/AiVbPc0w8Cw+T4e6ITcRnpW
-xz8PWI1WKF/C1GPaLjydmrED3rlgtHcqNZwtfzolblFYnZ9Qm6Oin2YCIl+XO9++
-4c55oRU/3bKzVs6f9qcq+xykXE/tWPwjvT2Rneujp7wWE8OBmtot4lW6h6g3F/do
-hFrhYnYODZ4prE7E2LFlt5Tk5VS+OTzPrUTHTYeWE3jhtYD4EymEwJ9wX4ytep3y
-dNVqxDKuRYaeXiiMhTue5fEta/buPKoYexb8hgnhDnZT/Vr9iULUzJtikOTo3Obc
-AZzSLJvam4GD5MzeUzRcGDj8NDeS4JsRb4fx308d5ClNAEs1IMkOqC0TFVJYH8f5
-XalwabjFGSnqXkJtGsQr9zacapgMlyp6LQ3xCt5HCSift1XnXywi2V2PMGsBbxtk
-ItBDCJIZYsba6xM9mtex7/Yyuf35fGVZX1GEdnz+ILDFx7inYP0kk3UeMdVnQWSo
-wbgzfHaga0H2Rr4pXMPwLyLlS/93CFzN8UQFcQQkpO/FxiOOTs6EMlytp9y+nsQ2
-UBbxcS4kKgvUkiyj75noq8n/31PTNxXPT20IIcAVXSwYp21C5KvpkdDr54pCMOva
-z4ASowq3JivKgYZNHuV74vYLhrAnfmLH2oxhdqRZl5kpGJBdX4qgkJPxZcv1jQWC
-Gk95VVnIpXgl4DvYpZOr
-=Saoc
------END PGP SIGNATURE-----
+ZGlmZiAtLWdpdCBhL2RyaXZlcnMvY3J5cHRvL2NjcC9jY3AtZGV2LmMgYi9kcml2ZXJzL2NyeXB0
+by9jY3AvY2NwLWRldi5jCmluZGV4IGM2ZTYxNzEuLmNhMjljMTIgMTAwNjQ0Ci0tLSBhL2RyaXZl
+cnMvY3J5cHRvL2NjcC9jY3AtZGV2LmMKKysrIGIvZHJpdmVycy9jcnlwdG8vY2NwL2NjcC1kZXYu
+YwpAQCAtNTgzLDYgKzU4Myw3IEBAIGJvb2wgY2NwX3F1ZXVlc19zdXNwZW5kZWQoc3RydWN0IGNj
+cF9kZXZpY2UgKmNjcCkKICNpZmRlZiBDT05GSUdfWDg2CiBzdGF0aWMgY29uc3Qgc3RydWN0IHg4
+Nl9jcHVfaWQgY2NwX3N1cHBvcnRbXSA9IHsKIAl7IFg4Nl9WRU5ET1JfQU1ELCAyMiwgfSwKKwl7
+IH0sCiB9OwogI2VuZGlmCiAK
+--001a1137e5f050554f050d370839
+Content-Type: text/x-patch; charset=US-ASCII;
+	name="rtc-s5m-terminate-s5m_rtc_id-array-with-empty-element.patch"
+Content-Disposition: attachment;
+	filename="rtc-s5m-terminate-s5m_rtc_id-array-with-empty-element.patch"
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_i57xbump2
 
---Sig_/8ef9APx7A7P0hP8pS_M7BQk--
+ZGlmZiAtLWdpdCBhL2RyaXZlcnMvcnRjL3J0Yy1zNW0uYyBiL2RyaXZlcnMvcnRjL3J0Yy1zNW0u
+YwppbmRleCBiNWU3YzQ2Li44OWFjMWQ1IDEwMDY0NAotLS0gYS9kcml2ZXJzL3J0Yy9ydGMtczVt
+LmMKKysrIGIvZHJpdmVycy9ydGMvcnRjLXM1bS5jCkBAIC04MzIsNiArODMyLDcgQEAgc3RhdGlj
+IFNJTVBMRV9ERVZfUE1fT1BTKHM1bV9ydGNfcG1fb3BzLCBzNW1fcnRjX3N1c3BlbmQsIHM1bV9y
+dGNfcmVzdW1lKTsKIHN0YXRpYyBjb25zdCBzdHJ1Y3QgcGxhdGZvcm1fZGV2aWNlX2lkIHM1bV9y
+dGNfaWRbXSA9IHsKIAl7ICJzNW0tcnRjIiwJCVM1TTg3NjdYIH0sCiAJeyAiczJtcHMxNC1ydGMi
+LAlTMk1QUzE0WCB9LAorCXsgfSwKIH07CiAKIHN0YXRpYyBzdHJ1Y3QgcGxhdGZvcm1fZHJpdmVy
+IHM1bV9ydGNfZHJpdmVyID0gewo=
+--001a1137e5f050554f050d370839--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
