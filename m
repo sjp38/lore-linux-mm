@@ -1,137 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f51.google.com (mail-la0-f51.google.com [209.85.215.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3528D6B0032
-	for <linux-mm@kvack.org>; Thu, 22 Jan 2015 08:15:37 -0500 (EST)
-Received: by mail-la0-f51.google.com with SMTP id ge10so1484556lab.10
-        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 05:15:36 -0800 (PST)
-Received: from mail-la0-x234.google.com (mail-la0-x234.google.com. [2a00:1450:4010:c03::234])
-        by mx.google.com with ESMTPS id i8si22087932lam.48.2015.01.22.05.15.34
+Received: from mail-qa0-f51.google.com (mail-qa0-f51.google.com [209.85.216.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 300006B0032
+	for <linux-mm@kvack.org>; Thu, 22 Jan 2015 08:23:12 -0500 (EST)
+Received: by mail-qa0-f51.google.com with SMTP id f12so1035816qad.10
+        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 05:23:12 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u7si8888889qaj.5.2015.01.22.05.23.10
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Jan 2015 05:15:35 -0800 (PST)
-Received: by mail-la0-f52.google.com with SMTP id hs14so1484374lab.11
-        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 05:15:34 -0800 (PST)
-From: Andrey Skvortsov <andrej.skvortzov@gmail.com>
-Subject: [PATCH] mm/slub: suppress BUG messages for kmem_cache_alloc/kmem_cache_free
-Date: Thu, 22 Jan 2015 16:15:19 +0300
-Message-Id: <1421932519-21036-1-git-send-email-Andrej.Skvortzov@gmail.com>
+        Thu, 22 Jan 2015 05:23:11 -0800 (PST)
+Date: Thu, 22 Jan 2015 08:23:08 -0500
+From: Brian Foster <bfoster@redhat.com>
+Subject: Re: [RFC PATCH 4/6] xfs: take i_mmap_lock on extent manipulation
+ operations
+Message-ID: <20150122132307.GB25345@bfoster.bfoster>
+References: <1420669543-8093-1-git-send-email-david@fromorbit.com>
+ <1420669543-8093-5-git-send-email-david@fromorbit.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1420669543-8093-5-git-send-email-david@fromorbit.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Jesper Dangaard Brouer <brouer@redhat.com>, linux-kernel@vger.kernel.org, Andrey Skvortsov <Andrej.Skvortzov@gmail.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: xfs@oss.sgi.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-After commit d2dc80750ee "mm/slub: optimize alloc/free fastpath by removing
-preemption on/off" and if CONFIG_DEBUG_PREEMPT is set, then huge amount of BUG
-messages like these happen:
+On Thu, Jan 08, 2015 at 09:25:41AM +1100, Dave Chinner wrote:
+> From: Dave Chinner <dchinner@redhat.com>
+> 
+> Now we have the i_mmap_lock being held across the page fault IO
+> path, we now add extent manipulation operation exclusion by adding
+> the lock to the paths that directly modify extent maps. This
+> includes truncate, hole punching and other fallocate based
+> operations. The operations will now take both the i_iolock and the
+> i_mmaplock in exclusive mode, thereby ensuring that all IO and page
+> faults block without holding any page locks while the extent
+> manipulation is in progress.
+> 
+> This gives us the lock order during truncate of i_iolock ->
+> i_mmaplock -> page_lock -> i_lock, hence providing the same
+> lock order as the iolock provides the normal IO path without
+> involving the mmap_sem.
+> 
+> Signed-off-by: Dave Chinner <dchinner@redhat.com>
+> ---
+>  fs/xfs/xfs_file.c  | 4 ++--
+>  fs/xfs/xfs_ioctl.c | 4 ++--
+>  fs/xfs/xfs_iops.c  | 6 +++---
+>  3 files changed, 7 insertions(+), 7 deletions(-)
+> 
+> diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
+> index e6e7e75..b08c9e6 100644
+> --- a/fs/xfs/xfs_file.c
+> +++ b/fs/xfs/xfs_file.c
+> @@ -794,7 +794,7 @@ xfs_file_fallocate(
+>  		     FALLOC_FL_COLLAPSE_RANGE | FALLOC_FL_ZERO_RANGE))
+>  		return -EOPNOTSUPP;
+>  
+> -	xfs_ilock(ip, XFS_IOLOCK_EXCL);
+> +	xfs_ilock(ip, XFS_IOLOCK_EXCL|XFS_MMAPLOCK_EXCL);
+>  	if (mode & FALLOC_FL_PUNCH_HOLE) {
+>  		error = xfs_free_file_space(ip, offset, len);
+>  		if (error)
+> @@ -874,7 +874,7 @@ xfs_file_fallocate(
+>  	}
+>  
+>  out_unlock:
+> -	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+> +	xfs_iunlock(ip, XFS_IOLOCK_EXCL|XFS_MMAPLOCK_EXCL);
+>  	return error;
+>  }
+>  
+> diff --git a/fs/xfs/xfs_ioctl.c b/fs/xfs/xfs_ioctl.c
+> index a183198..8810959 100644
+> --- a/fs/xfs/xfs_ioctl.c
+> +++ b/fs/xfs/xfs_ioctl.c
+> @@ -634,7 +634,7 @@ xfs_ioc_space(
+>  	if (error)
+>  		return error;
+>  
+> -	xfs_ilock(ip, XFS_IOLOCK_EXCL);
+> +	xfs_ilock(ip, XFS_IOLOCK_EXCL|XFS_MMAPLOCK_EXCL);
+>  
+>  	switch (bf->l_whence) {
+>  	case 0: /*SEEK_SET*/
+> @@ -751,7 +751,7 @@ xfs_ioc_space(
+>  	error = xfs_trans_commit(tp, 0);
+>  
+>  out_unlock:
+> -	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+> +	xfs_iunlock(ip, XFS_IOLOCK_EXCL|XFS_MMAPLOCK_EXCL);
+>  	mnt_drop_write_file(filp);
+>  	return error;
+>  }
+> diff --git a/fs/xfs/xfs_iops.c b/fs/xfs/xfs_iops.c
+> index 8be5bb5..f491860 100644
+> --- a/fs/xfs/xfs_iops.c
+> +++ b/fs/xfs/xfs_iops.c
+> @@ -768,7 +768,7 @@ xfs_setattr_size(
+>  	if (error)
+>  		return error;
+>  
+> -	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
+> +	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL|XFS_MMAPLOCK_EXCL));
 
-BUG: using smp_processor_id() in preemptible [00000000] code: kjournald/171
-caller is kmem_cache_alloc+0x41/0x132
+Only debug code of course, but xfs_isilocked() doesn't appear to support
+what is intended by this call (e.g., verification of multiple locks).
 
-and
+Brian
 
-BUG: using smp_processor_id() in preemptible [00000000] code: kdevtmpfs/12
-caller is kmem_cache_free+0x5d/0x109
-
-They are caused by this_cpu_ptr() that checks state of preemption.
-Because preemption checks are not necessary anymore in this code, then
-they are replaced with a raw_cpu_ptr() that does not check state of
-preemption.
-
-Signed-off-by: Andrey Skvortsov <Andrej.Skvortzov@gmail.com>
----
-
-These "BUGs" appear for the first time in next-20150119.
-
-[    0.947906] BUG: using smp_processor_id() in preemptible [00000000] code: kdevtmpfs/12
-[    0.952925] caller is kmem_cache_free+0x5d/0x109
-[    0.952931] CPU: 0 PID: 12 Comm: kdevtmpfs Tainted: G            E   3.19.0-rc5-next-20150121-150119- #1
-[    0.952933] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
-[    0.952936]  0000000000000000 ffff88000f8de1a0 ffffffff813d08ca 0000000000000000
-[    0.952940]  ffffffff812036d7 0000000000000071 ffff88000c252000 ffff88000f801600
-[    0.952944]  ffffea0000309400 ffffffff8113cf97 ffffffff811248e8 0000000000000000
-[    0.952948] Call Trace:
-[    0.952958]  [<ffffffff813d08ca>] ? dump_stack+0x4a/0x74
-[    0.952963]  [<ffffffff812036d7>] ? check_preemption_disabled+0xd3/0xe4
-[    0.952968]  [<ffffffff8113cf97>] ? do_path_lookup+0x47/0x52
-[    0.952971]  [<ffffffff811248e8>] ? kmem_cache_free+0x5d/0x109
-[    0.952974]  [<ffffffff8113cf97>] ? do_path_lookup+0x47/0x52
-[    0.952977]  [<ffffffff8113cfca>] ? kern_path_create+0x28/0x117
-[    0.952983]  [<ffffffff8105d38a>] ? preempt_count_sub+0xab/0xca
-[    0.952987]  [<ffffffff81061e5a>] ? __dequeue_entity+0x1e/0x32
-[    0.952993]  [<ffffffff812d0422>] ? handle_create.isra.2+0x37/0x1b9
-[    0.952999]  [<ffffffff810c8831>] ? trace_preempt_on+0xe/0x2f
-[    0.953003]  [<ffffffff8105d38a>] ? preempt_count_sub+0xab/0xca
-[    0.953007]  [<ffffffff813d1e8f>] ? __schedule+0x467/0x550
-[    0.953011]  [<ffffffff810c8831>] ? trace_preempt_on+0xe/0x2f
-[    0.953014]  [<ffffffff812d05a4>] ? handle_create.isra.2+0x1b9/0x1b9
-[    0.953017]  [<ffffffff812d068a>] ? devtmpfsd+0xe6/0x13b
-[    0.953021]  [<ffffffff81055ba1>] ? kthread+0x9e/0xa6
-[    0.953025]  [<ffffffff81055b03>] ? __kthread_parkme+0x5c/0x5c
-[    0.953030]  [<ffffffff813d4c6c>] ? ret_from_fork+0x7c/0xb0
-[    0.953033]  [<ffffffff81055b03>] ? __kthread_parkme+0x5c/0x5c
-
-and
-
-[    0.942593] BUG: using smp_processor_id() in preemptible [00000000] code: kdevtmpfs/12
-[    0.945143] caller is kmem_cache_alloc+0x41/0x132
-[    0.945149] CPU: 0 PID: 12 Comm: kdevtmpfs Tainted: G            E   3.19.0-rc5-next-20150121-150119- #1
-[    0.945151] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
-[    0.945153]  0000000000000000 ffff88000f8de1a0 ffffffff813d08ca 0000000000000000
-[    0.945158]  ffffffff812036d7 ffffffffffffffef 0000000000015f40 0000000000000010
-[    0.945162]  00000000000000d0 ffff88000f801600 ffffffff81124b43 ffffffff8114508f
-[    0.945166] Call Trace:
-[    0.945178]  [<ffffffff813d08ca>] ? dump_stack+0x4a/0x74
-[    0.945184]  [<ffffffff812036d7>] ? check_preemption_disabled+0xd3/0xe4
-[    0.945187]  [<ffffffff81124b43>] ? kmem_cache_alloc+0x41/0x132
-[    0.945206]  [<ffffffff8114508f>] ? inode_init_always+0xfc/0x19c
-[    0.945211]  [<ffffffff8113ce4c>] ? getname_kernel+0x29/0xe9
-[    0.945215]  [<ffffffff8113ce4c>] ? getname_kernel+0x29/0xe9
-[    0.945219]  [<ffffffff8113cf6d>] ? do_path_lookup+0x1d/0x52
-[    0.945223]  [<ffffffff8113cfca>] ? kern_path_create+0x28/0x117
-[    0.945233]  [<ffffffff810c8831>] ? trace_preempt_on+0xe/0x2f
-[    0.945239]  [<ffffffff8105d38a>] ? preempt_count_sub+0xab/0xca
-[    0.945244]  [<ffffffff81061e5a>] ? __dequeue_entity+0x1e/0x32
-[    0.945250]  [<ffffffff812d0422>] ? handle_create.isra.2+0x37/0x1b9
-[    0.945254]  [<ffffffff810c8831>] ? trace_preempt_on+0xe/0x2f
-[    0.945257]  [<ffffffff8105d38a>] ? preempt_count_sub+0xab/0xca
-[    0.945262]  [<ffffffff813d1e8f>] ? __schedule+0x467/0x550
-[    0.945266]  [<ffffffff810c8831>] ? trace_preempt_on+0xe/0x2f
-[    0.945269]  [<ffffffff812d05a4>] ? handle_create.isra.2+0x1b9/0x1b9
-[    0.945273]  [<ffffffff812d068a>] ? devtmpfsd+0xe6/0x13b
-[    0.945278]  [<ffffffff81055ba1>] ? kthread+0x9e/0xa6
-[    0.945282]  [<ffffffff81055b03>] ? __kthread_parkme+0x5c/0x5c
-[    0.945286]  [<ffffffff813d4c6c>] ? ret_from_fork+0x7c/0xb0
-[    0.945290]  [<ffffffff81055b03>] ? __kthread_parkme+0x5c/0x5c
-
-
-
- mm/slub.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/slub.c b/mm/slub.c
-index ceee1d7..6bcd031 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2404,7 +2404,7 @@ redo:
- 	 */
- 	do {
- 		tid = this_cpu_read(s->cpu_slab->tid);
--		c = this_cpu_ptr(s->cpu_slab);
-+		c = raw_cpu_ptr(s->cpu_slab);
- 	} while (IS_ENABLED(CONFIG_PREEMPT) && unlikely(tid != c->tid));
- 
- 	/*
-@@ -2670,7 +2670,7 @@ redo:
- 	 */
- 	do {
- 		tid = this_cpu_read(s->cpu_slab->tid);
--		c = this_cpu_ptr(s->cpu_slab);
-+		c = raw_cpu_ptr(s->cpu_slab);
- 	} while (IS_ENABLED(CONFIG_PREEMPT) && unlikely(tid != c->tid));
- 
- 	/* Same with comment on barrier() in slab_alloc_node() */
--- 
-1.7.10.4
+>  	ASSERT(S_ISREG(ip->i_d.di_mode));
+>  	ASSERT((iattr->ia_valid & (ATTR_UID|ATTR_GID|ATTR_ATIME|ATTR_ATIME_SET|
+>  		ATTR_MTIME_SET|ATTR_KILL_PRIV|ATTR_TIMES_SET)) == 0);
+> @@ -984,9 +984,9 @@ xfs_vn_setattr(
+>  	int			error;
+>  
+>  	if (iattr->ia_valid & ATTR_SIZE) {
+> -		xfs_ilock(ip, XFS_IOLOCK_EXCL);
+> +		xfs_ilock(ip, XFS_IOLOCK_EXCL|XFS_MMAPLOCK_EXCL);
+>  		error = xfs_setattr_size(ip, iattr);
+> -		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+> +		xfs_iunlock(ip, XFS_IOLOCK_EXCL|XFS_MMAPLOCK_EXCL);
+>  	} else {
+>  		error = xfs_setattr_nonsize(ip, iattr, 0);
+>  	}
+> -- 
+> 2.0.0
+> 
+> _______________________________________________
+> xfs mailing list
+> xfs@oss.sgi.com
+> http://oss.sgi.com/mailman/listinfo/xfs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
