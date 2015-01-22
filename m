@@ -1,73 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f173.google.com (mail-qc0-f173.google.com [209.85.216.173])
-	by kanga.kvack.org (Postfix) with ESMTP id C14216B0032
-	for <linux-mm@kvack.org>; Thu, 22 Jan 2015 09:34:58 -0500 (EST)
-Received: by mail-qc0-f173.google.com with SMTP id m20so1445144qcx.4
-        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 06:34:58 -0800 (PST)
-Received: from mail-qg0-x232.google.com (mail-qg0-x232.google.com. [2607:f8b0:400d:c04::232])
-        by mx.google.com with ESMTPS id q16si9088682qam.36.2015.01.22.06.34.57
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Jan 2015 06:34:57 -0800 (PST)
-Received: by mail-qg0-f50.google.com with SMTP id f51so1390107qge.9
-        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 06:34:57 -0800 (PST)
-Date: Thu, 22 Jan 2015 09:34:54 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [Regression] 3.19-rc3 : memcg: Hang in mount memcg
-Message-ID: <20150122143454.GA4507@htj.dyndns.org>
-References: <54B01335.4060901@arm.com>
- <20150110085525.GD2110@esperanza>
- <54BCFDCF.9090603@arm.com>
- <20150121163955.GM4549@arm.com>
- <20150122134550.GA13876@phnom.home.cmpxchg.org>
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id C894A6B0032
+	for <linux-mm@kvack.org>; Thu, 22 Jan 2015 10:13:08 -0500 (EST)
+Received: by mail-pd0-f180.google.com with SMTP id ft15so2126605pdb.11
+        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 07:13:08 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id jz4si12236381pbc.223.2015.01.22.07.13.07
+        for <linux-mm@kvack.org>;
+        Thu, 22 Jan 2015 07:13:07 -0800 (PST)
+From: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>
+Subject: RE: [next:master 4658/4676] undefined reference to `copy_user_page'
+Date: Thu, 22 Jan 2015 15:12:15 +0000
+Message-ID: <100D68C7BA14664A8938383216E40DE040853FB4@FMSMSX114.amr.corp.intel.com>
+References: <201501221315.sbz4rdsB%fengguang.wu@intel.com>
+In-Reply-To: <201501221315.sbz4rdsB%fengguang.wu@intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150122134550.GA13876@phnom.home.cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Will Deacon <will.deacon@arm.com>, "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>, Vladimir Davydov <vdavydov@parallels.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mhocko@suse.cz" <mhocko@suse.cz>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: "Wu, Fengguang" <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "kbuild-all@01.org" <kbuild-all@01.org>, Linux Memory Management List <linux-mm@kvack.org>, "linux-mips@linux-mips.org" <linux-mips@linux-mips.org>
 
-Hello,
+Looks like mips *declares* copy_user_page(), but never *defines* an impleme=
+ntation.
 
-On Thu, Jan 22, 2015 at 08:45:50AM -0500, Johannes Weiner wrote:
-> diff --git a/kernel/cgroup.c b/kernel/cgroup.c
-> index bb263d0caab3..9a09308c8066 100644
-> --- a/kernel/cgroup.c
-> +++ b/kernel/cgroup.c
-> @@ -1819,8 +1819,11 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
->  			goto out_unlock;
->  		}
->  
-> -		if (root->flags ^ opts.flags)
-> -			pr_warn("new mount options do not match the existing superblock, will be ignored\n");
-> +		if (root->flags ^ opts.flags) {
-> +			pr_warn("new mount options do not match the existing superblock\n");
-> +			ret = -EBUSY;
-> +			goto out_unlock;
-> +		}
+It's documented in Documentation/cachetlb.txt, but it's not (currently) cal=
+led if the architecture defines its own copy_user_highpage(), so some bitro=
+t has occurred.  ARM is currently fixing this, and MIPS will need to do the=
+ same.
 
-Do we really need the above chunk?
+(We can't use copy_user_highpage() in DAX because we don't necessarily have=
+ a struct page for 'from'.)
 
-> @@ -1909,7 +1912,7 @@ static void cgroup_kill_sb(struct super_block *sb)
->  	 *
->  	 * And don't kill the default root.
->  	 */
-> -	if (css_has_online_children(&root->cgrp.self) ||
-> +	if (!list_empty(&root->cgrp.self.children) ||
->  	    root == &cgrp_dfl_root)
->  		cgroup_put(&root->cgrp);
+-----Original Message-----
+From: Wu, Fengguang=20
+Sent: Wednesday, January 21, 2015 9:40 PM
+To: Andrew Morton
+Cc: kbuild-all@01.org; Linux Memory Management List; Wilcox, Matthew R
+Subject: [next:master 4658/4676] undefined reference to `copy_user_page'
 
-I tried to do something a bit more advanced so that eventual async
-release of dying children, if they happen, can also release the
-hierarchy but I don't think it really matters unless we can forcefully
-drain.  So, shouldn't just the above part be enough?
+Hi Andrew,
 
-Thanks.
+It's probably a bug fix that unveils the link errors.
 
--- 
-tejun
+tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git m=
+aster
+head:   e1e12812e428bcaf19e23f83e09f602d161b8005
+commit: c429f45c501ac95383be9e37467d4e6ca08782c1 [4658/4676] daxext2-replac=
+e-the-xip-page-fault-handler-with-the-dax-page-fault-handler-fix-3
+config: mips-allmodconfig (attached as .config)
+reproduce:
+  wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain=
+/sbin/make.cross -O ~/bin/make.cross
+  chmod +x ~/bin/make.cross
+  git checkout c429f45c501ac95383be9e37467d4e6ca08782c1
+  # save the attached .config to linux build tree
+  make.cross ARCH=3Dmips=20
+
+All error/warnings:
+
+   fs/built-in.o: In function `dax_fault':
+>> (.text+0x5dc6c): undefined reference to `copy_user_page'
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Cent=
+er
+http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporati=
+on
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
