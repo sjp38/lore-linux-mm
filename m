@@ -1,60 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
-	by kanga.kvack.org (Postfix) with ESMTP id EB43F6B0032
-	for <linux-mm@kvack.org>; Thu, 22 Jan 2015 18:19:20 -0500 (EST)
-Received: by mail-ig0-f181.google.com with SMTP id hn18so3696475igb.2
-        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 15:19:20 -0800 (PST)
-Received: from mail-ie0-x234.google.com (mail-ie0-x234.google.com. [2607:f8b0:4001:c03::234])
-        by mx.google.com with ESMTPS id f9si3876054igh.23.2015.01.22.15.19.20
+Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
+	by kanga.kvack.org (Postfix) with ESMTP id B5C146B0032
+	for <linux-mm@kvack.org>; Thu, 22 Jan 2015 18:27:31 -0500 (EST)
+Received: by mail-ig0-f174.google.com with SMTP id b16so23750273igk.1
+        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 15:27:31 -0800 (PST)
+Received: from mail-ig0-x234.google.com (mail-ig0-x234.google.com. [2607:f8b0:4001:c05::234])
+        by mx.google.com with ESMTPS id m9si3895011igj.17.2015.01.22.15.27.31
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Jan 2015 15:19:20 -0800 (PST)
-Received: by mail-ie0-f180.google.com with SMTP id rl12so4317520iec.11
-        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 15:19:20 -0800 (PST)
-Date: Thu, 22 Jan 2015 15:19:18 -0800 (PST)
+        Thu, 22 Jan 2015 15:27:31 -0800 (PST)
+Received: by mail-ig0-f180.google.com with SMTP id b16so3726799igk.1
+        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 15:27:31 -0800 (PST)
+Date: Thu, 22 Jan 2015 15:27:29 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm/slub: suppress BUG messages for
- kmem_cache_alloc/kmem_cache_free
-In-Reply-To: <1421932519-21036-1-git-send-email-Andrej.Skvortzov@gmail.com>
-Message-ID: <alpine.DEB.2.10.1501221518020.27807@chino.kir.corp.google.com>
-References: <1421932519-21036-1-git-send-email-Andrej.Skvortzov@gmail.com>
+Subject: Re: [PATCH v2 2/2] task_mmu: Add user-space support for resetting
+ mm->hiwater_rss (peak RSS)
+In-Reply-To: <CA+yH71fNZSYVf1G+UUp3N6BhPhT0VJ4aGY=uPGbSD2raV55E3Q@mail.gmail.com>
+Message-ID: <alpine.DEB.2.10.1501221523390.27807@chino.kir.corp.google.com>
+References: <20150107172452.GA7922@node.dhcp.inet.fi> <20150114152225.GB31484@google.com> <20150114233630.GA14615@node.dhcp.inet.fi> <alpine.DEB.2.10.1501211452580.2716@chino.kir.corp.google.com>
+ <CA+yH71fNZSYVf1G+UUp3N6BhPhT0VJ4aGY=uPGbSD2raV55E3Q@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Skvortsov <andrej.skvortzov@gmail.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Jesper Dangaard Brouer <brouer@redhat.com>, linux-kernel@vger.kernel.org
+To: Primiano Tucci <primiano@chromium.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Petr Cermak <petrcermak@chromium.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Bjorn Helgaas <bhelgaas@google.com>, Hugh Dickins <hughd@google.com>
 
-On Thu, 22 Jan 2015, Andrey Skvortsov wrote:
+On Thu, 22 Jan 2015, Primiano Tucci wrote:
 
-> diff --git a/mm/slub.c b/mm/slub.c
-> index ceee1d7..6bcd031 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -2404,7 +2404,7 @@ redo:
->  	 */
->  	do {
->  		tid = this_cpu_read(s->cpu_slab->tid);
-> -		c = this_cpu_ptr(s->cpu_slab);
-> +		c = raw_cpu_ptr(s->cpu_slab);
->  	} while (IS_ENABLED(CONFIG_PREEMPT) && unlikely(tid != c->tid));
->  
->  	/*
-> @@ -2670,7 +2670,7 @@ redo:
->  	 */
->  	do {
->  		tid = this_cpu_read(s->cpu_slab->tid);
-> -		c = this_cpu_ptr(s->cpu_slab);
-> +		c = raw_cpu_ptr(s->cpu_slab);
->  	} while (IS_ENABLED(CONFIG_PREEMPT) && unlikely(tid != c->tid));
->  
->  	/* Same with comment on barrier() in slab_alloc_node() */
+> > I think the bigger concern would be that this, and any new line such as
+> > resettable_hiwater_rss, invalidates itself entirely.  Any process that
+> > checks the hwm will not know of other processes that reset it, so the
+> > value itself has no significance anymore.
+> >  It would just be the mark since the last clear at an unknown time.
+> 
+> How is that different from the current logic of clear_refs and the
+> corresponding PG_Referenced bit?
+> 
 
-This should already be fixed with 
-http://ozlabs.org/~akpm/mmotm/broken-out/mm-slub-optimize-alloc-free-fastpath-by-removing-preemption-on-off-v3.patch
-
-You can find the latest mmotm, which was just released, at 
-http://ozlabs.org/~akpm/mmotm and it should be in linux-next tomorrow.
+If you reset the hwm for a process, rss grows to 100MB, another process 
+resets the hwm, and you see a hwm of 2MB, that invalidates the hwm 
+entirely.  That's especially true if there's an oom condition that kills a 
+process when the rss grew to 100MB but you see a hwm of 2MB and don't 
+believe it was possibly the culprit.  The hwm is already defined as the 
+highest rss the process has attained, resetting it and trying to make any 
+inference from the result is racy and invalidates the actual value which 
+is useful.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
