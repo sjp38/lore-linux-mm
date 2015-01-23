@@ -1,47 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 42A286B0032
-	for <linux-mm@kvack.org>; Thu, 22 Jan 2015 19:06:23 -0500 (EST)
-Received: by mail-pd0-f175.google.com with SMTP id fl12so4759850pdb.6
-        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 16:06:23 -0800 (PST)
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id C57076B006C
+	for <linux-mm@kvack.org>; Thu, 22 Jan 2015 19:06:35 -0500 (EST)
+Received: by mail-pd0-f179.google.com with SMTP id v10so4736448pde.10
+        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 16:06:35 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id b7si14185741pas.195.2015.01.22.16.06.21
+        by mx.google.com with ESMTPS id el12si9703847pdb.23.2015.01.22.16.06.34
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Jan 2015 16:06:21 -0800 (PST)
-Date: Thu, 22 Jan 2015 16:06:20 -0800
+        Thu, 22 Jan 2015 16:06:34 -0800 (PST)
+Date: Thu, 22 Jan 2015 16:06:33 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] mm: provide a find_special_page vma operation
-Message-Id: <20150122160620.e5e3f98ad58020832d899352@linux-foundation.org>
-In-Reply-To: <1421682443-20509-2-git-send-email-david.vrabel@citrix.com>
+Subject: Re: [PATCH 2/2] mm: add 'foreign' alias for the 'pinned' page flag
+Message-Id: <20150122160633.350f22805e20c0c432755e02@linux-foundation.org>
+In-Reply-To: <1421682443-20509-3-git-send-email-david.vrabel@citrix.com>
 References: <1421682443-20509-1-git-send-email-david.vrabel@citrix.com>
-	<1421682443-20509-2-git-send-email-david.vrabel@citrix.com>
+	<1421682443-20509-3-git-send-email-david.vrabel@citrix.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Vrabel <david.vrabel@citrix.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jenny Herbert <jennifer.herbert@citrix.com>
 
-On Mon, 19 Jan 2015 15:47:22 +0000 David Vrabel <david.vrabel@citrix.com> wrote:
+On Mon, 19 Jan 2015 15:47:23 +0000 David Vrabel <david.vrabel@citrix.com> wrote:
 
-> The optional find_special_page VMA operation is used to lookup the
-> pages backing a VMA.  This is useful in cases where the normal
-> mechanisms for finding the page don't work.  This is only called if
-> the PTE is special.
+> From: Jenny Herbert <jennifer.herbert@citrix.com>
 > 
-> One use case is a Xen PV guest mapping foreign pages into userspace.
+> The foreign page flag will be used by Xen guests to mark pages that
+> have grant mappings of frames from other (foreign) guests.
 > 
-> In a Xen PV guest, the PTEs contain MFNs so get_user_pages() (for
-> example) must do an MFN to PFN (M2P) lookup before it can get the
-> page.  For foreign pages (those owned by another guest) the M2P lookup
-> returns the PFN as seen by the foreign guest (which would be
-> completely the wrong page for the local guest).
+> The foreign flag is an alias for the existing (Xen-specific) pinned
+> flag.  This is safe because pinned is only used on pages used for page
+> tables and these cannot also be foreign.
 > 
-> This cannot be fixed up improving the M2P lookup since one MFN may be
-> mapped onto two or more pages so getting the right page is impossible
-> given just the MFN.
 
 Acked-by: Andrew Morton <akpm@linux-foundation.org>
 
