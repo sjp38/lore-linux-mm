@@ -1,102 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FADF6B0032
-	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 09:18:31 -0500 (EST)
-Received: by mail-lb0-f182.google.com with SMTP id l4so7207463lbv.13
-        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 06:18:30 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id p16si2690764wiw.104.2015.01.23.06.18.28
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id D4A2E6B0032
+	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 09:24:02 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id et14so4317946pad.4
+        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 06:24:02 -0800 (PST)
+Received: from mail-pd0-x22f.google.com (mail-pd0-x22f.google.com. [2607:f8b0:400e:c02::22f])
+        by mx.google.com with ESMTPS id e5si2005464pat.191.2015.01.23.06.24.01
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Jan 2015 06:18:29 -0800 (PST)
-Date: Fri, 23 Jan 2015 09:18:17 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: mmotm 2015-01-22-15-04: qemu failure due to 'mm: memcontrol:
- remove unnecessary soft limit tree node test'
-Message-ID: <20150123141817.GA22926@phnom.home.cmpxchg.org>
-References: <54c1822d.RtdGfWPekQVAw8Ly%akpm@linux-foundation.org>
- <20150123050802.GB22751@roeck-us.net>
+        Fri, 23 Jan 2015 06:24:02 -0800 (PST)
+Received: by mail-pd0-f175.google.com with SMTP id fl12so8808166pdb.6
+        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 06:24:01 -0800 (PST)
+Date: Fri, 23 Jan 2015 23:24:35 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [PATCH 1/2] zram: free meta out of init_lock
+Message-ID: <20150123142435.GA2320@swordfish>
+References: <1421992707-32658-1-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150123050802.GB22751@roeck-us.net>
+In-Reply-To: <1421992707-32658-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Guenter Roeck <linux@roeck-us.net>
-Cc: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, cl@linux.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-Hi Guenter,
-
-CC'ing Christoph for slub-stuff:
-
-On Thu, Jan 22, 2015 at 09:08:02PM -0800, Guenter Roeck wrote:
-> On Thu, Jan 22, 2015 at 03:05:17PM -0800, akpm@linux-foundation.org wrote:
-> > The mm-of-the-moment snapshot 2015-01-22-15-04 has been uploaded to
-> > 
-> >    http://www.ozlabs.org/~akpm/mmotm/
-> > 
-> qemu test for ppc64 fails with
+On (01/23/15 14:58), Minchan Kim wrote:
+> We don't need to call zram_meta_free, zcomp_destroy and zs_free
+> under init_lock. What we need to prevent race with init_lock
+> in reset is setting NULL into zram->meta (ie, init_done).
+> This patch does it.
 > 
-> Unable to handle kernel paging request for data at address 0x0000af50
-> Faulting instruction address: 0xc00000000089d5d4
-> Oops: Kernel access of bad area, sig: 11 [#1]
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  drivers/block/zram/zram_drv.c | 28 ++++++++++++++++------------
+>  1 file changed, 16 insertions(+), 12 deletions(-)
 > 
-> with the following call stack:
+> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> index 9250b3f54a8f..0299d82275e7 100644
+> --- a/drivers/block/zram/zram_drv.c
+> +++ b/drivers/block/zram/zram_drv.c
+> @@ -708,6 +708,7 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+>  {
+>  	size_t index;
+>  	struct zram_meta *meta;
+> +	struct zcomp *comp;
+>  
+>  	down_write(&zram->init_lock);
+>  
+> @@ -719,20 +720,10 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+>  	}
+>  
+>  	meta = zram->meta;
+> -	/* Free all pages that are still in this zram device */
+> -	for (index = 0; index < zram->disksize >> PAGE_SHIFT; index++) {
+> -		unsigned long handle = meta->table[index].handle;
+> -		if (!handle)
+> -			continue;
+> -
+> -		zs_free(meta->mem_pool, handle);
+> -	}
+> -
+> -	zcomp_destroy(zram->comp);
+
+I'm not so sure about moving zcomp destruction. if we would have detached it
+from zram, then yes. otherwise, think of zram ->destoy vs ->init race.
+
+suppose,
+CPU1 waits for down_write() init lock in disksize_store() with new comp already allocated;
+CPU0 detaches ->meta and releases write init lock;
+CPU1 grabs the lock and does zram->comp = comp;
+CPU0 reaches the point of zcomp_destroy(zram->comp);
+
+
+I'd probably prefer to keep zcomp destruction on its current place. I
+see a little real value in introducing zcomp detaching and moving
+destruction out of init_lock.
+
+	-ss
+
+> +	comp = zram->comp;
+> +	zram->meta = NULL;
+>  	zram->max_comp_streams = 1;
+>  
+> -	zram_meta_free(zram->meta);
+> -	zram->meta = NULL;
+>  	/* Reset stats */
+>  	memset(&zram->stats, 0, sizeof(zram->stats));
+>  
+> @@ -742,6 +733,19 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+>  
+>  	up_write(&zram->init_lock);
+>  
+> +	/* Free all pages that are still in this zram device */
+> +	for (index = 0; index < zram->disksize >> PAGE_SHIFT; index++) {
+> +		unsigned long handle = meta->table[index].handle;
+> +
+> +		if (!handle)
+> +			continue;
+> +
+> +		zs_free(meta->mem_pool, handle);
+> +	}
+> +
+> +	zcomp_destroy(comp);
+> +	zram_meta_free(meta);
+> +
+>  	/*
+>  	 * Revalidate disk out of the init_lock to avoid lockdep splat.
+>  	 * It's okay because disk's capacity is protected by init_lock
+> -- 
+> 1.9.1
 > 
-> Call Trace:
-> [c00000003d32f920] [c00000000089d588] .__slab_alloc.isra.44+0x7c/0x6f4
-> (unreliable)
-> [c00000003d32fa90] [c00000000020cf8c] .kmem_cache_alloc_node_trace+0x12c/0x3b0
-> [c00000003d32fb60] [c000000000bceeb4] .mem_cgroup_init+0x128/0x1b0
-> [c00000003d32fbf0] [c00000000000a2b4] .do_one_initcall+0xd4/0x260
-> [c00000003d32fce0] [c000000000ba26a8] .kernel_init_freeable+0x244/0x32c
-> [c00000003d32fdb0] [c00000000000ac24] .kernel_init+0x24/0x140
-> [c00000003d32fe30] [c000000000009564] .ret_from_kernel_thread+0x58/0x74
-> 
-> bisect log:
-
-[...]
-
-> # first bad commit: [a40d0d2cf21e2714e9a6c842085148c938bf36ab] mm: memcontrol: remove unnecessary soft limit tree node test
-
-The change in question is this:
-
-    mm: memcontrol: remove unnecessary soft limit tree node test
-    
-    kzalloc_node() automatically falls back to nodes with suitable memory.
-    
-    Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-    Acked-by: Michal Hocko <mhocko@suse.cz>
-    Reviewed-by: Vladimir Davydov <vdavydov@parallels.com>
-    Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index fb9788af4a3e..10db4a654d68 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4539,13 +4539,10 @@ static void __init mem_cgroup_soft_limit_tree_init(void)
- {
-        struct mem_cgroup_tree_per_node *rtpn;
-        struct mem_cgroup_tree_per_zone *rtpz;
--       int tmp, node, zone;
-+       int node, zone;
- 
-        for_each_node(node) {
--               tmp = node;
--               if (!node_state(node, N_NORMAL_MEMORY))
--                       tmp = -1;
--               rtpn = kzalloc_node(sizeof(*rtpn), GFP_KERNEL, tmp);
-+               rtpn = kzalloc_node(sizeof(*rtpn), GFP_KERNEL, node);
-                BUG_ON(!rtpn);
- 
-                soft_limit_tree.rb_tree_per_node[node] = rtpn;
-
---
-
-Is the assumption of this patch wrong?  Does the specified node have
-to be online for the fallback to work?
-
-Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
