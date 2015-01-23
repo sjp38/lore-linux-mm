@@ -1,50 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
-	by kanga.kvack.org (Postfix) with ESMTP id B36286B0032
-	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 09:52:54 -0500 (EST)
-Received: by mail-qc0-f180.google.com with SMTP id r5so6550666qcx.11
-        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 06:52:54 -0800 (PST)
-Received: from foss-mx-na.foss.arm.com (foss-mx-na.foss.arm.com. [217.140.108.86])
-        by mx.google.com with ESMTP id 15si2095424qgt.127.2015.01.23.06.52.53
+Received: from mail-qa0-f48.google.com (mail-qa0-f48.google.com [209.85.216.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 3234D6B0032
+	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 10:00:03 -0500 (EST)
+Received: by mail-qa0-f48.google.com with SMTP id v8so6063323qal.7
+        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 07:00:03 -0800 (PST)
+Received: from service87.mimecast.com (service87.mimecast.com. [91.220.42.44])
+        by mx.google.com with ESMTP id z1si2269095qar.33.2015.01.23.07.00.01
         for <linux-mm@kvack.org>;
-        Fri, 23 Jan 2015 06:52:54 -0800 (PST)
-Date: Fri, 23 Jan 2015 14:52:36 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH] ARM: use default ioremap alignment for SMP or LPAE
-Message-ID: <20150123145235.GB21789@e104818-lin.cambridge.arm.com>
-References: <1421911075-8814-1-git-send-email-s.dyasly@samsung.com>
- <20150122100441.GA19811@e104818-lin.cambridge.arm.com>
- <3060178.HEZJjJCl1e@wuerfel>
+        Fri, 23 Jan 2015 07:00:02 -0800 (PST)
+Message-ID: <54C261F0.9070606@arm.com>
+Date: Fri, 23 Jan 2015 15:00:00 +0000
+From: "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3060178.HEZJjJCl1e@wuerfel>
+Subject: Re: [Regression] 3.19-rc3 : memcg: Hang in mount memcg
+References: <54B01335.4060901@arm.com> <20150110085525.GD2110@esperanza> <54BCFDCF.9090603@arm.com> <20150121163955.GM4549@arm.com> <20150122134550.GA13876@phnom.home.cmpxchg.org>
+In-Reply-To: <20150122134550.GA13876@phnom.home.cmpxchg.org>
+Content-Type: text/plain; charset=WINDOWS-1252; format=flowed
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Sergey Dyasly <s.dyasly@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Russell King <linux@arm.linux.org.uk>, Guan Xuetao <gxt@mprc.pku.edu.cn>, "nicolas.pitre@linaro.org" <nicolas.pitre@linaro.org>, James Bottomley <JBottomley@parallels.com>, Will Deacon <Will.Deacon@arm.com>, Arnd Bergmann <arnd.bergmann@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Safonov <d.safonov@partner.samsung.com>
+To: Johannes Weiner <hannes@cmpxchg.org>, Will Deacon <Will.Deacon@arm.com>
+Cc: Vladimir Davydov <vdavydov@parallels.com>, Tejun Heo <tj@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mhocko@suse.cz" <mhocko@suse.cz>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
-On Thu, Jan 22, 2015 at 11:03:00AM +0000, Arnd Bergmann wrote:
-> Unrelated to this question however is whether we want to keep
-> supersection mappings as a performance optimization to save TLBs.
-> It seems useful to me, but not critical.
+On 22/01/15 13:45, Johannes Weiner wrote:
+> On Wed, Jan 21, 2015 at 04:39:55PM +0000, Will Deacon wrote:
+>> On Mon, Jan 19, 2015 at 12:51:27PM +0000, Suzuki K. Poulose wrote:
+>>> On 10/01/15 08:55, Vladimir Davydov wrote:
+>>>> The problem is that the memory cgroup controller takes a css reference
+>>>> per each charged page and does not reparent charged pages on css
+>>>> offline, while cgroup_mount/cgroup_kill_sb expect all css references t=
+o
+>>>> offline cgroups to be gone soon, restarting the syscall if the ref cou=
+nt
+>>>> !=3D 0. As a result, if you create a memory cgroup, charge some page c=
+ache
+>>>> to it, and then remove it, unmount/mount will hang forever.
+>>>>
+>>>> May be, we should kill the ref counter to the memory controller root i=
+n
+>>>> cgroup_kill_sb only if there is no children at all, neither online nor
+>>>> offline.
+>>>>
+>>>
+>>> Still reproducible on 3.19-rc5 with the same setup.
+>>
+>> Yeah, I'm seeing the same failure on my setup too.
+>>
+>>>  From git bisect, the last good commit is :
+>>>
+>>> commit 8df0c2dcf61781d2efa8e6e5b06870f6c6785735
+>>> Author: Pranith Kumar <bobby.prani@gmail.com>
+>>> Date:   Wed Dec 10 15:42:28 2014 -0800
+>>>
+>>>       slab: replace smp_read_barrier_depends() with lockless_dereferenc=
+e()
+>>
+>> So that points at 3e32cb2e0a12 ("mm: memcontrol: lockless page counters"=
+)
+>> as the offending commit.
+>
+> With b2052564e66d ("mm: memcontrol: continue cache reclaim from
+> offlined groups"), page cache can pin an old css and its ancestors
+> indefinitely, making that hang in a second mount() very likely.
+>
+> However, swap entries have also been doing that for quite a while now,
+> and as Vladimir pointed out, the same is true for kernel memory.  This
+> latest change just makes this existing bug easier to trigger.
+>
+> I think we have to update the lifetime rules to reflect reality here:
+> memory and swap lifetime is indefinite, so once the memory controller
+> is used, it has state that is independent from whether its mounted or
+> not.  We can support an identical remount, but have to fail mounting
+> with new parameters that would change the behavior of the controller.
+>
+> Suzuki, Will, could you give the following patch a shot?
 
-Currently in Linux we allow 16MB mappings only if the phys address is
-over 32-bit and !LPAE which makes it unlikely for normal RAM with
-pre-LPAE hardware.
 
-IIRC a bigger problem was that supersections are optional in the
-architecture but there was no CPUID bit field in ARMv6 (and early ARMv7)
-to check for their presence. The ID_MMFR3 contains this information but
-for example on early Cortex-A8 that bitfield was reserved and the TRM
-states "unpredictable" on read (so probably zero in practice).
+>
+> Tejun, would that route be acceptable to you?
+>
+> Thanks
+>
+> ---
+>  From c5e88d02d185c52748df664aa30a2c5f8949b0f7 Mon Sep 17 00:00:00 2001
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Date: Thu, 22 Jan 2015 08:16:31 -0500
+> Subject: [patch] kernel: cgroup: prevent mount hang due to memory control=
+ler
+>   lifetime
+>
 
-On newer ARMv7 (not necessarily with LPAE), we could indeed revisit the
-16MB section mapping but it won't go well with single zImage if you want
-to support earlier ARMv7 or ARMv6.
+>
+> Don't offline the controller root as long as there are any children,
+> dead or alive.  A remount will no longer wait for these old references
+> to drain, it will simply mount the persistent controller state again.
+>
+> Reported-by: "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>
+> Reported-by: Will Deacon <will.deacon@arm.com>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+This one fixes the issue.
 
--- 
-Catalin
+Tested-by : Suzuki K. Poulose <suzuki.poulose@arm.com>
+
+Thanks
+Suzuki
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
