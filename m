@@ -1,82 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id DF9096B0032
-	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 04:05:53 -0500 (EST)
-Received: by mail-wi0-f175.google.com with SMTP id fb4so1277571wid.2
-        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 01:05:53 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ji6si640790wid.70.2015.01.23.01.05.51
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 488976B0032
+	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 05:14:33 -0500 (EST)
+Received: by mail-pd0-f177.google.com with SMTP id y13so7717061pdi.8
+        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 02:14:33 -0800 (PST)
+Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
+        by mx.google.com with ESMTPS id pl10si1448438pbb.48.2015.01.23.02.14.31
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 23 Jan 2015 01:05:51 -0800 (PST)
-Message-ID: <54C20EEC.1060809@suse.cz>
-Date: Fri, 23 Jan 2015 10:05:48 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
-MIME-Version: 1.0
-Subject: Re: [PATCHv2] mm: Don't offset memmap for flatmem
-References: <1421804273-29947-1-git-send-email-lauraa@codeaurora.org>	<1421888500-24364-1-git-send-email-lauraa@codeaurora.org> <20150122162021.aa861aeb53c22206a19ebbcb@linux-foundation.org> <54C196D0.6040900@codeaurora.org>
-In-Reply-To: <54C196D0.6040900@codeaurora.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Fri, 23 Jan 2015 02:14:32 -0800 (PST)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout1.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NIM00IHKKMZ6A60@mailout1.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 23 Jan 2015 10:18:35 +0000 (GMT)
+Message-id: <54C21EFD.6080900@samsung.com>
+Date: Fri, 23 Jan 2015 13:14:21 +0300
+From: Andrey Ryabinin <a.ryabinin@samsung.com>
+MIME-version: 1.0
+Subject: Re: [PATCH v9 00/17] Kernel address sanitizer - runtime memory
+ debugger.
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
+ <1421859105-25253-1-git-send-email-a.ryabinin@samsung.com>
+ <54C042D2.4040809@oracle.com>
+ <CAPAsAGyXo=AMCU-2TbrrY=MPorg+Nd+WYS5nCAcjELZs91r4AQ@mail.gmail.com>
+ <CAPAsAGyMyq_anQjErLa=L-0K3KmghMjoqzi0AdZOADTAECn1HA@mail.gmail.com>
+ <54C16F99.2000006@oracle.com>
+In-reply-to: <54C16F99.2000006@oracle.com>
+Content-type: text/plain; charset=windows-1252
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <lauraa@codeaurora.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Srinivas Kandagatla <srinivas.kandagatla@linaro.org>, linux-arm-kernel@lists.infradead.org, Russell King - ARM Linux <linux@arm.linux.org.uk>, ssantosh@kernel.org, Kevin Hilman <khilman@linaro.org>, Arnd Bergman <arnd@arndb.de>, Stephen Boyd <sboyd@codeaurora.org>, linux-mm@kvack.org, Kumar Gala <galak@codeaurora.org>, Mel Gorman <mgorman@suse.de>
+To: Sasha Levin <sasha.levin@oracle.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Michal Marek <mmarek@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Randy Dunlap <rdunlap@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Jones <davej@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Linus Torvalds <torvalds@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>
 
-On 01/23/2015 01:33 AM, Laura Abbott wrote:
-> On 1/22/2015 4:20 PM, Andrew Morton wrote:
->> On Wed, 21 Jan 2015 17:01:40 -0800 Laura Abbott <lauraa@codeaurora.org> wrote:
->>
->>> Srinivas Kandagatla reported bad page messages when trying to
->>> remove the bottom 2MB on an ARM based IFC6410 board
->>>
->>> BUG: Bad page state in process swapper  pfn:fffa8
->>> page:ef7fb500 count:0 mapcount:0 mapping:  (null) index:0x0
->>> flags: 0x96640253(locked|error|dirty|active|arch_1|reclaim|mlocked)
->>> page dumped because: PAGE_FLAGS_CHECK_AT_FREE flag(s) set
->>> bad because of flags:
->>> flags: 0x200041(locked|active|mlocked)
->>> Modules linked in:
->>> CPU: 0 PID: 0 Comm: swapper Not tainted 3.19.0-rc3-00007-g412f9ba-dirty #816
->>> Hardware name: Qualcomm (Flattened Device Tree)
->>> [<c0218280>] (unwind_backtrace) from [<c0212be8>] (show_stack+0x20/0x24)
->>> [<c0212be8>] (show_stack) from [<c0af7124>] (dump_stack+0x80/0x9c)
->>> [<c0af7124>] (dump_stack) from [<c0301570>] (bad_page+0xc8/0x128)
->>> [<c0301570>] (bad_page) from [<c03018a8>] (free_pages_prepare+0x168/0x1e0)
->>> [<c03018a8>] (free_pages_prepare) from [<c030369c>] (free_hot_cold_page+0x3c/0x174)
->>> [<c030369c>] (free_hot_cold_page) from [<c0303828>] (__free_pages+0x54/0x58)
->>> [<c0303828>] (__free_pages) from [<c030395c>] (free_highmem_page+0x38/0x88)
->>> [<c030395c>] (free_highmem_page) from [<c0f62d5c>] (mem_init+0x240/0x430)
->>> [<c0f62d5c>] (mem_init) from [<c0f5db3c>] (start_kernel+0x1e4/0x3c8)
->>> [<c0f5db3c>] (start_kernel) from [<80208074>] (0x80208074)
->>> Disabling lock debugging due to kernel taint
->>>
->>> Removing the lower 2MB made the start of the lowmem zone to no longer
->>> be page block aligned. IFC6410 uses CONFIG_FLATMEM where
->>> alloc_node_mem_map allocates memory for the mem_map. alloc_node_mem_map
->>> will offset for unaligned nodes with the assumption the pfn/page
->>> translation functions will account for the offset. The functions for
->>> CONFIG_FLATMEM do not offset however, resulting in overrunning
->>> the memmap array. Just use the allocated memmap without any offset
->>> when running with CONFIG_FLATMEM to avoid the overrun.
->>>
->>
->> I don't think v2 addressed Vlastimil's review comment?
->>
->
-> We're still adding the offset to node_mem_map and then subtracting it from
-> just mem_map. Did I miss another comment somewhere?
+On 01/23/2015 12:46 AM, Sasha Levin wrote:
+> Just to keep it going, here's a funny trace where kasan is catching issues
+> in ubsan: :)
+> 
 
-Yes that was addressed, thanks. But I don't feel comfortable acking it 
-yet, as I have no idea if we are doing the right thing for 
-CONFIG_HAVE_MEMBLOCK_NODE_MAP && CONFIG_FLATMEM case here.
+Thanks, it turns out to be a GCC bug:
+https://gcc.gnu.org/bugzilla/show_bug.cgi?id=64741
 
-Also putting the CONFIG_FLATMEM && !CONFIG_HAVE_MEMBLOCK_NODE_MAP under 
-the "if (page_to_pfn(mem_map) != pgdat->node_start_pfn)" will probably 
-do the right thing, but looks like a weird test for this case here.
-
-I have no good suggestion though, so let's CC Mel who apparently wrote 
-the ARCH_PFN_OFFSET correction?
+As a workaround you could put kasan_disable_local()/kasan_enable_local()
+into ubsan_prologue()/ubsan_epilogue().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
