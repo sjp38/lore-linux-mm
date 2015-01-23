@@ -1,106 +1,197 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
-	by kanga.kvack.org (Postfix) with ESMTP id A3E576B0032
-	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 01:58:35 -0500 (EST)
-Received: by mail-la0-f47.google.com with SMTP id hz20so5710265lab.6
-        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 22:58:34 -0800 (PST)
-Received: from mail-lb0-x235.google.com (mail-lb0-x235.google.com. [2a00:1450:4010:c04::235])
-        by mx.google.com with ESMTPS id al1si585487lbc.23.2015.01.22.22.58.33
+Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 792FA6B0032
+	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 02:49:29 -0500 (EST)
+Received: by mail-we0-f179.google.com with SMTP id q59so6005323wes.10
+        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 23:49:29 -0800 (PST)
+Received: from mail-wi0-x233.google.com (mail-wi0-x233.google.com. [2a00:1450:400c:c05::233])
+        by mx.google.com with ESMTPS id u1si883217wiy.37.2015.01.22.23.49.26
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Jan 2015 22:58:33 -0800 (PST)
-Received: by mail-lb0-f181.google.com with SMTP id u10so5482499lbd.12
-        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 22:58:32 -0800 (PST)
-From: Andrey Skvortsov <andrej.skvortzov@gmail.com>
-Date: Fri, 23 Jan 2015 09:58:34 +0300
-Subject: Re: [PATCH] mm/slub: suppress BUG messages for
- kmem_cache_alloc/kmem_cache_free
-Message-ID: <20150123065834.GI25900@localhost.localdomain>
-References: <1421932519-21036-1-git-send-email-Andrej.Skvortzov@gmail.com>
- <alpine.DEB.2.10.1501221518020.27807@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="AQYPrgrEUc/1pSX1"
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1501221518020.27807@chino.kir.corp.google.com>
+        Thu, 22 Jan 2015 23:49:28 -0800 (PST)
+Received: by mail-wi0-f179.google.com with SMTP id l15so889146wiw.0
+        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 23:49:26 -0800 (PST)
+From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Subject: [PATCH] mm: incorporate read-only pages into transparent huge pages
+Date: Fri, 23 Jan 2015 09:47:36 +0200
+Message-Id: <1421999256-3881-1-git-send-email-ebru.akagunduz@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Jesper Dangaard Brouer <brouer@redhat.com>, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, kirill@shutemov.name, mhocko@suse.cz, mgorman@suse.de, rientjes@google.com, sasha.levin@oracle.com, hughd@google.com, hannes@cmpxchg.org, vbabka@suse.cz, linux-kernel@vger.kernel.org, riel@redhat.com, aarcange@redhat.com, Ebru Akagunduz <ebru.akagunduz@gmail.com>
 
+This patch aims to improve THP collapse rates, by allowing
+THP collapse in the presence of read-only ptes, like those
+left in place by do_swap_page after a read fault.
 
---AQYPrgrEUc/1pSX1
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Currently THP can collapse 4kB pages into a THP when
+there are up to khugepaged_max_ptes_none pte_none ptes
+in a 2MB range. This patch applies the same limit for
+read-only ptes.
 
-On Thu, Jan 22, 2015 at 03:19:18PM -0800, David Rientjes wrote:
-> On Thu, 22 Jan 2015, Andrey Skvortsov wrote:
->=20
-> > diff --git a/mm/slub.c b/mm/slub.c
-> > index ceee1d7..6bcd031 100644
-> > --- a/mm/slub.c
-> > +++ b/mm/slub.c
-> > @@ -2404,7 +2404,7 @@ redo:
-> >  	 */
-> >  	do {
-> >  		tid =3D this_cpu_read(s->cpu_slab->tid);
-> > -		c =3D this_cpu_ptr(s->cpu_slab);
-> > +		c =3D raw_cpu_ptr(s->cpu_slab);
-> >  	} while (IS_ENABLED(CONFIG_PREEMPT) && unlikely(tid !=3D c->tid));
-> > =20
-> >  	/*
-> > @@ -2670,7 +2670,7 @@ redo:
-> >  	 */
-> >  	do {
-> >  		tid =3D this_cpu_read(s->cpu_slab->tid);
-> > -		c =3D this_cpu_ptr(s->cpu_slab);
-> > +		c =3D raw_cpu_ptr(s->cpu_slab);
-> >  	} while (IS_ENABLED(CONFIG_PREEMPT) && unlikely(tid !=3D c->tid));
-> > =20
-> >  	/* Same with comment on barrier() in slab_alloc_node() */
->=20
-> This should already be fixed with=20
-> http://ozlabs.org/~akpm/mmotm/broken-out/mm-slub-optimize-alloc-free-fast=
-path-by-removing-preemption-on-off-v3.patch
+The patch was tested with a test program that allocates
+800MB of memory, writes to it, and then sleeps. I force
+the system to swap out all but 190MB of the program by
+touching other memory. Afterwards, the test program does
+a mix of reads and writes to its memory, and the memory
+gets swapped back in.
 
-> You can find the latest mmotm, which was just released, at=20
-> http://ozlabs.org/~akpm/mmotm and it should be in linux-next tomorrow.
-ok. I've just looked at linux-next/master and
-linux-next/akpm branches and that was not fixed there. Thanks for the
-link. I'll look there in the future for mm-related patches posting a
-new one.
+Without the patch, only the memory that did not get
+swapped out remained in THPs, which corresponds to 24% of
+the memory of the program. The percentage did not increase
+over time.
 
---=20
-Best regards,
-Andrey Skvortsov
+With this patch, after 5 minutes of waiting khugepaged had
+collapsed 55% of the program's memory back into THPs.
 
-Secure eMail with gnupg: See http://www.gnupg.org/
-PGP Key ID: 0x57A3AEAD
+Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+---
+I've written down test results:
 
---AQYPrgrEUc/1pSX1
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
+With the patch:
+After swapped out:
+cat /proc/pid/smaps:
+Anonymous:      100352 kB
+AnonHugePages:  98304 kB
+Swap:           699652 kB
+Fraction:       97,95
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
+cat /proc/meminfo:
+AnonPages:      1763732 kB
+AnonHugePages:  1716224 kB
+Fraction:       97,30
 
-iQIcBAEBCAAGBQJUwfEaAAoJEAF8y6L1SLCtHtYQAKKwaJbRsFlchx7cK98xaXAR
-wH18lsI/BL4+r4kLBEcW7ISP6HN895EXHE64Ie23I+eYV5CKEGxkcxEPyc0p37ma
-I47s1nhox3FHhI9+ax8d5z8dX5hmVf6+GXdLxauxpEYptDn/rO9KppBoPZ5ixD7E
-OaPuggO9ApDSzTfBn7FbLEOfGSxSyYoYedzXsr54jMf9IzqAZpHCzTtEofBynbQv
-5DEM1IhR0HkdyqbtbhBozbNbEnuU3WwUH4iD0eRyLc1YXX1yVHlIIvB4Nj6v0ci6
-Hm7VJcWGWQBC0X8IEOXMElanIRuK8irJoPt8AJmCXVJryZX+MnBZHxxJsKevJE7p
-OAMWmEf/S+JpypfgV8N/MTN604ZEzFISjr/cbmrBEt9vXcxyjWjbMZ984h+pkf7C
-jEqTuFS1SZydBHV8DJluXl3TJWxBk8sJKM5IwkvG+eshjZtU/Dw8xhNOfGQb8B90
-RYN3/Qu9sHi7Y7TLs7/iPSSdDUDqnIUcE8cSGYC/c6OsHlvYs/V0u6IPKTwaFv5B
-eDtIV3qFfDOfcOwTjAOUHQwzA10Vbd4WMFUVUMCjRFkWTnsbq7aDyycuEEMqmkPE
-qgLUnPUQ88jPa3aHlWv88Pj4QBZcx0N3XrhvcQvyxpDbqqsZ5JsQDShp9kmN5utf
-Z+iUgeqYtJn23+fkb7sU
-=TID4
------END PGP SIGNATURE-----
+After swapped in:
+In a few seconds:
+cat /proc/pid/smaps
+Anonymous:      800004 kB
+AnonHugePages:  235520 kB
+Swap:           0 kB
+Fraction:       29,43
 
---AQYPrgrEUc/1pSX1--
+cat /proc/meminfo:
+AnonPages:      2464336 kB
+AnonHugePages:  1853440 kB
+Fraction:       75,21
+
+In five minutes:
+cat /proc/pid/smaps:
+Anonymous:      800004 kB
+AnonHugePages:  440320 kB
+Swap:           0 kB
+Fraction:       55,0
+
+cat /proc/meminfo:
+AnonPages:      2464340
+AnonHugePages:  2058240
+Fraction:       83,52
+
+Without the patch:
+After swapped out:
+cat /proc/pid/smaps:
+Anonymous:      190660 kB
+AnonHugePages:  190464 kB
+Swap:           609344 kB
+Fraction:       99,89
+
+cat /proc/meminfo:
+AnonPages:      1740456 kB
+AnonHugePages:  1667072 kB
+Fraction:       95,78
+
+After swapped in:
+cat /proc/pid/smaps:
+Anonymous:      800004 kB
+AnonHugePages:  190464 kB
+Swap:           0 kB
+Fraction:       23,80
+
+cat /proc/meminfo:
+AnonPages:      2350032 kB
+AnonHugePages:  1667072 kB
+Fraction:       70,93
+
+I waited 10 minutes the fractions
+did not change without the patch.
+
+ mm/huge_memory.c | 25 ++++++++++++++++++++-----
+ 1 file changed, 20 insertions(+), 5 deletions(-)
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 817a875..af750d9 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2158,7 +2158,7 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+ 			else
+ 				goto out;
+ 		}
+-		if (!pte_present(pteval) || !pte_write(pteval))
++		if (!pte_present(pteval))
+ 			goto out;
+ 		page = vm_normal_page(vma, address, pteval);
+ 		if (unlikely(!page))
+@@ -2169,7 +2169,7 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+ 		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
+ 
+ 		/* cannot use mapcount: can't collapse if there's a gup pin */
+-		if (page_count(page) != 1)
++		if (page_count(page) != 1 + !!PageSwapCache(page))
+ 			goto out;
+ 		/*
+ 		 * We can do it before isolate_lru_page because the
+@@ -2179,6 +2179,17 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+ 		 */
+ 		if (!trylock_page(page))
+ 			goto out;
++		if (!pte_write(pteval)) {
++			if (PageSwapCache(page) && !reuse_swap_page(page)) {
++					unlock_page(page);
++					goto out;
++			}
++			/*
++			 * Page is not in the swap cache, and page count is
++			 * one (see above). It can be collapsed into a THP.
++			 */
++		}
++
+ 		/*
+ 		 * Isolate the page to avoid collapsing an hugepage
+ 		 * currently in use by the VM.
+@@ -2550,7 +2561,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+ {
+ 	pmd_t *pmd;
+ 	pte_t *pte, *_pte;
+-	int ret = 0, referenced = 0, none = 0;
++	int ret = 0, referenced = 0, none = 0, ro = 0;
+ 	struct page *page;
+ 	unsigned long _address;
+ 	spinlock_t *ptl;
+@@ -2573,8 +2584,12 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+ 			else
+ 				goto out_unmap;
+ 		}
+-		if (!pte_present(pteval) || !pte_write(pteval))
++		if (!pte_present(pteval))
+ 			goto out_unmap;
++		if (!pte_write(pteval)) {
++			if (++ro > khugepaged_max_ptes_none)
++				goto out_unmap;
++		}
+ 		page = vm_normal_page(vma, _address, pteval);
+ 		if (unlikely(!page))
+ 			goto out_unmap;
+@@ -2592,7 +2607,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+ 		if (!PageLRU(page) || PageLocked(page) || !PageAnon(page))
+ 			goto out_unmap;
+ 		/* cannot use mapcount: can't collapse if there's a gup pin */
+-		if (page_count(page) != 1)
++		if (page_count(page) != 1 + !!PageSwapCache(page))
+ 			goto out_unmap;
+ 		if (pte_young(pteval) || PageReferenced(page) ||
+ 		    mmu_notifier_test_young(vma->vm_mm, address))
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
