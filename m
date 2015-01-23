@@ -1,76 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 029DB6B0032
-	for <linux-mm@kvack.org>; Thu, 22 Jan 2015 19:33:24 -0500 (EST)
-Received: by mail-ig0-f180.google.com with SMTP id b16so3939644igk.1
-        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 16:33:23 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id ro9si498883igb.51.2015.01.22.16.33.23
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D97D6B0032
+	for <linux-mm@kvack.org>; Thu, 22 Jan 2015 20:03:47 -0500 (EST)
+Received: by mail-pd0-f169.google.com with SMTP id g10so2411100pdj.0
+        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 17:03:47 -0800 (PST)
+Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com. [2607:f8b0:400e:c03::236])
+        by mx.google.com with ESMTPS id bs2si19556pad.67.2015.01.22.17.03.46
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Jan 2015 16:33:23 -0800 (PST)
-Message-ID: <54C196D0.6040900@codeaurora.org>
-Date: Thu, 22 Jan 2015 16:33:20 -0800
-From: Laura Abbott <lauraa@codeaurora.org>
+        Thu, 22 Jan 2015 17:03:46 -0800 (PST)
+Received: by mail-pa0-f54.google.com with SMTP id eu11so5190470pac.13
+        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 17:03:46 -0800 (PST)
+Date: Fri, 23 Jan 2015 10:03:36 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v1 01/10] zram: avoid calling of zram_meta_free under
+ init_lock
+Message-ID: <20150123010336.GA18918@blaptop>
+References: <1421820866-26521-1-git-send-email-minchan@kernel.org>
+ <1421820866-26521-2-git-send-email-minchan@kernel.org>
+ <20150121142115.GA986@swordfish>
 MIME-Version: 1.0
-Subject: Re: [PATCHv2] mm: Don't offset memmap for flatmem
-References: <1421804273-29947-1-git-send-email-lauraa@codeaurora.org>	<1421888500-24364-1-git-send-email-lauraa@codeaurora.org> <20150122162021.aa861aeb53c22206a19ebbcb@linux-foundation.org>
-In-Reply-To: <20150122162021.aa861aeb53c22206a19ebbcb@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150121142115.GA986@swordfish>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Srinivas Kandagatla <srinivas.kandagatla@linaro.org>, linux-arm-kernel@lists.infradead.org, Russell King - ARM Linux <linux@arm.linux.org.uk>, ssantosh@kernel.org, Kevin Hilman <khilman@linaro.org>, Arnd Bergman <arnd@arndb.de>, Stephen Boyd <sboyd@codeaurora.org>, linux-mm@kvack.org, Kumar Gala <galak@codeaurora.org>
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjennings@variantweb.net>, Nitin Gupta <ngupta@vflare.org>, Juneho Choi <juno.choi@lge.com>, Gunho Lee <gunho.lee@lge.com>, Luigi Semenzato <semenzato@google.com>, Jerome Marchand <jmarchan@redhat.com>
 
-On 1/22/2015 4:20 PM, Andrew Morton wrote:
-> On Wed, 21 Jan 2015 17:01:40 -0800 Laura Abbott <lauraa@codeaurora.org> wrote:
->
->> Srinivas Kandagatla reported bad page messages when trying to
->> remove the bottom 2MB on an ARM based IFC6410 board
->>
->> BUG: Bad page state in process swapper  pfn:fffa8
->> page:ef7fb500 count:0 mapcount:0 mapping:  (null) index:0x0
->> flags: 0x96640253(locked|error|dirty|active|arch_1|reclaim|mlocked)
->> page dumped because: PAGE_FLAGS_CHECK_AT_FREE flag(s) set
->> bad because of flags:
->> flags: 0x200041(locked|active|mlocked)
->> Modules linked in:
->> CPU: 0 PID: 0 Comm: swapper Not tainted 3.19.0-rc3-00007-g412f9ba-dirty #816
->> Hardware name: Qualcomm (Flattened Device Tree)
->> [<c0218280>] (unwind_backtrace) from [<c0212be8>] (show_stack+0x20/0x24)
->> [<c0212be8>] (show_stack) from [<c0af7124>] (dump_stack+0x80/0x9c)
->> [<c0af7124>] (dump_stack) from [<c0301570>] (bad_page+0xc8/0x128)
->> [<c0301570>] (bad_page) from [<c03018a8>] (free_pages_prepare+0x168/0x1e0)
->> [<c03018a8>] (free_pages_prepare) from [<c030369c>] (free_hot_cold_page+0x3c/0x174)
->> [<c030369c>] (free_hot_cold_page) from [<c0303828>] (__free_pages+0x54/0x58)
->> [<c0303828>] (__free_pages) from [<c030395c>] (free_highmem_page+0x38/0x88)
->> [<c030395c>] (free_highmem_page) from [<c0f62d5c>] (mem_init+0x240/0x430)
->> [<c0f62d5c>] (mem_init) from [<c0f5db3c>] (start_kernel+0x1e4/0x3c8)
->> [<c0f5db3c>] (start_kernel) from [<80208074>] (0x80208074)
->> Disabling lock debugging due to kernel taint
->>
->> Removing the lower 2MB made the start of the lowmem zone to no longer
->> be page block aligned. IFC6410 uses CONFIG_FLATMEM where
->> alloc_node_mem_map allocates memory for the mem_map. alloc_node_mem_map
->> will offset for unaligned nodes with the assumption the pfn/page
->> translation functions will account for the offset. The functions for
->> CONFIG_FLATMEM do not offset however, resulting in overrunning
->> the memmap array. Just use the allocated memmap without any offset
->> when running with CONFIG_FLATMEM to avoid the overrun.
->>
->
-> I don't think v2 addressed Vlastimil's review comment?
->
+Hello,
 
-We're still adding the offset to node_mem_map and then subtracting it from
-just mem_map. Did I miss another comment somewhere?
+On Wed, Jan 21, 2015 at 11:21:53PM +0900, Sergey Senozhatsky wrote:
+> On (01/21/15 15:14), Minchan Kim wrote:
+> > We don't need to call zram_meta_free under init_lock.
+> > What we need to prevent race is setting NULL into zram->meta
+> > (ie, init_done). This patch does it.
+> > 
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > ---
+> >  drivers/block/zram/zram_drv.c | 5 +++--
+> >  1 file changed, 3 insertions(+), 2 deletions(-)
+> > 
+> > diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> > index 9250b3f..7e03d86 100644
+> > --- a/drivers/block/zram/zram_drv.c
+> > +++ b/drivers/block/zram/zram_drv.c
+> > @@ -719,6 +719,8 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+> >  	}
+> >  
+> >  	meta = zram->meta;
+> > +	zram->meta = NULL;
+> > +
+> >  	/* Free all pages that are still in this zram device */
+> >  	for (index = 0; index < zram->disksize >> PAGE_SHIFT; index++) {
+> >  		unsigned long handle = meta->table[index].handle;
+> > @@ -731,8 +733,6 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+> >  	zcomp_destroy(zram->comp);
+> >  	zram->max_comp_streams = 1;
+> >  
+> > -	zram_meta_free(zram->meta);
+> > -	zram->meta = NULL;
+> >  	/* Reset stats */
+> >  	memset(&zram->stats, 0, sizeof(zram->stats));
+> >  
+> > @@ -741,6 +741,7 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+> >  		set_capacity(zram->disk, 0);
+> >  
+> >  	up_write(&zram->init_lock);
+> > +	zram_meta_free(meta);
+> 
+> Hello,
+> 
+> since we detached ->meta from zram, this one doesn't really need
+> ->init_lock protection:
+> 
+> 	/* Free all pages that are still in this zram device */
+> 	for (index = 0; index < zram->disksize >> PAGE_SHIFT; index++) {
+> 		unsigned long handle = meta->table[index].handle;
+> 		if (!handle)
+> 			continue;
+> 
+> 		zs_free(meta->mem_pool, handle);
+> 	}
+> 
+> 
+> 	-ss
+
+Good catch.
+
+As well, we could move zcomp_destroy and memset(&zram->stats)
+out of the lock but zram_rw_page, ZRAM_ATTR_RO, disksize_show
+and orig_data_size_show have a race bug which access stats
+out of the lock so that it could show the stale vaule.
+Although it's not a significant, there is no reason to hesitate the fix. :)
+
+I will fix it. Thanks!
 
 
--- 
-Qualcomm Innovation Center, Inc.
-Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-a Linux Foundation Collaborative Project
+> 
+> >  	/*
+> >  	 * Revalidate disk out of the init_lock to avoid lockdep splat.
+> > -- 
+> > 1.9.3
+> > 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
