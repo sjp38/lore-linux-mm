@@ -1,111 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f48.google.com (mail-qa0-f48.google.com [209.85.216.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 3234D6B0032
-	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 10:00:03 -0500 (EST)
-Received: by mail-qa0-f48.google.com with SMTP id v8so6063323qal.7
-        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 07:00:03 -0800 (PST)
-Received: from service87.mimecast.com (service87.mimecast.com. [91.220.42.44])
-        by mx.google.com with ESMTP id z1si2269095qar.33.2015.01.23.07.00.01
-        for <linux-mm@kvack.org>;
-        Fri, 23 Jan 2015 07:00:02 -0800 (PST)
-Message-ID: <54C261F0.9070606@arm.com>
-Date: Fri, 23 Jan 2015 15:00:00 +0000
-From: "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id D1F5B6B0032
+	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 10:08:36 -0500 (EST)
+Received: by mail-ob0-f169.google.com with SMTP id va8so2223206obc.0
+        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 07:08:36 -0800 (PST)
+Received: from bh-25.webhostbox.net (bh-25.webhostbox.net. [208.91.199.152])
+        by mx.google.com with ESMTPS id c131si950707oif.35.2015.01.23.07.08.35
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 23 Jan 2015 07:08:35 -0800 (PST)
+Received: from mailnull by bh-25.webhostbox.net with sa-checked (Exim 4.82)
+	(envelope-from <linux@roeck-us.net>)
+	id 1YEfqd-004IQs-GO
+	for linux-mm@kvack.org; Fri, 23 Jan 2015 15:08:35 +0000
+Message-ID: <54C263CC.1060904@roeck-us.net>
+Date: Fri, 23 Jan 2015 07:07:56 -0800
+From: Guenter Roeck <linux@roeck-us.net>
 MIME-Version: 1.0
-Subject: Re: [Regression] 3.19-rc3 : memcg: Hang in mount memcg
-References: <54B01335.4060901@arm.com> <20150110085525.GD2110@esperanza> <54BCFDCF.9090603@arm.com> <20150121163955.GM4549@arm.com> <20150122134550.GA13876@phnom.home.cmpxchg.org>
-In-Reply-To: <20150122134550.GA13876@phnom.home.cmpxchg.org>
-Content-Type: text/plain; charset=WINDOWS-1252; format=flowed
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: mmotm 2015-01-22-15-04: qemu failures due to 'mm: account pmd
+ page tables to the process'
+References: <54c1822d.RtdGfWPekQVAw8Ly%akpm@linux-foundation.org> <20150123050445.GA22751@roeck-us.net> <20150123111304.GA5975@node.dhcp.inet.fi>
+In-Reply-To: <20150123111304.GA5975@node.dhcp.inet.fi>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Will Deacon <Will.Deacon@arm.com>
-Cc: Vladimir Davydov <vdavydov@parallels.com>, Tejun Heo <tj@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mhocko@suse.cz" <mhocko@suse.cz>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 22/01/15 13:45, Johannes Weiner wrote:
-> On Wed, Jan 21, 2015 at 04:39:55PM +0000, Will Deacon wrote:
->> On Mon, Jan 19, 2015 at 12:51:27PM +0000, Suzuki K. Poulose wrote:
->>> On 10/01/15 08:55, Vladimir Davydov wrote:
->>>> The problem is that the memory cgroup controller takes a css reference
->>>> per each charged page and does not reparent charged pages on css
->>>> offline, while cgroup_mount/cgroup_kill_sb expect all css references t=
-o
->>>> offline cgroups to be gone soon, restarting the syscall if the ref cou=
-nt
->>>> !=3D 0. As a result, if you create a memory cgroup, charge some page c=
-ache
->>>> to it, and then remove it, unmount/mount will hang forever.
->>>>
->>>> May be, we should kill the ref counter to the memory controller root i=
-n
->>>> cgroup_kill_sb only if there is no children at all, neither online nor
->>>> offline.
->>>>
+On 01/23/2015 03:13 AM, Kirill A. Shutemov wrote:
+> On Thu, Jan 22, 2015 at 09:04:45PM -0800, Guenter Roeck wrote:
+>> On Thu, Jan 22, 2015 at 03:05:17PM -0800, akpm@linux-foundation.org wrote:
+>>> The mm-of-the-moment snapshot 2015-01-22-15-04 has been uploaded to
 >>>
->>> Still reproducible on 3.19-rc5 with the same setup.
->>
->> Yeah, I'm seeing the same failure on my setup too.
->>
->>>  From git bisect, the last good commit is :
+>>>     http://www.ozlabs.org/~akpm/mmotm/
 >>>
->>> commit 8df0c2dcf61781d2efa8e6e5b06870f6c6785735
->>> Author: Pranith Kumar <bobby.prani@gmail.com>
->>> Date:   Wed Dec 10 15:42:28 2014 -0800
->>>
->>>       slab: replace smp_read_barrier_depends() with lockless_dereferenc=
-e()
+>> qemu:sh fails to shut down.
 >>
->> So that points at 3e32cb2e0a12 ("mm: memcontrol: lockless page counters"=
-)
->> as the offending commit.
+>> bisect log:
+>>
+>> # bad: [03586ad04b2170ee816e6936981cc7cd2aeba129] pci: test for unexpectedly disabled bridges
+>> # good: [ec6f34e5b552fb0a52e6aae1a5afbbb1605cc6cc] Linux 3.19-rc5
+>> git bisect start 'HEAD' 'v3.19-rc5'
+>> # bad: [d113ba21d15c7d3615fd88490d1197615bb39fc0] mm: remove lock validation check for MADV_FREE
+>> git bisect bad d113ba21d15c7d3615fd88490d1197615bb39fc0
+>> # good: [17351d1625a5030fa16f1346b77064c03b51f107] mm:add KPF_ZERO_PAGE flag for /proc/kpageflags
+>> git bisect good 17351d1625a5030fa16f1346b77064c03b51f107
+>> # good: [ad18ad1fce6f241a9cbd4adfd6b16c9283181e39] memcg: add BUILD_BUG_ON() for string tables
+>> git bisect good ad18ad1fce6f241a9cbd4adfd6b16c9283181e39
+>> # bad: [aa7e7cbfa43b74f6faef04ff730b5098544a4f77] mm/compaction: enhance tracepoint output for compaction begin/end
+>> git bisect bad aa7e7cbfa43b74f6faef04ff730b5098544a4f77
+>> # good: [a40d0d2cf21e2714e9a6c842085148c938bf36ab] mm: memcontrol: remove unnecessary soft limit tree node test
+>> git bisect good a40d0d2cf21e2714e9a6c842085148c938bf36ab
+>> # good: [4ec4aa2e07c1d6eee61f6cace29401c6febcb6c5] mm: make FIRST_USER_ADDRESS unsigned long on all archs
+>> git bisect good 4ec4aa2e07c1d6eee61f6cace29401c6febcb6c5
+>> # bad: [22310c209483224a64436a6e815a86feda681659] mm: account pmd page tables to the process
+>> git bisect bad 22310c209483224a64436a6e815a86feda681659
+>> # good: [19a41261b1dcd8d12372d9c57c2035144608a599] arm: define __PAGETABLE_PMD_FOLDED for !LPAE
+>> git bisect good 19a41261b1dcd8d12372d9c57c2035144608a599
+>> # first bad commit: [22310c209483224a64436a6e815a86feda681659] mm: account pmd page tables to the process
+>>
+>> ---
+>>
+>> qemu:microblaze generates warnings to the console.
+>>
+>> WARNING: CPU: 0 PID: 32 at mm/mmap.c:2858 exit_mmap+0x184/0x1a4()
+>>
+>> with various call stacks. See
+>> http://server.roeck-us.net:8010/builders/qemu-microblaze-mmotm/builds/15/steps/qemubuildcommand/logs/stdio
+>> for details.
 >
-> With b2052564e66d ("mm: memcontrol: continue cache reclaim from
-> offlined groups"), page cache can pin an old css and its ancestors
-> indefinitely, making that hang in a second mount() very likely.
+> Could you try patch below? Completely untested.
 >
-> However, swap entries have also been doing that for quite a while now,
-> and as Vladimir pointed out, the same is true for kernel memory.  This
-> latest change just makes this existing bug easier to trigger.
+>>From b584bb8d493794f67484c0b57c161d61c02599bc Mon Sep 17 00:00:00 2001
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Date: Fri, 23 Jan 2015 13:08:26 +0200
+> Subject: [PATCH] microblaze: define __PAGETABLE_PMD_FOLDED
 >
-> I think we have to update the lifetime rules to reflect reality here:
-> memory and swap lifetime is indefinite, so once the memory controller
-> is used, it has state that is independent from whether its mounted or
-> not.  We can support an identical remount, but have to fail mounting
-> with new parameters that would change the behavior of the controller.
+> Microblaze uses custom implementation of PMD folding, but doesn't define
+> __PAGETABLE_PMD_FOLDED, which generic code expects to see. Let's fix it.
 >
-> Suzuki, Will, could you give the following patch a shot?
+> Defining __PAGETABLE_PMD_FOLDED will drop out unused __pmd_alloc().
+> It also fixes problems with recently-introduced pmd accounting.
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Reported-by: Guenter Roeck <linux@roeck-us.net>
 
+Tested working.
 
->
-> Tejun, would that route be acceptable to you?
->
-> Thanks
->
-> ---
->  From c5e88d02d185c52748df664aa30a2c5f8949b0f7 Mon Sep 17 00:00:00 2001
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Date: Thu, 22 Jan 2015 08:16:31 -0500
-> Subject: [patch] kernel: cgroup: prevent mount hang due to memory control=
-ler
->   lifetime
->
+Tested-by: Guenter Roeck <linux@roeck-us.net>
 
->
-> Don't offline the controller root as long as there are any children,
-> dead or alive.  A remount will no longer wait for these old references
-> to drain, it will simply mount the persistent controller state again.
->
-> Reported-by: "Suzuki K. Poulose" <Suzuki.Poulose@arm.com>
-> Reported-by: Will Deacon <will.deacon@arm.com>
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-This one fixes the issue.
+Any idea how to fix the sh problem ?
 
-Tested-by : Suzuki K. Poulose <suzuki.poulose@arm.com>
-
-Thanks
-Suzuki
-
-
+Thanks,
+Guenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
