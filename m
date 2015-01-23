@@ -1,68 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 8ED156B0032
-	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 06:13:17 -0500 (EST)
-Received: by mail-wi0-f177.google.com with SMTP id r20so2017544wiv.4
-        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 03:13:17 -0800 (PST)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.227])
-        by mx.google.com with ESMTP id n1si1750215wix.100.2015.01.23.03.13.14
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 434AF6B0032
+	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 06:37:11 -0500 (EST)
+Received: by mail-wi0-f171.google.com with SMTP id l15so2171591wiw.4
+        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 03:37:10 -0800 (PST)
+Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.203])
+        by mx.google.com with ESMTP id hu10si2537401wjb.53.2015.01.23.03.37.09
         for <linux-mm@kvack.org>;
-        Fri, 23 Jan 2015 03:13:14 -0800 (PST)
-Date: Fri, 23 Jan 2015 13:13:04 +0200
+        Fri, 23 Jan 2015 03:37:09 -0800 (PST)
+Date: Fri, 23 Jan 2015 13:37:01 +0200
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: mmotm 2015-01-22-15-04: qemu failures due to 'mm: account pmd
- page tables to the process'
-Message-ID: <20150123111304.GA5975@node.dhcp.inet.fi>
-References: <54c1822d.RtdGfWPekQVAw8Ly%akpm@linux-foundation.org>
- <20150123050445.GA22751@roeck-us.net>
+Subject: Re: [PATCH] mm: incorporate read-only pages into transparent huge
+ pages
+Message-ID: <20150123113701.GB5975@node.dhcp.inet.fi>
+References: <1421999256-3881-1-git-send-email-ebru.akagunduz@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150123050445.GA22751@roeck-us.net>
+In-Reply-To: <1421999256-3881-1-git-send-email-ebru.akagunduz@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Guenter Roeck <linux@roeck-us.net>
-Cc: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@suse.cz, mgorman@suse.de, rientjes@google.com, sasha.levin@oracle.com, hughd@google.com, hannes@cmpxchg.org, vbabka@suse.cz, linux-kernel@vger.kernel.org, riel@redhat.com, aarcange@redhat.com
 
-On Thu, Jan 22, 2015 at 09:04:45PM -0800, Guenter Roeck wrote:
-> On Thu, Jan 22, 2015 at 03:05:17PM -0800, akpm@linux-foundation.org wrote:
-> > The mm-of-the-moment snapshot 2015-01-22-15-04 has been uploaded to
-> > 
-> >    http://www.ozlabs.org/~akpm/mmotm/
-> > 
-> qemu:sh fails to shut down.
+On Fri, Jan 23, 2015 at 09:47:36AM +0200, Ebru Akagunduz wrote:
+> This patch aims to improve THP collapse rates, by allowing
+> THP collapse in the presence of read-only ptes, like those
+> left in place by do_swap_page after a read fault.
 > 
-> bisect log:
+> Currently THP can collapse 4kB pages into a THP when
+> there are up to khugepaged_max_ptes_none pte_none ptes
+> in a 2MB range. This patch applies the same limit for
+> read-only ptes.
 > 
-> # bad: [03586ad04b2170ee816e6936981cc7cd2aeba129] pci: test for unexpectedly disabled bridges
-> # good: [ec6f34e5b552fb0a52e6aae1a5afbbb1605cc6cc] Linux 3.19-rc5
-> git bisect start 'HEAD' 'v3.19-rc5'
-> # bad: [d113ba21d15c7d3615fd88490d1197615bb39fc0] mm: remove lock validation check for MADV_FREE
-> git bisect bad d113ba21d15c7d3615fd88490d1197615bb39fc0
-> # good: [17351d1625a5030fa16f1346b77064c03b51f107] mm:add KPF_ZERO_PAGE flag for /proc/kpageflags
-> git bisect good 17351d1625a5030fa16f1346b77064c03b51f107
-> # good: [ad18ad1fce6f241a9cbd4adfd6b16c9283181e39] memcg: add BUILD_BUG_ON() for string tables
-> git bisect good ad18ad1fce6f241a9cbd4adfd6b16c9283181e39
-> # bad: [aa7e7cbfa43b74f6faef04ff730b5098544a4f77] mm/compaction: enhance tracepoint output for compaction begin/end
-> git bisect bad aa7e7cbfa43b74f6faef04ff730b5098544a4f77
-> # good: [a40d0d2cf21e2714e9a6c842085148c938bf36ab] mm: memcontrol: remove unnecessary soft limit tree node test
-> git bisect good a40d0d2cf21e2714e9a6c842085148c938bf36ab
-> # good: [4ec4aa2e07c1d6eee61f6cace29401c6febcb6c5] mm: make FIRST_USER_ADDRESS unsigned long on all archs
-> git bisect good 4ec4aa2e07c1d6eee61f6cace29401c6febcb6c5
-> # bad: [22310c209483224a64436a6e815a86feda681659] mm: account pmd page tables to the process
-> git bisect bad 22310c209483224a64436a6e815a86feda681659
-> # good: [19a41261b1dcd8d12372d9c57c2035144608a599] arm: define __PAGETABLE_PMD_FOLDED for !LPAE
-> git bisect good 19a41261b1dcd8d12372d9c57c2035144608a599
-> # first bad commit: [22310c209483224a64436a6e815a86feda681659] mm: account pmd page tables to the process
+> The patch was tested with a test program that allocates
+> 800MB of memory, writes to it, and then sleeps. I force
+> the system to swap out all but 190MB of the program by
+> touching other memory. Afterwards, the test program does
+> a mix of reads and writes to its memory, and the memory
+> gets swapped back in.
 > 
+> Without the patch, only the memory that did not get
+> swapped out remained in THPs, which corresponds to 24% of
+> the memory of the program. The percentage did not increase
+> over time.
+> 
+> With this patch, after 5 minutes of waiting khugepaged had
+> collapsed 55% of the program's memory back into THPs.
+> 
+> Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+> Reviewed-by: Rik van Riel <riel@redhat.com>
 > ---
+> I've written down test results:
 > 
-> qemu:microblaze generates warnings to the console.
+> With the patch:
+> After swapped out:
+> cat /proc/pid/smaps:
+> Anonymous:      100352 kB
+> AnonHugePages:  98304 kB
+> Swap:           699652 kB
+> Fraction:       97,95
 > 
-> WARNING: CPU: 0 PID: 32 at mm/mmap.c:2858 exit_mmap+0x184/0x1a4()
+> cat /proc/meminfo:
+> AnonPages:      1763732 kB
+> AnonHugePages:  1716224 kB
+> Fraction:       97,30
 > 
-> with various call stacks. See
-> http://server.roeck-us.net:8010/builders/qemu-microblaze-mmotm/builds/15/steps/qemubuildcommand/logs/stdio
-> for details.
+> After swapped in:
+> In a few seconds:
+> cat /proc/pid/smaps
+> Anonymous:      800004 kB
+> AnonHugePages:  235520 kB
+> Swap:           0 kB
+> Fraction:       29,43
+> 
+> cat /proc/meminfo:
+> AnonPages:      2464336 kB
+> AnonHugePages:  1853440 kB
+> Fraction:       75,21
+> 
+> In five minutes:
+> cat /proc/pid/smaps:
+> Anonymous:      800004 kB
+> AnonHugePages:  440320 kB
+> Swap:           0 kB
+> Fraction:       55,0
+> 
+> cat /proc/meminfo:
+> AnonPages:      2464340
+> AnonHugePages:  2058240
+> Fraction:       83,52
+> 
+> Without the patch:
+> After swapped out:
+> cat /proc/pid/smaps:
+> Anonymous:      190660 kB
+> AnonHugePages:  190464 kB
+> Swap:           609344 kB
+> Fraction:       99,89
+> 
+> cat /proc/meminfo:
+> AnonPages:      1740456 kB
+> AnonHugePages:  1667072 kB
+> Fraction:       95,78
+> 
+> After swapped in:
+> cat /proc/pid/smaps:
+> Anonymous:      800004 kB
+> AnonHugePages:  190464 kB
+> Swap:           0 kB
+> Fraction:       23,80
+> 
+> cat /proc/meminfo:
+> AnonPages:      2350032 kB
+> AnonHugePages:  1667072 kB
+> Fraction:       70,93
+> 
+> I waited 10 minutes the fractions
+> did not change without the patch.
+> 
+>  mm/huge_memory.c | 25 ++++++++++++++++++++-----
+>  1 file changed, 20 insertions(+), 5 deletions(-)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 817a875..af750d9 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -2158,7 +2158,7 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+>  			else
+>  				goto out;
+>  		}
+> -		if (!pte_present(pteval) || !pte_write(pteval))
+> +		if (!pte_present(pteval))
+>  			goto out;
+>  		page = vm_normal_page(vma, address, pteval);
+>  		if (unlikely(!page))
+> @@ -2169,7 +2169,7 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+>  		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
+>  
+>  		/* cannot use mapcount: can't collapse if there's a gup pin */
+> -		if (page_count(page) != 1)
+> +		if (page_count(page) != 1 + !!PageSwapCache(page))
+>  			goto out;
+>  		/*
+>  		 * We can do it before isolate_lru_page because the
+> @@ -2179,6 +2179,17 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+>  		 */
+>  		if (!trylock_page(page))
+>  			goto out;
+> +		if (!pte_write(pteval)) {
+> +			if (PageSwapCache(page) && !reuse_swap_page(page)) {
+> +					unlock_page(page);
+> +					goto out;
+> +			}
+> +			/*
+> +			 * Page is not in the swap cache, and page count is
+> +			 * one (see above). It can be collapsed into a THP.
+> +			 */
+> +		}
 
-Could you try patch below? Completely untested.
+Hm. As a side effect it will effectevely allow collapse in PROT_READ vmas,
+right? I'm not convinced it's a good idea.
+
+-- 
+ Kirill A. Shutemov
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
