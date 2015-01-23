@@ -1,197 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 792FA6B0032
-	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 02:49:29 -0500 (EST)
-Received: by mail-we0-f179.google.com with SMTP id q59so6005323wes.10
-        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 23:49:29 -0800 (PST)
-Received: from mail-wi0-x233.google.com (mail-wi0-x233.google.com. [2a00:1450:400c:c05::233])
-        by mx.google.com with ESMTPS id u1si883217wiy.37.2015.01.22.23.49.26
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D0E26B0032
+	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 03:03:47 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id eu11so7141664pac.2
+        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 00:03:45 -0800 (PST)
+Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
+        by mx.google.com with ESMTPS id ji2si1102706pbb.23.2015.01.23.00.03.44
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Jan 2015 23:49:28 -0800 (PST)
-Received: by mail-wi0-f179.google.com with SMTP id l15so889146wiw.0
-        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 23:49:26 -0800 (PST)
-From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Subject: [PATCH] mm: incorporate read-only pages into transparent huge pages
-Date: Fri, 23 Jan 2015 09:47:36 +0200
-Message-Id: <1421999256-3881-1-git-send-email-ebru.akagunduz@gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 23 Jan 2015 00:03:45 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH -mm 14/13] mm: pagewalk: fix misbehavior of walk_page_range
+ for vma(VM_PFNMAP) (Re: [PATCH -mm v7 02/13] pagewalk: improve vma handling)
+Date: Fri, 23 Jan 2015 08:02:15 +0000
+Message-ID: <20150123080204.GA2583@hori1.linux.bs1.fc.nec.co.jp>
+References: <1415343692-6314-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1415343692-6314-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20150122152205.39b7f8f451824b556c1a3f70@linux-foundation.org>
+In-Reply-To: <20150122152205.39b7f8f451824b556c1a3f70@linux-foundation.org>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <296B6BB5AA2BF14C9218EEF6C01931AB@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, kirill@shutemov.name, mhocko@suse.cz, mgorman@suse.de, rientjes@google.com, sasha.levin@oracle.com, hughd@google.com, hannes@cmpxchg.org, vbabka@suse.cz, linux-kernel@vger.kernel.org, riel@redhat.com, aarcange@redhat.com, Ebru Akagunduz <ebru.akagunduz@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Shiraz Hashim <shashim@codeaurora.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-This patch aims to improve THP collapse rates, by allowing
-THP collapse in the presence of read-only ptes, like those
-left in place by do_swap_page after a read fault.
+Hi Andrew,
 
-Currently THP can collapse 4kB pages into a THP when
-there are up to khugepaged_max_ptes_none pte_none ptes
-in a 2MB range. This patch applies the same limit for
-read-only ptes.
+On Thu, Jan 22, 2015 at 03:22:05PM -0800, Andrew Morton wrote:
+> On Fri, 7 Nov 2014 07:01:55 +0000 Naoya Horiguchi <n-horiguchi@ah.jp.nec.=
+com> wrote:
+>=20
+> > Current implementation of page table walker has a fundamental problem
+> > in vma handling, which started when we tried to handle vma(VM_HUGETLB).
+> > Because it's done in pgd loop, considering vma boundary makes code
+> > complicated and bug-prone.
+> >=20
+> > >From the users viewpoint, some user checks some vma-related condition =
+to
+> > determine whether the user really does page walk over the vma.
+> >=20
+> > In order to solve these, this patch moves vma check outside pgd loop an=
+d
+> > introduce a new callback ->test_walk().
+>=20
+> I had to revert
+> mm-pagewalk-call-pte_hole-for-vm_pfnmap-during-walk_page_range.patch.patc=
+h
+> to apply this.  Could you please work out how to reapply it after your
+> patch?
 
-The patch was tested with a test program that allocates
-800MB of memory, writes to it, and then sleeps. I force
-the system to swap out all but 190MB of the program by
-touching other memory. Afterwards, the test program does
-a mix of reads and writes to its memory, and the memory
-gets swapped back in.
+I revised Shiraz's patch on top of this series.
+My testing confirmed that both of the overrunning problem and "storing data
+in wrong index" problem are solved with it.
 
-Without the patch, only the memory that did not get
-swapped out remained in THPs, which corresponds to 24% of
-the memory of the program. The percentage did not increase
-over time.
-
-With this patch, after 5 minutes of waiting khugepaged had
-collapsed 55% of the program's memory back into THPs.
-
-Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Reviewed-by: Rik van Riel <riel@redhat.com>
+Thanks,
+Naoya Horiguchi
 ---
-I've written down test results:
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Date: Fri, 23 Jan 2015 16:58:12 +0900
+Subject: [PATCH] mm: pagewalk: fix misbehavior of walk_page_range for
+ vma(VM_PFNMAP)
 
-With the patch:
-After swapped out:
-cat /proc/pid/smaps:
-Anonymous:      100352 kB
-AnonHugePages:  98304 kB
-Swap:           699652 kB
-Fraction:       97,95
+walk_page_range() silently skips vma having VM_PFNMAP set, which leads to
+undesirable behaviour at client end (who called walk_page_range).  For
+example for pagemap_read(), when no callbacks are called against VM_PFNMAP
+vma, pagemap_read() may prepare pagemap data for next virtual address range
+at wrong index. That could confuse and/or break userspace applications.
 
-cat /proc/meminfo:
-AnonPages:      1763732 kB
-AnonHugePages:  1716224 kB
-Fraction:       97,30
+This patch avoid this misbehavior caused by vma(VM_PFNMAP) like follows:
+- for pagemap_read() which has its own ->pte_hole(), call the ->pte_hole()
+  over vma(VM_PFNMAP),
+- for clear_refs and queue_pages which have their own ->tests_walk,
+  just return 1 and skip vma(VM_PFNMAP). This is no problem because
+  these are not interested in hole regions,
+- for other callers, just skip the vma(VM_PFNMAP) as a default behavior.
 
-After swapped in:
-In a few seconds:
-cat /proc/pid/smaps
-Anonymous:      800004 kB
-AnonHugePages:  235520 kB
-Swap:           0 kB
-Fraction:       29,43
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Signed-off-by: Shiraz Hashim <shashim@codeaurora.org>
+---
+ fs/proc/task_mmu.c |  3 +++
+ mm/mempolicy.c     |  3 +++
+ mm/pagewalk.c      | 21 +++++++++++++--------
+ 3 files changed, 19 insertions(+), 8 deletions(-)
 
-cat /proc/meminfo:
-AnonPages:      2464336 kB
-AnonHugePages:  1853440 kB
-Fraction:       75,21
-
-In five minutes:
-cat /proc/pid/smaps:
-Anonymous:      800004 kB
-AnonHugePages:  440320 kB
-Swap:           0 kB
-Fraction:       55,0
-
-cat /proc/meminfo:
-AnonPages:      2464340
-AnonHugePages:  2058240
-Fraction:       83,52
-
-Without the patch:
-After swapped out:
-cat /proc/pid/smaps:
-Anonymous:      190660 kB
-AnonHugePages:  190464 kB
-Swap:           609344 kB
-Fraction:       99,89
-
-cat /proc/meminfo:
-AnonPages:      1740456 kB
-AnonHugePages:  1667072 kB
-Fraction:       95,78
-
-After swapped in:
-cat /proc/pid/smaps:
-Anonymous:      800004 kB
-AnonHugePages:  190464 kB
-Swap:           0 kB
-Fraction:       23,80
-
-cat /proc/meminfo:
-AnonPages:      2350032 kB
-AnonHugePages:  1667072 kB
-Fraction:       70,93
-
-I waited 10 minutes the fractions
-did not change without the patch.
-
- mm/huge_memory.c | 25 ++++++++++++++++++++-----
- 1 file changed, 20 insertions(+), 5 deletions(-)
-
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 817a875..af750d9 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2158,7 +2158,7 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
- 			else
- 				goto out;
- 		}
--		if (!pte_present(pteval) || !pte_write(pteval))
-+		if (!pte_present(pteval))
- 			goto out;
- 		page = vm_normal_page(vma, address, pteval);
- 		if (unlikely(!page))
-@@ -2169,7 +2169,7 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
- 		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
- 
- 		/* cannot use mapcount: can't collapse if there's a gup pin */
--		if (page_count(page) != 1)
-+		if (page_count(page) != 1 + !!PageSwapCache(page))
- 			goto out;
- 		/*
- 		 * We can do it before isolate_lru_page because the
-@@ -2179,6 +2179,17 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
- 		 */
- 		if (!trylock_page(page))
- 			goto out;
-+		if (!pte_write(pteval)) {
-+			if (PageSwapCache(page) && !reuse_swap_page(page)) {
-+					unlock_page(page);
-+					goto out;
-+			}
-+			/*
-+			 * Page is not in the swap cache, and page count is
-+			 * one (see above). It can be collapsed into a THP.
-+			 */
-+		}
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index dcee0ad53fae..91753dd283f0 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -844,6 +844,9 @@ static int clear_refs_test_walk(unsigned long start, un=
+signed long end,
+ 	struct clear_refs_private *cp =3D walk->private;
+ 	struct vm_area_struct *vma =3D walk->vma;
+=20
++	if (vma->vm_flags & VM_PFNMAP)
++		return 1;
 +
- 		/*
- 		 * Isolate the page to avoid collapsing an hugepage
- 		 * currently in use by the VM.
-@@ -2550,7 +2561,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
- {
- 	pmd_t *pmd;
- 	pte_t *pte, *_pte;
--	int ret = 0, referenced = 0, none = 0;
-+	int ret = 0, referenced = 0, none = 0, ro = 0;
- 	struct page *page;
- 	unsigned long _address;
- 	spinlock_t *ptl;
-@@ -2573,8 +2584,12 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
- 			else
- 				goto out_unmap;
- 		}
--		if (!pte_present(pteval) || !pte_write(pteval))
-+		if (!pte_present(pteval))
- 			goto out_unmap;
-+		if (!pte_write(pteval)) {
-+			if (++ro > khugepaged_max_ptes_none)
-+				goto out_unmap;
-+		}
- 		page = vm_normal_page(vma, _address, pteval);
- 		if (unlikely(!page))
- 			goto out_unmap;
-@@ -2592,7 +2607,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
- 		if (!PageLRU(page) || PageLocked(page) || !PageAnon(page))
- 			goto out_unmap;
- 		/* cannot use mapcount: can't collapse if there's a gup pin */
--		if (page_count(page) != 1)
-+		if (page_count(page) != 1 + !!PageSwapCache(page))
- 			goto out_unmap;
- 		if (pte_young(pteval) || PageReferenced(page) ||
- 		    mmu_notifier_test_young(vma->vm_mm, address))
--- 
-1.9.1
+ 	/*
+ 	 * Writing 1 to /proc/pid/clear_refs affects all pages.
+ 	 * Writing 2 to /proc/pid/clear_refs only affects anonymous pages.
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 326474de80bd..66e7141c2bfd 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -591,6 +591,9 @@ static int queue_pages_test_walk(unsigned long start, u=
+nsigned long end,
+ 	unsigned long endvma =3D vma->vm_end;
+ 	unsigned long flags =3D qp->flags;
+=20
++	if (vma->vm_flags & VM_PFNMAP)
++		return 1;
++
+ 	if (endvma > end)
+ 		endvma =3D end;
+ 	if (vma->vm_start > start)
+diff --git a/mm/pagewalk.c b/mm/pagewalk.c
+index 4c9a653ba563..75c1f2878519 100644
+--- a/mm/pagewalk.c
++++ b/mm/pagewalk.c
+@@ -35,7 +35,7 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr,=
+ unsigned long end,
+ 	do {
+ again:
+ 		next =3D pmd_addr_end(addr, end);
+-		if (pmd_none(*pmd)) {
++		if (pmd_none(*pmd) || !walk->vma) {
+ 			if (walk->pte_hole)
+ 				err =3D walk->pte_hole(addr, next, walk);
+ 			if (err)
+@@ -165,9 +165,6 @@ static int walk_hugetlb_range(unsigned long addr, unsig=
+ned long end,
+  * or skip it via the returned value. Return 0 if we do walk over the
+  * current vma, and return 1 if we skip the vma. Negative values means
+  * error, where we abort the current walk.
+- *
+- * Default check (only VM_PFNMAP check for now) is used when the caller
+- * doesn't define test_walk() callback.
+  */
+ static int walk_page_test(unsigned long start, unsigned long end,
+ 			struct mm_walk *walk)
+@@ -178,11 +175,19 @@ static int walk_page_test(unsigned long start, unsign=
+ed long end,
+ 		return walk->test_walk(start, end, walk);
+=20
+ 	/*
+-	 * Do not walk over vma(VM_PFNMAP), because we have no valid struct
+-	 * page backing a VM_PFNMAP range. See also commit a9ff785e4437.
++	 * vma(VM_PFNMAP) doesn't have any valid struct pages behind VM_PFNMAP
++	 * range, so we don't walk over it as we do for normal vmas. However,
++	 * Some callers are interested in handling hole range and they don't
++	 * want to just ignore any single address range. Such users certainly
++	 * define their ->pte_hole() callbacks, so let's delegate them to handle
++	 * vma(VM_PFNMAP).
+ 	 */
+-	if (vma->vm_flags & VM_PFNMAP)
+-		return 1;
++	if (vma->vm_flags & VM_PFNMAP) {
++		int err =3D 1;
++		if (walk->pte_hole)
++			err =3D walk->pte_hole(start, end, walk);
++		return err ? err : 1;
++	}
+ 	return 0;
+ }
+=20
+--=20
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
