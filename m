@@ -1,86 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EB656B0032
-	for <linux-mm@kvack.org>; Thu, 22 Jan 2015 23:24:56 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id eu11so6069212pac.2
-        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 20:24:56 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id kv14si551865pab.28.2015.01.22.20.24.54
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id A7C8B6B0032
+	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 00:04:55 -0500 (EST)
+Received: by mail-ob0-f169.google.com with SMTP id va8so80612obc.0
+        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 21:04:55 -0800 (PST)
+Received: from bh-25.webhostbox.net (bh-25.webhostbox.net. [208.91.199.152])
+        by mx.google.com with ESMTPS id pg8si249570oeb.29.2015.01.22.21.04.54
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Jan 2015 20:24:55 -0800 (PST)
-Message-ID: <1421987091.24984.13.camel@ellerman.id.au>
-Subject: Re: [PATCH 2/2] mm: fix undefined reference to `.kernel_map_pages'
- on PPC builds
-From: Michael Ellerman <mpe@ellerman.id.au>
-Date: Fri, 23 Jan 2015 15:24:51 +1100
-In-Reply-To: <20150122212017.4b7032d52a6c75c06d5b4728@freescale.com>
-References: <20150120140200.aa7ba0eb28d95e456972e178@freescale.com>
-	 <20150120230150.GA14475@cloud>
-	 <20150120160738.edfe64806cc8b943beb1dfa0@linux-foundation.org>
-	 <CAC5umyieZn7ppXkKb45O=C=BF+iv6R_A1Dwfhro=cBJzFeovrA@mail.gmail.com>
-	 <20150122014550.GA21444@js1304-P5Q-DELUXE>
-	 <20150122144147.019eedc41f189eac44c3c4cd@freescale.com>
-	 <CAC5umyiF52cykH2_5TD0yzXb+842gywpe-+XZHEwmrDe0nYCPw@mail.gmail.com>
-	 <20150122212017.4b7032d52a6c75c06d5b4728@freescale.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 22 Jan 2015 21:04:54 -0800 (PST)
+Received: from mailnull by bh-25.webhostbox.net with sa-checked (Exim 4.82)
+	(envelope-from <linux@roeck-us.net>)
+	id 1YEWQQ-002DH8-Gq
+	for linux-mm@kvack.org; Fri, 23 Jan 2015 05:04:54 +0000
+Date: Thu, 22 Jan 2015 21:04:45 -0800
+From: Guenter Roeck <linux@roeck-us.net>
+Subject: mmotm 2015-01-22-15-04: qemu failures due to 'mm: account pmd page
+ tables to the process'
+Message-ID: <20150123050445.GA22751@roeck-us.net>
+References: <54c1822d.RtdGfWPekQVAw8Ly%akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <54c1822d.RtdGfWPekQVAw8Ly%akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kim Phillips <kim.phillips@freescale.com>
-Cc: Akinobu Mita <akinobu.mita@gmail.com>, Konstantin Khlebnikov <k.khlebnikov@samsung.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, josh@joshtriplett.org, LKML <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@fb.com>, Minchan Kim <minchan@kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Sasha Levin <sasha.levin@oracle.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, Andrew Morton <akpm@linux-foundation.org>
+To: akpm@linux-foundation.org
+Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Thu, 2015-01-22 at 21:20 -0600, Kim Phillips wrote:
-> On Fri, 23 Jan 2015 08:49:36 +0900
-> Akinobu Mita <akinobu.mita@gmail.com> wrote:
+On Thu, Jan 22, 2015 at 03:05:17PM -0800, akpm@linux-foundation.org wrote:
+> The mm-of-the-moment snapshot 2015-01-22-15-04 has been uploaded to
 > 
-> > 2015-01-23 5:41 GMT+09:00 Kim Phillips <kim.phillips@freescale.com>:
-> > > Thanks. Now I get this:
-> > >
-> > >   LD      init/built-in.o
-> > > mm/built-in.o: In function `kernel_map_pages':
-> > > include/linux/mm.h:2076: undefined reference to `.__kernel_map_pages'
-> > > include/linux/mm.h:2076: undefined reference to `.__kernel_map_pages'
-> > > include/linux/mm.h:2076: undefined reference to `.__kernel_map_pages'
-> > > Makefile:925: recipe for target 'vmlinux' failed
-> > > make: *** [vmlinux] Error 1
-> > >
-> > > but, AFAICT, that's not because this patch is invalid: it's because
-> > > __kernel_map_pages() isn't implemented in
-> > > arch/powerpc/mm/pgtable_64.c, i.e., for non-PPC_STD_MMU_64 PPC64
-> > > machines.
-> > 
-> > Then, in order to use generic __kernel_map_pages() in mm/debug-pagealloc.c,
-> > CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC shouldn't be selected in
-> > arch/powerpc/Kconfig, when CONFIG_PPC_STD_MMU_64 isn't defined.
+>    http://www.ozlabs.org/~akpm/mmotm/
 > 
-> Thanks.  I'm still build-testing this now:
-> 
-> From 082911ee947246ff962ef21863c45ec467455c40 Mon Sep 17 00:00:00 2001
-> From: Kim Phillips <kim.phillips@freescale.com>
-> Date: Thu, 22 Jan 2015 20:42:40 -0600
-> Subject: [PATCH v2] mm: fix undefined reference to  `.__kernel_map_pages' on FSL
->  PPC64
-> 
-> arch/powerpc has __kernel_map_pages implementations in mm/pgtable_32.c, and
-> mm/hash_utils_64.c, of which the former is built for PPC32, and the latter
-> PPC64's without PPC_STD_MMU.
+qemu:sh fails to shut down.
 
-That last part is wrong.
+bisect log:
 
-hash_utils_64.c is built for CONFIG_PPC_STD_MMU_64, which is:
+# bad: [03586ad04b2170ee816e6936981cc7cd2aeba129] pci: test for unexpectedly disabled bridges
+# good: [ec6f34e5b552fb0a52e6aae1a5afbbb1605cc6cc] Linux 3.19-rc5
+git bisect start 'HEAD' 'v3.19-rc5'
+# bad: [d113ba21d15c7d3615fd88490d1197615bb39fc0] mm: remove lock validation check for MADV_FREE
+git bisect bad d113ba21d15c7d3615fd88490d1197615bb39fc0
+# good: [17351d1625a5030fa16f1346b77064c03b51f107] mm:add KPF_ZERO_PAGE flag for /proc/kpageflags
+git bisect good 17351d1625a5030fa16f1346b77064c03b51f107
+# good: [ad18ad1fce6f241a9cbd4adfd6b16c9283181e39] memcg: add BUILD_BUG_ON() for string tables
+git bisect good ad18ad1fce6f241a9cbd4adfd6b16c9283181e39
+# bad: [aa7e7cbfa43b74f6faef04ff730b5098544a4f77] mm/compaction: enhance tracepoint output for compaction begin/end
+git bisect bad aa7e7cbfa43b74f6faef04ff730b5098544a4f77
+# good: [a40d0d2cf21e2714e9a6c842085148c938bf36ab] mm: memcontrol: remove unnecessary soft limit tree node test
+git bisect good a40d0d2cf21e2714e9a6c842085148c938bf36ab
+# good: [4ec4aa2e07c1d6eee61f6cace29401c6febcb6c5] mm: make FIRST_USER_ADDRESS unsigned long on all archs
+git bisect good 4ec4aa2e07c1d6eee61f6cace29401c6febcb6c5
+# bad: [22310c209483224a64436a6e815a86feda681659] mm: account pmd page tables to the process
+git bisect bad 22310c209483224a64436a6e815a86feda681659
+# good: [19a41261b1dcd8d12372d9c57c2035144608a599] arm: define __PAGETABLE_PMD_FOLDED for !LPAE
+git bisect good 19a41261b1dcd8d12372d9c57c2035144608a599
+# first bad commit: [22310c209483224a64436a6e815a86feda681659] mm: account pmd page tables to the process
 
-config PPC_STD_MMU_64
-	def_bool y
-	depends on PPC_STD_MMU && PPC64
+---
 
-The problem is when you have PPC64 && !PPC_STD_MMU.
+qemu:microblaze generates warnings to the console.
 
-cheers
+WARNING: CPU: 0 PID: 32 at mm/mmap.c:2858 exit_mmap+0x184/0x1a4()
 
+with various call stacks. See
+http://server.roeck-us.net:8010/builders/qemu-microblaze-mmotm/builds/15/steps/qemubuildcommand/logs/stdio
+for details.
 
+bisect log:
 
+# bad: [03586ad04b2170ee816e6936981cc7cd2aeba129] pci: test for unexpectedly disabled bridges
+# good: [ec6f34e5b552fb0a52e6aae1a5afbbb1605cc6cc] Linux 3.19-rc5
+git bisect start 'HEAD' 'v3.19-rc5'
+# bad: [d113ba21d15c7d3615fd88490d1197615bb39fc0] mm: remove lock validation check for MADV_FREE
+git bisect bad d113ba21d15c7d3615fd88490d1197615bb39fc0
+# good: [17351d1625a5030fa16f1346b77064c03b51f107] mm:add KPF_ZERO_PAGE flag for /proc/kpageflags
+git bisect good 17351d1625a5030fa16f1346b77064c03b51f107
+# good: [ad18ad1fce6f241a9cbd4adfd6b16c9283181e39] memcg: add BUILD_BUG_ON() for string tables
+git bisect good ad18ad1fce6f241a9cbd4adfd6b16c9283181e39
+# bad: [aa7e7cbfa43b74f6faef04ff730b5098544a4f77] mm/compaction: enhance tracepoint output for compaction begin/end
+git bisect bad aa7e7cbfa43b74f6faef04ff730b5098544a4f77
+# good: [a40d0d2cf21e2714e9a6c842085148c938bf36ab] mm: memcontrol: remove unnecessary soft limit tree node test
+git bisect good a40d0d2cf21e2714e9a6c842085148c938bf36ab
+# good: [4ec4aa2e07c1d6eee61f6cace29401c6febcb6c5] mm: make FIRST_USER_ADDRESS unsigned long on all archs
+git bisect good 4ec4aa2e07c1d6eee61f6cace29401c6febcb6c5
+# bad: [22310c209483224a64436a6e815a86feda681659] mm: account pmd page tables to the process
+git bisect bad 22310c209483224a64436a6e815a86feda681659
+# good: [19a41261b1dcd8d12372d9c57c2035144608a599] arm: define __PAGETABLE_PMD_FOLDED for !LPAE
+git bisect good 19a41261b1dcd8d12372d9c57c2035144608a599
+# first bad commit: [22310c209483224a64436a6e815a86feda681659] mm: account pmd page tables to the process
+
+If there is anything I can do to help debugging, please let me know.
+
+Guenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
