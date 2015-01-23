@@ -1,50 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 85F7F6B006C
-	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 07:51:15 -0500 (EST)
-Received: by mail-we0-f176.google.com with SMTP id w62so7392623wes.7
-        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 04:51:15 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id da6si2833735wjb.92.2015.01.23.04.51.12
+Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 3850D6B0032
+	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 08:07:55 -0500 (EST)
+Received: by mail-lb0-f175.google.com with SMTP id 10so5721268lbg.6
+        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 05:07:54 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id bw9si2962189wjc.74.2015.01.23.05.07.52
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 23 Jan 2015 04:51:13 -0800 (PST)
-Message-ID: <54C243B8.7050103@suse.cz>
-Date: Fri, 23 Jan 2015 13:51:04 +0100
-From: Michal Marek <mmarek@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Jan 2015 05:07:53 -0800 (PST)
+Message-ID: <54C2479A.3080307@redhat.com>
+Date: Fri, 23 Jan 2015 14:07:38 +0100
+From: Jerome Marchand <jmarchan@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v9 01/17] Add kernel address sanitizer infrastructure.
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com> <1421859105-25253-1-git-send-email-a.ryabinin@samsung.com> <1421859105-25253-2-git-send-email-a.ryabinin@samsung.com> <54C23FFB.5010800@suse.cz> <54C24321.5010205@samsung.com>
-In-Reply-To: <54C24321.5010205@samsung.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH 1/2] zram: free meta out of init_lock
+References: <1421992707-32658-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <1421992707-32658-1-git-send-email-minchan@kernel.org>
+Content-Type: multipart/signed; micalg=pgp-sha1;
+ protocol="application/pgp-signature";
+ boundary="pDPdHvHteOPovA7cqvEq4NPjlCUs6Glgm"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <a.ryabinin@samsung.com>, linux-kernel@vger.kernel.org
-Cc: Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, x86@kernel.org, linux-mm@kvack.org, Jonathan Corbet <corbet@lwn.net>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, open@kvack.org, list@kvack.org, DOCUMENTATION <linux-doc@vger.kernel.org>, "open list:KERNEL BUILD + fi..." <linux-kbuild@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On 2015-01-23 13:48, Andrey Ryabinin wrote:
-> On 01/23/2015 03:35 PM, Michal Marek wrote:
->> On 2015-01-21 17:51, Andrey Ryabinin wrote:
->>> +ifdef CONFIG_KASAN_INLINE
->>> +	call_threshold := 10000
->>> +else
->>> +	call_threshold := 0
->>> +endif
->>
->> Can you please move this to a Kconfig helper like you did with
->> CONFIG_KASAN_SHADOW_OFFSET? Despite occasional efforts to reduce the
->> size of the main Makefile, it has been growing over time. With this
->> patch set, we are approaching 2.6.28's record of 1669 lines.
->>
-> 
-> How about moving the whole kasan stuff into scripts/Makefile.kasan
-> and just include it in generic Makefile?
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--pDPdHvHteOPovA7cqvEq4NPjlCUs6Glgm
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: quoted-printable
 
-That would be even better!
+On 01/23/2015 06:58 AM, Minchan Kim wrote:
+> We don't need to call zram_meta_free, zcomp_destroy and zs_free
+> under init_lock. What we need to prevent race with init_lock
+> in reset is setting NULL into zram->meta (ie, init_done).
+> This patch does it.
+>=20
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 
-Thanks,
-Michal
+Acked-by: Jerome Marchand <jmarchan@redhat.com>
+
+On a side note, when zram->meta replaced init_done, no comment was
+added in zram structure to explain that. Things could be made more
+explicit.
+
+---
+Subject: [PATCH] zram: explicitely state that zram->meta is used to deter=
+mine
+ the init state
+
+zram->meta is used to determine the initialization state of a zram struct=
+ure.
+This patch adds a comment to zram structure to make this clear.
+
+Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
+---
+ drivers/block/zram/zram_drv.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.=
+h
+index b05a816..551569a 100644
+--- a/drivers/block/zram/zram_drv.h
++++ b/drivers/block/zram/zram_drv.h
+@@ -99,7 +99,7 @@ struct zram_meta {
+ };
+=20
+ struct zram {
+-	struct zram_meta *meta;
++	struct zram_meta *meta;	/* also used to determine the init state */
+ 	struct request_queue *queue;
+ 	struct gendisk *disk;
+ 	struct zcomp *comp;
+--=20
+1.9.3
+
+
+--pDPdHvHteOPovA7cqvEq4NPjlCUs6Glgm
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQEcBAEBAgAGBQJUwkeaAAoJEHTzHJCtsuoCydsH/A5GbUNu7fbCyxXJBma0Edma
+/S2z+15ch/htCY1euoL2zenPePk/HjlEYYKz8d57HwmeE8ajE47aYwX/Bdk8s2ZN
+RcBKu3KCZRXxTz11IAS1pCCLL0Uk+OcPlv+O7gl3XlwFw1z+275poWp1gDWrEXzi
+yu0cqD65xLcwA7jnmwYXjjh4bY08+KCxSUKsUJYFleeEvAp4mU5cDWBkPU+ytMGc
+Pg9gqzSVChIlE/4A7AAXBoiqRWJXthZrTuC6oQcKCB/AMQ71xg0gvdo0sUG77Mm2
+xSzveZVLnu40bXuqUyLckYbPBky30LeHfi6n9ZWySjH118k1WEyNPmaIjP/oBEs=
+=YhRf
+-----END PGP SIGNATURE-----
+
+--pDPdHvHteOPovA7cqvEq4NPjlCUs6Glgm--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
