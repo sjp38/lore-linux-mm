@@ -1,60 +1,226 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B4526B0032
-	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 11:03:42 -0500 (EST)
-Received: by mail-wg0-f49.google.com with SMTP id k14so3893707wgh.8
-        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 08:03:41 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id hh5si3270948wib.88.2015.01.23.08.03.40
+Received: from mail-we0-f175.google.com (mail-we0-f175.google.com [74.125.82.175])
+	by kanga.kvack.org (Postfix) with ESMTP id E64C26B0032
+	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 11:13:01 -0500 (EST)
+Received: by mail-we0-f175.google.com with SMTP id p10so4903946wes.6
+        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 08:13:01 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id cv8si3930757wjc.78.2015.01.23.08.12.59
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Jan 2015 08:03:40 -0800 (PST)
-Date: Fri, 23 Jan 2015 11:03:35 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: mmotm 2015-01-22-15-04: qemu failure due to 'mm: memcontrol:
- remove unnecessary soft limit tree node test'
-Message-ID: <20150123160335.GB32592@phnom.home.cmpxchg.org>
-References: <54c1822d.RtdGfWPekQVAw8Ly%akpm@linux-foundation.org>
- <20150123050802.GB22751@roeck-us.net>
- <20150123141817.GA22926@phnom.home.cmpxchg.org>
- <54C26CE3.2060001@roeck-us.net>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 23 Jan 2015 08:13:00 -0800 (PST)
+Message-ID: <54C2730A.8040601@suse.cz>
+Date: Fri, 23 Jan 2015 17:12:58 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <54C26CE3.2060001@roeck-us.net>
+Subject: Re: [PATCH] mm: incorporate read-only pages into transparent huge
+ pages
+References: <1421999256-3881-1-git-send-email-ebru.akagunduz@gmail.com>
+In-Reply-To: <1421999256-3881-1-git-send-email-ebru.akagunduz@gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Guenter Roeck <linux@roeck-us.net>
-Cc: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, cl@linux.com
+To: Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, kirill@shutemov.name, mhocko@suse.cz, mgorman@suse.de, rientjes@google.com, sasha.levin@oracle.com, hughd@google.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, riel@redhat.com, aarcange@redhat.com
 
-On Fri, Jan 23, 2015 at 07:46:43AM -0800, Guenter Roeck wrote:
-> I added some debugging. First, the problem is only seen with SMP disabled.
-> Second, there is only one online node.
-> 
-> Without your patch:
-> 
-> Node 0 online 1 high 1 memory 1 cpu 0 normal 1 tmp 0 rtpn c00000003d240600
-> Node 1 online 0 high 0 memory 0 cpu 0 normal 0 tmp -1 rtpn c00000003d240640
-> Node 2 online 0 high 0 memory 0 cpu 0 normal 0 tmp -1 rtpn c00000003d240680
-> 
-> [ and so on up to node 255 ]
-> 
-> With your patch:
-> 
-> Node 0 online 1 high 1 memory 1 cpu 0 normal 1 rtpn c00000003d240600
-> Unable to handle kernel paging request for data at address 0x0000af50
-> Faulting instruction address: 0xc000000000895a3c
-> Oops: Kernel access of bad area, sig: 11 [#1]
-> 
-> The log message is after the call to kzalloc_node.
-> 
-> So it doesn't look like the fallback is working, at least not with ppc64
-> in non-SMP mode.
+On 01/23/2015 08:47 AM, Ebru Akagunduz wrote:
+> This patch aims to improve THP collapse rates, by allowing
+> THP collapse in the presence of read-only ptes, like those
+> left in place by do_swap_page after a read fault.
 
-Yep, and Christoph confirmed that it's not meant to work like that.
-The patch is flawed.
+An other examples? What about zero pages?
 
-Thanks for testing and sorry for breaking your setup.
+> Currently THP can collapse 4kB pages into a THP when
+> there are up to khugepaged_max_ptes_none pte_none ptes
+> in a 2MB range. This patch applies the same limit for
+> read-only ptes.
+>
+> The patch was tested with a test program that allocates
+> 800MB of memory, writes to it, and then sleeps. I force
+> the system to swap out all but 190MB of the program by
+> touching other memory. Afterwards, the test program does
+> a mix of reads and writes to its memory, and the memory
+> gets swapped back in.
+>
+> Without the patch, only the memory that did not get
+> swapped out remained in THPs, which corresponds to 24% of
+> the memory of the program. The percentage did not increase
+> over time.
+>
+> With this patch, after 5 minutes of waiting khugepaged had
+> collapsed 55% of the program's memory back into THPs.
+>
+> Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+> Reviewed-by: Rik van Riel <riel@redhat.com>
+
+Sounds like a good idea.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+nits below:
+
+> ---
+> I've written down test results:
+>
+> With the patch:
+> After swapped out:
+> cat /proc/pid/smaps:
+> Anonymous:      100352 kB
+> AnonHugePages:  98304 kB
+> Swap:           699652 kB
+> Fraction:       97,95
+>
+> cat /proc/meminfo:
+> AnonPages:      1763732 kB
+> AnonHugePages:  1716224 kB
+> Fraction:       97,30
+>
+> After swapped in:
+> In a few seconds:
+> cat /proc/pid/smaps
+> Anonymous:      800004 kB
+> AnonHugePages:  235520 kB
+> Swap:           0 kB
+> Fraction:       29,43
+>
+> cat /proc/meminfo:
+> AnonPages:      2464336 kB
+> AnonHugePages:  1853440 kB
+> Fraction:       75,21
+>
+> In five minutes:
+> cat /proc/pid/smaps:
+> Anonymous:      800004 kB
+> AnonHugePages:  440320 kB
+> Swap:           0 kB
+> Fraction:       55,0
+>
+> cat /proc/meminfo:
+> AnonPages:      2464340
+> AnonHugePages:  2058240
+> Fraction:       83,52
+>
+> Without the patch:
+> After swapped out:
+> cat /proc/pid/smaps:
+> Anonymous:      190660 kB
+> AnonHugePages:  190464 kB
+> Swap:           609344 kB
+> Fraction:       99,89
+>
+> cat /proc/meminfo:
+> AnonPages:      1740456 kB
+> AnonHugePages:  1667072 kB
+> Fraction:       95,78
+>
+> After swapped in:
+> cat /proc/pid/smaps:
+> Anonymous:      800004 kB
+> AnonHugePages:  190464 kB
+> Swap:           0 kB
+> Fraction:       23,80
+>
+> cat /proc/meminfo:
+> AnonPages:      2350032 kB
+> AnonHugePages:  1667072 kB
+> Fraction:       70,93
+>
+> I waited 10 minutes the fractions
+> did not change without the patch.
+>
+>   mm/huge_memory.c | 25 ++++++++++++++++++++-----
+>   1 file changed, 20 insertions(+), 5 deletions(-)
+>
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 817a875..af750d9 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -2158,7 +2158,7 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+>   			else
+>   				goto out;
+>   		}
+> -		if (!pte_present(pteval) || !pte_write(pteval))
+> +		if (!pte_present(pteval))
+>   			goto out;
+>   		page = vm_normal_page(vma, address, pteval);
+>   		if (unlikely(!page))
+> @@ -2169,7 +2169,7 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+>   		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
+>
+>   		/* cannot use mapcount: can't collapse if there's a gup pin */
+> -		if (page_count(page) != 1)
+> +		if (page_count(page) != 1 + !!PageSwapCache(page))
+
+Took me a while to grok this !!PageSwapCache(page) part. Perhaps expand 
+the comment?
+
+>   			goto out;
+>   		/*
+>   		 * We can do it before isolate_lru_page because the
+> @@ -2179,6 +2179,17 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+>   		 */
+>   		if (!trylock_page(page))
+>   			goto out;
+> +		if (!pte_write(pteval)) {
+> +			if (PageSwapCache(page) && !reuse_swap_page(page)) {
+> +					unlock_page(page);
+> +					goto out;
+
+Too much indent on the 2 lines above.
+
+> +			}
+> +			/*
+> +			 * Page is not in the swap cache, and page count is
+> +			 * one (see above). It can be collapsed into a THP.
+> +			 */
+
+Such comment sounds like a good place for:
+
+			VM_BUG_ON(page_count(page) != 1));
+
+> +		}
+> +
+>   		/*
+>   		 * Isolate the page to avoid collapsing an hugepage
+>   		 * currently in use by the VM.
+> @@ -2550,7 +2561,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+>   {
+>   	pmd_t *pmd;
+>   	pte_t *pte, *_pte;
+> -	int ret = 0, referenced = 0, none = 0;
+> +	int ret = 0, referenced = 0, none = 0, ro = 0;
+>   	struct page *page;
+>   	unsigned long _address;
+>   	spinlock_t *ptl;
+> @@ -2573,8 +2584,12 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+>   			else
+>   				goto out_unmap;
+>   		}
+> -		if (!pte_present(pteval) || !pte_write(pteval))
+> +		if (!pte_present(pteval))
+>   			goto out_unmap;
+> +		if (!pte_write(pteval)) {
+> +			if (++ro > khugepaged_max_ptes_none)
+> +				goto out_unmap;
+> +		}
+>   		page = vm_normal_page(vma, _address, pteval);
+>   		if (unlikely(!page))
+>   			goto out_unmap;
+> @@ -2592,7 +2607,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+>   		if (!PageLRU(page) || PageLocked(page) || !PageAnon(page))
+>   			goto out_unmap;
+>   		/* cannot use mapcount: can't collapse if there's a gup pin */
+> -		if (page_count(page) != 1)
+> +		if (page_count(page) != 1 + !!PageSwapCache(page))
+
+Same as above. Even more so, as there's no other page swap cache 
+handling code in this function.
+
+Thanks.
+
+>   			goto out_unmap;
+>   		if (pte_young(pteval) || PageReferenced(page) ||
+>   		    mmu_notifier_test_young(vma->vm_mm, address))
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
