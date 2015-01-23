@@ -1,98 +1,266 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 3850D6B0032
-	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 08:07:55 -0500 (EST)
-Received: by mail-lb0-f175.google.com with SMTP id 10so5721268lbg.6
-        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 05:07:54 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id bw9si2962189wjc.74.2015.01.23.05.07.52
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FCBE6B0032
+	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 08:15:22 -0500 (EST)
+Received: by mail-wi0-f170.google.com with SMTP id em10so2874937wid.1
+        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 05:15:21 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ck2si2868812wjc.147.2015.01.23.05.15.19
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Jan 2015 05:07:53 -0800 (PST)
-Message-ID: <54C2479A.3080307@redhat.com>
-Date: Fri, 23 Jan 2015 14:07:38 +0100
-From: Jerome Marchand <jmarchan@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] zram: free meta out of init_lock
-References: <1421992707-32658-1-git-send-email-minchan@kernel.org>
-In-Reply-To: <1421992707-32658-1-git-send-email-minchan@kernel.org>
-Content-Type: multipart/signed; micalg=pgp-sha1;
- protocol="application/pgp-signature";
- boundary="pDPdHvHteOPovA7cqvEq4NPjlCUs6Glgm"
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 23 Jan 2015 05:15:20 -0800 (PST)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH v3 0/3] page stealing tweaks
+Date: Fri, 23 Jan 2015 14:15:03 +0100
+Message-Id: <1422018906-8880-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---pDPdHvHteOPovA7cqvEq4NPjlCUs6Glgm
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+Changes since v2:
+o No functional changes
+o Rebased to 3.19-rc5 (but there were no real context changes)
+o Tested with 3.19-rc4 and my last compaction series [1], which is however
+  not meant as a prerequisity. It just stabilizes the benchmark results,
+  especially for non-restart iterations 2+, and makes evaluation easier.
+  I consider these patches ready as they are for current tree.
 
-On 01/23/2015 06:58 AM, Minchan Kim wrote:
-> We don't need to call zram_meta_free, zcomp_destroy and zs_free
-> under init_lock. What we need to prevent race with init_lock
-> in reset is setting NULL into zram->meta (ie, init_done).
-> This patch does it.
->=20
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
+When studying page stealing, I noticed some weird looking decisions in
+try_to_steal_freepages(). The first I assume is a bug (Patch 1), the following
+two patches were driven by evaluation.
 
-Acked-by: Jerome Marchand <jmarchan@redhat.com>
+Testing was done with stress-highalloc of mmtests, using the
+mm_page_alloc_extfrag tracepoint and postprocessing to get counts of how often
+page stealing occurs for individual migratetypes, and what migratetypes are
+used for fallbacks. Arguably, the worst case of page stealing is when
+UNMOVABLE allocation steals from MOVABLE pageblock. RECLAIMABLE allocation
+stealing from MOVABLE allocation is also not ideal, so the goal is to minimize
+these two cases.
 
-On a side note, when zram->meta replaced init_done, no comment was
-added in zram structure to explain that. Things could be made more
-explicit.
+The evaluation of v2 wasn't always clear win and Joonsoo questioned the
+results. Here I used different baseline which includes RFC compaction
+improvements from [1]. I found that the compaction improvements reduce
+variability of stress-highalloc, so there's less noise in the data.
 
----
-Subject: [PATCH] zram: explicitely state that zram->meta is used to deter=
-mine
- the init state
-
-zram->meta is used to determine the initialization state of a zram struct=
-ure.
-This patch adds a comment to zram structure to make this clear.
-
-Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
----
- drivers/block/zram/zram_drv.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.=
-h
-index b05a816..551569a 100644
---- a/drivers/block/zram/zram_drv.h
-+++ b/drivers/block/zram/zram_drv.h
-@@ -99,7 +99,7 @@ struct zram_meta {
- };
-=20
- struct zram {
--	struct zram_meta *meta;
-+	struct zram_meta *meta;	/* also used to determine the init state */
- 	struct request_queue *queue;
- 	struct gendisk *disk;
- 	struct zcomp *comp;
---=20
-1.9.3
+First, let's look at stress-highalloc configured to do sync compaction, and
+how these patches reduce page stealing events during the test. First column is
+after fresh reboot, other two are reiterations of test without reboot. That
+was all accumulater over 5 re-iterations (so the benchmark was run 5x3 times
+with 5 fresh restarts).
 
 
---pDPdHvHteOPovA7cqvEq4NPjlCUs6Glgm
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
+Baseline:
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
+                                                   3.19-rc4        3.19-rc4        3.19-rc4
+                                                  5-nothp-1       5-nothp-2       5-nothp-3
+Page alloc extfrag event                               10264225     8702233    10244125
+Extfrag fragmenting                                    10263271     8701552    10243473
+Extfrag fragmenting for unmovable                         13595       17616       15960
+Extfrag fragmenting unmovable placed with movable          7989       12193        8447
+Extfrag fragmenting for reclaimable                         658        1840        1817
+Extfrag fragmenting reclaimable placed with movable         558        1677        1679
+Extfrag fragmenting for movable                        10249018     8682096    10225696
 
-iQEcBAEBAgAGBQJUwkeaAAoJEHTzHJCtsuoCydsH/A5GbUNu7fbCyxXJBma0Edma
-/S2z+15ch/htCY1euoL2zenPePk/HjlEYYKz8d57HwmeE8ajE47aYwX/Bdk8s2ZN
-RcBKu3KCZRXxTz11IAS1pCCLL0Uk+OcPlv+O7gl3XlwFw1z+275poWp1gDWrEXzi
-yu0cqD65xLcwA7jnmwYXjjh4bY08+KCxSUKsUJYFleeEvAp4mU5cDWBkPU+ytMGc
-Pg9gqzSVChIlE/4A7AAXBoiqRWJXthZrTuC6oQcKCB/AMQ71xg0gvdo0sUG77Mm2
-xSzveZVLnu40bXuqUyLckYbPBky30LeHfi6n9ZWySjH118k1WEyNPmaIjP/oBEs=
-=YhRf
------END PGP SIGNATURE-----
 
---pDPdHvHteOPovA7cqvEq4NPjlCUs6Glgm--
+With Patch 1:
+                                                   3.19-rc4        3.19-rc4        3.19-rc4
+                                                  6-nothp-1       6-nothp-2       6-nothp-3
+Page alloc extfrag event                               11834954     9877523     9774860
+Extfrag fragmenting                                    11833993     9876880     9774245
+Extfrag fragmenting for unmovable                          7342       16129       11712
+Extfrag fragmenting unmovable placed with movable          4191       10547        6270
+Extfrag fragmenting for reclaimable                         373        1130         923
+Extfrag fragmenting reclaimable placed with movable         302         906         738
+Extfrag fragmenting for movable                        11826278     9859621     9761610
+
+With Patch 2:
+                                                   3.19-rc4        3.19-rc4        3.19-rc4
+                                                  7-nothp-1       7-nothp-2       7-nothp-3
+Page alloc extfrag event                                4725990     3668793     3807436
+Extfrag fragmenting                                     4725104     3668252     3806898
+Extfrag fragmenting for unmovable                          6678        7974        7281
+Extfrag fragmenting unmovable placed with movable          2051        3829        4017
+Extfrag fragmenting for reclaimable                         429        1208        1278
+Extfrag fragmenting reclaimable placed with movable         369         976        1034
+Extfrag fragmenting for movable                         4717997     3659070     3798339
+
+
+With Patch 3:
+                                                   3.19-rc4        3.19-rc4        3.19-rc4
+                                                  8-nothp-1       8-nothp-2       8-nothp-3
+Page alloc extfrag event                                5016183     4700142     3850633
+Extfrag fragmenting                                     5015325     4699613     3850072
+Extfrag fragmenting for unmovable                          1312        3154        3088
+Extfrag fragmenting unmovable placed with movable          1115        2777        2714
+Extfrag fragmenting for reclaimable                         437        1193        1097
+Extfrag fragmenting reclaimable placed with movable         330         969         879
+Extfrag fragmenting for movable                         5013576     4695266     3845887
+
+In v2 we've seen apparent regression with Patch 1 for unmovable events, this
+is now gone, suggesting it was indeed noise. Here, each patch improves the
+situation for unmovable events. Reclaimable is improved by patch 1 and then
+either the same modulo noise, or perhaps sligtly worse - a small price for
+unmovable improvements, IMHO. The number of movable allocations falling back
+to other migratetypes is most noisy, but it's reduced to half at Patch 2
+nevertheless. These are least critical as compaction can move them around.
+
+If we look at success rates, the patches don't affect them, that didn't change.
+
+Baseline:
+                             3.19-rc4              3.19-rc4              3.19-rc4
+                            5-nothp-1             5-nothp-2             5-nothp-3
+Success 1 Min         49.00 (  0.00%)       42.00 ( 14.29%)       41.00 ( 16.33%)
+Success 1 Mean        51.00 (  0.00%)       45.00 ( 11.76%)       42.60 ( 16.47%)
+Success 1 Max         55.00 (  0.00%)       51.00 (  7.27%)       46.00 ( 16.36%)
+Success 2 Min         53.00 (  0.00%)       47.00 ( 11.32%)       44.00 ( 16.98%)
+Success 2 Mean        59.60 (  0.00%)       50.80 ( 14.77%)       48.20 ( 19.13%)
+Success 2 Max         64.00 (  0.00%)       56.00 ( 12.50%)       52.00 ( 18.75%)
+Success 3 Min         84.00 (  0.00%)       82.00 (  2.38%)       78.00 (  7.14%)
+Success 3 Mean        85.60 (  0.00%)       82.80 (  3.27%)       79.40 (  7.24%)
+Success 3 Max         86.00 (  0.00%)       83.00 (  3.49%)       80.00 (  6.98%)
+
+Patch 1:
+                             3.19-rc4              3.19-rc4              3.19-rc4
+                            6-nothp-1             6-nothp-2             6-nothp-3
+Success 1 Min         49.00 (  0.00%)       44.00 ( 10.20%)       44.00 ( 10.20%)
+Success 1 Mean        51.80 (  0.00%)       46.00 ( 11.20%)       45.80 ( 11.58%)
+Success 1 Max         54.00 (  0.00%)       49.00 (  9.26%)       49.00 (  9.26%)
+Success 2 Min         58.00 (  0.00%)       49.00 ( 15.52%)       48.00 ( 17.24%)
+Success 2 Mean        60.40 (  0.00%)       51.80 ( 14.24%)       50.80 ( 15.89%)
+Success 2 Max         63.00 (  0.00%)       54.00 ( 14.29%)       55.00 ( 12.70%)
+Success 3 Min         84.00 (  0.00%)       81.00 (  3.57%)       79.00 (  5.95%)
+Success 3 Mean        85.00 (  0.00%)       81.60 (  4.00%)       79.80 (  6.12%)
+Success 3 Max         86.00 (  0.00%)       82.00 (  4.65%)       82.00 (  4.65%)
+
+Patch 2:
+
+                             3.19-rc4              3.19-rc4              3.19-rc4
+                            7-nothp-1             7-nothp-2             7-nothp-3
+Success 1 Min         50.00 (  0.00%)       44.00 ( 12.00%)       39.00 ( 22.00%)
+Success 1 Mean        52.80 (  0.00%)       45.60 ( 13.64%)       42.40 ( 19.70%)
+Success 1 Max         55.00 (  0.00%)       46.00 ( 16.36%)       47.00 ( 14.55%)
+Success 2 Min         52.00 (  0.00%)       48.00 (  7.69%)       45.00 ( 13.46%)
+Success 2 Mean        53.40 (  0.00%)       49.80 (  6.74%)       48.80 (  8.61%)
+Success 2 Max         57.00 (  0.00%)       52.00 (  8.77%)       52.00 (  8.77%)
+Success 3 Min         84.00 (  0.00%)       81.00 (  3.57%)       79.00 (  5.95%)
+Success 3 Mean        85.00 (  0.00%)       82.40 (  3.06%)       79.60 (  6.35%)
+Success 3 Max         86.00 (  0.00%)       83.00 (  3.49%)       80.00 (  6.98%)
+
+Patch 3:
+                             3.19-rc4              3.19-rc4              3.19-rc4
+                            8-nothp-1             8-nothp-2             8-nothp-3
+Success 1 Min         46.00 (  0.00%)       44.00 (  4.35%)       42.00 (  8.70%)
+Success 1 Mean        50.20 (  0.00%)       45.60 (  9.16%)       44.00 ( 12.35%)
+Success 1 Max         52.00 (  0.00%)       47.00 (  9.62%)       47.00 (  9.62%)
+Success 2 Min         53.00 (  0.00%)       49.00 (  7.55%)       48.00 (  9.43%)
+Success 2 Mean        55.80 (  0.00%)       50.60 (  9.32%)       49.00 ( 12.19%)
+Success 2 Max         59.00 (  0.00%)       52.00 ( 11.86%)       51.00 ( 13.56%)
+Success 3 Min         84.00 (  0.00%)       80.00 (  4.76%)       79.00 (  5.95%)
+Success 3 Mean        85.40 (  0.00%)       81.60 (  4.45%)       80.40 (  5.85%)
+Success 3 Max         87.00 (  0.00%)       83.00 (  4.60%)       82.00 (  5.75%)
+
+While there's no improvement here, I consider reduced fragmentation events to
+be worth on its own. Patch 2 also seems to reduce scanning for free pages, and
+migrations in compaction, suggesting it has somewhat less work to do:
+
+Patch 1:
+
+Compaction stalls                 4153        3959        3978
+Compaction success                1523        1441        1446
+Compaction failures               2630        2517        2531
+Page migrate success           4600827     4943120     5104348
+Page migrate failure             19763       16656       17806
+Compaction pages isolated      9597640    10305617    10653541
+Compaction migrate scanned    77828948    86533283    87137064
+Compaction free scanned      517758295   521312840   521462251
+Compaction cost                   5503        5932        6110
+
+Patch 2:
+
+Compaction stalls                 3800        3450        3518
+Compaction success                1421        1316        1317
+Compaction failures               2379        2134        2201
+Page migrate success           4160421     4502708     4752148
+Page migrate failure             19705       14340       14911
+Compaction pages isolated      8731983     9382374     9910043
+Compaction migrate scanned    98362797    96349194    98609686
+Compaction free scanned      496512560   469502017   480442545
+Compaction cost                   5173        5526        5811
+
+As with v2, /proc/pagetypeinfo appears unaffected with respect to numbers of
+unmovable and reclaimable pageblocks.
+
+Configuring the benchmark to allocate like THP page fault (i.e. no sync
+compaction) gives much noisier results for iterations 2 and 3 after reboot.
+This is not so surprising given how [1] offers lower improvements in this
+scenario due to less restarts after deferred compaction which would change
+compaction pivot.
+
+Baseline:
+                                                   3.19-rc4        3.19-rc4        3.19-rc4
+                                                    5-thp-1         5-thp-2         5-thp-3
+Page alloc extfrag event                                8148965     6227815     6646741
+Extfrag fragmenting                                     8147872     6227130     6646117
+Extfrag fragmenting for unmovable                         10324       12942       15975
+Extfrag fragmenting unmovable placed with movable          5972        8495       10907
+Extfrag fragmenting for reclaimable                         601        1707        2210
+Extfrag fragmenting reclaimable placed with movable         520        1570        2000
+Extfrag fragmenting for movable                         8136947     6212481     6627932
+
+Patch 1:
+                                                   3.19-rc4        3.19-rc4        3.19-rc4
+                                                    6-thp-1         6-thp-2         6-thp-3
+Page alloc extfrag event                                8345457     7574471     7020419
+Extfrag fragmenting                                     8343546     7573777     7019718
+Extfrag fragmenting for unmovable                         10256       18535       30716
+Extfrag fragmenting unmovable placed with movable          6893       11726       22181
+Extfrag fragmenting for reclaimable                         465        1208        1023
+Extfrag fragmenting reclaimable placed with movable         353         996         843
+Extfrag fragmenting for movable                         8332825     7554034     6987979
+
+Patch 2:
+                                                   3.19-rc4        3.19-rc4        3.19-rc4
+                                                    7-thp-1         7-thp-2         7-thp-3
+Page alloc extfrag event                                3512847     3020756     2891625
+Extfrag fragmenting                                     3511940     3020185     2891059
+Extfrag fragmenting for unmovable                          9017        6892        6191
+Extfrag fragmenting unmovable placed with movable          1524        3053        2435
+Extfrag fragmenting for reclaimable                         445        1081        1160
+Extfrag fragmenting reclaimable placed with movable         375         918         986
+Extfrag fragmenting for movable                         3502478     3012212     2883708
+
+Patch 3:
+                                                   3.19-rc4        3.19-rc4        3.19-rc4
+                                                    8-thp-1         8-thp-2         8-thp-3
+Page alloc extfrag event                                3181699     3082881     2674164
+Extfrag fragmenting                                     3180812     3082303     2673611
+Extfrag fragmenting for unmovable                          1201        4031        4040
+Extfrag fragmenting unmovable placed with movable           974        3611        3645
+Extfrag fragmenting for reclaimable                         478        1165        1294
+Extfrag fragmenting reclaimable placed with movable         387         985        1030
+Extfrag fragmenting for movable                         3179133     3077107     2668277
+
+The improvements for first iteration are clear, the rest is much noisier and
+can appear like regression for Patch 1. Anyway, patch 2 rectifies it.
+
+Allocation success rates are again unaffected so there's no point in making
+this e-mail any longer.
+
+[1] http://marc.info/?l=linux-mm&m=142166196321125&w=2
+
+Vlastimil Babka (3):
+  mm: when stealing freepages, also take pages created by splitting
+    buddy page
+  mm: always steal split buddies in fallback allocations
+  mm: more aggressive page stealing for UNMOVABLE allocations
+
+ include/trace/events/kmem.h |  7 ++--
+ mm/page_alloc.c             | 78 ++++++++++++++++++++++++---------------------
+ 2 files changed, 45 insertions(+), 40 deletions(-)
+
+-- 
+2.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
