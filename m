@@ -1,262 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 149A86B0032
-	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 01:34:54 -0500 (EST)
-Received: by mail-pd0-f174.google.com with SMTP id ft15so6711081pdb.5
-        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 22:34:53 -0800 (PST)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id qc4si770093pbb.103.2015.01.22.22.34.49
-        for <linux-mm@kvack.org>;
-        Thu, 22 Jan 2015 22:34:52 -0800 (PST)
-Date: Fri, 23 Jan 2015 15:35:29 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 2/3] mm: cma: introduce /proc/cmainfo
-Message-ID: <20150123063529.GB809@js1304-P5Q-DELUXE>
-References: <cover.1419602920.git.s.strogin@partner.samsung.com>
- <264ce8ad192124f2afec9a71a2fc28779d453ba7.1419602920.git.s.strogin@partner.samsung.com>
- <20141230043814.GB4588@js1304-P5Q-DELUXE>
- <54C118D9.9040007@partner.samsung.com>
+Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
+	by kanga.kvack.org (Postfix) with ESMTP id A3E576B0032
+	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 01:58:35 -0500 (EST)
+Received: by mail-la0-f47.google.com with SMTP id hz20so5710265lab.6
+        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 22:58:34 -0800 (PST)
+Received: from mail-lb0-x235.google.com (mail-lb0-x235.google.com. [2a00:1450:4010:c04::235])
+        by mx.google.com with ESMTPS id al1si585487lbc.23.2015.01.22.22.58.33
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 22 Jan 2015 22:58:33 -0800 (PST)
+Received: by mail-lb0-f181.google.com with SMTP id u10so5482499lbd.12
+        for <linux-mm@kvack.org>; Thu, 22 Jan 2015 22:58:32 -0800 (PST)
+From: Andrey Skvortsov <andrej.skvortzov@gmail.com>
+Date: Fri, 23 Jan 2015 09:58:34 +0300
+Subject: Re: [PATCH] mm/slub: suppress BUG messages for
+ kmem_cache_alloc/kmem_cache_free
+Message-ID: <20150123065834.GI25900@localhost.localdomain>
+References: <1421932519-21036-1-git-send-email-Andrej.Skvortzov@gmail.com>
+ <alpine.DEB.2.10.1501221518020.27807@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="AQYPrgrEUc/1pSX1"
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <54C118D9.9040007@partner.samsung.com>
+In-Reply-To: <alpine.DEB.2.10.1501221518020.27807@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stefan Strogin <s.strogin@partner.samsung.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Dmitry Safonov <d.safonov@partner.samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Minchan Kim <minchan@kernel.org>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Jesper Dangaard Brouer <brouer@redhat.com>, linux-kernel@vger.kernel.org
 
-On Thu, Jan 22, 2015 at 06:35:53PM +0300, Stefan Strogin wrote:
-> Hello Joonsoo,
-> 
-> On 30/12/14 07:38, Joonsoo Kim wrote:
-> > On Fri, Dec 26, 2014 at 05:39:03PM +0300, Stefan I. Strogin wrote:
-> >> /proc/cmainfo contains a list of currently allocated CMA buffers for every
-> >> CMA area when CONFIG_CMA_DEBUG is enabled.
-> > Hello,
-> >
-> > I think that providing these information looks useful, but, we need better
-> > implementation. As Laura said, it is better to use debugfs. And,
-> > instead of re-implementing the wheel, how about using tracepoint
-> > to print these information? See below comments.
-> 
-> Excuse me for a long delay. I've tried to give a detailed answer here:
-> https://lkml.org/lkml/2015/1/21/362
-> Do you mean by <<the re-implemented wheel>> seq_print_stack_trace()? If so
-> then it was thought to show an owner of each allocated buffer. I used a
-> similar way as in page_owner: saving stack_trace for each allocation. Do
-> you think we can use tracepoints instead?
 
-I wrote why I said this is re-implemented wheel on the reply of other mail.
-Please refer it.
+--AQYPrgrEUc/1pSX1
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Thanks.
+On Thu, Jan 22, 2015 at 03:19:18PM -0800, David Rientjes wrote:
+> On Thu, 22 Jan 2015, Andrey Skvortsov wrote:
+>=20
+> > diff --git a/mm/slub.c b/mm/slub.c
+> > index ceee1d7..6bcd031 100644
+> > --- a/mm/slub.c
+> > +++ b/mm/slub.c
+> > @@ -2404,7 +2404,7 @@ redo:
+> >  	 */
+> >  	do {
+> >  		tid =3D this_cpu_read(s->cpu_slab->tid);
+> > -		c =3D this_cpu_ptr(s->cpu_slab);
+> > +		c =3D raw_cpu_ptr(s->cpu_slab);
+> >  	} while (IS_ENABLED(CONFIG_PREEMPT) && unlikely(tid !=3D c->tid));
+> > =20
+> >  	/*
+> > @@ -2670,7 +2670,7 @@ redo:
+> >  	 */
+> >  	do {
+> >  		tid =3D this_cpu_read(s->cpu_slab->tid);
+> > -		c =3D this_cpu_ptr(s->cpu_slab);
+> > +		c =3D raw_cpu_ptr(s->cpu_slab);
+> >  	} while (IS_ENABLED(CONFIG_PREEMPT) && unlikely(tid !=3D c->tid));
+> > =20
+> >  	/* Same with comment on barrier() in slab_alloc_node() */
+>=20
+> This should already be fixed with=20
+> http://ozlabs.org/~akpm/mmotm/broken-out/mm-slub-optimize-alloc-free-fast=
+path-by-removing-preemption-on-off-v3.patch
 
-> 
-> 
-> >
-> >> Format is:
-> >>
-> >> <base_phys_addr> - <end_phys_addr> (<size> kB), allocated by <PID>\
-> >> 		(<command name>), latency <allocation latency> us
-> >>  <stack backtrace when the buffer had been allocated>
-> >>
-> >> Signed-off-by: Stefan I. Strogin <s.strogin@partner.samsung.com>
-> >> ---
-> >>  mm/cma.c | 202 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-> >>  1 file changed, 202 insertions(+)
-> >>
-> >> diff --git a/mm/cma.c b/mm/cma.c
-> >> index a85ae28..ffaea26 100644
-> >> --- a/mm/cma.c
-> >> +++ b/mm/cma.c
-> >> @@ -34,6 +34,10 @@
-> >>  #include <linux/cma.h>
-> >>  #include <linux/highmem.h>
-> >>  #include <linux/io.h>
-> >> +#include <linux/list.h>
-> >> +#include <linux/proc_fs.h>
-> >> +#include <linux/uaccess.h>
-> >> +#include <linux/time.h>
-> >>  
-> >>  struct cma {
-> >>  	unsigned long	base_pfn;
-> >> @@ -41,8 +45,25 @@ struct cma {
-> >>  	unsigned long	*bitmap;
-> >>  	unsigned int order_per_bit; /* Order of pages represented by one bit */
-> >>  	struct mutex	lock;
-> >> +#ifdef CONFIG_CMA_DEBUG
-> >> +	struct list_head buffers_list;
-> >> +	struct mutex	list_lock;
-> >> +#endif
-> >>  };
-> >>  
-> >> +#ifdef CONFIG_CMA_DEBUG
-> >> +struct cma_buffer {
-> >> +	unsigned long pfn;
-> >> +	unsigned long count;
-> >> +	pid_t pid;
-> >> +	char comm[TASK_COMM_LEN];
-> >> +	unsigned int latency;
-> >> +	unsigned long trace_entries[16];
-> >> +	unsigned int nr_entries;
-> >> +	struct list_head list;
-> >> +};
-> >> +#endif
-> >> +
-> >>  static struct cma cma_areas[MAX_CMA_AREAS];
-> >>  static unsigned cma_area_count;
-> >>  static DEFINE_MUTEX(cma_mutex);
-> >> @@ -132,6 +153,10 @@ static int __init cma_activate_area(struct cma *cma)
-> >>  	} while (--i);
-> >>  
-> >>  	mutex_init(&cma->lock);
-> >> +#ifdef CONFIG_CMA_DEBUG
-> >> +	INIT_LIST_HEAD(&cma->buffers_list);
-> >> +	mutex_init(&cma->list_lock);
-> >> +#endif
-> >>  	return 0;
-> >>  
-> >>  err:
-> >> @@ -347,6 +372,86 @@ err:
-> >>  	return ret;
-> >>  }
-> >>  
-> >> +#ifdef CONFIG_CMA_DEBUG
-> >> +/**
-> >> + * cma_buffer_list_add() - add a new entry to a list of allocated buffers
-> >> + * @cma:     Contiguous memory region for which the allocation is performed.
-> >> + * @pfn:     Base PFN of the allocated buffer.
-> >> + * @count:   Number of allocated pages.
-> >> + * @latency: Nanoseconds spent to allocate the buffer.
-> >> + *
-> >> + * This function adds a new entry to the list of allocated contiguous memory
-> >> + * buffers in a CMA area. It uses the CMA area specificated by the device
-> >> + * if available or the default global one otherwise.
-> >> + */
-> >> +static int cma_buffer_list_add(struct cma *cma, unsigned long pfn,
-> >> +			       int count, s64 latency)
-> >> +{
-> >> +	struct cma_buffer *cmabuf;
-> >> +	struct stack_trace trace;
-> >> +
-> >> +	cmabuf = kmalloc(sizeof(struct cma_buffer), GFP_KERNEL);
-> >> +	if (!cmabuf)
-> >> +		return -ENOMEM;
-> >> +
-> >> +	trace.nr_entries = 0;
-> >> +	trace.max_entries = ARRAY_SIZE(cmabuf->trace_entries);
-> >> +	trace.entries = &cmabuf->trace_entries[0];
-> >> +	trace.skip = 2;
-> >> +	save_stack_trace(&trace);
-> >> +
-> >> +	cmabuf->pfn = pfn;
-> >> +	cmabuf->count = count;
-> >> +	cmabuf->pid = task_pid_nr(current);
-> >> +	cmabuf->nr_entries = trace.nr_entries;
-> >> +	get_task_comm(cmabuf->comm, current);
-> >> +	cmabuf->latency = (unsigned int) div_s64(latency, NSEC_PER_USEC);
-> >> +
-> >> +	mutex_lock(&cma->list_lock);
-> >> +	list_add_tail(&cmabuf->list, &cma->buffers_list);
-> >> +	mutex_unlock(&cma->list_lock);
-> >> +
-> >> +	return 0;
-> >> +}
-> >> +
-> >> +/**
-> >> + * cma_buffer_list_del() - delete an entry from a list of allocated buffers
-> >> + * @cma:   Contiguous memory region for which the allocation was performed.
-> >> + * @pfn:   Base PFN of the released buffer.
-> >> + *
-> >> + * This function deletes a list entry added by cma_buffer_list_add().
-> >> + */
-> >> +static void cma_buffer_list_del(struct cma *cma, unsigned long pfn)
-> >> +{
-> >> +	struct cma_buffer *cmabuf;
-> >> +
-> >> +	mutex_lock(&cma->list_lock);
-> >> +
-> >> +	list_for_each_entry(cmabuf, &cma->buffers_list, list)
-> >> +		if (cmabuf->pfn == pfn) {
-> >> +			list_del(&cmabuf->list);
-> >> +			kfree(cmabuf);
-> >> +			goto out;
-> >> +		}
-> >> +
-> > Is there more elegant way to find buffer? This linear search overhead
-> > would change system behaviour if there are lots of buffers.
-> >
-> >> +	pr_err("%s(pfn %lu): couldn't find buffers list entry\n",
-> >> +	       __func__, pfn);
-> >> +
-> >> +out:
-> >> +	mutex_unlock(&cma->list_lock);
-> >> +}
-> >> +#else
-> >> +static int cma_buffer_list_add(struct cma *cma, unsigned long pfn,
-> >> +			       int count, s64 latency)
-> >> +{
-> >> +	return 0;
-> >> +}
-> >> +
-> >> +static void cma_buffer_list_del(struct cma *cma, unsigned long pfn)
-> >> +{
-> >> +}
-> >> +#endif /* CONFIG_CMA_DEBUG */
-> >> +
-> >>  /**
-> >>   * cma_alloc() - allocate pages from contiguous area
-> >>   * @cma:   Contiguous memory region for which the allocation is performed.
-> >> @@ -361,11 +466,15 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
-> >>  	unsigned long mask, offset, pfn, start = 0;
-> >>  	unsigned long bitmap_maxno, bitmap_no, bitmap_count;
-> >>  	struct page *page = NULL;
-> >> +	struct timespec ts1, ts2;
-> >> +	s64 latency;
-> >>  	int ret;
-> >>  
-> >>  	if (!cma || !cma->count)
-> >>  		return NULL;
-> >>  
-> >> +	getnstimeofday(&ts1);
-> >> +
-> >>  	pr_debug("%s(cma %p, count %d, align %d)\n", __func__, (void *)cma,
-> >>  		 count, align);
-> >>  
-> >> @@ -413,6 +522,19 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
-> >>  		start = bitmap_no + mask + 1;
-> >>  	}
-> >>  
-> >> +	getnstimeofday(&ts2);
-> >> +	latency = timespec_to_ns(&ts2) - timespec_to_ns(&ts1);
-> >> +
-> >> +	if (page) {
-> >> +		ret = cma_buffer_list_add(cma, pfn, count, latency);
-> >> +		if (ret) {
-> >> +			pr_warn("%s(): cma_buffer_list_add() returned %d\n",
-> >> +				__func__, ret);
-> >> +			cma_release(cma, page, count);
-> >> +			page = NULL;
-> >> +		}
-> > So, we would fail to allocate CMA memory if we can't allocate buffer
-> > for debugging. I don't think it makes sense. With tracepoint,
-> > we don't need to allocate buffer in runtime.
-> >
-> > Thanks.
-> >
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> >
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> You can find the latest mmotm, which was just released, at=20
+> http://ozlabs.org/~akpm/mmotm and it should be in linux-next tomorrow.
+ok. I've just looked at linux-next/master and
+linux-next/akpm branches and that was not fixed there. Thanks for the
+link. I'll look there in the future for mm-related patches posting a
+new one.
+
+--=20
+Best regards,
+Andrey Skvortsov
+
+Secure eMail with gnupg: See http://www.gnupg.org/
+PGP Key ID: 0x57A3AEAD
+
+--AQYPrgrEUc/1pSX1
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIcBAEBCAAGBQJUwfEaAAoJEAF8y6L1SLCtHtYQAKKwaJbRsFlchx7cK98xaXAR
+wH18lsI/BL4+r4kLBEcW7ISP6HN895EXHE64Ie23I+eYV5CKEGxkcxEPyc0p37ma
+I47s1nhox3FHhI9+ax8d5z8dX5hmVf6+GXdLxauxpEYptDn/rO9KppBoPZ5ixD7E
+OaPuggO9ApDSzTfBn7FbLEOfGSxSyYoYedzXsr54jMf9IzqAZpHCzTtEofBynbQv
+5DEM1IhR0HkdyqbtbhBozbNbEnuU3WwUH4iD0eRyLc1YXX1yVHlIIvB4Nj6v0ci6
+Hm7VJcWGWQBC0X8IEOXMElanIRuK8irJoPt8AJmCXVJryZX+MnBZHxxJsKevJE7p
+OAMWmEf/S+JpypfgV8N/MTN604ZEzFISjr/cbmrBEt9vXcxyjWjbMZ984h+pkf7C
+jEqTuFS1SZydBHV8DJluXl3TJWxBk8sJKM5IwkvG+eshjZtU/Dw8xhNOfGQb8B90
+RYN3/Qu9sHi7Y7TLs7/iPSSdDUDqnIUcE8cSGYC/c6OsHlvYs/V0u6IPKTwaFv5B
+eDtIV3qFfDOfcOwTjAOUHQwzA10Vbd4WMFUVUMCjRFkWTnsbq7aDyycuEEMqmkPE
+qgLUnPUQ88jPa3aHlWv88Pj4QBZcx0N3XrhvcQvyxpDbqqsZ5JsQDShp9kmN5utf
+Z+iUgeqYtJn23+fkb7sU
+=TID4
+-----END PGP SIGNATURE-----
+
+--AQYPrgrEUc/1pSX1--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
