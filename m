@@ -1,66 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 1993E6B0032
-	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 21:17:10 -0500 (EST)
-Received: by mail-pd0-f177.google.com with SMTP id y13so1130712pdi.8
-        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 18:17:09 -0800 (PST)
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com. [209.85.192.170])
-        by mx.google.com with ESMTPS id ry9si3964769pbc.147.2015.01.23.18.17.07
+Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
+	by kanga.kvack.org (Postfix) with ESMTP id AC6076B0032
+	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 21:45:17 -0500 (EST)
+Received: by mail-oi0-f43.google.com with SMTP id z81so659243oif.2
+        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 18:45:17 -0800 (PST)
+Received: from bh-25.webhostbox.net (bh-25.webhostbox.net. [208.91.199.152])
+        by mx.google.com with ESMTPS id wy7si1703329oeb.22.2015.01.23.18.45.16
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 23 Jan 2015 18:17:08 -0800 (PST)
-Received: by mail-pd0-f170.google.com with SMTP id p10so1167218pdj.1
-        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 18:17:07 -0800 (PST)
-Message-ID: <54C300A1.7040202@kernel.dk>
-Date: Fri, 23 Jan 2015 19:17:05 -0700
-From: Jens Axboe <axboe@kernel.dk>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 23 Jan 2015 18:45:16 -0800 (PST)
+Received: from mailnull by bh-25.webhostbox.net with sa-checked (Exim 4.82)
+	(envelope-from <linux@roeck-us.net>)
+	id 1YEqiq-002DKd-AL
+	for linux-mm@kvack.org; Sat, 24 Jan 2015 02:45:16 +0000
+Message-ID: <54C3072A.1030604@roeck-us.net>
+Date: Fri, 23 Jan 2015 18:44:58 -0800
+From: Guenter Roeck <linux@roeck-us.net>
 MIME-Version: 1.0
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC] async buffered diskio read for userspace
- apps
-References: <CANP1eJF77=iH_tm1y0CgF6PwfhUK6WqU9S92d0xAnCt=WhZVfQ@mail.gmail.com> <20150115223157.GB25884@quack.suse.cz> <CANP1eJGRX4w56Ek4j7d2U+F7GNWp6RyOJonxKxTy0phUCpBM9g@mail.gmail.com> <20150116165506.GA10856@samba2> <CANP1eJEF33gndXeBJ0duP2_Bvuv-z6k7OLyuai7vjVdVKRYUWw@mail.gmail.com> <20150119071218.GA9747@jeremy-HP> <1421652849.2080.20.camel@HansenPartnership.com> <CANP1eJHYUprjvO1o6wfd197LM=Bmhi55YfdGQkPT0DKRn3=q6A@mail.gmail.com> <54BD234F.3060203@kernel.dk> <E1YDEuL-000mD3-8B@intern.SerNet.DE> <CANP1eJEgbsX2wcREwfcsPmo8k1ZMf-ZXimH19ZsvGCRO+MT-6Q@mail.gmail.com> <CAH2r5mv29sv1jz=Oh+BJY8hokZtLFMReVUZ=RLX-36yAwXOXoA@mail.gmail.com>
-In-Reply-To: <CAH2r5mv29sv1jz=Oh+BJY8hokZtLFMReVUZ=RLX-36yAwXOXoA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+Subject: Re: mmotm 2015-01-22-15-04: qemu failures due to 'mm: account pmd
+ page tables to the process'
+References: <54c1822d.RtdGfWPekQVAw8Ly%akpm@linux-foundation.org>	<20150123050445.GA22751@roeck-us.net>	<20150123111304.GA5975@node.dhcp.inet.fi>	<54C263CC.1060904@roeck-us.net> <20150123135519.9f1061caf875f41f89298d59@linux-foundation.org>
+In-Reply-To: <20150123135519.9f1061caf875f41f89298d59@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steve French <smfrench@gmail.com>, Milosz Tanski <milosz@adfin.com>
-Cc: Volker Lendecke <Volker.Lendecke@sernet.de>, James Bottomley <James.Bottomley@hansenpartnership.com>, Jeremy Allison <jra@samba.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 01/23/2015 04:15 PM, Steve French wrote:
-> On Mon, Jan 19, 2015 at 10:20 AM, Milosz Tanski <milosz@adfin.com> wrote:
->> On Mon, Jan 19, 2015 at 11:10 AM, Volker Lendecke
->> <Volker.Lendecke@sernet.de> wrote:
->>> On Mon, Jan 19, 2015 at 08:31:27AM -0700, Jens Axboe wrote:
->>>> I didn't look at your code yet, but I'm assuming it's a self
->>>> contained IO engine. So we should be able to make that work, by only
->>>> linking the engine itself against libsmbclient. But sheesh, what a
->>>> pain in the butt, why can't we just all be friends.
->>>
->>> The published libsmbclient API misses the async features
->>> that are needed here. Milosz needs to go lower-level.
->>>
->>> Volker
->>
->> Volker, the sync code path works; in fact I pushed some minor
->> corrections to my branch this morning. And for now using FIO I can
->> generate multiple clients (threads / processes).
->>
->> I started working on the async features (SMB2 async read/write) for
->> client library the samba repo. There's a patch there for the first
->> step of it it there; see the other email I sent to you and Jeremy. I
->> was going to make sure it licensed under whatever it needs to get into
->> the samba repo... and since this is done on my own time I personally
->> don't care what license it's under provided it's not a PITA.
+On 01/23/2015 01:55 PM, Andrew Morton wrote:
+> On Fri, 23 Jan 2015 07:07:56 -0800 Guenter Roeck <linux@roeck-us.net> wrote:
 >
-> Why not do the async read/write via the kernel client if the license
-> is an issue?  It already has async SMB2/SMB3 operations
-> (with a synchronous send/receive-like wrapper).
+>>>>
+>>>> qemu:microblaze generates warnings to the console.
+>>>>
+>>>> WARNING: CPU: 0 PID: 32 at mm/mmap.c:2858 exit_mmap+0x184/0x1a4()
+>>>>
+>>>> with various call stacks. See
+>>>> http://server.roeck-us.net:8010/builders/qemu-microblaze-mmotm/builds/15/steps/qemubuildcommand/logs/stdio
+>>>> for details.
+>>>
+>>> Could you try patch below? Completely untested.
+>>>
+>>> >From b584bb8d493794f67484c0b57c161d61c02599bc Mon Sep 17 00:00:00 2001
+>>> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+>>> Date: Fri, 23 Jan 2015 13:08:26 +0200
+>>> Subject: [PATCH] microblaze: define __PAGETABLE_PMD_FOLDED
+>>>
+>>> Microblaze uses custom implementation of PMD folding, but doesn't define
+>>> __PAGETABLE_PMD_FOLDED, which generic code expects to see. Let's fix it.
+>>>
+>>> Defining __PAGETABLE_PMD_FOLDED will drop out unused __pmd_alloc().
+>>> It also fixes problems with recently-introduced pmd accounting.
+>>>
+>>> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+>>> Reported-by: Guenter Roeck <linux@roeck-us.net>
+>>
+>> Tested working.
+>>
+>> Tested-by: Guenter Roeck <linux@roeck-us.net>
+>>
+>> Any idea how to fix the sh problem ?
+>
+> Can you tell us more about it?  All I'm seeing is "qemu:sh fails to
+> shut down", which isn't very clear.
+>
 
-The license issue has been solved. Fio is cross platform, so would be 
-preferable to have this work through libsmbclient, if at all possible.
+qemu command line:
 
--- 
-Jens Axboe
+/opt/buildbot/bin/qemu-system-sh4 -M r2d -kernel ./arch/sh/boot/zImage \
+         -drive file=rootfs.ext2,if=ide \
+         -append "root=/dev/sda console=ttySC1,115200 noiotrap"
+         -serial null -serial stdio -net nic,model=rtl8139 -net user
+         -nographic -monitor null
+
+--
+Poweroff log in mainline (v3.19-rc5-119-gb942c65):
+
+/ # poweroff
+The system is going down NOW!
+Sent SIGTERM to all processes
+Sent SIGKILL to all processes
+Requesting system poweroff
+sd 0:0:0:0: [sda] Synchronizing SCSI cache
+sd 0:0:0:0: [sda] Stopping disk
+reboot: Power down
+
+--
+Poweroff log in mmotm (v3.19-rc5-417-gc64429b):
+
+/ # poweroff
+
+[ nothing else happens until I kill the qemu session ]
+
+The "halt" command does not work either.
+
+--
+The message "The system is going down NOW" is from the init process.
+If I use "kill -12 1" instead of "halt" or "poweroff", the system does
+shut down as expected. "poweroff -f" also works.
+
+Trying to debug this further, I noticed that the "ps" command hangs
+as well, so the problem is not limited to poweroff or halt.
+
+I'll be happy to debug this further, I just have no idea where to start.
+
+Thanks,
+Guenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
