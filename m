@@ -1,60 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id A20786B0032
-	for <linux-mm@kvack.org>; Sat, 24 Jan 2015 06:54:17 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id rd3so2452385pab.3
-        for <linux-mm@kvack.org>; Sat, 24 Jan 2015 03:54:17 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id ky4si5273640pbc.159.2015.01.24.03.54.16
+Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E9986B0032
+	for <linux-mm@kvack.org>; Sat, 24 Jan 2015 08:18:00 -0500 (EST)
+Received: by mail-oi0-f43.google.com with SMTP id z81so1622948oif.2
+        for <linux-mm@kvack.org>; Sat, 24 Jan 2015 05:18:00 -0800 (PST)
+Received: from mail-oi0-x229.google.com (mail-oi0-x229.google.com. [2607:f8b0:4003:c06::229])
+        by mx.google.com with ESMTPS id vj5si2292406obb.17.2015.01.24.05.17.58
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 24 Jan 2015 03:54:16 -0800 (PST)
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm] slab: suppress warnings caused by expansion of for_each_memcg_cache if !MEMCG_KMEM
-Date: Sat, 24 Jan 2015 14:53:59 +0300
-Message-ID: <1422100439-3980-1-git-send-email-vdavydov@parallels.com>
-In-Reply-To: <201501240937.DoHGo17V%fengguang.wu@intel.com>
-References: <201501240937.DoHGo17V%fengguang.wu@intel.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 24 Jan 2015 05:17:59 -0800 (PST)
+Received: by mail-oi0-f41.google.com with SMTP id z81so1630604oif.0
+        for <linux-mm@kvack.org>; Sat, 24 Jan 2015 05:17:58 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20150123143849.GB2320@swordfish>
+References: <1421992707-32658-1-git-send-email-minchan@kernel.org>
+	<1421992707-32658-2-git-send-email-minchan@kernel.org>
+	<20150123143849.GB2320@swordfish>
+Date: Sat, 24 Jan 2015 21:17:58 +0800
+Message-ID: <CADAEsF_pd_n9G4jft1dnXYM6N7SZ+YMQSKCAAszuLrpygaTQvQ@mail.gmail.com>
+Subject: Re: [PATCH 2/2] zram: protect zram->stat race with init_lock
+From: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>
 
-   In file included from mm/slab_common.c:26:0:
-   mm/slab_common.c: In function 'kmem_cache_destroy':
->> mm/slab.h:259:30: warning: right-hand operand of comma expression has no effect [-Wunused-value]
-     for (iter = NULL, tmp = NULL, (root); 0; )
-                                 ^
->> mm/slab_common.c:603:2: note: in expansion of macro 'for_each_memcg_cache_safe'
-     for_each_memcg_cache_safe(c, c2, s) {
-     ^
+Hello Sergey
 
-fixes: slab-link-memcg-caches-of-the-same-kind-into-a-list
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
----
- mm/slab.h |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+2015-01-23 22:38 GMT+08:00 Sergey Senozhatsky <sergey.senozhatsky@gmail.com>:
+> On (01/23/15 14:58), Minchan Kim wrote:
+>> The zram->stat handling should be procted by init_lock.
+>> Otherwise, user could see stale value from the stat.
+>>
+>> Signed-off-by: Minchan Kim <minchan@kernel.org>
+>> ---
+>>
+>> I don't think it's stable material. The race is rare in real practice
+>> and this stale stat value read is not a critical.
+>>
+>>  drivers/block/zram/zram_drv.c | 37 ++++++++++++++++++++++++++++---------
+>>  1 file changed, 28 insertions(+), 9 deletions(-)
+>>
+>> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+>> index 0299d82275e7..53f176f590b0 100644
+>> --- a/drivers/block/zram/zram_drv.c
+>> +++ b/drivers/block/zram/zram_drv.c
+>> @@ -48,8 +48,13 @@ static ssize_t name##_show(struct device *d,               \
+>>                               struct device_attribute *attr, char *b) \
+>>  {                                                                    \
+>
+> a side note: I wasn't Cc'd in that patchset and found out it only when it's
+> been merged. I'm not sure I understand, why it has been renamed from specific
+> zram_X_show to X_show. what gives?
 
-diff --git a/mm/slab.h b/mm/slab.h
-index 2fc16c2ed198..0a56d76ac0e9 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -254,9 +254,9 @@ extern void slab_init_memcg_params(struct kmem_cache *);
- #else /* !CONFIG_MEMCG_KMEM */
- 
- #define for_each_memcg_cache(iter, root) \
--	for (iter = NULL, (root); 0; )
-+	for ((void)(iter), (void)(root); 0; )
- #define for_each_memcg_cache_safe(iter, tmp, root) \
--	for (iter = NULL, tmp = NULL, (root); 0; )
-+	for ((void)(iter), (void)(tmp), (void)(root); 0; )
- 
- static inline bool is_root_cache(struct kmem_cache *s)
- {
--- 
-1.7.10.4
+I changed from zram_attr_##name##_show to name##_show in commit:
+fcf1bce zram: use DEVICE_ATTR_[RW|RO|WO] to define zram sys device attribute
+
+I just want to keep the name consistent with others, like
+disksize_show(), initstate_show().
+
+Thanks.
+
+>
+>
+> can't help, catches my eye every time, that rename has broken the original
+> formatting:
+>
+>
+> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> index 9250b3f..c567af5 100644
+> --- a/drivers/block/zram/zram_drv.c
+> +++ b/drivers/block/zram/zram_drv.c
+> @@ -44,7 +44,7 @@ static const char *default_compressor = "lzo";
+>  static unsigned int num_devices = 1;
+>
+>  #define ZRAM_ATTR_RO(name)                                             \
+> -static ssize_t name##_show(struct device *d,           \
+> +static ssize_t name##_show(struct device *d,                           \
+>                                 struct device_attribute *attr, char *b) \
+>  {                                                                      \
+>         struct zram *zram = dev_to_zram(d);                             \
+>
+>
+>
+> I don't have any objections. but do we really want to wrap atomic ops in
+> semaphore? it is really such serious race?
+>
+>
+>         -ss
+>
+>>       struct zram *zram = dev_to_zram(d);                             \
+>> -     return scnprintf(b, PAGE_SIZE, "%llu\n",                        \
+>> -             (u64)atomic64_read(&zram->stats.name));                 \
+>> +     u64 val = 0;                                                    \
+>> +                                                                     \
+>> +     down_read(&zram->init_lock);                                    \
+>> +     if (init_done(zram))                                            \
+>> +             val = atomic64_read(&zram->stats.name);                 \
+>> +     up_read(&zram->init_lock);                                      \
+>> +     return scnprintf(b, PAGE_SIZE, "%llu\n", val);                  \
+>>  }                                                                    \
+>>  static DEVICE_ATTR_RO(name);
+>>
+>> @@ -67,8 +72,14 @@ static ssize_t disksize_show(struct device *dev,
+>>               struct device_attribute *attr, char *buf)
+>>  {
+>>       struct zram *zram = dev_to_zram(dev);
+>> +     u64 val = 0;
+>> +
+>> +     down_read(&zram->init_lock);
+>> +     if (init_done(zram))
+>> +             val = zram->disksize;
+>> +     up_read(&zram->init_lock);
+>>
+>> -     return scnprintf(buf, PAGE_SIZE, "%llu\n", zram->disksize);
+>> +     return scnprintf(buf, PAGE_SIZE, "%llu\n", val);
+>>  }
+>>
+>>  static ssize_t initstate_show(struct device *dev,
+>> @@ -88,9 +99,14 @@ static ssize_t orig_data_size_show(struct device *dev,
+>>               struct device_attribute *attr, char *buf)
+>>  {
+>>       struct zram *zram = dev_to_zram(dev);
+>> +     u64 val = 0;
+>> +
+>> +     down_read(&zram->init_lock);
+>> +     if (init_done(zram))
+>> +             val = atomic64_read(&zram->stats.pages_stored) << PAGE_SHIFT;
+>> +     up_read(&zram->init_lock);
+>>
+>> -     return scnprintf(buf, PAGE_SIZE, "%llu\n",
+>> -             (u64)(atomic64_read(&zram->stats.pages_stored)) << PAGE_SHIFT);
+>> +     return scnprintf(buf, PAGE_SIZE, "%llu\n", val);
+>>  }
+>>
+>>  static ssize_t mem_used_total_show(struct device *dev,
+>> @@ -957,10 +973,6 @@ static int zram_rw_page(struct block_device *bdev, sector_t sector,
+>>       struct bio_vec bv;
+>>
+>>       zram = bdev->bd_disk->private_data;
+>> -     if (!valid_io_request(zram, sector, PAGE_SIZE)) {
+>> -             atomic64_inc(&zram->stats.invalid_io);
+>> -             return -EINVAL;
+>> -     }
+>>
+>>       down_read(&zram->init_lock);
+>>       if (unlikely(!init_done(zram))) {
+>> @@ -968,6 +980,13 @@ static int zram_rw_page(struct block_device *bdev, sector_t sector,
+>>               goto out_unlock;
+>>       }
+>>
+>> +     if (!valid_io_request(zram, sector, PAGE_SIZE)) {
+>> +             atomic64_inc(&zram->stats.invalid_io);
+>> +             err = -EINVAL;
+>> +             goto out_unlock;
+>> +     }
+>> +
+>> +
+>>       index = sector >> SECTORS_PER_PAGE_SHIFT;
+>>       offset = sector & (SECTORS_PER_PAGE - 1) << SECTOR_SHIFT;
+>>
+>> --
+>> 1.9.1
+>>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
