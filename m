@@ -1,52 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id ABEA16B0032
-	for <linux-mm@kvack.org>; Sat, 24 Jan 2015 02:16:36 -0500 (EST)
-Received: by mail-wg0-f42.google.com with SMTP id x13so1155214wgg.1
-        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 23:16:36 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id qd1si2343013wjc.109.2015.01.23.23.16.34
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id A20786B0032
+	for <linux-mm@kvack.org>; Sat, 24 Jan 2015 06:54:17 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id rd3so2452385pab.3
+        for <linux-mm@kvack.org>; Sat, 24 Jan 2015 03:54:17 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id ky4si5273640pbc.159.2015.01.24.03.54.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Jan 2015 23:16:35 -0800 (PST)
-Date: Sat, 24 Jan 2015 02:16:23 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: mmotm 2015-01-22-15-04: qemu failure due to 'mm: memcontrol:
- remove unnecessary soft limit tree node test'
-Message-ID: <20150124071623.GA17705@phnom.home.cmpxchg.org>
-References: <54c1822d.RtdGfWPekQVAw8Ly%akpm@linux-foundation.org>
- <20150123050802.GB22751@roeck-us.net>
- <20150123141817.GA22926@phnom.home.cmpxchg.org>
- <alpine.DEB.2.11.1501231419420.11767@gentwo.org>
- <54C2B01D.4070303@roeck-us.net>
- <alpine.DEB.2.11.1501231508020.7871@gentwo.org>
+        Sat, 24 Jan 2015 03:54:16 -0800 (PST)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH -mm] slab: suppress warnings caused by expansion of for_each_memcg_cache if !MEMCG_KMEM
+Date: Sat, 24 Jan 2015 14:53:59 +0300
+Message-ID: <1422100439-3980-1-git-send-email-vdavydov@parallels.com>
+In-Reply-To: <201501240937.DoHGo17V%fengguang.wu@intel.com>
+References: <201501240937.DoHGo17V%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.11.1501231508020.7871@gentwo.org>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Guenter Roeck <linux@roeck-us.net>, akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jan 23, 2015 at 03:09:20PM -0600, Christoph Lameter wrote:
-> On Fri, 23 Jan 2015, Guenter Roeck wrote:
-> 
-> > Wouldn't that have unintended consequences ? So far
-> > rb tree nodes are allocated even if a node not online;
-> > the above would change that. Are you saying it is
-> > unnecessary to initialize rb tree nodes if the node
-> > is not online ?
-> 
-> It is not advisable to allocate since an offline node means that the
-> structure cannot be allocated on the node where it would be most
-> beneficial. Typically subsystems allocate the per node data structures
-> when the node is brought online.
+   In file included from mm/slab_common.c:26:0:
+   mm/slab_common.c: In function 'kmem_cache_destroy':
+>> mm/slab.h:259:30: warning: right-hand operand of comma expression has no effect [-Wunused-value]
+     for (iter = NULL, tmp = NULL, (root); 0; )
+                                 ^
+>> mm/slab_common.c:603:2: note: in expansion of macro 'for_each_memcg_cache_safe'
+     for_each_memcg_cache_safe(c, c2, s) {
+     ^
 
-I would generally agree, but this code, which implements a userspace
-interface, is already grotesquely inefficient and heavyhanded.  It's
-also superseded in the next release, so we can just keep this simple
-at this point.
+fixes: slab-link-memcg-caches-of-the-same-kind-into-a-list
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+---
+ mm/slab.h |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/slab.h b/mm/slab.h
+index 2fc16c2ed198..0a56d76ac0e9 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -254,9 +254,9 @@ extern void slab_init_memcg_params(struct kmem_cache *);
+ #else /* !CONFIG_MEMCG_KMEM */
+ 
+ #define for_each_memcg_cache(iter, root) \
+-	for (iter = NULL, (root); 0; )
++	for ((void)(iter), (void)(root); 0; )
+ #define for_each_memcg_cache_safe(iter, tmp, root) \
+-	for (iter = NULL, tmp = NULL, (root); 0; )
++	for ((void)(iter), (void)(tmp), (void)(root); 0; )
+ 
+ static inline bool is_root_cache(struct kmem_cache *s)
+ {
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
