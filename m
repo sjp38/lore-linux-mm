@@ -1,90 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 01DFE6B0032
-	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 21:02:47 -0500 (EST)
-Received: by mail-oi0-f43.google.com with SMTP id z81so578904oif.2
-        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 18:02:46 -0800 (PST)
-Received: from bh-25.webhostbox.net (bh-25.webhostbox.net. [208.91.199.152])
-        by mx.google.com with ESMTPS id i7si1648646oig.77.2015.01.23.18.02.45
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 1993E6B0032
+	for <linux-mm@kvack.org>; Fri, 23 Jan 2015 21:17:10 -0500 (EST)
+Received: by mail-pd0-f177.google.com with SMTP id y13so1130712pdi.8
+        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 18:17:09 -0800 (PST)
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com. [209.85.192.170])
+        by mx.google.com with ESMTPS id ry9si3964769pbc.147.2015.01.23.18.17.07
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 23 Jan 2015 18:02:45 -0800 (PST)
-Received: from mailnull by bh-25.webhostbox.net with sa-checked (Exim 4.82)
-	(envelope-from <linux@roeck-us.net>)
-	id 1YEq3h-001sdZ-Nd
-	for linux-mm@kvack.org; Sat, 24 Jan 2015 02:02:46 +0000
-Message-ID: <54C2FD35.9070803@roeck-us.net>
-Date: Fri, 23 Jan 2015 18:02:29 -0800
-From: Guenter Roeck <linux@roeck-us.net>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 23 Jan 2015 18:17:08 -0800 (PST)
+Received: by mail-pd0-f170.google.com with SMTP id p10so1167218pdj.1
+        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 18:17:07 -0800 (PST)
+Message-ID: <54C300A1.7040202@kernel.dk>
+Date: Fri, 23 Jan 2015 19:17:05 -0700
+From: Jens Axboe <axboe@kernel.dk>
 MIME-Version: 1.0
-Subject: Re: mmotm 2015-01-22-15-04: qemu failure due to 'mm: memcontrol:
- remove unnecessary soft limit tree node test'
-References: <54c1822d.RtdGfWPekQVAw8Ly%akpm@linux-foundation.org> <20150123050802.GB22751@roeck-us.net> <20150123141817.GA22926@phnom.home.cmpxchg.org> <alpine.DEB.2.11.1501230908560.15325@gentwo.org> <20150123160204.GA32592@phnom.home.cmpxchg.org> <54C27E07.6000908@roeck-us.net> <20150123173659.GB12036@phnom.home.cmpxchg.org>
-In-Reply-To: <20150123173659.GB12036@phnom.home.cmpxchg.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC] async buffered diskio read for userspace
+ apps
+References: <CANP1eJF77=iH_tm1y0CgF6PwfhUK6WqU9S92d0xAnCt=WhZVfQ@mail.gmail.com> <20150115223157.GB25884@quack.suse.cz> <CANP1eJGRX4w56Ek4j7d2U+F7GNWp6RyOJonxKxTy0phUCpBM9g@mail.gmail.com> <20150116165506.GA10856@samba2> <CANP1eJEF33gndXeBJ0duP2_Bvuv-z6k7OLyuai7vjVdVKRYUWw@mail.gmail.com> <20150119071218.GA9747@jeremy-HP> <1421652849.2080.20.camel@HansenPartnership.com> <CANP1eJHYUprjvO1o6wfd197LM=Bmhi55YfdGQkPT0DKRn3=q6A@mail.gmail.com> <54BD234F.3060203@kernel.dk> <E1YDEuL-000mD3-8B@intern.SerNet.DE> <CANP1eJEgbsX2wcREwfcsPmo8k1ZMf-ZXimH19ZsvGCRO+MT-6Q@mail.gmail.com> <CAH2r5mv29sv1jz=Oh+BJY8hokZtLFMReVUZ=RLX-36yAwXOXoA@mail.gmail.com>
+In-Reply-To: <CAH2r5mv29sv1jz=Oh+BJY8hokZtLFMReVUZ=RLX-36yAwXOXoA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Christoph Lameter <cl@linux.com>, akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, Stephen Rothwell <sfr@canb.auug.org.au>, mhocko@suse.cz
+To: Steve French <smfrench@gmail.com>, Milosz Tanski <milosz@adfin.com>
+Cc: Volker Lendecke <Volker.Lendecke@sernet.de>, James Bottomley <James.Bottomley@hansenpartnership.com>, Jeremy Allison <jra@samba.org>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>
 
-On 01/23/2015 09:36 AM, Johannes Weiner wrote:
-> On Fri, Jan 23, 2015 at 08:59:51AM -0800, Guenter Roeck wrote:
->> On 01/23/2015 08:02 AM, Johannes Weiner wrote:
->>> On Fri, Jan 23, 2015 at 09:17:44AM -0600, Christoph Lameter wrote:
->>>> On Fri, 23 Jan 2015, Johannes Weiner wrote:
->>>>
->>>>> Is the assumption of this patch wrong?  Does the specified node have
->>>>> to be online for the fallback to work?
->>>>
->>>> Nodes that are offline have no control structures allocated and thus
->>>> allocations will likely segfault when the address of the controls
->>>> structure for the node is accessed.
->>>>
->>>> If we wanted to prevent that then every allocation would have to add a
->>>> check to see if the nodes are online which would impact performance.
+On 01/23/2015 04:15 PM, Steve French wrote:
+> On Mon, Jan 19, 2015 at 10:20 AM, Milosz Tanski <milosz@adfin.com> wrote:
+>> On Mon, Jan 19, 2015 at 11:10 AM, Volker Lendecke
+>> <Volker.Lendecke@sernet.de> wrote:
+>>> On Mon, Jan 19, 2015 at 08:31:27AM -0700, Jens Axboe wrote:
+>>>> I didn't look at your code yet, but I'm assuming it's a self
+>>>> contained IO engine. So we should be able to make that work, by only
+>>>> linking the engine itself against libsmbclient. But sheesh, what a
+>>>> pain in the butt, why can't we just all be friends.
 >>>
->>> Okay, that makes sense, thank you.
+>>> The published libsmbclient API misses the async features
+>>> that are needed here. Milosz needs to go lower-level.
 >>>
->>> Andrew, can you please drop this patch?
->>>
->> Problem is that there are three patches.
+>>> Volker
 >>
->> 2537ffb mm: memcontrol: consolidate swap controller code
->> 2f9b346 mm: memcontrol: consolidate memory controller initialization
->> a40d0d2 mm: memcontrol: remove unnecessary soft limit tree node test
+>> Volker, the sync code path works; in fact I pushed some minor
+>> corrections to my branch this morning. And for now using FIO I can
+>> generate multiple clients (threads / processes).
 >>
->> Reverting (or dropping) a40d0d2 alone is not possible since it modifies
->> mem_cgroup_soft_limit_tree_init which is removed by 2f9b346.
+>> I started working on the async features (SMB2 async read/write) for
+>> client library the samba repo. There's a patch there for the first
+>> step of it it there; see the other email I sent to you and Jeremy. I
+>> was going to make sure it licensed under whatever it needs to get into
+>> the samba repo... and since this is done on my own time I personally
+>> don't care what license it's under provided it's not a PITA.
 >
-> ("mm: memcontrol: consolidate swap controller code") gave me no issues
-> when rebasing, but ("mm: memcontrol: consolidate memory controller
-> initialization") needs updating.
->
-> So how about this one to replace ("mm: memcontrol: remove unnecessary
-> soft limit tree node test"):
->
-> ---
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Subject: [patch] mm: memcontrol: simplify soft limit tree init code
->
-> - No need to test the node for N_MEMORY.  node_online() is enough for
->    node fallback to work in slab, use NUMA_NO_NODE for everything else.
->
-> - Remove the BUG_ON() for allocation failure.  A NULL pointer crash is
->    just as descriptive, and the absent return value check is obvious.
->
-> - Move local variables to the inner-most blocks.
->
-> - Point to the tree structure after its initialized, not before, it's
->    just more logical that way.
->
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Why not do the async read/write via the kernel client if the license
+> is an issue?  It already has async SMB2/SMB3 operations
+> (with a synchronous send/receive-like wrapper).
 
-The latest version in mmotm passes my ppc64 qemu test, so it works
-at least in this context.
+The license issue has been solved. Fio is cross platform, so would be 
+preferable to have this work through libsmbclient, if at all possible.
 
-Tested-by: Guenter Roeck <linux@roeck-us.net>
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
