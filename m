@@ -1,114 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id E98D26B0032
-	for <linux-mm@kvack.org>; Sat, 24 Jan 2015 08:46:08 -0500 (EST)
-Received: by mail-pa0-f54.google.com with SMTP id eu11so2747209pac.13
-        for <linux-mm@kvack.org>; Sat, 24 Jan 2015 05:46:08 -0800 (PST)
-Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com. [2607:f8b0:400e:c02::232])
-        by mx.google.com with ESMTPS id xi3si5603031pab.118.2015.01.24.05.46.07
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 2887A6B0032
+	for <linux-mm@kvack.org>; Sat, 24 Jan 2015 08:48:55 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id et14so2774186pad.4
+        for <linux-mm@kvack.org>; Sat, 24 Jan 2015 05:48:54 -0800 (PST)
+Received: from mail-pd0-x229.google.com (mail-pd0-x229.google.com. [2607:f8b0:400e:c02::229])
+        by mx.google.com with ESMTPS id pn5si5649719pbb.72.2015.01.24.05.48.53
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 24 Jan 2015 05:46:08 -0800 (PST)
-Received: by mail-pd0-f178.google.com with SMTP id y10so3200219pdj.9
-        for <linux-mm@kvack.org>; Sat, 24 Jan 2015 05:46:07 -0800 (PST)
+        Sat, 24 Jan 2015 05:48:54 -0800 (PST)
+Received: by mail-pd0-f169.google.com with SMTP id g10so3260801pdj.0
+        for <linux-mm@kvack.org>; Sat, 24 Jan 2015 05:48:53 -0800 (PST)
 From: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Subject: [PATCH] zram: free meta table in zram_meta_free
-Date: Sat, 24 Jan 2015 21:45:53 +0800
-Message-Id: <1422107153-9701-1-git-send-email-opensource.ganesh@gmail.com>
+Subject: [PATCH] mm/zsmalloc: add log for module load/unload
+Date: Sat, 24 Jan 2015 21:48:41 +0800
+Message-Id: <1422107321-9973-1-git-send-email-opensource.ganesh@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: minchan@kernel.org, ngupta@vflare.org
 Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ganesh Mahendran <opensource.ganesh@gmail.com>
 
-zram_meta_alloc() and zram_meta_free() are a pair.
-In zram_meta_alloc(), meta table is allocated. So it it better to free
-it in zram_meta_free().
+Sometimes, we want to know whether a module is loaded or unloaded
+from the log.
+
+This patch adds some log.
 
 Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
 Cc: Nitin Gupta <ngupta@vflare.org>
 Cc: Minchan Kim <minchan@kernel.org>
 ---
- drivers/block/zram/zram_drv.c |   28 ++++++++++++++--------------
- drivers/block/zram/zram_drv.h |    1 +
- 2 files changed, 15 insertions(+), 14 deletions(-)
+ mm/zsmalloc.c |    7 +++++++
+ 1 file changed, 7 insertions(+)
 
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index 9bbc302..52fef1b 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -309,6 +309,18 @@ static inline int valid_io_request(struct zram *zram,
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 2d5f5be..16617e9 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -72,6 +72,8 @@
+  *
+  */
  
- static void zram_meta_free(struct zram_meta *meta)
++#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
++
+ #ifdef CONFIG_ZSMALLOC_DEBUG
+ #define DEBUG
+ #endif
+@@ -1460,6 +1462,8 @@ static int __init zs_init(void)
  {
-+	size_t index;
+ 	int ret = zs_register_cpu_notifier();
+ 
++	pr_info("loaded\n");
 +
-+	/* Free all pages that are still in this zram device */
-+	for (index = 0; index < meta->num_pages; index++) {
-+		unsigned long handle = meta->table[index].handle;
+ 	if (ret)
+ 		goto notifier_fail;
+ 
+@@ -1474,6 +1478,7 @@ static int __init zs_init(void)
+ 		pr_err("zs stat initialization failed\n");
+ 		goto stat_fail;
+ 	}
 +
-+		if (!handle)
-+			continue;
+ 	return 0;
+ 
+ stat_fail:
+@@ -1483,6 +1488,8 @@ stat_fail:
+ notifier_fail:
+ 	zs_unregister_cpu_notifier();
+ 
++	pr_info("unloaded\n");
 +
-+		zs_free(meta->mem_pool, handle);
-+	}
-+
- 	zs_destroy_pool(meta->mem_pool);
- 	vfree(meta->table);
- 	kfree(meta);
-@@ -316,14 +328,13 @@ static void zram_meta_free(struct zram_meta *meta)
+ 	return ret;
+ }
  
- static struct zram_meta *zram_meta_alloc(int device_id, u64 disksize)
- {
--	size_t num_pages;
- 	char pool_name[8];
- 	struct zram_meta *meta = kmalloc(sizeof(*meta), GFP_KERNEL);
- 	if (!meta)
- 		goto out;
- 
--	num_pages = disksize >> PAGE_SHIFT;
--	meta->table = vzalloc(num_pages * sizeof(*meta->table));
-+	meta->num_pages = disksize >> PAGE_SHIFT;
-+	meta->table = vzalloc(meta->num_pages * sizeof(*meta->table));
- 	if (!meta->table) {
- 		pr_err("Error allocating zram address table\n");
- 		goto free_meta;
-@@ -708,7 +719,6 @@ static void zram_bio_discard(struct zram *zram, u32 index,
- 
- static void zram_reset_device(struct zram *zram, bool reset_capacity)
- {
--	size_t index;
- 	struct zram_meta *meta;
- 	struct zcomp *comp;
- 
-@@ -735,16 +745,6 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
- 
- 	up_write(&zram->init_lock);
- 
--	/* Free all pages that are still in this zram device */
--	for (index = 0; index < zram->disksize >> PAGE_SHIFT; index++) {
--		unsigned long handle = meta->table[index].handle;
--
--		if (!handle)
--			continue;
--
--		zs_free(meta->mem_pool, handle);
--	}
--
- 	zcomp_destroy(comp);
- 	zram_meta_free(meta);
- 
-diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
-index b05a816..e492f6b 100644
---- a/drivers/block/zram/zram_drv.h
-+++ b/drivers/block/zram/zram_drv.h
-@@ -96,6 +96,7 @@ struct zram_stats {
- struct zram_meta {
- 	struct zram_table_entry *table;
- 	struct zs_pool *mem_pool;
-+	size_t num_pages;
- };
- 
- struct zram {
 -- 
 1.7.9.5
 
