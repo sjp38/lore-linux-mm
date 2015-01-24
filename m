@@ -1,174 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E9986B0032
-	for <linux-mm@kvack.org>; Sat, 24 Jan 2015 08:18:00 -0500 (EST)
-Received: by mail-oi0-f43.google.com with SMTP id z81so1622948oif.2
-        for <linux-mm@kvack.org>; Sat, 24 Jan 2015 05:18:00 -0800 (PST)
-Received: from mail-oi0-x229.google.com (mail-oi0-x229.google.com. [2607:f8b0:4003:c06::229])
-        by mx.google.com with ESMTPS id vj5si2292406obb.17.2015.01.24.05.17.58
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id E98D26B0032
+	for <linux-mm@kvack.org>; Sat, 24 Jan 2015 08:46:08 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id eu11so2747209pac.13
+        for <linux-mm@kvack.org>; Sat, 24 Jan 2015 05:46:08 -0800 (PST)
+Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com. [2607:f8b0:400e:c02::232])
+        by mx.google.com with ESMTPS id xi3si5603031pab.118.2015.01.24.05.46.07
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 24 Jan 2015 05:17:59 -0800 (PST)
-Received: by mail-oi0-f41.google.com with SMTP id z81so1630604oif.0
-        for <linux-mm@kvack.org>; Sat, 24 Jan 2015 05:17:58 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20150123143849.GB2320@swordfish>
-References: <1421992707-32658-1-git-send-email-minchan@kernel.org>
-	<1421992707-32658-2-git-send-email-minchan@kernel.org>
-	<20150123143849.GB2320@swordfish>
-Date: Sat, 24 Jan 2015 21:17:58 +0800
-Message-ID: <CADAEsF_pd_n9G4jft1dnXYM6N7SZ+YMQSKCAAszuLrpygaTQvQ@mail.gmail.com>
-Subject: Re: [PATCH 2/2] zram: protect zram->stat race with init_lock
+        Sat, 24 Jan 2015 05:46:08 -0800 (PST)
+Received: by mail-pd0-f178.google.com with SMTP id y10so3200219pdj.9
+        for <linux-mm@kvack.org>; Sat, 24 Jan 2015 05:46:07 -0800 (PST)
 From: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: [PATCH] zram: free meta table in zram_meta_free
+Date: Sat, 24 Jan 2015 21:45:53 +0800
+Message-Id: <1422107153-9701-1-git-send-email-opensource.ganesh@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>
+To: minchan@kernel.org, ngupta@vflare.org
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ganesh Mahendran <opensource.ganesh@gmail.com>
 
-Hello Sergey
+zram_meta_alloc() and zram_meta_free() are a pair.
+In zram_meta_alloc(), meta table is allocated. So it it better to free
+it in zram_meta_free().
 
-2015-01-23 22:38 GMT+08:00 Sergey Senozhatsky <sergey.senozhatsky@gmail.com>:
-> On (01/23/15 14:58), Minchan Kim wrote:
->> The zram->stat handling should be procted by init_lock.
->> Otherwise, user could see stale value from the stat.
->>
->> Signed-off-by: Minchan Kim <minchan@kernel.org>
->> ---
->>
->> I don't think it's stable material. The race is rare in real practice
->> and this stale stat value read is not a critical.
->>
->>  drivers/block/zram/zram_drv.c | 37 ++++++++++++++++++++++++++++---------
->>  1 file changed, 28 insertions(+), 9 deletions(-)
->>
->> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
->> index 0299d82275e7..53f176f590b0 100644
->> --- a/drivers/block/zram/zram_drv.c
->> +++ b/drivers/block/zram/zram_drv.c
->> @@ -48,8 +48,13 @@ static ssize_t name##_show(struct device *d,               \
->>                               struct device_attribute *attr, char *b) \
->>  {                                                                    \
->
-> a side note: I wasn't Cc'd in that patchset and found out it only when it's
-> been merged. I'm not sure I understand, why it has been renamed from specific
-> zram_X_show to X_show. what gives?
+Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Cc: Nitin Gupta <ngupta@vflare.org>
+Cc: Minchan Kim <minchan@kernel.org>
+---
+ drivers/block/zram/zram_drv.c |   28 ++++++++++++++--------------
+ drivers/block/zram/zram_drv.h |    1 +
+ 2 files changed, 15 insertions(+), 14 deletions(-)
 
-I changed from zram_attr_##name##_show to name##_show in commit:
-fcf1bce zram: use DEVICE_ATTR_[RW|RO|WO] to define zram sys device attribute
-
-I just want to keep the name consistent with others, like
-disksize_show(), initstate_show().
-
-Thanks.
-
->
->
-> can't help, catches my eye every time, that rename has broken the original
-> formatting:
->
->
-> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-> index 9250b3f..c567af5 100644
-> --- a/drivers/block/zram/zram_drv.c
-> +++ b/drivers/block/zram/zram_drv.c
-> @@ -44,7 +44,7 @@ static const char *default_compressor = "lzo";
->  static unsigned int num_devices = 1;
->
->  #define ZRAM_ATTR_RO(name)                                             \
-> -static ssize_t name##_show(struct device *d,           \
-> +static ssize_t name##_show(struct device *d,                           \
->                                 struct device_attribute *attr, char *b) \
->  {                                                                      \
->         struct zram *zram = dev_to_zram(d);                             \
->
->
->
-> I don't have any objections. but do we really want to wrap atomic ops in
-> semaphore? it is really such serious race?
->
->
->         -ss
->
->>       struct zram *zram = dev_to_zram(d);                             \
->> -     return scnprintf(b, PAGE_SIZE, "%llu\n",                        \
->> -             (u64)atomic64_read(&zram->stats.name));                 \
->> +     u64 val = 0;                                                    \
->> +                                                                     \
->> +     down_read(&zram->init_lock);                                    \
->> +     if (init_done(zram))                                            \
->> +             val = atomic64_read(&zram->stats.name);                 \
->> +     up_read(&zram->init_lock);                                      \
->> +     return scnprintf(b, PAGE_SIZE, "%llu\n", val);                  \
->>  }                                                                    \
->>  static DEVICE_ATTR_RO(name);
->>
->> @@ -67,8 +72,14 @@ static ssize_t disksize_show(struct device *dev,
->>               struct device_attribute *attr, char *buf)
->>  {
->>       struct zram *zram = dev_to_zram(dev);
->> +     u64 val = 0;
->> +
->> +     down_read(&zram->init_lock);
->> +     if (init_done(zram))
->> +             val = zram->disksize;
->> +     up_read(&zram->init_lock);
->>
->> -     return scnprintf(buf, PAGE_SIZE, "%llu\n", zram->disksize);
->> +     return scnprintf(buf, PAGE_SIZE, "%llu\n", val);
->>  }
->>
->>  static ssize_t initstate_show(struct device *dev,
->> @@ -88,9 +99,14 @@ static ssize_t orig_data_size_show(struct device *dev,
->>               struct device_attribute *attr, char *buf)
->>  {
->>       struct zram *zram = dev_to_zram(dev);
->> +     u64 val = 0;
->> +
->> +     down_read(&zram->init_lock);
->> +     if (init_done(zram))
->> +             val = atomic64_read(&zram->stats.pages_stored) << PAGE_SHIFT;
->> +     up_read(&zram->init_lock);
->>
->> -     return scnprintf(buf, PAGE_SIZE, "%llu\n",
->> -             (u64)(atomic64_read(&zram->stats.pages_stored)) << PAGE_SHIFT);
->> +     return scnprintf(buf, PAGE_SIZE, "%llu\n", val);
->>  }
->>
->>  static ssize_t mem_used_total_show(struct device *dev,
->> @@ -957,10 +973,6 @@ static int zram_rw_page(struct block_device *bdev, sector_t sector,
->>       struct bio_vec bv;
->>
->>       zram = bdev->bd_disk->private_data;
->> -     if (!valid_io_request(zram, sector, PAGE_SIZE)) {
->> -             atomic64_inc(&zram->stats.invalid_io);
->> -             return -EINVAL;
->> -     }
->>
->>       down_read(&zram->init_lock);
->>       if (unlikely(!init_done(zram))) {
->> @@ -968,6 +980,13 @@ static int zram_rw_page(struct block_device *bdev, sector_t sector,
->>               goto out_unlock;
->>       }
->>
->> +     if (!valid_io_request(zram, sector, PAGE_SIZE)) {
->> +             atomic64_inc(&zram->stats.invalid_io);
->> +             err = -EINVAL;
->> +             goto out_unlock;
->> +     }
->> +
->> +
->>       index = sector >> SECTORS_PER_PAGE_SHIFT;
->>       offset = sector & (SECTORS_PER_PAGE - 1) << SECTOR_SHIFT;
->>
->> --
->> 1.9.1
->>
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index 9bbc302..52fef1b 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -309,6 +309,18 @@ static inline int valid_io_request(struct zram *zram,
+ 
+ static void zram_meta_free(struct zram_meta *meta)
+ {
++	size_t index;
++
++	/* Free all pages that are still in this zram device */
++	for (index = 0; index < meta->num_pages; index++) {
++		unsigned long handle = meta->table[index].handle;
++
++		if (!handle)
++			continue;
++
++		zs_free(meta->mem_pool, handle);
++	}
++
+ 	zs_destroy_pool(meta->mem_pool);
+ 	vfree(meta->table);
+ 	kfree(meta);
+@@ -316,14 +328,13 @@ static void zram_meta_free(struct zram_meta *meta)
+ 
+ static struct zram_meta *zram_meta_alloc(int device_id, u64 disksize)
+ {
+-	size_t num_pages;
+ 	char pool_name[8];
+ 	struct zram_meta *meta = kmalloc(sizeof(*meta), GFP_KERNEL);
+ 	if (!meta)
+ 		goto out;
+ 
+-	num_pages = disksize >> PAGE_SHIFT;
+-	meta->table = vzalloc(num_pages * sizeof(*meta->table));
++	meta->num_pages = disksize >> PAGE_SHIFT;
++	meta->table = vzalloc(meta->num_pages * sizeof(*meta->table));
+ 	if (!meta->table) {
+ 		pr_err("Error allocating zram address table\n");
+ 		goto free_meta;
+@@ -708,7 +719,6 @@ static void zram_bio_discard(struct zram *zram, u32 index,
+ 
+ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+ {
+-	size_t index;
+ 	struct zram_meta *meta;
+ 	struct zcomp *comp;
+ 
+@@ -735,16 +745,6 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+ 
+ 	up_write(&zram->init_lock);
+ 
+-	/* Free all pages that are still in this zram device */
+-	for (index = 0; index < zram->disksize >> PAGE_SHIFT; index++) {
+-		unsigned long handle = meta->table[index].handle;
+-
+-		if (!handle)
+-			continue;
+-
+-		zs_free(meta->mem_pool, handle);
+-	}
+-
+ 	zcomp_destroy(comp);
+ 	zram_meta_free(meta);
+ 
+diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+index b05a816..e492f6b 100644
+--- a/drivers/block/zram/zram_drv.h
++++ b/drivers/block/zram/zram_drv.h
+@@ -96,6 +96,7 @@ struct zram_stats {
+ struct zram_meta {
+ 	struct zram_table_entry *table;
+ 	struct zs_pool *mem_pool;
++	size_t num_pages;
+ };
+ 
+ struct zram {
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
