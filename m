@@ -1,64 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
-	by kanga.kvack.org (Postfix) with ESMTP id AB45F6B0032
-	for <linux-mm@kvack.org>; Sat, 24 Jan 2015 02:03:55 -0500 (EST)
-Received: by mail-ob0-f171.google.com with SMTP id va2so1250706obc.2
-        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 23:03:55 -0800 (PST)
-Received: from bh-25.webhostbox.net (bh-25.webhostbox.net. [208.91.199.152])
-        by mx.google.com with ESMTPS id x192si1900926oix.89.2015.01.23.23.03.53
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id ABEA16B0032
+	for <linux-mm@kvack.org>; Sat, 24 Jan 2015 02:16:36 -0500 (EST)
+Received: by mail-wg0-f42.google.com with SMTP id x13so1155214wgg.1
+        for <linux-mm@kvack.org>; Fri, 23 Jan 2015 23:16:36 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id qd1si2343013wjc.109.2015.01.23.23.16.34
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 23 Jan 2015 23:03:54 -0800 (PST)
-Received: from mailnull by bh-25.webhostbox.net with sa-checked (Exim 4.82)
-	(envelope-from <linux@roeck-us.net>)
-	id 1YEul5-000OQ0-UD
-	for linux-mm@kvack.org; Sat, 24 Jan 2015 07:03:52 +0000
-Date: Fri, 23 Jan 2015 23:03:41 -0800
-From: Guenter Roeck <linux@roeck-us.net>
-Subject: mmotm 2015-01-23-16-19: build failures due to 'mm/page_alloc.c:
- don't offset memmap for flatmem'
-Message-ID: <20150124070341.GA30638@roeck-us.net>
-References: <54c2e51c.VbfIg4TfoWD0Qi0z%akpm@linux-foundation.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Jan 2015 23:16:35 -0800 (PST)
+Date: Sat, 24 Jan 2015 02:16:23 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: mmotm 2015-01-22-15-04: qemu failure due to 'mm: memcontrol:
+ remove unnecessary soft limit tree node test'
+Message-ID: <20150124071623.GA17705@phnom.home.cmpxchg.org>
+References: <54c1822d.RtdGfWPekQVAw8Ly%akpm@linux-foundation.org>
+ <20150123050802.GB22751@roeck-us.net>
+ <20150123141817.GA22926@phnom.home.cmpxchg.org>
+ <alpine.DEB.2.11.1501231419420.11767@gentwo.org>
+ <54C2B01D.4070303@roeck-us.net>
+ <alpine.DEB.2.11.1501231508020.7871@gentwo.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <54c2e51c.VbfIg4TfoWD0Qi0z%akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.11.1501231508020.7871@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, Laura Abbott <lauraa@codeaurora.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Guenter Roeck <linux@roeck-us.net>, akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz
 
-On Fri, Jan 23, 2015 at 04:19:40PM -0800, akpm@linux-foundation.org wrote:
-> The mm-of-the-moment snapshot 2015-01-23-16-19 has been uploaded to
+On Fri, Jan 23, 2015 at 03:09:20PM -0600, Christoph Lameter wrote:
+> On Fri, 23 Jan 2015, Guenter Roeck wrote:
 > 
->    http://www.ozlabs.org/~akpm/mmotm/
+> > Wouldn't that have unintended consequences ? So far
+> > rb tree nodes are allocated even if a node not online;
+> > the above would change that. Are you saying it is
+> > unnecessary to initialize rb tree nodes if the node
+> > is not online ?
 > 
-New build failure:
+> It is not advisable to allocate since an offline node means that the
+> structure cannot be allocated on the node where it would be most
+> beneficial. Typically subsystems allocate the per node data structures
+> when the node is brought online.
 
-mm/page_alloc.c: In function 'alloc_node_mem_map':
-mm/page_alloc.c:4973: error: 'ARCH_PFN_OFFSET' undeclared (first use in this
-function)
-mm/page_alloc.c:4973: error: (Each undeclared identifier is reported only once
-mm/page_alloc.c:4973: error: for each function it appears in.)
-make[1]: *** [mm/page_alloc.o] Error 1
-
-Culprit is c2ae2ed329 ("mm/page_alloc.c: don't offset memmap for flatmem").
-While the code in question was already there, it is now also built if
-CONFIG_FLATMEM is defined. Since the file defining ARCH_PFN_OFFSET
-is not directly included, the build now fails for some architectures.
-
-Affected:
-	avr32:defconfig
-	avr32:merisc_defconfig
-	avr32:atngw100mkii_evklcd101_defconfig
-	m68k:m5272c3_defconfig
-	m68k:m5307c3_defconfig
-	m68k:m5249evb_defconfig
-	m68k:m5407c3_defconfig
-	mn10300:asb2303_defconfig
-	mn10300:asb2364_defconfig
-
-Guenter
+I would generally agree, but this code, which implements a userspace
+interface, is already grotesquely inefficient and heavyhanded.  It's
+also superseded in the next release, so we can just keep this simple
+at this point.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
