@@ -1,41 +1,184 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 3620A6B0032
-	for <linux-mm@kvack.org>; Sun, 25 Jan 2015 04:25:26 -0500 (EST)
-Received: by mail-wg0-f48.google.com with SMTP id x12so4357917wgg.7
-        for <linux-mm@kvack.org>; Sun, 25 Jan 2015 01:25:25 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u2si13074596wiw.38.2015.01.25.01.25.24
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id D713A6B0032
+	for <linux-mm@kvack.org>; Sun, 25 Jan 2015 09:38:01 -0500 (EST)
+Received: by mail-pd0-f175.google.com with SMTP id fl12so7171907pdb.6
+        for <linux-mm@kvack.org>; Sun, 25 Jan 2015 06:38:01 -0800 (PST)
+Received: from mail-pd0-x22a.google.com (mail-pd0-x22a.google.com. [2607:f8b0:400e:c02::22a])
+        by mx.google.com with ESMTPS id je7si9053106pbd.15.2015.01.25.06.38.00
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 25 Jan 2015 01:25:24 -0800 (PST)
-Message-ID: <54C4B680.3010304@suse.cz>
-Date: Sun, 25 Jan 2015 10:25:20 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        Sun, 25 Jan 2015 06:38:00 -0800 (PST)
+Received: by mail-pd0-f170.google.com with SMTP id p10so7195006pdj.1
+        for <linux-mm@kvack.org>; Sun, 25 Jan 2015 06:38:00 -0800 (PST)
+Date: Sun, 25 Jan 2015 23:38:34 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [PATCH 2/2] zram: protect zram->stat race with init_lock
+Message-ID: <20150125143834.GA951@swordfish>
+References: <1421992707-32658-1-git-send-email-minchan@kernel.org>
+ <1421992707-32658-2-git-send-email-minchan@kernel.org>
+ <20150123143849.GB2320@swordfish>
+ <CADAEsF_pd_n9G4jft1dnXYM6N7SZ+YMQSKCAAszuLrpygaTQvQ@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: incorporate read-only pages into transparent huge
- pages
-References: <1421999256-3881-1-git-send-email-ebru.akagunduz@gmail.com> <20150123191816.GN11755@redhat.com>
-In-Reply-To: <20150123191816.GN11755@redhat.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CADAEsF_pd_n9G4jft1dnXYM6N7SZ+YMQSKCAAszuLrpygaTQvQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kirill@shutemov.name, mhocko@suse.cz, mgorman@suse.de, rientjes@google.com, sasha.levin@oracle.com, hughd@google.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, riel@redhat.com
+To: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>
 
-On 23.1.2015 20:18, Andrea Arcangeli wrote:
->> >+		if (!pte_write(pteval)) {
->> >+			if (++ro > khugepaged_max_ptes_none)
->> >+				goto out_unmap;
->> >+		}
-> It's true this is maxed out at 511, so there must be at least one
-> writable and not none pte (as results of the two "ro" and "none"
-> counters checks).
+Hello,
 
-Hm, but if we consider ro and pte_none separately, both can be lower
-than 512, but the sum of the two can be 512, so we can actually be in
-read-only VMA?
+On (01/24/15 21:17), Ganesh Mahendran wrote:
+> Hello Sergey
+> 
+> 2015-01-23 22:38 GMT+08:00 Sergey Senozhatsky <sergey.senozhatsky@gmail.com>:
+> > On (01/23/15 14:58), Minchan Kim wrote:
+> >> The zram->stat handling should be procted by init_lock.
+> >> Otherwise, user could see stale value from the stat.
+> >>
+> >> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> >> ---
+> >>
+> >> I don't think it's stable material. The race is rare in real practice
+> >> and this stale stat value read is not a critical.
+> >>
+> >>  drivers/block/zram/zram_drv.c | 37 ++++++++++++++++++++++++++++---------
+> >>  1 file changed, 28 insertions(+), 9 deletions(-)
+> >>
+> >> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> >> index 0299d82275e7..53f176f590b0 100644
+> >> --- a/drivers/block/zram/zram_drv.c
+> >> +++ b/drivers/block/zram/zram_drv.c
+> >> @@ -48,8 +48,13 @@ static ssize_t name##_show(struct device *d,               \
+> >>                               struct device_attribute *attr, char *b) \
+> >>  {                                                                    \
+> >
+> > a side note: I wasn't Cc'd in that patchset and found out it only when it's
+> > been merged. I'm not sure I understand, why it has been renamed from specific
+> > zram_X_show to X_show. what gives?
+> 
+> I changed from zram_attr_##name##_show to name##_show in commit:
+> fcf1bce zram: use DEVICE_ATTR_[RW|RO|WO] to define zram sys device attribute
+> 
+> I just want to keep the name consistent with others, like
+> disksize_show(), initstate_show().
+
+aha, I see.
+
+	-ss
+
+> Thanks.
+> 
+> >
+> >
+> > can't help, catches my eye every time, that rename has broken the original
+> > formatting:
+> >
+> >
+> > diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> > index 9250b3f..c567af5 100644
+> > --- a/drivers/block/zram/zram_drv.c
+> > +++ b/drivers/block/zram/zram_drv.c
+> > @@ -44,7 +44,7 @@ static const char *default_compressor = "lzo";
+> >  static unsigned int num_devices = 1;
+> >
+> >  #define ZRAM_ATTR_RO(name)                                             \
+> > -static ssize_t name##_show(struct device *d,           \
+> > +static ssize_t name##_show(struct device *d,                           \
+> >                                 struct device_attribute *attr, char *b) \
+> >  {                                                                      \
+> >         struct zram *zram = dev_to_zram(d);                             \
+> >
+> >
+> >
+> > I don't have any objections. but do we really want to wrap atomic ops in
+> > semaphore? it is really such serious race?
+> >
+> >
+> >         -ss
+> >
+> >>       struct zram *zram = dev_to_zram(d);                             \
+> >> -     return scnprintf(b, PAGE_SIZE, "%llu\n",                        \
+> >> -             (u64)atomic64_read(&zram->stats.name));                 \
+> >> +     u64 val = 0;                                                    \
+> >> +                                                                     \
+> >> +     down_read(&zram->init_lock);                                    \
+> >> +     if (init_done(zram))                                            \
+> >> +             val = atomic64_read(&zram->stats.name);                 \
+> >> +     up_read(&zram->init_lock);                                      \
+> >> +     return scnprintf(b, PAGE_SIZE, "%llu\n", val);                  \
+> >>  }                                                                    \
+> >>  static DEVICE_ATTR_RO(name);
+> >>
+> >> @@ -67,8 +72,14 @@ static ssize_t disksize_show(struct device *dev,
+> >>               struct device_attribute *attr, char *buf)
+> >>  {
+> >>       struct zram *zram = dev_to_zram(dev);
+> >> +     u64 val = 0;
+> >> +
+> >> +     down_read(&zram->init_lock);
+> >> +     if (init_done(zram))
+> >> +             val = zram->disksize;
+> >> +     up_read(&zram->init_lock);
+> >>
+> >> -     return scnprintf(buf, PAGE_SIZE, "%llu\n", zram->disksize);
+> >> +     return scnprintf(buf, PAGE_SIZE, "%llu\n", val);
+> >>  }
+> >>
+> >>  static ssize_t initstate_show(struct device *dev,
+> >> @@ -88,9 +99,14 @@ static ssize_t orig_data_size_show(struct device *dev,
+> >>               struct device_attribute *attr, char *buf)
+> >>  {
+> >>       struct zram *zram = dev_to_zram(dev);
+> >> +     u64 val = 0;
+> >> +
+> >> +     down_read(&zram->init_lock);
+> >> +     if (init_done(zram))
+> >> +             val = atomic64_read(&zram->stats.pages_stored) << PAGE_SHIFT;
+> >> +     up_read(&zram->init_lock);
+> >>
+> >> -     return scnprintf(buf, PAGE_SIZE, "%llu\n",
+> >> -             (u64)(atomic64_read(&zram->stats.pages_stored)) << PAGE_SHIFT);
+> >> +     return scnprintf(buf, PAGE_SIZE, "%llu\n", val);
+> >>  }
+> >>
+> >>  static ssize_t mem_used_total_show(struct device *dev,
+> >> @@ -957,10 +973,6 @@ static int zram_rw_page(struct block_device *bdev, sector_t sector,
+> >>       struct bio_vec bv;
+> >>
+> >>       zram = bdev->bd_disk->private_data;
+> >> -     if (!valid_io_request(zram, sector, PAGE_SIZE)) {
+> >> -             atomic64_inc(&zram->stats.invalid_io);
+> >> -             return -EINVAL;
+> >> -     }
+> >>
+> >>       down_read(&zram->init_lock);
+> >>       if (unlikely(!init_done(zram))) {
+> >> @@ -968,6 +980,13 @@ static int zram_rw_page(struct block_device *bdev, sector_t sector,
+> >>               goto out_unlock;
+> >>       }
+> >>
+> >> +     if (!valid_io_request(zram, sector, PAGE_SIZE)) {
+> >> +             atomic64_inc(&zram->stats.invalid_io);
+> >> +             err = -EINVAL;
+> >> +             goto out_unlock;
+> >> +     }
+> >> +
+> >> +
+> >>       index = sector >> SECTORS_PER_PAGE_SHIFT;
+> >>       offset = sector & (SECTORS_PER_PAGE - 1) << SECTOR_SHIFT;
+> >>
+> >> --
+> >> 1.9.1
+> >>
+> > --
+> > To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> > the body of a message to majordomo@vger.kernel.org
+> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> > Please read the FAQ at  http://www.tux.org/lkml/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
