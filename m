@@ -1,94 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f178.google.com (mail-we0-f178.google.com [74.125.82.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F93E6B0032
-	for <linux-mm@kvack.org>; Sun, 25 Jan 2015 09:55:16 -0500 (EST)
-Received: by mail-we0-f178.google.com with SMTP id k48so5111902wev.9
-        for <linux-mm@kvack.org>; Sun, 25 Jan 2015 06:55:15 -0800 (PST)
-Received: from mail.efficios.com (mail.efficios.com. [78.47.125.74])
-        by mx.google.com with ESMTP id ci8si14880961wjc.76.2015.01.25.06.55.14
-        for <linux-mm@kvack.org>;
-        Sun, 25 Jan 2015 06:55:14 -0800 (PST)
-Date: Sun, 25 Jan 2015 14:55:18 +0000 (UTC)
-From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Message-ID: <8237170.50348.1422197718126.JavaMail.zimbra@efficios.com>
-In-Reply-To: <20141027184809.GW11522@wil.cx>
-References: <1254279794.1957.1414240389301.JavaMail.zimbra@efficios.com> <465653369.1985.1414241485934.JavaMail.zimbra@efficios.com> <20141027184809.GW11522@wil.cx>
-Subject: Re: Progress on system crash traces with LTTng using DAX and pmem
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id C27306B0032
+	for <linux-mm@kvack.org>; Sun, 25 Jan 2015 16:36:51 -0500 (EST)
+Received: by mail-wi0-f175.google.com with SMTP id fb4so6471911wid.2
+        for <linux-mm@kvack.org>; Sun, 25 Jan 2015 13:36:51 -0800 (PST)
+Received: from omr2.cc.vt.edu (omr2.cc.ipv6.vt.edu. [2001:468:c80:2105:0:24d:7091:8b9c])
+        by mx.google.com with ESMTPS id da3si16103188wib.31.2015.01.25.13.36.49
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 25 Jan 2015 13:36:50 -0800 (PST)
+Subject: Re: mmotm 2015-01-22-15-04: qemu failure due to 'mm: memcontrol: remove unnecessary soft limit tree node test'
+In-Reply-To: Your message of "Sat, 24 Jan 2015 02:16:23 -0500."
+             <20150124071623.GA17705@phnom.home.cmpxchg.org>
+From: Valdis.Kletnieks@vt.edu
+References: <54c1822d.RtdGfWPekQVAw8Ly%akpm@linux-foundation.org> <20150123050802.GB22751@roeck-us.net> <20150123141817.GA22926@phnom.home.cmpxchg.org> <alpine.DEB.2.11.1501231419420.11767@gentwo.org> <54C2B01D.4070303@roeck-us.net> <alpine.DEB.2.11.1501231508020.7871@gentwo.org>
+            <20150124071623.GA17705@phnom.home.cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_1422221788_1948P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
 Content-Transfer-Encoding: 7bit
+Date: Sun, 25 Jan 2015 16:36:28 -0500
+Message-ID: <109548.1422221788@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@linux.intel.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, lttng-dev <lttng-dev@lists.lttng.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Christoph Lameter <cl@linux.com>, Guenter Roeck <linux@roeck-us.net>, akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz
 
------ Original Message -----
-> From: "Matthew Wilcox" <willy@linux.intel.com>
-> To: "Mathieu Desnoyers" <mathieu.desnoyers@efficios.com>
-> Cc: "Matthew Wilcox" <willy@linux.intel.com>, "Ross Zwisler" <ross.zwisler@linux.intel.com>, "lttng-dev"
-> <lttng-dev@lists.lttng.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-> Sent: Monday, October 27, 2014 2:48:09 PM
-> Subject: Re: Progress on system crash traces with LTTng using DAX and pmem
-> 
-> On Sat, Oct 25, 2014 at 12:51:25PM +0000, Mathieu Desnoyers wrote:
-> > A quick follow up on my progress on using DAX and pmem with
-> > LTTng. I've been able to successfully gather a user-space
-> > trace into buffers mmap'd into an ext4 filesystem within
-> > a pmem block device mounted with -o dax to bypass the page
-> > cache. After a soft reboot, I'm able to mount the partition
-> > again, and gather the very last data collected in the buffers
-> > by the applications. I created a "lttng-crash" program that
-> > extracts data from those buffers and converts the content
-> > into a readable Common Trace Format trace. So I guess
-> > you have a use-case for your patchsets on commodity hardware
-> > right there. :)
-> 
-> Sweet!
-> 
-> > I've been asked by my customers if DAX would work well with
-> > mtd-ram, which they are using. To you foresee any roadblock
-> > with this approach ?
-> 
-> Looks like we'd need to add support to mtd-blkdevs.c for DAX.  I assume
-> they're already using one of the block-based ways to expose MTD to
-> filesystems, rather than jffs2/logfs/ubifs?
-> 
-> I'm thinking we might want to add a flag somewhere in the block_dev / bdi
-> that indicates whether DAX is supported.  Currently we rely on whether
-> ->direct_access is present in the block_device_operations to indicate
-> that, so we'd have to have two block_dev_operations in mtd-blkdevs,
-> depending on whether direct access is supported by the underlying
-> MTD device.  Not a show-stopper.
-> 
-> > Please keep me in CC on your next patch versions. I'm willing
-> > to spend some more time reviewing them if needed. By the way,
-> > do you guys have a target time-frame/kernel version you aim
-> > at for getting this work upstream ?
-> 
-> We're trying to get it upstream ASAP.  We've been working on it
-> publically since December last year, and it's getting frustrating that
-> it's not upstream already.  I sent a v12 a few minutes before you sent
-> this message ...  I thought git would add you to the cc's since your
-> Reviewed-by is on some of the patches.
+--==_Exmh_1422221788_1948P
+Content-Type: text/plain; charset=us-ascii
 
-Hi Matthew,
+On Sat, 24 Jan 2015 02:16:23 -0500, Johannes Weiner said:
 
-I've noticed that Andrew Morton picked up your DAX patchset, which is
-really good news!
+> I would generally agree, but this code, which implements a userspace
+> interface, is already grotesquely inefficient and heavyhanded.  It's
+> also superseded in the next release, so we can just keep this simple
+> at this point.
 
-About the topic of DAX support on mtd-ram: I'm wonder if we would
-need the pmem patchset at all if mtd-ram gets DAX support ? How
-do the two approaches differ ? Has anyone tried out mtd-ram over
-DAX at this point ?
+Wait, what?  Userspace interface that's superceded in the next release?
 
-Thanks for the great work! :)
+I *hope* this was intended as "Yes,it's ugly in v4 of the patch, v5 is
+a lot cleaner..."
 
-Mathieu
+--==_Exmh_1422221788_1948P
+Content-Type: application/pgp-signature
 
--- 
-Mathieu Desnoyers
-EfficiOS Inc.
-http://www.efficios.com
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+Comment: Exmh version 2.5 07/13/2001
+
+iQIVAwUBVMVh3AdmEQWDXROgAQK4QA//U6I3P9Vgzh6/W+tJaeSg4+BCFAJsyhUM
+caCo+oiRsuhTNxreAEXmTi26Gx1HvvtJ3A/LbBUwXEWhlcrK2xcp0xUlg7sUT+kA
+ufCh5qs5NLTbl1hWRb2lfC3ksqhChJo2HKnkWJHDAUzMITXXZz+9paJikNtvlMt9
+OnGMHI5EGmm4VSwXoMpwz94mzXs/grL4EC61Y2pPgpbU9HaGyJ5dfbGxZ7qBdnrN
+nrwyP4rpyxqLapyoq4Kd5k8ck/cdJCbnqPpR6cy0FQHdbBDQv0L7O4JtdPeuUm4p
+VO9xayBSqnWl1zUa7VladqgGQdsBdJ5lYdrC9mHPntUm8G2cyAlMsWAm7dN+iEh4
+BkVvfp9E805C5U1gMpg6+63LjMDcTYEeH7nVv5U04jJpx3GiHnwR2lB6iTJfDyFA
+F0053x8dOp3TUZt2ovlzlkXB9IjXM48xyxrZV4+8ACEluaycSSxro/yejMv3Vrza
+z3FjQ4Sp5z2TX1btmPn6DOkD1SeM0exflclMOCz3WfiD4cM4WrUakRNcuOdEaDbT
+J1hpuPZ1FiJr3Uin14B6fKiFDWq+g7D/Fwb4UBSk2S880SqWep2jwS1g4J1Tndc1
+2CXNahHWvdzeYEWqZvPRcijAaiu9VsotnMuCB6PfUbsDxWOt0pbmBbQr4ZOeMzeb
+8WmTQBYs85Q=
+=vhDK
+-----END PGP SIGNATURE-----
+
+--==_Exmh_1422221788_1948P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
