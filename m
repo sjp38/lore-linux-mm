@@ -1,285 +1,253 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 8165F6B0032
-	for <linux-mm@kvack.org>; Sun, 25 Jan 2015 21:53:59 -0500 (EST)
-Received: by mail-ob0-f175.google.com with SMTP id wp4so5769369obc.6
-        for <linux-mm@kvack.org>; Sun, 25 Jan 2015 18:53:59 -0800 (PST)
-Received: from mail-oi0-x22c.google.com (mail-oi0-x22c.google.com. [2607:f8b0:4003:c06::22c])
-        by mx.google.com with ESMTPS id dw8si4297710obb.9.2015.01.25.18.53.57
+Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 59F0C6B0032
+	for <linux-mm@kvack.org>; Mon, 26 Jan 2015 02:36:11 -0500 (EST)
+Received: by mail-we0-f179.google.com with SMTP id q59so7407312wes.10
+        for <linux-mm@kvack.org>; Sun, 25 Jan 2015 23:36:10 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id fh2si18121476wib.90.2015.01.25.23.36.08
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 25 Jan 2015 18:53:58 -0800 (PST)
-Received: by mail-oi0-f44.google.com with SMTP id a3so5373278oib.3
-        for <linux-mm@kvack.org>; Sun, 25 Jan 2015 18:53:57 -0800 (PST)
+        Sun, 25 Jan 2015 23:36:09 -0800 (PST)
+Message-ID: <54C5EE66.4060700@suse.cz>
+Date: Mon, 26 Jan 2015 08:36:06 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1421820866-26521-3-git-send-email-minchan@kernel.org>
-References: <1421820866-26521-1-git-send-email-minchan@kernel.org>
-	<1421820866-26521-3-git-send-email-minchan@kernel.org>
-Date: Mon, 26 Jan 2015 10:53:57 +0800
-Message-ID: <CADAEsF8BpCxYOCwp6mG75N9R8L-xVd1kvvD7+oV12gLs7RGXQw@mail.gmail.com>
-Subject: Re: [PATCH v1 02/10] zsmalloc: decouple handle and object
-From: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH v2] mm: incorporate read-only pages into transparent huge
+ pages
+References: <1422113880-4712-1-git-send-email-ebru.akagunduz@gmail.com>
+In-Reply-To: <1422113880-4712-1-git-send-email-ebru.akagunduz@gmail.com>
+Content-Type: text/plain; charset=iso-8859-2
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjennings@variantweb.net>, Nitin Gupta <ngupta@vflare.org>, Juneho Choi <juno.choi@lge.com>, Gunho Lee <gunho.lee@lge.com>, Luigi Semenzato <semenzato@google.com>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, kirill@shutemov.name, mhocko@suse.cz, mgorman@suse.de, rientjes@google.com, sasha.levin@oracle.com, hughd@google.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, riel@redhat.com, aarcange@redhat.com
 
-Hello, Minchan
-
-2015-01-21 14:14 GMT+08:00 Minchan Kim <minchan@kernel.org>:
-> Currently, zram's handle encodes object's location directly so
-> it makes hard to support migration/compaction.
->
-> This patch decouples handle and object via adding indirect layer.
-> For it, it allocates handle dynamically and returns it to user.
-> The handle is the address allocated by slab allocation so it's
-> unique and the memory allocated keeps object's position so that
-> we can get object's position from derefercing handle.
->
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
+On 01/24/2015 04:38 PM, Ebru Akagunduz wrote:
+> This patch aims to improve THP collapse rates, by allowing
+> THP collapse in the presence of read-only ptes, like those
+> left in place by do_swap_page after a read fault.
+> 
+> Currently THP can collapse 4kB pages into a THP when
+> there are up to khugepaged_max_ptes_none pte_none ptes
+> in a 2MB range. This patch applies the same limit for
+> read-only ptes.
+> 
+> The patch was tested with a test program that allocates
+> 800MB of memory, writes to it, and then sleeps. I force
+> the system to swap out all but 190MB of the program by
+> touching other memory. Afterwards, the test program does
+> a mix of reads and writes to its memory, and the memory
+> gets swapped back in.
+> 
+> Without the patch, only the memory that did not get
+> swapped out remained in THPs, which corresponds to 24% of
+> the memory of the program. The percentage did not increase
+> over time.
+> 
+> With this patch, after 5 minutes of waiting khugepaged had
+> collapsed 48% of the program's memory back into THPs.
+> 
+> Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+> Reviewed-by: Rik van Riel <riel@redhat.com>
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
 > ---
->  mm/zsmalloc.c | 90 ++++++++++++++++++++++++++++++++++++++++++++---------------
->  1 file changed, 68 insertions(+), 22 deletions(-)
->
-> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index 0dec1fa..9436ee8 100644
-> --- a/mm/zsmalloc.c
-> +++ b/mm/zsmalloc.c
-> @@ -110,6 +110,8 @@
->  #define ZS_MAX_ZSPAGE_ORDER 2
->  #define ZS_MAX_PAGES_PER_ZSPAGE (_AC(1, UL) << ZS_MAX_ZSPAGE_ORDER)
->
-> +#define ZS_HANDLE_SIZE (sizeof(unsigned long))
-> +
->  /*
->   * Object location (<PFN>, <obj_idx>) is encoded as
->   * as single (unsigned long) handle value.
-> @@ -241,6 +243,7 @@ struct zs_pool {
->         char *name;
->
->         struct size_class **size_class;
-> +       struct kmem_cache *handle_cachep;
->
->         gfp_t flags;    /* allocation flags used when growing pool */
->         atomic_long_t pages_allocated;
-> @@ -269,6 +272,34 @@ struct mapping_area {
->         enum zs_mapmode vm_mm; /* mapping mode */
->  };
->
-> +static int create_handle_cache(struct zs_pool *pool)
-> +{
-> +       pool->handle_cachep = kmem_cache_create("zs_handle", ZS_HANDLE_SIZE,
-> +                                       0, 0, NULL);
-> +       return pool->handle_cachep ? 0 : 1;
-> +}
-> +
-> +static void destroy_handle_cache(struct zs_pool *pool)
-> +{
-> +       kmem_cache_destroy(pool->handle_cachep);
-> +}
-> +
-> +static unsigned long alloc_handle(struct zs_pool *pool)
-> +{
-> +       return (unsigned long)kmem_cache_alloc(pool->handle_cachep,
-> +               pool->flags & ~__GFP_HIGHMEM);
-> +}
-> +
-> +static void free_handle(struct zs_pool *pool, unsigned long handle)
-> +{
-> +       kmem_cache_free(pool->handle_cachep, (void *)handle);
-> +}
-> +
-> +static void record_obj(unsigned long handle, unsigned long obj)
-> +{
-> +       *(unsigned long *)handle = obj;
-> +}
-> +
->  /* zpool driver */
->
->  #ifdef CONFIG_ZPOOL
-> @@ -595,13 +626,18 @@ static void *obj_location_to_handle(struct page *page, unsigned long obj_idx)
->   * decoded obj_idx back to its original value since it was adjusted in
->   * obj_location_to_handle().
->   */
-> -static void obj_handle_to_location(unsigned long handle, struct page **page,
-> +static void obj_to_location(unsigned long handle, struct page **page,
->                                 unsigned long *obj_idx)
->  {
->         *page = pfn_to_page(handle >> OBJ_INDEX_BITS);
->         *obj_idx = (handle & OBJ_INDEX_MASK) - 1;
->  }
->
-> +static unsigned long handle_to_obj(unsigned long handle)
-> +{
-> +       return *(unsigned long *)handle;
-> +}
-> +
->  static unsigned long obj_idx_to_offset(struct page *page,
->                                 unsigned long obj_idx, int class_size)
->  {
-> @@ -1153,7 +1189,7 @@ void *zs_map_object(struct zs_pool *pool, unsigned long handle,
->                         enum zs_mapmode mm)
->  {
->         struct page *page;
-> -       unsigned long obj_idx, off;
-> +       unsigned long obj, obj_idx, off;
->
->         unsigned int class_idx;
->         enum fullness_group fg;
-> @@ -1170,7 +1206,8 @@ void *zs_map_object(struct zs_pool *pool, unsigned long handle,
->          */
->         BUG_ON(in_interrupt());
->
-> -       obj_handle_to_location(handle, &page, &obj_idx);
-> +       obj = handle_to_obj(handle);
-> +       obj_to_location(obj, &page, &obj_idx);
->         get_zspage_mapping(get_first_page(page), &class_idx, &fg);
->         class = pool->size_class[class_idx];
->         off = obj_idx_to_offset(page, obj_idx, class->size);
-> @@ -1195,7 +1232,7 @@ EXPORT_SYMBOL_GPL(zs_map_object);
->  void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
->  {
->         struct page *page;
-> -       unsigned long obj_idx, off;
-> +       unsigned long obj, obj_idx, off;
->
->         unsigned int class_idx;
->         enum fullness_group fg;
-> @@ -1204,7 +1241,8 @@ void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
->
->         BUG_ON(!handle);
->
-> -       obj_handle_to_location(handle, &page, &obj_idx);
-> +       obj = handle_to_obj(handle);
-> +       obj_to_location(obj, &page, &obj_idx);
->         get_zspage_mapping(get_first_page(page), &class_idx, &fg);
->         class = pool->size_class[class_idx];
->         off = obj_idx_to_offset(page, obj_idx, class->size);
-> @@ -1236,7 +1274,7 @@ EXPORT_SYMBOL_GPL(zs_unmap_object);
->   */
->  unsigned long zs_malloc(struct zs_pool *pool, size_t size)
->  {
-> -       unsigned long obj;
-> +       unsigned long handle, obj;
->         struct link_free *link;
->         struct size_class *class;
->         void *vaddr;
-> @@ -1247,6 +1285,10 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
->         if (unlikely(!size || size > ZS_MAX_ALLOC_SIZE))
->                 return 0;
->
-> +       handle = alloc_handle(pool);
-> +       if (!handle)
-> +               return 0;
-> +
->         class = pool->size_class[get_size_class_index(size)];
->
->         spin_lock(&class->lock);
-> @@ -1255,8 +1297,10 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
->         if (!first_page) {
->                 spin_unlock(&class->lock);
->                 first_page = alloc_zspage(class, pool->flags);
-> -               if (unlikely(!first_page))
-> +               if (unlikely(!first_page)) {
-> +                       free_handle(pool, handle);
->                         return 0;
-> +               }
->
->                 set_zspage_mapping(first_page, class->index, ZS_EMPTY);
->                 atomic_long_add(class->pages_per_zspage,
-> @@ -1268,7 +1312,7 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
->         }
->
->         obj = (unsigned long)first_page->freelist;
-> -       obj_handle_to_location(obj, &m_page, &m_objidx);
-> +       obj_to_location(obj, &m_page, &m_objidx);
->         m_offset = obj_idx_to_offset(m_page, m_objidx, class->size);
->
->         vaddr = kmap_atomic(m_page);
-> @@ -1281,27 +1325,30 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
->         zs_stat_inc(class, OBJ_USED, 1);
->         /* Now move the zspage to another fullness group, if required */
->         fix_fullness_group(pool, first_page);
-> +       record_obj(handle, obj);
->         spin_unlock(&class->lock);
->
-> -       return obj;
-> +       return handle;
->  }
->  EXPORT_SYMBOL_GPL(zs_malloc);
->
-> -void zs_free(struct zs_pool *pool, unsigned long obj)
-> +void zs_free(struct zs_pool *pool, unsigned long handle)
->  {
->         struct link_free *link;
->         struct page *first_page, *f_page;
-> -       unsigned long f_objidx, f_offset;
-> +       unsigned long obj, f_objidx, f_offset;
->         void *vaddr;
->
->         int class_idx;
->         struct size_class *class;
->         enum fullness_group fullness;
->
-> -       if (unlikely(!obj))
-> +       if (unlikely(!handle))
->                 return;
->
-> -       obj_handle_to_location(obj, &f_page, &f_objidx);
-> +       obj = handle_to_obj(handle);
-> +       free_handle(pool, handle);
-> +       obj_to_location(obj, &f_page, &f_objidx);
->         first_page = get_first_page(f_page);
->
->         get_zspage_mapping(first_page, &class_idx, &fullness);
-> @@ -1356,18 +1403,16 @@ struct zs_pool *zs_create_pool(char *name, gfp_t flags)
->                 return NULL;
->
->         pool->name = kstrdup(name, GFP_KERNEL);
-> -       if (!pool->name) {
-> -               kfree(pool);
-> -               return NULL;
-> -       }
-> +       if (!pool->name)
-> +               goto err;
+> Changes in v2:
+>  - Remove extra code indent
+>  - Add fast path optimistic check to
+>    __collapse_huge_page_isolate()
 
-We can not goto err here. Since in zs_destroy_pool(), the
-pool->size_class[x] will
-be touched. But it has not been allocated yet.
+My interpretation is that the optimistic check is in khugepaged_scan_pmd() while
+in __collapse_huge_page_isolate() it's protected by lock, as Andrea suggested?
 
+>  - Add comment line for check condition of page_count()
+>  - Move check condition of page_count() below to trylock_page()
+> 
+> I've written down test results:
+> With the patch:
+> After swapped out:
+> cat /proc/pid/smaps:
+> Anonymous:	42804 kB
+> AnonHugePages:	38912 kB
+> Swap:		757200 kB
+> Fraction:	90,90
+> 
+> cat /proc/meminfo:
+> AnonPages:	1843956 kB
+> AnonHugePages:	1712128 kB
+> Fraction:	92,85
+> 
+> After swapped in:
+> In a few seconds:
+> cat /proc/pid/smaps:
+> Anonymous:	800004 kB
+> AnonHugePages:	104448 kB
+> Swap:		0 kB
+> Fraction:	13,05
+> 
+> cat /proc/meminfo:
+> AnonPages:	2605728 kB
+> AnonHugePages:	1777664 kB
+> Fraction:	68,22
+> 
+> In 5 minutes:
+> cat /proc/pid/smaps
+> Anonymous:	800004 kB
+> AnonHugePages:	389120 kB
+> Swap:		0 kB
+> Fraction:	48,63
+> 
+> cat /proc/meminfo:
+> AnonPages:	2607824 kB
+> AnonHugePages:	2041856 kB
+> Fraction:	78,29
+> 
+> Without the patch:
+> After swapped out:
+> cat /proc/pid/smaps:
+> Anonymous:      190660 kB
+> AnonHugePages:  190464 kB
+> Swap:           609344 kB
+> Fraction:       99,89
+> 
+> cat /proc/meminfo:
+> AnonPages:      1740456 kB
+> AnonHugePages:  1667072 kB
+> Fraction:       95,78
+> 
+> After swapped in:
+> cat /proc/pid/smaps:
+> Anonymous:      800004 kB
+> AnonHugePages:  190464 kB
+> Swap:           0 kB
+> Fraction:       23,80
+> 
+> cat /proc/meminfo:
+> AnonPages:      2350032 kB
+> AnonHugePages:  1667072 kB
+> Fraction:       70,93
+> 
+> I waited 10 minutes the fractions
+> did not change without the patch.
+> 
+>  mm/huge_memory.c | 48 +++++++++++++++++++++++++++++++++++++++---------
+>  1 file changed, 39 insertions(+), 9 deletions(-)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 817a875..5e3e9b9 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -2148,7 +2148,7 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+>  {
+>  	struct page *page;
+>  	pte_t *_pte;
+> -	int referenced = 0, none = 0;
+> +	int referenced = 0, none = 0, ro = 0;
+>  	for (_pte = pte; _pte < pte+HPAGE_PMD_NR;
+>  	     _pte++, address += PAGE_SIZE) {
+>  		pte_t pteval = *_pte;
+> @@ -2158,7 +2158,7 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+>  			else
+>  				goto out;
+>  		}
+> -		if (!pte_present(pteval) || !pte_write(pteval))
+> +		if (!pte_present(pteval))
+>  			goto out;
+>  		page = vm_normal_page(vma, address, pteval);
+>  		if (unlikely(!page))
+> @@ -2168,9 +2168,6 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+>  		VM_BUG_ON_PAGE(!PageAnon(page), page);
+>  		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
+>  
+> -		/* cannot use mapcount: can't collapse if there's a gup pin */
+> -		if (page_count(page) != 1)
+> -			goto out;
+>  		/*
+>  		 * We can do it before isolate_lru_page because the
+>  		 * page can't be freed from under us. NOTE: PG_lock
+> @@ -2179,6 +2176,31 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+>  		 */
+>  		if (!trylock_page(page))
+>  			goto out;
 > +
-> +       if (create_handle_cache(pool))
-> +               goto err;
->
->         pool->size_class = kcalloc(zs_size_classes, sizeof(struct size_class *),
->                         GFP_KERNEL);
-> -       if (!pool->size_class) {
-> -               kfree(pool->name);
-> -               kfree(pool);
-> -               return NULL;
-> -       }
-> +       if (!pool->size_class)
-> +               goto err;
->
->         /*
->          * Iterate reversly, because, size of size_class that we want to use
-> @@ -1450,6 +1495,7 @@ void zs_destroy_pool(struct zs_pool *pool)
->                 kfree(class);
->         }
->
-> +       destroy_handle_cache(pool);
->         kfree(pool->size_class);
->         kfree(pool->name);
->         kfree(pool);
-> --
-> 1.9.3
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+> +		/*
+> +		 * cannot use mapcount: can't collapse if there's a gup pin.
+> +		 * The page must only be referenced by the scanned process
+> +		 * and page swap cache.
+> +		 */
+> +		if (page_count(page) != 1 + !!PageSwapCache(page)) {
+> +			unlock_page(page);
+> +			goto out;
+> +		}
+> +		if (!pte_write(pteval)) {
+> +			if (++ro > khugepaged_max_ptes_none) {
+> +				unlock_page(page);
+> +				goto out;
+
+So just for completeness, as I said later for v1 I think this can leave us with
+read-only VMA: consider ro == 256 and none == 256, referenced can still be >0
+(up to 256). I think that the check for referenced that follows this for loop
+should also check if (ro + none < HPAGE_PMD_NR).
+
+> +			}
+> +			if (PageSwapCache(page) && !reuse_swap_page(page)) {
+> +				unlock_page(page);
+> +				goto out;
+> +			}
+> +			/*
+> +			 * Page is not in the swap cache, and page count is
+> +			 * one (see above). It can be collapsed into a THP.
+> +			 */
+
+I would still put the VM_BUG_ON(page_count(page) != 1) here as I suggested
+previously. Even more so that I think it would have been able to catch the
+problem that Andrea pointed out in v1.
+
+> +		}
+> +
+>  		/*
+>  		 * Isolate the page to avoid collapsing an hugepage
+>  		 * currently in use by the VM.
+> @@ -2550,7 +2572,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+>  {
+>  	pmd_t *pmd;
+>  	pte_t *pte, *_pte;
+> -	int ret = 0, referenced = 0, none = 0;
+> +	int ret = 0, referenced = 0, none = 0, ro = 0;
+>  	struct page *page;
+>  	unsigned long _address;
+>  	spinlock_t *ptl;
+> @@ -2573,8 +2595,12 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+>  			else
+>  				goto out_unmap;
+>  		}
+> -		if (!pte_present(pteval) || !pte_write(pteval))
+> +		if (!pte_present(pteval))
+>  			goto out_unmap;
+> +		if (!pte_write(pteval)) {
+> +			if (++ro > khugepaged_max_ptes_none)
+> +				goto out_unmap;
+> +		}
+>  		page = vm_normal_page(vma, _address, pteval);
+>  		if (unlikely(!page))
+>  			goto out_unmap;
+> @@ -2591,8 +2617,12 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+>  		VM_BUG_ON_PAGE(PageCompound(page), page);
+>  		if (!PageLRU(page) || PageLocked(page) || !PageAnon(page))
+>  			goto out_unmap;
+> -		/* cannot use mapcount: can't collapse if there's a gup pin */
+> -		if (page_count(page) != 1)
+> +		/*
+> +		 * cannot use mapcount: can't collapse if there's a gup pin.
+> +		 * The page must only be referenced by the scanned process
+> +		 * and page swap cache.
+> +		 */
+> +		if (page_count(page) != 1 + !!PageSwapCache(page))
+>  			goto out_unmap;
+>  		if (pte_young(pteval) || PageReferenced(page) ||
+>  		    mmu_notifier_test_young(vma->vm_mm, address))
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
