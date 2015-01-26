@@ -1,209 +1,285 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id BBC056B0032
-	for <linux-mm@kvack.org>; Sun, 25 Jan 2015 20:33:20 -0500 (EST)
-Received: by mail-pd0-f172.google.com with SMTP id v10so9047584pde.3
-        for <linux-mm@kvack.org>; Sun, 25 Jan 2015 17:33:20 -0800 (PST)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id rl7si10412594pab.145.2015.01.25.17.33.19
+Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 8165F6B0032
+	for <linux-mm@kvack.org>; Sun, 25 Jan 2015 21:53:59 -0500 (EST)
+Received: by mail-ob0-f175.google.com with SMTP id wp4so5769369obc.6
+        for <linux-mm@kvack.org>; Sun, 25 Jan 2015 18:53:59 -0800 (PST)
+Received: from mail-oi0-x22c.google.com (mail-oi0-x22c.google.com. [2607:f8b0:4003:c06::22c])
+        by mx.google.com with ESMTPS id dw8si4297710obb.9.2015.01.25.18.53.57
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 25 Jan 2015 17:33:19 -0800 (PST)
-Received: by mail-pa0-f51.google.com with SMTP id fb1so8713090pad.10
-        for <linux-mm@kvack.org>; Sun, 25 Jan 2015 17:33:19 -0800 (PST)
-Date: Mon, 26 Jan 2015 10:33:10 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 1/2] zram: free meta out of init_lock
-Message-ID: <20150126013309.GA26895@blaptop>
-References: <1421992707-32658-1-git-send-email-minchan@kernel.org>
- <20150123142435.GA2320@swordfish>
- <54C25F25.9070609@redhat.com>
- <20150123154707.GA1046@swordfish>
+        Sun, 25 Jan 2015 18:53:58 -0800 (PST)
+Received: by mail-oi0-f44.google.com with SMTP id a3so5373278oib.3
+        for <linux-mm@kvack.org>; Sun, 25 Jan 2015 18:53:57 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150123154707.GA1046@swordfish>
+In-Reply-To: <1421820866-26521-3-git-send-email-minchan@kernel.org>
+References: <1421820866-26521-1-git-send-email-minchan@kernel.org>
+	<1421820866-26521-3-git-send-email-minchan@kernel.org>
+Date: Mon, 26 Jan 2015 10:53:57 +0800
+Message-ID: <CADAEsF8BpCxYOCwp6mG75N9R8L-xVd1kvvD7+oV12gLs7RGXQw@mail.gmail.com>
+Subject: Re: [PATCH v1 02/10] zsmalloc: decouple handle and object
+From: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: Jerome Marchand <jmarchan@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjennings@variantweb.net>, Nitin Gupta <ngupta@vflare.org>, Juneho Choi <juno.choi@lge.com>, Gunho Lee <gunho.lee@lge.com>, Luigi Semenzato <semenzato@google.com>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-Hello,
+Hello, Minchan
 
-On Sat, Jan 24, 2015 at 12:47:07AM +0900, Sergey Senozhatsky wrote:
-> On (01/23/15 15:48), Jerome Marchand wrote:
-> > Date: Fri, 23 Jan 2015 15:48:05 +0100
-> > From: Jerome Marchand <jmarchan@redhat.com>
-> > To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim
-> >  <minchan@kernel.org>
-> > CC: Andrew Morton <akpm@linux-foundation.org>,
-> >  linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nitin Gupta
-> >  <ngupta@vflare.org>
-> > Subject: Re: [PATCH 1/2] zram: free meta out of init_lock
-> > User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:31.0) Gecko/20100101
-> >  Thunderbird/31.3.0
-> > 
-> > On 01/23/2015 03:24 PM, Sergey Senozhatsky wrote:
-> > > On (01/23/15 14:58), Minchan Kim wrote:
-> > >> We don't need to call zram_meta_free, zcomp_destroy and zs_free
-> > >> under init_lock. What we need to prevent race with init_lock
-> > >> in reset is setting NULL into zram->meta (ie, init_done).
-> > >> This patch does it.
-> > >>
-> > >> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > >> ---
-> > >>  drivers/block/zram/zram_drv.c | 28 ++++++++++++++++------------
-> > >>  1 file changed, 16 insertions(+), 12 deletions(-)
-> > >>
-> > >> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-> > >> index 9250b3f54a8f..0299d82275e7 100644
-> > >> --- a/drivers/block/zram/zram_drv.c
-> > >> +++ b/drivers/block/zram/zram_drv.c
-> > >> @@ -708,6 +708,7 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
-> > >>  {
-> > >>  	size_t index;
-> > >>  	struct zram_meta *meta;
-> > >> +	struct zcomp *comp;
-> > >>  
-> > >>  	down_write(&zram->init_lock);
-> > >>  
-> > >> @@ -719,20 +720,10 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
-> > >>  	}
-> > >>  
-> > >>  	meta = zram->meta;
-> > >> -	/* Free all pages that are still in this zram device */
-> > >> -	for (index = 0; index < zram->disksize >> PAGE_SHIFT; index++) {
-> > >> -		unsigned long handle = meta->table[index].handle;
-> > >> -		if (!handle)
-> > >> -			continue;
-> > >> -
-> > >> -		zs_free(meta->mem_pool, handle);
-> > >> -	}
-> > >> -
-> > >> -	zcomp_destroy(zram->comp);
-> > > 
-> > > I'm not so sure about moving zcomp destruction. if we would have detached it
-> > > from zram, then yes. otherwise, think of zram ->destoy vs ->init race.
-> > > 
-> > > suppose,
-> > > CPU1 waits for down_write() init lock in disksize_store() with new comp already allocated;
-> > > CPU0 detaches ->meta and releases write init lock;
-> > > CPU1 grabs the lock and does zram->comp = comp;
-> > > CPU0 reaches the point of zcomp_destroy(zram->comp);
-> > 
-> > I don't see your point: this patch does not call
-> > zcomp_destroy(zram->comp) anymore, but zram_destroy(comp), where comp is
-> > the old zram->comp.
-> 
-> 
-> oh... yes. sorry! my bad.
-> 
-> 
-> 
-> anyway, on a second thought, do we even want to destoy meta out of init_lock?
-> 
-> I mean, it will let you init new device quicker. but... assume, you have
-> 30G zram (or any other bad-enough number). on CPU0 you reset device -- iterate
-> over 30G meta->table, etc. out of init_lock.
-> on CPU1 you concurrently re-init device and request again 30G.
-> 
-> how bad that can be?
-> 
-> 
-> 
-> diskstore called on already initialised device is also not so perfect.
-> we first will try to allocate ->meta (vmalloc pages for another 30G),
-> then allocate comp, then down_write() init lock to find out that device
-> is initialised and we need to release allocated memory.
-> 
-> 
-> 
-> may be we better keep ->meta destruction under init_lock and additionally
-> move ->meta and ->comp allocation under init_lock in disksize_store()?
-> 
-> like the following one:
-> 
+2015-01-21 14:14 GMT+08:00 Minchan Kim <minchan@kernel.org>:
+> Currently, zram's handle encodes object's location directly so
+> it makes hard to support migration/compaction.
+>
+> This patch decouples handle and object via adding indirect layer.
+> For it, it allocates handle dynamically and returns it to user.
+> The handle is the address allocated by slab allocation so it's
+> unique and the memory allocated keeps object's position so that
+> we can get object's position from derefercing handle.
+>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 > ---
-> 
->  drivers/block/zram/zram_drv.c | 25 +++++++++++++------------
->  1 file changed, 13 insertions(+), 12 deletions(-)
-> 
-> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-> index 9250b3f..827ab21 100644
-> --- a/drivers/block/zram/zram_drv.c
-> +++ b/drivers/block/zram/zram_drv.c
-> @@ -765,9 +765,18 @@ static ssize_t disksize_store(struct device *dev,
->  		return -EINVAL;
->  
->  	disksize = PAGE_ALIGN(disksize);
-> +	down_write(&zram->init_lock);
-> +	if (init_done(zram)) {
-> +		up_write(&zram->init_lock);
-> +		pr_info("Cannot change disksize for initialized device\n");
-> +		return -EBUSY;
-> +	}
+>  mm/zsmalloc.c | 90 ++++++++++++++++++++++++++++++++++++++++++++---------------
+>  1 file changed, 68 insertions(+), 22 deletions(-)
+>
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index 0dec1fa..9436ee8 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -110,6 +110,8 @@
+>  #define ZS_MAX_ZSPAGE_ORDER 2
+>  #define ZS_MAX_PAGES_PER_ZSPAGE (_AC(1, UL) << ZS_MAX_ZSPAGE_ORDER)
+>
+> +#define ZS_HANDLE_SIZE (sizeof(unsigned long))
 > +
->  	meta = zram_meta_alloc(zram->disk->first_minor, disksize);
-> -	if (!meta)
-> -		return -ENOMEM;
-> +	if (!meta) {
-> +		err = -ENOMEM;
-> +		goto out_unlock;
-> +	}
->  
->  	comp = zcomp_create(zram->compressor, zram->max_comp_streams);
->  	if (IS_ERR(comp)) {
-> @@ -777,13 +786,6 @@ static ssize_t disksize_store(struct device *dev,
->  		goto out_free_meta;
->  	}
->  
-> -	down_write(&zram->init_lock);
-> -	if (init_done(zram)) {
-> -		pr_info("Cannot change disksize for initialized device\n");
-> -		err = -EBUSY;
-> -		goto out_destroy_comp;
-> -	}
-> -
->  	zram->meta = meta;
->  	zram->comp = comp;
->  	zram->disksize = disksize;
-> @@ -799,11 +801,10 @@ static ssize_t disksize_store(struct device *dev,
->  
->  	return len;
->  
-> -out_destroy_comp:
-> -	up_write(&zram->init_lock);
-> -	zcomp_destroy(comp);
->  out_free_meta:
->  	zram_meta_free(meta);
-> +out_unlock:
-> +	up_write(&zram->init_lock);
->  	return err;
+>  /*
+>   * Object location (<PFN>, <obj_idx>) is encoded as
+>   * as single (unsigned long) handle value.
+> @@ -241,6 +243,7 @@ struct zs_pool {
+>         char *name;
+>
+>         struct size_class **size_class;
+> +       struct kmem_cache *handle_cachep;
+>
+>         gfp_t flags;    /* allocation flags used when growing pool */
+>         atomic_long_t pages_allocated;
+> @@ -269,6 +272,34 @@ struct mapping_area {
+>         enum zs_mapmode vm_mm; /* mapping mode */
+>  };
+>
+> +static int create_handle_cache(struct zs_pool *pool)
+> +{
+> +       pool->handle_cachep = kmem_cache_create("zs_handle", ZS_HANDLE_SIZE,
+> +                                       0, 0, NULL);
+> +       return pool->handle_cachep ? 0 : 1;
+> +}
+> +
+> +static void destroy_handle_cache(struct zs_pool *pool)
+> +{
+> +       kmem_cache_destroy(pool->handle_cachep);
+> +}
+> +
+> +static unsigned long alloc_handle(struct zs_pool *pool)
+> +{
+> +       return (unsigned long)kmem_cache_alloc(pool->handle_cachep,
+> +               pool->flags & ~__GFP_HIGHMEM);
+> +}
+> +
+> +static void free_handle(struct zs_pool *pool, unsigned long handle)
+> +{
+> +       kmem_cache_free(pool->handle_cachep, (void *)handle);
+> +}
+> +
+> +static void record_obj(unsigned long handle, unsigned long obj)
+> +{
+> +       *(unsigned long *)handle = obj;
+> +}
+> +
+>  /* zpool driver */
+>
+>  #ifdef CONFIG_ZPOOL
+> @@ -595,13 +626,18 @@ static void *obj_location_to_handle(struct page *page, unsigned long obj_idx)
+>   * decoded obj_idx back to its original value since it was adjusted in
+>   * obj_location_to_handle().
+>   */
+> -static void obj_handle_to_location(unsigned long handle, struct page **page,
+> +static void obj_to_location(unsigned long handle, struct page **page,
+>                                 unsigned long *obj_idx)
+>  {
+>         *page = pfn_to_page(handle >> OBJ_INDEX_BITS);
+>         *obj_idx = (handle & OBJ_INDEX_MASK) - 1;
 >  }
->  
+>
+> +static unsigned long handle_to_obj(unsigned long handle)
+> +{
+> +       return *(unsigned long *)handle;
+> +}
+> +
+>  static unsigned long obj_idx_to_offset(struct page *page,
+>                                 unsigned long obj_idx, int class_size)
+>  {
+> @@ -1153,7 +1189,7 @@ void *zs_map_object(struct zs_pool *pool, unsigned long handle,
+>                         enum zs_mapmode mm)
+>  {
+>         struct page *page;
+> -       unsigned long obj_idx, off;
+> +       unsigned long obj, obj_idx, off;
+>
+>         unsigned int class_idx;
+>         enum fullness_group fg;
+> @@ -1170,7 +1206,8 @@ void *zs_map_object(struct zs_pool *pool, unsigned long handle,
+>          */
+>         BUG_ON(in_interrupt());
+>
+> -       obj_handle_to_location(handle, &page, &obj_idx);
+> +       obj = handle_to_obj(handle);
+> +       obj_to_location(obj, &page, &obj_idx);
+>         get_zspage_mapping(get_first_page(page), &class_idx, &fg);
+>         class = pool->size_class[class_idx];
+>         off = obj_idx_to_offset(page, obj_idx, class->size);
+> @@ -1195,7 +1232,7 @@ EXPORT_SYMBOL_GPL(zs_map_object);
+>  void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
+>  {
+>         struct page *page;
+> -       unsigned long obj_idx, off;
+> +       unsigned long obj, obj_idx, off;
+>
+>         unsigned int class_idx;
+>         enum fullness_group fg;
+> @@ -1204,7 +1241,8 @@ void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
+>
+>         BUG_ON(!handle);
+>
+> -       obj_handle_to_location(handle, &page, &obj_idx);
+> +       obj = handle_to_obj(handle);
+> +       obj_to_location(obj, &page, &obj_idx);
+>         get_zspage_mapping(get_first_page(page), &class_idx, &fg);
+>         class = pool->size_class[class_idx];
+>         off = obj_idx_to_offset(page, obj_idx, class->size);
+> @@ -1236,7 +1274,7 @@ EXPORT_SYMBOL_GPL(zs_unmap_object);
+>   */
+>  unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+>  {
+> -       unsigned long obj;
+> +       unsigned long handle, obj;
+>         struct link_free *link;
+>         struct size_class *class;
+>         void *vaddr;
+> @@ -1247,6 +1285,10 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+>         if (unlikely(!size || size > ZS_MAX_ALLOC_SIZE))
+>                 return 0;
+>
+> +       handle = alloc_handle(pool);
+> +       if (!handle)
+> +               return 0;
+> +
+>         class = pool->size_class[get_size_class_index(size)];
+>
+>         spin_lock(&class->lock);
+> @@ -1255,8 +1297,10 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+>         if (!first_page) {
+>                 spin_unlock(&class->lock);
+>                 first_page = alloc_zspage(class, pool->flags);
+> -               if (unlikely(!first_page))
+> +               if (unlikely(!first_page)) {
+> +                       free_handle(pool, handle);
+>                         return 0;
+> +               }
+>
+>                 set_zspage_mapping(first_page, class->index, ZS_EMPTY);
+>                 atomic_long_add(class->pages_per_zspage,
+> @@ -1268,7 +1312,7 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+>         }
+>
+>         obj = (unsigned long)first_page->freelist;
+> -       obj_handle_to_location(obj, &m_page, &m_objidx);
+> +       obj_to_location(obj, &m_page, &m_objidx);
+>         m_offset = obj_idx_to_offset(m_page, m_objidx, class->size);
+>
+>         vaddr = kmap_atomic(m_page);
+> @@ -1281,27 +1325,30 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+>         zs_stat_inc(class, OBJ_USED, 1);
+>         /* Now move the zspage to another fullness group, if required */
+>         fix_fullness_group(pool, first_page);
+> +       record_obj(handle, obj);
+>         spin_unlock(&class->lock);
+>
+> -       return obj;
+> +       return handle;
+>  }
+>  EXPORT_SYMBOL_GPL(zs_malloc);
+>
+> -void zs_free(struct zs_pool *pool, unsigned long obj)
+> +void zs_free(struct zs_pool *pool, unsigned long handle)
+>  {
+>         struct link_free *link;
+>         struct page *first_page, *f_page;
+> -       unsigned long f_objidx, f_offset;
+> +       unsigned long obj, f_objidx, f_offset;
+>         void *vaddr;
+>
+>         int class_idx;
+>         struct size_class *class;
+>         enum fullness_group fullness;
+>
+> -       if (unlikely(!obj))
+> +       if (unlikely(!handle))
+>                 return;
+>
+> -       obj_handle_to_location(obj, &f_page, &f_objidx);
+> +       obj = handle_to_obj(handle);
+> +       free_handle(pool, handle);
+> +       obj_to_location(obj, &f_page, &f_objidx);
+>         first_page = get_first_page(f_page);
+>
+>         get_zspage_mapping(first_page, &class_idx, &fullness);
+> @@ -1356,18 +1403,16 @@ struct zs_pool *zs_create_pool(char *name, gfp_t flags)
+>                 return NULL;
+>
+>         pool->name = kstrdup(name, GFP_KERNEL);
+> -       if (!pool->name) {
+> -               kfree(pool);
+> -               return NULL;
+> -       }
+> +       if (!pool->name)
+> +               goto err;
 
-The init_lock is really troublesome. We can't do call zram_meta_alloc
-under init_lock due to lockdep report. Please keep in mind.
-The zram_rw_page is one of the function under reclaim path and hold it
-as read_lock while here holds it as write_lock.
-It's a false positive so that we might could make shut lockdep up
-by annotation but I don't want it but want to work with lockdep rather
-than disable. As well, there are other pathes to use init_lock to
-protect other data where would be victims of lockdep.
+We can not goto err here. Since in zs_destroy_pool(), the
+pool->size_class[x] will
+be touched. But it has not been allocated yet.
 
-I didn't tell the motivation of this patch because it made you busy
-guys wasted. Let me tell it now. It was another lockdep report by
-kmem_cache_destroy for zsmalloc compaction about init_lock. That's why
-the patchset was one of the patch in compaction.
-
-Yes, the ideal is to remove horrible init_lock of zram in this phase and
-make code more simple and clear but I don't want to stuck zsmalloc
-compaction by the work. Having said that, I feel it's time to revisit
-to remove init_lock.
-At least, I will think over to find a solution to kill init_lock.
-
-Thanks!
-
+> +
+> +       if (create_handle_cache(pool))
+> +               goto err;
+>
+>         pool->size_class = kcalloc(zs_size_classes, sizeof(struct size_class *),
+>                         GFP_KERNEL);
+> -       if (!pool->size_class) {
+> -               kfree(pool->name);
+> -               kfree(pool);
+> -               return NULL;
+> -       }
+> +       if (!pool->size_class)
+> +               goto err;
+>
+>         /*
+>          * Iterate reversly, because, size of size_class that we want to use
+> @@ -1450,6 +1495,7 @@ void zs_destroy_pool(struct zs_pool *pool)
+>                 kfree(class);
+>         }
+>
+> +       destroy_handle_cache(pool);
+>         kfree(pool->size_class);
+>         kfree(pool->name);
+>         kfree(pool);
+> --
+> 1.9.3
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
