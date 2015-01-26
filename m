@@ -1,89 +1,211 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f49.google.com (mail-oi0-f49.google.com [209.85.218.49])
-	by kanga.kvack.org (Postfix) with ESMTP id E98B56B0032
-	for <linux-mm@kvack.org>; Mon, 26 Jan 2015 09:04:29 -0500 (EST)
-Received: by mail-oi0-f49.google.com with SMTP id a3so7187923oib.8
-        for <linux-mm@kvack.org>; Mon, 26 Jan 2015 06:04:29 -0800 (PST)
-Received: from bh-25.webhostbox.net (bh-25.webhostbox.net. [208.91.199.152])
-        by mx.google.com with ESMTPS id x8si4953292obw.51.2015.01.26.06.04.28
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 66CF66B0032
+	for <linux-mm@kvack.org>; Mon, 26 Jan 2015 09:16:36 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id eu11so11930460pac.13
+        for <linux-mm@kvack.org>; Mon, 26 Jan 2015 06:16:36 -0800 (PST)
+Received: from mail-pd0-x230.google.com (mail-pd0-x230.google.com. [2607:f8b0:400e:c02::230])
+        by mx.google.com with ESMTPS id hu6si12406611pac.115.2015.01.26.06.16.35
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 26 Jan 2015 06:04:29 -0800 (PST)
-Received: from mailnull by bh-25.webhostbox.net with sa-checked (Exim 4.82)
-	(envelope-from <linux@roeck-us.net>)
-	id 1YFkHA-002Ail-Sq
-	for linux-mm@kvack.org; Mon, 26 Jan 2015 14:04:26 +0000
-Message-ID: <54C6494D.80802@roeck-us.net>
-Date: Mon, 26 Jan 2015 06:03:57 -0800
-From: Guenter Roeck <linux@roeck-us.net>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 26 Jan 2015 06:16:35 -0800 (PST)
+Received: by mail-pd0-f176.google.com with SMTP id y10so12131883pdj.7
+        for <linux-mm@kvack.org>; Mon, 26 Jan 2015 06:16:35 -0800 (PST)
+Date: Mon, 26 Jan 2015 23:17:09 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [PATCH 1/2] zram: free meta out of init_lock
+Message-ID: <20150126141709.GA985@swordfish>
+References: <1421992707-32658-1-git-send-email-minchan@kernel.org>
+ <20150123142435.GA2320@swordfish>
+ <54C25F25.9070609@redhat.com>
+ <20150123154707.GA1046@swordfish>
+ <20150126013309.GA26895@blaptop>
 MIME-Version: 1.0
-Subject: Re: mmotm 2015-01-22-15-04: qemu failures due to 'mm: account pmd
- page tables to the process'
-References: <54c1822d.RtdGfWPekQVAw8Ly%akpm@linux-foundation.org> <20150123050445.GA22751@roeck-us.net> <20150123111304.GA5975@node.dhcp.inet.fi> <54C263CC.1060904@roeck-us.net> <20150123135519.9f1061caf875f41f89298d59@linux-foundation.org> <20150124055207.GA8926@roeck-us.net> <20150126122944.GE25833@node.dhcp.inet.fi>
-In-Reply-To: <20150126122944.GE25833@node.dhcp.inet.fi>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150126013309.GA26895@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, sergey.senozhatsky.work@gmail.com
 
-On 01/26/2015 04:29 AM, Kirill A. Shutemov wrote:
-> On Fri, Jan 23, 2015 at 09:52:07PM -0800, Guenter Roeck wrote:
->> On Fri, Jan 23, 2015 at 01:55:19PM -0800, Andrew Morton wrote:
->>> On Fri, 23 Jan 2015 07:07:56 -0800 Guenter Roeck <linux@roeck-us.net> wrote:
->>>
->>>>>>
->>>>>> qemu:microblaze generates warnings to the console.
->>>>>>
->>>>>> WARNING: CPU: 0 PID: 32 at mm/mmap.c:2858 exit_mmap+0x184/0x1a4()
->>>>>>
->>>>>> with various call stacks. See
->>>>>> http://server.roeck-us.net:8010/builders/qemu-microblaze-mmotm/builds/15/steps/qemubuildcommand/logs/stdio
->>>>>> for details.
->>>>>
->>>>> Could you try patch below? Completely untested.
->>>>>
->>>>> >From b584bb8d493794f67484c0b57c161d61c02599bc Mon Sep 17 00:00:00 2001
->>>>> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
->>>>> Date: Fri, 23 Jan 2015 13:08:26 +0200
->>>>> Subject: [PATCH] microblaze: define __PAGETABLE_PMD_FOLDED
->>>>>
->>>>> Microblaze uses custom implementation of PMD folding, but doesn't define
->>>>> __PAGETABLE_PMD_FOLDED, which generic code expects to see. Let's fix it.
->>>>>
->>>>> Defining __PAGETABLE_PMD_FOLDED will drop out unused __pmd_alloc().
->>>>> It also fixes problems with recently-introduced pmd accounting.
->>>>>
->>>>> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
->>>>> Reported-by: Guenter Roeck <linux@roeck-us.net>
->>>>
->>>> Tested working.
->>>>
->>>> Tested-by: Guenter Roeck <linux@roeck-us.net>
->>>>
->>>> Any idea how to fix the sh problem ?
->>>
->>> Can you tell us more about it?  All I'm seeing is "qemu:sh fails to
->>> shut down", which isn't very clear.
->>
->> Turns out that the include file defining __PAGETABLE_PMD_FOLDED
->> was not always included where used, resulting in a messed up mm_struct.
->
-> What means "messed up" here? It should only affect size of mm_struct.
->
-Plus the offset of all variables after the #ifndef.
+Hello,
 
->> The patch below fixes the problem for the sh architecture.
->> No idea if the patch is correct/acceptable for other architectures.
+On (01/26/15 10:33), Minchan Kim wrote:
+> Hello,
+> 
+> On Sat, Jan 24, 2015 at 12:47:07AM +0900, Sergey Senozhatsky wrote:
+> > On (01/23/15 15:48), Jerome Marchand wrote:
+> > > On 01/23/2015 03:24 PM, Sergey Senozhatsky wrote:
+> > > > On (01/23/15 14:58), Minchan Kim wrote:
+> > > >> We don't need to call zram_meta_free, zcomp_destroy and zs_free
+> > > >> under init_lock. What we need to prevent race with init_lock
+> > > >> in reset is setting NULL into zram->meta (ie, init_done).
+> > > >> This patch does it.
+> > > >>
+> > > >> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > > >> ---
+> > > >>  drivers/block/zram/zram_drv.c | 28 ++++++++++++++++------------
+> > > >>  1 file changed, 16 insertions(+), 12 deletions(-)
+> > > >>
+> > > >> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> > > >> index 9250b3f54a8f..0299d82275e7 100644
+> > > >> --- a/drivers/block/zram/zram_drv.c
+> > > >> +++ b/drivers/block/zram/zram_drv.c
+> > > >> @@ -708,6 +708,7 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+> > > >>  {
+> > > >>  	size_t index;
+> > > >>  	struct zram_meta *meta;
+> > > >> +	struct zcomp *comp;
+> > > >>  
+> > > >>  	down_write(&zram->init_lock);
+> > > >>  
+> > > >> @@ -719,20 +720,10 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+> > > >>  	}
+> > > >>  
+> > > >>  	meta = zram->meta;
+> > > >> -	/* Free all pages that are still in this zram device */
+> > > >> -	for (index = 0; index < zram->disksize >> PAGE_SHIFT; index++) {
+> > > >> -		unsigned long handle = meta->table[index].handle;
+> > > >> -		if (!handle)
+> > > >> -			continue;
+> > > >> -
+> > > >> -		zs_free(meta->mem_pool, handle);
+> > > >> -	}
+> > > >> -
+> > > >> -	zcomp_destroy(zram->comp);
+> > > > 
+> > > > I'm not so sure about moving zcomp destruction. if we would have detached it
+> > > > from zram, then yes. otherwise, think of zram ->destoy vs ->init race.
+> > > > 
+> > > > suppose,
+> > > > CPU1 waits for down_write() init lock in disksize_store() with new comp already allocated;
+> > > > CPU0 detaches ->meta and releases write init lock;
+> > > > CPU1 grabs the lock and does zram->comp = comp;
+> > > > CPU0 reaches the point of zcomp_destroy(zram->comp);
+> > > 
+> > > I don't see your point: this patch does not call
+> > > zcomp_destroy(zram->comp) anymore, but zram_destroy(comp), where comp is
+> > > the old zram->comp.
+> > 
+> > 
+> > oh... yes. sorry! my bad.
+> > 
+> > 
+> > 
+> > anyway, on a second thought, do we even want to destoy meta out of init_lock?
+> > 
+> > I mean, it will let you init new device quicker. but... assume, you have
+> > 30G zram (or any other bad-enough number). on CPU0 you reset device -- iterate
+> > over 30G meta->table, etc. out of init_lock.
+> > on CPU1 you concurrently re-init device and request again 30G.
+> > 
+> > how bad that can be?
+> > 
+> > 
+> > 
+> > diskstore called on already initialised device is also not so perfect.
+> > we first will try to allocate ->meta (vmalloc pages for another 30G),
+> > then allocate comp, then down_write() init lock to find out that device
+> > is initialised and we need to release allocated memory.
+> > 
+> > 
+> > 
+> > may be we better keep ->meta destruction under init_lock and additionally
+> > move ->meta and ->comp allocation under init_lock in disksize_store()?
+> > 
+> > like the following one:
+> > 
+> > ---
+> > 
+> >  drivers/block/zram/zram_drv.c | 25 +++++++++++++------------
+> >  1 file changed, 13 insertions(+), 12 deletions(-)
+> > 
+> > diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> > index 9250b3f..827ab21 100644
+> > --- a/drivers/block/zram/zram_drv.c
+> > +++ b/drivers/block/zram/zram_drv.c
+> > @@ -765,9 +765,18 @@ static ssize_t disksize_store(struct device *dev,
+> >  		return -EINVAL;
+> >  
+> >  	disksize = PAGE_ALIGN(disksize);
+> > +	down_write(&zram->init_lock);
+> > +	if (init_done(zram)) {
+> > +		up_write(&zram->init_lock);
+> > +		pr_info("Cannot change disksize for initialized device\n");
+> > +		return -EBUSY;
+> > +	}
+> > +
+> >  	meta = zram_meta_alloc(zram->disk->first_minor, disksize);
+> > -	if (!meta)
+> > -		return -ENOMEM;
+> > +	if (!meta) {
+> > +		err = -ENOMEM;
+> > +		goto out_unlock;
+> > +	}
+> >  
+> >  	comp = zcomp_create(zram->compressor, zram->max_comp_streams);
+> >  	if (IS_ERR(comp)) {
+> > @@ -777,13 +786,6 @@ static ssize_t disksize_store(struct device *dev,
+> >  		goto out_free_meta;
+> >  	}
+> >  
+> > -	down_write(&zram->init_lock);
+> > -	if (init_done(zram)) {
+> > -		pr_info("Cannot change disksize for initialized device\n");
+> > -		err = -EBUSY;
+> > -		goto out_destroy_comp;
+> > -	}
+> > -
+> >  	zram->meta = meta;
+> >  	zram->comp = comp;
+> >  	zram->disksize = disksize;
+> > @@ -799,11 +801,10 @@ static ssize_t disksize_store(struct device *dev,
+> >  
+> >  	return len;
+> >  
+> > -out_destroy_comp:
+> > -	up_write(&zram->init_lock);
+> > -	zcomp_destroy(comp);
+> >  out_free_meta:
+> >  	zram_meta_free(meta);
+> > +out_unlock:
+> > +	up_write(&zram->init_lock);
+> >  	return err;
+> >  }
+> >  
+> 
+> The init_lock is really troublesome. We can't do call zram_meta_alloc
+> under init_lock due to lockdep report. Please keep in mind.
 >
-> That's pain. Some archs includes <linux/mm_types.h> from <asm/pgtable.h>.
-> I don't see obvious way to fix this. Urghh.
->
-Does it matter ? Circular includes are normally ok and happen all over the place.
-I could run a full build / qemu test cycle for all architectures if that helps.
 
-Guenter
+ah... I do recall it, thanks for your reminder.
+
+
+> The zram_rw_page is one of the function under reclaim path and hold it
+> as read_lock while here holds it as write_lock.
+> It's a false positive so that we might could make shut lockdep up
+> by annotation but I don't want it but want to work with lockdep rather
+> than disable. As well, there are other pathes to use init_lock to
+> protect other data where would be victims of lockdep.
+> 
+> I didn't tell the motivation of this patch because it made you busy
+> guys wasted. Let me tell it now. It was another lockdep report by
+> kmem_cache_destroy for zsmalloc compaction about init_lock. That's why
+> the patchset was one of the patch in compaction.
+>
+> Yes, the ideal is to remove horrible init_lock of zram in this phase and
+> make code more simple and clear but I don't want to stuck zsmalloc
+> compaction by the work.
+
+
+> Having said that, I feel it's time to revisit
+> to remove init_lock.
+> At least, I will think over to find a solution to kill init_lock.
+
+hm, can't think of anything quick...
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
