@@ -1,130 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f53.google.com (mail-yh0-f53.google.com [209.85.213.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D5C86B0032
-	for <linux-mm@kvack.org>; Mon, 26 Jan 2015 11:02:21 -0500 (EST)
-Received: by mail-yh0-f53.google.com with SMTP id v1so3834707yhn.12
-        for <linux-mm@kvack.org>; Mon, 26 Jan 2015 08:02:21 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g6si13575286qaz.115.2015.01.26.08.02.19
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F03D6B0032
+	for <linux-mm@kvack.org>; Mon, 26 Jan 2015 12:02:01 -0500 (EST)
+Received: by mail-pd0-f181.google.com with SMTP id g10so12883568pdj.12
+        for <linux-mm@kvack.org>; Mon, 26 Jan 2015 09:02:01 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id xq8si13056776pab.11.2015.01.26.09.02.00
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Jan 2015 08:02:20 -0800 (PST)
-Date: Mon, 26 Jan 2015 16:19:06 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH v2] mm: incorporate read-only pages into transparent huge
- pages
-Message-ID: <20150126151906.GS11755@redhat.com>
-References: <1422113880-4712-1-git-send-email-ebru.akagunduz@gmail.com>
- <54C5EE66.4060700@suse.cz>
+        Mon, 26 Jan 2015 09:02:00 -0800 (PST)
+Date: Mon, 26 Jan 2015 20:01:47 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH -mm 1/3] slub: don't fail kmem_cache_shrink if slab
+ placement optimization fails
+Message-ID: <20150126170147.GB28978@esperanza>
+References: <cover.1422275084.git.vdavydov@parallels.com>
+ <3804a429071f939e6b4f654b6c6426c1fdd95f7e.1422275084.git.vdavydov@parallels.com>
+ <alpine.DEB.2.11.1501260944550.15849@gentwo.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <54C5EE66.4060700@suse.cz>
+In-Reply-To: <alpine.DEB.2.11.1501260944550.15849@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org, akpm@linux-foundation.org, kirill@shutemov.name, mhocko@suse.cz, mgorman@suse.de, rientjes@google.com, sasha.levin@oracle.com, hughd@google.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, riel@redhat.com
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi,
+Hi Christoph,
 
-On Mon, Jan 26, 2015 at 08:36:06AM +0100, Vlastimil Babka wrote:
-> >  - Add fast path optimistic check to
-> >    __collapse_huge_page_isolate()
+On Mon, Jan 26, 2015 at 09:48:00AM -0600, Christoph Lameter wrote:
+> On Mon, 26 Jan 2015, Vladimir Davydov wrote:
 > 
-> My interpretation is that the optimistic check is in khugepaged_scan_pmd() while
-> in __collapse_huge_page_isolate() it's protected by lock, as Andrea suggested?
+> > SLUB's kmem_cache_shrink not only removes empty slabs from the cache,
+> > but also sorts slabs by the number of objects in-use to cope with
+> > fragmentation. To achieve that, it tries to allocate a temporary array.
+> > If it fails, it will abort the whole procedure.
+> 
+> I do not think its worth optimizing this. If we cannot allocate even a
+> small object then the system is in an extremely bad state anyways.
 
-Correct, __collapse_huge_page_isolate is the "accurate" check that was
-missing in v1. The optimistic check was the one in khugepaged_scan_pmd
-and it was already present.
+Hmm, I've just checked my /proc/slabinfo and seen that I have 512
+objects per slab at max, so that the temporary array will be 2 pages at
+max. So you're right - this kmalloc will never fail on my system, simply
+because we never fail GFP_KERNEL allocations of order < 3. However,
+theoretically we can have as much as MAX_OBJS_PER_PAGE=32767 objects per
+slab, which would result in a huge allocation.
 
-> > @@ -2168,9 +2168,6 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
-> >  		VM_BUG_ON_PAGE(!PageAnon(page), page);
-> >  		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
-> >  
-> > -		/* cannot use mapcount: can't collapse if there's a gup pin */
-> > -		if (page_count(page) != 1)
-> > -			goto out;
-> >  		/*
-> >  		 * We can do it before isolate_lru_page because the
-> >  		 * page can't be freed from under us. NOTE: PG_lock
-> > @@ -2179,6 +2176,31 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+Anyways, I think that silently relying on the fact that the allocator
+never fails small allocations is kind of unreliable. What if this
+behavior will change one day? So I'd prefer to either make
+kmem_cache_shrink fall back to using a variable on stack in case of the
+kmalloc failure, like this patch does, or place an explicit BUG_ON after
+it. The latter looks dangerous to me, because, as I mentioned above, I'm
+not sure that we always have less than 2048 objects per slab.
+
+> 
+> > @@ -3400,7 +3407,9 @@ int __kmem_cache_shrink(struct kmem_cache *s)
+> >  		 * list_lock. page->inuse here is the upper limit.
 > >  		 */
-> >  		if (!trylock_page(page))
-> >  			goto out;
-> > +
-> > +		/*
-> > +		 * cannot use mapcount: can't collapse if there's a gup pin.
-> > +		 * The page must only be referenced by the scanned process
-> > +		 * and page swap cache.
-> > +		 */
-> > +		if (page_count(page) != 1 + !!PageSwapCache(page)) {
-> > +			unlock_page(page);
-> > +			goto out;
-> > +		}
-> > +		if (!pte_write(pteval)) {
-> > +			if (++ro > khugepaged_max_ptes_none) {
-> > +				unlock_page(page);
-> > +				goto out;
+> >  		list_for_each_entry_safe(page, t, &n->partial, lru) {
+> > -			list_move(&page->lru, slabs_by_inuse + page->inuse);
+> > +			if (page->inuse < objects)
+> > +				list_move(&page->lru,
+> > +					  slabs_by_inuse + page->inuse);
+> >  			if (!page->inuse)
+> >  				n->nr_partial--;
+> >  		}
 > 
-> So just for completeness, as I said later for v1 I think this can leave us with
-> read-only VMA: consider ro == 256 and none == 256, referenced can still be >0
-> (up to 256). I think that the check for referenced that follows this for loop
-> should also check if (ro + none < HPAGE_PMD_NR).
-
-The moment "ro" becomes 256 or "none" becomes 256, we immediately goto out.
-
-	if (likely(referenced))
-		return 1;
-out:
-	release_pte_pages(pte, _pte);
-	return 0;
-
-"out" is past the referenced check and we fail the collapse
-immediately.
-
-If ro is < 255 then "none" is also < 255 (if pte_write is true, then
-pte_none cannot be true).
-
-Overall I don't see how we could collapse in readonly vma and where
-the bug is for this case, but I may be overlooking something obvious.
-
-> > +			}
-> > +			if (PageSwapCache(page) && !reuse_swap_page(page)) {
-> > +				unlock_page(page);
-> > +				goto out;
-> > +			}
-> > +			/*
-> > +			 * Page is not in the swap cache, and page count is
-> > +			 * one (see above). It can be collapsed into a THP.
-> > +			 */
+> The condition is always true. A page that has page->inuse == objects
+> would not be on the partial list.
 > 
-> I would still put the VM_BUG_ON(page_count(page) != 1) here as I suggested
-> previously. Even more so that I think it would have been able to catch the
-> problem that Andrea pointed out in v1.
 
-This is subtle, but we can't do VM_BUG_ON because it's ok if the VM
-comes before us in another CPU, and takes a pin on the page to isolate
-the page.
-
-In short if you changed the current upstream code like below:
-
-		/* cannot use mapcount: can't collapse if there's a gup pin */
-		if (page_count(page) != 1)
-			goto out;
-		VM_BUG_ON(page_count(page) != 1);
-		trylock...
-
-the VM_BUG_ON could fire as a false positive. It's not even related to
-the trylock_page, it's related to the LRU lock and isolate_lru_page
-that the VM could run on a different CPU and it's not a bug.
-
-The VM is free to pin the page. We only need to be sure there are no
-GUP-pins after we blocked all variants of GUP and the check is enough
-for that.
+This is in case we failed to allocate the slabs_by_inuse array. We only
+have a list for empty slabs then (on stack).
 
 Thanks,
-Andrea
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
