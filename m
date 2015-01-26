@@ -1,21 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 65F846B0032
-	for <linux-mm@kvack.org>; Mon, 26 Jan 2015 13:24:52 -0500 (EST)
-Received: by mail-ie0-f181.google.com with SMTP id rp18so10327455iec.12
-        for <linux-mm@kvack.org>; Mon, 26 Jan 2015 10:24:52 -0800 (PST)
-Received: from resqmta-po-10v.sys.comcast.net (resqmta-po-10v.sys.comcast.net. [2001:558:fe16:19:96:114:154:169])
-        by mx.google.com with ESMTPS id 9si7982051iod.8.2015.01.26.10.24.51
+Received: from mail-qa0-f41.google.com (mail-qa0-f41.google.com [209.85.216.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CDF56B0032
+	for <linux-mm@kvack.org>; Mon, 26 Jan 2015 13:27:01 -0500 (EST)
+Received: by mail-qa0-f41.google.com with SMTP id bm13so8013939qab.0
+        for <linux-mm@kvack.org>; Mon, 26 Jan 2015 10:27:00 -0800 (PST)
+Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
+        by mx.google.com with ESMTPS id j7si14159591qaf.48.2015.01.26.10.26.58
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Mon, 26 Jan 2015 10:24:51 -0800 (PST)
-Date: Mon, 26 Jan 2015 12:24:49 -0600 (CST)
+        Mon, 26 Jan 2015 10:26:59 -0800 (PST)
+Date: Mon, 26 Jan 2015 12:26:57 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH -mm 1/3] slub: don't fail kmem_cache_shrink if slab
- placement optimization fails
-In-Reply-To: <20150126170147.GB28978@esperanza>
-Message-ID: <alpine.DEB.2.11.1501261216120.16638@gentwo.org>
-References: <cover.1422275084.git.vdavydov@parallels.com> <3804a429071f939e6b4f654b6c6426c1fdd95f7e.1422275084.git.vdavydov@parallels.com> <alpine.DEB.2.11.1501260944550.15849@gentwo.org> <20150126170147.GB28978@esperanza>
+Subject: Re: [PATCH -mm 2/3] slab: zap kmem_cache_shrink return value
+In-Reply-To: <20150126170418.GC28978@esperanza>
+Message-ID: <alpine.DEB.2.11.1501261226250.16638@gentwo.org>
+References: <cover.1422275084.git.vdavydov@parallels.com> <b89d28384f8ec7865c3fefc2f025955d55798b78.1422275084.git.vdavydov@parallels.com> <alpine.DEB.2.11.1501260949150.15849@gentwo.org> <20150126170418.GC28978@esperanza>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -24,33 +23,13 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>
 
 On Mon, 26 Jan 2015, Vladimir Davydov wrote:
 
-> Anyways, I think that silently relying on the fact that the allocator
-> never fails small allocations is kind of unreliable. What if this
+> __cache_shrink() is used not only in __kmem_cache_shrink(), but also in
+> SLAB's __kmem_cache_shutdown(), where we do need its return value to
+> check if the cache is empty.
 
-We are not doing that though. If the allocation fails we do nothing.
-
-> > > +			if (page->inuse < objects)
-> > > +				list_move(&page->lru,
-> > > +					  slabs_by_inuse + page->inuse);
-> > >  			if (!page->inuse)
-> > >  				n->nr_partial--;
-> > >  		}
-> >
-> > The condition is always true. A page that has page->inuse == objects
-> > would not be on the partial list.
-> >
->
-> This is in case we failed to allocate the slabs_by_inuse array. We only
-> have a list for empty slabs then (on stack).
-
-Ok in that case objects == 1. If you want to do this maybe do it in a more
-general way?
-
-You could allocate an array on the stack to deal with the common cases. I
-believe an array of 32 objects would be fine to allocate and cover most of
-the slab caches on the system? Would eliminate most of the allocations in
-kmem_cache_shrink.
-
+It could be useful to know if a slab is empty. So maybe leave
+kmem_cache_shrink the way it is and instead fix up slub to return the
+proper value?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
