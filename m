@@ -1,64 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FF0B6B006E
-	for <linux-mm@kvack.org>; Mon, 26 Jan 2015 15:26:17 -0500 (EST)
-Received: by mail-pd0-f170.google.com with SMTP id p10so13972834pdj.1
-        for <linux-mm@kvack.org>; Mon, 26 Jan 2015 12:26:17 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id sx6si13466863pab.167.2015.01.26.12.26.16
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id DF01A6B0032
+	for <linux-mm@kvack.org>; Mon, 26 Jan 2015 15:28:35 -0500 (EST)
+Received: by mail-ig0-f182.google.com with SMTP id r10so736597igi.3
+        for <linux-mm@kvack.org>; Mon, 26 Jan 2015 12:28:35 -0800 (PST)
+Received: from resqmta-po-01v.sys.comcast.net (resqmta-po-01v.sys.comcast.net. [2001:558:fe16:19:96:114:154:160])
+        by mx.google.com with ESMTPS id o129si2904061ioo.14.2015.01.26.12.28.35
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Jan 2015 12:26:16 -0800 (PST)
-Date: Mon, 26 Jan 2015 12:26:15 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [mmotm:master 396/417] fs/ocfs2/namei.c:2365:1: warning:
- 'ocfs2_orphan_del' uses dynamic stack allocation
-Message-Id: <20150126122615.bfb3e099db6c2e00519f57be@linux-foundation.org>
-In-Reply-To: <201501241157.BPohNdQe%fengguang.wu@intel.com>
-References: <201501241157.BPohNdQe%fengguang.wu@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Mon, 26 Jan 2015 12:28:35 -0800 (PST)
+Date: Mon, 26 Jan 2015 14:28:33 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH -mm 2/3] slab: zap kmem_cache_shrink return value
+In-Reply-To: <20150126201602.GA3317@esperanza>
+Message-ID: <alpine.DEB.2.11.1501261427310.17468@gentwo.org>
+References: <cover.1422275084.git.vdavydov@parallels.com> <b89d28384f8ec7865c3fefc2f025955d55798b78.1422275084.git.vdavydov@parallels.com> <alpine.DEB.2.11.1501260949150.15849@gentwo.org> <20150126170418.GC28978@esperanza> <alpine.DEB.2.11.1501261226250.16638@gentwo.org>
+ <20150126194838.GB2660@esperanza> <alpine.DEB.2.11.1501261353480.16786@gentwo.org> <20150126201602.GA3317@esperanza>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: Joseph Qi <joseph.qi@huawei.com>, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>, ocfs2-devel@oss.oracle.com
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat, 24 Jan 2015 11:49:02 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+On Mon, 26 Jan 2015, Vladimir Davydov wrote:
 
-> tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> head:   c64429bcc60a702f19f5cfdb5c39277863278a8c
-> commit: 98bc024d7e86a52b7c6266f7bf3bac93626f002b [396/417] ocfs2: add functions to add and remove inode in orphan dir
-> config: s390-allmodconfig (attached as .config)
-> reproduce:
->   wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
->   chmod +x ~/bin/make.cross
->   git checkout 98bc024d7e86a52b7c6266f7bf3bac93626f002b
->   # save the attached .config to linux build tree
->   make.cross ARCH=s390 
-> 
-> All warnings:
-> 
->    fs/ocfs2/namei.c: In function 'ocfs2_orphan_del':
-> >> fs/ocfs2/namei.c:2365:1: warning: 'ocfs2_orphan_del' uses dynamic stack allocation
->     }
->     ^
-> 
+> Right, but I just don't see why a subsystem using a kmem_cache would
+> need to check whether there are any objects left in the cache. I mean,
+> it should somehow keep track of the objects it's allocated anyway, e.g.
+> by linking them in a list. That means it must already have a way to
+> check if it is safe to destroy its cache or not.
 
-OK, thanks.  I suppose we can just use the larger size - it's only 4 bytes.
+The acpi subsystem did that at some point.
 
---- a/fs/ocfs2/namei.c~ocfs2-add-functions-to-add-and-remove-inode-in-orphan-dir-fix
-+++ a/fs/ocfs2/namei.c
-@@ -2296,8 +2296,7 @@ int ocfs2_orphan_del(struct ocfs2_super
- 		     struct buffer_head *orphan_dir_bh,
- 		     bool dio)
- {
--	int namelen = dio ? OCFS2_DIO_ORPHAN_PREFIX_LEN + OCFS2_ORPHAN_NAMELEN :
--			OCFS2_ORPHAN_NAMELEN;
-+	const int namelen = OCFS2_DIO_ORPHAN_PREFIX_LEN + OCFS2_ORPHAN_NAMELEN;
- 	char name[namelen + 1];
- 	struct ocfs2_dinode *orphan_fe;
- 	int status = 0;
+> Suppose we leave the return value as is. A subsystem, right before going
+> to destroy a cache, calls kmem_cache_shrink, which returns 1 (slab is
+> not empty). What is it supposed to do then?
+
+That is up to the subsystem. If it has a means of tracking down the
+missing object then it can deal with it. If not then it cannot shutdown
+the cache and do a proper recovery action.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
