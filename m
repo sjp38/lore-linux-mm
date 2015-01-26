@@ -1,56 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E16E6B0032
-	for <linux-mm@kvack.org>; Mon, 26 Jan 2015 12:04:28 -0500 (EST)
-Received: by mail-pd0-f172.google.com with SMTP id v10so12971218pde.3
-        for <linux-mm@kvack.org>; Mon, 26 Jan 2015 09:04:28 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id nm9si12765057pbc.221.2015.01.26.09.04.27
+Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
+	by kanga.kvack.org (Postfix) with ESMTP id A44986B0032
+	for <linux-mm@kvack.org>; Mon, 26 Jan 2015 12:28:37 -0500 (EST)
+Received: by mail-we0-f181.google.com with SMTP id k48so10379692wev.12
+        for <linux-mm@kvack.org>; Mon, 26 Jan 2015 09:28:37 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id cv8si21575708wjc.78.2015.01.26.09.28.35
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Jan 2015 09:04:27 -0800 (PST)
-Date: Mon, 26 Jan 2015 20:04:18 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH -mm 2/3] slab: zap kmem_cache_shrink return value
-Message-ID: <20150126170418.GC28978@esperanza>
-References: <cover.1422275084.git.vdavydov@parallels.com>
- <b89d28384f8ec7865c3fefc2f025955d55798b78.1422275084.git.vdavydov@parallels.com>
- <alpine.DEB.2.11.1501260949150.15849@gentwo.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 26 Jan 2015 09:28:36 -0800 (PST)
+Date: Mon, 26 Jan 2015 18:28:32 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2] mm: vmscan: fix the page state calculation in
+ too_many_isolated
+Message-ID: <20150126172832.GC22681@dhcp22.suse.cz>
+References: <1421235419-30736-1-git-send-email-vinmenon@codeaurora.org>
+ <20150114165036.GI4706@dhcp22.suse.cz>
+ <54B7F7C4.2070105@codeaurora.org>
+ <20150116154922.GB4650@dhcp22.suse.cz>
+ <54BA7D3A.40100@codeaurora.org>
+ <alpine.DEB.2.11.1501171347290.25464@gentwo.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.11.1501260949150.15849@gentwo.org>
+In-Reply-To: <alpine.DEB.2.11.1501171347290.25464@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Vinayak Menon <vinmenon@codeaurora.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, mgorman@suse.de, minchan@kernel.org
 
-On Mon, Jan 26, 2015 at 09:49:47AM -0600, Christoph Lameter wrote:
-> On Mon, 26 Jan 2015, Vladimir Davydov wrote:
+On Sat 17-01-15 13:48:34, Christoph Lameter wrote:
+> On Sat, 17 Jan 2015, Vinayak Menon wrote:
 > 
-> > @@ -2400,11 +2400,16 @@ int __kmem_cache_shrink(struct kmem_cache *cachep)
-> >  	return (ret ? 1 : 0);
-> >  }
-> >
-> > +void __kmem_cache_shrink(struct kmem_cache *cachep)
-> > +{
-> > +	__cache_shrink(cachep);
-> > +}
-> > +
+> > which had not updated the vmstat_diff. This CPU was in idle for around 30
+> > secs. When I looked at the tvec base for this CPU, the timer associated with
+> > vmstat_update had its expiry time less than current jiffies. This timer had
+> > its deferrable flag set, and was tied to the next non-deferrable timer in the
 > 
-> Why do we need this wrapper? Rename __cache_shrink to __kmem_cache_shrink
-> instead?
-> 
+> We can remove the deferrrable flag now since the vmstat threads are only
+> activated as necessary with the recent changes. Looks like this could fix
+> your issue?
 
-__cache_shrink() is used not only in __kmem_cache_shrink(), but also in
-SLAB's __kmem_cache_shutdown(), where we do need its return value to
-check if the cache is empty.
+OK, I have checked the history and the deferrable behavior has been
+introduced by 39bf6270f524 (VM statistics: Make timer deferrable) which
+hasn't offered any numbers which would justify the change. So I think it
+would be a good idea to revert this one as it can clearly cause issues.
 
-Thanks,
-Vladimir
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Could you retest with this change? It still wouldn't help with the
+highly overloaded workqueues but that sounds like a bigger change and
+this one sounds like quite safe to me so it is a good start.
+---
