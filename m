@@ -1,242 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id AFDB96B0032
-	for <linux-mm@kvack.org>; Mon, 26 Jan 2015 10:52:08 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id eu11so12442094pac.2
-        for <linux-mm@kvack.org>; Mon, 26 Jan 2015 07:52:08 -0800 (PST)
-Received: from mail-pd0-x22c.google.com (mail-pd0-x22c.google.com. [2607:f8b0:400e:c02::22c])
-        by mx.google.com with ESMTPS id qg3si12795016pdb.36.2015.01.26.07.52.07
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A67B6B0032
+	for <linux-mm@kvack.org>; Mon, 26 Jan 2015 10:56:24 -0500 (EST)
+Received: by mail-wi0-f181.google.com with SMTP id fb4so10739806wid.2
+        for <linux-mm@kvack.org>; Mon, 26 Jan 2015 07:56:23 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id jj8si14322877wid.62.2015.01.26.07.56.21
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 26 Jan 2015 07:52:07 -0800 (PST)
-Received: by mail-pd0-f172.google.com with SMTP id v10so12600046pde.3
-        for <linux-mm@kvack.org>; Mon, 26 Jan 2015 07:52:07 -0800 (PST)
-Date: Tue, 27 Jan 2015 00:52:01 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 1/2] zram: free meta out of init_lock
-Message-ID: <20150126155201.GB528@blaptop>
-References: <1421992707-32658-1-git-send-email-minchan@kernel.org>
- <20150123142435.GA2320@swordfish>
- <54C25F25.9070609@redhat.com>
- <20150123154707.GA1046@swordfish>
- <20150126013309.GA26895@blaptop>
- <54C6505E.8080905@redhat.com>
+        Mon, 26 Jan 2015 07:56:22 -0800 (PST)
+Date: Mon, 26 Jan 2015 15:56:17 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCHv2] mm: Don't offset memmap for flatmem
+Message-ID: <20150126155617.GA2395@suse.de>
+References: <1421804273-29947-1-git-send-email-lauraa@codeaurora.org>
+ <1421888500-24364-1-git-send-email-lauraa@codeaurora.org>
+ <20150122162021.aa861aeb53c22206a19ebbcb@linux-foundation.org>
+ <54C196D0.6040900@codeaurora.org>
+ <54C20EEC.1060809@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <54C6505E.8080905@redhat.com>
+In-Reply-To: <54C20EEC.1060809@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Marchand <jmarchan@redhat.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Laura Abbott <lauraa@codeaurora.org>, Andrew Morton <akpm@linux-foundation.org>, Srinivas Kandagatla <srinivas.kandagatla@linaro.org>, linux-arm-kernel@lists.infradead.org, Russell King - ARM Linux <linux@arm.linux.org.uk>, ssantosh@kernel.org, Kevin Hilman <khilman@linaro.org>, Arnd Bergman <arnd@arndb.de>, Stephen Boyd <sboyd@codeaurora.org>, linux-mm@kvack.org, Kumar Gala <galak@codeaurora.org>
 
-Hello,
-
-On Mon, Jan 26, 2015 at 03:34:06PM +0100, Jerome Marchand wrote:
-> On 01/26/2015 02:33 AM, Minchan Kim wrote:
-> > Hello,
-> > 
-> > On Sat, Jan 24, 2015 at 12:47:07AM +0900, Sergey Senozhatsky wrote:
-> >> On (01/23/15 15:48), Jerome Marchand wrote:
-> >>> Date: Fri, 23 Jan 2015 15:48:05 +0100
-> >>> From: Jerome Marchand <jmarchan@redhat.com>
-> >>> To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim
-> >>>  <minchan@kernel.org>
-> >>> CC: Andrew Morton <akpm@linux-foundation.org>,
-> >>>  linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nitin Gupta
-> >>>  <ngupta@vflare.org>
-> >>> Subject: Re: [PATCH 1/2] zram: free meta out of init_lock
-> >>> User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:31.0) Gecko/20100101
-> >>>  Thunderbird/31.3.0
+On Fri, Jan 23, 2015 at 10:05:48AM +0100, Vlastimil Babka wrote:
+> On 01/23/2015 01:33 AM, Laura Abbott wrote:
+> >On 1/22/2015 4:20 PM, Andrew Morton wrote:
+> >>On Wed, 21 Jan 2015 17:01:40 -0800 Laura Abbott <lauraa@codeaurora.org> wrote:
+> >>
+> >>>Srinivas Kandagatla reported bad page messages when trying to
+> >>>remove the bottom 2MB on an ARM based IFC6410 board
 > >>>
-> >>> On 01/23/2015 03:24 PM, Sergey Senozhatsky wrote:
-> >>>> On (01/23/15 14:58), Minchan Kim wrote:
-> >>>>> We don't need to call zram_meta_free, zcomp_destroy and zs_free
-> >>>>> under init_lock. What we need to prevent race with init_lock
-> >>>>> in reset is setting NULL into zram->meta (ie, init_done).
-> >>>>> This patch does it.
-> >>>>>
-> >>>>> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> >>>>> ---
-> >>>>>  drivers/block/zram/zram_drv.c | 28 ++++++++++++++++------------
-> >>>>>  1 file changed, 16 insertions(+), 12 deletions(-)
-> >>>>>
-> >>>>> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-> >>>>> index 9250b3f54a8f..0299d82275e7 100644
-> >>>>> --- a/drivers/block/zram/zram_drv.c
-> >>>>> +++ b/drivers/block/zram/zram_drv.c
-> >>>>> @@ -708,6 +708,7 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
-> >>>>>  {
-> >>>>>  	size_t index;
-> >>>>>  	struct zram_meta *meta;
-> >>>>> +	struct zcomp *comp;
-> >>>>>  
-> >>>>>  	down_write(&zram->init_lock);
-> >>>>>  
-> >>>>> @@ -719,20 +720,10 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
-> >>>>>  	}
-> >>>>>  
-> >>>>>  	meta = zram->meta;
-> >>>>> -	/* Free all pages that are still in this zram device */
-> >>>>> -	for (index = 0; index < zram->disksize >> PAGE_SHIFT; index++) {
-> >>>>> -		unsigned long handle = meta->table[index].handle;
-> >>>>> -		if (!handle)
-> >>>>> -			continue;
-> >>>>> -
-> >>>>> -		zs_free(meta->mem_pool, handle);
-> >>>>> -	}
-> >>>>> -
-> >>>>> -	zcomp_destroy(zram->comp);
-> >>>>
-> >>>> I'm not so sure about moving zcomp destruction. if we would have detached it
-> >>>> from zram, then yes. otherwise, think of zram ->destoy vs ->init race.
-> >>>>
-> >>>> suppose,
-> >>>> CPU1 waits for down_write() init lock in disksize_store() with new comp already allocated;
-> >>>> CPU0 detaches ->meta and releases write init lock;
-> >>>> CPU1 grabs the lock and does zram->comp = comp;
-> >>>> CPU0 reaches the point of zcomp_destroy(zram->comp);
+> >>>BUG: Bad page state in process swapper  pfn:fffa8
+> >>>page:ef7fb500 count:0 mapcount:0 mapping:  (null) index:0x0
+> >>>flags: 0x96640253(locked|error|dirty|active|arch_1|reclaim|mlocked)
+> >>>page dumped because: PAGE_FLAGS_CHECK_AT_FREE flag(s) set
+> >>>bad because of flags:
+> >>>flags: 0x200041(locked|active|mlocked)
+> >>>Modules linked in:
+> >>>CPU: 0 PID: 0 Comm: swapper Not tainted 3.19.0-rc3-00007-g412f9ba-dirty #816
+> >>>Hardware name: Qualcomm (Flattened Device Tree)
+> >>>[<c0218280>] (unwind_backtrace) from [<c0212be8>] (show_stack+0x20/0x24)
+> >>>[<c0212be8>] (show_stack) from [<c0af7124>] (dump_stack+0x80/0x9c)
+> >>>[<c0af7124>] (dump_stack) from [<c0301570>] (bad_page+0xc8/0x128)
+> >>>[<c0301570>] (bad_page) from [<c03018a8>] (free_pages_prepare+0x168/0x1e0)
+> >>>[<c03018a8>] (free_pages_prepare) from [<c030369c>] (free_hot_cold_page+0x3c/0x174)
+> >>>[<c030369c>] (free_hot_cold_page) from [<c0303828>] (__free_pages+0x54/0x58)
+> >>>[<c0303828>] (__free_pages) from [<c030395c>] (free_highmem_page+0x38/0x88)
+> >>>[<c030395c>] (free_highmem_page) from [<c0f62d5c>] (mem_init+0x240/0x430)
+> >>>[<c0f62d5c>] (mem_init) from [<c0f5db3c>] (start_kernel+0x1e4/0x3c8)
+> >>>[<c0f5db3c>] (start_kernel) from [<80208074>] (0x80208074)
+> >>>Disabling lock debugging due to kernel taint
 > >>>
-> >>> I don't see your point: this patch does not call
-> >>> zcomp_destroy(zram->comp) anymore, but zram_destroy(comp), where comp is
-> >>> the old zram->comp.
+> >>>Removing the lower 2MB made the start of the lowmem zone to no longer
+> >>>be page block aligned. IFC6410 uses CONFIG_FLATMEM where
+> >>>alloc_node_mem_map allocates memory for the mem_map. alloc_node_mem_map
+> >>>will offset for unaligned nodes with the assumption the pfn/page
+> >>>translation functions will account for the offset. The functions for
+> >>>CONFIG_FLATMEM do not offset however, resulting in overrunning
+> >>>the memmap array. Just use the allocated memmap without any offset
+> >>>when running with CONFIG_FLATMEM to avoid the overrun.
+> >>>
 > >>
+> >>I don't think v2 addressed Vlastimil's review comment?
 > >>
-> >> oh... yes. sorry! my bad.
-> >>
-> >>
-> >>
-> >> anyway, on a second thought, do we even want to destoy meta out of init_lock?
-> >>
-> >> I mean, it will let you init new device quicker. but... assume, you have
-> >> 30G zram (or any other bad-enough number). on CPU0 you reset device -- iterate
-> >> over 30G meta->table, etc. out of init_lock.
-> >> on CPU1 you concurrently re-init device and request again 30G.
-> >>
-> >> how bad that can be?
-> >>
-> >>
-> >>
-> >> diskstore called on already initialised device is also not so perfect.
-> >> we first will try to allocate ->meta (vmalloc pages for another 30G),
-> >> then allocate comp, then down_write() init lock to find out that device
-> >> is initialised and we need to release allocated memory.
-> >>
-> >>
-> >>
-> >> may be we better keep ->meta destruction under init_lock and additionally
-> >> move ->meta and ->comp allocation under init_lock in disksize_store()?
-> >>
-> >> like the following one:
-> >>
-> >> ---
-> >>
-> >>  drivers/block/zram/zram_drv.c | 25 +++++++++++++------------
-> >>  1 file changed, 13 insertions(+), 12 deletions(-)
-> >>
-> >> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-> >> index 9250b3f..827ab21 100644
-> >> --- a/drivers/block/zram/zram_drv.c
-> >> +++ b/drivers/block/zram/zram_drv.c
-> >> @@ -765,9 +765,18 @@ static ssize_t disksize_store(struct device *dev,
-> >>  		return -EINVAL;
-> >>  
-> >>  	disksize = PAGE_ALIGN(disksize);
-> >> +	down_write(&zram->init_lock);
-> >> +	if (init_done(zram)) {
-> >> +		up_write(&zram->init_lock);
-> >> +		pr_info("Cannot change disksize for initialized device\n");
-> >> +		return -EBUSY;
-> >> +	}
-> >> +
-> >>  	meta = zram_meta_alloc(zram->disk->first_minor, disksize);
-> >> -	if (!meta)
-> >> -		return -ENOMEM;
-> >> +	if (!meta) {
-> >> +		err = -ENOMEM;
-> >> +		goto out_unlock;
-> >> +	}
-> >>  
-> >>  	comp = zcomp_create(zram->compressor, zram->max_comp_streams);
-> >>  	if (IS_ERR(comp)) {
-> >> @@ -777,13 +786,6 @@ static ssize_t disksize_store(struct device *dev,
-> >>  		goto out_free_meta;
-> >>  	}
-> >>  
-> >> -	down_write(&zram->init_lock);
-> >> -	if (init_done(zram)) {
-> >> -		pr_info("Cannot change disksize for initialized device\n");
-> >> -		err = -EBUSY;
-> >> -		goto out_destroy_comp;
-> >> -	}
-> >> -
-> >>  	zram->meta = meta;
-> >>  	zram->comp = comp;
-> >>  	zram->disksize = disksize;
-> >> @@ -799,11 +801,10 @@ static ssize_t disksize_store(struct device *dev,
-> >>  
-> >>  	return len;
-> >>  
-> >> -out_destroy_comp:
-> >> -	up_write(&zram->init_lock);
-> >> -	zcomp_destroy(comp);
-> >>  out_free_meta:
-> >>  	zram_meta_free(meta);
-> >> +out_unlock:
-> >> +	up_write(&zram->init_lock);
-> >>  	return err;
-> >>  }
-> >>  
-> > 
-> > The init_lock is really troublesome. We can't do call zram_meta_alloc
-> > under init_lock due to lockdep report. Please keep in mind.
-> > The zram_rw_page is one of the function under reclaim path and hold it
-> > as read_lock while here holds it as write_lock.
-> > It's a false positive so that we might could make shut lockdep up
-> > by annotation but I don't want it but want to work with lockdep rather
-> > than disable. As well, there are other pathes to use init_lock to
-> > protect other data where would be victims of lockdep.
-> > 
-> > I didn't tell the motivation of this patch because it made you busy
-> > guys wasted. Let me tell it now.
+> >
+> >We're still adding the offset to node_mem_map and then subtracting it from
+> >just mem_map. Did I miss another comment somewhere?
 > 
-> In my experience, reading a short explanation takes much less time that
-> trying to figure out why something is done the way it is. Please add
-> this explanation to the patch description. It might be very useful in
-> the future to someone "git-blaming" this code.
-
-This patch has two goals.
-
-1. Avoid unnecessary lock
-2. Prepare init_lock lockdep splot with upcoming zsmalloc compaction.
-
-The compaction work doesn't come yet in mainline so I thought I don't
-need to tell about 2 so if it become merging first by just 1's reason
-before compaction work, everyone would happy without wasting the time
-to look into lockdep splat.
-
-Anyway, I will send an idea to remove init_lock in rw path.
-Thanks!
-
+> Yes that was addressed, thanks. But I don't feel comfortable acking
+> it yet, as I have no idea if we are doing the right thing for
+> CONFIG_HAVE_MEMBLOCK_NODE_MAP && CONFIG_FLATMEM case here.
 > 
-> Jerome
+> Also putting the CONFIG_FLATMEM && !CONFIG_HAVE_MEMBLOCK_NODE_MAP
+> under the "if (page_to_pfn(mem_map) != pgdat->node_start_pfn)" will
+> probably do the right thing, but looks like a weird test for this
+> case here.
 > 
-> > It was another lockdep report by
-> > kmem_cache_destroy for zsmalloc compaction about init_lock. That's why
-> > the patchset was one of the patch in compaction.
-> > 
-> > Yes, the ideal is to remove horrible init_lock of zram in this phase and
-> > make code more simple and clear but I don't want to stuck zsmalloc
-> > compaction by the work. Having said that, I feel it's time to revisit
-> > to remove init_lock.
-> > At least, I will think over to find a solution to kill init_lock.
-> > 
-> > Thanks!
-> > 
-> > 
-> 
+> I have no good suggestion though, so let's CC Mel who apparently
+> wrote the ARCH_PFN_OFFSET correction?
 > 
 
+I don't recall introducing ARCH_PFN_OFFSET, are you sure it was me?  I'm just
+back today after been offline a week so didn't review the patch but IIRC,
+ARCH_PFN_OFFSET deals with the case where physical memory does not start
+at 0. Without the offset, virtual _PAGE_OFFSET would not physical page 0.
+I don't recall it being related to the alignment of node 0 so if there
+are crashes due to misalignment of node 0 and the fix is ARCH_PFN_OFFSET
+related then I'm surprised.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
