@@ -1,69 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f178.google.com (mail-we0-f178.google.com [74.125.82.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 33DFE6B006C
-	for <linux-mm@kvack.org>; Mon, 26 Jan 2015 07:13:16 -0500 (EST)
-Received: by mail-we0-f178.google.com with SMTP id k48so8665814wev.9
-        for <linux-mm@kvack.org>; Mon, 26 Jan 2015 04:13:15 -0800 (PST)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.195])
-        by mx.google.com with ESMTP id w5si19603060wjr.60.2015.01.26.04.13.12
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id A1DAB6B0032
+	for <linux-mm@kvack.org>; Mon, 26 Jan 2015 07:29:54 -0500 (EST)
+Received: by mail-wi0-f180.google.com with SMTP id h11so9395553wiw.1
+        for <linux-mm@kvack.org>; Mon, 26 Jan 2015 04:29:54 -0800 (PST)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.203])
+        by mx.google.com with ESMTP id r7si19558287wic.14.2015.01.26.04.29.52
         for <linux-mm@kvack.org>;
-        Mon, 26 Jan 2015 04:13:13 -0800 (PST)
-Date: Mon, 26 Jan 2015 14:13:09 +0200
+        Mon, 26 Jan 2015 04:29:53 -0800 (PST)
+Date: Mon, 26 Jan 2015 14:29:44 +0200
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH V4] mm/thp: Allocate transparent hugepages on local node
-Message-ID: <20150126121309.GD25833@node.dhcp.inet.fi>
-References: <1421753671-16793-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <20150120164832.abe2e47b760e1a8d7bb6055b@linux-foundation.org>
- <54C62803.8010105@suse.cz>
+Subject: Re: mmotm 2015-01-22-15-04: qemu failures due to 'mm: account pmd
+ page tables to the process'
+Message-ID: <20150126122944.GE25833@node.dhcp.inet.fi>
+References: <54c1822d.RtdGfWPekQVAw8Ly%akpm@linux-foundation.org>
+ <20150123050445.GA22751@roeck-us.net>
+ <20150123111304.GA5975@node.dhcp.inet.fi>
+ <54C263CC.1060904@roeck-us.net>
+ <20150123135519.9f1061caf875f41f89298d59@linux-foundation.org>
+ <20150124055207.GA8926@roeck-us.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <54C62803.8010105@suse.cz>
+In-Reply-To: <20150124055207.GA8926@roeck-us.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Guenter Roeck <linux@roeck-us.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Mon, Jan 26, 2015 at 12:41:55PM +0100, Vlastimil Babka wrote:
-> On 01/21/2015 01:48 AM, Andrew Morton wrote:
-> > On Tue, 20 Jan 2015 17:04:31 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
-> >> + * Should be called with the mm_sem of the vma hold.
+On Fri, Jan 23, 2015 at 09:52:07PM -0800, Guenter Roeck wrote:
+> On Fri, Jan 23, 2015 at 01:55:19PM -0800, Andrew Morton wrote:
+> > On Fri, 23 Jan 2015 07:07:56 -0800 Guenter Roeck <linux@roeck-us.net> wrote:
 > > 
-> > That's a pretty cruddy sentence, isn't it?  Copied from
-> > alloc_pages_vma().  "vma->vm_mm->mmap_sem" would be better.
+> > > >>
+> > > >> qemu:microblaze generates warnings to the console.
+> > > >>
+> > > >> WARNING: CPU: 0 PID: 32 at mm/mmap.c:2858 exit_mmap+0x184/0x1a4()
+> > > >>
+> > > >> with various call stacks. See
+> > > >> http://server.roeck-us.net:8010/builders/qemu-microblaze-mmotm/builds/15/steps/qemubuildcommand/logs/stdio
+> > > >> for details.
+> > > >
+> > > > Could you try patch below? Completely untested.
+> > > >
+> > > >>From b584bb8d493794f67484c0b57c161d61c02599bc Mon Sep 17 00:00:00 2001
+> > > > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> > > > Date: Fri, 23 Jan 2015 13:08:26 +0200
+> > > > Subject: [PATCH] microblaze: define __PAGETABLE_PMD_FOLDED
+> > > >
+> > > > Microblaze uses custom implementation of PMD folding, but doesn't define
+> > > > __PAGETABLE_PMD_FOLDED, which generic code expects to see. Let's fix it.
+> > > >
+> > > > Defining __PAGETABLE_PMD_FOLDED will drop out unused __pmd_alloc().
+> > > > It also fixes problems with recently-introduced pmd accounting.
+> > > >
+> > > > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > > > Reported-by: Guenter Roeck <linux@roeck-us.net>
+> > > 
+> > > Tested working.
+> > > 
+> > > Tested-by: Guenter Roeck <linux@roeck-us.net>
+> > > 
+> > > Any idea how to fix the sh problem ?
 > > 
-> > And it should tell us whether mmap_sem required a down_read or a
-> > down_write.  What purpose is it serving?
+> > Can you tell us more about it?  All I'm seeing is "qemu:sh fails to
+> > shut down", which isn't very clear.
 > 
-> This is already said for mmap_sem further above this comment line, which
-> should be just deleted (and from alloc_hugepage_vma comment too).
-> 
-> >> + *
-> >> + */
-> >> +struct page *alloc_hugepage_vma(gfp_t gfp, struct vm_area_struct *vma,
-> >> +				unsigned long addr, int order)
-> > 
-> > This pointlessly bloats the kernel if CONFIG_TRANSPARENT_HUGEPAGE=n?
-> > 
-> > 
-> > 
-> > --- a/mm/mempolicy.c~mm-thp-allocate-transparent-hugepages-on-local-node-fix
-> > +++ a/mm/mempolicy.c
-> 
-> How about this cleanup on top? I'm not fully decided on the GFP_TRANSHUGE test.
-> This is potentially false positive, although I doubt anything else uses the same
-> gfp mask bits.
+> Turns out that the include file defining __PAGETABLE_PMD_FOLDED
+> was not always included where used, resulting in a messed up mm_struct.
 
-This info on gfp mask should be in commit message.
+What means "messed up" here? It should only affect size of mm_struct.
+ 
+> The patch below fixes the problem for the sh architecture.
+> No idea if the patch is correct/acceptable for other architectures.
 
-And what about WARN_ON_ONCE() if we the matching bits with
-!TRANSPARENT_HUGEPAGE?
-
-> 
-> Should "hugepage" be extra bool parameter instead? Should I #ifdef the parameter
-> only for CONFIG_TRANSPARENT_HUGEPAGE, or is it not worth the ugliness?
-
-Do we have spare gfp bit? ;)
+That's pain. Some archs includes <linux/mm_types.h> from <asm/pgtable.h>.
+I don't see obvious way to fix this. Urghh.
 
 -- 
  Kirill A. Shutemov
