@@ -1,67 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 6083D6B0032
-	for <linux-mm@kvack.org>; Mon, 26 Jan 2015 14:29:38 -0500 (EST)
-Received: by mail-pd0-f177.google.com with SMTP id y13so13657505pdi.8
-        for <linux-mm@kvack.org>; Mon, 26 Jan 2015 11:29:38 -0800 (PST)
-Received: from na01-bn1-obe.outbound.protection.outlook.com (mail-bn1bon0132.outbound.protection.outlook.com. [157.56.111.132])
-        by mx.google.com with ESMTPS id e4si13408566pdn.90.2015.01.26.11.29.36
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id A3D826B0032
+	for <linux-mm@kvack.org>; Mon, 26 Jan 2015 14:36:44 -0500 (EST)
+Received: by mail-pd0-f171.google.com with SMTP id fp1so13741700pdb.2
+        for <linux-mm@kvack.org>; Mon, 26 Jan 2015 11:36:44 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id oi10si13337670pab.163.2015.01.26.11.36.42
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 26 Jan 2015 11:29:37 -0800 (PST)
-Date: Mon, 26 Jan 2015 13:24:14 -0600
-From: Kim Phillips <kim.phillips@freescale.com>
-Subject: Re: [PATCH 2/2] mm: fix undefined reference to `.kernel_map_pages'
- on PPC builds
-Message-ID: <20150126132414.238ece260a30b79327551206@freescale.com>
-In-Reply-To: <20150122014550.GA21444@js1304-P5Q-DELUXE>
-References: <20150120140200.aa7ba0eb28d95e456972e178@freescale.com>
-	<20150120230150.GA14475@cloud>
-	<20150120160738.edfe64806cc8b943beb1dfa0@linux-foundation.org>
-	<CAC5umyieZn7ppXkKb45O=C=BF+iv6R_A1Dwfhro=cBJzFeovrA@mail.gmail.com>
-	<20150122014550.GA21444@js1304-P5Q-DELUXE>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Jan 2015 11:36:43 -0800 (PST)
+Date: Mon, 26 Jan 2015 22:36:29 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH -mm 1/3] slub: don't fail kmem_cache_shrink if slab
+ placement optimization fails
+Message-ID: <20150126193629.GA2660@esperanza>
+References: <cover.1422275084.git.vdavydov@parallels.com>
+ <3804a429071f939e6b4f654b6c6426c1fdd95f7e.1422275084.git.vdavydov@parallels.com>
+ <alpine.DEB.2.11.1501260944550.15849@gentwo.org>
+ <20150126170147.GB28978@esperanza>
+ <alpine.DEB.2.11.1501261216120.16638@gentwo.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.11.1501261216120.16638@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Akinobu Mita <akinobu.mita@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, josh@joshtriplett.org, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Al Viro <viro@zeniv.linux.org.uk>, Konstantin Khlebnikov <k.khlebnikov@samsung.com>, Jens Axboe <axboe@fb.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Scott Wood <scottwood@freescale.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 22 Jan 2015 10:45:51 +0900
-Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+On Mon, Jan 26, 2015 at 12:24:49PM -0600, Christoph Lameter wrote:
+> On Mon, 26 Jan 2015, Vladimir Davydov wrote:
+> 
+> > Anyways, I think that silently relying on the fact that the allocator
+> > never fails small allocations is kind of unreliable. What if this
+> 
+> We are not doing that though. If the allocation fails we do nothing.
 
-> From 7cb9d1ed8a785df152cb8934e187031c8ebd1bb2 Mon Sep 17 00:00:00 2001
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Date: Thu, 22 Jan 2015 10:28:58 +0900
-> Subject: [PATCH] mm/debug_pagealloc: fix build failure on ppc and some other
->  archs
-> 
-> Kim Phillips reported following build failure.
-> 
->   LD      init/built-in.o
->   mm/built-in.o: In function `free_pages_prepare':
->   mm/page_alloc.c:770: undefined reference to `.kernel_map_pages'
->   mm/built-in.o: In function `prep_new_page':
->   mm/page_alloc.c:933: undefined reference to `.kernel_map_pages'
->   mm/built-in.o: In function `map_pages':
->   mm/compaction.c:61: undefined reference to `.kernel_map_pages'
->   make: *** [vmlinux] Error 1
-> 
-> Reason for this problem is that commit 031bc5743f15
-> ("mm/debug-pagealloc: make debug-pagealloc boottime configurable") forgot
-> to remove old declaration of kernel_map_pages() in some architectures.
-> This patch removes them to fix build failure.
-> 
-> Reported-by: Kim Phillips <kim.phillips@freescale.com>
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> ---
+Yeah, that's correct, but memcg/kmem wants it to always free empty slabs
+(see patch 3 for details), so I'm trying to be punctual and eliminate
+any possibility of failure, because a failure (if it ever happened)
+would result in a permanent memory leak (pinned mem_cgroup + its
+kmem_caches).
 
-Acked-by: Kim Phillips <kim.phillips@freescale.com>
+> 
+> > > > +			if (page->inuse < objects)
+> > > > +				list_move(&page->lru,
+> > > > +					  slabs_by_inuse + page->inuse);
+> > > >  			if (!page->inuse)
+> > > >  				n->nr_partial--;
+> > > >  		}
+> > >
+> > > The condition is always true. A page that has page->inuse == objects
+> > > would not be on the partial list.
+> > >
+> >
+> > This is in case we failed to allocate the slabs_by_inuse array. We only
+> > have a list for empty slabs then (on stack).
+> 
+> Ok in that case objects == 1. If you want to do this maybe do it in a more
+> general way?
+> 
+> You could allocate an array on the stack to deal with the common cases. I
+> believe an array of 32 objects would be fine to allocate and cover most of
+> the slab caches on the system? Would eliminate most of the allocations in
+> kmem_cache_shrink.
+
+We could do that, but IMO that would only complicate the code w/o
+yielding any real benefits. This function is slow and called rarely
+anyway, so I don't think there is any point to optimize out a page
+allocation here.
 
 Thanks,
-
-Kim
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
