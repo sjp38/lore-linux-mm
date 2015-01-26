@@ -1,47 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id BBC846B0032
-	for <linux-mm@kvack.org>; Mon, 26 Jan 2015 10:45:29 -0500 (EST)
-Received: by mail-pd0-f180.google.com with SMTP id ft15so12493112pdb.11
-        for <linux-mm@kvack.org>; Mon, 26 Jan 2015 07:45:29 -0800 (PST)
-Received: from mail-pd0-x22b.google.com (mail-pd0-x22b.google.com. [2607:f8b0:400e:c02::22b])
-        by mx.google.com with ESMTPS id h10si12713213pdl.88.2015.01.26.07.45.28
+Received: from mail-qa0-f53.google.com (mail-qa0-f53.google.com [209.85.216.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 84D656B0032
+	for <linux-mm@kvack.org>; Mon, 26 Jan 2015 10:48:04 -0500 (EST)
+Received: by mail-qa0-f53.google.com with SMTP id n4so7226075qaq.12
+        for <linux-mm@kvack.org>; Mon, 26 Jan 2015 07:48:04 -0800 (PST)
+Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
+        by mx.google.com with ESMTPS id h45si13579733qgd.59.2015.01.26.07.48.03
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 26 Jan 2015 07:45:28 -0800 (PST)
-Received: by mail-pd0-f171.google.com with SMTP id fp1so12570317pdb.2
-        for <linux-mm@kvack.org>; Mon, 26 Jan 2015 07:45:28 -0800 (PST)
-Date: Tue, 27 Jan 2015 00:45:19 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] zram: free meta table in zram_meta_free
-Message-ID: <20150126154506.GA528@blaptop>
-References: <1422107153-9701-1-git-send-email-opensource.ganesh@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1422107153-9701-1-git-send-email-opensource.ganesh@gmail.com>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Mon, 26 Jan 2015 07:48:03 -0800 (PST)
+Date: Mon, 26 Jan 2015 09:48:00 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH -mm 1/3] slub: don't fail kmem_cache_shrink if slab
+ placement optimization fails
+In-Reply-To: <3804a429071f939e6b4f654b6c6426c1fdd95f7e.1422275084.git.vdavydov@parallels.com>
+Message-ID: <alpine.DEB.2.11.1501260944550.15849@gentwo.org>
+References: <cover.1422275084.git.vdavydov@parallels.com> <3804a429071f939e6b4f654b6c6426c1fdd95f7e.1422275084.git.vdavydov@parallels.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Cc: ngupta@vflare.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello,
+On Mon, 26 Jan 2015, Vladimir Davydov wrote:
 
-On Sat, Jan 24, 2015 at 09:45:53PM +0800, Ganesh Mahendran wrote:
-> zram_meta_alloc() and zram_meta_free() are a pair.
-> In zram_meta_alloc(), meta table is allocated. So it it better to free
-> it in zram_meta_free().
-> 
-> Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
-> Cc: Nitin Gupta <ngupta@vflare.org>
-> Cc: Minchan Kim <minchan@kernel.org>
+> SLUB's kmem_cache_shrink not only removes empty slabs from the cache,
+> but also sorts slabs by the number of objects in-use to cope with
+> fragmentation. To achieve that, it tries to allocate a temporary array.
+> If it fails, it will abort the whole procedure.
 
-Looks good to me but it seems the patch is based on my recent work
-"zram: free meta out of init_lock".
-Please resend it on recent mmotm because I will respin my patch and
-your patch is orthogonal with mine.
+I do not think its worth optimizing this. If we cannot allocate even a
+small object then the system is in an extremely bad state anyways.
 
-Thanks.
+> @@ -3400,7 +3407,9 @@ int __kmem_cache_shrink(struct kmem_cache *s)
+>  		 * list_lock. page->inuse here is the upper limit.
+>  		 */
+>  		list_for_each_entry_safe(page, t, &n->partial, lru) {
+> -			list_move(&page->lru, slabs_by_inuse + page->inuse);
+> +			if (page->inuse < objects)
+> +				list_move(&page->lru,
+> +					  slabs_by_inuse + page->inuse);
+>  			if (!page->inuse)
+>  				n->nr_partial--;
+>  		}
+
+The condition is always true. A page that has page->inuse == objects
+would not be on the partial list.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
