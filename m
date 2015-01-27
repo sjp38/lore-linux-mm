@@ -1,70 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BC436B006E
-	for <linux-mm@kvack.org>; Tue, 27 Jan 2015 04:28:57 -0500 (EST)
-Received: by mail-pd0-f179.google.com with SMTP id v10so17801307pde.10
-        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 01:28:57 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id f2si834420pas.147.2015.01.27.01.28.56
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C5446B0032
+	for <linux-mm@kvack.org>; Tue, 27 Jan 2015 05:34:06 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id ey11so17746440pad.7
+        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 02:34:06 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id e12si1164865pat.39.2015.01.27.02.34.05
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Jan 2015 01:28:56 -0800 (PST)
-Date: Tue, 27 Jan 2015 12:28:39 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH -mm 3/3] slub: make dead caches discard free slabs
- immediately
-Message-ID: <20150127092838.GA5165@esperanza>
-References: <cover.1422275084.git.vdavydov@parallels.com>
- <42d95683e3c7f4bb00be4d777e2b334e8981d552.1422275084.git.vdavydov@parallels.com>
- <20150127080009.GB11358@js1304-P5Q-DELUXE>
- <20150127082301.GD28978@esperanza>
- <CAAmzW4N+HVEO7_29QpzW9ezask4FZYVVUdm0eMKv4CdUwLWYxQ@mail.gmail.com>
+        Tue, 27 Jan 2015 02:34:05 -0800 (PST)
+Message-ID: <54C76995.70501@codeaurora.org>
+Date: Tue, 27 Jan 2015 16:03:57 +0530
+From: Vinayak Menon <vinmenon@codeaurora.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <CAAmzW4N+HVEO7_29QpzW9ezask4FZYVVUdm0eMKv4CdUwLWYxQ@mail.gmail.com>
+Subject: Re: [PATCH v2] mm: vmscan: fix the page state calculation in too_many_isolated
+References: <1421235419-30736-1-git-send-email-vinmenon@codeaurora.org> <20150114165036.GI4706@dhcp22.suse.cz> <54B7F7C4.2070105@codeaurora.org> <20150116154922.GB4650@dhcp22.suse.cz> <54BA7D3A.40100@codeaurora.org> <alpine.DEB.2.11.1501171347290.25464@gentwo.org> <20150126172832.GC22681@dhcp22.suse.cz>
+In-Reply-To: <20150126172832.GC22681@dhcp22.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Linux Memory
- Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, mgorman@suse.de, minchan@kernel.org
 
-On Tue, Jan 27, 2015 at 06:21:14PM +0900, Joonsoo Kim wrote:
-> 2015-01-27 17:23 GMT+09:00 Vladimir Davydov <vdavydov@parallels.com>:
-> > Hi Joonsoo,
-> >
-> > On Tue, Jan 27, 2015 at 05:00:09PM +0900, Joonsoo Kim wrote:
-> >> On Mon, Jan 26, 2015 at 03:55:29PM +0300, Vladimir Davydov wrote:
-> >> > @@ -3381,6 +3390,15 @@ void __kmem_cache_shrink(struct kmem_cache *s)
-> >> >             kmalloc(sizeof(struct list_head) * objects, GFP_KERNEL);
-> >> >     unsigned long flags;
-> >> >
-> >> > +   if (deactivate) {
-> >> > +           /*
-> >> > +            * Disable empty slabs caching. Used to avoid pinning offline
-> >> > +            * memory cgroups by freeable kmem pages.
-> >> > +            */
-> >> > +           s->cpu_partial = 0;
-> >> > +           s->min_partial = 0;
-> >> > +   }
-> >> > +
-> >>
-> >> Maybe, kick_all_cpus_sync() is needed here since object would
-> >> be freed asynchronously so they can't see this updated value.
-> >
-> > I thought flush_all() should do the trick, no?
-> 
-> Unfortunately, it doesn't.
-> 
-> flush_all() sends IPI to not all cpus. It only sends IPI to cpus where
-> some conditions
-> are met and freeing could occur on the other ones.
+On 01/26/2015 10:58 PM, Michal Hocko wrote:
+> On Sat 17-01-15 13:48:34, Christoph Lameter wrote:
+>> On Sat, 17 Jan 2015, Vinayak Menon wrote:
+>>
+>>> which had not updated the vmstat_diff. This CPU was in idle for around 30
+>>> secs. When I looked at the tvec base for this CPU, the timer associated with
+>>> vmstat_update had its expiry time less than current jiffies. This timer had
+>>> its deferrable flag set, and was tied to the next non-deferrable timer in the
+>>
+>> We can remove the deferrrable flag now since the vmstat threads are only
+>> activated as necessary with the recent changes. Looks like this could fix
+>> your issue?
+>
+> OK, I have checked the history and the deferrable behavior has been
+> introduced by 39bf6270f524 (VM statistics: Make timer deferrable) which
+> hasn't offered any numbers which would justify the change. So I think it
+> would be a good idea to revert this one as it can clearly cause issues.
+>
+> Could you retest with this change? It still wouldn't help with the
+> highly overloaded workqueues but that sounds like a bigger change and
+> this one sounds like quite safe to me so it is a good start.
 
-Oh, true, missed that. Yeah, we should kick all cpus explicitly then.
-Will fix in the next iteration. Thanks for catching this!
+Sure, I can retest.
+Even without highly overloaded workqueues, there can be a delay of HZ in 
+updating the counters. This means reclaim path can be blocked for a 
+second or more, when there aren't really any isolated pages. So we need 
+the fix in too_many_isolated also right ?
 
-Thanks,
-Vladimir
+
+-- 
+QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
+member of the Code Aurora Forum, hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
