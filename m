@@ -1,59 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A22A6B006E
-	for <linux-mm@kvack.org>; Tue, 27 Jan 2015 03:36:43 -0500 (EST)
-Received: by mail-wi0-f179.google.com with SMTP id l15so3298079wiw.0
-        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 00:36:42 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t8si1681985wiz.36.2015.01.27.00.36.41
+Received: from mail-oi0-f54.google.com (mail-oi0-f54.google.com [209.85.218.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 6656B6B0032
+	for <linux-mm@kvack.org>; Tue, 27 Jan 2015 04:21:15 -0500 (EST)
+Received: by mail-oi0-f54.google.com with SMTP id v63so11444774oia.13
+        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 01:21:15 -0800 (PST)
+Received: from mail-oi0-x22c.google.com (mail-oi0-x22c.google.com. [2607:f8b0:4003:c06::22c])
+        by mx.google.com with ESMTPS id t19si319115oeo.79.2015.01.27.01.21.14
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 27 Jan 2015 00:36:41 -0800 (PST)
-Message-ID: <54C74E17.6020703@suse.cz>
-Date: Tue, 27 Jan 2015 09:36:39 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        Tue, 27 Jan 2015 01:21:14 -0800 (PST)
+Received: by mail-oi0-f44.google.com with SMTP id a3so11471633oib.3
+        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 01:21:14 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/4] mm/page_alloc: expands broken freepage to proper
- buddy list when steal
-References: <1418022980-4584-1-git-send-email-iamjoonsoo.kim@lge.com> <1418022980-4584-3-git-send-email-iamjoonsoo.kim@lge.com> <54856F88.8090300@suse.cz> <20141210063840.GC13371@js1304-P5Q-DELUXE> <54C73FB5.30000@suse.cz> <20150127083419.GF11358@js1304-P5Q-DELUXE>
-In-Reply-To: <20150127083419.GF11358@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20150127082301.GD28978@esperanza>
+References: <cover.1422275084.git.vdavydov@parallels.com>
+	<42d95683e3c7f4bb00be4d777e2b334e8981d552.1422275084.git.vdavydov@parallels.com>
+	<20150127080009.GB11358@js1304-P5Q-DELUXE>
+	<20150127082301.GD28978@esperanza>
+Date: Tue, 27 Jan 2015 18:21:14 +0900
+Message-ID: <CAAmzW4N+HVEO7_29QpzW9ezask4FZYVVUdm0eMKv4CdUwLWYxQ@mail.gmail.com>
+Subject: Re: [PATCH -mm 3/3] slub: make dead caches discard free slabs immediately
+From: Joonsoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 01/27/2015 09:34 AM, Joonsoo Kim wrote:
-> On Tue, Jan 27, 2015 at 08:35:17AM +0100, Vlastimil Babka wrote:
->> On 12/10/2014 07:38 AM, Joonsoo Kim wrote:
->> > After your patch is merged, I will resubmit these on top of it.
->> 
->> Hi Joonsoo,
->> 
->> my page stealing patches are now in -mm so are you planning to resubmit this? At
->> least patch 1 is an obvious bugfix, and patch 4 a clear compaction overhead
->> reduction. Those don't need to wait for the rest of the series. If you are busy
->> with other stuff, I can also resend those two myself if you want.
-> 
-> Hello,
-> 
-> I've noticed that your patches are merged. :)
-> If you are in hurry, you can resend them. I'm glad if you handle it.
-> If not, I will resend them, maybe, on end of this week.
+2015-01-27 17:23 GMT+09:00 Vladimir Davydov <vdavydov@parallels.com>:
+> Hi Joonsoo,
+>
+> On Tue, Jan 27, 2015 at 05:00:09PM +0900, Joonsoo Kim wrote:
+>> On Mon, Jan 26, 2015 at 03:55:29PM +0300, Vladimir Davydov wrote:
+>> > @@ -3381,6 +3390,15 @@ void __kmem_cache_shrink(struct kmem_cache *s)
+>> >             kmalloc(sizeof(struct list_head) * objects, GFP_KERNEL);
+>> >     unsigned long flags;
+>> >
+>> > +   if (deactivate) {
+>> > +           /*
+>> > +            * Disable empty slabs caching. Used to avoid pinning offline
+>> > +            * memory cgroups by freeable kmem pages.
+>> > +            */
+>> > +           s->cpu_partial = 0;
+>> > +           s->min_partial = 0;
+>> > +   }
+>> > +
+>>
+>> Maybe, kick_all_cpus_sync() is needed here since object would
+>> be freed asynchronously so they can't see this updated value.
+>
+> I thought flush_all() should do the trick, no?
 
-Hi,
+Unfortunately, it doesn't.
 
-end of week is fine! I'm in no hurry, just wanted to know the status.
+flush_all() sends IPI to not all cpus. It only sends IPI to cpus where
+some conditions
+are met and freeing could occur on the other ones.
 
-> In fact, I'm testing your stealing patches on my add-hoc fragmentation
-> benchmark. It would be finished soon and, after that, I can resend this
-> patchset.
-
-Good to hear! Thanks.
-
-> Thanks.
-> 
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
