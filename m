@@ -1,78 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 075ED6B0032
-	for <linux-mm@kvack.org>; Tue, 27 Jan 2015 05:52:46 -0500 (EST)
-Received: by mail-wg0-f51.google.com with SMTP id k14so13977642wgh.10
-        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 02:52:45 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 7EB546B0032
+	for <linux-mm@kvack.org>; Tue, 27 Jan 2015 06:03:37 -0500 (EST)
+Received: by mail-wg0-f51.google.com with SMTP id k14so14030257wgh.10
+        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 03:03:37 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v10si25081418wiz.72.2015.01.27.02.52.44
+        by mx.google.com with ESMTPS id bt4si25333796wib.2.2015.01.27.03.03.35
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 27 Jan 2015 02:52:44 -0800 (PST)
-Date: Tue, 27 Jan 2015 11:52:42 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2] mm: vmscan: fix the page state calculation in
- too_many_isolated
-Message-ID: <20150127105242.GC19880@dhcp22.suse.cz>
-References: <20150114165036.GI4706@dhcp22.suse.cz>
- <54B7F7C4.2070105@codeaurora.org>
- <20150116154922.GB4650@dhcp22.suse.cz>
- <54BA7D3A.40100@codeaurora.org>
- <alpine.DEB.2.11.1501171347290.25464@gentwo.org>
- <54BC879C.90505@codeaurora.org>
- <20150121143920.GD23700@dhcp22.suse.cz>
- <alpine.DEB.2.11.1501221010510.3937@gentwo.org>
- <20150126174606.GD22681@dhcp22.suse.cz>
- <alpine.DEB.2.11.1501261233550.16786@gentwo.org>
+        Tue, 27 Jan 2015 03:03:36 -0800 (PST)
+Message-ID: <54C77086.7090505@suse.cz>
+Date: Tue, 27 Jan 2015 12:03:34 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.11.1501261233550.16786@gentwo.org>
+Subject: Re: OOM at low page cache?
+References: <54C2C89C.8080002@gmail.com>
+In-Reply-To: <54C2C89C.8080002@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Vinayak Menon <vinmenon@codeaurora.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, mgorman@suse.de, minchan@kernel.org
+To: John Moser <john.r.moser@gmail.com>
+Cc: linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon 26-01-15 12:35:00, Christoph Lameter wrote:
-> On Mon, 26 Jan 2015, Michal Hocko wrote:
+CC linux-mm in case somebody has a good answer but missed this in lkml traffic
+
+On 01/23/2015 11:18 PM, John Moser wrote:
+> Why is there no tunable to OOM at low page cache?
 > 
-> > > Please do not run the vmstat_updates concurrently. They update shared
-> > > cachelines and therefore can cause bouncing cachelines if run concurrently
-> > > on multiple cpus.
-> >
-> > Would you preffer to call smp_call_function_single on each CPU
-> > which needs an update? That would make vmstat_shepherd slower but that
-> > is not a big deal, is it?
+> I have no swap configured.  I have 16GB RAM.  If Chrome or Gimp or some
+> other stupid program goes off the deep end and eats up my RAM, I hit
+> some 15.5GB or 15.75GB usage and stay there for about 40 minutes.  Every
+> time the program tries to do something to eat more RAM, it cranks disk
+> hard; the disk starts thrashing, the mouse pointer stops moving, and
+> nothing goes on.  It's like swapping like crazy, except you're reading
+> library files instead of paged anonymous RAM.
 > 
-> Run it from the timer interrupt as usual from a work request? Those are
-> staggered.
-
-I am not following. The idea was to run vmstat_shepherd in a kernel
-thread and waking up as per defined timeout and then check need_update
-for each CPU and call smp_call_function_single to refresh the timer
-rather than building a mask and then calling sm_call_function_many to
-reduce paralel contention on the shared counters.
-
-> > Anyway I am wondering whether the cache line bouncing between
-> > vmstat_update instances is a big deal in the real life. Updating shared
-> > counters whould bounce with many CPUs but this is an operation which is
-> > not done often. Also all the CPUs would have update the same counters
-> > all the time and I am not sure this happens that often. Do you have a
-> > load where this would be measurable?
+> If only I could tell the system to OOM kill at 512MB or 1GB or 95%
+> non-evictable RAM, it would recover on its own.  As-is, I need to wait
+> or trigger the OOM killer by sysrq.
 > 
-> Concurrent page faults update lots of counters concurrently.
-
-True
-
-> But will those trigger the smp_call_function?
-
-The smp_call_function was meant to be called only from the
-vmstat_shepherd context which does happen "rarely". Or am I missing your
-point here?
-
--- 
-Michal Hocko
-SUSE Labs
+> Am I just the only person in the world who's ever had that problem?  Or
+> is it a matter of questions fast popping up when you try to do this
+> *and* enable paging to disk?  (In my experience, that's a matter of too
+> much swap space:  if you have 16GB RAM and your computer dies at 15.25GB
+> usage, your swap space should be no larger than 750MB plus inactive
+> working RAM; obviously, your computer can't handle paging 750MB back and
+> forth.  If you make it 8GB wide and you start swap thrashing at 2GB
+> usage, you have too much swap available).
+> 
+> I guess you could try to detect excessive swap and page cache thrashing,
+> but that's complex; if anyone really wanted to do that, it would be done
+> by now.  A low-barrier OOM is much simpler.
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
