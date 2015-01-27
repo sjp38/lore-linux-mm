@@ -1,54 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f173.google.com (mail-ie0-f173.google.com [209.85.223.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 79FDE6B0032
-	for <linux-mm@kvack.org>; Tue, 27 Jan 2015 11:57:38 -0500 (EST)
-Received: by mail-ie0-f173.google.com with SMTP id tr6so16324196ieb.4
-        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 08:57:38 -0800 (PST)
-Received: from resqmta-po-10v.sys.comcast.net (resqmta-po-10v.sys.comcast.net. [2001:558:fe16:19:96:114:154:169])
-        by mx.google.com with ESMTPS id 20si1111230ioi.87.2015.01.27.08.57.37
+Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id B0B6B6B006E
+	for <linux-mm@kvack.org>; Tue, 27 Jan 2015 12:00:02 -0500 (EST)
+Received: by mail-ie0-f171.google.com with SMTP id tr6so16367831ieb.2
+        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 09:00:02 -0800 (PST)
+Received: from resqmta-po-01v.sys.comcast.net (resqmta-po-01v.sys.comcast.net. [2001:558:fe16:19:96:114:154:160])
+        by mx.google.com with ESMTPS id r1si1521249icg.88.2015.01.27.09.00.02
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Tue, 27 Jan 2015 08:57:37 -0800 (PST)
-Date: Tue, 27 Jan 2015 10:57:36 -0600 (CST)
+        Tue, 27 Jan 2015 09:00:02 -0800 (PST)
+Date: Tue, 27 Jan 2015 10:59:59 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC 1/3] Slab infrastructure for array operations
-In-Reply-To: <20150127082132.GE11358@js1304-P5Q-DELUXE>
-Message-ID: <alpine.DEB.2.11.1501271054310.25124@gentwo.org>
-References: <20150123213727.142554068@linux.com> <20150123213735.590610697@linux.com> <20150127082132.GE11358@js1304-P5Q-DELUXE>
+Subject: Re: [PATCH v2] mm: vmscan: fix the page state calculation in
+ too_many_isolated
+In-Reply-To: <20150127105242.GC19880@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.11.1501271058230.25124@gentwo.org>
+References: <20150114165036.GI4706@dhcp22.suse.cz> <54B7F7C4.2070105@codeaurora.org> <20150116154922.GB4650@dhcp22.suse.cz> <54BA7D3A.40100@codeaurora.org> <alpine.DEB.2.11.1501171347290.25464@gentwo.org> <54BC879C.90505@codeaurora.org>
+ <20150121143920.GD23700@dhcp22.suse.cz> <alpine.DEB.2.11.1501221010510.3937@gentwo.org> <20150126174606.GD22681@dhcp22.suse.cz> <alpine.DEB.2.11.1501261233550.16786@gentwo.org> <20150127105242.GC19880@dhcp22.suse.cz>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com, Jesper Dangaard Brouer <brouer@redhat.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Vinayak Menon <vinmenon@codeaurora.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, mgorman@suse.de, minchan@kernel.org
 
-On Tue, 27 Jan 2015, Joonsoo Kim wrote:
+On Tue, 27 Jan 2015, Michal Hocko wrote:
 
-> IMHO, exposing these options is not a good idea. It's really
-> implementation specific. And, this flag won't show consistent performance
-> according to specific slab implementation. For example, to get best
-> performance, if SLAB is used, GFP_SLAB_ARRAY_LOCAL would be the best option,
-> but, for the same purpose, if SLUB is used, GFP_SLAB_ARRAY_NEW would
-> be the best option. And, performance could also depend on number of objects
-> and size.
+> I am not following. The idea was to run vmstat_shepherd in a kernel
+> thread and waking up as per defined timeout and then check need_update
+> for each CPU and call smp_call_function_single to refresh the timer
+> rather than building a mask and then calling sm_call_function_many to
+> reduce paralel contention on the shared counters.
 
-Why would slab show a better performance? SLUB also can have partial
-allocated pages per cpu and could also get data quite fast if only a
-minimal number of objects are desired. SLAB is slightly better because the
-number of cachelines touches stays small due to the arrangement of the freelist
-on the slab page and the queueing approach that does not involve linked
-lists.
-
-
-GFP_SLAB_ARRAY new is best for large quantities in either allocator since
-SLAB also has to construct local metadata structures.
-
-> And, overriding gfp flag isn't a good idea. Someday gfp could use
-> these values and they can't notice that these are used in slab
-> subsystem with different meaning.
-
-We can put a BUILD_BUG_ON in there to ensure that the GFP flags do not get
-too high. The upper portion of the GFP flags is also used elsewhere. And
-it is an allocation option so it naturally fits in there.
+Thats ok.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
