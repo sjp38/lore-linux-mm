@@ -1,116 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 0947B6B0032
-	for <linux-mm@kvack.org>; Tue, 27 Jan 2015 07:58:56 -0500 (EST)
-Received: by mail-pa0-f54.google.com with SMTP id eu11so18400695pac.13
-        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 04:58:55 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id rm10si1596540pab.54.2015.01.27.04.58.55
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Jan 2015 04:58:55 -0800 (PST)
-Date: Tue, 27 Jan 2015 15:58:38 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH -mm 1/3] slub: don't fail kmem_cache_shrink if slab
- placement optimization fails
-Message-ID: <20150127125838.GD5165@esperanza>
-References: <cover.1422275084.git.vdavydov@parallels.com>
- <3804a429071f939e6b4f654b6c6426c1fdd95f7e.1422275084.git.vdavydov@parallels.com>
- <alpine.DEB.2.11.1501260944550.15849@gentwo.org>
- <20150126170147.GB28978@esperanza>
- <alpine.DEB.2.11.1501261216120.16638@gentwo.org>
- <20150126193629.GA2660@esperanza>
- <alpine.DEB.2.11.1501261353020.16786@gentwo.org>
+Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id D681B6B0032
+	for <linux-mm@kvack.org>; Tue, 27 Jan 2015 11:17:11 -0500 (EST)
+Received: by mail-wg0-f54.google.com with SMTP id b13so15592954wgh.13
+        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 08:17:11 -0800 (PST)
+Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.203])
+        by mx.google.com with ESMTP id jx3si3983163wid.0.2015.01.27.08.17.08
+        for <linux-mm@kvack.org>;
+        Tue, 27 Jan 2015 08:17:09 -0800 (PST)
+Date: Tue, 27 Jan 2015 18:16:57 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: mmotm 2015-01-22-15-04: qemu failures due to 'mm: account pmd
+ page tables to the process'
+Message-ID: <20150127161657.GA7155@node.dhcp.inet.fi>
+References: <54c1822d.RtdGfWPekQVAw8Ly%akpm@linux-foundation.org>
+ <20150123050445.GA22751@roeck-us.net>
+ <20150123111304.GA5975@node.dhcp.inet.fi>
+ <54C263CC.1060904@roeck-us.net>
+ <20150123135519.9f1061caf875f41f89298d59@linux-foundation.org>
+ <20150124055207.GA8926@roeck-us.net>
+ <20150126122944.GE25833@node.dhcp.inet.fi>
+ <54C6494D.80802@roeck-us.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.11.1501261353020.16786@gentwo.org>
+In-Reply-To: <54C6494D.80802@roeck-us.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Guenter Roeck <linux@roeck-us.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Mon, Jan 26, 2015 at 01:53:32PM -0600, Christoph Lameter wrote:
-> On Mon, 26 Jan 2015, Vladimir Davydov wrote:
-> 
-> > We could do that, but IMO that would only complicate the code w/o
-> > yielding any real benefits. This function is slow and called rarely
-> > anyway, so I don't think there is any point to optimize out a page
-> > allocation here.
-> 
-> I think you already have the code there. Simply allow the sizeing of the
-> empty_page[] array. And rename it.
-> 
+On Mon, Jan 26, 2015 at 06:03:57AM -0800, Guenter Roeck wrote:
+> On 01/26/2015 04:29 AM, Kirill A. Shutemov wrote:
+> >On Fri, Jan 23, 2015 at 09:52:07PM -0800, Guenter Roeck wrote:
+> >>On Fri, Jan 23, 2015 at 01:55:19PM -0800, Andrew Morton wrote:
+> >>>On Fri, 23 Jan 2015 07:07:56 -0800 Guenter Roeck <linux@roeck-us.net> wrote:
+> >>>
+> >>>>>>
+> >>>>>>qemu:microblaze generates warnings to the console.
+> >>>>>>
+> >>>>>>WARNING: CPU: 0 PID: 32 at mm/mmap.c:2858 exit_mmap+0x184/0x1a4()
+> >>>>>>
+> >>>>>>with various call stacks. See
+> >>>>>>http://server.roeck-us.net:8010/builders/qemu-microblaze-mmotm/builds/15/steps/qemubuildcommand/logs/stdio
+> >>>>>>for details.
+> >>>>>
+> >>>>>Could you try patch below? Completely untested.
+> >>>>>
+> >>>>>>From b584bb8d493794f67484c0b57c161d61c02599bc Mon Sep 17 00:00:00 2001
+> >>>>>From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> >>>>>Date: Fri, 23 Jan 2015 13:08:26 +0200
+> >>>>>Subject: [PATCH] microblaze: define __PAGETABLE_PMD_FOLDED
+> >>>>>
+> >>>>>Microblaze uses custom implementation of PMD folding, but doesn't define
+> >>>>>__PAGETABLE_PMD_FOLDED, which generic code expects to see. Let's fix it.
+> >>>>>
+> >>>>>Defining __PAGETABLE_PMD_FOLDED will drop out unused __pmd_alloc().
+> >>>>>It also fixes problems with recently-introduced pmd accounting.
+> >>>>>
+> >>>>>Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> >>>>>Reported-by: Guenter Roeck <linux@roeck-us.net>
+> >>>>
+> >>>>Tested working.
+> >>>>
+> >>>>Tested-by: Guenter Roeck <linux@roeck-us.net>
+> >>>>
+> >>>>Any idea how to fix the sh problem ?
+> >>>
+> >>>Can you tell us more about it?  All I'm seeing is "qemu:sh fails to
+> >>>shut down", which isn't very clear.
+> >>
+> >>Turns out that the include file defining __PAGETABLE_PMD_FOLDED
+> >>was not always included where used, resulting in a messed up mm_struct.
+> >
+> >What means "messed up" here? It should only affect size of mm_struct.
+> >
+> Plus the offset of all variables after the #ifndef.
 
-May be, we could remove this allocation at all then? I mean, always
-distribute slabs among constant number of buckets, say 32, like this:
+Okay, I guess the problem is that different parts of the kernel see
+different mm_struct depending on include ordering.
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 5ed1a73e2ec8..a43b213770b4 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -3358,6 +3358,8 @@ void kfree(const void *x)
- }
- EXPORT_SYMBOL(kfree);
- 
-+#define SHRINK_BUCKETS 32
-+
- /*
-  * kmem_cache_shrink removes empty slabs from the partial lists and sorts
-  * the remaining slabs by the number of items in use. The slabs with the
-@@ -3376,19 +3378,15 @@ int __kmem_cache_shrink(struct kmem_cache *s)
- 	struct page *page;
- 	struct page *t;
- 	int objects = oo_objects(s->max);
--	struct list_head *slabs_by_inuse =
--		kmalloc(sizeof(struct list_head) * objects, GFP_KERNEL);
-+	struct list_head slabs_by_inuse[SHRINK_BUCKETS];
- 	unsigned long flags;
- 
--	if (!slabs_by_inuse)
--		return -ENOMEM;
--
- 	flush_all(s);
- 	for_each_kmem_cache_node(s, node, n) {
- 		if (!n->nr_partial)
- 			continue;
- 
--		for (i = 0; i < objects; i++)
-+		for (i = 0; i < SHRINK_BUCKETS; i++)
- 			INIT_LIST_HEAD(slabs_by_inuse + i);
- 
- 		spin_lock_irqsave(&n->list_lock, flags);
-@@ -3400,7 +3398,9 @@ int __kmem_cache_shrink(struct kmem_cache *s)
- 		 * list_lock. page->inuse here is the upper limit.
- 		 */
- 		list_for_each_entry_safe(page, t, &n->partial, lru) {
--			list_move(&page->lru, slabs_by_inuse + page->inuse);
-+			i = DIV_ROUND_UP(page->inuse * (SHRINK_BUCKETS - 1),
-+					 objects);
-+			list_move(&page->lru, slabs_by_inuse + i);
- 			if (!page->inuse)
- 				n->nr_partial--;
- 		}
-@@ -3409,7 +3409,7 @@ int __kmem_cache_shrink(struct kmem_cache *s)
- 		 * Rebuild the partial list with the slabs filled up most
- 		 * first and the least used slabs at the end.
- 		 */
--		for (i = objects - 1; i > 0; i--)
-+		for (i = SHRINK_BUCKETS - 1; i > 0; i--)
- 			list_splice(slabs_by_inuse + i, n->partial.prev);
- 
- 		spin_unlock_irqrestore(&n->list_lock, flags);
-@@ -3419,7 +3419,6 @@ int __kmem_cache_shrink(struct kmem_cache *s)
- 			discard_slab(s, page);
- 	}
- 
--	kfree(slabs_by_inuse);
- 	return 0;
- }
- 
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Tried to look for options, but don't see anything better than patch below.
+Andrew, is it okay to you?
