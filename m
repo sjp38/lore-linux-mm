@@ -1,94 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C8656B0032
-	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 01:11:01 -0500 (EST)
-Received: by mail-pd0-f177.google.com with SMTP id y13so23636790pdi.8
-        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 22:11:01 -0800 (PST)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id im8si4303813pbc.229.2015.01.27.22.11.00
+Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 12E006B0032
+	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 01:17:20 -0500 (EST)
+Received: by mail-ob0-f182.google.com with SMTP id gq1so17533835obb.13
+        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 22:17:19 -0800 (PST)
+Received: from bh-25.webhostbox.net (bh-25.webhostbox.net. [208.91.199.152])
+        by mx.google.com with ESMTPS id d15si1667429oib.92.2015.01.27.22.17.18
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 27 Jan 2015 22:11:00 -0800 (PST)
-Received: by mail-pa0-f44.google.com with SMTP id rd3so23436373pab.3
-        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 22:11:00 -0800 (PST)
-Date: Wed, 28 Jan 2015 15:10:57 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH 1/2] zram: free meta out of init_lock
-Message-ID: <20150128061057.GB442@swordfish>
-References: <20150128001526.GA25828@blaptop>
- <20150128002203.GB25828@blaptop>
- <20150128020759.GA343@swordfish>
- <20150128025707.GB32712@blaptop>
- <20150128035354.GA7790@swordfish>
- <20150128040757.GA577@swordfish>
- <20150128045028.GB577@swordfish>
- <20150128045855.GD32712@blaptop>
- <20150128053541.GE32712@blaptop>
- <20150128060732.GA442@swordfish>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 27 Jan 2015 22:17:19 -0800 (PST)
+Received: from mailnull by bh-25.webhostbox.net with sa-checked (Exim 4.82)
+	(envelope-from <linux@roeck-us.net>)
+	id 1YGLwD-0020F6-QE
+	for linux-mm@kvack.org; Wed, 28 Jan 2015 06:17:18 +0000
+Message-ID: <54C87ECA.9040601@roeck-us.net>
+Date: Tue, 27 Jan 2015 22:16:42 -0800
+From: Guenter Roeck <linux@roeck-us.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150128060732.GA442@swordfish>
+Subject: Re: mmotm 2015-01-22-15-04: qemu failures due to 'mm: account pmd
+ page tables to the process'
+References: <54c1822d.RtdGfWPekQVAw8Ly%akpm@linux-foundation.org>	<20150123050445.GA22751@roeck-us.net>	<20150123111304.GA5975@node.dhcp.inet.fi>	<54C263CC.1060904@roeck-us.net>	<20150123135519.9f1061caf875f41f89298d59@linux-foundation.org>	<20150124055207.GA8926@roeck-us.net>	<20150126122944.GE25833@node.dhcp.inet.fi>	<54C6494D.80802@roeck-us.net>	<20150127161657.GA7155@node.dhcp.inet.fi>	<20150127162428.GA21638@roeck-us.net> <20150127132433.dbe4461d9caeecdb50f28b42@linux-foundation.org>
+In-Reply-To: <20150127132433.dbe4461d9caeecdb50f28b42@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Minchan Kim <minchan@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On (01/28/15 15:08), Sergey Senozhatsky wrote:
-> hm... no, it's 100% stable
+On 01/27/2015 01:24 PM, Andrew Morton wrote:
+> On Tue, 27 Jan 2015 08:24:28 -0800 Guenter Roeck <linux@roeck-us.net> wrote:
+>
+>>> __PAGETABLE_PMD_FOLDED is defined during <asm/pgtable.h> which is not
+>>> included into <linux/mm_types.h>. And we cannot include it here since
+>>> many of <asm/pgtables> needs <linux/mm_types.h> to define struct page.
+>>>
+>>> I failed to come up with better solution rather than put nr_pmds into
+>>> mm_struct unconditionally.
+>>>
+>>> One possible solution would be to expose number of page table levels
+>>> architecture has via Kconfig, but that's ugly and requires changes to
+>>> all architectures.
+>>>
+>> FWIW, I tried a number of approaches. Ultimately I gave up and concluded
+>> that it has to be either this patch or, as you say here, we would have
+>> to add something like PAGETABLE_PMD_FOLDED as a Kconfig option.
+>
+> It's certainly a big mess.  Yes, I expect that moving
+> __PAGETABLE_PMD_FOLDED and probably PAGETABLE_LEVELS into Kconfig logic
+> would be a good fix.
+>
+> Adding 8 bytes to the mm_struct (sometimes) isn't a huge issue, but
+> it does make the kernel just a little bit worse.
+>
+> Has anyone taken a look at what the Kconfig approach would look like?
+>
 
-sorry, should be "it's NOT 100% stable".
+We would need something like
 
-	-ss
+config PAGETABLE_PMD_FOLDED (or maybe PAGETABLE_NOPMD)
+	def_bool y
 
->  ./iozone -t 3 -R -r 16K -s 60M -I +Z
-> 
->         test           base        srcu
-> 
->  "  Initial write " 1274320.94  1251996.78
->  "        Rewrite " 1965783.94  1994964.06
->  "           Read " 4994070.75  4785895.88
->  "        Re-read " 5134244.62  5010810.50
->  "   Reverse Read " 4098531.38  4049988.38
->  "    Stride read " 4577775.75  4263884.50
->  "    Random read " 4131315.75  4636718.38
->  " Mixed workload " 3675635.25  3854783.06
->  "   Random write " 1832045.12  1863511.31
->  "         Pwrite " 1238366.59  1258660.47
->  "          Pread " 2475710.28  2404201.75
->  "         Fwrite " 2410579.94  2396443.25
->  "          Fread " 7723248.00  7127479.75
-> 
->  "  Initial write " 1325167.41  1321517.41
->  "        Rewrite " 2044098.62  2161141.06
->  "           Read " 5267661.12  6203909.25
->  "        Re-read " 5458601.62  5773477.12
->  "   Reverse Read " 5001896.25  5103856.12
->  "    Stride read " 4858877.62  5003335.25
->  "    Random read " 4620529.88  4685374.62
->  " Mixed workload " 3868978.19  3939195.31
->  "   Random write " 2037816.75  1949729.56
->  "         Pwrite " 1298255.91  1323038.47
->  "          Pread " 2688768.09  2957903.06
->  "         Fwrite " 2482632.44  2351247.50
->  "          Fread " 7905214.75  7500859.75
-> 
->  "  Initial write " 1334890.88  1332275.59
->  "        Rewrite " 2061126.00  2152643.69
->  "           Read " 5749209.88  5652791.62
->  "        Re-read " 5845869.00  6261777.25
->  "   Reverse Read " 4681375.12  4875618.50
->  "    Stride read " 4760689.75  5242670.00
->  "    Random read " 5112395.75  4650536.62
->  " Mixed workload " 4129292.06  4075847.88
->  "   Random write " 2067824.19  2022719.88
->  "         Pwrite " 1328648.88  1334709.97
->  "          Pread " 2607281.94  2581113.12
->  "         Fwrite " 2404771.38  2348427.62
->  "          Fread " 7903982.75  7486812.50
-> 
-> 	-ss
-> 
+for arc, arm64, avr32, cris, hexagon, metag, mips, mn10300, nios2, openrisc,
+powerpc, score, sh, tile, um, unicore32, x86, xtensa, arm, m32r, and
+microblaze. In several cases it would depend on secondary options,
+such as CONFIG_ARM64_PGTABLE_LEVELS for arm64 or PAGETABLE_LEVELS for x86
+and sh. PAGETABLE_LEVELS is not a configuration option (yet), so, yes,
+that would have to be converted to a configuration option as well.
+
+Overall a lot of complexity. Not really sure if that is worth the gain.
+We would have to touch more than 20 Kconfig files plus about 20
+source and include files which currently use _PAGETABLE_PMD_FOLDED.
+
+> Possibly another fix for this would be to move mm_struct into its own
+> header file, or something along those lines?
+>
+
+I suspect that might be just as messy. We would have to find all files
+which actually need mm_struct and make sure that the new mm_struct.h
+is included.
+
+Not sure which approach is better. Sure, the 8 (or 4) bytes are annoying,
+but I am not sure if the situation is bad enough to really bother.
+
+Ultimately it seems there may be other variables in mm_struct which
+could be made optional with much less effort, such as uprobes_state
+or mmap_legacy_base.
+
+Guenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
