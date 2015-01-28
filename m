@@ -1,23 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 866716B006E
-	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 09:44:07 -0500 (EST)
-Received: by mail-wi0-f174.google.com with SMTP id n3so12429004wiv.1
-        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 06:44:07 -0800 (PST)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.187])
-        by mx.google.com with ESMTPS id b12si4522387wic.11.2015.01.28.06.44.05
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id C2CF96B0038
+	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 09:56:19 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id et14so26122690pad.4
+        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 06:56:18 -0800 (PST)
+Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
+        by mx.google.com with ESMTPS id z5si6123815pdm.78.2015.01.28.06.56.17
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Jan 2015 06:44:06 -0800 (PST)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: [PATCH] mm: export "high_memory" symbol on !MMU
-Date: Wed, 28 Jan 2015 15:43:52 +0100
-Message-ID: <2715923.qFZi90ffep@wuerfel>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 28 Jan 2015 06:56:17 -0800 (PST)
+Received: by mail-pa0-f51.google.com with SMTP id fb1so26131035pad.10
+        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 06:56:17 -0800 (PST)
+Date: Wed, 28 Jan 2015 23:56:51 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [PATCH v1 2/2] zram: remove init_lock in zram_make_request
+Message-ID: <20150128145651.GB965@swordfish>
+References: <1422432945-6764-1-git-send-email-minchan@kernel.org>
+ <1422432945-6764-2-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1422432945-6764-2-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kirill.shutemov@linux.intel.com, linux-mm@kvack.org, gerg@uclinux.org, linux-arm-kernel@lists.infradead.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>
 
+On (01/28/15 17:15), Minchan Kim wrote:
+> Admin could reset zram during I/O operation going on so we have
+> used zram->init_lock as read-side lock in I/O path to prevent
+> sudden zram meta freeing.
+> 
+> However, the init_lock is really troublesome.
+> We can't do call zram_meta_alloc under init_lock due to lockdep splat
+> because zram_rw_page is one of the function under reclaim path and
+> hold it as read_lock while other places in process context hold it
+> as write_lock. So, we have used allocation out of the lock to avoid
+> lockdep warn but it's not good for readability and fainally, I met
+> another lockdep splat between init_lock and cpu_hotpulug from
+> kmem_cache_destroy during wokring zsmalloc compaction. :(
+> 
+> Yes, the ideal is to remove horrible init_lock of zram in rw path.
+> This patch removes it in rw path and instead, put init_done bool
+> variable to check initialization done with smp_[wmb|rmb] and
+> srcu_[un]read_lock to prevent sudden zram meta freeing
+> during I/O operation.
+> 
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  drivers/block/zram/zram_drv.c | 85 +++++++++++++++++++++++++++++++------------
+>  drivers/block/zram/zram_drv.h |  5 +++
+>  2 files changed, 66 insertions(+), 24 deletions(-)
+> 
+> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> index a598ada817f0..b33add453027 100644
+> --- a/drivers/block/zram/zram_drv.c
+> +++ b/drivers/block/zram/zram_drv.c
+> @@ -32,6 +32,7 @@
+>  #include <linux/string.h>
+>  #include <linux/vmalloc.h>
+>  #include <linux/err.h>
+> +#include <linux/srcu.h>
+>  
+>  #include "zram_drv.h"
+>  
+> @@ -53,9 +54,31 @@ static ssize_t name##_show(struct device *d,		\
+>  }									\
+>  static DEVICE_ATTR_RO(name);
+>  
+> -static inline int init_done(struct zram *zram)
+> +static inline bool init_done(struct zram *zram)
+>  {
+> -	return zram->meta != NULL;
+> +	/*
+> +	 * init_done can be used without holding zram->init_lock in
+> +	 * read/write handler(ie, zram_make_request) but we should make sure
+> +	 * that zram->init_done should set up after meta initialization is
+> +	 * done. Look at setup_init_done.
+> +	 */
+> +	bool ret = zram->init_done;
+
+I don't like re-introduced ->init_done.
+another idea... how about using `zram->disksize == 0' instead of
+`->init_done' (previously `->meta != NULL')? should do the trick.
+
+
+and I'm not sure I get this rmb...
+
+	-ss
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
