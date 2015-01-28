@@ -1,79 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id D450D6B0032
-	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 01:26:20 -0500 (EST)
-Received: by mail-pd0-f181.google.com with SMTP id g10so23675545pdj.12
-        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 22:26:20 -0800 (PST)
-Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
-        by mx.google.com with ESMTPS id ql8si4447607pac.165.2015.01.27.22.26.19
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F4B36B0032
+	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 02:13:53 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id ey11so23761481pad.7
+        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 23:13:52 -0800 (PST)
+Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
+        by mx.google.com with ESMTPS id vf8si4541171pbc.191.2015.01.27.23.13.51
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 27 Jan 2015 22:26:19 -0800 (PST)
-Received: by mail-pa0-f52.google.com with SMTP id kx10so23481267pab.11
-        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 22:26:19 -0800 (PST)
-Date: Wed, 28 Jan 2015 15:26:10 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: OOM at low page cache?
-Message-ID: <20150128062609.GA4706@blaptop>
-References: <54C2C89C.8080002@gmail.com>
- <54C77086.7090505@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <54C77086.7090505@suse.cz>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Tue, 27 Jan 2015 23:13:52 -0800 (PST)
+Received: from epcpsbgr1.samsung.com
+ (u141.gpu120.samsung.co.kr [203.254.230.141])
+ by mailout1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTP id <0NIV00162LF05330@mailout1.samsung.com> for linux-mm@kvack.org;
+ Wed, 28 Jan 2015 16:13:48 +0900 (KST)
+Message-id: <54C88C3C.3010604@samsung.com>
+Date: Wed, 28 Jan 2015 16:14:04 +0900
+From: Heesub Shin <heesub.shin@samsung.com>
+MIME-version: 1.0
+Subject: Re: [RFC PATCH 0/9] mm/zbud: support highmem pages
+References: <1413287968-13940-1-git-send-email-heesub.shin@samsung.com>
+ <20141104163343.GA20974@cerebellum.variantweb.net>
+ <20150127202440.GA13103@cerebellum.variantweb.net>
+In-reply-to: <20150127202440.GA13103@cerebellum.variantweb.net>
+Content-type: text/plain; charset=windows-1252; format=flowed
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: John Moser <john.r.moser@gmail.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>
+To: Seth Jennings <sjennings@variantweb.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Dan Streetman <ddstreet@ieee.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sunae Seo <sunae.seo@samsung.com>
 
-Hello,
 
-On Tue, Jan 27, 2015 at 12:03:34PM +0100, Vlastimil Babka wrote:
-> CC linux-mm in case somebody has a good answer but missed this in lkml traffic
-> 
-> On 01/23/2015 11:18 PM, John Moser wrote:
-> > Why is there no tunable to OOM at low page cache?
 
-AFAIR, there were several trial although there wasn't acceptable
-at that time. One thing I can remember is min_filelist_kbytes.
-FYI, http://lwn.net/Articles/412313/
+On 01/28/2015 05:24 AM, Seth Jennings wrote:
+> On Tue, Nov 04, 2014 at 10:33:43AM -0600, Seth Jennings wrote:
+>> On Tue, Oct 14, 2014 at 08:59:19PM +0900, Heesub Shin wrote:
+>>> zbud is a memory allocator for storing compressed data pages. It keeps
+>>> two data objects of arbitrary size on a single page. This simple design
+>>> provides very deterministic behavior on reclamation, which is one of
+>>> reasons why zswap selected zbud as a default allocator over zsmalloc.
+>>>
+>>> Unlike zsmalloc, however, zbud does not support highmem. This is
+>>> problomatic especially on 32-bit machines having relatively small
+>>> lowmem. Compressing anonymous pages from highmem and storing them into
+>>> lowmem could eat up lowmem spaces.
+>>>
+>>> This limitation is due to the fact that zbud manages its internal data
+>>> structures on zbud_header which is kept in the head of zbud_page. For
+>>> example, zbud_pages are tracked by several lists and have some status
+>>> information, which are being referenced at any time by the kernel. Thus,
+>>> zbud_pages should be allocated on a memory region directly mapped,
+>>> lowmem.
+>>>
+>>> After some digging out, I found that internal data structures of zbud
+>>> can be kept in the struct page, the same way as zsmalloc does. So, this
+>>> series moves out all fields in zbud_header to struct page. Though it
+>>> alters quite a lot, it does not add any functional differences except
+>>> highmem support. I am afraid that this kind of modification abusing
+>>> several fields in struct page would be ok.
+>>
+>> Hi Heesub,
+>>
+>> Sorry for the very late reply.  The end of October was very busy for me.
+>>
+>> A little history on zbud.  I didn't put the metadata in the struct
+>> page, even though I knew that was an option since we had done it with
+>> zsmalloc. At the time, Andrew Morton had concerns about memmap walkers
+>> getting messed up with unexpected values in the struct page fields.  In
+>> order to smooth zbud's acceptance, I decided to store the metadata
+>> inline in the page itself.
+>>
+>> Later, zsmalloc eventually got accepted, which basically gave the
+>> impression that putting the metadata in the struct page was acceptable.
+>>
+>> I have recently been looking at implementing compaction for zsmalloc,
+>> but having the metadata in the struct page and having the handle
+>> directly encode the PFN and offset of the data block prevents
+>> transparent relocation of the data. zbud has a similar issue as it
+>> currently encodes the page address in the handle returned to the user
+>> (also the limitation that is preventing use of highmem pages).
+>>
+>> I would like to implement compaction for zbud too and moving the
+>> metadata into the struct page is going to work against that. In fact,
+>> I'm looking at the option of converting the current zbud_header into a
+>> per-allocation metadata structure, which would provide a layer of
+>> indirection between zbud and the user, allowing for transparent
+>> relocation and compaction.
+>
+> I had some downtime and started thinking about this again today (after
+> 3 months).
+>
+> Upon further reflection, I really like this and don't think that it
+> inhibits introducing compaction later.
+>
+> There are just a few places that look messy or problematic to me:
+>
+> 1. the use of page->private and masking the number of chunks for both
+> buddies into it (see suggestion for overlay struct below)
+> 2. the use of the second double word &page->index to store a list_head
+>
+> #2 might be problematic because, IIRC, memmap walkers will check _count
+> (or _mapcount).  I think we ran into this in zsmalloc.
+>
+> Initially, when working on zsmalloc, I just created a structure that
+> overlaid the struct page in the memmap, reserving the flags and _count
+> areas, so that I wouldn't have to be bound by the field names/boundaries
+> in the struct page.
+>
+> IIRC, Andrew was initially against that, but he was also against the
+> whole idea of using the struct page fields for random stuff... I that
+> ended up being accepted.
+>
+> This code looks really good!  I think with a little cleanup and finding
+> a way to steer clear of using the _count part of the structure, this
+> will be great.
 
-> > 
-> > I have no swap configured.  I have 16GB RAM.  If Chrome or Gimp or some
-> > other stupid program goes off the deep end and eats up my RAM, I hit
-> > some 15.5GB or 15.75GB usage and stay there for about 40 minutes.  Every
-> > time the program tries to do something to eat more RAM, it cranks disk
-> > hard; the disk starts thrashing, the mouse pointer stops moving, and
-> > nothing goes on.  It's like swapping like crazy, except you're reading
-> > library files instead of paged anonymous RAM.
-> > 
-> > If only I could tell the system to OOM kill at 512MB or 1GB or 95%
-> > non-evictable RAM, it would recover on its own.  As-is, I need to wait
-> > or trigger the OOM killer by sysrq.
-> > 
-> > Am I just the only person in the world who's ever had that problem?  Or
-> > is it a matter of questions fast popping up when you try to do this
-> > *and* enable paging to disk?  (In my experience, that's a matter of too
-> > much swap space:  if you have 16GB RAM and your computer dies at 15.25GB
-> > usage, your swap space should be no larger than 750MB plus inactive
-> > working RAM; obviously, your computer can't handle paging 750MB back and
-> > forth.  If you make it 8GB wide and you start swap thrashing at 2GB
-> > usage, you have too much swap available).
-> > 
-> > I guess you could try to detect excessive swap and page cache thrashing,
-> > but that's complex; if anyone really wanted to do that, it would be done
-> > by now.  A low-barrier OOM is much simpler.
+Thanks for your comments! I will try to address problems you pointed and 
+post a new patchset hopefully soon.
 
-I'm far away from reclaim code for a long time but when I read again,
-I found something strange.
+regards,
+heesub
 
-With having swap in get_scan_count, we keep a mount of file LRU + free
-as above than high wmark to prevent file LRU thrashing but we don't
-with no swap. Why?
+>
+> Sorry for dismissing it earlier.  Didn't give it enough credit.
+>
+> Thanks,
+> Seth
+>
+>>
+>> However, I do like the part about letting zbud use highmem pages.
+>>
+>> I have something in mind that would allow highmem pages _and_ move
+>> toward something that would support compaction.  I'll see if I can put
+>> it into code today.
+>>
+>> Thanks,
+>> Seth
+>>
+>>>
+>>> Heesub Shin (9):
+>>>    mm/zbud: tidy up a bit
+>>>    mm/zbud: remove buddied list from zbud_pool
+>>>    mm/zbud: remove lru from zbud_header
+>>>    mm/zbud: remove first|last_chunks from zbud_header
+>>>    mm/zbud: encode zbud handle using struct page
+>>>    mm/zbud: remove list_head for buddied list from zbud_header
+>>>    mm/zbud: drop zbud_header
+>>>    mm/zbud: allow clients to use highmem pages
+>>>    mm/zswap: use highmem pages for compressed pool
+>>>
+>>>   mm/zbud.c  | 244 ++++++++++++++++++++++++++++++-------------------------------
+>>>   mm/zswap.c |   4 +-
+>>>   2 files changed, 121 insertions(+), 127 deletions(-)
+>>>
+>>> --
+>>> 1.9.1
+>>>
+>>> --
+>>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>>> see: http://www.linux-mm.org/ .
+>>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
-Anyway, I believe we should fix it and we now have workingset.c so
-there might be more ways to be smart than old(although I am concern
-about that shadow shrinker blows out lots of information to be useful
-to detect in heavy memory pressure like page thrashing)
-
-Below could be band-aid until we find a elegant solution?
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
