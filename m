@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 68BD86B006C
-	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 08:24:09 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id bj1so25588078pad.1
-        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 05:24:09 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id kt6si5840356pbc.47.2015.01.28.05.24.08
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 46F1E6B006E
+	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 08:24:25 -0500 (EST)
+Received: by mail-pd0-f179.google.com with SMTP id v10so25638720pde.10
+        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 05:24:25 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id fp6si393259pdb.222.2015.01.28.05.24.24
         for <linux-mm@kvack.org>;
-        Wed, 28 Jan 2015 05:24:08 -0800 (PST)
+        Wed, 28 Jan 2015 05:24:24 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 1/4] mm: move enum tlb_flush_reason into <trace/events/tlb.h>
-Date: Wed, 28 Jan 2015 15:17:41 +0200
-Message-Id: <1422451064-109023-2-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 4/4] mm: do not add nr_pmds into mm_struct if PMD is folded
+Date: Wed, 28 Jan 2015 15:17:44 +0200
+Message-Id: <1422451064-109023-5-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1422451064-109023-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1422451064-109023-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,72 +19,36 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Guenter Roeck <linux@roeck-us.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-The only user of tlb_flush_reason is trace_tlb_flush*(). There's no
-reason to define it in mm_types.h
+Everything seems in place. We can now include <asm/pgtable.h> in
+<linux/mm_struct.h>.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/mm_types.h   |  8 --------
- include/trace/events/tlb.h | 15 ++++++++++++---
- 2 files changed, 12 insertions(+), 11 deletions(-)
+ include/linux/mm_struct.h | 3 +++
+ 1 file changed, 3 insertions(+)
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 199a03aab8dc..5dfdd5ed5254 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -527,14 +527,6 @@ struct vm_special_mapping
- 	struct page **pages;
- };
+diff --git a/include/linux/mm_struct.h b/include/linux/mm_struct.h
+index 0a233c232a39..1759bed3dc61 100644
+--- a/include/linux/mm_struct.h
++++ b/include/linux/mm_struct.h
+@@ -8,6 +8,7 @@
+ #include <linux/uprobes.h>
  
--enum tlb_flush_reason {
--	TLB_FLUSH_ON_TASK_SWITCH,
--	TLB_REMOTE_SHOOTDOWN,
--	TLB_LOCAL_SHOOTDOWN,
--	TLB_LOCAL_MM_SHOOTDOWN,
--	NR_TLB_FLUSH_REASONS,
--};
--
-  /*
-   * A swap entry has to fit into a "unsigned long", as the entry is hidden
-   * in the "index" field of the swapper address space.
-diff --git a/include/trace/events/tlb.h b/include/trace/events/tlb.h
-index 13391d288107..1f764ff60cf6 100644
---- a/include/trace/events/tlb.h
-+++ b/include/trace/events/tlb.h
-@@ -4,9 +4,18 @@
- #if !defined(_TRACE_TLB_H) || defined(TRACE_HEADER_MULTI_READ)
- #define _TRACE_TLB_H
+ #include <asm/mmu.h>
++#include <asm/pgtable.h>
  
--#include <linux/mm_types.h>
- #include <linux/tracepoint.h>
- 
-+#ifndef TRACE_HEADER_MULTI_READ
-+enum tlb_flush_reason {
-+	TLB_FLUSH_ON_TASK_SWITCH,
-+	TLB_REMOTE_SHOOTDOWN,
-+	TLB_LOCAL_SHOOTDOWN,
-+	TLB_LOCAL_MM_SHOOTDOWN,
-+	NR_TLB_FLUSH_REASONS,
-+};
+ struct kioctx_table;
+ struct vm_area_struct;
+@@ -54,7 +55,9 @@ struct mm_struct {
+ 	atomic_t mm_users;			/* How many users with user space? */
+ 	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
+ 	atomic_long_t nr_ptes;			/* PTE page table pages */
++#if !__PAGETABLE_PMD_FOLDED
+ 	atomic_long_t nr_pmds;			/* PMD page table pages */
 +#endif
-+
- #define TLB_FLUSH_REASON	\
- 	{ TLB_FLUSH_ON_TASK_SWITCH,	"flush on task switch" },	\
- 	{ TLB_REMOTE_SHOOTDOWN,		"remote shootdown" },		\
-@@ -15,11 +24,11 @@
+ 	int map_count;				/* number of VMAs */
  
- TRACE_EVENT(tlb_flush,
- 
--	TP_PROTO(int reason, unsigned long pages),
-+	TP_PROTO(enum tlb_flush_reason reason, unsigned long pages),
- 	TP_ARGS(reason, pages),
- 
- 	TP_STRUCT__entry(
--		__field(	  int, reason)
-+		__field(enum tlb_flush_reason, reason)
- 		__field(unsigned long,  pages)
- 	),
- 
+ 	spinlock_t page_table_lock;		/* Protects page tables and some counters */
 -- 
 2.1.4
 
