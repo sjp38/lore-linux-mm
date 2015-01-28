@@ -1,285 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id C454E6B006C
-	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 03:15:56 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id rd3so24069918pab.3
-        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 00:15:56 -0800 (PST)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id ol12si4889431pab.53.2015.01.28.00.15.52
-        for <linux-mm@kvack.org>;
-        Wed, 28 Jan 2015 00:15:55 -0800 (PST)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v1 2/2] zram: remove init_lock in zram_make_request
-Date: Wed, 28 Jan 2015 17:15:45 +0900
-Message-Id: <1422432945-6764-2-git-send-email-minchan@kernel.org>
-In-Reply-To: <1422432945-6764-1-git-send-email-minchan@kernel.org>
-References: <1422432945-6764-1-git-send-email-minchan@kernel.org>
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id CB32B6B0032
+	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 04:13:57 -0500 (EST)
+Received: by mail-wi0-f177.google.com with SMTP id r20so10358034wiv.4
+        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 01:13:57 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id bu19si2874851wib.19.2015.01.28.01.13.55
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 28 Jan 2015 01:13:55 -0800 (PST)
+Message-ID: <54C8A850.1000205@suse.cz>
+Date: Wed, 28 Jan 2015 10:13:52 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
+MIME-Version: 1.0
+Subject: Re: [PATCH v3] mm: incorporate read-only pages into transparent huge
+ pages
+References: <1422380353-4407-1-git-send-email-ebru.akagunduz@gmail.com> <20150128002711.GY11755@redhat.com>
+In-Reply-To: <20150128002711.GY11755@redhat.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>, Minchan Kim <minchan@kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kirill@shutemov.name, mhocko@suse.cz, mgorman@suse.de, rientjes@google.com, sasha.levin@oracle.com, hughd@google.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, riel@redhat.com, zhangyanfei.linux@aliyun.com
 
-Admin could reset zram during I/O operation going on so we have
-used zram->init_lock as read-side lock in I/O path to prevent
-sudden zram meta freeing.
+On 01/28/2015 01:27 AM, Andrea Arcangeli wrote:
+> On Tue, Jan 27, 2015 at 07:39:13PM +0200, Ebru Akagunduz wrote:
+>> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+>> index 817a875..17d6e59 100644
+>> --- a/mm/huge_memory.c
+>> +++ b/mm/huge_memory.c
+>> @@ -2148,17 +2148,18 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+>>   {
+>>   	struct page *page;
+>>   	pte_t *_pte;
+>> -	int referenced = 0, none = 0;
+>> +	int referenced = 0, none = 0, ro = 0, writable = 0;
+>
+> So your "writable" addition is enough and simpler/better than "ro"
+> counting. Once "ro" is removed "writable" can actually start to make a
+> difference (at the moment it does not).
+>
+> I'd suggest to remove "ro".
+>
+> The sysctl was there only to reduce the memory footprint but
+> collapsing readonly swapcache won't reduce the memory footprint. So it
+> may have been handy before but this new "writable" looks better now
+> and keeping both doesn't help (keeping "ro" around prevents "writable"
+> to make a difference).
 
-However, the init_lock is really troublesome.
-We can't do call zram_meta_alloc under init_lock due to lockdep splat
-because zram_rw_page is one of the function under reclaim path and
-hold it as read_lock while other places in process context hold it
-as write_lock. So, we have used allocation out of the lock to avoid
-lockdep warn but it's not good for readability and fainally, I met
-another lockdep splat between init_lock and cpu_hotpulug from
-kmem_cache_destroy during wokring zsmalloc compaction. :(
+Agree.
 
-Yes, the ideal is to remove horrible init_lock of zram in rw path.
-This patch removes it in rw path and instead, put init_done bool
-variable to check initialization done with smp_[wmb|rmb] and
-srcu_[un]read_lock to prevent sudden zram meta freeing
-during I/O operation.
+>> @@ -2179,6 +2177,34 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+>>   		 */
+>>   		if (!trylock_page(page))
+>>   			goto out;
+>> +
+>> +		/*
+>> +		 * cannot use mapcount: can't collapse if there's a gup pin.
+>> +		 * The page must only be referenced by the scanned process
+>> +		 * and page swap cache.
+>> +		 */
+>> +		if (page_count(page) != 1 + !!PageSwapCache(page)) {
+>> +			unlock_page(page);
+>> +			goto out;
+>> +		}
+>> +		if (!pte_write(pteval)) {
+>> +			if (++ro > khugepaged_max_ptes_none) {
+>> +				unlock_page(page);
+>> +				goto out;
+>> +			}
+>> +			if (PageSwapCache(page) && !reuse_swap_page(page)) {
+>> +				unlock_page(page);
+>> +				goto out;
+>> +			}
+>> +			/*
+>> +			 * Page is not in the swap cache, and page count is
+>> +			 * one (see above). It can be collapsed into a THP.
+>> +			 */
+>> +			VM_BUG_ON(page_count(page) != 1);
+>
+> In an earlier email I commented on this suggestion you received during
+> previous code review: the VM_BUG_ON is not ok because it can generate
+> false positives.
+>
+> It's perfectly ok if page_count is not 1 if the page is isolated by
+> another CPU (another cpu calling isolate_lru_page).
+>
+> The page_count check there is to ensure there are no gup-pins, and
+> that is achieved during the check. The VM may still mangle the
+> page_count and it's ok (the page count taken by the VM running in
+> another CPU doesn't need to be transferred to the collapsed THP).
+>
+> In short, the check "page_count(page) != 1 + !!PageSwapCache(page)"
+> doesn't imply that the page_count cannot change. It only means at any
+> given time there was no gup-pin at the very time of the check. It also
+> means there were no other VM pin, but what we care about is only the
+> gup-pin. The VM LRU pin can still be taken after the check and it's
+> ok. The GUP pin cannot be taken because we stopped all gup so we're
+> safe if the check passes.
+>
+> So you can simply delete the VM_BUG_ON, the earlier code there, was fine.
 
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- drivers/block/zram/zram_drv.c | 85 +++++++++++++++++++++++++++++++------------
- drivers/block/zram/zram_drv.h |  5 +++
- 2 files changed, 66 insertions(+), 24 deletions(-)
+There's still the comment that's IMHO misleading in light of your 
+explanation:
 
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index a598ada817f0..b33add453027 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -32,6 +32,7 @@
- #include <linux/string.h>
- #include <linux/vmalloc.h>
- #include <linux/err.h>
-+#include <linux/srcu.h>
- 
- #include "zram_drv.h"
- 
-@@ -53,9 +54,31 @@ static ssize_t name##_show(struct device *d,		\
- }									\
- static DEVICE_ATTR_RO(name);
- 
--static inline int init_done(struct zram *zram)
-+static inline bool init_done(struct zram *zram)
- {
--	return zram->meta != NULL;
-+	/*
-+	 * init_done can be used without holding zram->init_lock in
-+	 * read/write handler(ie, zram_make_request) but we should make sure
-+	 * that zram->init_done should set up after meta initialization is
-+	 * done. Look at setup_init_done.
-+	 */
-+	bool ret = zram->init_done;
-+
-+	if (ret)
-+		smp_rmb(); /* pair with setup_init_done */
-+
-+	return ret;
-+}
-+
-+static inline void setup_init_done(struct zram *zram, bool flag)
-+{
-+	/*
-+	 * Store operation of struct zram fields should complete
-+	 * before zram->init_done set up because zram_bvec_rw
-+	 * doesn't hold an zram->init_lock.
-+	 */
-+	smp_wmb();
-+	zram->init_done = flag;
- }
- 
- static inline struct zram *dev_to_zram(struct device *dev)
-@@ -326,6 +349,10 @@ static void zram_meta_free(struct zram_meta *meta)
- 	kfree(meta);
- }
- 
-+static void rcu_zram_do_nothing(struct rcu_head *unused)
-+{
-+}
-+
- static struct zram_meta *zram_meta_alloc(int device_id, u64 disksize)
- {
- 	char pool_name[8];
-@@ -726,11 +753,8 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
- 		return;
- 	}
- 
--	zcomp_destroy(zram->comp);
- 	zram->max_comp_streams = 1;
- 
--	zram_meta_free(zram->meta);
--	zram->meta = NULL;
- 	/* Reset stats */
- 	memset(&zram->stats, 0, sizeof(zram->stats));
- 
-@@ -738,8 +762,12 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
- 	if (reset_capacity)
- 		set_capacity(zram->disk, 0);
- 
-+	setup_init_done(zram, false);
-+	call_srcu(&zram->srcu, &zram->rcu, rcu_zram_do_nothing);
-+	synchronize_srcu(&zram->srcu);
-+	zram_meta_free(zram->meta);
-+	zcomp_destroy(zram->comp);
- 	up_write(&zram->init_lock);
--
- 	/*
- 	 * Revalidate disk out of the init_lock to avoid lockdep splat.
- 	 * It's okay because disk's capacity is protected by init_lock
-@@ -762,10 +790,19 @@ static ssize_t disksize_store(struct device *dev,
- 	if (!disksize)
- 		return -EINVAL;
- 
-+	down_write(&zram->init_lock);
-+	if (init_done(zram)) {
-+		pr_info("Cannot change disksize for initialized device\n");
-+		up_write(&zram->init_lock);
-+		return -EBUSY;
-+	}
-+
- 	disksize = PAGE_ALIGN(disksize);
- 	meta = zram_meta_alloc(zram->disk->first_minor, disksize);
--	if (!meta)
-+	if (!meta) {
-+		up_write(&zram->init_lock);
- 		return -ENOMEM;
-+	}
- 
- 	comp = zcomp_create(zram->compressor, zram->max_comp_streams);
- 	if (IS_ERR(comp)) {
-@@ -775,17 +812,11 @@ static ssize_t disksize_store(struct device *dev,
- 		goto out_free_meta;
- 	}
- 
--	down_write(&zram->init_lock);
--	if (init_done(zram)) {
--		pr_info("Cannot change disksize for initialized device\n");
--		err = -EBUSY;
--		goto out_destroy_comp;
--	}
--
- 	zram->meta = meta;
- 	zram->comp = comp;
- 	zram->disksize = disksize;
- 	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
-+	setup_init_done(zram, true);
- 	up_write(&zram->init_lock);
- 
- 	/*
-@@ -797,10 +828,8 @@ static ssize_t disksize_store(struct device *dev,
- 
- 	return len;
- 
--out_destroy_comp:
--	up_write(&zram->init_lock);
--	zcomp_destroy(comp);
- out_free_meta:
-+	up_write(&zram->init_lock);
- 	zram_meta_free(meta);
- 	return err;
- }
-@@ -905,9 +934,10 @@ out:
+/*
+  * Page is not in the swap cache, and page count is
+  * one (see above). It can be collapsed into a THP.
   */
- static void zram_make_request(struct request_queue *queue, struct bio *bio)
- {
-+	int idx;
- 	struct zram *zram = queue->queuedata;
- 
--	down_read(&zram->init_lock);
-+	idx = srcu_read_lock(&zram->srcu);
- 	if (unlikely(!init_done(zram)))
- 		goto error;
- 
-@@ -918,12 +948,12 @@ static void zram_make_request(struct request_queue *queue, struct bio *bio)
- 	}
- 
- 	__zram_make_request(zram, bio);
--	up_read(&zram->init_lock);
-+	srcu_read_unlock(&zram->srcu, idx);
- 
- 	return;
- 
- error:
--	up_read(&zram->init_lock);
-+	srcu_read_unlock(&zram->srcu, idx);
- 	bio_io_error(bio);
- }
- 
-@@ -945,18 +975,20 @@ static void zram_slot_free_notify(struct block_device *bdev,
- static int zram_rw_page(struct block_device *bdev, sector_t sector,
- 		       struct page *page, int rw)
- {
--	int offset, err;
-+	int offset, err, idx;
- 	u32 index;
- 	struct zram *zram;
- 	struct bio_vec bv;
- 
- 	zram = bdev->bd_disk->private_data;
-+	idx = srcu_read_lock(&zram->srcu);
-+
- 	if (!valid_io_request(zram, sector, PAGE_SIZE)) {
- 		atomic64_inc(&zram->stats.invalid_io);
-+		srcu_read_unlock(&zram->srcu, idx);
- 		return -EINVAL;
- 	}
- 
--	down_read(&zram->init_lock);
- 	if (unlikely(!init_done(zram))) {
- 		err = -EIO;
- 		goto out_unlock;
-@@ -971,7 +1003,7 @@ static int zram_rw_page(struct block_device *bdev, sector_t sector,
- 
- 	err = zram_bvec_rw(zram, &bv, index, offset, rw);
- out_unlock:
--	up_read(&zram->init_lock);
-+	srcu_read_unlock(&zram->srcu, idx);
- 	/*
- 	 * If I/O fails, just return error(ie, non-zero) without
- 	 * calling page_endio.
-@@ -1041,6 +1073,11 @@ static int create_device(struct zram *zram, int device_id)
- 
- 	init_rwsem(&zram->init_lock);
- 
-+	if (init_srcu_struct(&zram->srcu)) {
-+		pr_err("Error initialize srcu for device %d\n", device_id);
-+		goto out;
-+	}
-+
- 	zram->queue = blk_alloc_queue(GFP_KERNEL);
- 	if (!zram->queue) {
- 		pr_err("Error allocating disk queue for device %d\n",
-@@ -1125,8 +1162,8 @@ static void destroy_device(struct zram *zram)
- 
- 	del_gendisk(zram->disk);
- 	put_disk(zram->disk);
--
- 	blk_cleanup_queue(zram->queue);
-+	cleanup_srcu_struct(&zram->srcu);
- }
- 
- static int __init zram_init(void)
-diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
-index e492f6bf11f1..2042c310aea8 100644
---- a/drivers/block/zram/zram_drv.h
-+++ b/drivers/block/zram/zram_drv.h
-@@ -105,8 +105,13 @@ struct zram {
- 	struct gendisk *disk;
- 	struct zcomp *comp;
- 
-+	struct srcu_struct srcu;
-+	struct rcu_head rcu;
-+
- 	/* Prevent concurrent execution of device init, reset and R/W request */
- 	struct rw_semaphore init_lock;
-+	bool init_done;
-+
- 	/*
- 	 * This is the limit on amount of *uncompressed* worth of data
- 	 * we can store in a disk.
--- 
-1.9.1
+
+Maybe just delete it too.
+
+>
+>> +		} else {
+>> +			writable = 1;
+>> +		}
+>> +
+>
+> I suggest to make writable a bool and use writable = false to init,
+> and writable = true above.
+>
+> When a value can only be 0|1 bool is better (it can be casted and
+> takes the same memory as an int, it just allows the compiler to be
+> more strict and the fact it makes the code more self explanatory).
+
+While at it, "referenced" is also used only as a bool, so convert it to 
+bool as well?
+
+>> +			if (++ro > khugepaged_max_ptes_none)
+>> +				goto out_unmap;
+>
+> As mentioned above the ro counting can go, and we can keep only
+> your new writable addition, as mentioned above.
+>
+> Thanks,
+> Andrea
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
