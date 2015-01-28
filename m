@@ -1,124 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 468DB6B0032
-	for <linux-mm@kvack.org>; Tue, 27 Jan 2015 20:02:56 -0500 (EST)
-Received: by mail-qc0-f172.google.com with SMTP id i8so14949571qcq.3
-        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 17:02:56 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u3si3962727qat.59.2015.01.27.17.02.54
+Received: from mail-la0-f51.google.com (mail-la0-f51.google.com [209.85.215.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C1E46B006E
+	for <linux-mm@kvack.org>; Tue, 27 Jan 2015 20:33:17 -0500 (EST)
+Received: by mail-la0-f51.google.com with SMTP id ge10so16490471lab.10
+        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 17:33:16 -0800 (PST)
+Received: from mail-lb0-x22a.google.com (mail-lb0-x22a.google.com. [2a00:1450:4010:c04::22a])
+        by mx.google.com with ESMTPS id l9si2913148lah.3.2015.01.27.17.33.14
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Jan 2015 17:02:55 -0800 (PST)
-Date: Wed, 28 Jan 2015 01:27:11 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH v3] mm: incorporate read-only pages into transparent huge
- pages
-Message-ID: <20150128002711.GY11755@redhat.com>
-References: <1422380353-4407-1-git-send-email-ebru.akagunduz@gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 27 Jan 2015 17:33:15 -0800 (PST)
+Received: by mail-lb0-f170.google.com with SMTP id w7so16179431lbi.1
+        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 17:33:14 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1422380353-4407-1-git-send-email-ebru.akagunduz@gmail.com>
+In-Reply-To: <alpine.DEB.2.11.1501271054310.25124@gentwo.org>
+References: <20150123213727.142554068@linux.com>
+	<20150123213735.590610697@linux.com>
+	<20150127082132.GE11358@js1304-P5Q-DELUXE>
+	<alpine.DEB.2.11.1501271054310.25124@gentwo.org>
+Date: Wed, 28 Jan 2015 10:33:14 +0900
+Message-ID: <CAAmzW4MzNfcRucHeTxJtXLks5T-Def=O1sRpQY6fo5ybTzKsBA@mail.gmail.com>
+Subject: Re: [RFC 1/3] Slab infrastructure for array operations
+From: Joonsoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kirill@shutemov.name, mhocko@suse.cz, mgorman@suse.de, rientjes@google.com, sasha.levin@oracle.com, hughd@google.com, hannes@cmpxchg.org, vbabka@suse.cz, linux-kernel@vger.kernel.org, riel@redhat.com, zhangyanfei.linux@aliyun.com
+To: Christoph Lameter <cl@linux.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, akpm@linuxfoundation.org, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, iamjoonsoo@lge.com, Jesper Dangaard Brouer <brouer@redhat.com>
 
-On Tue, Jan 27, 2015 at 07:39:13PM +0200, Ebru Akagunduz wrote:
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 817a875..17d6e59 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -2148,17 +2148,18 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
->  {
->  	struct page *page;
->  	pte_t *_pte;
-> -	int referenced = 0, none = 0;
-> +	int referenced = 0, none = 0, ro = 0, writable = 0;
+2015-01-28 1:57 GMT+09:00 Christoph Lameter <cl@linux.com>:
+> On Tue, 27 Jan 2015, Joonsoo Kim wrote:
+>
+>> IMHO, exposing these options is not a good idea. It's really
+>> implementation specific. And, this flag won't show consistent performance
+>> according to specific slab implementation. For example, to get best
+>> performance, if SLAB is used, GFP_SLAB_ARRAY_LOCAL would be the best option,
+>> but, for the same purpose, if SLUB is used, GFP_SLAB_ARRAY_NEW would
+>> be the best option. And, performance could also depend on number of objects
+>> and size.
+>
+> Why would slab show a better performance? SLUB also can have partial
+> allocated pages per cpu and could also get data quite fast if only a
+> minimal number of objects are desired. SLAB is slightly better because the
+> number of cachelines touches stays small due to the arrangement of the freelist
+> on the slab page and the queueing approach that does not involve linked
+> lists.
+>
+>
+> GFP_SLAB_ARRAY new is best for large quantities in either allocator since
+> SLAB also has to construct local metadata structures.
 
-So your "writable" addition is enough and simpler/better than "ro"
-counting. Once "ro" is removed "writable" can actually start to make a
-difference (at the moment it does not).
+In case of SLAB, there is just a little more work to construct local metadata so
+GFP_SLAB_ARRAY_NEW would not show better performance
+than GFP_SLAB_ARRAY_LOCAL, because it would cause more overhead due to
+more page allocations. Because of this characteristic, I said that
+which option is
+the best is implementation specific and therefore we should not expose it.
 
-I'd suggest to remove "ro".
+Even if we narrow down the problem to the SLUB, choosing correct option is
+difficult enough. User should know how many objects are cached in this
+kmem_cache
+in order to choose best option since relative quantity would make
+performance difference.
 
-The sysctl was there only to reduce the memory footprint but
-collapsing readonly swapcache won't reduce the memory footprint. So it
-may have been handy before but this new "writable" looks better now
-and keeping both doesn't help (keeping "ro" around prevents "writable"
-to make a difference).
+And, how many objects are cached in this kmem_cache could be changed
+whenever implementation changed.
 
-> @@ -2179,6 +2177,34 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
->  		 */
->  		if (!trylock_page(page))
->  			goto out;
-> +
-> +		/*
-> +		 * cannot use mapcount: can't collapse if there's a gup pin.
-> +		 * The page must only be referenced by the scanned process
-> +		 * and page swap cache.
-> +		 */
-> +		if (page_count(page) != 1 + !!PageSwapCache(page)) {
-> +			unlock_page(page);
-> +			goto out;
-> +		}
-> +		if (!pte_write(pteval)) {
-> +			if (++ro > khugepaged_max_ptes_none) {
-> +				unlock_page(page);
-> +				goto out;
-> +			}
-> +			if (PageSwapCache(page) && !reuse_swap_page(page)) {
-> +				unlock_page(page);
-> +				goto out;
-> +			}
-> +			/*
-> +			 * Page is not in the swap cache, and page count is
-> +			 * one (see above). It can be collapsed into a THP.
-> +			 */
-> +			VM_BUG_ON(page_count(page) != 1);
-
-In an earlier email I commented on this suggestion you received during
-previous code review: the VM_BUG_ON is not ok because it can generate
-false positives.
-
-It's perfectly ok if page_count is not 1 if the page is isolated by
-another CPU (another cpu calling isolate_lru_page).
-
-The page_count check there is to ensure there are no gup-pins, and
-that is achieved during the check. The VM may still mangle the
-page_count and it's ok (the page count taken by the VM running in
-another CPU doesn't need to be transferred to the collapsed THP).
-
-In short, the check "page_count(page) != 1 + !!PageSwapCache(page)"
-doesn't imply that the page_count cannot change. It only means at any
-given time there was no gup-pin at the very time of the check. It also
-means there were no other VM pin, but what we care about is only the
-gup-pin. The VM LRU pin can still be taken after the check and it's
-ok. The GUP pin cannot be taken because we stopped all gup so we're
-safe if the check passes.
-
-So you can simply delete the VM_BUG_ON, the earlier code there, was fine.
-
-> +		} else {
-> +			writable = 1;
-> +		}
-> +
-
-I suggest to make writable a bool and use writable = false to init,
-and writable = true above.
-
-When a value can only be 0|1 bool is better (it can be casted and
-takes the same memory as an int, it just allows the compiler to be
-more strict and the fact it makes the code more self explanatory).
-
-> +			if (++ro > khugepaged_max_ptes_none)
-> +				goto out_unmap;
-
-As mentioned above the ro counting can go, and we can keep only
-your new writable addition, as mentioned above.
-
-Thanks,
-Andrea
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
