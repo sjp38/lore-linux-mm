@@ -1,53 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id D11C96B006E
-	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 10:03:50 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id et14so26202002pad.4
-        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 07:03:50 -0800 (PST)
-Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
-        by mx.google.com with ESMTPS id fc9si90233pac.115.2015.01.28.07.03.49
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id A04656B006E
+	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 10:10:42 -0500 (EST)
+Received: by mail-wi0-f177.google.com with SMTP id r20so12554800wiv.4
+        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 07:10:42 -0800 (PST)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.187])
+        by mx.google.com with ESMTPS id g9si4520096wix.74.2015.01.28.07.10.40
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 28 Jan 2015 07:03:50 -0800 (PST)
-Received: by mail-pa0-f49.google.com with SMTP id fa1so26178267pad.8
-        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 07:03:49 -0800 (PST)
-Date: Thu, 29 Jan 2015 00:04:24 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [PATCH v1 2/2] zram: remove init_lock in zram_make_request
-Message-ID: <20150128150424.GC965@swordfish>
-References: <1422432945-6764-1-git-send-email-minchan@kernel.org>
- <1422432945-6764-2-git-send-email-minchan@kernel.org>
- <20150128145651.GB965@swordfish>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 28 Jan 2015 07:10:41 -0800 (PST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: [PATCH] eventfs: avoid unused variable warning
+Date: Wed, 28 Jan 2015 16:10:28 +0100
+Message-ID: <88925492.FKoyo2trpD@wuerfel>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150128145651.GB965@swordfish>
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>, sergey.senozhatsky.work@gmail.com
+To: akpm@linux-foundation.org
+Cc: Chris Mason <clm@fb.com>, Davide Libenzi <davidel@xmailserver.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 
-On (01/28/15 23:56), Sergey Senozhatsky wrote:
-> > -static inline int init_done(struct zram *zram)
-> > +static inline bool init_done(struct zram *zram)
-> >  {
-> > -	return zram->meta != NULL;
-> > +	/*
-> > +	 * init_done can be used without holding zram->init_lock in
-> > +	 * read/write handler(ie, zram_make_request) but we should make sure
-> > +	 * that zram->init_done should set up after meta initialization is
-> > +	 * done. Look at setup_init_done.
-> > +	 */
-> > +	bool ret = zram->init_done;
-> 
-> I don't like re-introduced ->init_done.
-> another idea... how about using `zram->disksize == 0' instead of
-> `->init_done' (previously `->meta != NULL')? should do the trick.
-> 
+An optimization patch from Chris Mason causes build warnings about
+an unused variable.
 
-a typo, I meant `->disksize != 0'.
+The patch that broke this is currently in the akpm-current series,
+so this fixup can be folded into the original patch. I was expecting
+multiple people to send a patch for this, so I waited a bit at first.
 
-	-ss
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+Fixes: 567162b87a5c5f  ("eventfd: don't take the spinlock in eventfd_poll")
+
+diff --git a/fs/eventfd.c b/fs/eventfd.c
+index 439e6f0177f3..303ddc43dbee 100644
+--- a/fs/eventfd.c
++++ b/fs/eventfd.c
+@@ -118,7 +118,6 @@ static unsigned int eventfd_poll(struct file *file, poll_table *wait)
+ {
+ 	struct eventfd_ctx *ctx = file->private_data;
+ 	unsigned int events = 0;
+-	unsigned long flags;
+ 	unsigned int count;
+ 
+ 	poll_wait(file, &ctx->wqh, wait);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
