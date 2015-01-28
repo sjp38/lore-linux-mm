@@ -1,96 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 12E006B0032
-	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 01:17:20 -0500 (EST)
-Received: by mail-ob0-f182.google.com with SMTP id gq1so17533835obb.13
-        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 22:17:19 -0800 (PST)
-Received: from bh-25.webhostbox.net (bh-25.webhostbox.net. [208.91.199.152])
-        by mx.google.com with ESMTPS id d15si1667429oib.92.2015.01.27.22.17.18
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id D450D6B0032
+	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 01:26:20 -0500 (EST)
+Received: by mail-pd0-f181.google.com with SMTP id g10so23675545pdj.12
+        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 22:26:20 -0800 (PST)
+Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
+        by mx.google.com with ESMTPS id ql8si4447607pac.165.2015.01.27.22.26.19
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 27 Jan 2015 22:17:19 -0800 (PST)
-Received: from mailnull by bh-25.webhostbox.net with sa-checked (Exim 4.82)
-	(envelope-from <linux@roeck-us.net>)
-	id 1YGLwD-0020F6-QE
-	for linux-mm@kvack.org; Wed, 28 Jan 2015 06:17:18 +0000
-Message-ID: <54C87ECA.9040601@roeck-us.net>
-Date: Tue, 27 Jan 2015 22:16:42 -0800
-From: Guenter Roeck <linux@roeck-us.net>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 27 Jan 2015 22:26:19 -0800 (PST)
+Received: by mail-pa0-f52.google.com with SMTP id kx10so23481267pab.11
+        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 22:26:19 -0800 (PST)
+Date: Wed, 28 Jan 2015 15:26:10 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: OOM at low page cache?
+Message-ID: <20150128062609.GA4706@blaptop>
+References: <54C2C89C.8080002@gmail.com>
+ <54C77086.7090505@suse.cz>
 MIME-Version: 1.0
-Subject: Re: mmotm 2015-01-22-15-04: qemu failures due to 'mm: account pmd
- page tables to the process'
-References: <54c1822d.RtdGfWPekQVAw8Ly%akpm@linux-foundation.org>	<20150123050445.GA22751@roeck-us.net>	<20150123111304.GA5975@node.dhcp.inet.fi>	<54C263CC.1060904@roeck-us.net>	<20150123135519.9f1061caf875f41f89298d59@linux-foundation.org>	<20150124055207.GA8926@roeck-us.net>	<20150126122944.GE25833@node.dhcp.inet.fi>	<54C6494D.80802@roeck-us.net>	<20150127161657.GA7155@node.dhcp.inet.fi>	<20150127162428.GA21638@roeck-us.net> <20150127132433.dbe4461d9caeecdb50f28b42@linux-foundation.org>
-In-Reply-To: <20150127132433.dbe4461d9caeecdb50f28b42@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <54C77086.7090505@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: John Moser <john.r.moser@gmail.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>
 
-On 01/27/2015 01:24 PM, Andrew Morton wrote:
-> On Tue, 27 Jan 2015 08:24:28 -0800 Guenter Roeck <linux@roeck-us.net> wrote:
->
->>> __PAGETABLE_PMD_FOLDED is defined during <asm/pgtable.h> which is not
->>> included into <linux/mm_types.h>. And we cannot include it here since
->>> many of <asm/pgtables> needs <linux/mm_types.h> to define struct page.
->>>
->>> I failed to come up with better solution rather than put nr_pmds into
->>> mm_struct unconditionally.
->>>
->>> One possible solution would be to expose number of page table levels
->>> architecture has via Kconfig, but that's ugly and requires changes to
->>> all architectures.
->>>
->> FWIW, I tried a number of approaches. Ultimately I gave up and concluded
->> that it has to be either this patch or, as you say here, we would have
->> to add something like PAGETABLE_PMD_FOLDED as a Kconfig option.
->
-> It's certainly a big mess.  Yes, I expect that moving
-> __PAGETABLE_PMD_FOLDED and probably PAGETABLE_LEVELS into Kconfig logic
-> would be a good fix.
->
-> Adding 8 bytes to the mm_struct (sometimes) isn't a huge issue, but
-> it does make the kernel just a little bit worse.
->
-> Has anyone taken a look at what the Kconfig approach would look like?
->
+Hello,
 
-We would need something like
+On Tue, Jan 27, 2015 at 12:03:34PM +0100, Vlastimil Babka wrote:
+> CC linux-mm in case somebody has a good answer but missed this in lkml traffic
+> 
+> On 01/23/2015 11:18 PM, John Moser wrote:
+> > Why is there no tunable to OOM at low page cache?
 
-config PAGETABLE_PMD_FOLDED (or maybe PAGETABLE_NOPMD)
-	def_bool y
+AFAIR, there were several trial although there wasn't acceptable
+at that time. One thing I can remember is min_filelist_kbytes.
+FYI, http://lwn.net/Articles/412313/
 
-for arc, arm64, avr32, cris, hexagon, metag, mips, mn10300, nios2, openrisc,
-powerpc, score, sh, tile, um, unicore32, x86, xtensa, arm, m32r, and
-microblaze. In several cases it would depend on secondary options,
-such as CONFIG_ARM64_PGTABLE_LEVELS for arm64 or PAGETABLE_LEVELS for x86
-and sh. PAGETABLE_LEVELS is not a configuration option (yet), so, yes,
-that would have to be converted to a configuration option as well.
+> > 
+> > I have no swap configured.  I have 16GB RAM.  If Chrome or Gimp or some
+> > other stupid program goes off the deep end and eats up my RAM, I hit
+> > some 15.5GB or 15.75GB usage and stay there for about 40 minutes.  Every
+> > time the program tries to do something to eat more RAM, it cranks disk
+> > hard; the disk starts thrashing, the mouse pointer stops moving, and
+> > nothing goes on.  It's like swapping like crazy, except you're reading
+> > library files instead of paged anonymous RAM.
+> > 
+> > If only I could tell the system to OOM kill at 512MB or 1GB or 95%
+> > non-evictable RAM, it would recover on its own.  As-is, I need to wait
+> > or trigger the OOM killer by sysrq.
+> > 
+> > Am I just the only person in the world who's ever had that problem?  Or
+> > is it a matter of questions fast popping up when you try to do this
+> > *and* enable paging to disk?  (In my experience, that's a matter of too
+> > much swap space:  if you have 16GB RAM and your computer dies at 15.25GB
+> > usage, your swap space should be no larger than 750MB plus inactive
+> > working RAM; obviously, your computer can't handle paging 750MB back and
+> > forth.  If you make it 8GB wide and you start swap thrashing at 2GB
+> > usage, you have too much swap available).
+> > 
+> > I guess you could try to detect excessive swap and page cache thrashing,
+> > but that's complex; if anyone really wanted to do that, it would be done
+> > by now.  A low-barrier OOM is much simpler.
 
-Overall a lot of complexity. Not really sure if that is worth the gain.
-We would have to touch more than 20 Kconfig files plus about 20
-source and include files which currently use _PAGETABLE_PMD_FOLDED.
+I'm far away from reclaim code for a long time but when I read again,
+I found something strange.
 
-> Possibly another fix for this would be to move mm_struct into its own
-> header file, or something along those lines?
->
+With having swap in get_scan_count, we keep a mount of file LRU + free
+as above than high wmark to prevent file LRU thrashing but we don't
+with no swap. Why?
 
-I suspect that might be just as messy. We would have to find all files
-which actually need mm_struct and make sure that the new mm_struct.h
-is included.
+Anyway, I believe we should fix it and we now have workingset.c so
+there might be more ways to be smart than old(although I am concern
+about that shadow shrinker blows out lots of information to be useful
+to detect in heavy memory pressure like page thrashing)
 
-Not sure which approach is better. Sure, the 8 (or 4) bytes are annoying,
-but I am not sure if the situation is bad enough to really bother.
-
-Ultimately it seems there may be other variables in mm_struct which
-could be made optional with much less effort, such as uprobes_state
-or mmap_legacy_base.
-
-Guenter
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Below could be band-aid until we find a elegant solution?
