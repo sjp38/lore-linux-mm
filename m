@@ -1,33 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f175.google.com (mail-ie0-f175.google.com [209.85.223.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 13AED6B0038
-	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 11:37:12 -0500 (EST)
-Received: by mail-ie0-f175.google.com with SMTP id ar1so22887765iec.6
-        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 08:37:11 -0800 (PST)
-Received: from resqmta-po-05v.sys.comcast.net (resqmta-po-05v.sys.comcast.net. [2001:558:fe16:19:96:114:154:164])
-        by mx.google.com with ESMTPS id l27si3801809iod.86.2015.01.28.08.37.11
+Received: from mail-ob0-f180.google.com (mail-ob0-f180.google.com [209.85.214.180])
+	by kanga.kvack.org (Postfix) with ESMTP id CC6D96B0038
+	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 12:06:06 -0500 (EST)
+Received: by mail-ob0-f180.google.com with SMTP id vb8so2526762obc.11
+        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 09:06:06 -0800 (PST)
+Received: from bh-25.webhostbox.net (bh-25.webhostbox.net. [208.91.199.152])
+        by mx.google.com with ESMTPS id l127si2488829oif.68.2015.01.28.09.06.05
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Wed, 28 Jan 2015 08:37:11 -0800 (PST)
-Date: Wed, 28 Jan 2015 10:37:09 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH -mm v2 1/3] slub: never fail to shrink cache
-In-Reply-To: <012683fc3a0f9fb20a288986fd63fe9f6d25e8ee.1422461573.git.vdavydov@parallels.com>
-Message-ID: <alpine.DEB.2.11.1501281034290.32147@gentwo.org>
-References: <cover.1422461573.git.vdavydov@parallels.com> <012683fc3a0f9fb20a288986fd63fe9f6d25e8ee.1422461573.git.vdavydov@parallels.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 28 Jan 2015 09:06:05 -0800 (PST)
+Received: from mailnull by bh-25.webhostbox.net with sa-checked (Exim 4.82)
+	(envelope-from <linux@roeck-us.net>)
+	id 1YGW45-001IUj-P0
+	for linux-mm@kvack.org; Wed, 28 Jan 2015 17:06:05 +0000
+Date: Wed, 28 Jan 2015 09:06:00 -0800
+From: Guenter Roeck <linux@roeck-us.net>
+Subject: Re: [PATCH 0/4] Introduce <linux/mm_struct.h>
+Message-ID: <20150128170600.GA28310@roeck-us.net>
+References: <1422451064-109023-1-git-send-email-kirill.shutemov@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1422451064-109023-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 28 Jan 2015, Vladimir Davydov wrote:
+On Wed, Jan 28, 2015 at 03:17:40PM +0200, Kirill A. Shutemov wrote:
+> This patchset moves definition of mm_struct into separate header file.
+> It allows to get rid of nr_pmds if PMD page table level is folded.
+> We cannot do it with current mm_types.h because we need
+> __PAGETABLE_PMD_FOLDED from <asm/pgtable.h> which creates circular
+> dependencies.
+> 
+> I've done few build tests and looks like it works, but I expect breakage
+> on some configuration. Please test.
+> 
+I applied your patches on top of the current mmotm and pushed into 
+my 'testing' branch. I'll send out test results after the test cycle
+is complete.
 
-> +			/* We do not keep full slabs on the list */
-> +			BUG_ON(free <= 0);
-
-Well sorry we do actually keep a number of empty slabs on the partial
-lists. See the min_partial field in struct kmem_cache.
+Guenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
