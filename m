@@ -1,141 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 60C996B0038
-	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 18:17:32 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id kx10so30885236pab.11
-        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 15:17:32 -0800 (PST)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id he8si7423604pac.236.2015.01.28.15.17.31
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id E117A6B0038
+	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 18:33:50 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id kq14so31124471pab.0
+        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 15:33:50 -0800 (PST)
+Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
+        by mx.google.com with ESMTPS id fl9si7568962pab.154.2015.01.28.15.33.50
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 28 Jan 2015 15:17:31 -0800 (PST)
-Received: by mail-pa0-f41.google.com with SMTP id kq14so30978746pab.0
-        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 15:17:31 -0800 (PST)
-Date: Thu, 29 Jan 2015 08:17:23 +0900
+        Wed, 28 Jan 2015 15:33:50 -0800 (PST)
+Received: by mail-pa0-f47.google.com with SMTP id lj1so31026792pab.6
+        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 15:33:49 -0800 (PST)
+Date: Thu, 29 Jan 2015 08:33:43 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 1/2] zram: free meta table in zram_meta_free
-Message-ID: <20150128231723.GB4706@blaptop>
+Subject: Re: [PATCH v1 2/2] zram: remove init_lock in zram_make_request
+Message-ID: <20150128233343.GC4706@blaptop>
 References: <1422432945-6764-1-git-send-email-minchan@kernel.org>
- <20150128141916.GA14062@swordfish>
+ <1422432945-6764-2-git-send-email-minchan@kernel.org>
+ <20150128145651.GB965@swordfish>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150128141916.GA14062@swordfish>
+In-Reply-To: <20150128145651.GB965@swordfish>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>, sergey.senozhatsky.work@gmail.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>
 
-On Wed, Jan 28, 2015 at 11:19:17PM +0900, Sergey Senozhatsky wrote:
+On Wed, Jan 28, 2015 at 11:56:51PM +0900, Sergey Senozhatsky wrote:
 > On (01/28/15 17:15), Minchan Kim wrote:
-> > zram_meta_alloc() and zram_meta_free() are a pair.
-> > In zram_meta_alloc(), meta table is allocated. So it it better to free
-> > it in zram_meta_free().
+> > Admin could reset zram during I/O operation going on so we have
+> > used zram->init_lock as read-side lock in I/O path to prevent
+> > sudden zram meta freeing.
 > > 
-> > Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
+> > However, the init_lock is really troublesome.
+> > We can't do call zram_meta_alloc under init_lock due to lockdep splat
+> > because zram_rw_page is one of the function under reclaim path and
+> > hold it as read_lock while other places in process context hold it
+> > as write_lock. So, we have used allocation out of the lock to avoid
+> > lockdep warn but it's not good for readability and fainally, I met
+> > another lockdep splat between init_lock and cpu_hotpulug from
+> > kmem_cache_destroy during wokring zsmalloc compaction. :(
+> > 
+> > Yes, the ideal is to remove horrible init_lock of zram in rw path.
+> > This patch removes it in rw path and instead, put init_done bool
+> > variable to check initialization done with smp_[wmb|rmb] and
+> > srcu_[un]read_lock to prevent sudden zram meta freeing
+> > during I/O operation.
+> > 
 > > Signed-off-by: Minchan Kim <minchan@kernel.org>
 > > ---
-> >  drivers/block/zram/zram_drv.c | 30 ++++++++++++++----------------
-> >  drivers/block/zram/zram_drv.h |  1 +
-> >  2 files changed, 15 insertions(+), 16 deletions(-)
+> >  drivers/block/zram/zram_drv.c | 85 +++++++++++++++++++++++++++++++------------
+> >  drivers/block/zram/zram_drv.h |  5 +++
+> >  2 files changed, 66 insertions(+), 24 deletions(-)
 > > 
 > > diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-> > index 9250b3f54a8f..a598ada817f0 100644
+> > index a598ada817f0..b33add453027 100644
 > > --- a/drivers/block/zram/zram_drv.c
 > > +++ b/drivers/block/zram/zram_drv.c
-> > @@ -309,6 +309,18 @@ static inline int valid_io_request(struct zram *zram,
+> > @@ -32,6 +32,7 @@
+> >  #include <linux/string.h>
+> >  #include <linux/vmalloc.h>
+> >  #include <linux/err.h>
+> > +#include <linux/srcu.h>
 > >  
-> >  static void zram_meta_free(struct zram_meta *meta)
+> >  #include "zram_drv.h"
+> >  
+> > @@ -53,9 +54,31 @@ static ssize_t name##_show(struct device *d,		\
+> >  }									\
+> >  static DEVICE_ATTR_RO(name);
+> >  
+> > -static inline int init_done(struct zram *zram)
+> > +static inline bool init_done(struct zram *zram)
 > >  {
-> > +	size_t index;
+> > -	return zram->meta != NULL;
+> > +	/*
+> > +	 * init_done can be used without holding zram->init_lock in
+> > +	 * read/write handler(ie, zram_make_request) but we should make sure
+> > +	 * that zram->init_done should set up after meta initialization is
+> > +	 * done. Look at setup_init_done.
+> > +	 */
+> > +	bool ret = zram->init_done;
+> 
+> I don't like re-introduced ->init_done.
+> another idea... how about using `zram->disksize == 0' instead of
+> `->init_done' (previously `->meta != NULL')? should do the trick.
+
+It could be.
+
 > 
 > 
-> I don't like how we bloat structs w/o any need.
-> zram keeps ->disksize, so let's use `zram->disksize >> PAGE_SHIFT'
-> instead of introducing ->num_pages.
+> and I'm not sure I get this rmb...
 
-Right. I overlooked it. I just want to send my patch[2/2] and I thought
-it would be better ganesh's patch to merge first although it's orthogonal.
+What makes you not sure?
+I think it's clear and common pattern for smp_[wmb|rmb]. :)
 
-Ganesh, I hope you resend this patch with Sergey's suggestion.
-If you are busy, please tell me. I will do it instead of you.
 
 > 
 > 	-ss
-> 
-> > +	/* Free all pages that are still in this zram device */
-> > +	for (index = 0; index < meta->num_pages; index++) {
-> > +		unsigned long handle = meta->table[index].handle;
-> > +
-> > +		if (!handle)
-> > +			continue;
-> > +
-> > +		zs_free(meta->mem_pool, handle);
-> > +	}
-> > +
-> >  	zs_destroy_pool(meta->mem_pool);
-> >  	vfree(meta->table);
-> >  	kfree(meta);
-> > @@ -316,15 +328,14 @@ static void zram_meta_free(struct zram_meta *meta)
-> >  
-> >  static struct zram_meta *zram_meta_alloc(int device_id, u64 disksize)
-> >  {
-> > -	size_t num_pages;
-> >  	char pool_name[8];
-> >  	struct zram_meta *meta = kmalloc(sizeof(*meta), GFP_KERNEL);
-> >  
-> >  	if (!meta)
-> >  		return NULL;
-> >  
-> > -	num_pages = disksize >> PAGE_SHIFT;
-> > -	meta->table = vzalloc(num_pages * sizeof(*meta->table));
-> > +	meta->num_pages = disksize >> PAGE_SHIFT;
-> > +	meta->table = vzalloc(meta->num_pages * sizeof(*meta->table));
-> >  	if (!meta->table) {
-> >  		pr_err("Error allocating zram address table\n");
-> >  		goto out_error;
-> > @@ -706,9 +717,6 @@ static void zram_bio_discard(struct zram *zram, u32 index,
-> >  
-> >  static void zram_reset_device(struct zram *zram, bool reset_capacity)
-> >  {
-> > -	size_t index;
-> > -	struct zram_meta *meta;
-> > -
-> >  	down_write(&zram->init_lock);
-> >  
-> >  	zram->limit_pages = 0;
-> > @@ -718,16 +726,6 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
-> >  		return;
-> >  	}
-> >  
-> > -	meta = zram->meta;
-> > -	/* Free all pages that are still in this zram device */
-> > -	for (index = 0; index < zram->disksize >> PAGE_SHIFT; index++) {
-> > -		unsigned long handle = meta->table[index].handle;
-> > -		if (!handle)
-> > -			continue;
-> > -
-> > -		zs_free(meta->mem_pool, handle);
-> > -	}
-> > -
-> >  	zcomp_destroy(zram->comp);
-> >  	zram->max_comp_streams = 1;
-> >  
-> > diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
-> > index b05a816b09ac..e492f6bf11f1 100644
-> > --- a/drivers/block/zram/zram_drv.h
-> > +++ b/drivers/block/zram/zram_drv.h
-> > @@ -96,6 +96,7 @@ struct zram_stats {
-> >  struct zram_meta {
-> >  	struct zram_table_entry *table;
-> >  	struct zs_pool *mem_pool;
-> > +	size_t num_pages;
-> >  };
-> >  
-> >  struct zram {
-> > -- 
-> > 1.9.1
-> > 
 
 -- 
 Kind regards,
