@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A52F6B0032
-	for <linux-mm@kvack.org>; Tue, 27 Jan 2015 19:22:12 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id kx10so21714005pab.12
-        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 16:22:12 -0800 (PST)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id uv4si3554330pbc.110.2015.01.27.16.22.11
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 37B796B0032
+	for <linux-mm@kvack.org>; Tue, 27 Jan 2015 19:24:52 -0500 (EST)
+Received: by mail-pd0-f175.google.com with SMTP id fl12so22000606pdb.6
+        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 16:24:51 -0800 (PST)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id gk1si3539342pbd.129.2015.01.27.16.24.50
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 27 Jan 2015 16:22:11 -0800 (PST)
-Received: by mail-pa0-f51.google.com with SMTP id fb1so21749363pad.10
-        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 16:22:11 -0800 (PST)
-Date: Wed, 28 Jan 2015 09:22:03 +0900
-From: Minchan Kim <minchan@kernel.org>
+        Tue, 27 Jan 2015 16:24:50 -0800 (PST)
+Received: by mail-pa0-f44.google.com with SMTP id rd3so21762155pab.3
+        for <linux-mm@kvack.org>; Tue, 27 Jan 2015 16:24:50 -0800 (PST)
+Date: Wed, 28 Jan 2015 09:24:49 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 Subject: Re: [PATCH 1/2] zram: free meta out of init_lock
-Message-ID: <20150128002203.GB25828@blaptop>
+Message-ID: <20150128002449.GA1686@swordfish>
 References: <20150123142435.GA2320@swordfish>
  <54C25F25.9070609@redhat.com>
  <20150123154707.GA1046@swordfish>
@@ -31,26 +31,12 @@ Content-Disposition: inline
 In-Reply-To: <20150128001526.GA25828@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>
 
-On Wed, Jan 28, 2015 at 09:15:27AM +0900, Minchan Kim wrote:
-> Hello Sergey,
-> 
-> On Tue, Jan 27, 2015 at 01:03:05PM +0900, Sergey Senozhatsky wrote:
-> > Hello,
-> > 
-> > On (01/27/15 12:18), Minchan Kim wrote:
-> > > Hello Sergey,
-> > > 
-> > > On Tue, Jan 27, 2015 at 11:17:04AM +0900, Sergey Senozhatsky wrote:
-> > > > On (01/27/15 01:00), Minchan Kim wrote:
-> > > > > On Mon, Jan 26, 2015 at 11:17:09PM +0900, Sergey Senozhatsky wrote:
-> > > > > > Hello,
-> > > > > > 
-> > > > > > On (01/26/15 10:33), Minchan Kim wrote:
-> > > > > > > Hello,
-> > > > > > > 
+Hello,
+
+On (01/28/15 09:15), Minchan Kim wrote:
 > > > > > > > On Sat, Jan 24, 2015 at 12:47:07AM +0900, Sergey Senozhatsky wrote:
 > > > > > > > > On (01/23/15 15:48), Jerome Marchand wrote:
 > > > > > > > > > On 01/23/2015 03:24 PM, Sergey Senozhatsky wrote:
@@ -360,3 +346,247 @@ On Wed, Jan 28, 2015 at 09:15:27AM +0900, Minchan Kim wrote:
 > Another idea is to use kick_all_cpus_sync, not srcu.
 > With that, we don't need to add more instruction in rw path.
 > I will try it.
+> 
+
+hm, that will kick all cpus out of idle.
+
+> > 
+> > > > 
+> > > > I think we also better put comments after every wmb/rmb. like
+> > > > 
+> > > > 	smp_wmb(); /* pairs with rmb() in foo() */
+> > > 
+> > > I already put the comment in other smp_rmb/wmb.
+> > > If it's not what you want, please suggest me. :)
+> > > 
+> > 
+> > they are fine. it was a minor nitpick.
+> > I just read in the list that guys want to explicitly show which wmb
+> > corresponds to which rmb. but we have only two of them, so it's not
+> > a big deal.
+> > 
+> > > > 
+> > > > 
+> > > > > +	call_srcu(&zram->srcu, &zram->rcu, rcu_zram_do_nothing);
+> > > > > +	synchronize_srcu(&zram->srcu);
+> > > > > +	zram_meta_free(zram->meta);
+> > > > > +	zcomp_destroy(zram->comp);
+> > > > >  	up_write(&zram->init_lock);
+> > > > > -
+> > > > >  	/*
+> > > > >  	 * Revalidate disk out of the init_lock to avoid lockdep splat.
+> > > > >  	 * It's okay because disk's capacity is protected by init_lock
+> > > > > @@ -762,10 +775,19 @@ static ssize_t disksize_store(struct device *dev,
+> > > > >  	if (!disksize)
+> > > > >  		return -EINVAL;
+> > > > >  
+> > > > > +	down_write(&zram->init_lock);
+> > > > > +	if (init_done(zram)) {
+> > > > > +		pr_info("Cannot change disksize for initialized device\n");
+> > > > > +		up_write(&zram->init_lock);
+> > > > > +		return -EBUSY;
+> > > > > +	}
+> > > > > +
+> > > > >  	disksize = PAGE_ALIGN(disksize);
+> > > > >  	meta = zram_meta_alloc(zram->disk->first_minor, disksize);
+> > > > > -	if (!meta)
+> > > > > +	if (!meta) {
+> > > > > +		up_write(&zram->init_lock);
+> > > > >  		return -ENOMEM;
+> > > > > +	}
+> > > > >  
+> > > > >  	comp = zcomp_create(zram->compressor, zram->max_comp_streams);
+> > > > >  	if (IS_ERR(comp)) {
+> > > > > @@ -775,17 +797,17 @@ static ssize_t disksize_store(struct device *dev,
+> > > > >  		goto out_free_meta;
+> > > > >  	}
+> > > > >  
+> > > > > -	down_write(&zram->init_lock);
+> > > > > -	if (init_done(zram)) {
+> > > > > -		pr_info("Cannot change disksize for initialized device\n");
+> > > > > -		err = -EBUSY;
+> > > > > -		goto out_destroy_comp;
+> > > > > -	}
+> > > > > -
+> > > > >  	zram->meta = meta;
+> > > > >  	zram->comp = comp;
+> > > > >  	zram->disksize = disksize;
+> > > > >  	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
+> > > > > +	/*
+> > > > > +	 * Store operation of struct zram fields should complete
+> > > > > +	 * before init_done set up because zram_bvec_rw doesn't
+> > > > > +	 * hold an zram->init_lock.
+> > > > > +	 */
+> > > > > +	smp_wmb();
+> > > > > +	zram->init_done = true;
+> > > > >  	up_write(&zram->init_lock);
+> > > > >  
+> > > > >  	/*
+> > > > > @@ -797,10 +819,8 @@ static ssize_t disksize_store(struct device *dev,
+> > > > >  
+> > > > >  	return len;
+> > > > >  
+> > > > > -out_destroy_comp:
+> > > > > -	up_write(&zram->init_lock);
+> > > > > -	zcomp_destroy(comp);
+> > > > >  out_free_meta:
+> > > > > +	up_write(&zram->init_lock);
+> > > > >  	zram_meta_free(meta);
+> > > > 
+> > > >  zram_meta_free(meta);
+> > > >  up_write(&zram->init_lock);
+> > > > 
+> > > >  ?
+> > > 
+> > > I don't think we should release meta under init_lock.
+> > > Do you have any reason I am missing?
+> > > 
+> > 
+> > well, just theoretical.
+> > forbid concurrent initialization until we completely rollback.
+> > 
+> >              CPU0                                     CPU1
+> > 
+> > echo 30G > /.../zram0/disksize
+> > meta = vmalloc(pages for 30G)
+> > 
+> > out_free_meta:                              echo 30G > /.../zram0/disksize
+> > 	up_write(&zram->init_lock);         meta = vmalloc(pages for 30G)
+> > 	zram_meta_free(meta);               ^^^^ 30G + 30G
+> >                                             out_free_meta:
+> >                                                    ....
+> > 	-ss
+> 
+> It might but as it is, we have allocated meta out of the lock.
+> if it turns out real problem, it's easy to fix it byby this work
+> (ie, we could alloc/free meta under init_lock).
+> IOW, it should be another patch so I don't want to take care of it
+> in this work.
+> 
+
+fair enough.
+
+	-ss
+
+> > 
+> > > > 
+> > > > >  	return err;
+> > > > >  }
+> > > > > @@ -905,9 +925,10 @@ out:
+> > > > >   */
+> > > > >  static void zram_make_request(struct request_queue *queue, struct bio *bio)
+> > > > >  {
+> > > > > +	int idx;
+> > > > >  	struct zram *zram = queue->queuedata;
+> > > > >  
+> > > > > -	down_read(&zram->init_lock);
+> > > > > +	idx = srcu_read_lock(&zram->srcu);
+> > > > >  	if (unlikely(!init_done(zram)))
+> > > > >  		goto error;
+> > > > >  
+> > > > > @@ -918,12 +939,12 @@ static void zram_make_request(struct request_queue *queue, struct bio *bio)
+> > > > >  	}
+> > > > >  
+> > > > >  	__zram_make_request(zram, bio);
+> > > > > -	up_read(&zram->init_lock);
+> > > > > +	srcu_read_unlock(&zram->srcu, idx);
+> > > > >  
+> > > > >  	return;
+> > > > >  
+> > > > >  error:
+> > > > > -	up_read(&zram->init_lock);
+> > > > > +	srcu_read_unlock(&zram->srcu, idx);
+> > > > >  	bio_io_error(bio);
+> > > > >  }
+> > > > >  
+> > > > > @@ -945,18 +966,20 @@ static void zram_slot_free_notify(struct block_device *bdev,
+> > > > >  static int zram_rw_page(struct block_device *bdev, sector_t sector,
+> > > > >  		       struct page *page, int rw)
+> > > > >  {
+> > > > > -	int offset, err;
+> > > > > +	int offset, err, idx;
+> > > > >  	u32 index;
+> > > > >  	struct zram *zram;
+> > > > >  	struct bio_vec bv;
+> > > > >  
+> > > > >  	zram = bdev->bd_disk->private_data;
+> > > > > +	idx = srcu_read_lock(&zram->srcu);
+> > > > > +
+> > > > >  	if (!valid_io_request(zram, sector, PAGE_SIZE)) {
+> > > > >  		atomic64_inc(&zram->stats.invalid_io);
+> > > > > +		srcu_read_unlock(&zram->srcu, idx);
+> > > > >  		return -EINVAL;
+> > > > >  	}
+> > > > >  
+> > > > > -	down_read(&zram->init_lock);
+> > > > >  	if (unlikely(!init_done(zram))) {
+> > > > >  		err = -EIO;
+> > > > >  		goto out_unlock;
+> > > > > @@ -971,7 +994,7 @@ static int zram_rw_page(struct block_device *bdev, sector_t sector,
+> > > > >  
+> > > > >  	err = zram_bvec_rw(zram, &bv, index, offset, rw);
+> > > > >  out_unlock:
+> > > > > -	up_read(&zram->init_lock);
+> > > > > +	srcu_read_unlock(&zram->srcu, idx);
+> > > > >  	/*
+> > > > >  	 * If I/O fails, just return error(ie, non-zero) without
+> > > > >  	 * calling page_endio.
+> > > > > @@ -1041,6 +1064,11 @@ static int create_device(struct zram *zram, int device_id)
+> > > > >  
+> > > > >  	init_rwsem(&zram->init_lock);
+> > > > >  
+> > > > > +	if (init_srcu_struct(&zram->srcu)) {
+> > > > > +		pr_err("Error initialize srcu for device %d\n", device_id);
+> > > > > +		goto out;
+> > > > > +	}
+> > > > > +
+> > > > >  	zram->queue = blk_alloc_queue(GFP_KERNEL);
+> > > > >  	if (!zram->queue) {
+> > > > >  		pr_err("Error allocating disk queue for device %d\n",
+> > > > > @@ -1125,8 +1153,8 @@ static void destroy_device(struct zram *zram)
+> > > > >  
+> > > > >  	del_gendisk(zram->disk);
+> > > > >  	put_disk(zram->disk);
+> > > > > -
+> > > > >  	blk_cleanup_queue(zram->queue);
+> > > > > +	cleanup_srcu_struct(&zram->srcu);
+> > > > >  }
+> > > > >  
+> > > > >  static int __init zram_init(void)
+> > > > > diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+> > > > > index e492f6bf11f1..2042c310aea8 100644
+> > > > > --- a/drivers/block/zram/zram_drv.h
+> > > > > +++ b/drivers/block/zram/zram_drv.h
+> > > > > @@ -105,8 +105,13 @@ struct zram {
+> > > > >  	struct gendisk *disk;
+> > > > >  	struct zcomp *comp;
+> > > > >  
+> > > > > +	struct srcu_struct srcu;
+> > > > > +	struct rcu_head rcu;
+> > > > > +
+> > > > >  	/* Prevent concurrent execution of device init, reset and R/W request */
+> > > > >  	struct rw_semaphore init_lock;
+> > > > > +	bool init_done;
+> > > > > +
+> > > > >  	/*
+> > > > >  	 * This is the limit on amount of *uncompressed* worth of data
+> > > > >  	 * we can store in a disk.
+> > > > > -- 
+> > > > > 1.9.1
+> > > > > 
+> > > 
+> > > -- 
+> > > Kind regards,
+> > > Minchan Kim
+> > > 
+> 
+> -- 
+> Kind regards,
+> Minchan Kim
+> 
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
