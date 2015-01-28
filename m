@@ -1,69 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E0F46B0038
-	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 10:31:00 -0500 (EST)
-Received: by mail-qg0-f49.google.com with SMTP id i50so17090830qgf.8
-        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 07:30:59 -0800 (PST)
-Received: from resqmta-ch2-04v.sys.comcast.net (resqmta-ch2-04v.sys.comcast.net. [2001:558:fe21:29:69:252:207:36])
-        by mx.google.com with ESMTPS id g6si6333958qga.61.2015.01.28.07.30.58
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id D5DB86B0038
+	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 11:23:01 -0500 (EST)
+Received: by mail-pa0-f52.google.com with SMTP id kx10so26985804pab.11
+        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 08:23:01 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id kt6si6436796pbc.47.2015.01.28.08.23.00
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Wed, 28 Jan 2015 07:30:58 -0800 (PST)
-Date: Wed, 28 Jan 2015 09:30:56 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC 1/3] Slab infrastructure for array operations
-In-Reply-To: <CAAmzW4MzNfcRucHeTxJtXLks5T-Def=O1sRpQY6fo5ybTzKsBA@mail.gmail.com>
-Message-ID: <alpine.DEB.2.11.1501280923410.31753@gentwo.org>
-References: <20150123213727.142554068@linux.com> <20150123213735.590610697@linux.com> <20150127082132.GE11358@js1304-P5Q-DELUXE> <alpine.DEB.2.11.1501271054310.25124@gentwo.org> <CAAmzW4MzNfcRucHeTxJtXLks5T-Def=O1sRpQY6fo5ybTzKsBA@mail.gmail.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 28 Jan 2015 08:23:01 -0800 (PST)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH -mm v2 0/3] slub: make dead caches discard free slabs immediately
+Date: Wed, 28 Jan 2015 19:22:48 +0300
+Message-ID: <cover.1422461573.git.vdavydov@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, akpm@linuxfoundation.org, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, iamjoonsoo@lge.com, Jesper Dangaard Brouer <brouer@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 28 Jan 2015, Joonsoo Kim wrote:
+Hi,
 
-> > GFP_SLAB_ARRAY new is best for large quantities in either allocator since
-> > SLAB also has to construct local metadata structures.
->
-> In case of SLAB, there is just a little more work to construct local metadata so
-> GFP_SLAB_ARRAY_NEW would not show better performance
-> than GFP_SLAB_ARRAY_LOCAL, because it would cause more overhead due to
-> more page allocations. Because of this characteristic, I said that
-> which option is
-> the best is implementation specific and therefore we should not expose it.
+The kmem extension of the memory cgroup is almost usable now. There is,
+in fact, the only serious issue left: per memcg kmem caches may pin the
+owner cgroup for indefinitely long. This is, because a slab cache may
+keep empty slab pages in its private structures to optimize performance,
+while we take a css reference per each charged kmem page.
 
-For large amounts of objects (hundreds or higher) GFP_SLAB_ARRAY_LOCAL
-will never have enough objects. GFP_SLAB_ARRAY_NEW will go to the page
-allocator and bypass free table creation and all the queuing that objects
-go through normally in SLAB. AFAICT its going to be a significant win.
+The issue is only relevant to SLUB, because SLAB periodically reaps
+empty slabs. This patch set fixes this issue for SLUB. For details,
+please see patch 3.
 
-A similar situation is true for the freeing operation. If the freeing
-operation results in all objects in a page being freed then we can also
-bypass that and put the page directly back into the page allocator (to be
-implemented once we agree on an approach).
+Changes in v2:
+ - address Christoph's concerns regarding kmem_cache_shrink
+ - fix race between put_cpu_partial reading ->cpu_partial and
+   kmem_cache_shrink updating it as proposed by Joonsoo
 
-> Even if we narrow down the problem to the SLUB, choosing correct option is
-> difficult enough. User should know how many objects are cached in this
-> kmem_cache
-> in order to choose best option since relative quantity would make
-> performance difference.
+v1: https://lkml.org/lkml/2015/1/26/317
 
-Ok we can add a function call to calculate the number of objects cached
-per cpu and per node? But then that is rather fluid and could change any
-moment.
+Thanks,
 
-> And, how many objects are cached in this kmem_cache could be changed
-> whenever implementation changed.
+Vladimir Davydov (3):
+  slub: never fail to shrink cache
+  slub: fix kmem_cache_shrink return value
+  slub: make dead caches discard free slabs immediately
 
-The default when no options are specified is to first exhaust the node
-partial objects, then allocate new slabs as long as we have more than
-objects per page left and only then satisfy from cpu local object. I think
-that is satisfactory for the majority of the cases.
+ mm/slab.c        |    4 +--
+ mm/slab.h        |    2 +-
+ mm/slab_common.c |   15 +++++++--
+ mm/slob.c        |    2 +-
+ mm/slub.c        |   94 +++++++++++++++++++++++++++++++++++-------------------
+ 5 files changed, 78 insertions(+), 39 deletions(-)
 
-The detailed control options were requested at the meeting in Auckland at
-the LCA. I am fine with dropping those if they do not make sense. Makes
-the API and implementation simpler. Jesper, are you ok with this?
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
