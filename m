@@ -1,94 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 52C926B0038
-	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 14:57:20 -0500 (EST)
-Received: by mail-ie0-f169.google.com with SMTP id rl12so38444375iec.0
-        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 11:57:19 -0800 (PST)
-Received: from mail-ig0-x232.google.com (mail-ig0-x232.google.com. [2607:f8b0:4001:c05::232])
-        by mx.google.com with ESMTPS id m9si2038709igx.18.2015.01.29.11.57.19
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id DA33F6B0038
+	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 15:11:32 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id kx10so42967714pab.12
+        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 12:11:32 -0800 (PST)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id ko10si11031836pbd.171.2015.01.29.12.11.31
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 29 Jan 2015 11:57:19 -0800 (PST)
-Received: by mail-ig0-f178.google.com with SMTP id hl2so14064058igb.5
-        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 11:57:19 -0800 (PST)
-Date: Thu, 29 Jan 2015 11:57:35 -0800
+        Thu, 29 Jan 2015 12:11:32 -0800 (PST)
+Received: by mail-pa0-f44.google.com with SMTP id rd3so42965041pab.3
+        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 12:11:31 -0800 (PST)
+Date: Thu, 29 Jan 2015 12:11:47 -0800
 From: Andrew Shewmaker <agshew@gmail.com>
-Subject: Re: [PATCH] mm: fix arithmetic overflow in __vm_enough_memory()
-Message-ID: <20150129195735.GA9331@scruffy>
-References: <1422536763-31325-1-git-send-email-klamm@yandex-team.ru>
+Subject: Re: [PATCH] mm: don't account shared file pages in user_reserve_pages
+Message-ID: <20150129201147.GB9331@scruffy>
+References: <1422532287-23601-1-git-send-email-klamm@yandex-team.ru>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1422536763-31325-1-git-send-email-klamm@yandex-team.ru>
+In-Reply-To: <1422532287-23601-1-git-send-email-klamm@yandex-team.ru>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Roman Gushchin <klamm@yandex-team.ru>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, stable@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 
-On Thu, Jan 29, 2015 at 04:06:03PM +0300, Roman Gushchin wrote:
-> I noticed, that "allowed" can easily overflow by falling below 0,
-> because (total_vm / 32) can be larger than "allowed". The problem
-> occurs in OVERCOMMIT_NONE mode.
+On Thu, Jan 29, 2015 at 02:51:27PM +0300, Roman Gushchin wrote:
+> Shared file pages are never accounted in memory overcommit code,
+> so it isn't reasonable to count them in a code that limits the
+> maximal size of a process in OVERCOMMIT_NONE mode.
 > 
-> In this case, a huge allocation can success and overcommit the system
-> (despite OVERCOMMIT_NONE mode). All subsequent allocations will fall
-> (system-wide), so system become unusable.
+> If a process has few large file mappings, the consequent attempts
+> to allocate anonymous memory may unexpectedly fail with -ENOMEM,
+> while there is free memory and overcommit limit if significantly
+> larger than the committed amount (as displayed in /proc/meminfo).
 > 
-> The problem was masked out by commit c9b1d0981fcc
+> The problem is significantly smoothed by commit c9b1d0981fcc
 > ("mm: limit growth of 3% hardcoded other user reserve"),
-> but it's easy to reproduce it on older kernels:
-> 1) set overcommit_memory sysctl to 2
-> 2) mmap() large file multiple times (with VM_SHARED flag)
-> 3) try to malloc() large amount of memory
-> 
-> It also can be reproduced on newer kernels, but miss-configured
-> sysctl_user_reserve_kbytes is required.
-> 
-> Fix this issue by switching to signed arithmetic here.
+> which limits the impact of this check with 128Mb (tunable via sysctl),
+> but it can still be a problem on small machines.
 > 
 > Signed-off-by: Roman Gushchin <klamm@yandex-team.ru>
 > Cc: Andrew Morton <akpm@linux-foundation.org>
 > Cc: Andrew Shewmaker <agshew@gmail.com>
 > Cc: Rik van Riel <riel@redhat.com>
 > Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-> Cc: stable@vger.kernel.org
 > ---
->  mm/mmap.c | 4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
+>  mm/mmap.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
 > diff --git a/mm/mmap.c b/mm/mmap.c
-> index 7f684d5..5aa8dfe 100644
+> index 7f684d5..151fadf 100644
 > --- a/mm/mmap.c
 > +++ b/mm/mmap.c
-> @@ -152,7 +152,7 @@ EXPORT_SYMBOL_GPL(vm_memory_committed);
->   */
->  int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
->  {
-> -	unsigned long free, allowed, reserve;
-> +	long free, allowed, reserve;
->  
->  	VM_WARN_ONCE(percpu_counter_read(&vm_committed_as) <
->  			-(s64)vm_committed_as_batch * num_online_cpus(),
 > @@ -220,7 +220,7 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
 >  	 */
 >  	if (mm) {
 >  		reserve = sysctl_user_reserve_kbytes >> (PAGE_SHIFT - 10);
 > -		allowed -= min(mm->total_vm / 32, reserve);
-> +		allowed -= min((long)mm->total_vm / 32, reserve);
+> +		allowed -= min((mm->total_vm - mm->shared_vm) / 32, reserve);
 >  	}
 >  
 >  	if (percpu_counter_read_positive(&vm_committed_as) < allowed)
 > -- 
 > 2.1.0
-> 
-Makes sense to me. Please fix mm/nommu.c also.
 
-If a caller passes in a big negative value for pages,
-then vm_acct_memory() would decrement vm_committed_as, possibly 
-causing percpu_counter_read_positive(&vm_committed_as) and
-__vm_enough_memory to return 0. Maybe that's okay? Callers
-won't be passing in a negative pages anyway. Is there a reason
-to let them, though?
+You're two patches conflict, don't they? Maybe you should resend
+them as a patch series such that they can both be applied?
+
+Does mm->shared_vm include memory that's mapped MAP_ANONYMOUS in
+conjunction with MAP_SHARED? If so, then subtracting it could
+overcommit the system OVERCOMMIT_NEVER mode.
 
 -Andrew
 
