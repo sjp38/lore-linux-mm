@@ -1,469 +1,574 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D6946B006C
-	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 10:12:26 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id fa1so40148653pad.8
-        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 07:12:26 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 61CB16B006E
+	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 10:12:27 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id fa1so40148895pad.8
+        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 07:12:27 -0800 (PST)
 Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
-        by mx.google.com with ESMTPS id nk3si5657016pdb.169.2015.01.29.07.12.23
+        by mx.google.com with ESMTPS id nk3si5657016pdb.169.2015.01.29.07.12.25
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Thu, 29 Jan 2015 07:12:24 -0800 (PST)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+        Thu, 29 Jan 2015 07:12:26 -0800 (PST)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
  by mailout4.w1.samsung.com
  (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NIY0054D2F82810@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 29 Jan 2015 15:16:20 +0000 (GMT)
+ 17 2011)) with ESMTP id <0NIY006ZP2FDAQ00@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 29 Jan 2015 15:16:25 +0000 (GMT)
 From: Andrey Ryabinin <a.ryabinin@samsung.com>
-Subject: [PATCH v10 00/17] Kernel address sanitizer - runtime memory debugger.
-Date: Thu, 29 Jan 2015 18:11:44 +0300
-Message-id: <1422544321-24232-1-git-send-email-a.ryabinin@samsung.com>
-In-reply-to: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
+Subject: [PATCH v10 02/17] x86_64: add KASan support
+Date: Thu, 29 Jan 2015 18:11:46 +0300
+Message-id: <1422544321-24232-3-git-send-email-a.ryabinin@samsung.com>
+In-reply-to: <1422544321-24232-1-git-send-email-a.ryabinin@samsung.com>
 References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
+ <1422544321-24232-1-git-send-email-a.ryabinin@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Michal Marek <mmarek@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-mm@kvack.org, Randy Dunlap <rdunlap@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Jones <davej@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Linus Torvalds <torvalds@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>
-
-KASan is a runtime memory debugger designed to find use-after-free
-and out-of-bounds bugs.
-
-Currently KASAN supported only for x86_64 architecture and requires kernel
-to be build with SLUB allocator.
-KASAN uses compile-time instrumentation for checking every memory access, therefore you
-will need a fresh GCC >= v4.9.2
-
-
-As usual patches available in git:
-
-	git://github.com/aryabinin/linux --branch=kasan/kasan_v10
-
-
-Changes since v9:
- 	- Makefile changes per discussion with Michal Marek
-	- Fix false positive 'wild memory access' reports that
-	  sometimes could happen on freeing modules memory.
-
-
-Historical background of address sanitizer from Dmitry Vyukov <dvyukov@google.com>:
-	"We've developed the set of tools, AddressSanitizer (Asan),
-	ThreadSanitizer and MemorySanitizer, for user space. We actively use
-	them for testing inside of Google (continuous testing, fuzzing,
-	running prod services). To date the tools have found more than 10'000
-	scary bugs in Chromium, Google internal codebase and various
-	open-source projects (Firefox, OpenSSL, gcc, clang, ffmpeg, MySQL and
-	lots of others):
-	https://code.google.com/p/address-sanitizer/wiki/FoundBugs
-	https://code.google.com/p/thread-sanitizer/wiki/FoundBugs
-	https://code.google.com/p/memory-sanitizer/wiki/FoundBugs
-	The tools are part of both gcc and clang compilers.
-
-	We have not yet done massive testing under the Kernel AddressSanitizer
-	(it's kind of chicken and egg problem, you need it to be upstream to
-	start applying it extensively). To date it has found about 50 bugs.
-	Bugs that we've found in upstream kernel are listed here:
-	https://code.google.com/p/address-sanitizer/wiki/AddressSanitizerForKernel#Trophies
-	We've also found ~20 bugs in out internal version of the kernel. Also
-	people from Samsung and Oracle have found some. It's somewhat expected
-	that when we boot the kernel and run a trivial workload, we do not
-	find hundreds of bugs -- most of the harmful bugs in kernel codebase
-	were already fixed the hard way (the kernel is quite stable, right).
-	Based on our experience with user-space version of the tool, most of
-	the bugs will be discovered by continuously testing new code (new bugs
-	discovered the easy way), running fuzzers (that can discover existing
-	bugs that are not hit frequently enough) and running end-to-end tests
-	of production systems.
-
-	As others noted, the main feature of AddressSanitizer is its
-	performance due to inline compiler instrumentation and simple linear
-	shadow memory. User-space Asan has ~2x slowdown on computational
-	programs and ~2x memory consumption increase. Taking into account that
-	kernel usually consumes only small fraction of CPU and memory when
-	running real user-space programs, I would expect that kernel Asan will
-	have ~10-30% slowdown and similar memory consumption increase (when we
-	finish all tuning).
-
-	I agree that Asan can well replace kmemcheck. We have plans to start
-	working on Kernel MemorySanitizer that finds uses of uninitialized
-	memory. Asan+Msan will provide feature-parity with kmemcheck. As
-	others noted, Asan will unlikely replace debug slab and pagealloc that
-	can be enabled at runtime. Asan uses compiler instrumentation, so even
-	if it is disabled, it still incurs visible overheads.
-
-	Asan technology is easily portable to other architectures. Compiler
-	instrumentation is fully portable. Runtime has some arch-dependent
-	parts like shadow mapping and atomic operation interception. They are
-	relatively easy to port.
-
-	Thanks"
-
-
-Comparison with other debugging features:
-=======================================
-
-KMEMCHECK:
-	- KASan can do almost everything that kmemcheck can. KASan uses compile-time
-	  instrumentation, which makes it significantly faster than kmemcheck.
-	  The only advantage of kmemcheck over KASan is detection of uninitialized
-	  memory reads.
-
-	  Some brief performance testing showed that kasan could be x500-x600 times
-	  faster than kmemcheck:
-
-$ netperf -l 30
-		MIGRATED TCP STREAM TEST from 0.0.0.0 (0.0.0.0) port 0 AF_INET to localhost (127.0.0.1) port 0 AF_INET
-		Recv   Send    Send
-		Socket Socket  Message  Elapsed
-		Size   Size    Size     Time     Throughput
-		bytes  bytes   bytes    secs.    10^6bits/sec
-
- no debug:	87380  16384  16384    30.00    41624.72
-
- kasan inline:	87380  16384  16384    30.00    12870.54
-
- kasan outline:	87380  16384  16384    30.00    10586.39
-
- kmemcheck: 	87380  16384  16384    30.03      20.23
-
-	- Also kmemcheck couldn't work on several CPUs. It always sets number of CPUs to 1.
-	  KASan doesn't have such limitation.
-
-DEBUG_PAGEALLOC:
-	- KASan is slower than DEBUG_PAGEALLOC, but KASan works on sub-page
-	  granularity level, so it able to find more bugs.
-
-SLUB_DEBUG (poisoning, redzones):
-	- SLUB_DEBUG has lower overhead than KASan.
-
-	- SLUB_DEBUG in most cases are not able to detect bad reads,
-	  KASan able to detect both reads and writes.
-
-	- In some cases (e.g. redzone overwritten) SLUB_DEBUG detect
-	  bugs only on allocation/freeing of object. KASan catch
-	  bugs right before it will happen, so we always know exact
-	  place of first bad read/write.
-
-Basic idea:
-===========
-
-    The main idea of KASAN is to use shadow memory to record whether each byte of memory
-    is safe to access or not, and use compiler's instrumentation to check the shadow memory
-    on each memory access.
-
-    Address sanitizer uses 1/8 of the memory addressable in kernel for shadow memory
-    (on x86_64 16TB of virtual address space reserved for shadow to cover all 128TB)
-    and uses direct mapping with a scale and offset to translate a memory
-    address to its corresponding shadow address.
-
-    Here is function to translate address to corresponding shadow address:
-
-         unsigned long kasan_mem_to_shadow(unsigned long addr)
-         {
-                    return (addr >> KASAN_SHADOW_SCALE_SHIFT) + KASAN_SHADOW_OFFSET;
-         }
-    where KASAN_SHADOW_SCALE_SHIFT = 3.
-
-    So for every 8 bytes there is one corresponding byte of shadow memory.
-    The following encoding used for each shadow byte: 0 means that all 8 bytes of the
-    corresponding memory region are valid for access; k (1 <= k <= 7) means that
-    the first k bytes are valid for access, and other (8 - k) bytes are not;
-    Any negative value indicates that the entire 8-bytes are inaccessible.
-    Different negative values used to distinguish between different kinds of
-    inaccessible memory (redzones, freed memory) (see mm/kasan/kasan.h).
-
-    To be able to detect accesses to bad memory we need a special compiler.
-    Such compiler inserts a specific function calls (__asan_load*(addr), __asan_store*(addr))
-    before each memory access of size 1, 2, 4, 8 or 16.
-
-    These functions check whether memory region is valid to access or not by checking
-    corresponding shadow memory. If access is not valid an error printed.
-
-
-Changelog for previous versions:
-===============================
-
-Changes since v8:
-	- Fixed unpoisoned redzones for not-allocated-yet object
-	    in newly allocated slab page. (from Dmitry C.)
-
-	- Some minor non-function cleanups in kasan internals.
-
-	- Added ack from Catalin
-
-	- Added stack instrumentation. With this we could detect
-	    out of bounds accesses in stack variables. (patch 12)
-
-	- Added globals instrumentation - catching out of bounds in
-	    global varibles. (patches 13-17)
-
-	- Shadow moved out from vmalloc into hole between vmemmap
-	    and %esp fixup stacks. For globals instrumentation
-	    we will need shadow backing modules addresses.
-	    So we need some sort of a shadow memory allocator
-	    (something like vmmemap_populate() function, except
-	    that it should be available after boot).
-
-	    __vmalloc_node_range() suits that purpose, except that
-	    it can't be used for allocating for shadow in vmalloc
-	    area because shadow in vmalloc is already 'allocated'
-	    to protect us from other vmalloc users. So we need
-	    16TB of unused addresses. And we have big enough hole
-	    between vmemmap and %esp fixup stacks. So I moved shadow
-	    there.
-
-
-Changes since v7:
-        - Fix build with CONFIG_KASAN_INLINE=y from Sasha.
-
-        - Don't poison redzone on freeing, since it is poisend already from Dmitry Chernenkov.
-
-        - Fix altinstruction_entry for memcpy.
-
-        - Move kasan_slab_free() call after debug_obj_free to prevent some false-positives
-            with CONFIG_DEBUG_OBJECTS=y
-
-        - Drop -pg flag for kasan internals to avoid recursion with function tracer
-           enabled.
-
-        - Added ack from Christoph.
-
-
-Changes since v6:
-   - New patch 'x86_64: kasan: add interceptors for memset/memmove/memcpy functions'
-        Recently instrumentation of builtin functions calls (memset/memmove/memcpy)
-        was removed in GCC 5.0. So to check the memory accessed by such functions,
-        we now need interceptors for them.
-
-   - Added kasan's die notifier which prints a hint message before General protection fault,
-       explaining that GPF could be caused by NULL-ptr dereference or user memory access.
-
-   - Minor refactoring in 3/n patch. Rename kasan_map_shadow() to kasan_init() and call it
-     from setup_arch() instead of zone_sizes_init().
-
-   - Slightly tweak kasan's report layout.
-
-   - Update changelog for 1/n patch.
-
-Changes since v5:
-    - Added  __printf(3, 4) to slab_err to catch format mismatches (Joe Perches)
-
-    - Changed in Documentation/kasan.txt per Jonathan.
-
-    - Patch for inline instrumentation support merged to the first patch.
-        GCC 5.0 finally has support for this.
-    - Patch 'kasan: Add support for upcoming GCC 5.0 asan ABI changes' also merged into the first.
-         Those GCC ABI changes are in GCC's master branch now.
-
-    - Added information about instrumentation types to documentation.
-
-    - Added -fno-conserve-stack to CFLAGS for mm/kasan/kasan.c file, because -fconserve-stack is bogus
-      and it causing unecessary split in __asan_load1/__asan_store1. Because of this split
-      kasan_report() is actually not inlined (even though it __always_inline) and _RET_IP_ gives
-      unexpected value. GCC bugzilla entry: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=63533
-
-Changes since v4:
-    - rebased on top of mmotm-2014-10-23-16-26
-
-    - merge patch 'efi: libstub: disable KASAN for efistub in' into the first patch.
-        No reason to keep it separate.
-
-    - Added support for upcoming asan ABI changes in GCC 5.0 (second patch).
-        GCC patch has not been published/upstreamed yet, but to will be soon. I'm adding this in advance
-        in order to avoid breaking kasan with future GCC update.
-        Details about gcc ABI changes in this thread: https://gcc.gnu.org/ml/gcc-patches/2014-10/msg02510.html
-
-    - Updated GCC verison requirements in doc (GCC kasan patches were backported into 4.9 branch)
-
-    - Dropped last patch with inline instrumentation support. At first let's wait for merging GCC patches.
-
-Changes since v3:
-
-    - rebased on last mm
-    - Added comment about rcu slabs.
-    - Removed useless kasan_free_slab_pages().
-    - Removed __asan_init_v*() stub. GCC doesn't generate this call anymore:
-       https://gcc.gnu.org/ml/gcc-patches/2014-10/msg00269.html
-    - Replaced CALL_KASAN_REPORT define with inline function
-
-Changes since v2:
-
-    - Shadow moved to vmalloc area.
-    - Added posion page. This page mapped to shadow correspondig to
-      shadow region itself:
-       [kasan_mem_to_shadow(KASAN_SHADOW_START) - kasan_mem_to_shadow(KASAN_SHADOW_END)]
-      It used to catch memory access to shadow outside mm/kasan/.
-
-    - Fixed boot with CONFIG_DEBUG_VIRTUAL=y
-    - Fixed boot with KASan and stack protector enabled
-         (patch "x86_64: load_percpu_segment: read irq_stack_union.gs_base before load_segment")
-
-    - Fixed build with CONFIG_EFI_STUB=y
-    - Some slub specific stuf moved from mm/slab.h to include/linux/slub_def.h
-    - Fixed Kconfig dependency. CONFIG_KASAN depends on CONFIG_SLUB_DEBUG.
-    - Optimizations of __asan_load/__asan_store.
-    - Spelling fixes from Randy.
-    - Misc minor cleanups in different places.
-
-
-    - Added inline instrumentation in last patch. This will require two not
-         yet-in-trunk-patches for GCC:
-             https://gcc.gnu.org/ml/gcc-patches/2014-09/msg00452.html
-             https://gcc.gnu.org/ml/gcc-patches/2014-09/msg00605.html
-
-Changes since v1:
-
-    - The main change is in shadow memory laoyut.
-      Now for shadow memory we reserve 1/8 of all virtual addresses available for kernel.
-      16TB on x86_64 to cover all 128TB of kernel's address space.
-      At early stage we map whole shadow region with zero page.
-      Latter, after physical memory mapped to direct mapping address range
-      we unmap zero pages from corresponding shadow and allocate and map a real
-      memory.
-
-     - Since per-arch work is much bigger now, support for arm/x86_32 platforms was dropped.
-
-     - CFLAGS was change from -fsanitize=address with different --params to -fsanitize=kernel-address
-
-     - If compiler doesn't support -fsanitize=kernel-address warning printed and build continues without -fsanitize
-
-     - Removed kasan_memset/kasan_memcpy/kasan_memmove hooks. It turned out that this hooks are not needed. Compiler
-       already instrument memset/memcpy/memmove (inserts __asan_load/__asan_store call before mem*() calls).
-
-     - branch profiling disabled for mm/kasan/kasan.c to avoid recursion (__asan_load -> ftrace_likely_update -> __asan_load -> ...)
-
-     - kasan hooks for buddy allocator moved to right places
-
-
-Andrey Ryabinin (17):
-  Add kernel address sanitizer infrastructure.
-  x86_64: add KASan support
-  mm: page_alloc: add kasan hooks on alloc and free paths
-  mm: slub: introduce virt_to_obj function.
-  mm: slub: share object_err function
-  mm: slub: introduce metadata_access_enable()/metadata_access_disable()
-  mm: slub: add kernel address sanitizer support for slub allocator
-  fs: dcache: manually unpoison dname after allocation to shut up
-    kasan's reports
-  kmemleak: disable kasan instrumentation for kmemleak
-  lib: add kasan test module
-  x86_64: kasan: add interceptors for memset/memmove/memcpy functions
-  kasan: enable stack instrumentation
-  mm: vmalloc: add flag preventing guard hole allocation
-  mm: vmalloc: pass additional vm_flags to __vmalloc_node_range()
-  kernel: add support for .init_array.* constructors
-  module: fix types of device tables aliases
-  kasan: enable instrumentation of global variables
-
- Documentation/kasan.txt                | 169 ++++++++++++
- Documentation/x86/x86_64/mm.txt        |   2 +
- Makefile                               |   3 +-
- arch/arm/kernel/module.c               |   2 +-
- arch/arm64/kernel/module.c             |   4 +-
- arch/mips/kernel/module.c              |   2 +-
- arch/parisc/kernel/module.c            |   2 +-
- arch/s390/kernel/module.c              |   2 +-
- arch/sparc/kernel/module.c             |   2 +-
- arch/unicore32/kernel/module.c         |   2 +-
- arch/x86/Kconfig                       |   1 +
- arch/x86/boot/Makefile                 |   2 +
- arch/x86/boot/compressed/Makefile      |   2 +
- arch/x86/boot/compressed/eboot.c       |   3 +-
- arch/x86/boot/compressed/misc.h        |   1 +
- arch/x86/include/asm/kasan.h           |  31 +++
- arch/x86/include/asm/page_64_types.h   |  12 +-
- arch/x86/include/asm/string_64.h       |  18 +-
- arch/x86/kernel/Makefile               |   4 +
- arch/x86/kernel/dumpstack.c            |   5 +-
- arch/x86/kernel/head64.c               |   9 +-
- arch/x86/kernel/head_64.S              |  30 ++
- arch/x86/kernel/module.c               |  14 +-
- arch/x86/kernel/setup.c                |   3 +
- arch/x86/kernel/x8664_ksyms_64.c       |  10 +-
- arch/x86/lib/memcpy_64.S               |   6 +-
- arch/x86/lib/memmove_64.S              |   4 +
- arch/x86/lib/memset_64.S               |  10 +-
- arch/x86/mm/Makefile                   |   3 +
- arch/x86/mm/kasan_init_64.c            | 205 ++++++++++++++
- arch/x86/realmode/Makefile             |   2 +-
- arch/x86/realmode/rm/Makefile          |   1 +
- arch/x86/vdso/Makefile                 |   1 +
- drivers/firmware/efi/libstub/Makefile  |   1 +
- drivers/firmware/efi/libstub/efistub.h |   4 +
- fs/dcache.c                            |   5 +
- include/asm-generic/vmlinux.lds.h      |   1 +
- include/linux/compiler-gcc4.h          |   4 +
- include/linux/compiler-gcc5.h          |   2 +
- include/linux/init_task.h              |   8 +
- include/linux/kasan.h                  |  86 ++++++
- include/linux/module.h                 |   2 +-
- include/linux/sched.h                  |   3 +
- include/linux/slab.h                   |  11 +-
- include/linux/slub_def.h               |   8 +
- include/linux/vmalloc.h                |  13 +-
- kernel/module.c                        |   2 +
- lib/Kconfig.debug                      |   2 +
- lib/Kconfig.kasan                      |  55 ++++
- lib/Makefile                           |   1 +
- lib/test_kasan.c                       | 277 +++++++++++++++++++
- mm/Makefile                            |   4 +
- mm/compaction.c                        |   2 +
- mm/kasan/Makefile                      |   8 +
- mm/kasan/kasan.c                       | 487 +++++++++++++++++++++++++++++++++
- mm/kasan/kasan.h                       |  86 ++++++
- mm/kasan/report.c                      | 251 +++++++++++++++++
- mm/kmemleak.c                          |   6 +
- mm/page_alloc.c                        |   3 +
- mm/slab_common.c                       |   5 +-
- mm/slub.c                              |  52 +++-
- mm/vmalloc.c                           |  16 +-
- scripts/Makefile.kasan                 |  26 ++
- scripts/Makefile.lib                   |  10 +
- scripts/module-common.lds              |   3 +
- 65 files changed, 1964 insertions(+), 47 deletions(-)
- create mode 100644 Documentation/kasan.txt
+Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, x86@kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Jonathan Corbet <corbet@lwn.net>, Andy Lutomirski <luto@amacapital.net>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>
+
+This patch adds arch specific code for kernel address sanitizer.
+
+16TB of virtual addressed used for shadow memory.
+It's located in range [ffffec0000000000 - fffffc0000000000]
+between vmemmap and %esp fixup stacks.
+
+At early stage we map whole shadow region with zero page.
+Latter, after pages mapped to direct mapping address range
+we unmap zero pages from corresponding shadow (see kasan_map_shadow())
+and allocate and map a real shadow memory reusing vmemmap_populate()
+function.
+
+Also replace __pa with __pa_nodebug before shadow initialized.
+__pa with CONFIG_DEBUG_VIRTUAL=y make external function call (__phys_addr)
+__phys_addr is instrumented, so __asan_load could be called before
+shadow area initialized.
+
+Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
+---
+ Documentation/x86/x86_64/mm.txt   |   2 +
+ arch/x86/Kconfig                  |   1 +
+ arch/x86/boot/Makefile            |   2 +
+ arch/x86/boot/compressed/Makefile |   2 +
+ arch/x86/include/asm/kasan.h      |  31 ++++++
+ arch/x86/kernel/Makefile          |   2 +
+ arch/x86/kernel/dumpstack.c       |   5 +-
+ arch/x86/kernel/head64.c          |   9 +-
+ arch/x86/kernel/head_64.S         |  30 ++++++
+ arch/x86/kernel/setup.c           |   3 +
+ arch/x86/mm/Makefile              |   3 +
+ arch/x86/mm/kasan_init_64.c       | 197 ++++++++++++++++++++++++++++++++++++++
+ arch/x86/realmode/Makefile        |   2 +-
+ arch/x86/realmode/rm/Makefile     |   1 +
+ arch/x86/vdso/Makefile            |   1 +
+ lib/Kconfig.kasan                 |   2 +
+ 16 files changed, 289 insertions(+), 4 deletions(-)
  create mode 100644 arch/x86/include/asm/kasan.h
  create mode 100644 arch/x86/mm/kasan_init_64.c
- create mode 100644 include/linux/kasan.h
- create mode 100644 lib/Kconfig.kasan
- create mode 100644 lib/test_kasan.c
- create mode 100644 mm/kasan/Makefile
- create mode 100644 mm/kasan/kasan.c
- create mode 100644 mm/kasan/kasan.h
- create mode 100644 mm/kasan/report.c
- create mode 100644 scripts/Makefile.kasan
 
---
-Cc: Dmitry Vyukov <dvyukov@google.com>
-Cc: Konstantin Serebryany <kcc@google.com>
-Cc: Dmitry Chernenkov <dmitryc@google.com>
-Cc: Andrey Konovalov <adech.fo@gmail.com>
-Cc: Yuri Gribov <tetra2005@gmail.com>
-Cc: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: Sasha Levin <sasha.levin@oracle.com>
-Cc: Michal Marek <mmarek@suse.cz>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>
-Cc: Vegard Nossum <vegard.nossum@gmail.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: <x86@kernel.org>
-Cc: <linux-mm@kvack.org>
-Cc: Randy Dunlap <rdunlap@infradead.org>
-Cc: Michal Marek <mmarek@suse.cz>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: Dave Jones <davej@redhat.com>
-Cc: Jonathan Corbet <corbet@lwn.net>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Catalin Marinas <catalin.marinas@arm.com>
---
+diff --git a/Documentation/x86/x86_64/mm.txt b/Documentation/x86/x86_64/mm.txt
+index 052ee64..05712ac 100644
+--- a/Documentation/x86/x86_64/mm.txt
++++ b/Documentation/x86/x86_64/mm.txt
+@@ -12,6 +12,8 @@ ffffc90000000000 - ffffe8ffffffffff (=45 bits) vmalloc/ioremap space
+ ffffe90000000000 - ffffe9ffffffffff (=40 bits) hole
+ ffffea0000000000 - ffffeaffffffffff (=40 bits) virtual memory map (1TB)
+ ... unused hole ...
++ffffec0000000000 - fffffc0000000000 (=44 bits) kasan shadow memory (16TB)
++... unused hole ...
+ ffffff0000000000 - ffffff7fffffffff (=39 bits) %esp fixup stacks
+ ... unused hole ...
+ ffffffff80000000 - ffffffffa0000000 (=512 MB)  kernel text mapping, from phys 0
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index d34ef08..e5c87b2 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -85,6 +85,7 @@ config X86
+ 	select HAVE_CMPXCHG_LOCAL
+ 	select HAVE_CMPXCHG_DOUBLE
+ 	select HAVE_ARCH_KMEMCHECK
++	select HAVE_ARCH_KASAN if X86_64
+ 	select HAVE_USER_RETURN_NOTIFIER
+ 	select ARCH_BINFMT_ELF_RANDOMIZE_PIE
+ 	select HAVE_ARCH_JUMP_LABEL
+diff --git a/arch/x86/boot/Makefile b/arch/x86/boot/Makefile
+index 3db07f3..57bbf2f 100644
+--- a/arch/x86/boot/Makefile
++++ b/arch/x86/boot/Makefile
+@@ -14,6 +14,8 @@
+ # Set it to -DSVGA_MODE=NORMAL_VGA if you just want the EGA/VGA mode.
+ # The number is the same as you would ordinarily press at bootup.
+ 
++KASAN_SANITIZE := n
++
+ SVGA_MODE	:= -DSVGA_MODE=NORMAL_VGA
+ 
+ targets		:= vmlinux.bin setup.bin setup.elf bzImage
+diff --git a/arch/x86/boot/compressed/Makefile b/arch/x86/boot/compressed/Makefile
+index ad754b4..843feb3 100644
+--- a/arch/x86/boot/compressed/Makefile
++++ b/arch/x86/boot/compressed/Makefile
+@@ -16,6 +16,8 @@
+ #	(see scripts/Makefile.lib size_append)
+ #	compressed vmlinux.bin.all + u32 size of vmlinux.bin.all
+ 
++KASAN_SANITIZE := n
++
+ targets := vmlinux vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2 vmlinux.bin.lzma \
+ 	vmlinux.bin.xz vmlinux.bin.lzo vmlinux.bin.lz4
+ 
+diff --git a/arch/x86/include/asm/kasan.h b/arch/x86/include/asm/kasan.h
+new file mode 100644
+index 0000000..8b22422
+--- /dev/null
++++ b/arch/x86/include/asm/kasan.h
+@@ -0,0 +1,31 @@
++#ifndef _ASM_X86_KASAN_H
++#define _ASM_X86_KASAN_H
++
++/*
++ * Compiler uses shadow offset assuming that addresses start
++ * from 0. Kernel addresses don't start from 0, so shadow
++ * for kernel really starts from compiler's shadow offset +
++ * 'kernel address space start' >> KASAN_SHADOW_SCALE_SHIFT
++ */
++#define KASAN_SHADOW_START      (KASAN_SHADOW_OFFSET + \
++					(0xffff800000000000ULL >> 3))
++/* 47 bits for kernel address -> (47 - 3) bits for shadow */
++#define KASAN_SHADOW_END        (KASAN_SHADOW_START + (1ULL << (47 - 3)))
++
++#ifndef __ASSEMBLY__
++
++extern pte_t kasan_zero_pte[];
++extern pte_t kasan_zero_pmd[];
++extern pte_t kasan_zero_pud[];
++
++#ifdef CONFIG_KASAN
++void __init kasan_map_early_shadow(pgd_t *pgd);
++void __init kasan_init(void);
++#else
++static inline void kasan_map_early_shadow(pgd_t *pgd) { }
++static inline void kasan_init(void) { }
++#endif
++
++#endif
++
++#endif
+diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
+index 316b34e..4fc8ca7 100644
+--- a/arch/x86/kernel/Makefile
++++ b/arch/x86/kernel/Makefile
+@@ -16,6 +16,8 @@ CFLAGS_REMOVE_ftrace.o = -pg
+ CFLAGS_REMOVE_early_printk.o = -pg
+ endif
+ 
++KASAN_SANITIZE_head$(BITS).o := n
++
+ CFLAGS_irq.o := -I$(src)/../include/asm/trace
+ 
+ obj-y			:= process_$(BITS).o signal.o entry_$(BITS).o
+diff --git a/arch/x86/kernel/dumpstack.c b/arch/x86/kernel/dumpstack.c
+index b74ebc7..cf3df1d 100644
+--- a/arch/x86/kernel/dumpstack.c
++++ b/arch/x86/kernel/dumpstack.c
+@@ -265,7 +265,10 @@ int __die(const char *str, struct pt_regs *regs, long err)
+ 	printk("SMP ");
+ #endif
+ #ifdef CONFIG_DEBUG_PAGEALLOC
+-	printk("DEBUG_PAGEALLOC");
++	printk("DEBUG_PAGEALLOC ");
++#endif
++#ifdef CONFIG_KASAN
++	printk("KASAN");
+ #endif
+ 	printk("\n");
+ 	if (notify_die(DIE_OOPS, str, regs, err,
+diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
+index eda1a86..efcddfa 100644
+--- a/arch/x86/kernel/head64.c
++++ b/arch/x86/kernel/head64.c
+@@ -27,6 +27,7 @@
+ #include <asm/bios_ebda.h>
+ #include <asm/bootparam_utils.h>
+ #include <asm/microcode.h>
++#include <asm/kasan.h>
+ 
+ /*
+  * Manage page tables very early on.
+@@ -46,7 +47,7 @@ static void __init reset_early_page_tables(void)
+ 
+ 	next_early_pgt = 0;
+ 
+-	write_cr3(__pa(early_level4_pgt));
++	write_cr3(__pa_nodebug(early_level4_pgt));
+ }
+ 
+ /* Create a new PMD entry */
+@@ -59,7 +60,7 @@ int __init early_make_pgtable(unsigned long address)
+ 	pmdval_t pmd, *pmd_p;
+ 
+ 	/* Invalid address or early pgt is done ?  */
+-	if (physaddr >= MAXMEM || read_cr3() != __pa(early_level4_pgt))
++	if (physaddr >= MAXMEM || read_cr3() != __pa_nodebug(early_level4_pgt))
+ 		return -1;
+ 
+ again:
+@@ -158,6 +159,8 @@ asmlinkage __visible void __init x86_64_start_kernel(char * real_mode_data)
+ 	/* Kill off the identity-map trampoline */
+ 	reset_early_page_tables();
+ 
++	kasan_map_early_shadow(early_level4_pgt);
++
+ 	/* clear bss before set_intr_gate with early_idt_handler */
+ 	clear_bss();
+ 
+@@ -179,6 +182,8 @@ asmlinkage __visible void __init x86_64_start_kernel(char * real_mode_data)
+ 	/* set init_level4_pgt kernel high mapping*/
+ 	init_level4_pgt[511] = early_level4_pgt[511];
+ 
++	kasan_map_early_shadow(init_level4_pgt);
++
+ 	x86_64_start_reservations(real_mode_data);
+ }
+ 
+diff --git a/arch/x86/kernel/head_64.S b/arch/x86/kernel/head_64.S
+index a468c0a..6fd514d9 100644
+--- a/arch/x86/kernel/head_64.S
++++ b/arch/x86/kernel/head_64.S
+@@ -514,8 +514,38 @@ ENTRY(phys_base)
+ 	/* This must match the first entry in level2_kernel_pgt */
+ 	.quad   0x0000000000000000
+ 
++#ifdef CONFIG_KASAN
++#define FILL(VAL, COUNT)				\
++	.rept (COUNT) ;					\
++	.quad	(VAL) ;					\
++	.endr
++
++NEXT_PAGE(kasan_zero_pte)
++	FILL(kasan_zero_page - __START_KERNEL_map + _KERNPG_TABLE, 512)
++NEXT_PAGE(kasan_zero_pmd)
++	FILL(kasan_zero_pte - __START_KERNEL_map + _KERNPG_TABLE, 512)
++NEXT_PAGE(kasan_zero_pud)
++	FILL(kasan_zero_pmd - __START_KERNEL_map + _KERNPG_TABLE, 512)
++
++#undef FILL
++#endif
++
++
+ #include "../../x86/xen/xen-head.S"
+ 	
+ 	__PAGE_ALIGNED_BSS
+ NEXT_PAGE(empty_zero_page)
+ 	.skip PAGE_SIZE
++
++#ifdef CONFIG_KASAN
++/*
++ * This page used as early shadow. We don't use empty_zero_page
++ * at early stages, stack instrumentation could write some garbage
++ * to this page.
++ * Latter we reuse it as zero shadow for large ranges of memory
++ * that allowed to access, but not instrumented by kasan
++ * (vmalloc/vmemmap ...).
++ */
++NEXT_PAGE(kasan_zero_page)
++	.skip PAGE_SIZE
++#endif
+diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+index c4648ada..27d2009 100644
+--- a/arch/x86/kernel/setup.c
++++ b/arch/x86/kernel/setup.c
+@@ -89,6 +89,7 @@
+ #include <asm/cacheflush.h>
+ #include <asm/processor.h>
+ #include <asm/bugs.h>
++#include <asm/kasan.h>
+ 
+ #include <asm/vsyscall.h>
+ #include <asm/cpu.h>
+@@ -1174,6 +1175,8 @@ void __init setup_arch(char **cmdline_p)
+ 
+ 	x86_init.paging.pagetable_init();
+ 
++	kasan_init();
++
+ 	if (boot_cpu_data.cpuid_level >= 0) {
+ 		/* A CPU has %cr4 if and only if it has CPUID */
+ 		mmu_cr4_features = read_cr4();
+diff --git a/arch/x86/mm/Makefile b/arch/x86/mm/Makefile
+index ecfdc46..c4cc740 100644
+--- a/arch/x86/mm/Makefile
++++ b/arch/x86/mm/Makefile
+@@ -20,6 +20,9 @@ obj-$(CONFIG_HIGHMEM)		+= highmem_32.o
+ 
+ obj-$(CONFIG_KMEMCHECK)		+= kmemcheck/
+ 
++KASAN_SANITIZE_kasan_init_$(BITS).o := n
++obj-$(CONFIG_KASAN)		+= kasan_init_$(BITS).o
++
+ obj-$(CONFIG_MMIOTRACE)		+= mmiotrace.o
+ mmiotrace-y			:= kmmio.o pf_in.o mmio-mod.o
+ obj-$(CONFIG_MMIOTRACE_TEST)	+= testmmiotrace.o
+diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
+new file mode 100644
+index 0000000..cfb932e
+--- /dev/null
++++ b/arch/x86/mm/kasan_init_64.c
+@@ -0,0 +1,197 @@
++#include <linux/bootmem.h>
++#include <linux/kasan.h>
++#include <linux/kdebug.h>
++#include <linux/mm.h>
++#include <linux/sched.h>
++#include <linux/vmalloc.h>
++
++#include <asm/tlbflush.h>
++#include <asm/sections.h>
++
++extern pgd_t early_level4_pgt[PTRS_PER_PGD];
++extern struct range pfn_mapped[E820_X_MAX];
++
++extern unsigned char kasan_zero_page[PAGE_SIZE];
++
++static int __init map_range(struct range *range)
++{
++	unsigned long start = kasan_mem_to_shadow(
++		(unsigned long)pfn_to_kaddr(range->start));
++	unsigned long end = kasan_mem_to_shadow(
++		(unsigned long)pfn_to_kaddr(range->end));
++
++	/*
++	 * end + 1 here is intentional. We check several shadow bytes in advance
++	 * to slightly speed up fastpath. In some rare cases we could cross
++	 * boundary of mapped shadow, so we just map some more here.
++	 */
++	return vmemmap_populate(start, end + 1, NUMA_NO_NODE);
++}
++
++static void __init clear_pgds(unsigned long start,
++			unsigned long end)
++{
++	for (; start < end; start += PGDIR_SIZE)
++		pgd_clear(pgd_offset_k(start));
++}
++
++void __init kasan_map_early_shadow(pgd_t *pgd)
++{
++	int i;
++	unsigned long start = KASAN_SHADOW_START;
++	unsigned long end = KASAN_SHADOW_END;
++
++	for (i = pgd_index(start); start < end; i++) {
++		pgd[i] = __pgd(__pa_nodebug(kasan_zero_pud)
++				| _KERNPG_TABLE);
++		start += PGDIR_SIZE;
++	}
++}
++
++static int __init zero_pte_populate(pmd_t *pmd, unsigned long addr,
++				unsigned long end)
++{
++	pte_t *pte = pte_offset_kernel(pmd, addr);
++
++	while (addr + PAGE_SIZE <= end) {
++		WARN_ON(!pte_none(*pte));
++		set_pte(pte, __pte(__pa_nodebug(kasan_zero_page)
++					| __PAGE_KERNEL_RO));
++		addr += PAGE_SIZE;
++		pte = pte_offset_kernel(pmd, addr);
++	}
++	return 0;
++}
++
++static int __init zero_pmd_populate(pud_t *pud, unsigned long addr,
++				unsigned long end)
++{
++	int ret = 0;
++	pmd_t *pmd = pmd_offset(pud, addr);
++
++	while (IS_ALIGNED(addr, PMD_SIZE) && addr + PMD_SIZE <= end) {
++		WARN_ON(!pmd_none(*pmd));
++		set_pmd(pmd, __pmd(__pa_nodebug(kasan_zero_pte)
++					| __PAGE_KERNEL_RO));
++		addr += PMD_SIZE;
++		pmd = pmd_offset(pud, addr);
++	}
++	if (addr < end) {
++		if (pmd_none(*pmd)) {
++			void *p = vmemmap_alloc_block(PAGE_SIZE, NUMA_NO_NODE);
++			if (!p)
++				return -ENOMEM;
++			set_pmd(pmd, __pmd(__pa_nodebug(p) | _KERNPG_TABLE));
++		}
++		ret = zero_pte_populate(pmd, addr, end);
++	}
++	return ret;
++}
++
++
++static int __init zero_pud_populate(pgd_t *pgd, unsigned long addr,
++				unsigned long end)
++{
++	int ret = 0;
++	pud_t *pud = pud_offset(pgd, addr);
++
++	while (IS_ALIGNED(addr, PUD_SIZE) && addr + PUD_SIZE <= end) {
++		WARN_ON(!pud_none(*pud));
++		set_pud(pud, __pud(__pa_nodebug(kasan_zero_pmd)
++					| __PAGE_KERNEL_RO));
++		addr += PUD_SIZE;
++		pud = pud_offset(pgd, addr);
++	}
++
++	if (addr < end) {
++		if (pud_none(*pud)) {
++			void *p = vmemmap_alloc_block(PAGE_SIZE, NUMA_NO_NODE);
++			if (!p)
++				return -ENOMEM;
++			set_pud(pud, __pud(__pa_nodebug(p) | _KERNPG_TABLE));
++		}
++		ret = zero_pmd_populate(pud, addr, end);
++	}
++	return ret;
++}
++
++static int __init zero_pgd_populate(unsigned long addr, unsigned long end)
++{
++	int ret = 0;
++	pgd_t *pgd = pgd_offset_k(addr);
++
++	while (IS_ALIGNED(addr, PGDIR_SIZE) && addr + PGDIR_SIZE <= end) {
++		WARN_ON(!pgd_none(*pgd));
++		set_pgd(pgd, __pgd(__pa_nodebug(kasan_zero_pud)
++					| __PAGE_KERNEL_RO));
++		addr += PGDIR_SIZE;
++		pgd = pgd_offset_k(addr);
++	}
++
++	if (addr < end) {
++		if (pgd_none(*pgd)) {
++			void *p = vmemmap_alloc_block(PAGE_SIZE, NUMA_NO_NODE);
++			if (!p)
++				return -ENOMEM;
++			set_pgd(pgd, __pgd(__pa_nodebug(p) | _KERNPG_TABLE));
++		}
++		ret = zero_pud_populate(pgd, addr, end);
++	}
++	return ret;
++}
++
++
++static void __init populate_zero_shadow(unsigned long start, unsigned long end)
++{
++	if (zero_pgd_populate(start, end))
++		panic("kasan: unable to map zero shadow!");
++}
++
++
++#ifdef CONFIG_KASAN_INLINE
++static int kasan_die_handler(struct notifier_block *self,
++			     unsigned long val,
++			     void *data)
++{
++	if (val == DIE_GPF) {
++		pr_emerg("CONFIG_KASAN_INLINE enabled");
++		pr_emerg("GPF could be caused by NULL-ptr deref or user memory access");
++	}
++	return NOTIFY_OK;
++}
++
++static struct notifier_block kasan_die_notifier = {
++	.notifier_call = kasan_die_handler,
++};
++#endif
++
++void __init kasan_init(void)
++{
++	int i;
++
++#ifdef CONFIG_KASAN_INLINE
++	register_die_notifier(&kasan_die_notifier);
++#endif
++
++	memcpy(early_level4_pgt, init_level4_pgt, sizeof(early_level4_pgt));
++	load_cr3(early_level4_pgt);
++
++	clear_pgds(KASAN_SHADOW_START, KASAN_SHADOW_END);
++
++	populate_zero_shadow(KASAN_SHADOW_START,
++			kasan_mem_to_shadow(PAGE_OFFSET));
++
++	for (i = 0; i < E820_X_MAX; i++) {
++		if (pfn_mapped[i].end == 0)
++			break;
++
++		if (map_range(&pfn_mapped[i]))
++			panic("kasan: unable to allocate shadow!");
++	}
++	populate_zero_shadow(kasan_mem_to_shadow(PAGE_OFFSET + MAXMEM),
++			KASAN_SHADOW_END);
++
++	memset(kasan_zero_page, 0, PAGE_SIZE);
++
++	load_cr3(init_level4_pgt);
++}
+diff --git a/arch/x86/realmode/Makefile b/arch/x86/realmode/Makefile
+index 94f7fbe..e02c2c6 100644
+--- a/arch/x86/realmode/Makefile
++++ b/arch/x86/realmode/Makefile
+@@ -6,7 +6,7 @@
+ # for more details.
+ #
+ #
+-
++KASAN_SANITIZE := n
+ subdir- := rm
+ 
+ obj-y += init.o
+diff --git a/arch/x86/realmode/rm/Makefile b/arch/x86/realmode/rm/Makefile
+index 7c0d7be..2730d77 100644
+--- a/arch/x86/realmode/rm/Makefile
++++ b/arch/x86/realmode/rm/Makefile
+@@ -6,6 +6,7 @@
+ # for more details.
+ #
+ #
++KASAN_SANITIZE := n
+ 
+ always := realmode.bin realmode.relocs
+ 
+diff --git a/arch/x86/vdso/Makefile b/arch/x86/vdso/Makefile
+index 5a4affe..2aacd7c 100644
+--- a/arch/x86/vdso/Makefile
++++ b/arch/x86/vdso/Makefile
+@@ -3,6 +3,7 @@
+ #
+ 
+ KBUILD_CFLAGS += $(DISABLE_LTO)
++KASAN_SANITIZE := n
+ 
+ VDSO64-$(CONFIG_X86_64)		:= y
+ VDSOX32-$(CONFIG_X86_X32_ABI)	:= y
+diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
+index 10341df..f86070d 100644
+--- a/lib/Kconfig.kasan
++++ b/lib/Kconfig.kasan
+@@ -5,6 +5,7 @@ if HAVE_ARCH_KASAN
+ 
+ config KASAN
+ 	bool "AddressSanitizer: runtime memory debugger"
++	depends on !MEMORY_HOTPLUG
+ 	help
+ 	  Enables address sanitizer - runtime memory debugger,
+ 	  designed to find out-of-bounds accesses and use-after-free bugs.
+@@ -15,6 +16,7 @@ config KASAN
+ 
+ config KASAN_SHADOW_OFFSET
+ 	hex
++	default 0xdffffc0000000000 if X86_64
+ 
+ choice
+ 	prompt "Instrumentation type"
+-- 
 2.2.2
 
 --
