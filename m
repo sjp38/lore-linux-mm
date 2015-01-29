@@ -1,71 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f176.google.com (mail-ie0-f176.google.com [209.85.223.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 300E66B0038
-	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 12:32:47 -0500 (EST)
-Received: by mail-ie0-f176.google.com with SMTP id rd18so36261523iec.7
-        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 09:32:46 -0800 (PST)
-Received: from resqmta-po-08v.sys.comcast.net (resqmta-po-08v.sys.comcast.net. [2001:558:fe16:19:96:114:154:167])
-        by mx.google.com with ESMTPS id cd4si6585237icc.40.2015.01.29.09.32.45
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 8254E6B0038
+	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 13:21:56 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id eu11so42083531pac.13
+        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 10:21:56 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id g12si10944208pat.3.2015.01.29.10.21.55
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Thu, 29 Jan 2015 09:32:45 -0800 (PST)
-Date: Thu, 29 Jan 2015 11:32:43 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v2] mm: vmscan: fix the page state calculation in
- too_many_isolated
-In-Reply-To: <20150116154922.GB4650@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.11.1501291131510.22780@gentwo.org>
-References: <1421235419-30736-1-git-send-email-vinmenon@codeaurora.org> <20150114165036.GI4706@dhcp22.suse.cz> <54B7F7C4.2070105@codeaurora.org> <20150116154922.GB4650@dhcp22.suse.cz>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 29 Jan 2015 10:21:55 -0800 (PST)
+Date: Thu, 29 Jan 2015 21:21:41 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH -mm v2 1/3] slub: never fail to shrink cache
+Message-ID: <20150129182141.GA25158@esperanza>
+References: <cover.1422461573.git.vdavydov@parallels.com>
+ <012683fc3a0f9fb20a288986fd63fe9f6d25e8ee.1422461573.git.vdavydov@parallels.com>
+ <20150128135752.afcb196d6ded7c16a79ed6fd@linux-foundation.org>
+ <20150129080726.GB11463@esperanza>
+ <alpine.DEB.2.11.1501290954230.7725@gentwo.org>
+ <20150129161739.GE11463@esperanza>
+ <alpine.DEB.2.11.1501291021370.7986@gentwo.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.11.1501291021370.7986@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Vinayak Menon <vinmenon@codeaurora.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, mgorman@suse.de, minchan@kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 16 Jan 2015, Michal Hocko wrote:
+On Thu, Jan 29, 2015 at 10:22:16AM -0600, Christoph Lameter wrote:
+> On Thu, 29 Jan 2015, Vladimir Davydov wrote:
+> 
+> > Yeah, but the tool just writes 1 to /sys/kernel/slab/cache/shrink, i.e.
+> > invokes shrink_store(), and I don't propose to remove slab placement
+> > optimization from there. What I propose is to move slab placement
+> > optimization from kmem_cache_shrink() to shrink_store(), because other
+> > users of kmem_cache_shrink() don't seem to need it at all - they just
+> > want to release empty slabs. Such a change wouldn't affect the behavior
+> > of `slabinfo -s` at all.
+> 
+> Well we have to go through the chain of partial slabs anyways so its easy
+> to do the optimization at that point.
 
-> __round_jiffies_relative can easily make timeout 2HZ from 1HZ. Now we
-> have vmstat_shepherd which waits to be queued and then wait to run. When
-> it runs finally it only queues per-cpu vmstat_work which can also end
-> up being 2HZ for some CPUs. So we can indeed have 4 seconds spent just
-> for queuing. Not even mentioning work item latencies. Especially when
-> workers are overloaded e.g. by fs work items and no additional workers
-> cannot be created e.g. due to memory pressure so they are processed only
-> by the workqueue rescuer. And latencies would grow a lot.
+That's true, but we can introduce a separate function that would both
+release empty slabs and optimize slab placement, like the patch below
+does. It would increase the code size a bit though, so I don't insist.
 
-Here is a small fix to ensure that the 4 seconds interval does not happen:
-
-
-
-
-Subject: vmstat: Reduce time interval to stat update on idle cpu
-
-It was noted that the vm stat shepherd runs every 2 seconds and
-that the vmstat update is then scheduled 2 seconds in the future.
-
-This yields an interval of double the time interval which is not
-desired.
-
-Change the shepherd so that it does not delay the vmstat update
-on the other cpu. We stil have to use schedule_delayed_work since
-we are using a delayed_work_struct but we can set the delay to 0.
-
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
-Index: linux/mm/vmstat.c
-===================================================================
---- linux.orig/mm/vmstat.c
-+++ linux/mm/vmstat.c
-@@ -1435,8 +1435,8 @@ static void vmstat_shepherd(struct work_
- 		if (need_update(cpu) &&
- 			cpumask_test_and_clear_cpu(cpu, cpu_stat_off))
-
--			schedule_delayed_work_on(cpu, &per_cpu(vmstat_work, cpu),
--				__round_jiffies_relative(sysctl_stat_interval, cpu));
-+			schedule_delayed_work_on(cpu,
-+				&per_cpu(vmstat_work, cpu), 0);
-
- 	put_online_cpus();
+diff --git a/mm/slub.c b/mm/slub.c
+index 1562955fe099..2cd401d82a41 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3359,7 +3359,7 @@ void kfree(const void *x)
+ EXPORT_SYMBOL(kfree);
+ 
+ /*
+- * kmem_cache_shrink removes empty slabs from the partial lists and sorts
++ * shrink_slab_cache removes empty slabs from the partial lists and sorts
+  * the remaining slabs by the number of items in use. The slabs with the
+  * most items in use come first. New allocations will then fill those up
+  * and thus they can be removed from the partial lists.
+@@ -3368,7 +3368,7 @@ EXPORT_SYMBOL(kfree);
+  * being allocated from last increasing the chance that the last objects
+  * are freed in them.
+  */
+-int __kmem_cache_shrink(struct kmem_cache *s)
++static int shrink_slab_cache(struct kmem_cache *s)
+ {
+ 	int node;
+ 	int i;
+@@ -3423,6 +3423,32 @@ int __kmem_cache_shrink(struct kmem_cache *s)
+ 	return 0;
+ }
+ 
++static int __kmem_cache_shrink(struct kmem_cache *s)
++{
++	int node;
++	struct kmem_cache_node *n;
++	struct page *page, *t;
++	LIST_HEAD(discard);
++	unsigned long flags;
++	int ret = 0;
++
++	flush_all(s);
++	for_each_kmem_cache_node(s, node, n) {
++		spin_lock_irqsave(&n->list_lock, flags);
++		list_for_each_entry_safe(page, t, &n->partial, lru)
++			if (!page->inuse)
++				list_move(&page->lru, &discard);
++		spin_unlock_irqrestore(&n->list_lock, flags);
++
++		list_for_each_entry_safe(page, t, &discard, lru)
++			discard_slab(s, page);
++
++		if (slabs_node(s, node))
++			ret = 1;
++	}
++	return ret;
++}
++
+ static int slab_mem_going_offline_callback(void *arg)
+ {
+ 	struct kmem_cache *s;
+@@ -4683,7 +4709,7 @@ static ssize_t shrink_store(struct kmem_cache *s,
+ 			const char *buf, size_t length)
+ {
+ 	if (buf[0] == '1') {
+-		int rc = kmem_cache_shrink(s);
++		int rc = shrink_slab_cache(s);
+ 
+ 		if (rc)
+ 			return rc;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
