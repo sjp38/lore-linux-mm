@@ -1,69 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 5531D6B006E
-	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 03:07:40 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id kq14so36139385pab.0
-        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 00:07:40 -0800 (PST)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id m4si9068644pdd.9.2015.01.29.00.07.39
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Jan 2015 00:07:39 -0800 (PST)
-Date: Thu, 29 Jan 2015 11:07:26 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH -mm v2 1/3] slub: never fail to shrink cache
-Message-ID: <20150129080726.GB11463@esperanza>
-References: <cover.1422461573.git.vdavydov@parallels.com>
- <012683fc3a0f9fb20a288986fd63fe9f6d25e8ee.1422461573.git.vdavydov@parallels.com>
- <20150128135752.afcb196d6ded7c16a79ed6fd@linux-foundation.org>
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id AE02A6B006E
+	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 03:16:48 -0500 (EST)
+Received: by mail-wi0-f170.google.com with SMTP id bs8so6357752wib.1
+        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 00:16:48 -0800 (PST)
+Received: from fireflyinternet.com (mail.fireflyinternet.com. [87.106.93.118])
+        by mx.google.com with ESMTP id n4si1796194wia.45.2015.01.29.00.16.46
+        for <linux-mm@kvack.org>;
+        Thu, 29 Jan 2015 00:16:47 -0800 (PST)
+Date: Thu, 29 Jan 2015 08:16:43 +0000
+From: Chris Wilson <chris@chris-wilson.co.uk>
+Subject: Re: [Intel-gfx] memcontrol.c BUG
+Message-ID: <20150129081643.GK25850@nuc-i3427.alporthouse.com>
+References: <CAPM=9tyyP_pKpWjc7LBZU7e6wAt26XGZsyhRh7N497B2+28rrQ@mail.gmail.com>
+ <20150128084852.GC28132@nuc-i3427.alporthouse.com>
+ <20150128143242.GF6542@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150128135752.afcb196d6ded7c16a79ed6fd@linux-foundation.org>
+In-Reply-To: <20150128143242.GF6542@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Dave Airlie <airlied@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, "intel-gfx@lists.freedesktop.org" <intel-gfx@lists.freedesktop.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, Jet Chen <jet.chen@intel.com>, Felipe Balbi <balbi@ti.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Wed, Jan 28, 2015 at 01:57:52PM -0800, Andrew Morton wrote:
-> On Wed, 28 Jan 2015 19:22:49 +0300 Vladimir Davydov <vdavydov@parallels.com> wrote:
-> > @@ -3375,51 +3376,56 @@ int __kmem_cache_shrink(struct kmem_cache *s)
-> >  	struct kmem_cache_node *n;
-> >  	struct page *page;
-> >  	struct page *t;
-> > -	int objects = oo_objects(s->max);
-> > -	struct list_head *slabs_by_inuse =
-> > -		kmalloc(sizeof(struct list_head) * objects, GFP_KERNEL);
-> > +	LIST_HEAD(discard);
-> > +	struct list_head promote[SHRINK_PROMOTE_MAX];
+On Wed, Jan 28, 2015 at 03:32:43PM +0100, Michal Hocko wrote:
+> On Wed 28-01-15 08:48:52, Chris Wilson wrote:
+> > On Wed, Jan 28, 2015 at 08:13:06AM +1000, Dave Airlie wrote:
+> > > https://bugzilla.redhat.com/show_bug.cgi?id=1165369
+> > > 
+> > > ov 18 09:23:22 elissa.gathman.org kernel: page:f5e36a40 count:2
+> > > mapcount:0 mapping:  (null) index:0x0
+> > > Nov 18 09:23:22 elissa.gathman.org kernel: page flags:
+> > > 0x80090029(locked|uptodate|lru|swapcache|swapbacked)
+> > > Nov 18 09:23:22 elissa.gathman.org kernel: page dumped because:
+> > > VM_BUG_ON_PAGE(!lrucare && PageLRU(oldpage))
+> > > Nov 18 09:23:23 elissa.gathman.org kernel: ------------[ cut here ]------------
+> > > Nov 18 09:23:23 elissa.gathman.org kernel: kernel BUG at mm/memcontrol.c:6733!
 > 
-> 512 bytes of stack.  The call paths leading to __kmem_cache_shrink()
-> are many and twisty.  How do we know this isn't a problem?
+> I guess this matches the following bugon in your kernel:
+>         VM_BUG_ON_PAGE(!lrucare && PageLRU(oldpage), oldpage);
+> 
+> so the oldpage is on the LRU list already. I am completely unfamiliar
+> with 965GM but is the page perhaps shared with somebody with a different
+> gfp mask requirement (e.g. userspace accessing the memory via mmap)? So
+> the other (racing) caller didn't need to move the page and put it on
+> LRU.
 
-Because currently __kmem_cache_shrink is only called just from a couple
-of places, each of which isn't supposed to have a great stack depth
-AFAIU, namely:
+Generally, yes. The shmemfs filp is exported through a vm_mmap() as well
+as pinned into the GPU via shmem_read_mapping_page_gfp(). But I would
+not expect that to be the case very often, if at all, on 965GM as the
+two access paths are incoherent. Still it sounds promising, hopefully
+Dave can put it into a fedora kernel for testing?
+-Chris
 
-- slab_mem_going_offline_callback - MEM_GOING_OFFLINE handler
-- shrink_store - invoked upon write to /sys/kernel/slab/cache/shrink
-- acpi_os_purge_cache - only called on acpi init
-- memcg_deactivate_kmem_caches - called from cgroup_destroy_wq
-
-> The logic behind choosing "32" sounds rather rubbery.  What goes wrong
-> if we use, say, "4"?
-
-We could, but kmem_cache_shrink would cope with fragmentation less
-efficiently.
-
-Come to think of it, do we really need to optimize slab placement in
-kmem_cache_shrink? None of its users except shrink_store expects it -
-they just want to purge the cache before destruction, that's it. May be,
-we'd better move slab placement optimization to a separate SLUB's
-private function that would be called only by shrink_store, where we can
-put up with kmalloc failures? Christoph, what do you think?
-
-Thanks,
-Vladimir
+-- 
+Chris Wilson, Intel Open Source Technology Centre
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
