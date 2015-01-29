@@ -1,77 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f170.google.com (mail-lb0-f170.google.com [209.85.217.170])
-	by kanga.kvack.org (Postfix) with ESMTP id C179D6B0038
-	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 08:06:30 -0500 (EST)
-Received: by mail-lb0-f170.google.com with SMTP id w7so27780300lbi.1
-        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 05:06:30 -0800 (PST)
-Received: from forward-corp1f.mail.yandex.net (forward-corp1f.mail.yandex.net. [95.108.130.40])
-        by mx.google.com with ESMTPS id u2si7305465lae.110.2015.01.29.05.06.28
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id DD5266B0038
+	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 08:13:42 -0500 (EST)
+Received: by mail-wg0-f45.google.com with SMTP id x12so23120218wgg.4
+        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 05:13:42 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c7si3036225wix.71.2015.01.29.05.13.40
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Jan 2015 05:06:28 -0800 (PST)
-From: Roman Gushchin <klamm@yandex-team.ru>
-Subject: [PATCH] mm: fix arithmetic overflow in __vm_enough_memory()
-Date: Thu, 29 Jan 2015 16:06:03 +0300
-Message-Id: <1422536763-31325-1-git-send-email-klamm@yandex-team.ru>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 29 Jan 2015 05:13:41 -0800 (PST)
+Message-ID: <54CA3202.8020609@suse.cz>
+Date: Thu, 29 Jan 2015 14:13:38 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
+MIME-Version: 1.0
+Subject: Re: [PATCHv2] mm: Don't offset memmap for flatmem
+References: <1421804273-29947-1-git-send-email-lauraa@codeaurora.org> <1421888500-24364-1-git-send-email-lauraa@codeaurora.org> <20150122162021.aa861aeb53c22206a19ebbcb@linux-foundation.org> <54C196D0.6040900@codeaurora.org> <54C20EEC.1060809@suse.cz> <20150126155617.GA2395@suse.de>
+In-Reply-To: <20150126155617.GA2395@suse.de>
+Content-Type: text/plain; charset=iso-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Roman Gushchin <klamm@yandex-team.ru>, Andrew Morton <akpm@linux-foundation.org>, Andrew Shewmaker <agshew@gmail.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, stable@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Laura Abbott <lauraa@codeaurora.org>, Andrew Morton <akpm@linux-foundation.org>, Srinivas Kandagatla <srinivas.kandagatla@linaro.org>, linux-arm-kernel@lists.infradead.org, Russell King - ARM Linux <linux@arm.linux.org.uk>, ssantosh@kernel.org, Kevin Hilman <khilman@linaro.org>, Arnd Bergman <arnd@arndb.de>, Stephen Boyd <sboyd@codeaurora.org>, linux-mm@kvack.org, Kumar Gala <galak@codeaurora.org>
 
-I noticed, that "allowed" can easily overflow by falling below 0,
-because (total_vm / 32) can be larger than "allowed". The problem
-occurs in OVERCOMMIT_NONE mode.
+On 01/26/2015 04:56 PM, Mel Gorman wrote:
+> On Fri, Jan 23, 2015 at 10:05:48AM +0100, Vlastimil Babka wrote:
+>> On 01/23/2015 01:33 AM, Laura Abbott wrote:
+>>> On 1/22/2015 4:20 PM, Andrew Morton wrote:
+>>>>
+>>>> I don't think v2 addressed Vlastimil's review comment?
+>>>>
+>>>
+>>> We're still adding the offset to node_mem_map and then subtracting it from
+>>> just mem_map. Did I miss another comment somewhere?
+>>
+>> Yes that was addressed, thanks. But I don't feel comfortable acking
+>> it yet, as I have no idea if we are doing the right thing for
+>> CONFIG_HAVE_MEMBLOCK_NODE_MAP && CONFIG_FLATMEM case here.
+>>
+>> Also putting the CONFIG_FLATMEM && !CONFIG_HAVE_MEMBLOCK_NODE_MAP
+>> under the "if (page_to_pfn(mem_map) != pgdat->node_start_pfn)" will
+>> probably do the right thing, but looks like a weird test for this
+>> case here.
+>>
+>> I have no good suggestion though, so let's CC Mel who apparently
+>> wrote the ARCH_PFN_OFFSET correction?
+>>
+>
+> I don't recall introducing ARCH_PFN_OFFSET, are you sure it was me?  I'm just
+> back today after been offline a week so didn't review the patch but IIRC,
+> ARCH_PFN_OFFSET deals with the case where physical memory does not start
+> at 0. Without the offset, virtual _PAGE_OFFSET would not physical page 0.
+> I don't recall it being related to the alignment of node 0 so if there
+> are crashes due to misalignment of node 0 and the fix is ARCH_PFN_OFFSET
+> related then I'm surprised.
 
-In this case, a huge allocation can success and overcommit the system
-(despite OVERCOMMIT_NONE mode). All subsequent allocations will fall
-(system-wide), so system become unusable.
+You're right that ARCH_PFN_OFFSET wasn't added by you, but by commit 
+467bc461d2 which was a bugfix to your commit c713216dee, which did 
+introduce the mem_map correction code, and after which the code looked like:
 
-The problem was masked out by commit c9b1d0981fcc
-("mm: limit growth of 3% hardcoded other user reserve"),
-but it's easy to reproduce it on older kernels:
-1) set overcommit_memory sysctl to 2
-2) mmap() large file multiple times (with VM_SHARED flag)
-3) try to malloc() large amount of memory
+mem_map = NODE_DATA(0)->node_mem_map;
+#ifdef CONFIG_ARCH_POPULATES_NODE_MAP
+                if (page_to_pfn(mem_map) != pgdat->node_start_pfn)
+                        mem_map -= pgdat->node_start_pfn;
+#endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
 
-It also can be reproduced on newer kernels, but miss-configured
-sysctl_user_reserve_kbytes is required.
 
-Fix this issue by switching to signed arithmetic here.
+It's from 2006 so I can't expect you remember the details, but I had 
+some trouble finding out what this does. I assume it makes sure that 
+mem_map points to struct page corresponding to pfn 0, because that's 
+what translations using mem_map expect.
+But pgdat->node_mem_map points to struct page corresponding to 
+pgdat->node_start_pfn, which might not be 0. So it subtracts 
+node_start_pfn to fix that. This is OK, as the node_mem_map is allocated 
+(in this very function) with padding so that it covers a 
+MAX_ORDER_NR_PAGES aligned area where node_mem_map may point to the 
+middle of it.
 
-Signed-off-by: Roman Gushchin <klamm@yandex-team.ru>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrew Shewmaker <agshew@gmail.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: stable@vger.kernel.org
----
- mm/mmap.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+Commit 467bc461d2 fixed this in case the first pfn is not 0, but 
+ARCH_PFN_OFFSET. So mem_map points to struct page corresponding to 
+pfn=ARCH_PFN_OFFSET, which is OK. But I still have few doubts:
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 7f684d5..5aa8dfe 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -152,7 +152,7 @@ EXPORT_SYMBOL_GPL(vm_memory_committed);
-  */
- int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
- {
--	unsigned long free, allowed, reserve;
-+	long free, allowed, reserve;
- 
- 	VM_WARN_ONCE(percpu_counter_read(&vm_committed_as) <
- 			-(s64)vm_committed_as_batch * num_online_cpus(),
-@@ -220,7 +220,7 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
- 	 */
- 	if (mm) {
- 		reserve = sysctl_user_reserve_kbytes >> (PAGE_SHIFT - 10);
--		allowed -= min(mm->total_vm / 32, reserve);
-+		allowed -= min((long)mm->total_vm / 32, reserve);
- 	}
- 
- 	if (percpu_counter_read_positive(&vm_committed_as) < allowed)
--- 
-2.1.0
+1) The "if (page_to_pfn(mem_map) != pgdat->node_start_pfn)" sort of 
+silently assumes that mem_map is allocated at the beginning of the node, 
+i.e. at pgdat->node_start_pfn. And the only reason for this if-condition 
+to be true, is that we haven't corrected the page_to_pfn translation, 
+which uses mem_map. Is this assumption always OK to do? Shouldn't the 
+if-condition be instead about pgdat->node_start_pfn not being aligned?
+
+2) The #ifdef guard is about CONFIG_ARCH_POPULATES_NODE_MAP, which is 
+nowadays called CONFIG_HAVE_MEMBLOCK_NODE_MAP. But shouldn't it be 
+#ifdef FLATMEM instead? After all, we are correcting value of mem_map 
+based on page_to_pfn code variant used on FLATMEM. arm doesn't define
+CONFIG_ARCH_POPULATES_NODE_MAP but apparently needs this correction.
+
+3) The node_mem_map allocation code aligns the allocation to 
+MAX_ORDER_NR_PAGES, so the offset between the start of the allocated map 
+and where node_mem_map points to will be up to MAX_ORDER_NR_PAGES.
+However, here we subtract (in current kernel) (pgdat->node_start_pfn - 
+ARCH_PFN_OFFSET). That looks like another silent assumption, that 
+pgdat->node_start_pfn is always between ARCH_PFN_OFFSET and 
+ARCH_PFN_OFFSET + MAX_ORDER_NR_PAGES. If it were larger, the mem_map 
+correction would subtract too much and end up below what was allocated 
+for node_mem_map, no? The bug report behind this patch said that first 
+2MB of memory was reserved using "no-map flag using DT". Unless this 
+somehow translates to ARCH_PFN_OFFSET at build time, we would underflow 
+mem_map, right? Maybe I'm just overly paranoid here and of course 
+ARCH_PFN_OFFSET is determined properly on arm...
+
+If anyone can confirm my doubts or point me to what I'm missing, thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
