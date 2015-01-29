@@ -1,88 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f179.google.com (mail-ie0-f179.google.com [209.85.223.179])
-	by kanga.kvack.org (Postfix) with ESMTP id CFFFA6B0075
-	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 18:19:51 -0500 (EST)
-Received: by mail-ie0-f179.google.com with SMTP id x19so798518ier.10
-        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 15:19:51 -0800 (PST)
-Received: from mail-ie0-x230.google.com (mail-ie0-x230.google.com. [2607:f8b0:4001:c03::230])
-        by mx.google.com with ESMTPS id q82si271277ioi.92.2015.01.29.15.19.51
+Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EF036B007B
+	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 18:26:35 -0500 (EST)
+Received: by mail-lb0-f174.google.com with SMTP id f15so33711501lbj.5
+        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 15:26:34 -0800 (PST)
+Received: from mail-lb0-x231.google.com (mail-lb0-x231.google.com. [2a00:1450:4010:c04::231])
+        by mx.google.com with ESMTPS id e5si8809060lae.71.2015.01.29.15.26.32
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 29 Jan 2015 15:19:51 -0800 (PST)
-Received: by mail-ie0-f176.google.com with SMTP id at20so1108364iec.7
-        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 15:19:51 -0800 (PST)
+        Thu, 29 Jan 2015 15:26:33 -0800 (PST)
+Received: by mail-lb0-f177.google.com with SMTP id p9so33692914lbv.8
+        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 15:26:32 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20150129223158.GF26493@n2100.arm.linux.org.uk>
-References: <1422347154-15258-1-git-send-email-sumit.semwal@linaro.org>
-	<1422347154-15258-2-git-send-email-sumit.semwal@linaro.org>
-	<20150129143908.GA26493@n2100.arm.linux.org.uk>
-	<CAO_48GEOQ1pBwirgEWeVVXW-iOmaC=Xerr2VyYYz9t1QDXgVsw@mail.gmail.com>
-	<20150129154718.GB26493@n2100.arm.linux.org.uk>
-	<CAF6AEGtTmFg66TK_AFkQ-xp7Nd9Evk3nqe6xCBp7K=77OmXTxA@mail.gmail.com>
-	<20150129192610.GE26493@n2100.arm.linux.org.uk>
-	<CAF6AEGujk8UC4X6T=yhTrz1s+SyZUQ=m05h_WcxLDGZU6bydbw@mail.gmail.com>
-	<20150129223158.GF26493@n2100.arm.linux.org.uk>
-Date: Thu, 29 Jan 2015 18:19:51 -0500
-Message-ID: <CAF6AEGuF8j7CpPmKpPhqmc_Rc8qDDSMPSpPfvACsGShnaCRAxQ@mail.gmail.com>
-Subject: Re: [RFCv3 2/2] dma-buf: add helpers for sharing attacher constraints
- with dma-parms
-From: Rob Clark <robdclark@gmail.com>
+In-Reply-To: <20150129081643.GK25850@nuc-i3427.alporthouse.com>
+References: <CAPM=9tyyP_pKpWjc7LBZU7e6wAt26XGZsyhRh7N497B2+28rrQ@mail.gmail.com>
+	<20150128084852.GC28132@nuc-i3427.alporthouse.com>
+	<20150128143242.GF6542@dhcp22.suse.cz>
+	<20150129081643.GK25850@nuc-i3427.alporthouse.com>
+Date: Fri, 30 Jan 2015 09:26:32 +1000
+Message-ID: <CAPM=9tyy0QWT_TGNKQmXc25_wGd81SPA9JNnAv8_297B6fGvkg@mail.gmail.com>
+Subject: Re: [Intel-gfx] memcontrol.c BUG
+From: Dave Airlie <airlied@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: Sumit Semwal <sumit.semwal@linaro.org>, LKML <linux-kernel@vger.kernel.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, DRI mailing list <dri-devel@lists.freedesktop.org>, Linaro MM SIG Mailman List <linaro-mm-sig@lists.linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Tomasz Stanislawski <stanislawski.tomasz@googlemail.com>, Daniel Vetter <daniel@ffwll.ch>, Robin Murphy <robin.murphy@arm.com>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Chris Wilson <chris@chris-wilson.co.uk>, Michal Hocko <mhocko@suse.cz>, Dave Airlie <airlied@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, "intel-gfx@lists.freedesktop.org" <intel-gfx@lists.freedesktop.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, Jet Chen <jet.chen@intel.com>, Felipe Balbi <balbi@ti.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Thu, Jan 29, 2015 at 5:31 PM, Russell King - ARM Linux
-<linux@arm.linux.org.uk> wrote:
-> On Thu, Jan 29, 2015 at 05:18:33PM -0500, Rob Clark wrote:
->> On Thu, Jan 29, 2015 at 2:26 PM, Russell King - ARM Linux
->> <linux@arm.linux.org.uk> wrote:
->> > Now, if we're going to do the "more clever" thing you mention above,
->> > that rather negates the point of this two-part patch set, which is to
->> > provide the union of the DMA capabilities of all users.  A union in
->> > that case is no longer sane as we'd be tailoring the SG lists to each
->> > user.
+On 29 January 2015 at 18:16, Chris Wilson <chris@chris-wilson.co.uk> wrote:
+> On Wed, Jan 28, 2015 at 03:32:43PM +0100, Michal Hocko wrote:
+>> On Wed 28-01-15 08:48:52, Chris Wilson wrote:
+>> > On Wed, Jan 28, 2015 at 08:13:06AM +1000, Dave Airlie wrote:
+>> > > https://bugzilla.redhat.com/show_bug.cgi?id=1165369
+>> > >
+>> > > ov 18 09:23:22 elissa.gathman.org kernel: page:f5e36a40 count:2
+>> > > mapcount:0 mapping:  (null) index:0x0
+>> > > Nov 18 09:23:22 elissa.gathman.org kernel: page flags:
+>> > > 0x80090029(locked|uptodate|lru|swapcache|swapbacked)
+>> > > Nov 18 09:23:22 elissa.gathman.org kernel: page dumped because:
+>> > > VM_BUG_ON_PAGE(!lrucare && PageLRU(oldpage))
+>> > > Nov 18 09:23:23 elissa.gathman.org kernel: ------------[ cut here ]------------
+>> > > Nov 18 09:23:23 elissa.gathman.org kernel: kernel BUG at mm/memcontrol.c:6733!
 >>
->> It doesn't really negate.. a different sg list representing the same
->> physical memory cannot suddenly make the buffer physically contiguous
->> (from the perspective of memory)..
+>> I guess this matches the following bugon in your kernel:
+>>         VM_BUG_ON_PAGE(!lrucare && PageLRU(oldpage), oldpage);
 >>
->> (unless we are not on the same page here, so to speak)
+>> so the oldpage is on the LRU list already. I am completely unfamiliar
+>> with 965GM but is the page perhaps shared with somebody with a different
+>> gfp mask requirement (e.g. userspace accessing the memory via mmap)? So
+>> the other (racing) caller didn't need to move the page and put it on
+>> LRU.
 >
-> If we are really only interested in the "physically contiguous" vs
-> "scattered" differentiation, why can't this be just a simple flag?
+> Generally, yes. The shmemfs filp is exported through a vm_mmap() as well
+> as pinned into the GPU via shmem_read_mapping_page_gfp(). But I would
+> not expect that to be the case very often, if at all, on 965GM as the
+> two access paths are incoherent. Still it sounds promising, hopefully
+> Dave can put it into a fedora kernel for testing?
 
-I'd be fine with that..  I was trying to make it a bit less of a point
-solution, but maybe trying to be too generic is not worth it..
+http://kojipkgs.fedoraproject.org/scratch/airlied/task_8760024/
 
-There is apparently some hw which has iommu's but small # of tlb
-entries, and would prefer partially contiguous buffers.  But that
-isn't a hard constraint, and maybe shouldn't be solved w/
-max_segment_count.  And I'm not sure how common that is.
+done, also asked on the bug for testers.
 
-> I think I know where you're coming from on that distinction - most
-> GPUs can cope with their buffers being discontiguous in memory, but
-> scanout and capture hardware tends to need contiguous buffers.
->
-> My guess is that you're looking for some way that a GPU driver could
-> allocate a buffer, which can then be imported into the scanout
-> hardware - and when it is, the underlying backing store is converted
-> to a contiguous buffer.  Is that the usage scenario you're thinking
-> of?
-
-Pretty much..  and maybe a few slight permutations on that involving
-cameras / video codecs / etc.  But the really-really common case is
-gpu (with mmu/iommu) + display (without).  Just solving this problem
-would be a really good first step.
-
-BR,
--R
-
->
-> --
-> FTTC broadband for 0.8mile line: currently at 10.5Mbps down 400kbps up
-> according to speedtest.net.
+Dave.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
