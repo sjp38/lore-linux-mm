@@ -1,116 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f47.google.com (mail-oi0-f47.google.com [209.85.218.47])
-	by kanga.kvack.org (Postfix) with ESMTP id B01CB6B0038
-	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 11:55:32 -0500 (EST)
-Received: by mail-oi0-f47.google.com with SMTP id a141so28699669oig.6
-        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 08:55:32 -0800 (PST)
-Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com. [209.85.218.46])
-        by mx.google.com with ESMTPS id pu8si4094176obb.42.2015.01.29.08.55.30
+Received: from mail-ie0-f176.google.com (mail-ie0-f176.google.com [209.85.223.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 300E66B0038
+	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 12:32:47 -0500 (EST)
+Received: by mail-ie0-f176.google.com with SMTP id rd18so36261523iec.7
+        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 09:32:46 -0800 (PST)
+Received: from resqmta-po-08v.sys.comcast.net (resqmta-po-08v.sys.comcast.net. [2001:558:fe16:19:96:114:154:167])
+        by mx.google.com with ESMTPS id cd4si6585237icc.40.2015.01.29.09.32.45
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 29 Jan 2015 08:55:31 -0800 (PST)
-Received: by mail-oi0-f46.google.com with SMTP id a141so28736803oig.5
-        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 08:55:30 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20150129154718.GB26493@n2100.arm.linux.org.uk>
-References: <1422347154-15258-1-git-send-email-sumit.semwal@linaro.org>
- <1422347154-15258-2-git-send-email-sumit.semwal@linaro.org>
- <20150129143908.GA26493@n2100.arm.linux.org.uk> <CAO_48GEOQ1pBwirgEWeVVXW-iOmaC=Xerr2VyYYz9t1QDXgVsw@mail.gmail.com>
- <20150129154718.GB26493@n2100.arm.linux.org.uk>
-From: Sumit Semwal <sumit.semwal@linaro.org>
-Date: Thu, 29 Jan 2015 22:25:10 +0530
-Message-ID: <CAO_48GFh3spdGJ=0Mt8BJP0D5EYc2X=KSbmNfYmTMTzsCAMz4A@mail.gmail.com>
-Subject: Re: [RFCv3 2/2] dma-buf: add helpers for sharing attacher constraints
- with dma-parms
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Thu, 29 Jan 2015 09:32:45 -0800 (PST)
+Date: Thu, 29 Jan 2015 11:32:43 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v2] mm: vmscan: fix the page state calculation in
+ too_many_isolated
+In-Reply-To: <20150116154922.GB4650@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.11.1501291131510.22780@gentwo.org>
+References: <1421235419-30736-1-git-send-email-vinmenon@codeaurora.org> <20150114165036.GI4706@dhcp22.suse.cz> <54B7F7C4.2070105@codeaurora.org> <20150116154922.GB4650@dhcp22.suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: LKML <linux-kernel@vger.kernel.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, DRI mailing list <dri-devel@lists.freedesktop.org>, Linaro MM SIG Mailman List <linaro-mm-sig@lists.linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Tomasz Stanislawski <stanislawski.tomasz@googlemail.com>, Rob Clark <robdclark@gmail.com>, Daniel Vetter <daniel@ffwll.ch>, Robin Murphy <robin.murphy@arm.com>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Vinayak Menon <vinmenon@codeaurora.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, mgorman@suse.de, minchan@kernel.org
 
-On 29 January 2015 at 21:17, Russell King - ARM Linux
-<linux@arm.linux.org.uk> wrote:
-> On Thu, Jan 29, 2015 at 09:00:11PM +0530, Sumit Semwal wrote:
->> So, short answer is, it is left to the exporter to decide. The dma-buf
->> framework should not even attempt to decide or enforce any of the
->> above.
->>
->> At each dma_buf_attach(), there's a callback to the exporter, where
->> the exporter can decide, if it intends to handle these kind of cases,
->> on the best way forward.
->>
->> The exporter might, for example, decide to migrate backing storage,
->
-> That's a decision which the exporter can not take.  Think about it...
->
-> If subsystem Y has mapped the buffer, it could be accessing the buffer's
-> backing storage at the same time that subsystem Z tries to attach to the
-> buffer.
->
-Well, first up, of course the 'migration of backing storage' is an
-orthogonal problem to what this patchset attempts to do - in this, I
-am only try to make the relevant information available to the
-exporter.
+On Fri, 16 Jan 2015, Michal Hocko wrote:
 
-With that out of the way, some thoughts on what you mentioned:
+> __round_jiffies_relative can easily make timeout 2HZ from 1HZ. Now we
+> have vmstat_shepherd which waits to be queued and then wait to run. When
+> it runs finally it only queues per-cpu vmstat_work which can also end
+> up being 2HZ for some CPUs. So we can indeed have 4 seconds spent just
+> for queuing. Not even mentioning work item latencies. Especially when
+> workers are overloaded e.g. by fs work items and no additional workers
+> cannot be created e.g. due to memory pressure so they are processed only
+> by the workqueue rescuer. And latencies would grow a lot.
 
-So, IF the exporter needs to support migration of backing storage,
-even when subsystem Y has mapped the buffer, the exporter knows this
-(because of the map_dma_buf() dma_buf_op) - and the attach() also is
-notified to / handled by the exporter. With this information, it could
-either:
-a) not let the subsystem Z attach (the 'simpler' approach), or
-b) hold enough state-information about the Z's attach request
-internally, then migrate the pages on the unmap_attachment() callback
-from the subsystem Y?
+Here is a small fix to ensure that the 4 seconds interval does not happen:
 
-(The exact details for this will need to be thought-of by exporters
-actually trying to do migration of pages, or delayed allocation, or
-such, though)
 
-> Once the buffer has been exported to another user, the exporter has
-> effectively lost control over mediating accesses to that buffer.
->
-> All that it can do with the way the dma-buf API is today is to allocate
-> a _different_ scatter list pointing at the same backing storage which
-> satisfies the segment size and number of segments, etc.
->
-> There's also another issue which you haven't addressed.  What if several
-> attachments result in lowering max_segment_size and max_segment_count
-> such that:
->
->         max_segment_size * max_segment_count < dmabuf->size
->
-> but individually, the attachments allow dmabuf->size to be represented
-> as a scatterlist?
->
-> If an exporter were to take notice of the max_segment_size and
-> max_segment_count, the resulting buffer is basically unrepresentable
-> as a scatterlist.
 
-Thanks for pointing that out; I guess we'd have to disallow the
-attachment which would make that happen. I can add this as another
-check in calc_constraints().
 
->
->> > Please consider the possible sequences of use (such as the scenario
->> > above) when creating or augmenting an API.
->> >
->>
->> I tried to think of the scenarios I could think of, but If you still
->> feel this approach doesn't help with your concerns, I'll graciously
->> accept advice to improve it.
->
-> See the new one above :)
->
-Another thanks for making me rack my puny brain on these scenarios! :)
-[though I strongly suspect I might not have done enough!]
-> --
-> FTTC broadband for 0.8mile line: currently at 10.5Mbps down 400kbps up
-> according to speedtest.net.
+Subject: vmstat: Reduce time interval to stat update on idle cpu
 
-BR,
-~Sumit.
+It was noted that the vm stat shepherd runs every 2 seconds and
+that the vmstat update is then scheduled 2 seconds in the future.
+
+This yields an interval of double the time interval which is not
+desired.
+
+Change the shepherd so that it does not delay the vmstat update
+on the other cpu. We stil have to use schedule_delayed_work since
+we are using a delayed_work_struct but we can set the delay to 0.
+
+Signed-off-by: Christoph Lameter <cl@linux.com>
+
+Index: linux/mm/vmstat.c
+===================================================================
+--- linux.orig/mm/vmstat.c
++++ linux/mm/vmstat.c
+@@ -1435,8 +1435,8 @@ static void vmstat_shepherd(struct work_
+ 		if (need_update(cpu) &&
+ 			cpumask_test_and_clear_cpu(cpu, cpu_stat_off))
+
+-			schedule_delayed_work_on(cpu, &per_cpu(vmstat_work, cpu),
+-				__round_jiffies_relative(sysctl_stat_interval, cpu));
++			schedule_delayed_work_on(cpu,
++				&per_cpu(vmstat_work, cpu), 0);
+
+ 	put_online_cpus();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
