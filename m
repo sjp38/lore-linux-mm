@@ -1,66 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 32E18900019
-	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 10:13:01 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id ey11so40158631pad.7
-        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 07:13:00 -0800 (PST)
-Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
-        by mx.google.com with ESMTPS id hn2si10282623pdb.76.2015.01.29.07.12.49
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 40E4E6B0038
+	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 10:13:03 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id lj1so40088752pab.5
+        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 07:13:03 -0800 (PST)
+Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
+        by mx.google.com with ESMTPS id ju8si10337244pbc.5.2015.01.29.07.12.50
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Thu, 29 Jan 2015 07:12:50 -0800 (PST)
+        Thu, 29 Jan 2015 07:12:51 -0800 (PST)
 Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout3.w1.samsung.com
+ by mailout1.w1.samsung.com
  (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NIY00K1U2G16M10@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 29 Jan 2015 15:16:49 +0000 (GMT)
+ 17 2011)) with ESMTP id <0NIY00K522G7L610@mailout1.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 29 Jan 2015 15:16:55 +0000 (GMT)
 From: Andrey Ryabinin <a.ryabinin@samsung.com>
-Subject: [PATCH v10 15/17] kernel: add support for .init_array.* constructors
-Date: Thu, 29 Jan 2015 18:11:59 +0300
-Message-id: <1422544321-24232-16-git-send-email-a.ryabinin@samsung.com>
+Subject: [PATCH v10 16/17] module: fix types of device tables aliases
+Date: Thu, 29 Jan 2015 18:12:00 +0300
+Message-id: <1422544321-24232-17-git-send-email-a.ryabinin@samsung.com>
 In-reply-to: <1422544321-24232-1-git-send-email-a.ryabinin@samsung.com>
 References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
  <1422544321-24232-1-git-send-email-a.ryabinin@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, x86@kernel.org, linux-mm@kvack.org, Arnd Bergmann <arnd@arndb.de>, "open list:GENERIC INCLUDE/A..." <linux-arch@vger.kernel.org>
+Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, x86@kernel.org, linux-mm@kvack.org, Rusty Russell <rusty@rustcorp.com.au>
 
-KASan uses constructors for initializing redzones for global
-variables. Actually KASan doesn't need priorities for constructors,
-so they were removed from GCC 5.0, but GCC 4.9.2 still generates
-constructors with priorities.
+MODULE_DEVICE_TABLE() macro used to create aliases to device tables.
+Normally alias should have the same type as aliased symbol.
+
+Device tables are arrays, so they have 'struct type##_device_id[x]'
+types. Alias created by MODULE_DEVICE_TABLE() will have non-array type -
+	'struct type##_device_id'.
+
+This inconsistency confuses compiler, it could make a wrong
+assumption about variable's size which leads KASan to
+produce a false positive report about out of bounds access.
 
 Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
 ---
- include/asm-generic/vmlinux.lds.h | 1 +
- scripts/module-common.lds         | 3 +++
- 2 files changed, 4 insertions(+)
+ include/linux/module.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/include/asm-generic/vmlinux.lds.h b/include/asm-generic/vmlinux.lds.h
-index bee5d68..ac78910 100644
---- a/include/asm-generic/vmlinux.lds.h
-+++ b/include/asm-generic/vmlinux.lds.h
-@@ -478,6 +478,7 @@
- #define KERNEL_CTORS()	. = ALIGN(8);			   \
- 			VMLINUX_SYMBOL(__ctors_start) = .; \
- 			*(.ctors)			   \
-+			*(SORT(.init_array.*))		   \
- 			*(.init_array)			   \
- 			VMLINUX_SYMBOL(__ctors_end) = .;
- #else
-diff --git a/scripts/module-common.lds b/scripts/module-common.lds
-index 0865b3e..01c5849 100644
---- a/scripts/module-common.lds
-+++ b/scripts/module-common.lds
-@@ -16,4 +16,7 @@ SECTIONS {
- 	__kcrctab_unused	: { *(SORT(___kcrctab_unused+*)) }
- 	__kcrctab_unused_gpl	: { *(SORT(___kcrctab_unused_gpl+*)) }
- 	__kcrctab_gpl_future	: { *(SORT(___kcrctab_gpl_future+*)) }
-+
-+	. = ALIGN(8);
-+	.init_array		: { *(SORT(.init_array.*)) *(.init_array) }
- }
+diff --git a/include/linux/module.h b/include/linux/module.h
+index b653d7c..7e3ccd0 100644
+--- a/include/linux/module.h
++++ b/include/linux/module.h
+@@ -135,7 +135,7 @@ void trim_init_extable(struct module *m);
+ #ifdef MODULE
+ /* Creates an alias so file2alias.c can find device table. */
+ #define MODULE_DEVICE_TABLE(type, name)					\
+-  extern const struct type##_device_id __mod_##type##__##name##_device_table \
++extern typeof(name) __mod_##type##__##name##_device_table \
+   __attribute__ ((unused, alias(__stringify(name))))
+ #else  /* !MODULE */
+ #define MODULE_DEVICE_TABLE(type, name)
 -- 
 2.2.2
 
