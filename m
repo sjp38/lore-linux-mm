@@ -1,139 +1,275 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 48B066B0038
-	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 09:39:34 -0500 (EST)
-Received: by mail-wg0-f47.google.com with SMTP id n12so23346437wgh.6
-        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 06:39:33 -0800 (PST)
-Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id ht7si3924334wib.3.2015.01.29.06.39.31
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 12E566B0038
+	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 09:59:28 -0500 (EST)
+Received: by mail-wi0-f181.google.com with SMTP id fb4so25658783wid.2
+        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 06:59:27 -0800 (PST)
+Received: from mail-wi0-x229.google.com (mail-wi0-x229.google.com. [2a00:1450:400c:c05::229])
+        by mx.google.com with ESMTPS id p10si15210548wjx.72.2015.01.29.06.59.25
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 29 Jan 2015 06:39:32 -0800 (PST)
-Date: Thu, 29 Jan 2015 14:39:08 +0000
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [RFCv3 2/2] dma-buf: add helpers for sharing attacher
- constraints with dma-parms
-Message-ID: <20150129143908.GA26493@n2100.arm.linux.org.uk>
-References: <1422347154-15258-1-git-send-email-sumit.semwal@linaro.org>
- <1422347154-15258-2-git-send-email-sumit.semwal@linaro.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1422347154-15258-2-git-send-email-sumit.semwal@linaro.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 29 Jan 2015 06:59:26 -0800 (PST)
+Received: by mail-wi0-f169.google.com with SMTP id h11so11154336wiw.0
+        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 06:59:25 -0800 (PST)
+From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Subject: [PATCH v4] mm: incorporate read-only pages into transparent huge pages
+Date: Thu, 29 Jan 2015 16:59:07 +0200
+Message-Id: <1422543547-12591-1-git-send-email-ebru.akagunduz@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sumit Semwal <sumit.semwal@linaro.org>
-Cc: linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, stanislawski.tomasz@googlemail.com, robdclark@gmail.com, daniel@ffwll.ch, robin.murphy@arm.com, m.szyprowski@samsung.com
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, kirill@shutemov.name, mhocko@suse.cz, mgorman@suse.de, rientjes@google.com, sasha.levin@oracle.com, hughd@google.com, hannes@cmpxchg.org, vbabka@suse.cz, linux-kernel@vger.kernel.org, riel@redhat.com, aarcange@redhat.com, zhangyanfei.linux@aliyun.com, Ebru Akagunduz <ebru.akagunduz@gmail.com>
 
-On Tue, Jan 27, 2015 at 01:55:54PM +0530, Sumit Semwal wrote:
-> +/*
-> + * recalc_constraints - recalculates constraints for all attached devices;
-> + *  useful for detach() recalculation, and for dma_buf_recalc_constraints()
-> + *  helper.
-> + *  Returns recalculated constraints in recalc_cons, or error in the unlikely
-> + *  case when constraints of attached devices might have changed.
-> + */
+This patch aims to improve THP collapse rates, by allowing
+THP collapse in the presence of read-only ptes, like those
+left in place by do_swap_page after a read fault.
 
-Please see kerneldoc documentation for the proper format of these comments.
+Currently THP can collapse 4kB pages into a THP when
+there are up to khugepaged_max_ptes_none pte_none ptes
+in a 2MB range. This patch applies the same limit for
+read-only ptes.
 
-> +static int recalc_constraints(struct dma_buf *dmabuf,
-> +			      struct device_dma_parameters *recalc_cons)
-> +{
-> +	struct device_dma_parameters calc_cons;
-> +	struct dma_buf_attachment *attach;
-> +	int ret = 0;
-> +
-> +	init_constraints(&calc_cons);
-> +
-> +	list_for_each_entry(attach, &dmabuf->attachments, node) {
-> +		ret = calc_constraints(attach->dev, &calc_cons);
-> +		if (ret)
-> +			return ret;
-> +	}
-> +	*recalc_cons = calc_cons;
-> +	return 0;
-> +}
-> +
->  /**
->   * dma_buf_export_named - Creates a new dma_buf, and associates an anon file
->   * with this buffer, so it can be exported.
-> @@ -313,6 +373,9 @@ struct dma_buf *dma_buf_export_named(void *priv, const struct dma_buf_ops *ops,
->  	dmabuf->ops = ops;
->  	dmabuf->size = size;
->  	dmabuf->exp_name = exp_name;
-> +
-> +	init_constraints(&dmabuf->constraints);
-> +
->  	init_waitqueue_head(&dmabuf->poll);
->  	dmabuf->cb_excl.poll = dmabuf->cb_shared.poll = &dmabuf->poll;
->  	dmabuf->cb_excl.active = dmabuf->cb_shared.active = 0;
-> @@ -422,7 +485,7 @@ struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
->  					  struct device *dev)
->  {
->  	struct dma_buf_attachment *attach;
-> -	int ret;
-> +	int ret = 0;
->  
->  	if (WARN_ON(!dmabuf || !dev))
->  		return ERR_PTR(-EINVAL);
-> @@ -436,6 +499,9 @@ struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
->  
->  	mutex_lock(&dmabuf->lock);
->  
-> +	if (calc_constraints(dev, &dmabuf->constraints))
-> +		goto err_constraints;
-> +
->  	if (dmabuf->ops->attach) {
->  		ret = dmabuf->ops->attach(dmabuf, dev, attach);
->  		if (ret)
-> @@ -448,6 +514,7 @@ struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
->  
->  err_attach:
->  	kfree(attach);
-> +err_constraints:
->  	mutex_unlock(&dmabuf->lock);
->  	return ERR_PTR(ret);
->  }
-> @@ -470,6 +537,8 @@ void dma_buf_detach(struct dma_buf *dmabuf, struct dma_buf_attachment *attach)
->  	if (dmabuf->ops->detach)
->  		dmabuf->ops->detach(dmabuf, attach);
->  
-> +	recalc_constraints(dmabuf, &dmabuf->constraints);
-> +
+The patch was tested with a test program that allocates
+800MB of memory, writes to it, and then sleeps. I force
+the system to swap out all but 190MB of the program by
+touching other memory. Afterwards, the test program does
+a mix of reads and writes to its memory, and the memory
+gets swapped back in.
 
-To me, this whole thing seems horribly racy.
+Without the patch, only the memory that did not get
+swapped out remained in THPs, which corresponds to 24% of
+the memory of the program. The percentage did not increase
+over time.
 
-What happens if subsystem X creates a dmabuf, which is passed to
-userspace. It's then passed to subsystem Y, which starts making use
-of it, calling dma_buf_map_attachment() on it.
+With this patch, after 5 minutes of waiting khugepaged had
+collapsed 60% of the program's memory back into THPs.
 
-The same buffer is also passed (via unix domain sockets) to another
-program, which then passes it independently into subsystem Z, and
-subsystem Z has more restrictive DMA constraints.
+Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Acked-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+---
+Changes in v2:
+ - Remove extra code indent (Vlastimil Babka)
+ - Add comment line for check condition of page_count() (Vlastimil Babka)
+ - Add fast path optimistic check to
+   __collapse_huge_page_isolate() (Andrea Arcangeli)
+ - Move check condition of page_count() below to trylock_page() (Andrea Arcangeli)
 
-What happens at this point?
+Changes in v3:
+ - Add a at-least-one-writable-pte check (Zhang Yanfei)
+ - Debug page count (Vlastimil Babka, Andrea Arcangeli)
+ - Increase read-only pte counter if pte is none (Andrea Arcangeli)
 
-Subsystems such as DRM cache the scatter table, and return it for
-subsequent attach calls, so DRM drivers using the default
-drm_gem_map_dma_buf() implementation would not see the restrictions
-placed upon the dmabuf.  Moreover, the returned scatterlist would not
-be modified for those restrictions either.
+Changes in v4:
+ - Remove read-only counter (Andrea Arcangeli)
+ - Remove debug page count  (Andrea Arcangeli)
+ - Change type of writable as bool (Andrea Arcangeli)
+ - Change type of referenced as bool (Vlastimil Babka)
+ - Change comment line (Vlastimil Babka, Zhang Yanfei)
 
-What would other subsystems do?
+v3 of this patch was added in mm tree. I send v4,
+if you accept to replace v3 with v4. If not, I can
+send this changes with a new patch.
 
-This needs more thought before it's merged.
+I've written down test results:
+With the patch:
+After swapped out:
+cat /proc/pid/smaps:
+Anonymous:	85064 kB
+AnonHugePages:	83968 kB
+Swap:		714940 kB
+Fraction:	98,71
 
-For example, in the above situation, should we deny the ability to
-create a new attachment when a dmabuf has already been mapped by an
-existing attachment?  Should we deny it only when the new attachment
-has more restrictive DMA constraints?
+cat /proc/meminfo:
+AnonPages:	1710332 kB
+AnonHugePages:	1632256 kB
+Fraction:	95,43
 
-Please consider the possible sequences of use (such as the scenario
-above) when creating or augmenting an API.
+After swapped in:
+In a few seconds:
+cat /proc/pid/smaps:
+Anonymous:	800004 kB
+AnonHugePages:	116736 kB
+Swap:		0 kB
+Fraction:	14,59
 
+cat /proc/meminfo:
+AnonPages:	2426832 kB
+AnonHugePages:	1681408 kB
+Fraction:	69,28
+
+In 5 minutes:
+cat /proc/pid/smaps:
+Anonymous:	800004 kB
+AnonHugePages:	487424 kB
+Swap:		0 kB
+Fraction:	60,92
+
+cat /proc/meminfo:
+AnonPages:	2427852 kB
+AnonHugePages:	2035712 kB
+Fraction:	83,84
+
+Without the patch:
+After swapped out:
+cat /proc/pid/smaps:
+Anonymous:      190660 kB
+AnonHugePages:  190464 kB
+Swap:           609344 kB
+Fraction:       99,89
+
+cat /proc/meminfo:
+AnonPages:      1740456 kB
+AnonHugePages:  1667072 kB
+Fraction:       95,78
+
+After swapped in:
+cat /proc/pid/smaps:
+Anonymous:      800004 kB
+AnonHugePages:  190464 kB
+Swap:           0 kB
+Fraction:       23,80
+
+cat /proc/meminfo:
+AnonPages:      2350032 kB
+AnonHugePages:  1667072 kB
+Fraction:       70,93
+
+I waited 10 minutes the fractions
+did not change without the patch.
+
+ mm/huge_memory.c | 55 ++++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 42 insertions(+), 13 deletions(-)
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 817a875..45b5c81 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2148,7 +2148,8 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+ {
+ 	struct page *page;
+ 	pte_t *_pte;
+-	int referenced = 0, none = 0;
++	int none = 0;
++	bool referenced = false, writable = false;
+ 	for (_pte = pte; _pte < pte+HPAGE_PMD_NR;
+ 	     _pte++, address += PAGE_SIZE) {
+ 		pte_t pteval = *_pte;
+@@ -2158,7 +2159,7 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+ 			else
+ 				goto out;
+ 		}
+-		if (!pte_present(pteval) || !pte_write(pteval))
++		if (!pte_present(pteval))
+ 			goto out;
+ 		page = vm_normal_page(vma, address, pteval);
+ 		if (unlikely(!page))
+@@ -2168,9 +2169,6 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+ 		VM_BUG_ON_PAGE(!PageAnon(page), page);
+ 		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
+ 
+-		/* cannot use mapcount: can't collapse if there's a gup pin */
+-		if (page_count(page) != 1)
+-			goto out;
+ 		/*
+ 		 * We can do it before isolate_lru_page because the
+ 		 * page can't be freed from under us. NOTE: PG_lock
+@@ -2179,6 +2177,29 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+ 		 */
+ 		if (!trylock_page(page))
+ 			goto out;
++
++		/*
++		 * cannot use mapcount: can't collapse if there's a gup pin.
++		 * The page must only be referenced by the scanned process
++		 * and page swap cache.
++		 */
++		if (page_count(page) != 1 + !!PageSwapCache(page)) {
++			unlock_page(page);
++			goto out;
++		}
++		if (pte_write(pteval)) {
++			writable = true;
++		} else {
++			if (PageSwapCache(page) && !reuse_swap_page(page)) {
++				unlock_page(page);
++				goto out;
++			}
++			/*
++			 * Page is not in the swap cache. It can be collapsed
++			 * into a THP.
++			 */
++		}
++
+ 		/*
+ 		 * Isolate the page to avoid collapsing an hugepage
+ 		 * currently in use by the VM.
+@@ -2195,9 +2216,9 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+ 		/* If there is no mapped pte young don't collapse the page */
+ 		if (pte_young(pteval) || PageReferenced(page) ||
+ 		    mmu_notifier_test_young(vma->vm_mm, address))
+-			referenced = 1;
++			referenced = true;
+ 	}
+-	if (likely(referenced))
++	if (likely(referenced && writable))
+ 		return 1;
+ out:
+ 	release_pte_pages(pte, _pte);
+@@ -2550,11 +2571,12 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+ {
+ 	pmd_t *pmd;
+ 	pte_t *pte, *_pte;
+-	int ret = 0, referenced = 0, none = 0;
++	int ret = 0, none = 0;
+ 	struct page *page;
+ 	unsigned long _address;
+ 	spinlock_t *ptl;
+ 	int node = NUMA_NO_NODE;
++	bool writable = false, referenced = false;
+ 
+ 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+ 
+@@ -2573,8 +2595,11 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+ 			else
+ 				goto out_unmap;
+ 		}
+-		if (!pte_present(pteval) || !pte_write(pteval))
++		if (!pte_present(pteval))
+ 			goto out_unmap;
++		if (pte_write(pteval))
++			writable = true;
++
+ 		page = vm_normal_page(vma, _address, pteval);
+ 		if (unlikely(!page))
+ 			goto out_unmap;
+@@ -2591,14 +2616,18 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+ 		VM_BUG_ON_PAGE(PageCompound(page), page);
+ 		if (!PageLRU(page) || PageLocked(page) || !PageAnon(page))
+ 			goto out_unmap;
+-		/* cannot use mapcount: can't collapse if there's a gup pin */
+-		if (page_count(page) != 1)
++		/*
++		 * cannot use mapcount: can't collapse if there's a gup pin.
++		 * The page must only be referenced by the scanned process
++		 * and page swap cache.
++		 */
++		if (page_count(page) != 1 + !!PageSwapCache(page))
+ 			goto out_unmap;
+ 		if (pte_young(pteval) || PageReferenced(page) ||
+ 		    mmu_notifier_test_young(vma->vm_mm, address))
+-			referenced = 1;
++			referenced = true;
+ 	}
+-	if (referenced)
++	if (referenced && writable)
+ 		ret = 1;
+ out_unmap:
+ 	pte_unmap_unlock(pte, ptl);
 -- 
-FTTC broadband for 0.8mile line: currently at 10.5Mbps down 400kbps up
-according to speedtest.net.
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
