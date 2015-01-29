@@ -1,81 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C0C86B0038
-	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 14:26:30 -0500 (EST)
-Received: by mail-wi0-f176.google.com with SMTP id bs8so21857317wib.3
-        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 11:26:29 -0800 (PST)
-Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id hz2si16397414wjb.173.2015.01.29.11.26.27
+Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 52C926B0038
+	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 14:57:20 -0500 (EST)
+Received: by mail-ie0-f169.google.com with SMTP id rl12so38444375iec.0
+        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 11:57:19 -0800 (PST)
+Received: from mail-ig0-x232.google.com (mail-ig0-x232.google.com. [2607:f8b0:4001:c05::232])
+        by mx.google.com with ESMTPS id m9si2038709igx.18.2015.01.29.11.57.19
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 29 Jan 2015 11:26:28 -0800 (PST)
-Date: Thu, 29 Jan 2015 19:26:11 +0000
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [RFCv3 2/2] dma-buf: add helpers for sharing attacher
- constraints with dma-parms
-Message-ID: <20150129192610.GE26493@n2100.arm.linux.org.uk>
-References: <1422347154-15258-1-git-send-email-sumit.semwal@linaro.org>
- <1422347154-15258-2-git-send-email-sumit.semwal@linaro.org>
- <20150129143908.GA26493@n2100.arm.linux.org.uk>
- <CAO_48GEOQ1pBwirgEWeVVXW-iOmaC=Xerr2VyYYz9t1QDXgVsw@mail.gmail.com>
- <20150129154718.GB26493@n2100.arm.linux.org.uk>
- <CAF6AEGtTmFg66TK_AFkQ-xp7Nd9Evk3nqe6xCBp7K=77OmXTxA@mail.gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 29 Jan 2015 11:57:19 -0800 (PST)
+Received: by mail-ig0-f178.google.com with SMTP id hl2so14064058igb.5
+        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 11:57:19 -0800 (PST)
+Date: Thu, 29 Jan 2015 11:57:35 -0800
+From: Andrew Shewmaker <agshew@gmail.com>
+Subject: Re: [PATCH] mm: fix arithmetic overflow in __vm_enough_memory()
+Message-ID: <20150129195735.GA9331@scruffy>
+References: <1422536763-31325-1-git-send-email-klamm@yandex-team.ru>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAF6AEGtTmFg66TK_AFkQ-xp7Nd9Evk3nqe6xCBp7K=77OmXTxA@mail.gmail.com>
+In-Reply-To: <1422536763-31325-1-git-send-email-klamm@yandex-team.ru>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rob Clark <robdclark@gmail.com>
-Cc: Sumit Semwal <sumit.semwal@linaro.org>, LKML <linux-kernel@vger.kernel.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, DRI mailing list <dri-devel@lists.freedesktop.org>, Linaro MM SIG Mailman List <linaro-mm-sig@lists.linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Tomasz Stanislawski <stanislawski.tomasz@googlemail.com>, Daniel Vetter <daniel@ffwll.ch>, Robin Murphy <robin.murphy@arm.com>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Roman Gushchin <klamm@yandex-team.ru>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, stable@vger.kernel.org
 
-On Thu, Jan 29, 2015 at 01:52:09PM -0500, Rob Clark wrote:
-> Quite possibly for some of these edge some of cases, some of the
-> dma-buf exporters are going to need to get more clever (ie. hand off
-> different scatterlists to different clients).  Although I think by far
-> the two common cases will be "I can support anything via an iommu/mmu"
-> and "I need phys contig".
+On Thu, Jan 29, 2015 at 04:06:03PM +0300, Roman Gushchin wrote:
+> I noticed, that "allowed" can easily overflow by falling below 0,
+> because (total_vm / 32) can be larger than "allowed". The problem
+> occurs in OVERCOMMIT_NONE mode.
 > 
-> But that isn't an issue w/ dma-buf itself, so much as it is an issue
-> w/ drivers.  I guess there would be more interest in fixing up drivers
-> when actual hw comes along that needs it..
+> In this case, a huge allocation can success and overcommit the system
+> (despite OVERCOMMIT_NONE mode). All subsequent allocations will fall
+> (system-wide), so system become unusable.
+> 
+> The problem was masked out by commit c9b1d0981fcc
+> ("mm: limit growth of 3% hardcoded other user reserve"),
+> but it's easy to reproduce it on older kernels:
+> 1) set overcommit_memory sysctl to 2
+> 2) mmap() large file multiple times (with VM_SHARED flag)
+> 3) try to malloc() large amount of memory
+> 
+> It also can be reproduced on newer kernels, but miss-configured
+> sysctl_user_reserve_kbytes is required.
+> 
+> Fix this issue by switching to signed arithmetic here.
+> 
+> Signed-off-by: Roman Gushchin <klamm@yandex-team.ru>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Andrew Shewmaker <agshew@gmail.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+> Cc: stable@vger.kernel.org
+> ---
+>  mm/mmap.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 7f684d5..5aa8dfe 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -152,7 +152,7 @@ EXPORT_SYMBOL_GPL(vm_memory_committed);
+>   */
+>  int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
+>  {
+> -	unsigned long free, allowed, reserve;
+> +	long free, allowed, reserve;
+>  
+>  	VM_WARN_ONCE(percpu_counter_read(&vm_committed_as) <
+>  			-(s64)vm_committed_as_batch * num_online_cpus(),
+> @@ -220,7 +220,7 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
+>  	 */
+>  	if (mm) {
+>  		reserve = sysctl_user_reserve_kbytes >> (PAGE_SHIFT - 10);
+> -		allowed -= min(mm->total_vm / 32, reserve);
+> +		allowed -= min((long)mm->total_vm / 32, reserve);
+>  	}
+>  
+>  	if (percpu_counter_read_positive(&vm_committed_as) < allowed)
+> -- 
+> 2.1.0
+> 
+Makes sense to me. Please fix mm/nommu.c also.
 
-However, validating the attachments is the business of dma-buf.  This
-is actual infrastructure, which should ensure some kind of sanity such
-as the issues I've raised.
+If a caller passes in a big negative value for pages,
+then vm_acct_memory() would decrement vm_committed_as, possibly 
+causing percpu_counter_read_positive(&vm_committed_as) and
+__vm_enough_memory to return 0. Maybe that's okay? Callers
+won't be passing in a negative pages anyway. Is there a reason
+to let them, though?
 
-The whole "we can push it onto our users" is really on - what that
-results in is the users ignoring most of the requirements and just doing
-their own thing, which ultimately ends up with the whole thing turning
-into a disgusting mess - one which becomes very difficult to fix later.
-
-Now, if we're going to do the "more clever" thing you mention above,
-that rather negates the point of this two-part patch set, which is to
-provide the union of the DMA capabilities of all users.  A union in
-that case is no longer sane as we'd be tailoring the SG lists to each
-user.
-
-If we aren't going to do the "more clever" thing, then yes, we need this
-code to calculate that union, but we _also_ need it to do sanity checking
-right from the start, and refuse conditions which ultimately break the
-ability to make use of that union - in other words, when the union of
-the DMA capabilities means that the dmabuf can't be represented.
-
-Unless we do that, we'll just end up with random drivers interpreting
-what they want from the DMA capabilities, and we'll have some drivers
-exporting (eg) scatterlists which satisfy the maximum byte size of an
-element, but ignoring the maximum number of entries or vice versa, and
-that'll most probably hide the case of "too small a union".
-
-It really doesn't make sense to do both either: that route is even more
-madness, because we'll end up with two classes of drivers - those which
-use the union approach, and those which don't.
-
-The KISS principle applies here.
-
--- 
-FTTC broadband for 0.8mile line: currently at 10.5Mbps down 400kbps up
-according to speedtest.net.
+-Andrew
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
