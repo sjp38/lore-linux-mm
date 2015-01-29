@@ -1,69 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C0446B0038
-	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 20:15:33 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id fb1so32095441pad.10
-        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 17:15:33 -0800 (PST)
-Received: from icp-osb-irony-out3.external.iinet.net.au (hosted.icp-osb-irony-out3.external.iinet.net.au. [203.59.1.153])
-        by mx.google.com with ESMTP id ue4si7901359pbc.69.2015.01.28.17.15.30
-        for <linux-mm@kvack.org>;
-        Wed, 28 Jan 2015 17:15:31 -0800 (PST)
-Message-ID: <54C989B6.4080006@uclinux.org>
-Date: Thu, 29 Jan 2015 11:15:34 +1000
-From: Greg Ungerer <gerg@uclinux.org>
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 802B26B0038
+	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 20:21:50 -0500 (EST)
+Received: by mail-qg0-f42.google.com with SMTP id q107so22201408qgd.1
+        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 17:21:50 -0800 (PST)
+Received: from mail-qg0-x230.google.com (mail-qg0-x230.google.com. [2607:f8b0:400d:c04::230])
+        by mx.google.com with ESMTPS id jz5si7751842qcb.10.2015.01.28.17.21.49
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 28 Jan 2015 17:21:49 -0800 (PST)
+Received: by mail-qg0-f48.google.com with SMTP id z60so22136083qgd.7
+        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 17:21:49 -0800 (PST)
+Date: Wed, 28 Jan 2015 20:21:46 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCHSET RFC 0/6] memcg: inode-based dirty-set controller
+Message-ID: <20150129012146.GA20617@htj.dyndns.org>
+References: <20150115180242.10450.92.stgit@buzz>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: export "high_memory" symbol on !MMU
-References: <2715923.qFZi90ffep@wuerfel>
-In-Reply-To: <2715923.qFZi90ffep@wuerfel>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150115180242.10450.92.stgit@buzz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kirill.shutemov@linux.intel.com, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
+To: Konstantin Khebnikov <khlebnikov@yandex-team.ru>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Roman Gushchin <klamm@yandex-team.ru>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, koct9i@gmail.com
 
-On 29/01/15 00:43, Arnd Bergmann wrote:
->>From f391eb37fafc8a22d7fd9574b8d220f0d90a91d0 Mon Sep 17 00:00:00 2001
-> From: Arnd Bergmann <arnd@arndb.de>
-> Date: Mon, 25 Aug 2014 16:24:41 +0200
-> Subject: [PATCH] mm: export "high_memory" symbol on !MMU
-> 
-> The symbol 'high_memory' is provided on both MMU- and NOMMU-kernels,
-> but only one of them is exported, which leads to module build errors
-> in drivers that work fine built-in:
-> 
-> ERROR: "high_memory" [drivers/net/virtio_net.ko] undefined!
-> ERROR: "high_memory" [drivers/net/ppp/ppp_mppe.ko] undefined!
-> ERROR: "high_memory" [drivers/mtd/nand/nand.ko] undefined!
-> ERROR: "high_memory" [crypto/tcrypt.ko] undefined!
-> ERROR: "high_memory" [crypto/cts.ko] undefined!
-> 
-> This exports the symbol to get these to work on NOMMU as well.
-> 
-> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+Hello, Konstantin.
 
-Here is an ack if you want one:
+Sorry about the delay.
 
-Acked-by: Greg Ungerer <gerg@uclinux.org>
-
-Regards
-Greg
-
-
-> diff --git a/mm/nommu.c b/mm/nommu.c
-> index e9228cbe46de..7bdeb281ad0e 100644
-> --- a/mm/nommu.c
-> +++ b/mm/nommu.c
-> @@ -59,6 +59,7 @@
->  #endif
->  
->  void *high_memory;
-> +EXPORT_SYMBOL(high_memory);
->  struct page *mem_map;
->  unsigned long max_mapnr;
->  unsigned long highest_memmap_pfn;
+On Thu, Jan 15, 2015 at 09:49:10PM +0300, Konstantin Khebnikov wrote:
+> This is ressurection of my old RFC patch for dirty-set accounting cgroup [1]
+> Now it's merged into memory cgroup and got bandwidth controller as a bonus.
 > 
-> 
+> That shows alternative solution: less accurate but much less monstrous than
+> accurate page-based dirty-set controller from Tejun Heo.
+
+I went over the whole patchset and ISTR having reviewed this a while
+ago and the conclusion is the same.  This appears to be simpler on the
+surface but this is a hackjob of a design to put it nicely.  You're
+working around the complexity of pressure propagation from the lower
+layer by building a separate pressure layer at the top most layer.  In
+doing so, it's duplicating what already exist below in degenerate
+forms but at the cost of fundamental crippling of the whole thing.
+
+This, even in its current simplistic form, is already a dead end.
+e.g. iops or bw aren't even the proper resources to distribute for
+rotating disks, IO time is, which is what a large proportion of cfq is
+trying to estimate and distribute.  What if there are multiple
+filesystems on a single device?  Or if a cgroup accesses multiple
+backing devices?  How would you guarantee low latency access to a high
+priority cgroup while a huge inode from a low pri cgroup is being
+written out when none of the lower layers have any idea what they're
+doing?
+
+Sure, these issues can be dealt with partially with various
+workarounds and additions and I'm sure we'll be doing that if we go
+down this path, but the only thing that'll lead to is duplicating more
+of what's already in the lower layers with ever growing list of
+behavioral and interface oddities which are inherent to the design.
+
+Even in the absence of alternatives, I'd be strongly against this
+direction.  I think this sort of ad-hoc "let's solve this one
+immediate issue in the easiest way possible" is often worse than not
+doing anything.  In the longer term, things like this paint us into a
+corner of which we can't easily get out and memcg happens to be an
+area where that sort of things took place quite a bit in the past and
+people have been desparately trying to right the course, so, no, I
+don't think this is happening.
+
+I agree that propagating backpressure from the lower layer involves
+more complexity but it is a full and conceptually and design-wise
+straight-forward solution which doesn't need to get constantly papered
+over.  This is the right thing to do.  It can be argued that the
+amount of complexity can be reduced by tracking dirty pages per-inode,
+but, if we're gonna do that, we should converting memcg itself to be
+per address space too.  The arguments would be exactly the same for
+memcg and memcg and writeback must be on the same foundation.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
