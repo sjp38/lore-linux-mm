@@ -1,45 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id F08F86B0072
-	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 18:12:55 -0500 (EST)
-Received: by mail-pa0-f50.google.com with SMTP id rd3so44301456pab.9
-        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 15:12:55 -0800 (PST)
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 9873A6B0073
+	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 18:13:03 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id fb1so44445806pad.10
+        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 15:13:03 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id l12si11449877pdm.243.2015.01.29.15.12.55
+        by mx.google.com with ESMTPS id ce14si11442339pdb.253.2015.01.29.15.13.02
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Jan 2015 15:12:55 -0800 (PST)
-Date: Thu, 29 Jan 2015 15:12:54 -0800
+        Thu, 29 Jan 2015 15:13:02 -0800 (PST)
+Date: Thu, 29 Jan 2015 15:13:01 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v10 13/17] mm: vmalloc: add flag preventing guard hole
- allocation
-Message-Id: <20150129151254.edc75e5ae20c3cafb55d88b1@linux-foundation.org>
-In-Reply-To: <1422544321-24232-14-git-send-email-a.ryabinin@samsung.com>
+Subject: Re: [PATCH v10 15/17] kernel: add support for .init_array.*
+ constructors
+Message-Id: <20150129151301.006abdbcf9e0dd136dd6ed2f@linux-foundation.org>
+In-Reply-To: <1422544321-24232-16-git-send-email-a.ryabinin@samsung.com>
 References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
 	<1422544321-24232-1-git-send-email-a.ryabinin@samsung.com>
-	<1422544321-24232-14-git-send-email-a.ryabinin@samsung.com>
+	<1422544321-24232-16-git-send-email-a.ryabinin@samsung.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <a.ryabinin@samsung.com>
-Cc: linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, x86@kernel.org, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, x86@kernel.org, linux-mm@kvack.org, Arnd Bergmann <arnd@arndb.de>, "open list:GENERIC
+ INCLUDE/A..." <linux-arch@vger.kernel.org>
 
-On Thu, 29 Jan 2015 18:11:57 +0300 Andrey Ryabinin <a.ryabinin@samsung.com> wrote:
+On Thu, 29 Jan 2015 18:11:59 +0300 Andrey Ryabinin <a.ryabinin@samsung.com> wrote:
 
-> For instrumenting global variables KASan will shadow memory
-> backing memory for modules. So on module loading we will need
-> to allocate shadow memory and map it at exact virtual address.
+> KASan uses constructors for initializing redzones for global
+> variables. Actually KASan doesn't need priorities for constructors,
+> so they were removed from GCC 5.0, but GCC 4.9.2 still generates
+> constructors with priorities.
 
-I don't understand.  What does "map it at exact virtual address" mean?
-
-> __vmalloc_node_range() seems like the best fit for that purpose,
-> except it puts a guard hole after allocated area.
-
-Why is the guard hole a problem?
-
-More details needed in this changelog, please.
+I don't understand this changelog either.  What's wrong with priorities
+and what is the patch doing about it?  More details, please.
 
 
 --
