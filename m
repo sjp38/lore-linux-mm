@@ -1,108 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BBE66B006C
-	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 18:13:34 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id lj1so44309677pab.6
-        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 15:13:33 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id x10si11730522pdk.16.2015.01.29.15.13.33
+Received: from mail-ie0-f179.google.com (mail-ie0-f179.google.com [209.85.223.179])
+	by kanga.kvack.org (Postfix) with ESMTP id CFFFA6B0075
+	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 18:19:51 -0500 (EST)
+Received: by mail-ie0-f179.google.com with SMTP id x19so798518ier.10
+        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 15:19:51 -0800 (PST)
+Received: from mail-ie0-x230.google.com (mail-ie0-x230.google.com. [2607:f8b0:4001:c03::230])
+        by mx.google.com with ESMTPS id q82si271277ioi.92.2015.01.29.15.19.51
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Jan 2015 15:13:33 -0800 (PST)
-Date: Thu, 29 Jan 2015 15:13:32 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v10 17/17] kasan: enable instrumentation of global
- variables
-Message-Id: <20150129151332.3f87c0b2e335afd88af33e08@linux-foundation.org>
-In-Reply-To: <1422544321-24232-18-git-send-email-a.ryabinin@samsung.com>
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
-	<1422544321-24232-1-git-send-email-a.ryabinin@samsung.com>
-	<1422544321-24232-18-git-send-email-a.ryabinin@samsung.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 29 Jan 2015 15:19:51 -0800 (PST)
+Received: by mail-ie0-f176.google.com with SMTP id at20so1108364iec.7
+        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 15:19:51 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20150129223158.GF26493@n2100.arm.linux.org.uk>
+References: <1422347154-15258-1-git-send-email-sumit.semwal@linaro.org>
+	<1422347154-15258-2-git-send-email-sumit.semwal@linaro.org>
+	<20150129143908.GA26493@n2100.arm.linux.org.uk>
+	<CAO_48GEOQ1pBwirgEWeVVXW-iOmaC=Xerr2VyYYz9t1QDXgVsw@mail.gmail.com>
+	<20150129154718.GB26493@n2100.arm.linux.org.uk>
+	<CAF6AEGtTmFg66TK_AFkQ-xp7Nd9Evk3nqe6xCBp7K=77OmXTxA@mail.gmail.com>
+	<20150129192610.GE26493@n2100.arm.linux.org.uk>
+	<CAF6AEGujk8UC4X6T=yhTrz1s+SyZUQ=m05h_WcxLDGZU6bydbw@mail.gmail.com>
+	<20150129223158.GF26493@n2100.arm.linux.org.uk>
+Date: Thu, 29 Jan 2015 18:19:51 -0500
+Message-ID: <CAF6AEGuF8j7CpPmKpPhqmc_Rc8qDDSMPSpPfvACsGShnaCRAxQ@mail.gmail.com>
+Subject: Re: [RFCv3 2/2] dma-buf: add helpers for sharing attacher constraints
+ with dma-parms
+From: Rob Clark <robdclark@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <a.ryabinin@samsung.com>
-Cc: linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, x86@kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Rusty Russell <rusty@rustcorp.com.au>, Michal Marek <mmarek@suse.cz>, "open
- list:KERNEL BUILD + fi..." <linux-kbuild@vger.kernel.org>
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: Sumit Semwal <sumit.semwal@linaro.org>, LKML <linux-kernel@vger.kernel.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, DRI mailing list <dri-devel@lists.freedesktop.org>, Linaro MM SIG Mailman List <linaro-mm-sig@lists.linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Tomasz Stanislawski <stanislawski.tomasz@googlemail.com>, Daniel Vetter <daniel@ffwll.ch>, Robin Murphy <robin.murphy@arm.com>, Marek Szyprowski <m.szyprowski@samsung.com>
 
-On Thu, 29 Jan 2015 18:12:01 +0300 Andrey Ryabinin <a.ryabinin@samsung.com> wrote:
-
-> This feature let us to detect accesses out of bounds
-> of global variables.
-
-global variables *within modules*, I think?  More specificity needed here.
-
-> The idea of this is simple. Compiler increases each global variable
-> by redzone size and add constructors invoking __asan_register_globals()
-> function. Information about global variable (address, size,
-> size with redzone ...) passed to __asan_register_globals() so we could
-> poison variable's redzone.
-> 
-> This patch also forces module_alloc() to return 8*PAGE_SIZE aligned
-> address making shadow memory handling ( kasan_module_alloc()/kasan_module_free() )
-> more simple. Such alignment guarantees that each shadow page backing
-> modules address space correspond to only one module_alloc() allocation.
-> 
-> ...
+On Thu, Jan 29, 2015 at 5:31 PM, Russell King - ARM Linux
+<linux@arm.linux.org.uk> wrote:
+> On Thu, Jan 29, 2015 at 05:18:33PM -0500, Rob Clark wrote:
+>> On Thu, Jan 29, 2015 at 2:26 PM, Russell King - ARM Linux
+>> <linux@arm.linux.org.uk> wrote:
+>> > Now, if we're going to do the "more clever" thing you mention above,
+>> > that rather negates the point of this two-part patch set, which is to
+>> > provide the union of the DMA capabilities of all users.  A union in
+>> > that case is no longer sane as we'd be tailoring the SG lists to each
+>> > user.
+>>
+>> It doesn't really negate.. a different sg list representing the same
+>> physical memory cannot suddenly make the buffer physically contiguous
+>> (from the perspective of memory)..
+>>
+>> (unless we are not on the same page here, so to speak)
 >
-> +int kasan_module_alloc(void *addr, size_t size)
-> +{
-> +
-> +	size_t shadow_size = round_up(size >> KASAN_SHADOW_SCALE_SHIFT,
-> +				PAGE_SIZE);
-> +	unsigned long shadow_start = kasan_mem_to_shadow((unsigned long)addr);
-> +	void *ret;
+> If we are really only interested in the "physically contiguous" vs
+> "scattered" differentiation, why can't this be just a simple flag?
 
-Like this:
+I'd be fine with that..  I was trying to make it a bit less of a point
+solution, but maybe trying to be too generic is not worth it..
 
-	size_t shadow_size;
-	unsigned long shadow_start;
-	void *ret;
+There is apparently some hw which has iommu's but small # of tlb
+entries, and would prefer partially contiguous buffers.  But that
+isn't a hard constraint, and maybe shouldn't be solved w/
+max_segment_count.  And I'm not sure how common that is.
 
-	shadow_size = round_up(size >> KASAN_SHADOW_SCALE_SHIFT, PAGE_SIZE);
-	shadow_start = kasan_mem_to_shadow((unsigned long)addr);
-
-it's much easier to read and avoids the 80-column trickery.
-
-I do suspect that
-
-	void *kasan_mem_to_shadow(const void *addr);
-
-would clean up lots and lots of code.
-
-> +	if (WARN_ON(!PAGE_ALIGNED(shadow_start)))
-> +		return -EINVAL;
-> +
-> +	ret = __vmalloc_node_range(shadow_size, 1, shadow_start,
-> +			shadow_start + shadow_size,
-> +			GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO,
-> +			PAGE_KERNEL, VM_NO_GUARD, NUMA_NO_NODE,
-> +			__builtin_return_address(0));
-> +	return ret ? 0 : -ENOMEM;
-> +}
-> +
-> 
-> ...
+> I think I know where you're coming from on that distinction - most
+> GPUs can cope with their buffers being discontiguous in memory, but
+> scanout and capture hardware tends to need contiguous buffers.
 >
-> +struct kasan_global {
-> +	const void *beg;		/* Address of the beginning of the global variable. */
-> +	size_t size;			/* Size of the global variable. */
-> +	size_t size_with_redzone;	/* Size of the variable + size of the red zone. 32 bytes aligned */
-> +	const void *name;
-> +	const void *module_name;	/* Name of the module where the global variable is declared. */
-> +	unsigned long has_dynamic_init;	/* This needed for C++ */
+> My guess is that you're looking for some way that a GPU driver could
+> allocate a buffer, which can then be imported into the scanout
+> hardware - and when it is, the underlying backing store is converted
+> to a contiguous buffer.  Is that the usage scenario you're thinking
+> of?
 
-This can be removed?
+Pretty much..  and maybe a few slight permutations on that involving
+cameras / video codecs / etc.  But the really-really common case is
+gpu (with mmu/iommu) + display (without).  Just solving this problem
+would be a really good first step.
 
-> +#if KASAN_ABI_VERSION >= 4
-> +	struct kasan_source_location *location;
-> +#endif
-> +};
-> 
-> ...
+BR,
+-R
+
 >
+> --
+> FTTC broadband for 0.8mile line: currently at 10.5Mbps down 400kbps up
+> according to speedtest.net.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
