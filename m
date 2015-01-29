@@ -1,73 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C22E6B006E
-	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 21:01:48 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id eu11so32532182pac.2
-        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 18:01:47 -0800 (PST)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id xg5si8012136pbc.77.2015.01.28.18.01.47
+Received: from mail-oi0-f50.google.com (mail-oi0-f50.google.com [209.85.218.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 5ED9A6B0070
+	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 21:02:11 -0500 (EST)
+Received: by mail-oi0-f50.google.com with SMTP id h136so22286438oig.9
+        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 18:02:11 -0800 (PST)
+Received: from bh-25.webhostbox.net (bh-25.webhostbox.net. [208.91.199.152])
+        by mx.google.com with ESMTPS id sn7si3062266oeb.94.2015.01.28.18.02.09
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 28 Jan 2015 18:01:47 -0800 (PST)
-Received: by mail-pa0-f44.google.com with SMTP id rd3so32481965pab.3
-        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 18:01:47 -0800 (PST)
-Date: Thu, 29 Jan 2015 11:01:40 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v1 2/2] zram: remove init_lock in zram_make_request
-Message-ID: <20150129020139.GB9672@blaptop>
-References: <1422432945-6764-1-git-send-email-minchan@kernel.org>
- <1422432945-6764-2-git-send-email-minchan@kernel.org>
- <20150128145651.GB965@swordfish>
- <20150128233343.GC4706@blaptop>
- <CAHqPoqKZFDSjO1pL+ixYe_m_L0nGNcu04qSNp-jd1fUixKtHnw@mail.gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 28 Jan 2015 18:02:10 -0800 (PST)
+Received: from mailnull by bh-25.webhostbox.net with sa-checked (Exim 4.82)
+	(envelope-from <linux@roeck-us.net>)
+	id 1YGeQs-002oy6-2e
+	for linux-mm@kvack.org; Thu, 29 Jan 2015 02:02:10 +0000
+Message-ID: <54C9949C.9000703@roeck-us.net>
+Date: Wed, 28 Jan 2015 18:02:04 -0800
+From: Guenter Roeck <linux@roeck-us.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAHqPoqKZFDSjO1pL+ixYe_m_L0nGNcu04qSNp-jd1fUixKtHnw@mail.gmail.com>
+Subject: Re: [PATCH 2/4] mm: split up mm_struct to separate header file
+References: <1422451064-109023-1-git-send-email-kirill.shutemov@linux.intel.com> <1422451064-109023-3-git-send-email-kirill.shutemov@linux.intel.com> <20150129003028.GA17519@node.dhcp.inet.fi>
+In-Reply-To: <20150129003028.GA17519@node.dhcp.inet.fi>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>, sergey.senozhatsky.work@gmail.com
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Jan 29, 2015 at 10:57:38AM +0900, Sergey Senozhatsky wrote:
-> On Thu, Jan 29, 2015 at 8:33 AM, Minchan Kim <minchan@kernel.org> wrote:
-> 
-> > On Wed, Jan 28, 2015 at 11:56:51PM +0900, Sergey Senozhatsky wrote:
-> > > I don't like re-introduced ->init_done.
-> > > another idea... how about using `zram->disksize == 0' instead of
-> > > `->init_done' (previously `->meta != NULL')? should do the trick.
-> >
-> > It could be.
-> >
-> >
-> care to change it?
+On 01/28/2015 04:30 PM, Kirill A. Shutemov wrote:
+> On Wed, Jan 28, 2015 at 03:17:42PM +0200, Kirill A. Shutemov wrote:
+>> We want to use __PAGETABLE_PMD_FOLDED in mm_struct to drop nr_pmds if
+>> pmd is folded. __PAGETABLE_PMD_FOLDED is defined in <asm/pgtable.h>, but
+>> <asm/pgtable.h> itself wants <linux/mm_types.h> for struct page
+>> definition.
+>>
+>> This patch move mm_struct definition into separate header file in order
+>> to fix circular header dependencies.
+>>
+>> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+>
+> Guenter, below is update for the patch. It doesn't fix all the issues, but
+> you should see an improvement. I'll continue with this tomorrow.
+>
+I'll give it a try.
 
-Will try!
+> BTW, any idea where I can get hexagon cross compiler?
+>
 
-> 
-> 
-> 
-> > >
-> > >
-> > > and I'm not sure I get this rmb...
-> >
-> > What makes you not sure?
-> > I think it's clear and common pattern for smp_[wmb|rmb]. :)
-> >
-> 
-> 
-> well... what that "if (ret)" gives? it's almost always true, because the
-> device is initialized during read/write operations (in 99.99% of cases).
+http://www.mentor.com/embedded-software/sourcery-tools/sourcery-codebench/editions/lite-edition/
 
-If it was your concern, I'm happy to remove the check.(ie, actually,
-I realized that after I push the button to send). Thanks!
+It is 32 bit, so you'll have to install some 32 bit libraries.
 
-> 
-> -ss
-
--- 
-Kind regards,
-Minchan Kim
+Guenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
