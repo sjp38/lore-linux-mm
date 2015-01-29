@@ -1,70 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f49.google.com (mail-oi0-f49.google.com [209.85.218.49])
-	by kanga.kvack.org (Postfix) with ESMTP id E54716B006E
-	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 20:49:33 -0500 (EST)
-Received: by mail-oi0-f49.google.com with SMTP id a3so22150619oib.8
-        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 17:49:33 -0800 (PST)
+Received: from mail-oi0-f45.google.com (mail-oi0-f45.google.com [209.85.218.45])
+	by kanga.kvack.org (Postfix) with ESMTP id BB7EA6B006E
+	for <linux-mm@kvack.org>; Wed, 28 Jan 2015 20:57:39 -0500 (EST)
+Received: by mail-oi0-f45.google.com with SMTP id g201so22250423oib.4
+        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 17:57:39 -0800 (PST)
 Received: from mail-oi0-x231.google.com (mail-oi0-x231.google.com. [2607:f8b0:4003:c06::231])
-        by mx.google.com with ESMTPS id r8si3046438oev.103.2015.01.28.17.49.32
+        by mx.google.com with ESMTPS id y137si3078078oif.63.2015.01.28.17.57.38
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 28 Jan 2015 17:49:32 -0800 (PST)
-Received: by mail-oi0-f49.google.com with SMTP id a3so22150490oib.8
-        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 17:49:32 -0800 (PST)
+        Wed, 28 Jan 2015 17:57:38 -0800 (PST)
+Received: by mail-oi0-f49.google.com with SMTP id a3so22199412oib.8
+        for <linux-mm@kvack.org>; Wed, 28 Jan 2015 17:57:38 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20150128231723.GB4706@blaptop>
+In-Reply-To: <20150128233343.GC4706@blaptop>
 References: <1422432945-6764-1-git-send-email-minchan@kernel.org>
-	<20150128141916.GA14062@swordfish>
-	<20150128231723.GB4706@blaptop>
-Date: Thu, 29 Jan 2015 09:49:32 +0800
-Message-ID: <CADAEsF_eexxoaKH=WxvGhsoyDNPEDa5e3VsU7UgynP7ikVR1cg@mail.gmail.com>
-Subject: Re: [PATCH 1/2] zram: free meta table in zram_meta_free
-From: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+	<1422432945-6764-2-git-send-email-minchan@kernel.org>
+	<20150128145651.GB965@swordfish>
+	<20150128233343.GC4706@blaptop>
+Date: Thu, 29 Jan 2015 10:57:38 +0900
+Message-ID: <CAHqPoqKZFDSjO1pL+ixYe_m_L0nGNcu04qSNp-jd1fUixKtHnw@mail.gmail.com>
+Subject: Re: [PATCH v1 2/2] zram: remove init_lock in zram_make_request
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Content-Type: multipart/alternative; boundary=001a113cf2b4062ef9050dc0d0ad
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>, sergey.senozhatsky.work@gmail.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>, sergey.senozhatsky.work@gmail.com
 
-Hello, Minchan
+--001a113cf2b4062ef9050dc0d0ad
+Content-Type: text/plain; charset=UTF-8
 
-2015-01-29 7:17 GMT+08:00 Minchan Kim <minchan@kernel.org>:
-> On Wed, Jan 28, 2015 at 11:19:17PM +0900, Sergey Senozhatsky wrote:
->> On (01/28/15 17:15), Minchan Kim wrote:
->> > zram_meta_alloc() and zram_meta_free() are a pair.
->> > In zram_meta_alloc(), meta table is allocated. So it it better to free
->> > it in zram_meta_free().
->> >
->> > Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
->> > Signed-off-by: Minchan Kim <minchan@kernel.org>
->> > ---
->> >  drivers/block/zram/zram_drv.c | 30 ++++++++++++++----------------
->> >  drivers/block/zram/zram_drv.h |  1 +
->> >  2 files changed, 15 insertions(+), 16 deletions(-)
->> >
->> > diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
->> > index 9250b3f54a8f..a598ada817f0 100644
->> > --- a/drivers/block/zram/zram_drv.c
->> > +++ b/drivers/block/zram/zram_drv.c
->> > @@ -309,6 +309,18 @@ static inline int valid_io_request(struct zram *zram,
->> >
->> >  static void zram_meta_free(struct zram_meta *meta)
->> >  {
->> > +   size_t index;
->>
->>
->> I don't like how we bloat structs w/o any need.
->> zram keeps ->disksize, so let's use `zram->disksize >> PAGE_SHIFT'
->> instead of introducing ->num_pages.
+On Thu, Jan 29, 2015 at 8:33 AM, Minchan Kim <minchan@kernel.org> wrote:
+
+> On Wed, Jan 28, 2015 at 11:56:51PM +0900, Sergey Senozhatsky wrote:
+> > I don't like re-introduced ->init_done.
+> > another idea... how about using `zram->disksize == 0' instead of
+> > `->init_done' (previously `->meta != NULL')? should do the trick.
 >
-> Right. I overlooked it. I just want to send my patch[2/2] and I thought
-> it would be better ganesh's patch to merge first although it's orthogonal.
+> It could be.
 >
-> Ganesh, I hope you resend this patch with Sergey's suggestion.
-> If you are busy, please tell me. I will do it instead of you.
+>
+care to change it?
 
-OK, I will do it today.
-Thanks
+
+
+> >
+> >
+> > and I'm not sure I get this rmb...
+>
+> What makes you not sure?
+> I think it's clear and common pattern for smp_[wmb|rmb]. :)
+>
+
+
+well... what that "if (ret)" gives? it's almost always true, because the
+device is initialized during read/write operations (in 99.99% of cases).
+
+-ss
+
+--001a113cf2b4062ef9050dc0d0ad
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div class=3D"gmail_extra"><br><div class=3D"gmail_quote">=
+On Thu, Jan 29, 2015 at 8:33 AM, Minchan Kim <span dir=3D"ltr">&lt;<a href=
+=3D"mailto:minchan@kernel.org" target=3D"_blank">minchan@kernel.org</a>&gt;=
+</span> wrote:<br><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .=
+8ex;border-left:1px #ccc solid;padding-left:1ex"><div><div>On Wed, Jan 28, =
+2015 at 11:56:51PM +0900, Sergey Senozhatsky wrote:<br>&gt; I don&#39;t lik=
+e re-introduced -&gt;init_done.<br>
+&gt; another idea... how about using `zram-&gt;disksize =3D=3D 0&#39; inste=
+ad of<br>
+&gt; `-&gt;init_done&#39; (previously `-&gt;meta !=3D NULL&#39;)? should do=
+ the trick.<br>
+<br>
+</div></div>It could be.<br>
+<span></span><br></blockquote><div><br>care to change it?<br><br>=C2=A0</di=
+v><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:=
+1px #ccc solid;padding-left:1ex"><span>
+&gt;<br>
+&gt;<br>
+&gt; and I&#39;m not sure I get this rmb...<br>
+<br>
+</span>What makes you not sure?<br>
+I think it&#39;s clear and common pattern for smp_[wmb|rmb]. :)<br></blockq=
+uote><div><br><br>well... what that &quot;if (ret)&quot; gives? it&#39;s al=
+most always true, because the<br>device is initialized during read/write op=
+erations (in 99.99% of cases).<br><br>-ss</div></div></div></div>
+
+--001a113cf2b4062ef9050dc0d0ad--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
