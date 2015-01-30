@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id C89436B0032
-	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 16:35:54 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id kq14so57052831pab.0
-        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 13:35:54 -0800 (PST)
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id E74D56B0032
+	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 16:37:25 -0500 (EST)
+Received: by mail-pa0-f47.google.com with SMTP id lj1so56953321pab.6
+        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 13:37:25 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id mz9si15007889pdb.205.2015.01.30.13.35.53
+        by mx.google.com with ESMTPS id wq4si15145945pab.92.2015.01.30.13.37.24
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Jan 2015 13:35:53 -0800 (PST)
-Date: Fri, 30 Jan 2015 13:35:52 -0800
+        Fri, 30 Jan 2015 13:37:25 -0800 (PST)
+Date: Fri, 30 Jan 2015 13:37:23 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH v10 02/17] x86_64: add KASan support
-Message-Id: <20150130133552.580f73b97a9bd007979b5419@linux-foundation.org>
+Message-Id: <20150130133723.26e6e7f2b8e489a8640abd05@linux-foundation.org>
 In-Reply-To: <54CBAE2E.2030106@samsung.com>
 References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
 	<1422544321-24232-1-git-send-email-a.ryabinin@samsung.com>
@@ -51,20 +51,12 @@ On Fri, 30 Jan 2015 19:15:42 +0300 Andrey Ryabinin <a.ryabinin@samsung.com> wrot
 > Yes, this is runtime dependency. Hot adding memory won't work.
 > Since we don't have shadow for hotplugged memory, kernel will crash on the first access to it.
 > To fix this we need to allocate shadow for new memory.
-
-This definitely should be covered in the changelog.
-
-In general, please take most (all?) review questions as requests to add
-content to the changelog and/or to add code comments - if a reviewer
-didn't understand something then other readers are likely to be
-wondering the same thing.
-
+> 
 > Perhaps it would be better to have a runtime warning instead of Kconfig dependecy?
 
-mmm...  yes, that sounds better.  Maybe print a warning at startup and
-then disable memory hot-add?  I expect that if the user has enabled
-kasan and mem-hotplug at the same time, he/she would prefer that
-hotplug be disabled than kasan.
+Is there a plan to get mem-hotplug working with kasan, btw?  It doesn't
+strike me as very important/urgent.  Please add a sentence about this
+to the changelog as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
