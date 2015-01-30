@@ -1,69 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id D65946B0038
-	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 09:48:44 -0500 (EST)
-Received: by mail-wi0-f177.google.com with SMTP id r20so3118772wiv.4
-        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 06:48:44 -0800 (PST)
-Received: from e06smtp17.uk.ibm.com (e06smtp17.uk.ibm.com. [195.75.94.113])
-        by mx.google.com with ESMTPS id dc6si6998869wib.94.2015.01.30.06.48.43
+Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A4146B006C
+	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 09:49:24 -0500 (EST)
+Received: by mail-we0-f179.google.com with SMTP id q59so27554501wes.10
+        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 06:49:24 -0800 (PST)
+Received: from emea01-db3-obe.outbound.protection.outlook.com (mail-db3on0088.outbound.protection.outlook.com. [157.55.234.88])
+        by mx.google.com with ESMTPS id dx1si7073921wib.72.2015.01.30.06.49.22
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 30 Jan 2015 06:48:43 -0800 (PST)
-Received: from /spool/local
-	by e06smtp17.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Fri, 30 Jan 2015 14:48:42 -0000
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
-	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 1D2C2219005C
-	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 14:48:36 +0000 (GMT)
-Received: from d06av12.portsmouth.uk.ibm.com (d06av12.portsmouth.uk.ibm.com [9.149.37.247])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t0UEmcQ252887592
-	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 14:48:38 GMT
-Received: from d06av12.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av12.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t0UEmbYG001938
-	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 07:48:38 -0700
-Date: Fri, 30 Jan 2015 15:48:30 +0100
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [PATCH 12/19] s390: expose number of page table levels
-Message-ID: <20150130154830.6e5c4774@mschwide>
-In-Reply-To: <1422629008-13689-13-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1422629008-13689-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<1422629008-13689-13-git-send-email-kirill.shutemov@linux.intel.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 30 Jan 2015 06:49:22 -0800 (PST)
+Message-ID: <54CB99E8.7000501@ezchip.com>
+Date: Fri, 30 Jan 2015 09:49:12 -0500
+From: Chris Metcalf <cmetcalf@ezchip.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Subject: Re: [PATCH 15/19] tile: expose number of page table levels
+References: <1422629008-13689-1-git-send-email-kirill.shutemov@linux.intel.com> <1422629008-13689-16-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1422629008-13689-16-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Guenter Roeck <linux@roeck-us.net>, Heiko Carstens <heiko.carstens@de.ibm.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Guenter Roeck <linux@roeck-us.net>
 
-On Fri, 30 Jan 2015 16:43:21 +0200
-"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+On 1/30/2015 9:43 AM, Kirill A. Shutemov wrote:
+> We would want to use number of page table level to define mm_struct.
+> Let's expose it as CONFIG_PGTABLE_LEVELS.
+>
+> Signed-off-by: Kirill A. Shutemov<kirill.shutemov@linux.intel.com>
+> Cc: Chris Metcalf<cmetcalf@ezchip.com>
+> ---
+>   arch/tile/Kconfig | 5 +++++
+>   1 file changed, 5 insertions(+)
 
-> diff --git a/arch/s390/Kconfig b/arch/s390/Kconfig
-> index 8d11babf9aa5..ddf9ebd4c254 100644
-> --- a/arch/s390/Kconfig
-> +++ b/arch/s390/Kconfig
-> @@ -155,6 +155,11 @@ config S390
->  config SCHED_OMIT_FRAME_POINTER
->  	def_bool y
-> 
-> +config PGTABLE_LEVELS
-> +	int
-> +	default 4 if 64BI
-
-                     ^^^^ 64BIT
-
-> +	default 2
-> +
->  source "init/Kconfig"
-
+Acked-by: Chris Metcalf <cmetcalf@ezchip.com>
 
 -- 
-blue skies,
-   Martin.
-
-"Reality continues to ruin my life." - Calvin.
+Chris Metcalf, EZChip Semiconductor
+http://www.ezchip.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
