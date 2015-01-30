@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f45.google.com (mail-oi0-f45.google.com [209.85.218.45])
-	by kanga.kvack.org (Postfix) with ESMTP id A60946B006C
-	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 15:41:51 -0500 (EST)
-Received: by mail-oi0-f45.google.com with SMTP id g201so36494659oib.4
-        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 12:41:51 -0800 (PST)
+Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
+	by kanga.kvack.org (Postfix) with ESMTP id D35B46B0038
+	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 16:00:12 -0500 (EST)
+Received: by mail-ob0-f176.google.com with SMTP id va2so26126954obc.7
+        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 13:00:12 -0800 (PST)
 Received: from bh-25.webhostbox.net (bh-25.webhostbox.net. [208.91.199.152])
-        by mx.google.com with ESMTPS id d133si5798752oif.24.2015.01.30.12.41.50
+        by mx.google.com with ESMTPS id e139si5820716oic.20.2015.01.30.13.00.12
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 30 Jan 2015 12:41:50 -0800 (PST)
+        Fri, 30 Jan 2015 13:00:12 -0800 (PST)
 Received: from mailnull by bh-25.webhostbox.net with sa-checked (Exim 4.82)
 	(envelope-from <linux@roeck-us.net>)
-	id 1YHINz-003TxY-0i
-	for linux-mm@kvack.org; Fri, 30 Jan 2015 20:41:51 +0000
-Date: Fri, 30 Jan 2015 12:41:37 -0800
+	id 1YHIfk-003d98-3d
+	for linux-mm@kvack.org; Fri, 30 Jan 2015 21:00:12 +0000
+Date: Fri, 30 Jan 2015 12:59:58 -0800
 From: Guenter Roeck <linux@roeck-us.net>
 Subject: Re: [PATCH 00/19] expose page table levels on Kconfig leve
-Message-ID: <20150130204137.GA32470@roeck-us.net>
+Message-ID: <20150130205958.GA1124@roeck-us.net>
 References: <1422629008-13689-1-git-send-email-kirill.shutemov@linux.intel.com>
  <20150130172613.GA12367@roeck-us.net>
  <20150130185052.GA30401@node.dhcp.inet.fi>
@@ -58,9 +58,33 @@ On Fri, Jan 30, 2015 at 10:09:56PM +0200, Kirill A. Shutemov wrote:
 > 0-DAY kernel testing has already reported few issues on blackfin, ia64 and
 > x86 with xen.
 > 
+Here is the final verdict:
+	total: 134 pass: 114 fail: 20
+Failed builds:
+	arc:defconfig (inherited from mainline)
+	arc:tb10x_defconfig (inherited from mainline)
+	arm:efm32_defconfig
+	blackfin:defconfig
+	c6x:dsk6455_defconfig
+	c6x:evmc6457_defconfig
+	c6x:evmc6678_defconfig
+	ia64:defconfig
+	m68k:m5272c3_defconfig
+	m68k:m5307c3_defconfig
+	m68k:m5249evb_defconfig
+	m68k:m5407c3_defconfig
+	microblaze:nommu_defconfig
+	mips:allmodconfig (inherited from -next)
+	powerpc:cell_defconfig (binutils 2.23)
+	powerpc:cell_defconfig (binutils 2.24)
+	sparc64:allmodconfig (inherited from -next)
+	x86_64:allyesconfig
+	x86_64:allmodconfig
+	xtensa:allmodconfig (inherited from -next)
 
-My build is still going on, but I can already see additional failures on
-http://server.roeck-us.net:8010/builders (c6x, m68k, microblaze, ppc).
+There are also qemu warnings for arm, but those are inherited from -next.
+
+Good start overall ...
 
 Guenter
 
