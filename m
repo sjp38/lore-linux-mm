@@ -1,81 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f176.google.com (mail-qc0-f176.google.com [209.85.216.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 2923E6B0038
-	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 01:27:42 -0500 (EST)
-Received: by mail-qc0-f176.google.com with SMTP id c9so19214457qcz.7
-        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 22:27:41 -0800 (PST)
-Received: from mail-qc0-x22d.google.com (mail-qc0-x22d.google.com. [2607:f8b0:400d:c01::22d])
-        by mx.google.com with ESMTPS id b13si13212229qaw.32.2015.01.29.22.27.40
+Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
+	by kanga.kvack.org (Postfix) with ESMTP id A19C16B0038
+	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 02:52:23 -0500 (EST)
+Received: by mail-ob0-f175.google.com with SMTP id wp4so22564709obc.6
+        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 23:52:23 -0800 (PST)
+Received: from mail-oi0-x22c.google.com (mail-oi0-x22c.google.com. [2607:f8b0:4003:c06::22c])
+        by mx.google.com with ESMTPS id i186si4971279oib.70.2015.01.29.23.52.22
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 29 Jan 2015 22:27:41 -0800 (PST)
-Received: by mail-qc0-f173.google.com with SMTP id m20so19042145qcx.4
-        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 22:27:40 -0800 (PST)
-Date: Fri, 30 Jan 2015 01:27:37 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC] Making memcg track ownership per address_space or anon_vma
-Message-ID: <20150130062737.GB25699@htj.dyndns.org>
-References: <20150130044324.GA25699@htj.dyndns.org>
- <xr93h9v8yfrv.fsf@gthelen.mtv.corp.google.com>
+        Thu, 29 Jan 2015 23:52:23 -0800 (PST)
+Received: by mail-oi0-f44.google.com with SMTP id a3so33482744oib.3
+        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 23:52:22 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <xr93h9v8yfrv.fsf@gthelen.mtv.corp.google.com>
+In-Reply-To: <20150129151227.GA936@swordfish>
+References: <1422432945-6764-1-git-send-email-minchan@kernel.org>
+	<1422432945-6764-2-git-send-email-minchan@kernel.org>
+	<CADAEsF9tejvCL3gqGuYKsnv_wsfpsESsAg=Hm3r_ZfbpftE4-w@mail.gmail.com>
+	<20150129151227.GA936@swordfish>
+Date: Fri, 30 Jan 2015 15:52:22 +0800
+Message-ID: <CADAEsF-1Y7_JM_1cq6+O3XASz8FAZoazjOF=x+oXFXuXUxK5Ng@mail.gmail.com>
+Subject: Re: [PATCH v1 2/2] zram: remove init_lock in zram_make_request
+From: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Christoph Hellwig <hch@infradead.org>, Li Zefan <lizefan@huawei.com>, hughd@google.com, Konstantin Khebnikov <khlebnikov@yandex-team.ru>
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>, sergey.senozhatsky.work@gmail.com
 
-Hello, Greg.
+Hello Sergey
 
-On Thu, Jan 29, 2015 at 09:55:53PM -0800, Greg Thelen wrote:
-> I find simplification appealing.  But I not sure it will fly, if for no
-> other reason than the shared accountings.  I'm ignoring intentional
-> sharing, used by carefully crafted apps, and just thinking about
-> incidental sharing (e.g. libc).
-> 
-> Example:
-> 
-> $ mkdir small
-> $ echo 1M > small/memory.limit_in_bytes
-> $ (echo $BASHPID > small/cgroup.procs && exec sleep 1h) &
-> 
-> $ mkdir big
-> $ echo 10G > big/memory.limit_in_bytes
-> $ (echo $BASHPID > big/cgroup.procs && exec mlockall_database 1h) &
-> 
-> Assuming big/mlockall_database mlocks all of libc, then it will oom kill
-> the small memcg because libc is owned by small due it having touched it
-> first.  It'd be hard to figure out what small did wrong to deserve the
-> oom kill.
+2015-01-29 23:12 GMT+08:00 Sergey Senozhatsky <sergey.senozhatsky@gmail.com>:
+> On (01/29/15 21:48), Ganesh Mahendran wrote:
+>> > Admin could reset zram during I/O operation going on so we have
+>> > used zram->init_lock as read-side lock in I/O path to prevent
+>> > sudden zram meta freeing.
+>>
+>> When I/O operation is running, that means the /dev/zram0 is
+>> mounted or swaped on. Then the device could not be reset by
+>> below code:
+>>
+>>     /* Do not reset an active device! */
+>>     if (bdev->bd_holders) {
+>>         ret = -EBUSY;
+>>         goto out;
+>>     }
+>>
+>> So the zram->init_lock in I/O path is to check whether the device
+>> has been initialized(echo xxx > /sys/block/zram/disk_size).
+>>
 
-The previous behavior was pretty unpredictable in terms of shared file
-ownership too.  I wonder whether the better thing to do here is either
-charging cases like this to the common ancestor or splitting the
-charge equally among the accessors, which might be doable for ro
-files.
+Thanks for your explanation.
 
-> FWIW we've been using memcg writeback where inodes have a memcg
-> writeback owner.  Once multiple memcg write to an inode then the inode
-> becomes writeback shared which makes it more likely to be written.  Once
-> cleaned the inode is then again able to be privately owned:
-> https://lkml.org/lkml/2011/8/17/200
+>
+> for mounted device (w/fs), we see initial (well, it goes up and down
 
-The problem is that it introduces deviations between memcg and
-writeback / blkcg which will mess up pressure propagation.  Writeback
-pressure can't be determined without its associated memcg and neither
-can dirty balancing.  We sure can simplify things by trading off
-accuracies at places but let's please try to do that throughout the
-stack, not in the midpoint, so that we can say "if you do this, it'll
-behave this way and you can see it showing up there".  The thing is if
-we leave it half-way, in time, some will try to actively exploit
-memcg's page granularity and we'll have to deal with writeback
-behavior which is difficult to even characterize.
+What does "w/" mean?
 
-Thanks.
+> many times while we create device, but this is not interesting here)
+> ->bd_holders increment in:
+>   vfs_kern_mount -> mount_bdev -> blkdev_get_by_path -> blkdev_get
+>
+> and it goes to zero in:
+>   cleanup_mnt -> deactivate_super -> kill_block_super -> blkdev_put
+>
+>
+> after umount we still have init device. so, *theoretically*, we
+> can see something like
+>
+>         CPU0                            CPU1
+> umount
+> reset_store
+> bdev->bd_holders == 0                   mount
+> ...                                     zram_make_request()
+> zram_reset_device()
 
--- 
-tejun
+In this example, the data stored in zram will be corrupted.
+Since CPU0 will free meta while CPU1 is using.
+right?
+
+
+>
+> w/o zram->init_lock in both zram_reset_device() and zram_make_request()
+> one of CPUs will be a bit sad.
+what does "w/o" mean?
+
+Thanks
+
+>
+>         -ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
