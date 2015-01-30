@@ -1,93 +1,318 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
-	by kanga.kvack.org (Postfix) with ESMTP id A19C16B0038
-	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 02:52:23 -0500 (EST)
-Received: by mail-ob0-f175.google.com with SMTP id wp4so22564709obc.6
-        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 23:52:23 -0800 (PST)
-Received: from mail-oi0-x22c.google.com (mail-oi0-x22c.google.com. [2607:f8b0:4003:c06::22c])
-        by mx.google.com with ESMTPS id i186si4971279oib.70.2015.01.29.23.52.22
+Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
+	by kanga.kvack.org (Postfix) with ESMTP id B3EAE6B0038
+	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 02:56:58 -0500 (EST)
+Received: by mail-we0-f181.google.com with SMTP id k48so25639420wev.12
+        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 23:56:58 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w5si19287117wjr.60.2015.01.29.23.56.56
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 29 Jan 2015 23:52:23 -0800 (PST)
-Received: by mail-oi0-f44.google.com with SMTP id a3so33482744oib.3
-        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 23:52:22 -0800 (PST)
+        Thu, 29 Jan 2015 23:56:56 -0800 (PST)
+Message-ID: <54CB3945.4080905@suse.cz>
+Date: Fri, 30 Jan 2015 08:56:53 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20150129151227.GA936@swordfish>
-References: <1422432945-6764-1-git-send-email-minchan@kernel.org>
-	<1422432945-6764-2-git-send-email-minchan@kernel.org>
-	<CADAEsF9tejvCL3gqGuYKsnv_wsfpsESsAg=Hm3r_ZfbpftE4-w@mail.gmail.com>
-	<20150129151227.GA936@swordfish>
-Date: Fri, 30 Jan 2015 15:52:22 +0800
-Message-ID: <CADAEsF-1Y7_JM_1cq6+O3XASz8FAZoazjOF=x+oXFXuXUxK5Ng@mail.gmail.com>
-Subject: Re: [PATCH v1 2/2] zram: remove init_lock in zram_make_request
-From: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH V4] mm/thp: Allocate transparent hugepages on local node
+References: <1421753671-16793-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20150120164832.abe2e47b760e1a8d7bb6055b@linux-foundation.org> <54C62803.8010105@suse.cz> <8761btvc9t.fsf@linux.vnet.ibm.com>
+In-Reply-To: <8761btvc9t.fsf@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=iso-8859-2
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>, sergey.senozhatsky.work@gmail.com
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello Sergey
-
-2015-01-29 23:12 GMT+08:00 Sergey Senozhatsky <sergey.senozhatsky@gmail.com>:
-> On (01/29/15 21:48), Ganesh Mahendran wrote:
->> > Admin could reset zram during I/O operation going on so we have
->> > used zram->init_lock as read-side lock in I/O path to prevent
->> > sudden zram meta freeing.
+On 01/26/2015 03:37 PM, Aneesh Kumar K.V wrote:
+> Vlastimil Babka <vbabka@suse.cz> writes:
+> 
+>> On 01/21/2015 01:48 AM, Andrew Morton wrote:
+>>> On Tue, 20 Jan 2015 17:04:31 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+>>>> + * Should be called with the mm_sem of the vma hold.
+>>> 
+>>> That's a pretty cruddy sentence, isn't it?  Copied from
+>>> alloc_pages_vma().  "vma->vm_mm->mmap_sem" would be better.
+>>> 
+>>> And it should tell us whether mmap_sem required a down_read or a
+>>> down_write.  What purpose is it serving?
 >>
->> When I/O operation is running, that means the /dev/zram0 is
->> mounted or swaped on. Then the device could not be reset by
->> below code:
+>> This is already said for mmap_sem further above this comment line, which
+>> should be just deleted (and from alloc_hugepage_vma comment too).
 >>
->>     /* Do not reset an active device! */
->>     if (bdev->bd_holders) {
->>         ret = -EBUSY;
->>         goto out;
->>     }
+>>>> + *
+>>>> + */
+>>>> +struct page *alloc_hugepage_vma(gfp_t gfp, struct vm_area_struct *vma,
+>>>> +				unsigned long addr, int order)
+>>> 
+>>> This pointlessly bloats the kernel if CONFIG_TRANSPARENT_HUGEPAGE=n?
+>>> 
+>>> 
+>>> 
+>>> --- a/mm/mempolicy.c~mm-thp-allocate-transparent-hugepages-on-local-node-fix
+>>> +++ a/mm/mempolicy.c
 >>
->> So the zram->init_lock in I/O path is to check whether the device
->> has been initialized(echo xxx > /sys/block/zram/disk_size).
+>> How about this cleanup on top? I'm not fully decided on the GFP_TRANSHUGE test.
+>> This is potentially false positive, although I doubt anything else uses the same
+>> gfp mask bits.
+> 
+> IMHO I found that to be more complex.
+
+I think it's better consolidated, but clearly there is no universal truth here.
+So I'll let others add their opinions.
+
 >>
+>> Should "hugepage" be extra bool parameter instead? Should I #ifdef the parameter
+>> only for CONFIG_TRANSPARENT_HUGEPAGE, or is it not worth the ugliness?
+>>
+> 
+> I guess if we really want to consolidate both the functions, we should
+> try the above, without all those #ifdef. It is just one extra arg.  But
 
-Thanks for your explanation.
+OK, new version below.
 
->
-> for mounted device (w/fs), we see initial (well, it goes up and down
+> then is the reason to consolidate that strong ?
 
-What does "w/" mean?
+It reduces duplication. I also tried some bloat-o-meter. The extra param seems
+to have some tiny cost, but overall it looks good.
 
-> many times while we create device, but this is not interesting here)
-> ->bd_holders increment in:
->   vfs_kern_mount -> mount_bdev -> blkdev_get_by_path -> blkdev_get
->
-> and it goes to zero in:
->   cleanup_mnt -> deactivate_super -> kill_block_super -> blkdev_put
->
->
-> after umount we still have init device. so, *theoretically*, we
-> can see something like
->
->         CPU0                            CPU1
-> umount
-> reset_store
-> bdev->bd_holders == 0                   mount
-> ...                                     zram_make_request()
-> zram_reset_device()
+./scripts/bloat-o-meter mm/mempolicy.o mempolicy1.o 
+add/remove: 1/2 grow/shrink: 4/0 up/down: 195/-340 (-145)
+function                                     old     new   delta
+alloc_pages_vma                              327     502    +175
+init_nodemask_of_mempolicy                   386     394      +8
+interleave_nid.part                            -       6      +6
+new_page                                     195     198      +3
+interleave_nid                                57      60      +3
+mpol_cond_put                                 23       -     -23
+alloc_hugepage_vma                           317       -    -317
 
-In this example, the data stored in zram will be corrupted.
-Since CPU0 will free meta while CPU1 is using.
-right?
+add/remove: 0/0 grow/shrink: 1/1 up/down: 16/-28 (-12)
+function                                     old     new   delta
+do_huge_pmd_anonymous_page                   968     984     +16
+do_huge_pmd_wp_page                         2566    2538     -28
 
+-------8<-------
+From: Vlastimil Babka <vbabka@suse.cz>
+Date: Mon, 26 Jan 2015 11:41:33 +0100
+Subject: [PATCH] mm/mempolicy: merge alloc_hugepage_vma to alloc_pages_vma
 
->
-> w/o zram->init_lock in both zram_reset_device() and zram_make_request()
-> one of CPUs will be a bit sad.
-what does "w/o" mean?
+Commit "mm/thp: Allocate transparent hugepages on local node" has introduced
+alloc_hugepage_vma() to mm/mempolicy.c to perform a special policy for THP
+allocations. The function has the same interface as alloc_pages_vma(), shares
+a lot of boilerplate code and a long comment.
 
-Thanks
+This patch merges the hugepage special case into alloc_pages_vma. The extra if
+condition should be cheap enough price to pay. We also prevent a (however
+unlikely) race with parallel mems_allowed update, which could make hugepage
+allocation restart only within the fallback call to alloc_hugepage_vma() and
+not reconsider the special rule in alloc_hugepage_vma().
 
->
->         -ss
+Also by making sure mpol_cond_put(pol) is always called before actual
+allocation attempt, we can use a single exit path within the function.
+
+Also update the comment for missing node parameter and obsolete reference to
+mm_sem.
+
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ include/linux/gfp.h |  12 +++---
+ mm/mempolicy.c      | 118 +++++++++++++++-------------------------------------
+ 2 files changed, 39 insertions(+), 91 deletions(-)
+
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 60110e0..51bd1e7 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -334,22 +334,22 @@ alloc_pages(gfp_t gfp_mask, unsigned int order)
+ }
+ extern struct page *alloc_pages_vma(gfp_t gfp_mask, int order,
+ 			struct vm_area_struct *vma, unsigned long addr,
+-			int node);
+-extern struct page *alloc_hugepage_vma(gfp_t gfp, struct vm_area_struct *vma,
+-				       unsigned long addr, int order);
++			int node, bool hugepage);
++#define alloc_hugepage_vma(gfp_mask, vma, addr, order)	\
++	alloc_pages_vma(gfp_mask, order, vma, addr, numa_node_id(), true)
+ #else
+ #define alloc_pages(gfp_mask, order) \
+ 		alloc_pages_node(numa_node_id(), gfp_mask, order)
+-#define alloc_pages_vma(gfp_mask, order, vma, addr, node)	\
++#define alloc_pages_vma(gfp_mask, order, vma, addr, node, false)\
+ 	alloc_pages(gfp_mask, order)
+ #define alloc_hugepage_vma(gfp_mask, vma, addr, order)	\
+ 	alloc_pages(gfp_mask, order)
+ #endif
+ #define alloc_page(gfp_mask) alloc_pages(gfp_mask, 0)
+ #define alloc_page_vma(gfp_mask, vma, addr)			\
+-	alloc_pages_vma(gfp_mask, 0, vma, addr, numa_node_id())
++	alloc_pages_vma(gfp_mask, 0, vma, addr, numa_node_id(), false)
+ #define alloc_page_vma_node(gfp_mask, vma, addr, node)		\
+-	alloc_pages_vma(gfp_mask, 0, vma, addr, node)
++	alloc_pages_vma(gfp_mask, 0, vma, addr, node, false)
+ 
+ extern struct page *alloc_kmem_pages(gfp_t gfp_mask, unsigned int order);
+ extern struct page *alloc_kmem_pages_node(int nid, gfp_t gfp_mask,
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 67b2d39..460483b 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1988,120 +1988,68 @@ static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
+  *	@order:Order of the GFP allocation.
+  * 	@vma:  Pointer to VMA or NULL if not available.
+  *	@addr: Virtual Address of the allocation. Must be inside the VMA.
++ *	@node: Which node to prefer for allocation (modulo policy).
++ *	@hugepage: for hugepages try only the preferred node if possible
+  *
+  * 	This function allocates a page from the kernel page pool and applies
+  *	a NUMA policy associated with the VMA or the current process.
+  *	When VMA is not NULL caller must hold down_read on the mmap_sem of the
+  *	mm_struct of the VMA to prevent it from going away. Should be used for
+- *	all allocations for pages that will be mapped into
+- * 	user space. Returns NULL when no page can be allocated.
+- *
+- *	Should be called with the mm_sem of the vma hold.
++ *	all allocations for pages that will be mapped into user space. Returns
++ *	NULL when no page can be allocated.
+  */
+ struct page *
+ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+-		unsigned long addr, int node)
++		unsigned long addr, int node, bool hugepage)
+ {
+ 	struct mempolicy *pol;
+ 	struct page *page;
+ 	unsigned int cpuset_mems_cookie;
++	struct zonelist *zl;
++	nodemask_t *nmask;
+ 
+ retry_cpuset:
+ 	pol = get_vma_policy(vma, addr);
+ 	cpuset_mems_cookie = read_mems_allowed_begin();
+ 
+-	if (unlikely(pol->mode == MPOL_INTERLEAVE)) {
++	if (unlikely(IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) && hugepage &&
++					pol->mode != MPOL_INTERLEAVE)) {
++		/*
++		 * For hugepage allocation and non-interleave policy which
++		 * allows the current node, we only try to allocate from the
++		 * current node and don't fall back to other nodes, as the
++		 * cost of remote accesses would likely offset THP benefits.
++		 *
++		 * If the policy is interleave, or does not allow the current
++		 * node in its nodemask, we allocate the standard way.
++		 */
++		nmask = policy_nodemask(gfp, pol);
++		if (!nmask || node_isset(node, *nmask)) {
++			mpol_cond_put(pol);
++			page = alloc_pages_exact_node(node, gfp, order);
++			goto out;
++		}
++	}
++
++	if (pol->mode == MPOL_INTERLEAVE) {
+ 		unsigned nid;
+ 
+ 		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT + order);
+ 		mpol_cond_put(pol);
+ 		page = alloc_page_interleave(gfp, order, nid);
+-		if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie)))
+-			goto retry_cpuset;
+-
+-		return page;
++		goto out;
+ 	}
+-	page = __alloc_pages_nodemask(gfp, order,
+-				      policy_zonelist(gfp, pol, node),
+-				      policy_nodemask(gfp, pol));
++
++	nmask = policy_nodemask(gfp, pol);
++	zl = policy_zonelist(gfp, pol, node);
+ 	mpol_cond_put(pol);
++	page = __alloc_pages_nodemask(gfp, order, zl, nmask);
++out:
+ 	if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie)))
+ 		goto retry_cpuset;
+ 	return page;
+ }
+ 
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-/**
+- * alloc_hugepage_vma: Allocate a hugepage for a VMA
+- * @gfp:
+- *   %GFP_USER	  user allocation.
+- *   %GFP_KERNEL  kernel allocations,
+- *   %GFP_HIGHMEM highmem/user allocations,
+- *   %GFP_FS	  allocation should not call back into a file system.
+- *   %GFP_ATOMIC  don't sleep.
+- *
+- * @vma:   Pointer to VMA or NULL if not available.
+- * @addr:  Virtual Address of the allocation. Must be inside the VMA.
+- * @order: Order of the hugepage for gfp allocation.
+- *
+- * This functions allocate a huge page from the kernel page pool and applies
+- * a NUMA policy associated with the VMA or the current process.
+- * For policy other than %MPOL_INTERLEAVE, we make sure we allocate hugepage
+- * only from the current node if the current node is part of the node mask.
+- * If we can't allocate a hugepage we fail the allocation and don' try to fallback
+- * to other nodes in the node mask. If the current node is not part of node mask
+- * or if the NUMA policy is MPOL_INTERLEAVE we use the allocator that can
+- * fallback to nodes in the policy node mask.
+- *
+- * When VMA is not NULL caller must hold down_read on the mmap_sem of the
+- * mm_struct of the VMA to prevent it from going away. Should be used for
+- * all allocations for pages that will be mapped into
+- * user space. Returns NULL when no page can be allocated.
+- *
+- * Should be called with vma->vm_mm->mmap_sem held.
+- *
+- */
+-struct page *alloc_hugepage_vma(gfp_t gfp, struct vm_area_struct *vma,
+-				unsigned long addr, int order)
+-{
+-	struct page *page;
+-	nodemask_t *nmask;
+-	struct mempolicy *pol;
+-	int node = numa_node_id();
+-	unsigned int cpuset_mems_cookie;
+-
+-retry_cpuset:
+-	pol = get_vma_policy(vma, addr);
+-	cpuset_mems_cookie = read_mems_allowed_begin();
+-	/*
+-	 * For interleave policy, we don't worry about
+-	 * current node. Otherwise if current node is
+-	 * in nodemask, try to allocate hugepage from
+-	 * the current node. Don't fall back to other nodes
+-	 * for THP.
+-	 */
+-	if (unlikely(pol->mode == MPOL_INTERLEAVE))
+-		goto alloc_with_fallback;
+-	nmask = policy_nodemask(gfp, pol);
+-	if (!nmask || node_isset(node, *nmask)) {
+-		mpol_cond_put(pol);
+-		page = alloc_pages_exact_node(node, gfp, order);
+-		if (unlikely(!page &&
+-			     read_mems_allowed_retry(cpuset_mems_cookie)))
+-			goto retry_cpuset;
+-		return page;
+-	}
+-alloc_with_fallback:
+-	mpol_cond_put(pol);
+-	/*
+-	 * if current node is not part of node mask, try
+-	 * the allocation from any node, and we can do retry
+-	 * in that case.
+-	 */
+-	return alloc_pages_vma(gfp, order, vma, addr, node);
+-}
+-#endif
+-
+ /**
+  * 	alloc_pages_current - Allocate pages.
+  *
+-- 
+2.1.4
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
