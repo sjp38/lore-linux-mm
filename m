@@ -1,57 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 24B8E6B008A
-	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 10:29:03 -0500 (EST)
-Received: by mail-wi0-f179.google.com with SMTP id l15so3348071wiw.0
-        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 07:29:02 -0800 (PST)
-Received: from mail-we0-x234.google.com (mail-we0-x234.google.com. [2a00:1450:400c:c03::234])
-        by mx.google.com with ESMTPS id dx1si7289859wib.72.2015.01.30.07.29.01
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FEAC6B0038
+	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 11:02:54 -0500 (EST)
+Received: by mail-wg0-f44.google.com with SMTP id z12so27749966wgg.3
+        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 08:02:54 -0800 (PST)
+Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id h2si21431931wjz.86.2015.01.30.08.02.20
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 30 Jan 2015 07:29:01 -0800 (PST)
-Received: by mail-we0-f180.google.com with SMTP id m14so27777871wev.11
-        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 07:29:01 -0800 (PST)
-Date: Fri, 30 Jan 2015 16:28:59 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2] mm: vmscan: fix the page state calculation in
- too_many_isolated
-Message-ID: <20150130152859.GI15505@dhcp22.suse.cz>
-References: <20150116154922.GB4650@dhcp22.suse.cz>
- <54BA7D3A.40100@codeaurora.org>
- <alpine.DEB.2.11.1501171347290.25464@gentwo.org>
- <54BC879C.90505@codeaurora.org>
- <20150121143920.GD23700@dhcp22.suse.cz>
- <alpine.DEB.2.11.1501221010510.3937@gentwo.org>
- <20150126174606.GD22681@dhcp22.suse.cz>
- <alpine.DEB.2.11.1501261233550.16786@gentwo.org>
- <20150127105242.GC19880@dhcp22.suse.cz>
- <alpine.DEB.2.11.1501271058230.25124@gentwo.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 30 Jan 2015 08:02:45 -0800 (PST)
+Date: Fri, 30 Jan 2015 16:02:13 +0000
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [PATCH 03/19] arm: expose number of page table levels on Kconfig
+ level
+Message-ID: <20150130160212.GP26493@n2100.arm.linux.org.uk>
+References: <1422629008-13689-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1422629008-13689-4-git-send-email-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.11.1501271058230.25124@gentwo.org>
+In-Reply-To: <1422629008-13689-4-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Vinayak Menon <vinmenon@codeaurora.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@parallels.com, mgorman@suse.de, minchan@kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Guenter Roeck <linux@roeck-us.net>
 
-On Tue 27-01-15 10:59:59, Christoph Lameter wrote:
-> On Tue, 27 Jan 2015, Michal Hocko wrote:
-> 
-> > I am not following. The idea was to run vmstat_shepherd in a kernel
-> > thread and waking up as per defined timeout and then check need_update
-> > for each CPU and call smp_call_function_single to refresh the timer
-> > rather than building a mask and then calling sm_call_function_many to
-> > reduce paralel contention on the shared counters.
-> 
-> Thats ok.
+It'd be nice to see the cover for this series so that people know the
+reason behind this change is.  Maybe it'd be a good idea to add a
+pointer or some description below the "---" to such patches which
+are otherwise totally meaningless to the people you add to the Cc
+line?
 
-OK, I will put that on my todo list and try to find some time to
-implement it.
+On Fri, Jan 30, 2015 at 04:43:12PM +0200, Kirill A. Shutemov wrote:
+> We would want to use number of page table level to define mm_struct.
+> Let's expose it as CONFIG_PGTABLE_LEVELS.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Russell King <linux@arm.linux.org.uk>
+> ---
+>  arch/arm/Kconfig | 5 +++++
+>  1 file changed, 5 insertions(+)
+> 
+> diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+> index 4211507e2bca..d7dca652573f 100644
+> --- a/arch/arm/Kconfig
+> +++ b/arch/arm/Kconfig
+> @@ -286,6 +286,11 @@ config GENERIC_BUG
+>  	def_bool y
+>  	depends on BUG
+>  
+> +config PGTABLE_LEVELS
+> +	int
+> +	default 3 if ARM_LPAE
+> +	default 2
+> +
+>  source "init/Kconfig"
+>  
+>  source "kernel/Kconfig.freezer"
+> -- 
+> 2.1.4
+> 
 
 -- 
-Michal Hocko
-SUSE Labs
+FTTC broadband for 0.8mile line: currently at 10.5Mbps down 400kbps up
+according to speedtest.net.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
