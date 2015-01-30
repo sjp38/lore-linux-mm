@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D7B26B0038
-	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 08:47:31 -0500 (EST)
-Received: by mail-wg0-f52.google.com with SMTP id y19so26940040wgg.11
-        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 05:47:30 -0800 (PST)
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 358816B0038
+	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 09:27:58 -0500 (EST)
+Received: by mail-wg0-f45.google.com with SMTP id x12so27176738wgg.4
+        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 06:27:57 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id as2si20712655wjc.91.2015.01.30.05.47.28
+        by mx.google.com with ESMTPS id hj2si20903791wjb.93.2015.01.30.06.27.55
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 30 Jan 2015 05:47:28 -0800 (PST)
-Message-ID: <54CB8B6B.2080503@suse.cz>
-Date: Fri, 30 Jan 2015 14:47:23 +0100
+        Fri, 30 Jan 2015 06:27:56 -0800 (PST)
+Message-ID: <54CB94E6.7010805@suse.cz>
+Date: Fri, 30 Jan 2015 15:27:50 +0100
 From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 2/4] mm/compaction: stop the isolation when we isolate
- enough freepage
-References: <1422621252-29859-1-git-send-email-iamjoonsoo.kim@lge.com> <1422621252-29859-3-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1422621252-29859-3-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 3/4] mm/page_alloc: separate steal decision from steal
+ behaviour part
+References: <1422621252-29859-1-git-send-email-iamjoonsoo.kim@lge.com> <1422621252-29859-4-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1422621252-29859-4-git-send-email-iamjoonsoo.kim@lge.com>
 Content-Type: text/plain; charset=iso-8859-2
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -27,119 +27,126 @@ Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van 
 On 01/30/2015 01:34 PM, Joonsoo Kim wrote:
 > From: Joonsoo <iamjoonsoo.kim@lge.com>
 > 
-> Currently, freepage isolation in one pageblock doesn't consider how many
-> freepages we isolate. When I traced flow of compaction, compaction
-> sometimes isolates more than 256 freepages to migrate just 32 pages.
+> This is preparation step to use page allocator's anti fragmentation logic
+> in compaction. This patch just separates steal decision part from actual
+> steal behaviour part so there is no functional change.
 > 
-> In this patch, freepage isolation is stopped at the point that we
-> have more isolated freepage than isolated page for migration. This
-> results in slowing down free page scanner and make compaction success
-> rate higher.
-> 
-> stress-highalloc test in mmtests with non movable order 7 allocation shows
-> increase of compaction success rate.
-> 
-> Compaction success rate (Compaction success * 100 / Compaction stalls, %)
-> 27.13 : 31.82
-> 
-> pfn where both scanners meets on compaction complete
-> (separate test due to enormous tracepoint buffer)
-> (zone_start=4096, zone_end=1048576)
-> 586034 : 654378
-
-Now I that I know that scanners meeting further in zone is better for success
-rate, the better success rate makes sense. Still not sure why they meet further :)
-
-> In fact, I didn't fully understand why this patch results in such good
-> result. There was a guess that not used freepages are released to pcp list
-> and on next compaction trial we won't isolate them again so compaction
-> success rate would decrease. To prevent this effect, I tested with adding
-> pcp drain code on release_freepages(), but, it has no good effect.
-> 
-> Anyway, this patch reduces waste time to isolate unneeded freepages so
-> seems reasonable.
-
-I briefly tried it on top of the pivot-changing series and with order-9
-allocations it reduced free page scanned counter by almost 10%. No effect on
-success rates (maybe because pivot changing already took care of the scanners
-meeting problem) but the scanning reduction is good on its own.
-
-It also explains why e14c720efdd7 ("mm, compaction: remember position within
-pageblock in free pages scanner") had less than expected improvements. It would
-only actually stop within pageblock in case of async compaction detecting
-contention. I guess that's also why the infinite loop problem fixed by
-1d5bfe1ffb5b affected so relatively few people.
-
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-Thanks!
-
 > ---
->  mm/compaction.c | 17 ++++++++++-------
->  1 file changed, 10 insertions(+), 7 deletions(-)
+>  mm/page_alloc.c | 49 ++++++++++++++++++++++++++++++++-----------------
+>  1 file changed, 32 insertions(+), 17 deletions(-)
 > 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 4954e19..782772d 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -490,6 +490,13 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
->  
->  		/* If a page was split, advance to the end of it */
->  		if (isolated) {
-> +			cc->nr_freepages += isolated;
-> +			if (!strict &&
-> +				cc->nr_migratepages <= cc->nr_freepages) {
-> +				blockpfn += isolated;
-> +				break;
-> +			}
-> +
->  			blockpfn += isolated - 1;
->  			cursor += isolated - 1;
->  			continue;
-> @@ -899,7 +906,6 @@ static void isolate_freepages(struct compact_control *cc)
->  	unsigned long isolate_start_pfn; /* exact pfn we start at */
->  	unsigned long block_end_pfn;	/* end of current pageblock */
->  	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
-> -	int nr_freepages = cc->nr_freepages;
->  	struct list_head *freelist = &cc->freepages;
->  
->  	/*
-> @@ -924,11 +930,11 @@ static void isolate_freepages(struct compact_control *cc)
->  	 * pages on cc->migratepages. We stop searching if the migrate
->  	 * and free page scanners meet or enough free pages are isolated.
->  	 */
-> -	for (; block_start_pfn >= low_pfn && cc->nr_migratepages > nr_freepages;
-> +	for (; block_start_pfn >= low_pfn &&
-> +			cc->nr_migratepages > cc->nr_freepages;
->  				block_end_pfn = block_start_pfn,
->  				block_start_pfn -= pageblock_nr_pages,
->  				isolate_start_pfn = block_start_pfn) {
-> -		unsigned long isolated;
->  
->  		/*
->  		 * This can iterate a massively long zone without finding any
-> @@ -953,9 +959,8 @@ static void isolate_freepages(struct compact_control *cc)
->  			continue;
->  
->  		/* Found a block suitable for isolating free pages from. */
-> -		isolated = isolate_freepages_block(cc, &isolate_start_pfn,
-> +		isolate_freepages_block(cc, &isolate_start_pfn,
->  					block_end_pfn, freelist, false);
-> -		nr_freepages += isolated;
->  
->  		/*
->  		 * Remember where the free scanner should restart next time,
-> @@ -987,8 +992,6 @@ static void isolate_freepages(struct compact_control *cc)
->  	 */
->  	if (block_start_pfn < low_pfn)
->  		cc->free_pfn = cc->migrate_pfn;
-> -
-> -	cc->nr_freepages = nr_freepages;
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 8d52ab1..ef74750 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1122,6 +1122,24 @@ static void change_pageblock_range(struct page *pageblock_page,
+>  	}
 >  }
 >  
+> +static bool can_steal_freepages(unsigned int order,
+> +				int start_mt, int fallback_mt)
+> +{
+> +	if (is_migrate_cma(fallback_mt))
+> +		return false;
+> +
+> +	if (order >= pageblock_order)
+> +		return true;
+> +
+> +	if (order >= pageblock_order / 2 ||
+> +		start_mt == MIGRATE_RECLAIMABLE ||
+> +		start_mt == MIGRATE_UNMOVABLE ||
+> +		page_group_by_mobility_disabled)
+> +		return true;
+> +
+> +	return false;
+> +}
+> +
 >  /*
+>   * When we are falling back to another migratetype during allocation, try to
+>   * steal extra free pages from the same pageblocks to satisfy further
+> @@ -1138,9 +1156,10 @@ static void change_pageblock_range(struct page *pageblock_page,
+>   * as well.
+>   */
+>  static void try_to_steal_freepages(struct zone *zone, struct page *page,
+> -				  int start_type, int fallback_type)
+> +				  int start_type)
+
+It's actually not 'try_to_' anymore, is it? But could be, see below.
+
+>  {
+>  	int current_order = page_order(page);
+> +	int pages;
+>  
+>  	/* Take ownership for orders >= pageblock_order */
+>  	if (current_order >= pageblock_order) {
+> @@ -1148,19 +1167,12 @@ static void try_to_steal_freepages(struct zone *zone, struct page *page,
+>  		return;
+>  	}
+>  
+> -	if (current_order >= pageblock_order / 2 ||
+> -	    start_type == MIGRATE_RECLAIMABLE ||
+> -	    start_type == MIGRATE_UNMOVABLE ||
+> -	    page_group_by_mobility_disabled) {
+> -		int pages;
+> +	pages = move_freepages_block(zone, page, start_type);
+>  
+> -		pages = move_freepages_block(zone, page, start_type);
+> -
+> -		/* Claim the whole block if over half of it is free */
+> -		if (pages >= (1 << (pageblock_order-1)) ||
+> -				page_group_by_mobility_disabled)
+> -			set_pageblock_migratetype(page, start_type);
+> -	}
+> +	/* Claim the whole block if over half of it is free */
+> +	if (pages >= (1 << (pageblock_order-1)) ||
+> +			page_group_by_mobility_disabled)
+> +		set_pageblock_migratetype(page, start_type);
+>  }
+>  
+>  /* Remove an element from the buddy allocator from the fallback list */
+> @@ -1170,6 +1182,7 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
+>  	struct free_area *area;
+>  	unsigned int current_order;
+>  	struct page *page;
+> +	bool can_steal;
+>  
+>  	/* Find the largest possible block of pages in the other list */
+>  	for (current_order = MAX_ORDER-1;
+> @@ -1192,10 +1205,11 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
+>  					struct page, lru);
+>  			area->nr_free--;
+>  
+> -			if (!is_migrate_cma(migratetype)) {
+> +			can_steal = can_steal_freepages(current_order,
+> +					start_migratetype, migratetype);
+> +			if (can_steal) {
+
+can_steal is only used once, why not do if (can_steal_freepages()) directly?
+
+Or, call can_steal_freepages() from try_to_steal_freepages() and make
+try_to_steal_freepages() return its result. Then here it simplifies to:
+
+if (!try_to_steal_freepages(...) && is_migrate_cma(...))
+	buddy_type = migratetype;
+
+>  				try_to_steal_freepages(zone, page,
+> -							start_migratetype,
+> -							migratetype);
+> +							start_migratetype);
+>  			} else {
+>  				/*
+>  				 * When borrowing from MIGRATE_CMA, we need to
+> @@ -1203,7 +1217,8 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
+>  				 * itself, and we do not try to steal extra
+>  				 * free pages.
+>  				 */
+> -				buddy_type = migratetype;
+> +				if (is_migrate_cma(migratetype))
+> +					buddy_type = migratetype;
+>  			}
+>  
+>  			/* Remove the page from the freelists */
 > 
 
 --
