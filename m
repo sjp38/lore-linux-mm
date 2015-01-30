@@ -1,73 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B3AB6B0032
-	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 11:17:48 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id lj1so53949534pab.5
-        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 08:17:48 -0800 (PST)
-Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
-        by mx.google.com with ESMTPS id or9si14065457pac.2.2015.01.30.08.17.47
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Fri, 30 Jan 2015 08:17:47 -0800 (PST)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout1.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NJ000MH404E6YA0@mailout1.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 30 Jan 2015 16:21:50 +0000 (GMT)
-Message-id: <54CBAE9E.2090503@samsung.com>
-Date: Fri, 30 Jan 2015 19:17:34 +0300
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
-MIME-version: 1.0
-Subject: Re: [PATCH v10 04/17] mm: slub: introduce virt_to_obj function.
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
- <1422544321-24232-1-git-send-email-a.ryabinin@samsung.com>
- <1422544321-24232-5-git-send-email-a.ryabinin@samsung.com>
- <20150129151234.a94bea44ae34bc90dcd148b0@linux-foundation.org>
-In-reply-to: <20150129151234.a94bea44ae34bc90dcd148b0@linux-foundation.org>
-Content-type: text/plain; charset=windows-1252
-Content-transfer-encoding: 7bit
+Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D24106B0032
+	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 11:25:02 -0500 (EST)
+Received: by mail-wg0-f51.google.com with SMTP id k14so27737759wgh.10
+        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 08:25:02 -0800 (PST)
+Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.195])
+        by mx.google.com with ESMTP id km10si21639541wjc.32.2015.01.30.08.25.00
+        for <linux-mm@kvack.org>;
+        Fri, 30 Jan 2015 08:25:01 -0800 (PST)
+Date: Fri, 30 Jan 2015 18:24:40 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 03/19] arm: expose number of page table levels on Kconfig
+ level
+Message-ID: <20150130162440.GA29551@node.dhcp.inet.fi>
+References: <1422629008-13689-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1422629008-13689-4-git-send-email-kirill.shutemov@linux.intel.com>
+ <20150130160212.GP26493@n2100.arm.linux.org.uk>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150130160212.GP26493@n2100.arm.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, x86@kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Guenter Roeck <linux@roeck-us.net>
 
-On 01/30/2015 02:12 AM, Andrew Morton wrote:
-> On Thu, 29 Jan 2015 18:11:48 +0300 Andrey Ryabinin <a.ryabinin@samsung.com> wrote:
-> 
->> virt_to_obj takes kmem_cache address, address of slab page,
->> address x pointing somewhere inside slab object,
->> and returns address of the begging of object.
-> 
-> "beginning"
-> 
-> The above text may as well be placed into slub_def.h as a comment.
-> 
+On Fri, Jan 30, 2015 at 04:02:13PM +0000, Russell King - ARM Linux wrote:
+> It'd be nice to see the cover for this series so that people know the
+> reason behind this change is.  Maybe it'd be a good idea to add a
+> pointer or some description below the "---" to such patches which
+> are otherwise totally meaningless to the people you add to the Cc
+> line?
 
-Ok.
+Okay, some background:
 
->> Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
->> Acked-by: Christoph Lameter <cl@linux.com>
->> ---
->>  include/linux/slub_def.h | 5 +++++
->>  1 file changed, 5 insertions(+)
->>
->> diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
->> index 9abf04e..eca3883 100644
->> --- a/include/linux/slub_def.h
->> +++ b/include/linux/slub_def.h
->> @@ -110,4 +110,9 @@ static inline void sysfs_slab_remove(struct kmem_cache *s)
->>  }
->>  #endif
->>  
->> +static inline void *virt_to_obj(struct kmem_cache *s, void *slab_page, void *x)
->> +{
->> +	return x - ((x - slab_page) % s->size);
->> +}
-> 
-> "const void *x" would be better.
-> 
+I've implemented accounting for pmd page tables as we have for pte (see
+mm->nr_ptes). It's requires a new counter in mm_struct: mm->nr_pmds.
 
-Yep.
+But the feature doesn't make any sense if an architecture has PMD level
+folded and it would be nice get rid of the counter in this case.
+
+The problem is that we cannot use __PAGETABLE_PMD_FOLDED in
+<linux/mm_types.h> due to circular dependencies:
+
+<linux/mm_types> -> <asm/pgtable.h> -> <linux/mm_types.h>
+
+In most cases <asm/pgtable.h> wants <linux/mm_types.h> to get definition
+of struct page and struct vm_area_struct. I've tried to split mm_struct
+into separate header file to be able to user <asm/pgtable.h> there.
+
+But it doesn't fly on some architectures, including ARM: it wants
+mm_struct <asm/pgtable.h> to implement tlb flushing. I don't see how to
+fix it without massive de-inlining or coverting a lot for inline functions
+to macros.
+
+This is other approach: expose number of page tables in use via Kconfig
+and use it in <linux/mm_types.h> instead of __PAGETABLE_PMD_FOLDED from
+<asm/pgtable.h>.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
