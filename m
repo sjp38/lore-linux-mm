@@ -1,91 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 624256B0038
-	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 21:08:59 -0500 (EST)
-Received: by mail-qc0-f180.google.com with SMTP id r5so18501053qcx.11
-        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 18:08:59 -0800 (PST)
-Received: from mail-qa0-x22c.google.com (mail-qa0-x22c.google.com. [2607:f8b0:400d:c00::22c])
-        by mx.google.com with ESMTPS id y4si11895180qch.0.2015.01.29.18.08.58
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 879236B0038
+	for <linux-mm@kvack.org>; Thu, 29 Jan 2015 22:25:10 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id fa1so46828900pad.8
+        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 19:25:10 -0800 (PST)
+Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
+        by mx.google.com with ESMTPS id qd7si12241838pdb.124.2015.01.29.19.25.09
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 29 Jan 2015 18:08:58 -0800 (PST)
-Received: by mail-qa0-f44.google.com with SMTP id w8so18132910qac.3
-        for <linux-mm@kvack.org>; Thu, 29 Jan 2015 18:08:58 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <CANcMJZALAz1WKjo+8VbUMWBpS117gaZht-b7jBLJWT9VVN83=g@mail.gmail.com>
-References: <1421079554-30899-1-git-send-email-cpandya@codeaurora.org>
-	<20150115170324.GD7008@dhcp22.suse.cz>
-	<CANcMJZALAz1WKjo+8VbUMWBpS117gaZht-b7jBLJWT9VVN83=g@mail.gmail.com>
-Date: Thu, 29 Jan 2015 18:08:58 -0800
-Message-ID: <CAABpnA-hGh2iP866aB+U7y6SN4pU2izP1wPUCYpkc+F7TQcDvw@mail.gmail.com>
-Subject: Re: [PATCH] lowmemorykiller: Avoid excessive/redundant calling of LMK
-From: Rom Lemarchand <romlem@google.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Thu, 29 Jan 2015 19:25:09 -0800 (PST)
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8; format=flowed
+Received: from epcpsbgr4.samsung.com
+ (u144.gpu120.samsung.co.kr [203.254.230.144])
+ by mailout1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTP id <0NIZ0081W05UZW80@mailout1.samsung.com> for linux-mm@kvack.org;
+ Fri, 30 Jan 2015 12:25:07 +0900 (KST)
+Content-transfer-encoding: 8BIT
+Message-id: <54CAF9A4.1040606@samsung.com>
+Date: Fri, 30 Jan 2015 12:25:24 +0900
+From: Heesub Shin <heesub.shin@samsung.com>
+Subject: Re: CMA related memory questions
+References: 
+ <CABymUCNMjM2KHXXB-LM=x+FTcJL6S5_jhG3GbP7VRi2vBoW49g@mail.gmail.com>
+ <CABymUCO+xaify95bUqfbCLsEjkLzEC0yT_fgkhV+qzC36JNgoA@mail.gmail.com>
+ <CABymUCPgEh93QsBtRyg0S+FyE0FHwjAF75qk+NWh5TS8ehWuew@mail.gmail.com>
+ <54CAF314.4070301@linaro.org>
+In-reply-to: <54CAF314.4070301@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Chintan Pandya <cpandya@codeaurora.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Weijie Yang <weijie.yang@samsung.com>, David Rientjes <rientjes@google.com>, "devel@driverdev.osuosl.org" <devel@driverdev.osuosl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Android Kernel Team <kernel-team@android.com>, Anton Vorontsov <anton@enomsg.org>
+To: Jun Nie <jun.nie@linaro.org>, Arnd Bergmann <arnd@arndb.de>, Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: Shawn Guo <shawn.guo@linaro.org>, "mark.brown@linaro.org; \"wan.zhijun\"" <wan.zhijun@zte.com.cn>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, sunae.seo@samsung.com, cmlaika.kim@samsung.com
 
-On Thu, Jan 29, 2015 at 4:44 PM, John Stultz <john.stultz@linaro.org> wrote:
-> On Thu, Jan 15, 2015 at 9:03 AM, Michal Hocko <mhocko@suse.cz> wrote:
->> On Mon 12-01-15 21:49:14, Chintan Pandya wrote:
->>> The global shrinker will invoke lowmem_shrink in a loop.
->>> The loop will be run (total_scan_pages/batch_size) times.
->>> The default batch_size will be 128 which will make
->>> shrinker invoking 100s of times. LMK does meaningful
->>> work only during first 2-3 times and then rest of the
->>> invocations are just CPU cycle waste. Fix that by returning
->>> to the shrinker with SHRINK_STOP when LMK doesn't find any
->>> more work to do. The deciding factor here is, no process
->>> found in the selected LMK bucket or memory conditions are
->>> sane.
->>
->> lowmemory killer is broken by design and this one of the examples which
->> shows why. It simply doesn't fit into shrinkers concept.
->>
->> The count_object callback simply lies and tells the core that all
->> the reclaimable LRU pages are scanable and gives it this as a number
->> which the core uses for total_scan. scan_objects callback then happily
->> ignore nr_to_reclaim and does its one time job where it iterates over
->> _all_ tasks and picks up the victim and returns its rss as a return
->> value. This is just a subset of LRU pages of course so it continues
->> looping until total_scan goes down to 0 finally.
->>
->> If this really has to be a shrinker then, shouldn't it evaluate the OOM
->> situation in the count callback and return non zero only if OOM and then
->> the scan callback would kill and return nr_to_reclaim.
->>
->> Or even better wouldn't it be much better to use vmpressure to wake
->> up a kernel module which would simply check the situation and kill
->> something?
->>
->> Please do not put only cosmetic changes on top of broken concept and try
->> to think about a proper solution that is what staging is for AFAIU.
->>
->> The code is in this state for quite some time and I would really hate if
->> it got merged just because it is in staging for too long and it is used
->> out there.
->
-> So the in-kernel low-memory-killer is hopefully on its way out.
->
-> With Lollipop on some devices, Android is using the mempressure
-> notifiers to kill processes from userland. However, not all devices
-> have moved to this new model (and possibly some resulting performance
-> issues are being worked out? Its not clear).  So hopefully we can drop
-> it soon, but I'd like to make sure we don't get only a half-working
-> solution upstream before we do remove it.
->
-> thanks
-> -john
 
-We are still working on a user space replacement to LMK. We have
-definitely had issues with LMKd and so stayed with the in kernel one
-for all the lollipop devices we shipped. Issues were mostly related to
-performance, timing of OOM notifications and when under intense memory
-pressure we ran into issues where even opening a file would fail due
-to no RAM being available.
-As John said, it's WIP and hopefully we'll be able to drop the in
-kernel one soon.
+
+On 01/30/2015 11:57 AM, Jun Nie wrote:
+> On 2015a1'01ae??30ae?JPY 10:36, Jun Nie wrote:
+>> Hi Marek & Arnd,
+>>
+>> Did you ever know issue that free CMA memory is high, but system is
+>> hungry for memory and page cache is very low? I am enabling CMA in
+>> Android on my board with 512MB memory and see FreeMem in /proc/meminfo
+>> increase a lot with CMA comparing the reservation solution on boot. But
+>> I find system is not borrowing memory from CMA pool when running 3dmark
+>> (high webkit workload at start). Because the FreeMem size is high, but
+>> cache size decreasing significantly to several MB during benchmark run,
+>> I suppose system is trying to reclaim memory from pagecache for new
+>> allocation. My question is that what API that page cache and webkit
+>> related functionality are using to allocate memory. Maybe page cache
+>> require memory that is not movable/reclaimable memory, where we may have
+>> optimization to go thru dma_alloc_xxx to borrow CMA memory? I suppose
+>> app level memory allocation shall be movable/reclaimable memory and can
+>> borrow from CMA pool, but not sure whether the flag match the
+>> movable/reclaimable memory and go thru the right path.
+>>
+>> Could you help share your experience/thoughts on this? Thanks!
+
+CC'ed linux-mm@kvack.org
+
+__zone_watermark_ok() assumes that free pages from CMA pageblock are not 
+free when ALLOC_CMA is not set on alloc_flags. The main goal was to 
+force core mm to keep some non-CMA always free and thus let kernel to 
+allocate a few unmovable pages from any context (including atomic, irq, 
+etc.). However, this behavior may cause excessive page reclamation as it 
+is sometimes very hard to satisfy the high wmark + balance_gap with only 
+non-CMA pages and reclaiming CMA pages does not help at all.
+
+It is observed that page cache pages are excessively reclaimed and 
+entire system falls into thrashing even though the amount of free pages 
+are much higer than the high wmark. In this case, majority of the free 
+pages were from CMA page block (and about 30% pages in highmem zone were 
+from CMA pageblock). Therefore, kswapd kept running and reclaiming too 
+many pages. Although it is relatively rare and only observed on a 
+specific workload, the device gets in an unresponsive state for a while 
+(up to 10 secs), once it happens.
+
+regards,
+heesub
+
+>>
+>>
+>> B.R.
+>> Jun
+>
+> Add more people.
+>
+> _______________________________________________
+> linux-arm-kernel mailing list
+> linux-arm-kernel@lists.infradead.org
+> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
