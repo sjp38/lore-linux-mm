@@ -1,97 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FA796B006E
-	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 08:30:54 -0500 (EST)
-Received: by mail-la0-f41.google.com with SMTP id gm9so23745712lab.0
-        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 05:30:53 -0800 (PST)
-Received: from forward-corp1g.mail.yandex.net (forward-corp1g.mail.yandex.net. [2a02:6b8:0:1402::10])
-        by mx.google.com with ESMTPS id wn10si10099718lac.76.2015.01.30.05.30.52
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D7B26B0038
+	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 08:47:31 -0500 (EST)
+Received: by mail-wg0-f52.google.com with SMTP id y19so26940040wgg.11
+        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 05:47:30 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id as2si20712655wjc.91.2015.01.30.05.47.28
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Jan 2015 05:30:52 -0800 (PST)
-Message-ID: <54CB8789.9040206@yandex-team.ru>
-Date: Fri, 30 Jan 2015 16:30:49 +0300
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 30 Jan 2015 05:47:28 -0800 (PST)
+Message-ID: <54CB8B6B.2080503@suse.cz>
+Date: Fri, 30 Jan 2015 14:47:23 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: don't account shared file pages in user_reserve_pages
-References: <1422532287-23601-1-git-send-email-klamm@yandex-team.ru> <20150129201147.GB9331@scruffy>
-In-Reply-To: <20150129201147.GB9331@scruffy>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Subject: Re: [PATCH v2 2/4] mm/compaction: stop the isolation when we isolate
+ enough freepage
+References: <1422621252-29859-1-git-send-email-iamjoonsoo.kim@lge.com> <1422621252-29859-3-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1422621252-29859-3-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset=iso-8859-2
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Shewmaker <agshew@gmail.com>, Roman Gushchin <klamm@yandex-team.ru>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
+To: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On 29.01.2015 23:11, Andrew Shewmaker wrote:
-> On Thu, Jan 29, 2015 at 02:51:27PM +0300, Roman Gushchin wrote:
->> Shared file pages are never accounted in memory overcommit code,
->> so it isn't reasonable to count them in a code that limits the
->> maximal size of a process in OVERCOMMIT_NONE mode.
->>
->> If a process has few large file mappings, the consequent attempts
->> to allocate anonymous memory may unexpectedly fail with -ENOMEM,
->> while there is free memory and overcommit limit if significantly
->> larger than the committed amount (as displayed in /proc/meminfo).
->>
->> The problem is significantly smoothed by commit c9b1d0981fcc
->> ("mm: limit growth of 3% hardcoded other user reserve"),
->> which limits the impact of this check with 128Mb (tunable via sysctl),
->> but it can still be a problem on small machines.
->>
->> Signed-off-by: Roman Gushchin <klamm@yandex-team.ru>
->> Cc: Andrew Morton <akpm@linux-foundation.org>
->> Cc: Andrew Shewmaker <agshew@gmail.com>
->> Cc: Rik van Riel <riel@redhat.com>
->> Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
->> ---
->>   mm/mmap.c | 2 +-
->>   1 file changed, 1 insertion(+), 1 deletion(-)
->>
->> diff --git a/mm/mmap.c b/mm/mmap.c
->> index 7f684d5..151fadf 100644
->> --- a/mm/mmap.c
->> +++ b/mm/mmap.c
->> @@ -220,7 +220,7 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
->>   	 */
->>   	if (mm) {
->>   		reserve = sysctl_user_reserve_kbytes >> (PAGE_SHIFT - 10);
->> -		allowed -= min(mm->total_vm / 32, reserve);
->> +		allowed -= min((mm->total_vm - mm->shared_vm) / 32, reserve);
->>   	}
->>
->>   	if (percpu_counter_read_positive(&vm_committed_as) < allowed)
->> --
->> 2.1.0
->
-> You're two patches conflict, don't they? Maybe you should resend
-> them as a patch series such that they can both be applied?
+On 01/30/2015 01:34 PM, Joonsoo Kim wrote:
+> From: Joonsoo <iamjoonsoo.kim@lge.com>
+> 
+> Currently, freepage isolation in one pageblock doesn't consider how many
+> freepages we isolate. When I traced flow of compaction, compaction
+> sometimes isolates more than 256 freepages to migrate just 32 pages.
+> 
+> In this patch, freepage isolation is stopped at the point that we
+> have more isolated freepage than isolated page for migration. This
+> results in slowing down free page scanner and make compaction success
+> rate higher.
+> 
+> stress-highalloc test in mmtests with non movable order 7 allocation shows
+> increase of compaction success rate.
+> 
+> Compaction success rate (Compaction success * 100 / Compaction stalls, %)
+> 27.13 : 31.82
+> 
+> pfn where both scanners meets on compaction complete
+> (separate test due to enormous tracepoint buffer)
+> (zone_start=4096, zone_end=1048576)
+> 586034 : 654378
 
-I think arithmetic overflow is more important. Upper bound 128M
-for user reserve makes mis-accounting of shared memory mostly invisible.
+Now I that I know that scanners meeting further in zone is better for success
+rate, the better success rate makes sense. Still not sure why they meet further :)
 
->
-> Does mm->shared_vm include memory that's mapped MAP_ANONYMOUS in
-> conjunction with MAP_SHARED? If so, then subtracting it could
-> overcommit the system OVERCOMMIT_NEVER mode.
+> In fact, I didn't fully understand why this patch results in such good
+> result. There was a guess that not used freepages are released to pcp list
+> and on next compaction trial we won't isolate them again so compaction
+> success rate would decrease. To prevent this effect, I tested with adding
+> pcp drain code on release_freepages(), but, it has no good effect.
+> 
+> Anyway, this patch reduces waste time to isolate unneeded freepages so
+> seems reasonable.
 
-Yep.
+I briefly tried it on top of the pivot-changing series and with order-9
+allocations it reduced free page scanned counter by almost 10%. No effect on
+success rates (maybe because pivot changing already took care of the scanners
+meeting problem) but the scanning reduction is good on its own.
 
-Moreover shared_vm also includes file mappings with MAP_PRIVATE.
-It works more likely as "maybe shared", upper bound for "file-rss"
-(MM_FILEPAGES).
+It also explains why e14c720efdd7 ("mm, compaction: remember position within
+pageblock in free pages scanner") had less than expected improvements. It would
+only actually stop within pageblock in case of async compaction detecting
+contention. I guess that's also why the infinite loop problem fixed by
+1d5bfe1ffb5b affected so relatively few people.
 
-I think we need here total size of vmas where VM_ACCOUNT is set --
-writable private mappings mapped without MAP_NORESERVE or something
-like that. But total_vm after limiting with 128Mb gives almost always
-the same or similar value. So, let's keep it as is.
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
--- 
-Konstantin
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
->
-> -Andrew
->
+Thanks!
+
+> ---
+>  mm/compaction.c | 17 ++++++++++-------
+>  1 file changed, 10 insertions(+), 7 deletions(-)
+> 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 4954e19..782772d 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -490,6 +490,13 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+>  
+>  		/* If a page was split, advance to the end of it */
+>  		if (isolated) {
+> +			cc->nr_freepages += isolated;
+> +			if (!strict &&
+> +				cc->nr_migratepages <= cc->nr_freepages) {
+> +				blockpfn += isolated;
+> +				break;
+> +			}
+> +
+>  			blockpfn += isolated - 1;
+>  			cursor += isolated - 1;
+>  			continue;
+> @@ -899,7 +906,6 @@ static void isolate_freepages(struct compact_control *cc)
+>  	unsigned long isolate_start_pfn; /* exact pfn we start at */
+>  	unsigned long block_end_pfn;	/* end of current pageblock */
+>  	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
+> -	int nr_freepages = cc->nr_freepages;
+>  	struct list_head *freelist = &cc->freepages;
+>  
+>  	/*
+> @@ -924,11 +930,11 @@ static void isolate_freepages(struct compact_control *cc)
+>  	 * pages on cc->migratepages. We stop searching if the migrate
+>  	 * and free page scanners meet or enough free pages are isolated.
+>  	 */
+> -	for (; block_start_pfn >= low_pfn && cc->nr_migratepages > nr_freepages;
+> +	for (; block_start_pfn >= low_pfn &&
+> +			cc->nr_migratepages > cc->nr_freepages;
+>  				block_end_pfn = block_start_pfn,
+>  				block_start_pfn -= pageblock_nr_pages,
+>  				isolate_start_pfn = block_start_pfn) {
+> -		unsigned long isolated;
+>  
+>  		/*
+>  		 * This can iterate a massively long zone without finding any
+> @@ -953,9 +959,8 @@ static void isolate_freepages(struct compact_control *cc)
+>  			continue;
+>  
+>  		/* Found a block suitable for isolating free pages from. */
+> -		isolated = isolate_freepages_block(cc, &isolate_start_pfn,
+> +		isolate_freepages_block(cc, &isolate_start_pfn,
+>  					block_end_pfn, freelist, false);
+> -		nr_freepages += isolated;
+>  
+>  		/*
+>  		 * Remember where the free scanner should restart next time,
+> @@ -987,8 +992,6 @@ static void isolate_freepages(struct compact_control *cc)
+>  	 */
+>  	if (block_start_pfn < low_pfn)
+>  		cc->free_pfn = cc->migrate_pfn;
+> -
+> -	cc->nr_freepages = nr_freepages;
+>  }
+>  
+>  /*
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
