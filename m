@@ -1,58 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 731CA6B0038
-	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 05:55:54 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id lj1so51059660pab.5
-        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 02:55:54 -0800 (PST)
-Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
-        by mx.google.com with ESMTPS id ch5si4492541pdb.158.2015.01.30.02.55.53
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F7C26B0038
+	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 07:34:31 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id rd3so51917702pab.3
+        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 04:34:31 -0800 (PST)
+Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
+        by mx.google.com with ESMTPS id b1si13624482pat.116.2015.01.30.04.34.30
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 30 Jan 2015 02:55:53 -0800 (PST)
-Received: by mail-pa0-f46.google.com with SMTP id lj1so51059414pab.5
-        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 02:55:52 -0800 (PST)
-Date: Fri, 30 Jan 2015 19:53:02 +0900
-From: Daeseok Youn <daeseok.youn@gmail.com>
-Subject: [PATCH] mincore: remove unneeded variable 'err'
-Message-ID: <20150130105302.GA24970@devel.8.8.4.4>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+        Fri, 30 Jan 2015 04:34:30 -0800 (PST)
+Received: by mail-pa0-f51.google.com with SMTP id fb1so52073109pad.10
+        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 04:34:30 -0800 (PST)
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: [PATCH v2 0/4] enhance compaction success rate
+Date: Fri, 30 Jan 2015 21:34:08 +0900
+Message-Id: <1422621252-29859-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: hannes@cmpxchg.org, n-horiguchi@ah.jp.nec.com, riel@redhat.com, minchan@kernel.org, daeseok.youn@gmail.com, kirill.shutemov@linux.intel.com, weijie.yang@samsung.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-mincore_hugetlb() returns always '0'
+This patchset aims at increase of compaction success rate. Changes are 
+related to compaction finish condition and freepage isolation condition.
 
-Signed-off-by: Daeseok Youn <daeseok.youn@gmail.com>
----
- mm/mincore.c |    3 +--
- 1 files changed, 1 insertions(+), 2 deletions(-)
+>From these changes, I did stress highalloc test in mmtests with nonmovable
+order 7 allocation configuration, and compaction success rate (%) are
 
-diff --git a/mm/mincore.c b/mm/mincore.c
-index 8d6db5c..be25efd 100644
---- a/mm/mincore.c
-+++ b/mm/mincore.c
-@@ -22,7 +22,6 @@
- static int mincore_hugetlb(pte_t *pte, unsigned long hmask, unsigned long addr,
- 			unsigned long end, struct mm_walk *walk)
- {
--	int err = 0;
- #ifdef CONFIG_HUGETLB_PAGE
- 	unsigned char present;
- 	unsigned char *vec = walk->private;
-@@ -38,7 +37,7 @@ static int mincore_hugetlb(pte_t *pte, unsigned long hmask, unsigned long addr,
- #else
- 	BUG();
- #endif
--	return err;
-+	return 0;
- }
- 
- /*
+Base	Patch-1 Patch-2 Patch-3	Patch-4
+18.47	27.13   31.82	--	42.20
+
+Note: Base version is tested in v1 and the others are tested freshly.
+Test is perform based on next-20150103 and Vlastimil's stealing logic
+patches due to current next's unstablility.
+Patch-3 isn't tested since there is no functional change.
+
+Joonsoo (3):
+  mm/compaction: stop the isolation when we isolate enough freepage
+  mm/page_alloc: separate steal decision from steal behaviour part
+  mm/compaction: enhance compaction finish condition
+
+Joonsoo Kim (1):
+  mm/compaction: fix wrong order check in compact_finished()
+
+ include/linux/mmzone.h |  3 +++
+ mm/compaction.c        | 47 ++++++++++++++++++++++++++++++++++++++---------
+ mm/internal.h          |  1 +
+ mm/page_alloc.c        | 50 ++++++++++++++++++++++++++++++++------------------
+ 4 files changed, 74 insertions(+), 27 deletions(-)
+
 -- 
-1.7.1
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
