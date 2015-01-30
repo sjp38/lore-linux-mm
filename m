@@ -1,60 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B3D46B0032
-	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 12:51:38 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id fa1so54981978pad.8
-        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 09:51:38 -0800 (PST)
-Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
-        by mx.google.com with ESMTPS id rq5si14604207pab.43.2015.01.30.09.51.36
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Fri, 30 Jan 2015 09:51:37 -0800 (PST)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout4.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NJ000GMS4GK6JB0@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 30 Jan 2015 17:55:32 +0000 (GMT)
-Message-id: <54CBC49C.5080503@samsung.com>
-Date: Fri, 30 Jan 2015 20:51:24 +0300
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
-MIME-version: 1.0
-Subject: Re: [PATCH v10 13/17] mm: vmalloc: add flag preventing guard hole
- allocation
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
- <1422544321-24232-1-git-send-email-a.ryabinin@samsung.com>
- <1422544321-24232-14-git-send-email-a.ryabinin@samsung.com>
- <20150129151254.edc75e5ae20c3cafb55d88b1@linux-foundation.org>
-In-reply-to: <20150129151254.edc75e5ae20c3cafb55d88b1@linux-foundation.org>
-Content-type: text/plain; charset=windows-1252
-Content-transfer-encoding: 7bit
+Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
+	by kanga.kvack.org (Postfix) with ESMTP id C1BD76B0032
+	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 13:50:58 -0500 (EST)
+Received: by mail-we0-f181.google.com with SMTP id k48so28793986wev.12
+        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 10:50:58 -0800 (PST)
+Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.195])
+        by mx.google.com with ESMTP id hd10si8829843wib.37.2015.01.30.10.50.56
+        for <linux-mm@kvack.org>;
+        Fri, 30 Jan 2015 10:50:57 -0800 (PST)
+Date: Fri, 30 Jan 2015 20:50:52 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 00/19] expose page table levels on Kconfig leve
+Message-ID: <20150130185052.GA30401@node.dhcp.inet.fi>
+References: <1422629008-13689-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <20150130172613.GA12367@roeck-us.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150130172613.GA12367@roeck-us.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, x86@kernel.org, linux-mm@kvack.org
+To: Guenter Roeck <linux@roeck-us.net>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 01/30/2015 02:12 AM, Andrew Morton wrote:
-> On Thu, 29 Jan 2015 18:11:57 +0300 Andrey Ryabinin <a.ryabinin@samsung.com> wrote:
+On Fri, Jan 30, 2015 at 09:26:13AM -0800, Guenter Roeck wrote:
+> On Fri, Jan 30, 2015 at 04:43:09PM +0200, Kirill A. Shutemov wrote:
+> > I've failed my attempt on split up mm_struct into separate header file to
+> > be able to use defines from <asm/pgtable.h> to define mm_struct: it causes
+> > too much breakage and requires massive de-inlining of some architectures
+> > (notably ARM and S390 with PGSTE).
+> > 
+> > This is other approach: expose number of page table levels on Kconfig
+> > level and use it to get rid of nr_pmds in mm_struct.
+> > 
+> Hi Kirill,
 > 
->> For instrumenting global variables KASan will shadow memory
->> backing memory for modules. So on module loading we will need
->> to allocate shadow memory and map it at exact virtual address.
-> 
-> I don't understand.  What does "map it at exact virtual address" mean?
-> 
+> Can I pull this series from somewhere ?
 
-I mean that if module_alloc() returned address x, than
-shadow memory should be mapped exactly at address kasan_mem_to_shadow(x).
+Just pushed:
 
->> __vmalloc_node_range() seems like the best fit for that purpose,
->> except it puts a guard hole after allocated area.
-> 
-> Why is the guard hole a problem?
-> 
+git://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git config_pgtable_levels
 
-Because of guard hole in shadow some future allocations of shadow memory
-will fail. Requested address ( kasan_mem_to_shadow(x) ) will be already occupied
-by guard hole of previous allocation.
-
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
