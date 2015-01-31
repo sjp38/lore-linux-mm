@@ -1,52 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 25AD16B0032
-	for <linux-mm@kvack.org>; Sat, 31 Jan 2015 01:23:24 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id lj1so60741468pab.5
-        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 22:23:23 -0800 (PST)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id uv4si16237470pbc.110.2015.01.30.22.23.22
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B81C6B0038
+	for <linux-mm@kvack.org>; Sat, 31 Jan 2015 01:23:38 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id ey11so60849853pad.7
+        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 22:23:38 -0800 (PST)
+Received: from bh-25.webhostbox.net (bh-25.webhostbox.net. [208.91.199.152])
+        by mx.google.com with ESMTPS id xg13si16329623pac.74.2015.01.30.22.23.36
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 30 Jan 2015 22:23:23 -0800 (PST)
-Received: by mail-pa0-f44.google.com with SMTP id rd3so60720304pab.3
-        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 22:23:22 -0800 (PST)
-Subject: Re: [PATCH 02/19] arm64: expose number of page table levels on Kconfig level
-Mime-Version: 1.0 (Apple Message framework v1283)
-Content-Type: text/plain; charset=us-ascii
-From: Jungseok Lee <jungseoklee85@gmail.com>
-In-Reply-To: <20150130145619.GA18786@localhost>
-Date: Sat, 31 Jan 2015 15:23:21 +0900
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 30 Jan 2015 22:23:37 -0800 (PST)
+Received: from mailnull by bh-25.webhostbox.net with sa-checked (Exim 4.82)
+	(envelope-from <linux@roeck-us.net>)
+	id 1YHRSu-001tdr-TF
+	for linux-mm@kvack.org; Sat, 31 Jan 2015 06:23:33 +0000
+Message-ID: <54CC74DC.3000806@roeck-us.net>
+Date: Fri, 30 Jan 2015 22:23:24 -0800
+From: Guenter Roeck <linux@roeck-us.net>
+MIME-Version: 1.0
+Subject: Re: [PATCH 00/19] expose page table levels on Kconfig leve
+References: <1422629008-13689-1-git-send-email-kirill.shutemov@linux.intel.com> <20150130172613.GA12367@roeck-us.net> <20150130185052.GA30401@node.dhcp.inet.fi> <20150130191435.GA16823@roeck-us.net> <20150130200956.GB30401@node.dhcp.inet.fi> <20150130205958.GA1124@roeck-us.net> <20150131001141.GA31680@node.dhcp.inet.fi>
+In-Reply-To: <20150131001141.GA31680@node.dhcp.inet.fi>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <4EC115AB-C100-4D62-99CA-5BB04303609B@gmail.com>
-References: <1422629008-13689-1-git-send-email-kirill.shutemov@linux.intel.com> <1422629008-13689-3-git-send-email-kirill.shutemov@linux.intel.com> <20150130145619.GA18786@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Guenter Roeck <linux@roeck-us.net>, Will Deacon <Will.Deacon@arm.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Jan 30, 2015, at 11:56 PM, Catalin Marinas wrote:
-> On Fri, Jan 30, 2015 at 02:43:11PM +0000, Kirill A. Shutemov wrote:
->> We would want to use number of page table level to define mm_struct.
->> Let's expose it as CONFIG_PGTABLE_LEVELS.
->> 
->> ARM64_PGTABLE_LEVELS is renamed to PGTABLE_LEVELS and defined before
->> sourcing init/Kconfig: arch/Kconfig will define default value and it's
->> sourced from init/Kconfig.
->> 
->> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
->> Cc: Catalin Marinas <catalin.marinas@arm.com>
->> Cc: Will Deacon <will.deacon@arm.com>
-> 
-> It looks fine.
-> 
-> Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+On 01/30/2015 04:11 PM, Kirill A. Shutemov wrote:
+>
+> The patch below should fix all regressions from -next.
+> Please test.
+>
+Here is the current status, with the tip of your config_pgtable_levels
+branch plus a couple of fixes addressing most of the build failures
+your branch inherited from -next.
 
-A system can boot up successfully on top of arm64/for-next/core branch under
-4KB + {3|4}Level + CONFIG_DEBUG_RODATA, but I don't try it with 64KB pages.
+Build results:
+	total: 134 pass: 133 fail: 1
+Failed builds:
+	sparc64:allmodconfig
+Qemu tests:
+	total: 30 pass: 30 fail: 0
 
-Best Regards
-Jungseok Lee
+The remaining build failure is not related to your patch series.
+There are also some WARNING tracebacks in the arm qemu test, but
+those are also not related to your series.
+
+Feel free to add
+
+Tested-by: Guenter Roeck <linux@roeck-us.net>
+
+Guenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
