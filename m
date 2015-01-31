@@ -1,230 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f54.google.com (mail-oi0-f54.google.com [209.85.218.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 968ED6B0032
-	for <linux-mm@kvack.org>; Sat, 31 Jan 2015 08:29:53 -0500 (EST)
-Received: by mail-oi0-f54.google.com with SMTP id v63so38567495oia.13
-        for <linux-mm@kvack.org>; Sat, 31 Jan 2015 05:29:53 -0800 (PST)
-Received: from mail-oi0-x22a.google.com (mail-oi0-x22a.google.com. [2607:f8b0:4003:c06::22a])
-        by mx.google.com with ESMTPS id c5si6638474obq.49.2015.01.31.05.29.52
+Received: from mail-qa0-f53.google.com (mail-qa0-f53.google.com [209.85.216.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 86A3D6B0032
+	for <linux-mm@kvack.org>; Sat, 31 Jan 2015 10:58:18 -0500 (EST)
+Received: by mail-qa0-f53.google.com with SMTP id n4so23986367qaq.12
+        for <linux-mm@kvack.org>; Sat, 31 Jan 2015 07:58:18 -0800 (PST)
+Received: from BLU004-OMC2S18.hotmail.com (blu004-omc2s18.hotmail.com. [65.55.111.93])
+        by mx.google.com with ESMTPS id w5si18331095qad.21.2015.01.31.07.58.17
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 31 Jan 2015 05:29:52 -0800 (PST)
-Received: by mail-oi0-f42.google.com with SMTP id i138so38479422oig.1
-        for <linux-mm@kvack.org>; Sat, 31 Jan 2015 05:29:52 -0800 (PST)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sat, 31 Jan 2015 07:58:17 -0800 (PST)
+Message-ID: <BLU436-SMTP337E19C27F309D20380A81833E0@phx.gbl>
+Date: Sat, 31 Jan 2015 23:58:03 +0800
+From: Zhang Yanfei <zhangyanfei.ok@hotmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1422692720-19756-1-git-send-email-opensource.ganesh@gmail.com>
-References: <1422692720-19756-1-git-send-email-opensource.ganesh@gmail.com>
-Date: Sat, 31 Jan 2015 21:29:52 +0800
-Message-ID: <CADAEsF8sRXPq6snz=EbWZrV7QTWqGwc56h7BYih9LLqX+Uza2A@mail.gmail.com>
-Subject: Re: [PATCH] zram: fix race between reset and mount/mkswap
-From: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH v2 4/4] mm/compaction: enhance compaction finish condition
+References: <1422621252-29859-1-git-send-email-iamjoonsoo.kim@lge.com> <1422621252-29859-5-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1422621252-29859-5-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Ganesh Mahendran <opensource.ganesh@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Please ignore this.
-Sorry for the noise.
+At 2015/1/30 20:34, Joonsoo Kim wrote:
+> From: Joonsoo <iamjoonsoo.kim@lge.com>
+> 
+> Compaction has anti fragmentation algorithm. It is that freepage
+> should be more than pageblock order to finish the compaction if we don't
+> find any freepage in requested migratetype buddy list. This is for
+> mitigating fragmentation, but, there is a lack of migratetype
+> consideration and it is too excessive compared to page allocator's anti
+> fragmentation algorithm.
+> 
+> Not considering migratetype would cause premature finish of compaction.
+> For example, if allocation request is for unmovable migratetype,
+> freepage with CMA migratetype doesn't help that allocation and
+> compaction should not be stopped. But, current logic regards this
+> situation as compaction is no longer needed, so finish the compaction.
+> 
+> Secondly, condition is too excessive compared to page allocator's logic.
+> We can steal freepage from other migratetype and change pageblock
+> migratetype on more relaxed conditions in page allocator. This is designed
+> to prevent fragmentation and we can use it here. Imposing hard constraint
+> only to the compaction doesn't help much in this case since page allocator
+> would cause fragmentation again.
 
-2015-01-31 16:25 GMT+08:00 Ganesh Mahendran <opensource.ganesh@gmail.com>:
-> Currently there is a racy between reset and mount/mkswap, so that it could
-> make oops when umount a corropted filesystem.
->
-> This issue can be reproduced by adding delay between bdput() and zram_reset_device
->     reset_store(...) {
->         bdput(bdev);
->
->         msleep(2000); // test code
->
->         zram_reset_device(zram, true);
->     }
->
-> Steps:
->
-> $ echo 1 > /sys/block/zram0/reset &
-> $ mount /dev/zram0 /mnt/
-> $ umount /mnt
-> BUG: failure at fs/buffer.c:3006/_submit_bh()!
-> Kernel panic - not syncing: BUG!
-> CPU: 0 PID: 726 Comm: umount Not tainted 3.19.0-rc6+ #32
-> Hardware name: linux,dummy-virt (DT)
-> Call trace:
-> [<ffffffc00008a020>] dump_backtrace+0x0/0x124
-> [<ffffffc00008a154>] show_stack+0x10/0x1c
-> [<ffffffc000559514>] dump_stack+0x80/0xc4
-> [<ffffffc0005587d8>] panic+0xe0/0x220
-> [<ffffffc0001c7fd8>] _submit_bh+0x18c/0x1e0
-> [<ffffffc0001c9c8c>] __sync_dirty_buffer+0x6c/0xfc
-> [<ffffffc0001c9d28>] sync_dirty_buffer+0xc/0x18
-> [<ffffffc0002205bc>] ext2_sync_super+0xa8/0xbc
-> [<ffffffc000220628>] ext2_sync_fs+0x58/0x70
-> [<ffffffc0001c3ab0>] sync_filesystem+0x80/0xb0
-> [<ffffffc00019a294>] generic_shutdown_super+0x2c/0xd8
-> [<ffffffc00019a64c>] kill_block_super+0x1c/0x70
-> [<ffffffc00019a95c>] deactivate_locked_super+0x54/0x84
-> [<ffffffc00019ae5c>] deactivate_super+0x8c/0x9c
-> [<ffffffc0001b5fd0>] cleanup_mnt+0x38/0x84
-> [<ffffffc0001b6074>] __cleanup_mnt+0xc/0x18
-> [<ffffffc0000cc5bc>] task_work_run+0x94/0xec
-> [<ffffffc000089d54>] do_notify_resume+0x54/0x68
-> ---[ end Kernel panic - not syncing: BUG!
->
-> The problem is caused by:
->
->       CPU0                    CPU1
->  t1:  bdput
->  t2:                          mount /dev/zram0 /mnt
->  t3:  zram_reset_device
->
-> At time 3: the mounted filesystem will be corrputed by CPU0, oops will happen
-> when admin umounts /mnt or reset linux system.
->
-> This patch uses bdev->bd_mutex to prevent concurrent visit of /dev/zram0.
->
-> Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
-> Cc: Nitin Gupta <ngupta@vflare.org>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Changing both two behaviours in compaction may change the high order allocation
+behaviours in the buddy allocator slowpath, so just as Vlastimil suggested,
+some data from allocator should be necessary and helpful, IMHO.
+
+Thanks. 
+
+> 
+> To solve these problems, this patch borrows anti fragmentation logic from
+> page allocator. It will reduce premature compaction finish in some cases
+> and reduce excessive compaction work.
+> 
+> stress-highalloc test in mmtests with non movable order 7 allocation shows
+> considerable increase of compaction success rate.
+> 
+> Compaction success rate (Compaction success * 100 / Compaction stalls, %)
+> 31.82 : 42.20
+> 
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > ---
->  drivers/block/zram/zram_drv.c |   79 ++++++++++++++++++++++-------------------
->  1 file changed, 42 insertions(+), 37 deletions(-)
->
-> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-> index aa5a4c5..2b6b0dc 100644
-> --- a/drivers/block/zram/zram_drv.c
-> +++ b/drivers/block/zram/zram_drv.c
-> @@ -717,17 +717,35 @@ static void zram_bio_discard(struct zram *zram, u32 index,
->         }
+>  include/linux/mmzone.h |  3 +++
+>  mm/compaction.c        | 30 ++++++++++++++++++++++++++++--
+>  mm/internal.h          |  1 +
+>  mm/page_alloc.c        |  5 ++---
+>  4 files changed, 34 insertions(+), 5 deletions(-)
+> 
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index f279d9c..a2906bc 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -63,6 +63,9 @@ enum {
+>  	MIGRATE_TYPES
+>  };
+>  
+> +#define FALLBACK_MIGRATETYPES (4)
+> +extern int fallbacks[MIGRATE_TYPES][FALLBACK_MIGRATETYPES];
+> +
+>  #ifdef CONFIG_CMA
+>  #  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)
+>  #else
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 782772d..0460e4b 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -1125,6 +1125,29 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+>  	return cc->nr_migratepages ? ISOLATE_SUCCESS : ISOLATE_NONE;
 >  }
->
-> -static void zram_reset_device(struct zram *zram, bool reset_capacity)
-> +static int zram_reset_device(struct zram *zram, bool reset_capacity)
+>  
+> +static bool can_steal_fallbacks(struct free_area *area,
+> +			unsigned int order, int migratetype)
+> +{
+> +	int i;
+> +	int fallback_mt;
+> +
+> +	if (area->nr_free == 0)
+> +		return false;
+> +
+> +	for (i = 0; i < FALLBACK_MIGRATETYPES; i++) {
+> +		fallback_mt = fallbacks[migratetype][i];
+> +		if (fallback_mt == MIGRATE_RESERVE)
+> +			break;
+> +
+> +		if (list_empty(&area->free_list[fallback_mt]))
+> +			continue;
+> +
+> +		if (can_steal_freepages(order, migratetype, fallback_mt))
+> +			return true;
+> +	}
+> +	return false;
+> +}
+> +
+>  static int __compact_finished(struct zone *zone, struct compact_control *cc,
+>  			    const int migratetype)
 >  {
-> -       down_write(&zram->init_lock);
-> +       int ret;
-> +       struct block_device *bdev;
->
-> -       zram->limit_pages = 0;
-> +       bdev = bdget_disk(zram->disk, 0);
-> +       if (!bdev)
-> +               return -ENOMEM;
-> +
-> +       mutex_lock(&bdev->bd_mutex);
-> +
-> +       /* Do not reset an active device! */
-> +       if (bdev->bd_holders) {
-> +               ret = -EBUSY;
-> +               goto err;
-> +       }
-> +
-> +       /* Make sure all pending I/O is finished */
-> +       fsync_bdev(bdev);
-> +
-> +       down_write(&zram->init_lock);
->
->         if (!init_done(zram)) {
-> -               up_write(&zram->init_lock);
-> -               return;
-> +               ret = -EIO;
-> +               goto err_init_done;
->         }
->
-> +       zram->limit_pages = 0;
-> +
->         zcomp_destroy(zram->comp);
->         zram->max_comp_streams = 1;
->         zram_meta_free(zram->meta, zram->disksize);
-> @@ -740,6 +758,8 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
->                 set_capacity(zram->disk, 0);
->
->         up_write(&zram->init_lock);
-> +       mutex_unlock(&bdev->bd_mutex);
-> +       bdput(bdev);
->
->         /*
->          * Revalidate disk out of the init_lock to avoid lockdep splat.
-> @@ -748,6 +768,16 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
->          */
->         if (reset_capacity)
->                 revalidate_disk(zram->disk);
-> +
-> +       return 0;
-> +
-> +err_init_done:
-> +       up_write(&zram->init_lock);
-> +err:
-> +       mutex_unlock(&bdev->bd_mutex);
-> +       bdput(bdev);
-> +
-> +       return ret;
+> @@ -1175,8 +1198,11 @@ static int __compact_finished(struct zone *zone, struct compact_control *cc,
+>  		if (!list_empty(&area->free_list[migratetype]))
+>  			return COMPACT_PARTIAL;
+>  
+> -		/* Job done if allocation would set block type */
+> -		if (order >= pageblock_order && area->nr_free)
+> +		/*
+> +		 * Job done if allocation would steal freepages from
+> +		 * other migratetype buddy lists.
+> +		 */
+> +		if (can_steal_fallbacks(area, order, migratetype))
+>  			return COMPACT_PARTIAL;
+>  	}
+>  
+> diff --git a/mm/internal.h b/mm/internal.h
+> index c4d6c9b..0a89a14 100644
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -201,6 +201,7 @@ unsigned long
+>  isolate_migratepages_range(struct compact_control *cc,
+>  			   unsigned long low_pfn, unsigned long end_pfn);
+>  
+> +bool can_steal_freepages(unsigned int order, int start_mt, int fallback_mt);
+>  #endif
+>  
+>  /*
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index ef74750..4c3538b 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1026,7 +1026,7 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
+>   * This array describes the order lists are fallen back to when
+>   * the free lists for the desirable migrate type are depleted
+>   */
+> -static int fallbacks[MIGRATE_TYPES][4] = {
+> +int fallbacks[MIGRATE_TYPES][FALLBACK_MIGRATETYPES] = {
+>  	[MIGRATE_UNMOVABLE]   = { MIGRATE_RECLAIMABLE, MIGRATE_MOVABLE,     MIGRATE_RESERVE },
+>  	[MIGRATE_RECLAIMABLE] = { MIGRATE_UNMOVABLE,   MIGRATE_MOVABLE,     MIGRATE_RESERVE },
+>  #ifdef CONFIG_CMA
+> @@ -1122,8 +1122,7 @@ static void change_pageblock_range(struct page *pageblock_page,
+>  	}
 >  }
->
->  static ssize_t disksize_store(struct device *dev,
-> @@ -811,40 +841,19 @@ static ssize_t reset_store(struct device *dev,
+>  
+> -static bool can_steal_freepages(unsigned int order,
+> -				int start_mt, int fallback_mt)
+> +bool can_steal_freepages(unsigned int order, int start_mt, int fallback_mt)
 >  {
->         int ret;
->         unsigned short do_reset;
-> -       struct zram *zram;
-> -       struct block_device *bdev;
-> -
-> -       zram = dev_to_zram(dev);
-> -       bdev = bdget_disk(zram->disk, 0);
-> -
-> -       if (!bdev)
-> -               return -ENOMEM;
-> -
-> -       /* Do not reset an active device! */
-> -       if (bdev->bd_holders) {
-> -               ret = -EBUSY;
-> -               goto out;
-> -       }
->
->         ret = kstrtou16(buf, 10, &do_reset);
->         if (ret)
-> -               goto out;
-> +               return ret;
->
-> -       if (!do_reset) {
-> -               ret = -EINVAL;
-> -               goto out;
-> -       }
-> +       if (!do_reset)
-> +               return -EINVAL;
->
-> -       /* Make sure all pending I/O is finished */
-> -       fsync_bdev(bdev);
-> -       bdput(bdev);
-> +       ret = zram_reset_device(dev_to_zram(dev), true);
-> +       if (ret)
-> +               return ret;
->
-> -       zram_reset_device(zram, true);
->         return len;
-> -
-> -out:
-> -       bdput(bdev);
-> -       return ret;
->  }
->
->  static void __zram_make_request(struct zram *zram, struct bio *bio)
-> @@ -1183,12 +1192,8 @@ static void __exit zram_exit(void)
->         for (i = 0; i < num_devices; i++) {
->                 zram = &zram_devices[i];
->
-> -               destroy_device(zram);
-> -               /*
-> -                * Shouldn't access zram->disk after destroy_device
-> -                * because destroy_device already released zram->disk.
-> -                */
->                 zram_reset_device(zram, false);
-> +               destroy_device(zram);
->         }
->
->         unregister_blkdev(zram_major, "zram");
-> --
-> 1.7.9.5
->
+>  	if (is_migrate_cma(fallback_mt))
+>  		return false;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
