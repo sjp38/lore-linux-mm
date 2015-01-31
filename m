@@ -1,148 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 80DD36B0032
-	for <linux-mm@kvack.org>; Sat, 31 Jan 2015 06:07:11 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id eu11so62598866pac.2
-        for <linux-mm@kvack.org>; Sat, 31 Jan 2015 03:07:11 -0800 (PST)
-Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
-        by mx.google.com with ESMTPS id xn7si3128056pab.185.2015.01.31.03.07.10
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EA5B6B0032
+	for <linux-mm@kvack.org>; Sat, 31 Jan 2015 06:31:26 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id bj1so62830650pad.1
+        for <linux-mm@kvack.org>; Sat, 31 Jan 2015 03:31:26 -0800 (PST)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id ij1si16916475pac.143.2015.01.31.03.31.25
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 31 Jan 2015 03:07:10 -0800 (PST)
-Received: by mail-pa0-f52.google.com with SMTP id kx10so62519097pab.11
-        for <linux-mm@kvack.org>; Sat, 31 Jan 2015 03:07:10 -0800 (PST)
-Date: Sat, 31 Jan 2015 20:07:43 +0900
+        Sat, 31 Jan 2015 03:31:25 -0800 (PST)
+Received: by mail-pa0-f44.google.com with SMTP id rd3so62661885pab.3
+        for <linux-mm@kvack.org>; Sat, 31 Jan 2015 03:31:25 -0800 (PST)
+Date: Sat, 31 Jan 2015 20:31:58 +0900
 From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Subject: Re: [PATCH v1 2/2] zram: remove init_lock in zram_make_request
-Message-ID: <20150131110743.GA2299@swordfish>
-References: <1422432945-6764-1-git-send-email-minchan@kernel.org>
- <1422432945-6764-2-git-send-email-minchan@kernel.org>
- <CADAEsF9tejvCL3gqGuYKsnv_wsfpsESsAg=Hm3r_ZfbpftE4-w@mail.gmail.com>
- <20150129151227.GA936@swordfish>
- <CADAEsF-1Y7_JM_1cq6+O3XASz8FAZoazjOF=x+oXFXuXUxK5Ng@mail.gmail.com>
- <20150130080808.GA782@swordfish>
- <CADAEsF-BztDePzMFAQ7zncXBTtS+iey79xf3sGzYeAjak0k-QQ@mail.gmail.com>
+Message-ID: <20150131113158.GB2299@swordfish>
+References: <20150128145651.GB965@swordfish>
+ <20150128233343.GC4706@blaptop>
+ <CAHqPoqKZFDSjO1pL+ixYe_m_L0nGNcu04qSNp-jd1fUixKtHnw@mail.gmail.com>
+ <20150129020139.GB9672@blaptop>
+ <20150129022241.GA2555@swordfish>
+ <20150129052827.GB25462@blaptop>
+ <20150129060604.GC2555@swordfish>
+ <20150129063505.GA32331@blaptop>
+ <20150129070835.GD2555@swordfish>
+ <20150130144145.GA2840@blaptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CADAEsF-BztDePzMFAQ7zncXBTtS+iey79xf3sGzYeAjak0k-QQ@mail.gmail.com>
+In-Reply-To: <20150130144145.GA2840@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>
 
-On (01/31/15 16:50), Ganesh Mahendran wrote:
-> >> > after umount we still have init device. so, *theoretically*, we
-> >> > can see something like
-> >> >
-> >> >         CPU0                            CPU1
-> >> > umount
-> >> > reset_store
-> >> > bdev->bd_holders == 0                   mount
-> >> > ...                                     zram_make_request()
-> >> > zram_reset_device()
-[..]
+Hello Minchan,
+excellent analysis!
 
-
+On (01/30/15 23:41), Minchan Kim wrote:
+> Yes, __srcu_read_lock is a little bit heavier but the number of instruction
+> are not too much difference to make difference 10%. A culprit is
+> __cond_resched but I don't think, either because our test was CPU intensive
+> soS I don't think schedule latency affects total bandwidth.
 > 
-> Maybe I did not explain clearly. I send a patch about this issue:
+> More cuprit is your data pattern.
+> It seems you didn't use scramble_buffers=0, zero_buffers in fio so that
+> fio fills random data pattern so zram bandwidth could be different by
+> compression/decompression ratio.
+
+Completely agree.
+Shame on me. gotten so used to iozone (iozone uses same data pattern 0xA5,
+this is +Z option what for), so I didn't even think about data pattern
+in fio. sorry.
+
+> 1) randread
+> srcu is worse as 0.63% but the difference is really marginal.
 > 
-> https://patchwork.kernel.org/patch/5754041/
+> 2) randwrite
+> srcu is better as 1.24% is better.
+> 
+> 3) randrw
+> srcu is better as 2.3%
+
+hm, interesting. I'll re-check.
+
+> Okay, if you concerns on the data still, how about this?
+
+I'm not so upset to lose 0.6234187%. my concerns were about iozone's
+10% different (which looks a bit worse).
 
 
-excuse me? explain to me clearly what? my finding and my analysis?
+I'll review your patch. Thanks for your effort.
 
 
-this is the second time in a week that you hijack someone's work
-and you don't even bother to give any credit to people.
+> > 
+> > by "data pattern" you mean usage scenario? well, I usually use zram for
+> > `make -jX', where X=[4..N]. so N concurrent read-write ops scenario.
+> 
+> What I meant is what data fills I/O buffer, which is really important
+> to evaluate zram because the compression/decompression speeds relys on it.
+> 
 
-
-Minchan moved zram_meta_free(meta) out of init_lock here
-https://lkml.org/lkml/2015/1/21/29
-
-I proposed to also move zs_free() of meta->handles here
-https://lkml.org/lkml/2015/1/21/384
-
-
-... so what happened then -- you jumped in and sent a patch.
-https://lkml.org/lkml/2015/1/24/50
-
-
-Minchan sent you a hint https://lkml.org/lkml/2015/1/26/471
-
->   but it seems the patch is based on my recent work "zram: free meta out of init_lock".
-
-
-
- "the patch is based on my work"!
-
-
-
-now, for the last few days we were discussing init_lock and I first
-expressed my concerns and spoke about 'free' vs. 'use' problem
-here (but still didn't have enough spare to submit, besides we are in
-the middle of reset/init/write rework)
-
-https://lkml.org/lkml/2015/1/27/1029
-
->
->bdev->bd_holders protects from resetting device which has read/write
->operation ongoing on the onther CPU.
->
->I need to refresh on how ->bd_holders actually incremented/decremented.
->can the following race condition take a place?
->
->        CPU0                                    CPU1
->reset_store()
->bdev->bd_holders == false
->                                        zram_make_request
->                                                -rm- down_read(&zram->init_lock);
->                                        init_done(zram) == true
->zram_reset_device()                     valid_io_request()
->                                        __zram_make_request
->down_write(&zram->init_lock);           zram_bvec_rw
->[..]
->set_capacity(zram->disk, 0);
->zram->init_done = false;
->kick_all_cpus_sync();                   zram_bvec_write or zram_bvec_read()
->zram_meta_free(zram->meta);
->zcomp_destroy(zram->comp);              zcomp_compress() or zcomp_decompress()
->
-
-
-and later here https://lkml.org/lkml/2015/1/29/645
-
->
->after umount we still have init device. so, *theoretically*, we
->can see something like
->
->
->        CPU0                            CPU1
->umount
->reset_store
->bdev->bd_holders == 0                   mount
->...                                     zram_make_request()
->zram_reset_device()
->
-
-
-
-so what happened next? your patch happened next.
-with quite familiar problem description
-
->
->      CPU0                    CPU1
-> t1:  bdput
-> t2:                          mount /dev/zram0 /mnt
-> t3:  zram_reset_device
->
-
-and now you say that I don't understant something in "your analysis"?
-
-
-
-stop doing this. this is not how it works.
-
+I see. I never test it with `make' anyway, only iozone +Z.
 
 	-ss
 
