@@ -1,71 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 086156B006C
-	for <linux-mm@kvack.org>; Sat, 31 Jan 2015 03:59:59 -0500 (EST)
-Received: by mail-ob0-f178.google.com with SMTP id uz6so9827083obc.9
-        for <linux-mm@kvack.org>; Sat, 31 Jan 2015 00:59:58 -0800 (PST)
-Received: from mail-oi0-x232.google.com (mail-oi0-x232.google.com. [2607:f8b0:4003:c06::232])
-        by mx.google.com with ESMTPS id p203si6379370oig.79.2015.01.31.00.59.58
+Received: from mail-qc0-f181.google.com (mail-qc0-f181.google.com [209.85.216.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FF6D6B0032
+	for <linux-mm@kvack.org>; Sat, 31 Jan 2015 05:18:11 -0500 (EST)
+Received: by mail-qc0-f181.google.com with SMTP id l6so24113053qcy.12
+        for <linux-mm@kvack.org>; Sat, 31 Jan 2015 02:18:11 -0800 (PST)
+Received: from BLU004-OMC2S33.hotmail.com (blu004-omc2s33.hotmail.com. [65.55.111.108])
+        by mx.google.com with ESMTPS id r2si16735940qcq.9.2015.01.31.02.18.10
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 31 Jan 2015 00:59:58 -0800 (PST)
-Received: by mail-oi0-f50.google.com with SMTP id h136so38217373oig.9
-        for <linux-mm@kvack.org>; Sat, 31 Jan 2015 00:59:58 -0800 (PST)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sat, 31 Jan 2015 02:18:10 -0800 (PST)
+Message-ID: <BLU436-SMTP107979843453A8D45167B5D833E0@phx.gbl>
+Date: Sat, 31 Jan 2015 18:17:55 +0800
+From: Zhang Yanfei <zhangyanfei.ok@hotmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1422107403-10071-1-git-send-email-opensource.ganesh@gmail.com>
-References: <1422107403-10071-1-git-send-email-opensource.ganesh@gmail.com>
-Date: Sat, 31 Jan 2015 16:59:58 +0800
-Message-ID: <CADAEsF_fVRNCY-mx1EoyO2KwREfz6753JKdHpHMgbJUXf2sdsQ@mail.gmail.com>
-Subject: Re: [PATCH] mm/zsmalloc: avoid unnecessary iteration when freeing size_class
-From: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH v2 2/4] mm/compaction: stop the isolation when we isolate
+ enough freepage
+References: <1422621252-29859-1-git-send-email-iamjoonsoo.kim@lge.com> <1422621252-29859-3-git-send-email-iamjoonsoo.kim@lge.com> <BLU436-SMTP105DFBF63EAF672F3272FFA833E0@phx.gbl> <54CC92FD.5000601@suse.cz>
+In-Reply-To: <54CC92FD.5000601@suse.cz>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Ganesh Mahendran <opensource.ganesh@gmail.com>
+To: Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-ping.
+At 2015/1/31 16:31, Vlastimil Babka wrote:
+> On 01/31/2015 08:49 AM, Zhang Yanfei wrote:
+>> Hello,
+>>
+>> At 2015/1/30 20:34, Joonsoo Kim wrote:
+>>
+>> Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+>>
+>> IMHO, the patch making the free scanner move slower makes both scanners
+>> meet further. Before this patch, if we isolate too many free pages and even 
+>> after we release the unneeded free pages later the free scanner still already
+>> be there and will be moved forward again next time -- the free scanner just
+>> cannot be moved back to grab the free pages we released before no matter where
+>> the free pages in, pcp or buddy. 
+> 
+> It can be actually moved back. If we are releasing free pages, it means the
+> current compaction is terminating, and it will set zone->compact_cached_free_pfn
+> back to the position of the released free page that was furthest back. The next
+> compaction will start from the cached free pfn.
 
-2015-01-24 21:50 GMT+08:00 Ganesh Mahendran <opensource.ganesh@gmail.com>:
-> The pool->size_class[i] is assigned with the i from (zs_size_classes - 1) to 0.
-> So if we failed in zs_create_pool(), we only need to iterate from (zs_size_classes - 1)
-> to i, instead of from 0 to (zs_size_classes - 1)
+Yeah, you are right. I missed the release_freepages(). Thanks!
 
-No functionality has been changed. This patch just avoids some
-necessary iteration.
+> 
+> It is however possible that another compaction runs in parallel and has
+> progressed further and overwrites the cached free pfn.
+> 
+
+Hmm, maybe.
 
 Thanks.
-
->
-> Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
-> Cc: Nitin Gupta <ngupta@vflare.org>
-> Cc: Minchan Kim <minchan@kernel.org>
-> ---
->  mm/zsmalloc.c |    4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
->
-> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index 16617e9..e6fa3da 100644
-> --- a/mm/zsmalloc.c
-> +++ b/mm/zsmalloc.c
-> @@ -1433,12 +1433,12 @@ void zs_destroy_pool(struct zs_pool *pool)
->
->         zs_pool_stat_destroy(pool);
->
-> -       for (i = 0; i < zs_size_classes; i++) {
-> +       for (i = zs_size_classes - 1; i >= 0; i--) {
->                 int fg;
->                 struct size_class *class = pool->size_class[i];
->
->                 if (!class)
-> -                       continue;
-> +                       break;
->
->                 if (class->index != i)
->                         continue;
-> --
-> 1.7.9.5
->
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
