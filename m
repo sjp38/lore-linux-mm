@@ -1,89 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EA5B6B0032
-	for <linux-mm@kvack.org>; Sat, 31 Jan 2015 06:31:26 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id bj1so62830650pad.1
-        for <linux-mm@kvack.org>; Sat, 31 Jan 2015 03:31:26 -0800 (PST)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id ij1si16916475pac.143.2015.01.31.03.31.25
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 271C06B0032
+	for <linux-mm@kvack.org>; Sat, 31 Jan 2015 07:38:43 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id fb1so63267671pad.10
+        for <linux-mm@kvack.org>; Sat, 31 Jan 2015 04:38:42 -0800 (PST)
+Received: from BLU004-OMC2S24.hotmail.com (blu004-omc2s24.hotmail.com. [65.55.111.99])
+        by mx.google.com with ESMTPS id in4si17171244pbc.32.2015.01.31.04.38.41
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 31 Jan 2015 03:31:25 -0800 (PST)
-Received: by mail-pa0-f44.google.com with SMTP id rd3so62661885pab.3
-        for <linux-mm@kvack.org>; Sat, 31 Jan 2015 03:31:25 -0800 (PST)
-Date: Sat, 31 Jan 2015 20:31:58 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [PATCH v1 2/2] zram: remove init_lock in zram_make_request
-Message-ID: <20150131113158.GB2299@swordfish>
-References: <20150128145651.GB965@swordfish>
- <20150128233343.GC4706@blaptop>
- <CAHqPoqKZFDSjO1pL+ixYe_m_L0nGNcu04qSNp-jd1fUixKtHnw@mail.gmail.com>
- <20150129020139.GB9672@blaptop>
- <20150129022241.GA2555@swordfish>
- <20150129052827.GB25462@blaptop>
- <20150129060604.GC2555@swordfish>
- <20150129063505.GA32331@blaptop>
- <20150129070835.GD2555@swordfish>
- <20150130144145.GA2840@blaptop>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sat, 31 Jan 2015 04:38:42 -0800 (PST)
+Message-ID: <BLU436-SMTP21184383897546B937E3C68833E0@phx.gbl>
+Date: Sat, 31 Jan 2015 20:38:10 +0800
+From: Zhang Yanfei <zhangyanfei.ok@hotmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150130144145.GA2840@blaptop>
+Subject: Re: [PATCH v2 3/4] mm/page_alloc: separate steal decision from steal
+ behaviour part
+References: <1422621252-29859-1-git-send-email-iamjoonsoo.kim@lge.com> <1422621252-29859-4-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1422621252-29859-4-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>
+To: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Hello Minchan,
-excellent analysis!
-
-On (01/30/15 23:41), Minchan Kim wrote:
-> Yes, __srcu_read_lock is a little bit heavier but the number of instruction
-> are not too much difference to make difference 10%. A culprit is
-> __cond_resched but I don't think, either because our test was CPU intensive
-> soS I don't think schedule latency affects total bandwidth.
+At 2015/1/30 20:34, Joonsoo Kim wrote:
+> From: Joonsoo <iamjoonsoo.kim@lge.com>
 > 
-> More cuprit is your data pattern.
-> It seems you didn't use scramble_buffers=0, zero_buffers in fio so that
-> fio fills random data pattern so zram bandwidth could be different by
-> compression/decompression ratio.
-
-Completely agree.
-Shame on me. gotten so used to iozone (iozone uses same data pattern 0xA5,
-this is +Z option what for), so I didn't even think about data pattern
-in fio. sorry.
-
-> 1) randread
-> srcu is worse as 0.63% but the difference is really marginal.
+> This is preparation step to use page allocator's anti fragmentation logic
+> in compaction. This patch just separates steal decision part from actual
+> steal behaviour part so there is no functional change.
 > 
-> 2) randwrite
-> srcu is better as 1.24% is better.
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> ---
+>  mm/page_alloc.c | 49 ++++++++++++++++++++++++++++++++-----------------
+>  1 file changed, 32 insertions(+), 17 deletions(-)
 > 
-> 3) randrw
-> srcu is better as 2.3%
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 8d52ab1..ef74750 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1122,6 +1122,24 @@ static void change_pageblock_range(struct page *pageblock_page,
+>  	}
+>  }
+>  
+> +static bool can_steal_freepages(unsigned int order,
+> +				int start_mt, int fallback_mt)
+> +{
+> +	if (is_migrate_cma(fallback_mt))
+> +		return false;
+> +
+> +	if (order >= pageblock_order)
+> +		return true;
+> +
+> +	if (order >= pageblock_order / 2 ||
+> +		start_mt == MIGRATE_RECLAIMABLE ||
+> +		start_mt == MIGRATE_UNMOVABLE ||
+> +		page_group_by_mobility_disabled)
+> +		return true;
+> +
+> +	return false;
+> +}
 
-hm, interesting. I'll re-check.
+So some comments which can tell the cases can or cannot steal freepages
+from other migratetype is necessary IMHO. Actually we can just
+move some comments in try_to_steal_pages to here.
 
-> Okay, if you concerns on the data still, how about this?
+Thanks.
 
-I'm not so upset to lose 0.6234187%. my concerns were about iozone's
-10% different (which looks a bit worse).
-
-
-I'll review your patch. Thanks for your effort.
-
-
-> > 
-> > by "data pattern" you mean usage scenario? well, I usually use zram for
-> > `make -jX', where X=[4..N]. so N concurrent read-write ops scenario.
+> +
+>  /*
+>   * When we are falling back to another migratetype during allocation, try to
+>   * steal extra free pages from the same pageblocks to satisfy further
+> @@ -1138,9 +1156,10 @@ static void change_pageblock_range(struct page *pageblock_page,
+>   * as well.
+>   */
+>  static void try_to_steal_freepages(struct zone *zone, struct page *page,
+> -				  int start_type, int fallback_type)
+> +				  int start_type)
+>  {
+>  	int current_order = page_order(page);
+> +	int pages;
+>  
+>  	/* Take ownership for orders >= pageblock_order */
+>  	if (current_order >= pageblock_order) {
+> @@ -1148,19 +1167,12 @@ static void try_to_steal_freepages(struct zone *zone, struct page *page,
+>  		return;
+>  	}
+>  
+> -	if (current_order >= pageblock_order / 2 ||
+> -	    start_type == MIGRATE_RECLAIMABLE ||
+> -	    start_type == MIGRATE_UNMOVABLE ||
+> -	    page_group_by_mobility_disabled) {
+> -		int pages;
+> +	pages = move_freepages_block(zone, page, start_type);
+>  
+> -		pages = move_freepages_block(zone, page, start_type);
+> -
+> -		/* Claim the whole block if over half of it is free */
+> -		if (pages >= (1 << (pageblock_order-1)) ||
+> -				page_group_by_mobility_disabled)
+> -			set_pageblock_migratetype(page, start_type);
+> -	}
+> +	/* Claim the whole block if over half of it is free */
+> +	if (pages >= (1 << (pageblock_order-1)) ||
+> +			page_group_by_mobility_disabled)
+> +		set_pageblock_migratetype(page, start_type);
+>  }
+>  
+>  /* Remove an element from the buddy allocator from the fallback list */
+> @@ -1170,6 +1182,7 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
+>  	struct free_area *area;
+>  	unsigned int current_order;
+>  	struct page *page;
+> +	bool can_steal;
+>  
+>  	/* Find the largest possible block of pages in the other list */
+>  	for (current_order = MAX_ORDER-1;
+> @@ -1192,10 +1205,11 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
+>  					struct page, lru);
+>  			area->nr_free--;
+>  
+> -			if (!is_migrate_cma(migratetype)) {
+> +			can_steal = can_steal_freepages(current_order,
+> +					start_migratetype, migratetype);
+> +			if (can_steal) {
+>  				try_to_steal_freepages(zone, page,
+> -							start_migratetype,
+> -							migratetype);
+> +							start_migratetype);
+>  			} else {
+>  				/*
+>  				 * When borrowing from MIGRATE_CMA, we need to
+> @@ -1203,7 +1217,8 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
+>  				 * itself, and we do not try to steal extra
+>  				 * free pages.
+>  				 */
+> -				buddy_type = migratetype;
+> +				if (is_migrate_cma(migratetype))
+> +					buddy_type = migratetype;
+>  			}
+>  
+>  			/* Remove the page from the freelists */
 > 
-> What I meant is what data fills I/O buffer, which is really important
-> to evaluate zram because the compression/decompression speeds relys on it.
-> 
-
-I see. I never test it with `make' anyway, only iozone +Z.
-
-	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
