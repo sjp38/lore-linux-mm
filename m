@@ -1,57 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B81C6B0038
-	for <linux-mm@kvack.org>; Sat, 31 Jan 2015 01:23:38 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id ey11so60849853pad.7
-        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 22:23:38 -0800 (PST)
-Received: from bh-25.webhostbox.net (bh-25.webhostbox.net. [208.91.199.152])
-        by mx.google.com with ESMTPS id xg13si16329623pac.74.2015.01.30.22.23.36
+Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C25B6B0032
+	for <linux-mm@kvack.org>; Sat, 31 Jan 2015 02:39:07 -0500 (EST)
+Received: by mail-qc0-f174.google.com with SMTP id s11so23988952qcv.5
+        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 23:39:07 -0800 (PST)
+Received: from BLU004-OMC2S4.hotmail.com (blu004-omc2s4.hotmail.com. [65.55.111.79])
+        by mx.google.com with ESMTPS id b50si17168360qga.56.2015.01.30.23.39.05
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 30 Jan 2015 22:23:37 -0800 (PST)
-Received: from mailnull by bh-25.webhostbox.net with sa-checked (Exim 4.82)
-	(envelope-from <linux@roeck-us.net>)
-	id 1YHRSu-001tdr-TF
-	for linux-mm@kvack.org; Sat, 31 Jan 2015 06:23:33 +0000
-Message-ID: <54CC74DC.3000806@roeck-us.net>
-Date: Fri, 30 Jan 2015 22:23:24 -0800
-From: Guenter Roeck <linux@roeck-us.net>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 30 Jan 2015 23:39:06 -0800 (PST)
+Message-ID: <BLU437-SMTP63C0AFB1A443C6C8688808833E0@phx.gbl>
+Date: Sat, 31 Jan 2015 15:38:07 +0800
+From: Zhang Yanfei <zhangyanfei.ok@hotmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00/19] expose page table levels on Kconfig leve
-References: <1422629008-13689-1-git-send-email-kirill.shutemov@linux.intel.com> <20150130172613.GA12367@roeck-us.net> <20150130185052.GA30401@node.dhcp.inet.fi> <20150130191435.GA16823@roeck-us.net> <20150130200956.GB30401@node.dhcp.inet.fi> <20150130205958.GA1124@roeck-us.net> <20150131001141.GA31680@node.dhcp.inet.fi>
-In-Reply-To: <20150131001141.GA31680@node.dhcp.inet.fi>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Subject: Re: [PATCH v2 1/4] mm/compaction: fix wrong order check in compact_finished()
+References: <1422621252-29859-1-git-send-email-iamjoonsoo.kim@lge.com> <1422621252-29859-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1422621252-29859-2-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, stable@vger.kernel.org
 
-On 01/30/2015 04:11 PM, Kirill A. Shutemov wrote:
->
-> The patch below should fix all regressions from -next.
-> Please test.
->
-Here is the current status, with the tip of your config_pgtable_levels
-branch plus a couple of fixes addressing most of the build failures
-your branch inherited from -next.
+Hello,
 
-Build results:
-	total: 134 pass: 133 fail: 1
-Failed builds:
-	sparc64:allmodconfig
-Qemu tests:
-	total: 30 pass: 30 fail: 0
+At 2015/1/30 20:34, Joonsoo Kim wrote:
+> What we want to check here is whether there is highorder freepage
+> in buddy list of other migratetype in order to steal it without
+> fragmentation. But, current code just checks cc->order which means
+> allocation request order. So, this is wrong.
+> 
+> Without this fix, non-movable synchronous compaction below pageblock order
+> would not stopped until compaction is complete, because migratetype of most
+> pageblocks are movable and high order freepage made by compaction is usually
+> on movable type buddy list.
+> 
+> There is some report related to this bug. See below link.
+> 
+> http://www.spinics.net/lists/linux-mm/msg81666.html
+> 
+> Although the issued system still has load spike comes from compaction,
+> this makes that system completely stable and responsive according to
+> his report.
+> 
+> stress-highalloc test in mmtests with non movable order 7 allocation doesn't
+> show any notable difference in allocation success rate, but, it shows more
+> compaction success rate.
+> 
+> Compaction success rate (Compaction success * 100 / Compaction stalls, %)
+> 18.47 : 28.94
+> 
+> Cc: <stable@vger.kernel.org>
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-The remaining build failure is not related to your patch series.
-There are also some WARNING tracebacks in the arm qemu test, but
-those are also not related to your series.
+Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-Feel free to add
-
-Tested-by: Guenter Roeck <linux@roeck-us.net>
-
-Guenter
+> ---
+>  mm/compaction.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index b68736c..4954e19 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -1173,7 +1173,7 @@ static int __compact_finished(struct zone *zone, struct compact_control *cc,
+>  			return COMPACT_PARTIAL;
+>  
+>  		/* Job done if allocation would set block type */
+> -		if (cc->order >= pageblock_order && area->nr_free)
+> +		if (order >= pageblock_order && area->nr_free)
+>  			return COMPACT_PARTIAL;
+>  	}
+>  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
