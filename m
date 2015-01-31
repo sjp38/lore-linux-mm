@@ -1,51 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
-	by kanga.kvack.org (Postfix) with ESMTP id B063C6B0032
-	for <linux-mm@kvack.org>; Sat, 31 Jan 2015 03:32:02 -0500 (EST)
-Received: by mail-we0-f171.google.com with SMTP id k11so28471905wes.2
-        for <linux-mm@kvack.org>; Sat, 31 Jan 2015 00:32:02 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j4si11484047wix.40.2015.01.31.00.32.00
+Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 31B846B0032
+	for <linux-mm@kvack.org>; Sat, 31 Jan 2015 03:51:01 -0500 (EST)
+Received: by mail-ob0-f179.google.com with SMTP id va8so16905550obc.10
+        for <linux-mm@kvack.org>; Sat, 31 Jan 2015 00:51:00 -0800 (PST)
+Received: from mail-ob0-x235.google.com (mail-ob0-x235.google.com. [2607:f8b0:4003:c01::235])
+        by mx.google.com with ESMTPS id lj10si6382547oeb.23.2015.01.31.00.51.00
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 31 Jan 2015 00:32:01 -0800 (PST)
-Message-ID: <54CC92FD.5000601@suse.cz>
-Date: Sat, 31 Jan 2015 09:31:57 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        Sat, 31 Jan 2015 00:51:00 -0800 (PST)
+Received: by mail-ob0-f181.google.com with SMTP id vb8so6612181obc.12
+        for <linux-mm@kvack.org>; Sat, 31 Jan 2015 00:51:00 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 2/4] mm/compaction: stop the isolation when we isolate
- enough freepage
-References: <1422621252-29859-1-git-send-email-iamjoonsoo.kim@lge.com> <1422621252-29859-3-git-send-email-iamjoonsoo.kim@lge.com> <BLU436-SMTP105DFBF63EAF672F3272FFA833E0@phx.gbl>
-In-Reply-To: <BLU436-SMTP105DFBF63EAF672F3272FFA833E0@phx.gbl>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20150130080808.GA782@swordfish>
+References: <1422432945-6764-1-git-send-email-minchan@kernel.org>
+	<1422432945-6764-2-git-send-email-minchan@kernel.org>
+	<CADAEsF9tejvCL3gqGuYKsnv_wsfpsESsAg=Hm3r_ZfbpftE4-w@mail.gmail.com>
+	<20150129151227.GA936@swordfish>
+	<CADAEsF-1Y7_JM_1cq6+O3XASz8FAZoazjOF=x+oXFXuXUxK5Ng@mail.gmail.com>
+	<20150130080808.GA782@swordfish>
+Date: Sat, 31 Jan 2015 16:50:59 +0800
+Message-ID: <CADAEsF-BztDePzMFAQ7zncXBTtS+iey79xf3sGzYeAjak0k-QQ@mail.gmail.com>
+Subject: Re: [PATCH v1 2/2] zram: remove init_lock in zram_make_request
+From: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yanfei <zhangyanfei.ok@hotmail.com>, Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>
 
-On 01/31/2015 08:49 AM, Zhang Yanfei wrote:
-> Hello,
-> 
-> At 2015/1/30 20:34, Joonsoo Kim wrote:
+2015-01-30 16:08 GMT+08:00 Sergey Senozhatsky
+<sergey.senozhatsky.work@gmail.com>:
+> On (01/30/15 15:52), Ganesh Mahendran wrote:
+>> >> When I/O operation is running, that means the /dev/zram0 is
+>> >> mounted or swaped on. Then the device could not be reset by
+>> >> below code:
+>> >>
+>> >>     /* Do not reset an active device! */
+>> >>     if (bdev->bd_holders) {
+>> >>         ret = -EBUSY;
+>> >>         goto out;
+>> >>     }
+>> >>
+>> >> So the zram->init_lock in I/O path is to check whether the device
+>> >> has been initialized(echo xxx > /sys/block/zram/disk_size).
+>> >>
+>>
+>> Thanks for your explanation.
+>>
+>> >
+>> > for mounted device (w/fs), we see initial (well, it goes up and down
+>>
+>> What does "w/" mean?
 >
-> Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-> 
-> IMHO, the patch making the free scanner move slower makes both scanners
-> meet further. Before this patch, if we isolate too many free pages and even 
-> after we release the unneeded free pages later the free scanner still already
-> be there and will be moved forward again next time -- the free scanner just
-> cannot be moved back to grab the free pages we released before no matter where
-> the free pages in, pcp or buddy. 
+> 'with fs'
+>
+>> > many times while we create device, but this is not interesting here)
+>> > ->bd_holders increment in:
+>> >   vfs_kern_mount -> mount_bdev -> blkdev_get_by_path -> blkdev_get
+>> >
+>> > and it goes to zero in:
+>> >   cleanup_mnt -> deactivate_super -> kill_block_super -> blkdev_put
+>> >
+>> >
+>> > after umount we still have init device. so, *theoretically*, we
+>> > can see something like
+>> >
+>> >         CPU0                            CPU1
+>> > umount
+>> > reset_store
+>> > bdev->bd_holders == 0                   mount
+>> > ...                                     zram_make_request()
+>> > zram_reset_device()
+>>
+>> In this example, the data stored in zram will be corrupted.
+>> Since CPU0 will free meta while CPU1 is using.
+>> right?
+>>
+>
+> with out ->init_lock protection in this case we have 'free' vs. 'use' race.
 
-It can be actually moved back. If we are releasing free pages, it means the
-current compaction is terminating, and it will set zone->compact_cached_free_pfn
-back to the position of the released free page that was furthest back. The next
-compaction will start from the cached free pfn.
+Maybe I did not explain clearly. I send a patch about this issue:
 
-It is however possible that another compaction runs in parallel and has
-progressed further and overwrites the cached free pfn.
+https://patchwork.kernel.org/patch/5754041/
 
+Thanks
+
+>
+>>
+>> >
+>> > w/o zram->init_lock in both zram_reset_device() and zram_make_request()
+>> > one of CPUs will be a bit sad.
+>> what does "w/o" mean?
+>
+> 'with out'
+>
+>
+>         -ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
