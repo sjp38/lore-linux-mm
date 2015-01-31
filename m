@@ -1,174 +1,229 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FF0F6B0032
-	for <linux-mm@kvack.org>; Sat, 31 Jan 2015 07:59:33 -0500 (EST)
-Received: by mail-oi0-f43.google.com with SMTP id z81so38572269oif.2
-        for <linux-mm@kvack.org>; Sat, 31 Jan 2015 04:59:33 -0800 (PST)
-Received: from mail-oi0-x231.google.com (mail-oi0-x231.google.com. [2607:f8b0:4003:c06::231])
-        by mx.google.com with ESMTPS id mn5si653061obb.33.2015.01.31.04.59.32
+Received: from mail-oi0-f54.google.com (mail-oi0-f54.google.com [209.85.218.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 968ED6B0032
+	for <linux-mm@kvack.org>; Sat, 31 Jan 2015 08:29:53 -0500 (EST)
+Received: by mail-oi0-f54.google.com with SMTP id v63so38567495oia.13
+        for <linux-mm@kvack.org>; Sat, 31 Jan 2015 05:29:53 -0800 (PST)
+Received: from mail-oi0-x22a.google.com (mail-oi0-x22a.google.com. [2607:f8b0:4003:c06::22a])
+        by mx.google.com with ESMTPS id c5si6638474obq.49.2015.01.31.05.29.52
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 31 Jan 2015 04:59:32 -0800 (PST)
-Received: by mail-oi0-f49.google.com with SMTP id a3so38411380oib.8
-        for <linux-mm@kvack.org>; Sat, 31 Jan 2015 04:59:32 -0800 (PST)
+        Sat, 31 Jan 2015 05:29:52 -0800 (PST)
+Received: by mail-oi0-f42.google.com with SMTP id i138so38479422oig.1
+        for <linux-mm@kvack.org>; Sat, 31 Jan 2015 05:29:52 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20150131110743.GA2299@swordfish>
-References: <1422432945-6764-1-git-send-email-minchan@kernel.org>
-	<1422432945-6764-2-git-send-email-minchan@kernel.org>
-	<CADAEsF9tejvCL3gqGuYKsnv_wsfpsESsAg=Hm3r_ZfbpftE4-w@mail.gmail.com>
-	<20150129151227.GA936@swordfish>
-	<CADAEsF-1Y7_JM_1cq6+O3XASz8FAZoazjOF=x+oXFXuXUxK5Ng@mail.gmail.com>
-	<20150130080808.GA782@swordfish>
-	<CADAEsF-BztDePzMFAQ7zncXBTtS+iey79xf3sGzYeAjak0k-QQ@mail.gmail.com>
-	<20150131110743.GA2299@swordfish>
-Date: Sat, 31 Jan 2015 20:59:31 +0800
-Message-ID: <CADAEsF_7vJrYf09s4DZ7AOvXrAwJeoCCZ0EKxwHeHHURBVQ6Bw@mail.gmail.com>
-Subject: Re: [PATCH v1 2/2] zram: remove init_lock in zram_make_request
+In-Reply-To: <1422692720-19756-1-git-send-email-opensource.ganesh@gmail.com>
+References: <1422692720-19756-1-git-send-email-opensource.ganesh@gmail.com>
+Date: Sat, 31 Jan 2015 21:29:52 +0800
+Message-ID: <CADAEsF8sRXPq6snz=EbWZrV7QTWqGwc56h7BYih9LLqX+Uza2A@mail.gmail.com>
+Subject: Re: [PATCH] zram: fix race between reset and mount/mkswap
 From: Ganesh Mahendran <opensource.ganesh@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>
+To: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Ganesh Mahendran <opensource.ganesh@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-Hello, Sergey
+Please ignore this.
+Sorry for the noise.
 
-2015-01-31 19:07 GMT+08:00 Sergey Senozhatsky <sergey.senozhatsky@gmail.com>:
-> On (01/31/15 16:50), Ganesh Mahendran wrote:
->> >> > after umount we still have init device. so, *theoretically*, we
->> >> > can see something like
->> >> >
->> >> >         CPU0                            CPU1
->> >> > umount
->> >> > reset_store
->> >> > bdev->bd_holders == 0                   mount
->> >> > ...                                     zram_make_request()
->> >> > zram_reset_device()
-> [..]
+2015-01-31 16:25 GMT+08:00 Ganesh Mahendran <opensource.ganesh@gmail.com>:
+> Currently there is a racy between reset and mount/mkswap, so that it could
+> make oops when umount a corropted filesystem.
 >
+> This issue can be reproduced by adding delay between bdput() and zram_reset_device
+>     reset_store(...) {
+>         bdput(bdev);
 >
->>
->> Maybe I did not explain clearly. I send a patch about this issue:
->>
->> https://patchwork.kernel.org/patch/5754041/
+>         msleep(2000); // test code
 >
+>         zram_reset_device(zram, true);
+>     }
 >
-> excuse me? explain to me clearly what? my finding and my analysis?
-
-Sorry, I missed this mail
-https://lkml.org/lkml/2015/1/27/1029
-
-That's why I ask questions in this
-https://lkml.org/lkml/2015/1/29/580
-after Minchan's description.
-
+> Steps:
 >
+> $ echo 1 > /sys/block/zram0/reset &
+> $ mount /dev/zram0 /mnt/
+> $ umount /mnt
+> BUG: failure at fs/buffer.c:3006/_submit_bh()!
+> Kernel panic - not syncing: BUG!
+> CPU: 0 PID: 726 Comm: umount Not tainted 3.19.0-rc6+ #32
+> Hardware name: linux,dummy-virt (DT)
+> Call trace:
+> [<ffffffc00008a020>] dump_backtrace+0x0/0x124
+> [<ffffffc00008a154>] show_stack+0x10/0x1c
+> [<ffffffc000559514>] dump_stack+0x80/0xc4
+> [<ffffffc0005587d8>] panic+0xe0/0x220
+> [<ffffffc0001c7fd8>] _submit_bh+0x18c/0x1e0
+> [<ffffffc0001c9c8c>] __sync_dirty_buffer+0x6c/0xfc
+> [<ffffffc0001c9d28>] sync_dirty_buffer+0xc/0x18
+> [<ffffffc0002205bc>] ext2_sync_super+0xa8/0xbc
+> [<ffffffc000220628>] ext2_sync_fs+0x58/0x70
+> [<ffffffc0001c3ab0>] sync_filesystem+0x80/0xb0
+> [<ffffffc00019a294>] generic_shutdown_super+0x2c/0xd8
+> [<ffffffc00019a64c>] kill_block_super+0x1c/0x70
+> [<ffffffc00019a95c>] deactivate_locked_super+0x54/0x84
+> [<ffffffc00019ae5c>] deactivate_super+0x8c/0x9c
+> [<ffffffc0001b5fd0>] cleanup_mnt+0x38/0x84
+> [<ffffffc0001b6074>] __cleanup_mnt+0xc/0x18
+> [<ffffffc0000cc5bc>] task_work_run+0x94/0xec
+> [<ffffffc000089d54>] do_notify_resume+0x54/0x68
+> ---[ end Kernel panic - not syncing: BUG!
 >
-> this is the second time in a week that you hijack someone's work
-> and you don't even bother to give any credit to people.
+> The problem is caused by:
 >
+>       CPU0                    CPU1
+>  t1:  bdput
+>  t2:                          mount /dev/zram0 /mnt
+>  t3:  zram_reset_device
 >
-> Minchan moved zram_meta_free(meta) out of init_lock here
-> https://lkml.org/lkml/2015/1/21/29
+> At time 3: the mounted filesystem will be corrputed by CPU0, oops will happen
+> when admin umounts /mnt or reset linux system.
 >
-> I proposed to also move zs_free() of meta->handles here
-> https://lkml.org/lkml/2015/1/21/384
-
-I thought you wanted move the code block after
-       up_write(&zram->init_lock);
-
-And I found the code block can be even encapsulated in
-zram_meta_free().
-
-That's why I sent:
-https://lkml.org/lkml/2015/1/24/50
-
+> This patch uses bdev->bd_mutex to prevent concurrent visit of /dev/zram0.
 >
+> Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
+> Cc: Nitin Gupta <ngupta@vflare.org>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> ---
+>  drivers/block/zram/zram_drv.c |   79 ++++++++++++++++++++++-------------------
+>  1 file changed, 42 insertions(+), 37 deletions(-)
 >
-> ... so what happened then -- you jumped in and sent a patch.
-> https://lkml.org/lkml/2015/1/24/50
+> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> index aa5a4c5..2b6b0dc 100644
+> --- a/drivers/block/zram/zram_drv.c
+> +++ b/drivers/block/zram/zram_drv.c
+> @@ -717,17 +717,35 @@ static void zram_bio_discard(struct zram *zram, u32 index,
+>         }
+>  }
 >
+> -static void zram_reset_device(struct zram *zram, bool reset_capacity)
+> +static int zram_reset_device(struct zram *zram, bool reset_capacity)
+>  {
+> -       down_write(&zram->init_lock);
+> +       int ret;
+> +       struct block_device *bdev;
 >
-> Minchan sent you a hint https://lkml.org/lkml/2015/1/26/471
+> -       zram->limit_pages = 0;
+> +       bdev = bdget_disk(zram->disk, 0);
+> +       if (!bdev)
+> +               return -ENOMEM;
+> +
+> +       mutex_lock(&bdev->bd_mutex);
+> +
+> +       /* Do not reset an active device! */
+> +       if (bdev->bd_holders) {
+> +               ret = -EBUSY;
+> +               goto err;
+> +       }
+> +
+> +       /* Make sure all pending I/O is finished */
+> +       fsync_bdev(bdev);
+> +
+> +       down_write(&zram->init_lock);
 >
->>   but it seems the patch is based on my recent work "zram: free meta out of init_lock".
+>         if (!init_done(zram)) {
+> -               up_write(&zram->init_lock);
+> -               return;
+> +               ret = -EIO;
+> +               goto err_init_done;
+>         }
 >
+> +       zram->limit_pages = 0;
+> +
+>         zcomp_destroy(zram->comp);
+>         zram->max_comp_streams = 1;
+>         zram_meta_free(zram->meta, zram->disksize);
+> @@ -740,6 +758,8 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+>                 set_capacity(zram->disk, 0);
 >
+>         up_write(&zram->init_lock);
+> +       mutex_unlock(&bdev->bd_mutex);
+> +       bdput(bdev);
 >
->  "the patch is based on my work"!
+>         /*
+>          * Revalidate disk out of the init_lock to avoid lockdep splat.
+> @@ -748,6 +768,16 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+>          */
+>         if (reset_capacity)
+>                 revalidate_disk(zram->disk);
+> +
+> +       return 0;
+> +
+> +err_init_done:
+> +       up_write(&zram->init_lock);
+> +err:
+> +       mutex_unlock(&bdev->bd_mutex);
+> +       bdput(bdev);
+> +
+> +       return ret;
+>  }
 >
+>  static ssize_t disksize_store(struct device *dev,
+> @@ -811,40 +841,19 @@ static ssize_t reset_store(struct device *dev,
+>  {
+>         int ret;
+>         unsigned short do_reset;
+> -       struct zram *zram;
+> -       struct block_device *bdev;
+> -
+> -       zram = dev_to_zram(dev);
+> -       bdev = bdget_disk(zram->disk, 0);
+> -
+> -       if (!bdev)
+> -               return -ENOMEM;
+> -
+> -       /* Do not reset an active device! */
+> -       if (bdev->bd_holders) {
+> -               ret = -EBUSY;
+> -               goto out;
+> -       }
 >
+>         ret = kstrtou16(buf, 10, &do_reset);
+>         if (ret)
+> -               goto out;
+> +               return ret;
 >
-> now, for the last few days we were discussing init_lock and I first
-> expressed my concerns and spoke about 'free' vs. 'use' problem
-> here (but still didn't have enough spare to submit, besides we are in
-> the middle of reset/init/write rework)
+> -       if (!do_reset) {
+> -               ret = -EINVAL;
+> -               goto out;
+> -       }
+> +       if (!do_reset)
+> +               return -EINVAL;
 >
-> https://lkml.org/lkml/2015/1/27/1029
+> -       /* Make sure all pending I/O is finished */
+> -       fsync_bdev(bdev);
+> -       bdput(bdev);
+> +       ret = zram_reset_device(dev_to_zram(dev), true);
+> +       if (ret)
+> +               return ret;
 >
->>
->>bdev->bd_holders protects from resetting device which has read/write
->>operation ongoing on the onther CPU.
->>
->>I need to refresh on how ->bd_holders actually incremented/decremented.
->>can the following race condition take a place?
->>
->>        CPU0                                    CPU1
->>reset_store()
->>bdev->bd_holders == false
->>                                        zram_make_request
->>                                                -rm- down_read(&zram->init_lock);
->>                                        init_done(zram) == true
->>zram_reset_device()                     valid_io_request()
->>                                        __zram_make_request
->>down_write(&zram->init_lock);           zram_bvec_rw
->>[..]
->>set_capacity(zram->disk, 0);
->>zram->init_done = false;
->>kick_all_cpus_sync();                   zram_bvec_write or zram_bvec_read()
->>zram_meta_free(zram->meta);
->>zcomp_destroy(zram->comp);              zcomp_compress() or zcomp_decompress()
-
-Sorry, I did not check this mail.
-
->>
+> -       zram_reset_device(zram, true);
+>         return len;
+> -
+> -out:
+> -       bdput(bdev);
+> -       return ret;
+>  }
 >
+>  static void __zram_make_request(struct zram *zram, struct bio *bio)
+> @@ -1183,12 +1192,8 @@ static void __exit zram_exit(void)
+>         for (i = 0; i < num_devices; i++) {
+>                 zram = &zram_devices[i];
 >
-> and later here https://lkml.org/lkml/2015/1/29/645
+> -               destroy_device(zram);
+> -               /*
+> -                * Shouldn't access zram->disk after destroy_device
+> -                * because destroy_device already released zram->disk.
+> -                */
+>                 zram_reset_device(zram, false);
+> +               destroy_device(zram);
+>         }
 >
->>
->>after umount we still have init device. so, *theoretically*, we
->>can see something like
->>
->>
->>        CPU0                            CPU1
->>umount
->>reset_store
->>bdev->bd_holders == 0                   mount
->>...                                     zram_make_request()
->>zram_reset_device()
->>
->
->
->
-> so what happened next? your patch happened next.
-> with quite familiar problem description
->
->>
->>      CPU0                    CPU1
->> t1:  bdput
->> t2:                          mount /dev/zram0 /mnt
->> t3:  zram_reset_device
->>
->
-> and now you say that I don't understant something in "your analysis"?
->
->
->
-> stop doing this. this is not how it works.
->
->
->         -ss
+>         unregister_blkdev(zram_major, "zram");
+> --
+> 1.7.9.5
 >
 
 --
