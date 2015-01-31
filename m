@@ -1,176 +1,253 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DCB76B0032
-	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 19:11:47 -0500 (EST)
-Received: by mail-wi0-f176.google.com with SMTP id bs8so6457638wib.3
-        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 16:11:47 -0800 (PST)
-Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.227])
-        by mx.google.com with ESMTP id hj2si23717431wjb.93.2015.01.30.16.11.45
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 181006B006C
+	for <linux-mm@kvack.org>; Fri, 30 Jan 2015 19:17:20 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id ey11so58348059pad.7
+        for <linux-mm@kvack.org>; Fri, 30 Jan 2015 16:17:19 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id nt7si15426489pbc.127.2015.01.30.16.17.18
         for <linux-mm@kvack.org>;
-        Fri, 30 Jan 2015 16:11:45 -0800 (PST)
-Date: Sat, 31 Jan 2015 02:11:41 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 00/19] expose page table levels on Kconfig leve
-Message-ID: <20150131001141.GA31680@node.dhcp.inet.fi>
-References: <1422629008-13689-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20150130172613.GA12367@roeck-us.net>
- <20150130185052.GA30401@node.dhcp.inet.fi>
- <20150130191435.GA16823@roeck-us.net>
- <20150130200956.GB30401@node.dhcp.inet.fi>
- <20150130205958.GA1124@roeck-us.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150130205958.GA1124@roeck-us.net>
+        Fri, 30 Jan 2015 16:17:19 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 05/19] ia64: expose number of page table levels on Kconfig level
+Date: Sat, 31 Jan 2015 02:17:06 +0200
+Message-Id: <1422663426-220551-1-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1422629008-13689-6-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1422629008-13689-6-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Guenter Roeck <linux@roeck-us.net>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Guenter Roeck <linux@roeck-us.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>
 
-On Fri, Jan 30, 2015 at 12:59:58PM -0800, Guenter Roeck wrote:
-> On Fri, Jan 30, 2015 at 10:09:56PM +0200, Kirill A. Shutemov wrote:
-> > On Fri, Jan 30, 2015 at 11:14:35AM -0800, Guenter Roeck wrote:
-> > > On Fri, Jan 30, 2015 at 08:50:52PM +0200, Kirill A. Shutemov wrote:
-> > > > On Fri, Jan 30, 2015 at 09:26:13AM -0800, Guenter Roeck wrote:
-> > > > > On Fri, Jan 30, 2015 at 04:43:09PM +0200, Kirill A. Shutemov wrote:
-> > > > > > I've failed my attempt on split up mm_struct into separate header file to
-> > > > > > be able to use defines from <asm/pgtable.h> to define mm_struct: it causes
-> > > > > > too much breakage and requires massive de-inlining of some architectures
-> > > > > > (notably ARM and S390 with PGSTE).
-> > > > > > 
-> > > > > > This is other approach: expose number of page table levels on Kconfig
-> > > > > > level and use it to get rid of nr_pmds in mm_struct.
-> > > > > > 
-> > > > > Hi Kirill,
-> > > > > 
-> > > > > Can I pull this series from somewhere ?
-> > > > 
-> > > > Just pushed:
-> > > > 
-> > > > git://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git config_pgtable_levels
-> > > > 
-> > > 
-> > > Great. Pushed into my 'testing' branch. I'll let you know how it goes.
-> > 
-> > 0-DAY kernel testing has already reported few issues on blackfin, ia64 and
-> > x86 with xen.
-> > 
-> Here is the final verdict:
-> 	total: 134 pass: 114 fail: 20
-> Failed builds:
-> 	arc:defconfig (inherited from mainline)
-> 	arc:tb10x_defconfig (inherited from mainline)
-> 	arm:efm32_defconfig
-> 	blackfin:defconfig
-> 	c6x:dsk6455_defconfig
-> 	c6x:evmc6457_defconfig
-> 	c6x:evmc6678_defconfig
-> 	ia64:defconfig
-> 	m68k:m5272c3_defconfig
-> 	m68k:m5307c3_defconfig
-> 	m68k:m5249evb_defconfig
-> 	m68k:m5407c3_defconfig
-> 	microblaze:nommu_defconfig
-> 	mips:allmodconfig (inherited from -next)
-> 	powerpc:cell_defconfig (binutils 2.23)
-> 	powerpc:cell_defconfig (binutils 2.24)
-> 	sparc64:allmodconfig (inherited from -next)
-> 	x86_64:allyesconfig
-> 	x86_64:allmodconfig
-> 	xtensa:allmodconfig (inherited from -next)
+We would want to use number of page table level to define mm_struct.
+Let's expose it as CONFIG_PGTABLE_LEVELS.
 
-The patch below should fix all regressions from -next.
-Please test.
+We need to define PGTABLE_LEVELS before sourcing init/Kconfig:
+arch/Kconfig will define default value and it's sourced from init/Kconfig.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Tony Luck <tony.luck@intel.com>
+Cc: Fenghua Yu <fenghua.yu@intel.com>
+---
+ v2: fix default for IA64_PAGE_SIZE_64KB
+---
+ arch/ia64/Kconfig                | 18 +++++-------------
+ arch/ia64/include/asm/page.h     |  4 ++--
+ arch/ia64/include/asm/pgalloc.h  |  4 ++--
+ arch/ia64/include/asm/pgtable.h  | 12 ++++++------
+ arch/ia64/kernel/ivt.S           | 12 ++++++------
+ arch/ia64/kernel/machine_kexec.c |  4 ++--
+ 6 files changed, 23 insertions(+), 31 deletions(-)
 
 diff --git a/arch/ia64/Kconfig b/arch/ia64/Kconfig
-index 56313dfd9685..4f9a6661491b 100644
+index 074e52bf815c..4f9a6661491b 100644
 --- a/arch/ia64/Kconfig
 +++ b/arch/ia64/Kconfig
-@@ -1,7 +1,7 @@
- config PGTABLE_LEVELS
- 	int "Page Table Levels" if !IA64_PAGE_SIZE_64KB
- 	range 3 4 if !IA64_PAGE_SIZE_64KB
--	default 4
+@@ -1,3 +1,8 @@
++config PGTABLE_LEVELS
++	int "Page Table Levels" if !IA64_PAGE_SIZE_64KB
++	range 3 4 if !IA64_PAGE_SIZE_64KB
 +	default 3
- 
++
  source "init/Kconfig"
  
-diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
-index 4c0c744fa297..91ad76f30d18 100644
---- a/arch/powerpc/Kconfig
-+++ b/arch/powerpc/Kconfig
-@@ -300,7 +300,7 @@ config ZONE_DMA32
- config PGTABLE_LEVELS
- 	int
- 	default 2 if !PPC64
--	default 3 if 64K_PAGES
-+	default 3 if PPC_64K_PAGES
- 	default 4
+ source "kernel/Kconfig.freezer"
+@@ -286,19 +291,6 @@ config IA64_PAGE_SIZE_64KB
  
- source "init/Kconfig"
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index d782617c11de..a09837f3f4b7 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1454,13 +1454,15 @@ static inline int __pud_alloc(struct mm_struct *mm, pgd_t *pgd,
- int __pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address);
+ endchoice
+ 
+-choice
+-	prompt "Page Table Levels"
+-	default PGTABLE_3
+-
+-config PGTABLE_3
+-	bool "3 Levels"
+-
+-config PGTABLE_4
+-	depends on !IA64_PAGE_SIZE_64KB
+-	bool "4 Levels"
+-
+-endchoice
+-
+ if IA64_HP_SIM
+ config HZ
+ 	default 32
+diff --git a/arch/ia64/include/asm/page.h b/arch/ia64/include/asm/page.h
+index 1f1bf144fe62..ec48bb9f95e1 100644
+--- a/arch/ia64/include/asm/page.h
++++ b/arch/ia64/include/asm/page.h
+@@ -173,7 +173,7 @@ get_order (unsigned long size)
+    */
+   typedef struct { unsigned long pte; } pte_t;
+   typedef struct { unsigned long pmd; } pmd_t;
+-#ifdef CONFIG_PGTABLE_4
++#if CONFIG_PGTABLE_LEVELS == 4
+   typedef struct { unsigned long pud; } pud_t;
  #endif
+   typedef struct { unsigned long pgd; } pgd_t;
+@@ -182,7 +182,7 @@ get_order (unsigned long size)
  
--#ifdef __PAGETABLE_PMD_FOLDED
-+#if defined(__PAGETABLE_PMD_FOLDED) || !defined(CONFIG_MMU)
- static inline int __pmd_alloc(struct mm_struct *mm, pud_t *pud,
- 						unsigned long address)
- {
- 	return 0;
+ # define pte_val(x)	((x).pte)
+ # define pmd_val(x)	((x).pmd)
+-#ifdef CONFIG_PGTABLE_4
++#if CONFIG_PGTABLE_LEVELS == 4
+ # define pud_val(x)	((x).pud)
+ #endif
+ # define pgd_val(x)	((x).pgd)
+diff --git a/arch/ia64/include/asm/pgalloc.h b/arch/ia64/include/asm/pgalloc.h
+index 5767cdfc08db..f5e70e961948 100644
+--- a/arch/ia64/include/asm/pgalloc.h
++++ b/arch/ia64/include/asm/pgalloc.h
+@@ -32,7 +32,7 @@ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
+ 	quicklist_free(0, NULL, pgd);
  }
  
-+static inline void mm_nr_pmds_init(struct mm_struct *mm) {}
-+
- static inline unsigned long mm_nr_pmds(struct mm_struct *mm)
+-#ifdef CONFIG_PGTABLE_4
++#if CONFIG_PGTABLE_LEVELS == 4
+ static inline void
+ pgd_populate(struct mm_struct *mm, pgd_t * pgd_entry, pud_t * pud)
  {
- 	return 0;
-@@ -1472,6 +1474,11 @@ static inline void mm_dec_nr_pmds(struct mm_struct *mm) {}
+@@ -49,7 +49,7 @@ static inline void pud_free(struct mm_struct *mm, pud_t *pud)
+ 	quicklist_free(0, NULL, pud);
+ }
+ #define __pud_free_tlb(tlb, pud, address)	pud_free((tlb)->mm, pud)
+-#endif /* CONFIG_PGTABLE_4 */
++#endif /* CONFIG_PGTABLE_LEVELS == 4 */
+ 
+ static inline void
+ pud_populate(struct mm_struct *mm, pud_t * pud_entry, pmd_t * pmd)
+diff --git a/arch/ia64/include/asm/pgtable.h b/arch/ia64/include/asm/pgtable.h
+index 7b6f8801df57..9f3ed9ee8f13 100644
+--- a/arch/ia64/include/asm/pgtable.h
++++ b/arch/ia64/include/asm/pgtable.h
+@@ -99,7 +99,7 @@
+ #define PMD_MASK	(~(PMD_SIZE-1))
+ #define PTRS_PER_PMD	(1UL << (PTRS_PER_PTD_SHIFT))
+ 
+-#ifdef CONFIG_PGTABLE_4
++#if CONFIG_PGTABLE_LEVELS == 4
+ /*
+  * Definitions for second level:
+  *
+@@ -117,7 +117,7 @@
+  *
+  * PGDIR_SHIFT determines what a first-level page table entry can map.
+  */
+-#ifdef CONFIG_PGTABLE_4
++#if CONFIG_PGTABLE_LEVELS == 4
+ #define PGDIR_SHIFT		(PUD_SHIFT + (PTRS_PER_PTD_SHIFT))
  #else
- int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address);
+ #define PGDIR_SHIFT		(PMD_SHIFT + (PTRS_PER_PTD_SHIFT))
+@@ -180,7 +180,7 @@
+ #define __S111	__pgprot(__ACCESS_BITS | _PAGE_PL_3 | _PAGE_AR_RWX)
  
-+static inline void mm_nr_pmds_init(struct mm_struct *mm)
-+{
-+	atomic_long_set(&mm->nr_pmds, 0);
-+}
-+
- static inline unsigned long mm_nr_pmds(struct mm_struct *mm)
- {
- 	return atomic_long_read(&mm->nr_pmds);
-diff --git a/include/trace/events/xen.h b/include/trace/events/xen.h
-index d06b6da5c1e3..bce990f5a35d 100644
---- a/include/trace/events/xen.h
-+++ b/include/trace/events/xen.h
-@@ -224,7 +224,7 @@ TRACE_EVENT(xen_mmu_pmd_clear,
- 	    TP_printk("pmdp %p", __entry->pmdp)
- 	);
+ #define pgd_ERROR(e)	printk("%s:%d: bad pgd %016lx.\n", __FILE__, __LINE__, pgd_val(e))
+-#ifdef CONFIG_PGTABLE_4
++#if CONFIG_PGTABLE_LEVELS == 4
+ #define pud_ERROR(e)	printk("%s:%d: bad pud %016lx.\n", __FILE__, __LINE__, pud_val(e))
+ #endif
+ #define pmd_ERROR(e)	printk("%s:%d: bad pmd %016lx.\n", __FILE__, __LINE__, pmd_val(e))
+@@ -281,7 +281,7 @@ extern unsigned long VMALLOC_END;
+ #define pud_page_vaddr(pud)		((unsigned long) __va(pud_val(pud) & _PFN_MASK))
+ #define pud_page(pud)			virt_to_page((pud_val(pud) + PAGE_OFFSET))
  
--#if PAGETABLE_LEVELS >= 4
-+#if CONFIG_PGTABLE_LEVELS >= 4
+-#ifdef CONFIG_PGTABLE_4
++#if CONFIG_PGTABLE_LEVELS == 4
+ #define pgd_none(pgd)			(!pgd_val(pgd))
+ #define pgd_bad(pgd)			(!ia64_phys_addr_valid(pgd_val(pgd)))
+ #define pgd_present(pgd)		(pgd_val(pgd) != 0UL)
+@@ -384,7 +384,7 @@ pgd_offset (const struct mm_struct *mm, unsigned long address)
+    here.  */
+ #define pgd_offset_gate(mm, addr)	pgd_offset_k(addr)
  
- TRACE_EVENT(xen_mmu_set_pud,
- 	    TP_PROTO(pud_t *pudp, pud_t pudval),
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 76d6f292274c..56b82deb6457 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -555,9 +555,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
- 	INIT_LIST_HEAD(&mm->mmlist);
- 	mm->core_state = NULL;
- 	atomic_long_set(&mm->nr_ptes, 0);
--#ifndef __PAGETABLE_PMD_FOLDED
--	atomic_long_set(&mm->nr_pmds, 0);
--#endif
-+	mm_nr_pmds_init(mm);
- 	mm->map_count = 0;
- 	mm->locked_vm = 0;
- 	mm->pinned_vm = 0;
+-#ifdef CONFIG_PGTABLE_4
++#if CONFIG_PGTABLE_LEVELS == 4
+ /* Find an entry in the second-level page table.. */
+ #define pud_offset(dir,addr) \
+ 	((pud_t *) pgd_page_vaddr(*(dir)) + (((addr) >> PUD_SHIFT) & (PTRS_PER_PUD - 1)))
+@@ -586,7 +586,7 @@ extern struct page *zero_page_memmap_ptr;
+ #define __HAVE_ARCH_PGD_OFFSET_GATE
+ 
+ 
+-#ifndef CONFIG_PGTABLE_4
++#if CONFIG_PGTABLE_LEVELS == 3
+ #include <asm-generic/pgtable-nopud.h>
+ #endif
+ #include <asm-generic/pgtable.h>
+diff --git a/arch/ia64/kernel/ivt.S b/arch/ia64/kernel/ivt.S
+index 18e794a57248..e42bf7a913f3 100644
+--- a/arch/ia64/kernel/ivt.S
++++ b/arch/ia64/kernel/ivt.S
+@@ -146,7 +146,7 @@ ENTRY(vhpt_miss)
+ (p6)	dep r17=r18,r19,3,(PAGE_SHIFT-3)	// r17=pgd_offset for region 5
+ (p7)	dep r17=r18,r17,3,(PAGE_SHIFT-6)	// r17=pgd_offset for region[0-4]
+ 	cmp.eq p7,p6=0,r21			// unused address bits all zeroes?
+-#ifdef CONFIG_PGTABLE_4
++#if CONFIG_PGTABLE_LEVELS == 4
+ 	shr.u r28=r22,PUD_SHIFT			// shift pud index into position
+ #else
+ 	shr.u r18=r22,PMD_SHIFT			// shift pmd index into position
+@@ -155,7 +155,7 @@ ENTRY(vhpt_miss)
+ 	ld8 r17=[r17]				// get *pgd (may be 0)
+ 	;;
+ (p7)	cmp.eq p6,p7=r17,r0			// was pgd_present(*pgd) == NULL?
+-#ifdef CONFIG_PGTABLE_4
++#if CONFIG_PGTABLE_LEVELS == 4
+ 	dep r28=r28,r17,3,(PAGE_SHIFT-3)	// r28=pud_offset(pgd,addr)
+ 	;;
+ 	shr.u r18=r22,PMD_SHIFT			// shift pmd index into position
+@@ -222,13 +222,13 @@ ENTRY(vhpt_miss)
+ 	 */
+ 	ld8 r25=[r21]				// read *pte again
+ 	ld8 r26=[r17]				// read *pmd again
+-#ifdef CONFIG_PGTABLE_4
++#if CONFIG_PGTABLE_LEVELS == 4
+ 	ld8 r19=[r28]				// read *pud again
+ #endif
+ 	cmp.ne p6,p7=r0,r0
+ 	;;
+ 	cmp.ne.or.andcm p6,p7=r26,r20		// did *pmd change
+-#ifdef CONFIG_PGTABLE_4
++#if CONFIG_PGTABLE_LEVELS == 4
+ 	cmp.ne.or.andcm p6,p7=r19,r29		// did *pud change
+ #endif
+ 	mov r27=PAGE_SHIFT<<2
+@@ -476,7 +476,7 @@ ENTRY(nested_dtlb_miss)
+ (p6)	dep r17=r18,r19,3,(PAGE_SHIFT-3)	// r17=pgd_offset for region 5
+ (p7)	dep r17=r18,r17,3,(PAGE_SHIFT-6)	// r17=pgd_offset for region[0-4]
+ 	cmp.eq p7,p6=0,r21			// unused address bits all zeroes?
+-#ifdef CONFIG_PGTABLE_4
++#if CONFIG_PGTABLE_LEVELS == 4
+ 	shr.u r18=r22,PUD_SHIFT			// shift pud index into position
+ #else
+ 	shr.u r18=r22,PMD_SHIFT			// shift pmd index into position
+@@ -487,7 +487,7 @@ ENTRY(nested_dtlb_miss)
+ (p7)	cmp.eq p6,p7=r17,r0			// was pgd_present(*pgd) == NULL?
+ 	dep r17=r18,r17,3,(PAGE_SHIFT-3)	// r17=p[u|m]d_offset(pgd,addr)
+ 	;;
+-#ifdef CONFIG_PGTABLE_4
++#if CONFIG_PGTABLE_LEVELS == 4
+ (p7)	ld8 r17=[r17]				// get *pud (may be 0)
+ 	shr.u r18=r22,PMD_SHIFT			// shift pmd index into position
+ 	;;
+diff --git a/arch/ia64/kernel/machine_kexec.c b/arch/ia64/kernel/machine_kexec.c
+index 5151a649c96b..b72cd7a07222 100644
+--- a/arch/ia64/kernel/machine_kexec.c
++++ b/arch/ia64/kernel/machine_kexec.c
+@@ -156,9 +156,9 @@ void arch_crash_save_vmcoreinfo(void)
+ 	VMCOREINFO_OFFSET(node_memblk_s, start_paddr);
+ 	VMCOREINFO_OFFSET(node_memblk_s, size);
+ #endif
+-#ifdef CONFIG_PGTABLE_3
++#if CONFIG_PGTABLE_LEVELS == 3
+ 	VMCOREINFO_CONFIG(PGTABLE_3);
+-#elif defined(CONFIG_PGTABLE_4)
++#elif CONFIG_PGTABLE_LEVELS == 4
+ 	VMCOREINFO_CONFIG(PGTABLE_4);
+ #endif
+ }
 -- 
- Kirill A. Shutemov
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
