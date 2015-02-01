@@ -1,89 +1,381 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
-	by kanga.kvack.org (Postfix) with ESMTP id D16F86B0038
-	for <linux-mm@kvack.org>; Sun,  1 Feb 2015 01:31:28 -0500 (EST)
-Received: by mail-we0-f177.google.com with SMTP id l61so33638064wev.8
-        for <linux-mm@kvack.org>; Sat, 31 Jan 2015 22:31:28 -0800 (PST)
-Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [2002:c35c:fd02::1])
-        by mx.google.com with ESMTPS id bc4si18893170wib.96.2015.01.31.22.31.26
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 000656B0038
+	for <linux-mm@kvack.org>; Sun,  1 Feb 2015 09:50:05 -0500 (EST)
+Received: by mail-pa0-f47.google.com with SMTP id lj1so71762202pab.6
+        for <linux-mm@kvack.org>; Sun, 01 Feb 2015 06:50:05 -0800 (PST)
+Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
+        by mx.google.com with ESMTPS id qk3si20307220pbc.251.2015.02.01.06.50.04
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 31 Jan 2015 22:31:27 -0800 (PST)
-Date: Sun, 1 Feb 2015 06:31:16 +0000
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: backing_dev_info cleanups & lifetime rule fixes V2
-Message-ID: <20150201063116.GP29656@ZenIV.linux.org.uk>
-References: <1421228561-16857-1-git-send-email-hch@lst.de>
- <54BEC3C2.7080906@fb.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 01 Feb 2015 06:50:04 -0800 (PST)
+Received: by mail-pa0-f42.google.com with SMTP id bj1so71906120pad.1
+        for <linux-mm@kvack.org>; Sun, 01 Feb 2015 06:50:04 -0800 (PST)
+Date: Sun, 1 Feb 2015 23:50:36 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [PATCH v1 2/2] zram: remove init_lock in zram_make_request
+Message-ID: <20150201145036.GA1290@swordfish>
+References: <20150128145651.GB965@swordfish>
+ <20150128233343.GC4706@blaptop>
+ <CAHqPoqKZFDSjO1pL+ixYe_m_L0nGNcu04qSNp-jd1fUixKtHnw@mail.gmail.com>
+ <20150129020139.GB9672@blaptop>
+ <20150129022241.GA2555@swordfish>
+ <20150129052827.GB25462@blaptop>
+ <20150129060604.GC2555@swordfish>
+ <20150129063505.GA32331@blaptop>
+ <20150129070835.GD2555@swordfish>
+ <20150130144145.GA2840@blaptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <54BEC3C2.7080906@fb.com>
+In-Reply-To: <20150130144145.GA2840@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@fb.com>
-Cc: Christoph Hellwig <hch@lst.de>, David Howells <dhowells@redhat.com>, Tejun Heo <tj@kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-mtd@lists.infradead.org, linux-nfs@vger.kernel.org, ceph-devel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>
 
-On Tue, Jan 20, 2015 at 02:08:18PM -0700, Jens Axboe wrote:
-> On 01/14/2015 02:42 AM, Christoph Hellwig wrote:
-> >The first 8 patches are unchanged from the series posted a week ago and
-> >cleans up how we use the backing_dev_info structure in preparation for
-> >fixing the life time rules for it.  The most important change is to
-> >split the unrelated nommu mmap flags from it, but it also remove a
-> >backing_dev_info pointer from the address_space (and thus the inode)
-> >and cleans up various other minor bits.
-> >
-> >The remaining patches sort out the issues around bdi_unlink and now
-> >let the bdi life until it's embedding structure is freed, which must
-> >be equal or longer than the superblock using the bdi for writeback,
-> >and thus gets rid of the whole mess around reassining inodes to new
-> >bdis.
-> >
-> >Changes since V1:
-> >  - various minor documentation updates based on Feedback from Tejun
-> 
-> I applied this to for-3.20/bdi, only making the change (noticed by
-> Jan) to kill the extra WARN_ON() in patch #11.
+Hello Minchan,
 
-And at that point we finally can make sb_lock and super_blocks static in
-fs/super.c.  Do you want that in your tree, or would you rather have it
-done via vfs.git during the merge window after your tree goes in?  It's
-as trivial as this:
+the idea looks good and this is something I was trying to do, except
+that I used kref.
 
-Make super_blocks and sb_lock static
+some review nitpicks are below. I also posted modified version of your
+patch so that will save some time.
 
-The only user outside of fs/super.c is gone now
 
-Signed-off-by: Al Viro <viro@zeniv.linux.org.uk>
+>  static inline int init_done(struct zram *zram)
+>  {
+> -	return zram->meta != NULL;
+> +	return zram->disksize != 0;
+
+we don't set ->disksize to 0 when create device. and I think
+it's better to use refcount here, but set it to 0 during device creation.
+(see the patch below)
+
+> +static inline bool zram_meta_get(struct zram_meta *meta)
+> +{
+> +	if (!atomic_inc_not_zero(&meta->refcount))
+> +		return false;
+> +	return true;
+> +}
+
+I've changed it to likely case first: `if recount return true'
+
+>  static void zram_reset_device(struct zram *zram, bool reset_capacity)
+>  {
+> +	struct zram_meta *meta;
+> +	u64 disksize;
+
+not needed. (see the patch below).
+
+> +
+>  	down_write(&zram->init_lock);
+>  
+>  	zram->limit_pages = 0;
+> @@ -728,14 +750,20 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+>  		return;
+>  	}
+>  
+> +	meta = zram->meta;
+> +
+>  	zcomp_destroy(zram->comp);
+
+we can't destoy zcomp before we see IO completion.
+
+>  	zram->max_comp_streams = 1;
+
+we better keep original comp_streams number before we see IO completion.
+we don't know how many RW ops we have, so completion can happen earlier.
+
+> -	zram_meta_free(zram->meta, zram->disksize);
+> -	zram->meta = NULL;
+> +	disksize = zram->disksize;
+> +	zram_meta_put(meta);
+> +	/* Read/write handler will not handle further I/O operation. */
+> +	zram->disksize = 0;
+
+I keep it on its current position. (see below)
+
+> +	wait_for_completion(&meta->complete);
+> +	/* I/O operation under all of CPU are done so let's free */
+> +	zram_meta_free(zram->meta, disksize);
+>  	/* Reset stats */
+>  	memset(&zram->stats, 0, sizeof(zram->stats));
+>  
+> -	zram->disksize = 0;
+>  	if (reset_capacity)
+>  		set_capacity(zram->disk, 0);
+>  
+> @@ -908,23 +936,25 @@ static void zram_make_request(struct request_queue *queue, struct bio *bio)
+>  {
+>  	struct zram *zram = queue->queuedata;
+>  
+> -	down_read(&zram->init_lock);
+> -	if (unlikely(!init_done(zram)))
+> +	if (unlikely(!zram_meta_get(zram->meta)))
+>  		goto error;
+>  
+> +	if (unlikely(!init_done(zram)))
+> +		goto put_meta;
+> +
+
+here and later:
+we can't take zram_meta_get() first and then check for init_done(zram),
+because ->meta can be NULL, so it fill be ->NULL->refcount.
+
+let's keep ->completion and ->refcount in zram and rename zram_meta_[get|put]
+to zram_[get|put].
+
+
+
+
+please review a bit modified version of your patch.
+
+/* the patch also reogranizes a bit order of struct zram members, to move
+member that we use more often together and to avoid paddings. nothing
+critical here. */
+
+
+next action items are:
+-- we actually can now switch from init_lock in some _show() fucntion to
+zram_get()/zram_put()
+-- address that theoretical and very unlikely in real live race condition
+of umount-reset vs. mount-rw.
+
+
+no concerns about performance of this version -- we probably will not get
+any faster than that.
+
+
+thanks a lot for your effort!
+
 ---
-diff --git a/fs/super.c b/fs/super.c
-index eae088f..91badbb 100644
---- a/fs/super.c
-+++ b/fs/super.c
-@@ -36,8 +36,8 @@
- #include "internal.h"
+
+ drivers/block/zram/zram_drv.c | 82 ++++++++++++++++++++++++++++++-------------
+ drivers/block/zram/zram_drv.h | 17 ++++-----
+ 2 files changed, 66 insertions(+), 33 deletions(-)
+
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index aa5a4c5..6916790 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -44,7 +44,7 @@ static const char *default_compressor = "lzo";
+ static unsigned int num_devices = 1;
  
+ #define ZRAM_ATTR_RO(name)						\
+-static ssize_t name##_show(struct device *d,		\
++static ssize_t name##_show(struct device *d,				\
+ 				struct device_attribute *attr, char *b)	\
+ {									\
+ 	struct zram *zram = dev_to_zram(d);				\
+@@ -55,7 +55,7 @@ static DEVICE_ATTR_RO(name);
  
--LIST_HEAD(super_blocks);
--DEFINE_SPINLOCK(sb_lock);
-+static LIST_HEAD(super_blocks);
-+static DEFINE_SPINLOCK(sb_lock);
+ static inline int init_done(struct zram *zram)
+ {
+-	return zram->meta != NULL;
++	return atomic_read(&zram->refcount);
+ }
  
- static char *sb_writers_name[SB_FREEZE_LEVELS] = {
- 	"sb_writers",
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 1f3c439..efc384e 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -1184,8 +1184,6 @@ struct mm_struct;
- #define UMOUNT_NOFOLLOW	0x00000008	/* Don't follow symlink on umount */
- #define UMOUNT_UNUSED	0x80000000	/* Flag guaranteed to be unused */
+ static inline struct zram *dev_to_zram(struct device *dev)
+@@ -358,6 +358,23 @@ out_error:
+ 	return NULL;
+ }
  
--extern struct list_head super_blocks;
--extern spinlock_t sb_lock;
++static inline bool zram_get(struct zram *zram)
++{
++	if (atomic_inc_not_zero(&zram->refcount))
++		return true;
++	return false;
++}
++
++/*
++ * We want to free zram_meta in process context to avoid
++ * deadlock between reclaim path and any other locks
++ */
++static inline void zram_put(struct zram *zram)
++{
++	if (atomic_dec_and_test(&zram->refcount))
++		complete(&zram->io_done);
++}
++
+ static void update_position(u32 *index, int *offset, struct bio_vec *bvec)
+ {
+ 	if (*offset + bvec->bv_len >= PAGE_SIZE)
+@@ -719,6 +736,9 @@ static void zram_bio_discard(struct zram *zram, u32 index,
  
- /* Possible states of 'frozen' field */
- enum {
+ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+ {
++	struct zram_meta *meta;
++	struct zcomp *comp;
++
+ 	down_write(&zram->init_lock);
+ 
+ 	zram->limit_pages = 0;
+@@ -728,14 +748,21 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+ 		return;
+ 	}
+ 
+-	zcomp_destroy(zram->comp);
+-	zram->max_comp_streams = 1;
+-	zram_meta_free(zram->meta, zram->disksize);
+-	zram->meta = NULL;
++	meta = zram->meta;
++	comp = zram->comp;
++	/* ->refcount will go down to 0 eventually */
++	zram_put(zram);
++
++	wait_for_completion(&zram->io_done);
++	/* I/O operation under all of CPU are done so let's free */
++	zram_meta_free(meta, disksize);
++	zcomp_destroy(comp);
++
+ 	/* Reset stats */
+ 	memset(&zram->stats, 0, sizeof(zram->stats));
+-
+ 	zram->disksize = 0;
++	zram->max_comp_streams = 1;
++
+ 	if (reset_capacity)
+ 		set_capacity(zram->disk, 0);
+ 
+@@ -783,6 +810,8 @@ static ssize_t disksize_store(struct device *dev,
+ 		goto out_destroy_comp;
+ 	}
+ 
++	init_completion(&zram->io_done);
++	atomic_set(&zram->refcount, 1);
+ 	zram->meta = meta;
+ 	zram->comp = comp;
+ 	zram->disksize = disksize;
+@@ -795,7 +824,6 @@ static ssize_t disksize_store(struct device *dev,
+ 	 * so that revalidate_disk always sees up-to-date capacity.
+ 	 */
+ 	revalidate_disk(zram->disk);
+-
+ 	return len;
+ 
+ out_destroy_comp:
+@@ -908,23 +936,24 @@ static void zram_make_request(struct request_queue *queue, struct bio *bio)
+ {
+ 	struct zram *zram = queue->queuedata;
+ 
+-	down_read(&zram->init_lock);
+-	if (unlikely(!init_done(zram)))
++	if (unlikely(!zram_get(zram)))
+ 		goto error;
+ 
++	if (unlikely(!init_done(zram)))
++		goto put_zram;
++
+ 	if (!valid_io_request(zram, bio->bi_iter.bi_sector,
+ 					bio->bi_iter.bi_size)) {
+ 		atomic64_inc(&zram->stats.invalid_io);
+-		goto error;
++		goto put_zram;
+ 	}
+ 
+ 	__zram_make_request(zram, bio);
+-	up_read(&zram->init_lock);
+-
++	zram_put(zram);
+ 	return;
+-
++put_zram:
++	zram_put(zram);
+ error:
+-	up_read(&zram->init_lock);
+ 	bio_io_error(bio);
+ }
+ 
+@@ -946,21 +975,22 @@ static void zram_slot_free_notify(struct block_device *bdev,
+ static int zram_rw_page(struct block_device *bdev, sector_t sector,
+ 		       struct page *page, int rw)
+ {
+-	int offset, err;
++	int offset, err = -EIO;
+ 	u32 index;
+ 	struct zram *zram;
+ 	struct bio_vec bv;
+ 
+ 	zram = bdev->bd_disk->private_data;
++	if (unlikely(!zram_get(zram)))
++		goto out;
++
++	if (unlikely(!init_done(zram)))
++		goto put_zram;
++
+ 	if (!valid_io_request(zram, sector, PAGE_SIZE)) {
+ 		atomic64_inc(&zram->stats.invalid_io);
+-		return -EINVAL;
+-	}
+-
+-	down_read(&zram->init_lock);
+-	if (unlikely(!init_done(zram))) {
+-		err = -EIO;
+-		goto out_unlock;
++		err = -EINVAL;
++		goto put_zram;
+ 	}
+ 
+ 	index = sector >> SECTORS_PER_PAGE_SHIFT;
+@@ -971,8 +1001,9 @@ static int zram_rw_page(struct block_device *bdev, sector_t sector,
+ 	bv.bv_offset = 0;
+ 
+ 	err = zram_bvec_rw(zram, &bv, index, offset, rw);
+-out_unlock:
+-	up_read(&zram->init_lock);
++put_zram:
++	zram_put(zram);
++out:
+ 	/*
+ 	 * If I/O fails, just return error(ie, non-zero) without
+ 	 * calling page_endio.
+@@ -1041,6 +1072,7 @@ static int create_device(struct zram *zram, int device_id)
+ 	int ret = -ENOMEM;
+ 
+ 	init_rwsem(&zram->init_lock);
++	atomic_set(&zram->refcount, 0);
+ 
+ 	zram->queue = blk_alloc_queue(GFP_KERNEL);
+ 	if (!zram->queue) {
+diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+index b05a816..7138c82 100644
+--- a/drivers/block/zram/zram_drv.h
++++ b/drivers/block/zram/zram_drv.h
+@@ -100,24 +100,25 @@ struct zram_meta {
+ 
+ struct zram {
+ 	struct zram_meta *meta;
++	struct zcomp *comp;
+ 	struct request_queue *queue;
+ 	struct gendisk *disk;
+-	struct zcomp *comp;
+-
+ 	/* Prevent concurrent execution of device init, reset and R/W request */
+ 	struct rw_semaphore init_lock;
+ 	/*
+-	 * This is the limit on amount of *uncompressed* worth of data
+-	 * we can store in a disk.
++	 * the number of pages zram can consume for storing compressed data
+ 	 */
+-	u64 disksize;	/* bytes */
++	unsigned long limit_pages;
++	atomic_t refcount;
+ 	int max_comp_streams;
++
+ 	struct zram_stats stats;
++	struct completion io_done; /* notify IO under all of cpu are done */
+ 	/*
+-	 * the number of pages zram can consume for storing compressed data
++	 * This is the limit on amount of *uncompressed* worth of data
++	 * we can store in a disk.
+ 	 */
+-	unsigned long limit_pages;
+-
++	u64 disksize;	/* bytes */
+ 	char compressor[10];
+ };
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
