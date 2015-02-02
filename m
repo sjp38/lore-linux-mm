@@ -1,66 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 989BC6B006C
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 09:19:50 -0500 (EST)
-Received: by mail-wi0-f175.google.com with SMTP id fb4so17142491wid.2
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 06:19:50 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r19si5541972wiw.100.2015.02.02.06.19.48
+Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E8EB6B006C
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 10:00:56 -0500 (EST)
+Received: by mail-we0-f176.google.com with SMTP id w62so39507645wes.7
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 07:00:55 -0800 (PST)
+Received: from mail-wg0-x236.google.com (mail-wg0-x236.google.com. [2a00:1450:400c:c00::236])
+        by mx.google.com with ESMTPS id n6si23718468wic.21.2015.02.02.07.00.53
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Feb 2015 06:19:49 -0800 (PST)
-Message-ID: <54CF877D.9010609@suse.cz>
-Date: Mon, 02 Feb 2015 15:19:41 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        Mon, 02 Feb 2015 07:00:54 -0800 (PST)
+Received: by mail-wg0-f54.google.com with SMTP id b13so39126125wgh.13
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 07:00:53 -0800 (PST)
+Date: Mon, 2 Feb 2015 16:00:51 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [PATCH] memcg, shmem: fix shmem migration to use lrucare. (was: Re:
+ [Intel-gfx] memcontrol.c BUG)
+Message-ID: <20150202150050.GD4583@dhcp22.suse.cz>
+References: <CAPM=9tyyP_pKpWjc7LBZU7e6wAt26XGZsyhRh7N497B2+28rrQ@mail.gmail.com>
+ <20150128084852.GC28132@nuc-i3427.alporthouse.com>
+ <20150128143242.GF6542@dhcp22.suse.cz>
+ <alpine.LSU.2.11.1501291751170.1761@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH v3 3/3] mm/compaction: enhance compaction finish condition
-References: <1422861348-5117-1-git-send-email-iamjoonsoo.kim@lge.com> <1422861348-5117-3-git-send-email-iamjoonsoo.kim@lge.com> <54CF4F61.3070905@suse.cz> <BLU436-SMTP200D06EB86F21EF7A29CE57833C0@phx.gbl>
-In-Reply-To: <BLU436-SMTP200D06EB86F21EF7A29CE57833C0@phx.gbl>
-Content-Type: text/plain; charset=iso-8859-2
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1501291751170.1761@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yanfei <zhangyanfei.ok@hotmail.com>, Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Chris Wilson <chris@chris-wilson.co.uk>, Dave Airlie <airlied@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, "intel-gfx@lists.freedesktop.org" <intel-gfx@lists.freedesktop.org>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, Jet Chen <jet.chen@intel.com>, Felipe Balbi <balbi@ti.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On 02/02/2015 02:51 PM, Zhang Yanfei wrote:
->> I've got another idea for small improvement. We should only test for fallbacks
->> when migration scanner has scanned (and migrated) a whole pageblock. Should be a
->> simple alignment test of cc->migrate_pfn.
->> Advantages:
->> - potentially less checking overhead
->> - chances of stealing increase if we created more free pages for migration
->> - thus less fragmentation
->> The cost is a bit more time spent compacting, but it's bounded and worth it
->> (especially the less fragmentation) IMHO.
+On Thu 29-01-15 18:04:15, Hugh Dickins wrote:
+> On Wed, 28 Jan 2015, Michal Hocko wrote:
+> > On Wed 28-01-15 08:48:52, Chris Wilson wrote:
+> > > On Wed, Jan 28, 2015 at 08:13:06AM +1000, Dave Airlie wrote:
+> > > > https://bugzilla.redhat.com/show_bug.cgi?id=1165369
+> > > > 
+> > > > ov 18 09:23:22 elissa.gathman.org kernel: page:f5e36a40 count:2
+> > > > mapcount:0 mapping:  (null) index:0x0
+> > > > Nov 18 09:23:22 elissa.gathman.org kernel: page flags:
+> > > > 0x80090029(locked|uptodate|lru|swapcache|swapbacked)
+> > > > Nov 18 09:23:22 elissa.gathman.org kernel: page dumped because:
+> > > > VM_BUG_ON_PAGE(!lrucare && PageLRU(oldpage))
+> > > > Nov 18 09:23:23 elissa.gathman.org kernel: ------------[ cut here ]------------
+> > > > Nov 18 09:23:23 elissa.gathman.org kernel: kernel BUG at mm/memcontrol.c:6733!
+> > 
+> > I guess this matches the following bugon in your kernel:
+> >         VM_BUG_ON_PAGE(!lrucare && PageLRU(oldpage), oldpage);
+> > 
+> > so the oldpage is on the LRU list already. I am completely unfamiliar
+> > with 965GM but is the page perhaps shared with somebody with a different
+> > gfp mask requirement (e.g. userspace accessing the memory via mmap)? So
+> > the other (racing) caller didn't need to move the page and put it on
+> > LRU.
 > 
-> This seems to make the compaction a little compicated... I kind of
+> It would be surprising (but not impossible) for oldpage not to be on
+> the LRU already: it's a swapin readahead page that has every right to
+> be on LRU,
 
-Just a little bit, compared to e.g. this patch :)
+True, thanks for pointing this out.
 
-> don't know why there is more anti-fragmentation by using this approach.
+> but turns out to have been allocated from an unsuitable zone,
+> once we discover that it's needed in one of these odd hardware-limited
+> mappings.  (Whereas newpage is newly allocated and not yet on LRU.)
+> 
+> > 
+> > If yes we need to tell shmem_replace_page to do the lrucare handling.
+> 
+> Absolutely, thanks Michal.  It would also be good to change the comment
+> on mem_cgroup_migrate() in mm/memcontrol.c, from "@lrucare: both pages..."
+> to "@lrucare: either or both pages..." - though I certainly won't pretend
+> that the corrected wording would have prevented this bug creeping in!
 
-Ah so let me explain. Assume we want to allocate order-3 unmovable page and have
-to invoke compaction because of that. The migration scanner starts in the
-beginning of a movable pageblock, isolates and migrates 32 pages
-(COMPACT_CLUSTER_MAX) from the beginning sucessfully, and then we check in
-compact_finished and see that the allocation could fall back to this newly
-created order-5 block. So we terminate compaction and allocation takes this
-order-5 block, allocates order-3 and the rest remains on free list of unmovable.
-It will try to steal more freepages from the pageblock, but there aren't any. So
-we have a movable block with unmovable pages. The spare free pages are
-eventually depleted and we fallback to another movable pageblock... bad.
+Yes, I have updated the wording.
+ 
+> > diff --git a/mm/shmem.c b/mm/shmem.c
+> > index 339e06639956..e3cdc1a16c0f 100644
+> > --- a/mm/shmem.c
+> > +++ b/mm/shmem.c
+> > @@ -1013,7 +1013,7 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
+> >  		 */
+> >  		oldpage = newpage;
+> >  	} else {
+> > -		mem_cgroup_migrate(oldpage, newpage, false);
+> > +		mem_cgroup_migrate(oldpage, newpage, true);
+> >  		lru_cache_add_anon(newpage);
+> >  		*pagep = newpage;
+> >  	}
+> 
+> Acked-by: Hugh Dickins <hughd@google.com>
 
-With the proposed change, we would try to compact the pageblock fully. Possibly
-we would free at least half of it, so it would be marked as unmovable during the
-fallback allocation, and would be able to satisfy more unmovable allocations
-that wouldn't have to fallback somewhere else.
-
-I don't think that finishing the scan of a single pageblock is that big of a
-cost here.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Thanks! The full patch is below. I wasn't sure who was the one to report
+the issue so I hope the credits are right. I have marked the patch for
+stable because some people are running with VM debugging enabled. AFAICS
+the issue is not so harmful without debugging on because the stale
+oldpage would be removed from the LRU list eventually.
+---
