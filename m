@@ -1,33 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
-	by kanga.kvack.org (Postfix) with ESMTP id C88A06B0073
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 08:26:44 -0500 (EST)
-Received: by mail-ob0-f174.google.com with SMTP id wo20so12907525obc.5
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 05:26:44 -0800 (PST)
-Received: from mail-ob0-x234.google.com (mail-ob0-x234.google.com. [2607:f8b0:4003:c01::234])
-        by mx.google.com with ESMTPS id l124si9239881oig.85.2015.02.02.05.26.43
+Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 7888B6B0032
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 08:29:09 -0500 (EST)
+Received: by mail-ob0-f172.google.com with SMTP id nt9so13104626obb.3
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 05:29:09 -0800 (PST)
+Received: from mail-oi0-x22e.google.com (mail-oi0-x22e.google.com. [2607:f8b0:4003:c06::22e])
+        by mx.google.com with ESMTPS id eo8si9261501oeb.9.2015.02.02.05.29.08
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Feb 2015 05:26:43 -0800 (PST)
-Received: by mail-ob0-f180.google.com with SMTP id vb8so16368999obc.11
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 05:26:43 -0800 (PST)
+        Mon, 02 Feb 2015 05:29:08 -0800 (PST)
+Received: by mail-oi0-f46.google.com with SMTP id a141so44274205oig.5
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 05:29:08 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <54CF4A95.4090504@suse.cz>
+In-Reply-To: <BLU436-SMTP50EE37851DFB83686A33A3833C0@phx.gbl>
 References: <1422861348-5117-1-git-send-email-iamjoonsoo.kim@lge.com>
 	<1422861348-5117-2-git-send-email-iamjoonsoo.kim@lge.com>
-	<54CF4A95.4090504@suse.cz>
-Date: Mon, 2 Feb 2015 22:26:43 +0900
-Message-ID: <CAAmzW4MJOZOs2RuWjmBV1vrzyLGd4Fb89TYaCUi89O7LcKV2Og@mail.gmail.com>
+	<BLU436-SMTP50EE37851DFB83686A33A3833C0@phx.gbl>
+Date: Mon, 2 Feb 2015 22:29:08 +0900
+Message-ID: <CAAmzW4Ms1ge4LDHL0vzv+VZLwu2R1t8R=oOm9uSq7iq1ZO2oMA@mail.gmail.com>
 Subject: Re: [RFC PATCH v3 2/3] mm/page_alloc: factor out fallback freepage checking
 From: Joonsoo Kim <js1304@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
+To: Zhang Yanfei <zhangyanfei.ok@hotmail.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-2015-02-02 18:59 GMT+09:00 Vlastimil Babka <vbabka@suse.cz>:
-> On 02/02/2015 08:15 AM, Joonsoo Kim wrote:
+2015-02-02 21:56 GMT+09:00 Zhang Yanfei <zhangyanfei.ok@hotmail.com>:
+> Hello Joonsoo,
+>
+> At 2015/2/2 15:15, Joonsoo Kim wrote:
 >> This is preparation step to use page allocator's anti fragmentation logic
 >> in compaction. This patch just separates fallback freepage checking part
 >> from fallback freepage management part. Therefore, there is no functional
@@ -56,82 +58,14 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Dav
 >> +{
 >> +     if (order >= pageblock_order)
 >> +             return true;
->> +
->> +     if (order >= pageblock_order / 2 ||
->> +             start_mt == MIGRATE_RECLAIMABLE ||
->> +             start_mt == MIGRATE_UNMOVABLE ||
->> +             page_group_by_mobility_disabled)
->> +             return true;
->> +
->> +     return false;
->> +}
->> +
->> +static void steal_suitable_fallback(struct zone *zone, struct page *page,
->> +                                                       int start_type)
 >
-> Some comment about the function please?
-
-Okay.
-
->>  {
->>       int current_order = page_order(page);
->> +     int pages;
->>
->>       /* Take ownership for orders >= pageblock_order */
->>       if (current_order >= pageblock_order) {
->> @@ -1157,19 +1169,39 @@ static void try_to_steal_freepages(struct zone *zone, struct page *page,
->>               return;
->>       }
->>
->> -     if (current_order >= pageblock_order / 2 ||
->> -         start_type == MIGRATE_RECLAIMABLE ||
->> -         start_type == MIGRATE_UNMOVABLE ||
->> -         page_group_by_mobility_disabled) {
->> -             int pages;
->> +     pages = move_freepages_block(zone, page, start_type);
->>
->> -             pages = move_freepages_block(zone, page, start_type);
->> +     /* Claim the whole block if over half of it is free */
->> +     if (pages >= (1 << (pageblock_order-1)) ||
->> +                     page_group_by_mobility_disabled)
->> +             set_pageblock_migratetype(page, start_type);
->> +}
->>
->> -             /* Claim the whole block if over half of it is free */
->> -             if (pages >= (1 << (pageblock_order-1)) ||
->> -                             page_group_by_mobility_disabled)
->> -                     set_pageblock_migratetype(page, start_type);
->> +static int find_suitable_fallback(struct free_area *area, unsigned int order,
->> +                                     int migratetype, bool *can_steal)
+> Is this test necessary? Since an order which is >= pageblock_order
+> will always pass the order >= pageblock_order / 2 test below.
 >
-> Same here.
 
-Okay.
-
->> +{
->> +     int i;
->> +     int fallback_mt;
->> +
->> +     if (area->nr_free == 0)
->> +             return -1;
->> +
->> +     *can_steal = false;
->> +     for (i = 0;; i++) {
->> +             fallback_mt = fallbacks[migratetype][i];
->> +             if (fallback_mt == MIGRATE_RESERVE)
->> +                     break;
->> +
->> +             if (list_empty(&area->free_list[fallback_mt]))
->> +                     continue;
->> +
->> +             if (can_steal_fallback(order, migratetype))
->> +                     *can_steal = true;
->> +
->> +             return i;
->
-> You want to return fallback_mt, not 'i', no?
-
-Yes. I will fix it.
+Yes, that's true. But, I'd like to remain code as is, because
+condition "order >= pageblock_order / 2" is really heuristic and could
+be changed someday. Instead of removing it, I will add some comment on it.
 
 Thanks.
 
