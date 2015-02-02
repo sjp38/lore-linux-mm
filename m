@@ -1,136 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BF196B0038
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 03:27:47 -0500 (EST)
-Received: by mail-we0-f182.google.com with SMTP id l61so37464079wev.13
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 00:27:46 -0800 (PST)
+Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 4784A6B0038
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 03:37:22 -0500 (EST)
+Received: by mail-we0-f177.google.com with SMTP id l61so37507963wev.8
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 00:37:21 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ld1si23451169wjc.153.2015.02.02.00.27.44
+        by mx.google.com with ESMTPS id hq9si3120590wjb.146.2015.02.02.00.37.20
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Feb 2015 00:27:45 -0800 (PST)
-Message-ID: <54CF34FE.6020204@suse.cz>
-Date: Mon, 02 Feb 2015 09:27:42 +0100
+        Mon, 02 Feb 2015 00:37:20 -0800 (PST)
+Message-ID: <54CF373E.4090200@suse.cz>
+Date: Mon, 02 Feb 2015 09:37:18 +0100
 From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH v3 1/3] mm/cma: change fallback behaviour for CMA
- freepage
-References: <1422861348-5117-1-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1422861348-5117-1-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=iso-8859-2
+Subject: Re: [LSF/MM TOPIC ATTEND] - THP benefits
+References: <20150106161435.GF20860@dhcp22.suse.cz>
+In-Reply-To: <20150106161435.GF20860@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Michal Hocko <mhocko@suse.cz>, lsf-pc@lists.linux-foundation.org
+Cc: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>
 
-On 02/02/2015 08:15 AM, Joonsoo Kim wrote:
-> freepage with MIGRATE_CMA can be used only for MIGRATE_MOVABLE and
-> they should not be expanded to other migratetype buddy list
-> to protect them from unmovable/reclaimable allocation. Implementing
-> these requirements in __rmqueue_fallback(), that is, finding largest
-> possible block of freepage has bad effect that high order freepage
-> with MIGRATE_CMA are broken continually although there are suitable
-> order CMA freepage. Reason is that they are not be expanded to other
-> migratetype buddy list and next __rmqueue_fallback() invocation try to
-> finds another largest block of freepage and break it again. So,
-> MIGRATE_CMA fallback should be handled separately. This patch
-> introduces __rmqueue_cma_fallback(), that just wrapper of
-> __rmqueue_smallest() and call it before __rmqueue_fallback()
-> if migratetype == MIGRATE_MOVABLE.
-> 
-> This results in unintended behaviour change that MIGRATE_CMA freepage
-> is always used first rather than other migratetype as movable
-> allocation's fallback. But, as already mentioned above,
-> MIGRATE_CMA can be used only for MIGRATE_MOVABLE, so it is better
-> to use MIGRATE_CMA freepage first as much as possible. Otherwise,
-> we needlessly take up precious freepages with other migratetype and
-> increase chance of fragmentation.
+On 01/06/2015 05:14 PM, Michal Hocko wrote:
+> - THP success rate has become one of the metric for reclaim/compaction
+>   changes which I feel is missing one important aspect and that is
+>   cost/benefit analysis. It might be better to have more THP pages in
+>   some loads but the whole advantage might easily go away when the
+>   initial cost is higher than all aggregated saves. When it comes to
+>   benchmarks and numbers we are usually missing the later.
 
-This makes a lot of sense to me. We could go as far as having __rmqueue_smallest
-consider both MOVABLE and CMA simultaneously and pick the smallest block
-available between the two. But that would make the fast path more complex, so
-this could be enough. Hope it survives the scrutiny of CMA success testing :)
+So what I think would help in this discussion is some numbers on how much
+hugepages (thus THP) actually help performance nowadays. Does anyone have such
+results on recent hardware from e.g. SPEC CPU2006 or even production workloads?
 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-> ---
->  mm/page_alloc.c | 36 +++++++++++++++++++-----------------
->  1 file changed, 19 insertions(+), 17 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 8d52ab1..e64b260 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1029,11 +1029,9 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
->  static int fallbacks[MIGRATE_TYPES][4] = {
->  	[MIGRATE_UNMOVABLE]   = { MIGRATE_RECLAIMABLE, MIGRATE_MOVABLE,     MIGRATE_RESERVE },
->  	[MIGRATE_RECLAIMABLE] = { MIGRATE_UNMOVABLE,   MIGRATE_MOVABLE,     MIGRATE_RESERVE },
-> +	[MIGRATE_MOVABLE]     = { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE,   MIGRATE_RESERVE },
->  #ifdef CONFIG_CMA
-> -	[MIGRATE_MOVABLE]     = { MIGRATE_CMA,         MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE, MIGRATE_RESERVE },
->  	[MIGRATE_CMA]         = { MIGRATE_RESERVE }, /* Never used */
-> -#else
-> -	[MIGRATE_MOVABLE]     = { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE,   MIGRATE_RESERVE },
->  #endif
->  	[MIGRATE_RESERVE]     = { MIGRATE_RESERVE }, /* Never used */
->  #ifdef CONFIG_MEMORY_ISOLATION
-> @@ -1041,6 +1039,17 @@ static int fallbacks[MIGRATE_TYPES][4] = {
->  #endif
->  };
->  
-> +#ifdef CONFIG_CMA
-> +static struct page *__rmqueue_cma_fallback(struct zone *zone,
-> +					unsigned int order)
-> +{
-> +	return __rmqueue_smallest(zone, order, MIGRATE_CMA);
-> +}
-> +#else
-> +static inline struct page *__rmqueue_cma_fallback(struct zone *zone,
-> +					unsigned int order) { return NULL; }
-> +#endif
-> +
->  /*
->   * Move the free pages in a range to the free lists of the requested type.
->   * Note that start_page and end_pages are not aligned on a pageblock
-> @@ -1192,19 +1201,8 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
->  					struct page, lru);
->  			area->nr_free--;
->  
-> -			if (!is_migrate_cma(migratetype)) {
-> -				try_to_steal_freepages(zone, page,
-> -							start_migratetype,
-> -							migratetype);
-> -			} else {
-> -				/*
-> -				 * When borrowing from MIGRATE_CMA, we need to
-> -				 * release the excess buddy pages to CMA
-> -				 * itself, and we do not try to steal extra
-> -				 * free pages.
-> -				 */
-> -				buddy_type = migratetype;
-> -			}
-> +			try_to_steal_freepages(zone, page, start_migratetype,
-> +								migratetype);
->  
->  			/* Remove the page from the freelists */
->  			list_del(&page->lru);
-> @@ -1246,7 +1244,11 @@ retry_reserve:
->  	page = __rmqueue_smallest(zone, order, migratetype);
->  
->  	if (unlikely(!page) && migratetype != MIGRATE_RESERVE) {
-> -		page = __rmqueue_fallback(zone, order, migratetype);
-> +		if (migratetype == MIGRATE_MOVABLE)
-> +			page = __rmqueue_cma_fallback(zone, order);
-> +
-> +		if (!page)
-> +			page = __rmqueue_fallback(zone, order, migratetype);
->  
->  		/*
->  		 * Use MIGRATE_RESERVE rather than fail an allocation. goto
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
