@@ -1,180 +1,241 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id BB4256B0032
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 11:52:46 -0500 (EST)
-Received: by mail-wi0-f172.google.com with SMTP id h11so18234665wiw.5
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 08:52:45 -0800 (PST)
-Received: from mail-wg0-x229.google.com (mail-wg0-x229.google.com. [2a00:1450:400c:c00::229])
-        by mx.google.com with ESMTPS id j17si26562117wiv.104.2015.02.02.08.52.44
+Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
+	by kanga.kvack.org (Postfix) with ESMTP id C2C926B0032
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 11:55:31 -0500 (EST)
+Received: by mail-we0-f180.google.com with SMTP id m14so40223214wev.11
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 08:55:31 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ft7si38145686wjb.169.2015.02.02.08.55.29
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Feb 2015 08:52:44 -0800 (PST)
-Received: by mail-wg0-f41.google.com with SMTP id a1so39922612wgh.0
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 08:52:44 -0800 (PST)
-Date: Mon, 2 Feb 2015 17:54:05 +0100
-From: Daniel Vetter <daniel@ffwll.ch>
-Subject: Re: [RFCv3 2/2] dma-buf: add helpers for sharing attacher
- constraints with dma-parms
-Message-ID: <20150202165405.GX14009@phenom.ffwll.local>
-References: <1422347154-15258-1-git-send-email-sumit.semwal@linaro.org>
- <1422347154-15258-2-git-send-email-sumit.semwal@linaro.org>
- <20150129143908.GA26493@n2100.arm.linux.org.uk>
- <CAO_48GEOQ1pBwirgEWeVVXW-iOmaC=Xerr2VyYYz9t1QDXgVsw@mail.gmail.com>
- <20150129154718.GB26493@n2100.arm.linux.org.uk>
- <CAF6AEGtTmFg66TK_AFkQ-xp7Nd9Evk3nqe6xCBp7K=77OmXTxA@mail.gmail.com>
- <20150129192610.GE26493@n2100.arm.linux.org.uk>
- <CAF6AEGujk8UC4X6T=yhTrz1s+SyZUQ=m05h_WcxLDGZU6bydbw@mail.gmail.com>
+        Mon, 02 Feb 2015 08:55:29 -0800 (PST)
+Date: Mon, 2 Feb 2015 16:55:25 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: [RFC PATCH] mm: madvise: Ignore repeated MADV_DONTNEED hints
+Message-ID: <20150202165525.GM2395@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <CAF6AEGujk8UC4X6T=yhTrz1s+SyZUQ=m05h_WcxLDGZU6bydbw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rob Clark <robdclark@gmail.com>
-Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, Sumit Semwal <sumit.semwal@linaro.org>, LKML <linux-kernel@vger.kernel.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, DRI mailing list <dri-devel@lists.freedesktop.org>, Linaro MM SIG Mailman List <linaro-mm-sig@lists.linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Tomasz Stanislawski <stanislawski.tomasz@googlemail.com>, Daniel Vetter <daniel@ffwll.ch>, Robin Murphy <robin.murphy@arm.com>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: linux-mm@kvack.org
+Cc: Minchan Kim <minchan@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-On Thu, Jan 29, 2015 at 05:18:33PM -0500, Rob Clark wrote:
-> On Thu, Jan 29, 2015 at 2:26 PM, Russell King - ARM Linux
-> <linux@arm.linux.org.uk> wrote:
-> > On Thu, Jan 29, 2015 at 01:52:09PM -0500, Rob Clark wrote:
-> >> Quite possibly for some of these edge some of cases, some of the
-> >> dma-buf exporters are going to need to get more clever (ie. hand off
-> >> different scatterlists to different clients).  Although I think by far
-> >> the two common cases will be "I can support anything via an iommu/mmu"
-> >> and "I need phys contig".
-> >>
-> >> But that isn't an issue w/ dma-buf itself, so much as it is an issue
-> >> w/ drivers.  I guess there would be more interest in fixing up drivers
-> >> when actual hw comes along that needs it..
-> >
-> > However, validating the attachments is the business of dma-buf.  This
-> > is actual infrastructure, which should ensure some kind of sanity such
-> > as the issues I've raised.
-> >
-> 
-> My initial thought is for dma-buf to not try to prevent something than
-> an exporter can actually do.. I think the scenario you describe could
-> be handled by two sg-lists, if the exporter was clever enough.
+glibc malloc changed behaviour in glibc 2.10 to have per-thread arenas
+instead of creating new areans if the existing ones were contended.
+The decision appears to have been made so the allocator scales better but the
+downside is that madvise(MADV_DONTNEED) is now called for these per-thread
+areans during free. This tears down pages that would have previously
+remained. There is nothing wrong with this decision from a functional point
+of view but any threaded application that frequently allocates/frees the
+same-sized region is going to incur the full teardown and refault costs.
 
-That's already needed, each attachment has it's own sg-list. After all
-there's no array of dma_addr_t in the sg tables, so you can't use one sg
-for more than one mapping. And due to different iommu different devices
-can easily end up with different addresses.
+This is extremely obvious in the ebizzy benchmark. At its core, threads are
+frequently freeing and allocating buffers of the same size. It is much faster
+on distributions with older versions of glibc. Profiles showed that a large
+amount of system CPU time was spent on tearing down and refaulting pages.
 
-> That all said, I think probably all the existing exporters cache the
-> sg-list.  And I can't think of any actual hw which would hit this
-> problem that can be solved by multiple sg-lists for the same physical
-> memory.  (And the constraint calculation kind of assumes the end
-> result will be a single sg-list.)  So it seems reasonable to me to
-> check that max_segment_count * max_segment_size is not smaller than
-> the buffer.
->
-> If it was a less theoretical problem, I think I'd more inclined for a
-> way that the exporter could override the checks, or something along
-> those lines.
-> 
-> otoh, if the attachment is just not possible because the buffer has
-> been already allocated and mapped by someone with more relaxed
-> constraints.. then I think the driver should be the one returning the
-> error since dma-buf doesn't know this.
+This patch identifies when a thread is frequently calling MADV_DONTNEED
+on the same region of memory and starts ignoring the hint. On an 8-core
+single-socket machine this was the impact on ebizzy using glibc 2.19.
 
-Importers currently cache the mapped sg list aggressively (i915) or
-outright pin it for as long as possible (everyone else). So any kind of
-moving stuff around is pretty much impossible with current drivers.
+ebizzy Overall Throughput
+                            3.19.0-rc6            3.19.0-rc6
+                               vanilla          madvise-v1r1
+Hmean    Rsec-1     12619.93 (  0.00%)    34807.02 (175.81%)
+Hmean    Rsec-3     33434.19 (  0.00%)   100733.77 (201.29%)
+Hmean    Rsec-5     45796.68 (  0.00%)   134257.34 (193.16%)
+Hmean    Rsec-7     53146.93 (  0.00%)   145512.85 (173.79%)
+Hmean    Rsec-12    55132.87 (  0.00%)   145560.86 (164.02%)
+Hmean    Rsec-18    54846.52 (  0.00%)   145120.79 (164.59%)
+Hmean    Rsec-24    54368.95 (  0.00%)   142733.89 (162.53%)
+Hmean    Rsec-30    54388.86 (  0.00%)   141424.09 (160.02%)
+Hmean    Rsec-32    54047.11 (  0.00%)   139151.76 (157.46%)
 
-The even worse violation of the dma-buf spec is that all the ttm drivers
-don't use the sg table correctly at all. They assume that each physical
-page has exactly one sg table entry, and then fish out the struct page *
-pointer from that to build up their own bo management stuff and ignore
-everything else.
+And the system CPU usage was also much reduced
 
-> > The whole "we can push it onto our users" is really on - what that
-> > results in is the users ignoring most of the requirements and just doing
-> > their own thing, which ultimately ends up with the whole thing turning
-> > into a disgusting mess - one which becomes very difficult to fix later.
-> 
-> Ideally at some point, dma-mapping or some helpers would support
-> allocations matching constraints..  I think only actual gpu drivers
-> want to do crazy enough things that they'd want to bypass dma-mapping.
-> If everyone else can use dma-mapping and/or helpers then we make it
-> harder for drivers to do the wrong thing than to do the right thing.
-> 
-> > Now, if we're going to do the "more clever" thing you mention above,
-> > that rather negates the point of this two-part patch set, which is to
-> > provide the union of the DMA capabilities of all users.  A union in
-> > that case is no longer sane as we'd be tailoring the SG lists to each
-> > user.
-> 
-> It doesn't really negate.. a different sg list representing the same
-> physical memory cannot suddenly make the buffer physically contiguous
-> (from the perspective of memory)..
-> 
-> (unless we are not on the same page here, so to speak)
+          3.19.0-rc6   3.19.0-rc6
+             vanilla madvise-v1r1
+User         2647.19      8347.26
+System       5742.90        42.42
+Elapsed      1350.60      1350.65
 
-Or someone was not chip and put a decent iommu in front of the same IP
-block. E.g. the raspi gpu needs contiguous memory for rendering, but the
-same block is used elsewhere but then with an iommu.
+It's even more ridiculous on a 4 socket machine
 
-But thinking about all this I wonder whether we really should start with
-some kind of constraint solving. It feels fairly leaky compared to the
-encapsulation the dma api provides, and so isn't really better for
-upstream than just using ion (which completely gives up on this problem
-and relies on userspace allocating correct buffers).
+ebizzy Overall Throughput
+                             3.19.0-rc6             3.19.0-rc6
+                                vanilla           madvise-v1r1
+Hmean    Rsec-1       5354.37 (  0.00%)    12838.61 (139.78%)
+Hmean    Rsec-4      10338.41 (  0.00%)    50514.52 (388.61%)
+Hmean    Rsec-7       7766.33 (  0.00%)    88555.30 (1040.25%)
+Hmean    Rsec-12      7188.40 (  0.00%)   154180.78 (2044.86%)
+Hmean    Rsec-21      7001.82 (  0.00%)   266555.51 (3706.95%)
+Hmean    Rsec-30      8975.08 (  0.00%)   314369.88 (3402.70%)
+Hmean    Rsec-48     12136.53 (  0.00%)   358525.74 (2854.10%)
+Hmean    Rsec-79     12607.37 (  0.00%)   341646.49 (2609.89%)
+Hmean    Rsec-110    12563.37 (  0.00%)   338058.65 (2590.83%)
+Hmean    Rsec-141    11701.85 (  0.00%)   331255.78 (2730.80%)
+Hmean    Rsec-172    10987.39 (  0.00%)   312003.62 (2739.65%)
+Hmean    Rsec-192    12050.46 (  0.00%)   296401.88 (2359.67%)
 
-And if we step away for a bit there's already a bunch of things that the
-current dma api fails at, and which is just a bit a worse problem with
-dma-buf sharing: There's not really a generic way to map an sg table
-zero-copy, i.e. there's no generic way to avoid bounce buffers. And that's
-already hurting all the existing gpu drivers: ttm essentially does
-page-sized allocs for everything and then has it's own dma allocator on
-top of that page-cache. i915 has some other hacks to at least not fail the
-bounce buffer allocator too badly. Grepping for SWIOTLB in drm is fairly
-interesting.
+          3.19.0-rc6   3.19.0-rc6
+             vanilla madvise-v1r1
+User         4136.44     53506.65
+System      50262.68       906.49
+Elapsed      1802.07      1801.99
 
-So imo if our goal is to keep the abstraction provided by the dma api
-somewhat intact we should first figure out to map an sg table without
-copying any data. If we have that any exporter can then easily check
-whether an attachment works out by test-mapping stuff. A bit inefficient,
-but at least possible (and exporters could cache the mapped sg table if so
-desired). And we could rip out a pile of hacks from drm drivers.
+Note in both cases that the elapsed time is similar because the benchmark
+is configured to run for a fixed duration.
 
-The other problem is is coherency management. Even in the single-device
-usecase current dma-buf isn't up to things since on many socs the same
-device can use both coherent and non-coherent transactions. And if you map
-the same memory multiple times we don't really want to flush cpu caches
-multiple times (ppl alreay have massive caches and stuff to avoid the
-cpu cache flush when there's just one device using the buffer object).
-Again this probably needs some core dma api extensions. And again we could
-probably throw away a bunch of driver code (at least in i915,
-unfortunately there's no intel v4l driver to test non-coherent sharing on
-x86).
+MADV_FREE would have a lower cost if the underlying allocator used it but
+there is no guarantee that allocators will use it. Arguably the kernel
+has no business preventing an application developer shooting themselves
+in a foot but this is a case where it's relatively easy to detect the bad
+behaviour and avoid it.
 
-With all that resolved somehow (and all these issues already affect
-single-device dma api usage by gpu drivers) the bit left would be figuring
-out where to allocate things. And I'm not even sure whether we should
-really bother to implement this in the kernel (no matter how I slice it it
-always looks like we're leaking the dma api abstractions) but just with a
-few tries in userspace:
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ fs/exec.c             |  4 ++++
+ include/linux/sched.h |  5 +++++
+ kernel/fork.c         |  5 +++++
+ mm/madvise.c          | 56 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 70 insertions(+)
 
-- Allocate shared buffers from the scanout engine (or v4l, though that
-  doesn't yet support exporting).
-
-- If you can't import, try it the other way round. This isn't perfect for
-  cross-process + cross-device bo sharing, but then pretty much all
-  compositors have a gpu rendering fallback anyway because this problem is
-  a bit too complex to solve perfectly. Of course for the next frame
-  compositor can provide a new buffer which hopefully works out better.
-
-- Userspace just knows where to allocate. Imo that's not actually
-  unreasonable since if you really have that tricky requirements you
-  probably also have insane buffer layouts and then all bets for generic
-  code are off anyway.
-
-Cheers, Daniel
--- 
-Daniel Vetter
-Software Engineer, Intel Corporation
-+41 (0) 79 365 57 48 - http://blog.ffwll.ch
+diff --git a/fs/exec.c b/fs/exec.c
+index ad8798e26be9..5c691fcc32f4 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -1551,6 +1551,10 @@ static int do_execveat_common(int fd, struct filename *filename,
+ 	current->in_execve = 0;
+ 	acct_update_integrals(current);
+ 	task_numa_free(current);
++	if (current->madvise_state) {
++		kfree(current->madvise_state);
++		current->madvise_state = NULL;
++	}
+ 	free_bprm(bprm);
+ 	kfree(pathbuf);
+ 	putname(filename);
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 8db31ef98d2f..b6706bdb27fd 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1271,6 +1271,9 @@ enum perf_event_task_context {
+ 	perf_nr_task_contexts,
+ };
+ 
++/* mm/madvise.c */
++struct madvise_state_info;
++
+ struct task_struct {
+ 	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
+ 	void *stack;
+@@ -1637,6 +1640,8 @@ struct task_struct {
+ 
+ 	struct page_frag task_frag;
+ 
++	struct madvise_state_info *madvise_state;
++
+ #ifdef	CONFIG_TASK_DELAY_ACCT
+ 	struct task_delay_info *delays;
+ #endif
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 4dc2ddade9f1..6d8dd1379240 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -246,6 +246,11 @@ void __put_task_struct(struct task_struct *tsk)
+ 	delayacct_tsk_free(tsk);
+ 	put_signal_struct(tsk->signal);
+ 
++	if (current->madvise_state) {
++		kfree(current->madvise_state);
++		current->madvise_state = NULL;
++	}
++
+ 	if (!profile_handoff_task(tsk))
+ 		free_task(tsk);
+ }
+diff --git a/mm/madvise.c b/mm/madvise.c
+index a271adc93289..907bb0922711 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -19,6 +19,7 @@
+ #include <linux/blkdev.h>
+ #include <linux/swap.h>
+ #include <linux/swapops.h>
++#include <linux/vmacache.h>
+ 
+ /*
+  * Any behaviour which results in changes to the vma->vm_flags needs to
+@@ -251,6 +252,57 @@ static long madvise_willneed(struct vm_area_struct *vma,
+ 	return 0;
+ }
+ 
++#define MADVISE_HASH		VMACACHE_HASH
++#define MADVISE_STATE_SIZE	VMACACHE_SIZE
++#define MADVISE_THRESHOLD	8
++
++struct madvise_state_info {
++	unsigned long start;
++	unsigned long end;
++	int count;
++	unsigned long jiffies;
++};
++
++/* Returns true if userspace is continually dropping the same address range */
++static bool ignore_madvise_hint(unsigned long start, unsigned long end)
++{
++	int i;
++
++	if (!current->madvise_state)
++		current->madvise_state = kzalloc(sizeof(struct madvise_state_info) * MADVISE_STATE_SIZE, GFP_KERNEL);
++	if (!current->madvise_state)
++		return false;
++
++	i = VMACACHE_HASH(start);
++	if (current->madvise_state[i].start != start ||
++	    current->madvise_state[i].end != end) {
++		/* cache miss */
++		current->madvise_state[i].start = start;
++		current->madvise_state[i].end = end;
++		current->madvise_state[i].count = 0;
++		current->madvise_state[i].jiffies = jiffies;
++	} else {
++		/* cache hit */
++		unsigned long reset = current->madvise_state[i].jiffies + HZ;
++		if (time_after(jiffies, reset)) {
++			/*
++			 * If it is a second since the last madvise on this
++			 * range or since madvise hints got ignored then reset
++			 * the counts and apply the hint again.
++			 */
++			current->madvise_state[i].count = 0;
++			current->madvise_state[i].jiffies = jiffies;
++		} else
++			current->madvise_state[i].count++;
++
++		if (current->madvise_state[i].count > MADVISE_THRESHOLD)
++			return true;
++		current->madvise_state[i].jiffies = jiffies;
++	}
++
++	return false;
++}
++
+ /*
+  * Application no longer needs these pages.  If the pages are dirty,
+  * it's OK to just throw them away.  The app will be more careful about
+@@ -278,6 +330,10 @@ static long madvise_dontneed(struct vm_area_struct *vma,
+ 	if (vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP))
+ 		return -EINVAL;
+ 
++	/* Ignore hint if madvise is continually dropping the same range */
++	if (ignore_madvise_hint(start, end))
++		return 0;
++
+ 	if (unlikely(vma->vm_flags & VM_NONLINEAR)) {
+ 		struct zap_details details = {
+ 			.nonlinear_vma = vma,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
