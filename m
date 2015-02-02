@@ -1,32 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 221E26B0038
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 02:01:14 -0500 (EST)
-Received: by mail-pa0-f50.google.com with SMTP id rd3so78624480pab.9
-        for <linux-mm@kvack.org>; Sun, 01 Feb 2015 23:01:13 -0800 (PST)
-Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id bk8si15527171pdb.44.2015.02.01.23.01.12
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 05B3B6B006C
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 02:01:45 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id fa1so78740988pad.8
+        for <linux-mm@kvack.org>; Sun, 01 Feb 2015 23:01:44 -0800 (PST)
+Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id r2si22690783pde.8.2015.02.01.23.01.42
         for <linux-mm@kvack.org>;
-        Sun, 01 Feb 2015 23:01:13 -0800 (PST)
-Date: Mon, 2 Feb 2015 16:02:49 +0900
+        Sun, 01 Feb 2015 23:01:44 -0800 (PST)
+Date: Mon, 2 Feb 2015 16:03:21 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Subject: Re: [PATCH v2 3/4] mm/page_alloc: separate steal decision from steal
  behaviour part
-Message-ID: <20150202070248.GA6488@js1304-P5Q-DELUXE>
+Message-ID: <20150202070321.GB6488@js1304-P5Q-DELUXE>
 References: <1422621252-29859-1-git-send-email-iamjoonsoo.kim@lge.com>
  <1422621252-29859-4-git-send-email-iamjoonsoo.kim@lge.com>
- <54CB94E6.7010805@suse.cz>
+ <BLU436-SMTP21184383897546B937E3C68833E0@phx.gbl>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <54CB94E6.7010805@suse.cz>
+In-Reply-To: <BLU436-SMTP21184383897546B937E3C68833E0@phx.gbl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Zhang Yanfei <zhangyanfei.ok@hotmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jan 30, 2015 at 03:27:50PM +0100, Vlastimil Babka wrote:
-> On 01/30/2015 01:34 PM, Joonsoo Kim wrote:
+On Sat, Jan 31, 2015 at 08:38:10PM +0800, Zhang Yanfei wrote:
+> At 2015/1/30 20:34, Joonsoo Kim wrote:
 > > From: Joonsoo <iamjoonsoo.kim@lge.com>
 > > 
 > > This is preparation step to use page allocator's anti fragmentation logic
@@ -63,80 +63,12 @@ On Fri, Jan 30, 2015 at 03:27:50PM +0100, Vlastimil Babka wrote:
 > > +
 > > +	return false;
 > > +}
-> > +
-> >  /*
-> >   * When we are falling back to another migratetype during allocation, try to
-> >   * steal extra free pages from the same pageblocks to satisfy further
-> > @@ -1138,9 +1156,10 @@ static void change_pageblock_range(struct page *pageblock_page,
-> >   * as well.
-> >   */
-> >  static void try_to_steal_freepages(struct zone *zone, struct page *page,
-> > -				  int start_type, int fallback_type)
-> > +				  int start_type)
 > 
-> It's actually not 'try_to_' anymore, is it? But could be, see below.
-> 
-> >  {
-> >  	int current_order = page_order(page);
-> > +	int pages;
-> >  
-> >  	/* Take ownership for orders >= pageblock_order */
-> >  	if (current_order >= pageblock_order) {
-> > @@ -1148,19 +1167,12 @@ static void try_to_steal_freepages(struct zone *zone, struct page *page,
-> >  		return;
-> >  	}
-> >  
-> > -	if (current_order >= pageblock_order / 2 ||
-> > -	    start_type == MIGRATE_RECLAIMABLE ||
-> > -	    start_type == MIGRATE_UNMOVABLE ||
-> > -	    page_group_by_mobility_disabled) {
-> > -		int pages;
-> > +	pages = move_freepages_block(zone, page, start_type);
-> >  
-> > -		pages = move_freepages_block(zone, page, start_type);
-> > -
-> > -		/* Claim the whole block if over half of it is free */
-> > -		if (pages >= (1 << (pageblock_order-1)) ||
-> > -				page_group_by_mobility_disabled)
-> > -			set_pageblock_migratetype(page, start_type);
-> > -	}
-> > +	/* Claim the whole block if over half of it is free */
-> > +	if (pages >= (1 << (pageblock_order-1)) ||
-> > +			page_group_by_mobility_disabled)
-> > +		set_pageblock_migratetype(page, start_type);
-> >  }
-> >  
-> >  /* Remove an element from the buddy allocator from the fallback list */
-> > @@ -1170,6 +1182,7 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
-> >  	struct free_area *area;
-> >  	unsigned int current_order;
-> >  	struct page *page;
-> > +	bool can_steal;
-> >  
-> >  	/* Find the largest possible block of pages in the other list */
-> >  	for (current_order = MAX_ORDER-1;
-> > @@ -1192,10 +1205,11 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
-> >  					struct page, lru);
-> >  			area->nr_free--;
-> >  
-> > -			if (!is_migrate_cma(migratetype)) {
-> > +			can_steal = can_steal_freepages(current_order,
-> > +					start_migratetype, migratetype);
-> > +			if (can_steal) {
-> 
-> can_steal is only used once, why not do if (can_steal_freepages()) directly?
-> 
-> Or, call can_steal_freepages() from try_to_steal_freepages() and make
-> try_to_steal_freepages() return its result. Then here it simplifies to:
-> 
-> if (!try_to_steal_freepages(...) && is_migrate_cma(...))
-> 	buddy_type = migratetype;
+> So some comments which can tell the cases can or cannot steal freepages
+> from other migratetype is necessary IMHO. Actually we can just
+> move some comments in try_to_steal_pages to here.
 
-You're right. Your commented code loosk better.
-
-Your comment on 3/4 and 4/4 makes me reconsider this code factorization
-and I found better solution.
-I will send it soon.
+Yes, move some comments looks sufficient to me. I will fix it.
 
 Thanks.
 
