@@ -1,49 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 56C606B0032
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 12:08:21 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id ey11so84709959pad.7
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 09:08:21 -0800 (PST)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTP id yg1si24269645pbb.119.2015.02.02.09.08.20
-        for <linux-mm@kvack.org>;
-        Mon, 02 Feb 2015 09:08:20 -0800 (PST)
-Message-ID: <54CFAF1C.4050104@fb.com>
-Date: Mon, 2 Feb 2015 10:08:44 -0700
-From: Jens Axboe <axboe@fb.com>
+Received: from mail-ie0-f176.google.com (mail-ie0-f176.google.com [209.85.223.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 382F26B0032
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 12:45:24 -0500 (EST)
+Received: by mail-ie0-f176.google.com with SMTP id at20so19172432iec.7
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 09:45:23 -0800 (PST)
+Received: from mail-ig0-x232.google.com (mail-ig0-x232.google.com. [2607:f8b0:4001:c05::232])
+        by mx.google.com with ESMTPS id uv6si8006628igb.18.2015.02.02.09.45.23
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 02 Feb 2015 09:45:23 -0800 (PST)
+Received: by mail-ig0-f178.google.com with SMTP id hl2so18572060igb.5
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 09:45:23 -0800 (PST)
+Date: Mon, 2 Feb 2015 09:45:21 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/2] mm: Export __vmalloc_node
+In-Reply-To: <1422846627-26890-2-git-send-email-green@linuxhacker.ru>
+Message-ID: <alpine.DEB.2.10.1502020940530.5117@chino.kir.corp.google.com>
+References: <1422846627-26890-1-git-send-email-green@linuxhacker.ru> <1422846627-26890-2-git-send-email-green@linuxhacker.ru>
 MIME-Version: 1.0
-Subject: Re: backing_dev_info cleanups & lifetime rule fixes V2
-References: <1421228561-16857-1-git-send-email-hch@lst.de> <54BEC3C2.7080906@fb.com> <20150201063116.GP29656@ZenIV.linux.org.uk> <20150202080635.GB9851@lst.de>
-In-Reply-To: <20150202080635.GB9851@lst.de>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>, Al Viro <viro@ZenIV.linux.org.uk>
-Cc: David Howells <dhowells@redhat.com>, Tejun Heo <tj@kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-mtd@lists.infradead.org, linux-nfs@vger.kernel.org, ceph-devel@vger.kernel.org
+To: Oleg Drokin <green@linuxhacker.ru>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On 02/02/2015 01:06 AM, Christoph Hellwig wrote:
-> On Sun, Feb 01, 2015 at 06:31:16AM +0000, Al Viro wrote:
->> And at that point we finally can make sb_lock and super_blocks static in
->> fs/super.c.  Do you want that in your tree, or would you rather have it
->> done via vfs.git during the merge window after your tree goes in?  It's
->> as trivial as this:
->>
->> Make super_blocks and sb_lock static
->>
->> The only user outside of fs/super.c is gone now
->>
->> Signed-off-by: Al Viro <viro@zeniv.linux.org.uk>
+On Sun, 1 Feb 2015, green@linuxhacker.ru wrote:
+
+> From: Oleg Drokin <green@linuxhacker.ru>
 > 
-> I'd say merge it through the block tree..
+> vzalloc_node helpfully suggests to use __vmalloc_node if a more tight
+> control over allocation flags is needed, but in fact __vmalloc_node
+> is not only not exported, it's also static, so could not be used
+> outside of mm/vmalloc.c
+> Make it to be available as it was apparently intended.
 > 
-> Acked-by: Christoph Hellwig <hch@lst.de>
 
-Added to for-3.20/bdi
+__vmalloc_node() is for the generalized functionality that is needed for 
+the vmalloc API and not part of the API itself.  I think what you want to 
+do is add a vmalloc_node_gfp(), or more specifically a vzalloc_node_gfp(), 
+to do GFP_NOFS when needed.
 
-
--- 
-Jens Axboe
+> Signed-off-by: Oleg Drokin <green@linuxhacker.ru>
+> ---
+>  include/linux/vmalloc.h |  3 +++
+>  mm/vmalloc.c            | 10 ++++------
+>  2 files changed, 7 insertions(+), 6 deletions(-)
+> 
+> diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+> index b87696f..7eb2c46 100644
+> --- a/include/linux/vmalloc.h
+> +++ b/include/linux/vmalloc.h
+> @@ -73,6 +73,9 @@ extern void *vmalloc_exec(unsigned long size);
+>  extern void *vmalloc_32(unsigned long size);
+>  extern void *vmalloc_32_user(unsigned long size);
+>  extern void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot);
+> +extern void *__vmalloc_node(unsigned long size, unsigned long align,
+> +			    gfp_t gfp_mask, pgprot_t prot, int node,
+> +			    const void *caller);
+>  extern void *__vmalloc_node_range(unsigned long size, unsigned long align,
+>  			unsigned long start, unsigned long end, gfp_t gfp_mask,
+>  			pgprot_t prot, int node, const void *caller);
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 39c3388..b882d95 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -1552,9 +1552,6 @@ void *vmap(struct page **pages, unsigned int count,
+>  }
+>  EXPORT_SYMBOL(vmap);
+>  
+> -static void *__vmalloc_node(unsigned long size, unsigned long align,
+> -			    gfp_t gfp_mask, pgprot_t prot,
+> -			    int node, const void *caller);
+>  static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+>  				 pgprot_t prot, int node)
+>  {
+> @@ -1685,13 +1682,14 @@ fail:
+>   *	allocator with @gfp_mask flags.  Map them into contiguous
+>   *	kernel virtual space, using a pagetable protection of @prot.
+>   */
+> -static void *__vmalloc_node(unsigned long size, unsigned long align,
+> -			    gfp_t gfp_mask, pgprot_t prot,
+> -			    int node, const void *caller)
+> +void *__vmalloc_node(unsigned long size, unsigned long align,
+> +		     gfp_t gfp_mask, pgprot_t prot, int node,
+> +		     const void *caller)
+>  {
+>  	return __vmalloc_node_range(size, align, VMALLOC_START, VMALLOC_END,
+>  				gfp_mask, prot, node, caller);
+>  }
+> +EXPORT_SYMBOL(__vmalloc_node);
+>  
+>  void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot)
+>  {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
