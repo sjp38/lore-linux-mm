@@ -1,82 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id CF37E6B0038
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 02:06:29 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id lj1so78688451pab.6
-        for <linux-mm@kvack.org>; Sun, 01 Feb 2015 23:06:29 -0800 (PST)
-Received: from mail-pa0-x244.google.com (mail-pa0-x244.google.com. [2607:f8b0:400e:c03::244])
-        by mx.google.com with ESMTPS id g1si22428727pdn.224.2015.02.01.23.06.28
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 01 Feb 2015 23:06:28 -0800 (PST)
-Received: by mail-pa0-f68.google.com with SMTP id lj1so42399170pab.3
-        for <linux-mm@kvack.org>; Sun, 01 Feb 2015 23:06:28 -0800 (PST)
-Date: Mon, 2 Feb 2015 16:06:29 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH v1 2/2] zram: remove init_lock in zram_make_request
-Message-ID: <20150202070604.GA666@swordfish>
-References: <20150202034100.GF6402@blaptop>
- <20150202055923.GA332@swordfish>
- <20150202061812.GJ6402@blaptop>
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id D3CCA6B0038
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 02:09:32 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id fa1so78822420pad.8
+        for <linux-mm@kvack.org>; Sun, 01 Feb 2015 23:09:32 -0800 (PST)
+Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id uv4si22512174pbc.110.2015.02.01.23.09.30
+        for <linux-mm@kvack.org>;
+        Sun, 01 Feb 2015 23:09:31 -0800 (PST)
+Date: Mon, 2 Feb 2015 16:11:09 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 4/4] mm/compaction: enhance compaction finish condition
+Message-ID: <20150202071109.GC6488@js1304-P5Q-DELUXE>
+References: <1422621252-29859-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1422621252-29859-5-git-send-email-iamjoonsoo.kim@lge.com>
+ <54CB988F.4080109@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150202061812.GJ6402@blaptop>
+In-Reply-To: <54CB988F.4080109@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On (02/02/15 15:18), Minchan Kim wrote:
-> > a quick idea:
-> > can we additionally move all bd flush and put work after zram_reset_device(zram, true)
-> > and, perhaps, replace ->bd_holders with something else?
+On Fri, Jan 30, 2015 at 03:43:27PM +0100, Vlastimil Babka wrote:
+> On 01/30/2015 01:34 PM, Joonsoo Kim wrote:
+> > From: Joonsoo <iamjoonsoo.kim@lge.com>
 > > 
-> > zram_reset_device() will not return until we have active IOs, pending IOs will be
-> > invalidated by ->disksize != 0.
+> > Compaction has anti fragmentation algorithm. It is that freepage
+> > should be more than pageblock order to finish the compaction if we don't
+> > find any freepage in requested migratetype buddy list. This is for
+> > mitigating fragmentation, but, there is a lack of migratetype
+> > consideration and it is too excessive compared to page allocator's anti
+> > fragmentation algorithm.
+> > 
+> > Not considering migratetype would cause premature finish of compaction.
+> > For example, if allocation request is for unmovable migratetype,
+> > freepage with CMA migratetype doesn't help that allocation and
+> > compaction should not be stopped. But, current logic regards this
+> > situation as compaction is no longer needed, so finish the compaction.
+> > 
+> > Secondly, condition is too excessive compared to page allocator's logic.
+> > We can steal freepage from other migratetype and change pageblock
+> > migratetype on more relaxed conditions in page allocator. This is designed
+> > to prevent fragmentation and we can use it here. Imposing hard constraint
+> > only to the compaction doesn't help much in this case since page allocator
+> > would cause fragmentation again.
+> > 
+> > To solve these problems, this patch borrows anti fragmentation logic from
+> > page allocator. It will reduce premature compaction finish in some cases
+> > and reduce excessive compaction work.
+> > 
+> > stress-highalloc test in mmtests with non movable order 7 allocation shows
+> > considerable increase of compaction success rate.
+> > 
+> > Compaction success rate (Compaction success * 100 / Compaction stalls, %)
+> > 31.82 : 42.20
+> > 
+> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > 
-> Sorry, I don't get it. Could you describe what you are concerning about active I/O?
-> My concern is just race bd_holder/bd_openers and bd_holders of zram check.
-> I don't think any simple solution without bd_mutex.
-> If we can close the race, anything could be a solution.
-> If we close the race, we should return -EBUSY if anyone is opening the zram device
-> so bd_openers check would be better than bd_holders.
+> I have some worries about longer-term fragmentation, some testing of
+> stress-highalloc several times without restarts could be helpful.
+
+Okay. I will do it.
+
 > 
+> > ---
+> >  include/linux/mmzone.h |  3 +++
+> >  mm/compaction.c        | 30 ++++++++++++++++++++++++++++--
+> >  mm/internal.h          |  1 +
+> >  mm/page_alloc.c        |  5 ++---
+> >  4 files changed, 34 insertions(+), 5 deletions(-)
+> > 
+> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> > index f279d9c..a2906bc 100644
+> > --- a/include/linux/mmzone.h
+> > +++ b/include/linux/mmzone.h
+> > @@ -63,6 +63,9 @@ enum {
+> >  	MIGRATE_TYPES
+> >  };
+> >  
+> > +#define FALLBACK_MIGRATETYPES (4)
+> > +extern int fallbacks[MIGRATE_TYPES][FALLBACK_MIGRATETYPES];
+> > +
+> >  #ifdef CONFIG_CMA
+> >  #  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)
+> >  #else
+> > diff --git a/mm/compaction.c b/mm/compaction.c
+> > index 782772d..0460e4b 100644
+> > --- a/mm/compaction.c
+> > +++ b/mm/compaction.c
+> > @@ -1125,6 +1125,29 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+> >  	return cc->nr_migratepages ? ISOLATE_SUCCESS : ISOLATE_NONE;
+> >  }
+> >  
+> > +static bool can_steal_fallbacks(struct free_area *area,
+> > +			unsigned int order, int migratetype)
+> 
+> Could you move this to page_alloc.c and then you don't have to export the
+> fallbacks arrays?
 
-yeah, sorry. nevermind.
+Okay.
 
+> 
+> > +{
+> > +	int i;
+> > +	int fallback_mt;
+> > +
+> > +	if (area->nr_free == 0)
+> > +		return false;
+> > +
+> > +	for (i = 0; i < FALLBACK_MIGRATETYPES; i++) {
+> > +		fallback_mt = fallbacks[migratetype][i];
+> > +		if (fallback_mt == MIGRATE_RESERVE)
+> > +			break;
+> > +
+> > +		if (list_empty(&area->free_list[fallback_mt]))
+> > +			continue;
+> > +
+> > +		if (can_steal_freepages(order, migratetype, fallback_mt))
+> > +			return true;
+> > +	}
+> > +	return false;
+> > +}
+> > +
+> >  static int __compact_finished(struct zone *zone, struct compact_control *cc,
+> >  			    const int migratetype)
+> >  {
+> > @@ -1175,8 +1198,11 @@ static int __compact_finished(struct zone *zone, struct compact_control *cc,
+> >  		if (!list_empty(&area->free_list[migratetype]))
+> >  			return COMPACT_PARTIAL;
+> >  
+> > -		/* Job done if allocation would set block type */
+> > -		if (order >= pageblock_order && area->nr_free)
+> > +		/*
+> > +		 * Job done if allocation would steal freepages from
+> > +		 * other migratetype buddy lists.
+> > +		 */
+> > +		if (can_steal_fallbacks(area, order, migratetype))
+> >  			return COMPACT_PARTIAL;
+> 
+> Seems somewhat wasteful in scenario where we want to satisfy a movable
+> allocation and it's an async compaction. Then we don't compact in
+> unmovable/reclaimable pageblock, and yet we will keep checking them for
+> fallbacks. A price to pay for having generic code?
 
-So, guys, how about doing it differently, in less lines of code,
-hopefully. Don't move reset_store()'s work to zram_reset_device().
-Instead, move
+I think that there would be lucky case that high order freepage on
+unmovable/reclaimable pageblock is made by concurrent freeing.
+In this case, finishing compaction would be good thing. And, this logic
+would cause marginal overhead so generic code seems justificable to me.
 
-	set_capacity(zram->disk, 0);
-	revalidate_disk(zram->disk);
-
-out from zram_reset_device() to reset_store(). this two function are
-executed only when called from reset_store() anyway. this also will let
-us drop `bool reset capacity' param from zram_reset_device().
-
-
-so we will do in reset_store()
-
-	mutex_lock(bdev->bd_mutex);
-
-	fsync_bdev(bdev);
-	zram_reset_device(zram);
-	set_capacity(zram->disk, 0);
-
-	mutex_unlock(&bdev->bd_mutex);
-
-	revalidate_disk(zram->disk);
-	bdput(bdev);
-
-
-
-and change zram_reset_device(zram, false) call to simply zram_reset_device(zram)
-in __exit zram_exit(void).
-
-	-ss
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
