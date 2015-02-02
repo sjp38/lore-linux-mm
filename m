@@ -1,97 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E8EB6B006C
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 10:00:56 -0500 (EST)
-Received: by mail-we0-f176.google.com with SMTP id w62so39507645wes.7
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 07:00:55 -0800 (PST)
-Received: from mail-wg0-x236.google.com (mail-wg0-x236.google.com. [2a00:1450:400c:c00::236])
-        by mx.google.com with ESMTPS id n6si23718468wic.21.2015.02.02.07.00.53
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id A01606B006C
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 10:44:53 -0500 (EST)
+Received: by mail-wi0-f175.google.com with SMTP id fb4so17772973wid.2
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 07:44:53 -0800 (PST)
+Received: from mail-we0-x232.google.com (mail-we0-x232.google.com. [2a00:1450:400c:c03::232])
+        by mx.google.com with ESMTPS id ek6si24062651wib.78.2015.02.02.07.44.51
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Feb 2015 07:00:54 -0800 (PST)
-Received: by mail-wg0-f54.google.com with SMTP id b13so39126125wgh.13
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 07:00:53 -0800 (PST)
-Date: Mon, 2 Feb 2015 16:00:51 +0100
+        Mon, 02 Feb 2015 07:44:52 -0800 (PST)
+Received: by mail-we0-f178.google.com with SMTP id k48so39781129wev.9
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 07:44:51 -0800 (PST)
+Date: Mon, 2 Feb 2015 16:44:49 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH] memcg, shmem: fix shmem migration to use lrucare. (was: Re:
- [Intel-gfx] memcontrol.c BUG)
-Message-ID: <20150202150050.GD4583@dhcp22.suse.cz>
-References: <CAPM=9tyyP_pKpWjc7LBZU7e6wAt26XGZsyhRh7N497B2+28rrQ@mail.gmail.com>
- <20150128084852.GC28132@nuc-i3427.alporthouse.com>
- <20150128143242.GF6542@dhcp22.suse.cz>
- <alpine.LSU.2.11.1501291751170.1761@eggly.anvils>
+Subject: Re: [PATCH -mm] memcg: cleanup static keys decrement
+Message-ID: <20150202154449.GE4583@dhcp22.suse.cz>
+References: <1422877527-18186-1-git-send-email-vdavydov@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1501291751170.1761@eggly.anvils>
+In-Reply-To: <1422877527-18186-1-git-send-email-vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Chris Wilson <chris@chris-wilson.co.uk>, Dave Airlie <airlied@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, "intel-gfx@lists.freedesktop.org" <intel-gfx@lists.freedesktop.org>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, Jet Chen <jet.chen@intel.com>, Felipe Balbi <balbi@ti.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 29-01-15 18:04:15, Hugh Dickins wrote:
-> On Wed, 28 Jan 2015, Michal Hocko wrote:
-> > On Wed 28-01-15 08:48:52, Chris Wilson wrote:
-> > > On Wed, Jan 28, 2015 at 08:13:06AM +1000, Dave Airlie wrote:
-> > > > https://bugzilla.redhat.com/show_bug.cgi?id=1165369
-> > > > 
-> > > > ov 18 09:23:22 elissa.gathman.org kernel: page:f5e36a40 count:2
-> > > > mapcount:0 mapping:  (null) index:0x0
-> > > > Nov 18 09:23:22 elissa.gathman.org kernel: page flags:
-> > > > 0x80090029(locked|uptodate|lru|swapcache|swapbacked)
-> > > > Nov 18 09:23:22 elissa.gathman.org kernel: page dumped because:
-> > > > VM_BUG_ON_PAGE(!lrucare && PageLRU(oldpage))
-> > > > Nov 18 09:23:23 elissa.gathman.org kernel: ------------[ cut here ]------------
-> > > > Nov 18 09:23:23 elissa.gathman.org kernel: kernel BUG at mm/memcontrol.c:6733!
-> > 
-> > I guess this matches the following bugon in your kernel:
-> >         VM_BUG_ON_PAGE(!lrucare && PageLRU(oldpage), oldpage);
-> > 
-> > so the oldpage is on the LRU list already. I am completely unfamiliar
-> > with 965GM but is the page perhaps shared with somebody with a different
-> > gfp mask requirement (e.g. userspace accessing the memory via mmap)? So
-> > the other (racing) caller didn't need to move the page and put it on
-> > LRU.
+On Mon 02-02-15 14:45:27, Vladimir Davydov wrote:
+> Move memcg_socket_limit_enabled decrement to tcp_destroy_cgroup (called
+> from memcg_destroy_kmem -> mem_cgroup_sockets_destroy) and zap a bunch
+> of wrapper functions.
 > 
-> It would be surprising (but not impossible) for oldpage not to be on
-> the LRU already: it's a swapin readahead page that has every right to
-> be on LRU,
+> Although this patch moves static keys decrement from __mem_cgroup_free
+> to mem_cgroup_css_free, it does not introduce any functional changes,
+> because the keys are incremented on setting the limit (tcp or kmem),
+> which can only happen after successful mem_cgroup_css_online.
 
-True, thanks for pointing this out.
+Looks good to me and code reduce looks nice as well.
 
-> but turns out to have been allocated from an unsuitable zone,
-> once we discover that it's needed in one of these odd hardware-limited
-> mappings.  (Whereas newpage is newly allocated and not yet on LRU.)
+> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+>  include/net/sock.h        |    5 -----
+>  mm/memcontrol.c           |   38 +++++---------------------------------
+>  net/ipv4/tcp_memcontrol.c |    4 ++++
+>  3 files changed, 9 insertions(+), 38 deletions(-)
 > 
-> > 
-> > If yes we need to tell shmem_replace_page to do the lrucare handling.
+> diff --git a/include/net/sock.h b/include/net/sock.h
+> index 2210fec65669..28bdf874da4a 100644
+> --- a/include/net/sock.h
+> +++ b/include/net/sock.h
+> @@ -1099,11 +1099,6 @@ static inline bool memcg_proto_active(struct cg_proto *cg_proto)
+>  	return test_bit(MEMCG_SOCK_ACTIVE, &cg_proto->flags);
+>  }
+>  
+> -static inline bool memcg_proto_activated(struct cg_proto *cg_proto)
+> -{
+> -	return test_bit(MEMCG_SOCK_ACTIVATED, &cg_proto->flags);
+> -}
+> -
+>  #ifdef SOCK_REFCNT_DEBUG
+>  static inline void sk_refcnt_debug_inc(struct sock *sk)
+>  {
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 3b2cc3a5413a..f1ab93daa1b7 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -519,16 +519,6 @@ struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg)
+>  }
+>  EXPORT_SYMBOL(tcp_proto_cgroup);
+>  
+> -static void disarm_sock_keys(struct mem_cgroup *memcg)
+> -{
+> -	if (!memcg_proto_activated(&memcg->tcp_mem))
+> -		return;
+> -	static_key_slow_dec(&memcg_socket_limit_enabled);
+> -}
+> -#else
+> -static void disarm_sock_keys(struct mem_cgroup *memcg)
+> -{
+> -}
+>  #endif
+>  
+>  #ifdef CONFIG_MEMCG_KMEM
+> @@ -583,28 +573,8 @@ void memcg_put_cache_ids(void)
+>  struct static_key memcg_kmem_enabled_key;
+>  EXPORT_SYMBOL(memcg_kmem_enabled_key);
+>  
+> -static void disarm_kmem_keys(struct mem_cgroup *memcg)
+> -{
+> -	if (memcg->kmem_acct_activated)
+> -		static_key_slow_dec(&memcg_kmem_enabled_key);
+> -	/*
+> -	 * This check can't live in kmem destruction function,
+> -	 * since the charges will outlive the cgroup
+> -	 */
+> -	WARN_ON(page_counter_read(&memcg->kmem));
+> -}
+> -#else
+> -static void disarm_kmem_keys(struct mem_cgroup *memcg)
+> -{
+> -}
+>  #endif /* CONFIG_MEMCG_KMEM */
+>  
+> -static void disarm_static_keys(struct mem_cgroup *memcg)
+> -{
+> -	disarm_sock_keys(memcg);
+> -	disarm_kmem_keys(memcg);
+> -}
+> -
+>  static struct mem_cgroup_per_zone *
+>  mem_cgroup_zone_zoneinfo(struct mem_cgroup *memcg, struct zone *zone)
+>  {
+> @@ -4092,7 +4062,11 @@ static void memcg_deactivate_kmem(struct mem_cgroup *memcg)
+>  
+>  static void memcg_destroy_kmem(struct mem_cgroup *memcg)
+>  {
+> -	memcg_destroy_kmem_caches(memcg);
+> +	if (memcg->kmem_acct_activated) {
+> +		memcg_destroy_kmem_caches(memcg);
+> +		static_key_slow_dec(&memcg_kmem_enabled_key);
+> +		WARN_ON(page_counter_read(&memcg->kmem));
+> +	}
+>  	mem_cgroup_sockets_destroy(memcg);
+>  }
+>  #else
+> @@ -4523,8 +4497,6 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
+>  		free_mem_cgroup_per_zone_info(memcg, node);
+>  
+>  	free_percpu(memcg->stat);
+> -
+> -	disarm_static_keys(memcg);
+>  	kfree(memcg);
+>  }
+>  
+> diff --git a/net/ipv4/tcp_memcontrol.c b/net/ipv4/tcp_memcontrol.c
+> index c2a75c6957a1..2379c1b4efb2 100644
+> --- a/net/ipv4/tcp_memcontrol.c
+> +++ b/net/ipv4/tcp_memcontrol.c
+> @@ -47,6 +47,10 @@ void tcp_destroy_cgroup(struct mem_cgroup *memcg)
+>  		return;
+>  
+>  	percpu_counter_destroy(&cg_proto->sockets_allocated);
+> +
+> +	if (test_bit(MEMCG_SOCK_ACTIVATED, &cg_proto->flags))
+> +		static_key_slow_dec(&memcg_socket_limit_enabled);
+> +
+>  }
+>  EXPORT_SYMBOL(tcp_destroy_cgroup);
+>  
+> -- 
+> 1.7.10.4
 > 
-> Absolutely, thanks Michal.  It would also be good to change the comment
-> on mem_cgroup_migrate() in mm/memcontrol.c, from "@lrucare: both pages..."
-> to "@lrucare: either or both pages..." - though I certainly won't pretend
-> that the corrected wording would have prevented this bug creeping in!
 
-Yes, I have updated the wording.
- 
-> > diff --git a/mm/shmem.c b/mm/shmem.c
-> > index 339e06639956..e3cdc1a16c0f 100644
-> > --- a/mm/shmem.c
-> > +++ b/mm/shmem.c
-> > @@ -1013,7 +1013,7 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
-> >  		 */
-> >  		oldpage = newpage;
-> >  	} else {
-> > -		mem_cgroup_migrate(oldpage, newpage, false);
-> > +		mem_cgroup_migrate(oldpage, newpage, true);
-> >  		lru_cache_add_anon(newpage);
-> >  		*pagep = newpage;
-> >  	}
-> 
-> Acked-by: Hugh Dickins <hughd@google.com>
+-- 
+Michal Hocko
+SUSE Labs
 
-Thanks! The full patch is below. I wasn't sure who was the one to report
-the issue so I hope the credits are right. I have marked the patch for
-stable because some people are running with VM debugging enabled. AFAICS
-the issue is not so harmful without debugging on because the stale
-oldpage would be removed from the LRU list eventually.
----
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
