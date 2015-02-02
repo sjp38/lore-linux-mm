@@ -1,275 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 395A16B0070
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 11:28:10 -0500 (EST)
-Received: by mail-ob0-f179.google.com with SMTP id wp4so3398293obc.10
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 08:28:09 -0800 (PST)
-Received: from smtp108.ord1c.emailsrvr.com (smtp108.ord1c.emailsrvr.com. [108.166.43.108])
-        by mx.google.com with ESMTPS id o127si9477067oia.109.2015.02.02.08.28.09
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id BB4256B0032
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 11:52:46 -0500 (EST)
+Received: by mail-wi0-f172.google.com with SMTP id h11so18234665wiw.5
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 08:52:45 -0800 (PST)
+Received: from mail-wg0-x229.google.com (mail-wg0-x229.google.com. [2a00:1450:400c:c00::229])
+        by mx.google.com with ESMTPS id j17si26562117wiv.104.2015.02.02.08.52.44
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 02 Feb 2015 08:28:09 -0800 (PST)
-From: pasi.sjoholm@jolla.com
-Subject: [PATCH] mm/swapfile.c: use spin_lock_bh with swap_lock to avoid deadlocks
-Date: Mon,  2 Feb 2015 18:25:28 +0200
-Message-Id: <1422894328-23051-1-git-send-email-pasi.sjoholm@jolla.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 02 Feb 2015 08:52:44 -0800 (PST)
+Received: by mail-wg0-f41.google.com with SMTP id a1so39922612wgh.0
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 08:52:44 -0800 (PST)
+Date: Mon, 2 Feb 2015 17:54:05 +0100
+From: Daniel Vetter <daniel@ffwll.ch>
+Subject: Re: [RFCv3 2/2] dma-buf: add helpers for sharing attacher
+ constraints with dma-parms
+Message-ID: <20150202165405.GX14009@phenom.ffwll.local>
+References: <1422347154-15258-1-git-send-email-sumit.semwal@linaro.org>
+ <1422347154-15258-2-git-send-email-sumit.semwal@linaro.org>
+ <20150129143908.GA26493@n2100.arm.linux.org.uk>
+ <CAO_48GEOQ1pBwirgEWeVVXW-iOmaC=Xerr2VyYYz9t1QDXgVsw@mail.gmail.com>
+ <20150129154718.GB26493@n2100.arm.linux.org.uk>
+ <CAF6AEGtTmFg66TK_AFkQ-xp7Nd9Evk3nqe6xCBp7K=77OmXTxA@mail.gmail.com>
+ <20150129192610.GE26493@n2100.arm.linux.org.uk>
+ <CAF6AEGujk8UC4X6T=yhTrz1s+SyZUQ=m05h_WcxLDGZU6bydbw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAF6AEGujk8UC4X6T=yhTrz1s+SyZUQ=m05h_WcxLDGZU6bydbw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, =?UTF-8?q?Pasi=20Sj=C3=B6holm?= <pasi.sjoholm@jollamobile.com>
+To: Rob Clark <robdclark@gmail.com>
+Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, Sumit Semwal <sumit.semwal@linaro.org>, LKML <linux-kernel@vger.kernel.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, DRI mailing list <dri-devel@lists.freedesktop.org>, Linaro MM SIG Mailman List <linaro-mm-sig@lists.linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Tomasz Stanislawski <stanislawski.tomasz@googlemail.com>, Daniel Vetter <daniel@ffwll.ch>, Robin Murphy <robin.murphy@arm.com>, Marek Szyprowski <m.szyprowski@samsung.com>
 
-From: Pasi SjA?holm <pasi.sjoholm@jollamobile.com>
+On Thu, Jan 29, 2015 at 05:18:33PM -0500, Rob Clark wrote:
+> On Thu, Jan 29, 2015 at 2:26 PM, Russell King - ARM Linux
+> <linux@arm.linux.org.uk> wrote:
+> > On Thu, Jan 29, 2015 at 01:52:09PM -0500, Rob Clark wrote:
+> >> Quite possibly for some of these edge some of cases, some of the
+> >> dma-buf exporters are going to need to get more clever (ie. hand off
+> >> different scatterlists to different clients).  Although I think by far
+> >> the two common cases will be "I can support anything via an iommu/mmu"
+> >> and "I need phys contig".
+> >>
+> >> But that isn't an issue w/ dma-buf itself, so much as it is an issue
+> >> w/ drivers.  I guess there would be more interest in fixing up drivers
+> >> when actual hw comes along that needs it..
+> >
+> > However, validating the attachments is the business of dma-buf.  This
+> > is actual infrastructure, which should ensure some kind of sanity such
+> > as the issues I've raised.
+> >
+> 
+> My initial thought is for dma-buf to not try to prevent something than
+> an exporter can actually do.. I think the scenario you describe could
+> be handled by two sg-lists, if the exporter was clever enough.
 
-It is possible to get kernel in deadlock-state if swap_lock is not locked
-with spin_lock_bh by calling si_swapinfo() simultaneously through
-timer_function and registered vm shinker callback-function.
+That's already needed, each attachment has it's own sg-list. After all
+there's no array of dma_addr_t in the sg tables, so you can't use one sg
+for more than one mapping. And due to different iommu different devices
+can easily end up with different addresses.
 
-BUG: spinlock recursion on CPU#0, main/2447
-lock: swap_lock+0x0/0x10, .magic: dead4ead, .owner: main/2447, .owner_cpu: 0
-[<c010b938>] (unwind_backtrace+0x0/0x11c) from [<c03e9be0>] (do_raw_spin_lock+0x48/0x154)
-[<c03e9be0>] (do_raw_spin_lock+0x48/0x154) from [<c0226e10>] (si_swapinfo+0x10/0x90)
-[<c0226e10>] (si_swapinfo+0x10/0x90) from [<c04d7e18>] (timer_function+0x24/0x258)
-[<c04d7e18>] (timer_function+0x24/0x258) from [<c0182a10>] (run_timer_softirq+0x27c/0x3c0)
-[<c0182a10>] (run_timer_softirq+0x27c/0x3c0) from [<c017bd10>] (__do_softirq+0x12c/0x268)
-[<c017bd10>] (__do_softirq+0x12c/0x268) from [<c017c25c>] (irq_exit+0x48/0xa0)
-[<c017c25c>] (irq_exit+0x48/0xa0) from [<c01066a4>] (handle_IRQ+0x80/0xc0)
-[<c01066a4>] (handle_IRQ+0x80/0xc0) from [<c0100474>] (gic_handle_irq+0x90/0x10c)
-[<c0100474>] (gic_handle_irq+0x90/0x10c) from [<c08a9500>] (__irq_svc+0x40/0x70)
-Exception stack(0xd3425a58 to 0xd3425aa0)
-5a40:                                                       c20f628000000040
-5a60: 0000005300000001c20f628000000bc5c0efb6c8c10b8be0000000d400000001
-5a80: d3425bb40000000000000000d3425aa0c0228820c022820020000113ffffffff
-[<c08a9500>] (__irq_svc+0x40/0x70) from [<c0228200>] (scan_swap_map+0x14/0x518)
-[<c0228200>] (scan_swap_map+0x14/0x518) from [<c0228820>] (get_swap_page+0x98/0x108)
-[<c0228820>] (get_swap_page+0x98/0x108) from [<c0226400>] (add_to_swap+0x20/0x74)
-[<c0226400>] (add_to_swap+0x20/0x74) from [<c0208090>] (shrink_page_list+0x234/0x8a0)
-[<c0208090>] (shrink_page_list+0x234/0x8a0) from [<c0208b14>] (shrink_inactive_list+0x214/0x4c4)
-[<c0208b14>] (shrink_inactive_list+0x214/0x4c4) from [<c020919c>] (shrink_mem_cgroup_zone+0x3d8/0x534)
+> That all said, I think probably all the existing exporters cache the
+> sg-list.  And I can't think of any actual hw which would hit this
+> problem that can be solved by multiple sg-lists for the same physical
+> memory.  (And the constraint calculation kind of assumes the end
+> result will be a single sg-list.)  So it seems reasonable to me to
+> check that max_segment_count * max_segment_size is not smaller than
+> the buffer.
+>
+> If it was a less theoretical problem, I think I'd more inclined for a
+> way that the exporter could override the checks, or something along
+> those lines.
+> 
+> otoh, if the attachment is just not possible because the buffer has
+> been already allocated and mapped by someone with more relaxed
+> constraints.. then I think the driver should be the one returning the
+> error since dma-buf doesn't know this.
 
-Signed-off-by: Pasi SjA?holm <pasi.sjoholm@jollamobile.com>
----
- mm/swapfile.c | 54 +++++++++++++++++++++++++++---------------------------
- 1 file changed, 27 insertions(+), 27 deletions(-)
+Importers currently cache the mapped sg list aggressively (i915) or
+outright pin it for as long as possible (everyone else). So any kind of
+moving stuff around is pretty much impossible with current drivers.
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 63f55cc..b00a55e 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -993,7 +993,7 @@ int swap_type_of(dev_t device, sector_t offset, struct block_device **bdev_p)
- 	if (device)
- 		bdev = bdget(device);
- 
--	spin_lock(&swap_lock);
-+	spin_lock_bh(&swap_lock);
- 	for (type = 0; type < nr_swapfiles; type++) {
- 		struct swap_info_struct *sis = swap_info[type];
- 
-@@ -1004,7 +1004,7 @@ int swap_type_of(dev_t device, sector_t offset, struct block_device **bdev_p)
- 			if (bdev_p)
- 				*bdev_p = bdgrab(sis->bdev);
- 
--			spin_unlock(&swap_lock);
-+			spin_unlock_bh(&swap_lock);
- 			return type;
- 		}
- 		if (bdev == sis->bdev) {
-@@ -1014,13 +1014,13 @@ int swap_type_of(dev_t device, sector_t offset, struct block_device **bdev_p)
- 				if (bdev_p)
- 					*bdev_p = bdgrab(sis->bdev);
- 
--				spin_unlock(&swap_lock);
-+				spin_unlock_bh(&swap_lock);
- 				bdput(bdev);
- 				return type;
- 			}
- 		}
- 	}
--	spin_unlock(&swap_lock);
-+	spin_unlock_bh(&swap_lock);
- 	if (bdev)
- 		bdput(bdev);
- 
-@@ -1052,7 +1052,7 @@ unsigned int count_swap_pages(int type, int free)
- {
- 	unsigned int n = 0;
- 
--	spin_lock(&swap_lock);
-+	spin_lock_bh(&swap_lock);
- 	if ((unsigned int)type < nr_swapfiles) {
- 		struct swap_info_struct *sis = swap_info[type];
- 
-@@ -1064,7 +1064,7 @@ unsigned int count_swap_pages(int type, int free)
- 		}
- 		spin_unlock(&sis->lock);
- 	}
--	spin_unlock(&swap_lock);
-+	spin_unlock_bh(&swap_lock);
- 	return n;
- }
- #endif /* CONFIG_HIBERNATION */
-@@ -1783,20 +1783,20 @@ static void enable_swap_info(struct swap_info_struct *p, int prio,
- 				unsigned long *frontswap_map)
- {
- 	frontswap_init(p->type, frontswap_map);
--	spin_lock(&swap_lock);
-+	spin_lock_bh(&swap_lock);
- 	spin_lock(&p->lock);
- 	 _enable_swap_info(p, prio, swap_map, cluster_info);
- 	spin_unlock(&p->lock);
--	spin_unlock(&swap_lock);
-+	spin_unlock_bh(&swap_lock);
- }
- 
- static void reinsert_swap_info(struct swap_info_struct *p)
- {
--	spin_lock(&swap_lock);
-+	spin_lock_bh(&swap_lock);
- 	spin_lock(&p->lock);
- 	_enable_swap_info(p, p->prio, p->swap_map, p->cluster_info);
- 	spin_unlock(&p->lock);
--	spin_unlock(&swap_lock);
-+	spin_unlock_bh(&swap_lock);
- }
- 
- SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
-@@ -1827,7 +1827,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 		goto out;
- 
- 	mapping = victim->f_mapping;
--	spin_lock(&swap_lock);
-+	spin_lock_bh(&swap_lock);
- 	plist_for_each_entry(p, &swap_active_head, list) {
- 		if (p->flags & SWP_WRITEOK) {
- 			if (p->swap_file->f_mapping == mapping) {
-@@ -1838,14 +1838,14 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 	}
- 	if (!found) {
- 		err = -EINVAL;
--		spin_unlock(&swap_lock);
-+		spin_unlock_bh(&swap_lock);
- 		goto out_dput;
- 	}
- 	if (!security_vm_enough_memory_mm(current->mm, p->pages))
- 		vm_unacct_memory(p->pages);
- 	else {
- 		err = -ENOMEM;
--		spin_unlock(&swap_lock);
-+		spin_unlock_bh(&swap_lock);
- 		goto out_dput;
- 	}
- 	spin_lock(&swap_avail_lock);
-@@ -1867,7 +1867,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 	total_swap_pages -= p->pages;
- 	p->flags &= ~SWP_WRITEOK;
- 	spin_unlock(&p->lock);
--	spin_unlock(&swap_lock);
-+	spin_unlock_bh(&swap_lock);
- 
- 	set_current_oom_origin();
- 	err = try_to_unuse(p->type, false, 0); /* force unuse all pages */
-@@ -1886,7 +1886,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 		free_swap_count_continuations(p);
- 
- 	mutex_lock(&swapon_mutex);
--	spin_lock(&swap_lock);
-+	spin_lock_bh(&swap_lock);
- 	spin_lock(&p->lock);
- 	drain_mmlist();
- 
-@@ -1894,9 +1894,9 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 	p->highest_bit = 0;		/* cuts scans short */
- 	while (p->flags >= SWP_SCANNING) {
- 		spin_unlock(&p->lock);
--		spin_unlock(&swap_lock);
-+		spin_unlock_bh(&swap_lock);
- 		schedule_timeout_uninterruptible(1);
--		spin_lock(&swap_lock);
-+		spin_lock_bh(&swap_lock);
- 		spin_lock(&p->lock);
- 	}
- 
-@@ -1910,7 +1910,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 	p->cluster_info = NULL;
- 	frontswap_map = frontswap_map_get(p);
- 	spin_unlock(&p->lock);
--	spin_unlock(&swap_lock);
-+	spin_unlock_bh(&swap_lock);
- 	frontswap_invalidate_area(p->type);
- 	frontswap_map_set(p, NULL);
- 	mutex_unlock(&swapon_mutex);
-@@ -1939,9 +1939,9 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 	 * can reuse this swap_info in alloc_swap_info() safely.  It is ok to
- 	 * not hold p->lock after we cleared its SWP_WRITEOK.
- 	 */
--	spin_lock(&swap_lock);
-+	spin_lock_bh(&swap_lock);
- 	p->flags = 0;
--	spin_unlock(&swap_lock);
-+	spin_unlock_bh(&swap_lock);
- 
- 	err = 0;
- 	atomic_inc(&proc_poll_event);
-@@ -2098,13 +2098,13 @@ static struct swap_info_struct *alloc_swap_info(void)
- 	if (!p)
- 		return ERR_PTR(-ENOMEM);
- 
--	spin_lock(&swap_lock);
-+	spin_lock_bh(&swap_lock);
- 	for (type = 0; type < nr_swapfiles; type++) {
- 		if (!(swap_info[type]->flags & SWP_USED))
- 			break;
- 	}
- 	if (type >= MAX_SWAPFILES) {
--		spin_unlock(&swap_lock);
-+		spin_unlock_bh(&swap_lock);
- 		kfree(p);
- 		return ERR_PTR(-EPERM);
- 	}
-@@ -2130,7 +2130,7 @@ static struct swap_info_struct *alloc_swap_info(void)
- 	plist_node_init(&p->list, 0);
- 	plist_node_init(&p->avail_list, 0);
- 	p->flags = SWP_USED;
--	spin_unlock(&swap_lock);
-+	spin_unlock_bh(&swap_lock);
- 	spin_lock_init(&p->lock);
- 
- 	return p;
-@@ -2536,10 +2536,10 @@ bad_swap:
- 	}
- 	destroy_swap_extents(p);
- 	swap_cgroup_swapoff(p->type);
--	spin_lock(&swap_lock);
-+	spin_lock_bh(&swap_lock);
- 	p->swap_file = NULL;
- 	p->flags = 0;
--	spin_unlock(&swap_lock);
-+	spin_unlock_bh(&swap_lock);
- 	vfree(swap_map);
- 	vfree(cluster_info);
- 	if (swap_file) {
-@@ -2566,7 +2566,7 @@ void si_swapinfo(struct sysinfo *val)
- 	unsigned int type;
- 	unsigned long nr_to_be_unused = 0;
- 
--	spin_lock(&swap_lock);
-+	spin_lock_bh(&swap_lock);
- 	for (type = 0; type < nr_swapfiles; type++) {
- 		struct swap_info_struct *si = swap_info[type];
- 
-@@ -2575,7 +2575,7 @@ void si_swapinfo(struct sysinfo *val)
- 	}
- 	val->freeswap = atomic_long_read(&nr_swap_pages) + nr_to_be_unused;
- 	val->totalswap = total_swap_pages + nr_to_be_unused;
--	spin_unlock(&swap_lock);
-+	spin_unlock_bh(&swap_lock);
- }
- 
- /*
+The even worse violation of the dma-buf spec is that all the ttm drivers
+don't use the sg table correctly at all. They assume that each physical
+page has exactly one sg table entry, and then fish out the struct page *
+pointer from that to build up their own bo management stuff and ignore
+everything else.
+
+> > The whole "we can push it onto our users" is really on - what that
+> > results in is the users ignoring most of the requirements and just doing
+> > their own thing, which ultimately ends up with the whole thing turning
+> > into a disgusting mess - one which becomes very difficult to fix later.
+> 
+> Ideally at some point, dma-mapping or some helpers would support
+> allocations matching constraints..  I think only actual gpu drivers
+> want to do crazy enough things that they'd want to bypass dma-mapping.
+> If everyone else can use dma-mapping and/or helpers then we make it
+> harder for drivers to do the wrong thing than to do the right thing.
+> 
+> > Now, if we're going to do the "more clever" thing you mention above,
+> > that rather negates the point of this two-part patch set, which is to
+> > provide the union of the DMA capabilities of all users.  A union in
+> > that case is no longer sane as we'd be tailoring the SG lists to each
+> > user.
+> 
+> It doesn't really negate.. a different sg list representing the same
+> physical memory cannot suddenly make the buffer physically contiguous
+> (from the perspective of memory)..
+> 
+> (unless we are not on the same page here, so to speak)
+
+Or someone was not chip and put a decent iommu in front of the same IP
+block. E.g. the raspi gpu needs contiguous memory for rendering, but the
+same block is used elsewhere but then with an iommu.
+
+But thinking about all this I wonder whether we really should start with
+some kind of constraint solving. It feels fairly leaky compared to the
+encapsulation the dma api provides, and so isn't really better for
+upstream than just using ion (which completely gives up on this problem
+and relies on userspace allocating correct buffers).
+
+And if we step away for a bit there's already a bunch of things that the
+current dma api fails at, and which is just a bit a worse problem with
+dma-buf sharing: There's not really a generic way to map an sg table
+zero-copy, i.e. there's no generic way to avoid bounce buffers. And that's
+already hurting all the existing gpu drivers: ttm essentially does
+page-sized allocs for everything and then has it's own dma allocator on
+top of that page-cache. i915 has some other hacks to at least not fail the
+bounce buffer allocator too badly. Grepping for SWIOTLB in drm is fairly
+interesting.
+
+So imo if our goal is to keep the abstraction provided by the dma api
+somewhat intact we should first figure out to map an sg table without
+copying any data. If we have that any exporter can then easily check
+whether an attachment works out by test-mapping stuff. A bit inefficient,
+but at least possible (and exporters could cache the mapped sg table if so
+desired). And we could rip out a pile of hacks from drm drivers.
+
+The other problem is is coherency management. Even in the single-device
+usecase current dma-buf isn't up to things since on many socs the same
+device can use both coherent and non-coherent transactions. And if you map
+the same memory multiple times we don't really want to flush cpu caches
+multiple times (ppl alreay have massive caches and stuff to avoid the
+cpu cache flush when there's just one device using the buffer object).
+Again this probably needs some core dma api extensions. And again we could
+probably throw away a bunch of driver code (at least in i915,
+unfortunately there's no intel v4l driver to test non-coherent sharing on
+x86).
+
+With all that resolved somehow (and all these issues already affect
+single-device dma api usage by gpu drivers) the bit left would be figuring
+out where to allocate things. And I'm not even sure whether we should
+really bother to implement this in the kernel (no matter how I slice it it
+always looks like we're leaking the dma api abstractions) but just with a
+few tries in userspace:
+
+- Allocate shared buffers from the scanout engine (or v4l, though that
+  doesn't yet support exporting).
+
+- If you can't import, try it the other way round. This isn't perfect for
+  cross-process + cross-device bo sharing, but then pretty much all
+  compositors have a gpu rendering fallback anyway because this problem is
+  a bit too complex to solve perfectly. Of course for the next frame
+  compositor can provide a new buffer which hopefully works out better.
+
+- Userspace just knows where to allocate. Imo that's not actually
+  unreasonable since if you really have that tricky requirements you
+  probably also have insane buffer layouts and then all bets for generic
+  code are off anyway.
+
+Cheers, Daniel
 -- 
-2.1.0
+Daniel Vetter
+Software Engineer, Intel Corporation
++41 (0) 79 365 57 48 - http://blog.ffwll.ch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
