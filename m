@@ -1,107 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 395086B0038
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 05:30:35 -0500 (EST)
-Received: by mail-qg0-f52.google.com with SMTP id z107so46741226qgd.11
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 02:30:34 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i80si985162qge.127.2015.02.02.02.30.34
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Feb 2015 02:30:34 -0800 (PST)
-Message-ID: <54CF51C5.5050801@redhat.com>
-Date: Mon, 02 Feb 2015 10:30:29 +0000
-From: Steven Whitehouse <swhiteho@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] gfs2: use __vmalloc GFP_NOFS for fs-related allocations.
-References: <1422849594-15677-1-git-send-email-green@linuxhacker.ru> <20150202053708.GG4251@dastard> <E68E8257-1CE5-4833-B751-26478C9818C7@linuxhacker.ru> <20150202081115.GI4251@dastard>
-In-Reply-To: <20150202081115.GI4251@dastard>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EB356B0038
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 06:26:36 -0500 (EST)
+Received: by mail-we0-f173.google.com with SMTP id w62so38426631wes.4
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 03:26:35 -0800 (PST)
+Received: from cpsmtpb-ews08.kpnxchange.com (cpsmtpb-ews08.kpnxchange.com. [213.75.39.13])
+        by mx.google.com with ESMTP id fk5si5759916wib.15.2015.02.02.03.26.34
+        for <linux-mm@kvack.org>;
+        Mon, 02 Feb 2015 03:26:34 -0800 (PST)
+Message-ID: <1422876393.19005.21.camel@x220>
+Subject: Re: [PATCHv2 17/19] x86: expose number of page table levels on
+ Kconfig level
+From: Paul Bolle <pebolle@tiscali.nl>
+Date: Mon, 02 Feb 2015 12:26:33 +0100
+In-Reply-To: <1422664208-220779-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: 
+	<1422629008-13689-18-git-send-email-kirill.shutemov@linux.intel.com>
+	 <1422664208-220779-1-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>, Oleg Drokin <green@linuxhacker.ru>
-Cc: cluster-devel@redhat.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Guenter Roeck <linux@roeck-us.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter
+ Anvin" <hpa@zytor.com>
 
-Hi,
+On Sat, 2015-01-31 at 02:30 +0200, Kirill A. Shutemov wrote:
+> We would want to use number of page table level to define mm_struct.
+> Let's expose it as CONFIG_PGTABLE_LEVELS.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: "H. Peter Anvin" <hpa@zytor.com>
+> ---
+>  v2: s/PAGETABLE_LEVELS/CONFIG_PGTABLE_LEVELS/ include/trace/events/xen.h
 
-On 02/02/15 08:11, Dave Chinner wrote:
-> On Mon, Feb 02, 2015 at 01:57:23AM -0500, Oleg Drokin wrote:
->> Hello!
->>
->> On Feb 2, 2015, at 12:37 AM, Dave Chinner wrote:
->>
->>> On Sun, Feb 01, 2015 at 10:59:54PM -0500, green@linuxhacker.ru wrote:
->>>> From: Oleg Drokin <green@linuxhacker.ru>
->>>>
->>>> leaf_dealloc uses vzalloc as a fallback to kzalloc(GFP_NOFS), so
->>>> it clearly does not want any shrinker activity within the fs itself.
->>>> convert vzalloc into __vmalloc(GFP_NOFS|__GFP_ZERO) to better achieve
->>>> this goal.
->>>>
->>>> Signed-off-by: Oleg Drokin <green@linuxhacker.ru>
->>>> ---
->>>> fs/gfs2/dir.c | 3 ++-
->>>> 1 file changed, 2 insertions(+), 1 deletion(-)
->>>>
->>>> diff --git a/fs/gfs2/dir.c b/fs/gfs2/dir.c
->>>> index c5a34f0..6371192 100644
->>>> --- a/fs/gfs2/dir.c
->>>> +++ b/fs/gfs2/dir.c
->>>> @@ -1896,7 +1896,8 @@ static int leaf_dealloc(struct gfs2_inode *dip, u32 index, u32 len,
->>>>
->>>> 	ht = kzalloc(size, GFP_NOFS | __GFP_NOWARN);
->>>> 	if (ht == NULL)
->>>> -		ht = vzalloc(size);
->>>> +		ht = __vmalloc(size, GFP_NOFS | __GFP_NOWARN | __GFP_ZERO,
->>>> +			       PAGE_KERNEL);
->>> That, in the end, won't help as vmalloc still uses GFP_KERNEL
->>> allocations deep down in the PTE allocation code. See the hacks in
->>> the DM and XFS code to work around this. i.e. go look for callers of
->>> memalloc_noio_save().  It's ugly and grotesque, but we've got no
->>> other way to limit reclaim context because the MM devs won't pass
->>> the vmalloc gfp context down the stack to the PTE allocations....
->> Hm, interesting.
->> So all the other code in the kernel that does this sort of thing (and there's quite a bit
->> outside of xfs and ocfs2) would not get the desired effect?
-> No. I expect, however, that very few people would ever see a
-> deadlock as a result - it's a pretty rare sort of kernel case to hit
-> in most cases. XFS does make extensive use of vm_map_ram() in
-> GFP_NOFS context, however, when large directory block sizes are in
-> use, and we also have a history of lockdep throwing warnings under
-> memory pressure. In the end, the memalloc_noio_save() changes were
-> made to stop the frequent lockdep reports rather than actual
-> deadlocks.
-Indeed, I think the patch is still an improvement however, so I'm happy 
-to apply it while a better solution is found.
+Isn't there some (informal) rule to update an entire series to a next
+version (and not only the patches that were changed in that version)?
+Anyhow, it seems you sent a v2 for 05/19, 11/19 and 17/19 only. Is that
+correct?
 
->> So, I did some digging in archives and found this thread from 2010 onward with various
->> patches and rants.
->> Not sure how I missed that before.
->>
->> Should we have another run at this I wonder?
-> By all means, but I don't think you'll have any more luck than
-> anyone else in the past. We've still got the problem of attitude
-> ("vmalloc is not for general use") and making it actually work is
-> seen as "encouraging undesirable behaviour". If you can change
-> attitudes towards vmalloc first, then you'll be much more likely to
-> make progress in getting these problems solved....
->
+Thanks,
 
-Well I don't know whether it has to be vmalloc that provides the 
-solution here... if memory fragmentation could be controlled then 
-kmalloc of larger contiguous chunks of memory could be done using that, 
-which might be a better solution overall. But I do agree that we need to 
-try and come to some kind of solution to this problem as it is one of 
-those things that has been rumbling on for a long time without a proper 
-solution.
 
-I also wonder if vmalloc is still very slow? That was the case some time 
-ago when I noticed a problem in directory access times in gfs2, which 
-made us change to use kmalloc with a vmalloc fallback in the first place,
-
-Steve.
-
+Paul Bolle
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
