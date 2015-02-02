@@ -1,74 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 07E606B0071
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 18:50:38 -0500 (EST)
-Received: by mail-la0-f42.google.com with SMTP id ms9so46371981lab.1
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 15:50:37 -0800 (PST)
-Received: from mail-la0-x236.google.com (mail-la0-x236.google.com. [2a00:1450:4010:c03::236])
-        by mx.google.com with ESMTPS id p8si8615226laf.50.2015.02.02.15.50.34
+Received: from mail-la0-f43.google.com (mail-la0-f43.google.com [209.85.215.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 5409D6B0073
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 18:50:41 -0500 (EST)
+Received: by mail-la0-f43.google.com with SMTP id pn19so343497lab.2
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 15:50:40 -0800 (PST)
+Received: from mail-la0-x22b.google.com (mail-la0-x22b.google.com. [2a00:1450:4010:c03::22b])
+        by mx.google.com with ESMTPS id o4si18049320lbc.57.2015.02.02.15.50.39
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Feb 2015 15:50:34 -0800 (PST)
-Received: by mail-la0-f54.google.com with SMTP id hv19so46193906lab.13
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 15:50:34 -0800 (PST)
+        Mon, 02 Feb 2015 15:50:39 -0800 (PST)
+Received: by mail-la0-f43.google.com with SMTP id pn19so343363lab.2
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 15:50:39 -0800 (PST)
 From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Subject: [PATCH 2/5] mm/page_alloc.c: Pull out init code from build_all_zonelists
-Date: Tue,  3 Feb 2015 00:50:13 +0100
-Message-Id: <1422921016-27618-3-git-send-email-linux@rasmusvillemoes.dk>
+Subject: [PATCH 3/5] mm/mm_init.c: Mark mminit_verify_zonelist as __init
+Date: Tue,  3 Feb 2015 00:50:14 +0100
+Message-Id: <1422921016-27618-4-git-send-email-linux@rasmusvillemoes.dk>
 In-Reply-To: <1422921016-27618-1-git-send-email-linux@rasmusvillemoes.dk>
 References: <1422921016-27618-1-git-send-email-linux@rasmusvillemoes.dk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Vishnu Pratap Singh <vishnu.ps@samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Michal Nazarewicz <mina86@mina86.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Paul Gortmaker <paul.gortmaker@windriver.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Tim Chen <tim.c.chen@linux.intel.com>, Hugh Dickins <hughd@google.com>
 Cc: Rasmus Villemoes <linux@rasmusvillemoes.dk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Pulling the code protected by if (system_state == SYSTEM_BOOTING) into
-its own helper allows us to shrink .text a little. This relies on
-build_all_zonelists already having a __ref annotation. Add a comment
-explaining why so one doesn't have to track it down through git log.
+The only caller of mminit_verify_zonelist is build_all_zonelists_init,
+which is annotated with __init, so it should be safe to also mark the
+former as __init, saving ~400 bytes of .text.
 
 Signed-off-by: Rasmus Villemoes <linux@rasmusvillemoes.dk>
 ---
- mm/page_alloc.c | 17 ++++++++++++++---
- 1 file changed, 14 insertions(+), 3 deletions(-)
+ mm/mm_init.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 7633c503a116..c58aa42a3387 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3945,18 +3945,29 @@ static int __build_all_zonelists(void *data)
- 	return 0;
- }
+diff --git a/mm/mm_init.c b/mm/mm_init.c
+index 4074caf9936b..e17c758b27bf 100644
+--- a/mm/mm_init.c
++++ b/mm/mm_init.c
+@@ -21,7 +21,7 @@ int mminit_loglevel;
+ #endif
  
-+static noinline void __init
-+build_all_zonelists_init(void)
-+{
-+	__build_all_zonelists(NULL);
-+	mminit_verify_zonelist();
-+	cpuset_init_current_mems_allowed();
-+}
-+
- /*
-  * Called with zonelists_mutex held always
-  * unless system_state == SYSTEM_BOOTING.
-+ *
-+ * __ref due to (1) call of __meminit annotated setup_zone_pageset
-+ * [we're only called with non-NULL zone through __meminit paths] and
-+ * (2) call of __init annotated helper build_all_zonelists_init
-+ * [protected by SYSTEM_BOOTING].
-  */
- void __ref build_all_zonelists(pg_data_t *pgdat, struct zone *zone)
+ /* The zonelists are simply reported, validation is manual. */
+-void mminit_verify_zonelist(void)
++void __init mminit_verify_zonelist(void)
  {
- 	set_zonelist_order();
+ 	int nid;
  
- 	if (system_state == SYSTEM_BOOTING) {
--		__build_all_zonelists(NULL);
--		mminit_verify_zonelist();
--		cpuset_init_current_mems_allowed();
-+		build_all_zonelists_init();
- 	} else {
- #ifdef CONFIG_MEMORY_HOTPLUG
- 		if (zone)
 -- 
 2.1.3
 
