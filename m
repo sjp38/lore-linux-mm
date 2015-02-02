@@ -1,57 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C7A76B0070
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 18:50:35 -0500 (EST)
-Received: by mail-la0-f44.google.com with SMTP id s18so46499038lam.3
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 15:50:34 -0800 (PST)
-Received: from mail-la0-x234.google.com (mail-la0-x234.google.com. [2a00:1450:4010:c03::234])
-        by mx.google.com with ESMTPS id lv1si7803068lac.49.2015.02.02.15.50.32
+Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 07E606B0071
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 18:50:38 -0500 (EST)
+Received: by mail-la0-f42.google.com with SMTP id ms9so46371981lab.1
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 15:50:37 -0800 (PST)
+Received: from mail-la0-x236.google.com (mail-la0-x236.google.com. [2a00:1450:4010:c03::236])
+        by mx.google.com with ESMTPS id p8si8615226laf.50.2015.02.02.15.50.34
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Feb 2015 15:50:33 -0800 (PST)
-Received: by mail-la0-f52.google.com with SMTP id ge10so46424161lab.11
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 15:50:32 -0800 (PST)
+        Mon, 02 Feb 2015 15:50:34 -0800 (PST)
+Received: by mail-la0-f54.google.com with SMTP id hv19so46193906lab.13
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 15:50:34 -0800 (PST)
 From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Subject: [PATCH 1/5] mm/internal.h: Don't split printk call in two
-Date: Tue,  3 Feb 2015 00:50:12 +0100
-Message-Id: <1422921016-27618-2-git-send-email-linux@rasmusvillemoes.dk>
+Subject: [PATCH 2/5] mm/page_alloc.c: Pull out init code from build_all_zonelists
+Date: Tue,  3 Feb 2015 00:50:13 +0100
+Message-Id: <1422921016-27618-3-git-send-email-linux@rasmusvillemoes.dk>
 In-Reply-To: <1422921016-27618-1-git-send-email-linux@rasmusvillemoes.dk>
 References: <1422921016-27618-1-git-send-email-linux@rasmusvillemoes.dk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Vishnu Pratap Singh <vishnu.ps@samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Michal Nazarewicz <mina86@mina86.com>
 Cc: Rasmus Villemoes <linux@rasmusvillemoes.dk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-All users of mminit_dprintk pass a compile-time constant as level, so
-this just makes gcc emit a single printk call instead of two.
+Pulling the code protected by if (system_state == SYSTEM_BOOTING) into
+its own helper allows us to shrink .text a little. This relies on
+build_all_zonelists already having a __ref annotation. Add a comment
+explaining why so one doesn't have to track it down through git log.
 
 Signed-off-by: Rasmus Villemoes <linux@rasmusvillemoes.dk>
 ---
+ mm/page_alloc.c | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)
 
-Notes:
-    Not a huge deal, since the only users are __init or __meminit
-    functions, but even there saving 140 bytes may be worthwhile.
-
- mm/internal.h | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
-
-diff --git a/mm/internal.h b/mm/internal.h
-index efad241f7014..e1d8e05bcfff 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -329,8 +329,10 @@ extern int mminit_loglevel;
- #define mminit_dprintk(level, prefix, fmt, arg...) \
- do { \
- 	if (level < mminit_loglevel) { \
--		printk(level <= MMINIT_WARNING ? KERN_WARNING : KERN_DEBUG); \
--		printk(KERN_CONT "mminit::" prefix " " fmt, ##arg); \
-+		if (level <= MMINIT_WARNING) \
-+			printk(KERN_WARNING "mminit::" prefix " " fmt, ##arg); \
-+		else \
-+			printk(KERN_DEBUG "mminit::" prefix " " fmt, ##arg); \
- 	} \
- } while (0)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 7633c503a116..c58aa42a3387 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3945,18 +3945,29 @@ static int __build_all_zonelists(void *data)
+ 	return 0;
+ }
  
++static noinline void __init
++build_all_zonelists_init(void)
++{
++	__build_all_zonelists(NULL);
++	mminit_verify_zonelist();
++	cpuset_init_current_mems_allowed();
++}
++
+ /*
+  * Called with zonelists_mutex held always
+  * unless system_state == SYSTEM_BOOTING.
++ *
++ * __ref due to (1) call of __meminit annotated setup_zone_pageset
++ * [we're only called with non-NULL zone through __meminit paths] and
++ * (2) call of __init annotated helper build_all_zonelists_init
++ * [protected by SYSTEM_BOOTING].
+  */
+ void __ref build_all_zonelists(pg_data_t *pgdat, struct zone *zone)
+ {
+ 	set_zonelist_order();
+ 
+ 	if (system_state == SYSTEM_BOOTING) {
+-		__build_all_zonelists(NULL);
+-		mminit_verify_zonelist();
+-		cpuset_init_current_mems_allowed();
++		build_all_zonelists_init();
+ 	} else {
+ #ifdef CONFIG_MEMORY_HOTPLUG
+ 		if (zone)
 -- 
 2.1.3
 
