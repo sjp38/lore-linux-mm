@@ -1,98 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id C58496B0038
-	for <linux-mm@kvack.org>; Sun,  1 Feb 2015 21:44:14 -0500 (EST)
-Received: by mail-pa0-f50.google.com with SMTP id rd3so76193442pab.9
-        for <linux-mm@kvack.org>; Sun, 01 Feb 2015 18:44:14 -0800 (PST)
-Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
-        by mx.google.com with ESMTPS id o1si7376278pdo.54.2015.02.01.18.44.13
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 55E216B0038
+	for <linux-mm@kvack.org>; Sun,  1 Feb 2015 21:45:58 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id rd3so76197807pab.3
+        for <linux-mm@kvack.org>; Sun, 01 Feb 2015 18:45:58 -0800 (PST)
+Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
+        by mx.google.com with ESMTPS id z5si22046727pdm.78.2015.02.01.18.45.57
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 01 Feb 2015 18:44:13 -0800 (PST)
-Received: by mail-pa0-f53.google.com with SMTP id kx10so76196650pab.12
-        for <linux-mm@kvack.org>; Sun, 01 Feb 2015 18:44:13 -0800 (PST)
-Date: Mon, 2 Feb 2015 11:44:06 +0900
+        Sun, 01 Feb 2015 18:45:57 -0800 (PST)
+Received: by mail-pa0-f49.google.com with SMTP id fa1so76315662pad.8
+        for <linux-mm@kvack.org>; Sun, 01 Feb 2015 18:45:57 -0800 (PST)
+Date: Mon, 2 Feb 2015 11:45:50 +0900
 From: Minchan Kim <minchan@kernel.org>
 Subject: Re: [PATCH v1 2/2] zram: remove init_lock in zram_make_request
-Message-ID: <20150202024405.GD6402@blaptop>
-References: <20150129020139.GB9672@blaptop>
- <20150129022241.GA2555@swordfish>
+Message-ID: <20150202024550.GE6402@blaptop>
+References: <20150129022241.GA2555@swordfish>
  <20150129052827.GB25462@blaptop>
  <20150129060604.GC2555@swordfish>
  <20150129063505.GA32331@blaptop>
  <20150129070835.GD2555@swordfish>
  <20150130144145.GA2840@blaptop>
  <20150201145036.GA1290@swordfish>
- <20150202013028.GB6402@blaptop>
- <20150202014800.GA6977@swordfish>
+ <20150201150416.GB1290@swordfish>
+ <20150202014315.GC6402@blaptop>
+ <20150202015940.GB6977@swordfish>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150202014800.GA6977@swordfish>
+In-Reply-To: <20150202015940.GB6977@swordfish>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>
 
-On Mon, Feb 02, 2015 at 10:48:00AM +0900, Sergey Senozhatsky wrote:
-> Hello Minchan,
-> 
-> On (02/02/15 10:30), Minchan Kim wrote:
-> > > >  static inline int init_done(struct zram *zram)
-> > > >  {
-> > > > -	return zram->meta != NULL;
-> > > > +	return zram->disksize != 0;
-> > > 
-> > > we don't set ->disksize to 0 when create device. and I think
-> > > it's better to use refcount here, but set it to 0 during device creation.
-> > > (see the patch below)
+On Mon, Feb 02, 2015 at 10:59:40AM +0900, Sergey Senozhatsky wrote:
+> On (02/02/15 10:43), Minchan Kim wrote:
+> > >  static inline int init_done(struct zram *zram)
+> > >  {
+> > > -	return zram->meta != NULL;
+> > > +	return atomic_read(&zram->refcount);
 > > 
-> > There was a reason I didn't use refcount there.
-> > I should have written down it.
-> > 
-> > We need something to prevent further I/O handling on other CPUs.
-> > Otherwise, it's livelock. For example, new 'A' I/O rw path on CPU 1
-> > can see non-zero refcount if another CPU is going on rw.
-> > Then, another new 'B' I/O rw path on CPU 2 can see non-zero refcount
-> > if A I/O is going on. Then, another new 'C' I/O rw path on CPU 3 can
-> > see non-zero refcount if B I/O is going on. Finally, 'A' IO is done
-> > on CPU 1 and next I/O 'D' on CPU 1 can see non-zero refcount because
-> > 'C' on CPU 3 is going on. Infinite loop.
+> > As I said previous mail, it could make livelock so I want to use disksize
+> > in here to prevent further I/O handling.
 > 
-> sure, I did think about this. and I actually didn't find any reason not
-> to use ->refcount there. if user wants to reset the device, he first
-> should umount it to make bdev->bd_holders check happy. and that's where
-> IOs will be failed. so it makes sense to switch to ->refcount there, IMHO.
+> just as I said in my previous email -- is this live lock really possible?
+> we need to umount device to continue with reset. and umount will kill IOs out
+> of our way.
+> 
+> the other reset caller is  __exit zram_exit(). but once again, I don't
+> expect this function being executed on mounted device and module being
+> in use.
+> 
+> 
+> > > +static inline void zram_put(struct zram *zram)
+> > > +{
+> > > +	if (atomic_dec_and_test(&zram->refcount))
+> > > +		complete(&zram->io_done);
+> > > +}
+> > 
+> > Although I suggested this complete, it might be rather overkill(pz,
+> > understand me it was work in midnight. :))
+> > Instead, we could use just atomic_dec in here and
+> > use wait_event(event, atomic_read(&zram->refcount) == 0) in reset.
+> > 
+> 
+> yes, I think it can do the trick.
 
-If we use zram as block device itself(not a fs or swap) and open the
-block device as !FMODE_EXCL, bd_holders will be void.
+Hey, it's not a trick. It suits for the our goal well. Completion
+was too much, I think.
 
-Another topic: As I didn't see enough fs/block_dev.c bd_holders in zram
-would be mess. I guess we need to study hotplug of device and implement
-it for zram reset rather than strange own konb. It should go TODO. :(
-
-> 
-> 
-> > > here and later:
-> > > we can't take zram_meta_get() first and then check for init_done(zram),
-> > > because ->meta can be NULL, so it fill be ->NULL->refcount.
-> > 
-> > True.
-> > Actually, it was totally RFC I forgot adding the tag in the night but I can't
-> > escape from my shame with the escuse. Thanks!
-> 
-> no problem at all. you were throwing solutions all week long.
-> 
-> > 
-> > > 
-> > > let's keep ->completion and ->refcount in zram and rename zram_meta_[get|put]
-> > > to zram_[get|put].
-> > 
-> > Good idea but still want to name it as zram_meta_get/put because zram_get naming
-> > might confuse struct zram's refcount rather than zram_meta. :)
-> 
-> no objections. but I assume we agreed to keep ->io_done completion
-> and ->refcount in zram.
 > 
 > 	-ss
 
