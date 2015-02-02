@@ -1,82 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 100FB6B006C
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 17:36:11 -0500 (EST)
-Received: by mail-ig0-f179.google.com with SMTP id l13so20449297iga.0
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 14:36:10 -0800 (PST)
-Received: from mail-ig0-x233.google.com (mail-ig0-x233.google.com. [2607:f8b0:4001:c05::233])
-        by mx.google.com with ESMTPS id ly5si8452290icb.101.2015.02.02.14.36.10
+Received: from mail-oi0-f45.google.com (mail-oi0-f45.google.com [209.85.218.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C4116B0038
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 18:27:08 -0500 (EST)
+Received: by mail-oi0-f45.google.com with SMTP id g201so46607527oib.4
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 15:27:08 -0800 (PST)
+Received: from fiona.linuxhacker.ru ([217.76.32.60])
+        by mx.google.com with ESMTPS id oq6si262861pab.148.2015.02.02.15.27.05
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Feb 2015 14:36:10 -0800 (PST)
-Received: by mail-ig0-f179.google.com with SMTP id l13so20449275iga.0
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 14:36:10 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20150202214616.GI8656@n2100.arm.linux.org.uk>
-References: <1422347154-15258-1-git-send-email-sumit.semwal@linaro.org>
-	<1422347154-15258-2-git-send-email-sumit.semwal@linaro.org>
-	<20150129143908.GA26493@n2100.arm.linux.org.uk>
-	<CAO_48GEOQ1pBwirgEWeVVXW-iOmaC=Xerr2VyYYz9t1QDXgVsw@mail.gmail.com>
-	<20150129154718.GB26493@n2100.arm.linux.org.uk>
-	<CAF6AEGtTmFg66TK_AFkQ-xp7Nd9Evk3nqe6xCBp7K=77OmXTxA@mail.gmail.com>
-	<20150129192610.GE26493@n2100.arm.linux.org.uk>
-	<CAF6AEGujk8UC4X6T=yhTrz1s+SyZUQ=m05h_WcxLDGZU6bydbw@mail.gmail.com>
-	<20150202165405.GX14009@phenom.ffwll.local>
-	<CAF6AEGuESM+e3HSRGM6zLqrp8kqRLGUYvA3KKECdm7m-nt0M=Q@mail.gmail.com>
-	<20150202214616.GI8656@n2100.arm.linux.org.uk>
-Date: Mon, 2 Feb 2015 17:36:10 -0500
-Message-ID: <CAF6AEGvE78a9u9=C6HbuuYs_zwGf6opdXUNfxb51kixFa7zLwA@mail.gmail.com>
-Subject: Re: [RFCv3 2/2] dma-buf: add helpers for sharing attacher constraints
- with dma-parms
-From: Rob Clark <robdclark@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Feb 2015 15:27:06 -0800 (PST)
+Subject: Re: [PATCH 2/2] staging/lustre: use __vmalloc_node() to avoid __GFP_FS default
+Mime-Version: 1.0 (Apple Message framework v1283)
+Content-Type: text/plain; charset=us-ascii
+From: Oleg Drokin <green@linuxhacker.ru>
+In-Reply-To: <alpine.DEB.2.10.1502020945370.5117@chino.kir.corp.google.com>
+Date: Mon, 2 Feb 2015 18:26:53 -0500
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <7C13E0D6-CFBD-4F32-8F66-B96A8D427E1A@linuxhacker.ru>
+References: <1422846627-26890-1-git-send-email-green@linuxhacker.ru> <1422846627-26890-3-git-send-email-green@linuxhacker.ru> <alpine.DEB.2.10.1502020945370.5117@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: Sumit Semwal <sumit.semwal@linaro.org>, LKML <linux-kernel@vger.kernel.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, DRI mailing list <dri-devel@lists.freedesktop.org>, Linaro MM SIG Mailman List <linaro-mm-sig@lists.linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Tomasz Stanislawski <stanislawski.tomasz@googlemail.com>, Robin Murphy <robin.murphy@arm.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Daniel Vetter <daniel@ffwll.ch>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Bruno Faccini <bruno.faccini@intel.com>
 
-On Mon, Feb 2, 2015 at 4:46 PM, Russell King - ARM Linux
-<linux@arm.linux.org.uk> wrote:
-> On Mon, Feb 02, 2015 at 03:30:21PM -0500, Rob Clark wrote:
->> On Mon, Feb 2, 2015 at 11:54 AM, Daniel Vetter <daniel@ffwll.ch> wrote:
->> >> My initial thought is for dma-buf to not try to prevent something than
->> >> an exporter can actually do.. I think the scenario you describe could
->> >> be handled by two sg-lists, if the exporter was clever enough.
->> >
->> > That's already needed, each attachment has it's own sg-list. After all
->> > there's no array of dma_addr_t in the sg tables, so you can't use one sg
->> > for more than one mapping. And due to different iommu different devices
->> > can easily end up with different addresses.
->>
->>
->> Well, to be fair it may not be explicitly stated, but currently one
->> should assume the dma_addr_t's in the dmabuf sglist are bogus.  With
->> gpu's that implement per-process/context page tables, I'm not really
->> sure that there is a sane way to actually do anything else..
->
-> That's incorrect - and goes dead against the design of scatterlists.
 
-yeah, a bit of an abuse, although I'm not sure I see a much better way
-when a device vaddr depends on user context..
+On Feb 2, 2015, at 12:48 PM, David Rientjes wrote:
 
-> Not only that, but it is entirely possible that you may get handed
-> memory via dmabufs for which there are no struct page's associated
-> with that memory - think about display systems which have their own
-> video memory which is accessible to the GPU, but it isn't system
-> memory.
+> On Sun, 1 Feb 2015, green@linuxhacker.ru wrote:
+>=20
+>> From: Bruno Faccini <bruno.faccini@intel.com>
+>>=20
+>> When possible, try to use of __vmalloc_node() instead of
+>> vzalloc/vzalloc_node which allows for protection flag specification,
+>> and particularly to not set __GFP_FS, which can cause some deadlock
+>> situations in our code due to recursive calls.
+> You're saying that all usage of OBD_ALLOC_LARGE() and=20
+> OBD_CPT_ALLOC_LARGE() are in contexts where we need GFP_NOFS?  It =
+would be=20
 
-well, I guess anyways when it comes to sharing buffers, it won't be
-the vram placement of the bo that gets shared ;-)
+Most of them fore sure (hm, there's only one OBD_CPT_ALLOC_LARGE in the =
+client
+and I imagine it better be GFP_NOFS even though the condition for that =
+is
+very unlikely, but that's what happens when you have tens of thousands =
+nodes
+all doing the same code all the time - all sorts of unlikely things =
+trigger a lot).
 
-BR,
--R
+> much better to keep using vzalloc{,_node)() in contexts that permit=20
+> __GFP_FS for a higher likelihood of being able to allocate the memory.
 
-> In those circumstances, you have to use the dma_addr_t's and not the
-> pages.
->
-> --
-> FTTC broadband for 0.8mile line: currently at 10.5Mbps down 400kbps up
-> according to speedtest.net.
+While it's certainly possible to go audit all the OBD_ALLOC_LARGE and
+isolate the ones where __GFP_FS is not detrimential, I just found =
+yesterday that
+vmalloc possibly does GFP_KERNEL allocations in its guts no matter what.
+I saw all the rants and stuff about that too (but somewhat old).
+Yet I cannot help but ask too if perhaps something could be done about =
+it now?
+
+>=20
+>> Additionally fixed a typo in the macro name: VEROBSE->VERBOSE
+>>=20
+>> Signed-off-by: Bruno Faccini <bruno.faccini@intel.com>
+>> Signed-off-by: Oleg Drokin <oleg.drokin@intel.com>
+>> Reviewed-on: http://review.whamcloud.com/11190
+>> Intel-bug-id: https://jira.hpdd.intel.com/browse/LU-5349
+>> ---
+>> drivers/staging/lustre/lustre/include/obd_support.h | 18 =
+++++++++++++------
+>> 1 file changed, 12 insertions(+), 6 deletions(-)
+>>=20
+>> diff --git a/drivers/staging/lustre/lustre/include/obd_support.h =
+b/drivers/staging/lustre/lustre/include/obd_support.h
+>> index 2991d2e..c90a88e 100644
+>> --- a/drivers/staging/lustre/lustre/include/obd_support.h
+>> +++ b/drivers/staging/lustre/lustre/include/obd_support.h
+>> @@ -655,11 +655,17 @@ do {							=
+		      \
+>> #define OBD_CPT_ALLOC_PTR(ptr, cptab, cpt)				 =
+     \
+>> 	OBD_CPT_ALLOC(ptr, cptab, cpt, sizeof(*(ptr)))
+>>=20
+>> -# define __OBD_VMALLOC_VEROBSE(ptr, cptab, cpt, size)			=
+      \
+>> +/* Direct use of __vmalloc_node() allows for protection flag =
+specification
+>> + * (and particularly to not set __GFP_FS, which is likely to cause =
+some
+>> + * deadlock situations in our code).
+>> + */
+>> +# define __OBD_VMALLOC_VERBOSE(ptr, cptab, cpt, size)			=
+      \
+>> do {									 =
+     \
+>> -	(ptr) =3D cptab =3D=3D NULL ?						=
+      \
+>> -		vzalloc(size) :						 =
+     \
+>> -		vzalloc_node(size, cfs_cpt_spread_node(cptab, cpt));	 =
+     \
+>> +	(ptr) =3D __vmalloc_node(size, 1, GFP_NOFS | __GFP_HIGHMEM | =
+__GFP_ZERO,\
+>> +			       PAGE_KERNEL,				 =
+     \
+>> +			       cptab =3D=3D NULL ? NUMA_NO_NODE :		=
+      \
+>> +					      cfs_cpt_spread_node(cptab, =
+cpt),\
+>> +			       __builtin_return_address(0));		 =
+     \
+>> 	if (unlikely((ptr) =3D=3D NULL)) {					=
+\
+>> 		CERROR("vmalloc of '" #ptr "' (%d bytes) failed\n",	 =
+  \
+>> 		       (int)(size));					 =
+ \
+>> @@ -671,9 +677,9 @@ do {							=
+		      \
+>> } while (0)
+>>=20
+>> # define OBD_VMALLOC(ptr, size)						=
+      \
+>> -	 __OBD_VMALLOC_VEROBSE(ptr, NULL, 0, size)
+>> +	 __OBD_VMALLOC_VERBOSE(ptr, NULL, 0, size)
+>> # define OBD_CPT_VMALLOC(ptr, cptab, cpt, size)				=
+      \
+>> -	 __OBD_VMALLOC_VEROBSE(ptr, cptab, cpt, size)
+>> +	 __OBD_VMALLOC_VERBOSE(ptr, cptab, cpt, size)
+>>=20
+>>=20
+>> /* Allocations above this size are considered too big and could not =
+be done
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
