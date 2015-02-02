@@ -1,78 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id DB3816B0038
-	for <linux-mm@kvack.org>; Sun,  1 Feb 2015 22:47:32 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id et14so76846712pad.4
-        for <linux-mm@kvack.org>; Sun, 01 Feb 2015 19:47:32 -0800 (PST)
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 189F56B0038
+	for <linux-mm@kvack.org>; Sun,  1 Feb 2015 23:01:27 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id ey11so77024809pad.7
+        for <linux-mm@kvack.org>; Sun, 01 Feb 2015 20:01:26 -0800 (PST)
 Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com. [2607:f8b0:400e:c03::230])
-        by mx.google.com with ESMTPS id wq4si22155026pab.92.2015.02.01.19.47.31
+        by mx.google.com with ESMTPS id fz11si22004206pdb.238.2015.02.01.20.01.26
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 01 Feb 2015 19:47:32 -0800 (PST)
-Received: by mail-pa0-f48.google.com with SMTP id ey11so76898811pad.7
-        for <linux-mm@kvack.org>; Sun, 01 Feb 2015 19:47:31 -0800 (PST)
-Date: Mon, 2 Feb 2015 12:47:30 +0900
+        Sun, 01 Feb 2015 20:01:26 -0800 (PST)
+Received: by mail-pa0-f48.google.com with SMTP id ey11so77024703pad.7
+        for <linux-mm@kvack.org>; Sun, 01 Feb 2015 20:01:26 -0800 (PST)
+Date: Mon, 2 Feb 2015 13:01:24 +0900
 From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 Subject: Re: [PATCH v1 2/2] zram: remove init_lock in zram_make_request
-Message-ID: <20150202034730.GD6977@swordfish>
-References: <20150129052827.GB25462@blaptop>
+Message-ID: <20150202040124.GE6977@swordfish>
+References: <20150129022241.GA2555@swordfish>
+ <20150129052827.GB25462@blaptop>
  <20150129060604.GC2555@swordfish>
  <20150129063505.GA32331@blaptop>
  <20150129070835.GD2555@swordfish>
  <20150130144145.GA2840@blaptop>
  <20150201145036.GA1290@swordfish>
- <20150201150416.GB1290@swordfish>
- <20150202014315.GC6402@blaptop>
- <20150202015940.GB6977@swordfish>
- <20150202024550.GE6402@blaptop>
+ <20150202013028.GB6402@blaptop>
+ <20150202014800.GA6977@swordfish>
+ <20150202024405.GD6402@blaptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150202024550.GE6402@blaptop>
+In-Reply-To: <20150202024405.GD6402@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
 Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>, Ganesh Mahendran <opensource.ganesh@gmail.com>
 
-On (02/02/15 11:45), Minchan Kim wrote:
-> On Mon, Feb 02, 2015 at 10:59:40AM +0900, Sergey Senozhatsky wrote:
-> > On (02/02/15 10:43), Minchan Kim wrote:
-> > > >  static inline int init_done(struct zram *zram)
-> > > >  {
-> > > > -	return zram->meta != NULL;
-> > > > +	return atomic_read(&zram->refcount);
-> > > 
-> > > As I said previous mail, it could make livelock so I want to use disksize
-> > > in here to prevent further I/O handling.
-> > 
-> > just as I said in my previous email -- is this live lock really possible?
-> > we need to umount device to continue with reset. and umount will kill IOs out
-> > of our way.
-> > 
-> > the other reset caller is  __exit zram_exit(). but once again, I don't
-> > expect this function being executed on mounted device and module being
-> > in use.
-> > 
-> > 
-> > > > +static inline void zram_put(struct zram *zram)
-> > > > +{
-> > > > +	if (atomic_dec_and_test(&zram->refcount))
-> > > > +		complete(&zram->io_done);
-> > > > +}
-> > > 
-> > > Although I suggested this complete, it might be rather overkill(pz,
-> > > understand me it was work in midnight. :))
-> > > Instead, we could use just atomic_dec in here and
-> > > use wait_event(event, atomic_read(&zram->refcount) == 0) in reset.
-> > > 
-> > 
-> > yes, I think it can do the trick.
+On (02/02/15 11:44), Minchan Kim wrote:
+> > sure, I did think about this. and I actually didn't find any reason not
+> > to use ->refcount there. if user wants to reset the device, he first
+> > should umount it to make bdev->bd_holders check happy. and that's where
+> > IOs will be failed. so it makes sense to switch to ->refcount there, IMHO.
 > 
-> Hey, it's not a trick. It suits for the our goal well. Completion
-> was too much, I think.
+> If we use zram as block device itself(not a fs or swap) and open the
+> block device as !FMODE_EXCL, bd_holders will be void.
 > 
 
-sure :)
+hm.
+I don't mind to use ->disksize there, but personally I'd maybe prefer
+to use ->refcount, which just looks less hacky. zram's most common use
+cases are coming from ram swap device or ram device with fs. so it looks
+a bit like we care about some corner case here.
+
+just my opinion, no objections against ->disksize != 0.
+
+I need to check fs/block_dev. can we switch away from ->bd_holders?
+
+> Another topic: As I didn't see enough fs/block_dev.c bd_holders in zram
+> would be mess. I guess we need to study hotplug of device and implement
+> it for zram reset rather than strange own konb. It should go TODO. :(
+
+ok, need to investigate this later.
+let's land current activities first.
 
 	-ss
 
