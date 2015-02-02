@@ -1,69 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A4CE6B0038
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 16:46:36 -0500 (EST)
-Received: by mail-wg0-f49.google.com with SMTP id k14so41250866wgh.8
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 13:46:35 -0800 (PST)
-Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id gj5si25684394wib.57.2015.02.02.13.46.34
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 835176B0038
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 17:05:08 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id eu11so87609635pac.13
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 14:05:08 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id b11si99257pdm.95.2015.02.02.14.05.07
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 02 Feb 2015 13:46:34 -0800 (PST)
-Date: Mon, 2 Feb 2015 21:46:16 +0000
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [RFCv3 2/2] dma-buf: add helpers for sharing attacher
- constraints with dma-parms
-Message-ID: <20150202214616.GI8656@n2100.arm.linux.org.uk>
-References: <1422347154-15258-1-git-send-email-sumit.semwal@linaro.org>
- <1422347154-15258-2-git-send-email-sumit.semwal@linaro.org>
- <20150129143908.GA26493@n2100.arm.linux.org.uk>
- <CAO_48GEOQ1pBwirgEWeVVXW-iOmaC=Xerr2VyYYz9t1QDXgVsw@mail.gmail.com>
- <20150129154718.GB26493@n2100.arm.linux.org.uk>
- <CAF6AEGtTmFg66TK_AFkQ-xp7Nd9Evk3nqe6xCBp7K=77OmXTxA@mail.gmail.com>
- <20150129192610.GE26493@n2100.arm.linux.org.uk>
- <CAF6AEGujk8UC4X6T=yhTrz1s+SyZUQ=m05h_WcxLDGZU6bydbw@mail.gmail.com>
- <20150202165405.GX14009@phenom.ffwll.local>
- <CAF6AEGuESM+e3HSRGM6zLqrp8kqRLGUYvA3KKECdm7m-nt0M=Q@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAF6AEGuESM+e3HSRGM6zLqrp8kqRLGUYvA3KKECdm7m-nt0M=Q@mail.gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Feb 2015 14:05:07 -0800 (PST)
+Date: Mon, 2 Feb 2015 14:05:06 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC PATCH] mm: madvise: Ignore repeated MADV_DONTNEED hints
+Message-Id: <20150202140506.392ff6920743f19ea44cff59@linux-foundation.org>
+In-Reply-To: <20150202165525.GM2395@suse.de>
+References: <20150202165525.GM2395@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rob Clark <robdclark@gmail.com>
-Cc: Sumit Semwal <sumit.semwal@linaro.org>, LKML <linux-kernel@vger.kernel.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, DRI mailing list <dri-devel@lists.freedesktop.org>, Linaro MM SIG Mailman List <linaro-mm-sig@lists.linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Tomasz Stanislawski <stanislawski.tomasz@googlemail.com>, Robin Murphy <robin.murphy@arm.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Daniel Vetter <daniel@ffwll.ch>
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org
 
-On Mon, Feb 02, 2015 at 03:30:21PM -0500, Rob Clark wrote:
-> On Mon, Feb 2, 2015 at 11:54 AM, Daniel Vetter <daniel@ffwll.ch> wrote:
-> >> My initial thought is for dma-buf to not try to prevent something than
-> >> an exporter can actually do.. I think the scenario you describe could
-> >> be handled by two sg-lists, if the exporter was clever enough.
-> >
-> > That's already needed, each attachment has it's own sg-list. After all
-> > there's no array of dma_addr_t in the sg tables, so you can't use one sg
-> > for more than one mapping. And due to different iommu different devices
-> > can easily end up with different addresses.
-> 
-> 
-> Well, to be fair it may not be explicitly stated, but currently one
-> should assume the dma_addr_t's in the dmabuf sglist are bogus.  With
-> gpu's that implement per-process/context page tables, I'm not really
-> sure that there is a sane way to actually do anything else..
+On Mon, 2 Feb 2015 16:55:25 +0000 Mel Gorman <mgorman@suse.de> wrote:
 
-That's incorrect - and goes dead against the design of scatterlists.
+> glibc malloc changed behaviour in glibc 2.10 to have per-thread arenas
+> instead of creating new areans if the existing ones were contended.
+> The decision appears to have been made so the allocator scales better but the
+> downside is that madvise(MADV_DONTNEED) is now called for these per-thread
+> areans during free. This tears down pages that would have previously
+> remained. There is nothing wrong with this decision from a functional point
+> of view but any threaded application that frequently allocates/frees the
+> same-sized region is going to incur the full teardown and refault costs.
 
-Not only that, but it is entirely possible that you may get handed
-memory via dmabufs for which there are no struct page's associated
-with that memory - think about display systems which have their own
-video memory which is accessible to the GPU, but it isn't system
-memory.
+MADV_DONTNEED has been there for many years.  How could this problem
+not have been noticed during glibc 2.10 development/testing?  Is there
+some more recent kernel change which is triggering this?
 
-In those circumstances, you have to use the dma_addr_t's and not the
-pages.
+> This patch identifies when a thread is frequently calling MADV_DONTNEED
+> on the same region of memory and starts ignoring the hint.
 
--- 
-FTTC broadband for 0.8mile line: currently at 10.5Mbps down 400kbps up
-according to speedtest.net.
+That's pretty nasty-looking :(
+
+And presumably there are all sorts of behaviours which will still
+trigger the problem but which will avoid the start/end equality test in
+ignore_madvise_hint()?
+
+Really, this is a glibc problem and only a glibc problem. 
+MADV_DONTNEED is unavoidably expensive and glibc is calling
+MADV_DONTNEED for a region which it *does* need.  Is there something
+preventing this from being addressed within glibc?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
