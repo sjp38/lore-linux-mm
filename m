@@ -1,99 +1,218 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 935506B0032
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 07:56:47 -0500 (EST)
-Received: by mail-wg0-f52.google.com with SMTP id y19so38521337wgg.11
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 04:56:46 -0800 (PST)
-Received: from cpsmtpb-ews02.kpnxchange.com (cpsmtpb-ews02.kpnxchange.com. [213.75.39.5])
-        by mx.google.com with ESMTP id i4si23273247wic.32.2015.02.02.04.56.45
-        for <linux-mm@kvack.org>;
-        Mon, 02 Feb 2015 04:56:45 -0800 (PST)
-Message-ID: <1422881799.19005.31.camel@x220>
-Subject: Re: [PATCHv2 05/19] ia64: expose number of page table levels on
- Kconfig level
-From: Paul Bolle <pebolle@tiscali.nl>
-Date: Mon, 02 Feb 2015 13:56:39 +0100
-In-Reply-To: <1422663426-220551-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: 
-	<1422629008-13689-6-git-send-email-kirill.shutemov@linux.intel.com>
-	 <1422663426-220551-1-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A20666B006C
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 07:57:07 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id fb1so82277053pad.10
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 04:57:07 -0800 (PST)
+Received: from BLU004-OMC2S10.hotmail.com (blu004-omc2s10.hotmail.com. [65.55.111.85])
+        by mx.google.com with ESMTPS id l9si23584057pdp.89.2015.02.02.04.57.06
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 02 Feb 2015 04:57:06 -0800 (PST)
+Message-ID: <BLU436-SMTP50EE37851DFB83686A33A3833C0@phx.gbl>
+Date: Mon, 2 Feb 2015 20:56:06 +0800
+From: Zhang Yanfei <zhangyanfei.ok@hotmail.com>
+MIME-Version: 1.0
+Subject: Re: [RFC PATCH v3 2/3] mm/page_alloc: factor out fallback freepage
+ checking
+References: <1422861348-5117-1-git-send-email-iamjoonsoo.kim@lge.com> <1422861348-5117-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1422861348-5117-2-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Guenter Roeck <linux@roeck-us.net>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>
+To: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Sat, 2015-01-31 at 02:17 +0200, Kirill A. Shutemov wrote:
-> We would want to use number of page table level to define mm_struct.
-> Let's expose it as CONFIG_PGTABLE_LEVELS.
+Hello Joonsoo,
+
+At 2015/2/2 15:15, Joonsoo Kim wrote:
+> This is preparation step to use page allocator's anti fragmentation logic
+> in compaction. This patch just separates fallback freepage checking part
+> from fallback freepage management part. Therefore, there is no functional
+> change.
 > 
-> We need to define PGTABLE_LEVELS before sourcing init/Kconfig:
-> arch/Kconfig will define default value and it's sourced from init/Kconfig.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Tony Luck <tony.luck@intel.com>
-> Cc: Fenghua Yu <fenghua.yu@intel.com>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > ---
->  v2: fix default for IA64_PAGE_SIZE_64KB
-> ---
->  arch/ia64/Kconfig                | 18 +++++-------------
->  arch/ia64/include/asm/page.h     |  4 ++--
->  arch/ia64/include/asm/pgalloc.h  |  4 ++--
->  arch/ia64/include/asm/pgtable.h  | 12 ++++++------
->  arch/ia64/kernel/ivt.S           | 12 ++++++------
->  arch/ia64/kernel/machine_kexec.c |  4 ++--
->  6 files changed, 23 insertions(+), 31 deletions(-)
+>  mm/page_alloc.c | 128 +++++++++++++++++++++++++++++++++-----------------------
+>  1 file changed, 76 insertions(+), 52 deletions(-)
 > 
-> diff --git a/arch/ia64/Kconfig b/arch/ia64/Kconfig
-> index 074e52bf815c..4f9a6661491b 100644
-> --- a/arch/ia64/Kconfig
-> +++ b/arch/ia64/Kconfig
-> @@ -1,3 +1,8 @@
-> +config PGTABLE_LEVELS
-> +	int "Page Table Levels" if !IA64_PAGE_SIZE_64KB
-> +	range 3 4 if !IA64_PAGE_SIZE_64KB
-> +	default 3
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index e64b260..6cb18f8 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1142,14 +1142,26 @@ static void change_pageblock_range(struct page *pageblock_page,
+>   * as fragmentation caused by those allocations polluting movable pageblocks
+>   * is worse than movable allocations stealing from unmovable and reclaimable
+>   * pageblocks.
+> - *
+> - * If we claim more than half of the pageblock, change pageblock's migratetype
+> - * as well.
+>   */
+> -static void try_to_steal_freepages(struct zone *zone, struct page *page,
+> -				  int start_type, int fallback_type)
+> +static bool can_steal_fallback(unsigned int order, int start_mt)
+> +{
+> +	if (order >= pageblock_order)
+> +		return true;
+
+Is this test necessary? Since an order which is >= pageblock_order
+will always pass the order >= pageblock_order / 2 test below.
+
+Thanks.
+
 > +
-
-Why didn't you choose to make this something like
-    config PGTABLE_LEVELS
-	int
-	default 3 if PGTABLE_3
-	default 4 if PGTABLE_4
-
->  source "init/Kconfig"
+> +	if (order >= pageblock_order / 2 ||
+> +		start_mt == MIGRATE_RECLAIMABLE ||
+> +		start_mt == MIGRATE_UNMOVABLE ||
+> +		page_group_by_mobility_disabled)
+> +		return true;
+> +
+> +	return false;
+> +}
+> +
+> +static void steal_suitable_fallback(struct zone *zone, struct page *page,
+> +							  int start_type)
+>  {
+>  	int current_order = page_order(page);
+> +	int pages;
 >  
->  source "kernel/Kconfig.freezer"
-> @@ -286,19 +291,6 @@ config IA64_PAGE_SIZE_64KB
+>  	/* Take ownership for orders >= pageblock_order */
+>  	if (current_order >= pageblock_order) {
+> @@ -1157,19 +1169,39 @@ static void try_to_steal_freepages(struct zone *zone, struct page *page,
+>  		return;
+>  	}
 >  
->  endchoice
+> -	if (current_order >= pageblock_order / 2 ||
+> -	    start_type == MIGRATE_RECLAIMABLE ||
+> -	    start_type == MIGRATE_UNMOVABLE ||
+> -	    page_group_by_mobility_disabled) {
+> -		int pages;
+> +	pages = move_freepages_block(zone, page, start_type);
 >  
-> -choice
-> -	prompt "Page Table Levels"
-> -	default PGTABLE_3
+> -		pages = move_freepages_block(zone, page, start_type);
+> +	/* Claim the whole block if over half of it is free */
+> +	if (pages >= (1 << (pageblock_order-1)) ||
+> +			page_group_by_mobility_disabled)
+> +		set_pageblock_migratetype(page, start_type);
+> +}
+>  
+> -		/* Claim the whole block if over half of it is free */
+> -		if (pages >= (1 << (pageblock_order-1)) ||
+> -				page_group_by_mobility_disabled)
+> -			set_pageblock_migratetype(page, start_type);
+> +static int find_suitable_fallback(struct free_area *area, unsigned int order,
+> +					int migratetype, bool *can_steal)
+> +{
+> +	int i;
+> +	int fallback_mt;
+> +
+> +	if (area->nr_free == 0)
+> +		return -1;
+> +
+> +	*can_steal = false;
+> +	for (i = 0;; i++) {
+> +		fallback_mt = fallbacks[migratetype][i];
+> +		if (fallback_mt == MIGRATE_RESERVE)
+> +			break;
+> +
+> +		if (list_empty(&area->free_list[fallback_mt]))
+> +			continue;
+> +
+> +		if (can_steal_fallback(order, migratetype))
+> +			*can_steal = true;
+> +
+> +		return i;
+>  	}
+> +
+> +	return -1;
+>  }
+>  
+>  /* Remove an element from the buddy allocator from the fallback list */
+> @@ -1179,53 +1211,45 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
+>  	struct free_area *area;
+>  	unsigned int current_order;
+>  	struct page *page;
+> +	int fallback_mt;
+> +	bool can_steal;
+>  
+>  	/* Find the largest possible block of pages in the other list */
+>  	for (current_order = MAX_ORDER-1;
+>  				current_order >= order && current_order <= MAX_ORDER-1;
+>  				--current_order) {
+> -		int i;
+> -		for (i = 0;; i++) {
+> -			int migratetype = fallbacks[start_migratetype][i];
+> -			int buddy_type = start_migratetype;
 > -
-> -config PGTABLE_3
-> -	bool "3 Levels"
+> -			/* MIGRATE_RESERVE handled later if necessary */
+> -			if (migratetype == MIGRATE_RESERVE)
+> -				break;
 > -
-> -config PGTABLE_4
-> -	depends on !IA64_PAGE_SIZE_64KB
-> -	bool "4 Levels"
+> -			area = &(zone->free_area[current_order]);
+> -			if (list_empty(&area->free_list[migratetype]))
+> -				continue;
 > -
-> -endchoice
+> -			page = list_entry(area->free_list[migratetype].next,
+> -					struct page, lru);
+> -			area->nr_free--;
+> +		area = &(zone->free_area[current_order]);
+> +		fallback_mt = find_suitable_fallback(area, current_order,
+> +				start_migratetype, &can_steal);
+> +		if (fallback_mt == -1)
+> +			continue;
+>  
+> -			try_to_steal_freepages(zone, page, start_migratetype,
+> -								migratetype);
+> +		page = list_entry(area->free_list[fallback_mt].next,
+> +						struct page, lru);
+> +		if (can_steal)
+> +			steal_suitable_fallback(zone, page, start_migratetype);
+>  
+> -			/* Remove the page from the freelists */
+> -			list_del(&page->lru);
+> -			rmv_page_order(page);
 > -
->  if IA64_HP_SIM
->  config HZ
->  	default 32
-
-... and drop this hunk (ie, keep this choice as it is)? That would make
-upgrading to a release that uses PGTABLE_LEVELS do the right thing
-automagically, wouldn't it? As currently in the !IA64_PAGE_SIZE_64KB
-case people need to reconfigure their "Page Table Levels".
-
-
-Paul Bolle
+> -			expand(zone, page, order, current_order, area,
+> -					buddy_type);
+> +		/* Remove the page from the freelists */
+> +		area->nr_free--;
+> +		list_del(&page->lru);
+> +		rmv_page_order(page);
+>  
+> -			/*
+> -			 * The freepage_migratetype may differ from pageblock's
+> -			 * migratetype depending on the decisions in
+> -			 * try_to_steal_freepages(). This is OK as long as it
+> -			 * does not differ for MIGRATE_CMA pageblocks. For CMA
+> -			 * we need to make sure unallocated pages flushed from
+> -			 * pcp lists are returned to the correct freelist.
+> -			 */
+> -			set_freepage_migratetype(page, buddy_type);
+> +		expand(zone, page, order, current_order, area,
+> +					start_migratetype);
+> +		/*
+> +		 * The freepage_migratetype may differ from pageblock's
+> +		 * migratetype depending on the decisions in
+> +		 * try_to_steal_freepages(). This is OK as long as it
+> +		 * does not differ for MIGRATE_CMA pageblocks. For CMA
+> +		 * we need to make sure unallocated pages flushed from
+> +		 * pcp lists are returned to the correct freelist.
+> +		 */
+> +		set_freepage_migratetype(page, start_migratetype);
+>  
+> -			trace_mm_page_alloc_extfrag(page, order, current_order,
+> -				start_migratetype, migratetype);
+> +		trace_mm_page_alloc_extfrag(page, order, current_order,
+> +			start_migratetype, fallback_mt);
+>  
+> -			return page;
+> -		}
+> +		return page;
+>  	}
+>  
+>  	return NULL;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
