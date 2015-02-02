@@ -1,62 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 83B506B0038
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 02:27:30 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id rd3so78876306pab.3
-        for <linux-mm@kvack.org>; Sun, 01 Feb 2015 23:27:30 -0800 (PST)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id fz11si22461481pdb.238.2015.02.01.23.27.28
-        for <linux-mm@kvack.org>;
-        Sun, 01 Feb 2015 23:27:29 -0800 (PST)
-Date: Mon, 2 Feb 2015 16:29:07 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC PATCH v3 1/3] mm/cma: change fallback behaviour for CMA
- freepage
-Message-ID: <20150202072907.GA6940@js1304-P5Q-DELUXE>
-References: <1422861348-5117-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 78FE66B0038
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 03:06:38 -0500 (EST)
+Received: by mail-wg0-f45.google.com with SMTP id x12so37121753wgg.4
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 00:06:38 -0800 (PST)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id l3si21845699wic.38.2015.02.02.00.06.36
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 02 Feb 2015 00:06:37 -0800 (PST)
+Date: Mon, 2 Feb 2015 09:06:35 +0100
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: backing_dev_info cleanups & lifetime rule fixes V2
+Message-ID: <20150202080635.GB9851@lst.de>
+References: <1421228561-16857-1-git-send-email-hch@lst.de> <54BEC3C2.7080906@fb.com> <20150201063116.GP29656@ZenIV.linux.org.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1422861348-5117-1-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <20150201063116.GP29656@ZenIV.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>
-Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: Al Viro <viro@ZenIV.linux.org.uk>
+Cc: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@lst.de>, David Howells <dhowells@redhat.com>, Tejun Heo <tj@kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-mtd@lists.infradead.org, linux-nfs@vger.kernel.org, ceph-devel@vger.kernel.org
 
-On Mon, Feb 02, 2015 at 04:15:46PM +0900, Joonsoo Kim wrote:
-> freepage with MIGRATE_CMA can be used only for MIGRATE_MOVABLE and
-> they should not be expanded to other migratetype buddy list
-> to protect them from unmovable/reclaimable allocation. Implementing
-> these requirements in __rmqueue_fallback(), that is, finding largest
-> possible block of freepage has bad effect that high order freepage
-> with MIGRATE_CMA are broken continually although there are suitable
-> order CMA freepage. Reason is that they are not be expanded to other
-> migratetype buddy list and next __rmqueue_fallback() invocation try to
-> finds another largest block of freepage and break it again. So,
-> MIGRATE_CMA fallback should be handled separately. This patch
-> introduces __rmqueue_cma_fallback(), that just wrapper of
-> __rmqueue_smallest() and call it before __rmqueue_fallback()
-> if migratetype == MIGRATE_MOVABLE.
+On Sun, Feb 01, 2015 at 06:31:16AM +0000, Al Viro wrote:
+> And at that point we finally can make sb_lock and super_blocks static in
+> fs/super.c.  Do you want that in your tree, or would you rather have it
+> done via vfs.git during the merge window after your tree goes in?  It's
+> as trivial as this:
 > 
-> This results in unintended behaviour change that MIGRATE_CMA freepage
-> is always used first rather than other migratetype as movable
-> allocation's fallback. But, as already mentioned above,
-> MIGRATE_CMA can be used only for MIGRATE_MOVABLE, so it is better
-> to use MIGRATE_CMA freepage first as much as possible. Otherwise,
-> we needlessly take up precious freepages with other migratetype and
-> increase chance of fragmentation.
+> Make super_blocks and sb_lock static
 > 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> ---
+> The only user outside of fs/super.c is gone now
+> 
+> Signed-off-by: Al Viro <viro@zeniv.linux.org.uk>
 
-Hello, Vlastimil.
+I'd say merge it through the block tree..
 
-This RFC is targeted to you, but, I mistakenly omit your e-mail
-on CC list. Sorry about that. :/
-
-How about this v3 which try to clean-up __rmqueue_fallback() much more?
-
-Thanks.
+Acked-by: Christoph Hellwig <hch@lst.de>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
