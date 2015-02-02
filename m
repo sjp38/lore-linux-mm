@@ -1,54 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f43.google.com (mail-la0-f43.google.com [209.85.215.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FF906B0038
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 07:07:12 -0500 (EST)
-Received: by mail-la0-f43.google.com with SMTP id q1so40021688lam.2
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 04:07:11 -0800 (PST)
-Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.203])
-        by mx.google.com with ESMTP id m1si16817573lam.44.2015.02.02.04.07.09
-        for <linux-mm@kvack.org>;
-        Mon, 02 Feb 2015 04:07:10 -0800 (PST)
-Date: Mon, 2 Feb 2015 14:07:05 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv2 17/19] x86: expose number of page table levels on
- Kconfig level
-Message-ID: <20150202120705.GA12793@node.dhcp.inet.fi>
-References: <1422629008-13689-18-git-send-email-kirill.shutemov@linux.intel.com>
- <1422664208-220779-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1422876393.19005.21.camel@x220>
- <20150202113740.GA11802@node.dhcp.inet.fi>
- <1422878256.19005.22.camel@x220>
+Received: from mail-ob0-f180.google.com (mail-ob0-f180.google.com [209.85.214.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 851746B0038
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 07:09:44 -0500 (EST)
+Received: by mail-ob0-f180.google.com with SMTP id vb8so16061754obc.11
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 04:09:44 -0800 (PST)
+Received: from mail-oi0-x22f.google.com (mail-oi0-x22f.google.com. [2607:f8b0:4003:c06::22f])
+        by mx.google.com with ESMTPS id tr1si4355273obb.35.2015.02.02.04.09.42
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 02 Feb 2015 04:09:43 -0800 (PST)
+Received: by mail-oi0-f47.google.com with SMTP id a141so43965369oig.6
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 04:09:42 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1422878256.19005.22.camel@x220>
+In-Reply-To: <20150202010904.GA6402@blaptop>
+References: <1422107403-10071-1-git-send-email-opensource.ganesh@gmail.com>
+	<CADAEsF_fVRNCY-mx1EoyO2KwREfz6753JKdHpHMgbJUXf2sdsQ@mail.gmail.com>
+	<20150202010904.GA6402@blaptop>
+Date: Mon, 2 Feb 2015 20:09:42 +0800
+Message-ID: <CADAEsF_Qr4b9yakrK7iEFxasCTyCz=g_qDz-A4=WcRPP-LP7ww@mail.gmail.com>
+Subject: Re: [PATCH] mm/zsmalloc: avoid unnecessary iteration when freeing size_class
+From: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Bolle <pebolle@tiscali.nl>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Guenter Roeck <linux@roeck-us.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Mon, Feb 02, 2015 at 12:57:36PM +0100, Paul Bolle wrote:
-> On Mon, 2015-02-02 at 13:37 +0200, Kirill A. Shutemov wrote:
-> > On Mon, Feb 02, 2015 at 12:26:33PM +0100, Paul Bolle wrote:
-> > > Isn't there some (informal) rule to update an entire series to a next
-> > > version (and not only the patches that were changed in that version)?
-> > 
-> > It's up to maintainer. I can do any way. Last time I've asked, Andrew was
-> > okay with v2 on individual patches.
-> > 
-> > > Anyhow, it seems you sent a v2 for 05/19, 11/19 and 17/19 only. Is that
-> > > correct?
-> > 
-> > Correct. Plus one patch to fix build on all !MMU configurations.
-> > 
-> > I've also updated the git tree.
-> 
-> Which tree would that be?
+Hello Minchan:
 
-git://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git config_pgtable_levels
+2015-02-02 9:09 GMT+08:00 Minchan Kim <minchan@kernel.org>:
+> Hello Ganesh,
+>
+> On Sat, Jan 31, 2015 at 04:59:58PM +0800, Ganesh Mahendran wrote:
+>> ping.
+>>
+>> 2015-01-24 21:50 GMT+08:00 Ganesh Mahendran <opensource.ganesh@gmail.com>:
+>> > The pool->size_class[i] is assigned with the i from (zs_size_classes - 1) to 0.
+>> > So if we failed in zs_create_pool(), we only need to iterate from (zs_size_classes - 1)
+>> > to i, instead of from 0 to (zs_size_classes - 1)
+>>
+>> No functionality has been changed. This patch just avoids some
+>> necessary iteration.
+>
+> Sorry for the delay. Did you saw any performance problem?
+> I know it would be better than old but your assumption depends on the
+> implmentation of zs_create_pool so if we changes(for example,
+> revert 9eec4cd if compaction works well), your patch would be void.
 
--- 
- Kirill A. Shutemov
+Yes, You are right.
+Thanks so much.
+
+> If it's not a critical, I'd like to remain it as generic and doesn't
+> contaminate git-blame.
+>
+> Thanks.
+>
+> --
+> Kind regards,
+> Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
