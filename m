@@ -1,64 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Tue, 3 Feb 2015 16:47:49 -0500
-From: Benjamin LaHaise <bcrl@kvack.org>
-Subject: Re: [PATCH 2/2] aio: make aio .mremap handle size changes
-Message-ID: <20150203214749.GA14400@kvack.org>
-References: <b885312bcea6e8c89889412936fb93305a4d139d.1422986358.git.shli@fb.com> <798fafb96373cfab0707457a266dd137016cd1e9.1422986358.git.shli@fb.com> <20150203192323.GT2974@kvack.org> <20150203193115.GA296459@devbig257.prn2.facebook.com> <20150203194828.GU2974@kvack.org> <20150203213150.GA543371@devbig257.prn2.facebook.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150203213150.GA543371@devbig257.prn2.facebook.com>
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 470646B0075
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 17:07:03 -0500 (EST)
+Received: by mail-ig0-f173.google.com with SMTP id a13so30267179igq.0
+        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 14:07:03 -0800 (PST)
+Received: from mail-ie0-x229.google.com (mail-ie0-x229.google.com. [2607:f8b0:4001:c03::229])
+        by mx.google.com with ESMTPS id rt8si207847igb.28.2015.02.03.14.07.02
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 03 Feb 2015 14:07:02 -0800 (PST)
+Received: by mail-ie0-f169.google.com with SMTP id rl12so28798885iec.0
+        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 14:07:02 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <3327782.QV7DJfvifL@wuerfel>
+References: <1422347154-15258-1-git-send-email-sumit.semwal@linaro.org>
+	<7233574.nKiRa7HnXU@wuerfel>
+	<20150203200435.GX14009@phenom.ffwll.local>
+	<3327782.QV7DJfvifL@wuerfel>
+Date: Tue, 3 Feb 2015 23:07:01 +0100
+Message-ID: <CAKMK7uGfXZsuRgGg+=0pLG3y7O3sc5Cgj2ci9pWu32SxB7jS8w@mail.gmail.com>
+Subject: Re: [Linaro-mm-sig] [RFCv3 2/2] dma-buf: add helpers for sharing
+ attacher constraints with dma-parms
+From: Daniel Vetter <daniel@ffwll.ch>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@fb.com>
-Cc: linux-mm@kvack.org, Kernel-team@fb.com, Andrew Morton <akpm@linux-foundation.org>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Robin Murphy <robin.murphy@arm.com>, LKML <linux-kernel@vger.kernel.org>, DRI mailing list <dri-devel@lists.freedesktop.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rob Clark <robdclark@gmail.com>, Tomasz Stanislawski <stanislawski.tomasz@googlemail.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>
 
-On Tue, Feb 03, 2015 at 01:31:50PM -0800, Shaohua Li wrote:
-> On Tue, Feb 03, 2015 at 02:48:28PM -0500, Benjamin LaHaise wrote:
-> > On Tue, Feb 03, 2015 at 11:31:15AM -0800, Shaohua Li wrote:
-> > > On Tue, Feb 03, 2015 at 02:23:23PM -0500, Benjamin LaHaise wrote:
-> > > > On Tue, Feb 03, 2015 at 11:18:53AM -0800, Shaohua Li wrote:
-> > > > > mremap aio ring buffer to another smaller vma is legal. For example,
-> > > > > mremap the ring buffer from the begining, though after the mremap, some
-> > > > > ring buffer pages can't be accessed in userspace because vma size is
-> > > > > shrinked. The problem is ctx->mmap_size isn't changed if the new ring
-> > > > > buffer vma size is changed. Latter io_destroy will zap all vmas within
-> > > > > mmap_size, which might zap unrelated vmas.
-> > > > 
-> > > > Nak.  Shrinking the aio ring buffer is not a supported operation and will 
-> > > > cause the application to lose events.  Make the size changing mremap fail, 
-> > > > as this patch will not make the system do the right thing.
-> > > 
-> > > Yes, making the syscall fail (vma ops has .remap) is another option. If
-> > > the app uses io_getevents(), looks the app will not lose events, no? On
-> > > the other hand, I just want to make sure kernel does the right thing
-> > > (not zap unrelated vmas). If app does crazy things, it will break.
-> > 
-> > But reading events out of the ring buffer is a supported mode of operation.  
-> > Given that constraint, you should make an mremap changing the size of the 
-> > ring buffer fail.
-> 
-> But if app chooses not to read the ring buffer, the app isn't broken.
-> This makes me hesitate to make the syscall fail.
-> There is a grey area about what's the correct semantics for mremap. We
-> currently don't limit any vma shrink for mremap.
+On Tue, Feb 3, 2015 at 10:42 PM, Arnd Bergmann <arnd@arndb.de> wrote:
+>> Again assuming I'm not confused can't we just solve this by pushing the
+>> dma api abstraction down one layer for just the gpu, and let it use its
+>> private iommmu directly? Steps for binding a buffer would be:
+>> 1. dma_map_sg
+>> 2. Noodle the dma_addr_t out of the sg table and feed those into a 2nd
+>> level mapping set up through the iommu api for the gpu-private mmu.
+>
+> If you want to do that, you run into the problem of telling the driver
+> core about it. We associate the device with an iommu in the device
+> tree, describing there how it is wired up.
+>
+> The driver core creates a platform_device for this and checks if it
+> an iommu mapping is required or wanted for the device, which is then
+> set up. When the device driver wants to create its own iommu mapping,
+> this conflicts with the one that is already there. We can't just
+> skip the iommu setup for all devices because it may be needed sometimes,
+> and I don't really want to see hacks where the driver core knows which
+> devices are GPUs and skips the mapping for them, which would be a
+> layering violation.
 
-mremap() on the aio ringbuffer was not previously supported.  The support was 
-added recently was to enable checkpoint/restore to work properly.  In that 
-use-case there is no need resize the ring buffer's mmap window.
+I don't think you get a choice but to make gpus a special case.
+There's a bunch of cases why the iommu private to the gpu is special:
+- If there's gpu-private iommu at all you have a nice security
+problem, and you must scan your cmd stream to make sure no gpu access
+goes to arbitrary system memory. We kinda consider isolation between
+clients optional, but isolation to everything else is mandatory. And
+scanning the cmd stream in software has such big implications on the
+design of your driver that you essentially need 2 different drivers.
+Even if the IP block otherwise matches.
+- If your iommu supports multiple address space then the gpu must
+know. We've already covered this case.
 
-If you really want to fix this, then make the mremap operation do the right 
-thing and actually change the size of the aio ring.  That is going to be 
-vastly more complex of a change for no real gain since no applications use 
-that functionality.
+So trying to wedge the dma api between the gpu and its private iommu
+is imo the layering violation here. Imo the dma api only should
+control an iommu for the gpu if:
+- the iommu is shared (so can't be used for isolation and you need the
+full blwon cmd scanner)
+- it's a 2nd level iommu (e.g. what we have on i915) and there is
+another private iommu.
 
-		-ben
-
-> Thanks,
-> Shaohua
-
+Note that with private I only mean no other device can use it, I don't
+mean whether it's on the same IP block or not (we even have an iommu
+abstraction in i915 because the pagetable walkers are pretty much
+separate from everything else and evolve mostly independently).
+-Daniel
 -- 
-"Thought is the essence of where you are now."
+Daniel Vetter
+Software Engineer, Intel Corporation
++41 (0) 79 365 57 48 - http://blog.ffwll.ch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
