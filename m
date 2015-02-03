@@ -1,71 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
-	by kanga.kvack.org (Postfix) with ESMTP id A5E806B008A
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 18:19:33 -0500 (EST)
-Received: by mail-qc0-f169.google.com with SMTP id b13so38050055qcw.0
-        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 15:19:33 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q7si25036qas.7.2015.02.03.15.19.31
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Feb 2015 15:19:32 -0800 (PST)
-Date: Wed, 4 Feb 2015 00:19:22 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [RFC 0/3] Slab allocator array operations
-Message-ID: <20150204001922.5650ca4b@redhat.com>
-In-Reply-To: <alpine.DEB.2.11.1501231827330.10083@gentwo.org>
-References: <20150123213727.142554068@linux.com>
-	<20150123145734.aa3c6c6e7432bc3534f2c4cc@linux-foundation.org>
-	<alpine.DEB.2.11.1501231827330.10083@gentwo.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 3 Feb 2015 18:25:21 -0500
+From: Benjamin LaHaise <bcrl@kvack.org>
+Subject: Re: [PATCH 2/2] aio: make aio .mremap handle size changes
+Message-ID: <20150203232521.GB14400@kvack.org>
+References: <b885312bcea6e8c89889412936fb93305a4d139d.1422986358.git.shli@fb.com> <798fafb96373cfab0707457a266dd137016cd1e9.1422986358.git.shli@fb.com> <20150203192323.GT2974@kvack.org> <20150203193115.GA296459@devbig257.prn2.facebook.com> <20150203194828.GU2974@kvack.org> <20150203213150.GA543371@devbig257.prn2.facebook.com> <20150203214749.GA14400@kvack.org> <20150203225845.GA749607@devbig257.prn2.facebook.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150203225845.GA749607@devbig257.prn2.facebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, brouer@redhat.com, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Shaohua Li <shli@fb.com>
+Cc: linux-mm@kvack.org, Kernel-team@fb.com, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, 23 Jan 2015 18:28:00 -0600 (CST)
-Christoph Lameter <cl@linux.com> wrote:
+On Tue, Feb 03, 2015 at 02:58:45PM -0800, Shaohua Li wrote:
+> That's too complex. Don't think I'll spend time on the no-usage
+> functionality. Will leave it be if you don't like the sample workaround.
 
-> On Fri, 23 Jan 2015, Andrew Morton wrote:
-> 
-> > On Fri, 23 Jan 2015 15:37:27 -0600 Christoph Lameter <cl@linux.com> wrote:
-> >
-> > > Attached a series of 3 patches to implement functionality to allocate
-> > > arrays of pointers to slab objects. This can be used by the slab
-> > > allocators to offer more optimized allocation and free paths.
-> >
-> > What's the driver for this?  The networking people, I think?  If so,
-> > some discussion about that would be useful: who is involved, why they
-> > have this need, who are the people we need to bug to get it tested,
-> > whether this implementation is found adequate, etc.
+I'll fix the mremap case to disable resizing the ring buffer myself then.
 
-Yes, networking people like me ;-)
-
-I promised Christoph that I will performance benchmark this. I'll start
-by writing/performing some micro benchmarks, but it first starts to get
-really interesting once we plug it into e.g. the networking stack, as
-effects as instruction-cache misses due to code size starts to play a
-role.
-
-> 
-> Jesper and I gave a talk at LCA about this. LWN has an article on it.
-
-LWN: Improving Linux networking performance
- - http://lwn.net/Articles/629155/
- - YouTube: https://www.youtube.com/watch?v=3XG9-X777Jo
-
-LWN: Toward a more efficient slab allocator
- - http://lwn.net/Articles/629152/
- - YouTube: https://www.youtube.com/watch?v=s0lZzP1jOzI
-
+		-ben
 -- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Sr. Network Kernel Developer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+"Thought is the essence of where you are now."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
