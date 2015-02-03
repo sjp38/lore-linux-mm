@@ -1,194 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 71956900016
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 12:44:00 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id kq14so98966494pab.0
-        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 09:44:00 -0800 (PST)
-Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
-        by mx.google.com with ESMTPS id gi4si3287530pbc.243.2015.02.03.09.43.49
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 898C4900016
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 12:44:02 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id fb1so99093751pad.10
+        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 09:44:02 -0800 (PST)
+Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
+        by mx.google.com with ESMTPS id rv7si3307661pbc.125.2015.02.03.09.43.50
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Tue, 03 Feb 2015 09:43:50 -0800 (PST)
+        Tue, 03 Feb 2015 09:43:51 -0800 (PST)
 Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout1.w1.samsung.com
+ by mailout3.w1.samsung.com
  (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NJ700KRYIRTGX50@mailout1.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 03 Feb 2015 17:47:53 +0000 (GMT)
+ 17 2011)) with ESMTP id <0NJ700HVUIRRX350@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 03 Feb 2015 17:47:51 +0000 (GMT)
 From: Andrey Ryabinin <a.ryabinin@samsung.com>
-Subject: [PATCH v11 14/19] kasan: enable stack instrumentation
-Date: Tue, 03 Feb 2015 20:43:07 +0300
-Message-id: <1422985392-28652-15-git-send-email-a.ryabinin@samsung.com>
+Subject: [PATCH v11 15/19] mm: vmalloc: add flag preventing guard hole
+ allocation
+Date: Tue, 03 Feb 2015 20:43:08 +0300
+Message-id: <1422985392-28652-16-git-send-email-a.ryabinin@samsung.com>
 In-reply-to: <1422985392-28652-1-git-send-email-a.ryabinin@samsung.com>
 References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
  <1422985392-28652-1-git-send-email-a.ryabinin@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, x86@kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Michal Marek <mmarek@suse.cz>, "open list:KERNEL BUILD + fi..." <linux-kbuild@vger.kernel.org>
+Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, x86@kernel.org, linux-mm@kvack.org
 
-Stack instrumentation allows to detect out of bounds
-memory accesses for variables allocated on stack.
-Compiler adds redzones around every variable on stack
-and poisons redzones in function's prologue.
+For instrumenting global variables KASan will shadow memory
+backing memory for modules. So on module loading we will need
+to allocate memory for shadow and map it at address in shadow
+that corresponds to the address allocated in module_alloc().
 
-Such approach significantly increases stack usage,
-so all in-kernel stacks size were doubled.
+__vmalloc_node_range() could be used for this purpose,
+except it puts a guard hole after allocated area. Guard hole
+in shadow memory should be a problem because at some future
+point we might need to have a shadow memory at address
+occupied by guard hole. So we could fail to allocate shadow
+for module_alloc().
+
+Add a new vm_struct flag 'VM_NO_GUARD' indicating that vm area
+doesn't have a guard hole.
 
 Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
 ---
- arch/x86/include/asm/page_64_types.h | 12 +++++++++---
- arch/x86/kernel/Makefile             |  2 ++
- arch/x86/mm/kasan_init_64.c          | 11 +++++++++--
- include/linux/init_task.h            |  8 ++++++++
- mm/kasan/kasan.h                     |  9 +++++++++
- mm/kasan/report.c                    |  6 ++++++
- scripts/Makefile.kasan               |  1 +
- 7 files changed, 44 insertions(+), 5 deletions(-)
+ include/linux/vmalloc.h | 9 +++++++--
+ mm/vmalloc.c            | 6 ++----
+ 2 files changed, 9 insertions(+), 6 deletions(-)
 
-diff --git a/arch/x86/include/asm/page_64_types.h b/arch/x86/include/asm/page_64_types.h
-index 75450b2..4edd53b 100644
---- a/arch/x86/include/asm/page_64_types.h
-+++ b/arch/x86/include/asm/page_64_types.h
-@@ -1,17 +1,23 @@
- #ifndef _ASM_X86_PAGE_64_DEFS_H
- #define _ASM_X86_PAGE_64_DEFS_H
+diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+index b87696f..1526fe7 100644
+--- a/include/linux/vmalloc.h
++++ b/include/linux/vmalloc.h
+@@ -16,6 +16,7 @@ struct vm_area_struct;		/* vma defining user mapping in mm_types.h */
+ #define VM_USERMAP		0x00000008	/* suitable for remap_vmalloc_range */
+ #define VM_VPAGES		0x00000010	/* buffer for pages was vmalloc'ed */
+ #define VM_UNINITIALIZED	0x00000020	/* vm_struct is not fully initialized */
++#define VM_NO_GUARD		0x00000040      /* don't add guard page */
+ /* bits [20..32] reserved for arch specific ioremap internals */
  
--#define THREAD_SIZE_ORDER	2
-+#ifdef CONFIG_KASAN
-+#define KASAN_STACK_ORDER 1
-+#else
-+#define KASAN_STACK_ORDER 0
-+#endif
-+
-+#define THREAD_SIZE_ORDER	(2 + KASAN_STACK_ORDER)
- #define THREAD_SIZE  (PAGE_SIZE << THREAD_SIZE_ORDER)
- #define CURRENT_MASK (~(THREAD_SIZE - 1))
- 
--#define EXCEPTION_STACK_ORDER 0
-+#define EXCEPTION_STACK_ORDER (0 + KASAN_STACK_ORDER)
- #define EXCEPTION_STKSZ (PAGE_SIZE << EXCEPTION_STACK_ORDER)
- 
- #define DEBUG_STACK_ORDER (EXCEPTION_STACK_ORDER + 1)
- #define DEBUG_STKSZ (PAGE_SIZE << DEBUG_STACK_ORDER)
- 
--#define IRQ_STACK_ORDER 2
-+#define IRQ_STACK_ORDER (2 + KASAN_STACK_ORDER)
- #define IRQ_STACK_SIZE (PAGE_SIZE << IRQ_STACK_ORDER)
- 
- #define DOUBLEFAULT_STACK 1
-diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
-index 4fc8ca7..057f6f6 100644
---- a/arch/x86/kernel/Makefile
-+++ b/arch/x86/kernel/Makefile
-@@ -17,6 +17,8 @@ CFLAGS_REMOVE_early_printk.o = -pg
- endif
- 
- KASAN_SANITIZE_head$(BITS).o := n
-+KASAN_SANITIZE_dumpstack.o := n
-+KASAN_SANITIZE_dumpstack_$(BITS).o := n
- 
- CFLAGS_irq.o := -I$(src)/../include/asm/trace
- 
-diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
-index 3e4d9a1..5350870 100644
---- a/arch/x86/mm/kasan_init_64.c
-+++ b/arch/x86/mm/kasan_init_64.c
-@@ -189,11 +189,18 @@ void __init kasan_init(void)
- 		if (map_range(&pfn_mapped[i]))
- 			panic("kasan: unable to allocate shadow!");
- 	}
--
- 	populate_zero_shadow(kasan_mem_to_shadow((void *)PAGE_OFFSET + MAXMEM),
--				(void *)KASAN_SHADOW_END);
-+			kasan_mem_to_shadow((void *)__START_KERNEL_map));
-+
-+	vmemmap_populate((unsigned long)kasan_mem_to_shadow(_stext),
-+			(unsigned long)kasan_mem_to_shadow(_end),
-+			NUMA_NO_NODE);
-+
-+	populate_zero_shadow(kasan_mem_to_shadow((void *)MODULES_VADDR),
-+			(void *)KASAN_SHADOW_END);
- 
- 	memset(kasan_zero_page, 0, PAGE_SIZE);
- 
- 	load_cr3(init_level4_pgt);
-+	init_task.kasan_depth = 0;
- }
-diff --git a/include/linux/init_task.h b/include/linux/init_task.h
-index d3d43ec..696d223 100644
---- a/include/linux/init_task.h
-+++ b/include/linux/init_task.h
-@@ -175,6 +175,13 @@ extern struct task_group root_task_group;
- # define INIT_NUMA_BALANCING(tsk)
- #endif
- 
-+#ifdef CONFIG_KASAN
-+# define INIT_KASAN(tsk)						\
-+	.kasan_depth = 1,
-+#else
-+# define INIT_KASAN(tsk)
-+#endif
-+
  /*
-  *  INIT_TASK is used to set up the first task table, touch at
-  * your own risk!. Base=0, limit=0x1fffff (=2MB)
-@@ -250,6 +257,7 @@ extern struct task_group root_task_group;
- 	INIT_RT_MUTEXES(tsk)						\
- 	INIT_VTIME(tsk)							\
- 	INIT_NUMA_BALANCING(tsk)					\
-+	INIT_KASAN(tsk)							\
+@@ -96,8 +97,12 @@ void vmalloc_sync_all(void);
+ 
+ static inline size_t get_vm_area_size(const struct vm_struct *area)
+ {
+-	/* return actual size without guard page */
+-	return area->size - PAGE_SIZE;
++	if (!(area->flags & VM_NO_GUARD))
++		/* return actual size without guard page */
++		return area->size - PAGE_SIZE;
++	else
++		return area->size;
++
  }
  
+ extern struct vm_struct *get_vm_area(unsigned long size, unsigned long flags);
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 39c3388..2e74e99 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1324,10 +1324,8 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
+ 	if (unlikely(!area))
+ 		return NULL;
  
-diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
-index 5b052ab..1fcc1d8 100644
---- a/mm/kasan/kasan.h
-+++ b/mm/kasan/kasan.h
-@@ -12,6 +12,15 @@
- #define KASAN_KMALLOC_REDZONE   0xFC  /* redzone inside slub object */
- #define KASAN_KMALLOC_FREE      0xFB  /* object was freed (kmem_cache_free/kfree) */
+-	/*
+-	 * We always allocate a guard page.
+-	 */
+-	size += PAGE_SIZE;
++	if (!(flags & VM_NO_GUARD))
++		size += PAGE_SIZE;
  
-+/*
-+ * Stack redzone shadow values
-+ * (Those are compiler's ABI, don't change them)
-+ */
-+#define KASAN_STACK_LEFT        0xF1
-+#define KASAN_STACK_MID         0xF2
-+#define KASAN_STACK_RIGHT       0xF3
-+#define KASAN_STACK_PARTIAL     0xF4
-+
- 
- struct kasan_access_info {
- 	const void *access_addr;
-diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index 2760edb..866732e 100644
---- a/mm/kasan/report.c
-+++ b/mm/kasan/report.c
-@@ -64,6 +64,12 @@ static void print_error_description(struct kasan_access_info *info)
- 	case 0 ... KASAN_SHADOW_SCALE_SIZE - 1:
- 		bug_type = "out of bounds access";
- 		break;
-+	case KASAN_STACK_LEFT:
-+	case KASAN_STACK_MID:
-+	case KASAN_STACK_RIGHT:
-+	case KASAN_STACK_PARTIAL:
-+		bug_type = "out of bounds on stack";
-+		break;
- 	}
- 
- 	pr_err("BUG: KASan: %s in %pS at addr %p\n",
-diff --git a/scripts/Makefile.kasan b/scripts/Makefile.kasan
-index 159396a..0ac7d1d 100644
---- a/scripts/Makefile.kasan
-+++ b/scripts/Makefile.kasan
-@@ -9,6 +9,7 @@ CFLAGS_KASAN_MINIMAL := $(call cc-option, -fsanitize=kernel-address)
- 
- CFLAGS_KASAN := $(call cc-option, -fsanitize=kernel-address \
- 		-fasan-shadow-offset=$(CONFIG_KASAN_SHADOW_OFFSET) \
-+		--param asan-stack=1 \
- 		--param asan-instrumentation-with-call-threshold=$(call_threshold))
- 
- ifeq ($(CFLAGS_KASAN_MINIMAL),)
+ 	va = alloc_vmap_area(size, align, start, end, node, gfp_mask);
+ 	if (IS_ERR(va)) {
 -- 
 2.2.2
 
