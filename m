@@ -1,495 +1,359 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 40868900016
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 12:43:51 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id lj1so98802704pab.6
-        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 09:43:51 -0800 (PST)
-Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
-        by mx.google.com with ESMTPS id h4si3338282pdk.18.2015.02.03.09.43.42
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id A3401900016
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 12:43:53 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id bj1so99007768pad.1
+        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 09:43:53 -0800 (PST)
+Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
+        by mx.google.com with ESMTPS id yt1si3323822pab.64.2015.02.03.09.43.43
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-MD5 bits=128/128);
         Tue, 03 Feb 2015 09:43:43 -0800 (PST)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout2.w1.samsung.com
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout1.w1.samsung.com
  (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NJ700MW8IRHT250@mailout2.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 03 Feb 2015 17:47:41 +0000 (GMT)
+ 17 2011)) with ESMTP id <0NJ700I0JIRP5460@mailout1.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 03 Feb 2015 17:47:49 +0000 (GMT)
 From: Andrey Ryabinin <a.ryabinin@samsung.com>
-Subject: [PATCH v11 09/19] mm: slub: add kernel address sanitizer support for
- slub allocator
-Date: Tue, 03 Feb 2015 20:43:02 +0300
-Message-id: <1422985392-28652-10-git-send-email-a.ryabinin@samsung.com>
+Subject: [PATCH v11 12/19] lib: add kasan test module
+Date: Tue, 03 Feb 2015 20:43:05 +0300
+Message-id: <1422985392-28652-13-git-send-email-a.ryabinin@samsung.com>
 In-reply-to: <1422985392-28652-1-git-send-email-a.ryabinin@samsung.com>
 References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
  <1422985392-28652-1-git-send-email-a.ryabinin@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, Dmitry Chernenkov <dmitryc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, x86@kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>
+Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, x86@kernel.org, linux-mm@kvack.org
 
-With this patch kasan will be able to catch bugs in memory allocated
-by slub.
-Initially all objects in newly allocated slab page, marked as redzone.
-Later, when allocation of slub object happens, requested by caller
-number of bytes marked as accessible, and the rest of the object
-(including slub's metadata) marked as redzone (inaccessible).
+This is a test module doing various nasty things like
+out of bounds accesses, use after free. It is useful for testing
+kernel debugging features like kernel address sanitizer.
 
-We also mark object as accessible if ksize was called for this object.
-There is some places in kernel where ksize function is called to inquire
-size of really allocated area. Such callers could validly access whole
-allocated memory, so it should be marked as accessible.
-
-Code in slub.c and slab_common.c files could validly access to object's
-metadata, so instrumentation for this files are disabled.
+It mostly concentrates on testing of slab allocator, but we
+might want to add more different stuff here in future (like
+stack/global variables out of bounds accesses and so on).
 
 Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
-Signed-off-by: Dmitry Chernenkov <dmitryc@google.com>
 ---
- include/linux/kasan.h | 27 ++++++++++++++
- include/linux/slab.h  | 11 ++++--
- lib/Kconfig.kasan     |  1 +
- mm/Makefile           |  3 ++
- mm/kasan/kasan.c      | 98 +++++++++++++++++++++++++++++++++++++++++++++++++++
- mm/kasan/kasan.h      |  5 +++
- mm/kasan/report.c     | 21 +++++++++++
- mm/slab_common.c      |  5 ++-
- mm/slub.c             | 31 ++++++++++++++--
- 9 files changed, 197 insertions(+), 5 deletions(-)
+ lib/Kconfig.kasan |   8 ++
+ lib/Makefile      |   1 +
+ lib/test_kasan.c  | 277 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 286 insertions(+)
+ create mode 100644 lib/test_kasan.c
 
-diff --git a/include/linux/kasan.h b/include/linux/kasan.h
-index f00c15c..d5310ee 100644
---- a/include/linux/kasan.h
-+++ b/include/linux/kasan.h
-@@ -37,6 +37,18 @@ void kasan_unpoison_shadow(const void *address, size_t size);
- void kasan_alloc_pages(struct page *page, unsigned int order);
- void kasan_free_pages(struct page *page, unsigned int order);
- 
-+void kasan_poison_slab(struct page *page);
-+void kasan_unpoison_object_data(struct kmem_cache *cache, void *object);
-+void kasan_poison_object_data(struct kmem_cache *cache, void *object);
-+
-+void kasan_kmalloc_large(const void *ptr, size_t size);
-+void kasan_kfree_large(const void *ptr);
-+void kasan_kmalloc(struct kmem_cache *s, const void *object, size_t size);
-+void kasan_krealloc(const void *object, size_t new_size);
-+
-+void kasan_slab_alloc(struct kmem_cache *s, void *object);
-+void kasan_slab_free(struct kmem_cache *s, void *object);
-+
- #else /* CONFIG_KASAN */
- 
- static inline void kasan_unpoison_shadow(const void *address, size_t size) {}
-@@ -47,6 +59,21 @@ static inline void kasan_disable_current(void) {}
- static inline void kasan_alloc_pages(struct page *page, unsigned int order) {}
- static inline void kasan_free_pages(struct page *page, unsigned int order) {}
- 
-+static inline void kasan_poison_slab(struct page *page) {}
-+static inline void kasan_unpoison_object_data(struct kmem_cache *cache,
-+					void *object) {}
-+static inline void kasan_poison_object_data(struct kmem_cache *cache,
-+					void *object) {}
-+
-+static inline void kasan_kmalloc_large(void *ptr, size_t size) {}
-+static inline void kasan_kfree_large(const void *ptr) {}
-+static inline void kasan_kmalloc(struct kmem_cache *s, const void *object,
-+				size_t size) {}
-+static inline void kasan_krealloc(const void *object, size_t new_size) {}
-+
-+static inline void kasan_slab_alloc(struct kmem_cache *s, void *object) {}
-+static inline void kasan_slab_free(struct kmem_cache *s, void *object) {}
-+
- #endif /* CONFIG_KASAN */
- 
- #endif /* LINUX_KASAN_H */
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index ed2ffaa..76f1fee 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -104,6 +104,7 @@
- 				(unsigned long)ZERO_SIZE_PTR)
- 
- #include <linux/kmemleak.h>
-+#include <linux/kasan.h>
- 
- struct mem_cgroup;
- /*
-@@ -325,7 +326,10 @@ kmem_cache_alloc_node_trace(struct kmem_cache *s,
- static __always_inline void *kmem_cache_alloc_trace(struct kmem_cache *s,
- 		gfp_t flags, size_t size)
- {
--	return kmem_cache_alloc(s, flags);
-+	void *ret = kmem_cache_alloc(s, flags);
-+
-+	kasan_kmalloc(s, ret, size);
-+	return ret;
- }
- 
- static __always_inline void *
-@@ -333,7 +337,10 @@ kmem_cache_alloc_node_trace(struct kmem_cache *s,
- 			      gfp_t gfpflags,
- 			      int node, size_t size)
- {
--	return kmem_cache_alloc_node(s, gfpflags, node);
-+	void *ret = kmem_cache_alloc_node(s, gfpflags, node);
-+
-+	kasan_kmalloc(s, ret, size);
-+	return ret;
- }
- #endif /* CONFIG_TRACING */
- 
 diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
-index 0052b1b..a11ac02 100644
+index a11ac02..4d47d87 100644
 --- a/lib/Kconfig.kasan
 +++ b/lib/Kconfig.kasan
-@@ -5,6 +5,7 @@ if HAVE_ARCH_KASAN
+@@ -42,4 +42,12 @@ config KASAN_INLINE
  
- config KASAN
- 	bool "KASan: runtime memory debugger"
-+	depends on SLUB_DEBUG
- 	help
- 	  Enables kernel address sanitizer - runtime memory debugger,
- 	  designed to find out-of-bounds accesses and use-after-free bugs.
-diff --git a/mm/Makefile b/mm/Makefile
-index 79f4fbc..3c1caa2 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -2,6 +2,9 @@
- # Makefile for the linux memory manager.
- #
+ endchoice
  
-+KASAN_SANITIZE_slab_common.o := n
-+KASAN_SANITIZE_slub.o := n
++config TEST_KASAN
++	tristate "Module for testing kasan for bug detection"
++	depends on m && KASAN
++	help
++	  This is a test module doing various nasty things like
++	  out of bounds accesses, use after free. It is useful for testing
++	  kernel debugging features like kernel address sanitizer.
 +
- mmu-y			:= nommu.o
- mmu-$(CONFIG_MMU)	:= gup.o highmem.o memory.o mincore.o \
- 			   mlock.o mmap.o mprotect.o mremap.o msync.o rmap.o \
-diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index b516eb8..dc83f07 100644
---- a/mm/kasan/kasan.c
-+++ b/mm/kasan/kasan.c
-@@ -31,6 +31,7 @@
- #include <linux/kasan.h>
+ endif
+diff --git a/lib/Makefile b/lib/Makefile
+index b1dbda7..5b11c8f 100644
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -37,6 +37,7 @@ obj-$(CONFIG_TEST_LKM) += test_module.o
+ obj-$(CONFIG_TEST_USER_COPY) += test_user_copy.o
+ obj-$(CONFIG_TEST_BPF) += test_bpf.o
+ obj-$(CONFIG_TEST_FIRMWARE) += test_firmware.o
++obj-$(CONFIG_TEST_KASAN) += test_kasan.o
  
- #include "kasan.h"
-+#include "../slab.h"
- 
- /*
-  * Poisons the shadow memory for 'size' bytes starting from 'addr'.
-@@ -268,6 +269,103 @@ void kasan_free_pages(struct page *page, unsigned int order)
- 				KASAN_FREE_PAGE);
- }
- 
-+void kasan_poison_slab(struct page *page)
-+{
-+	kasan_poison_shadow(page_address(page),
-+			PAGE_SIZE << compound_order(page),
-+			KASAN_KMALLOC_REDZONE);
-+}
+ ifeq ($(CONFIG_DEBUG_KOBJECT),y)
+ CFLAGS_kobject.o += -DDEBUG
+diff --git a/lib/test_kasan.c b/lib/test_kasan.c
+new file mode 100644
+index 0000000..098c08e
+--- /dev/null
++++ b/lib/test_kasan.c
+@@ -0,0 +1,277 @@
++/*
++ *
++ * Copyright (c) 2014 Samsung Electronics Co., Ltd.
++ * Author: Andrey Ryabinin <a.ryabinin@samsung.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ *
++ */
 +
-+void kasan_unpoison_object_data(struct kmem_cache *cache, void *object)
-+{
-+	kasan_unpoison_shadow(object, cache->object_size);
-+}
++#define pr_fmt(fmt) "kasan test: %s " fmt, __func__
 +
-+void kasan_poison_object_data(struct kmem_cache *cache, void *object)
-+{
-+	kasan_poison_shadow(object,
-+			round_up(cache->object_size, KASAN_SHADOW_SCALE_SIZE),
-+			KASAN_KMALLOC_REDZONE);
-+}
++#include <linux/kernel.h>
++#include <linux/printk.h>
++#include <linux/slab.h>
++#include <linux/string.h>
++#include <linux/module.h>
 +
-+void kasan_slab_alloc(struct kmem_cache *cache, void *object)
++static noinline void __init kmalloc_oob_right(void)
 +{
-+	kasan_kmalloc(cache, object, cache->object_size);
-+}
++	char *ptr;
++	size_t size = 123;
 +
-+void kasan_slab_free(struct kmem_cache *cache, void *object)
-+{
-+	unsigned long size = cache->object_size;
-+	unsigned long rounded_up_size = round_up(size, KASAN_SHADOW_SCALE_SIZE);
-+
-+	/* RCU slabs could be legally used after free within the RCU period */
-+	if (unlikely(cache->flags & SLAB_DESTROY_BY_RCU))
++	pr_info("out-of-bounds to right\n");
++	ptr = kmalloc(size, GFP_KERNEL);
++	if (!ptr) {
++		pr_err("Allocation failed\n");
 +		return;
-+
-+	kasan_poison_shadow(object, rounded_up_size, KASAN_KMALLOC_FREE);
-+}
-+
-+void kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t size)
-+{
-+	unsigned long redzone_start;
-+	unsigned long redzone_end;
-+
-+	if (unlikely(object == NULL))
-+		return;
-+
-+	redzone_start = round_up((unsigned long)(object + size),
-+				KASAN_SHADOW_SCALE_SIZE);
-+	redzone_end = round_up((unsigned long)object + cache->object_size,
-+				KASAN_SHADOW_SCALE_SIZE);
-+
-+	kasan_unpoison_shadow(object, size);
-+	kasan_poison_shadow((void *)redzone_start, redzone_end - redzone_start,
-+		KASAN_KMALLOC_REDZONE);
-+}
-+EXPORT_SYMBOL(kasan_kmalloc);
-+
-+void kasan_kmalloc_large(const void *ptr, size_t size)
-+{
-+	struct page *page;
-+	unsigned long redzone_start;
-+	unsigned long redzone_end;
-+
-+	if (unlikely(ptr == NULL))
-+		return;
-+
-+	page = virt_to_page(ptr);
-+	redzone_start = round_up((unsigned long)(ptr + size),
-+				KASAN_SHADOW_SCALE_SIZE);
-+	redzone_end = (unsigned long)ptr + (PAGE_SIZE << compound_order(page));
-+
-+	kasan_unpoison_shadow(ptr, size);
-+	kasan_poison_shadow((void *)redzone_start, redzone_end - redzone_start,
-+		KASAN_PAGE_REDZONE);
-+}
-+
-+void kasan_krealloc(const void *object, size_t size)
-+{
-+	struct page *page;
-+
-+	if (unlikely(object == ZERO_SIZE_PTR))
-+		return;
-+
-+	page = virt_to_head_page(object);
-+
-+	if (unlikely(!PageSlab(page)))
-+		kasan_kmalloc_large(object, size);
-+	else
-+		kasan_kmalloc(page->slab_cache, object, size);
-+}
-+
-+void kasan_kfree_large(const void *ptr)
-+{
-+	struct page *page = virt_to_page(ptr);
-+
-+	kasan_poison_shadow(ptr, PAGE_SIZE << compound_order(page),
-+			KASAN_FREE_PAGE);
-+}
-+
- #define DEFINE_ASAN_LOAD_STORE(size)				\
- 	void __asan_load##size(unsigned long addr)		\
- 	{							\
-diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
-index d3c90d5..5b052ab 100644
---- a/mm/kasan/kasan.h
-+++ b/mm/kasan/kasan.h
-@@ -7,6 +7,11 @@
- #define KASAN_SHADOW_MASK       (KASAN_SHADOW_SCALE_SIZE - 1)
- 
- #define KASAN_FREE_PAGE         0xFF  /* page was freed */
-+#define KASAN_FREE_PAGE         0xFF  /* page was freed */
-+#define KASAN_PAGE_REDZONE      0xFE  /* redzone for kmalloc_large allocations */
-+#define KASAN_KMALLOC_REDZONE   0xFC  /* redzone inside slub object */
-+#define KASAN_KMALLOC_FREE      0xFB  /* object was freed (kmem_cache_free/kfree) */
-+
- 
- struct kasan_access_info {
- 	const void *access_addr;
-diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index fab8e78..2760edb 100644
---- a/mm/kasan/report.c
-+++ b/mm/kasan/report.c
-@@ -24,6 +24,7 @@
- #include <linux/kasan.h>
- 
- #include "kasan.h"
-+#include "../slab.h"
- 
- /* Shadow layout customization. */
- #define SHADOW_BYTES_PER_BLOCK 1
-@@ -55,8 +56,11 @@ static void print_error_description(struct kasan_access_info *info)
- 
- 	switch (shadow_val) {
- 	case KASAN_FREE_PAGE:
-+	case KASAN_KMALLOC_FREE:
- 		bug_type = "use after free";
- 		break;
-+	case KASAN_PAGE_REDZONE:
-+	case KASAN_KMALLOC_REDZONE:
- 	case 0 ... KASAN_SHADOW_SCALE_SIZE - 1:
- 		bug_type = "out of bounds access";
- 		break;
-@@ -77,6 +81,23 @@ static void print_address_description(struct kasan_access_info *info)
- 	if ((addr >= (void *)PAGE_OFFSET) &&
- 		(addr < high_memory)) {
- 		struct page *page = virt_to_head_page(addr);
-+
-+		if (PageSlab(page)) {
-+			void *object;
-+			struct kmem_cache *cache = page->slab_cache;
-+			void *last_object;
-+
-+			object = virt_to_obj(cache, page_address(page), addr);
-+			last_object = page_address(page) +
-+				page->objects * cache->size;
-+
-+			if (unlikely(object > last_object))
-+				object = last_object; /* we hit into padding */
-+
-+			object_err(cache, page, object,
-+				"kasan: bad access detected");
-+			return;
-+		}
- 		dump_page(page, "kasan: bad access detected");
- 	}
- 
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 0dd9eb4..820a273 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -887,6 +887,7 @@ void *kmalloc_order(size_t size, gfp_t flags, unsigned int order)
- 	page = alloc_kmem_pages(flags, order);
- 	ret = page ? page_address(page) : NULL;
- 	kmemleak_alloc(ret, size, 1, flags);
-+	kasan_kmalloc_large(ret, size);
- 	return ret;
- }
- EXPORT_SYMBOL(kmalloc_order);
-@@ -1066,8 +1067,10 @@ static __always_inline void *__do_krealloc(const void *p, size_t new_size,
- 	if (p)
- 		ks = ksize(p);
- 
--	if (ks >= new_size)
-+	if (ks >= new_size) {
-+		kasan_krealloc((void *)p, new_size);
- 		return (void *)p;
 +	}
- 
- 	ret = kmalloc_track_caller(new_size, flags);
- 	if (ret && p)
-diff --git a/mm/slub.c b/mm/slub.c
-index 390972f..9185e1d 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1251,11 +1251,13 @@ static inline void dec_slabs_node(struct kmem_cache *s, int node,
- static inline void kmalloc_large_node_hook(void *ptr, size_t size, gfp_t flags)
- {
- 	kmemleak_alloc(ptr, size, 1, flags);
-+	kasan_kmalloc_large(ptr, size);
- }
- 
- static inline void kfree_hook(const void *x)
- {
- 	kmemleak_free(x);
-+	kasan_kfree_large(x);
- }
- 
- static inline struct kmem_cache *slab_pre_alloc_hook(struct kmem_cache *s,
-@@ -1278,6 +1280,7 @@ static inline void slab_post_alloc_hook(struct kmem_cache *s,
- 	kmemcheck_slab_alloc(s, flags, object, slab_ksize(s));
- 	kmemleak_alloc_recursive(object, s->object_size, 1, s->flags, flags);
- 	memcg_kmem_put_cache(s);
-+	kasan_slab_alloc(s, object);
- }
- 
- static inline void slab_free_hook(struct kmem_cache *s, void *x)
-@@ -1301,6 +1304,8 @@ static inline void slab_free_hook(struct kmem_cache *s, void *x)
- #endif
- 	if (!(s->flags & SLAB_DEBUG_OBJECTS))
- 		debug_check_no_obj_freed(x, s->object_size);
 +
-+	kasan_slab_free(s, x);
- }
- 
- /*
-@@ -1395,8 +1400,11 @@ static void setup_object(struct kmem_cache *s, struct page *page,
- 				void *object)
- {
- 	setup_object_debug(s, page, object);
--	if (unlikely(s->ctor))
-+	if (unlikely(s->ctor)) {
-+		kasan_unpoison_object_data(s, object);
- 		s->ctor(object);
-+		kasan_poison_object_data(s, object);
-+	}
- }
- 
- static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
-@@ -1429,6 +1437,8 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
- 	if (unlikely(s->flags & SLAB_POISON))
- 		memset(start, POISON_INUSE, PAGE_SIZE << order);
- 
-+	kasan_poison_slab(page);
-+
- 	for_each_object_idx(p, idx, s, start, page->objects) {
- 		setup_object(s, page, p);
- 		if (likely(idx < page->objects))
-@@ -2513,6 +2523,7 @@ void *kmem_cache_alloc_trace(struct kmem_cache *s, gfp_t gfpflags, size_t size)
- {
- 	void *ret = slab_alloc(s, gfpflags, _RET_IP_);
- 	trace_kmalloc(_RET_IP_, ret, size, s->size, gfpflags);
-+	kasan_kmalloc(s, ret, size);
- 	return ret;
- }
- EXPORT_SYMBOL(kmem_cache_alloc_trace);
-@@ -2539,6 +2550,8 @@ void *kmem_cache_alloc_node_trace(struct kmem_cache *s,
- 
- 	trace_kmalloc_node(_RET_IP_, ret,
- 			   size, s->size, gfpflags, node);
-+
-+	kasan_kmalloc(s, ret, size);
- 	return ret;
- }
- EXPORT_SYMBOL(kmem_cache_alloc_node_trace);
-@@ -2924,6 +2937,7 @@ static void early_kmem_cache_node_alloc(int node)
- 	init_object(kmem_cache_node, n, SLUB_RED_ACTIVE);
- 	init_tracking(kmem_cache_node, n);
- #endif
-+	kasan_kmalloc(kmem_cache_node, n, sizeof(struct kmem_cache_node));
- 	init_kmem_cache_node(n);
- 	inc_slabs_node(kmem_cache_node, node, page->objects);
- 
-@@ -3296,6 +3310,8 @@ void *__kmalloc(size_t size, gfp_t flags)
- 
- 	trace_kmalloc(_RET_IP_, ret, size, s->size, flags);
- 
-+	kasan_kmalloc(s, ret, size);
-+
- 	return ret;
- }
- EXPORT_SYMBOL(__kmalloc);
-@@ -3339,12 +3355,14 @@ void *__kmalloc_node(size_t size, gfp_t flags, int node)
- 
- 	trace_kmalloc_node(_RET_IP_, ret, size, s->size, flags, node);
- 
-+	kasan_kmalloc(s, ret, size);
-+
- 	return ret;
- }
- EXPORT_SYMBOL(__kmalloc_node);
- #endif
- 
--size_t ksize(const void *object)
-+static size_t __ksize(const void *object)
- {
- 	struct page *page;
- 
-@@ -3360,6 +3378,15 @@ size_t ksize(const void *object)
- 
- 	return slab_ksize(page->slab_cache);
- }
-+
-+size_t ksize(const void *object)
-+{
-+	size_t size = __ksize(object);
-+	/* We assume that ksize callers could use whole allocated area,
-+	   so we need unpoison this area. */
-+	kasan_krealloc(object, size);
-+	return size;
++	ptr[size] = 'x';
++	kfree(ptr);
 +}
- EXPORT_SYMBOL(ksize);
- 
- void kfree(const void *x)
++
++static noinline void __init kmalloc_oob_left(void)
++{
++	char *ptr;
++	size_t size = 15;
++
++	pr_info("out-of-bounds to left\n");
++	ptr = kmalloc(size, GFP_KERNEL);
++	if (!ptr) {
++		pr_err("Allocation failed\n");
++		return;
++	}
++
++	*ptr = *(ptr - 1);
++	kfree(ptr);
++}
++
++static noinline void __init kmalloc_node_oob_right(void)
++{
++	char *ptr;
++	size_t size = 4096;
++
++	pr_info("kmalloc_node(): out-of-bounds to right\n");
++	ptr = kmalloc_node(size, GFP_KERNEL, 0);
++	if (!ptr) {
++		pr_err("Allocation failed\n");
++		return;
++	}
++
++	ptr[size] = 0;
++	kfree(ptr);
++}
++
++static noinline void __init kmalloc_large_oob_rigth(void)
++{
++	char *ptr;
++	size_t size = KMALLOC_MAX_CACHE_SIZE + 10;
++
++	pr_info("kmalloc large allocation: out-of-bounds to right\n");
++	ptr = kmalloc(size, GFP_KERNEL);
++	if (!ptr) {
++		pr_err("Allocation failed\n");
++		return;
++	}
++
++	ptr[size] = 0;
++	kfree(ptr);
++}
++
++static noinline void __init kmalloc_oob_krealloc_more(void)
++{
++	char *ptr1, *ptr2;
++	size_t size1 = 17;
++	size_t size2 = 19;
++
++	pr_info("out-of-bounds after krealloc more\n");
++	ptr1 = kmalloc(size1, GFP_KERNEL);
++	ptr2 = krealloc(ptr1, size2, GFP_KERNEL);
++	if (!ptr1 || !ptr2) {
++		pr_err("Allocation failed\n");
++		kfree(ptr1);
++		return;
++	}
++
++	ptr2[size2] = 'x';
++	kfree(ptr2);
++}
++
++static noinline void __init kmalloc_oob_krealloc_less(void)
++{
++	char *ptr1, *ptr2;
++	size_t size1 = 17;
++	size_t size2 = 15;
++
++	pr_info("out-of-bounds after krealloc less\n");
++	ptr1 = kmalloc(size1, GFP_KERNEL);
++	ptr2 = krealloc(ptr1, size2, GFP_KERNEL);
++	if (!ptr1 || !ptr2) {
++		pr_err("Allocation failed\n");
++		kfree(ptr1);
++		return;
++	}
++	ptr2[size1] = 'x';
++	kfree(ptr2);
++}
++
++static noinline void __init kmalloc_oob_16(void)
++{
++	struct {
++		u64 words[2];
++	} *ptr1, *ptr2;
++
++	pr_info("kmalloc out-of-bounds for 16-bytes access\n");
++	ptr1 = kmalloc(sizeof(*ptr1) - 3, GFP_KERNEL);
++	ptr2 = kmalloc(sizeof(*ptr2), GFP_KERNEL);
++	if (!ptr1 || !ptr2) {
++		pr_err("Allocation failed\n");
++		kfree(ptr1);
++		kfree(ptr2);
++		return;
++	}
++	*ptr1 = *ptr2;
++	kfree(ptr1);
++	kfree(ptr2);
++}
++
++static noinline void __init kmalloc_oob_in_memset(void)
++{
++	char *ptr;
++	size_t size = 666;
++
++	pr_info("out-of-bounds in memset\n");
++	ptr = kmalloc(size, GFP_KERNEL);
++	if (!ptr) {
++		pr_err("Allocation failed\n");
++		return;
++	}
++
++	memset(ptr, 0, size+5);
++	kfree(ptr);
++}
++
++static noinline void __init kmalloc_uaf(void)
++{
++	char *ptr;
++	size_t size = 10;
++
++	pr_info("use-after-free\n");
++	ptr = kmalloc(size, GFP_KERNEL);
++	if (!ptr) {
++		pr_err("Allocation failed\n");
++		return;
++	}
++
++	kfree(ptr);
++	*(ptr + 8) = 'x';
++}
++
++static noinline void __init kmalloc_uaf_memset(void)
++{
++	char *ptr;
++	size_t size = 33;
++
++	pr_info("use-after-free in memset\n");
++	ptr = kmalloc(size, GFP_KERNEL);
++	if (!ptr) {
++		pr_err("Allocation failed\n");
++		return;
++	}
++
++	kfree(ptr);
++	memset(ptr, 0, size);
++}
++
++static noinline void __init kmalloc_uaf2(void)
++{
++	char *ptr1, *ptr2;
++	size_t size = 43;
++
++	pr_info("use-after-free after another kmalloc\n");
++	ptr1 = kmalloc(size, GFP_KERNEL);
++	if (!ptr1) {
++		pr_err("Allocation failed\n");
++		return;
++	}
++
++	kfree(ptr1);
++	ptr2 = kmalloc(size, GFP_KERNEL);
++	if (!ptr2) {
++		pr_err("Allocation failed\n");
++		return;
++	}
++
++	ptr1[40] = 'x';
++	kfree(ptr2);
++}
++
++static noinline void __init kmem_cache_oob(void)
++{
++	char *p;
++	size_t size = 200;
++	struct kmem_cache *cache = kmem_cache_create("test_cache",
++						size, 0,
++						0, NULL);
++	if (!cache) {
++		pr_err("Cache allocation failed\n");
++		return;
++	}
++	pr_info("out-of-bounds in kmem_cache_alloc\n");
++	p = kmem_cache_alloc(cache, GFP_KERNEL);
++	if (!p) {
++		pr_err("Allocation failed\n");
++		kmem_cache_destroy(cache);
++		return;
++	}
++
++	*p = p[size];
++	kmem_cache_free(cache, p);
++	kmem_cache_destroy(cache);
++}
++
++static char global_array[10];
++
++static noinline void __init kasan_global_oob(void)
++{
++	volatile int i = 3;
++	char *p = &global_array[ARRAY_SIZE(global_array) + i];
++
++	pr_info("out-of-bounds global variable\n");
++	*(volatile char *)p;
++}
++
++static noinline void __init kasan_stack_oob(void)
++{
++	char stack_array[10];
++	volatile int i = 0;
++	char *p = &stack_array[ARRAY_SIZE(stack_array) + i];
++
++	pr_info("out-of-bounds on stack\n");
++	*(volatile char *)p;
++}
++
++static int __init kmalloc_tests_init(void)
++{
++	kmalloc_oob_right();
++	kmalloc_oob_left();
++	kmalloc_node_oob_right();
++	kmalloc_large_oob_rigth();
++	kmalloc_oob_krealloc_more();
++	kmalloc_oob_krealloc_less();
++	kmalloc_oob_16();
++	kmalloc_oob_in_memset();
++	kmalloc_uaf();
++	kmalloc_uaf_memset();
++	kmalloc_uaf2();
++	kmem_cache_oob();
++	kasan_stack_oob();
++	kasan_global_oob();
++	return -EAGAIN;
++}
++
++module_init(kmalloc_tests_init);
++MODULE_LICENSE("GPL");
 -- 
 2.2.2
 
