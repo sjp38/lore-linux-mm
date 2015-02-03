@@ -1,91 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
-	by kanga.kvack.org (Postfix) with ESMTP id B8F706B0038
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 04:05:19 -0500 (EST)
-Received: by mail-we0-f181.google.com with SMTP id k48so43721381wev.12
-        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 01:05:19 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 861736B0038
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 04:47:25 -0500 (EST)
+Received: by mail-we0-f181.google.com with SMTP id k48so43923628wev.12
+        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 01:47:25 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id bk8si41890938wjc.11.2015.02.03.01.05.17
+        by mx.google.com with ESMTPS id u1si28017436wiy.37.2015.02.03.01.47.23
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 03 Feb 2015 01:05:17 -0800 (PST)
-Message-ID: <54D08F48.5030909@suse.cz>
-Date: Tue, 03 Feb 2015 10:05:12 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        Tue, 03 Feb 2015 01:47:23 -0800 (PST)
+Date: Tue, 3 Feb 2015 09:47:18 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC PATCH] mm: madvise: Ignore repeated MADV_DONTNEED hints
+Message-ID: <20150203094718.GO2395@suse.de>
+References: <20150202165525.GM2395@suse.de>
+ <54CFF8AC.6010102@intel.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/5] compaction: changing initial position of scanners
-References: <1421661920-4114-1-git-send-email-vbabka@suse.cz> <20150203064941.GA9822@js1304-P5Q-DELUXE>
-In-Reply-To: <20150203064941.GA9822@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <54CFF8AC.6010102@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rik van Riel <riel@redhat.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-On 02/03/2015 07:49 AM, Joonsoo Kim wrote:
-> On Mon, Jan 19, 2015 at 11:05:15AM +0100, Vlastimil Babka wrote:
+On Mon, Feb 02, 2015 at 02:22:36PM -0800, Dave Hansen wrote:
+> On 02/02/2015 08:55 AM, Mel Gorman wrote:
+> > This patch identifies when a thread is frequently calling MADV_DONTNEED
+> > on the same region of memory and starts ignoring the hint. On an 8-core
+> > single-socket machine this was the impact on ebizzy using glibc 2.19.
 > 
-> Hello,
+> The manpage, at least, claims that we zero-fill after MADV_DONTNEED is
+> called:
 > 
-> I don't have any elegant idea, but, have some humble opinion.
+
+It also claims that the kernel is free to ignore the advice.
+
+> >      MADV_DONTNEED
+> >               Do  not  expect  access in the near future.  (For the time being, the application is finished with the given range, so the kernel can free resources
+> >               associated with it.)  Subsequent accesses of pages in this range will succeed, but will result either in reloading of the memory contents  from  the
+> >               underlying mapped file (see mmap(2)) or zero-fill-on-demand pages for mappings without an underlying file.
 > 
-> The point is that migrate scanner should scan whole zone.
-> Although your pivot approach makes some sense and it can scan whole zone,
-> it could cause back and forth migration in a very short term whenever
-> both scanners get toward and passed each other.
+> So if we have anything depending on the behavior that it's _always_
+> zero-filled after an MADV_DONTNEED, this will break it.
 
-I don't understand the scenario you suggest? The scanners don't overlap in any
-single run, that doesn't change. If they meet, compaction terminates. They can
-"overlap" if you compare the current run with previous run, after pivot change.
-The it's true that e.g. migration scanner will operate on pageblocks where the
-free scanner has operated on previously. But pivot changes are only done after
-the full defer cycle, which is not short term.
+True. I'd be surprised if any application depended on that but to be safe,
+an ignored hint could clear the pages. It would still be cheaper than a
+full teardown and refault.
 
-> I think that if we permit
-> overlap of scanner, we don't need to adhere to reverse linear scanning
-> in freepage scanner since reverse liner scan doesn't prevent back and
-> forth migration from now on.
-
-I believe that we still don't permit overlap, but anyway...
-
-> There are two solutions on this problem.
-> One is that free scanner scans pfn in same direction where migrate scanner
-> goes with having proper interval.
-> 
-> |=========================|
-> MMM==>  <Interval>  FFF==>
-> 
-> Enough interval guarantees to prevent back and forth migration,
-> at least, in a very short period.
-
-That would depend on the termination criteria and what to do after restart.
-You would have to terminate as soon as one scanner approaches the position where
-the other started. Otherwise you overlap and migrate back in a single run. So
-you terminate and that will typically mean one of the scanners did not finish
-its part fully, so there are pageblocks scanned by neither one. You could adjust
-the interval to find the optimal one. But you shouldn't do it immediately next
-run, as that would overlap the previous run too soon. Or maybe adjust it only a
-little... I don't know if that's simpler than my approach, it seems more quirky.
-
-> Or, we could make free scanner totally different with linear scan.
-> Linear scanning to get freepage wastes much time if system memory
-> is really big and most of it is used. If we takes freepage from the
-> buddy, we can eliminate this scanning overhead. With additional
-> logic, that is, comparing position of freepage with migrate scanner
-> and selectively taking it, we can avoid back and forth migration
-> in a very short period.
-
-I think the metric we should be looking is the ration between free pages scanned
-and migrate pages scanned. It's true that after this series in the
-allocate-as-thp scenario, it was more than 10 in the first run after reboot.
-So maybe it could be more efficient to search the buddy lists. But then again,
-when to terminate in this case? The free lists are changing continuously. And to
-compare position, you also need to predict how much the migrate scanner will
-progress in the single run, because you don't want to take pages from there.
-
-> Thanks.
-> 
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
