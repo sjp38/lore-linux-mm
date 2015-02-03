@@ -1,22 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id AA0F96B0038
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 02:45:24 -0500 (EST)
-Received: by mail-wg0-f44.google.com with SMTP id z12so43054864wgg.3
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 23:45:24 -0800 (PST)
-Received: from mail-wi0-x22d.google.com (mail-wi0-x22d.google.com. [2a00:1450:400c:c05::22d])
-        by mx.google.com with ESMTPS id bl3si27529094wib.29.2015.02.02.23.45.22
+	by kanga.kvack.org (Postfix) with ESMTP id 6D26B6B0038
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 02:47:36 -0500 (EST)
+Received: by mail-wg0-f44.google.com with SMTP id z12so43063086wgg.3
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 23:47:36 -0800 (PST)
+Received: from mail-wg0-x22f.google.com (mail-wg0-x22f.google.com. [2a00:1450:400c:c00::22f])
+        by mx.google.com with ESMTPS id t10si27667714wia.44.2015.02.02.23.47.34
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Feb 2015 23:45:22 -0800 (PST)
-Received: by mail-wi0-f173.google.com with SMTP id r20so22087681wiv.0
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 23:45:22 -0800 (PST)
-Date: Tue, 3 Feb 2015 08:46:43 +0100
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 02 Feb 2015 23:47:35 -0800 (PST)
+Received: by mail-wg0-f47.google.com with SMTP id n12so43033353wgh.6
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 23:47:34 -0800 (PST)
+Date: Tue, 3 Feb 2015 08:48:56 +0100
 From: Daniel Vetter <daniel@ffwll.ch>
 Subject: Re: [RFCv3 2/2] dma-buf: add helpers for sharing attacher
  constraints with dma-parms
-Message-ID: <20150203074643.GE14009@phenom.ffwll.local>
-References: <1422347154-15258-2-git-send-email-sumit.semwal@linaro.org>
+Message-ID: <20150203074856.GF14009@phenom.ffwll.local>
+References: <1422347154-15258-1-git-send-email-sumit.semwal@linaro.org>
+ <1422347154-15258-2-git-send-email-sumit.semwal@linaro.org>
  <20150129143908.GA26493@n2100.arm.linux.org.uk>
  <CAO_48GEOQ1pBwirgEWeVVXW-iOmaC=Xerr2VyYYz9t1QDXgVsw@mail.gmail.com>
  <20150129154718.GB26493@n2100.arm.linux.org.uk>
@@ -25,60 +26,40 @@ References: <1422347154-15258-2-git-send-email-sumit.semwal@linaro.org>
  <CAF6AEGujk8UC4X6T=yhTrz1s+SyZUQ=m05h_WcxLDGZU6bydbw@mail.gmail.com>
  <20150202165405.GX14009@phenom.ffwll.local>
  <CAF6AEGuESM+e3HSRGM6zLqrp8kqRLGUYvA3KKECdm7m-nt0M=Q@mail.gmail.com>
- <20150202214616.GI8656@n2100.arm.linux.org.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150202214616.GI8656@n2100.arm.linux.org.uk>
+In-Reply-To: <CAF6AEGuESM+e3HSRGM6zLqrp8kqRLGUYvA3KKECdm7m-nt0M=Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: Rob Clark <robdclark@gmail.com>, Sumit Semwal <sumit.semwal@linaro.org>, LKML <linux-kernel@vger.kernel.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, DRI mailing list <dri-devel@lists.freedesktop.org>, Linaro MM SIG Mailman List <linaro-mm-sig@lists.linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Tomasz Stanislawski <stanislawski.tomasz@googlemail.com>, Robin Murphy <robin.murphy@arm.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Daniel Vetter <daniel@ffwll.ch>
+To: Rob Clark <robdclark@gmail.com>
+Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, Sumit Semwal <sumit.semwal@linaro.org>, LKML <linux-kernel@vger.kernel.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, DRI mailing list <dri-devel@lists.freedesktop.org>, Linaro MM SIG Mailman List <linaro-mm-sig@lists.linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Tomasz Stanislawski <stanislawski.tomasz@googlemail.com>, Robin Murphy <robin.murphy@arm.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Daniel Vetter <daniel@ffwll.ch>
 
-On Mon, Feb 02, 2015 at 09:46:16PM +0000, Russell King - ARM Linux wrote:
-> On Mon, Feb 02, 2015 at 03:30:21PM -0500, Rob Clark wrote:
-> > On Mon, Feb 2, 2015 at 11:54 AM, Daniel Vetter <daniel@ffwll.ch> wrote:
-> > >> My initial thought is for dma-buf to not try to prevent something than
-> > >> an exporter can actually do.. I think the scenario you describe could
-> > >> be handled by two sg-lists, if the exporter was clever enough.
-> > >
-> > > That's already needed, each attachment has it's own sg-list. After all
-> > > there's no array of dma_addr_t in the sg tables, so you can't use one sg
-> > > for more than one mapping. And due to different iommu different devices
-> > > can easily end up with different addresses.
-> > 
-> > 
-> > Well, to be fair it may not be explicitly stated, but currently one
-> > should assume the dma_addr_t's in the dmabuf sglist are bogus.  With
-> > gpu's that implement per-process/context page tables, I'm not really
-> > sure that there is a sane way to actually do anything else..
+On Mon, Feb 02, 2015 at 03:30:21PM -0500, Rob Clark wrote:
+> On Mon, Feb 2, 2015 at 11:54 AM, Daniel Vetter <daniel@ffwll.ch> wrote:
+> >> My initial thought is for dma-buf to not try to prevent something than
+> >> an exporter can actually do.. I think the scenario you describe could
+> >> be handled by two sg-lists, if the exporter was clever enough.
+> >
+> > That's already needed, each attachment has it's own sg-list. After all
+> > there's no array of dma_addr_t in the sg tables, so you can't use one sg
+> > for more than one mapping. And due to different iommu different devices
+> > can easily end up with different addresses.
 > 
-> That's incorrect - and goes dead against the design of scatterlists.
 > 
-> Not only that, but it is entirely possible that you may get handed
-> memory via dmabufs for which there are no struct page's associated
-> with that memory - think about display systems which have their own
-> video memory which is accessible to the GPU, but it isn't system
-> memory.
-> 
-> In those circumstances, you have to use the dma_addr_t's and not the
-> pages.
+> Well, to be fair it may not be explicitly stated, but currently one
+> should assume the dma_addr_t's in the dmabuf sglist are bogus.  With
+> gpu's that implement per-process/context page tables, I'm not really
+> sure that there is a sane way to actually do anything else..
 
-Yeah exactly. At least with i915 we'd really want to be able to share
-stolen memory in some cases, and since that's stolen there's no struct
-pages for them. On top of that any cpu access is also blocked to that
-range in the memory controller, so the dma_addr_t is really the _only_
-thing you can use to get at those memory ranges. And afaik the camera pipe
-on intel soc can get there - unfortunately that one doesn't have an
-upstream driver :(
+Hm, what does per-process/context page tables have to do here? At least on
+i915 we have a two levels of page tables:
+- first level for vm/device isolation, used through dma api
+- 2nd level for per-gpu-context isolation and context switching, handled
+  internally.
 
-And just to clarify: All current dma-buf exporter that I've seen implement
-the sg mapping correctly and _do_ map the sg table into device address
-space with dma_map_sg. In other words: The dma_addr_t are all valid, it's
-just that e.g. with ttm no one has bothered to teach ttm a dma-buf
-correctly. The internal abstraction is all there, ttm-internal buffer
-object interface match what dma-buf exposes fairly closes (hey I didn't do
-shit when designing those interfaces ;-)
+Since atm the dma api doesn't have any context of contexts or different
+pagetables, I don't see who you could use that at all.
 -Daniel
 -- 
 Daniel Vetter
