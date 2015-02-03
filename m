@@ -1,70 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f52.google.com (mail-la0-f52.google.com [209.85.215.52])
-	by kanga.kvack.org (Postfix) with ESMTP id B57196B0038
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 04:57:27 -0500 (EST)
-Received: by mail-la0-f52.google.com with SMTP id ge10so49855912lab.11
-        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 01:57:27 -0800 (PST)
-Received: from mail-la0-x22b.google.com (mail-la0-x22b.google.com. [2a00:1450:4010:c03::22b])
-        by mx.google.com with ESMTPS id l4si11348258lbp.82.2015.02.03.01.57.25
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 03 Feb 2015 01:57:26 -0800 (PST)
-Received: by mail-la0-f43.google.com with SMTP id pn19so3773624lab.2
-        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 01:57:25 -0800 (PST)
-From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Subject: Re: [PATCH 2/5] mm/page_alloc.c: Pull out init code from build_all_zonelists
-References: <1422921016-27618-1-git-send-email-linux@rasmusvillemoes.dk>
-	<1422921016-27618-3-git-send-email-linux@rasmusvillemoes.dk>
-	<alpine.DEB.2.10.1502021624090.667@chino.kir.corp.google.com>
-Date: Tue, 03 Feb 2015 10:57:23 +0100
-In-Reply-To: <alpine.DEB.2.10.1502021624090.667@chino.kir.corp.google.com>
-	(David Rientjes's message of "Mon, 2 Feb 2015 16:25:25 -0800 (PST)")
-Message-ID: <871tm7jp18.fsf@rasmusvillemoes.dk>
+Received: from mail-la0-f53.google.com (mail-la0-f53.google.com [209.85.215.53])
+	by kanga.kvack.org (Postfix) with ESMTP id CECE96B0038
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 05:48:07 -0500 (EST)
+Received: by mail-la0-f53.google.com with SMTP id gq15so50211354lab.12
+        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 02:48:07 -0800 (PST)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.227])
+        by mx.google.com with ESMTP id w8si6934201lbb.25.2015.02.03.02.48.05
+        for <linux-mm@kvack.org>;
+        Tue, 03 Feb 2015 02:48:05 -0800 (PST)
+Date: Tue, 3 Feb 2015 12:47:56 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC PATCH] mm: madvise: Ignore repeated MADV_DONTNEED hints
+Message-ID: <20150203104756.GB14259@node.dhcp.inet.fi>
+References: <20150202165525.GM2395@suse.de>
+ <54CFF8AC.6010102@intel.com>
+ <20150203094718.GO2395@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150203094718.GO2395@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vishnu Pratap Singh <vishnu.ps@samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-On Tue, Feb 03 2015, David Rientjes <rientjes@google.com> wrote:
+On Tue, Feb 03, 2015 at 09:47:18AM +0000, Mel Gorman wrote:
+> On Mon, Feb 02, 2015 at 02:22:36PM -0800, Dave Hansen wrote:
+> > On 02/02/2015 08:55 AM, Mel Gorman wrote:
+> > > This patch identifies when a thread is frequently calling MADV_DONTNEED
+> > > on the same region of memory and starts ignoring the hint. On an 8-core
+> > > single-socket machine this was the impact on ebizzy using glibc 2.19.
+> > 
+> > The manpage, at least, claims that we zero-fill after MADV_DONTNEED is
+> > called:
+> > 
+> 
+> It also claims that the kernel is free to ignore the advice.
+> 
+> > >      MADV_DONTNEED
+> > >               Do  not  expect  access in the near future.  (For the time being, the application is finished with the given range, so the kernel can free resources
+> > >               associated with it.)  Subsequent accesses of pages in this range will succeed, but will result either in reloading of the memory contents  from  the
+> > >               underlying mapped file (see mmap(2)) or zero-fill-on-demand pages for mappings without an underlying file.
+> > 
+> > So if we have anything depending on the behavior that it's _always_
+> > zero-filled after an MADV_DONTNEED, this will break it.
+> 
+> True. I'd be surprised if any application depended on that 
 
-> On Tue, 3 Feb 2015, Rasmus Villemoes wrote:
->
->> Pulling the code protected by if (system_state == SYSTEM_BOOTING) into
->> its own helper allows us to shrink .text a little. This relies on
->> build_all_zonelists already having a __ref annotation. Add a comment
->> explaining why so one doesn't have to track it down through git log.
->> 
->
-> I think we should see the .text savings in the changelog to decide whether 
-> we want a __ref function (granted, with comment) calling an __init 
-> function in the source code.
+IIUC, jemalloc depends on this[1].
 
-Well, the real saving comes in 3/5, (mm/mm_init.c: Mark
-mminit_verify_zonelist as __init), where one saves about 400
-bytes. I originally did just that, while still adding a comment to
-build_all_zonelists to explain both the old and new cause of __ref.
+[1] https://github.com/jemalloc/jemalloc/blob/dev/src/chunk_mmap.c#L117
 
-Then I noticed that cpuset_init_current_mems_allowed is also only called
-from build_all_zonelists and could thus also be __init. But then the
-__ref would cover two __init functions, both defined elsewhere, so I
-thought it would be a little cleaner to make these calls from a single
-__init function defined very close to its user. That it also happens to
-shave a few bytes from build_all_zonelists is just gravy. A better
-commit log would have been something like
-
-  Pulling the code protected by if (system_state == SYSTEM_BOOTING) into
-  its own helper allows us to shrink .text by a few bytes. But more
-  importantly, this provides a (somewhat) clean way of annotating
-  mminit_verify_zonelist and cpuset_init_current_mems_allowed with
-  __init, thus saving around 450 bytes of .text.
-
-  This relies on build_all_zonelists already having a __ref
-  annotation. Add a comment explaining both uses so one doesn't have to
-  track it down through git log.
-
-Rasmus
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
