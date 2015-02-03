@@ -1,74 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AFF16B0082
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 17:59:00 -0500 (EST)
-Received: by mail-la0-f45.google.com with SMTP id gd6so54977422lab.4
-        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 14:58:59 -0800 (PST)
-Date: Tue, 3 Feb 2015 14:58:45 -0800
-From: Shaohua Li <shli@fb.com>
-Subject: Re: [PATCH 2/2] aio: make aio .mremap handle size changes
-Message-ID: <20150203225845.GA749607@devbig257.prn2.facebook.com>
-References: <b885312bcea6e8c89889412936fb93305a4d139d.1422986358.git.shli@fb.com>
- <798fafb96373cfab0707457a266dd137016cd1e9.1422986358.git.shli@fb.com>
- <20150203192323.GT2974@kvack.org>
- <20150203193115.GA296459@devbig257.prn2.facebook.com>
- <20150203194828.GU2974@kvack.org>
- <20150203213150.GA543371@devbig257.prn2.facebook.com>
- <20150203214749.GA14400@kvack.org>
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id B478E6B0085
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 18:02:36 -0500 (EST)
+Received: by mail-ig0-f171.google.com with SMTP id h15so14415481igd.4
+        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 15:02:36 -0800 (PST)
+Received: from mail-ie0-x236.google.com (mail-ie0-x236.google.com. [2607:f8b0:4001:c03::236])
+        by mx.google.com with ESMTPS id s15si286461icm.50.2015.02.03.15.02.36
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 03 Feb 2015 15:02:36 -0800 (PST)
+Received: by mail-ie0-f182.google.com with SMTP id ar1so29071604iec.13
+        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 15:02:36 -0800 (PST)
+Message-ID: <54D15384.7040605@gmail.com>
+Date: Tue, 03 Feb 2015 18:02:28 -0500
+From: Daniel Micay <danielmicay@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20150203214749.GA14400@kvack.org>
+Subject: Re: [RFC] mremap: add MREMAP_NOHOLE flag
+References: <7064772f72049de8a79383105f49b5db84a946e5.1422990665.git.shli@fb.com>
+In-Reply-To: <7064772f72049de8a79383105f49b5db84a946e5.1422990665.git.shli@fb.com>
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ protocol="application/pgp-signature";
+ boundary="k85NfgOQgr8iQSxbjC7EfsRiMoVCtSq86"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin LaHaise <bcrl@kvack.org>
-Cc: linux-mm@kvack.org, Kernel-team@fb.com, Andrew Morton <akpm@linux-foundation.org>
+To: Shaohua Li <shli@fb.com>, linux-mm@kvack.org
+Cc: Kernel-team@fb.com, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andy Lutomirski <luto@amacapital.net>
 
-On Tue, Feb 03, 2015 at 04:47:49PM -0500, Benjamin LaHaise wrote:
-> On Tue, Feb 03, 2015 at 01:31:50PM -0800, Shaohua Li wrote:
-> > On Tue, Feb 03, 2015 at 02:48:28PM -0500, Benjamin LaHaise wrote:
-> > > On Tue, Feb 03, 2015 at 11:31:15AM -0800, Shaohua Li wrote:
-> > > > On Tue, Feb 03, 2015 at 02:23:23PM -0500, Benjamin LaHaise wrote:
-> > > > > On Tue, Feb 03, 2015 at 11:18:53AM -0800, Shaohua Li wrote:
-> > > > > > mremap aio ring buffer to another smaller vma is legal. For example,
-> > > > > > mremap the ring buffer from the begining, though after the mremap, some
-> > > > > > ring buffer pages can't be accessed in userspace because vma size is
-> > > > > > shrinked. The problem is ctx->mmap_size isn't changed if the new ring
-> > > > > > buffer vma size is changed. Latter io_destroy will zap all vmas within
-> > > > > > mmap_size, which might zap unrelated vmas.
-> > > > > 
-> > > > > Nak.  Shrinking the aio ring buffer is not a supported operation and will 
-> > > > > cause the application to lose events.  Make the size changing mremap fail, 
-> > > > > as this patch will not make the system do the right thing.
-> > > > 
-> > > > Yes, making the syscall fail (vma ops has .remap) is another option. If
-> > > > the app uses io_getevents(), looks the app will not lose events, no? On
-> > > > the other hand, I just want to make sure kernel does the right thing
-> > > > (not zap unrelated vmas). If app does crazy things, it will break.
-> > > 
-> > > But reading events out of the ring buffer is a supported mode of operation.  
-> > > Given that constraint, you should make an mremap changing the size of the 
-> > > ring buffer fail.
-> > 
-> > But if app chooses not to read the ring buffer, the app isn't broken.
-> > This makes me hesitate to make the syscall fail.
-> > There is a grey area about what's the correct semantics for mremap. We
-> > currently don't limit any vma shrink for mremap.
-> 
-> mremap() on the aio ringbuffer was not previously supported.  The support was 
-> added recently was to enable checkpoint/restore to work properly.  In that 
-> use-case there is no need resize the ring buffer's mmap window.
-> 
-> If you really want to fix this, then make the mremap operation do the right 
-> thing and actually change the size of the aio ring.  That is going to be 
-> vastly more complex of a change for no real gain since no applications use 
-> that functionality.
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--k85NfgOQgr8iQSxbjC7EfsRiMoVCtSq86
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: quoted-printable
 
-That's too complex. Don't think I'll spend time on the no-usage
-functionality. Will leave it be if you don't like the sample workaround.
+I think this would be very useful in some compacting garbage collectors
+even in non-reallocation case too. A heap of large objects could be
+compacted by transitioning between two huge regions of address space by
+moving the pages with mremap. It's simple enough to cope with an
+unaligned head/tail using memcpy if allocations aren't page aligned.
 
-Thanks,
-Shaohua
+Of course, garbage collectors would also benefit from the ability to
+make use of mremap for reallocations just as allocators like jemalloc
+and tcmalloc would.
+
+If you're unable to build enough interest in it based on the use case
+for it inside allocators like jemalloc/tcmalloc, then I would suggest
+poking the developers of the GCs in v8, etc. about it to see if they
+have any use case for this.
+
+It may be worth considering a new restricted system call instead of
+extending mremap. Since the primary use case is about moving pages from
+one region to another existing region, I see the potential for it to be
+done without an exclusive mmap_sem lock just like MADV_{DONTNEED,FREE}
+and page faulting. This would give up the ability to grow in-place but
+that only happens if virtual memory is being fragmented anyway. The
+destination and source would also need to match.
+
+
+--k85NfgOQgr8iQSxbjC7EfsRiMoVCtSq86
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBCAAGBQJU0VOJAAoJEPnnEuWa9fIqZfwP/Ri7Y3POQXwlTm7uEOwRqpJy
+nHqH+fuasJvI9uOOELpe/NCXrLLI8H7LXTxoWeXAxbB8eKm+zDDeiHEB2uYOhBp2
+AP2Jz0JmnqMNzJLPxAhSW+5eC8GLi1A6pt/dJdtSX4stn12pd9HezLRu0dkmiA37
+MWJTA9vi5cd6tqNOcB+2J3bs9zvT8c6jX1BEKa0i2KOv6k5amZwE+RMS7xHjLEuc
+GcZxySJqF1J2+4ATi/x+kLsYt/pX5o6zbc8jTPaI7NWfAnSzmrAuAEC0lPIqhSfj
+yqWc80XXBwHKliUspAOY9qtqY+4T5gvHqp9zOkLnWCasmAWKElvZgyxEjMYL7EPG
+RcVrdtLQP9ONBsRzSTKtavJEImg8mQDfYAVErQar/XM/3wEKH0JSxpUZsXnMvyIy
+RBI1yXObS+fUU8qP0EZ5lsYdnfyMjuZxug2d1BuNCtWKpX3iLar52sNTM3sYUj9Q
+GEAjKdQUBcAumjQgbBAkSZ787jELbyav12VMjifoW3kLYuISDtHQXvnMESPVSMTp
+Gdj8WJ/IVbAwV0d0wxyZ66NTV0HvcSxw8EAQI4zFZZWdZbl2c9FcmYuxtT0fICcR
+CIc+Mu0kdfX9wviqoFacGzNGh2FyEP7wP0jKXA+TxbB+evckThnBE6BDnVquE7v5
+yykgd3nvXQukbzdXApK4
+=s62R
+-----END PGP SIGNATURE-----
+
+--k85NfgOQgr8iQSxbjC7EfsRiMoVCtSq86--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
