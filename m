@@ -1,487 +1,251 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F4BE6B006C
-	for <linux-mm@kvack.org>; Mon,  4 May 2015 16:57:43 -0400 (EDT)
-Received: by pacwv17 with SMTP id wv17so171147235pac.0
-        for <linux-mm@kvack.org>; Mon, 04 May 2015 13:57:43 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id sw10si21328887pab.71.2015.05.04.13.57.41
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id C69E36B0070
+	for <linux-mm@kvack.org>; Mon,  4 May 2015 16:57:47 -0400 (EDT)
+Received: by pabsx10 with SMTP id sx10so171009134pab.3
+        for <linux-mm@kvack.org>; Mon, 04 May 2015 13:57:47 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id ci15si21269750pdb.234.2015.05.04.13.57.46
         for <linux-mm@kvack.org>;
-        Mon, 04 May 2015 13:57:42 -0700 (PDT)
-Message-Id: <ff806a70c38aa2cf02a923a47298d40e54082d11.1430772743.git.tony.luck@intel.com>
+        Mon, 04 May 2015 13:57:46 -0700 (PDT)
+Message-Id: <ec15446621a86b74ab1c7237c8c3e21b0b3e0e06.1430772743.git.tony.luck@intel.com>
 In-Reply-To: <cover.1430772743.git.tony.luck@intel.com>
 References: <cover.1430772743.git.tony.luck@intel.com>
 From: Tony Luck <tony.luck@intel.com>
-Date: Wed, 29 Apr 2015 11:31:24 -0700
-Subject: [PATCH 1/3] mm/memblock: Add extra "flag" to memblock to allow
- selection of memory based on attribute
+Date: Tue, 3 Feb 2015 14:38:02 -0800
+Subject: [PATCH 2/3] mm/memblock: Allocate boot time data structures from
+ mirrored memory
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-No functional changes
+Try to allocate all boot time kernel data structures from mirrored
+memory. If we run out of mirrored memory print warnings, but fall
+back to using non-mirrored memory to make sure that we still boot.
 
 Signed-off-by: Tony Luck <tony.luck@intel.com>
 ---
- arch/s390/kernel/crash_dump.c |  4 ++--
- arch/sparc/mm/init_64.c       |  4 ++--
- arch/x86/kernel/check.c       |  2 +-
- arch/x86/kernel/e820.c        |  2 +-
- arch/x86/mm/init_32.c         |  2 +-
- include/linux/memblock.h      | 35 +++++++++++++++++--------------
- mm/cma.c                      |  4 ++--
- mm/memblock.c                 | 48 +++++++++++++++++++++++++------------------
- mm/memtest.c                  |  2 +-
- mm/nobootmem.c                |  4 ++--
- 10 files changed, 60 insertions(+), 47 deletions(-)
+ include/linux/memblock.h |  8 ++++++
+ mm/memblock.c            | 71 ++++++++++++++++++++++++++++++++++++++++++------
+ mm/nobootmem.c           | 10 ++++++-
+ 3 files changed, 79 insertions(+), 10 deletions(-)
 
-diff --git a/arch/s390/kernel/crash_dump.c b/arch/s390/kernel/crash_dump.c
-index 9f73c8059022..1b117a2a60af 100644
---- a/arch/s390/kernel/crash_dump.c
-+++ b/arch/s390/kernel/crash_dump.c
-@@ -33,11 +33,11 @@ static struct memblock_type oldmem_type = {
- };
- 
- #define for_each_dump_mem_range(i, nid, p_start, p_end, p_nid)		\
--	for (i = 0, __next_mem_range(&i, nid, &memblock.physmem,	\
-+	for (i = 0, __next_mem_range(&i, nid, 0, &memblock.physmem,	\
- 				     &oldmem_type, p_start,		\
- 				     p_end, p_nid);			\
- 	     i != (u64)ULLONG_MAX;					\
--	     __next_mem_range(&i, nid, &memblock.physmem,		\
-+	     __next_mem_range(&i, nid, 0, &memblock.physmem,		\
- 			      &oldmem_type,				\
- 			      p_start, p_end, p_nid))
- 
-diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-index 4ca0d6ba5ec8..0ac21f765142 100644
---- a/arch/sparc/mm/init_64.c
-+++ b/arch/sparc/mm/init_64.c
-@@ -1952,7 +1952,7 @@ static phys_addr_t __init available_memory(void)
- 	phys_addr_t pa_start, pa_end;
- 	u64 i;
- 
--	for_each_free_mem_range(i, NUMA_NO_NODE, &pa_start, &pa_end, NULL)
-+	for_each_free_mem_range(i, NUMA_NO_NODE, 0, &pa_start, &pa_end, NULL)
- 		available = available + (pa_end  - pa_start);
- 
- 	return available;
-@@ -1971,7 +1971,7 @@ static void __init reduce_memory(phys_addr_t limit_ram)
- 	if (limit_ram >= avail_ram)
- 		return;
- 
--	for_each_free_mem_range(i, NUMA_NO_NODE, &pa_start, &pa_end, NULL) {
-+	for_each_free_mem_range(i, NUMA_NO_NODE, 0, &pa_start, &pa_end, NULL) {
- 		phys_addr_t region_size = pa_end - pa_start;
- 		phys_addr_t clip_start = pa_start;
- 
-diff --git a/arch/x86/kernel/check.c b/arch/x86/kernel/check.c
-index 83a7995625a6..46c8bc62f840 100644
---- a/arch/x86/kernel/check.c
-+++ b/arch/x86/kernel/check.c
-@@ -91,7 +91,7 @@ void __init setup_bios_corruption_check(void)
- 
- 	corruption_check_size = round_up(corruption_check_size, PAGE_SIZE);
- 
--	for_each_free_mem_range(i, NUMA_NO_NODE, &start, &end, NULL) {
-+	for_each_free_mem_range(i, NUMA_NO_NODE, 0, &start, &end, NULL) {
- 		start = clamp_t(phys_addr_t, round_up(start, PAGE_SIZE),
- 				PAGE_SIZE, corruption_check_size);
- 		end = clamp_t(phys_addr_t, round_down(end, PAGE_SIZE),
-diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
-index e2ce85db2283..ea75ec76ceea 100644
---- a/arch/x86/kernel/e820.c
-+++ b/arch/x86/kernel/e820.c
-@@ -1123,7 +1123,7 @@ void __init memblock_find_dma_reserve(void)
- 		nr_pages += end_pfn - start_pfn;
- 	}
- 
--	for_each_free_mem_range(u, NUMA_NO_NODE, &start, &end, NULL) {
-+	for_each_free_mem_range(u, NUMA_NO_NODE, 0, &start, &end, NULL) {
- 		start_pfn = min_t(unsigned long, PFN_UP(start), MAX_DMA_PFN);
- 		end_pfn = min_t(unsigned long, PFN_DOWN(end), MAX_DMA_PFN);
- 		if (start_pfn < end_pfn)
-diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
-index c8140e12816a..6455c9f86bc8 100644
---- a/arch/x86/mm/init_32.c
-+++ b/arch/x86/mm/init_32.c
-@@ -433,7 +433,7 @@ void __init add_highpages_with_active_regions(int nid,
- 	phys_addr_t start, end;
- 	u64 i;
- 
--	for_each_free_mem_range(i, nid, &start, &end, NULL) {
-+	for_each_free_mem_range(i, nid, 0, &start, &end, NULL) {
- 		unsigned long pfn = clamp_t(unsigned long, PFN_UP(start),
- 					    start_pfn, end_pfn);
- 		unsigned long e_pfn = clamp_t(unsigned long, PFN_DOWN(end),
 diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 9497ec7c77ea..1d448879caae 100644
+index 1d448879caae..20bf3dfab564 100644
 --- a/include/linux/memblock.h
 +++ b/include/linux/memblock.h
-@@ -61,7 +61,7 @@ extern bool movable_node_enabled;
+@@ -22,6 +22,7 @@
  
- phys_addr_t memblock_find_in_range_node(phys_addr_t size, phys_addr_t align,
- 					    phys_addr_t start, phys_addr_t end,
--					    int nid);
-+					    int nid, u32 flag);
- phys_addr_t memblock_find_in_range(phys_addr_t start, phys_addr_t end,
- 				   phys_addr_t size, phys_addr_t align);
- phys_addr_t get_allocated_memblock_reserved_regions_info(phys_addr_t *addr);
-@@ -85,11 +85,11 @@ int memblock_remove_range(struct memblock_type *type,
- 			  phys_addr_t base,
- 			  phys_addr_t size);
+ /* Definition of memblock flags. */
+ #define MEMBLOCK_HOTPLUG	0x1	/* hotpluggable region */
++#define MEMBLOCK_MIRROR		0x2	/* mirrored region */
  
--void __next_mem_range(u64 *idx, int nid, struct memblock_type *type_a,
-+void __next_mem_range(u64 *idx, int nid, u32 flags, struct memblock_type *type_a,
- 		      struct memblock_type *type_b, phys_addr_t *out_start,
- 		      phys_addr_t *out_end, int *out_nid);
+ struct memblock_region {
+ 	phys_addr_t base;
+@@ -75,6 +76,8 @@ int memblock_reserve(phys_addr_t base, phys_addr_t size);
+ void memblock_trim_memory(phys_addr_t align);
+ int memblock_mark_hotplug(phys_addr_t base, phys_addr_t size);
+ int memblock_clear_hotplug(phys_addr_t base, phys_addr_t size);
++int memblock_mark_mirror(phys_addr_t base, phys_addr_t size);
++u32 memblock_has_mirror(void);
  
--void __next_mem_range_rev(u64 *idx, int nid, struct memblock_type *type_a,
-+void __next_mem_range_rev(u64 *idx, int nid, u32 flags, struct memblock_type *type_a,
- 			  struct memblock_type *type_b, phys_addr_t *out_start,
- 			  phys_addr_t *out_end, int *out_nid);
+ /* Low level functions */
+ int memblock_add_range(struct memblock_type *type,
+@@ -155,6 +158,11 @@ static inline bool movable_node_is_enabled(void)
+ }
+ #endif
  
-@@ -100,16 +100,17 @@ void __next_mem_range_rev(u64 *idx, int nid, struct memblock_type *type_a,
-  * @type_a: ptr to memblock_type to iterate
-  * @type_b: ptr to memblock_type which excludes from the iteration
-  * @nid: node selector, %NUMA_NO_NODE for all nodes
-+ * @flag: pick from blocks based on memory attributes
-  * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
-  * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
-  * @p_nid: ptr to int for nid of the range, can be %NULL
-  */
--#define for_each_mem_range(i, type_a, type_b, nid,			\
-+#define for_each_mem_range(i, type_a, type_b, nid, flag,		\
- 			   p_start, p_end, p_nid)			\
--	for (i = 0, __next_mem_range(&i, nid, type_a, type_b,		\
-+	for (i = 0, __next_mem_range(&i, nid, flag, type_a, type_b,	\
- 				     p_start, p_end, p_nid);		\
- 	     i != (u64)ULLONG_MAX;					\
--	     __next_mem_range(&i, nid, type_a, type_b,			\
-+	     __next_mem_range(&i, nid, flag, type_a, type_b,		\
- 			      p_start, p_end, p_nid))
- 
- /**
-@@ -119,17 +120,18 @@ void __next_mem_range_rev(u64 *idx, int nid, struct memblock_type *type_a,
-  * @type_a: ptr to memblock_type to iterate
-  * @type_b: ptr to memblock_type which excludes from the iteration
-  * @nid: node selector, %NUMA_NO_NODE for all nodes
-+ * @flag: pick from blocks based on memory attributes
-  * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
-  * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
-  * @p_nid: ptr to int for nid of the range, can be %NULL
-  */
--#define for_each_mem_range_rev(i, type_a, type_b, nid,			\
-+#define for_each_mem_range_rev(i, type_a, type_b, nid, flag,		\
- 			       p_start, p_end, p_nid)			\
- 	for (i = (u64)ULLONG_MAX,					\
--		     __next_mem_range_rev(&i, nid, type_a, type_b,	\
-+		     __next_mem_range_rev(&i, nid, flag, type_a, type_b,\
- 					 p_start, p_end, p_nid);	\
- 	     i != (u64)ULLONG_MAX;					\
--	     __next_mem_range_rev(&i, nid, type_a, type_b,		\
-+	     __next_mem_range_rev(&i, nid, flag, type_a, type_b,	\
- 				  p_start, p_end, p_nid))
- 
- #ifdef CONFIG_MOVABLE_NODE
-@@ -181,13 +183,14 @@ void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
-  * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
-  * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
-  * @p_nid: ptr to int for nid of the range, can be %NULL
-+ * @flag: pick from blocks based on memory attributes
-  *
-  * Walks over free (memory && !reserved) areas of memblock.  Available as
-  * soon as memblock is initialized.
-  */
--#define for_each_free_mem_range(i, nid, p_start, p_end, p_nid)		\
-+#define for_each_free_mem_range(i, nid, flag, p_start, p_end, p_nid)	\
- 	for_each_mem_range(i, &memblock.memory, &memblock.reserved,	\
--			   nid, p_start, p_end, p_nid)
-+			   nid, flag, p_start, p_end, p_nid)
- 
- /**
-  * for_each_free_mem_range_reverse - rev-iterate through free memblock areas
-@@ -196,13 +199,14 @@ void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
-  * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
-  * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
-  * @p_nid: ptr to int for nid of the range, can be %NULL
-+ * @flag: pick from blocks based on memory attributes
-  *
-  * Walks over free (memory && !reserved) areas of memblock in reverse
-  * order.  Available as soon as memblock is initialized.
-  */
--#define for_each_free_mem_range_reverse(i, nid, p_start, p_end, p_nid)	\
--	for_each_mem_range_rev(i, &memblock.memory, &memblock.reserved,	\
--			       nid, p_start, p_end, p_nid)
-+#define for_each_free_mem_range_reverse(i, nid, flag, p_start, p_end, p_nid)	\
-+	for_each_mem_range_rev(i, &memblock.memory, &memblock.reserved,		\
-+			       nid, flag, p_start, p_end, p_nid)
- 
- static inline void memblock_set_region_flags(struct memblock_region *r,
- 					     unsigned long flags)
-@@ -273,7 +277,8 @@ static inline bool memblock_bottom_up(void) { return false; }
- #define MEMBLOCK_ALLOC_ACCESSIBLE	0
- 
- phys_addr_t __init memblock_alloc_range(phys_addr_t size, phys_addr_t align,
--					phys_addr_t start, phys_addr_t end);
-+					phys_addr_t start, phys_addr_t end,
-+					u32 flag);
- phys_addr_t memblock_alloc_base(phys_addr_t size, phys_addr_t align,
- 				phys_addr_t max_addr);
- phys_addr_t __memblock_alloc_base(phys_addr_t size, phys_addr_t align,
-diff --git a/mm/cma.c b/mm/cma.c
-index 3a7a67b93394..69792c7c0c4c 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -316,13 +316,13 @@ int __init cma_declare_contiguous(phys_addr_t base,
- 		 */
- 		if (base < highmem_start && limit > highmem_start) {
- 			addr = memblock_alloc_range(size, alignment,
--						    highmem_start, limit);
-+						    highmem_start, limit, 0);
- 			limit = highmem_start;
- 		}
- 
- 		if (!addr) {
- 			addr = memblock_alloc_range(size, alignment, base,
--						    limit);
-+						    limit, 0);
- 			if (!addr) {
- 				ret = -ENOMEM;
- 				goto err;
++static inline bool memblock_is_mirror(struct memblock_region *m)
++{
++	return m->flags & MEMBLOCK_MIRROR;
++}
++
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ int memblock_search_pfn_nid(unsigned long pfn, unsigned long *start_pfn,
+ 			    unsigned long  *end_pfn);
 diff --git a/mm/memblock.c b/mm/memblock.c
-index 9318b567ed79..ac3c94fff97c 100644
+index ac3c94fff97c..7a0769555474 100644
 --- a/mm/memblock.c
 +++ b/mm/memblock.c
-@@ -107,6 +107,7 @@ static long __init_memblock memblock_overlaps_region(struct memblock_type *type,
-  * @size: size of free area to find
-  * @align: alignment of free area to find
-  * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
-+ * @flag: pick from blocks based on memory attributes
-  *
-  * Utility called from memblock_find_in_range_node(), find free area bottom-up.
-  *
-@@ -115,12 +116,13 @@ static long __init_memblock memblock_overlaps_region(struct memblock_type *type,
-  */
- static phys_addr_t __init_memblock
- __memblock_find_range_bottom_up(phys_addr_t start, phys_addr_t end,
--				phys_addr_t size, phys_addr_t align, int nid)
-+				phys_addr_t size, phys_addr_t align, int nid,
-+				u32 flag)
- {
- 	phys_addr_t this_start, this_end, cand;
- 	u64 i;
+@@ -54,10 +54,16 @@ int memblock_debug __initdata_memblock;
+ #ifdef CONFIG_MOVABLE_NODE
+ bool movable_node_enabled __initdata_memblock = false;
+ #endif
++static bool memblock_have_mirror __initdata_memblock = false;
+ static int memblock_can_resize __initdata_memblock;
+ static int memblock_memory_in_slab __initdata_memblock = 0;
+ static int memblock_reserved_in_slab __initdata_memblock = 0;
  
--	for_each_free_mem_range(i, nid, &this_start, &this_end, NULL) {
-+	for_each_free_mem_range(i, nid, flag, &this_start, &this_end, NULL) {
- 		this_start = clamp(this_start, start, end);
- 		this_end = clamp(this_end, start, end);
- 
-@@ -139,6 +141,7 @@ __memblock_find_range_bottom_up(phys_addr_t start, phys_addr_t end,
-  * @size: size of free area to find
-  * @align: alignment of free area to find
-  * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
-+ * @flag: pick from blocks based on memory attributes
-  *
-  * Utility called from memblock_find_in_range_node(), find free area top-down.
-  *
-@@ -147,12 +150,13 @@ __memblock_find_range_bottom_up(phys_addr_t start, phys_addr_t end,
-  */
- static phys_addr_t __init_memblock
- __memblock_find_range_top_down(phys_addr_t start, phys_addr_t end,
--			       phys_addr_t size, phys_addr_t align, int nid)
-+			       phys_addr_t size, phys_addr_t align, int nid,
-+			       u32 flag)
- {
- 	phys_addr_t this_start, this_end, cand;
- 	u64 i;
- 
--	for_each_free_mem_range_reverse(i, nid, &this_start, &this_end, NULL) {
-+	for_each_free_mem_range_reverse(i, nid, flag, &this_start, &this_end, NULL) {
- 		this_start = clamp(this_start, start, end);
- 		this_end = clamp(this_end, start, end);
- 
-@@ -174,6 +178,7 @@ __memblock_find_range_top_down(phys_addr_t start, phys_addr_t end,
-  * @start: start of candidate range
-  * @end: end of candidate range, can be %MEMBLOCK_ALLOC_{ANYWHERE|ACCESSIBLE}
-  * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
-+ * @flag: pick from blocks based on memory attributes
-  *
-  * Find @size free area aligned to @align in the specified range and node.
-  *
-@@ -190,7 +195,7 @@ __memblock_find_range_top_down(phys_addr_t start, phys_addr_t end,
-  */
- phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t size,
- 					phys_addr_t align, phys_addr_t start,
--					phys_addr_t end, int nid)
-+					phys_addr_t end, int nid, u32 flag)
- {
- 	phys_addr_t kernel_end, ret;
- 
-@@ -215,7 +220,7 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t size,
- 
- 		/* ok, try bottom-up allocation first */
- 		ret = __memblock_find_range_bottom_up(bottom_up_start, end,
--						      size, align, nid);
-+						      size, align, nid, flag);
- 		if (ret)
- 			return ret;
- 
-@@ -233,7 +238,7 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t size,
- 			     "memory hotunplug may be affected\n");
- 	}
- 
--	return __memblock_find_range_top_down(start, end, size, align, nid);
-+	return __memblock_find_range_top_down(start, end, size, align, nid, flag);
- }
- 
- /**
-@@ -253,7 +258,7 @@ phys_addr_t __init_memblock memblock_find_in_range(phys_addr_t start,
++u32 __init_memblock memblock_has_mirror(void)
++{
++	return memblock_have_mirror ? MEMBLOCK_MIRROR : 0;
++}
++
+ /* inline so we don't get a warning when pr_debug is compiled out */
+ static __init_memblock const char *
+ memblock_type_name(struct memblock_type *type)
+@@ -257,8 +263,19 @@ phys_addr_t __init_memblock memblock_find_in_range(phys_addr_t start,
+ 					phys_addr_t end, phys_addr_t size,
  					phys_addr_t align)
  {
- 	return memblock_find_in_range_node(size, align, start, end,
--					    NUMA_NO_NODE);
-+					    NUMA_NO_NODE, 0);
+-	return memblock_find_in_range_node(size, align, start, end,
++	phys_addr_t ret;
++	u32 flag = memblock_has_mirror();
++
++	ret = memblock_find_in_range_node(size, align, start, end,
++					    NUMA_NO_NODE, flag);
++
++	if (!ret && flag) {
++		pr_warn("Could not allocate %lld bytes of mirrored memory\n", size);
++		ret = memblock_find_in_range_node(size, align, start, end,
+ 					    NUMA_NO_NODE, 0);
++	}
++
++	return ret;
  }
  
  static void __init_memblock memblock_remove_region(struct memblock_type *type, unsigned long r)
-@@ -782,6 +787,7 @@ int __init_memblock memblock_clear_hotplug(phys_addr_t base, phys_addr_t size)
+@@ -784,6 +801,21 @@ int __init_memblock memblock_clear_hotplug(phys_addr_t base, phys_addr_t size)
+ }
+ 
+ /**
++ * memblock_mark_mirror - Mark mirrored memory with flag MEMBLOCK_MIRROR.
++ * @base: the base phys addr of the region
++ * @size: the size of the region
++ *
++ * Return 0 on succees, -errno on failure.
++ */
++int __init_memblock memblock_mark_mirror(phys_addr_t base, phys_addr_t size)
++{
++	memblock_have_mirror = true;
++
++	return memblock_setclr_flag(base, size, 1, MEMBLOCK_MIRROR);
++}
++
++
++/**
   * __next__mem_range - next function for for_each_free_mem_range() etc.
   * @idx: pointer to u64 loop variable
   * @nid: node selector, %NUMA_NO_NODE for all nodes
-+ * @flags: pick from blocks based on memory attributes
-  * @type_a: pointer to memblock_type from where the range is taken
-  * @type_b: pointer to memblock_type which excludes memory from being taken
-  * @out_start: ptr to phys_addr_t for start address of the range, can be %NULL
-@@ -803,7 +809,7 @@ int __init_memblock memblock_clear_hotplug(phys_addr_t base, phys_addr_t size)
-  * As both region arrays are sorted, the function advances the two indices
-  * in lockstep and returns each intersection.
-  */
--void __init_memblock __next_mem_range(u64 *idx, int nid,
-+void __init_memblock __next_mem_range(u64 *idx, int nid, u32 flags,
- 				      struct memblock_type *type_a,
- 				      struct memblock_type *type_b,
- 				      phys_addr_t *out_start,
-@@ -895,6 +901,7 @@ void __init_memblock __next_mem_range(u64 *idx, int nid,
-  *
-  * @idx: pointer to u64 loop variable
-  * @nid: nid: node selector, %NUMA_NO_NODE for all nodes
-+ * @flags: pick from blocks based on memory attributes
-  * @type_a: pointer to memblock_type from where the range is taken
-  * @type_b: pointer to memblock_type which excludes memory from being taken
-  * @out_start: ptr to phys_addr_t for start address of the range, can be %NULL
-@@ -903,7 +910,7 @@ void __init_memblock __next_mem_range(u64 *idx, int nid,
-  *
-  * Reverse of __next_mem_range().
-  */
--void __init_memblock __next_mem_range_rev(u64 *idx, int nid,
-+void __init_memblock __next_mem_range_rev(u64 *idx, int nid, u32 flags,
- 					  struct memblock_type *type_a,
- 					  struct memblock_type *type_b,
- 					  phys_addr_t *out_start,
-@@ -1050,14 +1057,14 @@ int __init_memblock memblock_set_node(phys_addr_t base, phys_addr_t size,
+@@ -837,6 +869,10 @@ void __init_memblock __next_mem_range(u64 *idx, int nid, u32 flags,
+ 		if (movable_node_is_enabled() && memblock_is_hotpluggable(m))
+ 			continue;
  
- static phys_addr_t __init memblock_alloc_range_nid(phys_addr_t size,
- 					phys_addr_t align, phys_addr_t start,
--					phys_addr_t end, int nid)
-+					phys_addr_t end, int nid, u32 flag)
- {
- 	phys_addr_t found;
++		/* if we want mirror memory skip non-mirror memory regions */
++		if ((flags & MEMBLOCK_MIRROR) && !memblock_is_mirror(m))
++			continue;
++
+ 		if (!type_b) {
+ 			if (out_start)
+ 				*out_start = m_start;
+@@ -942,6 +978,10 @@ void __init_memblock __next_mem_range_rev(u64 *idx, int nid, u32 flags,
+ 		if (movable_node_is_enabled() && memblock_is_hotpluggable(m))
+ 			continue;
  
- 	if (!align)
- 		align = SMP_CACHE_BYTES;
- 
--	found = memblock_find_in_range_node(size, align, start, end, nid);
-+	found = memblock_find_in_range_node(size, align, start, end, nid, flag);
- 	if (found && !memblock_reserve(found, size)) {
- 		/*
- 		 * The min_count is set to 0 so that memblock allocations are
-@@ -1070,26 +1077,27 @@ static phys_addr_t __init memblock_alloc_range_nid(phys_addr_t size,
- }
- 
- phys_addr_t __init memblock_alloc_range(phys_addr_t size, phys_addr_t align,
--					phys_addr_t start, phys_addr_t end)
-+					phys_addr_t start, phys_addr_t end,
-+					u32 flag)
- {
--	return memblock_alloc_range_nid(size, align, start, end, NUMA_NO_NODE);
-+	return memblock_alloc_range_nid(size, align, start, end, NUMA_NO_NODE, flag);
- }
- 
- static phys_addr_t __init memblock_alloc_base_nid(phys_addr_t size,
- 					phys_addr_t align, phys_addr_t max_addr,
--					int nid)
-+					int nid, u32 flag)
- {
--	return memblock_alloc_range_nid(size, align, 0, max_addr, nid);
-+	return memblock_alloc_range_nid(size, align, 0, max_addr, nid, flag);
- }
++		/* if we want mirror memory skip non-mirror memory regions */
++		if ((flags & MEMBLOCK_MIRROR) && !memblock_is_mirror(m))
++			continue;
++
+ 		if (!type_b) {
+ 			if (out_start)
+ 				*out_start = m_start;
+@@ -1092,7 +1132,17 @@ static phys_addr_t __init memblock_alloc_base_nid(phys_addr_t size,
  
  phys_addr_t __init memblock_alloc_nid(phys_addr_t size, phys_addr_t align, int nid)
  {
--	return memblock_alloc_base_nid(size, align, MEMBLOCK_ALLOC_ACCESSIBLE, nid);
-+	return memblock_alloc_base_nid(size, align, MEMBLOCK_ALLOC_ACCESSIBLE, nid, 0);
+-	return memblock_alloc_base_nid(size, align, MEMBLOCK_ALLOC_ACCESSIBLE, nid, 0);
++	u32 flag = memblock_has_mirror();
++	phys_addr_t ret;
++
++again:
++	ret = memblock_alloc_base_nid(size, align, MEMBLOCK_ALLOC_ACCESSIBLE, nid, flag);
++
++	if (!ret && flag) {
++		flag = 0;
++		goto again;
++	}
++	return ret;
  }
  
  phys_addr_t __init __memblock_alloc_base(phys_addr_t size, phys_addr_t align, phys_addr_t max_addr)
+@@ -1161,6 +1211,7 @@ static void * __init memblock_virt_alloc_internal(
  {
--	return memblock_alloc_base_nid(size, align, max_addr, NUMA_NO_NODE);
-+	return memblock_alloc_base_nid(size, align, max_addr, NUMA_NO_NODE, 0);
- }
+ 	phys_addr_t alloc;
+ 	void *ptr;
++	u32 flag = memblock_has_mirror();
  
- phys_addr_t __init memblock_alloc_base(phys_addr_t size, phys_addr_t align, phys_addr_t max_addr)
-@@ -1173,13 +1181,13 @@ static void * __init memblock_virt_alloc_internal(
+ 	if (WARN_ONCE(nid == MAX_NUMNODES, "Usage of MAX_NUMNODES is deprecated. Use NUMA_NO_NODE instead\n"))
+ 		nid = NUMA_NO_NODE;
+@@ -1181,13 +1232,13 @@ static void * __init memblock_virt_alloc_internal(
  
  again:
  	alloc = memblock_find_in_range_node(size, align, min_addr, max_addr,
--					    nid);
-+					    nid, 0);
+-					    nid, 0);
++					    nid, flag);
  	if (alloc)
  		goto done;
  
  	if (nid != NUMA_NO_NODE) {
  		alloc = memblock_find_in_range_node(size, align, min_addr,
--						    max_addr,  NUMA_NO_NODE);
-+						    max_addr,  NUMA_NO_NODE, 0);
+-						    max_addr,  NUMA_NO_NODE, 0);
++						    max_addr,  NUMA_NO_NODE, flag);
  		if (alloc)
  			goto done;
  	}
-diff --git a/mm/memtest.c b/mm/memtest.c
-index 1997d934b13b..2c5254d9ab3c 100644
---- a/mm/memtest.c
-+++ b/mm/memtest.c
-@@ -74,7 +74,7 @@ static void __init do_one_pass(u64 pattern, phys_addr_t start, phys_addr_t end)
- 	u64 i;
- 	phys_addr_t this_start, this_end;
+@@ -1195,10 +1246,15 @@ again:
+ 	if (min_addr) {
+ 		min_addr = 0;
+ 		goto again;
+-	} else {
+-		goto error;
+ 	}
  
--	for_each_free_mem_range(i, NUMA_NO_NODE, &this_start, &this_end, NULL) {
-+	for_each_free_mem_range(i, NUMA_NO_NODE, 0, &this_start, &this_end, NULL) {
- 		this_start = clamp(this_start, start, end);
- 		this_end = clamp(this_end, start, end);
- 		if (this_start < this_end) {
++	if (flag) {
++		flag = 0;
++		pr_warn("Could not allocate %lld bytes of mirrored memory\n", size);
++		goto again;
++	}
++
++	return NULL;
+ done:
+ 	memblock_reserve(alloc, size);
+ 	ptr = phys_to_virt(alloc);
+@@ -1213,9 +1269,6 @@ done:
+ 	kmemleak_alloc(ptr, size, 0, 0);
+ 
+ 	return ptr;
+-
+-error:
+-	return NULL;
+ }
+ 
+ /**
 diff --git a/mm/nobootmem.c b/mm/nobootmem.c
-index 90b50468333e..a4903046bcba 100644
+index a4903046bcba..35423c935a46 100644
 --- a/mm/nobootmem.c
 +++ b/mm/nobootmem.c
-@@ -41,7 +41,7 @@ static void * __init __alloc_memory_core_early(int nid, u64 size, u64 align,
+@@ -37,11 +37,19 @@ static void * __init __alloc_memory_core_early(int nid, u64 size, u64 align,
+ {
+ 	void *ptr;
+ 	u64 addr;
++	u32 flag = memblock_has_mirror();
+ 
  	if (limit > memblock.current_limit)
  		limit = memblock.current_limit;
  
--	addr = memblock_find_in_range_node(size, align, goal, limit, nid);
-+	addr = memblock_find_in_range_node(size, align, goal, limit, nid, 0);
+-	addr = memblock_find_in_range_node(size, align, goal, limit, nid, 0);
++again:
++	addr = memblock_find_in_range_node(size, align, goal, limit, nid, flag);
++
++	if (flag && !addr) {
++		flag = 0;
++		pr_warn("Could not allocate %lld bytes of mirrored memory\n", size);
++		goto again;
++	}
  	if (!addr)
  		return NULL;
  
-@@ -121,7 +121,7 @@ static unsigned long __init free_low_memory_core_early(void)
- 
- 	memblock_clear_hotplug(0, -1);
- 
--	for_each_free_mem_range(i, NUMA_NO_NODE, &start, &end, NULL)
-+	for_each_free_mem_range(i, NUMA_NO_NODE, 0, &start, &end, NULL)
- 		count += __free_memory_core(start, end);
- 
- #ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
 -- 
 2.1.4
 
