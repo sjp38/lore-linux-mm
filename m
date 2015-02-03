@@ -1,84 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
-	by kanga.kvack.org (Postfix) with ESMTP id B478E6B0085
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 18:02:36 -0500 (EST)
-Received: by mail-ig0-f171.google.com with SMTP id h15so14415481igd.4
-        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 15:02:36 -0800 (PST)
-Received: from mail-ie0-x236.google.com (mail-ie0-x236.google.com. [2607:f8b0:4001:c03::236])
-        by mx.google.com with ESMTPS id s15si286461icm.50.2015.02.03.15.02.36
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 551426B0088
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 18:04:11 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id kx10so101926265pab.12
+        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 15:04:11 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id z3si4244618pdl.29.2015.02.03.15.04.10
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 03 Feb 2015 15:02:36 -0800 (PST)
-Received: by mail-ie0-f182.google.com with SMTP id ar1so29071604iec.13
-        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 15:02:36 -0800 (PST)
-Message-ID: <54D15384.7040605@gmail.com>
-Date: Tue, 03 Feb 2015 18:02:28 -0500
-From: Daniel Micay <danielmicay@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [RFC] mremap: add MREMAP_NOHOLE flag
-References: <7064772f72049de8a79383105f49b5db84a946e5.1422990665.git.shli@fb.com>
-In-Reply-To: <7064772f72049de8a79383105f49b5db84a946e5.1422990665.git.shli@fb.com>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="k85NfgOQgr8iQSxbjC7EfsRiMoVCtSq86"
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Feb 2015 15:04:10 -0800 (PST)
+Date: Tue, 3 Feb 2015 15:04:08 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v11 02/19] Add kernel address sanitizer infrastructure.
+Message-Id: <20150203150408.1913cf209c4552683cca8b35@linux-foundation.org>
+In-Reply-To: <1422985392-28652-3-git-send-email-a.ryabinin@samsung.com>
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
+	<1422985392-28652-1-git-send-email-a.ryabinin@samsung.com>
+	<1422985392-28652-3-git-send-email-a.ryabinin@samsung.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@fb.com>, linux-mm@kvack.org
-Cc: Kernel-team@fb.com, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andy Lutomirski <luto@amacapital.net>
+To: Andrey Ryabinin <a.ryabinin@samsung.com>
+Cc: linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, x86@kernel.org, linux-mm@kvack.org, Jonathan Corbet <corbet@lwn.net>, Michal Marek <mmarek@suse.cz>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, "open list:KERNEL BUILD + fi..." <linux-kbuild@vger.kernel.org>
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---k85NfgOQgr8iQSxbjC7EfsRiMoVCtSq86
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+On Tue, 03 Feb 2015 20:42:55 +0300 Andrey Ryabinin <a.ryabinin@samsung.com> wrote:
 
-I think this would be very useful in some compacting garbage collectors
-even in non-reallocation case too. A heap of large objects could be
-compacted by transitioning between two huge regions of address space by
-moving the pages with mremap. It's simple enough to cope with an
-unaligned head/tail using memcpy if allocations aren't page aligned.
+>
+> ...
+>
+> Based on work by Andrey Konovalov <adech.fo@gmail.com>
+>
 
-Of course, garbage collectors would also benefit from the ability to
-make use of mremap for reallocations just as allocators like jemalloc
-and tcmalloc would.
+We still don't have Andrey Konovalov's signoff?  As it stands we're
+taking some of his work and putting it into Linux without his
+permission.
 
-If you're unable to build enough interest in it based on the use case
-for it inside allocators like jemalloc/tcmalloc, then I would suggest
-poking the developers of the GCs in v8, etc. about it to see if they
-have any use case for this.
+> ...
+>
+> --- /dev/null
+> +++ b/mm/kasan/kasan.c
+> @@ -0,0 +1,302 @@
+> +/*
+> + * This file contains shadow memory manipulation code.
+> + *
+> + * Copyright (c) 2014 Samsung Electronics Co., Ltd.
+> + * Author: Andrey Ryabinin <a.ryabinin@samsung.com>
+> + *
+> + * Some of code borrowed from https://github.com/xairy/linux by
+> + *        Andrey Konovalov <adech.fo@gmail.com>
+> + *
+> + * This program is free software; you can redistribute it and/or modify
+> + * it under the terms of the GNU General Public License version 2 as
+> + * published by the Free Software Foundation.
+> + *
+> + */
 
-It may be worth considering a new restricted system call instead of
-extending mremap. Since the primary use case is about moving pages from
-one region to another existing region, I see the potential for it to be
-done without an exclusive mmap_sem lock just like MADV_{DONTNEED,FREE}
-and page faulting. This would give up the ability to grow in-place but
-that only happens if virtual memory is being fragmented anyway. The
-destination and source would also need to match.
+https://code.google.com/p/thread-sanitizer/ is BSD licensed and we're
+changing it to GPL.
 
+I don't do the lawyer stuff, but this is all a bit worrisome.  I'd be a
+lot more comfortable with that signed-off-by, please.
 
---k85NfgOQgr8iQSxbjC7EfsRiMoVCtSq86
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQIcBAEBCAAGBQJU0VOJAAoJEPnnEuWa9fIqZfwP/Ri7Y3POQXwlTm7uEOwRqpJy
-nHqH+fuasJvI9uOOELpe/NCXrLLI8H7LXTxoWeXAxbB8eKm+zDDeiHEB2uYOhBp2
-AP2Jz0JmnqMNzJLPxAhSW+5eC8GLi1A6pt/dJdtSX4stn12pd9HezLRu0dkmiA37
-MWJTA9vi5cd6tqNOcB+2J3bs9zvT8c6jX1BEKa0i2KOv6k5amZwE+RMS7xHjLEuc
-GcZxySJqF1J2+4ATi/x+kLsYt/pX5o6zbc8jTPaI7NWfAnSzmrAuAEC0lPIqhSfj
-yqWc80XXBwHKliUspAOY9qtqY+4T5gvHqp9zOkLnWCasmAWKElvZgyxEjMYL7EPG
-RcVrdtLQP9ONBsRzSTKtavJEImg8mQDfYAVErQar/XM/3wEKH0JSxpUZsXnMvyIy
-RBI1yXObS+fUU8qP0EZ5lsYdnfyMjuZxug2d1BuNCtWKpX3iLar52sNTM3sYUj9Q
-GEAjKdQUBcAumjQgbBAkSZ787jELbyav12VMjifoW3kLYuISDtHQXvnMESPVSMTp
-Gdj8WJ/IVbAwV0d0wxyZ66NTV0HvcSxw8EAQI4zFZZWdZbl2c9FcmYuxtT0fICcR
-CIc+Mu0kdfX9wviqoFacGzNGh2FyEP7wP0jKXA+TxbB+evckThnBE6BDnVquE7v5
-yykgd3nvXQukbzdXApK4
-=s62R
------END PGP SIGNATURE-----
-
---k85NfgOQgr8iQSxbjC7EfsRiMoVCtSq86--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
