@@ -1,76 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 862BE900016
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 12:44:11 -0500 (EST)
-Received: by mail-pa0-f50.google.com with SMTP id rd3so98824915pab.9
-        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 09:44:11 -0800 (PST)
-Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
-        by mx.google.com with ESMTPS id zt10si3328998pbc.18.2015.02.03.09.43.56
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Tue, 03 Feb 2015 09:43:57 -0800 (PST)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout4.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NJ7007W3IRS2G50@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 03 Feb 2015 17:47:53 +0000 (GMT)
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
-Subject: [PATCH v11 18/19] module: fix types of device tables aliases
-Date: Tue, 03 Feb 2015 20:43:11 +0300
-Message-id: <1422985392-28652-19-git-send-email-a.ryabinin@samsung.com>
-In-reply-to: <1422985392-28652-1-git-send-email-a.ryabinin@samsung.com>
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
- <1422985392-28652-1-git-send-email-a.ryabinin@samsung.com>
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A9CA6B006C
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 14:19:00 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id rd3so99746133pab.3
+        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 11:18:59 -0800 (PST)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTP id zn6si3628246pac.28.2015.02.03.11.18.58
+        for <linux-mm@kvack.org>;
+        Tue, 03 Feb 2015 11:18:59 -0800 (PST)
+Received: from pps.filterd (m0044008 [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.14.5/8.14.5) with SMTP id t13JG2nY002655
+	for <linux-mm@kvack.org>; Tue, 3 Feb 2015 11:18:58 -0800
+Received: from mail.thefacebook.com ([199.201.64.23])
+	by mx0a-00082601.pphosted.com with ESMTP id 1sb2cq8cv2-12
+	(version=TLSv1/SSLv3 cipher=AES128-SHA bits=128 verify=OK)
+	for <linux-mm@kvack.org>; Tue, 03 Feb 2015 11:18:58 -0800
+Received: from facebook.com (2401:db00:20:7003:face:0:4d:0)	by
+ mx-out.facebook.com (10.212.236.89) with ESMTP	id
+ 7e74f63cabd911e49dd80002c95209d8-57dd3390 for <linux-mm@kvack.org>;	Tue, 03
+ Feb 2015 11:18:54 -0800
+From: Shaohua Li <shli@fb.com>
+Subject: [PATCH 1/2] mremap: don't allow VM_MIXEDMAP vma expanding
+Date: Tue, 3 Feb 2015 11:18:52 -0800
+Message-ID: <b885312bcea6e8c89889412936fb93305a4d139d.1422986358.git.shli@fb.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, x86@kernel.org, linux-mm@kvack.org, Rusty Russell <rusty@rustcorp.com.au>
+To: linux-mm@kvack.org
+Cc: Kernel-team@fb.com, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andy Lutomirski <luto@amacapital.net>
 
-MODULE_DEVICE_TABLE() macro used to create aliases to device tables.
-Normally alias should have the same type as aliased symbol.
+Drivers using vm_insert_page() will set VM_MIXEDMAP, but their .fault
+handler are likely not prepared to handle expansion.
 
-Device tables are arrays, so they have 'struct type##_device_id[x]'
-types. Alias created by MODULE_DEVICE_TABLE() will have non-array type -
-	'struct type##_device_id'.
-
-This inconsistency confuses compiler, it could make a wrong
-assumption about variable's size which leads KASan to
-produce a false positive report about out of bounds access.
-
-For every global variable compiler calls __asan_register_globals()
-passing information about global variable (address, size, size with
-redzone, name ...) __asan_register_globals() poison symbols
-redzone to detect possible out of bounds accesses.
-
-When symbol has an alias __asan_register_globals() will be called
-as for symbol so for alias. Compiler determines size of variable by
-size of variable's type. Alias and symbol have the same address,
-so if alias have the wrong size part of memory that actually belongs
-to the symbol could be poisoned as redzone of alias symbol.
-
-By fixing type of alias symbol we will fix size of it, so
-__asan_register_globals() will not poison valid memory.
-
-Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Andy Lutomirski <luto@amacapital.net>
+Signed-off-by: Shaohua Li <shli@fb.com>
 ---
- include/linux/module.h | 2 +-
+ mm/mremap.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/include/linux/module.h b/include/linux/module.h
-index b653d7c..42999fe 100644
---- a/include/linux/module.h
-+++ b/include/linux/module.h
-@@ -135,7 +135,7 @@ void trim_init_extable(struct module *m);
- #ifdef MODULE
- /* Creates an alias so file2alias.c can find device table. */
- #define MODULE_DEVICE_TABLE(type, name)					\
--  extern const struct type##_device_id __mod_##type##__##name##_device_table \
-+extern const typeof(name) __mod_##type##__##name##_device_table		\
-   __attribute__ ((unused, alias(__stringify(name))))
- #else  /* !MODULE */
- #define MODULE_DEVICE_TABLE(type, name)
+diff --git a/mm/mremap.c b/mm/mremap.c
+index 17fa018..3b886dc 100644
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -354,7 +354,7 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
+ 	if (new_len > old_len) {
+ 		unsigned long pgoff;
+ 
+-		if (vma->vm_flags & (VM_DONTEXPAND | VM_PFNMAP))
++		if (vma->vm_flags & (VM_DONTEXPAND | VM_PFNMAP | VM_MIXEDMAP))
+ 			goto Efault;
+ 		pgoff = (addr - vma->vm_start) >> PAGE_SHIFT;
+ 		pgoff += vma->vm_pgoff;
 -- 
-2.2.2
+1.8.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
