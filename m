@@ -1,87 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 13F3F6B0073
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 10:31:36 -0500 (EST)
-Received: by mail-we0-f177.google.com with SMTP id l61so45581715wev.8
-        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 07:31:35 -0800 (PST)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.13])
-        by mx.google.com with ESMTPS id hw9si43350030wjb.136.2015.02.03.07.31.34
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 167766B0038
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 10:51:13 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id eu11so97714853pac.13
+        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 07:51:12 -0800 (PST)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id kw9si1718832pab.219.2015.02.03.07.51.11
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Feb 2015 07:31:34 -0800 (PST)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [Linaro-mm-sig] [RFCv3 2/2] dma-buf: add helpers for sharing attacher constraints with dma-parms
-Date: Tue, 03 Feb 2015 16:31:13 +0100
-Message-ID: <3783167.LiVXgA35gN@wuerfel>
-In-Reply-To: <20150203152204.GU8656@n2100.arm.linux.org.uk>
-References: <1422347154-15258-1-git-send-email-sumit.semwal@linaro.org> <4830208.H6zxrGlT1D@wuerfel> <20150203152204.GU8656@n2100.arm.linux.org.uk>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 03 Feb 2015 07:51:11 -0800 (PST)
+Received: by mail-pa0-f45.google.com with SMTP id et14so97716648pad.4
+        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 07:51:11 -0800 (PST)
+Date: Wed, 4 Feb 2015 00:51:03 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v2 2/2] task_mmu: Add user-space support for resetting
+ mm->hiwater_rss (peak RSS)
+Message-ID: <20150203155103.GB2644@blaptop>
+References: <20150107172452.GA7922@node.dhcp.inet.fi>
+ <20150114152225.GB31484@google.com>
+ <20150114233630.GA14615@node.dhcp.inet.fi>
+ <alpine.DEB.2.10.1501211452580.2716@chino.kir.corp.google.com>
+ <CA+yH71fNZSYVf1G+UUp3N6BhPhT0VJ4aGY=uPGbSD2raV55E3Q@mail.gmail.com>
+ <alpine.DEB.2.10.1501221523390.27807@chino.kir.corp.google.com>
+ <CA+yH71e2ewvA41BNyb=TTPn+yx2zWzY6rn09hRVVgWKoeMgwXQ@mail.gmail.com>
+ <alpine.DEB.2.10.1501261552440.29252@chino.kir.corp.google.com>
+ <20150203032628.GA4006@google.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150203032628.GA4006@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linaro-mm-sig@lists.linaro.org
-Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Robin Murphy <robin.murphy@arm.com>, LKML <linux-kernel@vger.kernel.org>, DRI mailing list <dri-devel@lists.freedesktop.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rob Clark <robdclark@gmail.com>, Daniel Vetter <daniel@ffwll.ch>, Tomasz Stanislawski <stanislawski.tomasz@googlemail.com>, linux-arm-kernel@lists.infradead.org, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>
+To: Petr Cermak <petrcermak@chromium.org>
+Cc: David Rientjes <rientjes@google.com>, Primiano Tucci <primiano@chromium.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Bjorn Helgaas <bhelgaas@google.com>, Hugh Dickins <hughd@google.com>
 
-On Tuesday 03 February 2015 15:22:05 Russell King - ARM Linux wrote:
-> On Tue, Feb 03, 2015 at 03:52:48PM +0100, Arnd Bergmann wrote:
-> > On Tuesday 03 February 2015 14:41:09 Russell King - ARM Linux wrote:
-> > > I'd go as far as saying that the "DMA API on top of IOMMU" is more
-> > > intended to be for a system IOMMU for the bus in question, rather
-> > > than a device-level IOMMU.
-> > > 
-> > > If an IOMMU is part of a device, then the device should handle it
-> > > (maybe via an abstraction) and not via the DMA API.  The DMA API should
-> > > be handing the bus addresses to the device driver which the device's
-> > > IOMMU would need to generate.  (In other words, in this circumstance,
-> > > the DMA API shouldn't give you the device internal address.)
-> > 
-> > Exactly. And the abstraction that people choose at the moment is the
-> > iommu API, for better or worse. It makes a lot of sense to use this
-> > API if the same iommu is used for other devices as well (which is
-> > the case on Tegra and probably a lot of others). Unfortunately the
-> > iommu API lacks support for cache management, and probably other things
-> > as well, because this was not an issue for the original use case
-> > (device assignment on KVM/x86).
-> > 
-> > This could be done by adding explicit or implied cache management
-> > to the IOMMU mapping interfaces, or by extending the dma-mapping
-> > interfaces in a way that covers the use case of the device managing
-> > its own address space, in addition to the existing coherent and
-> > streaming interfaces.
+Hello,
+
+On Tue, Feb 03, 2015 at 03:26:28AM +0000, Petr Cermak wrote:
+> On Mon, Jan 26, 2015 at 04:00:20PM -0800, David Rientjes wrote:
+> > [...]
+> > This is a result of allowing something external (process B) be able to
+> > clear hwm so that you never knew the value went to 100MB.  That's the
+> > definition of a race, I don't know how to explain it any better and making
+> > any connection between clearing PG_referenced and mm->hiwater_rss is a
+> > stretch.  This approach just makes mm->hiwater_rss meaningless.
 > 
-> Don't we already have those in the DMA API?  dma_sync_*() ?
->
-> dma_map_sg() - sets up the system MMU and deals with initial cache
-> coherency handling.  Device IOMMU being the responsibility of the
-> GPU driver.
+> I understand your concern, but I hope you agree that the functionality we
+> are proposing would be very useful for profiling. Therefore, I suggest
+> adding an extra resettable field to /proc/pid/status (e.g.
+> resettable_hiwater_rss) instead. What is your view on this approach?
 
-dma_sync_*() works with whatever comes out of dma_map_*(), true,
-but this is not what they want to do here.
- 
-> The GPU can then do dma_sync_*() on the scatterlist as is necessary
-> to synchronise the cache coherency (while respecting the ownership
-> rules - which are very important on ARM to follow as some sync()s are
-> destructive to any dirty data in the CPU cache.)
+The idea would be very useful for measuring working set size for
+efficient memory management in userside, which becomes very popular
+with many platforms for embedded world with tight memory.
+
 > 
-> dma_unmap_sg() tears down the system MMU and deals with the final cache
-> handling.
-> 
-> Why do we need more DMA API interfaces?
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-The dma_map_* interfaces assign the virtual addresses internally,
-using typically either a global address space for all devices, or one
-address space per device.
-
-There are multiple things that this cannot do, and that is why the
-drivers use the iommu API directly:
-
-- use one address space per 'struct mm'
-- map user memory with bus_address == user_address
-- map memory into the GPU without having a permanent kernel mapping
-- map memory first, and do the initial cache flushes later
-
-	Arnd
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
