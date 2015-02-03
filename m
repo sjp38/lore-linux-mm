@@ -1,62 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 9062C6B0038
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 01:53:41 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id kx10so92404538pab.11
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 22:53:41 -0800 (PST)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id fc3si1384017pad.15.2015.02.02.22.53.39
-        for <linux-mm@kvack.org>;
-        Mon, 02 Feb 2015 22:53:40 -0800 (PST)
-Date: Tue, 3 Feb 2015 15:55:21 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC PATCH v3 3/3] mm/compaction: enhance compaction finish
- condition
-Message-ID: <20150203065521.GB9822@js1304-P5Q-DELUXE>
-References: <1422861348-5117-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1422861348-5117-3-git-send-email-iamjoonsoo.kim@lge.com>
- <54CF4F61.3070905@suse.cz>
- <BLU436-SMTP200D06EB86F21EF7A29CE57833C0@phx.gbl>
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id AA0F96B0038
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 02:45:24 -0500 (EST)
+Received: by mail-wg0-f44.google.com with SMTP id z12so43054864wgg.3
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 23:45:24 -0800 (PST)
+Received: from mail-wi0-x22d.google.com (mail-wi0-x22d.google.com. [2a00:1450:400c:c05::22d])
+        by mx.google.com with ESMTPS id bl3si27529094wib.29.2015.02.02.23.45.22
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Feb 2015 23:45:22 -0800 (PST)
+Received: by mail-wi0-f173.google.com with SMTP id r20so22087681wiv.0
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 23:45:22 -0800 (PST)
+Date: Tue, 3 Feb 2015 08:46:43 +0100
+From: Daniel Vetter <daniel@ffwll.ch>
+Subject: Re: [RFCv3 2/2] dma-buf: add helpers for sharing attacher
+ constraints with dma-parms
+Message-ID: <20150203074643.GE14009@phenom.ffwll.local>
+References: <1422347154-15258-2-git-send-email-sumit.semwal@linaro.org>
+ <20150129143908.GA26493@n2100.arm.linux.org.uk>
+ <CAO_48GEOQ1pBwirgEWeVVXW-iOmaC=Xerr2VyYYz9t1QDXgVsw@mail.gmail.com>
+ <20150129154718.GB26493@n2100.arm.linux.org.uk>
+ <CAF6AEGtTmFg66TK_AFkQ-xp7Nd9Evk3nqe6xCBp7K=77OmXTxA@mail.gmail.com>
+ <20150129192610.GE26493@n2100.arm.linux.org.uk>
+ <CAF6AEGujk8UC4X6T=yhTrz1s+SyZUQ=m05h_WcxLDGZU6bydbw@mail.gmail.com>
+ <20150202165405.GX14009@phenom.ffwll.local>
+ <CAF6AEGuESM+e3HSRGM6zLqrp8kqRLGUYvA3KKECdm7m-nt0M=Q@mail.gmail.com>
+ <20150202214616.GI8656@n2100.arm.linux.org.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <BLU436-SMTP200D06EB86F21EF7A29CE57833C0@phx.gbl>
+In-Reply-To: <20150202214616.GI8656@n2100.arm.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yanfei <zhangyanfei.ok@hotmail.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: Rob Clark <robdclark@gmail.com>, Sumit Semwal <sumit.semwal@linaro.org>, LKML <linux-kernel@vger.kernel.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, DRI mailing list <dri-devel@lists.freedesktop.org>, Linaro MM SIG Mailman List <linaro-mm-sig@lists.linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Tomasz Stanislawski <stanislawski.tomasz@googlemail.com>, Robin Murphy <robin.murphy@arm.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Daniel Vetter <daniel@ffwll.ch>
 
-On Mon, Feb 02, 2015 at 09:51:01PM +0800, Zhang Yanfei wrote:
-> Hello,
-> 
-> At 2015/2/2 18:20, Vlastimil Babka wrote:
-> > On 02/02/2015 08:15 AM, Joonsoo Kim wrote:
-> >> Compaction has anti fragmentation algorithm. It is that freepage
-> >> should be more than pageblock order to finish the compaction if we don't
-> >> find any freepage in requested migratetype buddy list. This is for
-> >> mitigating fragmentation, but, there is a lack of migratetype
-> >> consideration and it is too excessive compared to page allocator's anti
-> >> fragmentation algorithm.
-> >>
-> >> Not considering migratetype would cause premature finish of compaction.
-> >> For example, if allocation request is for unmovable migratetype,
-> >> freepage with CMA migratetype doesn't help that allocation and
-> >> compaction should not be stopped. But, current logic regards this
-> >> situation as compaction is no longer needed, so finish the compaction.
+On Mon, Feb 02, 2015 at 09:46:16PM +0000, Russell King - ARM Linux wrote:
+> On Mon, Feb 02, 2015 at 03:30:21PM -0500, Rob Clark wrote:
+> > On Mon, Feb 2, 2015 at 11:54 AM, Daniel Vetter <daniel@ffwll.ch> wrote:
+> > >> My initial thought is for dma-buf to not try to prevent something than
+> > >> an exporter can actually do.. I think the scenario you describe could
+> > >> be handled by two sg-lists, if the exporter was clever enough.
+> > >
+> > > That's already needed, each attachment has it's own sg-list. After all
+> > > there's no array of dma_addr_t in the sg tables, so you can't use one sg
+> > > for more than one mapping. And due to different iommu different devices
+> > > can easily end up with different addresses.
 > > 
-> > This is only for order >= pageblock_order, right? Perhaps should be told explicitly.
+> > 
+> > Well, to be fair it may not be explicitly stated, but currently one
+> > should assume the dma_addr_t's in the dmabuf sglist are bogus.  With
+> > gpu's that implement per-process/context page tables, I'm not really
+> > sure that there is a sane way to actually do anything else..
 > 
-> I might be wrong. If we applied patch1, so after the system runs for some time,
-> there must be no MIGRATE_CMA free pages in the system, right? If so, the
-> example above doesn't exist anymore.
+> That's incorrect - and goes dead against the design of scatterlists.
+> 
+> Not only that, but it is entirely possible that you may get handed
+> memory via dmabufs for which there are no struct page's associated
+> with that memory - think about display systems which have their own
+> video memory which is accessible to the GPU, but it isn't system
+> memory.
+> 
+> In those circumstances, you have to use the dma_addr_t's and not the
+> pages.
 
-Hello,
+Yeah exactly. At least with i915 we'd really want to be able to share
+stolen memory in some cases, and since that's stolen there's no struct
+pages for them. On top of that any cpu access is also blocked to that
+range in the memory controller, so the dma_addr_t is really the _only_
+thing you can use to get at those memory ranges. And afaik the camera pipe
+on intel soc can get there - unfortunately that one doesn't have an
+upstream driver :(
 
-Compaction could migrate all pages on MIGRATE_CMA pageblock, and,
-in this case, order >= pageblock_order could be true. And, cma freepages
-are used only for fallback so even if applying patch1, it could be possible.
-
-Thanks.
+And just to clarify: All current dma-buf exporter that I've seen implement
+the sg mapping correctly and _do_ map the sg table into device address
+space with dma_map_sg. In other words: The dma_addr_t are all valid, it's
+just that e.g. with ttm no one has bothered to teach ttm a dma-buf
+correctly. The internal abstraction is all there, ttm-internal buffer
+object interface match what dma-buf exposes fairly closes (hey I didn't do
+shit when designing those interfaces ;-)
+-Daniel
+-- 
+Daniel Vetter
+Software Engineer, Intel Corporation
++41 (0) 79 365 57 48 - http://blog.ffwll.ch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
