@@ -1,84 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f179.google.com (mail-ie0-f179.google.com [209.85.223.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 74833900015
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 19:25:28 -0500 (EST)
-Received: by mail-ie0-f179.google.com with SMTP id x19so21532357ier.10
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 16:25:28 -0800 (PST)
-Received: from mail-ie0-x22b.google.com (mail-ie0-x22b.google.com. [2607:f8b0:4001:c03::22b])
-        by mx.google.com with ESMTPS id ga10si8613493igd.13.2015.02.02.16.25.27
+Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com [209.85.218.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 320FD900015
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2015 19:26:37 -0500 (EST)
+Received: by mail-oi0-f46.google.com with SMTP id a141so46941732oig.5
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 16:26:36 -0800 (PST)
+Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
+        by mx.google.com with ESMTPS id px7si5373611obc.58.2015.02.02.16.26.35
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Feb 2015 16:25:27 -0800 (PST)
-Received: by mail-ie0-f171.google.com with SMTP id tr6so21538360ieb.2
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2015 16:25:27 -0800 (PST)
-Date: Mon, 2 Feb 2015 16:25:25 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 2/5] mm/page_alloc.c: Pull out init code from
- build_all_zonelists
-In-Reply-To: <1422921016-27618-3-git-send-email-linux@rasmusvillemoes.dk>
-Message-ID: <alpine.DEB.2.10.1502021624090.667@chino.kir.corp.google.com>
-References: <1422921016-27618-1-git-send-email-linux@rasmusvillemoes.dk> <1422921016-27618-3-git-send-email-linux@rasmusvillemoes.dk>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 02 Feb 2015 16:26:36 -0800 (PST)
+Message-ID: <1422923185.14964.2.camel@stgolabs.net>
+Subject: Re: [RFC PATCH] mm: madvise: Ignore repeated MADV_DONTNEED hints
+From: Davidlohr Bueso <dave@stgolabs.net>
+Date: Mon, 02 Feb 2015 16:26:25 -0800
+In-Reply-To: <20150202143541.1efdd2b571413200cb9a4698@linux-foundation.org>
+References: <20150202165525.GM2395@suse.de>
+	 <20150202140506.392ff6920743f19ea44cff59@linux-foundation.org>
+	 <20150202221824.GN2395@suse.de>
+	 <20150202143541.1efdd2b571413200cb9a4698@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vishnu Pratap Singh <vishnu.ps@samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org
 
-On Tue, 3 Feb 2015, Rasmus Villemoes wrote:
-
-> Pulling the code protected by if (system_state == SYSTEM_BOOTING) into
-> its own helper allows us to shrink .text a little. This relies on
-> build_all_zonelists already having a __ref annotation. Add a comment
-> explaining why so one doesn't have to track it down through git log.
+On Mon, 2015-02-02 at 14:35 -0800, Andrew Morton wrote:
+> On Mon, 2 Feb 2015 22:18:24 +0000 Mel Gorman <mgorman@suse.de> wrote:
 > 
-
-I think we should see the .text savings in the changelog to decide whether 
-we want a __ref function (granted, with comment) calling an __init 
-function in the source code.
-
-> Signed-off-by: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-> ---
->  mm/page_alloc.c | 17 ++++++++++++++---
->  1 file changed, 14 insertions(+), 3 deletions(-)
+> > > Is there something
+> > > preventing this from being addressed within glibc?
+> >  
+> > I doubt it other than I expect they'll punt it back and blame either the
+> > application for being stupid or the kernel for being slow.
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 7633c503a116..c58aa42a3387 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3945,18 +3945,29 @@ static int __build_all_zonelists(void *data)
->  	return 0;
->  }
->  
-> +static noinline void __init
-> +build_all_zonelists_init(void)
-> +{
-> +	__build_all_zonelists(NULL);
-> +	mminit_verify_zonelist();
-> +	cpuset_init_current_mems_allowed();
-> +}
-> +
->  /*
->   * Called with zonelists_mutex held always
->   * unless system_state == SYSTEM_BOOTING.
-> + *
-> + * __ref due to (1) call of __meminit annotated setup_zone_pageset
-> + * [we're only called with non-NULL zone through __meminit paths] and
-> + * (2) call of __init annotated helper build_all_zonelists_init
-> + * [protected by SYSTEM_BOOTING].
->   */
->  void __ref build_all_zonelists(pg_data_t *pgdat, struct zone *zone)
->  {
->  	set_zonelist_order();
->  
->  	if (system_state == SYSTEM_BOOTING) {
-> -		__build_all_zonelists(NULL);
-> -		mminit_verify_zonelist();
-> -		cpuset_init_current_mems_allowed();
-> +		build_all_zonelists_init();
->  	} else {
->  #ifdef CONFIG_MEMORY_HOTPLUG
->  		if (zone)
+> *Is* the application being stupid?  What is it actually doing? 
+> Something like
+> 
+> pthread_routine()
+> {
+> 	p = malloc(X);
+> 	do_some(work);
+> 	free(p);
+
+Ebizzy adds a time based loop in there. But yeah, pretty much a standard
+pthread model.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
