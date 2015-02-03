@@ -1,129 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 62BA76B006C
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 12:07:12 -0500 (EST)
-Received: by mail-ob0-f169.google.com with SMTP id wp4so9170797obc.0
-        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 09:07:12 -0800 (PST)
-Received: from mail-oi0-x235.google.com (mail-oi0-x235.google.com. [2607:f8b0:4003:c06::235])
-        by mx.google.com with ESMTPS id we1si4971990oeb.38.2015.02.03.09.07.11
+Received: from mail-ie0-f175.google.com (mail-ie0-f175.google.com [209.85.223.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 698006B0038
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 12:35:43 -0500 (EST)
+Received: by mail-ie0-f175.google.com with SMTP id ar1so26914845iec.6
+        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 09:35:43 -0800 (PST)
+Received: from mail-ig0-x230.google.com (mail-ig0-x230.google.com. [2607:f8b0:4001:c05::230])
+        by mx.google.com with ESMTPS id rs6si10200880igb.46.2015.02.03.09.35.34
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 03 Feb 2015 09:07:11 -0800 (PST)
-Received: by mail-oi0-f53.google.com with SMTP id i138so50090098oig.12
-        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 09:07:11 -0800 (PST)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Feb 2015 09:35:34 -0800 (PST)
+Received: by mail-ig0-f176.google.com with SMTP id hl2so28386899igb.3
+        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 09:35:34 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <54D0EE90.5030305@suse.cz>
-References: <1421661920-4114-1-git-send-email-vbabka@suse.cz>
-	<20150203064941.GA9822@js1304-P5Q-DELUXE>
-	<54D08F48.5030909@suse.cz>
-	<CAAmzW4Oe+65bF5QQxTkJ72H4YpxmcxP0qSSdus6BmCspMyd1DA@mail.gmail.com>
-	<54D0EE90.5030305@suse.cz>
-Date: Wed, 4 Feb 2015 02:07:11 +0900
-Message-ID: <CAAmzW4PRpQg871ymGQPsuht_j0+vyVo233gKhw3qvJS1WSu++Q@mail.gmail.com>
-Subject: Re: [RFC PATCH 0/5] compaction: changing initial position of scanners
-From: Joonsoo Kim <js1304@gmail.com>
+In-Reply-To: <20150203165829.GW8656@n2100.arm.linux.org.uk>
+References: <1422347154-15258-1-git-send-email-sumit.semwal@linaro.org>
+	<3783167.LiVXgA35gN@wuerfel>
+	<20150203155404.GV8656@n2100.arm.linux.org.uk>
+	<6906596.JU5vQoa1jV@wuerfel>
+	<20150203165829.GW8656@n2100.arm.linux.org.uk>
+Date: Tue, 3 Feb 2015 12:35:34 -0500
+Message-ID: <CAF6AEGuf6XBe3YOjhtbBcSyqJrkZ7sNMfc83hZdnKsE3P=vSuw@mail.gmail.com>
+Subject: Re: [Linaro-mm-sig] [RFCv3 2/2] dma-buf: add helpers for sharing
+ attacher constraints with dma-parms
+From: Rob Clark <robdclark@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Rik van Riel <riel@redhat.com>
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: Arnd Bergmann <arnd@arndb.de>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Robin Murphy <robin.murphy@arm.com>, LKML <linux-kernel@vger.kernel.org>, DRI mailing list <dri-devel@lists.freedesktop.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Daniel Vetter <daniel@ffwll.ch>, Tomasz Stanislawski <stanislawski.tomasz@googlemail.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>
 
-2015-02-04 0:51 GMT+09:00 Vlastimil Babka <vbabka@suse.cz>:
-> On 02/03/2015 04:00 PM, Joonsoo Kim wrote:
->> 2015-02-03 18:05 GMT+09:00 Vlastimil Babka <vbabka@suse.cz>:
->>> On 02/03/2015 07:49 AM, Joonsoo Kim wrote:
->>>> On Mon, Jan 19, 2015 at 11:05:15AM +0100, Vlastimil Babka wrote:
->>>>
->>>> Hello,
->>>>
->>>> I don't have any elegant idea, but, have some humble opinion.
->>>>
->>>> The point is that migrate scanner should scan whole zone.
->>>> Although your pivot approach makes some sense and it can scan whole zone,
->>>> it could cause back and forth migration in a very short term whenever
->>>> both scanners get toward and passed each other.
->>>
->>> I don't understand the scenario you suggest? The scanners don't overlap in any
->>> single run, that doesn't change. If they meet, compaction terminates. They can
->>> "overlap" if you compare the current run with previous run, after pivot change.
->>
->> Yeah, I mean this case.
->>
->> I think that we should regard single run as whole zone scan rather than just
->> terminating criteria we have artificially defined and try to avoid
->> back and forth
->> problem as much as possible in this scale. Not overlapping in a single run you
->> mentioned doesn't solve this problem in this scale.
->>
->>> The it's true that e.g. migration scanner will operate on pageblocks where the
->>> free scanner has operated on previously. But pivot changes are only done after
->>> the full defer cycle, which is not short term.
->>
->> I don't think it's not short term. After successful run, if next high
->> order request
->> comes immediately, migrate scanner will immediately restart at the position
->> where previous free scanner has operated.
+On Tue, Feb 3, 2015 at 11:58 AM, Russell King - ARM Linux
+<linux@arm.linux.org.uk> wrote:
 >
-> Ah, I think I see where the misunderstanding comes from now. So to clarify,
-> let's consider
+> Okay, but switching contexts is not something which the DMA API has
+> any knowledge of (so it can't know which context to associate with
+> which mapping.)  While it knows which device, it has no knowledge
+> (nor is there any way for it to gain knowledge) about contexts.
 >
-> 1. single compaction run - single invocation of compact_zone(). It can start
-> from cached pfn's from previous run, or zone boundaries (or pivot, after this
-> series), and terminate with scanners meeting or not meeting.
+> My personal view is that extending the DMA API in this way feels quite
+> dirty - it's a violation of the DMA API design, which is to (a) demark
+> the buffer ownership between CPU and DMA agent, and (b) to translate
+> buffer locations into a cookie which device drivers can use to instruct
+> their device to access that memory.  To see why, consider... that you
+> map a buffer to a device in context A, and then you switch to context B,
+> which means the dma_addr_t given previously is no longer valid.  You
+> then try to unmap it... which is normally done using the (now no longer
+> valid) dma_addr_t.
 >
-> 2. full zone compaction - consists one or more compaction runs, where the first
-> run starts at boundaries (pivot). It ends when scanners meet -
-> compact_finished() returns COMPACT_COMPLETE
+> It seems to me that to support this at DMA API level, we would need to
+> completely revamp the DMA API, which IMHO isn't going to be nice.  (It
+> would mean that we end up with three APIs - the original PCI DMA API,
+> the existing DMA API, and some new DMA API.)
 >
-> 3. compaction after full defer cycle - this is full zone compaction, where
-> compaction_restarting() returns true in its first run
+> Do we have any views on how common this feature is?
 >
-> My understanding is that you think pivot changing occurs after each full zone
-> compaction (definition 2), but in fact it occurs only each defer cycle
-> (definition 3). See patch 5 for detailed reasoning. I don't think it's short
-> term. It means full zone compactions (def 2) already failed many times and then
-> was deferred for further time, using the same unchanged pivot.
 
-Ah... thanks for clarifying. I actually think pivot changing occurs at
-definition 2
-as you guess. :)
+I can't think of cases outside of GPU's..  if it were more common I'd
+be in favor of teaching dma api about multiple contexts, but right now
+I think that would just amount to forcing a lot of churn on everyone
+else for the benefit of GPU's.
 
-> I think any of the alternatives you suggested below where migrate scanner
-> processes whole zone during full zone compaction (2), would necessarily result
-> in shorter-term back and forth migration than this scheme. On the other hand,
-> the pivot changing proposed here might be too long-term. But it's a first
-> attempt, and the frequency can be further tuned.
+IMHO it makes more sense for GPU drivers to bypass the dma api if they
+need to.  Plus, sooner or later, someone will discover that with some
+trick or optimization they can get moar fps, but the extra layer of
+abstraction will just be getting in the way.
 
-Yes, your proposal would be less problematic on back and forth problem than
-my suggestion.
-
-Hmm...nevertheless, I can't completely agree with pivot approach.
-
-I'd like to remove dependency of migrate scanner and free scanner such as
-termination criteria at this chance. Meeting position of both scanner is roughly
-determined by on amount of free memory in the zone. If 200 MB is free in
-the zone, migrate scanner can scan at maximum 200 MB from the start pfn
-of the pivot. Without changing pivot quickly, we can scan only
-this region regardless zone size so it cause bad effect to high order
-allocation for a long time.
-
-In stress-highalloc test, it doesn't matter since we try to attempt a lot of
-allocations. This bad effect would not appear easily. Although middle of
-allocation attempts are failed, latter attempts would succeed
-since pivot would be changed in the middle of attempts.
-
-But, in real world scenario, all allocation attempts are precise and
-it'd be better
-first come high order allocation request to succeed and this is another problem
-than allocation success rate in stress-highalloc test. To accomplish it, we
-need to change pivot as soon as possible. Without it, we could miss some
-precise allocation attempt until pivot is changed. For this purpose, we should
-remove defer logic or change it more loosely and then, resetting pivot would
-occur soon so we could encounter back and forth problem frequently.
-
-Therefore, it's better to change compaction logic more fundamentally.
-
-Thanks.
+BR,
+-R
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
