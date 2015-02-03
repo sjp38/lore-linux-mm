@@ -1,82 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f53.google.com (mail-qa0-f53.google.com [209.85.216.53])
-	by kanga.kvack.org (Postfix) with ESMTP id B1E626B0080
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 17:55:24 -0500 (EST)
-Received: by mail-qa0-f53.google.com with SMTP id n4so36228012qaq.12
-        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 14:55:24 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x10si30667258qal.20.2015.02.03.14.55.22
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Feb 2015 14:55:23 -0800 (PST)
-Date: Tue, 3 Feb 2015 23:55:12 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [RFC 1/3] Slab infrastructure for array operations
-Message-ID: <20150203235512.62738c3c@redhat.com>
-In-Reply-To: <20150129074443.GA19607@js1304-P5Q-DELUXE>
-References: <20150123213727.142554068@linux.com>
-	<20150123213735.590610697@linux.com>
-	<20150127082132.GE11358@js1304-P5Q-DELUXE>
-	<alpine.DEB.2.11.1501271054310.25124@gentwo.org>
-	<CAAmzW4MzNfcRucHeTxJtXLks5T-Def=O1sRpQY6fo5ybTzKsBA@mail.gmail.com>
-	<alpine.DEB.2.11.1501280923410.31753@gentwo.org>
-	<20150129074443.GA19607@js1304-P5Q-DELUXE>
+Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AFF16B0082
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 17:59:00 -0500 (EST)
+Received: by mail-la0-f45.google.com with SMTP id gd6so54977422lab.4
+        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 14:58:59 -0800 (PST)
+Date: Tue, 3 Feb 2015 14:58:45 -0800
+From: Shaohua Li <shli@fb.com>
+Subject: Re: [PATCH 2/2] aio: make aio .mremap handle size changes
+Message-ID: <20150203225845.GA749607@devbig257.prn2.facebook.com>
+References: <b885312bcea6e8c89889412936fb93305a4d139d.1422986358.git.shli@fb.com>
+ <798fafb96373cfab0707457a266dd137016cd1e9.1422986358.git.shli@fb.com>
+ <20150203192323.GT2974@kvack.org>
+ <20150203193115.GA296459@devbig257.prn2.facebook.com>
+ <20150203194828.GU2974@kvack.org>
+ <20150203213150.GA543371@devbig257.prn2.facebook.com>
+ <20150203214749.GA14400@kvack.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20150203214749.GA14400@kvack.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Christoph Lameter <cl@linux.com>, akpm@linuxfoundation.org, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, brouer@redhat.com
+To: Benjamin LaHaise <bcrl@kvack.org>
+Cc: linux-mm@kvack.org, Kernel-team@fb.com, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, 29 Jan 2015 16:44:43 +0900
-Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-
-> On Wed, Jan 28, 2015 at 09:30:56AM -0600, Christoph Lameter wrote:
-> > On Wed, 28 Jan 2015, Joonsoo Kim wrote:
+On Tue, Feb 03, 2015 at 04:47:49PM -0500, Benjamin LaHaise wrote:
+> On Tue, Feb 03, 2015 at 01:31:50PM -0800, Shaohua Li wrote:
+> > On Tue, Feb 03, 2015 at 02:48:28PM -0500, Benjamin LaHaise wrote:
+> > > On Tue, Feb 03, 2015 at 11:31:15AM -0800, Shaohua Li wrote:
+> > > > On Tue, Feb 03, 2015 at 02:23:23PM -0500, Benjamin LaHaise wrote:
+> > > > > On Tue, Feb 03, 2015 at 11:18:53AM -0800, Shaohua Li wrote:
+> > > > > > mremap aio ring buffer to another smaller vma is legal. For example,
+> > > > > > mremap the ring buffer from the begining, though after the mremap, some
+> > > > > > ring buffer pages can't be accessed in userspace because vma size is
+> > > > > > shrinked. The problem is ctx->mmap_size isn't changed if the new ring
+> > > > > > buffer vma size is changed. Latter io_destroy will zap all vmas within
+> > > > > > mmap_size, which might zap unrelated vmas.
+> > > > > 
+> > > > > Nak.  Shrinking the aio ring buffer is not a supported operation and will 
+> > > > > cause the application to lose events.  Make the size changing mremap fail, 
+> > > > > as this patch will not make the system do the right thing.
+> > > > 
+> > > > Yes, making the syscall fail (vma ops has .remap) is another option. If
+> > > > the app uses io_getevents(), looks the app will not lose events, no? On
+> > > > the other hand, I just want to make sure kernel does the right thing
+> > > > (not zap unrelated vmas). If app does crazy things, it will break.
+> > > 
+> > > But reading events out of the ring buffer is a supported mode of operation.  
+> > > Given that constraint, you should make an mremap changing the size of the 
+> > > ring buffer fail.
 > > 
-[...]
-> > 
-> > The default when no options are specified is to first exhaust the node
-> > partial objects, then allocate new slabs as long as we have more than
-> > objects per page left and only then satisfy from cpu local object. I think
-> > that is satisfactory for the majority of the cases.
-> > 
-> > The detailed control options were requested at the meeting in Auckland at
-> > the LCA. I am fine with dropping those if they do not make sense. Makes
-> > the API and implementation simpler. Jesper, are you ok with this?
-
-Yes, I'm okay with dropping the allocation flags. 
-
-We might want to keep the flag "GFP_SLAB_ARRAY_FULL_COUNT" for allowing
-allocator to return less-than the requested elements (but I'm not 100%
-sure).  The idea behind this is, if the allocator can "see" that it
-needs to perform a (relativly) expensive operation, then I would rather
-want it to return current elements (even if it's less than requested).
-As this is likely very performance sensitive code using this API.
-
-
-> IMHO, it'd be better to choose a proper way of allocation by slab
-> itself and not to expose options to API user. We could decide the
-> best option according to current status of kmem_cache and requested
-> object number and internal implementation.
+> > But if app chooses not to read the ring buffer, the app isn't broken.
+> > This makes me hesitate to make the syscall fail.
+> > There is a grey area about what's the correct semantics for mremap. We
+> > currently don't limit any vma shrink for mremap.
 > 
-> Is there any obvious example these option are needed for user?
+> mremap() on the aio ringbuffer was not previously supported.  The support was 
+> added recently was to enable checkpoint/restore to work properly.  In that 
+> use-case there is no need resize the ring buffer's mmap window.
+> 
+> If you really want to fix this, then make the mremap operation do the right 
+> thing and actually change the size of the aio ring.  That is going to be 
+> vastly more complex of a change for no real gain since no applications use 
+> that functionality.
 
-The use-cases were, if the subsystem/user know about their use-case e.g.
-1) needing a large allocation which does not need to be cache hot,
-2) needing a smaller (e.g 8-16 elems) allocation that should be cache hot.
+That's too complex. Don't think I'll spend time on the no-usage
+functionality. Will leave it be if you don't like the sample workaround.
 
-But, as you argue, I guess it is best to leave this up to the slab
-implementation as the status of the kmem_cache is only known to the
-allocator itself.
-
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Sr. Network Kernel Developer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
