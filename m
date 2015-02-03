@@ -1,51 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id B14846B0073
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 10:21:25 -0500 (EST)
-Received: by mail-wg0-f49.google.com with SMTP id k14so45184566wgh.8
-        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 07:21:25 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cp9si29207936wib.81.2015.02.03.07.21.23
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 10F0C6B0073
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 10:22:32 -0500 (EST)
+Received: by mail-wi0-f179.google.com with SMTP id l15so22517193wiw.0
+        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 07:22:31 -0800 (PST)
+Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id pn2si8454217wjc.131.2015.02.03.07.22.29
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 03 Feb 2015 07:21:23 -0800 (PST)
-Date: Tue, 3 Feb 2015 16:21:21 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: MADV_DONTNEED semantics? Was: [RFC PATCH] mm: madvise: Ignore
- repeated MADV_DONTNEED hints
-Message-ID: <20150203152121.GC8914@dhcp22.suse.cz>
-References: <20150202165525.GM2395@suse.de>
- <54CFF8AC.6010102@intel.com>
- <54D08483.40209@suse.cz>
- <20150203111600.GR2395@suse.de>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 03 Feb 2015 07:22:30 -0800 (PST)
+Date: Tue, 3 Feb 2015 15:22:05 +0000
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [RFCv3 2/2] dma-buf: add helpers for sharing attacher
+ constraints with dma-parms
+Message-ID: <20150203152204.GU8656@n2100.arm.linux.org.uk>
+References: <1422347154-15258-1-git-send-email-sumit.semwal@linaro.org>
+ <4689826.8DDCrX2ZhK@wuerfel>
+ <20150203144109.GR8656@n2100.arm.linux.org.uk>
+ <4830208.H6zxrGlT1D@wuerfel>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150203111600.GR2395@suse.de>
+In-Reply-To: <4830208.H6zxrGlT1D@wuerfel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, mtk.manpages@gmail.com, linux-man@vger.kernel.org
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: linux-arm-kernel@lists.infradead.org, Rob Clark <robdclark@gmail.com>, Sumit Semwal <sumit.semwal@linaro.org>, LKML <linux-kernel@vger.kernel.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>, DRI mailing list <dri-devel@lists.freedesktop.org>, Linaro MM SIG Mailman List <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linaro Kernel Mailman List <linaro-kernel@lists.linaro.org>, Tomasz Stanislawski <stanislawski.tomasz@googlemail.com>, Robin Murphy <robin.murphy@arm.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Daniel Vetter <daniel@ffwll.ch>
 
-On Tue 03-02-15 11:16:00, Mel Gorman wrote:
-> On Tue, Feb 03, 2015 at 09:19:15AM +0100, Vlastimil Babka wrote:
-[...]
-> > And if we agree that there is indeed no guarantee, what's the actual semantic
-> > difference from MADV_FREE? I guess none? So there's only a possible perfomance
-> > difference?
+On Tue, Feb 03, 2015 at 03:52:48PM +0100, Arnd Bergmann wrote:
+> On Tuesday 03 February 2015 14:41:09 Russell King - ARM Linux wrote:
+> > I'd go as far as saying that the "DMA API on top of IOMMU" is more
+> > intended to be for a system IOMMU for the bus in question, rather
+> > than a device-level IOMMU.
 > > 
+> > If an IOMMU is part of a device, then the device should handle it
+> > (maybe via an abstraction) and not via the DMA API.  The DMA API should
+> > be handing the bus addresses to the device driver which the device's
+> > IOMMU would need to generate.  (In other words, in this circumstance,
+> > the DMA API shouldn't give you the device internal address.)
 > 
-> Timing. MADV_DONTNEED if it has an effect is immediate, is a heavier
-> operations and RSS is reduced. MADV_FREE only has an impact in the future
-> if there is memory pressure.
+> Exactly. And the abstraction that people choose at the moment is the
+> iommu API, for better or worse. It makes a lot of sense to use this
+> API if the same iommu is used for other devices as well (which is
+> the case on Tegra and probably a lot of others). Unfortunately the
+> iommu API lacks support for cache management, and probably other things
+> as well, because this was not an issue for the original use case
+> (device assignment on KVM/x86).
+> 
+> This could be done by adding explicit or implied cache management
+> to the IOMMU mapping interfaces, or by extending the dma-mapping
+> interfaces in a way that covers the use case of the device managing
+> its own address space, in addition to the existing coherent and
+> streaming interfaces.
 
-JFTR. the man page for MADV_FREE has been proposed already
-(https://lkml.org/lkml/2014/12/5/63 should be the last version AFAIR). I
-do not see it in the man-pages git tree but the patch was not in time
-for 3.19 so I guess it will only appear in 3.20.
+Don't we already have those in the DMA API?  dma_sync_*() ?
+
+dma_map_sg() - sets up the system MMU and deals with initial cache
+coherency handling.  Device IOMMU being the responsibility of the
+GPU driver.
+
+The GPU can then do dma_sync_*() on the scatterlist as is necessary
+to synchronise the cache coherency (while respecting the ownership
+rules - which are very important on ARM to follow as some sync()s are
+destructive to any dirty data in the CPU cache.)
+
+dma_unmap_sg() tears down the system MMU and deals with the final cache
+handling.
+
+Why do we need more DMA API interfaces?
+
 -- 
-Michal Hocko
-SUSE Labs
+FTTC broadband for 0.8mile line: currently at 10.5Mbps down 400kbps up
+according to speedtest.net.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
