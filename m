@@ -1,55 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com [209.85.217.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 28EFD6B006E
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 11:37:23 -0500 (EST)
-Received: by mail-lb0-f176.google.com with SMTP id z12so39589188lbi.7
-        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 08:37:22 -0800 (PST)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.13])
-        by mx.google.com with ESMTPS id d7si4118477wie.43.2015.02.03.08.37.20
+Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
+	by kanga.kvack.org (Postfix) with ESMTP id A3DF06B0070
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 11:39:34 -0500 (EST)
+Received: by mail-lb0-f182.google.com with SMTP id l4so39612603lbv.13
+        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 08:39:34 -0800 (PST)
+Received: from mail-wg0-x22b.google.com (mail-wg0-x22b.google.com. [2a00:1450:400c:c00::22b])
+        by mx.google.com with ESMTPS id s1si29829082wif.23.2015.02.03.08.39.32
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Feb 2015 08:37:21 -0800 (PST)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [Linaro-mm-sig] [RFCv3 2/2] dma-buf: add helpers for sharing attacher constraints with dma-parms
-Date: Tue, 03 Feb 2015 17:36:59 +0100
-Message-ID: <7233574.nKiRa7HnXU@wuerfel>
-In-Reply-To: <CAF6AEGsttiufoqPbDiZfUX2ndbv2XfeZzcfyaf-AcUJgJpgLkA@mail.gmail.com>
-References: <1422347154-15258-1-git-send-email-sumit.semwal@linaro.org> <6906596.JU5vQoa1jV@wuerfel> <CAF6AEGsttiufoqPbDiZfUX2ndbv2XfeZzcfyaf-AcUJgJpgLkA@mail.gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 03 Feb 2015 08:39:32 -0800 (PST)
+Received: by mail-wg0-f43.google.com with SMTP id y19so45663376wgg.2
+        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 08:39:32 -0800 (PST)
+Message-ID: <54D0F9BC.4060306@gmail.com>
+Date: Tue, 03 Feb 2015 17:39:24 +0100
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+Subject: Re: [PATCH v17 1/7] mm: support madvise(MADV_FREE)
+References: <1413799924-17946-1-git-send-email-minchan@kernel.org> <1413799924-17946-2-git-send-email-minchan@kernel.org> <20141127144725.GB19157@dhcp22.suse.cz> <20141130235652.GA10333@bbox> <20141202100125.GD27014@dhcp22.suse.cz> <20141203000026.GA30217@bbox> <20141203101329.GB23236@dhcp22.suse.cz> <20141205070816.GB3358@bbox> <20141205083249.GA2321@dhcp22.suse.cz>
+In-Reply-To: <20141205083249.GA2321@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linaro-kernel@lists.linaro.org
-Cc: Rob Clark <robdclark@gmail.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Tomasz Stanislawski <stanislawski.tomasz@googlemail.com>, LKML <linux-kernel@vger.kernel.org>, DRI mailing list <dri-devel@lists.freedesktop.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Daniel Vetter <daniel@ffwll.ch>, Robin Murphy <robin.murphy@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>
+Cc: mtk.manpages@gmail.com, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, zhangyanfei@cn.fujitsu.com, "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Tuesday 03 February 2015 11:22:01 Rob Clark wrote:
-> On Tue, Feb 3, 2015 at 11:12 AM, Arnd Bergmann <arnd@arndb.de> wrote:
-> > I agree for the case you are describing here. From what I understood
-> > from Rob was that he is looking at something more like:
-> >
-> > Fig 3
-> > CPU--L1cache--L2cache--Memory--IOMMU---<iobus>--device
-> >
-> > where the IOMMU controls one or more contexts per device, and is
-> > shared across GPU and non-GPU devices. Here, we need to use the
-> > dmap-mapping interface to set up the IO page table for any device
-> > that is unable to address all of system RAM, and we can use it
-> > for purposes like isolation of the devices. There are also cases
-> > where using the IOMMU is not optional.
-> 
-> 
-> Actually, just to clarify, the IOMMU instance is specific to the GPU..
-> not shared with other devices.  Otherwise managing multiple contexts
-> would go quite badly..
-> 
-> But other devices have their own instance of the same IOMMU.. so same
-> driver could be used.
+Hello Minchan (and Michal)
 
-I think from the driver perspective, I'd view those two cases as
-identical. Not sure if Russell agrees with that.
+I did not see this patch until just now when Michael explicitly
+mentioned it in another discussion because
+(a) it was buried in an LMKL thread that started a topic
+    that was not about a man-pages patch.
+(b) linux-man@ was not CCed.
 
-	Arnd
+When resubmitting this patch, could you please To:me and CC linux-man@
+and give the mail a suitable subject line indicating a man-pages patch.
+
+On 12/05/2014 09:32 AM, Michal Hocko wrote:
+> On Fri 05-12-14 16:08:16, Minchan Kim wrote:
+> [...]
+>> From cfa212d4fb307ae772b08cf564cab7e6adb8f4fc Mon Sep 17 00:00:00 2001
+>> From: Minchan Kim <minchan@kernel.org>
+>> Date: Mon, 1 Dec 2014 08:53:55 +0900
+>> Subject: [PATCH] madvise.2: Document MADV_FREE
+>>
+>> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> 
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+> 
+> Thanks!
+> 
+>> ---
+>>  man2/madvise.2 | 12 ++++++++++++
+>>  1 file changed, 12 insertions(+)
+>>
+>> diff --git a/man2/madvise.2 b/man2/madvise.2
+>> index 032ead7..fc1aaca 100644
+>> --- a/man2/madvise.2
+>> +++ b/man2/madvise.2
+>> @@ -265,6 +265,18 @@ file (see
+>>  .BR MADV_DODUMP " (since Linux 3.4)"
+>>  Undo the effect of an earlier
+>>  .BR MADV_DONTDUMP .
+>> +.TP
+>> +.BR MADV_FREE " (since Linux 3.19)"
+>> +Tell the kernel that contents in the specified address range are no
+>> +longer important and the range will be overwritten. When there is
+>> +demand for memory, the system will free pages associated with the
+>> +specified address range. In this instance, the next time a page in the
+>> +address range is referenced, it will contain all zeroes.  Otherwise,
+>> +it will contain the data that was there prior to the MADV_FREE call.
+>> +References made to the address range will not make the system read
+>> +from backing store (swap space) until the page is modified again.
+>> +It works only with private anonymous pages (see
+>> +.BR mmap (2)).
+>>  .SH RETURN VALUE
+>>  On success
+>>  .BR madvise ()
+
+If I'm reading the conversation right, the initially proposed text 
+was from the BSD man page (which would be okay), but most of the 
+text above seems  to have come straight from the page here:
+http://www.lehman.cuny.edu/cgi-bin/man-cgi?madvise+3
+
+Right?
+
+Unfortunately, I don't think we can use that text. It's from the 
+Solaris man page as far as I can tell, and I doubt that it's 
+under a license that we can use.
+
+If that's the case, we need to go back and come up with an
+original text. It might draw inspiration from the Solaris page,
+and take actual text from the BSD page (which is under a free
+license), and it might also draw inspiration from Jon Corbet's 
+description at http://lwn.net/Articles/590991/. 
+
+Could you take another shot this please!
+
+Thanks,
+
+Michael
+
+
+
+-- 
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
