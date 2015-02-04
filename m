@@ -1,56 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id B88C86B00AC
-	for <linux-mm@kvack.org>; Wed,  4 Feb 2015 16:08:37 -0500 (EST)
-Received: by mail-wi0-f170.google.com with SMTP id bs8so31769220wib.1
-        for <linux-mm@kvack.org>; Wed, 04 Feb 2015 13:08:37 -0800 (PST)
-Received: from mailapp01.imgtec.com (mailapp01.imgtec.com. [195.59.15.196])
-        by mx.google.com with ESMTP id da9si5385940wjc.125.2015.02.04.13.08.35
-        for <linux-mm@kvack.org>;
-        Wed, 04 Feb 2015 13:08:36 -0800 (PST)
-From: Daniel Sanders <Daniel.Sanders@imgtec.com>
-Subject: RE: [PATCH 1/5] LLVMLinux: Correct size_index table before
- replacing the bootstrap kmem_cache_node.
-Date: Wed, 4 Feb 2015 21:08:33 +0000
-Message-ID: <E484D272A3A61B4880CDF2E712E9279F4591C476@hhmail02.hh.imgtec.org>
-References: <1422970639-7922-1-git-send-email-daniel.sanders@imgtec.com>
-	<1422970639-7922-2-git-send-email-daniel.sanders@imgtec.com>
-	<54D27403.90000@iki.fi>
-	<E484D272A3A61B4880CDF2E712E9279F4591C3EC@hhmail02.hh.imgtec.org>
- <CAOJsxLF453qWJitGGjn+gMcJwXdXo4wLtmGzhVYJ3j5xOYNHWg@mail.gmail.com>
-In-Reply-To: <CAOJsxLF453qWJitGGjn+gMcJwXdXo4wLtmGzhVYJ3j5xOYNHWg@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A3B7900024
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2015 18:14:43 -0500 (EST)
+Received: by mail-qc0-f174.google.com with SMTP id s11so3976369qcv.5
+        for <linux-mm@kvack.org>; Wed, 04 Feb 2015 15:14:43 -0800 (PST)
+Received: from mail-qa0-x230.google.com (mail-qa0-x230.google.com. [2607:f8b0:400d:c00::230])
+        by mx.google.com with ESMTPS id q67si3865677qgd.39.2015.02.04.15.14.42
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 04 Feb 2015 15:14:42 -0800 (PST)
+Received: by mail-qa0-f48.google.com with SMTP id v8so3520941qal.7
+        for <linux-mm@kvack.org>; Wed, 04 Feb 2015 15:14:42 -0800 (PST)
 MIME-Version: 1.0
+In-Reply-To: <54930835.8020009@codeaurora.org>
+References: <1418854236-25140-1-git-send-email-gregory.0xf0@gmail.com> <54930835.8020009@codeaurora.org>
+From: Gregory Fong <gregory.0xf0@gmail.com>
+Date: Wed, 4 Feb 2015 15:14:11 -0800
+Message-ID: <CADtm3G4c8GH5v3p8Qhf02jPcdRPVu+4MmjfD-2S8ZpoK0-b0Ew@mail.gmail.com>
+Subject: Re: [RFC PATCH] mm: cma: add functions for getting allocation info
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Laura Abbott <lauraa@codeaurora.org>
+Cc: linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Weijie Yang <weijie.yang@samsung.com>, Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>, open list <linux-kernel@vger.kernel.org>, "Stefan I. Strogin" <s.strogin@partner.samsung.com>
 
-PiAtLS0tLU9yaWdpbmFsIE1lc3NhZ2UtLS0tLQ0KPiBGcm9tOiBwZW5iZXJnQGdtYWlsLmNvbSBb
-bWFpbHRvOnBlbmJlcmdAZ21haWwuY29tXSBPbiBCZWhhbGYgT2YNCj4gUGVra2EgRW5iZXJnDQo+
-IFNlbnQ6IDA0IEZlYnJ1YXJ5IDIwMTUgMjA6NDINCj4gVG86IERhbmllbCBTYW5kZXJzDQo+IENj
-OiBDaHJpc3RvcGggTGFtZXRlcjsgRGF2aWQgUmllbnRqZXM7IEpvb25zb28gS2ltOyBBbmRyZXcg
-TW9ydG9uOyBsaW51eC0NCj4gbW1Aa3ZhY2sub3JnOyBsaW51eC1rZXJuZWxAdmdlci5rZXJuZWwu
-b3JnDQo+IFN1YmplY3Q6IFJlOiBbUEFUQ0ggMS81XSBMTFZNTGludXg6IENvcnJlY3Qgc2l6ZV9p
-bmRleCB0YWJsZSBiZWZvcmUNCj4gcmVwbGFjaW5nIHRoZSBib290c3RyYXAga21lbV9jYWNoZV9u
-b2RlLg0KPiANCj4gT24gV2VkLCBGZWIgNCwgMjAxNSBhdCAxMDozOCBQTSwgRGFuaWVsIFNhbmRl
-cnMNCj4gPERhbmllbC5TYW5kZXJzQGltZ3RlYy5jb20+IHdyb3RlOg0KPiA+IEkgZG9uJ3QgYmVs
-aWV2ZSB0aGUgYnVnIHRvIGJlIExMVk0gc3BlY2lmaWMgYnV0IEdDQyBkb2Vzbid0IG5vcm1hbGx5
-DQo+IGVuY291bnRlciB0aGUgcHJvYmxlbS4gSSBoYXZlbid0IGJlZW4gYWJsZSB0byBpZGVudGlm
-eSBleGFjdGx5IHdoYXQgR0NDIGlzDQo+IGRvaW5nIGJldHRlciAocHJvYmFibHkgaW5saW5pbmcp
-IGJ1dCBpdCBzZWVtcyB0aGF0IEdDQyBpcyBtYW5hZ2luZyB0bw0KPiBvcHRpbWl6ZSAgdG8gdGhl
-IHBvaW50IHRoYXQgaXQgZWxpbWluYXRlcyB0aGUgcHJvYmxlbWF0aWMgYWxsb2NhdGlvbnMuIFRo
-aXMNCj4gdGhlb3J5IGlzIHN1cHBvcnRlZCBieSB0aGUgZmFjdCB0aGF0IEdDQyBjYW4gYmUgbWFk
-ZSB0byBmYWlsIGluIHRoZSBzYW1lIHdheQ0KPiBieSBjaGFuZ2luZyBpbmxpbmUsIF9faW5saW5l
-LCBfX2lubGluZV9fLCBhbmQgX19hbHdheXNfaW5saW5lIGluDQo+IGluY2x1ZGUvbGludXgvY29t
-cGlsZXItZ2NjLmggc3VjaCB0aGF0IHRoZXkgZG9uJ3QgYWN0dWFsbHkgaW5saW5lIHRoaW5ncy4N
-Cj4gDQo+IE9LLCBtYWtlcyBzZW5zZS4gUGxlYXNlIGluY2x1ZGUgdGhhdCBleHBsYW5hdGlvbiBp
-biB0aGUgY2hhbmdlbG9nIGFuZA0KPiBkcm9wIHVzZSBwcm9wZXIgInNsYWIiIHByZWZpeCBpbnN0
-ZWFkIG9mIHRoZSBjb25mdXNpbmcgIkxMVk1MaW51eCINCj4gcHJlZml4IGluIHRoZSBzdWJqZWN0
-IGxpbmUuDQo+IA0KPiAtIFBla2thDQoNClN1cmUuIEkndmUganVzdCB1cGRhdGVkIHRoZSBwYXRj
-aCB3aXRoIHRob3NlIGNoYW5nZXMuDQo=
+On Thu, Dec 18, 2014 at 9:00 AM, Laura Abbott <lauraa@codeaurora.org> wrote=
+:
+> On 12/17/2014 2:10 PM, Gregory Fong wrote:
+>>
+>> These functions allow for retrieval of information on what is allocated =
+from
+>> within a given CMA region.  It can be useful to know the number of disti=
+nct
+>> contiguous allocations and where in the region those allocations are
+>> located.
+>>
+>> Based on an initial version by Marc Carino <marc.ceeeee@gmail.com> in a =
+driver
+>> that used the CMA bitmap directly; this instead moves the logic into the=
+ core
+>> CMA API.
+>>
+>> Signed-off-by: Gregory Fong <gregory.0xf0@gmail.com>
+>> ---
+>> This has been really useful for us to determine allocation information f=
+or a
+>> CMA region.  We have had a separate driver that might not be appropriate=
+ for
+>> upstream, but allowed using a user program to run CMA unit tests to veri=
+fy that
+>> allocations end up where they we would expect.  This addition would allo=
+w for
+>> that without needing to expose the CMA bitmap.  Wanted to put this out t=
+here to
+>> see if anyone else would be interested, comments and suggestions welcome=
+.
+>>
+>
+> Information is definitely useful but I'm not sure how it's intended to
+> be used. Do you have a sample usage of these APIs? Another option might
+> be to just add regular debugfs support for each of the regions instead
+> of just calling out to a separate driver.
+
+Sorry for the late reply, got way behind on emails.
+
+Some background is probably good to start here: we use CMA to provide
+very large (hundreds of MiB) contiguous regions for an out-of-kernel
+allocator to divvy up according to varying platform requirements.
+It's an unusual configuration but one that we're stuck with for now.
+
+After having some time to think about this more and taking into
+consideration yours and Micha=C5=82's reply, this definitely does not seem
+like the proper approach.  Something better would probably be like
+what Stefan is working on[1], so I'll wait to see his v2 that uses
+debugfs instead.
+
+[1] https://lkml.org/lkml/2014/12/26/95
+
+Thanks,
+Gregory
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
