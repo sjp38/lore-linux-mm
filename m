@@ -1,53 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id C0F306B00A0
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 19:10:16 -0500 (EST)
-Received: by mail-pa0-f54.google.com with SMTP id eu11so102682456pac.13
-        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 16:10:16 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id ds17si114855pdb.31.2015.02.03.16.10.15
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id D77A2828FC
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2015 19:14:57 -0500 (EST)
+Received: by mail-wi0-f175.google.com with SMTP id fb4so28370394wid.2
+        for <linux-mm@kvack.org>; Tue, 03 Feb 2015 16:14:57 -0800 (PST)
+Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id k10si31829382wif.41.2015.02.03.16.14.54
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Feb 2015 16:10:15 -0800 (PST)
-Date: Tue, 3 Feb 2015 16:10:14 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v11 18/19] module: fix types of device tables aliases
-Message-Id: <20150203161014.05c6f1dc47654b2e1fbc66a5@linux-foundation.org>
-In-Reply-To: <54D16144.1010607@oracle.com>
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
-	<1422985392-28652-1-git-send-email-a.ryabinin@samsung.com>
-	<1422985392-28652-19-git-send-email-a.ryabinin@samsung.com>
-	<20150203155145.632f352695fc558083d8c054@linux-foundation.org>
-	<54D16144.1010607@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 03 Feb 2015 16:14:55 -0800 (PST)
+Date: Wed, 4 Feb 2015 00:14:39 +0000
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [Linaro-mm-sig] [RFCv3 2/2] dma-buf: add helpers for sharing
+ attacher constraints with dma-parms
+Message-ID: <20150204001439.GB8656@n2100.arm.linux.org.uk>
+References: <1422347154-15258-1-git-send-email-sumit.semwal@linaro.org>
+ <7233574.nKiRa7HnXU@wuerfel>
+ <20150203200435.GX14009@phenom.ffwll.local>
+ <3327782.QV7DJfvifL@wuerfel>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3327782.QV7DJfvifL@wuerfel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, x86@kernel.org, linux-mm@kvack.org, Rusty Russell <rusty@rustcorp.com.au>, James Bottomley <James.Bottomley@HansenPartnership.com>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: linaro-mm-sig@lists.linaro.org, Daniel Vetter <daniel@ffwll.ch>, linaro-kernel@lists.linaro.org, Robin Murphy <robin.murphy@arm.com>, LKML <linux-kernel@vger.kernel.org>, DRI mailing list <dri-devel@lists.freedesktop.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rob Clark <robdclark@gmail.com>, Tomasz Stanislawski <stanislawski.tomasz@googlemail.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-media@vger.kernel.org" <linux-media@vger.kernel.org>
 
-On Tue, 03 Feb 2015 19:01:08 -0500 Sasha Levin <sasha.levin@oracle.com> wrote:
+On Tue, Feb 03, 2015 at 10:42:26PM +0100, Arnd Bergmann wrote:
+> Right, if you have a private iommu, there is no problem. The tricky part
+> is using a single driver for the system-level translation and the gpu
+> private mappings when there is only one type of iommu in the system.
 
-> > diff -puN drivers/scsi/be2iscsi/be_main.c~module_device_table-fix-some-callsites drivers/scsi/be2iscsi/be_main.c
-> > --- a/drivers/scsi/be2iscsi/be_main.c~module_device_table-fix-some-callsites
-> > +++ a/drivers/scsi/be2iscsi/be_main.c
-> > @@ -48,7 +48,6 @@ static unsigned int be_iopoll_budget = 1
-> >  static unsigned int be_max_phys_size = 64;
-> >  static unsigned int enable_msix = 1;
-> >  
-> > -MODULE_DEVICE_TABLE(pci, beiscsi_pci_id_table);
-> >  MODULE_DESCRIPTION(DRV_DESC " " BUILD_STR);
-> >  MODULE_VERSION(BUILD_STR);
-> >  MODULE_AUTHOR("Emulex Corporation");
-> 
-> This just removes MODULE_DEVICE_TABLE() rather than moving it to after the
-> definition of beiscsi_pci_id_table.
+You've got a problem anyway with this approach.  If you look at my
+figure 2 and apply it to this scenario, you have two MMUs stacked
+on top of each other.  That's something that (afaik) we don't support,
+but it's entirely possible that will come along with ARM64.
 
-There's already a MODULE_DEVICE_TABLE() after the beiscsi_pci_id_table
-definition. 
+It may not be nice to have to treat GPUs specially, but I think we
+really do need to, and forget the idea that the GPU's IOMMU (as
+opposed to a system MMU) should appear in a generic form in DT.
 
-drivers/net/ethernet/emulex/benet/be_main.c did the same thing. 
+-- 
+FTTC broadband for 0.8mile line: currently at 10.5Mbps down 400kbps up
+according to speedtest.net.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
