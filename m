@@ -1,58 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CDBA6B0038
-	for <linux-mm@kvack.org>; Wed,  4 Feb 2015 07:26:52 -0500 (EST)
-Received: by mail-wi0-f178.google.com with SMTP id bs8so3222235wib.5
-        for <linux-mm@kvack.org>; Wed, 04 Feb 2015 04:26:51 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 13A036B006E
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2015 07:52:23 -0500 (EST)
+Received: by mail-wi0-f178.google.com with SMTP id bs8so3372561wib.5
+        for <linux-mm@kvack.org>; Wed, 04 Feb 2015 04:52:22 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id lh1si2837094wjb.88.2015.02.04.04.26.50
+        by mx.google.com with ESMTPS id p5si3915264wic.61.2015.02.04.04.52.20
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 04 Feb 2015 04:26:50 -0800 (PST)
-Date: Wed, 4 Feb 2015 13:26:48 +0100
+        Wed, 04 Feb 2015 04:52:21 -0800 (PST)
+Date: Wed, 4 Feb 2015 13:52:18 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm/swapfile.c: use spin_lock_bh with swap_lock to avoid
- deadlocks
-Message-ID: <20150204122648.GD29434@dhcp22.suse.cz>
-References: <1422894328-23051-1-git-send-email-pasi.sjoholm@jolla.com>
- <20150203131437.GA8914@dhcp22.suse.cz>
- <54D15E47.8020007@jolla.com>
+Subject: Re: [PATCH v17 1/7] mm: support madvise(MADV_FREE)
+Message-ID: <20150204125218.GE29434@dhcp22.suse.cz>
+References: <1413799924-17946-1-git-send-email-minchan@kernel.org>
+ <1413799924-17946-2-git-send-email-minchan@kernel.org>
+ <20141127144725.GB19157@dhcp22.suse.cz>
+ <20141130235652.GA10333@bbox>
+ <20141202100125.GD27014@dhcp22.suse.cz>
+ <20141203000026.GA30217@bbox>
+ <20141203101329.GB23236@dhcp22.suse.cz>
+ <20141205070816.GB3358@bbox>
+ <20141205083249.GA2321@dhcp22.suse.cz>
+ <54D0F9BC.4060306@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <54D15E47.8020007@jolla.com>
+In-Reply-To: <54D0F9BC.4060306@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pasi =?iso-8859-1?Q?Sj=F6holm?= <pasi.sjoholm@jolla.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pasi =?iso-8859-1?Q?Sj=F6holm?= <pasi.sjoholm@jollamobile.com>
+To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, zhangyanfei@cn.fujitsu.com, "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed 04-02-15 01:48:23, Pasi Sjoholm wrote:
-> On 03.02.2015 15:14, Michal Hocko wrote:
-> >> It is possible to get kernel in deadlock-state if swap_lock is not locked
-> >> with spin_lock_bh by calling si_swapinfo() simultaneously through
-> >> timer_function and registered vm shinker callback-function.
-> >>
-> >> BUG: spinlock recursion on CPU#0, main/2447
-> >> lock: swap_lock+0x0/0x10, .magic: dead4ead, .owner: main/2447, .owner_cpu: 0
-> >> [<c010b938>] (unwind_backtrace+0x0/0x11c) from [<c03e9be0>] (do_raw_spin_lock+0x48/0x154)
-> >> [<c03e9be0>] (do_raw_spin_lock+0x48/0x154) from [<c0226e10>] (si_swapinfo+0x10/0x90)
-> >> [<c0226e10>] (si_swapinfo+0x10/0x90) from [<c04d7e18>] (timer_function+0x24/0x258)
-> > Who is calling si_swapinfo from timer_function? AFAICS the vanilla
-> > kernel doesn't do that. Or am I missing something?
+On Tue 03-02-15 17:39:24, Michael Kerrisk wrote:
+[...]
+> If I'm reading the conversation right, the initially proposed text 
+> was from the BSD man page (which would be okay), but most of the 
+> text above seems  to have come straight from the page here:
+> http://www.lehman.cuny.edu/cgi-bin/man-cgi?madvise+3
 > 
-> Nothing in vanilla kernel, but "memnotify"
-> (https://lkml.org/lkml/2012/1/17/182) together with modified
-> lowmemorykiller (drivers/staging/android/lowmemorykiller.c) which takes
-> in account also the available swap (calling si_swapinfo as well) will
-> cause the deadlock.
+> Right?
 > 
-> Memnotify uses timer (with backoff) for checking the memory pressure
-> which can be then used to let the processes itself adjust their memory
-> pressure before getting killed by the modified lowmemorykiller.
+> Unfortunately, I don't think we can use that text. It's from the 
+> Solaris man page as far as I can tell, and I doubt that it's 
+> under a license that we can use.
 
-We are not usually changing the core kernel for an out of tree
-functionality. So NAK to this patch.
+Ohh, I wasn't aware of that restriction and didn't notice anything at
+the man page nor http://www.lehman.cuny.edu/cgi-bin/man-cgi.
+But you are definitely right that it would be better to not use this
+source. Sorry about that, I should have noticed that myself.
+
+> If that's the case, we need to go back and come up with an
+> original text. It might draw inspiration from the Solaris page,
+> and take actual text from the BSD page (which is under a free
+> license), and it might also draw inspiration from Jon Corbet's 
+> description at http://lwn.net/Articles/590991/. 
+> 
+> Could you take another shot this please!
+
+Minchan is obviously working on one and I will review it once he is done
+with it.
 -- 
 Michal Hocko
 SUSE Labs
