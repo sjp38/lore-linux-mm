@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A5CB6B00A9
-	for <linux-mm@kvack.org>; Wed,  4 Feb 2015 15:52:42 -0500 (EST)
-Received: by mail-wi0-f171.google.com with SMTP id l15so34598313wiw.4
-        for <linux-mm@kvack.org>; Wed, 04 Feb 2015 12:52:41 -0800 (PST)
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C3986B00AB
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2015 16:07:26 -0500 (EST)
+Received: by mail-wi0-f173.google.com with SMTP id r20so34742219wiv.0
+        for <linux-mm@kvack.org>; Wed, 04 Feb 2015 13:07:26 -0800 (PST)
 Received: from mailapp01.imgtec.com (mailapp01.imgtec.com. [195.59.15.196])
-        by mx.google.com with ESMTP id wa9si5326016wjc.114.2015.02.04.12.52.39
+        by mx.google.com with ESMTP id bv10si5539443wjc.39.2015.02.04.13.07.24
         for <linux-mm@kvack.org>;
-        Wed, 04 Feb 2015 12:52:39 -0800 (PST)
+        Wed, 04 Feb 2015 13:07:25 -0800 (PST)
 From: Daniel Sanders <daniel.sanders@imgtec.com>
-Subject: [PATCH v2 1/5] LLVMLinux: Correct size_index table before replacing the bootstrap kmem_cache_node.
-Date: Wed, 4 Feb 2015 20:52:25 +0000
-Message-ID: <1423083145-22216-1-git-send-email-daniel.sanders@imgtec.com>
+Subject: [PATCH v3 1/5] slab: Correct size_index table before replacing the bootstrap kmem_cache_node.
+Date: Wed, 4 Feb 2015 21:06:55 +0000
+Message-ID: <1423084015-24010-1-git-send-email-daniel.sanders@imgtec.com>
 In-Reply-To: <E484D272A3A61B4880CDF2E712E9279F4591AFFB@hhmail02.hh.imgtec.org>
 References: <E484D272A3A61B4880CDF2E712E9279F4591AFFB@hhmail02.hh.imgtec.org>
 MIME-Version: 1.0
@@ -60,6 +60,14 @@ Cc: linux-kernel@vger.kernel.org
 
 Renamed correct_kmalloc_cache_index_table() to setup_kmalloc_cache_index_table()
 as requested.
+
+I don't believe the bug to be LLVM specific but GCC doesn't normally encounter
+the problem. I haven't been able to identify exactly what GCC is doing better
+(probably inlining) but it seems that GCC is managing to optimize to the point
+that it eliminates the problematic allocations. This theory is supported by the
+fact that GCC can be made to fail in the same way by changing inline, __inline,
+__inline__, and __always_inline in include/linux/compiler-gcc.h such that they
+don't actually inline things.
 
  mm/slab.c        |  1 +
  mm/slab.h        |  1 +
