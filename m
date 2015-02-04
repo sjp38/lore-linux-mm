@@ -1,63 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f53.google.com (mail-qa0-f53.google.com [209.85.216.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 32FC7900015
-	for <linux-mm@kvack.org>; Wed,  4 Feb 2015 13:28:16 -0500 (EST)
-Received: by mail-qa0-f53.google.com with SMTP id n4so2380713qaq.12
-        for <linux-mm@kvack.org>; Wed, 04 Feb 2015 10:28:16 -0800 (PST)
-Received: from mail-qa0-x22f.google.com (mail-qa0-x22f.google.com. [2607:f8b0:400d:c00::22f])
-        by mx.google.com with ESMTPS id v5si2802272qat.109.2015.02.04.10.28.15
+Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
+	by kanga.kvack.org (Postfix) with ESMTP id CB1F4900015
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2015 14:24:49 -0500 (EST)
+Received: by mail-lb0-f178.google.com with SMTP id u10so3294259lbd.9
+        for <linux-mm@kvack.org>; Wed, 04 Feb 2015 11:24:49 -0800 (PST)
+Received: from mail-lb0-x22d.google.com (mail-lb0-x22d.google.com. [2a00:1450:4010:c04::22d])
+        by mx.google.com with ESMTPS id w8si2224113lbb.25.2015.02.04.11.24.47
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Feb 2015 10:28:15 -0800 (PST)
-Received: by mail-qa0-f47.google.com with SMTP id n8so2402360qaq.6
-        for <linux-mm@kvack.org>; Wed, 04 Feb 2015 10:28:15 -0800 (PST)
-Date: Wed, 4 Feb 2015 13:28:11 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC] Making memcg track ownership per address_space or anon_vma
-Message-ID: <20150204182811.GC18858@htj.dyndns.org>
-References: <20150130044324.GA25699@htj.dyndns.org>
- <xr93h9v8yfrv.fsf@gthelen.mtv.corp.google.com>
- <20150130062737.GB25699@htj.dyndns.org>
- <20150130160722.GA26111@htj.dyndns.org>
- <54CFCF74.6090400@yandex-team.ru>
- <20150202194608.GA8169@htj.dyndns.org>
- <CAHH2K0aSPjNgt30uJQa_6r=AXZso3SitjWOm96dtJF32CumZjQ@mail.gmail.com>
- <54D1F924.5000001@yandex-team.ru>
- <20150204171512.GB18858@htj.dyndns.org>
- <54D25DBD.5080009@yandex-team.ru>
+        Wed, 04 Feb 2015 11:24:48 -0800 (PST)
+Received: by mail-lb0-f173.google.com with SMTP id p9so3325380lbv.4
+        for <linux-mm@kvack.org>; Wed, 04 Feb 2015 11:24:47 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <54D25DBD.5080009@yandex-team.ru>
+Reply-To: mtk.manpages@gmail.com
+In-Reply-To: <54D2508A.9030804@suse.cz>
+References: <20150202165525.GM2395@suse.de> <54CFF8AC.6010102@intel.com>
+ <54D08483.40209@suse.cz> <20150203105301.GC14259@node.dhcp.inet.fi>
+ <54D0B43D.8000209@suse.cz> <54D0F56A.9050003@gmail.com> <54D22298.3040504@suse.cz>
+ <CAKgNAkgOOCuzJz9whoVfFjqhxM0zYsz94B1+oH58SthC5Ut9sg@mail.gmail.com> <54D2508A.9030804@suse.cz>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Date: Wed, 4 Feb 2015 20:24:27 +0100
+Message-ID: <CAKgNAkhNbHQX7RukSsSe3bMqY11f493rYbDpTOA2jH7vsziNww@mail.gmail.com>
+Subject: Re: MADV_DONTNEED semantics? Was: [RFC PATCH] mm: madvise: Ignore
+ repeated MADV_DONTNEED hints
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Christoph Hellwig <hch@infradead.org>, Li Zefan <lizefan@huawei.com>, Hugh Dickins <hughd@google.com>, Roman Gushchin <klamm@yandex-team.ru>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-man <linux-man@vger.kernel.org>, Hugh Dickins <hughd@google.com>
 
-On Wed, Feb 04, 2015 at 08:58:21PM +0300, Konstantin Khlebnikov wrote:
-> >>Generally incidental sharing could be handled as temporary sharing:
-> >>default policy (if inode isn't pinned to memory cgroup) after some
-> >>time should detect that inode is no longer shared and migrate it into
-> >>original cgroup. Of course task could provide hit: O_NO_MOVEMEM or
-> >>even while memory cgroup where it runs could be marked as "scanner"
-> >>which shouldn't disturb memory classification.
-> >
-> >Ditto for annotating each file individually.  Let's please try to stay
-> >away from things like that.  That's mostly a cop-out which is unlikely
-> >to actually benefit the majority of users.
-> 
-> Process which scans all files once isn't so rare use case.
-> Linux still cannot handle this pattern sometimes.
+On 4 February 2015 at 18:02, Vlastimil Babka <vbabka@suse.cz> wrote:
+> On 02/04/2015 03:00 PM, Michael Kerrisk (man-pages) wrote:
+>>
+>> Hello Vlastimil,
+>>
+>> On 4 February 2015 at 14:46, Vlastimil Babka <vbabka@suse.cz> wrote:
+>>>>>
+>>>>> - that covers mlocking ok, not sure if the rest fits the "shared page=
+s"
+>>>>> case
+>>>>> though. I dont see any check for other kinds of shared pages in the
+>>>>> code.
+>>>>
+>>>>
+>>>> Agreed. "shared" here seems confused. I've removed it. And I've
+>>>> added mention of "Huge TLB pages" for this error.
+>>>
+>>>
+>>> Thanks.
+>>
+>>
+>> I also added those cases for MADV_REMOVE, BTW.
+>
+>
+> Right. There's also the following for MADV_REMOVE that needs updating:
+>
+> "Currently, only shmfs/tmpfs supports this; other filesystems return with
+> the error ENOSYS."
+>
+> - it's not just shmem/tmpfs anymore. It should be best to refer to
+> fallocate(2) option FALLOC_FL_PUNCH_HOLE which seems to be (more) up to
+> date.
+>
+> - AFAICS it doesn't return ENOSYS but EOPNOTSUPP. Also neither error code=
+ is
+> listed in the ERRORS section.
 
-Yeah, sure, tagging usages with m/fadvise's is fine.  We can just look
-at the policy and ignore them for the purpose of determining who's
-using the inode, but let's stay away from tagging the files on
-filesystem if at all possible.
+Yup, I recently added that as well, based on a patch from Jan Chaloupka.
 
-Thanks.
+>>>>>>> - The word "will result" did sound as a guarantee at least to me. S=
+o
+>>>>>>> here it
+>>>>>>> could be changed to "may result (unless the advice is ignored)"?
+>>>>>>
+>>>>>> It's too late to fix documentation. Applications already depends on
+>>>>>> the
+>>>>>> beheviour.
+>>>>>
+>>>>> Right, so as long as they check for EINVAL, it should be safe. It
+>>>>> appears
+>>>>> that
+>>>>> jemalloc does.
+>>>>
+>>>> So, first a brief question: in the cases where the call does not error
+>>>> out,
+>>>> are we agreed that in the current implementation, MADV_DONTNEED will
+>>>> always result in zero-filled pages when the region is faulted back in
+>>>> (when we consider pages that are not backed by a file)?
+>>>
+>>> I'd agree at this point.
+>>
+>> Thanks for the confirmation.
+>>
+>>> Also we should probably mention anonymously shared pages (shmem). I thi=
+nk
+>>> they behave the same as file here.
+>>
+>> You mean tmpfs here, right? (I don't keep all of the synonyms straight.)
+>
+> shmem is tmpfs (that by itself would fit under "files" just fine), but al=
+so
+> sys V segments created by shmget(2) and also mappings created by mmap wit=
+h
+> MAP_SHARED | MAP_ANONYMOUS. I'm not sure if there's a single manpage to
+> refer to the full list.
 
--- 
-tejun
+So, how about this text:
+
+              After a successful MADV_DONTNEED operation, the seman=E2=80=
+=90
+              tics  of  memory  access  in  the specified region are
+              changed: subsequent accesses of  pages  in  the  range
+              will  succeed,  but will result in either reloading of
+              the memory contents from the  underlying  mapped  file
+              (for  shared file mappings, shared anonymous mappings,
+              and shmem-based techniques such  as  System  V  shared
+              memory  segments)  or  zero-fill-on-demand  pages  for
+              anonymous private mappings.
+
+Thanks,
+
+Michael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
