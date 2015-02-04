@@ -1,98 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id C166C6B0085
-	for <linux-mm@kvack.org>; Wed,  4 Feb 2015 10:10:04 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id kx10so3198263pab.11
-        for <linux-mm@kvack.org>; Wed, 04 Feb 2015 07:10:04 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id uz6si2414047pac.156.2015.02.04.07.10.03
-        for <linux-mm@kvack.org>;
-        Wed, 04 Feb 2015 07:10:04 -0800 (PST)
-Date: Wed, 4 Feb 2015 23:09:42 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [PATCH mmotm] x86_64: __asan_load2 can be static
-Message-ID: <20150204150942.GA100965@lkp-sb04>
-References: <201502042321.YTAJE4EN%fengguang.wu@intel.com>
+Received: from mail-yh0-f54.google.com (mail-yh0-f54.google.com [209.85.213.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 706336B0083
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2015 11:34:27 -0500 (EST)
+Received: by mail-yh0-f54.google.com with SMTP id 29so1109485yhl.13
+        for <linux-mm@kvack.org>; Wed, 04 Feb 2015 08:34:27 -0800 (PST)
+Received: from mail-qg0-x230.google.com (mail-qg0-x230.google.com. [2607:f8b0:400d:c04::230])
+        by mx.google.com with ESMTPS id x47si602437yhd.91.2015.02.04.08.34.24
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 04 Feb 2015 08:34:25 -0800 (PST)
+Received: by mail-qg0-f48.google.com with SMTP id a108so2002747qge.7
+        for <linux-mm@kvack.org>; Wed, 04 Feb 2015 08:34:24 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201502042321.YTAJE4EN%fengguang.wu@intel.com>
+From: Andrey Korolyov <andrey@xdel.ru>
+Date: Wed, 4 Feb 2015 20:34:04 +0400
+Message-ID: <CABYiri9MEbEnZikqTU3d=w6rxtsgumH2gJ++Qzi1yZKGn6it+Q@mail.gmail.com>
+Subject: Re: copy_huge_page: unable to handle kernel NULL pointer dereference
+ at 0000000000000008
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <a.ryabinin@samsung.com>
-Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: "kvm@vger.kernel.org" <kvm@vger.kernel.org>, wanpeng.li@linux.intel.com, jipan.yang@gmail.com
 
-mm/kasan/kasan.c:276:1: sparse: symbol '__asan_load2' was not declared. Should it be static?
-mm/kasan/kasan.c:277:1: sparse: symbol '__asan_load4' was not declared. Should it be static?
-mm/kasan/kasan.c:278:1: sparse: symbol '__asan_load8' was not declared. Should it be static?
-mm/kasan/kasan.c:279:1: sparse: symbol '__asan_load16' was not declared. Should it be static?
-mm/kasan/report.c:188:1: sparse: symbol '__asan_report_load1_noabort' was not declared. Should it be static?
-mm/kasan/report.c:189:1: sparse: symbol '__asan_report_load2_noabort' was not declared. Should it be static?
-mm/kasan/report.c:190:1: sparse: symbol '__asan_report_load4_noabort' was not declared. Should it be static?
-mm/kasan/report.c:191:1: sparse: symbol '__asan_report_load8_noabort' was not declared. Should it be static?
-mm/kasan/report.c:192:1: sparse: symbol '__asan_report_load16_noabort' was not declared. Should it be static?
-mm/kasan/report.c:193:1: sparse: symbol '__asan_report_store1_noabort' was not declared. Should it be static?
-mm/kasan/report.c:194:1: sparse: symbol '__asan_report_store2_noabort' was not declared. Should it be static?
-mm/kasan/report.c:195:1: sparse: symbol '__asan_report_store4_noabort' was not declared. Should it be static?
-mm/kasan/report.c:196:1: sparse: symbol '__asan_report_store8_noabort' was not declared. Should it be static?
-mm/kasan/report.c:197:1: sparse: symbol '__asan_report_store16_noabort' was not declared. Should it be static?
+>Hi,
+>
+>I've seen the problem quite a few times.  Before spending more time on
+>it, I'd like to have a quick check here to see if anyone ever saw the
+>same problem?  Hope it is a relevant question with this mail list.
+>
+>
+>Jul  2 11:08:21 arno-3 kernel: [ 2165.078623] BUG: unable to handle
+>kernel NULL pointer dereference at 0000000000000008
+>Jul  2 11:08:21 arno-3 kernel: [ 2165.078916] IP: [<ffffffff8118d0fa>]
+>copy_huge_page+0x8a/0x2a0
+>Jul  2 11:08:21 arno-3 kernel: [ 2165.079128] PGD 0
+>Jul  2 11:08:21 arno-3 kernel: [ 2165.079198] Oops: 0000 [#1] SMP
+>Jul  2 11:08:21 arno-3 kernel: [ 2165.079319] Modules linked in:
+>ip6table_filter ip6_tables ebtable_nat ebtables ipt_MASQUERADE
+>iptable_nat nf_nat_ipv4 nf_nat nf_conntrack_ipv4 nf_defrag_ipv4
+>xt_state nf_conntrack ipt_REJECT xt_CHECKSUM iptable_mangle xt_tcpudp
+>iptable_filter ip_tables x_tables kvm_intel kvm bridge stp llc ast ttm
+>drm_kms_helper drm sysimgblt sysfillrect syscopyarea lp mei_me ioatdma
+>ext2 parport mei shpchp dcdbas joydev mac_hid lpc_ich acpi_pad wmi
+>hid_generic usbhid hid ixgbe igb dca i2c_algo_bit ahci ptp libahci
+>mdio pps_core
+>Jul  2 11:08:21 arno-3 kernel: [ 2165.081090] CPU: 19 PID: 3494 Comm:
+>qemu-system-x86 Not tainted 3.11.0-15-generic #25~precise1-Ubuntu
+>Jul  2 11:08:21 arno-3 kernel: [ 2165.081424] Hardware name: Dell Inc.
+>PowerEdge C6220 II/09N44V, BIOS 2.0.3 07/03/2013
+>Jul  2 11:08:21 arno-3 kernel: [ 2165.081705] task: ffff881026750000
+>ti: ffff881026056000 task.ti: ffff881026056000
+>Jul  2 11:08:21 arno-3 kernel: [ 2165.081973] RIP:
+>0010:[<ffffffff8118d0fa>]  [<ffffffff8118d0fa>]
+>copy_huge_page+0x8a/0x2a0
 
-Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
----
- kasan.c  |    8 ++++----
- report.c |   20 ++++++++++----------
- 2 files changed, 14 insertions(+), 14 deletions(-)
 
-diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index def8110..6066986 100644
---- a/mm/kasan/kasan.c
-+++ b/mm/kasan/kasan.c
-@@ -273,10 +273,10 @@ static __always_inline void check_memory_region(unsigned long addr,
- 	EXPORT_SYMBOL(__asan_store##size##_noabort)
- 
- DEFINE_ASAN_LOAD_STORE(1);
--DEFINE_ASAN_LOAD_STORE(2);
--DEFINE_ASAN_LOAD_STORE(4);
--DEFINE_ASAN_LOAD_STORE(8);
--DEFINE_ASAN_LOAD_STORE(16);
-+static DEFINE_ASAN_LOAD_STORE(2);
-+static DEFINE_ASAN_LOAD_STORE(4);
-+static DEFINE_ASAN_LOAD_STORE(8);
-+static DEFINE_ASAN_LOAD_STORE(16);
- 
- void __asan_loadN(unsigned long addr, size_t size)
- {
-diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index 5835d69..be56573 100644
---- a/mm/kasan/report.c
-+++ b/mm/kasan/report.c
-@@ -185,16 +185,16 @@ void __asan_report_store##size##_noabort(unsigned long addr) \
- }                                                          \
- EXPORT_SYMBOL(__asan_report_store##size##_noabort)
- 
--DEFINE_ASAN_REPORT_LOAD(1);
--DEFINE_ASAN_REPORT_LOAD(2);
--DEFINE_ASAN_REPORT_LOAD(4);
--DEFINE_ASAN_REPORT_LOAD(8);
--DEFINE_ASAN_REPORT_LOAD(16);
--DEFINE_ASAN_REPORT_STORE(1);
--DEFINE_ASAN_REPORT_STORE(2);
--DEFINE_ASAN_REPORT_STORE(4);
--DEFINE_ASAN_REPORT_STORE(8);
--DEFINE_ASAN_REPORT_STORE(16);
-+static DEFINE_ASAN_REPORT_LOAD(1);
-+static DEFINE_ASAN_REPORT_LOAD(2);
-+static DEFINE_ASAN_REPORT_LOAD(4);
-+static DEFINE_ASAN_REPORT_LOAD(8);
-+static DEFINE_ASAN_REPORT_LOAD(16);
-+static DEFINE_ASAN_REPORT_STORE(1);
-+static DEFINE_ASAN_REPORT_STORE(2);
-+static DEFINE_ASAN_REPORT_STORE(4);
-+static DEFINE_ASAN_REPORT_STORE(8);
-+static DEFINE_ASAN_REPORT_STORE(16);
- 
- void __asan_report_load_n_noabort(unsigned long addr, size_t size)
- {
+Hello,
+
+sorry for possible top-posting, the same issue appears on at least
+3.10 LTS series. The original thread is at
+http://marc.info/?l=kvm&m=14043742300901. The necessary components for
+failure to reappear are a single running kvm guest and mounted large
+thp: hugepagesz=1G (seemingly the same as in initial report). With
+default 2M pages everything is working well, the same for 3.18 with 1G
+THP. Are there any obvious clues for the issue?
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
