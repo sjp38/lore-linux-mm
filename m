@@ -1,95 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f52.google.com (mail-qa0-f52.google.com [209.85.216.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A648828FD
-	for <linux-mm@kvack.org>; Thu,  5 Feb 2015 08:15:19 -0500 (EST)
-Received: by mail-qa0-f52.google.com with SMTP id x12so5676415qac.11
-        for <linux-mm@kvack.org>; Thu, 05 Feb 2015 05:15:18 -0800 (PST)
-Received: from mail-qc0-x22e.google.com (mail-qc0-x22e.google.com. [2607:f8b0:400d:c01::22e])
-        by mx.google.com with ESMTPS id n94si6055519qgn.48.2015.02.05.05.15.17
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 18F64828FD
+	for <linux-mm@kvack.org>; Thu,  5 Feb 2015 10:41:08 -0500 (EST)
+Received: by mail-wg0-f52.google.com with SMTP id y19so8245956wgg.11
+        for <linux-mm@kvack.org>; Thu, 05 Feb 2015 07:41:07 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f4si9855777wje.8.2015.02.05.07.41.05
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Feb 2015 05:15:18 -0800 (PST)
-Received: by mail-qc0-f174.google.com with SMTP id s11so6239279qcv.5
-        for <linux-mm@kvack.org>; Thu, 05 Feb 2015 05:15:17 -0800 (PST)
-Date: Thu, 5 Feb 2015 08:15:14 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC] Making memcg track ownership per address_space or anon_vma
-Message-ID: <20150205131514.GD25736@htj.dyndns.org>
-References: <20150130044324.GA25699@htj.dyndns.org>
- <xr93h9v8yfrv.fsf@gthelen.mtv.corp.google.com>
- <20150130062737.GB25699@htj.dyndns.org>
- <20150130160722.GA26111@htj.dyndns.org>
- <54CFCF74.6090400@yandex-team.ru>
- <20150202194608.GA8169@htj.dyndns.org>
- <CAHH2K0aSPjNgt30uJQa_6r=AXZso3SitjWOm96dtJF32CumZjQ@mail.gmail.com>
- <20150204170656.GA18858@htj.dyndns.org>
- <xr93zj8ti6ca.fsf@gthelen.mtv.corp.google.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 05 Feb 2015 07:41:06 -0800 (PST)
+Date: Thu, 5 Feb 2015 16:41:02 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: MADV_DONTNEED semantics? Was: [RFC PATCH] mm: madvise: Ignore
+ repeated MADV_DONTNEED hints
+Message-ID: <20150205154102.GA20607@dhcp22.suse.cz>
+References: <20150202165525.GM2395@suse.de>
+ <54CFF8AC.6010102@intel.com>
+ <54D08483.40209@suse.cz>
+ <20150203105301.GC14259@node.dhcp.inet.fi>
+ <54D0B43D.8000209@suse.cz>
+ <54D0F56A.9050003@gmail.com>
+ <54D22298.3040504@suse.cz>
+ <CAKgNAkgOOCuzJz9whoVfFjqhxM0zYsz94B1+oH58SthC5Ut9sg@mail.gmail.com>
+ <54D2508A.9030804@suse.cz>
+ <CAKgNAkhNbHQX7RukSsSe3bMqY11f493rYbDpTOA2jH7vsziNww@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <xr93zj8ti6ca.fsf@gthelen.mtv.corp.google.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAKgNAkhNbHQX7RukSsSe3bMqY11f493rYbDpTOA2jH7vsziNww@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Christoph Hellwig <hch@infradead.org>, Li Zefan <lizefan@huawei.com>, Hugh Dickins <hughd@google.com>
+To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-man <linux-man@vger.kernel.org>, Hugh Dickins <hughd@google.com>
 
-Hello, Greg.
-
-On Wed, Feb 04, 2015 at 03:51:01PM -0800, Greg Thelen wrote:
-> I think the linux-next low (and the TBD min) limits also have the
-> problem for more than just the root memcg.  I'm thinking of a 2M file
-> shared between C and D below.  The file will be charged to common parent
-> B.
+On Wed 04-02-15 20:24:27, Michael Kerrisk wrote:
+[...]
+> So, how about this text:
 > 
-> 	A
-> 	+-B    (usage=2M lim=3M min=2M)
-> 	  +-C  (usage=0  lim=2M min=1M shared_usage=2M)
-> 	  +-D  (usage=0  lim=2M min=1M shared_usage=2M)
-> 	  \-E  (usage=0  lim=2M min=0)
-> 
-> The problem arises if A/B/E allocates more than 1M of private
-> reclaimable file data.  This pushes A/B into reclaim which will reclaim
-> both the shared file from A/B and private file from A/B/E.  In contrast,
-> the current per-page memcg would've protected the shared file in either
-> C or D leaving A/B reclaim to only attack A/B/E.
-> 
-> Pinning the shared file to either C or D, using TBD policy such as mount
-> option, would solve this for tightly shared files.  But for wide fanout
-> file (libc) the admin would need to assign a global bucket and this
-> would be a pain to size due to various job requirements.
+>               After a successful MADV_DONTNEED operation, the semana??
+>               tics  of  memory  access  in  the specified region are
+>               changed: subsequent accesses of  pages  in  the  range
+>               will  succeed,  but will result in either reloading of
+>               the memory contents from the  underlying  mapped  file
 
-Shouldn't we be able to handle it the same way as I proposed for
-handling sharing?  The above would look like
+"
+result in either providing the up-to-date contents of the underlying
+mapped file
+"
 
- 	A
- 	+-B    (usage=2M lim=3M min=2M hosted_usage=2M)
- 	  +-C  (usage=0  lim=2M min=1M shared_usage=2M)
- 	  +-D  (usage=0  lim=2M min=1M shared_usage=2M)
- 	  \-E  (usage=0  lim=2M min=0)
+Would be more precise IMO because reload might be interpreted as a major
+fault which is not necessarily the case (see below).
 
-Now, we don't wanna use B's min verbatim on the hosted inodes shared
-by children but we're unconditionally charging the shared amount to
-all sharing children, which means that we're eating into the min
-settings of all participating children, so, we should be able to use
-sum of all sharing children's min-covered amount as the inode's min,
-which of course is to be contained inside the min of the parent.
+>               (for  shared file mappings, shared anonymous mappings,
+>               and shmem-based techniques such  as  System  V  shared
+>               memory  segments)  or  zero-fill-on-demand  pages  for
+>               anonymous private mappings.
 
-Above, we're charging 2M to C and D, each of which has 1M min which is
-being consumed by the shared charge (the shared part won't get
-reclaimed from the internal pressure of children, so we're really
-taking that part away from it).  Summing them up, the shared inode
-would have 2M protection which is honored as long as B as a whole is
-under its 3M limit.  This is similar to creating a dedicated child for
-each shared resource for low limits.  The downside is that we end up
-guarding the shared inodes more than non-shared ones, but, after all,
-we're charging it to everybody who's using it.
+Yes, this wording is better because many users are not aware of
+MAP_ANON|MAP_SHARED being file backed in fact and mmap man page doesn't
+mention that.
 
-Would something like this work?
-
-Thanks.
-
+I am just wondering whether it makes sense to mention that MADV_DONTNEED
+for shared mappings might be surprising and not freeing the backing
+pages thus not really freeing memory until there is a memory
+pressure. But maybe this is too implementation specific for a man
+page. What about the following wording on top of yours?
+"
+Please note that the MADV_DONTNEED hint on shared mappings might not
+lead to immediate freeing of pages in the range. The kernel is free to
+delay this until an appropriate moment. RSS of the calling process will
+be reduced however.
+"
 -- 
-tejun
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
