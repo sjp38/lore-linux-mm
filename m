@@ -1,72 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id AEA54828FD
-	for <linux-mm@kvack.org>; Thu,  5 Feb 2015 03:37:38 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id lj1so8609075pab.6
-        for <linux-mm@kvack.org>; Thu, 05 Feb 2015 00:37:38 -0800 (PST)
-Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
-        by mx.google.com with ESMTPS id ry9si5242601pbc.147.2015.02.05.00.37.36
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 9020A828FD
+	for <linux-mm@kvack.org>; Thu,  5 Feb 2015 04:16:56 -0500 (EST)
+Received: by mail-wi0-f175.google.com with SMTP id fb4so37394993wid.2
+        for <linux-mm@kvack.org>; Thu, 05 Feb 2015 01:16:56 -0800 (PST)
+Received: from mail-we0-f174.google.com (mail-we0-f174.google.com. [74.125.82.174])
+        by mx.google.com with ESMTPS id q13si7939265wju.49.2015.02.05.01.16.54
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Feb 2015 00:37:37 -0800 (PST)
-Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailout.nyi.internal (Postfix) with ESMTP id 74FB620D38
-	for <linux-mm@kvack.org>; Thu,  5 Feb 2015 03:37:34 -0500 (EST)
-Message-ID: <54D32BCC.1010608@iki.fi>
-Date: Thu, 05 Feb 2015 10:37:32 +0200
-From: Pekka Enberg <penberg@iki.fi>
+        Thu, 05 Feb 2015 01:16:54 -0800 (PST)
+Received: by mail-we0-f174.google.com with SMTP id w55so6479523wes.5
+        for <linux-mm@kvack.org>; Thu, 05 Feb 2015 01:16:54 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 1/5] slab: Correct size_index table before replacing
- the bootstrap kmem_cache_node.
-References: <E484D272A3A61B4880CDF2E712E9279F4591AFFB@hhmail02.hh.imgtec.org> <1423084015-24010-1-git-send-email-daniel.sanders@imgtec.com>
-In-Reply-To: <1423084015-24010-1-git-send-email-daniel.sanders@imgtec.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1414185652-28663-5-git-send-email-matthew.r.wilcox@intel.com>
+References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
+	<1414185652-28663-5-git-send-email-matthew.r.wilcox@intel.com>
+Date: Thu, 5 Feb 2015 11:16:53 +0200
+Message-ID: <CACTTzNbZ2K824aoPqXe4Q8WDRuc72ch5+B9J3GZQ2Z4Kwia56A@mail.gmail.com>
+Subject: Re: [PATCH v12 04/20] mm: Allow page fault handlers to perform the COW
+From: Yigal Korman <yigal@plexistor.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Sanders <daniel.sanders@imgtec.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: linux-fsdevel@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, willy@linux.intel.com, Andrew Morton <akpm@linux-foundation.org>
 
+On Sat, Oct 25, 2014 at 12:20 AM, Matthew Wilcox
+<matthew.r.wilcox@intel.com> wrote:
+> Currently COW of an XIP file is done by first bringing in a read-only
+> mapping, then retrying the fault and copying the page.  It is much more
+> efficient to tell the fault handler that a COW is being attempted (by
+> passing in the pre-allocated page in the vm_fault structure), and allow
+> the handler to perform the COW operation itself.
+>
+> The handler cannot insert the page itself if there is already a read-only
+> mapping at that address, so allow the handler to return VM_FAULT_LOCKED
+> and set the fault_page to be NULL.  This indicates to the MM code that
+> the i_mmap_mutex is held instead of the page lock.
 
-On 02/04/2015 11:06 PM, Daniel Sanders wrote:
-> This patch moves the initialization of the size_index table slightly
-> earlier so that the first few kmem_cache_node's can be safely allocated
-> when KMALLOC_MIN_SIZE is large.
->
-> There are currently two ways to generate indices into kmalloc_caches
-> (via kmalloc_index() and via the size_index table in slab_common.c)
-> and on some arches (possibly only MIPS) they potentially disagree with
-> each other until create_kmalloc_caches() has been called. It seems
-> that the intention is that the size_index table is a fast equivalent
-> to kmalloc_index() and that create_kmalloc_caches() patches the table
-> to return the correct value for the cases where kmalloc_index()'s
-> if-statements apply.
->
-> The failing sequence was:
-> * kmalloc_caches contains NULL elements
-> * kmem_cache_init initialises the element that 'struct
->    kmem_cache_node' will be allocated to. For 32-bit Mips, this is a
->    56-byte struct and kmalloc_index returns KMALLOC_SHIFT_LOW (7).
-> * init_list is called which calls kmalloc_node to allocate a 'struct
->    kmem_cache_node'.
-> * kmalloc_slab selects the kmem_caches element using
->    size_index[size_index_elem(size)]. For MIPS, size is 56, and the
->    expression returns 6.
-> * This element of kmalloc_caches is NULL and allocation fails.
-> * If it had not already failed, it would have called
->    create_kmalloc_caches() at this point which would have changed
->    size_index[size_index_elem(size)] to 7.
->
-> Signed-off-by: Daniel Sanders <daniel.sanders@imgtec.com>
-> Cc: Christoph Lameter <cl@linux.com>
-> Cc: Pekka Enberg <penberg@kernel.org>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: linux-mm@kvack.org
-> Cc: linux-kernel@vger.kernel.org
+I have a question on a related issue (I think).
+I've noticed that for pfn-only mappings (VM_FAULT_NOPAGE)
+do_shared_fault only maps the pfn with r/o permissions.
+So if I use DAX to write the mmap()-ed pfn I get two faults - first
+handled by do_shared_fault and then again for making it r/w in
+do_wp_page.
+Is this simply a missing optimization like was done here with the
+cow_page? or am I missing something?
 
-Acked-by: Pekka Enberg <penberg@kernel.org>
+>
+> Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
+> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  include/linux/mm.h |  1 +
+>  mm/memory.c        | 33 ++++++++++++++++++++++++---------
+>  2 files changed, 25 insertions(+), 9 deletions(-)
+>
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 02d11ee..88d1ef4 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -209,6 +209,7 @@ struct vm_fault {
+>         pgoff_t pgoff;                  /* Logical page offset based on vma */
+>         void __user *virtual_address;   /* Faulting virtual address */
+>
+> +       struct page *cow_page;          /* Handler may choose to COW */
+>         struct page *page;              /* ->fault handlers should return a
+>                                          * page here, unless VM_FAULT_NOPAGE
+>                                          * is set (which is also implied by
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 1cc6bfb..6dee424 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2002,6 +2002,7 @@ static int do_page_mkwrite(struct vm_area_struct *vma, struct page *page,
+>         vmf.pgoff = page->index;
+>         vmf.flags = FAULT_FLAG_WRITE|FAULT_FLAG_MKWRITE;
+>         vmf.page = page;
+> +       vmf.cow_page = NULL;
+>
+>         ret = vma->vm_ops->page_mkwrite(vma, &vmf);
+>         if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
+> @@ -2701,7 +2702,8 @@ oom:
+>   * See filemap_fault() and __lock_page_retry().
+>   */
+>  static int __do_fault(struct vm_area_struct *vma, unsigned long address,
+> -               pgoff_t pgoff, unsigned int flags, struct page **page)
+> +                       pgoff_t pgoff, unsigned int flags,
+> +                       struct page *cow_page, struct page **page)
+>  {
+>         struct vm_fault vmf;
+>         int ret;
+> @@ -2710,10 +2712,13 @@ static int __do_fault(struct vm_area_struct *vma, unsigned long address,
+>         vmf.pgoff = pgoff;
+>         vmf.flags = flags;
+>         vmf.page = NULL;
+> +       vmf.cow_page = cow_page;
+>
+>         ret = vma->vm_ops->fault(vma, &vmf);
+>         if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
+>                 return ret;
+> +       if (!vmf.page)
+> +               goto out;
+>
+>         if (unlikely(PageHWPoison(vmf.page))) {
+>                 if (ret & VM_FAULT_LOCKED)
+> @@ -2727,6 +2732,7 @@ static int __do_fault(struct vm_area_struct *vma, unsigned long address,
+>         else
+>                 VM_BUG_ON_PAGE(!PageLocked(vmf.page), vmf.page);
+>
+> + out:
+>         *page = vmf.page;
+>         return ret;
+>  }
+> @@ -2900,7 +2906,7 @@ static int do_read_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>                 pte_unmap_unlock(pte, ptl);
+>         }
+>
+> -       ret = __do_fault(vma, address, pgoff, flags, &fault_page);
+> +       ret = __do_fault(vma, address, pgoff, flags, NULL, &fault_page);
+>         if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
+>                 return ret;
+>
+> @@ -2940,26 +2946,35 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>                 return VM_FAULT_OOM;
+>         }
+>
+> -       ret = __do_fault(vma, address, pgoff, flags, &fault_page);
+> +       ret = __do_fault(vma, address, pgoff, flags, new_page, &fault_page);
+>         if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
+>                 goto uncharge_out;
+>
+> -       copy_user_highpage(new_page, fault_page, address, vma);
+> +       if (fault_page)
+> +               copy_user_highpage(new_page, fault_page, address, vma);
+>         __SetPageUptodate(new_page);
+>
+>         pte = pte_offset_map_lock(mm, pmd, address, &ptl);
+>         if (unlikely(!pte_same(*pte, orig_pte))) {
+>                 pte_unmap_unlock(pte, ptl);
+> -               unlock_page(fault_page);
+> -               page_cache_release(fault_page);
+> +               if (fault_page) {
+> +                       unlock_page(fault_page);
+> +                       page_cache_release(fault_page);
+> +               } else {
+> +                       mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
+> +               }
+>                 goto uncharge_out;
+>         }
+>         do_set_pte(vma, address, new_page, pte, true, true);
+>         mem_cgroup_commit_charge(new_page, memcg, false);
+>         lru_cache_add_active_or_unevictable(new_page, vma);
+>         pte_unmap_unlock(pte, ptl);
+> -       unlock_page(fault_page);
+> -       page_cache_release(fault_page);
+> +       if (fault_page) {
+> +               unlock_page(fault_page);
+> +               page_cache_release(fault_page);
+> +       } else {
+> +               mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
+> +       }
+>         return ret;
+>  uncharge_out:
+>         mem_cgroup_cancel_charge(new_page, memcg);
+> @@ -2978,7 +2993,7 @@ static int do_shared_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>         int dirtied = 0;
+>         int ret, tmp;
+>
+> -       ret = __do_fault(vma, address, pgoff, flags, &fault_page);
+> +       ret = __do_fault(vma, address, pgoff, flags, NULL, &fault_page);
+>         if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
+>                 return ret;
+>
+> --
+> 2.1.1
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
