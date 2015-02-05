@@ -1,58 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 27170828FD
-	for <linux-mm@kvack.org>; Thu,  5 Feb 2015 06:45:05 -0500 (EST)
-Received: by pdjy10 with SMTP id y10so7320594pdj.7
-        for <linux-mm@kvack.org>; Thu, 05 Feb 2015 03:45:04 -0800 (PST)
-Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
-        by mx.google.com with ESMTP id vx6si5806149pac.141.2015.02.05.03.45.02
-        for <linux-mm@kvack.org>;
-        Thu, 05 Feb 2015 03:45:04 -0800 (PST)
-Date: Thu, 5 Feb 2015 22:45:00 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH] gfs2: use __vmalloc GFP_NOFS for fs-related allocations.
-Message-ID: <20150205114459.GI12722@dastard>
-References: <1422849594-15677-1-git-send-email-green@linuxhacker.ru>
- <20150202053708.GG4251@dastard>
- <E68E8257-1CE5-4833-B751-26478C9818C7@linuxhacker.ru>
- <20150202081115.GI4251@dastard>
- <54CF51C5.5050801@redhat.com>
- <20150203223350.GP6282@dastard>
- <BD2045CE-45AD-4D79-8C8D-C854D112DCC5@linuxhacker.ru>
+Received: from mail-qa0-f52.google.com (mail-qa0-f52.google.com [209.85.216.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A648828FD
+	for <linux-mm@kvack.org>; Thu,  5 Feb 2015 08:15:19 -0500 (EST)
+Received: by mail-qa0-f52.google.com with SMTP id x12so5676415qac.11
+        for <linux-mm@kvack.org>; Thu, 05 Feb 2015 05:15:18 -0800 (PST)
+Received: from mail-qc0-x22e.google.com (mail-qc0-x22e.google.com. [2607:f8b0:400d:c01::22e])
+        by mx.google.com with ESMTPS id n94si6055519qgn.48.2015.02.05.05.15.17
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Feb 2015 05:15:18 -0800 (PST)
+Received: by mail-qc0-f174.google.com with SMTP id s11so6239279qcv.5
+        for <linux-mm@kvack.org>; Thu, 05 Feb 2015 05:15:17 -0800 (PST)
+Date: Thu, 5 Feb 2015 08:15:14 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC] Making memcg track ownership per address_space or anon_vma
+Message-ID: <20150205131514.GD25736@htj.dyndns.org>
+References: <20150130044324.GA25699@htj.dyndns.org>
+ <xr93h9v8yfrv.fsf@gthelen.mtv.corp.google.com>
+ <20150130062737.GB25699@htj.dyndns.org>
+ <20150130160722.GA26111@htj.dyndns.org>
+ <54CFCF74.6090400@yandex-team.ru>
+ <20150202194608.GA8169@htj.dyndns.org>
+ <CAHH2K0aSPjNgt30uJQa_6r=AXZso3SitjWOm96dtJF32CumZjQ@mail.gmail.com>
+ <20150204170656.GA18858@htj.dyndns.org>
+ <xr93zj8ti6ca.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <BD2045CE-45AD-4D79-8C8D-C854D112DCC5@linuxhacker.ru>
+In-Reply-To: <xr93zj8ti6ca.fsf@gthelen.mtv.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Drokin <green@linuxhacker.ru>
-Cc: Steven Whitehouse <swhiteho@redhat.com>, cluster-devel@redhat.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Greg Thelen <gthelen@google.com>
+Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Christoph Hellwig <hch@infradead.org>, Li Zefan <lizefan@huawei.com>, Hugh Dickins <hughd@google.com>
 
-On Wed, Feb 04, 2015 at 02:13:29AM -0500, Oleg Drokin wrote:
-> Hello!
+Hello, Greg.
+
+On Wed, Feb 04, 2015 at 03:51:01PM -0800, Greg Thelen wrote:
+> I think the linux-next low (and the TBD min) limits also have the
+> problem for more than just the root memcg.  I'm thinking of a 2M file
+> shared between C and D below.  The file will be charged to common parent
+> B.
 > 
-> On Feb 3, 2015, at 5:33 PM, Dave Chinner wrote:
-> >> I also wonder if vmalloc is still very slow? That was the case some
-> >> time ago when I noticed a problem in directory access times in gfs2,
-> >> which made us change to use kmalloc with a vmalloc fallback in the
-> >> first place,
-> > Another of the "myths" about vmalloc. The speed and scalability of
-> > vmap/vmalloc is a long solved problem - Nick Piggin fixed the worst
-> > of those problems 5-6 years ago - see the rewrite from 2008 that
-> > started with commit db64fe0 ("mm: rewrite vmap layer")....
+> 	A
+> 	+-B    (usage=2M lim=3M min=2M)
+> 	  +-C  (usage=0  lim=2M min=1M shared_usage=2M)
+> 	  +-D  (usage=0  lim=2M min=1M shared_usage=2M)
+> 	  \-E  (usage=0  lim=2M min=0)
 > 
-> This actually might be less true than one would hope. At least somewhat
-> recent studies by LLNL (https://jira.hpdd.intel.com/browse/LU-4008)
-> show that there's huge contention on vmlist_lock, so if you have vmalloc
+> The problem arises if A/B/E allocates more than 1M of private
+> reclaimable file data.  This pushes A/B into reclaim which will reclaim
+> both the shared file from A/B and private file from A/B/E.  In contrast,
+> the current per-page memcg would've protected the shared file in either
+> C or D leaving A/B reclaim to only attack A/B/E.
+> 
+> Pinning the shared file to either C or D, using TBD policy such as mount
+> option, would solve this for tightly shared files.  But for wide fanout
+> file (libc) the admin would need to assign a global bucket and this
+> would be a pain to size due to various job requirements.
 
-vmlist_lock and the list it protected went away in 3.10.
+Shouldn't we be able to handle it the same way as I proposed for
+handling sharing?  The above would look like
 
-Cheers,
+ 	A
+ 	+-B    (usage=2M lim=3M min=2M hosted_usage=2M)
+ 	  +-C  (usage=0  lim=2M min=1M shared_usage=2M)
+ 	  +-D  (usage=0  lim=2M min=1M shared_usage=2M)
+ 	  \-E  (usage=0  lim=2M min=0)
 
-Dave.
+Now, we don't wanna use B's min verbatim on the hosted inodes shared
+by children but we're unconditionally charging the shared amount to
+all sharing children, which means that we're eating into the min
+settings of all participating children, so, we should be able to use
+sum of all sharing children's min-covered amount as the inode's min,
+which of course is to be contained inside the min of the parent.
+
+Above, we're charging 2M to C and D, each of which has 1M min which is
+being consumed by the shared charge (the shared part won't get
+reclaimed from the internal pressure of children, so we're really
+taking that part away from it).  Summing them up, the shared inode
+would have 2M protection which is honored as long as B as a whole is
+under its 3M limit.  This is similar to creating a dedicated child for
+each shared resource for low limits.  The downside is that we end up
+guarding the shared inodes more than non-shared ones, but, after all,
+we're charging it to everybody who's using it.
+
+Would something like this work?
+
+Thanks.
+
 -- 
-Dave Chinner
-david@fromorbit.com
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
