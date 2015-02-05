@@ -1,139 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f42.google.com (mail-qa0-f42.google.com [209.85.216.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 180B8828FD
-	for <linux-mm@kvack.org>; Thu,  5 Feb 2015 15:56:36 -0500 (EST)
-Received: by mail-qa0-f42.google.com with SMTP id dc16so7745230qab.1
-        for <linux-mm@kvack.org>; Thu, 05 Feb 2015 12:56:35 -0800 (PST)
-Received: from g5t1625.atlanta.hp.com (g5t1625.atlanta.hp.com. [15.192.137.8])
-        by mx.google.com with ESMTPS id v68si378871qge.29.2015.02.05.12.56.35
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Feb 2015 12:56:35 -0800 (PST)
-Message-ID: <1423169785.6226.97.camel@misato.fc.hp.com>
-Subject: Re: [RFC PATCH 2/7] lib: Add huge I/O map capability interfaces
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Thu, 05 Feb 2015 13:56:25 -0700
-In-Reply-To: <1422320515.2493.53.camel@misato.fc.hp.com>
-References: <1422314009-31667-1-git-send-email-toshi.kani@hp.com>
-	 <1422314009-31667-3-git-send-email-toshi.kani@hp.com>
-	 <20150126155456.a40df49e42b1b7f8077421f4@linux-foundation.org>
-	 <1422320515.2493.53.camel@misato.fc.hp.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 57305828FD
+	for <linux-mm@kvack.org>; Thu,  5 Feb 2015 16:39:43 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id rd3so12474232pab.9
+        for <linux-mm@kvack.org>; Thu, 05 Feb 2015 13:39:43 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id oi10si7692535pab.163.2015.02.05.13.39.42
+        for <linux-mm@kvack.org>;
+        Thu, 05 Feb 2015 13:39:42 -0800 (PST)
+Date: Thu, 5 Feb 2015 16:39:39 -0500
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Re: [PATCH v12 04/20] mm: Allow page fault handlers to perform the
+ COW
+Message-ID: <20150205213939.GA3364@wil.cx>
+References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
+ <1414185652-28663-5-git-send-email-matthew.r.wilcox@intel.com>
+ <CACTTzNbZ2K824aoPqXe4Q8WDRuc72ch5+B9J3GZQ2Z4Kwia56A@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CACTTzNbZ2K824aoPqXe4Q8WDRuc72ch5+B9J3GZQ2Z4Kwia56A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, arnd@arndb.de, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, Elliott@hp.com
+To: Yigal Korman <yigal@plexistor.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, willy@linux.intel.com, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, 2015-01-26 at 18:01 -0700, Toshi Kani wrote:
-> On Mon, 2015-01-26 at 15:54 -0800, Andrew Morton wrote:
-> > On Mon, 26 Jan 2015 16:13:24 -0700 Toshi Kani <toshi.kani@hp.com> wrote:
-> > 
-> > > Add ioremap_pud_enabled() and ioremap_pmd_enabled(), which
-> > > return 1 when I/O mappings of pud/pmd are enabled on the kernel.
-> > > 
-> > > ioremap_huge_init() calls arch_ioremap_pud_supported() and
-> > > arch_ioremap_pmd_supported() to initialize the capabilities.
-> > > 
-> > > A new kernel option "nohgiomap" is also added, so that user can
-> > > disable the huge I/O map capabilities if necessary.
-> > 
-> > Why?  What's the problem with leaving it enabled?
-> 
-> No, there should not be any problem with leaving it enabled.  This
-> option is added as a way to workaround a problem when someone hit an
-> issue unexpectedly.
+On Thu, Feb 05, 2015 at 11:16:53AM +0200, Yigal Korman wrote:
+> I have a question on a related issue (I think).
+> I've noticed that for pfn-only mappings (VM_FAULT_NOPAGE)
+> do_shared_fault only maps the pfn with r/o permissions.
+> So if I use DAX to write the mmap()-ed pfn I get two faults - first
+> handled by do_shared_fault and then again for making it r/w in
+> do_wp_page.
+> Is this simply a missing optimization like was done here with the
+> cow_page? or am I missing something?
 
-Intel SDM states "large page size considerations" as quoted in the
-bottom of this email (Thanks Robert Elliott for this info).  There are
-two cases mentioned:
+I have also noticed this behaviour.  I tracked down why it's happening:
 
- 1) When large page is mapped to a region where MTRRs have multiple
-different memory types, processor can behave in an undefined manner.
- 2) When large page is mapped to the first 1MB which conflicts with the
-fixed MTRRs, processor maps the range with multiple 4KB pages.
+DAX calls:
+        error = vm_insert_mixed(vma, vaddr, pfn);
+which calls:
+        return insert_pfn(vma, addr, pfn, vma->vm_page_prot);
 
-Case 2) is not an issue here since ioremap() does not remap the ISA
-space in the first 1MB, and it's just a processor's "special" support.
+If you insert some debugging, you'll notice here that vm_page_prot does
+not include PROT_WRITE.
 
-For case 1), MTRR is a legacy feature and a driver calling ioremap() for
-a large range covered by multiple MTRRs with two different types sounds
-very unlikely to me, but it is theoretically possible.  (Note, /dev/mem
-uses remap_pfn_range(), not ioremap().)
+That got cleared during mmap_region() where it does:
 
-Here are three options I can think of for case 1).
+        if (vma_wants_writenotify(vma)) {
+                pgprot_t pprot = vma->vm_page_prot;
+...
+                vma->vm_page_prot = vm_get_page_prot(vm_flags & ~VM_SHARED);
 
- A) ioremap() to change a requested type to UC in case of 1)
- B) ioremap() to force 4KB mappings in case of 1)
- C) ioremap() to have no special handling for case 1)
 
-In option A), pat_x_mtrr_type(), called from reserve_memtype(), already
-has a special handling to convert WB request to UC-.  This handling
-needs to be changed to convert all request types to UC (not UC-) in case
-of 1).  reserve_memtype() is shared by other interfaces, so it needs to
-have an additional argument to see if the caller supports large page
-mapping since this conversion is only needed for large pages.
+And why do we want writenotify (according to the VM)?  Because we have:
 
-In option B), reserve_memtype() tells the caller that 4KB mappings need
-to be used in case of 1) by returning 1.  All callers need to handle
-this new return value properly.  ioremap_page_range() is then extended
-to have additional flag that forces to use 4KB mappings.
+        /* The backer wishes to know when pages are first written to? */
+        if (vma->vm_ops && vma->vm_ops->page_mkwrite)
+                return 1;
 
-In option C), we only document this potential issue, and do not make any
-special handling for case 1), at least until we know this case really
-exists in the real world.
+We don't really want to be notified on a first write; we want the page to be
+inserted write-enabled.  But in the case where we've covered a hole with a
+read-only zero page, we need to be notified so we can allocate a page of
+storage.
 
-Case 1) is better handled in the order of B), A), C) with additional
-complexity & risk of the changes.  I am willing to make necessary
-changes (A or B), but I am also thinking that we may be better off with
-C) since MTRRs are legacy.
-
-Do you think we need to protect the ioremap callers from case 1)?  Any
-thoughts/suggestions will be very appreciated.
-
-Thanks,
--Toshi  
-
-=====
-11.11.9 Large Page Size Considerations
-
-The MTRRs provide memory typing for a limited number of regions that
-have a 4 KByte granularity (the same gran-ularity as 4-KByte pages). The
-memory type for a given page is cached in the processora??s TLBs. When
-using large pages (2 MBytes, 4 MBytes, or 1 GBytes), a single page-table
-entry covers multiple 4-KByte granules, each with a single memory type.
-Because the memory type for a large page is cached in the TLB, the
-processor can behave in an undefined manner if a large page is mapped to
-a region of memory that MTRRs have mapped with multiple memory types. 
-
-Undefined behavior can be avoided by insuring that all MTRR memory-type
-ranges within a large page are of the same type. If a large page maps to
-a region of memory containing different MTRR-defined memory types, the
-PCD and PWT flags in the page-table entry should be set for the most
-conservative memory type for that range. For example, a large page used
-for memory mapped I/O and regular memory is mapped as UC memory.
-Alternatively, the operating system can map the region using multiple
-4-KByte pages each with its own memory type. 
-
-The requirement that all 4-KByte ranges in a large page are of the same
-memory type implies that large pages with different memory types may
-suffer a performance penalty, since they must be marked with the lowest
-common denominator memory type. The same consideration apply to 1 GByte
-pages, each of which may consist of multiple 2-Mbyte ranges. 
-
-The Pentium 4, Intel Xeon, and P6 family processors provide special
-support for the physical memory range from 0 to 4 MBytes, which is
-potentially mapped by both the fixed and variable MTRRs. This support is
-invoked when a Pentium 4, Intel Xeon, or P6 family processor detects a
-large page overlapping the first 1 MByte of this memory range with a
-memory type that conflicts with the fixed MTRRs. Here, the processor
-maps the memory range as multiple 4-KByte pages within the TLB. This
-operation insures correct behavior at the cost of performance. To avoid 
-this performance penalty, operating-system software should reserve the
-large page option for regions of memory at addresses greater than or
-equal to 4 MBytes.
-
+So, how to fix?  We could adjust vm_page_prot to include PROT_WRITE.
+I think that should work, since we'll only insert zeroed pages for read
+faults, and so the maybe_mkwrite() won't be called in do_set_pte().
+I'm just not entirely sure where to set it.  Perhaps a MM person could
+make a helpful suggestion?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
