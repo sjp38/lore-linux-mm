@@ -1,29 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id DF5606B0073
-	for <linux-mm@kvack.org>; Fri,  6 Feb 2015 09:51:25 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id et14so17736337pad.4
-        for <linux-mm@kvack.org>; Fri, 06 Feb 2015 06:51:25 -0800 (PST)
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id EA4A56B0074
+	for <linux-mm@kvack.org>; Fri,  6 Feb 2015 09:51:27 -0500 (EST)
+Received: by pdbfp1 with SMTP id fp1so15163694pdb.2
+        for <linux-mm@kvack.org>; Fri, 06 Feb 2015 06:51:27 -0800 (PST)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id fh3si10492894pbb.187.2015.02.06.06.51.16
+        by mx.google.com with ESMTP id fh3si10492894pbb.187.2015.02.06.06.51.17
         for <linux-mm@kvack.org>;
-        Fri, 06 Feb 2015 06:51:16 -0800 (PST)
+        Fri, 06 Feb 2015 06:51:17 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2, RESEND 08/19] mips: expose number of page table levels on Kconfig level
-Date: Fri,  6 Feb 2015 16:50:53 +0200
-Message-Id: <1423234264-197684-9-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2, RESEND 09/19] mn10300: mark PUD and PMD folded
+Date: Fri,  6 Feb 2015 16:50:54 +0200
+Message-Id: <1423234264-197684-10-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1423234264-197684-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1423234264-197684-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ralf Baechle <ralf@linux-mips.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Howells <dhowells@redhat.com>, Koichi Yasutake <yasutake.koichi@jp.panasonic.com>
 
-We would want to use number of page table level to define mm_struct.
-Let's expose it as CONFIG_PGTABLE_LEVELS.
+Core mm expects __PAGETABLE_{PUD,PMD}_FOLDED to be defined if these page
+table levels folded.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Ralf Baechle <ralf@linux-mips.org>
+Cc: David Howells <dhowells@redhat.com>
+Cc: Koichi Yasutake <yasutake.koichi@jp.panasonic.com>
 Tested-by: Guenter Roeck <linux@roeck-us.net>
 ---
 
@@ -51,25 +52,23 @@ and use it in <linux/mm_types.h> instead of __PAGETABLE_PMD_FOLDED from
 <asm/pgtable.h>.
 
 ---
- arch/mips/Kconfig | 5 +++++
- 1 file changed, 5 insertions(+)
+ arch/mn10300/include/asm/pgtable.h | 2 ++
+ 1 file changed, 2 insertions(+)
 
-diff --git a/arch/mips/Kconfig b/arch/mips/Kconfig
-index 843713c05b79..2eea81795139 100644
---- a/arch/mips/Kconfig
-+++ b/arch/mips/Kconfig
-@@ -2535,6 +2535,11 @@ config STACKTRACE_SUPPORT
- 	bool
- 	default y
+diff --git a/arch/mn10300/include/asm/pgtable.h b/arch/mn10300/include/asm/pgtable.h
+index afab728ab65e..96d3f9deb59c 100644
+--- a/arch/mn10300/include/asm/pgtable.h
++++ b/arch/mn10300/include/asm/pgtable.h
+@@ -56,7 +56,9 @@ extern void paging_init(void);
+ #define PGDIR_SHIFT	22
+ #define PTRS_PER_PGD	1024
+ #define PTRS_PER_PUD	1	/* we don't really have any PUD physically */
++#define __PAGETABLE_PUD_FOLDED
+ #define PTRS_PER_PMD	1	/* we don't really have any PMD physically */
++#define __PAGETABLE_PMD_FOLDED
+ #define PTRS_PER_PTE	1024
  
-+config PGTABLE_LEVELS
-+	int
-+	default 3 if 64BIT && !PAGE_SIZE_64KB
-+	default 2
-+
- source "init/Kconfig"
- 
- source "kernel/Kconfig.freezer"
+ #define PGD_SIZE	PAGE_SIZE
 -- 
 2.1.4
 
