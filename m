@@ -1,21 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id E8D746B0038
-	for <linux-mm@kvack.org>; Fri,  6 Feb 2015 09:51:13 -0500 (EST)
-Received: by pdbfp1 with SMTP id fp1so15162443pdb.4
-        for <linux-mm@kvack.org>; Fri, 06 Feb 2015 06:51:13 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 8B29C6B006C
+	for <linux-mm@kvack.org>; Fri,  6 Feb 2015 09:51:14 -0500 (EST)
+Received: by pdjg10 with SMTP id g10so9025800pdj.1
+        for <linux-mm@kvack.org>; Fri, 06 Feb 2015 06:51:14 -0800 (PST)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id g8si10528117pdk.182.2015.02.06.06.51.12
+        by mx.google.com with ESMTP id g8si10528117pdk.182.2015.02.06.06.51.13
         for <linux-mm@kvack.org>;
-        Fri, 06 Feb 2015 06:51:12 -0800 (PST)
+        Fri, 06 Feb 2015 06:51:13 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2, RESEND 00/19] expose page table levels as Kconfig option
-Date: Fri,  6 Feb 2015 16:50:45 +0200
-Message-Id: <1423234264-197684-1-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2, RESEND 03/19] arm: expose number of page table levels on Kconfig level
+Date: Fri,  6 Feb 2015 16:50:48 +0200
+Message-Id: <1423234264-197684-4-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1423234264-197684-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1423234264-197684-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Russell King <linux@arm.linux.org.uk>
+
+We would want to use number of page table level to define mm_struct.
+Let's expose it as CONFIG_PGTABLE_LEVELS.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Russell King <linux@arm.linux.org.uk>
+Tested-by: Guenter Roeck <linux@roeck-us.net>
+---
 
 I've implemented accounting for pmd page tables as we have for pte (see
 mm->nr_ptes). It's requires a new counter in mm_struct: mm->nr_pmds.
@@ -40,87 +50,26 @@ This is other approach: expose number of page tables in use via Kconfig
 and use it in <linux/mm_types.h> instead of __PAGETABLE_PMD_FOLDED from
 <asm/pgtable.h>.
 
-v2:
-  - powerpc: s/64K_PAGES/PPC_64K_PAGES/;
-  - s390: fix typo s/64BI/64BIT/;
-  - ia64: fix default for IA64_PAGE_SIZE_64KB;
-  - x86: s/PAGETABLE_LEVELS/CONFIG_PGTABLE_LEVELS/ include/trace/events/xen.h;
+---
+ arch/arm/Kconfig | 5 +++++
+ 1 file changed, 5 insertions(+)
 
-Kirill A. Shutemov (19):
-  alpha: expose number of page table levels on Kconfig level
-  arm64: expose number of page table levels on Kconfig level
-  arm: expose number of page table levels on Kconfig level
-  frv: mark PUD and PMD folded
-  ia64: expose number of page table levels on Kconfig level
-  m32r: mark PMD folded
-  m68k: mark PMD folded and expose number of page table levels
-  mips: expose number of page table levels on Kconfig level
-  mn10300: mark PUD and PMD folded
-  parisc: expose number of page table levels on Kconfig level
-  powerpc: expose number of page table levels on Kconfig level
-  s390: expose number of page table levels
-  sh: expose number of page table levels
-  sparc: expose number of page table levels
-  tile: expose number of page table levels
-  um: expose number of page table levels
-  x86: expose number of page table levels on Kconfig level
-  mm: define default PGTABLE_LEVELS to two
-  mm: do not add nr_pmds into mm_struct if PMD is folded
-
- arch/Kconfig                                |  4 ++++
- arch/alpha/Kconfig                          |  4 ++++
- arch/arm/Kconfig                            |  5 +++++
- arch/arm64/Kconfig                          | 14 +++++++-------
- arch/arm64/include/asm/kvm_mmu.h            |  4 ++--
- arch/arm64/include/asm/page.h               |  4 ++--
- arch/arm64/include/asm/pgalloc.h            |  8 ++++----
- arch/arm64/include/asm/pgtable-hwdef.h      |  6 +++---
- arch/arm64/include/asm/pgtable-types.h      | 12 ++++++------
- arch/arm64/include/asm/pgtable.h            |  8 ++++----
- arch/arm64/include/asm/tlb.h                |  4 ++--
- arch/arm64/mm/mmu.c                         |  4 ++--
- arch/frv/include/asm/pgtable.h              |  2 ++
- arch/ia64/Kconfig                           | 18 +++++-------------
- arch/ia64/include/asm/page.h                |  4 ++--
- arch/ia64/include/asm/pgalloc.h             |  4 ++--
- arch/ia64/include/asm/pgtable.h             | 12 ++++++------
- arch/ia64/kernel/ivt.S                      | 12 ++++++------
- arch/ia64/kernel/machine_kexec.c            |  4 ++--
- arch/m32r/include/asm/pgtable-2level.h      |  1 +
- arch/m68k/Kconfig                           |  4 ++++
- arch/m68k/include/asm/pgtable_mm.h          |  2 ++
- arch/mips/Kconfig                           |  5 +++++
- arch/mn10300/include/asm/pgtable.h          |  2 ++
- arch/parisc/Kconfig                         |  5 +++++
- arch/parisc/include/asm/pgalloc.h           |  2 +-
- arch/parisc/include/asm/pgtable.h           | 17 ++++++++---------
- arch/parisc/kernel/entry.S                  |  4 ++--
- arch/parisc/kernel/head.S                   |  4 ++--
- arch/parisc/mm/init.c                       |  2 +-
- arch/powerpc/Kconfig                        |  6 ++++++
- arch/s390/Kconfig                           |  5 +++++
- arch/s390/include/asm/pgtable.h             |  2 ++
- arch/sh/Kconfig                             |  4 ++++
- arch/sparc/Kconfig                          |  4 ++++
- arch/tile/Kconfig                           |  5 +++++
- arch/um/Kconfig.um                          |  5 +++++
- arch/x86/Kconfig                            |  6 ++++++
- arch/x86/include/asm/paravirt.h             |  8 ++++----
- arch/x86/include/asm/paravirt_types.h       |  8 ++++----
- arch/x86/include/asm/pgalloc.h              |  8 ++++----
- arch/x86/include/asm/pgtable-2level_types.h |  1 -
- arch/x86/include/asm/pgtable-3level_types.h |  2 --
- arch/x86/include/asm/pgtable.h              |  8 ++++----
- arch/x86/include/asm/pgtable_64_types.h     |  1 -
- arch/x86/include/asm/pgtable_types.h        |  4 ++--
- arch/x86/kernel/paravirt.c                  |  6 +++---
- arch/x86/mm/pgtable.c                       | 14 +++++++-------
- arch/x86/xen/mmu.c                          | 14 +++++++-------
- include/asm-generic/pgtable.h               |  5 +++++
- include/linux/mm_types.h                    |  2 ++
- include/trace/events/xen.h                  |  2 +-
- 52 files changed, 183 insertions(+), 118 deletions(-)
-
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index 9f1f09a2bc9b..16f20b2b37e3 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -286,6 +286,11 @@ config GENERIC_BUG
+ 	def_bool y
+ 	depends on BUG
+ 
++config PGTABLE_LEVELS
++	int
++	default 3 if ARM_LPAE
++	default 2
++
+ source "init/Kconfig"
+ 
+ source "kernel/Kconfig.freezer"
 -- 
 2.1.4
 
