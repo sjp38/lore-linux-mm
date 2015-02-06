@@ -1,58 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id EAC026B006E
-	for <linux-mm@kvack.org>; Fri,  6 Feb 2015 13:32:45 -0500 (EST)
-Received: by pdjg10 with SMTP id g10so10175111pdj.1
-        for <linux-mm@kvack.org>; Fri, 06 Feb 2015 10:32:45 -0800 (PST)
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com. [209.85.192.169])
-        by mx.google.com with ESMTPS id of5si11247191pdb.132.2015.02.06.10.32.44
+Received: from mail-qa0-f42.google.com (mail-qa0-f42.google.com [209.85.216.42])
+	by kanga.kvack.org (Postfix) with ESMTP id DFEC96B0071
+	for <linux-mm@kvack.org>; Fri,  6 Feb 2015 13:39:31 -0500 (EST)
+Received: by mail-qa0-f42.google.com with SMTP id dc16so12197121qab.1
+        for <linux-mm@kvack.org>; Fri, 06 Feb 2015 10:39:31 -0800 (PST)
+Received: from resqmta-ch2-03v.sys.comcast.net (resqmta-ch2-03v.sys.comcast.net. [2001:558:fe21:29:69:252:207:35])
+        by mx.google.com with ESMTPS id e9si3702322qaa.82.2015.02.06.10.39.30
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Feb 2015 10:32:45 -0800 (PST)
-Received: by pdjg10 with SMTP id g10so10175037pdj.1
-        for <linux-mm@kvack.org>; Fri, 06 Feb 2015 10:32:44 -0800 (PST)
-Date: Fri, 6 Feb 2015 10:32:42 -0800
-From: Shaohua Li <shli@kernel.org>
-Subject: Re: [PATCH v17 1/7] mm: support madvise(MADV_FREE)
-Message-ID: <20150206183242.GB2290@kernel.org>
-References: <20141130235652.GA10333@bbox>
- <20141202100125.GD27014@dhcp22.suse.cz>
- <20141203000026.GA30217@bbox>
- <20141203101329.GB23236@dhcp22.suse.cz>
- <20141205070816.GB3358@bbox>
- <20141205083249.GA2321@dhcp22.suse.cz>
- <54D0F9BC.4060306@gmail.com>
- <20150203234722.GB3583@blaptop>
- <20150206003311.GA2347@kernel.org>
- <20150206125825.GA4498@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150206125825.GA4498@dhcp22.suse.cz>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Fri, 06 Feb 2015 10:39:31 -0800 (PST)
+Date: Fri, 6 Feb 2015 12:39:28 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC 0/3] Slab allocator array operations
+In-Reply-To: <20150204001922.5650ca4b@redhat.com>
+Message-ID: <alpine.DEB.2.11.1502061239050.17507@gentwo.org>
+References: <20150123213727.142554068@linux.com> <20150123145734.aa3c6c6e7432bc3534f2c4cc@linux-foundation.org> <alpine.DEB.2.11.1501231827330.10083@gentwo.org> <20150204001922.5650ca4b@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Minchan Kim <minchan@kernel.org>, "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, zhangyanfei@cn.fujitsu.com, "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Fri, Feb 06, 2015 at 01:58:25PM +0100, Michal Hocko wrote:
-> On Thu 05-02-15 16:33:11, Shaohua Li wrote:
-> [...]
-> > Did you think about move the MADV_FREE pages to the head of inactive LRU, so
-> > they can be reclaimed easily?
-> 
-> Yes this makes sense for pages living on the active LRU list. I would
-> preserve LRU ordering on the inactive list because there is no good
-> reason to make the operation more costly for inactive pages. On the
-> other hand having tons of to-be-freed pages on the active list clearly
-> sucks. Care to send a patch?
+On Wed, 4 Feb 2015, Jesper Dangaard Brouer wrote:
 
-Considering anon pages are in active LRU first, it's likely MADV_FREE pages are
-in active list. I'm curious why preserves the order of inactive list. App knows
-which pages are cold, why don't take the advantages? I'll play the patch more
-to see what I can do for it.
+> I promised Christoph that I will performance benchmark this. I'll start
+> by writing/performing some micro benchmarks, but it first starts to get
+> really interesting once we plug it into e.g. the networking stack, as
+> effects as instruction-cache misses due to code size starts to play a
+> role.
 
-Thanks,
-Shaohua
+Ok I got a patchset here with the options removed. Just the basic ops.
+Should I repost that?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
