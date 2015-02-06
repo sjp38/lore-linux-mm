@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E8B16B0038
-	for <linux-mm@kvack.org>; Fri,  6 Feb 2015 13:29:23 -0500 (EST)
-Received: by pdbft15 with SMTP id ft15so16295240pdb.5
-        for <linux-mm@kvack.org>; Fri, 06 Feb 2015 10:29:22 -0800 (PST)
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com. [209.85.192.181])
-        by mx.google.com with ESMTPS id io10si11071407pbc.246.2015.02.06.10.29.21
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id EAC026B006E
+	for <linux-mm@kvack.org>; Fri,  6 Feb 2015 13:32:45 -0500 (EST)
+Received: by pdjg10 with SMTP id g10so10175111pdj.1
+        for <linux-mm@kvack.org>; Fri, 06 Feb 2015 10:32:45 -0800 (PST)
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com. [209.85.192.169])
+        by mx.google.com with ESMTPS id of5si11247191pdb.132.2015.02.06.10.32.44
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Feb 2015 10:29:21 -0800 (PST)
-Received: by pdjy10 with SMTP id y10so16296733pdj.7
-        for <linux-mm@kvack.org>; Fri, 06 Feb 2015 10:29:21 -0800 (PST)
-Date: Fri, 6 Feb 2015 10:29:18 -0800
+        Fri, 06 Feb 2015 10:32:45 -0800 (PST)
+Received: by pdjg10 with SMTP id g10so10175037pdj.1
+        for <linux-mm@kvack.org>; Fri, 06 Feb 2015 10:32:44 -0800 (PST)
+Date: Fri, 6 Feb 2015 10:32:42 -0800
 From: Shaohua Li <shli@kernel.org>
 Subject: Re: [PATCH v17 1/7] mm: support madvise(MADV_FREE)
-Message-ID: <20150206182918.GA2290@kernel.org>
+Message-ID: <20150206183242.GB2290@kernel.org>
 References: <20141130235652.GA10333@bbox>
  <20141202100125.GD27014@dhcp22.suse.cz>
  <20141203000026.GA30217@bbox>
@@ -24,90 +24,32 @@ References: <20141130235652.GA10333@bbox>
  <54D0F9BC.4060306@gmail.com>
  <20150203234722.GB3583@blaptop>
  <20150206003311.GA2347@kernel.org>
- <20150206055103.GA13244@blaptop>
+ <20150206125825.GA4498@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150206055103.GA13244@blaptop>
+In-Reply-To: <20150206125825.GA4498@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, zhangyanfei@cn.fujitsu.com, "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Minchan Kim <minchan@kernel.org>, "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, zhangyanfei@cn.fujitsu.com, "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Fri, Feb 06, 2015 at 02:51:03PM +0900, Minchan Kim wrote:
-> Hi Shaohua,
-> 
-> On Thu, Feb 05, 2015 at 04:33:11PM -0800, Shaohua Li wrote:
-> > 
-> > Hi Minchan,
-> > 
-> > Sorry to jump in this thread so later, and if some issues are discussed before.
-> > I'm interesting in this patch, so tried it here. I use a simple test with
-> 
-> No problem at all. Interest is always win over ignorance.
-> 
-> > jemalloc. Obviously this can improve performance when there is no memory
-> > pressure. Did you try setup with memory pressure?
-> 
-> Sure but it was not a huge memory system like yours.
-
-Yes, I'd like to check the symptom in memory pressure, so choose such test.
-
-> > In my test, jemalloc will map 61G vma, and use about 32G memory without
-> > MADV_FREE. If MADV_FREE is enabled, jemalloc will use whole 61G memory because
-> > madvise doesn't reclaim the unused memory. If I disable swap (tweak your patch
-> 
-> Yes, IIUC, jemalloc replaces MADV_DONTNEED with MADV_FREE completely.
-
-right.
-> > slightly to make it work without swap), I got oom. If swap is enabled, my
-> 
-> You mean you modified anon aging logic so it works although there is no swap?
-> If so, I have no idea why OOM happens. I guess it should free all of freeable
-> pages during the aging so although system stall happens more, I don't expect
-> OOM. Anyway, with MADV_FREE with no swap, we should consider more things
-> about anonymous aging.
-
-In the patch, MADV_FREE will be disabled and fallback to DONTNEED if no swap is
-enabled. Our production environment doesn't enable swap, so I tried to delete
-the 'no swap' check and make MADV_FREE always enabled regardless if swap is
-enabled. I didn't change anything else. With such change, I saw oom
-immediately. So definitely we have aging issue, the pages aren't reclaimed
-fast.
-
-> > system is totally stalled because of swap activity. Without the MADV_FREE,
-> > everything is ok. Considering we definitely don't want to waste too much
-> > memory, a system with memory pressure is normal, so sounds MADV_FREE will
-> > introduce big trouble here.
-> > 
+On Fri, Feb 06, 2015 at 01:58:25PM +0100, Michal Hocko wrote:
+> On Thu 05-02-15 16:33:11, Shaohua Li wrote:
+> [...]
 > > Did you think about move the MADV_FREE pages to the head of inactive LRU, so
 > > they can be reclaimed easily?
 > 
-> I think it's desirable if the page lived in active LRU.
-> The reason I didn't that was caused by volatile ranges system call which
-> was motivaion for MADV_FREE in my mind.
-> In last LSF/MM, there was concern about data's hotness.
-> Some of users want to keep that as it is in LRU position, others want to
-> handle that as cold(tail of inactive list)/warm(head of inactive list)/
-> hot(head of active list), for example.
-> The vrange syscall was just about volatiltiy, not depends on page hotness
-> so the decision on my head was not to change LRU order and let's make new
-> hotness advise if we need it later.
-> 
-> However, MADV_FREE's main customer is allocators and afaik, they want
-> to replace MADV_DONTNEED with MADV_FREE so I think it is really cold,
-> but we couldn't make sure so head of inactive is good compromise.
-> Another concern about tail of inactive list is that there could be
-> plenty of pages in there, which was asynchromos write-backed in
-> previous reclaim path, not-yet reclaimed because of not being able
-> to free the in softirq context of writeback. It means we ends up
-> freeing more potential pages to become workingset in advance
-> than pages VM already decided to evict.
+> Yes this makes sense for pages living on the active LRU list. I would
+> preserve LRU ordering on the inactive list because there is no good
+> reason to make the operation more costly for inactive pages. On the
+> other hand having tons of to-be-freed pages on the active list clearly
+> sucks. Care to send a patch?
 
-Yes, they are definitely cold pages. I thought We should make sure the
-MADV_FREE pages are reclaimed first before other pages, at least in the anon
-LRU list, though there might be difficult to determine if we should reclaim
-writeback pages first or MADV_FREE pages first.
+Considering anon pages are in active LRU first, it's likely MADV_FREE pages are
+in active list. I'm curious why preserves the order of inactive list. App knows
+which pages are cold, why don't take the advantages? I'll play the patch more
+to see what I can do for it.
 
 Thanks,
 Shaohua
