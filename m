@@ -1,100 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id D29A86B0038
-	for <linux-mm@kvack.org>; Fri,  6 Feb 2015 12:45:27 -0500 (EST)
-Received: by mail-pa0-f50.google.com with SMTP id rd3so18556844pab.9
-        for <linux-mm@kvack.org>; Fri, 06 Feb 2015 09:45:27 -0800 (PST)
-Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
-        by mx.google.com with ESMTPS id rb8si11022082pbc.185.2015.02.06.09.45.26
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E8B16B0038
+	for <linux-mm@kvack.org>; Fri,  6 Feb 2015 13:29:23 -0500 (EST)
+Received: by pdbft15 with SMTP id ft15so16295240pdb.5
+        for <linux-mm@kvack.org>; Fri, 06 Feb 2015 10:29:22 -0800 (PST)
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com. [209.85.192.181])
+        by mx.google.com with ESMTPS id io10si11071407pbc.246.2015.02.06.10.29.21
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Fri, 06 Feb 2015 09:45:26 -0800 (PST)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout4.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NJD004N02UANU70@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 06 Feb 2015 17:49:22 +0000 (GMT)
-Message-id: <54D4FDAC.60203@samsung.com>
-Date: Fri, 06 Feb 2015 20:45:16 +0300
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
-MIME-version: 1.0
-Subject: Re: [mmotm:master 409/551] WARNING:
- arch/x86/kernel/cpu/microcode/microcode.o(.data+0x1cf0): Section mismatch in
- reference from the variable microcode_mutex to the variable
- .init.rodata:__mod_x86cpu__microcode_id_device_table
-References: <201502050342.47w5t7vH%fengguang.wu@intel.com>
-In-reply-to: <201502050342.47w5t7vH%fengguang.wu@intel.com>
-Content-type: text/plain; charset=windows-1252
-Content-transfer-encoding: 7bit
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 06 Feb 2015 10:29:21 -0800 (PST)
+Received: by pdjy10 with SMTP id y10so16296733pdj.7
+        for <linux-mm@kvack.org>; Fri, 06 Feb 2015 10:29:21 -0800 (PST)
+Date: Fri, 6 Feb 2015 10:29:18 -0800
+From: Shaohua Li <shli@kernel.org>
+Subject: Re: [PATCH v17 1/7] mm: support madvise(MADV_FREE)
+Message-ID: <20150206182918.GA2290@kernel.org>
+References: <20141130235652.GA10333@bbox>
+ <20141202100125.GD27014@dhcp22.suse.cz>
+ <20141203000026.GA30217@bbox>
+ <20141203101329.GB23236@dhcp22.suse.cz>
+ <20141205070816.GB3358@bbox>
+ <20141205083249.GA2321@dhcp22.suse.cz>
+ <54D0F9BC.4060306@gmail.com>
+ <20150203234722.GB3583@blaptop>
+ <20150206003311.GA2347@kernel.org>
+ <20150206055103.GA13244@blaptop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150206055103.GA13244@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, zhangyanfei@cn.fujitsu.com, "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 02/04/2015 10:24 PM, kbuild test robot wrote:
-> tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> head:   f03806f9a6908743ed1902389be1a4a6198852be
-> commit: 7bc18a57df7c27948b9d93fa4eefc20e3e200512 [409/551] kasan: enable instrumentation of global variables
-> config: x86_64-allmodconfig (attached as .config)
-> reproduce:
->   git checkout 7bc18a57df7c27948b9d93fa4eefc20e3e200512
->   # save the attached .config to linux build tree
->   make ARCH=x86_64 
+On Fri, Feb 06, 2015 at 02:51:03PM +0900, Minchan Kim wrote:
+> Hi Shaohua,
 > 
-> All warnings:
+> On Thu, Feb 05, 2015 at 04:33:11PM -0800, Shaohua Li wrote:
+> > 
+> > Hi Minchan,
+> > 
+> > Sorry to jump in this thread so later, and if some issues are discussed before.
+> > I'm interesting in this patch, so tried it here. I use a simple test with
 > 
->>> WARNING: arch/x86/kernel/cpu/microcode/microcode.o(.data+0x1cf0): Section mismatch in reference from the variable microcode_mutex to the variable .init.rodata:__mod_x86cpu__microcode_id_device_table
->    The variable microcode_mutex references
->    the variable __initconst __mod_x86cpu__microcode_id_device_table
+> No problem at all. Interest is always win over ignorance.
+> 
+> > jemalloc. Obviously this can improve performance when there is no memory
+> > pressure. Did you try setup with memory pressure?
+> 
+> Sure but it was not a huge memory system like yours.
 
+Yes, I'd like to check the symptom in memory pressure, so choose such test.
 
-Obviously 'microcode_mutex' doesn't reference '__mod_x86cpu__microcode_id_device_table'.
-Actually this is struct kasan_global describing '__mod_x86cpu__microcode_id_device_table'
-variable references it.
+> > In my test, jemalloc will map 61G vma, and use about 32G memory without
+> > MADV_FREE. If MADV_FREE is enabled, jemalloc will use whole 61G memory because
+> > madvise doesn't reclaim the unused memory. If I disable swap (tweak your patch
+> 
+> Yes, IIUC, jemalloc replaces MADV_DONTNEED with MADV_FREE completely.
 
-Normally GCC doesn't instrument globals in user-specified sections.
-So we shouldn't have kasan_global struct for '__mod_x86cpu__microcode_id_device_table',
-because this symbol doesn't have redzone.
+right.
+> > slightly to make it work without swap), I got oom. If swap is enabled, my
+> 
+> You mean you modified anon aging logic so it works although there is no swap?
+> If so, I have no idea why OOM happens. I guess it should free all of freeable
+> pages during the aging so although system stall happens more, I don't expect
+> OOM. Anyway, with MADV_FREE with no swap, we should consider more things
+> about anonymous aging.
 
-'__mod_x86cpu__microcode_id_device_table' is an alias to 'microcode_id' symbol and
-alias declared without specifying section.
-It seems that GCC looks only on declaration, and it thinks that __mod_x86cpu__microcode_id_device_table
-is in default section.
-So we poison redzone for microcode_id symbol, which don't have redzone. IOW we poison some valid memory.
+In the patch, MADV_FREE will be disabled and fallback to DONTNEED if no swap is
+enabled. Our production environment doesn't enable swap, so I tried to delete
+the 'no swap' check and make MADV_FREE always enabled regardless if swap is
+enabled. I didn't change anything else. With such change, I saw oom
+immediately. So definitely we have aging issue, the pages aren't reclaimed
+fast.
 
-This bug already fixed in trunk GCC, but it present in 4.9.2.
+> > system is totally stalled because of swap activity. Without the MADV_FREE,
+> > everything is ok. Considering we definitely don't want to waste too much
+> > memory, a system with memory pressure is normal, so sounds MADV_FREE will
+> > introduce big trouble here.
+> > 
+> > Did you think about move the MADV_FREE pages to the head of inactive LRU, so
+> > they can be reclaimed easily?
+> 
+> I think it's desirable if the page lived in active LRU.
+> The reason I didn't that was caused by volatile ranges system call which
+> was motivaion for MADV_FREE in my mind.
+> In last LSF/MM, there was concern about data's hotness.
+> Some of users want to keep that as it is in LRU position, others want to
+> handle that as cold(tail of inactive list)/warm(head of inactive list)/
+> hot(head of active list), for example.
+> The vrange syscall was just about volatiltiy, not depends on page hotness
+> so the decision on my head was not to change LRU order and let's make new
+> hotness advise if we need it later.
+> 
+> However, MADV_FREE's main customer is allocators and afaik, they want
+> to replace MADV_DONTNEED with MADV_FREE so I think it is really cold,
+> but we couldn't make sure so head of inactive is good compromise.
+> Another concern about tail of inactive list is that there could be
+> plenty of pages in there, which was asynchromos write-backed in
+> previous reclaim path, not-yet reclaimed because of not being able
+> to free the in softirq context of writeback. It means we ends up
+> freeing more potential pages to become workingset in advance
+> than pages VM already decided to evict.
 
-I think the best option here is just disable globals instrumentation for 4.9.2.
-In addition to patch bellow, 'kernel-add-support-for-init_array-constructors.patch' patch
-could be dropped, as we needed it only for 4.9.2 GCC.
+Yes, they are definitely cold pages. I thought We should make sure the
+MADV_FREE pages are reclaimed first before other pages, at least in the anon
+LRU list, though there might be difficult to determine if we should reclaim
+writeback pages first or MADV_FREE pages first.
 
-----
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
-Subject: kasan-enable-instrumentation-of-global-variables-fix-2
-
-Disable broken globals instrumentation for GCC 4.9.2
-
-Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
----
- scripts/Makefile.kasan | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/scripts/Makefile.kasan b/scripts/Makefile.kasan
-index 72a40bb..631619b 100644
---- a/scripts/Makefile.kasan
-+++ b/scripts/Makefile.kasan
-@@ -5,7 +5,7 @@ else
- 	call_threshold := 0
- endif
-
--CFLAGS_KASAN_MINIMAL := -fsanitize=kernel-address --param asan-globals=1
-+CFLAGS_KASAN_MINIMAL := -fsanitize=kernel-address
-
- CFLAGS_KASAN := $(call cc-option, -fsanitize=kernel-address \
- 		-fasan-shadow-offset=$(CONFIG_KASAN_SHADOW_OFFSET) \
--- 
-2.2.2
-
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
