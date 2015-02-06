@@ -1,31 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A5A76B0070
-	for <linux-mm@kvack.org>; Fri,  6 Feb 2015 09:51:19 -0500 (EST)
-Received: by pdjz10 with SMTP id z10so15176597pdj.13
-        for <linux-mm@kvack.org>; Fri, 06 Feb 2015 06:51:19 -0800 (PST)
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BC886B0071
+	for <linux-mm@kvack.org>; Fri,  6 Feb 2015 09:51:21 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id lj1so17713482pab.5
+        for <linux-mm@kvack.org>; Fri, 06 Feb 2015 06:51:21 -0800 (PST)
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id ui5si10587077pab.130.2015.02.06.06.51.14
+        by mx.google.com with ESMTP id ui5si10587077pab.130.2015.02.06.06.51.15
         for <linux-mm@kvack.org>;
-        Fri, 06 Feb 2015 06:51:15 -0800 (PST)
+        Fri, 06 Feb 2015 06:51:16 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2, RESEND 01/19] alpha: expose number of page table levels on Kconfig level
-Date: Fri,  6 Feb 2015 16:50:46 +0200
-Message-Id: <1423234264-197684-2-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2, RESEND 07/19] m68k: mark PMD folded and expose number of page table levels
+Date: Fri,  6 Feb 2015 16:50:52 +0200
+Message-Id: <1423234264-197684-8-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1423234264-197684-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1423234264-197684-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>
 
 We would want to use number of page table level to define mm_struct.
 Let's expose it as CONFIG_PGTABLE_LEVELS.
 
+Core mm expects __PAGETABLE_{PUD,PMD}_FOLDED to be defined if these page
+table levels folded.
+
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Richard Henderson <rth@twiddle.net>
-Cc: Ivan Kokshaysky <ink@jurassic.park.msu.ru>
-Cc: Matt Turner <mattst88@gmail.com>
+Cc: Geert Uytterhoeven <geert@linux-m68k.org>
 Tested-by: Guenter Roeck <linux@roeck-us.net>
 ---
 
@@ -53,24 +54,42 @@ and use it in <linux/mm_types.h> instead of __PAGETABLE_PMD_FOLDED from
 <asm/pgtable.h>.
 
 ---
- arch/alpha/Kconfig | 4 ++++
- 1 file changed, 4 insertions(+)
+ arch/m68k/Kconfig                  | 4 ++++
+ arch/m68k/include/asm/pgtable_mm.h | 2 ++
+ 2 files changed, 6 insertions(+)
 
-diff --git a/arch/alpha/Kconfig b/arch/alpha/Kconfig
-index b7ff9a318c31..bf9e9d3b3792 100644
---- a/arch/alpha/Kconfig
-+++ b/arch/alpha/Kconfig
-@@ -76,6 +76,10 @@ config GENERIC_ISA_DMA
- 	bool
- 	default y
+diff --git a/arch/m68k/Kconfig b/arch/m68k/Kconfig
+index 87b7c7581b1d..2dd8f63bfbbb 100644
+--- a/arch/m68k/Kconfig
++++ b/arch/m68k/Kconfig
+@@ -67,6 +67,10 @@ config HZ
+ 	default 1000 if CLEOPATRA
+ 	default 100
  
 +config PGTABLE_LEVELS
-+	int
++	default 2 if SUN3 || COLDFIRE
 +	default 3
 +
  source "init/Kconfig"
- source "kernel/Kconfig.freezer"
  
+ source "kernel/Kconfig.freezer"
+diff --git a/arch/m68k/include/asm/pgtable_mm.h b/arch/m68k/include/asm/pgtable_mm.h
+index 28a145bfbb71..35ed4a9981ae 100644
+--- a/arch/m68k/include/asm/pgtable_mm.h
++++ b/arch/m68k/include/asm/pgtable_mm.h
+@@ -54,10 +54,12 @@
+  */
+ #ifdef CONFIG_SUN3
+ #define PTRS_PER_PTE   16
++#define __PAGETABLE_PMD_FOLDED
+ #define PTRS_PER_PMD   1
+ #define PTRS_PER_PGD   2048
+ #elif defined(CONFIG_COLDFIRE)
+ #define PTRS_PER_PTE	512
++#define __PAGETABLE_PMD_FOLDED
+ #define PTRS_PER_PMD	1
+ #define PTRS_PER_PGD	1024
+ #else
 -- 
 2.1.4
 
