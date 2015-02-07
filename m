@@ -1,252 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 4661D6B00A4
-	for <linux-mm@kvack.org>; Sat,  7 Feb 2015 04:30:23 -0500 (EST)
-Received: by mail-wg0-f54.google.com with SMTP id l18so1916511wgh.13
-        for <linux-mm@kvack.org>; Sat, 07 Feb 2015 01:30:22 -0800 (PST)
-Received: from mail-wi0-x22e.google.com (mail-wi0-x22e.google.com. [2a00:1450:400c:c05::22e])
-        by mx.google.com with ESMTPS id q7si8886890wja.145.2015.02.07.01.30.19
+Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 304CF6B00A6
+	for <linux-mm@kvack.org>; Sat,  7 Feb 2015 09:38:44 -0500 (EST)
+Received: by mail-qg0-f44.google.com with SMTP id j5so119726qga.3
+        for <linux-mm@kvack.org>; Sat, 07 Feb 2015 06:38:44 -0800 (PST)
+Received: from mail-qg0-x233.google.com (mail-qg0-x233.google.com. [2607:f8b0:400d:c04::233])
+        by mx.google.com with ESMTPS id c5si6774692qad.38.2015.02.07.06.38.43
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 07 Feb 2015 01:30:20 -0800 (PST)
-Received: by mail-wi0-f174.google.com with SMTP id n3so7455918wiv.1
-        for <linux-mm@kvack.org>; Sat, 07 Feb 2015 01:30:19 -0800 (PST)
+        Sat, 07 Feb 2015 06:38:43 -0800 (PST)
+Received: by mail-qg0-f51.google.com with SMTP id z60so11573719qgd.10
+        for <linux-mm@kvack.org>; Sat, 07 Feb 2015 06:38:43 -0800 (PST)
+Date: Sat, 7 Feb 2015 09:38:39 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC] Making memcg track ownership per address_space or anon_vma
+Message-ID: <20150207143839.GA9926@htj.dyndns.org>
+References: <20150202194608.GA8169@htj.dyndns.org>
+ <CAHH2K0aSPjNgt30uJQa_6r=AXZso3SitjWOm96dtJF32CumZjQ@mail.gmail.com>
+ <20150204170656.GA18858@htj.dyndns.org>
+ <xr93zj8ti6ca.fsf@gthelen.mtv.corp.google.com>
+ <20150205131514.GD25736@htj.dyndns.org>
+ <xr93siekt3p3.fsf@gthelen.mtv.corp.google.com>
+ <20150205222522.GA10580@htj.dyndns.org>
+ <xr93pp9nucrt.fsf@gthelen.mtv.corp.google.com>
+ <20150206141746.GB10580@htj.dyndns.org>
+ <CAHH2K0bxvc34u1PugVQsSfxXhmN8qU6KRpiCWwOVBa6BPqMDOg@mail.gmail.com>
 MIME-Version: 1.0
-Reply-To: sedat.dilek@gmail.com
-In-Reply-To: <CA+icZUXPukpUw_xBsK9An+7KL_gyyyWSV7a_ip6uB8kJjTFoHg@mail.gmail.com>
-References: <CA+icZUVTVdHc3QYD1LkWn=Xt-Zz6RcXPcjL6Xbpz0FZ6rdA5CQ@mail.gmail.com>
-	<CA+icZUVt_8wquKTq=A0tE7erL5iqQ7KsVDiJg_2CXd0Fu-VkcQ@mail.gmail.com>
-	<54D5D348.70408@erley.org>
-	<CA+icZUXPukpUw_xBsK9An+7KL_gyyyWSV7a_ip6uB8kJjTFoHg@mail.gmail.com>
-Date: Sat, 7 Feb 2015 10:30:18 +0100
-Message-ID: <CA+icZUXJ=H+X2toQW4LksxaqBvyZyco=scT_OoV=bAG6ScuwMg@mail.gmail.com>
-Subject: Re: BUG: non-zero nr_pmds on freeing mm: 1
-From: Sedat Dilek <sedat.dilek@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAHH2K0bxvc34u1PugVQsSfxXhmN8qU6KRpiCWwOVBa6BPqMDOg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pat Erley <pat-lkml@erley.org>
-Cc: Linux-Next <linux-next@vger.kernel.org>, kirill.shutemov@linux.intel.com, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
+To: Greg Thelen <gthelen@google.com>
+Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Christoph Hellwig <hch@infradead.org>, Li Zefan <lizefan@huawei.com>, Hugh Dickins <hughd@google.com>
 
-On Sat, Feb 7, 2015 at 10:20 AM, Sedat Dilek <sedat.dilek@gmail.com> wrote:
-> On Sat, Feb 7, 2015 at 9:56 AM, Pat Erley <pat-lkml@erley.org> wrote:
->> On 02/07/2015 02:42 AM, Sedat Dilek wrote:
->>>
->>> On Sat, Feb 7, 2015 at 8:33 AM, Sedat Dilek <sedat.dilek@gmail.com> wrote:
->>>>
->>>> On Sat, Feb 7, 2015 at 6:12 AM, Pat Erley <pat-lkml@erley.org> wrote:
->>>>>
->>>>> I'm seeing the message in $subject on my Xen DOM0 on next-20150204 on
->>>>> x86_64.  I haven't had time to bisect it, but have seen some discussion
->>>>> on
->>>>> similar topics here recently.  I can trigger this pretty reliably by
->>>>> watching Netflix.  At some point (minutes to hours) into it, the netflix
->>>>> video goes black (audio keeps going, so it still thinks it's working)
->>>>> and
->>>>> the error appears in dmesg.  Refreshing the page gets the video going
->>>>> again,
->>>>> and it will continue playing for some indeterminate amount of time.
->>>>>
->>>>> Kirill, I've CC'd you as looking in the logs, you've patched a false
->>>>> positive trigger of this very recently(patch in kernel I'm running).  Am
->>>>> I
->>>>> actually hitting a problem, or is this another false positive case? Any
->>>>> additional details that might help?
->>>>>
->>>>> Dmesg from system attached.
->>>>
->>>>
->>>> [ CC some mm folks ]
->>>>
->>>> I have seen this, too.
->>>>
->>>> root# grep "BUG: non-zero nr_pmds on freeing mm:" /var/log/kern.log | wc
->>>> -l
->>>> 21
->>>>
->>>> Checking my logs: On next-20150203 and next-20150204.
->>>>
->>>> I am here not in a VM environment and cannot say what causes these
->>>> messages.
->>>>
->>>
->>> I checked a bit the logs and commits in mm.git and linux-next.git.
->>>
->>> [1] lists:
->>>
->>> Kirill A. Shutemov (1): mm: do not use mm->nr_pmds on !MMU configurations
->>>
->>> NOTE: next-20150204 has this commit, but next-20150203 not (seen the
->>> BUG: line in both releases).
->>>
->>> Looking at Kirill's commit...
->>>
->>> At my 1st quick look I thought Kirill mixed mm_nr_pmds_init() in the
->>> case of defined(__PAGETABLE_PMD_FOLDED), but I was wrong.
->>>
->>> @@ -1440,13 +1440,15 @@ static inline int __pud_alloc(struct mm_struct
->>> *mm, pgd_t *pgd,
->>> ...
->>> #if defined(__PAGETABLE_PMD_FOLDED) || !defined(CONFIG_MMU)
->>> ...
->>> static inline void mm_nr_pmds_init(struct mm_struct *mm)
->>> {
->>>    atomic_long_set(&mm->nr_pmds, 0);
->>> }
->>> ...
->>> #else
->>> ...
->>> static inline void mm_nr_pmds_init(struct mm_struct *mm) {}
->>> ...
->>> #endif
->>>
->>> So, I drop my idea of reverting Kirill's commit.
->>>
->>> Pat, not sure how often you build linux-next.
->>> When doing a daily linux-next testing... Before bisecting I normally
->>> checked which version of linux-next was the last good and which one
->>> was the first bad.
->>> I cannot say which strategy is better.
->>> But you seem to have a reliable test with watching Netflix.
->>>
->>> Regards,
->>> - Sedat -
->>>
->>> [1]
->>> http://git.kernel.org/cgit/linux/kernel/git/mhocko/mm.git/tag/?id=mmotm-2015-02-03-16-38
->>> [2]
->>> http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/?id=e060ff1f1f00caab403bd208ffa78ed1b7ee0c4d
->>
->>
->> Yeah, I only recently found a patch that lets me boot xen on a recent -next
->> kernel:
->>
->> diff --git a/arch/x86/kernel/cpu/microcode/core.c
->> b/arch/x86/kernel/cpu/microcode/core.c
->> index 15c2909..36a8361 100644
->> --- a/arch/x86/kernel/cpu/microcode/core.c
->> +++ b/arch/x86/kernel/cpu/microcode/core.c
->> @@ -552,7 +552,7 @@ static int __init microcode_init(void)
->>         int error;
->>
->>         if (paravirt_enabled() || dis_ucode_ldr)
->> -               return 0;
->> +               return -EINVAL;
->>
->>         if (c->x86_vendor == X86_VENDOR_INTEL)
->>                 microcode_ops = init_intel_microcode();
->>
->> that I found on it's way to upstream.  The last 'known good' Xen setup for
->> me was a 3.18.0 rc6 kernel.  I only use Xen to experiment with, so I don't
->> boot every kernel with Xen enabled, only when I'm working on learning it.
->> So as far as a bisect window goes, that's a pretty large one.  I'll wait to
->> see if anyone else chimes in before attempting the bisect(mostly because
->> it's 3am here, and they'll all likely have a chance to see this chain of
->> e-mails before I can get going on the bisect tomorrow).  I'll also check to
->> see if I can trigger it on this kernel without booting in xen.
->>
->
-> I have run ltp (20150119) in special the mm testsuite.
-> It produces call-traces here when running OOM tests (oom03, oom04 and oom05).
->
-> # cd /opt/ltp
->
-> # cat Version
-> 20150119
->
-> root# LC_ALL=C ./runltp -f mm 2>&1 | tee
-> results-ltp_mm-testsuite_$(uname -r).txt
->
-> 1st snippet in dmesg:
-> ...
-> [ 2808.331428] BUG: non-zero nr_pmds on freeing mm: 17
-> [ 3283.043499] oom03 invoked oom-killer: gfp_mask=0xd0, order=0, oom_score_adj=0
-> [ 3283.043505] oom03 cpuset=/ mems_allowed=0
-> [ 3283.043551] CPU: 2 PID: 14892 Comm: oom03 Not tainted
-> 3.19.0-rc7-next-20150204.14-iniza-small #1
-> [ 3283.043553] Hardware name: SAMSUNG ELECTRONICS CO., LTD.
-> 530U3BI/530U4BI/530U4BH/530U3BI/530U4BI/530U4BH, BIOS 13XK 03/28/2013
-> [ 3283.043555]  0000000000000000 ffff88005402fca8 ffffffff817e392d
-> 000000000000000a
-> [ 3283.043559]  ffff8800bcf04000 ffff88005402fd38 ffffffff817e1a16
-> ffff88005402fcd8
-> [ 3283.043562]  ffffffff810d827d 0000000000000206 ffffffff81c6e800
-> ffff88005402fce8
-> [ 3283.043565] Call Trace:
-> [ 3283.043571]  [<ffffffff817e392d>] dump_stack+0x4c/0x65
-> [ 3283.043576]  [<ffffffff817e1a16>] dump_header+0x9e/0x261
-> [ 3283.043580]  [<ffffffff810d827d>] ? trace_hardirqs_on_caller+0x15d/0x200
-> [ 3283.043583]  [<ffffffff810d832d>] ? trace_hardirqs_on+0xd/0x10
-> [ 3283.043587]  [<ffffffff811a8abc>] oom_kill_process+0x1dc/0x3d0
-> [ 3283.043590]  [<ffffffff81217658>] mem_cgroup_oom_synchronize+0x6b8/0x6f0
-> [ 3283.043594]  [<ffffffff81211a50>] ? mem_cgroup_reset+0xb0/0xb0
-> [ 3283.043597]  [<ffffffff811a95b4>] pagefault_out_of_memory+0x24/0xe0
-> [ 3283.043600]  [<ffffffff8106c4ad>] mm_fault_error+0x8d/0x190
-> [ 3283.043603]  [<ffffffff8106ca60>] __do_page_fault+0x4b0/0x4c0
-> [ 3283.043605]  [<ffffffff8106caa1>] do_page_fault+0x31/0x70
-> [ 3283.043609]  [<ffffffff817f0818>] page_fault+0x28/0x30
-> [ 3283.043657] Task in /1 killed as a result of limit of /1
-> [ 3283.043790] memory: usage 1048576kB, limit 1048576kB, failcnt 28578
-> [ 3283.043792] memory+swap: usage 0kB, limit 9007199254740988kB, failcnt 0
-> [ 3283.043793] kmem: usage 0kB, limit 9007199254740988kB, failcnt 0
-> [ 3283.043795] Memory cgroup stats for /1: cache:0KB rss:1048576KB
-> rss_huge:0KB mapped_file:0KB writeback:4316KB inactive_anon:524296KB
-> active_anon:524228KB inactive_file:0KB active_file:0KB unevictable:0KB
-> [ 3283.043867] [ pid ]   uid  tgid total_vm      rss nr_ptes nr_pmds
-> swapents oom_score_adj name
-> [ 3283.044061] [14891]     0 14891     1618      427       9       3
->      0             0 oom03
-> [ 3283.044066] [14892]     0 14892   788050   252632     631       6
->  65535             0 oom03
-> [ 3283.044069] Memory cgroup out of memory: Kill process 14892 (oom03)
-> score 943 or sacrifice child
-> [ 3283.044103] Killed process 14892 (oom03) total-vm:3152200kB,
-> anon-rss:1009556kB, file-rss:972kB
-> ...
->
-> Hope this helps to get the beast.
->
+Hello, Greg.
 
->From results-ltp file...
+On Fri, Feb 06, 2015 at 03:43:11PM -0800, Greg Thelen wrote:
+> If cgroups are about isolation then writing to shared files should be
+> rare, so I'm willing to say that we don't need to handle shared
+> writers well.  Shared readers seem like a more valuable use cases
+> (thin provisioning).  I'm getting overwhelmed with the thought
+> exercise of automatically moving inodes to common ancestors and back
+> charging the sharers for shared_usage.  I haven't wrapped my head
+> around how these shared data pages will get protected.  It seems like
+> they'd no longer be protected by child min watermarks.
 
-<<<test_start>>>
-tag=oom03 stime=1423299759
-cmdline="oom03"
-contacts=""
-analysis=exit
-<<<test_output>>>
-oom03       0  TINFO  :  set overcommit_memory to 1
-oom03       0  TINFO  :  start normal OOM testing.
-oom03       0  TINFO  :  expected victim is 14892.
-oom03       1  TPASS  :  victim signalled: (9) SIGKILL
-oom03       0  TINFO  :  start OOM testing for mlocked pages.
-oom03       0  TINFO  :  expected victim is 14893.
-oom03       2  TPASS  :  victim signalled: (9) SIGKILL
-oom03       0  TINFO  :  start OOM testing for KSM pages.
-oom03       0  TINFO  :  expected victim is 14894.
-oom03       3  TPASS  :  victim signalled: (9) SIGKILL
-oom03       4  TCONF  :  oom03.c:74: memcg swap accounting is disabled
-oom03       0  TINFO  :  set overcommit_memory to 0
-<<<execution_status>>>
-initiation_status="ok"
-duration=9 termination_type=exited termination_id=32 corefile=no
-cutime=80 cstime=564
-<<<test_end>>>
+Yes, this is challenging and what my current thought is around taking
+the maximum of the low settings of the sharing children but I need to
+think more about it.  One problem is that the shared inodes will
+preemptively take away the amount shared from the children's low
+protection.  They won't compete fairly with other inodes or anons but
+they can't really as they don't really belong to any single sharer.
 
-Do you have "memcg swap accounting is disabled" (see above)?
-Can you try with CONFIG_MEMCG_SWAP_ENABLED=y to see if this has an effect?
+> So I know this thread opened with the claim "both memcg and blkcg must
+> be looking at the same picture.  Deviating them is highly likely to
+> lead to long-term issues forcing us to look at this again anyway, only
+> with far more baggage."  But I'm still wondering if the following is
+> simpler:
+> (1) leave memcg as a per page controller.
+> (2) maintain a per inode i_memcg which is set to the common dirtying
+> ancestor.  If not shared then it'll point to the memcg that the page
+> was charged to.
+> (3) when memcg dirtying page pressure is seen, walk up the cgroup tree
+> writing dirty inodes, this will write shared inodes using blkcg
+> priority of the respective levels.
+> (4) background limit wb_check_background_flush() and time based
+> wb_check_old_data_flush() can feel free to attack shared inodes to
+> hopefully restore them to non-shared state.
+> For non-shared inodes, this should behave the same.  For shared inodes
+> it should only affect those in the hierarchy which is sharing.
 
-Here I have it disabled and the following memcg kernel-options set...
+The thing which breaks when you de-couple what memcg sees from the
+rest of the stack is that the amount of memory which may be available
+to a given cgroup and how much of that is dirty is the main linkage
+propagating IO pressure to actual dirtying tasks.  If you decouple the
+two worldviews, you lose the ability to propagate IO pressure to
+dirtiers in a controlled manner and that's why anything inside a memcg
+currently is always triggering direct reclaim path instead of being
+properly dirty throttled.
 
-$ grep -i memcg /boot/config-3.19.0-rc7-next-20150204.14-iniza-small
-CONFIG_MEMCG=y
-CONFIG_MEMCG_SWAP=y
-# CONFIG_MEMCG_SWAP_ENABLED is not set
-# CONFIG_MEMCG_KMEM is not set
+You can argue that an inode being actively dirtied from multiple
+cgroups is a rare case which we can sweep under the rug and that
+*might* be the case but I have a nagging feeling that that would be a
+decision which is made merely out of immediate convenience and would
+much prefer having a well defined model of sharing inodes and anons
+across cgroups so that the behaviors shown in thoses cases aren't mere
+accidental consequences without any innate meaning.
 
-Hope the mm folk can explain if this option is relevant for the issue or not.
+If we can argue that memcg and blkcg having different views is
+meaningful and characterize and justify the behaviors stemming from
+the deviation, sure, that'd be fine, but I don't think we have that as
+of now.
 
-- Sedat -
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
