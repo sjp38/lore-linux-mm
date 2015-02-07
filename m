@@ -1,97 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f179.google.com (mail-vc0-f179.google.com [209.85.220.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 245396B0080
-	for <linux-mm@kvack.org>; Fri,  6 Feb 2015 18:43:33 -0500 (EST)
-Received: by mail-vc0-f179.google.com with SMTP id la4so6255403vcb.10
-        for <linux-mm@kvack.org>; Fri, 06 Feb 2015 15:43:32 -0800 (PST)
-Received: from mail-vc0-x230.google.com (mail-vc0-x230.google.com. [2607:f8b0:400c:c03::230])
-        by mx.google.com with ESMTPS id d20si2749574vcd.70.2015.02.06.15.43.32
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 318336B0082
+	for <linux-mm@kvack.org>; Fri,  6 Feb 2015 21:17:10 -0500 (EST)
+Received: by pdev10 with SMTP id v10so1001899pde.7
+        for <linux-mm@kvack.org>; Fri, 06 Feb 2015 18:17:09 -0800 (PST)
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com. [209.85.220.47])
+        by mx.google.com with ESMTPS id l1si12415622pdf.73.2015.02.06.18.17.08
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Feb 2015 15:43:32 -0800 (PST)
-Received: by mail-vc0-f176.google.com with SMTP id kv7so6238148vcb.7
-        for <linux-mm@kvack.org>; Fri, 06 Feb 2015 15:43:31 -0800 (PST)
+        Fri, 06 Feb 2015 18:17:09 -0800 (PST)
+Received: by mail-pa0-f47.google.com with SMTP id lj1so20930133pab.6
+        for <linux-mm@kvack.org>; Fri, 06 Feb 2015 18:17:08 -0800 (PST)
+Message-ID: <54D575A1.60706@amacapital.net>
+Date: Fri, 06 Feb 2015 18:17:05 -0800
+From: Andy Lutomirski <luto@amacapital.net>
 MIME-Version: 1.0
-In-Reply-To: <20150206141746.GB10580@htj.dyndns.org>
-References: <20150130160722.GA26111@htj.dyndns.org> <54CFCF74.6090400@yandex-team.ru>
- <20150202194608.GA8169@htj.dyndns.org> <CAHH2K0aSPjNgt30uJQa_6r=AXZso3SitjWOm96dtJF32CumZjQ@mail.gmail.com>
- <20150204170656.GA18858@htj.dyndns.org> <xr93zj8ti6ca.fsf@gthelen.mtv.corp.google.com>
- <20150205131514.GD25736@htj.dyndns.org> <xr93siekt3p3.fsf@gthelen.mtv.corp.google.com>
- <20150205222522.GA10580@htj.dyndns.org> <xr93pp9nucrt.fsf@gthelen.mtv.corp.google.com>
- <20150206141746.GB10580@htj.dyndns.org>
-From: Greg Thelen <gthelen@google.com>
-Date: Fri, 6 Feb 2015 15:43:11 -0800
-Message-ID: <CAHH2K0bxvc34u1PugVQsSfxXhmN8qU6KRpiCWwOVBa6BPqMDOg@mail.gmail.com>
-Subject: Re: [RFC] Making memcg track ownership per address_space or anon_vma
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [Lsf-pc] [LSF/MM ATTEND] mmap_sem and mm performance testing
+References: <1419292284.8812.5.camel@stgolabs.net> <20150102133506.GB2395@suse.de>
+In-Reply-To: <20150102133506.GB2395@suse.de>
+Content-Type: text/plain; charset=iso-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Christoph Hellwig <hch@infradead.org>, Li Zefan <lizefan@huawei.com>, Hugh Dickins <hughd@google.com>
+To: Mel Gorman <mgorman@suse.de>, Davidlohr Bueso <dave@stgolabs.net>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
 
-On Fri, Feb 6, 2015 at 6:17 AM, Tejun Heo <tj@kernel.org> wrote:
-> Hello, Greg.
->
-> On Thu, Feb 05, 2015 at 04:03:34PM -0800, Greg Thelen wrote:
->> So  this is  a system  which charges  all cgroups  using a  shared inode
->> (recharge on read) for all resident pages of that shared inode.  There's
->> only one copy of the page in memory on just one LRU, but the page may be
->> charged to multiple container's (shared_)usage.
->
-> Yeap.
->
->> Perhaps I missed it, but what happens when a child's limit is
->> insufficient to accept all pages shared by its siblings?  Example
->> starting with 2M cached of a shared file:
+On 01/02/2015 05:35 AM, Mel Gorman wrote:
+> On Mon, Dec 22, 2014 at 03:51:24PM -0800, Davidlohr Bueso wrote:
+>> Hello,
 >>
->>       A
->>       +-B    (usage=2M lim=3M hosted_usage=2M)
->>         +-C  (usage=0  lim=2M shared_usage=2M)
->>         +-D  (usage=0  lim=2M shared_usage=2M)
->>         \-E  (usage=0  lim=1M shared_usage=0)
+>> I would like to attend LSF/MM 2015. While I am very much interested in
+>> general mm performance topics, I would particularly like to discuss:
 >>
->> If E faults in a new 4K page within the shared file, then E is a sharing
->> participant so it'd be charged the 2M+4K, which pushes E over it's
->> limit.
+>> (1) Where we are at with the mmap_sem issues and progress. This topic
+>> constantly comes up each year [1,2,3] without much changing. While the
+>> issues are very clear (both long hold times, specially in fs paths and
+>> coarse lock granularity) it would be good to detail exactly *where*
+>> these problems are and what are some of the show stoppers. In addition,
+>> present overall progress and benchmark numbers on fine graining via
+>> range locking (I am currently working on this as a follow on to recent
+>> i_mmap locking patches) and experimental work,
+>> such as speculative page fault patches[4]. If nothing else, this session
+>> can/should produce a list of tangible todo items.
+>>
 >
-> OOM?  It shouldn't be participating in sharing of an inode if it can't
-> match others' protection on the inode, I think.  What we're doing now
-> w/ page based charging is kinda unfair because in the situations like
-> above the one under pressure can end up siphoning off of the larger
-> cgroups' protection if they actually use overlapping areas; however,
-> for disjoint areas, per-page charging would behave correctly.
+> There have been changes on mmap_sem hold times -- mmap_sem dropped by
+> khugepaged during allocation being a very obvious one but there are
+> others. The scope of what mmap_sem protects is similar but the stalling
+> behaviour has changed since this was last discussed. It's worth
+> revisiting where things stand and at the very least verify what cases
+> are currently causing problems.
 >
-> So, this part comes down to the same question - whether multiple
-> cgroups accessing disjoint areas of a single inode is an important
-> enough use case.  If we say yes to that, we better make writeback
-> support that too.
 
-If cgroups are about isolation then writing to shared files should be
-rare, so I'm willing to say that we don't need to handle shared
-writers well.  Shared readers seem like a more valuable use cases
-(thin provisioning).  I'm getting overwhelmed with the thought
-exercise of automatically moving inodes to common ancestors and back
-charging the sharers for shared_usage.  I haven't wrapped my head
-around how these shared data pages will get protected.  It seems like
-they'd no longer be protected by child min watermarks.
+I think that, for my workload, the main issue is that one cpu can take 
+mmap_sem and get preempted, and, since we don't have priority 
+inheritance, other threads in the process get stalled.
 
-So I know this thread opened with the claim "both memcg and blkcg must
-be looking at the same picture.  Deviating them is highly likely to
-lead to long-term issues forcing us to look at this again anyway, only
-with far more baggage."  But I'm still wondering if the following is
-simpler:
-(1) leave memcg as a per page controller.
-(2) maintain a per inode i_memcg which is set to the common dirtying
-ancestor.  If not shared then it'll point to the memcg that the page
-was charged to.
-(3) when memcg dirtying page pressure is seen, walk up the cgroup tree
-writing dirty inodes, this will write shared inodes using blkcg
-priority of the respective levels.
-(4) background limit wb_check_background_flush() and time based
-wb_check_old_data_flush() can feel free to attack shared inodes to
-hopefully restore them to non-shared state.
-For non-shared inodes, this should behave the same.  For shared inodes
-it should only affect those in the hierarchy which is sharing.
+As a terrible stopgap, some kind of priority boosting, or maybe optional 
+preemption disabling for some parts of the mmap/munmap code could help. 
+  The speculative page fault stuff could also help.
+
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
