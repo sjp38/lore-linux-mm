@@ -1,71 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 568836B0032
-	for <linux-mm@kvack.org>; Mon,  9 Feb 2015 04:13:12 -0500 (EST)
-Received: by mail-we0-f172.google.com with SMTP id k48so4499828wev.3
-        for <linux-mm@kvack.org>; Mon, 09 Feb 2015 01:13:11 -0800 (PST)
-Received: from mail-wg0-x231.google.com (mail-wg0-x231.google.com. [2a00:1450:400c:c00::231])
-        by mx.google.com with ESMTPS id m8si19319261wiw.53.2015.02.09.01.13.10
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C8E66B006C
+	for <linux-mm@kvack.org>; Mon,  9 Feb 2015 04:36:44 -0500 (EST)
+Received: by mail-wi0-f169.google.com with SMTP id z2so4332114wiv.0
+        for <linux-mm@kvack.org>; Mon, 09 Feb 2015 01:36:43 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id sd8si7239757wjb.100.2015.02.09.01.36.41
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Feb 2015 01:13:10 -0800 (PST)
-Received: by mail-wg0-f49.google.com with SMTP id k14so25308846wgh.8
-        for <linux-mm@kvack.org>; Mon, 09 Feb 2015 01:13:10 -0800 (PST)
-Message-ID: <54D87A23.40703@gmail.com>
-Date: Mon, 09 Feb 2015 10:13:07 +0100
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 09 Feb 2015 01:36:42 -0800 (PST)
+Message-ID: <54D87FA8.60408@suse.cz>
+Date: Mon, 09 Feb 2015 10:36:40 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: MADV_DONTNEED semantics? Was: [RFC PATCH] mm: madvise: Ignore
- repeated MADV_DONTNEED hints
-References: <54D08483.40209@suse.cz> <20150203105301.GC14259@node.dhcp.inet.fi> <54D0B43D.8000209@suse.cz> <54D0F56A.9050003@gmail.com> <54D22298.3040504@suse.cz> <CAKgNAkgOOCuzJz9whoVfFjqhxM0zYsz94B1+oH58SthC5Ut9sg@mail.gmail.com> <54D2508A.9030804@suse.cz> <CAKgNAkhNbHQX7RukSsSe3bMqY11f493rYbDpTOA2jH7vsziNww@mail.gmail.com> <20150205010757.GA20996@blaptop> <54D4E098.8050004@gmail.com> <20150209064600.GA32300@blaptop>
-In-Reply-To: <20150209064600.GA32300@blaptop>
+Subject: Re: BUG: stuck on mmap_sem in 3.18.6
+References: <CALYGNiMhifrNm5jv499Y6BcM0mYkHUgPBP5a5p7-Gc7ue_jqjw@mail.gmail.com>
+In-Reply-To: <CALYGNiMhifrNm5jv499Y6BcM0mYkHUgPBP5a5p7-Gc7ue_jqjw@mail.gmail.com>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: mtk.manpages@gmail.com, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-man <linux-man@vger.kernel.org>, Hugh Dickins <hughd@google.com>
+To: Konstantin Khlebnikov <koct9i@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Hello Minchan
-
-On 02/09/2015 07:46 AM, Minchan Kim wrote:
-> Hello, Michael
+On 02/09/2015 08:14 AM, Konstantin Khlebnikov wrote:
+> Python was running under ptrace-based sandbox "sydbox" used exherbo
+> chroot. Kernel: 3.18.6 + my patch "mm: prevent endless growth of
+> anon_vma hierarchy" (patch seems stable).
 > 
-> On Fri, Feb 06, 2015 at 04:41:12PM +0100, Michael Kerrisk (man-pages) wrote:
->> On 02/05/2015 02:07 AM, Minchan Kim wrote:
->>> Hello,
->>>
->>> On Wed, Feb 04, 2015 at 08:24:27PM +0100, Michael Kerrisk (man-pages) wrote:
->>>> On 4 February 2015 at 18:02, Vlastimil Babka <vbabka@suse.cz> wrote:
->>>>> On 02/04/2015 03:00 PM, Michael Kerrisk (man-pages) wrote:
-
-[...]
-
->>> And we should make error section, too.
->>> "locked" covers mlock(2) and you said you will add hugetlb. Then,
->>> VM_PFNMAP? In that case, it fails. How can we say about VM_PFNMAP?
->>> special mapping for some drivers?
->>
->> I'm open for offers on what to add.
+> [ 4674.087780] INFO: task python:25873 blocked for more than 120 seconds.
+> [ 4674.087793]       Tainted: G     U         3.18.6-zurg+ #158
+> [ 4674.087797] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
+> disables this message.
+> [ 4674.087801] python          D ffff88041e2d2000 14176 25873  25630 0x00000102
+> [ 4674.087817]  ffff880286247b68 0000000000000086 ffff8803d5fe6b40
+> 0000000000012000
+> [ 4674.087824]  ffff880286247fd8 0000000000012000 ffff88040c16eb40
+> ffff8803d5fe6b40
+> [ 4674.087830]  0000000300000003 ffff8803d5fe6b40 ffff880362888e78
+> ffff880362888e60
+> [ 4674.087836] Call Trace:
+> [ 4674.087854]  [<ffffffff81696be9>] schedule+0x29/0x70
+> [ 4674.087865]  [<ffffffff81699815>] rwsem_down_write_failed+0x1d5/0x2f0
+> [ 4674.087873]  [<ffffffff812d4c73>] call_rwsem_down_write_failed+0x13/0x20
+> [ 4674.087881]  [<ffffffff816990c1>] ? down_write+0x31/0x50
+> [ 4674.087891]  [<ffffffff811f3b44>] do_coredump+0x144/0xee0
+> [ 4674.087900]  [<ffffffff810b66f7>] ? pick_next_task_fair+0x397/0x450
+> [ 4674.087909]  [<ffffffff810026a6>] ? __switch_to+0x1d6/0x5f0
+> [ 4674.087915]  [<ffffffff816966e6>] ? __schedule+0x3a6/0x880
+> [ 4674.087924]  [<ffffffff81690000>] ? klist_remove+0x40/0xd0
+> [ 4674.087932]  [<ffffffff81093988>] get_signal+0x298/0x6b0
+> [ 4674.087940]  [<ffffffff81003588>] do_signal+0x28/0xbb0
+> [ 4674.087946]  [<ffffffff8109276d>] ? do_send_sig_info+0x5d/0x80
+> [ 4674.087955]  [<ffffffff81004179>] do_notify_resume+0x69/0xb0
+> [ 4674.087963]  [<ffffffff8169b028>] int_signal+0x12/0x17
 > 
-> I suggests from quote "LWN" http://lwn.net/Articles/162860/
-> "*special mapping* which is not made up of "normal" pages.
-> It is usually created by device drivers which map special memory areas
-> into user space"
+> Maybe this guy did something wrong?
 
-Thanks. I've added mention of VM_PFNMAP in the discussion of both 
-MADV_DONTNEED and MADV_REMOVE, and noted that both of those
-operations will give an error when applied to VM_PFNMAP pages.
+Well he has do_coredump on stack, so he did something wrong in userspace? But
+here he's just waiting on down_write. Unless there's some bug in do_coredump
+that would lock for read and then for write, without an unlock in between?
 
-Cheers,
+> Looks like mmap_sem is locked for read:
 
-Michael
+So we have the python waiting for write, blocking all new readers (that's how
+read/write locks work, right?), but itself waiting for a prior reader to finish.
+The question is, who is/was the reader? You could search the mmap_sem or mm
+address in the rest of the processes' stacks, and maybe you'll find him?
 
-
--- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
