@@ -1,111 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 923966B006E
-	for <linux-mm@kvack.org>; Mon,  9 Feb 2015 04:46:21 -0500 (EST)
-Received: by lams18 with SMTP id s18so6237567lam.11
-        for <linux-mm@kvack.org>; Mon, 09 Feb 2015 01:46:21 -0800 (PST)
-Received: from mail-lb0-x22c.google.com (mail-lb0-x22c.google.com. [2a00:1450:4010:c04::22c])
-        by mx.google.com with ESMTPS id z1si8440347lag.152.2015.02.09.01.46.18
+Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
+	by kanga.kvack.org (Postfix) with ESMTP id B156B6B0038
+	for <linux-mm@kvack.org>; Mon,  9 Feb 2015 05:34:36 -0500 (EST)
+Received: by mail-we0-f172.google.com with SMTP id k48so4940466wev.3
+        for <linux-mm@kvack.org>; Mon, 09 Feb 2015 02:34:36 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b14si8796810wiw.37.2015.02.09.02.34.34
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Feb 2015 01:46:19 -0800 (PST)
-Received: by mail-lb0-f172.google.com with SMTP id l4so28606502lbv.3
-        for <linux-mm@kvack.org>; Mon, 09 Feb 2015 01:46:18 -0800 (PST)
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 09 Feb 2015 02:34:34 -0800 (PST)
+Message-ID: <54D88D38.9010901@suse.cz>
+Date: Mon, 09 Feb 2015 11:34:32 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <54D87FA8.60408@suse.cz>
-References: <CALYGNiMhifrNm5jv499Y6BcM0mYkHUgPBP5a5p7-Gc7ue_jqjw@mail.gmail.com>
-	<54D87FA8.60408@suse.cz>
-Date: Mon, 9 Feb 2015 13:46:18 +0400
-Message-ID: <CALYGNiOgSVgq+iaUs-f9MB4o8yOWb7jk6eEA=SMrqJh5K=6+hQ@mail.gmail.com>
 Subject: Re: BUG: stuck on mmap_sem in 3.18.6
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+References: <CALYGNiMhifrNm5jv499Y6BcM0mYkHUgPBP5a5p7-Gc7ue_jqjw@mail.gmail.com>	<54D87FA8.60408@suse.cz> <CALYGNiOgSVgq+iaUs-f9MB4o8yOWb7jk6eEA=SMrqJh5K=6+hQ@mail.gmail.com>
+In-Reply-To: <CALYGNiOgSVgq+iaUs-f9MB4o8yOWb7jk6eEA=SMrqJh5K=6+hQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
+To: Konstantin Khlebnikov <koct9i@gmail.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Mon, Feb 9, 2015 at 12:36 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
-> On 02/09/2015 08:14 AM, Konstantin Khlebnikov wrote:
->> Python was running under ptrace-based sandbox "sydbox" used exherbo
->> chroot. Kernel: 3.18.6 + my patch "mm: prevent endless growth of
->> anon_vma hierarchy" (patch seems stable).
+On 02/09/2015 10:46 AM, Konstantin Khlebnikov wrote:
+> On Mon, Feb 9, 2015 at 12:36 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
+>> On 02/09/2015 08:14 AM, Konstantin Khlebnikov wrote:
+>>> Python was running under ptrace-based sandbox "sydbox" used exherbo
+>>> chroot. Kernel: 3.18.6 + my patch "mm: prevent endless growth of
+>>> anon_vma hierarchy" (patch seems stable).
+>>>
+>>> [ 4674.087780] INFO: task python:25873 blocked for more than 120 seconds.
+>>> [ 4674.087793]       Tainted: G     U         3.18.6-zurg+ #158
+>>> [ 4674.087797] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
+>>> disables this message.
+>>> [ 4674.087801] python          D ffff88041e2d2000 14176 25873  25630 0x00000102
+>>> [ 4674.087817]  ffff880286247b68 0000000000000086 ffff8803d5fe6b40
+>>> 0000000000012000
+>>> [ 4674.087824]  ffff880286247fd8 0000000000012000 ffff88040c16eb40
+>>> ffff8803d5fe6b40
+>>> [ 4674.087830]  0000000300000003 ffff8803d5fe6b40 ffff880362888e78
+>>> ffff880362888e60
+>>> [ 4674.087836] Call Trace:
+>>> [ 4674.087854]  [<ffffffff81696be9>] schedule+0x29/0x70
+>>> [ 4674.087865]  [<ffffffff81699815>] rwsem_down_write_failed+0x1d5/0x2f0
+>>> [ 4674.087873]  [<ffffffff812d4c73>] call_rwsem_down_write_failed+0x13/0x20
+>>> [ 4674.087881]  [<ffffffff816990c1>] ? down_write+0x31/0x50
+>>> [ 4674.087891]  [<ffffffff811f3b44>] do_coredump+0x144/0xee0
+>>> [ 4674.087900]  [<ffffffff810b66f7>] ? pick_next_task_fair+0x397/0x450
+>>> [ 4674.087909]  [<ffffffff810026a6>] ? __switch_to+0x1d6/0x5f0
+>>> [ 4674.087915]  [<ffffffff816966e6>] ? __schedule+0x3a6/0x880
+>>> [ 4674.087924]  [<ffffffff81690000>] ? klist_remove+0x40/0xd0
+>>> [ 4674.087932]  [<ffffffff81093988>] get_signal+0x298/0x6b0
+>>> [ 4674.087940]  [<ffffffff81003588>] do_signal+0x28/0xbb0
+>>> [ 4674.087946]  [<ffffffff8109276d>] ? do_send_sig_info+0x5d/0x80
+>>> [ 4674.087955]  [<ffffffff81004179>] do_notify_resume+0x69/0xb0
+>>> [ 4674.087963]  [<ffffffff8169b028>] int_signal+0x12/0x17
+>>>
+>>> Maybe this guy did something wrong?
 >>
->> [ 4674.087780] INFO: task python:25873 blocked for more than 120 seconds.
->> [ 4674.087793]       Tainted: G     U         3.18.6-zurg+ #158
->> [ 4674.087797] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
->> disables this message.
->> [ 4674.087801] python          D ffff88041e2d2000 14176 25873  25630 0x00000102
->> [ 4674.087817]  ffff880286247b68 0000000000000086 ffff8803d5fe6b40
->> 0000000000012000
->> [ 4674.087824]  ffff880286247fd8 0000000000012000 ffff88040c16eb40
->> ffff8803d5fe6b40
->> [ 4674.087830]  0000000300000003 ffff8803d5fe6b40 ffff880362888e78
->> ffff880362888e60
->> [ 4674.087836] Call Trace:
->> [ 4674.087854]  [<ffffffff81696be9>] schedule+0x29/0x70
->> [ 4674.087865]  [<ffffffff81699815>] rwsem_down_write_failed+0x1d5/0x2f0
->> [ 4674.087873]  [<ffffffff812d4c73>] call_rwsem_down_write_failed+0x13/0x20
->> [ 4674.087881]  [<ffffffff816990c1>] ? down_write+0x31/0x50
->> [ 4674.087891]  [<ffffffff811f3b44>] do_coredump+0x144/0xee0
->> [ 4674.087900]  [<ffffffff810b66f7>] ? pick_next_task_fair+0x397/0x450
->> [ 4674.087909]  [<ffffffff810026a6>] ? __switch_to+0x1d6/0x5f0
->> [ 4674.087915]  [<ffffffff816966e6>] ? __schedule+0x3a6/0x880
->> [ 4674.087924]  [<ffffffff81690000>] ? klist_remove+0x40/0xd0
->> [ 4674.087932]  [<ffffffff81093988>] get_signal+0x298/0x6b0
->> [ 4674.087940]  [<ffffffff81003588>] do_signal+0x28/0xbb0
->> [ 4674.087946]  [<ffffffff8109276d>] ? do_send_sig_info+0x5d/0x80
->> [ 4674.087955]  [<ffffffff81004179>] do_notify_resume+0x69/0xb0
->> [ 4674.087963]  [<ffffffff8169b028>] int_signal+0x12/0x17
->>
->> Maybe this guy did something wrong?
->
-> Well he has do_coredump on stack, so he did something wrong in userspace? But
-> here he's just waiting on down_write. Unless there's some bug in do_coredump
-> that would lock for read and then for write, without an unlock in between?
+>> Well he has do_coredump on stack, so he did something wrong in userspace? But
+>> here he's just waiting on down_write. Unless there's some bug in do_coredump
+>> that would lock for read and then for write, without an unlock in between?
+> 
+> I mean khugepaged. This code looks really messy. Maybe it already has
+> mmap_sem locked for read and tries to lock it again:
 
-I mean khugepaged. This code looks really messy. Maybe it already has
-mmap_sem locked for read and tries to lock it again:
-
-[ 5153.460186] INFO: task khugepaged:262 blocked for more than 120 seconds.
-[ 5153.460198]       Tainted: G     U         3.18.6-zurg+ #158
-[ 5153.460201] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
-disables this message.
-[ 5153.460206] khugepaged      D ffff88041e292000 14496   262      2 0x00000000
-[ 5153.460220]  ffff88040b99bcb0 0000000000000046 ffff88040b994a40
-0000000000012000
-[ 5153.460227]  ffff88040b99bfd8 0000000000012000 ffff88040c16e300
-ffff88040b994a40
-[ 5153.460233]  ffffffff810d5c1b ffff88040b994a40 ffff880362888e60
-ffffffffffffffff
-[ 5153.460240] Call Trace:
-[ 5153.460255]  [<ffffffff810d5c1b>] ? lock_timer_base.isra.41+0x2b/0x50
-[ 5153.460264]  [<ffffffff81696be9>] schedule+0x29/0x70
-[ 5153.460272]  [<ffffffff81699a05>] rwsem_down_read_failed+0xd5/0x120
-[ 5153.460280]  [<ffffffff812d4c44>] call_rwsem_down_read_failed+0x14/0x30
-[ 5153.460287]  [<ffffffff81699084>] ? down_read+0x24/0x30
-[ 5153.460297]  [<ffffffff81191221>] khugepaged+0x381/0x13f0
-[ 5153.460309]  [<ffffffff810bb400>] ? abort_exclusive_wait+0xb0/0xb0
-[ 5153.460316]  [<ffffffff81190ea0>] ? maybe_pmd_mkwrite+0x30/0x30
-[ 5153.460325]  [<ffffffff810a217b>] kthread+0xdb/0x100
-[ 5153.460332]  [<ffffffff810a20a0>] ? kthread_create_on_node+0x170/0x170
-[ 5153.460340]  [<ffffffff8169acfc>] ret_from_fork+0x7c/0xb0
-[ 5153.460347]  [<ffffffff810a20a0>] ? kthread_create_on_node+0x170/0x170
-
->
->> Looks like mmap_sem is locked for read:
->
-> So we have the python waiting for write, blocking all new readers (that's how
-> read/write locks work, right?), but itself waiting for a prior reader to finish.
-> The question is, who is/was the reader? You could search the mmap_sem or mm
-> address in the rest of the processes' stacks, and maybe you'll find him?
->
-
-I haven't found anything suspicious. Kernel was build without any
-debug so it's hard to tell who holds mmap_sem locked, maybe that task
-already exited.
-
->
+Yeah it is messy, and incidentally I'm trying to change how it works. But I
+didn't find such double lock bug there.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
