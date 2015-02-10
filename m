@@ -1,43 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f48.google.com (mail-oi0-f48.google.com [209.85.218.48])
-	by kanga.kvack.org (Postfix) with ESMTP id CE7286B0032
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2015 08:47:47 -0500 (EST)
-Received: by mail-oi0-f48.google.com with SMTP id a3so10000367oib.7
-        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 05:47:47 -0800 (PST)
-Received: from m50-138.163.com (m50-138.163.com. [123.125.50.138])
-        by mx.google.com with ESMTP id u10si7533777oem.34.2015.02.10.05.47.45
-        for <linux-mm@kvack.org>;
-        Tue, 10 Feb 2015 05:47:46 -0800 (PST)
-From: Yaowei Bai <bywxiaobai@163.com>
-Subject: [PATCH] mm/page_alloc: add a necessary 'leave'
-Date: Tue, 10 Feb 2015 21:43:39 +0800
-Message-Id: <1423575819-3813-1-git-send-email-bywxiaobai@163.com>
+Received: from mail-oi0-f52.google.com (mail-oi0-f52.google.com [209.85.218.52])
+	by kanga.kvack.org (Postfix) with ESMTP id ACB8C6B0032
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2015 09:52:50 -0500 (EST)
+Received: by mail-oi0-f52.google.com with SMTP id u20so13024769oif.11
+        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 06:52:50 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id g10si7648324obh.67.2015.02.10.06.52.48
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 10 Feb 2015 06:52:49 -0800 (PST)
+Subject: Re: How to handle TIF_MEMDIE stalls?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201412211745.ECD69212.LQOFHtFOJMSOFV@I-love.SAKURA.ne.jp>
+	<20141229181937.GE32618@dhcp22.suse.cz>
+	<201412301542.JEC35987.FFJFOOQtHLSMVO@I-love.SAKURA.ne.jp>
+	<20141230112158.GA15546@dhcp22.suse.cz>
+	<201502092044.JDG39081.LVFOOtFHQFOMSJ@I-love.SAKURA.ne.jp>
+In-Reply-To: <201502092044.JDG39081.LVFOOtFHQFOMSJ@I-love.SAKURA.ne.jp>
+Message-Id: <201502102258.IFE09888.OVQFJOMSFtOLFH@I-love.SAKURA.ne.jp>
+Date: Tue, 10 Feb 2015 22:58:46 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mgorman@suse.de, vbabka@suse.cz, hannes@cmpxchg.org, riel@redhat.com, iamjoonsoo.kim@lge.com, rientjes@google.com, sasha.levin@oracle.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: hannes@cmpxchg.org, mhocko@suse.cz
+Cc: david@fromorbit.com, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org
 
-Signed-off-by: Yaowei Bai <bywxiaobai@163.com>
----
- mm/page_alloc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+(Michal is offline, asking Johannes instead.)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 7633c50..c88d495 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -172,7 +172,7 @@ static void __free_pages_ok(struct page *page, unsigned int order);
-  *	1G machine -> (16M dma, 784M normal, 224M high)
-  *	NORMAL allocation will leave 784M/256 of ram reserved in the ZONE_DMA
-  *	HIGHMEM allocation will leave 224M/32 of ram reserved in ZONE_NORMAL
-- *	HIGHMEM allocation will (224M+784M)/256 of ram reserved in ZONE_DMA
-+ *	HIGHMEM allocation will leave (224M+784M)/256 of ram reserved in ZONE_DMA
-  *
-  * TBD: should special case ZONE_DMA32 machines here - in those we normally
-  * don't need any ZONE_NORMAL reservation
--- 
-1.9.1
+Tetsuo Handa wrote:
+> (A) The order-0 __GFP_WAIT allocation fails immediately upon OOM condition
+>     despite we didn't remove the
+> 
+>         /*
+>          * In this implementation, order <= PAGE_ALLOC_COSTLY_ORDER
+>          * means __GFP_NOFAIL, but that may not be true in other
+>          * implementations.
+>          */
+>         if (order <= PAGE_ALLOC_COSTLY_ORDER)
+>                 return 1;
+> 
+>     check in should_alloc_retry(). Is this what you expected?
 
+This behavior is caused by commit 9879de7373fcfb46 "mm: page_alloc:
+embed OOM killing naturally into allocation slowpath". Did you apply
+that commit with agreement to let GFP_NOIO / GFP_NOFS allocations fail
+upon memory pressure and permit filesystems to take fs error actions?
+
+	/* The OOM killer does not compensate for light reclaim */
+	if (!(gfp_mask & __GFP_FS))
+		goto out;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
