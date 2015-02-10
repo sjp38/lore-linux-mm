@@ -1,99 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f177.google.com (mail-yk0-f177.google.com [209.85.160.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 7200E6B0032
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2015 05:45:29 -0500 (EST)
-Received: by mail-yk0-f177.google.com with SMTP id 20so1639383yks.8
-        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 02:45:29 -0800 (PST)
-Received: from mail-yk0-x230.google.com (mail-yk0-x230.google.com. [2607:f8b0:4002:c07::230])
-        by mx.google.com with ESMTPS id h83si2925775ykc.35.2015.02.10.02.45.28
+Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 0441A6B0032
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2015 07:37:11 -0500 (EST)
+Received: by mail-lb0-f181.google.com with SMTP id b6so13279184lbj.12
+        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 04:37:10 -0800 (PST)
+Received: from mail-lb0-x233.google.com (mail-lb0-x233.google.com. [2a00:1450:4010:c04::233])
+        by mx.google.com with ESMTPS id pf5si11841625lbc.94.2015.02.10.04.37.08
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Feb 2015 02:45:28 -0800 (PST)
-Received: by mail-yk0-f176.google.com with SMTP id q200so13957163ykb.7
-        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 02:45:28 -0800 (PST)
+        Tue, 10 Feb 2015 04:37:09 -0800 (PST)
+Received: by mail-lb0-f179.google.com with SMTP id w7so11700325lbi.10
+        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 04:37:08 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CA+icZUWLJvuZknXhamKJxyGb+OYdkeD5z0V_jn=BQVtq8F5XUQ@mail.gmail.com>
-References: <CA+icZUWLJvuZknXhamKJxyGb+OYdkeD5z0V_jn=BQVtq8F5XUQ@mail.gmail.com>
-Date: Tue, 10 Feb 2015 16:15:28 +0530
-Message-ID: <CAKTCnz=ABrmbQrAEYJ=D0=s2+fRj9FH4D5oG6aWW-qVMoYLdEA@mail.gmail.com>
-Subject: Re: [3.19-final|next-20150204] LTP OOM testsuite causes call-traces
-From: Balbir Singh <bsingharora@gmail.com>
+In-Reply-To: <20150209132351.f8b95644a1304543e5118820@linux-foundation.org>
+References: <1423364112-15487-1-git-send-email-notasas@gmail.com>
+	<20150209132351.f8b95644a1304543e5118820@linux-foundation.org>
+Date: Tue, 10 Feb 2015 14:37:08 +0200
+Message-ID: <CANOLnOOBgSOzSOiuZGW=A6dc1f4-fnL1XLgzjmsTwi53pJV=nw@mail.gmail.com>
+Subject: Re: [PATCH] mm: actually remap enough memory
+From: Grazvydas Ignotas <notasas@gmail.com>
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sedat.dilek@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-next <linux-next@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
 
-On Tue, Feb 10, 2015 at 3:12 PM, Sedat Dilek <sedat.dilek@gmail.com> wrote:
-> Hi,
+On Mon, Feb 9, 2015 at 11:23 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Sun,  8 Feb 2015 04:55:12 +0200 Grazvydas Ignotas <notasas@gmail.com> =
+wrote:
 >
-> I first noticed call-traces in next-20150204 and tested on v3.19-final
-> out of curiosity.
+>> For whatever reason, generic_access_phys() only remaps one page, but
+>> actually allows to access arbitrary size. It's quite easy to trigger
+>> large reads, like printing out large structure with gdb, which leads to
+>> a crash. Fix it by remapping correct size.
+>>
+>> ...
+>>
+>> --- a/mm/memory.c
+>> +++ b/mm/memory.c
+>> @@ -3829,7 +3829,7 @@ int generic_access_phys(struct vm_area_struct *vma=
+, unsigned long addr,
+>>       if (follow_phys(vma, addr, write, &prot, &phys_addr))
+>>               return -EINVAL;
+>>
+>> -     maddr =3D ioremap_prot(phys_addr, PAGE_SIZE, prot);
+>> +     maddr =3D ioremap_prot(phys_addr, PAGE_ALIGN(len + offset), prot);
+>>       if (write)
+>>               memcpy_toio(maddr + offset, buf, len);
+>>       else
 >
-> So, oom3 | oom4 | oom5 from LTP tests produces call-traces in my logs
-> in both releases.
-> Yesterday, I sent a tarball to linux-mm/Shutemov which has material
-> for next-20150204.
-> The for-lkml tarball has stuff for v3.19-final.
->
-> As an example (please see dmesg files in attached tarball(s)):
-> ...
-> +[  143.591734] oom03 invoked oom-killer: gfp_mask=0xd0, order=0,
-> oom_score_adj=0
-> +[  143.591789] oom03 cpuset=/ mems_allowed=0
-> +[  143.591828] CPU: 0 PID: 2904 Comm: oom03 Not tainted 3.19.0-1-iniza-small #1
-> +[  143.591830] Hardware name: SAMSUNG ELECTRONICS CO., LTD.
-> 530U3BI/530U4BI/530U4BH/530U3BI/530U4BI/530U4BH, BIOS 13XK 03/28/2013
-> +[  143.591831]  ffff880034a64800 ffff880032c57bf8 ffffffff8175c66c
-> 0000000000000008
-> +[  143.591835]  ffff8800681a54d0 ffff880032c57c88 ffffffff8175ac3a
-> ffff880032c57c28
-> +[  143.591838]  ffffffff810c329d 0000000000000206 ffffffff81c74040
-> ffff880032c57c38
-> +[  143.591841] Call Trace:
-> +[  143.591848]  [<ffffffff8175c66c>] dump_stack+0x4c/0x65
-> +[  143.591852]  [<ffffffff8175ac3a>] dump_header+0x9e/0x259
-> +[  143.591857]  [<ffffffff810c329d>] ? trace_hardirqs_on_caller+0x15d/0x200
-> +[  143.591860]  [<ffffffff810c334d>] ? trace_hardirqs_on+0xd/0x10
-> +[  143.591863]  [<ffffffff81184cd2>] oom_kill_process+0x1d2/0x3c0
-> +[  143.591868]  [<ffffffff811ebf40>] mem_cgroup_oom_synchronize+0x630/0x670
-> +[  143.591871]  [<ffffffff811e6ac0>] ? mem_cgroup_reset+0xb0/0xb0
-> +[  143.591874]  [<ffffffff81185628>] pagefault_out_of_memory+0x18/0x90
-> +[  143.591877]  [<ffffffff8106317d>] mm_fault_error+0x8d/0x190
-> +[  143.591879]  [<ffffffff810637a8>] __do_page_fault+0x528/0x600
-> +[  143.591883]  [<ffffffff8113a847>] ? __acct_update_integrals+0xb7/0x120
-> +[  143.591886]  [<ffffffff81765a1b>] ? _raw_spin_unlock+0x2b/0x40
-> +[  143.591889]  [<ffffffff810a8ac1>] ? vtime_account_user+0x91/0xa0
-> +[  143.591892]  [<ffffffff8117ff83>] ? context_tracking_user_exit+0xb3/0x110
-> +[  143.591895]  [<ffffffff810638b1>] do_page_fault+0x31/0x70
-> +[  143.591898]  [<ffffffff817687b8>] page_fault+0x28/0x30
-> +[  143.591934] Task in /1 killed as a result of limit of /1
-> +[  143.591940] memory: usage 1048576kB, limit 1048576kB, failcnt 24350
-> +[  143.591942] memory+swap: usage 0kB, limit 9007199254740988kB, failcnt 0
-> +[  143.591943] kmem: usage 0kB, limit 9007199254740988kB, failcnt 0
-> +[  143.591944] Memory cgroup stats for /1: cache:0KB rss:1048576KB
-> rss_huge:0KB mapped_file:0KB writeback:12060KB inactive_anon:524284KB
-> active_anon:524192KB inactive_file:0KB active_file:0KB unevictable:0KB
-> +[  143.592007] [ pid ]   uid  tgid total_vm      rss nr_ptes swapents
-> oom_score_adj name
-> +[  143.592155] [ 2903]     0  2903     1618      436       9        0
->             0 oom03
-> +[  143.592159] [ 2904]     0  2904   788050   245188     616    65535
->             0 oom03
-> +[  143.592162] Memory cgroup out of memory: Kill process 2904 (oom03)
-> score 921 or sacrifice child
-> +[  143.592167] Killed process 2904 (oom03) total-vm:3152200kB,
-> anon-rss:979724kB, file-rss:1028kB
-> +[  144.526653] oom03 invoked oom-killer: gfp_mask=0xd0, order=0,
-> oom_score_adj=0
+> hm, shouldn't this be PAGE_ALIGN(len)?
 
-Looks like we ran out of memory, the limit is 1024MB (1GiB) and we've
-hit it with a fail count of 24350. So basically /1 hit the limit and
-got OOM killed. Isn't that what you were testing for? How was the
-expected victim?
+follow_phys() only returns page aligned address directly from page
+table, so offset has to be added either to phys_addr or len. For
+example if you need to read 4 bytes at address 0x10ffe or similar, 2
+pages need to be mapped.
 
-Thanks,
-Balbir Singh.
+> Do we need the PAGE_ALIGN at all?  It's probably safer/saner to have it
+> there, but x86 (at least) should be OK with arbitrary alignment on both
+> addr and len?
+
+Yes it's not strictly needed, but I'd prefer to keep it, as there is
+already an assumption that ioremap operates in page quantities by
+giving it page aligned phys_addr from follow_phys(). Or we could use
+phys_addr + offset and len as arguments instead, no strong opinion
+here.
+
+
+Gra=C5=BEvydas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
