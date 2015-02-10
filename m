@@ -1,68 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 664106B0032
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2015 18:07:17 -0500 (EST)
-Received: by mail-we0-f174.google.com with SMTP id w55so43317wes.5
-        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 15:07:17 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id bz13si27791460wjb.21.2015.02.10.15.07.15
+Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
+	by kanga.kvack.org (Postfix) with ESMTP id BE69C6B006C
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2015 18:10:41 -0500 (EST)
+Received: by mail-ob0-f182.google.com with SMTP id nt9so4698obb.13
+        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 15:10:41 -0800 (PST)
+Received: from g2t2353.austin.hp.com (g2t2353.austin.hp.com. [15.217.128.52])
+        by mx.google.com with ESMTPS id mp8si167398oeb.19.2015.02.10.15.10.40
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 10 Feb 2015 15:07:15 -0800 (PST)
-Date: Wed, 11 Feb 2015 00:07:12 +0100 (CET)
-From: Jiri Kosina <jkosina@suse.cz>
-Subject: Re: [PATCH] x86, kaslr: propagate base load address calculation
-In-Reply-To: <CAGXu5jJzs9Ve9so96f6n-=JxP+GR3xYFQYBtZ=mUm+Q7bMAgBw@mail.gmail.com>
-Message-ID: <alpine.LNX.2.00.1502110001480.10719@pobox.suse.cz>
-References: <alpine.LNX.2.00.1502101411280.10719@pobox.suse.cz> <CAGXu5jJzs9Ve9so96f6n-=JxP+GR3xYFQYBtZ=mUm+Q7bMAgBw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Feb 2015 15:10:41 -0800 (PST)
+Message-ID: <1423609825.1128.24.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v2 5/7] x86, mm: Support huge KVA mappings on x86
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Tue, 10 Feb 2015 16:10:25 -0700
+In-Reply-To: <1423606397.1128.20.camel@misato.fc.hp.com>
+References: <1423521935-17454-1-git-send-email-toshi.kani@hp.com>
+	 <1423521935-17454-6-git-send-email-toshi.kani@hp.com>
+	 <54DA54FA.7010707@intel.com> <1423600952.1128.9.camel@misato.fc.hp.com>
+	 <54DA6F38.4050902@intel.com> <1423606397.1128.20.camel@misato.fc.hp.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: "H. Peter Anvin" <hpa@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>, live-patching@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, arnd@arndb.de, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, Elliott@hp.com
 
-On Tue, 10 Feb 2015, Kees Cook wrote:
-
-> > Instead of fixing the logic in module.c, this patch takes more generic
-> > aproach, and exposes __KERNEL_OFFSET macro, which calculates the real
-> > offset that has been established by choose_kernel_location() during boot.
-> > This can be used later by other kernel code as well (such as, but not
-> > limited to, live patching).
-> >
-> > OOPS offset dumper and module loader are converted to that they make use
-> > of this macro as well.
-> >
-> > Signed-off-by: Jiri Kosina <jkosina@suse.cz>
+On Tue, 2015-02-10 at 15:13 -0700, Toshi Kani wrote:
+> On Tue, 2015-02-10 at 12:51 -0800, Dave Hansen wrote:
+> > On 02/10/2015 12:42 PM, Toshi Kani wrote:
+> > > On Tue, 2015-02-10 at 10:59 -0800, Dave Hansen wrote:
+> > >> On 02/09/2015 02:45 PM, Toshi Kani wrote:
+> > >>> Implement huge KVA mapping interfaces on x86.  Select
+> > >>> HAVE_ARCH_HUGE_VMAP when X86_64 or X86_32 with X86_PAE is set.
+> > >>> Without X86_PAE set, the X86_32 kernel has the 2-level page
+> > >>> tables and cannot provide the huge KVA mappings.
+> > >>
+> > >> Not that it's a big deal, but what's the limitation with the 2-level
+> > >> page tables on 32-bit?  We have a 4MB large page size available there
+> > >> and we already use it for the kernel linear mapping.
+> > > 
+> > > ioremap() calls arch-neutral ioremap_page_range() to set up I/O mappings
+> > > with PTEs.  This patch-set enables ioremap_page_range() to set up PUD &
+> > > PMD mappings.  With 2-level page table, I do not think this PUD/PMD
+> > > mapping code works unless we add some special code.
+> > 
+> > What actually breaks, though?
+> > 
+> > Can't you just disable the pud code via ioremap_pud_enabled()?
 > 
-> Ah, yes! This is a good clean up. Thanks! I do see, however, one
-> corner case remaining: kASLR randomized to 0 offset. This will force
-> module ASLR off, which I think is a mistake. 
+> That's what v1 did, and I found in testing that the PMD mapping code did
+> not work when PAE was unset.  I think we need special handling similar
+> to one_md_table_init(), which returns pgd as pmd in case of non-PAE.
+> ioremap_page_range() does not have such handling and I thought it would
+> not be worth adding it.
 
-Ah, right, good point. I thought that zero-randomization is not possible, 
-but looking closely, it is.
-
-> Perhaps we need to export the kaslr state as a separate item to be 
-> checked directly, instead of using __KERNEL_OFFSET?
-
-I wanted to avoid sharing variables between compressed loader and the rest 
-of the kernel, but if that's what you prefer, I can do it.
-
-Alternatively, we can forbid zero-sized randomization, and always enforce 
-at least some minimal offset to be chosen in case zero would be chosen.
-
-I think that'd be even more bulletproof for any future changes, as it 
-automatically clearly and immediately distinguishes between 'disabled' and 
-'randomized' states, and the loss of entropy is negligible.
-
-Let me know which of the two you'd prefer; I'll then send you a 
-corresponding patch, as I don't have a strong opinion either way.
+Actually pud_alloc() and pmd_alloc() should carry pgd in this case...  I
+will look into the problem to see why it did not work when PAE was
+unset.
 
 Thanks,
-
--- 
-Jiri Kosina
-SUSE Labs
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
