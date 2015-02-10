@@ -1,66 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
-	by kanga.kvack.org (Postfix) with ESMTP id BE69C6B006C
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2015 18:10:41 -0500 (EST)
-Received: by mail-ob0-f182.google.com with SMTP id nt9so4698obb.13
-        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 15:10:41 -0800 (PST)
-Received: from g2t2353.austin.hp.com (g2t2353.austin.hp.com. [15.217.128.52])
-        by mx.google.com with ESMTPS id mp8si167398oeb.19.2015.02.10.15.10.40
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id C168F6B0070
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2015 18:13:33 -0500 (EST)
+Received: by mail-wi0-f177.google.com with SMTP id bs8so936675wib.4
+        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 15:13:33 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id bb4si508016wib.70.2015.02.10.15.13.31
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Feb 2015 15:10:41 -0800 (PST)
-Message-ID: <1423609825.1128.24.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v2 5/7] x86, mm: Support huge KVA mappings on x86
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Tue, 10 Feb 2015 16:10:25 -0700
-In-Reply-To: <1423606397.1128.20.camel@misato.fc.hp.com>
-References: <1423521935-17454-1-git-send-email-toshi.kani@hp.com>
-	 <1423521935-17454-6-git-send-email-toshi.kani@hp.com>
-	 <54DA54FA.7010707@intel.com> <1423600952.1128.9.camel@misato.fc.hp.com>
-	 <54DA6F38.4050902@intel.com> <1423606397.1128.20.camel@misato.fc.hp.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 10 Feb 2015 15:13:32 -0800 (PST)
+Date: Wed, 11 Feb 2015 00:13:30 +0100 (CET)
+From: Jiri Kosina <jkosina@suse.cz>
+Subject: Re: [PATCH] x86, kaslr: propagate base load address calculation
+In-Reply-To: <alpine.LNX.2.00.1502110001480.10719@pobox.suse.cz>
+Message-ID: <alpine.LNX.2.00.1502110010190.10719@pobox.suse.cz>
+References: <alpine.LNX.2.00.1502101411280.10719@pobox.suse.cz> <CAGXu5jJzs9Ve9so96f6n-=JxP+GR3xYFQYBtZ=mUm+Q7bMAgBw@mail.gmail.com> <alpine.LNX.2.00.1502110001480.10719@pobox.suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, arnd@arndb.de, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, Elliott@hp.com
+To: Kees Cook <keescook@chromium.org>
+Cc: "H. Peter Anvin" <hpa@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>, live-patching@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>
 
-On Tue, 2015-02-10 at 15:13 -0700, Toshi Kani wrote:
-> On Tue, 2015-02-10 at 12:51 -0800, Dave Hansen wrote:
-> > On 02/10/2015 12:42 PM, Toshi Kani wrote:
-> > > On Tue, 2015-02-10 at 10:59 -0800, Dave Hansen wrote:
-> > >> On 02/09/2015 02:45 PM, Toshi Kani wrote:
-> > >>> Implement huge KVA mapping interfaces on x86.  Select
-> > >>> HAVE_ARCH_HUGE_VMAP when X86_64 or X86_32 with X86_PAE is set.
-> > >>> Without X86_PAE set, the X86_32 kernel has the 2-level page
-> > >>> tables and cannot provide the huge KVA mappings.
-> > >>
-> > >> Not that it's a big deal, but what's the limitation with the 2-level
-> > >> page tables on 32-bit?  We have a 4MB large page size available there
-> > >> and we already use it for the kernel linear mapping.
-> > > 
-> > > ioremap() calls arch-neutral ioremap_page_range() to set up I/O mappings
-> > > with PTEs.  This patch-set enables ioremap_page_range() to set up PUD &
-> > > PMD mappings.  With 2-level page table, I do not think this PUD/PMD
-> > > mapping code works unless we add some special code.
-> > 
-> > What actually breaks, though?
-> > 
-> > Can't you just disable the pud code via ioremap_pud_enabled()?
-> 
-> That's what v1 did, and I found in testing that the PMD mapping code did
-> not work when PAE was unset.  I think we need special handling similar
-> to one_md_table_init(), which returns pgd as pmd in case of non-PAE.
-> ioremap_page_range() does not have such handling and I thought it would
-> not be worth adding it.
+On Wed, 11 Feb 2015, Jiri Kosina wrote:
 
-Actually pud_alloc() and pmd_alloc() should carry pgd in this case...  I
-will look into the problem to see why it did not work when PAE was
-unset.
+> Alternatively, we can forbid zero-sized randomization, and always enforce 
+> at least some minimal offset to be chosen in case zero would be chosen.
 
-Thanks,
--Toshi
+Okay, I see, that might not be always possible, depending on the memory 
+map layout.
+
+So I'll just send you a respin of my previous patch tomorrow that would, 
+instead of defining __KERNEL_OFFSET as a particular value, introduce a 
+simple global flag which would indicate whether kaslr is in place or not.
+
+-- 
+Jiri Kosina
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
