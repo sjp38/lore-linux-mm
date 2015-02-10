@@ -1,94 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 22D896B0032
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2015 10:19:46 -0500 (EST)
-Received: by mail-wg0-f50.google.com with SMTP id l2so8000044wgh.9
-        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 07:19:45 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id vu7si29440922wjc.107.2015.02.10.07.19.44
+Received: from mail-ob0-f180.google.com (mail-ob0-f180.google.com [209.85.214.180])
+	by kanga.kvack.org (Postfix) with ESMTP id D7F666B0032
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2015 12:25:46 -0500 (EST)
+Received: by mail-ob0-f180.google.com with SMTP id vb8so33204260obc.11
+        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 09:25:46 -0800 (PST)
+Received: from mail-oi0-x22d.google.com (mail-oi0-x22d.google.com. [2607:f8b0:4003:c06::22d])
+        by mx.google.com with ESMTPS id o185si7869468oif.15.2015.02.10.09.25.45
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Feb 2015 07:19:44 -0800 (PST)
-Date: Tue, 10 Feb 2015 10:19:34 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: How to handle TIF_MEMDIE stalls?
-Message-ID: <20150210151934.GA11212@phnom.home.cmpxchg.org>
-References: <201412211745.ECD69212.LQOFHtFOJMSOFV@I-love.SAKURA.ne.jp>
- <20141229181937.GE32618@dhcp22.suse.cz>
- <201412301542.JEC35987.FFJFOOQtHLSMVO@I-love.SAKURA.ne.jp>
- <20141230112158.GA15546@dhcp22.suse.cz>
- <201502092044.JDG39081.LVFOOtFHQFOMSJ@I-love.SAKURA.ne.jp>
- <201502102258.IFE09888.OVQFJOMSFtOLFH@I-love.SAKURA.ne.jp>
+        Tue, 10 Feb 2015 09:25:46 -0800 (PST)
+Received: by mail-oi0-f45.google.com with SMTP id i138so11195130oig.4
+        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 09:25:45 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201502102258.IFE09888.OVQFJOMSFtOLFH@I-love.SAKURA.ne.jp>
+In-Reply-To: <alpine.LNX.2.00.1502101411280.10719@pobox.suse.cz>
+References: <alpine.LNX.2.00.1502101411280.10719@pobox.suse.cz>
+Date: Tue, 10 Feb 2015 09:25:45 -0800
+Message-ID: <CAGXu5jJzs9Ve9so96f6n-=JxP+GR3xYFQYBtZ=mUm+Q7bMAgBw@mail.gmail.com>
+Subject: Re: [PATCH] x86, kaslr: propagate base load address calculation
+From: Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: mhocko@suse.cz, david@fromorbit.com, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org
+To: Jiri Kosina <jkosina@suse.cz>
+Cc: "H. Peter Anvin" <hpa@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>, live-patching@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>
 
-On Tue, Feb 10, 2015 at 10:58:46PM +0900, Tetsuo Handa wrote:
-> (Michal is offline, asking Johannes instead.)
-> 
-> Tetsuo Handa wrote:
-> > (A) The order-0 __GFP_WAIT allocation fails immediately upon OOM condition
-> >     despite we didn't remove the
-> > 
-> >         /*
-> >          * In this implementation, order <= PAGE_ALLOC_COSTLY_ORDER
-> >          * means __GFP_NOFAIL, but that may not be true in other
-> >          * implementations.
-> >          */
-> >         if (order <= PAGE_ALLOC_COSTLY_ORDER)
-> >                 return 1;
-> > 
-> >     check in should_alloc_retry(). Is this what you expected?
-> 
-> This behavior is caused by commit 9879de7373fcfb46 "mm: page_alloc:
-> embed OOM killing naturally into allocation slowpath". Did you apply
-> that commit with agreement to let GFP_NOIO / GFP_NOFS allocations fail
-> upon memory pressure and permit filesystems to take fs error actions?
-> 
-> 	/* The OOM killer does not compensate for light reclaim */
-> 	if (!(gfp_mask & __GFP_FS))
-> 		goto out;
+On Tue, Feb 10, 2015 at 5:17 AM, Jiri Kosina <jkosina@suse.cz> wrote:
+> Commit e2b32e678 ("x86, kaslr: randomize module base load address") makes
+> the base address for module to be unconditionally randomized in case when
+> CONFIG_RANDOMIZE_BASE is defined and "nokaslr" option isn't present on the
+> commandline.
+>
+> This is not consistent with how choose_kernel_location() decides whether
+> it will randomize kernel load base.
+>
+> Namely, CONFIG_HIBERNATION disables kASLR (unless "kaslr" option is
+> explicitly specified on kernel commandline), which makes the state space
+> larger than what module loader is looking at. IOW CONFIG_HIBERNATION &&
+> CONFIG_RANDOMIZE_BASE is a valid config option, kASLR wouldn't be applied
+> by default in that case, but module loader is not aware of that.
+>
+> Instead of fixing the logic in module.c, this patch takes more generic
+> aproach, and exposes __KERNEL_OFFSET macro, which calculates the real
+> offset that has been established by choose_kernel_location() during boot.
+> This can be used later by other kernel code as well (such as, but not
+> limited to, live patching).
+>
+> OOPS offset dumper and module loader are converted to that they make use
+> of this macro as well.
+>
+> Signed-off-by: Jiri Kosina <jkosina@suse.cz>
 
-The model behind the refactored code is to continue retrying the
-allocation as long as the allocator has the ability to free memory,
-i.e. if page reclaim makes progress, or the OOM killer can be used.
+Ah, yes! This is a good clean up. Thanks! I do see, however, one
+corner case remaining: kASLR randomized to 0 offset. This will force
+module ASLR off, which I think is a mistake. Perhaps we need to export
+the kaslr state as a separate item to be checked directly, instead of
+using __KERNEL_OFFSET?
 
-That being said, I missed that GFP_NOFS were able to loop endlessly
-even without page reclaim making progress or the OOM killer working,
-and since it didn't fit the model I dropped it by accident.
+-Kees
 
-Is this a real workload you are having trouble with or an artificial
-stresstest?  Because I'd certainly be willing to revert that part of
-the patch and make GFP_NOFS looping explicit if it helps you.  But I
-do think the new behavior makes more sense, so I'd prefer to keep it
-if it's merely a stress test you use to test allocator performance.
+> ---
+>  arch/x86/include/asm/page_types.h |  4 ++++
+>  arch/x86/kernel/module.c          | 10 +---------
+>  arch/x86/kernel/setup.c           |  4 ++--
+>  3 files changed, 7 insertions(+), 11 deletions(-)
+>
+> diff --git a/arch/x86/include/asm/page_types.h b/arch/x86/include/asm/page_types.h
+> index f97fbe3..7f18eaf 100644
+> --- a/arch/x86/include/asm/page_types.h
+> +++ b/arch/x86/include/asm/page_types.h
+> @@ -46,6 +46,10 @@
+>
+>  #ifndef __ASSEMBLY__
+>
+> +/* Return kASLR relocation offset */
+> +extern char _text[];
+> +#define __KERNEL_OFFSET ((unsigned long)&_text - __START_KERNEL)
+> +
+>  extern int devmem_is_allowed(unsigned long pagenr);
+>
+>  extern unsigned long max_low_pfn_mapped;
+> diff --git a/arch/x86/kernel/module.c b/arch/x86/kernel/module.c
+> index e69f988..d236bd2 100644
+> --- a/arch/x86/kernel/module.c
+> +++ b/arch/x86/kernel/module.c
+> @@ -46,21 +46,13 @@ do {                                                        \
+>
+>  #ifdef CONFIG_RANDOMIZE_BASE
+>  static unsigned long module_load_offset;
+> -static int randomize_modules = 1;
+>
+>  /* Mutex protects the module_load_offset. */
+>  static DEFINE_MUTEX(module_kaslr_mutex);
+>
+> -static int __init parse_nokaslr(char *p)
+> -{
+> -       randomize_modules = 0;
+> -       return 0;
+> -}
+> -early_param("nokaslr", parse_nokaslr);
+> -
+>  static unsigned long int get_module_load_offset(void)
+>  {
+> -       if (randomize_modules) {
+> +       if (__KERNEL_OFFSET) {
+>                 mutex_lock(&module_kaslr_mutex);
+>                 /*
+>                  * Calculate the module_load_offset the first time this
+> diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+> index c4648ada..08124a1 100644
+> --- a/arch/x86/kernel/setup.c
+> +++ b/arch/x86/kernel/setup.c
+> @@ -833,8 +833,8 @@ dump_kernel_offset(struct notifier_block *self, unsigned long v, void *p)
+>  {
+>         pr_emerg("Kernel Offset: 0x%lx from 0x%lx "
+>                  "(relocation range: 0x%lx-0x%lx)\n",
+> -                (unsigned long)&_text - __START_KERNEL, __START_KERNEL,
+> -                __START_KERNEL_map, MODULES_VADDR-1);
+> +                __KERNEL_OFFSET, __START_KERNEL, __START_KERNEL_map,
+> +                MODULES_VADDR-1);
+>
+>         return 0;
+>  }
+>
+> --
+> Jiri Kosina
+> SUSE Labs
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 8e20f9c2fa5a..f77c58ebbcfa 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2382,8 +2382,15 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
- 		if (high_zoneidx < ZONE_NORMAL)
- 			goto out;
- 		/* The OOM killer does not compensate for light reclaim */
--		if (!(gfp_mask & __GFP_FS))
-+		if (!(gfp_mask & __GFP_FS)) {
-+			/*
-+			 * XXX: Page reclaim didn't yield anything,
-+			 * and the OOM killer can't be invoked, but
-+			 * keep looping as per should_alloc_retry().
-+			 */
-+			*did_some_progress = 1;
- 			goto out;
-+		}
- 		/*
- 		 * GFP_THISNODE contains __GFP_NORETRY and we never hit this.
- 		 * Sanity check for bare calls of __GFP_THISNODE, not real OOM.
+
+
+-- 
+Kees Cook
+Chrome OS Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
