@@ -1,47 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id C0F796B0032
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2015 15:51:15 -0500 (EST)
-Received: by pdno5 with SMTP id o5so19319076pdn.8
-        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 12:51:15 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id gz1si28102151pbd.38.2015.02.10.12.51.14
-        for <linux-mm@kvack.org>;
-        Tue, 10 Feb 2015 12:51:15 -0800 (PST)
-Message-ID: <54DA6F38.4050902@intel.com>
-Date: Tue, 10 Feb 2015 12:51:04 -0800
-From: Dave Hansen <dave.hansen@intel.com>
+Received: from mail-qa0-f42.google.com (mail-qa0-f42.google.com [209.85.216.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B0D36B0032
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2015 16:39:03 -0500 (EST)
+Received: by mail-qa0-f42.google.com with SMTP id dc16so28628136qab.1
+        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 13:39:02 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id z39si19825034qgz.37.2015.02.10.13.39.01
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Feb 2015 13:39:02 -0800 (PST)
+Date: Tue, 10 Feb 2015 22:06:57 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] mm: incorporate zero pages into transparent huge pages
+Message-ID: <20150210210657.GI11755@redhat.com>
+References: <1423522057-5757-1-git-send-email-ebru.akagunduz@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 5/7] x86, mm: Support huge KVA mappings on x86
-References: <1423521935-17454-1-git-send-email-toshi.kani@hp.com>	 <1423521935-17454-6-git-send-email-toshi.kani@hp.com>	 <54DA54FA.7010707@intel.com> <1423600952.1128.9.camel@misato.fc.hp.com>
-In-Reply-To: <1423600952.1128.9.camel@misato.fc.hp.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1423522057-5757-1-git-send-email-ebru.akagunduz@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, arnd@arndb.de, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, Elliott@hp.com
+To: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kirill@shutemov.name, mhocko@suse.cz, mgorman@suse.de, rientjes@google.com, sasha.levin@oracle.com, hughd@google.com, hannes@cmpxchg.org, vbabka@suse.cz, linux-kernel@vger.kernel.org, riel@redhat.com
 
-On 02/10/2015 12:42 PM, Toshi Kani wrote:
-> On Tue, 2015-02-10 at 10:59 -0800, Dave Hansen wrote:
->> On 02/09/2015 02:45 PM, Toshi Kani wrote:
->>> Implement huge KVA mapping interfaces on x86.  Select
->>> HAVE_ARCH_HUGE_VMAP when X86_64 or X86_32 with X86_PAE is set.
->>> Without X86_PAE set, the X86_32 kernel has the 2-level page
->>> tables and cannot provide the huge KVA mappings.
->>
->> Not that it's a big deal, but what's the limitation with the 2-level
->> page tables on 32-bit?  We have a 4MB large page size available there
->> and we already use it for the kernel linear mapping.
+On Tue, Feb 10, 2015 at 12:47:37AM +0200, Ebru Akagunduz wrote:
+> This patch improves THP collapse rates, by allowing zero pages.
 > 
-> ioremap() calls arch-neutral ioremap_page_range() to set up I/O mappings
-> with PTEs.  This patch-set enables ioremap_page_range() to set up PUD &
-> PMD mappings.  With 2-level page table, I do not think this PUD/PMD
-> mapping code works unless we add some special code.
+> Currently THP can collapse 4kB pages into a THP when there
+> are up to khugepaged_max_ptes_none pte_none ptes in a 2MB
+> range.  This patch counts pte none and mapped zero pages
+> with the same variable.
+> 
+> The patch was tested with a program that allocates 800MB of
+> memory, and performs interleaved reads and writes, in a pattern
+> that causes some 2MB areas to first see read accesses, resulting
+> in the zero pfn being mapped there.
+> 
+> To simulate memory fragmentation at allocation time, I modified
+> do_huge_pmd_anonymous_page to return VM_FAULT_FALLBACK for read
+> faults.
+> 
+> Without the patch, only %50 of the program was collapsed into
+> THP and the percentage did not increase over time.
+> 
+> With this patch after 10 minutes of waiting khugepaged had
+> collapsed %89 of the program's memory.
 
-What actually breaks, though?
+This is very good idea, associating it with the sysctl is sensible
+here as collapsing zeropages would affect the memory footprint in the
+same way as none ptes.
 
-Can't you just disable the pud code via ioremap_pud_enabled()?
+__collapse_huge_page_copy however is likely screwing with the
+refcounts of the zero page. Did you have DEBUG_VM=y enabled? If yes
+you should get one warning that the zeropage refcount underflowed that
+could confirm my concern:
+
+static inline int put_page_testzero(struct page *page)
+{
+	VM_BUG_ON_PAGE(atomic_read(&page->_count) == 0, page);
+
+Zeropages are normally implemented as pte_special if the arch supports
+pte_special and have no refcounting. vm_normal_pages returns NULL and
+that let it skip the refcounting. But __collapse_huge_page_copy would
+call both release_pte_page and free_page_and_swap_cache after a
+src_page = pte_page(pteval); and not a src_page =
+vm_normal_page(pteval).
+
+So in short I think __collapse_huge_page_copy and release_pte_pages
+needs an additional case that complements the already existing special
+pte_none case, to account for those zeropages. The special zeropage
+case can also use clear_user_highpage(page, address) instead of
+copy_user_highpage (clearing uses half the CPU cache of copying so
+it's more efficient to use that like for the pte_none case).
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
