@@ -1,61 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
-	by kanga.kvack.org (Postfix) with ESMTP id E33EB6B0032
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2015 17:43:44 -0500 (EST)
-Received: by mail-qg0-f46.google.com with SMTP id z107so15396775qgd.5
-        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 14:43:44 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z20si5223158qge.38.2015.02.10.14.43.43
+Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 664106B0032
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2015 18:07:17 -0500 (EST)
+Received: by mail-we0-f174.google.com with SMTP id w55so43317wes.5
+        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 15:07:17 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id bz13si27791460wjb.21.2015.02.10.15.07.15
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Feb 2015 14:43:44 -0800 (PST)
-Date: Wed, 11 Feb 2015 11:43:33 +1300
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [PATCH 1/3] Slab infrastructure for array operations
-Message-ID: <20150211114333.78de64d3@redhat.com>
-In-Reply-To: <20150210194811.787556326@linux.com>
-References: <20150210194804.288708936@linux.com>
-	<20150210194811.787556326@linux.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 10 Feb 2015 15:07:15 -0800 (PST)
+Date: Wed, 11 Feb 2015 00:07:12 +0100 (CET)
+From: Jiri Kosina <jkosina@suse.cz>
+Subject: Re: [PATCH] x86, kaslr: propagate base load address calculation
+In-Reply-To: <CAGXu5jJzs9Ve9so96f6n-=JxP+GR3xYFQYBtZ=mUm+Q7bMAgBw@mail.gmail.com>
+Message-ID: <alpine.LNX.2.00.1502110001480.10719@pobox.suse.cz>
+References: <alpine.LNX.2.00.1502101411280.10719@pobox.suse.cz> <CAGXu5jJzs9Ve9so96f6n-=JxP+GR3xYFQYBtZ=mUm+Q7bMAgBw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com, brouer@redhat.com
+To: Kees Cook <keescook@chromium.org>
+Cc: "H. Peter Anvin" <hpa@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>, live-patching@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>
 
+On Tue, 10 Feb 2015, Kees Cook wrote:
 
+> > Instead of fixing the logic in module.c, this patch takes more generic
+> > aproach, and exposes __KERNEL_OFFSET macro, which calculates the real
+> > offset that has been established by choose_kernel_location() during boot.
+> > This can be used later by other kernel code as well (such as, but not
+> > limited to, live patching).
+> >
+> > OOPS offset dumper and module loader are converted to that they make use
+> > of this macro as well.
+> >
+> > Signed-off-by: Jiri Kosina <jkosina@suse.cz>
+> 
+> Ah, yes! This is a good clean up. Thanks! I do see, however, one
+> corner case remaining: kASLR randomized to 0 offset. This will force
+> module ASLR off, which I think is a mistake. 
 
-On Tue, 10 Feb 2015 13:48:05 -0600 Christoph Lameter <cl@linux.com> wrote:
-[...]
-> Index: linux/mm/slab_common.c
-> ===================================================================
-> --- linux.orig/mm/slab_common.c
-> +++ linux/mm/slab_common.c
-> @@ -105,6 +105,83 @@ static inline int kmem_cache_sanity_chec
->  }
->  #endif
->  
-> +/*
-> + * Fallback function that just calls kmem_cache_alloc
-> + * for each element. This may be used if not all
-> + * objects can be allocated or as a generic fallback
-> + * if the allocator cannot support buik operations.
-                                      ^^^^
-Minor typo "buik" -> "bulk"
+Ah, right, good point. I thought that zero-randomization is not possible, 
+but looking closely, it is.
 
-> + */
-> +int __kmem_cache_alloc_array(struct kmem_cache *s,
-> +		gfp_t flags, size_t nr, void **p)
-> +{
-[...]
+> Perhaps we need to export the kaslr state as a separate item to be 
+> checked directly, instead of using __KERNEL_OFFSET?
+
+I wanted to avoid sharing variables between compressed loader and the rest 
+of the kernel, but if that's what you prefer, I can do it.
+
+Alternatively, we can forbid zero-sized randomization, and always enforce 
+at least some minimal offset to be chosen in case zero would be chosen.
+
+I think that'd be even more bulletproof for any future changes, as it 
+automatically clearly and immediately distinguishes between 'disabled' and 
+'randomized' states, and the loss of entropy is negligible.
+
+Let me know which of the two you'd prefer; I'll then send you a 
+corresponding patch, as I don't have a strong opinion either way.
+
+Thanks,
 
 -- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Sr. Network Kernel Developer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+Jiri Kosina
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
