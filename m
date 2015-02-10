@@ -1,60 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
-	by kanga.kvack.org (Postfix) with ESMTP id BA0676B006E
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2015 14:48:19 -0500 (EST)
-Received: by mail-qc0-f169.google.com with SMTP id b13so30609766qcw.0
-        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 11:48:19 -0800 (PST)
-Received: from resqmta-ch2-05v.sys.comcast.net (resqmta-ch2-05v.sys.comcast.net. [2001:558:fe21:29:69:252:207:37])
-        by mx.google.com with ESMTPS id dg4si19389528qcb.41.2015.02.10.11.48.14
+Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 82B406B0032
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2015 15:42:48 -0500 (EST)
+Received: by mail-oi0-f41.google.com with SMTP id z81so30592559oif.0
+        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 12:42:48 -0800 (PST)
+Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
+        by mx.google.com with ESMTPS id t15si4395406oie.31.2015.02.10.12.42.47
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Tue, 10 Feb 2015 11:48:15 -0800 (PST)
-Message-Id: <20150210194812.009097005@linux.com>
-Date: Tue, 10 Feb 2015 13:48:07 -0600
-From: Christoph Lameter <cl@linux.com>
-Subject: [PATCH 3/3] Array alloc test code
-References: <20150210194804.288708936@linux.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=array_alloc_test
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Feb 2015 12:42:47 -0800 (PST)
+Message-ID: <1423600952.1128.9.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v2 5/7] x86, mm: Support huge KVA mappings on x86
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Tue, 10 Feb 2015 13:42:32 -0700
+In-Reply-To: <54DA54FA.7010707@intel.com>
+References: <1423521935-17454-1-git-send-email-toshi.kani@hp.com>
+	 <1423521935-17454-6-git-send-email-toshi.kani@hp.com>
+	 <54DA54FA.7010707@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linuxfoundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com, Jesper Dangaard Brouer <brouer@redhat.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, arnd@arndb.de, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, Elliott@hp.com
 
-Some simply thrown in thing that allocates 100 objects and frees them again.
+On Tue, 2015-02-10 at 10:59 -0800, Dave Hansen wrote:
+> On 02/09/2015 02:45 PM, Toshi Kani wrote:
+> > Implement huge KVA mapping interfaces on x86.  Select
+> > HAVE_ARCH_HUGE_VMAP when X86_64 or X86_32 with X86_PAE is set.
+> > Without X86_PAE set, the X86_32 kernel has the 2-level page
+> > tables and cannot provide the huge KVA mappings.
+> 
+> Not that it's a big deal, but what's the limitation with the 2-level
+> page tables on 32-bit?  We have a 4MB large page size available there
+> and we already use it for the kernel linear mapping.
 
-Spews out complaints about interrupts disabled since we are in an initcall.
-But it shows that it works.
+ioremap() calls arch-neutral ioremap_page_range() to set up I/O mappings
+with PTEs.  This patch-set enables ioremap_page_range() to set up PUD &
+PMD mappings.  With 2-level page table, I do not think this PUD/PMD
+mapping code works unless we add some special code.
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
+Thanks,
+-Toshi
 
-Index: linux/mm/slub.c
-===================================================================
---- linux.orig/mm/slub.c
-+++ linux/mm/slub.c
-@@ -5308,6 +5308,22 @@ static int __init slab_sysfs_init(void)
- 
- 	mutex_unlock(&slab_mutex);
- 	resiliency_test();
-+
-+	/* Test array alloc */
-+	{
-+		void *arr[100];
-+		int nr;
-+
-+		printk(KERN_INFO "Array allocation test\n");
-+		printk(KERN_INFO "---------------------\n");
-+		printk(KERN_INFO "Allocation 100 objects\n");
-+		nr = kmem_cache_alloc_array(kmem_cache_node, GFP_KERNEL, 100, arr);
-+		printk(KERN_INFO "Number allocated = %d\n", nr);
-+		printk(KERN_INFO "Freeing the objects\n");
-+		kmem_cache_free_array(kmem_cache_node, 100, arr);
-+		printk(KERN_INFO "Array allocation test done.\n");
-+	}
-+
- 	return 0;
- }
- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
