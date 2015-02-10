@@ -1,46 +1,225 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f179.google.com (mail-yk0-f179.google.com [209.85.160.179])
-	by kanga.kvack.org (Postfix) with ESMTP id D1C256B006C
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2015 14:48:15 -0500 (EST)
-Received: by mail-yk0-f179.google.com with SMTP id 9so1672918ykp.10
-        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 11:48:14 -0800 (PST)
-Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
-        by mx.google.com with ESMTPS id e56si3214355yho.173.2015.02.10.11.48.13
+Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 845B36B006C
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2015 14:48:17 -0500 (EST)
+Received: by mail-qg0-f53.google.com with SMTP id f51so28707868qge.12
+        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 11:48:17 -0800 (PST)
+Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
+        by mx.google.com with ESMTPS id b90si19418484qgb.50.2015.02.10.11.48.14
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Tue, 10 Feb 2015 11:48:13 -0800 (PST)
-Message-Id: <20150210194804.288708936@linux.com>
-Date: Tue, 10 Feb 2015 13:48:04 -0600
+        Tue, 10 Feb 2015 11:48:14 -0800 (PST)
+Message-Id: <20150210194811.902155759@linux.com>
+Date: Tue, 10 Feb 2015 13:48:06 -0600
 From: Christoph Lameter <cl@linux.com>
-Subject: [PATCH 0/3] Slab allocator array operations V2
+Subject: [PATCH 2/3] slub: Support for array operations
+References: <20150210194804.288708936@linux.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline; filename=array_alloc_slub
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linuxfoundation.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com, Jesper Dangaard Brouer <brouer@redhat.com>
 
-V1->V2:
-- Allocator will determine how to acquire the objects. Remove
-  the flags that we exposed to the subsystems in V1.
-- Restructure patch a bit to minimize size
-- Add material provided by Jesper.
+The major portions are there but there is no support yet for
+directly allocating per cpu objects. There could also be more
+sophisticated code to exploit the batch freeing.
 
-Attached a series of 3 patches to implement functionality to allocate
-arrays of pointers to slab objects. This can be used by the slab
-allocators to offer more optimized allocation and free paths.
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Allocator performance issues were discovered by the network subsystem
-developers when trying to get the kernel to send at line rate to
-saturate a 40G link. Jesper developed special queueing methods
-to compensate for the performance issues. See the following material:
-
-LWN: Improving Linux networking performance
- - http://lwn.net/Articles/629155/
- - YouTube: https://www.youtube.com/watch?v=3XG9-X777Jo
-
-LWN: Toward a more efficient slab allocator
- - http://lwn.net/Articles/629152/
- - YouTube: https://www.youtube.com/watch?v=s0lZzP1jOzI
-
+Index: linux/include/linux/slub_def.h
+===================================================================
+--- linux.orig/include/linux/slub_def.h
++++ linux/include/linux/slub_def.h
+@@ -110,4 +110,5 @@ static inline void sysfs_slab_remove(str
+ }
+ #endif
+ 
++#define _HAVE_SLAB_ALLOCATOR_ARRAY_OPERATIONS
+ #endif /* _LINUX_SLUB_DEF_H */
+Index: linux/mm/slub.c
+===================================================================
+--- linux.orig/mm/slub.c
++++ linux/mm/slub.c
+@@ -1379,13 +1379,9 @@ static void setup_object(struct kmem_cac
+ 		s->ctor(object);
+ }
+ 
+-static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
++static struct page *__new_slab(struct kmem_cache *s, gfp_t flags, int node)
+ {
+ 	struct page *page;
+-	void *start;
+-	void *p;
+-	int order;
+-	int idx;
+ 
+ 	if (unlikely(flags & GFP_SLAB_BUG_MASK)) {
+ 		pr_emerg("gfp: %u\n", flags & GFP_SLAB_BUG_MASK);
+@@ -1394,33 +1390,42 @@ static struct page *new_slab(struct kmem
+ 
+ 	page = allocate_slab(s,
+ 		flags & (GFP_RECLAIM_MASK | GFP_CONSTRAINT_MASK), node);
+-	if (!page)
+-		goto out;
++	if (page) {
++		inc_slabs_node(s, page_to_nid(page), page->objects);
++		page->slab_cache = s;
++		__SetPageSlab(page);
++		if (page->pfmemalloc)
++			SetPageSlabPfmemalloc(page);
++	}
+ 
+-	order = compound_order(page);
+-	inc_slabs_node(s, page_to_nid(page), page->objects);
+-	page->slab_cache = s;
+-	__SetPageSlab(page);
+-	if (page->pfmemalloc)
+-		SetPageSlabPfmemalloc(page);
+-
+-	start = page_address(page);
+-
+-	if (unlikely(s->flags & SLAB_POISON))
+-		memset(start, POISON_INUSE, PAGE_SIZE << order);
+-
+-	for_each_object_idx(p, idx, s, start, page->objects) {
+-		setup_object(s, page, p);
+-		if (likely(idx < page->objects))
+-			set_freepointer(s, p, p + s->size);
+-		else
+-			set_freepointer(s, p, NULL);
+-	}
+-
+-	page->freelist = start;
+-	page->inuse = page->objects;
+-	page->frozen = 1;
+-out:
++	return page;
++}
++
++static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
++{
++	struct page *page = __new_slab(s, flags, node);
++
++	if (page) {
++		void *p;
++		int idx;
++		void *start = page_address(page);
++
++		if (unlikely(s->flags & SLAB_POISON))
++			memset(start, POISON_INUSE,
++				PAGE_SIZE << compound_order(page));
++
++		for_each_object_idx(p, idx, s, start, page->objects) {
++			setup_object(s, page, p);
++			if (likely(idx < page->objects))
++				set_freepointer(s, p, p + s->size);
++			else
++				set_freepointer(s, p, NULL);
++		}
++
++		page->freelist = start;
++		page->inuse = page->objects;
++		page->frozen = 1;
++	}
+ 	return page;
+ }
+ 
+@@ -2516,8 +2521,78 @@ EXPORT_SYMBOL(kmem_cache_alloc_node_trac
+ #endif
+ #endif
+ 
++int slab_array_alloc_from_partial(struct kmem_cache *s,
++			size_t nr, void **p)
++{
++	void **end = p + nr;
++	struct kmem_cache_node *n = get_node(s, numa_mem_id());
++	int allocated = 0;
++	unsigned long flags;
++	struct page *page, *page2;
++
++	if (!n->nr_partial)
++		return 0;
++
++
++	spin_lock_irqsave(&n->list_lock, flags);
++	list_for_each_entry_safe(page, page2, &n->partial, lru) {
++		void *freelist;
++
++		if (page->objects - page->inuse > end - p)
++			/* More objects free in page than we want */
++			break;
++		list_del(&page->lru);
++		slab_lock(page);
++		freelist = page->freelist;
++		page->inuse = page->objects;
++		page->freelist = NULL;
++		slab_unlock(page);
++		/* Grab all available objects */
++		while (freelist) {
++			*p++ = freelist;
++			freelist = get_freepointer(s, freelist);
++			allocated++;
++		}
++	}
++	spin_unlock_irqrestore(&n->list_lock, flags);
++	return allocated;
++}
++
++int slab_array_alloc_from_page_allocator(struct kmem_cache *s,
++		gfp_t flags, size_t nr, void **p)
++{
++	void **end = p + nr;
++	int allocated = 0;
++
++	while (end - p >= oo_objects(s->oo)) {
++		struct page *page = __new_slab(s, flags, NUMA_NO_NODE);
++		void *q = page_address(page);
++		int i;
++
++		/* Use all the objects */
++		for (i = 0; i < page->objects; i++) {
++			setup_object(s, page, q);
++			*p++ = q;
++			q += s->size;
++		}
++
++		page->inuse = page->objects;
++		page->freelist = NULL;
++		allocated += page->objects;
++	}
++	return allocated;
++}
++
++int slab_array_alloc_from_local(struct kmem_cache *s,
++		size_t nr, void **p)
++{
++	/* Go for the per cpu partials list first */
++	/* Use the cpu_slab if objects are still needed */
++	return 0;
++}
++
+ /*
+- * Slow patch handling. This may still be called frequently since objects
++ * Slow path handling. This may still be called frequently since objects
+  * have a longer lifetime than the cpu slabs in most processing loads.
+  *
+  * So we still attempt to reduce cache line usage. Just take the slab
+@@ -2637,6 +2712,14 @@ slab_empty:
+ 	discard_slab(s, page);
+ }
+ 
++void kmem_cache_free_array(struct kmem_cache *s, size_t nr, void **p)
++{
++	void **end = p + nr;
++
++	for ( ; p < end; p++)
++		__slab_free(s, virt_to_head_page(p), p, 0);
++}
++
+ /*
+  * Fastpath with forced inlining to produce a kfree and kmem_cache_free that
+  * can perform fastpath freeing without additional function calls.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
