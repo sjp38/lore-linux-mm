@@ -1,75 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 0441A6B0032
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2015 07:37:11 -0500 (EST)
-Received: by mail-lb0-f181.google.com with SMTP id b6so13279184lbj.12
-        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 04:37:10 -0800 (PST)
-Received: from mail-lb0-x233.google.com (mail-lb0-x233.google.com. [2a00:1450:4010:c04::233])
-        by mx.google.com with ESMTPS id pf5si11841625lbc.94.2015.02.10.04.37.08
+Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id D225A6B0032
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2015 08:17:27 -0500 (EST)
+Received: by mail-wg0-f53.google.com with SMTP id x13so13386109wgg.12
+        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 05:17:27 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o13si2283642wie.7.2015.02.10.05.17.23
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Feb 2015 04:37:09 -0800 (PST)
-Received: by mail-lb0-f179.google.com with SMTP id w7so11700325lbi.10
-        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 04:37:08 -0800 (PST)
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 10 Feb 2015 05:17:23 -0800 (PST)
+Date: Tue, 10 Feb 2015 14:17:21 +0100 (CET)
+From: Jiri Kosina <jkosina@suse.cz>
+Subject: [PATCH] x86, kaslr: propagate base load address calculation
+Message-ID: <alpine.LNX.2.00.1502101411280.10719@pobox.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20150209132351.f8b95644a1304543e5118820@linux-foundation.org>
-References: <1423364112-15487-1-git-send-email-notasas@gmail.com>
-	<20150209132351.f8b95644a1304543e5118820@linux-foundation.org>
-Date: Tue, 10 Feb 2015 14:37:08 +0200
-Message-ID: <CANOLnOOBgSOzSOiuZGW=A6dc1f4-fnL1XLgzjmsTwi53pJV=nw@mail.gmail.com>
-Subject: Re: [PATCH] mm: actually remap enough memory
-From: Grazvydas Ignotas <notasas@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
+To: Kees Cook <keescook@chromium.org>, "H. Peter Anvin" <hpa@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, live-patching@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 
-On Mon, Feb 9, 2015 at 11:23 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Sun,  8 Feb 2015 04:55:12 +0200 Grazvydas Ignotas <notasas@gmail.com> =
-wrote:
->
->> For whatever reason, generic_access_phys() only remaps one page, but
->> actually allows to access arbitrary size. It's quite easy to trigger
->> large reads, like printing out large structure with gdb, which leads to
->> a crash. Fix it by remapping correct size.
->>
->> ...
->>
->> --- a/mm/memory.c
->> +++ b/mm/memory.c
->> @@ -3829,7 +3829,7 @@ int generic_access_phys(struct vm_area_struct *vma=
-, unsigned long addr,
->>       if (follow_phys(vma, addr, write, &prot, &phys_addr))
->>               return -EINVAL;
->>
->> -     maddr =3D ioremap_prot(phys_addr, PAGE_SIZE, prot);
->> +     maddr =3D ioremap_prot(phys_addr, PAGE_ALIGN(len + offset), prot);
->>       if (write)
->>               memcpy_toio(maddr + offset, buf, len);
->>       else
->
-> hm, shouldn't this be PAGE_ALIGN(len)?
+Commit e2b32e678 ("x86, kaslr: randomize module base load address") makes 
+the base address for module to be unconditionally randomized in case when 
+CONFIG_RANDOMIZE_BASE is defined and "nokaslr" option isn't present on the 
+commandline.
 
-follow_phys() only returns page aligned address directly from page
-table, so offset has to be added either to phys_addr or len. For
-example if you need to read 4 bytes at address 0x10ffe or similar, 2
-pages need to be mapped.
+This is not consistent with how choose_kernel_location() decides whether 
+it will randomize kernel load base.
 
-> Do we need the PAGE_ALIGN at all?  It's probably safer/saner to have it
-> there, but x86 (at least) should be OK with arbitrary alignment on both
-> addr and len?
+Namely, CONFIG_HIBERNATION disables kASLR (unless "kaslr" option is 
+explicitly specified on kernel commandline), which makes the state space 
+larger than what module loader is looking at. IOW CONFIG_HIBERNATION && 
+CONFIG_RANDOMIZE_BASE is a valid config option, kASLR wouldn't be applied 
+by default in that case, but module loader is not aware of that.
 
-Yes it's not strictly needed, but I'd prefer to keep it, as there is
-already an assumption that ioremap operates in page quantities by
-giving it page aligned phys_addr from follow_phys(). Or we could use
-phys_addr + offset and len as arguments instead, no strong opinion
-here.
+Instead of fixing the logic in module.c, this patch takes more generic 
+aproach, and exposes __KERNEL_OFFSET macro, which calculates the real 
+offset that has been established by choose_kernel_location() during boot. 
+This can be used later by other kernel code as well (such as, but not 
+limited to, live patching).
 
+OOPS offset dumper and module loader are converted to that they make use 
+of this macro as well.
 
-Gra=C5=BEvydas
+Signed-off-by: Jiri Kosina <jkosina@suse.cz>
+---
+ arch/x86/include/asm/page_types.h |  4 ++++
+ arch/x86/kernel/module.c          | 10 +---------
+ arch/x86/kernel/setup.c           |  4 ++--
+ 3 files changed, 7 insertions(+), 11 deletions(-)
+
+diff --git a/arch/x86/include/asm/page_types.h b/arch/x86/include/asm/page_types.h
+index f97fbe3..7f18eaf 100644
+--- a/arch/x86/include/asm/page_types.h
++++ b/arch/x86/include/asm/page_types.h
+@@ -46,6 +46,10 @@
+ 
+ #ifndef __ASSEMBLY__
+ 
++/* Return kASLR relocation offset */
++extern char _text[];
++#define __KERNEL_OFFSET ((unsigned long)&_text - __START_KERNEL)
++
+ extern int devmem_is_allowed(unsigned long pagenr);
+ 
+ extern unsigned long max_low_pfn_mapped;
+diff --git a/arch/x86/kernel/module.c b/arch/x86/kernel/module.c
+index e69f988..d236bd2 100644
+--- a/arch/x86/kernel/module.c
++++ b/arch/x86/kernel/module.c
+@@ -46,21 +46,13 @@ do {							\
+ 
+ #ifdef CONFIG_RANDOMIZE_BASE
+ static unsigned long module_load_offset;
+-static int randomize_modules = 1;
+ 
+ /* Mutex protects the module_load_offset. */
+ static DEFINE_MUTEX(module_kaslr_mutex);
+ 
+-static int __init parse_nokaslr(char *p)
+-{
+-	randomize_modules = 0;
+-	return 0;
+-}
+-early_param("nokaslr", parse_nokaslr);
+-
+ static unsigned long int get_module_load_offset(void)
+ {
+-	if (randomize_modules) {
++	if (__KERNEL_OFFSET) {
+ 		mutex_lock(&module_kaslr_mutex);
+ 		/*
+ 		 * Calculate the module_load_offset the first time this
+diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+index c4648ada..08124a1 100644
+--- a/arch/x86/kernel/setup.c
++++ b/arch/x86/kernel/setup.c
+@@ -833,8 +833,8 @@ dump_kernel_offset(struct notifier_block *self, unsigned long v, void *p)
+ {
+ 	pr_emerg("Kernel Offset: 0x%lx from 0x%lx "
+ 		 "(relocation range: 0x%lx-0x%lx)\n",
+-		 (unsigned long)&_text - __START_KERNEL, __START_KERNEL,
+-		 __START_KERNEL_map, MODULES_VADDR-1);
++		 __KERNEL_OFFSET, __START_KERNEL, __START_KERNEL_map,
++		 MODULES_VADDR-1);
+ 
+ 	return 0;
+ }
+
+-- 
+Jiri Kosina
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
