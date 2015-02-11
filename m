@@ -1,70 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f53.google.com (mail-qa0-f53.google.com [209.85.216.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 488E16B0032
-	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 13:47:44 -0500 (EST)
-Received: by mail-qa0-f53.google.com with SMTP id k15so4065580qaq.12
-        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 10:47:44 -0800 (PST)
-Received: from resqmta-ch2-02v.sys.comcast.net (resqmta-ch2-02v.sys.comcast.net. [2001:558:fe21:29:69:252:207:34])
-        by mx.google.com with ESMTPS id 96si1848236qgh.88.2015.02.11.10.47.42
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
+	by kanga.kvack.org (Postfix) with ESMTP id B914E6B0032
+	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 14:07:26 -0500 (EST)
+Received: by mail-ig0-f181.google.com with SMTP id hn18so6586832igb.2
+        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 11:07:26 -0800 (PST)
+Received: from resqmta-po-07v.sys.comcast.net (resqmta-po-07v.sys.comcast.net. [2001:558:fe16:19:96:114:154:166])
+        by mx.google.com with ESMTPS id i200si1264440ioi.11.2015.02.11.11.07.25
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Wed, 11 Feb 2015 10:47:43 -0800 (PST)
-Date: Wed, 11 Feb 2015 12:47:41 -0600 (CST)
+        Wed, 11 Feb 2015 11:07:26 -0800 (PST)
+Date: Wed, 11 Feb 2015 13:07:24 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 1/3] Slab infrastructure for array operations
-In-Reply-To: <alpine.DEB.2.10.1502101542030.15535@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.11.1502111243380.3887@gentwo.org>
-References: <20150210194804.288708936@linux.com> <20150210194811.787556326@linux.com> <alpine.DEB.2.10.1502101542030.15535@chino.kir.corp.google.com>
+Subject: Re: [PATCH 2/3] slub: Support for array operations
+In-Reply-To: <20150211174817.44cc5562@redhat.com>
+Message-ID: <alpine.DEB.2.11.1502111305520.7547@gentwo.org>
+References: <20150210194804.288708936@linux.com> <20150210194811.902155759@linux.com> <20150211174817.44cc5562@redhat.com>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com, Jesper Dangaard Brouer <brouer@redhat.com>
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com
 
-On Tue, 10 Feb 2015, David Rientjes wrote:
+On Wed, 11 Feb 2015, Jesper Dangaard Brouer wrote:
 
-> > +int kmem_cache_alloc_array(struct kmem_cache *s,
-> > +		gfp_t flags, size_t nr, void **p)
-> > +{
-> > +	int i = 0;
 > > +
-> > +#ifdef _HAVE_SLAB_ALLOCATOR_ARRAY_OPERATIONS
-> > +	/*
-
-...
-
-> > +		i += slab_array_alloc_from_local(s, nr - i, p + i);
 > > +
-> > +#endif
+> > +	spin_lock_irqsave(&n->list_lock, flags);
 >
-> This patch is referencing functions that don't exist and can do so since
-> it's not compiled, but I think this belongs in the next patch.  I also
-> think that this particular implementation may be slub-specific so I would
-> have expected just a call to an allocator-defined
-> __kmem_cache_alloc_array() here with i = __kmem_cache_alloc_array().
+> This is quite an expensive lock with irqsave.
 
-The implementation is generic and can be used in the same way for SLAB.
-SLOB does not have these types of object though.
+Yes but we take it for all partial pages.
 
-> return 0 instead of using _HAVE_SLAB_ALLOCATOR_ARRAY_OPERATIONS at all.
+> Yet another lock cost.
 
-Ok that is a good idea. I'll just drop that macro and have all allocators
-provide dummy functions.
+Yup the page access is shared but there is one per page. Contention is
+unlikely.
 
-> > +#ifndef _HAVE_SLAB_ALLOCATOR_ARRAY_OPERATIONS
-> > +void kmem_cache_free_array(struct kmem_cache *s, size_t nr, void **p)
-> > +{
-> > +	__kmem_cache_free_array(s, nr, p);
-> > +}
-> > +EXPORT_SYMBOL(kmem_cache_free_array);
-> > +#endif
-> > +
+> > +	spin_unlock_irqrestore(&n->list_lock, flags);
+> > +	return allocated;
 >
-> Hmm, not sure why the allocator would be required to do the
-> EXPORT_SYMBOL() if it defines kmem_cache_free_array() itself.  This
+> I estimate (on my CPU) the locking cost itself is more than 32ns, plus
+> the irqsave (which I've also found quite expensive, alone 14ns).  Thus,
+> estimated 46ns.  Single elem slub fast path cost is 18-19ns. Thus 3-4
+> elem bulking should be enough to amortized the cost, guess we are still
+> good :-)
 
-Keeping the EXPORT with the definition is the custom as far as I could
-tell.
+We can require that interrupt are off when the functions are called. Then
+we can avoid the "save" part?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
