@@ -1,60 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com [209.85.217.180])
-	by kanga.kvack.org (Postfix) with ESMTP id B87116B0032
-	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 00:34:47 -0500 (EST)
-Received: by mail-lb0-f180.google.com with SMTP id z12so1162653lbi.11
-        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 21:34:46 -0800 (PST)
-Received: from mail-la0-f41.google.com (mail-la0-f41.google.com. [209.85.215.41])
-        by mx.google.com with ESMTPS id y9si13636515lbr.7.2015.02.10.21.34.45
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 187A96B0032
+	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 02:06:19 -0500 (EST)
+Received: by pdbft15 with SMTP id ft15so2522496pdb.11
+        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 23:06:18 -0800 (PST)
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com. [209.85.192.178])
+        by mx.google.com with ESMTPS id gp7si29728994pac.26.2015.02.10.23.06.17
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Feb 2015 21:34:45 -0800 (PST)
-Received: by labpn19 with SMTP id pn19so1249076lab.4
-        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 21:34:45 -0800 (PST)
+        Tue, 10 Feb 2015 23:06:18 -0800 (PST)
+Received: by pdev10 with SMTP id v10so2519594pde.10
+        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 23:06:17 -0800 (PST)
+Date: Tue, 10 Feb 2015 23:06:09 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH] mm: fix negative nr_isolated counts
+Message-ID: <alpine.LSU.2.11.1502102303040.13607@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <20150211034307.GA2932@kroah.com>
-References: <20150203231211.486950145@linuxfoundation.org>
-	<20150203231212.223123220@linuxfoundation.org>
-	<CALYGNiPVvgxMFyDTSFv4mUhkq-5Q+Gp2UEY5W9G0gEc8YajipQ@mail.gmail.com>
-	<20150211034307.GA2932@kroah.com>
-Date: Wed, 11 Feb 2015 09:34:44 +0400
-Message-ID: <CALYGNiN6isfggY-kjWAgP1UtGyvKYN+BhWyuk9x6CF3wDe97HA@mail.gmail.com>
-Subject: Re: [PATCH 3.18 04/57] vm: add VM_FAULT_SIGSEGV handling support
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stable <stable@vger.kernel.org>, Jan Engelhardt <jengelh@inai.de>, linux-arch@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org
 
-On Wed, Feb 11, 2015 at 6:43 AM, Greg Kroah-Hartman
-<gregkh@linuxfoundation.org> wrote:
-> On Tue, Feb 10, 2015 at 12:22:41PM +0400, Konstantin Khlebnikov wrote:
->> I've found regression:
->>
->> [  257.139907] ================================================
->> [  257.139909] [ BUG: lock held when returning to user space! ]
->> [  257.139912] 3.18.6-debug+ #161 Tainted: G     U
->> [  257.139914] ------------------------------------------------
->> [  257.139916] python/22843 is leaving the kernel with locks still held!
->> [  257.139918] 1 lock held by python/22843:
->> [  257.139920]  #0:  (&mm->mmap_sem){++++++}, at: [<ffffffff8104e4c2>]
->> __do_page_fault+0x162/0x570
->>
->> upstream commit 7fb08eca45270d0ae86e1ad9d39c40b7a55d0190 must be backported too.
->
-> Ah, nice, I missed that one.  How did you test this?
+The vmstat interfaces are good at hiding negative counts (at least
+when CONFIG_SMP); but if you peer behind the curtain, you find that
+nr_isolated_anon and nr_isolated_file soon go negative, and grow ever
+more negative: so they can absorb larger and larger numbers of isolated
+pages, yet still appear to be zero.
 
-I've catched hang on mmap_sem in some python self-test inside exherbo chroot.
-With that patch test has finished successfully.
+I'm happy to avoid a congestion_wait() when too_many_isolated() myself;
+but I guess it's there for a good reason, in which case we ought to get
+too_many_isolated() working again.
 
-It seems the only way to tigger this is stack-overflow: for now VM_FAULT_SIGSEGV
-is returned only if kernel cannot add guard page when stack expands.
+The imbalance comes from isolate_migratepages()'s ISOLATE_ABORT case:
+putback_movable_pages() decrements the NR_ISOLATED counts, but we forgot
+to call acct_isolated() to increment them.
 
->
-> thanks,
->
-> greg k-h
+Fixes: edc2ca612496 ("mm, compaction: move pageblock checks up from isolate_migratepages_range()")
+Signed-off-by: Hugh Dickins <hughd@google.com>
+Cc: stable@vger.kernel.org # v3.18+
+---
+
+ mm/compaction.c |    4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+--- v3.19/mm/compaction.c	2015-02-08 18:54:22.000000000 -0800
++++ linux/mm/compaction.c	2015-02-10 22:25:04.613907871 -0800
+@@ -1015,8 +1015,10 @@ static isolate_migrate_t isolate_migrate
+ 		low_pfn = isolate_migratepages_block(cc, low_pfn, end_pfn,
+ 								isolate_mode);
+ 
+-		if (!low_pfn || cc->contended)
++		if (!low_pfn || cc->contended) {
++			acct_isolated(zone, cc);
+ 			return ISOLATE_ABORT;
++		}
+ 
+ 		/*
+ 		 * Either we isolated something and proceed with migration. Or
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
