@@ -1,72 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f53.google.com (mail-la0-f53.google.com [209.85.215.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BCA56B0038
-	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 17:15:32 -0500 (EST)
-Received: by labgf13 with SMTP id gf13so6413264lab.9
-        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 14:15:31 -0800 (PST)
-Received: from mail-lb0-x22f.google.com (mail-lb0-x22f.google.com. [2a00:1450:4010:c04::22f])
-        by mx.google.com with ESMTPS id q4si1612485lag.103.2015.02.11.14.15.30
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Feb 2015 14:15:30 -0800 (PST)
-Received: by mail-lb0-f175.google.com with SMTP id n10so6041800lbv.6
-        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 14:15:29 -0800 (PST)
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id F02036B0032
+	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 17:21:50 -0500 (EST)
+Received: by mail-wi0-f173.google.com with SMTP id bs8so23987336wib.0
+        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 14:21:50 -0800 (PST)
+Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.227])
+        by mx.google.com with ESMTP id ea7si20858671wib.6.2015.02.11.14.21.48
+        for <linux-mm@kvack.org>;
+        Wed, 11 Feb 2015 14:21:49 -0800 (PST)
+Date: Thu, 12 Feb 2015 00:21:40 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v2] mm: incorporate zero pages into transparent huge pages
+Message-ID: <20150211222140.GA12928@node.dhcp.inet.fi>
+References: <1423688635-4306-1-git-send-email-ebru.akagunduz@gmail.com>
+ <20150211221600.GN11755@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20150211220530.GA12728@htj.duckdns.org>
-References: <xr93pp9nucrt.fsf@gthelen.mtv.corp.google.com>
-	<20150206141746.GB10580@htj.dyndns.org>
-	<CAHH2K0bxvc34u1PugVQsSfxXhmN8qU6KRpiCWwOVBa6BPqMDOg@mail.gmail.com>
-	<20150207143839.GA9926@htj.dyndns.org>
-	<20150211021906.GA21356@htj.duckdns.org>
-	<CAHH2K0aHM=jmzbgkSCdFX0NxWbHBcVXqi3EAr0MS-gE3Txk93w@mail.gmail.com>
-	<20150211203359.GF21356@htj.duckdns.org>
-	<CALYGNiMm2VajBx0Y+XtLJ8860JS-GHfuSXQrBt32Wt0K7QpH0A@mail.gmail.com>
-	<20150211214650.GA11920@htj.duckdns.org>
-	<CALYGNiPX89HsgUS8BrJvL_jW-EU95xezc7uPf=0Pm72qiUwp7A@mail.gmail.com>
-	<20150211220530.GA12728@htj.duckdns.org>
-Date: Thu, 12 Feb 2015 02:15:29 +0400
-Message-ID: <CALYGNiMgpU51vNr186x6h-uh_9NqaTqZ_a2L60XG0STozy=30g@mail.gmail.com>
-Subject: Re: [RFC] Making memcg track ownership per address_space or anon_vma
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150211221600.GN11755@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Greg Thelen <gthelen@google.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Christoph Hellwig <hch@infradead.org>, Li Zefan <lizefan@huawei.com>, Hugh Dickins <hughd@google.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@suse.cz, mgorman@suse.de, rientjes@google.com, sasha.levin@oracle.com, hughd@google.com, hannes@cmpxchg.org, vbabka@suse.cz, linux-kernel@vger.kernel.org, riel@redhat.com
 
-On Thu, Feb 12, 2015 at 1:05 AM, Tejun Heo <tj@kernel.org> wrote:
-> On Thu, Feb 12, 2015 at 01:57:04AM +0400, Konstantin Khlebnikov wrote:
->> On Thu, Feb 12, 2015 at 12:46 AM, Tejun Heo <tj@kernel.org> wrote:
->> > Hello,
->> >
->> > On Thu, Feb 12, 2015 at 12:22:34AM +0300, Konstantin Khlebnikov wrote:
->> >> > Yeah, available memory to the matching memcg and the number of dirty
->> >> > pages in it.  It's gonna work the same way as the global case just
->> >> > scoped to the cgroup.
->> >>
->> >> That might be a problem: all dirty pages accounted to cgroup must be
->> >> reachable for its own personal writeback or balanace-drity-pages will be
->> >> unable to satisfy memcg dirty memory thresholds. I've done accounting
->> >
->> > Yeah, it would.  Why wouldn't it?
->>
->> How do you plan to do per-memcg/blkcg writeback for balance-dirty-pages?
->> Or you're thinking only about separating writeback flow into blkio cgroups
->> without actual inode filtering? I mean delaying inode writeback and keeping
->> dirty pages as long as possible if their cgroups are far from threshold.
->
-> What?  The code was already in the previous patchset.  I'm just gonna
-> rip out the code to handle inode being dirtied on multiple wb's.
+On Wed, Feb 11, 2015 at 11:16:00PM +0100, Andrea Arcangeli wrote:
+> On Wed, Feb 11, 2015 at 11:03:55PM +0200, Ebru Akagunduz wrote:
+> > Changes in v2:
+> >  - Check zero pfn in release_pte_pages() (Andrea Arcangeli)
+> 
+> .. and in:
+> 
+> > @@ -2237,7 +2237,7 @@ static void __collapse_huge_page_copy(pte_t *pte, struct page *page,
+> >  		pte_t pteval = *_pte;
+> >  		struct page *src_page;
+> >  
+> > -		if (pte_none(pteval)) {
+> > +		if (pte_none(pteval) || is_zero_pfn(pte_pfn(pteval))) {
+> >  			clear_user_highpage(page, address);
+> >  			add_mm_counter(vma->vm_mm, MM_ANONPAGES, 1);
+> >  		} else {
+> 
+> __collapse_huge_page_copy, both were needed as far as I can tell.
 
-Well, ok. Even if shared writes are rare whey should be handled somehow
-without relying on kupdate-like writeback. If memcg has a lot of dirty pages
-but their inodes are accidentially belong to wrong wb queues when tasks in
-that memcg shouldn't stuck in balance-dirty-pages until somebody outside
-acidentially writes this data. That's all what I wanted to say.
+There was is_zero_pfn(pte_pfn(pteval)) in __collapse_huge_page_copy() in
+original patch.
 
->
-> --
-> tejun
+> I haven't tested it but it's looking good.
+> 
+> Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
