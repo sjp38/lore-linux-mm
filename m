@@ -1,76 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C3236B0032
-	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 04:58:17 -0500 (EST)
-Received: by mail-we0-f179.google.com with SMTP id u56so2244032wes.10
-        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 01:58:16 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id da1si2657466wib.25.2015.02.11.01.58.15
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id ECA666B0032
+	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 06:13:21 -0500 (EST)
+Received: by mail-wi0-f182.google.com with SMTP id n3so3968062wiv.3
+        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 03:13:21 -0800 (PST)
+Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id pe8si816108wjb.44.2015.02.11.03.13.19
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 11 Feb 2015 01:58:15 -0800 (PST)
-Message-ID: <54DB27B5.9060207@suse.cz>
-Date: Wed, 11 Feb 2015 10:58:13 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 11 Feb 2015 03:13:20 -0800 (PST)
+Date: Wed, 11 Feb 2015 11:12:58 +0000
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [RFCv3 2/2] dma-buf: add helpers for sharing attacher
+ constraints with dma-parms
+Message-ID: <20150211111258.GP8656@n2100.arm.linux.org.uk>
+References: <1422347154-15258-1-git-send-email-sumit.semwal@linaro.org>
+ <1422347154-15258-2-git-send-email-sumit.semwal@linaro.org>
+ <54DB12B5.4080000@samsung.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: fix negative nr_isolated counts
-References: <alpine.LSU.2.11.1502102303040.13607@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.11.1502102303040.13607@eggly.anvils>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <54DB12B5.4080000@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: Sumit Semwal <sumit.semwal@linaro.org>, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, robin.murphy@arm.com, robdclark@gmail.com, linaro-kernel@lists.linaro.org, stanislawski.tomasz@googlemail.com, daniel@ffwll.ch
 
-On 02/11/2015 08:06 AM, Hugh Dickins wrote:
-> The vmstat interfaces are good at hiding negative counts (at least
-> when CONFIG_SMP); but if you peer behind the curtain, you find that
-> nr_isolated_anon and nr_isolated_file soon go negative, and grow ever
-> more negative: so they can absorb larger and larger numbers of isolated
-> pages, yet still appear to be zero.
->
-> I'm happy to avoid a congestion_wait() when too_many_isolated() myself;
-> but I guess it's there for a good reason, in which case we ought to get
-> too_many_isolated() working again.
->
-> The imbalance comes from isolate_migratepages()'s ISOLATE_ABORT case:
-> putback_movable_pages() decrements the NR_ISOLATED counts, but we forgot
-> to call acct_isolated() to increment them.
->
-> Fixes: edc2ca612496 ("mm, compaction: move pageblock checks up from isolate_migratepages_range()")
+On Wed, Feb 11, 2015 at 09:28:37AM +0100, Marek Szyprowski wrote:
+> Hello,
+> 
+> On 2015-01-27 09:25, Sumit Semwal wrote:
+> >Add some helpers to share the constraints of devices while attaching
+> >to the dmabuf buffer.
+> >
+> >At each attach, the constraints are calculated based on the following:
+> >- max_segment_size, max_segment_count, segment_boundary_mask from
+> >    device_dma_parameters.
+> >
+> >In case the attaching device's constraints don't match up, attach() fails.
+> >
+> >At detach, the constraints are recalculated based on the remaining
+> >attached devices.
+> >
+> >Two helpers are added:
+> >- dma_buf_get_constraints - which gives the current constraints as calculated
+> >       during each attach on the buffer till the time,
+> >- dma_buf_recalc_constraints - which recalculates the constraints for all
+> >       currently attached devices for the 'paranoid' ones amongst us.
+> >
+> >The idea of this patch is largely taken from Rob Clark's RFC at
+> >https://lkml.org/lkml/2012/7/19/285, and the comments received on it.
+> >
+> >Cc: Rob Clark <robdclark@gmail.com>
+> >Signed-off-by: Sumit Semwal <sumit.semwal@linaro.org>
+> 
+> The code looks okay, although it will probably will work well only with
+> typical cases like 'contiguous memory needed' or 'no constraints at all'
+> (iommu).
 
-Ccing Joonsoo for completeness, as it seems he contributed to this part 
-[1] (to fix another bug of mine, not trying to dismiss responsibility)
+Which is a damn good reason to NAK it - by that admission, it's a half-baked
+idea.
 
-But yeah it looks correct. Thanks for finding and fixing!
+If all we want to know is whether the importer can accept only contiguous
+memory or not, make a flag to do that, and allow the exporter to test this
+flag.  Don't over-engineer this to make it _seem_ like it can do something
+that it actually totally fails with.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+As I've already pointed out, there's a major problem if you have already
+had a less restrictive attachment which has an active mapping, and a new
+more restrictive attachment comes along later.
 
-[1] https://lkml.org/lkml/2014/9/29/60
+It seems from Rob's descriptions that we also need another flag in the
+importer to indicate whether it wants to have a valid struct page in the
+scatter list, or whether it (correctly) uses the DMA accessors on the
+scatter list - so that exporters can reject importers which are buggy.
 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> Cc: stable@vger.kernel.org # v3.18+
-> ---
->
->   mm/compaction.c |    4 +++-
->   1 file changed, 3 insertions(+), 1 deletion(-)
->
-> --- v3.19/mm/compaction.c	2015-02-08 18:54:22.000000000 -0800
-> +++ linux/mm/compaction.c	2015-02-10 22:25:04.613907871 -0800
-> @@ -1015,8 +1015,10 @@ static isolate_migrate_t isolate_migrate
->   		low_pfn = isolate_migratepages_block(cc, low_pfn, end_pfn,
->   								isolate_mode);
->
-> -		if (!low_pfn || cc->contended)
-> +		if (!low_pfn || cc->contended) {
-> +			acct_isolated(zone, cc);
->   			return ISOLATE_ABORT;
-> +		}
->
->   		/*
->   		 * Either we isolated something and proceed with migration. Or
->
+-- 
+FTTC broadband for 0.8mile line: currently at 10.5Mbps down 400kbps up
+according to speedtest.net.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
