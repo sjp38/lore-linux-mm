@@ -1,52 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
-	by kanga.kvack.org (Postfix) with ESMTP id B914E6B0032
-	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 14:07:26 -0500 (EST)
-Received: by mail-ig0-f181.google.com with SMTP id hn18so6586832igb.2
-        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 11:07:26 -0800 (PST)
-Received: from resqmta-po-07v.sys.comcast.net (resqmta-po-07v.sys.comcast.net. [2001:558:fe16:19:96:114:154:166])
-        by mx.google.com with ESMTPS id i200si1264440ioi.11.2015.02.11.11.07.25
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C4DD6B0032
+	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 14:18:40 -0500 (EST)
+Received: by mail-wi0-f171.google.com with SMTP id hi2so14647308wib.4
+        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 11:18:39 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id oq1si3133468wjc.43.2015.02.11.11.18.36
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Wed, 11 Feb 2015 11:07:26 -0800 (PST)
-Date: Wed, 11 Feb 2015 13:07:24 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 2/3] slub: Support for array operations
-In-Reply-To: <20150211174817.44cc5562@redhat.com>
-Message-ID: <alpine.DEB.2.11.1502111305520.7547@gentwo.org>
-References: <20150210194804.288708936@linux.com> <20150210194811.902155759@linux.com> <20150211174817.44cc5562@redhat.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Feb 2015 11:18:37 -0800 (PST)
+Date: Wed, 11 Feb 2015 19:59:45 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: How to handle TIF_MEMDIE stalls?
+Message-ID: <20150211185945.GA3578@redhat.com>
+References: <20141230112158.GA15546@dhcp22.suse.cz> <201502092044.JDG39081.LVFOOtFHQFOMSJ@I-love.SAKURA.ne.jp> <201502102258.IFE09888.OVQFJOMSFtOLFH@I-love.SAKURA.ne.jp> <20150210151934.GA11212@phnom.home.cmpxchg.org> <201502111123.ICD65197.FMLOHSQJFVOtFO@I-love.SAKURA.ne.jp> <201502112237.CDD87547.tJOFFVHLOOQSMF@I-love.SAKURA.ne.jp> <20150211185015.GA2792@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150211185015.GA2792@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: mhocko@suse.cz, hannes@cmpxchg.org, david@fromorbit.com, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org
 
-On Wed, 11 Feb 2015, Jesper Dangaard Brouer wrote:
-
-> > +
-> > +
-> > +	spin_lock_irqsave(&n->list_lock, flags);
+On 02/11, Oleg Nesterov wrote:
 >
-> This is quite an expensive lock with irqsave.
-
-Yes but we take it for all partial pages.
-
-> Yet another lock cost.
-
-Yup the page access is shared but there is one per page. Contention is
-unlikely.
-
-> > +	spin_unlock_irqrestore(&n->list_lock, flags);
-> > +	return allocated;
+> On 02/11, Tetsuo Handa wrote:
+> >
+> > (Asking Oleg this time.)
 >
-> I estimate (on my CPU) the locking cost itself is more than 32ns, plus
-> the irqsave (which I've also found quite expensive, alone 14ns).  Thus,
-> estimated 46ns.  Single elem slub fast path cost is 18-19ns. Thus 3-4
-> elem bulking should be enough to amortized the cost, guess we are still
-> good :-)
+> Well, sorry, I ignored the previous discussion, not sure I understand you
+> correctly.
+>
+> > > Though, more serious behavior with this reproducer is (B) where the system
+> > > stalls forever without kernel messages being saved to /var/log/messages .
+> > > out_of_memory() does not select victims until the coredump to pipe can make
+> > > progress whereas the coredump to pipe can't make progress until memory
+> > > allocation succeeds or fails.
+> >
+> > This behavior is related to commit d003f371b2701635 ("oom: don't assume
+> > that a coredumping thread will exit soon"). That commit tried to take
+> > SIGNAL_GROUP_COREDUMP into account, but actually it is failing to do so.
+>
+> Heh. Please see the changelog. This "fix" is obviously very limited, it does
+> not even try to solve all problems (even with coredump in particular).
+>
+> Note also that SIGNAL_GROUP_COREDUMP is not even set if the process (not a
+> sub-thread) shares the memory with the coredumping task. It would be better
+> to check mm->core_state != NULL instead, but this needs the locking. Plus
+> that process likely sleeps in D state in exit_mm(), so this can't help.
+>
+> And that is why we set SIGNAL_GROUP_COREDUMP in zap_threads(), not in
+> zap_process(). We probably want to make that "wait for coredump_finish()"
+> sleep in exit_mm() killable, but this is not simple.
 
-We can require that interrupt are off when the functions are called. Then
-we can avoid the "save" part?
+on a cecond thought, perhaps it makes sense to set SIGNAL_GROUP_COREDUMP
+anyway, even if a CLONE_VM process participating in coredump is not killable.
+I'll recheck tomorrow.
+
+> Sorry for noise if the above is not relevant.
+>
+> Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
