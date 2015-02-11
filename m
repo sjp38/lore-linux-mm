@@ -1,69 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id DC7E96B0032
-	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 15:18:14 -0500 (EST)
-Received: by mail-wi0-f177.google.com with SMTP id bs8so7852614wib.4
-        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 12:18:14 -0800 (PST)
-Received: from mail-we0-x235.google.com (mail-we0-x235.google.com. [2a00:1450:400c:c03::235])
-        by mx.google.com with ESMTPS id wl10si3432285wjb.18.2015.02.11.12.18.13
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id CFD6B6B0032
+	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 15:30:40 -0500 (EST)
+Received: by mail-wi0-f173.google.com with SMTP id bs8so23346294wib.0
+        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 12:30:40 -0800 (PST)
+Received: from mail-wg0-x22d.google.com (mail-wg0-x22d.google.com. [2a00:1450:400c:c00::22d])
+        by mx.google.com with ESMTPS id vv8si844918wjc.96.2015.02.11.12.30.37
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Feb 2015 12:18:13 -0800 (PST)
-Received: by mail-we0-f181.google.com with SMTP id w62so5801462wes.12
-        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 12:18:13 -0800 (PST)
-Date: Wed, 11 Feb 2015 12:18:07 -0800 (PST)
+        Wed, 11 Feb 2015 12:30:38 -0800 (PST)
+Received: by mail-wg0-f45.google.com with SMTP id k14so2808467wgh.4
+        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 12:30:37 -0800 (PST)
+Date: Wed, 11 Feb 2015 12:30:30 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/3] Slab infrastructure for array operations
-In-Reply-To: <alpine.DEB.2.11.1502111243380.3887@gentwo.org>
-Message-ID: <alpine.DEB.2.10.1502111213151.16711@chino.kir.corp.google.com>
-References: <20150210194804.288708936@linux.com> <20150210194811.787556326@linux.com> <alpine.DEB.2.10.1502101542030.15535@chino.kir.corp.google.com> <alpine.DEB.2.11.1502111243380.3887@gentwo.org>
+Subject: Re: [PATCH 0/3] memory_hotplug: hyperv: fix deadlock between memory
+ adding and onlining
+In-Reply-To: <1423669462-30918-1-git-send-email-vkuznets@redhat.com>
+Message-ID: <alpine.DEB.2.10.1502111229500.16711@chino.kir.corp.google.com>
+References: <1423669462-30918-1-git-send-email-vkuznets@redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com, Jesper Dangaard Brouer <brouer@redhat.com>
+To: Vitaly Kuznetsov <vkuznets@redhat.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Haiyang Zhang <haiyangz@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Vlastimil Babka <vbabka@suse.cz>, Fabian Frederick <fabf@skynet.be>, Zhang Zhen <zhenzhang.zhang@huawei.com>, Vladimir Davydov <vdavydov@parallels.com>, Wang Nan <wangnan0@huawei.com>, linux-kernel@vger.kernel.org, devel@linuxdriverproject.org, linux-mm@kvack.org
 
-On Wed, 11 Feb 2015, Christoph Lameter wrote:
+On Wed, 11 Feb 2015, Vitaly Kuznetsov wrote:
 
-> > This patch is referencing functions that don't exist and can do so since
-> > it's not compiled, but I think this belongs in the next patch.  I also
-> > think that this particular implementation may be slub-specific so I would
-> > have expected just a call to an allocator-defined
-> > __kmem_cache_alloc_array() here with i = __kmem_cache_alloc_array().
+> If newly added memory is brought online with e.g. udev rule:
+> SUBSYSTEM=="memory", ACTION=="add", ATTR{state}="online"
+> the following deadlock is observed (and easily reproducable):
 > 
-> The implementation is generic and can be used in the same way for SLAB.
-> SLOB does not have these types of object though.
+> First participant, worker thread doing add_memory():
 > 
+> [  724.948846] kworker/0:1     D ffff88000412f9c8 13248    27      2 0x00000000
+> [  724.973543] Workqueue: events hot_add_req [hv_balloon]
+> [  724.991736]  ffff88000412f9c8 0000000000000000 ffff88003fa1dc30 00000000000151c0
+> [  725.019725]  0000000000000246 ffff88000412ffd8 00000000000151c0 ffff88003a77a4e0
+> [  725.046486]  ffff88003fa1dc30 00000001032a6000 ffff88003a7ca838 ffff88003a7ca898
+> [  725.072969] Call Trace:
+> [  725.082690]  [<ffffffff81aac0a9>] schedule_preempt_disabled+0x29/0x70
+> [  725.103799]  [<ffffffff81aae33b>] mutex_lock_nested+0x14b/0x470
+> [  725.122367]  [<ffffffff815ed773>] ? device_attach+0x23/0xb0
+> [  725.140992]  [<ffffffff815ed773>] device_attach+0x23/0xb0
+> [  725.159131]  [<ffffffff815ecba0>] bus_probe_device+0xb0/0xe0
+> [  725.177055]  [<ffffffff815ea693>] device_add+0x443/0x650
+> [  725.195558]  [<ffffffff815ea8be>] device_register+0x1e/0x30
+> [  725.213133]  [<ffffffff81601790>] init_memory_block+0xd0/0xf0
+> [  725.231533]  [<ffffffff816018f1>] register_new_memory+0xb1/0xd0
+> [  725.250769]  [<ffffffff81a961cf>] __add_pages+0x13f/0x250
+> [  725.269642]  [<ffffffff81063770>] ? arch_add_memory+0x70/0xf0
+> [  725.288764]  [<ffffffff81063770>] arch_add_memory+0x70/0xf0
+> [  725.306117]  [<ffffffff81a95f8f>] add_memory+0xef/0x1f0
+> [  725.322466]  [<ffffffffa00293af>] hot_add_req+0x33f/0xf90 [hv_balloon]
+> [  725.342777]  [<ffffffff8109509f>] process_one_work+0x1df/0x4e0
+> [  725.361459]  [<ffffffff8109502d>] ? process_one_work+0x16d/0x4e0
+> [  725.380390]  [<ffffffff810954bb>] worker_thread+0x11b/0x450
+> [  725.397684]  [<ffffffff810953a0>] ? process_one_work+0x4e0/0x4e0
+> [  725.416533]  [<ffffffff8109ac33>] kthread+0xf3/0x110
+> [  725.433372]  [<ffffffff8109ab40>] ? kthread_create_on_node+0x240/0x240
+> [  725.453749]  [<ffffffff81ab1dfc>] ret_from_fork+0x7c/0xb0
+> [  725.470994]  [<ffffffff8109ab40>] ? kthread_create_on_node+0x240/0x240
+> [  725.491469] 6 locks held by kworker/0:1/27:
+> [  725.505037]  #0:  ("events"){......}, at: [<ffffffff8109502d>] process_one_work+0x16d/0x4e0
+> [  725.533370]  #1:  ((&dm_device.ha_wrk.wrk)){......}, at: [<ffffffff8109502d>] process_one_work+0x16d/0x4e0
+> [  725.565580]  #2:  (mem_hotplug.lock){......}, at: [<ffffffff811e6525>] mem_hotplug_begin+0x5/0x80
+> [  725.594369]  #3:  (mem_hotplug.lock#2){......}, at: [<ffffffff811e656f>] mem_hotplug_begin+0x4f/0x80
+> [  725.628554]  #4:  (mem_sysfs_mutex){......}, at: [<ffffffff81601873>] register_new_memory+0x33/0xd0
+> [  725.658519]  #5:  (&dev->mutex){......}, at: [<ffffffff815ed773>] device_attach+0x23/0xb0
+> 
+> Second participant, udev:
+> 
+> [  725.750889] systemd-udevd   D ffff88003b94fc68 14016   888    530 0x00000004
+> [  725.773767]  ffff88003b94fc68 0000000000000000 ffff8800034949c0 00000000000151c0
+> [  725.798332]  ffffffff8210d980 ffff88003b94ffd8 00000000000151c0 ffff880037a69270
+> [  725.822841]  ffff8800034949c0 0000000100000001 ffff8800034949c0 ffffffff81ff2b48
+> [  725.849184] Call Trace:
+> [  725.858987]  [<ffffffff81aac0a9>] schedule_preempt_disabled+0x29/0x70
+> [  725.879231]  [<ffffffff81aae33b>] mutex_lock_nested+0x14b/0x470
+> [  725.897860]  [<ffffffff811e656f>] ? mem_hotplug_begin+0x4f/0x80
+> [  725.916698]  [<ffffffff811e656f>] mem_hotplug_begin+0x4f/0x80
+> [  725.935064]  [<ffffffff811e6525>] ? mem_hotplug_begin+0x5/0x80
+> [  725.953464]  [<ffffffff81a9631b>] online_pages+0x3b/0x520
+> [  725.971542]  [<ffffffff815eb0b3>] ? device_online+0x23/0xa0
+> [  725.989207]  [<ffffffff81601524>] memory_subsys_online+0x64/0xc0
+> [  726.008513]  [<ffffffff815eb0fd>] device_online+0x6d/0xa0
+> [  726.025579]  [<ffffffff816012eb>] store_mem_state+0x5b/0xe0
+> [  726.043400]  [<ffffffff815e8258>] dev_attr_store+0x18/0x30
+> [  726.060506]  [<ffffffff8127a808>] sysfs_kf_write+0x48/0x60
+> [  726.077940]  [<ffffffff81279d1b>] kernfs_fop_write+0x13b/0x1a0
+> [  726.099416]  [<ffffffff811f9f67>] vfs_write+0xb7/0x1f0
+> [  726.115748]  [<ffffffff811fabf8>] SyS_write+0x58/0xd0
+> [  726.131933]  [<ffffffff81ab1ea9>] system_call_fastpath+0x12/0x17
+> [  726.150691] 7 locks held by systemd-udevd/888:
+> [  726.165044]  #0:  (sb_writers#3){......}, at: [<ffffffff811fa063>] vfs_write+0x1b3/0x1f0
+> [  726.192422]  #1:  (&of->mutex){......}, at: [<ffffffff81279c46>] kernfs_fop_write+0x66/0x1a0
+> [  726.220289]  #2:  (s_active#60){......}, at: [<ffffffff81279c4e>] kernfs_fop_write+0x6e/0x1a0
+> [  726.249382]  #3:  (device_hotplug_lock){......}, at: [<ffffffff815e9c15>] lock_device_hotplug_sysfs+0x15/0x50
+> [  726.281901]  #4:  (&dev->mutex){......}, at: [<ffffffff815eb0b3>] device_online+0x23/0xa0
+> [  726.308619]  #5:  (mem_hotplug.lock){......}, at: [<ffffffff811e6525>] mem_hotplug_begin+0x5/0x80
+> [  726.337994]  #6:  (mem_hotplug.lock#2){......}, at: [<ffffffff811e656f>] mem_hotplug_begin+0x4f/0x80
+> 
+> In short: onlining grabs device lock and then tries to do mem_hotplug_begin()
+> while add_memory() is between mem_hotplug_begin() and mem_hotplug_done() and it
+> tries grabbing device lock.
+> 
+> To my understanding ACPI memory hotplug doesn't have the same issue as
+> device_hotplug_lock is being grabbed when the ACPI device is added.
+> 
+> Solve the issue by grabbing device_hotplug_lock before doing add_memory(). If
+> we do that, lock_device_hotplug_sysfs() will cause syscall retry which will
+> eventually succeed. To support the change we need to export lock_device_hotplug/
+> unlock_device_hotplug. This approach can be completely wrong though.
 
-Ok, I didn't know if the slab implementation would follow the same format 
-with the same callbacks or whether this would need to be cleaned up later.  
-
-> > return 0 instead of using _HAVE_SLAB_ALLOCATOR_ARRAY_OPERATIONS at all.
-> 
-> Ok that is a good idea. I'll just drop that macro and have all allocators
-> provide dummy functions.
-> 
-> > > +#ifndef _HAVE_SLAB_ALLOCATOR_ARRAY_OPERATIONS
-> > > +void kmem_cache_free_array(struct kmem_cache *s, size_t nr, void **p)
-> > > +{
-> > > +	__kmem_cache_free_array(s, nr, p);
-> > > +}
-> > > +EXPORT_SYMBOL(kmem_cache_free_array);
-> > > +#endif
-> > > +
-> >
-> > Hmm, not sure why the allocator would be required to do the
-> > EXPORT_SYMBOL() if it defines kmem_cache_free_array() itself.  This
-> 
-> Keeping the EXPORT with the definition is the custom as far as I could
-> tell.
-> 
-
-If you do dummy functions for all the allocators, then this should be as 
-simple as unconditionally defining kmem_cache_free_array() and doing 
-EXPORT_SYMBOL() here and then using your current implementation of 
-__kmem_cache_free_array() for mm/slab.c.
+Saying the approach could be completely wrong doesn't inspire a lot of 
+confidence.  I assume this output is from the hung task detector, is there 
+any other lockdep output that suggests there's a possible deadlock?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
