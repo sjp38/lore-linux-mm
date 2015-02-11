@@ -1,64 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
-	by kanga.kvack.org (Postfix) with ESMTP id A02746B0032
-	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 15:34:03 -0500 (EST)
-Received: by mail-qc0-f180.google.com with SMTP id s11so5119142qcv.11
-        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 12:34:03 -0800 (PST)
-Received: from mail-qg0-x22a.google.com (mail-qg0-x22a.google.com. [2607:f8b0:400d:c04::22a])
-        by mx.google.com with ESMTPS id x46si2189377qgx.121.2015.02.11.12.34.02
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 991346B0038
+	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 15:39:53 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id hz1so6350960pad.9
+        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 12:39:53 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id e4si2184330pas.199.2015.02.11.12.39.49
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Feb 2015 12:34:02 -0800 (PST)
-Received: by mail-qg0-f42.google.com with SMTP id z107so4738438qgd.1
-        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 12:34:02 -0800 (PST)
-Date: Wed, 11 Feb 2015 15:33:59 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC] Making memcg track ownership per address_space or anon_vma
-Message-ID: <20150211203359.GF21356@htj.duckdns.org>
-References: <xr93zj8ti6ca.fsf@gthelen.mtv.corp.google.com>
- <20150205131514.GD25736@htj.dyndns.org>
- <xr93siekt3p3.fsf@gthelen.mtv.corp.google.com>
- <20150205222522.GA10580@htj.dyndns.org>
- <xr93pp9nucrt.fsf@gthelen.mtv.corp.google.com>
- <20150206141746.GB10580@htj.dyndns.org>
- <CAHH2K0bxvc34u1PugVQsSfxXhmN8qU6KRpiCWwOVBa6BPqMDOg@mail.gmail.com>
- <20150207143839.GA9926@htj.dyndns.org>
- <20150211021906.GA21356@htj.duckdns.org>
- <CAHH2K0aHM=jmzbgkSCdFX0NxWbHBcVXqi3EAr0MS-gE3Txk93w@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAHH2K0aHM=jmzbgkSCdFX0NxWbHBcVXqi3EAr0MS-gE3Txk93w@mail.gmail.com>
+        Wed, 11 Feb 2015 12:39:49 -0800 (PST)
+Date: Wed, 11 Feb 2015 12:39:47 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/3] driver core: export
+ lock_device_hotplug/unlock_device_hotplug
+Message-Id: <20150211123947.3318933f2aca54e11324b088@linux-foundation.org>
+In-Reply-To: <1423669462-30918-2-git-send-email-vkuznets@redhat.com>
+References: <1423669462-30918-1-git-send-email-vkuznets@redhat.com>
+	<1423669462-30918-2-git-send-email-vkuznets@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Christoph Hellwig <hch@infradead.org>, Li Zefan <lizefan@huawei.com>, Hugh Dickins <hughd@google.com>
+To: Vitaly Kuznetsov <vkuznets@redhat.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Haiyang Zhang <haiyangz@microsoft.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Fabian Frederick <fabf@skynet.be>, Zhang Zhen <zhenzhang.zhang@huawei.com>, Vladimir Davydov <vdavydov@parallels.com>, Wang Nan <wangnan0@huawei.com>, linux-kernel@vger.kernel.org, devel@linuxdriverproject.org, linux-mm@kvack.org, "Rafael J. Wysocki" <rjw@sisk.pl>
 
-Hello, Greg.
+On Wed, 11 Feb 2015 16:44:20 +0100 Vitaly Kuznetsov <vkuznets@redhat.com> wrote:
 
-On Wed, Feb 11, 2015 at 10:28:44AM -0800, Greg Thelen wrote:
-> This seems good.  I assume that blkcg writeback would query
-> corresponding memcg for dirty page count to determine if over
-> background limit.  And balance_dirty_pages() would query memcg's dirty
+> add_memory() is supposed to be run with device_hotplug_lock grabbed, otherwise
+> it can race with e.g. device_online(). Allow external modules (hv_balloon for
+> now) to lock device hotplug.
+> 
+> ...
+>
+> --- a/drivers/base/core.c
+> +++ b/drivers/base/core.c
+> @@ -55,11 +55,13 @@ void lock_device_hotplug(void)
+>  {
+>  	mutex_lock(&device_hotplug_lock);
+>  }
+> +EXPORT_SYMBOL_GPL(lock_device_hotplug);
+>  
+>  void unlock_device_hotplug(void)
+>  {
+>  	mutex_unlock(&device_hotplug_lock);
+>  }
+> +EXPORT_SYMBOL_GPL(unlock_device_hotplug);
+>  
+>  int lock_device_hotplug_sysfs(void)
+>  {
 
-Yeah, available memory to the matching memcg and the number of dirty
-pages in it.  It's gonna work the same way as the global case just
-scoped to the cgroup.
+It's kinda crazy that lock_device_hotplug_sysfs() didn't get any
+documentation.  I suggest adding this while you're in there:
 
-> page count to throttle based on blkcg's bandwidth.  Note: memcg
-> doesn't yet have dirty page counts, but several of us have made
-> attempts at adding the counters.  And it shouldn't be hard to get them
-> merged.
 
-Can you please post those?
+--- a/drivers/base/core.c~a
++++ a/drivers/base/core.c
+@@ -61,6 +61,9 @@ void unlock_device_hotplug(void)
+ 	mutex_unlock(&device_hotplug_lock);
+ }
+ 
++/*
++ * "git show 5e33bc4165f3ed" for details
++ */
+ int lock_device_hotplug_sysfs(void)
+ {
+ 	if (mutex_trylock(&device_hotplug_lock))
 
-So, cool, we're in agreement.  Working on it.  It shouldn't take too
-long, hopefully.
+which is a bit lazy but whatev.
 
-Thanks.
-
--- 
-tejun
+I'll assume that Greg (or Rafael?) will be processing this patchset.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
