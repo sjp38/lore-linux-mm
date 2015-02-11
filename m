@@ -1,101 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id B2EAC6B0032
-	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 07:20:31 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id kq14so3698424pab.3
-        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 04:20:31 -0800 (PST)
-Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
-        by mx.google.com with ESMTPS id kj4si594996pdb.209.2015.02.11.04.20.29
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Wed, 11 Feb 2015 04:20:30 -0800 (PST)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout1.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NJL00EA0X4W1K50@mailout1.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 11 Feb 2015 12:24:33 +0000 (GMT)
-Message-id: <54DB4908.10004@samsung.com>
-Date: Wed, 11 Feb 2015 13:20:24 +0100
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-MIME-version: 1.0
-Subject: Re: [RFCv3 2/2] dma-buf: add helpers for sharing attacher constraints
- with dma-parms
-References: <1422347154-15258-1-git-send-email-sumit.semwal@linaro.org>
- <1422347154-15258-2-git-send-email-sumit.semwal@linaro.org>
- <54DB12B5.4080000@samsung.com> <20150211111258.GP8656@n2100.arm.linux.org.uk>
-In-reply-to: <20150211111258.GP8656@n2100.arm.linux.org.uk>
-Content-type: text/plain; charset=utf-8; format=flowed
-Content-transfer-encoding: 7bit
+Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
+	by kanga.kvack.org (Postfix) with ESMTP id B2CB36B0032
+	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 07:25:03 -0500 (EST)
+Received: by mail-we0-f171.google.com with SMTP id p10so3089458wes.2
+        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 04:25:03 -0800 (PST)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.227])
+        by mx.google.com with ESMTP id au9si1074528wjc.87.2015.02.11.04.25.01
+        for <linux-mm@kvack.org>;
+        Wed, 11 Feb 2015 04:25:02 -0800 (PST)
+Date: Wed, 11 Feb 2015 14:22:24 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: mm: NULL ptr deref in unlink_file_vma
+Message-ID: <20150211122224.GA9769@node.dhcp.inet.fi>
+References: <549832E2.8060609@oracle.com>
+ <20141222180102.GA8072@node.dhcp.inet.fi>
+ <54985D59.5010506@oracle.com>
+ <20141222191452.GA20295@node.dhcp.inet.fi>
+ <CALYGNiO8-RqqY2gLGeoXvPkbKJabERHfaVLTaUp5s_=-WFR9KA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALYGNiO8-RqqY2gLGeoXvPkbKJabERHfaVLTaUp5s_=-WFR9KA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: Sumit Semwal <sumit.semwal@linaro.org>, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, robin.murphy@arm.com, robdclark@gmail.com, linaro-kernel@lists.linaro.org, stanislawski.tomasz@googlemail.com, daniel@ffwll.ch
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Davidlohr Bueso <dave@stgolabs.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>
 
-Hello,
+On Tue, Feb 10, 2015 at 10:42:31PM +0400, Konstantin Khlebnikov wrote:
+> On Mon, Dec 22, 2014 at 10:14 PM, Kirill A. Shutemov
+> <kirill@shutemov.name> wrote:
+> > On Mon, Dec 22, 2014 at 01:05:13PM -0500, Sasha Levin wrote:
+> >> On 12/22/2014 01:01 PM, Kirill A. Shutemov wrote:
+> >> > On Mon, Dec 22, 2014 at 10:04:02AM -0500, Sasha Levin wrote:
+> >> >> > Hi all,
+> >> >> >
+> >> >> > While fuzzing with trinity inside a KVM tools guest running the latest -next
+> >> >> > kernel, I've stumbled on the following spew:
+> >> >> >
+> >> >> > [  432.376425] BUG: unable to handle kernel NULL pointer dereference at 0000000000000038
+> >> >> > [  432.378876] IP: down_write (./arch/x86/include/asm/rwsem.h:105 ./arch/x86/include/asm/rwsem.h:121 kernel/locking/rwsem.c:71)
+> >> > Looks like vma->vm_file->mapping is NULL. Somebody freed ->vm_file from
+> >> > under us?
+> >> >
+> >> > I suspect Davidlohr's patchset on i_mmap_lock, but I cannot find any code
+> >> > path which could lead to the crash.
+> >>
+> >> I've reported a different issue which that patchset: https://lkml.org/lkml/2014/12/9/741
+> >>
+> >> I guess it could be related?
+> >
+> > Maybe.
+> >
+> > Other thing:
+> >
+> >  unmap_mapping_range()
+> >    i_mmap_lock_read(mapping);
+> >    unmap_mapping_range_tree()
+> >      unmap_mapping_range_vma()
+> >        zap_page_range_single()
+> >          unmap_single_vma()
+> >            untrack_pfn()
+> >              vma->vm_flags &= ~VM_PAT;
+> >
+> > It seems we modify ->vm_flags without mmap_sem taken, means we can corrupt
+> > them.
+> >
+> > Sasha could you check if you hit untrack_pfn()?
+> >
+> > The problem probably was hidden by exclusive i_mmap_lock on
+> > unmap_mapping_range(), but it's not exclusive anymore afrer Dave's
+> > patchset.
+> >
+> > Konstantin, you've modified untrack_pfn() back in 2012 to change
+> > ->vm_flags. Any coments?
+> 
+> Hmm. I don't really understand how
+> unmap_mapping_range() could be used for VM_PFNMAP mappings
+> except unmap() or exit_mmap() where mm is locked anyway.
+> Somebody truncates memory mapped device and unmaps mapped PFNs?
 
-On 2015-02-11 12:12, Russell King - ARM Linux wrote:
-> On Wed, Feb 11, 2015 at 09:28:37AM +0100, Marek Szyprowski wrote:
->> On 2015-01-27 09:25, Sumit Semwal wrote:
->>> Add some helpers to share the constraints of devices while attaching
->>> to the dmabuf buffer.
->>>
->>> At each attach, the constraints are calculated based on the following:
->>> - max_segment_size, max_segment_count, segment_boundary_mask from
->>>     device_dma_parameters.
->>>
->>> In case the attaching device's constraints don't match up, attach() fails.
->>>
->>> At detach, the constraints are recalculated based on the remaining
->>> attached devices.
->>>
->>> Two helpers are added:
->>> - dma_buf_get_constraints - which gives the current constraints as calculated
->>>        during each attach on the buffer till the time,
->>> - dma_buf_recalc_constraints - which recalculates the constraints for all
->>>        currently attached devices for the 'paranoid' ones amongst us.
->>>
->>> The idea of this patch is largely taken from Rob Clark's RFC at
->>> https://lkml.org/lkml/2012/7/19/285, and the comments received on it.
->>>
->>> Cc: Rob Clark <robdclark@gmail.com>
->>> Signed-off-by: Sumit Semwal <sumit.semwal@linaro.org>
->> The code looks okay, although it will probably will work well only with
->> typical cases like 'contiguous memory needed' or 'no constraints at all'
->> (iommu).
-> Which is a damn good reason to NAK it - by that admission, it's a half-baked
-> idea.
->
-> If all we want to know is whether the importer can accept only contiguous
-> memory or not, make a flag to do that, and allow the exporter to test this
-> flag.  Don't over-engineer this to make it _seem_ like it can do something
-> that it actually totally fails with.
->
-> As I've already pointed out, there's a major problem if you have already
-> had a less restrictive attachment which has an active mapping, and a new
-> more restrictive attachment comes along later.
->
-> It seems from Rob's descriptions that we also need another flag in the
-> importer to indicate whether it wants to have a valid struct page in the
-> scatter list, or whether it (correctly) uses the DMA accessors on the
-> scatter list - so that exporters can reject importers which are buggy.
+Hm. Probably not. But it's not obvious to me what would stop this.
+Should we at least have assert on mmap_sem locked in untrack_pfn()?
 
-Okay, but flag-based approach also have limitations.
+> If it's a problem then I think VM_PAT could be tuned into hint which
+> means PAT tracking was here and we pat should check internal structure
+> for details and take actions if pat tracking is still here. As I see
+> pat tracking probably also have problems if somebody unmaps that vma
+> partially.
 
-Frankly, if we want to make it really portable and sharable between devices,
-then IMO we should get rid of struct scatterlist and replace it with simple
-array of pfns in dma_buf. This way at least the problem of missing struct
-page will be solved and the buffer representation will be also a bit more
-compact.
+IIUC, we only mark a vma with VM_PAT if whole vma is subject for
+remap_pfn_range(). I don't see a point in cleaning VM_PAT -- just let it
+die with vma. Or do I miss something?
 
-Such solution however also requires extending dma-mapping API to handle
-mapping and unmapping of such pfn arrays. The advantage of this approach
-is the fact that it will be completely new API, so it can be designed
-well from the beginning.
-
-Best regards
 -- 
-Marek Szyprowski, PhD
-Samsung R&D Institute Poland
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
