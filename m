@@ -1,37 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 31F93900015
-	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 12:59:22 -0500 (EST)
-Received: by mail-ig0-f173.google.com with SMTP id a13so32461949igq.0
-        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 09:59:21 -0800 (PST)
-Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com. [209.85.223.169])
-        by mx.google.com with ESMTPS id p191si1148281ioe.57.2015.02.11.09.59.21
+Received: from mail-vc0-f180.google.com (mail-vc0-f180.google.com [209.85.220.180])
+	by kanga.kvack.org (Postfix) with ESMTP id E38DE900015
+	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 13:29:05 -0500 (EST)
+Received: by mail-vc0-f180.google.com with SMTP id im6so1811852vcb.11
+        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 10:29:05 -0800 (PST)
+Received: from mail-vc0-x22a.google.com (mail-vc0-x22a.google.com. [2607:f8b0:400c:c03::22a])
+        by mx.google.com with ESMTPS id qm8si1026062vcb.12.2015.02.11.10.29.04
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Feb 2015 09:59:21 -0800 (PST)
-Received: by ierx19 with SMTP id x19so5905128ier.3
-        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 09:59:21 -0800 (PST)
+        Wed, 11 Feb 2015 10:29:04 -0800 (PST)
+Received: by mail-vc0-f170.google.com with SMTP id hq12so1852574vcb.1
+        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 10:29:04 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1423674728-214192-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1423674728-214192-1-git-send-email-kirill.shutemov@linux.intel.com>
-Date: Wed, 11 Feb 2015 09:59:21 -0800
-Message-ID: <CA+55aFxGF+5qfSfa+JeUQscogT4uk0cu=y+R1WKqDFB9kZDK6Q@mail.gmail.com>
-Subject: Re: [PATCH 0/4] Cleanup mm_populate() codepath
-From: Linus Torvalds <torvalds@linux-foundation.org>
+In-Reply-To: <20150211021906.GA21356@htj.duckdns.org>
+References: <CAHH2K0aSPjNgt30uJQa_6r=AXZso3SitjWOm96dtJF32CumZjQ@mail.gmail.com>
+ <20150204170656.GA18858@htj.dyndns.org> <xr93zj8ti6ca.fsf@gthelen.mtv.corp.google.com>
+ <20150205131514.GD25736@htj.dyndns.org> <xr93siekt3p3.fsf@gthelen.mtv.corp.google.com>
+ <20150205222522.GA10580@htj.dyndns.org> <xr93pp9nucrt.fsf@gthelen.mtv.corp.google.com>
+ <20150206141746.GB10580@htj.dyndns.org> <CAHH2K0bxvc34u1PugVQsSfxXhmN8qU6KRpiCWwOVBa6BPqMDOg@mail.gmail.com>
+ <20150207143839.GA9926@htj.dyndns.org> <20150211021906.GA21356@htj.duckdns.org>
+From: Greg Thelen <gthelen@google.com>
+Date: Wed, 11 Feb 2015 10:28:44 -0800
+Message-ID: <CAHH2K0aHM=jmzbgkSCdFX0NxWbHBcVXqi3EAr0MS-gE3Txk93w@mail.gmail.com>
+Subject: Re: [RFC] Making memcg track ownership per address_space or anon_vma
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Christoph Hellwig <hch@infradead.org>, Li Zefan <lizefan@huawei.com>, Hugh Dickins <hughd@google.com>
 
-On Wed, Feb 11, 2015 at 9:12 AM, Kirill A. Shutemov
-<kirill.shutemov@linux.intel.com> wrote:
-> While reading mlock()- and mm_populate()-related code, I've found several
-> things confusing. This patchset cleanup the codepath for future readers.
+On Tue, Feb 10, 2015 at 6:19 PM, Tejun Heo <tj@kernel.org> wrote:
+> Hello, again.
+>
+> On Sat, Feb 07, 2015 at 09:38:39AM -0500, Tejun Heo wrote:
+>> If we can argue that memcg and blkcg having different views is
+>> meaningful and characterize and justify the behaviors stemming from
+>> the deviation, sure, that'd be fine, but I don't think we have that as
+>> of now.
+>
+> If we assume that memcg and blkcg having different views is something
+> which represents an acceptable compromise considering the use cases
+> and implementation convenience - IOW, if we assume that read-sharing
+> is something which can happen regularly while write sharing is a
+> corner case and that while not completely correct the existing
+> self-corrective behavior from tracking ownership per-page at the point
+> of instantiation is good enough (as a memcg under pressure is likely
+> to give up shared pages to be re-instantiated by another sharer w/
+> more budget), we need to do the impedance matching between memcg and
+> blkcg at the writeback layer.
+>
+> The main issue there is that the last chain of IO pressure propagation
+> is realized by making individual dirtying tasks to converge on a
+> common target dirty ratio point which naturally depending on those
+> tasks seeing the same picture in terms of the current write bandwidth
+> and available memory and how much of it is dirty.  Tasks dirtying
+> pages belonging to the same memcg while some of them are mostly being
+> written out by a different blkcg would wreck the mechanism.  It won't
+> be difficult for one subset to make the other to consider themselves
+> under severe IO pressure when there actually isn't one in that group
+> possibly stalling and starving those tasks unduly.  At more basic
+> level, it's just wrong for one group to be writing out significant
+> amount for another.
+>
+> These issues can persist indefinitely if we follow the same
+> instantiator-owns rule for inode writebacks.  Even if we reset the
+> ownership when an inode becomes clea, it wouldn't work as it can be
+> dirtied over and over again while under writeback, and when things
+> like this happen, the behavior may become extremely difficult to
+> understand or characterize.  We don't have visibility into how
+> individual pages of an inode get distributed across multiple cgroups,
+> who's currently responsible for writing back a specific inode or how
+> dirty ratio mechanism is behaving in the face of the unexpected
+> combination of parameters.
+>
+> Even if we assume that write sharing is a fringe case, we need
+> something better than first-whatever rule when choosing which blkcg is
+> responsible for writing a shared inode out.  There needs to be a
+> constant corrective pressure so that incidental and temporary sharings
+> don't end up screwing up the mechanism for an extended period of time.
+>
+> Greg mentioned chossing the closest ancestor of the sharers, which
+> basically pushes inode sharing policy implmentation down to writeback
+> from memcg.  This could work but we end up with the same collusion
+> problem as when this is used for memcg and it's even more difficult to
+> solve this at writeback layer - we'd have to communicate the shared
+> state all the way down to block layer and then implement a mechanism
+> there to take corrective measures and even after that we're likely to
+> end up with prolonged state where dirty ratio propagation is
+> essentially broken as the dirtier and writer would be seeing different
+> pictures.
+>
+> So, based on the assumption that write sharings are mostly incidental
+> and temporary (ie. we're basically declaring that we don't support
+> persistent write sharing), how about something like the following?
+>
+> 1. memcg contiues per-page tracking.
+>
+> 2. Each inode is associated with a single blkcg at a given time and
+>    written out by that blkcg.
+>
+> 3. While writing back, if the number of pages from foreign memcg's is
+>    higher than certain ratio of total written pages, the inode is
+>    marked as disowned and the writeback instance is optionally
+>    terminated early.  e.g. if the ratio of foreign pages is over 50%
+>    after writing out the number of pages matching 5s worth of write
+>    bandwidth for the bdi, mark the inode as disowned.
+>
+> 4. On the following dirtying of the inode, the inode is associated
+>    with the matching blkcg of the dirtied page.  Note that this could
+>    be the next cycle as the inode could already have been marked dirty
+>    by the time the above condition triggered.  In that case, the
+>    following writeback would be terminated early too.
+>
+> This should provide sufficient corrective pressure so that incidental
+> and temporary sharing of an inode doesn't become a persistent issue
+> while keeping the complexity necessary for implementing such pressure
+> fairly minimal and self-contained.  Also, the changes necessary for
+> individual filesystems would be minimal.
+>
+> I think this should work well enough as long as the forementioned
+> assumptions are true - IOW, if we maintain that write sharing is
+> unsupported.
+>
+> What do you think?
+>
+> Thanks.
+>
+> --
+> tejun
 
-Looks sane to me. Ack.
-
-                 Linus
+This seems good.  I assume that blkcg writeback would query
+corresponding memcg for dirty page count to determine if over
+background limit.  And balance_dirty_pages() would query memcg's dirty
+page count to throttle based on blkcg's bandwidth.  Note: memcg
+doesn't yet have dirty page counts, but several of us have made
+attempts at adding the counters.  And it shouldn't be hard to get them
+merged.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
