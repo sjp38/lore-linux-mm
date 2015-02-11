@@ -1,84 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E0176B0032
-	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 15:09:30 -0500 (EST)
-Received: by mail-we0-f182.google.com with SMTP id l61so5745982wev.13
-        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 12:09:30 -0800 (PST)
-Received: from mail-wi0-x22f.google.com (mail-wi0-x22f.google.com. [2a00:1450:400c:c05::22f])
-        by mx.google.com with ESMTPS id ew10si33909926wic.34.2015.02.11.12.09.28
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id DC7E96B0032
+	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 15:18:14 -0500 (EST)
+Received: by mail-wi0-f177.google.com with SMTP id bs8so7852614wib.4
+        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 12:18:14 -0800 (PST)
+Received: from mail-we0-x235.google.com (mail-we0-x235.google.com. [2a00:1450:400c:c03::235])
+        by mx.google.com with ESMTPS id wl10si3432285wjb.18.2015.02.11.12.18.13
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Feb 2015 12:09:29 -0800 (PST)
-Received: by mail-wi0-f175.google.com with SMTP id r20so20074628wiv.2
-        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 12:09:28 -0800 (PST)
-Date: Wed, 11 Feb 2015 12:09:23 -0800 (PST)
+        Wed, 11 Feb 2015 12:18:13 -0800 (PST)
+Received: by mail-we0-f181.google.com with SMTP id w62so5801462wes.12
+        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 12:18:13 -0800 (PST)
+Date: Wed, 11 Feb 2015 12:18:07 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH -mm] slub: kmem_cache_shrink: init discard list after
- freeing slabs
-In-Reply-To: <20150211154128.GA26049@esperanza>
-Message-ID: <alpine.DEB.2.10.1502111206150.16711@chino.kir.corp.google.com>
-References: <1423627463.5968.99.camel@intel.com> <1423642582-23553-1-git-send-email-vdavydov@parallels.com> <alpine.DEB.2.11.1502110851180.32065@gentwo.org> <alpine.DEB.2.11.1502110857410.948@gentwo.org> <20150211154128.GA26049@esperanza>
+Subject: Re: [PATCH 1/3] Slab infrastructure for array operations
+In-Reply-To: <alpine.DEB.2.11.1502111243380.3887@gentwo.org>
+Message-ID: <alpine.DEB.2.10.1502111213151.16711@chino.kir.corp.google.com>
+References: <20150210194804.288708936@linux.com> <20150210194811.787556326@linux.com> <alpine.DEB.2.10.1502101542030.15535@chino.kir.corp.google.com> <alpine.DEB.2.11.1502111243380.3887@gentwo.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com, Jesper Dangaard Brouer <brouer@redhat.com>
 
-On Wed, 11 Feb 2015, Vladimir Davydov wrote:
+On Wed, 11 Feb 2015, Christoph Lameter wrote:
 
-> Currently, the discard list is only initialized at the beginning of the
-> function. As a result, if there are > 1 nodes, we can get use-after-free
-> while processing the second or higher node:
+> > This patch is referencing functions that don't exist and can do so since
+> > it's not compiled, but I think this belongs in the next patch.  I also
+> > think that this particular implementation may be slub-specific so I would
+> > have expected just a call to an allocator-defined
+> > __kmem_cache_alloc_array() here with i = __kmem_cache_alloc_array().
 > 
->     WARNING: CPU: 60 PID: 1 at lib/list_debug.c:29 __list_add+0x3c/0xa9()
->     list_add corruption. next->prev should be prev (ffff881ff0a6bb98), but was ffffea007ff57020. (next=ffffea007fbf7320).
->     Modules linked in:
->     CPU: 60 PID: 1 Comm: swapper/0 Not tainted 3.19.0-rc7-next-20150203-gb50cadf #2178
->     Hardware name: Intel Corporation BRICKLAND/BRICKLAND, BIOS BIVTSDP1.86B.0038.R02.1307231126 07/23/2013
->      0000000000000009 ffff881ff0a6ba88 ffffffff81c2e096 ffffffff810e2d03
->      ffff881ff0a6bad8 ffff881ff0a6bac8 ffffffff8108b320 ffff881ff0a6bb18
->      ffffffff8154bbc7 ffff881ff0a6bb98 ffffea007fbf7320 ffffea00ffc3c220
->     Call Trace:
->      [<ffffffff81c2e096>] dump_stack+0x4c/0x65
->      [<ffffffff810e2d03>] ? console_unlock+0x398/0x3c7
->      [<ffffffff8108b320>] warn_slowpath_common+0xa1/0xbb
->      [<ffffffff8154bbc7>] ? __list_add+0x3c/0xa9
->      [<ffffffff8108b380>] warn_slowpath_fmt+0x46/0x48
->      [<ffffffff8154bbc7>] __list_add+0x3c/0xa9
->      [<ffffffff811bf5aa>] __kmem_cache_shrink+0x12b/0x24c
->      [<ffffffff81190ca9>] kmem_cache_shrink+0x26/0x38
->      [<ffffffff815848b4>] acpi_os_purge_cache+0xe/0x12
->      [<ffffffff815c6424>] acpi_purge_cached_objects+0x32/0x7a
->      [<ffffffff825f70f1>] acpi_initialize_objects+0x17e/0x1ae
->      [<ffffffff825f5177>] ? acpi_sleep_proc_init+0x2a/0x2a
->      [<ffffffff825f5209>] acpi_init+0x92/0x25e
->      [<ffffffff810002bd>] ? do_one_initcall+0x90/0x17f
->      [<ffffffff811bdfcd>] ? kfree+0x1fc/0x2d5
->      [<ffffffff825f5177>] ? acpi_sleep_proc_init+0x2a/0x2a
->      [<ffffffff8100031a>] do_one_initcall+0xed/0x17f
->      [<ffffffff825ae0e2>] kernel_init_freeable+0x1f0/0x278
->      [<ffffffff81c1f31a>] ? rest_init+0x13e/0x13e
->      [<ffffffff81c1f328>] kernel_init+0xe/0xda
->      [<ffffffff81c3ca7c>] ret_from_fork+0x7c/0xb0
->      [<ffffffff81c1f31a>] ? rest_init+0x13e/0x13e
+> The implementation is generic and can be used in the same way for SLAB.
+> SLOB does not have these types of object though.
 > 
-> Fix this by initializing the discard list at each iteration of the
-> for_each_kmem_cache_node loop. Also, move promote lists initialization
-> to the beginning of the loop to conform.
+
+Ok, I didn't know if the slab implementation would follow the same format 
+with the same callbacks or whether this would need to be cleaned up later.  
+
+> > return 0 instead of using _HAVE_SLAB_ALLOCATOR_ARRAY_OPERATIONS at all.
 > 
-> fixes: slub-never-fail-to-shrink-cache
+> Ok that is a good idea. I'll just drop that macro and have all allocators
+> provide dummy functions.
+> 
+> > > +#ifndef _HAVE_SLAB_ALLOCATOR_ARRAY_OPERATIONS
+> > > +void kmem_cache_free_array(struct kmem_cache *s, size_t nr, void **p)
+> > > +{
+> > > +	__kmem_cache_free_array(s, nr, p);
+> > > +}
+> > > +EXPORT_SYMBOL(kmem_cache_free_array);
+> > > +#endif
+> > > +
+> >
+> > Hmm, not sure why the allocator would be required to do the
+> > EXPORT_SYMBOL() if it defines kmem_cache_free_array() itself.  This
+> 
+> Keeping the EXPORT with the definition is the custom as far as I could
+> tell.
+> 
 
-8f44a586ac86 ("slub: never fail to shrink cache")
-
-> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-> Reported-by: Huang Ying <ying.huang@intel.com>
-> Cc: Christoph Lameter <cl@linux.com>
-> Cc: Pekka Enberg <penberg@kernel.org>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-
-Acked-by: David Rientjes <rientjes@google.com>
+If you do dummy functions for all the allocators, then this should be as 
+simple as unconditionally defining kmem_cache_free_array() and doing 
+EXPORT_SYMBOL() here and then using your current implementation of 
+__kmem_cache_free_array() for mm/slab.c.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
