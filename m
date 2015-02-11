@@ -1,89 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f173.google.com (mail-lb0-f173.google.com [209.85.217.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 062466B0032
-	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 16:22:37 -0500 (EST)
-Received: by mail-lb0-f173.google.com with SMTP id n10so5855232lbv.4
-        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 13:22:36 -0800 (PST)
-Received: from mail-lb0-x230.google.com (mail-lb0-x230.google.com. [2a00:1450:4010:c04::230])
-        by mx.google.com with ESMTPS id la5si1525000lac.113.2015.02.11.13.22.34
+Received: from mail-yh0-f43.google.com (mail-yh0-f43.google.com [209.85.213.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 668536B0032
+	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 16:43:26 -0500 (EST)
+Received: by mail-yh0-f43.google.com with SMTP id c41so2744883yho.2
+        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 13:43:26 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id e4si2442864qai.92.2015.02.11.13.43.25
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Feb 2015 13:22:35 -0800 (PST)
-Received: by mail-lb0-f176.google.com with SMTP id u10so5818447lbd.7
-        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 13:22:34 -0800 (PST)
+        Wed, 11 Feb 2015 13:43:25 -0800 (PST)
+Date: Thu, 12 Feb 2015 10:43:16 +1300
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [PATCH 2/3] slub: Support for array operations
+Message-ID: <20150212104316.2d5c32ea@redhat.com>
+In-Reply-To: <alpine.DEB.2.11.1502111305520.7547@gentwo.org>
+References: <20150210194804.288708936@linux.com>
+	<20150210194811.902155759@linux.com>
+	<20150211174817.44cc5562@redhat.com>
+	<alpine.DEB.2.11.1502111305520.7547@gentwo.org>
 MIME-Version: 1.0
-In-Reply-To: <20150211203359.GF21356@htj.duckdns.org>
-References: <xr93zj8ti6ca.fsf@gthelen.mtv.corp.google.com>
-	<20150205131514.GD25736@htj.dyndns.org>
-	<xr93siekt3p3.fsf@gthelen.mtv.corp.google.com>
-	<20150205222522.GA10580@htj.dyndns.org>
-	<xr93pp9nucrt.fsf@gthelen.mtv.corp.google.com>
-	<20150206141746.GB10580@htj.dyndns.org>
-	<CAHH2K0bxvc34u1PugVQsSfxXhmN8qU6KRpiCWwOVBa6BPqMDOg@mail.gmail.com>
-	<20150207143839.GA9926@htj.dyndns.org>
-	<20150211021906.GA21356@htj.duckdns.org>
-	<CAHH2K0aHM=jmzbgkSCdFX0NxWbHBcVXqi3EAr0MS-gE3Txk93w@mail.gmail.com>
-	<20150211203359.GF21356@htj.duckdns.org>
-Date: Thu, 12 Feb 2015 00:22:34 +0300
-Message-ID: <CALYGNiMm2VajBx0Y+XtLJ8860JS-GHfuSXQrBt32Wt0K7QpH0A@mail.gmail.com>
-Subject: Re: [RFC] Making memcg track ownership per address_space or anon_vma
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Greg Thelen <gthelen@google.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Christoph Hellwig <hch@infradead.org>, Li Zefan <lizefan@huawei.com>, Hugh Dickins <hughd@google.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com, brouer@redhat.com
 
-On Wed, Feb 11, 2015 at 11:33 PM, Tejun Heo <tj@kernel.org> wrote:
-> Hello, Greg.
->
-> On Wed, Feb 11, 2015 at 10:28:44AM -0800, Greg Thelen wrote:
->> This seems good.  I assume that blkcg writeback would query
->> corresponding memcg for dirty page count to determine if over
->> background limit.  And balance_dirty_pages() would query memcg's dirty
->
-> Yeah, available memory to the matching memcg and the number of dirty
-> pages in it.  It's gonna work the same way as the global case just
-> scoped to the cgroup.
+On Wed, 11 Feb 2015 13:07:24 -0600 (CST)
+Christoph Lameter <cl@linux.com> wrote:
 
-That might be a problem: all dirty pages accounted to cgroup must be
-reachable for its own personal writeback or balanace-drity-pages will be
-unable to satisfy memcg dirty memory thresholds. I've done accounting
-for per-inode owner, but there is another option: shared inodes might be
-handled differently and will be available for all (or related) cgroup
-writebacks.
+> On Wed, 11 Feb 2015, Jesper Dangaard Brouer wrote:
+> 
+> > > +
+> > > +
+> > > +	spin_lock_irqsave(&n->list_lock, flags);
+> >
+> > This is quite an expensive lock with irqsave.
+> 
+> Yes but we take it for all partial pages.
 
-Another side is that reclaimer now (mosly?) never trigger pageout.
-Memcg reclaimer should do something if it finds shared dirty page:
-either move it into right cgroup or make that inode reachable for
-memcg writeback. I've send patch which marks shared dirty inodes
-with flag I_DIRTY_SHARED or so.
+Sure, that is good, but this might be a contention point. In a micro
+benchmark, this contention should be visible, but in real use-cases the
+given subsystem also need to spend time to use these elements before
+requesting a new batch (as long as NIC cleanup cycles don't get too
+synchronized)
 
->
->> page count to throttle based on blkcg's bandwidth.  Note: memcg
->> doesn't yet have dirty page counts, but several of us have made
->> attempts at adding the counters.  And it shouldn't be hard to get them
->> merged.
->
-> Can you please post those?
->
-> So, cool, we're in agreement.  Working on it.  It shouldn't take too
-> long, hopefully.
 
-Good. As I see this design is almost equal to my proposal,
-maybe except that dumb first-owns-all-until-the-end rule.
+> > Yet another lock cost.
+> 
+> Yup the page access is shared but there is one per page. Contention is
+> unlikely.
 
->
-> Thanks.
->
-> --
-> tejun
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Yes, contention is unlikely, but every atomic operation is expensive.
+On my system the measured cost is 8ns, and a lock/unlock does two, thus
+16ns.  Which we then do per page freelist.
+
+
+> > > +	spin_unlock_irqrestore(&n->list_lock, flags);
+> > > +	return allocated;
+> >
+> > I estimate (on my CPU) the locking cost itself is more than 32ns, plus
+> > the irqsave (which I've also found quite expensive, alone 14ns).  Thus,
+> > estimated 46ns.  Single elem slub fast path cost is 18-19ns. Thus 3-4
+> > elem bulking should be enough to amortized the cost, guess we are still
+> > good :-)
+> 
+> We can require that interrupt are off when the functions are called. Then
+> we can avoid the "save" part?
+
+Yes, we could also do so with an "_irqoff" variant of the func call,
+but given we are defining the API we can just require this from the
+start.
+
+I plan to use this in softirq, where I know interrupts are on, but I
+can use the less-expensive "non-save" variant local_irq_{disable,enable}.
+
+Measurements show (x86_64 E5-2695):
+ *  2.860 ns cost for local_irq_{disable,enable}
+ * 14.840 ns cost for local_irq_save()+local_irq_restore()
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Sr. Network Kernel Developer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
