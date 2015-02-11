@@ -1,81 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 743A76B0032
-	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 02:32:35 -0500 (EST)
-Received: by mail-we0-f180.google.com with SMTP id k11so1557533wes.11
-        for <linux-mm@kvack.org>; Tue, 10 Feb 2015 23:32:34 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t4si30789495wiw.0.2015.02.10.23.32.32
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B37D6B0032
+	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 03:16:38 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id kx10so2550896pab.0
+        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 00:16:37 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id qn11si989223pdb.229.2015.02.11.00.16.36
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 10 Feb 2015 23:32:33 -0800 (PST)
-Date: Wed, 11 Feb 2015 08:32:27 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [RFC] Making memcg track ownership per address_space or anon_vma
-Message-ID: <20150211073227.GB30939@quack.suse.cz>
-References: <20150204170656.GA18858@htj.dyndns.org>
- <xr93zj8ti6ca.fsf@gthelen.mtv.corp.google.com>
- <20150205131514.GD25736@htj.dyndns.org>
- <xr93siekt3p3.fsf@gthelen.mtv.corp.google.com>
- <20150205222522.GA10580@htj.dyndns.org>
- <xr93pp9nucrt.fsf@gthelen.mtv.corp.google.com>
- <20150206141746.GB10580@htj.dyndns.org>
- <CAHH2K0bxvc34u1PugVQsSfxXhmN8qU6KRpiCWwOVBa6BPqMDOg@mail.gmail.com>
- <20150207143839.GA9926@htj.dyndns.org>
- <20150211021906.GA21356@htj.duckdns.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Feb 2015 00:16:37 -0800 (PST)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH -mm] slub: kmem_cache_shrink: init discard list after freeing slabs
+Date: Wed, 11 Feb 2015 11:16:22 +0300
+Message-ID: <1423642582-23553-1-git-send-email-vdavydov@parallels.com>
+In-Reply-To: <1423627463.5968.99.camel@intel.com>
+References: <1423627463.5968.99.camel@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150211021906.GA21356@htj.duckdns.org>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Greg Thelen <gthelen@google.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Christoph Hellwig <hch@infradead.org>, Li Zefan <lizefan@huawei.com>, Hugh Dickins <hughd@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-  Hello Tejun,
+Otherwise, if there are > 1 nodes, we can get use-after-free while
+processing the second or higher node:
 
-On Tue 10-02-15 21:19:06, Tejun Heo wrote:
-> On Sat, Feb 07, 2015 at 09:38:39AM -0500, Tejun Heo wrote:
-> > If we can argue that memcg and blkcg having different views is
-> > meaningful and characterize and justify the behaviors stemming from
-> > the deviation, sure, that'd be fine, but I don't think we have that as
-> > of now.
-...
-> So, based on the assumption that write sharings are mostly incidental
-> and temporary (ie. we're basically declaring that we don't support
-> persistent write sharing), how about something like the following?
-> 
-> 1. memcg contiues per-page tracking.
-> 
-> 2. Each inode is associated with a single blkcg at a given time and
->    written out by that blkcg.
-> 
-> 3. While writing back, if the number of pages from foreign memcg's is
->    higher than certain ratio of total written pages, the inode is
->    marked as disowned and the writeback instance is optionally
->    terminated early.  e.g. if the ratio of foreign pages is over 50%
->    after writing out the number of pages matching 5s worth of write
->    bandwidth for the bdi, mark the inode as disowned.
-> 
-> 4. On the following dirtying of the inode, the inode is associated
->    with the matching blkcg of the dirtied page.  Note that this could
->    be the next cycle as the inode could already have been marked dirty
->    by the time the above condition triggered.  In that case, the
->    following writeback would be terminated early too.
-> 
-> This should provide sufficient corrective pressure so that incidental
-> and temporary sharing of an inode doesn't become a persistent issue
-> while keeping the complexity necessary for implementing such pressure
-> fairly minimal and self-contained.  Also, the changes necessary for
-> individual filesystems would be minimal.
-  I like this proposal. It looks simple enough and when inodes aren't
-pernamently write-shared it converges to the blkcg that is currently
-writing to the inode. So ack from me.
+    WARNING: CPU: 60 PID: 1 at lib/list_debug.c:29 __list_add+0x3c/0xa9()
+    list_add corruption. next->prev should be prev (ffff881ff0a6bb98), but was ffffea007ff57020. (next=ffffea007fbf7320).
+    Modules linked in:
+    CPU: 60 PID: 1 Comm: swapper/0 Not tainted 3.19.0-rc7-next-20150203-gb50cadf #2178
+    Hardware name: Intel Corporation BRICKLAND/BRICKLAND, BIOS BIVTSDP1.86B.0038.R02.1307231126 07/23/2013
+     0000000000000009 ffff881ff0a6ba88 ffffffff81c2e096 ffffffff810e2d03
+     ffff881ff0a6bad8 ffff881ff0a6bac8 ffffffff8108b320 ffff881ff0a6bb18
+     ffffffff8154bbc7 ffff881ff0a6bb98 ffffea007fbf7320 ffffea00ffc3c220
+    Call Trace:
+     [<ffffffff81c2e096>] dump_stack+0x4c/0x65
+     [<ffffffff810e2d03>] ? console_unlock+0x398/0x3c7
+     [<ffffffff8108b320>] warn_slowpath_common+0xa1/0xbb
+     [<ffffffff8154bbc7>] ? __list_add+0x3c/0xa9
+     [<ffffffff8108b380>] warn_slowpath_fmt+0x46/0x48
+     [<ffffffff8154bbc7>] __list_add+0x3c/0xa9
+     [<ffffffff811bf5aa>] __kmem_cache_shrink+0x12b/0x24c
+     [<ffffffff81190ca9>] kmem_cache_shrink+0x26/0x38
+     [<ffffffff815848b4>] acpi_os_purge_cache+0xe/0x12
+     [<ffffffff815c6424>] acpi_purge_cached_objects+0x32/0x7a
+     [<ffffffff825f70f1>] acpi_initialize_objects+0x17e/0x1ae
+     [<ffffffff825f5177>] ? acpi_sleep_proc_init+0x2a/0x2a
+     [<ffffffff825f5209>] acpi_init+0x92/0x25e
+     [<ffffffff810002bd>] ? do_one_initcall+0x90/0x17f
+     [<ffffffff811bdfcd>] ? kfree+0x1fc/0x2d5
+     [<ffffffff825f5177>] ? acpi_sleep_proc_init+0x2a/0x2a
+     [<ffffffff8100031a>] do_one_initcall+0xed/0x17f
+     [<ffffffff825ae0e2>] kernel_init_freeable+0x1f0/0x278
+     [<ffffffff81c1f31a>] ? rest_init+0x13e/0x13e
+     [<ffffffff81c1f328>] kernel_init+0xe/0xda
+     [<ffffffff81c3ca7c>] ret_from_fork+0x7c/0xb0
+     [<ffffffff81c1f31a>] ? rest_init+0x13e/0x13e
 
-								Honza
+fixes: slub-never-fail-to-shrink-cache
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+Reported-by: Huang Ying <ying.huang@intel.com>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+---
+ mm/slub.c |    2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/mm/slub.c b/mm/slub.c
+index 0909e13cf708..59dde3f3efed 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3499,6 +3499,8 @@ int __kmem_cache_shrink(struct kmem_cache *s, bool deactivate)
+ 		list_for_each_entry_safe(page, t, &discard, lru)
+ 			discard_slab(s, page);
+ 
++		INIT_LIST_HEAD(&discard);
++
+ 		if (slabs_node(s, node))
+ 			ret = 1;
+ 	}
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
