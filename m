@@ -1,45 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 32DEA6B0032
-	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 21:46:57 -0500 (EST)
-Received: by mail-qc0-f170.google.com with SMTP id i8so6545581qcq.1
-        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 18:46:56 -0800 (PST)
-Received: from resqmta-ch2-06v.sys.comcast.net (resqmta-ch2-06v.sys.comcast.net. [2001:558:fe21:29:69:252:207:38])
-        by mx.google.com with ESMTPS id a6si3455019qcq.25.2015.02.11.18.46.55
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Wed, 11 Feb 2015 18:46:55 -0800 (PST)
-Date: Wed, 11 Feb 2015 20:46:53 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 2/3] slub: Support for array operations
-In-Reply-To: <20150212131649.59b70f71@redhat.com>
-Message-ID: <alpine.DEB.2.11.1502112045540.21460@gentwo.org>
-References: <20150210194804.288708936@linux.com> <20150210194811.902155759@linux.com> <20150211174817.44cc5562@redhat.com> <alpine.DEB.2.11.1502111305520.7547@gentwo.org> <20150212104316.2d5c32ea@redhat.com> <alpine.DEB.2.11.1502111604510.15061@gentwo.org>
- <20150212131649.59b70f71@redhat.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id C57C06B0032
+	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 22:41:23 -0500 (EST)
+Received: by mail-wi0-f177.google.com with SMTP id bs8so1150348wib.4
+        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 19:41:23 -0800 (PST)
+Received: from v094114.home.net.pl (v094114.home.net.pl. [79.96.170.134])
+        by mx.google.com with SMTP id do6si787458wib.91.2015.02.11.19.41.21
+        for <linux-mm@kvack.org>;
+        Wed, 11 Feb 2015 19:41:22 -0800 (PST)
+From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Subject: Re: [PATCH 1/3] driver core: export lock_device_hotplug/unlock_device_hotplug
+Date: Thu, 12 Feb 2015 05:04:28 +0100
+Message-ID: <2420637.jF050I0e1M@vostro.rjw.lan>
+In-Reply-To: <20150211123947.3318933f2aca54e11324b088@linux-foundation.org>
+References: <1423669462-30918-1-git-send-email-vkuznets@redhat.com> <1423669462-30918-2-git-send-email-vkuznets@redhat.com> <20150211123947.3318933f2aca54e11324b088@linux-foundation.org>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com
+To: Andrew Morton <akpm@linux-foundation.org>, Vitaly Kuznetsov <vkuznets@redhat.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Haiyang Zhang <haiyangz@microsoft.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Fabian Frederick <fabf@skynet.be>, Zhang Zhen <zhenzhang.zhang@huawei.com>, Vladimir Davydov <vdavydov@parallels.com>, Wang Nan <wangnan0@huawei.com>, linux-kernel@vger.kernel.org, devel@linuxdriverproject.org, linux-mm@kvack.org
 
-On Thu, 12 Feb 2015, Jesper Dangaard Brouer wrote:
+On Wednesday, February 11, 2015 12:39:47 PM Andrew Morton wrote:
+> On Wed, 11 Feb 2015 16:44:20 +0100 Vitaly Kuznetsov <vkuznets@redhat.com> wrote:
+> 
+> > add_memory() is supposed to be run with device_hotplug_lock grabbed, otherwise
+> > it can race with e.g. device_online(). Allow external modules (hv_balloon for
+> > now) to lock device hotplug.
+> > 
+> > ...
+> >
+> > --- a/drivers/base/core.c
+> > +++ b/drivers/base/core.c
+> > @@ -55,11 +55,13 @@ void lock_device_hotplug(void)
+> >  {
+> >  	mutex_lock(&device_hotplug_lock);
+> >  }
+> > +EXPORT_SYMBOL_GPL(lock_device_hotplug);
+> >  
+> >  void unlock_device_hotplug(void)
+> >  {
+> >  	mutex_unlock(&device_hotplug_lock);
+> >  }
+> > +EXPORT_SYMBOL_GPL(unlock_device_hotplug);
+> >  
+> >  int lock_device_hotplug_sysfs(void)
+> >  {
+> 
+> It's kinda crazy that lock_device_hotplug_sysfs() didn't get any
+> documentation.  I suggest adding this while you're in there:
+> 
+> 
+> --- a/drivers/base/core.c~a
+> +++ a/drivers/base/core.c
+> @@ -61,6 +61,9 @@ void unlock_device_hotplug(void)
+>  	mutex_unlock(&device_hotplug_lock);
+>  }
+>  
+> +/*
+> + * "git show 5e33bc4165f3ed" for details
+> + */
+>  int lock_device_hotplug_sysfs(void)
+>  {
+>  	if (mutex_trylock(&device_hotplug_lock))
+> 
+> which is a bit lazy but whatev.
+> 
+> I'll assume that Greg (or Rafael?) will be processing this patchset.
 
-> Measured on my laptop CPU i7-2620M CPU @ 2.70GHz:
->
->  * 12.775 ns - "clean" spin_lock_unlock
->  * 21.099 ns - irqsave variant spinlock
->  * 22.808 ns - "manual" irqsave before spin_lock
->  * 14.618 ns - "manual" local_irq_disable + spin_lock
->
-> Reproducible via my github repo:
->  https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/lib/time_bench_sample.c
->
-> The clean spin_lock_unlock is 8.324 ns faster than irqsave variant.
-> The irqsave variant is actually faster than expected, as the measurement
-> of an isolated local_irq_save_restore were 13.256 ns.
+Well, I would do that if I saw it (my address in the CC has been deprecated
+for several months now).
 
-I am using spin_lock_irq() in the current version on my system. If the
-performance of that is a problem then please optimize that function.
+Vitaly, can you please resend with a CC to a valid address of mine, please?
+
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
