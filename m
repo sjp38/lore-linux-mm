@@ -1,75 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 19B116B0078
-	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 17:25:09 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id bj1so14339567pad.5
-        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 14:25:08 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id hl7si420106pac.62.2015.02.12.14.25.08
+Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 749576B0075
+	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 17:26:59 -0500 (EST)
+Received: by mail-ob0-f171.google.com with SMTP id gq1so13545274obb.2
+        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 14:26:59 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id d84si200243oif.24.2015.02.12.14.26.58
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Feb 2015 14:25:08 -0800 (PST)
-Date: Thu, 12 Feb 2015 14:25:06 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH RESEND 0/3] memory_hotplug: hyperv: fix deadlock between
- memory adding and onlining
-Message-Id: <20150212142506.09b427a9128a3a3b1ded36a4@linux-foundation.org>
-In-Reply-To: <4323296.ObXCUgVR2I@vostro.rjw.lan>
-References: <1423736634-338-1-git-send-email-vkuznets@redhat.com>
-	<5256328.ZVnrTeLrH1@vostro.rjw.lan>
-	<BY2PR0301MB0711D005F3C78EBFE56A2CD5A0220@BY2PR0301MB0711.namprd03.prod.outlook.com>
-	<4323296.ObXCUgVR2I@vostro.rjw.lan>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 12 Feb 2015 14:26:58 -0800 (PST)
+From: Sasha Levin <sasha.levin@oracle.com>
+Subject: [PATCH v5 0/3] mm: cma: debugfs access to CMA
+Date: Thu, 12 Feb 2015 17:26:45 -0500
+Message-Id: <1423780008-16727-1-git-send-email-sasha.levin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: KY Srinivasan <kys@microsoft.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Haiyang Zhang <haiyangz@microsoft.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Fabian Frederick <fabf@skynet.be>, Zhang Zhen <zhenzhang.zhang@huawei.com>, Vladimir Davydov <vdavydov@parallels.com>, Wang Nan <wangnan0@huawei.com>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: iamjoonsoo.kim@lge.com, m.szyprowski@samsung.com, akpm@linux-foundation.org, lauraa@codeaurora.org, s.strogin@partner.samsung.com, Sasha Levin <sasha.levin@oracle.com>
 
-On Thu, 12 Feb 2015 23:43:17 +0100 "Rafael J. Wysocki" <rjw@rjwysocki.net> wrote:
+I've noticed that there is no interfaces exposed by CMA which would let me
+fuzz what's going on in there.
 
-> On Thursday, February 12, 2015 10:10:30 PM KY Srinivasan wrote:
-> 
-> [cut]
+This small patch set exposes some information out to userspace, plus adds
+the ability to trigger allocation and freeing from userspace.
 
-yay!
+Changes from v4:
+ - Inform user if he has attempted to free a partial block when the page
+order != 0.
 
-> > > > > >
-> > > > > > This issue was first discovered by Andy Whitcroft:
-> > > > > > https://lkml.org/lkml/2014/3/14/451
-> > > > > > I had sent patches based on Andy's analysis that did not affect
-> > > > > > the users of the kernel hot-add memory APIs:
-> > > > > > https://lkml.org/lkml/2014/12/2/662
-> > > > > >
-> > > > > > This patch puts the burden where it needs to be and can address
-> > > > > > the issue
-> > > > > for all clients.
-> > > > >
-> > > > > That seems to mean that this series is not needed.  Is that correct?
-> > > >
-> > > > This patch was never committed upstream and so the issue still is there.
-> > > 
-> > > Well, I'm not sure what to do now to be honest.
-> > > 
-> > > Is this series regarded as the right way to address the problem that
-> > > everybody is comfortable with?  Or is it still under discussion?
-> > 
-> > We need to solve this problem and that is not under discussion. I also believe this problem
-> > needs to be solved in a way that addresses the problem where it belongs - not in the users of
-> > the hot_add API. Both my solution and the one proposed by David https://lkml.org/lkml/2015/2/12/57
-> > address this issue. You can select either patch and check it in. I just want the issue addressed and I am not
-> > married to the solution I proposed.
-> 
-> OK, thanks!
-> 
-> So having looked at both your patch and the David's one I think that
-> the Andrew's tree is appropriate for any of them.
-> 
-> Andrew?
+Changes from v3:
+ - Minor build fix, sent incorrect patch for v3
 
-OK, I'll wake up and take a look.  Hopefully as 3.21 material but I
-need to to back and reread everything.  Is it more urgent than that?
+Changes from v2:
+ - Keep allocated memory lists per-cma
+ - Don't allow partial free with non-zero order_per_bit
+ - Use 0 alignment
+
+Changes from v1:
+ - Make allocation and free hooks per-cma.
+ - Remove additional debug prints.
+
+Sasha Levin (3):
+  mm: cma: debugfs interface
+  mm: cma: allocation trigger
+  mm: cma: release trigger
+
+ mm/Kconfig     |    6 ++
+ mm/Makefile    |    1 +
+ mm/cma.c       |   25 ++++-----
+ mm/cma.h       |   24 ++++++++
+ mm/cma_debug.c |  170 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 211 insertions(+), 15 deletions(-)
+ create mode 100644 mm/cma.h
+ create mode 100644 mm/cma_debug.c
+
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
