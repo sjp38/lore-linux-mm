@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 748AD6B006E
-	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 02:30:16 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id eu11so9576896pac.10
-        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 23:30:16 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 69F6B6B006E
+	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 02:30:18 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id eu11so9577092pac.10
+        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 23:30:18 -0800 (PST)
 Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id wz10si3846259pab.193.2015.02.11.23.30.09
+        by mx.google.com with ESMTP id zc5si3998485pbc.76.2015.02.11.23.30.10
         for <linux-mm@kvack.org>;
         Wed, 11 Feb 2015 23:30:11 -0800 (PST)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [RFC 04/16] mm/vmstat: make node_page_state() handles all zones by itself
-Date: Thu, 12 Feb 2015 16:32:08 +0900
-Message-Id: <1423726340-4084-5-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [RFC 06/16] mm/page_alloc: watch out zone range overlap
+Date: Thu, 12 Feb 2015 16:32:10 +0900
+Message-Id: <1423726340-4084-7-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1423726340-4084-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1423726340-4084-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,46 +19,36 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Heesub Shin <heesub.shin@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hui Zhu <zhuhui@xiaomi.com>, Gioh Kim <gioh.kim@lge.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Ritesh Harjani <ritesh.list@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-node_page_state() manually add statistics per each zone and return
-total value for all zones. Whenever we add a new zone, we need to
-consider this function and it's really troublesome. Make it handles
-all zones by itself.
+In the following patches, new zone, ZONE_CMA, will be introduced and
+it would be overlapped with other zones. Currently, many places
+iterating pfn range doesn't consider possibility of zone overlap and
+this would cause a problem such as printing wrong statistics information.
+To prevent this situation, this patch add some code to consider zone
+overlapping before adding ZONE_CMA.
+
+setup_zone_migrate_reserve() reserve some pages for specific zone so
+should consider zone overlap.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- include/linux/vmstat.h |   18 ++++++------------
- 1 file changed, 6 insertions(+), 12 deletions(-)
+ mm/page_alloc.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-index 82e7db7..676488a 100644
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -170,19 +170,13 @@ static inline unsigned long node_page_state(int node,
- 				 enum zone_stat_item item)
- {
- 	struct zone *zones = NODE_DATA(node)->node_zones;
-+	int i;
-+	unsigned long count = 0;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index c784035..1c45934b 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4040,8 +4040,8 @@ static void setup_zone_migrate_reserve(struct zone *zone)
+ 			continue;
+ 		page = pfn_to_page(pfn);
  
--	return
--#ifdef CONFIG_ZONE_DMA
--		zone_page_state(&zones[ZONE_DMA], item) +
--#endif
--#ifdef CONFIG_ZONE_DMA32
--		zone_page_state(&zones[ZONE_DMA32], item) +
--#endif
--#ifdef CONFIG_HIGHMEM
--		zone_page_state(&zones[ZONE_HIGHMEM], item) +
--#endif
--		zone_page_state(&zones[ZONE_NORMAL], item) +
--		zone_page_state(&zones[ZONE_MOVABLE], item);
-+	for (i = 0; i < MAX_NR_ZONES; i++)
-+		count += zone_page_state(zones + i, item);
-+
-+	return count;
- }
+-		/* Watch out for overlapping nodes */
+-		if (page_to_nid(page) != zone_to_nid(zone))
++		/* Watch out for overlapping zones */
++		if (page_zone(page) != zone)
+ 			continue;
  
- extern void zone_statistics(struct zone *, struct zone *, gfp_t gfp);
+ 		block_migratetype = get_pageblock_migratetype(page);
 -- 
 1.7.9.5
 
