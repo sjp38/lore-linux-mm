@@ -1,186 +1,211 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 266626B0038
-	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 17:04:53 -0500 (EST)
-Received: by mail-wg0-f42.google.com with SMTP id x13so13092116wgg.1
-        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 14:04:52 -0800 (PST)
-Received: from v094114.home.net.pl (v094114.home.net.pl. [79.96.170.134])
-        by mx.google.com with SMTP id id1si514902wjb.165.2015.02.12.14.04.51
-        for <linux-mm@kvack.org>;
-        Thu, 12 Feb 2015 14:04:51 -0800 (PST)
-From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Subject: Re: [PATCH RESEND 0/3] memory_hotplug: hyperv: fix deadlock between memory adding and onlining
-Date: Thu, 12 Feb 2015 23:27:56 +0100
-Message-ID: <5256328.ZVnrTeLrH1@vostro.rjw.lan>
-In-Reply-To: <BY2PR0301MB0711868EB1552907D662E255A0220@BY2PR0301MB0711.namprd03.prod.outlook.com>
-References: <1423736634-338-1-git-send-email-vkuznets@redhat.com> <6866935.Sx3WrqBpT2@vostro.rjw.lan> <BY2PR0301MB0711868EB1552907D662E255A0220@BY2PR0301MB0711.namprd03.prod.outlook.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AD526B0038
+	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 17:10:40 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id hz1so14216488pad.9
+        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 14:10:38 -0800 (PST)
+Received: from na01-by2-obe.outbound.protection.outlook.com (mail-by2on0112.outbound.protection.outlook.com. [207.46.100.112])
+        by mx.google.com with ESMTPS id ya3si382116pbb.69.2015.02.12.14.10.38
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 12 Feb 2015 14:10:38 -0800 (PST)
+From: KY Srinivasan <kys@microsoft.com>
+Subject: RE: [PATCH RESEND 0/3] memory_hotplug: hyperv: fix deadlock between
+ memory adding and onlining
+Date: Thu, 12 Feb 2015 22:10:30 +0000
+Message-ID: <BY2PR0301MB0711D005F3C78EBFE56A2CD5A0220@BY2PR0301MB0711.namprd03.prod.outlook.com>
+References: <1423736634-338-1-git-send-email-vkuznets@redhat.com>
+ <6866935.Sx3WrqBpT2@vostro.rjw.lan>
+ <BY2PR0301MB0711868EB1552907D662E255A0220@BY2PR0301MB0711.namprd03.prod.outlook.com>
+ <5256328.ZVnrTeLrH1@vostro.rjw.lan>
+In-Reply-To: <5256328.ZVnrTeLrH1@vostro.rjw.lan>
+Content-Language: en-US
 Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KY Srinivasan <kys@microsoft.com>
-Cc: Vitaly Kuznetsov <vkuznets@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Haiyang Zhang <haiyangz@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Fabian Frederick <fabf@skynet.be>, Zhang Zhen <zhenzhang.zhang@huawei.com>, Vladimir Davydov <vdavydov@parallels.com>, Wang Nan <wangnan0@huawei.com>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Cc: Vitaly Kuznetsov <vkuznets@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Haiyang Zhang <haiyangz@microsoft.com>, Andrew
+ Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Fabian Frederick <fabf@skynet.be>, Zhang Zhen <zhenzhang.zhang@huawei.com>, Vladimir Davydov <vdavydov@parallels.com>, Wang Nan <wangnan0@huawei.com>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thursday, February 12, 2015 10:01:48 PM KY Srinivasan wrote:
-> 
-> > -----Original Message-----
-> > From: Rafael J. Wysocki [mailto:rjw@rjwysocki.net]
-> > Sent: Thursday, February 12, 2015 2:13 PM
-> > To: KY Srinivasan
-> > Cc: Vitaly Kuznetsov; linux-kernel@vger.kernel.org; Greg Kroah-Hartman;
-> > Haiyang Zhang; Andrew Morton; Yasuaki Ishimatsu; Tang Chen; Vlastimil
-> > Babka; David Rientjes; Fabian Frederick; Zhang Zhen; Vladimir Davydov;
-> > Wang Nan; devel@linuxdriverproject.org; linux-mm@kvack.org
-> > Subject: Re: [PATCH RESEND 0/3] memory_hotplug: hyperv: fix deadlock
-> > between memory adding and onlining
-> > 
-> > On Thursday, February 12, 2015 03:38:42 PM KY Srinivasan wrote:
-> > >
-> > > > -----Original Message-----
-> > > > From: Vitaly Kuznetsov [mailto:vkuznets@redhat.com]
-> > > > Sent: Thursday, February 12, 2015 2:24 AM
-> > > > To: linux-kernel@vger.kernel.org
-> > > > Cc: Greg Kroah-Hartman; KY Srinivasan; Haiyang Zhang; Andrew Morton;
-> > > > Yasuaki Ishimatsu; Tang Chen; Vlastimil Babka; David Rientjes;
-> > > > Fabian Frederick; Zhang Zhen; Vladimir Davydov; Wang Nan; Rafael J.
-> > > > Wysocki; devel@linuxdriverproject.org; linux-mm@kvack.org
-> > > > Subject: [PATCH RESEND 0/3] memory_hotplug: hyperv: fix deadlock
-> > > > between memory adding and onlining
-> > > >
-> > > > RESEND (with no changes) because Rafael J. Wysocki was missing in
-> > > > recepients.
-> > > >
-> > > > If newly added memory is brought online with e.g. udev rule:
-> > > > SUBSYSTEM=="memory", ACTION=="add", ATTR{state}="online"
-> > > > the following deadlock is observed (and easily reproducable):
-> > > >
-> > > > First participant, worker thread doing add_memory():
-> > > >
-> > > > [  724.948846] kworker/0:1     D ffff88000412f9c8 13248    27      2
-> > 0x00000000
-> > > > [  724.973543] Workqueue: events hot_add_req [hv_balloon] [
-> > > > 724.991736]
-> > > > ffff88000412f9c8 0000000000000000 ffff88003fa1dc30 00000000000151c0
-> > > > [ 725.019725]  0000000000000246 ffff88000412ffd8 00000000000151c0
-> > > > ffff88003a77a4e0 [  725.046486]  ffff88003fa1dc30 00000001032a6000
-> > > > ffff88003a7ca838 ffff88003a7ca898 [  725.072969] Call Trace:
-> > > > [  725.082690]  [<ffffffff81aac0a9>]
-> > > > schedule_preempt_disabled+0x29/0x70
-> > > > [  725.103799]  [<ffffffff81aae33b>] mutex_lock_nested+0x14b/0x470 [
-> > > > 725.122367]  [<ffffffff815ed773>] ? device_attach+0x23/0xb0 [
-> > > > 725.140992] [<ffffffff815ed773>] device_attach+0x23/0xb0 [
-> > > > 725.159131] [<ffffffff815ecba0>] bus_probe_device+0xb0/0xe0 [
-> > > > 725.177055] [<ffffffff815ea693>] device_add+0x443/0x650 [
-> > > > 725.195558] [<ffffffff815ea8be>] device_register+0x1e/0x30 [
-> > > > 725.213133] [<ffffffff81601790>] init_memory_block+0xd0/0xf0 [
-> > > > 725.231533] [<ffffffff816018f1>] register_new_memory+0xb1/0xd0 [
-> > > > 725.250769] [<ffffffff81a961cf>] __add_pages+0x13f/0x250 [
-> > > > 725.269642] [<ffffffff81063770>] ? arch_add_memory+0x70/0xf0 [
-> > > > 725.288764] [<ffffffff81063770>] arch_add_memory+0x70/0xf0 [
-> > > > 725.306117] [<ffffffff81a95f8f>] add_memory+0xef/0x1f0 [
-> > > > 725.322466] [<ffffffffa00293af>] hot_add_req+0x33f/0xf90
-> > > > [hv_balloon] [  725.342777] [<ffffffff8109509f>]
-> > > > process_one_work+0x1df/0x4e0 [  725.361459] [<ffffffff8109502d>] ?
-> > > > process_one_work+0x16d/0x4e0 [  725.380390] [<ffffffff810954bb>]
-> > > > worker_thread+0x11b/0x450 [  725.397684] [<ffffffff810953a0>] ?
-> > > > process_one_work+0x4e0/0x4e0 [  725.416533] [<ffffffff8109ac33>]
-> > > > kthread+0xf3/0x110 [  725.433372]  [<ffffffff8109ab40>] ?
-> > > > kthread_create_on_node+0x240/0x240
-> > > > [  725.453749]  [<ffffffff81ab1dfc>] ret_from_fork+0x7c/0xb0 [
-> > > > 725.470994] [<ffffffff8109ab40>] ?
-> > > > kthread_create_on_node+0x240/0x240
-> > > > [  725.491469] 6 locks held by kworker/0:1/27:
-> > > > [  725.505037]  #0:  ("events"){......}, at: [<ffffffff8109502d>]
-> > > > process_one_work+0x16d/0x4e0 [  725.533370]  #1:
-> > > > ((&dm_device.ha_wrk.wrk)){......}, at: [<ffffffff8109502d>]
-> > > > process_one_work+0x16d/0x4e0 [  725.565580]  #2:
-> > > > (mem_hotplug.lock){......}, at: [<ffffffff811e6525>]
-> > > > mem_hotplug_begin+0x5/0x80 [  725.594369]  #3:
-> > > > (mem_hotplug.lock#2){......}, at: [<ffffffff811e656f>]
-> > > > mem_hotplug_begin+0x4f/0x80 [  725.628554]  #4:
-> > > > (mem_sysfs_mutex){......}, at: [<ffffffff81601873>]
-> > > > register_new_memory+0x33/0xd0 [  725.658519]  #5:
-> > > > (&dev->mutex){......},
-> > > > at: [<ffffffff815ed773>] device_attach+0x23/0xb0
-> > > >
-> > > > Second participant, udev:
-> > > >
-> > > > [  725.750889] systemd-udevd   D ffff88003b94fc68 14016   888    530
-> > > > 0x00000004
-> > > > [  725.773767]  ffff88003b94fc68 0000000000000000 ffff8800034949c0
-> > > > 00000000000151c0 [  725.798332]  ffffffff8210d980 ffff88003b94ffd8
-> > > > 00000000000151c0 ffff880037a69270 [  725.822841]  ffff8800034949c0
-> > > > 0000000100000001 ffff8800034949c0 ffffffff81ff2b48 [  725.849184] Call
-> > Trace:
-> > > > [  725.858987]  [<ffffffff81aac0a9>]
-> > > > schedule_preempt_disabled+0x29/0x70
-> > > > [  725.879231]  [<ffffffff81aae33b>] mutex_lock_nested+0x14b/0x470 [
-> > > > 725.897860]  [<ffffffff811e656f>] ? mem_hotplug_begin+0x4f/0x80 [
-> > > > 725.916698]  [<ffffffff811e656f>] mem_hotplug_begin+0x4f/0x80 [
-> > > > 725.935064]  [<ffffffff811e6525>] ? mem_hotplug_begin+0x5/0x80 [
-> > > > 725.953464]  [<ffffffff81a9631b>] online_pages+0x3b/0x520 [
-> > > > 725.971542] [<ffffffff815eb0b3>] ? device_online+0x23/0xa0 [
-> > > > 725.989207] [<ffffffff81601524>] memory_subsys_online+0x64/0xc0 [
-> > > > 726.008513] [<ffffffff815eb0fd>] device_online+0x6d/0xa0 [
-> > > > 726.025579] [<ffffffff816012eb>] store_mem_state+0x5b/0xe0 [
-> > > > 726.043400] [<ffffffff815e8258>] dev_attr_store+0x18/0x30 [
-> > > > 726.060506] [<ffffffff8127a808>] sysfs_kf_write+0x48/0x60 [
-> > > > 726.077940] [<ffffffff81279d1b>] kernfs_fop_write+0x13b/0x1a0 [
-> > > > 726.099416] [<ffffffff811f9f67>] vfs_write+0xb7/0x1f0 [  726.115748]
-> > > > [<ffffffff811fabf8>]
-> > > > SyS_write+0x58/0xd0 [  726.131933]  [<ffffffff81ab1ea9>]
-> > > > system_call_fastpath+0x12/0x17 [  726.150691] 7 locks held by
-> > > > systemd-
-> > > > udevd/888:
-> > > > [  726.165044]  #0:  (sb_writers#3){......}, at:
-> > > > [<ffffffff811fa063>]
-> > > > vfs_write+0x1b3/0x1f0 [  726.192422]  #1:  (&of->mutex){......}, at:
-> > > > [<ffffffff81279c46>] kernfs_fop_write+0x66/0x1a0 [  726.220289]  #2:
-> > > > (s_active#60){......}, at: [<ffffffff81279c4e>]
-> > > > kernfs_fop_write+0x6e/0x1a0 [ 726.249382]  #3:
-> > > > (device_hotplug_lock){......}, at: [<ffffffff815e9c15>]
-> > > > lock_device_hotplug_sysfs+0x15/0x50
-> > > > [  726.281901]  #4:  (&dev->mutex){......}, at: [<ffffffff815eb0b3>]
-> > > > device_online+0x23/0xa0 [  726.308619]  #5:  (mem_hotplug.lock){......},
-> > at:
-> > > > [<ffffffff811e6525>] mem_hotplug_begin+0x5/0x80 [  726.337994]  #6:
-> > > > (mem_hotplug.lock#2){......}, at: [<ffffffff811e656f>]
-> > > > mem_hotplug_begin+0x4f/0x80
-> > > >
-> > > > In short: onlining grabs device lock and then tries to do
-> > > > mem_hotplug_begin() while add_memory() is between
-> > > > mem_hotplug_begin() and mem_hotplug_done() and it tries grabbing
-> > > > device lock.
-> > > >
-> > > > To my understanding ACPI memory hotplug doesn't have the same issue
-> > > > as device_hotplug_lock is being grabbed when the ACPI device is added.
-> > > >
-> > > > Solve the issue by grabbing device_hotplug_lock before doing
-> > > > add_memory(). If we do that, lock_device_hotplug_sysfs() will cause
-> > > > syscall retry which will eventually succeed. To support the change
-> > > > we need to export lock_device_hotplug/ unlock_device_hotplug. This
-> > > > approach can be completely wrong though.
-> > >
-> > > This issue was first discovered by Andy Whitcroft:
-> > > https://lkml.org/lkml/2014/3/14/451
-> > > I had sent patches based on Andy's analysis that did not affect the
-> > > users of the kernel hot-add memory APIs:
-> > > https://lkml.org/lkml/2014/12/2/662
-> > >
-> > > This patch puts the burden where it needs to be and can address the issue
-> > for all clients.
-> > 
-> > That seems to mean that this series is not needed.  Is that correct?
-> 
-> This patch was never committed upstream and so the issue still is there.
-
-Well, I'm not sure what to do now to be honest.
-
-Is this series regarded as the right way to address the problem that
-everybody is comfortable with?  Or is it still under discussion?
-
-Rafael
+DQoNCj4gLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCj4gRnJvbTogUmFmYWVsIEouIFd5c29j
+a2kgW21haWx0bzpyandAcmp3eXNvY2tpLm5ldF0NCj4gU2VudDogVGh1cnNkYXksIEZlYnJ1YXJ5
+IDEyLCAyMDE1IDI6MjggUE0NCj4gVG86IEtZIFNyaW5pdmFzYW4NCj4gQ2M6IFZpdGFseSBLdXpu
+ZXRzb3Y7IGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc7IEdyZWcgS3JvYWgtSGFydG1hbjsN
+Cj4gSGFpeWFuZyBaaGFuZzsgQW5kcmV3IE1vcnRvbjsgWWFzdWFraSBJc2hpbWF0c3U7IFRhbmcg
+Q2hlbjsgVmxhc3RpbWlsDQo+IEJhYmthOyBEYXZpZCBSaWVudGplczsgRmFiaWFuIEZyZWRlcmlj
+azsgWmhhbmcgWmhlbjsgVmxhZGltaXIgRGF2eWRvdjsNCj4gV2FuZyBOYW47IGRldmVsQGxpbnV4
+ZHJpdmVycHJvamVjdC5vcmc7IGxpbnV4LW1tQGt2YWNrLm9yZw0KPiBTdWJqZWN0OiBSZTogW1BB
+VENIIFJFU0VORCAwLzNdIG1lbW9yeV9ob3RwbHVnOiBoeXBlcnY6IGZpeCBkZWFkbG9jaw0KPiBi
+ZXR3ZWVuIG1lbW9yeSBhZGRpbmcgYW5kIG9ubGluaW5nDQo+IA0KPiBPbiBUaHVyc2RheSwgRmVi
+cnVhcnkgMTIsIDIwMTUgMTA6MDE6NDggUE0gS1kgU3Jpbml2YXNhbiB3cm90ZToNCj4gPg0KPiA+
+ID4gLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCj4gPiA+IEZyb206IFJhZmFlbCBKLiBXeXNv
+Y2tpIFttYWlsdG86cmp3QHJqd3lzb2NraS5uZXRdDQo+ID4gPiBTZW50OiBUaHVyc2RheSwgRmVi
+cnVhcnkgMTIsIDIwMTUgMjoxMyBQTQ0KPiA+ID4gVG86IEtZIFNyaW5pdmFzYW4NCj4gPiA+IENj
+OiBWaXRhbHkgS3V6bmV0c292OyBsaW51eC1rZXJuZWxAdmdlci5rZXJuZWwub3JnOyBHcmVnDQo+
+ID4gPiBLcm9haC1IYXJ0bWFuOyBIYWl5YW5nIFpoYW5nOyBBbmRyZXcgTW9ydG9uOyBZYXN1YWtp
+IElzaGltYXRzdTsgVGFuZw0KPiA+ID4gQ2hlbjsgVmxhc3RpbWlsIEJhYmthOyBEYXZpZCBSaWVu
+dGplczsgRmFiaWFuIEZyZWRlcmljazsgWmhhbmcgWmhlbjsNCj4gPiA+IFZsYWRpbWlyIERhdnlk
+b3Y7IFdhbmcgTmFuOyBkZXZlbEBsaW51eGRyaXZlcnByb2plY3Qub3JnOw0KPiA+ID4gbGludXgt
+bW1Aa3ZhY2sub3JnDQo+ID4gPiBTdWJqZWN0OiBSZTogW1BBVENIIFJFU0VORCAwLzNdIG1lbW9y
+eV9ob3RwbHVnOiBoeXBlcnY6IGZpeCBkZWFkbG9jaw0KPiA+ID4gYmV0d2VlbiBtZW1vcnkgYWRk
+aW5nIGFuZCBvbmxpbmluZw0KPiA+ID4NCj4gPiA+IE9uIFRodXJzZGF5LCBGZWJydWFyeSAxMiwg
+MjAxNSAwMzozODo0MiBQTSBLWSBTcmluaXZhc2FuIHdyb3RlOg0KPiA+ID4gPg0KPiA+ID4gPiA+
+IC0tLS0tT3JpZ2luYWwgTWVzc2FnZS0tLS0tDQo+ID4gPiA+ID4gRnJvbTogVml0YWx5IEt1em5l
+dHNvdiBbbWFpbHRvOnZrdXpuZXRzQHJlZGhhdC5jb21dDQo+ID4gPiA+ID4gU2VudDogVGh1cnNk
+YXksIEZlYnJ1YXJ5IDEyLCAyMDE1IDI6MjQgQU0NCj4gPiA+ID4gPiBUbzogbGludXgta2VybmVs
+QHZnZXIua2VybmVsLm9yZw0KPiA+ID4gPiA+IENjOiBHcmVnIEtyb2FoLUhhcnRtYW47IEtZIFNy
+aW5pdmFzYW47IEhhaXlhbmcgWmhhbmc7IEFuZHJldw0KPiA+ID4gPiA+IE1vcnRvbjsgWWFzdWFr
+aSBJc2hpbWF0c3U7IFRhbmcgQ2hlbjsgVmxhc3RpbWlsIEJhYmthOyBEYXZpZA0KPiA+ID4gPiA+
+IFJpZW50amVzOyBGYWJpYW4gRnJlZGVyaWNrOyBaaGFuZyBaaGVuOyBWbGFkaW1pciBEYXZ5ZG92
+OyBXYW5nIE5hbjsNCj4gUmFmYWVsIEouDQo+ID4gPiA+ID4gV3lzb2NraTsgZGV2ZWxAbGludXhk
+cml2ZXJwcm9qZWN0Lm9yZzsgbGludXgtbW1Aa3ZhY2sub3JnDQo+ID4gPiA+ID4gU3ViamVjdDog
+W1BBVENIIFJFU0VORCAwLzNdIG1lbW9yeV9ob3RwbHVnOiBoeXBlcnY6IGZpeCBkZWFkbG9jaw0K
+PiA+ID4gPiA+IGJldHdlZW4gbWVtb3J5IGFkZGluZyBhbmQgb25saW5pbmcNCj4gPiA+ID4gPg0K
+PiA+ID4gPiA+IFJFU0VORCAod2l0aCBubyBjaGFuZ2VzKSBiZWNhdXNlIFJhZmFlbCBKLiBXeXNv
+Y2tpIHdhcyBtaXNzaW5nDQo+ID4gPiA+ID4gaW4gcmVjZXBpZW50cy4NCj4gPiA+ID4gPg0KPiA+
+ID4gPiA+IElmIG5ld2x5IGFkZGVkIG1lbW9yeSBpcyBicm91Z2h0IG9ubGluZSB3aXRoIGUuZy4g
+dWRldiBydWxlOg0KPiA+ID4gPiA+IFNVQlNZU1RFTT09Im1lbW9yeSIsIEFDVElPTj09ImFkZCIs
+IEFUVFJ7c3RhdGV9PSJvbmxpbmUiDQo+ID4gPiA+ID4gdGhlIGZvbGxvd2luZyBkZWFkbG9jayBp
+cyBvYnNlcnZlZCAoYW5kIGVhc2lseSByZXByb2R1Y2FibGUpOg0KPiA+ID4gPiA+DQo+ID4gPiA+
+ID4gRmlyc3QgcGFydGljaXBhbnQsIHdvcmtlciB0aHJlYWQgZG9pbmcgYWRkX21lbW9yeSgpOg0K
+PiA+ID4gPiA+DQo+ID4gPiA+ID4gWyAgNzI0Ljk0ODg0Nl0ga3dvcmtlci8wOjEgICAgIEQgZmZm
+Zjg4MDAwNDEyZjljOCAxMzI0OCAgICAyNyAgICAgIDINCj4gPiA+IDB4MDAwMDAwMDANCj4gPiA+
+ID4gPiBbICA3MjQuOTczNTQzXSBXb3JrcXVldWU6IGV2ZW50cyBob3RfYWRkX3JlcSBbaHZfYmFs
+bG9vbl0gWw0KPiA+ID4gPiA+IDcyNC45OTE3MzZdDQo+ID4gPiA+ID4gZmZmZjg4MDAwNDEyZjlj
+OCAwMDAwMDAwMDAwMDAwMDAwIGZmZmY4ODAwM2ZhMWRjMzANCj4gPiA+ID4gPiAwMDAwMDAwMDAw
+MDE1MWMwIFsgNzI1LjAxOTcyNV0gIDAwMDAwMDAwMDAwMDAyNDYNCj4gPiA+ID4gPiBmZmZmODgw
+MDA0MTJmZmQ4IDAwMDAwMDAwMDAwMTUxYzANCj4gPiA+ID4gPiBmZmZmODgwMDNhNzdhNGUwIFsg
+IDcyNS4wNDY0ODZdICBmZmZmODgwMDNmYTFkYzMwDQo+ID4gPiA+ID4gMDAwMDAwMDEwMzJhNjAw
+MA0KPiA+ID4gPiA+IGZmZmY4ODAwM2E3Y2E4MzggZmZmZjg4MDAzYTdjYTg5OCBbICA3MjUuMDcy
+OTY5XSBDYWxsIFRyYWNlOg0KPiA+ID4gPiA+IFsgIDcyNS4wODI2OTBdICBbPGZmZmZmZmZmODFh
+YWMwYTk+XQ0KPiA+ID4gPiA+IHNjaGVkdWxlX3ByZWVtcHRfZGlzYWJsZWQrMHgyOS8weDcwDQo+
+ID4gPiA+ID4gWyAgNzI1LjEwMzc5OV0gIFs8ZmZmZmZmZmY4MWFhZTMzYj5dDQo+ID4gPiA+ID4g
+bXV0ZXhfbG9ja19uZXN0ZWQrMHgxNGIvMHg0NzAgWyA3MjUuMTIyMzY3XQ0KPiA+ID4gPiA+IFs8
+ZmZmZmZmZmY4MTVlZDc3Mz5dID8gZGV2aWNlX2F0dGFjaCsweDIzLzB4YjAgWyA3MjUuMTQwOTky
+XQ0KPiA+ID4gPiA+IFs8ZmZmZmZmZmY4MTVlZDc3Mz5dIGRldmljZV9hdHRhY2grMHgyMy8weGIw
+IFsgNzI1LjE1OTEzMV0NCj4gPiA+ID4gPiBbPGZmZmZmZmZmODE1ZWNiYTA+XSBidXNfcHJvYmVf
+ZGV2aWNlKzB4YjAvMHhlMCBbIDcyNS4xNzcwNTVdDQo+ID4gPiA+ID4gWzxmZmZmZmZmZjgxNWVh
+NjkzPl0gZGV2aWNlX2FkZCsweDQ0My8weDY1MCBbIDcyNS4xOTU1NThdDQo+ID4gPiA+ID4gWzxm
+ZmZmZmZmZjgxNWVhOGJlPl0gZGV2aWNlX3JlZ2lzdGVyKzB4MWUvMHgzMCBbIDcyNS4yMTMxMzNd
+DQo+ID4gPiA+ID4gWzxmZmZmZmZmZjgxNjAxNzkwPl0gaW5pdF9tZW1vcnlfYmxvY2srMHhkMC8w
+eGYwIFsgNzI1LjIzMTUzM10NCj4gPiA+ID4gPiBbPGZmZmZmZmZmODE2MDE4ZjE+XSByZWdpc3Rl
+cl9uZXdfbWVtb3J5KzB4YjEvMHhkMCBbIDcyNS4yNTA3NjldDQo+ID4gPiA+ID4gWzxmZmZmZmZm
+ZjgxYTk2MWNmPl0gX19hZGRfcGFnZXMrMHgxM2YvMHgyNTAgWyA3MjUuMjY5NjQyXQ0KPiA+ID4g
+PiA+IFs8ZmZmZmZmZmY4MTA2Mzc3MD5dID8gYXJjaF9hZGRfbWVtb3J5KzB4NzAvMHhmMCBbIDcy
+NS4yODg3NjRdDQo+ID4gPiA+ID4gWzxmZmZmZmZmZjgxMDYzNzcwPl0gYXJjaF9hZGRfbWVtb3J5
+KzB4NzAvMHhmMCBbIDcyNS4zMDYxMTddDQo+ID4gPiA+ID4gWzxmZmZmZmZmZjgxYTk1ZjhmPl0g
+YWRkX21lbW9yeSsweGVmLzB4MWYwIFsgNzI1LjMyMjQ2Nl0NCj4gPiA+ID4gPiBbPGZmZmZmZmZm
+YTAwMjkzYWY+XSBob3RfYWRkX3JlcSsweDMzZi8weGY5MCBbaHZfYmFsbG9vbl0gWw0KPiA+ID4g
+PiA+IDcyNS4zNDI3NzddIFs8ZmZmZmZmZmY4MTA5NTA5Zj5dDQo+ID4gPiA+ID4gcHJvY2Vzc19v
+bmVfd29yaysweDFkZi8weDRlMCBbICA3MjUuMzYxNDU5XSBbPGZmZmZmZmZmODEwOTUwMmQ+XSA/
+DQo+ID4gPiA+ID4gcHJvY2Vzc19vbmVfd29yaysweDE2ZC8weDRlMCBbICA3MjUuMzgwMzkwXSBb
+PGZmZmZmZmZmODEwOTU0YmI+XQ0KPiA+ID4gPiA+IHdvcmtlcl90aHJlYWQrMHgxMWIvMHg0NTAg
+WyAgNzI1LjM5NzY4NF0gWzxmZmZmZmZmZjgxMDk1M2EwPl0gPw0KPiA+ID4gPiA+IHByb2Nlc3Nf
+b25lX3dvcmsrMHg0ZTAvMHg0ZTAgWyAgNzI1LjQxNjUzM10gWzxmZmZmZmZmZjgxMDlhYzMzPl0N
+Cj4gPiA+ID4gPiBrdGhyZWFkKzB4ZjMvMHgxMTAgWyAgNzI1LjQzMzM3Ml0gIFs8ZmZmZmZmZmY4
+MTA5YWI0MD5dID8NCj4gPiA+ID4gPiBrdGhyZWFkX2NyZWF0ZV9vbl9ub2RlKzB4MjQwLzB4MjQw
+DQo+ID4gPiA+ID4gWyAgNzI1LjQ1Mzc0OV0gIFs8ZmZmZmZmZmY4MWFiMWRmYz5dIHJldF9mcm9t
+X2ZvcmsrMHg3Yy8weGIwIFsNCj4gPiA+ID4gPiA3MjUuNDcwOTk0XSBbPGZmZmZmZmZmODEwOWFi
+NDA+XSA/DQo+ID4gPiA+ID4ga3RocmVhZF9jcmVhdGVfb25fbm9kZSsweDI0MC8weDI0MA0KPiA+
+ID4gPiA+IFsgIDcyNS40OTE0NjldIDYgbG9ja3MgaGVsZCBieSBrd29ya2VyLzA6MS8yNzoNCj4g
+PiA+ID4gPiBbICA3MjUuNTA1MDM3XSAgIzA6ICAoImV2ZW50cyIpey4uLi4uLn0sIGF0Og0KPiA+
+ID4gPiA+IFs8ZmZmZmZmZmY4MTA5NTAyZD5dDQo+ID4gPiA+ID4gcHJvY2Vzc19vbmVfd29yaysw
+eDE2ZC8weDRlMCBbICA3MjUuNTMzMzcwXSAgIzE6DQo+ID4gPiA+ID4gKCgmZG1fZGV2aWNlLmhh
+X3dyay53cmspKXsuLi4uLi59LCBhdDogWzxmZmZmZmZmZjgxMDk1MDJkPl0NCj4gPiA+ID4gPiBw
+cm9jZXNzX29uZV93b3JrKzB4MTZkLzB4NGUwIFsgIDcyNS41NjU1ODBdICAjMjoNCj4gPiA+ID4g
+PiAobWVtX2hvdHBsdWcubG9jayl7Li4uLi4ufSwgYXQ6IFs8ZmZmZmZmZmY4MTFlNjUyNT5dDQo+
+ID4gPiA+ID4gbWVtX2hvdHBsdWdfYmVnaW4rMHg1LzB4ODAgWyAgNzI1LjU5NDM2OV0gICMzOg0K
+PiA+ID4gPiA+IChtZW1faG90cGx1Zy5sb2NrIzIpey4uLi4uLn0sIGF0OiBbPGZmZmZmZmZmODEx
+ZTY1NmY+XQ0KPiA+ID4gPiA+IG1lbV9ob3RwbHVnX2JlZ2luKzB4NGYvMHg4MCBbICA3MjUuNjI4
+NTU0XSAgIzQ6DQo+ID4gPiA+ID4gKG1lbV9zeXNmc19tdXRleCl7Li4uLi4ufSwgYXQ6IFs8ZmZm
+ZmZmZmY4MTYwMTg3Mz5dDQo+ID4gPiA+ID4gcmVnaXN0ZXJfbmV3X21lbW9yeSsweDMzLzB4ZDAg
+WyAgNzI1LjY1ODUxOV0gICM1Og0KPiA+ID4gPiA+ICgmZGV2LT5tdXRleCl7Li4uLi4ufSwNCj4g
+PiA+ID4gPiBhdDogWzxmZmZmZmZmZjgxNWVkNzczPl0gZGV2aWNlX2F0dGFjaCsweDIzLzB4YjAN
+Cj4gPiA+ID4gPg0KPiA+ID4gPiA+IFNlY29uZCBwYXJ0aWNpcGFudCwgdWRldjoNCj4gPiA+ID4g
+Pg0KPiA+ID4gPiA+IFsgIDcyNS43NTA4ODldIHN5c3RlbWQtdWRldmQgICBEIGZmZmY4ODAwM2I5
+NGZjNjggMTQwMTYgICA4ODggICAgNTMwDQo+ID4gPiA+ID4gMHgwMDAwMDAwNA0KPiA+ID4gPiA+
+IFsgIDcyNS43NzM3NjddICBmZmZmODgwMDNiOTRmYzY4IDAwMDAwMDAwMDAwMDAwMDANCj4gPiA+
+ID4gPiBmZmZmODgwMDAzNDk0OWMwDQo+ID4gPiA+ID4gMDAwMDAwMDAwMDAxNTFjMCBbICA3MjUu
+Nzk4MzMyXSAgZmZmZmZmZmY4MjEwZDk4MA0KPiA+ID4gPiA+IGZmZmY4ODAwM2I5NGZmZDgNCj4g
+PiA+ID4gPiAwMDAwMDAwMDAwMDE1MWMwIGZmZmY4ODAwMzdhNjkyNzAgWyAgNzI1LjgyMjg0MV0N
+Cj4gPiA+ID4gPiBmZmZmODgwMDAzNDk0OWMwDQo+ID4gPiA+ID4gMDAwMDAwMDEwMDAwMDAwMSBm
+ZmZmODgwMDAzNDk0OWMwIGZmZmZmZmZmODFmZjJiNDggWw0KPiA+ID4gPiA+IDcyNS44NDkxODRd
+IENhbGwNCj4gPiA+IFRyYWNlOg0KPiA+ID4gPiA+IFsgIDcyNS44NTg5ODddICBbPGZmZmZmZmZm
+ODFhYWMwYTk+XQ0KPiA+ID4gPiA+IHNjaGVkdWxlX3ByZWVtcHRfZGlzYWJsZWQrMHgyOS8weDcw
+DQo+ID4gPiA+ID4gWyAgNzI1Ljg3OTIzMV0gIFs8ZmZmZmZmZmY4MWFhZTMzYj5dDQo+ID4gPiA+
+ID4gbXV0ZXhfbG9ja19uZXN0ZWQrMHgxNGIvMHg0NzAgWyA3MjUuODk3ODYwXQ0KPiA+ID4gPiA+
+IFs8ZmZmZmZmZmY4MTFlNjU2Zj5dID8gbWVtX2hvdHBsdWdfYmVnaW4rMHg0Zi8weDgwIFsgNzI1
+LjkxNjY5OF0NCj4gPiA+ID4gPiBbPGZmZmZmZmZmODExZTY1NmY+XSBtZW1faG90cGx1Z19iZWdp
+bisweDRmLzB4ODAgWyA3MjUuOTM1MDY0XQ0KPiA+ID4gPiA+IFs8ZmZmZmZmZmY4MTFlNjUyNT5d
+ID8gbWVtX2hvdHBsdWdfYmVnaW4rMHg1LzB4ODAgWyA3MjUuOTUzNDY0XQ0KPiA+ID4gPiA+IFs8
+ZmZmZmZmZmY4MWE5NjMxYj5dIG9ubGluZV9wYWdlcysweDNiLzB4NTIwIFsgNzI1Ljk3MTU0Ml0N
+Cj4gPiA+ID4gPiBbPGZmZmZmZmZmODE1ZWIwYjM+XSA/IGRldmljZV9vbmxpbmUrMHgyMy8weGEw
+IFsgNzI1Ljk4OTIwN10NCj4gPiA+ID4gPiBbPGZmZmZmZmZmODE2MDE1MjQ+XSBtZW1vcnlfc3Vi
+c3lzX29ubGluZSsweDY0LzB4YzAgWw0KPiA+ID4gPiA+IDcyNi4wMDg1MTNdIFs8ZmZmZmZmZmY4
+MTVlYjBmZD5dIGRldmljZV9vbmxpbmUrMHg2ZC8weGEwIFsNCj4gPiA+ID4gPiA3MjYuMDI1NTc5
+XSBbPGZmZmZmZmZmODE2MDEyZWI+XSBzdG9yZV9tZW1fc3RhdGUrMHg1Yi8weGUwIFsNCj4gPiA+
+ID4gPiA3MjYuMDQzNDAwXSBbPGZmZmZmZmZmODE1ZTgyNTg+XSBkZXZfYXR0cl9zdG9yZSsweDE4
+LzB4MzAgWw0KPiA+ID4gPiA+IDcyNi4wNjA1MDZdIFs8ZmZmZmZmZmY4MTI3YTgwOD5dIHN5c2Zz
+X2tmX3dyaXRlKzB4NDgvMHg2MCBbDQo+ID4gPiA+ID4gNzI2LjA3Nzk0MF0gWzxmZmZmZmZmZjgx
+Mjc5ZDFiPl0ga2VybmZzX2ZvcF93cml0ZSsweDEzYi8weDFhMCBbDQo+ID4gPiA+ID4gNzI2LjA5
+OTQxNl0gWzxmZmZmZmZmZjgxMWY5ZjY3Pl0gdmZzX3dyaXRlKzB4YjcvMHgxZjAgWw0KPiA+ID4g
+PiA+IDcyNi4xMTU3NDhdIFs8ZmZmZmZmZmY4MTFmYWJmOD5dDQo+ID4gPiA+ID4gU3lTX3dyaXRl
+KzB4NTgvMHhkMCBbICA3MjYuMTMxOTMzXSAgWzxmZmZmZmZmZjgxYWIxZWE5Pl0NCj4gPiA+ID4g
+PiBzeXN0ZW1fY2FsbF9mYXN0cGF0aCsweDEyLzB4MTcgWyAgNzI2LjE1MDY5MV0gNyBsb2NrcyBo
+ZWxkIGJ5DQo+ID4gPiA+ID4gc3lzdGVtZC0NCj4gPiA+ID4gPiB1ZGV2ZC84ODg6DQo+ID4gPiA+
+ID4gWyAgNzI2LjE2NTA0NF0gICMwOiAgKHNiX3dyaXRlcnMjMyl7Li4uLi4ufSwgYXQ6DQo+ID4g
+PiA+ID4gWzxmZmZmZmZmZjgxMWZhMDYzPl0NCj4gPiA+ID4gPiB2ZnNfd3JpdGUrMHgxYjMvMHgx
+ZjAgWyAgNzI2LjE5MjQyMl0gICMxOiAgKCZvZi0+bXV0ZXgpey4uLi4uLn0sIGF0Og0KPiA+ID4g
+PiA+IFs8ZmZmZmZmZmY4MTI3OWM0Nj5dIGtlcm5mc19mb3Bfd3JpdGUrMHg2Ni8weDFhMCBbICA3
+MjYuMjIwMjg5XSAgIzI6DQo+ID4gPiA+ID4gKHNfYWN0aXZlIzYwKXsuLi4uLi59LCBhdDogWzxm
+ZmZmZmZmZjgxMjc5YzRlPl0NCj4gPiA+ID4gPiBrZXJuZnNfZm9wX3dyaXRlKzB4NmUvMHgxYTAg
+WyA3MjYuMjQ5MzgyXSAgIzM6DQo+ID4gPiA+ID4gKGRldmljZV9ob3RwbHVnX2xvY2spey4uLi4u
+Ln0sIGF0OiBbPGZmZmZmZmZmODE1ZTljMTU+XQ0KPiA+ID4gPiA+IGxvY2tfZGV2aWNlX2hvdHBs
+dWdfc3lzZnMrMHgxNS8weDUwDQo+ID4gPiA+ID4gWyAgNzI2LjI4MTkwMV0gICM0OiAgKCZkZXYt
+Pm11dGV4KXsuLi4uLi59LCBhdDoNCj4gPiA+ID4gPiBbPGZmZmZmZmZmODE1ZWIwYjM+XQ0KPiA+
+ID4gPiA+IGRldmljZV9vbmxpbmUrMHgyMy8weGEwIFsgIDcyNi4zMDg2MTldICAjNToNCj4gPiA+
+ID4gPiAobWVtX2hvdHBsdWcubG9jayl7Li4uLi4ufSwNCj4gPiA+IGF0Og0KPiA+ID4gPiA+IFs8
+ZmZmZmZmZmY4MTFlNjUyNT5dIG1lbV9ob3RwbHVnX2JlZ2luKzB4NS8weDgwIFsgIDcyNi4zMzc5
+OTRdDQo+ICM2Og0KPiA+ID4gPiA+IChtZW1faG90cGx1Zy5sb2NrIzIpey4uLi4uLn0sIGF0OiBb
+PGZmZmZmZmZmODExZTY1NmY+XQ0KPiA+ID4gPiA+IG1lbV9ob3RwbHVnX2JlZ2luKzB4NGYvMHg4
+MA0KPiA+ID4gPiA+DQo+ID4gPiA+ID4gSW4gc2hvcnQ6IG9ubGluaW5nIGdyYWJzIGRldmljZSBs
+b2NrIGFuZCB0aGVuIHRyaWVzIHRvIGRvDQo+ID4gPiA+ID4gbWVtX2hvdHBsdWdfYmVnaW4oKSB3
+aGlsZSBhZGRfbWVtb3J5KCkgaXMgYmV0d2Vlbg0KPiA+ID4gPiA+IG1lbV9ob3RwbHVnX2JlZ2lu
+KCkgYW5kIG1lbV9ob3RwbHVnX2RvbmUoKSBhbmQgaXQgdHJpZXMNCj4gZ3JhYmJpbmcNCj4gPiA+
+ID4gPiBkZXZpY2UgbG9jay4NCj4gPiA+ID4gPg0KPiA+ID4gPiA+IFRvIG15IHVuZGVyc3RhbmRp
+bmcgQUNQSSBtZW1vcnkgaG90cGx1ZyBkb2Vzbid0IGhhdmUgdGhlIHNhbWUNCj4gPiA+ID4gPiBp
+c3N1ZSBhcyBkZXZpY2VfaG90cGx1Z19sb2NrIGlzIGJlaW5nIGdyYWJiZWQgd2hlbiB0aGUgQUNQ
+SSBkZXZpY2UNCj4gaXMgYWRkZWQuDQo+ID4gPiA+ID4NCj4gPiA+ID4gPiBTb2x2ZSB0aGUgaXNz
+dWUgYnkgZ3JhYmJpbmcgZGV2aWNlX2hvdHBsdWdfbG9jayBiZWZvcmUgZG9pbmcNCj4gPiA+ID4g
+PiBhZGRfbWVtb3J5KCkuIElmIHdlIGRvIHRoYXQsIGxvY2tfZGV2aWNlX2hvdHBsdWdfc3lzZnMo
+KSB3aWxsDQo+ID4gPiA+ID4gY2F1c2Ugc3lzY2FsbCByZXRyeSB3aGljaCB3aWxsIGV2ZW50dWFs
+bHkgc3VjY2VlZC4gVG8gc3VwcG9ydA0KPiA+ID4gPiA+IHRoZSBjaGFuZ2Ugd2UgbmVlZCB0byBl
+eHBvcnQgbG9ja19kZXZpY2VfaG90cGx1Zy8NCj4gPiA+ID4gPiB1bmxvY2tfZGV2aWNlX2hvdHBs
+dWcuIFRoaXMgYXBwcm9hY2ggY2FuIGJlIGNvbXBsZXRlbHkgd3JvbmcNCj4gdGhvdWdoLg0KPiA+
+ID4gPg0KPiA+ID4gPiBUaGlzIGlzc3VlIHdhcyBmaXJzdCBkaXNjb3ZlcmVkIGJ5IEFuZHkgV2hp
+dGNyb2Z0Og0KPiA+ID4gPiBodHRwczovL2xrbWwub3JnL2xrbWwvMjAxNC8zLzE0LzQ1MQ0KPiA+
+ID4gPiBJIGhhZCBzZW50IHBhdGNoZXMgYmFzZWQgb24gQW5keSdzIGFuYWx5c2lzIHRoYXQgZGlk
+IG5vdCBhZmZlY3QNCj4gPiA+ID4gdGhlIHVzZXJzIG9mIHRoZSBrZXJuZWwgaG90LWFkZCBtZW1v
+cnkgQVBJczoNCj4gPiA+ID4gaHR0cHM6Ly9sa21sLm9yZy9sa21sLzIwMTQvMTIvMi82NjINCj4g
+PiA+ID4NCj4gPiA+ID4gVGhpcyBwYXRjaCBwdXRzIHRoZSBidXJkZW4gd2hlcmUgaXQgbmVlZHMg
+dG8gYmUgYW5kIGNhbiBhZGRyZXNzDQo+ID4gPiA+IHRoZSBpc3N1ZQ0KPiA+ID4gZm9yIGFsbCBj
+bGllbnRzLg0KPiA+ID4NCj4gPiA+IFRoYXQgc2VlbXMgdG8gbWVhbiB0aGF0IHRoaXMgc2VyaWVz
+IGlzIG5vdCBuZWVkZWQuICBJcyB0aGF0IGNvcnJlY3Q/DQo+ID4NCj4gPiBUaGlzIHBhdGNoIHdh
+cyBuZXZlciBjb21taXR0ZWQgdXBzdHJlYW0gYW5kIHNvIHRoZSBpc3N1ZSBzdGlsbCBpcyB0aGVy
+ZS4NCj4gDQo+IFdlbGwsIEknbSBub3Qgc3VyZSB3aGF0IHRvIGRvIG5vdyB0byBiZSBob25lc3Qu
+DQo+IA0KPiBJcyB0aGlzIHNlcmllcyByZWdhcmRlZCBhcyB0aGUgcmlnaHQgd2F5IHRvIGFkZHJl
+c3MgdGhlIHByb2JsZW0gdGhhdA0KPiBldmVyeWJvZHkgaXMgY29tZm9ydGFibGUgd2l0aD8gIE9y
+IGlzIGl0IHN0aWxsIHVuZGVyIGRpc2N1c3Npb24/DQoNCldlIG5lZWQgdG8gc29sdmUgdGhpcyBw
+cm9ibGVtIGFuZCB0aGF0IGlzIG5vdCB1bmRlciBkaXNjdXNzaW9uLiBJIGFsc28gYmVsaWV2ZSB0
+aGlzIHByb2JsZW0NCm5lZWRzIHRvIGJlIHNvbHZlZCBpbiBhIHdheSB0aGF0IGFkZHJlc3NlcyB0
+aGUgcHJvYmxlbSB3aGVyZSBpdCBiZWxvbmdzIC0gbm90IGluIHRoZSB1c2VycyBvZg0KdGhlIGhv
+dF9hZGQgQVBJLiBCb3RoIG15IHNvbHV0aW9uIGFuZCB0aGUgb25lIHByb3Bvc2VkIGJ5IERhdmlk
+IGh0dHBzOi8vbGttbC5vcmcvbGttbC8yMDE1LzIvMTIvNTcNCmFkZHJlc3MgdGhpcyBpc3N1ZS4g
+WW91IGNhbiBzZWxlY3QgZWl0aGVyIHBhdGNoIGFuZCBjaGVjayBpdCBpbi4gSSBqdXN0IHdhbnQg
+dGhlIGlzc3VlIGFkZHJlc3NlZCBhbmQgSSBhbSBub3QNCm1hcnJpZWQgdG8gdGhlIHNvbHV0aW9u
+IEkgcHJvcG9zZWQuDQoNCksuIFkgDQogDQo+IA0KPiBSYWZhZWwNCg0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
