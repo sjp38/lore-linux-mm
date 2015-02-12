@@ -1,148 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id CC3006B0073
-	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 17:17:11 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id kq14so14296620pab.3
-        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 14:17:11 -0800 (PST)
-Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
-        by mx.google.com with ESMTPS id t1si388127pdr.156.2015.02.12.14.17.10
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Thu, 12 Feb 2015 14:17:11 -0800 (PST)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout2.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NJO007U2JF85UA0@mailout2.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 12 Feb 2015 22:21:08 +0000 (GMT)
-From: Stefan Strogin <s.strogin@partner.samsung.com>
-Subject: [PATCH 4/4] mm: cma: add trace events to debug physically-contiguous
- memory allocations
-Date: Fri, 13 Feb 2015 01:15:44 +0300
-Message-id: 
- <3cf88b9b40a883673924571c26608d922f59d900.1423777850.git.s.strogin@partner.samsung.com>
-In-reply-to: <cover.1423777850.git.s.strogin@partner.samsung.com>
-References: <cover.1423777850.git.s.strogin@partner.samsung.com>
-In-reply-to: <cover.1423777850.git.s.strogin@partner.samsung.com>
-References: <cover.1423777850.git.s.strogin@partner.samsung.com>
+Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
+	by kanga.kvack.org (Postfix) with ESMTP id CD4806B0073
+	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 17:20:11 -0500 (EST)
+Received: by mail-we0-f171.google.com with SMTP id p10so13112742wes.2
+        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 14:20:11 -0800 (PST)
+Received: from v094114.home.net.pl (v094114.home.net.pl. [79.96.170.134])
+        by mx.google.com with SMTP id ev10si586091wid.71.2015.02.12.14.20.09
+        for <linux-mm@kvack.org>;
+        Thu, 12 Feb 2015 14:20:10 -0800 (PST)
+From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Subject: Re: [PATCH RESEND 0/3] memory_hotplug: hyperv: fix deadlock between memory adding and onlining
+Date: Thu, 12 Feb 2015 23:43:17 +0100
+Message-ID: <4323296.ObXCUgVR2I@vostro.rjw.lan>
+In-Reply-To: <BY2PR0301MB0711D005F3C78EBFE56A2CD5A0220@BY2PR0301MB0711.namprd03.prod.outlook.com>
+References: <1423736634-338-1-git-send-email-vkuznets@redhat.com> <5256328.ZVnrTeLrH1@vostro.rjw.lan> <BY2PR0301MB0711D005F3C78EBFE56A2CD5A0220@BY2PR0301MB0711.namprd03.prod.outlook.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Stefan Strogin <s.strogin@partner.samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Dmitry Safonov <d.safonov@partner.samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Minchan Kim <minchan@kernel.org>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>, gregory.0xf0@gmail.com, sasha.levin@oracle.com, gioh.kim@lge.com, pavel@ucw.cz, stefan.strogin@gmail.com
+To: KY Srinivasan <kys@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Vitaly Kuznetsov <vkuznets@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Haiyang Zhang <haiyangz@microsoft.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Fabian Frederick <fabf@skynet.be>, Zhang Zhen <zhenzhang.zhang@huawei.com>, Vladimir Davydov <vdavydov@parallels.com>, Wang Nan <wangnan0@huawei.com>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Add trace events for cma_alloc() and cma_release().
+On Thursday, February 12, 2015 10:10:30 PM KY Srinivasan wrote:
 
-Signed-off-by: Stefan Strogin <s.strogin@partner.samsung.com>
----
- include/trace/events/cma.h | 57 ++++++++++++++++++++++++++++++++++++++++++++++
- mm/cma.c                   |  7 +++++-
- 2 files changed, 63 insertions(+), 1 deletion(-)
- create mode 100644 include/trace/events/cma.h
+[cut]
 
-diff --git a/include/trace/events/cma.h b/include/trace/events/cma.h
-new file mode 100644
-index 0000000..3fe7a56
---- /dev/null
-+++ b/include/trace/events/cma.h
-@@ -0,0 +1,57 @@
-+#undef TRACE_SYSTEM
-+#define TRACE_SYSTEM cma
-+
-+#if !defined(_TRACE_CMA_H) || defined(TRACE_HEADER_MULTI_READ)
-+#define _TRACE_CMA_H
-+
-+#include <linux/types.h>
-+#include <linux/tracepoint.h>
-+
-+TRACE_EVENT(cma_alloc,
-+
-+	TP_PROTO(struct cma *cma, unsigned long pfn, int count),
-+
-+	TP_ARGS(cma, pfn, count),
-+
-+	TP_STRUCT__entry(
-+		__field(unsigned long, pfn)
-+		__field(unsigned long, count)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->pfn = pfn;
-+		__entry->count = count;
-+	),
-+
-+	TP_printk("pfn=%lu page=%p count=%lu\n",
-+		  __entry->pfn,
-+		  pfn_to_page(__entry->pfn),
-+		  __entry->count)
-+);
-+
-+TRACE_EVENT(cma_release,
-+
-+	TP_PROTO(struct cma *cma, unsigned long pfn, int count),
-+
-+	TP_ARGS(cma, pfn, count),
-+
-+	TP_STRUCT__entry(
-+		__field(unsigned long, pfn)
-+		__field(unsigned long, count)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->pfn = pfn;
-+		__entry->count = count;
-+	),
-+
-+	TP_printk("pfn=%lu page=%p count=%lu\n",
-+		  __entry->pfn,
-+		  pfn_to_page(__entry->pfn),
-+		  __entry->count)
-+);
-+
-+#endif /* _TRACE_CMA_H */
-+
-+/* This part must be outside protection */
-+#include <trace/define_trace.h>
-diff --git a/mm/cma.c b/mm/cma.c
-index c68d383..a7bd7f0 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -23,6 +23,7 @@
- #  define DEBUG
- #endif
- #endif
-+#define CREATE_TRACE_POINTS
- 
- #include <linux/memblock.h>
- #include <linux/err.h>
-@@ -37,6 +38,7 @@
- #include <linux/list.h>
- #include <linux/proc_fs.h>
- #include <linux/time.h>
-+#include <trace/events/cma.h>
- 
- #include "cma.h"
- 
-@@ -443,8 +445,10 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
- 		start = bitmap_no + mask + 1;
- 	}
- 
--	if (page)
-+	if (page) {
- 		cma_buffer_list_add(cma, pfn, count);
-+		trace_cma_alloc(cma, pfn, count);
-+	}
- 
- 	pr_debug("%s(): returned %p\n", __func__, page);
- 	return page;
-@@ -478,6 +482,7 @@ bool cma_release(struct cma *cma, struct page *pages, int count)
- 
- 	free_contig_range(pfn, count);
- 	cma_clear_bitmap(cma, pfn, count);
-+	trace_cma_release(cma, pfn, count);
- 	cma_buffer_list_del(cma, pfn, count);
- 
- 	return true;
--- 
-2.1.0
+> > > > >
+> > > > > This issue was first discovered by Andy Whitcroft:
+> > > > > https://lkml.org/lkml/2014/3/14/451
+> > > > > I had sent patches based on Andy's analysis that did not affect
+> > > > > the users of the kernel hot-add memory APIs:
+> > > > > https://lkml.org/lkml/2014/12/2/662
+> > > > >
+> > > > > This patch puts the burden where it needs to be and can address
+> > > > > the issue
+> > > > for all clients.
+> > > >
+> > > > That seems to mean that this series is not needed.  Is that correct?
+> > >
+> > > This patch was never committed upstream and so the issue still is there.
+> > 
+> > Well, I'm not sure what to do now to be honest.
+> > 
+> > Is this series regarded as the right way to address the problem that
+> > everybody is comfortable with?  Or is it still under discussion?
+> 
+> We need to solve this problem and that is not under discussion. I also believe this problem
+> needs to be solved in a way that addresses the problem where it belongs - not in the users of
+> the hot_add API. Both my solution and the one proposed by David https://lkml.org/lkml/2015/2/12/57
+> address this issue. You can select either patch and check it in. I just want the issue addressed and I am not
+> married to the solution I proposed.
+
+OK, thanks!
+
+So having looked at both your patch and the David's one I think that
+the Andrew's tree is appropriate for any of them.
+
+Andrew?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
