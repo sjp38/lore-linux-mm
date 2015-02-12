@@ -1,211 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AD526B0038
-	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 17:10:40 -0500 (EST)
-Received: by mail-pa0-f50.google.com with SMTP id hz1so14216488pad.9
-        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 14:10:38 -0800 (PST)
-Received: from na01-by2-obe.outbound.protection.outlook.com (mail-by2on0112.outbound.protection.outlook.com. [207.46.100.112])
-        by mx.google.com with ESMTPS id ya3si382116pbb.69.2015.02.12.14.10.38
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id AACA16B006E
+	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 17:16:43 -0500 (EST)
+Received: by pdev10 with SMTP id v10so14870025pde.7
+        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 14:16:43 -0800 (PST)
+Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
+        by mx.google.com with ESMTPS id hk7si384795pac.134.2015.02.12.14.16.42
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 12 Feb 2015 14:10:38 -0800 (PST)
-From: KY Srinivasan <kys@microsoft.com>
-Subject: RE: [PATCH RESEND 0/3] memory_hotplug: hyperv: fix deadlock between
- memory adding and onlining
-Date: Thu, 12 Feb 2015 22:10:30 +0000
-Message-ID: <BY2PR0301MB0711D005F3C78EBFE56A2CD5A0220@BY2PR0301MB0711.namprd03.prod.outlook.com>
-References: <1423736634-338-1-git-send-email-vkuznets@redhat.com>
- <6866935.Sx3WrqBpT2@vostro.rjw.lan>
- <BY2PR0301MB0711868EB1552907D662E255A0220@BY2PR0301MB0711.namprd03.prod.outlook.com>
- <5256328.ZVnrTeLrH1@vostro.rjw.lan>
-In-Reply-To: <5256328.ZVnrTeLrH1@vostro.rjw.lan>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Thu, 12 Feb 2015 14:16:42 -0800 (PST)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout1.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NJO005LCJEKOEA0@mailout1.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 12 Feb 2015 22:20:44 +0000 (GMT)
+From: Stefan Strogin <s.strogin@partner.samsung.com>
+Subject: [PATCH 0/4] mm: cma: add some debug information for CMA
+Date: Fri, 13 Feb 2015 01:15:40 +0300
+Message-id: <cover.1423777850.git.s.strogin@partner.samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: Vitaly Kuznetsov <vkuznets@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Haiyang Zhang <haiyangz@microsoft.com>, Andrew
- Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Fabian Frederick <fabf@skynet.be>, Zhang Zhen <zhenzhang.zhang@huawei.com>, Vladimir Davydov <vdavydov@parallels.com>, Wang Nan <wangnan0@huawei.com>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Stefan Strogin <s.strogin@partner.samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Dmitry Safonov <d.safonov@partner.samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Minchan Kim <minchan@kernel.org>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>, gregory.0xf0@gmail.com, sasha.levin@oracle.com, gioh.kim@lge.com, pavel@ucw.cz, stefan.strogin@gmail.com
 
-DQoNCj4gLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCj4gRnJvbTogUmFmYWVsIEouIFd5c29j
-a2kgW21haWx0bzpyandAcmp3eXNvY2tpLm5ldF0NCj4gU2VudDogVGh1cnNkYXksIEZlYnJ1YXJ5
-IDEyLCAyMDE1IDI6MjggUE0NCj4gVG86IEtZIFNyaW5pdmFzYW4NCj4gQ2M6IFZpdGFseSBLdXpu
-ZXRzb3Y7IGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc7IEdyZWcgS3JvYWgtSGFydG1hbjsN
-Cj4gSGFpeWFuZyBaaGFuZzsgQW5kcmV3IE1vcnRvbjsgWWFzdWFraSBJc2hpbWF0c3U7IFRhbmcg
-Q2hlbjsgVmxhc3RpbWlsDQo+IEJhYmthOyBEYXZpZCBSaWVudGplczsgRmFiaWFuIEZyZWRlcmlj
-azsgWmhhbmcgWmhlbjsgVmxhZGltaXIgRGF2eWRvdjsNCj4gV2FuZyBOYW47IGRldmVsQGxpbnV4
-ZHJpdmVycHJvamVjdC5vcmc7IGxpbnV4LW1tQGt2YWNrLm9yZw0KPiBTdWJqZWN0OiBSZTogW1BB
-VENIIFJFU0VORCAwLzNdIG1lbW9yeV9ob3RwbHVnOiBoeXBlcnY6IGZpeCBkZWFkbG9jaw0KPiBi
-ZXR3ZWVuIG1lbW9yeSBhZGRpbmcgYW5kIG9ubGluaW5nDQo+IA0KPiBPbiBUaHVyc2RheSwgRmVi
-cnVhcnkgMTIsIDIwMTUgMTA6MDE6NDggUE0gS1kgU3Jpbml2YXNhbiB3cm90ZToNCj4gPg0KPiA+
-ID4gLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCj4gPiA+IEZyb206IFJhZmFlbCBKLiBXeXNv
-Y2tpIFttYWlsdG86cmp3QHJqd3lzb2NraS5uZXRdDQo+ID4gPiBTZW50OiBUaHVyc2RheSwgRmVi
-cnVhcnkgMTIsIDIwMTUgMjoxMyBQTQ0KPiA+ID4gVG86IEtZIFNyaW5pdmFzYW4NCj4gPiA+IENj
-OiBWaXRhbHkgS3V6bmV0c292OyBsaW51eC1rZXJuZWxAdmdlci5rZXJuZWwub3JnOyBHcmVnDQo+
-ID4gPiBLcm9haC1IYXJ0bWFuOyBIYWl5YW5nIFpoYW5nOyBBbmRyZXcgTW9ydG9uOyBZYXN1YWtp
-IElzaGltYXRzdTsgVGFuZw0KPiA+ID4gQ2hlbjsgVmxhc3RpbWlsIEJhYmthOyBEYXZpZCBSaWVu
-dGplczsgRmFiaWFuIEZyZWRlcmljazsgWmhhbmcgWmhlbjsNCj4gPiA+IFZsYWRpbWlyIERhdnlk
-b3Y7IFdhbmcgTmFuOyBkZXZlbEBsaW51eGRyaXZlcnByb2plY3Qub3JnOw0KPiA+ID4gbGludXgt
-bW1Aa3ZhY2sub3JnDQo+ID4gPiBTdWJqZWN0OiBSZTogW1BBVENIIFJFU0VORCAwLzNdIG1lbW9y
-eV9ob3RwbHVnOiBoeXBlcnY6IGZpeCBkZWFkbG9jaw0KPiA+ID4gYmV0d2VlbiBtZW1vcnkgYWRk
-aW5nIGFuZCBvbmxpbmluZw0KPiA+ID4NCj4gPiA+IE9uIFRodXJzZGF5LCBGZWJydWFyeSAxMiwg
-MjAxNSAwMzozODo0MiBQTSBLWSBTcmluaXZhc2FuIHdyb3RlOg0KPiA+ID4gPg0KPiA+ID4gPiA+
-IC0tLS0tT3JpZ2luYWwgTWVzc2FnZS0tLS0tDQo+ID4gPiA+ID4gRnJvbTogVml0YWx5IEt1em5l
-dHNvdiBbbWFpbHRvOnZrdXpuZXRzQHJlZGhhdC5jb21dDQo+ID4gPiA+ID4gU2VudDogVGh1cnNk
-YXksIEZlYnJ1YXJ5IDEyLCAyMDE1IDI6MjQgQU0NCj4gPiA+ID4gPiBUbzogbGludXgta2VybmVs
-QHZnZXIua2VybmVsLm9yZw0KPiA+ID4gPiA+IENjOiBHcmVnIEtyb2FoLUhhcnRtYW47IEtZIFNy
-aW5pdmFzYW47IEhhaXlhbmcgWmhhbmc7IEFuZHJldw0KPiA+ID4gPiA+IE1vcnRvbjsgWWFzdWFr
-aSBJc2hpbWF0c3U7IFRhbmcgQ2hlbjsgVmxhc3RpbWlsIEJhYmthOyBEYXZpZA0KPiA+ID4gPiA+
-IFJpZW50amVzOyBGYWJpYW4gRnJlZGVyaWNrOyBaaGFuZyBaaGVuOyBWbGFkaW1pciBEYXZ5ZG92
-OyBXYW5nIE5hbjsNCj4gUmFmYWVsIEouDQo+ID4gPiA+ID4gV3lzb2NraTsgZGV2ZWxAbGludXhk
-cml2ZXJwcm9qZWN0Lm9yZzsgbGludXgtbW1Aa3ZhY2sub3JnDQo+ID4gPiA+ID4gU3ViamVjdDog
-W1BBVENIIFJFU0VORCAwLzNdIG1lbW9yeV9ob3RwbHVnOiBoeXBlcnY6IGZpeCBkZWFkbG9jaw0K
-PiA+ID4gPiA+IGJldHdlZW4gbWVtb3J5IGFkZGluZyBhbmQgb25saW5pbmcNCj4gPiA+ID4gPg0K
-PiA+ID4gPiA+IFJFU0VORCAod2l0aCBubyBjaGFuZ2VzKSBiZWNhdXNlIFJhZmFlbCBKLiBXeXNv
-Y2tpIHdhcyBtaXNzaW5nDQo+ID4gPiA+ID4gaW4gcmVjZXBpZW50cy4NCj4gPiA+ID4gPg0KPiA+
-ID4gPiA+IElmIG5ld2x5IGFkZGVkIG1lbW9yeSBpcyBicm91Z2h0IG9ubGluZSB3aXRoIGUuZy4g
-dWRldiBydWxlOg0KPiA+ID4gPiA+IFNVQlNZU1RFTT09Im1lbW9yeSIsIEFDVElPTj09ImFkZCIs
-IEFUVFJ7c3RhdGV9PSJvbmxpbmUiDQo+ID4gPiA+ID4gdGhlIGZvbGxvd2luZyBkZWFkbG9jayBp
-cyBvYnNlcnZlZCAoYW5kIGVhc2lseSByZXByb2R1Y2FibGUpOg0KPiA+ID4gPiA+DQo+ID4gPiA+
-ID4gRmlyc3QgcGFydGljaXBhbnQsIHdvcmtlciB0aHJlYWQgZG9pbmcgYWRkX21lbW9yeSgpOg0K
-PiA+ID4gPiA+DQo+ID4gPiA+ID4gWyAgNzI0Ljk0ODg0Nl0ga3dvcmtlci8wOjEgICAgIEQgZmZm
-Zjg4MDAwNDEyZjljOCAxMzI0OCAgICAyNyAgICAgIDINCj4gPiA+IDB4MDAwMDAwMDANCj4gPiA+
-ID4gPiBbICA3MjQuOTczNTQzXSBXb3JrcXVldWU6IGV2ZW50cyBob3RfYWRkX3JlcSBbaHZfYmFs
-bG9vbl0gWw0KPiA+ID4gPiA+IDcyNC45OTE3MzZdDQo+ID4gPiA+ID4gZmZmZjg4MDAwNDEyZjlj
-OCAwMDAwMDAwMDAwMDAwMDAwIGZmZmY4ODAwM2ZhMWRjMzANCj4gPiA+ID4gPiAwMDAwMDAwMDAw
-MDE1MWMwIFsgNzI1LjAxOTcyNV0gIDAwMDAwMDAwMDAwMDAyNDYNCj4gPiA+ID4gPiBmZmZmODgw
-MDA0MTJmZmQ4IDAwMDAwMDAwMDAwMTUxYzANCj4gPiA+ID4gPiBmZmZmODgwMDNhNzdhNGUwIFsg
-IDcyNS4wNDY0ODZdICBmZmZmODgwMDNmYTFkYzMwDQo+ID4gPiA+ID4gMDAwMDAwMDEwMzJhNjAw
-MA0KPiA+ID4gPiA+IGZmZmY4ODAwM2E3Y2E4MzggZmZmZjg4MDAzYTdjYTg5OCBbICA3MjUuMDcy
-OTY5XSBDYWxsIFRyYWNlOg0KPiA+ID4gPiA+IFsgIDcyNS4wODI2OTBdICBbPGZmZmZmZmZmODFh
-YWMwYTk+XQ0KPiA+ID4gPiA+IHNjaGVkdWxlX3ByZWVtcHRfZGlzYWJsZWQrMHgyOS8weDcwDQo+
-ID4gPiA+ID4gWyAgNzI1LjEwMzc5OV0gIFs8ZmZmZmZmZmY4MWFhZTMzYj5dDQo+ID4gPiA+ID4g
-bXV0ZXhfbG9ja19uZXN0ZWQrMHgxNGIvMHg0NzAgWyA3MjUuMTIyMzY3XQ0KPiA+ID4gPiA+IFs8
-ZmZmZmZmZmY4MTVlZDc3Mz5dID8gZGV2aWNlX2F0dGFjaCsweDIzLzB4YjAgWyA3MjUuMTQwOTky
-XQ0KPiA+ID4gPiA+IFs8ZmZmZmZmZmY4MTVlZDc3Mz5dIGRldmljZV9hdHRhY2grMHgyMy8weGIw
-IFsgNzI1LjE1OTEzMV0NCj4gPiA+ID4gPiBbPGZmZmZmZmZmODE1ZWNiYTA+XSBidXNfcHJvYmVf
-ZGV2aWNlKzB4YjAvMHhlMCBbIDcyNS4xNzcwNTVdDQo+ID4gPiA+ID4gWzxmZmZmZmZmZjgxNWVh
-NjkzPl0gZGV2aWNlX2FkZCsweDQ0My8weDY1MCBbIDcyNS4xOTU1NThdDQo+ID4gPiA+ID4gWzxm
-ZmZmZmZmZjgxNWVhOGJlPl0gZGV2aWNlX3JlZ2lzdGVyKzB4MWUvMHgzMCBbIDcyNS4yMTMxMzNd
-DQo+ID4gPiA+ID4gWzxmZmZmZmZmZjgxNjAxNzkwPl0gaW5pdF9tZW1vcnlfYmxvY2srMHhkMC8w
-eGYwIFsgNzI1LjIzMTUzM10NCj4gPiA+ID4gPiBbPGZmZmZmZmZmODE2MDE4ZjE+XSByZWdpc3Rl
-cl9uZXdfbWVtb3J5KzB4YjEvMHhkMCBbIDcyNS4yNTA3NjldDQo+ID4gPiA+ID4gWzxmZmZmZmZm
-ZjgxYTk2MWNmPl0gX19hZGRfcGFnZXMrMHgxM2YvMHgyNTAgWyA3MjUuMjY5NjQyXQ0KPiA+ID4g
-PiA+IFs8ZmZmZmZmZmY4MTA2Mzc3MD5dID8gYXJjaF9hZGRfbWVtb3J5KzB4NzAvMHhmMCBbIDcy
-NS4yODg3NjRdDQo+ID4gPiA+ID4gWzxmZmZmZmZmZjgxMDYzNzcwPl0gYXJjaF9hZGRfbWVtb3J5
-KzB4NzAvMHhmMCBbIDcyNS4zMDYxMTddDQo+ID4gPiA+ID4gWzxmZmZmZmZmZjgxYTk1ZjhmPl0g
-YWRkX21lbW9yeSsweGVmLzB4MWYwIFsgNzI1LjMyMjQ2Nl0NCj4gPiA+ID4gPiBbPGZmZmZmZmZm
-YTAwMjkzYWY+XSBob3RfYWRkX3JlcSsweDMzZi8weGY5MCBbaHZfYmFsbG9vbl0gWw0KPiA+ID4g
-PiA+IDcyNS4zNDI3NzddIFs8ZmZmZmZmZmY4MTA5NTA5Zj5dDQo+ID4gPiA+ID4gcHJvY2Vzc19v
-bmVfd29yaysweDFkZi8weDRlMCBbICA3MjUuMzYxNDU5XSBbPGZmZmZmZmZmODEwOTUwMmQ+XSA/
-DQo+ID4gPiA+ID4gcHJvY2Vzc19vbmVfd29yaysweDE2ZC8weDRlMCBbICA3MjUuMzgwMzkwXSBb
-PGZmZmZmZmZmODEwOTU0YmI+XQ0KPiA+ID4gPiA+IHdvcmtlcl90aHJlYWQrMHgxMWIvMHg0NTAg
-WyAgNzI1LjM5NzY4NF0gWzxmZmZmZmZmZjgxMDk1M2EwPl0gPw0KPiA+ID4gPiA+IHByb2Nlc3Nf
-b25lX3dvcmsrMHg0ZTAvMHg0ZTAgWyAgNzI1LjQxNjUzM10gWzxmZmZmZmZmZjgxMDlhYzMzPl0N
-Cj4gPiA+ID4gPiBrdGhyZWFkKzB4ZjMvMHgxMTAgWyAgNzI1LjQzMzM3Ml0gIFs8ZmZmZmZmZmY4
-MTA5YWI0MD5dID8NCj4gPiA+ID4gPiBrdGhyZWFkX2NyZWF0ZV9vbl9ub2RlKzB4MjQwLzB4MjQw
-DQo+ID4gPiA+ID4gWyAgNzI1LjQ1Mzc0OV0gIFs8ZmZmZmZmZmY4MWFiMWRmYz5dIHJldF9mcm9t
-X2ZvcmsrMHg3Yy8weGIwIFsNCj4gPiA+ID4gPiA3MjUuNDcwOTk0XSBbPGZmZmZmZmZmODEwOWFi
-NDA+XSA/DQo+ID4gPiA+ID4ga3RocmVhZF9jcmVhdGVfb25fbm9kZSsweDI0MC8weDI0MA0KPiA+
-ID4gPiA+IFsgIDcyNS40OTE0NjldIDYgbG9ja3MgaGVsZCBieSBrd29ya2VyLzA6MS8yNzoNCj4g
-PiA+ID4gPiBbICA3MjUuNTA1MDM3XSAgIzA6ICAoImV2ZW50cyIpey4uLi4uLn0sIGF0Og0KPiA+
-ID4gPiA+IFs8ZmZmZmZmZmY4MTA5NTAyZD5dDQo+ID4gPiA+ID4gcHJvY2Vzc19vbmVfd29yaysw
-eDE2ZC8weDRlMCBbICA3MjUuNTMzMzcwXSAgIzE6DQo+ID4gPiA+ID4gKCgmZG1fZGV2aWNlLmhh
-X3dyay53cmspKXsuLi4uLi59LCBhdDogWzxmZmZmZmZmZjgxMDk1MDJkPl0NCj4gPiA+ID4gPiBw
-cm9jZXNzX29uZV93b3JrKzB4MTZkLzB4NGUwIFsgIDcyNS41NjU1ODBdICAjMjoNCj4gPiA+ID4g
-PiAobWVtX2hvdHBsdWcubG9jayl7Li4uLi4ufSwgYXQ6IFs8ZmZmZmZmZmY4MTFlNjUyNT5dDQo+
-ID4gPiA+ID4gbWVtX2hvdHBsdWdfYmVnaW4rMHg1LzB4ODAgWyAgNzI1LjU5NDM2OV0gICMzOg0K
-PiA+ID4gPiA+IChtZW1faG90cGx1Zy5sb2NrIzIpey4uLi4uLn0sIGF0OiBbPGZmZmZmZmZmODEx
-ZTY1NmY+XQ0KPiA+ID4gPiA+IG1lbV9ob3RwbHVnX2JlZ2luKzB4NGYvMHg4MCBbICA3MjUuNjI4
-NTU0XSAgIzQ6DQo+ID4gPiA+ID4gKG1lbV9zeXNmc19tdXRleCl7Li4uLi4ufSwgYXQ6IFs8ZmZm
-ZmZmZmY4MTYwMTg3Mz5dDQo+ID4gPiA+ID4gcmVnaXN0ZXJfbmV3X21lbW9yeSsweDMzLzB4ZDAg
-WyAgNzI1LjY1ODUxOV0gICM1Og0KPiA+ID4gPiA+ICgmZGV2LT5tdXRleCl7Li4uLi4ufSwNCj4g
-PiA+ID4gPiBhdDogWzxmZmZmZmZmZjgxNWVkNzczPl0gZGV2aWNlX2F0dGFjaCsweDIzLzB4YjAN
-Cj4gPiA+ID4gPg0KPiA+ID4gPiA+IFNlY29uZCBwYXJ0aWNpcGFudCwgdWRldjoNCj4gPiA+ID4g
-Pg0KPiA+ID4gPiA+IFsgIDcyNS43NTA4ODldIHN5c3RlbWQtdWRldmQgICBEIGZmZmY4ODAwM2I5
-NGZjNjggMTQwMTYgICA4ODggICAgNTMwDQo+ID4gPiA+ID4gMHgwMDAwMDAwNA0KPiA+ID4gPiA+
-IFsgIDcyNS43NzM3NjddICBmZmZmODgwMDNiOTRmYzY4IDAwMDAwMDAwMDAwMDAwMDANCj4gPiA+
-ID4gPiBmZmZmODgwMDAzNDk0OWMwDQo+ID4gPiA+ID4gMDAwMDAwMDAwMDAxNTFjMCBbICA3MjUu
-Nzk4MzMyXSAgZmZmZmZmZmY4MjEwZDk4MA0KPiA+ID4gPiA+IGZmZmY4ODAwM2I5NGZmZDgNCj4g
-PiA+ID4gPiAwMDAwMDAwMDAwMDE1MWMwIGZmZmY4ODAwMzdhNjkyNzAgWyAgNzI1LjgyMjg0MV0N
-Cj4gPiA+ID4gPiBmZmZmODgwMDAzNDk0OWMwDQo+ID4gPiA+ID4gMDAwMDAwMDEwMDAwMDAwMSBm
-ZmZmODgwMDAzNDk0OWMwIGZmZmZmZmZmODFmZjJiNDggWw0KPiA+ID4gPiA+IDcyNS44NDkxODRd
-IENhbGwNCj4gPiA+IFRyYWNlOg0KPiA+ID4gPiA+IFsgIDcyNS44NTg5ODddICBbPGZmZmZmZmZm
-ODFhYWMwYTk+XQ0KPiA+ID4gPiA+IHNjaGVkdWxlX3ByZWVtcHRfZGlzYWJsZWQrMHgyOS8weDcw
-DQo+ID4gPiA+ID4gWyAgNzI1Ljg3OTIzMV0gIFs8ZmZmZmZmZmY4MWFhZTMzYj5dDQo+ID4gPiA+
-ID4gbXV0ZXhfbG9ja19uZXN0ZWQrMHgxNGIvMHg0NzAgWyA3MjUuODk3ODYwXQ0KPiA+ID4gPiA+
-IFs8ZmZmZmZmZmY4MTFlNjU2Zj5dID8gbWVtX2hvdHBsdWdfYmVnaW4rMHg0Zi8weDgwIFsgNzI1
-LjkxNjY5OF0NCj4gPiA+ID4gPiBbPGZmZmZmZmZmODExZTY1NmY+XSBtZW1faG90cGx1Z19iZWdp
-bisweDRmLzB4ODAgWyA3MjUuOTM1MDY0XQ0KPiA+ID4gPiA+IFs8ZmZmZmZmZmY4MTFlNjUyNT5d
-ID8gbWVtX2hvdHBsdWdfYmVnaW4rMHg1LzB4ODAgWyA3MjUuOTUzNDY0XQ0KPiA+ID4gPiA+IFs8
-ZmZmZmZmZmY4MWE5NjMxYj5dIG9ubGluZV9wYWdlcysweDNiLzB4NTIwIFsgNzI1Ljk3MTU0Ml0N
-Cj4gPiA+ID4gPiBbPGZmZmZmZmZmODE1ZWIwYjM+XSA/IGRldmljZV9vbmxpbmUrMHgyMy8weGEw
-IFsgNzI1Ljk4OTIwN10NCj4gPiA+ID4gPiBbPGZmZmZmZmZmODE2MDE1MjQ+XSBtZW1vcnlfc3Vi
-c3lzX29ubGluZSsweDY0LzB4YzAgWw0KPiA+ID4gPiA+IDcyNi4wMDg1MTNdIFs8ZmZmZmZmZmY4
-MTVlYjBmZD5dIGRldmljZV9vbmxpbmUrMHg2ZC8weGEwIFsNCj4gPiA+ID4gPiA3MjYuMDI1NTc5
-XSBbPGZmZmZmZmZmODE2MDEyZWI+XSBzdG9yZV9tZW1fc3RhdGUrMHg1Yi8weGUwIFsNCj4gPiA+
-ID4gPiA3MjYuMDQzNDAwXSBbPGZmZmZmZmZmODE1ZTgyNTg+XSBkZXZfYXR0cl9zdG9yZSsweDE4
-LzB4MzAgWw0KPiA+ID4gPiA+IDcyNi4wNjA1MDZdIFs8ZmZmZmZmZmY4MTI3YTgwOD5dIHN5c2Zz
-X2tmX3dyaXRlKzB4NDgvMHg2MCBbDQo+ID4gPiA+ID4gNzI2LjA3Nzk0MF0gWzxmZmZmZmZmZjgx
-Mjc5ZDFiPl0ga2VybmZzX2ZvcF93cml0ZSsweDEzYi8weDFhMCBbDQo+ID4gPiA+ID4gNzI2LjA5
-OTQxNl0gWzxmZmZmZmZmZjgxMWY5ZjY3Pl0gdmZzX3dyaXRlKzB4YjcvMHgxZjAgWw0KPiA+ID4g
-PiA+IDcyNi4xMTU3NDhdIFs8ZmZmZmZmZmY4MTFmYWJmOD5dDQo+ID4gPiA+ID4gU3lTX3dyaXRl
-KzB4NTgvMHhkMCBbICA3MjYuMTMxOTMzXSAgWzxmZmZmZmZmZjgxYWIxZWE5Pl0NCj4gPiA+ID4g
-PiBzeXN0ZW1fY2FsbF9mYXN0cGF0aCsweDEyLzB4MTcgWyAgNzI2LjE1MDY5MV0gNyBsb2NrcyBo
-ZWxkIGJ5DQo+ID4gPiA+ID4gc3lzdGVtZC0NCj4gPiA+ID4gPiB1ZGV2ZC84ODg6DQo+ID4gPiA+
-ID4gWyAgNzI2LjE2NTA0NF0gICMwOiAgKHNiX3dyaXRlcnMjMyl7Li4uLi4ufSwgYXQ6DQo+ID4g
-PiA+ID4gWzxmZmZmZmZmZjgxMWZhMDYzPl0NCj4gPiA+ID4gPiB2ZnNfd3JpdGUrMHgxYjMvMHgx
-ZjAgWyAgNzI2LjE5MjQyMl0gICMxOiAgKCZvZi0+bXV0ZXgpey4uLi4uLn0sIGF0Og0KPiA+ID4g
-PiA+IFs8ZmZmZmZmZmY4MTI3OWM0Nj5dIGtlcm5mc19mb3Bfd3JpdGUrMHg2Ni8weDFhMCBbICA3
-MjYuMjIwMjg5XSAgIzI6DQo+ID4gPiA+ID4gKHNfYWN0aXZlIzYwKXsuLi4uLi59LCBhdDogWzxm
-ZmZmZmZmZjgxMjc5YzRlPl0NCj4gPiA+ID4gPiBrZXJuZnNfZm9wX3dyaXRlKzB4NmUvMHgxYTAg
-WyA3MjYuMjQ5MzgyXSAgIzM6DQo+ID4gPiA+ID4gKGRldmljZV9ob3RwbHVnX2xvY2spey4uLi4u
-Ln0sIGF0OiBbPGZmZmZmZmZmODE1ZTljMTU+XQ0KPiA+ID4gPiA+IGxvY2tfZGV2aWNlX2hvdHBs
-dWdfc3lzZnMrMHgxNS8weDUwDQo+ID4gPiA+ID4gWyAgNzI2LjI4MTkwMV0gICM0OiAgKCZkZXYt
-Pm11dGV4KXsuLi4uLi59LCBhdDoNCj4gPiA+ID4gPiBbPGZmZmZmZmZmODE1ZWIwYjM+XQ0KPiA+
-ID4gPiA+IGRldmljZV9vbmxpbmUrMHgyMy8weGEwIFsgIDcyNi4zMDg2MTldICAjNToNCj4gPiA+
-ID4gPiAobWVtX2hvdHBsdWcubG9jayl7Li4uLi4ufSwNCj4gPiA+IGF0Og0KPiA+ID4gPiA+IFs8
-ZmZmZmZmZmY4MTFlNjUyNT5dIG1lbV9ob3RwbHVnX2JlZ2luKzB4NS8weDgwIFsgIDcyNi4zMzc5
-OTRdDQo+ICM2Og0KPiA+ID4gPiA+IChtZW1faG90cGx1Zy5sb2NrIzIpey4uLi4uLn0sIGF0OiBb
-PGZmZmZmZmZmODExZTY1NmY+XQ0KPiA+ID4gPiA+IG1lbV9ob3RwbHVnX2JlZ2luKzB4NGYvMHg4
-MA0KPiA+ID4gPiA+DQo+ID4gPiA+ID4gSW4gc2hvcnQ6IG9ubGluaW5nIGdyYWJzIGRldmljZSBs
-b2NrIGFuZCB0aGVuIHRyaWVzIHRvIGRvDQo+ID4gPiA+ID4gbWVtX2hvdHBsdWdfYmVnaW4oKSB3
-aGlsZSBhZGRfbWVtb3J5KCkgaXMgYmV0d2Vlbg0KPiA+ID4gPiA+IG1lbV9ob3RwbHVnX2JlZ2lu
-KCkgYW5kIG1lbV9ob3RwbHVnX2RvbmUoKSBhbmQgaXQgdHJpZXMNCj4gZ3JhYmJpbmcNCj4gPiA+
-ID4gPiBkZXZpY2UgbG9jay4NCj4gPiA+ID4gPg0KPiA+ID4gPiA+IFRvIG15IHVuZGVyc3RhbmRp
-bmcgQUNQSSBtZW1vcnkgaG90cGx1ZyBkb2Vzbid0IGhhdmUgdGhlIHNhbWUNCj4gPiA+ID4gPiBp
-c3N1ZSBhcyBkZXZpY2VfaG90cGx1Z19sb2NrIGlzIGJlaW5nIGdyYWJiZWQgd2hlbiB0aGUgQUNQ
-SSBkZXZpY2UNCj4gaXMgYWRkZWQuDQo+ID4gPiA+ID4NCj4gPiA+ID4gPiBTb2x2ZSB0aGUgaXNz
-dWUgYnkgZ3JhYmJpbmcgZGV2aWNlX2hvdHBsdWdfbG9jayBiZWZvcmUgZG9pbmcNCj4gPiA+ID4g
-PiBhZGRfbWVtb3J5KCkuIElmIHdlIGRvIHRoYXQsIGxvY2tfZGV2aWNlX2hvdHBsdWdfc3lzZnMo
-KSB3aWxsDQo+ID4gPiA+ID4gY2F1c2Ugc3lzY2FsbCByZXRyeSB3aGljaCB3aWxsIGV2ZW50dWFs
-bHkgc3VjY2VlZC4gVG8gc3VwcG9ydA0KPiA+ID4gPiA+IHRoZSBjaGFuZ2Ugd2UgbmVlZCB0byBl
-eHBvcnQgbG9ja19kZXZpY2VfaG90cGx1Zy8NCj4gPiA+ID4gPiB1bmxvY2tfZGV2aWNlX2hvdHBs
-dWcuIFRoaXMgYXBwcm9hY2ggY2FuIGJlIGNvbXBsZXRlbHkgd3JvbmcNCj4gdGhvdWdoLg0KPiA+
-ID4gPg0KPiA+ID4gPiBUaGlzIGlzc3VlIHdhcyBmaXJzdCBkaXNjb3ZlcmVkIGJ5IEFuZHkgV2hp
-dGNyb2Z0Og0KPiA+ID4gPiBodHRwczovL2xrbWwub3JnL2xrbWwvMjAxNC8zLzE0LzQ1MQ0KPiA+
-ID4gPiBJIGhhZCBzZW50IHBhdGNoZXMgYmFzZWQgb24gQW5keSdzIGFuYWx5c2lzIHRoYXQgZGlk
-IG5vdCBhZmZlY3QNCj4gPiA+ID4gdGhlIHVzZXJzIG9mIHRoZSBrZXJuZWwgaG90LWFkZCBtZW1v
-cnkgQVBJczoNCj4gPiA+ID4gaHR0cHM6Ly9sa21sLm9yZy9sa21sLzIwMTQvMTIvMi82NjINCj4g
-PiA+ID4NCj4gPiA+ID4gVGhpcyBwYXRjaCBwdXRzIHRoZSBidXJkZW4gd2hlcmUgaXQgbmVlZHMg
-dG8gYmUgYW5kIGNhbiBhZGRyZXNzDQo+ID4gPiA+IHRoZSBpc3N1ZQ0KPiA+ID4gZm9yIGFsbCBj
-bGllbnRzLg0KPiA+ID4NCj4gPiA+IFRoYXQgc2VlbXMgdG8gbWVhbiB0aGF0IHRoaXMgc2VyaWVz
-IGlzIG5vdCBuZWVkZWQuICBJcyB0aGF0IGNvcnJlY3Q/DQo+ID4NCj4gPiBUaGlzIHBhdGNoIHdh
-cyBuZXZlciBjb21taXR0ZWQgdXBzdHJlYW0gYW5kIHNvIHRoZSBpc3N1ZSBzdGlsbCBpcyB0aGVy
-ZS4NCj4gDQo+IFdlbGwsIEknbSBub3Qgc3VyZSB3aGF0IHRvIGRvIG5vdyB0byBiZSBob25lc3Qu
-DQo+IA0KPiBJcyB0aGlzIHNlcmllcyByZWdhcmRlZCBhcyB0aGUgcmlnaHQgd2F5IHRvIGFkZHJl
-c3MgdGhlIHByb2JsZW0gdGhhdA0KPiBldmVyeWJvZHkgaXMgY29tZm9ydGFibGUgd2l0aD8gIE9y
-IGlzIGl0IHN0aWxsIHVuZGVyIGRpc2N1c3Npb24/DQoNCldlIG5lZWQgdG8gc29sdmUgdGhpcyBw
-cm9ibGVtIGFuZCB0aGF0IGlzIG5vdCB1bmRlciBkaXNjdXNzaW9uLiBJIGFsc28gYmVsaWV2ZSB0
-aGlzIHByb2JsZW0NCm5lZWRzIHRvIGJlIHNvbHZlZCBpbiBhIHdheSB0aGF0IGFkZHJlc3NlcyB0
-aGUgcHJvYmxlbSB3aGVyZSBpdCBiZWxvbmdzIC0gbm90IGluIHRoZSB1c2VycyBvZg0KdGhlIGhv
-dF9hZGQgQVBJLiBCb3RoIG15IHNvbHV0aW9uIGFuZCB0aGUgb25lIHByb3Bvc2VkIGJ5IERhdmlk
-IGh0dHBzOi8vbGttbC5vcmcvbGttbC8yMDE1LzIvMTIvNTcNCmFkZHJlc3MgdGhpcyBpc3N1ZS4g
-WW91IGNhbiBzZWxlY3QgZWl0aGVyIHBhdGNoIGFuZCBjaGVjayBpdCBpbi4gSSBqdXN0IHdhbnQg
-dGhlIGlzc3VlIGFkZHJlc3NlZCBhbmQgSSBhbSBub3QNCm1hcnJpZWQgdG8gdGhlIHNvbHV0aW9u
-IEkgcHJvcG9zZWQuDQoNCksuIFkgDQogDQo+IA0KPiBSYWZhZWwNCg0K
+Hi all.
+
+Sorry for the long delay. Here is the second attempt to add some facility
+for debugging CMA (the first one was "mm: cma: add /proc/cmainfo" [1]).
+
+This patch set is based on v3.19 and Sasha Levin's patch set
+"mm: cma: debugfs access to CMA" [2].
+It is also available on git:
+git://github.com/stefanstrogin/cmainfo -b cmainfo-v2
+
+We want an interface to see a list of currently allocated CMA buffers and
+some useful information about them (like /proc/vmallocinfo but for physically
+contiguous buffers allocated with CMA).
+
+Here is an example use case when we need it. We want a big (megabytes)
+CMA buffer to be allocated in runtime in default CMA region. If someone
+already uses CMA then the big allocation can fail. If it happens then with
+such an interface we could find who used CMA at the moment of failure, who
+caused fragmentation (possibly ftrace also would be helpful here) and so on.
+
+These patches add some files to debugfs when CONFIG_CMA_DEBUGFS is enabled.
+
+/sys/kernel/debug/cma/cma-<N>/buffers contains a list of currently allocated
+CMA buffers for each CMA region. Stacktrace saved at the moment of allocation
+is used to see who and whence allocated each buffer [3].
+
+cma/cma-<N>/used and cma/cma-<N>/maxchunk are added to show used size and
+the biggest free chunk in each CMA region.
+
+Also added trace events for cma_alloc() and cma_release().
+
+Changes from "mm: cma: add /proc/cmainfo" [1]:
+- Rebased on v3.19 and Sasha Levin's patch set [2].
+- Moved debug code from cma.c to cma_debug.c.
+- Moved cmainfo to debugfs and splited it by CMA region.
+- Splited 'cmainfo' into 'buffers', 'used' and 'maxchunk'.
+- Used CONFIG_CMA_DEBUGFS instead of CONFIG_CMA_DEBUG.
+- Added trace events for cma_alloc() and cma_release().
+- Don't use seq_files.
+- A small change of debug output in cma_release().
+- cma_buffer_list_del() now supports releasing chunks which ranges don't match
+  allocations. E.g. we have buffer1: [0x0, 0x1], buffer2: [0x2, 0x3], then
+  cma_buffer_list_del(cma, 0x1 /*or 0x0*/, 1 /*(or 2 or 3)*/) should work.
+- Various small changes.
+
+
+[1] https://lkml.org/lkml/2014/12/26/95
+
+[2] https://lkml.org/lkml/2015/1/28/755
+
+[3] E.g.
+root@debian:/sys/kernel/debug/cma# cat cma-0/buffers
+0x2f400000 - 0x2f417000 (92 kB), allocated by pid 1 (swapper/0)
+ [<c1142c4b>] cma_alloc+0x1bb/0x200
+ [<c143d28a>] dma_alloc_from_contiguous+0x3a/0x40
+ [<c10079d9>] dma_generic_alloc_coherent+0x89/0x160
+ [<c14456ce>] dmam_alloc_coherent+0xbe/0x100
+ [<c1487312>] ahci_port_start+0xe2/0x210
+ [<c146e0e0>] ata_host_start.part.28+0xc0/0x1a0
+ [<c1473650>] ata_host_activate+0xd0/0x110
+ [<c14881bf>] ahci_host_activate+0x3f/0x170
+ [<c14854e4>] ahci_init_one+0x764/0xab0
+ [<c12e415f>] pci_device_probe+0x6f/0xd0
+ [<c14378a8>] driver_probe_device+0x68/0x210
+ [<c1437b09>] __driver_attach+0x79/0x80
+ [<c1435eef>] bus_for_each_dev+0x4f/0x80
+ [<c143749e>] driver_attach+0x1e/0x20
+ [<c1437197>] bus_add_driver+0x157/0x200
+ [<c14381bd>] driver_register+0x5d/0xf0
+<...> 
+0x2f41b000 - 0x2f41c000 (4 kB), allocated by pid 1264 (NetworkManager)
+ [<c1142c4b>] cma_alloc+0x1bb/0x200
+ [<c143d28a>] dma_alloc_from_contiguous+0x3a/0x40
+ [<c10079d9>] dma_generic_alloc_coherent+0x89/0x160
+ [<c14c5d13>] e1000_setup_all_tx_resources+0x93/0x540
+ [<c14c8021>] e1000_open+0x31/0x120
+ [<c16264cf>] __dev_open+0x9f/0x130
+ [<c16267ce>] __dev_change_flags+0x8e/0x150
+ [<c16268b8>] dev_change_flags+0x28/0x60
+ [<c1633ee0>] do_setlink+0x2a0/0x760
+ [<c1634acb>] rtnl_newlink+0x60b/0x7b0
+ [<c16314f4>] rtnetlink_rcv_msg+0x84/0x1f0
+ [<c164b58e>] netlink_rcv_skb+0x8e/0xb0
+ [<c1631461>] rtnetlink_rcv+0x21/0x30
+ [<c164af7a>] netlink_unicast+0x13a/0x1d0
+ [<c164b250>] netlink_sendmsg+0x240/0x3e0
+ [<c160cbfd>] do_sock_sendmsg+0xbd/0xe0
+<...>
+
+
+Dmitry Safonov (1):
+  mm: cma: add functions to get region pages counters
+
+Stefan Strogin (3):
+  mm: cma: add currently allocated CMA buffers list to debugfs
+  mm: cma: add number of pages to debug message in cma_release()
+  mm: cma: add trace events to debug physically-contiguous memory
+    allocations
+
+ include/linux/cma.h        |  11 +++
+ include/trace/events/cma.h |  57 +++++++++++++++
+ mm/cma.c                   |  46 +++++++++++-
+ mm/cma.h                   |  16 +++++
+ mm/cma_debug.c             | 169 ++++++++++++++++++++++++++++++++++++++++++++-
+ 5 files changed, 297 insertions(+), 2 deletions(-)
+ create mode 100644 include/trace/events/cma.h
+
+-- 
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
