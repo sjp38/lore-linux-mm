@@ -1,177 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AD036B0038
-	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 10:50:32 -0500 (EST)
-Received: by mail-wg0-f42.google.com with SMTP id x13so11006598wgg.1
-        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 07:50:31 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t6si3664857wif.27.2015.02.12.07.50.29
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Feb 2015 07:50:30 -0800 (PST)
-From: Vitaly Kuznetsov <vkuznets@redhat.com>
-Subject: Re: [PATCH RESEND 0/3] memory_hotplug: hyperv: fix deadlock between memory adding and onlining
-References: <1423736634-338-1-git-send-email-vkuznets@redhat.com>
-	<BY2PR0301MB0711A9F283C2C38BBB329591A0220@BY2PR0301MB0711.namprd03.prod.outlook.com>
-Date: Thu, 12 Feb 2015 16:50:01 +0100
-In-Reply-To: <BY2PR0301MB0711A9F283C2C38BBB329591A0220@BY2PR0301MB0711.namprd03.prod.outlook.com>
-	(KY Srinivasan's message of "Thu, 12 Feb 2015 15:38:42 +0000")
-Message-ID: <87r3tvxh7a.fsf@vitty.brq.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DF3D6B0038
+	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 11:18:56 -0500 (EST)
+Received: by pdjy10 with SMTP id y10so12881811pdj.6
+        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 08:18:56 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id tv6si5283814pab.83.2015.02.12.08.18.54
+        for <linux-mm@kvack.org>;
+        Thu, 12 Feb 2015 08:18:55 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 02/24] mm: change PageAnon() and page_anon_vma() to work on tail pages
+Date: Thu, 12 Feb 2015 18:18:16 +0200
+Message-Id: <1423757918-197669-3-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1423757918-197669-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1423757918-197669-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KY Srinivasan <kys@microsoft.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Haiyang Zhang <haiyangz@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Fabian Frederick <fabf@skynet.be>, Zhang Zhen <zhenzhang.zhang@huawei.com>, Vladimir Davydov <vdavydov@parallels.com>, Wang Nan <wangnan0@huawei.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-KY Srinivasan <kys@microsoft.com> writes:
+Currently PageAnon() and page_anon_vma() are always return false/NULL
+for tail. We need to look on head page for correct answer.
 
->> -----Original Message-----
->> From: Vitaly Kuznetsov [mailto:vkuznets@redhat.com]
->> Sent: Thursday, February 12, 2015 2:24 AM
->> To: linux-kernel@vger.kernel.org
->> Cc: Greg Kroah-Hartman; KY Srinivasan; Haiyang Zhang; Andrew Morton;
->> Yasuaki Ishimatsu; Tang Chen; Vlastimil Babka; David Rientjes; Fabian
->> Frederick; Zhang Zhen; Vladimir Davydov; Wang Nan; Rafael J. Wysocki;
->> devel@linuxdriverproject.org; linux-mm@kvack.org
->> Subject: [PATCH RESEND 0/3] memory_hotplug: hyperv: fix deadlock
->> between memory adding and onlining
->> 
->> RESEND (with no changes) because Rafael J. Wysocki was missing in
->> recepients.
->> 
->> If newly added memory is brought online with e.g. udev rule:
->> SUBSYSTEM=="memory", ACTION=="add", ATTR{state}="online"
->> the following deadlock is observed (and easily reproducable):
->> 
->> First participant, worker thread doing add_memory():
->> 
->> [  724.948846] kworker/0:1     D ffff88000412f9c8 13248    27      2 0x00000000
->> [  724.973543] Workqueue: events hot_add_req [hv_balloon] [  724.991736]
->> ffff88000412f9c8 0000000000000000 ffff88003fa1dc30 00000000000151c0 [
->> 725.019725]  0000000000000246 ffff88000412ffd8 00000000000151c0
->> ffff88003a77a4e0 [  725.046486]  ffff88003fa1dc30 00000001032a6000
->> ffff88003a7ca838 ffff88003a7ca898 [  725.072969] Call Trace:
->> [  725.082690]  [<ffffffff81aac0a9>] schedule_preempt_disabled+0x29/0x70
->> [  725.103799]  [<ffffffff81aae33b>] mutex_lock_nested+0x14b/0x470 [
->> 725.122367]  [<ffffffff815ed773>] ? device_attach+0x23/0xb0 [  725.140992]
->> [<ffffffff815ed773>] device_attach+0x23/0xb0 [  725.159131]
->> [<ffffffff815ecba0>] bus_probe_device+0xb0/0xe0 [  725.177055]
->> [<ffffffff815ea693>] device_add+0x443/0x650 [  725.195558]
->> [<ffffffff815ea8be>] device_register+0x1e/0x30 [  725.213133]
->> [<ffffffff81601790>] init_memory_block+0xd0/0xf0 [  725.231533]
->> [<ffffffff816018f1>] register_new_memory+0xb1/0xd0 [  725.250769]
->> [<ffffffff81a961cf>] __add_pages+0x13f/0x250 [  725.269642]
->> [<ffffffff81063770>] ? arch_add_memory+0x70/0xf0 [  725.288764]
->> [<ffffffff81063770>] arch_add_memory+0x70/0xf0 [  725.306117]
->> [<ffffffff81a95f8f>] add_memory+0xef/0x1f0 [  725.322466]
->> [<ffffffffa00293af>] hot_add_req+0x33f/0xf90 [hv_balloon] [  725.342777]
->> [<ffffffff8109509f>] process_one_work+0x1df/0x4e0 [  725.361459]
->> [<ffffffff8109502d>] ? process_one_work+0x16d/0x4e0 [  725.380390]
->> [<ffffffff810954bb>] worker_thread+0x11b/0x450 [  725.397684]
->> [<ffffffff810953a0>] ? process_one_work+0x4e0/0x4e0 [  725.416533]
->> [<ffffffff8109ac33>] kthread+0xf3/0x110 [  725.433372]  [<ffffffff8109ab40>]
->> ? kthread_create_on_node+0x240/0x240
->> [  725.453749]  [<ffffffff81ab1dfc>] ret_from_fork+0x7c/0xb0 [  725.470994]
->> [<ffffffff8109ab40>] ? kthread_create_on_node+0x240/0x240
->> [  725.491469] 6 locks held by kworker/0:1/27:
->> [  725.505037]  #0:  ("events"){......}, at: [<ffffffff8109502d>]
->> process_one_work+0x16d/0x4e0 [  725.533370]  #1:
->> ((&dm_device.ha_wrk.wrk)){......}, at: [<ffffffff8109502d>]
->> process_one_work+0x16d/0x4e0 [  725.565580]  #2:
->> (mem_hotplug.lock){......}, at: [<ffffffff811e6525>]
->> mem_hotplug_begin+0x5/0x80 [  725.594369]  #3:
->> (mem_hotplug.lock#2){......}, at: [<ffffffff811e656f>]
->> mem_hotplug_begin+0x4f/0x80 [  725.628554]  #4:
->> (mem_sysfs_mutex){......}, at: [<ffffffff81601873>]
->> register_new_memory+0x33/0xd0 [  725.658519]  #5:  (&dev->mutex){......},
->> at: [<ffffffff815ed773>] device_attach+0x23/0xb0
->> 
->> Second participant, udev:
->> 
->> [  725.750889] systemd-udevd   D ffff88003b94fc68 14016   888    530
->> 0x00000004
->> [  725.773767]  ffff88003b94fc68 0000000000000000 ffff8800034949c0
->> 00000000000151c0 [  725.798332]  ffffffff8210d980 ffff88003b94ffd8
->> 00000000000151c0 ffff880037a69270 [  725.822841]  ffff8800034949c0
->> 0000000100000001 ffff8800034949c0 ffffffff81ff2b48 [  725.849184] Call Trace:
->> [  725.858987]  [<ffffffff81aac0a9>] schedule_preempt_disabled+0x29/0x70
->> [  725.879231]  [<ffffffff81aae33b>] mutex_lock_nested+0x14b/0x470 [
->> 725.897860]  [<ffffffff811e656f>] ? mem_hotplug_begin+0x4f/0x80 [
->> 725.916698]  [<ffffffff811e656f>] mem_hotplug_begin+0x4f/0x80 [
->> 725.935064]  [<ffffffff811e6525>] ? mem_hotplug_begin+0x5/0x80 [
->> 725.953464]  [<ffffffff81a9631b>] online_pages+0x3b/0x520 [  725.971542]
->> [<ffffffff815eb0b3>] ? device_online+0x23/0xa0 [  725.989207]
->> [<ffffffff81601524>] memory_subsys_online+0x64/0xc0 [  726.008513]
->> [<ffffffff815eb0fd>] device_online+0x6d/0xa0 [  726.025579]
->> [<ffffffff816012eb>] store_mem_state+0x5b/0xe0 [  726.043400]
->> [<ffffffff815e8258>] dev_attr_store+0x18/0x30 [  726.060506]
->> [<ffffffff8127a808>] sysfs_kf_write+0x48/0x60 [  726.077940]
->> [<ffffffff81279d1b>] kernfs_fop_write+0x13b/0x1a0 [  726.099416]
->> [<ffffffff811f9f67>] vfs_write+0xb7/0x1f0 [  726.115748]  [<ffffffff811fabf8>]
->> SyS_write+0x58/0xd0 [  726.131933]  [<ffffffff81ab1ea9>]
->> system_call_fastpath+0x12/0x17 [  726.150691] 7 locks held by systemd-
->> udevd/888:
->> [  726.165044]  #0:  (sb_writers#3){......}, at: [<ffffffff811fa063>]
->> vfs_write+0x1b3/0x1f0 [  726.192422]  #1:  (&of->mutex){......}, at:
->> [<ffffffff81279c46>] kernfs_fop_write+0x66/0x1a0 [  726.220289]  #2:
->> (s_active#60){......}, at: [<ffffffff81279c4e>] kernfs_fop_write+0x6e/0x1a0 [
->> 726.249382]  #3:  (device_hotplug_lock){......}, at: [<ffffffff815e9c15>]
->> lock_device_hotplug_sysfs+0x15/0x50
->> [  726.281901]  #4:  (&dev->mutex){......}, at: [<ffffffff815eb0b3>]
->> device_online+0x23/0xa0 [  726.308619]  #5:  (mem_hotplug.lock){......}, at:
->> [<ffffffff811e6525>] mem_hotplug_begin+0x5/0x80 [  726.337994]  #6:
->> (mem_hotplug.lock#2){......}, at: [<ffffffff811e656f>]
->> mem_hotplug_begin+0x4f/0x80
->> 
->> In short: onlining grabs device lock and then tries to do
->> mem_hotplug_begin() while add_memory() is between
->> mem_hotplug_begin() and mem_hotplug_done() and it tries grabbing
->> device lock.
->> 
->> To my understanding ACPI memory hotplug doesn't have the same issue as
->> device_hotplug_lock is being grabbed when the ACPI device is added.
->> 
->> Solve the issue by grabbing device_hotplug_lock before doing
->> add_memory(). If we do that, lock_device_hotplug_sysfs() will cause syscall
->> retry which will eventually succeed. To support the change we need to
->> export lock_device_hotplug/ unlock_device_hotplug. This approach can be
->> completely wrong though.
->
-> This issue was first discovered by Andy Whitcroft: https://lkml.org/lkml/2014/3/14/451
-> I had sent patches based on Andy's analysis that did not affect the users of the kernel hot-add
-> memory APIs: https://lkml.org/lkml/2014/12/2/662
+Let's change the function to give the correct result for tail page.
 
-Sorry I missed that.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ include/linux/mm.h   | 1 +
+ include/linux/rmap.h | 1 +
+ 2 files changed, 2 insertions(+)
 
->
-> This patch puts the burden where it needs to be and can address the issue for all clients.
->
-
-There is also one good solution from David Rientjes:
-https://lkml.org/lkml/2015/2/12/57
-
-I just tested it and it also solves the issue.
-
-
-> K. Y
->> 
->> Vitaly Kuznetsov (3):
->>   driver core: export lock_device_hotplug/unlock_device_hotplug
->>   memory_hotplug: add note about holding device_hotplug_lock and
->>     add_memory()
->>   Drivers: hv: balloon: fix deadlock between memory adding and onlining
->> 
->>  drivers/base/core.c     |  2 ++
->>  drivers/hv/hv_balloon.c | 10 ++++++++++
->>  mm/memory_hotplug.c     |  6 +++++-
->>  3 files changed, 17 insertions(+), 1 deletion(-)
->> 
->> --
->> 1.9.3
-
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 47a93928b90f..9071066b7c2e 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1047,6 +1047,7 @@ struct address_space *page_file_mapping(struct page *page)
+ 
+ static inline int PageAnon(struct page *page)
+ {
++	page = compound_head(page);
+ 	return ((unsigned long)page->mapping & PAGE_MAPPING_ANON) != 0;
+ }
+ 
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index 9c5ff69fa0cd..c4088feac1fc 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -108,6 +108,7 @@ static inline void put_anon_vma(struct anon_vma *anon_vma)
+ 
+ static inline struct anon_vma *page_anon_vma(struct page *page)
+ {
++	page = compound_head(page);
+ 	if (((unsigned long)page->mapping & PAGE_MAPPING_FLAGS) !=
+ 					    PAGE_MAPPING_ANON)
+ 		return NULL;
 -- 
-  Vitaly
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
