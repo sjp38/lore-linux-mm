@@ -1,25 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 67B4C6B0070
-	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 17:16:51 -0500 (EST)
-Received: by pdev10 with SMTP id v10so14870590pde.7
-        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 14:16:51 -0800 (PST)
-Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
-        by mx.google.com with ESMTPS id bf1si411311pdb.4.2015.02.12.14.16.49
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A3716B0071
+	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 17:16:59 -0500 (EST)
+Received: by pdbfl12 with SMTP id fl12so14900103pdb.2
+        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 14:16:58 -0800 (PST)
+Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
+        by mx.google.com with ESMTPS id vb9si386100pac.128.2015.02.12.14.16.57
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Thu, 12 Feb 2015 14:16:50 -0800 (PST)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout4.w1.samsung.com
+        Thu, 12 Feb 2015 14:16:58 -0800 (PST)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout1.w1.samsung.com
  (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NJO0081HJELI8B0@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 12 Feb 2015 22:20:45 +0000 (GMT)
+ 17 2011)) with ESMTP id <0NJO005LKJF1OEA0@mailout1.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 12 Feb 2015 22:21:01 +0000 (GMT)
 From: Stefan Strogin <s.strogin@partner.samsung.com>
-Subject: [PATCH 1/4] mm: cma: add currently allocated CMA buffers list to
- debugfs
-Date: Fri, 13 Feb 2015 01:15:41 +0300
+Subject: [PATCH 2/4] mm: cma: add functions to get region pages counters
+Date: Fri, 13 Feb 2015 01:15:42 +0300
 Message-id: 
- <c4f408198ec7ea7656ae29220c1f96081bd2ade5.1423777850.git.s.strogin@partner.samsung.com>
+ <c6a3312c9eb667f0f5330c313f328bc49f7addd9.1423777850.git.s.strogin@partner.samsung.com>
 In-reply-to: <cover.1423777850.git.s.strogin@partner.samsung.com>
 References: <cover.1423777850.git.s.strogin@partner.samsung.com>
 In-reply-to: <cover.1423777850.git.s.strogin@partner.samsung.com>
@@ -27,308 +26,118 @@ References: <cover.1423777850.git.s.strogin@partner.samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Stefan Strogin <s.strogin@partner.samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Dmitry Safonov <d.safonov@partner.samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Minchan Kim <minchan@kernel.org>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>, gregory.0xf0@gmail.com, sasha.levin@oracle.com, gioh.kim@lge.com, pavel@ucw.cz, stefan.strogin@gmail.com
+Cc: Dmitry Safonov <d.safonov@partner.samsung.com>, Stefan Strogin <s.strogin@partner.samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Minchan Kim <minchan@kernel.org>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>, gregory.0xf0@gmail.com, sasha.levin@oracle.com, gioh.kim@lge.com, pavel@ucw.cz, stefan.strogin@gmail.com
 
-/sys/kernel/debug/cma/cma-<N>/buffers contains a list of currently allocated
-CMA buffers for CMA region N when CONFIG_CMA_DEBUGFS is enabled.
+From: Dmitry Safonov <d.safonov@partner.samsung.com>
 
-Format is:
+Here are two functions that provide interface to compute/get used size
+and size of biggest free chunk in cma region.
+Add that information to debugfs.
 
-<base_phys_addr> - <end_phys_addr> (<size> kB), allocated by <PID> (<comm>)
- <stack backtrace when the buffer had been allocated>
-
+Signed-off-by: Dmitry Safonov <d.safonov@partner.samsung.com>
 Signed-off-by: Stefan Strogin <s.strogin@partner.samsung.com>
 ---
- include/linux/cma.h |   9 ++++
- mm/cma.c            |   9 ++++
- mm/cma.h            |  16 ++++++
- mm/cma_debug.c      | 145 +++++++++++++++++++++++++++++++++++++++++++++++++++-
- 4 files changed, 178 insertions(+), 1 deletion(-)
+ include/linux/cma.h |  2 ++
+ mm/cma.c            | 30 ++++++++++++++++++++++++++++++
+ mm/cma_debug.c      | 24 ++++++++++++++++++++++++
+ 3 files changed, 56 insertions(+)
 
 diff --git a/include/linux/cma.h b/include/linux/cma.h
-index 9384ba6..4c2c83c 100644
+index 4c2c83c..54a2c4d 100644
 --- a/include/linux/cma.h
 +++ b/include/linux/cma.h
-@@ -28,4 +28,13 @@ extern int cma_init_reserved_mem(phys_addr_t base,
- 					struct cma **res_cma);
- extern struct page *cma_alloc(struct cma *cma, int count, unsigned int align);
- extern bool cma_release(struct cma *cma, struct page *pages, int count);
-+
-+#ifdef CONFIG_CMA_DEBUGFS
-+extern int cma_buffer_list_add(struct cma *cma, unsigned long pfn, int count);
-+extern void cma_buffer_list_del(struct cma *cma, unsigned long pfn, int count);
-+#else
-+#define cma_buffer_list_add(cma, pfn, count) { }
-+#define cma_buffer_list_del(cma, pfn, count) { }
-+#endif
-+
- #endif
+@@ -18,6 +18,8 @@ struct cma;
+ extern unsigned long totalcma_pages;
+ extern phys_addr_t cma_get_base(struct cma *cma);
+ extern unsigned long cma_get_size(struct cma *cma);
++extern unsigned long cma_get_used(struct cma *cma);
++extern unsigned long cma_get_maxchunk(struct cma *cma);
+ 
+ extern int __init cma_declare_contiguous(phys_addr_t base,
+ 			phys_addr_t size, phys_addr_t limit,
 diff --git a/mm/cma.c b/mm/cma.c
-index 2609e20..ed269b0 100644
+index ed269b0..95e8121 100644
 --- a/mm/cma.c
 +++ b/mm/cma.c
-@@ -34,6 +34,9 @@
- #include <linux/cma.h>
- #include <linux/highmem.h>
- #include <linux/io.h>
-+#include <linux/list.h>
-+#include <linux/proc_fs.h>
-+#include <linux/time.h>
- 
- #include "cma.h"
- 
-@@ -125,6 +128,8 @@ static int __init cma_activate_area(struct cma *cma)
- #ifdef CONFIG_CMA_DEBUGFS
- 	INIT_HLIST_HEAD(&cma->mem_head);
- 	spin_lock_init(&cma->mem_head_lock);
-+	INIT_LIST_HEAD(&cma->buffers_list);
-+	mutex_init(&cma->list_lock);
- #endif
- 
- 	return 0;
-@@ -408,6 +413,9 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
- 		start = bitmap_no + mask + 1;
- 	}
- 
-+	if (page)
-+		cma_buffer_list_add(cma, pfn, count);
-+
- 	pr_debug("%s(): returned %p\n", __func__, page);
- 	return page;
+@@ -54,6 +54,36 @@ unsigned long cma_get_size(struct cma *cma)
+ 	return cma->count << PAGE_SHIFT;
  }
-@@ -440,6 +448,7 @@ bool cma_release(struct cma *cma, struct page *pages, int count)
  
- 	free_contig_range(pfn, count);
- 	cma_clear_bitmap(cma, pfn, count);
-+	cma_buffer_list_del(cma, pfn, count);
- 
- 	return true;
- }
-diff --git a/mm/cma.h b/mm/cma.h
-index 1132d73..98e5f79 100644
---- a/mm/cma.h
-+++ b/mm/cma.h
-@@ -1,6 +1,8 @@
- #ifndef __MM_CMA_H__
- #define __MM_CMA_H__
- 
-+#include <linux/sched.h>
++unsigned long cma_get_used(struct cma *cma)
++{
++	unsigned long ret = 0;
 +
- struct cma {
- 	unsigned long   base_pfn;
- 	unsigned long   count;
-@@ -10,9 +12,23 @@ struct cma {
- #ifdef CONFIG_CMA_DEBUGFS
- 	struct hlist_head mem_head;
- 	spinlock_t mem_head_lock;
-+	struct list_head buffers_list;
-+	struct mutex	list_lock;
- #endif
- };
- 
-+#ifdef CONFIG_CMA_DEBUGFS
-+struct cma_buffer {
-+	unsigned long pfn;
-+	unsigned long count;
-+	pid_t pid;
-+	char comm[TASK_COMM_LEN];
-+	unsigned long trace_entries[16];
-+	unsigned int nr_entries;
-+	struct list_head list;
-+};
-+#endif
++	mutex_lock(&cma->lock);
++	/* pages counter is smaller than sizeof(int) */
++	ret = bitmap_weight(cma->bitmap, (int)cma->count);
++	mutex_unlock(&cma->lock);
 +
- extern struct cma cma_areas[MAX_CMA_AREAS];
- extern unsigned cma_area_count;
- 
++	return ret;
++}
++
++unsigned long cma_get_maxchunk(struct cma *cma)
++{
++	unsigned long maxchunk = 0;
++	unsigned long start, end = 0;
++
++	mutex_lock(&cma->lock);
++	for (;;) {
++		start = find_next_zero_bit(cma->bitmap, cma->count, end);
++		if (start >= cma->count)
++			break;
++		end = find_next_bit(cma->bitmap, cma->count, start);
++		maxchunk = max(end - start, maxchunk);
++	}
++	mutex_unlock(&cma->lock);
++
++	return maxchunk;
++}
++
+ static unsigned long cma_bitmap_aligned_mask(struct cma *cma, int align_order)
+ {
+ 	if (align_order <= cma->order_per_bit)
 diff --git a/mm/cma_debug.c b/mm/cma_debug.c
-index 7e1d325..5acd937 100644
+index 5acd937..9705e86 100644
 --- a/mm/cma_debug.c
 +++ b/mm/cma_debug.c
-@@ -2,6 +2,7 @@
-  * CMA DebugFS Interface
-  *
-  * Copyright (c) 2015 Sasha Levin <sasha.levin@oracle.com>
-+ * Copyright (c) 2015 Stefan Strogin <stefan.strogin@gmail.com>
-  */
-  
+@@ -128,6 +128,28 @@ static int cma_debugfs_get(void *data, u64 *val)
  
-@@ -10,6 +11,8 @@
- #include <linux/list.h>
- #include <linux/kernel.h>
- #include <linux/slab.h>
-+#include <linux/mm_types.h>
-+#include <linux/stacktrace.h>
+ DEFINE_SIMPLE_ATTRIBUTE(cma_debugfs_fops, cma_debugfs_get, NULL, "%llu\n");
  
- #include "cma.h"
- 
-@@ -21,6 +24,99 @@ struct cma_mem {
- 
- static struct dentry *cma_debugfs_root;
- 
-+/* Must be called under cma->list_lock */
-+static int __cma_buffer_list_add(struct cma *cma, unsigned long pfn, int count)
++static int cma_used_get(void *data, u64 *val)
 +{
-+	struct cma_buffer *cmabuf;
-+	struct stack_trace trace;
++	struct cma *cma = data;
 +
-+	cmabuf = kmalloc(sizeof(*cmabuf), GFP_KERNEL);
-+	if (!cmabuf) {
-+		pr_warn("%s(page %p, count %d): failed to allocate buffer list entry\n",
-+			__func__, pfn_to_page(pfn), count);
-+		return -ENOMEM;
-+	}
-+
-+	trace.nr_entries = 0;
-+	trace.max_entries = ARRAY_SIZE(cmabuf->trace_entries);
-+	trace.entries = &cmabuf->trace_entries[0];
-+	trace.skip = 2;
-+	save_stack_trace(&trace);
-+
-+	cmabuf->pfn = pfn;
-+	cmabuf->count = count;
-+	cmabuf->pid = task_pid_nr(current);
-+	cmabuf->nr_entries = trace.nr_entries;
-+	get_task_comm(cmabuf->comm, current);
-+
-+	list_add_tail(&cmabuf->list, &cma->buffers_list);
++	*val = cma_get_used(cma);
 +
 +	return 0;
 +}
 +
-+/**
-+ * cma_buffer_list_add() - add a new entry to a list of allocated buffers
-+ * @cma:     Contiguous memory region for which the allocation is performed.
-+ * @pfn:     Base PFN of the allocated buffer.
-+ * @count:   Number of allocated pages.
-+ *
-+ * This function adds a new entry to the list of allocated contiguous memory
-+ * buffers in a CMA area. It uses the CMA area specificated by the device
-+ * if available or the default global one otherwise.
-+ */
-+int cma_buffer_list_add(struct cma *cma, unsigned long pfn, int count)
++DEFINE_SIMPLE_ATTRIBUTE(cma_used_fops, cma_used_get, NULL, "%llu\n");
++
++static int cma_maxchunk_get(void *data, u64 *val)
 +{
-+	int ret;
++	struct cma *cma = data;
 +
-+	mutex_lock(&cma->list_lock);
-+	ret = __cma_buffer_list_add(cma, pfn, count);
-+	mutex_unlock(&cma->list_lock);
++	*val = cma_get_maxchunk(cma);
 +
-+	return ret;
++	return 0;
 +}
 +
-+/**
-+ * cma_buffer_list_del() - delete an entry from a list of allocated buffers
-+ * @cma:   Contiguous memory region for which the allocation was performed.
-+ * @pfn:   Base PFN of the released buffer.
-+ * @count: Number of pages.
-+ *
-+ * This function deletes a list entry added by cma_buffer_list_add().
-+ */
-+void cma_buffer_list_del(struct cma *cma, unsigned long pfn, int count)
-+{
-+	struct cma_buffer *cmabuf, *tmp;
-+	int found = 0;
-+	unsigned long buf_end_pfn, free_end_pfn = pfn + count;
++DEFINE_SIMPLE_ATTRIBUTE(cma_maxchunk_fops, cma_maxchunk_get, NULL, "%llu\n");
 +
-+	mutex_lock(&cma->list_lock);
-+	list_for_each_entry_safe(cmabuf, tmp, &cma->buffers_list, list) {
-+
-+		buf_end_pfn = cmabuf->pfn + cmabuf->count;
-+		if (pfn <= cmabuf->pfn && free_end_pfn >= buf_end_pfn) {
-+			list_del(&cmabuf->list);
-+			kfree(cmabuf);
-+			found = 1;
-+		} else if (pfn <= cmabuf->pfn && free_end_pfn < buf_end_pfn) {
-+			cmabuf->count -= free_end_pfn - cmabuf->pfn;
-+			cmabuf->pfn = free_end_pfn;
-+			found = 1;
-+		} else if (pfn > cmabuf->pfn && pfn < buf_end_pfn) {
-+			if (free_end_pfn < buf_end_pfn)
-+				__cma_buffer_list_add(cma, free_end_pfn,
-+						buf_end_pfn - free_end_pfn);
-+			cmabuf->count = pfn - cmabuf->pfn;
-+			found = 1;
-+		}
-+	}
-+	mutex_unlock(&cma->list_lock);
-+
-+	if (!found)
-+		pr_err("%s(page %p, count %d): couldn't find buffer list entry\n",
-+		       __func__, pfn_to_page(pfn), count);
-+
-+}
-+
- static int cma_debugfs_get(void *data, u64 *val)
+ static void cma_add_to_cma_mem_list(struct cma *cma, struct cma_mem *mem)
  {
- 	unsigned long *p = data;
-@@ -125,6 +221,52 @@ static int cma_alloc_write(void *data, u64 val)
- 
- DEFINE_SIMPLE_ATTRIBUTE(cma_alloc_fops, NULL, cma_alloc_write, "%llu\n");
- 
-+static int cma_buffers_read(struct file *file, char __user *userbuf,
-+				size_t count, loff_t *ppos)
-+{
-+	struct cma *cma = file->private_data;
-+	struct cma_buffer *cmabuf;
-+	struct stack_trace trace;
-+	char *buf;
-+	int ret, n = 0;
-+
-+	if (*ppos < 0 || !count)
-+		return -EINVAL;
-+
-+	buf = kmalloc(count, GFP_KERNEL);
-+	if (!buf)
-+		return -ENOMEM;
-+
-+	mutex_lock(&cma->list_lock);
-+	list_for_each_entry(cmabuf, &cma->buffers_list, list) {
-+		n += snprintf(buf + n, count - n,
-+			      "0x%llx - 0x%llx (%lu kB), allocated by pid %u (%s)\n",
-+			      (unsigned long long)PFN_PHYS(cmabuf->pfn),
-+			      (unsigned long long)PFN_PHYS(cmabuf->pfn +
-+				      cmabuf->count),
-+			      (cmabuf->count * PAGE_SIZE) >> 10, cmabuf->pid,
-+			      cmabuf->comm);
-+
-+		trace.nr_entries = cmabuf->nr_entries;
-+		trace.entries = &cmabuf->trace_entries[0];
-+
-+		n += snprint_stack_trace(buf + n, count - n, &trace, 0);
-+		n += snprintf(buf + n, count - n, "\n");
-+	}
-+	mutex_unlock(&cma->list_lock);
-+
-+	ret = simple_read_from_buffer(userbuf, count, ppos, buf, n);
-+	kfree(buf);
-+
-+	return ret;
-+}
-+
-+static const struct file_operations cma_buffers_fops = {
-+	.open = simple_open,
-+	.read = cma_buffers_read,
-+	.llseek = default_llseek,
-+};
-+
- static void cma_debugfs_add_one(struct cma *cma, int idx)
- {       
- 	struct dentry *tmp;
-@@ -148,6 +290,8 @@ static void cma_debugfs_add_one(struct cma *cma, int idx)
+ 	spin_lock(&cma->mem_head_lock);
+@@ -289,6 +311,8 @@ static void cma_debugfs_add_one(struct cma *cma, int idx)
+ 				&cma->count, &cma_debugfs_fops);
  	debugfs_create_file("order_per_bit", S_IRUGO, tmp,
  				&cma->order_per_bit, &cma_debugfs_fops);
++	debugfs_create_file("used", S_IRUGO, tmp, cma, &cma_used_fops);
++	debugfs_create_file("maxchunk", S_IRUGO, tmp, cma, &cma_maxchunk_fops);
  
-+	debugfs_create_file("buffers", S_IRUGO, tmp, cma, &cma_buffers_fops);
-+
- 	u32s = DIV_ROUND_UP(cma_bitmap_maxno(cma), BITS_PER_BYTE * sizeof(u32));
- 	debugfs_create_u32_array("bitmap", S_IRUGO, tmp, (u32*)cma->bitmap, u32s);
- }
-@@ -166,4 +310,3 @@ static int __init cma_debugfs_init(void)
- 	return 0;
- }
- late_initcall(cma_debugfs_init);
--
+ 	debugfs_create_file("buffers", S_IRUGO, tmp, cma, &cma_buffers_fops);
+ 
 -- 
 2.1.0
 
