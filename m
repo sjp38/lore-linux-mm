@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 55F41900016
-	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 11:19:40 -0500 (EST)
-Received: by mail-pa0-f54.google.com with SMTP id kx10so12336404pab.13
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 02D5F900016
+	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 11:19:41 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id kx10so12435133pab.0
         for <linux-mm@kvack.org>; Thu, 12 Feb 2015 08:19:40 -0800 (PST)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
         by mx.google.com with ESMTP id km8si5087460pbc.254.2015.02.12.08.19.39
         for <linux-mm@kvack.org>;
-        Thu, 12 Feb 2015 08:19:39 -0800 (PST)
+        Thu, 12 Feb 2015 08:19:40 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 07/24] mm, thp: adjust conditions when we can reuse the page on WP fault
-Date: Thu, 12 Feb 2015 18:18:21 +0200
-Message-Id: <1423757918-197669-8-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 03/24] mm: avoid PG_locked on tail pages
+Date: Thu, 12 Feb 2015 18:18:17 +0200
+Message-Id: <1423757918-197669-4-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1423757918-197669-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1423757918-197669-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,95 +19,104 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-With new refcounting we will be able map the same compound page with
-PTEs and PMDs. It requires adjustment to conditions when we can reuse
-the page on write-protection fault.
+With new refcounting pte entries can point to tail pages. It's doesn't
+make much sense to mark tail page locked -- we need to protect whole
+compound page.
 
-For PTE fault we can't reuse the page if it's part of huge page.
-
-For PMD we can only reuse the page if nobody else maps the huge page or
-it's part. We can do it by checking page_mapcount() on each sub-page,
-but it's expensive.
-
-The cheaper way is to check page_count() to be equal 1: every mapcount
-takes page reference, so this way we can guarantee, that the PMD is the
-only mapping.
-
-This approach can give false negative if somebody pinned the page, but
-that doesn't affect correctness.
+This patch adjust helpers related to PG_locked to operate on head page.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/swap.h |  3 ++-
- mm/huge_memory.c     | 12 +++++++++++-
- mm/rmap.c            |  2 +-
- mm/swapfile.c        |  3 +++
- 4 files changed, 17 insertions(+), 3 deletions(-)
+ include/linux/page-flags.h | 3 ++-
+ include/linux/pagemap.h    | 5 +++++
+ mm/filemap.c               | 1 +
+ mm/slub.c                  | 2 ++
+ 4 files changed, 10 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 7067eca501e2..f0e4868f63b1 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -523,7 +523,8 @@ static inline int page_swapcount(struct page *page)
- 	return 0;
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 5ed7bdaf22d5..d471370f27e8 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -207,7 +207,8 @@ static inline int __TestClearPage##uname(struct page *page) { return 0; }
+ 
+ struct page;	/* forward declaration */
+ 
+-TESTPAGEFLAG(Locked, locked)
++#define PageLocked(page) test_bit(PG_locked, &compound_head(page)->flags)
++
+ PAGEFLAG(Error, error) TESTCLEARFLAG(Error, error)
+ PAGEFLAG(Referenced, referenced) TESTCLEARFLAG(Referenced, referenced)
+ 	__SETPAGEFLAG(Referenced, referenced)
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index 4b3736f7065c..ad6da4e49555 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -428,16 +428,19 @@ extern void unlock_page(struct page *page);
+ 
+ static inline void __set_page_locked(struct page *page)
+ {
++	VM_BUG_ON_PAGE(PageTail(page), page);
+ 	__set_bit(PG_locked, &page->flags);
  }
  
--#define reuse_swap_page(page)	(page_mapcount(page) == 1)
-+#define reuse_swap_page(page) \
-+	(!PageTransCompound(page) && page_mapcount(page) == 1)
- 
- static inline int try_to_free_swap(struct page *page)
+ static inline void __clear_page_locked(struct page *page)
  {
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 17be7a978f17..156f34b9e334 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1092,7 +1092,17 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
++	VM_BUG_ON_PAGE(PageTail(page), page);
+ 	__clear_bit(PG_locked, &page->flags);
+ }
  
- 	page = pmd_page(orig_pmd);
- 	VM_BUG_ON_PAGE(!PageCompound(page) || !PageHead(page), page);
--	if (page_mapcount(page) == 1) {
-+	/*
-+	 * We can only reuse the page if nobody else maps the huge page or it's
-+	 * part. We can do it by checking page_mapcount() on each sub-page, but
-+	 * it's expensive.
-+	 * The cheaper way is to check page_count() to be equal 1: every
-+	 * mapcount takes page reference reference, so this way we can
-+	 * guarantee, that the PMD is the only mapping.
-+	 * This can give false negative if somebody pinned the page, but that's
-+	 * fine.
-+	 */
-+	if (page_mapcount(page) == 1 && page_count(page) == 1) {
- 		pmd_t entry;
- 		entry = pmd_mkyoung(orig_pmd);
- 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 333938475831..db8b99e48966 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1215,7 +1215,7 @@ void page_remove_rmap(struct page *page, bool compound)
- 		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
- 		__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
- 		/* The page can be mapped with ptes */
--		for (i = 0; i < HPAGE_PMD_NR; i++)
-+		for (i = 0; i < hpage_nr_pages(page); i++)
- 			if (page_mapcount(page + i))
- 				nr--;
- 	}
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 200298895cee..99f97c31ede5 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -887,6 +887,9 @@ int reuse_swap_page(struct page *page)
+ static inline int trylock_page(struct page *page)
+ {
++	page = compound_head(page);
+ 	return (likely(!test_and_set_bit_lock(PG_locked, &page->flags)));
+ }
+ 
+@@ -490,6 +493,7 @@ extern int wait_on_page_bit_killable_timeout(struct page *page,
+ 
+ static inline int wait_on_page_locked_killable(struct page *page)
+ {
++	page = compound_head(page);
+ 	if (PageLocked(page))
+ 		return wait_on_page_bit_killable(page, PG_locked);
+ 	return 0;
+@@ -510,6 +514,7 @@ static inline void wake_up_page(struct page *page, int bit)
+  */
+ static inline void wait_on_page_locked(struct page *page)
+ {
++	page = compound_head(page);
+ 	if (PageLocked(page))
+ 		wait_on_page_bit(page, PG_locked);
+ }
+diff --git a/mm/filemap.c b/mm/filemap.c
+index ad7242043bdb..b02c3f7cbe64 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -744,6 +744,7 @@ EXPORT_SYMBOL_GPL(add_page_wait_queue);
+  */
+ void unlock_page(struct page *page)
+ {
++	page = compound_head(page);
  	VM_BUG_ON_PAGE(!PageLocked(page), page);
- 	if (unlikely(PageKsm(page)))
- 		return 0;
-+	/* The page is part of THP and cannot be reused */
-+	if (PageTransCompound(page))
-+		return 0;
- 	count = page_mapcount(page);
- 	if (count <= 1 && PageSwapCache(page)) {
- 		count += page_swapcount(page);
+ 	clear_bit_unlock(PG_locked, &page->flags);
+ 	smp_mb__after_atomic();
+diff --git a/mm/slub.c b/mm/slub.c
+index 0909e13cf708..16ba8c9665e2 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -338,11 +338,13 @@ static inline int oo_objects(struct kmem_cache_order_objects x)
+  */
+ static __always_inline void slab_lock(struct page *page)
+ {
++	VM_BUG_ON_PAGE(PageTail(page), page);
+ 	bit_spin_lock(PG_locked, &page->flags);
+ }
+ 
+ static __always_inline void slab_unlock(struct page *page)
+ {
++	VM_BUG_ON_PAGE(PageTail(page), page);
+ 	__bit_spin_unlock(PG_locked, &page->flags);
+ }
+ 
 -- 
 2.1.4
 
