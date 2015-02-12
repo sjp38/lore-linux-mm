@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 7935D6B0038
-	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 14:56:35 -0500 (EST)
-Received: by mail-we0-f177.google.com with SMTP id m14so6541942wev.8
-        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 11:56:34 -0800 (PST)
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 498D86B0038
+	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 15:11:10 -0500 (EST)
+Received: by mail-wi0-f170.google.com with SMTP id hi2so7664520wib.1
+        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 12:11:09 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id li8si4786281wic.1.2015.02.12.11.56.32
+        by mx.google.com with ESMTPS id cw9si90577wib.94.2015.02.12.12.11.07
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Feb 2015 11:56:33 -0800 (PST)
-Message-ID: <54DD054E.7000605@redhat.com>
-Date: Thu, 12 Feb 2015 14:55:58 -0500
+        Thu, 12 Feb 2015 12:11:08 -0800 (PST)
+Message-ID: <54DD08BC.2020008@redhat.com>
+Date: Thu, 12 Feb 2015 15:10:36 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
 Subject: Re: [PATCHv3 03/24] mm: avoid PG_locked on tail pages
-References: <1423757918-197669-1-git-send-email-kirill.shutemov@linux.intel.com> <1423757918-197669-4-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1423757918-197669-4-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1423757918-197669-1-git-send-email-kirill.shutemov@linux.intel.com> <1423757918-197669-4-git-send-email-kirill.shutemov@linux.intel.com> <54DD054E.7000605@redhat.com>
+In-Reply-To: <54DD054E.7000605@redhat.com>
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -26,80 +26,45 @@ Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Vlastimil
 -----BEGIN PGP SIGNED MESSAGE-----
 Hash: SHA1
 
-On 02/12/2015 11:18 AM, Kirill A. Shutemov wrote:
-> With new refcounting pte entries can point to tail pages. It's
-> doesn't make much sense to mark tail page locked -- we need to
-> protect whole compound page.
-> 
-> This patch adjust helpers related to PG_locked to operate on head
-> page.
-> 
-> Signed-off-by: Kirill A. Shutemov
-> <kirill.shutemov@linux.intel.com> --- include/linux/page-flags.h |
-> 3 ++- include/linux/pagemap.h    | 5 +++++ mm/filemap.c
-> | 1 + mm/slub.c                  | 2 ++ 4 files changed, 10
-> insertions(+), 1 deletion(-)
-> 
-> diff --git a/include/linux/page-flags.h
-> b/include/linux/page-flags.h index 5ed7bdaf22d5..d471370f27e8
-> 100644 --- a/include/linux/page-flags.h +++
-> b/include/linux/page-flags.h @@ -207,7 +207,8 @@ static inline int
-> __TestClearPage##uname(struct page *page) { return 0; }
-> 
-> struct page;	/* forward declaration */
-> 
-> -TESTPAGEFLAG(Locked, locked) +#define PageLocked(page)
-> test_bit(PG_locked, &compound_head(page)->flags) + PAGEFLAG(Error,
-> error) TESTCLEARFLAG(Error, error) PAGEFLAG(Referenced, referenced)
-> TESTCLEARFLAG(Referenced, referenced) __SETPAGEFLAG(Referenced,
-> referenced) diff --git a/include/linux/pagemap.h
-> b/include/linux/pagemap.h index 4b3736f7065c..ad6da4e49555 100644 
-> --- a/include/linux/pagemap.h +++ b/include/linux/pagemap.h @@
-> -428,16 +428,19 @@ extern void unlock_page(struct page *page);
-> 
-> static inline void __set_page_locked(struct page *page) { +
-> VM_BUG_ON_PAGE(PageTail(page), page); __set_bit(PG_locked,
-> &page->flags); }
-> 
-> static inline void __clear_page_locked(struct page *page) { +
-> VM_BUG_ON_PAGE(PageTail(page), page); __clear_bit(PG_locked,
-> &page->flags); }
-> 
-> static inline int trylock_page(struct page *page) { +	page =
-> compound_head(page); return
-> (likely(!test_and_set_bit_lock(PG_locked, &page->flags))); }
-> 
-> @@ -490,6 +493,7 @@ extern int
-> wait_on_page_bit_killable_timeout(struct page *page,
-> 
-> static inline int wait_on_page_locked_killable(struct page *page) 
-> { +	page = compound_head(page); if (PageLocked(page)) return
-> wait_on_page_bit_killable(page, PG_locked); return 0; @@ -510,6
-> +514,7 @@ static inline void wake_up_page(struct page *page, int
-> bit) */ static inline void wait_on_page_locked(struct page *page) 
-> { +	page = compound_head(page); if (PageLocked(page)) 
-> wait_on_page_bit(page, PG_locked); }
+On 02/12/2015 02:55 PM, Rik van Riel wrote:
+> On 02/12/2015 11:18 AM, Kirill A. Shutemov wrote:
 
-These are all atomic operations.
+>> @@ -490,6 +493,7 @@ extern int 
+>> wait_on_page_bit_killable_timeout(struct page *page,
+> 
+>> static inline int wait_on_page_locked_killable(struct page *page)
+>>  { +	page = compound_head(page); if (PageLocked(page)) return 
+>> wait_on_page_bit_killable(page, PG_locked); return 0; @@ -510,6 
+>> +514,7 @@ static inline void wake_up_page(struct page *page, int 
+>> bit) */ static inline void wait_on_page_locked(struct page *page)
+>>  { +	page = compound_head(page); if (PageLocked(page)) 
+>> wait_on_page_bit(page, PG_locked); }
+> 
+> These are all atomic operations.
+> 
+> This may be a stupid question with the answer lurking somewhere in
+> the other patches, but how do you ensure you operate on the right
+> page lock during a THP collapse or split?
 
-This may be a stupid question with the answer lurking somewhere
-in the other patches, but how do you ensure you operate on the
-right page lock during a THP collapse or split?
+Kirill answered that question on IRC.
 
-
+The VM takes a refcount on a page before attempting to take a page
+lock, which prevents the THP code from doing anything with the
+page. In other words, while we have a refcount on the page, we
+will dereference the same page lock.
 
 - -- 
 All rights reversed
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1
 
-iQEcBAEBAgAGBQJU3QVOAAoJEM553pKExN6DUtAH/2hjg6ab/9bArQ187YGssOoZ
-yXqpeMgt0klHjqWxtVxZnzExbSfYIrrBKpg5kJJzqk2cQ/ZjMj0TbVnkgHhFEn3f
-r6vh4wIljmmFjo+4RiYGEEJkQWNwFgX0XTEcJLw2VQp4xKL0wjhN1hC+SQBGiPL0
-JefeCraxqAoq+viV65lvxWYJrXQ4Lm90z7dIa5fh8M5lG3P+Wy6cZXCeevV1Tvw7
-iF20HuOTnGuNfClo7b5h/vCV6I6ViHEgThCCR3iBIdsh1L2bBoqMaNzDVD19tw7Y
-m2I8Of/cc4eSadDJPkkfXxKD2w/qpbHxYXviN9dRq/qm7ApeySLN3GdW1K/xvAw=
-=q6Zo
+iQEcBAEBAgAGBQJU3Qi8AAoJEM553pKExN6D/44H/jUIn9btSRRIje/YBFFib8Dt
+Zlvn4bFD6MbFonTQMJA5+vb6s0gxwdkbwLqGKpRo+FHWnKDxCvEpQfxuj708LaCq
+1tqjnKIv1xt5bz31pV/UQhdAMcbcyKdEu4udH5mQigh4HIXYhUhe4w9TMUGu/f4U
+FTx7dn3FfhQT3qWTVdZubdY/JRIXJcaXYqVIauvXQCRsCHfmx5YHD5YLulXP9OKw
+HP0baxtbxP5njNPthbb9T947dcdndbBiwt3+Rnnlw4Ij4fB2kX7kvOC4M8v0eKKA
+wKZ7A0sfzp27kJT7N/HlwGOXnX/e28LMbK7zA1avi5JDIIAYQU1Ris67EXTSKlg=
+=1q7l
 -----END PGP SIGNATURE-----
 
 --
