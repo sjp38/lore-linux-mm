@@ -1,120 +1,218 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id E34C66B0032
-	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 02:13:02 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id rd3so9565859pab.1
-        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 23:13:02 -0800 (PST)
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 976BF6B0038
+	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 02:13:04 -0500 (EST)
+Received: by pdjg10 with SMTP id g10so10122099pdj.1
+        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 23:13:04 -0800 (PST)
 Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id bm5si1032707pbd.217.2015.02.11.23.12.59
+        by mx.google.com with ESMTP id bz5si1297531pbc.39.2015.02.11.23.13.01
         for <linux-mm@kvack.org>;
-        Wed, 11 Feb 2015 23:13:02 -0800 (PST)
+        Wed, 11 Feb 2015 23:13:03 -0800 (PST)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH v4 1/3] mm/cma: change fallback behaviour for CMA freepage
-Date: Thu, 12 Feb 2015 16:15:03 +0900
-Message-Id: <1423725305-3726-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v4 2/3] mm/page_alloc: factor out fallback freepage checking
+Date: Thu, 12 Feb 2015 16:15:04 +0900
+Message-Id: <1423725305-3726-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1423725305-3726-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1423725305-3726-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Freepage with MIGRATE_CMA can be used only for MIGRATE_MOVABLE and
-they should not be expanded to other migratetype buddy list
-to protect them from unmovable/reclaimable allocation. Implementing
-these requirements in __rmqueue_fallback(), that is, finding largest
-possible block of freepage has bad effect that high order freepage
-with MIGRATE_CMA are broken continually although there are suitable
-order CMA freepage. Reason is that they are not be expanded to other
-migratetype buddy list and next __rmqueue_fallback() invocation try to
-finds another largest block of freepage and break it again. So,
-MIGRATE_CMA fallback should be handled separately. This patch
-introduces __rmqueue_cma_fallback(), that just wrapper of
-__rmqueue_smallest() and call it before __rmqueue_fallback()
-if migratetype == MIGRATE_MOVABLE.
+This is preparation step to use page allocator's anti fragmentation logic
+in compaction. This patch just separates fallback freepage checking part
+from fallback freepage management part. Therefore, there is no functional
+change.
 
-This results in unintended behaviour change that MIGRATE_CMA freepage
-is always used first rather than other migratetype as movable
-allocation's fallback. But, as already mentioned above,
-MIGRATE_CMA can be used only for MIGRATE_MOVABLE, so it is better
-to use MIGRATE_CMA freepage first as much as possible. Otherwise,
-we needlessly take up precious freepages with other migratetype and
-increase chance of fragmentation.
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/page_alloc.c |   36 +++++++++++++++++++-----------------
- 1 file changed, 19 insertions(+), 17 deletions(-)
+ mm/page_alloc.c |  143 +++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 91 insertions(+), 52 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 8d52ab1..e64b260 100644
+index e64b260..64a4974 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1029,11 +1029,9 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
- static int fallbacks[MIGRATE_TYPES][4] = {
- 	[MIGRATE_UNMOVABLE]   = { MIGRATE_RECLAIMABLE, MIGRATE_MOVABLE,     MIGRATE_RESERVE },
- 	[MIGRATE_RECLAIMABLE] = { MIGRATE_UNMOVABLE,   MIGRATE_MOVABLE,     MIGRATE_RESERVE },
-+	[MIGRATE_MOVABLE]     = { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE,   MIGRATE_RESERVE },
- #ifdef CONFIG_CMA
--	[MIGRATE_MOVABLE]     = { MIGRATE_CMA,         MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE, MIGRATE_RESERVE },
- 	[MIGRATE_CMA]         = { MIGRATE_RESERVE }, /* Never used */
--#else
--	[MIGRATE_MOVABLE]     = { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE,   MIGRATE_RESERVE },
- #endif
- 	[MIGRATE_RESERVE]     = { MIGRATE_RESERVE }, /* Never used */
- #ifdef CONFIG_MEMORY_ISOLATION
-@@ -1041,6 +1039,17 @@ static int fallbacks[MIGRATE_TYPES][4] = {
- #endif
- };
- 
-+#ifdef CONFIG_CMA
-+static struct page *__rmqueue_cma_fallback(struct zone *zone,
-+					unsigned int order)
+@@ -1142,14 +1142,40 @@ static void change_pageblock_range(struct page *pageblock_page,
+  * as fragmentation caused by those allocations polluting movable pageblocks
+  * is worse than movable allocations stealing from unmovable and reclaimable
+  * pageblocks.
+- *
+- * If we claim more than half of the pageblock, change pageblock's migratetype
+- * as well.
+  */
+-static void try_to_steal_freepages(struct zone *zone, struct page *page,
+-				  int start_type, int fallback_type)
++static bool can_steal_fallback(unsigned int order, int start_mt)
 +{
-+	return __rmqueue_smallest(zone, order, MIGRATE_CMA);
++	/*
++	 * Leaving this order check is intended, although there is
++	 * relaxed order check in next check. The reason is that
++	 * we can actually steal whole pageblock if this condition met,
++	 * but, below check doesn't guarantee it and that is just heuristic
++	 * so could be changed anytime.
++	 */
++	if (order >= pageblock_order)
++		return true;
++
++	if (order >= pageblock_order / 2 ||
++		start_mt == MIGRATE_RECLAIMABLE ||
++		start_mt == MIGRATE_UNMOVABLE ||
++		page_group_by_mobility_disabled)
++		return true;
++
++	return false;
 +}
-+#else
-+static inline struct page *__rmqueue_cma_fallback(struct zone *zone,
-+					unsigned int order) { return NULL; }
-+#endif
 +
- /*
-  * Move the free pages in a range to the free lists of the requested type.
-  * Note that start_page and end_pages are not aligned on a pageblock
-@@ -1192,19 +1201,8 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
- 					struct page, lru);
- 			area->nr_free--;
++/*
++ * This function implements actual steal behaviour. If order is large enough,
++ * we can steal whole pageblock. If not, we first move freepages in this
++ * pageblock and check whether half of pages are moved or not. If half of
++ * pages are moved, we can change migratetype of pageblock and permanently
++ * use it's pages as requested migratetype in the future.
++ */
++static void steal_suitable_fallback(struct zone *zone, struct page *page,
++							  int start_type)
+ {
+ 	int current_order = page_order(page);
++	int pages;
  
--			if (!is_migrate_cma(migratetype)) {
--				try_to_steal_freepages(zone, page,
--							start_migratetype,
--							migratetype);
--			} else {
--				/*
--				 * When borrowing from MIGRATE_CMA, we need to
--				 * release the excess buddy pages to CMA
--				 * itself, and we do not try to steal extra
--				 * free pages.
--				 */
--				buddy_type = migratetype;
--			}
-+			try_to_steal_freepages(zone, page, start_migratetype,
-+								migratetype);
+ 	/* Take ownership for orders >= pageblock_order */
+ 	if (current_order >= pageblock_order) {
+@@ -1157,19 +1183,40 @@ static void try_to_steal_freepages(struct zone *zone, struct page *page,
+ 		return;
+ 	}
  
- 			/* Remove the page from the freelists */
- 			list_del(&page->lru);
-@@ -1246,7 +1244,11 @@ retry_reserve:
- 	page = __rmqueue_smallest(zone, order, migratetype);
- 
- 	if (unlikely(!page) && migratetype != MIGRATE_RESERVE) {
--		page = __rmqueue_fallback(zone, order, migratetype);
-+		if (migratetype == MIGRATE_MOVABLE)
-+			page = __rmqueue_cma_fallback(zone, order);
+-	if (current_order >= pageblock_order / 2 ||
+-	    start_type == MIGRATE_RECLAIMABLE ||
+-	    start_type == MIGRATE_UNMOVABLE ||
+-	    page_group_by_mobility_disabled) {
+-		int pages;
++	pages = move_freepages_block(zone, page, start_type);
 +
-+		if (!page)
-+			page = __rmqueue_fallback(zone, order, migratetype);
++	/* Claim the whole block if over half of it is free */
++	if (pages >= (1 << (pageblock_order-1)) ||
++			page_group_by_mobility_disabled)
++		set_pageblock_migratetype(page, start_type);
++}
++
++/* Check whether there is a suitable fallback freepage with requested order. */
++static int find_suitable_fallback(struct free_area *area, unsigned int order,
++					int migratetype, bool *can_steal)
++{
++	int i;
++	int fallback_mt;
++
++	if (area->nr_free == 0)
++		return -1;
++
++	*can_steal = false;
++	for (i = 0;; i++) {
++		fallback_mt = fallbacks[migratetype][i];
++		if (fallback_mt == MIGRATE_RESERVE)
++			break;
++
++		if (list_empty(&area->free_list[fallback_mt]))
++			continue;
  
- 		/*
- 		 * Use MIGRATE_RESERVE rather than fail an allocation. goto
+-		pages = move_freepages_block(zone, page, start_type);
++		if (can_steal_fallback(order, migratetype))
++			*can_steal = true;
+ 
+-		/* Claim the whole block if over half of it is free */
+-		if (pages >= (1 << (pageblock_order-1)) ||
+-				page_group_by_mobility_disabled)
+-			set_pageblock_migratetype(page, start_type);
++		return fallback_mt;
+ 	}
++
++	return -1;
+ }
+ 
+ /* Remove an element from the buddy allocator from the fallback list */
+@@ -1179,53 +1226,45 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
+ 	struct free_area *area;
+ 	unsigned int current_order;
+ 	struct page *page;
++	int fallback_mt;
++	bool can_steal;
+ 
+ 	/* Find the largest possible block of pages in the other list */
+ 	for (current_order = MAX_ORDER-1;
+ 				current_order >= order && current_order <= MAX_ORDER-1;
+ 				--current_order) {
+-		int i;
+-		for (i = 0;; i++) {
+-			int migratetype = fallbacks[start_migratetype][i];
+-			int buddy_type = start_migratetype;
+-
+-			/* MIGRATE_RESERVE handled later if necessary */
+-			if (migratetype == MIGRATE_RESERVE)
+-				break;
+-
+-			area = &(zone->free_area[current_order]);
+-			if (list_empty(&area->free_list[migratetype]))
+-				continue;
+-
+-			page = list_entry(area->free_list[migratetype].next,
+-					struct page, lru);
+-			area->nr_free--;
+-
+-			try_to_steal_freepages(zone, page, start_migratetype,
+-								migratetype);
++		area = &(zone->free_area[current_order]);
++		fallback_mt = find_suitable_fallback(area, current_order,
++				start_migratetype, &can_steal);
++		if (fallback_mt == -1)
++			continue;
+ 
+-			/* Remove the page from the freelists */
+-			list_del(&page->lru);
+-			rmv_page_order(page);
++		page = list_entry(area->free_list[fallback_mt].next,
++						struct page, lru);
++		if (can_steal)
++			steal_suitable_fallback(zone, page, start_migratetype);
+ 
+-			expand(zone, page, order, current_order, area,
+-					buddy_type);
++		/* Remove the page from the freelists */
++		area->nr_free--;
++		list_del(&page->lru);
++		rmv_page_order(page);
+ 
+-			/*
+-			 * The freepage_migratetype may differ from pageblock's
+-			 * migratetype depending on the decisions in
+-			 * try_to_steal_freepages(). This is OK as long as it
+-			 * does not differ for MIGRATE_CMA pageblocks. For CMA
+-			 * we need to make sure unallocated pages flushed from
+-			 * pcp lists are returned to the correct freelist.
+-			 */
+-			set_freepage_migratetype(page, buddy_type);
++		expand(zone, page, order, current_order, area,
++					start_migratetype);
++		/*
++		 * The freepage_migratetype may differ from pageblock's
++		 * migratetype depending on the decisions in
++		 * try_to_steal_freepages(). This is OK as long as it
++		 * does not differ for MIGRATE_CMA pageblocks. For CMA
++		 * we need to make sure unallocated pages flushed from
++		 * pcp lists are returned to the correct freelist.
++		 */
++		set_freepage_migratetype(page, start_migratetype);
+ 
+-			trace_mm_page_alloc_extfrag(page, order, current_order,
+-				start_migratetype, migratetype);
++		trace_mm_page_alloc_extfrag(page, order, current_order,
++			start_migratetype, fallback_mt);
+ 
+-			return page;
+-		}
++		return page;
+ 	}
+ 
+ 	return NULL;
 -- 
 1.7.9.5
 
