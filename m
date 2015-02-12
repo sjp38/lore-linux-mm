@@ -1,79 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
-	by kanga.kvack.org (Postfix) with ESMTP id BE99B6B0032
-	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 19:16:59 -0500 (EST)
-Received: by mail-qg0-f53.google.com with SMTP id f51so5541050qge.12
-        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 16:16:59 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id l4si3012209qci.30.2015.02.11.16.16.58
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 907606B0032
+	for <linux-mm@kvack.org>; Wed, 11 Feb 2015 19:35:19 -0500 (EST)
+Received: by mail-wi0-f177.google.com with SMTP id bs8so515117wib.4
+        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 16:35:19 -0800 (PST)
+Received: from mail-we0-x234.google.com (mail-we0-x234.google.com. [2a00:1450:400c:c03::234])
+        by mx.google.com with ESMTPS id fh2si206981wib.100.2015.02.11.16.35.17
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Feb 2015 16:16:58 -0800 (PST)
-Date: Thu, 12 Feb 2015 13:16:49 +1300
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [PATCH 2/3] slub: Support for array operations
-Message-ID: <20150212131649.59b70f71@redhat.com>
-In-Reply-To: <alpine.DEB.2.11.1502111604510.15061@gentwo.org>
-References: <20150210194804.288708936@linux.com>
-	<20150210194811.902155759@linux.com>
-	<20150211174817.44cc5562@redhat.com>
-	<alpine.DEB.2.11.1502111305520.7547@gentwo.org>
-	<20150212104316.2d5c32ea@redhat.com>
-	<alpine.DEB.2.11.1502111604510.15061@gentwo.org>
+        Wed, 11 Feb 2015 16:35:17 -0800 (PST)
+Received: by mail-we0-f180.google.com with SMTP id k11so6847856wes.11
+        for <linux-mm@kvack.org>; Wed, 11 Feb 2015 16:35:17 -0800 (PST)
+Date: Wed, 11 Feb 2015 16:35:11 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/3] Slab infrastructure for array operations
+In-Reply-To: <alpine.DEB.2.11.1502111603360.15061@gentwo.org>
+Message-ID: <alpine.DEB.2.10.1502111633200.966@chino.kir.corp.google.com>
+References: <20150210194804.288708936@linux.com> <20150210194811.787556326@linux.com> <alpine.DEB.2.10.1502101542030.15535@chino.kir.corp.google.com> <alpine.DEB.2.11.1502111243380.3887@gentwo.org> <alpine.DEB.2.10.1502111213151.16711@chino.kir.corp.google.com>
+ <alpine.DEB.2.11.1502111603360.15061@gentwo.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com, brouer@redhat.com
+Cc: akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com, Jesper Dangaard Brouer <brouer@redhat.com>
 
-On Wed, 11 Feb 2015 16:06:50 -0600 (CST)
-Christoph Lameter <cl@linux.com> wrote:
+On Wed, 11 Feb 2015, Christoph Lameter wrote:
 
-> On Thu, 12 Feb 2015, Jesper Dangaard Brouer wrote:
-> 
-> > > > This is quite an expensive lock with irqsave.
-[...]
-> > > We can require that interrupt are off when the functions are called. Then
-> > > we can avoid the "save" part?
+> > > > Hmm, not sure why the allocator would be required to do the
+> > > > EXPORT_SYMBOL() if it defines kmem_cache_free_array() itself.  This
+> > >
+> > > Keeping the EXPORT with the definition is the custom as far as I could
+> > > tell.
+> > >
 > >
-> > Yes, we could also do so with an "_irqoff" variant of the func call,
-> > but given we are defining the API we can just require this from the
-> > start.
+> > If you do dummy functions for all the allocators, then this should be as
+> > simple as unconditionally defining kmem_cache_free_array() and doing
+> > EXPORT_SYMBOL() here and then using your current implementation of
+> > __kmem_cache_free_array() for mm/slab.c.
 > 
-> Allright. Lets do that then.
+> That works if I put an EXPORT_SYMBOL in mm/slab_common.c and define the
+> function in mm/slub.c?
+> 
 
-Okay. Some measurements to guide this choice.
-
-Measured on my laptop CPU i7-2620M CPU @ 2.70GHz:
-
- * 12.775 ns - "clean" spin_lock_unlock
- * 21.099 ns - irqsave variant spinlock
- * 22.808 ns - "manual" irqsave before spin_lock
- * 14.618 ns - "manual" local_irq_disable + spin_lock
-
-Reproducible via my github repo:
- https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/lib/time_bench_sample.c
-
-The clean spin_lock_unlock is 8.324 ns faster than irqsave variant.
-The irqsave variant is actually faster than expected, as the measurement
-of an isolated local_irq_save_restore were 13.256 ns. 
-
-The difference to the "manual" irqsave is only 1.709 ns, which is approx
-the cost of an extra function call.
-
-If one can use the non-flags-save version of local_irq_disable, then one
-can save 6.481 ns (on this specific CPU and kernel config 3.17.8-200.fc20.x86_64).
-
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Sr. Network Kernel Developer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
-
-https://github.com/netoptimizer/prototype-kernel/commit/1471ac60
+No, my suggestion was for the same pattern as kmem_cache_alloc_array().  
+In other words, I think you should leave the definition of 
+kmem_cache_free_array() the way it is in your patch, remove the #ifndef 
+since _HAVE_SLAB_ALLOCATOR_ARRAY_OPERATIONS is going away, and then define 
+a __kmem_cache_free_array() for each allocator.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
