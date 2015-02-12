@@ -1,150 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f178.google.com (mail-we0-f178.google.com [74.125.82.178])
-	by kanga.kvack.org (Postfix) with ESMTP id B30006B006E
-	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 16:49:50 -0500 (EST)
-Received: by mail-we0-f178.google.com with SMTP id w62so12878854wes.9
-        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 13:49:50 -0800 (PST)
-Received: from v094114.home.net.pl (v094114.home.net.pl. [79.96.170.134])
-        by mx.google.com with SMTP id ds9si273855wib.63.2015.02.12.13.49.48
-        for <linux-mm@kvack.org>;
-        Thu, 12 Feb 2015 13:49:48 -0800 (PST)
-From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Subject: Re: [PATCH RESEND 0/3] memory_hotplug: hyperv: fix deadlock between memory adding and onlining
-Date: Thu, 12 Feb 2015 23:12:55 +0100
-Message-ID: <6866935.Sx3WrqBpT2@vostro.rjw.lan>
-In-Reply-To: <BY2PR0301MB0711A9F283C2C38BBB329591A0220@BY2PR0301MB0711.namprd03.prod.outlook.com>
-References: <1423736634-338-1-git-send-email-vkuznets@redhat.com> <BY2PR0301MB0711A9F283C2C38BBB329591A0220@BY2PR0301MB0711.namprd03.prod.outlook.com>
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id A2C5C6B006E
+	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 16:59:24 -0500 (EST)
+Received: by mail-ig0-f171.google.com with SMTP id h15so6820397igd.4
+        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 13:59:24 -0800 (PST)
+Received: from mail-ig0-x22c.google.com (mail-ig0-x22c.google.com. [2607:f8b0:4001:c05::22c])
+        by mx.google.com with ESMTPS id x10si2283135igl.26.2015.02.12.13.59.24
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 12 Feb 2015 13:59:24 -0800 (PST)
+Received: by mail-ig0-f172.google.com with SMTP id l13so6809624iga.5
+        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 13:59:24 -0800 (PST)
+Date: Thu, 12 Feb 2015 13:59:22 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 2/4] mm: rename __mlock_vma_pages_range() to
+ populate_vma_page_range()
+In-Reply-To: <20150212110318.GA15658@node.dhcp.inet.fi>
+Message-ID: <alpine.DEB.2.10.1502121358150.30164@chino.kir.corp.google.com>
+References: <1423674728-214192-1-git-send-email-kirill.shutemov@linux.intel.com> <1423674728-214192-3-git-send-email-kirill.shutemov@linux.intel.com> <alpine.DEB.2.10.1502111150400.9656@chino.kir.corp.google.com> <20150212110318.GA15658@node.dhcp.inet.fi>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KY Srinivasan <kys@microsoft.com>
-Cc: Vitaly Kuznetsov <vkuznets@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Haiyang Zhang <haiyangz@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Fabian Frederick <fabf@skynet.be>, Zhang Zhen <zhenzhang.zhang@huawei.com>, Vladimir Davydov <vdavydov@parallels.com>, Wang Nan <wangnan0@huawei.com>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>
 
-On Thursday, February 12, 2015 03:38:42 PM KY Srinivasan wrote:
-> 
-> > -----Original Message-----
-> > From: Vitaly Kuznetsov [mailto:vkuznets@redhat.com]
-> > Sent: Thursday, February 12, 2015 2:24 AM
-> > To: linux-kernel@vger.kernel.org
-> > Cc: Greg Kroah-Hartman; KY Srinivasan; Haiyang Zhang; Andrew Morton;
-> > Yasuaki Ishimatsu; Tang Chen; Vlastimil Babka; David Rientjes; Fabian
-> > Frederick; Zhang Zhen; Vladimir Davydov; Wang Nan; Rafael J. Wysocki;
-> > devel@linuxdriverproject.org; linux-mm@kvack.org
-> > Subject: [PATCH RESEND 0/3] memory_hotplug: hyperv: fix deadlock
-> > between memory adding and onlining
-> > 
-> > RESEND (with no changes) because Rafael J. Wysocki was missing in
-> > recepients.
-> > 
-> > If newly added memory is brought online with e.g. udev rule:
-> > SUBSYSTEM=="memory", ACTION=="add", ATTR{state}="online"
-> > the following deadlock is observed (and easily reproducable):
-> > 
-> > First participant, worker thread doing add_memory():
-> > 
-> > [  724.948846] kworker/0:1     D ffff88000412f9c8 13248    27      2 0x00000000
-> > [  724.973543] Workqueue: events hot_add_req [hv_balloon] [  724.991736]
-> > ffff88000412f9c8 0000000000000000 ffff88003fa1dc30 00000000000151c0 [
-> > 725.019725]  0000000000000246 ffff88000412ffd8 00000000000151c0
-> > ffff88003a77a4e0 [  725.046486]  ffff88003fa1dc30 00000001032a6000
-> > ffff88003a7ca838 ffff88003a7ca898 [  725.072969] Call Trace:
-> > [  725.082690]  [<ffffffff81aac0a9>] schedule_preempt_disabled+0x29/0x70
-> > [  725.103799]  [<ffffffff81aae33b>] mutex_lock_nested+0x14b/0x470 [
-> > 725.122367]  [<ffffffff815ed773>] ? device_attach+0x23/0xb0 [  725.140992]
-> > [<ffffffff815ed773>] device_attach+0x23/0xb0 [  725.159131]
-> > [<ffffffff815ecba0>] bus_probe_device+0xb0/0xe0 [  725.177055]
-> > [<ffffffff815ea693>] device_add+0x443/0x650 [  725.195558]
-> > [<ffffffff815ea8be>] device_register+0x1e/0x30 [  725.213133]
-> > [<ffffffff81601790>] init_memory_block+0xd0/0xf0 [  725.231533]
-> > [<ffffffff816018f1>] register_new_memory+0xb1/0xd0 [  725.250769]
-> > [<ffffffff81a961cf>] __add_pages+0x13f/0x250 [  725.269642]
-> > [<ffffffff81063770>] ? arch_add_memory+0x70/0xf0 [  725.288764]
-> > [<ffffffff81063770>] arch_add_memory+0x70/0xf0 [  725.306117]
-> > [<ffffffff81a95f8f>] add_memory+0xef/0x1f0 [  725.322466]
-> > [<ffffffffa00293af>] hot_add_req+0x33f/0xf90 [hv_balloon] [  725.342777]
-> > [<ffffffff8109509f>] process_one_work+0x1df/0x4e0 [  725.361459]
-> > [<ffffffff8109502d>] ? process_one_work+0x16d/0x4e0 [  725.380390]
-> > [<ffffffff810954bb>] worker_thread+0x11b/0x450 [  725.397684]
-> > [<ffffffff810953a0>] ? process_one_work+0x4e0/0x4e0 [  725.416533]
-> > [<ffffffff8109ac33>] kthread+0xf3/0x110 [  725.433372]  [<ffffffff8109ab40>]
-> > ? kthread_create_on_node+0x240/0x240
-> > [  725.453749]  [<ffffffff81ab1dfc>] ret_from_fork+0x7c/0xb0 [  725.470994]
-> > [<ffffffff8109ab40>] ? kthread_create_on_node+0x240/0x240
-> > [  725.491469] 6 locks held by kworker/0:1/27:
-> > [  725.505037]  #0:  ("events"){......}, at: [<ffffffff8109502d>]
-> > process_one_work+0x16d/0x4e0 [  725.533370]  #1:
-> > ((&dm_device.ha_wrk.wrk)){......}, at: [<ffffffff8109502d>]
-> > process_one_work+0x16d/0x4e0 [  725.565580]  #2:
-> > (mem_hotplug.lock){......}, at: [<ffffffff811e6525>]
-> > mem_hotplug_begin+0x5/0x80 [  725.594369]  #3:
-> > (mem_hotplug.lock#2){......}, at: [<ffffffff811e656f>]
-> > mem_hotplug_begin+0x4f/0x80 [  725.628554]  #4:
-> > (mem_sysfs_mutex){......}, at: [<ffffffff81601873>]
-> > register_new_memory+0x33/0xd0 [  725.658519]  #5:  (&dev->mutex){......},
-> > at: [<ffffffff815ed773>] device_attach+0x23/0xb0
-> > 
-> > Second participant, udev:
-> > 
-> > [  725.750889] systemd-udevd   D ffff88003b94fc68 14016   888    530
-> > 0x00000004
-> > [  725.773767]  ffff88003b94fc68 0000000000000000 ffff8800034949c0
-> > 00000000000151c0 [  725.798332]  ffffffff8210d980 ffff88003b94ffd8
-> > 00000000000151c0 ffff880037a69270 [  725.822841]  ffff8800034949c0
-> > 0000000100000001 ffff8800034949c0 ffffffff81ff2b48 [  725.849184] Call Trace:
-> > [  725.858987]  [<ffffffff81aac0a9>] schedule_preempt_disabled+0x29/0x70
-> > [  725.879231]  [<ffffffff81aae33b>] mutex_lock_nested+0x14b/0x470 [
-> > 725.897860]  [<ffffffff811e656f>] ? mem_hotplug_begin+0x4f/0x80 [
-> > 725.916698]  [<ffffffff811e656f>] mem_hotplug_begin+0x4f/0x80 [
-> > 725.935064]  [<ffffffff811e6525>] ? mem_hotplug_begin+0x5/0x80 [
-> > 725.953464]  [<ffffffff81a9631b>] online_pages+0x3b/0x520 [  725.971542]
-> > [<ffffffff815eb0b3>] ? device_online+0x23/0xa0 [  725.989207]
-> > [<ffffffff81601524>] memory_subsys_online+0x64/0xc0 [  726.008513]
-> > [<ffffffff815eb0fd>] device_online+0x6d/0xa0 [  726.025579]
-> > [<ffffffff816012eb>] store_mem_state+0x5b/0xe0 [  726.043400]
-> > [<ffffffff815e8258>] dev_attr_store+0x18/0x30 [  726.060506]
-> > [<ffffffff8127a808>] sysfs_kf_write+0x48/0x60 [  726.077940]
-> > [<ffffffff81279d1b>] kernfs_fop_write+0x13b/0x1a0 [  726.099416]
-> > [<ffffffff811f9f67>] vfs_write+0xb7/0x1f0 [  726.115748]  [<ffffffff811fabf8>]
-> > SyS_write+0x58/0xd0 [  726.131933]  [<ffffffff81ab1ea9>]
-> > system_call_fastpath+0x12/0x17 [  726.150691] 7 locks held by systemd-
-> > udevd/888:
-> > [  726.165044]  #0:  (sb_writers#3){......}, at: [<ffffffff811fa063>]
-> > vfs_write+0x1b3/0x1f0 [  726.192422]  #1:  (&of->mutex){......}, at:
-> > [<ffffffff81279c46>] kernfs_fop_write+0x66/0x1a0 [  726.220289]  #2:
-> > (s_active#60){......}, at: [<ffffffff81279c4e>] kernfs_fop_write+0x6e/0x1a0 [
-> > 726.249382]  #3:  (device_hotplug_lock){......}, at: [<ffffffff815e9c15>]
-> > lock_device_hotplug_sysfs+0x15/0x50
-> > [  726.281901]  #4:  (&dev->mutex){......}, at: [<ffffffff815eb0b3>]
-> > device_online+0x23/0xa0 [  726.308619]  #5:  (mem_hotplug.lock){......}, at:
-> > [<ffffffff811e6525>] mem_hotplug_begin+0x5/0x80 [  726.337994]  #6:
-> > (mem_hotplug.lock#2){......}, at: [<ffffffff811e656f>]
-> > mem_hotplug_begin+0x4f/0x80
-> > 
-> > In short: onlining grabs device lock and then tries to do
-> > mem_hotplug_begin() while add_memory() is between
-> > mem_hotplug_begin() and mem_hotplug_done() and it tries grabbing
-> > device lock.
-> > 
-> > To my understanding ACPI memory hotplug doesn't have the same issue as
-> > device_hotplug_lock is being grabbed when the ACPI device is added.
-> > 
-> > Solve the issue by grabbing device_hotplug_lock before doing
-> > add_memory(). If we do that, lock_device_hotplug_sysfs() will cause syscall
-> > retry which will eventually succeed. To support the change we need to
-> > export lock_device_hotplug/ unlock_device_hotplug. This approach can be
-> > completely wrong though.
-> 
-> This issue was first discovered by Andy Whitcroft: https://lkml.org/lkml/2014/3/14/451
-> I had sent patches based on Andy's analysis that did not affect the users of the kernel hot-add
-> memory APIs: https://lkml.org/lkml/2014/12/2/662
-> 
-> This patch puts the burden where it needs to be and can address the issue for all clients.
+On Thu, 12 Feb 2015, Kirill A. Shutemov wrote:
 
-That seems to mean that this series is not needed.  Is that correct?
+> > I think it makes sense to drop the references about "downgrading" 
+> > mm->mmap_sem in the documentation since populate_vma_page_range() can be 
+> > called with it held either for read or write depending on the context.
+> 
+> I'm not sure what references you're talking about.
+> 
+> Is it about this part:
+> 
+>  * If @nonblocking is non-NULL, it must held for read only and may be
+>  * released.  If it's released, *@nonblocking will be set to 0.
+> 
+> ?
+> 
 
-Rafael
+No, I was agreeing with your removal from the documentation:
+
+@@ -463,21 +463,11 @@ populate the page table.
+ 
+ To mlock a range of memory under the unevictable/mlock infrastructure, the
+ mmap() handler and task address space expansion functions call
+-mlock_vma_pages_range() specifying the vma and the address range to mlock.
+-mlock_vma_pages_range() filters VMAs like mlock_fixup(), as described above in
+-"Filtering Special VMAs".  It will clear the VM_LOCKED flag, which will have
+-already been set by the caller, in filtered VMAs.  Thus these VMA's need not be
+-visited for munlock when the region is unmapped.
+-
+-For "normal" VMAs, mlock_vma_pages_range() calls __mlock_vma_pages_range() to
+-fault/allocate the pages and mlock them.  Again, like mlock_fixup(),
+-mlock_vma_pages_range() downgrades the mmap semaphore to read mode before
+-attempting to fault/allocate and mlock the pages and "upgrades" the semaphore
+-back to write mode before returning.
+-
+-The callers of mlock_vma_pages_range() will have already added the memory range
++populate_vma_page_range() specifying the vma and the address range to mlock.
++
++The callers of populate_vma_page_range() will have already added the memory range
+ to be mlocked to the task's "locked_vm".  To account for filtered VMAs,
+-mlock_vma_pages_range() returns the number of pages NOT mlocked.  All of the
++populate_vma_page_range() returns the number of pages NOT mlocked.  All of the
+ callers then subtract a non-negative return value from the task's locked_vm.  A
+ negative return value represent an error - for example, from get_user_pages()
+ attempting to fault in a VMA with PROT_NONE access.  In this case, we leave the
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
