@@ -1,131 +1,267 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id D1F19900016
-	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 11:19:42 -0500 (EST)
-Received: by pdjp10 with SMTP id p10so12947780pdj.3
-        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 08:19:42 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id km8si5087460pbc.254.2015.02.12.08.19.41
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 15B246B0038
+	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 11:20:10 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id rd3so12436322pab.1
+        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 08:20:09 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id dh1si1708434pbc.142.2015.02.12.08.20.07
         for <linux-mm@kvack.org>;
-        Thu, 12 Feb 2015 08:19:42 -0800 (PST)
+        Thu, 12 Feb 2015 08:20:07 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 16/24] x86, thp: remove infrastructure for handling splitting PMDs
-Date: Thu, 12 Feb 2015 18:18:30 +0200
-Message-Id: <1423757918-197669-17-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1423757918-197669-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1423757918-197669-1-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 00/24] THP refcounting redesign
+Date: Thu, 12 Feb 2015 18:18:14 +0200
+Message-Id: <1423757918-197669-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-With new refcounting we don't need to mark PMDs splitting. Let's drop
-code to handle this.
+Hello everybody,
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- arch/x86/include/asm/pgtable.h       |  9 ---------
- arch/x86/include/asm/pgtable_types.h |  2 --
- arch/x86/mm/gup.c                    | 13 +------------
- arch/x86/mm/pgtable.c                | 14 --------------
- 4 files changed, 1 insertion(+), 37 deletions(-)
+Here's the first non-RFC version of the patchset on THP refcounting
+redesign. I've cleaned up my todo list and I consider it feature-complete.
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 9d0ade00923e..c6243e9f1666 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -158,11 +158,6 @@ static inline int pmd_large(pmd_t pte)
- }
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
--static inline int pmd_trans_splitting(pmd_t pmd)
--{
--	return pmd_val(pmd) & _PAGE_SPLITTING;
--}
--
- static inline int pmd_trans_huge(pmd_t pmd)
- {
- 	return pmd_val(pmd) & _PAGE_PSE;
-@@ -792,10 +787,6 @@ extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
- 				  unsigned long address, pmd_t *pmdp);
- 
- 
--#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
--extern void pmdp_splitting_flush(struct vm_area_struct *vma,
--				 unsigned long addr, pmd_t *pmdp);
--
- #define __HAVE_ARCH_PMD_WRITE
- static inline int pmd_write(pmd_t pmd)
- {
-diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-index 8c7c10802e9c..706f2f06d5b0 100644
---- a/arch/x86/include/asm/pgtable_types.h
-+++ b/arch/x86/include/asm/pgtable_types.h
-@@ -22,7 +22,6 @@
- #define _PAGE_BIT_PAT_LARGE	12	/* On 2MB or 1GB pages */
- #define _PAGE_BIT_SPECIAL	_PAGE_BIT_SOFTW1
- #define _PAGE_BIT_CPA_TEST	_PAGE_BIT_SOFTW1
--#define _PAGE_BIT_SPLITTING	_PAGE_BIT_SOFTW2 /* only valid on a PSE pmd */
- #define _PAGE_BIT_HIDDEN	_PAGE_BIT_SOFTW3 /* hidden by kmemcheck */
- #define _PAGE_BIT_SOFT_DIRTY	_PAGE_BIT_SOFTW3 /* software dirty tracking */
- #define _PAGE_BIT_NX           63       /* No execute: only valid after cpuid check */
-@@ -46,7 +45,6 @@
- #define _PAGE_PAT_LARGE (_AT(pteval_t, 1) << _PAGE_BIT_PAT_LARGE)
- #define _PAGE_SPECIAL	(_AT(pteval_t, 1) << _PAGE_BIT_SPECIAL)
- #define _PAGE_CPA_TEST	(_AT(pteval_t, 1) << _PAGE_BIT_CPA_TEST)
--#define _PAGE_SPLITTING	(_AT(pteval_t, 1) << _PAGE_BIT_SPLITTING)
- #define __HAVE_ARCH_PTE_SPECIAL
- 
- #ifdef CONFIG_KMEMCHECK
-diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
-index 62a887a3cf50..49bbbc57603b 100644
---- a/arch/x86/mm/gup.c
-+++ b/arch/x86/mm/gup.c
-@@ -157,18 +157,7 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
- 		pmd_t pmd = *pmdp;
- 
- 		next = pmd_addr_end(addr, end);
--		/*
--		 * The pmd_trans_splitting() check below explains why
--		 * pmdp_splitting_flush has to flush the tlb, to stop
--		 * this gup-fast code from running while we set the
--		 * splitting bit in the pmd. Returning zero will take
--		 * the slow path that will call wait_split_huge_page()
--		 * if the pmd is still in splitting state. gup-fast
--		 * can't because it has irq disabled and
--		 * wait_split_huge_page() would never return as the
--		 * tlb flush IPI wouldn't run.
--		 */
--		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
-+		if (pmd_none(pmd))
- 			return 0;
- 		if (unlikely(pmd_large(pmd) || !pmd_present(pmd))) {
- 			/*
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index 7b22adaad4f1..a4c75bdee21d 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -433,20 +433,6 @@ int pmdp_clear_flush_young(struct vm_area_struct *vma,
- 
- 	return young;
- }
--
--void pmdp_splitting_flush(struct vm_area_struct *vma,
--			  unsigned long address, pmd_t *pmdp)
--{
--	int set;
--	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
--	set = !test_and_set_bit(_PAGE_BIT_SPLITTING,
--				(unsigned long *)pmdp);
--	if (set) {
--		pmd_update(vma->vm_mm, address, pmdp);
--		/* need tlb flush only to serialize against gup-fast */
--		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
--	}
--}
- #endif
- 
- /**
+The goal of patchset is to make refcounting on THP pages cheaper with
+simpler semantics and allow the same THP compound page to be mapped with
+PMD and PTEs. This is required to get reasonable THP-pagecache
+implementation.
+
+With the new refcounting design it's much easier to protect against
+split_huge_page(): simple reference on a page will make you the deal.
+It makes gup_fast() implementation simpler and doesn't require
+special-case in futex code to handle tail THP pages.
+
+It should improve THP utilization over the system since splitting THP in
+one process doesn't necessary lead to splitting the page in all other
+processes have the page mapped.
+
+= Design overview =
+
+The main reason why we can't map THP with 4k is how refcounting on THP
+designed. It built around two requirements:
+
+  - split of huge page should never fail;
+  - we can't change interface of get_user_page();
+
+To be able to split huge page at any point we have to track which tail
+page was pinned. It leads to tricky and expensive get_page() on tail pages
+and also occupy tail_page->_mapcount.
+
+Most split_huge_page*() users want PMD to be split into table of PTEs and
+don't care whether compound page is going to be split or not.
+
+The plan is:
+
+ - allow split_huge_page() to fail if the page is pinned. It's trivial to
+   split non-pinned page and it doesn't require tail page refcounting, so
+   tail_page->_mapcount is free to be reused.
+
+ - introduce new routine -- split_huge_pmd() -- to split PMD into table of
+   PTEs. It splits only one PMD, not touching other PMDs the page is
+   mapped with or underlying compound page. Unlike new split_huge_page(),
+   split_huge_pmd() never fails.
+
+Fortunately, we have only few places where split_huge_page() is needed:
+swap out, memory failure, migration, KSM. And all of them can handle
+split_huge_page() fail.
+
+In new scheme we use page->_mapcount is used to account how many time
+the page is mapped with PTEs. We have separate compound_mapcount() to
+count mappings with PMD. page_mapcount() returns sum of PTE and PMD
+mappings of the page.
+
+Introducing split_huge_pmd() effectively allows THP to be mapped with 4k.
+It may be a surprise to some code to see a PTE which points to tail page
+or VMA start/end in the middle of compound page.
+
+munmap() part of THP will split PMD, but doesn't split the huge page. In
+order to take memory consuption under control we put partially unmapped
+huge page on per-zone list, which would be drained on first shrink_zone()
+call. This way we also avoid unnecessary split_huge_page() on exit(2) if a
+THP belong to more than one VMA.
+
+= Patches overview =
+
+Patch 1:
+	Move split_huge_page code around. Preparation for future changes.
+
+Patches 2-3:
+        Make PageAnon() and PG_locked related helpers to look on head
+        page if tail page is passed. It's required since pte_page() can
+        now point to tail page. It's likely that we need to change other
+        pageflags-related helpers too, but I haven't step on any other
+	yet.
+
+Patch 4:
+        With PTE-mapeed THP, rmap cannot rely on PageTransHuge() check to
+        decide if map small page or THP. We need to get the info from
+        caller.
+
+Patch 5:
+	We need to look on all subpages of compound page to calculate
+	correct PSS, because they can have different mapcount.
+
+Patch 6:
+        Store mapcount for compound pages separately: in the first tail
+        page ->mapping.
+
+Patch 7:
+        Adjust conditions when we can re-use the page on write-protection
+        fault.
+
+Patch 8:
+	FOLL_SPLIT should be handled on PTE level too.
+
+Patch 9:
+	Split all pages in mlocked VMA. We would need to look on this
+	again later.
+
+Patch 10:
+	Make khugepaged aware about PTE-mapped huge pages.
+
+Patch 11:
+        split_huge_page_pmd() to split_huge_pmd() to reflect that page is
+        not going to be split, only PMD.
+
+Patch 12:
+        Temporary make split_huge_page() to return -EBUSY on all split
+        requests. This allows to drop tail-page refcounting and change
+        implementation of split_huge_pmd() to split PMD to table of PTEs
+        without splitting compound page.
+
+Patch 13:
+        New THP_SPLIT_* vmstats.
+
+Patch 14:
+        Implement new split_huge_page() which fails if the page is pinned.
+        For now, we rely on compound_lock() to make page counts stable.
+
+Patches 15-16:
+        Drop infrastructure for handling PMD splitting. We don't use it
+        anymore in split_huge_page(). For now we only remove it from
+        generic code and x86. I'll cleanup other architectures later.
+
+Patch 17:
+        Remove ugly special case if futex happened to be in tail THP page.
+        With new refcounting it much easier to protect against split.
+
+Patches 18-20:
+        Replaces compound_lock with migration entries as mechanism to
+	freeze page counts on split_huge_page(). We don't need
+	compound_lock anymore. It makes get_page()/put_page() on tail
+	pages faster.
+
+Patch 21:
+	Handle partial unmap of THP. We put partially unmapped huge page
+	on per-zone list, which would be drained on first shrink_zone()
+	call. This way we also avoid unnecessary split_huge_page() on
+	exit(2) if a THP belong to more than one VMA.
+
+Patch 22:
+	Make memcg aware about new refcounting. Validation needed.
+
+Patch 23:
+	Fix never-succeed split_huge_page() inside KSM machinery.
+
+Patch 24:
+        Documentation update.
+
+I was focused on stability so far and don't have performance numbers yet.
+I've run mm tests from LTP: all pass. Trinity doesn't crash patched kernel
+for me.
+
+I would appreciate any feedback on the patchset: in form of code review or
+testing.
+
+The patchset also available on git:
+
+git://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git thp/refcounting/v3
+
+Comments?
+
+Kirill A. Shutemov (24):
+  thp: cluster split_huge_page* code together
+  mm: change PageAnon() and page_anon_vma() to work on tail pages
+  mm: avoid PG_locked on tail pages
+  rmap: add argument to charge compound page
+  mm, proc: adjust PSS calculation
+  mm: store mapcount for compound page separately
+  mm, thp: adjust conditions when we can reuse the page on WP fault
+  mm: adjust FOLL_SPLIT for new refcounting
+  thp, mlock: do not allow huge pages in mlocked area
+  khugepaged: ignore pmd tables with THP mapped with ptes
+  thp: rename split_huge_page_pmd() to split_huge_pmd()
+  thp: PMD splitting without splitting compound page
+  mm, vmstats: new THP splitting event
+  thp: implement new split_huge_page()
+  mm, thp: remove infrastructure for handling splitting PMDs
+  x86, thp: remove infrastructure for handling splitting PMDs
+  futex, thp: remove special case for THP in get_futex_key
+  thp, mm: split_huge_page(): caller need to lock page
+  thp, mm: use migration entries to freeze page counts on split
+  mm, thp: remove compound_lock
+  thp: introduce deferred_split_huge_page()
+  memcg: adjust to support new THP refcounting
+  ksm: split huge pages on follow_page()
+  thp: update documentation
+
+ Documentation/vm/transhuge.txt       | 100 ++--
+ arch/mips/mm/gup.c                   |   4 -
+ arch/powerpc/mm/hugetlbpage.c        |  13 +-
+ arch/powerpc/mm/subpage-prot.c       |   2 +-
+ arch/s390/mm/gup.c                   |  13 +-
+ arch/sparc/mm/gup.c                  |  14 +-
+ arch/x86/include/asm/pgtable.h       |   9 -
+ arch/x86/include/asm/pgtable_types.h |   2 -
+ arch/x86/kernel/vm86_32.c            |   6 +-
+ arch/x86/mm/gup.c                    |  17 +-
+ arch/x86/mm/pgtable.c                |  14 -
+ fs/proc/task_mmu.c                   |  51 ++-
+ include/asm-generic/pgtable.h        |   5 -
+ include/linux/huge_mm.h              |  40 +-
+ include/linux/hugetlb_inline.h       |   9 +-
+ include/linux/memcontrol.h           |  16 +-
+ include/linux/migrate.h              |   3 +
+ include/linux/mm.h                   | 125 +----
+ include/linux/mm_types.h             |  20 +-
+ include/linux/mmzone.h               |   5 +
+ include/linux/page-flags.h           |  15 +-
+ include/linux/pagemap.h              |  14 +-
+ include/linux/rmap.h                 |  19 +-
+ include/linux/swap.h                 |   3 +-
+ include/linux/vm_event_item.h        |   4 +-
+ kernel/events/uprobes.c              |  11 +-
+ kernel/futex.c                       |  61 +--
+ mm/debug.c                           |   8 +-
+ mm/filemap.c                         |   9 +-
+ mm/gup.c                             |  89 ++--
+ mm/huge_memory.c                     | 857 ++++++++++++++++++-----------------
+ mm/hugetlb.c                         |   8 +-
+ mm/internal.h                        |  57 +--
+ mm/ksm.c                             |  60 +--
+ mm/madvise.c                         |   2 +-
+ mm/memcontrol.c                      |  76 +---
+ mm/memory-failure.c                  |  12 +-
+ mm/memory.c                          |  64 +--
+ mm/mempolicy.c                       |   2 +-
+ mm/migrate.c                         |  20 +-
+ mm/mincore.c                         |   2 +-
+ mm/mlock.c                           |   3 +
+ mm/mprotect.c                        |   2 +-
+ mm/mremap.c                          |   2 +-
+ mm/page_alloc.c                      |  13 +-
+ mm/pagewalk.c                        |   2 +-
+ mm/pgtable-generic.c                 |  14 -
+ mm/rmap.c                            | 121 +++--
+ mm/shmem.c                           |  21 +-
+ mm/slub.c                            |   2 +
+ mm/swap.c                            | 260 ++---------
+ mm/swapfile.c                        |  16 +-
+ mm/vmscan.c                          |   3 +
+ mm/vmstat.c                          |   4 +-
+ 54 files changed, 975 insertions(+), 1349 deletions(-)
+
 -- 
 2.1.4
 
