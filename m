@@ -1,62 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
-	by kanga.kvack.org (Postfix) with ESMTP id DAD0F6B0038
-	for <linux-mm@kvack.org>; Fri, 13 Feb 2015 04:18:15 -0500 (EST)
-Received: by mail-ob0-f182.google.com with SMTP id nt9so17448189obb.13
-        for <linux-mm@kvack.org>; Fri, 13 Feb 2015 01:18:15 -0800 (PST)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id n145si842866oig.14.2015.02.13.01.18.13
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id E3F176B0038
+	for <linux-mm@kvack.org>; Fri, 13 Feb 2015 04:56:07 -0500 (EST)
+Received: by mail-ig0-f171.google.com with SMTP id h15so9530589igd.4
+        for <linux-mm@kvack.org>; Fri, 13 Feb 2015 01:56:07 -0800 (PST)
+Received: from nm39-vm5.bullet.mail.ne1.yahoo.com (nm39-vm5.bullet.mail.ne1.yahoo.com. [98.138.229.165])
+        by mx.google.com with ESMTPS id o66si5055906ioe.84.2015.02.13.01.56.07
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 13 Feb 2015 01:18:15 -0800 (PST)
-From: Sheng Yong <shengyong1@huawei.com>
-Subject: [PATCH] memory hotplug: Use macro to switch between section and pfn
-Date: Fri, 13 Feb 2015 09:13:23 +0000
-Message-ID: <1423818803-202364-1-git-send-email-shengyong1@huawei.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 13 Feb 2015 01:56:07 -0800 (PST)
+Date: Fri, 13 Feb 2015 09:52:16 +0000 (UTC)
+From: Cheng Rk <crquan@ymail.com>
+Reply-To: Cheng Rk <crquan@ymail.com>
+Message-ID: <131740628.109294.1423821136530.JavaMail.yahoo@mail.yahoo.com>
+In-Reply-To: <CALYGNiP-CKYsVzLpUdUWM3ftfg1vPvKWQvbegXVLoNovtNWS6Q@mail.gmail.com>
+References: <CALYGNiP-CKYsVzLpUdUWM3ftfg1vPvKWQvbegXVLoNovtNWS6Q@mail.gmail.com>
+Subject: Re: How to controll Buffers to be dilligently reclaimed?
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Use macro section_nr_to_pfn and pfn_to_section_nr to switch between section
-and pfn, instead of bit operations, no semantic changes.
 
-Signed-off-by: Sheng Yong <shengyong1@huawei.com>
----
- drivers/base/memory.c | 2 +-
- mm/memory_hotplug.c   | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 85be040..8f6d988 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -228,7 +228,7 @@ memory_block_action(unsigned long phys_index, unsigned long action, int online_t
- 	struct page *first_page;
- 	int ret;
- 
--	start_pfn = phys_index << PFN_SECTION_SHIFT;
-+	start_pfn = section_nr_to_pfn(phys_index);
- 	first_page = pfn_to_page(start_pfn);
- 
- 	switch (action) {
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index b82b61e..2afda10 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -502,7 +502,7 @@ int __ref __add_pages(int nid, struct zone *zone, unsigned long phys_start_pfn,
- 	end_sec = pfn_to_section_nr(phys_start_pfn + nr_pages - 1);
- 
- 	for (i = start_sec; i <= end_sec; i++) {
--		err = __add_section(nid, zone, i << PFN_SECTION_SHIFT);
-+		err = __add_section(nid, zone, section_nr_to_pfn(i));
- 
- 		/*
- 		 * EEXIST is finally dealt with by ioresource collision
--- 
-1.8.3.4
+On Thursday, February 12, 2015 11:34 PM, Konstantin Khlebnikov <koct9i@gmail.com> wrote:
+
+>>
+>> -bash-4.2$ sudo losetup -a
+>> /dev/loop0: [0005]:16512 (/dev/dm-2)
+>> -bash-4.2$ free -m
+>>                 total          used         free      shared       buffers     cached
+>> Mem:             48094         46081         2012          40         40324       2085
+>> -/+ buffers/cache:              3671       44422
+>> Swap:             8191             5         8186
+>>
+>>
+>> I've tried sysctl mm.vfs_cache_pressure=10000 but that seems working to Cached
+>> memory, I wonder is there another sysctl for reclaming Buffers?
+
+> AFAIK "Buffers" is just a page-cache of block devices.
+> From reclaimer's point of view they have no difference from file page-cache.
+
+> Could you post oom-killer log, there should be a lot of numbers
+> describing memory state.
+
+
+in this case, 40GB memory got stuck in Buffers, and 90+% of them are reclaimable (can be verified by vm.drop_caches manual reclaim)
+if Buffers are treated same as Cached, why mm.vfs_cache_pressure=10000 (or even I tried up to 1,000,000) can't get Buffers reclaimed early?
+
+
+I have some oom-killer msgs but were with older kernels, after set vm.overcommit_memory=2, it simply returns -ENOMEM, unable to spawn any new container, why doesn't it even try to reclaim some memory from those 40GB Buffers,
+
+
+
+Thanks,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
