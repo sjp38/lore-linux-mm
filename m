@@ -1,59 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id CCEAA6B0083
-	for <linux-mm@kvack.org>; Fri, 13 Feb 2015 16:20:12 -0500 (EST)
-Received: by iebtr6 with SMTP id tr6so11999463ieb.10
-        for <linux-mm@kvack.org>; Fri, 13 Feb 2015 13:20:12 -0800 (PST)
-Received: from mail-ig0-x22a.google.com (mail-ig0-x22a.google.com. [2607:f8b0:4001:c05::22a])
-        by mx.google.com with ESMTPS id i84si6426248ioo.79.2015.02.13.13.20.12
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 3938B6B0088
+	for <linux-mm@kvack.org>; Fri, 13 Feb 2015 17:20:33 -0500 (EST)
+Received: by mail-wi0-f181.google.com with SMTP id r20so15339046wiv.2
+        for <linux-mm@kvack.org>; Fri, 13 Feb 2015 14:20:32 -0800 (PST)
+Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
+        by mx.google.com with ESMTPS id m10si6287390wia.3.2015.02.13.14.20.31
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Feb 2015 13:20:12 -0800 (PST)
-Received: by mail-ig0-f170.google.com with SMTP id l13so18348373iga.1
-        for <linux-mm@kvack.org>; Fri, 13 Feb 2015 13:20:12 -0800 (PST)
-Date: Fri, 13 Feb 2015 13:20:10 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/3] Slab infrastructure for array operations
-In-Reply-To: <alpine.DEB.2.11.1502130941360.9442@gentwo.org>
-Message-ID: <alpine.DEB.2.10.1502131315500.24226@chino.kir.corp.google.com>
-References: <20150210194804.288708936@linux.com> <20150210194811.787556326@linux.com> <alpine.DEB.2.10.1502101542030.15535@chino.kir.corp.google.com> <alpine.DEB.2.11.1502111243380.3887@gentwo.org> <alpine.DEB.2.10.1502111213151.16711@chino.kir.corp.google.com>
- <20150213023534.GA6592@js1304-P5Q-DELUXE> <alpine.DEB.2.11.1502130941360.9442@gentwo.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 13 Feb 2015 14:20:32 -0800 (PST)
+From: Chris J Arges <chris.j.arges@canonical.com>
+Subject: [PATCH 2/3] mm: slub: parse slub_debug O option in switch statement
+Date: Fri, 13 Feb 2015 16:19:36 -0600
+Message-Id: <1423865980-10417-2-git-send-email-chris.j.arges@canonical.com>
+In-Reply-To: <1423865980-10417-1-git-send-email-chris.j.arges@canonical.com>
+References: <1423865980-10417-1-git-send-email-chris.j.arges@canonical.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com, Jesper Dangaard Brouer <brouer@redhat.com>
+To: linux-kernel@vger.kernel.org
+Cc: Chris J Arges <chris.j.arges@canonical.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Fri, 13 Feb 2015, Christoph Lameter wrote:
+By moving the O option detection into the switch statement, we allow this
+parameter to be combined with other options correctly. Previously options like
+slub_debug=OFZ would only detect the 'o' and use DEBUG_DEFAULT_FLAGS to fill
+in the rest of the flags.
 
-> > I also think that this implementation is slub-specific. For example,
-> > in slab case, it is always better to access local cpu cache first than
-> > page allocator since slab doesn't use list to manage free objects and
-> > there is no cache line overhead like as slub. I think that,
-> > in kmem_cache_alloc_array(), just call to allocator-defined
-> > __kmem_cache_alloc_array() is better approach.
-> 
-> What do you mean by "better"? Please be specific as to where you would see
-> a difference. And slab definititely manages free objects although
-> differently than slub. SLAB manages per cpu (local) objects, per node
-> partial lists etc. Same as SLUB. The cache line overhead is there but no
-> that big a difference in terms of choosing objects to get first.
-> 
+Signed-off-by: Chris J Arges <chris.j.arges@canonical.com>
+---
+ mm/slub.c | 16 +++++++---------
+ 1 file changed, 7 insertions(+), 9 deletions(-)
 
-I think because we currently lack a non-fallback implementation for slab 
-that it may be premature to discuss what would be unified if such an 
-implementation were to exist.  That unification can always happen later 
-if/when the slab implementation is proposed, but I don't think we should 
-be unifying an implementation that doesn't exist.  
-
-In other words, I think it would be much cleaner to do just define the 
-generic array alloc and array free functions in mm/slab_common.c along 
-with their EXPORT_SYMBOL()'s as simple callbacks to per-allocator 
-__kmem_cache_{alloc,free}_array() implementations.  I think it's also 
-better from a source code perspective to avoid reading two different 
-functions and then realizing that nothing is actually unified between them 
-(and the absence of an unnecessary #ifdef is currently helpful).
+diff --git a/mm/slub.c b/mm/slub.c
+index 06cdb18..88482f8 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1112,15 +1112,6 @@ static int __init setup_slub_debug(char *str)
+ 		 */
+ 		goto check_slabs;
+ 
+-	if (tolower(*str) == 'o') {
+-		/*
+-		 * Avoid enabling debugging on caches if its minimum order
+-		 * would increase as a result.
+-		 */
+-		disable_higher_order_debug = 1;
+-		goto out;
+-	}
+-
+ 	slub_debug = 0;
+ 	if (*str == '-')
+ 		/*
+@@ -1151,6 +1142,13 @@ static int __init setup_slub_debug(char *str)
+ 		case 'a':
+ 			slub_debug |= SLAB_FAILSLAB;
+ 			break;
++		case 'o':
++			/*
++			 * Avoid enabling debugging on caches if its minimum
++			 * order would increase as a result.
++			 */
++			disable_higher_order_debug = 1;
++			break;
+ 		default:
+ 			pr_err("slub_debug option '%c' unknown. skipped\n",
+ 			       *str);
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
