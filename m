@@ -1,75 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com [209.85.217.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EA546B0038
-	for <linux-mm@kvack.org>; Fri, 13 Feb 2015 02:34:24 -0500 (EST)
-Received: by mail-lb0-f169.google.com with SMTP id p9so13965277lbv.0
-        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 23:34:23 -0800 (PST)
-Received: from mail-lb0-x22c.google.com (mail-lb0-x22c.google.com. [2a00:1450:4010:c04::22c])
-        by mx.google.com with ESMTPS id d11si965912lbb.41.2015.02.12.23.34.21
+Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
+	by kanga.kvack.org (Postfix) with ESMTP id DAD0F6B0038
+	for <linux-mm@kvack.org>; Fri, 13 Feb 2015 04:18:15 -0500 (EST)
+Received: by mail-ob0-f182.google.com with SMTP id nt9so17448189obb.13
+        for <linux-mm@kvack.org>; Fri, 13 Feb 2015 01:18:15 -0800 (PST)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id n145si842866oig.14.2015.02.13.01.18.13
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Feb 2015 23:34:22 -0800 (PST)
-Received: by mail-lb0-f172.google.com with SMTP id p9so13129365lbv.3
-        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 23:34:21 -0800 (PST)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 13 Feb 2015 01:18:15 -0800 (PST)
+From: Sheng Yong <shengyong1@huawei.com>
+Subject: [PATCH] memory hotplug: Use macro to switch between section and pfn
+Date: Fri, 13 Feb 2015 09:13:23 +0000
+Message-ID: <1423818803-202364-1-git-send-email-shengyong1@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <1918343840.1970155.1423788776414.JavaMail.yahoo@mail.yahoo.com>
-References: <1918343840.1970155.1423788776414.JavaMail.yahoo@mail.yahoo.com>
-Date: Fri, 13 Feb 2015 10:34:21 +0300
-Message-ID: <CALYGNiP-CKYsVzLpUdUWM3ftfg1vPvKWQvbegXVLoNovtNWS6Q@mail.gmail.com>
-Subject: Re: How to controll Buffers to be dilligently reclaimed?
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cheng Rk <crquan@ymail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org
 
-On Fri, Feb 13, 2015 at 3:52 AM, Cheng Rk <crquan@ymail.com> wrote:
->
->
-> Hi,
->
-> I have a system that application is doing a loop on top of block device,
-> (which I think is stupid,)
-> as more and more memory goes into Buffers, then applications started
-> to get -ENOMEM or be oom-killed later (depends on vm.overcommit_memory setting)
->
->
-> In this case, if I do a manual reclaim (echo 3 > /proc/sys/vm/drop_caches)
-> I see 90+% of the Buffers is reclaimable, but why it's not reclaimed
-> to fullfill applications' memory allocation request?
->
->
->
-> -bash-4.2$ sudo losetup -a
-> /dev/loop0: [0005]:16512 (/dev/dm-2)
-> -bash-4.2$ free -m
->                      total          used         free      shared       buffers     cached
-> Mem:             48094        46081         2012              40           40324   2085
-> -/+ buffers/cache:             3671        44422
-> Swap:             8191                5         8186
->
->
-> I've tried sysctl mm.vfs_cache_pressure=10000 but that seems working to Cached
-> memory, I wonder is there another sysctl for reclaming Buffers?
+Use macro section_nr_to_pfn and pfn_to_section_nr to switch between section
+and pfn, instead of bit operations, no semantic changes.
 
-AFAIK "Buffers" is just a page-cache of block devices.
->From reclaimer's point of view they have no difference from file page-cache.
+Signed-off-by: Sheng Yong <shengyong1@huawei.com>
+---
+ drivers/base/memory.c | 2 +-
+ mm/memory_hotplug.c   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
 
-Could you post oom-killer log, there should be a lot of numbers
-describing memory state.
-
->
->
-> Thanks,
->
-> - Derek
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index 85be040..8f6d988 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -228,7 +228,7 @@ memory_block_action(unsigned long phys_index, unsigned long action, int online_t
+ 	struct page *first_page;
+ 	int ret;
+ 
+-	start_pfn = phys_index << PFN_SECTION_SHIFT;
++	start_pfn = section_nr_to_pfn(phys_index);
+ 	first_page = pfn_to_page(start_pfn);
+ 
+ 	switch (action) {
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index b82b61e..2afda10 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -502,7 +502,7 @@ int __ref __add_pages(int nid, struct zone *zone, unsigned long phys_start_pfn,
+ 	end_sec = pfn_to_section_nr(phys_start_pfn + nr_pages - 1);
+ 
+ 	for (i = start_sec; i <= end_sec; i++) {
+-		err = __add_section(nid, zone, i << PFN_SECTION_SHIFT);
++		err = __add_section(nid, zone, section_nr_to_pfn(i));
+ 
+ 		/*
+ 		 * EEXIST is finally dealt with by ioresource collision
+-- 
+1.8.3.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
