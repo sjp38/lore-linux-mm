@@ -1,282 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 26AC66B006C
-	for <linux-mm@kvack.org>; Fri, 13 Feb 2015 10:04:59 -0500 (EST)
-Received: by mail-wi0-f174.google.com with SMTP id em10so12661546wid.1
-        for <linux-mm@kvack.org>; Fri, 13 Feb 2015 07:04:58 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ys10si4364115wjc.129.2015.02.13.07.04.56
+Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DEE16B0071
+	for <linux-mm@kvack.org>; Fri, 13 Feb 2015 10:48:02 -0500 (EST)
+Received: by mail-qg0-f50.google.com with SMTP id e89so13700646qgf.9
+        for <linux-mm@kvack.org>; Fri, 13 Feb 2015 07:48:01 -0800 (PST)
+Received: from resqmta-ch2-11v.sys.comcast.net ([2001:558:fe21:29:250:56ff:feaf:4189])
+        by mx.google.com with ESMTPS id u91si3134504qgu.106.2015.02.13.07.48.00
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 13 Feb 2015 07:04:57 -0800 (PST)
-Date: Fri, 13 Feb 2015 16:04:55 +0100 (CET)
-From: Jiri Kosina <jkosina@suse.cz>
-Subject: [PATCH v2] x86, kaslr: propagate base load address calculation
-In-Reply-To: <alpine.LNX.2.00.1502110010190.10719@pobox.suse.cz>
-Message-ID: <alpine.LNX.2.00.1502131602360.2423@pobox.suse.cz>
-References: <alpine.LNX.2.00.1502101411280.10719@pobox.suse.cz> <CAGXu5jJzs9Ve9so96f6n-=JxP+GR3xYFQYBtZ=mUm+Q7bMAgBw@mail.gmail.com> <alpine.LNX.2.00.1502110001480.10719@pobox.suse.cz> <alpine.LNX.2.00.1502110010190.10719@pobox.suse.cz>
-MIME-Version: 1.0
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Fri, 13 Feb 2015 07:48:01 -0800 (PST)
+Date: Fri, 13 Feb 2015 09:47:59 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 1/3] Slab infrastructure for array operations
+In-Reply-To: <20150213023534.GA6592@js1304-P5Q-DELUXE>
+Message-ID: <alpine.DEB.2.11.1502130941360.9442@gentwo.org>
+References: <20150210194804.288708936@linux.com> <20150210194811.787556326@linux.com> <alpine.DEB.2.10.1502101542030.15535@chino.kir.corp.google.com> <alpine.DEB.2.11.1502111243380.3887@gentwo.org> <alpine.DEB.2.10.1502111213151.16711@chino.kir.corp.google.com>
+ <20150213023534.GA6592@js1304-P5Q-DELUXE>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>, "H. Peter Anvin" <hpa@linux.intel.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, live-patching@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: David Rientjes <rientjes@google.com>, akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com, Jesper Dangaard Brouer <brouer@redhat.com>
 
-Commit e2b32e678 ("x86, kaslr: randomize module base load address") makes 
-the base address for module to be unconditionally randomized in case when 
-CONFIG_RANDOMIZE_BASE is defined and "nokaslr" option isn't present on the 
-commandline.
+On Fri, 13 Feb 2015, Joonsoo Kim wrote:
+>
+> I also think that this implementation is slub-specific. For example,
+> in slab case, it is always better to access local cpu cache first than
+> page allocator since slab doesn't use list to manage free objects and
+> there is no cache line overhead like as slub. I think that,
+> in kmem_cache_alloc_array(), just call to allocator-defined
+> __kmem_cache_alloc_array() is better approach.
 
-This is not consistent with how choose_kernel_location() decides whether 
-it will randomize kernel load base.
+What do you mean by "better"? Please be specific as to where you would see
+a difference. And slab definititely manages free objects although
+differently than slub. SLAB manages per cpu (local) objects, per node
+partial lists etc. Same as SLUB. The cache line overhead is there but no
+that big a difference in terms of choosing objects to get first.
 
-Namely, CONFIG_HIBERNATION disables kASLR (unless "kaslr" option is 
-explicitly specified on kernel commandline), which makes the state space 
-larger than what module loader is looking at. IOW CONFIG_HIBERNATION && 
-CONFIG_RANDOMIZE_BASE is a valid config option, kASLR wouldn't be applied 
-by default in that case, but module loader is not aware of that.
+For a large allocation it is beneficial for both allocators to fist reduce
+the list of partial allocated slab pages on a node.
 
-Instead of fixing the logic in module.c, this patch takes more generic 
-aproach. It introduces a new bootparam setup data_type SETUP_KASLR and 
-uses that to pass the information whether kaslr has been applied during 
-kernel decompression, and sets a global 'kaslr_enabled' variable 
-accordingly, so that any kernel code (module loading, livepatching, ...) 
-can make decisions based on its value.
+Going to the local objects first is enticing since these are cache hot but
+there are only a limited number of these available and there are issues
+with acquiring a large number of objects. For SLAB the objects dispersed
+and not spatially local. For SLUB the number of objects is usually much
+more limited than SLAB (but that is configurable these days via the cpu
+partial pages). SLUB allocates spatially local objects from one page
+before moving to the other. This is an advantage. However, it has to
+traverse a linked list instead of an array (SLAB).
 
-x86 module loader is converted to make use of this flag.
-
-Signed-off-by: Jiri Kosina <jkosina@suse.cz>
----
-
-v1 -> v2:
-
-Originally I just calculated the fact on the fly from difference between 
-__START_KERNEL and &text, but Kees correctly pointed out that this doesn't 
-properly catch the case when the offset is randomized to zero. I don't see 
-a better option how to propagate the information from 
-choose_kernel_location() to the decompressed kernel than introducing new 
-bootparam setup type. Comments welcome.
-
- arch/x86/boot/compressed/aslr.c       | 34 +++++++++++++++++++++++++++++++++-
- arch/x86/boot/compressed/misc.c       |  3 ++-
- arch/x86/boot/compressed/misc.h       |  6 ++++--
- arch/x86/include/asm/page_types.h     |  3 +++
- arch/x86/include/uapi/asm/bootparam.h |  1 +
- arch/x86/kernel/module.c              | 11 ++---------
- arch/x86/kernel/setup.c               | 10 ++++++++++
- 7 files changed, 55 insertions(+), 13 deletions(-)
-
-diff --git a/arch/x86/boot/compressed/aslr.c b/arch/x86/boot/compressed/aslr.c
-index bb13763..d9d1da9 100644
---- a/arch/x86/boot/compressed/aslr.c
-+++ b/arch/x86/boot/compressed/aslr.c
-@@ -14,6 +14,13 @@
- static const char build_str[] = UTS_RELEASE " (" LINUX_COMPILE_BY "@"
- 		LINUX_COMPILE_HOST ") (" LINUX_COMPILER ") " UTS_VERSION;
- 
-+struct kaslr_setup_data {
-+        __u64 next;
-+        __u32 type;
-+        __u32 len;
-+        __u8 data[1];
-+} kaslr_setup_data;
-+
- #define I8254_PORT_CONTROL	0x43
- #define I8254_PORT_COUNTER0	0x40
- #define I8254_CMD_READBACK	0xC0
-@@ -295,7 +302,29 @@ static unsigned long find_random_addr(unsigned long minimum,
- 	return slots_fetch_random();
- }
- 
--unsigned char *choose_kernel_location(unsigned char *input,
-+static void add_kaslr_setup_data(struct boot_params *params, __u8 enabled)
-+{
-+	struct setup_data *data;
-+
-+	kaslr_setup_data.type = SETUP_KASLR;
-+	kaslr_setup_data.len = 1;
-+	kaslr_setup_data.next = 0;
-+	kaslr_setup_data.data[0] = enabled;
-+
-+	data = (struct setup_data *)(unsigned long)params->hdr.setup_data;
-+
-+	while (data && data->next)
-+		data = (struct setup_data *)(unsigned long)data->next;
-+
-+	if (data)
-+		data->next = (unsigned long)&kaslr_setup_data;
-+	else
-+		params->hdr.setup_data = (unsigned long)&kaslr_setup_data;
-+
-+}
-+
-+unsigned char *choose_kernel_location(struct boot_params *params,
-+				      unsigned char *input,
- 				      unsigned long input_size,
- 				      unsigned char *output,
- 				      unsigned long output_size)
-@@ -306,14 +335,17 @@ unsigned char *choose_kernel_location(unsigned char *input,
- #ifdef CONFIG_HIBERNATION
- 	if (!cmdline_find_option_bool("kaslr")) {
- 		debug_putstr("KASLR disabled by default...\n");
-+		add_kaslr_setup_data(params, 0);
- 		goto out;
- 	}
- #else
- 	if (cmdline_find_option_bool("nokaslr")) {
- 		debug_putstr("KASLR disabled by cmdline...\n");
-+		add_kaslr_setup_data(params, 0);
- 		goto out;
- 	}
- #endif
-+	add_kaslr_setup_data(params, 1);
- 
- 	/* Record the various known unsafe memory ranges. */
- 	mem_avoid_init((unsigned long)input, input_size,
-diff --git a/arch/x86/boot/compressed/misc.c b/arch/x86/boot/compressed/misc.c
-index dcc1c53..5aecf56 100644
---- a/arch/x86/boot/compressed/misc.c
-+++ b/arch/x86/boot/compressed/misc.c
-@@ -399,7 +399,8 @@ asmlinkage __visible void *decompress_kernel(void *rmode, memptr heap,
- 	 * the entire decompressed kernel plus relocation table, or the
- 	 * entire decompressed kernel plus .bss and .brk sections.
- 	 */
--	output = choose_kernel_location(input_data, input_len, output,
-+	output = choose_kernel_location(real_mode, input_data, input_len,
-+					output,
- 					output_len > run_size ? output_len
- 							      : run_size);
- 
-diff --git a/arch/x86/boot/compressed/misc.h b/arch/x86/boot/compressed/misc.h
-index 24e3e56..6d67307 100644
---- a/arch/x86/boot/compressed/misc.h
-+++ b/arch/x86/boot/compressed/misc.h
-@@ -56,7 +56,8 @@ int cmdline_find_option_bool(const char *option);
- 
- #if CONFIG_RANDOMIZE_BASE
- /* aslr.c */
--unsigned char *choose_kernel_location(unsigned char *input,
-+unsigned char *choose_kernel_location(struct boot_params *params,
-+				      unsigned char *input,
- 				      unsigned long input_size,
- 				      unsigned char *output,
- 				      unsigned long output_size);
-@@ -64,7 +65,8 @@ unsigned char *choose_kernel_location(unsigned char *input,
- bool has_cpuflag(int flag);
- #else
- static inline
--unsigned char *choose_kernel_location(unsigned char *input,
-+unsigned char *choose_kernel_location(struct boot_params *params,
-+				      unsigned char *input,
- 				      unsigned long input_size,
- 				      unsigned char *output,
- 				      unsigned long output_size)
-diff --git a/arch/x86/include/asm/page_types.h b/arch/x86/include/asm/page_types.h
-index f97fbe3..3d43ce3 100644
---- a/arch/x86/include/asm/page_types.h
-+++ b/arch/x86/include/asm/page_types.h
-@@ -3,6 +3,7 @@
- 
- #include <linux/const.h>
- #include <linux/types.h>
-+#include <asm/bootparam.h>
- 
- /* PAGE_SHIFT determines the page size */
- #define PAGE_SHIFT	12
-@@ -51,6 +52,8 @@ extern int devmem_is_allowed(unsigned long pagenr);
- extern unsigned long max_low_pfn_mapped;
- extern unsigned long max_pfn_mapped;
- 
-+extern bool kaslr_enabled;
-+
- static inline phys_addr_t get_max_mapped(void)
- {
- 	return (phys_addr_t)max_pfn_mapped << PAGE_SHIFT;
-diff --git a/arch/x86/include/uapi/asm/bootparam.h b/arch/x86/include/uapi/asm/bootparam.h
-index 225b098..44e6dd7 100644
---- a/arch/x86/include/uapi/asm/bootparam.h
-+++ b/arch/x86/include/uapi/asm/bootparam.h
-@@ -7,6 +7,7 @@
- #define SETUP_DTB			2
- #define SETUP_PCI			3
- #define SETUP_EFI			4
-+#define SETUP_KASLR			5
- 
- /* ram_size flags */
- #define RAMDISK_IMAGE_START_MASK	0x07FF
-diff --git a/arch/x86/kernel/module.c b/arch/x86/kernel/module.c
-index e69f988..c3c59a3 100644
---- a/arch/x86/kernel/module.c
-+++ b/arch/x86/kernel/module.c
-@@ -32,6 +32,7 @@
- 
- #include <asm/page.h>
- #include <asm/pgtable.h>
-+#include <asm/page_types.h>
- 
- #if 0
- #define DEBUGP(fmt, ...)				\
-@@ -46,21 +47,13 @@ do {							\
- 
- #ifdef CONFIG_RANDOMIZE_BASE
- static unsigned long module_load_offset;
--static int randomize_modules = 1;
- 
- /* Mutex protects the module_load_offset. */
- static DEFINE_MUTEX(module_kaslr_mutex);
- 
--static int __init parse_nokaslr(char *p)
--{
--	randomize_modules = 0;
--	return 0;
--}
--early_param("nokaslr", parse_nokaslr);
--
- static unsigned long int get_module_load_offset(void)
- {
--	if (randomize_modules) {
-+	if (kaslr_enabled) {
- 		mutex_lock(&module_kaslr_mutex);
- 		/*
- 		 * Calculate the module_load_offset the first time this
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index ab4734e..78c91bb 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -121,6 +121,8 @@
- unsigned long max_low_pfn_mapped;
- unsigned long max_pfn_mapped;
- 
-+bool __read_mostly kaslr_enabled = false;
-+
- #ifdef CONFIG_DMI
- RESERVE_BRK(dmi_alloc, 65536);
- #endif
-@@ -424,6 +426,11 @@ static void __init reserve_initrd(void)
- }
- #endif /* CONFIG_BLK_DEV_INITRD */
- 
-+static void __init parse_kaslr_setup(u64 pa_data, u32 data_len)
-+{
-+	kaslr_enabled = (bool)(pa_data + sizeof(struct setup_data));
-+}
-+
- static void __init parse_setup_data(void)
- {
- 	struct setup_data *data;
-@@ -451,6 +458,9 @@ static void __init parse_setup_data(void)
- 		case SETUP_EFI:
- 			parse_efi_setup(pa_data, data_len);
- 			break;
-+		case SETUP_KASLR:
-+			parse_kaslr_setup(pa_data, data_len);
-+			break;
- 		default:
- 			break;
- 		}
--- 
-Jiri Kosina
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
