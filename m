@@ -1,115 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 97E3B6B0081
-	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 17:27:06 -0500 (EST)
-Received: by mail-ob0-f169.google.com with SMTP id wp4so13561319obc.0
-        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 14:27:06 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id v84si189545oig.101.2015.02.12.14.27.05
+Received: from mail-ie0-f179.google.com (mail-ie0-f179.google.com [209.85.223.179])
+	by kanga.kvack.org (Postfix) with ESMTP id EF21A6B0038
+	for <linux-mm@kvack.org>; Thu, 12 Feb 2015 19:59:02 -0500 (EST)
+Received: by iecrp18 with SMTP id rp18so837315iec.9
+        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 16:59:02 -0800 (PST)
+Received: from nm44-vm7.bullet.mail.ne1.yahoo.com (nm44-vm7.bullet.mail.ne1.yahoo.com. [98.138.120.247])
+        by mx.google.com with ESMTPS id rs7si2558646igb.46.2015.02.12.16.58.57
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 12 Feb 2015 14:27:06 -0800 (PST)
-From: Sasha Levin <sasha.levin@oracle.com>
-Subject: [PATCH v5 3/3] mm: cma: release trigger
-Date: Thu, 12 Feb 2015 17:26:48 -0500
-Message-Id: <1423780008-16727-4-git-send-email-sasha.levin@oracle.com>
-In-Reply-To: <1423780008-16727-1-git-send-email-sasha.levin@oracle.com>
-References: <1423780008-16727-1-git-send-email-sasha.levin@oracle.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 12 Feb 2015 16:59:02 -0800 (PST)
+Date: Fri, 13 Feb 2015 00:52:56 +0000 (UTC)
+From: Cheng Rk <crquan@ymail.com>
+Reply-To: Cheng Rk <crquan@ymail.com>
+Message-ID: <1918343840.1970155.1423788776414.JavaMail.yahoo@mail.yahoo.com>
+Subject: How to controll Buffers to be dilligently reclaimed?
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: iamjoonsoo.kim@lge.com, m.szyprowski@samsung.com, akpm@linux-foundation.org, lauraa@codeaurora.org, s.strogin@partner.samsung.com, Sasha Levin <sasha.levin@oracle.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Provides a userspace interface to trigger a CMA release.
 
-Usage:
 
-	echo [pages] > free
+Hi,
 
-This would provide testing/fuzzing access to the CMA release paths.
+I have a system that application is doing a loop on top of block device,
+(which I think is stupid,)
+as more and more memory goes into Buffers, then applications started
+to get -ENOMEM or be oom-killed later (depends on vm.overcommit_memory setting)
 
-Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
----
- mm/cma_debug.c |   57 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 57 insertions(+)
 
-diff --git a/mm/cma_debug.c b/mm/cma_debug.c
-index 5bd6863..6f0b976 100644
---- a/mm/cma_debug.c
-+++ b/mm/cma_debug.c
-@@ -39,6 +39,60 @@ static void cma_add_to_cma_mem_list(struct cma *cma, struct cma_mem *mem)
- 	spin_unlock(&cma->mem_head_lock);
- }
- 
-+static struct cma_mem *cma_get_entry_from_list(struct cma *cma)
-+{
-+	struct cma_mem *mem = NULL;
-+
-+	spin_lock(&cma->mem_head_lock);
-+	if (!hlist_empty(&cma->mem_head)) {
-+		mem = hlist_entry(cma->mem_head.first, struct cma_mem, node);
-+		hlist_del_init(&mem->node);
-+	}
-+	spin_unlock(&cma->mem_head_lock);
-+
-+	return mem;
-+}
-+
-+static int cma_free_mem(struct cma *cma, int count)
-+{
-+	struct cma_mem *mem = NULL;
-+
-+	while (count) {
-+		mem = cma_get_entry_from_list(cma);
-+		if (mem == NULL)
-+			return 0;
-+
-+		if (mem->n <= count) {
-+			cma_release(cma, mem->p, mem->n);
-+			count -= mem->n;
-+			kfree(mem);
-+		} else if (cma->order_per_bit == 0) {
-+			cma_release(cma, mem->p, count);
-+			mem->p += count;
-+			mem->n -= count;
-+			count = 0;
-+			cma_add_to_cma_mem_list(cma, mem);
-+		} else {
-+			pr_debug("cma: cannot release partial block when order_per_bit != 0\n");
-+			cma_add_to_cma_mem_list(cma, mem);
-+			break;
-+		}
-+	}
-+
-+	return 0;
-+			
-+}
-+
-+static int cma_free_write(void *data, u64 val)
-+{
-+        int pages = val;
-+	struct cma *cma = data;
-+
-+        return cma_free_mem(cma, pages);
-+}
-+
-+DEFINE_SIMPLE_ATTRIBUTE(cma_free_fops, NULL, cma_free_write, "%llu\n");
-+
- static int cma_alloc_mem(struct cma *cma, int count)
- {
- 	struct cma_mem *mem;
-@@ -85,6 +139,9 @@ static void cma_debugfs_add_one(struct cma *cma, int idx)
- 	debugfs_create_file("alloc", S_IWUSR, cma_debugfs_root, cma,
- 				&cma_alloc_fops);
- 
-+	debugfs_create_file("free", S_IWUSR, cma_debugfs_root, cma,
-+				&cma_free_fops);
-+
- 	debugfs_create_file("base_pfn", S_IRUGO, tmp,
- 				&cma->base_pfn, &cma_debugfs_fops);
- 	debugfs_create_file("count", S_IRUGO, tmp,
--- 
-1.7.10.4
+In this case, if I do a manual reclaim (echo 3 > /proc/sys/vm/drop_caches)
+I see 90+% of the Buffers is reclaimable, but why it's not reclaimed
+to fullfill applications' memory allocation request?
+
+
+
+-bash-4.2$ sudo losetup -a
+/dev/loop0: [0005]:16512 (/dev/dm-2)
+-bash-4.2$ free -m
+                     total          used         free      shared       buffers     cached
+Mem:             48094        46081         2012              40           40324   2085
+-/+ buffers/cache:             3671        44422
+Swap:             8191                5         8186
+
+
+I've tried sysctl mm.vfs_cache_pressure=10000 but that seems working to Cached
+memory, I wonder is there another sysctl for reclaming Buffers?
+
+
+Thanks,
+
+- Derek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
