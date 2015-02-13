@@ -1,83 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E78E6B0081
-	for <linux-mm@kvack.org>; Fri, 13 Feb 2015 13:10:39 -0500 (EST)
-Received: by mail-pa0-f50.google.com with SMTP id hz1so20383588pad.9
-        for <linux-mm@kvack.org>; Fri, 13 Feb 2015 10:10:38 -0800 (PST)
-Received: from nm50.bullet.mail.gq1.yahoo.com (nm50.bullet.mail.gq1.yahoo.com. [67.195.87.86])
-        by mx.google.com with ESMTPS id bz4si2082039pdb.113.2015.02.13.10.10.37
+Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
+	by kanga.kvack.org (Postfix) with ESMTP id CCEAA6B0083
+	for <linux-mm@kvack.org>; Fri, 13 Feb 2015 16:20:12 -0500 (EST)
+Received: by iebtr6 with SMTP id tr6so11999463ieb.10
+        for <linux-mm@kvack.org>; Fri, 13 Feb 2015 13:20:12 -0800 (PST)
+Received: from mail-ig0-x22a.google.com (mail-ig0-x22a.google.com. [2607:f8b0:4001:c05::22a])
+        by mx.google.com with ESMTPS id i84si6426248ioo.79.2015.02.13.13.20.12
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 13 Feb 2015 10:10:38 -0800 (PST)
-Date: Fri, 13 Feb 2015 18:07:10 +0000 (UTC)
-From: Cheng Rk <crquan@ymail.com>
-Reply-To: Cheng Rk <crquan@ymail.com>
-Message-ID: <1447872036.2240531.1423850830637.JavaMail.yahoo@mail.yahoo.com>
-In-Reply-To: <131740628.109294.1423821136530.JavaMail.yahoo@mail.yahoo.com>
-References: <CALYGNiP-CKYsVzLpUdUWM3ftfg1vPvKWQvbegXVLoNovtNWS6Q@mail.gmail.com> <131740628.109294.1423821136530.JavaMail.yahoo@mail.yahoo.com>
-Subject: Re: How to controll Buffers to be dilligently reclaimed?
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 Feb 2015 13:20:12 -0800 (PST)
+Received: by mail-ig0-f170.google.com with SMTP id l13so18348373iga.1
+        for <linux-mm@kvack.org>; Fri, 13 Feb 2015 13:20:12 -0800 (PST)
+Date: Fri, 13 Feb 2015 13:20:10 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/3] Slab infrastructure for array operations
+In-Reply-To: <alpine.DEB.2.11.1502130941360.9442@gentwo.org>
+Message-ID: <alpine.DEB.2.10.1502131315500.24226@chino.kir.corp.google.com>
+References: <20150210194804.288708936@linux.com> <20150210194811.787556326@linux.com> <alpine.DEB.2.10.1502101542030.15535@chino.kir.corp.google.com> <alpine.DEB.2.11.1502111243380.3887@gentwo.org> <alpine.DEB.2.10.1502111213151.16711@chino.kir.corp.google.com>
+ <20150213023534.GA6592@js1304-P5Q-DELUXE> <alpine.DEB.2.11.1502130941360.9442@gentwo.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com, Jesper Dangaard Brouer <brouer@redhat.com>
 
+On Fri, 13 Feb 2015, Christoph Lameter wrote:
 
+> > I also think that this implementation is slub-specific. For example,
+> > in slab case, it is always better to access local cpu cache first than
+> > page allocator since slab doesn't use list to manage free objects and
+> > there is no cache line overhead like as slub. I think that,
+> > in kmem_cache_alloc_array(), just call to allocator-defined
+> > __kmem_cache_alloc_array() is better approach.
+> 
+> What do you mean by "better"? Please be specific as to where you would see
+> a difference. And slab definititely manages free objects although
+> differently than slub. SLAB manages per cpu (local) objects, per node
+> partial lists etc. Same as SLUB. The cache line overhead is there but no
+> that big a difference in terms of choosing objects to get first.
+> 
 
-On Thursday, February 12, 2015 11:34 PM, Konstantin Khlebnikov <koct9i@gmail.com> wrote:
+I think because we currently lack a non-fallback implementation for slab 
+that it may be premature to discuss what would be unified if such an 
+implementation were to exist.  That unification can always happen later 
+if/when the slab implementation is proposed, but I don't think we should 
+be unifying an implementation that doesn't exist.  
 
->>
->> -bash-4.2$ sudo losetup -a
->> /dev/loop0: [0005]:16512 (/dev/dm-2)
->> -bash-4.2$ free -m
->>                 total          used         free      shared       buffers     cached
->> Mem:             48094         46081         2012          40         40324       2085
->> -/+ buffers/cache:              3671       44422
->> Swap:             8191             5         8186
->>
->> I've tried sysctl mm.vfs_cache_pressure=10000 but that seems working to Cached
->> memory, I wonder is there another sysctl for reclaming Buffers?
-
-> AFAIK "Buffers" is just a page-cache of block devices.
-> From reclaimer's point of view they have no difference from file page-cache.
-
-> Could you post oom-killer log, there should be a lot of numbers
-> describing memory state.
-
-
-in this case, 40GB memory got stuck in Buffers, and 90+% of them are reclaimable (can be verified by vm.drop_caches manual reclaim)
-if Buffers are treated same as Cached, why mm.vfs_cache_pressure=10000 (or even I tried up to 1,000,000) can't get Buffers reclaimed early?
-
-I have some oom-killer msgs but were with older kernels, after set vm.overcommit_memory=2, it simply returns -ENOMEM, unable to spawn any new container, why doesn't it even try to reclaim some memory from those 40GB Buffers,
-
-
-The Buffers in use is 44GB, from total memory of 48GB, it's the Inactive(file) 41GB consumed the most, why this much memory is reclaimable to vm/drop_caches but not to application requesting memory?
-
-
-Is there a sysctl can make Buffers / Inactive(file) be reclaimed early and often ?
-
-(since to this system it's mounting /dev/loop0 and have a lot of small temporary files created there, keeping them in Buffers for longer time is useless, how can I make it reclaimed earlier than later when applications need memory? )
-
-
-
--bash-4.2$ cat /proc/meminfo 
-MemTotal:       49286656 kB
-MemFree:         2040944 kB
-MemAvailable:   47809824 kB
-Buffers:        44258776 kB
-Cached:           456868 kB
-SwapCached:            0 kB
-Active:          3783592 kB
-Inactive:       41535112 kB
-Active(anon):     402776 kB
-Inactive(anon):   282308 kB
-Active(file):    3380816 kB
-Inactive(file): 41252804 kB
-
-
-Thanks,
+In other words, I think it would be much cleaner to do just define the 
+generic array alloc and array free functions in mm/slab_common.c along 
+with their EXPORT_SYMBOL()'s as simple callbacks to per-allocator 
+__kmem_cache_{alloc,free}_array() implementations.  I think it's also 
+better from a source code perspective to avoid reading two different 
+functions and then realizing that nothing is actually unified between them 
+(and the absence of an unnecessary #ifdef is currently helpful).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
