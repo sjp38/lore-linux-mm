@@ -1,82 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 70A046B0038
-	for <linux-mm@kvack.org>; Fri, 13 Feb 2015 01:40:12 -0500 (EST)
-Received: by pdev10 with SMTP id v10so17390890pde.7
-        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 22:40:12 -0800 (PST)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id f10si1682606pas.19.2015.02.12.22.40.10
-        for <linux-mm@kvack.org>;
-        Thu, 12 Feb 2015 22:40:11 -0800 (PST)
-Message-ID: <54DD9C48.90803@lge.com>
-Date: Fri, 13 Feb 2015 15:40:08 +0900
-From: Gioh Kim <gioh.kim@lge.com>
+Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com [209.85.217.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EA546B0038
+	for <linux-mm@kvack.org>; Fri, 13 Feb 2015 02:34:24 -0500 (EST)
+Received: by mail-lb0-f169.google.com with SMTP id p9so13965277lbv.0
+        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 23:34:23 -0800 (PST)
+Received: from mail-lb0-x22c.google.com (mail-lb0-x22c.google.com. [2a00:1450:4010:c04::22c])
+        by mx.google.com with ESMTPS id d11si965912lbb.41.2015.02.12.23.34.21
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 12 Feb 2015 23:34:22 -0800 (PST)
+Received: by mail-lb0-f172.google.com with SMTP id p9so13129365lbv.3
+        for <linux-mm@kvack.org>; Thu, 12 Feb 2015 23:34:21 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [RFC 07/16] mm/page_isolation: watch out zone range overlap
-References: <1423726340-4084-1-git-send-email-iamjoonsoo.kim@lge.com> <1423726340-4084-8-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1423726340-4084-8-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=euc-kr
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1918343840.1970155.1423788776414.JavaMail.yahoo@mail.yahoo.com>
+References: <1918343840.1970155.1423788776414.JavaMail.yahoo@mail.yahoo.com>
+Date: Fri, 13 Feb 2015 10:34:21 +0300
+Message-ID: <CALYGNiP-CKYsVzLpUdUWM3ftfg1vPvKWQvbegXVLoNovtNWS6Q@mail.gmail.com>
+Subject: Re: How to controll Buffers to be dilligently reclaimed?
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Heesub Shin <heesub.shin@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hui Zhu <zhuhui@xiaomi.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Ritesh Harjani <ritesh.list@gmail.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Cheng Rk <crquan@ymail.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
+On Fri, Feb 13, 2015 at 3:52 AM, Cheng Rk <crquan@ymail.com> wrote:
+>
+>
+> Hi,
+>
+> I have a system that application is doing a loop on top of block device,
+> (which I think is stupid,)
+> as more and more memory goes into Buffers, then applications started
+> to get -ENOMEM or be oom-killed later (depends on vm.overcommit_memory setting)
+>
+>
+> In this case, if I do a manual reclaim (echo 3 > /proc/sys/vm/drop_caches)
+> I see 90+% of the Buffers is reclaimable, but why it's not reclaimed
+> to fullfill applications' memory allocation request?
+>
+>
+>
+> -bash-4.2$ sudo losetup -a
+> /dev/loop0: [0005]:16512 (/dev/dm-2)
+> -bash-4.2$ free -m
+>                      total          used         free      shared       buffers     cached
+> Mem:             48094        46081         2012              40           40324   2085
+> -/+ buffers/cache:             3671        44422
+> Swap:             8191                5         8186
+>
+>
+> I've tried sysctl mm.vfs_cache_pressure=10000 but that seems working to Cached
+> memory, I wonder is there another sysctl for reclaming Buffers?
 
-> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> index c8778f7..883e78d 100644
-> --- a/mm/page_isolation.c
-> +++ b/mm/page_isolation.c
-> @@ -210,8 +210,8 @@ int undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
->    * Returns 1 if all pages in the range are isolated.
->    */
->   static int
-> -__test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
-> -				  bool skip_hwpoisoned_pages)
-> +__test_page_isolated_in_pageblock(struct zone *zone, unsigned long pfn,
-> +			unsigned long end_pfn, bool skip_hwpoisoned_pages)
->   {
->   	struct page *page;
->   
-> @@ -221,6 +221,9 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
->   			continue;
->   		}
->   		page = pfn_to_page(pfn);
-> +		if (page_zone(page) != zone)
-> +			break;
-> +
->   		if (PageBuddy(page)) {
->   			/*
->   			 * If race between isolatation and allocation happens,
-> @@ -281,7 +284,7 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
->   	/* Check all pages are free or marked as ISOLATED */
->   	zone = page_zone(page);
->   	spin_lock_irqsave(&zone->lock, flags);
-> -	ret = __test_page_isolated_in_pageblock(start_pfn, end_pfn,
-> +	ret = __test_page_isolated_in_pageblock(zone, start_pfn, end_pfn,
->   						skip_hwpoisoned_pages);
->   	spin_unlock_irqrestore(&zone->lock, flags);
->   	return ret ? 0 : -EBUSY;
-> 
+AFAIK "Buffers" is just a page-cache of block devices.
+>From reclaimer's point of view they have no difference from file page-cache.
 
-What about checking zone at test_pages_isolated?
-It might be a little bit early and without locking zone.
+Could you post oom-killer log, there should be a lot of numbers
+describing memory state.
 
-@@ -273,8 +273,14 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
-         * are not aligned to pageblock_nr_pages.
-         * Then we just check migratetype first.
-         */
-+
-+       zone = page_zone(__first_valid_page(start_pfn, pageblock_nr_pages));
-+
-        for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
-                page = __first_valid_page(pfn, pageblock_nr_pages);
-+
-+               if (page_zone(page) != zone)
-+                       break;
-                if (page && get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
-                        break;
-        }
+>
+>
+> Thanks,
+>
+> - Derek
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
