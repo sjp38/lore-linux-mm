@@ -1,100 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id BB28C6B0089
-	for <linux-mm@kvack.org>; Fri, 13 Feb 2015 17:20:46 -0500 (EST)
-Received: by mail-wi0-f174.google.com with SMTP id em10so15212443wid.1
-        for <linux-mm@kvack.org>; Fri, 13 Feb 2015 14:20:46 -0800 (PST)
-Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
-        by mx.google.com with ESMTPS id lh1si6486415wjb.88.2015.02.13.14.20.44
+Received: from mail-we0-f170.google.com (mail-we0-f170.google.com [74.125.82.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 730BD6B008C
+	for <linux-mm@kvack.org>; Fri, 13 Feb 2015 17:21:07 -0500 (EST)
+Received: by mail-we0-f170.google.com with SMTP id q59so19269099wes.1
+        for <linux-mm@kvack.org>; Fri, 13 Feb 2015 14:21:06 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id eu19si6308008wid.10.2015.02.13.14.21.04
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 13 Feb 2015 14:20:45 -0800 (PST)
-From: Chris J Arges <chris.j.arges@canonical.com>
-Subject: [PATCH 3/3] mm: slub: Add SLAB_DEBUG_CRASH option
-Date: Fri, 13 Feb 2015 16:19:37 -0600
-Message-Id: <1423865980-10417-3-git-send-email-chris.j.arges@canonical.com>
-In-Reply-To: <1423865980-10417-1-git-send-email-chris.j.arges@canonical.com>
-References: <1423865980-10417-1-git-send-email-chris.j.arges@canonical.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 13 Feb 2015 14:21:05 -0800 (PST)
+Date: Fri, 13 Feb 2015 23:20:59 +0100 (CET)
+From: Jiri Kosina <jkosina@suse.cz>
+Subject: Re: [PATCH v2] x86, kaslr: propagate base load address calculation
+In-Reply-To: <CAGXu5jKSfGzkpNt1-_vRykDCJTCxJg+vRi1D_9a=8auKu-YtgQ@mail.gmail.com>
+Message-ID: <alpine.LNX.2.00.1502132316320.4925@pobox.suse.cz>
+References: <alpine.LNX.2.00.1502101411280.10719@pobox.suse.cz> <CAGXu5jJzs9Ve9so96f6n-=JxP+GR3xYFQYBtZ=mUm+Q7bMAgBw@mail.gmail.com> <alpine.LNX.2.00.1502110001480.10719@pobox.suse.cz> <alpine.LNX.2.00.1502110010190.10719@pobox.suse.cz>
+ <alpine.LNX.2.00.1502131602360.2423@pobox.suse.cz> <CAGXu5jKSfGzkpNt1-_vRykDCJTCxJg+vRi1D_9a=8auKu-YtgQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Chris J Arges <chris.j.arges@canonical.com>, Jonathan Corbet <corbet@lwn.net>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-doc@vger.kernel.org, linux-mm@kvack.org
+To: Kees Cook <keescook@chromium.org>
+Cc: "H. Peter Anvin" <hpa@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>, live-patching@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>
 
-This option crashes the kernel whenever corruption is initially detected. This
-is useful when trying to use crash dump analysis to determine where memory was
-corrupted.
+On Fri, 13 Feb 2015, Kees Cook wrote:
 
-To enable this option use slub_debug=C.
+> > Commit e2b32e678 ("x86, kaslr: randomize module base load address") makes
+> > the base address for module to be unconditionally randomized in case when
+> > CONFIG_RANDOMIZE_BASE is defined and "nokaslr" option isn't present on the
+> > commandline.
+> >
+> > This is not consistent with how choose_kernel_location() decides whether
+> > it will randomize kernel load base.
+> >
+> > Namely, CONFIG_HIBERNATION disables kASLR (unless "kaslr" option is
+> > explicitly specified on kernel commandline), which makes the state space
+> > larger than what module loader is looking at. IOW CONFIG_HIBERNATION &&
+> > CONFIG_RANDOMIZE_BASE is a valid config option, kASLR wouldn't be applied
+> > by default in that case, but module loader is not aware of that.
+> >
+> > Instead of fixing the logic in module.c, this patch takes more generic
+> > aproach. It introduces a new bootparam setup data_type SETUP_KASLR and
+> > uses that to pass the information whether kaslr has been applied during
+> > kernel decompression, and sets a global 'kaslr_enabled' variable
+> > accordingly, so that any kernel code (module loading, livepatching, ...)
+> > can make decisions based on its value.
+> >
+> > x86 module loader is converted to make use of this flag.
+> >
+> > Signed-off-by: Jiri Kosina <jkosina@suse.cz>
+> 
+> Thanks for working on this! If others are happy with the setup_data
+> approach, I think this is fine. 
 
-Signed-off-by: Chris J Arges <chris.j.arges@canonical.com>
----
- Documentation/vm/slub.txt |  2 ++
- include/linux/slab.h      |  1 +
- mm/slub.c                 | 10 ++++++++++
- 3 files changed, 13 insertions(+)
+This is for x86 folks to decide. I hope my original CC covers this, so 
+let's wait for their verdict.
 
-diff --git a/Documentation/vm/slub.txt b/Documentation/vm/slub.txt
-index e159c04..78fbe44 100644
---- a/Documentation/vm/slub.txt
-+++ b/Documentation/vm/slub.txt
-@@ -44,6 +44,8 @@ Possible debug options are
- 	A		Toggle failslab filter mark for the cache
- 	O		Switch debugging off for caches that would have
- 			caused higher minimum slab orders
-+	C		Crash kernel on corruption detection. (Useful for
-+			debugging with crash dumps)
- 	-		Switch all debugging off (useful if the kernel is
- 			configured with CONFIG_SLUB_DEBUG_ON)
- 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index ed2ffaa..6c8eda9 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -23,6 +23,7 @@
- #define SLAB_DEBUG_FREE		0x00000100UL	/* DEBUG: Perform (expensive) checks on free */
- #define SLAB_RED_ZONE		0x00000400UL	/* DEBUG: Red zone objs in a cache */
- #define SLAB_POISON		0x00000800UL	/* DEBUG: Poison objects */
-+#define SLAB_DEBUG_CRASH	0x00001000UL	/* DEBUG: Crash on any errors detected */
- #define SLAB_HWCACHE_ALIGN	0x00002000UL	/* Align objs on cache lines */
- #define SLAB_CACHE_DMA		0x00004000UL	/* Use GFP_DMA memory */
- #define SLAB_STORE_USER		0x00010000UL	/* DEBUG: Store the last owner for bug hunting */
-diff --git a/mm/slub.c b/mm/slub.c
-index 88482f8..1eb0031 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1025,6 +1025,9 @@ static noinline int alloc_debug_processing(struct kmem_cache *s,
- 	return 1;
- 
- bad:
-+	/* BUG_ON to trace initial corruption */
-+	BUG_ON(s->flags & SLAB_DEBUG_CRASH);
-+
- 	if (PageSlab(page)) {
- 		/*
- 		 * If this is a slab page then lets do the best we can
-@@ -1092,6 +1095,10 @@ out:
- fail:
- 	slab_unlock(page);
- 	spin_unlock_irqrestore(&n->list_lock, *flags);
-+
-+	/* BUG_ON to trace initial corruption */
-+	BUG_ON(s->flags & SLAB_DEBUG_CRASH);
-+
- 	slab_fix(s, "Object at 0x%p not freed", object);
- 	return NULL;
- }
-@@ -1149,6 +1156,9 @@ static int __init setup_slub_debug(char *str)
- 			 */
- 			disable_higher_order_debug = 1;
- 			break;
-+		case 'c':
-+			slub_debug |= SLAB_DEBUG_CRASH;
-+			break;
- 		default:
- 			pr_err("slub_debug option '%c' unknown. skipped\n",
- 			       *str);
+> My only concern is confusion over seeing SETUP_KASLR that was added by a 
+> boot loader.
+
+Well, so you are concerned about bootloader that is evil on purpose?
+
+If you have such bootloader, you are screwed anyway, because it's free to 
+setup asynchronous events that will corrupt your kernel anyway (DMA that 
+will happen only after the loaded kernel is already active, for example). 
+If you want to avoid evil bootloaders, secure boot is currently The 
+option, I am afraid.
+
+> Another way to handle it might be to do some kind of relocs-like poking 
+> of a value into the decompressed kernel?
+
+This is so hackish that I'd like to avoid it in favor of the boot params 
+aproach as much as possbile :)
+
+[ ... snip ... ]
+> > diff --git a/arch/x86/boot/compressed/aslr.c b/arch/x86/boot/compressed/aslr.c
+> > index bb13763..d9d1da9 100644
+> > --- a/arch/x86/boot/compressed/aslr.c
+> > +++ b/arch/x86/boot/compressed/aslr.c
+> > @@ -14,6 +14,13 @@
+> >  static const char build_str[] = UTS_RELEASE " (" LINUX_COMPILE_BY "@"
+> >                 LINUX_COMPILE_HOST ") (" LINUX_COMPILER ") " UTS_VERSION;
+> >
+> > +struct kaslr_setup_data {
+> 
+> Should this be "static"?
+
+Good catch. So let's wait what x86 folks have to say. I'll either update 
+in in v3, or hopefully someone will fix this when applying the patch for 
+-tip.
+
+Thanks,
+
 -- 
-1.9.1
+Jiri Kosina
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
