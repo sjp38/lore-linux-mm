@@ -1,196 +1,304 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BF066B006E
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2015 06:28:04 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id et14so8515676pad.11
-        for <linux-mm@kvack.org>; Mon, 16 Feb 2015 03:28:04 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id iw5si700657pbb.30.2015.02.16.03.27.59
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 86EF06B0070
+	for <linux-mm@kvack.org>; Mon, 16 Feb 2015 06:28:31 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so27882295pab.4
+        for <linux-mm@kvack.org>; Mon, 16 Feb 2015 03:28:31 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id cf8si15065230pdb.221.2015.02.16.03.28.30
         for <linux-mm@kvack.org>;
-        Mon, 16 Feb 2015 03:27:59 -0800 (PST)
+        Mon, 16 Feb 2015 03:28:30 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 2/4] mm: rename __mlock_vma_pages_range() to populate_vma_page_range()
-Date: Mon, 16 Feb 2015 13:27:52 +0200
-Message-Id: <1424086074-200683-3-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 4/4] mm: move mm_populate()-related code to mm/gup.c
+Date: Mon, 16 Feb 2015 13:27:54 +0200
+Message-Id: <1424086074-200683-5-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1424086074-200683-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1424086074-200683-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michel Lespinasse <walken@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-__mlock_vma_pages_range() doesn't necessarily mlock pages. It depends on
-vma flags. The same codepath is used for MAP_POPULATE.
+It's odd that we have populate_vma_page_range() and __mm_populate() in
+mm/mlock.c. It's implementation of generic memory population and
+mlocking is one of possible side effect, if VM_LOCKED is set.
 
-Let's rename __mlock_vma_pages_range() to populate_vma_page_range().
-
-This patch also drops mlock_vma_pages_range() references from
-documentation. It has gone in commit cea10a19b797.
+__get_user_pages() is core of the implementation. Let's move the code
+mm/gup.c.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Acked-by: Linus Torvalds <torvalds@linux-foundation.org>
 Acked-by: David Rientjes <rientjes@google.com>
-Cc: Michel Lespinasse <walken@google.com>
 ---
- Documentation/vm/unevictable-lru.txt | 26 ++++++++------------------
- mm/internal.h                        |  2 +-
- mm/mlock.c                           | 12 ++++++------
- mm/mmap.c                            |  4 ++--
- 4 files changed, 17 insertions(+), 27 deletions(-)
+ mm/gup.c   | 118 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ mm/mlock.c | 118 -------------------------------------------------------------
+ 2 files changed, 118 insertions(+), 118 deletions(-)
 
-diff --git a/Documentation/vm/unevictable-lru.txt b/Documentation/vm/unevictable-lru.txt
-index 744f82f86c58..86cb4624fc5a 100644
---- a/Documentation/vm/unevictable-lru.txt
-+++ b/Documentation/vm/unevictable-lru.txt
-@@ -317,7 +317,7 @@ If the VMA passes some filtering as described in "Filtering Special Vmas"
- below, mlock_fixup() will attempt to merge the VMA with its neighbors or split
- off a subset of the VMA if the range does not cover the entire VMA.  Once the
- VMA has been merged or split or neither, mlock_fixup() will call
--__mlock_vma_pages_range() to fault in the pages via get_user_pages() and to
-+populate_vma_page_range() to fault in the pages via get_user_pages() and to
- mark the pages as mlocked via mlock_vma_page().
- 
- Note that the VMA being mlocked might be mapped with PROT_NONE.  In this case,
-@@ -327,7 +327,7 @@ fault path or in vmscan.
- 
- Also note that a page returned by get_user_pages() could be truncated or
- migrated out from under us, while we're trying to mlock it.  To detect this,
--__mlock_vma_pages_range() checks page_mapping() after acquiring the page lock.
-+populate_vma_page_range() checks page_mapping() after acquiring the page lock.
- If the page is still associated with its mapping, we'll go ahead and call
- mlock_vma_page().  If the mapping is gone, we just unlock the page and move on.
- In the worst case, this will result in a page mapped in a VM_LOCKED VMA
-@@ -392,7 +392,7 @@ ignored for munlock.
- 
- If the VMA is VM_LOCKED, mlock_fixup() again attempts to merge or split off the
- specified range.  The range is then munlocked via the function
--__mlock_vma_pages_range() - the same function used to mlock a VMA range -
-+populate_vma_page_range() - the same function used to mlock a VMA range -
- passing a flag to indicate that munlock() is being performed.
- 
- Because the VMA access protections could have been changed to PROT_NONE after
-@@ -402,7 +402,7 @@ get_user_pages() was enhanced to accept a flag to ignore the permissions when
- fetching the pages - all of which should be resident as a result of previous
- mlocking.
- 
--For munlock(), __mlock_vma_pages_range() unlocks individual pages by calling
-+For munlock(), populate_vma_page_range() unlocks individual pages by calling
- munlock_vma_page().  munlock_vma_page() unconditionally clears the PG_mlocked
- flag using TestClearPageMlocked().  As with mlock_vma_page(),
- munlock_vma_page() use the Test*PageMlocked() function to handle the case where
-@@ -463,21 +463,11 @@ populate the page table.
- 
- To mlock a range of memory under the unevictable/mlock infrastructure, the
- mmap() handler and task address space expansion functions call
--mlock_vma_pages_range() specifying the vma and the address range to mlock.
--mlock_vma_pages_range() filters VMAs like mlock_fixup(), as described above in
--"Filtering Special VMAs".  It will clear the VM_LOCKED flag, which will have
--already been set by the caller, in filtered VMAs.  Thus these VMA's need not be
--visited for munlock when the region is unmapped.
--
--For "normal" VMAs, mlock_vma_pages_range() calls __mlock_vma_pages_range() to
--fault/allocate the pages and mlock them.  Again, like mlock_fixup(),
--mlock_vma_pages_range() downgrades the mmap semaphore to read mode before
--attempting to fault/allocate and mlock the pages and "upgrades" the semaphore
--back to write mode before returning.
--
--The callers of mlock_vma_pages_range() will have already added the memory range
-+populate_vma_page_range() specifying the vma and the address range to mlock.
-+
-+The callers of populate_vma_page_range() will have already added the memory range
- to be mlocked to the task's "locked_vm".  To account for filtered VMAs,
--mlock_vma_pages_range() returns the number of pages NOT mlocked.  All of the
-+populate_vma_page_range() returns the number of pages NOT mlocked.  All of the
- callers then subtract a non-negative return value from the task's locked_vm.  A
- negative return value represent an error - for example, from get_user_pages()
- attempting to fault in a VMA with PROT_NONE access.  In this case, we leave the
-diff --git a/mm/internal.h b/mm/internal.h
-index c4d6c9b43491..5445860bfc08 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -240,7 +240,7 @@ void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
- 		struct vm_area_struct *prev, struct rb_node *rb_parent);
- 
- #ifdef CONFIG_MMU
--extern long __mlock_vma_pages_range(struct vm_area_struct *vma,
-+extern long populate_vma_page_range(struct vm_area_struct *vma,
- 		unsigned long start, unsigned long end, int *nonblocking);
- extern void munlock_vma_pages_range(struct vm_area_struct *vma,
- 			unsigned long start, unsigned long end);
-diff --git a/mm/mlock.c b/mm/mlock.c
-index 7712d8ab6fe5..c3ea18323034 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -206,13 +206,13 @@ out:
- }
+diff --git a/mm/gup.c b/mm/gup.c
+index 1b114ba9aebf..ca7b607ab671 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -819,6 +819,124 @@ long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ EXPORT_SYMBOL(get_user_pages);
  
  /**
-- * __mlock_vma_pages_range() -  mlock a range of pages in the vma.
 + * populate_vma_page_range() -  populate a range of pages in the vma.
-  * @vma:   target vma
-  * @start: start address
-  * @end:   end address
-  * @nonblocking:
-  *
-- * This takes care of making the pages present too.
++ * @vma:   target vma
++ * @start: start address
++ * @end:   end address
++ * @nonblocking:
++ *
 + * This takes care of mlocking the pages too if VM_LOCKED is set.
-  *
-  * return 0 on success, negative error code on error.
-  *
-@@ -224,7 +224,7 @@ out:
-  * If @nonblocking is non-NULL, it must held for read only and may be
-  * released.  If it's released, *@nonblocking will be set to 0.
-  */
--long __mlock_vma_pages_range(struct vm_area_struct *vma,
++ *
++ * return 0 on success, negative error code on error.
++ *
++ * vma->vm_mm->mmap_sem must be held.
++ *
++ * If @nonblocking is NULL, it may be held for read or write and will
++ * be unperturbed.
++ *
++ * If @nonblocking is non-NULL, it must held for read only and may be
++ * released.  If it's released, *@nonblocking will be set to 0.
++ */
 +long populate_vma_page_range(struct vm_area_struct *vma,
- 		unsigned long start, unsigned long end, int *nonblocking)
- {
- 	struct mm_struct *mm = vma->vm_mm;
-@@ -596,7 +596,7 @@ success:
- 	/*
- 	 * vm_flags is protected by the mmap_sem held in write mode.
- 	 * It's okay if try_to_unmap_one unmaps a page just after we
--	 * set VM_LOCKED, __mlock_vma_pages_range will bring it back.
-+	 * set VM_LOCKED, populate_vma_page_range will bring it back.
- 	 */
- 
- 	if (lock)
-@@ -702,11 +702,11 @@ int __mm_populate(unsigned long start, unsigned long len, int ignore_errors)
- 		if (nstart < vma->vm_start)
- 			nstart = vma->vm_start;
- 		/*
--		 * Now fault in a range of pages. __mlock_vma_pages_range()
++		unsigned long start, unsigned long end, int *nonblocking)
++{
++	struct mm_struct *mm = vma->vm_mm;
++	unsigned long nr_pages = (end - start) / PAGE_SIZE;
++	int gup_flags;
++
++	VM_BUG_ON(start & ~PAGE_MASK);
++	VM_BUG_ON(end   & ~PAGE_MASK);
++	VM_BUG_ON_VMA(start < vma->vm_start, vma);
++	VM_BUG_ON_VMA(end   > vma->vm_end, vma);
++	VM_BUG_ON_MM(!rwsem_is_locked(&mm->mmap_sem), mm);
++
++	gup_flags = FOLL_TOUCH | FOLL_POPULATE;
++	/*
++	 * We want to touch writable mappings with a write fault in order
++	 * to break COW, except for shared mappings because these don't COW
++	 * and we would not want to dirty them for nothing.
++	 */
++	if ((vma->vm_flags & (VM_WRITE | VM_SHARED)) == VM_WRITE)
++		gup_flags |= FOLL_WRITE;
++
++	/*
++	 * We want mlock to succeed for regions that have any permissions
++	 * other than PROT_NONE.
++	 */
++	if (vma->vm_flags & (VM_READ | VM_WRITE | VM_EXEC))
++		gup_flags |= FOLL_FORCE;
++
++	/*
++	 * We made sure addr is within a VMA, so the following will
++	 * not result in a stack expansion that recurses back here.
++	 */
++	return __get_user_pages(current, mm, start, nr_pages, gup_flags,
++				NULL, NULL, nonblocking);
++}
++
++/*
++ * __mm_populate - populate and/or mlock pages within a range of address space.
++ *
++ * This is used to implement mlock() and the MAP_POPULATE / MAP_LOCKED mmap
++ * flags. VMAs must be already marked with the desired vm_flags, and
++ * mmap_sem must not be held.
++ */
++int __mm_populate(unsigned long start, unsigned long len, int ignore_errors)
++{
++	struct mm_struct *mm = current->mm;
++	unsigned long end, nstart, nend;
++	struct vm_area_struct *vma = NULL;
++	int locked = 0;
++	long ret = 0;
++
++	VM_BUG_ON(start & ~PAGE_MASK);
++	VM_BUG_ON(len != PAGE_ALIGN(len));
++	end = start + len;
++
++	for (nstart = start; nstart < end; nstart = nend) {
++		/*
++		 * We want to fault in pages for [nstart; end) address range.
++		 * Find first corresponding VMA.
++		 */
++		if (!locked) {
++			locked = 1;
++			down_read(&mm->mmap_sem);
++			vma = find_vma(mm, nstart);
++		} else if (nstart >= vma->vm_end)
++			vma = vma->vm_next;
++		if (!vma || vma->vm_start >= end)
++			break;
++		/*
++		 * Set [nstart; nend) to intersection of desired address
++		 * range with the first VMA. Also, skip undesirable VMA types.
++		 */
++		nend = min(end, vma->vm_end);
++		if (vma->vm_flags & (VM_IO | VM_PFNMAP))
++			continue;
++		if (nstart < vma->vm_start)
++			nstart = vma->vm_start;
++		/*
 +		 * Now fault in a range of pages. populate_vma_page_range()
- 		 * double checks the vma flags, so that it won't mlock pages
- 		 * if the vma was already munlocked.
- 		 */
--		ret = __mlock_vma_pages_range(vma, nstart, nend, &locked);
++		 * double checks the vma flags, so that it won't mlock pages
++		 * if the vma was already munlocked.
++		 */
 +		ret = populate_vma_page_range(vma, nstart, nend, &locked);
- 		if (ret < 0) {
- 			if (ignore_errors) {
- 				ret = 0;
-diff --git a/mm/mmap.c b/mm/mmap.c
-index da9990acc08b..943c6ad18b1d 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2318,7 +2318,7 @@ find_extend_vma(struct mm_struct *mm, unsigned long addr)
- 	if (!prev || expand_stack(prev, addr))
- 		return NULL;
- 	if (prev->vm_flags & VM_LOCKED)
--		__mlock_vma_pages_range(prev, addr, prev->vm_end, NULL);
-+		populate_vma_page_range(prev, addr, prev->vm_end, NULL);
- 	return prev;
++		if (ret < 0) {
++			if (ignore_errors) {
++				ret = 0;
++				continue;	/* continue at next VMA */
++			}
++			break;
++		}
++		nend = nstart + ret * PAGE_SIZE;
++		ret = 0;
++	}
++	if (locked)
++		up_read(&mm->mmap_sem);
++	return ret;	/* 0 or negative error code */
++}
++
++/**
+  * get_dump_page() - pin user page in memory while writing it to core dump
+  * @addr: user address
+  *
+diff --git a/mm/mlock.c b/mm/mlock.c
+index 9fbe611b1e93..283ff972ea43 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -205,62 +205,6 @@ out:
+ 	return nr_pages - 1;
  }
- #else
-@@ -2353,7 +2353,7 @@ find_extend_vma(struct mm_struct *mm, unsigned long addr)
- 	if (expand_stack(vma, addr))
- 		return NULL;
- 	if (vma->vm_flags & VM_LOCKED)
--		__mlock_vma_pages_range(vma, addr, start, NULL);
-+		populate_vma_page_range(vma, addr, start, NULL);
- 	return vma;
+ 
+-/**
+- * populate_vma_page_range() -  populate a range of pages in the vma.
+- * @vma:   target vma
+- * @start: start address
+- * @end:   end address
+- * @nonblocking:
+- *
+- * This takes care of mlocking the pages too if VM_LOCKED is set.
+- *
+- * return 0 on success, negative error code on error.
+- *
+- * vma->vm_mm->mmap_sem must be held.
+- *
+- * If @nonblocking is NULL, it may be held for read or write and will
+- * be unperturbed.
+- *
+- * If @nonblocking is non-NULL, it must held for read only and may be
+- * released.  If it's released, *@nonblocking will be set to 0.
+- */
+-long populate_vma_page_range(struct vm_area_struct *vma,
+-		unsigned long start, unsigned long end, int *nonblocking)
+-{
+-	struct mm_struct *mm = vma->vm_mm;
+-	unsigned long nr_pages = (end - start) / PAGE_SIZE;
+-	int gup_flags;
+-
+-	VM_BUG_ON(start & ~PAGE_MASK);
+-	VM_BUG_ON(end   & ~PAGE_MASK);
+-	VM_BUG_ON_VMA(start < vma->vm_start, vma);
+-	VM_BUG_ON_VMA(end   > vma->vm_end, vma);
+-	VM_BUG_ON_MM(!rwsem_is_locked(&mm->mmap_sem), mm);
+-
+-	gup_flags = FOLL_TOUCH | FOLL_POPULATE;
+-	/*
+-	 * We want to touch writable mappings with a write fault in order
+-	 * to break COW, except for shared mappings because these don't COW
+-	 * and we would not want to dirty them for nothing.
+-	 */
+-	if ((vma->vm_flags & (VM_WRITE | VM_SHARED)) == VM_WRITE)
+-		gup_flags |= FOLL_WRITE;
+-
+-	/*
+-	 * We want mlock to succeed for regions that have any permissions
+-	 * other than PROT_NONE.
+-	 */
+-	if (vma->vm_flags & (VM_READ | VM_WRITE | VM_EXEC))
+-		gup_flags |= FOLL_FORCE;
+-
+-	/*
+-	 * We made sure addr is within a VMA, so the following will
+-	 * not result in a stack expansion that recurses back here.
+-	 */
+-	return __get_user_pages(current, mm, start, nr_pages, gup_flags,
+-				NULL, NULL, nonblocking);
+-}
+-
+ /*
+  * convert get_user_pages() return value to posix mlock() error
+  */
+@@ -660,68 +604,6 @@ static int do_mlock(unsigned long start, size_t len, int on)
+ 	return error;
  }
- #endif
+ 
+-/*
+- * __mm_populate - populate and/or mlock pages within a range of address space.
+- *
+- * This is used to implement mlock() and the MAP_POPULATE / MAP_LOCKED mmap
+- * flags. VMAs must be already marked with the desired vm_flags, and
+- * mmap_sem must not be held.
+- */
+-int __mm_populate(unsigned long start, unsigned long len, int ignore_errors)
+-{
+-	struct mm_struct *mm = current->mm;
+-	unsigned long end, nstart, nend;
+-	struct vm_area_struct *vma = NULL;
+-	int locked = 0;
+-	long ret = 0;
+-
+-	VM_BUG_ON(start & ~PAGE_MASK);
+-	VM_BUG_ON(len != PAGE_ALIGN(len));
+-	end = start + len;
+-
+-	for (nstart = start; nstart < end; nstart = nend) {
+-		/*
+-		 * We want to fault in pages for [nstart; end) address range.
+-		 * Find first corresponding VMA.
+-		 */
+-		if (!locked) {
+-			locked = 1;
+-			down_read(&mm->mmap_sem);
+-			vma = find_vma(mm, nstart);
+-		} else if (nstart >= vma->vm_end)
+-			vma = vma->vm_next;
+-		if (!vma || vma->vm_start >= end)
+-			break;
+-		/*
+-		 * Set [nstart; nend) to intersection of desired address
+-		 * range with the first VMA. Also, skip undesirable VMA types.
+-		 */
+-		nend = min(end, vma->vm_end);
+-		if (vma->vm_flags & (VM_IO | VM_PFNMAP))
+-			continue;
+-		if (nstart < vma->vm_start)
+-			nstart = vma->vm_start;
+-		/*
+-		 * Now fault in a range of pages. populate_vma_page_range()
+-		 * double checks the vma flags, so that it won't mlock pages
+-		 * if the vma was already munlocked.
+-		 */
+-		ret = populate_vma_page_range(vma, nstart, nend, &locked);
+-		if (ret < 0) {
+-			if (ignore_errors) {
+-				ret = 0;
+-				continue;	/* continue at next VMA */
+-			}
+-			break;
+-		}
+-		nend = nstart + ret * PAGE_SIZE;
+-		ret = 0;
+-	}
+-	if (locked)
+-		up_read(&mm->mmap_sem);
+-	return ret;	/* 0 or negative error code */
+-}
+-
+ SYSCALL_DEFINE2(mlock, unsigned long, start, size_t, len)
+ {
+ 	unsigned long locked;
 -- 
 2.1.4
 
