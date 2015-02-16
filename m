@@ -1,71 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A7AD6B0032
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2015 06:45:27 -0500 (EST)
-Received: by mail-wi0-f171.google.com with SMTP id hi2so25403090wib.4
-        for <linux-mm@kvack.org>; Mon, 16 Feb 2015 03:45:26 -0800 (PST)
-Received: from mail-wi0-x244.google.com (mail-wi0-x244.google.com. [2a00:1450:400c:c05::244])
-        by mx.google.com with ESMTPS id yz6si21451947wjc.111.2015.02.16.03.45.24
+Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id E74C86B0032
+	for <linux-mm@kvack.org>; Mon, 16 Feb 2015 06:50:20 -0500 (EST)
+Received: by mail-wg0-f43.google.com with SMTP id z12so15294735wgg.2
+        for <linux-mm@kvack.org>; Mon, 16 Feb 2015 03:50:20 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id br7si21484096wjb.140.2015.02.16.03.50.18
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Feb 2015 03:45:25 -0800 (PST)
-Received: by mail-wi0-f196.google.com with SMTP id em10so12232512wid.3
-        for <linux-mm@kvack.org>; Mon, 16 Feb 2015 03:45:24 -0800 (PST)
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 16 Feb 2015 03:50:19 -0800 (PST)
+Message-ID: <54E1D977.30004@suse.cz>
+Date: Mon, 16 Feb 2015 12:50:15 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CAAmzW4PrXpv_znYUekFb=K70JqFXDWFmdhLa7jzx-7Ky7c7X5A@mail.gmail.com>
-References: <CALszF6DP-RSX2-fp=a=gdcHMF3O0TE_JKom3AWcLFm5q80RrYw@mail.gmail.com>
-	<CAAmzW4PrXpv_znYUekFb=K70JqFXDWFmdhLa7jzx-7Ky7c7X5A@mail.gmail.com>
-Date: Mon, 16 Feb 2015 12:45:24 +0100
-Message-ID: <CALszF6DaFo7Xnehtt7vom32ydenhEFhx-YjH4BtLxLL6QwMmvA@mail.gmail.com>
-Subject: Re: [Regression]: mm: nommu: Memory leak introduced with commit
- "mm/nommu: use alloc_pages_exact() rather than its own implementation"
-From: Maxime Coquelin <mcoquelin.stm32@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH v2] mm: incorporate zero pages into transparent huge pages
+References: <1423688635-4306-1-git-send-email-ebru.akagunduz@gmail.com>
+In-Reply-To: <1423688635-4306-1-git-send-email-ebru.akagunduz@gmail.com>
+Content-Type: text/plain; charset=iso-8859-2
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, kirill@shutemov.name, mhocko@suse.cz, mgorman@suse.de, rientjes@google.com, sasha.levin@oracle.com, hughd@google.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, riel@redhat.com, aarcange@redhat.com
 
-Hello Joonsoo,
+On 02/11/2015 10:03 PM, Ebru Akagunduz wrote:
+> This patch improves THP collapse rates, by allowing zero pages.
+> 
+> Currently THP can collapse 4kB pages into a THP when there
+> are up to khugepaged_max_ptes_none pte_none ptes in a 2MB
+> range.  This patch counts pte none and mapped zero pages
+> with the same variable.
+> 
+> The patch was tested with a program that allocates 800MB of
+> memory, and performs interleaved reads and writes, in a pattern
+> that causes some 2MB areas to first see read accesses, resulting
+> in the zero pfn being mapped there.
+> 
+> To simulate memory fragmentation at allocation time, I modified
+> do_huge_pmd_anonymous_page to return VM_FAULT_FALLBACK for read
+> faults.
+> 
+> Without the patch, only %50 of the program was collapsed into
+> THP and the percentage did not increase over time.
+> 
+> With this patch after 10 minutes of waiting khugepaged had
+> collapsed %99 of the program's memory.
+> 
+> Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+> Reviewed-by: Rik van Riel <riel@redhat.com>
 
-2015-02-16 5:43 GMT+01:00 Joonsoo Kim <js1304@gmail.com>:
->
-> Hello,
->
-> Sorry for my mistake.
-> Problem happens because when we allocate memory through
-> __get_free_pages(), refcount of each pages is not 1 except
-> head page. Below modification will fix your problem. Could you
-> test it, please?
-
-I just tested it, and confirm it fixes the regression.
-
-You can add my:
-Tested-by: Maxime Coquelin <mcoquelin.stm32@gmail.com>
-
-Thanks for the quick fix!
-Maxime
-
->
-> Thanks.
->
-> ------------>8-------------
-> diff --git a/mm/nommu.c b/mm/nommu.c
-> index 28bd8c4..ff6c1e2 100644
-> --- a/mm/nommu.c
-> +++ b/mm/nommu.c
-> @@ -1189,11 +1189,9 @@ static int do_mmap_private(struct vm_area_struct *vma,
->         if (sysctl_nr_trim_pages && total - point >= sysctl_nr_trim_pages) {
->                 total = point;
->                 kdebug("try to alloc exact %lu pages", total);
-> -               base = alloc_pages_exact(len, GFP_KERNEL);
-> -       } else {
-> -               base = (void *)__get_free_pages(GFP_KERNEL, order);
->         }
->
-> +       base = alloc_pages_exact(total << PAGE_SHIFT, GFP_KERNEL);
->         if (!base)
->                 goto enomem;
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
