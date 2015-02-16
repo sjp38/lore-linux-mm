@@ -1,260 +1,495 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 1288B6B0032
-	for <linux-mm@kvack.org>; Sun, 15 Feb 2015 23:43:18 -0500 (EST)
-Received: by mail-ob0-f172.google.com with SMTP id nt9so38513216obb.3
-        for <linux-mm@kvack.org>; Sun, 15 Feb 2015 20:43:17 -0800 (PST)
-Received: from mail-ob0-x22e.google.com (mail-ob0-x22e.google.com. [2607:f8b0:4003:c01::22e])
-        by mx.google.com with ESMTPS id we1si730786oeb.38.2015.02.15.20.43.16
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id A013B6B0032
+	for <linux-mm@kvack.org>; Mon, 16 Feb 2015 04:49:31 -0500 (EST)
+Received: by mail-wi0-f180.google.com with SMTP id h11so24903665wiw.1
+        for <linux-mm@kvack.org>; Mon, 16 Feb 2015 01:49:31 -0800 (PST)
+Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
+        by mx.google.com with ESMTPS id li8si20659236wic.1.2015.02.16.01.49.29
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 15 Feb 2015 20:43:17 -0800 (PST)
-Received: by mail-ob0-f174.google.com with SMTP id wo20so37899579obc.5
-        for <linux-mm@kvack.org>; Sun, 15 Feb 2015 20:43:16 -0800 (PST)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 16 Feb 2015 01:49:29 -0800 (PST)
+Date: Mon, 16 Feb 2015 09:50:07 +0000
+From: Luis Henriques <luis.henriques@canonical.com>
+Subject: Re: [PATCH 3.18 04/57] vm: add VM_FAULT_SIGSEGV handling support
+Message-ID: <20150216095007.GA2129@charon>
+References: <20150203231211.486950145@linuxfoundation.org>
+ <20150203231212.223123220@linuxfoundation.org>
+ <CALYGNiPVvgxMFyDTSFv4mUhkq-5Q+Gp2UEY5W9G0gEc8YajipQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CALszF6DP-RSX2-fp=a=gdcHMF3O0TE_JKom3AWcLFm5q80RrYw@mail.gmail.com>
-References: <CALszF6DP-RSX2-fp=a=gdcHMF3O0TE_JKom3AWcLFm5q80RrYw@mail.gmail.com>
-Date: Mon, 16 Feb 2015 13:43:16 +0900
-Message-ID: <CAAmzW4PrXpv_znYUekFb=K70JqFXDWFmdhLa7jzx-7Ky7c7X5A@mail.gmail.com>
-Subject: Re: [Regression]: mm: nommu: Memory leak introduced with commit
- "mm/nommu: use alloc_pages_exact() rather than its own implementation"
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CALYGNiPVvgxMFyDTSFv4mUhkq-5Q+Gp2UEY5W9G0gEc8YajipQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Maxime Coquelin <mcoquelin.stm32@gmail.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stable <stable@vger.kernel.org>, Jan Engelhardt <jengelh@inai.de>, linux-arch@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-2015-02-15 23:21 GMT+09:00 Maxime Coquelin <mcoquelin.stm32@gmail.com>:
-> Hi Joonsoon,
+On Tue, Feb 10, 2015 at 12:22:41PM +0400, Konstantin Khlebnikov wrote:
+> I've found regression:
+> 
+> [  257.139907] ================================================
+> [  257.139909] [ BUG: lock held when returning to user space! ]
+> [  257.139912] 3.18.6-debug+ #161 Tainted: G     U
+> [  257.139914] ------------------------------------------------
+> [  257.139916] python/22843 is leaving the kernel with locks still held!
+> [  257.139918] 1 lock held by python/22843:
+> [  257.139920]  #0:  (&mm->mmap_sem){++++++}, at: [<ffffffff8104e4c2>]
+> __do_page_fault+0x162/0x570
+> 
+> upstream commit 7fb08eca45270d0ae86e1ad9d39c40b7a55d0190 must be backported too.
 >
-> I am currently working on STM32 microcontroller family upstream.
-> The STM32 family is ARM Cortex-M based, so no MMU.
-> As user-space, I use a ramdisk with a statically-linked busybox installed.
->
-> On v3.19, I am facing a memory leak.
-> Each time I run a command one page is lost. Here an example with
-> busybox's free command:
->
-> / # free
->              total       used       free     shared    buffers     cached
-> Mem:          7928       1972       5956          0          0        492
-> -/+ buffers/cache:       1480       6448
-> / # free
->              total       used       free     shared    buffers     cached
-> Mem:          7928       1976       5952          0          0        492
-> -/+ buffers/cache:       1484       6444
-> / # free
->              total       used       free     shared    buffers     cached
-> Mem:          7928       1980       5948          0          0        492
-> -/+ buffers/cache:       1488       6440
-> / # free
->              total       used       free     shared    buffers     cached
-> Mem:          7928       1984       5944          0          0        492
-> -/+ buffers/cache:       1492       6436
-> / # free
->              total       used       free     shared    buffers     cached
-> Mem:          7928       1988       5940          0          0        492
-> -/+ buffers/cache:       1496       6432
->
-> At some point, the system fails to sastisfy 256KB allocations:
->
-> [   38.720000] free: page allocation failure: order:6, mode:0xd0
-> [   38.730000] CPU: 0 PID: 67 Comm: free Not tainted
-> 3.19.0-05389-gacf2cf1-dirty #64
-> [   38.740000] Hardware name: STM32 (Device Tree Support)
-> [   38.740000] [<08022e25>] (unwind_backtrace) from [<080221e7>]
-> (show_stack+0xb/0xc)
-> [   38.750000] [<080221e7>] (show_stack) from [<0804fd3b>]
-> (warn_alloc_failed+0x97/0xbc)
-> [   38.760000] [<0804fd3b>] (warn_alloc_failed) from [<08051171>]
-> (__alloc_pages_nodemask+0x295/0x35c)
-> [   38.770000] [<08051171>] (__alloc_pages_nodemask) from [<08051243>]
-> (__get_free_pages+0xb/0x24)
-> [   38.780000] [<08051243>] (__get_free_pages) from [<0805127f>]
-> (alloc_pages_exact+0x19/0x24)
-> [   38.790000] [<0805127f>] (alloc_pages_exact) from [<0805bdbf>]
-> (do_mmap_pgoff+0x423/0x658)
-> [   38.800000] [<0805bdbf>] (do_mmap_pgoff) from [<08056e73>]
-> (vm_mmap_pgoff+0x3f/0x4e)
-> [   38.810000] [<08056e73>] (vm_mmap_pgoff) from [<08080949>]
-> (load_flat_file+0x20d/0x4f8)
-> [   38.820000] [<08080949>] (load_flat_file) from [<08080dfb>]
-> (load_flat_binary+0x3f/0x26c)
-> [   38.830000] [<08080dfb>] (load_flat_binary) from [<08063741>]
-> (search_binary_handler+0x51/0xe4)
-> [   38.840000] [<08063741>] (search_binary_handler) from [<08063a45>]
-> (do_execveat_common+0x271/0x35c)
-> [   38.850000] [<08063a45>] (do_execveat_common) from [<08063b49>]
-> (do_execve+0x19/0x1c)
-> [   38.860000] [<08063b49>] (do_execve) from [<08020a01>]
-> (ret_fast_syscall+0x1/0x4a)
-> [   38.870000] Mem-info:
-> [   38.870000] Normal per-cpu:
-> [   38.870000] CPU    0: hi:    0, btch:   1 usd:   0
-> [   38.880000] active_anon:0 inactive_anon:0 isolated_anon:0
-> [   38.880000]  active_file:0 inactive_file:0 isolated_file:0
-> [   38.880000]  unevictable:123 dirty:0 writeback:0 unstable:0
-> [   38.880000]  free:1515 slab_reclaimable:17 slab_unreclaimable:139
-> [   38.880000]  mapped:0 shmem:0 pagetables:0 bounce:0
-> [   38.880000]  free_cma:0
-> [   38.910000] Normal free:6060kB min:352kB low:440kB high:528kB
-> active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB
-> unevictable:492kB isolated(anon):0ks
-> [   38.950000] lowmem_reserve[]: 0 0
-> [   38.950000] Normal: 23*4kB (U) 22*8kB (U) 24*16kB (U) 23*32kB (U)
-> 23*64kB (U) 23*128kB (U) 1*256kB (U) 0*512kB 0*1024kB 0*2048kB
-> 0*4096kB = 6060kB
-> [   38.970000] 123 total pagecache pages
-> [   38.970000] 2048 pages of RAM
-> [   38.980000] 1538 free pages
-> [   38.980000] 66 reserved pages
-> [   38.990000] 109 slab pages
-> [   38.990000] -46 pages shared
-> [   38.990000] 0 pages swap cached
-> [   38.990000] nommu: Allocation of length 221184 from process 67 (free) failed
-> [   39.000000] Normal per-cpu:
-> [   39.010000] CPU    0: hi:    0, btch:   1 usd:   0
-> [   39.010000] active_anon:0 inactive_anon:0 isolated_anon:0
-> [   39.010000]  active_file:0 inactive_file:0 isolated_file:0
-> [   39.010000]  unevictable:123 dirty:0 writeback:0 unstable:0
-> [   39.010000]  free:1515 slab_reclaimable:17 slab_unreclaimable:139
-> [   39.010000]  mapped:0 shmem:0 pagetables:0 bounce:0
-> [   39.010000]  free_cma:0
-> [   39.050000] Normal free:6060kB min:352kB low:440kB high:528kB
-> active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB
-> unevictable:492kB isolated(anon):0ks
-> [   39.090000] lowmem_reserve[]: 0 0
-> [   39.090000] Normal: 23*4kB (U) 22*8kB (U) 24*16kB (U) 23*32kB (U)
-> 23*64kB (U) 23*128kB (U) 1*256kB (U) 0*512kB 0*1024kB 0*2048kB
-> 0*4096kB = 6060kB
-> [   39.100000] 123 total pagecache pages
-> [   39.110000] Unable to allocate RAM for process text/data, errno 12
-> SEGV
->
-> I found that this is a regression, which has been introduced with this patch:
->
-> ------------------------------------------------------------------------------
-> commit dbc8358c72373daa4f37b7e233fecbc47105fe54
-> Author: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Date:   Fri Dec 12 16:55:55 2014 -0800
->
->     mm/nommu: use alloc_pages_exact() rather than its own implementation
->
->     do_mmap_private() in nommu.c try to allocate physically contiguous pages
->     with arbitrary size in some cases and we now have good abstract function
->     to do exactly same thing, alloc_pages_exact().  So, change to use it.
->
->     There is no functional change.  This is the preparation step for support
->     page owner feature accurately.
->
->     Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> ------------------------------------------------------------------------------
->
-> Indeed, when I revert it, the issue no more appear, I can run the free
-> command for hours without any issue.
-> The problem is that I fail to understand what in your patch could
-> cause the issue.
->
-> I enabled the traces in mm/nommu.c file, this is what I get with you patch:
->
-> [    5.970000] ==> do_mmap_pgoff(,0,36000,7,2,0)
-> [    5.970000] xxxalloc order 6 for 36000yyy
-> [    5.970000] xxxtry to alloc exact 54 pagesyyy
-> [    5.970000] ==> add_vma_to_mm(,d0781600)
-> [    5.970000] <== do_mmap_pgoff() = d0540000
-> [    5.990000] ==> do_mmap_pgoff(,0,2000,3,4000021,0)
-> [    5.990000] xxxalloc order 1 for 2000yyy
-> [    5.990000] ==> add_vma_to_mm(,d07818a0)
-> [    5.990000] <== do_mmap_pgoff() = d0576000
-> [    6.000000] ==> exit_mmap()
-> [    6.000000] ==> delete_vma_from_mm(d0781600)
-> [    6.000000] ==> delete_vma(d0781600)
-> [    6.000000] ==> __put_nommu_region(d078f120{1})
-> [    6.000000] xxxfree seriesyyy
-> [    6.000000] xxx- free d0540000yyy
-> [    6.000000] xxx- free d0541000yyy
-> [    6.010000] xxx- free d0542000yyy
-> </snip>
-> [    6.020000] xxx- free d0572000yyy
-> [    6.020000] xxx- free d0573000yyy
-> [    6.020000] xxx- free d0574000yyy
-> [    6.020000] xxx- free d0575000yyy
-> [    6.020000] ==> delete_vma_from_mm(d07818a0)
-> [    6.020000] ==> delete_vma(d07818a0)
-> [    6.020000] ==> __put_nommu_region(d078f0f0{1})
-> [    6.020000] xxxfree seriesyyy
-> [    6.020000] xxx- free d0576000yyy
-> [    6.020000] xxx- free d0577000yyy
-> [    6.020000] xxxfree page d07faee0: refcount not one: 0yyy
-> [    6.020000] <== exit_mmap()
->
-> As you can see, I have one warning that shows up "free page d07faee0:
-> refcount not one: 0".
-> When reverting your patch, I don't have this warning:
->
-> [    6.320000] ==> do_mmap_pgoff(,0,36000,7,2,0)
-> [    6.320000] xxxalloc order 6 for 36000yyy
-> [    6.320000] xxxshave 8/10 @64yyy
-> [    6.320000] xxxshave 2/2 @56yyy
-> [    6.320000] ==> add_vma_to_mm(,d0781600)
-> [    6.320000] <== do_mmap_pgoff() = d0540000
-> [    6.340000] ==> do_mmap_pgoff(,0,2000,3,4000021,0)
-> [    6.340000] xxxalloc order 1 for 2000yyy
-> [    6.340000] ==> add_vma_to_mm(,d0781720)
-> [    6.340000] <== do_mmap_pgoff() = d0536000
-> [    6.350000] ==> exit_mmap()
-> [    6.350000] ==> delete_vma_from_mm(d0781720)
-> [    6.350000] ==> delete_vma(d0781720)
-> [    6.350000] ==> __put_nommu_region(d078f0f0{1})
-> [    6.350000] xxxfree seriesyyy
-> [    6.350000] xxx- free d0536000yyy
-> [    6.350000] xxx- free d0537000yyy
-> [    6.350000] ==> delete_vma_from_mm(d0781600)
-> [    6.350000] ==> delete_vma(d0781600)
-> [    6.350000] ==> __put_nommu_region(d078f120{1})
-> [    6.350000] xxxfree seriesyyy
-> [    6.350000] xxx- free d0540000yyy
-> [    6.350000] xxx- free d0541000yyy
-> [    6.350000] xxx- free d0542000yyy
-> </snip>
-> [    6.370000] xxx- free d0572000yyy
-> [    6.370000] xxx- free d0573000yyy
-> [    6.370000] xxx- free d0574000yyy
-> [    6.370000] xxx- free d0575000yyy
-> [    6.370000] <== exit_mmap()
->
-> Do you have an idea on what could cause the issue?
->
-> I can do any tests you could find relevant to hunt down this bug.
 
-Hello,
+I guess the same regression can be found in the 3.16 kernel as it also
+includes a backport of 33692f27597f ("vm: add VM_FAULT_SIGSEGV
+handling support").  I'll queue 7fb08eca4527 ("x86: mm: move mmap_sem
+unlock from mm_fault_error() to caller") as well.
 
-Sorry for my mistake.
-Problem happens because when we allocate memory through
-__get_free_pages(), refcount of each pages is not 1 except
-head page. Below modification will fix your problem. Could you
-test it, please?
+Cheers,
+--
+Luis
 
-Thanks.
-
------------->8-------------
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 28bd8c4..ff6c1e2 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -1189,11 +1189,9 @@ static int do_mmap_private(struct vm_area_struct *vma,
-        if (sysctl_nr_trim_pages && total - point >= sysctl_nr_trim_pages) {
-                total = point;
-                kdebug("try to alloc exact %lu pages", total);
--               base = alloc_pages_exact(len, GFP_KERNEL);
--       } else {
--               base = (void *)__get_free_pages(GFP_KERNEL, order);
-        }
-
-+       base = alloc_pages_exact(total << PAGE_SHIFT, GFP_KERNEL);
-        if (!base)
-                goto enomem;
+> On Wed, Feb 4, 2015 at 2:13 AM, Greg Kroah-Hartman
+> <gregkh@linuxfoundation.org> wrote:
+> > 3.18-stable review patch.  If anyone has any objections, please let me know.
+> >
+> > ------------------
+> >
+> > From: Linus Torvalds <torvalds@linux-foundation.org>
+> >
+> > commit 33692f27597fcab536d7cbbcc8f52905133e4aa7 upstream.
+> >
+> > The core VM already knows about VM_FAULT_SIGBUS, but cannot return a
+> > "you should SIGSEGV" error, because the SIGSEGV case was generally
+> > handled by the caller - usually the architecture fault handler.
+> >
+> > That results in lots of duplication - all the architecture fault
+> > handlers end up doing very similar "look up vma, check permissions, do
+> > retries etc" - but it generally works.  However, there are cases where
+> > the VM actually wants to SIGSEGV, and applications _expect_ SIGSEGV.
+> >
+> > In particular, when accessing the stack guard page, libsigsegv expects a
+> > SIGSEGV.  And it usually got one, because the stack growth is handled by
+> > that duplicated architecture fault handler.
+> >
+> > However, when the generic VM layer started propagating the error return
+> > from the stack expansion in commit fee7e49d4514 ("mm: propagate error
+> > from stack expansion even for guard page"), that now exposed the
+> > existing VM_FAULT_SIGBUS result to user space.  And user space really
+> > expected SIGSEGV, not SIGBUS.
+> >
+> > To fix that case, we need to add a VM_FAULT_SIGSEGV, and teach all those
+> > duplicate architecture fault handlers about it.  They all already have
+> > the code to handle SIGSEGV, so it's about just tying that new return
+> > value to the existing code, but it's all a bit annoying.
+> >
+> > This is the mindless minimal patch to do this.  A more extensive patch
+> > would be to try to gather up the mostly shared fault handling logic into
+> > one generic helper routine, and long-term we really should do that
+> > cleanup.
+> >
+> > Just from this patch, you can generally see that most architectures just
+> > copied (directly or indirectly) the old x86 way of doing things, but in
+> > the meantime that original x86 model has been improved to hold the VM
+> > semaphore for shorter times etc and to handle VM_FAULT_RETRY and other
+> > "newer" things, so it would be a good idea to bring all those
+> > improvements to the generic case and teach other architectures about
+> > them too.
+> >
+> > Reported-and-tested-by: Takashi Iwai <tiwai@suse.de>
+> > Tested-by: Jan Engelhardt <jengelh@inai.de>
+> > Acked-by: Heiko Carstens <heiko.carstens@de.ibm.com> # "s390 still compiles and boots"
+> > Cc: linux-arch@vger.kernel.org
+> > Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+> > Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> >
+> > ---
+> >  arch/alpha/mm/fault.c                        |    2 ++
+> >  arch/arc/mm/fault.c                          |    2 ++
+> >  arch/avr32/mm/fault.c                        |    2 ++
+> >  arch/cris/mm/fault.c                         |    2 ++
+> >  arch/frv/mm/fault.c                          |    2 ++
+> >  arch/ia64/mm/fault.c                         |    2 ++
+> >  arch/m32r/mm/fault.c                         |    2 ++
+> >  arch/m68k/mm/fault.c                         |    2 ++
+> >  arch/metag/mm/fault.c                        |    2 ++
+> >  arch/microblaze/mm/fault.c                   |    2 ++
+> >  arch/mips/mm/fault.c                         |    2 ++
+> >  arch/mn10300/mm/fault.c                      |    2 ++
+> >  arch/openrisc/mm/fault.c                     |    2 ++
+> >  arch/parisc/mm/fault.c                       |    2 ++
+> >  arch/powerpc/mm/copro_fault.c                |    2 +-
+> >  arch/powerpc/mm/fault.c                      |    2 ++
+> >  arch/s390/mm/fault.c                         |    6 ++++++
+> >  arch/score/mm/fault.c                        |    2 ++
+> >  arch/sh/mm/fault.c                           |    2 ++
+> >  arch/sparc/mm/fault_32.c                     |    2 ++
+> >  arch/sparc/mm/fault_64.c                     |    2 ++
+> >  arch/tile/mm/fault.c                         |    2 ++
+> >  arch/um/kernel/trap.c                        |    2 ++
+> >  arch/x86/mm/fault.c                          |    2 ++
+> >  arch/xtensa/mm/fault.c                       |    2 ++
+> >  drivers/staging/lustre/lustre/llite/vvp_io.c |    2 +-
+> >  include/linux/mm.h                           |    6 ++++--
+> >  mm/gup.c                                     |    4 ++--
+> >  mm/ksm.c                                     |    2 +-
+> >  29 files changed, 61 insertions(+), 7 deletions(-)
+> >
+> > --- a/arch/alpha/mm/fault.c
+> > +++ b/arch/alpha/mm/fault.c
+> > @@ -156,6 +156,8 @@ retry:
+> >         if (unlikely(fault & VM_FAULT_ERROR)) {
+> >                 if (fault & VM_FAULT_OOM)
+> >                         goto out_of_memory;
+> > +               else if (fault & VM_FAULT_SIGSEGV)
+> > +                       goto bad_area;
+> >                 else if (fault & VM_FAULT_SIGBUS)
+> >                         goto do_sigbus;
+> >                 BUG();
+> > --- a/arch/arc/mm/fault.c
+> > +++ b/arch/arc/mm/fault.c
+> > @@ -161,6 +161,8 @@ good_area:
+> >
+> >         if (fault & VM_FAULT_OOM)
+> >                 goto out_of_memory;
+> > +       else if (fault & VM_FAULT_SIGSEV)
+> > +               goto bad_area;
+> >         else if (fault & VM_FAULT_SIGBUS)
+> >                 goto do_sigbus;
+> >
+> > --- a/arch/avr32/mm/fault.c
+> > +++ b/arch/avr32/mm/fault.c
+> > @@ -142,6 +142,8 @@ good_area:
+> >         if (unlikely(fault & VM_FAULT_ERROR)) {
+> >                 if (fault & VM_FAULT_OOM)
+> >                         goto out_of_memory;
+> > +               else if (fault & VM_FAULT_SIGSEGV)
+> > +                       goto bad_area;
+> >                 else if (fault & VM_FAULT_SIGBUS)
+> >                         goto do_sigbus;
+> >                 BUG();
+> > --- a/arch/cris/mm/fault.c
+> > +++ b/arch/cris/mm/fault.c
+> > @@ -176,6 +176,8 @@ retry:
+> >         if (unlikely(fault & VM_FAULT_ERROR)) {
+> >                 if (fault & VM_FAULT_OOM)
+> >                         goto out_of_memory;
+> > +               else if (fault & VM_FAULT_SIGSEGV)
+> > +                       goto bad_area;
+> >                 else if (fault & VM_FAULT_SIGBUS)
+> >                         goto do_sigbus;
+> >                 BUG();
+> > --- a/arch/frv/mm/fault.c
+> > +++ b/arch/frv/mm/fault.c
+> > @@ -168,6 +168,8 @@ asmlinkage void do_page_fault(int datamm
+> >         if (unlikely(fault & VM_FAULT_ERROR)) {
+> >                 if (fault & VM_FAULT_OOM)
+> >                         goto out_of_memory;
+> > +               else if (fault & VM_FAULT_SIGSEGV)
+> > +                       goto bad_area;
+> >                 else if (fault & VM_FAULT_SIGBUS)
+> >                         goto do_sigbus;
+> >                 BUG();
+> > --- a/arch/ia64/mm/fault.c
+> > +++ b/arch/ia64/mm/fault.c
+> > @@ -172,6 +172,8 @@ retry:
+> >                  */
+> >                 if (fault & VM_FAULT_OOM) {
+> >                         goto out_of_memory;
+> > +               } else if (fault & VM_FAULT_SIGSEGV) {
+> > +                       goto bad_area;
+> >                 } else if (fault & VM_FAULT_SIGBUS) {
+> >                         signal = SIGBUS;
+> >                         goto bad_area;
+> > --- a/arch/m32r/mm/fault.c
+> > +++ b/arch/m32r/mm/fault.c
+> > @@ -200,6 +200,8 @@ good_area:
+> >         if (unlikely(fault & VM_FAULT_ERROR)) {
+> >                 if (fault & VM_FAULT_OOM)
+> >                         goto out_of_memory;
+> > +               else if (fault & VM_FAULT_SIGSEGV)
+> > +                       goto bad_area;
+> >                 else if (fault & VM_FAULT_SIGBUS)
+> >                         goto do_sigbus;
+> >                 BUG();
+> > --- a/arch/m68k/mm/fault.c
+> > +++ b/arch/m68k/mm/fault.c
+> > @@ -145,6 +145,8 @@ good_area:
+> >         if (unlikely(fault & VM_FAULT_ERROR)) {
+> >                 if (fault & VM_FAULT_OOM)
+> >                         goto out_of_memory;
+> > +               else if (fault & VM_FAULT_SIGSEGV)
+> > +                       goto map_err;
+> >                 else if (fault & VM_FAULT_SIGBUS)
+> >                         goto bus_err;
+> >                 BUG();
+> > --- a/arch/metag/mm/fault.c
+> > +++ b/arch/metag/mm/fault.c
+> > @@ -141,6 +141,8 @@ good_area:
+> >         if (unlikely(fault & VM_FAULT_ERROR)) {
+> >                 if (fault & VM_FAULT_OOM)
+> >                         goto out_of_memory;
+> > +               else if (fault & VM_FAULT_SIGSEGV)
+> > +                       goto bad_area;
+> >                 else if (fault & VM_FAULT_SIGBUS)
+> >                         goto do_sigbus;
+> >                 BUG();
+> > --- a/arch/microblaze/mm/fault.c
+> > +++ b/arch/microblaze/mm/fault.c
+> > @@ -224,6 +224,8 @@ good_area:
+> >         if (unlikely(fault & VM_FAULT_ERROR)) {
+> >                 if (fault & VM_FAULT_OOM)
+> >                         goto out_of_memory;
+> > +               else if (fault & VM_FAULT_SIGSEGV)
+> > +                       goto bad_area;
+> >                 else if (fault & VM_FAULT_SIGBUS)
+> >                         goto do_sigbus;
+> >                 BUG();
+> > --- a/arch/mips/mm/fault.c
+> > +++ b/arch/mips/mm/fault.c
+> > @@ -158,6 +158,8 @@ good_area:
+> >         if (unlikely(fault & VM_FAULT_ERROR)) {
+> >                 if (fault & VM_FAULT_OOM)
+> >                         goto out_of_memory;
+> > +               else if (fault & VM_FAULT_SIGSEGV)
+> > +                       goto bad_area;
+> >                 else if (fault & VM_FAULT_SIGBUS)
+> >                         goto do_sigbus;
+> >                 BUG();
+> > --- a/arch/mn10300/mm/fault.c
+> > +++ b/arch/mn10300/mm/fault.c
+> > @@ -262,6 +262,8 @@ good_area:
+> >         if (unlikely(fault & VM_FAULT_ERROR)) {
+> >                 if (fault & VM_FAULT_OOM)
+> >                         goto out_of_memory;
+> > +               else if (fault & VM_FAULT_SIGSEGV)
+> > +                       goto bad_area;
+> >                 else if (fault & VM_FAULT_SIGBUS)
+> >                         goto do_sigbus;
+> >                 BUG();
+> > --- a/arch/openrisc/mm/fault.c
+> > +++ b/arch/openrisc/mm/fault.c
+> > @@ -171,6 +171,8 @@ good_area:
+> >         if (unlikely(fault & VM_FAULT_ERROR)) {
+> >                 if (fault & VM_FAULT_OOM)
+> >                         goto out_of_memory;
+> > +               else if (fault & VM_FAULT_SIGSEGV)
+> > +                       goto bad_area;
+> >                 else if (fault & VM_FAULT_SIGBUS)
+> >                         goto do_sigbus;
+> >                 BUG();
+> > --- a/arch/parisc/mm/fault.c
+> > +++ b/arch/parisc/mm/fault.c
+> > @@ -256,6 +256,8 @@ good_area:
+> >                  */
+> >                 if (fault & VM_FAULT_OOM)
+> >                         goto out_of_memory;
+> > +               else if (fault & VM_FAULT_SIGSEGV)
+> > +                       goto bad_area;
+> >                 else if (fault & VM_FAULT_SIGBUS)
+> >                         goto bad_area;
+> >                 BUG();
+> > --- a/arch/powerpc/mm/copro_fault.c
+> > +++ b/arch/powerpc/mm/copro_fault.c
+> > @@ -76,7 +76,7 @@ int copro_handle_mm_fault(struct mm_stru
+> >                 if (*flt & VM_FAULT_OOM) {
+> >                         ret = -ENOMEM;
+> >                         goto out_unlock;
+> > -               } else if (*flt & VM_FAULT_SIGBUS) {
+> > +               } else if (*flt & (VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV)) {
+> >                         ret = -EFAULT;
+> >                         goto out_unlock;
+> >                 }
+> > --- a/arch/powerpc/mm/fault.c
+> > +++ b/arch/powerpc/mm/fault.c
+> > @@ -444,6 +444,8 @@ good_area:
+> >          */
+> >         fault = handle_mm_fault(mm, vma, address, flags);
+> >         if (unlikely(fault & (VM_FAULT_RETRY|VM_FAULT_ERROR))) {
+> > +               if (fault & VM_FAULT_SIGSEGV)
+> > +                       goto bad_area;
+> >                 rc = mm_fault_error(regs, address, fault);
+> >                 if (rc >= MM_FAULT_RETURN)
+> >                         goto bail;
+> > --- a/arch/s390/mm/fault.c
+> > +++ b/arch/s390/mm/fault.c
+> > @@ -374,6 +374,12 @@ static noinline void do_fault_error(stru
+> >                                 do_no_context(regs);
+> >                         else
+> >                                 pagefault_out_of_memory();
+> > +               } else if (fault & VM_FAULT_SIGSEGV) {
+> > +                       /* Kernel mode? Handle exceptions or die */
+> > +                       if (!user_mode(regs))
+> > +                               do_no_context(regs);
+> > +                       else
+> > +                               do_sigsegv(regs, SEGV_MAPERR);
+> >                 } else if (fault & VM_FAULT_SIGBUS) {
+> >                         /* Kernel mode? Handle exceptions or die */
+> >                         if (!user_mode(regs))
+> > --- a/arch/score/mm/fault.c
+> > +++ b/arch/score/mm/fault.c
+> > @@ -114,6 +114,8 @@ good_area:
+> >         if (unlikely(fault & VM_FAULT_ERROR)) {
+> >                 if (fault & VM_FAULT_OOM)
+> >                         goto out_of_memory;
+> > +               else if (fault & VM_FAULT_SIGSEGV)
+> > +                       goto bad_area;
+> >                 else if (fault & VM_FAULT_SIGBUS)
+> >                         goto do_sigbus;
+> >                 BUG();
+> > --- a/arch/sh/mm/fault.c
+> > +++ b/arch/sh/mm/fault.c
+> > @@ -353,6 +353,8 @@ mm_fault_error(struct pt_regs *regs, uns
+> >         } else {
+> >                 if (fault & VM_FAULT_SIGBUS)
+> >                         do_sigbus(regs, error_code, address);
+> > +               else if (fault & VM_FAULT_SIGSEGV)
+> > +                       bad_area(regs, error_code, address);
+> >                 else
+> >                         BUG();
+> >         }
+> > --- a/arch/sparc/mm/fault_32.c
+> > +++ b/arch/sparc/mm/fault_32.c
+> > @@ -249,6 +249,8 @@ good_area:
+> >         if (unlikely(fault & VM_FAULT_ERROR)) {
+> >                 if (fault & VM_FAULT_OOM)
+> >                         goto out_of_memory;
+> > +               else if (fault & VM_FAULT_SIGSEGV)
+> > +                       goto bad_area;
+> >                 else if (fault & VM_FAULT_SIGBUS)
+> >                         goto do_sigbus;
+> >                 BUG();
+> > --- a/arch/sparc/mm/fault_64.c
+> > +++ b/arch/sparc/mm/fault_64.c
+> > @@ -446,6 +446,8 @@ good_area:
+> >         if (unlikely(fault & VM_FAULT_ERROR)) {
+> >                 if (fault & VM_FAULT_OOM)
+> >                         goto out_of_memory;
+> > +               else if (fault & VM_FAULT_SIGSEGV)
+> > +                       goto bad_area;
+> >                 else if (fault & VM_FAULT_SIGBUS)
+> >                         goto do_sigbus;
+> >                 BUG();
+> > --- a/arch/tile/mm/fault.c
+> > +++ b/arch/tile/mm/fault.c
+> > @@ -444,6 +444,8 @@ good_area:
+> >         if (unlikely(fault & VM_FAULT_ERROR)) {
+> >                 if (fault & VM_FAULT_OOM)
+> >                         goto out_of_memory;
+> > +               else if (fault & VM_FAULT_SIGSEGV)
+> > +                       goto bad_area;
+> >                 else if (fault & VM_FAULT_SIGBUS)
+> >                         goto do_sigbus;
+> >                 BUG();
+> > --- a/arch/um/kernel/trap.c
+> > +++ b/arch/um/kernel/trap.c
+> > @@ -80,6 +80,8 @@ good_area:
+> >                 if (unlikely(fault & VM_FAULT_ERROR)) {
+> >                         if (fault & VM_FAULT_OOM) {
+> >                                 goto out_of_memory;
+> > +                       } else if (fault & VM_FAULT_SIGSEGV) {
+> > +                               goto out;
+> >                         } else if (fault & VM_FAULT_SIGBUS) {
+> >                                 err = -EACCES;
+> >                                 goto out;
+> > --- a/arch/x86/mm/fault.c
+> > +++ b/arch/x86/mm/fault.c
+> > @@ -905,6 +905,8 @@ mm_fault_error(struct pt_regs *regs, uns
+> >                 if (fault & (VM_FAULT_SIGBUS|VM_FAULT_HWPOISON|
+> >                              VM_FAULT_HWPOISON_LARGE))
+> >                         do_sigbus(regs, error_code, address, fault);
+> > +               else if (fault & VM_FAULT_SIGSEGV)
+> > +                       bad_area_nosemaphore(regs, error_code, address);
+> >                 else
+> >                         BUG();
+> >         }
+> > --- a/arch/xtensa/mm/fault.c
+> > +++ b/arch/xtensa/mm/fault.c
+> > @@ -117,6 +117,8 @@ good_area:
+> >         if (unlikely(fault & VM_FAULT_ERROR)) {
+> >                 if (fault & VM_FAULT_OOM)
+> >                         goto out_of_memory;
+> > +               else if (fault & VM_FAULT_SIGSEGV)
+> > +                       goto bad_area;
+> >                 else if (fault & VM_FAULT_SIGBUS)
+> >                         goto do_sigbus;
+> >                 BUG();
+> > --- a/drivers/staging/lustre/lustre/llite/vvp_io.c
+> > +++ b/drivers/staging/lustre/lustre/llite/vvp_io.c
+> > @@ -632,7 +632,7 @@ static int vvp_io_kernel_fault(struct vv
+> >                 return 0;
+> >         }
+> >
+> > -       if (cfio->fault.ft_flags & VM_FAULT_SIGBUS) {
+> > +       if (cfio->fault.ft_flags & (VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV)) {
+> >                 CDEBUG(D_PAGE, "got addr %p - SIGBUS\n", vmf->virtual_address);
+> >                 return -EFAULT;
+> >         }
+> > --- a/include/linux/mm.h
+> > +++ b/include/linux/mm.h
+> > @@ -1054,6 +1054,7 @@ static inline int page_mapped(struct pag
+> >  #define VM_FAULT_WRITE 0x0008  /* Special case for get_user_pages */
+> >  #define VM_FAULT_HWPOISON 0x0010       /* Hit poisoned small page */
+> >  #define VM_FAULT_HWPOISON_LARGE 0x0020  /* Hit poisoned large page. Index encoded in upper bits */
+> > +#define VM_FAULT_SIGSEGV 0x0040
+> >
+> >  #define VM_FAULT_NOPAGE        0x0100  /* ->fault installed the pte, not return page */
+> >  #define VM_FAULT_LOCKED        0x0200  /* ->fault locked the returned page */
+> > @@ -1062,8 +1063,9 @@ static inline int page_mapped(struct pag
+> >
+> >  #define VM_FAULT_HWPOISON_LARGE_MASK 0xf000 /* encodes hpage index for large hwpoison */
+> >
+> > -#define VM_FAULT_ERROR (VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_HWPOISON | \
+> > -                        VM_FAULT_FALLBACK | VM_FAULT_HWPOISON_LARGE)
+> > +#define VM_FAULT_ERROR (VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV | \
+> > +                        VM_FAULT_HWPOISON | VM_FAULT_HWPOISON_LARGE | \
+> > +                        VM_FAULT_FALLBACK)
+> >
+> >  /* Encode hstate index for a hwpoisoned large page */
+> >  #define VM_FAULT_SET_HINDEX(x) ((x) << 12)
+> > --- a/mm/gup.c
+> > +++ b/mm/gup.c
+> > @@ -296,7 +296,7 @@ static int faultin_page(struct task_stru
+> >                         return -ENOMEM;
+> >                 if (ret & (VM_FAULT_HWPOISON | VM_FAULT_HWPOISON_LARGE))
+> >                         return *flags & FOLL_HWPOISON ? -EHWPOISON : -EFAULT;
+> > -               if (ret & VM_FAULT_SIGBUS)
+> > +               if (ret & (VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV))
+> >                         return -EFAULT;
+> >                 BUG();
+> >         }
+> > @@ -571,7 +571,7 @@ int fixup_user_fault(struct task_struct
+> >                         return -ENOMEM;
+> >                 if (ret & (VM_FAULT_HWPOISON | VM_FAULT_HWPOISON_LARGE))
+> >                         return -EHWPOISON;
+> > -               if (ret & VM_FAULT_SIGBUS)
+> > +               if (ret & (VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV))
+> >                         return -EFAULT;
+> >                 BUG();
+> >         }
+> > --- a/mm/ksm.c
+> > +++ b/mm/ksm.c
+> > @@ -376,7 +376,7 @@ static int break_ksm(struct vm_area_stru
+> >                 else
+> >                         ret = VM_FAULT_WRITE;
+> >                 put_page(page);
+> > -       } while (!(ret & (VM_FAULT_WRITE | VM_FAULT_SIGBUS | VM_FAULT_OOM)));
+> > +       } while (!(ret & (VM_FAULT_WRITE | VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV | VM_FAULT_OOM)));
+> >         /*
+> >          * We must loop because handle_mm_fault() may back out if there's
+> >          * any difficulty e.g. if pte accessed bit gets updated concurrently.
+> >
+> >
+> > --
+> > To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> > the body of a message to majordomo@vger.kernel.org
+> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> > Please read the FAQ at  http://www.tux.org/lkml/
+> --
+> To unsubscribe from this list: send the line "unsubscribe stable" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
