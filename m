@@ -1,55 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id E74C86B0032
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2015 06:50:20 -0500 (EST)
-Received: by mail-wg0-f43.google.com with SMTP id z12so15294735wgg.2
-        for <linux-mm@kvack.org>; Mon, 16 Feb 2015 03:50:20 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id br7si21484096wjb.140.2015.02.16.03.50.18
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 16 Feb 2015 03:50:19 -0800 (PST)
-Message-ID: <54E1D977.30004@suse.cz>
-Date: Mon, 16 Feb 2015 12:50:15 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id A79F06B0032
+	for <linux-mm@kvack.org>; Mon, 16 Feb 2015 06:56:05 -0500 (EST)
+Received: by mail-wi0-f174.google.com with SMTP id em10so25543285wid.1
+        for <linux-mm@kvack.org>; Mon, 16 Feb 2015 03:56:05 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id fm6si21521168wjc.133.2015.02.16.03.56.03
+        for <linux-mm@kvack.org>;
+        Mon, 16 Feb 2015 03:56:03 -0800 (PST)
+Date: Mon, 16 Feb 2015 12:55:17 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v2] x86, kaslr: propagate base load address calculation
+Message-ID: <20150216115517.GB9500@pd.tnic>
+References: <alpine.LNX.2.00.1502101411280.10719@pobox.suse.cz>
+ <CAGXu5jJzs9Ve9so96f6n-=JxP+GR3xYFQYBtZ=mUm+Q7bMAgBw@mail.gmail.com>
+ <alpine.LNX.2.00.1502110001480.10719@pobox.suse.cz>
+ <alpine.LNX.2.00.1502110010190.10719@pobox.suse.cz>
+ <alpine.LNX.2.00.1502131602360.2423@pobox.suse.cz>
+ <CAGXu5jKSfGzkpNt1-_vRykDCJTCxJg+vRi1D_9a=8auKu-YtgQ@mail.gmail.com>
+ <alpine.LNX.2.00.1502132316320.4925@pobox.suse.cz>
+ <CAGXu5jL3UMkeHpAxe1RBpnQhLWGquR1NJQx1AsukiwA31AA78g@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm: incorporate zero pages into transparent huge pages
-References: <1423688635-4306-1-git-send-email-ebru.akagunduz@gmail.com>
-In-Reply-To: <1423688635-4306-1-git-send-email-ebru.akagunduz@gmail.com>
-Content-Type: text/plain; charset=iso-8859-2
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <CAGXu5jL3UMkeHpAxe1RBpnQhLWGquR1NJQx1AsukiwA31AA78g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, kirill@shutemov.name, mhocko@suse.cz, mgorman@suse.de, rientjes@google.com, sasha.levin@oracle.com, hughd@google.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, riel@redhat.com, aarcange@redhat.com
+To: Kees Cook <keescook@chromium.org>
+Cc: Jiri Kosina <jkosina@suse.cz>, "H. Peter Anvin" <hpa@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>, live-patching@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>
 
-On 02/11/2015 10:03 PM, Ebru Akagunduz wrote:
-> This patch improves THP collapse rates, by allowing zero pages.
-> 
-> Currently THP can collapse 4kB pages into a THP when there
-> are up to khugepaged_max_ptes_none pte_none ptes in a 2MB
-> range.  This patch counts pte none and mapped zero pages
-> with the same variable.
-> 
-> The patch was tested with a program that allocates 800MB of
-> memory, and performs interleaved reads and writes, in a pattern
-> that causes some 2MB areas to first see read accesses, resulting
-> in the zero pfn being mapped there.
-> 
-> To simulate memory fragmentation at allocation time, I modified
-> do_huge_pmd_anonymous_page to return VM_FAULT_FALLBACK for read
-> faults.
-> 
-> Without the patch, only %50 of the program was collapsed into
-> THP and the percentage did not increase over time.
-> 
-> With this patch after 10 minutes of waiting khugepaged had
-> collapsed %99 of the program's memory.
-> 
-> Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-> Reviewed-by: Rik van Riel <riel@redhat.com>
+On Fri, Feb 13, 2015 at 03:25:26PM -0800, Kees Cook wrote:
+> No, no; I agree: a malicious boot loader is a lost cause. I mean
+> mostly from a misbehavior perspective. Like, someone sees "kaslr" in
+> the setup args and thinks they can set it to 1 and boot a kernel, etc.
+> Or they set it to 0, but they lack HIBERNATION and "1" gets appended,
+> but the setup_data parser sees the boot-loader one set to 0, etc. I'm
+> just curious if we should avoid getting some poor system into a
+> confusing state.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Well, we can apply the rule of the last setting sticks and since the
+kernel is always going to be adding the last setup_data element of
+type SETUP_KASLR (the boot loader ones will be somewhere on the list
+in-between and we add to the end), we're fine, no?
+
+-- 
+Regards/Gruss,
+    Boris.
+
+ECO tip #101: Trim your mails when you reply.
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
