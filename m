@@ -1,234 +1,260 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 82EEE6B0032
-	for <linux-mm@kvack.org>; Sun, 15 Feb 2015 23:36:57 -0500 (EST)
-Received: by pdjz10 with SMTP id z10so32529964pdj.12
-        for <linux-mm@kvack.org>; Sun, 15 Feb 2015 20:36:57 -0800 (PST)
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com. [209.85.192.180])
-        by mx.google.com with ESMTPS id u6si2952438pdn.3.2015.02.15.20.36.56
+Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 1288B6B0032
+	for <linux-mm@kvack.org>; Sun, 15 Feb 2015 23:43:18 -0500 (EST)
+Received: by mail-ob0-f172.google.com with SMTP id nt9so38513216obb.3
+        for <linux-mm@kvack.org>; Sun, 15 Feb 2015 20:43:17 -0800 (PST)
+Received: from mail-ob0-x22e.google.com (mail-ob0-x22e.google.com. [2607:f8b0:4003:c01::22e])
+        by mx.google.com with ESMTPS id we1si730786oeb.38.2015.02.15.20.43.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 15 Feb 2015 20:36:56 -0800 (PST)
-Received: by pdbfp1 with SMTP id fp1so32529580pdb.9
-        for <linux-mm@kvack.org>; Sun, 15 Feb 2015 20:36:56 -0800 (PST)
-Date: Mon, 16 Feb 2015 13:36:44 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v17 1/7] mm: support madvise(MADV_FREE)
-Message-ID: <20150216043644.GA19630@blaptop>
-References: <20141205083249.GA2321@dhcp22.suse.cz>
- <54D0F9BC.4060306@gmail.com>
- <20150203234722.GB3583@blaptop>
- <20150206003311.GA2347@kernel.org>
- <20150206055103.GA13244@blaptop>
- <20150206182918.GA2290@kernel.org>
- <20150209071553.GC32300@blaptop>
- <20150210223826.GA2342@kernel.org>
- <20150211005620.GA4078@blaptop>
- <20150212001403.GA2380@kernel.org>
+        Sun, 15 Feb 2015 20:43:17 -0800 (PST)
+Received: by mail-ob0-f174.google.com with SMTP id wo20so37899579obc.5
+        for <linux-mm@kvack.org>; Sun, 15 Feb 2015 20:43:16 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150212001403.GA2380@kernel.org>
+In-Reply-To: <CALszF6DP-RSX2-fp=a=gdcHMF3O0TE_JKom3AWcLFm5q80RrYw@mail.gmail.com>
+References: <CALszF6DP-RSX2-fp=a=gdcHMF3O0TE_JKom3AWcLFm5q80RrYw@mail.gmail.com>
+Date: Mon, 16 Feb 2015 13:43:16 +0900
+Message-ID: <CAAmzW4PrXpv_znYUekFb=K70JqFXDWFmdhLa7jzx-7Ky7c7X5A@mail.gmail.com>
+Subject: Re: [Regression]: mm: nommu: Memory leak introduced with commit
+ "mm/nommu: use alloc_pages_exact() rather than its own implementation"
+From: Joonsoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, zhangyanfei@cn.fujitsu.com, "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Maxime Coquelin <mcoquelin.stm32@gmail.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Hi Shaohua,
+2015-02-15 23:21 GMT+09:00 Maxime Coquelin <mcoquelin.stm32@gmail.com>:
+> Hi Joonsoon,
+>
+> I am currently working on STM32 microcontroller family upstream.
+> The STM32 family is ARM Cortex-M based, so no MMU.
+> As user-space, I use a ramdisk with a statically-linked busybox installed.
+>
+> On v3.19, I am facing a memory leak.
+> Each time I run a command one page is lost. Here an example with
+> busybox's free command:
+>
+> / # free
+>              total       used       free     shared    buffers     cached
+> Mem:          7928       1972       5956          0          0        492
+> -/+ buffers/cache:       1480       6448
+> / # free
+>              total       used       free     shared    buffers     cached
+> Mem:          7928       1976       5952          0          0        492
+> -/+ buffers/cache:       1484       6444
+> / # free
+>              total       used       free     shared    buffers     cached
+> Mem:          7928       1980       5948          0          0        492
+> -/+ buffers/cache:       1488       6440
+> / # free
+>              total       used       free     shared    buffers     cached
+> Mem:          7928       1984       5944          0          0        492
+> -/+ buffers/cache:       1492       6436
+> / # free
+>              total       used       free     shared    buffers     cached
+> Mem:          7928       1988       5940          0          0        492
+> -/+ buffers/cache:       1496       6432
+>
+> At some point, the system fails to sastisfy 256KB allocations:
+>
+> [   38.720000] free: page allocation failure: order:6, mode:0xd0
+> [   38.730000] CPU: 0 PID: 67 Comm: free Not tainted
+> 3.19.0-05389-gacf2cf1-dirty #64
+> [   38.740000] Hardware name: STM32 (Device Tree Support)
+> [   38.740000] [<08022e25>] (unwind_backtrace) from [<080221e7>]
+> (show_stack+0xb/0xc)
+> [   38.750000] [<080221e7>] (show_stack) from [<0804fd3b>]
+> (warn_alloc_failed+0x97/0xbc)
+> [   38.760000] [<0804fd3b>] (warn_alloc_failed) from [<08051171>]
+> (__alloc_pages_nodemask+0x295/0x35c)
+> [   38.770000] [<08051171>] (__alloc_pages_nodemask) from [<08051243>]
+> (__get_free_pages+0xb/0x24)
+> [   38.780000] [<08051243>] (__get_free_pages) from [<0805127f>]
+> (alloc_pages_exact+0x19/0x24)
+> [   38.790000] [<0805127f>] (alloc_pages_exact) from [<0805bdbf>]
+> (do_mmap_pgoff+0x423/0x658)
+> [   38.800000] [<0805bdbf>] (do_mmap_pgoff) from [<08056e73>]
+> (vm_mmap_pgoff+0x3f/0x4e)
+> [   38.810000] [<08056e73>] (vm_mmap_pgoff) from [<08080949>]
+> (load_flat_file+0x20d/0x4f8)
+> [   38.820000] [<08080949>] (load_flat_file) from [<08080dfb>]
+> (load_flat_binary+0x3f/0x26c)
+> [   38.830000] [<08080dfb>] (load_flat_binary) from [<08063741>]
+> (search_binary_handler+0x51/0xe4)
+> [   38.840000] [<08063741>] (search_binary_handler) from [<08063a45>]
+> (do_execveat_common+0x271/0x35c)
+> [   38.850000] [<08063a45>] (do_execveat_common) from [<08063b49>]
+> (do_execve+0x19/0x1c)
+> [   38.860000] [<08063b49>] (do_execve) from [<08020a01>]
+> (ret_fast_syscall+0x1/0x4a)
+> [   38.870000] Mem-info:
+> [   38.870000] Normal per-cpu:
+> [   38.870000] CPU    0: hi:    0, btch:   1 usd:   0
+> [   38.880000] active_anon:0 inactive_anon:0 isolated_anon:0
+> [   38.880000]  active_file:0 inactive_file:0 isolated_file:0
+> [   38.880000]  unevictable:123 dirty:0 writeback:0 unstable:0
+> [   38.880000]  free:1515 slab_reclaimable:17 slab_unreclaimable:139
+> [   38.880000]  mapped:0 shmem:0 pagetables:0 bounce:0
+> [   38.880000]  free_cma:0
+> [   38.910000] Normal free:6060kB min:352kB low:440kB high:528kB
+> active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB
+> unevictable:492kB isolated(anon):0ks
+> [   38.950000] lowmem_reserve[]: 0 0
+> [   38.950000] Normal: 23*4kB (U) 22*8kB (U) 24*16kB (U) 23*32kB (U)
+> 23*64kB (U) 23*128kB (U) 1*256kB (U) 0*512kB 0*1024kB 0*2048kB
+> 0*4096kB = 6060kB
+> [   38.970000] 123 total pagecache pages
+> [   38.970000] 2048 pages of RAM
+> [   38.980000] 1538 free pages
+> [   38.980000] 66 reserved pages
+> [   38.990000] 109 slab pages
+> [   38.990000] -46 pages shared
+> [   38.990000] 0 pages swap cached
+> [   38.990000] nommu: Allocation of length 221184 from process 67 (free) failed
+> [   39.000000] Normal per-cpu:
+> [   39.010000] CPU    0: hi:    0, btch:   1 usd:   0
+> [   39.010000] active_anon:0 inactive_anon:0 isolated_anon:0
+> [   39.010000]  active_file:0 inactive_file:0 isolated_file:0
+> [   39.010000]  unevictable:123 dirty:0 writeback:0 unstable:0
+> [   39.010000]  free:1515 slab_reclaimable:17 slab_unreclaimable:139
+> [   39.010000]  mapped:0 shmem:0 pagetables:0 bounce:0
+> [   39.010000]  free_cma:0
+> [   39.050000] Normal free:6060kB min:352kB low:440kB high:528kB
+> active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB
+> unevictable:492kB isolated(anon):0ks
+> [   39.090000] lowmem_reserve[]: 0 0
+> [   39.090000] Normal: 23*4kB (U) 22*8kB (U) 24*16kB (U) 23*32kB (U)
+> 23*64kB (U) 23*128kB (U) 1*256kB (U) 0*512kB 0*1024kB 0*2048kB
+> 0*4096kB = 6060kB
+> [   39.100000] 123 total pagecache pages
+> [   39.110000] Unable to allocate RAM for process text/data, errno 12
+> SEGV
+>
+> I found that this is a regression, which has been introduced with this patch:
+>
+> ------------------------------------------------------------------------------
+> commit dbc8358c72373daa4f37b7e233fecbc47105fe54
+> Author: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Date:   Fri Dec 12 16:55:55 2014 -0800
+>
+>     mm/nommu: use alloc_pages_exact() rather than its own implementation
+>
+>     do_mmap_private() in nommu.c try to allocate physically contiguous pages
+>     with arbitrary size in some cases and we now have good abstract function
+>     to do exactly same thing, alloc_pages_exact().  So, change to use it.
+>
+>     There is no functional change.  This is the preparation step for support
+>     page owner feature accurately.
+>
+>     Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> ------------------------------------------------------------------------------
+>
+> Indeed, when I revert it, the issue no more appear, I can run the free
+> command for hours without any issue.
+> The problem is that I fail to understand what in your patch could
+> cause the issue.
+>
+> I enabled the traces in mm/nommu.c file, this is what I get with you patch:
+>
+> [    5.970000] ==> do_mmap_pgoff(,0,36000,7,2,0)
+> [    5.970000] xxxalloc order 6 for 36000yyy
+> [    5.970000] xxxtry to alloc exact 54 pagesyyy
+> [    5.970000] ==> add_vma_to_mm(,d0781600)
+> [    5.970000] <== do_mmap_pgoff() = d0540000
+> [    5.990000] ==> do_mmap_pgoff(,0,2000,3,4000021,0)
+> [    5.990000] xxxalloc order 1 for 2000yyy
+> [    5.990000] ==> add_vma_to_mm(,d07818a0)
+> [    5.990000] <== do_mmap_pgoff() = d0576000
+> [    6.000000] ==> exit_mmap()
+> [    6.000000] ==> delete_vma_from_mm(d0781600)
+> [    6.000000] ==> delete_vma(d0781600)
+> [    6.000000] ==> __put_nommu_region(d078f120{1})
+> [    6.000000] xxxfree seriesyyy
+> [    6.000000] xxx- free d0540000yyy
+> [    6.000000] xxx- free d0541000yyy
+> [    6.010000] xxx- free d0542000yyy
+> </snip>
+> [    6.020000] xxx- free d0572000yyy
+> [    6.020000] xxx- free d0573000yyy
+> [    6.020000] xxx- free d0574000yyy
+> [    6.020000] xxx- free d0575000yyy
+> [    6.020000] ==> delete_vma_from_mm(d07818a0)
+> [    6.020000] ==> delete_vma(d07818a0)
+> [    6.020000] ==> __put_nommu_region(d078f0f0{1})
+> [    6.020000] xxxfree seriesyyy
+> [    6.020000] xxx- free d0576000yyy
+> [    6.020000] xxx- free d0577000yyy
+> [    6.020000] xxxfree page d07faee0: refcount not one: 0yyy
+> [    6.020000] <== exit_mmap()
+>
+> As you can see, I have one warning that shows up "free page d07faee0:
+> refcount not one: 0".
+> When reverting your patch, I don't have this warning:
+>
+> [    6.320000] ==> do_mmap_pgoff(,0,36000,7,2,0)
+> [    6.320000] xxxalloc order 6 for 36000yyy
+> [    6.320000] xxxshave 8/10 @64yyy
+> [    6.320000] xxxshave 2/2 @56yyy
+> [    6.320000] ==> add_vma_to_mm(,d0781600)
+> [    6.320000] <== do_mmap_pgoff() = d0540000
+> [    6.340000] ==> do_mmap_pgoff(,0,2000,3,4000021,0)
+> [    6.340000] xxxalloc order 1 for 2000yyy
+> [    6.340000] ==> add_vma_to_mm(,d0781720)
+> [    6.340000] <== do_mmap_pgoff() = d0536000
+> [    6.350000] ==> exit_mmap()
+> [    6.350000] ==> delete_vma_from_mm(d0781720)
+> [    6.350000] ==> delete_vma(d0781720)
+> [    6.350000] ==> __put_nommu_region(d078f0f0{1})
+> [    6.350000] xxxfree seriesyyy
+> [    6.350000] xxx- free d0536000yyy
+> [    6.350000] xxx- free d0537000yyy
+> [    6.350000] ==> delete_vma_from_mm(d0781600)
+> [    6.350000] ==> delete_vma(d0781600)
+> [    6.350000] ==> __put_nommu_region(d078f120{1})
+> [    6.350000] xxxfree seriesyyy
+> [    6.350000] xxx- free d0540000yyy
+> [    6.350000] xxx- free d0541000yyy
+> [    6.350000] xxx- free d0542000yyy
+> </snip>
+> [    6.370000] xxx- free d0572000yyy
+> [    6.370000] xxx- free d0573000yyy
+> [    6.370000] xxx- free d0574000yyy
+> [    6.370000] xxx- free d0575000yyy
+> [    6.370000] <== exit_mmap()
+>
+> Do you have an idea on what could cause the issue?
+>
+> I can do any tests you could find relevant to hunt down this bug.
 
-On Wed, Feb 11, 2015 at 04:14:03PM -0800, Shaohua Li wrote:
-> On Wed, Feb 11, 2015 at 09:56:20AM +0900, Minchan Kim wrote:
-> > Hi Shaohua,
-> > 
-> > On Tue, Feb 10, 2015 at 02:38:26PM -0800, Shaohua Li wrote:
-> > > On Mon, Feb 09, 2015 at 04:15:53PM +0900, Minchan Kim wrote:
-> > > > On Fri, Feb 06, 2015 at 10:29:18AM -0800, Shaohua Li wrote:
-> > > > > On Fri, Feb 06, 2015 at 02:51:03PM +0900, Minchan Kim wrote:
-> > > > > > Hi Shaohua,
-> > > > > > 
-> > > > > > On Thu, Feb 05, 2015 at 04:33:11PM -0800, Shaohua Li wrote:
-> > > > > > > 
-> > > > > > > Hi Minchan,
-> > > > > > > 
-> > > > > > > Sorry to jump in this thread so later, and if some issues are discussed before.
-> > > > > > > I'm interesting in this patch, so tried it here. I use a simple test with
-> > > > > > 
-> > > > > > No problem at all. Interest is always win over ignorance.
-> > > > > > 
-> > > > > > > jemalloc. Obviously this can improve performance when there is no memory
-> > > > > > > pressure. Did you try setup with memory pressure?
-> > > > > > 
-> > > > > > Sure but it was not a huge memory system like yours.
-> > > > > 
-> > > > > Yes, I'd like to check the symptom in memory pressure, so choose such test.
-> > > > > 
-> > > > > > > In my test, jemalloc will map 61G vma, and use about 32G memory without
-> > > > > > > MADV_FREE. If MADV_FREE is enabled, jemalloc will use whole 61G memory because
-> > > > > > > madvise doesn't reclaim the unused memory. If I disable swap (tweak your patch
-> > > > > > 
-> > > > > > Yes, IIUC, jemalloc replaces MADV_DONTNEED with MADV_FREE completely.
-> > > > > 
-> > > > > right.
-> > > > > > > slightly to make it work without swap), I got oom. If swap is enabled, my
-> > > > > > 
-> > > > > > You mean you modified anon aging logic so it works although there is no swap?
-> > > > > > If so, I have no idea why OOM happens. I guess it should free all of freeable
-> > > > > > pages during the aging so although system stall happens more, I don't expect
-> > > > > > OOM. Anyway, with MADV_FREE with no swap, we should consider more things
-> > > > > > about anonymous aging.
-> > > > > 
-> > > > > In the patch, MADV_FREE will be disabled and fallback to DONTNEED if no swap is
-> > > > > enabled. Our production environment doesn't enable swap, so I tried to delete
-> > > > > the 'no swap' check and make MADV_FREE always enabled regardless if swap is
-> > > > > enabled. I didn't change anything else. With such change, I saw oom
-> > > > > immediately. So definitely we have aging issue, the pages aren't reclaimed
-> > > > > fast.
-> > > > 
-> > > > In current VM implementation, it doesn't age anonymous LRU list if we have no
-> > > > swap. That's the reason to drop freeing pages instantly.
-> > > > I think it could be enhanced later.
-> > > > http://lists.infradead.org/pipermail/linux-arm-kernel/2014-December/311591.html
-> > > > 
-> > > > > 
-> > > > > > > system is totally stalled because of swap activity. Without the MADV_FREE,
-> > > > > > > everything is ok. Considering we definitely don't want to waste too much
-> > > > > > > memory, a system with memory pressure is normal, so sounds MADV_FREE will
-> > > > > > > introduce big trouble here.
-> > > > > > > 
-> > > > > > > Did you think about move the MADV_FREE pages to the head of inactive LRU, so
-> > > > > > > they can be reclaimed easily?
-> > > > > > 
-> > > > > > I think it's desirable if the page lived in active LRU.
-> > > > > > The reason I didn't that was caused by volatile ranges system call which
-> > > > > > was motivaion for MADV_FREE in my mind.
-> > > > > > In last LSF/MM, there was concern about data's hotness.
-> > > > > > Some of users want to keep that as it is in LRU position, others want to
-> > > > > > handle that as cold(tail of inactive list)/warm(head of inactive list)/
-> > > > > > hot(head of active list), for example.
-> > > > > > The vrange syscall was just about volatiltiy, not depends on page hotness
-> > > > > > so the decision on my head was not to change LRU order and let's make new
-> > > > > > hotness advise if we need it later.
-> > > > > > 
-> > > > > > However, MADV_FREE's main customer is allocators and afaik, they want
-> > > > > > to replace MADV_DONTNEED with MADV_FREE so I think it is really cold,
-> > > > > > but we couldn't make sure so head of inactive is good compromise.
-> > > > > > Another concern about tail of inactive list is that there could be
-> > > > > > plenty of pages in there, which was asynchromos write-backed in
-> > > > > > previous reclaim path, not-yet reclaimed because of not being able
-> > > > > > to free the in softirq context of writeback. It means we ends up
-> > > > > > freeing more potential pages to become workingset in advance
-> > > > > > than pages VM already decided to evict.
-> > > > > 
-> > > > > Yes, they are definitely cold pages. I thought We should make sure the
-> > > > > MADV_FREE pages are reclaimed first before other pages, at least in the anon
-> > > > > LRU list, though there might be difficult to determine if we should reclaim
-> > > > > writeback pages first or MADV_FREE pages first.
-> > > > 
-> > > > Frankly speaking, the issue with writeback page is just hurdle of
-> > > > implementation, not design so if we could fix it, we might move
-> > > > cold pages into tail of the inactive LRU. I tried it but don't have
-> > > > time slot to continue these days. Hope to get a time to look soon.
-> > > > https://lkml.org/lkml/2014/7/1/628
-> > > > Even, it wouldn't be critical problem although we couldn't fix
-> > > > the problem of writeback pages because they are already all
-> > > > cold pages so it might be not important to keep order in LRU so
-> > > > we could save working set and effort of VM to reclaim them
-> > > > at the cost of moving all of hinting pages into tail of the LRU
-> > > > whenever the syscall is called.
-> > > > 
-> > > > However, significant problem from my mind is we couldn't make
-> > > > sure they are really cold pages. It would be true for allocators
-> > > > but it's cache-friendly pages so it might be better to discard
-> > > > tail pages of inactive LRU, which are really cold.
-> > > > In addition, we couldn't expect all of usecase for MADV_FREE
-> > > > so some of users might want to treat them as warm, not cold.
-> > > > 
-> > > > With moving them into inactive list's head, if we still see
-> > > > a lot stall, I think it's a sign to add other logic, for example,
-> > > > we could drop MADV_FREEed pages instantly if the zone is below
-> > > > low min watermark when the syscall is called. Because everybody
-> > > > doesn't like direct reclaim.
-> > > 
-> > > So I tried move the MADV_FREE pages to inactive list head or tail. It helps a
-> > > little. But there are still stalls/oom. kswapd isn't fast enough to free the
-> > > pages, App enters direct reclaim frequently. In one machine, no swap trigger,
-> > > but MADV_FREE is 5x slower than MADV_DONTNEED. In another machine, MADV_FREE
-> > 
-> > It's expected. MADV_DONTNEED and MADV_FREE is really different.
-> > MADV_DONTNEED is self-sacrificy for others in the system while MADV_FREE is
-> > greedy approach for itself because random process asking the memory could
-> > enter direct reclaim.
-> > However, as I said earlier, we could mitigate the problem by checking
-> > min_free_kbytes. If memory in the system is under min_free_kbytes, it is
-> > pointless to impose reclaim overhead for hinted pages because we alreay
-> > know the hint is "please free when you are trouble with memory" and we got
-> > know it already.
-> > 
-> > When I test below patch on my 3G machine + 12 CPU + 8G swap with below test
-> > test: 12 processes(each process does 5 iteration: mmap 512M + memset + madvise),
-> > 
-> > 1. MADV_DONTNEED : 41.884sec, sys:3m4.552
-> > 2. MADV_FREE : 1m28sec, sys: 5m23
-> > 3. MADV_FREE + below patch : 37.188s, sys: 2m20
-> > 
-> > Could you test?
-> >         
-> > diff --git a/mm/madvise.c b/mm/madvise.c
-> > index 6d0fcb8..da15f8f 100644
-> > --- a/mm/madvise.c
-> > +++ b/mm/madvise.c
-> > @@ -523,7 +523,7 @@ madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
-> >  		 * XXX: In this implementation, MADV_FREE works like
-> >  		 * MADV_DONTNEED on swapless system or full swap.
-> >  		 */
-> > -		if (get_nr_swap_pages() > 0)
-> > +		if (get_nr_swap_pages() > 0 && min_free_kbytes < nr_free_pages())
-> >  			return madvise_free(vma, prev, start, end);
-> >  		/* passthrough */
-> >  	case MADV_DONTNEED:
-> 
-> The throttling makes a lot of sense, definitely should be included in the
-> patch. At least my jemalloc test has similar performance result with/without
+Hello,
 
-Yeb, I will post it with a little modification after long vacation.
+Sorry for my mistake.
+Problem happens because when we allocate memory through
+__get_free_pages(), refcount of each pages is not 1 except
+head page. Below modification will fix your problem. Could you
+test it, please?
 
-> the patch in memory pressure case. So overall I'm pretty happy with it.
+Thanks.
 
-Thanks for the testing.
+------------>8-------------
+diff --git a/mm/nommu.c b/mm/nommu.c
+index 28bd8c4..ff6c1e2 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -1189,11 +1189,9 @@ static int do_mmap_private(struct vm_area_struct *vma,
+        if (sysctl_nr_trim_pages && total - point >= sysctl_nr_trim_pages) {
+                total = point;
+                kdebug("try to alloc exact %lu pages", total);
+-               base = alloc_pages_exact(len, GFP_KERNEL);
+-       } else {
+-               base = (void *)__get_free_pages(GFP_KERNEL, order);
+        }
 
-> However, this only solves half of the problem. pages which are MADV_FREE before
-> watermark is hit are still hard to be reclaimed later if there are other
-> allocations. I'm not sure how severe this issue is. My jemalloc test frequently
-> does madvise (fallback to DONTNEED with above change), so itself can free a lot
-> of memory in memory pressure. If application uses MADV_FREE before watermark is
-> hit, but don't use it after watermark is hit, we will have trouble.
-
-Fair enough. It might make those pages close to inactive LRU's tail
-be unlikely to free, instead rotate back to active LRU.
-Hmm, I don't know how such anonymous LRU scanning without freeing makes
-trobule in huge system.
-
-Anyway, one of the idea is we could use COW so that it could move recent
-dirtied pages into active LRU's head. Although it adds more overhead for
-MADV_FREE than now, it could solve above issue.
-
-As well, I think we could make MADV_FREE support on swapless system easier.
-On swapless system, we don't move pages in active LRU to inactive so
-when MADV_FREE is called on, we could move those pages in inactive's LRU
-and if recent access happens on those pages before discarding by VM,
-we could move them from inactive to active list. So, inactive LRU list
-could have mostly freeable pages(if swapoff race happens, some of
-non-freeable pages remains inactive list) so it's not a performan
-problem only if VM does aging if there are anonymous pages
-in inactive LRU list on swapless system.
-
-> 
-> Thanks,
-> Shaohua
-
--- 
-Kind regards,
-Minchan Kim
++       base = alloc_pages_exact(total << PAGE_SHIFT, GFP_KERNEL);
+        if (!base)
+                goto enomem;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
