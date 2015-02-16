@@ -1,69 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BA076B0032
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2015 14:27:44 -0500 (EST)
-Received: by mail-ob0-f172.google.com with SMTP id nt9so45488413obb.3
-        for <linux-mm@kvack.org>; Mon, 16 Feb 2015 11:27:44 -0800 (PST)
-Received: from mail-ob0-x22f.google.com (mail-ob0-x22f.google.com. [2607:f8b0:4003:c01::22f])
-        by mx.google.com with ESMTPS id n8si124122obi.106.2015.02.16.11.27.42
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E4E76B0032
+	for <linux-mm@kvack.org>; Mon, 16 Feb 2015 14:29:34 -0500 (EST)
+Received: by paceu11 with SMTP id eu11so507894pac.10
+        for <linux-mm@kvack.org>; Mon, 16 Feb 2015 11:29:34 -0800 (PST)
+Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
+        by mx.google.com with ESMTPS id n9si10148716pdo.38.2015.02.16.11.29.33
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Feb 2015 11:27:43 -0800 (PST)
-Received: by mail-ob0-f175.google.com with SMTP id va2so45596480obc.6
-        for <linux-mm@kvack.org>; Mon, 16 Feb 2015 11:27:42 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20150216115517.GB9500@pd.tnic>
-References: <alpine.LNX.2.00.1502101411280.10719@pobox.suse.cz>
-	<CAGXu5jJzs9Ve9so96f6n-=JxP+GR3xYFQYBtZ=mUm+Q7bMAgBw@mail.gmail.com>
-	<alpine.LNX.2.00.1502110001480.10719@pobox.suse.cz>
-	<alpine.LNX.2.00.1502110010190.10719@pobox.suse.cz>
-	<alpine.LNX.2.00.1502131602360.2423@pobox.suse.cz>
-	<CAGXu5jKSfGzkpNt1-_vRykDCJTCxJg+vRi1D_9a=8auKu-YtgQ@mail.gmail.com>
-	<alpine.LNX.2.00.1502132316320.4925@pobox.suse.cz>
-	<CAGXu5jL3UMkeHpAxe1RBpnQhLWGquR1NJQx1AsukiwA31AA78g@mail.gmail.com>
-	<20150216115517.GB9500@pd.tnic>
-Date: Mon, 16 Feb 2015 11:27:42 -0800
-Message-ID: <CAGXu5jJVMePoMZwFdH9ROaP2OEW8X-Mr4ztQ37GdP8p+W30ihg@mail.gmail.com>
-Subject: Re: [PATCH v2] x86, kaslr: propagate base load address calculation
-From: Kees Cook <keescook@chromium.org>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Mon, 16 Feb 2015 11:29:33 -0800 (PST)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout2.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NJV00KYWQBVOVA0@mailout2.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 16 Feb 2015 19:33:31 +0000 (GMT)
+Message-id: <54E24517.6040108@partner.samsung.com>
+Date: Mon, 16 Feb 2015 22:29:27 +0300
+From: Stefan Strogin <s.strogin@partner.samsung.com>
+MIME-version: 1.0
+Subject: Re: [PATCH 0/4] mm: cma: add some debug information for CMA
+References: <cover.1423777850.git.s.strogin@partner.samsung.com>
+ <20150213030308.GG6592@js1304-P5Q-DELUXE> <54DEFBF4.40206@lge.com>
+In-reply-to: <54DEFBF4.40206@lge.com>
+Content-type: text/plain; charset=utf-8
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Jiri Kosina <jkosina@suse.cz>, "H. Peter Anvin" <hpa@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>, live-patching@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>
+To: Gioh Kim <gioh.kim@lge.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Dmitry Safonov <d.safonov@partner.samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Minchan Kim <minchan@kernel.org>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>, gregory.0xf0@gmail.com, sasha.levin@oracle.com, pavel@ucw.cz, stefan.strogin@gmail.com
 
-On Mon, Feb 16, 2015 at 3:55 AM, Borislav Petkov <bp@alien8.de> wrote:
-> On Fri, Feb 13, 2015 at 03:25:26PM -0800, Kees Cook wrote:
->> No, no; I agree: a malicious boot loader is a lost cause. I mean
->> mostly from a misbehavior perspective. Like, someone sees "kaslr" in
->> the setup args and thinks they can set it to 1 and boot a kernel, etc.
->> Or they set it to 0, but they lack HIBERNATION and "1" gets appended,
->> but the setup_data parser sees the boot-loader one set to 0, etc. I'm
->> just curious if we should avoid getting some poor system into a
->> confusing state.
->
-> Well, we can apply the rule of the last setting sticks and since the
-> kernel is always going to be adding the last setup_data element of
-> type SETUP_KASLR (the boot loader ones will be somewhere on the list
-> in-between and we add to the end), we're fine, no?
+Hello Gioh,
 
-Sounds good to me!
+Thank you for your answer.
 
--Kees
+On 14/02/15 10:40, Gioh Kim wrote:
+>>
+>> If this tracer is justifiable, I think that making it conditional is
+>> better than just enabling always on CONFIG_CMA_DEBUGFS. Some users
+>> don't want to this feature although they enable CONFIG_CMA_DEBUGFS.
+>>
+>> Thanks.
+>>
+> 
+> Hello,
+> 
+> Thanks for your work. It must be helpful to me.
+> 
+> What about add another option to activate stack-trace?
+> In my platform I know all devices using cma area, so I usually don't
+> need stack-trace.
+> 
 
->
-> --
-> Regards/Gruss,
->     Boris.
->
-> ECO tip #101: Trim your mails when you reply.
-> --
-
-
-
--- 
-Kees Cook
-Chrome OS Security
+So Joonsoo suggests to add an option for buffer list, and you suggest to
+add another in addition to the first one (and also add CONFIG_STACKTRACE
+to dependences) right?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
