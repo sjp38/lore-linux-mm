@@ -1,74 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id DAA956B0072
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2015 07:28:39 -0500 (EST)
-Received: by mail-wi0-f178.google.com with SMTP id em10so32772142wid.5
-        for <linux-mm@kvack.org>; Tue, 17 Feb 2015 04:28:39 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id fh2si28467349wib.100.2015.02.17.04.28.37
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Feb 2015 04:28:38 -0800 (PST)
-Date: Tue, 17 Feb 2015 07:28:31 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm/memcontrol: fix NULL pointer dereference when
- use_hierarchy is 0
-Message-ID: <20150217122830.GB12721@phnom.home.cmpxchg.org>
-References: <1424150699-5395-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20150217083327.GA32017@dhcp22.suse.cz>
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AAC56B0072
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2015 07:40:24 -0500 (EST)
+Received: by mail-wg0-f42.google.com with SMTP id n12so18516312wgh.1
+        for <linux-mm@kvack.org>; Tue, 17 Feb 2015 04:40:23 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id v1si28541109wij.61.2015.02.17.04.40.21
+        for <linux-mm@kvack.org>;
+        Tue, 17 Feb 2015 04:40:22 -0800 (PST)
+Date: Tue, 17 Feb 2015 13:39:33 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v2] x86, kaslr: propagate base load address calculation
+Message-ID: <20150217123933.GC26165@pd.tnic>
+References: <alpine.LNX.2.00.1502101411280.10719@pobox.suse.cz>
+ <CAGXu5jJzs9Ve9so96f6n-=JxP+GR3xYFQYBtZ=mUm+Q7bMAgBw@mail.gmail.com>
+ <alpine.LNX.2.00.1502110001480.10719@pobox.suse.cz>
+ <alpine.LNX.2.00.1502110010190.10719@pobox.suse.cz>
+ <alpine.LNX.2.00.1502131602360.2423@pobox.suse.cz>
+ <20150217104443.GC9784@pd.tnic>
+ <alpine.LNX.2.00.1502171319040.2279@pobox.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20150217083327.GA32017@dhcp22.suse.cz>
+In-Reply-To: <alpine.LNX.2.00.1502171319040.2279@pobox.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Jiri Kosina <jkosina@suse.cz>
+Cc: Kees Cook <keescook@chromium.org>, "H. Peter Anvin" <hpa@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>, live-patching@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>
 
-On Tue, Feb 17, 2015 at 09:33:27AM +0100, Michal Hocko wrote:
-> On Tue 17-02-15 14:24:59, Joonsoo Kim wrote:
-> > It can be possible to return NULL in parent_mem_cgroup()
-> > if use_hierarchy is 0.
-> 
-> This alone is not sufficient because the low limit is present only in
-> the unified hierarchy API and there is no use_hierarchy there. The
-> primary issue here is that the memcg has 0 usage so the previous
-> check for usage will not stop us. And that is bug IMO.
+On Tue, Feb 17, 2015 at 01:21:20PM +0100, Jiri Kosina wrote:
+> I don't have strong feelings either way. It seems slightly nicer
+> to have a predictable oops output format no matter the CONFIG_
+> options and command-line contents, but if you feel like seeing the
+> 'Kernel offset: 0' in 'nokaslr' and !CONFIG_RANDOMIZE_BASE cases is
+> unnecessary noise, feel free to make this change to my patch.
 
-Yes, empty groups shouldn't be considered low.
+Well, wouldn't it be wrong to print this line if kaslr is disabled?
+Because of the ambiguity in that case: that line could mean either we
+randomized to 0 or kaslr is disabled but you can't know that from the
+"0" in there, right?
 
-> From f5d74671d30e44c50b45b4464c92f536f1dbdff6 Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.cz>
-> Date: Tue, 17 Feb 2015 08:02:12 +0100
-> Subject: [PATCH] memcg: fix low limit calculation
-> 
-> A memcg is considered low limited even when the current usage is equal
-> to the low limit. This leads to interesting side effects e.g.
-> groups/hierarchies with no memory accounted are considered protected and
-> so the reclaim will emit MEMCG_LOW event when encountering them.
-> 
-> Another and much bigger issue was reported by Joonsoo Kim. He has hit a
-> NULL ptr dereference with the legacy cgroup API which even doesn't have
-> low limit exposed. The limit is 0 by default but the initial check fails
-> for memcg with 0 consumption and parent_mem_cgroup() would return NULL
-> if use_hierarchy is 0 and so page_counter_read would try to dereference
-> NULL.
-> 
-> I suppose that the current implementation is just an overlook because
-> the documentation in Documentation/cgroups/unified-hierarchy.txt says:
-> "
-> The memory.low boundary on the other hand is a top-down allocated
-> reserve.  A cgroup enjoys reclaim protection when it and all its
-> ancestors are below their low boundaries
-> "
-> 
-> Fix the usage and the low limit comparision in mem_cgroup_low accordingly.
-> 
-> Fixes: 241994ed8649 (mm: memcontrol: default hierarchy interface for memory)
-> Reported-by: Joonsoo Kim <js1304@gmail.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+-- 
+Regards/Gruss,
+    Boris.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+ECO tip #101: Trim your mails when you reply.
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
