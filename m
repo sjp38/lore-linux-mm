@@ -1,79 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 13BBD6B0032
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2015 10:38:52 -0500 (EST)
-Received: by mail-wg0-f53.google.com with SMTP id a1so19912102wgh.12
-        for <linux-mm@kvack.org>; Tue, 17 Feb 2015 07:38:51 -0800 (PST)
-Received: from mail-wi0-x231.google.com (mail-wi0-x231.google.com. [2a00:1450:400c:c05::231])
-        by mx.google.com with ESMTPS id ey12si29480477wid.77.2015.02.17.07.38.49
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 53AB56B0032
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2015 11:03:54 -0500 (EST)
+Received: by mail-ig0-f170.google.com with SMTP id l13so41401261iga.1
+        for <linux-mm@kvack.org>; Tue, 17 Feb 2015 08:03:54 -0800 (PST)
+Received: from resqmta-po-11v.sys.comcast.net ([2001:558:fe16:19:250:56ff:feb0:66b3])
+        by mx.google.com with ESMTPS id y137si705144iod.20.2015.02.17.08.03.53
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Feb 2015 07:38:50 -0800 (PST)
-Received: by mail-wi0-f177.google.com with SMTP id bs8so34631963wib.4
-        for <linux-mm@kvack.org>; Tue, 17 Feb 2015 07:38:49 -0800 (PST)
-Date: Tue, 17 Feb 2015 16:38:47 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: How to handle TIF_MEMDIE stalls?
-Message-ID: <20150217153847.GF32017@dhcp22.suse.cz>
-References: <20141230112158.GA15546@dhcp22.suse.cz>
- <201502092044.JDG39081.LVFOOtFHQFOMSJ@I-love.SAKURA.ne.jp>
- <201502102258.IFE09888.OVQFJOMSFtOLFH@I-love.SAKURA.ne.jp>
- <20150210151934.GA11212@phnom.home.cmpxchg.org>
- <201502111123.ICD65197.FMLOHSQJFVOtFO@I-love.SAKURA.ne.jp>
- <201502172123.JIE35470.QOLMVOFJSHOFFt@I-love.SAKURA.ne.jp>
- <20150217125315.GA14287@phnom.home.cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150217125315.GA14287@phnom.home.cmpxchg.org>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Tue, 17 Feb 2015 08:03:53 -0800 (PST)
+Date: Tue, 17 Feb 2015 10:03:51 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 1/3] Slab infrastructure for array operations
+In-Reply-To: <20150217051541.GA15413@js1304-P5Q-DELUXE>
+Message-ID: <alpine.DEB.2.11.1502170959130.4996@gentwo.org>
+References: <20150210194804.288708936@linux.com> <20150210194811.787556326@linux.com> <alpine.DEB.2.10.1502101542030.15535@chino.kir.corp.google.com> <alpine.DEB.2.11.1502111243380.3887@gentwo.org> <alpine.DEB.2.10.1502111213151.16711@chino.kir.corp.google.com>
+ <20150213023534.GA6592@js1304-P5Q-DELUXE> <alpine.DEB.2.11.1502130941360.9442@gentwo.org> <20150217051541.GA15413@js1304-P5Q-DELUXE>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, david@fromorbit.com, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: David Rientjes <rientjes@google.com>, akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com, Jesper Dangaard Brouer <brouer@redhat.com>
 
-On Tue 17-02-15 07:53:15, Johannes Weiner wrote:
-[...]
-> diff --git a/fs/xfs/kmem.c b/fs/xfs/kmem.c
-> index a7a3a63bb360..17ced1805d3a 100644
-> --- a/fs/xfs/kmem.c
-> +++ b/fs/xfs/kmem.c
-> @@ -45,20 +45,12 @@ kmem_zalloc_greedy(size_t *size, size_t minsize, size_t maxsize)
->  void *
->  kmem_alloc(size_t size, xfs_km_flags_t flags)
->  {
-> -	int	retries = 0;
->  	gfp_t	lflags = kmem_flags_convert(flags);
-> -	void	*ptr;
->  
-> -	do {
-> -		ptr = kmalloc(size, lflags);
-> -		if (ptr || (flags & (KM_MAYFAIL|KM_NOSLEEP)))
-> -			return ptr;
-> -		if (!(++retries % 100))
-> -			xfs_err(NULL,
-> -		"possible memory allocation deadlock in %s (mode:0x%x)",
-> -					__func__, lflags);
-> -		congestion_wait(BLK_RW_ASYNC, HZ/50);
-> -	} while (1);
-> +	if (!(flags & (KM_MAYFAIL | KM_NOSLEEP)))
-> +		lflags |= __GFP_NOFAIL;
-> +
-> +	return kmalloc(size, lflags);
->  }
->  
->  void *
+On Tue, 17 Feb 2015, Joonsoo Kim wrote:
 
-Yes, I think this is the right thing to do (care to send a patch with
-the full changelog?).
-We really want to have __GFP_NOFAIL explicit. If for nothing else I hope
-we can get lockdep checks for this flag. I am hopelessly unfamiliar with
-lockdep but even warning from __lockdep_trace_alloc for this flag and
-any lock held in the current's context might be helpful to identify
-those places and try to fix them.
+> Hmm...so far, SLAB focus on temporal locality rather than spatial locality
+> as you know. Why SLAB need to consider spatial locality first in this
+> kmem_cache_alloc_array() case?
 
--- 
-Michal Hocko
-SUSE Labs
+Well we are talking about a large number of objects. And going around
+randomly in memory is going to cause a lot of TLB misses. Spatial locality
+increases the effectiveness of the processing of these objects.
+
+> And, although we use partial list first, we can't reduce
+> fragmentation as much as SLUB. Local cache may keep some free objects
+> of the partial slab so just exhausting free objects of partial slab doesn't
+> means that there is no free object left. For SLUB, exhausting free
+> objects of partial slab means there is no free object left.
+
+SLUB will still have the per cpu objects in the per cpu page and te per
+cpu slab pages.
+
+> If we allocate objects from local cache as much as possible, we can
+> keep temporal locality and return objects as fast as possible since
+> returing objects from local cache just needs memcpy from local array
+> cache to destination array.
+
+I thought the point was that this is used to allocate very large amounts
+of objects. The hotness is not that big of an issue.
+
+> As David said, there is no implementation for SLAB yet and we have
+> different opinion about implementation for SLAB. It's better
+> to delay detailed implementation of kmem_cache_alloc_array()
+> until implementation for SLAB is agreed. Before it, calling
+> __kmem_cache_alloc_array() in kmem_cache_alloc_array() is sufficient
+> to provide functionality.
+
+Its not that detailed. It is just layin out the basic strategy for the
+array allocs. First go to the partial lists to decrease fragmentation.
+Then bypass the allocator layers completely and go direct to the page
+allocator if all objects that the page will accomodate can be put into
+the array. Lastly use the cpu hot objects to fill in the leftover (which
+would in any case be less than the objects in a page).
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
