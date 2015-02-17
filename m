@@ -1,127 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DA926B0096
-	for <linux-mm@kvack.org>; Wed, 18 Feb 2015 09:30:50 -0500 (EST)
-Received: by mail-qc0-f174.google.com with SMTP id c9so1044648qcz.5
-        for <linux-mm@kvack.org>; Wed, 18 Feb 2015 06:30:50 -0800 (PST)
-Received: from mail-qa0-x22b.google.com (mail-qa0-x22b.google.com. [2607:f8b0:400d:c00::22b])
-        by mx.google.com with ESMTPS id 70si13026908qhq.21.2015.02.18.06.30.49
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id BB9986B0099
+	for <linux-mm@kvack.org>; Wed, 18 Feb 2015 10:11:31 -0500 (EST)
+Received: by pdjp10 with SMTP id p10so1754883pdj.3
+        for <linux-mm@kvack.org>; Wed, 18 Feb 2015 07:11:31 -0800 (PST)
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com. [209.85.192.181])
+        by mx.google.com with ESMTPS id dt4si3571983pdb.34.2015.02.16.21.17.32
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Feb 2015 06:30:49 -0800 (PST)
-Received: by mail-qa0-f43.google.com with SMTP id bm13so977055qab.2
-        for <linux-mm@kvack.org>; Wed, 18 Feb 2015 06:30:49 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1424219432.21410.113.camel@kernel.crashing.org>
-References: <1424157203-691-1-git-send-email-gwshan@linux.vnet.ibm.com>
- <1424157203-691-8-git-send-email-gwshan@linux.vnet.ibm.com>
- <20150217220916.GA26424@google.com> <20150218001620.GA22042@shangw> <1424219432.21410.113.camel@kernel.crashing.org>
-From: Bjorn Helgaas <bhelgaas@google.com>
-Date: Wed, 18 Feb 2015 08:30:28 -0600
-Message-ID: <CAErSpo6vMyy2SoqZ4ca2D_BUxd3J4W5jASsQu0NM9opFzR5mfg@mail.gmail.com>
-Subject: Re: [PATCH RESEND v2 7/7] PCI/hotplug: PowerPC PowerNV PCI hotplug driver
-Content-Type: text/plain; charset=UTF-8
+        Mon, 16 Feb 2015 21:17:32 -0800 (PST)
+Received: by pdjy10 with SMTP id y10so41186992pdj.6
+        for <linux-mm@kvack.org>; Mon, 16 Feb 2015 21:17:32 -0800 (PST)
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: [PATCH] mm/nommu: fix memory leak
+Date: Tue, 17 Feb 2015 14:17:22 +0900
+Message-Id: <1424150242-4805-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Gavin Shan <gwshan@linux.vnet.ibm.com>, linuxppc-dev@ozlabs.org, "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Maxime Coquelin <mcoquelin.stm32@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-[+cc linux-mm, linux-kernel]
+Maxime reported following memory leak regression due to commit dbc8358c7237
+("mm/nommu: use alloc_pages_exact() rather than its own implementation").
 
-For context, the start of this discussion was here:
-http://lkml.kernel.org/r/1424157203-691-8-git-send-email-gwshan@linux.vnet.ibm.com
-where Gavin is adding a new PCI hotplug driver for PowerNV.  That new
-driver calls vm_unmap_aliases() the same way we do in the existing RPA
-hotplug driver here:
+On v3.19, I am facing a memory leak.
+Each time I run a command one page is lost. Here an example with
+busybox's free command:
 
-https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/drivers/pci/hotplug/rpaphp_core.c#n432
+/ # free
+             total       used       free     shared    buffers     cached
+Mem:          7928       1972       5956          0          0        492
+-/+ buffers/cache:       1480       6448
+/ # free
+             total       used       free     shared    buffers     cached
+Mem:          7928       1976       5952          0          0        492
+-/+ buffers/cache:       1484       6444
+/ # free
+             total       used       free     shared    buffers     cached
+Mem:          7928       1980       5948          0          0        492
+-/+ buffers/cache:       1488       6440
+/ # free
+             total       used       free     shared    buffers     cached
+Mem:          7928       1984       5944          0          0        492
+-/+ buffers/cache:       1492       6436
+/ # free
+             total       used       free     shared    buffers     cached
+Mem:          7928       1988       5940          0          0        492
+-/+ buffers/cache:       1496       6432
 
-I'm trying to figure out whether it's correct to use
-vm_unmap_aliases() here, but I'm not an mm person so all I have is my
-gut feeling that something doesn't smell right.
+At some point, the system fails to sastisfy 256KB allocations:
 
-On Tue, Feb 17, 2015 at 6:30 PM, Benjamin Herrenschmidt
-<benh@kernel.crashing.org> wrote:
-> On Wed, 2015-02-18 at 11:16 +1100, Gavin Shan wrote:
->> >What is vm_unmap_aliases() for?  I see this is probably copied from
->> >rpaphp_core.c, where it was added by b4a26be9f6f8 ("powerpc/pseries:
->> Flush
->> >lazy kernel mappings after unplug operations").
->> >
->> >But I don't know whether:
->> >
->> >  - this is something specific to powerpc,
->> >  - the lack of vm_unmap_aliases() in other hotplug paths is a bug,
->> >  - the fact that we only do this on powerpc is covering up a
->> >    powerpc bug somewhere
->>
->> Yes, I copied this piece of code from rpaphp_core.c. I think Ben might
->> help to answer the questions as he added the patch. I had very quick
->> check on mm/vmalloc.c and it's reasonable to have vm_unmap_aliases()
->> here to flush TLB entries for ioremap() regions, which were unmapped
->> previously. if I'm correct. I don't think it's powerpc specific.
->
-> It's specific to running under the PowerVM hypervisor, and thus doesn't
-> affect PowerNV, just don't copy it over.
->
-> It comes from the fact that the generic ioremap code nowadays delays
-> TLB flushing on unmap. The TLB flushing code is what, on powerpc,
-> ensures that we remove the translations from the MMU hash table (the
-> hash table is essentially treated as an extended in-memory TLB), which
-> on pseries turns into hypervisor calls.
->
-> When running under that hypervisor, the HV ensures that no translation
-> still exists in the hash before allowing a device to be removed from
-> a partition. If translations still exist, the removal fails.
->
-> So we need to force the generic ioremap code to perform all the TLB
-> flushes for iounmap'ed regions before we "complete" the unplug operation
-> from a kernel perspective so that the device can be re-assigned to
-> another partition.
->
-> This is thus useless on platforms like powernv which do not run under
-> such a hypervisor.
+[   38.720000] free: page allocation failure: order:6, mode:0xd0
+[   38.730000] CPU: 0 PID: 67 Comm: free Not tainted
+3.19.0-05389-gacf2cf1-dirty #64
+[   38.740000] Hardware name: STM32 (Device Tree Support)
+[   38.740000] [<08022e25>] (unwind_backtrace) from [<080221e7>]
+(show_stack+0xb/0xc)
+[   38.750000] [<080221e7>] (show_stack) from [<0804fd3b>]
+(warn_alloc_failed+0x97/0xbc)
+[   38.760000] [<0804fd3b>] (warn_alloc_failed) from [<08051171>]
+(__alloc_pages_nodemask+0x295/0x35c)
+[   38.770000] [<08051171>] (__alloc_pages_nodemask) from [<08051243>]
+(__get_free_pages+0xb/0x24)
+[   38.780000] [<08051243>] (__get_free_pages) from [<0805127f>]
+(alloc_pages_exact+0x19/0x24)
+[   38.790000] [<0805127f>] (alloc_pages_exact) from [<0805bdbf>]
+(do_mmap_pgoff+0x423/0x658)
+[   38.800000] [<0805bdbf>] (do_mmap_pgoff) from [<08056e73>]
+(vm_mmap_pgoff+0x3f/0x4e)
+[   38.810000] [<08056e73>] (vm_mmap_pgoff) from [<08080949>]
+(load_flat_file+0x20d/0x4f8)
+[   38.820000] [<08080949>] (load_flat_file) from [<08080dfb>]
+(load_flat_binary+0x3f/0x26c)
+[   38.830000] [<08080dfb>] (load_flat_binary) from [<08063741>]
+(search_binary_handler+0x51/0xe4)
+[   38.840000] [<08063741>] (search_binary_handler) from [<08063a45>]
+(do_execveat_common+0x271/0x35c)
+[   38.850000] [<08063a45>] (do_execveat_common) from [<08063b49>]
+(do_execve+0x19/0x1c)
+[   38.860000] [<08063b49>] (do_execve) from [<08020a01>]
+(ret_fast_syscall+0x1/0x4a)
+[   38.870000] Mem-info:
+[   38.870000] Normal per-cpu:
+[   38.870000] CPU    0: hi:    0, btch:   1 usd:   0
+[   38.880000] active_anon:0 inactive_anon:0 isolated_anon:0
+[   38.880000]  active_file:0 inactive_file:0 isolated_file:0
+[   38.880000]  unevictable:123 dirty:0 writeback:0 unstable:0
+[   38.880000]  free:1515 slab_reclaimable:17 slab_unreclaimable:139
+[   38.880000]  mapped:0 shmem:0 pagetables:0 bounce:0
+[   38.880000]  free_cma:0
+[   38.910000] Normal free:6060kB min:352kB low:440kB high:528kB
+active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB
+unevictable:492kB isolated(anon):0ks
+[   38.950000] lowmem_reserve[]: 0 0
+[   38.950000] Normal: 23*4kB (U) 22*8kB (U) 24*16kB (U) 23*32kB (U)
+23*64kB (U) 23*128kB (U) 1*256kB (U) 0*512kB 0*1024kB 0*2048kB
+0*4096kB = 6060kB
+[   38.970000] 123 total pagecache pages
+[   38.970000] 2048 pages of RAM
+[   38.980000] 1538 free pages
+[   38.980000] 66 reserved pages
+[   38.990000] 109 slab pages
+[   38.990000] -46 pages shared
+[   38.990000] 0 pages swap cached
+[   38.990000] nommu: Allocation of length 221184 from process 67 (free) failed
+[   39.000000] Normal per-cpu:
+[   39.010000] CPU    0: hi:    0, btch:   1 usd:   0
+[   39.010000] active_anon:0 inactive_anon:0 isolated_anon:0
+[   39.010000]  active_file:0 inactive_file:0 isolated_file:0
+[   39.010000]  unevictable:123 dirty:0 writeback:0 unstable:0
+[   39.010000]  free:1515 slab_reclaimable:17 slab_unreclaimable:139
+[   39.010000]  mapped:0 shmem:0 pagetables:0 bounce:0
+[   39.010000]  free_cma:0
+[   39.050000] Normal free:6060kB min:352kB low:440kB high:528kB
+active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB
+unevictable:492kB isolated(anon):0ks
+[   39.090000] lowmem_reserve[]: 0 0
+[   39.090000] Normal: 23*4kB (U) 22*8kB (U) 24*16kB (U) 23*32kB (U)
+23*64kB (U) 23*128kB (U) 1*256kB (U) 0*512kB 0*1024kB 0*2048kB
+0*4096kB = 6060kB
+[   39.100000] 123 total pagecache pages
+[   39.110000] Unable to allocate RAM for process text/data, errno 12
+SEGV
 
-So the hypervisor call that removes the device from the partition will
-fail if there are any translations that reference the memory of the
-device.
+This problem happens because we allocate ordered page through
+__get_free_pages() in do_mmap_private() in some cases and we
+try to free individual pages rather than ordered page in
+free_page_series(). In this case, freeing pages whose refcount is not 0
+won't be freed to the page allocator so memory leak happens.
 
-Let me go through this in excruciating detail to see if I understand
-what's going on:
+To fix the problem, this patch changes __get_free_pages() to
+alloc_pages_exact() since alloc_pages_exact() returns
+physically-contiguous pages but each pages are refcounted.
 
-  - PCI core enumerates device D1
-  - PCI core sets device D1 BAR 0 = 0x1000
-  - driver claims D1
-  - driver ioremaps 0x1000 at virtual address V
-  - translation V -> 0x1000 is in TLB
-  - driver iounmaps V (but V -> 0x1000 translation may remain in TLB)
-  - driver releases D1
-  - hot-remove D1 (without vm_unmap_aliases(), hypervisor would fail this)
-  - it would be a bug to reference V here, but if we did, the
-virt-to-phys translation would succeed and we'd have a Master Abort or
-Unsupported Request on PCI/PCIe
-  - hot-add D2
-  - PCI core enumerates device D2
-  - PCI core sets device D2 BAR 0 = 0x1000
-  - it would be a bug to reference V here (before ioremapping), but if
-we did, the reference would reach D2
+Fixes: dbc8358c7237 ("mm/nommu: use alloc_pages_exact() rather than
+its own implementation").
+Reported-by: Maxime Coquelin <mcoquelin.stm32@gmail.com>
+Tested-by: Maxime Coquelin <mcoquelin.stm32@gmail.com>
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+---
+ mm/nommu.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
 
-I don't see anything hypervisor-specific here except for the fact that
-the hypervisor checks for existing translations and most other
-platforms don't.  But it seems like the unexpected PCI aborts could
-happen on any platform.
-
-Are we saying that those PCI aborts are OK, since it's a bug to make
-those references in the first place?  Or would we rather take a TLB
-miss fault instead so the references never make it to PCI?
-
-I would think there would be similar issues when unmapping and
-re-mapping plain old physical memory.  But I don't see
-vm_unmap_aliases() calls there, so those issues must be handled
-differently.  Should we handle this PCI hotplug issue the same way we
-handle RAM?
-
-Bjorn
+diff --git a/mm/nommu.c b/mm/nommu.c
+index 7296360..3e67e75 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -1213,11 +1213,9 @@ static int do_mmap_private(struct vm_area_struct *vma,
+ 	if (sysctl_nr_trim_pages && total - point >= sysctl_nr_trim_pages) {
+ 		total = point;
+ 		kdebug("try to alloc exact %lu pages", total);
+-		base = alloc_pages_exact(len, GFP_KERNEL);
+-	} else {
+-		base = (void *)__get_free_pages(GFP_KERNEL, order);
+ 	}
+ 
++	base = alloc_pages_exact(total << PAGE_SHIFT, GFP_KERNEL);
+ 	if (!base)
+ 		goto enomem;
+ 
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
