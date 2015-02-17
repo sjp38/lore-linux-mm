@@ -1,85 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 605C16B0032
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2015 18:56:22 -0500 (EST)
-Received: by pabkx10 with SMTP id kx10so1829321pab.0
-        for <linux-mm@kvack.org>; Mon, 16 Feb 2015 15:56:22 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id sz8si7595761pbc.86.2015.02.16.15.56.20
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F3C76B0032
+	for <linux-mm@kvack.org>; Mon, 16 Feb 2015 22:28:05 -0500 (EST)
+Received: by padhz1 with SMTP id hz1so3002708pad.9
+        for <linux-mm@kvack.org>; Mon, 16 Feb 2015 19:28:04 -0800 (PST)
+Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
+        by mx.google.com with ESMTPS id oe8si5290212pbc.207.2015.02.16.19.28.03
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Feb 2015 15:56:21 -0800 (PST)
-From: Rusty Russell <rusty@rustcorp.com.au>
-Subject: Re: [PATCH v11 19/19] kasan: enable instrumentation of global variables
-In-Reply-To: <54E20238.3090902@samsung.com>
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com> <1422985392-28652-1-git-send-email-a.ryabinin@samsung.com> <1422985392-28652-20-git-send-email-a.ryabinin@samsung.com> <87a90ea7ge.fsf@rustcorp.com.au> <54E20238.3090902@samsung.com>
-Date: Tue, 17 Feb 2015 10:25:08 +1030
-Message-ID: <877fvhtns3.fsf@rustcorp.com.au>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 16 Feb 2015 19:28:04 -0800 (PST)
+Received: from tyo202.gate.nec.co.jp ([10.7.69.202])
+	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id t1H3S04O020396
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2015 12:28:01 +0900 (JST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH] mm, hugetlb: set PageLRU for in-use/active hugepages
+Date: Tue, 17 Feb 2015 03:22:45 +0000
+Message-ID: <1424143299-7557-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <a.ryabinin@samsung.com>, linux-kernel@vger.kernel.org
-Cc: Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, x86@kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Michal Marek <mmarek@suse.cz>, "open list:KERNEL BUILD + fi..." <linux-kbuild@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-Andrey Ryabinin <a.ryabinin@samsung.com> writes:
-> On 02/16/2015 05:58 AM, Rusty Russell wrote:
->> Andrey Ryabinin <a.ryabinin@samsung.com> writes:
->>> This feature let us to detect accesses out of bounds of
->>> global variables. This will work as for globals in kernel
->>> image, so for globals in modules. Currently this won't work
->>> for symbols in user-specified sections (e.g. __init, __read_mostly, ...)
->>> @@ -1807,6 +1808,7 @@ static void unset_module_init_ro_nx(struct module *mod) { }
->>>  void __weak module_memfree(void *module_region)
->>>  {
->>>  	vfree(module_region);
->>> +	kasan_module_free(module_region);
->>>  }
->> 
->> This looks racy (memory reuse?).  Perhaps try other order?
->> 
->
-> You are right, it's racy. Concurrent kasan_module_alloc() could fail because
-> kasan_module_free() wasn't called/finished yet, so whole module_alloc() will fail
-> and module loading will fail.
-> However, I just find out that this race is not the worst problem here.
-> When vfree(addr) called in interrupt context, memory at addr will be reused for
-> storing 'struct llist_node':
->
-> void vfree(const void *addr)
-> {
-> ...
-> 	if (unlikely(in_interrupt())) {
-> 		struct vfree_deferred *p = this_cpu_ptr(&vfree_deferred);
-> 		if (llist_add((struct llist_node *)addr, &p->list))
-> 			schedule_work(&p->wq);
->
->
-> In this case we have to free shadow *after* freeing 'module_region', because 'module_region'
-> is still used in llist_add() and in free_work() latter.
-> free_work() (in mm/vmalloc.c) processes list in LIFO order, so to free shadow after freeing
-> 'module_region' kasan_module_free(module_region); should be called before vfree(module_region);
->
-> It will be racy still, but this is not so bad as potential crash that we have now.
-> Honestly, I have no idea how to fix this race nicely. Any suggestions?
+Currently we are not safe from concurrent calls of isolate_huge_page(),
+which can make the victim hugepage in invalid state and results in BUG_ON()=
+.
 
-I think you need to take over the rcu callback for the kasan case.
+The root problem of this is that we don't have any information on struct pa=
+ge
+(so easily accessible) about the hugepage's activeness. Note that hugepages=
+'
+activeness means just being linked to hstate->hugepage_activelist, which is
+not the same as normal pages' activeness represented by PageActive flag.
 
-Perhaps we rename that __module_memfree(), and do:
+Normal pages are isolated by isolate_lru_page() which prechecks PageLRU bef=
+ore
+isolation, so let's do similarly for hugetlb. PageLRU is unused on hugetlb,
+so this change is mostly straightforward. One non-straightforward point is =
+that
+__put_compound_page() calls __page_cache_release() to do some LRU works,
+but this is obviously for thps and assumes that hugetlb has always !PageLRU=
+.
+This assumption is no more true, so this patch simply adds if (!PageHuge) t=
+o
+avoid calling __page_cache_release() for hugetlb.
 
-void module_memfree(void *p)
-{
-#ifdef CONFIG_KASAN
-        ...
-#endif
-        __module_memfree(p);        
-}
+Set/ClearPageLRU should be called within hugetlb_lock, but hugetlb_cow() an=
+d
+hugetlb_no_page() don't do this. This is justified because in these functio=
+n
+SetPageLRU is called right after the hugepage is allocated and no other thr=
+ead
+tries to isolate it.
 
-Note: there are calls to module_memfree from other code (BPF and
-kprobes).  I assume you looked at those too...
+Fixes: commit 31caf665e666 ("mm: migrate: make core migration code aware of=
+ hugepage")
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: <stable@vger.kernel.org>        [3.12+]
+---
+ mm/hugetlb.c | 17 ++++++++++++++---
+ mm/swap.c    |  4 +++-
+ 2 files changed, 17 insertions(+), 4 deletions(-)
 
-Cheers,
-Rusty.
+diff --git v3.19_with_hugemigration_fixes.orig/mm/hugetlb.c v3.19_with_huge=
+migration_fixes/mm/hugetlb.c
+index a2bfd02e289f..e28489270d9a 100644
+--- v3.19_with_hugemigration_fixes.orig/mm/hugetlb.c
++++ v3.19_with_hugemigration_fixes/mm/hugetlb.c
+@@ -830,7 +830,7 @@ static void update_and_free_page(struct hstate *h, stru=
+ct page *page)
+ 		page[i].flags &=3D ~(1 << PG_locked | 1 << PG_error |
+ 				1 << PG_referenced | 1 << PG_dirty |
+ 				1 << PG_active | 1 << PG_private |
+-				1 << PG_writeback);
++				1 << PG_writeback | 1 << PG_lru);
+ 	}
+ 	VM_BUG_ON_PAGE(hugetlb_cgroup_from_page(page), page);
+ 	set_compound_page_dtor(page, NULL);
+@@ -875,6 +875,7 @@ void free_huge_page(struct page *page)
+ 	ClearPagePrivate(page);
+=20
+ 	spin_lock(&hugetlb_lock);
++	ClearPageLRU(page);
+ 	hugetlb_cgroup_uncharge_page(hstate_index(h),
+ 				     pages_per_huge_page(h), page);
+ 	if (restore_reserve)
+@@ -2889,6 +2890,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct v=
+m_area_struct *vma,
+ 	copy_user_huge_page(new_page, old_page, address, vma,
+ 			    pages_per_huge_page(h));
+ 	__SetPageUptodate(new_page);
++	SetPageLRU(new_page);
+=20
+ 	mmun_start =3D address & huge_page_mask(h);
+ 	mmun_end =3D mmun_start + huge_page_size(h);
+@@ -3001,6 +3003,7 @@ static int hugetlb_no_page(struct mm_struct *mm, stru=
+ct vm_area_struct *vma,
+ 		}
+ 		clear_huge_page(page, address, pages_per_huge_page(h));
+ 		__SetPageUptodate(page);
++		SetPageLRU(page);
+=20
+ 		if (vma->vm_flags & VM_MAYSHARE) {
+ 			int err;
+@@ -3794,6 +3797,7 @@ int dequeue_hwpoisoned_huge_page(struct page *hpage)
+ 		 * so let it point to itself with list_del_init().
+ 		 */
+ 		list_del_init(&hpage->lru);
++		ClearPageLRU(hpage);
+ 		set_page_refcounted(hpage);
+ 		h->free_huge_pages--;
+ 		h->free_huge_pages_node[nid]--;
+@@ -3806,11 +3810,17 @@ int dequeue_hwpoisoned_huge_page(struct page *hpage=
+)
+=20
+ bool isolate_huge_page(struct page *page, struct list_head *list)
+ {
++	bool ret =3D true;
++
+ 	VM_BUG_ON_PAGE(!PageHead(page), page);
+-	if (!get_page_unless_zero(page))
+-		return false;
+ 	spin_lock(&hugetlb_lock);
++	if (!PageLRU(page) || !get_page_unless_zero(page)) {
++		ret =3D false;
++		goto unlock;
++	}
++	ClearPageLRU(page);
+ 	list_move_tail(&page->lru, list);
++unlock:
+ 	spin_unlock(&hugetlb_lock);
+ 	return true;
+ }
+@@ -3819,6 +3829,7 @@ void putback_active_hugepage(struct page *page)
+ {
+ 	VM_BUG_ON_PAGE(!PageHead(page), page);
+ 	spin_lock(&hugetlb_lock);
++	SetPageLRU(page);
+ 	list_move_tail(&page->lru, &(page_hstate(page))->hugepage_activelist);
+ 	spin_unlock(&hugetlb_lock);
+ 	put_page(page);
+diff --git v3.19_with_hugemigration_fixes.orig/mm/swap.c v3.19_with_hugemig=
+ration_fixes/mm/swap.c
+index 8a12b33936b4..ea8fe72999a8 100644
+--- v3.19_with_hugemigration_fixes.orig/mm/swap.c
++++ v3.19_with_hugemigration_fixes/mm/swap.c
+@@ -31,6 +31,7 @@
+ #include <linux/memcontrol.h>
+ #include <linux/gfp.h>
+ #include <linux/uio.h>
++#include <linux/hugetlb.h>
+=20
+ #include "internal.h"
+=20
+@@ -75,7 +76,8 @@ static void __put_compound_page(struct page *page)
+ {
+ 	compound_page_dtor *dtor;
+=20
+-	__page_cache_release(page);
++	if (!PageHuge(page))
++		__page_cache_release(page);
+ 	dtor =3D get_compound_page_dtor(page);
+ 	(*dtor)(page);
+ }
+--=20
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
