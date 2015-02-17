@@ -1,88 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id ECE2B6B0032
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2015 11:50:28 -0500 (EST)
-Received: by mail-wg0-f54.google.com with SMTP id y19so36984390wgg.13
-        for <linux-mm@kvack.org>; Tue, 17 Feb 2015 08:50:28 -0800 (PST)
-Received: from mail-wi0-x234.google.com (mail-wi0-x234.google.com. [2a00:1450:400c:c05::234])
-        by mx.google.com with ESMTPS id lt12si29905954wic.25.2015.02.17.08.50.26
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Feb 2015 08:50:27 -0800 (PST)
-Received: by mail-wi0-f180.google.com with SMTP id h11so35359556wiw.1
-        for <linux-mm@kvack.org>; Tue, 17 Feb 2015 08:50:26 -0800 (PST)
-Date: Tue, 17 Feb 2015 17:50:24 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: How to handle TIF_MEMDIE stalls?
-Message-ID: <20150217165024.GI32017@dhcp22.suse.cz>
-References: <20141229181937.GE32618@dhcp22.suse.cz>
- <201412301542.JEC35987.FFJFOOQtHLSMVO@I-love.SAKURA.ne.jp>
- <20141230112158.GA15546@dhcp22.suse.cz>
- <201502162023.GGE26089.tJOOFQMFFHLOVS@I-love.SAKURA.ne.jp>
- <20150216154201.GA27295@phnom.home.cmpxchg.org>
- <201502172057.GCD09362.FtHQMVSLJOFFOO@I-love.SAKURA.ne.jp>
- <20150217131618.GA14778@phnom.home.cmpxchg.org>
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D5B86B0032
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2015 15:33:37 -0500 (EST)
+Received: by pabrd3 with SMTP id rd3so8895107pab.1
+        for <linux-mm@kvack.org>; Tue, 17 Feb 2015 12:33:37 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id kr9si1129155pdb.94.2015.02.17.12.33.34
+        for <linux-mm@kvack.org>;
+        Tue, 17 Feb 2015 12:33:35 -0800 (PST)
+Message-ID: <54E3A59C.7090202@intel.com>
+Date: Tue, 17 Feb 2015 12:33:32 -0800
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150217131618.GA14778@phnom.home.cmpxchg.org>
+Subject: [RFC] Bogus zone->watermark[WMARK_MIN] for big systems
+Content-Type: multipart/mixed;
+ boundary="------------050704090307020007070908"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, david@fromorbit.com, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org
+To: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 17-02-15 08:16:18, Johannes Weiner wrote:
-> On Tue, Feb 17, 2015 at 08:57:05PM +0900, Tetsuo Handa wrote:
-> > Johannes Weiner wrote:
-> > > On Mon, Feb 16, 2015 at 08:23:16PM +0900, Tetsuo Handa wrote:
-> > > >   (2) Implement TIF_MEMDIE timeout.
-> > > 
-> > > How about something like this?  This should solve the deadlock problem
-> > > in the page allocator, but it would also simplify the memcg OOM killer
-> > > and allow its use by in-kernel faults again.
-> > 
-> > Yes, basic idea would be same with
-> > http://marc.info/?l=linux-mm&m=142002495532320&w=2 .
-> > 
-> > But Michal and David do not like the timeout approach.
-> > http://marc.info/?l=linux-mm&m=141684783713564&w=2
-> > http://marc.info/?l=linux-mm&m=141686814824684&w=2
+This is a multi-part message in MIME format.
+--------------050704090307020007070908
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 
-Yes I really hate time based solutions for reasons already explained in
-the referenced links.
+I've got a 2TB 8-node system (256GB per NUMA node) that's behaving a bit
+strangely (OOMs with GB of free memory).
+
+Its watermarks look wonky, with a min watermark of 0 pages for DMA and
+only 11 pages for DMA32:
+
+> Node 0 DMA    free:7428kB    min:0kB    low:0kB    high:0kB    ...
+> Node 0 DMA32  free:1024084kB min:44kB   low:52kB   high:64kB   ... present:1941936kB   managed:1862456kB
+> Node 0 Normal free:4808kB    min:6348kB low:7932kB high:9520kB ... present:266338304kB managed:262138972kB
+
+This looks to be caused by us trying to evenly distribute the
+min_free_kbytes value across the zones, but with such a huge size
+imbalance (16MB zone vs 2TB system), 1/131072th of the default
+min_free_kbytes ends up <1 page.
+
+Should we be setting up some absolute floors on the watermarks, like the
+attached patch?
+
+BTW, it seems to be this code:
+
+> static void __setup_per_zone_wmarks(void)
+> {
+>         unsigned long pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
+...
+>         for_each_zone(zone) {
+>                 u64 tmp;
+> 
+>                 spin_lock_irqsave(&zone->lock, flags);
+>                 tmp = (u64)pages_min * zone->managed_pages;
+>                 do_div(tmp, lowmem_pages);
+
+
+--------------050704090307020007070908
+Content-Type: text/x-patch;
+ name="mm-absolute-floors-for-watermarks.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+ filename="mm-absolute-floors-for-watermarks.patch"
+
+
+
+---
+
+ b/mm/page_alloc.c |   11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff -puN mm/page_alloc.c~mm-absolute-floors-for-watermarks mm/page_alloc.c
+--- a/mm/page_alloc.c~mm-absolute-floors-for-watermarks	2015-02-17 11:19:48.470054562 -0800
++++ b/mm/page_alloc.c	2015-02-17 11:26:48.164983632 -0800
+@@ -5739,6 +5739,14 @@ static void __setup_per_zone_wmarks(void
+ 	}
  
-> I'm open to suggestions, but we can't just stick our heads in the sand
-> and pretend that these are just unrelated bugs.  They're not. 
-
-Requesting GFP_NOFAIL allocation with locks held is IMHO a bug and
-should be fixed.
-Hopelessly looping in the page allocator without GFP_NOFAIL is too risky
-as well and we should get rid of this. Why should we still try to loop
-when previous 1000 attempts failed with OOM killer invocation? Can we
-simply fail after a configurable number of attempts? This is prone to
-reveal unchecked allocation failures but those are bugs as well and we
-shouldn't pretend otherwise.
-
-> As long
-> as it's legal to enter the allocator with *anything* that can prevent
-> another random task in the system from making progress, we have this
-> deadlock potential.  One side has to give up, and it can't be the page
-> allocator because it has to support __GFP_NOFAIL allocations, which
-> are usually exactly the allocations that are buried in hard-to-unwind
-> state that is likely to trip up exiting OOM victims.
-
-I am not convinced that GFP_NOFAIL is the biggest problem. Most if
-OOM livelocks I have seen were either due to GFP_KERNEL treated as
-GFP_NOFAIL or an incorrect gfp mask (e.g. GFP_FS added where not
-appropriate). I think we should focus on this part before we start
-adding heuristics into OOM killer.
+ 	for_each_zone(zone) {
++		/*
++		 * For very small zones (think 16MB ZONE_DMA on a 4TB system),
++		 * proportionally distributing pages_min can lean to
++		 * watermarks of 0.  Give it an absolute floor so we always
++		 * have at least a minimal watermark based on the size of the
++		 * *zone*, not the system.
++		 */
++		unsigned long absolute_min = zone->managed_pages / 256;
+ 		u64 tmp;
  
-> The alternative would be lock dependency tracking, but I'm not sure it
-> can be realistically done for production environments.
+ 		spin_lock_irqsave(&zone->lock, flags);
+@@ -5766,7 +5774,8 @@ static void __setup_per_zone_wmarks(void
+ 			 */
+ 			zone->watermark[WMARK_MIN] = tmp;
+ 		}
+-
++		zone->watermark[WMARK_MIN]  = max(zone->watermark[WMARK_MIN],
++						  absolute_min);
+ 		zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) + (tmp >> 2);
+ 		zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + (tmp >> 1);
+ 
+_
 
--- 
-Michal Hocko
-SUSE Labs
+--------------050704090307020007070908--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
