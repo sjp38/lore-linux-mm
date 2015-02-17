@@ -1,174 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F3C76B0032
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2015 22:28:05 -0500 (EST)
-Received: by padhz1 with SMTP id hz1so3002708pad.9
-        for <linux-mm@kvack.org>; Mon, 16 Feb 2015 19:28:04 -0800 (PST)
-Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
-        by mx.google.com with ESMTPS id oe8si5290212pbc.207.2015.02.16.19.28.03
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 16 Feb 2015 19:28:04 -0800 (PST)
-Received: from tyo202.gate.nec.co.jp ([10.7.69.202])
-	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id t1H3S04O020396
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2015 12:28:01 +0900 (JST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH] mm, hugetlb: set PageLRU for in-use/active hugepages
-Date: Tue, 17 Feb 2015 03:22:45 +0000
-Message-ID: <1424143299-7557-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 45F466B0032
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2015 00:13:12 -0500 (EST)
+Received: by pabkx10 with SMTP id kx10so3576325pab.0
+        for <linux-mm@kvack.org>; Mon, 16 Feb 2015 21:13:12 -0800 (PST)
+Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id zb5si6237421pbb.129.2015.02.16.21.13.10
+        for <linux-mm@kvack.org>;
+        Mon, 16 Feb 2015 21:13:11 -0800 (PST)
+Date: Tue, 17 Feb 2015 14:15:42 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 1/3] Slab infrastructure for array operations
+Message-ID: <20150217051541.GA15413@js1304-P5Q-DELUXE>
+References: <20150210194804.288708936@linux.com>
+ <20150210194811.787556326@linux.com>
+ <alpine.DEB.2.10.1502101542030.15535@chino.kir.corp.google.com>
+ <alpine.DEB.2.11.1502111243380.3887@gentwo.org>
+ <alpine.DEB.2.10.1502111213151.16711@chino.kir.corp.google.com>
+ <20150213023534.GA6592@js1304-P5Q-DELUXE>
+ <alpine.DEB.2.11.1502130941360.9442@gentwo.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.11.1502130941360.9442@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: David Rientjes <rientjes@google.com>, akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com, Jesper Dangaard Brouer <brouer@redhat.com>
 
-Currently we are not safe from concurrent calls of isolate_huge_page(),
-which can make the victim hugepage in invalid state and results in BUG_ON()=
-.
+On Fri, Feb 13, 2015 at 09:47:59AM -0600, Christoph Lameter wrote:
+> On Fri, 13 Feb 2015, Joonsoo Kim wrote:
+> >
+> > I also think that this implementation is slub-specific. For example,
+> > in slab case, it is always better to access local cpu cache first than
+> > page allocator since slab doesn't use list to manage free objects and
+> > there is no cache line overhead like as slub. I think that,
+> > in kmem_cache_alloc_array(), just call to allocator-defined
+> > __kmem_cache_alloc_array() is better approach.
+> 
+> What do you mean by "better"? Please be specific as to where you would see
+> a difference. And slab definititely manages free objects although
+> differently than slub. SLAB manages per cpu (local) objects, per node
+> partial lists etc. Same as SLUB. The cache line overhead is there but no
+> that big a difference in terms of choosing objects to get first.
+> 
+> For a large allocation it is beneficial for both allocators to fist reduce
+> the list of partial allocated slab pages on a node.
+> 
+> Going to the local objects first is enticing since these are cache hot but
+> there are only a limited number of these available and there are issues
+> with acquiring a large number of objects. For SLAB the objects dispersed
+> and not spatially local. For SLUB the number of objects is usually much
+> more limited than SLAB (but that is configurable these days via the cpu
+> partial pages). SLUB allocates spatially local objects from one page
+> before moving to the other. This is an advantage. However, it has to
+> traverse a linked list instead of an array (SLAB).
 
-The root problem of this is that we don't have any information on struct pa=
-ge
-(so easily accessible) about the hugepage's activeness. Note that hugepages=
-'
-activeness means just being linked to hstate->hugepage_activelist, which is
-not the same as normal pages' activeness represented by PageActive flag.
+Hello,
 
-Normal pages are isolated by isolate_lru_page() which prechecks PageLRU bef=
-ore
-isolation, so let's do similarly for hugetlb. PageLRU is unused on hugetlb,
-so this change is mostly straightforward. One non-straightforward point is =
-that
-__put_compound_page() calls __page_cache_release() to do some LRU works,
-but this is obviously for thps and assumes that hugetlb has always !PageLRU=
-.
-This assumption is no more true, so this patch simply adds if (!PageHuge) t=
-o
-avoid calling __page_cache_release() for hugetlb.
+Hmm...so far, SLAB focus on temporal locality rather than spatial locality
+as you know. Why SLAB need to consider spatial locality first in this
+kmem_cache_alloc_array() case?
 
-Set/ClearPageLRU should be called within hugetlb_lock, but hugetlb_cow() an=
-d
-hugetlb_no_page() don't do this. This is justified because in these functio=
-n
-SetPageLRU is called right after the hugepage is allocated and no other thr=
-ead
-tries to isolate it.
+And, although we use partial list first, we can't reduce
+fragmentation as much as SLUB. Local cache may keep some free objects
+of the partial slab so just exhausting free objects of partial slab doesn't
+means that there is no free object left. For SLUB, exhausting free
+objects of partial slab means there is no free object left.
 
-Fixes: commit 31caf665e666 ("mm: migrate: make core migration code aware of=
- hugepage")
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: <stable@vger.kernel.org>        [3.12+]
----
- mm/hugetlb.c | 17 ++++++++++++++---
- mm/swap.c    |  4 +++-
- 2 files changed, 17 insertions(+), 4 deletions(-)
+If we allocate objects from local cache as much as possible, we can
+keep temporal locality and return objects as fast as possible since
+returing objects from local cache just needs memcpy from local array
+cache to destination array.
 
-diff --git v3.19_with_hugemigration_fixes.orig/mm/hugetlb.c v3.19_with_huge=
-migration_fixes/mm/hugetlb.c
-index a2bfd02e289f..e28489270d9a 100644
---- v3.19_with_hugemigration_fixes.orig/mm/hugetlb.c
-+++ v3.19_with_hugemigration_fixes/mm/hugetlb.c
-@@ -830,7 +830,7 @@ static void update_and_free_page(struct hstate *h, stru=
-ct page *page)
- 		page[i].flags &=3D ~(1 << PG_locked | 1 << PG_error |
- 				1 << PG_referenced | 1 << PG_dirty |
- 				1 << PG_active | 1 << PG_private |
--				1 << PG_writeback);
-+				1 << PG_writeback | 1 << PG_lru);
- 	}
- 	VM_BUG_ON_PAGE(hugetlb_cgroup_from_page(page), page);
- 	set_compound_page_dtor(page, NULL);
-@@ -875,6 +875,7 @@ void free_huge_page(struct page *page)
- 	ClearPagePrivate(page);
-=20
- 	spin_lock(&hugetlb_lock);
-+	ClearPageLRU(page);
- 	hugetlb_cgroup_uncharge_page(hstate_index(h),
- 				     pages_per_huge_page(h), page);
- 	if (restore_reserve)
-@@ -2889,6 +2890,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct v=
-m_area_struct *vma,
- 	copy_user_huge_page(new_page, old_page, address, vma,
- 			    pages_per_huge_page(h));
- 	__SetPageUptodate(new_page);
-+	SetPageLRU(new_page);
-=20
- 	mmun_start =3D address & huge_page_mask(h);
- 	mmun_end =3D mmun_start + huge_page_size(h);
-@@ -3001,6 +3003,7 @@ static int hugetlb_no_page(struct mm_struct *mm, stru=
-ct vm_area_struct *vma,
- 		}
- 		clear_huge_page(page, address, pages_per_huge_page(h));
- 		__SetPageUptodate(page);
-+		SetPageLRU(page);
-=20
- 		if (vma->vm_flags & VM_MAYSHARE) {
- 			int err;
-@@ -3794,6 +3797,7 @@ int dequeue_hwpoisoned_huge_page(struct page *hpage)
- 		 * so let it point to itself with list_del_init().
- 		 */
- 		list_del_init(&hpage->lru);
-+		ClearPageLRU(hpage);
- 		set_page_refcounted(hpage);
- 		h->free_huge_pages--;
- 		h->free_huge_pages_node[nid]--;
-@@ -3806,11 +3810,17 @@ int dequeue_hwpoisoned_huge_page(struct page *hpage=
-)
-=20
- bool isolate_huge_page(struct page *page, struct list_head *list)
- {
-+	bool ret =3D true;
-+
- 	VM_BUG_ON_PAGE(!PageHead(page), page);
--	if (!get_page_unless_zero(page))
--		return false;
- 	spin_lock(&hugetlb_lock);
-+	if (!PageLRU(page) || !get_page_unless_zero(page)) {
-+		ret =3D false;
-+		goto unlock;
-+	}
-+	ClearPageLRU(page);
- 	list_move_tail(&page->lru, list);
-+unlock:
- 	spin_unlock(&hugetlb_lock);
- 	return true;
- }
-@@ -3819,6 +3829,7 @@ void putback_active_hugepage(struct page *page)
- {
- 	VM_BUG_ON_PAGE(!PageHead(page), page);
- 	spin_lock(&hugetlb_lock);
-+	SetPageLRU(page);
- 	list_move_tail(&page->lru, &(page_hstate(page))->hugepage_activelist);
- 	spin_unlock(&hugetlb_lock);
- 	put_page(page);
-diff --git v3.19_with_hugemigration_fixes.orig/mm/swap.c v3.19_with_hugemig=
-ration_fixes/mm/swap.c
-index 8a12b33936b4..ea8fe72999a8 100644
---- v3.19_with_hugemigration_fixes.orig/mm/swap.c
-+++ v3.19_with_hugemigration_fixes/mm/swap.c
-@@ -31,6 +31,7 @@
- #include <linux/memcontrol.h>
- #include <linux/gfp.h>
- #include <linux/uio.h>
-+#include <linux/hugetlb.h>
-=20
- #include "internal.h"
-=20
-@@ -75,7 +76,8 @@ static void __put_compound_page(struct page *page)
- {
- 	compound_page_dtor *dtor;
-=20
--	__page_cache_release(page);
-+	if (!PageHuge(page))
-+		__page_cache_release(page);
- 	dtor =3D get_compound_page_dtor(page);
- 	(*dtor)(page);
- }
---=20
-1.9.3
+This cannot be implemented by using kmem_cache_alloc_array() you
+suggested and this is why I think just calling allocator-defined
+__kmem_cache_alloc_array() is better approach.
+
+As David said, there is no implementation for SLAB yet and we have
+different opinion about implementation for SLAB. It's better
+to delay detailed implementation of kmem_cache_alloc_array()
+until implementation for SLAB is agreed. Before it, calling
+__kmem_cache_alloc_array() in kmem_cache_alloc_array() is sufficient
+to provide functionality.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
