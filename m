@@ -1,227 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 711406B0032
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2015 04:42:39 -0500 (EST)
-Received: by mail-wg0-f44.google.com with SMTP id k14so24278299wgh.3
-        for <linux-mm@kvack.org>; Tue, 17 Feb 2015 01:42:38 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id mo19si27922947wjc.83.2015.02.17.01.42.36
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id E54DC6B006C
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2015 04:43:04 -0500 (EST)
+Received: by paceu11 with SMTP id eu11so5106979pac.10
+        for <linux-mm@kvack.org>; Tue, 17 Feb 2015 01:43:04 -0800 (PST)
+Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
+        by mx.google.com with ESMTPS id kf2si4059861pad.1.2015.02.17.01.43.03
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 17 Feb 2015 01:42:37 -0800 (PST)
-Message-ID: <54E30D0B.1050805@suse.cz>
-Date: Tue, 17 Feb 2015 10:42:35 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 17 Feb 2015 01:43:04 -0800 (PST)
+Received: from tyo201.gate.nec.co.jp ([10.7.69.201])
+	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id t1H9h0SN017762
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2015 18:43:01 +0900 (JST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v2] mm, hugetlb: set PageLRU for in-use/active hugepages
+Date: Tue, 17 Feb 2015 09:32:08 +0000
+Message-ID: <20150217093153.GA12875@hori1.linux.bs1.fc.nec.co.jp>
+References: <1424143299-7557-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1424143299-7557-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <C358764B88A919429C6880091365C6CD@gisp.nec.co.jp>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 2/3] mm/page_alloc: factor out fallback freepage checking
-References: <1423725305-3726-1-git-send-email-iamjoonsoo.kim@lge.com> <1423725305-3726-2-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1423725305-3726-2-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On 02/12/2015 08:15 AM, Joonsoo Kim wrote:
-> This is preparation step to use page allocator's anti fragmentation logic
-> in compaction. This patch just separates fallback freepage checking part
-> from fallback freepage management part. Therefore, there is no functional
-> change.
->
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-> ---
->   mm/page_alloc.c |  143 +++++++++++++++++++++++++++++++++++--------------------
->   1 file changed, 91 insertions(+), 52 deletions(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index e64b260..64a4974 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1142,14 +1142,40 @@ static void change_pageblock_range(struct page *pageblock_page,
->    * as fragmentation caused by those allocations polluting movable pageblocks
->    * is worse than movable allocations stealing from unmovable and reclaimable
->    * pageblocks.
-> - *
-> - * If we claim more than half of the pageblock, change pageblock's migratetype
-> - * as well.
->    */
-> -static void try_to_steal_freepages(struct zone *zone, struct page *page,
-> -				  int start_type, int fallback_type)
-> +static bool can_steal_fallback(unsigned int order, int start_mt)
-> +{
-> +	/*
-> +	 * Leaving this order check is intended, although there is
-> +	 * relaxed order check in next check. The reason is that
-> +	 * we can actually steal whole pageblock if this condition met,
-> +	 * but, below check doesn't guarantee it and that is just heuristic
-> +	 * so could be changed anytime.
-> +	 */
-> +	if (order >= pageblock_order)
-> +		return true;
-> +
-> +	if (order >= pageblock_order / 2 ||
-> +		start_mt == MIGRATE_RECLAIMABLE ||
-> +		start_mt == MIGRATE_UNMOVABLE ||
-> +		page_group_by_mobility_disabled)
-> +		return true;
-> +
-> +	return false;
-> +}
-> +
-> +/*
-> + * This function implements actual steal behaviour. If order is large enough,
-> + * we can steal whole pageblock. If not, we first move freepages in this
-> + * pageblock and check whether half of pages are moved or not. If half of
-> + * pages are moved, we can change migratetype of pageblock and permanently
-> + * use it's pages as requested migratetype in the future.
-> + */
-> +static void steal_suitable_fallback(struct zone *zone, struct page *page,
-> +							  int start_type)
->   {
->   	int current_order = page_order(page);
-> +	int pages;
->
->   	/* Take ownership for orders >= pageblock_order */
->   	if (current_order >= pageblock_order) {
-> @@ -1157,19 +1183,40 @@ static void try_to_steal_freepages(struct zone *zone, struct page *page,
->   		return;
->   	}
->
-> -	if (current_order >= pageblock_order / 2 ||
-> -	    start_type == MIGRATE_RECLAIMABLE ||
-> -	    start_type == MIGRATE_UNMOVABLE ||
-> -	    page_group_by_mobility_disabled) {
-> -		int pages;
-> +	pages = move_freepages_block(zone, page, start_type);
-> +
-> +	/* Claim the whole block if over half of it is free */
-> +	if (pages >= (1 << (pageblock_order-1)) ||
-> +			page_group_by_mobility_disabled)
-> +		set_pageblock_migratetype(page, start_type);
-> +}
-> +
-> +/* Check whether there is a suitable fallback freepage with requested order. */
-> +static int find_suitable_fallback(struct free_area *area, unsigned int order,
-> +					int migratetype, bool *can_steal)
-> +{
-> +	int i;
-> +	int fallback_mt;
-> +
-> +	if (area->nr_free == 0)
-> +		return -1;
-> +
-> +	*can_steal = false;
-> +	for (i = 0;; i++) {
-> +		fallback_mt = fallbacks[migratetype][i];
-> +		if (fallback_mt == MIGRATE_RESERVE)
-> +			break;
-> +
-> +		if (list_empty(&area->free_list[fallback_mt]))
-> +			continue;
->
-> -		pages = move_freepages_block(zone, page, start_type);
-> +		if (can_steal_fallback(order, migratetype))
-> +			*can_steal = true;
->
-> -		/* Claim the whole block if over half of it is free */
-> -		if (pages >= (1 << (pageblock_order-1)) ||
-> -				page_group_by_mobility_disabled)
-> -			set_pageblock_migratetype(page, start_type);
-> +		return fallback_mt;
->   	}
-> +
-> +	return -1;
->   }
->
->   /* Remove an element from the buddy allocator from the fallback list */
-> @@ -1179,53 +1226,45 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
->   	struct free_area *area;
->   	unsigned int current_order;
->   	struct page *page;
-> +	int fallback_mt;
-> +	bool can_steal;
->
->   	/* Find the largest possible block of pages in the other list */
->   	for (current_order = MAX_ORDER-1;
->   				current_order >= order && current_order <= MAX_ORDER-1;
->   				--current_order) {
-> -		int i;
-> -		for (i = 0;; i++) {
-> -			int migratetype = fallbacks[start_migratetype][i];
-> -			int buddy_type = start_migratetype;
-> -
-> -			/* MIGRATE_RESERVE handled later if necessary */
-> -			if (migratetype == MIGRATE_RESERVE)
-> -				break;
-> -
-> -			area = &(zone->free_area[current_order]);
-> -			if (list_empty(&area->free_list[migratetype]))
-> -				continue;
-> -
-> -			page = list_entry(area->free_list[migratetype].next,
-> -					struct page, lru);
-> -			area->nr_free--;
-> -
-> -			try_to_steal_freepages(zone, page, start_migratetype,
-> -								migratetype);
-> +		area = &(zone->free_area[current_order]);
-> +		fallback_mt = find_suitable_fallback(area, current_order,
-> +				start_migratetype, &can_steal);
-> +		if (fallback_mt == -1)
-> +			continue;
->
-> -			/* Remove the page from the freelists */
-> -			list_del(&page->lru);
-> -			rmv_page_order(page);
-> +		page = list_entry(area->free_list[fallback_mt].next,
-> +						struct page, lru);
-> +		if (can_steal)
-> +			steal_suitable_fallback(zone, page, start_migratetype);
->
-> -			expand(zone, page, order, current_order, area,
-> -					buddy_type);
-> +		/* Remove the page from the freelists */
-> +		area->nr_free--;
-> +		list_del(&page->lru);
-> +		rmv_page_order(page);
->
-> -			/*
-> -			 * The freepage_migratetype may differ from pageblock's
-> -			 * migratetype depending on the decisions in
-> -			 * try_to_steal_freepages(). This is OK as long as it
-> -			 * does not differ for MIGRATE_CMA pageblocks. For CMA
-> -			 * we need to make sure unallocated pages flushed from
-> -			 * pcp lists are returned to the correct freelist.
-> -			 */
-> -			set_freepage_migratetype(page, buddy_type);
-> +		expand(zone, page, order, current_order, area,
-> +					start_migratetype);
-> +		/*
-> +		 * The freepage_migratetype may differ from pageblock's
-> +		 * migratetype depending on the decisions in
-> +		 * try_to_steal_freepages(). This is OK as long as it
-> +		 * does not differ for MIGRATE_CMA pageblocks. For CMA
-> +		 * we need to make sure unallocated pages flushed from
-> +		 * pcp lists are returned to the correct freelist.
-> +		 */
-> +		set_freepage_migratetype(page, start_migratetype);
->
-> -			trace_mm_page_alloc_extfrag(page, order, current_order,
-> -				start_migratetype, migratetype);
-> +		trace_mm_page_alloc_extfrag(page, order, current_order,
-> +			start_migratetype, fallback_mt);
->
-> -			return page;
-> -		}
-> +		return page;
->   	}
->
->   	return NULL;
->
+T24gVHVlLCBGZWIgMTcsIDIwMTUgYXQgMDM6MjI6NDVBTSArMDAwMCwgSG9yaWd1Y2hpIE5hb3lh
+KOWggOWPoyDnm7TkuZ8pIHdyb3RlOg0KPiBDdXJyZW50bHkgd2UgYXJlIG5vdCBzYWZlIGZyb20g
+Y29uY3VycmVudCBjYWxscyBvZiBpc29sYXRlX2h1Z2VfcGFnZSgpLA0KPiB3aGljaCBjYW4gbWFr
+ZSB0aGUgdmljdGltIGh1Z2VwYWdlIGluIGludmFsaWQgc3RhdGUgYW5kIHJlc3VsdHMgaW4gQlVH
+X09OKCkuDQo+IA0KPiBUaGUgcm9vdCBwcm9ibGVtIG9mIHRoaXMgaXMgdGhhdCB3ZSBkb24ndCBo
+YXZlIGFueSBpbmZvcm1hdGlvbiBvbiBzdHJ1Y3QgcGFnZQ0KPiAoc28gZWFzaWx5IGFjY2Vzc2li
+bGUpIGFib3V0IHRoZSBodWdlcGFnZSdzIGFjdGl2ZW5lc3MuIE5vdGUgdGhhdCBodWdlcGFnZXMn
+DQo+IGFjdGl2ZW5lc3MgbWVhbnMganVzdCBiZWluZyBsaW5rZWQgdG8gaHN0YXRlLT5odWdlcGFn
+ZV9hY3RpdmVsaXN0LCB3aGljaCBpcw0KPiBub3QgdGhlIHNhbWUgYXMgbm9ybWFsIHBhZ2VzJyBh
+Y3RpdmVuZXNzIHJlcHJlc2VudGVkIGJ5IFBhZ2VBY3RpdmUgZmxhZy4NCj4gDQo+IE5vcm1hbCBw
+YWdlcyBhcmUgaXNvbGF0ZWQgYnkgaXNvbGF0ZV9scnVfcGFnZSgpIHdoaWNoIHByZWNoZWNrcyBQ
+YWdlTFJVIGJlZm9yZQ0KPiBpc29sYXRpb24sIHNvIGxldCdzIGRvIHNpbWlsYXJseSBmb3IgaHVn
+ZXRsYi4gUGFnZUxSVSBpcyB1bnVzZWQgb24gaHVnZXRsYiwNCj4gc28gdGhpcyBjaGFuZ2UgaXMg
+bW9zdGx5IHN0cmFpZ2h0Zm9yd2FyZC4gT25lIG5vbi1zdHJhaWdodGZvcndhcmQgcG9pbnQgaXMg
+dGhhdA0KPiBfX3B1dF9jb21wb3VuZF9wYWdlKCkgY2FsbHMgX19wYWdlX2NhY2hlX3JlbGVhc2Uo
+KSB0byBkbyBzb21lIExSVSB3b3JrcywNCj4gYnV0IHRoaXMgaXMgb2J2aW91c2x5IGZvciB0aHBz
+IGFuZCBhc3N1bWVzIHRoYXQgaHVnZXRsYiBoYXMgYWx3YXlzICFQYWdlTFJVLg0KPiBUaGlzIGFz
+c3VtcHRpb24gaXMgbm8gbW9yZSB0cnVlLCBzbyB0aGlzIHBhdGNoIHNpbXBseSBhZGRzIGlmICgh
+UGFnZUh1Z2UpIHRvDQo+IGF2b2lkIGNhbGxpbmcgX19wYWdlX2NhY2hlX3JlbGVhc2UoKSBmb3Ig
+aHVnZXRsYi4NCj4gDQo+IFNldC9DbGVhclBhZ2VMUlUgc2hvdWxkIGJlIGNhbGxlZCB3aXRoaW4g
+aHVnZXRsYl9sb2NrLCBidXQgaHVnZXRsYl9jb3coKSBhbmQNCj4gaHVnZXRsYl9ub19wYWdlKCkg
+ZG9uJ3QgZG8gdGhpcy4gVGhpcyBpcyBqdXN0aWZpZWQgYmVjYXVzZSBpbiB0aGVzZSBmdW5jdGlv
+bg0KPiBTZXRQYWdlTFJVIGlzIGNhbGxlZCByaWdodCBhZnRlciB0aGUgaHVnZXBhZ2UgaXMgYWxs
+b2NhdGVkIGFuZCBubyBvdGhlciB0aHJlYWQNCj4gdHJpZXMgdG8gaXNvbGF0ZSBpdC4NCj4gDQo+
+IEZpeGVzOiBjb21taXQgMzFjYWY2NjVlNjY2ICgibW06IG1pZ3JhdGU6IG1ha2UgY29yZSBtaWdy
+YXRpb24gY29kZSBhd2FyZSBvZiBodWdlcGFnZSIpDQo+IFNpZ25lZC1vZmYtYnk6IE5hb3lhIEhv
+cmlndWNoaSA8bi1ob3JpZ3VjaGlAYWguanAubmVjLmNvbT4NCj4gQ2M6IDxzdGFibGVAdmdlci5r
+ZXJuZWwub3JnPiAgICAgICAgWzMuMTIrXQ0KDQpTb3JyeSwgbXkgdGVzdGluZyB3YXMgbm90IGVu
+b3VnaCBhbmQgSSBmb3VuZCBhIGJ1ZyBpbiBzb2Z0IG9mZmxpbmUgY29kZS4NCkhlcmUgaXMgdGhl
+IHVwZGF0ZWQgb25lLg0KDQpUaGFua3MsDQpOYW95YSBIb3JpZ3VjaGkNCi0tLS0NCkZyb20gZTY5
+OTUwMDExMzYwZjYyNGUwODcxMmRlNGQ1NDFjN2Q2ODZkNjI5NiBNb24gU2VwIDE3IDAwOjAwOjAw
+IDIwMDENCkZyb206IE5hb3lhIEhvcmlndWNoaSA8bi1ob3JpZ3VjaGlAYWguanAubmVjLmNvbT4N
+CkRhdGU6IE1vbiwgMTYgRmViIDIwMTUgMTg6MzM6MzUgKzA5MDANClN1YmplY3Q6IFtQQVRDSCB2
+Ml0gbW0sIGh1Z2V0bGI6IHNldCBQYWdlTFJVIGZvciBpbi11c2UvYWN0aXZlIGh1Z2VwYWdlcw0K
+DQpDdXJyZW50bHkgd2UgYXJlIG5vdCBzYWZlIGZyb20gY29uY3VycmVudCBjYWxscyBvZiBpc29s
+YXRlX2h1Z2VfcGFnZSgpLA0Kd2hpY2ggY2FuIG1ha2UgdGhlIHZpY3RpbSBodWdlcGFnZSBpbiBp
+bnZhbGlkIHN0YXRlIGFuZCByZXN1bHRzIGluIEJVR19PTigpLg0KDQpUaGUgcm9vdCBwcm9ibGVt
+IG9mIHRoaXMgaXMgdGhhdCB3ZSBkb24ndCBoYXZlIGFueSBpbmZvcm1hdGlvbiBvbiBzdHJ1Y3Qg
+cGFnZQ0KKHNvIGVhc2lseSBhY2Nlc3NpYmxlKSBhYm91dCB0aGUgaHVnZXBhZ2UncyBhY3RpdmVu
+ZXNzLiBOb3RlIHRoYXQgaHVnZXBhZ2VzJw0KYWN0aXZlbmVzcyBtZWFucyBqdXN0IGJlaW5nIGxp
+bmtlZCB0byBoc3RhdGUtPmh1Z2VwYWdlX2FjdGl2ZWxpc3QsIHdoaWNoIGlzDQpub3QgdGhlIHNh
+bWUgYXMgbm9ybWFsIHBhZ2VzJyBhY3RpdmVuZXNzIHJlcHJlc2VudGVkIGJ5IFBhZ2VBY3RpdmUg
+ZmxhZy4NCg0KTm9ybWFsIHBhZ2VzIGFyZSBpc29sYXRlZCBieSBpc29sYXRlX2xydV9wYWdlKCkg
+d2hpY2ggcHJlY2hlY2tzIFBhZ2VMUlUgYmVmb3JlDQppc29sYXRpb24sIHNvIGxldCdzIGRvIHNp
+bWlsYXJseSBmb3IgaHVnZXRsYi4gUGFnZUxSVSBpcyB1bnVzZWQgb24gaHVnZXRsYiBub3csDQpz
+byB0aGUgY2hhbmdlIGlzIG1vc3RseSBqdXN0IGluc2VydGluZyBTZXQvQ2xlYXJQYWdlTFJVIChu
+byBjb25mbGljdCB3aXRoDQpjdXJyZW50IHVzYWdlLikgQW5kIHRoZSBvdGhlciBjaGFuZ2VzIGFy
+ZSBqdXN0aWZpZWQgbGlrZSBiZWxvdzoNCi0gX19wdXRfY29tcG91bmRfcGFnZSgpIGNhbGxzIF9f
+cGFnZV9jYWNoZV9yZWxlYXNlKCkgdG8gZG8gc29tZSBMUlUgd29ya3MsDQogIGJ1dCB0aGlzIGlz
+IG9idmlvdXNseSBmb3IgdGhwcyBhbmQgYXNzdW1lcyB0aGF0IGh1Z2V0bGIgaGFzIGFsd2F5cyAh
+UGFnZUxSVS4NCiAgVGhpcyBhc3N1bXB0aW9uIGlzIG5vdCB0cnVlIGFueSBtb3JlLCBzbyB0aGlz
+IHBhdGNoIHNpbXBseSBhZGRzIGlmICghUGFnZUh1Z2UpDQogIHRvIGF2b2lkIGNhbGxpbmcgX19w
+YWdlX2NhY2hlX3JlbGVhc2UoKSBmb3IgaHVnZXRsYi4NCi0gc29mdF9vZmZsaW5lX2h1Z2VfcGFn
+ZSgpIG5vdyBqdXN0IGNhbGxzIGxpc3RfbW92ZSgpLCBidXQgZ2VuZXJhbGx5IGNhbGxlcnMNCiAg
+b2YgcGFnZSBtaWdyYXRpb24gc2hvdWxkIHVzZSB0aGUgY29tbW9uIHJvdXRpbmUgaW4gaXNvbGF0
+aW9uLCBzbyBsZXQncw0KICByZXBsYWNlIHRoZSBsaXN0X21vdmUoKSB3aXRoIGlzb2xhdGVfaHVn
+ZV9wYWdlKCkgcmF0aGVyIHRoYW4gaW5zZXJ0aW5nDQogIENsZWFyUGFnZUxSVS4NCg0KU2V0L0Ns
+ZWFyUGFnZUxSVSBzaG91bGQgYmUgY2FsbGVkIHdpdGhpbiBodWdldGxiX2xvY2ssIGJ1dCBodWdl
+dGxiX2NvdygpIGFuZA0KaHVnZXRsYl9ub19wYWdlKCkgZG9uJ3QgZG8gdGhpcy4gVGhpcyBpcyBq
+dXN0aWZpZWQgYmVjYXVzZSBpbiB0aGVzZSBmdW5jdGlvbg0KU2V0UGFnZUxSVSBpcyBjYWxsZWQg
+cmlnaHQgYWZ0ZXIgdGhlIGh1Z2VwYWdlIGlzIGFsbG9jYXRlZCBhbmQgbm8gb3RoZXIgdGhyZWFk
+DQp0cmllcyB0byBpc29sYXRlIGl0Lg0KDQpGaXhlczogY29tbWl0IDMxY2FmNjY1ZTY2NiAoIm1t
+OiBtaWdyYXRlOiBtYWtlIGNvcmUgbWlncmF0aW9uIGNvZGUgYXdhcmUgb2YgaHVnZXBhZ2UiKQ0K
+U2lnbmVkLW9mZi1ieTogTmFveWEgSG9yaWd1Y2hpIDxuLWhvcmlndWNoaUBhaC5qcC5uZWMuY29t
+Pg0KQ2M6IDxzdGFibGVAdmdlci5rZXJuZWwub3JnPiAgICAgICAgWzMuMTIrXQ0KLS0tDQpDaGFu
+Z2VMb2cgdjEtPnYyOg0KLSBjYWxsIGlzb2xhdGVfaHVnZV9wYWdlKCkgaW4gc29mdF9vZmZsaW5l
+X2h1Z2VfcGFnZSgpIGluc3RlYWQgb2YgbGlzdF9tb3ZlKCkNCi0tLQ0KIG1tL2h1Z2V0bGIuYyAg
+ICAgICAgfCAxNyArKysrKysrKysrKysrKy0tLQ0KIG1tL21lbW9yeS1mYWlsdXJlLmMgfCAxNCAr
+KysrKysrKysrKystLQ0KIG1tL3N3YXAuYyAgICAgICAgICAgfCAgNCArKystDQogMyBmaWxlcyBj
+aGFuZ2VkLCAyOSBpbnNlcnRpb25zKCspLCA2IGRlbGV0aW9ucygtKQ0KDQpkaWZmIC0tZ2l0IGEv
+bW0vaHVnZXRsYi5jIGIvbW0vaHVnZXRsYi5jDQppbmRleCBhMmJmZDAyZTI4OWYuLmUyODQ4OTI3
+MGQ5YSAxMDA2NDQNCi0tLSBhL21tL2h1Z2V0bGIuYw0KKysrIGIvbW0vaHVnZXRsYi5jDQpAQCAt
+ODMwLDcgKzgzMCw3IEBAIHN0YXRpYyB2b2lkIHVwZGF0ZV9hbmRfZnJlZV9wYWdlKHN0cnVjdCBo
+c3RhdGUgKmgsIHN0cnVjdCBwYWdlICpwYWdlKQ0KIAkJcGFnZVtpXS5mbGFncyAmPSB+KDEgPDwg
+UEdfbG9ja2VkIHwgMSA8PCBQR19lcnJvciB8DQogCQkJCTEgPDwgUEdfcmVmZXJlbmNlZCB8IDEg
+PDwgUEdfZGlydHkgfA0KIAkJCQkxIDw8IFBHX2FjdGl2ZSB8IDEgPDwgUEdfcHJpdmF0ZSB8DQot
+CQkJCTEgPDwgUEdfd3JpdGViYWNrKTsNCisJCQkJMSA8PCBQR193cml0ZWJhY2sgfCAxIDw8IFBH
+X2xydSk7DQogCX0NCiAJVk1fQlVHX09OX1BBR0UoaHVnZXRsYl9jZ3JvdXBfZnJvbV9wYWdlKHBh
+Z2UpLCBwYWdlKTsNCiAJc2V0X2NvbXBvdW5kX3BhZ2VfZHRvcihwYWdlLCBOVUxMKTsNCkBAIC04
+NzUsNiArODc1LDcgQEAgdm9pZCBmcmVlX2h1Z2VfcGFnZShzdHJ1Y3QgcGFnZSAqcGFnZSkNCiAJ
+Q2xlYXJQYWdlUHJpdmF0ZShwYWdlKTsNCiANCiAJc3Bpbl9sb2NrKCZodWdldGxiX2xvY2spOw0K
+KwlDbGVhclBhZ2VMUlUocGFnZSk7DQogCWh1Z2V0bGJfY2dyb3VwX3VuY2hhcmdlX3BhZ2UoaHN0
+YXRlX2luZGV4KGgpLA0KIAkJCQkgICAgIHBhZ2VzX3Blcl9odWdlX3BhZ2UoaCksIHBhZ2UpOw0K
+IAlpZiAocmVzdG9yZV9yZXNlcnZlKQ0KQEAgLTI4ODksNiArMjg5MCw3IEBAIHN0YXRpYyBpbnQg
+aHVnZXRsYl9jb3coc3RydWN0IG1tX3N0cnVjdCAqbW0sIHN0cnVjdCB2bV9hcmVhX3N0cnVjdCAq
+dm1hLA0KIAljb3B5X3VzZXJfaHVnZV9wYWdlKG5ld19wYWdlLCBvbGRfcGFnZSwgYWRkcmVzcywg
+dm1hLA0KIAkJCSAgICBwYWdlc19wZXJfaHVnZV9wYWdlKGgpKTsNCiAJX19TZXRQYWdlVXB0b2Rh
+dGUobmV3X3BhZ2UpOw0KKwlTZXRQYWdlTFJVKG5ld19wYWdlKTsNCiANCiAJbW11bl9zdGFydCA9
+IGFkZHJlc3MgJiBodWdlX3BhZ2VfbWFzayhoKTsNCiAJbW11bl9lbmQgPSBtbXVuX3N0YXJ0ICsg
+aHVnZV9wYWdlX3NpemUoaCk7DQpAQCAtMzAwMSw2ICszMDAzLDcgQEAgc3RhdGljIGludCBodWdl
+dGxiX25vX3BhZ2Uoc3RydWN0IG1tX3N0cnVjdCAqbW0sIHN0cnVjdCB2bV9hcmVhX3N0cnVjdCAq
+dm1hLA0KIAkJfQ0KIAkJY2xlYXJfaHVnZV9wYWdlKHBhZ2UsIGFkZHJlc3MsIHBhZ2VzX3Blcl9o
+dWdlX3BhZ2UoaCkpOw0KIAkJX19TZXRQYWdlVXB0b2RhdGUocGFnZSk7DQorCQlTZXRQYWdlTFJV
+KHBhZ2UpOw0KIA0KIAkJaWYgKHZtYS0+dm1fZmxhZ3MgJiBWTV9NQVlTSEFSRSkgew0KIAkJCWlu
+dCBlcnI7DQpAQCAtMzc5NCw2ICszNzk3LDcgQEAgaW50IGRlcXVldWVfaHdwb2lzb25lZF9odWdl
+X3BhZ2Uoc3RydWN0IHBhZ2UgKmhwYWdlKQ0KIAkJICogc28gbGV0IGl0IHBvaW50IHRvIGl0c2Vs
+ZiB3aXRoIGxpc3RfZGVsX2luaXQoKS4NCiAJCSAqLw0KIAkJbGlzdF9kZWxfaW5pdCgmaHBhZ2Ut
+PmxydSk7DQorCQlDbGVhclBhZ2VMUlUoaHBhZ2UpOw0KIAkJc2V0X3BhZ2VfcmVmY291bnRlZCho
+cGFnZSk7DQogCQloLT5mcmVlX2h1Z2VfcGFnZXMtLTsNCiAJCWgtPmZyZWVfaHVnZV9wYWdlc19u
+b2RlW25pZF0tLTsNCkBAIC0zODA2LDExICszODEwLDE3IEBAIGludCBkZXF1ZXVlX2h3cG9pc29u
+ZWRfaHVnZV9wYWdlKHN0cnVjdCBwYWdlICpocGFnZSkNCiANCiBib29sIGlzb2xhdGVfaHVnZV9w
+YWdlKHN0cnVjdCBwYWdlICpwYWdlLCBzdHJ1Y3QgbGlzdF9oZWFkICpsaXN0KQ0KIHsNCisJYm9v
+bCByZXQgPSB0cnVlOw0KKw0KIAlWTV9CVUdfT05fUEFHRSghUGFnZUhlYWQocGFnZSksIHBhZ2Up
+Ow0KLQlpZiAoIWdldF9wYWdlX3VubGVzc196ZXJvKHBhZ2UpKQ0KLQkJcmV0dXJuIGZhbHNlOw0K
+IAlzcGluX2xvY2soJmh1Z2V0bGJfbG9jayk7DQorCWlmICghUGFnZUxSVShwYWdlKSB8fCAhZ2V0
+X3BhZ2VfdW5sZXNzX3plcm8ocGFnZSkpIHsNCisJCXJldCA9IGZhbHNlOw0KKwkJZ290byB1bmxv
+Y2s7DQorCX0NCisJQ2xlYXJQYWdlTFJVKHBhZ2UpOw0KIAlsaXN0X21vdmVfdGFpbCgmcGFnZS0+
+bHJ1LCBsaXN0KTsNCit1bmxvY2s6DQogCXNwaW5fdW5sb2NrKCZodWdldGxiX2xvY2spOw0KIAly
+ZXR1cm4gdHJ1ZTsNCiB9DQpAQCAtMzgxOSw2ICszODI5LDcgQEAgdm9pZCBwdXRiYWNrX2FjdGl2
+ZV9odWdlcGFnZShzdHJ1Y3QgcGFnZSAqcGFnZSkNCiB7DQogCVZNX0JVR19PTl9QQUdFKCFQYWdl
+SGVhZChwYWdlKSwgcGFnZSk7DQogCXNwaW5fbG9jaygmaHVnZXRsYl9sb2NrKTsNCisJU2V0UGFn
+ZUxSVShwYWdlKTsNCiAJbGlzdF9tb3ZlX3RhaWwoJnBhZ2UtPmxydSwgJihwYWdlX2hzdGF0ZShw
+YWdlKSktPmh1Z2VwYWdlX2FjdGl2ZWxpc3QpOw0KIAlzcGluX3VubG9jaygmaHVnZXRsYl9sb2Nr
+KTsNCiAJcHV0X3BhZ2UocGFnZSk7DQpkaWZmIC0tZ2l0IGEvbW0vbWVtb3J5LWZhaWx1cmUuYyBi
+L21tL21lbW9yeS1mYWlsdXJlLmMNCmluZGV4IDIwYzI5ZGRmZjE3Yi4uNTBjY2ZkYmRhMjE0IDEw
+MDY0NA0KLS0tIGEvbW0vbWVtb3J5LWZhaWx1cmUuYw0KKysrIGIvbW0vbWVtb3J5LWZhaWx1cmUu
+Yw0KQEAgLTE1NDcsOCArMTU0NywxOCBAQCBzdGF0aWMgaW50IHNvZnRfb2ZmbGluZV9odWdlX3Bh
+Z2Uoc3RydWN0IHBhZ2UgKnBhZ2UsIGludCBmbGFncykNCiAJfQ0KIAl1bmxvY2tfcGFnZShocGFn
+ZSk7DQogDQotCS8qIEtlZXAgcGFnZSBjb3VudCB0byBpbmRpY2F0ZSBhIGdpdmVuIGh1Z2VwYWdl
+IGlzIGlzb2xhdGVkLiAqLw0KLQlsaXN0X21vdmUoJmhwYWdlLT5scnUsICZwYWdlbGlzdCk7DQor
+CXJldCA9IGlzb2xhdGVfaHVnZV9wYWdlKGhwYWdlLCAmcGFnZWxpc3QpOw0KKwlpZiAocmV0KSB7
+DQorCQkvKg0KKwkJICogZ2V0X2FueV9wYWdlKCkgYWxyZWFkeSB0YWtlcyBhbm90aGVyIHJlZmNv
+dW50LCBzbyBkcm9wIG9uZQ0KKwkJICogaGVyZS4NCisJCSAqLw0KKwkJcHV0X3BhZ2UoaHBhZ2Up
+Ow0KKwl9IGVsc2Ugew0KKwkJcHJfaW5mbygic29mdCBvZmZsaW5lOiAlI2x4IGh1Z2VwYWdlIGZh
+aWxlZCB0byBpc29sYXRlXG4iLCBwZm4pOw0KKwkJcmV0dXJuIC1FQlVTWTsNCisJfQ0KKw0KIAly
+ZXQgPSBtaWdyYXRlX3BhZ2VzKCZwYWdlbGlzdCwgbmV3X3BhZ2UsIE5VTEwsIE1QT0xfTUZfTU9W
+RV9BTEwsDQogCQkJCU1JR1JBVEVfU1lOQywgTVJfTUVNT1JZX0ZBSUxVUkUpOw0KIAlpZiAocmV0
+KSB7DQpkaWZmIC0tZ2l0IGEvbW0vc3dhcC5jIGIvbW0vc3dhcC5jDQppbmRleCA4YTEyYjMzOTM2
+YjQuLmVhOGZlNzI5OTlhOCAxMDA2NDQNCi0tLSBhL21tL3N3YXAuYw0KKysrIGIvbW0vc3dhcC5j
+DQpAQCAtMzEsNiArMzEsNyBAQA0KICNpbmNsdWRlIDxsaW51eC9tZW1jb250cm9sLmg+DQogI2lu
+Y2x1ZGUgPGxpbnV4L2dmcC5oPg0KICNpbmNsdWRlIDxsaW51eC91aW8uaD4NCisjaW5jbHVkZSA8
+bGludXgvaHVnZXRsYi5oPg0KIA0KICNpbmNsdWRlICJpbnRlcm5hbC5oIg0KIA0KQEAgLTc1LDcg
+Kzc2LDggQEAgc3RhdGljIHZvaWQgX19wdXRfY29tcG91bmRfcGFnZShzdHJ1Y3QgcGFnZSAqcGFn
+ZSkNCiB7DQogCWNvbXBvdW5kX3BhZ2VfZHRvciAqZHRvcjsNCiANCi0JX19wYWdlX2NhY2hlX3Jl
+bGVhc2UocGFnZSk7DQorCWlmICghUGFnZUh1Z2UocGFnZSkpDQorCQlfX3BhZ2VfY2FjaGVfcmVs
+ZWFzZShwYWdlKTsNCiAJZHRvciA9IGdldF9jb21wb3VuZF9wYWdlX2R0b3IocGFnZSk7DQogCSgq
+ZHRvcikocGFnZSk7DQogfQ0KLS0gDQoxLjkuMw0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
