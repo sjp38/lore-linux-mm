@@ -1,93 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id BAAE56B0032
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2015 08:22:49 -0500 (EST)
-Received: by pdbfp1 with SMTP id fp1so43660099pdb.9
-        for <linux-mm@kvack.org>; Tue, 17 Feb 2015 05:22:49 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id fj3si7500282pbc.45.2015.02.17.05.22.48
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F1346B0032
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2015 09:37:24 -0500 (EST)
+Received: by mail-wi0-f181.google.com with SMTP id r20so34028195wiv.2
+        for <linux-mm@kvack.org>; Tue, 17 Feb 2015 06:37:23 -0800 (PST)
+Received: from mail-wi0-x22c.google.com (mail-wi0-x22c.google.com. [2a00:1450:400c:c05::22c])
+        by mx.google.com with ESMTPS id yn4si29362440wjc.16.2015.02.17.06.37.22
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 17 Feb 2015 05:22:48 -0800 (PST)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Feb 2015 06:37:22 -0800 (PST)
+Received: by mail-wi0-f172.google.com with SMTP id l15so33685887wiw.5
+        for <linux-mm@kvack.org>; Tue, 17 Feb 2015 06:37:22 -0800 (PST)
+Date: Tue, 17 Feb 2015 15:37:20 +0100
+From: Michal Hocko <mhocko@suse.cz>
 Subject: Re: How to handle TIF_MEMDIE stalls?
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20141230112158.GA15546@dhcp22.suse.cz>
-	<201502092044.JDG39081.LVFOOtFHQFOMSJ@I-love.SAKURA.ne.jp>
-	<201502102258.IFE09888.OVQFJOMSFtOLFH@I-love.SAKURA.ne.jp>
-	<20150210151934.GA11212@phnom.home.cmpxchg.org>
-	<201502111123.ICD65197.FMLOHSQJFVOtFO@I-love.SAKURA.ne.jp>
-In-Reply-To: <201502111123.ICD65197.FMLOHSQJFVOtFO@I-love.SAKURA.ne.jp>
-Message-Id: <201502172123.JIE35470.QOLMVOFJSHOFFt@I-love.SAKURA.ne.jp>
-Date: Tue, 17 Feb 2015 21:23:26 +0900
-Mime-Version: 1.0
+Message-ID: <20150217143720.GB32017@dhcp22.suse.cz>
+References: <20141220223504.GI15665@dastard>
+ <201412211745.ECD69212.LQOFHtFOJMSOFV@I-love.SAKURA.ne.jp>
+ <20141229181937.GE32618@dhcp22.suse.cz>
+ <201412301542.JEC35987.FFJFOOQtHLSMVO@I-love.SAKURA.ne.jp>
+ <20141230112158.GA15546@dhcp22.suse.cz>
+ <201502092044.JDG39081.LVFOOtFHQFOMSJ@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201502092044.JDG39081.LVFOOtFHQFOMSJ@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hannes@cmpxchg.org
-Cc: mhocko@suse.cz, david@fromorbit.com, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: david@fromorbit.com, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, hannes@cmpxchg.org, torvalds@linux-foundation.org
 
-Tetsuo Handa wrote:
-> Johannes Weiner wrote:
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 8e20f9c2fa5a..f77c58ebbcfa 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -2382,8 +2382,15 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
-> >  		if (high_zoneidx < ZONE_NORMAL)
-> >  			goto out;
-> >  		/* The OOM killer does not compensate for light reclaim */
-> > -		if (!(gfp_mask & __GFP_FS))
-> > +		if (!(gfp_mask & __GFP_FS)) {
-> > +			/*
-> > +			 * XXX: Page reclaim didn't yield anything,
-> > +			 * and the OOM killer can't be invoked, but
-> > +			 * keep looping as per should_alloc_retry().
-> > +			 */
-> > +			*did_some_progress = 1;
-> >  			goto out;
-> > +		}
+On Mon 09-02-15 20:44:16, Tetsuo Handa wrote:
+> Hello.
 > 
-> Why do you omit out_of_memory() call for GFP_NOIO / GFP_NOFS allocations?
+> Today I tested Linux 3.19 and noticed unexpected behavior (A) (B)
+> shown below.
+> 
+> (A) The order-0 __GFP_WAIT allocation fails immediately upon OOM condition
+>     despite we didn't remove the
+> 
+>         /*
+>          * In this implementation, order <= PAGE_ALLOC_COSTLY_ORDER
+>          * means __GFP_NOFAIL, but that may not be true in other
+>          * implementations.
+>          */
+>         if (order <= PAGE_ALLOC_COSTLY_ORDER)
+>                 return 1;
+>
+>     check in should_alloc_retry(). Is this what you expected?
 
-I can see "possible memory allocation deadlock in %s (mode:0x%x)" warnings
-at kmem_alloc() in fs/xfs/kmem.c . I think commit 9879de7373fcfb46 "mm:
-page_alloc: embed OOM killing naturally into allocation slowpath" introduced
-a regression and below one is the fix.
+The code before 9879de7373fc (mm: page_alloc: embed OOM killing
+naturally into allocation slowpath) was looping on this kind of
+allocation even though GFP_NOFS didn't trigger OOM killer. This change
+was not intentional I guess but it makes sense on its own. We shouldn't
+simply loop in a hope that something happens and we finally make a
+progress.
 
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2381,9 +2381,6 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
-                /* The OOM killer does not needlessly kill tasks for lowmem */
-                if (high_zoneidx < ZONE_NORMAL)
-                        goto out;
--               /* The OOM killer does not compensate for light reclaim */
--               if (!(gfp_mask & __GFP_FS))
--                       goto out;
-                /*
-                 * GFP_THISNODE contains __GFP_NORETRY and we never hit this.
-                 * Sanity check for bare calls of __GFP_THISNODE, not real OOM.
+Failing __GFP_WAIT allocation is perfectly fine IMO. Why do you think
+this is a problem?
 
-BTW, I think commit c32b3cbe0d067a9c "oom, PM: make OOM detection in the freezer
-path raceless" opened a race window for __alloc_pages_may_oom(__GFP_NOFAIL)
-allocation to fail when OOM killer is disabled. I think something like
+Btw. this has nothing to do with TIF_MEMDIE and it would be much better
+to discuss it in a separate thread...
 
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -789,7 +789,7 @@ bool out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
- 	bool ret = false;
- 
- 	down_read(&oom_sem);
--	if (!oom_killer_disabled) {
-+	if (!oom_killer_disabled || (gfp_mask & __GFP_NOFAIL)) {
- 		__out_of_memory(zonelist, gfp_mask, order, nodemask, force_kill);
- 		ret = true;
- 	}
+> (B) When coredump to pipe is configured, the system stalls under OOM
+>     condition due to memory allocation by coredump's reader side.
+>     How should we handle this "expected to terminate shortly but unable
+>     to terminate due to invisible dependency" case? What approaches
+>     other than applying timeout on coredump's writer side are possible?
+>     (Running inside memory cgroup is not an answer which I want.)
 
-is needed. But such change can race with up_write() and wait_event() in
-oom_killer_disable(). While the comment of oom_killer_disable() says
-"The function cannot be called when there are runnable user tasks because
-the userspace would see unexpected allocation failures as a result.",
-aren't there still kernel threads which might do __GFP_NOFAIL allocations?
+This is really nasty and we have discussed that with Oleg some time
+ago.  We have SIGNAL_GROUP_COREDUMP which prevents the OOM killer
+from selecting the task. The issue seems to be that OOM killer might
+inherently race with setting the flag.  I have no idea what to do about
+this, unfortunately.
+Oleg?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
