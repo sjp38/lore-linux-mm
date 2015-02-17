@@ -1,130 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BB056B0032
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2015 18:35:56 -0500 (EST)
-Received: by pdev10 with SMTP id v10so47099466pde.10
-        for <linux-mm@kvack.org>; Tue, 17 Feb 2015 15:35:56 -0800 (PST)
-Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
-        by mx.google.com with ESMTP id hr4si1215864pac.185.2015.02.17.15.35.54
-        for <linux-mm@kvack.org>;
-        Tue, 17 Feb 2015 15:35:55 -0800 (PST)
-Date: Wed, 18 Feb 2015 10:32:43 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: How to handle TIF_MEMDIE stalls?
-Message-ID: <20150217233243.GL4251@dastard>
-References: <20141230112158.GA15546@dhcp22.suse.cz>
- <201502092044.JDG39081.LVFOOtFHQFOMSJ@I-love.SAKURA.ne.jp>
- <201502102258.IFE09888.OVQFJOMSFtOLFH@I-love.SAKURA.ne.jp>
- <20150210151934.GA11212@phnom.home.cmpxchg.org>
- <201502111123.ICD65197.FMLOHSQJFVOtFO@I-love.SAKURA.ne.jp>
- <201502172123.JIE35470.QOLMVOFJSHOFFt@I-love.SAKURA.ne.jp>
- <20150217125315.GA14287@phnom.home.cmpxchg.org>
- <20150217225430.GJ4251@dastard>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150217225430.GJ4251@dastard>
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id F16456B0032
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2015 18:57:46 -0500 (EST)
+Received: by pdbfl12 with SMTP id fl12so47242875pdb.4
+        for <linux-mm@kvack.org>; Tue, 17 Feb 2015 15:57:46 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id de2si6390341pad.182.2015.02.17.15.57.46
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Feb 2015 15:57:46 -0800 (PST)
+Date: Tue, 17 Feb 2015 15:57:44 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] mm, hugetlb: set PageLRU for in-use/active hugepages
+Message-Id: <20150217155744.04db5a98d5a1820240eb2317@linux-foundation.org>
+In-Reply-To: <20150217093153.GA12875@hori1.linux.bs1.fc.nec.co.jp>
+References: <1424143299-7557-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<20150217093153.GA12875@hori1.linux.bs1.fc.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, dchinner@redhat.com, oleg@redhat.com, xfs@oss.sgi.com, mhocko@suse.cz, linux-mm@kvack.org, mgorman@suse.de, rientjes@google.com, akpm@linux-foundation.org, torvalds@linux-foundation.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Wed, Feb 18, 2015 at 09:54:30AM +1100, Dave Chinner wrote:
-> On Tue, Feb 17, 2015 at 07:53:15AM -0500, Johannes Weiner wrote:
-> > On Tue, Feb 17, 2015 at 09:23:26PM +0900, Tetsuo Handa wrote:
-> > > --- a/mm/page_alloc.c
-> > > +++ b/mm/page_alloc.c
-> > > @@ -2381,9 +2381,6 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
-> > >                 /* The OOM killer does not needlessly kill tasks for lowmem */
-> > >                 if (high_zoneidx < ZONE_NORMAL)
-> > >                         goto out;
-> > > -               /* The OOM killer does not compensate for light reclaim */
-> > > -               if (!(gfp_mask & __GFP_FS))
-> > > -                       goto out;
-> > >                 /*
-> > >                  * GFP_THISNODE contains __GFP_NORETRY and we never hit this.
-> > >                  * Sanity check for bare calls of __GFP_THISNODE, not real OOM.
-> > 
-> > Again, we don't want to OOM kill on behalf of allocations that can't
-> > initiate IO, or even actively prevent others from doing it.  Not per
-> > default anyway, because most callers can deal with the failure without
-> > having to resort to killing tasks, and NOFS reclaim *can* easily fail.
-> > It's the exceptions that should be annotated instead:
-> > 
-> > void *
-> > kmem_alloc(size_t size, xfs_km_flags_t flags)
-> > {
-> > 	int	retries = 0;
-> > 	gfp_t	lflags = kmem_flags_convert(flags);
-> > 	void	*ptr;
-> > 
-> > 	do {
-> > 		ptr = kmalloc(size, lflags);
-> > 		if (ptr || (flags & (KM_MAYFAIL|KM_NOSLEEP)))
-> > 			return ptr;
-> > 		if (!(++retries % 100))
-> > 			xfs_err(NULL,
-> > 		"possible memory allocation deadlock in %s (mode:0x%x)",
-> > 					__func__, lflags);
-> > 		congestion_wait(BLK_RW_ASYNC, HZ/50);
-> > 	} while (1);
-> > }
-> > 
-> > This should use __GFP_NOFAIL, which is not only designed to annotate
-> > broken code like this, but also recognizes that endless looping on a
-> > GFP_NOFS allocation needs the OOM killer after all to make progress.
-> > 
-> > diff --git a/fs/xfs/kmem.c b/fs/xfs/kmem.c
-> > index a7a3a63bb360..17ced1805d3a 100644
-> > --- a/fs/xfs/kmem.c
-> > +++ b/fs/xfs/kmem.c
-> > @@ -45,20 +45,12 @@ kmem_zalloc_greedy(size_t *size, size_t minsize, size_t maxsize)
-> >  void *
-> >  kmem_alloc(size_t size, xfs_km_flags_t flags)
-> >  {
-> > -	int	retries = 0;
-> >  	gfp_t	lflags = kmem_flags_convert(flags);
-> > -	void	*ptr;
-> >  
-> > -	do {
-> > -		ptr = kmalloc(size, lflags);
-> > -		if (ptr || (flags & (KM_MAYFAIL|KM_NOSLEEP)))
-> > -			return ptr;
-> > -		if (!(++retries % 100))
-> > -			xfs_err(NULL,
-> > -		"possible memory allocation deadlock in %s (mode:0x%x)",
-> > -					__func__, lflags);
-> > -		congestion_wait(BLK_RW_ASYNC, HZ/50);
-> > -	} while (1);
-> > +	if (!(flags & (KM_MAYFAIL | KM_NOSLEEP)))
-> > +		lflags |= __GFP_NOFAIL;
-> > +
-> > +	return kmalloc(size, lflags);
-> >  }
+On Tue, 17 Feb 2015 09:32:08 +0000 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+
+> Currently we are not safe from concurrent calls of isolate_huge_page(),
+> which can make the victim hugepage in invalid state and results in BUG_ON().
 > 
-> Hmmm - the only reason there is a focus on this loop is that it
-> emits warnings about allocations failing. It's obvious that the
-> problem being dealt with here is a fundamental design issue w.r.t.
-> to locking and the OOM killer, but the proposed special casing
-> hack^H^H^H^Hband aid^W^Wsolution is not "working" because some code
-> in XFS started emitting warnings about allocations failing more
-> often.
->
-> So the answer is to remove the warning?  That's like killing the
-> canary to stop the methane leak in the coal mine. No canary? No
-> problems!
+> The root problem of this is that we don't have any information on struct page
+> (so easily accessible) about the hugepage's activeness. Note that hugepages'
+> activeness means just being linked to hstate->hugepage_activelist, which is
+> not the same as normal pages' activeness represented by PageActive flag.
+> 
+> Normal pages are isolated by isolate_lru_page() which prechecks PageLRU before
+> isolation, so let's do similarly for hugetlb. PageLRU is unused on hugetlb now,
+> so the change is mostly just inserting Set/ClearPageLRU (no conflict with
+> current usage.) And the other changes are justified like below:
+> - __put_compound_page() calls __page_cache_release() to do some LRU works,
+>   but this is obviously for thps and assumes that hugetlb has always !PageLRU.
+>   This assumption is not true any more, so this patch simply adds if (!PageHuge)
+>   to avoid calling __page_cache_release() for hugetlb.
+> - soft_offline_huge_page() now just calls list_move(), but generally callers
+>   of page migration should use the common routine in isolation, so let's
+>   replace the list_move() with isolate_huge_page() rather than inserting
+>   ClearPageLRU.
+> 
+> Set/ClearPageLRU should be called within hugetlb_lock, but hugetlb_cow() and
+> hugetlb_no_page() don't do this. This is justified because in these function
+> SetPageLRU is called right after the hugepage is allocated and no other thread
+> tries to isolate it.
 
-I'll also point out that there are two other identical allocation
-loops in XFS, one of which is only 30 lines below this one. That's
-further indication that this is a "silence the warning" patch rather
-than something that actually fixes a problem....
+Whoa.
 
-Cheers,
+So if I'm understanding this correctly, hugepages never have PG_lru set
+and so you are overloading that bit on hugepages to indicate that the
+page is present on hstate->hugepage_activelist?
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+This is somewhat of a big deal and the patch doesn't make it very clear
+at all.  We should
+
+- document PG_lru, for both of its identities
+
+- consider adding a new PG_hugepage_active(?) flag which has the same
+  value as PG_lru (see how PG_savepinned was done).
+
+- create suitable helper functions for the new PG_lru meaning. 
+  Simply calling PageLRU/SetPageLRU for pages which *aren't on the LRU*
+  is lazy and misleading.  Create a name for the new concept
+  (hugepage_active?) and document it and use it consistently.
+
+
+> @@ -75,7 +76,8 @@ static void __put_compound_page(struct page *page)
+>  {
+>  	compound_page_dtor *dtor;
+>  
+> -	__page_cache_release(page);
+> +	if (!PageHuge(page))
+> +		__page_cache_release(page);
+>  	dtor = get_compound_page_dtor(page);
+>  	(*dtor)(page);
+
+And this needs a good comment - there's no way that a reader can work
+out why this code is here unless he goes dumpster diving in the git
+history.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
