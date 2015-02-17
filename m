@@ -1,76 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 043CA6B0032
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2015 16:32:59 -0500 (EST)
-Received: by mail-qg0-f50.google.com with SMTP id e89so30117496qgf.9
-        for <linux-mm@kvack.org>; Tue, 17 Feb 2015 13:32:58 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 78si7805567qgk.31.2015.02.17.13.32.57
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Feb 2015 13:32:58 -0800 (PST)
-Date: Wed, 18 Feb 2015 10:32:45 +1300
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [PATCH 1/3] Slab infrastructure for array operations
-Message-ID: <20150218103245.3aa3ca87@redhat.com>
-In-Reply-To: <alpine.DEB.2.11.1502170959130.4996@gentwo.org>
-References: <20150210194804.288708936@linux.com>
-	<20150210194811.787556326@linux.com>
-	<alpine.DEB.2.10.1502101542030.15535@chino.kir.corp.google.com>
-	<alpine.DEB.2.11.1502111243380.3887@gentwo.org>
-	<alpine.DEB.2.10.1502111213151.16711@chino.kir.corp.google.com>
-	<20150213023534.GA6592@js1304-P5Q-DELUXE>
-	<alpine.DEB.2.11.1502130941360.9442@gentwo.org>
-	<20150217051541.GA15413@js1304-P5Q-DELUXE>
-	<alpine.DEB.2.11.1502170959130.4996@gentwo.org>
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EF816B0032
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2015 17:31:57 -0500 (EST)
+Received: by mail-wi0-f171.google.com with SMTP id hi2so37123390wib.4
+        for <linux-mm@kvack.org>; Tue, 17 Feb 2015 14:31:56 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id ff5si31762438wib.42.2015.02.17.14.31.55
+        for <linux-mm@kvack.org>;
+        Tue, 17 Feb 2015 14:31:55 -0800 (PST)
+Date: Tue, 17 Feb 2015 23:31:05 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH v2] x86, kaslr: propagate base load address calculation
+Message-ID: <20150217223105.GI26165@pd.tnic>
+References: <alpine.LNX.2.00.1502101411280.10719@pobox.suse.cz>
+ <CAGXu5jJzs9Ve9so96f6n-=JxP+GR3xYFQYBtZ=mUm+Q7bMAgBw@mail.gmail.com>
+ <alpine.LNX.2.00.1502110001480.10719@pobox.suse.cz>
+ <alpine.LNX.2.00.1502110010190.10719@pobox.suse.cz>
+ <alpine.LNX.2.00.1502131602360.2423@pobox.suse.cz>
+ <20150217104443.GC9784@pd.tnic>
+ <alpine.LNX.2.00.1502171319040.2279@pobox.suse.cz>
+ <20150217123933.GC26165@pd.tnic>
+ <CAGXu5jL7opSG92o5Gu2tT-NWTfiC7dNSMLynPZWb8uHzUoUqLg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <CAGXu5jL7opSG92o5Gu2tT-NWTfiC7dNSMLynPZWb8uHzUoUqLg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com, brouer@redhat.com
+To: Kees Cook <keescook@chromium.org>
+Cc: Jiri Kosina <jkosina@suse.cz>, "H. Peter Anvin" <hpa@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>, live-patching@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>
 
-On Tue, 17 Feb 2015 10:03:51 -0600 (CST)
-Christoph Lameter <cl@linux.com> wrote:
-
-> On Tue, 17 Feb 2015, Joonsoo Kim wrote:
+On Tue, Feb 17, 2015 at 08:45:53AM -0800, Kees Cook wrote:
+> Maybe it should say:
 > 
-[...]
-> > If we allocate objects from local cache as much as possible, we can
-> > keep temporal locality and return objects as fast as possible since
-> > returing objects from local cache just needs memcpy from local array
-> > cache to destination array.
+> Kernel offset: disabled
 > 
-> I thought the point was that this is used to allocate very large amounts
-> of objects. The hotness is not that big of an issue.
->
+> for maximum clarity?
 
-(My use-case is in area of 32-64 elems)
+I.e.:
 
-[...]
-> 
-> Its not that detailed. It is just layin out the basic strategy for the
-> array allocs. First go to the partial lists to decrease fragmentation.
-> Then bypass the allocator layers completely and go direct to the page
-> allocator if all objects that the page will accomodate can be put into
-> the array. Lastly use the cpu hot objects to fill in the leftover (which
-> would in any case be less than the objects in a page). 
+---
+diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+index 78c91bbf50e2..16b6043cb073 100644
+--- a/arch/x86/kernel/setup.c
++++ b/arch/x86/kernel/setup.c
+@@ -843,10 +843,14 @@ static void __init trim_low_memory_range(void)
+ static int
+ dump_kernel_offset(struct notifier_block *self, unsigned long v, void *p)
+ {
+-	pr_emerg("Kernel Offset: 0x%lx from 0x%lx "
+-		 "(relocation range: 0x%lx-0x%lx)\n",
+-		 (unsigned long)&_text - __START_KERNEL, __START_KERNEL,
+-		 __START_KERNEL_map, MODULES_VADDR-1);
++	if (kaslr_enabled)
++		pr_emerg("Kernel Offset: 0x%lx from 0x%lx (relocation range: 0x%lx-0x%lx)\n",
++			 (unsigned long)&_text - __START_KERNEL,
++			 __START_KERNEL,
++			 __START_KERNEL_map,
++			 MODULES_VADDR-1);
++	else
++		pr_emerg("Kernel Offset: disabled\n");
+ 
+ 	return 0;
+ }
+---
 
-IMHO this strategy is a bit off, from what I was looking for.
-
-I would prefer the first elements to be cache hot, and the later/rest of
-the elements can be more cache-cold. Reasoning behind this is,
-subsystem calling this alloc_array have likely ran out of elems (from
-it's local store/prev-call) and need to handout one elem immediately
-after this call returns.
+?
 
 -- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Sr. Network Kernel Developer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+Regards/Gruss,
+    Boris.
+
+ECO tip #101: Trim your mails when you reply.
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
