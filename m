@@ -1,55 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f178.google.com (mail-yk0-f178.google.com [209.85.160.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 7985B6B00B4
-	for <linux-mm@kvack.org>; Wed, 18 Feb 2015 18:02:26 -0500 (EST)
-Received: by mail-yk0-f178.google.com with SMTP id 19so2535392ykq.9
-        for <linux-mm@kvack.org>; Wed, 18 Feb 2015 15:02:26 -0800 (PST)
-Received: from resqmta-ch2-12v.sys.comcast.net ([2001:558:fe21:29:250:56ff:feaf:29a])
-        by mx.google.com with ESMTPS id x10si22994108qal.20.2015.02.18.15.02.24
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F3356B00B6
+	for <linux-mm@kvack.org>; Wed, 18 Feb 2015 18:31:21 -0500 (EST)
+Received: by pdbfl12 with SMTP id fl12so4626061pdb.2
+        for <linux-mm@kvack.org>; Wed, 18 Feb 2015 15:31:21 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id cj15si11912739pdb.1.2015.02.18.15.31.20
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Wed, 18 Feb 2015 15:02:24 -0800 (PST)
-Date: Wed, 18 Feb 2015 17:02:23 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 1/3] Slab infrastructure for array operations
-In-Reply-To: <20150218103245.3aa3ca87@redhat.com>
-Message-ID: <alpine.DEB.2.11.1502181700100.20837@gentwo.org>
-References: <20150210194804.288708936@linux.com> <20150210194811.787556326@linux.com> <alpine.DEB.2.10.1502101542030.15535@chino.kir.corp.google.com> <alpine.DEB.2.11.1502111243380.3887@gentwo.org> <alpine.DEB.2.10.1502111213151.16711@chino.kir.corp.google.com>
- <20150213023534.GA6592@js1304-P5Q-DELUXE> <alpine.DEB.2.11.1502130941360.9442@gentwo.org> <20150217051541.GA15413@js1304-P5Q-DELUXE> <alpine.DEB.2.11.1502170959130.4996@gentwo.org> <20150218103245.3aa3ca87@redhat.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Feb 2015 15:31:20 -0800 (PST)
+Date: Wed, 18 Feb 2015 15:31:19 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] mm: incorporate zero pages into transparent huge
+ pages
+Message-Id: <20150218153119.0bcd0bf8b4e7d30d99f00a3b@linux-foundation.org>
+In-Reply-To: <1423688635-4306-1-git-send-email-ebru.akagunduz@gmail.com>
+References: <1423688635-4306-1-git-send-email-ebru.akagunduz@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com
+To: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Cc: linux-mm@kvack.org, kirill@shutemov.name, mhocko@suse.cz, mgorman@suse.de, rientjes@google.com, sasha.levin@oracle.com, hughd@google.com, hannes@cmpxchg.org, vbabka@suse.cz, linux-kernel@vger.kernel.org, riel@redhat.com, aarcange@redhat.com
 
-On Wed, 18 Feb 2015, Jesper Dangaard Brouer wrote:
+On Wed, 11 Feb 2015 23:03:55 +0200 Ebru Akagunduz <ebru.akagunduz@gmail.com> wrote:
 
-> (My use-case is in area of 32-64 elems)
+> This patch improves THP collapse rates, by allowing zero pages.
+> 
+> Currently THP can collapse 4kB pages into a THP when there
+> are up to khugepaged_max_ptes_none pte_none ptes in a 2MB
+> range.  This patch counts pte none and mapped zero pages
+> with the same variable.
 
-Ok that is in the realm of a couple of pages from the page allocator?
+So if I'm understanding this correctly, with the default value of
+khugepaged_max_ptes_none (HPAGE_PMD_NR-1), if an application creates a
+2MB area which contains 511 mappings of the zero page and one real
+page, the kernel will proceed to turn that area into a real, physical
+huge page.  So it consumes 2MB of memory which would not have
+previously been allocated?
 
-> > Its not that detailed. It is just layin out the basic strategy for the
-> > array allocs. First go to the partial lists to decrease fragmentation.
-> > Then bypass the allocator layers completely and go direct to the page
-> > allocator if all objects that the page will accomodate can be put into
-> > the array. Lastly use the cpu hot objects to fill in the leftover (which
-> > would in any case be less than the objects in a page).
->
-> IMHO this strategy is a bit off, from what I was looking for.
->
-> I would prefer the first elements to be cache hot, and the later/rest of
-> the elements can be more cache-cold. Reasoning behind this is,
-> subsystem calling this alloc_array have likely ran out of elems (from
-> it's local store/prev-call) and need to handout one elem immediately
-> after this call returns.
+If so, this might be rather undesirable behaviour in some situations
+(and ditto the current behaviour for pte_none ptes)?
 
-The problem is that going for the cache hot objects involves dealing with
-synchronization that you would not have to spend time on if going direct
-to the page allocator or going to the partial lists and retrieving
-multiple objects by taking a single lock.
-
-Per cpu object (cache hot!) is already optimized to the hilt. There wont
-be much of a benefit.
+This can be tuned by adjusting khugepaged_max_ptes_none, but not many
+people are likely to do that because we didn't document the damn thing.
+ At all.  Can we please rectify this, and update it for the is_zero_pfn
+feature?  The documentation should include an explanation telling
+people how to decide what setting to use, how to observe its effects,
+etc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
