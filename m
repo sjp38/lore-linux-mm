@@ -1,275 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 5473A6B009D
-	for <linux-mm@kvack.org>; Wed, 18 Feb 2015 12:44:42 -0500 (EST)
-Received: by pdbfp1 with SMTP id fp1so2657186pdb.5
-        for <linux-mm@kvack.org>; Wed, 18 Feb 2015 09:44:42 -0800 (PST)
-Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
-        by mx.google.com with ESMTPS id xo6si7005384pab.125.2015.02.18.09.44.39
+Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 73C646B00A0
+	for <linux-mm@kvack.org>; Wed, 18 Feb 2015 14:46:56 -0500 (EST)
+Received: by iebtr6 with SMTP id tr6so3960351ieb.10
+        for <linux-mm@kvack.org>; Wed, 18 Feb 2015 11:46:56 -0800 (PST)
+Received: from nm45-vm6.bullet.mail.ne1.yahoo.com (nm45-vm6.bullet.mail.ne1.yahoo.com. [98.138.121.70])
+        by mx.google.com with ESMTPS id i136si17693686ioe.103.2015.02.18.11.46.55
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Wed, 18 Feb 2015 09:44:41 -0800 (PST)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout3.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NJZ00B5LAT44440@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 18 Feb 2015 17:48:40 +0000 (GMT)
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
-Subject: [PATCH] kasan, module, vmalloc: rework shadow allocation for modules
-Date: Wed, 18 Feb 2015 20:44:27 +0300
-Message-id: <1424281467-2593-1-git-send-email-a.ryabinin@samsung.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 18 Feb 2015 11:46:55 -0800 (PST)
+Date: Wed, 18 Feb 2015 19:44:06 +0000 (UTC)
+From: Cheng Rk <crquan@ymail.com>
+Reply-To: Cheng Rk <crquan@ymail.com>
+Message-ID: <80963126.624722.1424288646764.JavaMail.yahoo@mail.yahoo.com>
+In-Reply-To: <20150218142322.GD4680@dhcp22.suse.cz>
+References: <20150218142322.GD4680@dhcp22.suse.cz>
+Subject: Re: How to controll Buffers to be dilligently reclaimed?
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrey Ryabinin <a.ryabinin@samsung.com>, Dmitry Vyukov <dvyukov@google.com>, Rusty Russell <rusty@rustcorp.com.au>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Konstantin Khlebnikov <koct9i@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Current approach in handling shadow memory for modules is broken.
 
-Shadow memory could be freed only after memory shadow corresponds
-it is no longer used.
-vfree() called from interrupt context could use memory its
-freeing to store 'struct llist_node' in it:
 
-void vfree(const void *addr)
-{
-...
-	if (unlikely(in_interrupt())) {
-		struct vfree_deferred *p = this_cpu_ptr(&vfree_deferred);
-		if (llist_add((struct llist_node *)addr, &p->list))
-			schedule_work(&p->wq);
+On Wednesday, February 18, 2015 6:23 AM, Michal Hocko <mhocko@suse.cz> wrote:
+On Fri 13-02-15 09:52:16, Cheng Rk wrote:
 
-Latter this list node used in free_work() which actually frees memory.
-Currently module_memfree() called in interrupt context will free
-shadow before freeing module's memory which could provoke kernel
-crash.
-So shadow memory should be freed after module's memory.
-However, such deallocation order could race with kasan_module_alloc()
-in module_alloc().
+> As per Documentation/sysctl/vm.txt the knob doesn't affect the page
+> cache reclaim but rather inode vs. dentry reclaim.
 
-To fix this we could move kasan hooks into vmalloc code. This allows
-us to allocate/free shadow memory in appropriate time and order.
 
-This hooks also might be helpful in future if we decide to track
-other vmalloc'ed memory.
+So do you think is it worth to work on something to give pressure similar
+to vm.vfs_cache_pressure to vfs inode & dentry cache?
 
-Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>
-Cc: Rusty Russell <rusty@rustcorp.com.au>
----
- arch/x86/kernel/module.c | 11 +----------
- include/linux/kasan.h    | 26 +++++++++++++++++++-------
- kernel/module.c          |  2 --
- mm/kasan/kasan.c         | 12 +++++++++---
- mm/vmalloc.c             | 10 ++++++++++
- 5 files changed, 39 insertions(+), 22 deletions(-)
+I am looking for an effect to let the kernel more aggressively reclaim
+memory from Buffers,
 
-diff --git a/arch/x86/kernel/module.c b/arch/x86/kernel/module.c
-index d1ac80b..00ba926 100644
---- a/arch/x86/kernel/module.c
-+++ b/arch/x86/kernel/module.c
-@@ -24,7 +24,6 @@
- #include <linux/fs.h>
- #include <linux/string.h>
- #include <linux/kernel.h>
--#include <linux/kasan.h>
- #include <linux/bug.h>
- #include <linux/mm.h>
- #include <linux/gfp.h>
-@@ -84,22 +83,14 @@ static unsigned long int get_module_load_offset(void)
- 
- void *module_alloc(unsigned long size)
- {
--	void *p;
--
- 	if (PAGE_ALIGN(size) > MODULES_LEN)
- 		return NULL;
- 
--	p = __vmalloc_node_range(size, MODULE_ALIGN,
-+	return __vmalloc_node_range(size, 1,
- 				    MODULES_VADDR + get_module_load_offset(),
- 				    MODULES_END, GFP_KERNEL | __GFP_HIGHMEM,
- 				    PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
- 				    __builtin_return_address(0));
--	if (p && (kasan_module_alloc(p, size) < 0)) {
--		vfree(p);
--		return NULL;
--	}
--
--	return p;
- }
- 
- #ifdef CONFIG_X86_32
-diff --git a/include/linux/kasan.h b/include/linux/kasan.h
-index 72ba725..54068a5 100644
---- a/include/linux/kasan.h
-+++ b/include/linux/kasan.h
-@@ -5,6 +5,7 @@
- 
- struct kmem_cache;
- struct page;
-+struct vm_struct;
- 
- #ifdef CONFIG_KASAN
- 
-@@ -12,6 +13,7 @@ struct page;
- #define KASAN_SHADOW_OFFSET _AC(CONFIG_KASAN_SHADOW_OFFSET, UL)
- 
- #include <asm/kasan.h>
-+#include <linux/kernel.h>
- #include <linux/sched.h>
- 
- static inline void *kasan_mem_to_shadow(const void *addr)
-@@ -49,15 +51,19 @@ void kasan_krealloc(const void *object, size_t new_size);
- void kasan_slab_alloc(struct kmem_cache *s, void *object);
- void kasan_slab_free(struct kmem_cache *s, void *object);
- 
--#define MODULE_ALIGN (PAGE_SIZE << KASAN_SHADOW_SCALE_SHIFT)
-+int kasan_vmalloc(const void *addr, size_t size);
-+void kasan_vfree(const void *addr, const struct vm_struct *vm);
- 
--int kasan_module_alloc(void *addr, size_t size);
--void kasan_module_free(void *addr);
-+static inline unsigned long kasan_vmalloc_align(unsigned long addr,
-+						unsigned long align)
-+{
-+	if (addr >= MODULES_VADDR && addr < MODULES_END)
-+		return ALIGN(align, PAGE_SIZE << KASAN_SHADOW_SCALE_SHIFT);
-+	return align;
-+}
- 
- #else /* CONFIG_KASAN */
- 
--#define MODULE_ALIGN 1
--
- static inline void kasan_unpoison_shadow(const void *address, size_t size) {}
- 
- static inline void kasan_enable_current(void) {}
-@@ -81,8 +87,14 @@ static inline void kasan_krealloc(const void *object, size_t new_size) {}
- static inline void kasan_slab_alloc(struct kmem_cache *s, void *object) {}
- static inline void kasan_slab_free(struct kmem_cache *s, void *object) {}
- 
--static inline int kasan_module_alloc(void *addr, size_t size) { return 0; }
--static inline void kasan_module_free(void *addr) {}
-+static inline int kasan_vmalloc(const void *addr, size_t size) { return 0; }
-+static inline void kasan_vfree(const void *addr, struct vm_struct *vm) {}
-+
-+static inline unsigned long kasan_vmalloc_align(unsigned long addr,
-+						unsigned long align)
-+{
-+	return align;
-+}
- 
- #endif /* CONFIG_KASAN */
- 
-diff --git a/kernel/module.c b/kernel/module.c
-index 8426ad4..82dc1f8 100644
---- a/kernel/module.c
-+++ b/kernel/module.c
-@@ -56,7 +56,6 @@
- #include <linux/async.h>
- #include <linux/percpu.h>
- #include <linux/kmemleak.h>
--#include <linux/kasan.h>
- #include <linux/jump_label.h>
- #include <linux/pfn.h>
- #include <linux/bsearch.h>
-@@ -1814,7 +1813,6 @@ static void unset_module_init_ro_nx(struct module *mod) { }
- void __weak module_memfree(void *module_region)
- {
- 	vfree(module_region);
--	kasan_module_free(module_region);
- }
- 
- void __weak module_arch_cleanup(struct module *mod)
-diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index 78fee63..7a90c94 100644
---- a/mm/kasan/kasan.c
-+++ b/mm/kasan/kasan.c
-@@ -29,6 +29,7 @@
- #include <linux/stacktrace.h>
- #include <linux/string.h>
- #include <linux/types.h>
-+#include <linux/vmalloc.h>
- #include <linux/kasan.h>
- 
- #include "kasan.h"
-@@ -396,7 +397,7 @@ void kasan_kfree_large(const void *ptr)
- 			KASAN_FREE_PAGE);
- }
- 
--int kasan_module_alloc(void *addr, size_t size)
-+int kasan_vmalloc(const void *addr, size_t size)
- {
- 	void *ret;
- 	size_t shadow_size;
-@@ -406,6 +407,9 @@ int kasan_module_alloc(void *addr, size_t size)
- 	shadow_size = round_up(size >> KASAN_SHADOW_SCALE_SHIFT,
- 			PAGE_SIZE);
- 
-+	if (!(addr >= (void *)MODULES_VADDR && addr < (void *)MODULES_END))
-+		return 0;
-+
- 	if (WARN_ON(!PAGE_ALIGNED(shadow_start)))
- 		return -EINVAL;
- 
-@@ -417,9 +421,11 @@ int kasan_module_alloc(void *addr, size_t size)
- 	return ret ? 0 : -ENOMEM;
- }
- 
--void kasan_module_free(void *addr)
-+void kasan_vfree(const void *addr, const struct vm_struct *vm)
- {
--	vfree(kasan_mem_to_shadow(addr));
-+	if (addr >= (void *)MODULES_VADDR && addr < (void *)MODULES_END
-+		&& !(vm->flags & VM_UNINITIALIZED))
-+			vfree(kasan_mem_to_shadow(addr));
- }
- 
- static void register_global(struct kasan_global *global)
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 35b25e1..a15799e 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -20,6 +20,7 @@
- #include <linux/seq_file.h>
- #include <linux/debugobjects.h>
- #include <linux/kallsyms.h>
-+#include <linux/kasan.h>
- #include <linux/list.h>
- #include <linux/rbtree.h>
- #include <linux/radix-tree.h>
-@@ -1412,6 +1413,8 @@ struct vm_struct *remove_vm_area(const void *addr)
- 	if (va && va->flags & VM_VM_AREA) {
- 		struct vm_struct *vm = va->vm;
- 
-+		kasan_vfree(addr, vm);
-+
- 		spin_lock(&vmap_area_lock);
- 		va->vm = NULL;
- 		va->flags &= ~VM_VM_AREA;
-@@ -1640,6 +1643,8 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
- 	if (!size || (size >> PAGE_SHIFT) > totalram_pages)
- 		goto fail;
- 
-+	align = kasan_vmalloc_align(start, align);
-+
- 	area = __get_vm_area_node(size, align, VM_ALLOC | VM_UNINITIALIZED |
- 				vm_flags, start, end, node, gfp_mask, caller);
- 	if (!area)
-@@ -1649,6 +1654,11 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
- 	if (!addr)
- 		return NULL;
- 
-+	if (kasan_vmalloc(addr, size) < 0) {
-+		vfree(addr);
-+		return NULL;
-+	}
-+
- 	/*
- 	 * In this function, newly allocated vm_struct has VM_UNINITIALIZED
- 	 * flag. It means that vm_struct is not fully initialized.
--- 
-2.3.0
+
+By reading fs/super.c:prune_super I've also realized taht, which is the
+only place referening sysctl_vfs_cache_pressure,
+that block_devices' inode are in "bdev" mount, its super_block just
+have nr_cached_objects as NULL,
+s_nr_dentry_unused and s_nr_inodes_unused both 0, get total_objects to be
+reclaimed is 0;
+
+So is why sysctl_vfs_cache_pressure doesn't give pressure to Buffers,
+
+
+         if (sb->s_op && sb->s_op->nr_cached_objects)
+                   fs_objects = sb->s_op->nr_cached_objects(sb);
+
+  total_objects = sb->s_nr_dentry_unused +
+                                         sb->s_nr_inodes_unused + fs_objects;
+
+  total_objects = (total_objects / 100) * sysctl_vfs_cache_pressure;
+  drop_super(sb);
+
+
+In crash, I got to know this block_device (253:2, or /dev/dm-2)has 10536805 pages mapped, that is the 40GB memory in Buffers, I wonder is there a sysctl can controll this to be reclaimed earlier?
+
+
+crash> block_device.bd_dev,bd_inode -x ffff880619c78000
+bd_dev = 0xfd00002
+bd_inode = 0xffff880619c780f0
+crash> inode.i_mapping 0xffff880619c780f0
+i_mapping = 0xffff880619c78240
+crash> address_space.nrpages 0xffff880619c78240
+nrpages = 10536805
+
+
+>> I have some oom-killer msgs but were with older kernels, after set>> vm.overcommit_memory=2, it simply returns -ENOMEM, unable to spawn any
+>> new container, why doesn't it even try to reclaim some memory from
+
+>> those 40GB Buffers,> overcommit_memory controls behavior of the _virtual_ memory
+> reservations. OVERCOMMIT_NEVER (2) means that even virtual memory cannot
+> be overcommit outside of the configured value (RAM + swap basically -
+> see Documentation/vm/overcommit-accounting for more information). So
+> your application most probably consumes a lot of virtual memory (mmaps
+> etc.) and that is why it gets ENOMEM.
+
+
+I have read that Doc as well, will post again when I get a more concrete example
+
+> OOM report would tell us what was the memory state at the time when you
+> were short of memory and why the cache (buffers in your case) were not
+> reclaimed properly.
+
+
+Thanks,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
