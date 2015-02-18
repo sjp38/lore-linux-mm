@@ -1,49 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 226856B0089
-	for <linux-mm@kvack.org>; Wed, 18 Feb 2015 09:06:27 -0500 (EST)
-Received: by pabkx10 with SMTP id kx10so1506171pab.0
-        for <linux-mm@kvack.org>; Wed, 18 Feb 2015 06:06:26 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id f5si18423480pat.226.2015.02.18.06.06.24
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 30FDA6B008C
+	for <linux-mm@kvack.org>; Wed, 18 Feb 2015 09:23:27 -0500 (EST)
+Received: by mail-wg0-f42.google.com with SMTP id n12so1486642wgh.1
+        for <linux-mm@kvack.org>; Wed, 18 Feb 2015 06:23:26 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l8si35367072wjq.185.2015.02.18.06.23.24
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 18 Feb 2015 06:06:25 -0800 (PST)
-Subject: Re: How to handle TIF_MEMDIE stalls?
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20150217165024.GI32017@dhcp22.suse.cz>
-	<20150217232552.GK4251@dastard>
-	<20150218084842.GB4478@dhcp22.suse.cz>
-	<201502182023.EEJ12920.QFFMOVtOSJLHFO@I-love.SAKURA.ne.jp>
-	<20150218122903.GD4478@dhcp22.suse.cz>
-In-Reply-To: <20150218122903.GD4478@dhcp22.suse.cz>
-Message-Id: <201502182306.HAB60908.MVQFOHJSOOFLFt@I-love.SAKURA.ne.jp>
-Date: Wed, 18 Feb 2015 23:06:17 +0900
-Mime-Version: 1.0
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 18 Feb 2015 06:23:25 -0800 (PST)
+Date: Wed, 18 Feb 2015 15:23:22 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: How to controll Buffers to be dilligently reclaimed?
+Message-ID: <20150218142322.GD4680@dhcp22.suse.cz>
+References: <CALYGNiP-CKYsVzLpUdUWM3ftfg1vPvKWQvbegXVLoNovtNWS6Q@mail.gmail.com>
+ <131740628.109294.1423821136530.JavaMail.yahoo@mail.yahoo.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <131740628.109294.1423821136530.JavaMail.yahoo@mail.yahoo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.cz
-Cc: david@fromorbit.com, hannes@cmpxchg.org, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, linux-fsdevel@vger.kernel.org, fernando_b1@lab.ntt.co.jp
+To: Cheng Rk <crquan@ymail.com>
+Cc: Konstantin Khlebnikov <koct9i@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Michal Hocko wrote:
-> Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > Because they cannot perform any IO/FS transactions and that would lead
-> > > to a premature OOM conditions way too easily. OOM killer is a _last
-> > > resort_ reclaim opportunity not something that would happen just because
-> > > you happen to be not able to flush dirty pages. 
-> > 
-> > But you should not have applied such change without making necessary
-> > changes to GFP_NOFS / GFP_NOIO users with such expectation and testing
-> > at linux-next.git . Applying such change after 3.19-rc6 is a sucker punch.
+On Fri 13-02-15 09:52:16, Cheng Rk wrote:
 > 
-> This is a nonsense. OOM was disbaled for !__GFP_FS for ages (since
-> before git era).
->  
-Then, at least I expect that filesystem error actions will not be taken so
-trivially. Can we apply http://marc.info/?l=linux-mm&m=142418465615672&w=2 for
-Linux 3.19-stable?
+> 
+> On Thursday, February 12, 2015 11:34 PM, Konstantin Khlebnikov <koct9i@gmail.com> wrote:
+> 
+> >>
+> >> -bash-4.2$ sudo losetup -a
+> >> /dev/loop0: [0005]:16512 (/dev/dm-2)
+> >> -bash-4.2$ free -m
+> >>                 total          used         free      shared       buffers     cached
+> >> Mem:             48094         46081         2012          40         40324       2085
+> >> -/+ buffers/cache:              3671       44422
+> >> Swap:             8191             5         8186
+> >>
+> >>
+> >> I've tried sysctl mm.vfs_cache_pressure=10000 but that seems working to Cached
+> >> memory, I wonder is there another sysctl for reclaming Buffers?
+> 
+> > AFAIK "Buffers" is just a page-cache of block devices.
+> > From reclaimer's point of view they have no difference from file page-cache.
+> 
+> > Could you post oom-killer log, there should be a lot of numbers
+> > describing memory state.
+> 
+> 
+> in this case, 40GB memory got stuck in Buffers, and 90+% of them are
+> reclaimable (can be verified by vm.drop_caches manual reclaim) if
+> Buffers are treated same as Cached, why mm.vfs_cache_pressure=10000
+> (or even I tried up to 1,000,000) can't get Buffers reclaimed early?
+
+As per Documentation/sysctl/vm.txt the knob doesn't affect the page
+cache reclaim but rather inode vs. dentry reclaim.
+
+> I have some oom-killer msgs but were with older kernels, after set
+> vm.overcommit_memory=2, it simply returns -ENOMEM, unable to spawn any
+> new container, why doesn't it even try to reclaim some memory from
+> those 40GB Buffers,
+
+overcommit_memory controls behavior of the _virtual_ memory
+reservations. OVERCOMMIT_NEVER (2) means that even virtual memory cannot
+be overcommit outside of the configured value (RAM + swap basically -
+see Documentation/vm/overcommit-accounting for more information). So
+your application most probably consumes a lot of virtual memory (mmaps
+etc.) and that is why it gets ENOMEM.
+
+OOM report would tell us what was the memory state at the time when you
+were short of memory and why the cache (buffers in your case) were not
+reclaimed properly.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
