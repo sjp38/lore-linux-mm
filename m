@@ -1,53 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 64B086B0032
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2015 20:13:05 -0500 (EST)
-Received: by pabrd3 with SMTP id rd3so10502547pab.1
-        for <linux-mm@kvack.org>; Tue, 17 Feb 2015 17:13:05 -0800 (PST)
-Received: from tyo200.gate.nec.co.jp (TYO200.gate.nec.co.jp. [210.143.35.50])
-        by mx.google.com with ESMTPS id a10si19743028pat.37.2015.02.17.17.13.03
+Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 38F636B0032
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2015 22:33:42 -0500 (EST)
+Received: by mail-ob0-f174.google.com with SMTP id wo20so59903633obc.5
+        for <linux-mm@kvack.org>; Tue, 17 Feb 2015 19:33:41 -0800 (PST)
+Received: from mail-ob0-x22b.google.com (mail-ob0-x22b.google.com. [2607:f8b0:4003:c01::22b])
+        by mx.google.com with ESMTPS id t62si7900717oif.6.2015.02.17.19.33.40
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 17 Feb 2015 17:13:04 -0800 (PST)
-Received: from tyo201.gate.nec.co.jp ([10.7.69.201])
-	by tyo200.gate.nec.co.jp (8.13.8/8.13.4) with ESMTP id t1I1D0Ah008329
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Wed, 18 Feb 2015 10:13:01 +0900 (JST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v2] mm, hugetlb: set PageLRU for in-use/active hugepages
-Date: Wed, 18 Feb 2015 01:07:29 +0000
-Message-ID: <20150218010714.GD4823@hori1.linux.bs1.fc.nec.co.jp>
-References: <1424143299-7557-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20150217093153.GA12875@hori1.linux.bs1.fc.nec.co.jp>
- <20150217155744.04db5a98d5a1820240eb2317@linux-foundation.org>
- <20150217160249.7d498e4bd0837748e8c6a5f0@linux-foundation.org>
-In-Reply-To: <20150217160249.7d498e4bd0837748e8c6a5f0@linux-foundation.org>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <62B63264538FD04C974466688F58B5DC@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Feb 2015 19:33:41 -0800 (PST)
+Received: by mail-ob0-f171.google.com with SMTP id gq1so60973715obb.2
+        for <linux-mm@kvack.org>; Tue, 17 Feb 2015 19:33:40 -0800 (PST)
 MIME-Version: 1.0
+In-Reply-To: <20150217223105.GI26165@pd.tnic>
+References: <alpine.LNX.2.00.1502101411280.10719@pobox.suse.cz>
+	<CAGXu5jJzs9Ve9so96f6n-=JxP+GR3xYFQYBtZ=mUm+Q7bMAgBw@mail.gmail.com>
+	<alpine.LNX.2.00.1502110001480.10719@pobox.suse.cz>
+	<alpine.LNX.2.00.1502110010190.10719@pobox.suse.cz>
+	<alpine.LNX.2.00.1502131602360.2423@pobox.suse.cz>
+	<20150217104443.GC9784@pd.tnic>
+	<alpine.LNX.2.00.1502171319040.2279@pobox.suse.cz>
+	<20150217123933.GC26165@pd.tnic>
+	<CAGXu5jL7opSG92o5Gu2tT-NWTfiC7dNSMLynPZWb8uHzUoUqLg@mail.gmail.com>
+	<20150217223105.GI26165@pd.tnic>
+Date: Tue, 17 Feb 2015 19:33:40 -0800
+Message-ID: <CAGXu5jKQDfhvr04OAxeFO+nhpnVgQ40444SvBPpCZkF4CVa28g@mail.gmail.com>
+Subject: Re: [PATCH v2] x86, kaslr: propagate base load address calculation
+From: Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Borislav Petkov <bp@alien8.de>
+Cc: Jiri Kosina <jkosina@suse.cz>, "H. Peter Anvin" <hpa@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>, live-patching@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>
 
-On Tue, Feb 17, 2015 at 04:02:49PM -0800, Andrew Morton wrote:
-> On Tue, 17 Feb 2015 15:57:44 -0800 Andrew Morton <akpm@linux-foundation.o=
-rg> wrote:
->=20
-> > So if I'm understanding this correctly, hugepages never have PG_lru set
-> > and so you are overloading that bit on hugepages to indicate that the
-> > page is present on hstate->hugepage_activelist?
->=20
-> And maybe we don't need to overload PG_lru at all?  There's plenty of
-> free space in the compound page's *(page + 1).
+On Tue, Feb 17, 2015 at 2:31 PM, Borislav Petkov <bp@alien8.de> wrote:
+> On Tue, Feb 17, 2015 at 08:45:53AM -0800, Kees Cook wrote:
+>> Maybe it should say:
+>>
+>> Kernel offset: disabled
+>>
+>> for maximum clarity?
+>
+> I.e.:
+>
+> ---
+> diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+> index 78c91bbf50e2..16b6043cb073 100644
+> --- a/arch/x86/kernel/setup.c
+> +++ b/arch/x86/kernel/setup.c
+> @@ -843,10 +843,14 @@ static void __init trim_low_memory_range(void)
+>  static int
+>  dump_kernel_offset(struct notifier_block *self, unsigned long v, void *p)
+>  {
+> -       pr_emerg("Kernel Offset: 0x%lx from 0x%lx "
+> -                "(relocation range: 0x%lx-0x%lx)\n",
+> -                (unsigned long)&_text - __START_KERNEL, __START_KERNEL,
+> -                __START_KERNEL_map, MODULES_VADDR-1);
+> +       if (kaslr_enabled)
+> +               pr_emerg("Kernel Offset: 0x%lx from 0x%lx (relocation range: 0x%lx-0x%lx)\n",
+> +                        (unsigned long)&_text - __START_KERNEL,
+> +                        __START_KERNEL,
+> +                        __START_KERNEL_map,
+> +                        MODULES_VADDR-1);
+> +       else
+> +               pr_emerg("Kernel Offset: disabled\n");
+>
+>         return 0;
+>  }
+> ---
+>
+> ?
 
-Right, that's not necessary. So I'll use PG_private in *(page + 1), that's
-unused now and no worry about conflicting with other usage.
+You are the best. :)
 
-Thanks,
-Naoya Horiguchi=
+Acked-by: Kees Cook <keescook@chromium.org>
+
+-Kees
+
+>
+> --
+> Regards/Gruss,
+>     Boris.
+>
+> ECO tip #101: Trim your mails when you reply.
+> --
+
+
+
+-- 
+Kees Cook
+Chrome OS Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
