@@ -1,43 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 310CA6B00B2
-	for <linux-mm@kvack.org>; Wed, 18 Feb 2015 17:18:19 -0500 (EST)
-Received: by pdjy10 with SMTP id y10so4148965pdj.13
-        for <linux-mm@kvack.org>; Wed, 18 Feb 2015 14:18:18 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id ap9si4088261pad.73.2015.02.18.14.18.17
+Received: from mail-yk0-f178.google.com (mail-yk0-f178.google.com [209.85.160.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 7985B6B00B4
+	for <linux-mm@kvack.org>; Wed, 18 Feb 2015 18:02:26 -0500 (EST)
+Received: by mail-yk0-f178.google.com with SMTP id 19so2535392ykq.9
+        for <linux-mm@kvack.org>; Wed, 18 Feb 2015 15:02:26 -0800 (PST)
+Received: from resqmta-ch2-12v.sys.comcast.net ([2001:558:fe21:29:250:56ff:feaf:29a])
+        by mx.google.com with ESMTPS id x10si22994108qal.20.2015.02.18.15.02.24
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Feb 2015 14:18:18 -0800 (PST)
-Date: Wed, 18 Feb 2015 14:18:16 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v5 1/3] mm: cma: debugfs interface
-Message-Id: <20150218141816.08b534623efc62a778c38d27@linux-foundation.org>
-In-Reply-To: <1423780008-16727-2-git-send-email-sasha.levin@oracle.com>
-References: <1423780008-16727-1-git-send-email-sasha.levin@oracle.com>
-	<1423780008-16727-2-git-send-email-sasha.levin@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Wed, 18 Feb 2015 15:02:24 -0800 (PST)
+Date: Wed, 18 Feb 2015 17:02:23 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 1/3] Slab infrastructure for array operations
+In-Reply-To: <20150218103245.3aa3ca87@redhat.com>
+Message-ID: <alpine.DEB.2.11.1502181700100.20837@gentwo.org>
+References: <20150210194804.288708936@linux.com> <20150210194811.787556326@linux.com> <alpine.DEB.2.10.1502101542030.15535@chino.kir.corp.google.com> <alpine.DEB.2.11.1502111243380.3887@gentwo.org> <alpine.DEB.2.10.1502111213151.16711@chino.kir.corp.google.com>
+ <20150213023534.GA6592@js1304-P5Q-DELUXE> <alpine.DEB.2.11.1502130941360.9442@gentwo.org> <20150217051541.GA15413@js1304-P5Q-DELUXE> <alpine.DEB.2.11.1502170959130.4996@gentwo.org> <20150218103245.3aa3ca87@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, iamjoonsoo.kim@lge.com, m.szyprowski@samsung.com, lauraa@codeaurora.org, s.strogin@partner.samsung.com
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, akpm@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com
 
-On Thu, 12 Feb 2015 17:26:46 -0500 Sasha Levin <sasha.levin@oracle.com> wrote:
+On Wed, 18 Feb 2015, Jesper Dangaard Brouer wrote:
 
-> Implement a simple debugfs interface to expose information about CMA areas
-> in the system.
+> (My use-case is in area of 32-64 elems)
 
-I'm not seeing any description of the proposed interface in changelog,
-code comments or documentation.
+Ok that is in the realm of a couple of pages from the page allocator?
 
-- What files and directories are created?  Something like
-  /debug/cma/cma-NN, where NN represents...  what?
+> > Its not that detailed. It is just layin out the basic strategy for the
+> > array allocs. First go to the partial lists to decrease fragmentation.
+> > Then bypass the allocator layers completely and go direct to the page
+> > allocator if all objects that the page will accomodate can be put into
+> > the array. Lastly use the cpu hot objects to fill in the leftover (which
+> > would in any case be less than the objects in a page).
+>
+> IMHO this strategy is a bit off, from what I was looking for.
+>
+> I would prefer the first elements to be cache hot, and the later/rest of
+> the elements can be more cache-cold. Reasoning behind this is,
+> subsystem calling this alloc_array have likely ran out of elems (from
+> it's local store/prev-call) and need to handout one elem immediately
+> after this call returns.
 
-- What are the debugfs file permissions?
+The problem is that going for the cache hot objects involves dealing with
+synchronization that you would not have to spend time on if going direct
+to the page allocator or going to the partial lists and retrieving
+multiple objects by taking a single lock.
 
-- Example output along with any needed explanation?
+Per cpu object (cache hot!) is already optimized to the hilt. There wont
+be much of a benefit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
