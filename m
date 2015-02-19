@@ -1,127 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E1946B0032
-	for <linux-mm@kvack.org>; Thu, 19 Feb 2015 16:06:54 -0500 (EST)
-Received: by lbjb6 with SMTP id b6so2362248lbj.12
-        for <linux-mm@kvack.org>; Thu, 19 Feb 2015 13:06:53 -0800 (PST)
-Received: from mail-lb0-x22b.google.com (mail-lb0-x22b.google.com. [2a00:1450:4010:c04::22b])
-        by mx.google.com with ESMTPS id eh1si16417966lbb.134.2015.02.19.13.06.51
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Feb 2015 13:06:52 -0800 (PST)
-Received: by lbjb6 with SMTP id b6so2507783lbj.2
-        for <linux-mm@kvack.org>; Thu, 19 Feb 2015 13:06:51 -0800 (PST)
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 07AB96B0032
+	for <linux-mm@kvack.org>; Thu, 19 Feb 2015 16:44:14 -0500 (EST)
+Received: by pdbfl12 with SMTP id fl12so2736327pdb.4
+        for <linux-mm@kvack.org>; Thu, 19 Feb 2015 13:44:13 -0800 (PST)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id zp4si3308752pac.23.2015.02.19.13.44.11
+        for <linux-mm@kvack.org>;
+        Thu, 19 Feb 2015 13:44:12 -0800 (PST)
+Date: Fri, 20 Feb 2015 08:43:56 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: How to handle TIF_MEMDIE stalls?
+Message-ID: <20150219214356.GW12722@dastard>
+References: <20150210151934.GA11212@phnom.home.cmpxchg.org>
+ <201502111123.ICD65197.FMLOHSQJFVOtFO@I-love.SAKURA.ne.jp>
+ <201502172123.JIE35470.QOLMVOFJSHOFFt@I-love.SAKURA.ne.jp>
+ <20150217125315.GA14287@phnom.home.cmpxchg.org>
+ <20150217225430.GJ4251@dastard>
+ <20150218082502.GA4478@dhcp22.suse.cz>
+ <20150218104859.GM12722@dastard>
+ <20150218121602.GC4478@dhcp22.suse.cz>
+ <20150219110124.GC15569@phnom.home.cmpxchg.org>
+ <20150219122914.GH28427@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20150219171934.20458.30175.stgit@buzz>
-References: <20150219171934.20458.30175.stgit@buzz>
-Date: Fri, 20 Feb 2015 00:06:51 +0300
-Message-ID: <CALYGNiPwR8Qy2iHrSSYyJXxE8eAn4PuK5a+u4XtWS2dFjwNqjw@mail.gmail.com>
-Subject: Re: [PATCH] fs: avoid locking sb_lock in grab_super_passive()
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150219122914.GH28427@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Alexander Viro <viro@zeniv.linux.org.uk>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, xfs@oss.sgi.com
 
-On Thu, Feb 19, 2015 at 8:19 PM, Konstantin Khlebnikov
-<khlebnikov@yandex-team.ru> wrote:
-> I've noticed significant locking contention in memory reclaimer around
-> sb_lock inside grab_super_passive(). Grab_super_passive() is called from
-> two places: in icache/dcache shrinkers (function super_cache_scan) and
-> from writeback (function __writeback_inodes_wb). Both are required for
-> progress in memory reclaimer.
->
-> Also this lock isn't irq-safe. And I've seen suspicious livelock under
-> serious memory pressure where reclaimer was called from interrupt which
+On Thu, Feb 19, 2015 at 01:29:14PM +0100, Michal Hocko wrote:
+> On Thu 19-02-15 06:01:24, Johannes Weiner wrote:
+> [...]
+> > Preferrably, we'd get rid of all nofail allocations and replace them
+> > with preallocated reserves.  But this is not going to happen anytime
+> > soon, so what other option do we have than resolving this on the OOM
+> > killer side?
+> 
+> As I've mentioned in other email, we might give GFP_NOFAIL allocator
+> access to memory reserves (by giving it __GFP_HIGH).
 
-s/reclaimer/allocator/
+Won't work when you have thousands of concurrent transactions
+running in XFS and they are all doing GFP_NOFAIL allocations. That's
+why I suggested the per-transaction reserve pool - we can use that
+to throttle the number of concurent contexts demanding memory for
+forwards progress, just the same was we throttle the number of
+concurrent processes based on maximum log space requirements of the
+transactions and the amount of unreserved log space available.
 
-> have happened right in place where sb_lock is held in normal context,
-> so all other cpus were stuck on that lock too.
->
-> Grab_super_passive() acquires sb_lock to increment sb->s_count and check
-> sb->s_instances. It seems sb->s_umount locked for read is enough here:
-> super-block deactivation always runs under sb->s_umount locked for write.
-> Protecting super-block itself isn't a problem: in super_cache_scan() sb
-> is protected by shrinker_rwsem: it cannot be freed if its slab shrinkers
-> are still active. Inside writeback super-block comes from inode from bdi
-> writeback list under wb->list_lock.
->
-> This patch removes locking sb_lock and checks s_instances under s_umount:
-> generic_shutdown_super() unlinks it under sb->s_umount locked for write.
-> Now successful grab_super_passive() only locks semaphore, callers must
-> call up_read(&sb->s_umount) instead of drop_super(sb) when they're done.
->
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-> ---
->  fs/fs-writeback.c |    2 +-
->  fs/super.c        |   18 ++++--------------
->  2 files changed, 5 insertions(+), 15 deletions(-)
->
-> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-> index 073657f..3e92bb7 100644
-> --- a/fs/fs-writeback.c
-> +++ b/fs/fs-writeback.c
-> @@ -779,7 +779,7 @@ static long __writeback_inodes_wb(struct bdi_writeback *wb,
->                         continue;
->                 }
->                 wrote += writeback_sb_inodes(sb, wb, work);
-> -               drop_super(sb);
-> +               up_read(&sb->s_umount);
->
->                 /* refer to the same tests at the end of writeback_sb_inodes */
->                 if (wrote) {
-> diff --git a/fs/super.c b/fs/super.c
-> index 65a53ef..6ae33ed 100644
-> --- a/fs/super.c
-> +++ b/fs/super.c
-> @@ -105,7 +105,7 @@ static unsigned long super_cache_scan(struct shrinker *shrink,
->                 freed += sb->s_op->free_cached_objects(sb, sc);
->         }
->
-> -       drop_super(sb);
-> +       up_read(&sb->s_umount);
->         return freed;
->  }
->
-> @@ -356,27 +356,17 @@ static int grab_super(struct super_block *s) __releases(sb_lock)
->   *     superblock does not go away while we are working on it. It returns
->   *     false if a reference was not gained, and returns true with the s_umount
->   *     lock held in read mode if a reference is gained. On successful return,
-> - *     the caller must drop the s_umount lock and the passive reference when
-> - *     done.
-> + *     the caller must drop the s_umount lock when done.
->   */
->  bool grab_super_passive(struct super_block *sb)
->  {
-> -       spin_lock(&sb_lock);
-> -       if (hlist_unhashed(&sb->s_instances)) {
-> -               spin_unlock(&sb_lock);
-> -               return false;
-> -       }
-> -
-> -       sb->s_count++;
-> -       spin_unlock(&sb_lock);
-> -
->         if (down_read_trylock(&sb->s_umount)) {
-> -               if (sb->s_root && (sb->s_flags & MS_BORN))
-> +               if (!hlist_unhashed(&sb->s_instances) &&
-> +                   sb->s_root && (sb->s_flags & MS_BORN))
->                         return true;
->                 up_read(&sb->s_umount);
->         }
->
-> -       put_super(sb);
->         return false;
->  }
->
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+No log space, transaction reservations waits on an ordered queue for
+space to become available. No memory available, transaction
+reservation waits on an ordered queue for memory to become
+available.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
