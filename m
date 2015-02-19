@@ -1,180 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 960076B0032
-	for <linux-mm@kvack.org>; Thu, 19 Feb 2015 17:52:34 -0500 (EST)
-Received: by paceu11 with SMTP id eu11so3093774pac.10
-        for <linux-mm@kvack.org>; Thu, 19 Feb 2015 14:52:34 -0800 (PST)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id i3si30094727pdg.111.2015.02.19.14.52.32
-        for <linux-mm@kvack.org>;
-        Thu, 19 Feb 2015 14:52:33 -0800 (PST)
-Date: Fri, 20 Feb 2015 09:52:17 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: How to handle TIF_MEMDIE stalls?
-Message-ID: <20150219225217.GY12722@dastard>
-References: <20141230112158.GA15546@dhcp22.suse.cz>
- <201502092044.JDG39081.LVFOOtFHQFOMSJ@I-love.SAKURA.ne.jp>
- <201502102258.IFE09888.OVQFJOMSFtOLFH@I-love.SAKURA.ne.jp>
- <20150210151934.GA11212@phnom.home.cmpxchg.org>
- <201502111123.ICD65197.FMLOHSQJFVOtFO@I-love.SAKURA.ne.jp>
- <201502172123.JIE35470.QOLMVOFJSHOFFt@I-love.SAKURA.ne.jp>
- <20150217125315.GA14287@phnom.home.cmpxchg.org>
- <20150217225430.GJ4251@dastard>
- <20150219102431.GA15569@phnom.home.cmpxchg.org>
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 347FB6B0032
+	for <linux-mm@kvack.org>; Thu, 19 Feb 2015 18:32:34 -0500 (EST)
+Received: by mail-wi0-f177.google.com with SMTP id bs8so12679569wib.4
+        for <linux-mm@kvack.org>; Thu, 19 Feb 2015 15:32:33 -0800 (PST)
+Received: from mail-we0-x233.google.com (mail-we0-x233.google.com. [2a00:1450:400c:c03::233])
+        by mx.google.com with ESMTPS id w8si43680169wiv.69.2015.02.19.15.32.32
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Feb 2015 15:32:32 -0800 (PST)
+Received: by wesk11 with SMTP id k11so2653058wes.11
+        for <linux-mm@kvack.org>; Thu, 19 Feb 2015 15:32:32 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150219102431.GA15569@phnom.home.cmpxchg.org>
+Reply-To: sedat.dilek@gmail.com
+In-Reply-To: <CAKTCnz=ABrmbQrAEYJ=D0=s2+fRj9FH4D5oG6aWW-qVMoYLdEA@mail.gmail.com>
+References: <CA+icZUWLJvuZknXhamKJxyGb+OYdkeD5z0V_jn=BQVtq8F5XUQ@mail.gmail.com>
+	<CAKTCnz=ABrmbQrAEYJ=D0=s2+fRj9FH4D5oG6aWW-qVMoYLdEA@mail.gmail.com>
+Date: Fri, 20 Feb 2015 00:32:32 +0100
+Message-ID: <CA+icZUUXnWBGEbb6h1XUVCBATDNKECFB7kWPie+FJsQ-nKj15Q@mail.gmail.com>
+Subject: Re: [3.19-final|next-20150204] LTP OOM testsuite causes call-traces
+From: Sedat Dilek <sedat.dilek@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@suse.cz, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, xfs@oss.sgi.com
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-next <linux-next@vger.kernel.org>
 
-On Thu, Feb 19, 2015 at 05:24:31AM -0500, Johannes Weiner wrote:
-> On Wed, Feb 18, 2015 at 09:54:30AM +1100, Dave Chinner wrote:
-> > [ cc xfs list - experienced kernel devs should not have to be
-> > reminded to do this ]
-> > 
-> > On Tue, Feb 17, 2015 at 07:53:15AM -0500, Johannes Weiner wrote:
-> > > -	do {
-> > > -		ptr = kmalloc(size, lflags);
-> > > -		if (ptr || (flags & (KM_MAYFAIL|KM_NOSLEEP)))
-> > > -			return ptr;
-> > > -		if (!(++retries % 100))
-> > > -			xfs_err(NULL,
-> > > -		"possible memory allocation deadlock in %s (mode:0x%x)",
-> > > -					__func__, lflags);
-> > > -		congestion_wait(BLK_RW_ASYNC, HZ/50);
-> > > -	} while (1);
-> > > +	if (!(flags & (KM_MAYFAIL | KM_NOSLEEP)))
-> > > +		lflags |= __GFP_NOFAIL;
-> > > +
-> > > +	return kmalloc(size, lflags);
-> > >  }
-> > 
-> > Hmmm - the only reason there is a focus on this loop is that it
-> > emits warnings about allocations failing. It's obvious that the
-> > problem being dealt with here is a fundamental design issue w.r.t.
-> > to locking and the OOM killer, but the proposed special casing
-> > hack^H^H^H^Hband aid^W^Wsolution is not "working" because some code
-> > in XFS started emitting warnings about allocations failing more
-> > often.
-> > 
-> > So the answer is to remove the warning?  That's like killing the
-> > canary to stop the methane leak in the coal mine. No canary? No
-> > problems!
-> 
-> That's not what happened.  The patch that affected behavior here
-> transformed code that an incoherent collection of conditions to
-> something that has an actual model.
+On Tue, Feb 10, 2015 at 11:45 AM, Balbir Singh <bsingharora@gmail.com> wrote:
+> On Tue, Feb 10, 2015 at 3:12 PM, Sedat Dilek <sedat.dilek@gmail.com> wrote:
+>> Hi,
+>>
+>> I first noticed call-traces in next-20150204 and tested on v3.19-final
+>> out of curiosity.
+>>
+>> So, oom3 | oom4 | oom5 from LTP tests produces call-traces in my logs
+>> in both releases.
+>> Yesterday, I sent a tarball to linux-mm/Shutemov which has material
+>> for next-20150204.
+>> The for-lkml tarball has stuff for v3.19-final.
+>>
+>> As an example (please see dmesg files in attached tarball(s)):
+>> ...
+>> +[  143.591734] oom03 invoked oom-killer: gfp_mask=0xd0, order=0,
+>> oom_score_adj=0
+>> +[  143.591789] oom03 cpuset=/ mems_allowed=0
+>> +[  143.591828] CPU: 0 PID: 2904 Comm: oom03 Not tainted 3.19.0-1-iniza-small #1
+>> +[  143.591830] Hardware name: SAMSUNG ELECTRONICS CO., LTD.
+>> 530U3BI/530U4BI/530U4BH/530U3BI/530U4BI/530U4BH, BIOS 13XK 03/28/2013
+>> +[  143.591831]  ffff880034a64800 ffff880032c57bf8 ffffffff8175c66c
+>> 0000000000000008
+>> +[  143.591835]  ffff8800681a54d0 ffff880032c57c88 ffffffff8175ac3a
+>> ffff880032c57c28
+>> +[  143.591838]  ffffffff810c329d 0000000000000206 ffffffff81c74040
+>> ffff880032c57c38
+>> +[  143.591841] Call Trace:
+>> +[  143.591848]  [<ffffffff8175c66c>] dump_stack+0x4c/0x65
+>> +[  143.591852]  [<ffffffff8175ac3a>] dump_header+0x9e/0x259
+>> +[  143.591857]  [<ffffffff810c329d>] ? trace_hardirqs_on_caller+0x15d/0x200
+>> +[  143.591860]  [<ffffffff810c334d>] ? trace_hardirqs_on+0xd/0x10
+>> +[  143.591863]  [<ffffffff81184cd2>] oom_kill_process+0x1d2/0x3c0
+>> +[  143.591868]  [<ffffffff811ebf40>] mem_cgroup_oom_synchronize+0x630/0x670
+>> +[  143.591871]  [<ffffffff811e6ac0>] ? mem_cgroup_reset+0xb0/0xb0
+>> +[  143.591874]  [<ffffffff81185628>] pagefault_out_of_memory+0x18/0x90
+>> +[  143.591877]  [<ffffffff8106317d>] mm_fault_error+0x8d/0x190
+>> +[  143.591879]  [<ffffffff810637a8>] __do_page_fault+0x528/0x600
+>> +[  143.591883]  [<ffffffff8113a847>] ? __acct_update_integrals+0xb7/0x120
+>> +[  143.591886]  [<ffffffff81765a1b>] ? _raw_spin_unlock+0x2b/0x40
+>> +[  143.591889]  [<ffffffff810a8ac1>] ? vtime_account_user+0x91/0xa0
+>> +[  143.591892]  [<ffffffff8117ff83>] ? context_tracking_user_exit+0xb3/0x110
+>> +[  143.591895]  [<ffffffff810638b1>] do_page_fault+0x31/0x70
+>> +[  143.591898]  [<ffffffff817687b8>] page_fault+0x28/0x30
+>> +[  143.591934] Task in /1 killed as a result of limit of /1
+>> +[  143.591940] memory: usage 1048576kB, limit 1048576kB, failcnt 24350
+>> +[  143.591942] memory+swap: usage 0kB, limit 9007199254740988kB, failcnt 0
+>> +[  143.591943] kmem: usage 0kB, limit 9007199254740988kB, failcnt 0
+>> +[  143.591944] Memory cgroup stats for /1: cache:0KB rss:1048576KB
+>> rss_huge:0KB mapped_file:0KB writeback:12060KB inactive_anon:524284KB
+>> active_anon:524192KB inactive_file:0KB active_file:0KB unevictable:0KB
+>> +[  143.592007] [ pid ]   uid  tgid total_vm      rss nr_ptes swapents
+>> oom_score_adj name
+>> +[  143.592155] [ 2903]     0  2903     1618      436       9        0
+>>             0 oom03
+>> +[  143.592159] [ 2904]     0  2904   788050   245188     616    65535
+>>             0 oom03
+>> +[  143.592162] Memory cgroup out of memory: Kill process 2904 (oom03)
+>> score 921 or sacrifice child
+>> +[  143.592167] Killed process 2904 (oom03) total-vm:3152200kB,
+>> anon-rss:979724kB, file-rss:1028kB
+>> +[  144.526653] oom03 invoked oom-killer: gfp_mask=0xd0, order=0,
+>> oom_score_adj=0
+>
+> Looks like we ran out of memory, the limit is 1024MB (1GiB) and we've
+> hit it with a fail count of 24350. So basically /1 hit the limit and
+> got OOM killed. Isn't that what you were testing for? How was the
+> expected victim?
+>
 
-Which is entirely undocumented. If you have a model, the first thing
-to do is document it and communicate that model to everyone who
-needs to know about that new model. I have no idea what that model
-is. Keeping it in your head and changing code that other people
-maintain without giving them any means of understanding WTF you are
-doing is a really bad engineering practice.
+You mean that was "expected"?
+What do you mean by "How was the expected victim?"?
+You need some more informations about my system?
 
-
-And yes, I have had a bit to say about this in public recently.
-Go watch my recent LCA talk, for example....
-
-And, FWIW, email discussions on a list is no substitute for a
-properly documented design that people can take their time to
-understand and digest.
-
-> That model is that we don't loop
-> in the allocator if there are no means to making forward progress.  In
-> this case, it was GFP_NOFS triggering an early exit from the allocator
-> because it's not allowed to invoke the OOM killer per default, and
-> there is little point in looping for times to better on their own.
-
-So you keep saying....
-
-> So these deadlock warnings happen, ironically, by the page allocator
-> now bailing out of a locked-up state in which it's not making forward
-> progress.  They don't strike me as a very useful canary in this case.
-
-... yet we *rarely* see the canary warnings we emit when we do too
-many allocation retries, the code has been that way for 13-odd
-years.  Hence, despite your protestations that your way is *better*,
-we have code that is tried, tested and proven in rugged production
-environments. That's far more convincing evidence that the *code
-should not change* than your assertions that it is broken and needs
-to be fixed.
-
-> > Right now, the oom killer is a liability. Over the past 6 months
-> > I've slowly had to exclude filesystem regression tests from running
-> > on small memory machines because the OOM killer is now so unreliable
-> > that it kills the test harness regularly rather than the process
-> > generating memory pressure. That's a big red flag to me that all
-> > this hacking around the edges is not solving the underlying problem,
-> > but instead is breaking things that did once work.
-> > 
-> > And, well, then there's this (gfp.h):
-> > 
-> >  * __GFP_NOFAIL: The VM implementation _must_ retry infinitely: the caller
-> >  * cannot handle allocation failures.  This modifier is deprecated and no new
-> >  * users should be added.
-> > 
-> > So, is this another policy relevation from the mm developers about
-> > the kmalloc API? i.e. that __GFP_NOFAIL is no longer deprecated?
-> > Or just another symptom of frantic thrashing because nobody actually
-> > understands the problem or those that do are unwilling to throw out
-> > the broken crap and redesign it?
-> 
-> Well, understand our dilemma here.  __GFP_NOFAIL is a liability
-> because it can trap tasks with unknown state and locks in a
-> potentially never ending loop, and we don't want people to start using
-> it as a convenient solution to get out of having a fallback strategy.
-> 
-> However, if your entire architecture around a particular allocation is
-> that failure is not an option at this point, and you can't reasonably
-> preallocate - although that would always be preferrable - then please
-> do not open code an endless loop around the call to the allocator but
-> use __GFP_NOFAIL instead so that these callsites are annotated and can
-> be reviewed. 
-
-I will actively work around aanything that causes filesystem memory
-pressure to increase the chance of oom killer invocations. The OOM
-killer is not a solution - it is, by definition, a loose cannon and
-so we should be reducing dependencies on it.
-
-I really don't care about the OOM Killer corner cases - it's
-completely the wrong way line of development to be spending time on
-and you aren't going to convince me otherwise. The OOM killer a
-crutch used to justify having a memory allocation subsystem that
-can't provide forward progress guarantee mechanisms to callers that
-need it.
-
-I've proposed a method of providing this forward progress guarantee
-for subsystems of arbitrary complexity, and this removes the
-dependency on the OOM killer for fowards allocation progress in such
-contexts (e.g. filesystems). We should be discussing how to
-implement that, not what bandaids we need to apply to the OOM
-killer. I want to fix the underlying problems, not push them under
-the OOM-killer bus...
-
-> And please understand that this callsite blowing up is a chance to
-> better the code and behavior here.  Where previously it would just
-> endlessly loop in the allocator without any means to make progress,
-
-Again, this statement ignores the fact we have *no credible
-evidence* that this is actually a problem in production
-environments.
-
-And, besides, even if you do force through changing the XFS code to
-GFP_NOFAIL, it'll get changed back to a retry loop in the near
-future when we add admin configurable error handling behaviour to
-XFS, as I pointed Michal to....
-(http://oss.sgi.com/archives/xfs/2015-02/msg00346.html)
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+- Sedat -
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
