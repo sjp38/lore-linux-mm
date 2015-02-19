@@ -1,79 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com [209.85.214.181])
-	by kanga.kvack.org (Postfix) with ESMTP id EA4FC900015
-	for <linux-mm@kvack.org>; Wed, 18 Feb 2015 22:23:46 -0500 (EST)
-Received: by mail-ob0-f181.google.com with SMTP id vb8so9950580obc.12
-        for <linux-mm@kvack.org>; Wed, 18 Feb 2015 19:23:46 -0800 (PST)
-Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com. [209.85.214.182])
-        by mx.google.com with ESMTPS id mr4si2907191oeb.7.2015.02.18.19.23.45
+Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 083E26B00B5
+	for <linux-mm@kvack.org>; Thu, 19 Feb 2015 00:38:37 -0500 (EST)
+Received: by mail-ob0-f178.google.com with SMTP id uz6so10758020obc.9
+        for <linux-mm@kvack.org>; Wed, 18 Feb 2015 21:38:36 -0800 (PST)
+Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
+        by mx.google.com with ESMTPS id z4si4733564oew.26.2015.02.18.21.38.35
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Feb 2015 19:23:46 -0800 (PST)
-Received: by mail-ob0-f182.google.com with SMTP id nt9so9723818obb.13
-        for <linux-mm@kvack.org>; Wed, 18 Feb 2015 19:23:45 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1424304641-28965-2-git-send-email-dbueso@suse.de>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 18 Feb 2015 21:38:36 -0800 (PST)
+Message-ID: <1424324307.18191.5.camel@stgolabs.net>
+Subject: Re: [PATCH 3/3] tomoyo: robustify handling of mm->exe_file
+From: Davidlohr Bueso <dave@stgolabs.net>
+Date: Wed, 18 Feb 2015 21:38:27 -0800
+In-Reply-To: <1424304641-28965-4-git-send-email-dbueso@suse.de>
 References: <1424304641-28965-1-git-send-email-dbueso@suse.de>
-	<1424304641-28965-2-git-send-email-dbueso@suse.de>
-Date: Wed, 18 Feb 2015 22:23:45 -0500
-Message-ID: <CAHC9VhR212FmSEhV_2yryt0=YxTN34ktZ8vveBD3kv4Uhd4WTw@mail.gmail.com>
-Subject: Re: [PATCH 1/3] kernel/audit: consolidate handling of mm->exe_file
-From: Paul Moore <paul@paul-moore.com>
-Content-Type: text/plain; charset=UTF-8
+	 <1424304641-28965-4-git-send-email-dbueso@suse.de>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <dbueso@suse.de>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave@stgolabs.net, Eric Paris <eparis@redhat.com>, linux-audit@redhat.com
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, takedakn@nttdata.co.jp, penguin-kernel@I-love.SAKURA.ne.jp, linux-security-module@vger.kernel.org
 
-On Wed, Feb 18, 2015 at 7:10 PM, Davidlohr Bueso <dbueso@suse.de> wrote:
-> From: Davidlohr Bueso <dave@stgolabs.net>
->
-> This patch adds a audit_log_d_path_exe() helper function
-> to share how we handle auditing of the exe_file's path.
-> Used by both audit and auditsc. No functionality is changed.
->
-> Cc: Paul Moore <paul@paul-moore.com>
-> Cc: Eric Paris <eparis@redhat.com>
-> Cc: linux-audit@redhat.com
-> Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
-> ---
->
-> Compile tested only.
->
->  kernel/audit.c   |  9 +--------
->  kernel/audit.h   | 14 ++++++++++++++
->  kernel/auditsc.c |  9 +--------
->  3 files changed, 16 insertions(+), 16 deletions(-)
-
-I'd prefer if the audit_log_d_path_exe() helper wasn't a static inline.
-
-> --- a/kernel/audit.h
-> +++ b/kernel/audit.h
-> @@ -257,6 +257,20 @@ extern struct list_head audit_filter_list[];
->
->  extern struct audit_entry *audit_dupe_rule(struct audit_krule *old);
->
-> +static inline void audit_log_d_path_exe(struct audit_buffer *ab,
-> +                                       struct mm_struct *mm)
+On Wed, 2015-02-18 at 16:10 -0800, Davidlohr Bueso wrote:
+> +static const char *tomoyo_get_exe(struct mm_struct *mm)
 > +{
-> +       if (!mm) {
-> +               audit_log_format(ab, " exe=(null)");
-> +               return;
-> +       }
+> +	struct file *exe_file;
+> +	const char *cp = NULL;
 > +
-> +       down_read(&mm->mmap_sem);
-> +       if (mm->exe_file)
-> +               audit_log_d_path(ab, " exe=", &mm->exe_file->f_path);
-> +       up_read(&mm->mmap_sem);
-> +}
+> +	if (!mm)
+> +		return NULL;
+> +	exe_file = get_mm_exe_file(mm);
+> +	if (!exe_file)
+> +		return NULL;
 > +
->  /* audit watch functions */
->  #ifdef CONFIG_AUDIT_WATCH
->  extern void audit_put_watch(struct audit_watch *watch);
+> +	cp = tomoyo_realpath_from_path(&exe_file->f_path);
 
--- 
-paul moore
-www.paul-moore.com
+tomoyo_realpath_from_path can return NULL here, thus we'd leak the
+f_path in the caller... I guess this should be:
+
+> +	path_get(&exe_file->f_path);
+
+	if (cp)
+		path_get(&exe_file->f_path);
+
+> +	fput(exe_file);
+> +	return cp;
+> +}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
