@@ -1,54 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EFDB900015
-	for <linux-mm@kvack.org>; Thu, 19 Feb 2015 08:29:44 -0500 (EST)
-Received: by paceu11 with SMTP id eu11so9456246pac.10
-        for <linux-mm@kvack.org>; Thu, 19 Feb 2015 05:29:44 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id m2si12115140pdo.181.2015.02.19.05.29.41
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 4355C900015
+	for <linux-mm@kvack.org>; Thu, 19 Feb 2015 09:34:56 -0500 (EST)
+Received: by pabrd3 with SMTP id rd3so133930pab.4
+        for <linux-mm@kvack.org>; Thu, 19 Feb 2015 06:34:56 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id bd2si8042146pbc.44.2015.02.19.06.34.54
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 19 Feb 2015 05:29:42 -0800 (PST)
-Subject: Re: How to handle TIF_MEMDIE stalls?
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20150218082502.GA4478@dhcp22.suse.cz>
-	<20150218104859.GM12722@dastard>
-	<20150218121602.GC4478@dhcp22.suse.cz>
-	<20150219110124.GC15569@phnom.home.cmpxchg.org>
-	<20150219122914.GH28427@dhcp22.suse.cz>
-In-Reply-To: <20150219122914.GH28427@dhcp22.suse.cz>
-Message-Id: <201502192229.FCJ73987.MFQLOHSJFFtOOV@I-love.SAKURA.ne.jp>
-Date: Thu, 19 Feb 2015 22:29:37 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Feb 2015 06:34:54 -0800 (PST)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH 1/2] cgroup: call cgroup_subsys->bind on cgroup subsys initialization
+Date: Thu, 19 Feb 2015 17:34:46 +0300
+Message-ID: <131af5f5ee0eec55d0f94a785db4be04baf01f51.1424356325.git.vdavydov@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.cz, hannes@cmpxchg.org
-Cc: david@fromorbit.com, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, xfs@oss.sgi.com, linux-fsdevel@vger.kernel.org, fernando_b1@lab.ntt.co.jp
+To: Tejun Heo <tj@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Michal Hocko wrote:
-> On Thu 19-02-15 06:01:24, Johannes Weiner wrote:
-> [...]
-> > Preferrably, we'd get rid of all nofail allocations and replace them
-> > with preallocated reserves.  But this is not going to happen anytime
-> > soon, so what other option do we have than resolving this on the OOM
-> > killer side?
-> 
-> As I've mentioned in other email, we might give GFP_NOFAIL allocator
-> access to memory reserves (by giving it __GFP_HIGH). This is still not a
-> 100% solution because reserves could get depleted but this risk is there
-> even with multiple oom victims. I would still argue that this would be a
-> better approach because selecting more victims might hit pathological
-> case more easily (other victims might be blocked on the very same lock
-> e.g.).
-> 
-Does "multiple OOM victims" mean "select next if first does not die"?
-Then, I think my timeout patch http://marc.info/?l=linux-mm&m=142002495532320&w=2
-does not deplete memory reserves. ;-)
+Currently, we call cgroup_subsys->bind only on unmount, remount, and
+when creating a new root on mount. Since the default hierarchy root is
+created in cgroup_init, we will not call cgroup_subsys->bind if the
+default hierarchy is freshly mounted. As a result, some controllers will
+behave incorrectly (most notably, the "memory" controller will not
+enable hierarchy support). Fix this by calling cgroup_subsys->bind right
+after initializing a cgroup subsystem.
 
-If we change to permit invocation of the OOM killer for GFP_NOFS / GFP_NOIO,
-those who do not want to fail (e.g. journal transaction) will start passing
-__GFP_NOFAIL?
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+---
+ kernel/cgroup.c |    3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/kernel/cgroup.c b/kernel/cgroup.c
+index 29a7b2cc593e..21a4b6d61e21 100644
+--- a/kernel/cgroup.c
++++ b/kernel/cgroup.c
+@@ -5040,6 +5040,9 @@ int __init cgroup_init(void)
+ 			WARN_ON(cgroup_add_dfl_cftypes(ss, ss->dfl_cftypes));
+ 			WARN_ON(cgroup_add_legacy_cftypes(ss, ss->legacy_cftypes));
+ 		}
++
++		if (ss->bind)
++			ss->bind(init_css_set.subsys[ssid]);
+ 	}
+ 
+ 	cgroup_kobj = kobject_create_and_add("cgroup", fs_kobj);
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
