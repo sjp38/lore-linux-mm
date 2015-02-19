@@ -1,58 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B11A6B009C
-	for <linux-mm@kvack.org>; Thu, 19 Feb 2015 10:39:38 -0500 (EST)
-Received: by padbj1 with SMTP id bj1so514352pad.5
-        for <linux-mm@kvack.org>; Thu, 19 Feb 2015 07:39:37 -0800 (PST)
-Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
-        by mx.google.com with ESMTPS id uv4si1766103pbc.110.2015.02.19.07.39.36
+Received: from mail-la0-f48.google.com (mail-la0-f48.google.com [209.85.215.48])
+	by kanga.kvack.org (Postfix) with ESMTP id CF3FE6B0088
+	for <linux-mm@kvack.org>; Thu, 19 Feb 2015 12:19:41 -0500 (EST)
+Received: by labgq15 with SMTP id gq15so978453lab.6
+        for <linux-mm@kvack.org>; Thu, 19 Feb 2015 09:19:41 -0800 (PST)
+Received: from forward-corp1f.mail.yandex.net (forward-corp1f.mail.yandex.net. [2a02:6b8:0:801::10])
+        by mx.google.com with ESMTPS id ca4si17695804lad.53.2015.02.19.09.19.37
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Thu, 19 Feb 2015 07:39:37 -0800 (PST)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout2.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NK000BV9ZOLS0B0@mailout2.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 19 Feb 2015 15:43:33 +0000 (GMT)
-Message-id: <54E603B0.60505@samsung.com>
-Date: Thu, 19 Feb 2015 18:39:28 +0300
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
-MIME-version: 1.0
-Subject: Re: drivers/net/ethernet/broadcom/tg3.c:17811:37: warning: array
- subscript is above array bounds
-References: <201502190116.RU3JpDne%fengguang.wu@intel.com>
-In-reply-to: <201502190116.RU3JpDne%fengguang.wu@intel.com>
-Content-type: text/plain; charset=windows-1252
-Content-transfer-encoding: 7bit
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Feb 2015 09:19:38 -0800 (PST)
+Subject: [PATCH] fs: avoid locking sb_lock in grab_super_passive()
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Date: Thu, 19 Feb 2015 20:19:35 +0300
+Message-ID: <20150219171934.20458.30175.stgit@buzz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: kbuild-all@01.org, Andrey Konovalov <adech.fo@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+Cc: linux-fsdevel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>
 
-On 02/18/2015 08:14 PM, kbuild test robot wrote:
-> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
-> head:   f5af19d10d151c5a2afae3306578f485c244db25
-> commit: ef7f0d6a6ca8c9e4b27d78895af86c2fbfaeedb2 x86_64: add KASan support
-> date:   5 days ago
-> config: x86_64-randconfig-iv1-02190055 (attached as .config)
-> reproduce:
->   git checkout ef7f0d6a6ca8c9e4b27d78895af86c2fbfaeedb2
->   # save the attached .config to linux build tree
->   make ARCH=x86_64 
-> 
-> Note: it may well be a FALSE warning. FWIW you are at least aware of it now.
-> 
-> All warnings:
-> 
->    drivers/net/ethernet/broadcom/tg3.c: In function 'tg3_init_one':
->>> drivers/net/ethernet/broadcom/tg3.c:17811:37: warning: array subscript is above array bounds [-Warray-bounds]
->       struct tg3_napi *tnapi = &tp->napi[i];
->                                         ^
->>> drivers/net/ethernet/broadcom/tg3.c:17811:37: warning: array subscript is above array bounds [-Warray-bounds]
-> 
+I've noticed significant locking contention in memory reclaimer around
+sb_lock inside grab_super_passive(). Grab_super_passive() is called from
+two places: in icache/dcache shrinkers (function super_cache_scan) and
+from writeback (function __writeback_inodes_wb). Both are required for
+progress in memory reclaimer.
 
-This probably a GCC bug: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=59124
-I see this warning with 4.9.2, but not with GCC 5 where this should be fixed already.
+Also this lock isn't irq-safe. And I've seen suspicious livelock under
+serious memory pressure where reclaimer was called from interrupt which
+have happened right in place where sb_lock is held in normal context,
+so all other cpus were stuck on that lock too.
+
+Grab_super_passive() acquires sb_lock to increment sb->s_count and check
+sb->s_instances. It seems sb->s_umount locked for read is enough here:
+super-block deactivation always runs under sb->s_umount locked for write.
+Protecting super-block itself isn't a problem: in super_cache_scan() sb
+is protected by shrinker_rwsem: it cannot be freed if its slab shrinkers
+are still active. Inside writeback super-block comes from inode from bdi
+writeback list under wb->list_lock.
+
+This patch removes locking sb_lock and checks s_instances under s_umount:
+generic_shutdown_super() unlinks it under sb->s_umount locked for write.
+Now successful grab_super_passive() only locks semaphore, callers must
+call up_read(&sb->s_umount) instead of drop_super(sb) when they're done.
+
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+---
+ fs/fs-writeback.c |    2 +-
+ fs/super.c        |   18 ++++--------------
+ 2 files changed, 5 insertions(+), 15 deletions(-)
+
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index 073657f..3e92bb7 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -779,7 +779,7 @@ static long __writeback_inodes_wb(struct bdi_writeback *wb,
+ 			continue;
+ 		}
+ 		wrote += writeback_sb_inodes(sb, wb, work);
+-		drop_super(sb);
++		up_read(&sb->s_umount);
+ 
+ 		/* refer to the same tests at the end of writeback_sb_inodes */
+ 		if (wrote) {
+diff --git a/fs/super.c b/fs/super.c
+index 65a53ef..6ae33ed 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -105,7 +105,7 @@ static unsigned long super_cache_scan(struct shrinker *shrink,
+ 		freed += sb->s_op->free_cached_objects(sb, sc);
+ 	}
+ 
+-	drop_super(sb);
++	up_read(&sb->s_umount);
+ 	return freed;
+ }
+ 
+@@ -356,27 +356,17 @@ static int grab_super(struct super_block *s) __releases(sb_lock)
+  *	superblock does not go away while we are working on it. It returns
+  *	false if a reference was not gained, and returns true with the s_umount
+  *	lock held in read mode if a reference is gained. On successful return,
+- *	the caller must drop the s_umount lock and the passive reference when
+- *	done.
++ *	the caller must drop the s_umount lock when done.
+  */
+ bool grab_super_passive(struct super_block *sb)
+ {
+-	spin_lock(&sb_lock);
+-	if (hlist_unhashed(&sb->s_instances)) {
+-		spin_unlock(&sb_lock);
+-		return false;
+-	}
+-
+-	sb->s_count++;
+-	spin_unlock(&sb_lock);
+-
+ 	if (down_read_trylock(&sb->s_umount)) {
+-		if (sb->s_root && (sb->s_flags & MS_BORN))
++		if (!hlist_unhashed(&sb->s_instances) &&
++		    sb->s_root && (sb->s_flags & MS_BORN))
+ 			return true;
+ 		up_read(&sb->s_umount);
+ 	}
+ 
+-	put_super(sb);
+ 	return false;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
