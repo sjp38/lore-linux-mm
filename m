@@ -1,177 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
-	by kanga.kvack.org (Postfix) with ESMTP id E843D6B00C2
-	for <linux-mm@kvack.org>; Wed, 18 Feb 2015 19:11:01 -0500 (EST)
-Received: by mail-ob0-f179.google.com with SMTP id wp4so8710740obc.10
-        for <linux-mm@kvack.org>; Wed, 18 Feb 2015 16:11:01 -0800 (PST)
-Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
-        by mx.google.com with ESMTPS id pa11si2454612oeb.27.2015.02.18.16.11.00
+Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 13CBA6B00C4
+	for <linux-mm@kvack.org>; Wed, 18 Feb 2015 19:26:50 -0500 (EST)
+Received: by mail-qg0-f43.google.com with SMTP id i50so3950802qgf.2
+        for <linux-mm@kvack.org>; Wed, 18 Feb 2015 16:26:49 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b89si18966173qgf.111.2015.02.18.16.26.48
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 18 Feb 2015 16:11:01 -0800 (PST)
-From: Davidlohr Bueso <dbueso@suse.de>
-Subject: [PATCH 3/3] tomoyo: robustify handling of mm->exe_file
-Date: Wed, 18 Feb 2015 16:10:41 -0800
-Message-Id: <1424304641-28965-4-git-send-email-dbueso@suse.de>
-In-Reply-To: <1424304641-28965-1-git-send-email-dbueso@suse.de>
-References: <1424304641-28965-1-git-send-email-dbueso@suse.de>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Feb 2015 16:26:49 -0800 (PST)
+Message-ID: <54E5296C.5040806@redhat.com>
+Date: Wed, 18 Feb 2015 19:08:12 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2] mm: incorporate zero pages into transparent huge pages
+References: <1423688635-4306-1-git-send-email-ebru.akagunduz@gmail.com> <20150218153119.0bcd0bf8b4e7d30d99f00a3b@linux-foundation.org>
+In-Reply-To: <20150218153119.0bcd0bf8b4e7d30d99f00a3b@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave@stgolabs.net, takedakn@nttdata.co.jp, penguin-kernel@I-love.SAKURA.ne.jp, linux-security-module@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>
+To: Andrew Morton <akpm@linux-foundation.org>, Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Cc: linux-mm@kvack.org, kirill@shutemov.name, mhocko@suse.cz, mgorman@suse.de, rientjes@google.com, sasha.levin@oracle.com, hughd@google.com, hannes@cmpxchg.org, vbabka@suse.cz, linux-kernel@vger.kernel.org, aarcange@redhat.com
 
-From: Davidlohr Bueso <dave@stgolabs.net>
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
 
-The mm->exe_file is currently serialized with mmap_sem (shared)
-in order to both safely (1) read the file and (2) compute the
-realpath by calling tomoyo_realpath_from_path, making it an absolute
-overkill. Good users will, on the other hand, make use of the more
-standard get_mm_exe_file(), requiring only holding the mmap_sem to
-read the value, and relying on reference counting to make sure that
-the exe file won't dissappear underneath us.
+On 02/18/2015 06:31 PM, Andrew Morton wrote:
+> On Wed, 11 Feb 2015 23:03:55 +0200 Ebru Akagunduz
+> <ebru.akagunduz@gmail.com> wrote:
+> 
+>> This patch improves THP collapse rates, by allowing zero pages.
+>> 
+>> Currently THP can collapse 4kB pages into a THP when there are up
+>> to khugepaged_max_ptes_none pte_none ptes in a 2MB range.  This
+>> patch counts pte none and mapped zero pages with the same
+>> variable.
+> 
+> So if I'm understanding this correctly, with the default value of 
+> khugepaged_max_ptes_none (HPAGE_PMD_NR-1), if an application
+> creates a 2MB area which contains 511 mappings of the zero page and
+> one real page, the kernel will proceed to turn that area into a
+> real, physical huge page.  So it consumes 2MB of memory which would
+> not have previously been allocated?
 
-When returning from tomoyo_get_exe, we'll hold reference to the exe's
-f_path, make sure we put it back when done at the end of the
-manager call. This patch also does some cleanups around the function,
-such as moving it into common.c and changing the args.
+This is equivalent to an application doing a write fault
+to a 2MB area that was previously untouched, going into
+do_huge_pmd_anonymous_page() and receiving a 2MB page.
 
-Cc: Kentaro TKentaro Takeda <takedakn@nttdata.co.jp>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-security-module@vger.kernel.org
-Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
----
+> If so, this might be rather undesirable behaviour in some
+> situations (and ditto the current behaviour for pte_none ptes)?
+> 
+> This can be tuned by adjusting khugepaged_max_ptes_none,
 
-Compile tested only.
+The example of directly going into do_huge_pmd_anonymous_page()
+is not influenced by the tunable.
 
- security/tomoyo/common.c | 41 ++++++++++++++++++++++++++++++++++++++---
- security/tomoyo/common.h |  1 -
- security/tomoyo/util.c   | 22 ----------------------
- 3 files changed, 38 insertions(+), 26 deletions(-)
+It may indeed be undesirable in some situations, but I am
+not sure how to detect those...
 
-diff --git a/security/tomoyo/common.c b/security/tomoyo/common.c
-index e0fb750..f55129f 100644
---- a/security/tomoyo/common.c
-+++ b/security/tomoyo/common.c
-@@ -908,6 +908,33 @@ static void tomoyo_read_manager(struct tomoyo_io_buffer *head)
- }
- 
- /**
-+ * tomoyo_get_exe - Get tomoyo_realpath() of current process.
-+ *
-+ * Returns the tomoyo_realpath() of current process on success, NULL otherwise.
-+ *
-+ * A successful return will leave the caller with two responsibilities when done
-+ * handling the realpath:
-+ *    (1) path_put the exe_file's path refcount.
-+ *    (2) kfree return buffer.
-+ */
-+static const char *tomoyo_get_exe(struct mm_struct *mm)
-+{
-+	struct file *exe_file;
-+	const char *cp = NULL;
-+
-+	if (!mm)
-+		return NULL;
-+	exe_file = get_mm_exe_file(mm);
-+	if (!exe_file)
-+		return NULL;
-+
-+	cp = tomoyo_realpath_from_path(&exe_file->f_path);
-+	path_get(&exe_file->f_path);
-+	fput(exe_file);
-+	return cp;
-+}
-+
-+/**
-  * tomoyo_manager - Check whether the current process is a policy manager.
-  *
-  * Returns true if the current process is permitted to modify policy
-@@ -920,20 +947,26 @@ static bool tomoyo_manager(void)
- 	struct tomoyo_manager *ptr;
- 	const char *exe;
- 	const struct task_struct *task = current;
--	const struct tomoyo_path_info *domainname = tomoyo_domain()->domainname;
-+	struct mm_struct *mm = current->mm;
-+	const struct tomoyo_path_info *domainname;
- 	bool found = false;
- 
-+	domainname = tomoyo_domain()->domainname;
-+
- 	if (!tomoyo_policy_loaded)
- 		return true;
- 	if (!tomoyo_manage_by_non_root &&
- 	    (!uid_eq(task->cred->uid,  GLOBAL_ROOT_UID) ||
- 	     !uid_eq(task->cred->euid, GLOBAL_ROOT_UID)))
- 		return false;
--	exe = tomoyo_get_exe();
-+
-+	exe = tomoyo_get_exe(mm);
- 	if (!exe)
- 		return false;
-+
- 	list_for_each_entry_rcu(ptr, &tomoyo_kernel_namespace.
--				policy_list[TOMOYO_ID_MANAGER], head.list) {
-+				policy_list[TOMOYO_ID_MANAGER],
-+				head.list) {
- 		if (!ptr->head.is_deleted &&
- 		    (!tomoyo_pathcmp(domainname, ptr->manager) ||
- 		     !strcmp(exe, ptr->manager->name))) {
-@@ -950,6 +983,8 @@ static bool tomoyo_manager(void)
- 			last_pid = pid;
- 		}
- 	}
-+
-+	path_put(&mm->exe_file->f_path);
- 	kfree(exe);
- 	return found;
- }
-diff --git a/security/tomoyo/common.h b/security/tomoyo/common.h
-index b897d48..fc89eba 100644
---- a/security/tomoyo/common.h
-+++ b/security/tomoyo/common.h
-@@ -947,7 +947,6 @@ char *tomoyo_init_log(struct tomoyo_request_info *r, int len, const char *fmt,
- char *tomoyo_read_token(struct tomoyo_acl_param *param);
- char *tomoyo_realpath_from_path(struct path *path);
- char *tomoyo_realpath_nofollow(const char *pathname);
--const char *tomoyo_get_exe(void);
- const char *tomoyo_yesno(const unsigned int value);
- const struct tomoyo_path_info *tomoyo_compare_name_union
- (const struct tomoyo_path_info *name, const struct tomoyo_name_union *ptr);
-diff --git a/security/tomoyo/util.c b/security/tomoyo/util.c
-index 2952ba5..7eff479 100644
---- a/security/tomoyo/util.c
-+++ b/security/tomoyo/util.c
-@@ -939,28 +939,6 @@ bool tomoyo_path_matches_pattern(const struct tomoyo_path_info *filename,
- }
- 
- /**
-- * tomoyo_get_exe - Get tomoyo_realpath() of current process.
-- *
-- * Returns the tomoyo_realpath() of current process on success, NULL otherwise.
-- *
-- * This function uses kzalloc(), so the caller must call kfree()
-- * if this function didn't return NULL.
-- */
--const char *tomoyo_get_exe(void)
--{
--	struct mm_struct *mm = current->mm;
--	const char *cp = NULL;
--
--	if (!mm)
--		return NULL;
--	down_read(&mm->mmap_sem);
--	if (mm->exe_file)
--		cp = tomoyo_realpath_from_path(&mm->exe_file->f_path);
--	up_read(&mm->mmap_sem);
--	return cp;
--}
--
--/**
-  * tomoyo_get_mode - Get MAC mode.
-  *
-  * @ns:      Pointer to "struct tomoyo_policy_namespace".
--- 
-2.1.4
+- -- 
+All rights reversed
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQEcBAEBAgAGBQJU5SlsAAoJEM553pKExN6D8DYH/0TQPr38R3lYqxTllOVPIUus
++UrgXveOeoMiMbN3e5r9tIJkw+2yUJFZ8hkYx+aFsTD5zNz7xwf9Qz8IdJpcZ3sc
+PkvOnnZNk/ZzixWrBhWFPsKRN2pi5wXMpfNM2jTs9W4EeyfkV3RYbGxZy/OO1LB5
+CwDzteCTb81y1FYxC4vNxLnML417ZjIMq7ICdj6lKW2KC5+TdCIPTOrKCy+2fWBo
+4qhqho4RFKHLCxpnryUMzZDXca4vmcgGWwUm5xLF6SnJWWFEiPBLixJiRV3xe0iw
+rbuGhcIXo/q16oO4QOIl+hSVJr8vE+Y8xRbIJFmWXCmuQHQpg5ZspVZ+9Z/3UaI=
+=Qf1D
+-----END PGP SIGNATURE-----
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
