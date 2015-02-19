@@ -1,87 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E7C26B0098
-	for <linux-mm@kvack.org>; Thu, 19 Feb 2015 10:29:37 -0500 (EST)
-Received: by pdbfl12 with SMTP id fl12so436271pdb.4
-        for <linux-mm@kvack.org>; Thu, 19 Feb 2015 07:29:36 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id kp7si9719083pdb.137.2015.02.19.07.29.35
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B11A6B009C
+	for <linux-mm@kvack.org>; Thu, 19 Feb 2015 10:39:38 -0500 (EST)
+Received: by padbj1 with SMTP id bj1so514352pad.5
+        for <linux-mm@kvack.org>; Thu, 19 Feb 2015 07:39:37 -0800 (PST)
+Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
+        by mx.google.com with ESMTPS id uv4si1766103pbc.110.2015.02.19.07.39.36
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 19 Feb 2015 07:29:35 -0800 (PST)
-Subject: Re: How to handle TIF_MEMDIE stalls?
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20150218104859.GM12722@dastard>
-	<20150218121602.GC4478@dhcp22.suse.cz>
-	<20150219110124.GC15569@phnom.home.cmpxchg.org>
-	<20150219122914.GH28427@dhcp22.suse.cz>
-	<20150219125844.GI28427@dhcp22.suse.cz>
-In-Reply-To: <20150219125844.GI28427@dhcp22.suse.cz>
-Message-Id: <201502200029.DEG78137.QFVLHFFOJMtOOS@I-love.SAKURA.ne.jp>
-Date: Fri, 20 Feb 2015 00:29:29 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Thu, 19 Feb 2015 07:39:37 -0800 (PST)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout2.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NK000BV9ZOLS0B0@mailout2.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 19 Feb 2015 15:43:33 +0000 (GMT)
+Message-id: <54E603B0.60505@samsung.com>
+Date: Thu, 19 Feb 2015 18:39:28 +0300
+From: Andrey Ryabinin <a.ryabinin@samsung.com>
+MIME-version: 1.0
+Subject: Re: drivers/net/ethernet/broadcom/tg3.c:17811:37: warning: array
+ subscript is above array bounds
+References: <201502190116.RU3JpDne%fengguang.wu@intel.com>
+In-reply-to: <201502190116.RU3JpDne%fengguang.wu@intel.com>
+Content-type: text/plain; charset=windows-1252
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.cz, hannes@cmpxchg.org
-Cc: david@fromorbit.com, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, xfs@oss.sgi.com, linux-fsdevel@vger.kernel.org, fernando_b1@lab.ntt.co.jp
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: kbuild-all@01.org, Andrey Konovalov <adech.fo@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-Michal Hocko wrote:
-> On Thu 19-02-15 13:29:14, Michal Hocko wrote:
-> [...]
-> > Something like the following.
-> __GFP_HIGH doesn't seem to be sufficient so we would need something
-> slightly else but the idea is still the same:
+On 02/18/2015 08:14 PM, kbuild test robot wrote:
+> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
+> head:   f5af19d10d151c5a2afae3306578f485c244db25
+> commit: ef7f0d6a6ca8c9e4b27d78895af86c2fbfaeedb2 x86_64: add KASan support
+> date:   5 days ago
+> config: x86_64-randconfig-iv1-02190055 (attached as .config)
+> reproduce:
+>   git checkout ef7f0d6a6ca8c9e4b27d78895af86c2fbfaeedb2
+>   # save the attached .config to linux build tree
+>   make ARCH=x86_64 
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 8d52ab18fe0d..2d224bbdf8e8 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2599,6 +2599,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	enum migrate_mode migration_mode = MIGRATE_ASYNC;
->  	bool deferred_compaction = false;
->  	int contended_compaction = COMPACT_CONTENDED_NONE;
-> +	int oom = 0;
->  
->  	/*
->  	 * In the slowpath, we sanity check order to avoid ever trying to
-> @@ -2635,6 +2636,15 @@ retry:
->  	alloc_flags = gfp_to_alloc_flags(gfp_mask);
->  
->  	/*
-> +	 * __GFP_NOFAIL allocations cannot fail but yet the current context
-> +	 * might be blocking resources needed by the OOM victim to terminate.
-> +	 * Allow the caller to dive into memory reserves to succeed the
-> +	 * allocation and break out from a potential deadlock.
-> +	 */
-
-We don't know how many callers will pass __GFP_NOFAIL. But if 1000
-threads are doing the same operation which requires __GFP_NOFAIL
-allocation with a lock held, wouldn't memory reserves deplete?
-
-This heuristic can't continue if memory reserves depleted or
-continuous pages of requested order cannot be found.
-
-> +	if (oom > 10 && (gfp_mask & __GFP_NOFAIL))
-> +		alloc_flags |= ALLOC_NO_WATERMARKS;
-> +
-> +	/*
->  	 * Find the true preferred zone if the allocation is unconstrained by
->  	 * cpusets.
->  	 */
-> @@ -2759,6 +2769,8 @@ retry:
->  				goto got_pg;
->  			if (!did_some_progress)
->  				goto nopage;
-> +
-> +			oom++;
->  		}
->  		/* Wait for some write requests to complete then retry */
->  		wait_iff_congested(ac->preferred_zone, BLK_RW_ASYNC, HZ/50);
-> -- 
-> Michal Hocko
-> SUSE Labs
+> Note: it may well be a FALSE warning. FWIW you are at least aware of it now.
 > 
+> All warnings:
+> 
+>    drivers/net/ethernet/broadcom/tg3.c: In function 'tg3_init_one':
+>>> drivers/net/ethernet/broadcom/tg3.c:17811:37: warning: array subscript is above array bounds [-Warray-bounds]
+>       struct tg3_napi *tnapi = &tp->napi[i];
+>                                         ^
+>>> drivers/net/ethernet/broadcom/tg3.c:17811:37: warning: array subscript is above array bounds [-Warray-bounds]
+> 
+
+This probably a GCC bug: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=59124
+I see this warning with 4.9.2, but not with GCC 5 where this should be fixed already.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
