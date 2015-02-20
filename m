@@ -1,79 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 61B566B0032
-	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 18:07:34 -0500 (EST)
-Received: by pablf10 with SMTP id lf10so11384389pab.12
-        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 15:07:34 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id t4si932811pdp.6.2015.02.20.15.07.32
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Feb 2015 15:07:33 -0800 (PST)
-Date: Fri, 20 Feb 2015 15:07:31 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] fs: avoid locking sb_lock in grab_super_passive()
-Message-Id: <20150220150731.e79cd30dc6ecf3c7a3f5caa3@linux-foundation.org>
-In-Reply-To: <20150219171934.20458.30175.stgit@buzz>
-References: <20150219171934.20458.30175.stgit@buzz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BE916B0032
+	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 18:09:21 -0500 (EST)
+Received: by pabrd3 with SMTP id rd3so11518006pab.1
+        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 15:09:21 -0800 (PST)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id ok5si12047476pbb.103.2015.02.20.15.09.19
+        for <linux-mm@kvack.org>;
+        Fri, 20 Feb 2015 15:09:20 -0800 (PST)
+Date: Sat, 21 Feb 2015 10:09:10 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: How to handle TIF_MEMDIE stalls?
+Message-ID: <20150220230910.GG12722@dastard>
+References: <201502172123.JIE35470.QOLMVOFJSHOFFt@I-love.SAKURA.ne.jp>
+ <20150217125315.GA14287@phnom.home.cmpxchg.org>
+ <20150217225430.GJ4251@dastard>
+ <20150218082502.GA4478@dhcp22.suse.cz>
+ <20150218104859.GM12722@dastard>
+ <20150218121602.GC4478@dhcp22.suse.cz>
+ <20150219110124.GC15569@phnom.home.cmpxchg.org>
+ <20150219122914.GH28427@dhcp22.suse.cz>
+ <20150219214356.GW12722@dastard>
+ <20150220124849.GH21248@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150220124849.GH21248@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, xfs@oss.sgi.com
 
-On Thu, 19 Feb 2015 20:19:35 +0300 Konstantin Khlebnikov <khlebnikov@yandex-team.ru> wrote:
->
-
-Please cc Dave Chinner on this.
-
-> I've noticed significant locking contention in memory reclaimer around
-> sb_lock inside grab_super_passive(). Grab_super_passive() is called from
-> two places: in icache/dcache shrinkers (function super_cache_scan) and
-> from writeback (function __writeback_inodes_wb). Both are required for
-> progress in memory reclaimer.
+On Fri, Feb 20, 2015 at 01:48:49PM +0100, Michal Hocko wrote:
+> On Fri 20-02-15 08:43:56, Dave Chinner wrote:
+> > On Thu, Feb 19, 2015 at 01:29:14PM +0100, Michal Hocko wrote:
+> > > On Thu 19-02-15 06:01:24, Johannes Weiner wrote:
+> > > [...]
+> > > > Preferrably, we'd get rid of all nofail allocations and replace them
+> > > > with preallocated reserves.  But this is not going to happen anytime
+> > > > soon, so what other option do we have than resolving this on the OOM
+> > > > killer side?
+> > > 
+> > > As I've mentioned in other email, we might give GFP_NOFAIL allocator
+> > > access to memory reserves (by giving it __GFP_HIGH).
+> > 
+> > Won't work when you have thousands of concurrent transactions
+> > running in XFS and they are all doing GFP_NOFAIL allocations.
 > 
-> Also this lock isn't irq-safe. And I've seen suspicious livelock under
-> serious memory pressure where reclaimer was called from interrupt which
-> have happened right in place where sb_lock is held in normal context,
-> so all other cpus were stuck on that lock too.
+> Is there any bound on how many transactions can run at the same time?
 
-You mean someone is calling grab_super_passive() (ie: fs writeback)
-from interrupt context?  What's the call path?
+Yes. As many reservations that can fit in the available log space.
 
-> Grab_super_passive() acquires sb_lock to increment sb->s_count and check
-> sb->s_instances. It seems sb->s_umount locked for read is enough here:
-> super-block deactivation always runs under sb->s_umount locked for write.
-> Protecting super-block itself isn't a problem: in super_cache_scan() sb
-> is protected by shrinker_rwsem: it cannot be freed if its slab shrinkers
-> are still active. Inside writeback super-block comes from inode from bdi
-> writeback list under wb->list_lock.
+The log can be sized up to 2GB, and for filesystems larger than 4TB
+will default to 2GB. Log space reservations depend on the operation
+being done - an inode timestamp update requires about 5kB of
+reservation, and rename requires about 200kB. Hence we can easily
+have thousands of active transactions, even in the worst case
+log space reversation cases.
+
+You're saying it would be insane to have hundreds or thousands of
+threads doing GFP_NOFAIL allocations concurrently. Reality check:
+XFS has been operating successfully under such workload conditions
+in production systems for many years.
+
+> > That's why I suggested the per-transaction reserve pool - we can use
+> > that
 > 
-> This patch removes locking sb_lock and checks s_instances under s_umount:
-> generic_shutdown_super() unlinks it under sb->s_umount locked for write.
-> Now successful grab_super_passive() only locks semaphore, callers must
-> call up_read(&sb->s_umount) instead of drop_super(sb) when they're done.
-> 
+> I am still not sure what you mean by reserve pool (API wise). How
+> does it differ from pre-allocating memory before the "may not fail
+> context"? Could you elaborate on it, please?
 
-The patch looks reasonable to me, but the grab_super_passive()
-documentation needs further updating, please.
+It is preallocating memory: into a reserve pool associated with the
+transaction, done as part of the transaction reservation mechanism
+we already have in XFS. The allocator then uses that reserve pool
+to allocate from if an allocation would otherwise fail.
 
-- It no longer "acquires a reference".  All it does is to acquire an rwsem.
+There is no way we can preallocate specific objects before the
+transaction - that's just insane, especially handling the unbound
+demand paged object requirement. Hence the need for a "preallocated
+reserve pool" that the allocator can dip into that covers the memory
+we need to *allocate and can't reclaim* during the course of the
+transaction.
 
-- What the heck is a "passive reference" anyway?  It appears to be
-  the situation where we increment s_count without incrementing s_active.
+Cheers,
 
-  After your patch, this superblock state no longer exists(?), so
-  perhaps the entire "passive reference" concept and any references to
-  it can be expunged from the kernel.
-
-  And grab_super_passive() should be renamed anyway.  It no longer
-  "grabs" anything - it attempts to acquire ->s_umount. 
-  "super_trylock", maybe?
-
-- While we're dicking with the grab_super_passive() documentation,
-  let's turn it into kerneldoc by adding the /**.  
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
