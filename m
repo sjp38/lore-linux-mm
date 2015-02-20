@@ -1,106 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 347FB6B0032
-	for <linux-mm@kvack.org>; Thu, 19 Feb 2015 18:32:34 -0500 (EST)
-Received: by mail-wi0-f177.google.com with SMTP id bs8so12679569wib.4
-        for <linux-mm@kvack.org>; Thu, 19 Feb 2015 15:32:33 -0800 (PST)
-Received: from mail-we0-x233.google.com (mail-we0-x233.google.com. [2a00:1450:400c:c03::233])
-        by mx.google.com with ESMTPS id w8si43680169wiv.69.2015.02.19.15.32.32
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Feb 2015 15:32:32 -0800 (PST)
-Received: by wesk11 with SMTP id k11so2653058wes.11
-        for <linux-mm@kvack.org>; Thu, 19 Feb 2015 15:32:32 -0800 (PST)
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 402736B0032
+	for <linux-mm@kvack.org>; Thu, 19 Feb 2015 20:16:40 -0500 (EST)
+Received: by paceu11 with SMTP id eu11so3960255pac.7
+        for <linux-mm@kvack.org>; Thu, 19 Feb 2015 17:16:40 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id ic7si9427995pad.236.2015.02.19.17.16.39
+        for <linux-mm@kvack.org>;
+        Thu, 19 Feb 2015 17:16:39 -0800 (PST)
+Date: Fri, 20 Feb 2015 09:16:25 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: drivers/net/ethernet/broadcom/tg3.c:17811:37: warning: array
+ subscript is above array bounds
+Message-ID: <20150220011625.GA4228@wfg-t540p.sh.intel.com>
+References: <201502190116.RU3JpDne%fengguang.wu@intel.com>
+ <54E603B0.60505@samsung.com>
 MIME-Version: 1.0
-Reply-To: sedat.dilek@gmail.com
-In-Reply-To: <CAKTCnz=ABrmbQrAEYJ=D0=s2+fRj9FH4D5oG6aWW-qVMoYLdEA@mail.gmail.com>
-References: <CA+icZUWLJvuZknXhamKJxyGb+OYdkeD5z0V_jn=BQVtq8F5XUQ@mail.gmail.com>
-	<CAKTCnz=ABrmbQrAEYJ=D0=s2+fRj9FH4D5oG6aWW-qVMoYLdEA@mail.gmail.com>
-Date: Fri, 20 Feb 2015 00:32:32 +0100
-Message-ID: <CA+icZUUXnWBGEbb6h1XUVCBATDNKECFB7kWPie+FJsQ-nKj15Q@mail.gmail.com>
-Subject: Re: [3.19-final|next-20150204] LTP OOM testsuite causes call-traces
-From: Sedat Dilek <sedat.dilek@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <54E603B0.60505@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-next <linux-next@vger.kernel.org>
+To: Andrey Ryabinin <a.ryabinin@samsung.com>
+Cc: kbuild-all@01.org, Andrey Konovalov <adech.fo@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Tue, Feb 10, 2015 at 11:45 AM, Balbir Singh <bsingharora@gmail.com> wrote:
-> On Tue, Feb 10, 2015 at 3:12 PM, Sedat Dilek <sedat.dilek@gmail.com> wrote:
->> Hi,
->>
->> I first noticed call-traces in next-20150204 and tested on v3.19-final
->> out of curiosity.
->>
->> So, oom3 | oom4 | oom5 from LTP tests produces call-traces in my logs
->> in both releases.
->> Yesterday, I sent a tarball to linux-mm/Shutemov which has material
->> for next-20150204.
->> The for-lkml tarball has stuff for v3.19-final.
->>
->> As an example (please see dmesg files in attached tarball(s)):
->> ...
->> +[  143.591734] oom03 invoked oom-killer: gfp_mask=0xd0, order=0,
->> oom_score_adj=0
->> +[  143.591789] oom03 cpuset=/ mems_allowed=0
->> +[  143.591828] CPU: 0 PID: 2904 Comm: oom03 Not tainted 3.19.0-1-iniza-small #1
->> +[  143.591830] Hardware name: SAMSUNG ELECTRONICS CO., LTD.
->> 530U3BI/530U4BI/530U4BH/530U3BI/530U4BI/530U4BH, BIOS 13XK 03/28/2013
->> +[  143.591831]  ffff880034a64800 ffff880032c57bf8 ffffffff8175c66c
->> 0000000000000008
->> +[  143.591835]  ffff8800681a54d0 ffff880032c57c88 ffffffff8175ac3a
->> ffff880032c57c28
->> +[  143.591838]  ffffffff810c329d 0000000000000206 ffffffff81c74040
->> ffff880032c57c38
->> +[  143.591841] Call Trace:
->> +[  143.591848]  [<ffffffff8175c66c>] dump_stack+0x4c/0x65
->> +[  143.591852]  [<ffffffff8175ac3a>] dump_header+0x9e/0x259
->> +[  143.591857]  [<ffffffff810c329d>] ? trace_hardirqs_on_caller+0x15d/0x200
->> +[  143.591860]  [<ffffffff810c334d>] ? trace_hardirqs_on+0xd/0x10
->> +[  143.591863]  [<ffffffff81184cd2>] oom_kill_process+0x1d2/0x3c0
->> +[  143.591868]  [<ffffffff811ebf40>] mem_cgroup_oom_synchronize+0x630/0x670
->> +[  143.591871]  [<ffffffff811e6ac0>] ? mem_cgroup_reset+0xb0/0xb0
->> +[  143.591874]  [<ffffffff81185628>] pagefault_out_of_memory+0x18/0x90
->> +[  143.591877]  [<ffffffff8106317d>] mm_fault_error+0x8d/0x190
->> +[  143.591879]  [<ffffffff810637a8>] __do_page_fault+0x528/0x600
->> +[  143.591883]  [<ffffffff8113a847>] ? __acct_update_integrals+0xb7/0x120
->> +[  143.591886]  [<ffffffff81765a1b>] ? _raw_spin_unlock+0x2b/0x40
->> +[  143.591889]  [<ffffffff810a8ac1>] ? vtime_account_user+0x91/0xa0
->> +[  143.591892]  [<ffffffff8117ff83>] ? context_tracking_user_exit+0xb3/0x110
->> +[  143.591895]  [<ffffffff810638b1>] do_page_fault+0x31/0x70
->> +[  143.591898]  [<ffffffff817687b8>] page_fault+0x28/0x30
->> +[  143.591934] Task in /1 killed as a result of limit of /1
->> +[  143.591940] memory: usage 1048576kB, limit 1048576kB, failcnt 24350
->> +[  143.591942] memory+swap: usage 0kB, limit 9007199254740988kB, failcnt 0
->> +[  143.591943] kmem: usage 0kB, limit 9007199254740988kB, failcnt 0
->> +[  143.591944] Memory cgroup stats for /1: cache:0KB rss:1048576KB
->> rss_huge:0KB mapped_file:0KB writeback:12060KB inactive_anon:524284KB
->> active_anon:524192KB inactive_file:0KB active_file:0KB unevictable:0KB
->> +[  143.592007] [ pid ]   uid  tgid total_vm      rss nr_ptes swapents
->> oom_score_adj name
->> +[  143.592155] [ 2903]     0  2903     1618      436       9        0
->>             0 oom03
->> +[  143.592159] [ 2904]     0  2904   788050   245188     616    65535
->>             0 oom03
->> +[  143.592162] Memory cgroup out of memory: Kill process 2904 (oom03)
->> score 921 or sacrifice child
->> +[  143.592167] Killed process 2904 (oom03) total-vm:3152200kB,
->> anon-rss:979724kB, file-rss:1028kB
->> +[  144.526653] oom03 invoked oom-killer: gfp_mask=0xd0, order=0,
->> oom_score_adj=0
->
-> Looks like we ran out of memory, the limit is 1024MB (1GiB) and we've
-> hit it with a fail count of 24350. So basically /1 hit the limit and
-> got OOM killed. Isn't that what you were testing for? How was the
-> expected victim?
->
+Hi Andrey,
 
-You mean that was "expected"?
-What do you mean by "How was the expected victim?"?
-You need some more informations about my system?
+On Thu, Feb 19, 2015 at 06:39:28PM +0300, Andrey Ryabinin wrote:
+> On 02/18/2015 08:14 PM, kbuild test robot wrote:
+> > tree:   git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
+> > head:   f5af19d10d151c5a2afae3306578f485c244db25
+> > commit: ef7f0d6a6ca8c9e4b27d78895af86c2fbfaeedb2 x86_64: add KASan support
+> > date:   5 days ago
+> > config: x86_64-randconfig-iv1-02190055 (attached as .config)
+> > reproduce:
+> >   git checkout ef7f0d6a6ca8c9e4b27d78895af86c2fbfaeedb2
+> >   # save the attached .config to linux build tree
+> >   make ARCH=x86_64 
+> > 
+> > Note: it may well be a FALSE warning. FWIW you are at least aware of it now.
+> > 
+> > All warnings:
+> > 
+> >    drivers/net/ethernet/broadcom/tg3.c: In function 'tg3_init_one':
+> >>> drivers/net/ethernet/broadcom/tg3.c:17811:37: warning: array subscript is above array bounds [-Warray-bounds]
+> >       struct tg3_napi *tnapi = &tp->napi[i];
+> >                                         ^
+> >>> drivers/net/ethernet/broadcom/tg3.c:17811:37: warning: array subscript is above array bounds [-Warray-bounds]
+> > 
+> 
+> This probably a GCC bug: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=59124
+> I see this warning with 4.9.2, but not with GCC 5 where this should be fixed already.
 
-- Sedat -
+Yes we are running gcc 4.9.2. Thank you for the info, I'll disable this warning for now.
+
+Regards,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
