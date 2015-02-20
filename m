@@ -1,63 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
-	by kanga.kvack.org (Postfix) with ESMTP id E6BA36B0032
-	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 08:37:02 -0500 (EST)
-Received: by wevl61 with SMTP id l61so1508185wev.2
-        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 05:37:02 -0800 (PST)
-Received: from mail-wg0-x234.google.com (mail-wg0-x234.google.com. [2a00:1450:400c:c00::234])
-        by mx.google.com with ESMTPS id hj5si46718191wjc.209.2015.02.20.05.37.00
+Received: from mail-la0-f51.google.com (mail-la0-f51.google.com [209.85.215.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D689E6B0032
+	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 09:39:46 -0500 (EST)
+Received: by labge10 with SMTP id ge10so6380950lab.12
+        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 06:39:46 -0800 (PST)
+Received: from forward-corp1g.mail.yandex.net (forward-corp1g.mail.yandex.net. [95.108.253.251])
+        by mx.google.com with ESMTPS id p3si17206333laj.107.2015.02.20.06.39.44
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Feb 2015 05:37:01 -0800 (PST)
-Received: by mail-wg0-f52.google.com with SMTP id x12so13133183wgg.11
-        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 05:37:00 -0800 (PST)
+        Fri, 20 Feb 2015 06:39:45 -0800 (PST)
+Subject: [PATCH] mm: hide per-cpu lists in output of show_mem()
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Date: Fri, 20 Feb 2015 17:39:42 +0300
+Message-ID: <20150220143942.19568.4548.stgit@buzz>
 MIME-Version: 1.0
-In-Reply-To: <20150220091326.GD21248@dhcp22.suse.cz>
-References: <20150218104859.GM12722@dastard>
-	<20150218121602.GC4478@dhcp22.suse.cz>
-	<20150219110124.GC15569@phnom.home.cmpxchg.org>
-	<20150219122914.GH28427@dhcp22.suse.cz>
-	<20150219125844.GI28427@dhcp22.suse.cz>
-	<201502200029.DEG78137.QFVLHFFOJMtOOS@I-love.SAKURA.ne.jp>
-	<20150220091326.GD21248@dhcp22.suse.cz>
-Date: Fri, 20 Feb 2015 14:37:00 +0100
-Message-ID: <CAAxjCEzWJy4+VoJ51A46ioF7NJqumy+RtCRRHnSVN0_1=gi7yQ@mail.gmail.com>
-Subject: Re: How to handle TIF_MEMDIE stalls?
-From: Stefan Ring <stefanrin@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, dchinner@redhat.com, oleg@redhat.com, Linux fs XFS <xfs@oss.sgi.com>, hannes@cmpxchg.org, linux-mm@kvack.org, mgorman@suse.de, rientjes@google.com, linux-fsdevel@vger.kernel.org, akpm@linux-foundation.org, fernando_b1@lab.ntt.co.jp, torvalds@linux-foundation.org
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org
 
->> We don't know how many callers will pass __GFP_NOFAIL. But if 1000
->> threads are doing the same operation which requires __GFP_NOFAIL
->> allocation with a lock held, wouldn't memory reserves deplete?
->
-> We shouldn't have an unbounded number of GFP_NOFAIL allocations at the
-> same time. This would be even more broken. If a load is known to use
-> such allocations excessively then the administrator can enlarge the
-> memory reserves.
->
->> This heuristic can't continue if memory reserves depleted or
->> continuous pages of requested order cannot be found.
->
-> Once memory reserves are depleted we are screwed anyway and we might
-> panic.
+This makes show_mem() much less verbose at huge machines. Instead of
+huge and almost useless dump of counters for each per-zone per-cpu
+lists this patch prints sum of these counters for each zone (free_pcp)
+and size of per-cpu list for current cpu (local_pcp).
 
-This discussion reminds me of a situation I've seen somewhat
-regularly, which I have described here:
-http://oss.sgi.com/pipermail/xfs/2014-April/035793.html
+Flag SHOW_MEM_PERCPU_LISTS reverts old verbose mode.
 
-I've actually seen it more often on another box with OpenVZ and
-VirtualBox installed, where it would almost always happen during
-startup of a VirtualBox guest machine. This other machine is also
-running XFS. I blamed it on OpenVZ or VirtualBox originally, but
-having seen the same thing happen on the other machine with neither of
-them, the next candidate for taking blame is XFS.
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+---
+ include/linux/mm.h |    1 +
+ mm/page_alloc.c    |   32 +++++++++++++++++++++++++-------
+ 2 files changed, 26 insertions(+), 7 deletions(-)
 
-Is this behavior something that can be attributed to these memory
-allocation retry loops?
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 028565a..0538de0 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1126,6 +1126,7 @@ extern void pagefault_out_of_memory(void);
+  * various contexts.
+  */
+ #define SHOW_MEM_FILTER_NODES		(0x0001u)	/* disallowed nodes */
++#define SHOW_MEM_PERCPU_LISTS		(0x0002u)	/* per-zone per-cpu */
+ 
+ extern void show_free_areas(unsigned int flags);
+ extern bool skip_free_areas_node(unsigned int flags, int nid);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index a47f0b2..e591f3b 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3198,20 +3198,29 @@ static void show_migration_types(unsigned char type)
+  */
+ void show_free_areas(unsigned int filter)
+ {
++	unsigned long free_pcp = 0;
+ 	int cpu;
+ 	struct zone *zone;
+ 
+ 	for_each_populated_zone(zone) {
+ 		if (skip_free_areas_node(filter, zone_to_nid(zone)))
+ 			continue;
+-		show_node(zone);
+-		printk("%s per-cpu:\n", zone->name);
++
++		if (filter & SHOW_MEM_PERCPU_LISTS) {
++			show_node(zone);
++			printk("%s per-cpu:\n", zone->name);
++		}
+ 
+ 		for_each_online_cpu(cpu) {
+ 			struct per_cpu_pageset *pageset;
+ 
+ 			pageset = per_cpu_ptr(zone->pageset, cpu);
+ 
++			free_pcp += pageset->pcp.count;
++
++			if (!(filter & SHOW_MEM_PERCPU_LISTS))
++				continue;
++
+ 			printk("CPU %4d: hi:%5d, btch:%4d usd:%4d\n",
+ 			       cpu, pageset->pcp.high,
+ 			       pageset->pcp.batch, pageset->pcp.count);
+@@ -3220,11 +3229,10 @@ void show_free_areas(unsigned int filter)
+ 
+ 	printk("active_anon:%lu inactive_anon:%lu isolated_anon:%lu\n"
+ 		" active_file:%lu inactive_file:%lu isolated_file:%lu\n"
+-		" unevictable:%lu"
+-		" dirty:%lu writeback:%lu unstable:%lu\n"
+-		" free:%lu slab_reclaimable:%lu slab_unreclaimable:%lu\n"
++		" unevictable:%lu dirty:%lu writeback:%lu unstable:%lu\n"
++		" slab_reclaimable:%lu slab_unreclaimable:%lu\n"
+ 		" mapped:%lu shmem:%lu pagetables:%lu bounce:%lu\n"
+-		" free_cma:%lu\n",
++		" free:%lu free_pcp:%lu free_cma:%lu\n",
+ 		global_page_state(NR_ACTIVE_ANON),
+ 		global_page_state(NR_INACTIVE_ANON),
+ 		global_page_state(NR_ISOLATED_ANON),
+@@ -3235,13 +3243,14 @@ void show_free_areas(unsigned int filter)
+ 		global_page_state(NR_FILE_DIRTY),
+ 		global_page_state(NR_WRITEBACK),
+ 		global_page_state(NR_UNSTABLE_NFS),
+-		global_page_state(NR_FREE_PAGES),
+ 		global_page_state(NR_SLAB_RECLAIMABLE),
+ 		global_page_state(NR_SLAB_UNRECLAIMABLE),
+ 		global_page_state(NR_FILE_MAPPED),
+ 		global_page_state(NR_SHMEM),
+ 		global_page_state(NR_PAGETABLE),
+ 		global_page_state(NR_BOUNCE),
++		global_page_state(NR_FREE_PAGES),
++		free_pcp,
+ 		global_page_state(NR_FREE_CMA_PAGES));
+ 
+ 	for_each_populated_zone(zone) {
+@@ -3249,6 +3258,11 @@ void show_free_areas(unsigned int filter)
+ 
+ 		if (skip_free_areas_node(filter, zone_to_nid(zone)))
+ 			continue;
++
++		free_pcp = 0;
++		for_each_online_cpu(cpu)
++			free_pcp += per_cpu_ptr(zone->pageset, cpu)->pcp.count;
++
+ 		show_node(zone);
+ 		printk("%s"
+ 			" free:%lukB"
+@@ -3275,6 +3289,8 @@ void show_free_areas(unsigned int filter)
+ 			" pagetables:%lukB"
+ 			" unstable:%lukB"
+ 			" bounce:%lukB"
++			" free_pcp:%lukB"
++			" local_pcp:%ukB"
+ 			" free_cma:%lukB"
+ 			" writeback_tmp:%lukB"
+ 			" pages_scanned:%lu"
+@@ -3306,6 +3322,8 @@ void show_free_areas(unsigned int filter)
+ 			K(zone_page_state(zone, NR_PAGETABLE)),
+ 			K(zone_page_state(zone, NR_UNSTABLE_NFS)),
+ 			K(zone_page_state(zone, NR_BOUNCE)),
++			K(free_pcp),
++			K(this_cpu_read(zone->pageset->pcp.count)),
+ 			K(zone_page_state(zone, NR_FREE_CMA_PAGES)),
+ 			K(zone_page_state(zone, NR_WRITEBACK_TEMP)),
+ 			K(zone_page_state(zone, NR_PAGES_SCANNED)),
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
