@@ -1,82 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f175.google.com (mail-we0-f175.google.com [74.125.82.175])
-	by kanga.kvack.org (Postfix) with ESMTP id B0BD96B0032
-	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 04:27:25 -0500 (EST)
-Received: by wevm14 with SMTP id m14so4463241wev.8
-        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 01:27:25 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gl9si45634173wjc.3.2015.02.20.01.27.23
+Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 97A7F6B0038
+	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 05:27:43 -0500 (EST)
+Received: by mail-ob0-f175.google.com with SMTP id va2so23296573obc.6
+        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 02:27:43 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id je9si1574248oeb.10.2015.02.20.02.27.42
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 20 Feb 2015 01:27:23 -0800 (PST)
-Date: Fri, 20 Feb 2015 10:27:21 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: How to handle TIF_MEMDIE stalls?
-Message-ID: <20150220092721.GE21248@dhcp22.suse.cz>
-References: <201502111123.ICD65197.FMLOHSQJFVOtFO@I-love.SAKURA.ne.jp>
- <201502172123.JIE35470.QOLMVOFJSHOFFt@I-love.SAKURA.ne.jp>
- <20150217125315.GA14287@phnom.home.cmpxchg.org>
- <20150217225430.GJ4251@dastard>
- <20150218082502.GA4478@dhcp22.suse.cz>
- <20150218104859.GM12722@dastard>
- <20150218121602.GC4478@dhcp22.suse.cz>
- <20150218213118.GN12722@dastard>
- <20150219094020.GE28427@dhcp22.suse.cz>
- <20150219220355.GX12722@dastard>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 20 Feb 2015 02:27:42 -0800 (PST)
+Message-ID: <54E70C10.5050102@oracle.com>
+Date: Fri, 20 Feb 2015 05:27:28 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150219220355.GX12722@dastard>
+Subject: Re: [PATCH v5 2/3] mm: cma: allocation trigger
+References: <1423780008-16727-1-git-send-email-sasha.levin@oracle.com> <1423780008-16727-3-git-send-email-sasha.levin@oracle.com> <54E61F91.9080506@partner.samsung.com>
+In-Reply-To: <54E61F91.9080506@partner.samsung.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, xfs@oss.sgi.com
+To: Stefan Strogin <s.strogin@partner.samsung.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+Cc: iamjoonsoo.kim@lge.com, m.szyprowski@samsung.com, lauraa@codeaurora.org
 
-On Fri 20-02-15 09:03:55, Dave Chinner wrote:
-[...]
-> Converting the code to use GFP_NOFAIL takes us in exactly the
-> opposite direction to our current line of development w.r.t. to
-> filesystem error handling.
+Stefan, Andrew,
 
-Fair enough. If there are plans to have a failure policy rather than
-GFP_NOFAIL like behavior then I have, of course, no objections. Quite
-opposite. This is exactly what I would like to see. GFP_NOFAIL should be
-rarely used, really.
+I ended up cherry-picking and older patch here by mistake. Joonsoo pointed
+it out but I didn't have time to address it yet since I'm travelling and
+they got pulled in to mmotm in the meanwhile.
 
-The whole point of this discussion, and I am sorry if I didn't make it
-clear, is that _if_ there is really a GFP_NOFAIL requirement hidden
-from the allocator then it should be changed to use GFP_NOFAIL so that
-allocator knows about this requirement.
+I'll send out patches to add documentation and fix the issues raised here
+early next week. Sorry for the delay and the noise.
 
-> > The reason I care about GFP_NOFAIL is that there are apparently code
-> > paths which do not tell allocator they are basically GFP_NOFAIL without
-> > any fallback. This leads to two main problems 1) we do not have a good
-> > overview how many code paths have such a strong requirements and so
-> > cannot estimate e.g. how big memory reserves should be and
+
+Thanks,
+Sasha
+
+On 02/19/2015 12:38 PM, Stefan Strogin wrote:
+> Hi,
 > 
-> Right, when GFP_NOFAIL got deprecated we lost the ability to document
-> such behaviour and find it easily. People just put retry loops in
-> instead of using GFP_NOFAIL. Good luck finding them all :/
-
-That will be PITA, all right, but I guess the deprecation was a mistake
-and we should stop this tendency.
-
-> > 2) allocator
-> > cannot help those paths (e.g. by giving them access to reserves to break
-> > out of the livelock).
+> On 13/02/15 01:26, Sasha Levin wrote:
+>> Provides a userspace interface to trigger a CMA allocation.
+>>
+>> Usage:
+>>
+>> 	echo [pages] > alloc
+>>
+>> This would provide testing/fuzzing access to the CMA allocation paths.
+>>
+>> Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
+>> ---
+>>  mm/cma.c       |    6 ++++++
+>>  mm/cma.h       |    4 ++++
+>>  mm/cma_debug.c |   56 ++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+>>  3 files changed, 64 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/mm/cma_debug.c b/mm/cma_debug.c
+>> index 3a25413..5bd6863 100644
+>> --- a/mm/cma_debug.c
+>> +++ b/mm/cma_debug.c
+>> @@ -23,8 +32,48 @@ static int cma_debugfs_get(void *data, u64 *val)
+>>  
+>>  DEFINE_SIMPLE_ATTRIBUTE(cma_debugfs_fops, cma_debugfs_get, NULL, "%llu\n");
+>>  
+>> -static void cma_debugfs_add_one(struct cma *cma, int idx)
+>> +static void cma_add_to_cma_mem_list(struct cma *cma, struct cma_mem *mem)
+>> +{
+>> +	spin_lock(&cma->mem_head_lock);
+>> +	hlist_add_head(&mem->node, &cma->mem_head);
+>> +	spin_unlock(&cma->mem_head_lock);
+>> +}
+>> +
+>> +static int cma_alloc_mem(struct cma *cma, int count)
+>> +{
+>> +	struct cma_mem *mem;
+>> +	struct page *p;
+>> +
+>> +	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
+>> +	if (!mem) 
+>> +		return -ENOMEM;
+>> +
+>> +	p = cma_alloc(cma, count, CONFIG_CMA_ALIGNMENT);
 > 
-> Allocator should not help. Global reserves are unreliable - make the
-> allocation context reserve the amount it needs before it enters the
-> context where it can't back out....
-
-Sure pre-allocation is preferable. But once somebody asks for GFP_NOFAIL
-then it is too late and the allocator only has memory reclaim and
-potentially reserves.
-
-[...]
--- 
-Michal Hocko
-SUSE Labs
+> If CONFIG_DMA_CMA (and therefore CONFIG_CMA_ALIGNMENT) isn't configured
+> then building fails.
+>> mm/cma_debug.c: In function a??cma_alloc_mema??:
+>> mm/cma_debug.c:223:28: error: a??CONFIG_CMA_ALIGNMENTa?? undeclared (first use in this function)
+>>   p = cma_alloc(cma, count, CONFIG_CMA_ALIGNMENT);
+>>                             ^
+> 
+> Also, could you please fix the whitespace errors in your patches?
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
