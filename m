@@ -1,136 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FCD96B0032
-	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 12:31:52 -0500 (EST)
-Received: by wesx3 with SMTP id x3so6890200wes.7
-        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 09:31:51 -0800 (PST)
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id CC93F6B0032
+	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 12:40:19 -0500 (EST)
+Received: by mail-wg0-f44.google.com with SMTP id k14so14560409wgh.3
+        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 09:40:19 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id bj7si47922187wjc.132.2015.02.20.09.31.49
+        by mx.google.com with ESMTPS id vs8si47978981wjc.119.2015.02.20.09.40.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Feb 2015 09:31:50 -0800 (PST)
-Message-ID: <54E76F63.7020203@redhat.com>
-Date: Fri, 20 Feb 2015 18:31:15 +0100
+        Fri, 20 Feb 2015 09:40:18 -0800 (PST)
+Message-ID: <54E77162.3050203@redhat.com>
+Date: Fri, 20 Feb 2015 18:39:46 +0100
 From: Jerome Marchand <jmarchan@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv3 05/24] mm, proc: adjust PSS calculation
-References: <1423757918-197669-1-git-send-email-kirill.shutemov@linux.intel.com> <1423757918-197669-6-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1423757918-197669-6-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCHv3 04/24] rmap: add argument to charge compound page
+References: <1423757918-197669-1-git-send-email-kirill.shutemov@linux.intel.com> <1423757918-197669-5-git-send-email-kirill.shutemov@linux.intel.com> <54DD16BD.4000201@redhat.com> <20150216152056.GC3270@node.dhcp.inet.fi>
+In-Reply-To: <20150216152056.GC3270@node.dhcp.inet.fi>
 Content-Type: multipart/signed; micalg=pgp-sha1;
  protocol="application/pgp-signature";
- boundary="uVLENov71cI4SvFvdH8POx0KjoqClp2uH"
+ boundary="sJXQCif7B1ap56hHr7elVW7GsoKRjB6NQ"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>, Rik van Riel <riel@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---uVLENov71cI4SvFvdH8POx0KjoqClp2uH
+--sJXQCif7B1ap56hHr7elVW7GsoKRjB6NQ
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: quoted-printable
 
-On 02/12/2015 05:18 PM, Kirill A. Shutemov wrote:
-> With new refcounting all subpages of the compound page are not nessessa=
-ry
-> have the same mapcount. We need to take into account mapcount of every
-> sub-page.
->=20
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  fs/proc/task_mmu.c | 43 ++++++++++++++++++++++---------------------
->  1 file changed, 22 insertions(+), 21 deletions(-)
->=20
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index 98826d08a11b..8a0a78174cc6 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -449,9 +449,10 @@ struct mem_size_stats {
->  };
-> =20
->  static void smaps_account(struct mem_size_stats *mss, struct page *pag=
-e,
-> -		unsigned long size, bool young, bool dirty)
-> +		bool compound, bool young, bool dirty)
->  {
-> -	int mapcount;
-> +	int i, nr =3D compound ? hpage_nr_pages(page) : 1;
-> +	unsigned long size =3D 1UL << nr;
+On 02/16/2015 04:20 PM, Kirill A. Shutemov wrote:
+> On Thu, Feb 12, 2015 at 04:10:21PM -0500, Rik van Riel wrote:
+>> -----BEGIN PGP SIGNED MESSAGE-----
+>> Hash: SHA1
+>>
+>> On 02/12/2015 11:18 AM, Kirill A. Shutemov wrote:
+>>
+>>> +++ b/include/linux/rmap.h @@ -168,16 +168,24 @@ static inline void
+>>> anon_vma_merge(struct vm_area_struct *vma,
+>>>
+>>> struct anon_vma *page_get_anon_vma(struct page *page);
+>>>
+>>> +/* flags for do_page_add_anon_rmap() */ +enum { +	RMAP_EXCLUSIVE =3D=
 
-Shouldn't that be:
-	unsigned long size =3D nr << PAGE_SHIFT;
+>>> 1, +	RMAP_COMPOUND =3D 2, +};
+>>
+>> Always a good idea to name things. However, "exclusive" is
+>> not that clear to me. Given that the argument is supposed
+>> to indicate whether we map a single or a compound page,
+>> maybe the names in the enum could just be SINGLE and COMPOUND?
+>>
+>> Naming the enum should make it clear enough what it does:
+>>
+>>  enum rmap_page {
+>>       SINGLE =3D 0,
+>>       COMPOUND
+>>  }
+>=20
+> Okay, this is probably confusing: do_page_add_anon_rmap() already had o=
+ne
+> of arguments called 'exclusive'. It indicates if the page is exclusivel=
+y
+> owned by the current process. And I needed also to indicate if we need =
+to
+> handle the page as a compound or not. I've reused the same argument and=
 
-> =20
->  	if (PageAnon(page))
->  		mss->anonymous +=3D size;
-> @@ -460,23 +461,23 @@ static void smaps_account(struct mem_size_stats *=
-mss, struct page *page,
->  	/* Accumulate the size in pages that have been accessed. */
->  	if (young || PageReferenced(page))
->  		mss->referenced +=3D size;
-> -	mapcount =3D page_mapcount(page);
-> -	if (mapcount >=3D 2) {
-> -		u64 pss_delta;
-> =20
-> -		if (dirty || PageDirty(page))
-> -			mss->shared_dirty +=3D size;
-> -		else
-> -			mss->shared_clean +=3D size;
-> -		pss_delta =3D (u64)size << PSS_SHIFT;
-> -		do_div(pss_delta, mapcount);
-> -		mss->pss +=3D pss_delta;
-> -	} else {
-> -		if (dirty || PageDirty(page))
-> -			mss->private_dirty +=3D size;
-> -		else
-> -			mss->private_clean +=3D size;
-> -		mss->pss +=3D (u64)size << PSS_SHIFT;
-> +	for (i =3D 0; i < nr; i++) {
-> +		int mapcount =3D page_mapcount(page + i);
-> +
-> +		if (mapcount >=3D 2) {
-> +			if (dirty || PageDirty(page + i))
-> +				mss->shared_dirty +=3D PAGE_SIZE;
-> +			else
-> +				mss->shared_clean +=3D PAGE_SIZE;
-> +			mss->pss +=3D (PAGE_SIZE << PSS_SHIFT) / mapcount;
-> +		} else {
-> +			if (dirty || PageDirty(page + i))
-> +				mss->private_dirty +=3D PAGE_SIZE;
-> +			else
-> +				mss->private_clean +=3D PAGE_SIZE;
-> +			mss->pss +=3D PAGE_SIZE << PSS_SHIFT;
-> +		}
->  	}
->  }
-> =20
-> @@ -500,7 +501,8 @@ static void smaps_pte_entry(pte_t *pte, unsigned lo=
-ng addr,
-> =20
->  	if (!page)
->  		return;
-> -	smaps_account(mss, page, PAGE_SIZE, pte_young(*pte), pte_dirty(*pte))=
-;
-> +
-> +	smaps_account(mss, page, false, pte_young(*pte), pte_dirty(*pte));
->  }
-> =20
->  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> @@ -516,8 +518,7 @@ static void smaps_pmd_entry(pmd_t *pmd, unsigned lo=
-ng addr,
->  	if (IS_ERR_OR_NULL(page))
->  		return;
->  	mss->anonymous_thp +=3D HPAGE_PMD_SIZE;
-> -	smaps_account(mss, page, HPAGE_PMD_SIZE,
-> -			pmd_young(*pmd), pmd_dirty(*pmd));
-> +	smaps_account(mss, page, true, pmd_young(*pmd), pmd_dirty(*pmd));
->  }
->  #else
->  static void smaps_pmd_entry(pmd_t *pmd, unsigned long addr,
+> converted it to set bit-flags: bit 0 is exclusive, bit 1 - compound.
+
+AFAICT, this is not a common use of enum and probably the reason why Rik
+was confused (I know I find it confusing). Bit-flags members are usually
+define by macros.
+
+Jerome
+>=20
+>>
+>>> +++ b/kernel/events/uprobes.c @@ -183,7 +183,7 @@ static int
+>>> __replace_page(struct vm_area_struct *vma, unsigned long addr, goto
+>>> unlock;
+>>>
+>>> get_page(kpage); -	page_add_new_anon_rmap(kpage, vma, addr); +
+>>> page_add_new_anon_rmap(kpage, vma, addr, false);=20
+>>> mem_cgroup_commit_charge(kpage, memcg, false);=20
+>>> lru_cache_add_active_or_unevictable(kpage, vma);
+>>
+>> Would it make sense to use the name in the argument to that function,
+>> too?
+>>
+>> I often find it a lot easier to see what things do if they use symboli=
+c
+>> names, rather than by trying to remember what each boolean argument to=
+
+>> a function does.
+>=20
+> I can convert these compound booleans to enums if you want. I'm persona=
+lly
+> not sure that if will bring much value.
 >=20
 
 
 
---uVLENov71cI4SvFvdH8POx0KjoqClp2uH
+--sJXQCif7B1ap56hHr7elVW7GsoKRjB6NQ
 Content-Type: application/pgp-signature; name="signature.asc"
 Content-Description: OpenPGP digital signature
 Content-Disposition: attachment; filename="signature.asc"
@@ -138,16 +107,16 @@ Content-Disposition: attachment; filename="signature.asc"
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1
 
-iQEcBAEBAgAGBQJU529oAAoJEHTzHJCtsuoCW0UH/0kJTrb4s5/JY4+r/mRLRRu0
-wuvg+7HA0xe9STqHYNn4OHC3sWQWY9Uuzu9RZrxmSB+t7cUI8v0FDSmGcEtnnVWz
-58jAMhCgSbfWHqR2DVl+azn4/3QwZLACmSsHhBg8uZJa/OJ+P+LxYWQHjFpeye4/
-geDEVWZ9wiV50C4jcD8gNVQcrAx2TPkX+xHBwbjMOBcJnHnsUPeiLnerDvyZTDJW
-gNYfcFste9jD7yEcBvjAqcLiKVpP2x3/gX7it9ey1bOt1xHZevDYR66WzuwRSWtM
-WpWuTLReT4ORSKnl+pTaQAhMXS31z9amwn31Rdy+/lkSW/0Km0AtSz1xlbqnmEM=
-=2kBP
+iQEcBAEBAgAGBQJU53FiAAoJEHTzHJCtsuoCTdwH/13iVIA/H12MMG6hDT0XrIJL
+RCktxwTbrWMo4VvPRU3FAQ08GAzT8h60cqWHwoopItHr31x8q311ckWJcvpJ3ezh
+gHLmxn+b0NzqmZA7wY1KGU7CtUv6ZXo2658MFaeDrQJtAfY6vE5dKXHreilwvzcD
+GardOjQZm1C8kuiUS1bo6SSMDs8nhwOkNxms8tSFXLQnF8zvuv9WU9gxMtx1rwfb
+6xhjf2XdMcwynxKEbGJU7PqYLeQAPRUiPJmKJ4vAgeCRmw3DwaaOXI/iUkW45JA1
+gIdqps7KMUkEZws6KADphb3PXDUpJqgfel2BfvkXzeYTPYWTmgCp3be1y/fBhZE=
+=wlbJ
 -----END PGP SIGNATURE-----
 
---uVLENov71cI4SvFvdH8POx0KjoqClp2uH--
+--sJXQCif7B1ap56hHr7elVW7GsoKRjB6NQ--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
