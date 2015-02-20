@@ -1,271 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com [209.85.217.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 012176B0038
-	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 09:42:57 -0500 (EST)
-Received: by lbiw7 with SMTP id w7so6601184lbi.10
-        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 06:42:56 -0800 (PST)
-Received: from forward-corp1f.mail.yandex.net (forward-corp1f.mail.yandex.net. [95.108.130.40])
-        by mx.google.com with ESMTPS id o6si17698247lbw.88.2015.02.20.06.42.54
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id D00066B0032
+	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 11:28:24 -0500 (EST)
+Received: by pabkx10 with SMTP id kx10so9059163pab.13
+        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 08:28:24 -0800 (PST)
+Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
+        by mx.google.com with ESMTPS id l5si33548060pdb.126.2015.02.20.08.28.23
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Feb 2015 06:42:55 -0800 (PST)
-Subject: [PATCH v2 RFC] page_writeback: cleanup mess around
- cancel_dirty_page()
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Date: Fri, 20 Feb 2015 17:42:51 +0300
-Message-ID: <20150220144251.19742.95386.stgit@buzz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 20 Feb 2015 08:28:23 -0800 (PST)
+Message-ID: <1424449696.2317.0.camel@stgolabs.net>
+Subject: Re: [PATCH 3/3] tomoyo: robustify handling of mm->exe_file
+From: Davidlohr Bueso <dave@stgolabs.net>
+Date: Fri, 20 Feb 2015 08:28:16 -0800
+In-Reply-To: <201502200711.EIH87066.HSOJLFFOtFVOQM@I-love.SAKURA.ne.jp>
+References: <1424304641-28965-1-git-send-email-dbueso@suse.de>
+	 <1424304641-28965-4-git-send-email-dbueso@suse.de>
+	 <1424324307.18191.5.camel@stgolabs.net>
+	 <201502192007.AFI30725.tHFFOOMVFOQSLJ@I-love.SAKURA.ne.jp>
+	 <1424370153.18191.12.camel@stgolabs.net>
+	 <201502200711.EIH87066.HSOJLFFOtFVOQM@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, takedakn@nttdata.co.jp, linux-security-module@vger.kernel.org
 
-This patch replaces cancel_dirty_page() with helper account_page_cleaned()
-which only updates counters. It's called from truncate_complete_page()
-and from try_to_free_buffers() (hack for ext3). Page is locked in both cases,
-page-lock protects against concurrent dirtiers: see commit 2d6d7f982846
-("mm: protect set_page_dirty() from ongoing truncation").
+On Fri, 2015-02-20 at 07:11 +0900, Tetsuo Handa wrote:
+> Davidlohr Bueso wrote:
+> > On Thu, 2015-02-19 at 20:07 +0900, Tetsuo Handa wrote:
+> > > Why do we need to let the caller call path_put() ?
+> > > There is no need to do like proc_exe_link() does, for
+> > > tomoyo_get_exe() returns pathname as "char *".
+> > 
+> > Having the pathname doesn't guarantee anything later, and thus doesn't
+> > seem very robust in the manager call if it can be dropped during the
+> > call... or can this never occur in this context?
+> > 
+> tomoyo_get_exe() returns the pathname of executable of current thread.
+> The executable of current thread cannot be changed while current thread
+> is inside the manager call. Although the pathname of executable of
+> current thread could be changed by other threads via namespace manipulation
+> like pivot_root(), holding a reference guarantees nothing. Your patch helps
+> for avoiding memory allocation with mmap_sem held, but does not robustify
+> handling of mm->exe_file for tomoyo.
 
-Delete_from_page_cache() shouldn't be called for dirty pages, they must be
-handled by caller (either written or truncated). This patch treats final
-dirty accounting fixup at the end of __delete_from_page_cache() as a debug
-check and adds WARN_ON_ONCE() around it. If something removes dirty pages
-without proper handling that might be a bug and unwritten data might be lost.
+Fair enough, I won't argue. This is beyond the scope if what I'm trying
+to accomplish here anyway. Are you ok with this instead?
 
-Hugetlbfs has no dirty pages accounting, ClearPageDirty() is enough here.
+8<--------------------------------------------------------------------
+Subject: [PATCH v2 3/3] tomoyo: reduce mmap_sem hold for mm->exe_file
 
-cancel_dirty_page() in nfs_wb_page_cancel() is redundant. This is helper
-for nfs_invalidate_page() and it's called only in case complete invalidation.
+The mm->exe_file is currently serialized with mmap_sem (shared) in order 
+to both safely (1) read the file and (2) compute the realpath by calling
+tomoyo_realpath_from_path, making it an absolute overkill. Good users will,
+on the other hand, make use of the more standard get_mm_exe_file(), requiring
+only holding the mmap_sem to read the value, and relying on reference
+counting to make sure that the exe_file won't disappear underneath us.
 
-The mess was started in v2.6.20 after commits 46d2277c796f ("Clean up and
-make try_to_free_buffers() not race with dirty pages") and 3e67c0987d75
-("truncate: clear page dirtiness before running try_to_free_buffers()")
-first was reverted right in v2.6.20 in commit ecdfc9787fe5 ("Resurrect
-'try_to_free_buffers()' VM hackery"), second in v2.6.25 commit a2b345642f53
-("Fix dirty page accounting leak with ext3 data=journal").
+While at it, do some very minor cleanups around tomoyo_get_exe(), such as
+make it local to common.c
 
-Custom fixes were introduced between these points. NFS in v2.6.23, commit
-1b3b4a1a2deb ("NFS: Fix a write request leak in nfs_invalidate_page()").
-Kludge in __delete_from_page_cache() in v2.6.24, commit 3a6927906f1b
-("Do dirty page accounting when removing a page from the page cache").
-Since v2.6.25 all of them are redundant.
-
-Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
 ---
- .../lustre/include/linux/lustre_patchless_compat.h |    4 ++
- fs/buffer.c                                        |    4 +-
- fs/hugetlbfs/inode.c                               |    2 +
- fs/nfs/write.c                                     |    5 ---
- include/linux/mm.h                                 |    2 +
- include/linux/page-flags.h                         |    2 -
- mm/filemap.c                                       |   15 ++++----
- mm/page-writeback.c                                |   19 ++++++++++
- mm/truncate.c                                      |   37 ++++----------------
- 9 files changed, 41 insertions(+), 49 deletions(-)
+ security/tomoyo/common.c | 33 +++++++++++++++++++++++++++++++--
+ security/tomoyo/common.h |  1 -
+ security/tomoyo/util.c   | 22 ----------------------
+ 3 files changed, 31 insertions(+), 25 deletions(-)
 
-diff --git a/drivers/staging/lustre/lustre/include/linux/lustre_patchless_compat.h b/drivers/staging/lustre/lustre/include/linux/lustre_patchless_compat.h
-index a260e99..d726058 100644
---- a/drivers/staging/lustre/lustre/include/linux/lustre_patchless_compat.h
-+++ b/drivers/staging/lustre/lustre/include/linux/lustre_patchless_compat.h
-@@ -55,7 +55,9 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
- 	if (PagePrivate(page))
- 		page->mapping->a_ops->invalidatepage(page, 0, PAGE_CACHE_SIZE);
- 
--	cancel_dirty_page(page, PAGE_SIZE);
-+	if (TestClearPageDirty(page))
-+		account_page_cleaned(page, mapping);
-+
- 	ClearPageMappedToDisk(page);
- 	ll_delete_from_page_cache(page);
- }
-diff --git a/fs/buffer.c b/fs/buffer.c
-index 20805db..c7a5602 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -3243,8 +3243,8 @@ int try_to_free_buffers(struct page *page)
- 	 * to synchronise against __set_page_dirty_buffers and prevent the
- 	 * dirty bit from being lost.
- 	 */
--	if (ret)
--		cancel_dirty_page(page, PAGE_CACHE_SIZE);
-+	if (ret && TestClearPageDirty(page))
-+		account_page_cleaned(page, mapping);
- 	spin_unlock(&mapping->private_lock);
- out:
- 	if (buffers_to_free) {
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index c274aca..db76cec 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -319,7 +319,7 @@ static int hugetlbfs_write_end(struct file *file, struct address_space *mapping,
- 
- static void truncate_huge_page(struct page *page)
- {
--	cancel_dirty_page(page, /* No IO accounting for huge pages? */0);
-+	ClearPageDirty(page);
- 	ClearPageUptodate(page);
- 	delete_from_page_cache(page);
- }
-diff --git a/fs/nfs/write.c b/fs/nfs/write.c
-index 88a6d21..2d4cb36 100644
---- a/fs/nfs/write.c
-+++ b/fs/nfs/write.c
-@@ -1854,11 +1854,6 @@ int nfs_wb_page_cancel(struct inode *inode, struct page *page)
- 		 * request from the inode / page_private pointer and
- 		 * release it */
- 		nfs_inode_remove_request(req);
--		/*
--		 * In case nfs_inode_remove_request has marked the
--		 * page as being dirty
--		 */
--		cancel_dirty_page(page, PAGE_CACHE_SIZE);
- 		nfs_unlock_and_release_request(req);
- 	}
- 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 47a9392..028565a 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1294,9 +1294,11 @@ int __set_page_dirty_no_writeback(struct page *page);
- int redirty_page_for_writepage(struct writeback_control *wbc,
- 				struct page *page);
- void account_page_dirtied(struct page *page, struct address_space *mapping);
-+void account_page_cleaned(struct page *page, struct address_space *mapping);
- int set_page_dirty(struct page *page);
- int set_page_dirty_lock(struct page *page);
- int clear_page_dirty_for_io(struct page *page);
-+
- int get_cmdline(struct task_struct *task, char *buffer, int buflen);
- 
- /* Is the vma a continuation of the stack vma above it? */
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 5ed7bda..c851ff9 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -328,8 +328,6 @@ static inline void SetPageUptodate(struct page *page)
- 
- CLEARPAGEFLAG(Uptodate, uptodate)
- 
--extern void cancel_dirty_page(struct page *page, unsigned int account_size);
--
- int test_clear_page_writeback(struct page *page);
- int __test_set_page_writeback(struct page *page, bool keep_write);
- 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index ad72420..455992e 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -203,16 +203,15 @@ void __delete_from_page_cache(struct page *page, void *shadow)
- 	BUG_ON(page_mapped(page));
- 
- 	/*
--	 * Some filesystems seem to re-dirty the page even after
--	 * the VM has canceled the dirty bit (eg ext3 journaling).
-+	 * At this point page must be either written or cleaned by truncate.
-+	 * Dirty page here signals about bug and loosing unwitten data.
- 	 *
--	 * Fix it up by doing a final dirty accounting check after
--	 * having removed the page entirely.
-+	 * This fixes dirty accounting after removing the page entirely but
-+	 * leaves PageDirty set: it has no effect for truncated page and
-+	 * anyway will be cleared before returning page into buddy allocator.
- 	 */
--	if (PageDirty(page) && mapping_cap_account_dirty(mapping)) {
--		dec_zone_page_state(page, NR_FILE_DIRTY);
--		dec_bdi_stat(inode_to_bdi(mapping->host), BDI_RECLAIMABLE);
--	}
-+	if (WARN_ON_ONCE(PageDirty(page)))
-+		account_page_cleaned(page, mapping);
+diff --git a/security/tomoyo/common.c b/security/tomoyo/common.c
+index e0fb750..73ce629 100644
+--- a/security/tomoyo/common.c
++++ b/security/tomoyo/common.c
+@@ -908,6 +908,31 @@ static void tomoyo_read_manager(struct tomoyo_io_buffer *head)
  }
  
  /**
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 45e187b..22f3714 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -2108,6 +2108,25 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
- EXPORT_SYMBOL(account_page_dirtied);
- 
- /*
-+ * Helper function for deaccounting dirty page without writeback.
++ * tomoyo_get_exe - Get tomoyo_realpath() of current process.
 + *
-+ * Doing this should *normally* only ever be done when a page
-+ * is truncated, and is not actually mapped anywhere at all. However,
-+ * fs/buffer.c does this when it notices that somebody has cleaned
-+ * out all the buffers on a page without actually doing it through
-+ * the VM. Can you say "ext3 is horribly ugly"? Thought you could.
++ * Returns the tomoyo_realpath() of current process on success, NULL otherwise.
++ *
++ * This function uses kzalloc(), so the caller must call kfree()
++ * if this function didn't return NULL.
 + */
-+void account_page_cleaned(struct page *page, struct address_space *mapping)
++static const char *tomoyo_get_exe(void)
 +{
-+	if (mapping_cap_account_dirty(mapping)) {
-+		dec_zone_page_state(page, NR_FILE_DIRTY);
-+		dec_bdi_stat(inode_to_bdi(mapping->host), BDI_RECLAIMABLE);
-+		task_io_account_cancelled_write(PAGE_CACHE_SIZE);
-+	}
-+}
-+EXPORT_SYMBOL(account_page_cleaned);
++	struct file *exe_file;
++	const char *cp = NULL;
++	struct mm_struct *mm = current->mm;
 +
-+/*
-  * For address_spaces which do not use buffers.  Just tag the page as dirty in
-  * its radix tree.
++	if (!mm)
++		return NULL;
++	exe_file = get_mm_exe_file(mm);
++	if (!exe_file)
++		return NULL;
++
++	cp = tomoyo_realpath_from_path(&exe_file->f_path);
++	fput(exe_file);
++	return cp;
++}
++
++/**
+  * tomoyo_manager - Check whether the current process is a policy manager.
   *
-diff --git a/mm/truncate.c b/mm/truncate.c
-index ddec5a5..7a9d8a3 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -93,35 +93,6 @@ void do_invalidatepage(struct page *page, unsigned int offset,
+  * Returns true if the current process is permitted to modify policy
+@@ -920,9 +945,11 @@ static bool tomoyo_manager(void)
+ 	struct tomoyo_manager *ptr;
+ 	const char *exe;
+ 	const struct task_struct *task = current;
+-	const struct tomoyo_path_info *domainname = tomoyo_domain()->domainname;
++	const struct tomoyo_path_info *domainname;
+ 	bool found = false;
+ 
++	domainname = tomoyo_domain()->domainname;
++
+ 	if (!tomoyo_policy_loaded)
+ 		return true;
+ 	if (!tomoyo_manage_by_non_root &&
+@@ -932,8 +959,10 @@ static bool tomoyo_manager(void)
+ 	exe = tomoyo_get_exe();
+ 	if (!exe)
+ 		return false;
++
+ 	list_for_each_entry_rcu(ptr, &tomoyo_kernel_namespace.
+-				policy_list[TOMOYO_ID_MANAGER], head.list) {
++				policy_list[TOMOYO_ID_MANAGER],
++				head.list) {
+ 		if (!ptr->head.is_deleted &&
+ 		    (!tomoyo_pathcmp(domainname, ptr->manager) ||
+ 		     !strcmp(exe, ptr->manager->name))) {
+diff --git a/security/tomoyo/common.h b/security/tomoyo/common.h
+index b897d48..fc89eba 100644
+--- a/security/tomoyo/common.h
++++ b/security/tomoyo/common.h
+@@ -947,7 +947,6 @@ char *tomoyo_init_log(struct tomoyo_request_info *r, int len, const char *fmt,
+ char *tomoyo_read_token(struct tomoyo_acl_param *param);
+ char *tomoyo_realpath_from_path(struct path *path);
+ char *tomoyo_realpath_nofollow(const char *pathname);
+-const char *tomoyo_get_exe(void);
+ const char *tomoyo_yesno(const unsigned int value);
+ const struct tomoyo_path_info *tomoyo_compare_name_union
+ (const struct tomoyo_path_info *name, const struct tomoyo_name_union *ptr);
+diff --git a/security/tomoyo/util.c b/security/tomoyo/util.c
+index 2952ba5..7eff479 100644
+--- a/security/tomoyo/util.c
++++ b/security/tomoyo/util.c
+@@ -939,28 +939,6 @@ bool tomoyo_path_matches_pattern(const struct tomoyo_path_info *filename,
  }
  
- /*
-- * This cancels just the dirty bit on the kernel page itself, it
-- * does NOT actually remove dirty bits on any mmap's that may be
-- * around. It also leaves the page tagged dirty, so any sync
-- * activity will still find it on the dirty lists, and in particular,
-- * clear_page_dirty_for_io() will still look at the dirty bits in
-- * the VM.
+ /**
+- * tomoyo_get_exe - Get tomoyo_realpath() of current process.
 - *
-- * Doing this should *normally* only ever be done when a page
-- * is truncated, and is not actually mapped anywhere at all. However,
-- * fs/buffer.c does this when it notices that somebody has cleaned
-- * out all the buffers on a page without actually doing it through
-- * the VM. Can you say "ext3 is horribly ugly"? Tought you could.
+- * Returns the tomoyo_realpath() of current process on success, NULL otherwise.
+- *
+- * This function uses kzalloc(), so the caller must call kfree()
+- * if this function didn't return NULL.
 - */
--void cancel_dirty_page(struct page *page, unsigned int account_size)
+-const char *tomoyo_get_exe(void)
 -{
--	if (TestClearPageDirty(page)) {
--		struct address_space *mapping = page->mapping;
--		if (mapping && mapping_cap_account_dirty(mapping)) {
--			dec_zone_page_state(page, NR_FILE_DIRTY);
--			dec_bdi_stat(inode_to_bdi(mapping->host),
--					BDI_RECLAIMABLE);
--			if (account_size)
--				task_io_account_cancelled_write(account_size);
--		}
--	}
--}
--EXPORT_SYMBOL(cancel_dirty_page);
+-	struct mm_struct *mm = current->mm;
+-	const char *cp = NULL;
 -
--/*
-  * If truncate cannot remove the fs-private metadata from the page, the page
-  * becomes orphaned.  It will be left on the LRU and may even be mapped into
-  * user pagetables if we're racing with filemap_fault().
-@@ -140,7 +111,13 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
- 	if (page_has_private(page))
- 		do_invalidatepage(page, 0, PAGE_CACHE_SIZE);
- 
--	cancel_dirty_page(page, PAGE_CACHE_SIZE);
-+	/*
-+	 * Some filesystems seem to re-dirty the page even after
-+	 * the VM has canceled the dirty bit (eg ext3 journaling).
-+	 * Hence dirty accounting check is placed after invalidation.
-+	 */
-+	if (TestClearPageDirty(page))
-+		account_page_cleaned(page, mapping);
- 
- 	ClearPageMappedToDisk(page);
- 	delete_from_page_cache(page);
+-	if (!mm)
+-		return NULL;
+-	down_read(&mm->mmap_sem);
+-	if (mm->exe_file)
+-		cp = tomoyo_realpath_from_path(&mm->exe_file->f_path);
+-	up_read(&mm->mmap_sem);
+-	return cp;
+-}
+-
+-/**
+  * tomoyo_get_mode - Get MAC mode.
+  *
+  * @ns:      Pointer to "struct tomoyo_policy_namespace".
+-- 
+2.1.4
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
