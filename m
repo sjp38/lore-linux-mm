@@ -1,61 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 402736B0032
-	for <linux-mm@kvack.org>; Thu, 19 Feb 2015 20:16:40 -0500 (EST)
-Received: by paceu11 with SMTP id eu11so3960255pac.7
-        for <linux-mm@kvack.org>; Thu, 19 Feb 2015 17:16:40 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id ic7si9427995pad.236.2015.02.19.17.16.39
-        for <linux-mm@kvack.org>;
-        Thu, 19 Feb 2015 17:16:39 -0800 (PST)
-Date: Fri, 20 Feb 2015 09:16:25 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: drivers/net/ethernet/broadcom/tg3.c:17811:37: warning: array
- subscript is above array bounds
-Message-ID: <20150220011625.GA4228@wfg-t540p.sh.intel.com>
-References: <201502190116.RU3JpDne%fengguang.wu@intel.com>
- <54E603B0.60505@samsung.com>
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 425286B0032
+	for <linux-mm@kvack.org>; Thu, 19 Feb 2015 22:47:49 -0500 (EST)
+Received: by pdbfl12 with SMTP id fl12so4691925pdb.2
+        for <linux-mm@kvack.org>; Thu, 19 Feb 2015 19:47:48 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id sm2si27709705pac.214.2015.02.19.19.47.47
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Feb 2015 19:47:48 -0800 (PST)
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: [PATCH] kasan, module, vmalloc: rework shadow allocation for modules
+In-Reply-To: <54E5E355.9020404@samsung.com>
+References: <1424281467-2593-1-git-send-email-a.ryabinin@samsung.com> <87pp96stmz.fsf@rustcorp.com.au> <54E5E355.9020404@samsung.com>
+Date: Fri, 20 Feb 2015 10:45:23 +1030
+Message-ID: <87fva1sajo.fsf@rustcorp.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <54E603B0.60505@samsung.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <a.ryabinin@samsung.com>
-Cc: kbuild-all@01.org, Andrey Konovalov <adech.fo@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Andrey Ryabinin <a.ryabinin@samsung.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>
 
-Hi Andrey,
+Andrey Ryabinin <a.ryabinin@samsung.com> writes:
+> On 02/19/2015 02:10 AM, Rusty Russell wrote:
+>> This is not portable.  Other archs don't use vmalloc, or don't use
+>> (or define) MODULES_VADDR.  If you really want to hook here, you'd
+>> need a new flag (or maybe use PAGE_KERNEL_EXEC after an audit).
+>> 
+>
+> Well, instead of explicit (addr >= MODULES_VADDR && addr < MODULES_END)
+> I could hide this into arch-specific function: 'kasan_need_to_allocate_shadow(const void *addr)'
+> or make make all those functions weak and allow arch code to redefine them.
 
-On Thu, Feb 19, 2015 at 06:39:28PM +0300, Andrey Ryabinin wrote:
-> On 02/18/2015 08:14 PM, kbuild test robot wrote:
-> > tree:   git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
-> > head:   f5af19d10d151c5a2afae3306578f485c244db25
-> > commit: ef7f0d6a6ca8c9e4b27d78895af86c2fbfaeedb2 x86_64: add KASan support
-> > date:   5 days ago
-> > config: x86_64-randconfig-iv1-02190055 (attached as .config)
-> > reproduce:
-> >   git checkout ef7f0d6a6ca8c9e4b27d78895af86c2fbfaeedb2
-> >   # save the attached .config to linux build tree
-> >   make ARCH=x86_64 
-> > 
-> > Note: it may well be a FALSE warning. FWIW you are at least aware of it now.
-> > 
-> > All warnings:
-> > 
-> >    drivers/net/ethernet/broadcom/tg3.c: In function 'tg3_init_one':
-> >>> drivers/net/ethernet/broadcom/tg3.c:17811:37: warning: array subscript is above array bounds [-Warray-bounds]
-> >       struct tg3_napi *tnapi = &tp->napi[i];
-> >                                         ^
-> >>> drivers/net/ethernet/broadcom/tg3.c:17811:37: warning: array subscript is above array bounds [-Warray-bounds]
-> > 
-> 
-> This probably a GCC bug: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=59124
-> I see this warning with 4.9.2, but not with GCC 5 where this should be fixed already.
+That adds another layer of indirection.  And how would the caller of
+plain vmalloc() even know what to return?
 
-Yes we are running gcc 4.9.2. Thank you for the info, I'll disable this warning for now.
+>> Thus I think modifying the callers is the better choice.
+>> 
+>
+> I could suggest following (though, I still prefer 'modifying vmalloc' approach):
+>   * In do_init_module(), instead of call_rcu(&freeinit->rcu, do_free_init);
+>     use synchronyze_rcu() + module_memfree(). Of course this will be
+>   under CONFIG_KASAN.
 
-Regards,
-Fengguang
+But it would be slow, and a disparate code path, which is usually a bad
+idea.
+
+>     As you said there other module_memfree() users, so what if they will decide
+>     to free memory in atomic context?
+
+Hmm, how about a hybrid:
+
+1) Add kasan_module_alloc(p, size) after module alloc as your original.
+2) Hook into vfree(), and ignore it if you can't find the map.
+
+Or is the latter too expensive?
+
+Cheers,
+Rusty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
