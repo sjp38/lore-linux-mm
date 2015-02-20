@@ -1,94 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DF986B006C
-	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 18:15:16 -0500 (EST)
-Received: by paceu11 with SMTP id eu11so11454005pac.10
-        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 15:15:16 -0800 (PST)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id rr7si7085499pab.233.2015.02.20.15.15.14
-        for <linux-mm@kvack.org>;
-        Fri, 20 Feb 2015 15:15:15 -0800 (PST)
-Date: Sat, 21 Feb 2015 10:15:11 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: How to handle TIF_MEMDIE stalls?
-Message-ID: <20150220231511.GH12722@dastard>
-References: <201502172123.JIE35470.QOLMVOFJSHOFFt@I-love.SAKURA.ne.jp>
- <20150217125315.GA14287@phnom.home.cmpxchg.org>
- <20150217225430.GJ4251@dastard>
- <20150219102431.GA15569@phnom.home.cmpxchg.org>
- <20150219225217.GY12722@dastard>
- <201502201936.HBH34799.SOLFFFQtHOMOJV@I-love.SAKURA.ne.jp>
+Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
+	by kanga.kvack.org (Postfix) with ESMTP id E06966B0032
+	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 18:50:16 -0500 (EST)
+Received: by wesw62 with SMTP id w62so8287640wes.9
+        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 15:50:16 -0800 (PST)
+Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [2002:c35c:fd02::1])
+        by mx.google.com with ESMTPS id bk1si49306693wjb.171.2015.02.20.15.50.14
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 20 Feb 2015 15:50:15 -0800 (PST)
+Date: Fri, 20 Feb 2015 23:50:12 +0000
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [PATCH] fs: avoid locking sb_lock in grab_super_passive()
+Message-ID: <20150220235012.GS29656@ZenIV.linux.org.uk>
+References: <20150219171934.20458.30175.stgit@buzz>
+ <20150220150731.e79cd30dc6ecf3c7a3f5caa3@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201502201936.HBH34799.SOLFFFQtHOMOJV@I-love.SAKURA.ne.jp>
+In-Reply-To: <20150220150731.e79cd30dc6ecf3c7a3f5caa3@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: hannes@cmpxchg.org, mhocko@suse.cz, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, xfs@oss.sgi.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, Dave Chinner <david@fromorbit.com>
 
-On Fri, Feb 20, 2015 at 07:36:33PM +0900, Tetsuo Handa wrote:
-> Dave Chinner wrote:
-> > I really don't care about the OOM Killer corner cases - it's
-> > completely the wrong way line of development to be spending time on
-> > and you aren't going to convince me otherwise. The OOM killer a
-> > crutch used to justify having a memory allocation subsystem that
-> > can't provide forward progress guarantee mechanisms to callers that
-> > need it.
+On Fri, Feb 20, 2015 at 03:07:31PM -0800, Andrew Morton wrote:
+
+> - It no longer "acquires a reference".  All it does is to acquire an rwsem.
 > 
-> I really care about the OOM Killer corner cases, for I'm
-> 
->   (1) seeing trouble cases which occurred in enterprise systems
->       under OOM conditions
+> - What the heck is a "passive reference" anyway?  It appears to be
+>   the situation where we increment s_count without incrementing s_active.
 
-You reach OOM, then your SLAs are dead and buried. Reboot the
-box - its a much more reliable way of returning to a working system
-than playing Russian Roulette with the OOM killer.
+Reference to struct super_block that guarantees only that its memory won't
+be freed until we drop it.
 
->   (2) trying to downgrade OOM "Deadlock or Genocide" attacks (which
->       an unprivileged user with a login shell can trivially trigger
->       since Linux 2.0) to OOM "Genocide" attacks in order to allow
->       OOM-unkillable daemons to restart OOM-killed processes
-> 
->   (3) waiting for a bandaid for (2) in order to propose changes for
->       mitigating OOM "Genocide" attacks (as bad guys will find how to
->       trigger OOM "Deadlock or Genocide" attacks from changes for
->       mitigating OOM "Genocide" attacks)
+>   After your patch, this superblock state no longer exists(?),
 
-Which is yet another indication that the OOM killer is the wrong
-solution to the "lack of forward progress" problem. Any one can
-generate enough memory pressure to trigger the OOM killer; we can't
-prevent that from occurring when the OOM killer can be invoked by
-user processes.
+Yes, it does.  The _only_ reason why that patch isn't outright bogus is that
+we do only down_read_trylock() on ->s_umount - try to pull off the same thing
+with down_read() and you'll get a nasty race.  Take a look at e.g.
+get_super().  Or user_get_super().  Or iterate_supers()/iterate_supers_type(),
+where we don't return such references, but pass them to a callback instead.
+In all those cases we end up with passive reference taken, ->s_umount
+taken shared (_NOT_ with trylock) and fs checked for being still alive.
+Then it's guaranteed to stay alive until we do drop_super().
 
-> I started posting to linux-mm ML in order to make forward progress
-> about (1) and (2). I don't want the memory allocation subsystem to
-> lock up an entire system by indefinitely disabling memory releasing
-> mechanism provided by the OOM killer.
-> 
-> > I've proposed a method of providing this forward progress guarantee
-> > for subsystems of arbitrary complexity, and this removes the
-> > dependency on the OOM killer for fowards allocation progress in such
-> > contexts (e.g. filesystems). We should be discussing how to
-> > implement that, not what bandaids we need to apply to the OOM
-> > killer. I want to fix the underlying problems, not push them under
-> > the OOM-killer bus...
-> 
-> I'm fine with that direction for new kernels provided that a simple
-> bandaid which can be backported to distributor kernels for making
-> OOM "Deadlock" attacks impossible is implemented. Therefore, I'm
-> discussing what bandaids we need to apply to the OOM killer.
+I agree that the name blows, BTW - something like try_get_super() might have
+been more descriptive, but with this change it actually becomes a bad name
+as well, since after it we need a different way to release the obtained ref;
+not the same as after get_super().  Your variant might be OK, but I'd
+probably make it trylock_super(), to match the verb-object order of the
+rest of identifiers in that area...
 
-The band-aids being proposed are worse than the problem they are
-intended to cover up. In which case, the band-aids should not be
-applied.
+> so
+>   perhaps the entire "passive reference" concept and any references to
+>   it can be expunged from the kernel.
 
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Nope.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
