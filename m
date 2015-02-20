@@ -1,125 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id CC93F6B0032
-	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 12:40:19 -0500 (EST)
-Received: by mail-wg0-f44.google.com with SMTP id k14so14560409wgh.3
-        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 09:40:19 -0800 (PST)
+Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 94FD36B0032
+	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 13:23:12 -0500 (EST)
+Received: by mail-qg0-f49.google.com with SMTP id q107so15391582qgd.8
+        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 10:23:12 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id vs8si47978981wjc.119.2015.02.20.09.40.16
+        by mx.google.com with ESMTPS id r2si28743158qcc.16.2015.02.20.10.23.10
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Feb 2015 09:40:18 -0800 (PST)
-Message-ID: <54E77162.3050203@redhat.com>
-Date: Fri, 20 Feb 2015 18:39:46 +0100
-From: Jerome Marchand <jmarchan@redhat.com>
+        Fri, 20 Feb 2015 10:23:11 -0800 (PST)
+Date: Fri, 20 Feb 2015 19:02:18 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH v2] mm: incorporate zero pages into transparent huge pages
+Message-ID: <20150220180218.GA4285@redhat.com>
+References: <1423688635-4306-1-git-send-email-ebru.akagunduz@gmail.com>
+ <20150218153119.0bcd0bf8b4e7d30d99f00a3b@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCHv3 04/24] rmap: add argument to charge compound page
-References: <1423757918-197669-1-git-send-email-kirill.shutemov@linux.intel.com> <1423757918-197669-5-git-send-email-kirill.shutemov@linux.intel.com> <54DD16BD.4000201@redhat.com> <20150216152056.GC3270@node.dhcp.inet.fi>
-In-Reply-To: <20150216152056.GC3270@node.dhcp.inet.fi>
-Content-Type: multipart/signed; micalg=pgp-sha1;
- protocol="application/pgp-signature";
- boundary="sJXQCif7B1ap56hHr7elVW7GsoKRjB6NQ"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150218153119.0bcd0bf8b4e7d30d99f00a3b@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>, Rik van Riel <riel@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org, kirill@shutemov.name, mhocko@suse.cz, mgorman@suse.de, rientjes@google.com, sasha.levin@oracle.com, hughd@google.com, hannes@cmpxchg.org, vbabka@suse.cz, linux-kernel@vger.kernel.org, riel@redhat.com
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---sJXQCif7B1ap56hHr7elVW7GsoKRjB6NQ
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+On Wed, Feb 18, 2015 at 03:31:19PM -0800, Andrew Morton wrote:
+> On Wed, 11 Feb 2015 23:03:55 +0200 Ebru Akagunduz <ebru.akagunduz@gmail.com> wrote:
+> 
+> > This patch improves THP collapse rates, by allowing zero pages.
+> > 
+> > Currently THP can collapse 4kB pages into a THP when there
+> > are up to khugepaged_max_ptes_none pte_none ptes in a 2MB
+> > range.  This patch counts pte none and mapped zero pages
+> > with the same variable.
+> 
+> So if I'm understanding this correctly, with the default value of
+> khugepaged_max_ptes_none (HPAGE_PMD_NR-1), if an application creates a
+> 2MB area which contains 511 mappings of the zero page and one real
+> page, the kernel will proceed to turn that area into a real, physical
+> huge page.  So it consumes 2MB of memory which would not have
+> previously been allocated?
 
-On 02/16/2015 04:20 PM, Kirill A. Shutemov wrote:
-> On Thu, Feb 12, 2015 at 04:10:21PM -0500, Rik van Riel wrote:
->> -----BEGIN PGP SIGNED MESSAGE-----
->> Hash: SHA1
->>
->> On 02/12/2015 11:18 AM, Kirill A. Shutemov wrote:
->>
->>> +++ b/include/linux/rmap.h @@ -168,16 +168,24 @@ static inline void
->>> anon_vma_merge(struct vm_area_struct *vma,
->>>
->>> struct anon_vma *page_get_anon_vma(struct page *page);
->>>
->>> +/* flags for do_page_add_anon_rmap() */ +enum { +	RMAP_EXCLUSIVE =3D=
+Correct.
 
->>> 1, +	RMAP_COMPOUND =3D 2, +};
->>
->> Always a good idea to name things. However, "exclusive" is
->> not that clear to me. Given that the argument is supposed
->> to indicate whether we map a single or a compound page,
->> maybe the names in the enum could just be SINGLE and COMPOUND?
->>
->> Naming the enum should make it clear enough what it does:
->>
->>  enum rmap_page {
->>       SINGLE =3D 0,
->>       COMPOUND
->>  }
->=20
-> Okay, this is probably confusing: do_page_add_anon_rmap() already had o=
-ne
-> of arguments called 'exclusive'. It indicates if the page is exclusivel=
-y
-> owned by the current process. And I needed also to indicate if we need =
-to
-> handle the page as a compound or not. I've reused the same argument and=
+> 
+> If so, this might be rather undesirable behaviour in some situations
+> (and ditto the current behaviour for pte_none ptes)?
+> 
+> This can be tuned by adjusting khugepaged_max_ptes_none, but not many
+> people are likely to do that because we didn't document the damn thing.
 
-> converted it to set bit-flags: bit 0 is exclusive, bit 1 - compound.
+khugepaged checks !hugepage_vma_check, so those apps that don't want
+it can opt out with MADV_NOHUGEPAGE. The sysctl allows to tune for the
+default behavior.
 
-AFAICT, this is not a common use of enum and probably the reason why Rik
-was confused (I know I find it confusing). Bit-flags members are usually
-define by macros.
+>  At all.  Can we please rectify this, and update it for the is_zero_pfn
+> feature?  The documentation should include an explanation telling
+> people how to decide what setting to use, how to observe its effects,
+> etc.
 
-Jerome
->=20
->>
->>> +++ b/kernel/events/uprobes.c @@ -183,7 +183,7 @@ static int
->>> __replace_page(struct vm_area_struct *vma, unsigned long addr, goto
->>> unlock;
->>>
->>> get_page(kpage); -	page_add_new_anon_rmap(kpage, vma, addr); +
->>> page_add_new_anon_rmap(kpage, vma, addr, false);=20
->>> mem_cgroup_commit_charge(kpage, memcg, false);=20
->>> lru_cache_add_active_or_unevictable(kpage, vma);
->>
->> Would it make sense to use the name in the argument to that function,
->> too?
->>
->> I often find it a lot easier to see what things do if they use symboli=
-c
->> names, rather than by trying to remember what each boolean argument to=
+Agreed, documentation for the sysfs control would be good to have
+indeed.
 
->> a function does.
->=20
-> I can convert these compound booleans to enums if you want. I'm persona=
-lly
-> not sure that if will bring much value.
->=20
+In the meantime I've got a more urgent issue, for which the fix is
+appended below.
 
+Thanks,
+Andrea
 
-
---sJXQCif7B1ap56hHr7elVW7GsoKRjB6NQ
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iQEcBAEBAgAGBQJU53FiAAoJEHTzHJCtsuoCTdwH/13iVIA/H12MMG6hDT0XrIJL
-RCktxwTbrWMo4VvPRU3FAQ08GAzT8h60cqWHwoopItHr31x8q311ckWJcvpJ3ezh
-gHLmxn+b0NzqmZA7wY1KGU7CtUv6ZXo2658MFaeDrQJtAfY6vE5dKXHreilwvzcD
-GardOjQZm1C8kuiUS1bo6SSMDs8nhwOkNxms8tSFXLQnF8zvuv9WU9gxMtx1rwfb
-6xhjf2XdMcwynxKEbGJU7PqYLeQAPRUiPJmKJ4vAgeCRmw3DwaaOXI/iUkW45JA1
-gIdqps7KMUkEZws6KADphb3PXDUpJqgfel2BfvkXzeYTPYWTmgCp3be1y/fBhZE=
-=wlbJ
------END PGP SIGNATURE-----
-
---sJXQCif7B1ap56hHr7elVW7GsoKRjB6NQ--
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+==
