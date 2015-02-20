@@ -1,96 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 97A7F6B0038
-	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 05:27:43 -0500 (EST)
-Received: by mail-ob0-f175.google.com with SMTP id va2so23296573obc.6
-        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 02:27:43 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id je9si1574248oeb.10.2015.02.20.02.27.42
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 981FF6B0032
+	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 06:22:52 -0500 (EST)
+Received: by pdjy10 with SMTP id y10so6923061pdj.13
+        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 03:22:52 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id pr2si28843612pdb.188.2015.02.20.03.22.50
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 20 Feb 2015 02:27:42 -0800 (PST)
-Message-ID: <54E70C10.5050102@oracle.com>
-Date: Fri, 20 Feb 2015 05:27:28 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v5 2/3] mm: cma: allocation trigger
-References: <1423780008-16727-1-git-send-email-sasha.levin@oracle.com> <1423780008-16727-3-git-send-email-sasha.levin@oracle.com> <54E61F91.9080506@partner.samsung.com>
-In-Reply-To: <54E61F91.9080506@partner.samsung.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+        Fri, 20 Feb 2015 03:22:51 -0800 (PST)
+Subject: Re: How to handle TIF_MEMDIE stalls?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201502172123.JIE35470.QOLMVOFJSHOFFt@I-love.SAKURA.ne.jp>
+	<20150217125315.GA14287@phnom.home.cmpxchg.org>
+	<20150217225430.GJ4251@dastard>
+	<20150219102431.GA15569@phnom.home.cmpxchg.org>
+	<20150219225217.GY12722@dastard>
+In-Reply-To: <20150219225217.GY12722@dastard>
+Message-Id: <201502201936.HBH34799.SOLFFFQtHOMOJV@I-love.SAKURA.ne.jp>
+Date: Fri, 20 Feb 2015 19:36:33 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stefan Strogin <s.strogin@partner.samsung.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
-Cc: iamjoonsoo.kim@lge.com, m.szyprowski@samsung.com, lauraa@codeaurora.org
+To: david@fromorbit.com, hannes@cmpxchg.org
+Cc: mhocko@suse.cz, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, xfs@oss.sgi.com
 
-Stefan, Andrew,
+Dave Chinner wrote:
+> I really don't care about the OOM Killer corner cases - it's
+> completely the wrong way line of development to be spending time on
+> and you aren't going to convince me otherwise. The OOM killer a
+> crutch used to justify having a memory allocation subsystem that
+> can't provide forward progress guarantee mechanisms to callers that
+> need it.
 
-I ended up cherry-picking and older patch here by mistake. Joonsoo pointed
-it out but I didn't have time to address it yet since I'm travelling and
-they got pulled in to mmotm in the meanwhile.
+I really care about the OOM Killer corner cases, for I'm
 
-I'll send out patches to add documentation and fix the issues raised here
-early next week. Sorry for the delay and the noise.
+  (1) seeing trouble cases which occurred in enterprise systems
+      under OOM conditions
 
+  (2) trying to downgrade OOM "Deadlock or Genocide" attacks (which
+      an unprivileged user with a login shell can trivially trigger
+      since Linux 2.0) to OOM "Genocide" attacks in order to allow
+      OOM-unkillable daemons to restart OOM-killed processes
 
-Thanks,
-Sasha
+  (3) waiting for a bandaid for (2) in order to propose changes for
+      mitigating OOM "Genocide" attacks (as bad guys will find how to
+      trigger OOM "Deadlock or Genocide" attacks from changes for
+      mitigating OOM "Genocide" attacks)
 
-On 02/19/2015 12:38 PM, Stefan Strogin wrote:
-> Hi,
-> 
-> On 13/02/15 01:26, Sasha Levin wrote:
->> Provides a userspace interface to trigger a CMA allocation.
->>
->> Usage:
->>
->> 	echo [pages] > alloc
->>
->> This would provide testing/fuzzing access to the CMA allocation paths.
->>
->> Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
->> ---
->>  mm/cma.c       |    6 ++++++
->>  mm/cma.h       |    4 ++++
->>  mm/cma_debug.c |   56 ++++++++++++++++++++++++++++++++++++++++++++++++++++++--
->>  3 files changed, 64 insertions(+), 2 deletions(-)
->>
->> diff --git a/mm/cma_debug.c b/mm/cma_debug.c
->> index 3a25413..5bd6863 100644
->> --- a/mm/cma_debug.c
->> +++ b/mm/cma_debug.c
->> @@ -23,8 +32,48 @@ static int cma_debugfs_get(void *data, u64 *val)
->>  
->>  DEFINE_SIMPLE_ATTRIBUTE(cma_debugfs_fops, cma_debugfs_get, NULL, "%llu\n");
->>  
->> -static void cma_debugfs_add_one(struct cma *cma, int idx)
->> +static void cma_add_to_cma_mem_list(struct cma *cma, struct cma_mem *mem)
->> +{
->> +	spin_lock(&cma->mem_head_lock);
->> +	hlist_add_head(&mem->node, &cma->mem_head);
->> +	spin_unlock(&cma->mem_head_lock);
->> +}
->> +
->> +static int cma_alloc_mem(struct cma *cma, int count)
->> +{
->> +	struct cma_mem *mem;
->> +	struct page *p;
->> +
->> +	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
->> +	if (!mem) 
->> +		return -ENOMEM;
->> +
->> +	p = cma_alloc(cma, count, CONFIG_CMA_ALIGNMENT);
-> 
-> If CONFIG_DMA_CMA (and therefore CONFIG_CMA_ALIGNMENT) isn't configured
-> then building fails.
->> mm/cma_debug.c: In function a??cma_alloc_mema??:
->> mm/cma_debug.c:223:28: error: a??CONFIG_CMA_ALIGNMENTa?? undeclared (first use in this function)
->>   p = cma_alloc(cma, count, CONFIG_CMA_ALIGNMENT);
->>                             ^
-> 
-> Also, could you please fix the whitespace errors in your patches?
-> 
+I started posting to linux-mm ML in order to make forward progress
+about (1) and (2). I don't want the memory allocation subsystem to
+lock up an entire system by indefinitely disabling memory releasing
+mechanism provided by the OOM killer.
+
+> I've proposed a method of providing this forward progress guarantee
+> for subsystems of arbitrary complexity, and this removes the
+> dependency on the OOM killer for fowards allocation progress in such
+> contexts (e.g. filesystems). We should be discussing how to
+> implement that, not what bandaids we need to apply to the OOM
+> killer. I want to fix the underlying problems, not push them under
+> the OOM-killer bus...
+
+I'm fine with that direction for new kernels provided that a simple
+bandaid which can be backported to distributor kernels for making
+OOM "Deadlock" attacks impossible is implemented. Therefore, I'm
+discussing what bandaids we need to apply to the OOM killer.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
