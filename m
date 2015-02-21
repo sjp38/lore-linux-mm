@@ -1,358 +1,237 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id AF57E6B0032
-	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 22:58:40 -0500 (EST)
-Received: by padfb1 with SMTP id fb1so12817201pad.8
-        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 19:58:40 -0800 (PST)
-Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
-        by mx.google.com with ESMTPS id bp16si52433pdb.107.2015.02.20.19.58.39
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id C2CA86B0032
+	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 23:00:20 -0500 (EST)
+Received: by pablf10 with SMTP id lf10so12822597pab.6
+        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 20:00:20 -0800 (PST)
+Received: from mail-pd0-x231.google.com (mail-pd0-x231.google.com. [2607:f8b0:400e:c02::231])
+        by mx.google.com with ESMTPS id rf11si3816101pdb.199.2015.02.20.20.00.19
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Feb 2015 19:58:39 -0800 (PST)
-Received: by pablf10 with SMTP id lf10so12745833pab.12
-        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 19:58:39 -0800 (PST)
-Date: Fri, 20 Feb 2015 19:58:36 -0800 (PST)
+        Fri, 20 Feb 2015 20:00:19 -0800 (PST)
+Received: by pdev10 with SMTP id v10so11949360pde.10
+        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 20:00:19 -0800 (PST)
+Date: Fri, 20 Feb 2015 20:00:17 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 04/24] mm: make page migration's newpage handling more
- robust
+Subject: [PATCH 05/24] tmpfs: preliminary minor tidyups
 In-Reply-To: <alpine.LSU.2.11.1502201941340.14414@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1502201956260.14414@eggly.anvils>
+Message-ID: <alpine.LSU.2.11.1502201958420.14414@eggly.anvils>
 References: <alpine.LSU.2.11.1502201941340.14414@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Ning Qu <quning@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Ning Qu <quning@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-I don't know of any problem in the current tree, but huge tmpfs wants
-to use the custom put_new_page feature of page migration, with a pool
-of its own pages: and met some surprises and difficulties in doing so.
+Make a few cleanups in mm/shmem.c, before going on to complicate it.
 
-An unused newpage is expected to be released with the put_new_page(),
-but there was one MIGRATEPAGE_SUCCESS (0) path which released it with
-putback_lru_page(), which was wrong for this custom pool.  Fixed more
-easily by resetting put_new_page once it won't be needed, than by
-adding a further flag to modify the rc test.
+shmem_alloc_page() will become more complicated: we can't afford to
+to have that complication duplicated between a CONFIG_NUMA version
+and a !CONFIG_NUMA version, so rearrange the #ifdef'ery there to
+yield a single shmem_swapin() and a single shmem_alloc_page().
 
-Definitely an extension rather than a bugfix: pages of that newpage
-pool might in rare cases still be speculatively accessed and locked
-by another task, so relax move_to_new_page()'s !trylock_page() BUG
-to an -EAGAIN, just like when old page is found locked.  Do its
-__ClearPageSwapBacked on failure while still holding page lock;
-and don't reset old page->mapping if PageAnon, we often assume
-that PageAnon is persistent once set.
+Yes, it's a shame to inflict the horrid pseudo-vma on non-NUMA
+configurations, but one day we'll get around to eliminating it
+(elsewhere I have an alloc_pages_mpol() patch, but mpol handling is
+subtle and bug-prone, and changed yet again since my last version).
 
-Actually, move the trylock_page(newpage) and unlock_page(newpage)
-up a level into __unmap_and_move(), to the same level as the trylock
-and unlock of old page: though I moved them originally to suit an old
-tree (one using mem_cgroup_prepare_migration()), it still seems a
-better placement.
+Move __set_page_locked __SetPageSwapBacked from shmem_getpage_gfp()
+to shmem_alloc_page(): that SwapBacked flag will be useful in future,
+to help it to distinguish different cases appropriately.
 
-Then the remove_migration_ptes() can be done in one place,
-instead of at one level on success but another level on failure.
-
-Add some VM_BUG_ONs to enforce the new convention, and adjust
-unmap_and_move_huge_page() and balloon_page_migrate() to fit too.
-
-Finally, clean up __unmap_and_move()'s increasingly weird block
-"if (anon_vma) nothing; else if (PageSwapCache) nothing; else out;"
-while keeping its useful comment on unmapped swapcache.
+And the SGP_DIRTY variant of SGP_CACHE is hard to understand and of
+little use (IIRC it dates back to when shmem_getpage() returned the
+page unlocked): let's kill it and just do the necessary in
+do_shmem_file_read().
 
 Signed-off-by: Hugh Dickins <hughd@google.com>
 ---
- mm/balloon_compaction.c |   10 ---
- mm/migrate.c            |  120 +++++++++++++++++++-------------------
- 2 files changed, 63 insertions(+), 67 deletions(-)
+ include/linux/mempolicy.h |    6 ++
+ mm/shmem.c                |   73 +++++++++++++-----------------------
+ 2 files changed, 34 insertions(+), 45 deletions(-)
 
---- thpfs.orig/mm/balloon_compaction.c	2014-12-07 14:21:05.000000000 -0800
-+++ thpfs/mm/balloon_compaction.c	2015-02-20 19:33:40.872062714 -0800
-@@ -199,23 +199,17 @@ int balloon_page_migrate(struct page *ne
- 	struct balloon_dev_info *balloon = balloon_page_device(page);
- 	int rc = -EAGAIN;
- 
--	/*
--	 * Block others from accessing the 'newpage' when we get around to
--	 * establishing additional references. We should be the only one
--	 * holding a reference to the 'newpage' at this point.
--	 */
--	BUG_ON(!trylock_page(newpage));
-+	VM_BUG_ON_PAGE(!PageLocked(page), page);
-+	VM_BUG_ON_PAGE(!PageLocked(newpage), newpage);
- 
- 	if (WARN_ON(!__is_movable_balloon_page(page))) {
- 		dump_page(page, "not movable balloon page");
--		unlock_page(newpage);
- 		return rc;
- 	}
- 
- 	if (balloon && balloon->migratepage)
- 		rc = balloon->migratepage(balloon, newpage, page, mode);
- 
--	unlock_page(newpage);
- 	return rc;
+--- thpfs.orig/include/linux/mempolicy.h	2014-12-07 14:21:05.000000000 -0800
++++ thpfs/include/linux/mempolicy.h	2015-02-20 19:33:46.112050733 -0800
+@@ -228,6 +228,12 @@ static inline void mpol_free_shared_poli
+ {
  }
- #endif /* CONFIG_BALLOON_COMPACTION */
---- thpfs.orig/mm/migrate.c	2015-02-20 19:33:35.676074594 -0800
-+++ thpfs/mm/migrate.c	2015-02-20 19:33:40.876062705 -0800
-@@ -746,18 +746,13 @@ static int fallback_migrate_page(struct
-  *  MIGRATEPAGE_SUCCESS - success
+ 
++static inline struct mempolicy *
++mpol_shared_policy_lookup(struct shared_policy *sp, unsigned long idx)
++{
++	return NULL;
++}
++
+ #define vma_policy(vma) NULL
+ 
+ static inline int
+--- thpfs.orig/mm/shmem.c	2015-02-20 19:33:35.676074594 -0800
++++ thpfs/mm/shmem.c	2015-02-20 19:33:46.116050724 -0800
+@@ -6,8 +6,8 @@
+  *		 2000-2001 Christoph Rohland
+  *		 2000-2001 SAP AG
+  *		 2002 Red Hat Inc.
+- * Copyright (C) 2002-2011 Hugh Dickins.
+- * Copyright (C) 2011 Google Inc.
++ * Copyright (C) 2002-2015 Hugh Dickins.
++ * Copyright (C) 2011-2015 Google Inc.
+  * Copyright (C) 2002-2005 VERITAS Software Corporation.
+  * Copyright (C) 2004 Andi Kleen, SuSE Labs
+  *
+@@ -99,7 +99,6 @@ struct shmem_falloc {
+ enum sgp_type {
+ 	SGP_READ,	/* don't exceed i_size, don't allocate page */
+ 	SGP_CACHE,	/* don't exceed i_size, may allocate page */
+-	SGP_DIRTY,	/* like SGP_CACHE, but set new page dirty */
+ 	SGP_WRITE,	/* may exceed i_size, may allocate !Uptodate page */
+ 	SGP_FALLOC,	/* like SGP_WRITE, but make existing page Uptodate */
+ };
+@@ -167,7 +166,7 @@ static inline int shmem_reacct_size(unsi
+ 
+ /*
+  * ... whereas tmpfs objects are accounted incrementally as
+- * pages are allocated, in order to allow huge sparse files.
++ * pages are allocated, in order to allow large sparse files.
+  * shmem_getpage reports shmem_acct_block failure as -ENOSPC not -ENOMEM,
+  * so that a failure on a sparse tmpfs mapping will give SIGBUS not OOM.
   */
- static int move_to_new_page(struct page *newpage, struct page *page,
--				int page_was_mapped, enum migrate_mode mode)
-+				enum migrate_mode mode)
- {
- 	struct address_space *mapping;
- 	int rc;
- 
--	/*
--	 * Block others from accessing the page when we get around to
--	 * establishing additional references. We are the only one
--	 * holding a reference to the new page at this point.
--	 */
--	if (!trylock_page(newpage))
--		BUG();
-+	VM_BUG_ON_PAGE(!PageLocked(page), page);
-+	VM_BUG_ON_PAGE(!PageLocked(newpage), newpage);
- 
- 	/* Prepare mapping for the new page.*/
- 	newpage->index = page->index;
-@@ -781,16 +776,14 @@ static int move_to_new_page(struct page
- 		rc = fallback_migrate_page(mapping, newpage, page, mode);
- 
- 	if (rc != MIGRATEPAGE_SUCCESS) {
-+		__ClearPageSwapBacked(newpage);
- 		newpage->mapping = NULL;
- 	} else {
- 		mem_cgroup_migrate(page, newpage, false);
--		if (page_was_mapped)
--			remove_migration_ptes(page, newpage);
--		page->mapping = NULL;
-+		if (!PageAnon(page))
-+			page->mapping = NULL;
- 	}
- 
--	unlock_page(newpage);
--
- 	return rc;
+@@ -849,8 +848,7 @@ redirty:
+ 	return 0;
  }
  
-@@ -839,6 +832,7 @@ static int __unmap_and_move(struct page
- 			goto out_unlock;
- 		wait_on_page_writeback(page);
- 	}
-+
- 	/*
- 	 * By try_to_unmap(), page->mapcount goes down to 0 here. In this case,
- 	 * we cannot notice that anon_vma is freed while we migrates a page.
-@@ -853,28 +847,29 @@ static int __unmap_and_move(struct page
- 		 * getting a hold on an anon_vma from outside one of its mms.
- 		 */
- 		anon_vma = page_get_anon_vma(page);
--		if (anon_vma) {
--			/*
--			 * Anon page
--			 */
--		} else if (PageSwapCache(page)) {
--			/*
--			 * We cannot be sure that the anon_vma of an unmapped
--			 * swapcache page is safe to use because we don't
--			 * know in advance if the VMA that this page belonged
--			 * to still exists. If the VMA and others sharing the
--			 * data have been freed, then the anon_vma could
--			 * already be invalid.
--			 *
--			 * To avoid this possibility, swapcache pages get
--			 * migrated but are not remapped when migration
--			 * completes
--			 */
--		} else {
-+		if (!anon_vma && !PageSwapCache(page))
- 			goto out_unlock;
--		}
-+		/*
-+		 * We cannot be sure that the anon_vma of an unmapped swapcache
-+		 * page is safe to use because we don't know in advance if the
-+		 * VMA that this page belonged to still exists. If the VMA and
-+		 * others sharing it have been freed, then the anon_vma could
-+		 * be invalid.  To avoid this possibility, swapcache pages
-+		 * are migrated, but not remapped when migration completes.
-+		 */
- 	}
- 
-+	/*
-+	 * Block others from accessing the new page when we get around to
-+	 * establishing additional references. We are usually the only one
-+	 * holding a reference to newpage at this point. We used to have a BUG
-+	 * here if trylock_page(newpage) fails, but intend to introduce a case
-+	 * where there might be a race with the previous use of newpage.  This
-+	 * is much like races on the refcount of oldpage: just don't BUG().
-+	 */
-+	if (unlikely(!trylock_page(newpage)))
-+		goto out_unlock;
-+
- 	if (unlikely(isolated_balloon_page(page))) {
- 		/*
- 		 * A ballooned page does not need any special attention from
-@@ -884,7 +879,7 @@ static int __unmap_and_move(struct page
- 		 * the page migration right away (proteced by page lock).
- 		 */
- 		rc = balloon_page_migrate(newpage, page, mode);
--		goto out_unlock;
-+		goto out_unlock_both;
- 	}
- 
- 	/*
-@@ -903,30 +898,28 @@ static int __unmap_and_move(struct page
- 		VM_BUG_ON_PAGE(PageAnon(page), page);
- 		if (page_has_private(page)) {
- 			try_to_free_buffers(page);
--			goto out_unlock;
-+			goto out_unlock_both;
- 		}
--		goto skip_unmap;
--	}
--
--	/* Establish migration ptes or remove ptes */
--	if (page_mapped(page)) {
-+	} else if (page_mapped(page)) {
-+		/* Establish migration ptes or remove ptes */
- 		try_to_unmap(page,
- 			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
- 		page_was_mapped = 1;
- 	}
- 
--skip_unmap:
- 	if (!page_mapped(page))
--		rc = move_to_new_page(newpage, page, page_was_mapped, mode);
-+		rc = move_to_new_page(newpage, page, mode);
- 
--	if (rc && page_was_mapped)
--		remove_migration_ptes(page, page);
-+	if (page_was_mapped)
-+		remove_migration_ptes(page,
-+			rc == MIGRATEPAGE_SUCCESS ? newpage : page);
- 
-+out_unlock_both:
-+	unlock_page(newpage);
-+out_unlock:
- 	/* Drop an anon_vma reference if we took one */
- 	if (anon_vma)
- 		put_anon_vma(anon_vma);
--
--out_unlock:
- 	unlock_page(page);
- out:
- 	return rc;
-@@ -940,10 +933,11 @@ static int unmap_and_move(new_page_t get
- 			unsigned long private, struct page *page, int force,
- 			enum migrate_mode mode)
+-#ifdef CONFIG_NUMA
+-#ifdef CONFIG_TMPFS
++#if defined(CONFIG_NUMA) && defined(CONFIG_TMPFS)
+ static void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
  {
--	int rc = 0;
-+	int rc = MIGRATEPAGE_SUCCESS;
- 	int *result = NULL;
--	struct page *newpage = get_new_page(page, private, &result);
-+	struct page *newpage;
- 
-+	newpage = get_new_page(page, private, &result);
- 	if (!newpage)
- 		return -ENOMEM;
- 
-@@ -957,6 +951,8 @@ static int unmap_and_move(new_page_t get
- 			goto out;
- 
- 	rc = __unmap_and_move(page, newpage, force, mode);
-+	if (rc == MIGRATEPAGE_SUCCESS)
-+		put_new_page = NULL;
- 
- out:
- 	if (rc != -EAGAIN) {
-@@ -977,10 +973,9 @@ out:
- 	 * it.  Otherwise, putback_lru_page() will drop the reference grabbed
- 	 * during isolation.
- 	 */
--	if (rc != MIGRATEPAGE_SUCCESS && put_new_page) {
--		__ClearPageSwapBacked(newpage);
-+	if (put_new_page)
- 		put_new_page(newpage, private);
--	} else if (unlikely(__is_movable_balloon_page(newpage))) {
-+	else if (unlikely(__is_movable_balloon_page(newpage))) {
- 		/* drop our reference, page already in the balloon */
- 		put_page(newpage);
- 	} else
-@@ -1018,7 +1013,7 @@ static int unmap_and_move_huge_page(new_
- 				struct page *hpage, int force,
- 				enum migrate_mode mode)
- {
--	int rc = 0;
-+	int rc = -EAGAIN;
- 	int *result = NULL;
- 	int page_was_mapped = 0;
- 	struct page *new_hpage;
-@@ -1040,8 +1035,6 @@ static int unmap_and_move_huge_page(new_
- 	if (!new_hpage)
- 		return -ENOMEM;
- 
--	rc = -EAGAIN;
--
- 	if (!trylock_page(hpage)) {
- 		if (!force || mode != MIGRATE_SYNC)
- 			goto out;
-@@ -1051,6 +1044,9 @@ static int unmap_and_move_huge_page(new_
- 	if (PageAnon(hpage))
- 		anon_vma = page_get_anon_vma(hpage);
- 
-+	if (unlikely(!trylock_page(new_hpage)))
-+		goto put_anon;
-+
- 	if (page_mapped(hpage)) {
- 		try_to_unmap(hpage,
- 			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
-@@ -1058,16 +1054,22 @@ static int unmap_and_move_huge_page(new_
+ 	char buffer[64];
+@@ -874,7 +872,18 @@ static struct mempolicy *shmem_get_sbmpo
  	}
+ 	return mpol;
+ }
+-#endif /* CONFIG_TMPFS */
++#else /* !CONFIG_NUMA || !CONFIG_TMPFS */
++static inline void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
++{
++}
++static inline struct mempolicy *shmem_get_sbmpol(struct shmem_sb_info *sbinfo)
++{
++	return NULL;
++}
++#endif /* CONFIG_NUMA && CONFIG_TMPFS */
++#ifndef CONFIG_NUMA
++#define vm_policy vm_private_data
++#endif
  
- 	if (!page_mapped(hpage))
--		rc = move_to_new_page(new_hpage, hpage, page_was_mapped, mode);
-+		rc = move_to_new_page(new_hpage, hpage, mode);
+ static struct page *shmem_swapin(swp_entry_t swap, gfp_t gfp,
+ 			struct shmem_inode_info *info, pgoff_t index)
+@@ -910,39 +919,17 @@ static struct page *shmem_alloc_page(gfp
+ 	pvma.vm_ops = NULL;
+ 	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, index);
  
--	if (rc != MIGRATEPAGE_SUCCESS && page_was_mapped)
--		remove_migration_ptes(hpage, hpage);
-+	if (page_was_mapped)
-+		remove_migration_ptes(hpage,
-+			rc == MIGRATEPAGE_SUCCESS ? new_hpage : hpage);
- 
-+	unlock_page(new_hpage);
-+
-+put_anon:
- 	if (anon_vma)
- 		put_anon_vma(anon_vma);
- 
--	if (rc == MIGRATEPAGE_SUCCESS)
-+	if (rc == MIGRATEPAGE_SUCCESS) {
- 		hugetlb_cgroup_migrate(hpage, new_hpage);
-+		put_new_page = NULL;
+-	page = alloc_page_vma(gfp, &pvma, 0);
++	page = alloc_pages_vma(gfp, 0, &pvma, 0, numa_node_id());
++	if (page) {
++		__set_page_locked(page);
++		__SetPageSwapBacked(page);
 +	}
  
- 	unlock_page(hpage);
- out:
-@@ -1079,7 +1081,7 @@ out:
- 	 * it.  Otherwise, put_page() will drop the reference grabbed during
- 	 * isolation.
+ 	/* Drop reference taken by mpol_shared_policy_lookup() */
+ 	mpol_cond_put(pvma.vm_policy);
+ 
+ 	return page;
+ }
+-#else /* !CONFIG_NUMA */
+-#ifdef CONFIG_TMPFS
+-static inline void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
+-{
+-}
+-#endif /* CONFIG_TMPFS */
+-
+-static inline struct page *shmem_swapin(swp_entry_t swap, gfp_t gfp,
+-			struct shmem_inode_info *info, pgoff_t index)
+-{
+-	return swapin_readahead(swap, gfp, NULL, 0);
+-}
+-
+-static inline struct page *shmem_alloc_page(gfp_t gfp,
+-			struct shmem_inode_info *info, pgoff_t index)
+-{
+-	return alloc_page(gfp);
+-}
+-#endif /* CONFIG_NUMA */
+-
+-#if !defined(CONFIG_NUMA) || !defined(CONFIG_TMPFS)
+-static inline struct mempolicy *shmem_get_sbmpol(struct shmem_sb_info *sbinfo)
+-{
+-	return NULL;
+-}
+-#endif
+ 
+ /*
+  * When a page is moved from swapcache to shmem filecache (either by the
+@@ -986,8 +973,6 @@ static int shmem_replace_page(struct pag
+ 	copy_highpage(newpage, oldpage);
+ 	flush_dcache_page(newpage);
+ 
+-	__set_page_locked(newpage);
+-	__SetPageSwapBacked(newpage);
+ 	SetPageUptodate(newpage);
+ 	set_page_private(newpage, swap_index);
+ 	SetPageSwapCache(newpage);
+@@ -1177,11 +1162,6 @@ repeat:
+ 			goto decused;
+ 		}
+ 
+-		__set_page_locked(page);
+-		__SetPageSwapBacked(page);
+-		if (sgp == SGP_WRITE)
+-			__SetPageReferenced(page);
+-
+ 		error = mem_cgroup_try_charge(page, current->mm, gfp, &memcg);
+ 		if (error)
+ 			goto decused;
+@@ -1205,6 +1185,8 @@ repeat:
+ 		spin_unlock(&info->lock);
+ 		alloced = true;
+ 
++		if (sgp == SGP_WRITE)
++			__SetPageReferenced(page);
+ 		/*
+ 		 * Let SGP_FALLOC use the SGP_WRITE optimization on a new page.
+ 		 */
+@@ -1221,8 +1203,6 @@ clear:
+ 			flush_dcache_page(page);
+ 			SetPageUptodate(page);
+ 		}
+-		if (sgp == SGP_DIRTY)
+-			set_page_dirty(page);
+ 	}
+ 
+ 	/* Perhaps the file has been truncated since we checked */
+@@ -1537,7 +1517,7 @@ static ssize_t shmem_file_read_iter(stru
+ 	 * and even mark them dirty, so it cannot exceed the max_blocks limit.
  	 */
--	if (rc != MIGRATEPAGE_SUCCESS && put_new_page)
-+	if (put_new_page)
- 		put_new_page(new_hpage, private);
- 	else
- 		put_page(new_hpage);
-@@ -1109,7 +1111,7 @@ out:
-  *
-  * The function returns after 10 attempts or if no pages are movable any more
-  * because the list has become empty or no retryable pages exist any more.
-- * The caller should call putback_lru_pages() to return pages to the LRU
-+ * The caller should call putback_movable_pages() to return pages to the LRU
-  * or free list only if ret != 0.
-  *
-  * Returns the number of pages that were not migrated, or an error code.
+ 	if (!iter_is_iovec(to))
+-		sgp = SGP_DIRTY;
++		sgp = SGP_CACHE;
+ 
+ 	index = *ppos >> PAGE_CACHE_SHIFT;
+ 	offset = *ppos & ~PAGE_CACHE_MASK;
+@@ -1563,8 +1543,11 @@ static ssize_t shmem_file_read_iter(stru
+ 				error = 0;
+ 			break;
+ 		}
+-		if (page)
++		if (page) {
++			if (sgp == SGP_CACHE)
++				set_page_dirty(page);
+ 			unlock_page(page);
++		}
+ 
+ 		/*
+ 		 * We must evaluate after, since reads (unlike writes)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
