@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id F0B196B0032
-	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 23:23:55 -0500 (EST)
-Received: by pdev10 with SMTP id v10so12042764pde.10
-        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 20:23:55 -0800 (PST)
-Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
-        by mx.google.com with ESMTPS id vy6si24357705pbc.138.2015.02.20.20.23.54
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D88D06B0032
+	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 23:25:23 -0500 (EST)
+Received: by paceu11 with SMTP id eu11so12894176pac.10
+        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 20:25:23 -0800 (PST)
+Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
+        by mx.google.com with ESMTPS id p10si3429551pdr.140.2015.02.20.20.25.22
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Feb 2015 20:23:54 -0800 (PST)
-Received: by pabrd3 with SMTP id rd3so12937950pab.4
-        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 20:23:54 -0800 (PST)
-Date: Fri, 20 Feb 2015 20:23:51 -0800 (PST)
+        Fri, 20 Feb 2015 20:25:22 -0800 (PST)
+Received: by pabkx10 with SMTP id kx10so12995197pab.0
+        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 20:25:22 -0800 (PST)
+Date: Fri, 20 Feb 2015 20:25:20 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 20/24] huge tmpfs: use Unevictable lru with variable
- hpage_nr_pages()
+Subject: [PATCH 21/24] huge tmpfs: fix Mlocked meminfo, tracking huge and
+ unhuge mlocks
 In-Reply-To: <alpine.LSU.2.11.1502201941340.14414@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1502202022260.14414@eggly.anvils>
+Message-ID: <alpine.LSU.2.11.1502202023570.14414@eggly.anvils>
 References: <alpine.LSU.2.11.1502201941340.14414@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -25,560 +25,571 @@ List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Ning Qu <quning@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-A big advantage of huge tmpfs over hugetlbfs is that its pages can
-be swapped out; but too often it OOMs before swapping them out.
+Up to this point, the huge tmpfs effort hasn't looked at or touched
+mm/mlock.c at all, and it was surprising that regular tests did not
+therefore crash machines.
 
-At first I tried changing page_evictable(), to treat all tail pages
-of a hugely mapped team as unevictable: the anon LRUs were otherwise
-swamped by pages that could not be freed before the head.
+/proc/meminfo's Mlocked count has been whatever happens to be shown
+if we do nothing extra: a hugely mapped and mlocked team page would
+count as 4kB instead of the 2MB you'd expect; or at least until the
+previous (Unevictable) patch, which now requires lruvec locking for
+hpage_nr_pages() on a team page (locking not given it in mlock.c),
+and varies the amount returned by hpage_nr_pages().
 
-That worked quite well, some of the time, but has some drawbacks.
+It would be easy to correct the 4kB or variable amount to 2MB
+by using an alternative to hpage_nr_pages() here.  And it would be
+fairly easy to maintain an entirely independent HugelyMlocked count,
+such that Mlocked+HugelyMlocked might amount to (almost) twice RAM
+size.  But is that what observers of Mlocked want?  Probably not.
 
-Most obviously, /proc/meminfo is liable to show 511/512ths of all
-the ShmemPmdMapped as Unevictable; which is rather sad for a feature
-intended to improve on hugetlbfs by letting the pages be swappable.
+So we need a huge pmd mlock to count as 2MB, but discount 4kB for
+each page within it that is already mlocked by pte somewhere, in
+this or another process; and a small pte mlock to count usually as
+4kB, but 0 if the team head is already mlocked by pmd somewhere.
 
-But more seriously, although it is helpful to have those tails out
-of the way on the Unevictable list, page reclaim can very easily come
-to a point where all the team heads to be freed are on the Active list,
-but the Inactive is large enough that !inactive_anon_is_low(), so the
-Active is never scanned to unmap those heads to release all the tails.
-Eventually we OOM.
+Can this be done by maintaining extra counts per team?  I did
+intend so, but (a) space in team_usage is limited, and (b) mlock
+and munlock already involve slow LRU switching, so might as well
+keep 4kB and 2MB in synch manually; but most significantly (c) the
+trylocking around which mlock (and restoration of mlock in munlock)
+is currently designed, makes it hard to work out just when a count
+does need to be incremented.
 
-Perhaps that could be dealt with by hacking inactive_anon_is_low():
-but it wouldn't help the Unevictable numbers, and has never been
-necessary for anon THP.  How does anon THP avoid this?  It doesn't
-put tails on the LRU at all, so doesn't then need to shift them to
-Unevictable; but there would still be the danger of an Active list
-full of heads, holding the unseen tails, but the ratio too high for
-for Active scanning - except that hpage_nr_pages() weights each THP
-head by the number of small pages the huge page holds, instead of the
-usual 1, and that is what keeps the Active/Inactive balance working.
+The hard-won solution looks much simpler than I thought possible,
+but an odd interface in its current implementation.  Not so much
+needed changing, mainly just clear_page_mlock(), mlock_vma_page()
+munlock_vma_page() and try_to_"unmap"_one().  The big difference
+from before, is that a team head page might be being mlocked as a
+4kB page or as a 2MB page, and the called functions cannot tell:
+so now need an nr_pages argument.  But odd because the PageTeam
+case immediately converts that to an iteration count, whereas
+the anon THP case keeps it as the weight for a single iteration.
+Not very nice, but will do for now: it was so hard to get here,
+I'm very reluctant to pull it apart in a hurry.
 
-So in this patch we try to do the same for huge tmpfs pages.  However,
-a team is not one huge compound page, but a collection of independent
-pages, and the fair and lazy way to accomplish this seems to be to
-transfer each tail's weight to head at the time when shmem_writepage()
-has been asked to evict the page, but refuses because the head has not
-yet been evicted.  So although the failed-to-be-evicted tails are moved
-to the Unevictable LRU, each counts for 0kB in the Unevictable amount,
-its 4kB going to the head in the Active(anon) or Inactive(anon) amount.
+The TEAM_HUGELY_MLOCKED flag in team_usage does not play a large part,
+just optimizes out the overhead in a couple of cases: we don't want to
+make yet another pass down the team, whenever a team is last unmapped,
+just to handle the unlikely mlocked-then-truncated case; and we don't
+want munlocking one of many parallel huge mlocks to check every page.
 
-Apart from mlock.c (next patch), hpage_nr_pages() is now only called
-on a maybe-PageTeam page while under lruvec lock, and we do need to
-hold lruvec lock when transferring weight from one page to another.
-That is a new overhead, which shmem_disband_hugehead() prefers to
-avoid, if the head's weight is just the default 1.  And it's not
-clear how well this will all play out if different pages of a team
-are charged to different memcgs: but the code allows for that, and
-it should be fine while that's just an exceptional minority case.
-
-A change I like in principle, but have not made, and do not intend
-to make unless we see a workload that demands it: it would be natural
-for mark_page_accessed() to retrieve such a 0-weight page from the
-Unevictable LRU, assigning it weight again and giving it a new life
-on the Active and Inactive LRUs.  As it is, I'm hoping PageReferenced
-gives a good enough hint as to whether a page should be retained, when
-shmem_evictify_hugetails() brings it back from Unevictable to Inactive.
+Notes in passing:  Wouldn't mlock and munlock be better off using
+proper anon_vma and i_mmap_rwsem locking, instead of the current page
+and mmap_sem trylocking?  And if try_to_munlock() was crying out for
+its own rmap walk before, instead of abusing try_to_unuse(), now it
+is screaming for it.  But I haven't the time for such cleanups now,
+and may be mistaken.
 
 Signed-off-by: Hugh Dickins <hughd@google.com>
 ---
- include/linux/huge_mm.h  |   13 +++
- include/linux/pageteam.h |   48 ++++++++++-
- mm/memcontrol.c          |   10 ++
- mm/shmem.c               |  158 ++++++++++++++++++++++++++++++-------
- mm/swap.c                |    5 +
- mm/vmscan.c              |   42 +++++++++
- 6 files changed, 243 insertions(+), 33 deletions(-)
+ include/linux/pageteam.h |   38 +++++++
+ mm/huge_memory.c         |    6 +
+ mm/internal.h            |   25 +++--
+ mm/mlock.c               |  181 ++++++++++++++++++++++---------------
+ mm/rmap.c                |   34 ++++--
+ 5 files changed, 193 insertions(+), 91 deletions(-)
 
---- thpfs.orig/include/linux/huge_mm.h	2015-02-20 19:34:32.363944978 -0800
-+++ thpfs/include/linux/huge_mm.h	2015-02-20 19:35:04.303871947 -0800
-@@ -150,10 +150,23 @@ static inline void vma_adjust_trans_huge
- #endif
- 	__vma_adjust_trans_huge(vma, start, end, adjust_next);
- }
-+
-+/* Repeat definition from linux/pageteam.h to force error if different */
-+#define TEAM_LRU_WEIGHT_MASK	((1L << (HPAGE_PMD_ORDER + 1)) - 1)
-+
- static inline int hpage_nr_pages(struct page *page)
- {
- 	if (unlikely(PageTransHuge(page)))
- 		return HPAGE_PMD_NR;
-+	/*
-+	 * PG_team == PG_compound_lock, but PageTransHuge == PageHead.
-+	 * The question of races here is interesting, but not for now:
-+	 * this can only be relied on while holding the lruvec lock,
-+	 * or knowing that the page is anonymous, not from huge tmpfs.
-+	 */
-+	if (PageTeam(page))
-+		return atomic_long_read(&page->team_usage) &
-+					TEAM_LRU_WEIGHT_MASK;
- 	return 1;
- }
- 
---- thpfs.orig/include/linux/pageteam.h	2015-02-20 19:34:48.083909034 -0800
-+++ thpfs/include/linux/pageteam.h	2015-02-20 19:35:04.303871947 -0800
-@@ -30,11 +30,32 @@ static inline struct page *team_head(str
- }
- 
- /*
-+ * Mask for lower bits of team_usage, giving the weight 0..HPAGE_PMD_NR of the
-+ * page on its LRU: normal pages have weight 1, tails held unevictable until
-+ * head is evicted have weight 0, and the head gathers weight 1..HPAGE_PMD_NR.
-+ */
-+#define TEAM_LRU_WEIGHT_ONE	1L
-+#define TEAM_LRU_WEIGHT_MASK	((1L << (HPAGE_PMD_ORDER + 1)) - 1)
-+
-+#define TEAM_HIGH_COUNTER	(1L << (HPAGE_PMD_ORDER + 1))
-+/*
-+ * Count how many pages of team are instantiated, as it is built up.
-+ */
-+#define TEAM_PAGE_COUNTER	TEAM_HIGH_COUNTER
-+#define TEAM_COMPLETE		(TEAM_PAGE_COUNTER << HPAGE_PMD_ORDER)
-+/*
-+ * And when complete, count how many huge mappings (like page_mapcount): an
-+ * incomplete team cannot be hugely mapped (would expose uninitialized holes).
-+ */
-+#define TEAM_MAPPING_COUNTER	TEAM_HIGH_COUNTER
-+#define TEAM_HUGELY_MAPPED	(TEAM_COMPLETE + TEAM_MAPPING_COUNTER)
-+
-+/*
-  * Returns true if this team is mapped by pmd somewhere.
+--- thpfs.orig/include/linux/pageteam.h	2015-02-20 19:35:04.303871947 -0800
++++ thpfs/include/linux/pageteam.h	2015-02-20 19:35:09.991858941 -0800
+@@ -36,8 +36,14 @@ static inline struct page *team_head(str
   */
- static inline bool team_hugely_mapped(struct page *head)
- {
--	return atomic_long_read(&head->team_usage) > HPAGE_PMD_NR;
-+	return atomic_long_read(&head->team_usage) >= TEAM_HUGELY_MAPPED;
+ #define TEAM_LRU_WEIGHT_ONE	1L
+ #define TEAM_LRU_WEIGHT_MASK	((1L << (HPAGE_PMD_ORDER + 1)) - 1)
++/*
++ * Single bit to indicate whether team is hugely mlocked (like PageMlocked).
++ * Then another bit reserved for experiments with other team flags.
++ */
++#define TEAM_HUGELY_MLOCKED	(1L << (HPAGE_PMD_ORDER + 1))
++#define TEAM_RESERVED_FLAG	(1L << (HPAGE_PMD_ORDER + 2))
+ 
+-#define TEAM_HIGH_COUNTER	(1L << (HPAGE_PMD_ORDER + 1))
++#define TEAM_HIGH_COUNTER	(1L << (HPAGE_PMD_ORDER + 3))
+ /*
+  * Count how many pages of team are instantiated, as it is built up.
+  */
+@@ -97,6 +103,36 @@ static inline void clear_lru_weight(stru
+ 	atomic_long_set(&page->team_usage, 0);
  }
  
- /*
-@@ -43,7 +64,8 @@ static inline bool team_hugely_mapped(st
-  */
- static inline bool inc_hugely_mapped(struct page *head)
- {
--	return atomic_long_inc_return(&head->team_usage) == HPAGE_PMD_NR+1;
-+	return atomic_long_add_return(TEAM_MAPPING_COUNTER, &head->team_usage)
-+		< TEAM_HUGELY_MAPPED + TEAM_MAPPING_COUNTER;
- }
- 
- /*
-@@ -52,7 +74,27 @@ static inline bool inc_hugely_mapped(str
-  */
- static inline bool dec_hugely_mapped(struct page *head)
- {
--	return atomic_long_dec_return(&head->team_usage) == HPAGE_PMD_NR;
-+	return atomic_long_sub_return(TEAM_MAPPING_COUNTER, &head->team_usage)
-+		< TEAM_HUGELY_MAPPED;
++static inline bool team_hugely_mlocked(struct page *head)
++{
++	VM_BUG_ON_PAGE(head != team_head(head), head);
++	return atomic_long_read(&head->team_usage) & TEAM_HUGELY_MLOCKED;
 +}
 +
-+static inline void inc_lru_weight(struct page *head)
++static inline void set_hugely_mlocked(struct page *head)
 +{
-+	atomic_long_inc(&head->team_usage);
-+	VM_BUG_ON_PAGE((atomic_long_read(&head->team_usage) &
-+			TEAM_LRU_WEIGHT_MASK) > HPAGE_PMD_NR, head);
-+}
-+
-+static inline void set_lru_weight(struct page *page)
-+{
-+	VM_BUG_ON_PAGE(atomic_long_read(&page->team_usage) != 0, page);
-+	atomic_long_set(&page->team_usage, 1);
-+}
-+
-+static inline void clear_lru_weight(struct page *page)
-+{
-+	VM_BUG_ON_PAGE(atomic_long_read(&page->team_usage) != 1, page);
-+	atomic_long_set(&page->team_usage, 0);
- }
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
---- thpfs.orig/mm/memcontrol.c	2015-02-20 19:34:11.231993296 -0800
-+++ thpfs/mm/memcontrol.c	2015-02-20 19:35:04.303871947 -0800
-@@ -1319,6 +1319,16 @@ void mem_cgroup_update_lru_size(struct l
- 		*lru_size += nr_pages;
- 
- 	size = *lru_size;
-+	if (!size && !empty && lru == LRU_UNEVICTABLE) {
-+		struct page *page;
-+		/*
-+		 * The unevictable list might be full of team tail pages of 0
-+		 * weight: check the first, and skip the warning if that fits.
-+		 */
-+		page = list_first_entry(lruvec->lists + lru, struct page, lru);
-+		if (hpage_nr_pages(page) == 0)
-+			empty = true;
-+	}
- 	if (WARN(size < 0 || empty != !size,
- 	"mem_cgroup_update_lru_size(%p, %d, %d): lru_size %ld but %sempty\n",
- 			lruvec, lru, nr_pages, size, empty ? "" : "not ")) {
---- thpfs.orig/mm/shmem.c	2015-02-20 19:34:59.051883956 -0800
-+++ thpfs/mm/shmem.c	2015-02-20 19:35:04.307871938 -0800
-@@ -63,6 +63,7 @@ static struct vfsmount *shm_mnt;
- #include <linux/swapops.h>
- #include <linux/pageteam.h>
- #include <linux/mempolicy.h>
-+#include <linux/mm_inline.h>
- #include <linux/namei.h>
- #include <linux/ctype.h>
- #include <linux/migrate.h>
-@@ -373,11 +374,10 @@ restart:
- 
- static int shmem_freeholes(struct page *head)
- {
--	/*
--	 * Note: team_usage will also be used to count huge mappings,
--	 * so treat a negative value from shmem_freeholes() as none.
--	 */
--	return HPAGE_PMD_NR - atomic_long_read(&head->team_usage);
-+	long nr = atomic_long_read(&head->team_usage);
-+
-+	return (nr >= TEAM_COMPLETE) ? 0 :
-+		HPAGE_PMD_NR - (nr / TEAM_PAGE_COUNTER);
- }
- 
- static void shmem_clear_tag_hugehole(struct address_space *mapping,
-@@ -404,18 +404,16 @@ static void shmem_added_to_hugeteam(stru
- {
- 	struct address_space *mapping = page->mapping;
- 	struct page *head = team_head(page);
--	int nr;
- 
- 	if (hugehint == SHMEM_ALLOC_HUGE_PAGE) {
--		atomic_long_set(&head->team_usage, 1);
-+		atomic_long_set(&head->team_usage,
-+				TEAM_PAGE_COUNTER + TEAM_LRU_WEIGHT_ONE);
- 		radix_tree_tag_set(&mapping->page_tree, page->index,
- 					SHMEM_TAG_HUGEHOLE);
- 		__mod_zone_page_state(zone, NR_SHMEM_FREEHOLES, HPAGE_PMD_NR-1);
- 	} else {
--		/* We do not need atomic ops until huge page gets mapped */
--		nr = atomic_long_read(&head->team_usage) + 1;
--		atomic_long_set(&head->team_usage, nr);
--		if (nr == HPAGE_PMD_NR) {
-+		if (atomic_long_add_return(TEAM_PAGE_COUNTER,
-+				&head->team_usage) >= TEAM_COMPLETE) {
- 			shmem_clear_tag_hugehole(mapping, head->index);
- 			__inc_zone_state(zone, NR_SHMEM_HUGEPAGES);
- 		}
-@@ -459,36 +457,61 @@ static int shmem_populate_hugeteam(struc
- 	return 0;
- }
- 
--static int shmem_disband_hugehead(struct page *head)
-+static int shmem_disband_hugehead(struct page *head, int *head_lru_weight)
- {
- 	struct address_space *mapping;
-+	bool lru_locked = false;
-+	unsigned long flags;
- 	struct zone *zone;
--	int nr = -1;
 +	long team_usage;
-+	long nr = -1;
- 
- 	/*
- 	 * Only in the shrinker migration case might head have been truncated.
- 	 * But although head->mapping may then be zeroed at any moment, mapping
- 	 * stays safe because shmem_evict_inode must take our shrinklist lock.
- 	 */
-+	*head_lru_weight = 0;
- 	mapping = ACCESS_ONCE(head->mapping);
- 	if (!mapping)
- 		return nr;
- 
- 	zone = page_zone(head);
--	spin_lock_irq(&mapping->tree_lock);
++
++	VM_BUG_ON_PAGE(head != team_head(head), head);
 +	team_usage = atomic_long_read(&head->team_usage);
-+again1:
-+	if ((team_usage & TEAM_LRU_WEIGHT_MASK) != TEAM_LRU_WEIGHT_ONE) {
-+		spin_lock_irq(&zone->lru_lock);
-+		lru_locked = true;
++	while (!(team_usage & TEAM_HUGELY_MLOCKED)) {
++		team_usage = atomic_long_cmpxchg(&head->team_usage,
++				team_usage, team_usage | TEAM_HUGELY_MLOCKED);
 +	}
-+	spin_lock_irqsave(&mapping->tree_lock, flags);
- 
- 	if (PageTeam(head)) {
--		nr = atomic_long_read(&head->team_usage);
--		atomic_long_set(&head->team_usage, 0);
-+again2:
-+		nr = atomic_long_cmpxchg(&head->team_usage, team_usage,
-+					 TEAM_LRU_WEIGHT_ONE);
-+		if (unlikely(nr != team_usage)) {
-+			team_usage = nr;
-+			if (lru_locked ||
-+			    (team_usage & TEAM_LRU_WEIGHT_MASK) ==
-+						    TEAM_LRU_WEIGHT_ONE)
-+				goto again2;
-+			spin_unlock_irqrestore(&mapping->tree_lock, flags);
-+			goto again1;
-+		}
-+		*head_lru_weight = nr & TEAM_LRU_WEIGHT_MASK;
-+		nr /= TEAM_PAGE_COUNTER;
-+
- 		/*
--		 * Disable additions to the team.
--		 * Ensure head->private is written before PageTeam is
--		 * cleared, so shmem_writepage() cannot write swap into
--		 * head->private, then have it overwritten by that 0!
-+		 * Disable additions to the team.  The cmpxchg above
-+		 * ensures head->team_usage is read before PageTeam is cleared,
-+		 * when shmem_writepage() might write swap into head->private.
- 		 */
--		smp_mb__before_atomic();
- 		ClearPageTeam(head);
- 
-+		if (PageLRU(head) && *head_lru_weight > 1)
-+			update_lru_size(mem_cgroup_page_lruvec(head, zone),
-+					page_lru(head), 1 - *head_lru_weight);
-+
- 		if (nr >= HPAGE_PMD_NR) {
- 			__dec_zone_state(zone, NR_SHMEM_HUGEPAGES);
- 			VM_BUG_ON(nr != HPAGE_PMD_NR);
-@@ -499,10 +522,72 @@ static int shmem_disband_hugehead(struct
- 		} /* else shmem_getpage_gfp disbanding a failed alloced_huge */
- 	}
- 
--	spin_unlock_irq(&mapping->tree_lock);
-+	spin_unlock_irqrestore(&mapping->tree_lock, flags);
-+	if (lru_locked)
-+		spin_unlock_irq(&zone->lru_lock);
- 	return nr;
- }
- 
-+static void shmem_evictify_hugetails(struct page *head, int head_lru_weight)
-+{
-+	struct page *page;
-+	struct lruvec *lruvec = NULL;
-+	struct zone *zone = page_zone(head);
-+	bool lru_locked = false;
-+
-+	/*
-+	 * The head has been sheltering the rest of its team from reclaim:
-+	 * if any were moved to the unevictable list, now make them evictable.
-+	 */
-+again:
-+	for (page = head + HPAGE_PMD_NR - 1; page > head; page--) {
-+		if (!PageTeam(page))
-+			continue;
-+		if (atomic_long_read(&page->team_usage) == TEAM_LRU_WEIGHT_ONE)
-+			continue;
-+
-+		/*
-+		 * Delay getting lru lock until we reach a page that needs it.
-+		 */
-+		if (!lru_locked) {
-+			spin_lock_irq(&zone->lru_lock);
-+			lru_locked = true;
-+		}
-+		lruvec = mem_cgroup_page_lruvec(page, zone);
-+
-+		VM_BUG_ON_PAGE(atomic_long_read(&page->team_usage), page);
-+		VM_BUG_ON_PAGE(!PageLRU(page), page);
-+		VM_BUG_ON_PAGE(!PageUnevictable(page), page);
-+		VM_BUG_ON_PAGE(PageActive(page), page);
-+
-+		set_lru_weight(page);
-+		head_lru_weight--;
-+
-+		if (!page_evictable(page)) {
-+			update_lru_size(lruvec, LRU_UNEVICTABLE, 1);
-+			continue;
-+		}
-+
-+		ClearPageUnevictable(page);
-+		update_lru_size(lruvec, LRU_INACTIVE_ANON, 1);
-+
-+		list_del(&page->lru);
-+		list_add_tail(&page->lru, lruvec->lists + LRU_INACTIVE_ANON);
-+	}
-+
-+	if (lru_locked) {
-+		spin_unlock_irq(&zone->lru_lock);
-+		lru_locked = false;
-+	}
-+
-+	/*
-+	 * But how can we be sure that a racing putback_inactive_pages()
-+	 * did its clear_lru_weight() before we checked team_usage above?
-+	 */
-+	if (unlikely(head_lru_weight != TEAM_LRU_WEIGHT_ONE))
-+		goto again;
 +}
 +
- static void shmem_disband_hugetails(struct page *head,
- 				    struct list_head *list, int nr)
- {
-@@ -579,6 +664,7 @@ static void shmem_disband_hugetails(stru
- static void shmem_disband_hugeteam(struct page *page)
- {
- 	struct page *head = team_head(page);
-+	int head_lru_weight;
- 	int nr_used;
- 
- 	/*
-@@ -622,9 +708,11 @@ static void shmem_disband_hugeteam(struc
- 	 * can (splitting disband in two stages), but better not be preempted.
- 	 */
- 	preempt_disable();
--	nr_used = shmem_disband_hugehead(head);
-+	nr_used = shmem_disband_hugehead(head, &head_lru_weight);
- 	if (head != page)
- 		unlock_page(head);
-+	if (head_lru_weight > TEAM_LRU_WEIGHT_ONE)
-+		shmem_evictify_hugetails(head, head_lru_weight);
- 	if (nr_used >= 0)
- 		shmem_disband_hugetails(head, NULL, 0);
- 	if (head != page)
-@@ -680,6 +768,7 @@ static unsigned long shmem_choose_hugeho
- 	struct page *topage = NULL;
- 	struct page *page;
- 	pgoff_t index;
-+	int head_lru_weight;
- 	int fromused;
- 	int toused;
- 	int nid;
-@@ -721,8 +810,10 @@ static unsigned long shmem_choose_hugeho
- 	if (!frompage)
- 		goto unlock;
- 	preempt_disable();
--	fromused = shmem_disband_hugehead(frompage);
-+	fromused = shmem_disband_hugehead(frompage, &head_lru_weight);
- 	spin_unlock(&shmem_shrinklist_lock);
-+	if (head_lru_weight > TEAM_LRU_WEIGHT_ONE)
-+		shmem_evictify_hugetails(frompage, head_lru_weight);
- 	if (fromused > 0)
- 		shmem_disband_hugetails(frompage, fromlist, -fromused);
- 	preempt_enable();
-@@ -776,8 +867,10 @@ static unsigned long shmem_choose_hugeho
- 	if (!topage)
- 		goto unlock;
- 	preempt_disable();
--	toused = shmem_disband_hugehead(topage);
-+	toused = shmem_disband_hugehead(topage, &head_lru_weight);
- 	spin_unlock(&shmem_shrinklist_lock);
-+	if (head_lru_weight > TEAM_LRU_WEIGHT_ONE)
-+		shmem_evictify_hugetails(topage, head_lru_weight);
- 	if (toused > 0) {
- 		if (HPAGE_PMD_NR - toused >= fromused)
- 			shmem_disband_hugetails(topage, tolist, fromused);
-@@ -927,7 +1020,11 @@ shmem_add_to_page_cache(struct page *pag
- 		}
- 		if (!PageSwapBacked(page)) {	/* huge needs special care */
- 			SetPageSwapBacked(page);
--			SetPageTeam(page);
-+			if (!PageTeam(page)) {
-+				atomic_long_set(&page->team_usage,
-+						TEAM_LRU_WEIGHT_ONE);
-+				SetPageTeam(page);
-+			}
++static inline void clear_hugely_mlocked(struct page *head)
++{
++	long team_usage;
++
++	VM_BUG_ON_PAGE(head != team_head(head), head);
++	team_usage = atomic_long_read(&head->team_usage);
++	while (team_usage & TEAM_HUGELY_MLOCKED) {
++		team_usage = atomic_long_cmpxchg(&head->team_usage,
++				team_usage, team_usage & ~TEAM_HUGELY_MLOCKED);
++	}
++}
++
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ int map_team_by_pmd(struct vm_area_struct *vma,
+ 			unsigned long addr, pmd_t *pmd, struct page *page);
+--- thpfs.orig/mm/huge_memory.c	2015-02-20 19:34:48.083909034 -0800
++++ thpfs/mm/huge_memory.c	2015-02-20 19:35:09.991858941 -0800
+@@ -1264,7 +1264,7 @@ struct page *follow_trans_huge_pmd(struc
+ 		if (page->mapping && trylock_page(page)) {
+ 			lru_add_drain();
+ 			if (page->mapping)
+-				mlock_vma_page(page);
++				mlock_vma_pages(page, HPAGE_PMD_NR);
+ 			unlock_page(page);
  		}
  	}
+@@ -1435,6 +1435,10 @@ int zap_huge_pmd(struct mmu_gather *tlb,
+ 				MM_ANONPAGES : MM_FILEPAGES, -HPAGE_PMD_NR);
+ 			atomic_long_dec(&tlb->mm->nr_ptes);
+ 			spin_unlock(ptl);
++			if (!PageAnon(page) &&
++			    !team_hugely_mapped(page) &&
++			    team_hugely_mlocked(page))
++				clear_pages_mlock(page, HPAGE_PMD_NR);
+ 			tlb_remove_page(tlb, page);
+ 		}
+ 		pte_free(tlb->mm, pgtable);
+--- thpfs.orig/mm/internal.h	2015-02-08 18:54:22.000000000 -0800
++++ thpfs/mm/internal.h	2015-02-20 19:35:09.991858941 -0800
+@@ -230,8 +230,16 @@ static inline void munlock_vma_pages_all
+ /*
+  * must be called with vma's mmap_sem held for read or write, and page locked.
+  */
+-extern void mlock_vma_page(struct page *page);
+-extern unsigned int munlock_vma_page(struct page *page);
++extern void mlock_vma_pages(struct page *page, int nr_pages);
++static inline void mlock_vma_page(struct page *page)
++{
++	mlock_vma_pages(page, 1);
++}
++extern int munlock_vma_pages(struct page *page, int nr_pages);
++static inline void munlock_vma_page(struct page *page)
++{
++	munlock_vma_pages(page, 1);
++}
  
-@@ -1514,9 +1611,13 @@ static int shmem_writepage(struct page *
- 		struct page *head = team_head(page);
- 		/*
- 		 * Only proceed if this is head, or if head is unpopulated.
-+		 * Redirty any others, without setting PageActive, and then
-+		 * putback_inactive_pages() will shift them to unevictable.
- 		 */
--		if (page != head && PageSwapBacked(head))
-+		if (page != head && PageSwapBacked(head)) {
-+			wbc->for_reclaim = 0;
- 			goto redirty;
-+		}
- 	}
+ /*
+  * Clear the page's PageMlocked().  This can be useful in a situation where
+@@ -242,7 +250,11 @@ extern unsigned int munlock_vma_page(str
+  * If called for a page that is still mapped by mlocked vmas, all we do
+  * is revert to lazy LRU behaviour -- semantics are not broken.
+  */
+-extern void clear_page_mlock(struct page *page);
++extern void clear_pages_mlock(struct page *page, int nr_pages);
++static inline void clear_page_mlock(struct page *page)
++{
++	clear_pages_mlock(page, 1);
++}
  
- 	swap = get_swap_page();
-@@ -1660,7 +1761,8 @@ static struct page *shmem_alloc_page(gfp
- 				split_page(head, HPAGE_PMD_ORDER);
+ /*
+  * mlock_migrate_page - called only from migrate_page_copy() to
+@@ -268,12 +280,7 @@ extern pmd_t maybe_pmd_mkwrite(pmd_t pmd
+ extern unsigned long vma_address(struct page *page,
+ 				 struct vm_area_struct *vma);
+ #endif
+-#else /* !CONFIG_MMU */
+-static inline void clear_page_mlock(struct page *page) { }
+-static inline void mlock_vma_page(struct page *page) { }
+-static inline void mlock_migrate_page(struct page *new, struct page *old) { }
+-
+-#endif /* !CONFIG_MMU */
++#endif /* CONFIG_MMU */
  
- 				/* Prepare head page for add_to_page_cache */
--				atomic_long_set(&head->team_usage, 0);
-+				atomic_long_set(&head->team_usage,
-+						TEAM_LRU_WEIGHT_ONE);
- 				__SetPageTeam(head);
- 				head->mapping = mapping;
- 				head->index = round_down(index, HPAGE_PMD_NR);
---- thpfs.orig/mm/swap.c	2014-12-07 14:21:05.000000000 -0800
-+++ thpfs/mm/swap.c	2015-02-20 19:35:04.307871938 -0800
-@@ -702,6 +702,11 @@ void lru_cache_add_active_or_unevictable
- 					 struct vm_area_struct *vma)
- {
- 	VM_BUG_ON_PAGE(PageLRU(page), page);
-+	/*
-+	 * Using hpage_nr_pages() on a huge tmpfs team page might not give the
-+	 * 1 NR_MLOCK needs below; but this seems to be for anon pages only.
-+	 */
-+	VM_BUG_ON_PAGE(!PageAnon(page), page);
- 
- 	if (likely((vma->vm_flags & (VM_LOCKED | VM_SPECIAL)) != VM_LOCKED)) {
- 		SetPageActive(page);
---- thpfs.orig/mm/vmscan.c	2015-02-20 19:34:11.235993287 -0800
-+++ thpfs/mm/vmscan.c	2015-02-20 19:35:04.307871938 -0800
-@@ -19,6 +19,7 @@
- #include <linux/kernel_stat.h>
+ /*
+  * Return the mem_map entry representing the 'offset' subpage within
+--- thpfs.orig/mm/mlock.c	2014-12-07 14:21:05.000000000 -0800
++++ thpfs/mm/mlock.c	2015-02-20 19:35:09.991858941 -0800
+@@ -11,6 +11,7 @@
  #include <linux/swap.h>
+ #include <linux/swapops.h>
  #include <linux/pagemap.h>
 +#include <linux/pageteam.h>
- #include <linux/init.h>
- #include <linux/highmem.h>
- #include <linux/vmpressure.h>
-@@ -1419,6 +1420,42 @@ putback_inactive_pages(struct lruvec *lr
- 			continue;
- 		}
- 
-+		if (PageTeam(page) && !PageAnon(page) && !PageActive(page)) {
-+			struct page *head = team_head(page);
-+			struct address_space *mapping = head->mapping;
-+			bool transferring_weight = false;
-+			unsigned long flags;
-+			/*
-+			 * Team tail page was ready for eviction, but has
-+			 * been sent back from shmem_writepage(): transfer
-+			 * its weight to head, and move tail to unevictable.
-+			 *
-+			 * Barrier below so PageTeam guarantees good "mapping".
-+			 */
-+			smp_rmb();
-+			if (page != head && PageTeam(head)) {
-+				lruvec = mem_cgroup_page_lruvec(head, zone);
-+				spin_lock_irqsave(&mapping->tree_lock, flags);
-+				if (PageTeam(head)) {
-+					inc_lru_weight(head);
-+					transferring_weight = true;
-+				}
-+				spin_unlock_irqrestore(
-+						&mapping->tree_lock, flags);
-+			}
-+			if (transferring_weight) {
-+				if (PageLRU(head))
-+					update_lru_size(lruvec,
-+							page_lru(head), 1);
-+				/* Get this tail page out of the way for now */
-+				SetPageUnevictable(page);
-+				clear_lru_weight(page);
-+			} else {
-+				/* Traditional case of unswapped & redirtied */
-+				SetPageActive(page);
-+			}
-+		}
-+
- 		lruvec = mem_cgroup_page_lruvec(page, zone);
- 
- 		SetPageLRU(page);
-@@ -3705,11 +3742,12 @@ int zone_reclaim(struct zone *zone, gfp_
-  * Reasons page might not be evictable:
-  * (1) page's mapping marked unevictable
-  * (2) page is part of an mlocked VMA
-- *
-+ * (3) page is held in memory as part of a team
+ #include <linux/pagevec.h>
+ #include <linux/mempolicy.h>
+ #include <linux/syscalls.h>
+@@ -51,40 +52,70 @@ EXPORT_SYMBOL(can_do_mlock);
+  * (see mm/rmap.c).
   */
- int page_evictable(struct page *page)
+ 
+-/*
+- *  LRU accounting for clear_page_mlock()
++/**
++ * clear_pages_mlock - clear mlock from a page or pages
++ * @page - page to be unlocked
++ * @nr_pages - usually 1, but HPAGE_PMD_NR if pmd mapping is zapped.
++ *
++ * Clear the page's PageMlocked().  This can be useful in a situation where
++ * we want to unconditionally remove a page from the pagecache -- e.g.,
++ * on truncation or freeing.
++ *
++ * It is legal to call this function for any page, mlocked or not.
++ * If called for a page that is still mapped by mlocked vmas, all we do
++ * is revert to lazy LRU behaviour -- semantics are not broken.
+  */
+-void clear_page_mlock(struct page *page)
++void clear_pages_mlock(struct page *page, int nr_pages)
  {
--	return !mapping_unevictable(page_mapping(page)) && !PageMlocked(page);
-+	return !mapping_unevictable(page_mapping(page)) &&
-+		!PageMlocked(page) && hpage_nr_pages(page);
+-	if (!TestClearPageMlocked(page))
+-		return;
++	struct zone *zone = page_zone(page);
++	struct page *endpage = page + 1;
+ 
+-	mod_zone_page_state(page_zone(page), NR_MLOCK,
+-			    -hpage_nr_pages(page));
+-	count_vm_event(UNEVICTABLE_PGCLEARED);
+-	if (!isolate_lru_page(page)) {
+-		putback_lru_page(page);
+-	} else {
+-		/*
+-		 * We lost the race. the page already moved to evictable list.
+-		 */
+-		if (PageUnevictable(page))
++	if (nr_pages > 1 && PageTeam(page) && !PageAnon(page)) {
++		clear_hugely_mlocked(page);	/* page is team head */
++		endpage = page + nr_pages;
++		nr_pages = 1;
++	}
++
++	for (; page < endpage; page++) {
++		if (page_mapped(page))
++			continue;
++		if (!TestClearPageMlocked(page))
++			continue;
++		mod_zone_page_state(zone, NR_MLOCK, -nr_pages);
++		count_vm_event(UNEVICTABLE_PGCLEARED);
++		if (!isolate_lru_page(page))
++			putback_lru_page(page);
++		else if (PageUnevictable(page))
+ 			count_vm_event(UNEVICTABLE_PGSTRANDED);
+ 	}
  }
  
- #ifdef CONFIG_SHMEM
+-/*
+- * Mark page as mlocked if not already.
++/**
++ * mlock_vma_pages - mlock a vma page or pages
++ * @page - page to be unlocked
++ * @nr_pages - usually 1, but HPAGE_PMD_NR if pmd mapping is mlocked.
++ *
++ * Mark pages as mlocked if not already.
+  * If page on LRU, isolate and putback to move to unevictable list.
+  */
+-void mlock_vma_page(struct page *page)
++void mlock_vma_pages(struct page *page, int nr_pages)
+ {
++	struct zone *zone = page_zone(page);
++	struct page *endpage = page + 1;
++
+ 	/* Serialize with page migration */
+-	BUG_ON(!PageLocked(page));
++	VM_BUG_ON_PAGE(!PageLocked(page) && !PageTeam(page), page);
++
++	if (nr_pages > 1 && PageTeam(page) && !PageAnon(page)) {
++		set_hugely_mlocked(page);	/* page is team head */
++		endpage = page + nr_pages;
++		nr_pages = 1;
++	}
+ 
+-	if (!TestSetPageMlocked(page)) {
+-		mod_zone_page_state(page_zone(page), NR_MLOCK,
+-				    hpage_nr_pages(page));
++	for (; page < endpage; page++) {
++		if (TestSetPageMlocked(page))
++			continue;
++		mod_zone_page_state(zone, NR_MLOCK, nr_pages);
+ 		count_vm_event(UNEVICTABLE_PGMLOCKED);
+ 		if (!isolate_lru_page(page))
+ 			putback_lru_page(page);
+@@ -108,6 +139,18 @@ static bool __munlock_isolate_lru_page(s
+ 		return true;
+ 	}
+ 
++	/*
++	 * Perform accounting when page isolation fails in munlock.
++	 * There is nothing else to do because it means some other task has
++	 * already removed the page from the LRU. putback_lru_page() will take
++	 * care of removing the page from the unevictable list, if necessary.
++	 * vmscan [page_referenced()] will move the page back to the
++	 * unevictable list if some other vma has it mlocked.
++	 */
++	if (PageUnevictable(page))
++		__count_vm_event(UNEVICTABLE_PGSTRANDED);
++	else
++		__count_vm_event(UNEVICTABLE_PGMUNLOCKED);
+ 	return false;
+ }
+ 
+@@ -125,7 +168,7 @@ static void __munlock_isolated_page(stru
+ 	 * Optimization: if the page was mapped just once, that's our mapping
+ 	 * and we don't need to check all the other vmas.
+ 	 */
+-	if (page_mapcount(page) > 1)
++	if (page_mapcount(page) > 1 || PageTeam(page))
+ 		ret = try_to_munlock(page);
+ 
+ 	/* Did try_to_unlock() succeed or punt? */
+@@ -135,29 +178,12 @@ static void __munlock_isolated_page(stru
+ 	putback_lru_page(page);
+ }
+ 
+-/*
+- * Accounting for page isolation fail during munlock
+- *
+- * Performs accounting when page isolation fails in munlock. There is nothing
+- * else to do because it means some other task has already removed the page
+- * from the LRU. putback_lru_page() will take care of removing the page from
+- * the unevictable list, if necessary. vmscan [page_referenced()] will move
+- * the page back to the unevictable list if some other vma has it mlocked.
+- */
+-static void __munlock_isolation_failed(struct page *page)
+-{
+-	if (PageUnevictable(page))
+-		__count_vm_event(UNEVICTABLE_PGSTRANDED);
+-	else
+-		__count_vm_event(UNEVICTABLE_PGMUNLOCKED);
+-}
+-
+ /**
+- * munlock_vma_page - munlock a vma page
+- * @page - page to be unlocked, either a normal page or THP page head
++ * munlock_vma_pages - munlock a vma page or pages
++ * @page - page to be unlocked
++ * @nr_pages - usually 1, but HPAGE_PMD_NR if pmd mapping is munlocked
+  *
+- * returns the size of the page as a page mask (0 for normal page,
+- *         HPAGE_PMD_NR - 1 for THP head page)
++ * returns the size of the page (usually 1, but HPAGE_PMD_NR for huge page)
+  *
+  * called from munlock()/munmap() path with page supposedly on the LRU.
+  * When we munlock a page, because the vma where we found the page is being
+@@ -170,39 +196,55 @@ static void __munlock_isolation_failed(s
+  * can't isolate the page, we leave it for putback_lru_page() and vmscan
+  * [page_referenced()/try_to_unmap()] to deal with.
+  */
+-unsigned int munlock_vma_page(struct page *page)
++int munlock_vma_pages(struct page *page, int nr_pages)
+ {
+-	unsigned int nr_pages;
+ 	struct zone *zone = page_zone(page);
++	struct page *endpage = page + 1;
++	struct page *head = NULL;
++	int ret = nr_pages;
++	bool isolated;
+ 
+ 	/* For try_to_munlock() and to serialize with page migration */
+-	BUG_ON(!PageLocked(page));
++	VM_BUG_ON_PAGE(!PageLocked(page), page);
++
++	if (nr_pages > 1 && PageTeam(page) && !PageAnon(page)) {
++		head = page;
++		clear_hugely_mlocked(page);	/* page is team head */
++		endpage = page + nr_pages;
++		nr_pages = 1;
++	}
+ 
+ 	/*
+-	 * Serialize with any parallel __split_huge_page_refcount() which
+-	 * might otherwise copy PageMlocked to part of the tail pages before
++	 * Serialize THP with any parallel __split_huge_page_refcount() which
++	 * might otherwise copy PageMlocked to some of the tail pages before
+ 	 * we clear it in the head page. It also stabilizes hpage_nr_pages().
+ 	 */
+ 	spin_lock_irq(&zone->lru_lock);
++	if (PageAnon(page))
++		ret = nr_pages = hpage_nr_pages(page);
+ 
+-	nr_pages = hpage_nr_pages(page);
+-	if (!TestClearPageMlocked(page))
+-		goto unlock_out;
+-
+-	__mod_zone_page_state(zone, NR_MLOCK, -nr_pages);
++	for (; page < endpage; page++) {
++		if (!TestClearPageMlocked(page))
++			continue;
+ 
+-	if (__munlock_isolate_lru_page(page, true)) {
++		__mod_zone_page_state(zone, NR_MLOCK, -nr_pages);
++		isolated = __munlock_isolate_lru_page(page, true);
+ 		spin_unlock_irq(&zone->lru_lock);
+-		__munlock_isolated_page(page);
+-		goto out;
+-	}
+-	__munlock_isolation_failed(page);
++		if (isolated)
++			__munlock_isolated_page(page);
+ 
+-unlock_out:
++		/*
++		 * If try_to_munlock() found the huge page to be still
++		 * mlocked, don't waste more time munlocking and rmap
++		 * walking and re-mlocking each of the team's pages.
++		 */
++		if (!head || team_hugely_mlocked(head))
++			goto out;
++		spin_lock_irq(&zone->lru_lock);
++	}
+ 	spin_unlock_irq(&zone->lru_lock);
+-
+ out:
+-	return nr_pages - 1;
++	return ret;
+ }
+ 
+ /**
+@@ -351,8 +393,6 @@ static void __munlock_pagevec(struct pag
+ 			 */
+ 			if (__munlock_isolate_lru_page(page, false))
+ 				continue;
+-			else
+-				__munlock_isolation_failed(page);
+ 		}
+ 
+ 		/*
+@@ -500,15 +540,18 @@ void munlock_vma_pages_range(struct vm_a
+ 				&page_mask);
+ 
+ 		if (page && !IS_ERR(page)) {
+-			if (PageTransHuge(page)) {
++			if (PageTransHuge(page) || PageTeam(page)) {
+ 				lock_page(page);
+ 				/*
+ 				 * Any THP page found by follow_page_mask() may
+-				 * have gotten split before reaching
+-				 * munlock_vma_page(), so we need to recompute
+-				 * the page_mask here.
++				 * be split before reaching munlock_vma_pages()
++				 * so we need to recompute the page_mask here.
+ 				 */
+-				page_mask = munlock_vma_page(page);
++				if (page_mask &&
++				    !PageTeam(page) && !PageHead(page))
++					page_mask = 0;
++				page_mask = munlock_vma_pages(page,
++							page_mask + 1) - 1;
+ 				unlock_page(page);
+ 				put_page(page); /* follow_page_mask() */
+ 			} else {
+--- thpfs.orig/mm/rmap.c	2015-02-20 19:34:37.851932430 -0800
++++ thpfs/mm/rmap.c	2015-02-20 19:35:09.995858933 -0800
+@@ -1161,6 +1161,8 @@ out:
+  */
+ void page_remove_rmap(struct page *page)
+ {
++	int nr_pages;
++
+ 	if (!PageAnon(page)) {
+ 		page_remove_file_rmap(page);
+ 		return;
+@@ -1179,14 +1181,16 @@ void page_remove_rmap(struct page *page)
+ 	 * these counters are not modified in interrupt context, and
+ 	 * pte lock(a spinlock) is held, which implies preemption disabled.
+ 	 */
+-	if (PageTransHuge(page))
++	nr_pages = 1;
++	if (PageTransHuge(page)) {
+ 		__dec_zone_page_state(page, NR_ANON_HUGEPAGES);
++		nr_pages = hpage_nr_pages(page);
++	}
+ 
+-	__mod_zone_page_state(page_zone(page), NR_ANON_PAGES,
+-			      -hpage_nr_pages(page));
++	__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, nr_pages);
+ 
+ 	if (unlikely(PageMlocked(page)))
+-		clear_page_mlock(page);
++		clear_pages_mlock(page, nr_pages);
+ 
+ 	/*
+ 	 * It would be tidy to reset the PageAnon mapping here,
+@@ -1214,6 +1218,7 @@ static int try_to_unmap_one(struct page
+ 	pte_t pteval;
+ 	spinlock_t *ptl;
+ 	int ret = SWAP_AGAIN;
++	int mlock_pages = 1;
+ 	enum ttu_flags flags = (enum ttu_flags)arg;
+ 
+ 	if (unlikely(PageHuge(page))) {
+@@ -1241,8 +1246,13 @@ again:
+ 		return ret;
+ 
+ 	if (pmd_trans_huge(pmdval)) {
+-		if (pmd_page(pmdval) != page)
+-			return ret;
++		if (pmd_page(pmdval) != page) {
++			if (!PageTeam(page) || !(flags & TTU_MUNLOCK))
++				return ret;
++			page = team_head(page);
++			if (pmd_page(pmdval) != page)
++				return ret;
++		}
+ 
+ 		ptl = pmd_lock(mm, pmd);
+ 		if (!pmd_same(*pmd, pmdval)) {
+@@ -1251,8 +1261,10 @@ again:
+ 		}
+ 
+ 		if (!(flags & TTU_IGNORE_MLOCK)) {
+-			if (vma->vm_flags & VM_LOCKED)
++			if (vma->vm_flags & VM_LOCKED) {
++				mlock_pages = HPAGE_PMD_NR;
+ 				goto out_mlock;
++			}
+ 			if (flags & TTU_MUNLOCK)
+ 				goto out_unmap;
+ 		}
+@@ -1403,7 +1415,7 @@ out_mlock:
+ 	 */
+ 	if (down_read_trylock(&vma->vm_mm->mmap_sem)) {
+ 		if (vma->vm_flags & VM_LOCKED) {
+-			mlock_vma_page(page);
++			mlock_vma_pages(page, mlock_pages);
+ 			ret = SWAP_MLOCK;
+ 		}
+ 		up_read(&vma->vm_mm->mmap_sem);
+@@ -1706,7 +1718,6 @@ int try_to_munlock(struct page *page)
+ 	struct rmap_walk_control rwc = {
+ 		.rmap_one = try_to_unmap_one,
+ 		.arg = (void *)TTU_MUNLOCK,
+-		.done = page_not_mapped,
+ 		/*
+ 		 * We don't bother to try to find the munlocked page in
+ 		 * nonlinears. It's costly. Instead, later, page reclaim logic
+@@ -1717,7 +1728,8 @@ int try_to_munlock(struct page *page)
+ 
+ 	};
+ 
+-	VM_BUG_ON_PAGE(!PageLocked(page) || PageLRU(page), page);
++	VM_BUG_ON_PAGE(!PageLocked(page) && !PageTeam(page), page);
++	VM_BUG_ON_PAGE(PageLRU(page), page);
+ 
+ 	ret = rmap_walk(page, &rwc);
+ 	return ret;
+@@ -1823,7 +1835,7 @@ static int rmap_walk_file(struct page *p
+ 	 * structure at mapping cannot be freed and reused yet,
+ 	 * so we can safely take mapping->i_mmap_rwsem.
+ 	 */
+-	VM_BUG_ON_PAGE(!PageLocked(page), page);
++	VM_BUG_ON_PAGE(!PageLocked(page) && !PageTeam(page), page);
+ 
+ 	if (!mapping)
+ 		return ret;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
