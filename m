@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id B3CBB6B006E
-	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 23:13:45 -0500 (EST)
-Received: by pdev10 with SMTP id v10so12002829pde.10
-        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 20:13:45 -0800 (PST)
-Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com. [2607:f8b0:400e:c02::232])
-        by mx.google.com with ESMTPS id mj6si2614735pab.133.2015.02.20.20.13.44
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id BE7456B006E
+	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 23:15:07 -0500 (EST)
+Received: by padhz1 with SMTP id hz1so12862656pad.9
+        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 20:15:07 -0800 (PST)
+Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com. [2607:f8b0:400e:c02::22e])
+        by mx.google.com with ESMTPS id pu5si2094514pdb.218.2015.02.20.20.15.06
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Feb 2015 20:13:45 -0800 (PST)
-Received: by pdbfl12 with SMTP id fl12so12086480pdb.2
-        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 20:13:44 -0800 (PST)
-Date: Fri, 20 Feb 2015 20:13:42 -0800 (PST)
+        Fri, 20 Feb 2015 20:15:06 -0800 (PST)
+Received: by pdbnh10 with SMTP id nh10so12021584pdb.11
+        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 20:15:06 -0800 (PST)
+Date: Fri, 20 Feb 2015 20:15:04 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 14/24] huge tmpfs: extend vma_adjust_trans_huge to shmem
- pmd
+Subject: [PATCH 15/24] huge tmpfs: rework page_referenced_one and
+ try_to_unmap_one
 In-Reply-To: <alpine.LSU.2.11.1502201941340.14414@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1502202012270.14414@eggly.anvils>
+Message-ID: <alpine.LSU.2.11.1502202013470.14414@eggly.anvils>
 References: <alpine.LSU.2.11.1502201941340.14414@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -25,95 +25,281 @@ List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Ning Qu <quning@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Factor out one small part of the shmem pmd handling: the inline function
-vma_adjust_trans_huge() (called when vmas are split or merged) contains
-a preliminary !anon_vma || vm_ops check to avoid the overhead of
-__vma_adjust_trans_huge() on areas which could not possibly contain an
-anonymous THP pmd.  But with huge tmpfs, we shall need it to be called
-even in those excluded cases.
+page_referenced_one() currently decides whether to go the huge
+pmd route or the small pte route by looking at PageTransHuge(page).
+But with huge tmpfs pages simultaneously mappable as small and as huge,
+it's not deducible from page flags which is the case.  And the "helpers"
+page_check_address, page_check_address_pmd, mm_find_pmd are designed to
+hide the information we need now, instead of helping.
 
-Before the split pmd ptlocks, there was a nice alternative optimization
-to make: avoid the overhead of __vma_adjust_trans_huge() on mms which
-could not possibly contain a huge pmd - those with NULL pmd_huge_pte
-(using a huge pmd demands the deposit of a spare page table, typically
-stored in a list at pmd_huge_pte, withdrawn for use when splitting the
-pmd; and huge tmpfs will follow that protocol too).
+Open code (as it once was) with pgd,pud,pmd,pte: get *pmd speculatively,
+and if it appears pmd_trans_huge, then acquire pmd_lock and recheck.
+The same code is then valid for anon THP and for huge tmpfs, without
+any page flag test.
 
-Still use that optimization when !USE_SPLIT_PMD_PTLOCKS, when
-mm->pmd_huge_pte is updated under mm->page_table_lock (but beware:
-unlike other arches, powerpc made no use of pmd_huge_pte before, so
-this patch hacks it to update pmd_huge_pte as a count).  In common
-configs, no equivalent optimization on x86 now: if that's a visible
-problem, we can add an atomic count or flag to mm for the purpose.
-
-And looking into the overhead of __vma_adjust_trans_huge(): it is
-silly for split_huge_page_pmd_mm() to be calling find_vma() followed
-by split_huge_page_pmd(), when it can check the pmd directly first,
-and usually avoid the find_vma() call.
+Copy from this template in try_to_unmap_one(), to prepare for its
+use on huge tmpfs pages (whereas anon THPs have already been split in
+add_to_swap() before getting here); with a stub for unmap_team_by_pmd()
+until a later patch implements it.  But unlike page_referenced_one(),
+here we must allow for hugetlbfs pages (including non-pmd-based ones),
+so must still use huge_pte_offset instead of pmd_trans_huge for those.
 
 Signed-off-by: Hugh Dickins <hughd@google.com>
 ---
- arch/powerpc/mm/pgtable_64.c |    7 ++++++-
- include/linux/huge_mm.h      |    5 ++++-
- mm/huge_memory.c             |    7 ++-----
- 3 files changed, 12 insertions(+), 7 deletions(-)
+ include/linux/pageteam.h |    6 +
+ mm/rmap.c                |  158 +++++++++++++++++++++++++++++--------
+ 2 files changed, 133 insertions(+), 31 deletions(-)
 
---- thpfs.orig/arch/powerpc/mm/pgtable_64.c	2015-02-08 18:54:22.000000000 -0800
-+++ thpfs/arch/powerpc/mm/pgtable_64.c	2015-02-20 19:34:32.363944978 -0800
-@@ -675,9 +675,12 @@ void pgtable_trans_huge_deposit(struct m
- 				pgtable_t pgtable)
- {
- 	pgtable_t *pgtable_slot;
+--- thpfs.orig/include/linux/pageteam.h	2015-02-20 19:34:06.224004747 -0800
++++ thpfs/include/linux/pageteam.h	2015-02-20 19:34:37.851932430 -0800
+@@ -29,4 +29,10 @@ static inline struct page *team_head(str
+ 	return head;
+ }
+ 
++/* Temporary stub for mm/rmap.c until implemented in mm/huge_memory.c */
++static inline void unmap_team_by_pmd(struct vm_area_struct *vma,
++			unsigned long addr, pmd_t *pmd, struct page *page)
++{
++}
 +
- 	assert_spin_locked(&mm->page_table_lock);
-+	mm->pmd_huge_pte++;
+ #endif /* _LINUX_PAGETEAM_H */
+--- thpfs.orig/mm/rmap.c	2015-02-20 19:33:51.496038422 -0800
++++ thpfs/mm/rmap.c	2015-02-20 19:34:37.851932430 -0800
+@@ -44,6 +44,7 @@
+ 
+ #include <linux/mm.h>
+ #include <linux/pagemap.h>
++#include <linux/pageteam.h>
+ #include <linux/swap.h>
+ #include <linux/swapops.h>
+ #include <linux/slab.h>
+@@ -607,7 +608,7 @@ pmd_t *mm_find_pmd(struct mm_struct *mm,
+ 	pgd_t *pgd;
+ 	pud_t *pud;
+ 	pmd_t *pmd = NULL;
+-	pmd_t pmde;
++	pmd_t pmdval;
+ 
+ 	pgd = pgd_offset(mm, address);
+ 	if (!pgd_present(*pgd))
+@@ -620,12 +621,12 @@ pmd_t *mm_find_pmd(struct mm_struct *mm,
+ 	pmd = pmd_offset(pud, address);
  	/*
--	 * we store the pgtable in the second half of PMD
-+	 * we store the pgtable in the second half of PMD; but must also
-+	 * set pmd_huge_pte for the optimization in vma_adjust_trans_huge().
+ 	 * Some THP functions use the sequence pmdp_clear_flush(), set_pmd_at()
+-	 * without holding anon_vma lock for write.  So when looking for a
+-	 * genuine pmde (in which to find pte), test present and !THP together.
++	 * without locking out concurrent rmap lookups.  So when looking for a
++	 * pmd entry, in which to find a pte, test present and !THP together.
  	 */
- 	pgtable_slot = (pgtable_t *)pmdp + PTRS_PER_PMD;
- 	*pgtable_slot = pgtable;
-@@ -696,6 +699,8 @@ pgtable_t pgtable_trans_huge_withdraw(st
- 	pgtable_t *pgtable_slot;
+-	pmde = *pmd;
++	pmdval = *pmd;
+ 	barrier();
+-	if (!pmd_present(pmde) || pmd_trans_huge(pmde))
++	if (!pmd_present(pmdval) || pmd_trans_huge(pmdval))
+ 		pmd = NULL;
+ out:
+ 	return pmd;
+@@ -718,22 +719,41 @@ static int page_referenced_one(struct pa
+ 			unsigned long address, void *arg)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
++	pgd_t *pgd;
++	pud_t *pud;
++	pmd_t *pmd;
++	pmd_t pmdval;
++	pte_t *pte;
+ 	spinlock_t *ptl;
+ 	int referenced = 0;
+ 	struct page_referenced_arg *pra = arg;
  
- 	assert_spin_locked(&mm->page_table_lock);
-+	mm->pmd_huge_pte--;
+-	if (unlikely(PageTransHuge(page))) {
+-		pmd_t *pmd;
++	pgd = pgd_offset(mm, address);
++	if (!pgd_present(*pgd))
++		return SWAP_AGAIN;
+ 
+-		/*
+-		 * rmap might return false positives; we must filter
+-		 * these out using page_check_address_pmd().
+-		 */
+-		pmd = page_check_address_pmd(page, mm, address,
+-					     PAGE_CHECK_ADDRESS_PMD_FLAG, &ptl);
+-		if (!pmd)
++	pud = pud_offset(pgd, address);
++	if (!pud_present(*pud))
++		return SWAP_AGAIN;
 +
- 	pgtable_slot = (pgtable_t *)pmdp + PTRS_PER_PMD;
- 	pgtable = *pgtable_slot;
- 	/*
---- thpfs.orig/include/linux/huge_mm.h	2014-12-07 14:21:05.000000000 -0800
-+++ thpfs/include/linux/huge_mm.h	2015-02-20 19:34:32.363944978 -0800
-@@ -143,8 +143,11 @@ static inline void vma_adjust_trans_huge
- 					 unsigned long end,
- 					 long adjust_next)
- {
--	if (!vma->anon_vma || vma->vm_ops)
-+#if !USE_SPLIT_PMD_PTLOCKS
-+	/* If no pgtable is deposited, there is no huge pmd to worry about */
-+	if (!vma->vm_mm->pmd_huge_pte)
- 		return;
-+#endif
- 	__vma_adjust_trans_huge(vma, start, end, adjust_next);
- }
- static inline int hpage_nr_pages(struct page *page)
---- thpfs.orig/mm/huge_memory.c	2015-02-20 19:33:51.492038431 -0800
-+++ thpfs/mm/huge_memory.c	2015-02-20 19:34:32.367944969 -0800
-@@ -2905,11 +2905,8 @@ again:
- void split_huge_page_pmd_mm(struct mm_struct *mm, unsigned long address,
- 		pmd_t *pmd)
- {
--	struct vm_area_struct *vma;
--
--	vma = find_vma(mm, address);
--	BUG_ON(vma == NULL);
--	split_huge_page_pmd(vma, address, pmd);
-+	if (unlikely(pmd_trans_huge(*pmd)))
-+		__split_huge_page_pmd(find_vma(mm, address), address, pmd);
- }
++	pmd = pmd_offset(pud, address);
++again:
++	/* See comment in mm_find_pmd() for why we use pmdval+barrier here */
++	pmdval = *pmd;
++	barrier();
++	if (!pmd_present(pmdval))
++		return SWAP_AGAIN;
++
++	if (pmd_trans_huge(pmdval)) {
++		if (pmd_page(pmdval) != page)
+ 			return SWAP_AGAIN;
  
- static void split_huge_page_address(struct mm_struct *mm,
++		ptl = pmd_lock(mm, pmd);
++		if (!pmd_same(*pmd, pmdval)) {
++			spin_unlock(ptl);
++			goto again;
++		}
++
+ 		if (vma->vm_flags & VM_LOCKED) {
+ 			spin_unlock(ptl);
+ 			pra->vm_flags |= VM_LOCKED;
+@@ -745,15 +765,22 @@ static int page_referenced_one(struct pa
+ 			referenced++;
+ 		spin_unlock(ptl);
+ 	} else {
+-		pte_t *pte;
++		pte = pte_offset_map(pmd, address);
+ 
+-		/*
+-		 * rmap might return false positives; we must filter
+-		 * these out using page_check_address().
+-		 */
+-		pte = page_check_address(page, mm, address, &ptl, 0);
+-		if (!pte)
++		/* Make a quick check before getting the lock */
++		if (!pte_present(*pte)) {
++			pte_unmap(pte);
+ 			return SWAP_AGAIN;
++		}
++
++		ptl = pte_lockptr(mm, pmd);
++		spin_lock(ptl);
++
++		if (!pte_present(*pte) ||
++		    page_to_pfn(page) != pte_pfn(*pte)) {
++			pte_unmap_unlock(pte, ptl);
++			return SWAP_AGAIN;
++		}
+ 
+ 		if (vma->vm_flags & VM_LOCKED) {
+ 			pte_unmap_unlock(pte, ptl);
+@@ -1179,15 +1206,84 @@ static int try_to_unmap_one(struct page
+ 		     unsigned long address, void *arg)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+-	pte_t *pte;
++	pgd_t *pgd;
++	pud_t *pud;
++	pmd_t *pmd;
++	pmd_t pmdval;
++	pte_t *pte = NULL;
+ 	pte_t pteval;
+ 	spinlock_t *ptl;
+ 	int ret = SWAP_AGAIN;
+ 	enum ttu_flags flags = (enum ttu_flags)arg;
+ 
+-	pte = page_check_address(page, mm, address, &ptl, 0);
+-	if (!pte)
+-		goto out;
++	if (unlikely(PageHuge(page))) {
++		pte = huge_pte_offset(mm, address);
++		if (!pte)
++			return ret;
++		ptl = huge_pte_lockptr(page_hstate(page), mm, pte);
++		goto check;
++	}
++
++	pgd = pgd_offset(mm, address);
++	if (!pgd_present(*pgd))
++		return ret;
++
++	pud = pud_offset(pgd, address);
++	if (!pud_present(*pud))
++		return ret;
++
++	pmd = pmd_offset(pud, address);
++again:
++	/* See comment in mm_find_pmd() for why we use pmdval+barrier here */
++	pmdval = *pmd;
++	barrier();
++	if (!pmd_present(pmdval))
++		return ret;
++
++	if (pmd_trans_huge(pmdval)) {
++		if (pmd_page(pmdval) != page)
++			return ret;
++
++		ptl = pmd_lock(mm, pmd);
++		if (!pmd_same(*pmd, pmdval)) {
++			spin_unlock(ptl);
++			goto again;
++		}
++
++		if (!(flags & TTU_IGNORE_MLOCK)) {
++			if (vma->vm_flags & VM_LOCKED)
++				goto out_mlock;
++			if (flags & TTU_MUNLOCK)
++				goto out_unmap;
++		}
++		if (!(flags & TTU_IGNORE_ACCESS) &&
++		    pmdp_clear_flush_young_notify(vma, address, pmd)) {
++			ret = SWAP_FAIL;
++			goto out_unmap;
++		}
++
++		spin_unlock(ptl);
++		unmap_team_by_pmd(vma, address, pmd, page);
++		return ret;
++	}
++
++	pte = pte_offset_map(pmd, address);
++
++	/* Make a quick check before getting the lock */
++	if (!pte_present(*pte)) {
++		pte_unmap(pte);
++		return ret;
++	}
++
++	ptl = pte_lockptr(mm, pmd);
++check:
++	spin_lock(ptl);
++
++	if (!pte_present(*pte) ||
++	    page_to_pfn(page) != pte_pfn(*pte)) {
++		pte_unmap_unlock(pte, ptl);
++		return ret;
++	}
+ 
+ 	/*
+ 	 * If the page is mlock()d, we cannot swap it out.
+@@ -1197,7 +1293,6 @@ static int try_to_unmap_one(struct page
+ 	if (!(flags & TTU_IGNORE_MLOCK)) {
+ 		if (vma->vm_flags & VM_LOCKED)
+ 			goto out_mlock;
+-
+ 		if (flags & TTU_MUNLOCK)
+ 			goto out_unmap;
+ 	}
+@@ -1287,16 +1382,17 @@ static int try_to_unmap_one(struct page
+ 	page_cache_release(page);
+ 
+ out_unmap:
+-	pte_unmap_unlock(pte, ptl);
++	spin_unlock(ptl);
++	if (pte)
++		pte_unmap(pte);
+ 	if (ret != SWAP_FAIL && !(flags & TTU_MUNLOCK))
+ 		mmu_notifier_invalidate_page(mm, address);
+-out:
+ 	return ret;
+ 
+ out_mlock:
+-	pte_unmap_unlock(pte, ptl);
+-
+-
++	spin_unlock(ptl);
++	if (pte)
++		pte_unmap(pte);
+ 	/*
+ 	 * We need mmap_sem locking, Otherwise VM_LOCKED check makes
+ 	 * unstable result and race. Plus, We can't wait here because
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
