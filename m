@@ -1,124 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 72B5A6B0032
-	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 22:49:26 -0500 (EST)
-Received: by pdbfl12 with SMTP id fl12so11991786pdb.2
-        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 19:49:25 -0800 (PST)
-Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com. [2607:f8b0:400e:c02::22e])
-        by mx.google.com with ESMTPS id oq4si5844473pbb.10.2015.02.20.19.49.25
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EF806B0032
+	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 22:51:19 -0500 (EST)
+Received: by pdjy10 with SMTP id y10so11900442pdj.13
+        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 19:51:19 -0800 (PST)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id n5si3690167pdr.93.2015.02.20.19.51.18
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Feb 2015 19:49:25 -0800 (PST)
-Received: by pdbnh10 with SMTP id nh10so11919911pdb.11
-        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 19:49:25 -0800 (PST)
-Date: Fri, 20 Feb 2015 19:49:16 -0800 (PST)
+        Fri, 20 Feb 2015 19:51:18 -0800 (PST)
+Received: by pabkq14 with SMTP id kq14so12830023pab.3
+        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 19:51:18 -0800 (PST)
+Date: Fri, 20 Feb 2015 19:51:16 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 00/24] huge tmpfs: an alternative approach to THPageCache
-Message-ID: <alpine.LSU.2.11.1502201941340.14414@eggly.anvils>
+Subject: [PATCH 01/24] mm: update_lru_size warn and reset bad lru_size
+In-Reply-To: <alpine.LSU.2.11.1502201941340.14414@eggly.anvils>
+Message-ID: <alpine.LSU.2.11.1502201949350.14414@eggly.anvils>
+References: <alpine.LSU.2.11.1502201941340.14414@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Ning Qu <quning@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Ning Qu <quning@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-I warned last month that I have been working on "huge tmpfs":
-an implementation of Transparent Huge Page Cache in tmpfs,
-for those who are tired of the limitations of hugetlbfs.
+Though debug kernels have a VM_BUG_ON to help protect from misaccounting
+lru_size, non-debug kernels are liable to wrap it around: and then the
+vast unsigned long size draws page reclaim into a loop of repeatedly
+doing nothing on an empty list, without even a cond_resched().
 
-Here's a fully working patchset, against v3.19 so that you can give it
-a try against a stable base.  I've not yet studied how well it applies
-to current git: probably lots of easily resolved clashes with nonlinear
-removal.  Against mmotm, the rmap.c differences looked nontrivial.
+That soft lockup looks confusingly like an over-busy reclaim scenario,
+with lots of contention on the lruvec lock in shrink_inactive_list():
+yet has a totally different origin.
 
-Fully working?  Well, at present page migration just keeps away from
-these teams of pages.  And once memory pressure has disbanded a team
-to swap it out, there is nothing to put it together again later on,
-to restore the original hugepage performance.  Those must follow,
-but no thought yet (khugepaged? maybe).
+Help differentiate with a custom warning in mem_cgroup_update_lru_size(),
+even in non-debug kernels; and reset the size to avoid the lockup.  But
+the particular bug which suggested this change was mine alone, and since
+fixed.
 
-Yes, I realize there's nothing yet under Documentation, nor fs/proc
-beyond meminfo, nor other debug/visibility files: must follow, but
-I've cared more to provide the basic functionality.
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
+ include/linux/mm_inline.h |    2 +-
+ mm/memcontrol.c           |   24 ++++++++++++++++++++----
+ 2 files changed, 21 insertions(+), 5 deletions(-)
 
-I don't expect to update this patchset in the next few weeks: now that
-it's posted, my priority is look at other people's work before LSF/MM;
-and in particular, of course, your (Kirill's) THP refcounting redesign.
-
-01 mm: update_lru_size warn and reset bad lru_size
-02 mm: update_lru_size do the __mod_zone_page_state
-03 mm: use __SetPageSwapBacked and don't ClearPageSwapBacked
-04 mm: make page migration's newpage handling more robust
-05 tmpfs: preliminary minor tidyups
-06 huge tmpfs: prepare counts in meminfo, vmstat and SysRq-m
-07 huge tmpfs: include shmem freeholes in available memory counts
-08 huge tmpfs: prepare huge=N mount option and /proc/sys/vm/shmem_huge
-09 huge tmpfs: try to allocate huge pages, split into a team
-10 huge tmpfs: avoid team pages in a few places
-11 huge tmpfs: shrinker to migrate and free underused holes
-12 huge tmpfs: get_unmapped_area align and fault supply huge page
-13 huge tmpfs: extend get_user_pages_fast to shmem pmd
-14 huge tmpfs: extend vma_adjust_trans_huge to shmem pmd
-15 huge tmpfs: rework page_referenced_one and try_to_unmap_one
-16 huge tmpfs: fix problems from premature exposure of pagetable
-17 huge tmpfs: map shmem by huge page pmd or by page team ptes
-18 huge tmpfs: mmap_sem is unlocked when truncation splits huge pmd
-19 huge tmpfs: disband split huge pmds on race or memory failure
-20 huge tmpfs: use Unevictable lru with variable hpage_nr_pages()
-21 huge tmpfs: fix Mlocked meminfo, tracking huge and unhuge mlocks
-22 huge tmpfs: fix Mapped meminfo, tracking huge and unhuge mappings
-23 kvm: plumb return of hva when resolving page fault.
-24 kvm: teach kvm to map page teams as huge pages.
-
- arch/mips/mm/gup.c             |   17 
- arch/powerpc/mm/pgtable_64.c   |    7 
- arch/s390/mm/gup.c             |   22 
- arch/sparc/mm/gup.c            |   22 
- arch/x86/kvm/mmu.c             |  171 +++-
- arch/x86/kvm/paging_tmpl.h     |    6 
- arch/x86/mm/gup.c              |   17 
- drivers/base/node.c            |   20 
- drivers/char/mem.c             |   23 
- fs/proc/meminfo.c              |   17 
- include/linux/huge_mm.h        |   18 
- include/linux/kvm_host.h       |    2 
- include/linux/memcontrol.h     |   11 
- include/linux/mempolicy.h      |    6 
- include/linux/migrate.h        |    3 
- include/linux/mm.h             |   95 +-
- include/linux/mm_inline.h      |   24 
- include/linux/mm_types.h       |    1 
- include/linux/mmzone.h         |    5 
- include/linux/page-flags.h     |    6 
- include/linux/pageteam.h       |  289 +++++++
- include/linux/shmem_fs.h       |   21 
- include/trace/events/migrate.h |    3 
- ipc/shm.c                      |    6 
- kernel/sysctl.c                |   12 
- mm/balloon_compaction.c        |   10 
- mm/compaction.c                |    6 
- mm/filemap.c                   |   10 
- mm/gup.c                       |   22 
- mm/huge_memory.c               |  281 ++++++-
- mm/internal.h                  |   25 
- mm/memcontrol.c                |   42 -
- mm/memory-failure.c            |    8 
- mm/memory.c                    |  227 +++--
- mm/migrate.c                   |  139 +--
- mm/mlock.c                     |  181 ++--
- mm/mmap.c                      |   17 
- mm/page-writeback.c            |    2 
- mm/page_alloc.c                |   13 
- mm/rmap.c                      |  207 +++--
- mm/shmem.c                     | 1235 +++++++++++++++++++++++++++++--
- mm/swap.c                      |    5 
- mm/swap_state.c                |    3 
- mm/truncate.c                  |    2 
- mm/vmscan.c                    |   76 +
- mm/vmstat.c                    |    3 
- mm/zswap.c                     |    3 
- virt/kvm/kvm_main.c            |   24 
- 48 files changed, 2790 insertions(+), 575 deletions(-)
+--- thpfs.orig/include/linux/mm_inline.h	2013-11-03 15:41:51.000000000 -0800
++++ thpfs/include/linux/mm_inline.h	2015-02-20 19:33:25.928096883 -0800
+@@ -35,8 +35,8 @@ static __always_inline void del_page_fro
+ 				struct lruvec *lruvec, enum lru_list lru)
+ {
+ 	int nr_pages = hpage_nr_pages(page);
+-	mem_cgroup_update_lru_size(lruvec, lru, -nr_pages);
+ 	list_del(&page->lru);
++	mem_cgroup_update_lru_size(lruvec, lru, -nr_pages);
+ 	__mod_zone_page_state(lruvec_zone(lruvec), NR_LRU_BASE + lru, -nr_pages);
+ }
+ 
+--- thpfs.orig/mm/memcontrol.c	2015-02-08 18:54:22.000000000 -0800
++++ thpfs/mm/memcontrol.c	2015-02-20 19:33:25.928096883 -0800
+@@ -1296,22 +1296,38 @@ out:
+  * @lru: index of lru list the page is sitting on
+  * @nr_pages: positive when adding or negative when removing
+  *
+- * This function must be called when a page is added to or removed from an
+- * lru list.
++ * This function must be called under lruvec lock, just before a page is added
++ * to or just after a page is removed from an lru list (that ordering being so
++ * as to allow it to check that lru_size 0 is consistent with list_empty).
+  */
+ void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
+ 				int nr_pages)
+ {
+ 	struct mem_cgroup_per_zone *mz;
+ 	unsigned long *lru_size;
++	long size;
++	bool empty;
+ 
+ 	if (mem_cgroup_disabled())
+ 		return;
+ 
+ 	mz = container_of(lruvec, struct mem_cgroup_per_zone, lruvec);
+ 	lru_size = mz->lru_size + lru;
+-	*lru_size += nr_pages;
+-	VM_BUG_ON((long)(*lru_size) < 0);
++	empty = list_empty(lruvec->lists + lru);
++
++	if (nr_pages < 0)
++		*lru_size += nr_pages;
++
++	size = *lru_size;
++	if (WARN(size < 0 || empty != !size,
++	"mem_cgroup_update_lru_size(%p, %d, %d): lru_size %ld but %sempty\n",
++			lruvec, lru, nr_pages, size, empty ? "" : "not ")) {
++		VM_BUG_ON(1);
++		*lru_size = 0;
++	}
++
++	if (nr_pages > 0)
++		*lru_size += nr_pages;
+ }
+ 
+ bool mem_cgroup_is_descendant(struct mem_cgroup *memcg, struct mem_cgroup *root)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
