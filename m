@@ -1,21 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id AD5F46B0032
-	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 23:12:25 -0500 (EST)
-Received: by pabrd3 with SMTP id rd3so12888872pab.4
-        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 20:12:25 -0800 (PST)
-Received: from mail-pd0-x229.google.com (mail-pd0-x229.google.com. [2607:f8b0:400e:c02::229])
-        by mx.google.com with ESMTPS id qd9si3575174pbc.73.2015.02.20.20.12.24
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id B3CBB6B006E
+	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 23:13:45 -0500 (EST)
+Received: by pdev10 with SMTP id v10so12002829pde.10
+        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 20:13:45 -0800 (PST)
+Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com. [2607:f8b0:400e:c02::232])
+        by mx.google.com with ESMTPS id mj6si2614735pab.133.2015.02.20.20.13.44
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Feb 2015 20:12:24 -0800 (PST)
-Received: by pdbfp1 with SMTP id fp1so12046225pdb.5
-        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 20:12:24 -0800 (PST)
-Date: Fri, 20 Feb 2015 20:12:22 -0800 (PST)
+        Fri, 20 Feb 2015 20:13:45 -0800 (PST)
+Received: by pdbfl12 with SMTP id fl12so12086480pdb.2
+        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 20:13:44 -0800 (PST)
+Date: Fri, 20 Feb 2015 20:13:42 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 13/24] huge tmpfs: extend get_user_pages_fast to shmem pmd
+Subject: [PATCH 14/24] huge tmpfs: extend vma_adjust_trans_huge to shmem
+ pmd
 In-Reply-To: <alpine.LSU.2.11.1502201941340.14414@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1502202011070.14414@eggly.anvils>
+Message-ID: <alpine.LSU.2.11.1502202012270.14414@eggly.anvils>
 References: <alpine.LSU.2.11.1502201941340.14414@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -24,194 +25,95 @@ List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Ning Qu <quning@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Factor out one small part of the shmem pmd handling: the arch-specific
-get_user_pages_fast() has special code to cope with the peculiar
-refcounting on anonymous THP tail pages (and on hugetlbfs tail pages):
-which must be avoided in the straightforward shmem pmd case.
+Factor out one small part of the shmem pmd handling: the inline function
+vma_adjust_trans_huge() (called when vmas are split or merged) contains
+a preliminary !anon_vma || vm_ops check to avoid the overhead of
+__vma_adjust_trans_huge() on areas which could not possibly contain an
+anonymous THP pmd.  But with huge tmpfs, we shall need it to be called
+even in those excluded cases.
+
+Before the split pmd ptlocks, there was a nice alternative optimization
+to make: avoid the overhead of __vma_adjust_trans_huge() on mms which
+could not possibly contain a huge pmd - those with NULL pmd_huge_pte
+(using a huge pmd demands the deposit of a spare page table, typically
+stored in a list at pmd_huge_pte, withdrawn for use when splitting the
+pmd; and huge tmpfs will follow that protocol too).
+
+Still use that optimization when !USE_SPLIT_PMD_PTLOCKS, when
+mm->pmd_huge_pte is updated under mm->page_table_lock (but beware:
+unlike other arches, powerpc made no use of pmd_huge_pte before, so
+this patch hacks it to update pmd_huge_pte as a count).  In common
+configs, no equivalent optimization on x86 now: if that's a visible
+problem, we can add an atomic count or flag to mm for the purpose.
+
+And looking into the overhead of __vma_adjust_trans_huge(): it is
+silly for split_huge_page_pmd_mm() to be calling find_vma() followed
+by split_huge_page_pmd(), when it can check the pmd directly first,
+and usually avoid the find_vma() call.
 
 Signed-off-by: Hugh Dickins <hughd@google.com>
 ---
- arch/mips/mm/gup.c  |   17 ++++++++++++-----
- arch/s390/mm/gup.c  |   22 +++++++++++++++++++++-
- arch/sparc/mm/gup.c |   22 +++++++++++++++++++++-
- arch/x86/mm/gup.c   |   17 ++++++++++++-----
- mm/gup.c            |   22 +++++++++++++++++++++-
- 5 files changed, 87 insertions(+), 13 deletions(-)
+ arch/powerpc/mm/pgtable_64.c |    7 ++++++-
+ include/linux/huge_mm.h      |    5 ++++-
+ mm/huge_memory.c             |    7 ++-----
+ 3 files changed, 12 insertions(+), 7 deletions(-)
 
---- thpfs.orig/arch/mips/mm/gup.c	2015-02-08 18:54:22.000000000 -0800
-+++ thpfs/arch/mips/mm/gup.c	2015-02-20 19:34:26.971957306 -0800
-@@ -64,7 +64,8 @@ static inline void get_head_page_multipl
+--- thpfs.orig/arch/powerpc/mm/pgtable_64.c	2015-02-08 18:54:22.000000000 -0800
++++ thpfs/arch/powerpc/mm/pgtable_64.c	2015-02-20 19:34:32.363944978 -0800
+@@ -675,9 +675,12 @@ void pgtable_trans_huge_deposit(struct m
+ 				pgtable_t pgtable)
  {
- 	VM_BUG_ON(page != compound_head(page));
- 	VM_BUG_ON(page_count(page) == 0);
--	atomic_add(nr, &page->_count);
-+	if (nr)
-+		atomic_add(nr, &page->_count);
- 	SetPageReferenced(page);
+ 	pgtable_t *pgtable_slot;
++
+ 	assert_spin_locked(&mm->page_table_lock);
++	mm->pmd_huge_pte++;
+ 	/*
+-	 * we store the pgtable in the second half of PMD
++	 * we store the pgtable in the second half of PMD; but must also
++	 * set pmd_huge_pte for the optimization in vma_adjust_trans_huge().
+ 	 */
+ 	pgtable_slot = (pgtable_t *)pmdp + PTRS_PER_PMD;
+ 	*pgtable_slot = pgtable;
+@@ -696,6 +699,8 @@ pgtable_t pgtable_trans_huge_withdraw(st
+ 	pgtable_t *pgtable_slot;
+ 
+ 	assert_spin_locked(&mm->page_table_lock);
++	mm->pmd_huge_pte--;
++
+ 	pgtable_slot = (pgtable_t *)pmdp + PTRS_PER_PMD;
+ 	pgtable = *pgtable_slot;
+ 	/*
+--- thpfs.orig/include/linux/huge_mm.h	2014-12-07 14:21:05.000000000 -0800
++++ thpfs/include/linux/huge_mm.h	2015-02-20 19:34:32.363944978 -0800
+@@ -143,8 +143,11 @@ static inline void vma_adjust_trans_huge
+ 					 unsigned long end,
+ 					 long adjust_next)
+ {
+-	if (!vma->anon_vma || vma->vm_ops)
++#if !USE_SPLIT_PMD_PTLOCKS
++	/* If no pgtable is deposited, there is no huge pmd to worry about */
++	if (!vma->vm_mm->pmd_huge_pte)
+ 		return;
++#endif
+ 	__vma_adjust_trans_huge(vma, start, end, adjust_next);
+ }
+ static inline int hpage_nr_pages(struct page *page)
+--- thpfs.orig/mm/huge_memory.c	2015-02-20 19:33:51.492038431 -0800
++++ thpfs/mm/huge_memory.c	2015-02-20 19:34:32.367944969 -0800
+@@ -2905,11 +2905,8 @@ again:
+ void split_huge_page_pmd_mm(struct mm_struct *mm, unsigned long address,
+ 		pmd_t *pmd)
+ {
+-	struct vm_area_struct *vma;
+-
+-	vma = find_vma(mm, address);
+-	BUG_ON(vma == NULL);
+-	split_huge_page_pmd(vma, address, pmd);
++	if (unlikely(pmd_trans_huge(*pmd)))
++		__split_huge_page_pmd(find_vma(mm, address), address, pmd);
  }
  
-@@ -85,13 +86,19 @@ static int gup_huge_pmd(pmd_t pmd, unsig
- 	head = pte_page(pte);
- 	page = head + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
- 	do {
--		VM_BUG_ON(compound_head(page) != head);
--		pages[*nr] = page;
--		if (PageTail(page))
-+		if (PageTail(page)) {
-+			VM_BUG_ON(compound_head(page) != head);
- 			get_huge_page_tail(page);
-+			refs++;
-+		} else {
-+			/*
-+			 * Handle head or huge tmpfs with normal refcounting.
-+			 */
-+			get_page(page);
-+		}
-+		pages[*nr] = page;
- 		(*nr)++;
- 		page++;
--		refs++;
- 	} while (addr += PAGE_SIZE, addr != end);
- 
- 	get_head_page_multiple(head, refs);
---- thpfs.orig/arch/s390/mm/gup.c	2014-01-19 18:40:07.000000000 -0800
-+++ thpfs/arch/s390/mm/gup.c	2015-02-20 19:34:26.971957306 -0800
-@@ -61,10 +61,30 @@ static inline int gup_huge_pmd(pmd_t *pm
- 		return 0;
- 	VM_BUG_ON(!pfn_valid(pmd_val(pmd) >> PAGE_SHIFT));
- 
--	refs = 0;
- 	head = pmd_page(pmd);
- 	page = head + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
-+
-+	if (!PageHead(head)) {
-+		/*
-+		 * Handle a huge tmpfs team with normal refcounting.
-+		 */
-+		do {
-+			if (!page_cache_get_speculative(page))
-+				return 0;
-+			if (unlikely(pmd_val(pmd) != pmd_val(*pmdp))) {
-+				put_page(page);
-+				return 0;
-+			}
-+			pages[*nr] = page;
-+			(*nr)++;
-+			page++;
-+		} while (addr += PAGE_SIZE, addr != end);
-+		return 1;
-+	}
-+
- 	tail = page;
-+	refs = 0;
-+
- 	do {
- 		VM_BUG_ON(compound_head(page) != head);
- 		pages[*nr] = page;
---- thpfs.orig/arch/sparc/mm/gup.c	2014-12-07 14:21:05.000000000 -0800
-+++ thpfs/arch/sparc/mm/gup.c	2015-02-20 19:34:26.975957297 -0800
-@@ -79,10 +79,30 @@ static int gup_huge_pmd(pmd_t *pmdp, pmd
- 	if (write && !pmd_write(pmd))
- 		return 0;
- 
--	refs = 0;
- 	head = pmd_page(pmd);
- 	page = head + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
-+
-+	if (!PageHead(head)) {
-+		/*
-+		 * Handle a huge tmpfs team with normal refcounting.
-+		 */
-+		do {
-+			if (!page_cache_get_speculative(page))
-+				return 0;
-+			if (unlikely(pmd_val(pmd) != pmd_val(*pmdp))) {
-+				put_page(page);
-+				return 0;
-+			}
-+			pages[*nr] = page;
-+			(*nr)++;
-+			page++;
-+		} while (addr += PAGE_SIZE, addr != end);
-+		return 1;
-+	}
-+
- 	tail = page;
-+	refs = 0;
-+
- 	do {
- 		VM_BUG_ON(compound_head(page) != head);
- 		pages[*nr] = page;
---- thpfs.orig/arch/x86/mm/gup.c	2015-02-08 18:54:22.000000000 -0800
-+++ thpfs/arch/x86/mm/gup.c	2015-02-20 19:34:26.975957297 -0800
-@@ -110,7 +110,8 @@ static inline void get_head_page_multipl
- {
- 	VM_BUG_ON_PAGE(page != compound_head(page), page);
- 	VM_BUG_ON_PAGE(page_count(page) == 0, page);
--	atomic_add(nr, &page->_count);
-+	if (nr)
-+		atomic_add(nr, &page->_count);
- 	SetPageReferenced(page);
- }
- 
-@@ -135,13 +136,19 @@ static noinline int gup_huge_pmd(pmd_t p
- 	head = pte_page(pte);
- 	page = head + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
- 	do {
--		VM_BUG_ON_PAGE(compound_head(page) != head, page);
--		pages[*nr] = page;
--		if (PageTail(page))
-+		if (PageTail(page)) {
-+			VM_BUG_ON_PAGE(compound_head(page) != head, page);
- 			get_huge_page_tail(page);
-+			refs++;
-+		} else {
-+			/*
-+			 * Handle head or huge tmpfs with normal refcounting.
-+			 */
-+			get_page(page);
-+		}
-+		pages[*nr] = page;
- 		(*nr)++;
- 		page++;
--		refs++;
- 	} while (addr += PAGE_SIZE, addr != end);
- 	get_head_page_multiple(head, refs);
- 
---- thpfs.orig/mm/gup.c	2015-02-08 18:54:22.000000000 -0800
-+++ thpfs/mm/gup.c	2015-02-20 19:34:26.975957297 -0800
-@@ -795,10 +795,30 @@ static int gup_huge_pmd(pmd_t orig, pmd_
- 	if (write && !pmd_write(orig))
- 		return 0;
- 
--	refs = 0;
- 	head = pmd_page(orig);
- 	page = head + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
-+
-+	if (!PageHead(head)) {
-+		/*
-+		 * Handle a huge tmpfs team with normal refcounting.
-+		 */
-+		do {
-+			if (!page_cache_get_speculative(page))
-+				return 0;
-+			if (unlikely(pmd_val(orig) != pmd_val(*pmdp))) {
-+				put_page(page);
-+				return 0;
-+			}
-+			pages[*nr] = page;
-+			(*nr)++;
-+			page++;
-+		} while (addr += PAGE_SIZE, addr != end);
-+		return 1;
-+	}
-+
- 	tail = page;
-+	refs = 0;
-+
- 	do {
- 		VM_BUG_ON_PAGE(compound_head(page) != head, page);
- 		pages[*nr] = page;
+ static void split_huge_page_address(struct mm_struct *mm,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
