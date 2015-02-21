@@ -1,44 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 05BAA6B0032
-	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 20:24:08 -0500 (EST)
-Received: by pabkq14 with SMTP id kq14so12164022pab.3
-        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 17:24:07 -0800 (PST)
-Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
-        by mx.google.com with ESMTPS id ky4si700940pbc.159.2015.02.20.17.24.02
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EF6B6B0032
+	for <linux-mm@kvack.org>; Fri, 20 Feb 2015 21:37:58 -0500 (EST)
+Received: by mail-wg0-f52.google.com with SMTP id x12so16218093wgg.11
+        for <linux-mm@kvack.org>; Fri, 20 Feb 2015 18:37:57 -0800 (PST)
+Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [2002:c35c:fd02::1])
+        by mx.google.com with ESMTPS id s20si5776024wiv.35.2015.02.20.18.37.55
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 20 Feb 2015 17:24:06 -0800 (PST)
-Message-ID: <1424481838.6539.2.camel@stgolabs.net>
-Subject: Re: [PATCH 1/3] kernel/audit: consolidate handling of mm->exe_file
-From: Davidlohr Bueso <dave@stgolabs.net>
-Date: Fri, 20 Feb 2015 17:23:58 -0800
-In-Reply-To: <CAHC9VhR212FmSEhV_2yryt0=YxTN34ktZ8vveBD3kv4Uhd4WTw@mail.gmail.com>
-References: <1424304641-28965-1-git-send-email-dbueso@suse.de>
-	 <1424304641-28965-2-git-send-email-dbueso@suse.de>
-	 <CAHC9VhR212FmSEhV_2yryt0=YxTN34ktZ8vveBD3kv4Uhd4WTw@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Fri, 20 Feb 2015 18:37:56 -0800 (PST)
+Date: Sat, 21 Feb 2015 02:37:55 +0000
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [PATCH] fs: avoid locking sb_lock in grab_super_passive()
+Message-ID: <20150221023754.GT29656@ZenIV.linux.org.uk>
+References: <20150219171934.20458.30175.stgit@buzz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150219171934.20458.30175.stgit@buzz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Moore <paul@paul-moore.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Eric Paris <eparis@redhat.com>, linux-audit@redhat.com
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
 
-On Wed, 2015-02-18 at 22:23 -0500, Paul Moore wrote:
-> I'd prefer if the audit_log_d_path_exe() helper wasn't a static inline.
+On Thu, Feb 19, 2015 at 08:19:35PM +0300, Konstantin Khlebnikov wrote:
+> I've noticed significant locking contention in memory reclaimer around
+> sb_lock inside grab_super_passive(). Grab_super_passive() is called from
+> two places: in icache/dcache shrinkers (function super_cache_scan) and
+> from writeback (function __writeback_inodes_wb). Both are required for
+> progress in memory reclaimer.
+> 
+> Also this lock isn't irq-safe. And I've seen suspicious livelock under
+> serious memory pressure where reclaimer was called from interrupt which
+> have happened right in place where sb_lock is held in normal context,
+> so all other cpus were stuck on that lock too.
 
-What do you have in mind? At least in code size static inlining wins:
+Excuse me, but this part is BS - its call is immediately preceded by
+        if (!(sc->gfp_mask & __GFP_FS))
+                return SHRINK_STOP;
+and if we *ever* hit GFP_FS allocation from interrupt, we are really
+screwed.  If nothing else, both prune_dcache_sb() and prune_icache_sb()
+can wait for all kinds of IO; you really don't want that called in an
+interrupt context.  The same goes for writeback_sb_inodes(), while we
+are at it.
 
-   text    data     bss     dec     hex filename
-  14423     284     676   15383    3c17 kernel/audit.o
-  14407     284     676   15367    3c07 kernel/audit.o-thispatch
-  14474     284     676   15434    3c4a kernel/audit.o-noninline
+If you ever see that in an interrupt context, you have a very bad problem
+on hands.
 
-
-Thanks,
-Davidlohr
-
+Said that, not bothering with sb_lock (and ->s_count) in those two callers
+makes sense.  Applied, with name changed to trylock_super().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
