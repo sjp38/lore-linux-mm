@@ -1,45 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AE296B0032
-	for <linux-mm@kvack.org>; Sat, 21 Feb 2015 08:45:45 -0500 (EST)
-Received: by mail-ob0-f173.google.com with SMTP id uy5so29397385obc.4
-        for <linux-mm@kvack.org>; Sat, 21 Feb 2015 05:45:44 -0800 (PST)
-Received: from mail-oi0-f53.google.com (mail-oi0-f53.google.com. [209.85.218.53])
-        by mx.google.com with ESMTPS id sb4si2818905oeb.13.2015.02.21.05.45.43
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 00B2D6B0032
+	for <linux-mm@kvack.org>; Sat, 21 Feb 2015 09:22:53 -0500 (EST)
+Received: by pdjz10 with SMTP id z10so14263052pdj.12
+        for <linux-mm@kvack.org>; Sat, 21 Feb 2015 06:22:53 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id ki7si7634518pbc.210.2015.02.21.06.22.52
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 21 Feb 2015 05:45:44 -0800 (PST)
-Received: by mail-oi0-f53.google.com with SMTP id u20so7029894oif.12
-        for <linux-mm@kvack.org>; Sat, 21 Feb 2015 05:45:43 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1424481838.6539.2.camel@stgolabs.net>
-References: <1424304641-28965-1-git-send-email-dbueso@suse.de>
-	<1424304641-28965-2-git-send-email-dbueso@suse.de>
-	<CAHC9VhR212FmSEhV_2yryt0=YxTN34ktZ8vveBD3kv4Uhd4WTw@mail.gmail.com>
-	<1424481838.6539.2.camel@stgolabs.net>
-Date: Sat, 21 Feb 2015 08:45:43 -0500
-Message-ID: <CAHC9VhQxi3YNPFvmfMS6aceC=mi_LcaLD6gqb2zKEb8K_qnZLQ@mail.gmail.com>
-Subject: Re: [PATCH 1/3] kernel/audit: consolidate handling of mm->exe_file
-From: Paul Moore <paul@paul-moore.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sat, 21 Feb 2015 06:22:52 -0800 (PST)
+Subject: Re: How to handle TIF_MEMDIE stalls?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20150219225217.GY12722@dastard>
+	<201502201936.HBH34799.SOLFFFQtHOMOJV@I-love.SAKURA.ne.jp>
+	<20150220231511.GH12722@dastard>
+	<20150221032000.GC7922@thunk.org>
+	<20150221011907.2d26c979.akpm@linux-foundation.org>
+In-Reply-To: <20150221011907.2d26c979.akpm@linux-foundation.org>
+Message-Id: <201502212248.DCJ69753.MOJFOtQLFSOVFH@I-love.SAKURA.ne.jp>
+Date: Sat, 21 Feb 2015 22:48:49 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <dave@stgolabs.net>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Eric Paris <eparis@redhat.com>, linux-audit@redhat.com
+To: akpm@linux-foundation.org
+Cc: tytso@mit.edu, david@fromorbit.com, hannes@cmpxchg.org, mhocko@suse.cz, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, mgorman@suse.de, torvalds@linux-foundation.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org
 
-On Fri, Feb 20, 2015 at 8:23 PM, Davidlohr Bueso <dave@stgolabs.net> wrote:
-> On Wed, 2015-02-18 at 22:23 -0500, Paul Moore wrote:
->> I'd prefer if the audit_log_d_path_exe() helper wasn't a static inline.
->
-> What do you have in mind?
+Andrew Morton wrote:
+> On Fri, 20 Feb 2015 22:20:00 -0500 "Theodore Ts'o" <tytso@mit.edu> wrote:
+> 
+> > +akpm
+> 
+> I was hoping not to have to read this thread ;)
 
-Pretty much what I said before, audit_log_d_path_exe() as a
-traditional function and not an inline.  Put the function in
-kernel/audit.c.
+Sorry for getting so complicated.
 
--- 
-paul moore
-www.paul-moore.com
+> What I'm not really understanding is why the pre-3.19 implementation
+> actually worked.  We've exhausted the free pages, we're not succeeding
+> at reclaiming anything, we aren't able to oom-kill anyone.  Yet it
+> *does* work - we eventually find that memory and everything proceeds.
+> 
+> How come?  Where did that memory come from?
+> 
+
+Even without __GFP_NOFAIL, GFP_NOFS / GFP_NOIO allocations retried forever
+(without invoking the OOM killer) if order <= PAGE_ALLOC_COSTLY_ORDER and
+TIF_MEMDIE is not set. Somebody else volunteered that memory while retrying.
+This implies silent hang-up forever if nobody volunteers memory.
+
+> And yes, I agree that sites such as xfs's kmem_alloc() should be
+> passing __GFP_NOFAIL to tell the page allocator what's going on.  I
+> don't think it matters a lot whether kmem_alloc() retains its retry
+> loop.  If __GFP_NOFAIL is working correctly then it will never loop
+> anyway...
+
+Commit 9879de7373fc ("mm: page_alloc: embed OOM killing naturally into
+allocation slowpath") inadvertently changed GFP_NOFS / GFP_NOIO allocations
+not to retry unless __GFP_NOFAIL is specified. Therefore, either applying
+Johannes's akpm-doesnt-know-why-it-works patch or passing __GFP_NOFAIL
+will restore the pre-3.19 behavior (with possibility of silent hang-up).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
