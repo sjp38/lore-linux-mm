@@ -1,123 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 9545F6B0032
-	for <linux-mm@kvack.org>; Sun, 22 Feb 2015 10:22:55 -0500 (EST)
-Received: by mail-ob0-f182.google.com with SMTP id nt9so31666484obb.13
-        for <linux-mm@kvack.org>; Sun, 22 Feb 2015 07:22:55 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id a10si3478668obz.72.2015.02.22.07.22.53
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 679386B0032
+	for <linux-mm@kvack.org>; Sun, 22 Feb 2015 13:32:16 -0500 (EST)
+Received: by padfa1 with SMTP id fa1so21832441pad.2
+        for <linux-mm@kvack.org>; Sun, 22 Feb 2015 10:32:16 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id a9si868471pas.76.2015.02.22.10.32.15
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 22 Feb 2015 07:22:54 -0800 (PST)
-Subject: __GFP_NOFAIL and oom_killer_disabled?
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20150219225217.GY12722@dastard>
-	<201502201936.HBH34799.SOLFFFQtHOMOJV@I-love.SAKURA.ne.jp>
-	<20150220231511.GH12722@dastard>
-	<20150221032000.GC7922@thunk.org>
-	<20150221011907.2d26c979.akpm@linux-foundation.org>
-In-Reply-To: <20150221011907.2d26c979.akpm@linux-foundation.org>
-Message-Id: <201502222348.GFH13009.LOHOMFVtFQSFOJ@I-love.SAKURA.ne.jp>
-Date: Sun, 22 Feb 2015 23:48:01 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 22 Feb 2015 10:32:15 -0800 (PST)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH 1/4] ocfs2: copy fs uuid to superblock
+Date: Sun, 22 Feb 2015 21:31:52 +0300
+Message-ID: <298a285f81e5fa2c1320c74ecf9d2b44bb9fa36c.1424628280.git.vdavydov@parallels.com>
+In-Reply-To: <cover.1424628280.git.vdavydov@parallels.com>
+References: <cover.1424628280.git.vdavydov@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.cz
-Cc: akpm@linux-foundation.org, tytso@mit.edu, david@fromorbit.com, hannes@cmpxchg.org, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, mgorman@suse.de, torvalds@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Vrabel <david.vrabel@citrix.com>, Mark Fasheh <mfasheh@suse.com>, Joel Becker <jlbec@evilplan.org>, Stefan Hengelein <ilendir@googlemail.com>, Florian Schmaus <fschmaus@gmail.com>, Andor Daam <andor.daam@googlemail.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Bob Liu <lliubbo@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Andrew Morton wrote:
-> And yes, I agree that sites such as xfs's kmem_alloc() should be
-> passing __GFP_NOFAIL to tell the page allocator what's going on.  I
-> don't think it matters a lot whether kmem_alloc() retains its retry
-> loop.  If __GFP_NOFAIL is working correctly then it will never loop
-> anyway...
+This will allow us to remove the uuid argument from
+cleancache_init_shared_fs.
 
-__GFP_NOFAIL fails to work correctly if oom_killer_disabled == true.
-I'm wondering how oom_killer_disable() interferes with __GFP_NOFAIL
-allocation. We had race check after setting oom_killer_disabled to true
-in 3.19.
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+---
+ fs/ocfs2/super.c |    2 ++
+ 1 file changed, 2 insertions(+)
 
----------- linux-3.19/kernel/power/process.c ----------
-int freeze_processes(void)
-{
-(...snipped...)
-        pm_wakeup_clear();
-        printk("Freezing user space processes ... ");
-        pm_freezing = true;
-        oom_kills_saved = oom_kills_count();
-        error = try_to_freeze_tasks(true);
-        if (!error) {
-                __usermodehelper_set_disable_depth(UMH_DISABLED);
-                oom_killer_disable();
-
-                /*
-                 * There might have been an OOM kill while we were
-                 * freezing tasks and the killed task might be still
-                 * on the way out so we have to double check for race.
-                 */
-                if (oom_kills_count() != oom_kills_saved &&
-                    !check_frozen_processes()) {
-                        __usermodehelper_set_disable_depth(UMH_ENABLED);
-                        printk("OOM in progress.");
-                        error = -EBUSY;
-                } else {
-                        printk("done.");
-                }
-        }
-(...snipped...)
-}
----------- linux-3.19/kernel/power/process.c ----------
-
-I worry that commit c32b3cbe0d067a9c "oom, PM: make OOM detection in
-the freezer path raceless" might have opened a race window for
-__alloc_pages_may_oom(__GFP_NOFAIL) allocation to fail when OOM killer
-is disabled. I think something like
-
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -789,7 +789,7 @@ bool out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
- 	bool ret = false;
+diff --git a/fs/ocfs2/super.c b/fs/ocfs2/super.c
+index 26675185b886..43f5a9e71b35 100644
+--- a/fs/ocfs2/super.c
++++ b/fs/ocfs2/super.c
+@@ -2069,6 +2069,8 @@ static int ocfs2_initialize_super(struct super_block *sb,
+ 	cbits = le32_to_cpu(di->id2.i_super.s_clustersize_bits);
+ 	bbits = le32_to_cpu(di->id2.i_super.s_blocksize_bits);
+ 	sb->s_maxbytes = ocfs2_max_file_offset(bbits, cbits);
++	memcpy(sb->s_uuid, di->id2.i_super.s_uuid,
++	       sizeof(di->id2.i_super.s_uuid));
  
- 	down_read(&oom_sem);
--	if (!oom_killer_disabled) {
-+	if (!oom_killer_disabled || (gfp_mask & __GFP_NOFAIL)) {
- 		__out_of_memory(zonelist, gfp_mask, order, nodemask, force_kill);
- 		ret = true;
- 	}
-
-is needed. But such change can race with up_write() and wait_event() in
-oom_killer_disable(). While the comment of oom_killer_disable() says
-"The function cannot be called when there are runnable user tasks because
-the userspace would see unexpected allocation failures as a result.",
-aren't there still kernel threads which might do __GFP_NOFAIL allocations?
-After all, don't we need to recheck after setting oom_killer_disabled to true?
-
----------- linux.git/kernel/power/process.c ----------
-int freeze_processes(void)
-{
-(...snipped...)
-        pm_wakeup_clear();
-        pr_info("Freezing user space processes ... ");
-        pm_freezing = true;
-        error = try_to_freeze_tasks(true);
-        if (!error) {
-                __usermodehelper_set_disable_depth(UMH_DISABLED);
-                pr_cont("done.");
-        }
-        pr_cont("\n");
-        BUG_ON(in_atomic());
-
-        /*
-         * Now that the whole userspace is frozen we need to disbale
-         * the OOM killer to disallow any further interference with
-         * killable tasks.
-         */
-        if (!error && !oom_killer_disable())
-                error = -EBUSY;
-(...snipped...)
-}
----------- linux.git/kernel/power/process.c ----------
+ 	osb->osb_dx_mask = (1 << (cbits - bbits)) - 1;
+ 
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
