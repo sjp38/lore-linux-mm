@@ -1,85 +1,217 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 28DCA6B0032
-	for <linux-mm@kvack.org>; Sat, 21 Feb 2015 19:21:10 -0500 (EST)
-Received: by mail-wi0-f180.google.com with SMTP id h11so9833417wiw.1
-        for <linux-mm@kvack.org>; Sat, 21 Feb 2015 16:21:09 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id qd10si54106623wjc.27.2015.02.21.16.21.07
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 21 Feb 2015 16:21:08 -0800 (PST)
-Date: Sat, 21 Feb 2015 19:20:58 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: How to handle TIF_MEMDIE stalls?
-Message-ID: <20150222002058.GB25079@phnom.home.cmpxchg.org>
-References: <201502172123.JIE35470.QOLMVOFJSHOFFt@I-love.SAKURA.ne.jp>
- <20150217125315.GA14287@phnom.home.cmpxchg.org>
- <20150217225430.GJ4251@dastard>
- <20150219102431.GA15569@phnom.home.cmpxchg.org>
- <20150219225217.GY12722@dastard>
- <201502201936.HBH34799.SOLFFFQtHOMOJV@I-love.SAKURA.ne.jp>
- <20150220231511.GH12722@dastard>
- <20150221032000.GC7922@thunk.org>
- <20150221011907.2d26c979.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150221011907.2d26c979.akpm@linux-foundation.org>
+Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 568D86B0032
+	for <linux-mm@kvack.org>; Sun, 22 Feb 2015 07:47:33 -0500 (EST)
+Received: by mail-wg0-f46.google.com with SMTP id a1so20954592wgh.5
+        for <linux-mm@kvack.org>; Sun, 22 Feb 2015 04:47:32 -0800 (PST)
+Received: from mellanox.co.il ([193.47.165.129])
+        by mx.google.com with ESMTP id eu4si12255506wib.107.2015.02.22.04.47.30
+        for <linux-mm@kvack.org>;
+        Sun, 22 Feb 2015 04:47:31 -0800 (PST)
+From: Shachar Raindel <raindel@mellanox.com>
+Subject: [PATCH V4 1/4] mm: Refactor do_wp_page, extract the reuse case
+Date: Sun, 22 Feb 2015 14:47:18 +0200
+Message-Id: <1424609241-20106-2-git-send-email-raindel@mellanox.com>
+In-Reply-To: <1424609241-20106-1-git-send-email-raindel@mellanox.com>
+References: <1424609241-20106-1-git-send-email-raindel@mellanox.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Theodore Ts'o <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@suse.cz, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, mgorman@suse.de, torvalds@linux-foundation.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: kirill.shutemov@linux.intel.com, mgorman@suse.de, riel@redhat.com, ak@linux.intel.com, matthew.r.wilcox@intel.com, dave.hansen@linux.intel.com, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, torvalds@linux-foundation.org, haggaie@mellanox.com, aarcange@redhat.com, pfeiner@google.com, hannes@cmpxchg.org, sagig@mellanox.com, walken@google.com, raindel@mellanox.com, Dave Hansen <dave.hansen@intel.com>
 
-On Sat, Feb 21, 2015 at 01:19:07AM -0800, Andrew Morton wrote:
-> Short term, we need to fix 3.19.x and 3.20 and that appears to be by
-> applying Johannes's akpm-doesnt-know-why-it-works patch:
-> 
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2382,8 +2382,15 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
->  		if (high_zoneidx < ZONE_NORMAL)
->  			goto out;
->  		/* The OOM killer does not compensate for light reclaim */
-> -		if (!(gfp_mask & __GFP_FS))
-> +		if (!(gfp_mask & __GFP_FS)) {
-> +			/*
-> +			 * XXX: Page reclaim didn't yield anything,
-> +			 * and the OOM killer can't be invoked, but
-> +			 * keep looping as per should_alloc_retry().
-> +			 */
-> +			*did_some_progress = 1;
->  			goto out;
-> +		}
->  		/*
->  		 * GFP_THISNODE contains __GFP_NORETRY and we never hit this.
->  		 * Sanity check for bare calls of __GFP_THISNODE, not real OOM.
-> 
-> Have people adequately confirmed that this gets us out of trouble?
+When do_wp_page is ending, in several cases it needs to reuse the
+existing page. This is achieved by making the page table writable,
+and possibly updating the page-cache state.
 
-I'd be interested in this too.  Who is seeing these failures?
+Currently, this logic was "called" by using a goto jump. This makes
+following the control flow of the function harder. It is also
+against the coding style guidelines for using goto.
 
-Andrew, can you please use the following changelog for this patch?
+As the code can easily be refactored into a specialized function,
+refactor it out and simplify the code flow in do_wp_page.
 
+Signed-off-by: Shachar Raindel <raindel@mellanox.com>
+Acked-by: Linus Torvalds <torvalds@linux-foundation.org>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Andi Kleen <ak@linux.intel.com>
+Acked-by: Haggai Eran <haggaie@mellanox.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Peter Feiner <pfeiner@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michel Lespinasse <walken@google.com>
 ---
-From: Johannes Weiner <hannes@cmpxchg.org>
+ mm/memory.c | 117 +++++++++++++++++++++++++++++++++++-------------------------
+ 1 file changed, 68 insertions(+), 49 deletions(-)
 
-mm: page_alloc: revert inadvertent !__GFP_FS retry behavior change
-
-Historically, !__GFP_FS allocations were not allowed to invoke the OOM
-killer once reclaim had failed, but nevertheless kept looping in the
-allocator.  9879de7373fc ("mm: page_alloc: embed OOM killing naturally
-into allocation slowpath"), which should have been a simple cleanup
-patch, accidentally changed the behavior to aborting the allocation at
-that point.  This creates problems with filesystem callers (?) that
-currently rely on the allocator waiting for other tasks to intervene.
-
-Revert the behavior as it shouldn't have been changed as part of a
-cleanup patch.
-
-Fixes: 9879de7373fc ("mm: page_alloc: embed OOM killing naturally into allocation slowpath")
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
+diff --git a/mm/memory.c b/mm/memory.c
+index 8068893..4ffcd57e 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1983,6 +1983,66 @@ static int do_page_mkwrite(struct vm_area_struct *vma, struct page *page,
+ }
+ 
+ /*
++ * Handle write page faults for pages that can be reused in the current vma
++ *
++ * This can happen either due to the mapping being with the VM_SHARED flag,
++ * or due to us being the last reference standing to the page. In either
++ * case, all we need to do here is to mark the page as writable and update
++ * any related book-keeping.
++ */
++static int wp_page_reuse(struct mm_struct *mm, struct vm_area_struct *vma,
++			 unsigned long address, pte_t *page_table,
++			 spinlock_t *ptl, pte_t orig_pte,
++			 struct page *page, int dirty_page,
++			 int page_mkwrite, int dirty_shared)
++	__releases(ptl)
++{
++	pte_t entry;
++	/*
++	 * Clear the pages cpupid information as the existing
++	 * information potentially belongs to a now completely
++	 * unrelated process.
++	 */
++	if (page)
++		page_cpupid_xchg_last(page, (1 << LAST_CPUPID_SHIFT) - 1);
++
++	flush_cache_page(vma, address, pte_pfn(orig_pte));
++	entry = pte_mkyoung(orig_pte);
++	entry = maybe_mkwrite(pte_mkdirty(entry), vma);
++	if (ptep_set_access_flags(vma, address, page_table, entry, 1))
++		update_mmu_cache(vma, address, page_table);
++	pte_unmap_unlock(page_table, ptl);
++
++
++	if (dirty_shared) {
++		struct address_space *mapping;
++		int dirtied;
++
++		if (!page_mkwrite)
++			lock_page(page);
++
++		dirtied = set_page_dirty(page);
++		VM_BUG_ON_PAGE(PageAnon(page), page);
++		mapping = page->mapping;
++		unlock_page(page);
++		page_cache_release(page);
++
++		if ((dirtied || page_mkwrite) && mapping) {
++			/*
++			 * Some device drivers do not set page.mapping
++			 * but still dirty their pages
++			 */
++			balance_dirty_pages_ratelimited(mapping);
++		}
++
++		if (!page_mkwrite)
++			file_update_time(vma->vm_file);
++	}
++
++	return VM_FAULT_WRITE;
++}
++
++/*
+  * This routine handles present pages, when users try to write
+  * to a shared page. It is done by copying the page to a new address
+  * and decrementing the shared-page counter for the old page.
+@@ -2008,8 +2068,6 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	struct page *old_page, *new_page = NULL;
+ 	pte_t entry;
+ 	int ret = 0;
+-	int page_mkwrite = 0;
+-	bool dirty_shared = false;
+ 	unsigned long mmun_start = 0;	/* For mmu_notifiers */
+ 	unsigned long mmun_end = 0;	/* For mmu_notifiers */
+ 	struct mem_cgroup *memcg;
+@@ -2026,7 +2084,8 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		 */
+ 		if ((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
+ 				     (VM_WRITE|VM_SHARED))
+-			goto reuse;
++			return wp_page_reuse(mm, vma, address, page_table, ptl,
++					     orig_pte, old_page, 0, 0, 0);
+ 		goto gotten;
+ 	}
+ 
+@@ -2055,12 +2114,15 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			 */
+ 			page_move_anon_rmap(old_page, vma, address);
+ 			unlock_page(old_page);
+-			goto reuse;
++			return wp_page_reuse(mm, vma, address, page_table, ptl,
++					     orig_pte, old_page, 0, 0, 0);
+ 		}
+ 		unlock_page(old_page);
+ 	} else if (unlikely((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
+ 					(VM_WRITE|VM_SHARED))) {
++		int page_mkwrite = 0;
+ 		page_cache_get(old_page);
++
+ 		/*
+ 		 * Only catch write-faults on shared writable pages,
+ 		 * read-only shared pages can get COWed by
+@@ -2091,51 +2153,8 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			page_mkwrite = 1;
+ 		}
+ 
+-		dirty_shared = true;
+-
+-reuse:
+-		/*
+-		 * Clear the pages cpupid information as the existing
+-		 * information potentially belongs to a now completely
+-		 * unrelated process.
+-		 */
+-		if (old_page)
+-			page_cpupid_xchg_last(old_page, (1 << LAST_CPUPID_SHIFT) - 1);
+-
+-		flush_cache_page(vma, address, pte_pfn(orig_pte));
+-		entry = pte_mkyoung(orig_pte);
+-		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+-		if (ptep_set_access_flags(vma, address, page_table, entry,1))
+-			update_mmu_cache(vma, address, page_table);
+-		pte_unmap_unlock(page_table, ptl);
+-		ret |= VM_FAULT_WRITE;
+-
+-		if (dirty_shared) {
+-			struct address_space *mapping;
+-			int dirtied;
+-
+-			if (!page_mkwrite)
+-				lock_page(old_page);
+-
+-			dirtied = set_page_dirty(old_page);
+-			VM_BUG_ON_PAGE(PageAnon(old_page), old_page);
+-			mapping = old_page->mapping;
+-			unlock_page(old_page);
+-			page_cache_release(old_page);
+-
+-			if ((dirtied || page_mkwrite) && mapping) {
+-				/*
+-				 * Some device drivers do not set page.mapping
+-				 * but still dirty their pages
+-				 */
+-				balance_dirty_pages_ratelimited(mapping);
+-			}
+-
+-			if (!page_mkwrite)
+-				file_update_time(vma->vm_file);
+-		}
+-
+-		return ret;
++		return wp_page_reuse(mm, vma, address, page_table, ptl,
++				     orig_pte, old_page, 1, page_mkwrite, 1);
+ 	}
+ 
+ 	/*
+-- 
+1.7.11.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
