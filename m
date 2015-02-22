@@ -1,155 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 71EF06B007B
-	for <linux-mm@kvack.org>; Sun, 22 Feb 2015 08:42:57 -0500 (EST)
-Received: by wevl61 with SMTP id l61so9300353wev.2
-        for <linux-mm@kvack.org>; Sun, 22 Feb 2015 05:42:57 -0800 (PST)
-Received: from mellanox.co.il ([193.47.165.129])
-        by mx.google.com with ESMTP id qq10si56480899wjc.197.2015.02.22.05.42.55
-        for <linux-mm@kvack.org>;
-        Sun, 22 Feb 2015 05:42:56 -0800 (PST)
-From: Shachar Raindel <raindel@mellanox.com>
-Subject: [PATCH V5 4/4] mm: Refactor do_wp_page handling of shared vma into a function
-Date: Sun, 22 Feb 2015 15:42:18 +0200
-Message-Id: <1424612538-25889-5-git-send-email-raindel@mellanox.com>
-In-Reply-To: <1424612538-25889-1-git-send-email-raindel@mellanox.com>
-References: <1424612538-25889-1-git-send-email-raindel@mellanox.com>
+Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 9545F6B0032
+	for <linux-mm@kvack.org>; Sun, 22 Feb 2015 10:22:55 -0500 (EST)
+Received: by mail-ob0-f182.google.com with SMTP id nt9so31666484obb.13
+        for <linux-mm@kvack.org>; Sun, 22 Feb 2015 07:22:55 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id a10si3478668obz.72.2015.02.22.07.22.53
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 22 Feb 2015 07:22:54 -0800 (PST)
+Subject: __GFP_NOFAIL and oom_killer_disabled?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20150219225217.GY12722@dastard>
+	<201502201936.HBH34799.SOLFFFQtHOMOJV@I-love.SAKURA.ne.jp>
+	<20150220231511.GH12722@dastard>
+	<20150221032000.GC7922@thunk.org>
+	<20150221011907.2d26c979.akpm@linux-foundation.org>
+In-Reply-To: <20150221011907.2d26c979.akpm@linux-foundation.org>
+Message-Id: <201502222348.GFH13009.LOHOMFVtFQSFOJ@I-love.SAKURA.ne.jp>
+Date: Sun, 22 Feb 2015 23:48:01 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: kirill.shutemov@linux.intel.com, mgorman@suse.de, riel@redhat.com, ak@linux.intel.com, matthew.r.wilcox@intel.com, dave.hansen@linux.intel.com, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, torvalds@linux-foundation.org, haggaie@mellanox.com, aarcange@redhat.com, pfeiner@google.com, hannes@cmpxchg.org, sagig@mellanox.com, walken@google.com, raindel@mellanox.com, Dave Hansen <dave.hansen@intel.com>
+To: mhocko@suse.cz
+Cc: akpm@linux-foundation.org, tytso@mit.edu, david@fromorbit.com, hannes@cmpxchg.org, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, mgorman@suse.de, torvalds@linux-foundation.org
 
-The do_wp_page function is extremely long. Extract the logic for
-handling a page belonging to a shared vma into a function of its own.
+Andrew Morton wrote:
+> And yes, I agree that sites such as xfs's kmem_alloc() should be
+> passing __GFP_NOFAIL to tell the page allocator what's going on.  I
+> don't think it matters a lot whether kmem_alloc() retains its retry
+> loop.  If __GFP_NOFAIL is working correctly then it will never loop
+> anyway...
 
-This helps the readability of the code, without doing any functional
-change in it.
+__GFP_NOFAIL fails to work correctly if oom_killer_disabled == true.
+I'm wondering how oom_killer_disable() interferes with __GFP_NOFAIL
+allocation. We had race check after setting oom_killer_disabled to true
+in 3.19.
 
-Signed-off-by: Shachar Raindel <raindel@mellanox.com>
-Acked-by: Linus Torvalds <torvalds@linux-foundation.org>
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Andi Kleen <ak@linux.intel.com>
-Acked-by: Haggai Eran <haggaie@mellanox.com>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Peter Feiner <pfeiner@google.com>
-Cc: Michel Lespinasse <walken@google.com>
----
- mm/memory.c | 86 ++++++++++++++++++++++++++++++++++---------------------------
- 1 file changed, 48 insertions(+), 38 deletions(-)
+---------- linux-3.19/kernel/power/process.c ----------
+int freeze_processes(void)
+{
+(...snipped...)
+        pm_wakeup_clear();
+        printk("Freezing user space processes ... ");
+        pm_freezing = true;
+        oom_kills_saved = oom_kills_count();
+        error = try_to_freeze_tasks(true);
+        if (!error) {
+                __usermodehelper_set_disable_depth(UMH_DISABLED);
+                oom_killer_disable();
 
-diff --git a/mm/memory.c b/mm/memory.c
-index a06e705..b246d22 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2181,6 +2181,52 @@ oom:
- 	return VM_FAULT_OOM;
- }
+                /*
+                 * There might have been an OOM kill while we were
+                 * freezing tasks and the killed task might be still
+                 * on the way out so we have to double check for race.
+                 */
+                if (oom_kills_count() != oom_kills_saved &&
+                    !check_frozen_processes()) {
+                        __usermodehelper_set_disable_depth(UMH_ENABLED);
+                        printk("OOM in progress.");
+                        error = -EBUSY;
+                } else {
+                        printk("done.");
+                }
+        }
+(...snipped...)
+}
+---------- linux-3.19/kernel/power/process.c ----------
+
+I worry that commit c32b3cbe0d067a9c "oom, PM: make OOM detection in
+the freezer path raceless" might have opened a race window for
+__alloc_pages_may_oom(__GFP_NOFAIL) allocation to fail when OOM killer
+is disabled. I think something like
+
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -789,7 +789,7 @@ bool out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 	bool ret = false;
  
-+static int wp_page_shared(struct mm_struct *mm, struct vm_area_struct *vma,
-+			  unsigned long address, pte_t *page_table,
-+			  pmd_t *pmd, spinlock_t *ptl, pte_t orig_pte,
-+			  struct page *old_page)
-+	__releases(ptl)
-+{
-+	int page_mkwrite = 0;
-+
-+	page_cache_get(old_page);
-+
-+	/*
-+	 * Only catch write-faults on shared writable pages,
-+	 * read-only shared pages can get COWed by
-+	 * get_user_pages(.write=1, .force=1).
-+	 */
-+	if (vma->vm_ops && vma->vm_ops->page_mkwrite) {
-+		int tmp;
-+
-+		pte_unmap_unlock(page_table, ptl);
-+		tmp = do_page_mkwrite(vma, old_page, address);
-+		if (unlikely(!tmp || (tmp &
-+				      (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))) {
-+			page_cache_release(old_page);
-+			return tmp;
-+		}
-+		/*
-+		 * Since we dropped the lock we need to revalidate
-+		 * the PTE as someone else may have changed it.  If
-+		 * they did, we just return, as we can count on the
-+		 * MMU to tell us if they didn't also make it writable.
-+		 */
-+		page_table = pte_offset_map_lock(mm, pmd, address,
-+						 &ptl);
-+		if (!pte_same(*page_table, orig_pte)) {
-+			unlock_page(old_page);
-+			pte_unmap_unlock(page_table, ptl);
-+			page_cache_release(old_page);
-+			return 0;
-+		}
-+		page_mkwrite = 1;
-+	}
-+
-+	return wp_page_reuse(mm, vma, address, page_table, ptl,
-+			     orig_pte, old_page, page_mkwrite, 1);
-+}
-+
- /*
-  * This routine handles present pages, when users try to write
-  * to a shared page. It is done by copying the page to a new address
-@@ -2259,44 +2305,8 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		unlock_page(old_page);
- 	} else if (unlikely((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
- 					(VM_WRITE|VM_SHARED))) {
--		int page_mkwrite = 0;
--
--		page_cache_get(old_page);
--
--		/*
--		 * Only catch write-faults on shared writable pages,
--		 * read-only shared pages can get COWed by
--		 * get_user_pages(.write=1, .force=1).
--		 */
--		if (vma->vm_ops && vma->vm_ops->page_mkwrite) {
--			int tmp;
--
--			pte_unmap_unlock(page_table, ptl);
--			tmp = do_page_mkwrite(vma, old_page, address);
--			if (unlikely(!tmp || (tmp &
--					(VM_FAULT_ERROR | VM_FAULT_NOPAGE)))) {
--				page_cache_release(old_page);
--				return tmp;
--			}
--			/*
--			 * Since we dropped the lock we need to revalidate
--			 * the PTE as someone else may have changed it.  If
--			 * they did, we just return, as we can count on the
--			 * MMU to tell us if they didn't also make it writable.
--			 */
--			page_table = pte_offset_map_lock(mm, pmd, address,
--							 &ptl);
--			if (!pte_same(*page_table, orig_pte)) {
--				unlock_page(old_page);
--				pte_unmap_unlock(page_table, ptl);
--				page_cache_release(old_page);
--				return 0;
--			}
--			page_mkwrite = 1;
--		}
--
--		return wp_page_reuse(mm, vma, address, page_table, ptl,
--				     orig_pte, old_page, page_mkwrite, 1);
-+		return wp_page_shared(mm, vma, address, page_table, pmd,
-+				      ptl, orig_pte, old_page);
+ 	down_read(&oom_sem);
+-	if (!oom_killer_disabled) {
++	if (!oom_killer_disabled || (gfp_mask & __GFP_NOFAIL)) {
+ 		__out_of_memory(zonelist, gfp_mask, order, nodemask, force_kill);
+ 		ret = true;
  	}
- 
- 	/*
--- 
-1.7.11.2
+
+is needed. But such change can race with up_write() and wait_event() in
+oom_killer_disable(). While the comment of oom_killer_disable() says
+"The function cannot be called when there are runnable user tasks because
+the userspace would see unexpected allocation failures as a result.",
+aren't there still kernel threads which might do __GFP_NOFAIL allocations?
+After all, don't we need to recheck after setting oom_killer_disabled to true?
+
+---------- linux.git/kernel/power/process.c ----------
+int freeze_processes(void)
+{
+(...snipped...)
+        pm_wakeup_clear();
+        pr_info("Freezing user space processes ... ");
+        pm_freezing = true;
+        error = try_to_freeze_tasks(true);
+        if (!error) {
+                __usermodehelper_set_disable_depth(UMH_DISABLED);
+                pr_cont("done.");
+        }
+        pr_cont("\n");
+        BUG_ON(in_atomic());
+
+        /*
+         * Now that the whole userspace is frozen we need to disbale
+         * the OOM killer to disallow any further interference with
+         * killable tasks.
+         */
+        if (!error && !oom_killer_disable())
+                error = -EBUSY;
+(...snipped...)
+}
+---------- linux.git/kernel/power/process.c ----------
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
