@@ -1,78 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AB526B006E
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2015 16:45:26 -0500 (EST)
-Received: by wggz12 with SMTP id z12so1519392wgg.2
-        for <linux-mm@kvack.org>; Mon, 23 Feb 2015 13:45:25 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f11si20015166wiw.53.2015.02.23.13.45.24
+Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
+	by kanga.kvack.org (Postfix) with ESMTP id B24326B0032
+	for <linux-mm@kvack.org>; Mon, 23 Feb 2015 16:59:07 -0500 (EST)
+Received: by mail-qg0-f43.google.com with SMTP id i50so26973077qgf.2
+        for <linux-mm@kvack.org>; Mon, 23 Feb 2015 13:59:07 -0800 (PST)
+Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com. [209.85.192.53])
+        by mx.google.com with ESMTPS id x10si4851440qal.19.2015.02.23.13.59.06
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 23 Feb 2015 13:45:24 -0800 (PST)
-Message-ID: <54EB9F71.3040004@suse.cz>
-Date: Mon, 23 Feb 2015 22:45:21 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 23 Feb 2015 13:59:06 -0800 (PST)
+Received: by mail-qg0-f53.google.com with SMTP id f51so26981525qge.12
+        for <linux-mm@kvack.org>; Mon, 23 Feb 2015 13:59:06 -0800 (PST)
+From: Paul Moore <paul@paul-moore.com>
+Subject: Re: [PATCH v2 1/3] kernel/audit: consolidate handling of mm->exe_file
+Date: Mon, 23 Feb 2015 16:59:05 -0500
+Message-ID: <1579072.xrgTk0Bmz6@sifl>
+In-Reply-To: <1424658000.6539.14.camel@stgolabs.net>
+References: <1424304641-28965-1-git-send-email-dbueso@suse.de> <1424304641-28965-2-git-send-email-dbueso@suse.de> <1424658000.6539.14.camel@stgolabs.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm: incorporate zero pages into transparent huge pages
-References: <1423688635-4306-1-git-send-email-ebru.akagunduz@gmail.com>	<20150218153119.0bcd0bf8b4e7d30d99f00a3b@linux-foundation.org>	<54E5296C.5040806@redhat.com> <20150223111621.bc73004f51af2ca8e2847944@linux-foundation.org> <54EB82D0.9080606@redhat.com>
-In-Reply-To: <54EB82D0.9080606@redhat.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org, kirill@shutemov.name, mhocko@suse.cz, mgorman@suse.de, rientjes@google.com, sasha.levin@oracle.com, hughd@google.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, aarcange@redhat.com, keithr@alum.mit.edu, dvyukov@google.com
+To: Davidlohr Bueso <dave@stgolabs.net>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, eparis@redhat.com, linux-audit@redhat.com
 
-On 23.2.2015 20:43, Rik van Riel wrote:
-> -----BEGIN PGP SIGNED MESSAGE-----
-> Hash: SHA1
->
-> On 02/23/2015 02:16 PM, Andrew Morton wrote:
->> On Wed, 18 Feb 2015 19:08:12 -0500 Rik van Riel <riel@redhat.com>
->> wrote:
->>>> If so, this might be rather undesirable behaviour in some
->>>> situations (and ditto the current behaviour for pte_none
->>>> ptes)?
->>>>
->>>> This can be tuned by adjusting khugepaged_max_ptes_none,
->> Here's a live one:
->> https://bugzilla.kernel.org/show_bug.cgi?id=93111
->>
->> Application does MADV_DONTNEED to free up a load of memory and
->> then khugepaged comes along and pages that memory back in again.
->> It seems a bit silly to do this after userspace has deliberately
->> discarded those pages!
+On Sunday, February 22, 2015 06:20:00 PM Davidlohr Bueso wrote:
+> This patch adds a audit_log_d_path_exe() helper function
+> to share how we handle auditing of the exe_file's path.
+> Used by both audit and auditsc. No functionality is changed.
+> 
+> Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
+> ---
+> 
+> changes from v1: created normal function for helper.
+> 
+>  kernel/audit.c   | 23 +++++++++++++++--------
+>  kernel/audit.h   |  3 +++
+>  kernel/auditsc.c |  9 +--------
+>  3 files changed, 19 insertions(+), 16 deletions(-)
 
-OK that's a nice example how a more conservative default for
-max_ptes_none would make sense even with the current aggressive
-THP faulting.
+Merged into audit#next.
 
->> Presumably MADV_NOHUGEPAGE can be used to prevent this, but it's a
->> bit of a hand-grenade.  I guess the MADV_DONTNEED manpage should be
->> updated to explain all this?
+> diff --git a/kernel/audit.c b/kernel/audit.c
+> index 72ab759..a71cbfe 100644
+> --- a/kernel/audit.c
+> +++ b/kernel/audit.c
+> @@ -1838,11 +1838,24 @@ error_path:
+>  }
+>  EXPORT_SYMBOL(audit_log_task_context);
+> 
+> +void audit_log_d_path_exe(struct audit_buffer *ab,
+> +			  struct mm_struct *mm)
+> +{
+> +	if (!mm) {
+> +		audit_log_format(ab, " exe=(null)");
+> +		return;
+> +	}
+> +
+> +	down_read(&mm->mmap_sem);
+> +	if (mm->exe_file)
+> +		audit_log_d_path(ab, " exe=", &mm->exe_file->f_path);
+> +	up_read(&mm->mmap_sem);
+> +}
+> +
+>  void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
+>  {
+>  	const struct cred *cred;
+>  	char comm[sizeof(tsk->comm)];
+> -	struct mm_struct *mm = tsk->mm;
+>  	char *tty;
+> 
+>  	if (!ab)
+> @@ -1878,13 +1891,7 @@ void audit_log_task_info(struct audit_buffer *ab,
+> struct task_struct *tsk) audit_log_format(ab, " comm=");
+>  	audit_log_untrustedstring(ab, get_task_comm(comm, tsk));
+> 
+> -	if (mm) {
+> -		down_read(&mm->mmap_sem);
+> -		if (mm->exe_file)
+> -			audit_log_d_path(ab, " exe=", &mm->exe_file->f_path);
+> -		up_read(&mm->mmap_sem);
+> -	} else
+> -		audit_log_format(ab, " exe=(null)");
+> +	audit_log_d_path_exe(ab, tsk->mm);
+>  	audit_log_task_context(ab);
+>  }
+>  EXPORT_SYMBOL(audit_log_task_info);
+> diff --git a/kernel/audit.h b/kernel/audit.h
+> index 1caa0d3..d641f9b 100644
+> --- a/kernel/audit.h
+> +++ b/kernel/audit.h
+> @@ -257,6 +257,9 @@ extern struct list_head audit_filter_list[];
+> 
+>  extern struct audit_entry *audit_dupe_rule(struct audit_krule *old);
+> 
+> +extern void audit_log_d_path_exe(struct audit_buffer *ab,
+> +				 struct mm_struct *mm);
+> +
+>  /* audit watch functions */
+>  #ifdef CONFIG_AUDIT_WATCH
+>  extern void audit_put_watch(struct audit_watch *watch);
+> diff --git a/kernel/auditsc.c b/kernel/auditsc.c
+> index dc4ae70..84c74d0 100644
+> --- a/kernel/auditsc.c
+> +++ b/kernel/auditsc.c
+> @@ -2361,7 +2361,6 @@ static void audit_log_task(struct audit_buffer *ab)
+>  	kuid_t auid, uid;
+>  	kgid_t gid;
+>  	unsigned int sessionid;
+> -	struct mm_struct *mm = current->mm;
+>  	char comm[sizeof(current->comm)];
+> 
+>  	auid = audit_get_loginuid(current);
+> @@ -2376,13 +2375,7 @@ static void audit_log_task(struct audit_buffer *ab)
+>  	audit_log_task_context(ab);
+>  	audit_log_format(ab, " pid=%d comm=", task_pid_nr(current));
+>  	audit_log_untrustedstring(ab, get_task_comm(comm, current));
+> -	if (mm) {
+> -		down_read(&mm->mmap_sem);
+> -		if (mm->exe_file)
+> -			audit_log_d_path(ab, " exe=", &mm->exe_file->f_path);
+> -		up_read(&mm->mmap_sem);
+> -	} else
+> -		audit_log_format(ab, " exe=(null)");
+> +	audit_log_d_path_exe(ab, current->mm);
+>  }
+> 
+>  /**
 
-Probably, together with the tunable documentation. Seems like we
-didn't add enough details to madvise manpage in the recent round :)
-
-> That makes me wonder what a good value for khugepaged_max_ptes_none
-> would be.
->
-> Doubling the amount of memory a program uses seems quite unreasonable.
->
-> Increasing the amount of memory a program uses by 512x seems totally
-> unreasonable.
->
-> Increasing the amount of memory a program uses by 20% might be
-> reasonable, if that much memory is available, since that seems to
-> be about how much performance improvement we have ever seen from
-> THP.
->
-> Andrew, Andrea, do you have any ideas on this?
->
-> Is this something to just set, or should we ask Ebru to run
-> a few different tests with this?
-
-If there is a good test for this, sure.
+-- 
+paul moore
+www.paul-moore.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
