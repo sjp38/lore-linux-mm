@@ -1,62 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FC006B0032
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2015 08:52:23 -0500 (EST)
-Received: by mail-wi0-f172.google.com with SMTP id l15so17209383wiw.5
-        for <linux-mm@kvack.org>; Mon, 23 Feb 2015 05:52:22 -0800 (PST)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.227])
-        by mx.google.com with ESMTP id v1si17775925wiz.74.2015.02.23.05.52.21
-        for <linux-mm@kvack.org>;
-        Mon, 23 Feb 2015 05:52:22 -0800 (PST)
-Date: Mon, 23 Feb 2015 15:52:06 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv3 05/24] mm, proc: adjust PSS calculation
-Message-ID: <20150223135206.GC7322@node.dhcp.inet.fi>
-References: <1423757918-197669-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1423757918-197669-6-git-send-email-kirill.shutemov@linux.intel.com>
- <54E76F63.7020203@redhat.com>
-MIME-Version: 1.0
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id B3C9D6B006E
+	for <linux-mm@kvack.org>; Mon, 23 Feb 2015 08:57:33 -0500 (EST)
+Received: by paceu11 with SMTP id eu11so27695506pac.7
+        for <linux-mm@kvack.org>; Mon, 23 Feb 2015 05:57:33 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id bz5si13804817pab.102.2015.02.23.05.57.32
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 23 Feb 2015 05:57:32 -0800 (PST)
+Subject: Re: __GFP_NOFAIL and oom_killer_disabled?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20150220231511.GH12722@dastard>
+	<20150221032000.GC7922@thunk.org>
+	<20150221011907.2d26c979.akpm@linux-foundation.org>
+	<201502222348.GFH13009.LOHOMFVtFQSFOJ@I-love.SAKURA.ne.jp>
+	<20150223102147.GB24272@dhcp22.suse.cz>
+In-Reply-To: <20150223102147.GB24272@dhcp22.suse.cz>
+Message-Id: <201502232203.DGC60931.QVtOLSOOJFMHFF@I-love.SAKURA.ne.jp>
+Date: Mon, 23 Feb 2015 22:03:25 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <54E76F63.7020203@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Marchand <jmarchan@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: mhocko@suse.cz
+Cc: akpm@linux-foundation.org, tytso@mit.edu, david@fromorbit.com, hannes@cmpxchg.org, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, mgorman@suse.de, torvalds@linux-foundation.org
 
-On Fri, Feb 20, 2015 at 06:31:15PM +0100, Jerome Marchand wrote:
-> On 02/12/2015 05:18 PM, Kirill A. Shutemov wrote:
-> > With new refcounting all subpages of the compound page are not nessessary
-> > have the same mapcount. We need to take into account mapcount of every
-> > sub-page.
-> > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > ---
-> >  fs/proc/task_mmu.c | 43 ++++++++++++++++++++++---------------------
-> >  1 file changed, 22 insertions(+), 21 deletions(-)
-> > 
-> > diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> > index 98826d08a11b..8a0a78174cc6 100644
-> > --- a/fs/proc/task_mmu.c
-> > +++ b/fs/proc/task_mmu.c
-> > @@ -449,9 +449,10 @@ struct mem_size_stats {
-> >  };
-> >  
-> >  static void smaps_account(struct mem_size_stats *mss, struct page *page,
-> > -		unsigned long size, bool young, bool dirty)
-> > +		bool compound, bool young, bool dirty)
-> >  {
-> > -	int mapcount;
-> > +	int i, nr = compound ? hpage_nr_pages(page) : 1;
-> > +	unsigned long size = 1UL << nr;
-> 
-> Shouldn't that be:
-> 	unsigned long size = nr << PAGE_SHIFT;
+Michal Hocko wrote:
+> What about something like the following?
 
-Yes, thanks you.
+I'm fine with whatever approaches as long as retry is guaranteed.
 
--- 
- Kirill A. Shutemov
+But maybe we can use memory reserves like below? I think there will be
+little risk because userspace processes are already frozen...
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index a47f0b2..cea0a1b 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2760,8 +2760,17 @@ retry:
+ 							&did_some_progress);
+ 			if (page)
+ 				goto got_pg;
+-			if (!did_some_progress)
++			if (!did_some_progress && !(gfp_mask & __GFP_NOFAIL))
+ 				goto nopage;
++			/*
++			 * What!? __GFP_NOFAIL allocation failed to invoke
++			 * the OOM killer due to oom_killer_disabled == true?
++			 * Then, pretend ALLOC_NO_WATERMARKS request and let
++			 * __alloc_pages_high_priority() retry forever...
++			 */
++			WARN(1, "Retrying GFP_NOFAIL allocation...\n");
++			gfp_mask &= ~__GFP_NOMEMALLOC;
++			gfp_mask |= __GFP_MEMALLOC;
+ 		}
+ 		/* Wait for some write requests to complete then retry */
+ 		wait_iff_congested(ac->preferred_zone, BLK_RW_ASYNC, HZ/50);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
