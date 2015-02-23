@@ -1,52 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FED26B0032
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2015 16:33:55 -0500 (EST)
-Received: by mail-ig0-f181.google.com with SMTP id hn18so21938572igb.2
-        for <linux-mm@kvack.org>; Mon, 23 Feb 2015 13:33:55 -0800 (PST)
-Received: from mail-ig0-x233.google.com (mail-ig0-x233.google.com. [2607:f8b0:4001:c05::233])
-        by mx.google.com with ESMTPS id c33si29124133iod.28.2015.02.23.13.33.54
+Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AB526B006E
+	for <linux-mm@kvack.org>; Mon, 23 Feb 2015 16:45:26 -0500 (EST)
+Received: by wggz12 with SMTP id z12so1519392wgg.2
+        for <linux-mm@kvack.org>; Mon, 23 Feb 2015 13:45:25 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f11si20015166wiw.53.2015.02.23.13.45.24
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Feb 2015 13:33:54 -0800 (PST)
-Received: by mail-ig0-f179.google.com with SMTP id l13so21974954iga.0
-        for <linux-mm@kvack.org>; Mon, 23 Feb 2015 13:33:54 -0800 (PST)
-Date: Mon, 23 Feb 2015 13:33:51 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: How to handle TIF_MEMDIE stalls?
-In-Reply-To: <20150222002058.GB25079@phnom.home.cmpxchg.org>
-Message-ID: <alpine.DEB.2.10.1502231332550.21127@chino.kir.corp.google.com>
-References: <201502172123.JIE35470.QOLMVOFJSHOFFt@I-love.SAKURA.ne.jp> <20150217125315.GA14287@phnom.home.cmpxchg.org> <20150217225430.GJ4251@dastard> <20150219102431.GA15569@phnom.home.cmpxchg.org> <20150219225217.GY12722@dastard>
- <201502201936.HBH34799.SOLFFFQtHOMOJV@I-love.SAKURA.ne.jp> <20150220231511.GH12722@dastard> <20150221032000.GC7922@thunk.org> <20150221011907.2d26c979.akpm@linux-foundation.org> <20150222002058.GB25079@phnom.home.cmpxchg.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 23 Feb 2015 13:45:24 -0800 (PST)
+Message-ID: <54EB9F71.3040004@suse.cz>
+Date: Mon, 23 Feb 2015 22:45:21 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH v2] mm: incorporate zero pages into transparent huge pages
+References: <1423688635-4306-1-git-send-email-ebru.akagunduz@gmail.com>	<20150218153119.0bcd0bf8b4e7d30d99f00a3b@linux-foundation.org>	<54E5296C.5040806@redhat.com> <20150223111621.bc73004f51af2ca8e2847944@linux-foundation.org> <54EB82D0.9080606@redhat.com>
+In-Reply-To: <54EB82D0.9080606@redhat.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, mhocko@suse.cz, dchinner@redhat.com, linux-mm@kvack.org, oleg@redhat.com, mgorman@suse.de, torvalds@linux-foundation.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org, kirill@shutemov.name, mhocko@suse.cz, mgorman@suse.de, rientjes@google.com, sasha.levin@oracle.com, hughd@google.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, aarcange@redhat.com, keithr@alum.mit.edu, dvyukov@google.com
 
-On Sat, 21 Feb 2015, Johannes Weiner wrote:
+On 23.2.2015 20:43, Rik van Riel wrote:
+> -----BEGIN PGP SIGNED MESSAGE-----
+> Hash: SHA1
+>
+> On 02/23/2015 02:16 PM, Andrew Morton wrote:
+>> On Wed, 18 Feb 2015 19:08:12 -0500 Rik van Riel <riel@redhat.com>
+>> wrote:
+>>>> If so, this might be rather undesirable behaviour in some
+>>>> situations (and ditto the current behaviour for pte_none
+>>>> ptes)?
+>>>>
+>>>> This can be tuned by adjusting khugepaged_max_ptes_none,
+>> Here's a live one:
+>> https://bugzilla.kernel.org/show_bug.cgi?id=93111
+>>
+>> Application does MADV_DONTNEED to free up a load of memory and
+>> then khugepaged comes along and pages that memory back in again.
+>> It seems a bit silly to do this after userspace has deliberately
+>> discarded those pages!
 
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> 
-> mm: page_alloc: revert inadvertent !__GFP_FS retry behavior change
-> 
-> Historically, !__GFP_FS allocations were not allowed to invoke the OOM
-> killer once reclaim had failed, but nevertheless kept looping in the
-> allocator.  9879de7373fc ("mm: page_alloc: embed OOM killing naturally
-> into allocation slowpath"), which should have been a simple cleanup
-> patch, accidentally changed the behavior to aborting the allocation at
-> that point.  This creates problems with filesystem callers (?) that
-> currently rely on the allocator waiting for other tasks to intervene.
-> 
-> Revert the behavior as it shouldn't have been changed as part of a
-> cleanup patch.
-> 
-> Fixes: 9879de7373fc ("mm: page_alloc: embed OOM killing naturally into allocation slowpath")
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+OK that's a nice example how a more conservative default for
+max_ptes_none would make sense even with the current aggressive
+THP faulting.
 
-Cc: stable@vger.kernel.org [3.19]
-Acked-by: David Rientjes <rientjes@google.com>
+>> Presumably MADV_NOHUGEPAGE can be used to prevent this, but it's a
+>> bit of a hand-grenade.  I guess the MADV_DONTNEED manpage should be
+>> updated to explain all this?
+
+Probably, together with the tunable documentation. Seems like we
+didn't add enough details to madvise manpage in the recent round :)
+
+> That makes me wonder what a good value for khugepaged_max_ptes_none
+> would be.
+>
+> Doubling the amount of memory a program uses seems quite unreasonable.
+>
+> Increasing the amount of memory a program uses by 512x seems totally
+> unreasonable.
+>
+> Increasing the amount of memory a program uses by 20% might be
+> reasonable, if that much memory is available, since that seems to
+> be about how much performance improvement we have ever seen from
+> THP.
+>
+> Andrew, Andrea, do you have any ideas on this?
+>
+> Is this something to just set, or should we ask Ebru to run
+> a few different tests with this?
+
+If there is a good test for this, sure.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
