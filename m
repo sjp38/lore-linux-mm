@@ -1,41 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 056D76B0071
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2015 17:59:38 -0500 (EST)
-Received: by paceu11 with SMTP id eu11so31027337pac.10
-        for <linux-mm@kvack.org>; Mon, 23 Feb 2015 14:59:37 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id f2si13393530pdj.71.2015.02.23.14.59.36
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id E9A376B0073
+	for <linux-mm@kvack.org>; Mon, 23 Feb 2015 18:11:23 -0500 (EST)
+Received: by pdev10 with SMTP id v10so28840147pde.7
+        for <linux-mm@kvack.org>; Mon, 23 Feb 2015 15:11:23 -0800 (PST)
+Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
+        by mx.google.com with ESMTPS id cr5si11598030pdb.146.2015.02.23.15.11.22
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 23 Feb 2015 14:59:37 -0800 (PST)
-Message-ID: <54EBB0AD.8080902@oracle.com>
-Date: Mon, 23 Feb 2015 17:58:53 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 23 Feb 2015 15:11:22 -0800 (PST)
+Received: by padhz1 with SMTP id hz1so31110101pad.9
+        for <linux-mm@kvack.org>; Mon, 23 Feb 2015 15:11:22 -0800 (PST)
+Date: Mon, 23 Feb 2015 14:10:39 -0800
+From: Shaohua Li <shli@kernel.org>
+Subject: Re: [RFC] mremap: add MREMAP_NOHOLE flag
+Message-ID: <20150223221039.GA8615@kernel.org>
+References: <7064772f72049de8a79383105f49b5db84a946e5.1422990665.git.shli@fb.com>
 MIME-Version: 1.0
-Subject: Re: [RFC 0/6] the big khugepaged redesign
-References: <1424696322-21952-1-git-send-email-vbabka@suse.cz>	<1424731603.6539.51.camel@stgolabs.net> <20150223145619.64f3a225b914034a17d4f520@linux-foundation.org>
-In-Reply-To: <20150223145619.64f3a225b914034a17d4f520@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <7064772f72049de8a79383105f49b5db84a946e5.1422990665.git.shli@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <dave@stgolabs.net>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Alex Thorlton <athorlton@sgi.com>, David Rientjes <rientjes@google.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>
+To: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org, danielmicay@gmail.com, Andy Lutomirski <luto@amacapital.net>
 
-On 02/23/2015 05:56 PM, Andrew Morton wrote:
->>> Now I don't have any hard data to show how big these problems are, and I
->>> > > expect we will discuss this on LSF/MM (and hope somebody has such data [3]).
->>> > > But it's certain that e.g. SAP recommends to disable THPs [4] for their apps
->>> > > for performance reasons.
->> > 
->> > There are plenty of examples of this, ie for Oracle:
->> > 
->> > https://blogs.oracle.com/linux/entry/performance_issues_with_transparent_huge
-> hm, five months ago and I don't recall seeing any followup to this. 
-> Does anyone know what's happening?
+On Tue, Feb 03, 2015 at 11:19:12AM -0800, Shaohua Li wrote:
+> There was a similar patch posted before, but it doesn't get merged. I'd like
+> to try again if there are more discussions.
+> http://marc.info/?l=linux-mm&m=141230769431688&w=2
+> 
+> mremap can be used to accelerate realloc. The problem is mremap will
+> punch a hole in original VMA, which makes specific memory allocator
+> unable to utilize it. Jemalloc is an example. It manages memory in 4M
+> chunks. mremap a range of the chunk will punch a hole, which other
+> mmap() syscall can fill into. The 4M chunk is then fragmented, jemalloc
+> can't handle it.
+> 
+> This patch adds a new flag for mremap. With it, mremap will not punch the
+> hole. page tables of original vma will be zapped in the same way, but
+> vma is still there. That is original vma will look like a vma without
+> pagefault. Behavior of new vma isn't changed.
+> 
+> For private vma, accessing original vma will cause
+> page fault and just like the address of the vma has never been accessed.
+> So for anonymous, new page/zero page will be fault in. For file mapping,
+> new page will be allocated with file reading for cow, or pagefault will
+> use existing page cache.
+> 
+> For shared vma, original and new vma will map to the same file. We can
+> optimize this without zaping original vma's page table in this case, but
+> this patch doesn't do it yet.
+> 
+> Since with MREMAP_NOHOLE, original vma still exists. pagefault handler
+> for special vma might not able to handle pagefault for mremap'd area.
+> The patch doesn't allow vmas with VM_PFNMAP|VM_MIXEDMAP flags do NOHOLE
+> mremap.
 
-I'll dig it up.
+Any comments on this? There are real requirements on this feature.
+jemalloc/tcmalloc are good examples here.
+
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
