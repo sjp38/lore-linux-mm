@@ -1,122 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id C6DF36B0032
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2015 09:28:14 -0500 (EST)
-Received: by mail-wi0-f177.google.com with SMTP id bs8so17399117wib.4
-        for <linux-mm@kvack.org>; Mon, 23 Feb 2015 06:28:14 -0800 (PST)
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 0846E6B0032
+	for <linux-mm@kvack.org>; Mon, 23 Feb 2015 09:37:50 -0500 (EST)
+Received: by mail-wi0-f180.google.com with SMTP id h11so17476019wiw.1
+        for <linux-mm@kvack.org>; Mon, 23 Feb 2015 06:37:49 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v12si61922229wjw.204.2015.02.23.06.28.12
+        by mx.google.com with ESMTPS id u8si18064105wiv.18.2015.02.23.06.37.47
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 23 Feb 2015 06:28:13 -0800 (PST)
-Date: Mon, 23 Feb 2015 15:28:11 +0100
+        Mon, 23 Feb 2015 06:37:47 -0800 (PST)
+Date: Mon, 23 Feb 2015 15:37:46 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 2/2] mm: memcontrol: default hierarchy interface for
- memory
-Message-ID: <20150223142811.GF24272@dhcp22.suse.cz>
-References: <1421767915-14232-1-git-send-email-hannes@cmpxchg.org>
- <1421767915-14232-3-git-send-email-hannes@cmpxchg.org>
- <54EB0B70.2040902@oracle.com>
+Subject: Re: [PATCH] mm: hide per-cpu lists in output of show_mem()
+Message-ID: <20150223143746.GG24272@dhcp22.suse.cz>
+References: <20150220143942.19568.4548.stgit@buzz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <54EB0B70.2040902@oracle.com>
+In-Reply-To: <20150220143942.19568.4548.stgit@buzz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-On Mon 23-02-15 06:13:52, Sasha Levin wrote:
-> Hi Johannes,
-> 
-> On 01/20/2015 10:31 AM, Johannes Weiner wrote:
-> > Introduce the basic control files to account, partition, and limit
-> > memory using cgroups in default hierarchy mode.
-> 
-> I'm seeing the following while fuzzing:
+On Fri 20-02-15 17:39:42, Konstantin Khlebnikov wrote:
+> This makes show_mem() much less verbose at huge machines. Instead of
+> huge and almost useless dump of counters for each per-zone per-cpu
+> lists this patch prints sum of these counters for each zone (free_pcp)
+> and size of per-cpu list for current cpu (local_pcp).
 
-Already fixed by http://marc.info/?l=linux-mm&m=142416201408215&w=2.
-Andrew has picked up the patch AFAIR but there is no mmotm tree yet.
+I like this! I do not remember when I found this information useful
+while debugging either an allocation failure warning or OOM killer
+report.
 
-> [ 5634.427361] GPF could be caused by NULL-ptr deref or user memory access
-> general protection fault: 0000 [#1] SMP KASAN
-> [ 5634.430492] Dumping ftrace buffer:
-> [ 5634.430565]    (ftrace buffer empty)
-> [ 5634.430565] Modules linked in:
-> [ 5634.430565] CPU: 0 PID: 3983 Comm: kswapd0 Not tainted 3.19.0-next-20150222-sasha-00045-g8dc7569 #1943
-> [ 5634.430565] task: ffff88056a7cb000 ti: ffff880568860000 task.ti: ffff880568860000
-> [ 5634.430565] RIP: mem_cgroup_low (./arch/x86/include/asm/atomic64_64.h:21 include/asm-generic/atomic-long.h:31 include/linux/page_counter.h:34 mm/memcontrol.c:5438)
-> [ 5634.430565] RSP: 0000:ffff880568867968  EFLAGS: 00010202
-> [ 5634.430565] RAX: 000000000000001a RBX: 0000000000000000 RCX: 0000000000000000
-> [ 5634.430565] RDX: 1ffff1000822a3a4 RSI: ffff880041151bd8 RDI: ffff880041151cb8
-> [ 5634.430565] RBP: ffff880568867998 R08: 0000000000000000 R09: 0000000000000001
-> [ 5634.430565] R10: ffff880041151bd8 R11: 0000000000000000 R12: 00000000000000d0
-> [ 5634.430565] R13: dffffc0000000000 R14: ffff8800000237b0 R15: 0000000000000000
-> [ 5634.430565] FS:  0000000000000000(0000) GS:ffff88091aa00000(0000) knlGS:0000000000000000
-> [ 5634.430565] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> [ 5634.430565] CR2: 000000000138efd8 CR3: 0000000500078000 CR4: 00000000000007b0
-> [ 5634.430565] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> [ 5634.430565] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
-> [ 5634.430565] Stack:
-> [ 5634.430565]  ffff880568867988 ffff880041151bd8 0000000000000000 ffff880000610000
-> [ 5634.430565]  ffff880568867d68 dffffc0000000000 ffff880568867b38 ffffffff81a1ac0f
-> [ 5634.430565]  ffffffff81b875b0 1ffff100ad10cf45 ffff880568867d80 ffff880568867d70
-> [ 5634.430565] Call Trace:
-> [ 5634.430565] shrink_zone (mm/vmscan.c:2389)
-> [ 5634.430565] ? percpu_ref_get_many (include/linux/percpu-refcount.h:270)
-> [ 5634.430565] ? shrink_lruvec (mm/vmscan.c:2365)
-> [ 5634.430565] kswapd (mm/vmscan.c:3104 mm/vmscan.c:3276 mm/vmscan.c:3484)
-> [ 5634.430565] ? debug_check_no_locks_freed (kernel/locking/lockdep.c:3051)
-> [ 5634.430565] ? mem_cgroup_shrink_node_zone (mm/vmscan.c:3401)
-> [ 5634.430565] ? __tick_nohz_task_switch (./arch/x86/include/asm/paravirt.h:809 (discriminator 2) kernel/time/tick-sched.c:292 (discriminator 2))
-> [ 5634.430565] ? trace_hardirqs_on_caller (kernel/locking/lockdep.c:2554 kernel/locking/lockdep.c:2601)
-> [ 5634.430565] ? trace_hardirqs_on (kernel/locking/lockdep.c:2609)
-> [ 5634.430565] ? finish_task_switch (kernel/sched/core.c:2229)
-> [ 5634.430565] ? finish_task_switch (kernel/sched/sched.h:1058 kernel/sched/core.c:2210)
-> [ 5634.430565] ? __init_waitqueue_head (kernel/sched/wait.c:292)
-> [ 5634.430565] ? __schedule (kernel/sched/core.c:2320 kernel/sched/core.c:2778)
-> [ 5634.430565] ? mem_cgroup_shrink_node_zone (mm/vmscan.c:3401)
-> [ 5634.430565] ? mem_cgroup_shrink_node_zone (mm/vmscan.c:3401)
-> [ 5634.430565] kthread (kernel/kthread.c:207)
-> [ 5634.430565] ? __tick_nohz_task_switch (./arch/x86/include/asm/paravirt.h:809 (discriminator 2) kernel/time/tick-sched.c:292 (discriminator 2))
-> [ 5634.430565] ? flush_kthread_work (kernel/kthread.c:176)
-> [ 5634.430565] ? trace_hardirqs_on_caller (kernel/locking/lockdep.c:2554 kernel/locking/lockdep.c:2601)
-> [ 5634.430565] ? schedule_tail (kernel/sched/core.c:2268)
-> [ 5634.430565] ? flush_kthread_work (kernel/kthread.c:176)
-> [ 5634.430565] ret_from_fork (arch/x86/kernel/entry_64.S:283)
-> [ 5634.430565] ? flush_kthread_work (kernel/kthread.c:176)
-> [ 5634.430565] Code: ff 49 39 de 0f 84 bd 00 00 00 49 89 dc 49 81 c4 d0 00 00 00 0f 84 f7 00 00 00 41 f6 c4 07 0f 85 ed 00 00 00 4c 89 e0 48 c1 e8 03 <42> 80 3c 28 00 0f 85 ef 00 00 00 4c 8b a3 d0 00 00 00 48 85 db
-> All code
-> ========
->    0:	ff 49 39             	decl   0x39(%rcx)
->    3:	de 0f                	fimul  (%rdi)
->    5:	84 bd 00 00 00 49    	test   %bh,0x49000000(%rbp)
->    b:	89 dc                	mov    %ebx,%esp
->    d:	49 81 c4 d0 00 00 00 	add    $0xd0,%r12
->   14:	0f 84 f7 00 00 00    	je     0x111
->   1a:	41 f6 c4 07          	test   $0x7,%r12b
->   1e:	0f 85 ed 00 00 00    	jne    0x111
->   24:	4c 89 e0             	mov    %r12,%rax
->   27:	48 c1 e8 03          	shr    $0x3,%rax
->   2b:*	42 80 3c 28 00       	cmpb   $0x0,(%rax,%r13,1)		<-- trapping instruction
->   30:	0f 85 ef 00 00 00    	jne    0x125
->   36:	4c 8b a3 d0 00 00 00 	mov    0xd0(%rbx),%r12
->   3d:	48 85 db             	test   %rbx,%rbx
-> 	...
+> Flag SHOW_MEM_PERCPU_LISTS reverts old verbose mode.
+
+Nobody seems to be using this flag so why bother?
+
+> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+>  include/linux/mm.h |    1 +
+>  mm/page_alloc.c    |   32 +++++++++++++++++++++++++-------
+>  2 files changed, 26 insertions(+), 7 deletions(-)
 > 
-> Code starting with the faulting instruction
-> ===========================================
->    0:	42 80 3c 28 00       	cmpb   $0x0,(%rax,%r13,1)
->    5:	0f 85 ef 00 00 00    	jne    0xfa
->    b:	4c 8b a3 d0 00 00 00 	mov    0xd0(%rbx),%r12
->   12:	48 85 db             	test   %rbx,%rbx
-> 	...
-> [ 5634.430565] RIP mem_cgroup_low (./arch/x86/include/asm/atomic64_64.h:21 include/asm-generic/atomic-long.h:31 include/linux/page_counter.h:34 mm/memcontrol.c:5438)
-> [ 5634.430565]  RSP <ffff880568867968>
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 028565a..0538de0 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1126,6 +1126,7 @@ extern void pagefault_out_of_memory(void);
+>   * various contexts.
+>   */
+>  #define SHOW_MEM_FILTER_NODES		(0x0001u)	/* disallowed nodes */
+> +#define SHOW_MEM_PERCPU_LISTS		(0x0002u)	/* per-zone per-cpu */
+>  
+>  extern void show_free_areas(unsigned int flags);
+>  extern bool skip_free_areas_node(unsigned int flags, int nid);
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index a47f0b2..e591f3b 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3198,20 +3198,29 @@ static void show_migration_types(unsigned char type)
+>   */
+>  void show_free_areas(unsigned int filter)
+>  {
+> +	unsigned long free_pcp = 0;
+>  	int cpu;
+>  	struct zone *zone;
+>  
+>  	for_each_populated_zone(zone) {
+>  		if (skip_free_areas_node(filter, zone_to_nid(zone)))
+>  			continue;
+> -		show_node(zone);
+> -		printk("%s per-cpu:\n", zone->name);
+> +
+> +		if (filter & SHOW_MEM_PERCPU_LISTS) {
+> +			show_node(zone);
+> +			printk("%s per-cpu:\n", zone->name);
+> +		}
+>  
+>  		for_each_online_cpu(cpu) {
+>  			struct per_cpu_pageset *pageset;
+>  
+>  			pageset = per_cpu_ptr(zone->pageset, cpu);
+>  
+> +			free_pcp += pageset->pcp.count;
+> +
+> +			if (!(filter & SHOW_MEM_PERCPU_LISTS))
+> +				continue;
+> +
+>  			printk("CPU %4d: hi:%5d, btch:%4d usd:%4d\n",
+>  			       cpu, pageset->pcp.high,
+>  			       pageset->pcp.batch, pageset->pcp.count);
+> @@ -3220,11 +3229,10 @@ void show_free_areas(unsigned int filter)
+>  
+>  	printk("active_anon:%lu inactive_anon:%lu isolated_anon:%lu\n"
+>  		" active_file:%lu inactive_file:%lu isolated_file:%lu\n"
+> -		" unevictable:%lu"
+> -		" dirty:%lu writeback:%lu unstable:%lu\n"
+> -		" free:%lu slab_reclaimable:%lu slab_unreclaimable:%lu\n"
+> +		" unevictable:%lu dirty:%lu writeback:%lu unstable:%lu\n"
+> +		" slab_reclaimable:%lu slab_unreclaimable:%lu\n"
+>  		" mapped:%lu shmem:%lu pagetables:%lu bounce:%lu\n"
+> -		" free_cma:%lu\n",
+> +		" free:%lu free_pcp:%lu free_cma:%lu\n",
+>  		global_page_state(NR_ACTIVE_ANON),
+>  		global_page_state(NR_INACTIVE_ANON),
+>  		global_page_state(NR_ISOLATED_ANON),
+> @@ -3235,13 +3243,14 @@ void show_free_areas(unsigned int filter)
+>  		global_page_state(NR_FILE_DIRTY),
+>  		global_page_state(NR_WRITEBACK),
+>  		global_page_state(NR_UNSTABLE_NFS),
+> -		global_page_state(NR_FREE_PAGES),
+>  		global_page_state(NR_SLAB_RECLAIMABLE),
+>  		global_page_state(NR_SLAB_UNRECLAIMABLE),
+>  		global_page_state(NR_FILE_MAPPED),
+>  		global_page_state(NR_SHMEM),
+>  		global_page_state(NR_PAGETABLE),
+>  		global_page_state(NR_BOUNCE),
+> +		global_page_state(NR_FREE_PAGES),
+> +		free_pcp,
+>  		global_page_state(NR_FREE_CMA_PAGES));
+>  
+>  	for_each_populated_zone(zone) {
+> @@ -3249,6 +3258,11 @@ void show_free_areas(unsigned int filter)
+>  
+>  		if (skip_free_areas_node(filter, zone_to_nid(zone)))
+>  			continue;
+> +
+> +		free_pcp = 0;
+> +		for_each_online_cpu(cpu)
+> +			free_pcp += per_cpu_ptr(zone->pageset, cpu)->pcp.count;
+> +
+>  		show_node(zone);
+>  		printk("%s"
+>  			" free:%lukB"
+> @@ -3275,6 +3289,8 @@ void show_free_areas(unsigned int filter)
+>  			" pagetables:%lukB"
+>  			" unstable:%lukB"
+>  			" bounce:%lukB"
+> +			" free_pcp:%lukB"
+> +			" local_pcp:%ukB"
+>  			" free_cma:%lukB"
+>  			" writeback_tmp:%lukB"
+>  			" pages_scanned:%lu"
+> @@ -3306,6 +3322,8 @@ void show_free_areas(unsigned int filter)
+>  			K(zone_page_state(zone, NR_PAGETABLE)),
+>  			K(zone_page_state(zone, NR_UNSTABLE_NFS)),
+>  			K(zone_page_state(zone, NR_BOUNCE)),
+> +			K(free_pcp),
+> +			K(this_cpu_read(zone->pageset->pcp.count)),
+>  			K(zone_page_state(zone, NR_FREE_CMA_PAGES)),
+>  			K(zone_page_state(zone, NR_WRITEBACK_TEMP)),
+>  			K(zone_page_state(zone, NR_PAGES_SCANNED)),
 > 
-> 
-> Thanks,
-> Sasha
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
 Michal Hocko
