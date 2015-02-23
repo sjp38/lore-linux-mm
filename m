@@ -1,96 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D2ED6B006C
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2015 16:59:22 -0500 (EST)
-Received: by mail-qg0-f41.google.com with SMTP id i50so26910790qgf.0
-        for <linux-mm@kvack.org>; Mon, 23 Feb 2015 13:59:22 -0800 (PST)
-Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com. [209.85.192.53])
-        by mx.google.com with ESMTPS id x2si13129205qas.42.2015.02.23.13.59.21
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 267B56B0032
+	for <linux-mm@kvack.org>; Mon, 23 Feb 2015 17:02:39 -0500 (EST)
+Received: by padfb1 with SMTP id fb1so30771025pad.8
+        for <linux-mm@kvack.org>; Mon, 23 Feb 2015 14:02:38 -0800 (PST)
+Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
+        by mx.google.com with ESMTPS id c1si3842414pdk.5.2015.02.23.14.02.37
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Feb 2015 13:59:21 -0800 (PST)
-Received: by mail-qg0-f53.google.com with SMTP id f51so26982699qge.12
-        for <linux-mm@kvack.org>; Mon, 23 Feb 2015 13:59:21 -0800 (PST)
-From: Paul Moore <paul@paul-moore.com>
-Subject: Re: [PATCH v2 2/3] kernel/audit: reduce mmap_sem hold for mm->exe_file
-Date: Mon, 23 Feb 2015 16:59:19 -0500
-Message-ID: <5919995.Ma7fOL8jhY@sifl>
-In-Reply-To: <1424658009.6539.15.camel@stgolabs.net>
-References: <1424304641-28965-1-git-send-email-dbueso@suse.de> <1424304641-28965-3-git-send-email-dbueso@suse.de> <1424658009.6539.15.camel@stgolabs.net>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 23 Feb 2015 14:02:38 -0800 (PST)
+Message-ID: <1424728954.6539.49.camel@stgolabs.net>
+Subject: Re: [PATCH v2 1/3] kernel/audit: consolidate handling of
+ mm->exe_file
+From: Davidlohr Bueso <dave@stgolabs.net>
+Date: Mon, 23 Feb 2015 14:02:34 -0800
+In-Reply-To: <1579072.xrgTk0Bmz6@sifl>
+References: <1424304641-28965-1-git-send-email-dbueso@suse.de>
+	 <1424304641-28965-2-git-send-email-dbueso@suse.de>
+	 <1424658000.6539.14.camel@stgolabs.net> <1579072.xrgTk0Bmz6@sifl>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <dave@stgolabs.net>
+To: Paul Moore <paul@paul-moore.com>
 Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, eparis@redhat.com, linux-audit@redhat.com
 
-On Sunday, February 22, 2015 06:20:09 PM Davidlohr Bueso wrote:
-> The mm->exe_file is currently serialized with mmap_sem (shared)
-> in order to both safely (1) read the file and (2) audit it via
-> audit_log_d_path(). Good users will, on the other hand, make use
-> of the more standard get_mm_exe_file(), requiring only holding
-> the mmap_sem to read the value, and relying on reference counting
-> to make sure that the exe file won't dissapear underneath us.
-> 
-> Additionally, upon NULL return of get_mm_exe_file, we also call
-> audit_log_format(ab, " exe=(null)").
-> 
-> Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
-> ---
-> 
-> changes from v1: rebased on top of 1/1.
-> 
->  kernel/audit.c | 22 ++++++++++++++--------
->  1 file changed, 14 insertions(+), 8 deletions(-)
+On Mon, 2015-02-23 at 16:59 -0500, Paul Moore wrote:
+> Merged into audit#next.
 
-Merged into audit#next.
+hmm Andrew I was hoping you could take these patches. That way we can
+easily build on top. Let me know if you think otherwise, as I've got
+more ready to send out with a similar email scheme.
 
-> diff --git a/kernel/audit.c b/kernel/audit.c
-> index a71cbfe..b446d54 100644
-> --- a/kernel/audit.c
-> +++ b/kernel/audit.c
-> @@ -43,6 +43,7 @@
-> 
->  #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-> 
-> +#include <linux/file.h>
->  #include <linux/init.h>
->  #include <linux/types.h>
->  #include <linux/atomic.h>
-> @@ -1841,15 +1842,20 @@ EXPORT_SYMBOL(audit_log_task_context);
->  void audit_log_d_path_exe(struct audit_buffer *ab,
->  			  struct mm_struct *mm)
->  {
-> -	if (!mm) {
-> -		audit_log_format(ab, " exe=(null)");
-> -		return;
-> -	}
-> +	struct file *exe_file;
-> +
-> +	if (!mm)
-> +		goto out_null;
-> 
-> -	down_read(&mm->mmap_sem);
-> -	if (mm->exe_file)
-> -		audit_log_d_path(ab, " exe=", &mm->exe_file->f_path);
-> -	up_read(&mm->mmap_sem);
-> +	exe_file = get_mm_exe_file(mm);
-> +	if (!exe_file)
-> +		goto out_null;
-> +
-> +	audit_log_d_path(ab, " exe=", &exe_file->f_path);
-> +	fput(exe_file);
-> +	return;
-> +out_null:
-> +	audit_log_format(ab, " exe=(null)");
->  }
-> 
->  void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
-
--- 
-paul moore
-www.paul-moore.com
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
