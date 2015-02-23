@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id CABC16B0032
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2015 07:59:21 -0500 (EST)
-Received: by mail-wi0-f175.google.com with SMTP id r20so16712452wiv.2
-        for <linux-mm@kvack.org>; Mon, 23 Feb 2015 04:59:21 -0800 (PST)
+Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
+	by kanga.kvack.org (Postfix) with ESMTP id D35B46B006C
+	for <linux-mm@kvack.org>; Mon, 23 Feb 2015 07:59:22 -0500 (EST)
+Received: by wesu56 with SMTP id u56so17849868wes.10
+        for <linux-mm@kvack.org>; Mon, 23 Feb 2015 04:59:22 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id wl5si11242113wjc.91.2015.02.23.04.59.19
+        by mx.google.com with ESMTPS id ay8si61492835wjb.120.2015.02.23.04.59.19
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Mon, 23 Feb 2015 04:59:20 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [RFC 2/6] mm, thp: make khugepaged check for THP allocability before scanning
-Date: Mon, 23 Feb 2015 13:58:38 +0100
-Message-Id: <1424696322-21952-3-git-send-email-vbabka@suse.cz>
+Subject: [RFC 1/6] mm, thp: stop preallocating hugepages in khugepaged
+Date: Mon, 23 Feb 2015 13:58:37 +0100
+Message-Id: <1424696322-21952-2-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1424696322-21952-1-git-send-email-vbabka@suse.cz>
 References: <1424696322-21952-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,140 +20,240 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Alex Thorlton <athorlton@sgi.com>, David Rientjes <rientjes@google.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Vlastimil Babka <vbabka@suse.cz>
 
-Khugepaged could be scanning for collapse candidates uselessly, if it cannot
-allocate a hugepage in the end. The hugepage preallocation mechanism prevented
-this, but only for !NUMA configurations. It was removed by the previous patch,
-and this patch replaces it with a more generic mechanism.
+Khugepaged tries to preallocate a hugepage before scanning for THP collapse
+candidates. If the preallocation fails, scanning is not attempted. This makes
+sense, but it is only restricted to !NUMA configurations, where it does not
+need to predict on which node to preallocate.
 
-The patch itroduces a thp_avail_nodes nodemask, which initially assumes that
-hugepage can be allocated on any node. Whenever khugepaged fails to allocate
-a hugepage, it clears the corresponding node bit. Before scanning for collapse
-candidates, it tries to allocate a hugepage on each online node with the bit
-cleared, and set it back on success. It tries to hold on to the hugepage if
-it doesn't hold any other yet. But the assumption is that even if the hugepage
-is freed back, it should be possible to allocate it in near future without
-further reclaim and compaction attempts.
+Besides the !NUMA restriction, the preallocated page may also end up being
+unused and put back when no collapse candidate is found. I have observed the
+thp_collapse_alloc vmstat counter to have 3+ times the value of the counter
+of actually collapsed pages in /sys/.../khugepaged/pages_collapsed. On the
+other hand, the periodic hugepage allocation attempts involving sync
+compaction can be beneficial for the antifragmentation mechanism, but that's
+however harder to evaluate.
 
-During the scaning, khugepaged avoids collapsing on nodes with the bit cleared,
-as soon as possible. If no nodes have hugepages available, scanning is skipped
-altogether.
-
-During testing, the patch did not show much difference in preventing
-thp_collapse_failed events from khugepaged, but this can be attributed to the
-sync compaction, which only khugepaged is allowed to use, and which is
-heavyweight enough to succeed frequently enough nowadays. However, with the
-plan to convert THP collapsing to task_work context, this patch is a
-preparation to avoid useless scanning and/or heavyweight THP allocations in
-that context. A later patch also extends the THP availability check to page
-fault context.
+The following patch will introduce per-node THP availability tracking, which
+has more benefits than current preallocation and is applicable to CONFIG_NUMA.
+We can therefore remove the preallocation, which also allows a cleanup of the
+functions involved in khugepaged allocations. Another small benefit of the
+patch is that NUMA configs can now reuse an allocated hugepage for another
+collapse attempt, if the previous one was for the same node and failed.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/huge_memory.c | 56 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 55 insertions(+), 1 deletion(-)
+ mm/huge_memory.c | 136 +++++++++++++++++++------------------------------------
+ 1 file changed, 46 insertions(+), 90 deletions(-)
 
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 44fecfc4..55846b8 100644
+index fc00c8c..44fecfc4 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -101,7 +101,7 @@ struct khugepaged_scan {
- static struct khugepaged_scan khugepaged_scan = {
- 	.mm_head = LIST_HEAD_INIT(khugepaged_scan.mm_head),
- };
--
-+static nodemask_t thp_avail_nodes = NODE_MASK_ALL;
+@@ -756,9 +756,9 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
+ 	return 0;
+ }
  
- static int set_recommended_min_free_kbytes(void)
+-static inline gfp_t alloc_hugepage_gfpmask(int defrag, gfp_t extra_gfp)
++static inline gfp_t alloc_hugepage_gfpmask(int defrag)
  {
-@@ -2244,6 +2244,14 @@ static bool khugepaged_scan_abort(int nid)
- 	int i;
+-	return (GFP_TRANSHUGE & ~(defrag ? 0 : __GFP_WAIT)) | extra_gfp;
++	return (GFP_TRANSHUGE & ~(defrag ? 0 : __GFP_WAIT));
+ }
+ 
+ /* Caller must hold page table lock. */
+@@ -816,7 +816,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		}
+ 		return 0;
+ 	}
+-	gfp = alloc_hugepage_gfpmask(transparent_hugepage_defrag(vma), 0);
++	gfp = alloc_hugepage_gfpmask(transparent_hugepage_defrag(vma));
+ 	page = alloc_hugepage_vma(gfp, vma, haddr, HPAGE_PMD_ORDER);
+ 	if (unlikely(!page)) {
+ 		count_vm_event(THP_FAULT_FALLBACK);
+@@ -1108,7 +1108,7 @@ alloc:
+ 	    !transparent_hugepage_debug_cow()) {
+ 		gfp_t gfp;
+ 
+-		gfp = alloc_hugepage_gfpmask(transparent_hugepage_defrag(vma), 0);
++		gfp = alloc_hugepage_gfpmask(transparent_hugepage_defrag(vma));
+ 		new_page = alloc_hugepage_vma(gfp, vma, haddr, HPAGE_PMD_ORDER);
+ 	} else
+ 		new_page = NULL;
+@@ -2289,40 +2289,44 @@ static int khugepaged_find_target_node(void)
+ 	return target_node;
+ }
+ 
+-static bool khugepaged_prealloc_page(struct page **hpage, bool *wait)
++static inline struct page *alloc_hugepage_node(gfp_t gfp, int node)
+ {
+-	if (IS_ERR(*hpage)) {
+-		if (!*wait)
+-			return false;
+-
+-		*wait = false;
+-		*hpage = NULL;
+-		khugepaged_alloc_sleep();
+-	} else if (*hpage) {
+-		put_page(*hpage);
+-		*hpage = NULL;
+-	}
++	return alloc_pages_exact_node(node, gfp | __GFP_OTHER_NODE,
++							HPAGE_PMD_ORDER);
++}
++#else
++static int khugepaged_find_target_node(void)
++{
++	return 0;
++}
+ 
+-	return true;
++static inline struct page *alloc_hugepage_node(gfp_t gfp, int node)
++{
++	return alloc_pages(gfp, HPAGE_PMD_ORDER);
+ }
++#endif
+ 
+ static struct page
+-*khugepaged_alloc_page(struct page **hpage, struct mm_struct *mm,
+-		       struct vm_area_struct *vma, unsigned long address,
+-		       int node)
++*khugepaged_alloc_page(struct page **hpage, int node)
+ {
+-	VM_BUG_ON_PAGE(*hpage, *hpage);
++	gfp_t gfp;
  
  	/*
-+	 * If it's clear that we are going to select a node where THP
-+	 * allocation is unlikely to succeed, abort
-+	 */
-+	if (khugepaged_node_load[nid] == (HPAGE_PMD_NR) / 2 &&
-+				!node_isset(nid, thp_avail_nodes))
-+		return true;
-+
-+	/*
- 	 * If zone_reclaim_mode is disabled, then no extra effort is made to
- 	 * allocate memory locally.
+-	 * Before allocating the hugepage, release the mmap_sem read lock.
+-	 * The allocation can take potentially a long time if it involves
+-	 * sync compaction, and we do not need to hold the mmap_sem during
+-	 * that. We will recheck the vma after taking it again in write mode.
++	 * If we allocated a hugepage previously and failed to collapse, reuse
++	 * the page, unless it's on different NUMA node.
  	 */
-@@ -2330,6 +2338,7 @@ static struct page
+-	up_read(&mm->mmap_sem);
++	if (!IS_ERR_OR_NULL(*hpage)) {
++		if (IS_ENABLED(CONFIG_NUMA) && page_to_nid(*hpage) != node) {
++			put_page(*hpage);
++			*hpage = NULL;
++		} else {
++			return *hpage;
++		}
++	}
++
++	gfp = alloc_hugepage_gfpmask(khugepaged_defrag());
++	*hpage = alloc_hugepage_node(gfp, node);
+ 
+-	*hpage = alloc_pages_exact_node(node, alloc_hugepage_gfpmask(
+-		khugepaged_defrag(), __GFP_OTHER_NODE), HPAGE_PMD_ORDER);
  	if (unlikely(!*hpage)) {
  		count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
  		*hpage = ERR_PTR(-ENOMEM);
-+		node_clear(node, thp_avail_nodes);
- 		return NULL;
- 	}
- 
-@@ -2337,6 +2346,42 @@ static struct page
+@@ -2332,59 +2336,6 @@ static struct page
+ 	count_vm_event(THP_COLLAPSE_ALLOC);
  	return *hpage;
  }
+-#else
+-static int khugepaged_find_target_node(void)
+-{
+-	return 0;
+-}
+-
+-static inline struct page *alloc_hugepage(int defrag)
+-{
+-	return alloc_pages(alloc_hugepage_gfpmask(defrag, 0),
+-			   HPAGE_PMD_ORDER);
+-}
+-
+-static struct page *khugepaged_alloc_hugepage(bool *wait)
+-{
+-	struct page *hpage;
+-
+-	do {
+-		hpage = alloc_hugepage(khugepaged_defrag());
+-		if (!hpage) {
+-			count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
+-			if (!*wait)
+-				return NULL;
+-
+-			*wait = false;
+-			khugepaged_alloc_sleep();
+-		} else
+-			count_vm_event(THP_COLLAPSE_ALLOC);
+-	} while (unlikely(!hpage) && likely(khugepaged_enabled()));
+-
+-	return hpage;
+-}
+-
+-static bool khugepaged_prealloc_page(struct page **hpage, bool *wait)
+-{
+-	if (!*hpage)
+-		*hpage = khugepaged_alloc_hugepage(wait);
+-
+-	if (unlikely(!*hpage))
+-		return false;
+-
+-	return true;
+-}
+-
+-static struct page
+-*khugepaged_alloc_page(struct page **hpage, struct mm_struct *mm,
+-		       struct vm_area_struct *vma, unsigned long address,
+-		       int node)
+-{
+-	up_read(&mm->mmap_sem);
+-	VM_BUG_ON(!*hpage);
+-	return  *hpage;
+-}
+-#endif
  
-+/* Return true, if THP should be allocatable on at least one node */
-+static bool khugepaged_check_nodes(struct page **hpage)
-+{
-+	bool ret = false;
-+	int nid;
-+	struct page *newpage = NULL;
-+	gfp_t gfp = alloc_hugepage_gfpmask(khugepaged_defrag());
-+
-+	for_each_online_node(nid) {
-+		if (node_isset(nid, thp_avail_nodes)) {
-+			ret = true;
-+			continue;
-+		}
-+
-+		newpage = alloc_hugepage_node(gfp, nid);
-+
-+		if (newpage) {
-+			node_set(nid, thp_avail_nodes);
-+			ret = true;
-+			/*
-+			 * Heuristic - try to hold on to the page for collapse
-+			 * scanning, if we don't hold any yet.
-+			 */
-+			if (IS_ERR_OR_NULL(*hpage)) {
-+				*hpage = newpage;
-+				//NIXME: should we count all/no allocations?
-+				count_vm_event(THP_COLLAPSE_ALLOC);
-+			} else {
-+				put_page(newpage);
-+			}
-+		}
-+	}
-+
-+	return ret;
-+}
-+
  static bool hugepage_vma_check(struct vm_area_struct *vma)
  {
- 	if ((!(vma->vm_flags & VM_HUGEPAGE) && !khugepaged_always()) ||
-@@ -2557,6 +2602,10 @@ out_unmap:
- 	pte_unmap_unlock(pte, ptl);
- 	if (ret) {
- 		node = khugepaged_find_target_node();
-+		if (!node_isset(node, thp_avail_nodes)) {
-+			ret = 0;
-+			goto out;
-+		}
- 		/* collapse_huge_page will return with the mmap_sem released */
- 		collapse_huge_page(mm, address, hpage, vma, node);
- 	}
-@@ -2713,6 +2762,11 @@ static void khugepaged_do_scan(void)
- 	unsigned int progress = 0, pass_through_head = 0;
- 	unsigned int pages = READ_ONCE(khugepaged_pages_to_scan);
+@@ -2419,8 +2370,14 @@ static void collapse_huge_page(struct mm_struct *mm,
  
-+	if (!khugepaged_check_nodes(&hpage)) {
-+		khugepaged_alloc_sleep();
-+		return;
-+	}
-+
+ 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+ 
+-	/* release the mmap_sem read lock. */
+-	new_page = khugepaged_alloc_page(hpage, mm, vma, address, node);
++	/*
++	 * Before allocating the hugepage, release the mmap_sem read lock.
++	 * The allocation can take potentially a long time if it involves
++	 * sync compaction, and we do not need to hold the mmap_sem during
++	 * that. We will recheck the vma after taking it again in write mode.
++	 */
++	up_read(&mm->mmap_sem);
++	new_page = khugepaged_alloc_page(hpage, node);
+ 	if (!new_page)
+ 		return;
+ 
+@@ -2754,15 +2711,9 @@ static void khugepaged_do_scan(void)
+ {
+ 	struct page *hpage = NULL;
+ 	unsigned int progress = 0, pass_through_head = 0;
+-	unsigned int pages = khugepaged_pages_to_scan;
+-	bool wait = true;
+-
+-	barrier(); /* write khugepaged_pages_to_scan to local stack */
++	unsigned int pages = READ_ONCE(khugepaged_pages_to_scan);
+ 
  	while (progress < pages) {
+-		if (!khugepaged_prealloc_page(&hpage, &wait))
+-			break;
+-
  		cond_resched();
  
+ 		if (unlikely(kthread_should_stop() || freezing(current)))
+@@ -2778,6 +2729,11 @@ static void khugepaged_do_scan(void)
+ 		else
+ 			progress = pages;
+ 		spin_unlock(&khugepaged_mm_lock);
++
++		if (IS_ERR(hpage)) {
++			khugepaged_alloc_sleep();
++			break;
++		}
+ 	}
+ 
+ 	if (!IS_ERR_OR_NULL(hpage))
 -- 
 2.1.4
 
