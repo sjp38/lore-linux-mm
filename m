@@ -1,78 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D3EA6B0032
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 17:31:21 -0500 (EST)
-Received: by iebtr6 with SMTP id tr6so37987ieb.7
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 14:31:21 -0800 (PST)
-Received: from mail-ie0-x22b.google.com (mail-ie0-x22b.google.com. [2607:f8b0:4001:c03::22b])
-        by mx.google.com with ESMTPS id w16si12590919icc.90.2015.02.24.14.31.20
+Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 961B66B0032
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 17:40:18 -0500 (EST)
+Received: by mail-qg0-f45.google.com with SMTP id h3so85580qgf.4
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 14:40:18 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 22si32302932qhx.4.2015.02.24.14.40.17
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Feb 2015 14:31:20 -0800 (PST)
-Received: by iebtr6 with SMTP id tr6so37944ieb.7
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 14:31:20 -0800 (PST)
-Date: Tue, 24 Feb 2015 14:31:19 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: hide per-cpu lists in output of show_mem()
-In-Reply-To: <CALYGNiON2d9qLjov2B-kw1FmLfdNGwPKTWBqWBpC8Nf82d5oTQ@mail.gmail.com>
-Message-ID: <alpine.DEB.2.10.1502241428250.11324@chino.kir.corp.google.com>
-References: <20150220143942.19568.4548.stgit@buzz> <alpine.DEB.2.10.1502241239100.3855@chino.kir.corp.google.com> <CALYGNiON2d9qLjov2B-kw1FmLfdNGwPKTWBqWBpC8Nf82d5oTQ@mail.gmail.com>
+        Tue, 24 Feb 2015 14:40:17 -0800 (PST)
+Date: Tue, 24 Feb 2015 17:08:44 -0500
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [PATCH] mm: readahead: get back a sensible upper limit
+Message-ID: <20150224220843.GL19014@t510.redhat.com>
+References: <9cc2b63100622f5fd17fa5e4adc59233a2b41877.1424779443.git.aquini@redhat.com>
+ <CA+55aFz4D9fS1xt7fg0R9Bnngg+_TbNs3fSAaFwoV7eTeLfP5Q@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFz4D9fS1xt7fg0R9Bnngg+_TbNs3fSAaFwoV7eTeLfP5Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, loberman@redhat.com, Larry Woodman <lwoodman@redhat.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
 
-On Wed, 25 Feb 2015, Konstantin Khlebnikov wrote:
-
-> >> @@ -3220,11 +3229,10 @@ void show_free_areas(unsigned int filter)
-> >>
-> >>       printk("active_anon:%lu inactive_anon:%lu isolated_anon:%lu\n"
-> >>               " active_file:%lu inactive_file:%lu isolated_file:%lu\n"
-> >> -             " unevictable:%lu"
-> >> -             " dirty:%lu writeback:%lu unstable:%lu\n"
-> >> -             " free:%lu slab_reclaimable:%lu slab_unreclaimable:%lu\n"
-> >> +             " unevictable:%lu dirty:%lu writeback:%lu unstable:%lu\n"
-> >> +             " slab_reclaimable:%lu slab_unreclaimable:%lu\n"
-> >>               " mapped:%lu shmem:%lu pagetables:%lu bounce:%lu\n"
-> >> -             " free_cma:%lu\n",
-> >> +             " free:%lu free_pcp:%lu free_cma:%lu\n",
+On Tue, Feb 24, 2015 at 01:56:25PM -0800, Linus Torvalds wrote:
+> On Tue, Feb 24, 2015 at 4:58 AM, Rafael Aquini <aquini@redhat.com> wrote:
 > >
-> > Why is "free:" itself moved?  It is unlikely, but I could imagine that
-> > this might break something that is parsing the kernel log and it would be
-> > better to just leave it where it is and add "free_pcp:" after "free_cma:"
-> > since this is extending the message.
+> > This patch brings back the old behavior of max_sane_readahead()
 > 
-> I think it looks better at the beginning of new line, like this:
+> Yeah no.
 > 
-> [   44.452955] Mem-Info:
-> [   44.453233] active_anon:2307 inactive_anon:36 isolated_anon:0
-> [   44.453233]  active_file:4120 inactive_file:4623 isolated_file:0
-> [   44.453233]  unevictable:0 dirty:6 writeback:0 unstable:0
-> [   44.453233]  slab_reclaimable:3500 slab_unreclaimable:7441
-> [   44.453233]  mapped:2113 shmem:45 pagetables:292 bounce:0
-> [   44.453233]  free:456891 free_pcp:12179 free_cma:0
-> 
-> In this order fields at each line have something in common.
-> 
-> I'll spend some some time playing with this code and oom log,
-> maybe I'll try to turn whole output into table or something.
-> 
+> There was a reason that code was killed. No way in hell are we
+> bringing back the insanities with node memory etc.
+>
 
-The problem is that oom logs are usually parsed only from the kernel log, 
-there's no other userspace trigger that we can use to identify when the 
-kernel has killed something unless we wait() on every possible victim.  
-It's typical for systems software to parse this information and unless 
-there is a compelling reason other than "looks better", I think messages 
-should only be extended rather than rearranged.
+Would you consider bringing it back, but instead of node memory state,
+utilizing global memory state instead?
+ 
+> Also, we have never actually heard of anything sane that actualyl
+> depended on this. Last time this came up it was a made-up benchmark,
+> not an actual real load that cared.
+> 
+> Who can possibly care about this in real life?
+> 
+People filing bugs complaining their applications that memory map files
+are getting hurt by it.
 
-Admittedly, scraping the kernel log for oom kill events could certainly be 
-done better with a userspace notification, but we currently lack that 
-support in the kernel and there might be parsers out there in the wild 
-that would break because of this.  I agree removing the pcp counters is 
-good for this output, though, so I'd love to see that patch without this 
-change.
+-- Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
