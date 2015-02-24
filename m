@@ -1,73 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id E9D856B006E
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 05:32:34 -0500 (EST)
-Received: by mail-wi0-f172.google.com with SMTP id l15so24291277wiw.5
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 02:32:34 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ej4si22773469wid.64.2015.02.24.02.32.32
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 78EA46B006E
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 05:34:32 -0500 (EST)
+Received: by pabrd3 with SMTP id rd3so35133773pab.1
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 02:34:32 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id zh4si8768782pac.179.2015.02.24.02.34.31
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 24 Feb 2015 02:32:33 -0800 (PST)
-Message-ID: <54EC533E.8040805@suse.cz>
-Date: Tue, 24 Feb 2015 11:32:30 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Feb 2015 02:34:31 -0800 (PST)
+Date: Tue, 24 Feb 2015 13:34:06 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH 0/4] cleancache: remove limit on the number of cleancache
+ enabled filesystems
+Message-ID: <20150224103406.GF16138@esperanza>
+References: <cover.1424628280.git.vdavydov@parallels.com>
+ <20150223161222.GD30733@l.oracle.com>
 MIME-Version: 1.0
-Subject: Re: [RFC 0/6] the big khugepaged redesign
-References: <1424696322-21952-1-git-send-email-vbabka@suse.cz>	<1424731603.6539.51.camel@stgolabs.net> <20150223145619.64f3a225b914034a17d4f520@linux-foundation.org>
-In-Reply-To: <20150223145619.64f3a225b914034a17d4f520@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20150223161222.GD30733@l.oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <dave@stgolabs.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Alex Thorlton <athorlton@sgi.com>, David Rientjes <rientjes@google.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>
+To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Vrabel <david.vrabel@citrix.com>, Mark Fasheh <mfasheh@suse.com>, Joel Becker <jlbec@evilplan.org>, Stefan Hengelein <ilendir@googlemail.com>, Florian Schmaus <fschmaus@gmail.com>, Andor Daam <andor.daam@googlemail.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Bob Liu <lliubbo@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 02/23/2015 11:56 PM, Andrew Morton wrote:
-> On Mon, 23 Feb 2015 14:46:43 -0800 Davidlohr Bueso <dave@stgolabs.net> wrote:
->
->> On Mon, 2015-02-23 at 13:58 +0100, Vlastimil Babka wrote:
->>> Recently, there was concern expressed (e.g. [1]) whether the quite aggressive
->>> THP allocation attempts on page faults are a good performance trade-off.
->>>
->>> - THP allocations add to page fault latency, as high-order allocations are
->>>    notoriously expensive. Page allocation slowpath now does extra checks for
->>>    GFP_TRANSHUGE && !PF_KTHREAD to avoid the more expensive synchronous
->>>    compaction for user page faults. But even async compaction can be expensive.
->>> - During the first page fault in a 2MB range we cannot predict how much of the
->>>    range will be actually accessed - we can theoretically waste as much as 511
->>>    worth of pages [2]. Or, the pages in the range might be accessed from CPUs
->>>    from different NUMA nodes and while base pages could be all local, THP could
->>>    be remote to all but one CPU. The cost of remote accesses due to this false
->>>    sharing would be higher than any savings on the TLB.
->>> - The interaction with memcg are also problematic [1].
->>>
->>> Now I don't have any hard data to show how big these problems are, and I
->>> expect we will discuss this on LSF/MM (and hope somebody has such data [3]).
->>> But it's certain that e.g. SAP recommends to disable THPs [4] for their apps
->>> for performance reasons.
->>
->> There are plenty of examples of this, ie for Oracle:
->>
->> https://blogs.oracle.com/linux/entry/performance_issues_with_transparent_huge
->
-> hm, five months ago and I don't recall seeing any followup to this.
+On Mon, Feb 23, 2015 at 11:12:22AM -0500, Konrad Rzeszutek Wilk wrote:
+> Thank you for posting these patches. I was wondering if you had
+> run through some of the different combinations that you can
+> load the filesystems/tmem drivers in random order? The #4 patch
+> deleted a nice chunk of documentation that outlines the different
+> combinations.
 
-Actually it's year + five months, but nevertheless...
-
-> Does anyone know what's happening?
-
-I would suspect mmap_sem being held during whole THP page fault 
-(including the needed reclaim and compaction), which I forgot to mention 
-in the first e-mail - it's not just the problem page fault latency, but 
-also potentially holding back other processes, why we should allow 
-shifting from THP page faults to deferred collapsing.
-Although the attempts for opportunistic page faults without mmap_sem 
-would also help in this particular case.
-
-Khugepaged also used to hold mmap_sem (for read) during the allocation 
-attempt, but that was fixed since then. It could be also zone lru_lock 
-pressure.
+Yeah, I admit the synchronization between cleancache_register_ops and
+cleancache_init_fs is far not obvious. I should have updated the comment
+instead of merely dropping it, sorry. What about the following patch
+proving correctness of register_ops-vs-init_fs synchronization? It is
+meant to be applied incrementally on top of patch #4.
+---
+diff --git a/mm/cleancache.c b/mm/cleancache.c
+index fbdaf9c77d7a..8fc50811119b 100644
+--- a/mm/cleancache.c
++++ b/mm/cleancache.c
+@@ -54,6 +54,57 @@ int cleancache_register_ops(struct cleancache_ops *ops)
+ 	if (cmpxchg(&cleancache_ops, NULL, ops))
+ 		return -EBUSY;
+ 
++	/*
++	 * A cleancache backend can be built as a module and hence loaded after
++	 * a cleancache enabled filesystem has called cleancache_init_fs. To
++	 * handle such a scenario, here we call ->init_fs or ->init_shared_fs
++	 * for each active super block. To differentiate between local and
++	 * shared filesystems, we temporarily initialize sb->cleancache_poolid
++	 * to CLEANCACHE_NO_BACKEND or CLEANCACHE_NO_BACKEND_SHARED
++	 * respectively in case there is no backend registered at the time
++	 * cleancache_init_fs or cleancache_init_shared_fs is called.
++	 *
++	 * Since filesystems can be mounted concurrently with cleancache
++	 * backend registration, we have to be careful to guarantee that all
++	 * cleancache enabled filesystems that has been mounted by the time
++	 * cleancache_register_ops is called has got and all mounted later will
++	 * get cleancache_poolid. This is assured by the following statements
++	 * tied together:
++	 *
++	 * a) iterate_supers skips only those super blocks that has started
++	 *    ->kill_sb
++	 *
++	 * b) if iterate_supers encounters a super block that has not finished
++	 *    ->mount yet, it waits until it is finished
++	 *
++	 * c) cleancache_init_fs is called from ->mount and
++	 *    cleancache_invalidate_fs is called from ->kill_sb
++	 *
++	 * d) we call iterate_supers after cleancache_ops has been set
++	 *
++	 * From a) it follows that if iterate_supers skips a super block, then
++	 * either the super block is already dead, in which case we do not need
++	 * to bother initializing cleancache for it, or it was mounted after we
++	 * initiated iterate_supers. In the latter case, it must have seen
++	 * cleancache_ops set according to d) and initialized cleancache from
++	 * ->mount by itself according to c). This proves that we call
++	 * ->init_fs at least once for each active super block.
++	 *
++	 * From b) and c) it follows that if iterate_supers encounters a super
++	 * block that has already started ->init_fs, it will wait until ->mount
++	 * and hence ->init_fs has finished, then check cleancache_poolid, see
++	 * that it has already been set and therefore do nothing. This proves
++	 * that we call ->init_fs no more than once for each super block.
++	 *
++	 * Combined together, the last two paragraphs prove the function
++	 * correctness.
++	 *
++	 * Note that various cleancache callbacks may proceed before this
++	 * function is called or even concurrently with it, but since
++	 * CLEANCACHE_NO_BACKEND is negative, they will all result in a noop
++	 * until the corresponding ->init_fs has been actually called and
++	 * cleancache_ops has been set.
++	 */
+ 	iterate_supers(cleancache_register_ops_sb, NULL);
+ 	return 0;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
