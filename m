@@ -1,91 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 767E76B006E
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 05:41:26 -0500 (EST)
-Received: by labge10 with SMTP id ge10so24632419lab.12
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 02:41:25 -0800 (PST)
-Received: from forward-corp1m.cmail.yandex.net (forward-corp1m.cmail.yandex.net. [2a02:6b8:b030::69])
-        by mx.google.com with ESMTPS id t7si5804345lbz.63.2015.02.24.02.41.24
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id B508F6B006E
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 06:20:21 -0500 (EST)
+Received: by padfb1 with SMTP id fb1so35343062pad.8
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 03:20:21 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id zo2si8949062pac.218.2015.02.24.03.20.19
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Feb 2015 02:41:24 -0800 (PST)
-Message-ID: <54EC5552.5080202@yandex-team.ru>
-Date: Tue, 24 Feb 2015 13:41:22 +0300
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-MIME-Version: 1.0
-Subject: Re: [PATCH] fs: avoid locking sb_lock in grab_super_passive()
-References: <20150219171934.20458.30175.stgit@buzz> <20150220150731.e79cd30dc6ecf3c7a3f5caa3@linux-foundation.org> <20150220235012.GS29656@ZenIV.linux.org.uk>
-In-Reply-To: <20150220235012.GS29656@ZenIV.linux.org.uk>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 24 Feb 2015 03:20:20 -0800 (PST)
+Subject: Re: How to handle TIF_MEMDIE stalls?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20141230112158.GA15546@dhcp22.suse.cz>
+	<201502162023.GGE26089.tJOOFQMFFHLOVS@I-love.SAKURA.ne.jp>
+	<20150216154201.GA27295@phnom.home.cmpxchg.org>
+	<201502172057.GCD09362.FtHQMVSLJOFFOO@I-love.SAKURA.ne.jp>
+	<alpine.DEB.2.10.1502231347510.21127@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1502231347510.21127@chino.kir.corp.google.com>
+Message-Id: <201502242020.IDI64912.tOOQSVJFOFLHMF@I-love.SAKURA.ne.jp>
+Date: Tue, 24 Feb 2015 20:20:11 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Al Viro <viro@ZenIV.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, Dave Chinner <david@fromorbit.com>
+To: rientjes@google.com
+Cc: hannes@cmpxchg.org, mhocko@suse.cz, david@fromorbit.com, dchinner@redhat.com, linux-mm@kvack.org, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, fernando_b1@lab.ntt.co.jp
 
-On 21.02.2015 02:50, Al Viro wrote:
-> On Fri, Feb 20, 2015 at 03:07:31PM -0800, Andrew Morton wrote:
->
->> - It no longer "acquires a reference".  All it does is to acquire an rwsem.
->>
->> - What the heck is a "passive reference" anyway?  It appears to be
->>    the situation where we increment s_count without incrementing s_active.
->
-> Reference to struct super_block that guarantees only that its memory won't
-> be freed until we drop it.
->
->>    After your patch, this superblock state no longer exists(?),
->
-> Yes, it does.  The _only_ reason why that patch isn't outright bogus is that
-> we do only down_read_trylock() on ->s_umount - try to pull off the same thing
-> with down_read() and you'll get a nasty race.
+David Rientjes wrote:
+> Perhaps we should consider an alternative: allow threads, such as TaskA, 
+> that are deferring for a long amount of time to simply allocate with 
+> ALLOC_NO_WATERMARKS itself in that scenario in the hope that the 
+> allocation succeeding will eventually allow it to drop the mutex.  Two 
+> problems: (1) there's no guarantee that the simple allocation is all TaskA 
+> needs before it will drop the lock and (2) another thread could 
+> immediately grab the same mutex and allocate, in which the same series of 
+> events repeats.
 
-I don't get this. What the problem with down_read(sb->s_umount)?
+We can see that effectively GFP_NOFAIL allocations with a lock held
+(e.g. filesystem transaction) exist, can't we?
 
-For grab_super_passive()/trylock_super() caller guarantees memory
-wouldn't be freed and we check tsb activeness after grabbing shared
-lock. And while we hold that lock it'll stay active.
+----------------------------------------
+TaskA               TaskB               TaskC               TaskD               TaskE
+                    call mutex_lock()
+                                        call mutex_lock()
+                                                            call mutex_lock()
+                                                                                call mutex_lock()
+call mutex_lock()
+                    do GFP_NOFAIL allocation
+                    oom kill TaskA
+                    waiting for TaskA to die
+                    will do something with allocated memory
+                    will call mutex_unlock()
+                                        will do GFP_NOFAIL allocation
+                                        will wait for TaskA to die
+                                        will do something with allocated memory
+                                        will call mutex_unlock()
+                                                            will do GFP_NOFAIL allocation
+                                                            will wait for TaskA to die
+                                                            will do something with allocated memory
+                                                            will call mutex_unlock()
+                                                                                will do GFP_NOFAIL allocation
+                                                                                will wait for TaskA to die
+                                                                                will do something with allocated memory
+                                                                                will call mutex_unlock()
+will do GFP_NOFAIL allocation
+----------------------------------------
 
-It have to use down_read_trylock() just because it works in in atomic
-context when writeback calls it. No?
+Allowing ALLOC_NO_WATERMARKS to TaskB helps nothing. We don't want to
+allow ALLOC_NO_WATERMARKS to TaskC, TaskD, TaskE and TaskA when they
+do the same sequence TaskB did, or we will deplete memory reserves.
 
-Check for activeness actually is a quite confusing.
-It seems checking for MS_BORN and MS_ACTIVE should be enough:
+> In a timeout based solution, this would be detected and another thread 
+> would be chosen for oom kill.  There's currently no way for the oom killer 
+> to select a process that isn't waiting for that same mutex, however.  If 
+> it does, then the process has been killed needlessly since it cannot make 
+> forward progress itself without grabbing the mutex.
 
-  bool trylock_super(struct super_block *sb)
-  {
-         if (down_read_trylock(&sb->s_umount)) {
--               if (!hlist_unhashed(&sb->s_instances) &&
--                   sb->s_root && (sb->s_flags & MS_BORN))
-+               if ((sb->s_flags & MS_BORN) && (sb->s_flags & MS_ACTIVE))
-                         return true;
-                 up_read(&sb->s_umount);
-         }
+Right. The OOM killer cannot understand that there is such lock dependency.
 
-> Take a look at e.g.
-> get_super().  Or user_get_super().  Or iterate_supers()/iterate_supers_type(),
-> where we don't return such references, but pass them to a callback instead.
-> In all those cases we end up with passive reference taken, ->s_umount
-> taken shared (_NOT_ with trylock) and fs checked for being still alive.
-> Then it's guaranteed to stay alive until we do drop_super().
->
-> I agree that the name blows, BTW - something like try_get_super() might have
-> been more descriptive, but with this change it actually becomes a bad name
-> as well, since after it we need a different way to release the obtained ref;
-> not the same as after get_super().  Your variant might be OK, but I'd
-> probably make it trylock_super(), to match the verb-object order of the
-> rest of identifiers in that area...
->
->> so
->>    perhaps the entire "passive reference" concept and any references to
->>    it can be expunged from the kernel.
->
-> Nope.
->
+And do you think there will be a way available for the OOM killer to select
+a process that isn't waiting for that same mutex in the neare future?
+(Remembering mutex's address currently waiting for using "struct task_struct"
+would do, but will not be accepted due to performance penalty. Simplified form
+would be to check "struct task_struct"->state , but will not be perfect.)
 
+> Certainly, it would be better to eventually kill something else in the 
+> hope that it does not need the mutex and will free some memory which would 
+> allow the thread that had originally been deferring forever, TaskA, in the 
+> oom killer waiting for the original victim, TaskB, to exit.  If that's the 
+> solution, then TaskA had been killed unnecessarily itself.
 
--- 
-Konstantin
+Complaining about unnecessarily killed processes is preventing us from
+making forward progress.
+
+The memory reserves are something like a balloon. To guarantee forward
+progress, the balloon must not become empty. All memory managing techniques
+except the OOM killer are trying to control "deflator of the balloon" via
+various throttling heuristics. On the other hand, the OOM killer is the only
+memory managing technique which is trying to control "inflator of the balloon"
+via several throttling heuristics. The OOM killer is invoked when all memory
+managing techniques except the OOM killer failed to make forward progress.
+
+Therefore, the OOM killer is responsible for making forward progress for
+"deflator of the balloon" and is granted the prerogative to send SIGKILL to
+any process.
+
+Given the fact that the OOM killer cannot understand lock dependency and
+there are effectively GFP_NOFAIL allocations, it is inevitable that the
+OOM killer fails to choose one correct process that will make forward
+progress.
+
+Currently the OOM killer is invoked as one shot mode. This mode helps us
+to reduce the possibility of depleting the memory reserves and killing
+processes unnecessarily. But this mode is bothering people with "silently
+stalling forever" problem when the bullet from the OOM killer missed the
+target. This mode is also bothering people with "complete system crash"
+problem when the bullet from SysRq-f missed the target, for they have to
+use SysRq-i or SysRq-c or SysRq-b which is far more unnecessary kill of
+processes in order to solve the OOM condition.
+
+My proposal is to allow the OOM killer be invoked as consecutive shots
+mode. Although consecutive shots mode may increase possibility of killing
+processes unnecessarily, trying to kill an unkillable process in one shot
+mode is after all unnecessary kill of processes. The root cause is the same
+(i.e. the OOM killer cannot understand the dependency). My patch can stop
+bothering people with "silently stalling forever" / "complete system crash"
+problems by retrying the oom kill attempt than wait forever.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
