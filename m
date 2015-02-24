@@ -1,151 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 025536B0032
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 15:41:15 -0500 (EST)
-Received: by mail-ig0-f177.google.com with SMTP id z20so340237igj.4
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 12:41:14 -0800 (PST)
-Received: from mail-ig0-x232.google.com (mail-ig0-x232.google.com. [2607:f8b0:4001:c05::232])
-        by mx.google.com with ESMTPS id y7si2972109igl.1.2015.02.24.12.41.14
+Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
+	by kanga.kvack.org (Postfix) with ESMTP id B84466B0032
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 15:50:22 -0500 (EST)
+Received: by iecrl12 with SMTP id rl12so35564741iec.4
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 12:50:22 -0800 (PST)
+Received: from mail-ie0-x236.google.com (mail-ie0-x236.google.com. [2607:f8b0:4001:c03::236])
+        by mx.google.com with ESMTPS id d8si2086246icw.60.2015.02.24.12.50.22
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Feb 2015 12:41:14 -0800 (PST)
-Received: by mail-ig0-f178.google.com with SMTP id hl2so329512igb.5
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 12:41:14 -0800 (PST)
-Date: Tue, 24 Feb 2015 12:41:12 -0800 (PST)
+        Tue, 24 Feb 2015 12:50:22 -0800 (PST)
+Received: by iecvy18 with SMTP id vy18so35400954iec.13
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 12:50:22 -0800 (PST)
+Date: Tue, 24 Feb 2015 12:50:20 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: hide per-cpu lists in output of show_mem()
-In-Reply-To: <20150220143942.19568.4548.stgit@buzz>
-Message-ID: <alpine.DEB.2.10.1502241239100.3855@chino.kir.corp.google.com>
-References: <20150220143942.19568.4548.stgit@buzz>
+Subject: Re: [PATCH] mm: readahead: get back a sensible upper limit
+In-Reply-To: <9cc2b63100622f5fd17fa5e4adc59233a2b41877.1424779443.git.aquini@redhat.com>
+Message-ID: <alpine.DEB.2.10.1502241245530.3855@chino.kir.corp.google.com>
+References: <9cc2b63100622f5fd17fa5e4adc59233a2b41877.1424779443.git.aquini@redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Rafael Aquini <aquini@redhat.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, jweiner@redhat.com, riel@redhat.com, linux-kernel@vger.kernel.org, loberman@redhat.com, lwoodman@redhat.com, raghavendra.kt@linux.vnet.ibm.com, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Fri, 20 Feb 2015, Konstantin Khlebnikov wrote:
+On Tue, 24 Feb 2015, Rafael Aquini wrote:
 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 028565a..0538de0 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1126,6 +1126,7 @@ extern void pagefault_out_of_memory(void);
->   * various contexts.
->   */
->  #define SHOW_MEM_FILTER_NODES		(0x0001u)	/* disallowed nodes */
-> +#define SHOW_MEM_PERCPU_LISTS		(0x0002u)	/* per-zone per-cpu */
->  
->  extern void show_free_areas(unsigned int flags);
->  extern bool skip_free_areas_node(unsigned int flags, int nid);
-
-I, like others, think this should probably be left out until someone 
-actually needs to use it.
-
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index a47f0b2..e591f3b 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3198,20 +3198,29 @@ static void show_migration_types(unsigned char type)
->   */
->  void show_free_areas(unsigned int filter)
->  {
-> +	unsigned long free_pcp = 0;
->  	int cpu;
->  	struct zone *zone;
->  
->  	for_each_populated_zone(zone) {
->  		if (skip_free_areas_node(filter, zone_to_nid(zone)))
->  			continue;
-> -		show_node(zone);
-> -		printk("%s per-cpu:\n", zone->name);
-> +
-> +		if (filter & SHOW_MEM_PERCPU_LISTS) {
-> +			show_node(zone);
-> +			printk("%s per-cpu:\n", zone->name);
-> +		}
->  
->  		for_each_online_cpu(cpu) {
->  			struct per_cpu_pageset *pageset;
->  
->  			pageset = per_cpu_ptr(zone->pageset, cpu);
->  
-> +			free_pcp += pageset->pcp.count;
-> +
-> +			if (!(filter & SHOW_MEM_PERCPU_LISTS))
-> +				continue;
-> +
->  			printk("CPU %4d: hi:%5d, btch:%4d usd:%4d\n",
->  			       cpu, pageset->pcp.high,
->  			       pageset->pcp.batch, pageset->pcp.count);
-> @@ -3220,11 +3229,10 @@ void show_free_areas(unsigned int filter)
->  
->  	printk("active_anon:%lu inactive_anon:%lu isolated_anon:%lu\n"
->  		" active_file:%lu inactive_file:%lu isolated_file:%lu\n"
-> -		" unevictable:%lu"
-> -		" dirty:%lu writeback:%lu unstable:%lu\n"
-> -		" free:%lu slab_reclaimable:%lu slab_unreclaimable:%lu\n"
-> +		" unevictable:%lu dirty:%lu writeback:%lu unstable:%lu\n"
-> +		" slab_reclaimable:%lu slab_unreclaimable:%lu\n"
->  		" mapped:%lu shmem:%lu pagetables:%lu bounce:%lu\n"
-> -		" free_cma:%lu\n",
-> +		" free:%lu free_pcp:%lu free_cma:%lu\n",
-
-Why is "free:" itself moved?  It is unlikely, but I could imagine that 
-this might break something that is parsing the kernel log and it would be 
-better to just leave it where it is and add "free_pcp:" after "free_cma:" 
-since this is extending the message.
-
->  		global_page_state(NR_ACTIVE_ANON),
->  		global_page_state(NR_INACTIVE_ANON),
->  		global_page_state(NR_ISOLATED_ANON),
-> @@ -3235,13 +3243,14 @@ void show_free_areas(unsigned int filter)
->  		global_page_state(NR_FILE_DIRTY),
->  		global_page_state(NR_WRITEBACK),
->  		global_page_state(NR_UNSTABLE_NFS),
-> -		global_page_state(NR_FREE_PAGES),
->  		global_page_state(NR_SLAB_RECLAIMABLE),
->  		global_page_state(NR_SLAB_UNRECLAIMABLE),
->  		global_page_state(NR_FILE_MAPPED),
->  		global_page_state(NR_SHMEM),
->  		global_page_state(NR_PAGETABLE),
->  		global_page_state(NR_BOUNCE),
-> +		global_page_state(NR_FREE_PAGES),
-> +		free_pcp,
->  		global_page_state(NR_FREE_CMA_PAGES));
->  
->  	for_each_populated_zone(zone) {
-> @@ -3249,6 +3258,11 @@ void show_free_areas(unsigned int filter)
->  
->  		if (skip_free_areas_node(filter, zone_to_nid(zone)))
->  			continue;
-> +
-> +		free_pcp = 0;
-> +		for_each_online_cpu(cpu)
-> +			free_pcp += per_cpu_ptr(zone->pageset, cpu)->pcp.count;
-> +
->  		show_node(zone);
->  		printk("%s"
->  			" free:%lukB"
-> @@ -3275,6 +3289,8 @@ void show_free_areas(unsigned int filter)
->  			" pagetables:%lukB"
->  			" unstable:%lukB"
->  			" bounce:%lukB"
-> +			" free_pcp:%lukB"
-> +			" local_pcp:%ukB"
->  			" free_cma:%lukB"
->  			" writeback_tmp:%lukB"
->  			" pages_scanned:%lu"
-> @@ -3306,6 +3322,8 @@ void show_free_areas(unsigned int filter)
->  			K(zone_page_state(zone, NR_PAGETABLE)),
->  			K(zone_page_state(zone, NR_UNSTABLE_NFS)),
->  			K(zone_page_state(zone, NR_BOUNCE)),
-> +			K(free_pcp),
-> +			K(this_cpu_read(zone->pageset->pcp.count)),
->  			K(zone_page_state(zone, NR_FREE_CMA_PAGES)),
->  			K(zone_page_state(zone, NR_WRITEBACK_TEMP)),
->  			K(zone_page_state(zone, NR_PAGES_SCANNED)),
+> commit 6d2be915e589 ("mm/readahead.c: fix readahead failure for memoryless NUMA
+> nodes and limit readahead pages")[1] imposed 2 mB hard limits to readahead by 
+> changing max_sane_readahead() to sort out a corner case where a thread runs on 
+> amemoryless NUMA node and it would have its readahead capability disabled.
 > 
+> The aforementioned change, despite fixing that corner case, is detrimental to
+> other ordinary workloads that memory map big files and rely on readahead() or
+> posix_fadvise(WILLNEED) syscalls to get most of the file populating system's cache.
+> 
+> Laurence Oberman reports, via https://bugzilla.redhat.com/show_bug.cgi?id=1187940,
+> slowdowns up to 3-4 times when changes for mentioned commit [1] got introduced in
+> RHEL kenrel. We also have an upstream bugzilla opened for similar complaint:
+> https://bugzilla.kernel.org/show_bug.cgi?id=79111
+> 
+> This patch brings back the old behavior of max_sane_readahead() where we used to
+> consider NR_INACTIVE_FILE and NR_FREE_PAGES pages to derive a sensible / adujstable
+> readahead upper limit. This patch also keeps the 2 mB ceiling scheme introduced by
+> commit [1] to avoid regressions on CONFIG_HAVE_MEMORYLESS_NODES systems,
+> where numa_mem_id(), by any buggy reason, might end up not returning
+> the 'local memory' for a memoryless node CPU.
+> 
+> Reported-by: Laurence Oberman <loberman@redhat.com>
+> Tested-by: Laurence Oberman <loberman@redhat.com>
+> Signed-off-by: Rafael Aquini <aquini@redhat.com>
+> ---
+>  mm/readahead.c | 8 +++++---
+>  1 file changed, 5 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/readahead.c b/mm/readahead.c
+> index 9356758..73f934d 100644
+> --- a/mm/readahead.c
+> +++ b/mm/readahead.c
+> @@ -203,6 +203,7 @@ out:
+>  	return ret;
+>  }
+>  
+> +#define MAX_READAHEAD   ((512 * 4096) / PAGE_CACHE_SIZE)
+>  /*
+>   * Chunk the readahead into 2 megabyte units, so that we don't pin too much
+>   * memory at once.
+> @@ -217,7 +218,7 @@ int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
+>  	while (nr_to_read) {
+>  		int err;
+>  
+> -		unsigned long this_chunk = (2 * 1024 * 1024) / PAGE_CACHE_SIZE;
+> +		unsigned long this_chunk = MAX_READAHEAD;
+>  
+>  		if (this_chunk > nr_to_read)
+>  			this_chunk = nr_to_read;
+> @@ -232,14 +233,15 @@ int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
+>  	return 0;
+>  }
+>  
+> -#define MAX_READAHEAD   ((512*4096)/PAGE_CACHE_SIZE)
+>  /*
+>   * Given a desired number of PAGE_CACHE_SIZE readahead pages, return a
+>   * sensible upper limit.
+>   */
+>  unsigned long max_sane_readahead(unsigned long nr)
+>  {
+> -	return min(nr, MAX_READAHEAD);
+> +	return min(nr, max(MAX_READAHEAD,
+> +			  (node_page_state(numa_mem_id(), NR_INACTIVE_FILE) +
+> +			   node_page_state(numa_mem_id(), NR_FREE_PAGES)) / 2));
+>  }
+>  
+>  /*
+
+I think Linus suggested avoiding the complexity here regarding any 
+heuristics involving the per-node memory state, specifically in 
+http://www.kernelhub.org/?msg=413344&p=2, and suggested the MAX_READAHEAD 
+size.
+
+If we are to go forward with this revert, then I believe the change to 
+numa_mem_id() will fix the memoryless node issue as pointed out in that 
+thread.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
