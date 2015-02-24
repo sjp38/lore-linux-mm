@@ -1,63 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 563476B0032
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2015 19:20:08 -0500 (EST)
-Received: by pablf10 with SMTP id lf10so31498998pab.6
-        for <linux-mm@kvack.org>; Mon, 23 Feb 2015 16:20:08 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id lw5si19060083pab.180.2015.02.23.16.20.06
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id DEBCD6B0038
+	for <linux-mm@kvack.org>; Mon, 23 Feb 2015 21:45:54 -0500 (EST)
+Received: by pdjg10 with SMTP id g10so30044403pdj.1
+        for <linux-mm@kvack.org>; Mon, 23 Feb 2015 18:45:54 -0800 (PST)
+Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
+        by mx.google.com with ESMTPS id us9si5162778pac.165.2015.02.23.18.45.53
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Feb 2015 16:20:07 -0800 (PST)
-Date: Mon, 23 Feb 2015 16:20:05 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH V5 0/4] Refactor do_wp_page, no functional change
-Message-Id: <20150223162005.6eebce98b795699456464df4@linux-foundation.org>
-In-Reply-To: <1424612538-25889-1-git-send-email-raindel@mellanox.com>
-References: <1424612538-25889-1-git-send-email-raindel@mellanox.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 23 Feb 2015 18:45:53 -0800 (PST)
+Message-ID: <1424745944.6539.52.camel@stgolabs.net>
+Subject: Re: [PATCH 3/3] tomoyo: robustify handling of mm->exe_file
+From: Davidlohr Bueso <dave@stgolabs.net>
+Date: Mon, 23 Feb 2015 18:45:44 -0800
+In-Reply-To: <1424449696.2317.0.camel@stgolabs.net>
+References: <1424304641-28965-1-git-send-email-dbueso@suse.de>
+	 <1424304641-28965-4-git-send-email-dbueso@suse.de>
+	 <1424324307.18191.5.camel@stgolabs.net>
+	 <201502192007.AFI30725.tHFFOOMVFOQSLJ@I-love.SAKURA.ne.jp>
+	 <1424370153.18191.12.camel@stgolabs.net>
+	 <201502200711.EIH87066.HSOJLFFOtFVOQM@I-love.SAKURA.ne.jp>
+	 <1424449696.2317.0.camel@stgolabs.net>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shachar Raindel <raindel@mellanox.com>
-Cc: linux-mm@kvack.org, kirill.shutemov@linux.intel.com, mgorman@suse.de, riel@redhat.com, ak@linux.intel.com, matthew.r.wilcox@intel.com, dave.hansen@linux.intel.com, n-horiguchi@ah.jp.nec.com, torvalds@linux-foundation.org, haggaie@mellanox.com, aarcange@redhat.com, pfeiner@google.com, hannes@cmpxchg.org, sagig@mellanox.com, walken@google.com
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, takedakn@nttdata.co.jp, linux-security-module@vger.kernel.org
 
-On Sun, 22 Feb 2015 15:42:14 +0200 Shachar Raindel <raindel@mellanox.com> wrote:
+On Fri, 2015-02-20 at 08:28 -0800, Davidlohr Bueso wrote:
 
-> Currently do_wp_page contains 265 code lines. It also contains 9 goto
-> statements, of which 5 are targeting labels which are not cleanup
-> related. This makes the function extremely difficult to
-> understand. The following patches are an attempt at breaking the
-> function to its basic components, and making it easier to understand.
-> 
-> The patches are straight forward function extractions from
-> do_wp_page. As we extract functions, we remove unneeded parameters and
-> simplify the code as much as possible. However, the functionality is
-> supposed to remain completely unchanged. The patches also attempt to
-> document the functionality of each extracted function. In patch 2, we
-> split the unlock logic to the contain logic relevant to specific needs
-> of each use case, instead of having huge number of conditional
-> decisions in a single unlock flow.
+> 8<--------------------------------------------------------------------
+> Subject: [PATCH v2 3/3] tomoyo: reduce mmap_sem hold for mm->exe_file
 
-gcc-4.4.4:
 
-   text    data     bss     dec     hex filename
-  40898     186   13344   54428    d49c mm/memory.o-before
-  41422     186   13456   55064    d718 mm/memory.o-after
-
-gcc-4.8.2:
-
-   text    data     bss     dec     hex filename
-  35261   12118   13904   61283    ef63 mm/memory.o
-  35646   12278   14032   61956    f204 mm/memory.o
-
-The more recent compiler is more interesting but either way, that's a
-somewhat disappointing increase in code size for refactoring of a
-single function.
-
-I had a brief poke around and couldn't find any obvious improvements
-to make.
+Tetsuo, could you please ack/nack this?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
