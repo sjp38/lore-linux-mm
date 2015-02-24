@@ -1,146 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f49.google.com (mail-oi0-f49.google.com [209.85.218.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 352F46B006E
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 06:35:32 -0500 (EST)
-Received: by mail-oi0-f49.google.com with SMTP id v63so18756686oia.8
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 03:35:31 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id t19si3687125oey.97.2015.02.24.03.35.30
+Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BE606B006E
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 06:46:01 -0500 (EST)
+Received: by mail-qg0-f49.google.com with SMTP id q107so29301219qgd.8
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 03:46:01 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j7si5933253qan.55.2015.02.24.03.45.59
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 24 Feb 2015 03:35:31 -0800 (PST)
-Subject: Re: [PATCH 3/3] tomoyo: robustify handling of mm->exe_file
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1424324307.18191.5.camel@stgolabs.net>
-	<201502192007.AFI30725.tHFFOOMVFOQSLJ@I-love.SAKURA.ne.jp>
-	<1424370153.18191.12.camel@stgolabs.net>
-	<201502200711.EIH87066.HSOJLFFOtFVOQM@I-love.SAKURA.ne.jp>
-	<1424449696.2317.0.camel@stgolabs.net>
-In-Reply-To: <1424449696.2317.0.camel@stgolabs.net>
-Message-Id: <201502242035.GCI75431.LHQFOOJMFVSFtO@I-love.SAKURA.ne.jp>
-Date: Tue, 24 Feb 2015 20:35:26 +0900
-Mime-Version: 1.0
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Feb 2015 03:46:01 -0800 (PST)
+Date: Tue, 24 Feb 2015 12:45:03 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC 0/6] the big khugepaged redesign
+Message-ID: <20150224114503.GH5542@redhat.com>
+References: <1424696322-21952-1-git-send-email-vbabka@suse.cz>
+ <1424731603.6539.51.camel@stgolabs.net>
+ <20150223145619.64f3a225b914034a17d4f520@linux-foundation.org>
+ <54EC533E.8040805@suse.cz>
+ <20150224112412.GG5542@redhat.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150224112412.GG5542@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dave@stgolabs.net
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, takedakn@nttdata.co.jp, linux-security-module@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Alex Thorlton <athorlton@sgi.com>, David Rientjes <rientjes@google.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>
 
-Davidlohr Bueso wrote:
-> On Fri, 2015-02-20 at 07:11 +0900, Tetsuo Handa wrote:
-> > Davidlohr Bueso wrote:
-> > > On Thu, 2015-02-19 at 20:07 +0900, Tetsuo Handa wrote:
-> > > > Why do we need to let the caller call path_put() ?
-> > > > There is no need to do like proc_exe_link() does, for
-> > > > tomoyo_get_exe() returns pathname as "char *".
-> > > 
-> > > Having the pathname doesn't guarantee anything later, and thus doesn't
-> > > seem very robust in the manager call if it can be dropped during the
-> > > call... or can this never occur in this context?
-> > > 
-> > tomoyo_get_exe() returns the pathname of executable of current thread.
-> > The executable of current thread cannot be changed while current thread
-> > is inside the manager call. Although the pathname of executable of
-> > current thread could be changed by other threads via namespace manipulation
-> > like pivot_root(), holding a reference guarantees nothing. Your patch helps
-> > for avoiding memory allocation with mmap_sem held, but does not robustify
-> > handling of mm->exe_file for tomoyo.
-> 
-> Fair enough, I won't argue. This is beyond the scope if what I'm trying
-> to accomplish here anyway. Are you ok with this instead?
-> 
-I prefer cleanups excluded from this patch, like shown below.
-Would you please resend?
+On Tue, Feb 24, 2015 at 12:24:12PM +0100, Andrea Arcangeli wrote:
+> I would advise not to make changes for app that are already the
+> biggest users ever of hugetlbfs (like Oracle). Those already are
+> optimized by other means. THP target are apps that have several
 
-> diff --git a/security/tomoyo/common.c b/security/tomoyo/common.c
-> index e0fb750..73ce629 100644
-> --- a/security/tomoyo/common.c
-> +++ b/security/tomoyo/common.c
-> @@ -908,6 +908,31 @@ static void tomoyo_read_manager(struct tomoyo_io_buffer *head)
->  }
->  
->  /**
-> + * tomoyo_get_exe - Get tomoyo_realpath() of current process.
-> + *
-> + * Returns the tomoyo_realpath() of current process on success, NULL otherwise.
-> + *
-> + * This function uses kzalloc(), so the caller must call kfree()
-> + * if this function didn't return NULL.
-> + */
-> +static const char *tomoyo_get_exe(void)
-> +{
-> +	struct file *exe_file;
-> +	const char *cp = NULL;
+Before somebody risks to misunderstand perhaps I should clarify
+further: what I meant is that if the khugepaged boost helps Oracle or
+other heavy users of hugetlbfs, but it _hurts_ everything else as I'd
+guess, I'd advise against it. Because if an app can deal with
+hugetlbfs it's much simpler to optimize by other means and it's not
+the primary target of THP so the priority for THP default behavior
+should be biased towards those apps that can't easily fit into
+hugetlbfs and numa hard pins static placement models.
 
-No need to initialize cp here.
+Of course it'd be perfectly fine to make THP changes that helps even
+the biggest hugetlbfs users out there, as long as these changes don't
+hurt all other normal use cases (where THP is always guaranteed to
+provide a significant performance boost if enabled). Chances are the
+benchmarks are also comparing "hugetlbfs+THP" vs "hugetlbfs" without
+THP, and not "nothing" vs "THP".
 
-> +	struct mm_struct *mm = current->mm;
-> +
-> +	if (!mm)
-> +		return NULL;
-> +	exe_file = get_mm_exe_file(mm);
-> +	if (!exe_file)
-> +		return NULL;
-> +
-> +	cp = tomoyo_realpath_from_path(&exe_file->f_path);
-> +	fput(exe_file);
-> +	return cp;
-> +}
-> +
-> +/**
->   * tomoyo_manager - Check whether the current process is a policy manager.
->   *
->   * Returns true if the current process is permitted to modify policy
-> diff --git a/security/tomoyo/common.h b/security/tomoyo/common.h
-> index b897d48..fc89eba 100644
-> --- a/security/tomoyo/common.h
-> +++ b/security/tomoyo/common.h
-> @@ -947,7 +947,6 @@ char *tomoyo_init_log(struct tomoyo_request_info *r, int len, const char *fmt,
->  char *tomoyo_read_token(struct tomoyo_acl_param *param);
->  char *tomoyo_realpath_from_path(struct path *path);
->  char *tomoyo_realpath_nofollow(const char *pathname);
-> -const char *tomoyo_get_exe(void);
->  const char *tomoyo_yesno(const unsigned int value);
->  const struct tomoyo_path_info *tomoyo_compare_name_union
->  (const struct tomoyo_path_info *name, const struct tomoyo_name_union *ptr);
-> diff --git a/security/tomoyo/util.c b/security/tomoyo/util.c
-> index 2952ba5..7eff479 100644
-> --- a/security/tomoyo/util.c
-> +++ b/security/tomoyo/util.c
-> @@ -939,28 +939,6 @@ bool tomoyo_path_matches_pattern(const struct tomoyo_path_info *filename,
->  }
->  
->  /**
-> - * tomoyo_get_exe - Get tomoyo_realpath() of current process.
-> - *
-> - * Returns the tomoyo_realpath() of current process on success, NULL otherwise.
-> - *
-> - * This function uses kzalloc(), so the caller must call kfree()
-> - * if this function didn't return NULL.
-> - */
-> -const char *tomoyo_get_exe(void)
-> -{
-> -	struct mm_struct *mm = current->mm;
-> -	const char *cp = NULL;
-> -
-> -	if (!mm)
-> -		return NULL;
-> -	down_read(&mm->mmap_sem);
-> -	if (mm->exe_file)
-> -		cp = tomoyo_realpath_from_path(&mm->exe_file->f_path);
-> -	up_read(&mm->mmap_sem);
-> -	return cp;
-> -}
-> -
-> -/**
->   * tomoyo_get_mode - Get MAC mode.
->   *
->   * @ns:      Pointer to "struct tomoyo_policy_namespace".
-> -- 
-> 2.1.4
-
-You can post TOMOYO patches to tomoyo-dev-en@lists.sourceforge.jp .
-I'll add your mail address to ML's accept list.
+Clearly I'd like to optimize for all apps including the biggest
+hugetlbfs users, and this is why I'd like to optimize redis as well,
+considering it's simple enough to do it with just one madvise to
+change the behavior of COW faults and it'd be guaranteed not to hurt
+any other common usage. If we were to instead change the default
+behavior of COW faults we'd need first to collect data for a variety
+of apps and personally I doubt such a change would be a good universal
+tradeoff, while it's a fine change for a behavioral change through
+madvise.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
