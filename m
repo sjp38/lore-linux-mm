@@ -1,90 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AEA26B0032
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 14:11:38 -0500 (EST)
-Received: by mail-wi0-f177.google.com with SMTP id bs8so27631534wib.4
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 11:11:38 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id u8si68971145wjx.141.2015.02.24.11.11.36
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 97C3D6B0032
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 14:42:58 -0500 (EST)
+Received: by paceu11 with SMTP id eu11so38337638pac.10
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 11:42:58 -0800 (PST)
+Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
+        by mx.google.com with ESMTPS id zt3si2238989pac.109.2015.02.24.11.42.56
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Feb 2015 11:11:36 -0800 (PST)
-Date: Tue, 24 Feb 2015 14:11:27 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm, oom: do not fail __GFP_NOFAIL allocation if oom
- killer is disbaled
-Message-ID: <20150224191127.GA14718@phnom.home.cmpxchg.org>
-References: <1424801964-1602-1-git-send-email-mhocko@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1424801964-1602-1-git-send-email-mhocko@suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 24 Feb 2015 11:42:57 -0800 (PST)
+Message-ID: <1424806966.6539.84.camel@stgolabs.net>
+Subject: [PATCH v3 3/3] tomoyo: reduce mmap_sem hold for mm->exe_file
+From: Davidlohr Bueso <dave@stgolabs.net>
+Date: Tue, 24 Feb 2015 11:42:46 -0800
+In-Reply-To: <201502242035.GCI75431.LHQFOOJMFVSFtO@I-love.SAKURA.ne.jp>
+References: <1424324307.18191.5.camel@stgolabs.net>
+	 <201502192007.AFI30725.tHFFOOMVFOQSLJ@I-love.SAKURA.ne.jp>
+	 <1424370153.18191.12.camel@stgolabs.net>
+	 <201502200711.EIH87066.HSOJLFFOtFVOQM@I-love.SAKURA.ne.jp>
+	 <1424449696.2317.0.camel@stgolabs.net>
+	 <201502242035.GCI75431.LHQFOOJMFVSFtO@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, dave@stgolabs.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, takedakn@nttdata.co.jp, linux-security-module@vger.kernel.org, tomoyo-dev-en@lists.sourceforge.jp
 
-On Tue, Feb 24, 2015 at 07:19:24PM +0100, Michal Hocko wrote:
-> Tetsuo Handa has pointed out that __GFP_NOFAIL allocations might fail
-> after OOM killer is disabled if the allocation is performed by a
-> kernel thread. This behavior was introduced from the very beginning by
-> 7f33d49a2ed5 (mm, PM/Freezer: Disable OOM killer when tasks are frozen).
-> This means that the basic contract for the allocation request is broken
-> and the context requesting such an allocation might blow up unexpectedly.
-> 
-> There are basically two ways forward.
-> 1) move oom_killer_disable after kernel threads are frozen. This has a
->    risk that the OOM victim wouldn't be able to finish because it would
->    depend on an already frozen kernel thread. This would be really
->    tricky to debug.
-> 2) do not fail GFP_NOFAIL allocation no matter what and risk a potential
->    Freezable kernel threads will loop and fail the suspend. Incidental
->    allocations after kernel threads are frozen will at least dump a
->    warning - if we are lucky and the serial console is still active of
->    course...
-> 
-> This patch implements the later option because it is safer. We would see
-> warnings rather than allocation failures for the kernel threads which
-> would blow up otherwise and have a higher chances to identify
-> __GFP_NOFAIL users from deeper pm code.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> ---
-> 
-> We haven't seen any bug reports 
-> 
->  mm/oom_kill.c | 8 ++++++++
->  1 file changed, 8 insertions(+)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 642f38cb175a..ea8b443cd871 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -772,6 +772,10 @@ out:
->  		schedule_timeout_killable(1);
->  }
->  
-> +static DEFINE_RATELIMIT_STATE(oom_disabled_rs,
-> +		DEFAULT_RATELIMIT_INTERVAL,
-> +		DEFAULT_RATELIMIT_BURST);
-> +
->  /**
->   * out_of_memory -  tries to invoke OOM killer.
->   * @zonelist: zonelist pointer
-> @@ -792,6 +796,10 @@ bool out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
->  	if (!oom_killer_disabled) {
->  		__out_of_memory(zonelist, gfp_mask, order, nodemask, force_kill);
->  		ret = true;
-> +	} else if (gfp_mask & __GFP_NOFAIL) {
-> +		if (__ratelimit(&oom_disabled_rs))
-> +			WARN(1, "Unable to make forward progress for __GFP_NOFAIL because OOM killer is disbaled\n");
-> +		ret = true;
+The mm->exe_file is currently serialized with mmap_sem (shared) in order
+to both safely (1) read the file and (2) compute the realpath by calling
+tomoyo_realpath_from_path, making it an absolute overkill. Good users will,
+on the other hand, make use of the more standard get_mm_exe_file(), requiring
+only holding the mmap_sem to read the value, and relying on reference
 
-I'm fine with keeping the allocation looping, but is that message
-helpful?  It seems completely useless to the user encountering it.  Is
-it going to help kernel developers when we get a bug report with it?
+Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
+---
 
-WARN_ON_ONCE()?
+Changes from v2: remove cleanups and cp initialization.
+
+ security/tomoyo/util.c | 21 ++++++++++++---------
+ 1 file changed, 12 insertions(+), 9 deletions(-)
+
+diff --git a/security/tomoyo/util.c b/security/tomoyo/util.c
+index 2952ba5..29f3b65 100644
+--- a/security/tomoyo/util.c
++++ b/security/tomoyo/util.c
+@@ -948,16 +948,19 @@ bool tomoyo_path_matches_pattern(const struct tomoyo_path_info *filename,
+  */
+ const char *tomoyo_get_exe(void)
+ {
+-	struct mm_struct *mm = current->mm;
+-	const char *cp = NULL;
++       struct file *exe_file;
++       const char *cp;
++       struct mm_struct *mm = current->mm;
+ 
+-	if (!mm)
+-		return NULL;
+-	down_read(&mm->mmap_sem);
+-	if (mm->exe_file)
+-		cp = tomoyo_realpath_from_path(&mm->exe_file->f_path);
+-	up_read(&mm->mmap_sem);
+-	return cp;
++       if (!mm)
++	       return NULL;
++       exe_file = get_mm_exe_file(mm);
++       if (!exe_file)
++	       return NULL;
++
++       cp = tomoyo_realpath_from_path(&exe_file->f_path);
++       fput(exe_file);
++       return cp;
+ }
+ 
+ /**
+-- 
+2.1.4
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
