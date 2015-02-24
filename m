@@ -1,82 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E73E6B006C
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2015 19:12:48 -0500 (EST)
-Received: by mail-qg0-f43.google.com with SMTP id i50so27474849qgf.2
-        for <linux-mm@kvack.org>; Mon, 23 Feb 2015 16:12:48 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d1si818778qag.120.2015.02.23.16.12.47
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 563476B0032
+	for <linux-mm@kvack.org>; Mon, 23 Feb 2015 19:20:08 -0500 (EST)
+Received: by pablf10 with SMTP id lf10so31498998pab.6
+        for <linux-mm@kvack.org>; Mon, 23 Feb 2015 16:20:08 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id lw5si19060083pab.180.2015.02.23.16.20.06
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Feb 2015 16:12:47 -0800 (PST)
-Date: Mon, 23 Feb 2015 21:12:28 -0300
-From: Marcelo Tosatti <mtosatti@redhat.com>
-Subject: Re: copy_huge_page: unable to handle kernel NULL pointer dereference
- at 0000000000000008
-Message-ID: <20150224001228.GA11456@amt.cnet>
-References: <CABYiri9MEbEnZikqTU3d=w6rxtsgumH2gJ++Qzi1yZKGn6it+Q@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CABYiri9MEbEnZikqTU3d=w6rxtsgumH2gJ++Qzi1yZKGn6it+Q@mail.gmail.com>
+        Mon, 23 Feb 2015 16:20:07 -0800 (PST)
+Date: Mon, 23 Feb 2015 16:20:05 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH V5 0/4] Refactor do_wp_page, no functional change
+Message-Id: <20150223162005.6eebce98b795699456464df4@linux-foundation.org>
+In-Reply-To: <1424612538-25889-1-git-send-email-raindel@mellanox.com>
+References: <1424612538-25889-1-git-send-email-raindel@mellanox.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Korolyov <andrey@xdel.ru>
-Cc: linux-mm@kvack.org, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, wanpeng.li@linux.intel.com, jipan.yang@gmail.com
+To: Shachar Raindel <raindel@mellanox.com>
+Cc: linux-mm@kvack.org, kirill.shutemov@linux.intel.com, mgorman@suse.de, riel@redhat.com, ak@linux.intel.com, matthew.r.wilcox@intel.com, dave.hansen@linux.intel.com, n-horiguchi@ah.jp.nec.com, torvalds@linux-foundation.org, haggaie@mellanox.com, aarcange@redhat.com, pfeiner@google.com, hannes@cmpxchg.org, sagig@mellanox.com, walken@google.com
 
-On Wed, Feb 04, 2015 at 08:34:04PM +0400, Andrey Korolyov wrote:
-> >Hi,
-> >
-> >I've seen the problem quite a few times.  Before spending more time on
-> >it, I'd like to have a quick check here to see if anyone ever saw the
-> >same problem?  Hope it is a relevant question with this mail list.
-> >
-> >
-> >Jul  2 11:08:21 arno-3 kernel: [ 2165.078623] BUG: unable to handle
-> >kernel NULL pointer dereference at 0000000000000008
-> >Jul  2 11:08:21 arno-3 kernel: [ 2165.078916] IP: [<ffffffff8118d0fa>]
-> >copy_huge_page+0x8a/0x2a0
-> >Jul  2 11:08:21 arno-3 kernel: [ 2165.079128] PGD 0
-> >Jul  2 11:08:21 arno-3 kernel: [ 2165.079198] Oops: 0000 [#1] SMP
-> >Jul  2 11:08:21 arno-3 kernel: [ 2165.079319] Modules linked in:
-> >ip6table_filter ip6_tables ebtable_nat ebtables ipt_MASQUERADE
-> >iptable_nat nf_nat_ipv4 nf_nat nf_conntrack_ipv4 nf_defrag_ipv4
-> >xt_state nf_conntrack ipt_REJECT xt_CHECKSUM iptable_mangle xt_tcpudp
-> >iptable_filter ip_tables x_tables kvm_intel kvm bridge stp llc ast ttm
-> >drm_kms_helper drm sysimgblt sysfillrect syscopyarea lp mei_me ioatdma
-> >ext2 parport mei shpchp dcdbas joydev mac_hid lpc_ich acpi_pad wmi
-> >hid_generic usbhid hid ixgbe igb dca i2c_algo_bit ahci ptp libahci
-> >mdio pps_core
-> >Jul  2 11:08:21 arno-3 kernel: [ 2165.081090] CPU: 19 PID: 3494 Comm:
-> >qemu-system-x86 Not tainted 3.11.0-15-generic #25~precise1-Ubuntu
-> >Jul  2 11:08:21 arno-3 kernel: [ 2165.081424] Hardware name: Dell Inc.
-> >PowerEdge C6220 II/09N44V, BIOS 2.0.3 07/03/2013
-> >Jul  2 11:08:21 arno-3 kernel: [ 2165.081705] task: ffff881026750000
-> >ti: ffff881026056000 task.ti: ffff881026056000
-> >Jul  2 11:08:21 arno-3 kernel: [ 2165.081973] RIP:
-> >0010:[<ffffffff8118d0fa>]  [<ffffffff8118d0fa>]
-> >copy_huge_page+0x8a/0x2a0
+On Sun, 22 Feb 2015 15:42:14 +0200 Shachar Raindel <raindel@mellanox.com> wrote:
+
+> Currently do_wp_page contains 265 code lines. It also contains 9 goto
+> statements, of which 5 are targeting labels which are not cleanup
+> related. This makes the function extremely difficult to
+> understand. The following patches are an attempt at breaking the
+> function to its basic components, and making it easier to understand.
 > 
-> 
-> Hello,
-> 
-> sorry for possible top-posting, the same issue appears on at least
-> 3.10 LTS series. The original thread is at
-> http://marc.info/?l=kvm&m=14043742300901.
+> The patches are straight forward function extractions from
+> do_wp_page. As we extract functions, we remove unneeded parameters and
+> simplify the code as much as possible. However, the functionality is
+> supposed to remain completely unchanged. The patches also attempt to
+> document the functionality of each extracted function. In patch 2, we
+> split the unlock logic to the contain logic relevant to specific needs
+> of each use case, instead of having huge number of conditional
+> decisions in a single unlock flow.
 
-Andrey,
+gcc-4.4.4:
 
-I am unable to access the URL above?
+   text    data     bss     dec     hex filename
+  40898     186   13344   54428    d49c mm/memory.o-before
+  41422     186   13456   55064    d718 mm/memory.o-after
 
-> The necessary components for failure to reappear are a single running
-> kvm guest and mounted large thp: hugepagesz=1G (seemingly the same as
-> in initial report). With default 2M pages everything is working well,
-> the same for 3.18 with 1G THP. Are there any obvious clues for the
-> issue?
-> 
-> Thanks!
+gcc-4.8.2:
 
+   text    data     bss     dec     hex filename
+  35261   12118   13904   61283    ef63 mm/memory.o
+  35646   12278   14032   61956    f204 mm/memory.o
 
+The more recent compiler is more interesting but either way, that's a
+somewhat disappointing increase in code size for refactoring of a
+single function.
+
+I had a brief poke around and couldn't find any obvious improvements
+to make.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
