@@ -1,84 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 97C3D6B0032
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 14:42:58 -0500 (EST)
-Received: by paceu11 with SMTP id eu11so38337638pac.10
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 11:42:58 -0800 (PST)
-Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
-        by mx.google.com with ESMTPS id zt3si2238989pac.109.2015.02.24.11.42.56
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 24 Feb 2015 11:42:57 -0800 (PST)
-Message-ID: <1424806966.6539.84.camel@stgolabs.net>
-Subject: [PATCH v3 3/3] tomoyo: reduce mmap_sem hold for mm->exe_file
-From: Davidlohr Bueso <dave@stgolabs.net>
-Date: Tue, 24 Feb 2015 11:42:46 -0800
-In-Reply-To: <201502242035.GCI75431.LHQFOOJMFVSFtO@I-love.SAKURA.ne.jp>
-References: <1424324307.18191.5.camel@stgolabs.net>
-	 <201502192007.AFI30725.tHFFOOMVFOQSLJ@I-love.SAKURA.ne.jp>
-	 <1424370153.18191.12.camel@stgolabs.net>
-	 <201502200711.EIH87066.HSOJLFFOtFVOQM@I-love.SAKURA.ne.jp>
-	 <1424449696.2317.0.camel@stgolabs.net>
-	 <201502242035.GCI75431.LHQFOOJMFVSFtO@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 754A16B0032
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 14:54:20 -0500 (EST)
+Received: by pdjy10 with SMTP id y10so35678457pdj.6
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 11:54:20 -0800 (PST)
+Received: from mail-gw2-out.broadcom.com (mail-gw2-out.broadcom.com. [216.31.210.63])
+        by mx.google.com with ESMTP id nq6si6786849pbc.101.2015.02.24.11.54.18
+        for <linux-mm@kvack.org>;
+        Tue, 24 Feb 2015 11:54:19 -0800 (PST)
+From: Danesh Petigara <dpetigara@broadcom.com>
+Subject: [PATCH] mm: cma: fix CMA aligned offset calculation
+Date: Tue, 24 Feb 2015 11:55:59 -0800
+Message-ID: <1424807759-23311-1-git-send-email-dpetigara@broadcom.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, dave@stgolabs.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, takedakn@nttdata.co.jp, linux-security-module@vger.kernel.org, tomoyo-dev-en@lists.sourceforge.jp
+To: akpm@linux-foundation.org
+Cc: m.szyprowski@samsung.com, mina86@mina86.com, iamjoonsoo.kim@lge.com, aneesh.kumar@linux.vnet.ibm.com, laurent.pinchart+renesas@ideasonboard.com, gregory.0xf0@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Danesh Petigara <dpetigara@broadcom.com>, stable@vger.kernel.org
 
-The mm->exe_file is currently serialized with mmap_sem (shared) in order
-to both safely (1) read the file and (2) compute the realpath by calling
-tomoyo_realpath_from_path, making it an absolute overkill. Good users will,
-on the other hand, make use of the more standard get_mm_exe_file(), requiring
-only holding the mmap_sem to read the value, and relying on reference
+The CMA aligned offset calculation is incorrect for
+non-zero order_per_bit values.
 
-Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
+For example, if cma->order_per_bit=1, cma->base_pfn=
+0x2f800000 and align_order=12, the function returns
+a value of 0x17c00 instead of 0x400.
+
+This patch fixes the CMA aligned offset calculation.
+
+Cc: stable@vger.kernel.org
+Signed-off-by: Danesh Petigara <dpetigara@broadcom.com>
+Reviewed-by: Gregory Fong <gregory.0xf0@gmail.com>
 ---
+ mm/cma.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
 
-Changes from v2: remove cleanups and cp initialization.
-
- security/tomoyo/util.c | 21 ++++++++++++---------
- 1 file changed, 12 insertions(+), 9 deletions(-)
-
-diff --git a/security/tomoyo/util.c b/security/tomoyo/util.c
-index 2952ba5..29f3b65 100644
---- a/security/tomoyo/util.c
-+++ b/security/tomoyo/util.c
-@@ -948,16 +948,19 @@ bool tomoyo_path_matches_pattern(const struct tomoyo_path_info *filename,
-  */
- const char *tomoyo_get_exe(void)
- {
--	struct mm_struct *mm = current->mm;
--	const char *cp = NULL;
-+       struct file *exe_file;
-+       const char *cp;
-+       struct mm_struct *mm = current->mm;
+diff --git a/mm/cma.c b/mm/cma.c
+index 75016fd..58f37bd 100644
+--- a/mm/cma.c
++++ b/mm/cma.c
+@@ -70,9 +70,13 @@ static unsigned long cma_bitmap_aligned_offset(struct cma *cma, int align_order)
  
--	if (!mm)
--		return NULL;
--	down_read(&mm->mmap_sem);
--	if (mm->exe_file)
--		cp = tomoyo_realpath_from_path(&mm->exe_file->f_path);
--	up_read(&mm->mmap_sem);
--	return cp;
-+       if (!mm)
-+	       return NULL;
-+       exe_file = get_mm_exe_file(mm);
-+       if (!exe_file)
-+	       return NULL;
+ 	if (align_order <= cma->order_per_bit)
+ 		return 0;
+-	alignment = 1UL << (align_order - cma->order_per_bit);
+-	return ALIGN(cma->base_pfn, alignment) -
+-		(cma->base_pfn >> cma->order_per_bit);
 +
-+       cp = tomoyo_realpath_from_path(&exe_file->f_path);
-+       fput(exe_file);
-+       return cp;
++	/*
++	 * Find a PFN aligned to the specified order and return
++	 * an offset represented in order_per_bits.
++	 */
++	return (ALIGN(cma->base_pfn, (1UL << align_order))
++		- cma->base_pfn) >> cma->order_per_bit;
  }
  
- /**
+ static unsigned long cma_bitmap_maxno(struct cma *cma)
 -- 
-2.1.4
-
-
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
