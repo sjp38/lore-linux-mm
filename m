@@ -1,128 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 20A096B006E
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 03:36:44 -0500 (EST)
-Received: by pdno5 with SMTP id o5so31855279pdn.8
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 00:36:43 -0800 (PST)
-Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1on0641.outbound.protection.outlook.com. [2a01:111:f400:fe00::641])
-        by mx.google.com with ESMTPS id bk4si26127575pad.143.2015.02.24.00.36.42
+Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BB706B006E
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 04:03:04 -0500 (EST)
+Received: by lbiz12 with SMTP id z12so23314427lbi.11
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 01:03:03 -0800 (PST)
+Received: from mail-la0-x22f.google.com (mail-la0-x22f.google.com. [2a00:1450:4010:c03::22f])
+        by mx.google.com with ESMTPS id dv9si5544324lbc.68.2015.02.24.01.03.01
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 24 Feb 2015 00:36:43 -0800 (PST)
-From: Shachar Raindel <raindel@mellanox.com>
-Subject: RE: [PATCH V5 0/4] Refactor do_wp_page, no functional change
-Date: Tue, 24 Feb 2015 08:36:09 +0000
-Message-ID: <AM3PR05MB09359319822E332E9106EB05DC160@AM3PR05MB0935.eurprd05.prod.outlook.com>
-References: <1424612538-25889-1-git-send-email-raindel@mellanox.com>
- <20150223162005.6eebce98b795699456464df4@linux-foundation.org>
-In-Reply-To: <20150223162005.6eebce98b795699456464df4@linux-foundation.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Feb 2015 01:03:02 -0800 (PST)
+Received: by labge10 with SMTP id ge10so24156977lab.12
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 01:03:01 -0800 (PST)
 MIME-Version: 1.0
+In-Reply-To: <20150223143746.GG24272@dhcp22.suse.cz>
+References: <20150220143942.19568.4548.stgit@buzz>
+	<20150223143746.GG24272@dhcp22.suse.cz>
+Date: Tue, 24 Feb 2015 13:03:01 +0400
+Message-ID: <CALYGNiO8Y3oJbPMF8m2ndtBp5=RBiw3o6rKyWsGXF0RyT9JYVQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: hide per-cpu lists in output of show_mem()
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mgorman@suse.de" <mgorman@suse.de>, "riel@redhat.com" <riel@redhat.com>, "ak@linux.intel.com" <ak@linux.intel.com>, "matthew.r.wilcox@intel.com" <matthew.r.wilcox@intel.com>, "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "n-horiguchi@ah.jp.nec.com" <n-horiguchi@ah.jp.nec.com>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, Haggai Eran <haggaie@mellanox.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "pfeiner@google.com" <pfeiner@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, Sagi
- Grimberg <sagig@mellanox.com>, "walken@google.com" <walken@google.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
+On Mon, Feb 23, 2015 at 5:37 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Fri 20-02-15 17:39:42, Konstantin Khlebnikov wrote:
+>> This makes show_mem() much less verbose at huge machines. Instead of
+>> huge and almost useless dump of counters for each per-zone per-cpu
+>> lists this patch prints sum of these counters for each zone (free_pcp)
+>> and size of per-cpu list for current cpu (local_pcp).
+>
+> I like this! I do not remember when I found this information useful
+> while debugging either an allocation failure warning or OOM killer
+> report.
+>
+>> Flag SHOW_MEM_PERCPU_LISTS reverts old verbose mode.
+>
+> Nobody seems to be using this flag so why bother?
 
+Yes. But this might be important for architectures which has asymmetrical
+memory topology, I've heard about unicorns like that.
 
-> -----Original Message-----
-> From: Andrew Morton [mailto:akpm@linux-foundation.org]
-> Sent: Tuesday, February 24, 2015 2:20 AM
-> To: Shachar Raindel
-> Cc: linux-mm@kvack.org; kirill.shutemov@linux.intel.com;
-> mgorman@suse.de; riel@redhat.com; ak@linux.intel.com;
-> matthew.r.wilcox@intel.com; dave.hansen@linux.intel.com; n-
-> horiguchi@ah.jp.nec.com; torvalds@linux-foundation.org; Haggai Eran;
-> aarcange@redhat.com; pfeiner@google.com; hannes@cmpxchg.org; Sagi
-> Grimberg; walken@google.com
-> Subject: Re: [PATCH V5 0/4] Refactor do_wp_page, no functional change
->=20
-> On Sun, 22 Feb 2015 15:42:14 +0200 Shachar Raindel
-> <raindel@mellanox.com> wrote:
->=20
-> > Currently do_wp_page contains 265 code lines. It also contains 9 goto
-> > statements, of which 5 are targeting labels which are not cleanup
-> > related. This makes the function extremely difficult to
-> > understand. The following patches are an attempt at breaking the
-> > function to its basic components, and making it easier to understand.
-> >
-> > The patches are straight forward function extractions from
-> > do_wp_page. As we extract functions, we remove unneeded parameters and
-> > simplify the code as much as possible. However, the functionality is
-> > supposed to remain completely unchanged. The patches also attempt to
-> > document the functionality of each extracted function. In patch 2, we
-> > split the unlock logic to the contain logic relevant to specific needs
-> > of each use case, instead of having huge number of conditional
-> > decisions in a single unlock flow.
->=20
-> gcc-4.4.4:
->=20
->    text    data     bss     dec     hex filename
->   40898     186   13344   54428    d49c mm/memory.o-before
->   41422     186   13456   55064    d718 mm/memory.o-after
->=20
-> gcc-4.8.2:
->=20
->    text    data     bss     dec     hex filename
->   35261   12118   13904   61283    ef63 mm/memory.o
->   35646   12278   14032   61956    f204 mm/memory.o
->=20
-
-My results (gcc version 4.8.2 20140120 (Red Hat 4.8.2-16)) differ:
-   text	   data	    bss	    dec	    hex	filename
-  29957	     70	     32	  30059	   756b	memory.o.next-20150219
-  30061	     70	     32	  30163	   75d3	memory.o.next-20150219+1
-  30093	     70	     32	  30195	   75f3	memory.o.next-20150219+2
-  30165	     70	     32	  30267	   763b	memory.o.next-20150219+3
-  30165	     70	     32	  30267	   763b	memory.o.next-20150219+4
-
-
-> The more recent compiler is more interesting but either way, that's a
-> somewhat disappointing increase in code size for refactoring of a
-> single function.
->=20
-
-Seems like the majority of the size impact (104 bytes out of 208) originate
-from the first patch - "mm: Refactor do_wp_page, extract the reuse case"
-
-This is probably due to changing 3 gotos into returning a function call.
-As gcc cannot do tail call optimization there, it is forced to create
-3 new call sites there. Adding an inline to wp_page_reuse reduced the total
-size to:
-   text	   data	    bss	    dec	    hex	filename
-  30109	     70	     32	  30211	   7603	memory.o
-
-> I had a brief poke around and couldn't find any obvious improvements
-> to make.
-
-IMHO, 152 bytes in code size is a small price to pay for code that is
-not spaghetti.
-
-The patch to add the strategic inline which saves 56 bytes on my GCC:
-
-diff --git a/mm/memory.c b/mm/memory.c
-index b246d22..9025285 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1990,7 +1990,7 @@ static int do_page_mkwrite(struct vm_area_struct *vma=
-, struct page *page,
-  * case, all we need to do here is to mark the page as writable and update
-  * any related book-keeping.
-  */
--static int wp_page_reuse(struct mm_struct *mm, struct vm_area_struct *vma,
-+static inline int wp_page_reuse(struct mm_struct *mm, struct vm_area_struc=
-t *vma,
-                         unsigned long address, pte_t *page_table,
-                         spinlock_t *ptl, pte_t orig_pte,
-                         struct page *page, int page_mkwrite,
-
-
-
-Thanks,
---Shachar
+>
+>> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+>
+> Acked-by: Michal Hocko <mhocko@suse.cz>
+>
+>> ---
+>>  include/linux/mm.h |    1 +
+>>  mm/page_alloc.c    |   32 +++++++++++++++++++++++++-------
+>>  2 files changed, 26 insertions(+), 7 deletions(-)
+>>
+>> diff --git a/include/linux/mm.h b/include/linux/mm.h
+>> index 028565a..0538de0 100644
+>> --- a/include/linux/mm.h
+>> +++ b/include/linux/mm.h
+>> @@ -1126,6 +1126,7 @@ extern void pagefault_out_of_memory(void);
+>>   * various contexts.
+>>   */
+>>  #define SHOW_MEM_FILTER_NODES                (0x0001u)       /* disallowed nodes */
+>> +#define SHOW_MEM_PERCPU_LISTS                (0x0002u)       /* per-zone per-cpu */
+>>
+>>  extern void show_free_areas(unsigned int flags);
+>>  extern bool skip_free_areas_node(unsigned int flags, int nid);
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index a47f0b2..e591f3b 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -3198,20 +3198,29 @@ static void show_migration_types(unsigned char type)
+>>   */
+>>  void show_free_areas(unsigned int filter)
+>>  {
+>> +     unsigned long free_pcp = 0;
+>>       int cpu;
+>>       struct zone *zone;
+>>
+>>       for_each_populated_zone(zone) {
+>>               if (skip_free_areas_node(filter, zone_to_nid(zone)))
+>>                       continue;
+>> -             show_node(zone);
+>> -             printk("%s per-cpu:\n", zone->name);
+>> +
+>> +             if (filter & SHOW_MEM_PERCPU_LISTS) {
+>> +                     show_node(zone);
+>> +                     printk("%s per-cpu:\n", zone->name);
+>> +             }
+>>
+>>               for_each_online_cpu(cpu) {
+>>                       struct per_cpu_pageset *pageset;
+>>
+>>                       pageset = per_cpu_ptr(zone->pageset, cpu);
+>>
+>> +                     free_pcp += pageset->pcp.count;
+>> +
+>> +                     if (!(filter & SHOW_MEM_PERCPU_LISTS))
+>> +                             continue;
+>> +
+>>                       printk("CPU %4d: hi:%5d, btch:%4d usd:%4d\n",
+>>                              cpu, pageset->pcp.high,
+>>                              pageset->pcp.batch, pageset->pcp.count);
+>> @@ -3220,11 +3229,10 @@ void show_free_areas(unsigned int filter)
+>>
+>>       printk("active_anon:%lu inactive_anon:%lu isolated_anon:%lu\n"
+>>               " active_file:%lu inactive_file:%lu isolated_file:%lu\n"
+>> -             " unevictable:%lu"
+>> -             " dirty:%lu writeback:%lu unstable:%lu\n"
+>> -             " free:%lu slab_reclaimable:%lu slab_unreclaimable:%lu\n"
+>> +             " unevictable:%lu dirty:%lu writeback:%lu unstable:%lu\n"
+>> +             " slab_reclaimable:%lu slab_unreclaimable:%lu\n"
+>>               " mapped:%lu shmem:%lu pagetables:%lu bounce:%lu\n"
+>> -             " free_cma:%lu\n",
+>> +             " free:%lu free_pcp:%lu free_cma:%lu\n",
+>>               global_page_state(NR_ACTIVE_ANON),
+>>               global_page_state(NR_INACTIVE_ANON),
+>>               global_page_state(NR_ISOLATED_ANON),
+>> @@ -3235,13 +3243,14 @@ void show_free_areas(unsigned int filter)
+>>               global_page_state(NR_FILE_DIRTY),
+>>               global_page_state(NR_WRITEBACK),
+>>               global_page_state(NR_UNSTABLE_NFS),
+>> -             global_page_state(NR_FREE_PAGES),
+>>               global_page_state(NR_SLAB_RECLAIMABLE),
+>>               global_page_state(NR_SLAB_UNRECLAIMABLE),
+>>               global_page_state(NR_FILE_MAPPED),
+>>               global_page_state(NR_SHMEM),
+>>               global_page_state(NR_PAGETABLE),
+>>               global_page_state(NR_BOUNCE),
+>> +             global_page_state(NR_FREE_PAGES),
+>> +             free_pcp,
+>>               global_page_state(NR_FREE_CMA_PAGES));
+>>
+>>       for_each_populated_zone(zone) {
+>> @@ -3249,6 +3258,11 @@ void show_free_areas(unsigned int filter)
+>>
+>>               if (skip_free_areas_node(filter, zone_to_nid(zone)))
+>>                       continue;
+>> +
+>> +             free_pcp = 0;
+>> +             for_each_online_cpu(cpu)
+>> +                     free_pcp += per_cpu_ptr(zone->pageset, cpu)->pcp.count;
+>> +
+>>               show_node(zone);
+>>               printk("%s"
+>>                       " free:%lukB"
+>> @@ -3275,6 +3289,8 @@ void show_free_areas(unsigned int filter)
+>>                       " pagetables:%lukB"
+>>                       " unstable:%lukB"
+>>                       " bounce:%lukB"
+>> +                     " free_pcp:%lukB"
+>> +                     " local_pcp:%ukB"
+>>                       " free_cma:%lukB"
+>>                       " writeback_tmp:%lukB"
+>>                       " pages_scanned:%lu"
+>> @@ -3306,6 +3322,8 @@ void show_free_areas(unsigned int filter)
+>>                       K(zone_page_state(zone, NR_PAGETABLE)),
+>>                       K(zone_page_state(zone, NR_UNSTABLE_NFS)),
+>>                       K(zone_page_state(zone, NR_BOUNCE)),
+>> +                     K(free_pcp),
+>> +                     K(this_cpu_read(zone->pageset->pcp.count)),
+>>                       K(zone_page_state(zone, NR_FREE_CMA_PAGES)),
+>>                       K(zone_page_state(zone, NR_WRITEBACK_TEMP)),
+>>                       K(zone_page_state(zone, NR_PAGES_SCANNED)),
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
+> --
+> Michal Hocko
+> SUSE Labs
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
