@@ -1,55 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 95DE06B0032
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 17:12:30 -0500 (EST)
-Received: by mail-ig0-f179.google.com with SMTP id l13so1044708iga.0
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 14:12:30 -0800 (PST)
-Received: from mail-ie0-x233.google.com (mail-ie0-x233.google.com. [2607:f8b0:4001:c03::233])
-        by mx.google.com with ESMTPS id v5si10080774igb.35.2015.02.24.14.12.28
+Received: from mail-la0-f43.google.com (mail-la0-f43.google.com [209.85.215.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 04B986B0032
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 17:16:52 -0500 (EST)
+Received: by lamq1 with SMTP id q1so28998743lam.5
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 14:16:51 -0800 (PST)
+Received: from mail-lb0-x232.google.com (mail-lb0-x232.google.com. [2a00:1450:4010:c04::232])
+        by mx.google.com with ESMTPS id 5si15590711lav.34.2015.02.24.14.16.49
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Feb 2015 14:12:28 -0800 (PST)
-Received: by iecrd18 with SMTP id rd18so36111124iec.8
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 14:12:28 -0800 (PST)
+        Tue, 24 Feb 2015 14:16:50 -0800 (PST)
+Received: by lbjf15 with SMTP id f15so27951546lbj.13
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 14:16:49 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20150224220843.GL19014@t510.redhat.com>
-References: <9cc2b63100622f5fd17fa5e4adc59233a2b41877.1424779443.git.aquini@redhat.com>
-	<CA+55aFz4D9fS1xt7fg0R9Bnngg+_TbNs3fSAaFwoV7eTeLfP5Q@mail.gmail.com>
-	<20150224220843.GL19014@t510.redhat.com>
-Date: Tue, 24 Feb 2015 14:12:28 -0800
-Message-ID: <CA+55aFwa5YeW6T+Fo=CFs4RrtNAAy_snWxvG2CjS7KSwj07VOw@mail.gmail.com>
-Subject: Re: [PATCH] mm: readahead: get back a sensible upper limit
-From: Linus Torvalds <torvalds@linux-foundation.org>
+In-Reply-To: <CALYGNiOj2-FZyUC5oFews7481WW2B2NJuYz96xS3KxAOc4jpPw@mail.gmail.com>
+References: <1424801964-1602-1-git-send-email-mhocko@suse.cz>
+	<20150224191127.GA14718@phnom.home.cmpxchg.org>
+	<CALYGNiOj2-FZyUC5oFews7481WW2B2NJuYz96xS3KxAOc4jpPw@mail.gmail.com>
+Date: Wed, 25 Feb 2015 01:16:49 +0300
+Message-ID: <CALYGNiPVcbzJxxwcUVfCOKA56xyV+r8B7DjU4aVhSqAXor2w7Q@mail.gmail.com>
+Subject: Re: [PATCH] mm, oom: do not fail __GFP_NOFAIL allocation if oom
+ killer is disbaled
+From: Konstantin Khlebnikov <koct9i@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, loberman@redhat.com, Larry Woodman <lwoodman@redhat.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, "\\Rafael J. Wysocki\\" <rjw@rjwysocki.net>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Feb 24, 2015 at 2:08 PM, Rafael Aquini <aquini@redhat.com> wrote:
+On Wed, Feb 25, 2015 at 1:09 AM, Konstantin Khlebnikov <koct9i@gmail.com> wrote:
+> On Tue, Feb 24, 2015 at 10:11 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+>> On Tue, Feb 24, 2015 at 07:19:24PM +0100, Michal Hocko wrote:
+>>> Tetsuo Handa has pointed out that __GFP_NOFAIL allocations might fail
+>>> after OOM killer is disabled if the allocation is performed by a
+>>> kernel thread. This behavior was introduced from the very beginning by
+>>> 7f33d49a2ed5 (mm, PM/Freezer: Disable OOM killer when tasks are frozen).
+>>> This means that the basic contract for the allocation request is broken
+>>> and the context requesting such an allocation might blow up unexpectedly.
+>>>
+>>> There are basically two ways forward.
+>>> 1) move oom_killer_disable after kernel threads are frozen. This has a
+>>>    risk that the OOM victim wouldn't be able to finish because it would
+>>>    depend on an already frozen kernel thread. This would be really
+>>>    tricky to debug.
+>>> 2) do not fail GFP_NOFAIL allocation no matter what and risk a potential
+>>>    Freezable kernel threads will loop and fail the suspend. Incidental
+>>>    allocations after kernel threads are frozen will at least dump a
+>>>    warning - if we are lucky and the serial console is still active of
+>>>    course...
+>>>
+>>> This patch implements the later option because it is safer. We would see
+>>> warnings rather than allocation failures for the kernel threads which
+>>> would blow up otherwise and have a higher chances to identify
+>>> __GFP_NOFAIL users from deeper pm code.
+>>>
+>>> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+>>> ---
+>>>
+>>> We haven't seen any bug reports
+>>>
+>>>  mm/oom_kill.c | 8 ++++++++
+>>>  1 file changed, 8 insertions(+)
+>>>
+>>> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+>>> index 642f38cb175a..ea8b443cd871 100644
+>>> --- a/mm/oom_kill.c
+>>> +++ b/mm/oom_kill.c
+>>> @@ -772,6 +772,10 @@ out:
+>>>               schedule_timeout_killable(1);
+>>>  }
+>>>
+>>> +static DEFINE_RATELIMIT_STATE(oom_disabled_rs,
+>>> +             DEFAULT_RATELIMIT_INTERVAL,
+>>> +             DEFAULT_RATELIMIT_BURST);
+>>> +
+>>>  /**
+>>>   * out_of_memory -  tries to invoke OOM killer.
+>>>   * @zonelist: zonelist pointer
+>>> @@ -792,6 +796,10 @@ bool out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+>>>       if (!oom_killer_disabled) {
+>>>               __out_of_memory(zonelist, gfp_mask, order, nodemask, force_kill);
+>>>               ret = true;
+>>> +     } else if (gfp_mask & __GFP_NOFAIL) {
+>>> +             if (__ratelimit(&oom_disabled_rs))
+>>> +                     WARN(1, "Unable to make forward progress for __GFP_NOFAIL because OOM killer is disbaled\n");
+>>> +             ret = true;
+>>
+>> I'm fine with keeping the allocation looping, but is that message
+>> helpful?  It seems completely useless to the user encountering it.  Is
+>> it going to help kernel developers when we get a bug report with it?
+>>
+>> WARN_ON_ONCE()?
 >
-> Would you consider bringing it back, but instead of node memory state,
-> utilizing global memory state instead?
+> maybe panic() ?
+>
+> If somebody turns off oom-killer it seems he's pretty sure that he has
+> enough memory.
 
-Maybe. At least it would be saner than picking random values that make
-absolutely no sense.
+Ah, that's used in freeze/suspend code. I thought that some kind of
+sysctl for brave sysadmins.
 
-> People filing bugs complaining their applications that memory map files
-> are getting hurt by it.
-
-Show them. And as mentioned, last time this came up (and it has come
-up before), it wasn't actually a real load, but some benchmark that
-just did the prefetch, and then people were upset because their
-benchmark numbers changed.
-
-Which quite frankly doesn't make me care. The benchmark could equally
-well just be changed to do prefetching in saner chunks instead.
-
-So I really want to see real numbers from real loads, not some
-nebulous "people noticed and complain" that doesn't even specify what
-they did.
-
-                         Linus
+>
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
