@@ -1,192 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id CE54A6B0038
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 11:14:11 -0500 (EST)
-Received: by mail-wi0-f172.google.com with SMTP id l15so26672399wiw.5
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 08:14:11 -0800 (PST)
+Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DAF26B0032
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 11:51:49 -0500 (EST)
+Received: by wesu56 with SMTP id u56so26407343wes.10
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 08:51:49 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id lg8si68249885wjb.183.2015.02.24.08.14.09
+        by mx.google.com with ESMTPS id hk5si24408125wib.101.2015.02.24.08.51.47
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 24 Feb 2015 08:14:09 -0800 (PST)
-Date: Tue, 24 Feb 2015 17:14:08 +0100
+        Tue, 24 Feb 2015 08:51:48 -0800 (PST)
+Date: Tue, 24 Feb 2015 17:51:46 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH RFC 3/4] mm: move lazy free pages to inactive list
-Message-ID: <20150224161408.GB14939@dhcp22.suse.cz>
+Subject: Re: [PATCH RFC 4/4] mm: support MADV_FREE in swapless system
+Message-ID: <20150224165146.GC14939@dhcp22.suse.cz>
 References: <1424765897-27377-1-git-send-email-minchan@kernel.org>
- <1424765897-27377-3-git-send-email-minchan@kernel.org>
+ <1424765897-27377-4-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1424765897-27377-3-git-send-email-minchan@kernel.org>
+In-Reply-To: <1424765897-27377-4-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Shaohua Li <shli@kernel.org>, Yalin.Wang@sonymobile.com
 
-On Tue 24-02-15 17:18:16, Minchan Kim wrote:
-> MADV_FREE is hint that it's okay to discard pages if memory is
-> pressure and we uses reclaimers(ie, kswapd and direct reclaim)
-
-s@if memory is pressure@if there is memory pressure@
-
-> to free them so there is no worth to remain them in active
-> anonymous LRU list so this patch moves them to inactive LRU list.
-
-Makes sense to me.
-
-> A arguable issue for the approach is whether we should put it
-> head or tail in inactive list
-
-Is it really arguable? Why should active MADV_FREE pages appear before
-those which were living on the inactive list. This doesn't make any
-sense to me.
-
-> and selected it as head because
-> kernel cannot make sure it's really cold or warm for every usecase
-> but at least we know it's not hot so landing of inactive head
-> would be comprimise if it stayed in active LRU.
-
-This is really hard to read. What do you think about the following
-wording?
-"
-The active status of those pages is cleared and they are moved to the
-head of the inactive LRU. This means that MADV_FREE-ed pages which
-were living on the inactive list are reclaimed first because they
-are more likely to be cold rather than recently active pages.
-"
-
-> As well, if we put recent hinted pages to inactive's tail,
-> VM could discard cache hot pages, which would be bad.
+On Tue 24-02-15 17:18:17, Minchan Kim wrote:
+> Historically, we have disabled reclaiming completely with swapoff
+> or non-swap configurable system. It did make sense but problem
+> for lazy free pages is that we couldn't get a chance to discard
+> hinted pages in reclaim path in those systems.
 > 
-> As a bonus, we don't need to move them back and forth in inactive
-> list whenever MADV_SYSCALL syscall is called.
+> That's why current MADV_FREE implmentation drop pages instantly
+> like MADV_DONTNNED in swapless system so that users on those
+> systems couldn't get the benefit of MADV_FREE.
 > 
-> As drawback, VM should scan more pages in inactive anonymous LRU
-> to discard but it has happened all the time if recent reference
-> happens on those pages in inactive LRU list so I don't think
-> it's not a main drawback.
+> This patch makes VM try to reclaim anonymous pages on swapless
+> system. Basic strategy is to try reclaim anonymous pages
+> if there are pages in *inactive anon*.
 
-Rather than the above paragraphs I would like to see a description why
-this is needed. Something like the following?
-"
-This is fixing a suboptimal behavior of MADV_FREE when pages living on
-the active list will sit there for a long time even under memory
-pressure while the inactive list is reclaimed heavily. This basically
-breaks the whole purpose of using MADV_FREE to help the system to free
-memory which is might not be used.
-"
+Nice idea.
 
+> In non-swap config system, VM doesn't do aging/reclaiming
+> anonymous LRU list so inactive anon LRU list should be always
+> empty. So, if there are some pages in inactive anon LRU,
+> it means they are MADV_FREE hinted pages so VM try to reclaim
+> them and discard or promote them onto active list.
+> 
+> In swap-config-but-not-yet-swapon, VM doesn't do aging/reclaiming
+> anonymous LRU list so inactive anon LRU list would be empty but
+> it might be not always true because some pages could remain
+> inactive anon list if the admin had swapon before. So, if there
+> are some pages in inactive anon LRU, it means they are MADV_FREE
+> hinted pages or non-hinted pages which have stayed before.
+> VM try to reclaim them and discard or promote them onto active list
+> so we could have only hinted pages on inactive anon LRU list
+> after a while.
+> 
+> In swap-enabled-and-full, VM does aging but not try to reclaim
+> in current implementation. However, we try to reclaim them by
+> this patch so reclaim efficiency would be worse than old.
+> I don't know how many such workloads(ie, doing a job with
+> full-swap for a long time)  we should take care of are.
+
+Talking about performance when the swap is full is a bit funny. The
+system is crawling at the time most probably.
+
+> Hope the comment.
+> 
+> On swapoff system with 3G ram, there are 10 processes with below
+> 
+> loop = 12;
+> mmap(256M);
+
+again what is the memory pressure which fills up the rest of the memory.
+
+> while (loop--) {
+> 	memset(256M);
+> 	madvise(MADV_FREE or MADV_DONTNEED);
+> 	sleep(1);
+> }
+> 
+> 1) dontneed: 5.40user 24.75system 0:15.36elapsed
+> 2) madvfree + this patch: 5.18user 6.90system 0:13.39elapsed
+>
 > Signed-off-by: Minchan Kim <minchan@kernel.org>
-
-Other than that the patch looks good to me.
-Acked-by: Michal Hocko <mhocko@suse.cz>
-
 > ---
->  include/linux/swap.h |  1 +
->  mm/madvise.c         |  2 ++
->  mm/swap.c            | 35 +++++++++++++++++++++++++++++++++++
->  3 files changed, 38 insertions(+)
+>  mm/madvise.c | 21 ++++++++-------------
+>  mm/vmscan.c  | 32 +++++++++++++++++++++-----------
+>  2 files changed, 29 insertions(+), 24 deletions(-)
 > 
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index cee108cbe2d5..0428e4c84e1d 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -308,6 +308,7 @@ extern void lru_add_drain_cpu(int cpu);
->  extern void lru_add_drain_all(void);
->  extern void rotate_reclaimable_page(struct page *page);
->  extern void deactivate_file_page(struct page *page);
-> +extern void deactivate_page(struct page *page);
->  extern void swap_setup(void);
+[...]
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 671e47edb584..1574cd783ab9 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -163,16 +163,23 @@ static bool global_reclaim(struct scan_control *sc)
 >  
->  extern void add_page_to_unevictable_list(struct page *page);
-> diff --git a/mm/madvise.c b/mm/madvise.c
-> index 81bb26ecf064..6176039c69e4 100644
-> --- a/mm/madvise.c
-> +++ b/mm/madvise.c
-> @@ -324,6 +324,8 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
->  		ptent = pte_mkold(ptent);
->  		ptent = pte_mkclean(ptent);
->  		set_pte_at(mm, addr, pte, ptent);
-> +		if (PageActive(page))
-> +			deactivate_page(page);
->  		tlb_remove_tlb_entry(tlb, pte, addr);
->  	}
->  	arch_leave_lazy_mmu_mode();
-> diff --git a/mm/swap.c b/mm/swap.c
-> index 5b2a60578f9c..393968c33667 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -43,6 +43,7 @@ int page_cluster;
->  static DEFINE_PER_CPU(struct pagevec, lru_add_pvec);
->  static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
->  static DEFINE_PER_CPU(struct pagevec, lru_deactivate_file_pvecs);
-> +static DEFINE_PER_CPU(struct pagevec, lru_deactivate_pvecs);
->  
->  /*
->   * This path almost never happens for VM activity - pages are normally
-> @@ -789,6 +790,23 @@ static void lru_deactivate_file_fn(struct page *page, struct lruvec *lruvec,
->  	update_page_reclaim_stat(lruvec, file, 0);
->  }
->  
-> +
-> +static void lru_deactivate_fn(struct page *page, struct lruvec *lruvec,
-> +			    void *arg)
-> +{
-> +	if (PageLRU(page) && PageActive(page) && !PageUnevictable(page)) {
-> +		int file = page_is_file_cache(page);
-> +		int lru = page_lru_base_type(page);
-> +
-> +		del_page_from_lru_list(page, lruvec, lru + LRU_ACTIVE);
-> +		ClearPageActive(page);
-> +		add_page_to_lru_list(page, lruvec, lru);
-> +
-> +		__count_vm_event(PGDEACTIVATE);
-> +		update_page_reclaim_stat(lruvec, file, 0);
-> +	}
-> +}
-> +
->  /*
->   * Drain pages out of the cpu's pagevecs.
->   * Either "cpu" is the current CPU, and preemption has already been
-> @@ -815,6 +833,10 @@ void lru_add_drain_cpu(int cpu)
->  	if (pagevec_count(pvec))
->  		pagevec_lru_move_fn(pvec, lru_deactivate_file_fn, NULL);
->  
-> +	pvec = &per_cpu(lru_deactivate_pvecs, cpu);
-> +	if (pagevec_count(pvec))
-> +		pagevec_lru_move_fn(pvec, lru_deactivate_fn, NULL);
-> +
->  	activate_page_drain(cpu);
->  }
->  
-> @@ -844,6 +866,18 @@ void deactivate_file_page(struct page *page)
->  	}
->  }
->  
-> +void deactivate_page(struct page *page)
-> +{
-> +	if (PageLRU(page) && PageActive(page) && !PageUnevictable(page)) {
-> +		struct pagevec *pvec = &get_cpu_var(lru_deactivate_pvecs);
-> +
-> +		page_cache_get(page);
-> +		if (!pagevec_add(pvec, page))
-> +			pagevec_lru_move_fn(pvec, lru_deactivate_fn, NULL);
-> +		put_cpu_var(lru_deactivate_pvecs);
-> +	}
-> +}
-> +
->  void lru_add_drain(void)
+>  static unsigned long zone_reclaimable_pages(struct zone *zone)
 >  {
->  	lru_add_drain_cpu(get_cpu());
-> @@ -873,6 +907,7 @@ void lru_add_drain_all(void)
->  		if (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
->  		    pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
->  		    pagevec_count(&per_cpu(lru_deactivate_file_pvecs, cpu)) ||
-> +		    pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
->  		    need_activate_page_drain(cpu)) {
->  			INIT_WORK(work, lru_add_drain_per_cpu);
->  			schedule_work_on(cpu, work);
+> -	int nr;
+> +	unsigned long file, anon;
+>  
+> -	nr = zone_page_state(zone, NR_ACTIVE_FILE) +
+> -	     zone_page_state(zone, NR_INACTIVE_FILE);
+> +	file = zone_page_state(zone, NR_ACTIVE_FILE) +
+> +		zone_page_state(zone, NR_INACTIVE_FILE);
+>  
+> -	if (get_nr_swap_pages() > 0)
+> -		nr += zone_page_state(zone, NR_ACTIVE_ANON) +
+> -		      zone_page_state(zone, NR_INACTIVE_ANON);
+> +	/*
+> +	 * Although there is no swap space, we should consider
+> +	 * lazy free pages in inactive anon LRU list.
+> +	 */
+> +	if (total_swap_pages > 0) {
+> +		anon = zone_page_state(zone, NR_ACTIVE_ANON) +
+> +			zone_page_state(zone, NR_INACTIVE_ANON);
+> +	} else {
+> +		anon = zone_page_state(zone, NR_INACTIVE_ANON);
+> +	}
+
+Hmm, this doesn't look right to me. The zone would be considered
+reclaimable even though it is not in fact. Most of the systems are
+configured with swap and this would break those AFAICS.
+
+> -	return nr;
+> +	return file + anon;
+>  }
+>  
+>  bool zone_reclaimable(struct zone *zone)
+> @@ -2002,8 +2009,11 @@ static void get_scan_count(struct lruvec *lruvec, int swappiness,
+>  	if (!global_reclaim(sc))
+>  		force_scan = true;
+>  
+> -	/* If we have no swap space, do not bother scanning anon pages. */
+> -	if (!sc->may_swap || (get_nr_swap_pages() <= 0)) {
+> +	/*
+> +	 * If we have no inactive anon page, do not bother scanning
+> +	 * anon pages.
+> +	 */
+> +	if (!sc->may_swap || !zone_page_state(zone, NR_INACTIVE_ANON)) {
+>  		scan_balance = SCAN_FILE;
+>  		goto out;
+>  	}
+
+but later in the function we are considering active anon pages as well.
+Does this work at all?
+
+> @@ -2344,8 +2354,8 @@ static inline bool should_continue_reclaim(struct zone *zone,
+>  	 */
+>  	pages_for_compaction = (2UL << sc->order);
+>  	inactive_lru_pages = zone_page_state(zone, NR_INACTIVE_FILE);
+> -	if (get_nr_swap_pages() > 0)
+> -		inactive_lru_pages += zone_page_state(zone, NR_INACTIVE_ANON);
+> +	inactive_lru_pages += zone_page_state(zone, NR_INACTIVE_ANON);
+> +
+>  	if (sc->nr_reclaimed < pages_for_compaction &&
+>  			inactive_lru_pages > pages_for_compaction)
+>  		return true;
 > -- 
 > 1.9.1
 > 
