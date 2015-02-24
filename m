@@ -1,41 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id BC9F96B006E
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 08:45:33 -0500 (EST)
-Received: by wghk14 with SMTP id k14so5363085wgh.4
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 05:45:33 -0800 (PST)
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id B44CC6B0071
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 08:56:40 -0500 (EST)
+Received: by mail-wi0-f171.google.com with SMTP id ex7so5117672wid.4
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 05:56:40 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id jj6si23661589wid.41.2015.02.24.05.45.29
+        by mx.google.com with ESMTPS id dv1si23761823wib.5.2015.02.24.05.56.38
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 24 Feb 2015 05:45:30 -0800 (PST)
-Date: Tue, 24 Feb 2015 14:45:28 +0100
+        Tue, 24 Feb 2015 05:56:38 -0800 (PST)
+Date: Tue, 24 Feb 2015 14:56:37 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH V5 2/4] mm: Refactor do_wp_page - rewrite the unlock flow
-Message-ID: <20150224134528.GB15626@dhcp22.suse.cz>
+Subject: Re: [PATCH V5 3/4] mm: refactor do_wp_page, extract the page copy
+ flow
+Message-ID: <20150224135637.GC15626@dhcp22.suse.cz>
 References: <1424612538-25889-1-git-send-email-raindel@mellanox.com>
- <1424612538-25889-3-git-send-email-raindel@mellanox.com>
+ <1424612538-25889-4-git-send-email-raindel@mellanox.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1424612538-25889-3-git-send-email-raindel@mellanox.com>
+In-Reply-To: <1424612538-25889-4-git-send-email-raindel@mellanox.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Shachar Raindel <raindel@mellanox.com>
 Cc: linux-mm@kvack.org, kirill.shutemov@linux.intel.com, mgorman@suse.de, riel@redhat.com, ak@linux.intel.com, matthew.r.wilcox@intel.com, dave.hansen@linux.intel.com, n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org, torvalds@linux-foundation.org, haggaie@mellanox.com, aarcange@redhat.com, pfeiner@google.com, hannes@cmpxchg.org, sagig@mellanox.com, walken@google.com, Dave Hansen <dave.hansen@intel.com>
 
-On Sun 22-02-15 15:42:16, Shachar Raindel wrote:
-> When do_wp_page is ending, in several cases it needs to unlock the
-> pages and ptls it was accessing.
+On Sun 22-02-15 15:42:17, Shachar Raindel wrote:
+> In some cases, do_wp_page had to copy the page suffering a write fault
+> to a new location. If the function logic decided that to do this, it
+> was done by jumping with a "goto" operation to the relevant code
+> block. This made the code really hard to understand. It is also
+> against the kernel coding style guidelines.
 > 
-> Currently, this logic was "called" by using a goto jump. This makes
-> following the control flow of the function harder. Readability was
-> further hampered by the unlock case containing large amount of logic
-> needed only in one of the 3 cases.
-> 
-> Using goto for cleanup is generally allowed. However, moving the
-> trivial unlocking flows to the relevant call sites allow deeper
-> refactoring in the next patch.
+> This patch extracts the page copy and page table update logic to a
+> separate function. It also clean up the naming, from "gotten" to
+> "wp_page_copy", and adds few comments.
 > 
 > Signed-off-by: Shachar Raindel <raindel@mellanox.com>
 > Acked-by: Linus Torvalds <torvalds@linux-foundation.org>
@@ -53,83 +52,312 @@ On Sun 22-02-15 15:42:16, Shachar Raindel wrote:
 > Cc: Peter Feiner <pfeiner@google.com>
 > Cc: Michel Lespinasse <walken@google.com>
 
-Neat!
+Nice cleanup as well!
 Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
 > ---
->  mm/memory.c | 21 ++++++++++++---------
->  1 file changed, 12 insertions(+), 9 deletions(-)
+>  mm/memory.c | 265 +++++++++++++++++++++++++++++++++---------------------------
+>  1 file changed, 147 insertions(+), 118 deletions(-)
 > 
 > diff --git a/mm/memory.c b/mm/memory.c
-> index 7a04414..3afd9ce 100644
+> index 3afd9ce..a06e705 100644
 > --- a/mm/memory.c
 > +++ b/mm/memory.c
-> @@ -2066,7 +2066,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  {
->  	struct page *old_page, *new_page = NULL;
->  	pte_t entry;
-> -	int ret = 0;
+> @@ -2042,6 +2042,146 @@ static int wp_page_reuse(struct mm_struct *mm, struct vm_area_struct *vma,
+>  }
+>  
+>  /*
+> + * Handle the case of a page which we actually need to copy to a new page.
+> + *
+> + * Called with mmap_sem locked and the old page referenced, but
+> + * without the ptl held.
+> + *
+> + * High level logic flow:
+> + *
+> + * - Allocate a page, copy the content of the old page to the new one.
+> + * - Handle book keeping and accounting - cgroups, mmu-notifiers, etc.
+> + * - Take the PTL. If the pte changed, bail out and release the allocated page
+> + * - If the pte is still the way we remember it, update the page table and all
+> + *   relevant references. This includes dropping the reference the page-table
+> + *   held to the old page, as well as updating the rmap.
+> + * - In any case, unlock the PTL and drop the reference we took to the old page.
+> + */
+> +static int wp_page_copy(struct mm_struct *mm, struct vm_area_struct *vma,
+> +			unsigned long address, pte_t *page_table, pmd_t *pmd,
+> +			pte_t orig_pte, struct page *old_page)
+> +{
+> +	struct page *new_page = NULL;
+> +	spinlock_t *ptl = NULL;
+> +	pte_t entry;
 > +	int page_copied = 0;
->  	unsigned long mmun_start = 0;	/* For mmu_notifiers */
->  	unsigned long mmun_end = 0;	/* For mmu_notifiers */
->  	struct mem_cgroup *memcg;
-> @@ -2101,7 +2101,9 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  							 &ptl);
->  			if (!pte_same(*page_table, orig_pte)) {
->  				unlock_page(old_page);
-> -				goto unlock;
-> +				pte_unmap_unlock(page_table, ptl);
-> +				page_cache_release(old_page);
-> +				return 0;
->  			}
->  			page_cache_release(old_page);
->  		}
-> @@ -2148,7 +2150,9 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  							 &ptl);
->  			if (!pte_same(*page_table, orig_pte)) {
->  				unlock_page(old_page);
-> -				goto unlock;
-> +				pte_unmap_unlock(page_table, ptl);
-> +				page_cache_release(old_page);
-> +				return 0;
->  			}
->  			page_mkwrite = 1;
->  		}
-> @@ -2246,29 +2250,28 @@ gotten:
->  
->  		/* Free the old page.. */
->  		new_page = old_page;
-> -		ret |= VM_FAULT_WRITE;
-> +		page_copied = 1;
->  	} else
->  		mem_cgroup_cancel_charge(new_page, memcg);
->  
->  	if (new_page)
->  		page_cache_release(new_page);
-> -unlock:
+> +	const unsigned long mmun_start = address & PAGE_MASK;	/* For mmu_notifiers */
+> +	const unsigned long mmun_end = mmun_start + PAGE_SIZE;	/* For mmu_notifiers */
+> +	struct mem_cgroup *memcg;
 > +
->  	pte_unmap_unlock(page_table, ptl);
-> -	if (mmun_end > mmun_start)
-> -		mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
+> +	if (unlikely(anon_vma_prepare(vma)))
+> +		goto oom;
+> +
+> +	if (is_zero_pfn(pte_pfn(orig_pte))) {
+> +		new_page = alloc_zeroed_user_highpage_movable(vma, address);
+> +		if (!new_page)
+> +			goto oom;
+> +	} else {
+> +		new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
+> +		if (!new_page)
+> +			goto oom;
+> +		cow_user_page(new_page, old_page, address, vma);
+> +	}
+> +	__SetPageUptodate(new_page);
+> +
+> +	if (mem_cgroup_try_charge(new_page, mm, GFP_KERNEL, &memcg))
+> +		goto oom_free_new;
+> +
+> +	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
+> +
+> +	/*
+> +	 * Re-check the pte - we dropped the lock
+> +	 */
+> +	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
+> +	if (likely(pte_same(*page_table, orig_pte))) {
+> +		if (old_page) {
+> +			if (!PageAnon(old_page)) {
+> +				dec_mm_counter_fast(mm, MM_FILEPAGES);
+> +				inc_mm_counter_fast(mm, MM_ANONPAGES);
+> +			}
+> +		} else {
+> +			inc_mm_counter_fast(mm, MM_ANONPAGES);
+> +		}
+> +		flush_cache_page(vma, address, pte_pfn(orig_pte));
+> +		entry = mk_pte(new_page, vma->vm_page_prot);
+> +		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+> +		/*
+> +		 * Clear the pte entry and flush it first, before updating the
+> +		 * pte with the new entry. This will avoid a race condition
+> +		 * seen in the presence of one thread doing SMC and another
+> +		 * thread doing COW.
+> +		 */
+> +		ptep_clear_flush_notify(vma, address, page_table);
+> +		page_add_new_anon_rmap(new_page, vma, address);
+> +		mem_cgroup_commit_charge(new_page, memcg, false);
+> +		lru_cache_add_active_or_unevictable(new_page, vma);
+> +		/*
+> +		 * We call the notify macro here because, when using secondary
+> +		 * mmu page tables (such as kvm shadow page tables), we want the
+> +		 * new page to be mapped directly into the secondary page table.
+> +		 */
+> +		set_pte_at_notify(mm, address, page_table, entry);
+> +		update_mmu_cache(vma, address, page_table);
+> +		if (old_page) {
+> +			/*
+> +			 * Only after switching the pte to the new page may
+> +			 * we remove the mapcount here. Otherwise another
+> +			 * process may come and find the rmap count decremented
+> +			 * before the pte is switched to the new page, and
+> +			 * "reuse" the old page writing into it while our pte
+> +			 * here still points into it and can be read by other
+> +			 * threads.
+> +			 *
+> +			 * The critical issue is to order this
+> +			 * page_remove_rmap with the ptp_clear_flush above.
+> +			 * Those stores are ordered by (if nothing else,)
+> +			 * the barrier present in the atomic_add_negative
+> +			 * in page_remove_rmap.
+> +			 *
+> +			 * Then the TLB flush in ptep_clear_flush ensures that
+> +			 * no process can access the old page before the
+> +			 * decremented mapcount is visible. And the old page
+> +			 * cannot be reused until after the decremented
+> +			 * mapcount is visible. So transitively, TLBs to
+> +			 * old page will be flushed before it can be reused.
+> +			 */
+> +			page_remove_rmap(old_page);
+> +		}
+> +
+> +		/* Free the old page.. */
+> +		new_page = old_page;
+> +		page_copied = 1;
+> +	} else {
+> +		mem_cgroup_cancel_charge(new_page, memcg);
+> +	}
+> +
+> +	if (new_page)
+> +		page_cache_release(new_page);
+> +
+> +	pte_unmap_unlock(page_table, ptl);
 > +	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
->  	if (old_page) {
->  		/*
->  		 * Don't let another task, with possibly unlocked vma,
->  		 * keep the mlocked page.
->  		 */
-> -		if ((ret & VM_FAULT_WRITE) && (vma->vm_flags & VM_LOCKED)) {
+> +	if (old_page) {
+> +		/*
+> +		 * Don't let another task, with possibly unlocked vma,
+> +		 * keep the mlocked page.
+> +		 */
 > +		if (page_copied && (vma->vm_flags & VM_LOCKED)) {
->  			lock_page(old_page);	/* LRU manipulation */
->  			munlock_vma_page(old_page);
->  			unlock_page(old_page);
->  		}
->  		page_cache_release(old_page);
->  	}
-> -	return ret;
+> +			lock_page(old_page);	/* LRU manipulation */
+> +			munlock_vma_page(old_page);
+> +			unlock_page(old_page);
+> +		}
+> +		page_cache_release(old_page);
+> +	}
 > +	return page_copied ? VM_FAULT_WRITE : 0;
->  oom_free_new:
->  	page_cache_release(new_page);
->  oom:
+> +oom_free_new:
+> +	page_cache_release(new_page);
+> +oom:
+> +	if (old_page)
+> +		page_cache_release(old_page);
+> +	return VM_FAULT_OOM;
+> +}
+> +
+> +/*
+>   * This routine handles present pages, when users try to write
+>   * to a shared page. It is done by copying the page to a new address
+>   * and decrementing the shared-page counter for the old page.
+> @@ -2064,12 +2204,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  		spinlock_t *ptl, pte_t orig_pte)
+>  	__releases(ptl)
+>  {
+> -	struct page *old_page, *new_page = NULL;
+> -	pte_t entry;
+> -	int page_copied = 0;
+> -	unsigned long mmun_start = 0;	/* For mmu_notifiers */
+> -	unsigned long mmun_end = 0;	/* For mmu_notifiers */
+> -	struct mem_cgroup *memcg;
+> +	struct page *old_page;
+>  
+>  	old_page = vm_normal_page(vma, address, orig_pte);
+>  	if (!old_page) {
+> @@ -2085,7 +2220,10 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  				     (VM_WRITE|VM_SHARED))
+>  			return wp_page_reuse(mm, vma, address, page_table, ptl,
+>  					     orig_pte, old_page, 0, 0);
+> -		goto gotten;
+> +
+> +		pte_unmap_unlock(page_table, ptl);
+> +		return wp_page_copy(mm, vma, address, page_table, pmd,
+> +				    orig_pte, old_page);
+>  	}
+>  
+>  	/*
+> @@ -2165,119 +2303,10 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  	 * Ok, we need to copy. Oh, well..
+>  	 */
+>  	page_cache_get(old_page);
+> -gotten:
+> -	pte_unmap_unlock(page_table, ptl);
+> -
+> -	if (unlikely(anon_vma_prepare(vma)))
+> -		goto oom;
+> -
+> -	if (is_zero_pfn(pte_pfn(orig_pte))) {
+> -		new_page = alloc_zeroed_user_highpage_movable(vma, address);
+> -		if (!new_page)
+> -			goto oom;
+> -	} else {
+> -		new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
+> -		if (!new_page)
+> -			goto oom;
+> -		cow_user_page(new_page, old_page, address, vma);
+> -	}
+> -	__SetPageUptodate(new_page);
+> -
+> -	if (mem_cgroup_try_charge(new_page, mm, GFP_KERNEL, &memcg))
+> -		goto oom_free_new;
+> -
+> -	mmun_start  = address & PAGE_MASK;
+> -	mmun_end    = mmun_start + PAGE_SIZE;
+> -	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
+> -
+> -	/*
+> -	 * Re-check the pte - we dropped the lock
+> -	 */
+> -	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
+> -	if (likely(pte_same(*page_table, orig_pte))) {
+> -		if (old_page) {
+> -			if (!PageAnon(old_page)) {
+> -				dec_mm_counter_fast(mm, MM_FILEPAGES);
+> -				inc_mm_counter_fast(mm, MM_ANONPAGES);
+> -			}
+> -		} else
+> -			inc_mm_counter_fast(mm, MM_ANONPAGES);
+> -		flush_cache_page(vma, address, pte_pfn(orig_pte));
+> -		entry = mk_pte(new_page, vma->vm_page_prot);
+> -		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+> -		/*
+> -		 * Clear the pte entry and flush it first, before updating the
+> -		 * pte with the new entry. This will avoid a race condition
+> -		 * seen in the presence of one thread doing SMC and another
+> -		 * thread doing COW.
+> -		 */
+> -		ptep_clear_flush_notify(vma, address, page_table);
+> -		page_add_new_anon_rmap(new_page, vma, address);
+> -		mem_cgroup_commit_charge(new_page, memcg, false);
+> -		lru_cache_add_active_or_unevictable(new_page, vma);
+> -		/*
+> -		 * We call the notify macro here because, when using secondary
+> -		 * mmu page tables (such as kvm shadow page tables), we want the
+> -		 * new page to be mapped directly into the secondary page table.
+> -		 */
+> -		set_pte_at_notify(mm, address, page_table, entry);
+> -		update_mmu_cache(vma, address, page_table);
+> -		if (old_page) {
+> -			/*
+> -			 * Only after switching the pte to the new page may
+> -			 * we remove the mapcount here. Otherwise another
+> -			 * process may come and find the rmap count decremented
+> -			 * before the pte is switched to the new page, and
+> -			 * "reuse" the old page writing into it while our pte
+> -			 * here still points into it and can be read by other
+> -			 * threads.
+> -			 *
+> -			 * The critical issue is to order this
+> -			 * page_remove_rmap with the ptp_clear_flush above.
+> -			 * Those stores are ordered by (if nothing else,)
+> -			 * the barrier present in the atomic_add_negative
+> -			 * in page_remove_rmap.
+> -			 *
+> -			 * Then the TLB flush in ptep_clear_flush ensures that
+> -			 * no process can access the old page before the
+> -			 * decremented mapcount is visible. And the old page
+> -			 * cannot be reused until after the decremented
+> -			 * mapcount is visible. So transitively, TLBs to
+> -			 * old page will be flushed before it can be reused.
+> -			 */
+> -			page_remove_rmap(old_page);
+> -		}
+> -
+> -		/* Free the old page.. */
+> -		new_page = old_page;
+> -		page_copied = 1;
+> -	} else
+> -		mem_cgroup_cancel_charge(new_page, memcg);
+> -
+> -	if (new_page)
+> -		page_cache_release(new_page);
+>  
+>  	pte_unmap_unlock(page_table, ptl);
+> -	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
+> -	if (old_page) {
+> -		/*
+> -		 * Don't let another task, with possibly unlocked vma,
+> -		 * keep the mlocked page.
+> -		 */
+> -		if (page_copied && (vma->vm_flags & VM_LOCKED)) {
+> -			lock_page(old_page);	/* LRU manipulation */
+> -			munlock_vma_page(old_page);
+> -			unlock_page(old_page);
+> -		}
+> -		page_cache_release(old_page);
+> -	}
+> -	return page_copied ? VM_FAULT_WRITE : 0;
+> -oom_free_new:
+> -	page_cache_release(new_page);
+> -oom:
+> -	if (old_page)
+> -		page_cache_release(old_page);
+> -	return VM_FAULT_OOM;
+> +	return wp_page_copy(mm, vma, address, page_table, pmd,
+> +			    orig_pte, old_page);
+>  }
+>  
+>  static void unmap_mapping_range_vma(struct vm_area_struct *vma,
 > -- 
 > 1.7.11.2
 > 
