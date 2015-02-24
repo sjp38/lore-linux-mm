@@ -1,180 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id D45846B006C
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 10:25:32 -0500 (EST)
-Received: by mail-wi0-f172.google.com with SMTP id l15so26289161wiw.5
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 07:25:32 -0800 (PST)
-Received: from mailapp01.imgtec.com (mailapp01.imgtec.com. [195.59.15.196])
-        by mx.google.com with ESMTP id br20si24037512wib.87.2015.02.24.07.25.30
-        for <linux-mm@kvack.org>;
-        Tue, 24 Feb 2015 07:25:31 -0800 (PST)
-From: Daniel Sanders <daniel.sanders@imgtec.com>
-Subject: [PATCH v4 1/4] slab: Correct size_index table before replacing the bootstrap kmem_cache_node.
-Date: Tue, 24 Feb 2015 15:25:08 +0000
-Message-ID: <1424791511-11407-2-git-send-email-daniel.sanders@imgtec.com>
-In-Reply-To: <1424791511-11407-1-git-send-email-daniel.sanders@imgtec.com>
-References: <1424791511-11407-1-git-send-email-daniel.sanders@imgtec.com>
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id AF9B06B0038
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 10:43:22 -0500 (EST)
+Received: by wghl2 with SMTP id l2so6121448wgh.9
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 07:43:22 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id my5si24216921wic.27.2015.02.24.07.43.20
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 24 Feb 2015 07:43:20 -0800 (PST)
+Date: Tue, 24 Feb 2015 16:43:18 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH RFC 1/4] mm: throttle MADV_FREE
+Message-ID: <20150224154318.GA14939@dhcp22.suse.cz>
+References: <1424765897-27377-1-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1424765897-27377-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: Daniel Sanders <daniel.sanders@imgtec.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Shaohua Li <shli@kernel.org>, Yalin.Wang@sonymobile.com
 
-This patch moves the initialization of the size_index table slightly
-earlier so that the first few kmem_cache_node's can be safely allocated
-when KMALLOC_MIN_SIZE is large.
+On Tue 24-02-15 17:18:14, Minchan Kim wrote:
+> Recently, Shaohua reported that MADV_FREE is much slower than
+> MADV_DONTNEED in his MADV_FREE bomb test. The reason is many of
+> applications went to stall with direct reclaim since kswapd's
+> reclaim speed isn't fast than applications's allocation speed
+> so that it causes lots of stall and lock contention.
 
-There are currently two ways to generate indices into kmalloc_caches
-(via kmalloc_index() and via the size_index table in slab_common.c)
-and on some arches (possibly only MIPS) they potentially disagree with
-each other until create_kmalloc_caches() has been called. It seems
-that the intention is that the size_index table is a fast equivalent
-to kmalloc_index() and that create_kmalloc_caches() patches the table
-to return the correct value for the cases where kmalloc_index()'s
-if-statements apply.
+I am not sure I understand this correctly. So the issue is that there is
+huge number of MADV_FREE on the LRU and they are not close to the tail
+of the list so the reclaim has to do a lot of work before it starts
+dropping them?
 
-The failing sequence was:
-* kmalloc_caches contains NULL elements
-* kmem_cache_init initialises the element that 'struct
-  kmem_cache_node' will be allocated to. For 32-bit Mips, this is a
-  56-byte struct and kmalloc_index returns KMALLOC_SHIFT_LOW (7).
-* init_list is called which calls kmalloc_node to allocate a 'struct
-  kmem_cache_node'.
-* kmalloc_slab selects the kmem_caches element using
-  size_index[size_index_elem(size)]. For MIPS, size is 56, and the
-  expression returns 6.
-* This element of kmalloc_caches is NULL and allocation fails.
-* If it had not already failed, it would have called
-  create_kmalloc_caches() at this point which would have changed
-  size_index[size_index_elem(size)] to 7.
+> This patch throttles MADV_FREEing so it works only if there
+> are enough pages in the system which will not trigger backgroud/
+> direct reclaim. Otherwise, MADV_FREE falls back to MADV_DONTNEED
+> because there is no point to delay freeing if we know system
+> is under memory pressure.
 
-Signed-off-by: Daniel Sanders <daniel.sanders@imgtec.com>
-Acked-by: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+Hmm, this is still conforming to the documentation because the kernel is
+free to free pages at its convenience. I am not sure this is a good
+idea, though. Why some MADV_FREE calls should be treated differently?
+Wouldn't that lead to hard to predict behavior? E.g. LIFO reused blocks
+would work without long stalls most of the time - except when there is a
+memory pressure.
 
----
-v2 renamed correct_kmalloc_cache_index_table() to
-setup_kmalloc_cache_index_table() as requested.
+Comparison to MADV_DONTNEED is not very fair IMHO because the scope of the
+two calls is different.
 
-v3 has no code changes but adds this background information:
-I don't believe the bug to be LLVM specific but GCC doesn't normally encounter
-the problem. I haven't been able to identify exactly what GCC is doing better
-(probably inlining) but it seems that GCC is managing to optimize to the point
-that it eliminates the problematic allocations. This theory is supported by the
-fact that GCC can be made to fail in the same way by changing inline, __inline,
-__inline__, and __always_inline in include/linux/compiler-gcc.h such that they
-don't actually inline things.
+> When I test the patch on my 3G machine + 12 CPU + 8G swap,
+> test: 12 processes
+> 
+> loop = 5;
+> mmap(512M);
 
-v4 refreshes the patch and adds an Acked-by.
+Who is eating the rest of the memory?
 
- mm/slab.c        |  1 +
- mm/slab.h        |  1 +
- mm/slab_common.c | 36 +++++++++++++++++++++---------------
- mm/slub.c        |  1 +
- 4 files changed, 24 insertions(+), 15 deletions(-)
+> while (loop--) {
+> 	memset(512M);
+> 	madvise(MADV_FREE or MADV_DONTNEED);
+> }
+> 
+> 1) dontneed: 6.78user 234.09system 0:48.89elapsed
+> 2) madvfree: 6.03user 401.17system 1:30.67elapsed
+> 3) madvfree + this ptach: 5.68user 113.42system 0:36.52elapsed
+> 
+> It's clearly win.
+> 
+> Reported-by: Shaohua Li <shli@kernel.org>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 
-diff --git a/mm/slab.c b/mm/slab.c
-index c4b89ea..79efb3e 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1440,6 +1440,7 @@ void __init kmem_cache_init(void)
- 	kmalloc_caches[INDEX_NODE] = create_kmalloc_cache("kmalloc-node",
- 				kmalloc_size(INDEX_NODE), ARCH_KMALLOC_FLAGS);
- 	slab_state = PARTIAL_NODE;
-+	setup_kmalloc_cache_index_table();
- 
- 	slab_early_init = 0;
- 
-diff --git a/mm/slab.h b/mm/slab.h
-index 4c3ac12..8da63e4 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -71,6 +71,7 @@ unsigned long calculate_alignment(unsigned long flags,
- 
- #ifndef CONFIG_SLOB
- /* Kmalloc array related functions */
-+void setup_kmalloc_cache_index_table(void);
- void create_kmalloc_caches(unsigned long);
- 
- /* Find the kmalloc slab corresponding for a certain size */
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 999bb34..c7c6c33 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -784,25 +784,20 @@ struct kmem_cache *kmalloc_slab(size_t size, gfp_t flags)
- }
- 
- /*
-- * Create the kmalloc array. Some of the regular kmalloc arrays
-- * may already have been created because they were needed to
-- * enable allocations for slab creation.
-+ * Patch up the size_index table if we have strange large alignment
-+ * requirements for the kmalloc array. This is only the case for
-+ * MIPS it seems. The standard arches will not generate any code here.
-+ *
-+ * Largest permitted alignment is 256 bytes due to the way we
-+ * handle the index determination for the smaller caches.
-+ *
-+ * Make sure that nothing crazy happens if someone starts tinkering
-+ * around with ARCH_KMALLOC_MINALIGN
-  */
--void __init create_kmalloc_caches(unsigned long flags)
-+void __init setup_kmalloc_cache_index_table(void)
- {
- 	int i;
- 
--	/*
--	 * Patch up the size_index table if we have strange large alignment
--	 * requirements for the kmalloc array. This is only the case for
--	 * MIPS it seems. The standard arches will not generate any code here.
--	 *
--	 * Largest permitted alignment is 256 bytes due to the way we
--	 * handle the index determination for the smaller caches.
--	 *
--	 * Make sure that nothing crazy happens if someone starts tinkering
--	 * around with ARCH_KMALLOC_MINALIGN
--	 */
- 	BUILD_BUG_ON(KMALLOC_MIN_SIZE > 256 ||
- 		(KMALLOC_MIN_SIZE & (KMALLOC_MIN_SIZE - 1)));
- 
-@@ -833,6 +828,17 @@ void __init create_kmalloc_caches(unsigned long flags)
- 		for (i = 128 + 8; i <= 192; i += 8)
- 			size_index[size_index_elem(i)] = 8;
- 	}
-+}
-+
-+/*
-+ * Create the kmalloc array. Some of the regular kmalloc arrays
-+ * may already have been created because they were needed to
-+ * enable allocations for slab creation.
-+ */
-+void __init create_kmalloc_caches(unsigned long flags)
-+{
-+	int i;
-+
- 	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++) {
- 		if (!kmalloc_caches[i]) {
- 			kmalloc_caches[i] = create_kmalloc_cache(NULL,
-diff --git a/mm/slub.c b/mm/slub.c
-index 6832c4e..a6363ba 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -3700,6 +3700,7 @@ void __init kmem_cache_init(void)
- 	kmem_cache_node = bootstrap(&boot_kmem_cache_node);
- 
- 	/* Now we can use the kmem_cache to allocate kmalloc slabs */
-+	setup_kmalloc_cache_index_table();
- 	create_kmalloc_caches(0);
- 
- #ifdef CONFIG_SMP
+I don't know. This looks like a hack with hard to predict consequences
+which might trigger pathological corner cases.
+
+> ---
+>  mm/madvise.c | 13 +++++++++++--
+>  1 file changed, 11 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/madvise.c b/mm/madvise.c
+> index 6d0fcb8921c2..81bb26ecf064 100644
+> --- a/mm/madvise.c
+> +++ b/mm/madvise.c
+> @@ -523,8 +523,17 @@ madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
+>  		 * XXX: In this implementation, MADV_FREE works like
+>  		 * MADV_DONTNEED on swapless system or full swap.
+>  		 */
+> -		if (get_nr_swap_pages() > 0)
+> -			return madvise_free(vma, prev, start, end);
+> +		if (get_nr_swap_pages() > 0) {
+> +			unsigned long threshold;
+> +			/*
+> +			 * If we have trobule with memory pressure(ie,
+> +			 * under high watermark), free pages instantly.
+> +			 */
+> +			threshold = min_free_kbytes >> (PAGE_SHIFT - 10);
+> +			threshold = threshold + (threshold >> 1);
+
+Why threshold += threshold >> 1 ?
+
+> +			if (nr_free_pages() > threshold)
+> +				return madvise_free(vma, prev, start, end);
+> +		}
+>  		/* passthrough */
+>  	case MADV_DONTNEED:
+>  		return madvise_dontneed(vma, prev, start, end);
+> -- 
+> 1.9.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
 -- 
-2.1.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
