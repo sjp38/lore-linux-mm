@@ -1,73 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
-	by kanga.kvack.org (Postfix) with ESMTP id C266B6B006E
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 04:19:49 -0500 (EST)
-Received: by labhv19 with SMTP id hv19so1707502lab.10
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 01:19:49 -0800 (PST)
-Received: from mail-la0-x22c.google.com (mail-la0-x22c.google.com. [2a00:1450:4010:c03::22c])
-        by mx.google.com with ESMTPS id cf4si25731832lbb.33.2015.02.24.01.19.47
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id E9D856B006E
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 05:32:34 -0500 (EST)
+Received: by mail-wi0-f172.google.com with SMTP id l15so24291277wiw.5
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 02:32:34 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ej4si22773469wid.64.2015.02.24.02.32.32
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Feb 2015 01:19:48 -0800 (PST)
-Received: by labgq15 with SMTP id gq15so24514261lab.3
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 01:19:47 -0800 (PST)
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 24 Feb 2015 02:32:33 -0800 (PST)
+Message-ID: <54EC533E.8040805@suse.cz>
+Date: Tue, 24 Feb 2015 11:32:30 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20150221023754.GT29656@ZenIV.linux.org.uk>
-References: <20150219171934.20458.30175.stgit@buzz>
-	<20150221023754.GT29656@ZenIV.linux.org.uk>
-Date: Tue, 24 Feb 2015 13:19:47 +0400
-Message-ID: <CALYGNiPCndnuJpfROdeP=a2cWofG5R1nXPPRegc8UYL=Jc1qZA@mail.gmail.com>
-Subject: Re: [PATCH] fs: avoid locking sb_lock in grab_super_passive()
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [RFC 0/6] the big khugepaged redesign
+References: <1424696322-21952-1-git-send-email-vbabka@suse.cz>	<1424731603.6539.51.camel@stgolabs.net> <20150223145619.64f3a225b914034a17d4f520@linux-foundation.org>
+In-Reply-To: <20150223145619.64f3a225b914034a17d4f520@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Al Viro <viro@zeniv.linux.org.uk>
-Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <dave@stgolabs.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Alex Thorlton <athorlton@sgi.com>, David Rientjes <rientjes@google.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>
 
-On Sat, Feb 21, 2015 at 5:37 AM, Al Viro <viro@zeniv.linux.org.uk> wrote:
-> On Thu, Feb 19, 2015 at 08:19:35PM +0300, Konstantin Khlebnikov wrote:
->> I've noticed significant locking contention in memory reclaimer around
->> sb_lock inside grab_super_passive(). Grab_super_passive() is called from
->> two places: in icache/dcache shrinkers (function super_cache_scan) and
->> from writeback (function __writeback_inodes_wb). Both are required for
->> progress in memory reclaimer.
+On 02/23/2015 11:56 PM, Andrew Morton wrote:
+> On Mon, 23 Feb 2015 14:46:43 -0800 Davidlohr Bueso <dave@stgolabs.net> wrote:
+>
+>> On Mon, 2015-02-23 at 13:58 +0100, Vlastimil Babka wrote:
+>>> Recently, there was concern expressed (e.g. [1]) whether the quite aggressive
+>>> THP allocation attempts on page faults are a good performance trade-off.
+>>>
+>>> - THP allocations add to page fault latency, as high-order allocations are
+>>>    notoriously expensive. Page allocation slowpath now does extra checks for
+>>>    GFP_TRANSHUGE && !PF_KTHREAD to avoid the more expensive synchronous
+>>>    compaction for user page faults. But even async compaction can be expensive.
+>>> - During the first page fault in a 2MB range we cannot predict how much of the
+>>>    range will be actually accessed - we can theoretically waste as much as 511
+>>>    worth of pages [2]. Or, the pages in the range might be accessed from CPUs
+>>>    from different NUMA nodes and while base pages could be all local, THP could
+>>>    be remote to all but one CPU. The cost of remote accesses due to this false
+>>>    sharing would be higher than any savings on the TLB.
+>>> - The interaction with memcg are also problematic [1].
+>>>
+>>> Now I don't have any hard data to show how big these problems are, and I
+>>> expect we will discuss this on LSF/MM (and hope somebody has such data [3]).
+>>> But it's certain that e.g. SAP recommends to disable THPs [4] for their apps
+>>> for performance reasons.
 >>
->> Also this lock isn't irq-safe. And I've seen suspicious livelock under
->> serious memory pressure where reclaimer was called from interrupt which
->> have happened right in place where sb_lock is held in normal context,
->> so all other cpus were stuck on that lock too.
+>> There are plenty of examples of this, ie for Oracle:
+>>
+>> https://blogs.oracle.com/linux/entry/performance_issues_with_transparent_huge
 >
-> Excuse me, but this part is BS - its call is immediately preceded by
->         if (!(sc->gfp_mask & __GFP_FS))
->                 return SHRINK_STOP;
-> and if we *ever* hit GFP_FS allocation from interrupt, we are really
-> screwed.  If nothing else, both prune_dcache_sb() and prune_icache_sb()
-> can wait for all kinds of IO; you really don't want that called in an
-> interrupt context.  The same goes for writeback_sb_inodes(), while we
-> are at it.
->
-> If you ever see that in an interrupt context, you have a very bad problem
-> on hands.
->
-> Said that, not bothering with sb_lock (and ->s_count) in those two callers
-> makes sense.  Applied, with name changed to trylock_super().
+> hm, five months ago and I don't recall seeing any followup to this.
 
-Ok, thanks. I'll pull this into our kernel and try to catch livelock again.
+Actually it's year + five months, but nevertheless...
 
-It seems sb_lock becomes hottest lock by accident: system has no swap
-and all page-cache is gone thus all cpus stuck at reclaiming inodes and
-dentries. For some reason OOM killer wasn't invoked for hour or so.
+> Does anyone know what's happening?
 
-Part about reclaimer called from interrupt context was BS for sure
-I've mixed up some stacks from that 30Mb log of kernel's suffering.
+I would suspect mmap_sem being held during whole THP page fault 
+(including the needed reclaim and compaction), which I forgot to mention 
+in the first e-mail - it's not just the problem page fault latency, but 
+also potentially holding back other processes, why we should allow 
+shifting from THP page faults to deferred collapsing.
+Although the attempts for opportunistic page faults without mmap_sem 
+would also help in this particular case.
 
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Khugepaged also used to hold mmap_sem (for read) during the allocation 
+attempt, but that was fixed since then. It could be also zone lru_lock 
+pressure.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
