@@ -1,103 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f41.google.com (mail-yh0-f41.google.com [209.85.213.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D30B6B0038
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 10:20:46 -0500 (EST)
-Received: by yhaf73 with SMTP id f73so14447484yha.11
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 07:20:45 -0800 (PST)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id x186si10465709ykc.154.2015.02.24.07.20.44
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Tue, 24 Feb 2015 07:20:44 -0800 (PST)
-Date: Tue, 24 Feb 2015 10:20:33 -0500
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: How to handle TIF_MEMDIE stalls?
-Message-ID: <20150224152033.GA3782@thunk.org>
-References: <20141230112158.GA15546@dhcp22.suse.cz>
- <201502162023.GGE26089.tJOOFQMFFHLOVS@I-love.SAKURA.ne.jp>
- <20150216154201.GA27295@phnom.home.cmpxchg.org>
- <201502172057.GCD09362.FtHQMVSLJOFFOO@I-love.SAKURA.ne.jp>
- <alpine.DEB.2.10.1502231347510.21127@chino.kir.corp.google.com>
- <201502242020.IDI64912.tOOQSVJFOFLHMF@I-love.SAKURA.ne.jp>
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id A5DBC6B0038
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 10:25:26 -0500 (EST)
+Received: by mail-wi0-f175.google.com with SMTP id r20so26363420wiv.2
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 07:25:26 -0800 (PST)
+Received: from mailapp01.imgtec.com (mailapp01.imgtec.com. [195.59.15.196])
+        by mx.google.com with ESMTP id m2si13569498wif.10.2015.02.24.07.25.23
+        for <linux-mm@kvack.org>;
+        Tue, 24 Feb 2015 07:25:23 -0800 (PST)
+From: Daniel Sanders <daniel.sanders@imgtec.com>
+Subject: [PATCH v2 0/4] MIPS: LLVMLinux: Patches to enable compilation of a working kernel for MIPS using Clang/LLVM
+Date: Tue, 24 Feb 2015 15:25:07 +0000
+Message-ID: <1424791511-11407-1-git-send-email-daniel.sanders@imgtec.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201502242020.IDI64912.tOOQSVJFOFLHMF@I-love.SAKURA.ne.jp>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: rientjes@google.com, hannes@cmpxchg.org, mhocko@suse.cz, david@fromorbit.com, dchinner@redhat.com, linux-mm@kvack.org, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, fernando_b1@lab.ntt.co.jp
+Cc: Daniel Sanders <daniel.sanders@imgtec.com>, Toma Tabacu <toma.tabacu@imgtec.com>, "Steven J. Hill" <Steven.Hill@imgtec.com>, Andreas Herrmann <andreas.herrmann@caviumnetworks.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, David Daney <david.daney@cavium.com>, David Rientjes <rientjes@google.com>, Jim Quinlan <jim2101024@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>, Manuel Lauss <manuel.lauss@gmail.com>, Markos Chandras <markos.chandras@imgtec.com>, Paul Bolle <pebolle@tiscali.nl>, Paul Burton <paul.burton@imgtec.com>, Pekka Enberg <penberg@kernel.org>, Ralf Baechle <ralf@linux-mips.org>, linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-mm@kvack.org
 
-On Tue, Feb 24, 2015 at 08:20:11PM +0900, Tetsuo Handa wrote:
-> > In a timeout based solution, this would be detected and another thread 
-> > would be chosen for oom kill.  There's currently no way for the oom killer 
-> > to select a process that isn't waiting for that same mutex, however.  If 
-> > it does, then the process has been killed needlessly since it cannot make 
-> > forward progress itself without grabbing the mutex.
-> 
-> Right. The OOM killer cannot understand that there is such lock dependency....
+When combined with 'MIPS: Changed current_thread_info() to an equivalent ...'
+(http://www.linux-mips.org/archives/linux-mips/2015-01/msg00070.html) and the
+target independent LLVMLinux patches, this patch series makes it possible to
+compile a working kernel for MIPS using Clang.
 
-> The memory reserves are something like a balloon. To guarantee forward
-> progress, the balloon must not become empty. All memory managing techniques
-> except the OOM killer are trying to control "deflator of the balloon" via
-> various throttling heuristics. On the other hand, the OOM killer is the only
-> memory managing technique which is trying to control "inflator of the balloon"
-> via several throttling heuristics.....
+The patches aren't inter-dependent so they can be merged individually or I can
+split the series into individual submissions if that's preferred.
 
-The mm developers have suggested in the past whether we could solve
-problems by preallocating memory in advance.  Sometimes this is very
-hard to do because we don't know exactly how much or if we need
-memory, or in order to do this, we would need to completely
-restructure the code because the memory allocation is happening deep
-in the call stack, potentially in some other subsystem.
+Daniel Sanders (2):
+  slab: Correct size_index table before replacing the bootstrap
+    kmem_cache_node.
+  MIPS: LLVMLinux: Fix an 'inline asm input/output type mismatch' error.
 
-So I wonder if we can solve the problem by having a subsystem
-reserving memory in advance of taking the mutexes.  We do something
-like this in ext3/ext4 --- when we allocate a (sub-)transaction
-handle, we give a worst case estimate of how many blocks we might need
-to dirty under that handle, and if there isn't enough space in the
-journal, we block in the start_handle() call while the current
-transaction is closed, and the transaction handle will be attached to
-the next transaction.
+Toma Tabacu (2):
+  MIPS: LLVMLinux: Fix a 'cast to type not present in union' error.
+  MIPS: LLVMLinux: Silence variable self-assignment warnings.
 
-In the memory allocation scenario, it's a bit more complicated, since
-the memory might be allocated in a slab that requires a higher-order
-page allocation, but would it be sufficient if we do something rough
-where the foreground kernel thread "reserves" a few pages before it
-starts doing something that requires mutexes.  The reservation would
-be reserved on an accounting basis, and kernel codepath which has
-reserved pages would get priority over kernel threads running under a
-task_struct which hsa not reserved pages.  If there the system doesn't
-have enough pages available, then the reservation request would block
-the process until more memory is available.
+This series previously included a 5th patch ('MIPS: LLVMLinux: Silence unicode
+warnings when preprocessing assembly.'. This patch has been dropped from this
+series while we work on preventing the warnings in a different way.
 
-This wouldn't necessary help in cases where the memory is required for
-cleaning dirty pages (although in those cases you really *do* want to
-let the memory allocation succeed --- so maybe there should be a way
-to hint to the mm subsystem that a memory allocation should be given
-higher priority since it might help get the system out of the ham that
-it is in).
+ arch/mips/include/asm/checksum.h |  6 ++++--
+ arch/mips/kernel/branch.c        |  6 ++++--
+ arch/mips/math-emu/dp_add.c      |  5 -----
+ arch/mips/math-emu/dp_sub.c      |  5 -----
+ arch/mips/math-emu/sp_add.c      |  5 -----
+ arch/mips/math-emu/sp_sub.c      |  5 -----
+ mm/slab.c                        |  1 +
+ mm/slab.h                        |  1 +
+ mm/slab_common.c                 | 36 +++++++++++++++++++++---------------
+ mm/slub.c                        |  1 +
+ 10 files changed, 32 insertions(+), 39 deletions(-)
 
-However, for "normal" operations, where blocking a process who was
-about to execute, say, a read(2) or a open(2) system call early,
-*before* it takes some mutex, it owuld be good if we could provide a
-certain amount of admission control when memory pressure is specially
-high.
+Signed-off-by: Toma Tabacu <toma.tabacu@imgtec.com>
+Signed-off-by: Daniel Sanders <daniel.sanders@imgtec.com>
+Cc: "Steven J. Hill" <Steven.Hill@imgtec.com>
+Cc: Andreas Herrmann <andreas.herrmann@caviumnetworks.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: David Daney <david.daney@cavium.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Jim Quinlan <jim2101024@gmail.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>
+Cc: Manuel Lauss <manuel.lauss@gmail.com>
+Cc: Markos Chandras <markos.chandras@imgtec.com>
+Cc: Paul Bolle <pebolle@tiscali.nl>
+Cc: Paul Burton <paul.burton@imgtec.com>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: Ralf Baechle <ralf@linux-mips.org>
+Cc: linux-kernel@vger.kernel.org
+Cc: linux-mips@linux-mips.org
+Cc: linux-mm@kvack.org
 
-Would this be a viable strategy?
-
-Even if this was a hint that wasn't perfect (i.e., it some cases a
-kernel thread might end up requiring more pages than it had hinted,
-which would not be considered fatal, although the excess requested
-pages would be treated the same way as if no reservation was made at
-all, meaning the memory allocation would be more likely to fail and a
-GFP_NOFAIL allocation would loop for longer), I would think this could
-only help us do a better job of "keeping the baloon from getting
-completely deflated".
-
-Cheers,
-
-						- Ted
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
