@@ -1,58 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 05EAD6B006E
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 09:48:08 -0500 (EST)
-Received: by wggz12 with SMTP id z12so5758872wgg.2
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 06:48:07 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fj3si23835834wib.98.2015.02.24.06.48.05
+Received: from mail-yh0-f41.google.com (mail-yh0-f41.google.com [209.85.213.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D30B6B0038
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 10:20:46 -0500 (EST)
+Received: by yhaf73 with SMTP id f73so14447484yha.11
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 07:20:45 -0800 (PST)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id x186si10465709ykc.154.2015.02.24.07.20.44
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 24 Feb 2015 06:48:06 -0800 (PST)
-Date: Tue, 24 Feb 2015 15:48:04 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC v2 0/5] introduce gcma
-Message-ID: <20150224144804.GE15626@dhcp22.suse.cz>
-References: <1424721263-25314-1-git-send-email-sj38.park@gmail.com>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Tue, 24 Feb 2015 07:20:44 -0800 (PST)
+Date: Tue, 24 Feb 2015 10:20:33 -0500
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: How to handle TIF_MEMDIE stalls?
+Message-ID: <20150224152033.GA3782@thunk.org>
+References: <20141230112158.GA15546@dhcp22.suse.cz>
+ <201502162023.GGE26089.tJOOFQMFFHLOVS@I-love.SAKURA.ne.jp>
+ <20150216154201.GA27295@phnom.home.cmpxchg.org>
+ <201502172057.GCD09362.FtHQMVSLJOFFOO@I-love.SAKURA.ne.jp>
+ <alpine.DEB.2.10.1502231347510.21127@chino.kir.corp.google.com>
+ <201502242020.IDI64912.tOOQSVJFOFLHMF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1424721263-25314-1-git-send-email-sj38.park@gmail.com>
+In-Reply-To: <201502242020.IDI64912.tOOQSVJFOFLHMF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: SeongJae Park <sj38.park@gmail.com>
-Cc: akpm@linux-foundation.org, lauraa@codeaurora.org, minchan@kernel.org, sergey.senozhatsky@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: rientjes@google.com, hannes@cmpxchg.org, mhocko@suse.cz, david@fromorbit.com, dchinner@redhat.com, linux-mm@kvack.org, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, fernando_b1@lab.ntt.co.jp
 
-On Tue 24-02-15 04:54:18, SeongJae Park wrote:
-[...]
->  include/linux/cma.h  |    4 +
->  include/linux/gcma.h |   64 +++
->  mm/Kconfig           |   24 +
->  mm/Makefile          |    1 +
->  mm/cma.c             |  113 ++++-
->  mm/gcma.c            | 1321 ++++++++++++++++++++++++++++++++++++++++++++++++++
->  6 files changed, 1508 insertions(+), 19 deletions(-)
->  create mode 100644 include/linux/gcma.h
->  create mode 100644 mm/gcma.c
+On Tue, Feb 24, 2015 at 08:20:11PM +0900, Tetsuo Handa wrote:
+> > In a timeout based solution, this would be detected and another thread 
+> > would be chosen for oom kill.  There's currently no way for the oom killer 
+> > to select a process that isn't waiting for that same mutex, however.  If 
+> > it does, then the process has been killed needlessly since it cannot make 
+> > forward progress itself without grabbing the mutex.
+> 
+> Right. The OOM killer cannot understand that there is such lock dependency....
 
-Wow this is huge! And I do not see reason for it to be so big. Why
-cannot you simply define (per-cma area) 2-class users policy? Either via
-kernel command line or export areas to userspace and allow to set policy
-there.
+> The memory reserves are something like a balloon. To guarantee forward
+> progress, the balloon must not become empty. All memory managing techniques
+> except the OOM killer are trying to control "deflator of the balloon" via
+> various throttling heuristics. On the other hand, the OOM killer is the only
+> memory managing technique which is trying to control "inflator of the balloon"
+> via several throttling heuristics.....
 
-For starter something like the following policies should suffice AFAIU
-your description.
-	- NONE - exclusive pool for CMA allocations only
-	- DROPABLE - only allocations which might be dropped without any
-	  additional actions - e.g. cleancache and frontswap with
-	  write-through policy
-	- RECLAIMABLE - only movable allocations which can be migrated
-	  or dropped after writeback.
+The mm developers have suggested in the past whether we could solve
+problems by preallocating memory in advance.  Sometimes this is very
+hard to do because we don't know exactly how much or if we need
+memory, or in order to do this, we would need to completely
+restructure the code because the memory allocation is happening deep
+in the call stack, potentially in some other subsystem.
 
-Has such an approach been considered?
--- 
-Michal Hocko
-SUSE Labs
+So I wonder if we can solve the problem by having a subsystem
+reserving memory in advance of taking the mutexes.  We do something
+like this in ext3/ext4 --- when we allocate a (sub-)transaction
+handle, we give a worst case estimate of how many blocks we might need
+to dirty under that handle, and if there isn't enough space in the
+journal, we block in the start_handle() call while the current
+transaction is closed, and the transaction handle will be attached to
+the next transaction.
+
+In the memory allocation scenario, it's a bit more complicated, since
+the memory might be allocated in a slab that requires a higher-order
+page allocation, but would it be sufficient if we do something rough
+where the foreground kernel thread "reserves" a few pages before it
+starts doing something that requires mutexes.  The reservation would
+be reserved on an accounting basis, and kernel codepath which has
+reserved pages would get priority over kernel threads running under a
+task_struct which hsa not reserved pages.  If there the system doesn't
+have enough pages available, then the reservation request would block
+the process until more memory is available.
+
+This wouldn't necessary help in cases where the memory is required for
+cleaning dirty pages (although in those cases you really *do* want to
+let the memory allocation succeed --- so maybe there should be a way
+to hint to the mm subsystem that a memory allocation should be given
+higher priority since it might help get the system out of the ham that
+it is in).
+
+However, for "normal" operations, where blocking a process who was
+about to execute, say, a read(2) or a open(2) system call early,
+*before* it takes some mutex, it owuld be good if we could provide a
+certain amount of admission control when memory pressure is specially
+high.
+
+Would this be a viable strategy?
+
+Even if this was a hint that wasn't perfect (i.e., it some cases a
+kernel thread might end up requiring more pages than it had hinted,
+which would not be considered fatal, although the excess requested
+pages would be treated the same way as if no reservation was made at
+all, meaning the memory allocation would be more likely to fail and a
+GFP_NOFAIL allocation would loop for longer), I would think this could
+only help us do a better job of "keeping the baloon from getting
+completely deflated".
+
+Cheers,
+
+						- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
