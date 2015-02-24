@@ -1,131 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id B508F6B006E
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 06:20:21 -0500 (EST)
-Received: by padfb1 with SMTP id fb1so35343062pad.8
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 03:20:21 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id zo2si8949062pac.218.2015.02.24.03.20.19
+Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
+	by kanga.kvack.org (Postfix) with ESMTP id E0D8C6B006E
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 06:25:10 -0500 (EST)
+Received: by mail-qg0-f41.google.com with SMTP id i50so29222682qgf.0
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 03:25:10 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v7si33084036qav.36.2015.02.24.03.25.09
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 24 Feb 2015 03:20:20 -0800 (PST)
-Subject: Re: How to handle TIF_MEMDIE stalls?
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20141230112158.GA15546@dhcp22.suse.cz>
-	<201502162023.GGE26089.tJOOFQMFFHLOVS@I-love.SAKURA.ne.jp>
-	<20150216154201.GA27295@phnom.home.cmpxchg.org>
-	<201502172057.GCD09362.FtHQMVSLJOFFOO@I-love.SAKURA.ne.jp>
-	<alpine.DEB.2.10.1502231347510.21127@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1502231347510.21127@chino.kir.corp.google.com>
-Message-Id: <201502242020.IDI64912.tOOQSVJFOFLHMF@I-love.SAKURA.ne.jp>
-Date: Tue, 24 Feb 2015 20:20:11 +0900
-Mime-Version: 1.0
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Feb 2015 03:25:10 -0800 (PST)
+Date: Tue, 24 Feb 2015 12:24:12 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC 0/6] the big khugepaged redesign
+Message-ID: <20150224112412.GG5542@redhat.com>
+References: <1424696322-21952-1-git-send-email-vbabka@suse.cz>
+ <1424731603.6539.51.camel@stgolabs.net>
+ <20150223145619.64f3a225b914034a17d4f520@linux-foundation.org>
+ <54EC533E.8040805@suse.cz>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <54EC533E.8040805@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com
-Cc: hannes@cmpxchg.org, mhocko@suse.cz, david@fromorbit.com, dchinner@redhat.com, linux-mm@kvack.org, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, fernando_b1@lab.ntt.co.jp
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Alex Thorlton <athorlton@sgi.com>, David Rientjes <rientjes@google.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>
 
-David Rientjes wrote:
-> Perhaps we should consider an alternative: allow threads, such as TaskA, 
-> that are deferring for a long amount of time to simply allocate with 
-> ALLOC_NO_WATERMARKS itself in that scenario in the hope that the 
-> allocation succeeding will eventually allow it to drop the mutex.  Two 
-> problems: (1) there's no guarantee that the simple allocation is all TaskA 
-> needs before it will drop the lock and (2) another thread could 
-> immediately grab the same mutex and allocate, in which the same series of 
-> events repeats.
+Hi everyone,
 
-We can see that effectively GFP_NOFAIL allocations with a lock held
-(e.g. filesystem transaction) exist, can't we?
+On Tue, Feb 24, 2015 at 11:32:30AM +0100, Vlastimil Babka wrote:
+> I would suspect mmap_sem being held during whole THP page fault 
+> (including the needed reclaim and compaction), which I forgot to mention 
+> in the first e-mail - it's not just the problem page fault latency, but 
+> also potentially holding back other processes, why we should allow 
+> shifting from THP page faults to deferred collapsing.
+> Although the attempts for opportunistic page faults without mmap_sem 
+> would also help in this particular case.
+> 
+> Khugepaged also used to hold mmap_sem (for read) during the allocation 
+> attempt, but that was fixed since then. It could be also zone lru_lock 
+> pressure.
 
-----------------------------------------
-TaskA               TaskB               TaskC               TaskD               TaskE
-                    call mutex_lock()
-                                        call mutex_lock()
-                                                            call mutex_lock()
-                                                                                call mutex_lock()
-call mutex_lock()
-                    do GFP_NOFAIL allocation
-                    oom kill TaskA
-                    waiting for TaskA to die
-                    will do something with allocated memory
-                    will call mutex_unlock()
-                                        will do GFP_NOFAIL allocation
-                                        will wait for TaskA to die
-                                        will do something with allocated memory
-                                        will call mutex_unlock()
-                                                            will do GFP_NOFAIL allocation
-                                                            will wait for TaskA to die
-                                                            will do something with allocated memory
-                                                            will call mutex_unlock()
-                                                                                will do GFP_NOFAIL allocation
-                                                                                will wait for TaskA to die
-                                                                                will do something with allocated memory
-                                                                                will call mutex_unlock()
-will do GFP_NOFAIL allocation
-----------------------------------------
+I'm traveling and I didn't have much time to read the code yet but if
+I understood well the proposal, I've some doubt boosting khugepaged
+CPU utilization is going to provide a better universal trade off. I
+think the low overhead background scan is safer default.
 
-Allowing ALLOC_NO_WATERMARKS to TaskB helps nothing. We don't want to
-allow ALLOC_NO_WATERMARKS to TaskC, TaskD, TaskE and TaskA when they
-do the same sequence TaskB did, or we will deplete memory reserves.
+If we want to do more async background work and less "synchronous work
+at fault time", what may be more interesting is to generate
+transparent hugepages in the background and possibly not to invoke
+compaction (or much compaction) in the page faults.
 
-> In a timeout based solution, this would be detected and another thread 
-> would be chosen for oom kill.  There's currently no way for the oom killer 
-> to select a process that isn't waiting for that same mutex, however.  If 
-> it does, then the process has been killed needlessly since it cannot make 
-> forward progress itself without grabbing the mutex.
+I'd rather move compaction to a background kernel thread, and to
+invoke compaction synchronously only in khugepaged. I like it more if
+nothing else because it is a kind of background load that can come to
+a full stop, once enough THP have been created. Unlike khugepaged that
+can never stop to scan and it better be lightweight kind of background
+load, as it'd be running all the time.
 
-Right. The OOM killer cannot understand that there is such lock dependency.
+Creating THP through khugepaged is much more expensive than creating
+them on page faults. khugepaged will need to halt the userland access
+on the range once more and it'll have to copy the 2MB.
 
-And do you think there will be a way available for the OOM killer to select
-a process that isn't waiting for that same mutex in the neare future?
-(Remembering mutex's address currently waiting for using "struct task_struct"
-would do, but will not be accepted due to performance penalty. Simplified form
-would be to check "struct task_struct"->state , but will not be perfect.)
+Overall I agree with Andi we need more data collected for various
+workloads before embarking into big changes, at least so we can proof
+the changes to be beneficial to those workloads.
 
-> Certainly, it would be better to eventually kill something else in the 
-> hope that it does not need the mutex and will free some memory which would 
-> allow the thread that had originally been deferring forever, TaskA, in the 
-> oom killer waiting for the original victim, TaskB, to exit.  If that's the 
-> solution, then TaskA had been killed unnecessarily itself.
+I would advise not to make changes for app that are already the
+biggest users ever of hugetlbfs (like Oracle). Those already are
+optimized by other means. THP target are apps that have several
+benefit in not ever using hugetlbfs, so apps that are more dynamic
+workloads that don't fit well with NUMA hard pinning with numactl or
+other static placements of memory and CPU.
 
-Complaining about unnecessarily killed processes is preventing us from
-making forward progress.
+There are also other corner cases to optimize, that have nothing to do
+with khugepaged nor compaction: for example redis has issues in the
+way it forks() and then uses the child memory as a snapshot while the
+parent keeps running and writing to the memory. If THP is enabled, the
+parent that writes to the memory will allocate and copy 2MB objects
+instead of 4k objects. That means more memory utilization but
+especially the problem are those copy_user of 2MB instead of 4k hurting
+the parent runtime.
 
-The memory reserves are something like a balloon. To guarantee forward
-progress, the balloon must not become empty. All memory managing techniques
-except the OOM killer are trying to control "deflator of the balloon" via
-various throttling heuristics. On the other hand, the OOM killer is the only
-memory managing technique which is trying to control "inflator of the balloon"
-via several throttling heuristics. The OOM killer is invoked when all memory
-managing techniques except the OOM killer failed to make forward progress.
+For redis we need a more finegrined thing than MADV_NOHUGEPAGE. It
+needs a MADV_COW_NOHUGEPAGE (please think at a better name) that will
+only prevent THP creation during COW faults but still maximize THP
+utilization for every other case. Once such a madvise will become
+available, redis will run faster with THP enabled (currently redis
+recommends THP disabled because of the higher latencies in the 2MB COW
+faults while the child process is snapshotting). When the snapshot is
+finished and the child quits, khugepaged will recreate THP for those
+fragmented cows.
 
-Therefore, the OOM killer is responsible for making forward progress for
-"deflator of the balloon" and is granted the prerogative to send SIGKILL to
-any process.
-
-Given the fact that the OOM killer cannot understand lock dependency and
-there are effectively GFP_NOFAIL allocations, it is inevitable that the
-OOM killer fails to choose one correct process that will make forward
-progress.
-
-Currently the OOM killer is invoked as one shot mode. This mode helps us
-to reduce the possibility of depleting the memory reserves and killing
-processes unnecessarily. But this mode is bothering people with "silently
-stalling forever" problem when the bullet from the OOM killer missed the
-target. This mode is also bothering people with "complete system crash"
-problem when the bullet from SysRq-f missed the target, for they have to
-use SysRq-i or SysRq-c or SysRq-b which is far more unnecessary kill of
-processes in order to solve the OOM condition.
-
-My proposal is to allow the OOM killer be invoked as consecutive shots
-mode. Although consecutive shots mode may increase possibility of killing
-processes unnecessarily, trying to kill an unkillable process in one shot
-mode is after all unnecessary kill of processes. The root cause is the same
-(i.e. the OOM killer cannot understand the dependency). My patch can stop
-bothering people with "silently stalling forever" / "complete system crash"
-problems by retrying the oom kill attempt than wait forever.
+OTOH redis could also use the userfaultfd to do the snapshotting and
+it could avoid fork in the first place, after I add UFFDIO_WP ioctl to
+mark and unmark the memory wrprotected or not without altering the
+vma, while catching the faults with read or POLLIN on the ufd to copy
+the memory off before removing the wrprotection. The real problem to
+fully implement the UFFDIO_WP will be the swapcache and swapouts: swap
+entries have no wrprotection bit to know if to fire wrprotected
+userfaults on write faults, if the range is registered as
+uffdio_register.mode & UFFDIO_REGISTER_MODE_WP. So far I only
+implemented in full the UFFDIO_REGISTER_MODE_MISSING tracking mode, so
+I didn't need to attack the wrprotected swapentry thingy, but the new
+userfaultfd API already is ready to implement all write protection (or
+any other faulting reason) as well and it can incrementally be
+extended to different memory types (tmpfs etc..) without backwards
+compatibility issues.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
