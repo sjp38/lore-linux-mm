@@ -1,79 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EAC16B006E
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 16:10:33 -0500 (EST)
-Received: by wggy19 with SMTP id y19so7978914wgg.13
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 13:10:33 -0800 (PST)
-Received: from mail-wi0-x234.google.com (mail-wi0-x234.google.com. [2a00:1450:400c:c05::234])
-        by mx.google.com with ESMTPS id p8si69491207wjy.134.2015.02.24.13.10.31
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id D8C3A6B0071
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 16:14:53 -0500 (EST)
+Received: by mail-wi0-f177.google.com with SMTP id bs8so462228wib.4
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 13:14:53 -0800 (PST)
+Received: from mail-wg0-x229.google.com (mail-wg0-x229.google.com. [2a00:1450:400c:c00::229])
+        by mx.google.com with ESMTPS id hs6si69516341wjb.68.2015.02.24.13.14.52
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Feb 2015 13:10:32 -0800 (PST)
-Received: by mail-wi0-f180.google.com with SMTP id h11so467589wiw.1
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 13:10:31 -0800 (PST)
+        Tue, 24 Feb 2015 13:14:52 -0800 (PST)
+Received: by wggy19 with SMTP id y19so8000237wgg.10
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 13:14:52 -0800 (PST)
 From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH] mm: cma: fix CMA aligned offset calculation
-In-Reply-To: <1424807759-23311-1-git-send-email-dpetigara@broadcom.com>
-References: <1424807759-23311-1-git-send-email-dpetigara@broadcom.com>
-Date: Tue, 24 Feb 2015 22:10:28 +0100
-Message-ID: <xa1twq37ow1n.fsf@mina86.com>
+Subject: Re: [PATCH v3 1/4] mm: cma: add trace events to debug physically-contiguous memory allocations
+In-Reply-To: <9ae4c45b49e8df6e079448550c2b81ade5d3603a.1424802755.git.s.strogin@partner.samsung.com>
+References: <cover.1424802755.git.s.strogin@partner.samsung.com> <9ae4c45b49e8df6e079448550c2b81ade5d3603a.1424802755.git.s.strogin@partner.samsung.com>
+Date: Tue, 24 Feb 2015 22:14:48 +0100
+Message-ID: <xa1ttwybovuf.fsf@mina86.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Danesh Petigara <dpetigara@broadcom.com>, akpm@linux-foundation.org
-Cc: m.szyprowski@samsung.com, iamjoonsoo.kim@lge.com, aneesh.kumar@linux.vnet.ibm.com, laurent.pinchart+renesas@ideasonboard.com, gregory.0xf0@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: Stefan Strogin <s.strogin@partner.samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Dmitry Safonov <d.safonov@partner.samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Minchan Kim <minchan@kernel.org>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>, Aleksei Mateosian <a.mateosian@samsung.com>, gregory.0xf0@gmail.com, sasha.levin@oracle.com, gioh.kim@lge.com, pavel@ucw.cz, stefan.strogin@gmail.com
 
-On Tue, Feb 24 2015, Danesh Petigara <dpetigara@broadcom.com> wrote:
-> The CMA aligned offset calculation is incorrect for
-> non-zero order_per_bit values.
+On Tue, Feb 24 2015, Stefan Strogin <s.strogin@partner.samsung.com> wrote:
+> Add trace events for cma_alloc() and cma_release().
 >
-> For example, if cma->order_per_bit=3D1, cma->base_pfn=3D
-> 0x2f800000 and align_order=3D12, the function returns
-> a value of 0x17c00 instead of 0x400.
->
-> This patch fixes the CMA aligned offset calculation.
->
-> Cc: stable@vger.kernel.org
-> Signed-off-by: Danesh Petigara <dpetigara@broadcom.com>
-> Reviewed-by: Gregory Fong <gregory.0xf0@gmail.com>
+> Signed-off-by: Stefan Strogin <s.strogin@partner.samsung.com>
 
-Acked-by: Michal Nazarewicz <mina86@mina86.com>
+Looks good to me but than again I don=E2=80=99t know much about trace point=
+s so
+perhaps someone else should ack it as well.
 
 > ---
->  mm/cma.c | 10 +++++++---
->  1 file changed, 7 insertions(+), 3 deletions(-)
->
-> diff --git a/mm/cma.c b/mm/cma.c
-> index 75016fd..58f37bd 100644
-> --- a/mm/cma.c
-> +++ b/mm/cma.c
-> @@ -70,9 +70,13 @@ static unsigned long cma_bitmap_aligned_offset(struct =
-cma *cma, int align_order)
->=20=20
->  	if (align_order <=3D cma->order_per_bit)
->  		return 0;
-> -	alignment =3D 1UL << (align_order - cma->order_per_bit);
-> -	return ALIGN(cma->base_pfn, alignment) -
-> -		(cma->base_pfn >> cma->order_per_bit);
-> +
-> +	/*
-> +	 * Find a PFN aligned to the specified order and return
-> +	 * an offset represented in order_per_bits.
-> +	 */
-
-It probably makes sense to move this comment outside of the function as
-function documentation.
-
-> +	return (ALIGN(cma->base_pfn, (1UL << align_order))
-> +		- cma->base_pfn) >> cma->order_per_bit;
->  }
->=20=20
->  static unsigned long cma_bitmap_maxno(struct cma *cma)
-> --=20
-> 1.9.1
->
+>  include/trace/events/cma.h | 57 ++++++++++++++++++++++++++++++++++++++++=
+++++++
+>  mm/cma.c                   |  6 +++++
+>  2 files changed, 63 insertions(+)
+>  create mode 100644 include/trace/events/cma.h
 
 --=20
 Best regards,                                         _     _
