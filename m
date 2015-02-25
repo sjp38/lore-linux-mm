@@ -1,111 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id A05126B0032
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 19:27:38 -0500 (EST)
-Received: by pdjg10 with SMTP id g10so687197pdj.1
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 16:27:38 -0800 (PST)
-Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com. [2607:f8b0:400e:c02::232])
-        by mx.google.com with ESMTPS id br8si2339835pdb.43.2015.02.24.16.27.37
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Feb 2015 16:27:37 -0800 (PST)
-Received: by pdev10 with SMTP id v10so594640pde.10
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 16:27:37 -0800 (PST)
-Date: Wed, 25 Feb 2015 09:27:28 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH RFC 3/4] mm: move lazy free pages to inactive list
-Message-ID: <20150225002728.GB6468@blaptop>
-References: <1424765897-27377-1-git-send-email-minchan@kernel.org>
- <1424765897-27377-3-git-send-email-minchan@kernel.org>
- <20150224161408.GB14939@dhcp22.suse.cz>
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id E14186B0032
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 19:56:43 -0500 (EST)
+Received: by padbj1 with SMTP id bj1so867397pad.5
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 16:56:43 -0800 (PST)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id px4si8989665pbc.43.2015.02.24.16.56.41
+        for <linux-mm@kvack.org>;
+        Tue, 24 Feb 2015 16:56:42 -0800 (PST)
+Date: Wed, 25 Feb 2015 09:56:47 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v4 3/3] mm/compaction: enhance compaction finish condition
+Message-ID: <20150225005646.GA16796@js1304-P5Q-DELUXE>
+References: <1423725305-3726-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1423725305-3726-3-git-send-email-iamjoonsoo.kim@lge.com>
+ <54E30DDC.6050403@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150224161408.GB14939@dhcp22.suse.cz>
+In-Reply-To: <54E30DDC.6050403@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Shaohua Li <shli@kernel.org>, Yalin.Wang@sonymobile.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-On Tue, Feb 24, 2015 at 05:14:08PM +0100, Michal Hocko wrote:
-> On Tue 24-02-15 17:18:16, Minchan Kim wrote:
-> > MADV_FREE is hint that it's okay to discard pages if memory is
-> > pressure and we uses reclaimers(ie, kswapd and direct reclaim)
+On Tue, Feb 17, 2015 at 10:46:04AM +0100, Vlastimil Babka wrote:
+> On 02/12/2015 08:15 AM, Joonsoo Kim wrote:
+> >Compaction has anti fragmentation algorithm. It is that freepage
+> >should be more than pageblock order to finish the compaction if we don't
+> >find any freepage in requested migratetype buddy list. This is for
+> >mitigating fragmentation, but, there is a lack of migratetype
+> >consideration and it is too excessive compared to page allocator's anti
+> >fragmentation algorithm.
+> >
+> >Not considering migratetype would cause premature finish of compaction.
+> >For example, if allocation request is for unmovable migratetype,
+> >freepage with CMA migratetype doesn't help that allocation and
+> >compaction should not be stopped. But, current logic regards this
+> >situation as compaction is no longer needed, so finish the compaction.
+> >
+> >Secondly, condition is too excessive compared to page allocator's logic.
+> >We can steal freepage from other migratetype and change pageblock
+> >migratetype on more relaxed conditions in page allocator. This is designed
+> >to prevent fragmentation and we can use it here. Imposing hard constraint
+> >only to the compaction doesn't help much in this case since page allocator
+> >would cause fragmentation again.
+> >
+> >To solve these problems, this patch borrows anti fragmentation logic from
+> >page allocator. It will reduce premature compaction finish in some cases
+> >and reduce excessive compaction work.
+> >
+> >stress-highalloc test in mmtests with non movable order 7 allocation shows
+> >considerable increase of compaction success rate.
+> >
+> >Compaction success rate (Compaction success * 100 / Compaction stalls, %)
+> >31.82 : 42.20
+> >
+> >I tested it on non-reboot 5 runs stress-highalloc benchmark and found that
+> >there is no more degradation on allocation success rate than before. That
+> >roughly means that this patch doesn't result in more fragmentations.
+> >
+> >Vlastimil suggests additional idea that we only test for fallbacks
+> >when migration scanner has scanned a whole pageblock. It looked good for
+> >fragmentation because chance of stealing increase due to making more
+> >free pages in certain pageblock. So, I tested it, but, it results in
+> >decreased compaction success rate, roughly 38.00. I guess the reason that
+> >if system is low memory condition, watermark check could be failed due to
+> >not enough order 0 free page and so, sometimes, we can't reach a fallback
+> >check although migrate_pfn is aligned to pageblock_nr_pages. I can insert
+> >code to cope with this situation but it makes code more complicated so
+> >I don't include his idea at this patch.
 > 
-> s@if memory is pressure@if there is memory pressure@
+> Hm that's weird. I'll try to investigate this later. Meanwhile it
+> can stay as it is.
 > 
-> > to free them so there is no worth to remain them in active
-> > anonymous LRU list so this patch moves them to inactive LRU list.
+> >Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > 
-> Makes sense to me.
-> 
-> > A arguable issue for the approach is whether we should put it
-> > head or tail in inactive list
-> 
-> Is it really arguable? Why should active MADV_FREE pages appear before
-> those which were living on the inactive list. This doesn't make any
-> sense to me.
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-It would be better to drop garbage pages(ie, freed from allocator)
-rather than swap out and now anon LRU aging is seq model so
-inacitve list can include a lot working set so putting hinted pages
-into tail of LRU could enhance reclaim efficiency.
-That's why I said it might be arguble.
-
-> 
-> > and selected it as head because
-> > kernel cannot make sure it's really cold or warm for every usecase
-> > but at least we know it's not hot so landing of inactive head
-> > would be comprimise if it stayed in active LRU.
-> 
-> This is really hard to read. What do you think about the following
-> wording?
-> "
-> The active status of those pages is cleared and they are moved to the
-> head of the inactive LRU. This means that MADV_FREE-ed pages which
-> were living on the inactive list are reclaimed first because they
-> are more likely to be cold rather than recently active pages.
-> "
-
-My phrase is to focus why we should put them into head of inactive
-so it's orthogonal with your phrase and maybe my phrase could be
-complement.
-
-> 
-> > As well, if we put recent hinted pages to inactive's tail,
-> > VM could discard cache hot pages, which would be bad.
-> > 
-> > As a bonus, we don't need to move them back and forth in inactive
-> > list whenever MADV_SYSCALL syscall is called.
-> > 
-> > As drawback, VM should scan more pages in inactive anonymous LRU
-> > to discard but it has happened all the time if recent reference
-> > happens on those pages in inactive LRU list so I don't think
-> > it's not a main drawback.
-> 
-> Rather than the above paragraphs I would like to see a description why
-> this is needed. Something like the following?
-> "
-> This is fixing a suboptimal behavior of MADV_FREE when pages living on
-> the active list will sit there for a long time even under memory
-> pressure while the inactive list is reclaimed heavily. This basically
-> breaks the whole purpose of using MADV_FREE to help the system to free
-> memory which is might not be used.
-> "
-
-Good to me. I will add this. Thanks!
+Okay. Thanks.
 
 > 
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> But you'll need to fix:
 > 
-> Other than that the patch looks good to me.
-> Acked-by: Michal Hocko <mhocko@suse.cz>
+> >---
+> >  mm/compaction.c |   14 ++++++++++++--
+> >  mm/internal.h   |    2 ++
+> >  mm/page_alloc.c |   19 ++++++++++++++-----
+> >  3 files changed, 28 insertions(+), 7 deletions(-)
+> >
+> >diff --git a/mm/compaction.c b/mm/compaction.c
+> >index 782772d..d40c426 100644
+> >--- a/mm/compaction.c
+> >+++ b/mm/compaction.c
+> >@@ -1170,13 +1170,23 @@ static int __compact_finished(struct zone *zone, struct compact_control *cc,
+> >  	/* Direct compactor: Is a suitable page free? */
+> >  	for (order = cc->order; order < MAX_ORDER; order++) {
+> >  		struct free_area *area = &zone->free_area[order];
+> >+		bool can_steal;
+> >
+> >  		/* Job done if page is free of the right migratetype */
+> >  		if (!list_empty(&area->free_list[migratetype]))
+> >  			return COMPACT_PARTIAL;
+> >
+> >-		/* Job done if allocation would set block type */
+> >-		if (order >= pageblock_order && area->nr_free)
+> >+		/* MIGRATE_MOVABLE can fallback on MIGRATE_CMA */
+> >+		if (migratetype == MIGRATE_MOVABLE &&
+> >+			!list_empty(&area->free_list[MIGRATE_CMA]))
+> 
+> This won't compile with !CONFIG_CMA, right? I recall pointing it on
+> v3 already (or something similar elsewhere).
 
-Thanks for the review, Michal!
+Will fix.
 
--- 
-Kind regards,
-Minchan Kim
+> 
+> >+			return COMPACT_PARTIAL;
+> >+
+> >+		/*
+> >+		 * Job done if allocation would steal freepages from
+> >+		 * other migratetype buddy lists.
+> >+		 */
+> >+		if (find_suitable_fallback(area, order, migratetype,
+> >+						true, &can_steal) != -1)
+> >  			return COMPACT_PARTIAL;
+> >  	}
+> >
+> >diff --git a/mm/internal.h b/mm/internal.h
+> >index c4d6c9b..9640650 100644
+> >--- a/mm/internal.h
+> >+++ b/mm/internal.h
+> >@@ -200,6 +200,8 @@ isolate_freepages_range(struct compact_control *cc,
+> >  unsigned long
+> >  isolate_migratepages_range(struct compact_control *cc,
+> >  			   unsigned long low_pfn, unsigned long end_pfn);
+> >+int find_suitable_fallback(struct free_area *area, unsigned int order,
+> >+			int migratetype, bool only_stealable, bool *can_steal);
+> >
+> >  #endif
+> >
+> >diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> >index 64a4974..95654f9 100644
+> >--- a/mm/page_alloc.c
+> >+++ b/mm/page_alloc.c
+> >@@ -1191,9 +1191,14 @@ static void steal_suitable_fallback(struct zone *zone, struct page *page,
+> >  		set_pageblock_migratetype(page, start_type);
+> >  }
+> >
+> >-/* Check whether there is a suitable fallback freepage with requested order. */
+> >-static int find_suitable_fallback(struct free_area *area, unsigned int order,
+> >-					int migratetype, bool *can_steal)
+> >+/*
+> >+ * Check whether there is a suitable fallback freepage with requested order.
+> >+ * If only_stealable is true, this function returns fallback_mt only if
+> >+ * we can steal other freepages all together. This would help to reduce
+> >+ * fragmentation due to mixed migratetype pages in one pageblock.
+> >+ */
+> >+int find_suitable_fallback(struct free_area *area, unsigned int order,
+> >+			int migratetype, bool only_stealable, bool *can_steal)
+> >  {
+> >  	int i;
+> >  	int fallback_mt;
+> >@@ -1213,7 +1218,11 @@ static int find_suitable_fallback(struct free_area *area, unsigned int order,
+> >  		if (can_steal_fallback(order, migratetype))
+> >  			*can_steal = true;
+> >
+> >-		return fallback_mt;
+> >+		if (!only_stealable)
+> >+			return fallback_mt;
+> >+
+> >+		if (*can_steal)
+> >+			return fallback_mt;
+> 
+> Why not just single if (!only_stealable || *can_steal)
+
+Will fix, too.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
