@@ -1,47 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 157FC6B0032
-	for <linux-mm@kvack.org>; Wed, 25 Feb 2015 16:51:45 -0500 (EST)
-Received: by padet14 with SMTP id et14so8354429pad.11
-        for <linux-mm@kvack.org>; Wed, 25 Feb 2015 13:51:44 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id qe4si13712271pdb.150.2015.02.25.13.51.44
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Feb 2015 13:51:44 -0800 (PST)
-Date: Wed, 25 Feb 2015 13:51:43 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: __GFP_NOFAIL and oom_killer_disabled?
-Message-Id: <20150225135143.caa950fc147d9241bf23ae32@linux-foundation.org>
-In-Reply-To: <201502260648.IBC35479.QMVHOtFOJSFFLO@I-love.SAKURA.ne.jp>
-References: <20150223102147.GB24272@dhcp22.suse.cz>
-	<201502232203.DGC60931.QVtOLSOOJFMHFF@I-love.SAKURA.ne.jp>
-	<20150224181408.GD14939@dhcp22.suse.cz>
-	<201502252022.AAH51015.OtHLOVFJSMFFQO@I-love.SAKURA.ne.jp>
-	<20150225160223.GH26680@dhcp22.suse.cz>
-	<201502260648.IBC35479.QMVHOtFOJSFFLO@I-love.SAKURA.ne.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id A61626B0032
+	for <linux-mm@kvack.org>; Wed, 25 Feb 2015 16:58:05 -0500 (EST)
+Received: by wghk14 with SMTP id k14so6456363wgh.4
+        for <linux-mm@kvack.org>; Wed, 25 Feb 2015 13:58:05 -0800 (PST)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.203])
+        by mx.google.com with ESMTP id lx9si75474742wjb.182.2015.02.25.13.58.03
+        for <linux-mm@kvack.org>;
+        Wed, 25 Feb 2015 13:58:03 -0800 (PST)
+Date: Wed, 25 Feb 2015 23:57:57 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: 4.0-rc1/PARISC: BUG: non-zero nr_pmds on freeing mm
+Message-ID: <20150225215757.GA23672@node.dhcp.inet.fi>
+References: <20150224225454.GA14117@fuloong-minipc.musicnaut.iki.fi>
+ <20150225202130.GA31491@node.dhcp.inet.fi>
+ <20150225123048.a9c97ea726f747e029b4688a@linux-foundation.org>
+ <20150225204743.GA31668@node.dhcp.inet.fi>
+ <20150225133140.56cfb479cd2f4461ed4fa6d5@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150225133140.56cfb479cd2f4461ed4fa6d5@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: mhocko@suse.cz, hannes@cmpxchg.org, tytso@mit.edu, david@fromorbit.com, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, mgorman@suse.de, torvalds@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Aaro Koskinen <aaro.koskinen@iki.fi>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-parisc@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 26 Feb 2015 06:48:02 +0900 Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp> wrote:
-
-> > OK, that would change the bahavior for __GFP_NOFAIL|~__GFP_FS
-> > allocations. The patch from Johannes which reverts GFP_NOFS failure mode
-> > should go to stable and that should be sufficient IMO.
-> >  
+On Wed, Feb 25, 2015 at 01:31:40PM -0800, Andrew Morton wrote:
+> On Wed, 25 Feb 2015 22:47:43 +0200 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
 > 
-> mm-page_alloc-revert-inadvertent-__gfp_fs-retry-behavior-change.patch
-> fixes only ~__GFP_NOFAIL|~__GFP_FS case. I think we need David's version
-> http://marc.info/?l=linux-mm&m=142489687015873&w=2 for 3.19-stable .
+> > > > If not, I can prepare a patchset which only adds missing
+> > > > __PAGETABLE_PUD_FOLDED and __PAGETABLE_PMD_FOLDED.
+> > > 
+> > > Something simple would be preferred, but I don't know how much simpler
+> > > the above would be?
+> > 
+> > Not much simplier: __PAGETABLE_PMD_FOLDED is missing in frv, m32r, m68k,
+> > mn10300, parisc and s390.
+> 
+> I don't really know what's going on here.  Let's rewind a bit, please. 
+> What is the bug, what causes it, which commit caused it and why the
+> heck does it require a massive patchset to fix 4.0?
 
-afacit nobody has even tested that.  If we want changes made to 3.19.x
-then they will need to be well tested, well changelogged and signed off. 
-Please.
+PMD accounting happens in __pmd_alloc() and free_pmd_range(). PMD
+accounting only makes sense on architectures with 3 or more page tables
+levels. We use __PAGETABLE_PMD_FOLDED to check whether the PMD page table
+level exists.
+
+Unfortunately, some architectures don't use <asm-generic/pgtable-nopmd.h>
+to indicate that PMD level doesn't exists and fold it in a custom way.
+Some of them don't define __PAGETABLE_PMD_FOLDED as pgtable-nopmd.h does.
+
+Missing __PAGETABLE_PMD_FOLDED causes undeflow of mm->nr_pmds:
+__pmd_alloc() is never called, but we decrement mm->nr_pmds in
+free_pmd_range().
+
+These architecures need to be fixed to define __PAGETABLE_PMD_FOLDED too.
+
+I can do in one patch if you want. Or split per-arch. After that
+CONFIG_PGTABLE_LEVELS patchset will require rebasing.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
