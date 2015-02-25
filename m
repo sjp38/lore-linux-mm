@@ -1,86 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
-	by kanga.kvack.org (Postfix) with ESMTP id C4C426B0071
-	for <linux-mm@kvack.org>; Wed, 25 Feb 2015 16:59:00 -0500 (EST)
-Received: by mail-ob0-f173.google.com with SMTP id uy5so7052518obc.4
-        for <linux-mm@kvack.org>; Wed, 25 Feb 2015 13:59:00 -0800 (PST)
-Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
-        by mx.google.com with ESMTPS id w5si10524065oej.102.2015.02.25.13.58.56
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 3077D6B0032
+	for <linux-mm@kvack.org>; Wed, 25 Feb 2015 17:14:01 -0500 (EST)
+Received: by pabrd3 with SMTP id rd3so8595691pab.1
+        for <linux-mm@kvack.org>; Wed, 25 Feb 2015 14:14:00 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id qt3si10480262pbb.206.2015.02.25.14.13.59
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 25 Feb 2015 13:58:56 -0800 (PST)
-From: Davidlohr Bueso <dave@stgolabs.net>
-Subject: [PATCH 3/3] powerpc/oprofile: reduce mmap_sem hold for exe_file
-Date: Wed, 25 Feb 2015 13:58:37 -0800
-Message-Id: <1424901517-25069-4-git-send-email-dave@stgolabs.net>
-In-Reply-To: <1424901517-25069-1-git-send-email-dave@stgolabs.net>
-References: <1424901517-25069-1-git-send-email-dave@stgolabs.net>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Feb 2015 14:13:59 -0800 (PST)
+Date: Wed, 25 Feb 2015 14:13:58 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: 4.0-rc1/PARISC: BUG: non-zero nr_pmds on freeing mm
+Message-Id: <20150225141358.8bd74b14c6e1ae039d25dc1c@linux-foundation.org>
+In-Reply-To: <20150225215757.GA23672@node.dhcp.inet.fi>
+References: <20150224225454.GA14117@fuloong-minipc.musicnaut.iki.fi>
+	<20150225202130.GA31491@node.dhcp.inet.fi>
+	<20150225123048.a9c97ea726f747e029b4688a@linux-foundation.org>
+	<20150225204743.GA31668@node.dhcp.inet.fi>
+	<20150225133140.56cfb479cd2f4461ed4fa6d5@linux-foundation.org>
+	<20150225215757.GA23672@node.dhcp.inet.fi>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave@stgolabs.net, arnd@arndb.de, rric@kernel.org, linuxppc-dev@lists.ozlabs.org, cbe-oss-dev@lists.ozlabs.org, oprofile-list@lists.sourceforge.net, Davidlohr Bueso <dbueso@suse.de>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Aaro Koskinen <aaro.koskinen@iki.fi>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-parisc@vger.kernel.org, linux-mm@kvack.org
 
-In the future mm->exe_file will be done without mmap_sem
-serialization, thus isolate and reorganize the related
-code to make the transition easier. Good users will, make
-use of the more standard get_mm_exe_file(), requiring only
-holding the mmap_sem to read the value, and relying on reference
-counting to make sure that the exe file won't dissappear
-underneath us while getting the dcookie.
+On Wed, 25 Feb 2015 23:57:57 +0200 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
 
-Cc: Arnd Bergmann <arnd@arndb.de>
-Cc: Robert Richter <rric@kernel.org>
-Cc: linuxppc-dev@lists.ozlabs.org
-Cc: cbe-oss-dev@lists.ozlabs.org
-Cc: oprofile-list@lists.sourceforge.net
-Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
----
+> On Wed, Feb 25, 2015 at 01:31:40PM -0800, Andrew Morton wrote:
+> > On Wed, 25 Feb 2015 22:47:43 +0200 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+> > 
+> > > > > If not, I can prepare a patchset which only adds missing
+> > > > > __PAGETABLE_PUD_FOLDED and __PAGETABLE_PMD_FOLDED.
+> > > > 
+> > > > Something simple would be preferred, but I don't know how much simpler
+> > > > the above would be?
+> > > 
+> > > Not much simplier: __PAGETABLE_PMD_FOLDED is missing in frv, m32r, m68k,
+> > > mn10300, parisc and s390.
+> > 
+> > I don't really know what's going on here.  Let's rewind a bit, please. 
+> > What is the bug, what causes it, which commit caused it and why the
+> > heck does it require a massive patchset to fix 4.0?
+> 
+> PMD accounting happens in __pmd_alloc() and free_pmd_range(). PMD
+> accounting only makes sense on architectures with 3 or more page tables
+> levels. We use __PAGETABLE_PMD_FOLDED to check whether the PMD page table
+> level exists.
+> 
+> Unfortunately, some architectures don't use <asm-generic/pgtable-nopmd.h>
+> to indicate that PMD level doesn't exists and fold it in a custom way.
+> Some of them don't define __PAGETABLE_PMD_FOLDED as pgtable-nopmd.h does.
+> 
+> Missing __PAGETABLE_PMD_FOLDED causes undeflow of mm->nr_pmds:
+> __pmd_alloc() is never called, but we decrement mm->nr_pmds in
+> free_pmd_range().
+> 
+> These architecures need to be fixed to define __PAGETABLE_PMD_FOLDED too.
+> 
+> I can do in one patch if you want. Or split per-arch. After that
+> CONFIG_PGTABLE_LEVELS patchset will require rebasing.
 
-Completely untested.
-
- arch/powerpc/oprofile/cell/spu_task_sync.c | 13 ++++++++-----
- 1 file changed, 8 insertions(+), 5 deletions(-)
-
-diff --git a/arch/powerpc/oprofile/cell/spu_task_sync.c b/arch/powerpc/oprofile/cell/spu_task_sync.c
-index 1c27831..ed7b097 100644
---- a/arch/powerpc/oprofile/cell/spu_task_sync.c
-+++ b/arch/powerpc/oprofile/cell/spu_task_sync.c
-@@ -22,6 +22,7 @@
- #include <linux/kref.h>
- #include <linux/mm.h>
- #include <linux/fs.h>
-+#include <linux/file.h>
- #include <linux/module.h>
- #include <linux/notifier.h>
- #include <linux/numa.h>
-@@ -322,18 +323,20 @@ get_exec_dcookie_and_offset(struct spu *spu, unsigned int *offsetp,
- 	unsigned long app_cookie = 0;
- 	unsigned int my_offset = 0;
- 	struct vm_area_struct *vma;
-+	struct file *exe_file;
- 	struct mm_struct *mm = spu->mm;
- 
- 	if (!mm)
- 		goto out;
- 
--	down_read(&mm->mmap_sem);
--
--	if (mm->exe_file) {
--		app_cookie = fast_get_dcookie(&mm->exe_file->f_path);
--		pr_debug("got dcookie for %pD\n", mm->exe_file);
-+	exe_file = get_mm_exe_file(mm);
-+	if (exe_file) {
-+		app_cookie = fast_get_dcookie(&exe_file->f_path);
-+		pr_debug("got dcookie for %pD\n", exe_file);
-+		fput(exe_file);
- 	}
- 
-+	down_read(&mm->mmap_sem);
- 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
- 		if (vma->vm_start > spu_ref || vma->vm_end <= spu_ref)
- 			continue;
--- 
-2.1.4
+I guess one patch will be OK - arch maintainers will be able
+review/apply/test that easily enough.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
