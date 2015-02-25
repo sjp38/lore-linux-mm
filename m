@@ -1,105 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 34F296B0032
-	for <linux-mm@kvack.org>; Wed, 25 Feb 2015 16:24:31 -0500 (EST)
-Received: by iecar1 with SMTP id ar1so8779952iec.0
-        for <linux-mm@kvack.org>; Wed, 25 Feb 2015 13:24:31 -0800 (PST)
-Received: from mail-ig0-x233.google.com (mail-ig0-x233.google.com. [2607:f8b0:4001:c05::233])
-        by mx.google.com with ESMTPS id yz3si6030029icb.10.2015.02.25.13.24.30
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 92BB96B0032
+	for <linux-mm@kvack.org>; Wed, 25 Feb 2015 16:32:37 -0500 (EST)
+Received: by pdev10 with SMTP id v10so7703432pde.10
+        for <linux-mm@kvack.org>; Wed, 25 Feb 2015 13:32:37 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id bv8si4076218pad.86.2015.02.25.13.31.41
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Feb 2015 13:24:30 -0800 (PST)
-Received: by mail-ig0-f179.google.com with SMTP id l13so9526934iga.0
-        for <linux-mm@kvack.org>; Wed, 25 Feb 2015 13:24:30 -0800 (PST)
-Date: Wed, 25 Feb 2015 13:24:28 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch v2 for-4.0] mm, thp: really limit transparent hugepage
- allocation to local node
-In-Reply-To: <54EDA96C.4000609@suse.cz>
-Message-ID: <alpine.DEB.2.10.1502251311360.18097@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1502241422370.11324@chino.kir.corp.google.com> <alpine.DEB.2.10.1502241522590.9480@chino.kir.corp.google.com> <54EDA96C.4000609@suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Wed, 25 Feb 2015 13:32:11 -0800 (PST)
+Date: Wed, 25 Feb 2015 13:31:40 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: 4.0-rc1/PARISC: BUG: non-zero nr_pmds on freeing mm
+Message-Id: <20150225133140.56cfb479cd2f4461ed4fa6d5@linux-foundation.org>
+In-Reply-To: <20150225204743.GA31668@node.dhcp.inet.fi>
+References: <20150224225454.GA14117@fuloong-minipc.musicnaut.iki.fi>
+	<20150225202130.GA31491@node.dhcp.inet.fi>
+	<20150225123048.a9c97ea726f747e029b4688a@linux-foundation.org>
+	<20150225204743.GA31668@node.dhcp.inet.fi>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Aaro Koskinen <aaro.koskinen@iki.fi>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-parisc@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 25 Feb 2015, Vlastimil Babka wrote:
+On Wed, 25 Feb 2015 22:47:43 +0200 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
 
-> > Commit 077fcf116c8c ("mm/thp: allocate transparent hugepages on local
-> > node") restructured alloc_hugepage_vma() with the intent of only
-> > allocating transparent hugepages locally when there was not an effective
-> > interleave mempolicy.
+> > > If not, I can prepare a patchset which only adds missing
+> > > __PAGETABLE_PUD_FOLDED and __PAGETABLE_PMD_FOLDED.
 > > 
-> > alloc_pages_exact_node() does not limit the allocation to the single
-> > node, however, but rather prefers it.  This is because __GFP_THISNODE is
-> > not set which would cause the node-local nodemask to be passed.  Without
-> > it, only a nodemask that prefers the local node is passed.
+> > Something simple would be preferred, but I don't know how much simpler
+> > the above would be?
 > 
-> Oops, good catch.
-> But I believe we have the same problem with khugepaged_alloc_page(), rendering
-> the recent node determination and zone_reclaim strictness patches partially
-> useless.
-> 
+> Not much simplier: __PAGETABLE_PMD_FOLDED is missing in frv, m32r, m68k,
+> mn10300, parisc and s390.
 
-Indeed.
-
-> Then I start to wonder about other alloc_pages_exact_node() users. Some do
-> pass __GFP_THISNODE, others not - are they also mistaken? I guess the function
-> is a misnomer - when I see "exact_node", I expect the __GFP_THISNODE behavior.
-> 
-
-I looked through these yesterday as well and could only find the 
-do_migrate_pages() case for page migration where __GFP_THISNODE was 
-missing.  I proposed that separately as 
-http://marc.info/?l=linux-mm&m=142481989722497 -- I couldn't find any 
-other users that looked wrong.
-
- > I think to avoid such hidden catches, we should create
-> alloc_pages_preferred_node() variant, change the exact_node() variant to pass
-> __GFP_THISNODE, and audit and adjust all callers accordingly.
-> 
-
-Sounds like that should be done as part of a cleanup after the 4.0 issues 
-are addressed.  alloc_pages_exact_node() does seem to suggest that we want 
-exactly that node, implying __GFP_THISNODE behavior already, so it would 
-be good to avoid having this come up again in the future.
-
-> Also, you pass __GFP_NOWARN but that should be covered by GFP_TRANSHUGE
-> already. Of course, nothing guarantees that hugepage == true implies that gfp
-> == GFP_TRANSHUGE... but current in-tree callers conform to that.
-> 
-
-Ah, good point, and it includes __GFP_NORETRY as well which means that 
-this patch is busted.  It won't try compaction or direct reclaim in the 
-page allocator slowpath because of this:
-
-	/*
-	 * GFP_THISNODE (meaning __GFP_THISNODE, __GFP_NORETRY and
-	 * __GFP_NOWARN set) should not cause reclaim since the subsystem
-	 * (f.e. slab) using GFP_THISNODE may choose to trigger reclaim
-	 * using a larger set of nodes after it has established that the
-	 * allowed per node queues are empty and that nodes are
-	 * over allocated.
-	 */
-	if (IS_ENABLED(CONFIG_NUMA) &&
-	    (gfp_mask & GFP_THISNODE) == GFP_THISNODE)
-		goto nopage;
-
-Hmm.  It would be disappointing to have to pass the nodemask of the exact 
-node that we want to allocate from into the page allocator to avoid using 
-__GFP_THISNODE.
-
-There's a sneaky way around it by just removing __GFP_NORETRY from 
-GFP_TRANSHUGE so the condition above fails and since the page allocator 
-won't retry for such a high-order allocation, but that probably just 
-papers over this stuff too much already.  I think what we want to do is 
-cause the slab allocators to not use __GFP_WAIT if they want to avoid 
-reclaim.
-
-This is probably going to be a much more invasive patch than originally 
-thought.
+I don't really know what's going on here.  Let's rewind a bit, please. 
+What is the bug, what causes it, which commit caused it and why the
+heck does it require a massive patchset to fix 4.0?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
