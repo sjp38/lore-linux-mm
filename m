@@ -1,52 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B55D46B0032
-	for <linux-mm@kvack.org>; Wed, 25 Feb 2015 09:02:36 -0500 (EST)
-Received: by wghk14 with SMTP id k14so3842188wgh.4
-        for <linux-mm@kvack.org>; Wed, 25 Feb 2015 06:02:36 -0800 (PST)
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 50D046B0032
+	for <linux-mm@kvack.org>; Wed, 25 Feb 2015 09:08:29 -0500 (EST)
+Received: by mail-wi0-f171.google.com with SMTP id ex7so13080303wid.4
+        for <linux-mm@kvack.org>; Wed, 25 Feb 2015 06:08:29 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m10si29209913wiv.79.2015.02.25.06.02.34
+        by mx.google.com with ESMTPS id f4si73273962wjy.26.2015.02.25.06.08.26
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 25 Feb 2015 06:02:34 -0800 (PST)
-Date: Wed, 25 Feb 2015 15:02:31 +0100
+        Wed, 25 Feb 2015 06:08:27 -0800 (PST)
+Date: Wed, 25 Feb 2015 15:08:26 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm, oom: do not fail __GFP_NOFAIL allocation if oom
+Subject: [PATCH -v2] mm, oom: do not fail __GFP_NOFAIL allocation if oom
  killer is disbaled
-Message-ID: <20150225140231.GC26680@dhcp22.suse.cz>
+Message-ID: <20150225140826.GD26680@dhcp22.suse.cz>
 References: <1424801964-1602-1-git-send-email-mhocko@suse.cz>
  <20150224191127.GA14718@phnom.home.cmpxchg.org>
+ <alpine.DEB.2.10.1502241220500.3855@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150224191127.GA14718@phnom.home.cmpxchg.org>
+In-Reply-To: <alpine.DEB.2.10.1502241220500.3855@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 24-02-15 14:11:27, Johannes Weiner wrote:
+On Tue 24-02-15 12:23:55, David Rientjes wrote:
+> On Tue, 24 Feb 2015, Johannes Weiner wrote:
 [...]
-> I'm fine with keeping the allocation looping, but is that message
-> helpful?  It seems completely useless to the user encountering it.  Is
-> it going to help kernel developers when we get a bug report with it?
+> > I'm fine with keeping the allocation looping, but is that message
+> > helpful?  It seems completely useless to the user encountering it.  Is
+> > it going to help kernel developers when we get a bug report with it?
+> > 
+> > WARN_ON_ONCE()?
+> > 
+> 
+> Yeah, I'm not sure that the warning is helpful (and it needs 
+> s/disbaled/disabled/ if it is to be kept).  I also think this check should 
+> be moved out of out_of_memory() since gfp/retry logic should be in the 
+> page allocator itself and not in the oom killer: just make 
+> __alloc_pages_may_oom() also set *did_some_progress = 1 for __GFP_NOFAIL.
 
-It is better than a silent endless loop. And we get a trace which points
-to the place which is doing the allocation. We haven't seen any weird
-crashes during suspend throughout last 6 years so this would be
-extremely unlikely and hard to reproduce so having the trace sounds
-useful to me.
-
-> WARN_ON_ONCE()?
-
-I do not expect this will spew a lot of messages. But I can live with
-WARN_ON_ONCE as well.
--- 
-Michal Hocko
-SUSE Labs
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+OK, this is a good point. Updated patch is below:
+---
