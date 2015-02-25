@@ -1,67 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id A61626B0032
-	for <linux-mm@kvack.org>; Wed, 25 Feb 2015 16:58:05 -0500 (EST)
-Received: by wghk14 with SMTP id k14so6456363wgh.4
-        for <linux-mm@kvack.org>; Wed, 25 Feb 2015 13:58:05 -0800 (PST)
-Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.203])
-        by mx.google.com with ESMTP id lx9si75474742wjb.182.2015.02.25.13.58.03
-        for <linux-mm@kvack.org>;
-        Wed, 25 Feb 2015 13:58:03 -0800 (PST)
-Date: Wed, 25 Feb 2015 23:57:57 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: 4.0-rc1/PARISC: BUG: non-zero nr_pmds on freeing mm
-Message-ID: <20150225215757.GA23672@node.dhcp.inet.fi>
-References: <20150224225454.GA14117@fuloong-minipc.musicnaut.iki.fi>
- <20150225202130.GA31491@node.dhcp.inet.fi>
- <20150225123048.a9c97ea726f747e029b4688a@linux-foundation.org>
- <20150225204743.GA31668@node.dhcp.inet.fi>
- <20150225133140.56cfb479cd2f4461ed4fa6d5@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150225133140.56cfb479cd2f4461ed4fa6d5@linux-foundation.org>
+Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com [209.85.214.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A61D6B006C
+	for <linux-mm@kvack.org>; Wed, 25 Feb 2015 16:58:55 -0500 (EST)
+Received: by mail-ob0-f181.google.com with SMTP id vb8so6954639obc.12
+        for <linux-mm@kvack.org>; Wed, 25 Feb 2015 13:58:55 -0800 (PST)
+Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
+        by mx.google.com with ESMTPS id ux6si2943016obc.107.2015.02.25.13.58.53
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 25 Feb 2015 13:58:54 -0800 (PST)
+From: Davidlohr Bueso <dave@stgolabs.net>
+Subject: [PATCH -part2 0/3] mm: improve handling of mm->exe_file
+Date: Wed, 25 Feb 2015 13:58:34 -0800
+Message-Id: <1424901517-25069-1-git-send-email-dave@stgolabs.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Aaro Koskinen <aaro.koskinen@iki.fi>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-parisc@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave@stgolabs.net
 
-On Wed, Feb 25, 2015 at 01:31:40PM -0800, Andrew Morton wrote:
-> On Wed, 25 Feb 2015 22:47:43 +0200 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
-> 
-> > > > If not, I can prepare a patchset which only adds missing
-> > > > __PAGETABLE_PUD_FOLDED and __PAGETABLE_PMD_FOLDED.
-> > > 
-> > > Something simple would be preferred, but I don't know how much simpler
-> > > the above would be?
-> > 
-> > Not much simplier: __PAGETABLE_PMD_FOLDED is missing in frv, m32r, m68k,
-> > mn10300, parisc and s390.
-> 
-> I don't really know what's going on here.  Let's rewind a bit, please. 
-> What is the bug, what causes it, which commit caused it and why the
-> heck does it require a massive patchset to fix 4.0?
+This set addresses exe_file use for users that require the mmap_sem
+for other things (mostly looking up the related vma->vm_file). In
+a lot of cases we end up with scenarios where we take the mmap_sem in
+get_mm_exe_file(), just to then take it again soon after. This is only
+temporary as we will remove the need for mmap_sem when dealing with
+exe_file.
 
-PMD accounting happens in __pmd_alloc() and free_pmd_range(). PMD
-accounting only makes sense on architectures with 3 or more page tables
-levels. We use __PAGETABLE_PMD_FOLDED to check whether the PMD page table
-level exists.
+Applies on top of linux-next (-20150225). The arch bits are entirely
+100% untested, so I apologize if there are any stupid build issues.
 
-Unfortunately, some architectures don't use <asm-generic/pgtable-nopmd.h>
-to indicate that PMD level doesn't exists and fold it in a custom way.
-Some of them don't define __PAGETABLE_PMD_FOLDED as pgtable-nopmd.h does.
+Thanks!
 
-Missing __PAGETABLE_PMD_FOLDED causes undeflow of mm->nr_pmds:
-__pmd_alloc() is never called, but we decrement mm->nr_pmds in
-free_pmd_range().
+Davidlohr Bueso (3):
+  tile/elf: reorganize notify_exec()
+  oprofile: reduce mmap_sem hold for mm->exe_file
+  powerpc/oprofile: reduce mmap_sem hold for exe_file
 
-These architecures need to be fixed to define __PAGETABLE_PMD_FOLDED too.
-
-I can do in one patch if you want. Or split per-arch. After that
-CONFIG_PGTABLE_LEVELS patchset will require rebasing.
+ arch/powerpc/oprofile/cell/spu_task_sync.c | 13 +++++----
+ arch/tile/mm/elf.c                         | 47 ++++++++++++++++++------------
+ drivers/oprofile/buffer_sync.c             | 30 ++++++++++---------
+ 3 files changed, 53 insertions(+), 37 deletions(-)
 
 -- 
- Kirill A. Shutemov
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
