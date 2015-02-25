@@ -1,71 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 3077D6B0032
-	for <linux-mm@kvack.org>; Wed, 25 Feb 2015 17:14:01 -0500 (EST)
-Received: by pabrd3 with SMTP id rd3so8595691pab.1
-        for <linux-mm@kvack.org>; Wed, 25 Feb 2015 14:14:00 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id qt3si10480262pbb.206.2015.02.25.14.13.59
+Received: from mail-oi0-f44.google.com (mail-oi0-f44.google.com [209.85.218.44])
+	by kanga.kvack.org (Postfix) with ESMTP id A781F6B0032
+	for <linux-mm@kvack.org>; Wed, 25 Feb 2015 17:22:57 -0500 (EST)
+Received: by mail-oi0-f44.google.com with SMTP id a3so6081079oib.3
+        for <linux-mm@kvack.org>; Wed, 25 Feb 2015 14:22:57 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id i4si1028035oep.17.2015.02.25.14.22.54
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Feb 2015 14:13:59 -0800 (PST)
-Date: Wed, 25 Feb 2015 14:13:58 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: 4.0-rc1/PARISC: BUG: non-zero nr_pmds on freeing mm
-Message-Id: <20150225141358.8bd74b14c6e1ae039d25dc1c@linux-foundation.org>
-In-Reply-To: <20150225215757.GA23672@node.dhcp.inet.fi>
-References: <20150224225454.GA14117@fuloong-minipc.musicnaut.iki.fi>
-	<20150225202130.GA31491@node.dhcp.inet.fi>
-	<20150225123048.a9c97ea726f747e029b4688a@linux-foundation.org>
-	<20150225204743.GA31668@node.dhcp.inet.fi>
-	<20150225133140.56cfb479cd2f4461ed4fa6d5@linux-foundation.org>
-	<20150225215757.GA23672@node.dhcp.inet.fi>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 25 Feb 2015 14:22:55 -0800 (PST)
+Subject: Re: __GFP_NOFAIL and oom_killer_disabled?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20150223102147.GB24272@dhcp22.suse.cz>
+	<201502232203.DGC60931.QVtOLSOOJFMHFF@I-love.SAKURA.ne.jp>
+	<20150224181408.GD14939@dhcp22.suse.cz>
+	<201502252022.AAH51015.OtHLOVFJSMFFQO@I-love.SAKURA.ne.jp>
+	<20150225160223.GH26680@dhcp22.suse.cz>
+In-Reply-To: <20150225160223.GH26680@dhcp22.suse.cz>
+Message-Id: <201502260648.IBC35479.QMVHOtFOJSFFLO@I-love.SAKURA.ne.jp>
+Date: Thu, 26 Feb 2015 06:48:02 +0900
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Aaro Koskinen <aaro.koskinen@iki.fi>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-parisc@vger.kernel.org, linux-mm@kvack.org
+To: mhocko@suse.cz, hannes@cmpxchg.org
+Cc: akpm@linux-foundation.org, tytso@mit.edu, david@fromorbit.com, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, mgorman@suse.de, torvalds@linux-foundation.org
 
-On Wed, 25 Feb 2015 23:57:57 +0200 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
-
-> On Wed, Feb 25, 2015 at 01:31:40PM -0800, Andrew Morton wrote:
-> > On Wed, 25 Feb 2015 22:47:43 +0200 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+Michal Hocko wrote:
+> On Wed 25-02-15 20:22:22, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > This commit hasn't introduced any behavior changes. GFP_NOFAIL
+> > > allocations fail when OOM killer is disabled since beginning
+> > > 7f33d49a2ed5 (mm, PM/Freezer: Disable OOM killer when tasks are frozen).
 > > 
-> > > > > If not, I can prepare a patchset which only adds missing
-> > > > > __PAGETABLE_PUD_FOLDED and __PAGETABLE_PMD_FOLDED.
-> > > > 
-> > > > Something simple would be preferred, but I don't know how much simpler
-> > > > the above would be?
-> > > 
-> > > Not much simplier: __PAGETABLE_PMD_FOLDED is missing in frv, m32r, m68k,
-> > > mn10300, parisc and s390.
+> > I thought that
 > > 
-> > I don't really know what's going on here.  Let's rewind a bit, please. 
-> > What is the bug, what causes it, which commit caused it and why the
-> > heck does it require a massive patchset to fix 4.0?
+> > -       out_of_memory(ac->zonelist, gfp_mask, order, ac->nodemask, false);
+> > -       *did_some_progress = 1;
+> > +       if (out_of_memory(ac->zonelist, gfp_mask, order, ac->nodemask, false))
+> > +               *did_some_progress = 1;
+> > 
+> > in commit c32b3cbe0d067a9c "oom, PM: make OOM detection in the freezer
+> > path raceless" introduced a code path which fails to set
+> > *did_some_progress to non 0 value.
 > 
-> PMD accounting happens in __pmd_alloc() and free_pmd_range(). PMD
-> accounting only makes sense on architectures with 3 or more page tables
-> levels. We use __PAGETABLE_PMD_FOLDED to check whether the PMD page table
-> level exists.
+> But this commit had also the following hunk:
+> @@ -2317,9 +2315,6 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+>  
+>         *did_some_progress = 0;
+>  
+> -       if (oom_killer_disabled)
+> -               return NULL;
+> -
 > 
-> Unfortunately, some architectures don't use <asm-generic/pgtable-nopmd.h>
-> to indicate that PMD level doesn't exists and fold it in a custom way.
-> Some of them don't define __PAGETABLE_PMD_FOLDED as pgtable-nopmd.h does.
-> 
-> Missing __PAGETABLE_PMD_FOLDED causes undeflow of mm->nr_pmds:
-> __pmd_alloc() is never called, but we decrement mm->nr_pmds in
-> free_pmd_range().
-> 
-> These architecures need to be fixed to define __PAGETABLE_PMD_FOLDED too.
-> 
-> I can do in one patch if you want. Or split per-arch. After that
-> CONFIG_PGTABLE_LEVELS patchset will require rebasing.
+> so we even wouldn't get down to out_of_memory and returned with
+> did_some_progress=0 right away. So the patch hasn't changed the logic.
 
-I guess one patch will be OK - arch maintainers will be able
-review/apply/test that easily enough.
+OK.
+
+> OK, that would change the bahavior for __GFP_NOFAIL|~__GFP_FS
+> allocations. The patch from Johannes which reverts GFP_NOFS failure mode
+> should go to stable and that should be sufficient IMO.
+>  
+
+mm-page_alloc-revert-inadvertent-__gfp_fs-retry-behavior-change.patch
+fixes only ~__GFP_NOFAIL|~__GFP_FS case. I think we need David's version
+http://marc.info/?l=linux-mm&m=142489687015873&w=2 for 3.19-stable .
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
