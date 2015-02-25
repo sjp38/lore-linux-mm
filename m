@@ -1,92 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BBE86B0032
-	for <linux-mm@kvack.org>; Wed, 25 Feb 2015 00:28:26 -0500 (EST)
-Received: by pdno5 with SMTP id o5so2289694pdn.8
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 21:28:25 -0800 (PST)
-Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
-        by mx.google.com with ESMTPS id f5si10205531pdh.174.2015.02.24.21.28.24
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 39DF06B0032
+	for <linux-mm@kvack.org>; Wed, 25 Feb 2015 01:29:50 -0500 (EST)
+Received: by pablf10 with SMTP id lf10so2843772pab.6
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 22:29:49 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id nq6si8551957pbc.101.2015.02.24.22.29.48
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Feb 2015 21:28:25 -0800 (PST)
-Received: by pabkq14 with SMTP id kq14so2511649pab.3
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 21:28:24 -0800 (PST)
-From: SeongJae Park <sj38.park@gmail.com>
-Date: Wed, 25 Feb 2015 14:31:08 +0900 (KST)
-Subject: Re: [RFC v2 0/5] introduce gcma
-In-Reply-To: <20150224144804.GE15626@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1502251403390.23105@hxeon>
-References: <1424721263-25314-1-git-send-email-sj38.park@gmail.com> <20150224144804.GE15626@dhcp22.suse.cz>
+        Tue, 24 Feb 2015 22:29:49 -0800 (PST)
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: [PATCH] kasan, module, vmalloc: rework shadow allocation for modules
+In-Reply-To: <54EC7563.8090801@samsung.com>
+References: <1424281467-2593-1-git-send-email-a.ryabinin@samsung.com> <87pp96stmz.fsf@rustcorp.com.au> <54E5E355.9020404@samsung.com> <87fva1sajo.fsf@rustcorp.com.au> <54E6E684.4070806@samsung.com> <87vbithw4b.fsf@rustcorp.com.au> <54EC7563.8090801@samsung.com>
+Date: Wed, 25 Feb 2015 16:55:53 +1030
+Message-ID: <874mqamrri.fsf@rustcorp.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: SeongJae Park <sj38.park@gmail.com>, akpm@linux-foundation.org, lauraa@codeaurora.org, minchan@kernel.org, sergey.senozhatsky@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrey Ryabinin <a.ryabinin@samsung.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>
 
-Hello Michal,
-
-Thanks for your comment :)
-
-On Tue, 24 Feb 2015, Michal Hocko wrote:
-
-> On Tue 24-02-15 04:54:18, SeongJae Park wrote:
-> [...]
->>  include/linux/cma.h  |    4 +
->>  include/linux/gcma.h |   64 +++
->>  mm/Kconfig           |   24 +
->>  mm/Makefile          |    1 +
->>  mm/cma.c             |  113 ++++-
->>  mm/gcma.c            | 1321 ++++++++++++++++++++++++++++++++++++++++++++++++++
->>  6 files changed, 1508 insertions(+), 19 deletions(-)
->>  create mode 100644 include/linux/gcma.h
->>  create mode 100644 mm/gcma.c
+Andrey Ryabinin <a.ryabinin@samsung.com> writes:
+> On 02/23/2015 11:26 AM, Rusty Russell wrote:
+>> Andrey Ryabinin <a.ryabinin@samsung.com> writes:
+>>> On 02/20/2015 03:15 AM, Rusty Russell wrote:
+>>>> Andrey Ryabinin <a.ryabinin@samsung.com> writes:
+>>>>> On 02/19/2015 02:10 AM, Rusty Russell wrote:
+>>>>>> This is not portable.  Other archs don't use vmalloc, or don't use
+>>>>>> (or define) MODULES_VADDR.  If you really want to hook here, you'd
+>>>>>> need a new flag (or maybe use PAGE_KERNEL_EXEC after an audit).
+>>>>>>
+>>>>>
+>>>>> Well, instead of explicit (addr >= MODULES_VADDR && addr < MODULES_END)
+>>>>> I could hide this into arch-specific function: 'kasan_need_to_allocate_shadow(const void *addr)'
+>>>>> or make make all those functions weak and allow arch code to redefine them.
+>>>>
+>>>> That adds another layer of indirection.  And how would the caller of
+>>>> plain vmalloc() even know what to return?
+>>>>
+>>>
+>>> I think I don't understand what do you mean here. vmalloc() callers shouldn't know
+>>> anything about kasan/shadow.
+>> 
+>> How else would kasan_need_to_allocate_shadow(const void *addr) work for
+>> architectures which don't have a reserved vmalloc region for modules?
+>> 
 >
-> Wow this is huge! And I do not see reason for it to be so big. Why
-> cannot you simply define (per-cma area) 2-class users policy? Either via
-> kernel command line or export areas to userspace and allow to set policy
-> there.
-
-For implementation of the idea, we should develop not only policy 
-selection, but also backend for discardable memory. Most part of this 
-patch were made for the backend.
-
-Current implementation gives selection of policy per cma area to users. 
-Only about 120 lines of code were changed for that though it's most ugly 
-part of this patch. The part remains as ugly in this RFC because this is 
-just prototype. The part will be changed in next version patchset.
-
 >
-> For starter something like the following policies should suffice AFAIU
-> your description.
-> 	- NONE - exclusive pool for CMA allocations only
-> 	- DROPABLE - only allocations which might be dropped without any
-> 	  additional actions - e.g. cleancache and frontswap with
-> 	  write-through policy
-> 	- RECLAIMABLE - only movable allocations which can be migrated
-> 	  or dropped after writeback.
+> I think I need to clarify what I'm doing.
 >
-> Has such an approach been considered?
+> Address sanitizer algorithm in short:
+> -------------------------------------
+> Every memory access is transformed by the compiler in the following way:
+>
+> Before:
+> 	*address = ...;
+>
+> after:
+>
+> 	if (memory_is_poisoned(address)) {
+> 		report_error(address, access_size);
+> 	}
+> 	*address = ...;
+>
+> where memory_is_poisoned():
+> 	bool memory_is_poisoned(unsigned long addr)
+> 	{
+>         	s8 shadow_value = *(s8 *)kasan_mem_to_shadow((void *)addr);
+> 	        if (unlikely(shadow_value)) {
+>         	        s8 last_accessible_byte = addr & KASAN_SHADOW_MASK;
+>                 	return unlikely(last_accessible_byte >= shadow_value);
+> 	        }
+> 	        return false;
+> 	}
+> --------------------------------------
+>
+> So shadow memory should be present for every accessible address in kernel
+> otherwise it will be unhandled page fault on reading shadow value.
+>
+> Shadow for vmalloc addresses (on x86_64) is readonly mapping of one zero page.
+> Zero byte in shadow means that it's ok to access to that address.
+> Currently we don't catch bugs in vmalloc because most of such bugs could be caught
+> in more simple way with CONFIG_DEBUG_PAGEALLOC.
+> That's why we don't need RW shadow for vmalloc, it just one zero page that readonly
+> mapped early on boot for the whole [kasan_mem_to_shadow(VMALLOC_START, kasan_mem_to_shadow(VMALLOC_END)] range
+> So every access to vmalloc range assumed to be valid.
+>
+> To catch out of bounds accesses in global variables we need to fill shadow corresponding
+> to variable's redzone with non-zero (negative) values.
+> So for kernel image and modules we need a writable shadow.
+>
+> If some arch don't have separate address range for modules and it uses general vmalloc()
+> shadow for vmalloc should be writable, so it means that shadow has to be allocated
+> for every vmalloc() call.
+>
+> In such arch kasan_need_to_allocate_shadow(const void *addr) should return true for every vmalloc address:
+> bool kasan_need_to_allocate_shadow(const void *addr)
+> {
+> 	return addr >= VMALLOC_START && addr < VMALLOC_END;
+> }
 
-Similarly, but not in same way. In summary, GCMA gives DROPABLE and 
-RECLAIMABLE policy selection per cma area and NONE policy to entire cma 
-area declared using GCMA interface.
+Thanks for the explanation.
 
-In detail, user could set policy of cma area as gcma way(DROPABLE) or cma 
-way(RECLAIMABLE). Also, user could set gcma to utilize their cma area with 
-Cleancache and/or Frontswap or not(NONE policy).
+> All above means that current code is not very portable.
+> And 'kasan_module_alloc(p, size) after module alloc' approach is not portable
+> too. This won't work for arches that use [VMALLOC_START, VMALLOC_END] addresses for modules,
+> because now we need to handle all vmalloc() calls.
 
-Your suggestion looks simple and better to understand. Next version of 
-gcma will let users to be able to select policy as those per cma area.
+I'm confused.  That's what you do now, and it hasn't been a problem,
+has it?  The problem is on the freeing from interrupt context...
 
+How about:
+
+#define VM_KASAN		0x00000080      /* has shadow kasan map */
+
+Set that in kasan_module_alloc():
+
+        if (ret) {
+                struct vm_struct *vma = find_vm_area(addr);
+
+                BUG_ON(!vma);
+                /* Set VM_KASAN so vfree() can free up shadow. */
+                vma->flags |= VM_KASAN;
+        }
+
+And check that in __vunmap():
+
+        if (area->flags & VM_KASAN)
+                kasan_module_free(addr);
+
+That is portable, and is actually a fairly small patch on what you
+have at the moment.
+
+What am I missing?
 
 Thanks,
-SeongJae Park
-
-> -- 
-> Michal Hocko
-> SUSE Labs
->
+Rusty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
