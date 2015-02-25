@@ -1,143 +1,248 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 39DF06B0032
-	for <linux-mm@kvack.org>; Wed, 25 Feb 2015 01:29:50 -0500 (EST)
-Received: by pablf10 with SMTP id lf10so2843772pab.6
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 22:29:49 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id nq6si8551957pbc.101.2015.02.24.22.29.48
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id F37D26B0032
+	for <linux-mm@kvack.org>; Wed, 25 Feb 2015 02:11:31 -0500 (EST)
+Received: by pdjg10 with SMTP id g10so2929325pdj.1
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 23:11:31 -0800 (PST)
+Received: from mail-pd0-x230.google.com (mail-pd0-x230.google.com. [2607:f8b0:400e:c02::230])
+        by mx.google.com with ESMTPS id gw10si4435495pbd.19.2015.02.24.23.11.29
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Feb 2015 22:29:49 -0800 (PST)
-From: Rusty Russell <rusty@rustcorp.com.au>
-Subject: Re: [PATCH] kasan, module, vmalloc: rework shadow allocation for modules
-In-Reply-To: <54EC7563.8090801@samsung.com>
-References: <1424281467-2593-1-git-send-email-a.ryabinin@samsung.com> <87pp96stmz.fsf@rustcorp.com.au> <54E5E355.9020404@samsung.com> <87fva1sajo.fsf@rustcorp.com.au> <54E6E684.4070806@samsung.com> <87vbithw4b.fsf@rustcorp.com.au> <54EC7563.8090801@samsung.com>
-Date: Wed, 25 Feb 2015 16:55:53 +1030
-Message-ID: <874mqamrri.fsf@rustcorp.com.au>
+        Tue, 24 Feb 2015 23:11:29 -0800 (PST)
+Received: by pdjz10 with SMTP id z10so2948074pdj.0
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 23:11:29 -0800 (PST)
+Date: Wed, 25 Feb 2015 16:11:18 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH RFC 1/4] mm: throttle MADV_FREE
+Message-ID: <20150225071118.GA19115@blaptop>
+References: <1424765897-27377-1-git-send-email-minchan@kernel.org>
+ <20150224154318.GA14939@dhcp22.suse.cz>
+ <20150225000809.GA6468@blaptop>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150225000809.GA6468@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <a.ryabinin@samsung.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Shaohua Li <shli@kernel.org>, Yalin.Wang@sonymobile.com
 
-Andrey Ryabinin <a.ryabinin@samsung.com> writes:
-> On 02/23/2015 11:26 AM, Rusty Russell wrote:
->> Andrey Ryabinin <a.ryabinin@samsung.com> writes:
->>> On 02/20/2015 03:15 AM, Rusty Russell wrote:
->>>> Andrey Ryabinin <a.ryabinin@samsung.com> writes:
->>>>> On 02/19/2015 02:10 AM, Rusty Russell wrote:
->>>>>> This is not portable.  Other archs don't use vmalloc, or don't use
->>>>>> (or define) MODULES_VADDR.  If you really want to hook here, you'd
->>>>>> need a new flag (or maybe use PAGE_KERNEL_EXEC after an audit).
->>>>>>
->>>>>
->>>>> Well, instead of explicit (addr >= MODULES_VADDR && addr < MODULES_END)
->>>>> I could hide this into arch-specific function: 'kasan_need_to_allocate_shadow(const void *addr)'
->>>>> or make make all those functions weak and allow arch code to redefine them.
->>>>
->>>> That adds another layer of indirection.  And how would the caller of
->>>> plain vmalloc() even know what to return?
->>>>
->>>
->>> I think I don't understand what do you mean here. vmalloc() callers shouldn't know
->>> anything about kasan/shadow.
->> 
->> How else would kasan_need_to_allocate_shadow(const void *addr) work for
->> architectures which don't have a reserved vmalloc region for modules?
->> 
->
->
-> I think I need to clarify what I'm doing.
->
-> Address sanitizer algorithm in short:
-> -------------------------------------
-> Every memory access is transformed by the compiler in the following way:
->
-> Before:
-> 	*address = ...;
->
-> after:
->
-> 	if (memory_is_poisoned(address)) {
-> 		report_error(address, access_size);
-> 	}
-> 	*address = ...;
->
-> where memory_is_poisoned():
-> 	bool memory_is_poisoned(unsigned long addr)
-> 	{
->         	s8 shadow_value = *(s8 *)kasan_mem_to_shadow((void *)addr);
-> 	        if (unlikely(shadow_value)) {
->         	        s8 last_accessible_byte = addr & KASAN_SHADOW_MASK;
->                 	return unlikely(last_accessible_byte >= shadow_value);
-> 	        }
-> 	        return false;
-> 	}
-> --------------------------------------
->
-> So shadow memory should be present for every accessible address in kernel
-> otherwise it will be unhandled page fault on reading shadow value.
->
-> Shadow for vmalloc addresses (on x86_64) is readonly mapping of one zero page.
-> Zero byte in shadow means that it's ok to access to that address.
-> Currently we don't catch bugs in vmalloc because most of such bugs could be caught
-> in more simple way with CONFIG_DEBUG_PAGEALLOC.
-> That's why we don't need RW shadow for vmalloc, it just one zero page that readonly
-> mapped early on boot for the whole [kasan_mem_to_shadow(VMALLOC_START, kasan_mem_to_shadow(VMALLOC_END)] range
-> So every access to vmalloc range assumed to be valid.
->
-> To catch out of bounds accesses in global variables we need to fill shadow corresponding
-> to variable's redzone with non-zero (negative) values.
-> So for kernel image and modules we need a writable shadow.
->
-> If some arch don't have separate address range for modules and it uses general vmalloc()
-> shadow for vmalloc should be writable, so it means that shadow has to be allocated
-> for every vmalloc() call.
->
-> In such arch kasan_need_to_allocate_shadow(const void *addr) should return true for every vmalloc address:
-> bool kasan_need_to_allocate_shadow(const void *addr)
-> {
-> 	return addr >= VMALLOC_START && addr < VMALLOC_END;
-> }
+On Wed, Feb 25, 2015 at 09:08:09AM +0900, Minchan Kim wrote:
+> Hi Michal,
+> 
+> On Tue, Feb 24, 2015 at 04:43:18PM +0100, Michal Hocko wrote:
+> > On Tue 24-02-15 17:18:14, Minchan Kim wrote:
+> > > Recently, Shaohua reported that MADV_FREE is much slower than
+> > > MADV_DONTNEED in his MADV_FREE bomb test. The reason is many of
+> > > applications went to stall with direct reclaim since kswapd's
+> > > reclaim speed isn't fast than applications's allocation speed
+> > > so that it causes lots of stall and lock contention.
+> > 
+> > I am not sure I understand this correctly. So the issue is that there is
+> > huge number of MADV_FREE on the LRU and they are not close to the tail
+> > of the list so the reclaim has to do a lot of work before it starts
+> > dropping them?
+> 
+> No, Shaohua already tested deactivating of hinted pages to head/tail
+> of inactive anon LRU and he said it didn't solve his problem.
+> I thought main culprit was scanning/rotating/throttling in
+> direct reclaim path.
 
-Thanks for the explanation.
+I investigated my workload and found most of slowness came from swapin.
 
-> All above means that current code is not very portable.
-> And 'kasan_module_alloc(p, size) after module alloc' approach is not portable
-> too. This won't work for arches that use [VMALLOC_START, VMALLOC_END] addresses for modules,
-> because now we need to handle all vmalloc() calls.
+1) dontneed: 1,612 swapin
+2) madvfree: 879,585 swapin
 
-I'm confused.  That's what you do now, and it hasn't been a problem,
-has it?  The problem is on the freeing from interrupt context...
+If we find hinted pages were already swapped out when syscall is called,
+it's pointless to keep the pages in pte. Instead, free the cold page
+because swapin is more expensive than (alloc page + zeroing).
 
-How about:
+I tested below quick fix and reduced swapin from 879,585 to 1,878.
+Elapsed time was
 
-#define VM_KASAN		0x00000080      /* has shadow kasan map */
+1) dontneed: 6.10user 233.50system 0:50.44elapsed
+2) madvfree + below patch: 6.70user 339.14system 1:04.45elapsed
 
-Set that in kasan_module_alloc():
+Although it was not good as throttling, it's better than old and
+it's orthogoral with throttling so I hope to merge this first
+than arguable throttling. Any comments?
 
-        if (ret) {
-                struct vm_struct *vma = find_vm_area(addr);
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 6d0fcb8921c2..d41ae76d3e54 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -274,7 +274,9 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+ 	spinlock_t *ptl;
+ 	pte_t *pte, ptent;
+ 	struct page *page;
++	swp_entry_t entry;
+ 	unsigned long next;
++	int rss = 0;
+ 
+ 	next = pmd_addr_end(addr, end);
+ 	if (pmd_trans_huge(*pmd)) {
+@@ -293,9 +295,19 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+ 	for (; addr != end; pte++, addr += PAGE_SIZE) {
+ 		ptent = *pte;
+ 
+-		if (!pte_present(ptent))
++		if (pte_none(ptent))
+ 			continue;
+ 
++		if (!pte_present(ptent)) {
++			entry = pte_to_swp_entry(ptent);
++			if (non_swap_entry(entry))
++				continue;
++			rss--;
++			free_swap_and_cache(entry);
++			pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
++			continue;
++		}
++
+ 		page = vm_normal_page(vma, addr, ptent);
+ 		if (!page)
+ 			continue;
+@@ -326,6 +338,14 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+ 		set_pte_at(mm, addr, pte, ptent);
+ 		tlb_remove_tlb_entry(tlb, pte, addr);
+ 	}
++
++	if (rss) {
++		if (current->mm == mm)
++			sync_mm_rss(mm);
++
++		add_mm_counter(mm, MM_SWAPENTS, rss);
++	}
++
+ 	arch_leave_lazy_mmu_mode();
+ 	pte_unmap_unlock(pte - 1, ptl);
+ next:
+-- 
+1.9.1
 
-                BUG_ON(!vma);
-                /* Set VM_KASAN so vfree() can free up shadow. */
-                vma->flags |= VM_KASAN;
-        }
 
-And check that in __vunmap():
+> 
+> > 
+> > > This patch throttles MADV_FREEing so it works only if there
+> > > are enough pages in the system which will not trigger backgroud/
+> > > direct reclaim. Otherwise, MADV_FREE falls back to MADV_DONTNEED
+> > > because there is no point to delay freeing if we know system
+> > > is under memory pressure.
+> > 
+> > Hmm, this is still conforming to the documentation because the kernel is
+> > free to free pages at its convenience. I am not sure this is a good
+> > idea, though. Why some MADV_FREE calls should be treated differently?
+> 
+> It's hint for VM to free pages so I think it's okay to free them instantly
+> sometime if it can save more important thing like system stall.
+> IOW, madvise is just hint, not a strict rule.
+> 
+> > Wouldn't that lead to hard to predict behavior? E.g. LIFO reused blocks
+> > would work without long stalls most of the time - except when there is a
+> > memory pressure.
+> 
+> True.
+> 
+> > 
+> > Comparison to MADV_DONTNEED is not very fair IMHO because the scope of the
+> > two calls is different.
+> 
+> I agree it's not a apple to apple comparison.
+> 
+> Acutally, MADV_FREE moves the cost from hot path(ie, system call path)
+> to slow path(ie, reclaim context) so it would be slower if there are
+> much memory pressure continuously due to a lot overhead of freeing pages
+> in reclaim context. So, it would be good if kernel detects it nicely
+> and prevent the situation. This patch aims for that.
+> 
+> > 
+> > > When I test the patch on my 3G machine + 12 CPU + 8G swap,
+> > > test: 12 processes
+> > > 
+> > > loop = 5;
+> > > mmap(512M);
+> > 
+> > Who is eating the rest of the memory?
+> 
+> As I wrote down,  there are 12 processes with below test.
+> IOW, 512M * 12 = 6G but system RAM is just 3G.
+> 
+> > 
+> > > while (loop--) {
+> > > 	memset(512M);
+> > > 	madvise(MADV_FREE or MADV_DONTNEED);
+> > > }
+> > > 
+> > > 1) dontneed: 6.78user 234.09system 0:48.89elapsed
+> > > 2) madvfree: 6.03user 401.17system 1:30.67elapsed
+> > > 3) madvfree + this ptach: 5.68user 113.42system 0:36.52elapsed
+> > > 
+> > > It's clearly win.
+> > > 
+> > > Reported-by: Shaohua Li <shli@kernel.org>
+> > > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > 
+> > I don't know. This looks like a hack with hard to predict consequences
+> > which might trigger pathological corner cases.
+> 
+> Yeb, it might be. That's why I tagged RFC so hope other guys suggest
+> better idea.
+> 
+> > 
+> > > ---
+> > >  mm/madvise.c | 13 +++++++++++--
+> > >  1 file changed, 11 insertions(+), 2 deletions(-)
+> > > 
+> > > diff --git a/mm/madvise.c b/mm/madvise.c
+> > > index 6d0fcb8921c2..81bb26ecf064 100644
+> > > --- a/mm/madvise.c
+> > > +++ b/mm/madvise.c
+> > > @@ -523,8 +523,17 @@ madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
+> > >  		 * XXX: In this implementation, MADV_FREE works like
+> > >  		 * MADV_DONTNEED on swapless system or full swap.
+> > >  		 */
+> > > -		if (get_nr_swap_pages() > 0)
+> > > -			return madvise_free(vma, prev, start, end);
+> > > +		if (get_nr_swap_pages() > 0) {
+> > > +			unsigned long threshold;
+> > > +			/*
+> > > +			 * If we have trobule with memory pressure(ie,
+> > > +			 * under high watermark), free pages instantly.
+> > > +			 */
+> > > +			threshold = min_free_kbytes >> (PAGE_SHIFT - 10);
+> > > +			threshold = threshold + (threshold >> 1);
+> > 
+> > Why threshold += threshold >> 1 ?
+> 
+> I wanted to trigger this logic if we have free pages under high watermark.
+> 
+> > 
+> > > +			if (nr_free_pages() > threshold)
+> > > +				return madvise_free(vma, prev, start, end);
+> > > +		}
+> > >  		/* passthrough */
+> > >  	case MADV_DONTNEED:
+> > >  		return madvise_dontneed(vma, prev, start, end);
+> > > -- 
+> > > 1.9.1
+> > > 
+> > > --
+> > > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > > see: http://www.linux-mm.org/ .
+> > > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> > 
+> > -- 
+> > Michal Hocko
+> > SUSE Labs
+> 
+> -- 
+> Kind regards,
+> Minchan Kim
 
-        if (area->flags & VM_KASAN)
-                kasan_module_free(addr);
-
-That is portable, and is actually a fairly small patch on what you
-have at the moment.
-
-What am I missing?
-
-Thanks,
-Rusty.
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
