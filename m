@@ -1,52 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 255D96B0032
-	for <linux-mm@kvack.org>; Wed, 25 Feb 2015 16:44:28 -0500 (EST)
-Received: by pablf10 with SMTP id lf10so8298485pab.12
-        for <linux-mm@kvack.org>; Wed, 25 Feb 2015 13:44:27 -0800 (PST)
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 157FC6B0032
+	for <linux-mm@kvack.org>; Wed, 25 Feb 2015 16:51:45 -0500 (EST)
+Received: by padet14 with SMTP id et14so8354429pad.11
+        for <linux-mm@kvack.org>; Wed, 25 Feb 2015 13:51:44 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id oa11si13212945pdb.33.2015.02.25.13.44.27
+        by mx.google.com with ESMTPS id qe4si13712271pdb.150.2015.02.25.13.51.44
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Feb 2015 13:44:27 -0800 (PST)
-Date: Wed, 25 Feb 2015 13:44:26 -0800
+        Wed, 25 Feb 2015 13:51:44 -0800 (PST)
+Date: Wed, 25 Feb 2015 13:51:43 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: hide per-cpu lists in output of show_mem()
-Message-Id: <20150225134426.d907ecb7130d12dc8ad97c90@linux-foundation.org>
-In-Reply-To: <CALYGNiO8Y3oJbPMF8m2ndtBp5=RBiw3o6rKyWsGXF0RyT9JYVQ@mail.gmail.com>
-References: <20150220143942.19568.4548.stgit@buzz>
-	<20150223143746.GG24272@dhcp22.suse.cz>
-	<CALYGNiO8Y3oJbPMF8m2ndtBp5=RBiw3o6rKyWsGXF0RyT9JYVQ@mail.gmail.com>
+Subject: Re: __GFP_NOFAIL and oom_killer_disabled?
+Message-Id: <20150225135143.caa950fc147d9241bf23ae32@linux-foundation.org>
+In-Reply-To: <201502260648.IBC35479.QMVHOtFOJSFFLO@I-love.SAKURA.ne.jp>
+References: <20150223102147.GB24272@dhcp22.suse.cz>
+	<201502232203.DGC60931.QVtOLSOOJFMHFF@I-love.SAKURA.ne.jp>
+	<20150224181408.GD14939@dhcp22.suse.cz>
+	<201502252022.AAH51015.OtHLOVFJSMFFQO@I-love.SAKURA.ne.jp>
+	<20150225160223.GH26680@dhcp22.suse.cz>
+	<201502260648.IBC35479.QMVHOtFOJSFFLO@I-love.SAKURA.ne.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: mhocko@suse.cz, hannes@cmpxchg.org, tytso@mit.edu, david@fromorbit.com, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, mgorman@suse.de, torvalds@linux-foundation.org
 
-On Tue, 24 Feb 2015 13:03:01 +0400 Konstantin Khlebnikov <koct9i@gmail.com> wrote:
+On Thu, 26 Feb 2015 06:48:02 +0900 Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp> wrote:
 
-> On Mon, Feb 23, 2015 at 5:37 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> > On Fri 20-02-15 17:39:42, Konstantin Khlebnikov wrote:
-> >> This makes show_mem() much less verbose at huge machines. Instead of
-> >> huge and almost useless dump of counters for each per-zone per-cpu
-> >> lists this patch prints sum of these counters for each zone (free_pcp)
-> >> and size of per-cpu list for current cpu (local_pcp).
-> >
-> > I like this! I do not remember when I found this information useful
-> > while debugging either an allocation failure warning or OOM killer
-> > report.
-> >
-> >> Flag SHOW_MEM_PERCPU_LISTS reverts old verbose mode.
-> >
-> > Nobody seems to be using this flag so why bother?
+> > OK, that would change the bahavior for __GFP_NOFAIL|~__GFP_FS
+> > allocations. The patch from Johannes which reverts GFP_NOFS failure mode
+> > should go to stable and that should be sufficient IMO.
+> >  
 > 
-> Yes. But this might be important for architectures which has asymmetrical
-> memory topology, I've heard about unicorns like that.
+> mm-page_alloc-revert-inadvertent-__gfp_fs-retry-behavior-change.patch
+> fixes only ~__GFP_NOFAIL|~__GFP_FS case. I think we need David's version
+> http://marc.info/?l=linux-mm&m=142489687015873&w=2 for 3.19-stable .
 
-Please provide more details about this (why important?  How would it
-be used) and I'll add it to the changelog.
+afacit nobody has even tested that.  If we want changes made to 3.19.x
+then they will need to be well tested, well changelogged and signed off. 
+Please.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
