@@ -1,51 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DB5C6B0032
-	for <linux-mm@kvack.org>; Wed, 25 Feb 2015 10:20:36 -0500 (EST)
-Received: by padfb1 with SMTP id fb1so5919890pad.8
-        for <linux-mm@kvack.org>; Wed, 25 Feb 2015 07:20:36 -0800 (PST)
-Received: from g2t2354.austin.hp.com (g2t2354.austin.hp.com. [15.217.128.53])
-        by mx.google.com with ESMTPS id xu8si6731667pbc.86.2015.02.25.07.20.35
+Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 3564F6B006C
+	for <linux-mm@kvack.org>; Wed, 25 Feb 2015 11:02:28 -0500 (EST)
+Received: by lbiz11 with SMTP id z11so4802965lbi.8
+        for <linux-mm@kvack.org>; Wed, 25 Feb 2015 08:02:27 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id dg7si29932430wib.15.2015.02.25.08.02.25
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Feb 2015 07:20:35 -0800 (PST)
-Message-ID: <1424877601.17007.108.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v8 7/7] x86, mm: Add set_memory_wt() for WT
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Wed, 25 Feb 2015 08:20:01 -0700
-In-Reply-To: <20150225072228.GA13061@gmail.com>
-References: <1424823301-30927-1-git-send-email-toshi.kani@hp.com>
-	 <1424823301-30927-8-git-send-email-toshi.kani@hp.com>
-	 <20150225072228.GA13061@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 25 Feb 2015 08:02:25 -0800 (PST)
+Date: Wed, 25 Feb 2015 17:02:23 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: __GFP_NOFAIL and oom_killer_disabled?
+Message-ID: <20150225160223.GH26680@dhcp22.suse.cz>
+References: <20150221011907.2d26c979.akpm@linux-foundation.org>
+ <201502222348.GFH13009.LOHOMFVtFQSFOJ@I-love.SAKURA.ne.jp>
+ <20150223102147.GB24272@dhcp22.suse.cz>
+ <201502232203.DGC60931.QVtOLSOOJFMHFF@I-love.SAKURA.ne.jp>
+ <20150224181408.GD14939@dhcp22.suse.cz>
+ <201502252022.AAH51015.OtHLOVFJSMFFQO@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201502252022.AAH51015.OtHLOVFJSMFFQO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Elliott@hp.com
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, tytso@mit.edu, david@fromorbit.com, hannes@cmpxchg.org, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, mgorman@suse.de, torvalds@linux-foundation.org
 
-On Wed, 2015-02-25 at 08:22 +0100, Ingo Molnar wrote:
-> * Toshi Kani <toshi.kani@hp.com> wrote:
+On Wed 25-02-15 20:22:22, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > This commit hasn't introduced any behavior changes. GFP_NOFAIL
+> > allocations fail when OOM killer is disabled since beginning
+> > 7f33d49a2ed5 (mm, PM/Freezer: Disable OOM killer when tasks are frozen).
 > 
-> > +int set_pages_array_wt(struct page **pages, int addrinarray)
-> > +{
-> > +	return _set_pages_array(pages, addrinarray, _PAGE_CACHE_MODE_WT);
-> > +}
-> > +EXPORT_SYMBOL(set_pages_array_wt);
+> I thought that
 > 
-> So by default we make new APIs EXPORT_SYMBOL_GPL(): we 
-> don't want proprietary modules mucking around with new code 
-> PAT interfaces, we only want modules we can analyze and fix 
-> in detail.
+> -       out_of_memory(ac->zonelist, gfp_mask, order, ac->nodemask, false);
+> -       *did_some_progress = 1;
+> +       if (out_of_memory(ac->zonelist, gfp_mask, order, ac->nodemask, false))
+> +               *did_some_progress = 1;
+> 
+> in commit c32b3cbe0d067a9c "oom, PM: make OOM detection in the freezer
+> path raceless" introduced a code path which fails to set
+> *did_some_progress to non 0 value.
 
-Right.  I have one question for this case.  This set_pages_array_wt()
-extends the set_pages_array_xx() family, which are all exported with
-EXPORT_SYMBOL() today.  In this case, should we keep them exported in
-the consistent manner, or should we still use GPL when adding a new one?
+But this commit had also the following hunk:
+@@ -2317,9 +2315,6 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+ 
+        *did_some_progress = 0;
+ 
+-       if (oom_killer_disabled)
+-               return NULL;
+-
 
-Thanks,
--Toshi
+so we even wouldn't get down to out_of_memory and returned with
+did_some_progress=0 right away. So the patch hasn't changed the logic.
+
+> > "
+> > We haven't seen any bug reports since 2009 so I haven't marked the patch
+> > for stable. I have no problem to backport it to stable trees though if
+> > people think it is a good precaution.
+> > "
+> 
+> Until 3.18, GFP_NOFAIL for GFP_NOFS / GFP_NOIO did not fail with
+> oom_killer_disabled == true because of
+> 
+> ----------
+>         if (!did_some_progress) {
+>                 if (oom_gfp_allowed(gfp_mask)) {
+>                         if (oom_killer_disabled)
+>                                 goto nopage;
+> 			(...snipped...)
+>                         goto restart;
+>                 }
+>         }
+> 	(...snipped...)
+> 	goto rebalance;
+> ----------
+> 
+> and that might be the reason you did not see bug reports.
+> In 3.19, GFP_NOFAIL for GFP_NOFS / GFP_NOIO started to fail with
+> oom_killer_disabled == true because of
+
+OK, that would change the bahavior for __GFP_NOFAIL|~__GFP_FS
+allocations. The patch from Johannes which reverts GFP_NOFS failure mode
+should go to stable and that should be sufficient IMO.
+ 
+[...]
+
+> So, it is commit 9879de7373fc "mm: page_alloc: embed OOM killing naturally
+> into allocation slowpath" than commit c32b3cbe0d067a9c "oom, PM: make OOM
+> detection in the freezer path raceless" that introduced behavior changes?
+
+Yes.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
