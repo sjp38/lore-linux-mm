@@ -1,60 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 096656B0075
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 19:16:06 -0500 (EST)
-Received: by mail-ig0-f182.google.com with SMTP id h15so1715106igd.3
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 16:16:05 -0800 (PST)
-Received: from mail-ie0-x22d.google.com (mail-ie0-x22d.google.com. [2607:f8b0:4001:c03::22d])
-        by mx.google.com with ESMTPS id e10si11220560igl.32.2015.02.24.16.16.05
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 7206B6B0032
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 19:21:19 -0500 (EST)
+Received: by pdbfl12 with SMTP id fl12so640142pdb.2
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 16:21:19 -0800 (PST)
+Received: from g2t2354.austin.hp.com (g2t2354.austin.hp.com. [15.217.128.53])
+        by mx.google.com with ESMTPS id bu6si2616340pad.46.2015.02.24.16.21.17
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Feb 2015 16:16:05 -0800 (PST)
-Received: by iecrp18 with SMTP id rp18so616691iec.9
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 16:16:05 -0800 (PST)
-Date: Tue, 24 Feb 2015 16:16:03 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, hugetlb: close race when setting PageTail for gigantic
- pages
-Message-ID: <alpine.DEB.2.10.1502241614480.4646@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Tue, 24 Feb 2015 16:21:18 -0800 (PST)
+Message-ID: <1424823644.17007.96.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v7 0/7] Support Write-Through mapping on x86
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Tue, 24 Feb 2015 17:20:44 -0700
+In-Reply-To: <1421963430.2493.26.camel@misato.fc.hp.com>
+References: <1420577392-21235-1-git-send-email-toshi.kani@hp.com>
+	 <1421342920.2493.8.camel@misato.fc.hp.com>
+	 <alpine.DEB.2.11.1501222225000.5526@nanos>
+	 <1421963430.2493.26.camel@misato.fc.hp.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Davidlohr Bueso <dave@stgolabs.net>, Luiz Capitulino <lcapitulino@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: hpa@zytor.com, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Elliott@hp.com
 
-Now that gigantic pages are dynamically allocatable, care must be taken
-to ensure that p->first_page is valid before setting PageTail.
+On Thu, 2015-01-22 at 14:50 -0700, Toshi Kani wrote:
+> On Thu, 2015-01-22 at 22:25 +0100, Thomas Gleixner wrote:
+> > On Thu, 15 Jan 2015, Toshi Kani wrote:
+> > 
+> > > Hi Ingo, Peter, Thomas,
+> > > 
+> > > Is there anything else I need to do for accepting this patchset? 
+> > 
+> > You might hand me some spare time for reviewing it :)
+> > 
+> > It's on my list.
+> 
+> That's great!
 
-If this isn't done, then it is possible to race and have compound_head()
-return NULL.
+Hi Thomas,
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/hugetlb.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+I just posted v8 patchset that is rebased to 4.0-rc1.  When you have
+chance, please review this new version.
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -917,7 +917,6 @@ static void prep_compound_gigantic_page(struct page *page, unsigned long order)
- 	__SetPageHead(page);
- 	__ClearPageReserved(page);
- 	for (i = 1; i < nr_pages; i++, p = mem_map_next(p, page, i)) {
--		__SetPageTail(p);
- 		/*
- 		 * For gigantic hugepages allocated through bootmem at
- 		 * boot, it's safer to be consistent with the not-gigantic
-@@ -933,6 +932,9 @@ static void prep_compound_gigantic_page(struct page *page, unsigned long order)
- 		__ClearPageReserved(p);
- 		set_page_count(p, 0);
- 		p->first_page = page;
-+		/* Make sure p->first_page is always valid for PageTail() */
-+		smp_wmb();
-+		__SetPageTail(p);
- 	}
- }
- 
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
