@@ -1,52 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 7206B6B0032
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 19:21:19 -0500 (EST)
-Received: by pdbfl12 with SMTP id fl12so640142pdb.2
-        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 16:21:19 -0800 (PST)
-Received: from g2t2354.austin.hp.com (g2t2354.austin.hp.com. [15.217.128.53])
-        by mx.google.com with ESMTPS id bu6si2616340pad.46.2015.02.24.16.21.17
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id A05126B0032
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2015 19:27:38 -0500 (EST)
+Received: by pdjg10 with SMTP id g10so687197pdj.1
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 16:27:38 -0800 (PST)
+Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com. [2607:f8b0:400e:c02::232])
+        by mx.google.com with ESMTPS id br8si2339835pdb.43.2015.02.24.16.27.37
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Feb 2015 16:21:18 -0800 (PST)
-Message-ID: <1424823644.17007.96.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v7 0/7] Support Write-Through mapping on x86
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Tue, 24 Feb 2015 17:20:44 -0700
-In-Reply-To: <1421963430.2493.26.camel@misato.fc.hp.com>
-References: <1420577392-21235-1-git-send-email-toshi.kani@hp.com>
-	 <1421342920.2493.8.camel@misato.fc.hp.com>
-	 <alpine.DEB.2.11.1501222225000.5526@nanos>
-	 <1421963430.2493.26.camel@misato.fc.hp.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Tue, 24 Feb 2015 16:27:37 -0800 (PST)
+Received: by pdev10 with SMTP id v10so594640pde.10
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2015 16:27:37 -0800 (PST)
+Date: Wed, 25 Feb 2015 09:27:28 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH RFC 3/4] mm: move lazy free pages to inactive list
+Message-ID: <20150225002728.GB6468@blaptop>
+References: <1424765897-27377-1-git-send-email-minchan@kernel.org>
+ <1424765897-27377-3-git-send-email-minchan@kernel.org>
+ <20150224161408.GB14939@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150224161408.GB14939@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: hpa@zytor.com, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Elliott@hp.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Shaohua Li <shli@kernel.org>, Yalin.Wang@sonymobile.com
 
-On Thu, 2015-01-22 at 14:50 -0700, Toshi Kani wrote:
-> On Thu, 2015-01-22 at 22:25 +0100, Thomas Gleixner wrote:
-> > On Thu, 15 Jan 2015, Toshi Kani wrote:
-> > 
-> > > Hi Ingo, Peter, Thomas,
-> > > 
-> > > Is there anything else I need to do for accepting this patchset? 
-> > 
-> > You might hand me some spare time for reviewing it :)
-> > 
-> > It's on my list.
+On Tue, Feb 24, 2015 at 05:14:08PM +0100, Michal Hocko wrote:
+> On Tue 24-02-15 17:18:16, Minchan Kim wrote:
+> > MADV_FREE is hint that it's okay to discard pages if memory is
+> > pressure and we uses reclaimers(ie, kswapd and direct reclaim)
 > 
-> That's great!
+> s@if memory is pressure@if there is memory pressure@
+> 
+> > to free them so there is no worth to remain them in active
+> > anonymous LRU list so this patch moves them to inactive LRU list.
+> 
+> Makes sense to me.
+> 
+> > A arguable issue for the approach is whether we should put it
+> > head or tail in inactive list
+> 
+> Is it really arguable? Why should active MADV_FREE pages appear before
+> those which were living on the inactive list. This doesn't make any
+> sense to me.
 
-Hi Thomas,
+It would be better to drop garbage pages(ie, freed from allocator)
+rather than swap out and now anon LRU aging is seq model so
+inacitve list can include a lot working set so putting hinted pages
+into tail of LRU could enhance reclaim efficiency.
+That's why I said it might be arguble.
 
-I just posted v8 patchset that is rebased to 4.0-rc1.  When you have
-chance, please review this new version.
+> 
+> > and selected it as head because
+> > kernel cannot make sure it's really cold or warm for every usecase
+> > but at least we know it's not hot so landing of inactive head
+> > would be comprimise if it stayed in active LRU.
+> 
+> This is really hard to read. What do you think about the following
+> wording?
+> "
+> The active status of those pages is cleared and they are moved to the
+> head of the inactive LRU. This means that MADV_FREE-ed pages which
+> were living on the inactive list are reclaimed first because they
+> are more likely to be cold rather than recently active pages.
+> "
 
-Thanks,
--Toshi
+My phrase is to focus why we should put them into head of inactive
+so it's orthogonal with your phrase and maybe my phrase could be
+complement.
+
+> 
+> > As well, if we put recent hinted pages to inactive's tail,
+> > VM could discard cache hot pages, which would be bad.
+> > 
+> > As a bonus, we don't need to move them back and forth in inactive
+> > list whenever MADV_SYSCALL syscall is called.
+> > 
+> > As drawback, VM should scan more pages in inactive anonymous LRU
+> > to discard but it has happened all the time if recent reference
+> > happens on those pages in inactive LRU list so I don't think
+> > it's not a main drawback.
+> 
+> Rather than the above paragraphs I would like to see a description why
+> this is needed. Something like the following?
+> "
+> This is fixing a suboptimal behavior of MADV_FREE when pages living on
+> the active list will sit there for a long time even under memory
+> pressure while the inactive list is reclaimed heavily. This basically
+> breaks the whole purpose of using MADV_FREE to help the system to free
+> memory which is might not be used.
+> "
+
+Good to me. I will add this. Thanks!
+
+> 
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> 
+> Other than that the patch looks good to me.
+> Acked-by: Michal Hocko <mhocko@suse.cz>
+
+Thanks for the review, Michal!
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
