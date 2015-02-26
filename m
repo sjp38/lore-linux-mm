@@ -1,48 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 467E16B007D
-	for <linux-mm@kvack.org>; Thu, 26 Feb 2015 06:35:52 -0500 (EST)
-Received: by padfb1 with SMTP id fb1so13330736pad.8
-        for <linux-mm@kvack.org>; Thu, 26 Feb 2015 03:35:52 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id xw3si788321pab.71.2015.02.26.03.35.37
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 565AB6B0080
+	for <linux-mm@kvack.org>; Thu, 26 Feb 2015 06:35:54 -0500 (EST)
+Received: by pabkx10 with SMTP id kx10so13408386pab.0
+        for <linux-mm@kvack.org>; Thu, 26 Feb 2015 03:35:54 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id h7si79548pdn.131.2015.02.26.03.35.38
         for <linux-mm@kvack.org>;
         Thu, 26 Feb 2015 03:35:38 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 14/17] um: expose number of page table levels
-Date: Thu, 26 Feb 2015 13:35:17 +0200
-Message-Id: <1424950520-90188-15-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 04/17] arm: expose number of page table levels on Kconfig level
+Date: Thu, 26 Feb 2015 13:35:07 +0200
+Message-Id: <1424950520-90188-5-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1424950520-90188-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1424950520-90188-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Russell King <linux@arm.linux.org.uk>
 
 We would want to use number of page table level to define mm_struct.
 Let's expose it as CONFIG_PGTABLE_LEVELS.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Jeff Dike <jdike@addtoit.com>
-Cc: Richard Weinberger <richard@nod.at>
+Cc: Russell King <linux@arm.linux.org.uk>
 Tested-by: Guenter Roeck <linux@roeck-us.net>
 ---
- arch/um/Kconfig.um | 5 +++++
+ arch/arm/Kconfig | 5 +++++
  1 file changed, 5 insertions(+)
 
-diff --git a/arch/um/Kconfig.um b/arch/um/Kconfig.um
-index a7520c90f62d..5dbfe3d9107c 100644
---- a/arch/um/Kconfig.um
-+++ b/arch/um/Kconfig.um
-@@ -155,3 +155,8 @@ config MMAPPER
- 
- config NO_DMA
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index 9f1f09a2bc9b..16f20b2b37e3 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -286,6 +286,11 @@ config GENERIC_BUG
  	def_bool y
-+
+ 	depends on BUG
+ 
 +config PGTABLE_LEVELS
 +	int
-+	default 3 if 3_LEVEL_PGTABLES
++	default 3 if ARM_LPAE
 +	default 2
++
+ source "init/Kconfig"
+ 
+ source "kernel/Kconfig.freezer"
 -- 
 2.1.4
 
