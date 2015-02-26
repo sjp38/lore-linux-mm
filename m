@@ -1,63 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f169.google.com (mail-we0-f169.google.com [74.125.82.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 19F6F6B0032
-	for <linux-mm@kvack.org>; Thu, 26 Feb 2015 06:31:01 -0500 (EST)
-Received: by wevm14 with SMTP id m14so9653472wev.13
-        for <linux-mm@kvack.org>; Thu, 26 Feb 2015 03:31:00 -0800 (PST)
-Received: from mail-wg0-x230.google.com (mail-wg0-x230.google.com. [2a00:1450:400c:c00::230])
-        by mx.google.com with ESMTPS id bp6si723641wjb.180.2015.02.26.03.30.58
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Feb 2015 03:30:59 -0800 (PST)
-Received: by wggy19 with SMTP id y19so9716920wgg.10
-        for <linux-mm@kvack.org>; Thu, 26 Feb 2015 03:30:58 -0800 (PST)
-Date: Thu, 26 Feb 2015 12:30:54 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v8 7/7] x86, mm: Add set_memory_wt() for WT
-Message-ID: <20150226113054.GA4191@gmail.com>
-References: <1424823301-30927-1-git-send-email-toshi.kani@hp.com>
- <1424823301-30927-8-git-send-email-toshi.kani@hp.com>
- <20150225072228.GA13061@gmail.com>
- <1424877601.17007.108.camel@misato.fc.hp.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1424877601.17007.108.camel@misato.fc.hp.com>
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 336886B006E
+	for <linux-mm@kvack.org>; Thu, 26 Feb 2015 06:35:35 -0500 (EST)
+Received: by pdjz10 with SMTP id z10so12502066pdj.0
+        for <linux-mm@kvack.org>; Thu, 26 Feb 2015 03:35:34 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id v10si798736pds.66.2015.02.26.03.35.34
+        for <linux-mm@kvack.org>;
+        Thu, 26 Feb 2015 03:35:34 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 06/17] m68k: mark PMD folded and expose number of page table levels
+Date: Thu, 26 Feb 2015 13:35:09 +0200
+Message-Id: <1424950520-90188-7-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1424950520-90188-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1424950520-90188-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Elliott@hp.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>
 
+We would want to use number of page table level to define mm_struct.
+Let's expose it as CONFIG_PGTABLE_LEVELS.
 
-* Toshi Kani <toshi.kani@hp.com> wrote:
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Geert Uytterhoeven <geert@linux-m68k.org>
+Tested-by: Guenter Roeck <linux@roeck-us.net>
+---
+ arch/m68k/Kconfig | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-> On Wed, 2015-02-25 at 08:22 +0100, Ingo Molnar wrote:
-> > * Toshi Kani <toshi.kani@hp.com> wrote:
-> > 
-> > > +int set_pages_array_wt(struct page **pages, int addrinarray)
-> > > +{
-> > > +	return _set_pages_array(pages, addrinarray, _PAGE_CACHE_MODE_WT);
-> > > +}
-> > > +EXPORT_SYMBOL(set_pages_array_wt);
-> > 
-> > So by default we make new APIs EXPORT_SYMBOL_GPL(): we 
-> > don't want proprietary modules mucking around with new code 
-> > PAT interfaces, we only want modules we can analyze and fix 
-> > in detail.
-> 
-> Right.  I have one question for this case.  This 
-> set_pages_array_wt() extends the set_pages_array_xx() 
-> family, which are all exported with EXPORT_SYMBOL() 
-> today.  In this case, should we keep them exported in the 
-> consistent manner, or should we still use GPL when adding 
-> a new one?
-
-Still keep it GPL, it's a new API that old modules 
-obviously don't use.
-
-Thanks,
-
-	Ingo
+diff --git a/arch/m68k/Kconfig b/arch/m68k/Kconfig
+index 87b7c7581b1d..2dd8f63bfbbb 100644
+--- a/arch/m68k/Kconfig
++++ b/arch/m68k/Kconfig
+@@ -67,6 +67,10 @@ config HZ
+ 	default 1000 if CLEOPATRA
+ 	default 100
+ 
++config PGTABLE_LEVELS
++	default 2 if SUN3 || COLDFIRE
++	default 3
++
+ source "init/Kconfig"
+ 
+ source "kernel/Kconfig.freezer"
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
