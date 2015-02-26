@@ -1,140 +1,199 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id A19806B0071
-	for <linux-mm@kvack.org>; Thu, 26 Feb 2015 06:35:37 -0500 (EST)
-Received: by pdbfl12 with SMTP id fl12so12454860pdb.4
-        for <linux-mm@kvack.org>; Thu, 26 Feb 2015 03:35:37 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id aa3si8591863pbc.163.2015.02.26.03.35.34
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id D37206B0072
+	for <linux-mm@kvack.org>; Thu, 26 Feb 2015 06:35:39 -0500 (EST)
+Received: by pdev10 with SMTP id v10so12388982pde.10
+        for <linux-mm@kvack.org>; Thu, 26 Feb 2015 03:35:39 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id v10si798736pds.66.2015.02.26.03.35.34
         for <linux-mm@kvack.org>;
-        Thu, 26 Feb 2015 03:35:34 -0800 (PST)
+        Thu, 26 Feb 2015 03:35:35 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 01/17] mm: add missing __PAGETABLE_{PUD,PMD}_FOLDED defines
-Date: Thu, 26 Feb 2015 13:35:04 +0200
-Message-Id: <1424950520-90188-2-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 08/17] parisc: expose number of page table levels on Kconfig level
+Date: Thu, 26 Feb 2015 13:35:11 +0200
+Message-Id: <1424950520-90188-9-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1424950520-90188-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1424950520-90188-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Aaro Koskinen <aaro.koskinen@iki.fi>, David Howells <dhowells@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Helge Deller <deller@gmx.de>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Koichi Yasutake <yasutake.koichi@jp.panasonic.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>
 
-Core mm expects __PAGETABLE_{PUD,PMD}_FOLDED to be defined if these page
-table levels folded. Usually, these defines are provided by
-<asm-generic/pgtable-nopmd.h> and <asm-generic/pgtable-nopud.h>.
-
-But some architectures fold page table levels in a custom way. They need
-to define these macros themself. This patch adds missing defines.
-
-The patch fixes mm->nr_pmds underflow and eliminates dead __pmd_alloc()
-and __pud_alloc() on architectures without these page table levels.
+We would want to use number of page table level to define mm_struct.
+Let's expose it as CONFIG_PGTABLE_LEVELS.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Aaro Koskinen <aaro.koskinen@iki.fi>
-Cc: David Howells <dhowells@redhat.com>
-Cc: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Helge Deller <deller@gmx.de>
 Cc: "James E.J. Bottomley" <jejb@parisc-linux.org>
-Cc: Koichi Yasutake <yasutake.koichi@jp.panasonic.com>
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Helge Deller <deller@gmx.de>
+Tested-by: Guenter Roeck <linux@roeck-us.net>
 ---
- arch/frv/include/asm/pgtable.h         | 2 ++
- arch/m32r/include/asm/pgtable-2level.h | 1 +
- arch/m68k/include/asm/pgtable_mm.h     | 2 ++
- arch/mn10300/include/asm/pgtable.h     | 2 ++
- arch/parisc/include/asm/pgtable.h      | 1 +
- arch/s390/include/asm/pgtable.h        | 2 ++
- 6 files changed, 10 insertions(+)
+ arch/parisc/Kconfig               |  5 +++++
+ arch/parisc/include/asm/pgalloc.h |  2 +-
+ arch/parisc/include/asm/pgtable.h | 16 +++++++---------
+ arch/parisc/kernel/entry.S        |  4 ++--
+ arch/parisc/kernel/head.S         |  4 ++--
+ arch/parisc/mm/init.c             |  2 +-
+ 6 files changed, 18 insertions(+), 15 deletions(-)
 
-diff --git a/arch/frv/include/asm/pgtable.h b/arch/frv/include/asm/pgtable.h
-index 93bcf2abd1a1..07d7a7ef8bd5 100644
---- a/arch/frv/include/asm/pgtable.h
-+++ b/arch/frv/include/asm/pgtable.h
-@@ -123,12 +123,14 @@ extern unsigned long empty_zero_page;
- #define PGDIR_MASK		(~(PGDIR_SIZE - 1))
- #define PTRS_PER_PGD		64
+diff --git a/arch/parisc/Kconfig b/arch/parisc/Kconfig
+index 8014727a2743..c36546959e86 100644
+--- a/arch/parisc/Kconfig
++++ b/arch/parisc/Kconfig
+@@ -103,6 +103,11 @@ config ARCH_MAY_HAVE_PC_FDC
+ 	depends on BROKEN
+ 	default y
  
-+#define __PAGETABLE_PUD_FOLDED
- #define PUD_SHIFT		26
- #define PTRS_PER_PUD		1
- #define PUD_SIZE		(1UL << PUD_SHIFT)
- #define PUD_MASK		(~(PUD_SIZE - 1))
- #define PUE_SIZE		256
++config PGTABLE_LEVELS
++	int
++	default 3 if 64BIT && PARISC_PAGE_SIZE_4KB
++	default 2
++
+ source "init/Kconfig"
  
-+#define __PAGETABLE_PMD_FOLDED
- #define PMD_SHIFT		26
- #define PMD_SIZE		(1UL << PMD_SHIFT)
- #define PMD_MASK		(~(PMD_SIZE - 1))
-diff --git a/arch/m32r/include/asm/pgtable-2level.h b/arch/m32r/include/asm/pgtable-2level.h
-index 8fd8ee70266a..421e6ba3a173 100644
---- a/arch/m32r/include/asm/pgtable-2level.h
-+++ b/arch/m32r/include/asm/pgtable-2level.h
-@@ -13,6 +13,7 @@
-  * the M32R is two-level, so we don't really have any
-  * PMD directory physically.
-  */
-+#define __PAGETABLE_PMD_FOLDED
- #define PMD_SHIFT	22
- #define PTRS_PER_PMD	1
+ source "kernel/Kconfig.freezer"
+diff --git a/arch/parisc/include/asm/pgalloc.h b/arch/parisc/include/asm/pgalloc.h
+index f213f5b4c423..55ad8be9b7f3 100644
+--- a/arch/parisc/include/asm/pgalloc.h
++++ b/arch/parisc/include/asm/pgalloc.h
+@@ -51,7 +51,7 @@ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
+ 	free_pages((unsigned long)pgd, PGD_ALLOC_ORDER);
+ }
  
-diff --git a/arch/m68k/include/asm/pgtable_mm.h b/arch/m68k/include/asm/pgtable_mm.h
-index 28a145bfbb71..35ed4a9981ae 100644
---- a/arch/m68k/include/asm/pgtable_mm.h
-+++ b/arch/m68k/include/asm/pgtable_mm.h
-@@ -54,10 +54,12 @@
-  */
- #ifdef CONFIG_SUN3
- #define PTRS_PER_PTE   16
-+#define __PAGETABLE_PMD_FOLDED
- #define PTRS_PER_PMD   1
- #define PTRS_PER_PGD   2048
- #elif defined(CONFIG_COLDFIRE)
- #define PTRS_PER_PTE	512
-+#define __PAGETABLE_PMD_FOLDED
- #define PTRS_PER_PMD	1
- #define PTRS_PER_PGD	1024
- #else
-diff --git a/arch/mn10300/include/asm/pgtable.h b/arch/mn10300/include/asm/pgtable.h
-index afab728ab65e..96d3f9deb59c 100644
---- a/arch/mn10300/include/asm/pgtable.h
-+++ b/arch/mn10300/include/asm/pgtable.h
-@@ -56,7 +56,9 @@ extern void paging_init(void);
- #define PGDIR_SHIFT	22
- #define PTRS_PER_PGD	1024
- #define PTRS_PER_PUD	1	/* we don't really have any PUD physically */
-+#define __PAGETABLE_PUD_FOLDED
- #define PTRS_PER_PMD	1	/* we don't really have any PMD physically */
-+#define __PAGETABLE_PMD_FOLDED
- #define PTRS_PER_PTE	1024
+-#if PT_NLEVELS == 3
++#if CONFIG_PGTABLE_LEVELS == 3
  
- #define PGD_SIZE	PAGE_SIZE
+ /* Three Level Page Table Support for pmd's */
+ 
 diff --git a/arch/parisc/include/asm/pgtable.h b/arch/parisc/include/asm/pgtable.h
-index 8c966b2270aa..15207b9362bf 100644
+index 15207b9362bf..0a183756d6ec 100644
 --- a/arch/parisc/include/asm/pgtable.h
 +++ b/arch/parisc/include/asm/pgtable.h
-@@ -96,6 +96,7 @@ extern void purge_tlb_entries(struct mm_struct *, unsigned long);
- #if PT_NLEVELS == 3
+@@ -68,13 +68,11 @@ extern void purge_tlb_entries(struct mm_struct *, unsigned long);
+ #define KERNEL_INITIAL_ORDER	24	/* 0 to 1<<24 = 16MB */
+ #define KERNEL_INITIAL_SIZE	(1 << KERNEL_INITIAL_ORDER)
+ 
+-#if defined(CONFIG_64BIT) && defined(CONFIG_PARISC_PAGE_SIZE_4KB)
+-#define PT_NLEVELS	3
++#if CONFIG_PGTABLE_LEVELS == 3
+ #define PGD_ORDER	1 /* Number of pages per pgd */
+ #define PMD_ORDER	1 /* Number of pages per pmd */
+ #define PGD_ALLOC_ORDER	2 /* first pgd contains pmd */
+ #else
+-#define PT_NLEVELS	2
+ #define PGD_ORDER	1 /* Number of pages per pgd */
+ #define PGD_ALLOC_ORDER	PGD_ORDER
+ #endif
+@@ -93,7 +91,7 @@ extern void purge_tlb_entries(struct mm_struct *, unsigned long);
+ #define PMD_SHIFT       (PLD_SHIFT + BITS_PER_PTE)
+ #define PMD_SIZE	(1UL << PMD_SHIFT)
+ #define PMD_MASK	(~(PMD_SIZE-1))
+-#if PT_NLEVELS == 3
++#if CONFIG_PGTABLE_LEVELS == 3
  #define BITS_PER_PMD	(PAGE_SHIFT + PMD_ORDER - BITS_PER_PMD_ENTRY)
  #else
-+#define __PAGETABLE_PMD_FOLDED
- #define BITS_PER_PMD	0
- #endif
- #define PTRS_PER_PMD    (1UL << BITS_PER_PMD)
-diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
-index fbb5ee3ae57c..e08ec38f8c6e 100644
---- a/arch/s390/include/asm/pgtable.h
-+++ b/arch/s390/include/asm/pgtable.h
-@@ -91,7 +91,9 @@ extern unsigned long zero_page_mask;
-  */
- #define PTRS_PER_PTE	256
- #ifndef CONFIG_64BIT
-+#define __PAGETABLE_PUD_FOLDED
- #define PTRS_PER_PMD	1
-+#define __PAGETABLE_PMD_FOLDED
- #define PTRS_PER_PUD	1
- #else /* CONFIG_64BIT */
- #define PTRS_PER_PMD	2048
+ #define __PAGETABLE_PMD_FOLDED
+@@ -277,7 +275,7 @@ extern unsigned long *empty_zero_page;
+ #define pgd_flag(x)	(pgd_val(x) & PxD_FLAG_MASK)
+ #define pgd_address(x)	((unsigned long)(pgd_val(x) &~ PxD_FLAG_MASK) << PxD_VALUE_SHIFT)
+ 
+-#if PT_NLEVELS == 3
++#if CONFIG_PGTABLE_LEVELS == 3
+ /* The first entry of the permanent pmd is not there if it contains
+  * the gateway marker */
+ #define pmd_none(x)	(!pmd_val(x) || pmd_flag(x) == PxD_FLAG_ATTACHED)
+@@ -287,7 +285,7 @@ extern unsigned long *empty_zero_page;
+ #define pmd_bad(x)	(!(pmd_flag(x) & PxD_FLAG_VALID))
+ #define pmd_present(x)	(pmd_flag(x) & PxD_FLAG_PRESENT)
+ static inline void pmd_clear(pmd_t *pmd) {
+-#if PT_NLEVELS == 3
++#if CONFIG_PGTABLE_LEVELS == 3
+ 	if (pmd_flag(*pmd) & PxD_FLAG_ATTACHED)
+ 		/* This is the entry pointing to the permanent pmd
+ 		 * attached to the pgd; cannot clear it */
+@@ -299,7 +297,7 @@ static inline void pmd_clear(pmd_t *pmd) {
+ 
+ 
+ 
+-#if PT_NLEVELS == 3
++#if CONFIG_PGTABLE_LEVELS == 3
+ #define pgd_page_vaddr(pgd) ((unsigned long) __va(pgd_address(pgd)))
+ #define pgd_page(pgd)	virt_to_page((void *)pgd_page_vaddr(pgd))
+ 
+@@ -309,7 +307,7 @@ static inline void pmd_clear(pmd_t *pmd) {
+ #define pgd_bad(x)      (!(pgd_flag(x) & PxD_FLAG_VALID))
+ #define pgd_present(x)  (pgd_flag(x) & PxD_FLAG_PRESENT)
+ static inline void pgd_clear(pgd_t *pgd) {
+-#if PT_NLEVELS == 3
++#if CONFIG_PGTABLE_LEVELS == 3
+ 	if(pgd_flag(*pgd) & PxD_FLAG_ATTACHED)
+ 		/* This is the permanent pmd attached to the pgd; cannot
+ 		 * free it */
+@@ -393,7 +391,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
+ 
+ /* Find an entry in the second-level page table.. */
+ 
+-#if PT_NLEVELS == 3
++#if CONFIG_PGTABLE_LEVELS == 3
+ #define pmd_offset(dir,address) \
+ ((pmd_t *) pgd_page_vaddr(*(dir)) + (((address)>>PMD_SHIFT) & (PTRS_PER_PMD-1)))
+ #else
+diff --git a/arch/parisc/kernel/entry.S b/arch/parisc/kernel/entry.S
+index 2ab16bb160a8..75819617f93b 100644
+--- a/arch/parisc/kernel/entry.S
++++ b/arch/parisc/kernel/entry.S
+@@ -398,7 +398,7 @@
+ 	 * can address up to 1TB
+ 	 */
+ 	.macro		L2_ptep	pmd,pte,index,va,fault
+-#if PT_NLEVELS == 3
++#if CONFIG_PGTABLE_LEVELS == 3
+ 	extru		\va,31-ASM_PMD_SHIFT,ASM_BITS_PER_PMD,\index
+ #else
+ # if defined(CONFIG_64BIT)
+@@ -436,7 +436,7 @@
+ 	 * all ILP32 processes and all the kernel for machines with
+ 	 * under 4GB of memory) */
+ 	.macro		L3_ptep pgd,pte,index,va,fault
+-#if PT_NLEVELS == 3 /* we might have a 2-Level scheme, e.g. with 16kb page size */
++#if CONFIG_PGTABLE_LEVELS == 3 /* we might have a 2-Level scheme, e.g. with 16kb page size */
+ 	extrd,u		\va,63-ASM_PGDIR_SHIFT,ASM_BITS_PER_PGD,\index
+ 	copy		%r0,\pte
+ 	extrd,u,*=	\va,63-ASM_PGDIR_SHIFT,64-ASM_PGDIR_SHIFT,%r0
+diff --git a/arch/parisc/kernel/head.S b/arch/parisc/kernel/head.S
+index d4dc588c0dc1..e7d64527aff9 100644
+--- a/arch/parisc/kernel/head.S
++++ b/arch/parisc/kernel/head.S
+@@ -74,7 +74,7 @@ $bss_loop:
+ 	mtctl		%r4,%cr24	/* Initialize kernel root pointer */
+ 	mtctl		%r4,%cr25	/* Initialize user root pointer */
+ 
+-#if PT_NLEVELS == 3
++#if CONFIG_PGTABLE_LEVELS == 3
+ 	/* Set pmd in pgd */
+ 	load32		PA(pmd0),%r5
+ 	shrd            %r5,PxD_VALUE_SHIFT,%r3	
+@@ -97,7 +97,7 @@ $bss_loop:
+ 	stw		%r3,0(%r4)
+ 	ldo		(PAGE_SIZE >> PxD_VALUE_SHIFT)(%r3),%r3
+ 	addib,>		-1,%r1,1b
+-#if PT_NLEVELS == 3
++#if CONFIG_PGTABLE_LEVELS == 3
+ 	ldo             ASM_PMD_ENTRY_SIZE(%r4),%r4
+ #else
+ 	ldo             ASM_PGD_ENTRY_SIZE(%r4),%r4
+diff --git a/arch/parisc/mm/init.c b/arch/parisc/mm/init.c
+index 15dbe81cf5f3..c229427fa546 100644
+--- a/arch/parisc/mm/init.c
++++ b/arch/parisc/mm/init.c
+@@ -34,7 +34,7 @@
+ extern int  data_start;
+ extern void parisc_kernel_start(void);	/* Kernel entry point in head.S */
+ 
+-#if PT_NLEVELS == 3
++#if CONFIG_PGTABLE_LEVELS == 3
+ /* NOTE: This layout exactly conforms to the hybrid L2/L3 page table layout
+  * with the first pmd adjacent to the pgd and below it. gcc doesn't actually
+  * guarantee that global objects will be laid out in memory in the same order
 -- 
 2.1.4
 
