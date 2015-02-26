@@ -1,82 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id B67DF6B0032
-	for <linux-mm@kvack.org>; Thu, 26 Feb 2015 03:30:39 -0500 (EST)
-Received: by mail-wi0-f170.google.com with SMTP id ex7so16962463wid.1
-        for <linux-mm@kvack.org>; Thu, 26 Feb 2015 00:30:39 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id om2si14365882wjc.203.2015.02.26.00.30.37
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 9ABD36B006C
+	for <linux-mm@kvack.org>; Thu, 26 Feb 2015 03:31:19 -0500 (EST)
+Received: by paceu11 with SMTP id eu11so12251042pac.7
+        for <linux-mm@kvack.org>; Thu, 26 Feb 2015 00:31:19 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id pl9si210201pdb.47.2015.02.26.00.31.17
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 26 Feb 2015 00:30:37 -0800 (PST)
-Message-ID: <54EED9A7.5010505@suse.cz>
-Date: Thu, 26 Feb 2015 09:30:31 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
-MIME-Version: 1.0
-Subject: Re: [patch 1/2] mm: remove GFP_THISNODE
-References: <alpine.DEB.2.10.1502251621010.10303@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1502251621010.10303@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 26 Feb 2015 00:31:18 -0800 (PST)
+From: Sasha Levin <sasha.levin@oracle.com>
+Subject: [PATCH] cma: debug: document new debugfs interface
+Date: Thu, 26 Feb 2015 03:31:03 -0500
+Message-Id: <1424939463-18119-1-git-send-email-sasha.levin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Pravin Shelar <pshelar@nicira.com>, Jarno Rajahalme <jrajahalme@nicira.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, dev@openvswitch.org
+To: linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, iamjoonsoo.kim@lge.com, linux-mm@kvack.org, Sasha Levin <sasha.levin@oracle.com>
 
-On 02/26/2015 01:23 AM, David Rientjes wrote:
-> NOTE: this is not about __GFP_THISNODE, this is only about GFP_THISNODE.
-> 
-> GFP_THISNODE is a secret combination of gfp bits that have different
-> behavior than expected.  It is a combination of __GFP_THISNODE,
-> __GFP_NORETRY, and __GFP_NOWARN and is special-cased in the page allocator
-> slowpath to fail without trying reclaim even though it may be used in
-> combination with __GFP_WAIT.
-> 
-> An example of the problem this creates: commit e97ca8e5b864 ("mm: fix 
-> GFP_THISNODE callers and clarify") fixed up many users of GFP_THISNODE
-> that really just wanted __GFP_THISNODE.  The problem doesn't end there,
-> however, because even it was a no-op for alloc_misplaced_dst_page(),
-> which also sets __GFP_NORETRY and __GFP_NOWARN, and
-> migrate_misplaced_transhuge_page(), where __GFP_NORETRY and __GFP_NOWAIT
-> is set in GFP_TRANSHUGE.  Converting GFP_THISNODE to __GFP_THISNODE is
-> a no-op in these cases since the page allocator special-cases
-> __GFP_THISNODE && __GFP_NORETRY && __GFP_NOWARN.
-> 
-> It's time to just remove GFP_TRANSHUGE entirely.  We leave __GFP_THISNODE
+Document the structure and files under the new debugfs interface.
 
-                              ^THISNODE :) Although yes, it would be nice if we
-could replace the GFP_TRANSHUGE magic checks as well.
+Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
+---
+ Documentation/cma/debugfs.txt |   21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+ create mode 100644 Documentation/cma/debugfs.txt
 
-> to restrict an allocation to a local node, but remove GFP_TRANSHUGE and
-> it's obscurity.  Instead, we require that a caller clear __GFP_WAIT if it
-> wants to avoid reclaim.
-> 
-> This allows the aforementioned functions to actually reclaim as they
-> should.  It also enables any future callers that want to do
-> __GFP_THISNODE but also __GFP_NORETRY && __GFP_NOWARN to reclaim.  The
-> rule is simple: if you don't want to reclaim, then don't set __GFP_WAIT.
-
-So, I agree with the intention, but this has some subtle implications that
-should be mentioned/decided. The check for GFP_THISNODE in
-__alloc_pages_slowpath() comes earlier than the check for __GFP_WAIT. So the
-differences will be:
-
-1) We will now call wake_all_kswapds(), unless __GFP_NO_KSWAPD is passed, which
-is only done for hugepages and some type of i915 allocation. Do we want the
-opportunistic attempts from slab to wake up kswapds or do we pass the flag?
-
-2) There will be another attempt on get_page_from_freelist() with different
-alloc_flags than in the fast path attempt. Without __GFP_WAIT (and also, again,
-__GFP_KSWAPD, since your commit b104a35d32, which is another subtle check for
-hugepage allocations btw), it will consider the allocation atomic and add
-ALLOC_HARDER flag, unless __GFP_NOMEMALLOC is in __gfp_flags - it seems it's
-generally not. It will also clear ALLOC_CPUSET, which was the concern of
-b104a35d32. However, if I look at __cpuset_node_allowed(), I see that it's
-always true for __GFP_THISNODE, which makes me question commit b104a35d32 in
-light of your patch 2/2 and generally the sanity of all these flags and my
-career choice.
-
-Ugh :)
+diff --git a/Documentation/cma/debugfs.txt b/Documentation/cma/debugfs.txt
+new file mode 100644
+index 0000000..6cef20a
+--- /dev/null
++++ b/Documentation/cma/debugfs.txt
+@@ -0,0 +1,21 @@
++The CMA debugfs interface is useful to retrieve basic information out of the
++different CMA areas and to test allocation/release in each of the areas.
++
++Each CMA zone represents a directory under <debugfs>/cma/, indexed by the
++kernel's CMA index. So the first CMA zone would be:
++
++	<debugfs>/cma/cma-0
++
++The structure of the files created under that directory is as follows:
++
++ - [RO] base_pfn: The base PFN (Page Frame Number) of the zone.
++ - [RO] count: Amount of memory in the CMA area.
++ - [RO] order_per_bit: Order of pages represented by one bit.
++ - [RO] bitmap: The bitmap of page states in the zone.
++ - [WO] alloc: Allocate N pages from that CMA area. For example:
++
++	echo 5 > <debugfs>/cma/cma-2/alloc
++
++would try to allocate 5 pages from the cma-2 area.
++
++ - [WO] free: Free N pages from that CMA area, similar to the above.
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
