@@ -1,94 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f173.google.com (mail-ie0-f173.google.com [209.85.223.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 15C6E6B006C
-	for <linux-mm@kvack.org>; Wed, 25 Feb 2015 19:23:57 -0500 (EST)
-Received: by iecat20 with SMTP id at20so9758078iec.12
-        for <linux-mm@kvack.org>; Wed, 25 Feb 2015 16:23:56 -0800 (PST)
-Received: from mail-ig0-x232.google.com (mail-ig0-x232.google.com. [2607:f8b0:4001:c05::232])
-        by mx.google.com with ESMTPS id n198si5739594ion.33.2015.02.25.16.23.56
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DBBD6B0032
+	for <linux-mm@kvack.org>; Wed, 25 Feb 2015 19:42:18 -0500 (EST)
+Received: by pdbfp1 with SMTP id fp1so8736790pdb.9
+        for <linux-mm@kvack.org>; Wed, 25 Feb 2015 16:42:18 -0800 (PST)
+Received: from mail-pd0-x236.google.com (mail-pd0-x236.google.com. [2607:f8b0:400e:c02::236])
+        by mx.google.com with ESMTPS id kn11si7844983pbd.148.2015.02.25.16.42.17
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Feb 2015 16:23:56 -0800 (PST)
-Received: by mail-ig0-f178.google.com with SMTP id hl2so10556599igb.5
-        for <linux-mm@kvack.org>; Wed, 25 Feb 2015 16:23:56 -0800 (PST)
-Date: Wed, 25 Feb 2015 16:23:54 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch 2/2] mm, thp: really limit transparent hugepage allocation
- to local node
-Message-ID: <alpine.DEB.2.10.1502251623030.10303@chino.kir.corp.google.com>
+        Wed, 25 Feb 2015 16:42:17 -0800 (PST)
+Received: by pdbfl12 with SMTP id fl12so8792267pdb.4
+        for <linux-mm@kvack.org>; Wed, 25 Feb 2015 16:42:17 -0800 (PST)
+Date: Thu, 26 Feb 2015 09:42:06 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH RFC 1/4] mm: throttle MADV_FREE
+Message-ID: <20150226004206.GA16773@blaptop>
+References: <1424765897-27377-1-git-send-email-minchan@kernel.org>
+ <20150224154318.GA14939@dhcp22.suse.cz>
+ <20150225000809.GA6468@blaptop>
+ <20150225071118.GA19115@blaptop>
+ <20150225183748.GA2551@kernel.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150225183748.GA2551@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Shaohua Li <shli@kernel.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Yalin.Wang@sonymobile.com
 
-Commit 077fcf116c8c ("mm/thp: allocate transparent hugepages on local
-node") restructured alloc_hugepage_vma() with the intent of only
-allocating transparent hugepages locally when there was not an effective
-interleave mempolicy.
+Hello,
 
-alloc_pages_exact_node() does not limit the allocation to the single
-node, however, but rather prefers it.  This is because __GFP_THISNODE is
-not set which would cause the node-local nodemask to be passed.  Without
-it, only a nodemask that prefers the local node is passed.
+On Wed, Feb 25, 2015 at 10:37:48AM -0800, Shaohua Li wrote:
+> On Wed, Feb 25, 2015 at 04:11:18PM +0900, Minchan Kim wrote:
+> > On Wed, Feb 25, 2015 at 09:08:09AM +0900, Minchan Kim wrote:
+> > > Hi Michal,
+> > > 
+> > > On Tue, Feb 24, 2015 at 04:43:18PM +0100, Michal Hocko wrote:
+> > > > On Tue 24-02-15 17:18:14, Minchan Kim wrote:
+> > > > > Recently, Shaohua reported that MADV_FREE is much slower than
+> > > > > MADV_DONTNEED in his MADV_FREE bomb test. The reason is many of
+> > > > > applications went to stall with direct reclaim since kswapd's
+> > > > > reclaim speed isn't fast than applications's allocation speed
+> > > > > so that it causes lots of stall and lock contention.
+> > > > 
+> > > > I am not sure I understand this correctly. So the issue is that there is
+> > > > huge number of MADV_FREE on the LRU and they are not close to the tail
+> > > > of the list so the reclaim has to do a lot of work before it starts
+> > > > dropping them?
+> > > 
+> > > No, Shaohua already tested deactivating of hinted pages to head/tail
+> > > of inactive anon LRU and he said it didn't solve his problem.
+> > > I thought main culprit was scanning/rotating/throttling in
+> > > direct reclaim path.
+> > 
+> > I investigated my workload and found most of slowness came from swapin.
+> > 
+> > 1) dontneed: 1,612 swapin
+> > 2) madvfree: 879,585 swapin
+> > 
+> > If we find hinted pages were already swapped out when syscall is called,
+> > it's pointless to keep the pages in pte. Instead, free the cold page
+> > because swapin is more expensive than (alloc page + zeroing).
+> > 
+> > I tested below quick fix and reduced swapin from 879,585 to 1,878.
+> > Elapsed time was
+> > 
+> > 1) dontneed: 6.10user 233.50system 0:50.44elapsed
+> > 2) madvfree + below patch: 6.70user 339.14system 1:04.45elapsed
+> > 
+> > Although it was not good as throttling, it's better than old and
+> > it's orthogoral with throttling so I hope to merge this first
+> > than arguable throttling. Any comments?
+> > 
+> > diff --git a/mm/madvise.c b/mm/madvise.c
+> > index 6d0fcb8921c2..d41ae76d3e54 100644
+> > --- a/mm/madvise.c
+> > +++ b/mm/madvise.c
+> > @@ -274,7 +274,9 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+> >  	spinlock_t *ptl;
+> >  	pte_t *pte, ptent;
+> >  	struct page *page;
+> > +	swp_entry_t entry;
+> >  	unsigned long next;
+> > +	int rss = 0;
+> >  
+> >  	next = pmd_addr_end(addr, end);
+> >  	if (pmd_trans_huge(*pmd)) {
+> > @@ -293,9 +295,19 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+> >  	for (; addr != end; pte++, addr += PAGE_SIZE) {
+> >  		ptent = *pte;
+> >  
+> > -		if (!pte_present(ptent))
+> > +		if (pte_none(ptent))
+> >  			continue;
+> >  
+> > +		if (!pte_present(ptent)) {
+> > +			entry = pte_to_swp_entry(ptent);
+> > +			if (non_swap_entry(entry))
+> > +				continue;
+> > +			rss--;
+> > +			free_swap_and_cache(entry);
+> > +			pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
+> > +			continue;
+> > +		}
+> > +
+> >  		page = vm_normal_page(vma, addr, ptent);
+> >  		if (!page)
+> >  			continue;
+> > @@ -326,6 +338,14 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+> >  		set_pte_at(mm, addr, pte, ptent);
+> >  		tlb_remove_tlb_entry(tlb, pte, addr);
+> >  	}
+> > +
+> > +	if (rss) {
+> > +		if (current->mm == mm)
+> > +			sync_mm_rss(mm);
+> > +
+> > +		add_mm_counter(mm, MM_SWAPENTS, rss);
+> > +	}
+> > +
+> 
+> This looks make sense, but I'm wondering why it can help and if this can help
+> real workload.  Let me have an example. Say there is 1G memory, workload uses
 
-Fix this by passing __GFP_THISNODE and falling back to small pages when
-the allocation fails.
+void *ptr1 = malloc(len); /* allocator mmap new chunk */
+touch_iow_dirty(ptr1, len);
+..
+..
+..
+..                      /* swapout happens */
+free(ptr1);             /* allocator calls MADV_FREE on the chunk */
 
-Commit 9f1b868a13ac ("mm: thp: khugepaged: add policy for finding target
-node") suffers from a similar problem for khugepaged, which is also
-fixed.
+void *ptr2 = malloc(len) /* allocator reuses previous chunk */
+touch_iow_dirty(ptr2, len); /* swapin happens to read garbage and application overwrite the garbage */
 
-Fixes: 077fcf116c8c ("mm/thp: allocate transparent hugepages on local node")
-Fixes: 9f1b868a13ac ("mm: thp: khugepaged: add policy for finding target node")
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/huge_memory.c | 9 +++++++--
- mm/mempolicy.c   | 3 ++-
- 2 files changed, 9 insertions(+), 3 deletions(-)
+It's really unnecessary cost.
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2311,8 +2311,14 @@ static struct page
- 		       struct vm_area_struct *vma, unsigned long address,
- 		       int node)
- {
-+	gfp_t flags;
-+
- 	VM_BUG_ON_PAGE(*hpage, *hpage);
- 
-+	/* Only allocate from the target node */
-+	flags = alloc_hugepage_gfpmask(khugepaged_defrag(), __GFP_OTHER_NODE) |
-+	        __GFP_THISNODE;
-+
- 	/*
- 	 * Before allocating the hugepage, release the mmap_sem read lock.
- 	 * The allocation can take potentially a long time if it involves
-@@ -2321,8 +2327,7 @@ static struct page
- 	 */
- 	up_read(&mm->mmap_sem);
- 
--	*hpage = alloc_pages_exact_node(node, alloc_hugepage_gfpmask(
--		khugepaged_defrag(), __GFP_OTHER_NODE), HPAGE_PMD_ORDER);
-+	*hpage = alloc_pages_exact_node(node, flags, HPAGE_PMD_ORDER);
- 	if (unlikely(!*hpage)) {
- 		count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
- 		*hpage = ERR_PTR(-ENOMEM);
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1985,7 +1985,8 @@ retry_cpuset:
- 		nmask = policy_nodemask(gfp, pol);
- 		if (!nmask || node_isset(node, *nmask)) {
- 			mpol_cond_put(pol);
--			page = alloc_pages_exact_node(node, gfp, order);
-+			page = alloc_pages_exact_node(node,
-+						gfp | __GFP_THISNODE, order);
- 			goto out;
- 		}
- 	}
+
+> 800M memory with DONTNEED, there should be no swap. With FREE, workload might
+> use more than 1G memory and trigger swap. I thought the case (DONTNEED doesn't
+> trigger swap) is more suitable to evaluate the performance of the patch.
+
+I think above example is really clear and possible scenario.
+Could you give me more concrete example to test if you want?
+
+Thanks.
+
+> 
+> Thanks,
+> Shaohua
+> 
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
