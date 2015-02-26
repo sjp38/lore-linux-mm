@@ -1,84 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CA966B0032
-	for <linux-mm@kvack.org>; Thu, 26 Feb 2015 12:34:51 -0500 (EST)
-Received: by wggz12 with SMTP id z12so13167412wgg.2
-        for <linux-mm@kvack.org>; Thu, 26 Feb 2015 09:34:50 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r15si2829726wju.47.2015.02.26.09.34.48
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id B455D6B0032
+	for <linux-mm@kvack.org>; Thu, 26 Feb 2015 14:04:58 -0500 (EST)
+Received: by paceu11 with SMTP id eu11so16066563pac.10
+        for <linux-mm@kvack.org>; Thu, 26 Feb 2015 11:04:58 -0800 (PST)
+Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
+        by mx.google.com with ESMTPS id fk5si579187pbc.204.2015.02.26.11.04.57
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 26 Feb 2015 09:34:49 -0800 (PST)
-Date: Thu, 26 Feb 2015 18:34:45 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -v2] mm, oom: do not fail __GFP_NOFAIL allocation if oom
- killer is disbaled
-Message-ID: <20150226173445.GG14878@dhcp22.suse.cz>
-References: <1424801964-1602-1-git-send-email-mhocko@suse.cz>
- <20150224191127.GA14718@phnom.home.cmpxchg.org>
- <alpine.DEB.2.10.1502241220500.3855@chino.kir.corp.google.com>
- <20150225140826.GD26680@dhcp22.suse.cz>
- <alpine.DEB.2.10.1502251240150.18097@chino.kir.corp.google.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Feb 2015 11:04:57 -0800 (PST)
+Received: by pabli10 with SMTP id li10so93264pab.3
+        for <linux-mm@kvack.org>; Thu, 26 Feb 2015 11:04:57 -0800 (PST)
+Date: Thu, 26 Feb 2015 11:04:55 -0800
+From: Shaohua Li <shli@kernel.org>
+Subject: Re: [PATCH RFC 1/4] mm: throttle MADV_FREE
+Message-ID: <20150226190455.GA2455@kernel.org>
+References: <1424765897-27377-1-git-send-email-minchan@kernel.org>
+ <20150224154318.GA14939@dhcp22.suse.cz>
+ <20150225000809.GA6468@blaptop>
+ <20150225071118.GA19115@blaptop>
+ <20150225183748.GA2551@kernel.org>
+ <20150226004206.GA16773@blaptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1502251240150.18097@chino.kir.corp.google.com>
+In-Reply-To: <20150226004206.GA16773@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Yalin.Wang@sonymobile.com
 
-On Wed 25-02-15 12:41:07, David Rientjes wrote:
-> On Wed, 25 Feb 2015, Michal Hocko wrote:
+On Thu, Feb 26, 2015 at 09:42:06AM +0900, Minchan Kim wrote:
+> Hello,
 > 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 2d224bbdf8e8..c2ff40a30003 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -2363,7 +2363,8 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
-> >  			goto out;
-> >  	}
-> >  	/* Exhausted what can be done so it's blamo time */
-> > -	if (out_of_memory(ac->zonelist, gfp_mask, order, ac->nodemask, false))
-> > +	if (out_of_memory(ac->zonelist, gfp_mask, order, ac->nodemask, false)
-> > +			|| WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL))
-> >  		*did_some_progress = 1;
-> >  out:
-> >  	oom_zonelist_unlock(ac->zonelist, gfp_mask);
+> On Wed, Feb 25, 2015 at 10:37:48AM -0800, Shaohua Li wrote:
+> > On Wed, Feb 25, 2015 at 04:11:18PM +0900, Minchan Kim wrote:
+> > > On Wed, Feb 25, 2015 at 09:08:09AM +0900, Minchan Kim wrote:
+> > > > Hi Michal,
+> > > > 
+> > > > On Tue, Feb 24, 2015 at 04:43:18PM +0100, Michal Hocko wrote:
+> > > > > On Tue 24-02-15 17:18:14, Minchan Kim wrote:
+> > > > > > Recently, Shaohua reported that MADV_FREE is much slower than
+> > > > > > MADV_DONTNEED in his MADV_FREE bomb test. The reason is many of
+> > > > > > applications went to stall with direct reclaim since kswapd's
+> > > > > > reclaim speed isn't fast than applications's allocation speed
+> > > > > > so that it causes lots of stall and lock contention.
+> > > > > 
+> > > > > I am not sure I understand this correctly. So the issue is that there is
+> > > > > huge number of MADV_FREE on the LRU and they are not close to the tail
+> > > > > of the list so the reclaim has to do a lot of work before it starts
+> > > > > dropping them?
+> > > > 
+> > > > No, Shaohua already tested deactivating of hinted pages to head/tail
+> > > > of inactive anon LRU and he said it didn't solve his problem.
+> > > > I thought main culprit was scanning/rotating/throttling in
+> > > > direct reclaim path.
+> > > 
+> > > I investigated my workload and found most of slowness came from swapin.
+> > > 
+> > > 1) dontneed: 1,612 swapin
+> > > 2) madvfree: 879,585 swapin
+> > > 
+> > > If we find hinted pages were already swapped out when syscall is called,
+> > > it's pointless to keep the pages in pte. Instead, free the cold page
+> > > because swapin is more expensive than (alloc page + zeroing).
+> > > 
+> > > I tested below quick fix and reduced swapin from 879,585 to 1,878.
+> > > Elapsed time was
+> > > 
+> > > 1) dontneed: 6.10user 233.50system 0:50.44elapsed
+> > > 2) madvfree + below patch: 6.70user 339.14system 1:04.45elapsed
+> > > 
+> > > Although it was not good as throttling, it's better than old and
+> > > it's orthogoral with throttling so I hope to merge this first
+> > > than arguable throttling. Any comments?
+> > > 
+> > > diff --git a/mm/madvise.c b/mm/madvise.c
+> > > index 6d0fcb8921c2..d41ae76d3e54 100644
+> > > --- a/mm/madvise.c
+> > > +++ b/mm/madvise.c
+> > > @@ -274,7 +274,9 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+> > >  	spinlock_t *ptl;
+> > >  	pte_t *pte, ptent;
+> > >  	struct page *page;
+> > > +	swp_entry_t entry;
+> > >  	unsigned long next;
+> > > +	int rss = 0;
+> > >  
+> > >  	next = pmd_addr_end(addr, end);
+> > >  	if (pmd_trans_huge(*pmd)) {
+> > > @@ -293,9 +295,19 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+> > >  	for (; addr != end; pte++, addr += PAGE_SIZE) {
+> > >  		ptent = *pte;
+> > >  
+> > > -		if (!pte_present(ptent))
+> > > +		if (pte_none(ptent))
+> > >  			continue;
+> > >  
+> > > +		if (!pte_present(ptent)) {
+> > > +			entry = pte_to_swp_entry(ptent);
+> > > +			if (non_swap_entry(entry))
+> > > +				continue;
+> > > +			rss--;
+> > > +			free_swap_and_cache(entry);
+> > > +			pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
+> > > +			continue;
+> > > +		}
+> > > +
+> > >  		page = vm_normal_page(vma, addr, ptent);
+> > >  		if (!page)
+> > >  			continue;
+> > > @@ -326,6 +338,14 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+> > >  		set_pte_at(mm, addr, pte, ptent);
+> > >  		tlb_remove_tlb_entry(tlb, pte, addr);
+> > >  	}
+> > > +
+> > > +	if (rss) {
+> > > +		if (current->mm == mm)
+> > > +			sync_mm_rss(mm);
+> > > +
+> > > +		add_mm_counter(mm, MM_SWAPENTS, rss);
+> > > +	}
+> > > +
+> > 
+> > This looks make sense, but I'm wondering why it can help and if this can help
+> > real workload.  Let me have an example. Say there is 1G memory, workload uses
 > 
-> Eek, not sure we actually need to play any games with did_some_progress, 
-> it might be clearer just to do this
-
-We would loose the warning which _might_ be helpful and I also find this
-place better because it is close to the out_of_memory and this one has
-only one failure mode. So I would prefer to stick with this unless there
-are big objections.
-
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2760,7 +2760,7 @@ retry:
->  							&did_some_progress);
->  			if (page)
->  				goto got_pg;
-> -			if (!did_some_progress)
-> +			if (!did_some_progress && !(gfp_mask & __GFP_NOFAIL))
->  				goto nopage;
->  		}
->  		/* Wait for some write requests to complete then retry */
+> void *ptr1 = malloc(len); /* allocator mmap new chunk */
+> touch_iow_dirty(ptr1, len);
+> ..
+> ..
+> ..
+> ..                      /* swapout happens */
+> free(ptr1);             /* allocator calls MADV_FREE on the chunk */
 > 
-> Either way you decide, feel free to add my
+> void *ptr2 = malloc(len) /* allocator reuses previous chunk */
+> touch_iow_dirty(ptr2, len); /* swapin happens to read garbage and application overwrite the garbage */
 > 
-> Acked-by: David Rientjes <rientjes@gooogle.com>
+> It's really unnecessary cost.
+> 
+> 
+> > 800M memory with DONTNEED, there should be no swap. With FREE, workload might
+> > use more than 1G memory and trigger swap. I thought the case (DONTNEED doesn't
+> > trigger swap) is more suitable to evaluate the performance of the patch.
+> 
+> I think above example is really clear and possible scenario.
+> Could you give me more concrete example to test if you want?
 
-Thanks!
+Sorry, no, I don't have concrete example either. My magor concern is workload
+which has no swap with DONTNEED and has possible swap with FREE.
 
-Andrew, should I repost or you can pick it up from this thread? Assuming
-you and others do not have objections of course.
-
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
