@@ -1,250 +1,300 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 4965B6B0082
-	for <linux-mm@kvack.org>; Thu, 26 Feb 2015 06:35:59 -0500 (EST)
-Received: by pdev10 with SMTP id v10so12423105pde.7
-        for <linux-mm@kvack.org>; Thu, 26 Feb 2015 03:35:59 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 48B806B0083
+	for <linux-mm@kvack.org>; Thu, 26 Feb 2015 06:36:03 -0500 (EST)
+Received: by pdjp10 with SMTP id p10so12467075pdj.3
+        for <linux-mm@kvack.org>; Thu, 26 Feb 2015 03:36:03 -0800 (PST)
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id h7si79548pdn.131.2015.02.26.03.35.39
+        by mx.google.com with ESMTP id by5si830181pad.46.2015.02.26.03.36.02
         for <linux-mm@kvack.org>;
-        Thu, 26 Feb 2015 03:35:39 -0800 (PST)
+        Thu, 26 Feb 2015 03:36:02 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 05/17] ia64: expose number of page table levels on Kconfig level
-Date: Thu, 26 Feb 2015 13:35:08 +0200
-Message-Id: <1424950520-90188-6-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 03/17] arm64: expose number of page table levels on Kconfig level
+Date: Thu, 26 Feb 2015 13:35:06 +0200
+Message-Id: <1424950520-90188-4-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1424950520-90188-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1424950520-90188-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Will Deacon <will.deacon@arm.com>
 
 We would want to use number of page table level to define mm_struct.
 Let's expose it as CONFIG_PGTABLE_LEVELS.
 
-We need to define PGTABLE_LEVELS before sourcing init/Kconfig:
-arch/Kconfig will define default value and it's sourced from init/Kconfig.
+ARM64_PGTABLE_LEVELS is renamed to PGTABLE_LEVELS and defined before
+sourcing init/Kconfig: arch/Kconfig will define default value and it's
+sourced from init/Kconfig.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Tony Luck <tony.luck@intel.com>
-Cc: Fenghua Yu <fenghua.yu@intel.com>
+Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Will Deacon <will.deacon@arm.com>
 Tested-by: Guenter Roeck <linux@roeck-us.net>
 ---
- arch/ia64/Kconfig                | 18 +++++-------------
- arch/ia64/include/asm/page.h     |  4 ++--
- arch/ia64/include/asm/pgalloc.h  |  4 ++--
- arch/ia64/include/asm/pgtable.h  | 12 ++++++------
- arch/ia64/kernel/ivt.S           | 12 ++++++------
- arch/ia64/kernel/machine_kexec.c |  4 ++--
- 6 files changed, 23 insertions(+), 31 deletions(-)
+ arch/arm64/Kconfig                     | 14 +++++++-------
+ arch/arm64/include/asm/kvm_mmu.h       |  4 ++--
+ arch/arm64/include/asm/page.h          |  4 ++--
+ arch/arm64/include/asm/pgalloc.h       |  8 ++++----
+ arch/arm64/include/asm/pgtable-hwdef.h |  6 +++---
+ arch/arm64/include/asm/pgtable-types.h | 12 ++++++------
+ arch/arm64/include/asm/pgtable.h       |  8 ++++----
+ arch/arm64/include/asm/tlb.h           |  4 ++--
+ arch/arm64/mm/mmu.c                    |  4 ++--
+ 9 files changed, 32 insertions(+), 32 deletions(-)
 
-diff --git a/arch/ia64/Kconfig b/arch/ia64/Kconfig
-index 074e52bf815c..4f9a6661491b 100644
---- a/arch/ia64/Kconfig
-+++ b/arch/ia64/Kconfig
-@@ -1,3 +1,8 @@
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index 1b8e97331ffb..3f2fba996bc2 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -143,6 +143,13 @@ config KERNEL_MODE_NEON
+ config FIX_EARLYCON_MEM
+ 	def_bool y
+ 
 +config PGTABLE_LEVELS
-+	int "Page Table Levels" if !IA64_PAGE_SIZE_64KB
-+	range 3 4 if !IA64_PAGE_SIZE_64KB
-+	default 3
++	int
++	default 2 if ARM64_64K_PAGES && ARM64_VA_BITS_42
++	default 3 if ARM64_64K_PAGES && ARM64_VA_BITS_48
++	default 3 if ARM64_4K_PAGES && ARM64_VA_BITS_39
++	default 4 if ARM64_4K_PAGES && ARM64_VA_BITS_48
 +
  source "init/Kconfig"
  
  source "kernel/Kconfig.freezer"
-@@ -286,19 +291,6 @@ config IA64_PAGE_SIZE_64KB
+@@ -413,13 +420,6 @@ config ARM64_VA_BITS
+ 	default 42 if ARM64_VA_BITS_42
+ 	default 48 if ARM64_VA_BITS_48
  
- endchoice
- 
--choice
--	prompt "Page Table Levels"
--	default PGTABLE_3
+-config ARM64_PGTABLE_LEVELS
+-	int
+-	default 2 if ARM64_64K_PAGES && ARM64_VA_BITS_42
+-	default 3 if ARM64_64K_PAGES && ARM64_VA_BITS_48
+-	default 3 if ARM64_4K_PAGES && ARM64_VA_BITS_39
+-	default 4 if ARM64_4K_PAGES && ARM64_VA_BITS_48
 -
--config PGTABLE_3
--	bool "3 Levels"
--
--config PGTABLE_4
--	depends on !IA64_PAGE_SIZE_64KB
--	bool "4 Levels"
--
--endchoice
--
- if IA64_HP_SIM
- config HZ
- 	default 32
-diff --git a/arch/ia64/include/asm/page.h b/arch/ia64/include/asm/page.h
-index 1f1bf144fe62..ec48bb9f95e1 100644
---- a/arch/ia64/include/asm/page.h
-+++ b/arch/ia64/include/asm/page.h
-@@ -173,7 +173,7 @@ get_order (unsigned long size)
-    */
-   typedef struct { unsigned long pte; } pte_t;
-   typedef struct { unsigned long pmd; } pmd_t;
--#ifdef CONFIG_PGTABLE_4
-+#if CONFIG_PGTABLE_LEVELS == 4
-   typedef struct { unsigned long pud; } pud_t;
- #endif
-   typedef struct { unsigned long pgd; } pgd_t;
-@@ -182,7 +182,7 @@ get_order (unsigned long size)
- 
- # define pte_val(x)	((x).pte)
- # define pmd_val(x)	((x).pmd)
--#ifdef CONFIG_PGTABLE_4
-+#if CONFIG_PGTABLE_LEVELS == 4
- # define pud_val(x)	((x).pud)
- #endif
- # define pgd_val(x)	((x).pgd)
-diff --git a/arch/ia64/include/asm/pgalloc.h b/arch/ia64/include/asm/pgalloc.h
-index 5767cdfc08db..f5e70e961948 100644
---- a/arch/ia64/include/asm/pgalloc.h
-+++ b/arch/ia64/include/asm/pgalloc.h
-@@ -32,7 +32,7 @@ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
- 	quicklist_free(0, NULL, pgd);
- }
- 
--#ifdef CONFIG_PGTABLE_4
-+#if CONFIG_PGTABLE_LEVELS == 4
- static inline void
- pgd_populate(struct mm_struct *mm, pgd_t * pgd_entry, pud_t * pud)
- {
-@@ -49,7 +49,7 @@ static inline void pud_free(struct mm_struct *mm, pud_t *pud)
- 	quicklist_free(0, NULL, pud);
- }
- #define __pud_free_tlb(tlb, pud, address)	pud_free((tlb)->mm, pud)
--#endif /* CONFIG_PGTABLE_4 */
-+#endif /* CONFIG_PGTABLE_LEVELS == 4 */
- 
- static inline void
- pud_populate(struct mm_struct *mm, pud_t * pud_entry, pmd_t * pmd)
-diff --git a/arch/ia64/include/asm/pgtable.h b/arch/ia64/include/asm/pgtable.h
-index 7b6f8801df57..9f3ed9ee8f13 100644
---- a/arch/ia64/include/asm/pgtable.h
-+++ b/arch/ia64/include/asm/pgtable.h
-@@ -99,7 +99,7 @@
- #define PMD_MASK	(~(PMD_SIZE-1))
- #define PTRS_PER_PMD	(1UL << (PTRS_PER_PTD_SHIFT))
- 
--#ifdef CONFIG_PGTABLE_4
-+#if CONFIG_PGTABLE_LEVELS == 4
+ config CPU_BIG_ENDIAN
+        bool "Build big-endian kernel"
+        help
+diff --git a/arch/arm64/include/asm/kvm_mmu.h b/arch/arm64/include/asm/kvm_mmu.h
+index 6458b5373142..19660692efec 100644
+--- a/arch/arm64/include/asm/kvm_mmu.h
++++ b/arch/arm64/include/asm/kvm_mmu.h
+@@ -161,12 +161,12 @@ static inline bool kvm_s2pmd_readonly(pmd_t *pmd)
  /*
-  * Definitions for second level:
-  *
-@@ -117,7 +117,7 @@
-  *
-  * PGDIR_SHIFT determines what a first-level page table entry can map.
+  * If we are concatenating first level stage-2 page tables, we would have less
+  * than or equal to 16 pointers in the fake PGD, because that's what the
+- * architecture allows.  In this case, (4 - CONFIG_ARM64_PGTABLE_LEVELS)
++ * architecture allows.  In this case, (4 - CONFIG_PGTABLE_LEVELS)
+  * represents the first level for the host, and we add 1 to go to the next
+  * level (which uses contatenation) for the stage-2 tables.
   */
--#ifdef CONFIG_PGTABLE_4
-+#if CONFIG_PGTABLE_LEVELS == 4
- #define PGDIR_SHIFT		(PUD_SHIFT + (PTRS_PER_PTD_SHIFT))
+ #if PTRS_PER_S2_PGD <= 16
+-#define KVM_PREALLOC_LEVEL	(4 - CONFIG_ARM64_PGTABLE_LEVELS + 1)
++#define KVM_PREALLOC_LEVEL	(4 - CONFIG_PGTABLE_LEVELS + 1)
  #else
- #define PGDIR_SHIFT		(PMD_SHIFT + (PTRS_PER_PTD_SHIFT))
-@@ -180,7 +180,7 @@
- #define __S111	__pgprot(__ACCESS_BITS | _PAGE_PL_3 | _PAGE_AR_RWX)
- 
- #define pgd_ERROR(e)	printk("%s:%d: bad pgd %016lx.\n", __FILE__, __LINE__, pgd_val(e))
--#ifdef CONFIG_PGTABLE_4
-+#if CONFIG_PGTABLE_LEVELS == 4
- #define pud_ERROR(e)	printk("%s:%d: bad pud %016lx.\n", __FILE__, __LINE__, pud_val(e))
+ #define KVM_PREALLOC_LEVEL	(0)
  #endif
- #define pmd_ERROR(e)	printk("%s:%d: bad pmd %016lx.\n", __FILE__, __LINE__, pmd_val(e))
-@@ -281,7 +281,7 @@ extern unsigned long VMALLOC_END;
- #define pud_page_vaddr(pud)		((unsigned long) __va(pud_val(pud) & _PFN_MASK))
- #define pud_page(pud)			virt_to_page((pud_val(pud) + PAGE_OFFSET))
+diff --git a/arch/arm64/include/asm/page.h b/arch/arm64/include/asm/page.h
+index 22b16232bd60..8fc8fa280e92 100644
+--- a/arch/arm64/include/asm/page.h
++++ b/arch/arm64/include/asm/page.h
+@@ -36,9 +36,9 @@
+  * for more information).
+  */
+ #ifdef CONFIG_ARM64_64K_PAGES
+-#define SWAPPER_PGTABLE_LEVELS	(CONFIG_ARM64_PGTABLE_LEVELS)
++#define SWAPPER_PGTABLE_LEVELS	(CONFIG_PGTABLE_LEVELS)
+ #else
+-#define SWAPPER_PGTABLE_LEVELS	(CONFIG_ARM64_PGTABLE_LEVELS - 1)
++#define SWAPPER_PGTABLE_LEVELS	(CONFIG_PGTABLE_LEVELS - 1)
+ #endif
  
--#ifdef CONFIG_PGTABLE_4
-+#if CONFIG_PGTABLE_LEVELS == 4
- #define pgd_none(pgd)			(!pgd_val(pgd))
- #define pgd_bad(pgd)			(!ia64_phys_addr_valid(pgd_val(pgd)))
- #define pgd_present(pgd)		(pgd_val(pgd) != 0UL)
-@@ -384,7 +384,7 @@ pgd_offset (const struct mm_struct *mm, unsigned long address)
-    here.  */
- #define pgd_offset_gate(mm, addr)	pgd_offset_k(addr)
+ #define SWAPPER_DIR_SIZE	(SWAPPER_PGTABLE_LEVELS * PAGE_SIZE)
+diff --git a/arch/arm64/include/asm/pgalloc.h b/arch/arm64/include/asm/pgalloc.h
+index e20df38a8ff3..76420568d66a 100644
+--- a/arch/arm64/include/asm/pgalloc.h
++++ b/arch/arm64/include/asm/pgalloc.h
+@@ -28,7 +28,7 @@
  
--#ifdef CONFIG_PGTABLE_4
-+#if CONFIG_PGTABLE_LEVELS == 4
- /* Find an entry in the second-level page table.. */
- #define pud_offset(dir,addr) \
- 	((pud_t *) pgd_page_vaddr(*(dir)) + (((addr) >> PUD_SHIFT) & (PTRS_PER_PUD - 1)))
-@@ -586,7 +586,7 @@ extern struct page *zero_page_memmap_ptr;
- #define __HAVE_ARCH_PGD_OFFSET_GATE
+ #define PGALLOC_GFP	(GFP_KERNEL | __GFP_NOTRACK | __GFP_REPEAT | __GFP_ZERO)
  
+-#if CONFIG_ARM64_PGTABLE_LEVELS > 2
++#if CONFIG_PGTABLE_LEVELS > 2
  
--#ifndef CONFIG_PGTABLE_4
-+#if CONFIG_PGTABLE_LEVELS == 3
+ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
+ {
+@@ -46,9 +46,9 @@ static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
+ 	set_pud(pud, __pud(__pa(pmd) | PMD_TYPE_TABLE));
+ }
+ 
+-#endif	/* CONFIG_ARM64_PGTABLE_LEVELS > 2 */
++#endif	/* CONFIG_PGTABLE_LEVELS > 2 */
+ 
+-#if CONFIG_ARM64_PGTABLE_LEVELS > 3
++#if CONFIG_PGTABLE_LEVELS > 3
+ 
+ static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
+ {
+@@ -66,7 +66,7 @@ static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
+ 	set_pgd(pgd, __pgd(__pa(pud) | PUD_TYPE_TABLE));
+ }
+ 
+-#endif	/* CONFIG_ARM64_PGTABLE_LEVELS > 3 */
++#endif	/* CONFIG_PGTABLE_LEVELS > 3 */
+ 
+ extern pgd_t *pgd_alloc(struct mm_struct *mm);
+ extern void pgd_free(struct mm_struct *mm, pgd_t *pgd);
+diff --git a/arch/arm64/include/asm/pgtable-hwdef.h b/arch/arm64/include/asm/pgtable-hwdef.h
+index 5f930cc9ea83..80f3d241cff8 100644
+--- a/arch/arm64/include/asm/pgtable-hwdef.h
++++ b/arch/arm64/include/asm/pgtable-hwdef.h
+@@ -21,7 +21,7 @@
+ /*
+  * PMD_SHIFT determines the size a level 2 page table entry can map.
+  */
+-#if CONFIG_ARM64_PGTABLE_LEVELS > 2
++#if CONFIG_PGTABLE_LEVELS > 2
+ #define PMD_SHIFT		((PAGE_SHIFT - 3) * 2 + 3)
+ #define PMD_SIZE		(_AC(1, UL) << PMD_SHIFT)
+ #define PMD_MASK		(~(PMD_SIZE-1))
+@@ -31,7 +31,7 @@
+ /*
+  * PUD_SHIFT determines the size a level 1 page table entry can map.
+  */
+-#if CONFIG_ARM64_PGTABLE_LEVELS > 3
++#if CONFIG_PGTABLE_LEVELS > 3
+ #define PUD_SHIFT		((PAGE_SHIFT - 3) * 3 + 3)
+ #define PUD_SIZE		(_AC(1, UL) << PUD_SHIFT)
+ #define PUD_MASK		(~(PUD_SIZE-1))
+@@ -42,7 +42,7 @@
+  * PGDIR_SHIFT determines the size a top-level page table entry can map
+  * (depending on the configuration, this level can be 0, 1 or 2).
+  */
+-#define PGDIR_SHIFT		((PAGE_SHIFT - 3) * CONFIG_ARM64_PGTABLE_LEVELS + 3)
++#define PGDIR_SHIFT		((PAGE_SHIFT - 3) * CONFIG_PGTABLE_LEVELS + 3)
+ #define PGDIR_SIZE		(_AC(1, UL) << PGDIR_SHIFT)
+ #define PGDIR_MASK		(~(PGDIR_SIZE-1))
+ #define PTRS_PER_PGD		(1 << (VA_BITS - PGDIR_SHIFT))
+diff --git a/arch/arm64/include/asm/pgtable-types.h b/arch/arm64/include/asm/pgtable-types.h
+index ca9df80af896..2b1bd7e52c3b 100644
+--- a/arch/arm64/include/asm/pgtable-types.h
++++ b/arch/arm64/include/asm/pgtable-types.h
+@@ -38,13 +38,13 @@ typedef struct { pteval_t pte; } pte_t;
+ #define pte_val(x)	((x).pte)
+ #define __pte(x)	((pte_t) { (x) } )
+ 
+-#if CONFIG_ARM64_PGTABLE_LEVELS > 2
++#if CONFIG_PGTABLE_LEVELS > 2
+ typedef struct { pmdval_t pmd; } pmd_t;
+ #define pmd_val(x)	((x).pmd)
+ #define __pmd(x)	((pmd_t) { (x) } )
+ #endif
+ 
+-#if CONFIG_ARM64_PGTABLE_LEVELS > 3
++#if CONFIG_PGTABLE_LEVELS > 3
+ typedef struct { pudval_t pud; } pud_t;
+ #define pud_val(x)	((x).pud)
+ #define __pud(x)	((pud_t) { (x) } )
+@@ -64,13 +64,13 @@ typedef pteval_t pte_t;
+ #define pte_val(x)	(x)
+ #define __pte(x)	(x)
+ 
+-#if CONFIG_ARM64_PGTABLE_LEVELS > 2
++#if CONFIG_PGTABLE_LEVELS > 2
+ typedef pmdval_t pmd_t;
+ #define pmd_val(x)	(x)
+ #define __pmd(x)	(x)
+ #endif
+ 
+-#if CONFIG_ARM64_PGTABLE_LEVELS > 3
++#if CONFIG_PGTABLE_LEVELS > 3
+ typedef pudval_t pud_t;
+ #define pud_val(x)	(x)
+ #define __pud(x)	(x)
+@@ -86,9 +86,9 @@ typedef pteval_t pgprot_t;
+ 
+ #endif /* STRICT_MM_TYPECHECKS */
+ 
+-#if CONFIG_ARM64_PGTABLE_LEVELS == 2
++#if CONFIG_PGTABLE_LEVELS == 2
+ #include <asm-generic/pgtable-nopmd.h>
+-#elif CONFIG_ARM64_PGTABLE_LEVELS == 3
++#elif CONFIG_PGTABLE_LEVELS == 3
  #include <asm-generic/pgtable-nopud.h>
  #endif
- #include <asm-generic/pgtable.h>
-diff --git a/arch/ia64/kernel/ivt.S b/arch/ia64/kernel/ivt.S
-index 18e794a57248..e42bf7a913f3 100644
---- a/arch/ia64/kernel/ivt.S
-+++ b/arch/ia64/kernel/ivt.S
-@@ -146,7 +146,7 @@ ENTRY(vhpt_miss)
- (p6)	dep r17=r18,r19,3,(PAGE_SHIFT-3)	// r17=pgd_offset for region 5
- (p7)	dep r17=r18,r17,3,(PAGE_SHIFT-6)	// r17=pgd_offset for region[0-4]
- 	cmp.eq p7,p6=0,r21			// unused address bits all zeroes?
--#ifdef CONFIG_PGTABLE_4
-+#if CONFIG_PGTABLE_LEVELS == 4
- 	shr.u r28=r22,PUD_SHIFT			// shift pud index into position
- #else
- 	shr.u r18=r22,PMD_SHIFT			// shift pmd index into position
-@@ -155,7 +155,7 @@ ENTRY(vhpt_miss)
- 	ld8 r17=[r17]				// get *pgd (may be 0)
- 	;;
- (p7)	cmp.eq p6,p7=r17,r0			// was pgd_present(*pgd) == NULL?
--#ifdef CONFIG_PGTABLE_4
-+#if CONFIG_PGTABLE_LEVELS == 4
- 	dep r28=r28,r17,3,(PAGE_SHIFT-3)	// r28=pud_offset(pgd,addr)
- 	;;
- 	shr.u r18=r22,PMD_SHIFT			// shift pmd index into position
-@@ -222,13 +222,13 @@ ENTRY(vhpt_miss)
- 	 */
- 	ld8 r25=[r21]				// read *pte again
- 	ld8 r26=[r17]				// read *pmd again
--#ifdef CONFIG_PGTABLE_4
-+#if CONFIG_PGTABLE_LEVELS == 4
- 	ld8 r19=[r28]				// read *pud again
- #endif
- 	cmp.ne p6,p7=r0,r0
- 	;;
- 	cmp.ne.or.andcm p6,p7=r26,r20		// did *pmd change
--#ifdef CONFIG_PGTABLE_4
-+#if CONFIG_PGTABLE_LEVELS == 4
- 	cmp.ne.or.andcm p6,p7=r19,r29		// did *pud change
- #endif
- 	mov r27=PAGE_SHIFT<<2
-@@ -476,7 +476,7 @@ ENTRY(nested_dtlb_miss)
- (p6)	dep r17=r18,r19,3,(PAGE_SHIFT-3)	// r17=pgd_offset for region 5
- (p7)	dep r17=r18,r17,3,(PAGE_SHIFT-6)	// r17=pgd_offset for region[0-4]
- 	cmp.eq p7,p6=0,r21			// unused address bits all zeroes?
--#ifdef CONFIG_PGTABLE_4
-+#if CONFIG_PGTABLE_LEVELS == 4
- 	shr.u r18=r22,PUD_SHIFT			// shift pud index into position
- #else
- 	shr.u r18=r22,PMD_SHIFT			// shift pmd index into position
-@@ -487,7 +487,7 @@ ENTRY(nested_dtlb_miss)
- (p7)	cmp.eq p6,p7=r17,r0			// was pgd_present(*pgd) == NULL?
- 	dep r17=r18,r17,3,(PAGE_SHIFT-3)	// r17=p[u|m]d_offset(pgd,addr)
- 	;;
--#ifdef CONFIG_PGTABLE_4
-+#if CONFIG_PGTABLE_LEVELS == 4
- (p7)	ld8 r17=[r17]				// get *pud (may be 0)
- 	shr.u r18=r22,PMD_SHIFT			// shift pmd index into position
- 	;;
-diff --git a/arch/ia64/kernel/machine_kexec.c b/arch/ia64/kernel/machine_kexec.c
-index 5151a649c96b..b72cd7a07222 100644
---- a/arch/ia64/kernel/machine_kexec.c
-+++ b/arch/ia64/kernel/machine_kexec.c
-@@ -156,9 +156,9 @@ void arch_crash_save_vmcoreinfo(void)
- 	VMCOREINFO_OFFSET(node_memblk_s, start_paddr);
- 	VMCOREINFO_OFFSET(node_memblk_s, size);
- #endif
--#ifdef CONFIG_PGTABLE_3
-+#if CONFIG_PGTABLE_LEVELS == 3
- 	VMCOREINFO_CONFIG(PGTABLE_3);
--#elif defined(CONFIG_PGTABLE_4)
-+#elif CONFIG_PGTABLE_LEVELS == 4
- 	VMCOREINFO_CONFIG(PGTABLE_4);
- #endif
+ 
+diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
+index 16449c535e50..38f7591128df 100644
+--- a/arch/arm64/include/asm/pgtable.h
++++ b/arch/arm64/include/asm/pgtable.h
+@@ -374,7 +374,7 @@ static inline pte_t *pmd_page_vaddr(pmd_t pmd)
+  */
+ #define mk_pte(page,prot)	pfn_pte(page_to_pfn(page),prot)
+ 
+-#if CONFIG_ARM64_PGTABLE_LEVELS > 2
++#if CONFIG_PGTABLE_LEVELS > 2
+ 
+ #define pmd_ERROR(pmd)		__pmd_error(__FILE__, __LINE__, pmd_val(pmd))
+ 
+@@ -409,9 +409,9 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
+ 
+ #define pud_page(pud)		pfn_to_page(__phys_to_pfn(pud_val(pud) & PHYS_MASK))
+ 
+-#endif	/* CONFIG_ARM64_PGTABLE_LEVELS > 2 */
++#endif	/* CONFIG_PGTABLE_LEVELS > 2 */
+ 
+-#if CONFIG_ARM64_PGTABLE_LEVELS > 3
++#if CONFIG_PGTABLE_LEVELS > 3
+ 
+ #define pud_ERROR(pud)		__pud_error(__FILE__, __LINE__, pud_val(pud))
+ 
+@@ -445,7 +445,7 @@ static inline pud_t *pud_offset(pgd_t *pgd, unsigned long addr)
+ 
+ #define pgd_page(pgd)		pfn_to_page(__phys_to_pfn(pgd_val(pgd) & PHYS_MASK))
+ 
+-#endif  /* CONFIG_ARM64_PGTABLE_LEVELS > 3 */
++#endif  /* CONFIG_PGTABLE_LEVELS > 3 */
+ 
+ #define pgd_ERROR(pgd)		__pgd_error(__FILE__, __LINE__, pgd_val(pgd))
+ 
+diff --git a/arch/arm64/include/asm/tlb.h b/arch/arm64/include/asm/tlb.h
+index c028fe37456f..66399cf6b490 100644
+--- a/arch/arm64/include/asm/tlb.h
++++ b/arch/arm64/include/asm/tlb.h
+@@ -52,7 +52,7 @@ static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
+ 	tlb_remove_entry(tlb, pte);
  }
+ 
+-#if CONFIG_ARM64_PGTABLE_LEVELS > 2
++#if CONFIG_PGTABLE_LEVELS > 2
+ static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
+ 				  unsigned long addr)
+ {
+@@ -60,7 +60,7 @@ static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
+ }
+ #endif
+ 
+-#if CONFIG_ARM64_PGTABLE_LEVELS > 3
++#if CONFIG_PGTABLE_LEVELS > 3
+ static inline void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pudp,
+ 				  unsigned long addr)
+ {
+diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
+index c6daaf6c6f97..79e01163a981 100644
+--- a/arch/arm64/mm/mmu.c
++++ b/arch/arm64/mm/mmu.c
+@@ -550,10 +550,10 @@ void vmemmap_free(unsigned long start, unsigned long end)
+ #endif	/* CONFIG_SPARSEMEM_VMEMMAP */
+ 
+ static pte_t bm_pte[PTRS_PER_PTE] __page_aligned_bss;
+-#if CONFIG_ARM64_PGTABLE_LEVELS > 2
++#if CONFIG_PGTABLE_LEVELS > 2
+ static pmd_t bm_pmd[PTRS_PER_PMD] __page_aligned_bss;
+ #endif
+-#if CONFIG_ARM64_PGTABLE_LEVELS > 3
++#if CONFIG_PGTABLE_LEVELS > 3
+ static pud_t bm_pud[PTRS_PER_PUD] __page_aligned_bss;
+ #endif
+ 
 -- 
 2.1.4
 
