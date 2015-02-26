@@ -1,49 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 181A86B0088
-	for <linux-mm@kvack.org>; Thu, 26 Feb 2015 06:36:09 -0500 (EST)
-Received: by pdjy10 with SMTP id y10so12436779pdj.6
-        for <linux-mm@kvack.org>; Thu, 26 Feb 2015 03:36:08 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id hw2si2247000pbb.188.2015.02.26.03.36.05
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 272E96B0089
+	for <linux-mm@kvack.org>; Thu, 26 Feb 2015 06:36:11 -0500 (EST)
+Received: by pdev10 with SMTP id v10so12424051pde.7
+        for <linux-mm@kvack.org>; Thu, 26 Feb 2015 03:36:10 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id y15si826775pbt.37.2015.02.26.03.36.06
         for <linux-mm@kvack.org>;
-        Thu, 26 Feb 2015 03:36:06 -0800 (PST)
+        Thu, 26 Feb 2015 03:36:07 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 12/17] sparc: expose number of page table levels
-Date: Thu, 26 Feb 2015 13:35:15 +0200
-Message-Id: <1424950520-90188-13-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 16/17] mm: define default PGTABLE_LEVELS to two
+Date: Thu, 26 Feb 2015 13:35:19 +0200
+Message-Id: <1424950520-90188-17-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1424950520-90188-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1424950520-90188-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "David S. Miller" <davem@davemloft.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-We would want to use number of page table level to define mm_struct.
-Let's expose it as CONFIG_PGTABLE_LEVELS.
+By this time all architectures which support more than two page table
+levels should be covered. This patch add default definiton of
+PGTABLE_LEVELS equal 2.
+
+We also add assert to detect inconsistence between CONFIG_PGTABLE_LEVELS
+and __PAGETABLE_PMD_FOLDED/__PAGETABLE_PUD_FOLDED.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: "David S. Miller" <davem@davemloft.net>
 Tested-by: Guenter Roeck <linux@roeck-us.net>
 ---
- arch/sparc/Kconfig | 4 ++++
- 1 file changed, 4 insertions(+)
+ arch/Kconfig                  | 4 ++++
+ include/asm-generic/pgtable.h | 5 +++++
+ 2 files changed, 9 insertions(+)
 
-diff --git a/arch/sparc/Kconfig b/arch/sparc/Kconfig
-index 96ac69c5eba0..cb06f5433e12 100644
---- a/arch/sparc/Kconfig
-+++ b/arch/sparc/Kconfig
-@@ -143,6 +143,10 @@ config GENERIC_ISA_DMA
- config ARCH_SUPPORTS_DEBUG_PAGEALLOC
- 	def_bool y if SPARC64
+diff --git a/arch/Kconfig b/arch/Kconfig
+index 05d7a8a458d5..a9c95d36ba70 100644
+--- a/arch/Kconfig
++++ b/arch/Kconfig
+@@ -484,6 +484,10 @@ config HAVE_IRQ_EXIT_ON_IRQ_STACK
+ 	  This spares a stack switch and improves cache usage on softirq
+ 	  processing.
  
 +config PGTABLE_LEVELS
-+	default 4 if 64BIT
-+	default 3
++	int
++	default 2
 +
- source "init/Kconfig"
+ #
+ # ABI hall of shame
+ #
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 4d46085c1b90..1f9f5da6828f 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -7,6 +7,11 @@
+ #include <linux/mm_types.h>
+ #include <linux/bug.h>
  
- source "kernel/Kconfig.freezer"
++#if 4 - defined(__PAGETABLE_PUD_FOLDED) - defined(__PAGETABLE_PMD_FOLDED) != \
++	CONFIG_PGTABLE_LEVELS
++#error CONFIG_PGTABLE_LEVELS is not consistent with __PAGETABLE_{PUD,PMD}_FOLDED
++#endif
++
+ /*
+  * On almost all architectures and configurations, 0 can be used as the
+  * upper ceiling to free_pgtables(): on many architectures it has the same
 -- 
 2.1.4
 
