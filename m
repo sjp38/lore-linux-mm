@@ -1,47 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C1F56B0075
-	for <linux-mm@kvack.org>; Thu, 26 Feb 2015 06:35:46 -0500 (EST)
-Received: by padfb1 with SMTP id fb1so13330104pad.8
-        for <linux-mm@kvack.org>; Thu, 26 Feb 2015 03:35:45 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id fd2si716171pbc.110.2015.02.26.03.35.36
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 05A746B0078
+	for <linux-mm@kvack.org>; Thu, 26 Feb 2015 06:35:48 -0500 (EST)
+Received: by paceu11 with SMTP id eu11so13338048pac.7
+        for <linux-mm@kvack.org>; Thu, 26 Feb 2015 03:35:47 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id ng11si815912pdb.55.2015.02.26.03.35.36
         for <linux-mm@kvack.org>;
-        Thu, 26 Feb 2015 03:35:36 -0800 (PST)
+        Thu, 26 Feb 2015 03:35:37 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 17/17] mm: do not add nr_pmds into mm_struct if PMD is folded
-Date: Thu, 26 Feb 2015 13:35:20 +0200
-Message-Id: <1424950520-90188-18-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 02/17] alpha: expose number of page table levels on Kconfig level
+Date: Thu, 26 Feb 2015 13:35:05 +0200
+Message-Id: <1424950520-90188-3-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1424950520-90188-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1424950520-90188-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>
 
-CONFIG_PGTABLE_LEVELS is now available on every architecture and we can
-use it to check if we need to add nr_pmds into mm_struct.
+We would want to use number of page table level to define mm_struct.
+Let's expose it as CONFIG_PGTABLE_LEVELS.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Acked-by: Richard Henderson <rth@twiddle.net>
+Cc: Ivan Kokshaysky <ink@jurassic.park.msu.ru>
+Cc: Matt Turner <mattst88@gmail.com>
 Tested-by: Guenter Roeck <linux@roeck-us.net>
 ---
- include/linux/mm_types.h | 2 ++
- 1 file changed, 2 insertions(+)
+ arch/alpha/Kconfig | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 199a03aab8dc..590630eb59ba 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -364,7 +364,9 @@ struct mm_struct {
- 	atomic_t mm_users;			/* How many users with user space? */
- 	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
- 	atomic_long_t nr_ptes;			/* PTE page table pages */
-+#if CONFIG_PGTABLE_LEVELS > 2
- 	atomic_long_t nr_pmds;			/* PMD page table pages */
-+#endif
- 	int map_count;				/* number of VMAs */
+diff --git a/arch/alpha/Kconfig b/arch/alpha/Kconfig
+index b7ff9a318c31..bf9e9d3b3792 100644
+--- a/arch/alpha/Kconfig
++++ b/arch/alpha/Kconfig
+@@ -76,6 +76,10 @@ config GENERIC_ISA_DMA
+ 	bool
+ 	default y
  
- 	spinlock_t page_table_lock;		/* Protects page tables and some counters */
++config PGTABLE_LEVELS
++	int
++	default 3
++
+ source "init/Kconfig"
+ source "kernel/Kconfig.freezer"
+ 
 -- 
 2.1.4
 
