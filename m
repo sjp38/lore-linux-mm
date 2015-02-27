@@ -1,22 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f180.google.com (mail-ie0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C5076B0070
-	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 17:17:24 -0500 (EST)
-Received: by iebtr6 with SMTP id tr6so34560245ieb.7
-        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 14:17:24 -0800 (PST)
-Received: from mail-ie0-x22d.google.com (mail-ie0-x22d.google.com. [2607:f8b0:4001:c03::22d])
-        by mx.google.com with ESMTPS id w12si2008738ich.56.2015.02.27.14.17.24
+Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 718A46B0071
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 17:17:51 -0500 (EST)
+Received: by iecat20 with SMTP id at20so34619549iec.12
+        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 14:17:51 -0800 (PST)
+Received: from mail-ig0-x22b.google.com (mail-ig0-x22b.google.com. [2607:f8b0:4001:c05::22b])
+        by mx.google.com with ESMTPS id l7si4515727ioi.71.2015.02.27.14.17.51
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Feb 2015 14:17:24 -0800 (PST)
-Received: by iecrd18 with SMTP id rd18so34617683iec.5
-        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 14:17:24 -0800 (PST)
-Date: Fri, 27 Feb 2015 14:17:21 -0800 (PST)
+        Fri, 27 Feb 2015 14:17:51 -0800 (PST)
+Received: by igjz20 with SMTP id z20so4211000igj.4
+        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 14:17:51 -0800 (PST)
+Date: Fri, 27 Feb 2015 14:17:49 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch v2 2/3] mm, thp: really limit transparent hugepage allocation
- to local node
+Subject: [patch v2 3/3] kernel, cpuset: remove exception for __GFP_THISNODE
 In-Reply-To: <alpine.DEB.2.10.1502271415510.7225@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.10.1502271416580.7225@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.10.1502271417270.7225@chino.kir.corp.google.com>
 References: <alpine.DEB.2.10.1502251621010.10303@chino.kir.corp.google.com> <alpine.DEB.2.10.1502271415510.7225@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -25,72 +24,51 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Pravin Shelar <pshelar@nicira.com>, Jarno Rajahalme <jrajahalme@nicira.com>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, cgroups@vger.kernel.org, dev@openvswitch.org
 
-Commit 077fcf116c8c ("mm/thp: allocate transparent hugepages on local
-node") restructured alloc_hugepage_vma() with the intent of only
-allocating transparent hugepages locally when there was not an effective
-interleave mempolicy.
+Nothing calls __cpuset_node_allowed() with __GFP_THISNODE set anymore, so
+remove the obscure comment about it and its special-case exception.
 
-alloc_pages_exact_node() does not limit the allocation to the single
-node, however, but rather prefers it.  This is because __GFP_THISNODE is
-not set which would cause the node-local nodemask to be passed.  Without
-it, only a nodemask that prefers the local node is passed.
-
-Fix this by passing __GFP_THISNODE and falling back to small pages when
-the allocation fails.
-
-Commit 9f1b868a13ac ("mm: thp: khugepaged: add policy for finding target
-node") suffers from a similar problem for khugepaged, which is also
-fixed.
-
-Fixes: 077fcf116c8c ("mm/thp: allocate transparent hugepages on local node")
-Fixes: 9f1b868a13ac ("mm: thp: khugepaged: add policy for finding target node")
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- mm/huge_memory.c | 9 +++++++--
- mm/mempolicy.c   | 3 ++-
- 2 files changed, 9 insertions(+), 3 deletions(-)
+ kernel/cpuset.c | 18 +++++-------------
+ 1 file changed, 5 insertions(+), 13 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2311,8 +2311,14 @@ static struct page
- 		       struct vm_area_struct *vma, unsigned long address,
- 		       int node)
- {
-+	gfp_t flags;
-+
- 	VM_BUG_ON_PAGE(*hpage, *hpage);
+diff --git a/kernel/cpuset.c b/kernel/cpuset.c
+--- a/kernel/cpuset.c
++++ b/kernel/cpuset.c
+@@ -2445,20 +2445,12 @@ static struct cpuset *nearest_hardwall_ancestor(struct cpuset *cs)
+  * @node: is this an allowed node?
+  * @gfp_mask: memory allocation flags
+  *
+- * If we're in interrupt, yes, we can always allocate.  If __GFP_THISNODE is
+- * set, yes, we can always allocate.  If node is in our task's mems_allowed,
+- * yes.  If it's not a __GFP_HARDWALL request and this node is in the nearest
+- * hardwalled cpuset ancestor to this task's cpuset, yes.  If the task has been
+- * OOM killed and has access to memory reserves as specified by the TIF_MEMDIE
+- * flag, yes.
++ * If we're in interrupt, yes, we can always allocate.  If @node is set in
++ * current's mems_allowed, yes.  If it's not a __GFP_HARDWALL request and this
++ * node is set in the nearest hardwalled cpuset ancestor to current's cpuset,
++ * yes.  If current has access to memory reserves due to TIF_MEMDIE, yes.
+  * Otherwise, no.
+  *
+- * The __GFP_THISNODE placement logic is really handled elsewhere,
+- * by forcibly using a zonelist starting at a specified node, and by
+- * (in get_page_from_freelist()) refusing to consider the zones for
+- * any node on the zonelist except the first.  By the time any such
+- * calls get to this routine, we should just shut up and say 'yes'.
+- *
+  * GFP_USER allocations are marked with the __GFP_HARDWALL bit,
+  * and do not allow allocations outside the current tasks cpuset
+  * unless the task has been OOM killed as is marked TIF_MEMDIE.
+@@ -2494,7 +2486,7 @@ int __cpuset_node_allowed(int node, gfp_t gfp_mask)
+ 	int allowed;			/* is allocation in zone z allowed? */
+ 	unsigned long flags;
  
-+	/* Only allocate from the target node */
-+	flags = alloc_hugepage_gfpmask(khugepaged_defrag(), __GFP_OTHER_NODE) |
-+	        __GFP_THISNODE;
-+
- 	/*
- 	 * Before allocating the hugepage, release the mmap_sem read lock.
- 	 * The allocation can take potentially a long time if it involves
-@@ -2321,8 +2327,7 @@ static struct page
- 	 */
- 	up_read(&mm->mmap_sem);
- 
--	*hpage = alloc_pages_exact_node(node, alloc_hugepage_gfpmask(
--		khugepaged_defrag(), __GFP_OTHER_NODE), HPAGE_PMD_ORDER);
-+	*hpage = alloc_pages_exact_node(node, flags, HPAGE_PMD_ORDER);
- 	if (unlikely(!*hpage)) {
- 		count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
- 		*hpage = ERR_PTR(-ENOMEM);
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1985,7 +1985,8 @@ retry_cpuset:
- 		nmask = policy_nodemask(gfp, pol);
- 		if (!nmask || node_isset(node, *nmask)) {
- 			mpol_cond_put(pol);
--			page = alloc_pages_exact_node(node, gfp, order);
-+			page = alloc_pages_exact_node(node,
-+						gfp | __GFP_THISNODE, order);
- 			goto out;
- 		}
- 	}
+-	if (in_interrupt() || (gfp_mask & __GFP_THISNODE))
++	if (in_interrupt())
+ 		return 1;
+ 	if (node_isset(node, current->mems_allowed))
+ 		return 1;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
