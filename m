@@ -1,83 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f178.google.com (mail-qc0-f178.google.com [209.85.216.178])
-	by kanga.kvack.org (Postfix) with ESMTP id EC8CA6B0032
-	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 16:40:35 -0500 (EST)
-Received: by qcvx3 with SMTP id x3so16155989qcv.5
-        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 13:40:35 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 34si5316784qgn.30.2015.02.27.13.40.34
+Received: from mail-ie0-f172.google.com (mail-ie0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id D1E286B0032
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 17:03:44 -0500 (EST)
+Received: by iecrl12 with SMTP id rl12so34523283iec.2
+        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 14:03:44 -0800 (PST)
+Received: from mail-ig0-x231.google.com (mail-ig0-x231.google.com. [2607:f8b0:4001:c05::231])
+        by mx.google.com with ESMTPS id o11si5334715icp.68.2015.02.27.14.03.44
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Feb 2015 13:40:35 -0800 (PST)
-Message-ID: <54F0DA1E.9060006@redhat.com>
-Date: Fri, 27 Feb 2015 15:57:02 -0500
-From: Rik van Riel <riel@redhat.com>
+        Fri, 27 Feb 2015 14:03:44 -0800 (PST)
+Received: by igbhl2 with SMTP id hl2so4098343igb.3
+        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 14:03:44 -0800 (PST)
+Date: Fri, 27 Feb 2015 14:03:41 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch 1/2] mm: remove GFP_THISNODE
+In-Reply-To: <54F01E02.1090007@suse.cz>
+Message-ID: <alpine.DEB.2.10.1502271335520.4718@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1502251621010.10303@chino.kir.corp.google.com> <54EED9A7.5010505@suse.cz> <alpine.DEB.2.10.1502261902580.24302@chino.kir.corp.google.com> <54F01E02.1090007@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: set khugepaged_max_ptes_none by 1/8 of HPAGE_PMD_NR
-References: <1425061608-15811-1-git-send-email-ebru.akagunduz@gmail.com> <alpine.DEB.2.10.1502271248240.2122@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1502271248240.2122@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kirill@shutemov.name, mhocko@suse.cz, mgorman@suse.de, sasha.levin@oracle.com, hughd@google.com, hannes@cmpxchg.org, vbabka@suse.cz, linux-kernel@vger.kernel.org, aarcange@redhat.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Pravin Shelar <pshelar@nicira.com>, Jarno Rajahalme <jrajahalme@nicira.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, dev@openvswitch.org
 
-On 02/27/2015 03:53 PM, David Rientjes wrote:
-> On Fri, 27 Feb 2015, Ebru Akagunduz wrote:
+On Fri, 27 Feb 2015, Vlastimil Babka wrote:
+
+> Oh, right. I missed the new trigger. My sanity and career is saved!
 > 
->> Using THP, programs can access memory faster, by having the
->> kernel collapse small pages into large pages. The parameter
->> max_ptes_none specifies how many extra small pages (that are
->> not already mapped) can be allocated when collapsing a group
->> of small pages into one large page.
->>
+
+Haha.
+
+> Well, no... the flags are still a mess. Aren't GFP_TRANSHUGE | __GFP_THISNODE
+> allocations still problematic after this patch and 2/2? Those do include
+> __GFP_WAIT (unless !defrag). So with only patch 2/2 without 1/2 they would match
+> GFP_THISNODE and bail out (not good for khugepaged at least...).
+
+With both patches: if __GFP_WAIT isn't set, either for page fault or 
+khugepaged, then we always exit immediately from __alloc_pages_slowpath(): 
+we can't try reclaim or compaction.  If __GFP_WAIT is set, then the new 
+conditional fails, and the slowpath proceeds as we want it to with a 
+zonelist that only includes local nodes because __GFP_THISNODE is set for 
+node_zonelist() in alloc_pages_exact_node().  Those are the only zones 
+that get_page_from_freelist() gets to iterate over.
+
+With only this patch: we still have the problem that is fixed with the 
+second patch, thp is preferred on the node of choice but can be allocated 
+from any other node for fallback because the allocations lack 
+__GFP_THISNODE.
+
+> With both
+> patches they won't bail out and __GFP_NO_KSWAPD will prevent most of the stuff
+> described above, including clearing ALLOC_CPUSET.
+
+Yeah, ALLOC_CPUSET is never cleared for thp allocations because atomic == 
+false for thp, regardless of this series.
+
+> But __cpuset_node_allowed()
+> will allow it to allocate anywhere anyway thanks to the newly passed
+> __GFP_THISNODE, which would be a regression of what b104a35d32 fixed... unless
+> I'm missing something else that prevents it, which wouldn't surprise me at all.
 > 
-> Not exactly, khugepaged isn't "allocating" small pages to collapse into a 
-> hugepage, rather it is allocating a hugepage and then remapping the 
-> pageblock's mapped pages.
-
-How would you describe the amount of extra memory
-allocated, as a result of converting a partially
-mapped 2MB area into a THP?
-
-It is not physically allocating 4kB pages, but
-I would like to keep the text understandable to
-people who do not know the THP internals.
-
->> A larger value of max_ptes_none can cause the kernel
->> to collapse more incomplete areas into THPs, speeding
->> up memory access at the cost of increased memory use.
->> A smaller value of max_ptes_none will reduce memory
->> waste, at the expense of collapsing fewer areas into
->> THPs.
->>
+> There's this outdated comment:
 > 
-> This changelog only describes what max_ptes_none does, it doesn't state 
-> why you want to change it from HPAGE_PMD_NR-1, which is 511 on x86_64 
-> (largest value, more thp), to HPAGE_PMD_NR/8, which is 64 (smaller value, 
-> less thp, less rss as a result of collapsing).
->
-> This has particular performance implications on users who already have thp 
-> enabled, so it's difficult to change the default.  This is tuanble that 
-> you could easily set in an initscript, so I don't think we need to change 
-> the value for everybody.
+>  * The __GFP_THISNODE placement logic is really handled elsewhere,
+>  * by forcibly using a zonelist starting at a specified node, and by
+>  * (in get_page_from_freelist()) refusing to consider the zones for
+>  * any node on the zonelist except the first.  By the time any such
+>  * calls get to this routine, we should just shut up and say 'yes'.
+> 
+> AFAIK the __GFP_THISNODE zonelist contains *only* zones from the single node and
+> there's no other "refusing".
 
-I think we do need to change the default.
+Yes, __cpuset_node_allowed() is never called for a zone from any other 
+node when __GFP_THISNODE is passed because of node_zonelist().  It's 
+pointless to iterate over those zones since the allocation wants to fail 
+instead of allocate on them.
 
-Why? See this bug:
+Do you see any issues with either patch 1/2 or patch 2/2 besides the 
+s/GFP_TRANSHUGE/GFP_THISNODE/ that is necessary on the changelog?
 
->> The problem was reported here:
->> https://bugzilla.kernel.org/show_bug.cgi?id=93111
+> And I don't really see why __GFP_THISNODE should
+> have this exception, it feels to me like "well we shouldn't reach this but we
+> are not sure, so let's play it safe". So maybe we could just remove this
+> exception? I don't think any other user of __GFP_THISNODE | __GFP_WAIT user
+> relies on this allowed memset violation?
+> 
 
-Now, there may be a better value than HPAGE_PMD_NR/8, but
-I am not sure what it would be, or why.
-
-I do know that HPAGE_PMD_NR-1 results in undesired behaviour,
-as seen in the bug above...
-
--- 
-All rights reversed
+Since this function was written, there were other callers to 
+cpuset_{node,zone}_allowed_{soft,hard}wall() that may have required it.  I 
+looked at all the current callers of cpuset_zone_allowed() and they don't 
+appear to need this "exception" (slub calls node_zonelist() itself for the 
+iteration and slab never calls it for __GFP_THISNODE).  So, yeah, I think 
+it can be removed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
