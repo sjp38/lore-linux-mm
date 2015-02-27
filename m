@@ -1,41 +1,191 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D0E16B006C
-	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 05:59:08 -0500 (EST)
-Received: by wevl61 with SMTP id l61so19379575wev.2
-        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 02:59:08 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id et16si6583285wjc.84.2015.02.27.02.52.24
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id E1E1D6B0032
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 07:20:16 -0500 (EST)
+Received: by padet14 with SMTP id et14so22288278pad.11
+        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 04:20:16 -0800 (PST)
+Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
+        by mx.google.com with ESMTPS id sr9si5184794pab.160.2015.02.27.04.20.13
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 27 Feb 2015 02:52:25 -0800 (PST)
-Message-ID: <54F04C64.3050503@suse.cz>
-Date: Fri, 27 Feb 2015 11:52:20 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] enhance shmem process and swap accounting
-References: <1424958666-18241-1-git-send-email-vbabka@suse.cz> <CAHO5Pa0xmquUbzkZvow_PxRGZpA7MVEPFcRL2LPXv7hU41uxDw@mail.gmail.com>
-In-Reply-To: <CAHO5Pa0xmquUbzkZvow_PxRGZpA7MVEPFcRL2LPXv7hU41uxDw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Fri, 27 Feb 2015 04:20:14 -0800 (PST)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout2.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NKF002RKJSBXR20@mailout2.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 27 Feb 2015 12:24:11 +0000 (GMT)
+Message-id: <54F060F5.10502@samsung.com>
+Date: Fri, 27 Feb 2015 15:20:05 +0300
+From: Andrey Ryabinin <a.ryabinin@samsung.com>
+MIME-version: 1.0
+Subject: Re: [PATCH] kasan, module,
+ vmalloc: rework shadow allocation for modules
+References: <1424281467-2593-1-git-send-email-a.ryabinin@samsung.com>
+ <87pp96stmz.fsf@rustcorp.com.au> <54E5E355.9020404@samsung.com>
+ <87fva1sajo.fsf@rustcorp.com.au> <54E6E684.4070806@samsung.com>
+ <87vbithw4b.fsf@rustcorp.com.au> <54EC7563.8090801@samsung.com>
+ <874mqamrri.fsf@rustcorp.com.au> <54ED803F.6040308@samsung.com>
+ <87vbiplarm.fsf@rustcorp.com.au>
+In-reply-to: <87vbiplarm.fsf@rustcorp.com.au>
+Content-type: text/plain; charset=utf-8
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, Jerome Marchand <jmarchan@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-doc@vger.kernel.org, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Randy Dunlap <rdunlap@infradead.org>, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Paul Mackerras <paulus@samba.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Linux API <linux-api@vger.kernel.org>
+To: Rusty Russell <rusty@rustcorp.com.au>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>
 
-On 02/27/2015 11:36 AM, Michael Kerrisk wrote:
-> [CC += linux-api@]
+On 02/26/2015 04:30 AM, Rusty Russell wrote:
+> Andrey Ryabinin <a.ryabinin@samsung.com> writes:
+>> On 02/25/2015 09:25 AM, Rusty Russell wrote:
+>>> Andrey Ryabinin <a.ryabinin@samsung.com> writes:
+>>>> On 02/23/2015 11:26 AM, Rusty Russell wrote:
+>>>>> Andrey Ryabinin <a.ryabinin@samsung.com> writes:
+>>>>>> On 02/20/2015 03:15 AM, Rusty Russell wrote:
+>>>>>>> Andrey Ryabinin <a.ryabinin@samsung.com> writes:
+>>>>>>>> On 02/19/2015 02:10 AM, Rusty Russell wrote:
+>>>>>>>>> This is not portable.  Other archs don't use vmalloc, or don't use
+>>>>>>>>> (or define) MODULES_VADDR.  If you really want to hook here, you'd
+>>>>>>>>> need a new flag (or maybe use PAGE_KERNEL_EXEC after an audit).
+>>>>>>>>>
+>>>>>>>>
+>>>>>>>> Well, instead of explicit (addr >= MODULES_VADDR && addr < MODULES_END)
+>>>>>>>> I could hide this into arch-specific function: 'kasan_need_to_allocate_shadow(const void *addr)'
+>>>>>>>> or make make all those functions weak and allow arch code to redefine them.
+>>>>>>>
+>>>>>>> That adds another layer of indirection.  And how would the caller of
+>>>>>>> plain vmalloc() even know what to return?
+>>>>>>>
+>>>>>>
+>>>>>> I think I don't understand what do you mean here. vmalloc() callers shouldn't know
+>>>>>> anything about kasan/shadow.
+>>>>>
+>>>>> How else would kasan_need_to_allocate_shadow(const void *addr) work for
+>>>>> architectures which don't have a reserved vmalloc region for modules?
+>>>>>
+>>>>
+>>>>
+>>>> I think I need to clarify what I'm doing.
+>>>>
+>>>> Address sanitizer algorithm in short:
+>>>> -------------------------------------
+>>>> Every memory access is transformed by the compiler in the following way:
+>>>>
+>>>> Before:
+>>>> 	*address = ...;
+>>>>
+>>>> after:
+>>>>
+>>>> 	if (memory_is_poisoned(address)) {
+>>>> 		report_error(address, access_size);
+>>>> 	}
+>>>> 	*address = ...;
+>>>>
+>>>> where memory_is_poisoned():
+>>>> 	bool memory_is_poisoned(unsigned long addr)
+>>>> 	{
+>>>>         	s8 shadow_value = *(s8 *)kasan_mem_to_shadow((void *)addr);
+>>>> 	        if (unlikely(shadow_value)) {
+>>>>         	        s8 last_accessible_byte = addr & KASAN_SHADOW_MASK;
+>>>>                 	return unlikely(last_accessible_byte >= shadow_value);
+>>>> 	        }
+>>>> 	        return false;
+>>>> 	}
+>>>> --------------------------------------
+>>>>
+>>>> So shadow memory should be present for every accessible address in kernel
+>>>> otherwise it will be unhandled page fault on reading shadow value.
+>>>>
+>>>> Shadow for vmalloc addresses (on x86_64) is readonly mapping of one zero page.
+>>>> Zero byte in shadow means that it's ok to access to that address.
+>>>> Currently we don't catch bugs in vmalloc because most of such bugs could be caught
+>>>> in more simple way with CONFIG_DEBUG_PAGEALLOC.
+>>>> That's why we don't need RW shadow for vmalloc, it just one zero page that readonly
+>>>> mapped early on boot for the whole [kasan_mem_to_shadow(VMALLOC_START, kasan_mem_to_shadow(VMALLOC_END)] range
+>>>> So every access to vmalloc range assumed to be valid.
+>>>>
+>>>> To catch out of bounds accesses in global variables we need to fill shadow corresponding
+>>>> to variable's redzone with non-zero (negative) values.
+>>>> So for kernel image and modules we need a writable shadow.
+>>>>
+>>>> If some arch don't have separate address range for modules and it uses general vmalloc()
+>>>> shadow for vmalloc should be writable, so it means that shadow has to be allocated
+>>>> for every vmalloc() call.
+>>>>
+>>>> In such arch kasan_need_to_allocate_shadow(const void *addr) should return true for every vmalloc address:
+>>>> bool kasan_need_to_allocate_shadow(const void *addr)
+>>>> {
+>>>> 	return addr >= VMALLOC_START && addr < VMALLOC_END;
+>>>> }
+>>>
+>>> Thanks for the explanation.
+>>>
+>>>> All above means that current code is not very portable.
+>>>> And 'kasan_module_alloc(p, size) after module alloc' approach is not portable
+>>>> too. This won't work for arches that use [VMALLOC_START, VMALLOC_END] addresses for modules,
+>>>> because now we need to handle all vmalloc() calls.
+>>>
+>>> I'm confused.  That's what you do now, and it hasn't been a problem,
+>>> has it?  The problem is on the freeing from interrupt context...
+>>>
+>>
+>> It's not problem now. It's only about portability.
 > 
-> Hello Vlastimil,
+> Your first patch in this conversation says "Current approach in handling
+> shadow memory for modules is broken."
 > 
-> Since this is a kernel-user-space API change, please CC linux-api@.
-> The kernel source file Documentation/SubmitChecklist notes that all
-> Linux kernel patches that change userspace interfaces should be CCed
-> to linux-api@vger.kernel.org, so that the various parties who are
-> interested in API changes are informed. For further information, see
-> https://www.kernel.org/doc/man-pages/linux-api-ml.html
 
-Yes I meant to do that but forgot in the end, what a shame. Sorry for the trouble.
+Sorry, my last answer was even more confusing.
+You are right, the main problem is on the freeing form interrupts.
+
+I meant that this:
+
+> This won't work for arches that use [VMALLOC_START, VMALLOC_END] addresses for modules,
+> because now we need to handle all vmalloc() calls.
+
+is not a problem for now.
+
+
+
+>>> #define VM_KASAN		0x00000080      /* has shadow kasan map */
+>>>
+>>> Set that in kasan_module_alloc():
+>>>
+>>>         if (ret) {
+>>>                 struct vm_struct *vma = find_vm_area(addr);
+>>>
+>>>                 BUG_ON(!vma);
+>>>                 /* Set VM_KASAN so vfree() can free up shadow. */
+>>>                 vma->flags |= VM_KASAN;
+>>>         }
+>>>
+>>> And check that in __vunmap():
+>>>
+>>>         if (area->flags & VM_KASAN)
+>>>                 kasan_module_free(addr);
+>>>
+>>> That is portable, and is actually a fairly small patch on what you
+>>> have at the moment.
+>>>
+>>> What am I missing?
+>>>
+>>
+>> That is not portable.
+>> Architectures that don't have separate region for modules should allocate shadow
+>> for every vmalloc() call, not only for modules.
+> 
+> OK, I didn't appreciate that.  But couldn't you still use the "R/O
+> shared zero page shadow" for vmalloc, and have kasan_module_alloc()
+> simply replace the pages with r/w ones (and kasan_module_free()
+> would have to remove it again).
+> 
+>> Actually I'm fine with what you are proposing here. I think that portability issues could be fixed
+>> latter when this will become a real problem.
+> 
+> OK.
+> 
+> Thanks for your patience!
+> Rusty.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
