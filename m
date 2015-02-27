@@ -1,186 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F5286B0032
-	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 08:37:26 -0500 (EST)
-Received: by pabli10 with SMTP id li10so6747018pab.0
-        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 05:37:26 -0800 (PST)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id xm5si5452391pbc.140.2015.02.27.05.37.24
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id D8AB26B0032
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 10:10:32 -0500 (EST)
+Received: by pdbfl12 with SMTP id fl12so21672527pdb.2
+        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 07:10:32 -0800 (PST)
+Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
+        by mx.google.com with ESMTPS id sz8si407412pbc.151.2015.02.27.07.10.31
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Feb 2015 05:37:24 -0800 (PST)
-Received: by paceu11 with SMTP id eu11so22759983pac.7
-        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 05:37:24 -0800 (PST)
-Date: Fri, 27 Feb 2015 22:37:14 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC] mm: change mm_advise_free to clear page dirty
-Message-ID: <20150227133714.GA25947@blaptop>
-References: <1424765897-27377-1-git-send-email-minchan@kernel.org>
- <20150224154318.GA14939@dhcp22.suse.cz>
- <20150225000809.GA6468@blaptop>
- <35FD53F367049845BC99AC72306C23D10458D6173BDC@CNBJMBX05.corpusers.net>
- <20150227052805.GA20805@blaptop>
- <35FD53F367049845BC99AC72306C23D10458D6173BDE@CNBJMBX05.corpusers.net>
- <20150227064425.GB20805@blaptop>
- <35FD53F367049845BC99AC72306C23D10458D6173BDF@CNBJMBX05.corpusers.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <35FD53F367049845BC99AC72306C23D10458D6173BDF@CNBJMBX05.corpusers.net>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Fri, 27 Feb 2015 07:10:31 -0800 (PST)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout4.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NKF006UNRO2NY60@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 27 Feb 2015 15:14:26 +0000 (GMT)
+From: Andrey Ryabinin <a.ryabinin@samsung.com>
+Subject: [PATCH 1/2] kasan, module,
+ vmalloc: rework shadow allocation for modules
+Date: Fri, 27 Feb 2015 18:10:15 +0300
+Message-id: <1425049816-11385-1-git-send-email-a.ryabinin@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Shaohua Li <shli@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrey Ryabinin <a.ryabinin@samsung.com>, Dmitry Vyukov <dvyukov@google.com>, Rusty Russell <rusty@rustcorp.com.au>
 
-On Fri, Feb 27, 2015 at 03:50:29PM +0800, Wang, Yalin wrote:
-> > -----Original Message-----
-> > From: Minchan Kim [mailto:minchan.kim@gmail.com] On Behalf Of Minchan Kim
-> > Sent: Friday, February 27, 2015 2:44 PM
-> > To: Wang, Yalin
-> > Cc: Michal Hocko; Andrew Morton; linux-kernel@vger.kernel.org; linux-
-> > mm@kvack.org; Rik van Riel; Johannes Weiner; Mel Gorman; Shaohua Li
-> > Subject: Re: [RFC] mm: change mm_advise_free to clear page dirty
-> > 
-> > On Fri, Feb 27, 2015 at 01:48:48PM +0800, Wang, Yalin wrote:
-> > > > -----Original Message-----
-> > > > From: Minchan Kim [mailto:minchan.kim@gmail.com] On Behalf Of Minchan
-> > Kim
-> > > > Sent: Friday, February 27, 2015 1:28 PM
-> > > > To: Wang, Yalin
-> > > > Cc: Michal Hocko; Andrew Morton; linux-kernel@vger.kernel.org; linux-
-> > > > mm@kvack.org; Rik van Riel; Johannes Weiner; Mel Gorman; Shaohua Li
-> > > > Subject: Re: [RFC] mm: change mm_advise_free to clear page dirty
-> > > >
-> > > > Hello,
-> > > >
-> > > > On Fri, Feb 27, 2015 at 11:37:18AM +0800, Wang, Yalin wrote:
-> > > > > This patch add ClearPageDirty() to clear AnonPage dirty flag,
-> > > > > the Anonpage mapcount must be 1, so that this page is only used by
-> > > > > the current process, not shared by other process like fork().
-> > > > > if not clear page dirty for this anon page, the page will never be
-> > > > > treated as freeable.
-> > > >
-> > > > In case of anonymous page, it has PG_dirty when VM adds it to
-> > > > swap cache and clear it in clear_page_dirty_for_io. That's why
-> > > > I added ClearPageDirty if we found it in swapcache.
-> > > > What case am I missing? It would be better to understand if you
-> > > > describe specific scenario.
-> > > >
-> > > > Thanks.
-> > > >
-> > > > >
-> > > > > Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
-> > > > > ---
-> > > > >  mm/madvise.c | 15 +++++----------
-> > > > >  1 file changed, 5 insertions(+), 10 deletions(-)
-> > > > >
-> > > > > diff --git a/mm/madvise.c b/mm/madvise.c
-> > > > > index 6d0fcb8..257925a 100644
-> > > > > --- a/mm/madvise.c
-> > > > > +++ b/mm/madvise.c
-> > > > > @@ -297,22 +297,17 @@ static int madvise_free_pte_range(pmd_t *pmd,
-> > > > unsigned long addr,
-> > > > >  			continue;
-> > > > >
-> > > > >  		page = vm_normal_page(vma, addr, ptent);
-> > > > > -		if (!page)
-> > > > > +		if (!page || !PageAnon(page) || !trylock_page(page))
-> > > > >  			continue;
-> > > > >
-> > > > >  		if (PageSwapCache(page)) {
-> > > > > -			if (!trylock_page(page))
-> > > > > +			if (!try_to_free_swap(page))
-> > > > >  				continue;
-> > > > > -
-> > > > > -			if (!try_to_free_swap(page)) {
-> > > > > -				unlock_page(page);
-> > > > > -				continue;
-> > > > > -			}
-> > > > > -
-> > > > > -			ClearPageDirty(page);
-> > > > > -			unlock_page(page);
-> > > > >  		}
-> > > > >
-> > > > > +		if (page_mapcount(page) == 1)
-> > > > > +			ClearPageDirty(page);
-> > > > > +		unlock_page(page);
-> > > > >  		/*
-> > > > >  		 * Some of architecture(ex, PPC) don't update TLB
-> > > > >  		 * with set_pte_at and tlb_remove_tlb_entry so for
-> > > > > --
-> > > Yes, for page which is in SwapCache, it is correct,
-> > > But for anon page which is not in SwapCache, it is always
-> > > PageDirty(), so we should also clear dirty bit to make it freeable,
-> > 
-> > No. Every anon page starts from !PageDirty and it has PG_dirty
-> > only when it's addeded into swap cache. If vm_swap_full turns on,
-> > a page in swap cache could have PG_dirty via try_to_free_swap again.
-> 
-> mmm..
-> sometimes you can see an anon page PageDirty(), but it is not in swapcache,
-> for example, handle_pte_fault()-->do_swap_page()-->try_to_free_swap(),
-> at this time, the page is deleted from swapcache and is marked PageDirty(),
+Current approach in handling shadow memory for modules is broken.
 
-That's what I missed. It's clear and would be simple patch so
-could you send a patch to fix this issue with detailed description
-like above?
+Shadow memory could be freed only after memory shadow corresponds
+it is no longer used.
+vfree() called from interrupt context could use memory its
+freeing to store 'struct llist_node' in it:
 
-> 
-> 
-> > So, Do you have concern about swapped-out pages when MADV_FREE is
-> > called? If so, please look at my patch.
-> > 
-> > https://lkml.org/lkml/2015/2/25/43
-> > 
-> > It will zap the swapped out page. So, this is not a issue any more?
-> > 
-> > >
-> > > Another problem  is that if an anon page is shared by more than one
-> > process,
-> > > This happened when fork(), the anon page will be copy on write,
-> > > In this case, we should not clear page dirty,
-> > > This is not correct for other process which don't call MADV_FREE syscall.
-> > 
-> > You mean we shouldn't inherit MADV_FREE attribute?
-> > Why?
-> 
-> Is it correct behavior if code like this:
-> 
-> Parent:
-> ptr1 = malloc(len);
-> memset(ptr1, 'a', len);
-> fork();
-> if (I am parent)
-> 	madvise_free(ptr1, len);
-> 
-> child:
-> sleep(10);
-> parse_data(ptr1, len);  // child may see zero, not 'a',
-> 			// is it the right behavior that the programer want?
-> 
-> Because child don't call madvise_free(), so it should see 'a', not zero page.
-> Isn't it ?
+void vfree(const void *addr)
+{
+...
+	if (unlikely(in_interrupt())) {
+		struct vfree_deferred *p = this_cpu_ptr(&vfree_deferred);
+		if (llist_add((struct llist_node *)addr, &p->list))
+				schedule_work(&p->wq);
 
-You're absolutely right. Thanks.
-But I doubt your fix is best. Most of fork will do exec soonish so
-it's not a good idea to make MADV_FREE void even though hinted pages
-are shared when the syscall was called.
-How about checking the page is shared or not in reclaim path?
-If it is still shared, we shouldn't discard it.
+Latter this list node used in free_work() which actually frees memory.
+Currently module_memfree() called in interrupt context will free
+shadow before freeing module's memory which could provoke kernel
+crash.
+So shadow memory should be freed after module's memory.
+However, such deallocation order could race with kasan_module_alloc()
+in module_alloc().
 
-Thanks.
+Free shadow right before releasing vm area. At this point vfree()'d
+memory is not used anymore and yet not available for other allocations.
+New VM_KASAN flag used to indicate that vm area has dynamically allocated
+shadow memory so kasan frees shadow only if it was previously allocated.
 
-> Thanks
-> 
-> 
-> 
-> 
-> 
-> 
+Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>
+Cc: Rusty Russell <rusty@rustcorp.com.au>
+---
+ include/linux/kasan.h   |  5 +++--
+ include/linux/vmalloc.h |  1 +
+ kernel/module.c         |  2 --
+ mm/kasan/kasan.c        | 14 +++++++++++---
+ mm/vmalloc.c            |  1 +
+ 5 files changed, 16 insertions(+), 7 deletions(-)
 
+diff --git a/include/linux/kasan.h b/include/linux/kasan.h
+index 72ba725..5fa48a2 100644
+--- a/include/linux/kasan.h
++++ b/include/linux/kasan.h
+@@ -5,6 +5,7 @@
+ 
+ struct kmem_cache;
+ struct page;
++struct vm_struct;
+ 
+ #ifdef CONFIG_KASAN
+ 
+@@ -52,7 +53,7 @@ void kasan_slab_free(struct kmem_cache *s, void *object);
+ #define MODULE_ALIGN (PAGE_SIZE << KASAN_SHADOW_SCALE_SHIFT)
+ 
+ int kasan_module_alloc(void *addr, size_t size);
+-void kasan_module_free(void *addr);
++void kasan_free_shadow(const struct vm_struct *vm);
+ 
+ #else /* CONFIG_KASAN */
+ 
+@@ -82,7 +83,7 @@ static inline void kasan_slab_alloc(struct kmem_cache *s, void *object) {}
+ static inline void kasan_slab_free(struct kmem_cache *s, void *object) {}
+ 
+ static inline int kasan_module_alloc(void *addr, size_t size) { return 0; }
+-static inline void kasan_module_free(void *addr) {}
++static inline void kasan_free_shadow(const struct vm_struct *vm) {}
+ 
+ #endif /* CONFIG_KASAN */
+ 
+diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+index 7d7acb3..0ec5983 100644
+--- a/include/linux/vmalloc.h
++++ b/include/linux/vmalloc.h
+@@ -17,6 +17,7 @@ struct vm_area_struct;		/* vma defining user mapping in mm_types.h */
+ #define VM_VPAGES		0x00000010	/* buffer for pages was vmalloc'ed */
+ #define VM_UNINITIALIZED	0x00000020	/* vm_struct is not fully initialized */
+ #define VM_NO_GUARD		0x00000040      /* don't add guard page */
++#define VM_KASAN		0x00000080      /* has allocated kasan shadow memory */
+ /* bits [20..32] reserved for arch specific ioremap internals */
+ 
+ /*
+diff --git a/kernel/module.c b/kernel/module.c
+index b34813f..14ded76 100644
+--- a/kernel/module.c
++++ b/kernel/module.c
+@@ -56,7 +56,6 @@
+ #include <linux/async.h>
+ #include <linux/percpu.h>
+ #include <linux/kmemleak.h>
+-#include <linux/kasan.h>
+ #include <linux/jump_label.h>
+ #include <linux/pfn.h>
+ #include <linux/bsearch.h>
+@@ -1814,7 +1813,6 @@ static void unset_module_init_ro_nx(struct module *mod) { }
+ void __weak module_memfree(void *module_region)
+ {
+ 	vfree(module_region);
+-	kasan_module_free(module_region);
+ }
+ 
+ void __weak module_arch_cleanup(struct module *mod)
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index 78fee63..936d816 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -29,6 +29,7 @@
+ #include <linux/stacktrace.h>
+ #include <linux/string.h>
+ #include <linux/types.h>
++#include <linux/vmalloc.h>
+ #include <linux/kasan.h>
+ 
+ #include "kasan.h"
+@@ -414,12 +415,19 @@ int kasan_module_alloc(void *addr, size_t size)
+ 			GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO,
+ 			PAGE_KERNEL, VM_NO_GUARD, NUMA_NO_NODE,
+ 			__builtin_return_address(0));
+-	return ret ? 0 : -ENOMEM;
++
++	if (ret) {
++		find_vm_area(addr)->flags |= VM_KASAN;
++		return 0;
++	}
++
++	return -ENOMEM;
+ }
+ 
+-void kasan_module_free(void *addr)
++void kasan_free_shadow(const struct vm_struct *vm)
+ {
+-	vfree(kasan_mem_to_shadow(addr));
++	if (vm->flags & VM_KASAN)
++		vfree(kasan_mem_to_shadow(vm->addr));
+ }
+ 
+ static void register_global(struct kasan_global *global)
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 35b25e1..49abccf 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1418,6 +1418,7 @@ struct vm_struct *remove_vm_area(const void *addr)
+ 		spin_unlock(&vmap_area_lock);
+ 
+ 		vmap_debug_free_range(va->va_start, va->va_end);
++		kasan_free_shadow(vm);
+ 		free_unmap_vmap_area(va);
+ 		vm->size -= PAGE_SIZE;
+ 
 -- 
-Kind regards,
-Minchan Kim
+2.3.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
