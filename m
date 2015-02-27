@@ -1,46 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
-	by kanga.kvack.org (Postfix) with ESMTP id D91A06B006C
-	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 17:53:19 -0500 (EST)
-Received: by qcvs11 with SMTP id s11so16506894qcv.11
-        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 14:53:19 -0800 (PST)
-Received: from resqmta-ch2-01v.sys.comcast.net (resqmta-ch2-01v.sys.comcast.net. [2001:558:fe21:29:69:252:207:33])
-        by mx.google.com with ESMTPS id v8si5389625qas.121.2015.02.27.14.53.18
+Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
+	by kanga.kvack.org (Postfix) with ESMTP id A60636B0032
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 17:59:05 -0500 (EST)
+Received: by mail-ob0-f182.google.com with SMTP id nt9so21175618obb.13
+        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 14:59:05 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id t5si2793399oes.86.2015.02.27.14.59.04
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Fri, 27 Feb 2015 14:53:18 -0800 (PST)
-Date: Fri, 27 Feb 2015 16:53:16 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [patch v2 1/3] mm: remove GFP_THISNODE
-In-Reply-To: <alpine.DEB.2.10.1502271415510.7225@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.11.1502271649060.20876@gentwo.org>
-References: <alpine.DEB.2.10.1502251621010.10303@chino.kir.corp.google.com> <alpine.DEB.2.10.1502271415510.7225@chino.kir.corp.google.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 27 Feb 2015 14:59:04 -0800 (PST)
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Subject: [RFC 0/3] hugetlbfs: optionally reserve all fs pages at mount time
+Date: Fri, 27 Feb 2015 14:58:08 -0800
+Message-Id: <1425077893-18366-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Pravin Shelar <pshelar@nicira.com>, Jarno Rajahalme <jrajahalme@nicira.com>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, cgroups@vger.kernel.org, dev@openvswitch.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Nadia Yvette Chambers <nyc@holomorphy.com>, Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <davidlohr@hp.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On Fri, 27 Feb 2015, David Rientjes wrote:
+hugetlbfs allocates huge pages from the global pool as needed.  Even if
+the global pool contains a sufficient number pages for the filesystem
+size at mount time, those global pages could be grabbed for some other
+use.  As a result, filesystem huge page allocations may fail due to lack
+of pages.
 
-> +/*
-> + * Construct gfp mask to allocate from a specific node but do not invoke reclaim
-> + * or warn about failures.
-> + */
+Add a new hugetlbfs mount option 'reserved' to specify that the number
+of pages associated with the size of the filesystem will be reserved.  If
+there are insufficient pages, the mount will fail.  The reservation is
+maintained for the duration of the filesystem so that as pages are
+allocated and free'ed a sufficient number of pages remains reserved.
 
-We should be triggering reclaim from slab allocations. Why would we not do
-this?
+Mike Kravetz (3):
+  hugetlbfs: add reserved mount fields to subpool structure
+  hugetlbfs: coordinate global and subpool reserve accounting
+  hugetlbfs: accept subpool reserved option and setup accordingly
 
-Otherwise we will be going uselessly off node for slab allocations.
+ fs/hugetlbfs/inode.c    | 15 +++++++++++++--
+ include/linux/hugetlb.h |  7 +++++++
+ mm/hugetlb.c            | 37 +++++++++++++++++++++++++++++--------
+ 3 files changed, 49 insertions(+), 10 deletions(-)
 
-> +static inline gfp_t gfp_exact_node(gfp_t flags)
-> +{
-> +	return (flags | __GFP_THISNODE | __GFP_NOWARN) & ~__GFP_WAIT;
-> +}
->  #endif
-
-Reclaim needs to be triggered. In particular zone reclaim was made to be
-triggered from slab allocations to create more room if needed.
+-- 
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
