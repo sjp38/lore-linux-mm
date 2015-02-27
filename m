@@ -1,71 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D8496B006E
-	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 19:04:05 -0500 (EST)
-Received: by pdbft15 with SMTP id ft15so2275697pdb.11
-        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 16:04:04 -0800 (PST)
-Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
-        by mx.google.com with ESMTP id fn1si5638243pbb.194.2015.02.27.16.04.02
-        for <linux-mm@kvack.org>;
-        Fri, 27 Feb 2015 16:04:03 -0800 (PST)
-Date: Sat, 28 Feb 2015 11:03:59 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: How to handle TIF_MEMDIE stalls?
-Message-ID: <20150228000359.GL4251@dastard>
-References: <201502172123.JIE35470.QOLMVOFJSHOFFt@I-love.SAKURA.ne.jp>
- <20150217125315.GA14287@phnom.home.cmpxchg.org>
- <20150217225430.GJ4251@dastard>
- <20150219102431.GA15569@phnom.home.cmpxchg.org>
- <20150219225217.GY12722@dastard>
- <20150221235227.GA25079@phnom.home.cmpxchg.org>
- <20150223004521.GK12722@dastard>
- <20150222172930.6586516d.akpm@linux-foundation.org>
- <20150223073235.GT4251@dastard>
- <54F0B662.8020508@suse.cz>
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 00CE46B0071
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 19:07:32 -0500 (EST)
+Received: by pablf10 with SMTP id lf10so26472892pab.12
+        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 16:07:32 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id sp8si7346862pac.126.2015.02.27.16.07.31
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 27 Feb 2015 16:07:31 -0800 (PST)
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: [PATCH 1/2] kasan, module, vmalloc: rework shadow allocation for modules
+In-Reply-To: <1425049816-11385-1-git-send-email-a.ryabinin@samsung.com>
+References: <1425049816-11385-1-git-send-email-a.ryabinin@samsung.com>
+Date: Sat, 28 Feb 2015 09:31:28 +1030
+Message-ID: <87egpbklh3.fsf@rustcorp.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <54F0B662.8020508@suse.cz>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@suse.cz, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, mgorman@suse.de, torvalds@linux-foundation.org, xfs@oss.sgi.com
+To: Andrey Ryabinin <a.ryabinin@samsung.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>
 
-On Fri, Feb 27, 2015 at 07:24:34PM +0100, Vlastimil Babka wrote:
-> On 02/23/2015 08:32 AM, Dave Chinner wrote:
-> >> > And then there will be an unknown number of
-> >> > slab allocations of unknown size with unknown slabs-per-page rules
-> >> > - how many pages needed for them?
-> > However many pages needed to allocate the number of objects we'll
-> > consume from the slab.
-> 
-> I think the best way is if slab could also learn to provide reserves for
-> individual objects. Either just mark internally how many of them are reserved,
-> if sufficient number is free, or translate this to the page allocator reserves,
-> as slab knows which order it uses for the given objects.
+Andrey Ryabinin <a.ryabinin@samsung.com> writes:
+> Current approach in handling shadow memory for modules is broken.
+>
+> Shadow memory could be freed only after memory shadow corresponds
+> it is no longer used.
+> vfree() called from interrupt context could use memory its
+> freeing to store 'struct llist_node' in it:
+>
+> void vfree(const void *addr)
+> {
+> ...
+> 	if (unlikely(in_interrupt())) {
+> 		struct vfree_deferred *p = this_cpu_ptr(&vfree_deferred);
+> 		if (llist_add((struct llist_node *)addr, &p->list))
+> 				schedule_work(&p->wq);
+>
+> Latter this list node used in free_work() which actually frees memory.
+> Currently module_memfree() called in interrupt context will free
+> shadow before freeing module's memory which could provoke kernel
+> crash.
+> So shadow memory should be freed after module's memory.
+> However, such deallocation order could race with kasan_module_alloc()
+> in module_alloc().
+>
+> Free shadow right before releasing vm area. At this point vfree()'d
+> memory is not used anymore and yet not available for other allocations.
+> New VM_KASAN flag used to indicate that vm area has dynamically allocated
+> shadow memory so kasan frees shadow only if it was previously allocated.
+>
+> Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
+> Cc: Dmitry Vyukov <dvyukov@google.com>
+> Cc: Rusty Russell <rusty@rustcorp.com.au>
 
-Which is effectively what a slab based mempool is. Mempools don't
-guarantee a reserve is available once it's been resized, however,
-and we'd have to have mempools configured for every type of
-allocation we are going to do. So from that perspective it's not
-really a solution.
+Acked-by: Rusty Russell <rusty@rustcorp.com.au>
 
-Further, the kmalloc heap is backed by slab caches. We do *lots* of
-variable sized kmalloc allocations in transactions the size of which
-aren't known until allocation time.  In that case, we have to assume
-it's going to be a page per object, because the allocations could
-actually be that size.
-
-AFAICT, the worst case is a slab-backing page allocation for
-every slab object that is allocated, so we may as well cater for
-that case from the start...
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Thanks!
+Rusty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
