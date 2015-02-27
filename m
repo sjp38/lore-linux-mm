@@ -1,153 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f54.google.com (mail-oi0-f54.google.com [209.85.218.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 579776B0071
-	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 18:00:19 -0500 (EST)
-Received: by mail-oi0-f54.google.com with SMTP id v63so18214519oia.13
-        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 15:00:19 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id eq2si2823237obb.47.2015.02.27.15.00.18
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 27 Feb 2015 15:00:18 -0800 (PST)
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [RFC 3/3] hugetlbfs: accept subpool reserved option and setup accordingly
-Date: Fri, 27 Feb 2015 14:58:13 -0800
-Message-Id: <1425077893-18366-6-git-send-email-mike.kravetz@oracle.com>
-In-Reply-To: <1425077893-18366-1-git-send-email-mike.kravetz@oracle.com>
-References: <1425077893-18366-1-git-send-email-mike.kravetz@oracle.com>
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id D708B6B0032
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 18:53:00 -0500 (EST)
+Received: by pablf10 with SMTP id lf10so26398968pab.12
+        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 15:53:00 -0800 (PST)
+Received: from mail-gw2-out.broadcom.com (mail-gw2-out.broadcom.com. [216.31.210.63])
+        by mx.google.com with ESMTP id eq3si5554146pbb.228.2015.02.27.15.52.59
+        for <linux-mm@kvack.org>;
+        Fri, 27 Feb 2015 15:53:00 -0800 (PST)
+Message-ID: <54F10358.1050102@broadcom.com>
+Date: Fri, 27 Feb 2015 15:52:56 -0800
+From: Danesh Petigara <dpetigara@broadcom.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2] mm: cma: fix CMA aligned offset calculation
+References: <1424821185-16956-1-git-send-email-dpetigara@broadcom.com> <20150227132443.e17d574d45451f10f413f065@linux-foundation.org>
+In-Reply-To: <20150227132443.e17d574d45451f10f413f065@linux-foundation.org>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Nadia Yvette Chambers <nyc@holomorphy.com>, Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <davidlohr@hp.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: m.szyprowski@samsung.com, mina86@mina86.com, iamjoonsoo.kim@lge.com, aneesh.kumar@linux.vnet.ibm.com, laurent.pinchart+renesas@ideasonboard.com, gregory.0xf0@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
-Make reserved be an option when mounting a hugetlbfs.  reserved
-option is only possible if size option is also specified.  On mount,
-reserve size hugepages and note in subpool.  Unreserve pages when
-fs is unmounted.
+On 2/27/2015 1:24 PM, Andrew Morton wrote:
+> On Tue, 24 Feb 2015 15:39:45 -0800 Danesh Petigara <dpetigara@broadcom.com> wrote:
+> 
+>> The CMA aligned offset calculation is incorrect for
+>> non-zero order_per_bit values.
+>>
+>> For example, if cma->order_per_bit=1, cma->base_pfn=
+>> 0x2f800000 and align_order=12, the function returns
+>> a value of 0x17c00 instead of 0x400.
+>>
+>> This patch fixes the CMA aligned offset calculation.
+> 
+> When fixing a bug please always describe the end-user visible effects
+> of that bug.
+> 
+> Without that information others are unable to understand why you are
+> recommending a -stable backport.
+> 
 
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
----
- fs/hugetlbfs/inode.c    | 15 +++++++++++++--
- include/linux/hugetlb.h |  1 +
- mm/hugetlb.c            | 15 ++++++++++++++-
- 3 files changed, 28 insertions(+), 3 deletions(-)
+Thank you for the feedback. I had no crash logs to show, nevertheless, I
+agree that a sentence describing potential effects of the bug would've
+helped.
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 5eba47f..99d0cec 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -50,6 +50,7 @@ struct hugetlbfs_config {
- 	long	nr_blocks;
- 	long	nr_inodes;
- 	struct hstate *hstate;
-+	bool	reserved;
- };
- 
- struct hugetlbfs_inode_info {
-@@ -73,7 +74,7 @@ int sysctl_hugetlb_shm_group;
- enum {
- 	Opt_size, Opt_nr_inodes,
- 	Opt_mode, Opt_uid, Opt_gid,
--	Opt_pagesize,
-+	Opt_pagesize, Opt_reserved,
- 	Opt_err,
- };
- 
-@@ -84,6 +85,7 @@ static const match_table_t tokens = {
- 	{Opt_uid,	"uid=%u"},
- 	{Opt_gid,	"gid=%u"},
- 	{Opt_pagesize,	"pagesize=%s"},
-+	{Opt_reserved,	"reserved"},
- 	{Opt_err,	NULL},
- };
- 
-@@ -832,6 +834,10 @@ hugetlbfs_parse_options(char *options, struct hugetlbfs_config *pconfig)
- 			break;
- 		}
- 
-+		case Opt_reserved:
-+			pconfig->reserved = true;
-+			break;
-+
- 		default:
- 			pr_err("Bad mount option: \"%s\"\n", p);
- 			return -EINVAL;
-@@ -872,6 +878,7 @@ hugetlbfs_fill_super(struct super_block *sb, void *data, int silent)
- 	config.gid = current_fsgid();
- 	config.mode = 0755;
- 	config.hstate = &default_hstate;
-+	config.reserved = false;
- 	ret = hugetlbfs_parse_options(data, &config);
- 	if (ret)
- 		return ret;
-@@ -889,7 +896,11 @@ hugetlbfs_fill_super(struct super_block *sb, void *data, int silent)
- 		sbinfo->spool = hugepage_new_subpool(config.nr_blocks);
- 		if (!sbinfo->spool)
- 			goto out_free;
--	}
-+		sbinfo->spool->hstate = config.hstate;
-+		if (config.reserved && !reserve_hugepage_subpool(sbinfo->spool))
-+			goto out_free;
-+	} else if (config.reserved)
-+		goto out_free;
- 	sb->s_maxbytes = MAX_LFS_FILESIZE;
- 	sb->s_blocksize = huge_page_size(config.hstate);
- 	sb->s_blocksize_bits = huge_page_shift(config.hstate);
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 605c648..117e1bd 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -45,6 +45,7 @@ static inline bool subpool_reserved(struct hugepage_subpool *spool)
- 	return spool && spool->reserved;
- }
- struct hugepage_subpool *hugepage_new_subpool(long nr_blocks);
-+bool reserve_hugepage_subpool(struct hugepage_subpool *spool);
- void hugepage_put_subpool(struct hugepage_subpool *spool);
- 
- int PageHuge(struct page *page);
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 4ef8379..3ae3596 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -61,6 +61,8 @@ DEFINE_SPINLOCK(hugetlb_lock);
- static int num_fault_mutexes;
- static struct mutex *htlb_fault_mutex_table ____cacheline_aligned_in_smp;
- 
-+/* Forward declaration */
-+static int hugetlb_acct_memory(struct hstate *h, long delta);
- static inline void unlock_or_release_subpool(struct hugepage_subpool *spool)
- {
- 	bool free = (spool->count == 0) && (spool->used_hpages == 0);
-@@ -69,8 +71,11 @@ static inline void unlock_or_release_subpool(struct hugepage_subpool *spool)
- 
- 	/* If no pages are used, and no other handles to the subpool
- 	 * remain, free the subpool the subpool remain */
--	if (free)
-+	if (free) {
-+		if (spool->reserved)
-+			hugetlb_acct_memory(spool->hstate, -spool->max_hpages);
- 		kfree(spool);
-+	}
- }
- 
- struct hugepage_subpool *hugepage_new_subpool(long nr_blocks)
-@@ -91,6 +96,14 @@ struct hugepage_subpool *hugepage_new_subpool(long nr_blocks)
- 	return spool;
- }
- 
-+bool reserve_hugepage_subpool(struct hugepage_subpool *spool)
-+{
-+	if (hugetlb_acct_memory(spool->hstate, spool->max_hpages))
-+		return false;
-+	spool->reserved = true;
-+	return true;
-+}
-+
- void hugepage_put_subpool(struct hugepage_subpool *spool)
- {
- 	spin_lock(&spool->lock);
--- 
-2.1.0
+I'll keep that in mind for future submissions.
+
+Best Regards,
+Danesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
