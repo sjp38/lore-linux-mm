@@ -1,22 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ie0-f180.google.com (mail-ie0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 84ECE6B006E
-	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 17:16:55 -0500 (EST)
-Received: by iecar1 with SMTP id ar1so34580934iec.11
-        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 14:16:55 -0800 (PST)
-Received: from mail-ie0-x22e.google.com (mail-ie0-x22e.google.com. [2607:f8b0:4001:c03::22e])
-        by mx.google.com with ESMTPS id g193si4552407iog.15.2015.02.27.14.16.55
+	by kanga.kvack.org (Postfix) with ESMTP id 8C5076B0070
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 17:17:24 -0500 (EST)
+Received: by iebtr6 with SMTP id tr6so34560245ieb.7
+        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 14:17:24 -0800 (PST)
+Received: from mail-ie0-x22d.google.com (mail-ie0-x22d.google.com. [2607:f8b0:4001:c03::22d])
+        by mx.google.com with ESMTPS id w12si2008738ich.56.2015.02.27.14.17.24
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Feb 2015 14:16:55 -0800 (PST)
-Received: by iecrp18 with SMTP id rp18so34671232iec.1
-        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 14:16:55 -0800 (PST)
-Date: Fri, 27 Feb 2015 14:16:52 -0800 (PST)
+        Fri, 27 Feb 2015 14:17:24 -0800 (PST)
+Received: by iecrd18 with SMTP id rd18so34617683iec.5
+        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 14:17:24 -0800 (PST)
+Date: Fri, 27 Feb 2015 14:17:21 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch v2 1/3] mm: remove GFP_THISNODE
-In-Reply-To: <alpine.DEB.2.10.1502251621010.10303@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.10.1502271415510.7225@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1502251621010.10303@chino.kir.corp.google.com>
+Subject: [patch v2 2/3] mm, thp: really limit transparent hugepage allocation
+ to local node
+In-Reply-To: <alpine.DEB.2.10.1502271415510.7225@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.10.1502271416580.7225@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1502251621010.10303@chino.kir.corp.google.com> <alpine.DEB.2.10.1502271415510.7225@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -24,195 +25,72 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Pravin Shelar <pshelar@nicira.com>, Jarno Rajahalme <jrajahalme@nicira.com>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, cgroups@vger.kernel.org, dev@openvswitch.org
 
-NOTE: this is not about __GFP_THISNODE, this is only about GFP_THISNODE.
+Commit 077fcf116c8c ("mm/thp: allocate transparent hugepages on local
+node") restructured alloc_hugepage_vma() with the intent of only
+allocating transparent hugepages locally when there was not an effective
+interleave mempolicy.
 
-GFP_THISNODE is a secret combination of gfp bits that have different
-behavior than expected.  It is a combination of __GFP_THISNODE,
-__GFP_NORETRY, and __GFP_NOWARN and is special-cased in the page allocator
-slowpath to fail without trying reclaim even though it may be used in
-combination with __GFP_WAIT.
+alloc_pages_exact_node() does not limit the allocation to the single
+node, however, but rather prefers it.  This is because __GFP_THISNODE is
+not set which would cause the node-local nodemask to be passed.  Without
+it, only a nodemask that prefers the local node is passed.
 
-An example of the problem this creates: commit e97ca8e5b864 ("mm: fix 
-GFP_THISNODE callers and clarify") fixed up many users of GFP_THISNODE
-that really just wanted __GFP_THISNODE.  The problem doesn't end there,
-however, because even it was a no-op for alloc_misplaced_dst_page(),
-which also sets __GFP_NORETRY and __GFP_NOWARN, and
-migrate_misplaced_transhuge_page(), where __GFP_NORETRY and __GFP_NOWAIT
-is set in GFP_TRANSHUGE.  Converting GFP_THISNODE to __GFP_THISNODE is
-a no-op in these cases since the page allocator special-cases
-__GFP_THISNODE && __GFP_NORETRY && __GFP_NOWARN.
+Fix this by passing __GFP_THISNODE and falling back to small pages when
+the allocation fails.
 
-It's time to just remove GFP_THISNODE entirely.  We leave __GFP_THISNODE
-to restrict an allocation to a local node, but remove GFP_THISNODE and
-its obscurity.  Instead, we require that a caller clear __GFP_WAIT if it
-wants to avoid reclaim.
+Commit 9f1b868a13ac ("mm: thp: khugepaged: add policy for finding target
+node") suffers from a similar problem for khugepaged, which is also
+fixed.
 
-This allows the aforementioned functions to actually reclaim as they
-should.  It also enables any future callers that want to do
-__GFP_THISNODE but also __GFP_NORETRY && __GFP_NOWARN to reclaim.  The
-rule is simple: if you don't want to reclaim, then don't set __GFP_WAIT.
-
-Aside: ovs_flow_stats_update() really wants to avoid reclaim as well, so
-it is unchanged.
-
+Fixes: 077fcf116c8c ("mm/thp: allocate transparent hugepages on local node")
+Fixes: 9f1b868a13ac ("mm: thp: khugepaged: add policy for finding target node")
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- v2: fix typos in commit message per Vlastimil
+ mm/huge_memory.c | 9 +++++++--
+ mm/mempolicy.c   | 3 ++-
+ 2 files changed, 9 insertions(+), 3 deletions(-)
 
- include/linux/gfp.h    | 10 ----------
- mm/page_alloc.c        | 22 ++++++----------------
- mm/slab.c              | 22 ++++++++++++++++++----
- net/openvswitch/flow.c |  4 +++-
- 4 files changed, 27 insertions(+), 31 deletions(-)
-
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -117,16 +117,6 @@ struct vm_area_struct;
- 			 __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN | \
- 			 __GFP_NO_KSWAPD)
- 
--/*
-- * GFP_THISNODE does not perform any reclaim, you most likely want to
-- * use __GFP_THISNODE to allocate from a given node without fallback!
-- */
--#ifdef CONFIG_NUMA
--#define GFP_THISNODE	(__GFP_THISNODE | __GFP_NOWARN | __GFP_NORETRY)
--#else
--#define GFP_THISNODE	((__force gfp_t)0)
--#endif
--
- /* This mask makes up all the page movable related flags */
- #define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE|__GFP_MOVABLE)
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2355,13 +2355,7 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
- 		/* The OOM killer does not compensate for light reclaim */
- 		if (!(gfp_mask & __GFP_FS))
- 			goto out;
--		/*
--		 * GFP_THISNODE contains __GFP_NORETRY and we never hit this.
--		 * Sanity check for bare calls of __GFP_THISNODE, not real OOM.
--		 * The caller should handle page allocation failure by itself if
--		 * it specifies __GFP_THISNODE.
--		 * Note: Hugepage uses it but will hit PAGE_ALLOC_COSTLY_ORDER.
--		 */
-+		/* The OOM killer may not free memory on a specific node */
- 		if (gfp_mask & __GFP_THISNODE)
- 			goto out;
- 	}
-@@ -2615,15 +2609,11 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	}
- 
- 	/*
--	 * GFP_THISNODE (meaning __GFP_THISNODE, __GFP_NORETRY and
--	 * __GFP_NOWARN set) should not cause reclaim since the subsystem
--	 * (f.e. slab) using GFP_THISNODE may choose to trigger reclaim
--	 * using a larger set of nodes after it has established that the
--	 * allowed per node queues are empty and that nodes are
--	 * over allocated.
-+	 * If this allocation cannot block and it is for a specific node, then
-+	 * fail early.  There's no need to wakeup kswapd or retry for a
-+	 * speculative node-specific allocation.
- 	 */
--	if (IS_ENABLED(CONFIG_NUMA) &&
--	    (gfp_mask & GFP_THISNODE) == GFP_THISNODE)
-+	if (IS_ENABLED(CONFIG_NUMA) && (gfp_mask & __GFP_THISNODE) && !wait)
- 		goto nopage;
- 
- retry:
-@@ -2816,7 +2806,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 	/*
- 	 * Check the zones suitable for the gfp_mask contain at least one
- 	 * valid zone. It's possible to have an empty zonelist as a result
--	 * of GFP_THISNODE and a memoryless node
-+	 * of __GFP_THISNODE and a memoryless node
- 	 */
- 	if (unlikely(!zonelist->_zonerefs->zone))
- 		return NULL;
-diff --git a/mm/slab.c b/mm/slab.c
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -857,6 +857,11 @@ static inline void *____cache_alloc_node(struct kmem_cache *cachep,
- 	return NULL;
- }
- 
-+static inline gfp_t gfp_exact_node(gfp_t flags)
-+{
-+	return flags;
-+}
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2311,8 +2311,14 @@ static struct page
+ 		       struct vm_area_struct *vma, unsigned long address,
+ 		       int node)
+ {
++	gfp_t flags;
 +
- #else	/* CONFIG_NUMA */
+ 	VM_BUG_ON_PAGE(*hpage, *hpage);
  
- static void *____cache_alloc_node(struct kmem_cache *, gfp_t, int);
-@@ -1023,6 +1028,15 @@ static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
- 
- 	return __cache_free_alien(cachep, objp, node, page_node);
- }
++	/* Only allocate from the target node */
++	flags = alloc_hugepage_gfpmask(khugepaged_defrag(), __GFP_OTHER_NODE) |
++	        __GFP_THISNODE;
 +
-+/*
-+ * Construct gfp mask to allocate from a specific node but do not invoke reclaim
-+ * or warn about failures.
-+ */
-+static inline gfp_t gfp_exact_node(gfp_t flags)
-+{
-+	return (flags | __GFP_THISNODE | __GFP_NOWARN) & ~__GFP_WAIT;
-+}
- #endif
+ 	/*
+ 	 * Before allocating the hugepage, release the mmap_sem read lock.
+ 	 * The allocation can take potentially a long time if it involves
+@@ -2321,8 +2327,7 @@ static struct page
+ 	 */
+ 	up_read(&mm->mmap_sem);
  
- /*
-@@ -2825,7 +2839,7 @@ alloc_done:
- 	if (unlikely(!ac->avail)) {
- 		int x;
- force_grow:
--		x = cache_grow(cachep, flags | GFP_THISNODE, node, NULL);
-+		x = cache_grow(cachep, gfp_exact_node(flags), node, NULL);
- 
- 		/* cache_grow can reenable interrupts, then ac could change. */
- 		ac = cpu_cache_get(cachep);
-@@ -3019,7 +3033,7 @@ retry:
- 			get_node(cache, nid) &&
- 			get_node(cache, nid)->free_objects) {
- 				obj = ____cache_alloc_node(cache,
--					flags | GFP_THISNODE, nid);
-+					gfp_exact_node(flags), nid);
- 				if (obj)
- 					break;
+-	*hpage = alloc_pages_exact_node(node, alloc_hugepage_gfpmask(
+-		khugepaged_defrag(), __GFP_OTHER_NODE), HPAGE_PMD_ORDER);
++	*hpage = alloc_pages_exact_node(node, flags, HPAGE_PMD_ORDER);
+ 	if (unlikely(!*hpage)) {
+ 		count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
+ 		*hpage = ERR_PTR(-ENOMEM);
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1985,7 +1985,8 @@ retry_cpuset:
+ 		nmask = policy_nodemask(gfp, pol);
+ 		if (!nmask || node_isset(node, *nmask)) {
+ 			mpol_cond_put(pol);
+-			page = alloc_pages_exact_node(node, gfp, order);
++			page = alloc_pages_exact_node(node,
++						gfp | __GFP_THISNODE, order);
+ 			goto out;
  		}
-@@ -3047,7 +3061,7 @@ retry:
- 			nid = page_to_nid(page);
- 			if (cache_grow(cache, flags, nid, page)) {
- 				obj = ____cache_alloc_node(cache,
--					flags | GFP_THISNODE, nid);
-+					gfp_exact_node(flags), nid);
- 				if (!obj)
- 					/*
- 					 * Another processor may allocate the
-@@ -3118,7 +3132,7 @@ retry:
- 
- must_grow:
- 	spin_unlock(&n->list_lock);
--	x = cache_grow(cachep, flags | GFP_THISNODE, nodeid, NULL);
-+	x = cache_grow(cachep, gfp_exact_node(flags), nodeid, NULL);
- 	if (x)
- 		goto retry;
- 
-diff --git a/net/openvswitch/flow.c b/net/openvswitch/flow.c
---- a/net/openvswitch/flow.c
-+++ b/net/openvswitch/flow.c
-@@ -100,7 +100,9 @@ void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
- 
- 				new_stats =
- 					kmem_cache_alloc_node(flow_stats_cache,
--							      GFP_THISNODE |
-+							      GFP_NOWAIT |
-+							      __GFP_THISNODE |
-+							      __GFP_NOWARN |
- 							      __GFP_NOMEMALLOC,
- 							      node);
- 				if (likely(new_stats)) {
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
