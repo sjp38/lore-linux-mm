@@ -1,68 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 387D76B0032
-	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 13:27:09 -0500 (EST)
-Received: by wiwl15 with SMTP id l15so2180429wiw.5
-        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 10:27:08 -0800 (PST)
-Received: from mail-we0-x22c.google.com (mail-we0-x22c.google.com. [2a00:1450:400c:c03::22c])
-        by mx.google.com with ESMTPS id cq1si4967298wib.21.2015.02.27.10.27.07
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C6626B0032
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 13:34:54 -0500 (EST)
+Received: by wiwl15 with SMTP id l15so2226889wiw.5
+        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 10:34:54 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id df6si8633401wjb.161.2015.02.27.10.34.52
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Feb 2015 10:27:07 -0800 (PST)
-Received: by wesq59 with SMTP id q59so22052818wes.1
-        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 10:27:07 -0800 (PST)
-From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Subject: [PATCH] mm: set khugepaged_max_ptes_none by 1/8 of HPAGE_PMD_NR
-Date: Fri, 27 Feb 2015 20:26:48 +0200
-Message-Id: <1425061608-15811-1-git-send-email-ebru.akagunduz@gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 27 Feb 2015 10:34:52 -0800 (PST)
+Message-ID: <1425062086.13329.10.camel@stgolabs.net>
+Subject: Re: [PATCH] mm: replace mmap_sem for mm->exe_file serialization
+From: Davidlohr Bueso <dave@stgolabs.net>
+Date: Fri, 27 Feb 2015 10:34:46 -0800
+In-Reply-To: <20150227173650.GA18823@redhat.com>
+References: <1424979417.10344.14.camel@stgolabs.net>
+	 <20150226205145.GH3041@moon> <20150227173650.GA18823@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, kirill@shutemov.name, mhocko@suse.cz, mgorman@suse.de, rientjes@google.com, sasha.levin@oracle.com, hughd@google.com, hannes@cmpxchg.org, vbabka@suse.cz, linux-kernel@vger.kernel.org, riel@redhat.com, aarcange@redhat.com, Ebru Akagunduz <ebru.akagunduz@gmail.com>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Cyrill Gorcunov <gorcunov@gmail.com>, Davidlohr Bueso <dave.bueso@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Using THP, programs can access memory faster, by having the
-kernel collapse small pages into large pages. The parameter
-max_ptes_none specifies how many extra small pages (that are
-not already mapped) can be allocated when collapsing a group
-of small pages into one large page.
+On Fri, 2015-02-27 at 18:36 +0100, Oleg Nesterov wrote:
+> On 02/26, Cyrill Gorcunov wrote:
+> >
+> > On Thu, Feb 26, 2015 at 11:36:57AM -0800, Davidlohr Bueso wrote:
+> > > We currently use the mmap_sem to serialize the mm exe_file.
+> > > This is atrocious and a clear example of the misuses this
+> > > lock has all over the place, making any significant changes
+> > > to the address space locking that much more complex and tedious.
+> > > This also has to do of how we used to check for the vma's vm_file
+> > > being VM_EXECUTABLE (much of which was replaced by 2dd8ad81e31).
+> > >
+> > > This patch, therefore, removes the mmap_sem dependency and
+> > > introduces a specific lock for the exe_file (rwlock_t, as it is
+> > > read mostly and protects a trivial critical region). As mentioned,
+> > > the motivation is to cleanup mmap_sem (as opposed to exe_file
+> > > performance).
+> 
+> Well, I didn't see the patch, can't really comment.
+> 
+> But I have to admit that this looks as atrocious and a clear example of
+> "lets add yet another random lock which we will regret about later" ;)
+> 
+> rwlock_t in mm_struct just to serialize access to exe_file?
 
-A larger value of max_ptes_none can cause the kernel
-to collapse more incomplete areas into THPs, speeding
-up memory access at the cost of increased memory use.
-A smaller value of max_ptes_none will reduce memory
-waste, at the expense of collapsing fewer areas into
-THPs.
+I don't see why this is a random lock nor how would we regret this
+later. I regret having to do these kind of patches because people were
+lazy and just relied on mmap_sem without thinking beyond their use case.
+As mentioned I'm also planning on creating an own sort of
+exe_file_struct, which would be an isolated entity (still in the mm
+though), with its own locking and prctl bits, that would tidy mm_struct
+a bit. RCU was something else I considered, but it doesn't suite well in
+all paths and we would still need a spinlock when updating the file
+anyway.
 
-The problem was reported here:
-https://bugzilla.kernel.org/show_bug.cgi?id=93111
+If you have a better suggestion please do tell.
 
-Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Reviewed-by: Rik van Riel <riel@redhat.com>
----
- mm/huge_memory.c | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+> 
+> > A nice side effect of this is that we avoid taking
+> > > the mmap_sem (shared) in fork paths for the exe_file handling
+> > > (note that readers block when the rwsem is taken exclusively by
+> > > another thread).
+> 
+> Yes, this is ugly. Can't we kill this dup_mm_exe_file() and copy change
+> dup_mmap() to also dup ->exe_file ?
+> 
+> > Hi Davidlohr, it would be interesting to know if the cleanup
+> > bring some performance benefit?
+> 
+> To me the main question is whether the patch makes this code simpler
+> or uglier ;)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index e08e37a..497fb5a 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -59,11 +59,10 @@ static DEFINE_MUTEX(khugepaged_mutex);
- static DEFINE_SPINLOCK(khugepaged_mm_lock);
- static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
- /*
-- * default collapse hugepages if there is at least one pte mapped like
-- * it would have happened if the vma was large enough during page
-- * fault.
-+ * The default value should be a compromise between memory use and THP speedup.
-+ * To collapse hugepages, unmapped ptes should not exceed 1/8 of HPAGE_PMD_NR.
-  */
--static unsigned int khugepaged_max_ptes_none __read_mostly = HPAGE_PMD_NR-1;
-+static unsigned int khugepaged_max_ptes_none __read_mostly = HPAGE_PMD_NR/8;
- 
- static int khugepaged(void *none);
- static int khugepaged_slab_init(void);
--- 
-1.9.1
+Its much beyond that. As mentioned, for any significant changes to the
+mmap_sem locking scheme, this sort of thing needs to be addressed first.
+
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
