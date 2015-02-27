@@ -1,164 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id EABED6B0032
-	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 02:51:02 -0500 (EST)
-Received: by paceu11 with SMTP id eu11so20710875pac.10
-        for <linux-mm@kvack.org>; Thu, 26 Feb 2015 23:51:02 -0800 (PST)
-Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
-        by mx.google.com with ESMTPS id dh3si4233743pdb.223.2015.02.26.23.51.00
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 26 Feb 2015 23:51:02 -0800 (PST)
-From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Date: Fri, 27 Feb 2015 15:50:29 +0800
-Subject: RE: [RFC] mm: change mm_advise_free to clear page dirty
-Message-ID: <35FD53F367049845BC99AC72306C23D10458D6173BDF@CNBJMBX05.corpusers.net>
-References: <1424765897-27377-1-git-send-email-minchan@kernel.org>
- <20150224154318.GA14939@dhcp22.suse.cz> <20150225000809.GA6468@blaptop>
- <35FD53F367049845BC99AC72306C23D10458D6173BDC@CNBJMBX05.corpusers.net>
- <20150227052805.GA20805@blaptop>
- <35FD53F367049845BC99AC72306C23D10458D6173BDE@CNBJMBX05.corpusers.net>
- <20150227064425.GB20805@blaptop>
-In-Reply-To: <20150227064425.GB20805@blaptop>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 34BD06B006E
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 03:00:14 -0500 (EST)
+Received: by pdev10 with SMTP id v10so19313236pde.10
+        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 00:00:13 -0800 (PST)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id zw4si1836847pac.59.2015.02.27.00.00.10
+        for <linux-mm@kvack.org>;
+        Fri, 27 Feb 2015 00:00:12 -0800 (PST)
+Date: Fri, 27 Feb 2015 18:39:49 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: How to handle TIF_MEMDIE stalls?
+Message-ID: <20150227073949.GJ4251@dastard>
+References: <201502172057.GCD09362.FtHQMVSLJOFFOO@I-love.SAKURA.ne.jp>
+ <alpine.DEB.2.10.1502231347510.21127@chino.kir.corp.google.com>
+ <201502242020.IDI64912.tOOQSVJFOFLHMF@I-love.SAKURA.ne.jp>
+ <20150224152033.GA3782@thunk.org>
+ <20150224210244.GA13666@dastard>
+ <201502252331.IEJ78629.OOOFSLFMHQtFVJ@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201502252331.IEJ78629.OOOFSLFMHQtFVJ@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Minchan Kim' <minchan@kernel.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Shaohua Li <shli@kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: tytso@mit.edu, rientjes@google.com, hannes@cmpxchg.org, mhocko@suse.cz, dchinner@redhat.com, linux-mm@kvack.org, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, fernando_b1@lab.ntt.co.jp
 
-> -----Original Message-----
-> From: Minchan Kim [mailto:minchan.kim@gmail.com] On Behalf Of Minchan Kim
-> Sent: Friday, February 27, 2015 2:44 PM
-> To: Wang, Yalin
-> Cc: Michal Hocko; Andrew Morton; linux-kernel@vger.kernel.org; linux-
-> mm@kvack.org; Rik van Riel; Johannes Weiner; Mel Gorman; Shaohua Li
-> Subject: Re: [RFC] mm: change mm_advise_free to clear page dirty
->=20
-> On Fri, Feb 27, 2015 at 01:48:48PM +0800, Wang, Yalin wrote:
-> > > -----Original Message-----
-> > > From: Minchan Kim [mailto:minchan.kim@gmail.com] On Behalf Of Minchan
-> Kim
-> > > Sent: Friday, February 27, 2015 1:28 PM
-> > > To: Wang, Yalin
-> > > Cc: Michal Hocko; Andrew Morton; linux-kernel@vger.kernel.org; linux-
-> > > mm@kvack.org; Rik van Riel; Johannes Weiner; Mel Gorman; Shaohua Li
-> > > Subject: Re: [RFC] mm: change mm_advise_free to clear page dirty
-> > >
-> > > Hello,
-> > >
-> > > On Fri, Feb 27, 2015 at 11:37:18AM +0800, Wang, Yalin wrote:
-> > > > This patch add ClearPageDirty() to clear AnonPage dirty flag,
-> > > > the Anonpage mapcount must be 1, so that this page is only used by
-> > > > the current process, not shared by other process like fork().
-> > > > if not clear page dirty for this anon page, the page will never be
-> > > > treated as freeable.
-> > >
-> > > In case of anonymous page, it has PG_dirty when VM adds it to
-> > > swap cache and clear it in clear_page_dirty_for_io. That's why
-> > > I added ClearPageDirty if we found it in swapcache.
-> > > What case am I missing? It would be better to understand if you
-> > > describe specific scenario.
-> > >
-> > > Thanks.
-> > >
-> > > >
-> > > > Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
-> > > > ---
-> > > >  mm/madvise.c | 15 +++++----------
-> > > >  1 file changed, 5 insertions(+), 10 deletions(-)
-> > > >
-> > > > diff --git a/mm/madvise.c b/mm/madvise.c
-> > > > index 6d0fcb8..257925a 100644
-> > > > --- a/mm/madvise.c
-> > > > +++ b/mm/madvise.c
-> > > > @@ -297,22 +297,17 @@ static int madvise_free_pte_range(pmd_t *pmd,
-> > > unsigned long addr,
-> > > >  			continue;
-> > > >
-> > > >  		page =3D vm_normal_page(vma, addr, ptent);
-> > > > -		if (!page)
-> > > > +		if (!page || !PageAnon(page) || !trylock_page(page))
-> > > >  			continue;
-> > > >
-> > > >  		if (PageSwapCache(page)) {
-> > > > -			if (!trylock_page(page))
-> > > > +			if (!try_to_free_swap(page))
-> > > >  				continue;
-> > > > -
-> > > > -			if (!try_to_free_swap(page)) {
-> > > > -				unlock_page(page);
-> > > > -				continue;
-> > > > -			}
-> > > > -
-> > > > -			ClearPageDirty(page);
-> > > > -			unlock_page(page);
-> > > >  		}
-> > > >
-> > > > +		if (page_mapcount(page) =3D=3D 1)
-> > > > +			ClearPageDirty(page);
-> > > > +		unlock_page(page);
-> > > >  		/*
-> > > >  		 * Some of architecture(ex, PPC) don't update TLB
-> > > >  		 * with set_pte_at and tlb_remove_tlb_entry so for
-> > > > --
-> > Yes, for page which is in SwapCache, it is correct,
-> > But for anon page which is not in SwapCache, it is always
-> > PageDirty(), so we should also clear dirty bit to make it freeable,
->=20
-> No. Every anon page starts from !PageDirty and it has PG_dirty
-> only when it's addeded into swap cache. If vm_swap_full turns on,
-> a page in swap cache could have PG_dirty via try_to_free_swap again.
+On Wed, Feb 25, 2015 at 11:31:17PM +0900, Tetsuo Handa wrote:
+> Dave Chinner wrote:
+> > This exact discussion is already underway.
+> > 
+> > My initial proposal:
+> > 
+> > http://oss.sgi.com/archives/xfs/2015-02/msg00314.html
+> > 
+> > Why mempools don't work but transaction based reservations will:
+> > 
+> > http://oss.sgi.com/archives/xfs/2015-02/msg00339.html
+> > 
+> > Reservation needs to be an accounting mechanisms, not preallocation:
+> > 
+> > http://oss.sgi.com/archives/xfs/2015-02/msg00456.html
+> > http://oss.sgi.com/archives/xfs/2015-02/msg00457.html
+> > http://oss.sgi.com/archives/xfs/2015-02/msg00458.html
+> > 
+> > And that's where the discussion currently sits.
+> 
+> I got two problems (one is stall at io_schedule()
 
-mmm..
-sometimes you can see an anon page PageDirty(), but it is not in swapcache,
-for example, handle_pte_fault()-->do_swap_page()-->try_to_free_swap(),
-at this time, the page is deleted from swapcache and is marked PageDirty(),
+This is a typical "blame the messenger" bug report. XFS is stuck in
+inode reclaim waiting for log IO completion to occur, along with all
+the other processes iin xfs_log_force also stuck waiting for the
+same Io completion.
 
+You need to find where that IO completion that everything is waiting
+on has got stuck or show that it's not a lost IO and actually an
+XFS problem. e.g has the IO stack got stuck on a mempool somewhere?
 
-> So, Do you have concern about swapped-out pages when MADV_FREE is
-> called? If so, please look at my patch.
->=20
-> https://lkml.org/lkml/2015/2/25/43
->=20
-> It will zap the swapped out page. So, this is not a issue any more?
->=20
-> >
-> > Another problem  is that if an anon page is shared by more than one
-> process,
-> > This happened when fork(), the anon page will be copy on write,
-> > In this case, we should not clear page dirty,
-> > This is not correct for other process which don't call MADV_FREE syscal=
-l.
->=20
-> You mean we shouldn't inherit MADV_FREE attribute?
-> Why?
+> , the other is kernel panic
+> due to xfs's assertion failure) using Linux 3.19.
 
-Is it correct behavior if code like this:
+> http://I-love.SAKURA.ne.jp/tmp/crash-20150225-2.log.xz )
+> ----------
+> [  189.586204] Out of memory: Kill process 3701 (a.out) score 834 or sacrifice child
+> [  189.586205] Killed process 3701 (a.out) total-vm:2167392kB, anon-rss:1465820kB, file-rss:4kB
+> [  189.586210] Kill process 3702 (a.out) sharing same memory
+> [  189.586211] Kill process 3714 (a.out) sharing same memory
+> [  189.586212] Kill process 3748 (a.out) sharing same memory
+> [  189.586213] Kill process 3755 (a.out) sharing same memory
+> [  189.593470] XFS: Assertion failed: XFS_FORCED_SHUTDOWN(mp), file: fs/xfs/xfs_inode.c, line: 1701
 
-Parent:
-ptr1 =3D malloc(len);
-memset(ptr1, 'a', len);
-fork();
-if (I am parent)
-	madvise_free(ptr1, len);
+Which is a failure of xfs_trans_reserve(), and through the calling
+context and parameters can only be from xfs_log_reserve().  That's
+got a pretty clear cause:
 
-child:
-sleep(10);
-parse_data(ptr1, len);  // child may see zero, not 'a',
-			// is it the right behavior that the programer want?
+        tic = xlog_ticket_alloc(log, unit_bytes, cnt, client, permanent,
+                                KM_SLEEP | KM_MAYFAIL);
+        if (!tic)
+                return -ENOMEM;
 
-Because child don't call madvise_free(), so it should see 'a', not zero pag=
-e.
-Isn't it ?
-Thanks
+And the reason for the ASSERT is pretty clear: we put it there
+because we need to know - as developers - what failures (if any)
+ever come through that path. This is called from evict():
 
+> [  189.593565] Call Trace:
+> [  189.593568]  [<ffffffff812ab2d7>] xfs_inactive_truncate+0x67/0x150
+> [  189.593569]  [<ffffffff812acb98>] xfs_inactive+0x1c8/0x1f0
+> [  189.593570]  [<ffffffff812b3216>] xfs_fs_evict_inode+0x86/0xd0
+> [  189.593572]  [<ffffffff811da0f8>] evict+0xb8/0x190
+> [  189.593574]  [<ffffffff811daa15>] iput+0xf5/0x180
 
+And as such there is no mechanism for actually reporting the error
+to userspace and in failing here we are about to leak an inode.
 
+When an XFS developer is testing new code, having a failure like
+that get trapped is immensely useful. However, on production
+systems, we can just keep going because it's not a fatal error and,
+even more importantly, the leaked inode will get cleaned up by log
+recovery next time the filesystem is mounted.
 
+IOWs, when you run CONFIG_XFS_DEBUG=y, you'll often get failures
+that are valuable to XFS developers but have no runtime effect on
+production systems.
 
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
