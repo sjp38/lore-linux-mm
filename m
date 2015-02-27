@@ -1,49 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id ACE836B0032
-	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 17:53:02 -0500 (EST)
-Received: by widex7 with SMTP id ex7so3284751wid.1
-        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 14:53:02 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y6si5855295wiv.123.2015.02.27.14.53.00
+Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
+	by kanga.kvack.org (Postfix) with ESMTP id D91A06B006C
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 17:53:19 -0500 (EST)
+Received: by qcvs11 with SMTP id s11so16506894qcv.11
+        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 14:53:19 -0800 (PST)
+Received: from resqmta-ch2-01v.sys.comcast.net (resqmta-ch2-01v.sys.comcast.net. [2001:558:fe21:29:69:252:207:33])
+        by mx.google.com with ESMTPS id v8si5389625qas.121.2015.02.27.14.53.18
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 27 Feb 2015 14:53:00 -0800 (PST)
-Message-ID: <54F0F548.6070109@suse.cz>
-Date: Fri, 27 Feb 2015 23:52:56 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
-MIME-Version: 1.0
-Subject: Re: [patch 1/2] mm: remove GFP_THISNODE
-References: <alpine.DEB.2.10.1502251621010.10303@chino.kir.corp.google.com> <54EED9A7.5010505@suse.cz> <alpine.DEB.2.10.1502261902580.24302@chino.kir.corp.google.com> <54F01E02.1090007@suse.cz> <alpine.DEB.2.10.1502271335520.4718@chino.kir.corp.google.com> <54F0ED7E.6010900@suse.cz> <alpine.DEB.2.10.1502271428320.7225@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1502271428320.7225@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Fri, 27 Feb 2015 14:53:18 -0800 (PST)
+Date: Fri, 27 Feb 2015 16:53:16 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [patch v2 1/3] mm: remove GFP_THISNODE
+In-Reply-To: <alpine.DEB.2.10.1502271415510.7225@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.11.1502271649060.20876@gentwo.org>
+References: <alpine.DEB.2.10.1502251621010.10303@chino.kir.corp.google.com> <alpine.DEB.2.10.1502271415510.7225@chino.kir.corp.google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Pravin Shelar <pshelar@nicira.com>, Jarno Rajahalme <jrajahalme@nicira.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, dev@openvswitch.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Pravin Shelar <pshelar@nicira.com>, Jarno Rajahalme <jrajahalme@nicira.com>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, cgroups@vger.kernel.org, dev@openvswitch.org
 
-On 27.2.2015 23:31, David Rientjes wrote:
-> On Fri, 27 Feb 2015, Vlastimil Babka wrote:
->
->>> Do you see any issues with either patch 1/2 or patch 2/2 besides the
->>> s/GFP_TRANSHUGE/GFP_THISNODE/ that is necessary on the changelog?
->> Well, my point is, what if the node we are explicitly trying to allocate
->> hugepage on, is in fact not allowed by our cpuset? This could happen in the page
->> fault case, no? Although in a weird configuration when process can (and really
->> gets scheduled to run) on a node where it is not allowed to allocate from...
->>
-> If the process is running a node that is not allowed by the cpuset, then
-> alloc_hugepage_vma() now fails with VM_FAULT_FALLBACK.  That was the
-> intended policy change of commit 077fcf116c8c ("mm/thp: allocate
-> transparent hugepages on local node").
+On Fri, 27 Feb 2015, David Rientjes wrote:
 
-Ah, right, didn't realize that mempolicy also takes that into account.
-Thanks for removing the exception anyway.
+> +/*
+> + * Construct gfp mask to allocate from a specific node but do not invoke reclaim
+> + * or warn about failures.
+> + */
 
->
->   [ alloc_hugepage_vma() should probably be using numa_mem_id() instead for
->     memoryless node platforms. ]
+We should be triggering reclaim from slab allocations. Why would we not do
+this?
+
+Otherwise we will be going uselessly off node for slab allocations.
+
+> +static inline gfp_t gfp_exact_node(gfp_t flags)
+> +{
+> +	return (flags | __GFP_THISNODE | __GFP_NOWARN) & ~__GFP_WAIT;
+> +}
+>  #endif
+
+Reclaim needs to be triggered. In particular zone reclaim was made to be
+triggered from slab allocations to create more room if needed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
