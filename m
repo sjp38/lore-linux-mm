@@ -1,39 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 63FF76B0032
-	for <linux-mm@kvack.org>; Thu, 26 Feb 2015 23:03:32 -0500 (EST)
-Received: by padfb1 with SMTP id fb1so19398353pad.8
-        for <linux-mm@kvack.org>; Thu, 26 Feb 2015 20:03:32 -0800 (PST)
-Received: from out21.biz.mail.alibaba.com (out114-136.biz.mail.alibaba.com. [205.204.114.136])
-        by mx.google.com with ESMTP id a15si3747562pbu.97.2015.02.26.20.03.29
-        for <linux-mm@kvack.org>;
-        Thu, 26 Feb 2015 20:03:30 -0800 (PST)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-Subject: Re: [PATCH 3/4] mm, shmem: Add shmem resident memory accounting
-Date: Fri, 27 Feb 2015 12:01:53 +0800
-Message-ID: <0be701d05242$202c2eb0$60848c10$@alibaba-inc.com>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id C293C6B0032
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 00:28:16 -0500 (EST)
+Received: by pablj1 with SMTP id lj1so3881641pab.13
+        for <linux-mm@kvack.org>; Thu, 26 Feb 2015 21:28:16 -0800 (PST)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id ir6si3977964pbc.106.2015.02.26.21.28.15
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Feb 2015 21:28:15 -0800 (PST)
+Received: by pablj1 with SMTP id lj1so17500213pab.9
+        for <linux-mm@kvack.org>; Thu, 26 Feb 2015 21:28:15 -0800 (PST)
+Date: Fri, 27 Feb 2015 14:28:05 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC] mm: change mm_advise_free to clear page dirty
+Message-ID: <20150227052805.GA20805@blaptop>
+References: <1424765897-27377-1-git-send-email-minchan@kernel.org>
+ <20150224154318.GA14939@dhcp22.suse.cz>
+ <20150225000809.GA6468@blaptop>
+ <35FD53F367049845BC99AC72306C23D10458D6173BDC@CNBJMBX05.corpusers.net>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <35FD53F367049845BC99AC72306C23D10458D6173BDC@CNBJMBX05.corpusers.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, 'Jerome Marchand' <jmarchan@redhat.com>, linux-kernel <linux-kernel@vger.kernel.org>, 'Andrew Morton' <akpm@linux-foundation.org>, linux-doc@vger.kernel.org, 'Hugh Dickins' <hughd@google.com>, 'Michal Hocko' <mhocko@suse.cz>, "'Kirill A. Shutemov'" <kirill.shutemov@linux.intel.com>, 'Cyrill Gorcunov' <gorcunov@openvz.org>, Hillf Danton <hillf.zj@alibaba-inc.com>
+To: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Shaohua Li <shli@kernel.org>
 
-> @@ -501,6 +502,7 @@ static void smaps_pte_entry(pte_t *pte, unsigned long addr,
->  					pte_none(*pte) && vma->vm_file) {
->  		struct address_space *mapping =
->  			file_inode(vma->vm_file)->i_mapping;
-> +		pgoff_t pgoff = linear_page_index(vma, addr);
+Hello,
+
+On Fri, Feb 27, 2015 at 11:37:18AM +0800, Wang, Yalin wrote:
+> This patch add ClearPageDirty() to clear AnonPage dirty flag,
+> the Anonpage mapcount must be 1, so that this page is only used by
+> the current process, not shared by other process like fork().
+> if not clear page dirty for this anon page, the page will never be
+> treated as freeable.
+
+In case of anonymous page, it has PG_dirty when VM adds it to
+swap cache and clear it in clear_page_dirty_for_io. That's why
+I added ClearPageDirty if we found it in swapcache.
+What case am I missing? It would be better to understand if you
+describe specific scenario.
+
+Thanks.
+
 > 
+> Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
+> ---
+>  mm/madvise.c | 15 +++++----------
+>  1 file changed, 5 insertions(+), 10 deletions(-)
+> 
+> diff --git a/mm/madvise.c b/mm/madvise.c
+> index 6d0fcb8..257925a 100644
+> --- a/mm/madvise.c
+> +++ b/mm/madvise.c
+> @@ -297,22 +297,17 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+>  			continue;
+>  
+>  		page = vm_normal_page(vma, addr, ptent);
+> -		if (!page)
+> +		if (!page || !PageAnon(page) || !trylock_page(page))
+>  			continue;
+>  
+>  		if (PageSwapCache(page)) {
+> -			if (!trylock_page(page))
+> +			if (!try_to_free_swap(page))
+>  				continue;
+> -
+> -			if (!try_to_free_swap(page)) {
+> -				unlock_page(page);
+> -				continue;
+> -			}
+> -
+> -			ClearPageDirty(page);
+> -			unlock_page(page);
+>  		}
+>  
+> +		if (page_mapcount(page) == 1)
+> +			ClearPageDirty(page);
+> +		unlock_page(page);
 >  		/*
->  		 * shmem does not use swap pte's so we have to consult
+>  		 * Some of architecture(ex, PPC) don't update TLB
+>  		 * with set_pte_at and tlb_remove_tlb_entry so for
+> -- 
+> 2.2.2
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-This hunk should go to patch 2/4
-Hillf
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
