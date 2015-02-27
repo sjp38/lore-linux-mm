@@ -1,115 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 34BD06B006E
-	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 03:00:14 -0500 (EST)
-Received: by pdev10 with SMTP id v10so19313236pde.10
-        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 00:00:13 -0800 (PST)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id zw4si1836847pac.59.2015.02.27.00.00.10
-        for <linux-mm@kvack.org>;
-        Fri, 27 Feb 2015 00:00:12 -0800 (PST)
-Date: Fri, 27 Feb 2015 18:39:49 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: How to handle TIF_MEMDIE stalls?
-Message-ID: <20150227073949.GJ4251@dastard>
-References: <201502172057.GCD09362.FtHQMVSLJOFFOO@I-love.SAKURA.ne.jp>
- <alpine.DEB.2.10.1502231347510.21127@chino.kir.corp.google.com>
- <201502242020.IDI64912.tOOQSVJFOFLHMF@I-love.SAKURA.ne.jp>
- <20150224152033.GA3782@thunk.org>
- <20150224210244.GA13666@dastard>
- <201502252331.IEJ78629.OOOFSLFMHQtFVJ@I-love.SAKURA.ne.jp>
+Received: from mail-oi0-f45.google.com (mail-oi0-f45.google.com [209.85.218.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D04F6B0032
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 05:37:04 -0500 (EST)
+Received: by mail-oi0-f45.google.com with SMTP id i138so14870384oig.4
+        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 02:37:04 -0800 (PST)
+Received: from mail-oi0-x229.google.com (mail-oi0-x229.google.com. [2607:f8b0:4003:c06::229])
+        by mx.google.com with ESMTPS id rf10si1915934obc.33.2015.02.27.02.37.03
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 27 Feb 2015 02:37:03 -0800 (PST)
+Received: by mail-oi0-f41.google.com with SMTP id z81so14870632oif.0
+        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 02:37:03 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201502252331.IEJ78629.OOOFSLFMHQtFVJ@I-love.SAKURA.ne.jp>
+In-Reply-To: <1424958666-18241-1-git-send-email-vbabka@suse.cz>
+References: <1424958666-18241-1-git-send-email-vbabka@suse.cz>
+From: Michael Kerrisk <mtk.manpages@gmail.com>
+Date: Fri, 27 Feb 2015 11:36:43 +0100
+Message-ID: <CAHO5Pa0xmquUbzkZvow_PxRGZpA7MVEPFcRL2LPXv7hU41uxDw@mail.gmail.com>
+Subject: Re: [PATCH 0/4] enhance shmem process and swap accounting
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: tytso@mit.edu, rientjes@google.com, hannes@cmpxchg.org, mhocko@suse.cz, dchinner@redhat.com, linux-mm@kvack.org, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, fernando_b1@lab.ntt.co.jp
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm <linux-mm@kvack.org>, Jerome Marchand <jmarchan@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-doc@vger.kernel.org, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Randy Dunlap <rdunlap@infradead.org>, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Paul Mackerras <paulus@samba.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Linux API <linux-api@vger.kernel.org>
 
-On Wed, Feb 25, 2015 at 11:31:17PM +0900, Tetsuo Handa wrote:
-> Dave Chinner wrote:
-> > This exact discussion is already underway.
-> > 
-> > My initial proposal:
-> > 
-> > http://oss.sgi.com/archives/xfs/2015-02/msg00314.html
-> > 
-> > Why mempools don't work but transaction based reservations will:
-> > 
-> > http://oss.sgi.com/archives/xfs/2015-02/msg00339.html
-> > 
-> > Reservation needs to be an accounting mechanisms, not preallocation:
-> > 
-> > http://oss.sgi.com/archives/xfs/2015-02/msg00456.html
-> > http://oss.sgi.com/archives/xfs/2015-02/msg00457.html
-> > http://oss.sgi.com/archives/xfs/2015-02/msg00458.html
-> > 
-> > And that's where the discussion currently sits.
-> 
-> I got two problems (one is stall at io_schedule()
+[CC += linux-api@]
 
-This is a typical "blame the messenger" bug report. XFS is stuck in
-inode reclaim waiting for log IO completion to occur, along with all
-the other processes iin xfs_log_force also stuck waiting for the
-same Io completion.
+Hello Vlastimil,
 
-You need to find where that IO completion that everything is waiting
-on has got stuck or show that it's not a lost IO and actually an
-XFS problem. e.g has the IO stack got stuck on a mempool somewhere?
-
-> , the other is kernel panic
-> due to xfs's assertion failure) using Linux 3.19.
-
-> http://I-love.SAKURA.ne.jp/tmp/crash-20150225-2.log.xz )
-> ----------
-> [  189.586204] Out of memory: Kill process 3701 (a.out) score 834 or sacrifice child
-> [  189.586205] Killed process 3701 (a.out) total-vm:2167392kB, anon-rss:1465820kB, file-rss:4kB
-> [  189.586210] Kill process 3702 (a.out) sharing same memory
-> [  189.586211] Kill process 3714 (a.out) sharing same memory
-> [  189.586212] Kill process 3748 (a.out) sharing same memory
-> [  189.586213] Kill process 3755 (a.out) sharing same memory
-> [  189.593470] XFS: Assertion failed: XFS_FORCED_SHUTDOWN(mp), file: fs/xfs/xfs_inode.c, line: 1701
-
-Which is a failure of xfs_trans_reserve(), and through the calling
-context and parameters can only be from xfs_log_reserve().  That's
-got a pretty clear cause:
-
-        tic = xlog_ticket_alloc(log, unit_bytes, cnt, client, permanent,
-                                KM_SLEEP | KM_MAYFAIL);
-        if (!tic)
-                return -ENOMEM;
-
-And the reason for the ASSERT is pretty clear: we put it there
-because we need to know - as developers - what failures (if any)
-ever come through that path. This is called from evict():
-
-> [  189.593565] Call Trace:
-> [  189.593568]  [<ffffffff812ab2d7>] xfs_inactive_truncate+0x67/0x150
-> [  189.593569]  [<ffffffff812acb98>] xfs_inactive+0x1c8/0x1f0
-> [  189.593570]  [<ffffffff812b3216>] xfs_fs_evict_inode+0x86/0xd0
-> [  189.593572]  [<ffffffff811da0f8>] evict+0xb8/0x190
-> [  189.593574]  [<ffffffff811daa15>] iput+0xf5/0x180
-
-And as such there is no mechanism for actually reporting the error
-to userspace and in failing here we are about to leak an inode.
-
-When an XFS developer is testing new code, having a failure like
-that get trapped is immensely useful. However, on production
-systems, we can just keep going because it's not a fatal error and,
-even more importantly, the leaked inode will get cleaned up by log
-recovery next time the filesystem is mounted.
-
-IOWs, when you run CONFIG_XFS_DEBUG=y, you'll often get failures
-that are valuable to XFS developers but have no runtime effect on
-production systems.
+Since this is a kernel-user-space API change, please CC linux-api@.
+The kernel source file Documentation/SubmitChecklist notes that all
+Linux kernel patches that change userspace interfaces should be CCed
+to linux-api@vger.kernel.org, so that the various parties who are
+interested in API changes are informed. For further information, see
+https://www.kernel.org/doc/man-pages/linux-api-ml.html
 
 Cheers,
 
-Dave.
+Michael
+
+
+On Thu, Feb 26, 2015 at 2:51 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
+> This series is based on Jerome Marchand's [1] so let me quote the first
+> paragraph from there:
+>
+> There are several shortcomings with the accounting of shared memory
+> (sysV shm, shared anonymous mapping, mapping to a tmpfs file). The
+> values in /proc/<pid>/status and statm don't allow to distinguish
+> between shmem memory and a shared mapping to a regular file, even
+> though theirs implication on memory usage are quite different: at
+> reclaim, file mapping can be dropped or write back on disk while shmem
+> needs a place in swap. As for shmem pages that are swapped-out or in
+> swap cache, they aren't accounted at all.
+>
+> The original motivation for myself is that a customer found (IMHO rightfully)
+> confusing that e.g. top output for process swap usage is unreliable with
+> respect to swapped out shmem pages, which are not accounted for.
+>
+> The fundamental difference between private anonymous and shmem pages is that
+> the latter has PTE's converted to pte_none, and not swapents. As such, they are
+> not accounted to the number of swapents visible e.g. in /proc/pid/status VmSwap
+> row. It might be theoretically possible to use swapents when swapping out shmem
+> (without extra cost, as one has to change all mappers anyway), and on swap in
+> only convert the swapent for the faulting process, leaving swapents in other
+> processes until they also fault (so again no extra cost). But I don't know how
+> many assumptions this would break, and it would be too disruptive change for a
+> relatively small benefit.
+>
+> Instead, my approach is to document the limitation of VmSwap, and provide means
+> to determine the swap usage for shmem areas for those who are interested and
+> willing to pay the price, using /proc/pid/smaps. Because outside of ipcs, I
+> don't think it's possible to currently to determine the usage at all.  The
+> previous patchset [1] did introduce new shmem-specific fields into smaps
+> output, and functions to determine the values. I take a simpler approach,
+> noting that smaps output already has a "Swap: X kB" line, where currently X ==
+> 0 always for shmem areas. I think we can just consider this a bug and provide
+> the proper value by consulting the radix tree, as e.g. mincore_page() does. In the
+> patch changelog I explain why this is also not perfect (and cannot be without
+> swapents), but still arguably much better than showing a 0.
+>
+> The last two patches are adapted from Jerome's patchset and provide a VmRSS
+> breakdown to VmAnon, VmFile and VmShm in /proc/pid/status. Hugh noted that
+> this is a welcome addition, and I agree that it might help e.g. debugging
+> process memory usage at albeit non-zero, but still rather low cost of extra
+> per-mm counter and some page flag checks. I updated these patches to 4.0-rc1,
+> made them respect !CONFIG_SHMEM so that tiny systems don't pay the cost, and
+> optimized the page flag checking somewhat.
+>
+> [1] http://lwn.net/Articles/611966/
+>
+> Jerome Marchand (2):
+>   mm, shmem: Add shmem resident memory accounting
+>   mm, procfs: Display VmAnon, VmFile and VmShm in /proc/pid/status
+>
+> Vlastimil Babka (2):
+>   mm, documentation: clarify /proc/pid/status VmSwap limitations
+>   mm, proc: account for shmem swap in /proc/pid/smaps
+>
+>  Documentation/filesystems/proc.txt | 15 +++++++++++++--
+>  arch/s390/mm/pgtable.c             |  5 +----
+>  fs/proc/task_mmu.c                 | 35 +++++++++++++++++++++++++++++++++--
+>  include/linux/mm.h                 | 28 ++++++++++++++++++++++++++++
+>  include/linux/mm_types.h           |  9 ++++++---
+>  kernel/events/uprobes.c            |  2 +-
+>  mm/memory.c                        | 30 ++++++++++--------------------
+>  mm/oom_kill.c                      |  5 +++--
+>  mm/rmap.c                          | 15 ++++-----------
+>  9 files changed, 99 insertions(+), 45 deletions(-)
+>
+> --
+> 2.1.4
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+
+
 -- 
-Dave Chinner
-david@fromorbit.com
+Michael Kerrisk Linux man-pages maintainer;
+http://www.kernel.org/doc/man-pages/
+Author of "The Linux Programming Interface", http://blog.man7.org/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
