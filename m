@@ -1,139 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DD0B6B0032
-	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 08:12:18 -0500 (EST)
-Received: by pdbnh10 with SMTP id nh10so20933556pdb.11
-        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 05:12:17 -0800 (PST)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id gr2si2964121pac.198.2015.02.27.05.12.12
+Received: from mail-qa0-f44.google.com (mail-qa0-f44.google.com [209.85.216.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 5172F6B0032
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 08:20:32 -0500 (EST)
+Received: by mail-qa0-f44.google.com with SMTP id n8so12586734qaq.3
+        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 05:20:30 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id o10si4042533qgd.14.2015.02.27.05.20.29
         for <linux-mm@kvack.org>;
-        Fri, 27 Feb 2015 05:12:14 -0800 (PST)
-Date: Sat, 28 Feb 2015 00:12:09 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: How to handle TIF_MEMDIE stalls?
-Message-ID: <20150227131209.GK4251@dastard>
-References: <201502242020.IDI64912.tOOQSVJFOFLHMF@I-love.SAKURA.ne.jp>
- <20150224152033.GA3782@thunk.org>
- <20150224210244.GA13666@dastard>
- <201502252331.IEJ78629.OOOFSLFMHQtFVJ@I-love.SAKURA.ne.jp>
- <20150227073949.GJ4251@dastard>
- <201502272142.BFJ09388.OLOMFFFVSQJOtH@I-love.SAKURA.ne.jp>
+        Fri, 27 Feb 2015 05:20:29 -0800 (PST)
+Date: Fri, 27 Feb 2015 13:20:00 +0000
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [PATCH V4 0/6] RCU get_user_pages_fast and __get_user_pages_fast
+Message-ID: <20150227132000.GD9011@leverpostej>
+References: <1411740233-28038-1-git-send-email-steve.capper@linaro.org>
+ <54F06636.6080905@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201502272142.BFJ09388.OLOMFFFVSQJOtH@I-love.SAKURA.ne.jp>
+In-Reply-To: <54F06636.6080905@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: tytso@mit.edu, rientjes@google.com, hannes@cmpxchg.org, mhocko@suse.cz, dchinner@redhat.com, linux-mm@kvack.org, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, fernando_b1@lab.ntt.co.jp
+To: Jon Masters <jcm@redhat.com>
+Cc: Steve Capper <steve.capper@linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <Catalin.Marinas@arm.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Will Deacon <Will.Deacon@arm.com>, "gary.robertson@linaro.org" <gary.robertson@linaro.org>, "christoffer.dall@linaro.org" <christoffer.dall@linaro.org>, "peterz@infradead.org" <peterz@infradead.org>, "anders.roxell@linaro.org" <anders.roxell@linaro.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "dann.frazier@canonical.com" <dann.frazier@canonical.com>, "mgorman@suse.de" <mgorman@suse.de>, "hughd@google.com" <hughd@google.com>
 
-On Fri, Feb 27, 2015 at 09:42:55PM +0900, Tetsuo Handa wrote:
-> Dave Chinner wrote:
-> > On Wed, Feb 25, 2015 at 11:31:17PM +0900, Tetsuo Handa wrote:
-> > > I got two problems (one is stall at io_schedule()
+Hi Jon,
+
+Steve is currently away, but should be back in the office next week.
+
+On Fri, Feb 27, 2015 at 12:42:30PM +0000, Jon Masters wrote:
+> On 09/26/2014 10:03 AM, Steve Capper wrote:
+> 
+> > This series implements general forms of get_user_pages_fast and
+> > __get_user_pages_fast in core code and activates them for arm and arm64.
 > > 
-> > This is a typical "blame the messenger" bug report. XFS is stuck in
-> > inode reclaim waiting for log IO completion to occur, along with all
-> > the other processes iin xfs_log_force also stuck waiting for the
-> > same Io completion.
-> 
-> I wanted to know whether transaction based reservations can solve these
-> problems. Inside filesystem layer, I guess you can calculate how much
-> memory is needed for your filesystem transaction. But I'm wondering
-> whether we can calculate how much memory is needed inside block layer.
-> If block layer failed to reserve memory, won't file I/O fail under
-> extreme memory pressure? And if __GFP_NOFAIL were used inside block
-> layer, won't the OOM killer deadlock problem arise?
-> 
+> > These are required for Transparent HugePages to function correctly, as
+> > a futex on a THP tail will otherwise result in an infinite loop (due to
+> > the core implementation of __get_user_pages_fast always returning 0).
 > > 
-> > You need to find where that IO completion that everything is waiting
-> > on has got stuck or show that it's not a lost IO and actually an
-> > XFS problem. e.g has the IO stack got stuck on a mempool somewhere?
+> > Unfortunately, a futex on THP tail can be quite common for certain
+> > workloads; thus THP is unreliable without a __get_user_pages_fast
+> > implementation.
 > > 
+> > This series may also be beneficial for direct-IO heavy workloads and
+> > certain KVM workloads.
+> > 
+> > I appreciate that the merge window is coming very soon, and am posting
+> > this revision on the off-chance that it gets the nod for 3.18. (The changes
+> > thus far have been minimal and the feedback I've got has been mainly
+> > positive).
 > 
-> I didn't get a vmcore for this stall. But it seemed to me that
-> 
-> kworker/3:0H is doing
-> 
->   xfs_fs_free_cached_objects()
->   => xfs_reclaim_inodes_nr()
->     => xfs_reclaim_inodes_ag(mp, SYNC_TRYLOCK | SYNC_WAIT, &nr_to_scan)
->       => xfs_reclaim_inode() because mutex_trylock(&pag->pag_ici_reclaim_lock)
->          was succeessful
->          => xfs_iunpin_wait(ip) because xfs_ipincount(ip) was non 0
->            => __xfs_iunpin_wait()
->              => waiting inside io_schedule() for somebody to unpin
-> 
-> kswapd0 is doing
-> 
->   xfs_fs_free_cached_objects()
->   => xfs_reclaim_inodes_nr()
->     => xfs_reclaim_inodes_ag(mp, SYNC_TRYLOCK | SYNC_WAIT, &nr_to_scan)
->       => not calling xfs_reclaim_inode() because
->          mutex_trylock(&pag->pag_ici_reclaim_lock) failed due to kworker/3:0H
->       => SYNC_TRYLOCK is dropped for retry loop due to
-> 
->             if (skipped && (flags & SYNC_WAIT) && *nr_to_scan > 0) {
->                     trylock = 0;
->                     goto restart;
->             }
-> 
->       => calling mutex_lock(&pag->pag_ici_reclaim_lock) and gets blocked
->          due to kworker/3:0H
-> 
-> kworker/3:0H is trying to free memory but somebody needs memory to make
-> forward progress. kswapd0 is also trying to free memory but is blocked by
-> kworker/3:0H already holding the lock. Since kswapd0 cannot make forward
-> progress, somebody can't allocate memory. Finally the system started
-> stalling. Is this decoding correct?
+> Head's up: these patches are currently implicated in a rare-to-trigger
+> hang that we are seeing on an internal kernel. An extensive effort is
+> underway to confirm whether these are the cause. Will followup.
 
-Yes. The per-ag lock is a key throttling point for reclaim when
-there are many more direct reclaimers than there are allocation
-groups. System performance drops badly in low memory conditions if
-we have more than one reclaimer operating on an allocation group at
-a time as they interfere and contend with each other. Effectively
-multiple rclaimers within the one AG turn ascending offset order
-inode writeback into random IO, which is orders of magnitude slower
-than a single thread can clean and reclaim those same inodes.
+I'm currently investigating an intermittent memory corruption issue in
+v4.0-rc1 I'm able to trigger on Seattle with 4K pages and 48-bit VA,
+which may or may not be related. Sometimes it results in a hang (when
+the vectors get corrupted and the CPUs get caught in a recursive
+exception loop).
 
-Quite simply: if one thread can't make progress due to be stuck
-waiting for IO, then another hundred threads trying to do the same
-operations are unlikely to make progress, either.
+Which architecture(s) are you hitting this on?
 
-Thing is, the io layer below XFS that appears to be stuck does
-GFP_NOIO allocations, and therefore direct reclaim for mempool
-allocation in the block layer cannot get stuck on GFP_FS level
-reclaim operations....
+Which configurations configuration(s)?
 
-> I killed mutex_lock() and memory allocation from shrinker functions
-> in drivers/gpu/drm/ttm/ttm_page_alloc[_dma].c because I observed that
-> kswapd0 was blocked for so long at mutex_lock().
+What are you using to tickle the issue?
 
-Which, to me, is fixing a symptom rather than understanding the root
-cause of why lower layers are not making progress as they are
-supposed to.
-
-> If kswapd0 is blocked forever at e.g. mutex_lock() inside shrinker
-> functions, who else can make forward progress?
-
-You can't get into these filesystem shrinkers when you do GFP_NOIO
-allocations, as the IO path does.
-
-> Shouldn't we avoid calling functions which could potentially block for
-> unpredictable duration (e.g. unkillable locks and/or completion) from
-> shrinker functions?
-
-No, because otherwise we can't throttle allocation and reclaim to
-the rate at which IO can clean dirty objects. i.e. we do this for
-the same reason we throttle page cache dirtying to the rate at which
-we can clean dirty pages....
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Thanks,
+Mark.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
