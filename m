@@ -1,66 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
-	by kanga.kvack.org (Postfix) with ESMTP id AE0FA6B0032
-	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 12:38:34 -0500 (EST)
-Received: by mail-qa0-f46.google.com with SMTP id n4so13791590qaq.5
-        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 09:38:34 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b130si4658607qhc.99.2015.02.27.09.38.32
+Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 730EF6B0032
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 13:24:40 -0500 (EST)
+Received: by wevm14 with SMTP id m14so21986201wev.8
+        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 10:24:40 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p12si8511526wjr.195.2015.02.27.10.24.37
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Feb 2015 09:38:33 -0800 (PST)
-Date: Fri, 27 Feb 2015 18:36:50 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH] mm: replace mmap_sem for mm->exe_file serialization
-Message-ID: <20150227173650.GA18823@redhat.com>
-References: <1424979417.10344.14.camel@stgolabs.net> <20150226205145.GH3041@moon>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 27 Feb 2015 10:24:38 -0800 (PST)
+Message-ID: <54F0B662.8020508@suse.cz>
+Date: Fri, 27 Feb 2015 19:24:34 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150226205145.GH3041@moon>
+Subject: Re: How to handle TIF_MEMDIE stalls?
+References: <20150210151934.GA11212@phnom.home.cmpxchg.org> <201502111123.ICD65197.FMLOHSQJFVOtFO@I-love.SAKURA.ne.jp> <201502172123.JIE35470.QOLMVOFJSHOFFt@I-love.SAKURA.ne.jp> <20150217125315.GA14287@phnom.home.cmpxchg.org> <20150217225430.GJ4251@dastard> <20150219102431.GA15569@phnom.home.cmpxchg.org> <20150219225217.GY12722@dastard> <20150221235227.GA25079@phnom.home.cmpxchg.org> <20150223004521.GK12722@dastard> <20150222172930.6586516d.akpm@linux-foundation.org> <20150223073235.GT4251@dastard>
+In-Reply-To: <20150223073235.GT4251@dastard>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>
-Cc: Davidlohr Bueso <dave.bueso@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dave@stgolabs.net
+To: Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@suse.cz, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, mgorman@suse.de, torvalds@linux-foundation.org, xfs@oss.sgi.com
 
-On 02/26, Cyrill Gorcunov wrote:
->
-> On Thu, Feb 26, 2015 at 11:36:57AM -0800, Davidlohr Bueso wrote:
-> > We currently use the mmap_sem to serialize the mm exe_file.
-> > This is atrocious and a clear example of the misuses this
-> > lock has all over the place, making any significant changes
-> > to the address space locking that much more complex and tedious.
-> > This also has to do of how we used to check for the vma's vm_file
-> > being VM_EXECUTABLE (much of which was replaced by 2dd8ad81e31).
-> >
-> > This patch, therefore, removes the mmap_sem dependency and
-> > introduces a specific lock for the exe_file (rwlock_t, as it is
-> > read mostly and protects a trivial critical region). As mentioned,
-> > the motivation is to cleanup mmap_sem (as opposed to exe_file
-> > performance).
+On 02/23/2015 08:32 AM, Dave Chinner wrote:
+>> > And then there will be an unknown number of
+>> > slab allocations of unknown size with unknown slabs-per-page rules
+>> > - how many pages needed for them?
+> However many pages needed to allocate the number of objects we'll
+> consume from the slab.
 
-Well, I didn't see the patch, can't really comment.
+I think the best way is if slab could also learn to provide reserves for
+individual objects. Either just mark internally how many of them are reserved,
+if sufficient number is free, or translate this to the page allocator reserves,
+as slab knows which order it uses for the given objects.
 
-But I have to admit that this looks as atrocious and a clear example of
-"lets add yet another random lock which we will regret about later" ;)
+>> > And to make it much worse, how
+>> > many pages of which orders?  Bless its heart, slub will go and use
+>> > a 1-order page for allocations which should have been in 0-order
+>> > pages..
+> The majority of allocations will be order-0, though if we know that
+> they are going to be significant numbers of high order allocations,
+> then it should be simple enough to tell the mm subsystem "need a
+> reserve of 32 order-0, 4 order-1 and 1 order-3 allocations" and have
+> memory compaction just do it's stuff. But, IMO, we should cross that
+> bridge when somebody actually needs reservations to be that
+> specific....
 
-rwlock_t in mm_struct just to serialize access to exe_file?
-
-> A nice side effect of this is that we avoid taking
-> > the mmap_sem (shared) in fork paths for the exe_file handling
-> > (note that readers block when the rwsem is taken exclusively by
-> > another thread).
-
-Yes, this is ugly. Can't we kill this dup_mm_exe_file() and copy change
-dup_mmap() to also dup ->exe_file ?
-
-> Hi Davidlohr, it would be interesting to know if the cleanup
-> bring some performance benefit?
-
-To me the main question is whether the patch makes this code simpler
-or uglier ;)
-
-Oleg.
+Note that watermark checking for higher-order allocations is somewhat fuzzy
+compared to order-0 checks, but I guess some kind of reservations could work
+there too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
