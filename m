@@ -1,89 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 14E476B0032
-	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 15:53:41 -0500 (EST)
-Received: by igal13 with SMTP id l13so3661985iga.5
-        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 12:53:40 -0800 (PST)
-Received: from mail-ig0-x235.google.com (mail-ig0-x235.google.com. [2607:f8b0:4001:c05::235])
-        by mx.google.com with ESMTPS id k6si1710323icl.32.2015.02.27.12.53.40
+Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 37B596B0032
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 16:02:39 -0500 (EST)
+Received: by wevm14 with SMTP id m14so22697883wev.8
+        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 13:02:38 -0800 (PST)
+Received: from mail-wg0-x22b.google.com (mail-wg0-x22b.google.com. [2a00:1450:400c:c00::22b])
+        by mx.google.com with ESMTPS id my7si5598136wic.51.2015.02.27.13.02.36
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Feb 2015 12:53:40 -0800 (PST)
-Received: by igbhl2 with SMTP id hl2so3338466igb.0
-        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 12:53:40 -0800 (PST)
-Date: Fri, 27 Feb 2015 12:53:37 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: set khugepaged_max_ptes_none by 1/8 of
- HPAGE_PMD_NR
-In-Reply-To: <1425061608-15811-1-git-send-email-ebru.akagunduz@gmail.com>
-Message-ID: <alpine.DEB.2.10.1502271248240.2122@chino.kir.corp.google.com>
-References: <1425061608-15811-1-git-send-email-ebru.akagunduz@gmail.com>
+        Fri, 27 Feb 2015 13:02:37 -0800 (PST)
+Received: by wghn12 with SMTP id n12so22817804wgh.1
+        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 13:02:35 -0800 (PST)
+Date: Fri, 27 Feb 2015 22:02:33 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC] mm: change mm_advise_free to clear page dirty
+Message-ID: <20150227210233.GA29002@dhcp22.suse.cz>
+References: <1424765897-27377-1-git-send-email-minchan@kernel.org>
+ <20150224154318.GA14939@dhcp22.suse.cz>
+ <20150225000809.GA6468@blaptop>
+ <35FD53F367049845BC99AC72306C23D10458D6173BDC@CNBJMBX05.corpusers.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <35FD53F367049845BC99AC72306C23D10458D6173BDC@CNBJMBX05.corpusers.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kirill@shutemov.name, mhocko@suse.cz, mgorman@suse.de, sasha.levin@oracle.com, hughd@google.com, hannes@cmpxchg.org, vbabka@suse.cz, linux-kernel@vger.kernel.org, riel@redhat.com, aarcange@redhat.com
+To: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Cc: 'Minchan Kim' <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Shaohua Li <shli@kernel.org>
 
-On Fri, 27 Feb 2015, Ebru Akagunduz wrote:
+On Fri 27-02-15 11:37:18, Wang, Yalin wrote:
+> This patch add ClearPageDirty() to clear AnonPage dirty flag,
+> the Anonpage mapcount must be 1, so that this page is only used by
+> the current process, not shared by other process like fork().
+> if not clear page dirty for this anon page, the page will never be
+> treated as freeable.
 
-> Using THP, programs can access memory faster, by having the
-> kernel collapse small pages into large pages. The parameter
-> max_ptes_none specifies how many extra small pages (that are
-> not already mapped) can be allocated when collapsing a group
-> of small pages into one large page.
-> 
+Very well spotted! I haven't noticed that during the review.
 
-Not exactly, khugepaged isn't "allocating" small pages to collapse into a 
-hugepage, rather it is allocating a hugepage and then remapping the 
-pageblock's mapped pages.
-
-> A larger value of max_ptes_none can cause the kernel
-> to collapse more incomplete areas into THPs, speeding
-> up memory access at the cost of increased memory use.
-> A smaller value of max_ptes_none will reduce memory
-> waste, at the expense of collapsing fewer areas into
-> THPs.
-> 
-
-This changelog only describes what max_ptes_none does, it doesn't state 
-why you want to change it from HPAGE_PMD_NR-1, which is 511 on x86_64 
-(largest value, more thp), to HPAGE_PMD_NR/8, which is 64 (smaller value, 
-less thp, less rss as a result of collapsing).
-
-This has particular performance implications on users who already have thp 
-enabled, so it's difficult to change the default.  This is tuanble that 
-you could easily set in an initscript, so I don't think we need to change 
-the value for everybody.
-
-> The problem was reported here:
-> https://bugzilla.kernel.org/show_bug.cgi?id=93111
-> 
-> Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-> Reviewed-by: Rik van Riel <riel@redhat.com>
+> Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
 > ---
->  mm/huge_memory.c | 7 +++----
->  1 file changed, 3 insertions(+), 4 deletions(-)
+>  mm/madvise.c | 15 +++++----------
+>  1 file changed, 5 insertions(+), 10 deletions(-)
 > 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index e08e37a..497fb5a 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -59,11 +59,10 @@ static DEFINE_MUTEX(khugepaged_mutex);
->  static DEFINE_SPINLOCK(khugepaged_mm_lock);
->  static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
->  /*
-> - * default collapse hugepages if there is at least one pte mapped like
-> - * it would have happened if the vma was large enough during page
-> - * fault.
-> + * The default value should be a compromise between memory use and THP speedup.
-> + * To collapse hugepages, unmapped ptes should not exceed 1/8 of HPAGE_PMD_NR.
->   */
-> -static unsigned int khugepaged_max_ptes_none __read_mostly = HPAGE_PMD_NR-1;
-> +static unsigned int khugepaged_max_ptes_none __read_mostly = HPAGE_PMD_NR/8;
+> diff --git a/mm/madvise.c b/mm/madvise.c
+> index 6d0fcb8..257925a 100644
+> --- a/mm/madvise.c
+> +++ b/mm/madvise.c
+> @@ -297,22 +297,17 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+>  			continue;
 >  
->  static int khugepaged(void *none);
->  static int khugepaged_slab_init(void);
+>  		page = vm_normal_page(vma, addr, ptent);
+> -		if (!page)
+> +		if (!page || !PageAnon(page) || !trylock_page(page))
+>  			continue;
+
+PageAnon check seems to be redundant because we are not allowing
+MADV_FREE on any !anon private mappings AFAIR.
+
+>  
+>  		if (PageSwapCache(page)) {
+> -			if (!trylock_page(page))
+> +			if (!try_to_free_swap(page))
+>  				continue;
+
+You need to unlock the page here.
+
+> -
+> -			if (!try_to_free_swap(page)) {
+> -				unlock_page(page);
+> -				continue;
+> -			}
+> -
+> -			ClearPageDirty(page);
+> -			unlock_page(page);
+>  		}
+>  
+> +		if (page_mapcount(page) == 1)
+> +			ClearPageDirty(page);
+
+Please add a comment about why we need to ClearPageDirty even
+!PageSwapCache. Anon pages are usually not marked dirty AFAIR. The
+reason seem to be racing try_to_free_swap which sets the page that way
+(although I do not seem to remember why are we doing that in the first
+place...)
+
+> +		unlock_page(page);
+>  		/*
+>  		 * Some of architecture(ex, PPC) don't update TLB
+>  		 * with set_pte_at and tlb_remove_tlb_entry so for
+> -- 
+> 2.2.2
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
