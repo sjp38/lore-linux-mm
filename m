@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 43DBC6B006E
-	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 17:59:39 -0500 (EST)
-Received: by mail-ob0-f179.google.com with SMTP id wp4so21510625obc.10
-        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 14:59:39 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id df10si2784977oeb.100.2015.02.27.14.59.38
+Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AF716B0070
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 18:00:01 -0500 (EST)
+Received: by mail-ob0-f175.google.com with SMTP id va2so21564335obc.6
+        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 15:00:00 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id kg7si2819107obb.56.2015.02.27.15.00.00
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 27 Feb 2015 14:59:38 -0800 (PST)
+        Fri, 27 Feb 2015 15:00:00 -0800 (PST)
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [RFC 2/3] hugetlbfs: coordinate global and subpool reserve accounting
-Date: Fri, 27 Feb 2015 14:58:12 -0800
-Message-Id: <1425077893-18366-5-git-send-email-mike.kravetz@oracle.com>
+Subject: [RFC 1/3] hugetlbfs: add reserved mount fields to subpool structure
+Date: Fri, 27 Feb 2015 14:58:10 -0800
+Message-Id: <1425077893-18366-3-git-send-email-mike.kravetz@oracle.com>
 In-Reply-To: <1425077893-18366-1-git-send-email-mike.kravetz@oracle.com>
 References: <1425077893-18366-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,70 +20,55 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Nadia Yvette Chambers <nyc@holomorphy.com>, Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <davidlohr@hp.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-If the pages for a subpool are reserved, then the reservations have
-already been accounted for in the global pool.  Therefore, when
-requesting a new reservation (such as for a mapping) for the subpool
-do not count again in global pool.  However, when actually allocating
-a page for the subpool decrement gobal reserve count to correspond to
-with decrement in global free pages.
+Add a boolean to the subpool structure to indicate that the pages for
+subpool have been reserved.  The hstate pointer in the subpool is
+convienient to have when it comes time to unreserve the pages.
+subool_reserved() is a handy way to check if reserved and take into
+account a NULL subpool.
 
 Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 ---
- mm/hugetlb.c | 20 +++++++++++++-------
- 1 file changed, 13 insertions(+), 7 deletions(-)
+ include/linux/hugetlb.h | 6 ++++++
+ mm/hugetlb.c            | 2 ++
+ 2 files changed, 8 insertions(+)
 
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 431b7fc..605c648 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -23,6 +23,8 @@ struct hugepage_subpool {
+ 	spinlock_t lock;
+ 	long count;
+ 	long max_hpages, used_hpages;
++	struct hstate *hstate;
++	bool reserved;
+ };
+ 
+ struct resv_map {
+@@ -38,6 +40,10 @@ extern int hugetlb_max_hstate __read_mostly;
+ #define for_each_hstate(h) \
+ 	for ((h) = hstates; (h) < &hstates[hugetlb_max_hstate]; (h)++)
+ 
++static inline bool subpool_reserved(struct hugepage_subpool *spool)
++{
++	return spool && spool->reserved;
++}
+ struct hugepage_subpool *hugepage_new_subpool(long nr_blocks);
+ void hugepage_put_subpool(struct hugepage_subpool *spool);
+ 
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index c6adf65..4ef8379 100644
+index 85032de..c6adf65 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -879,7 +879,7 @@ void free_huge_page(struct page *page)
- 	spin_lock(&hugetlb_lock);
- 	hugetlb_cgroup_uncharge_page(hstate_index(h),
- 				     pages_per_huge_page(h), page);
--	if (restore_reserve)
-+	if (restore_reserve || subpool_reserved(spool))
- 		h->resv_huge_pages++;
+@@ -85,6 +85,8 @@ struct hugepage_subpool *hugepage_new_subpool(long nr_blocks)
+ 	spool->count = 1;
+ 	spool->max_hpages = nr_blocks;
+ 	spool->used_hpages = 0;
++	spool->hstate = NULL;
++	spool->reserved = false;
  
- 	if (h->surplus_huge_pages_node[nid]) {
-@@ -2466,7 +2466,8 @@ static void hugetlb_vm_op_close(struct vm_area_struct *vma)
- 	kref_put(&resv->refs, resv_map_release);
- 
- 	if (reserve) {
--		hugetlb_acct_memory(h, -reserve);
-+		if (!subpool_reserved(spool))
-+			hugetlb_acct_memory(h, -reserve);
- 		hugepage_subpool_put_pages(spool, reserve);
- 	}
+ 	return spool;
  }
-@@ -3444,10 +3445,14 @@ int hugetlb_reserve_pages(struct inode *inode,
- 	 * Check enough hugepages are available for the reservation.
- 	 * Hand the pages back to the subpool if there are not
- 	 */
--	ret = hugetlb_acct_memory(h, chg);
--	if (ret < 0) {
--		hugepage_subpool_put_pages(spool, chg);
--		goto out_err;
-+	if (subpool_reserved(spool))
-+		ret = 0;
-+	else {
-+		ret = hugetlb_acct_memory(h, chg);
-+		if (ret < 0) {
-+			hugepage_subpool_put_pages(spool, chg);
-+			goto out_err;
-+		}
- 	}
- 
- 	/*
-@@ -3483,7 +3488,8 @@ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
- 	inode->i_blocks -= (blocks_per_huge_page(h) * freed);
- 	spin_unlock(&inode->i_lock);
- 
--	hugepage_subpool_put_pages(spool, (chg - freed));
-+	if (!subpool_reserved(spool))
-+		hugepage_subpool_put_pages(spool, (chg - freed));
- 	hugetlb_acct_memory(h, -(chg - freed));
- }
- 
 -- 
 2.1.0
 
