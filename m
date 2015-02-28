@@ -1,76 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f179.google.com (mail-ie0-f179.google.com [209.85.223.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D97F6B0095
-	for <linux-mm@kvack.org>; Sat, 28 Feb 2015 16:49:18 -0500 (EST)
-Received: by iecar1 with SMTP id ar1so39364134iec.0
-        for <linux-mm@kvack.org>; Sat, 28 Feb 2015 13:49:18 -0800 (PST)
-Received: from mail-ie0-x230.google.com (mail-ie0-x230.google.com. [2607:f8b0:4001:c03::230])
-        by mx.google.com with ESMTPS id gy6si5021488igb.18.2015.02.28.13.49.17
+Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 860B06B0098
+	for <linux-mm@kvack.org>; Sat, 28 Feb 2015 17:16:10 -0500 (EST)
+Received: by wesq59 with SMTP id q59so26645457wes.1
+        for <linux-mm@kvack.org>; Sat, 28 Feb 2015 14:16:09 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id lf5si191850wjb.111.2015.02.28.14.16.08
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 28 Feb 2015 13:49:17 -0800 (PST)
-Received: by iecvy18 with SMTP id vy18so39249760iec.6
-        for <linux-mm@kvack.org>; Sat, 28 Feb 2015 13:49:17 -0800 (PST)
+        Sat, 28 Feb 2015 14:16:08 -0800 (PST)
+Date: Sat, 28 Feb 2015 17:15:58 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: How to handle TIF_MEMDIE stalls?
+Message-ID: <20150228221558.GA23028@phnom.home.cmpxchg.org>
+References: <201502111123.ICD65197.FMLOHSQJFVOtFO@I-love.SAKURA.ne.jp>
+ <201502172123.JIE35470.QOLMVOFJSHOFFt@I-love.SAKURA.ne.jp>
+ <20150217125315.GA14287@phnom.home.cmpxchg.org>
+ <20150217225430.GJ4251@dastard>
+ <20150219102431.GA15569@phnom.home.cmpxchg.org>
+ <20150219225217.GY12722@dastard>
+ <20150221235227.GA25079@phnom.home.cmpxchg.org>
+ <20150223004521.GK12722@dastard>
+ <20150228162943.GA17989@phnom.home.cmpxchg.org>
+ <20150228164158.GE5404@thunk.org>
 MIME-Version: 1.0
-In-Reply-To: <1425158083.4645.139.camel@kernel.crashing.org>
-References: <1422361485.6648.71.camel@opensuse.org>
-	<54C78756.9090605@suse.cz>
-	<alpine.LSU.2.11.1501271347440.30227@nerf60.vanv.qr>
-	<1422364084.6648.82.camel@opensuse.org>
-	<s5h7fw8hvdp.wl-tiwai@suse.de>
-	<CA+55aFyzy_wYHHnr2gDcYr7qcgOKM2557bRdg6RBa=cxrynd+Q@mail.gmail.com>
-	<CA+55aFxRnj97rpSQvvzLJhpo7C8TQ-F=eB1Ry2n53AV1rN8mwA@mail.gmail.com>
-	<CAMo8BfLsKCV_2NfgMH4k9jGOHs_-3=NKjCD3o3KK1uH23-6RRg@mail.gmail.com>
-	<CA+55aFzQ5QEZ1AYauWviq1gp5j=mqByAtt4fpteeK7amuxcyjw@mail.gmail.com>
-	<1422836637.17302.9.camel@au1.ibm.com>
-	<CA+55aFw9sg7pu9-2RbMGyPv5yUtcH54QowoH+5RhWqpPYg4YGQ@mail.gmail.com>
-	<1425107567.4645.108.camel@kernel.crashing.org>
-	<CA+55aFy5UvzSgOMKq09u4psz5twtC4aowuK6tofGKDEu-KFMJQ@mail.gmail.com>
-	<1425158083.4645.139.camel@kernel.crashing.org>
-Date: Sat, 28 Feb 2015 13:49:17 -0800
-Message-ID: <CA+55aFzLQWZJR+Y8HAhdPDSiL0QH_Lx2BqPkiFckAO69bJcOtA@mail.gmail.com>
-Subject: Re: Generic page fault (Was: libsigsegv ....)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150228164158.GE5404@thunk.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: Dave Chinner <david@fromorbit.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@suse.cz, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, xfs@oss.sgi.com
 
-On Sat, Feb 28, 2015 at 1:14 PM, Benjamin Herrenschmidt
-<benh@kernel.crashing.org> wrote:
->
-> BTW. I fail to see how x86 checks PF_INSTR vs. VM_NOEXEC ... or it doesn't ?
+On Sat, Feb 28, 2015 at 11:41:58AM -0500, Theodore Ts'o wrote:
+> On Sat, Feb 28, 2015 at 11:29:43AM -0500, Johannes Weiner wrote:
+> > 
+> > I'm trying to figure out if the current nofail allocators can get
+> > their memory needs figured out beforehand.  And reliably so - what
+> > good are estimates that are right 90% of the time, when failing the
+> > allocation means corrupting user data?  What is the contingency plan?
+> 
+> In the ideal world, we can figure out the exact memory needs
+> beforehand.  But we live in an imperfect world, and given that block
+> devices *also* need memory, the answer is "of course not".  We can't
+> be perfect.  But we can least give some kind of hint, and we can offer
+> to wait before we get into a situation where we need to loop in
+> GFP_NOWAIT --- which is the contingency/fallback plan.
 
-It doesn't. x86 traditionally doesn't have an execute bit, so
-traditionally "read == exec".
+Overestimating should be fine, the result would a bit of false memory
+pressure.  But underestimating and looping can't be an option or the
+original lockups will still be there.  We need to guarantee forward
+progress or the problem is somewhat mitigated at best - only now with
+quite a bit more complexity in the allocator and the filesystems.
 
-So PF_INSTR really wasn't historically very useful, in that it would
-only show if the *first* access to a page was an instruction fetch -
-if you did a regular read to brign the page in, then subsequent
-instruction fetches would just work.
-
-Then NX came along, and what happens now is
-
- - we handle write faults separately (see the first part of access_error()
-
- - so now we know it was a read or an instruction fetch
-
- - if PF_PROT is set, that means that the present bit was set in the
-page tables, so it must have been an exec access to a NX page
-
- - otherwise, we just say "PROTNONE means no access, otherwise
-populate the page tables"
-
-.. and if it turns out that it was a PF_INSTR to a NX page, we'll end
-up taking the page fault *again* after it's been populated, and now
-since the page table was populated, the access_error() will catch it
-with the PF_PROT case.
-
-Or something like that. I might have screwed up some detail, but it
-should all work.
-
-                     Linus
+The block code would have to be looked at separately, but doesn't it
+already use mempools etc. to guarantee progress?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
