@@ -1,95 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f177.google.com (mail-qc0-f177.google.com [209.85.216.177])
-	by kanga.kvack.org (Postfix) with ESMTP id BA2456B0032
-	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 21:07:28 -0500 (EST)
-Received: by qcxr5 with SMTP id r5so16980577qcx.10
-        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 18:07:28 -0800 (PST)
-Received: from mail-qg0-x236.google.com (mail-qg0-x236.google.com. [2607:f8b0:400d:c04::236])
-        by mx.google.com with ESMTPS id 197si5886850qhc.26.2015.02.27.18.07.27
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 558126B0032
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2015 21:11:24 -0500 (EST)
+Received: by padet14 with SMTP id et14so1244255pad.0
+        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 18:11:24 -0800 (PST)
+Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
+        by mx.google.com with ESMTPS id t4si7768627pda.45.2015.02.27.18.11.22
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Feb 2015 18:07:27 -0800 (PST)
-Received: by mail-qg0-f54.google.com with SMTP id h3so3284717qgf.13
-        for <linux-mm@kvack.org>; Fri, 27 Feb 2015 18:07:27 -0800 (PST)
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 27 Feb 2015 18:11:23 -0800 (PST)
+From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Date: Sat, 28 Feb 2015 10:11:13 +0800
+Subject: RE: [RFC] mm: change mm_advise_free to clear page dirty
+Message-ID: <35FD53F367049845BC99AC72306C23D10458D6173BE0@CNBJMBX05.corpusers.net>
+References: <1424765897-27377-1-git-send-email-minchan@kernel.org>
+ <20150224154318.GA14939@dhcp22.suse.cz> <20150225000809.GA6468@blaptop>
+ <35FD53F367049845BC99AC72306C23D10458D6173BDC@CNBJMBX05.corpusers.net>
+ <20150227210233.GA29002@dhcp22.suse.cz>
+In-Reply-To: <20150227210233.GA29002@dhcp22.suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20150227171811.c9f6d0ca.akpm@linux-foundation.org>
-References: <1424821185-16956-1-git-send-email-dpetigara@broadcom.com>
- <20150227132443.e17d574d45451f10f413f065@linux-foundation.org>
- <54F10358.1050102@broadcom.com> <20150227155458.697b7701d0a67ff7b4f3d9cb@linux-foundation.org>
- <54F114D0.3060306@broadcom.com> <20150227171811.c9f6d0ca.akpm@linux-foundation.org>
-From: Gregory Fong <gregory.0xf0@gmail.com>
-Date: Fri, 27 Feb 2015 18:06:57 -0800
-Message-ID: <CADtm3G5QdadzTcKOjDO1mgtjU_vfqtG6DucTJYdTtyQirLfXDg@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: cma: fix CMA aligned offset calculation
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Danesh Petigara <dpetigara@broadcom.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, stable@vger.kernel.org
+To: 'Michal Hocko' <mhocko@suse.cz>
+Cc: 'Minchan Kim' <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Shaohua Li <shli@kernel.org>
 
-On Fri, Feb 27, 2015 at 5:18 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Fri, 27 Feb 2015 17:07:28 -0800 Danesh Petigara <dpetigara@broadcom.com> wrote:
->
->> On 2/27/2015 3:54 PM, Andrew Morton wrote:
->> > On Fri, 27 Feb 2015 15:52:56 -0800 Danesh Petigara <dpetigara@broadcom.com> wrote:
->> >
->> >> On 2/27/2015 1:24 PM, Andrew Morton wrote:
->> >>> On Tue, 24 Feb 2015 15:39:45 -0800 Danesh Petigara <dpetigara@broadcom.com> wrote:
->> >>>
->> >>>> The CMA aligned offset calculation is incorrect for
->> >>>> non-zero order_per_bit values.
->> >>>>
->> >>>> For example, if cma->order_per_bit=1, cma->base_pfn=
->> >>>> 0x2f800000 and align_order=12, the function returns
->> >>>> a value of 0x17c00 instead of 0x400.
->> >>>>
->> >>>> This patch fixes the CMA aligned offset calculation.
->> >>>
->> >>> When fixing a bug please always describe the end-user visible effects
->> >>> of that bug.
->> >>>
->> >>> Without that information others are unable to understand why you are
->> >>> recommending a -stable backport.
->> >>>
->> >>
->> >> Thank you for the feedback. I had no crash logs to show, nevertheless, I
->> >> agree that a sentence describing potential effects of the bug would've
->> >> helped.
->> >
->> > What was the reason for adding a cc:stable?
->> >
->>
->> It was added since the commit that introduced the incorrect logic
->> (b5be83e) was already picked up by v3.19.
->
-> argh.
->
-> afaict the bug will, under some conditions cause cma_alloc() to report
-> that no suitable free area is available in the arena when in fact such
-> regions *are* available.  So it's effectively a bogus ENOMEM.
->
-> Correct?  If so, what are the conditions under which this will occur?
+> -----Original Message-----
+> From: Michal Hocko [mailto:mstsxfx@gmail.com] On Behalf Of Michal Hocko
+> Sent: Saturday, February 28, 2015 5:03 AM
+> To: Wang, Yalin
+> Cc: 'Minchan Kim'; Andrew Morton; linux-kernel@vger.kernel.org; linux-
+> mm@kvack.org; Rik van Riel; Johannes Weiner; Mel Gorman; Shaohua Li
+> Subject: Re: [RFC] mm: change mm_advise_free to clear page dirty
+>=20
+> On Fri 27-02-15 11:37:18, Wang, Yalin wrote:
+> > This patch add ClearPageDirty() to clear AnonPage dirty flag,
+> > the Anonpage mapcount must be 1, so that this page is only used by
+> > the current process, not shared by other process like fork().
+> > if not clear page dirty for this anon page, the page will never be
+> > treated as freeable.
+>=20
+> Very well spotted! I haven't noticed that during the review.
+>=20
+> > Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
+> > ---
+> >  mm/madvise.c | 15 +++++----------
+> >  1 file changed, 5 insertions(+), 10 deletions(-)
+> >
+> > diff --git a/mm/madvise.c b/mm/madvise.c
+> > index 6d0fcb8..257925a 100644
+> > --- a/mm/madvise.c
+> > +++ b/mm/madvise.c
+> > @@ -297,22 +297,17 @@ static int madvise_free_pte_range(pmd_t *pmd,
+> unsigned long addr,
+> >  			continue;
+> >
+> >  		page =3D vm_normal_page(vma, addr, ptent);
+> > -		if (!page)
+> > +		if (!page || !PageAnon(page) || !trylock_page(page))
+> >  			continue;
+>=20
+> PageAnon check seems to be redundant because we are not allowing
+> MADV_FREE on any !anon private mappings AFAIR.
+I only see this check:
+/* MADV_FREE works for only anon vma at the moment */
+	if (vma->vm_file)
+		return -EINVAL;
 
-This is correct, and it can occur for any nonzero order_per_bit value.
-The previous calculation was wrong and would return too-large values
-for the offset, so that when cma_alloc looks for free pages in the
-bitmap with the requested alignment > order_per_bit, it starts too far
-into the bitmap and so CMA allocations will fail despite there
-actually being plenty of free pages remaining.  It will also probably
-have the wrong alignment.  With this change, we will get the correct
-offset into the bitmap.
+but for file private map, there are also AnonPage sometimes, do we need cha=
+nge
+to like this:
+	if (vma->vm_flags & VM_SHARED)
+		return -EINVAL;
+> >
+> >  		if (PageSwapCache(page)) {
+> > -			if (!trylock_page(page))
+> > +			if (!try_to_free_swap(page))
+> >  				continue;
+>=20
+> You need to unlock the page here.
+Good spot.
 
-One affected user is powerpc KVM, which has kvm_cma->order_per_bit set
-to KVM_CMA_CHUNK_ORDER - PAGE_SHIFT, or 18 - 12 = 6.
-
-I actually had written the offset function this way originally, then
-tried to make it more like cma_bitmap_aligned_mask(), but screwed up
-the transformation and it really wasn't any easier to understand
-anyway.  That was stupid, sorry about that. =(
-
-Best regards,
-Gregory
+> > -
+> > -			if (!try_to_free_swap(page)) {
+> > -				unlock_page(page);
+> > -				continue;
+> > -			}
+> > -
+> > -			ClearPageDirty(page);
+> > -			unlock_page(page);
+> >  		}
+> >
+> > +		if (page_mapcount(page) =3D=3D 1)
+> > +			ClearPageDirty(page);
+>=20
+> Please add a comment about why we need to ClearPageDirty even
+> !PageSwapCache. Anon pages are usually not marked dirty AFAIR. The
+> reason seem to be racing try_to_free_swap which sets the page that way
+> (although I do not seem to remember why are we doing that in the first
+> place...)
+>=20
+Use page_mapcount to judge if a page can be clear dirty flag seems
+Not a very good solution, that is because we don't know how many
+ptes are share this page, I am thinking if there is some good solution
+For shared AnonPage.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
