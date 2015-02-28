@@ -1,60 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 860B06B0098
-	for <linux-mm@kvack.org>; Sat, 28 Feb 2015 17:16:10 -0500 (EST)
-Received: by wesq59 with SMTP id q59so26645457wes.1
-        for <linux-mm@kvack.org>; Sat, 28 Feb 2015 14:16:09 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id lf5si191850wjb.111.2015.02.28.14.16.08
+Received: from mail-qc0-f175.google.com (mail-qc0-f175.google.com [209.85.216.175])
+	by kanga.kvack.org (Postfix) with ESMTP id BB23D6B009A
+	for <linux-mm@kvack.org>; Sat, 28 Feb 2015 17:16:45 -0500 (EST)
+Received: by qcqi8 with SMTP id i8so19316681qcq.3
+        for <linux-mm@kvack.org>; Sat, 28 Feb 2015 14:16:45 -0800 (PST)
+Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
+        by mx.google.com with ESMTPS id a14si7886394qac.122.2015.02.28.14.16.42
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 28 Feb 2015 14:16:08 -0800 (PST)
-Date: Sat, 28 Feb 2015 17:15:58 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: How to handle TIF_MEMDIE stalls?
-Message-ID: <20150228221558.GA23028@phnom.home.cmpxchg.org>
-References: <201502111123.ICD65197.FMLOHSQJFVOtFO@I-love.SAKURA.ne.jp>
- <201502172123.JIE35470.QOLMVOFJSHOFFt@I-love.SAKURA.ne.jp>
- <20150217125315.GA14287@phnom.home.cmpxchg.org>
- <20150217225430.GJ4251@dastard>
- <20150219102431.GA15569@phnom.home.cmpxchg.org>
- <20150219225217.GY12722@dastard>
- <20150221235227.GA25079@phnom.home.cmpxchg.org>
- <20150223004521.GK12722@dastard>
- <20150228162943.GA17989@phnom.home.cmpxchg.org>
- <20150228164158.GE5404@thunk.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150228164158.GE5404@thunk.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sat, 28 Feb 2015 14:16:42 -0800 (PST)
+Message-ID: <1425161796.4645.149.camel@kernel.crashing.org>
+Subject: Re: Generic page fault (Was: libsigsegv ....)
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Sun, 01 Mar 2015 09:16:36 +1100
+In-Reply-To: <1425158083.4645.139.camel@kernel.crashing.org>
+References: <1422361485.6648.71.camel@opensuse.org>
+	 <54C78756.9090605@suse.cz>
+	 <alpine.LSU.2.11.1501271347440.30227@nerf60.vanv.qr>
+	 <1422364084.6648.82.camel@opensuse.org> <s5h7fw8hvdp.wl-tiwai@suse.de>
+	 <CA+55aFyzy_wYHHnr2gDcYr7qcgOKM2557bRdg6RBa=cxrynd+Q@mail.gmail.com>
+	 <CA+55aFxRnj97rpSQvvzLJhpo7C8TQ-F=eB1Ry2n53AV1rN8mwA@mail.gmail.com>
+	 <CAMo8BfLsKCV_2NfgMH4k9jGOHs_-3=NKjCD3o3KK1uH23-6RRg@mail.gmail.com>
+	 <CA+55aFzQ5QEZ1AYauWviq1gp5j=mqByAtt4fpteeK7amuxcyjw@mail.gmail.com>
+	 <1422836637.17302.9.camel@au1.ibm.com>
+	 <CA+55aFw9sg7pu9-2RbMGyPv5yUtcH54QowoH+5RhWqpPYg4YGQ@mail.gmail.com>
+	 <1425107567.4645.108.camel@kernel.crashing.org>
+	 <CA+55aFy5UvzSgOMKq09u4psz5twtC4aowuK6tofGKDEu-KFMJQ@mail.gmail.com>
+	 <1425158083.4645.139.camel@kernel.crashing.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>
-Cc: Dave Chinner <david@fromorbit.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@suse.cz, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, xfs@oss.sgi.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Sat, Feb 28, 2015 at 11:41:58AM -0500, Theodore Ts'o wrote:
-> On Sat, Feb 28, 2015 at 11:29:43AM -0500, Johannes Weiner wrote:
-> > 
-> > I'm trying to figure out if the current nofail allocators can get
-> > their memory needs figured out beforehand.  And reliably so - what
-> > good are estimates that are right 90% of the time, when failing the
-> > allocation means corrupting user data?  What is the contingency plan?
-> 
-> In the ideal world, we can figure out the exact memory needs
-> beforehand.  But we live in an imperfect world, and given that block
-> devices *also* need memory, the answer is "of course not".  We can't
-> be perfect.  But we can least give some kind of hint, and we can offer
-> to wait before we get into a situation where we need to loop in
-> GFP_NOWAIT --- which is the contingency/fallback plan.
+So for error handling, I'm trying to simply return the VM_FAULT_* flags
+from generic_page_fault see where that takes us. That's a way to avoid
+passing an arch specific struct around. It also allows my hack to
+account major faults with the hypervisor to be done outside the generic
+code completely (no hook).
 
-Overestimating should be fine, the result would a bit of false memory
-pressure.  But underestimating and looping can't be an option or the
-original lockups will still be there.  We need to guarantee forward
-progress or the problem is somewhat mitigated at best - only now with
-quite a bit more complexity in the allocator and the filesystems.
+We will process generically some of the flags first such as the repeat
+logic or major/minor accounting of course.
 
-The block code would have to be looked at separately, but doesn't it
-already use mempools etc. to guarantee progress?
+For that to work, I'm adding a VM_FAULT_ACCESS (that gets OR'ed with
+VM_FAULT_SIGSEGV) to differentiate SEGV_MAPERR and SEGV_ACCERR. So far
+so good.
+
+However, I noticed a small discrepancy on x86 in the handling of fatal
+signals:
+
+I see two path that can be hit on a fatal signal. The "obvious"
+one is the one in access_error() which calls no_context() with a 0
+signal argument, the other path is in the retry handling, which will in
+this case call no_context() with SIGBUS/BUS_ADRERR. 
+
+Now, the only place in there that seems to care about the signal that
+gets passed in is the sig_on_uaccess_error case. On one case (0 sig),
+that test will be skipped, on the other case (SIGBUS), that test will be
+done and might result in a sigbus being generated, which might override
+the original deadly signal (or am I missing something ?)
+
+Now I don't completely understand how the x86 vsyscall stuff works so I
+don't know precisely in what circumstances that test matters, I'll need
+you help there.
+
+Cheers,
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
