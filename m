@@ -1,209 +1,118 @@
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC] mm: change mm_advise_free to clear page dirty
-Date: Sat, 28 Feb 2015 22:50:14 +0900
-Message-ID: <20150228135014.GA25311__13109.6724341207$1425131582$gmane$org@blaptop>
-References: <1424765897-27377-1-git-send-email-minchan@kernel.org>
- <20150224154318.GA14939@dhcp22.suse.cz>
- <20150225000809.GA6468@blaptop>
- <35FD53F367049845BC99AC72306C23D10458D6173BDC@CNBJMBX05.corpusers.net>
- <20150227052805.GA20805@blaptop>
- <35FD53F367049845BC99AC72306C23D10458D6173BDE@CNBJMBX05.corpusers.net>
- <20150227064425.GB20805@blaptop>
- <35FD53F367049845BC99AC72306C23D10458D6173BDF@CNBJMBX05.corpusers.net>
- <20150227133714.GA25947@blaptop>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id E25816B0032
+	for <linux-mm@kvack.org>; Sun,  1 Mar 2015 06:18:05 -0500 (EST)
+Received: by pabli10 with SMTP id li10so6133483pab.2
+        for <linux-mm@kvack.org>; Sun, 01 Mar 2015 03:18:05 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id km8si4434685pdb.175.2015.03.01.03.18.04
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 01 Mar 2015 03:18:04 -0800 (PST)
+Subject: Re: How to handle TIF_MEMDIE stalls?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20150221235227.GA25079@phnom.home.cmpxchg.org>
+	<20150223004521.GK12722@dastard>
+	<20150228162943.GA17989@phnom.home.cmpxchg.org>
+	<20150228164158.GE5404@thunk.org>
+	<20150228221558.GA23028@phnom.home.cmpxchg.org>
+In-Reply-To: <20150228221558.GA23028@phnom.home.cmpxchg.org>
+Message-Id: <201503012017.EAD00571.HOOJVOStMFLFQF@I-love.SAKURA.ne.jp>
+Date: Sun, 1 Mar 2015 20:17:56 +0900
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Return-path: <owner-linux-mm@kvack.org>
-Received: from kanga.kvack.org ([205.233.56.17])
-	by plane.gmane.org with esmtp (Exim 4.69)
-	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1YRhp2-0001mX-SX
-	for glkm-linux-mm-2@m.gmane.org; Sat, 28 Feb 2015 14:52:49 +0100
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id E199E6B0071
-	for <linux-mm@kvack.org>; Sat, 28 Feb 2015 08:52:46 -0500 (EST)
-Received: by wggy19 with SMTP id y19so25259006wgg.13
-        for <linux-mm@kvack.org>; Sat, 28 Feb 2015 05:52:46 -0800 (PST)
-Received: from mail1.powerserverplus.net (cjohnson.powerserverplus.net. [2a01:4f8:192:5091::2])
-        by mx.google.com with ESMTP id lg9si12928269wjc.0.2015.02.28.05.52.44
-        for <linux-mm@kvack.org>;
-        Sat, 28 Feb 2015 05:52:45 -0800 (PST)
-Subject: Re: [RFC] mm: change mm_advise_free to clear page dirty
-Content-Disposition: inline
-In-Reply-To: <20150227133714.GA25947@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sebastian.buettner@iem.thm.de, "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Shaohua Li <shli@kernel.org>
+To: hannes@cmpxchg.org, tytso@mit.edu
+Cc: david@fromorbit.com, mhocko@suse.cz, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, xfs@oss.sgi.com, fernando_b1@lab.ntt.co.jp
 
+Johannes Weiner wrote:
+> On Sat, Feb 28, 2015 at 11:41:58AM -0500, Theodore Ts'o wrote:
+> > On Sat, Feb 28, 2015 at 11:29:43AM -0500, Johannes Weiner wrote:
+> > > 
+> > > I'm trying to figure out if the current nofail allocators can get
+> > > their memory needs figured out beforehand.  And reliably so - what
+> > > good are estimates that are right 90% of the time, when failing the
+> > > allocation means corrupting user data?  What is the contingency plan?
+> > 
+> > In the ideal world, we can figure out the exact memory needs
+> > beforehand.  But we live in an imperfect world, and given that block
+> > devices *also* need memory, the answer is "of course not".  We can't
+> > be perfect.  But we can least give some kind of hint, and we can offer
+> > to wait before we get into a situation where we need to loop in
+> > GFP_NOWAIT --- which is the contingency/fallback plan.
+> 
+> Overestimating should be fine, the result would a bit of false memory
+> pressure.  But underestimating and looping can't be an option or the
+> original lockups will still be there.  We need to guarantee forward
+> progress or the problem is somewhat mitigated at best - only now with
+> quite a bit more complexity in the allocator and the filesystems.
+> 
+> The block code would have to be looked at separately, but doesn't it
+> already use mempools etc. to guarantee progress?
+> 
 
+If underestimating is tolerable, can we simply set different watermark
+levels for GFP_ATOMIC / GFP_NOIO / GFP_NOFS / GFP_KERNEL allocations?
+For example,
 
-On Fri, Feb 27, 2015 at 10:37:14PM +0900, Minchan Kim wrote:
-> On Fri, Feb 27, 2015 at 03:50:29PM +0800, Wang, Yalin wrote:
-> > > -----Original Message-----
-> > > From: Minchan Kim [mailto:minchan.kim@gmail.com] On Behalf Of Minchan Kim
-> > > Sent: Friday, February 27, 2015 2:44 PM
-> > > To: Wang, Yalin
-> > > Cc: Michal Hocko; Andrew Morton; linux-kernel@vger.kernel.org; linux-
-> > > mm@kvack.org; Rik van Riel; Johannes Weiner; Mel Gorman; Shaohua Li
-> > > Subject: Re: [RFC] mm: change mm_advise_free to clear page dirty
-> > > 
-> > > On Fri, Feb 27, 2015 at 01:48:48PM +0800, Wang, Yalin wrote:
-> > > > > -----Original Message-----
-> > > > > From: Minchan Kim [mailto:minchan.kim@gmail.com] On Behalf Of Minchan
-> > > Kim
-> > > > > Sent: Friday, February 27, 2015 1:28 PM
-> > > > > To: Wang, Yalin
-> > > > > Cc: Michal Hocko; Andrew Morton; linux-kernel@vger.kernel.org; linux-
-> > > > > mm@kvack.org; Rik van Riel; Johannes Weiner; Mel Gorman; Shaohua Li
-> > > > > Subject: Re: [RFC] mm: change mm_advise_free to clear page dirty
-> > > > >
-> > > > > Hello,
-> > > > >
-> > > > > On Fri, Feb 27, 2015 at 11:37:18AM +0800, Wang, Yalin wrote:
-> > > > > > This patch add ClearPageDirty() to clear AnonPage dirty flag,
-> > > > > > the Anonpage mapcount must be 1, so that this page is only used by
-> > > > > > the current process, not shared by other process like fork().
-> > > > > > if not clear page dirty for this anon page, the page will never be
-> > > > > > treated as freeable.
-> > > > >
-> > > > > In case of anonymous page, it has PG_dirty when VM adds it to
-> > > > > swap cache and clear it in clear_page_dirty_for_io. That's why
-> > > > > I added ClearPageDirty if we found it in swapcache.
-> > > > > What case am I missing? It would be better to understand if you
-> > > > > describe specific scenario.
-> > > > >
-> > > > > Thanks.
-> > > > >
-> > > > > >
-> > > > > > Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
-> > > > > > ---
-> > > > > >  mm/madvise.c | 15 +++++----------
-> > > > > >  1 file changed, 5 insertions(+), 10 deletions(-)
-> > > > > >
-> > > > > > diff --git a/mm/madvise.c b/mm/madvise.c
-> > > > > > index 6d0fcb8..257925a 100644
-> > > > > > --- a/mm/madvise.c
-> > > > > > +++ b/mm/madvise.c
-> > > > > > @@ -297,22 +297,17 @@ static int madvise_free_pte_range(pmd_t *pmd,
-> > > > > unsigned long addr,
-> > > > > >  			continue;
-> > > > > >
-> > > > > >  		page = vm_normal_page(vma, addr, ptent);
-> > > > > > -		if (!page)
-> > > > > > +		if (!page || !PageAnon(page) || !trylock_page(page))
-> > > > > >  			continue;
-> > > > > >
-> > > > > >  		if (PageSwapCache(page)) {
-> > > > > > -			if (!trylock_page(page))
-> > > > > > +			if (!try_to_free_swap(page))
-> > > > > >  				continue;
-> > > > > > -
-> > > > > > -			if (!try_to_free_swap(page)) {
-> > > > > > -				unlock_page(page);
-> > > > > > -				continue;
-> > > > > > -			}
-> > > > > > -
-> > > > > > -			ClearPageDirty(page);
-> > > > > > -			unlock_page(page);
-> > > > > >  		}
-> > > > > >
-> > > > > > +		if (page_mapcount(page) == 1)
-> > > > > > +			ClearPageDirty(page);
-> > > > > > +		unlock_page(page);
-> > > > > >  		/*
-> > > > > >  		 * Some of architecture(ex, PPC) don't update TLB
-> > > > > >  		 * with set_pte_at and tlb_remove_tlb_entry so for
-> > > > > > --
-> > > > Yes, for page which is in SwapCache, it is correct,
-> > > > But for anon page which is not in SwapCache, it is always
-> > > > PageDirty(), so we should also clear dirty bit to make it freeable,
-> > > 
-> > > No. Every anon page starts from !PageDirty and it has PG_dirty
-> > > only when it's addeded into swap cache. If vm_swap_full turns on,
-> > > a page in swap cache could have PG_dirty via try_to_free_swap again.
-> > 
-> > mmm..
-> > sometimes you can see an anon page PageDirty(), but it is not in swapcache,
-> > for example, handle_pte_fault()-->do_swap_page()-->try_to_free_swap(),
-> > at this time, the page is deleted from swapcache and is marked PageDirty(),
-> 
-> That's what I missed. It's clear and would be simple patch so
-> could you send a patch to fix this issue with detailed description
-> like above?
-> 
-> > 
-> > 
-> > > So, Do you have concern about swapped-out pages when MADV_FREE is
-> > > called? If so, please look at my patch.
-> > > 
-> > > https://lkml.org/lkml/2015/2/25/43
-> > > 
-> > > It will zap the swapped out page. So, this is not a issue any more?
-> > > 
-> > > >
-> > > > Another problem  is that if an anon page is shared by more than one
-> > > process,
-> > > > This happened when fork(), the anon page will be copy on write,
-> > > > In this case, we should not clear page dirty,
-> > > > This is not correct for other process which don't call MADV_FREE syscall.
-> > > 
-> > > You mean we shouldn't inherit MADV_FREE attribute?
-> > > Why?
-> > 
-> > Is it correct behavior if code like this:
-> > 
-> > Parent:
-> > ptr1 = malloc(len);
-> > memset(ptr1, 'a', len);
-> > fork();
-> > if (I am parent)
-> > 	madvise_free(ptr1, len);
-> > 
-> > child:
-> > sleep(10);
-> > parse_data(ptr1, len);  // child may see zero, not 'a',
-> > 			// is it the right behavior that the programer want?
-> > 
-> > Because child don't call madvise_free(), so it should see 'a', not zero page.
-> > Isn't it ?
-> 
-> You're absolutely right. Thanks.
-> But I doubt your fix is best. Most of fork will do exec soonish so
-> it's not a good idea to make MADV_FREE void even though hinted pages
-> are shared when the syscall was called.
-> How about checking the page is shared or not in reclaim path?
-> If it is still shared, we shouldn't discard it.
+   GFP_KERNEL (or above) can fail if memory usage exceeds 95%
+   GFP_NOFS can fail if memory usage exceeds 97%
+   GFP_NOIO can fail if memory usage exceeds 98%
+   GFP_ATOMIC can fail if memory usage exceeds 99%
 
-I got confused. With looking at copy_one_pte, it copys from src_pte
-and not clear dirty bit if it's not a shared mapping.
-If so, in your example, child pte has pte dirty bit on while parent
-has clean bit by madvise_free so that VM shouldn't discard the page.
-No?
+I think that below order-0 GFP_NOIO allocation enters into retry-forever loop
+when GFP_KERNEL (or above) allocation starts waiting for reclaim sounds
+strange. Use of same watermark is preventing kernel worker threads from
+processing workqueue. While it is legal to do blocking operation from
+workqueue, being blocked forever is an exclusive occupation for workqueue;
+other jobs in the workqueue get stuck.
 
-> 
-> Thanks.
-> 
-> > Thanks
-> > 
-> > 
-> > 
-> > 
-> > 
-> > 
-> 
-> -- 
-> Kind regards,
-> Minchan Kim
+[  907.302050] kworker/1:0     R  running task        0 10832      2 0x00000080
+[  907.303961] Workqueue: events_freezable_power_ disk_events_workfn
+[  907.305706]  ffff88007c8ab7d8 0000000000000046 ffff88007c8ab8a0 ffff88007c894190
+[  907.307761]  0000000000012500 ffff88007c8abfd8 0000000000012500 ffff88007c894190
+[  907.309894]  0000000000000020 ffff88007c8ab8b0 0000000000000002 ffffffff81848408
+[  907.311949] Call Trace:
+[  907.312989]  [<ffffffff8159f814>] _cond_resched+0x24/0x40
+[  907.314578]  [<ffffffff81122119>] shrink_slab+0x139/0x150
+[  907.316182]  [<ffffffff811252bf>] do_try_to_free_pages+0x35f/0x4d0
+[  907.317889]  [<ffffffff811254c4>] try_to_free_pages+0x94/0xc0
+[  907.319535]  [<ffffffff8111a793>] __alloc_pages_nodemask+0x4e3/0xa40
+[  907.321259]  [<ffffffff8115a8ce>] alloc_pages_current+0x8e/0x100
+[  907.322945]  [<ffffffff8125bed6>] bio_copy_user_iov+0x1d6/0x380
+[  907.324606]  [<ffffffff8125e4cd>] ? blk_rq_init+0xed/0x160
+[  907.326196]  [<ffffffff8125c119>] bio_copy_kern+0x49/0x100
+[  907.327788]  [<ffffffff810a14a0>] ? prepare_to_wait_event+0x100/0x100
+[  907.329549]  [<ffffffff81265e6f>] blk_rq_map_kern+0x6f/0x130
+[  907.331184]  [<ffffffff8116393e>] ? kmem_cache_alloc+0x48e/0x4b0
+[  907.332877]  [<ffffffff813a66cf>] scsi_execute+0x12f/0x160
+[  907.334452]  [<ffffffff813a7f14>] scsi_execute_req_flags+0x84/0xf0
+[  907.336156]  [<ffffffffa01e29cc>] sr_check_events+0xbc/0x2e0 [sr_mod]
+[  907.337893]  [<ffffffff8109834c>] ? put_prev_entity+0x2c/0x3b0
+[  907.339539]  [<ffffffffa01d6177>] cdrom_check_events+0x17/0x30 [cdrom]
+[  907.341289]  [<ffffffffa01e2e5d>] sr_block_check_events+0x2d/0x30 [sr_mod]
+[  907.343115]  [<ffffffff812701c6>] disk_check_events+0x56/0x1b0
+[  907.344771]  [<ffffffff81270331>] disk_events_workfn+0x11/0x20
+[  907.346421]  [<ffffffff8107ceaf>] process_one_work+0x13f/0x370
+[  907.348057]  [<ffffffff8107de99>] worker_thread+0x119/0x500
+[  907.349650]  [<ffffffff8107dd80>] ? rescuer_thread+0x350/0x350
+[  907.351295]  [<ffffffff81082f7c>] kthread+0xdc/0x100
+[  907.352765]  [<ffffffff81082ea0>] ? kthread_create_on_node+0x1b0/0x1b0
+[  907.354520]  [<ffffffff815a383c>] ret_from_fork+0x7c/0xb0
+[  907.356097]  [<ffffffff81082ea0>] ? kthread_create_on_node+0x1b0/0x1b0
 
--- 
-Kind regards,
-Minchan Kim
---
-To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-the body of a message to majordomo@vger.kernel.org
-More majordomo info at  http://vger.kernel.org/majordomo-info.html
-Please read the FAQ at  http://www.tux.org/lkml/
+If I change GFP_NOIO in scsi_execute() to GFP_ATOMIC, above trace went away.
+If we can reserve some amount of memory for block / filesystem layer than
+allow non critical allocation, above trace will likely go away. 
+
+Or, instead maybe we can change GFP_NOIO to do
+
+  (1) try allocation using GFP_ATOMIC|GFP_NOWARN
+  (2) try allocating from freelist for GFP_NOIO
+  (3) fail the allocation with warning message
+
+steps if we can implement freelist for GFP_NOIO. Ditto for GFP_NOFS.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
