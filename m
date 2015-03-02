@@ -1,58 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DB466B0038
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 13:56:08 -0500 (EST)
-Received: by pdjy10 with SMTP id y10so41587428pdj.13
-        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 10:56:08 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id do5si17562452pbc.105.2015.03.02.10.56.06
-        for <linux-mm@kvack.org>;
-        Mon, 02 Mar 2015 10:56:07 -0800 (PST)
-Date: Mon, 2 Mar 2015 18:56:07 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [RFC PATCH 3/4] arm64: add support for memtest
-Message-ID: <20150302185607.GG7919@arm.com>
-References: <1425308145-20769-1-git-send-email-vladimir.murzin@arm.com>
- <1425308145-20769-4-git-send-email-vladimir.murzin@arm.com>
+Received: from mail-ie0-f179.google.com (mail-ie0-f179.google.com [209.85.223.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 459936B0038
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 14:47:53 -0500 (EST)
+Received: by iecrd18 with SMTP id rd18so50933288iec.5
+        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 11:47:53 -0800 (PST)
+Received: from mail-ig0-x230.google.com (mail-ig0-x230.google.com. [2607:f8b0:4001:c05::230])
+        by mx.google.com with ESMTPS id s6si9449899igh.45.2015.03.02.11.47.52
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Mar 2015 11:47:52 -0800 (PST)
+Received: by igkb16 with SMTP id b16so20409375igk.1
+        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 11:47:52 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1425308145-20769-4-git-send-email-vladimir.murzin@arm.com>
-Content-Language: en-US
+In-Reply-To: <20150302010413.GP4251@dastard>
+References: <20150302010413.GP4251@dastard>
+Date: Mon, 2 Mar 2015 11:47:52 -0800
+Message-ID: <CA+55aFzGFvVGD_8Y=jTkYwgmYgZnW0p0Fjf7OHFPRcL6Mz4HOw@mail.gmail.com>
+Subject: Re: [regression v4.0-rc1] mm: IPIs from TLB flushes causing
+ significant performance degradation.
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Murzin <Vladimir.Murzin@arm.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@redhat.com" <mingo@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "lauraa@codeaurora.org" <lauraa@codeaurora.org>, Catalin Marinas <Catalin.Marinas@arm.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "arnd@arndb.de" <arnd@arndb.de>, Mark Rutland <Mark.Rutland@arm.com>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>
+To: Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Matt B <jackdachef@gmail.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, xfs@oss.sgi.com
 
-On Mon, Mar 02, 2015 at 02:55:44PM +0000, Vladimir Murzin wrote:
-> Add support for memtest command line option.
-> 
-> Signed-off-by: Vladimir Murzin <vladimir.murzin@arm.com>
-> ---
->  arch/arm64/mm/init.c |    2 ++
->  1 file changed, 2 insertions(+)
-> 
-> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-> index ae85da6..597831b 100644
-> --- a/arch/arm64/mm/init.c
-> +++ b/arch/arm64/mm/init.c
-> @@ -190,6 +190,8 @@ void __init bootmem_init(void)
->  	min = PFN_UP(memblock_start_of_DRAM());
->  	max = PFN_DOWN(memblock_end_of_DRAM());
->  
-> +	early_memtest(min << PAGE_SHIFT, max << PAGE_SHIFT);
-> +
->  	/*
->  	 * Sparsemem tries to allocate bootmem in memory_present(), so must be
->  	 * done after the fixed reservations.
+On Sun, Mar 1, 2015 at 5:04 PM, Dave Chinner <david@fromorbit.com> wrote:
+>
+> Across the board the 4.0-rc1 numbers are much slower, and the
+> degradation is far worse when using the large memory footprint
+> configs. Perf points straight at the cause - this is from 4.0-rc1
+> on the "-o bhash=101073" config:
+>
+> -   56.07%    56.07%  [kernel]            [k] default_send_IPI_mask_sequence_phys
+>       - 99.99% physflat_send_IPI_mask
+>          - 99.37% native_send_call_func_ipi
+..
+>
+> And the same profile output from 3.19 shows:
+>
+> -    9.61%     9.61%  [kernel]            [k] default_send_IPI_mask_sequence_phys
+>      - 99.98% physflat_send_IPI_mask
+>          - 96.26% native_send_call_func_ipi
+...
+>
+> So either there's been a massive increase in the number of IPIs
+> being sent, or the cost per IPI have greatly increased. Either way,
+> the result is a pretty significant performance degradatation.
 
-This is really neat, thanks for doing this Vladimir!
+And on Mon, Mar 2, 2015 at 11:17 AM, Matt <jackdachef@gmail.com> wrote:
+>
+> Linus already posted a fix to the problem, however I can't seem to
+> find the matching commit in his tree (searching for "TLC regression"
+> or "TLB cache").
 
-  Acked-by: Will Deacon <will.deacon@arm.com>
+That was commit f045bbb9fa1b, which was then refined by commit
+721c21c17ab9, because it turned out that ARM64 had a very subtle
+relationship with tlb->end and fullmm.
 
-For the series, modulo Baruch's comments about Documentation updates.
+But both of those hit 3.19, so none of this should affect 4.0-rc1.
+There's something else going on.
 
-Will
+I assume it's the mm queue from Andrew, so adding him to the cc. There
+are changes to the page migration etc, which could explain it.
+
+There are also a fair amount of APIC changes in 4.0-rc1, so I guess it
+really could be just that the IPI sending itself has gotten much
+slower. Adding Ingo for that, although I don't think
+default_send_IPI_mask_sequence_phys() itself hasn't actually changed,
+only other things around the apic. So I'd be inclined to blame the mm
+changes.
+
+Obviously bisection would find it..
+
+                          Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
