@@ -1,73 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f170.google.com (mail-we0-f170.google.com [74.125.82.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 44E736B0038
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 06:08:04 -0500 (EST)
-Received: by wevl61 with SMTP id l61so32582883wev.2
-        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 03:08:03 -0800 (PST)
-Received: from mx4-phx2.redhat.com (mx4-phx2.redhat.com. [209.132.183.25])
-        by mx.google.com with ESMTPS id v1si17946233wij.87.2015.03.02.03.08.01
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F5F76B0038
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 07:31:40 -0500 (EST)
+Received: by padfb1 with SMTP id fb1so4710333pad.7
+        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 04:31:39 -0800 (PST)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id fj14si1436068pac.128.2015.03.02.04.31.35
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 02 Mar 2015 03:08:02 -0800 (PST)
-Date: Mon, 2 Mar 2015 06:06:14 -0500 (EST)
-Subject: Re: PMD update corruption (sync question)
-From: Jon Masters <jcm@redhat.com>
+        Mon, 02 Mar 2015 04:31:39 -0800 (PST)
+Message-ID: <54F457A5.3070602@huawei.com>
+Date: Mon, 2 Mar 2015 20:29:25 +0800
+From: shengyong <shengyong1@huawei.com>
 MIME-Version: 1.0
-Message-ID: <1172437505.28092883.1425294374323.JavaMail.zimbra@zmail15.collab.prod.int.phx2.redhat.com>
-Content-Type: text/plain; charset="utf-8"
+Subject: Re: [RFC PATCH 1/2] mem-hotplug: introduce sysfs `range' attribute
+References: <1425269100-15842-1-git-send-email-shengyong1@huawei.com> <20150302091714.GA32186@hori1.linux.bs1.fc.nec.co.jp>
+In-Reply-To: <20150302091714.GA32186@hori1.linux.bs1.fc.nec.co.jp>
+Content-Type: text/plain; charset="iso-2022-jp"
 Content-Transfer-Encoding: 7bit
-In-Reply-To: <20150302105011.GD22541@e104818-lin.cambridge.arm.com>
-References: <1411740233-28038-1-git-send-email-steve.capper@linaro.org> <54F06636.6080905@redhat.com> <54F3C6AD.50300@redhat.com> <938476184.27970130.1425275915893.JavaMail.zimbra@zmail15.collab.prod.int.phx2.redhat.com> <20150302105011.GD22541@e104818-lin.cambridge.arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: gary.robertson@linaro.org, Steve Capper <steve.capper@linaro.org>, mark.rutland@arm.com, hughd@google.com, christoffer.dall@linaro.org, akpm@linux-foundation.org, peterz@infradead.org, mgorman@suse.de, linux@arm.linux.org.uk, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, will.deacon@arm.com, dann.frazier@canonical.com, anders.roxell@linaro.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "nfont@austin.ibm.com" <nfont@austin.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "zhenzhang.zhang@huawei.com" <zhenzhang.zhang@huawei.com>, Dave Hansen <dave.hansen@intel.com>, David
+ Rientjes <rientjes@google.com>
 
-64-bit writes are /usually/ atomic but alignment or compiler emiting 32-bit opcodes could also do it. I agree there are a few other pieces to this we will chat about separately and come back to this thread. Time for some zzzz...long weekend!
 
--- 
-Computer Architect | Sent from my #ARM Powered Mobile Device
 
-On Mar 2, 2015 5:50 AM, Catalin Marinas <catalin.marinas@arm.com> wrote:
->
-> On Mon, Mar 02, 2015 at 12:58:36AM -0500, Jon Masters wrote: 
-> > I've pulled aOn Mon, Mar 02, 2015 at 12:58:36AM -0500, Jon Masters wrote:
-> I've pulled a couple of all nighters reproducing this hard to trigger
-> issue and got some data. It looks like the high half of the (note always
-> userspace) PMD is all zeros or all ones, which makes me wonder if the
-> logic in update_mmu_cache might be missing something on AArch64.
-
-That's worrying but I can tell you offline why ;).
-
-Anyway, 64-bit writes are atomic on ARMv8, so you shouldn't see half
-updates. To make sure the compiler does not generate something weird,
-change the set_(pte|pmd|pud) to use an inline assembly with a 64-bit
-STR.
-
-One question - is the PMD a table or a block? You mentioned set_pte_at
-at some point, which leads me to think it's a (transparent) huge page,
-hence block mapping.
-
-> When a kernel is built with 64K pages and 2 levels the PMD is
-> effectively updated using set_pte_at, which explicitly won't perform a
-> DSB if the address is userspace (it expects this to happen later, in
-> update_mmu_cache as an example.
+在 2015/3/2 17:17, Naoya Horiguchi 写道:
+> # Cced some people maybe interested in this topic.
 > 
-> Can anyone think of an obvious reason why we might not be properly
-> flushing the changes prior to them being consumed by a hardware walker?
+> On Mon, Mar 02, 2015 at 04:04:59AM +0000, Sheng Yong wrote:
+>> There may be memory holes in a memory section, and because of that we can
+>> not know the real size of the section. In order to know the physical memory
+>> area used int one memory section, we walks through iomem resources and
+>> report the memory range in /sys/devices/system/memory/memoryX/range, like,
+>>
+>> root@ivybridge:~# cat /sys/devices/system/memory/memory0/range
+>> 00001000-0008efff
+>> 00090000-0009ffff
+>> 00100000-07ffffff
+>>
+>> Signed-off-by: Sheng Yong <shengyong1@huawei.com>
+> 
+> About a year ago, there was a similar request/suggestion from a library
+> developer about exporting valid physical address range
+> (http://thread.gmane.org/gmane.linux.kernel.mm/115600).
+> Then, we tried some but didn't make it.
+Thanks for your information.
+> 
+> So if you try to solve this, please consider some points from that discussion:
+> - interface name: just 'range' might not be friendly, if the interface returns
+>   physicall address range, something like 'phys_addr_range' looks better.
+> - prefix '0x': if you display the value range in hex, prefixing '0x' might
+>   be better to avoid letting every parser to add it in itself.
+I agree on these 2 suggestion.
+> - supporting node range: your patch is now just for memory block interface, but
+>   someone (like me) are interested in exporting easy "phys_addr <=> node number"
+>   mapping, so if your approach is easily extensible to node interface, it would
+>   be very nice to include node interface support too.
+After reading the previous discussion, I think the content in the interface should
+look like "<node id> <start-end>" to avoid overlay of memory node. Am I right? Then
+we could use `memory_add_physaddr_to_nid(u64 start)' to translate physical address
+to node id when the address is recorded to the ranges list in get_range().
+The problem is that `struct resource' does not have an appropriate member to save
+the node id value, which is saved in resource->flags temporarily for testing.
 
-Even if you don't have that barrier, the worst that can happen is that
-you get another trap back in the kernel (from user; translation fault)
-but the page table read by the kernel is valid and normally the
-instruction restarted.
-
-> Test kernels running with an explicit DSB in all PTE update cases now
-> running overnight. Just in case.
-
-It could be hiding some other problems.
-
--- 
-Catalin
+thanks,
+Sheng
+> 
+> Thanks,
+> Naoya Horiguchi
+> .
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
