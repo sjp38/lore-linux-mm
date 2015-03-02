@@ -1,49 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id C22E46B0038
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 15:40:27 -0500 (EST)
-Received: by igbhl2 with SMTP id hl2so19249046igb.0
-        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 12:40:27 -0800 (PST)
-Received: from mail-ig0-x231.google.com (mail-ig0-x231.google.com. [2607:f8b0:4001:c05::231])
-        by mx.google.com with ESMTPS id m41si11341925ioi.38.2015.03.02.12.40.27
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EB3F6B0038
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 15:42:34 -0500 (EST)
+Received: by wibbs8 with SMTP id bs8so17926525wib.4
+        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 12:42:34 -0800 (PST)
+Received: from mail-we0-x22f.google.com (mail-we0-x22f.google.com. [2a00:1450:400c:c03::22f])
+        by mx.google.com with ESMTPS id mb10si20532799wic.0.2015.03.02.12.42.32
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Mar 2015 12:40:27 -0800 (PST)
-Received: by igbhl2 with SMTP id hl2so20872955igb.5
-        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 12:40:27 -0800 (PST)
-Date: Mon, 2 Mar 2015 12:40:24 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch v2 1/3] mm: remove GFP_THISNODE
-In-Reply-To: <54F48E68.6070706@suse.cz>
-Message-ID: <alpine.DEB.2.10.1503021239410.20808@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1502251621010.10303@chino.kir.corp.google.com> <alpine.DEB.2.10.1502271415510.7225@chino.kir.corp.google.com> <54F469C1.9090601@suse.cz> <alpine.DEB.2.11.1503020944200.5540@gentwo.org> <54F48980.3090008@suse.cz>
- <alpine.DEB.2.11.1503021007030.6245@gentwo.org> <54F48E68.6070706@suse.cz>
+        Mon, 02 Mar 2015 12:42:33 -0800 (PST)
+Received: by wevl61 with SMTP id l61so35849180wev.2
+        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 12:42:32 -0800 (PST)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [PATCH v3 3/4] mm: cma: add list of currently allocated CMA buffers to debugfs
+In-Reply-To: <54F48560.1090800@partner.samsung.com>
+References: <cover.1424802755.git.s.strogin@partner.samsung.com> <1fe64ae6f12eeda1c2aa59daea7f89e57e0e35a9.1424802755.git.s.strogin@partner.samsung.com> <xa1toaojov0x.fsf@mina86.com> <54F48560.1090800@partner.samsung.com>
+Date: Mon, 02 Mar 2015 21:42:28 +0100
+Message-ID: <xa1tk2yz2ksr.fsf@mina86.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Pravin Shelar <pshelar@nicira.com>, Jarno Rajahalme <jrajahalme@nicira.com>, Li Zefan <lizefan@huawei.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, cgroups@vger.kernel.org, dev@openvswitch.org
+To: Stefan Strogin <s.strogin@partner.samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Dmitry Safonov <d.safonov@partner.samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Minchan Kim <minchan@kernel.org>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>, Aleksei Mateosian <a.mateosian@samsung.com>, gregory.0xf0@gmail.com, sasha.levin@oracle.com, gioh.kim@lge.com, pavel@ucw.cz, stefan.strogin@gmail.com
 
-On Mon, 2 Mar 2015, Vlastimil Babka wrote:
+On Mon, Mar 02 2015, Stefan Strogin <s.strogin@partner.samsung.com> wrote:
+> My fault. You are right.
+> I'm not sure how to do the output nice... I could use *ppos to point the
+> number of next list entry to read (like that is used in
+> read_page_owner()). But in this case the list could be changed before we
+> finish reading, it's bad.
+> Or we could use seq_files like in v1, iterating over buffer_list
+> entries. But seq_print_stack_trace() has to be added.
 
-> > > > You are thinking about an opportunistic allocation attempt in SLAB?
-> > > > 
-> > > > AFAICT SLAB allocations should trigger reclaim.
-> > > > 
-> > > 
-> > > Well, let me quote your commit 952f3b51beb5:
-> > 
-> > This was about global reclaim. Local reclaim is good and that can be
-> > done via zone_reclaim.
-> 
-> Right, so the patch is a functional change for zone_reclaim_mode == 1, where
-> !__GFP_WAIT will prevent it.
-> 
+I=E2=80=99m not that familiar with seq_* so my opinion may be ill-informed,=
+ but
+I feel that skipping some entries while (de)allocations happen is akin
+to process reading a file while some other process modifies it.  This is
+a debug function so perhaps it=E2=80=99s acceptable that it may return garb=
+age
+if not used carefully?
 
-My patch is not a functional change, get_page_from_freelist() handles 
-zone_reclaim_mode == 1 properly in the page allocator fastpath.  This 
-patch only touches the slowpath.
+--=20
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
+ (o o)
+ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
