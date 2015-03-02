@@ -1,97 +1,245 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f42.google.com (mail-oi0-f42.google.com [209.85.218.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 62D666B0072
-	for <linux-mm@kvack.org>; Sun,  1 Mar 2015 23:00:07 -0500 (EST)
-Received: by mail-oi0-f42.google.com with SMTP id h136so24922831oig.1
-        for <linux-mm@kvack.org>; Sun, 01 Mar 2015 20:00:07 -0800 (PST)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
-        by mx.google.com with ESMTPS id e125si5211844oid.131.2015.03.01.20.00.05
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 01 Mar 2015 20:00:06 -0800 (PST)
-From: Sheng Yong <shengyong1@huawei.com>
-Subject: [RFC PATCH 2/2] mem-hotplug: add description of sysfs `range' attribute
-Date: Mon, 2 Mar 2015 04:05:00 +0000
-Message-ID: <1425269100-15842-2-git-send-email-shengyong1@huawei.com>
-In-Reply-To: <1425269100-15842-1-git-send-email-shengyong1@huawei.com>
-References: <1425269100-15842-1-git-send-email-shengyong1@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id E51006B006E
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 00:02:36 -0500 (EST)
+Received: by pablf10 with SMTP id lf10so40366689pab.12
+        for <linux-mm@kvack.org>; Sun, 01 Mar 2015 21:02:36 -0800 (PST)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id br8si5802303pdb.43.2015.03.01.21.02.33
+        for <linux-mm@kvack.org>;
+        Sun, 01 Mar 2015 21:02:35 -0800 (PST)
+From: Gioh Kim <gioh.kim@lge.com>
+Subject: [RFC] mm: page allocation for less fragmentation
+Date: Mon,  2 Mar 2015 14:02:29 +0900
+Message-Id: <1425272549-1568-1-git-send-email-gioh.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, gregkh@linuxfoundation.org, nfont@austin.ibm.com
-Cc: linux-mm@kvack.org, zhenzhang.zhang@huawei.com
+To: iamjoonsoo.kim@lge.com, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, gunho.lee@lge.com, Gioh Kim <gioh.kim@lge.com>
 
-Add description of sysfs `range' attribute, which is designed to show the
-memory holes in a memory section.
+My driver allocates more than 30MB pages via alloc_page() at a time and
+maps them at virtual address. Totally it uses 300~400MB pages.
 
-Signed-off-by: Sheng Yong <shengyong1@huawei.com>
+If I run a heavy load test for a day, I cannot allocate even order=3 pages
+because-of the external fragmentation.
+
+I thought I needed a anti-fragmentation solution for my driver.
+So I looked into the compaction code but there is no allocation function.
+
+This patch gets a buddy and a pageblock in which the buddy exists.
+And it allocates free pages in the pageblock.
+So I guess it can allocate pages with less fragmentation.
+
+I've tested this patch for 48-hours and not found problem.
+I didn't check the amount of the external fragmentation yet
+because it will take several days. I'll start it ASAP.
+
+I just wonder that anybody has tried the page allocation like this.
+Am I going in right direction?
+
+I'll report a result after long-time test.
+This patch is based on 3.16.
+
+Signed-off-by: Gioh Kim <gioh.kim@lge.com>
 ---
- Documentation/ABI/testing/sysfs-devices-memory |    8 ++++++++
- Documentation/memory-hotplug.txt               |   12 ++++++++----
- 2 files changed, 16 insertions(+), 4 deletions(-)
+ mm/compaction.c |   59 +++++++++++++++++++++++++++++
+ mm/page_alloc.c |  112 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 171 insertions(+)
 
-diff --git a/Documentation/ABI/testing/sysfs-devices-memory b/Documentation/ABI/testing/sysfs-devices-memory
-index deef3b5..15629f5 100644
---- a/Documentation/ABI/testing/sysfs-devices-memory
-+++ b/Documentation/ABI/testing/sysfs-devices-memory
-@@ -69,6 +69,14 @@ Description:
- 		read-only and is designed to show which zone this memory
- 		block can be onlined to.
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 21bf292..7775bc6 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -16,6 +16,7 @@
+ #include <linux/sysfs.h>
+ #include <linux/balloon_compaction.h>
+ #include <linux/page-isolation.h>
++#include <linux/cpuset.h>
+ #include "internal.h"
  
-+What:           /sys/devices/system/memory/memoryX/range
-+Date:           Feb 2015
-+Contact:	Sheng Yong <shengyong1@huawei.com>
-+Description:
-+		The file /sys/devices/system/memory/memoryX/range is
-+		read-only and is designed to show memory holes in one
-+		memory section.
+ #ifdef CONFIG_COMPACTION
+@@ -1289,3 +1290,61 @@ void compaction_unregister_node(struct node *node)
+ #endif /* CONFIG_SYSFS && CONFIG_NUMA */
+ 
+ #endif /* CONFIG_COMPACTION */
 +
- What:		/sys/devices/system/memoryX/nodeY
- Date:		October 2009
- Contact:	Linux Memory Management list <linux-mm@kvack.org>
-diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
-index ea03abf..d59724b 100644
---- a/Documentation/memory-hotplug.txt
-+++ b/Documentation/memory-hotplug.txt
-@@ -140,22 +140,22 @@ is described under /sys/devices/system/memory as
- 
- For the memory block covered by the sysfs directory.  It is expected that all
- memory sections in this range are present and no memory holes exist in the
--range. Currently there is no way to determine if there is a memory hole, but
--the existence of one should not affect the hotplug capabilities of the memory
--block.
-+range. However, if there is a memory hole, the existence of one should not
-+affect the hotplug capabilities of the memory block.
- 
- For example, assume 1GiB memory block size. A device for a memory starting at
- 0x100000000 is /sys/device/system/memory/memory4
- (0x100000000 / 1Gib = 4)
- This device covers address range [0x100000000 ... 0x140000000)
- 
--Under each memory block, you can see 4 files:
-+Under each memory block, you can see 6 files:
- 
- /sys/devices/system/memory/memoryXXX/phys_index
- /sys/devices/system/memory/memoryXXX/phys_device
- /sys/devices/system/memory/memoryXXX/state
- /sys/devices/system/memory/memoryXXX/removable
- /sys/devices/system/memory/memoryXXX/valid_zones
-+/sys/devices/system/memory/memoryXXX/range
- 
- 'phys_index'      : read-only and contains memory block id, same as XXX.
- 'state'           : read-write
-@@ -180,6 +180,10 @@ Under each memory block, you can see 4 files:
- 		    "memory7/valid_zones: Movable Normal" shows this memoryblock
- 		    can be onlined to ZONE_MOVABLE by default and to ZONE_NORMAL
- 		    by online_kernel.
-+'range'           : read-only: designed to show memory holes in a memory
-+                    section.
-+                    Each line shows the start and end physical address of a
-+                    memory area.
- 
- NOTE:
-   These directories/files appear after physical memory hotplug phase.
++unsigned long isolate_unmovable_freepages_block(unsigned long blockpfn,
++						unsigned long end_pfn,
++						int count,
++						struct list_head *freelist)
++{
++	int total_isolated = 0;
++	struct page *cursor, *valid_page = NULL;
++	unsigned long flags;
++	bool locked = false;
++
++	cursor = pfn_to_page(blockpfn);
++
++	/* Isolate free pages in a pageblock. */
++	for (; blockpfn < end_pfn; blockpfn++, cursor++) {
++		int isolated, i;
++		struct page *page = cursor;
++
++		if (!pfn_valid_within(blockpfn))
++			continue;
++		if (!valid_page)
++			valid_page = page;
++		if (!PageBuddy(page))
++			continue;
++
++		/* Recheck this is a buddy page under lock */
++		if (!PageBuddy(page))
++			continue;
++
++		/* DO NOT TOUCH CONTIGOUS PAGES */
++		if (page_order(page) >= pageblock_order/2) {
++			blockpfn += (1 << page_order(page)) - 1;
++			cursor += (1 << page_order(page)) - 1;
++			continue;
++		}
++
++		/* Found a free page, break it into order-0 pages */
++		isolated = split_free_page(page);
++
++		total_isolated += isolated;
++		for (i = 0; i < isolated; i++) {
++			list_add(&page->lru, freelist);
++			page++;
++		}
++
++		if (total_isolated >= count)
++			break;
++
++		/* If a page was split, advance to the end of it */
++		if (isolated) {
++			blockpfn += isolated - 1;
++			cursor += isolated - 1;
++			continue;
++		}
++	}
++
++	return total_isolated;
++}
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 86c9a72..c782191 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6646,3 +6646,115 @@ void dump_page(struct page *page, const char *reason)
+ 	dump_page_badflags(page, reason, 0);
+ }
+ EXPORT_SYMBOL(dump_page);
++
++unsigned long isolate_unmovable_freepages_block(struct compact_control *cc,
++						unsigned long blockpfn,
++						unsigned long end_pfn,
++						int count,
++						struct list_head *freelist);
++
++int rmqueue_compact(struct zone *zone, unsigned int order,
++		    int migratetype, struct list_head *freepages)
++{
++	unsigned int current_order;
++	struct free_area *area;
++	struct page *page;
++	unsigned long block_start_pfn;	/* start of current pageblock */
++	unsigned long block_end_pfn;	/* end of current pageblock */
++	int total_isolated = 0;
++	unsigned long flags;
++	struct page *next;
++	int remain = 0;
++	int request = 1 << order;
++
++	spin_lock_irqsave(&zone->lock, flags);
++
++	current_order = 0;
++	page = NULL;
++	while (current_order <= pageblock_order) {
++		int isolated;
++
++		area = &(zone->free_area[current_order]);
++
++		if (list_empty(&area->free_list[migratetype])) {
++			current_order++;
++			continue;
++		}
++
++		page = list_entry(area->free_list[migratetype].next,
++				  struct page, lru);
++
++		/* check migratetype of pageblock again,
++		   some pages can be set as different migratetype
++		   by rmqueue_fallback */
++		if (get_pageblock_migratetype(page) != migratetype)
++			continue;
++
++		block_start_pfn = page_to_pfn(page) & ~(pageblock_nr_pages - 1);
++		block_end_pfn = min(block_start_pfn + pageblock_nr_pages,
++				    zone_end_pfn(zone));
++
++		isolated = isolate_unmovable_freepages_block(NULL,
++							      block_start_pfn,
++							      block_end_pfn,
++							      request,
++							      freepages);
++
++		total_isolated += isolated;
++		request -= isolated;
++
++		/* A buddy block is found but it is too big
++		   or the buddy block has no valid page.
++		   Anyway something wrong happened.
++		   Try next order.
++		*/
++		if (isolated == 0)
++			current_order++;
++
++		if (request <= 0)
++			break;
++	}
++	__mod_zone_page_state(zone, NR_ALLOC_BATCH, -total_isolated);
++	__count_zone_vm_events(PGALLOC, zone, total_isolated);
++
++	spin_unlock_irqrestore(&zone->lock, flags);
++
++	list_for_each_entry_safe(page, next, freepages, lru) {
++		if (remain >= (1 << order)) {
++			list_del(&page->lru);
++			/* do not free pages into hot-cold list,
++			   but buddy list */
++			atomic_dec(&page->_count);
++			__free_pages_ok(page, 0);
++		}
++		remain++;
++	}
++
++	list_for_each_entry(page, freepages, lru) {
++		arch_alloc_page(page, 0);
++		kernel_map_pages(page, 1, 1);
++	}
++
++	return total_isolated < (1 << order) ? total_isolated : (1 << order);
++}
++
++int alloc_pages_compact(gfp_t gfp_mask, unsigned int order,
++			struct list_head *freepages)
++{
++	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
++	struct zone *preferred_zone;
++	struct zoneref *preferred_zoneref;
++
++
++	preferred_zoneref = first_zones_zonelist(node_zonelist(numa_node_id(),
++							       gfp_mask),
++						 high_zoneidx,
++						 &cpuset_current_mems_allowed,
++						 &preferred_zone);
++	if (!preferred_zone)
++		return 0;
++
++	return rmqueue_compact(preferred_zone, order,
++			       allocflags_to_migratetype(gfp_mask), freepages);
++}
++EXPORT_SYMBOL(alloc_pages_compact);
 -- 
 1.7.9.5
 
