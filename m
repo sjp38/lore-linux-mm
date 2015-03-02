@@ -1,23 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 058106B006C
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 15:33:24 -0500 (EST)
-Received: by iecrl12 with SMTP id rl12so51288269iec.2
-        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 12:33:23 -0800 (PST)
-Received: from mail-ig0-x230.google.com (mail-ig0-x230.google.com. [2607:f8b0:4001:c05::230])
-        by mx.google.com with ESMTPS id a19si12169149icl.55.2015.03.02.12.33.23
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 3000A6B0038
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 15:34:33 -0500 (EST)
+Received: by igal13 with SMTP id l13so19215442iga.1
+        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 12:34:33 -0800 (PST)
+Received: from mail-ig0-x229.google.com (mail-ig0-x229.google.com. [2607:f8b0:4001:c05::229])
+        by mx.google.com with ESMTPS id h9si5817067iod.13.2015.03.02.12.34.32
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Mar 2015 12:33:23 -0800 (PST)
-Received: by igbhl2 with SMTP id hl2so19198093igb.0
-        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 12:33:23 -0800 (PST)
-Date: Mon, 2 Mar 2015 12:33:21 -0800 (PST)
+        Mon, 02 Mar 2015 12:34:32 -0800 (PST)
+Received: by igal13 with SMTP id l13so20769358iga.5
+        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 12:34:32 -0800 (PST)
+Date: Mon, 2 Mar 2015 12:34:30 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC 2/4] jbd2: revert must-not-fail allocation loops back to
- GFP_NOFAIL
-In-Reply-To: <1425304483-7987-3-git-send-email-mhocko@suse.cz>
-Message-ID: <alpine.DEB.2.10.1503021225090.20808@chino.kir.corp.google.com>
-References: <1425304483-7987-1-git-send-email-mhocko@suse.cz> <1425304483-7987-3-git-send-email-mhocko@suse.cz>
+Subject: Re: [RFC 1/4] mm: Clarify __GFP_NOFAIL deprecation status
+In-Reply-To: <1425304483-7987-2-git-send-email-mhocko@suse.cz>
+Message-ID: <alpine.DEB.2.10.1503021233550.20808@chino.kir.corp.google.com>
+References: <1425304483-7987-1-git-send-email-mhocko@suse.cz> <1425304483-7987-2-git-send-email-mhocko@suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -27,35 +26,27 @@ Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Wein
 
 On Mon, 2 Mar 2015, Michal Hocko wrote:
 
-> This basically reverts 47def82672b3 (jbd2: Remove __GFP_NOFAIL from jbd2
-> layer). The deprecation of __GFP_NOFAIL was a bad choice because it led
-> to open coding the endless loop around the allocator rather than
-> removing the dependency on the non failing allocation. So the
-> deprecation was a clear failure and the reality tells us that
-> __GFP_NOFAIL is not even close to go away.
-> 
-> It is still true that __GFP_NOFAIL allocations are generally discouraged
-> and new uses should be evaluated and an alternative (pre-allocations or
-> reservations) should be considered but it doesn't make any sense to lie
-> the allocator about the requirements. Allocator can take steps to help
-> making a progress if it knows the requirements.
-> 
+> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> index 51bd1e72a917..0cf9c2772988 100644
+> --- a/include/linux/gfp.h
+> +++ b/include/linux/gfp.h
+> @@ -57,8 +57,10 @@ struct vm_area_struct;
+>   * _might_ fail.  This depends upon the particular VM implementation.
+>   *
+>   * __GFP_NOFAIL: The VM implementation _must_ retry infinitely: the caller
+> - * cannot handle allocation failures.  This modifier is deprecated and no new
+> - * users should be added.
+> + * cannot handle allocation failures. New users should be evaluated carefuly
+> + * (and the flag should be used only when there is no reasonable failure policy)
+> + * but it is definitely preferable to use the flag rather than opencode endless
+> + * loop around allocator.
+>   *
+>   * __GFP_NORETRY: The VM implementation must not retry indefinitely.
+>   *
 
-The changelog should state that this only changes the source code, there 
-is no functional change since alloc_buffer_head() and 
-kmem_cache_zalloc(transaction_cache) are already implicitly nofail due to 
-the allocation order.  The failure code added by the commit you cite are 
-never executed.
-
-I agree that if the implementation of the page allocator were to change 
-with respect to PAGE_ALLOC_COSTLY_ORDER that we'd need __GFP_NOFAIL and 
-that such an allocation is better handled in the page allocator.
-
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+s/carefuly/carefully/
 
 Acked-by: David Rientjes <rientjes@google.com>
-
-GFP_NOFS|__GFP_NOFAIL is scary.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
