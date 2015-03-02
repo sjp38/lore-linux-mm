@@ -1,77 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F5F76B0038
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 07:31:40 -0500 (EST)
-Received: by padfb1 with SMTP id fb1so4710333pad.7
-        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 04:31:39 -0800 (PST)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id fj14si1436068pac.128.2015.03.02.04.31.35
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id BA4E06B006C
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 07:32:06 -0500 (EST)
+Received: by pdbfl12 with SMTP id fl12so8131291pdb.9
+        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 04:32:06 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id aq8si16397205pac.78.2015.03.02.04.32.05
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 02 Mar 2015 04:31:39 -0800 (PST)
-Message-ID: <54F457A5.3070602@huawei.com>
-Date: Mon, 2 Mar 2015 20:29:25 +0800
-From: shengyong <shengyong1@huawei.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Mar 2015 04:32:05 -0800 (PST)
+Date: Mon, 2 Mar 2015 13:31:49 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: PMD update corruption (sync question)
+Message-ID: <20150302123149.GK21418@twins.programming.kicks-ass.net>
+References: <1411740233-28038-1-git-send-email-steve.capper@linaro.org>
+ <54F06636.6080905@redhat.com>
+ <54F3C6AD.50300@redhat.com>
+ <938476184.27970130.1425275915893.JavaMail.zimbra@zmail15.collab.prod.int.phx2.redhat.com>
+ <20150302105011.GD22541@e104818-lin.cambridge.arm.com>
+ <1172437505.28092883.1425294374323.JavaMail.zimbra@zmail15.collab.prod.int.phx2.redhat.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 1/2] mem-hotplug: introduce sysfs `range' attribute
-References: <1425269100-15842-1-git-send-email-shengyong1@huawei.com> <20150302091714.GA32186@hori1.linux.bs1.fc.nec.co.jp>
-In-Reply-To: <20150302091714.GA32186@hori1.linux.bs1.fc.nec.co.jp>
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1172437505.28092883.1425294374323.JavaMail.zimbra@zmail15.collab.prod.int.phx2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "nfont@austin.ibm.com" <nfont@austin.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "zhenzhang.zhang@huawei.com" <zhenzhang.zhang@huawei.com>, Dave Hansen <dave.hansen@intel.com>, David
- Rientjes <rientjes@google.com>
+To: Jon Masters <jcm@redhat.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, gary.robertson@linaro.org, Steve Capper <steve.capper@linaro.org>, mark.rutland@arm.com, hughd@google.com, christoffer.dall@linaro.org, akpm@linux-foundation.org, mgorman@suse.de, linux@arm.linux.org.uk, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, will.deacon@arm.com, dann.frazier@canonical.com, anders.roxell@linaro.org
 
+On Mon, Mar 02, 2015 at 06:06:14AM -0500, Jon Masters wrote:
 
+> 64-bit writes are /usually/ atomic but alignment or compiler emiting
+> 32-bit opcodes could also do it. I agree there are a few other pieces
+> to this we will chat about separately and come back to this thread.
 
-在 2015/3/2 17:17, Naoya Horiguchi 写道:
-> # Cced some people maybe interested in this topic.
-> 
-> On Mon, Mar 02, 2015 at 04:04:59AM +0000, Sheng Yong wrote:
->> There may be memory holes in a memory section, and because of that we can
->> not know the real size of the section. In order to know the physical memory
->> area used int one memory section, we walks through iomem resources and
->> report the memory range in /sys/devices/system/memory/memoryX/range, like,
->>
->> root@ivybridge:~# cat /sys/devices/system/memory/memory0/range
->> 00001000-0008efff
->> 00090000-0009ffff
->> 00100000-07ffffff
->>
->> Signed-off-by: Sheng Yong <shengyong1@huawei.com>
-> 
-> About a year ago, there was a similar request/suggestion from a library
-> developer about exporting valid physical address range
-> (http://thread.gmane.org/gmane.linux.kernel.mm/115600).
-> Then, we tried some but didn't make it.
-Thanks for your information.
-> 
-> So if you try to solve this, please consider some points from that discussion:
-> - interface name: just 'range' might not be friendly, if the interface returns
->   physicall address range, something like 'phys_addr_range' looks better.
-> - prefix '0x': if you display the value range in hex, prefixing '0x' might
->   be better to avoid letting every parser to add it in itself.
-I agree on these 2 suggestion.
-> - supporting node range: your patch is now just for memory block interface, but
->   someone (like me) are interested in exporting easy "phys_addr <=> node number"
->   mapping, so if your approach is easily extensible to node interface, it would
->   be very nice to include node interface support too.
-After reading the previous discussion, I think the content in the interface should
-look like "<node id> <start-end>" to avoid overlay of memory node. Am I right? Then
-we could use `memory_add_physaddr_to_nid(u64 start)' to translate physical address
-to node id when the address is recorded to the ranges list in get_range().
-The problem is that `struct resource' does not have an appropriate member to save
-the node id value, which is saved in resource->flags temporarily for testing.
+Looking at the asm will quickly tell you if its emitting 32bit stores or
+not. If it is, use WRITE_ONCE() (you should anyway I suppose) and see if
+that cures it, if not file a compiler bug, volatile stores should never
+be split.
 
-thanks,
-Sheng
-> 
-> Thanks,
-> Naoya Horiguchi
-> .
-> 
+As to alignment, you can simply put a BUG_ON((unsigned long)ptep & 7);
+in there.
+
+Also:
+
+A: Because it messes up the order in which people normally read text.
+Q: Why is top-posting such a bad thing?
+A: Top-posting.
+Q: What is the most annoying thing in e-mail?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
