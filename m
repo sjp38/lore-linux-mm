@@ -1,89 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id F10EC6B0038
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 00:59:23 -0500 (EST)
-Received: by mail-qg0-f49.google.com with SMTP id a108so15530259qge.8
-        for <linux-mm@kvack.org>; Sun, 01 Mar 2015 21:59:23 -0800 (PST)
-Received: from mx3-phx2.redhat.com (mx3-phx2.redhat.com. [209.132.183.24])
-        by mx.google.com with ESMTPS id i204si10895089qhc.56.2015.03.01.21.59.22
+Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com [209.85.214.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A1626B0038
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 04:21:44 -0500 (EST)
+Received: by mail-ob0-f181.google.com with SMTP id vb8so29910613obc.12
+        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 01:21:44 -0800 (PST)
+Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
+        by mx.google.com with ESMTPS id ny8si5976462obc.54.2015.03.02.01.21.42
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 01 Mar 2015 21:59:23 -0800 (PST)
-Date: Mon, 2 Mar 2015 00:58:36 -0500 (EST)
-Subject: Re: PMD update corruption (sync question)
-From: Jon Masters <jcm@redhat.com>
+        Mon, 02 Mar 2015 01:21:43 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [RFC PATCH 1/2] mem-hotplug: introduce sysfs `range' attribute
+Date: Mon, 2 Mar 2015 09:17:14 +0000
+Message-ID: <20150302091714.GA32186@hori1.linux.bs1.fc.nec.co.jp>
+References: <1425269100-15842-1-git-send-email-shengyong1@huawei.com>
+In-Reply-To: <1425269100-15842-1-git-send-email-shengyong1@huawei.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <79037CC640F9DC42AA711FE17AEB7352@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Message-ID: <938476184.27970130.1425275915893.JavaMail.zimbra@zmail15.collab.prod.int.phx2.redhat.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
-In-Reply-To: <54F3C6AD.50300@redhat.com>
-References: <1411740233-28038-1-git-send-email-steve.capper@linaro.org> <54F06636.6080905@redhat.com> <54F3C6AD.50300@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org, linux-arch@vger.kernel.org, linux@arm.linux.org.uk, Steve Capper <steve.capper@linaro.org>, linux-mm@kvack.org, catalin.marinas@arm.com
-Cc: gary.robertson@linaro.org, mark.rutland@arm.com, hughd@google.com, akpm@linux-foundation.org, christoffer.dall@linaro.org, peterz@infradead.org, mgorman@suse.de, will.deacon@arm.com, dann.frazier@canonical.com, anders.roxell@linaro.org
+To: Sheng Yong <shengyong1@huawei.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "nfont@austin.ibm.com" <nfont@austin.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "zhenzhang.zhang@huawei.com" <zhenzhang.zhang@huawei.com>, Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>
 
-Test kernels running with an explicit DSB in all PTE update cases now running overnight. Just in case.
+# Cced some people maybe interested in this topic.
 
--- 
-Computer Architect | Sent from my #ARM Powered Mobile Device
+On Mon, Mar 02, 2015 at 04:04:59AM +0000, Sheng Yong wrote:
+> There may be memory holes in a memory section, and because of that we can
+> not know the real size of the section. In order to know the physical memo=
+ry
+> area used int one memory section, we walks through iomem resources and
+> report the memory range in /sys/devices/system/memory/memoryX/range, like=
+,
+>=20
+> root@ivybridge:~# cat /sys/devices/system/memory/memory0/range
+> 00001000-0008efff
+> 00090000-0009ffff
+> 00100000-07ffffff
+>=20
+> Signed-off-by: Sheng Yong <shengyong1@huawei.com>
 
-On Mar 1, 2015 9:10 PM, Jon Masters <jcm@redhat.com> wrote:
->
-> Hi Folks, 
->
-> I've pulled a couple of all nighters reproducing this hard to trHi Folks,
+About a year ago, there was a similar request/suggestion from a library
+developer about exporting valid physical address range
+(http://thread.gmane.org/gmane.linux.kernel.mm/115600).
+Then, we tried some but didn't make it.
 
-I've pulled a couple of all nighters reproducing this hard to trigger
-issue and got some data. It looks like the high half of the (note always
-userspace) PMD is all zeros or all ones, which makes me wonder if the
-logic in update_mmu_cache might be missing something on AArch64.
+So if you try to solve this, please consider some points from that discussi=
+on:
+- interface name: just 'range' might not be friendly, if the interface retu=
+rns
+  physicall address range, something like 'phys_addr_range' looks better.
+- prefix '0x': if you display the value range in hex, prefixing '0x' might
+  be better to avoid letting every parser to add it in itself.
+- supporting node range: your patch is now just for memory block interface,=
+ but
+  someone (like me) are interested in exporting easy "phys_addr <=3D> node =
+number"
+  mapping, so if your approach is easily extensible to node interface, it w=
+ould
+  be very nice to include node interface support too.
 
-When a kernel is built with 64K pages and 2 levels the PMD is
-effectively updated using set_pte_at, which explicitly won't perform a
-DSB if the address is userspace (it expects this to happen later, in
-update_mmu_cache as an example.
-
-Can anyone think of an obvious reason why we might not be properly
-flushing the changes prior to them being consumed by a hardware walker?
-
-Jon.
-
-On 02/27/2015 07:42 AM, Jon Masters wrote:
-> On 09/26/2014 10:03 AM, Steve Capper wrote:
-> 
->> This series implements general forms of get_user_pages_fast and
->> __get_user_pages_fast in core code and activates them for arm and arm64.
->>
->> These are required for Transparent HugePages to function correctly, as
->> a futex on a THP tail will otherwise result in an infinite loop (due to
->> the core implementation of __get_user_pages_fast always returning 0).
->>
->> Unfortunately, a futex on THP tail can be quite common for certain
->> workloads; thus THP is unreliable without a __get_user_pages_fast
->> implementation.
->>
->> This series may also be beneficial for direct-IO heavy workloads and
->> certain KVM workloads.
->>
->> I appreciate that the merge window is coming very soon, and am posting
->> this revision on the off-chance that it gets the nod for 3.18. (The changes
->> thus far have been minimal and the feedback I've got has been mainly
->> positive).
-> 
-> Head's up: these patches are currently implicated in a rare-to-trigger
-> hang that we are seeing on an internal kernel. An extensive effort is
-> underway to confirm whether these are the cause. Will followup.
-> 
-> Jon.
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+Thanks,
+Naoya Horiguchi=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
