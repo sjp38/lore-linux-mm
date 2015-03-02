@@ -1,46 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
-	by kanga.kvack.org (Postfix) with ESMTP id AFCC86B0038
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 12:13:26 -0500 (EST)
-Received: by mail-qa0-f46.google.com with SMTP id n4so23889071qaq.5
-        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 09:13:26 -0800 (PST)
-Received: from mail-qa0-x230.google.com (mail-qa0-x230.google.com. [2607:f8b0:400d:c00::230])
-        by mx.google.com with ESMTPS id i38si1058612qkh.83.2015.03.02.09.13.26
+Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E3A86B0038
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 12:21:20 -0500 (EST)
+Received: by iecvy18 with SMTP id vy18so49645109iec.6
+        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 09:21:20 -0800 (PST)
+Received: from mail-ig0-x234.google.com (mail-ig0-x234.google.com. [2607:f8b0:4001:c05::234])
+        by mx.google.com with ESMTPS id e67si8193778ioi.40.2015.03.02.09.21.19
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Mar 2015 09:13:26 -0800 (PST)
-Received: by mail-qa0-f48.google.com with SMTP id dc16so23817427qab.7
-        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 09:13:25 -0800 (PST)
-Date: Mon, 2 Mar 2015 12:13:23 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 2/2] memcg: disable hierarchy support if bound to the
- legacy cgroup hierarchy
-Message-ID: <20150302171323.GM17694@htj.duckdns.org>
-References: <131af5f5ee0eec55d0f94a785db4be04baf01f51.1424356325.git.vdavydov@parallels.com>
- <421fb6bbff04eb70b8ad82b51efd373f0b4d170f.1424356325.git.vdavydov@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <421fb6bbff04eb70b8ad82b51efd373f0b4d170f.1424356325.git.vdavydov@parallels.com>
+        Mon, 02 Mar 2015 09:21:19 -0800 (PST)
+Received: by igjz20 with SMTP id z20so19103681igj.4
+        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 09:21:19 -0800 (PST)
+From: Jeff Vander Stoep <jeffv@google.com>
+Subject: [PATCH] mm: reorder can_do_mlock to fix audit denial
+Date: Mon,  2 Mar 2015 09:20:32 -0800
+Message-Id: <1425316867-6104-1-git-send-email-jeffv@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: nnk@google.com
+Cc: Jeff Vander Stoep <jeffv@google.com>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Paul Cassella <cassella@cray.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Feb 19, 2015 at 05:34:47PM +0300, Vladimir Davydov wrote:
-> If the memory cgroup controller is initially mounted in the scope of the
-> default cgroup hierarchy and then remounted to a legacy hierarchy, it
-> will still have hierarchy support enabled, which is incorrect. We should
-> disable hierarchy support if bound to the legacy cgroup hierarchy.
-> 
-> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+A userspace call to mmap(MAP_LOCKED) may result in the successful
+locking of memory while also producing a confusing audit log denial.
+can_do_mlock checks capable and rlimit. If either of these return
+positive can_do_mlock returns true. The capable check leads to an LSM
+hook used by apparmour and selinux which produce the audit denial.
+Reordering so rlimit is checked first eliminates the denial on success,
+only recording a denial when the lock is unsuccessful as a result of
+the denial.
 
-Johannes, Michal, can you guys pick this up?
+Signed-off-by: Jeff Vander Stoep <jeffv@google.com>
+---
+ mm/mlock.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-Thanks.
-
+diff --git a/mm/mlock.c b/mm/mlock.c
+index 73cf098..8a54cd2 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -26,10 +26,10 @@
+ 
+ int can_do_mlock(void)
+ {
+-	if (capable(CAP_IPC_LOCK))
+-		return 1;
+ 	if (rlimit(RLIMIT_MEMLOCK) != 0)
+ 		return 1;
++	if (capable(CAP_IPC_LOCK))
++		return 1;
+ 	return 0;
+ }
+ EXPORT_SYMBOL(can_do_mlock);
 -- 
-tejun
+2.2.0.rc0.207.ga3a616c
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
