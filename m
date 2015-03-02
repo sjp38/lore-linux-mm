@@ -1,18 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f50.google.com (mail-oi0-f50.google.com [209.85.218.50])
-	by kanga.kvack.org (Postfix) with ESMTP id F06FE6B0071
-	for <linux-mm@kvack.org>; Sun,  1 Mar 2015 23:00:06 -0500 (EST)
-Received: by mail-oi0-f50.google.com with SMTP id v1so24965868oia.9
-        for <linux-mm@kvack.org>; Sun, 01 Mar 2015 20:00:06 -0800 (PST)
+Received: from mail-oi0-f42.google.com (mail-oi0-f42.google.com [209.85.218.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 62D666B0072
+	for <linux-mm@kvack.org>; Sun,  1 Mar 2015 23:00:07 -0500 (EST)
+Received: by mail-oi0-f42.google.com with SMTP id h136so24922831oig.1
+        for <linux-mm@kvack.org>; Sun, 01 Mar 2015 20:00:07 -0800 (PST)
 Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
-        by mx.google.com with ESMTPS id h66si2795238oif.39.2015.03.01.20.00.04
+        by mx.google.com with ESMTPS id e125si5211844oid.131.2015.03.01.20.00.05
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 01 Mar 2015 20:00:05 -0800 (PST)
+        Sun, 01 Mar 2015 20:00:06 -0800 (PST)
 From: Sheng Yong <shengyong1@huawei.com>
-Subject: [RFC PATCH 1/2] mem-hotplug: introduce sysfs `range' attribute
-Date: Mon, 2 Mar 2015 04:04:59 +0000
-Message-ID: <1425269100-15842-1-git-send-email-shengyong1@huawei.com>
+Subject: [RFC PATCH 2/2] mem-hotplug: add description of sysfs `range' attribute
+Date: Mon, 2 Mar 2015 04:05:00 +0000
+Message-ID: <1425269100-15842-2-git-send-email-shengyong1@huawei.com>
+In-Reply-To: <1425269100-15842-1-git-send-email-shengyong1@huawei.com>
+References: <1425269100-15842-1-git-send-email-shengyong1@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -20,119 +22,76 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, gregkh@linuxfoundation.org, nfont@austin.ibm.com
 Cc: linux-mm@kvack.org, zhenzhang.zhang@huawei.com
 
-There may be memory holes in a memory section, and because of that we can
-not know the real size of the section. In order to know the physical memory
-area used int one memory section, we walks through iomem resources and
-report the memory range in /sys/devices/system/memory/memoryX/range, like,
-
-root@ivybridge:~# cat /sys/devices/system/memory/memory0/range
-00001000-0008efff
-00090000-0009ffff
-00100000-07ffffff
+Add description of sysfs `range' attribute, which is designed to show the
+memory holes in a memory section.
 
 Signed-off-by: Sheng Yong <shengyong1@huawei.com>
 ---
- drivers/base/memory.c |   66 +++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 66 insertions(+)
+ Documentation/ABI/testing/sysfs-devices-memory |    8 ++++++++
+ Documentation/memory-hotplug.txt               |   12 ++++++++----
+ 2 files changed, 16 insertions(+), 4 deletions(-)
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 85be040..e72e5e4 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -21,6 +21,7 @@
- #include <linux/mutex.h>
- #include <linux/stat.h>
- #include <linux/slab.h>
-+#include <linux/ioport.h>
+diff --git a/Documentation/ABI/testing/sysfs-devices-memory b/Documentation/ABI/testing/sysfs-devices-memory
+index deef3b5..15629f5 100644
+--- a/Documentation/ABI/testing/sysfs-devices-memory
++++ b/Documentation/ABI/testing/sysfs-devices-memory
+@@ -69,6 +69,14 @@ Description:
+ 		read-only and is designed to show which zone this memory
+ 		block can be onlined to.
  
- #include <linux/atomic.h>
- #include <asm/uaccess.h>
-@@ -373,6 +374,69 @@ static ssize_t show_phys_device(struct device *dev,
- 	return sprintf(buf, "%d\n", mem->phys_device);
- }
++What:           /sys/devices/system/memory/memoryX/range
++Date:           Feb 2015
++Contact:	Sheng Yong <shengyong1@huawei.com>
++Description:
++		The file /sys/devices/system/memory/memoryX/range is
++		read-only and is designed to show memory holes in one
++		memory section.
++
+ What:		/sys/devices/system/memoryX/nodeY
+ Date:		October 2009
+ Contact:	Linux Memory Management list <linux-mm@kvack.org>
+diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
+index ea03abf..d59724b 100644
+--- a/Documentation/memory-hotplug.txt
++++ b/Documentation/memory-hotplug.txt
+@@ -140,22 +140,22 @@ is described under /sys/devices/system/memory as
  
-+static int get_range(u64 start, u64 end, void *arg)
-+{
-+	struct resource **head, *p, *tmp;
-+
-+	head = (struct resource **) arg;
-+
-+	if (!(*head)) {
-+		*head = kmalloc(sizeof(struct resource), GFP_KERNEL);
-+		if (!(*head))
-+			return -ENOMEM;
-+		(*head)->start = start;
-+		(*head)->end = end;
-+		(*head)->sibling = NULL;
-+	} else {
-+		p = *head;
-+		while (p->sibling != NULL)
-+			p = p->sibling;
-+		if (p->end == start - 1) {
-+			p->end = end;
-+			return 0;
-+		}
-+		tmp = kmalloc(sizeof(struct resource), GFP_KERNEL);
-+		if (!tmp)
-+			return -ENOMEM;
-+		tmp->start = start;
-+		tmp->end = end;
-+		tmp->sibling = NULL;
-+		p->sibling = tmp;
-+	}
-+
-+	return 0;
-+}
-+
-+static ssize_t show_mem_range(struct device *dev,
-+			      struct device_attribute *attr, char *buf)
-+{
-+	struct memory_block *mem = to_memory_block(dev);
-+	unsigned long start_pfn, end_pfn, nr_pages;
-+	struct resource *ranges = NULL, *p;
-+	u64 start, end;
-+	int cnt, err;
-+
-+	nr_pages = PAGES_PER_SECTION * sections_per_block;
-+	start_pfn = section_nr_to_pfn(mem->start_section_nr);
-+	end_pfn = start_pfn + nr_pages;
-+
-+	start = (u64) start_pfn << PAGE_SHIFT;
-+	end = ((u64) end_pfn << PAGE_SHIFT) - 1;
-+	err = walk_system_ram_res(start, end, &ranges, get_range);
-+
-+	cnt = 0;
-+	while (ranges != NULL) {
-+		p = ranges;
-+		if (err == 0)
-+			cnt += sprintf(buf, "%s%08llx-%08llx\n", buf,
-+				       ranges->start, ranges->end);
-+		ranges = ranges->sibling;
-+		kfree(p);
-+	}
-+
-+	return cnt;
-+}
-+
- #ifdef CONFIG_MEMORY_HOTREMOVE
- static ssize_t show_valid_zones(struct device *dev,
- 				struct device_attribute *attr, char *buf)
-@@ -416,6 +480,7 @@ static DEVICE_ATTR(phys_index, 0444, show_mem_start_phys_index, NULL);
- static DEVICE_ATTR(state, 0644, show_mem_state, store_mem_state);
- static DEVICE_ATTR(phys_device, 0444, show_phys_device, NULL);
- static DEVICE_ATTR(removable, 0444, show_mem_removable, NULL);
-+static DEVICE_ATTR(range, 0444, show_mem_range, NULL);
+ For the memory block covered by the sysfs directory.  It is expected that all
+ memory sections in this range are present and no memory holes exist in the
+-range. Currently there is no way to determine if there is a memory hole, but
+-the existence of one should not affect the hotplug capabilities of the memory
+-block.
++range. However, if there is a memory hole, the existence of one should not
++affect the hotplug capabilities of the memory block.
  
- /*
-  * Block size attribute stuff
-@@ -565,6 +630,7 @@ static struct attribute *memory_memblk_attrs[] = {
- #ifdef CONFIG_MEMORY_HOTREMOVE
- 	&dev_attr_valid_zones.attr,
- #endif
-+	&dev_attr_range.attr,
- 	NULL
- };
+ For example, assume 1GiB memory block size. A device for a memory starting at
+ 0x100000000 is /sys/device/system/memory/memory4
+ (0x100000000 / 1Gib = 4)
+ This device covers address range [0x100000000 ... 0x140000000)
  
+-Under each memory block, you can see 4 files:
++Under each memory block, you can see 6 files:
+ 
+ /sys/devices/system/memory/memoryXXX/phys_index
+ /sys/devices/system/memory/memoryXXX/phys_device
+ /sys/devices/system/memory/memoryXXX/state
+ /sys/devices/system/memory/memoryXXX/removable
+ /sys/devices/system/memory/memoryXXX/valid_zones
++/sys/devices/system/memory/memoryXXX/range
+ 
+ 'phys_index'      : read-only and contains memory block id, same as XXX.
+ 'state'           : read-write
+@@ -180,6 +180,10 @@ Under each memory block, you can see 4 files:
+ 		    "memory7/valid_zones: Movable Normal" shows this memoryblock
+ 		    can be onlined to ZONE_MOVABLE by default and to ZONE_NORMAL
+ 		    by online_kernel.
++'range'           : read-only: designed to show memory holes in a memory
++                    section.
++                    Each line shows the start and end physical address of a
++                    memory area.
+ 
+ NOTE:
+   These directories/files appear after physical memory hotplug phase.
 -- 
 1.7.9.5
 
