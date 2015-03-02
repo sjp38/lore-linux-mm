@@ -1,117 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 08D716B0038
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 10:18:36 -0500 (EST)
-Received: by wevl61 with SMTP id l61so34019996wev.2
-        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 07:18:35 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s9si22661492wjs.200.2015.03.02.07.18.33
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id BCE316B0038
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 10:44:40 -0500 (EST)
+Received: by pabli10 with SMTP id li10so15138313pab.13
+        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 07:44:40 -0800 (PST)
+Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
+        by mx.google.com with ESMTPS id pk2si8174773pdb.214.2015.03.02.07.44.38
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Mar 2015 07:18:34 -0800 (PST)
-Date: Mon, 2 Mar 2015 16:18:32 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: How to handle TIF_MEMDIE stalls?
-Message-ID: <20150302151832.GE26334@dhcp22.suse.cz>
-References: <201502102258.IFE09888.OVQFJOMSFtOLFH@I-love.SAKURA.ne.jp>
- <20150210151934.GA11212@phnom.home.cmpxchg.org>
- <201502111123.ICD65197.FMLOHSQJFVOtFO@I-love.SAKURA.ne.jp>
- <201502172123.JIE35470.QOLMVOFJSHOFFt@I-love.SAKURA.ne.jp>
- <20150217125315.GA14287@phnom.home.cmpxchg.org>
- <20150217225430.GJ4251@dastard>
- <20150219102431.GA15569@phnom.home.cmpxchg.org>
- <20150219225217.GY12722@dastard>
- <20150221235227.GA25079@phnom.home.cmpxchg.org>
- <20150223004521.GK12722@dastard>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150223004521.GK12722@dastard>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Mon, 02 Mar 2015 07:44:39 -0800 (PST)
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout1.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NKL00773D95KO60@mailout1.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 02 Mar 2015 15:48:41 +0000 (GMT)
+Content-transfer-encoding: 8BIT
+Message-id: <54F48560.1090800@partner.samsung.com>
+Date: Mon, 02 Mar 2015 18:44:32 +0300
+From: Stefan Strogin <s.strogin@partner.samsung.com>
+Subject: Re: [PATCH v3 3/4] mm: cma: add list of currently allocated CMA
+ buffers to debugfs
+References: <cover.1424802755.git.s.strogin@partner.samsung.com>
+ <1fe64ae6f12eeda1c2aa59daea7f89e57e0e35a9.1424802755.git.s.strogin@partner.samsung.com>
+ <xa1toaojov0x.fsf@mina86.com>
+In-reply-to: <xa1toaojov0x.fsf@mina86.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, xfs@oss.sgi.com
+To: Michal Nazarewicz <mina86@mina86.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Dmitry Safonov <d.safonov@partner.samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Minchan Kim <minchan@kernel.org>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>, Aleksei Mateosian <a.mateosian@samsung.com>, gregory.0xf0@gmail.com, sasha.levin@oracle.com, gioh.kim@lge.com, pavel@ucw.cz, stefan.strogin@gmail.com
 
-On Mon 23-02-15 11:45:21, Dave Chinner wrote:
-[...]
-> A reserve memory pool is no different - every time a memory reserve
-> occurs, a watermark is lifted to accommodate it, and the transaction
-> is not allowed to proceed until the amount of free memory exceeds
-> that watermark. The memory allocation subsystem then only allows
-> *allocations* marked correctly to allocate pages from that the
-> reserve that watermark protects. e.g. only allocations using
-> __GFP_RESERVE are allowed to dip into the reserve pool.
+Hi MichaA?,
 
-The idea is sound. But I am pretty sure we will find many corner
-cases. E.g. what if the mere reservation attempt causes the system
-to go OOM and trigger the OOM killer? Sure that wouldn't be too much
-different from the OOM triggered during the allocation but there is one
-major difference. Reservations need to be estimated and I expect the
-estimation would be on the more conservative side and so the OOM might
-not happen without them.
+Thank you for the answer.
 
-> By using watermarks, freeing of memory will automatically top
-> up the reserve pool which means that we guarantee that reclaimable
-> memory allocated for demand paging during transacitons doesn't
-> deplete the reserve pool permanently.  As a result, when there is
-> plenty of free and/or reclaimable memory, the reserve pool
-> watermarks will have almost zero impact on performance and
-> behaviour.
-
-Typical busy system won't be very far away from the high watermark
-so there would be a reclaim performed during increased watermaks
-(aka reservation) and that might lead to visible performance
-degradation. This might be acceptable but it also adds a certain level
-of unpredictability when performance characteristics might change
-suddenly.
-
-> Further, because it's just accounting and behavioural thresholds,
-> this allows the mm subsystem to control how the reserve pool is
-> accounted internally. e.g. clean, reclaimable pages in the page
-> cache could serve as reserve pool pages as they can be immediately
-> reclaimed for allocation.
-
-But they also can turn into hard/impossible to reclaim as well. Clean
-pages might get dirty and e.g. swap backed pages run out of their
-backing storage. So I guess we cannot count with those pages without
-reclaiming them first and hiding them into the reserve. Which is what
-you suggest below probably but I wasn't really sure...
-
-> This could be acheived by setting reclaim targets first to the reserve
-> pool watermark, then the second target is enough pages to satisfy the
-> current allocation.
+On 25/02/15 00:32, Michal Nazarewicz wrote:
+> On Tue, Feb 24 2015, Stefan Strogin <s.strogin@partner.samsung.com> wrote:
+>> --- a/mm/cma.h
+>> +++ b/mm/cma.h
+>> @@ -11,8 +13,32 @@ struct cma {
+>>  	struct hlist_head mem_head;
+>>  	spinlock_t mem_head_lock;
+>>  #endif
+>> +#ifdef CONFIG_CMA_BUFFER_LIST
+>> +	struct list_head buffer_list;
+>> +	struct mutex	list_lock;
+>> +#endif
+>>  };
+>>  
+>> +#ifdef CONFIG_CMA_BUFFER_LIST
+>> +struct cma_buffer {
+>> +	unsigned long pfn;
+>> +	unsigned long count;
+>> +	pid_t pid;
+>> +	char comm[TASK_COMM_LEN];
+>> +#ifdef CONFIG_CMA_ALLOC_STACKTRACE
+>> +	unsigned long trace_entries[16];
+>> +	unsigned int nr_entries;
+>> +#endif
+>> +	struct list_head list;
+>> +};
 > 
-> And, FWIW, there's nothing stopping this mechanism from have order
-> based reserve thresholds. e.g. IB could really do with a 64k reserve
-> pool threshold and hence help solve the long standing problems they
-> have with filling the receive ring in GFP_ATOMIC context...
+> This structure is only ever used in cma_debug.c so is there a reason
+> to define it in the header file?
 > 
-> Sure, that's looking further down the track, but my point still
-> remains: we need a viable long term solution to this problem. Maybe
-> reservations are not the solution, but I don't see anyone else who
-> is thinking of how to address this architectural problem at a system
-> level right now.
 
-I think the idea is good! It will just be quite tricky to get there
-without causing more problems than those being solved. The biggest
-question mark so far seems to be the reservation size estimation. If
-it is hard for any caller to know the size beforehand (which would
-be really close to the actually used size) then the whole complexity
-in the code sounds like an overkill and asking administrator to tune
-min_free_kbytes seems a better fit (we would still have to teach the
-allocator to access reserves when really necessary) because the system
-would behave more predictably (although some memory would be wasted).
+No, there isn't. Thanks. I'll move it to cma_debug.c
 
-> We need to design and document the model first, then review it, then
-> we can start working at the code level to implement the solution we've
-> designed.
+>> +
+>> +extern int cma_buffer_list_add(struct cma *cma, unsigned long pfn, int count);
+>> +extern void cma_buffer_list_del(struct cma *cma, unsigned long pfn, int count);
+>> +#else
+>> +#define cma_buffer_list_add(cma, pfn, count) { }
+>> +#define cma_buffer_list_del(cma, pfn, count) { }
+>> +#endif /* CONFIG_CMA_BUFFER_LIST */
+>> +
+>>  extern struct cma cma_areas[MAX_CMA_AREAS];
+>>  extern unsigned cma_area_count;
+> 
+> 
+>> +#ifdef CONFIG_CMA_BUFFER_LIST
+>> +static ssize_t cma_buffer_list_read(struct file *file, char __user *userbuf,
+>> +				    size_t count, loff_t *ppos)
+>> +{
+>> +	struct cma *cma = file->private_data;
+>> +	struct cma_buffer *cmabuf;
+>> +	char *buf;
+>> +	int ret, n = 0;
+>> +#ifdef CONFIG_CMA_ALLOC_STACKTRACE
+>> +	struct stack_trace trace;
+>> +#endif
+>> +
+>> +	if (*ppos < 0 || !count)
+>> +		return -EINVAL;
+>> +
+>> +	buf = vmalloc(count);
+>> +	if (!buf)
+>> +		return -ENOMEM;
+>> +
+>> +	mutex_lock(&cma->list_lock);
+>> +	list_for_each_entry(cmabuf, &cma->buffer_list, list) {
+>> +		n += snprintf(buf + n, count - n,
+>> +			      "0x%llx - 0x%llx (%lu kB), allocated by pid %u (%s)\n",
+>> +			      (unsigned long long)PFN_PHYS(cmabuf->pfn),
+>> +			      (unsigned long long)PFN_PHYS(cmabuf->pfn +
+>> +				      cmabuf->count),
+>> +			      (cmabuf->count * PAGE_SIZE) >> 10, cmabuf->pid,
+>> +			      cmabuf->comm);
+>> +
+>> +#ifdef CONFIG_CMA_ALLOC_STACKTRACE
+>> +		trace.nr_entries = cmabuf->nr_entries;
+>> +		trace.entries = &cmabuf->trace_entries[0];
+>> +		n += snprint_stack_trace(buf + n, count - n, &trace, 0);
+>> +		n += snprintf(buf + n, count - n, "\n");
+>> +#endif
+>> +	}
+>> +	mutex_unlock(&cma->list_lock);
+>> +
+>> +	ret = simple_read_from_buffer(userbuf, count, ppos, buf, n);
+>> +	vfree(buf);
+>> +
+>> +	return ret;
+>> +}
+> 
+> So in practice user space must allocate buffer big enough to read the
+> whole file into memory.  Calling read(2) with some count will never read
+> anything past the first count bytes of the file.
+> 
 
-I have already asked James to add this on LSF agenda but nothing has
-materialized on the schedule yet. I will poke him again.
-
--- 
-Michal Hocko
-SUSE Labs
+My fault. You are right.
+I'm not sure how to do the output nice... I could use *ppos to point the
+number of next list entry to read (like that is used in
+read_page_owner()). But in this case the list could be changed before we
+finish reading, it's bad.
+Or we could use seq_files like in v1, iterating over buffer_list
+entries. But seq_print_stack_trace() has to be added.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
