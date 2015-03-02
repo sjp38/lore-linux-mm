@@ -1,80 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id D066B6B0038
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 16:42:50 -0500 (EST)
-Received: by wgha1 with SMTP id a1so36233274wgh.5
-        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 13:42:50 -0800 (PST)
-Received: from mail-we0-x22d.google.com (mail-we0-x22d.google.com. [2a00:1450:400c:c03::22d])
-        by mx.google.com with ESMTPS id w8si24438470wjf.122.2015.03.02.13.42.49
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Mar 2015 13:42:49 -0800 (PST)
-Received: by wesk11 with SMTP id k11so36057425wes.11
-        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 13:42:49 -0800 (PST)
-Date: Mon, 2 Mar 2015 22:42:47 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC 2/4] jbd2: revert must-not-fail allocation loops back to
- GFP_NOFAIL
-Message-ID: <20150302214247.GB31974@dhcp22.suse.cz>
-References: <1425304483-7987-1-git-send-email-mhocko@suse.cz>
- <1425304483-7987-3-git-send-email-mhocko@suse.cz>
- <alpine.DEB.2.10.1503021225090.20808@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1503021225090.20808@chino.kir.corp.google.com>
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AFC46B0038
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 16:45:50 -0500 (EST)
+Received: by padbj1 with SMTP id bj1so21350143pad.11
+        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 13:45:50 -0800 (PST)
+Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
+        by mx.google.com with ESMTP id ni10si10902514pbc.149.2015.03.02.13.45.49
+        for <linux-mm@kvack.org>;
+        Mon, 02 Mar 2015 13:45:49 -0800 (PST)
+Date: Mon, 02 Mar 2015 16:45:45 -0500 (EST)
+Message-Id: <20150302.164545.1603268042858889224.davem@davemloft.net>
+Subject: Re: [PATCH] sparc: clarify __GFP_NOFAIL allocation
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <20150302213610.GA31974@dhcp22.suse.cz>
+References: <20150302203304.GA20513@dhcp22.suse.cz>
+	<20150302.154424.30182050492471222.davem@davemloft.net>
+	<20150302213610.GA31974@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, "David S. Miller" <davem@davemloft.net>, sparclinux@vger.kernel.org, Vipul Pandya <vipul@chelsio.com>, netdev@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: mhocko@suse.cz
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, rientjes@google.com, david@fromorbit.com, tytso@mit.edu, mgorman@suse.de, penguin-kernel@I-love.SAKURA.ne.jp, sparclinux@vger.kernel.org, vipul@chelsio.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon 02-03-15 12:33:21, David Rientjes wrote:
-> On Mon, 2 Mar 2015, Michal Hocko wrote:
+From: Michal Hocko <mhocko@suse.cz>
+Date: Mon, 2 Mar 2015 22:36:10 +0100
+
+> 920c3ed74134 ([SPARC64]: Add basic infrastructure for MD add/remove
+> notification.) has added __GFP_NOFAIL for the allocation request but
+> it hasn't mentioned why is this strict requirement really needed.
+> The code was handling an allocation failure and propagated it properly
+> up the callchain so it is not clear why it is needed.
 > 
-> > This basically reverts 47def82672b3 (jbd2: Remove __GFP_NOFAIL from jbd2
-> > layer). The deprecation of __GFP_NOFAIL was a bad choice because it led
-> > to open coding the endless loop around the allocator rather than
-> > removing the dependency on the non failing allocation. So the
-> > deprecation was a clear failure and the reality tells us that
-> > __GFP_NOFAIL is not even close to go away.
-> > 
-> > It is still true that __GFP_NOFAIL allocations are generally discouraged
-> > and new uses should be evaluated and an alternative (pre-allocations or
-> > reservations) should be considered but it doesn't make any sense to lie
-> > the allocator about the requirements. Allocator can take steps to help
-> > making a progress if it knows the requirements.
-> > 
+> Dave has clarified the intention when I tried to remove the flag as not
+> being necessary:
+> "
+> It is a serious failure.
 > 
-> The changelog should state that this only changes the source code, there 
-> is no functional change since alloc_buffer_head() and 
-> kmem_cache_zalloc(transaction_cache) are already implicitly nofail due to 
-> the allocation order.  The failure code added by the commit you cite are 
-> never executed.
-
-Well, even when those allocation would fail the resulting behavior is
-basically the same (modulo congestion_wait which imho doesn't make much
-difference). So I would prefer not getting that way and simply stay with
-the external loop vs. looping within the allocator.
-
-> I agree that if the implementation of the page allocator were to change 
-> with respect to PAGE_ALLOC_COSTLY_ORDER that we'd need __GFP_NOFAIL and 
-> that such an allocation is better handled in the page allocator.
+> If we miss an MDESC update due to this allocation failure, the update
+> is not an event which gets retransmitted so we will lose the updated
+> machine description forever.
 > 
-> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> We really need this allocation to succeed.
+> "
 > 
-> Acked-by: David Rientjes <rientjes@google.com>
+> So add a comment to clarify the nofail flag and get rid of the failure
+> check because __GFP_NOFAIL allocation doesn't fail.
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
 
-Thanks
-
-> GFP_NOFS|__GFP_NOFAIL is scary.
-
-Yes it is but as I've learned nothing unusual in the fs land and the
-situation should be improved a lot if we go reservation way suggested by
-David. Then __GFP_NOFAIL would consume the pre-reserved memory rather
-than trigger OOM killer.
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: David S. Miller <davem@davemloft.net>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
