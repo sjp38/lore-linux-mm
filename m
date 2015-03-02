@@ -1,31 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 14E036B0038
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 05:50:19 -0500 (EST)
-Received: by pdjy10 with SMTP id y10so38762167pdj.6
-        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 02:50:18 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id ym2si12414863pbc.211.2015.03.02.02.50.17
-        for <linux-mm@kvack.org>;
-        Mon, 02 Mar 2015 02:50:18 -0800 (PST)
-Date: Mon, 2 Mar 2015 10:50:12 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
+Received: from mail-we0-f170.google.com (mail-we0-f170.google.com [74.125.82.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 44E736B0038
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 06:08:04 -0500 (EST)
+Received: by wevl61 with SMTP id l61so32582883wev.2
+        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 03:08:03 -0800 (PST)
+Received: from mx4-phx2.redhat.com (mx4-phx2.redhat.com. [209.132.183.25])
+        by mx.google.com with ESMTPS id v1si17946233wij.87.2015.03.02.03.08.01
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 02 Mar 2015 03:08:02 -0800 (PST)
+Date: Mon, 2 Mar 2015 06:06:14 -0500 (EST)
 Subject: Re: PMD update corruption (sync question)
-Message-ID: <20150302105011.GD22541@e104818-lin.cambridge.arm.com>
-References: <1411740233-28038-1-git-send-email-steve.capper@linaro.org>
- <54F06636.6080905@redhat.com>
- <54F3C6AD.50300@redhat.com>
- <938476184.27970130.1425275915893.JavaMail.zimbra@zmail15.collab.prod.int.phx2.redhat.com>
+From: Jon Masters <jcm@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <938476184.27970130.1425275915893.JavaMail.zimbra@zmail15.collab.prod.int.phx2.redhat.com>
+Message-ID: <1172437505.28092883.1425294374323.JavaMail.zimbra@zmail15.collab.prod.int.phx2.redhat.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+In-Reply-To: <20150302105011.GD22541@e104818-lin.cambridge.arm.com>
+References: <1411740233-28038-1-git-send-email-steve.capper@linaro.org> <54F06636.6080905@redhat.com> <54F3C6AD.50300@redhat.com> <938476184.27970130.1425275915893.JavaMail.zimbra@zmail15.collab.prod.int.phx2.redhat.com> <20150302105011.GD22541@e104818-lin.cambridge.arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jon Masters <jcm@redhat.com>
-Cc: linux-arm-kernel@lists.infradead.org, linux-arch@vger.kernel.org, linux@arm.linux.org.uk, Steve Capper <steve.capper@linaro.org>, linux-mm@kvack.org, mark.rutland@arm.com, anders.roxell@linaro.org, peterz@infradead.org, gary.robertson@linaro.org, hughd@google.com, will.deacon@arm.com, mgorman@suse.de, dann.frazier@canonical.com, akpm@linux-foundation.org, christoffer.dall@linaro.org
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: gary.robertson@linaro.org, Steve Capper <steve.capper@linaro.org>, mark.rutland@arm.com, hughd@google.com, christoffer.dall@linaro.org, akpm@linux-foundation.org, peterz@infradead.org, mgorman@suse.de, linux@arm.linux.org.uk, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, will.deacon@arm.com, dann.frazier@canonical.com, anders.roxell@linaro.org
 
-On Mon, Mar 02, 2015 at 12:58:36AM -0500, Jon Masters wrote:
+64-bit writes are /usually/ atomic but alignment or compiler emiting 32-bit opcodes could also do it. I agree there are a few other pieces to this we will chat about separately and come back to this thread. Time for some zzzz...long weekend!
+
+-- 
+Computer Architect | Sent from my #ARM Powered Mobile Device
+
+On Mar 2, 2015 5:50 AM, Catalin Marinas <catalin.marinas@arm.com> wrote:
+>
+> On Mon, Mar 02, 2015 at 12:58:36AM -0500, Jon Masters wrote: 
+> > I've pulled aOn Mon, Mar 02, 2015 at 12:58:36AM -0500, Jon Masters wrote:
 > I've pulled a couple of all nighters reproducing this hard to trigger
 > issue and got some data. It looks like the high half of the (note always
 > userspace) PMD is all zeros or all ones, which makes me wonder if the
