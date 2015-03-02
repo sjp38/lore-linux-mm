@@ -1,43 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id D1DA36B0038
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 09:16:35 -0500 (EST)
-Received: by padfa1 with SMTP id fa1so14519216pad.9
-        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 06:16:35 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id di4si5850352pad.57.2015.03.02.06.16.34
+Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
+	by kanga.kvack.org (Postfix) with ESMTP id B9D6B6B0038
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 09:30:15 -0500 (EST)
+Received: by igbhn18 with SMTP id hn18so17514877igb.2
+        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 06:30:15 -0800 (PST)
+Received: from m12-18.163.com (m12-18.163.com. [220.181.12.18])
+        by mx.google.com with ESMTP id m10si11324785ice.39.2015.03.02.06.30.14
         for <linux-mm@kvack.org>;
-        Mon, 02 Mar 2015 06:16:34 -0800 (PST)
-Date: Mon, 2 Mar 2015 14:16:04 +0000
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH V4 0/6] RCU get_user_pages_fast and __get_user_pages_fast
-Message-ID: <20150302141604.GB16779@leverpostej>
-References: <1411740233-28038-1-git-send-email-steve.capper@linaro.org>
- <54F06636.6080905@redhat.com>
- <20150227132000.GD9011@leverpostej>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150227132000.GD9011@leverpostej>
+        Mon, 02 Mar 2015 06:30:15 -0800 (PST)
+From: Yaowei Bai <bywxiaobai@163.com>
+Subject: [PATCH 1/2] mm/page_alloc.c: Add '(' and ')' in comment
+Date: Mon,  2 Mar 2015 22:26:00 +0800
+Message-Id: <1425306361-3446-1-git-send-email-bywxiaobai@163.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "jcm@redhat.com" <jcm@redhat.com>
-Cc: "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "dann.frazier@canonical.com" <dann.frazier@canonical.com>, Steve Capper <steve.capper@linaro.org>, "peterz@infradead.org" <peterz@infradead.org>, Catalin Marinas <Catalin.Marinas@arm.com>, "anders.roxell@linaro.org" <anders.roxell@linaro.org>, Will Deacon <Will.Deacon@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hughd@google.com" <hughd@google.com>, "christoffer.dall@linaro.org" <christoffer.dall@linaro.org>, "gary.robertson@linaro.org" <gary.robertson@linaro.org>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "mgorman@suse.de" <mgorman@suse.de>
+To: akpm@linux-foundation.org, mgorman@suse.de, vbabka@suse.cz, hannes@cmpxchg.org, riel@redhat.com, iamjoonsoo.kim@lge.com, rientjes@google.com, sasha.levin@oracle.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-> > Head's up: these patches are currently implicated in a rare-to-trigger
-> > hang that we are seeing on an internal kernel. An extensive effort is
-> > underway to confirm whether these are the cause. Will followup.
-> 
-> I'm currently investigating an intermittent memory corruption issue in
-> v4.0-rc1 I'm able to trigger on Seattle with 4K pages and 48-bit VA,
-> which may or may not be related. Sometimes it results in a hang (when
-> the vectors get corrupted and the CPUs get caught in a recursive
-> exception loop).
+Add parentheses to make the two deltas consistent.
 
-FWIW my issue appears to be a bug in the old firmware I'm running.
-Sorry for the noise!
+Signed-off-by: Yaowei Bai <bywxiaobai@163.com>
+---
+ mm/page_alloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Mark.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 7abfa70..12c96ad 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5715,7 +5715,7 @@ static void __setup_per_zone_wmarks(void)
+ 			 * need highmem pages, so cap pages_min to a small
+ 			 * value here.
+ 			 *
+-			 * The WMARK_HIGH-WMARK_LOW and (WMARK_LOW-WMARK_MIN)
++			 * The (WMARK_HIGH-WMARK_LOW) and (WMARK_LOW-WMARK_MIN)
+ 			 * deltas controls asynch page reclaim, and so should
+ 			 * not be capped for highmem.
+ 			 */
+-- 
+1.9.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
