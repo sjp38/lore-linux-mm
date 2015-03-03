@@ -1,21 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f44.google.com (mail-oi0-f44.google.com [209.85.218.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 24E696B0038
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 20:31:31 -0500 (EST)
-Received: by mail-oi0-f44.google.com with SMTP id a3so30516528oib.3
-        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 17:31:31 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id v8si7222238oeo.56.2015.03.02.17.31.29
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E3FB6B0038
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 20:37:26 -0500 (EST)
+Received: by pdbfl12 with SMTP id fl12so12937342pdb.9
+        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 17:37:26 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id oa11si8159137pdb.33.2015.03.02.17.37.24
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 02 Mar 2015 17:31:30 -0800 (PST)
-Message-ID: <54F50EB1.5090102@oracle.com>
-Date: Mon, 02 Mar 2015 17:30:25 -0800
+        Mon, 02 Mar 2015 17:37:25 -0800 (PST)
+Message-ID: <54F5102F.50902@oracle.com>
+Date: Mon, 02 Mar 2015 17:36:47 -0800
 From: Mike Kravetz <mike.kravetz@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [RFC 2/3] hugetlbfs: coordinate global and subpool reserve accounting
-References: <1425077893-18366-1-git-send-email-mike.kravetz@oracle.com>	<1425077893-18366-4-git-send-email-mike.kravetz@oracle.com> <20150302151023.e40dd1c6a9bf3d29cb6b657c@linux-foundation.org>
-In-Reply-To: <20150302151023.e40dd1c6a9bf3d29cb6b657c@linux-foundation.org>
+Subject: Re: [RFC 3/3] hugetlbfs: accept subpool reserved option and setup
+ accordingly
+References: <1425077893-18366-1-git-send-email-mike.kravetz@oracle.com>	<1425077893-18366-6-git-send-email-mike.kravetz@oracle.com> <20150302151033.562db79cd3da844392461795@linux-foundation.org>
+In-Reply-To: <20150302151033.562db79cd3da844392461795@linux-foundation.org>
 Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -24,23 +25,28 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nadia Yvette Chambers <nyc@holomorphy.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
 On 03/02/2015 03:10 PM, Andrew Morton wrote:
-> On Fri, 27 Feb 2015 14:58:11 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
+> On Fri, 27 Feb 2015 14:58:13 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
 >
->> If the pages for a subpool are reserved, then the reservations have
->> already been accounted for in the global pool.  Therefore, when
->> requesting a new reservation (such as for a mapping) for the subpool
->> do not count again in global pool.  However, when actually allocating
->> a page for the subpool decrement global reserve count to correspond to
->> with decrement in global free pages.
+>> Make reserved be an option when mounting a hugetlbfs.
 >
-> The last sentence made my brain hurt.
+> New mount option triggers a user documentation update.  hugetlbfs isn't
+> well documented, but Documentation/vm/hugetlbpage.txt looks like the
+> place.
 >
 
-Sorry.  I was trying to point out that the global free and reserve
-accounting is still the same when doing a page allocation, even
-though the entire size of the subpool was reserved.  For example,
-when allocating a page the global free and reserve counts are both
-decremented.
+Will do
+
+>
+>> reserved
+>> option is only possible if size option is also specified.
+>
+> The code doesn't appear to check for this (maybe it does).  Probably it
+> should do so, and warn when it fails.
+>
+
+It is hard to see from the diffs, but this case is covered.  If size is
+not specified, it implies the size is "unlimited".  The code in the
+patch actually makes the mount fail in this case.
 
 -- 
 Mike Kravetz
