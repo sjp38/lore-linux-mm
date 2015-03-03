@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CC346B0038
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 20:21:56 -0500 (EST)
-Received: by mail-ob0-f176.google.com with SMTP id wo20so35405848obc.7
-        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 17:21:56 -0800 (PST)
+Received: from mail-oi0-f44.google.com (mail-oi0-f44.google.com [209.85.218.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 24E696B0038
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 20:31:31 -0500 (EST)
+Received: by mail-oi0-f44.google.com with SMTP id a3so30516528oib.3
+        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 17:31:31 -0800 (PST)
 Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id jg1si7202153obc.107.2015.03.02.17.21.55
+        by mx.google.com with ESMTPS id v8si7222238oeo.56.2015.03.02.17.31.29
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 02 Mar 2015 17:21:55 -0800 (PST)
-Message-ID: <54F50C73.9000401@oracle.com>
-Date: Mon, 02 Mar 2015 17:20:51 -0800
+        Mon, 02 Mar 2015 17:31:30 -0800 (PST)
+Message-ID: <54F50EB1.5090102@oracle.com>
+Date: Mon, 02 Mar 2015 17:30:25 -0800
 From: Mike Kravetz <mike.kravetz@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [RFC 1/3] hugetlbfs: add reserved mount fields to subpool structure
-References: <1425077893-18366-1-git-send-email-mike.kravetz@oracle.com>	<1425077893-18366-3-git-send-email-mike.kravetz@oracle.com> <20150302151018.ce35298f22d04d6d0296e53c@linux-foundation.org>
-In-Reply-To: <20150302151018.ce35298f22d04d6d0296e53c@linux-foundation.org>
+Subject: Re: [RFC 2/3] hugetlbfs: coordinate global and subpool reserve accounting
+References: <1425077893-18366-1-git-send-email-mike.kravetz@oracle.com>	<1425077893-18366-4-git-send-email-mike.kravetz@oracle.com> <20150302151023.e40dd1c6a9bf3d29cb6b657c@linux-foundation.org>
+In-Reply-To: <20150302151023.e40dd1c6a9bf3d29cb6b657c@linux-foundation.org>
 Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -24,33 +24,23 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nadia Yvette Chambers <nyc@holomorphy.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
 On 03/02/2015 03:10 PM, Andrew Morton wrote:
-> On Fri, 27 Feb 2015 14:58:10 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
+> On Fri, 27 Feb 2015 14:58:11 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
 >
->> Add a boolean to the subpool structure to indicate that the pages for
->> subpool have been reserved.  The hstate pointer in the subpool is
->> convienient to have when it comes time to unreserve the pages.
->> subool_reserved() is a handy way to check if reserved and take into
->> account a NULL subpool.
->>
->> ...
->>
->> @@ -38,6 +40,10 @@ extern int hugetlb_max_hstate __read_mostly;
->>   #define for_each_hstate(h) \
->>   	for ((h) = hstates; (h) < &hstates[hugetlb_max_hstate]; (h)++)
->>
->> +static inline bool subpool_reserved(struct hugepage_subpool *spool)
->> +{
->> +	return spool && spool->reserved;
->> +}
+>> If the pages for a subpool are reserved, then the reservations have
+>> already been accounted for in the global pool.  Therefore, when
+>> requesting a new reservation (such as for a mapping) for the subpool
+>> do not count again in global pool.  However, when actually allocating
+>> a page for the subpool decrement global reserve count to correspond to
+>> with decrement in global free pages.
 >
-> "subpool_reserved" is not a good identifier.
+> The last sentence made my brain hurt.
 >
->>   struct hugepage_subpool *hugepage_new_subpool(long nr_blocks);
->>   void hugepage_put_subpool(struct hugepage_subpool *spool);
->
-> See what they did?
 
-Got it. Thanks. hugepage_subpool_reserved
+Sorry.  I was trying to point out that the global free and reserve
+accounting is still the same when doing a page allocation, even
+though the entire size of the subpool was reserved.  For example,
+when allocating a page the global free and reserve counts are both
+decremented.
 
 -- 
 Mike Kravetz
