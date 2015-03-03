@@ -1,49 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 32A416B0038
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 14:51:18 -0500 (EST)
-Received: by mail-qg0-f53.google.com with SMTP id j5so11442769qga.12
-        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 11:51:17 -0800 (PST)
-Received: from resqmta-ch2-06v.sys.comcast.net (resqmta-ch2-06v.sys.comcast.net. [2001:558:fe21:29:69:252:207:38])
-        by mx.google.com with ESMTPS id e37si1431315qgd.75.2015.03.03.11.51.16
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Tue, 03 Mar 2015 11:51:17 -0800 (PST)
-Date: Tue, 3 Mar 2015 13:51:12 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: Resurrecting the VM_PINNED discussion
-In-Reply-To: <20150303184520.GA4996@akamai.com>
-Message-ID: <alpine.DEB.2.11.1503031349360.15876@gentwo.org>
-References: <20150303174105.GA3295@akamai.com> <54F5FEE0.2090104@suse.cz> <20150303184520.GA4996@akamai.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 91A626B0038
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 14:54:12 -0500 (EST)
+Received: by obcva2 with SMTP id va2so2124817obc.1
+        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 11:54:12 -0800 (PST)
+Received: from smtp_126.52 ([220.181.19.144])
+        by mx.google.com with ESMTP id cd3si938618oec.16.2015.03.03.11.54.11
+        for <linux-mm@kvack.org>;
+        Tue, 03 Mar 2015 11:54:12 -0800 (PST)
+Message-ID: <54F61300.1070409@sohu.com>
+Date: Wed, 04 Mar 2015 04:01:04 +0800
+From: Chen Gang <dsg_gchen_5257@sohu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: memcontrol: Let mem_cgroup_move_account() have effect
+ only if MMU enabled
+References: <54F4E739.6040805@qq.com> <20150303134524.GE2409@dhcp22.suse.cz>
+In-Reply-To: <20150303134524.GE2409@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric B Munson <emunson@akamai.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Roland Dreier <roland@kernel.org>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Mike Marciniszyn <infinipath@intel.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: hannes@cmpxchg.org, cgroups@vger.kernel.org, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Chen Gang <762976180@qq.com>
 
-On Tue, 3 Mar 2015, Eric B Munson wrote:
+On 3/3/15 21:45, Michal Hocko wrote:
+> On Tue 03-03-15 06:42:01, Chen Gang wrote:
+>> When !MMU, it will report warning. The related warning with allmodconfig
+>> under c6x:
+> 
+> Does it even make any sense to enable CONFIG_MEMCG when !CONFIG_MMU?
+> Is anybody using this configuration and is it actually usable? My
+> knowledge about CONFIG_MMU is close to zero so I might be missing
+> something but I do not see a point into fixing compile warnings when
+> the whole subsystem is not usable in the first place.
+> 
 
-> > So you are saying that mlocking (VM_LOCKED) prevents migration and thus
-> > compaction to do its job? If that's true, I think it's a bug as it is AFAIK
-> > supposed to work just fine.
->
-> Agreed.  But as has been discussed in the threads around the VM_PINNED
-> work, there are people that are relying on the fact that VM_LOCKED
-> promises no minor faults.  Which is why the behavoir has remained.
+For me, only according to the current code, the original author assumes
+CONFIG_MEMCG can still have effect when !CONFIG_MMU: "or, he/she needn't
+use CONFIG_MMU switch macro in memcontrol.c".
 
-AFAICT mlocking preventing migration is something that could be taken out.
-Google removes the restriction.
+Welcome any other members' ideas, too.
 
-mlocked does not promise no minor faults only that the page will stay
-resident. The pinning results in no faults.
+Thanks.
+-- 
+Chen Gang
 
-> VM_PINNED itself doesn't help us, but it would allow us to make
-> VM_LOCKED use only the weaker 'no major fault' semantics while still
-> providing a way for anyone that needs the stronger 'no minor fault'
-> promise to get the semantics they need.
-
-The semantics for mlock allow migration and therefore defrag as well as
-thp processing.
+Open, share, and attitude like air, water, and life which God blessed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
