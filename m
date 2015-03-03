@@ -1,74 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 3529F6B0038
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 20:52:31 -0500 (EST)
-Received: by pdno5 with SMTP id o5so44192337pdn.8
-        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 17:52:30 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id f6si1564695pdn.231.2015.03.02.17.52.28
+Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C6E7F6B006C
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 21:06:51 -0500 (EST)
+Received: by wghk14 with SMTP id k14so37179366wgh.4
+        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 18:06:51 -0800 (PST)
+Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
+        by mx.google.com with ESMTPS id em4si21158334wid.73.2015.03.02.18.06.49
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Mar 2015 17:52:28 -0800 (PST)
-Message-ID: <54F513C0.4000706@infradead.org>
-Date: Mon, 02 Mar 2015 17:52:00 -0800
-From: Randy Dunlap <rdunlap@infradead.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 02 Mar 2015 18:06:50 -0800 (PST)
+From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Date: Tue, 3 Mar 2015 10:06:40 +0800
+Subject: [RFC V3] mm: change mm_advise_free to clear page dirty
+Message-ID: <35FD53F367049845BC99AC72306C23D10458D6173BE7@CNBJMBX05.corpusers.net>
+References: <1424765897-27377-1-git-send-email-minchan@kernel.org>
+ <20150224154318.GA14939@dhcp22.suse.cz> <20150225000809.GA6468@blaptop>
+ <35FD53F367049845BC99AC72306C23D10458D6173BDC@CNBJMBX05.corpusers.net>
+ <20150227210233.GA29002@dhcp22.suse.cz>
+ <35FD53F367049845BC99AC72306C23D10458D6173BE0@CNBJMBX05.corpusers.net>
+ <35FD53F367049845BC99AC72306C23D10458D6173BE1@CNBJMBX05.corpusers.net>
+ <20150302123850.GC26334@dhcp22.suse.cz>
+In-Reply-To: <20150302123850.GC26334@dhcp22.suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 1/4] mm: move memtest under /mm
-References: <1425308145-20769-1-git-send-email-vladimir.murzin@arm.com> <1425308145-20769-2-git-send-email-vladimir.murzin@arm.com>
-In-Reply-To: <1425308145-20769-2-git-send-email-vladimir.murzin@arm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Murzin <vladimir.murzin@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, linux-arm-kernel@lists.infradead.org
-Cc: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, lauraa@codeaurora.org, catalin.marinas@arm.com, will.deacon@arm.com, linux@arm.linux.org.uk, arnd@arndb.de, mark.rutland@arm.com, ard.biesheuvel@linaro.org
+To: 'Michal Hocko' <mhocko@suse.cz>, 'Minchan Kim' <minchan@kernel.org>, 'Andrew Morton' <akpm@linux-foundation.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, 'Rik van Riel' <riel@redhat.com>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Mel Gorman' <mgorman@suse.de>, 'Shaohua Li' <shli@kernel.org>
 
-On 03/02/15 06:55, Vladimir Murzin wrote:
-> There is nothing platform dependent in the core memtest code, so other platform
-> might benefit of this feature too.
-> 
-> Signed-off-by: Vladimir Murzin <vladimir.murzin@arm.com>
-> ---
->  arch/x86/Kconfig            |   11 ----
->  arch/x86/include/asm/e820.h |    8 ---
->  arch/x86/mm/Makefile        |    2 -
->  arch/x86/mm/memtest.c       |  118 -------------------------------------------
->  include/linux/memblock.h    |    8 +++
->  lib/Kconfig.debug           |   11 ++++
->  mm/Makefile                 |    1 +
->  mm/memtest.c                |  118 +++++++++++++++++++++++++++++++++++++++++++
->  8 files changed, 138 insertions(+), 139 deletions(-)
->  delete mode 100644 arch/x86/mm/memtest.c
->  create mode 100644 mm/memtest.c
+This patch add ClearPageDirty() to clear AnonPage dirty flag,
+if not clear page dirty for this anon page, the page will never be
+treated as freeable. We also make sure the shared AnonPage is not
+freeable, we implement it by dirty all copyed AnonPage pte,
+so that make sure the Anonpage will not become freeable, unless
+all process which shared this page call madvise_free syscall.
 
-> diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-> index c5cefb3..8eb064fd 100644
-> --- a/lib/Kconfig.debug
-> +++ b/lib/Kconfig.debug
-> @@ -1732,6 +1732,17 @@ config TEST_UDELAY
->  
->  	  If unsure, say N.
->  
-> +config MEMTEST
-> +	bool "Memtest"
-> +	---help---
-> +	  This option adds a kernel parameter 'memtest', which allows memtest
-> +	  to be set.
-> +	        memtest=0, mean disabled; -- default
-> +	        memtest=1, mean do 1 test pattern;
-> +	        ...
-> +	        memtest=4, mean do 4 test patterns.
+Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
+---
+ mm/madvise.c | 16 +++++++++-------
+ mm/memory.c  | 12 ++++++++++--
+ 2 files changed, 19 insertions(+), 9 deletions(-)
 
-This sort of implies a max of 4 test patterns, but it seems to be 17
-if I counted correctly, so if someone wants to test all of the possible
-'memtest' patterns, they would need to use 'memtest=17', is that correct?
-
-
-> +	  If you are unsure how to answer this question, answer N.
-
-Thanks,
--- 
-~Randy
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 6d0fcb8..b61070d 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -297,23 +297,25 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigne=
+d long addr,
+ 			continue;
+=20
+ 		page =3D vm_normal_page(vma, addr, ptent);
+-		if (!page)
++		if (!page || !trylock_page(page))
+ 			continue;
+=20
+ 		if (PageSwapCache(page)) {
+-			if (!trylock_page(page))
+-				continue;
+-
+ 			if (!try_to_free_swap(page)) {
+ 				unlock_page(page);
+ 				continue;
+ 			}
+-
+-			ClearPageDirty(page);
+-			unlock_page(page);
+ 		}
+=20
+ 		/*
++		 * we clear page dirty flag for AnonPage, no matter if this
++		 * page is in swapcahce or not, AnonPage not in swapcache also set
++		 * dirty flag sometimes, this happened when a AnonPage is removed
++		 * from swapcahce by try_to_free_swap()
++		 */
++		ClearPageDirty(page);
++		unlock_page(page);
++		/*
+ 		 * Some of architecture(ex, PPC) don't update TLB
+ 		 * with set_pte_at and tlb_remove_tlb_entry so for
+ 		 * the portability, remap the pte with old|clean
+diff --git a/mm/memory.c b/mm/memory.c
+index 8068893..3d949b3 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -874,10 +874,18 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_stru=
+ct *src_mm,
+ 	if (page) {
+ 		get_page(page);
+ 		page_dup_rmap(page);
+-		if (PageAnon(page))
++		if (PageAnon(page)) {
++			/*
++			 * we dirty the copyed pte for anon page,
++			 * this is useful for madvise_free_pte_range(),
++			 * this can prevent shared anon page freed by madvise_free
++			 * syscall
++			 */
++			pte =3D pte_mkdirty(pte);
+ 			rss[MM_ANONPAGES]++;
+-		else
++		} else {
+ 			rss[MM_FILEPAGES]++;
++		}
+ 	}
+=20
+ out_set_pte:
+--=20
+2.2.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
