@@ -1,81 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id E130E6B0038
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 12:47:00 -0500 (EST)
-Received: by paceu11 with SMTP id eu11so11952975pac.1
-        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 09:47:00 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id od7si1701009pdb.215.2015.03.03.09.46.59
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 36AA26B0038
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 13:35:18 -0500 (EST)
+Received: by wiwh11 with SMTP id h11so25104031wiw.3
+        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 10:35:17 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i10si25413522wif.64.2015.03.03.10.35.15
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Mar 2015 09:47:00 -0800 (PST)
-Message-ID: <54F5F381.30104@infradead.org>
-Date: Tue, 03 Mar 2015 09:46:41 -0800
-From: Randy Dunlap <rdunlap@infradead.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 03 Mar 2015 10:35:16 -0800 (PST)
+Message-ID: <54F5FEE0.2090104@suse.cz>
+Date: Tue, 03 Mar 2015 19:35:12 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 1/4] mm: move memtest under /mm
-References: <1425308145-20769-1-git-send-email-vladimir.murzin@arm.com> <1425308145-20769-2-git-send-email-vladimir.murzin@arm.com> <54F513C0.4000706@infradead.org> <54F57D4C.9010909@arm.com>
-In-Reply-To: <54F57D4C.9010909@arm.com>
+Subject: Re: Resurrecting the VM_PINNED discussion
+References: <20150303174105.GA3295@akamai.com>
+In-Reply-To: <20150303174105.GA3295@akamai.com>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Murzin <vladimir.murzin@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
-Cc: "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@redhat.com" <mingo@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "lauraa@codeaurora.org" <lauraa@codeaurora.org>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <Will.Deacon@arm.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "arnd@arndb.de" <arnd@arndb.de>, Mark Rutland <Mark.Rutland@arm.com>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>
+To: Eric B Munson <emunson@akamai.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>
+Cc: Christoph Lameter <cl@linux.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Roland Dreier <roland@kernel.org>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Mike Marciniszyn <infinipath@intel.com>
 
-On 03/03/15 01:22, Vladimir Murzin wrote:
-> On 03/03/15 01:52, Randy Dunlap wrote:
->> On 03/02/15 06:55, Vladimir Murzin wrote:
->>> There is nothing platform dependent in the core memtest code, so other platform
->>> might benefit of this feature too.
->>>
->>> Signed-off-by: Vladimir Murzin <vladimir.murzin@arm.com>
->>> ---
->>>  arch/x86/Kconfig            |   11 ----
->>>  arch/x86/include/asm/e820.h |    8 ---
->>>  arch/x86/mm/Makefile        |    2 -
->>>  arch/x86/mm/memtest.c       |  118 -------------------------------------------
->>>  include/linux/memblock.h    |    8 +++
->>>  lib/Kconfig.debug           |   11 ++++
->>>  mm/Makefile                 |    1 +
->>>  mm/memtest.c                |  118 +++++++++++++++++++++++++++++++++++++++++++
->>>  8 files changed, 138 insertions(+), 139 deletions(-)
->>>  delete mode 100644 arch/x86/mm/memtest.c
->>>  create mode 100644 mm/memtest.c
->>
->>> diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
->>> index c5cefb3..8eb064fd 100644
->>> --- a/lib/Kconfig.debug
->>> +++ b/lib/Kconfig.debug
->>> @@ -1732,6 +1732,17 @@ config TEST_UDELAY
->>>  
->>>  	  If unsure, say N.
->>>  
->>> +config MEMTEST
->>> +	bool "Memtest"
->>> +	---help---
->>> +	  This option adds a kernel parameter 'memtest', which allows memtest
->>> +	  to be set.
->>> +	        memtest=0, mean disabled; -- default
->>> +	        memtest=1, mean do 1 test pattern;
->>> +	        ...
->>> +	        memtest=4, mean do 4 test patterns.
->>
->> This sort of implies a max of 4 test patterns, but it seems to be 17
->> if I counted correctly, so if someone wants to test all of the possible
->> 'memtest' patterns, they would need to use 'memtest=17', is that correct?
->>
-> 
-> Yes, that correct. Additional patterns were introduced since 63823126
-> "x86: memtest: add additional (regular) test patterns", but looks like
-> Kconfig was not updated that time. Do you want me to fold updates for
-> that info or make a separate patch?
+On 03/03/2015 06:41 PM, Eric B Munson wrote:> All,
+>
+> After LSF/MM last year Peter revived a patch set that would create
+> infrastructure for pinning pages as opposed to simply locking them.
+> AFAICT, there was no objection to the set, it just needed some help
+> from the IB folks.
+>
+> Am I missing something about why it was never merged?  I ask because
+> Akamai has bumped into the disconnect between the mlock manpage,
+> Documentation/vm/unevictable-lru.txt, and reality WRT compaction and
+> locking.  A group working in userspace read those sources and wrote a
+> tool that mmaps many files read only and locked, munmapping them when
+> they are no longer needed.  Locking is used because they cannot afford a
+> major fault, but they are fine with minor faults.  This tends to
+> fragment memory badly so when they started looking into using hugetlbfs
+> (or anything requiring order > 0 allocations) they found they were not
+> able to allocate the memory.  They were confused based on the referenced
+> documentation as to why compaction would continually fail to yield
+> appropriately sized contiguous areas when there was more than enough
+> free memory.
 
-Either is OK with me but it probably should be a separate patch.
+So you are saying that mlocking (VM_LOCKED) prevents migration and thus
+compaction to do its job? If that's true, I think it's a bug as it is AFAIK
+supposed to work just fine.
 
-Thanks.
--- 
-~Randy
+> I would like to see the situation with VM_LOCKED cleared up, ideally the
+> documentation would remain and reality adjusted to match and I think
+> Peter's VM_PINNED set goes in the right direction for this goal.  What
+> is missing and how can I help?
+
+I don't think VM_PINNED would help you. In fact it is VM_PINNED that improves
+accounting for the kind of locking (pinning) that *does* prevent page migration
+(unlike mlocking)... quoting the patchset cover letter:
+
+"These patches introduce VM_PINNED infrastructure, vma tracking of persistent
+'pinned' page ranges. Pinned is anything that has a fixed phys address (as
+required for say IO DMA engines) and thus cannot use the weaker VM_LOCKED. One
+popular way to pin pages is through get_user_pages() but that not nessecarily
+the only way."
+
+> Thanks,
+> Eric
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
