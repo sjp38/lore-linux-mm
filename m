@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 332166B0072
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 12:45:15 -0500 (EST)
-Received: by obcuz6 with SMTP id uz6so1304786obc.12
-        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 09:45:15 -0800 (PST)
-Received: from g2t2353.austin.hp.com (g2t2353.austin.hp.com. [15.217.128.52])
-        by mx.google.com with ESMTPS id ix8si736618obc.59.2015.03.03.09.45.14
+Received: from mail-oi0-f53.google.com (mail-oi0-f53.google.com [209.85.218.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 60D716B0073
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 12:45:17 -0500 (EST)
+Received: by oiba3 with SMTP id a3so884519oib.3
+        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 09:45:17 -0800 (PST)
+Received: from g1t5425.austin.hp.com (g1t5425.austin.hp.com. [15.216.225.55])
+        by mx.google.com with ESMTPS id z1si741241obg.51.2015.03.03.09.45.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Mar 2015 09:45:14 -0800 (PST)
+        Tue, 03 Mar 2015 09:45:16 -0800 (PST)
 From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH v3 5/6] x86, mm: Support huge I/O mapping capability I/F
-Date: Tue,  3 Mar 2015 10:44:23 -0700
-Message-Id: <1425404664-19675-6-git-send-email-toshi.kani@hp.com>
+Subject: [PATCH v3 6/6] x86, mm: Support huge KVA mappings on x86
+Date: Tue,  3 Mar 2015 10:44:24 -0700
+Message-Id: <1425404664-19675-7-git-send-email-toshi.kani@hp.com>
 In-Reply-To: <1425404664-19675-1-git-send-email-toshi.kani@hp.com>
 References: <1425404664-19675-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,75 +20,125 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, arnd@arndb.de
 Cc: linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, Toshi Kani <toshi.kani@hp.com>
 
-This patch implements huge I/O mapping capability interfaces
-for ioremap() on x86.
+This patch implements huge KVA mapping interfaces on x86.
 
-IOREMAP_MAX_ORDER is defined to PUD_SHIFT on x86/64 and
-PMD_SHIFT on x86/32, which overrides the default value
-defined in <linux/vmalloc.h>.
+On x86, MTRRs can override PAT memory types with a 4KB granularity.
+When using a huge page, MTRRs can override the memory type of the
+huge page, which may lead a performance penalty.  The processor
+can also behave in an undefined manner if a huge page is mapped to
+a memory range that MTRRs have mapped with multiple different memory
+types.  Therefore, the mapping code falls back to use a smaller page
+size toward 4KB when a mapping range is covered by non-WB type of
+MTRRs.  The WB type of MTRRs has no affect on the PAT memory types.
+
+pud_set_huge() and pmd_set_huge() call mtrr_type_lookup() to see
+if a given range is covered by MTRRs.  MTRR_TYPE_WRBACK indicates
+that the range is either covered by WB or not covered and the MTRR
+default value is set to WB.  0xFF indicates that MTRRs are disabled.
+
+HAVE_ARCH_HUGE_VMAP is selected when X86_64 or X86_32 with X86_PAE
+is set.  X86_32 without X86_PAE is not supported since such config
+can unlikey be benefited from this feature, and there was an issue
+found in testing.
 
 Signed-off-by: Toshi Kani <toshi.kani@hp.com>
 ---
- arch/x86/include/asm/page_types.h |    2 ++
- arch/x86/mm/ioremap.c             |   23 +++++++++++++++++++++--
- 2 files changed, 23 insertions(+), 2 deletions(-)
+ arch/x86/Kconfig      |    1 +
+ arch/x86/mm/pgtable.c |   65 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 66 insertions(+)
 
-diff --git a/arch/x86/include/asm/page_types.h b/arch/x86/include/asm/page_types.h
-index 95e11f7..b526093 100644
---- a/arch/x86/include/asm/page_types.h
-+++ b/arch/x86/include/asm/page_types.h
-@@ -40,8 +40,10 @@
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index c2fb8a8..ef7d4a6 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -99,6 +99,7 @@ config X86
+ 	select IRQ_FORCED_THREADING
+ 	select HAVE_BPF_JIT if X86_64
+ 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
++	select HAVE_ARCH_HUGE_VMAP if X86_64 || (X86_32 && X86_PAE)
+ 	select ARCH_HAS_SG_CHAIN
+ 	select CLKEVT_I8253
+ 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index 7b22ada..19c897e 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -4,6 +4,7 @@
+ #include <asm/pgtable.h>
+ #include <asm/tlb.h>
+ #include <asm/fixmap.h>
++#include <asm/mtrr.h>
  
- #ifdef CONFIG_X86_64
- #include <asm/page_64_types.h>
-+#define IOREMAP_MAX_ORDER       (PUD_SHIFT)
- #else
- #include <asm/page_32_types.h>
-+#define IOREMAP_MAX_ORDER       (PMD_SHIFT)
- #endif	/* CONFIG_X86_64 */
+ #define PGALLOC_GFP GFP_KERNEL | __GFP_NOTRACK | __GFP_REPEAT | __GFP_ZERO
  
- #ifndef __ASSEMBLY__
-diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
-index fdf617c..5ead4d6 100644
---- a/arch/x86/mm/ioremap.c
-+++ b/arch/x86/mm/ioremap.c
-@@ -67,8 +67,13 @@ static int __ioremap_check_ram(unsigned long start_pfn, unsigned long nr_pages,
- 
- /*
-  * Remap an arbitrary physical address space into the kernel virtual
-- * address space. Needed when the kernel wants to access high addresses
-- * directly.
-+ * address space. It transparently creates kernel huge I/O mapping when
-+ * the physical address is aligned by a huge page size (1GB or 2MB) and
-+ * the requested size is at least the huge page size.
-+ *
-+ * NOTE: MTRRs can override PAT memory types with a 4KB granularity.
-+ * Therefore, the mapping code falls back to use a smaller page toward 4KB
-+ * when a mapping range is covered by non-WB type of MTRRs.
-  *
-  * NOTE! We need to allow non-page-aligned mappings too: we will obviously
-  * have to convert them into an offset in a page-aligned mapping, but the
-@@ -326,6 +331,20 @@ void iounmap(volatile void __iomem *addr)
+@@ -485,3 +486,67 @@ void native_set_fixmap(enum fixed_addresses idx, phys_addr_t phys,
+ {
+ 	__native_set_fixmap(idx, pfn_pte(phys >> PAGE_SHIFT, flags));
  }
- EXPORT_SYMBOL(iounmap);
- 
-+int arch_ioremap_pud_supported(void)
++
++#ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
++int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot)
 +{
-+#ifdef CONFIG_X86_64
-+	return cpu_has_gbpages;
-+#else
++	u8 mtrr;
++
++	/*
++	 * Do not use a huge page when the range is covered by non-WB type
++	 * of MTRRs.
++	 */
++	mtrr = mtrr_type_lookup(addr, addr + PUD_SIZE);
++	if ((mtrr != MTRR_TYPE_WRBACK) && (mtrr != 0xFF))
++		return 0;
++
++	prot = pgprot_4k_2_large(prot);
++
++	set_pte((pte_t *)pud, pfn_pte(
++		(u64)addr >> PAGE_SHIFT,
++		__pgprot(pgprot_val(prot) | _PAGE_PSE)));
++
++	return 1;
++}
++
++int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot)
++{
++	u8 mtrr;
++
++	/*
++	 * Do not use a huge page when the range is covered by non-WB type
++	 * of MTRRs.
++	 */
++	mtrr = mtrr_type_lookup(addr, addr + PMD_SIZE);
++	if ((mtrr != MTRR_TYPE_WRBACK) && (mtrr != 0xFF))
++		return 0;
++
++	prot = pgprot_4k_2_large(prot);
++
++	set_pte((pte_t *)pmd, pfn_pte(
++		(u64)addr >> PAGE_SHIFT,
++		__pgprot(pgprot_val(prot) | _PAGE_PSE)));
++
++	return 1;
++}
++
++int pud_clear_huge(pud_t *pud)
++{
++	if (pud_large(*pud)) {
++		pud_clear(pud);
++		return 1;
++	}
++
 +	return 0;
-+#endif
 +}
 +
-+int arch_ioremap_pmd_supported(void)
++int pmd_clear_huge(pmd_t *pmd)
 +{
-+	return cpu_has_pse;
-+}
++	if (pmd_large(*pmd)) {
++		pmd_clear(pmd);
++		return 1;
++	}
 +
- /*
-  * Convert a physical pointer to a virtual kernel pointer for /dev/mem
-  * access
++	return 0;
++}
++#endif	/* CONFIG_HAVE_ARCH_HUGE_VMAP */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
