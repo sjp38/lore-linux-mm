@@ -1,113 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C6E7F6B006C
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 21:06:51 -0500 (EST)
-Received: by wghk14 with SMTP id k14so37179366wgh.4
-        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 18:06:51 -0800 (PST)
-Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
-        by mx.google.com with ESMTPS id em4si21158334wid.73.2015.03.02.18.06.49
+Received: from mail-ie0-f180.google.com (mail-ie0-f180.google.com [209.85.223.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 101B06B0038
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 21:22:30 -0500 (EST)
+Received: by iecrl12 with SMTP id rl12so53381719iec.4
+        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 18:22:29 -0800 (PST)
+Received: from mail-ie0-x235.google.com (mail-ie0-x235.google.com. [2607:f8b0:4001:c03::235])
+        by mx.google.com with ESMTPS id qc2si262339igb.27.2015.03.02.18.22.29
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Mar 2015 18:06:50 -0800 (PST)
-From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Date: Tue, 3 Mar 2015 10:06:40 +0800
-Subject: [RFC V3] mm: change mm_advise_free to clear page dirty
-Message-ID: <35FD53F367049845BC99AC72306C23D10458D6173BE7@CNBJMBX05.corpusers.net>
-References: <1424765897-27377-1-git-send-email-minchan@kernel.org>
- <20150224154318.GA14939@dhcp22.suse.cz> <20150225000809.GA6468@blaptop>
- <35FD53F367049845BC99AC72306C23D10458D6173BDC@CNBJMBX05.corpusers.net>
- <20150227210233.GA29002@dhcp22.suse.cz>
- <35FD53F367049845BC99AC72306C23D10458D6173BE0@CNBJMBX05.corpusers.net>
- <35FD53F367049845BC99AC72306C23D10458D6173BE1@CNBJMBX05.corpusers.net>
- <20150302123850.GC26334@dhcp22.suse.cz>
-In-Reply-To: <20150302123850.GC26334@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Mar 2015 18:22:29 -0800 (PST)
+Received: by iecvy18 with SMTP id vy18so53276960iec.13
+        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 18:22:29 -0800 (PST)
 MIME-Version: 1.0
+In-Reply-To: <20150303014733.GL18360@dastard>
+References: <20150302010413.GP4251@dastard>
+	<CA+55aFzGFvVGD_8Y=jTkYwgmYgZnW0p0Fjf7OHFPRcL6Mz4HOw@mail.gmail.com>
+	<20150303014733.GL18360@dastard>
+Date: Mon, 2 Mar 2015 18:22:29 -0800
+Message-ID: <CA+55aFw+7V9DfxBA2_DhMNrEQOkvdwjFFga5Y67-a6yVeAz+NQ@mail.gmail.com>
+Subject: Re: [regression v4.0-rc1] mm: IPIs from TLB flushes causing
+ significant performance degradation.
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Michal Hocko' <mhocko@suse.cz>, 'Minchan Kim' <minchan@kernel.org>, 'Andrew Morton' <akpm@linux-foundation.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, 'Rik van Riel' <riel@redhat.com>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Mel Gorman' <mgorman@suse.de>, 'Shaohua Li' <shli@kernel.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Matt B <jackdachef@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, xfs@oss.sgi.com
 
-This patch add ClearPageDirty() to clear AnonPage dirty flag,
-if not clear page dirty for this anon page, the page will never be
-treated as freeable. We also make sure the shared AnonPage is not
-freeable, we implement it by dirty all copyed AnonPage pte,
-so that make sure the Anonpage will not become freeable, unless
-all process which shared this page call madvise_free syscall.
+On Mon, Mar 2, 2015 at 5:47 PM, Dave Chinner <david@fromorbit.com> wrote:
+>
+> Anyway, the difference between good and bad is pretty clear, so
+> I'm pretty confident the bisect is solid:
+>
+> 4d9424669946532be754a6e116618dcb58430cb4 is the first bad commit
 
-Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
----
- mm/madvise.c | 16 +++++++++-------
- mm/memory.c  | 12 ++++++++++--
- 2 files changed, 19 insertions(+), 9 deletions(-)
+Well, it's the mm queue from Andrew, so I'm not surprised. That said,
+I don't see why that particular one should matter.
 
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 6d0fcb8..b61070d 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -297,23 +297,25 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigne=
-d long addr,
- 			continue;
-=20
- 		page =3D vm_normal_page(vma, addr, ptent);
--		if (!page)
-+		if (!page || !trylock_page(page))
- 			continue;
-=20
- 		if (PageSwapCache(page)) {
--			if (!trylock_page(page))
--				continue;
--
- 			if (!try_to_free_swap(page)) {
- 				unlock_page(page);
- 				continue;
- 			}
--
--			ClearPageDirty(page);
--			unlock_page(page);
- 		}
-=20
- 		/*
-+		 * we clear page dirty flag for AnonPage, no matter if this
-+		 * page is in swapcahce or not, AnonPage not in swapcache also set
-+		 * dirty flag sometimes, this happened when a AnonPage is removed
-+		 * from swapcahce by try_to_free_swap()
-+		 */
-+		ClearPageDirty(page);
-+		unlock_page(page);
-+		/*
- 		 * Some of architecture(ex, PPC) don't update TLB
- 		 * with set_pte_at and tlb_remove_tlb_entry so for
- 		 * the portability, remap the pte with old|clean
-diff --git a/mm/memory.c b/mm/memory.c
-index 8068893..3d949b3 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -874,10 +874,18 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_stru=
-ct *src_mm,
- 	if (page) {
- 		get_page(page);
- 		page_dup_rmap(page);
--		if (PageAnon(page))
-+		if (PageAnon(page)) {
-+			/*
-+			 * we dirty the copyed pte for anon page,
-+			 * this is useful for madvise_free_pte_range(),
-+			 * this can prevent shared anon page freed by madvise_free
-+			 * syscall
-+			 */
-+			pte =3D pte_mkdirty(pte);
- 			rss[MM_ANONPAGES]++;
--		else
-+		} else {
- 			rss[MM_FILEPAGES]++;
-+		}
- 	}
-=20
- out_set_pte:
---=20
-2.2.2
+Hmm. In your profiles, can you tell which caller of "flush_tlb_page()"
+ changed the most? The change from "mknnuma" to "prot_none" *should*
+be 100% equivalent (both just change the page to be not-present, just
+set different bits elsewhere in the pte), but clearly something
+wasn't.
+
+Oh. Except for that special "huge-zero-page" special case that got
+dropped, but that got re-introduced in commit e944fd67b625.
+
+There might be some other case where the new "just change the
+protection" doesn't do the "oh, but it the protection didn't change,
+don't bother flushing". I don't see it.
+
+                          Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
