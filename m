@@ -1,89 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AC716B006E
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 07:36:22 -0500 (EST)
-Received: by lbiv13 with SMTP id v13so18112808lbi.1
-        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 04:36:20 -0800 (PST)
-Received: from mail-lb0-x22e.google.com (mail-lb0-x22e.google.com. [2a00:1450:4010:c04::22e])
-        by mx.google.com with ESMTPS id zp8si441857lbc.62.2015.03.03.04.36.19
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A9C26B0038
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 08:18:35 -0500 (EST)
+Received: by widem10 with SMTP id em10so22607888wid.5
+        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 05:18:35 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q7si2696574wix.82.2015.03.03.05.18.31
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Mar 2015 04:36:19 -0800 (PST)
-Received: by lbdu10 with SMTP id u10so36705449lbd.7
-        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 04:36:18 -0800 (PST)
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 03 Mar 2015 05:18:32 -0800 (PST)
+Date: Tue, 3 Mar 2015 14:18:26 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC 4/4] cxgb4: drop __GFP_NOFAIL allocation
+Message-ID: <20150303131826.GB2409@dhcp22.suse.cz>
+References: <1425304483-7987-1-git-send-email-mhocko@suse.cz>
+ <1425304483-7987-5-git-send-email-mhocko@suse.cz>
+ <201503032122.HJD73998.OFFMQFLHtJOSOV@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <1425384142-5064-1-git-send-email-chianglungyu@gmail.com>
-References: <1425384142-5064-1-git-send-email-chianglungyu@gmail.com>
-Date: Tue, 3 Mar 2015 16:36:18 +0400
-Message-ID: <CALYGNiOAEp71wG6XagLuY+6xqVSuPTHGvb2X-HdwYhD3PMqsVg@mail.gmail.com>
-Subject: Re: [PATCH] mm: fix anon_vma->degree underflow in anon_vma endless
- growing prevention
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201503032122.HJD73998.OFFMQFLHtJOSOV@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Leon Yu <chianglungyu@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Stable <stable@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: davem@davemloft.net, linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, rientjes@google.com, david@fromorbit.com, tytso@mit.edu, mgorman@suse.de, sparclinux@vger.kernel.org, vipul@chelsio.com, netdev@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Mar 3, 2015 at 3:02 PM, Leon Yu <chianglungyu@gmail.com> wrote:
-> I have constantly stumbled upon "kernel BUG at mm/rmap.c:399!" after upgrading
-> to 3.19 and had no luck with 4.0-rc1 neither.
->
-> So, after looking into new logic introduced by commit 7a3ef208e662, ("mm:
-> prevent endless growth of anon_vma hierarchy"), I found chances are that
-> unlink_anon_vmas() is called without incrementing dst->anon_vma->degree in
-> anon_vma_clone() due to allocation failure. If dst->anon_vma is not NULL in
-> error path, its degree will be incorrectly decremented in unlink_anon_vmas()
-> and eventually underflow when exiting as a result of another call to
-> unlink_anon_vmas(). That's how "kernel BUG at mm/rmap.c:399!" is triggered
-> for me.
->
-> This patch fixes the underflow by dropping dst->anon_vma when allocation
-> fails. It's safe to do so regardless of original value of dst->anon_vma
-> because dst->anon_vma doesn't have valid meaning if anon_vma_clone() fails.
-> Besides, callers don't care dst->anon_vma in such case neither.
->
-> Signed-off-by: Leon Yu <chianglungyu@gmail.com>
-> Fixes: 7a3ef208e662 ("mm: prevent endless growth of anon_vma hierarchy")
-> Cc: stable@vger.kernel.org # v3.19
+On Tue 03-03-15 21:22:22, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > diff --git a/drivers/net/ethernet/chelsio/cxgb4/cxgb4_main.c b/drivers/net/ethernet/chelsio/cxgb4/cxgb4_main.c
+> > index ccf3436024bc..f351920fc293 100644
+> > --- a/drivers/net/ethernet/chelsio/cxgb4/cxgb4_main.c
+> > +++ b/drivers/net/ethernet/chelsio/cxgb4/cxgb4_main.c
+> > @@ -1220,6 +1220,10 @@ static int set_filter_wr(struct adapter *adapter, int fidx)
+> >  	struct fw_filter_wr *fwr;
+> >  	unsigned int ftid;
+> >  
+> > +	skb = alloc_skb(sizeof(*fwr), GFP_KERNEL);
+> > +	if (!skb)
+> > +		return -ENOMEM;
+> > +
+> >  	/* If the new filter requires loopback Destination MAC and/or VLAN
+> >  	 * rewriting then we need to allocate a Layer 2 Table (L2T) entry for
+> >  	 * the filter.
+> > @@ -1227,19 +1231,21 @@ static int set_filter_wr(struct adapter *adapter, int fidx)
+> >  	if (f->fs.newdmac || f->fs.newvlan) {
+> >  		/* allocate L2T entry for new filter */
+> >  		f->l2t = t4_l2t_alloc_switching(adapter->l2t);
+> > -		if (f->l2t == NULL)
+> > +		if (f->l2t == NULL) {
+> > +			kfree(skb);
+> 
+> I think we need to use kfree_skb() than kfree() for memory allocated by alloc_skb().
 
-Good catch.
+Definitely! Good point, thanks!
 
-Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
-
-That thing already backported into various stable branches so this's
-not only for v3.19.
-
-As I see other error paths are fine.
-
-> ---
->  mm/rmap.c | 7 +++++++
->  1 file changed, 7 insertions(+)
->
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index 5e3e090..bed3cf2 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -287,6 +287,13 @@ int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
->         return 0;
->
->   enomem_failure:
-> +       /*
-> +        * dst->anon_vma is dropped here otherwise its degree can be incorrectly
-> +        * decremented in unlink_anon_vmas().
-> +        * We can safely do this because calllers of anon_vma_clone() wouldn't
-> +        * care dst->anon_vma if anon_vma_clone() failed.
-> +        */
-> +       dst->anon_vma = NULL;
->         unlink_anon_vmas(dst);
->         return -ENOMEM;
->  }
-> --
-> 2.3.1
->
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Andrew, I've noticed you have picked up the patch. Should I resend or
+the below incremental one is good enough?
+---
