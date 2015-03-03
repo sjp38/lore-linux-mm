@@ -1,84 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 37EFB6B0038
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 12:41:07 -0500 (EST)
-Received: by pdjy10 with SMTP id y10so50124278pdj.6
-        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 09:41:07 -0800 (PST)
-Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [72.246.2.115])
-        by mx.google.com with ESMTP id zv9si1993094pbc.26.2015.03.03.09.41.06
-        for <linux-mm@kvack.org>;
-        Tue, 03 Mar 2015 09:41:06 -0800 (PST)
-Date: Tue, 3 Mar 2015 12:41:05 -0500
-From: Eric B Munson <emunson@akamai.com>
-Subject: Resurrecting the VM_PINNED discussion
-Message-ID: <20150303174105.GA3295@akamai.com>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="bg08WKrSYDhXBjb5"
-Content-Disposition: inline
+Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
+	by kanga.kvack.org (Postfix) with ESMTP id F3E3D6B0038
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 12:45:03 -0500 (EST)
+Received: by obcva2 with SMTP id va2so1299393obc.6
+        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 09:45:03 -0800 (PST)
+Received: from g1t5424.austin.hp.com (g1t5424.austin.hp.com. [15.216.225.54])
+        by mx.google.com with ESMTPS id ij4si733547obb.64.2015.03.03.09.45.02
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Mar 2015 09:45:02 -0800 (PST)
+From: Toshi Kani <toshi.kani@hp.com>
+Subject: [PATCH v3 0/6] Kernel huge I/O mapping support
+Date: Tue,  3 Mar 2015 10:44:18 -0700
+Message-Id: <1425404664-19675-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>
-Cc: Christoph Lameter <cl@linux.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Roland Dreier <roland@kernel.org>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Mike Marciniszyn <infinipath@intel.com>
+To: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, arnd@arndb.de
+Cc: linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com
 
+ioremap() and its related interfaces are used to create I/O
+mappings to memory-mapped I/O devices.  The mapping sizes of
+the traditional I/O devices are relatively small.  Non-volatile
+memory (NVM), however, has many GB and is going to have TB soon.
+It is not very efficient to create large I/O mappings with 4KB. 
 
---bg08WKrSYDhXBjb5
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+This patchset extends the ioremap() interfaces to transparently
+create I/O mappings with huge pages whenever possible.  ioremap()
+continues to use 4KB mappings when a huge page does not fit into
+a requested range.  There is no change necessary to the drivers
+using ioremap().  A requested physical address must be aligned by
+a huge page size (1GB or 2MB on x86) for using huge page mapping,
+though.  The kernel huge I/O mapping will improve performance of
+NVM and other devices with large memory, and reduce the time to
+create their mappings as well.
 
-All,
+On x86, MTRRs can override PAT memory types with a 4KB granularity.
+When using a huge page, MTRRs can override the memory type of the
+huge page, which may lead a performance penalty.  The processor can
+also behave in an undefined manner if a huge page is mapped to a
+memory range that MTRRs have mapped with multiple different memory
+types.  Therefore, the mapping code falls back to use a smaller page
+size toward 4KB when a mapping range is covered by non-WB type of
+MTRRs. The WB type of MTRRs has no affect on the PAT memory types.
 
-After LSF/MM last year Peter revived a patch set that would create
-infrastructure for pinning pages as opposed to simply locking them.
-AFAICT, there was no objection to the set, it just needed some help
-=66rom the IB folks.
+The patchset introduces HAVE_ARCH_HUGE_VMAP, which indicates that
+the arch supports huge KVA mappings for ioremap().  User may specify
+a new kernel option "nohugeiomap" to disable the huge I/O mapping
+capability of ioremap() when necessary.
 
-Am I missing something about why it was never merged?  I ask because
-Akamai has bumped into the disconnect between the mlock manpage,
-Documentation/vm/unevictable-lru.txt, and reality WRT compaction and
-locking.  A group working in userspace read those sources and wrote a
-tool that mmaps many files read only and locked, munmapping them when
-they are no longer needed.  Locking is used because they cannot afford a
-major fault, but they are fine with minor faults.  This tends to
-fragment memory badly so when they started looking into using hugetlbfs
-(or anything requiring order > 0 allocations) they found they were not
-able to allocate the memory.  They were confused based on the referenced
-documentation as to why compaction would continually fail to yield
-appropriately sized contiguous areas when there was more than enough
-free memory.
+Patch 1-4 change common files to support huge I/O mappings.  There
+is no change in the functinalities unless HAVE_ARCH_HUGE_VMAP is
+defined on the architecture of the system.
 
-I would like to see the situation with VM_LOCKED cleared up, ideally the
-documentation would remain and reality adjusted to match and I think
-Peter's VM_PINNED set goes in the right direction for this goal.  What
-is missing and how can I help?
+Patch 5-6 implement the HAVE_ARCH_HUGE_VMAP funcs on x86, and set
+HAVE_ARCH_HUGE_VMAP on x86.
 
-Thanks,
-Eric
+--
+v3:
+ - Removed config HUGE_IOMAP. Always enable huge page mappings to
+   ioremap() when supported by the arch. (Ingo Molnar)
+ - Added checks to use 4KB mappings when a memory range is covered
+   by MTRRs. (Ingo Molnar, Andrew Morton)
+ - Added missing PAT bit handlings to the huge page mapping funcs.
 
---bg08WKrSYDhXBjb5
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
+v2:
+ - Addressed review comments. (Andrew Morton)
+ - Changed HAVE_ARCH_HUGE_VMAP to require X86_PAE set on X86_32.
+ - Documented a x86 restriction with multiple MTRRs with different
+   memory types.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
+---
+Toshi Kani (6):
+  1/6 mm: Change __get_vm_area_node() to use fls_long()
+  2/6 lib: Add huge I/O map capability interfaces
+  3/6 mm: Change ioremap to set up huge I/O mappings
+  4/6 mm: Change vunmap to tear down huge KVA mappings
+  5/6 x86, mm: Support huge I/O mapping capability I/F
+  6/6 x86, mm: Support huge KVA mappings on x86
 
-iQIcBAEBAgAGBQJU9fIxAAoJELbVsDOpoOa9fhIQANddQaLa/xGNR1aFZx7HdBK3
-FbE0KtCituCbCv/qXJ6C/4yJEGqW08gH9CGoVRGiE4Q+5hAHg4sBlMySOQH19M15
-2WtQ+m2j169MuXvhZwzNv2olR9WpvoMBqIsaG5wDUgGCIRr1WFlTZcOgstgla87A
-+UeFryrytITupVtXIFJMdmi8H/wNhgyYDR2LRv8dKQNj7+cpQRiifmxeNS9Q7SfU
-2LWxwwaK84G90cBaf3tEPA1Sfp6KhUZ9rG/WTjPv4iWVkXSYV4ru8MIBI9/m9Zz9
-/qV6lDfMeRwph5riUg6UA5ZXlLClbwLO74S/OIdkjMIBWsyQRSzJTmOCX/q+j3B+
-dA7HDlqI7g+ppo9mHCRHKKvmj0suxH5GS/GXeLPWz2s0HWzyFWGLbqlLDEi7UGCG
-XT04ToeUt7rsR9TmX79MpiQz/z8/exrvaaYveS3Ds+BBqw4z1hflp4JtIYvwlquy
-YO1eIyTqZ8cxwTwyaA5eA1xJZnkesDfoMCxYsQduNVNUpfphTX9UA1pAfRG06we4
-4AeGK0rDEpG3h8idG9rFX2xS9/kjJk647nWt7qv8FxCVo9+mQuGonIG29bBzcnOq
-9oRuXLs7yEmzZWUVlJCKGOtp1AcWryAdIJ3NbHPVljF4bzjb631DPnF4pRqOnIMh
-oWlnIe/hJs4XqYZInIM9
-=fVgt
------END PGP SIGNATURE-----
-
---bg08WKrSYDhXBjb5--
+---
+ Documentation/kernel-parameters.txt |  2 ++
+ arch/Kconfig                        |  3 ++
+ arch/x86/Kconfig                    |  1 +
+ arch/x86/include/asm/page_types.h   |  2 ++
+ arch/x86/mm/ioremap.c               | 23 +++++++++++--
+ arch/x86/mm/pgtable.c               | 65 +++++++++++++++++++++++++++++++++++++
+ include/asm-generic/pgtable.h       | 19 +++++++++++
+ include/linux/io.h                  |  7 ++++
+ init/main.c                         |  2 ++
+ lib/ioremap.c                       | 54 ++++++++++++++++++++++++++++++
+ mm/vmalloc.c                        |  8 ++++-
+ 11 files changed, 183 insertions(+), 3 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
