@@ -1,128 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 962DB6B0038
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 16:01:53 -0500 (EST)
-Received: by pdbfl12 with SMTP id fl12so20161306pdb.9
-        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 13:01:53 -0800 (PST)
-Received: from prod-mail-xrelay02.akamai.com (prod-mail-xrelay02.akamai.com. [72.246.2.14])
-        by mx.google.com with ESMTP id fa9si2483593pdb.76.2015.03.03.13.01.51
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CA0D6B0038
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 16:33:58 -0500 (EST)
+Received: by pdno5 with SMTP id o5so5060400pdn.12
+        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 13:33:58 -0800 (PST)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id y10si2462397pdm.136.2015.03.03.13.33.56
         for <linux-mm@kvack.org>;
-        Tue, 03 Mar 2015 13:01:51 -0800 (PST)
-Date: Tue, 3 Mar 2015 16:01:50 -0500
-From: Eric B Munson <emunson@akamai.com>
-Subject: Re: Resurrecting the VM_PINNED discussion
-Message-ID: <20150303210150.GA6995@akamai.com>
-References: <20150303174105.GA3295@akamai.com>
- <54F5FEE0.2090104@suse.cz>
- <20150303184520.GA4996@akamai.com>
- <54F617A2.8040405@suse.cz>
+        Tue, 03 Mar 2015 13:33:57 -0800 (PST)
+Date: Wed, 4 Mar 2015 08:33:53 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [regression v4.0-rc1] mm: IPIs from TLB flushes causing
+ significant performance degradation.
+Message-ID: <20150303213353.GS4251@dastard>
+References: <20150302010413.GP4251@dastard>
+ <CA+55aFzGFvVGD_8Y=jTkYwgmYgZnW0p0Fjf7OHFPRcL6Mz4HOw@mail.gmail.com>
+ <20150303014733.GL18360@dastard>
+ <CA+55aFw+7V9DfxBA2_DhMNrEQOkvdwjFFga5Y67-a6yVeAz+NQ@mail.gmail.com>
+ <CA+55aFw+fb=Fh4M2wA4dVskgqN7PhZRGZS6JTMx4Rb1Qn++oaA@mail.gmail.com>
+ <20150303052004.GM18360@dastard>
+ <CA+55aFyczb5asoTwhzaJr1JdRi1epg1A6cFJgnzMMZj6U0gFWA@mail.gmail.com>
+ <20150303113437.GR4251@dastard>
+ <20150303134346.GO3087@suse.de>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="rwEMma7ioTxnRzrJ"
-Content-Disposition: inline
-In-Reply-To: <54F617A2.8040405@suse.cz>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Christoph Lameter <cl@linux.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Roland Dreier <roland@kernel.org>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Mike Marciniszyn <infinipath@intel.com>
-
-
---rwEMma7ioTxnRzrJ
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20150303134346.GO3087@suse.de>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Matt B <jackdachef@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, xfs@oss.sgi.com
 
-On Tue, 03 Mar 2015, Vlastimil Babka wrote:
+On Tue, Mar 03, 2015 at 01:43:46PM +0000, Mel Gorman wrote:
+> On Tue, Mar 03, 2015 at 10:34:37PM +1100, Dave Chinner wrote:
+> > On Mon, Mar 02, 2015 at 10:56:14PM -0800, Linus Torvalds wrote:
+> > > On Mon, Mar 2, 2015 at 9:20 PM, Dave Chinner <david@fromorbit.com> wrote:
+> > > >>
+> > > >> But are those migrate-page calls really common enough to make these
+> > > >> things happen often enough on the same pages for this all to matter?
+> > > >
+> > > > It's looking like that's a possibility.
+> > > 
+> > > Hmm. Looking closer, commit 10c1045f28e8 already should have
+> > > re-introduced the "pte was already NUMA" case.
+> > > 
+> > > So that's not it either, afaik. Plus your numbers seem to say that
+> > > it's really "migrate_pages()" that is done more. So it feels like the
+> > > numa balancing isn't working right.
+> > 
+> > So that should show up in the vmstats, right? Oh, and there's a
+> > tracepoint in migrate_pages, too. Same 6x10s samples in phase 3:
+> > 
+> 
+> The stats indicate both more updates and more faults. Can you try this
+> please? It's against 4.0-rc1.
+> 
+> ---8<---
+> mm: numa: Reduce amount of IPI traffic due to automatic NUMA balancing
 
-> On 03/03/2015 07:45 PM, Eric B Munson wrote:
-> > On Tue, 03 Mar 2015, Vlastimil Babka wrote:
-> >=20
-> >> On 03/03/2015 06:41 PM, Eric B Munson wrote:> All,
-> >> >
-> >> > After LSF/MM last year Peter revived a patch set that would create
-> >> > infrastructure for pinning pages as opposed to simply locking them.
-> >> > AFAICT, there was no objection to the set, it just needed some help
-> >> > from the IB folks.
-> >> >
-> >> > Am I missing something about why it was never merged?  I ask because
-> >> > Akamai has bumped into the disconnect between the mlock manpage,
-> >> > Documentation/vm/unevictable-lru.txt, and reality WRT compaction and
-> >> > locking.  A group working in userspace read those sources and wrote a
-> >> > tool that mmaps many files read only and locked, munmapping them when
-> >> > they are no longer needed.  Locking is used because they cannot affo=
-rd a
-> >> > major fault, but they are fine with minor faults.  This tends to
-> >> > fragment memory badly so when they started looking into using hugetl=
-bfs
-> >> > (or anything requiring order > 0 allocations) they found they were n=
-ot
-> >> > able to allocate the memory.  They were confused based on the refere=
-nced
-> >> > documentation as to why compaction would continually fail to yield
-> >> > appropriately sized contiguous areas when there was more than enough
-> >> > free memory.
-> >>=20
-> >> So you are saying that mlocking (VM_LOCKED) prevents migration and thus
-> >> compaction to do its job? If that's true, I think it's a bug as it is =
-AFAIK
-> >> supposed to work just fine.
-> >=20
-> > Agreed.  But as has been discussed in the threads around the VM_PINNED
-> > work, there are people that are relying on the fact that VM_LOCKED
-> > promises no minor faults.  Which is why the behavoir has remained.
->=20
-> At least in the VM_PINNED thread after last lsf/mm, I don't see this ment=
-ioned.
-> I found no references to mlocking in compaction.c, and in migrate.c there=
-'s just
-> mlock_migrate_page() with comment:
->=20
-> /*
->  * mlock_migrate_page - called only from migrate_page_copy() to
->  * migrate the Mlocked page flag; update statistics.
->  */
->=20
-> It also passes TTU_IGNORE_MLOCK to try_to_unmap(). So what am I missing? =
-Where
-> is this restriction?
->=20
+Makes no noticable difference to behaviour or performance. Stats:
 
-I spent quite some time looking for it as well, it is in vmscan.c
+359,857      migrate:mm_migrate_pages ( +-  5.54% )
 
-int __isolate_lru_page(struct page *page, isolate_mode_t mode)
-{
-=2E..
-        /* Compaction should not handle unevictable pages but CMA can do so=
- */
-        if (PageUnevictable(page) && !(mode & ISOLATE_UNEVICTABLE))
-                return ret;
-=2E..
+numa_hit 36026802
+numa_miss 14287
+numa_foreign 14287
+numa_interleave 18408
+numa_local 36006052
+numa_other 35037
+numa_pte_updates 81803359
+numa_huge_pte_updates 0
+numa_hint_faults 79810798
+numa_hint_faults_local 21227730
+numa_pages_migrated 32037516
+pgmigrate_success 32037516
+pgmigrate_fail 0
 
-
-
---rwEMma7ioTxnRzrJ
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iQIcBAEBAgAGBQJU9iE+AAoJELbVsDOpoOa9RTIQAM3ADM/+FsAkL9EoGJj41ph5
-ROi0MT9Q6hROBKgiQpo92Aqq6KHLtIi0XGaKPGjHUQ2NRqUxkPc7t14YqzfvUecD
-t/tKfOpsgZ36xSNotUAtJjzYr1zmJe5dqDeDgW3MDvc/pMKmLXtkabqq3FsC/zyw
-DuCE9+67bUXfYOF03vGZ10EqTD+lDUZJgLc5ggKRNJ8FSK3fTPc9lmbRvWPzyYFb
-n9BihVdCXOo2QuYJkoU2gszxj0ICkWyELa6S5DaMYymVWFCIs3pkUZIGgG4gMiJ1
-SPoBA5cga31NqDbRJwSYp+M6OlkQIQHIDdTfPVSgaayBBbywTo6yCQMqC/Se/olj
-dYVt2vc83gEDyZ43ZPeZnyZ75jl2oXd6xaqEIKaCSBJ+e2145uINEtE6zdrR4Wox
-7h4JdASy0Nitp9dLYq7CwCcb83CbhZZq9kgmH3e4hlODhwEIbN7Zel2lfF7NI3IX
-mxQ3jB4Cq2zFzs4BXEl5kxNif2CIk6309TuJEcj3nlvVmQNGKaSKuxfbLam5T0xt
-DyDaU+oOsqiBcuV1bZ4KCJkgIV9hDSSO6r8c6HnGF4ppDpE/EeqvQXmMsXV+Munh
-7oDTrquqhn7ongHN+A1l7d8p3n8XTL+u1mdkggoJtanJP1RhWn0IwKp1YE6H00QD
-KvjU5zcUUNxlAtG4KNWD
-=mSHL
------END PGP SIGNATURE-----
-
---rwEMma7ioTxnRzrJ--
+-Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
