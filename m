@@ -1,188 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 8036A6B0038
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 08:41:10 -0500 (EST)
-Received: by pdno5 with SMTP id o5so48514383pdn.8
-        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 05:41:10 -0800 (PST)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id y1si1014769par.133.2015.03.03.05.41.09
+Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id CE9306B0038
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 08:43:52 -0500 (EST)
+Received: by wggy19 with SMTP id y19so40041561wgg.10
+        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 05:43:52 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p9si23840109wiy.111.2015.03.03.05.43.50
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Mar 2015 05:41:09 -0800 (PST)
-Received: by pabli10 with SMTP id li10so24227613pab.2
-        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 05:41:09 -0800 (PST)
-Date: Tue, 3 Mar 2015 22:40:59 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC V3] mm: change mm_advise_free to clear page dirty
-Message-ID: <20150303134058.GA8328@blaptop>
-References: <20150303032537.GA25015@blaptop>
- <35FD53F367049845BC99AC72306C23D10458D6173BE8@CNBJMBX05.corpusers.net>
- <20150303041432.GA30441@blaptop>
- <35FD53F367049845BC99AC72306C23D10458D6173BE9@CNBJMBX05.corpusers.net>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 03 Mar 2015 05:43:51 -0800 (PST)
+Date: Tue, 3 Mar 2015 13:43:46 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [regression v4.0-rc1] mm: IPIs from TLB flushes causing
+ significant performance degradation.
+Message-ID: <20150303134346.GO3087@suse.de>
+References: <20150302010413.GP4251@dastard>
+ <CA+55aFzGFvVGD_8Y=jTkYwgmYgZnW0p0Fjf7OHFPRcL6Mz4HOw@mail.gmail.com>
+ <20150303014733.GL18360@dastard>
+ <CA+55aFw+7V9DfxBA2_DhMNrEQOkvdwjFFga5Y67-a6yVeAz+NQ@mail.gmail.com>
+ <CA+55aFw+fb=Fh4M2wA4dVskgqN7PhZRGZS6JTMx4Rb1Qn++oaA@mail.gmail.com>
+ <20150303052004.GM18360@dastard>
+ <CA+55aFyczb5asoTwhzaJr1JdRi1epg1A6cFJgnzMMZj6U0gFWA@mail.gmail.com>
+ <20150303113437.GR4251@dastard>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <35FD53F367049845BC99AC72306C23D10458D6173BE9@CNBJMBX05.corpusers.net>
+In-Reply-To: <20150303113437.GR4251@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Cc: 'Michal Hocko' <mhocko@suse.cz>, 'Andrew Morton' <akpm@linux-foundation.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, 'Rik van Riel' <riel@redhat.com>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Mel Gorman' <mgorman@suse.de>, 'Shaohua Li' <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Cyrill Gorcunov <gorcunov@gmail.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Matt B <jackdachef@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, xfs@oss.sgi.com
 
-On Tue, Mar 03, 2015 at 02:46:40PM +0800, Wang, Yalin wrote:
-> > -----Original Message-----
-> > From: Minchan Kim [mailto:minchan.kim@gmail.com] On Behalf Of Minchan Kim
-> > Sent: Tuesday, March 03, 2015 12:15 PM
-> > To: Wang, Yalin
-> > Cc: 'Michal Hocko'; 'Andrew Morton'; 'linux-kernel@vger.kernel.org';
-> > 'linux-mm@kvack.org'; 'Rik van Riel'; 'Johannes Weiner'; 'Mel Gorman';
-> > 'Shaohua Li'; Hugh Dickins; Cyrill Gorcunov
-> > Subject: Re: [RFC V3] mm: change mm_advise_free to clear page dirty
-> > 
-> > On Tue, Mar 03, 2015 at 11:59:17AM +0800, Wang, Yalin wrote:
-> > > > -----Original Message-----
-> > > > From: Minchan Kim [mailto:minchan.kim@gmail.com] On Behalf Of Minchan
-> > Kim
-> > > > Sent: Tuesday, March 03, 2015 11:26 AM
-> > > > To: Wang, Yalin
-> > > > Cc: 'Michal Hocko'; 'Andrew Morton'; 'linux-kernel@vger.kernel.org';
-> > > > 'linux-mm@kvack.org'; 'Rik van Riel'; 'Johannes Weiner'; 'Mel Gorman';
-> > > > 'Shaohua Li'; Hugh Dickins; Cyrill Gorcunov
-> > > > Subject: Re: [RFC V3] mm: change mm_advise_free to clear page dirty
-> > > >
-> > > > Could you separte this patch in this patchset thread?
-> > > > It's tackling differnt problem.
-> > > >
-> > > > As well, I had a question to previous thread about why shared page
-> > > > has a problem now but you didn't answer and send a new patchset.
-> > > > It makes reviewers/maintainer time waste/confuse. Please, don't
-> > > > hurry to send a code. Before that, resolve reviewers's comments.
-> > > >
-> > > > On Tue, Mar 03, 2015 at 10:06:40AM +0800, Wang, Yalin wrote:
-> > > > > This patch add ClearPageDirty() to clear AnonPage dirty flag,
-> > > > > if not clear page dirty for this anon page, the page will never be
-> > > > > treated as freeable. We also make sure the shared AnonPage is not
-> > > > > freeable, we implement it by dirty all copyed AnonPage pte,
-> > > > > so that make sure the Anonpage will not become freeable, unless
-> > > > > all process which shared this page call madvise_free syscall.
-> > > >
-> > > > Please, spend more time to make description clear. I really doubt
-> > > > who understand this description without code inspection. :(
-> > > > Of course, I'm not a person to write description clear like native
-> > > > , either but just I'm sure I spend a more time to write description
-> > > > rather than coding, at least. :)
-> > > >
-> > > I see, I will send another mail for file private map pages.
-> > > Sorry for my English expressions.
-> > > I think your solution is ok,
-> > > Your patch will make sure the anonpage pte will always be dirty.
-> > > I add some comments for your patch:
+On Tue, Mar 03, 2015 at 10:34:37PM +1100, Dave Chinner wrote:
+> On Mon, Mar 02, 2015 at 10:56:14PM -0800, Linus Torvalds wrote:
+> > On Mon, Mar 2, 2015 at 9:20 PM, Dave Chinner <david@fromorbit.com> wrote:
+> > >>
+> > >> But are those migrate-page calls really common enough to make these
+> > >> things happen often enough on the same pages for this all to matter?
 > > >
-> > > > ---
-> > > >  mm/madvise.c | 1 -
-> > > >  mm/memory.c  | 9 +++++++--
-> > > >  mm/rmap.c    | 2 +-
-> > > >  mm/vmscan.c  | 3 +--
-> > > >  4 files changed, 9 insertions(+), 6 deletions(-)
-> > > >
-> > > > diff --git a/mm/madvise.c b/mm/madvise.c
-> > > > index 6d0fcb8..d64200e 100644
-> > > > --- a/mm/madvise.c
-> > > > +++ b/mm/madvise.c
-> > > > @@ -309,7 +309,6 @@ static int madvise_free_pte_range(pmd_t *pmd,
-> > unsigned
-> > > > long addr,
-> > > >  				continue;
-> > > >  			}
-> > > >
-> > > > -			ClearPageDirty(page);
-> > > >  			unlock_page(page);
-> > > >  		}
-> > > >
-> > > > diff --git a/mm/memory.c b/mm/memory.c
-> > > > index 8ae52c9..2f45e77 100644
-> > > > --- a/mm/memory.c
-> > > > +++ b/mm/memory.c
-> > > > @@ -2460,9 +2460,14 @@ static int do_swap_page(struct mm_struct *mm,
-> > struct
-> > > > vm_area_struct *vma,
-> > > >
-> > > >  	inc_mm_counter_fast(mm, MM_ANONPAGES);
-> > > >  	dec_mm_counter_fast(mm, MM_SWAPENTS);
-> > > > -	pte = mk_pte(page, vma->vm_page_prot);
-> > > > +
-> > > > +	/*
-> > > > +	 * Every page swapped-out was pte_dirty so we makes pte dirty again.
-> > > > +	 * MADV_FREE relys on it.
-> > > > +	 */
-> > > > +	pte = mk_pte(pte_mkdirty(page), vma->vm_page_prot);
-> > > pte_mkdirty() usage seems wrong here.
+> > > It's looking like that's a possibility.
 > > 
-> > Argh, it reveals I didn't test even build. My shame.
-> > But RFC tag might mitigate my shame. :)
-> > I will fix it if I send a formal version.
-> > Thanks for the review.
+> > Hmm. Looking closer, commit 10c1045f28e8 already should have
+> > re-introduced the "pte was already NUMA" case.
 > > 
-> > >
-> > > >  	if ((flags & FAULT_FLAG_WRITE) && reuse_swap_page(page)) {
-> > > > -		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
-> > > > +		pte = maybe_mkwrite(pte, vma);
-> > > >  		flags &= ~FAULT_FLAG_WRITE;
-> > > >  		ret |= VM_FAULT_WRITE;
-> > > >  		exclusive = 1;
-> > > > diff --git a/mm/rmap.c b/mm/rmap.c
-> > > > index 47b3ba8..34c1d66 100644
-> > > > --- a/mm/rmap.c
-> > > > +++ b/mm/rmap.c
-> > > > @@ -1268,7 +1268,7 @@ static int try_to_unmap_one(struct page *page,
-> > struct
-> > > > vm_area_struct *vma,
-> > > >
-> > > >  		if (flags & TTU_FREE) {
-> > > >  			VM_BUG_ON_PAGE(PageSwapCache(page), page);
-> > > > -			if (!dirty && !PageDirty(page)) {
-> > > > +			if (!dirty) {
-> > > >  				/* It's a freeable page by MADV_FREE */
-> > > >  				dec_mm_counter(mm, MM_ANONPAGES);
-> > > >  				goto discard;
-> > > > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > > > index 671e47e..7f520c9 100644
-> > > > --- a/mm/vmscan.c
-> > > > +++ b/mm/vmscan.c
-> > > > @@ -805,8 +805,7 @@ static enum page_references
-> > > > page_check_references(struct page *page,
-> > > >  		return PAGEREF_KEEP;
-> > > >  	}
-> > > >
-> > > > -	if (PageAnon(page) && !pte_dirty && !PageSwapCache(page) &&
-> > > > -			!PageDirty(page))
-> > > > +	if (PageAnon(page) && !pte_dirty && !PageSwapCache(page))
-> > > >  		*freeable = true;
-> > > >
-> > > >  	/* Reclaim if clean, defer dirty pages to writeback */
-> > > > --
-> > > > 1.9.3
-> > > Could we remove SetPageDirty(page); in try_to_free_swap() function based
-> > on this patch?
-> > > Because your patch will make sure the pte is always dirty,
-> > > We don't need setpagedirty(),
-> > > The try_to_unmap() path will re-dirty the page during reclaim path,
-> > > Isn't it?
-> > 
-> > I dont't know what side-effect we will have if we removes SetPageDirty.
-> > It might regress on tmpfs which would page without pte.
-> > I don't want to have such risk in this patch.
-> > If you want it, you could suggest it separately if this patch lands.
-> > 
-> Ok, Could you send out your change as a normal patch for more related maintainers to review /comment it?
+> > So that's not it either, afaik. Plus your numbers seem to say that
+> > it's really "migrate_pages()" that is done more. So it feels like the
+> > numa balancing isn't working right.
+> 
+> So that should show up in the vmstats, right? Oh, and there's a
+> tracepoint in migrate_pages, too. Same 6x10s samples in phase 3:
+> 
 
-NP but let's wait a few days to see if we have a luck which they grab a time
-slot to review. :)
+The stats indicate both more updates and more faults. Can you try this
+please? It's against 4.0-rc1.
 
-Thanks.
+---8<---
+mm: numa: Reduce amount of IPI traffic due to automatic NUMA balancing
 
--- 
-Kind regards,
-Minchan Kim
+Dave Chinner reported the following on https://lkml.org/lkml/2015/3/1/226
+
+   Across the board the 4.0-rc1 numbers are much slower, and the
+   degradation is far worse when using the large memory footprint
+   configs. Perf points straight at the cause - this is from 4.0-rc1
+   on the "-o bhash=101073" config:
+
+   -   56.07%    56.07%  [kernel]            [k] default_send_IPI_mask_sequence_phys
+      - default_send_IPI_mask_sequence_phys
+         - 99.99% physflat_send_IPI_mask
+            - 99.37% native_send_call_func_ipi
+                 smp_call_function_many
+               - native_flush_tlb_others
+                  - 99.85% flush_tlb_page
+                       ptep_clear_flush
+                       try_to_unmap_one
+                       rmap_walk
+                       try_to_unmap
+                       migrate_pages
+                       migrate_misplaced_page
+                     - handle_mm_fault
+                        - 99.73% __do_page_fault
+                             trace_do_page_fault
+                             do_async_page_fault
+                           + async_page_fault
+              0.63% native_send_call_func_single_ipi
+                 generic_exec_single
+                 smp_call_function_single
+
+This was bisected to commit 4d94246699 ("mm: convert p[te|md]_mknonnuma
+and remaining page table manipulations") but I expect the full issue is
+related series up to and including that patch.
+
+There are two important changes that might be relevant here. The first is
+marking huge PMDs to trap a hinting fault potentially sends an IPI to flush
+TLBs. This did not show up in Dave's report and it almost certainly is not
+a factor but it would affect IPI counts for other users. The second is that
+the PTE protection update now clears the PTE leaving a window where parallel
+faults can be trapped resulting in more overhead from faults. Higher faults,
+even if correct can result in higher scan rates indirectly and may explain
+what Dave is saying.
+
+This is not signed off or tested.
+---
+ mm/huge_memory.c | 11 +++++++++--
+ mm/mprotect.c    | 17 +++++++++++++++--
+ 2 files changed, 24 insertions(+), 4 deletions(-)
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index fc00c8cb5a82..7fc4732c77d7 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1494,8 +1494,15 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 		}
+ 
+ 		if (!prot_numa || !pmd_protnone(*pmd)) {
+-			ret = 1;
+-			entry = pmdp_get_and_clear_notify(mm, addr, pmd);
++			/*
++			 * NUMA hinting update can avoid a clear and flush as
++			 * it is not a functional correctness issue if access
++			 * occurs after the update
++			 */
++			if (prot_numa)
++				entry = *pmd;
++			else
++				entry = pmdp_get_and_clear_notify(mm, addr, pmd);
+ 			entry = pmd_modify(entry, newprot);
+ 			ret = HPAGE_PMD_NR;
+ 			set_pmd_at(mm, addr, pmd, entry);
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index 44727811bf4c..1efd03ffa0d8 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -77,19 +77,32 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 			pte_t ptent;
+ 
+ 			/*
+-			 * Avoid trapping faults against the zero or KSM
+-			 * pages. See similar comment in change_huge_pmd.
++			 * prot_numa does not clear the pte during protection
++			 * update as asynchronous hardware updates are not
++			 * a concern but unnecessary faults while the PTE is
++			 * cleared is overhead.
+ 			 */
+ 			if (prot_numa) {
+ 				struct page *page;
+ 
+ 				page = vm_normal_page(vma, addr, oldpte);
++
++				/*
++				 * Avoid trapping faults against the zero or KSM
++				 * pages. See similar comment in change_huge_pmd.
++				 */
+ 				if (!page || PageKsm(page))
+ 					continue;
+ 
+ 				/* Avoid TLB flush if possible */
+ 				if (pte_protnone(oldpte))
+ 					continue;
++
++				ptent = *pte;
++				ptent = pte_modify(ptent, newprot);
++				set_pte_at(mm, addr, pte, ptent);
++				pages++;
++				continue;
+ 			}
+ 
+ 			ptent = ptep_modify_prot_start(mm, addr, pte);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
