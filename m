@@ -1,78 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id D29266B0038
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 09:05:21 -0500 (EST)
-Received: by iecrd18 with SMTP id rd18so58266654iec.5
-        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 06:05:21 -0800 (PST)
-Received: from mail-ig0-x231.google.com (mail-ig0-x231.google.com. [2607:f8b0:4001:c05::231])
-        by mx.google.com with ESMTPS id z12si1513121igu.0.2015.03.03.06.05.20
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Mar 2015 06:05:20 -0800 (PST)
-Received: by igal13 with SMTP id l13so27728164iga.5
-        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 06:05:19 -0800 (PST)
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 461A06B0038
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 09:14:56 -0500 (EST)
+Received: by padfa1 with SMTP id fa1so24307305pad.9
+        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 06:14:56 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id cj15si1350101pdb.1.2015.03.03.06.14.55
+        for <linux-mm@kvack.org>;
+        Tue, 03 Mar 2015 06:14:55 -0800 (PST)
+Date: Tue, 3 Mar 2015 14:14:49 +0000
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [RFC PATCH 3/4] arm64: add support for memtest
+Message-ID: <20150303141449.GM28951@e104818-lin.cambridge.arm.com>
+References: <1425308145-20769-1-git-send-email-vladimir.murzin@arm.com>
+ <1425308145-20769-4-git-send-email-vladimir.murzin@arm.com>
+ <20150302185607.GG7919@arm.com>
+ <54F57E62.6050206@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <20150303133642.GC2409@dhcp22.suse.cz>
-References: <1425384142-5064-1-git-send-email-chianglungyu@gmail.com>
-	<20150303133642.GC2409@dhcp22.suse.cz>
-Date: Tue, 3 Mar 2015 22:05:19 +0800
-Message-ID: <CAP06WZxAy=f_CLm9ZnfixV36ziQVQr8CtAoCB7WohT9m6wH8dw@mail.gmail.com>
-Subject: Re: [PATCH] mm: fix anon_vma->degree underflow in anon_vma endless
- growing prevention
-From: Leon Yu <chianglungyu@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <54F57E62.6050206@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: Vladimir Murzin <vladimir.murzin@arm.com>
+Cc: Will Deacon <will.deacon@arm.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Mark Rutland <Mark.Rutland@arm.com>, "lauraa@codeaurora.org" <lauraa@codeaurora.org>, "arnd@arndb.de" <arnd@arndb.de>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "x86@kernel.org" <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mingo@redhat.com" <mingo@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "tglx@linutronix.de" <tglx@linutronix.de>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Tue, Mar 3, 2015 at 9:36 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> On Tue 03-03-15 20:02:15, Leon Yu wrote:
->> I have constantly stumbled upon "kernel BUG at mm/rmap.c:399!" after upgrading
->> to 3.19 and had no luck with 4.0-rc1 neither.
->>
->> So, after looking into new logic introduced by commit 7a3ef208e662, ("mm:
->> prevent endless growth of anon_vma hierarchy"), I found chances are that
->> unlink_anon_vmas() is called without incrementing dst->anon_vma->degree in
->> anon_vma_clone() due to allocation failure. If dst->anon_vma is not NULL in
->> error path, its degree will be incorrectly decremented in unlink_anon_vmas()
->> and eventually underflow when exiting as a result of another call to
->> unlink_anon_vmas(). That's how "kernel BUG at mm/rmap.c:399!" is triggered
->> for me.
->>
->> This patch fixes the underflow by dropping dst->anon_vma when allocation
->> fails. It's safe to do so regardless of original value of dst->anon_vma
->> because dst->anon_vma doesn't have valid meaning if anon_vma_clone() fails.
->> Besides, callers don't care dst->anon_vma in such case neither.
->>
->> Signed-off-by: Leon Yu <chianglungyu@gmail.com>
->> Fixes: 7a3ef208e662 ("mm: prevent endless growth of anon_vma hierarchy")
->> Cc: stable@vger.kernel.org # v3.19
->
-> Reviewed-by: Michal Hocko <mhocko@suse.cz>
->
-> I think we can safely remove the following code as well, because it is
-> anon_vma_clone which is responsible to do all the cleanups.
+On Tue, Mar 03, 2015 at 09:26:58AM +0000, Vladimir Murzin wrote:
+> On 02/03/15 18:56, Will Deacon wrote:
+> > On Mon, Mar 02, 2015 at 02:55:44PM +0000, Vladimir Murzin wrote:
+> >> Add support for memtest command line option.
+> >>
+> >> Signed-off-by: Vladimir Murzin <vladimir.murzin@arm.com>
+> >> ---
+> >>  arch/arm64/mm/init.c |    2 ++
+> >>  1 file changed, 2 insertions(+)
+> >>
+> >> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+> >> index ae85da6..597831b 100644
+> >> --- a/arch/arm64/mm/init.c
+> >> +++ b/arch/arm64/mm/init.c
+> >> @@ -190,6 +190,8 @@ void __init bootmem_init(void)
+> >>  	min = PFN_UP(memblock_start_of_DRAM());
+> >>  	max = PFN_DOWN(memblock_end_of_DRAM());
+> >>  
+> >> +	early_memtest(min << PAGE_SHIFT, max << PAGE_SHIFT);
+> >> +
+> >>  	/*
+> >>  	 * Sparsemem tries to allocate bootmem in memory_present(), so must be
+> >>  	 * done after the fixed reservations.
+> > 
+> > This is really neat, thanks for doing this Vladimir!
+> > 
+> >   Acked-by: Will Deacon <will.deacon@arm.com>
+> > 
+> > For the series, modulo Baruch's comments about Documentation updates.
+> 
+> Thanks Will! I'll wait for awhile for other comments and repost updated
+> version.
+> 
+> I wonder which tree it might go?
 
-Thanks for the input, I'll send v2 with your cleanup.
+Since it touches mm, x86, arm, arm64, I guess it could go in via the mm
+tree (akpm). We could take it via the arm64 tree as well if we have all
+the acks in place.
 
-- Leon
-
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 943c6ad18b1d..06a6076c92e5 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -774,10 +774,8 @@ again:                     remove_next = 1 + (end > next->vm_end);
->
->                         importer->anon_vma = exporter->anon_vma;
->                         error = anon_vma_clone(importer, exporter);
-> -                       if (error) {
-> -                               importer->anon_vma = NULL;
-> +                       if (error)
->                                 return error;
-> -                       }
->                 }
->         }
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
