@@ -1,51 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 2998C6B0038
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 10:40:05 -0500 (EST)
-Received: by pabli10 with SMTP id li10so24939192pab.13
-        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 07:40:04 -0800 (PST)
-Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
-        by mx.google.com with ESMTPS id d4si1637060pat.7.2015.03.03.07.40.03
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Tue, 03 Mar 2015 07:40:04 -0800 (PST)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout4.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NKN00LAC7P92C30@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 03 Mar 2015 15:43:57 +0000 (GMT)
-Message-id: <54F5D5CC.6070901@samsung.com>
-Date: Tue, 03 Mar 2015 18:39:56 +0300
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
-MIME-version: 1.0
-Subject: Re: [RFC] slub memory quarantine
-References: <54F57716.80809@samsung.com>
- <CACT4Y+YQ3cuUvRrT_19RbxFVWHGnzviSFi0-ud88jq9g9jUZog@mail.gmail.com>
-In-reply-to: 
- <CACT4Y+YQ3cuUvRrT_19RbxFVWHGnzviSFi0-ud88jq9g9jUZog@mail.gmail.com>
-Content-type: text/plain; charset=utf-8
-Content-transfer-encoding: 7bit
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 05AAE6B0038
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 11:38:13 -0500 (EST)
+Received: by pdbft15 with SMTP id ft15so23814184pdb.2
+        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 08:38:12 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id tm5si1732514pbc.65.2015.03.03.08.38.10
+        for <linux-mm@kvack.org>;
+        Tue, 03 Mar 2015 08:38:11 -0800 (PST)
+Date: Tue, 3 Mar 2015 16:37:40 +0000
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [RFC PATCH 0/4] make memtest a generic kernel feature
+Message-ID: <20150303163740.GA10239@leverpostej>
+References: <1425308145-20769-1-git-send-email-vladimir.murzin@arm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1425308145-20769-1-git-send-email-vladimir.murzin@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Sasha Levin <sasha.levin@oracle.com>, Dmitry Chernenkov <dmitryc@google.com>, Konstantin Khlebnikov <koct9i@gmail.com>, LKML <linux-kernel@vger.kernel.org>
+To: Vladimir Murzin <Vladimir.Murzin@arm.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@redhat.com" <mingo@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "lauraa@codeaurora.org" <lauraa@codeaurora.org>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <Will.Deacon@arm.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "arnd@arndb.de" <arnd@arndb.de>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>
 
-On 03/03/2015 12:10 PM, Dmitry Vyukov wrote:
-> Please hold on with this.
-> Dmitry Chernenkov is working on a quarantine that works with both slub
-> and slab, does not cause spurious OOMs and does not depend on
-> slub-debug which has unacceptable performance (acquires global lock).
+On Mon, Mar 02, 2015 at 02:55:41PM +0000, Vladimir Murzin wrote:
+> Hi,
 
-I think that it's a separate issue. KASan already depend on slub_debug - it required for redzones/user tracking.
-I think that some parts slub debugging (like user tracking and this quarantine)
-could be moved (for CONFIG_KASAN=y) to the fast path without any locking.
-
-
-> Me or Dmitry C will send an email to kasan-dev@googlegroups.com to
-> discuss quarantine development direction.
+Hi Vladimir,
+ 
+> Memtest is a simple feature which fills the memory with a given set of
+> patterns and validates memory contents, if bad memory regions is detected it
+> reserves them via memblock API. Since memblock API is widely used by other
+> architectures this feature can be enabled outside of x86 world.
 > 
+> This patch set promotes memtest to live under generic mm umbrella and enables
+> memtest feature for arm/arm64.
+> 
+> Patches are built on top of 4.0-rc1
 
+Thanks for putting this together. I've found this extremely useful for
+tracking down an issue with some errant DMA on an arm64 platform. For
+the first three patches:
 
+Tested-by: Mark Rutland <mark.rutland@arm.com>
+
+Thanks,
+Mark.
+
+> 
+> Vladimir Murzin (4):
+>   mm: move memtest under /mm
+>   memtest: use phys_addr_t for physical addresses
+>   arm64: add support for memtest
+>   arm: add support for memtest
+> 
+>  arch/arm/mm/init.c          |    3 ++
+>  arch/arm64/mm/init.c        |    2 +
+>  arch/x86/Kconfig            |   11 ----
+>  arch/x86/include/asm/e820.h |    8 ---
+>  arch/x86/mm/Makefile        |    2 -
+>  arch/x86/mm/memtest.c       |  118 -------------------------------------------
+>  include/linux/memblock.h    |    8 +++
+>  lib/Kconfig.debug           |   11 ++++
+>  mm/Makefile                 |    1 +
+>  mm/memtest.c                |  118 +++++++++++++++++++++++++++++++++++++++++++
+>  10 files changed, 143 insertions(+), 139 deletions(-)
+>  delete mode 100644 arch/x86/mm/memtest.c
+>  create mode 100644 mm/memtest.c
+> 
+> -- 
+> 1.7.9.5
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
