@@ -1,86 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AA956B0038
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 04:22:31 -0500 (EST)
-Received: by widex7 with SMTP id ex7so19960780wid.1
-        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 01:22:31 -0800 (PST)
+Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
+	by kanga.kvack.org (Postfix) with ESMTP id EB6196B0038
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 04:27:03 -0500 (EST)
+Received: by mail-qg0-f49.google.com with SMTP id a108so21829262qge.8
+        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 01:27:03 -0800 (PST)
 Received: from service87.mimecast.com (service87.mimecast.com. [91.220.42.44])
-        by mx.google.com with ESMTP id hk9si281995wjc.117.2015.03.03.01.22.29
+        by mx.google.com with ESMTP id i204si150368qhc.58.2015.03.03.01.27.02
         for <linux-mm@kvack.org>;
-        Tue, 03 Mar 2015 01:22:30 -0800 (PST)
-Message-ID: <54F57D4C.9010909@arm.com>
-Date: Tue, 03 Mar 2015 09:22:20 +0000
+        Tue, 03 Mar 2015 01:27:03 -0800 (PST)
+Message-ID: <54F57E62.6050206@arm.com>
+Date: Tue, 03 Mar 2015 09:26:58 +0000
 From: Vladimir Murzin <vladimir.murzin@arm.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 1/4] mm: move memtest under /mm
-References: <1425308145-20769-1-git-send-email-vladimir.murzin@arm.com> <1425308145-20769-2-git-send-email-vladimir.murzin@arm.com> <54F513C0.4000706@infradead.org>
-In-Reply-To: <54F513C0.4000706@infradead.org>
+Subject: Re: [RFC PATCH 3/4] arm64: add support for memtest
+References: <1425308145-20769-1-git-send-email-vladimir.murzin@arm.com> <1425308145-20769-4-git-send-email-vladimir.murzin@arm.com> <20150302185607.GG7919@arm.com>
+In-Reply-To: <20150302185607.GG7919@arm.com>
 Content-Type: text/plain; charset=WINDOWS-1252
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
-Cc: "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@redhat.com" <mingo@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "lauraa@codeaurora.org" <lauraa@codeaurora.org>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <Will.Deacon@arm.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "arnd@arndb.de" <arnd@arndb.de>, Mark Rutland <Mark.Rutland@arm.com>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>
+To: Will Deacon <will.deacon@arm.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@redhat.com" <mingo@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "lauraa@codeaurora.org" <lauraa@codeaurora.org>, Catalin Marinas <Catalin.Marinas@arm.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "arnd@arndb.de" <arnd@arndb.de>, Mark Rutland <Mark.Rutland@arm.com>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>
 
-On 03/03/15 01:52, Randy Dunlap wrote:
-> On 03/02/15 06:55, Vladimir Murzin wrote:
->> There is nothing platform dependent in the core memtest code, so other p=
-latform
->> might benefit of this feature too.
+On 02/03/15 18:56, Will Deacon wrote:
+> On Mon, Mar 02, 2015 at 02:55:44PM +0000, Vladimir Murzin wrote:
+>> Add support for memtest command line option.
 >>
 >> Signed-off-by: Vladimir Murzin <vladimir.murzin@arm.com>
 >> ---
->>  arch/x86/Kconfig            |   11 ----
->>  arch/x86/include/asm/e820.h |    8 ---
->>  arch/x86/mm/Makefile        |    2 -
->>  arch/x86/mm/memtest.c       |  118 ------------------------------------=
--------
->>  include/linux/memblock.h    |    8 +++
->>  lib/Kconfig.debug           |   11 ++++
->>  mm/Makefile                 |    1 +
->>  mm/memtest.c                |  118 ++++++++++++++++++++++++++++++++++++=
-+++++++
->>  8 files changed, 138 insertions(+), 139 deletions(-)
->>  delete mode 100644 arch/x86/mm/memtest.c
->>  create mode 100644 mm/memtest.c
->=20
->> diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
->> index c5cefb3..8eb064fd 100644
->> --- a/lib/Kconfig.debug
->> +++ b/lib/Kconfig.debug
->> @@ -1732,6 +1732,17 @@ config TEST_UDELAY
+>>  arch/arm64/mm/init.c |    2 ++
+>>  1 file changed, 2 insertions(+)
+>>
+>> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+>> index ae85da6..597831b 100644
+>> --- a/arch/arm64/mm/init.c
+>> +++ b/arch/arm64/mm/init.c
+>> @@ -190,6 +190,8 @@ void __init bootmem_init(void)
+>>  =09min =3D PFN_UP(memblock_start_of_DRAM());
+>>  =09max =3D PFN_DOWN(memblock_end_of_DRAM());
 >> =20
->>  =09  If unsure, say N.
->> =20
->> +config MEMTEST
->> +=09bool "Memtest"
->> +=09---help---
->> +=09  This option adds a kernel parameter 'memtest', which allows memtes=
-t
->> +=09  to be set.
->> +=09        memtest=3D0, mean disabled; -- default
->> +=09        memtest=3D1, mean do 1 test pattern;
->> +=09        ...
->> +=09        memtest=3D4, mean do 4 test patterns.
+>> +=09early_memtest(min << PAGE_SHIFT, max << PAGE_SHIFT);
+>> +
+>>  =09/*
+>>  =09 * Sparsemem tries to allocate bootmem in memory_present(), so must =
+be
+>>  =09 * done after the fixed reservations.
 >=20
-> This sort of implies a max of 4 test patterns, but it seems to be 17
-> if I counted correctly, so if someone wants to test all of the possible
-> 'memtest' patterns, they would need to use 'memtest=3D17', is that correc=
-t?
+> This is really neat, thanks for doing this Vladimir!
+>=20
+>   Acked-by: Will Deacon <will.deacon@arm.com>
+>=20
+> For the series, modulo Baruch's comments about Documentation updates.
+>=20
+> Will
 >=20
 
-Yes, that correct. Additional patterns were introduced since 63823126
-"x86: memtest: add additional (regular) test patterns", but looks like
-Kconfig was not updated that time. Do you want me to fold updates for
-that info or make a separate patch?
+Thanks Will! I'll wait for awhile for other comments and repost updated
+version.
+
+I wonder which tree it might go?
 
 Thanks
 Vladimir
 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 >=20
->> +=09  If you are unsure how to answer this question, answer N.
->=20
-> Thanks,
 >=20
 
 
