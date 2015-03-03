@@ -1,54 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id EFA816B0038
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 17:00:30 -0500 (EST)
-Received: by iecrp18 with SMTP id rp18so62450292iec.9
-        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 14:00:30 -0800 (PST)
-Received: from mail-ie0-x233.google.com (mail-ie0-x233.google.com. [2607:f8b0:4001:c03::233])
-        by mx.google.com with ESMTPS id e9si2612023ioj.105.2015.03.03.14.00.30
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id B34686B0038
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 17:05:53 -0500 (EST)
+Received: by wggx13 with SMTP id x13so2720124wgg.4
+        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 14:05:53 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q8si5072840wiv.90.2015.03.03.14.05.51
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Mar 2015 14:00:30 -0800 (PST)
-Received: by iecrl12 with SMTP id rl12so62438327iec.4
-        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 14:00:30 -0800 (PST)
-Date: Tue, 3 Mar 2015 14:00:28 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: fix anon_vma->degree underflow in anon_vma endless
- growing prevention
-In-Reply-To: <1425384142-5064-1-git-send-email-chianglungyu@gmail.com>
-Message-ID: <alpine.DEB.2.10.1503031400060.16235@chino.kir.corp.google.com>
-References: <1425384142-5064-1-git-send-email-chianglungyu@gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 03 Mar 2015 14:05:52 -0800 (PST)
+Message-ID: <54F6303C.5080806@suse.cz>
+Date: Tue, 03 Mar 2015 23:05:48 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Resurrecting the VM_PINNED discussion
+References: <20150303174105.GA3295@akamai.com> <54F5FEE0.2090104@suse.cz> <20150303184520.GA4996@akamai.com> <54F617A2.8040405@suse.cz> <20150303210150.GA6995@akamai.com> <20150303215258.GB6995@akamai.com>
+In-Reply-To: <20150303215258.GB6995@akamai.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Leon Yu <chianglungyu@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: Eric B Munson <emunson@akamai.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Christoph Lameter <cl@linux.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Roland Dreier <roland@kernel.org>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Mike Marciniszyn <infinipath@intel.com>
 
-On Tue, 3 Mar 2015, Leon Yu wrote:
+On 03/03/2015 10:52 PM, Eric B Munson wrote:
+> On Tue, 03 Mar 2015, Eric B Munson wrote:
+> 
+>> On Tue, 03 Mar 2015, Vlastimil Babka wrote:
+>> 
+>> > On 03/03/2015 07:45 PM, Eric B Munson wrote:
+>> > > On Tue, 03 Mar 2015, Vlastimil Babka wrote:
+>> > > 
+>> > > Agreed.  But as has been discussed in the threads around the VM_PINNED
+>> > > work, there are people that are relying on the fact that VM_LOCKED
+>> > > promises no minor faults.  Which is why the behavoir has remained.
+>> > 
+>> > At least in the VM_PINNED thread after last lsf/mm, I don't see this mentioned.
+>> > I found no references to mlocking in compaction.c, and in migrate.c there's just
+>> > mlock_migrate_page() with comment:
+>> > 
+>> > /*
+>> >  * mlock_migrate_page - called only from migrate_page_copy() to
+>> >  * migrate the Mlocked page flag; update statistics.
+>> >  */
+>> > 
+>> > It also passes TTU_IGNORE_MLOCK to try_to_unmap(). So what am I missing? Where
+>> > is this restriction?
+>> > 
+>> 
+>> I spent quite some time looking for it as well, it is in vmscan.c
+>> 
+>> int __isolate_lru_page(struct page *page, isolate_mode_t mode)
+>> {
+>> ...
+>>         /* Compaction should not handle unevictable pages but CMA can do so */
+>>         if (PageUnevictable(page) && !(mode & ISOLATE_UNEVICTABLE))
+>>                 return ret;
+>> ...
+>> 
+>> 
+> 
+> And that demonstrates that I haven't spent enough time with this code,
+> that isn't the restriction because when this is called from compaction.c
+> the mode is set to ISOLATE_UNEVICTABLE.  So back to reading the code.
 
-> I have constantly stumbled upon "kernel BUG at mm/rmap.c:399!" after upgrading
-> to 3.19 and had no luck with 4.0-rc1 neither.
-> 
-> So, after looking into new logic introduced by commit 7a3ef208e662, ("mm:
-> prevent endless growth of anon_vma hierarchy"), I found chances are that
-> unlink_anon_vmas() is called without incrementing dst->anon_vma->degree in
-> anon_vma_clone() due to allocation failure. If dst->anon_vma is not NULL in
-> error path, its degree will be incorrectly decremented in unlink_anon_vmas()
-> and eventually underflow when exiting as a result of another call to
-> unlink_anon_vmas(). That's how "kernel BUG at mm/rmap.c:399!" is triggered
-> for me.
-> 
-> This patch fixes the underflow by dropping dst->anon_vma when allocation
-> fails. It's safe to do so regardless of original value of dst->anon_vma
-> because dst->anon_vma doesn't have valid meaning if anon_vma_clone() fails.
-> Besides, callers don't care dst->anon_vma in such case neither.
-> 
-> Signed-off-by: Leon Yu <chianglungyu@gmail.com>
-> Fixes: 7a3ef208e662 ("mm: prevent endless growth of anon_vma hierarchy")
-> Cc: stable@vger.kernel.org # v3.19
-
-Acked-by: David Rientjes <rientjes@google.com>
+No, you were correct and thanks for the hint. It's only ISOLATE_UNEVICTABLE from
+isolate_migratepages_range(), which is CMA, not regular compaction.
+But I wonder, can we change this even after VM_PINNED is introduced, if existing
+code depends on "no minor faults in mlocked areas", whatever the docs say? On
+the other hand, compaction is not the only source of migrations. I wonder what
+the NUMA balancing does (not) about mlocked areas...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
