@@ -1,56 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f180.google.com (mail-ie0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 101B06B0038
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 21:22:30 -0500 (EST)
-Received: by iecrl12 with SMTP id rl12so53381719iec.4
-        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 18:22:29 -0800 (PST)
-Received: from mail-ie0-x235.google.com (mail-ie0-x235.google.com. [2607:f8b0:4001:c03::235])
-        by mx.google.com with ESMTPS id qc2si262339igb.27.2015.03.02.18.22.29
+Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 772306B0038
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2015 21:37:48 -0500 (EST)
+Received: by iecrp18 with SMTP id rp18so53564062iec.1
+        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 18:37:48 -0800 (PST)
+Received: from mail-ig0-x22f.google.com (mail-ig0-x22f.google.com. [2607:f8b0:4001:c05::22f])
+        by mx.google.com with ESMTPS id h130si226007ioh.98.2015.03.02.18.37.48
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Mar 2015 18:22:29 -0800 (PST)
-Received: by iecvy18 with SMTP id vy18so53276960iec.13
-        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 18:22:29 -0800 (PST)
+        Mon, 02 Mar 2015 18:37:48 -0800 (PST)
+Received: by igal13 with SMTP id l13so22982423iga.5
+        for <linux-mm@kvack.org>; Mon, 02 Mar 2015 18:37:48 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20150303014733.GL18360@dastard>
+In-Reply-To: <CA+55aFw+7V9DfxBA2_DhMNrEQOkvdwjFFga5Y67-a6yVeAz+NQ@mail.gmail.com>
 References: <20150302010413.GP4251@dastard>
 	<CA+55aFzGFvVGD_8Y=jTkYwgmYgZnW0p0Fjf7OHFPRcL6Mz4HOw@mail.gmail.com>
 	<20150303014733.GL18360@dastard>
-Date: Mon, 2 Mar 2015 18:22:29 -0800
-Message-ID: <CA+55aFw+7V9DfxBA2_DhMNrEQOkvdwjFFga5Y67-a6yVeAz+NQ@mail.gmail.com>
+	<CA+55aFw+7V9DfxBA2_DhMNrEQOkvdwjFFga5Y67-a6yVeAz+NQ@mail.gmail.com>
+Date: Mon, 2 Mar 2015 18:37:47 -0800
+Message-ID: <CA+55aFw+fb=Fh4M2wA4dVskgqN7PhZRGZS6JTMx4Rb1Qn++oaA@mail.gmail.com>
 Subject: Re: [regression v4.0-rc1] mm: IPIs from TLB flushes causing
  significant performance degradation.
 From: Linus Torvalds <torvalds@linux-foundation.org>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
+To: Dave Chinner <david@fromorbit.com>, Mel Gorman <mgorman@suse.de>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Matt B <jackdachef@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, xfs@oss.sgi.com
 
-On Mon, Mar 2, 2015 at 5:47 PM, Dave Chinner <david@fromorbit.com> wrote:
+On Mon, Mar 2, 2015 at 6:22 PM, Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
 >
-> Anyway, the difference between good and bad is pretty clear, so
-> I'm pretty confident the bisect is solid:
->
-> 4d9424669946532be754a6e116618dcb58430cb4 is the first bad commit
+> There might be some other case where the new "just change the
+> protection" doesn't do the "oh, but it the protection didn't change,
+> don't bother flushing". I don't see it.
 
-Well, it's the mm queue from Andrew, so I'm not surprised. That said,
-I don't see why that particular one should matter.
+Hmm. I wonder.. In change_pte_range(), we just unconditionally change
+the protection bits.
 
-Hmm. In your profiles, can you tell which caller of "flush_tlb_page()"
- changed the most? The change from "mknnuma" to "prot_none" *should*
-be 100% equivalent (both just change the page to be not-present, just
-set different bits elsewhere in the pte), but clearly something
-wasn't.
+But the old numa code used to do
 
-Oh. Except for that special "huge-zero-page" special case that got
-dropped, but that got re-introduced in commit e944fd67b625.
+    if (!pte_numa(oldpte)) {
+        ptep_set_numa(mm, addr, pte);
 
-There might be some other case where the new "just change the
-protection" doesn't do the "oh, but it the protection didn't change,
-don't bother flushing". I don't see it.
+so it would actually avoid the pte update if a numa-prot page was
+marked numa-prot again.
 
-                          Linus
+But are those migrate-page calls really common enough to make these
+things happen often enough on the same pages for this all to matter?
+
+Odd.
+
+So it would be good if your profiles just show "there's suddenly a
+*lot* more calls to flush_tlb_page() from XYZ" and the culprit is
+obvious that way..
+
+                       Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
