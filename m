@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
-	by kanga.kvack.org (Postfix) with ESMTP id D63EA6B0071
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 12:45:13 -0500 (EST)
-Received: by obcuy5 with SMTP id uy5so1308665obc.4
-        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 09:45:13 -0800 (PST)
-Received: from g2t2352.austin.hp.com (g2t2352.austin.hp.com. [15.217.128.51])
-        by mx.google.com with ESMTPS id x10si724356oey.80.2015.03.03.09.45.12
+Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 332166B0072
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 12:45:15 -0500 (EST)
+Received: by obcuz6 with SMTP id uz6so1304786obc.12
+        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 09:45:15 -0800 (PST)
+Received: from g2t2353.austin.hp.com (g2t2353.austin.hp.com. [15.217.128.52])
+        by mx.google.com with ESMTPS id ix8si736618obc.59.2015.03.03.09.45.14
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Mar 2015 09:45:13 -0800 (PST)
+        Tue, 03 Mar 2015 09:45:14 -0800 (PST)
 From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH v3 4/6] mm: Change vunmap to tear down huge KVA mappings
-Date: Tue,  3 Mar 2015 10:44:22 -0700
-Message-Id: <1425404664-19675-5-git-send-email-toshi.kani@hp.com>
+Subject: [PATCH v3 5/6] x86, mm: Support huge I/O mapping capability I/F
+Date: Tue,  3 Mar 2015 10:44:23 -0700
+Message-Id: <1425404664-19675-6-git-send-email-toshi.kani@hp.com>
 In-Reply-To: <1425404664-19675-1-git-send-email-toshi.kani@hp.com>
 References: <1425404664-19675-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,64 +20,75 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, arnd@arndb.de
 Cc: linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, Toshi Kani <toshi.kani@hp.com>
 
-Changed vunmap_pmd_range() and vunmap_pud_range() to tear down
-huge KVA mappings when they are set.  pud_clear_huge() and
-pmd_clear_huge() return zero when no-operation is performed,
-i.e. huge page mapping was not used.
+This patch implements huge I/O mapping capability interfaces
+for ioremap() on x86.
 
-These changes are only enabled when CONFIG_HAVE_ARCH_HUGE_VMAP
-is defined on the architecture.
+IOREMAP_MAX_ORDER is defined to PUD_SHIFT on x86/64 and
+PMD_SHIFT on x86/32, which overrides the default value
+defined in <linux/vmalloc.h>.
 
 Signed-off-by: Toshi Kani <toshi.kani@hp.com>
 ---
- include/asm-generic/pgtable.h |    4 ++++
- mm/vmalloc.c                  |    4 ++++
- 2 files changed, 8 insertions(+)
+ arch/x86/include/asm/page_types.h |    2 ++
+ arch/x86/mm/ioremap.c             |   23 +++++++++++++++++++++--
+ 2 files changed, 23 insertions(+), 2 deletions(-)
 
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index bf6e86c..b583235 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -701,6 +701,8 @@ static inline int pmd_protnone(pmd_t pmd)
- #ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
- int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot);
- int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot);
-+int pud_clear_huge(pud_t *pud);
-+int pmd_clear_huge(pmd_t *pmd);
- #else	/* !CONFIG_HAVE_ARCH_HUGE_VMAP */
- static inline int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot)
- {
-@@ -710,6 +712,8 @@ static inline int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot)
- {
- 	return 0;
- }
-+static inline int pud_clear_huge(pud_t *pud) { return 0; }
-+static inline int pmd_clear_huge(pmd_t *pmd) { return 0; }
- #endif	/* CONFIG_HAVE_ARCH_HUGE_VMAP */
+diff --git a/arch/x86/include/asm/page_types.h b/arch/x86/include/asm/page_types.h
+index 95e11f7..b526093 100644
+--- a/arch/x86/include/asm/page_types.h
++++ b/arch/x86/include/asm/page_types.h
+@@ -40,8 +40,10 @@
  
- #endif /* _ASM_GENERIC_PGTABLE_H */
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index fe1672d..9184cf7 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -75,6 +75,8 @@ static void vunmap_pmd_range(pud_t *pud, unsigned long addr, unsigned long end)
- 	pmd = pmd_offset(pud, addr);
- 	do {
- 		next = pmd_addr_end(addr, end);
-+		if (pmd_clear_huge(pmd))
-+			continue;
- 		if (pmd_none_or_clear_bad(pmd))
- 			continue;
- 		vunmap_pte_range(pmd, addr, next);
-@@ -89,6 +91,8 @@ static void vunmap_pud_range(pgd_t *pgd, unsigned long addr, unsigned long end)
- 	pud = pud_offset(pgd, addr);
- 	do {
- 		next = pud_addr_end(addr, end);
-+		if (pud_clear_huge(pud))
-+			continue;
- 		if (pud_none_or_clear_bad(pud))
- 			continue;
- 		vunmap_pmd_range(pud, addr, next);
+ #ifdef CONFIG_X86_64
+ #include <asm/page_64_types.h>
++#define IOREMAP_MAX_ORDER       (PUD_SHIFT)
+ #else
+ #include <asm/page_32_types.h>
++#define IOREMAP_MAX_ORDER       (PMD_SHIFT)
+ #endif	/* CONFIG_X86_64 */
+ 
+ #ifndef __ASSEMBLY__
+diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
+index fdf617c..5ead4d6 100644
+--- a/arch/x86/mm/ioremap.c
++++ b/arch/x86/mm/ioremap.c
+@@ -67,8 +67,13 @@ static int __ioremap_check_ram(unsigned long start_pfn, unsigned long nr_pages,
+ 
+ /*
+  * Remap an arbitrary physical address space into the kernel virtual
+- * address space. Needed when the kernel wants to access high addresses
+- * directly.
++ * address space. It transparently creates kernel huge I/O mapping when
++ * the physical address is aligned by a huge page size (1GB or 2MB) and
++ * the requested size is at least the huge page size.
++ *
++ * NOTE: MTRRs can override PAT memory types with a 4KB granularity.
++ * Therefore, the mapping code falls back to use a smaller page toward 4KB
++ * when a mapping range is covered by non-WB type of MTRRs.
+  *
+  * NOTE! We need to allow non-page-aligned mappings too: we will obviously
+  * have to convert them into an offset in a page-aligned mapping, but the
+@@ -326,6 +331,20 @@ void iounmap(volatile void __iomem *addr)
+ }
+ EXPORT_SYMBOL(iounmap);
+ 
++int arch_ioremap_pud_supported(void)
++{
++#ifdef CONFIG_X86_64
++	return cpu_has_gbpages;
++#else
++	return 0;
++#endif
++}
++
++int arch_ioremap_pmd_supported(void)
++{
++	return cpu_has_pse;
++}
++
+ /*
+  * Convert a physical pointer to a virtual kernel pointer for /dev/mem
+  * access
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
