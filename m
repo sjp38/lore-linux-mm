@@ -1,52 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com [209.85.216.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 32F3C6B0038
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 04:28:44 -0500 (EST)
-Received: by qcxr5 with SMTP id r5so29312703qcx.10
-        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 01:28:44 -0800 (PST)
-Received: from service87.mimecast.com (service87.mimecast.com. [91.220.42.44])
-        by mx.google.com with ESMTP id h34si193964qgf.2.2015.03.03.01.28.43
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F2E36B0038
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 05:37:39 -0500 (EST)
+Received: by pdbnh10 with SMTP id nh10so23843330pdb.3
+        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 02:37:38 -0800 (PST)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id fn7si392415pdb.157.2015.03.03.02.37.37
         for <linux-mm@kvack.org>;
-        Tue, 03 Mar 2015 01:28:43 -0800 (PST)
-Message-ID: <54F57EC7.1060202@arm.com>
-Date: Tue, 03 Mar 2015 09:28:39 +0000
-From: Vladimir Murzin <vladimir.murzin@arm.com>
+        Tue, 03 Mar 2015 02:37:38 -0800 (PST)
+Message-ID: <54F58AE3.50101@cn.fujitsu.com>
+Date: Tue, 3 Mar 2015 18:20:19 +0800
+From: Gu Zheng <guz.fnst@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/4] make memtest a generic kernel feature
-References: <1425308145-20769-1-git-send-email-vladimir.murzin@arm.com> <20150302151400.GI15668@tarshish>
-In-Reply-To: <20150302151400.GI15668@tarshish>
-Content-Type: text/plain; charset=WINDOWS-1252
+Subject: Re: node-hotplug: is memset 0 safe in try_offline_node()?
+References: <54F52ACF.4030103@huawei.com>
+In-Reply-To: <54F52ACF.4030103@huawei.com>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Baruch Siach <baruch@tkos.co.il>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Mark Rutland <Mark.Rutland@arm.com>, "lauraa@codeaurora.org" <lauraa@codeaurora.org>, "arnd@arndb.de" <arnd@arndb.de>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <Will.Deacon@arm.com>, "mingo@redhat.com" <mingo@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "tglx@linutronix.de" <tglx@linutronix.de>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Yinghai Lu <yinghai@kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Toshi Kani <toshi.kani@hp.com>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>
 
-On 02/03/15 15:14, Baruch Siach wrote:
-> Hi Vladimir,
->=20
-> On Mon, Mar 02, 2015 at 02:55:41PM +0000, Vladimir Murzin wrote:
->> Memtest is a simple feature which fills the memory with a given set of
->> patterns and validates memory contents, if bad memory regions is detecte=
-d it
->> reserves them via memblock API. Since memblock API is widely used by oth=
-er
->> architectures this feature can be enabled outside of x86 world.
->>
->> This patch set promotes memtest to live under generic mm umbrella and en=
-ables
->> memtest feature for arm/arm64.
->=20
-> Please update the architectures list in the 'memtest' entry at=20
-> Documentation/kernel-parameters.txt.
+Hi Xishi,
+On 03/03/2015 11:30 AM, Xishi Qiu wrote:
 
-Thanks for pointing at it. I'll add updates for documentation to my next
-version.
+> When hot-remove a numa node, we will clear pgdat,
+> but is memset 0 safe in try_offline_node()?
 
-Vladimir
+It is not safe here. In fact, this is a temporary solution here.
+As you know, pgdat is accessed lock-less now, so protection
+mechanism (RCU=EF=BC=9F) is needed to make it completely safe here,
+but it seems a bit over-kill.
 
 >=20
-> baruch
+> process A:			offline node XX:
+> for_each_populated_zone()
+> find online node XX
+> cond_resched()
+> 				offline cpu and memory, then try_offline_node()
+> 				node_set_offline(nid), and memset(pgdat, 0, sizeof(*pgdat))
+> access node XX's pgdat
+> NULL pointer access error
+
+It's possible, but I did not meet this condition, did you?
+
+Regards,
+Gu
+
+>=20
+> Thanks,
+> Xishi Qiu
+>=20
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 >=20
 
 
