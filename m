@@ -1,49 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EEBB6B0072
-	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 12:41:33 -0500 (EST)
-Received: by wghb13 with SMTP id b13so48243743wgh.0
-        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 09:41:32 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id s5si4068457wiy.105.2015.03.04.09.41.31
+Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 583A66B0072
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 12:58:57 -0500 (EST)
+Received: by wesk11 with SMTP id k11so47961536wes.11
+        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 09:58:56 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j4si30798825wix.56.2015.03.04.09.58.54
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Mar 2015 09:41:31 -0800 (PST)
-Date: Wed, 4 Mar 2015 12:40:56 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: memcontrol: Let mem_cgroup_move_account() have
- effect only if MMU enabled
-Message-ID: <20150304174056.GA20376@phnom.home.cmpxchg.org>
-References: <54F4E739.6040805@qq.com>
- <20150303134524.GE2409@dhcp22.suse.cz>
+        Wed, 04 Mar 2015 09:58:55 -0800 (PST)
+Message-ID: <54F747CE.5050204@redhat.com>
+Date: Wed, 04 Mar 2015 12:58:38 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150303134524.GE2409@dhcp22.suse.cz>
+Subject: Re: [PATCH v2] mm: fix anon_vma->degree underflow in anon_vma endless
+ growing prevention
+References: <1425473541-4924-1-git-send-email-chianglungyu@gmail.com>
+In-Reply-To: <1425473541-4924-1-git-send-email-chianglungyu@gmail.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Chen Gang <762976180@qq.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Leon Yu <chianglungyu@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Daniel Forrest <dan.forrest@ssec.wisc.edu>, Chris Clayton <chris2553@googlemail.com>, Oded Gabbay <oded.gabbay@amd.com>, Chih-Wei Huang <cwhuang@android-x86.org>, stable@vger.kernel.org
 
-On Tue, Mar 03, 2015 at 02:45:24PM +0100, Michal Hocko wrote:
-> On Tue 03-03-15 06:42:01, Chen Gang wrote:
-> > When !MMU, it will report warning. The related warning with allmodconfig
-> > under c6x:
+On 03/04/2015 07:52 AM, Leon Yu wrote:
+> I have constantly stumbled upon "kernel BUG at mm/rmap.c:399!" after
+> upgrading to 3.19 and had no luck with 4.0-rc1 neither.
 > 
-> Does it even make any sense to enable CONFIG_MEMCG when !CONFIG_MMU?
-> Is anybody using this configuration and is it actually usable? My
-> knowledge about CONFIG_MMU is close to zero so I might be missing
-> something but I do not see a point into fixing compile warnings when
-> the whole subsystem is not usable in the first place.
+> So, after looking into new logic introduced by 7a3ef208e662 ("mm: prevent
+> endless growth of anon_vma hierarchy"), I found chances are that
+> unlink_anon_vmas() is called without incrementing dst->anon_vma->degree in
+> anon_vma_clone() due to allocation failure.  If dst->anon_vma is not NULL
+> in error path, its degree will be incorrectly decremented in
+> unlink_anon_vmas() and eventually underflow when exiting as a result of
+> another call to unlink_anon_vmas().  That's how "kernel BUG at
+> mm/rmap.c:399!" is triggered for me.
+> 
+> This patch fixes the underflow by dropping dst->anon_vma when allocation
+> fails.  It's safe to do so regardless of original value of dst->anon_vma
+> because dst->anon_vma doesn't have valid meaning if anon_vma_clone()
+> fails.  Besides, callers don't care dst->anon_vma in such case neither.
+> 
+> Also suggested by Michal Hocko, we can clean up vma_adjust() a bit as
+> anon_vma_clone() now does the work.
+> 
+> Fixes: 7a3ef208e662 ("mm: prevent endless growth of anon_vma hierarchy")
+> Signed-off-by: Leon Yu <chianglungyu@gmail.com>
+> Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+> Acked-by: David Rientjes <rientjes@google.com>
+> Cc: <stable@vger.kernel.org>
 
-It's very limited, and anonymous memory is not even charged right now,
-even though it could be -- see nommu.c::do_mmap_private().  But there
-is nothing inherent in the memcg functionality that would require an
-MMU I guess, except for these ridiculous charge moving pte walkers.
-
-> > Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>
-
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
