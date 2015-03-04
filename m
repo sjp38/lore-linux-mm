@@ -1,84 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id DBB4F6B0038
-	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 07:09:56 -0500 (EST)
-Received: by wghn12 with SMTP id n12so46289506wgh.1
-        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 04:09:56 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id xx1si1164180wjc.205.2015.03.04.04.09.55
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id D06306B0038
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 07:41:13 -0500 (EST)
+Received: by pdno5 with SMTP id o5so10661368pdn.12
+        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 04:41:13 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id ld10si5011864pbc.60.2015.03.04.04.41.11
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 04 Mar 2015 04:09:55 -0800 (PST)
-Message-ID: <54F6F60F.4070705@suse.cz>
-Date: Wed, 04 Mar 2015 13:09:51 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
-MIME-Version: 1.0
-Subject: Re: [PATCHv3 04/24] rmap: add argument to charge compound page
-References: <1423757918-197669-1-git-send-email-kirill.shutemov@linux.intel.com> <1423757918-197669-5-git-send-email-kirill.shutemov@linux.intel.com> <54EB538B.7040308@suse.cz> <20150304115244.GA16452@node.dhcp.inet.fi>
-In-Reply-To: <20150304115244.GA16452@node.dhcp.inet.fi>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 04 Mar 2015 04:41:12 -0800 (PST)
+Subject: Re: How to handle TIF_MEMDIE stalls?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20150224210244.GA13666@dastard>
+	<201502252331.IEJ78629.OOOFSLFMHQtFVJ@I-love.SAKURA.ne.jp>
+	<20150227073949.GJ4251@dastard>
+	<201502272142.BFJ09388.OLOMFFFVSQJOtH@I-love.SAKURA.ne.jp>
+	<20150227131209.GK4251@dastard>
+In-Reply-To: <20150227131209.GK4251@dastard>
+Message-Id: <201503042141.FIC48980.OFFtVSQFOOMHJL@I-love.SAKURA.ne.jp>
+Date: Wed, 4 Mar 2015 21:41:01 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: david@fromorbit.com
+Cc: tytso@mit.edu, rientjes@google.com, hannes@cmpxchg.org, mhocko@suse.cz, dchinner@redhat.com, linux-mm@kvack.org, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, fernando_b1@lab.ntt.co.jp
 
-On 03/04/2015 12:52 PM, Kirill A. Shutemov wrote:
-> On Mon, Feb 23, 2015 at 05:21:31PM +0100, Vlastimil Babka wrote:
->> On 02/12/2015 05:18 PM, Kirill A. Shutemov wrote:
->>> @@ -1052,21 +1052,24 @@ void page_add_anon_rmap(struct page *page,
->>>    * Everybody else should continue to use page_add_anon_rmap above.
->>>    */
->>>   void do_page_add_anon_rmap(struct page *page,
->>> -	struct vm_area_struct *vma, unsigned long address, int exclusive)
->>> +	struct vm_area_struct *vma, unsigned long address, int flags)
->>>   {
->>>   	int first = atomic_inc_and_test(&page->_mapcount);
->>>   	if (first) {
->>> +		bool compound = flags & RMAP_COMPOUND;
->>> +		int nr = compound ? hpage_nr_pages(page) : 1;
->>
->> hpage_nr_pages(page) is:
->>
->> static inline int hpage_nr_pages(struct page *page)
->> {
->>          if (unlikely(PageTransHuge(page)))
->>                  return HPAGE_PMD_NR;
->>          return 1;
->> }
->>
->> and later...
->>
->>>   		/*
->>>   		 * We use the irq-unsafe __{inc|mod}_zone_page_stat because
->>>   		 * these counters are not modified in interrupt context, and
->>>   		 * pte lock(a spinlock) is held, which implies preemption
->>>   		 * disabled.
->>>   		 */
->>> -		if (PageTransHuge(page))
->>> +		if (compound) {
->>> +			VM_BUG_ON_PAGE(!PageTransHuge(page), page);
->>
->> this means that we could assume that
->> (compound == true) => (PageTransHuge(page) == true)
->>
->> and simplify above to:
->>
->> int nr = compound ? HPAGE_PMD_NR : 1;
->>
->> Right?
->
-> No. HPAGE_PMD_NR is defined based on HPAGE_PMD_SHIFT which is BUILD_BUG()
-> without CONFIG_TRANSPARENT_HUGEPAGE. We will get compiler error without
-> the helper.
+Dave Chinner wrote:
+> On Fri, Feb 27, 2015 at 09:42:55PM +0900, Tetsuo Handa wrote:
+> > If kswapd0 is blocked forever at e.g. mutex_lock() inside shrinker
+> > functions, who else can make forward progress?
+> 
+> You can't get into these filesystem shrinkers when you do GFP_NOIO
+> allocations, as the IO path does.
+> 
+> > Shouldn't we avoid calling functions which could potentially block for
+> > unpredictable duration (e.g. unkillable locks and/or completion) from
+> > shrinker functions?
+> 
+> No, because otherwise we can't throttle allocation and reclaim to
+> the rate at which IO can clean dirty objects. i.e. we do this for
+> the same reason we throttle page cache dirtying to the rate at which
+> we can clean dirty pages....
 
-Oh, OK. But that doesn't mean there couldn't be another helper that 
-would work in this case, or even open-coded #ifdefs in these functions. 
-Apparently "compound" has to be always false for 
-!CONFIG_TRANSPARENT_HUGEPAGE, as in that case PageTransHuge is defined 
-as 0 and the VM_BUG_ON would trigger if compound was true. So without 
-such ifdefs or wrappers, you are also adding dead code and pointless 
-tests for !CONFIG_TRANSPARENT_HUGEPAGE?
+I'm misunderstanding something. The description for kswapd() function
+in mm/vmscan.c says "This basically trickles out pages so that we have
+_some_ free memory available even if there is no other activity that frees
+anything up".
+
+Forever blocking kswapd0 somewhere inside filesystem shrinker functions is
+equivalent with removing kswapd() function because it also prevents non
+filesystem shrinker functions from being called by kswapd0, doesn't it?
+Then, the description will become "We won't have _some_ free memory available
+if there is no other activity that frees anything up", won't it?
+
+Does kswapd0 exist only for reducing the delay caused by reclaiming
+synchronously? Disabling kswapd0 affects nothing about functionality?
+The system can make forward progress even if nobody can call non filesystem
+shrinkers, can't it?
+
+If yes, then why do we need to make special handling for
+excluding kswapd0 at
+
+	while (unlikely(too_many_isolated(zone, file, sc))) {
+		congestion_wait(BLK_RW_ASYNC, HZ/10);
+
+		/* We are about to die and free our memory. Return now. */
+		if (fatal_signal_pending(current))
+			return SWAP_CLUSTER_MAX;
+	}
+
+loop inside shrink_inactive_list() ?
+
+I can't understand the difference between "kswapd0 sleeping forever at
+too_many_isolated() loop inside shrink_inactive_list()" and "kswapd0
+sleeping forever at mutex_lock() inside xfs_reclaim_inodes_ag()".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
