@@ -1,34 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 36D5A6B006C
-	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 13:49:33 -0500 (EST)
-Received: by qgdz107 with SMTP id z107so1209311qgd.4
-        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 10:49:33 -0800 (PST)
-Received: from resqmta-ch2-05v.sys.comcast.net (resqmta-ch2-05v.sys.comcast.net. [2001:558:fe21:29:69:252:207:37])
-        by mx.google.com with ESMTPS id 107si4061436qgp.63.2015.03.04.10.49.32
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id B1F896B006E
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 14:06:42 -0500 (EST)
+Received: by wibhm9 with SMTP id hm9so9888831wib.2
+        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 11:06:42 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id jd11si31187804wic.14.2015.03.04.11.06.40
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Wed, 04 Mar 2015 10:49:32 -0800 (PST)
-Date: Wed, 4 Mar 2015 12:49:31 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCHv4 13/24] mm, vmstats: new THP splitting event
-In-Reply-To: <1425486792-93161-14-git-send-email-kirill.shutemov@linux.intel.com>
-Message-ID: <alpine.DEB.2.11.1503041249150.23719@gentwo.org>
-References: <1425486792-93161-1-git-send-email-kirill.shutemov@linux.intel.com> <1425486792-93161-14-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 04 Mar 2015 11:06:41 -0800 (PST)
+Date: Wed, 4 Mar 2015 14:06:35 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] memcg: make CONFIG_MEMCG depend on CONFIG_MMU
+Message-ID: <20150304190635.GC21350@phnom.home.cmpxchg.org>
+References: <1425492428-27562-1-git-send-email-mhocko@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1425492428-27562-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Chen Gang <762976180@qq.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 4 Mar 2015, Kirill A. Shutemov wrote:
+On Wed, Mar 04, 2015 at 07:07:08PM +0100, Michal Hocko wrote:
+> CONFIG_MEMCG might be currently enabled also for !MMU architectures
+> which was probably an omission because Balbir had this on the TODO
+> list section (https://lkml.org/lkml/2008/3/16/59)
+> "
+> Only when CONFIG_MMU is enabled, is the virtual address space control
+> enabled. Should we do this for nommu cases as well? My suspicion is
+> that we don't have to.
+> "
+> I do not see any traces for !MMU requests after then. The code compiles
+> with !MMU but I haven't heard about anybody using it in the real life
+> so it is not clear to me whether it works and it is usable at all
+> considering how !MMU configuration is restricted.
+> 
+> Let's make CONFIG_MEMCG depend on CONFIG_MMU to make our support
+> explicit and also to get rid of few ifdefs in the code base.
+> 
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
 
-> The patch replaces THP_SPLIT with tree events: THP_SPLIT_PAGE,
-> THP_SPLIT_PAGE_FAILT and THP_SPLIT_PMD. It reflects the fact that we
-> now can split PMD without the compound page and that split_huge_page()
-> can fail.
+Sorry about the misunderstanding, I actually acked Chen's patch.  As I
+said, there is nothing inherent in memcg that would prevent using it
+on NOMMU systems except for this charges-follow-tasks feature, so I'd
+rather fix the compiler warning than adding this dependency.
 
-Acked-by: Christoph Lameter <cl@linux.com>
+Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
