@@ -1,141 +1,222 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 9338B6B007B
-	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 13:07:16 -0500 (EST)
-Received: by wesw62 with SMTP id w62so48059369wes.9
-        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 10:07:16 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id us7si8201030wjc.151.2015.03.04.10.07.14
+Received: from mail-oi0-f50.google.com (mail-oi0-f50.google.com [209.85.218.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 95FA56B007B
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 13:11:27 -0500 (EST)
+Received: by oibg201 with SMTP id g201so7166047oib.10
+        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 10:11:27 -0800 (PST)
+Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
+        by mx.google.com with ESMTPS id j203si2560351oig.48.2015.03.04.10.11.26
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 04 Mar 2015 10:07:15 -0800 (PST)
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH] memcg: make CONFIG_MEMCG depend on CONFIG_MMU
-Date: Wed,  4 Mar 2015 19:07:08 +0100
-Message-Id: <1425492428-27562-1-git-send-email-mhocko@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 04 Mar 2015 10:11:26 -0800 (PST)
+From: Toshi Kani <toshi.kani@hp.com>
+Subject: [PATCH v8-UPDATE 7/7] x86, mm: Add set_memory_wt() for WT
+Date: Wed,  4 Mar 2015 11:10:38 -0700
+Message-Id: <1425492638-338-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Chen Gang <762976180@qq.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Elliott@hp.com, Toshi Kani <toshi.kani@hp.com>
 
-CONFIG_MEMCG might be currently enabled also for !MMU architectures
-which was probably an omission because Balbir had this on the TODO
-list section (https://lkml.org/lkml/2008/3/16/59)
-"
-Only when CONFIG_MMU is enabled, is the virtual address space control
-enabled. Should we do this for nommu cases as well? My suspicion is
-that we don't have to.
-"
-I do not see any traces for !MMU requests after then. The code compiles
-with !MMU but I haven't heard about anybody using it in the real life
-so it is not clear to me whether it works and it is usable at all
-considering how !MMU configuration is restricted.
+This patch adds set_memory_wt(), set_memory_array_wt() and
+set_pages_array_wt() for setting specified range(s) of the
+regular memory to WT.
 
-Let's make CONFIG_MEMCG depend on CONFIG_MMU to make our support
-explicit and also to get rid of few ifdefs in the code base.
-
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
+Signed-off-by: Toshi Kani <toshi.kani@hp.com>
 ---
-Hi Andrew,
-this came out as a result from
-http://marc.info/?l=linux-mm&m=142533566331935 which tries to fix a
-compilation warning when CONFIG_MMU=y && CONFIG_MEMCG.  I think it
-makes more sense to get rid of CONFIG_MMU ifdefs and make MEMCG depend
-on MMU. I am convinced that MEMCG is basically unusable with !MMU and
-it should have depended on MMU since very beginning. Let's do it now.
-We can always revert should there be a reasonable usecase later. That
-would require some additional changes, though (e.g. anon pages should be
-accounted and who knows what else).
+ Documentation/x86/pat.txt         |    9 ++++--
+ arch/x86/include/asm/cacheflush.h |    6 +++-
+ arch/x86/mm/pageattr.c            |   58 +++++++++++++++++++++++++++++++++----
+ 3 files changed, 63 insertions(+), 10 deletions(-)
 
- Documentation/cgroups/memory.txt |  2 --
- init/Kconfig                     |  1 +
- mm/memcontrol.c                  | 24 ------------------------
- 3 files changed, 1 insertion(+), 26 deletions(-)
-
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-index a22df3ad35ff..9111540657d6 100644
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -667,8 +667,6 @@ NOTE2: It is recommended to set the soft limit always below the hard limit,
+diff --git a/Documentation/x86/pat.txt b/Documentation/x86/pat.txt
+index be7b8c2..bf4339c 100644
+--- a/Documentation/x86/pat.txt
++++ b/Documentation/x86/pat.txt
+@@ -46,6 +46,9 @@ set_memory_uc          |    UC-   |    --      |       --         |
+ set_memory_wc          |    WC    |    --      |       --         |
+  set_memory_wb         |          |            |                  |
+                        |          |            |                  |
++set_memory_wt          |    WT    |    --      |       --         |
++ set_memory_wb         |          |            |                  |
++                       |          |            |                  |
+ pci sysfs resource     |    --    |    --      |       UC-        |
+                        |          |            |                  |
+ pci sysfs resource_wc  |    --    |    --      |       WC         |
+@@ -117,8 +120,8 @@ can be more restrictive, in case of any existing aliasing for that address.
+ For example: If there is an existing uncached mapping, a new ioremap_wc can
+ return uncached mapping in place of write-combine requested.
  
- Users can move charges associated with a task along with task migration, that
- is, uncharge task's pages from the old cgroup and charge them to the new cgroup.
--This feature is not supported in !CONFIG_MMU environments because of lack of
--page tables.
+-set_memory_[uc|wc] and set_memory_wb should be used in pairs, where driver will
+-first make a region uc or wc and switch it back to wb after use.
++set_memory_[uc|wc|wt] and set_memory_wb should be used in pairs, where driver
++will first make a region uc, wc or wt and switch it back to wb after use.
  
- 8.1 Interface
+ Over time writes to /proc/mtrr will be deprecated in favor of using PAT based
+ interfaces. Users writing to /proc/mtrr are suggested to use above interfaces.
+@@ -126,7 +129,7 @@ interfaces. Users writing to /proc/mtrr are suggested to use above interfaces.
+ Drivers should use ioremap_[uc|wc] to access PCI BARs with [uc|wc] access
+ types.
  
-diff --git a/init/Kconfig b/init/Kconfig
-index 9afb971497f4..b16f77fbd050 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -979,6 +979,7 @@ config MEMCG
- 	bool "Memory Resource Controller for Control Groups"
- 	select PAGE_COUNTER
- 	select EVENTFD
-+	depends on MMU
- 	help
- 	  Provides a memory resource controller that manages both anonymous
- 	  memory and page cache. (See Documentation/cgroups/memory.txt)
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 0c86945bcc9a..1c4bb9c6227e 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3467,7 +3467,6 @@ static u64 mem_cgroup_move_charge_read(struct cgroup_subsys_state *css,
- 	return mem_cgroup_from_css(css)->move_charge_at_immigrate;
- }
+-Drivers should use set_memory_[uc|wc] to set access type for RAM ranges.
++Drivers should use set_memory_[uc|wc|wt] to set access type for RAM ranges.
  
--#ifdef CONFIG_MMU
- static int mem_cgroup_move_charge_write(struct cgroup_subsys_state *css,
- 					struct cftype *cft, u64 val)
- {
-@@ -3485,13 +3484,6 @@ static int mem_cgroup_move_charge_write(struct cgroup_subsys_state *css,
- 	memcg->move_charge_at_immigrate = val;
- 	return 0;
- }
--#else
--static int mem_cgroup_move_charge_write(struct cgroup_subsys_state *css,
--					struct cftype *cft, u64 val)
--{
--	return -ENOSYS;
--}
--#endif
  
- #ifdef CONFIG_NUMA
- static int memcg_numa_stat_show(struct seq_file *m, void *v)
-@@ -4676,7 +4668,6 @@ static void mem_cgroup_css_reset(struct cgroup_subsys_state *css)
- 	memcg->soft_limit = PAGE_COUNTER_MAX;
- }
+ PAT debugging
+diff --git a/arch/x86/include/asm/cacheflush.h b/arch/x86/include/asm/cacheflush.h
+index 47c8e32..b6f7457 100644
+--- a/arch/x86/include/asm/cacheflush.h
++++ b/arch/x86/include/asm/cacheflush.h
+@@ -8,7 +8,7 @@
+ /*
+  * The set_memory_* API can be used to change various attributes of a virtual
+  * address range. The attributes include:
+- * Cachability   : UnCached, WriteCombining, WriteBack
++ * Cachability   : UnCached, WriteCombining, WriteThrough, WriteBack
+  * Executability : eXeutable, NoteXecutable
+  * Read/Write    : ReadOnly, ReadWrite
+  * Presence      : NotPresent
+@@ -35,9 +35,11 @@
  
--#ifdef CONFIG_MMU
- /* Handlers for move charge at task migration. */
- static int mem_cgroup_do_precharge(unsigned long count)
- {
-@@ -5209,21 +5200,6 @@ static void mem_cgroup_move_task(struct cgroup_subsys_state *css,
- 	if (mc.to)
- 		mem_cgroup_clear_mc();
- }
--#else	/* !CONFIG_MMU */
--static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
--				 struct cgroup_taskset *tset)
--{
--	return 0;
--}
--static void mem_cgroup_cancel_attach(struct cgroup_subsys_state *css,
--				     struct cgroup_taskset *tset)
--{
--}
--static void mem_cgroup_move_task(struct cgroup_subsys_state *css,
--				 struct cgroup_taskset *tset)
--{
--}
--#endif
+ int _set_memory_uc(unsigned long addr, int numpages);
+ int _set_memory_wc(unsigned long addr, int numpages);
++int _set_memory_wt(unsigned long addr, int numpages);
+ int _set_memory_wb(unsigned long addr, int numpages);
+ int set_memory_uc(unsigned long addr, int numpages);
+ int set_memory_wc(unsigned long addr, int numpages);
++int set_memory_wt(unsigned long addr, int numpages);
+ int set_memory_wb(unsigned long addr, int numpages);
+ int set_memory_x(unsigned long addr, int numpages);
+ int set_memory_nx(unsigned long addr, int numpages);
+@@ -48,10 +50,12 @@ int set_memory_4k(unsigned long addr, int numpages);
+ 
+ int set_memory_array_uc(unsigned long *addr, int addrinarray);
+ int set_memory_array_wc(unsigned long *addr, int addrinarray);
++int set_memory_array_wt(unsigned long *addr, int addrinarray);
+ int set_memory_array_wb(unsigned long *addr, int addrinarray);
+ 
+ int set_pages_array_uc(struct page **pages, int addrinarray);
+ int set_pages_array_wc(struct page **pages, int addrinarray);
++int set_pages_array_wt(struct page **pages, int addrinarray);
+ int set_pages_array_wb(struct page **pages, int addrinarray);
  
  /*
-  * Cgroup retains root cgroups across [un]mount cycles making it necessary
--- 
-2.1.4
+diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+index 1965fc8..2bd054e 100644
+--- a/arch/x86/mm/pageattr.c
++++ b/arch/x86/mm/pageattr.c
+@@ -1504,12 +1504,10 @@ EXPORT_SYMBOL(set_memory_uc);
+ static int _set_memory_array(unsigned long *addr, int addrinarray,
+ 		enum page_cache_mode new_type)
+ {
++	enum page_cache_mode set_type;
+ 	int i, j;
+ 	int ret;
+ 
+-	/*
+-	 * for now UC MINUS. see comments in ioremap_nocache()
+-	 */
+ 	for (i = 0; i < addrinarray; i++) {
+ 		ret = reserve_memtype(__pa(addr[i]), __pa(addr[i]) + PAGE_SIZE,
+ 					new_type, NULL);
+@@ -1517,9 +1515,12 @@ static int _set_memory_array(unsigned long *addr, int addrinarray,
+ 			goto out_free;
+ 	}
+ 
++	/* If WC, set to UC- first and then WC */
++	set_type = (new_type == _PAGE_CACHE_MODE_WC) ?
++				_PAGE_CACHE_MODE_UC_MINUS : new_type;
++
+ 	ret = change_page_attr_set(addr, addrinarray,
+-				   cachemode2pgprot(_PAGE_CACHE_MODE_UC_MINUS),
+-				   1);
++				   cachemode2pgprot(set_type), 1);
+ 
+ 	if (!ret && new_type == _PAGE_CACHE_MODE_WC)
+ 		ret = change_page_attr_set_clr(addr, addrinarray,
+@@ -1551,6 +1552,12 @@ int set_memory_array_wc(unsigned long *addr, int addrinarray)
+ }
+ EXPORT_SYMBOL(set_memory_array_wc);
+ 
++int set_memory_array_wt(unsigned long *addr, int addrinarray)
++{
++	return _set_memory_array(addr, addrinarray, _PAGE_CACHE_MODE_WT);
++}
++EXPORT_SYMBOL_GPL(set_memory_array_wt);
++
+ int _set_memory_wc(unsigned long addr, int numpages)
+ {
+ 	int ret;
+@@ -1591,6 +1598,34 @@ out_err:
+ }
+ EXPORT_SYMBOL(set_memory_wc);
+ 
++int _set_memory_wt(unsigned long addr, int numpages)
++{
++	return change_page_attr_set(&addr, numpages,
++				    cachemode2pgprot(_PAGE_CACHE_MODE_WT), 0);
++}
++
++int set_memory_wt(unsigned long addr, int numpages)
++{
++	int ret;
++
++	ret = reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
++			      _PAGE_CACHE_MODE_WT, NULL);
++	if (ret)
++		goto out_err;
++
++	ret = _set_memory_wt(addr, numpages);
++	if (ret)
++		goto out_free;
++
++	return 0;
++
++out_free:
++	free_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
++out_err:
++	return ret;
++}
++EXPORT_SYMBOL_GPL(set_memory_wt);
++
+ int _set_memory_wb(unsigned long addr, int numpages)
+ {
+ 	/* WB cache mode is hard wired to all cache attribute bits being 0 */
+@@ -1683,6 +1718,7 @@ static int _set_pages_array(struct page **pages, int addrinarray,
+ {
+ 	unsigned long start;
+ 	unsigned long end;
++	enum page_cache_mode set_type;
+ 	int i;
+ 	int free_idx;
+ 	int ret;
+@@ -1696,8 +1732,12 @@ static int _set_pages_array(struct page **pages, int addrinarray,
+ 			goto err_out;
+ 	}
+ 
++	/* If WC, set to UC- first and then WC */
++	set_type = (new_type == _PAGE_CACHE_MODE_WC) ?
++				_PAGE_CACHE_MODE_UC_MINUS : new_type;
++
+ 	ret = cpa_set_pages_array(pages, addrinarray,
+-			cachemode2pgprot(_PAGE_CACHE_MODE_UC_MINUS));
++				  cachemode2pgprot(set_type));
+ 	if (!ret && new_type == _PAGE_CACHE_MODE_WC)
+ 		ret = change_page_attr_set_clr(NULL, addrinarray,
+ 					       cachemode2pgprot(
+@@ -1731,6 +1771,12 @@ int set_pages_array_wc(struct page **pages, int addrinarray)
+ }
+ EXPORT_SYMBOL(set_pages_array_wc);
+ 
++int set_pages_array_wt(struct page **pages, int addrinarray)
++{
++	return _set_pages_array(pages, addrinarray, _PAGE_CACHE_MODE_WT);
++}
++EXPORT_SYMBOL_GPL(set_pages_array_wt);
++
+ int set_pages_wb(struct page *page, int numpages)
+ {
+ 	unsigned long addr = (unsigned long)page_address(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
