@@ -1,102 +1,209 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 05DBE6B0038
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 23:13:52 -0500 (EST)
-Received: by padet14 with SMTP id et14so33432513pad.0
-        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 20:13:51 -0800 (PST)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id sp8si3425306pac.126.2015.03.03.20.13.50
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id D17F66B0038
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 00:00:42 -0500 (EST)
+Received: by pabli10 with SMTP id li10so30337735pab.2
+        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 21:00:42 -0800 (PST)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id ff2si3565120pab.111.2015.03.03.21.00.40
         for <linux-mm@kvack.org>;
-        Tue, 03 Mar 2015 20:13:51 -0800 (PST)
-Message-ID: <54F68270.5000203@cn.fujitsu.com>
-Date: Wed, 4 Mar 2015 11:56:32 +0800
-From: Gu Zheng <guz.fnst@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: node-hotplug: is memset 0 safe in try_offline_node()?
-References: <54F52ACF.4030103@huawei.com> <54F58AE3.50101@cn.fujitsu.com> <54F66C52.4070600@huawei.com> <54F67376.8050001@huawei.com>
-In-Reply-To: <54F67376.8050001@huawei.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+        Tue, 03 Mar 2015 21:00:41 -0800 (PST)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH v2 2/7] zsmalloc: factor out obj_[malloc|free]
+Date: Wed,  4 Mar 2015 14:01:27 +0900
+Message-Id: <1425445292-29061-3-git-send-email-minchan@kernel.org>
+In-Reply-To: <1425445292-29061-1-git-send-email-minchan@kernel.org>
+References: <1425445292-29061-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Yinghai Lu <yinghai@kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Toshi Kani <toshi.kani@hp.com>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Li Zefan <lizefan@huawei.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Juneho Choi <juno.choi@lge.com>, Gunho Lee <gunho.lee@lge.com>, Luigi Semenzato <semenzato@google.com>, Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjennings@variantweb.net>, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, opensource.ganesh@gmail.com, Minchan Kim <minchan@kernel.org>
 
-Hi Xishi,
-On 03/04/2015 10:52 AM, Xishi Qiu wrote:
+In later patch, migration needs some part of functions in
+zs_malloc and zs_free so this patch factor out them.
 
-> On 2015/3/4 10:22, Xishi Qiu wrote:
->=20
->> On 2015/3/3 18:20, Gu Zheng wrote:
->>
->>> Hi Xishi,
->>> On 03/03/2015 11:30 AM, Xishi Qiu wrote:
->>>
->>>> When hot-remove a numa node, we will clear pgdat,
->>>> but is memset 0 safe in try_offline_node()?
->>>
->>> It is not safe here. In fact, this is a temporary solution here.
->>> As you know, pgdat is accessed lock-less now, so protection
->>> mechanism (RCU=EF=BC=9F) is needed to make it completely safe here,
->>> but it seems a bit over-kill.
->>>
->=20
-> Hi Gu,
->=20
-> Can we just remove "memset(pgdat, 0, sizeof(*pgdat));" ?
-> I find this will be fine in the stress test except the warning=20
-> when hot-add memory.
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ mm/zsmalloc.c | 99 ++++++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 61 insertions(+), 38 deletions(-)
 
-As you see, it will trigger the warning in free_area_init_node().
-Could you try the following patch? It will reset the pgdat before reuse it.
-
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 1778628..0717649 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1092,6 +1092,9 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64=
- start)
-                        return NULL;
-=20
-                arch_refresh_nodedata(nid, pgdat);
-+       } else {
-+               /* Reset the pgdat to reuse */
-+               memset(pgdat, 0, sizeof(*pgdat));
-        }
-=20
-        /* we can use NODE_DATA(nid) from here */
-@@ -2021,15 +2024,6 @@ void try_offline_node(int nid)
-=20
-        /* notify that the node is down */
-        call_node_notify(NODE_DOWN, (void *)(long)nid);
--
--       /*
--        * Since there is no way to guarentee the address of pgdat/zone is =
-not
--        * on stack of any kernel threads or used by other kernel objects
--        * without reference counting or other symchronizing method, do not
--        * reset node_data and free pgdat here. Just reset it to 0 and reus=
-e
--        * the memory when the node is online again.
--        */
--       memset(pgdat, 0, sizeof(*pgdat));
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 2df2f1b08aaa..e52b1b6f5535 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -525,11 +525,10 @@ static void remove_zspage(struct page *page, struct size_class *class,
+  * page from the freelist of the old fullness group to that of the new
+  * fullness group.
+  */
+-static enum fullness_group fix_fullness_group(struct zs_pool *pool,
++static enum fullness_group fix_fullness_group(struct size_class *class,
+ 						struct page *page)
+ {
+ 	int class_idx;
+-	struct size_class *class;
+ 	enum fullness_group currfg, newfg;
+ 
+ 	BUG_ON(!is_first_page(page));
+@@ -539,7 +538,6 @@ static enum fullness_group fix_fullness_group(struct zs_pool *pool,
+ 	if (newfg == currfg)
+ 		goto out;
+ 
+-	class = pool->size_class[class_idx];
+ 	remove_zspage(page, class, currfg);
+ 	insert_zspage(page, class, newfg);
+ 	set_zspage_mapping(page, class_idx, newfg);
+@@ -1281,6 +1279,33 @@ void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
  }
- EXPORT_SYMBOL(try_offline_node);
-=20
-
->=20
-> Thanks,
-> Xishi Qiu
->=20
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" i=
-n
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> .
->=20
-
+ EXPORT_SYMBOL_GPL(zs_unmap_object);
+ 
++static unsigned long obj_malloc(struct page *first_page,
++		struct size_class *class, unsigned long handle)
++{
++	unsigned long obj;
++	struct link_free *link;
++
++	struct page *m_page;
++	unsigned long m_objidx, m_offset;
++	void *vaddr;
++
++	obj = (unsigned long)first_page->freelist;
++	obj_to_location(obj, &m_page, &m_objidx);
++	m_offset = obj_idx_to_offset(m_page, m_objidx, class->size);
++
++	vaddr = kmap_atomic(m_page);
++	link = (struct link_free *)vaddr + m_offset / sizeof(*link);
++	first_page->freelist = link->next;
++	/* record handle in the header of allocated chunk */
++	link->handle = handle;
++	kunmap_atomic(vaddr);
++	first_page->inuse++;
++	zs_stat_inc(class, OBJ_USED, 1);
++
++	return obj;
++}
++
++
+ /**
+  * zs_malloc - Allocate block of given size from pool.
+  * @pool: pool to allocate from
+@@ -1293,12 +1318,8 @@ EXPORT_SYMBOL_GPL(zs_unmap_object);
+ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+ {
+ 	unsigned long handle, obj;
+-	struct link_free *link;
+ 	struct size_class *class;
+-	void *vaddr;
+-
+-	struct page *first_page, *m_page;
+-	unsigned long m_objidx, m_offset;
++	struct page *first_page;
+ 
+ 	if (unlikely(!size || (size + ZS_HANDLE_SIZE) > ZS_MAX_ALLOC_SIZE))
+ 		return 0;
+@@ -1331,22 +1352,9 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+ 				class->size, class->pages_per_zspage));
+ 	}
+ 
+-	obj = (unsigned long)first_page->freelist;
+-	obj_to_location(obj, &m_page, &m_objidx);
+-	m_offset = obj_idx_to_offset(m_page, m_objidx, class->size);
+-
+-	vaddr = kmap_atomic(m_page);
+-	link = (struct link_free *)vaddr + m_offset / sizeof(*link);
+-	first_page->freelist = link->next;
+-
+-	/* record handle in the header of allocated chunk */
+-	link->handle = handle;
+-	kunmap_atomic(vaddr);
+-
+-	first_page->inuse++;
+-	zs_stat_inc(class, OBJ_USED, 1);
++	obj = obj_malloc(first_page, class, handle);
+ 	/* Now move the zspage to another fullness group, if required */
+-	fix_fullness_group(pool, first_page);
++	fix_fullness_group(class, first_page);
+ 	record_obj(handle, obj);
+ 	spin_unlock(&class->lock);
+ 
+@@ -1354,46 +1362,61 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+ }
+ EXPORT_SYMBOL_GPL(zs_malloc);
+ 
+-void zs_free(struct zs_pool *pool, unsigned long handle)
++static void obj_free(struct zs_pool *pool, struct size_class *class,
++			unsigned long obj)
+ {
+ 	struct link_free *link;
+ 	struct page *first_page, *f_page;
+-	unsigned long obj, f_objidx, f_offset;
++	unsigned long f_objidx, f_offset;
+ 	void *vaddr;
+-
+ 	int class_idx;
+-	struct size_class *class;
+ 	enum fullness_group fullness;
+ 
+-	if (unlikely(!handle))
+-		return;
++	BUG_ON(!obj);
+ 
+-	obj = handle_to_obj(handle);
+-	free_handle(pool, handle);
+ 	obj_to_location(obj, &f_page, &f_objidx);
+ 	first_page = get_first_page(f_page);
+ 
+ 	get_zspage_mapping(first_page, &class_idx, &fullness);
+-	class = pool->size_class[class_idx];
+ 	f_offset = obj_idx_to_offset(f_page, f_objidx, class->size);
+ 
+-	spin_lock(&class->lock);
++	vaddr = kmap_atomic(f_page);
+ 
+ 	/* Insert this object in containing zspage's freelist */
+-	vaddr = kmap_atomic(f_page);
+ 	link = (struct link_free *)(vaddr + f_offset);
+ 	link->next = first_page->freelist;
+ 	kunmap_atomic(vaddr);
+ 	first_page->freelist = (void *)obj;
+-
+ 	first_page->inuse--;
+-	fullness = fix_fullness_group(pool, first_page);
+-
+ 	zs_stat_dec(class, OBJ_USED, 1);
++}
++
++void zs_free(struct zs_pool *pool, unsigned long handle)
++{
++	struct page *first_page, *f_page;
++	unsigned long obj, f_objidx;
++
++	int class_idx;
++	struct size_class *class;
++	enum fullness_group fullness;
++
++	if (unlikely(!handle))
++		return;
++
++	obj = handle_to_obj(handle);
++	free_handle(pool, handle);
++	obj_to_location(obj, &f_page, &f_objidx);
++	first_page = get_first_page(f_page);
++
++	get_zspage_mapping(first_page, &class_idx, &fullness);
++	class = pool->size_class[class_idx];
++
++	spin_lock(&class->lock);
++	obj_free(pool, class, obj);
++	fullness = fix_fullness_group(class, first_page);
+ 	if (fullness == ZS_EMPTY)
+ 		zs_stat_dec(class, OBJ_ALLOCATED, get_maxobj_per_zspage(
+ 				class->size, class->pages_per_zspage));
+-
+ 	spin_unlock(&class->lock);
+ 
+ 	if (fullness == ZS_EMPTY) {
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
