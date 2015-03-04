@@ -1,130 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 22B216B006C
-	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 07:52:53 -0500 (EST)
-Received: by pablj1 with SMTP id lj1so24110971pab.10
-        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 04:52:52 -0800 (PST)
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DF476B0038
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 08:25:20 -0500 (EST)
+Received: by pabrd3 with SMTP id rd3so9554949pab.5
+        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 05:25:19 -0800 (PST)
 Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id uw4si4905983pac.154.2015.03.04.04.52.50
+        by mx.google.com with ESMTP id nm4si5153186pdb.73.2015.03.04.05.25.17
         for <linux-mm@kvack.org>;
-        Wed, 04 Mar 2015 04:52:51 -0800 (PST)
-Date: Wed, 4 Mar 2015 23:52:46 +1100
+        Wed, 04 Mar 2015 05:25:18 -0800 (PST)
+Date: Thu, 5 Mar 2015 00:25:14 +1100
 From: Dave Chinner <david@fromorbit.com>
 Subject: Re: How to handle TIF_MEMDIE stalls?
-Message-ID: <20150304125246.GT18360@dastard>
-References: <201502172123.JIE35470.QOLMVOFJSHOFFt@I-love.SAKURA.ne.jp>
- <20150217125315.GA14287@phnom.home.cmpxchg.org>
- <20150217225430.GJ4251@dastard>
- <20150219102431.GA15569@phnom.home.cmpxchg.org>
- <20150219225217.GY12722@dastard>
- <20150221235227.GA25079@phnom.home.cmpxchg.org>
- <20150223004521.GK12722@dastard>
- <20150302151832.GE26334@dhcp22.suse.cz>
- <20150302163913.GL3287@thunk.org>
- <20150302165823.GH26334@dhcp22.suse.cz>
+Message-ID: <20150304132514.GW4251@dastard>
+References: <20150224210244.GA13666@dastard>
+ <201502252331.IEJ78629.OOOFSLFMHQtFVJ@I-love.SAKURA.ne.jp>
+ <20150227073949.GJ4251@dastard>
+ <201502272142.BFJ09388.OLOMFFFVSQJOtH@I-love.SAKURA.ne.jp>
+ <20150227131209.GK4251@dastard>
+ <201503042141.FIC48980.OFFtVSQFOOMHJL@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150302165823.GH26334@dhcp22.suse.cz>
+In-Reply-To: <201503042141.FIC48980.OFFtVSQFOOMHJL@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Theodore Ts'o <tytso@mit.edu>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, xfs@oss.sgi.com
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: tytso@mit.edu, rientjes@google.com, hannes@cmpxchg.org, mhocko@suse.cz, dchinner@redhat.com, linux-mm@kvack.org, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, fernando_b1@lab.ntt.co.jp
 
-On Mon, Mar 02, 2015 at 05:58:23PM +0100, Michal Hocko wrote:
-> On Mon 02-03-15 11:39:13, Theodore Ts'o wrote:
-> > On Mon, Mar 02, 2015 at 04:18:32PM +0100, Michal Hocko wrote:
-> > > The idea is sound. But I am pretty sure we will find many corner
-> > > cases. E.g. what if the mere reservation attempt causes the system
-> > > to go OOM and trigger the OOM killer?
+On Wed, Mar 04, 2015 at 09:41:01PM +0900, Tetsuo Handa wrote:
+> Dave Chinner wrote:
+> > On Fri, Feb 27, 2015 at 09:42:55PM +0900, Tetsuo Handa wrote:
+> > > If kswapd0 is blocked forever at e.g. mutex_lock() inside shrinker
+> > > functions, who else can make forward progress?
 > > 
-> > Doctor, doctor, it hurts when I do that....
+> > You can't get into these filesystem shrinkers when you do GFP_NOIO
+> > allocations, as the IO path does.
 > > 
-> > So don't trigger the OOM killer.  We can let the caller decide whether
-> > the reservation request should block or return ENOMEM, but the whole
-> > point of the reservation request idea is that this happens *before*
-> > we've taken any mutexes, so blocking won't prevent forward progress.
+> > > Shouldn't we avoid calling functions which could potentially block for
+> > > unpredictable duration (e.g. unkillable locks and/or completion) from
+> > > shrinker functions?
+> > 
+> > No, because otherwise we can't throttle allocation and reclaim to
+> > the rate at which IO can clean dirty objects. i.e. we do this for
+> > the same reason we throttle page cache dirtying to the rate at which
+> > we can clean dirty pages....
 > 
-> Maybe I wasn't clear. I wasn't concerned about the context which
-> is doing to reservation. I was more concerned about all the other
-> allocation requests which might fail now (becasuse they do not have
-> access to the reserves). So you think that we should simply disable OOM
-> killer while there is any reservation active? Wouldn't that be even more
-> fragile when something goes terribly wrong?
+> I'm misunderstanding something. The description for kswapd() function
+> in mm/vmscan.c says "This basically trickles out pages so that we have
+> _some_ free memory available even if there is no other activity that frees
+> anything up".
 
-That's a silly strawman.  Why wouldn't you simply block them until
-the reserves are released when the transaction completes and the
-unused memory goes back to the free pool?
+Sure.
 
-Let me try another tack. My qualifications are as a
-distributed control system engineer, not a computer scientist. I
-see everything as a system of interconnected feedback loops: an
-operating system is nothing but a set of very complex, tightly
-interconnected control systems.
+> Forever blocking kswapd0 somewhere inside filesystem shrinker functions is
+> equivalent with removing kswapd() function because it also prevents non
+> filesystem shrinker functions from being called by kswapd0, doesn't it?
 
-Precedence? IO-less dirty throttling - that came about after I'd
-been advocating a control theory based algorithm for several years
-to solve the breakdown problems of dirty page throttling.  We look
-at the code Fenguang Wu wrote as one of the major success stories of
-Linux - the writeback code just works and nobody ever has to tune it
-anymore.
+Yes, but that's not intentional. Remember, we keep talking about the
+filesystem not being able to guarantee forwards progress if
+allocations block forever? Well...
 
-I see the problem of direct memory reclaim as being very similar to
-the problems the old IO based write throttling had: it has unbound
-concurrency, severe unfairness and breaks down badly when heavily
-loaded.  As a control system, it has the same terrible design
-as the IO-based write throttling had.
+> Then, the description will become "We won't have _some_ free memory available
+> if there is no other activity that frees anything up", won't it?
 
-There are other many similarities, too.
+... we've ended up blocking kswapd because it's waiting on a journal
+commit to complete, and that journal commit is blocked waiting for
+forwards progress in memory allocation...
 
-Allocation can only take place at the rate at which reclaim occurs,
-and we only have a limited budget of allocatable pages. This is the
-same as the dirty page throttling - dirtying pages is limited to the
-rate we can clean pages, and there are a limited budget of dirty
-pages in the system.
+Yes, it's another one of those nasty dependencies I keep pointing
+out that filesystems have, and that can only be solved by
+guaranteeing we can always make forwards allocation progress from
+transaction reserve to transaction commit.
 
-Reclaiming pages is also done most efficiently by a single thread
-per zone where lots of internal context can be kept (kswapd). This
-is similar to optimal writeback of dirty pages requires a
-single thread with internal context per block device..
+> Does kswapd0 exist only for reducing the delay caused by reclaiming
+> synchronously? Disabling kswapd0 affects nothing about functionality?
+> The system can make forward progress even if nobody can call non filesystem
+> shrinkers, can't it?
 
-Waiting for free pages to arrive can be done by an ordered queuing
-system, and we can account for the number of pages each allocation
-requires in the queueing system and hence only need wake the number
-of waiters that will consume the memory just freed. Just like we do
-with the the dirty page throttling queue.
+The throttling is required to control the unbound parallelism of
+direct reclaim. If we don't do this, inode cache reclaim causes
+random inode writeback and thrashes the disks with random IO,
+causing severe degradation in performance under heavy memory
+pressure. So we throttle inode reclaim to a single thread per AG so
+we get nice sequential IO patterns from inode cache reclaim - the
+difference is that we can reclaim several hundred thousand dirty
+inodes per second versus a few hundred...
 
-As such, the same solutions could be applied. As the allocation
-demand exceeds the supply of free pages, we throttle allocation by
-sleeping on an ordered queue and only waking waiters at the rate
-at which kswapd reclaim can free pages. It's trivial to account
-accurately, and the feedback loop is relatively simple, too.
+And because memory allocation is bound by reclaim speed, we throttle
+the direct reclaimers to prevent IO breakdown conditions from
+occurring and hence keep performance under memory pressure
+relatively high and mostly predictable.
 
-We can also easily maintain a reserve of free pages this way, usable
-only by allocation marked with special flags.  The reserve threshold
-can be dynamic, and tasks that request it to change can be blocked
-until the reserve has been built up to meet caler requirements.
-Allocations that are allowed to dip into the reserve may do so
-rather than being added to the queue that waits for reclaim.
+It's rare that kswapd actually gets stuck like this - I've only ever
+seen it once, and I've never had anyone running a production system
+report deadlocks like this...
 
-Reclaim would always fill the reserve back up to it's limits first,
-and tasks that have reservations can release them gradually as they
-mark them as consumed by the reservation context (e.g. when a
-filesystem joins an object to a transaction and modifies it),
-thereby reducing the reserve that task has available as it
-progresses.
+> I can't understand the difference between "kswapd0 sleeping forever at
+> too_many_isolated() loop inside shrink_inactive_list()" and "kswapd0
+> sleeping forever at mutex_lock() inside xfs_reclaim_inodes_ag()".
 
-So, there's yet another possible solution to the allocation
-reservation problem, and one that solves several other problems that
-are being described as making reservation pools difficult or even
-impossible to implement.
+I don't really care.
 
-Seriously, I'm not expecting this problem to be solved tomorrow;
-what I want is reliable, deterministic memory allocation behaviour
-from the mm subsystem. I want people to be thinking about how to
-acheive that rather than limiting their solutions by what we have
-now and can hack into the current code, because otherwise we'll
-never end up with a reliable memory allocation reservation system....
+The direct reclaim behaviour is a much bigger problem, and the risk
+of occasionally having problems with kswapd is miniscule in
+comparison. Sure, you can provoke it, but unless you are intentially
+doing nasty things to production systems, it will never be a problem
+that you trip over.
+
+We can't solve every problem with the current memory
+allcoatin/reclaim design - we've chosen the lesser evil here, and
+we're going to have to live with it until we get a more robust
+memory allocation subsystem implementation.
 
 Cheers,
 
