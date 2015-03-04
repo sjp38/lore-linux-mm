@@ -1,142 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id CAF256B0038
-	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 01:53:08 -0500 (EST)
-Received: by pabli10 with SMTP id li10so31072830pab.2
-        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 22:53:08 -0800 (PST)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id ni7si3776999pdb.166.2015.03.03.22.53.06
-        for <linux-mm@kvack.org>;
-        Tue, 03 Mar 2015 22:53:07 -0800 (PST)
-Date: Wed, 4 Mar 2015 17:52:42 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: How to handle TIF_MEMDIE stalls?
-Message-ID: <20150304065242.GR18360@dastard>
-References: <20150217225430.GJ4251@dastard>
- <20150219102431.GA15569@phnom.home.cmpxchg.org>
- <20150219225217.GY12722@dastard>
- <20150221235227.GA25079@phnom.home.cmpxchg.org>
- <20150223004521.GK12722@dastard>
- <20150222172930.6586516d.akpm@linux-foundation.org>
- <20150223073235.GT4251@dastard>
- <20150302202228.GA15089@phnom.home.cmpxchg.org>
- <20150302231206.GK18360@dastard>
- <20150303025023.GA22453@phnom.home.cmpxchg.org>
+Received: from mail-oi0-f49.google.com (mail-oi0-f49.google.com [209.85.218.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 34C866B0038
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 02:02:40 -0500 (EST)
+Received: by oifu20 with SMTP id u20so4057245oif.11
+        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 23:02:40 -0800 (PST)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id e7si1647219obo.17.2015.03.03.23.02.31
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 03 Mar 2015 23:02:39 -0800 (PST)
+Message-ID: <54F6ADD2.3080403@huawei.com>
+Date: Wed, 4 Mar 2015 15:01:38 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150303025023.GA22453@phnom.home.cmpxchg.org>
+Subject: Re: node-hotplug: is memset 0 safe in try_offline_node()?
+References: <54F52ACF.4030103@huawei.com> <54F58AE3.50101@cn.fujitsu.com> <54F66C52.4070600@huawei.com> <54F681A7.4050203@cn.fujitsu.com>
+In-Reply-To: <54F681A7.4050203@cn.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@suse.cz, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, mgorman@suse.de, torvalds@linux-foundation.org, xfs@oss.sgi.com
+To: Gu Zheng <guz.fnst@cn.fujitsu.com>
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Yinghai Lu <yinghai@kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Toshi Kani <toshi.kani@hp.com>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
 
-On Mon, Mar 02, 2015 at 09:50:23PM -0500, Johannes Weiner wrote:
-> On Tue, Mar 03, 2015 at 10:12:06AM +1100, Dave Chinner wrote:
-> > On Mon, Mar 02, 2015 at 03:22:28PM -0500, Johannes Weiner wrote:
-> > > On Mon, Feb 23, 2015 at 06:32:35PM +1100, Dave Chinner wrote:
-> > > > On Sun, Feb 22, 2015 at 05:29:30PM -0800, Andrew Morton wrote:
-> > > > > When allocating pages the caller should drain its reserves in
-> > > > > preference to dipping into the regular freelist.  This guy has already
-> > > > > done his reclaim and shouldn't be penalised a second time.  I guess
-> > > > > Johannes's preallocation code should switch to doing this for the same
-> > > > > reason, plus the fact that snipping a page off
-> > > > > task_struct.prealloc_pages is super-fast and needs to be done sometime
-> > > > > anyway so why not do it by default.
-> > > > 
-> > > > That is at odds with the requirements of demand paging, which
-> > > > allocate for objects that are reclaimable within the course of the
-> > > > transaction. The reserve is there to ensure forward progress for
-> > > > allocations for objects that aren't freed until after the
-> > > > transaction completes, but if we drain it for reclaimable objects we
-> > > > then have nothing left in the reserve pool when we actually need it.
-> > > >
-> > > > We do not know ahead of time if the object we are allocating is
-> > > > going to modified and hence locked into the transaction. Hence we
-> > > > can't say "use the reserve for this *specific* allocation", and so
-> > > > the only guidance we can really give is "we will to allocate and
-> > > > *permanently consume* this much memory", and the reserve pool needs
-> > > > to cover that consumption to guarantee forwards progress.
-> > > > 
-> > > > Forwards progress for all other allocations is guaranteed because
-> > > > they are reclaimable objects - they either freed directly back to
-> > > > their source (slab, heap, page lists) or they are freed by shrinkers
-> > > > once they have been released from the transaction.
-> > > > 
-> > > > Hence we need allocations to come from the free list and trigger
-> > > > reclaim, regardless of the fact there is a reserve pool there. The
-> > > > reserve pool needs to be a last resort once there are no other
-> > > > avenues to allocate memory. i.e. it would be used to replace the OOM
-> > > > killer for GFP_NOFAIL allocations.
-> > > 
-> > > That won't work.
-> > 
-> > I don't see why not...
-> > 
-> > > Clean cache can be temporarily unavailable and
-> > > off-LRU for several reasons - compaction, migration, pending page
-> > > promotion, other reclaimers.  How often are we trying before we dip
-> > > into the reserve pool?  As you have noticed, the OOM killer goes off
-> > > seemingly prematurely at times, and the reason for that is that we
-> > > simply don't KNOW the exact point when we ran out of reclaimable
-> > > memory.
-> > 
-> > Sure, but that's irrelevant to the problem at hand. At some point,
-> > the Mm subsystem is going to decide "we're at OOM" - it's *what
-> > happens next* that matters.
+On 2015/3/4 11:53, Gu Zheng wrote:
+
+> Hi Xishi,
 > 
-> It's not irrelevant at all.  That point is an arbitrary magic number
-> that is a byproduct of many imlementation details and concurrency in
-> the memory management layer.  It's completely fine to tie allocations
-> which can fail to this point, but you can't reasonably calibrate your
-> emergency reserves, which are supposed to guarantee progress, to such
-> an unpredictable variable.
+> On 03/04/2015 10:22 AM, Xishi Qiu wrote:
 > 
-> When you reserve based on the share of allocations that you know will
-> be unreclaimable, you are assuming that all other allocations will be
-> reclaimable, and that is simply flawed.  There is so much concurrency
-> in the MM subsystem that you can't reasonably expect a single scanner
-> instance to recover the majority of theoretically reclaimable memory.
+>> On 2015/3/3 18:20, Gu Zheng wrote:
+>>
+>>> Hi Xishi,
+>>> On 03/03/2015 11:30 AM, Xishi Qiu wrote:
+>>>
+>>>> When hot-remove a numa node, we will clear pgdat,
+>>>> but is memset 0 safe in try_offline_node()?
+>>>
+>>> It is not safe here. In fact, this is a temporary solution here.
+>>> As you know, pgdat is accessed lock-less now, so protection
+>>> mechanism (RCUi 1/4 ?) is needed to make it completely safe here,
+>>> but it seems a bit over-kill.
+>>>
+>>>>
+>>>> process A:			offline node XX:
+>>>> for_each_populated_zone()
+>>>> find online node XX
+>>>> cond_resched()
+>>>> 				offline cpu and memory, then try_offline_node()
+>>>> 				node_set_offline(nid), and memset(pgdat, 0, sizeof(*pgdat))
+>>>> access node XX's pgdat
+>>>> NULL pointer access error
+>>>
+>>> It's possible, but I did not meet this condition, did you?
+>>>
+>>
+>> Yes, we test hot-add/hot-remove node with stress, and meet the following
+>> call trace several times.
+> 
+> Thanks.
+> 
+>>
+>> 	next_online_pgdat()
+>> 		int nid = next_online_node(pgdat->node_id);  // it's here, pgdat is NULL
+> 
+> 	memset(pgdat, 0, sizeof(*pgdat));
+> This memset just sets the context of pgdat to 0, but it will not free pgdat, so the *pgdat is
+> NULL* is strange here.
+> But anyway, the bug is real, we must fix it.
 
-On one hand you say "memory accounting is unreliable, so detecting
-OOM is unreliable, and so we have an unreliable trigger point.
+next_zone()
+	pg_data_t *pgdat = zone->zone_pgdat;  // I think this pgdat is NULL, and NODE_DATA() is not NULL.
+	...
+	pgdat = next_online_pgdat(pgdat);
+		int nid = next_online_node(pgdat->node_id);  // so here is the null pointer access
 
-On the other hand you say "single scanner instance can't reclaim all
-memory", again stating we have an unreliable trigger point.
+Thanks for your new patch, I'll test it.
 
-On the gripping hand, that unreliable trigger point is what
-kicks the OOM killer.
-
-Yet you consider that point to be reliable enough to kick the OOM
-killer, but too unreliable to trigger allocation from a reserve
-pool?
-
-Say what?
-
-I suspect you've completely misunderstood what I've been suggesting.
-
-By definition, we have the pages we reserved in the reserve pool,
-and unless we've exhausted that reservation with permanent
-allocations we should always be able to allocate from it. If the
-pool got emptied by demand page allocations, then we back off and
-retry reclaim until the reclaimable objects are released back into
-the reserve pool. i.e. reclaim fills reserve pools first, then when
-they are full pages can go back on free lists for normal
-allocations.  This provides the mechanism for forwards progress, and
-it's essentially the same mechanism that mempools use to guarantee
-forwards progess. the only difference is that reserve pool refilling
-comes through reclaim via shrinker invocation...
-
-In reality, though, I don't really care how the mm subsystem
-implements that pool as long as it handles the cases I've described
-(e.g http://oss.sgi.com/archives/xfs/2015-03/msg00039.html). I don't
-think we're making progress here, anyway, so unless you come up with
-some other solution this thread is going to die here....
-
--Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Thanks,
+Xishi Qiu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
