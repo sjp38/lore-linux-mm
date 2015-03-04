@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A5C16B0074
-	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 11:33:35 -0500 (EST)
-Received: by pdjp10 with SMTP id p10so21449129pdj.10
-        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 08:33:35 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id er10si5701484pac.123.2015.03.04.08.33.26
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 9747C6B0074
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 11:33:37 -0500 (EST)
+Received: by pdno5 with SMTP id o5so12140652pdn.12
+        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 08:33:37 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id ks10si5513883pdb.234.2015.03.04.08.33.26
         for <linux-mm@kvack.org>;
-        Wed, 04 Mar 2015 08:33:26 -0800 (PST)
+        Wed, 04 Mar 2015 08:33:27 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 10/24] khugepaged: ignore pmd tables with THP mapped with ptes
-Date: Wed,  4 Mar 2015 18:32:58 +0200
-Message-Id: <1425486792-93161-11-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 05/24] mm, proc: adjust PSS calculation
+Date: Wed,  4 Mar 2015 18:32:53 +0200
+Message-Id: <1425486792-93161-6-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1425486792-93161-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1425486792-93161-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,40 +19,92 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Prepare khugepaged to see compound pages mapped with pte. For now we
-won't collapse the pmd table with such pte.
-
-khugepaged is subject for future rework wrt new refcounting.
+With new refcounting all subpages of the compound page are not nessessary
+have the same mapcount. We need to take into account mapcount of every
+sub-page.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/huge_memory.c | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ fs/proc/task_mmu.c | 43 ++++++++++++++++++++++---------------------
+ 1 file changed, 22 insertions(+), 21 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 36e03eb9aa41..ff1282b1859c 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2747,6 +2747,11 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
- 		page = vm_normal_page(vma, _address, pteval);
- 		if (unlikely(!page))
- 			goto out_unmap;
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 956b75d61809..50acf17538db 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -449,9 +449,10 @@ struct mem_size_stats {
+ };
+ 
+ static void smaps_account(struct mem_size_stats *mss, struct page *page,
+-		unsigned long size, bool young, bool dirty)
++		bool compound, bool young, bool dirty)
+ {
+-	int mapcount;
++	int i, nr = compound ? hpage_nr_pages(page) : 1;
++	unsigned long size = nr << PAGE_SHIFT;
+ 
+ 	if (PageAnon(page))
+ 		mss->anonymous += size;
+@@ -460,23 +461,23 @@ static void smaps_account(struct mem_size_stats *mss, struct page *page,
+ 	/* Accumulate the size in pages that have been accessed. */
+ 	if (young || PageReferenced(page))
+ 		mss->referenced += size;
+-	mapcount = page_mapcount(page);
+-	if (mapcount >= 2) {
+-		u64 pss_delta;
+ 
+-		if (dirty || PageDirty(page))
+-			mss->shared_dirty += size;
+-		else
+-			mss->shared_clean += size;
+-		pss_delta = (u64)size << PSS_SHIFT;
+-		do_div(pss_delta, mapcount);
+-		mss->pss += pss_delta;
+-	} else {
+-		if (dirty || PageDirty(page))
+-			mss->private_dirty += size;
+-		else
+-			mss->private_clean += size;
+-		mss->pss += (u64)size << PSS_SHIFT;
++	for (i = 0; i < nr; i++) {
++		int mapcount = page_mapcount(page + i);
 +
-+		/* TODO: teach khugepaged to collapse THP mapped with pte */
-+		if (PageCompound(page))
-+			goto out_unmap;
++		if (mapcount >= 2) {
++			if (dirty || PageDirty(page + i))
++				mss->shared_dirty += PAGE_SIZE;
++			else
++				mss->shared_clean += PAGE_SIZE;
++			mss->pss += (PAGE_SIZE << PSS_SHIFT) / mapcount;
++		} else {
++			if (dirty || PageDirty(page + i))
++				mss->private_dirty += PAGE_SIZE;
++			else
++				mss->private_clean += PAGE_SIZE;
++			mss->pss += PAGE_SIZE << PSS_SHIFT;
++		}
+ 	}
+ }
+ 
+@@ -500,7 +501,8 @@ static void smaps_pte_entry(pte_t *pte, unsigned long addr,
+ 
+ 	if (!page)
+ 		return;
+-	smaps_account(mss, page, PAGE_SIZE, pte_young(*pte), pte_dirty(*pte));
 +
- 		/*
- 		 * Record which node the original page is from and save this
- 		 * information to khugepaged_node_load[].
-@@ -2757,7 +2762,6 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
- 		if (khugepaged_scan_abort(node))
- 			goto out_unmap;
- 		khugepaged_node_load[node]++;
--		VM_BUG_ON_PAGE(PageCompound(page), page);
- 		if (!PageLRU(page) || PageLocked(page) || !PageAnon(page))
- 			goto out_unmap;
- 		/*
++	smaps_account(mss, page, false, pte_young(*pte), pte_dirty(*pte));
+ }
+ 
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+@@ -516,8 +518,7 @@ static void smaps_pmd_entry(pmd_t *pmd, unsigned long addr,
+ 	if (IS_ERR_OR_NULL(page))
+ 		return;
+ 	mss->anonymous_thp += HPAGE_PMD_SIZE;
+-	smaps_account(mss, page, HPAGE_PMD_SIZE,
+-			pmd_young(*pmd), pmd_dirty(*pmd));
++	smaps_account(mss, page, true, pmd_young(*pmd), pmd_dirty(*pmd));
+ }
+ #else
+ static void smaps_pmd_entry(pmd_t *pmd, unsigned long addr,
 -- 
 2.1.4
 
