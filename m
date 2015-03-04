@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 69DC06B0070
-	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 00:00:48 -0500 (EST)
-Received: by padet14 with SMTP id et14so33728915pad.0
-        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 21:00:48 -0800 (PST)
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C8116B0071
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 00:00:50 -0500 (EST)
+Received: by pdbfl12 with SMTP id fl12so23113806pdb.9
+        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 21:00:50 -0800 (PST)
 Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id w17si3511386pdi.141.2015.03.03.21.00.42
+        by mx.google.com with ESMTP id db5si3573955pbb.100.2015.03.03.21.00.43
         for <linux-mm@kvack.org>;
-        Tue, 03 Mar 2015 21:00:43 -0800 (PST)
+        Tue, 03 Mar 2015 21:00:44 -0800 (PST)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v2 5/7] zram: support compaction
-Date: Wed,  4 Mar 2015 14:01:30 +0900
-Message-Id: <1425445292-29061-6-git-send-email-minchan@kernel.org>
+Subject: [PATCH v2 6/7] zsmalloc: record handle in page->private for huge object
+Date: Wed,  4 Mar 2015 14:01:31 +0900
+Message-Id: <1425445292-29061-7-git-send-email-minchan@kernel.org>
 In-Reply-To: <1425445292-29061-1-git-send-email-minchan@kernel.org>
 References: <1425445292-29061-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -19,109 +19,182 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Juneho Choi <juno.choi@lge.com>, Gunho Lee <gunho.lee@lge.com>, Luigi Semenzato <semenzato@google.com>, Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjennings@variantweb.net>, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, opensource.ganesh@gmail.com, Minchan Kim <minchan@kernel.org>
 
-Now that zsmalloc supports compaction, zram can use it.
-For the first step, this patch exports compact knob via sysfs
-so user can do compaction via "echo 1 > /sys/block/zram0/compact".
+We stores handle on header of each allocated object so it
+increases the size of each object by sizeof(unsigned long).
+
+If zram stores 4096 bytes to zsmalloc(ie, bad compression),
+zsmalloc needs 4104B-class to add handle.
+
+However, 4104B-class has 1-pages_per_zspage so wasted size by
+internal fragment is 8192 - 4104, which is terrible.
+
+So this patch records the handle in page->private on such
+huge object(ie, pages_per_zspage == 1 && maxobj_per_zspage == 1)
+instead of header of each object so we could use 4096B-class,
+not 4104B-class.
 
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- Documentation/ABI/testing/sysfs-block-zram | 15 +++++++++++++++
- drivers/block/zram/zram_drv.c              | 25 +++++++++++++++++++++++++
- drivers/block/zram/zram_drv.h              |  1 +
- 3 files changed, 41 insertions(+)
+ mm/zsmalloc.c | 54 ++++++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 42 insertions(+), 12 deletions(-)
 
-diff --git a/Documentation/ABI/testing/sysfs-block-zram b/Documentation/ABI/testing/sysfs-block-zram
-index a6148eaf91e5..bede9028a5a0 100644
---- a/Documentation/ABI/testing/sysfs-block-zram
-+++ b/Documentation/ABI/testing/sysfs-block-zram
-@@ -141,3 +141,18 @@ Description:
- 		amount of memory ZRAM can use to store the compressed data.  The
- 		limit could be changed in run time and "0" means disable the
- 		limit.  No limit is the initial state.  Unit: bytes
-+
-+What:		/sys/block/zram<id>/compact
-+Date:		August 2015
-+Contact:	Minchan Kim <minchan@kernel.org>
-+Description:
-+		The compact file is write-only and trigger compaction for
-+		allocator zrm uses. The allocator moves some objects so that
-+		it could free fragment space.
-+
-+What:		/sys/block/zram<id>/num_migrated
-+Date:		August 2015
-+Contact:	Minchan Kim <minchan@kernel.org>
-+Description:
-+		The compact file is read-only and shows how many object
-+		migrated by compaction.
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index 871bd3550cb0..6ff6a5a8a769 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -246,6 +246,27 @@ static ssize_t comp_algorithm_store(struct device *dev,
- 	return len;
- }
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 36dcc268720e..c3d9676e47c4 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -57,6 +57,8 @@
+  *
+  *	page->private (union with page->first_page): refers to the
+  *		component page after the first page
++ *		If the page is first_page for huge object, it stores handle.
++ *		Look at size_class->huge.
+  *	page->freelist: points to the first free object in zspage.
+  *		Free objects are linked together using in-place
+  *		metadata.
+@@ -162,7 +164,7 @@
+ #define ZS_MIN_ALLOC_SIZE \
+ 	MAX(32, (ZS_MAX_PAGES_PER_ZSPAGE << PAGE_SHIFT >> OBJ_INDEX_BITS))
+ /* each chunk includes extra space to keep handle */
+-#define ZS_MAX_ALLOC_SIZE	(PAGE_SIZE + ZS_HANDLE_SIZE)
++#define ZS_MAX_ALLOC_SIZE	PAGE_SIZE
  
-+static ssize_t compact_store(struct device *dev,
-+		struct device_attribute *attr, const char *buf, size_t len)
-+{
-+	unsigned long nr_migrated;
-+	struct zram *zram = dev_to_zram(dev);
-+	struct zram_meta *meta;
-+
-+	down_read(&zram->init_lock);
-+	if (!init_done(zram)) {
-+		up_read(&zram->init_lock);
-+		return -EINVAL;
-+	}
-+
-+	meta = zram->meta;
-+	nr_migrated = zs_compact(meta->mem_pool);
-+	atomic64_add(nr_migrated, &zram->stats.num_migrated);
-+	up_read(&zram->init_lock);
-+
-+	return len;
-+}
-+
- /* flag operations needs meta->tb_lock */
- static int zram_test_flag(struct zram_meta *meta, u32 index,
- 			enum zram_pageflags flag)
-@@ -1017,6 +1038,7 @@ static const struct block_device_operations zram_devops = {
- 	.owner = THIS_MODULE
+ /*
+  * On systems with 4K page size, this gives 255 size classes! There is a
+@@ -238,6 +240,8 @@ struct size_class {
+ 
+ 	/* Number of PAGE_SIZE sized pages to combine to form a 'zspage' */
+ 	int pages_per_zspage;
++	/* huge object: pages_per_zspage == 1 && maxobj_per_zspage == 1 */
++	bool huge;
+ 
+ #ifdef CONFIG_ZSMALLOC_STAT
+ 	struct zs_size_stat stats;
+@@ -299,6 +303,7 @@ struct mapping_area {
+ #endif
+ 	char *vm_addr; /* address of kmap_atomic()'ed pages */
+ 	enum zs_mapmode vm_mm; /* mapping mode */
++	bool huge;
  };
  
-+static DEVICE_ATTR_WO(compact);
- static DEVICE_ATTR_RW(disksize);
- static DEVICE_ATTR_RO(initstate);
- static DEVICE_ATTR_WO(reset);
-@@ -1035,6 +1057,7 @@ ZRAM_ATTR_RO(invalid_io);
- ZRAM_ATTR_RO(notify_free);
- ZRAM_ATTR_RO(zero_pages);
- ZRAM_ATTR_RO(compr_data_size);
-+ZRAM_ATTR_RO(num_migrated);
+ static int create_handle_cache(struct zs_pool *pool)
+@@ -456,7 +461,7 @@ static int get_size_class_index(int size)
+ 		idx = DIV_ROUND_UP(size - ZS_MIN_ALLOC_SIZE,
+ 				ZS_SIZE_CLASS_DELTA);
  
- static struct attribute *zram_disk_attrs[] = {
- 	&dev_attr_disksize.attr,
-@@ -1044,6 +1067,8 @@ static struct attribute *zram_disk_attrs[] = {
- 	&dev_attr_num_writes.attr,
- 	&dev_attr_failed_reads.attr,
- 	&dev_attr_failed_writes.attr,
-+	&dev_attr_num_migrated.attr,
-+	&dev_attr_compact.attr,
- 	&dev_attr_invalid_io.attr,
- 	&dev_attr_notify_free.attr,
- 	&dev_attr_zero_pages.attr,
-diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
-index 17056e589146..570c598f4ce9 100644
---- a/drivers/block/zram/zram_drv.h
-+++ b/drivers/block/zram/zram_drv.h
-@@ -84,6 +84,7 @@ struct zram_stats {
- 	atomic64_t compr_data_size;	/* compressed size of pages stored */
- 	atomic64_t num_reads;	/* failed + successful */
- 	atomic64_t num_writes;	/* --do-- */
-+	atomic64_t num_migrated;	/* no. of migrated object */
- 	atomic64_t failed_reads;	/* can happen when memory is too low */
- 	atomic64_t failed_writes;	/* can happen when memory is too low */
- 	atomic64_t invalid_io;	/* non-page-aligned I/O requests */
+-	return idx;
++	return min(zs_size_classes - 1, idx);
+ }
+ 
+ /*
+@@ -665,9 +670,14 @@ static unsigned long handle_to_obj(unsigned long handle)
+ 	return *(unsigned long *)handle;
+ }
+ 
+-unsigned long obj_to_head(void *obj)
++static unsigned long obj_to_head(struct size_class *class, struct page *page,
++			void *obj)
+ {
+-	return *(unsigned long *)obj;
++	if (class->huge) {
++		VM_BUG_ON(!is_first_page(page));
++		return *(unsigned long *)page_private(page);
++	} else
++		return *(unsigned long *)obj;
+ }
+ 
+ static unsigned long obj_idx_to_offset(struct page *page,
+@@ -953,9 +963,12 @@ static void __zs_unmap_object(struct mapping_area *area,
+ 	if (area->vm_mm == ZS_MM_RO)
+ 		goto out;
+ 
+-	buf = area->vm_buf + ZS_HANDLE_SIZE;
+-	size -= ZS_HANDLE_SIZE;
+-	off += ZS_HANDLE_SIZE;
++	buf = area->vm_buf;
++	if (!area->huge) {
++		buf = buf + ZS_HANDLE_SIZE;
++		size -= ZS_HANDLE_SIZE;
++		off += ZS_HANDLE_SIZE;
++	}
+ 
+ 	sizes[0] = PAGE_SIZE - off;
+ 	sizes[1] = size - sizes[0];
+@@ -1294,7 +1307,10 @@ void *zs_map_object(struct zs_pool *pool, unsigned long handle,
+ 
+ 	ret = __zs_map_object(area, pages, off, class->size);
+ out:
+-	return ret + ZS_HANDLE_SIZE;
++	if (!class->huge)
++		ret += ZS_HANDLE_SIZE;
++
++	return ret;
+ }
+ EXPORT_SYMBOL_GPL(zs_map_object);
+ 
+@@ -1351,8 +1367,12 @@ static unsigned long obj_malloc(struct page *first_page,
+ 	vaddr = kmap_atomic(m_page);
+ 	link = (struct link_free *)vaddr + m_offset / sizeof(*link);
+ 	first_page->freelist = link->next;
+-	/* record handle in the header of allocated chunk */
+-	link->handle = handle;
++	if (!class->huge)
++		/* record handle in the header of allocated chunk */
++		link->handle = handle;
++	else
++		/* record handle in first_page->private */
++		set_page_private(first_page, handle);
+ 	kunmap_atomic(vaddr);
+ 	first_page->inuse++;
+ 	zs_stat_inc(class, OBJ_USED, 1);
+@@ -1376,7 +1396,7 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+ 	struct size_class *class;
+ 	struct page *first_page;
+ 
+-	if (unlikely(!size || (size + ZS_HANDLE_SIZE) > ZS_MAX_ALLOC_SIZE))
++	if (unlikely(!size || size > ZS_MAX_ALLOC_SIZE))
+ 		return 0;
+ 
+ 	handle = alloc_handle(pool);
+@@ -1386,6 +1406,11 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+ 	/* extra space in chunk to keep the handle */
+ 	size += ZS_HANDLE_SIZE;
+ 	class = pool->size_class[get_size_class_index(size)];
++	/* In huge class size, we store the handle into first_page->private */
++	if (class->huge) {
++		size -= ZS_HANDLE_SIZE;
++		class = pool->size_class[get_size_class_index(size)];
++	}
+ 
+ 	spin_lock(&class->lock);
+ 	first_page = find_get_zspage(class);
+@@ -1441,6 +1466,8 @@ static void obj_free(struct zs_pool *pool, struct size_class *class,
+ 	/* Insert this object in containing zspage's freelist */
+ 	link = (struct link_free *)(vaddr + f_offset);
+ 	link->next = first_page->freelist;
++	if (class->huge)
++		set_page_private(first_page, 0);
+ 	kunmap_atomic(vaddr);
+ 	first_page->freelist = (void *)obj;
+ 	first_page->inuse--;
+@@ -1567,7 +1594,7 @@ static unsigned long find_alloced_obj(struct page *page, int index,
+ 	offset += class->size * index;
+ 
+ 	while (offset < PAGE_SIZE) {
+-		head = obj_to_head(addr + offset);
++		head = obj_to_head(class, page, addr + offset);
+ 		if (head & OBJ_ALLOCATED_TAG) {
+ 			handle = head & ~OBJ_ALLOCATED_TAG;
+ 			if (trypin_tag(handle))
+@@ -1835,6 +1862,9 @@ struct zs_pool *zs_create_pool(char *name, gfp_t flags)
+ 		class->size = size;
+ 		class->index = i;
+ 		class->pages_per_zspage = pages_per_zspage;
++		if (pages_per_zspage == 1 &&
++			get_maxobj_per_zspage(size, pages_per_zspage) == 1)
++			class->huge = true;
+ 		spin_lock_init(&class->lock);
+ 		pool->size_class[i] = class;
+ 
 -- 
 1.9.1
 
