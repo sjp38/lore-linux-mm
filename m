@@ -1,68 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id DFB576B0038
-	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 09:12:03 -0500 (EST)
-Received: by padfa1 with SMTP id fa1so33703401pad.9
-        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 06:12:03 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id ym2si5060371pbc.211.2015.03.04.06.12.01
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 04 Mar 2015 06:12:02 -0800 (PST)
-Subject: Re: How to handle TIF_MEMDIE stalls?
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20150227073949.GJ4251@dastard>
-	<201502272142.BFJ09388.OLOMFFFVSQJOtH@I-love.SAKURA.ne.jp>
-	<20150227131209.GK4251@dastard>
-	<201503042141.FIC48980.OFFtVSQFOOMHJL@I-love.SAKURA.ne.jp>
-	<20150304132514.GW4251@dastard>
-In-Reply-To: <20150304132514.GW4251@dastard>
-Message-Id: <201503042311.CHA93957.tJFFOHMQLSOFVO@I-love.SAKURA.ne.jp>
-Date: Wed, 4 Mar 2015 23:11:48 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id E28106B0038
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 09:45:46 -0500 (EST)
+Received: by pdbfp1 with SMTP id fp1so20737256pdb.7
+        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 06:45:46 -0800 (PST)
+Received: from prod-mail-xrelay02.akamai.com (prod-mail-xrelay02.akamai.com. [72.246.2.14])
+        by mx.google.com with ESMTP id e6si510082pdo.202.2015.03.04.06.45.45
+        for <linux-mm@kvack.org>;
+        Wed, 04 Mar 2015 06:45:46 -0800 (PST)
+Date: Wed, 4 Mar 2015 09:45:45 -0500
+From: Eric B Munson <emunson@akamai.com>
+Subject: Re: Resurrecting the VM_PINNED discussion
+Message-ID: <20150304144544.GC6995@akamai.com>
+References: <20150303174105.GA3295@akamai.com>
+ <54F5FEE0.2090104@suse.cz>
+ <20150303184520.GA4996@akamai.com>
+ <54F617A2.8040405@suse.cz>
+ <20150303210150.GA6995@akamai.com>
+ <20150303215258.GB6995@akamai.com>
+ <54F6303C.5080806@suse.cz>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="5QAgd0e35j3NYeGe"
+Content-Disposition: inline
+In-Reply-To: <54F6303C.5080806@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: david@fromorbit.com
-Cc: tytso@mit.edu, rientjes@google.com, hannes@cmpxchg.org, mhocko@suse.cz, dchinner@redhat.com, linux-mm@kvack.org, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, fernando_b1@lab.ntt.co.jp
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Christoph Lameter <cl@linux.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Roland Dreier <roland@kernel.org>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Mike Marciniszyn <infinipath@intel.com>
 
-Dave Chinner wrote:
-> > Forever blocking kswapd0 somewhere inside filesystem shrinker functions is
-> > equivalent with removing kswapd() function because it also prevents non
-> > filesystem shrinker functions from being called by kswapd0, doesn't it?
-> 
-> Yes, but that's not intentional. Remember, we keep talking about the
-> filesystem not being able to guarantee forwards progress if
-> allocations block forever? Well...
-> 
-> > Then, the description will become "We won't have _some_ free memory available
-> > if there is no other activity that frees anything up", won't it?
-> 
-> ... we've ended up blocking kswapd because it's waiting on a journal
-> commit to complete, and that journal commit is blocked waiting for
-> forwards progress in memory allocation...
-> 
-> Yes, it's another one of those nasty dependencies I keep pointing
-> out that filesystems have, and that can only be solved by
-> guaranteeing we can always make forwards allocation progress from
-> transaction reserve to transaction commit.
 
-If this is an unexpected deadlock, don't we want below change for
-xfs_reclaim_inodes_ag() ?
+--5QAgd0e35j3NYeGe
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
--	if (skipped && (flags & SYNC_WAIT) && *nr_to_scan > 0) {
-+	if (skipped && (flags & SYNC_WAIT) && *nr_to_scan > 0 && !current_is_kswapd()) {
- 		trylock = 0;
- 		goto restart;
- 	}
+On Tue, 03 Mar 2015, Vlastimil Babka wrote:
 
-> It's rare that kswapd actually gets stuck like this - I've only ever
-> seen it once, and I've never had anyone running a production system
-> report deadlocks like this...
+<snip>
+>=20
+> No, you were correct and thanks for the hint. It's only ISOLATE_UNEVICTAB=
+LE from
+> isolate_migratepages_range(), which is CMA, not regular compaction.
+> But I wonder, can we change this even after VM_PINNED is introduced, if e=
+xisting
+> code depends on "no minor faults in mlocked areas", whatever the docs say=
+? On
+> the other hand, compaction is not the only source of migrations. I wonder=
+ what
+> the NUMA balancing does (not) about mlocked areas...
 
-I guess we will unlikely see this again, for so far this is observed with
-only Linux 3.19 which lacks commit cc87317726f8 ("mm: page_alloc: revert
-inadvertent !__GFP_FS retry behavior change").
+My hope was that we could convince those that depend on mlock()
+preventing minor faults to move to use the mpin() interface that was
+discussed in the VM_PINNED thread.  If that is not acceptable then we
+really need to update the man page for mlock() and the vm documentation
+to be very clear that minor faults are also prevented.
+
+Eric
+
+--5QAgd0e35j3NYeGe
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQIcBAEBAgAGBQJU9xqYAAoJELbVsDOpoOa98boQAIbmVQ8k52zlEjTfaksdmZ0B
+9p9av7ZUYLdYCU94hydWbfrl5tdhrryE7/tQd6YHco7VCh2EqF1poR7Wx7RN0vGd
+dI2UViYAgDrdOPirL4qMTf4QKCeeIjzR3BeH3AbVc4D9EQyZ5vtwcL610spkyGnT
+jiHY1WF2Q5dF86V0TNndOXAjy8ja58z/aQUN10NkCuwVlxpIyPdTtoxSHmTfHpSy
+00DXgmZmRpj6DJg7O0mpkAZCsUM97SJp2Ai6Cc+YRg1l7+GCxom1sV+sr9VPwoi9
+M9DvlUTk/4TDc+4VZ8KgzUdoMcr0x0lQMwbeXTuYxrPqUIBsTCj2RZ5PyCImNk2T
+QrUhP3RmO7WqFgq+iCEUyU6Mo+tAFxSL14QpiQUP6Ufq2V08oHVgiOCp2sAGz1/b
+4Y4OXIhQFcocZSATesAMJHzvpRIq2QFXezZaFZwv8WpjiH4AwLoDic2uGJIYt3zI
+W0boWmEg403+1ZavoqvFLMkO8S+AxpczvEYZ2zLPQmUnuIfQjnE8EJD2xqajlKdh
+R1amg6sAHr1cFuPsrtux6LAdLkV2/qCIK3nJiDVUl/rjcAEJI9ZBV1e+AULN6sDp
+8MQ83vsySq+r9C8hOOBUwva5L6asX3iqZQSmtQjI4emf+vafp2/gQZtx5GIoU+Si
+/4yx6BTbfk/+xGQiruBK
+=eds4
+-----END PGP SIGNATURE-----
+
+--5QAgd0e35j3NYeGe--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
