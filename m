@@ -1,117 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f169.google.com (mail-we0-f169.google.com [74.125.82.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 035836B006C
-	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 15:17:54 -0500 (EST)
-Received: by wesu56 with SMTP id u56so5275811wes.6
-        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 12:17:53 -0800 (PST)
-Received: from mail-we0-x236.google.com (mail-we0-x236.google.com. [2a00:1450:400c:c03::236])
-        by mx.google.com with ESMTPS id cw1si8847848wjc.108.2015.03.04.12.17.52
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 8624D6B0038
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 15:53:09 -0500 (EST)
+Received: by widex7 with SMTP id ex7so31730327wid.1
+        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 12:53:08 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p9si31434311wiy.111.2015.03.04.12.53.06
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Mar 2015 12:17:52 -0800 (PST)
-Received: by wevk48 with SMTP id k48so2140772wev.5
-        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 12:17:52 -0800 (PST)
-Date: Wed, 4 Mar 2015 21:17:48 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v3 6/6] x86, mm: Support huge KVA mappings on x86
-Message-ID: <20150304201748.GA6634@gmail.com>
-References: <1425404664-19675-1-git-send-email-toshi.kani@hp.com>
- <1425404664-19675-7-git-send-email-toshi.kani@hp.com>
- <20150303144414.9f97ef25ad8aed7d112896bf@linux-foundation.org>
- <1425424472.17007.191.camel@misato.fc.hp.com>
- <20150303170035.85e94c87.akpm@linux-foundation.org>
- <1425486216.17007.236.camel@misato.fc.hp.com>
+        Wed, 04 Mar 2015 12:53:07 -0800 (PST)
+Message-ID: <54F770A7.2030205@redhat.com>
+Date: Wed, 04 Mar 2015 15:52:55 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1425486216.17007.236.camel@misato.fc.hp.com>
+Subject: Re: [PATCH] vmscan: get_scan_count selects anon pages conservative
+References: <d8192a90f6f9b474b33ec732b88b8b2d7e8623cd.1425499261.git.shli@fb.com>
+In-Reply-To: <d8192a90f6f9b474b33ec732b88b8b2d7e8623cd.1425499261.git.shli@fb.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@redhat.com" <mingo@redhat.com>, "arnd@arndb.de" <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dave.hansen@intel.com" <dave.hansen@intel.com>, "Elliott, Robert (Server Storage)" <Elliott@hp.com>
+To: Shaohua Li <shli@fb.com>, linux-mm@kvack.org
+Cc: Kernel-team@fb.com, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>
 
-
-* Toshi Kani <toshi.kani@hp.com> wrote:
-
-> On Wed, 2015-03-04 at 01:00 +0000, Andrew Morton wrote:
-> > On Tue, 03 Mar 2015 16:14:32 -0700 Toshi Kani <toshi.kani@hp.com> wrote:
-> > 
-> > > On Tue, 2015-03-03 at 14:44 -0800, Andrew Morton wrote:
-> > > > On Tue,  3 Mar 2015 10:44:24 -0700 Toshi Kani <toshi.kani@hp.com> wrote:
-> > >  :
-> > > > > +
-> > > > > +#ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
-> > > > > +int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot)
-> > > > > +{
-> > > > > +	u8 mtrr;
-> > > > > +
-> > > > > +	/*
-> > > > > +	 * Do not use a huge page when the range is covered by non-WB type
-> > > > > +	 * of MTRRs.
-> > > > > +	 */
-> > > > > +	mtrr = mtrr_type_lookup(addr, addr + PUD_SIZE);
-> > > > > +	if ((mtrr != MTRR_TYPE_WRBACK) && (mtrr != 0xFF))
-> > > > > +		return 0;
-> > > > 
-> > > > It would be good to notify the operator in some way when this happens. 
-> > > > Otherwise the kernel will run more slowly and there's no way of knowing
-> > > > why.  I guess slap a pr_info() in there.  Or maybe pr_warn()?
-> > > 
-> > > We only use 4KB mappings today, so this case will not make it run
-> > > slowly, i.e. it will be the same as today.
-> > 
-> > Yes, but it would be slower than it would be if the operator fixed the
-> > mtrr settings!  How do we let the operator know this?
-> > 
-> > >  Also, adding a message here
-> > > can generate a lot of messages when MTRRs cover a large area.
-> > 
-> > Really?  This is only going to happen when a device driver 
-> > requests a huge io mapping, isn't it?  That's rare.  We could emit 
-> > a warning, return an error code and fall all the way back to the 
-> > top-level ioremap code which can then retry with 4k mappings.  Or 
-> > something similar - somehow record the fact that this warning has 
-> > been emitted or use printk ratelimiting (bad option).
+On 03/04/2015 03:03 PM, Shaohua Li wrote:
+> kswapd is a per-node based. Sometimes there is imbalance between nodes,
+> node A is full of clean file pages (easy to reclaim), node B is
+> full of anon pages (hard to reclaim). With memory pressure, kswapd will
+> be waken up for both nodes. The kswapd of node B will try to swap, while
+> we prefer reclaim pages from node A first. The real issue here is we
+> don't have a mechanism to prevent memory allocation from a hard-reclaim
+> node (node B here) if there is an easy-reclaim node (node A) to reclaim
+> memory.
 > 
-> Yes, an IO device with a huge MMIO space that is covered by MTRRs is 
-> a rare case.  BIOS does not need to specify how MMIO of each card 
-> needs to be accessed with MTRRs (or BIOS should not do it since an 
-> MMIO address is configurable on each card).
+> The swap can happen even with swapiness 0. Below is a simple script to
+> trigger it. cpu 1 and 8 are in different node, each has 72G memory:
+> truncate -s 70G img
+> taskset -c 8 dd if=img of=/dev/null bs=4k
+> taskset -c 1 usemem 70G
 > 
-> However, PCIe has the MMCONFIG space, PCIe config space, which is 
-> also memory mapped and must be accessed with UC.  The PCI subsystem 
-> calls ioremap_nocache() to map the entire MMCONFIG space, which 
-> covers the PCIe config space of all possible cards.  Here are boot 
-> messages on my test system.
+> The swap can even easier to trigger because we have a protect mechanism
+> for situation file pages are less than high watermark. This logic makes
+> sense but could be more conservative.
 > 
->   :
-> PCI: MMCONFIG for domain 0000 [bus 00-ff] at [mem 0xc0000000-0xcf
-> ffffff] (base 0xc0000000)
-> PCI: MMCONFIG at [mem 0xc0000000-0xcfffffff] reserved in E820
->   :
+> This patch doesn't try to fix the kswapd imbalance issue above, but make
+> get_scan_count more conservative to select anon pages. The protect
+> mechanism is designed for situation file pages are rotated frequently.
+> In that situation, page reclaim should be in trouble, eg, priority is
+> lower. So let's only apply the protect mechanism in that situation. In
+> pratice, this fixes the swap issue in above test.
 > 
-> And MTRRs cover this MMCONFIG space with UC to assure that the range is
-> always accessed with UC.
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: Shaohua Li <shli@fb.com>
 
-So the PCI code ioremap()s this 256 MB mmconfig space in its entirety 
-currently?
+Doh, never mind my earlier comment. I must be too tired
+to look at stuff right...
 
-> 
-> # cat /proc/mtrr
-> reg00: base=0x0c0000000 ( 3072MB), size= 1024MB, count=1: uncachable
-> 
-> So, if we add a message into the code, it will be displayed many 
-> times in this ioremap_nocache() call from PCI.
+I see how your patch helps avoid the problem, but I am
+worried about potential side effects. I suspect it could
+lead to page cache thrashing when all zones are low on
+page cache memory.
 
-So, in this specific case, when a single MTRR covers it with a single 
-cache policy, I think we can safely map it UC using hugepmds?
+Would it make sense to explicitly check that we are low
+on page cache pages in all zones on the scan list, before
+forcing anon only scanning, when we get into this function?
 
-That will 'shut up' the warning the right way: by making the code 
-work?
-
-Thanks,
-
-	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
