@@ -1,106 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 839EB6B006C
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 20:33:52 -0500 (EST)
-Received: by pdbfp1 with SMTP id fp1so15848358pdb.7
-        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 17:33:52 -0800 (PST)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id sm4si2993308pab.151.2015.03.03.17.33.50
-        for <linux-mm@kvack.org>;
-        Tue, 03 Mar 2015 17:33:51 -0800 (PST)
-Date: Wed, 4 Mar 2015 12:33:46 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: How to handle TIF_MEMDIE stalls?
-Message-ID: <20150304013346.GP18360@dastard>
-References: <20150217225430.GJ4251@dastard>
- <20150219102431.GA15569@phnom.home.cmpxchg.org>
- <20150219225217.GY12722@dastard>
- <20150221235227.GA25079@phnom.home.cmpxchg.org>
- <20150223004521.GK12722@dastard>
- <20150222172930.6586516d.akpm@linux-foundation.org>
- <20150223073235.GT4251@dastard>
- <54F42FEA.1020404@suse.cz>
- <20150302223154.GJ18360@dastard>
- <54F57B20.3090803@suse.cz>
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B49B6B0038
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 21:26:03 -0500 (EST)
+Received: by igjz20 with SMTP id z20so33395123igj.4
+        for <linux-mm@kvack.org>; Tue, 03 Mar 2015 18:26:02 -0800 (PST)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
+        by mx.google.com with ESMTPS id y137si3366670iod.20.2015.03.03.18.26.00
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 03 Mar 2015 18:26:02 -0800 (PST)
+Message-ID: <54F66C52.4070600@huawei.com>
+Date: Wed, 4 Mar 2015 10:22:10 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <54F57B20.3090803@suse.cz>
+Subject: Re: node-hotplug: is memset 0 safe in try_offline_node()?
+References: <54F52ACF.4030103@huawei.com> <54F58AE3.50101@cn.fujitsu.com>
+In-Reply-To: <54F58AE3.50101@cn.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@suse.cz, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, mgorman@suse.de, torvalds@linux-foundation.org, xfs@oss.sgi.com
+To: Gu Zheng <guz.fnst@cn.fujitsu.com>
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Yinghai Lu <yinghai@kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Toshi Kani <toshi.kani@hp.com>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
 
-On Tue, Mar 03, 2015 at 10:13:04AM +0100, Vlastimil Babka wrote:
-> On 03/02/2015 11:31 PM, Dave Chinner wrote:
-> > On Mon, Mar 02, 2015 at 10:39:54AM +0100, Vlastimil Babka wrote:
-> > 
-> > /*
-> >  * In a write transaction we can allocate a maximum of 2
-> >  * extents.  This gives:
-> >  *    the inode getting the new extents: inode size
-> >  *    the inode's bmap btree: max depth * block size
-> >  *    the agfs of the ags from which the extents are allocated: 2 * sector
-> >  *    the superblock free block counter: sector size
-> >  *    the allocation btrees: 2 exts * 2 trees * (2 * max depth - 1) * block size
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.....
-> Thanks, that example did help me understand your position much better.
-> So you would need to reserve for a worst case number of the objects you modify,
-> plus some slack for the demand-paged objects that you need to temporarily
-> access, before you can drop and reclaim them (I suppose that in some of the tree
-> operations, you need to be holding references to e.g. two nodes at a time, or
-> maybe the full depth). Or maybe since all these temporary objects are
-> potentially modifiable, it's already accounted for in the "might be modified" part.
+On 2015/3/3 18:20, Gu Zheng wrote:
 
-Already accounted for in the "might be modified path".
-
-> >> Can you at least at some later point in transaction recognize that
-> >> "OK, this object was not permanent after all" and tell mm that it
-> >> can lower your reserve?
-> > 
-> > I'm not including any memory used by objects we know won't be locked
-> > into the transaction in the reserve. Demand paged object memory is
-> > essentially unbound but is easily reclaimable. That reclaim will
-> > give us forward progress guarantees on the memory required here.
-> > 
-> >> >Yes, that's the big problem with preallocation, as well as your
-> >> >proposed "depelete the reserved memory first" approach. They
-> >> >*require* up front "preallocation" of free memory, either directly
-> >> >by the application, or internally by the mm subsystem.
-> >> 
-> >> I don't see why it would deadlock, if during reserve time the mm can
-> >> return ENOMEM as the reserver should be able to back out at that
-> >> point.
-> > 
-> > Preallocated reserves do not allow for unbound demand paging of
-> > reclaimable objects within reserved allocation contexts.
+> Hi Xishi,
+> On 03/03/2015 11:30 AM, Xishi Qiu wrote:
 > 
-> OK I think I get the point now.
+>> When hot-remove a numa node, we will clear pgdat,
+>> but is memset 0 safe in try_offline_node()?
 > 
-> So, lots of the concerns by me and others were about the wasted memory due to
-> reservations, and increased pressure on the rest of the system. I was thinking,
-> are you able, at the beginning of the transaction (for this purposes, I think of
-> transaction as the work that starts with the memory reservation, then it cannot
-> rollback and relies on the reserves, until it commits and frees the memory),
-> determine whether the transaction cannot be blocked in its progress by any other
-> transaction, and the only thing that would block it would be inability to
-> allocate memory during its course?
+> It is not safe here. In fact, this is a temporary solution here.
+> As you know, pgdat is accessed lock-less now, so protection
+> mechanism (RCUi 1/4 ?) is needed to make it completely safe here,
+> but it seems a bit over-kill.
+> 
+>>
+>> process A:			offline node XX:
+>> for_each_populated_zone()
+>> find online node XX
+>> cond_resched()
+>> 				offline cpu and memory, then try_offline_node()
+>> 				node_set_offline(nid), and memset(pgdat, 0, sizeof(*pgdat))
+>> access node XX's pgdat
+>> NULL pointer access error
+> 
+> It's possible, but I did not meet this condition, did you?
+> 
 
-No. e.g. any transaction that requires allocation or freeing of an
-inode or extent can get stuck behind any other transaction that is
-allocating/freeing and inode/extent. And this will happen when
-holding inode locks, which means other transactions on that inode
-will then get stuck on the inode lock, and so on. Blocking
-dependencies within transactions are everywhere and cannot be
-avoided.
+Yes, we test hot-add/hot-remove node with stress, and meet the following
+call trace several times.
 
-Cheers,
+	next_online_pgdat()
+		int nid = next_online_node(pgdat->node_id);  // it's here, pgdat is NULL
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+I add some printk, it shows the above pgdat is just the offline node's pgdat.
+The reason may be that for_each_zone() and for_each_populated_zone() are lock-less.
+And stop machine could not resolve it, because cond_resched() maybe in cyclical code.
+
+[ 1422.011064] BUG: unable to handle kernel paging request at 0000000000025f60
+[ 1422.011086] IP: [<ffffffff81126b91>] next_online_pgdat+0x1/0x50
+[ 1422.011178] PGD 0 
+[ 1422.011180] Oops: 0000 [#1] SMP 
+[ 1422.011409] ACPI: Device does not support D3cold
+[ 1422.011961] Modules linked in: fuse nls_iso8859_1 nls_cp437 vfat fat loop dm_mod coretemp mperf crc32c_intel ghash_clmulni_intel aesni_intel ablk_helper cryptd lrw gf128mul glue_helper aes_x86_64 pcspkr microcode igb dca i2c_algo_bit ipv6 megaraid_sas iTCO_wdt i2c_i801 i2c_core iTCO_vendor_support tg3 sg hwmon ptp lpc_ich pps_core mfd_core acpi_pad rtc_cmos button ext3 jbd mbcache sd_mod crc_t10dif scsi_dh_alua scsi_dh_rdac scsi_dh_hp_sw scsi_dh_emc scsi_dh ahci libahci libata scsi_mod [last unloaded: rasf]
+[ 1422.012006] CPU: 23 PID: 238 Comm: kworker/23:1 Tainted: G           O 3.10.15-5885-euler0302 #1
+[ 1422.012024] Hardware name: HUAWEI TECHNOLOGIES CO.,LTD. Huawei N1/Huawei N1, BIOS V100R001 03/02/2015
+[ 1422.012065] Workqueue: events vmstat_update
+[ 1422.012084] task: ffffa800d32c0000 ti: ffffa800d32ae000 task.ti: ffffa800d32ae000
+[ 1422.012165] RIP: 0010:[<ffffffff81126b91>]  [<ffffffff81126b91>] next_online_pgdat+0x1/0x50
+[ 1422.012205] RSP: 0018:ffffa800d32afce8  EFLAGS: 00010286
+[ 1422.012225] RAX: 0000000000001440 RBX: ffffffff81da53b8 RCX: 0000000000000082
+[ 1422.012226] RDX: 0000000000000000 RSI: 0000000000000082 RDI: 0000000000000000
+[ 1422.012254] RBP: ffffa800d32afd28 R08: ffffffff81c93bfc R09: ffffffff81cbdc96
+[ 1422.012272] R10: 00000000000040ec R11: 00000000000000a0 R12: ffffa800fffb3440
+[ 1422.012290] R13: ffffa800d32afd38 R14: 0000000000000017 R15: ffffa800e6616800
+[ 1422.012292] FS:  0000000000000000(0000) GS:ffffa800e6600000(0000) knlGS:0000000000000000
+[ 1422.012314] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1422.012328] CR2: 0000000000025f60 CR3: 0000000001a0b000 CR4: 00000000001407e0
+[ 1422.012328] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[ 1422.012328] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+[ 1422.012328] Stack:
+[ 1422.012328]  ffffa800d32afd28 ffffffff81126ca5 ffffa800ffffffff ffffffff814b4314
+[ 1422.012328]  ffffa800d32ae010 0000000000000000 ffffa800e6616180 ffffa800fffb3440
+[ 1422.012328]  ffffa800d32afde8 ffffffff81128220 ffffffff00000013 0000000000000038
+[ 1422.012328] Call Trace:
+[ 1422.012328]  [<ffffffff81126ca5>] ? next_zone+0xc5/0x150
+[ 1422.012328]  [<ffffffff814b4314>] ? __schedule+0x544/0x780
+[ 1422.012328]  [<ffffffff81128220>] refresh_cpu_vm_stats+0xd0/0x140
+[ 1422.012328]  [<ffffffff811282a1>] vmstat_update+0x11/0x50
+[ 1422.012328]  [<ffffffff81064c24>] process_one_work+0x194/0x3d0
+[ 1422.012328]  [<ffffffff810660bb>] worker_thread+0x12b/0x410
+[ 1422.012328]  [<ffffffff81065f90>] ? manage_workers+0x1a0/0x1a0
+[ 1422.012328]  [<ffffffff8106ba66>] kthread+0xc6/0xd0
+[ 1422.012328]  [<ffffffff8106b9a0>] ? kthread_freezable_should_stop+0x70/0x70
+[ 1422.012328]  [<ffffffff814be0ac>] ret_from_fork+0x7c/0xb0
+[ 1422.012328]  [<ffffffff8106b9a0>] ? kthread_freezable_should_stop+0x70/0x70
+
+Thanks,
+Xishi Qiu
+
+> Regards,
+> Gu
+> 
+>>
+>> Thanks,
+>> Xishi Qiu
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>
+> 
+> 
+> 
+> .
+> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
