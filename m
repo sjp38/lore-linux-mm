@@ -1,71 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 840F16B0072
-	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 13:27:54 -0500 (EST)
-Received: by oiba3 with SMTP id a3so7246934oib.7
-        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 10:27:54 -0800 (PST)
-Received: from g1t5425.austin.hp.com (g1t5425.austin.hp.com. [15.216.225.55])
-        by mx.google.com with ESMTPS id qc10si2575790oeb.52.2015.03.04.10.27.53
+Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
+	by kanga.kvack.org (Postfix) with ESMTP id CC75F6B0038
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 13:48:57 -0500 (EST)
+Received: by qgdz107 with SMTP id z107so1203362qgd.3
+        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 10:48:57 -0800 (PST)
+Received: from resqmta-ch2-01v.sys.comcast.net (resqmta-ch2-01v.sys.comcast.net. [2001:558:fe21:29:69:252:207:33])
+        by mx.google.com with ESMTPS id f82si4030148qhe.123.2015.03.04.10.48.56
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Mar 2015 10:27:53 -0800 (PST)
-Message-ID: <1425493634.17007.248.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v8 7/7] x86, mm: Add set_memory_wt() for WT
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Wed, 04 Mar 2015 11:27:14 -0700
-In-Reply-To: <1424961893.17007.139.camel@misato.fc.hp.com>
-References: <1424823301-30927-1-git-send-email-toshi.kani@hp.com>
-	 <1424823301-30927-8-git-send-email-toshi.kani@hp.com>
-	 <20150225072228.GA13061@gmail.com>
-	 <1424877601.17007.108.camel@misato.fc.hp.com>
-	 <20150226113054.GA4191@gmail.com>
-	 <1424961893.17007.139.camel@misato.fc.hp.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Wed, 04 Mar 2015 10:48:56 -0800 (PST)
+Date: Wed, 4 Mar 2015 12:48:54 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCHv4 03/24] mm: avoid PG_locked on tail pages
+In-Reply-To: <1425486792-93161-4-git-send-email-kirill.shutemov@linux.intel.com>
+Message-ID: <alpine.DEB.2.11.1503041246470.23719@gentwo.org>
+References: <1425486792-93161-1-git-send-email-kirill.shutemov@linux.intel.com> <1425486792-93161-4-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Elliott@hp.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 2015-02-26 at 07:44 -0700, Toshi Kani wrote:
-> On Thu, 2015-02-26 at 12:30 +0100, Ingo Molnar wrote:
-> > * Toshi Kani <toshi.kani@hp.com> wrote:
-> > 
-> > > On Wed, 2015-02-25 at 08:22 +0100, Ingo Molnar wrote:
-> > > > * Toshi Kani <toshi.kani@hp.com> wrote:
-> > > > 
-> > > > > +int set_pages_array_wt(struct page **pages, int addrinarray)
-> > > > > +{
-> > > > > +	return _set_pages_array(pages, addrinarray, _PAGE_CACHE_MODE_WT);
-> > > > > +}
-> > > > > +EXPORT_SYMBOL(set_pages_array_wt);
-> > > > 
-> > > > So by default we make new APIs EXPORT_SYMBOL_GPL(): we 
-> > > > don't want proprietary modules mucking around with new code 
-> > > > PAT interfaces, we only want modules we can analyze and fix 
-> > > > in detail.
-> > > 
-> > > Right.  I have one question for this case.  This 
-> > > set_pages_array_wt() extends the set_pages_array_xx() 
-> > > family, which are all exported with EXPORT_SYMBOL() 
-> > > today.  In this case, should we keep them exported in the 
-> > > consistent manner, or should we still use GPL when adding 
-> > > a new one?
-> > 
-> > Still keep it GPL, it's a new API that old modules 
-> > obviously don't use.
-> 
-> Got it. Thanks for the clarification.
+On Wed, 4 Mar 2015, Kirill A. Shutemov wrote:
 
-Since this is a minor change and there is no other comment at this
-point, I've submitted the updated patch 7/7 alone with the following
-subject for saving your mail box. :-)
+> index c851ff92d5b3..58b98bced299 100644
+> --- a/include/linux/page-flags.h
+> +++ b/include/linux/page-flags.h
+> @@ -207,7 +207,8 @@ static inline int __TestClearPage##uname(struct page *page) { return 0; }
+>
+>  struct page;	/* forward declaration */
+>
+> -TESTPAGEFLAG(Locked, locked)
+> +#define PageLocked(page) test_bit(PG_locked, &compound_head(page)->flags)
+> +
+>  PAGEFLAG(Error, error) TESTCLEARFLAG(Error, error)
 
- [PATCH v8-UPDATE 7/7] x86, mm: Add set_memory_wt() for WT
+Hmmm... Now one of the pageflag functions operates on the head page unlike
+the other pageflag functions that only operate on the flag indicated.
 
-Thanks,
--Toshi
+Given that pageflags provide a way to implement checks for head / tail
+pages this seems to be a bad idea.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
