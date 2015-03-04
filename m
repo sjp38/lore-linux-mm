@@ -1,103 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 859F16B0038
-	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 18:22:47 -0500 (EST)
-Received: by pdbnh10 with SMTP id nh10so37612129pdb.3
-        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 15:22:47 -0800 (PST)
-Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
-        by mx.google.com with ESMTP id k16si6899980pbq.81.2015.03.04.15.22.44
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 64D656B0038
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 18:31:15 -0500 (EST)
+Received: by wivr20 with SMTP id r20so2880461wiv.5
+        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 15:31:14 -0800 (PST)
+Received: from cpsmtpb-ews09.kpnxchange.com (cpsmtpb-ews09.kpnxchange.com. [213.75.39.14])
+        by mx.google.com with ESMTP id ba2si10910934wib.73.2015.03.04.15.31.13
         for <linux-mm@kvack.org>;
-        Wed, 04 Mar 2015 15:22:46 -0800 (PST)
-Date: Thu, 5 Mar 2015 10:17:40 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: How to handle TIF_MEMDIE stalls?
-Message-ID: <20150304231740.GA18360@dastard>
-References: <20150221235227.GA25079@phnom.home.cmpxchg.org>
- <20150223004521.GK12722@dastard>
- <20150222172930.6586516d.akpm@linux-foundation.org>
- <20150223073235.GT4251@dastard>
- <20150302202228.GA15089@phnom.home.cmpxchg.org>
- <20150302231206.GK18360@dastard>
- <20150303025023.GA22453@phnom.home.cmpxchg.org>
- <20150304065242.GR18360@dastard>
- <20150304150436.GA16442@phnom.home.cmpxchg.org>
- <20150304173841.GB15669@thunk.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150304173841.GB15669@thunk.org>
+        Wed, 04 Mar 2015 15:31:13 -0800 (PST)
+Message-ID: <1425511871.2090.65.camel@tiscali.nl>
+Subject: Re: [PATCH v3 6/6 UPDATE] x86, mm: Support huge KVA mappings on x86
+From: Paul Bolle <pebolle@tiscali.nl>
+Date: Thu, 05 Mar 2015 00:31:11 +0100
+In-Reply-To: <1425426480-10600-1-git-send-email-toshi.kani@hp.com>
+References: <1425426480-10600-1-git-send-email-toshi.kani@hp.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@suse.cz, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, mgorman@suse.de, torvalds@linux-foundation.org, xfs@oss.sgi.com
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, arnd@arndb.de, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com
 
-On Wed, Mar 04, 2015 at 12:38:41PM -0500, Theodore Ts'o wrote:
-> On Wed, Mar 04, 2015 at 10:04:36AM -0500, Johannes Weiner wrote:
-> > Yes, we can make this work if you can tell us which allocations have
-> > limited/controllable lifetime.
-> 
-> It may be helpful to be a bit precise about definitions here.  There
-> are a number of different object lifetimes:
-> 
-> a) will be released before the kernel thread returns control to
-> userspace
-> 
-> b) will be released once the current I/O operation finishes.  (In the
-> case of nbd where the remote server has unexpectedy gone away might be
-> quite a while, but I'm not sure how much we care about that scenario)
-> 
-> c) can be trivially released if the mm subsystem asks via calling a
-> shrinker
-> 
-> d) can be released only after doing some amount of bounded work (i.e.,
-> cleaning a dirty page)
-> 
-> e) impossible to predict when it can be released (e.g., dcache, inodes
-> attached to an open file descriptors, buffer heads that won't be freed
-> until the file system is umounted, etc.)
-> 
-> 
-> I'm guessing that what you mean is (b), but what about cases such as
-> (c)?
+Toshi Kani schreef op di 03-03-2015 om 16:48 [-0700]:
+> --- a/arch/x86/Kconfig
+> +++ b/arch/x86/Kconfig
+> @@ -99,6 +99,7 @@ config X86
+>  	select IRQ_FORCED_THREADING
+>  	select HAVE_BPF_JIT if X86_64
+>  	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
+> +	select HAVE_ARCH_HUGE_VMAP if X86_64 || (X86_32 && X86_PAE)
 
-The thing is, in the XFS transaction case we are hitting e) for
-every allocation, and only after IO and/or some processing do we
-know whether it will fall into c), d) or whether it will be
-permanently consumed.
+Minor nit: X86_PAE depends on X86_32, so I think this could be just
+    select HAVE_ARCH_HUGE_VMAP if X86_64 || X86_PAE
 
-> Would the mm subsystem find it helpful if it had more information
-> about object lifetime?  For example, the CMA folks seem to really care
-> about know whether memory allocations falls in category (e) or not.
+>  	select ARCH_HAS_SG_CHAIN
+>  	select CLKEVT_I8253
+>  	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 
-The problem is that most filesystem allocations fall into category
-(e). Worse is that the state of an object can change without
-allocations having taken place e.g. an object on a reclaimable LRU
-can be found via a cache lookup, then joined to and modified in a
-transaction. Hence objects can change state from "reclaimable" to
-"permanently consumed" without actually going through memory reclaim
-and allocation.
 
-IOWs, what is really required is the ability to say "this amount of
-allocation reserve is now consumed" /some time after/ we've done the
-allocation. i.e. when we join the object to the transaction and
-modify it, that's when we need to be able to reduce the reservation
-limit as that memory is now permanently consumed by the transaction
-context. Objects that fall into c) and d) don't need to have anyting
-special done, because reclaim will eventually free the memory they
-hold once the allocating context releases them.
-
-Indeed, this model works even when we find those c) and d) objects
-in cache rather than allocating them. They would get correctly
-accounted as "consumed reserve" because we no longer need to
-allocate that memory in transaction context and so that reserve can
-be released back to the free pool....
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Paul Bolle
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
