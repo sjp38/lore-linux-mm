@@ -1,51 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B5806B00A6
-	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 12:21:43 -0500 (EST)
-Received: by obbnt9 with SMTP id nt9so8311769obb.3
-        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 09:21:43 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id s7si2492033obd.35.2015.03.04.09.21.42
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id DA9EA6B00AA
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 12:35:55 -0500 (EST)
+Received: by widex7 with SMTP id ex7so32419280wid.0
+        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 09:35:55 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id dr2si9500142wid.108.2015.03.04.09.35.53
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 04 Mar 2015 09:21:42 -0800 (PST)
-Message-ID: <54F73F1C.4050601@oracle.com>
-Date: Wed, 04 Mar 2015 09:21:32 -0800
-From: Mike Kravetz <mike.kravetz@oracle.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] hugetlbfs: optionally reserve all fs pages at mount
- time
-References: <1425432106-17214-1-git-send-email-mike.kravetz@oracle.com> <alpine.DEB.2.10.1503032145110.12253@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1503032145110.12253@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 04 Mar 2015 09:35:54 -0800 (PST)
+Message-ID: <1425490544.19505.11.camel@stgolabs.net>
+Subject: Re: [PATCH v3 3/3] tomoyo: reduce mmap_sem hold for mm->exe_file
+From: Davidlohr Bueso <dave@stgolabs.net>
+Date: Wed, 04 Mar 2015 09:35:44 -0800
+In-Reply-To: <201502252040.IHB78651.OQFSLtFFHOOJMV@I-love.SAKURA.ne.jp>
+References: <1424370153.18191.12.camel@stgolabs.net>
+	 <201502200711.EIH87066.HSOJLFFOtFVOQM@I-love.SAKURA.ne.jp>
+	 <1424449696.2317.0.camel@stgolabs.net>
+	 <201502242035.GCI75431.LHQFOOJMFVSFtO@I-love.SAKURA.ne.jp>
+	 <1424806966.6539.84.camel@stgolabs.net>
+	 <201502252040.IHB78651.OQFSLtFFHOOJMV@I-love.SAKURA.ne.jp>
+Content-Type: text/plain
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: jmorris@namei.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, takedakn@nttdata.co.jp, linux-security-module@vger.kernel.org, tomoyo-dev-en@lists.sourceforge.jp
 
-On 03/03/2015 09:49 PM, David Rientjes wrote:
-> On Tue, 3 Mar 2015, Mike Kravetz wrote:
->> Add a new hugetlbfs mount option 'reserved' to specify that the number
->> of pages associated with the size of the filesystem will be reserved.  If
->> there are insufficient pages, the mount will fail.  The reservation is
->> maintained for the duration of the filesystem so that as pages are
->> allocated and free'ed a sufficient number of pages remains reserved.
->>
->
-> This functionality is somewhat limited because it's not possible to
-> reserve a subset of the size for a single mount point, it's either all or
-> nothing.  It shouldn't be too difficult to just add a reserved=<value>
-> option where <value> is <= size.  If it's done that way, you should be
-> able to omit size= entirely for unlimited hugepages but always ensure that
-> a low watermark of hugepages are reserved for the database.
-
-Thanks, I like that suggestion.  You are correct in that it should not
-be too difficult to pass in a size for reserved.  I'll work on the
-modification.
-
--- 
-Mike Kravetz
+poke... making sure this patch isn't lost. Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
