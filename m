@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 660CB6B006C
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 20:22:11 -0500 (EST)
-Received: by pdjz10 with SMTP id z10so1940393pdj.11
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BF1F6B0070
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2015 20:22:12 -0500 (EST)
+Received: by pabli10 with SMTP id li10so28827586pab.13
         for <linux-mm@kvack.org>; Tue, 03 Mar 2015 17:22:11 -0800 (PST)
 Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id jg3si3142252pac.45.2015.03.03.17.22.09
+        by mx.google.com with ESMTPS id uq1si2894347pac.192.2015.03.03.17.22.10
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 03 Mar 2015 17:22:10 -0800 (PST)
+        Tue, 03 Mar 2015 17:22:11 -0800 (PST)
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH 2/4] hugetlbfs: coordinate global and subpool reserve accounting
-Date: Tue,  3 Mar 2015 17:21:44 -0800
-Message-Id: <1425432106-17214-3-git-send-email-mike.kravetz@oracle.com>
+Subject: [PATCH 1/4] hugetlbfs: add reserved mount fields to subpool structure
+Date: Tue,  3 Mar 2015 17:21:43 -0800
+Message-Id: <1425432106-17214-2-git-send-email-mike.kravetz@oracle.com>
 In-Reply-To: <1425432106-17214-1-git-send-email-mike.kravetz@oracle.com>
 References: <1425432106-17214-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,89 +20,55 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-If the pages for a subpool are reserved, then the reservations
-have already been accounted for in the global pool(at mount time).
-Therefore, when requesting a new reservation (such as for a
-mapping) do not adjust the global reserve count.  Also, when
-simply unreserving pages for the subpool do not adjust the global
-count.  However, when actually allocating or freeing a hugepage
-be sure to adjust the global reserve count so that it corresponds
-with the global free count.
+Add a boolean to the subpool structure to indicate that the pages for
+subpool have been reserved.  The hstate pointer in the subpool is
+convenient to have when reserving and unreserving the pages.
+hugepage_subool_reserved() is a handy way to check if reserved and
+take into account a NULL subpool.
 
 Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 ---
- mm/hugetlb.c | 36 ++++++++++++++++++++++++++++--------
- 1 file changed, 28 insertions(+), 8 deletions(-)
+ include/linux/hugetlb.h | 6 ++++++
+ mm/hugetlb.c            | 2 ++
+ 2 files changed, 8 insertions(+)
 
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 431b7fc..12fbd5d 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -23,6 +23,8 @@ struct hugepage_subpool {
+ 	spinlock_t lock;
+ 	long count;
+ 	long max_hpages, used_hpages;
++	struct hstate *hstate;
++	bool reserved;
+ };
+ 
+ struct resv_map {
+@@ -38,6 +40,10 @@ extern int hugetlb_max_hstate __read_mostly;
+ #define for_each_hstate(h) \
+ 	for ((h) = hstates; (h) < &hstates[hugetlb_max_hstate]; (h)++)
+ 
++static inline bool hugepage_subpool_reserved(struct hugepage_subpool *spool)
++{
++	return spool && spool->reserved;
++}
+ struct hugepage_subpool *hugepage_new_subpool(long nr_blocks);
+ void hugepage_put_subpool(struct hugepage_subpool *spool);
+ 
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index c6adf65..394bd8f 100644
+index 85032de..c6adf65 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -879,7 +879,11 @@ void free_huge_page(struct page *page)
- 	spin_lock(&hugetlb_lock);
- 	hugetlb_cgroup_uncharge_page(hstate_index(h),
- 				     pages_per_huge_page(h), page);
--	if (restore_reserve)
-+	/*
-+	 * When a hugepage in a reserved subpool is free'ed, the global
-+	 * reserve count must be adjusted along with the global free count.
-+	 */
-+	if (restore_reserve || hugepage_subpool_reserved(spool))
- 		h->resv_huge_pages++;
+@@ -85,6 +85,8 @@ struct hugepage_subpool *hugepage_new_subpool(long nr_blocks)
+ 	spool->count = 1;
+ 	spool->max_hpages = nr_blocks;
+ 	spool->used_hpages = 0;
++	spool->hstate = NULL;
++	spool->reserved = false;
  
- 	if (h->surplus_huge_pages_node[nid]) {
-@@ -2466,7 +2470,12 @@ static void hugetlb_vm_op_close(struct vm_area_struct *vma)
- 	kref_put(&resv->refs, resv_map_release);
- 
- 	if (reserve) {
--		hugetlb_acct_memory(h, -reserve);
-+		/*
-+		 * For reserved subpools, global reservation counts are
-+		 * only adjusted at hugepage alloc and free time.
-+		 */
-+		if (!hugepage_subpool_reserved(spool))
-+			hugetlb_acct_memory(h, -reserve);
- 		hugepage_subpool_put_pages(spool, reserve);
- 	}
+ 	return spool;
  }
-@@ -3442,12 +3451,18 @@ int hugetlb_reserve_pages(struct inode *inode,
- 
- 	/*
- 	 * Check enough hugepages are available for the reservation.
--	 * Hand the pages back to the subpool if there are not
-+	 * Hand the pages back to the subpool if there are not.  If
-+	 * the entire subpool was reserved, we know there are enough
-+	 * hugepages and the global count already reflects the reservation.
- 	 */
--	ret = hugetlb_acct_memory(h, chg);
--	if (ret < 0) {
--		hugepage_subpool_put_pages(spool, chg);
--		goto out_err;
-+	if (hugepage_subpool_reserved(spool))
-+		ret = 0;
-+	else {
-+		ret = hugetlb_acct_memory(h, chg);
-+		if (ret < 0) {
-+			hugepage_subpool_put_pages(spool, chg);
-+			goto out_err;
-+		}
- 	}
- 
- 	/*
-@@ -3483,7 +3498,12 @@ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
- 	inode->i_blocks -= (blocks_per_huge_page(h) * freed);
- 	spin_unlock(&inode->i_lock);
- 
--	hugepage_subpool_put_pages(spool, (chg - freed));
-+	/*
-+	 * For reserved subpools, global reservation counts are only
-+	 * adjusted at hugepage alloc and free time.
-+	 */
-+	if (!hugepage_subpool_reserved(spool))
-+		hugepage_subpool_put_pages(spool, (chg - freed));
- 	hugetlb_acct_memory(h, -(chg - freed));
- }
- 
 -- 
 2.1.0
 
