@@ -1,93 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
-	by kanga.kvack.org (Postfix) with ESMTP id EDE646B006C
-	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 08:26:31 -0500 (EST)
-Received: by wevm14 with SMTP id m14so46329716wev.8
-        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 05:26:31 -0800 (PST)
-Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.203])
-        by mx.google.com with ESMTP id co4si29080816wib.116.2015.03.04.05.26.29
-        for <linux-mm@kvack.org>;
-        Wed, 04 Mar 2015 05:26:30 -0800 (PST)
-Date: Wed, 4 Mar 2015 15:26:17 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv3 04/24] rmap: add argument to charge compound page
-Message-ID: <20150304132617.GB16452@node.dhcp.inet.fi>
-References: <1423757918-197669-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1423757918-197669-5-git-send-email-kirill.shutemov@linux.intel.com>
- <54EB538B.7040308@suse.cz>
- <20150304115244.GA16452@node.dhcp.inet.fi>
- <54F6F60F.4070705@suse.cz>
-MIME-Version: 1.0
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id DFB576B0038
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 09:12:03 -0500 (EST)
+Received: by padfa1 with SMTP id fa1so33703401pad.9
+        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 06:12:03 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id ym2si5060371pbc.211.2015.03.04.06.12.01
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 04 Mar 2015 06:12:02 -0800 (PST)
+Subject: Re: How to handle TIF_MEMDIE stalls?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20150227073949.GJ4251@dastard>
+	<201502272142.BFJ09388.OLOMFFFVSQJOtH@I-love.SAKURA.ne.jp>
+	<20150227131209.GK4251@dastard>
+	<201503042141.FIC48980.OFFtVSQFOOMHJL@I-love.SAKURA.ne.jp>
+	<20150304132514.GW4251@dastard>
+In-Reply-To: <20150304132514.GW4251@dastard>
+Message-Id: <201503042311.CHA93957.tJFFOHMQLSOFVO@I-love.SAKURA.ne.jp>
+Date: Wed, 4 Mar 2015 23:11:48 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <54F6F60F.4070705@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: david@fromorbit.com
+Cc: tytso@mit.edu, rientjes@google.com, hannes@cmpxchg.org, mhocko@suse.cz, dchinner@redhat.com, linux-mm@kvack.org, oleg@redhat.com, akpm@linux-foundation.org, mgorman@suse.de, torvalds@linux-foundation.org, fernando_b1@lab.ntt.co.jp
 
-On Wed, Mar 04, 2015 at 01:09:51PM +0100, Vlastimil Babka wrote:
-> On 03/04/2015 12:52 PM, Kirill A. Shutemov wrote:
-> >On Mon, Feb 23, 2015 at 05:21:31PM +0100, Vlastimil Babka wrote:
-> >>On 02/12/2015 05:18 PM, Kirill A. Shutemov wrote:
-> >>>@@ -1052,21 +1052,24 @@ void page_add_anon_rmap(struct page *page,
-> >>>   * Everybody else should continue to use page_add_anon_rmap above.
-> >>>   */
-> >>>  void do_page_add_anon_rmap(struct page *page,
-> >>>-	struct vm_area_struct *vma, unsigned long address, int exclusive)
-> >>>+	struct vm_area_struct *vma, unsigned long address, int flags)
-> >>>  {
-> >>>  	int first = atomic_inc_and_test(&page->_mapcount);
-> >>>  	if (first) {
-> >>>+		bool compound = flags & RMAP_COMPOUND;
-> >>>+		int nr = compound ? hpage_nr_pages(page) : 1;
-> >>
-> >>hpage_nr_pages(page) is:
-> >>
-> >>static inline int hpage_nr_pages(struct page *page)
-> >>{
-> >>         if (unlikely(PageTransHuge(page)))
-> >>                 return HPAGE_PMD_NR;
-> >>         return 1;
-> >>}
-> >>
-> >>and later...
-> >>
-> >>>  		/*
-> >>>  		 * We use the irq-unsafe __{inc|mod}_zone_page_stat because
-> >>>  		 * these counters are not modified in interrupt context, and
-> >>>  		 * pte lock(a spinlock) is held, which implies preemption
-> >>>  		 * disabled.
-> >>>  		 */
-> >>>-		if (PageTransHuge(page))
-> >>>+		if (compound) {
-> >>>+			VM_BUG_ON_PAGE(!PageTransHuge(page), page);
-> >>
-> >>this means that we could assume that
-> >>(compound == true) => (PageTransHuge(page) == true)
-> >>
-> >>and simplify above to:
-> >>
-> >>int nr = compound ? HPAGE_PMD_NR : 1;
-> >>
-> >>Right?
-> >
-> >No. HPAGE_PMD_NR is defined based on HPAGE_PMD_SHIFT which is BUILD_BUG()
-> >without CONFIG_TRANSPARENT_HUGEPAGE. We will get compiler error without
-> >the helper.
+Dave Chinner wrote:
+> > Forever blocking kswapd0 somewhere inside filesystem shrinker functions is
+> > equivalent with removing kswapd() function because it also prevents non
+> > filesystem shrinker functions from being called by kswapd0, doesn't it?
 > 
-> Oh, OK. But that doesn't mean there couldn't be another helper that would
-> work in this case, or even open-coded #ifdefs in these functions. Apparently
-> "compound" has to be always false for !CONFIG_TRANSPARENT_HUGEPAGE, as in
-> that case PageTransHuge is defined as 0 and the VM_BUG_ON would trigger if
-> compound was true. So without such ifdefs or wrappers, you are also adding
-> dead code and pointless tests for !CONFIG_TRANSPARENT_HUGEPAGE?
+> Yes, but that's not intentional. Remember, we keep talking about the
+> filesystem not being able to guarantee forwards progress if
+> allocations block forever? Well...
+> 
+> > Then, the description will become "We won't have _some_ free memory available
+> > if there is no other activity that frees anything up", won't it?
+> 
+> ... we've ended up blocking kswapd because it's waiting on a journal
+> commit to complete, and that journal commit is blocked waiting for
+> forwards progress in memory allocation...
+> 
+> Yes, it's another one of those nasty dependencies I keep pointing
+> out that filesystems have, and that can only be solved by
+> guaranteeing we can always make forwards allocation progress from
+> transaction reserve to transaction commit.
 
-Yeah, this definitely can be improved. I prefer to do it as follow up.
-I want to get stable what I have now.
+If this is an unexpected deadlock, don't we want below change for
+xfs_reclaim_inodes_ag() ?
 
--- 
- Kirill A. Shutemov
+-	if (skipped && (flags & SYNC_WAIT) && *nr_to_scan > 0) {
++	if (skipped && (flags & SYNC_WAIT) && *nr_to_scan > 0 && !current_is_kswapd()) {
+ 		trylock = 0;
+ 		goto restart;
+ 	}
+
+> It's rare that kswapd actually gets stuck like this - I've only ever
+> seen it once, and I've never had anyone running a production system
+> report deadlocks like this...
+
+I guess we will unlikely see this again, for so far this is observed with
+only Linux 3.19 which lacks commit cc87317726f8 ("mm: page_alloc: revert
+inadvertent !__GFP_FS retry behavior change").
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
