@@ -1,55 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 847706B0038
-	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 15:56:32 -0500 (EST)
-Received: by widex7 with SMTP id ex7so33913323wid.4
-        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 12:56:32 -0800 (PST)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.195])
-        by mx.google.com with ESMTP id ev14si8926278wjc.143.2015.03.04.12.56.30
-        for <linux-mm@kvack.org>;
-        Wed, 04 Mar 2015 12:56:31 -0800 (PST)
-Date: Wed, 4 Mar 2015 22:56:14 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv4 03/24] mm: avoid PG_locked on tail pages
-Message-ID: <20150304205614.GA19606@node.dhcp.inet.fi>
-References: <1425486792-93161-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1425486792-93161-4-git-send-email-kirill.shutemov@linux.intel.com>
- <alpine.DEB.2.11.1503041246470.23719@gentwo.org>
+Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id A6BBE6B006C
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 16:07:56 -0500 (EST)
+Received: by iecrl12 with SMTP id rl12so70683270iec.2
+        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 13:07:56 -0800 (PST)
+Received: from mail-ig0-x22b.google.com (mail-ig0-x22b.google.com. [2607:f8b0:4001:c05::22b])
+        by mx.google.com with ESMTPS id sd3si6672831igb.32.2015.03.04.13.07.56
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 04 Mar 2015 13:07:56 -0800 (PST)
+Received: by igjz20 with SMTP id z20so40208637igj.4
+        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 13:07:56 -0800 (PST)
+Date: Wed, 4 Mar 2015 13:07:54 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] memcg: make CONFIG_MEMCG depend on CONFIG_MMU
+In-Reply-To: <20150304192836.GA952@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1503041304480.22344@chino.kir.corp.google.com>
+References: <1425492428-27562-1-git-send-email-mhocko@suse.cz> <20150304190635.GC21350@phnom.home.cmpxchg.org> <20150304192836.GA952@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.11.1503041246470.23719@gentwo.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Chen Gang <762976180@qq.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Balbir Singh <bsingharora@gmail.com>
 
-On Wed, Mar 04, 2015 at 12:48:54PM -0600, Christoph Lameter wrote:
-> On Wed, 4 Mar 2015, Kirill A. Shutemov wrote:
-> 
-> > index c851ff92d5b3..58b98bced299 100644
-> > --- a/include/linux/page-flags.h
-> > +++ b/include/linux/page-flags.h
-> > @@ -207,7 +207,8 @@ static inline int __TestClearPage##uname(struct page *page) { return 0; }
-> >
-> >  struct page;	/* forward declaration */
-> >
-> > -TESTPAGEFLAG(Locked, locked)
-> > +#define PageLocked(page) test_bit(PG_locked, &compound_head(page)->flags)
-> > +
-> >  PAGEFLAG(Error, error) TESTCLEARFLAG(Error, error)
-> 
-> Hmmm... Now one of the pageflag functions operates on the head page unlike
-> the other pageflag functions that only operate on the flag indicated.
-> 
-> Given that pageflags provide a way to implement checks for head / tail
-> pages this seems to be a bad idea.
+On Wed, 4 Mar 2015, Michal Hocko wrote:
 
-I agree, I need to take more systematic look on page flags vs. compound
-pages. I'll try to come up with something before the summit.
+> Does it really make sense to do this minor tweaks when the configuration
+> is barely usable and we are not aware of anybody actually using it in
+> the real life?
+> 
 
--- 
- Kirill A. Shutemov
+If the memcg kmem extension continues to be improved, I'm wondering if 
+anybody would want to use memcg only for kmem limiting.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
