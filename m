@@ -1,73 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 8624D6B0038
-	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 15:53:09 -0500 (EST)
-Received: by widex7 with SMTP id ex7so31730327wid.1
-        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 12:53:08 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p9si31434311wiy.111.2015.03.04.12.53.06
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Mar 2015 12:53:07 -0800 (PST)
-Message-ID: <54F770A7.2030205@redhat.com>
-Date: Wed, 04 Mar 2015 15:52:55 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 847706B0038
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 15:56:32 -0500 (EST)
+Received: by widex7 with SMTP id ex7so33913323wid.4
+        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 12:56:32 -0800 (PST)
+Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.195])
+        by mx.google.com with ESMTP id ev14si8926278wjc.143.2015.03.04.12.56.30
+        for <linux-mm@kvack.org>;
+        Wed, 04 Mar 2015 12:56:31 -0800 (PST)
+Date: Wed, 4 Mar 2015 22:56:14 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv4 03/24] mm: avoid PG_locked on tail pages
+Message-ID: <20150304205614.GA19606@node.dhcp.inet.fi>
+References: <1425486792-93161-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1425486792-93161-4-git-send-email-kirill.shutemov@linux.intel.com>
+ <alpine.DEB.2.11.1503041246470.23719@gentwo.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] vmscan: get_scan_count selects anon pages conservative
-References: <d8192a90f6f9b474b33ec732b88b8b2d7e8623cd.1425499261.git.shli@fb.com>
-In-Reply-To: <d8192a90f6f9b474b33ec732b88b8b2d7e8623cd.1425499261.git.shli@fb.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.11.1503041246470.23719@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@fb.com>, linux-mm@kvack.org
-Cc: Kernel-team@fb.com, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 03/04/2015 03:03 PM, Shaohua Li wrote:
-> kswapd is a per-node based. Sometimes there is imbalance between nodes,
-> node A is full of clean file pages (easy to reclaim), node B is
-> full of anon pages (hard to reclaim). With memory pressure, kswapd will
-> be waken up for both nodes. The kswapd of node B will try to swap, while
-> we prefer reclaim pages from node A first. The real issue here is we
-> don't have a mechanism to prevent memory allocation from a hard-reclaim
-> node (node B here) if there is an easy-reclaim node (node A) to reclaim
-> memory.
+On Wed, Mar 04, 2015 at 12:48:54PM -0600, Christoph Lameter wrote:
+> On Wed, 4 Mar 2015, Kirill A. Shutemov wrote:
 > 
-> The swap can happen even with swapiness 0. Below is a simple script to
-> trigger it. cpu 1 and 8 are in different node, each has 72G memory:
-> truncate -s 70G img
-> taskset -c 8 dd if=img of=/dev/null bs=4k
-> taskset -c 1 usemem 70G
+> > index c851ff92d5b3..58b98bced299 100644
+> > --- a/include/linux/page-flags.h
+> > +++ b/include/linux/page-flags.h
+> > @@ -207,7 +207,8 @@ static inline int __TestClearPage##uname(struct page *page) { return 0; }
+> >
+> >  struct page;	/* forward declaration */
+> >
+> > -TESTPAGEFLAG(Locked, locked)
+> > +#define PageLocked(page) test_bit(PG_locked, &compound_head(page)->flags)
+> > +
+> >  PAGEFLAG(Error, error) TESTCLEARFLAG(Error, error)
 > 
-> The swap can even easier to trigger because we have a protect mechanism
-> for situation file pages are less than high watermark. This logic makes
-> sense but could be more conservative.
+> Hmmm... Now one of the pageflag functions operates on the head page unlike
+> the other pageflag functions that only operate on the flag indicated.
 > 
-> This patch doesn't try to fix the kswapd imbalance issue above, but make
-> get_scan_count more conservative to select anon pages. The protect
-> mechanism is designed for situation file pages are rotated frequently.
-> In that situation, page reclaim should be in trouble, eg, priority is
-> lower. So let's only apply the protect mechanism in that situation. In
-> pratice, this fixes the swap issue in above test.
-> 
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Signed-off-by: Shaohua Li <shli@fb.com>
+> Given that pageflags provide a way to implement checks for head / tail
+> pages this seems to be a bad idea.
 
-Doh, never mind my earlier comment. I must be too tired
-to look at stuff right...
+I agree, I need to take more systematic look on page flags vs. compound
+pages. I'll try to come up with something before the summit.
 
-I see how your patch helps avoid the problem, but I am
-worried about potential side effects. I suspect it could
-lead to page cache thrashing when all zones are low on
-page cache memory.
-
-Would it make sense to explicitly check that we are low
-on page cache pages in all zones on the scan list, before
-forcing anon only scanning, when we get into this function?
-
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
