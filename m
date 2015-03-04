@@ -1,68 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 11AD06B0038
-	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 16:13:19 -0500 (EST)
-Received: by wggx13 with SMTP id x13so2109206wgg.12
-        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 13:13:18 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id u8si31682095wiv.18.2015.03.04.13.13.17
+Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
+	by kanga.kvack.org (Postfix) with ESMTP id A68246B006C
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 16:17:02 -0500 (EST)
+Received: by obbgq1 with SMTP id gq1so9786098obb.2
+        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 13:17:02 -0800 (PST)
+Received: from g2t2353.austin.hp.com (g2t2353.austin.hp.com. [15.217.128.52])
+        by mx.google.com with ESMTPS id z1si2832673obg.51.2015.03.04.13.17.01
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Mar 2015 13:13:17 -0800 (PST)
-Date: Wed, 4 Mar 2015 16:13:01 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] memcg: make CONFIG_MEMCG depend on CONFIG_MMU
-Message-ID: <20150304211301.GA22626@phnom.home.cmpxchg.org>
-References: <1425492428-27562-1-git-send-email-mhocko@suse.cz>
- <20150304190635.GC21350@phnom.home.cmpxchg.org>
- <20150304192836.GA952@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150304192836.GA952@dhcp22.suse.cz>
+        Wed, 04 Mar 2015 13:17:02 -0800 (PST)
+Message-ID: <1425503783.17007.263.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v3 6/6] x86, mm: Support huge KVA mappings on x86
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Wed, 04 Mar 2015 14:16:23 -0700
+In-Reply-To: <20150304201748.GA6634@gmail.com>
+References: <1425404664-19675-1-git-send-email-toshi.kani@hp.com>
+	 <1425404664-19675-7-git-send-email-toshi.kani@hp.com>
+	 <20150303144414.9f97ef25ad8aed7d112896bf@linux-foundation.org>
+	 <1425424472.17007.191.camel@misato.fc.hp.com>
+	 <20150303170035.85e94c87.akpm@linux-foundation.org>
+	 <1425486216.17007.236.camel@misato.fc.hp.com>
+	 <20150304201748.GA6634@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Chen Gang <762976180@qq.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Balbir Singh <bsingharora@gmail.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@redhat.com" <mingo@redhat.com>, "arnd@arndb.de" <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dave.hansen@intel.com" <dave.hansen@intel.com>, "Elliott, Robert (Server Storage)" <Elliott@hp.com>
 
-On Wed, Mar 04, 2015 at 08:28:36PM +0100, Michal Hocko wrote:
-> > Sorry about the misunderstanding, I actually acked Chen's patch.  As I
-> > said, there is nothing inherent in memcg that would prevent using it
-> > on NOMMU systems except for this charges-follow-tasks feature, so I'd
-> > rather fix the compiler warning than adding this dependency.
+On Wed, 2015-03-04 at 21:17 +0100, Ingo Molnar wrote:
+> * Toshi Kani <toshi.kani@hp.com> wrote:
 > 
-> Does it really make sense to do this minor tweaks when the configuration
-> is barely usable and we are not aware of anybody actually using it in
-> the real life?
+> > On Wed, 2015-03-04 at 01:00 +0000, Andrew Morton wrote:
+> > > On Tue, 03 Mar 2015 16:14:32 -0700 Toshi Kani <toshi.kani@hp.com> wrote:
+> > > 
+> > > > On Tue, 2015-03-03 at 14:44 -0800, Andrew Morton wrote:
+> > > > > On Tue,  3 Mar 2015 10:44:24 -0700 Toshi Kani <toshi.kani@hp.com> wrote:
+> > > >  :
+> > > > > > +
+> > > > > > +#ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
+> > > > > > +int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot)
+> > > > > > +{
+> > > > > > +	u8 mtrr;
+> > > > > > +
+> > > > > > +	/*
+> > > > > > +	 * Do not use a huge page when the range is covered by non-WB type
+> > > > > > +	 * of MTRRs.
+> > > > > > +	 */
+> > > > > > +	mtrr = mtrr_type_lookup(addr, addr + PUD_SIZE);
+> > > > > > +	if ((mtrr != MTRR_TYPE_WRBACK) && (mtrr != 0xFF))
+> > > > > > +		return 0;
+> > > > > 
+> > > > > It would be good to notify the operator in some way when this happens. 
+> > > > > Otherwise the kernel will run more slowly and there's no way of knowing
+> > > > > why.  I guess slap a pr_info() in there.  Or maybe pr_warn()?
+> > > > 
+> > > > We only use 4KB mappings today, so this case will not make it run
+> > > > slowly, i.e. it will be the same as today.
+> > > 
+> > > Yes, but it would be slower than it would be if the operator fixed the
+> > > mtrr settings!  How do we let the operator know this?
+> > > 
+> > > >  Also, adding a message here
+> > > > can generate a lot of messages when MTRRs cover a large area.
+> > > 
+> > > Really?  This is only going to happen when a device driver 
+> > > requests a huge io mapping, isn't it?  That's rare.  We could emit 
+> > > a warning, return an error code and fall all the way back to the 
+> > > top-level ioremap code which can then retry with 4k mappings.  Or 
+> > > something similar - somehow record the fact that this warning has 
+> > > been emitted or use printk ratelimiting (bad option).
+> > 
+> > Yes, an IO device with a huge MMIO space that is covered by MTRRs is 
+> > a rare case.  BIOS does not need to specify how MMIO of each card 
+> > needs to be accessed with MTRRs (or BIOS should not do it since an 
+> > MMIO address is configurable on each card).
+> > 
+> > However, PCIe has the MMCONFIG space, PCIe config space, which is 
+> > also memory mapped and must be accessed with UC.  The PCI subsystem 
+> > calls ioremap_nocache() to map the entire MMCONFIG space, which 
+> > covers the PCIe config space of all possible cards.  Here are boot 
+> > messages on my test system.
+> > 
+> >   :
+> > PCI: MMCONFIG for domain 0000 [bus 00-ff] at [mem 0xc0000000-0xcf
+> > ffffff] (base 0xc0000000)
+> > PCI: MMCONFIG at [mem 0xc0000000-0xcfffffff] reserved in E820
+> >   :
+> > 
+> > And MTRRs cover this MMCONFIG space with UC to assure that the range is
+> > always accessed with UC.
 > 
-> Sure there is nothing inherently depending on MMU
+> So the PCI code ioremap()s this 256 MB mmconfig space in its entirety 
+> currently?
 
-How is this even controversial?  We are not adding dependencies just
-because we're not sure how we feel about the opposite.  We declare a
-dependency when we know it truly exists.
+Yes.
 
-> but just considering
-> this wasn't working since ages for anon mappings and who knows what else
-> doesn't work.
+> > # cat /proc/mtrr
+> > reg00: base=0x0c0000000 ( 3072MB), size= 1024MB, count=1: uncachable
+> > 
+> > So, if we add a message into the code, it will be displayed many 
+> > times in this ioremap_nocache() call from PCI.
+> 
+> So, in this specific case, when a single MTRR covers it with a single 
+> cache policy, I think we can safely map it UC using hugepmds?
 
-NOMMU people know that too, they don't expect to have significant test
-coverage.  If they run into issues, they can still add the dependency.
-This is much better than them wanting to use a feature, running into
-the dependency declaration, going through all the code, scratching
-their heads about why this code would have that dependency, finally
-writing us an email, and then us going "ah yeah, there is nothing
-INHERENTLY depending on MMU, we just weren't sure about it."
+Yes.
 
-I don't even care about NOMMU, this is just wrong on principle.  And
-obviously so.  NAK to your patch from me.
+> That will 'shut up' the warning the right way: by making the code 
+> work?
 
-> The point is, once somebody really needs this configuration we should go
-> over all the missing parts and implement them but this half baked state
-> with random fixes to shut the compiler up is really suboptimal IMO.
+I see your point.  I will look into mtrr_type_lookup() to see if we can
+make it work in a manageable way.
 
-Disagreed, for the above-mentioned reasons.  Chen's patch is obvious
-and self-contained and doesn't at all indicate an endless stream of
-future patches in that direction.  It also improves code organization.
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
