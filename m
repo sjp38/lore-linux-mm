@@ -1,110 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B9B56B0038
-	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 05:11:21 -0500 (EST)
-Received: by pdjy10 with SMTP id y10so56314917pdj.6
-        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 02:11:21 -0800 (PST)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id y4si4567610pdl.50.2015.03.04.02.11.17
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CBC06B0038
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 06:03:40 -0500 (EST)
+Received: by pabli10 with SMTP id li10so32602384pab.13
+        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 03:03:40 -0800 (PST)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id ay5si3731094pbb.176.2015.03.04.03.03.38
         for <linux-mm@kvack.org>;
-        Wed, 04 Mar 2015 02:11:20 -0800 (PST)
-Message-ID: <54F6D637.6040705@cn.fujitsu.com>
-Date: Wed, 4 Mar 2015 17:53:59 +0800
-From: Gu Zheng <guz.fnst@cn.fujitsu.com>
+        Wed, 04 Mar 2015 03:03:39 -0800 (PST)
+Date: Wed, 4 Mar 2015 22:03:34 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: How to handle TIF_MEMDIE stalls?
+Message-ID: <20150304110334.GS18360@dastard>
+References: <20150219225217.GY12722@dastard>
+ <20150221235227.GA25079@phnom.home.cmpxchg.org>
+ <20150223004521.GK12722@dastard>
+ <20150222172930.6586516d.akpm@linux-foundation.org>
+ <20150223073235.GT4251@dastard>
+ <54F42FEA.1020404@suse.cz>
+ <20150302223154.GJ18360@dastard>
+ <54F57B20.3090803@suse.cz>
+ <20150304013346.GP18360@dastard>
+ <54F6C772.3050806@suse.cz>
 MIME-Version: 1.0
-Subject: Re: node-hotplug: is memset 0 safe in try_offline_node()?
-References: <54F52ACF.4030103@huawei.com> <54F58AE3.50101@cn.fujitsu.com> <54F66C52.4070600@huawei.com> <54F67376.8050001@huawei.com> <54F68270.5000203@cn.fujitsu.com> <54F6BC43.3000509@huawei.com> <54F6C809.1080709@jp.fujitsu.com>
-In-Reply-To: <54F6C809.1080709@jp.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <54F6C772.3050806@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Xishi Qiu <qiuxishi@huawei.com>
-Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Yinghai Lu <yinghai@kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Toshi Kani <toshi.kani@hp.com>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Xiexiuqi <xiexiuqi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Li Zefan <lizefan@huawei.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@suse.cz, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, mgorman@suse.de, torvalds@linux-foundation.org, xfs@oss.sgi.com
 
-On 03/04/2015 04:53 PM, Kamezawa Hiroyuki wrote:
+On Wed, Mar 04, 2015 at 09:50:58AM +0100, Vlastimil Babka wrote:
+> On 03/04/2015 02:33 AM, Dave Chinner wrote:
+> >On Tue, Mar 03, 2015 at 10:13:04AM +0100, Vlastimil Babka wrote:
+> >>>
+> >>>Preallocated reserves do not allow for unbound demand paging of
+> >>>reclaimable objects within reserved allocation contexts.
+> >>
+> >>OK I think I get the point now.
+> >>
+> >>So, lots of the concerns by me and others were about the wasted memory due to
+> >>reservations, and increased pressure on the rest of the system. I was thinking,
+> >>are you able, at the beginning of the transaction (for this purposes, I think of
+> >>transaction as the work that starts with the memory reservation, then it cannot
+> >>rollback and relies on the reserves, until it commits and frees the memory),
+> >>determine whether the transaction cannot be blocked in its progress by any other
+> >>transaction, and the only thing that would block it would be inability to
+> >>allocate memory during its course?
+> >
+> >No. e.g. any transaction that requires allocation or freeing of an
+> >inode or extent can get stuck behind any other transaction that is
+> >allocating/freeing and inode/extent. And this will happen when
+> >holding inode locks, which means other transactions on that inode
+> >will then get stuck on the inode lock, and so on. Blocking
+> >dependencies within transactions are everywhere and cannot be
+> >avoided.
+> 
+> Hm, I see. I thought that perhaps to avoid deadlocks between
+> transactions (which you already have to do somehow),
 
-> On 2015/03/04 17:03, Xishi Qiu wrote:
->> On 2015/3/4 11:56, Gu Zheng wrote:
->>
->>> Hi Xishi,
->>> On 03/04/2015 10:52 AM, Xishi Qiu wrote:
->>>
->>>> On 2015/3/4 10:22, Xishi Qiu wrote:
->>>>
->>>>> On 2015/3/3 18:20, Gu Zheng wrote:
->>>>>
->>>>>> Hi Xishi,
->>>>>> On 03/03/2015 11:30 AM, Xishi Qiu wrote:
->>>>>>
->>>>>>> When hot-remove a numa node, we will clear pgdat,
->>>>>>> but is memset 0 safe in try_offline_node()?
->>>>>>
->>>>>> It is not safe here. In fact, this is a temporary solution here.
->>>>>> As you know, pgdat is accessed lock-less now, so protection
->>>>>> mechanism (RCU=EF=BC=9F) is needed to make it completely safe here,
->>>>>> but it seems a bit over-kill.
->>>>>>
->>>>
->>>> Hi Gu,
->>>>
->>>> Can we just remove "memset(pgdat, 0, sizeof(*pgdat));" ?
->>>> I find this will be fine in the stress test except the warning
->>>> when hot-add memory.
->>>
->>> As you see, it will trigger the warning in free_area_init_node().
->>> Could you try the following patch? It will reset the pgdat before reuse=
- it.
->>>
->>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->>> index 1778628..0717649 100644
->>> --- a/mm/memory_hotplug.c
->>> +++ b/mm/memory_hotplug.c
->>> @@ -1092,6 +1092,9 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid,=
- u64 start)
->>>                          return NULL;
->>>
->>>                  arch_refresh_nodedata(nid, pgdat);
->>> +       } else {
->>> +               /* Reset the pgdat to reuse */
->>> +               memset(pgdat, 0, sizeof(*pgdat));
->>>          }
->>
->> Hi Gu,
->>
->> If schedule last a long time, next_zone may be still access the pgdat he=
-re,
->> so it is not safe enough, right?
+Of course, by following lock ordering rules, rules about holding
+locks over transaction reservations, allowing bulk reservations for
+rolling transactions that don't unlock objects between transaction
+commits, having allocation group ordering rules, block allocation
+ordering rules, transactional lock recursion suport to prevent
+transaction deadlocking walking over objects already locked into the
+transaction, etc.
 
+By following those rules, we guarantee forwards progress in the
+transaction subsystem. If we can also guarantee forwards progress in
+memory allocation inside transaction context (like Irix did all
+those years ago :P), then we can guarantee that transactions will
+always complete unless there is a bug or corruption is detected
+during an operation...
 
-Hi Xishi,
+> either the
+> dependencies have to be structured in a way that there's always some
+> transaction that can't block on others. Or you have a way to detect
+> potential deadlocks before they happen, and stall somebody who tries
+> to lock.
 
-IMO, the scheduled time is rather short if compares with the time gap
-between hot remove and hot re-add a node, so we can say it is safe here.
+$ git grep ASSERT fs/xfs |wc -l
+1716
 
->>
->=20
-> How about just reseting pgdat->nr_zones and pgdat->classzone_idx to be 0 =
-rather than
-> memset() ?
->=20
-> It seems breaking pointer information in pgdat is not a choice.
-> Just proper "values" should be reset.
+About 3% of the code in XFS is ASSERT statements used to verify
+context specific state is correct in CONFIG_XFS_DEBUG=y builds.
 
-Anyway, sounds reasonable.
+FYI, from cloc:
 
-Best regards,
-Gu
+Subsystem      files          blank        comment	   code
+-------------------------------------------------------------------------------
+fs/xfs		157          10841          25339          69140
+mm/		 97          13923          25534          67870
+fs/btrfs	 86          14443          15097          85065
 
->=20
-> Thanks,
-> -Kame
->=20
->=20
->=20
-> .
->=20
+Cheers,
 
+Dave.
+
+PS: XFS userspace has another 110,000 lines of code in xfsprogs and
+60,000 lines of code in xfsdump, and there's also 80,000 lines of
+test code in xfstests.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
