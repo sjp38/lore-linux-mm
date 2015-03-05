@@ -1,62 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f45.google.com (mail-oi0-f45.google.com [209.85.218.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D6256B0038
-	for <linux-mm@kvack.org>; Thu,  5 Mar 2015 11:40:51 -0500 (EST)
-Received: by oiav63 with SMTP id v63so12671331oia.8
-        for <linux-mm@kvack.org>; Thu, 05 Mar 2015 08:40:51 -0800 (PST)
-Received: from g2t2353.austin.hp.com (g2t2353.austin.hp.com. [15.217.128.52])
-        by mx.google.com with ESMTPS id q8si4298280oej.21.2015.03.05.08.40.50
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id C2EC76B0038
+	for <linux-mm@kvack.org>; Thu,  5 Mar 2015 11:46:52 -0500 (EST)
+Received: by pabrd3 with SMTP id rd3so19972078pab.5
+        for <linux-mm@kvack.org>; Thu, 05 Mar 2015 08:46:52 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id lq9si10361773pab.61.2015.03.05.08.46.51
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Mar 2015 08:40:50 -0800 (PST)
-From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH] Fix build errors in asm-generic/pgtable.h
-Date: Thu,  5 Mar 2015 09:40:07 -0700
-Message-Id: <1425573607-4801-1-git-send-email-toshi.kani@hp.com>
+        Thu, 05 Mar 2015 08:46:52 -0800 (PST)
+Date: Thu, 5 Mar 2015 19:46:36 +0300
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH 0/4] cleancache: remove limit on the number of cleancache
+ enabled filesystems
+Message-ID: <20150305164636.GB4762@esperanza>
+References: <cover.1424628280.git.vdavydov@parallels.com>
+ <20150223161222.GD30733@l.oracle.com>
+ <20150224103406.GF16138@esperanza>
+ <20150304212230.GB18253@l.oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20150304212230.GB18253@l.oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, kbuild-all@01.org, fengguang.wu@intel.com, hannes@cmpxchg.org, Toshi Kani <toshi.kani@hp.com>
+To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Vrabel <david.vrabel@citrix.com>, Mark
+ Fasheh <mfasheh@suse.com>, Joel Becker <jlbec@evilplan.org>, Stefan Hengelein <ilendir@googlemail.com>, Florian Schmaus <fschmaus@gmail.com>, Andor Daam <andor.daam@googlemail.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Bob Liu <lliubbo@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Fix build errors in pud_set_huge() and pmd_set_huge() in
-asm-generic/pgtable.h on some architectures in linux-next
-and -mm trees.
+On Wed, Mar 04, 2015 at 04:22:30PM -0500, Konrad Rzeszutek Wilk wrote:
+> On Tue, Feb 24, 2015 at 01:34:06PM +0300, Vladimir Davydov wrote:
+> > On Mon, Feb 23, 2015 at 11:12:22AM -0500, Konrad Rzeszutek Wilk wrote:
+> > > Thank you for posting these patches. I was wondering if you had
+> > > run through some of the different combinations that you can
+> > > load the filesystems/tmem drivers in random order? The #4 patch
+> > > deleted a nice chunk of documentation that outlines the different
+> > > combinations.
+> > 
+> > Yeah, I admit the synchronization between cleancache_register_ops and
+> > cleancache_init_fs is far not obvious. I should have updated the comment
+> > instead of merely dropping it, sorry. What about the following patch
+> > proving correctness of register_ops-vs-init_fs synchronization? It is
+> > meant to be applied incrementally on top of patch #4.
+> 
+> Just fold it in please. But more importantly - I was wondering if you
+> had run throught the different combinations it outlines?
 
-C-stype code needs be used under #ifndef __ASSEMBLY__.
+Ah, you mean testing - I misunderstood you at first, sorry.
 
-Signed-off-by: Toshi Kani <toshi.kani@hp.com>
----
- include/asm-generic/pgtable.h |   12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+Of course, I checked that a cleancache backend module works fine no
+matter if it is loaded before or after a filesystem is mounted. However,
+I used our own cleancache driver for testing (we are trying to use
+cleancache for containers).
 
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index eaae472..c79eebf 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -697,12 +697,6 @@ static inline int pmd_protnone(pmd_t pmd)
- 
- #endif /* CONFIG_MMU */
- 
--#endif /* !__ASSEMBLY__ */
--
--#ifndef io_remap_pfn_range
--#define io_remap_pfn_range remap_pfn_range
--#endif
--
- #ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
- int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot);
- int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot);
-@@ -721,4 +715,10 @@ static inline int pud_clear_huge(pud_t *pud) { return 0; }
- static inline int pmd_clear_huge(pmd_t *pmd) { return 0; }
- #endif	/* CONFIG_HAVE_ARCH_HUGE_VMAP */
- 
-+#endif /* !__ASSEMBLY__ */
-+
-+#ifndef io_remap_pfn_range
-+#define io_remap_pfn_range remap_pfn_range
-+#endif
-+
- #endif /* _ASM_GENERIC_PGTABLE_H */
+To be 100% sure that I did not occasionally break anything, today I
+installed XenServer on my test machine, enabled tmem both in dom0 and
+domU, and ran through all possible sequences of tmem load vs fs
+mount/use/unmount described in the old comment.
+
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
