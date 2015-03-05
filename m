@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EA336B007D
-	for <linux-mm@kvack.org>; Thu,  5 Mar 2015 12:19:19 -0500 (EST)
-Received: by widem10 with SMTP id em10so40326259wid.1
-        for <linux-mm@kvack.org>; Thu, 05 Mar 2015 09:19:19 -0800 (PST)
+Received: from mail-we0-f175.google.com (mail-we0-f175.google.com [74.125.82.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A5576B0081
+	for <linux-mm@kvack.org>; Thu,  5 Mar 2015 12:19:22 -0500 (EST)
+Received: by wevl61 with SMTP id l61so54374045wev.2
+        for <linux-mm@kvack.org>; Thu, 05 Mar 2015 09:19:21 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e18si13927616wjx.62.2015.03.05.09.19.04
+        by mx.google.com with ESMTPS id em4si36102876wid.73.2015.03.05.09.19.05
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Mar 2015 09:19:05 -0800 (PST)
+        Thu, 05 Mar 2015 09:19:06 -0800 (PST)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 06/21] userfaultfd: add VM_UFFD_MISSING and VM_UFFD_WP
-Date: Thu,  5 Mar 2015 18:17:49 +0100
-Message-Id: <1425575884-2574-7-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 21/21] userfaultfd: add userfaultfd_wp mm helpers
+Date: Thu,  5 Mar 2015 18:18:04 +0100
+Message-Id: <1425575884-2574-22-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1425575884-2574-1-git-send-email-aarcange@redhat.com>
 References: <1425575884-2574-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,45 +20,42 @@ List-ID: <linux-mm.kvack.org>
 To: qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Android Kernel Team <kernel-team@android.com>
 Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave@sr71.net>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Christopher Covington <cov@codeaurora.org>, Johannes Weiner <hannes@cmpxchg.org>, Robert Love <rlove@google.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, Keith Packard <keithp@keithp.com>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Anthony Liguori <anthony@codemonkey.ws>, Stefan Hajnoczi <stefanha@gmail.com>, Wenchao Xia <wenchaoqemu@gmail.com>, Andrew Jones <drjones@redhat.com>, Juan Quintela <quintela@redhat.com>
 
-These two flags gets set in vma->vm_flags to tell the VM common code
-if the userfaultfd is armed and in which mode (only tracking missing
-faults, only tracking wrprotect faults or both). If neither flags is
-set it means the userfaultfd is not armed on the vma.
+These helpers will be used to know if to call handle_userfault() during
+wrprotect faults in order to deliver the wrprotect faults to userland.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- include/linux/mm.h | 2 ++
- kernel/fork.c      | 2 +-
- 2 files changed, 3 insertions(+), 1 deletion(-)
+ include/linux/userfaultfd_k.h | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 47a9392..762ef9d 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -123,8 +123,10 @@ extern unsigned int kobjsize(const void *objp);
- #define VM_MAYSHARE	0x00000080
+diff --git a/include/linux/userfaultfd_k.h b/include/linux/userfaultfd_k.h
+index 3c39a4f..81f0d11 100644
+--- a/include/linux/userfaultfd_k.h
++++ b/include/linux/userfaultfd_k.h
+@@ -65,6 +65,11 @@ static inline bool userfaultfd_missing(struct vm_area_struct *vma)
+ 	return vma->vm_flags & VM_UFFD_MISSING;
+ }
  
- #define VM_GROWSDOWN	0x00000100	/* general info on the segment */
-+#define VM_UFFD_MISSING	0x00000200	/* missing pages tracking */
- #define VM_PFNMAP	0x00000400	/* Page-ranges managed without "struct page", just pure PFN */
- #define VM_DENYWRITE	0x00000800	/* ETXTBSY on write attempts.. */
-+#define VM_UFFD_WP	0x00001000	/* wrprotect pages tracking */
++static inline bool userfaultfd_wp(struct vm_area_struct *vma)
++{
++	return vma->vm_flags & VM_UFFD_WP;
++}
++
+ static inline bool userfaultfd_armed(struct vm_area_struct *vma)
+ {
+ 	return vma->vm_flags & (VM_UFFD_MISSING | VM_UFFD_WP);
+@@ -92,6 +97,11 @@ static inline bool userfaultfd_missing(struct vm_area_struct *vma)
+ 	return false;
+ }
  
- #define VM_LOCKED	0x00002000
- #define VM_IO           0x00004000	/* Memory mapped I/O or similar */
-diff --git a/kernel/fork.c b/kernel/fork.c
-index cb215c0..cfab6e9 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -423,7 +423,7 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
- 		tmp->vm_mm = mm;
- 		if (anon_vma_fork(tmp, mpnt))
- 			goto fail_nomem_anon_vma_fork;
--		tmp->vm_flags &= ~VM_LOCKED;
-+		tmp->vm_flags &= ~(VM_LOCKED|VM_UFFD_MISSING|VM_UFFD_WP);
- 		tmp->vm_next = tmp->vm_prev = NULL;
- 		tmp->vm_userfaultfd_ctx = NULL_VM_UFFD_CTX;
- 		file = tmp->vm_file;
++static inline bool userfaultfd_wp(struct vm_area_struct *vma)
++{
++	return false;
++}
++
+ static inline bool userfaultfd_armed(struct vm_area_struct *vma)
+ {
+ 	return false;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
