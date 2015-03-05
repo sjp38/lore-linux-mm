@@ -1,66 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f173.google.com (mail-ie0-f173.google.com [209.85.223.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 64CB26B006E
-	for <linux-mm@kvack.org>; Thu,  5 Mar 2015 10:44:51 -0500 (EST)
-Received: by iecrp18 with SMTP id rp18so9611893iec.10
-        for <linux-mm@kvack.org>; Thu, 05 Mar 2015 07:44:51 -0800 (PST)
-Received: from g2t2354.austin.hp.com (g2t2354.austin.hp.com. [15.217.128.53])
-        by mx.google.com with ESMTPS id e42si8937452iod.90.2015.03.05.07.44.50
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 785CE6B0038
+	for <linux-mm@kvack.org>; Thu,  5 Mar 2015 11:01:55 -0500 (EST)
+Received: by wggz12 with SMTP id z12so54488922wgg.2
+        for <linux-mm@kvack.org>; Thu, 05 Mar 2015 08:01:55 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id rw10si13490157wjb.59.2015.03.05.08.01.53
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Mar 2015 07:44:50 -0800 (PST)
-From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH] Fix undefined ioremap_huge_init when CONFIG_MMU is not set
-Date: Thu,  5 Mar 2015 08:44:06 -0700
-Message-Id: <1425570246-812-1-git-send-email-toshi.kani@hp.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 05 Mar 2015 08:01:54 -0800 (PST)
+Message-ID: <54F87DEF.5030606@suse.cz>
+Date: Thu, 05 Mar 2015 17:01:51 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
+MIME-Version: 1.0
+Subject: Re: mm track: THP topics
+References: <20150305152155.GB19664@dhcp22.suse.cz>
+In-Reply-To: <20150305152155.GB19664@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, kbuild-all@01.org, sfr@canb.auug.org.au, fengguang.wu@intel.com, hannes@cmpxchg.org, Toshi Kani <toshi.kani@hp.com>
+To: Michal Hocko <mhocko@suse.cz>, lsf@lists.linux-foundation.org
+Cc: linux-mm@kvack.org, Sasha Levin <sasha.levin@oracle.com>, Rik van Riel <riel@redhat.com>
 
-Fix a build error, undefined reference to ioremap_huge_init, when
-CONFIG_MMU is not defined on linux-next and -mm tree.
+On 03/05/2015 04:21 PM, Michal Hocko wrote:
+> Hi,
+> there is one THP related track scheduled currently but we have more THP
+> topics which might be interesting IMO. Both Kirrill and Hugh have a very
+> related topic so theirs should definitely stay.
+> 
+> Vlastimil has covered current pain points of THPs in his RFC recently
+> (http://marc.info/?l=linux-mm&m=142469637313693&w=2). I think this
+> deserves a separate slot so that we can discuss issues mentioned in the
+> cover letter. There are still some slots free AFAICS.
+> 
+> What do you think?
 
-lib/ioremap.o is not linked to the kernel when CONFIG_MMU is not
-defined.
+Yeah, it could be too much for a single slot. On the other hand the topic of THP
+costs/benefits could end up shorter due to lack of hard data. So if it's a time
+slot where we could flexibly move on to next topic without having to e.g.
+synchronize with a plenary session, it should work.
 
-Signed-off-by: Toshi Kani <toshi.kani@hp.com>
----
- include/linux/io.h |    5 +++--
- lib/ioremap.c      |    1 -
- 2 files changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/include/linux/io.h b/include/linux/io.h
-index 1ce8b4e..4cc299c 100644
---- a/include/linux/io.h
-+++ b/include/linux/io.h
-@@ -38,11 +38,12 @@ static inline int ioremap_page_range(unsigned long addr, unsigned long end,
- }
- #endif
- 
--void __init ioremap_huge_init(void);
--
- #ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
-+void __init ioremap_huge_init(void);
- int arch_ioremap_pud_supported(void);
- int arch_ioremap_pmd_supported(void);
-+#else
-+static inline void ioremap_huge_init(void) { }
- #endif
- 
- /*
-diff --git a/lib/ioremap.c b/lib/ioremap.c
-index 3055ada..be24906 100644
---- a/lib/ioremap.c
-+++ b/lib/ioremap.c
-@@ -46,7 +46,6 @@ static inline int ioremap_pmd_enabled(void)
- }
- 
- #else	/* !CONFIG_HAVE_ARCH_HUGE_VMAP */
--void __init ioremap_huge_init(void) { }
- static inline int ioremap_pud_enabled(void) { return 0; }
- static inline int ioremap_pmd_enabled(void) { return 0; }
- #endif	/* CONFIG_HAVE_ARCH_HUGE_VMAP */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
