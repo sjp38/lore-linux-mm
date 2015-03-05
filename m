@@ -1,92 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id E6E776B006C
-	for <linux-mm@kvack.org>; Thu,  5 Mar 2015 17:03:36 -0500 (EST)
-Received: by wghl18 with SMTP id l18so2131831wgh.11
-        for <linux-mm@kvack.org>; Thu, 05 Mar 2015 14:03:36 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id eq7si10026999wib.42.2015.03.05.14.03.34
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E22E6B0038
+	for <linux-mm@kvack.org>; Thu,  5 Mar 2015 18:41:22 -0500 (EST)
+Received: by padbj1 with SMTP id bj1so12983470pad.12
+        for <linux-mm@kvack.org>; Thu, 05 Mar 2015 15:41:22 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id lr6si11767126pab.66.2015.03.05.15.41.21
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Mar 2015 14:03:35 -0800 (PST)
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 18/21] userfaultfd: UFFDIO_REMAP uABI
-Date: Thu,  5 Mar 2015 18:18:01 +0100
-Message-Id: <1425575884-2574-19-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1425575884-2574-1-git-send-email-aarcange@redhat.com>
-References: <1425575884-2574-1-git-send-email-aarcange@redhat.com>
+        Thu, 05 Mar 2015 15:41:21 -0800 (PST)
+Date: Fri, 6 Mar 2015 10:41:13 +1100
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: [PATCH] Fix undefined ioremap_huge_init when CONFIG_MMU is not
+ set
+Message-ID: <20150306104113.555c8888@canb.auug.org.au>
+In-Reply-To: <1425570246-812-1-git-send-email-toshi.kani@hp.com>
+References: <1425570246-812-1-git-send-email-toshi.kani@hp.com>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ boundary="Sig_/EIzWkTjUQe/.6RN7YfL/5SA"; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Android Kernel Team <kernel-team@android.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave@sr71.net>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Christopher Covington <cov@codeaurora.org>, Johannes Weiner <hannes@cmpxchg.org>, Robert Love <rlove@google.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, Keith Packard <keithp@keithp.com>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Anthony Liguori <anthony@codemonkey.ws>, Stefan Hajnoczi <stefanha@gmail.com>, Wenchao Xia <wenchaoqemu@gmail.com>, Andrew Jones <drjones@redhat.com>, Juan Quintela <quintela@redhat.com>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, kbuild-all@01.org, fengguang.wu@intel.com, hannes@cmpxchg.org
 
-This implements the uABI of UFFDIO_REMAP.
+--Sig_/EIzWkTjUQe/.6RN7YfL/5SA
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-Notably one mode bitflag is also forwarded (and in turn known) by the
-lowlevel remap_pages method.
+Hi Toshi,
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- include/uapi/linux/userfaultfd.h | 27 ++++++++++++++++++++++++++-
- 1 file changed, 26 insertions(+), 1 deletion(-)
+On Thu,  5 Mar 2015 08:44:06 -0700 Toshi Kani <toshi.kani@hp.com> wrote:
+>
+> Fix a build error, undefined reference to ioremap_huge_init, when
+> CONFIG_MMU is not defined on linux-next and -mm tree.
+>=20
+> lib/ioremap.o is not linked to the kernel when CONFIG_MMU is not
+> defined.
+>=20
+> Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+> ---
+>  include/linux/io.h |    5 +++--
+>  lib/ioremap.c      |    1 -
+>  2 files changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/include/uapi/linux/userfaultfd.h b/include/uapi/linux/userfaultfd.h
-index 61251e6..db6e99a 100644
---- a/include/uapi/linux/userfaultfd.h
-+++ b/include/uapi/linux/userfaultfd.h
-@@ -19,7 +19,8 @@
- #define UFFD_API_RANGE_IOCTLS			\
- 	((__u64)1 << _UFFDIO_WAKE |		\
- 	 (__u64)1 << _UFFDIO_COPY |		\
--	 (__u64)1 << _UFFDIO_ZEROPAGE)
-+	 (__u64)1 << _UFFDIO_ZEROPAGE |		\
-+	 (__u64)1 << _UFFDIO_REMAP)
- 
- /*
-  * Valid ioctl command number range with this API is from 0x00 to
-@@ -34,6 +35,7 @@
- #define _UFFDIO_WAKE			(0x02)
- #define _UFFDIO_COPY			(0x03)
- #define _UFFDIO_ZEROPAGE		(0x04)
-+#define _UFFDIO_REMAP			(0x05)
- #define _UFFDIO_API			(0x3F)
- 
- /* userfaultfd ioctl ids */
-@@ -50,6 +52,8 @@
- 				      struct uffdio_copy)
- #define UFFDIO_ZEROPAGE		_IOWR(UFFDIO, _UFFDIO_ZEROPAGE,	\
- 				      struct uffdio_zeropage)
-+#define UFFDIO_REMAP		_IOWR(UFFDIO, _UFFDIO_REMAP,	\
-+				      struct uffdio_remap)
- 
- /*
-  * Valid bits below PAGE_SHIFT in the userfault address read through
-@@ -122,4 +126,25 @@ struct uffdio_zeropage {
- 	__s64 wake;
- };
- 
-+struct uffdio_remap {
-+	__u64 dst;
-+	__u64 src;
-+	__u64 len;
-+	/*
-+	 * Especially if used to atomically remove memory from the
-+	 * address space the wake on the dst range is not needed.
-+	 */
-+#define UFFDIO_REMAP_MODE_DONTWAKE		((__u64)1<<0)
-+#define UFFDIO_REMAP_MODE_ALLOW_SRC_HOLES	((__u64)1<<1)
-+	__u64 mode;
-+
-+	/*
-+	 * "remap" and "wake" are written by the ioctl and must be at
-+	 * the end: the copy_from_user will not read the last 16
-+	 * bytes.
-+	 */
-+	__s64 remap;
-+	__s64 wake;
-+};
-+
- #endif /* _LINUX_USERFAULTFD_H */
+Added to my copy of the akpm-current tree today (and so into linux-next).
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+
+--Sig_/EIzWkTjUQe/.6RN7YfL/5SA
+Content-Type: application/pgp-signature
+Content-Description: OpenPGP digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBCAAGBQJU+OmdAAoJEMDTa8Ir7ZwVW34P/1KSbNFXvcpU7ITotjEPswOQ
+KJQ2CWqMVlemNiC++UqiiyrRHHQdy5TmzqEpftTRw+kJXVuqyFdq9DFrCBIqLP3p
+bdcB2F6+D962fDI8UlZNOME8JYrsUNkTtdN5hQCoLk4D/YwDDJZqKjMv9qIt2r4h
+/92aBpXpMjRZYEX6wYQDE8pux2y5ckeFrGY0VvamDYCqvX8M9G2XlO5bOzl6NPFa
+Jzol5TxwTf52drNuxxTPmLS7GQB4gIlHtzy8CK4Pfuc8jxjaylWL7N8fOafb/Is3
+Rcktz4MmC2FkfkFgJ594a3gNoqXGTZn20Sb8t+6Z60sIh36TGJXwwAxvsZSzfYaF
+cuV2GqvMCD5SPbVmW0ORcxEzz71GVEcEVKNzsZHGcVC0SJ/07qfNt+xR6YyV01E0
+IExWTHi5dpEr2uPPxPlyXk3p7t/0Cn6heTG5w/QP+0GCYJwCVlQAsqxHanMypwJ3
+4oslW6xhwlau3w5p9KiESHVKRuoWJvdqfP0Uvcj55xOqr8tyhF+/4z1bXWR6xWat
+aR931R++pa1z8HvQf0sxSxapE2h7nvaPk7dPQBzK1XEyYkvaPfSHOq8xbeTswhjp
+p7VjJPOYPJuVDRwCEFJEIqbkONgWx2gAI10LU66yZSXLTeSd/AH+W5eVjhwnyPKU
+Wdum/qSryvPfH7fG8HbP
+=VFNl
+-----END PGP SIGNATURE-----
+
+--Sig_/EIzWkTjUQe/.6RN7YfL/5SA--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
