@@ -1,175 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 1511B6B0038
-	for <linux-mm@kvack.org>; Thu,  5 Mar 2015 09:12:13 -0500 (EST)
-Received: by wiwl15 with SMTP id l15so3170972wiw.1
-        for <linux-mm@kvack.org>; Thu, 05 Mar 2015 06:12:12 -0800 (PST)
-Received: from mail-we0-f170.google.com (mail-we0-f170.google.com. [74.125.82.170])
-        by mx.google.com with ESMTPS id n15si14201448wiw.71.2015.03.05.06.12.10
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id B97AD6B0038
+	for <linux-mm@kvack.org>; Thu,  5 Mar 2015 09:33:33 -0500 (EST)
+Received: by pabrd3 with SMTP id rd3so9449428pab.6
+        for <linux-mm@kvack.org>; Thu, 05 Mar 2015 06:33:33 -0800 (PST)
+Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
+        by mx.google.com with ESMTPS id f8si9555665pat.207.2015.03.05.06.33.32
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Mar 2015 06:12:11 -0800 (PST)
-Received: by wevm14 with SMTP id m14so53176586wev.8
-        for <linux-mm@kvack.org>; Thu, 05 Mar 2015 06:12:10 -0800 (PST)
-From: Boaz Harrosh <boaz@plexistor.com>
-Message-ID: <54F86437.9090609@panasas.com>
-Date: Thu, 05 Mar 2015 16:12:07 +0200
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/3 v2] xfstest: generic/080 test that mmap-write updates
- c/mtime
-References: <54F733BD.7060807@plexistor.com> <54F734C4.7080409@plexistor.com> <20150305001312.GA4251@dastard> <54F861F3.9000805@plexistor.com>
-In-Reply-To: <54F861F3.9000805@plexistor.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Thu, 05 Mar 2015 06:33:32 -0800 (PST)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout2.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NKQ004C9TYGW180@mailout2.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 05 Mar 2015 14:37:28 +0000 (GMT)
+Message-id: <54F86933.6040203@partner.samsung.com>
+Date: Thu, 05 Mar 2015 17:33:23 +0300
+From: Stefan Strogin <s.strogin@partner.samsung.com>
+MIME-version: 1.0
+Subject: Re: [PATCH v3 1/4] mm: cma: add trace events to debug
+ physically-contiguous memory allocations
+References: <cover.1424802755.git.s.strogin@partner.samsung.com>
+ <9ae4c45b49e8df6e079448550c2b81ade5d3603a.1424802755.git.s.strogin@partner.samsung.com>
+ <87sidma1gj.fsf@linux.vnet.ibm.com>
+In-reply-to: <87sidma1gj.fsf@linux.vnet.ibm.com>
+Content-type: text/plain; charset=utf-8
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <boaz@plexistor.com>, Dave Chinner <david@fromorbit.com>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Omer Zilberberg <omzg@plexistor.com>, fstests@vger.kernel.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Dmitry Safonov <d.safonov@partner.samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Minchan Kim <minchan@kernel.org>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>, Aleksei Mateosian <a.mateosian@samsung.com>, gregory.0xf0@gmail.com, sasha.levin@oracle.com, gioh.kim@lge.com, pavel@ucw.cz, stefan.strogin@gmail.com
 
-I again forgot to CC: fstests@vger.kernel.org
+Hi Aneesh,
 
-Thanks
-Boaz
+On 03/03/15 12:13, Aneesh Kumar K.V wrote:
+> 
+> Are we interested only in successful allocation and release ? Should we also
+> have the trace point carry information regarding failure ?
+> 
+> -aneesh
+> 
 
-On 03/05/2015 04:02 PM, Boaz Harrosh wrote:
-> From: Dave Chinner <dchinner@redhat.com>
-> 
-> when using mmap() for file i/o, writing to the file should update
-> it's c/mtime. Specifically if we first mmap-read from a page, then
-> memap-write to the same page.
-> 
-> This test was failing for the initial submission of DAX because
-> pfn based mapping do not have an page_mkwrite called for them.
-> The new Kernel patches that introduce pfn_mkwrite fixes this test.
-> 
-> Written by Dave Chinner but edited and tested by:
-> 	Omer Zilberberg
-> 
-> Tested-by: Omer Zilberberg <omzg@plexistor.com>
-> Signed-off-by: Omer Zilberberg <omzg@plexistor.com>
-> Signed-off-by: Boaz Harrosh <boaz@plexistor.com>
-> ---
-> Dave hands-up man, it looks like you edited this directly
-> in the email, but there was not even a single typo.
-> 
-> We have tested this both with and without the pfn_mkwrite patch.
-> And it works as expected fails without and success with.
-> 
-> Thanks
-> 
->  tests/generic/080     | 79 +++++++++++++++++++++++++++++++++++++++++++++++++++
->  tests/generic/080.out |  2 ++
->  tests/generic/group   |  1 +
->  3 files changed, 82 insertions(+)
->  create mode 100755 tests/generic/080
->  create mode 100644 tests/generic/080.out
-> 
-> diff --git a/tests/generic/080 b/tests/generic/080
-> new file mode 100755
-> index 0000000..2bc580d
-> --- /dev/null
-> +++ b/tests/generic/080
-> @@ -0,0 +1,79 @@
-> +#! /bin/bash
-> +# FS QA Test No. 080
-> +#
-> +# Verify that mtime is updated when writing to mmap-ed pages
-> +#
-> +#-----------------------------------------------------------------------
-> +# This program is free software; you can redistribute it and/or
-> +# modify it under the terms of the GNU General Public License as
-> +# published by the Free Software Foundation.
-> +#
-> +# This program is distributed in the hope that it would be useful,
-> +# but WITHOUT ANY WARRANTY; without even the implied warranty of
-> +# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-> +# GNU General Public License for more details.
-> +#
-> +# You should have received a copy of the GNU General Public License
-> +# along with this program; if not, write the Free Software Foundation,
-> +# Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-> +#-----------------------------------------------------------------------
-> +#
-> +
-> +seq=`basename $0`
-> +seqres=$RESULT_DIR/$seq
-> +echo "QA output created by $seq"
-> +
-> +here=`pwd`
-> +tmp=/tmp/$$
-> +status=0
-> +trap "_cleanup; exit \$status" 0 1 2 3 15
-> +
-> +_cleanup()
-> +{
-> +    cd /
-> +    rm -f $tmp.*
-> +    rm -f $TEST_DIR/mmap_mtime_testfile
-> +}
-> +
-> +# get standard environment, filters and checks
-> +. ./common/rc
-> +. ./common/filter
-> +
-> +# real QA test starts here
-> +
-> +# Modify as appropriate.
-> +_supported_fs generic
-> +_supported_os IRIX Linux
-> +_require_test
-> +
-> +echo "Silence is golden."
-> +rm -f $seqres.full
-> +
-> +# pattern the file.
-> +testfile=$TEST_DIR/mmap_mtime_testfile
-> +$XFS_IO_PROG -f -c "pwrite 0 4k" -c fsync $testfile >> $seqres.full
-> +
-> +# sample timestamps.
-> +mtime1=`stat -c %Y $testfile`
-> +ctime1=`stat -c %Z $testfile`
-> +echo "before mwrite: $mtime1 $ctime1" >> $seqres.full
-> +
-> +# map read followed by map write to trigger timestamp change
-> +sleep 2
-> +$XFS_IO_PROG -c "mmap 0 4k" -c "mread 0 4k" -c "mwrite 0 4k" $testfile |_filter_xfs_io >> $seqres.full
-> +
-> +# sample and verify that timestamps have changed.
-> +mtime2=`stat -c %Y $testfile`
-> +ctime2=`stat -c %Z $testfile`
-> +echo "after mwrite : $mtime2 $ctime2" >> $seqres.full
-> +
-> +if [ "$mtime1" == "$mtime2" ]; then
-> +	echo "mtime not updated"
-> +	let status=$status+1
-> +fi
-> +if [ "$ctime1" == "$ctime2" ]; then
-> +	echo "ctime not updated"
-> +	let status=$status+1
-> +fi
-> +
-> +exit
-> diff --git a/tests/generic/080.out b/tests/generic/080.out
-> new file mode 100644
-> index 0000000..cccac52
-> --- /dev/null
-> +++ b/tests/generic/080.out
-> @@ -0,0 +1,2 @@
-> +QA output created by 080
-> +Silence is golden.
-> diff --git a/tests/generic/group b/tests/generic/group
-> index 11ce3e4..7ee5cdc 100644
-> --- a/tests/generic/group
-> +++ b/tests/generic/group
-> @@ -77,6 +77,7 @@
->  076 metadata rw udf auto quick stress
->  077 acl attr auto enospc
->  079 acl attr ioctl metadata auto quick
-> +080 auto quick
->  083 rw auto enospc stress
->  088 perms auto quick
->  089 metadata auto
-> 
+I think we actually can be interested in tracing allocation failures
+too. Thanks for the remark.
+
+Should it be smth like that?
+@@ -408,6 +410,8 @@ struct page *cma_alloc(struct cma *cma, int count,
+unsigned int align)
+ 		start = bitmap_no + mask + 1;
+ 	}
+
++	trace_cma_alloc(cma, page, count);
++
+ 	pr_debug("%s(): returned %p\n", __func__, page);
+ 	return page;
+ }
+
+and in include/trace/events/cma.h:
++TRACE_EVENT(cma_alloc,
+<...>
++	TP_fast_assign(
++		__entry->page = page;
++		__entry->count = count;
++	),
++
++	TP_printk("page=%p pfn=%lu count=%lu\n",
++		  __entry->page,
++		  __entry->page ? page_to_pfn(__entry->page) : 0,
++		  __entry->count)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
