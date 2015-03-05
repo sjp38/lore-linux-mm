@@ -1,43 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
-	by kanga.kvack.org (Postfix) with ESMTP id EBF796B006E
-	for <linux-mm@kvack.org>; Thu,  5 Mar 2015 10:35:09 -0500 (EST)
-Received: by wevl61 with SMTP id l61so16763272wev.0
-        for <linux-mm@kvack.org>; Thu, 05 Mar 2015 07:35:09 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ex9si10656020wic.44.2015.03.05.07.35.07
+Received: from mail-ie0-f173.google.com (mail-ie0-f173.google.com [209.85.223.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 64CB26B006E
+	for <linux-mm@kvack.org>; Thu,  5 Mar 2015 10:44:51 -0500 (EST)
+Received: by iecrp18 with SMTP id rp18so9611893iec.10
+        for <linux-mm@kvack.org>; Thu, 05 Mar 2015 07:44:51 -0800 (PST)
+Received: from g2t2354.austin.hp.com (g2t2354.austin.hp.com. [15.217.128.53])
+        by mx.google.com with ESMTPS id e42si8937452iod.90.2015.03.05.07.44.50
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 05 Mar 2015 07:35:08 -0800 (PST)
-Date: Thu, 5 Mar 2015 16:35:05 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC V3] mm: change mm_advise_free to clear page dirty
-Message-ID: <20150305153505.GD19347@dhcp22.suse.cz>
-References: <20150303032537.GA25015@blaptop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150303032537.GA25015@blaptop>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Mar 2015 07:44:50 -0800 (PST)
+From: Toshi Kani <toshi.kani@hp.com>
+Subject: [PATCH] Fix undefined ioremap_huge_init when CONFIG_MMU is not set
+Date: Thu,  5 Mar 2015 08:44:06 -0700
+Message-Id: <1425570246-812-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: "Wang, Yalin" <Yalin.Wang@sonymobile.com>, 'Andrew Morton' <akpm@linux-foundation.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, 'Rik van Riel' <riel@redhat.com>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Mel Gorman' <mgorman@suse.de>, 'Shaohua Li' <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Cyrill Gorcunov <gorcunov@gmail.com>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, kbuild-all@01.org, sfr@canb.auug.org.au, fengguang.wu@intel.com, hannes@cmpxchg.org, Toshi Kani <toshi.kani@hp.com>
 
-On Tue 03-03-15 12:25:51, Minchan Kim wrote:
-[...]
-> From 30c6d5b35a3dc7e451041183ce5efd6a6c42bf88 Mon Sep 17 00:00:00 2001
-> From: Minchan Kim <minchan@kernel.org>
-> Date: Tue, 3 Mar 2015 10:06:59 +0900
-> Subject: [RFC] mm: make every pte dirty on do_swap_page
+Fix a build error, undefined reference to ioremap_huge_init, when
+CONFIG_MMU is not defined on linux-next and -mm tree.
 
-Hi Minchan, could you resend this patch separately. I am afraid that
-this one got so convoluted with originally unrelated issues that
-people might miss it.
+lib/ioremap.o is not linked to the kernel when CONFIG_MMU is not
+defined.
 
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+---
+ include/linux/io.h |    5 +++--
+ lib/ioremap.c      |    1 -
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/include/linux/io.h b/include/linux/io.h
+index 1ce8b4e..4cc299c 100644
+--- a/include/linux/io.h
++++ b/include/linux/io.h
+@@ -38,11 +38,12 @@ static inline int ioremap_page_range(unsigned long addr, unsigned long end,
+ }
+ #endif
+ 
+-void __init ioremap_huge_init(void);
+-
+ #ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
++void __init ioremap_huge_init(void);
+ int arch_ioremap_pud_supported(void);
+ int arch_ioremap_pmd_supported(void);
++#else
++static inline void ioremap_huge_init(void) { }
+ #endif
+ 
+ /*
+diff --git a/lib/ioremap.c b/lib/ioremap.c
+index 3055ada..be24906 100644
+--- a/lib/ioremap.c
++++ b/lib/ioremap.c
+@@ -46,7 +46,6 @@ static inline int ioremap_pmd_enabled(void)
+ }
+ 
+ #else	/* !CONFIG_HAVE_ARCH_HUGE_VMAP */
+-void __init ioremap_huge_init(void) { }
+ static inline int ioremap_pud_enabled(void) { return 0; }
+ static inline int ioremap_pmd_enabled(void) { return 0; }
+ #endif	/* CONFIG_HAVE_ARCH_HUGE_VMAP */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
