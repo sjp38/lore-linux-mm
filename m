@@ -1,111 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
-	by kanga.kvack.org (Postfix) with ESMTP id E5C3E6B0071
-	for <linux-mm@kvack.org>; Thu,  5 Mar 2015 11:53:49 -0500 (EST)
-Received: by lbjf15 with SMTP id f15so24647371lbj.2
-        for <linux-mm@kvack.org>; Thu, 05 Mar 2015 08:53:49 -0800 (PST)
+Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 545796B0073
+	for <linux-mm@kvack.org>; Thu,  5 Mar 2015 12:01:13 -0500 (EST)
+Received: by wesx3 with SMTP id x3so858874wes.1
+        for <linux-mm@kvack.org>; Thu, 05 Mar 2015 09:01:12 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d6si1481400wik.54.2015.03.05.08.53.47
+        by mx.google.com with ESMTPS id fv10si13650915wjb.157.2015.03.05.09.01.11
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 05 Mar 2015 08:53:47 -0800 (PST)
-Message-ID: <54F88A13.4010003@suse.cz>
-Date: Thu, 05 Mar 2015 17:53:39 +0100
+        Thu, 05 Mar 2015 09:01:11 -0800 (PST)
+Message-ID: <54F88BD4.3090006@suse.cz>
+Date: Thu, 05 Mar 2015 18:01:08 +0100
 From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [RFC 00/16] Introduce ZONE_CMA
-References: <1423726340-4084-1-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1423726340-4084-1-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=iso-8859-2
+Subject: Re: [RFC 0/6] the big khugepaged redesign
+References: <1424696322-21952-1-git-send-email-vbabka@suse.cz> <1424731603.6539.51.camel@stgolabs.net> <20150223145619.64f3a225b914034a17d4f520@linux-foundation.org> <54EC533E.8040805@suse.cz> <54F88498.2000902@suse.cz> <20150305165230.GQ30405@awork2.anarazel.de>
+In-Reply-To: <20150305165230.GQ30405@awork2.anarazel.de>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Heesub Shin <heesub.shin@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hui Zhu <zhuhui@xiaomi.com>, Gioh Kim <gioh.kim@lge.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Ritesh Harjani <ritesh.list@gmail.com>
+To: Andres Freund <andres@anarazel.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Alex Thorlton <athorlton@sgi.com>, David Rientjes <rientjes@google.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Robert Haas <robertmhaas@gmail.com>, Josh Berkus <josh@agliodbs.com>
 
-On 02/12/2015 08:32 AM, Joonsoo Kim wrote:
+On 03/05/2015 05:52 PM, Andres Freund wrote:
+> Hi,
 > 
-> 1) Break non-overlapped zone assumption
-> CMA regions could be spread to all memory range, so, to keep all of them
-> into one zone, span of ZONE_CMA would be overlap to other zones'.
+> On 2015-03-05 17:30:16 +0100, Vlastimil Babka wrote:
+>> That however means the workload is based on hugetlbfs and shouldn't trigger THP
+>> page fault activity, which is the aim of this patchset. Some more googling made
+>> me recall that last LSF/MM, postgresql people mentioned THP issues and pointed
+>> at compaction. See http://lwn.net/Articles/591723/ That's exactly where this
+>> patchset should help, but I obviously won't be able to measure this before LSF/MM...
+>> 
+>> I'm CCing the psql guys from last year LSF/MM - do you have any insight about
+>> psql performance with THPs enabled/disabled on recent kernels, where e.g.
+>> compaction is no longer synchronous for THP page faults?
+> 
+> What exactly counts as "recent" in this context? Most of the bigger
+> installations where we found THP to be absolutely prohibitive (slowdowns
+> on the order of a magnitude, huge latency spikes) unfortunately run
+> quite old kernels...  I guess 3.11 does *not* count :/? That'd be a
 
->From patch 13/16 ut seems to me that indeed the ZONE_CMA spans the area of all
-other zones. This seems very inefficient for e.g. compaction scanners, which
-will repeatedly skip huge amounts of pageblocks that don't belong to ZONE_CMA.
-Could you instead pick only a single zone on a node from which you steal the
-pages? That would allow to keep the span low.
+Yeah that's too old :/ 3.17 has patches to make compaction less aggressive on
+THP page faults, and 3.18 prevents khugepaged from holding mmap_sem during
+compaction, which could be also relevant.
 
-Another disadvantage I see is that to allocate from ZONE_CMA you will have now
-to reclaim enough pages within the zone itself. I think think the cma allocation
-supports migrating pages from ZONE_CMA to the adjacent non-CMA zone, which would
-be equivalent to migration from MIGRATE_CMA pageblocks to the rest of the zone?
+> bigger machine where I could relatively quickly reenable THP to check
+> whether it's still bad. I might be able to trigger it to be rebooted
+> onto a newer kernel, will ask.
 
-> I'm not sure that there is an assumption about possibility of zone overlap
-> But, if ZONE_CMA is introduced, this assumption becomes reality
-> so we should deal with this situation. I investigated most of sites
-> that iterates pfn on certain zone and found that they normally doesn't
-> consider zone overlap. I tried to handle these cases by myself in the
-> early of this series. I hope that there is no more site that depends on
-> non-overlap zone assumption when iterating pfn on certain zone.
+Thanks, that would be great, if you could do that.
+I also noticed that you now support hugetlbfs. That could be also interesting
+data point, if the hugetlbfs usage helped because THP code wouldn't trigger.
+
+Vlastimil
+
+> Greetings,
 > 
-> I passed boot test on x86, ARM32 and ARM64. I did some stress tests
-> on x86 and there is no problem. Feel free to enjoy and please give me
-> a feedback. :)
-> 
-> This patchset is based on v3.18.
-> 
-> Thanks.
-> 
-> [1] https://lkml.org/lkml/2014/5/28/64
-> [2] https://lkml.org/lkml/2014/11/4/55 
-> [3] https://lkml.org/lkml/2014/10/15/623
-> [4] https://lkml.org/lkml/2014/5/30/320
-> 
-> 
-> Joonsoo Kim (16):
->   mm/page_alloc: correct highmem memory statistics
->   mm/writeback: correct dirty page calculation for highmem
->   mm/highmem: make nr_free_highpages() handles all highmem zones by
->     itself
->   mm/vmstat: make node_page_state() handles all zones by itself
->   mm/vmstat: watch out zone range overlap
->   mm/page_alloc: watch out zone range overlap
->   mm/page_isolation: watch out zone range overlap
->   power: watch out zone range overlap
->   mm/cma: introduce cma_total_pages() for future use
->   mm/highmem: remove is_highmem_idx()
->   mm/page_alloc: clean-up free_area_init_core()
->   mm/cma: introduce new zone, ZONE_CMA
->   mm/cma: populate ZONE_CMA and use this zone when GFP_HIGHUSERMOVABLE
->   mm/cma: print stealed page count
->   mm/cma: remove ALLOC_CMA
->   mm/cma: remove MIGRATE_CMA
-> 
->  arch/x86/include/asm/sparsemem.h  |    2 +-
->  arch/x86/mm/highmem_32.c          |    3 +
->  include/linux/cma.h               |    9 ++
->  include/linux/gfp.h               |   31 +++---
->  include/linux/mempolicy.h         |    2 +-
->  include/linux/mm.h                |    1 +
->  include/linux/mmzone.h            |   58 +++++-----
->  include/linux/page-flags-layout.h |    2 +
->  include/linux/vm_event_item.h     |    8 +-
->  include/linux/vmstat.h            |   26 +----
->  kernel/power/snapshot.c           |   15 +++
->  lib/show_mem.c                    |    2 +-
->  mm/cma.c                          |   70 ++++++++++--
->  mm/compaction.c                   |    6 +-
->  mm/highmem.c                      |   12 +-
->  mm/hugetlb.c                      |    2 +-
->  mm/internal.h                     |    3 +-
->  mm/memory_hotplug.c               |    3 +
->  mm/mempolicy.c                    |    3 +-
->  mm/page-writeback.c               |    8 +-
->  mm/page_alloc.c                   |  223 +++++++++++++++++++++----------------
->  mm/page_isolation.c               |   14 ++-
->  mm/vmscan.c                       |    2 +-
->  mm/vmstat.c                       |   16 ++-
->  24 files changed, 317 insertions(+), 204 deletions(-)
+> Andres Freund
 > 
 
 --
