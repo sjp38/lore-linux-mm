@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B5D76B0038
-	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 21:25:49 -0500 (EST)
-Received: by pablj1 with SMTP id lj1so32348161pab.8
-        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 18:25:49 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id y15si7272190pbt.141.2015.03.04.18.25.48
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E8876B0038
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 21:48:49 -0500 (EST)
+Received: by pdev10 with SMTP id v10so2045741pde.13
+        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 18:48:49 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id tp3si7368933pac.134.2015.03.04.18.48.48
         for <linux-mm@kvack.org>;
-        Wed, 04 Mar 2015 18:25:48 -0800 (PST)
-Date: Thu, 5 Mar 2015 10:25:16 +0800
+        Wed, 04 Mar 2015 18:48:48 -0800 (PST)
+Date: Thu, 5 Mar 2015 10:48:28 +0800
 From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master 122/298] include/linux/io.h:41:13: error: expected
- '=', ',', ';', 'asm' or '__attribute__' before 'ioremap_huge_init'
-Message-ID: <201503051015.ChzCJnPy%fengguang.wu@intel.com>
+Subject: [mmotm:master 123/298] include/asm-generic/pgtable.h:710: Error: bad
+ instruction `static inline int pud_set_huge(pgd_t*pud,phys_addr...'
+Message-ID: <201503051027.vmRwJ5eP%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="82I3+IH0IqGh5yIs"
+Content-Type: multipart/mixed; boundary="UugvWAfsgieZRqgk"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -22,46 +22,57 @@ To: Toshi Kani <toshi.kani@hp.com>
 Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
 
---82I3+IH0IqGh5yIs
+--UugvWAfsgieZRqgk
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 
 tree:   git://git.cmpxchg.org/linux-mmotm.git master
 head:   fe8eec967fb5db169b876720a6e0cced026173b6
-commit: 98abd4910a62da41245a290a82d15ea834824c06 [122/298] lib/ioremap.c: add huge I/O map capability interfaces
+commit: 397392d03f6a6ac64b5475eed6cb1d200bed5e81 [123/298] mm: change ioremap to set up huge I/O mappings
 config: m32r-m32104ut_defconfig (attached as .config)
 reproduce:
   wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
   chmod +x ~/bin/make.cross
-  git checkout 98abd4910a62da41245a290a82d15ea834824c06
+  git checkout 397392d03f6a6ac64b5475eed6cb1d200bed5e81
   # save the attached .config to linux build tree
   make.cross ARCH=m32r 
 
 All error/warnings:
 
-   In file included from lib/iomap_copy.c:19:0:
->> include/linux/io.h:41:13: error: expected '=', ',', ';', 'asm' or '__attribute__' before 'ioremap_huge_init'
-    void __init ioremap_huge_init(void);
-                ^
+   include/asm-generic/pgtable.h: Assembler messages:
+>> include/asm-generic/pgtable.h:710: Error: bad instruction `static inline int pud_set_huge(pgd_t*pud,phys_addr...'
+   include/asm-generic/pgtable.h:711: Error: junk at end of line, first unrecognized character is `{'
+>> include/asm-generic/pgtable.h:712: Error: bad instruction `return 0'
+   include/asm-generic/pgtable.h:713: Error: junk at end of line, first unrecognized character is `}'
+>> include/asm-generic/pgtable.h:714: Error: bad instruction `static inline int pmd_set_huge(pmd_t*pmd,phys_addr...'
+   include/asm-generic/pgtable.h:715: Error: junk at end of line, first unrecognized character is `{'
+>> include/asm-generic/pgtable.h:716: Error: bad instruction `return 0'
+   include/asm-generic/pgtable.h:717: Error: junk at end of line, first unrecognized character is `}'
 
-vim +41 include/linux/io.h
+vim +710 include/asm-generic/pgtable.h
 
-    35					     phys_addr_t phys_addr, pgprot_t prot)
-    36	{
-    37		return 0;
-    38	}
-    39	#endif
-    40	
-  > 41	void __init ioremap_huge_init(void);
-    42	
-    43	#ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
-    44	int arch_ioremap_pud_supported(void);
+   704	#endif
+   705	
+   706	#ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
+   707	int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot);
+   708	int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot);
+   709	#else	/* !CONFIG_HAVE_ARCH_HUGE_VMAP */
+ > 710	static inline int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot)
+   711	{
+ > 712		return 0;
+   713	}
+ > 714	static inline int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot)
+   715	{
+ > 716		return 0;
+   717	}
+   718	#endif	/* CONFIG_HAVE_ARCH_HUGE_VMAP */
+   719	
 
 ---
 0-DAY kernel test infrastructure                Open Source Technology Center
 http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
---82I3+IH0IqGh5yIs
+--UugvWAfsgieZRqgk
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: attachment; filename=".config"
 
@@ -1672,7 +1683,7 @@ CONFIG_ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE=y
 # CONFIG_DDR is not set
 # CONFIG_ARCH_HAS_SG_CHAIN is not set
 
---82I3+IH0IqGh5yIs--
+--UugvWAfsgieZRqgk--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
