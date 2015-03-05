@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E8876B0038
-	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 21:48:49 -0500 (EST)
-Received: by pdev10 with SMTP id v10so2045741pde.13
-        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 18:48:49 -0800 (PST)
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 341226B0038
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2015 22:00:50 -0500 (EST)
+Received: by pabli10 with SMTP id li10so38728878pab.13
+        for <linux-mm@kvack.org>; Wed, 04 Mar 2015 19:00:49 -0800 (PST)
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id tp3si7368933pac.134.2015.03.04.18.48.48
+        by mx.google.com with ESMTP id q16si7209691pdn.248.2015.03.04.19.00.48
         for <linux-mm@kvack.org>;
-        Wed, 04 Mar 2015 18:48:48 -0800 (PST)
-Date: Thu, 5 Mar 2015 10:48:28 +0800
+        Wed, 04 Mar 2015 19:00:49 -0800 (PST)
+Date: Thu, 5 Mar 2015 11:00:42 +0800
 From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master 123/298] include/asm-generic/pgtable.h:710: Error: bad
- instruction `static inline int pud_set_huge(pgd_t*pud,phys_addr...'
-Message-ID: <201503051027.vmRwJ5eP%fengguang.wu@intel.com>
+Subject: [mmotm:master 124/298] include/asm-generic/pgtable.h:720: Error: bad
+ instruction `static inline int pud_clear_huge(pgd_t*pud){return...'
+Message-ID: <201503051140.PeFpSMHl%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="UugvWAfsgieZRqgk"
+Content-Type: multipart/mixed; boundary="gBBFr7Ir9EOA20Yy"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -22,57 +22,62 @@ To: Toshi Kani <toshi.kani@hp.com>
 Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
 
---UugvWAfsgieZRqgk
+--gBBFr7Ir9EOA20Yy
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 
 tree:   git://git.cmpxchg.org/linux-mmotm.git master
 head:   fe8eec967fb5db169b876720a6e0cced026173b6
-commit: 397392d03f6a6ac64b5475eed6cb1d200bed5e81 [123/298] mm: change ioremap to set up huge I/O mappings
+commit: f3043e8eaca7ed8290bacbc1b8ce7b1b03984a0d [124/298] mm: change vunmap to tear down huge KVA mappings
 config: m32r-m32104ut_defconfig (attached as .config)
 reproduce:
   wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
   chmod +x ~/bin/make.cross
-  git checkout 397392d03f6a6ac64b5475eed6cb1d200bed5e81
+  git checkout f3043e8eaca7ed8290bacbc1b8ce7b1b03984a0d
   # save the attached .config to linux build tree
   make.cross ARCH=m32r 
 
 All error/warnings:
 
    include/asm-generic/pgtable.h: Assembler messages:
->> include/asm-generic/pgtable.h:710: Error: bad instruction `static inline int pud_set_huge(pgd_t*pud,phys_addr...'
-   include/asm-generic/pgtable.h:711: Error: junk at end of line, first unrecognized character is `{'
->> include/asm-generic/pgtable.h:712: Error: bad instruction `return 0'
-   include/asm-generic/pgtable.h:713: Error: junk at end of line, first unrecognized character is `}'
->> include/asm-generic/pgtable.h:714: Error: bad instruction `static inline int pmd_set_huge(pmd_t*pmd,phys_addr...'
-   include/asm-generic/pgtable.h:715: Error: junk at end of line, first unrecognized character is `{'
->> include/asm-generic/pgtable.h:716: Error: bad instruction `return 0'
-   include/asm-generic/pgtable.h:717: Error: junk at end of line, first unrecognized character is `}'
+   include/asm-generic/pgtable.h:712: Error: bad instruction `static inline int pud_set_huge(pgd_t*pud,phys_addr...'
+   include/asm-generic/pgtable.h:713: Error: junk at end of line, first unrecognized character is `{'
+   include/asm-generic/pgtable.h:714: Error: bad instruction `return 0'
+   include/asm-generic/pgtable.h:715: Error: junk at end of line, first unrecognized character is `}'
+   include/asm-generic/pgtable.h:716: Error: bad instruction `static inline int pmd_set_huge(pmd_t*pmd,phys_addr...'
+   include/asm-generic/pgtable.h:717: Error: junk at end of line, first unrecognized character is `{'
+   include/asm-generic/pgtable.h:718: Error: bad instruction `return 0'
+   include/asm-generic/pgtable.h:719: Error: junk at end of line, first unrecognized character is `}'
+>> include/asm-generic/pgtable.h:720: Error: bad instruction `static inline int pud_clear_huge(pgd_t*pud){return...'
+>> include/asm-generic/pgtable.h:721: Error: bad instruction `static inline int pmd_clear_huge(pmd_t*pmd){return...'
 
-vim +710 include/asm-generic/pgtable.h
+vim +720 include/asm-generic/pgtable.h
 
-   704	#endif
-   705	
    706	#ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
    707	int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot);
    708	int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot);
-   709	#else	/* !CONFIG_HAVE_ARCH_HUGE_VMAP */
- > 710	static inline int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot)
-   711	{
- > 712		return 0;
-   713	}
- > 714	static inline int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot)
-   715	{
- > 716		return 0;
-   717	}
-   718	#endif	/* CONFIG_HAVE_ARCH_HUGE_VMAP */
-   719	
+   709	int pud_clear_huge(pud_t *pud);
+   710	int pmd_clear_huge(pmd_t *pmd);
+   711	#else	/* !CONFIG_HAVE_ARCH_HUGE_VMAP */
+ > 712	static inline int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot)
+   713	{
+   714		return 0;
+   715	}
+   716	static inline int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot)
+   717	{
+   718		return 0;
+   719	}
+ > 720	static inline int pud_clear_huge(pud_t *pud) { return 0; }
+ > 721	static inline int pmd_clear_huge(pmd_t *pmd) { return 0; }
+   722	#endif	/* CONFIG_HAVE_ARCH_HUGE_VMAP */
+   723	
+   724	#endif /* _ASM_GENERIC_PGTABLE_H */
 
 ---
 0-DAY kernel test infrastructure                Open Source Technology Center
 http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
---UugvWAfsgieZRqgk
+--gBBFr7Ir9EOA20Yy
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: attachment; filename=".config"
 
@@ -1683,7 +1688,7 @@ CONFIG_ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE=y
 # CONFIG_DDR is not set
 # CONFIG_ARCH_HAS_SG_CHAIN is not set
 
---UugvWAfsgieZRqgk--
+--gBBFr7Ir9EOA20Yy--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
