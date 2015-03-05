@@ -1,121 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id B73116B0038
-	for <linux-mm@kvack.org>; Thu,  5 Mar 2015 13:51:59 -0500 (EST)
-Received: by wivr20 with SMTP id r20so9065091wiv.3
-        for <linux-mm@kvack.org>; Thu, 05 Mar 2015 10:51:59 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e16si15729847wiv.97.2015.03.05.10.51.57
+Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0995F6B0038
+	for <linux-mm@kvack.org>; Thu,  5 Mar 2015 13:55:18 -0500 (EST)
+Received: by wgha1 with SMTP id a1so4678303wgh.1
+        for <linux-mm@kvack.org>; Thu, 05 Mar 2015 10:55:17 -0800 (PST)
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com. [209.85.212.180])
+        by mx.google.com with ESMTPS id w15si14333526wju.120.2015.03.05.10.55.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Mar 2015 10:51:58 -0800 (PST)
-Date: Thu, 5 Mar 2015 19:51:12 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 19/21] userfaultfd: remap_pages: UFFDIO_REMAP preparation
-Message-ID: <20150305185112.GL4280@redhat.com>
-References: <1425575884-2574-1-git-send-email-aarcange@redhat.com>
- <1425575884-2574-20-git-send-email-aarcange@redhat.com>
- <CA+55aFzW=qaO0iKZWK9BWDNHu4eOgiKOJ-=0SvzsmZawuH5_3A@mail.gmail.com>
+        Thu, 05 Mar 2015 10:55:16 -0800 (PST)
+Received: by wiwl15 with SMTP id l15so5386329wiw.4
+        for <linux-mm@kvack.org>; Thu, 05 Mar 2015 10:55:16 -0800 (PST)
+From: "Grygorii.Strashko@linaro.org" <grygorii.strashko@linaro.org>
+Message-ID: <54F8A68B.3080709@linaro.org>
+Date: Thu, 05 Mar 2015 20:55:07 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFzW=qaO0iKZWK9BWDNHu4eOgiKOJ-=0SvzsmZawuH5_3A@mail.gmail.com>
+Subject: ARM: OMPA4+: is it expected dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(64));
+ to fail?
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: qemu-devel@nongnu.org, KVM list <kvm@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, Android Kernel Team <kernel-team@android.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave@sr71.net>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Christopher Covington <cov@codeaurora.org>, Johannes Weiner <hannes@cmpxchg.org>, Robert Love <rlove@google.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, Keith Packard <keithp@keithp.com>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Anthony Liguori <anthony@codemonkey.ws>, Stefan Hajnoczi <stefanha@gmail.com>, Wenchao Xia <wenchaoqemu@gmail.com>, Andrew Jones <drjones@redhat.com>, Juan Quintela <quintela@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, linux@arm.linux.org.uk, Tejun Heo <tj@kernel.org>
+Cc: Tony Lindgren <tony@atomide.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-arm <linux-arm-kernel@lists.infradead.org>, "linux-omap@vger.kernel.org" <linux-omap@vger.kernel.org>, Laura Abbott <lauraa@codeaurora.org>, open list <linux-kernel@vger.kernel.org>, Santosh Shilimkar <ssantosh@kernel.org>linux-mm@kvack.org, Catalin Marinas <catalin.marinas@arm.com>, Peter Ujfalusi <peter.ujfalusi@ti.com>
 
-On Thu, Mar 05, 2015 at 09:39:48AM -0800, Linus Torvalds wrote:
-> Is this really worth it? On real loads? That people are expected to use?
+Hi All,
 
-I fully agree that it's not worth merging upstream UFFDIO_REMAP until
-(and if) a real world usage for it will showup. To further clarify:
-would this not have been an RFC, the patchset would have stopped at
-patch number 15/21 included.
+Now I can see very interesting behavior related to dma_coerce_mask_and_coherent()
+and friends which I'd like to explain and clarify.
 
-Merging UFFDIO_REMAP with no real life users, would just increase the
-attack vector surface of the kernel for no good.
+Below is set of questions I have (why - I explained below):
+- Is expected dma_coerce_mask_and_coherent(DMA_BIT_MASK(64)) and friends to fail on 32 bits HW?
 
-Thanks for your idea that the UFFDIO_COPY is faster, the userland code
-we submitted for qemu only uses UFFDIO_COPY|ZEROPAGE, it never uses
-UFFDIO_REMAP. I immediately agreed about UFFDIO_COPY being preferable
-after you mentioned it during review of the previous RFC.
+- What is expected value for max_pfn: max_phys_pfn or max_phys_pfn + 1?
 
-However this being a RFC with a large audience, and UFFDIO_REMAP
-allowing to "remove" memory (think like externalizing memory into to
-ceph with deduplication or such), I still added it just in case there
-are real world use cases that may justify me keeping it around (even
-if I would definitely not have submitted it for merging in the short
-term regardless).
+- What is expected value for struct memblock_region->size: mem_range_size or mem_range_size - 1?
 
-In addition of dropping the parts that aren't suitable for merging in
-the short term like UFFDIO_REMAP, for any further submits that won't
-substantially alter the API like it happened between the v2 to v3
-RFCs, I'll also shrink the To/Cc list considerably.
+- What is expected value to be returned by memblock_end_of_DRAM():
+  @base + @size(max_phys_addr + 1) or @base + @size - 1(max_phys_addr)?
 
-> Considering how we just got rid of one special magic VM remapping
-> thing that nobody actually used, I'd really hate to add a new one.
 
-Having to define an API somehow, I tried to think at all possible
-future usages and make sure the API would allow for those if needed.
+I'm working with BeaglBoard-X15 (AM572x/DRA7xx) board and have following code in OMAP ASOC driver
+which is failed SOMETIMES during the boot with error -EIO.
+=== to omap-pcm.c:
+omap_pcm_new() {
+...
+	ret = dma_coerce_mask_and_coherent(card->dev, DMA_BIT_MASK(64));
+^^ failed sometimes
+	if (ret)
+		return ret;
+}
 
-> Quite frankly, *if* we ever merge userfaultfd, I would *strongly*
-> argue for not merging the remap parts. I just don't see the point. It
-> doesn't seem to add anything that is semantically very important -
-> it's *potentially* a faster copy, but even that is
-> 
->   (a) questionable in the first place
+What I can see is that dma_coerce_mask_and_coherent() and etc may fail or succeed 
+depending on - max_pfn value. 
+-> max_pfn value depends on memblock configuration
+max_pfn = max_high = PFN_DOWN(memblock_end_of_DRAM());
+           |- PFN_DOWN(memblock.memory.regions[last_idx].base + memblock.memory.regions[last_idx].size)
 
-Yes, we already measured the UFFDIO_COPY is faster than UFFDIO_REMAP,
-the userfault latency decreases -20%.
+-> memblock configuration depends on
+a) CONFIG_ARM_LPAE=y|n (my system really works with 32 bit address space)
+b) RAM configuration
 
-> 
-> and
-> 
->  (b) unclear why anybody would ever care about performance of
-> infrastructure that nobody actually uses today, and future use isn't
-> even clear or shown to be particualrly performance-sensitive.
+Example 1 CONFIG_ARM_LPAE=n:
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x60000000>; /* 1536 MB */
+	};
 
-The only potential _theoretical_ case that justify the existence of
-UFFDIO_REMAP is about "removing" memory from the address space. To
-"add" memory UFFDIO_COPY and UFFDIO_ZEROPAGE are always preferable
-like you suggested.
+  memblock will be configured as:
+	memory.cnt  = 0x1
+	memory[0x0]     [0x00000080000000-0x000000dfffffff], 0x60000000 bytes flags: 0x0
+							     ^^^^^^^^^^
+  max_pfn = 0x000E0000
 
-> So basically I'd like to see better documentation, a few real use
-> cases (and by real I very much do *not* mean "you can use it for
-> this", but actual patches to actual projects that matter and that are
-> expected to care and merge them), and a simplified series that doesn't
-> do the remap thing.
+Example 2 CONFIG_ARM_LPAE=n:
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x80000000>;
+	};
 
-So far I wrote some doc in 2/21 and in the cover letter, but certainly
-more docs are necessary. Trinity is also needed (I got trinity running
-on the v2 API but I haven't adapted to the new API yet).
+  memblock will be configured as:
+	memory.cnt  = 0x1
+	memory[0x0]     [0x00000080000000-0x000000fffffffe], 0x7fffffff bytes flags: 0x0
+							     ^^^^^^^^^^
+  max_pfn = 0x000FFFFF
 
-About the real world usages, this is the primary one:
+Example 3 CONFIG_ARM_LPAE=y (but system really works with 32 bit address space):
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x80000000>;
+	};
 
-http://lists.gnu.org/archive/html/qemu-devel/2015-02/msg04873.html
+  memblock will be configured as:
+	memory.cnt  = 0x1
+	memory[0x0]     [0x00000080000000-0x000000ffffffff], 0x80000000 bytes flags: 0x0
+							     ^^^^^^^^^^
+  max_pfn = 0x00100000
 
-And it actually cannot be merged in qemu until userfaultfd is merged
-in the kernel. There's simply no safe way to implement postcopy live
-migration without something equivalent to the userfaultfd if all Linux
-VM features are intended to be retained in the destination node.
+The dma_coerce_mask_and_coherent() will fail in case 'Example 3' and succeed in cases 1,2.
+dma-mapping.c --> __dma_supported()
+	if (sizeof(mask) != sizeof(dma_addr_t) && <== true for all OMAP4+
+	    mask > (dma_addr_t)~0 &&		<== true for DMA_BIT_MASK(64)
+	    dma_to_pfn(dev, ~0) < max_pfn) {  <== true only for Example 3
 
-> Because *every* time we add a new clever interface, we end up with
-> approximately zero users and just pain down the line. Examples:
-> splice, mremap, yadda yadda.
+I've tracked down patch which changes memblock behavior to:
+commit eb18f1b5bfb99b1d7d2f5d792e6ee5c9b7d89330
+Author: Tejun Heo <tj@kernel.org>
+Date:   Thu Dec 8 10:22:07 2011 -0800
 
-Aside from mremap which I think is widely used, I totally agree in
-principle.
+    memblock: Make memblock functions handle overflowing range @size
 
-For now I can quite comfortably guarantee the above real life user for
-userfaultfd (qemu), but there are potential 5 of them. And none needs
-UFFDIO_REMAP, which is again why I totally agree of not submitting it
-for merging and it was intended it only for the initial RFC to share
-the idea of "removing" the memory with a larger audience before I
-shrink the Cc/To list for further updates.
+This commit is pretty old :( and it doesn't takes into account LPAE mode
+where phys_addr_t is 64 bit, but physically accessible addresses <= 40 bit
+(memblock_cap_size()).
 
-Thanks,
-Andrea
+The issue with omap-pcm was simply fixed by using DMA_BIT_MASK(32), but It seems problem is
+wider and above behavior of dma_set_maskX() and memblock confused me a bit.
+
+I'd be very appreciated for any comments/clarification on questions I've listed at the
+beginning of my e-mail - there are no patches from my side as I'd like to understand 
+expected behavior of the kernel first (especially taking into account that any
+memblock changes might affect on at least half of arches). 
+
+Thanks.
+
+
+Additional info:
+memblock: Make memblock functions handle overflowing range @size
+https://lkml.org/lkml/2011/7/26/235
+[alsa-devel] [PATCH] ASoC: omap-pcm: Lower the dma coherent mask to 32bits
+http://mailman.alsa-project.org/pipermail/alsa-devel/2013-December/069817.html
+
+-- 
+regards,
+-grygorii
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
