@@ -1,119 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id DAAAF6B0038
-	for <linux-mm@kvack.org>; Thu,  5 Mar 2015 05:03:08 -0500 (EST)
-Received: by padfa1 with SMTP id fa1so41303400pad.9
-        for <linux-mm@kvack.org>; Thu, 05 Mar 2015 02:03:08 -0800 (PST)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id de6si1548627pdb.184.2015.03.05.02.03.06
-        for <linux-mm@kvack.org>;
-        Thu, 05 Mar 2015 02:03:08 -0800 (PST)
-Message-ID: <54F825CB.8040402@cn.fujitsu.com>
-Date: Thu, 5 Mar 2015 17:45:47 +0800
-From: Gu Zheng <guz.fnst@cn.fujitsu.com>
+Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
+	by kanga.kvack.org (Postfix) with ESMTP id D1A3E6B0038
+	for <linux-mm@kvack.org>; Thu,  5 Mar 2015 05:35:37 -0500 (EST)
+Received: by wevl61 with SMTP id l61so52055176wev.2
+        for <linux-mm@kvack.org>; Thu, 05 Mar 2015 02:35:37 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y7si13243924wiv.25.2015.03.05.02.35.35
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 05 Mar 2015 02:35:36 -0800 (PST)
+Date: Thu, 5 Mar 2015 11:35:29 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 3/3 v2] dax: use pfn_mkwrite to update c/mtime + freeze
+ protection
+Message-ID: <20150305103529.GA2836@quack.suse.cz>
+References: <54F733BD.7060807@plexistor.com>
+ <54F73746.5020300@plexistor.com>
+ <20150304171935.GA5443@quack.suse.cz>
+ <54F820E2.9060109@plexistor.com>
+ <54F822A9.7090707@plexistor.com>
 MIME-Version: 1.0
-Subject: Re: node-hotplug: is memset 0 safe in try_offline_node()?
-References: <54F52ACF.4030103@huawei.com> <54F81322.8010202@cn.fujitsu.com> <54F8243D.7020809@huawei.com>
-In-Reply-To: <54F8243D.7020809@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <54F822A9.7090707@plexistor.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Yinghai Lu <yinghai@kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Toshi Kani <toshi.kani@hp.com>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Boaz Harrosh <boaz@plexistor.com>
+Cc: Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-nvdimm <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-Hi Xishi,
+On Thu 05-03-15 11:32:25, Boaz Harrosh wrote:
+> On 03/05/2015 11:24 AM, Boaz Harrosh wrote:
+> > 
+> > [v1]
+> > Without this patch, c/mtime is not updated correctly when mmap'ed page is
+> > first read from and then written to.
+> > 
+> > A new xfstest is submitted for testing this (generic/080)
+> > 
+> > [v2]
+> > Jan Kara has pointed out that if we add the
+> > sb_start/end_pagefault pair in the new pfn_mkwrite we
+> > are then fixing another bug where: A user could start
+> > writing to the page while filesystem is frozen.
+> > 
+> 
+> Thanks Jan.
+> 
+> Just as curiosity, does the freezing code goes and turns all mappings
+> into read-only, Also for pfn mapping?
+  Hum, that's a good question. Probably we don't end up doing that. For
+normal filesystems we sync all inodes which also writeprotects all pages
+(in clear_page_dirty_for_io() - for normal filesystems we know that if page
+is writeably mapped it is dirty). However this won't happen for pfn
+mapping as we don't have dirty pages. So we probably need dax_freeze()
+implementation that will walk through all inodes with writeable mappings and
+writeprotect them.
 
-On 03/05/2015 05:39 PM, Xishi Qiu wrote:
+> Do you think there is already an xfstest freezing test that should now
+> fail, and will succeed after this patch (v2). Something like:
+>   * mmap-read/write before the freeze
+>   * freeze the fs
+>   * Another thread tries to mmap-write, should get stuck
+>   * unfreeze the fs
+>   * Now mmap-writer continues
+  I don't remember there would be any test to specifically test this.
 
-> On 2015/3/5 16:26, Gu Zheng wrote:
-> 
->> Hi Xishi,
->> Could you please try the following one?
->> It postpones the reset of obsolete pgdat from try_offline_node() to
->> hotadd_new_pgdat(), and just resetting pgdat->nr_zones and
->> pgdat->classzone_idx to be 0 rather than the whole reset by memset()
->> as Kame suggested.
->>
->> Regards,
->> Gu
->>
->> ---
->>  mm/memory_hotplug.c |   13 ++++---------
->>  1 files changed, 4 insertions(+), 9 deletions(-)
->>
->> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->> index 1778628..c17eebf 100644
->> --- a/mm/memory_hotplug.c
->> +++ b/mm/memory_hotplug.c
->> @@ -1092,6 +1092,10 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
->>  			return NULL;
->>  
->>  		arch_refresh_nodedata(nid, pgdat);
->> +	} else {
->> +		/* Reset the nr_zones and classzone_idx to 0 before reuse */
->> +		pgdat->nr_zones = 0;
->> +		pgdat->classzone_idx = 0;
-> 
-> Hi Gu,
-> 
-> This is just to avoid the warning, I think it's no meaning.
-
-Can not agree.
-The key point here is postponing the reset of obsolete pgdat to the time we
-want to reuse it to avoid the effect(Oops: 0000 as you mentioned), and avoiding
-warning is the minor benefit, though it is also important.
-
-> Here is the changlog from the original patch:
-> 
-> commit 88fdf75d1bb51d85ba00c466391770056d44bc03
->     ...
->     Warn if memory-hotplug/boot code doesn't initialize pg_data_t with zero
->     when it is allocated.  Arch code and memory hotplug already initiailize
->     pg_data_t.  So this warning should never happen.  I select fields *randomly*
->     near the beginning, middle and end of pg_data_t for checking.
->     ...
-
-There was not hot remove node that time, so it seems did not consider the *reuse*
-case, but anyway, we should not break it here.
-
-Regards,
-Gu
-
-> 
-> Thanks,
-> Xishi Qiu
-> 
->>  	}
->>  
->>  	/* we can use NODE_DATA(nid) from here */
->> @@ -2021,15 +2025,6 @@ void try_offline_node(int nid)
->>  
->>  	/* notify that the node is down */
->>  	call_node_notify(NODE_DOWN, (void *)(long)nid);
->> -
->> -	/*
->> -	 * Since there is no way to guarentee the address of pgdat/zone is not
->> -	 * on stack of any kernel threads or used by other kernel objects
->> -	 * without reference counting or other symchronizing method, do not
->> -	 * reset node_data and free pgdat here. Just reset it to 0 and reuse
->> -	 * the memory when the node is online again.
->> -	 */
->> -	memset(pgdat, 0, sizeof(*pgdat));
->>  }
->>  EXPORT_SYMBOL(try_offline_node);
->>  
-> 
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> .
-> 
-
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
