@@ -1,123 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 690CD6B0093
-	for <linux-mm@kvack.org>; Thu,  5 Mar 2015 12:48:57 -0500 (EST)
-Received: by wghk14 with SMTP id k14so4307105wgh.3
-        for <linux-mm@kvack.org>; Thu, 05 Mar 2015 09:48:57 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cw1si14008317wjc.108.2015.03.05.09.48.55
+Received: from mail-yh0-f52.google.com (mail-yh0-f52.google.com [209.85.213.52])
+	by kanga.kvack.org (Postfix) with ESMTP id E0CB16B0096
+	for <linux-mm@kvack.org>; Thu,  5 Mar 2015 12:58:20 -0500 (EST)
+Received: by yhab6 with SMTP id b6so26534210yha.6
+        for <linux-mm@kvack.org>; Thu, 05 Mar 2015 09:58:20 -0800 (PST)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id f8si4073214yhf.124.2015.03.05.09.58.19
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 05 Mar 2015 09:48:55 -0800 (PST)
-Message-ID: <54F89702.8070405@suse.cz>
-Date: Thu, 05 Mar 2015 18:48:50 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Mar 2015 09:58:19 -0800 (PST)
+Message-ID: <54F89927.2090409@parallels.com>
+Date: Thu, 5 Mar 2015 20:57:59 +0300
+From: Pavel Emelyanov <xemul@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [RFC 00/16] Introduce ZONE_CMA
-References: <1423726340-4084-1-git-send-email-iamjoonsoo.kim@lge.com> <54F88A13.4010003@suse.cz>
-In-Reply-To: <54F88A13.4010003@suse.cz>
-Content-Type: text/plain; charset=iso-8859-2
+Subject: Re: [PATCH 10/21] userfaultfd: add new syscall to provide memory
+ externalization
+References: <1425575884-2574-1-git-send-email-aarcange@redhat.com> <1425575884-2574-11-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1425575884-2574-11-git-send-email-aarcange@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Heesub Shin <heesub.shin@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hui Zhu <zhuhui@xiaomi.com>, Gioh Kim <gioh.kim@lge.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Ritesh Harjani <ritesh.list@gmail.com>
+To: Andrea Arcangeli <aarcange@redhat.com>, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Android Kernel Team <kernel-team@android.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave@sr71.net>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Christopher Covington <cov@codeaurora.org>, Johannes Weiner <hannes@cmpxchg.org>, Robert Love <rlove@google.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, Keith Packard <keithp@keithp.com>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Anthony Liguori <anthony@codemonkey.ws>, Stefan Hajnoczi <stefanha@gmail.com>, Wenchao Xia <wenchaoqemu@gmail.com>, Andrew Jones <drjones@redhat.com>, Juan Quintela <quintela@redhat.com>
 
-On 03/05/2015 05:53 PM, Vlastimil Babka wrote:
-> On 02/12/2015 08:32 AM, Joonsoo Kim wrote:
->> 
->> 1) Break non-overlapped zone assumption
->> CMA regions could be spread to all memory range, so, to keep all of them
->> into one zone, span of ZONE_CMA would be overlap to other zones'.
-> 
-> From patch 13/16 ut seems to me that indeed the ZONE_CMA spans the area of all
-> other zones. This seems very inefficient for e.g. compaction scanners, which
-> will repeatedly skip huge amounts of pageblocks that don't belong to ZONE_CMA.
-> Could you instead pick only a single zone on a node from which you steal the
-> pages? That would allow to keep the span low.
-> 
-> Another disadvantage I see is that to allocate from ZONE_CMA you will have now
-> to reclaim enough pages within the zone itself. I think think the cma allocation
 
-                                                  I don't think...
+> +int handle_userfault(struct vm_area_struct *vma, unsigned long address,
+> +		     unsigned int flags, unsigned long reason)
+> +{
+> +	struct mm_struct *mm = vma->vm_mm;
+> +	struct userfaultfd_ctx *ctx;
+> +	struct userfaultfd_wait_queue uwq;
+> +
+> +	BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
+> +
+> +	ctx = vma->vm_userfaultfd_ctx.ctx;
+> +	if (!ctx)
+> +		return VM_FAULT_SIGBUS;
+> +
+> +	BUG_ON(ctx->mm != mm);
+> +
+> +	VM_BUG_ON(reason & ~(VM_UFFD_MISSING|VM_UFFD_WP));
+> +	VM_BUG_ON(!(reason & VM_UFFD_MISSING) ^ !!(reason & VM_UFFD_WP));
+> +
+> +	/*
+> +	 * If it's already released don't get it. This avoids to loop
+> +	 * in __get_user_pages if userfaultfd_release waits on the
+> +	 * caller of handle_userfault to release the mmap_sem.
+> +	 */
+> +	if (unlikely(ACCESS_ONCE(ctx->released)))
+> +		return VM_FAULT_SIGBUS;
+> +
+> +	/* check that we can return VM_FAULT_RETRY */
+> +	if (unlikely(!(flags & FAULT_FLAG_ALLOW_RETRY))) {
+> +		/*
+> +		 * Validate the invariant that nowait must allow retry
+> +		 * to be sure not to return SIGBUS erroneously on
+> +		 * nowait invocations.
+> +		 */
+> +		BUG_ON(flags & FAULT_FLAG_RETRY_NOWAIT);
+> +#ifdef CONFIG_DEBUG_VM
+> +		if (printk_ratelimit()) {
+> +			printk(KERN_WARNING
+> +			       "FAULT_FLAG_ALLOW_RETRY missing %x\n", flags);
+> +			dump_stack();
+> +		}
+> +#endif
+> +		return VM_FAULT_SIGBUS;
+> +	}
+> +
+> +	/*
+> +	 * Handle nowait, not much to do other than tell it to retry
+> +	 * and wait.
+> +	 */
+> +	if (flags & FAULT_FLAG_RETRY_NOWAIT)
+> +		return VM_FAULT_RETRY;
+> +
+> +	/* take the reference before dropping the mmap_sem */
+> +	userfaultfd_ctx_get(ctx);
+> +
+> +	/* be gentle and immediately relinquish the mmap_sem */
+> +	up_read(&mm->mmap_sem);
+> +
+> +	init_waitqueue_func_entry(&uwq.wq, userfaultfd_wake_function);
+> +	uwq.wq.private = current;
+> +	uwq.address = userfault_address(address, flags, reason);
 
-> supports migrating pages from ZONE_CMA to the adjacent non-CMA zone, which would
-> be equivalent to migration from MIGRATE_CMA pageblocks to the rest of the zone?
-> 
->> I'm not sure that there is an assumption about possibility of zone overlap
->> But, if ZONE_CMA is introduced, this assumption becomes reality
->> so we should deal with this situation. I investigated most of sites
->> that iterates pfn on certain zone and found that they normally doesn't
->> consider zone overlap. I tried to handle these cases by myself in the
->> early of this series. I hope that there is no more site that depends on
->> non-overlap zone assumption when iterating pfn on certain zone.
->> 
->> I passed boot test on x86, ARM32 and ARM64. I did some stress tests
->> on x86 and there is no problem. Feel free to enjoy and please give me
->> a feedback. :)
->> 
->> This patchset is based on v3.18.
->> 
->> Thanks.
->> 
->> [1] https://lkml.org/lkml/2014/5/28/64
->> [2] https://lkml.org/lkml/2014/11/4/55 
->> [3] https://lkml.org/lkml/2014/10/15/623
->> [4] https://lkml.org/lkml/2014/5/30/320
->> 
->> 
->> Joonsoo Kim (16):
->>   mm/page_alloc: correct highmem memory statistics
->>   mm/writeback: correct dirty page calculation for highmem
->>   mm/highmem: make nr_free_highpages() handles all highmem zones by
->>     itself
->>   mm/vmstat: make node_page_state() handles all zones by itself
->>   mm/vmstat: watch out zone range overlap
->>   mm/page_alloc: watch out zone range overlap
->>   mm/page_isolation: watch out zone range overlap
->>   power: watch out zone range overlap
->>   mm/cma: introduce cma_total_pages() for future use
->>   mm/highmem: remove is_highmem_idx()
->>   mm/page_alloc: clean-up free_area_init_core()
->>   mm/cma: introduce new zone, ZONE_CMA
->>   mm/cma: populate ZONE_CMA and use this zone when GFP_HIGHUSERMOVABLE
->>   mm/cma: print stealed page count
->>   mm/cma: remove ALLOC_CMA
->>   mm/cma: remove MIGRATE_CMA
->> 
->>  arch/x86/include/asm/sparsemem.h  |    2 +-
->>  arch/x86/mm/highmem_32.c          |    3 +
->>  include/linux/cma.h               |    9 ++
->>  include/linux/gfp.h               |   31 +++---
->>  include/linux/mempolicy.h         |    2 +-
->>  include/linux/mm.h                |    1 +
->>  include/linux/mmzone.h            |   58 +++++-----
->>  include/linux/page-flags-layout.h |    2 +
->>  include/linux/vm_event_item.h     |    8 +-
->>  include/linux/vmstat.h            |   26 +----
->>  kernel/power/snapshot.c           |   15 +++
->>  lib/show_mem.c                    |    2 +-
->>  mm/cma.c                          |   70 ++++++++++--
->>  mm/compaction.c                   |    6 +-
->>  mm/highmem.c                      |   12 +-
->>  mm/hugetlb.c                      |    2 +-
->>  mm/internal.h                     |    3 +-
->>  mm/memory_hotplug.c               |    3 +
->>  mm/mempolicy.c                    |    3 +-
->>  mm/page-writeback.c               |    8 +-
->>  mm/page_alloc.c                   |  223 +++++++++++++++++++++----------------
->>  mm/page_isolation.c               |   14 ++-
->>  mm/vmscan.c                       |    2 +-
->>  mm/vmstat.c                       |   16 ++-
->>  24 files changed, 317 insertions(+), 204 deletions(-)
->> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+Since we report only the virtual address of the fault, this will make difficulties
+for task monitoring the address space of some other task. Like this:
+
+Let's assume a task creates a userfaultfd, activates one, registers several VMAs 
+in it and then sends the ufd descriptor to other task. If later the first task will
+remap those VMAs and will start touching pages, the monitor will start receiving 
+fault addresses using which it will not be able to guess the exact vma the
+requests come from.
+
+Thanks,
+Pavel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
