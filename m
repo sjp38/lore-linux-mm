@@ -1,230 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 779B96B0038
-	for <linux-mm@kvack.org>; Fri,  6 Mar 2015 10:40:37 -0500 (EST)
-Received: by wibhm9 with SMTP id hm9so4459994wib.2
-        for <linux-mm@kvack.org>; Fri, 06 Mar 2015 07:40:36 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a8si15716868wjs.28.2015.03.06.07.40.34
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id BC1186B0038
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2015 10:50:06 -0500 (EST)
+Received: by wghn12 with SMTP id n12so6689696wgh.6
+        for <linux-mm@kvack.org>; Fri, 06 Mar 2015 07:50:06 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id nd13si21065551wic.74.2015.03.06.07.50.03
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Mar 2015 07:40:35 -0800 (PST)
-Message-ID: <54F9CA32.3050407@redhat.com>
-Date: Fri, 06 Mar 2015 08:39:30 -0700
-From: Eric Blake <eblake@redhat.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 06 Mar 2015 07:50:04 -0800 (PST)
+Date: Fri, 6 Mar 2015 16:50:02 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH RESEND 0/3] memory_hotplug: hyperv: fix deadlock between
+ memory adding and onlining
+Message-ID: <20150306155002.GB23443@dhcp22.suse.cz>
+References: <1423736634-338-1-git-send-email-vkuznets@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [Qemu-devel] [PATCH 02/21] userfaultfd: linux/Documentation/vm/userfaultfd.txt
-References: <1425575884-2574-1-git-send-email-aarcange@redhat.com> <1425575884-2574-3-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1425575884-2574-3-git-send-email-aarcange@redhat.com>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="noF7tnHsD61G0LuwSVKVHrkMBnWhfn9Jv"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1423736634-338-1-git-send-email-vkuznets@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Android Kernel Team <kernel-team@android.com>
-Cc: Robert Love <rlove@google.com>, Dave Hansen <dave@sr71.net>, Jan Kara <jack@suse.cz>, Neil Brown <neilb@suse.de>, Stefan Hajnoczi <stefanha@gmail.com>, Andrew Jones <drjones@redhat.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Taras Glek <tglek@mozilla.com>, zhang.zhanghailiang@huawei.com, Pavel Emelyanov <xemul@parallels.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Sasha Levin <sasha.levin@oracle.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Andres Lagar-Cavilla <andreslc@google.com>, Christopher Covington <cov@codeaurora.org>, Anthony Liguori <anthony@codemonkey.ws>, Paolo Bonzini <pbonzini@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Keith Packard <keithp@keithp.com>, Wenchao Xia <wenchaoqemu@gmail.com>, Juan Quintela <quintela@redhat.com>, Andy Lutomirski <luto@amacapital.net>, Minchan Kim <minchan@kernel.org>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Mike Hommey <mh@glandium.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Feiner <pfeiner@google.com>
+To: Vitaly Kuznetsov <vkuznets@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Haiyang Zhang <haiyangz@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Fabian Frederick <fabf@skynet.be>, Zhang Zhen <zhenzhang.zhang@huawei.com>, Vladimir Davydov <vdavydov@parallels.com>, Wang Nan <wangnan0@huawei.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, devel@linuxdriverproject.org, linux-mm@kvack.org
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---noF7tnHsD61G0LuwSVKVHrkMBnWhfn9Jv
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+[Sorry for the late response]
 
-On 03/05/2015 10:17 AM, Andrea Arcangeli wrote:
-> Add documentation.
->=20
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> ---
->  Documentation/vm/userfaultfd.txt | 97 ++++++++++++++++++++++++++++++++=
-++++++++
->  1 file changed, 97 insertions(+)
->  create mode 100644 Documentation/vm/userfaultfd.txt
+This is basically the same code posted by KY Srinivasan posted late last
+year (http://marc.info/?l=linux-mm&m=141782228129426&w=2). I had
+objections to the implementation
+http://marc.info/?l=linux-mm&m=141805109216700&w=2
 
-Just a grammar review (no analysis of technical correctness)
+On Thu 12-02-15 11:23:51, Vitaly Kuznetsov wrote:
+> RESEND (with no changes) because Rafael J. Wysocki was missing in recepients.
+> 
+> If newly added memory is brought online with e.g. udev rule:
+> SUBSYSTEM=="memory", ACTION=="add", ATTR{state}="online"
+> the following deadlock is observed (and easily reproducable):
+> 
+> First participant, worker thread doing add_memory():
+> 
+> [  724.948846] kworker/0:1     D ffff88000412f9c8 13248    27      2 0x00000000
+> [  724.973543] Workqueue: events hot_add_req [hv_balloon]
+> [  724.991736]  ffff88000412f9c8 0000000000000000 ffff88003fa1dc30 00000000000151c0
+> [  725.019725]  0000000000000246 ffff88000412ffd8 00000000000151c0 ffff88003a77a4e0
+> [  725.046486]  ffff88003fa1dc30 00000001032a6000 ffff88003a7ca838 ffff88003a7ca898
+> [  725.072969] Call Trace:
+> [  725.082690]  [<ffffffff81aac0a9>] schedule_preempt_disabled+0x29/0x70
+> [  725.103799]  [<ffffffff81aae33b>] mutex_lock_nested+0x14b/0x470
+> [  725.122367]  [<ffffffff815ed773>] ? device_attach+0x23/0xb0
+> [  725.140992]  [<ffffffff815ed773>] device_attach+0x23/0xb0
+> [  725.159131]  [<ffffffff815ecba0>] bus_probe_device+0xb0/0xe0
+> [  725.177055]  [<ffffffff815ea693>] device_add+0x443/0x650
+> [  725.195558]  [<ffffffff815ea8be>] device_register+0x1e/0x30
+> [  725.213133]  [<ffffffff81601790>] init_memory_block+0xd0/0xf0
+> [  725.231533]  [<ffffffff816018f1>] register_new_memory+0xb1/0xd0
+> [  725.250769]  [<ffffffff81a961cf>] __add_pages+0x13f/0x250
+> [  725.269642]  [<ffffffff81063770>] ? arch_add_memory+0x70/0xf0
+> [  725.288764]  [<ffffffff81063770>] arch_add_memory+0x70/0xf0
+> [  725.306117]  [<ffffffff81a95f8f>] add_memory+0xef/0x1f0
+> [  725.322466]  [<ffffffffa00293af>] hot_add_req+0x33f/0xf90 [hv_balloon]
+> [  725.342777]  [<ffffffff8109509f>] process_one_work+0x1df/0x4e0
+> [  725.361459]  [<ffffffff8109502d>] ? process_one_work+0x16d/0x4e0
+> [  725.380390]  [<ffffffff810954bb>] worker_thread+0x11b/0x450
+> [  725.397684]  [<ffffffff810953a0>] ? process_one_work+0x4e0/0x4e0
+> [  725.416533]  [<ffffffff8109ac33>] kthread+0xf3/0x110
+> [  725.433372]  [<ffffffff8109ab40>] ? kthread_create_on_node+0x240/0x240
+> [  725.453749]  [<ffffffff81ab1dfc>] ret_from_fork+0x7c/0xb0
+> [  725.470994]  [<ffffffff8109ab40>] ? kthread_create_on_node+0x240/0x240
+> [  725.491469] 6 locks held by kworker/0:1/27:
+> [  725.505037]  #0:  ("events"){......}, at: [<ffffffff8109502d>] process_one_work+0x16d/0x4e0
+> [  725.533370]  #1:  ((&dm_device.ha_wrk.wrk)){......}, at: [<ffffffff8109502d>] process_one_work+0x16d/0x4e0
+> [  725.565580]  #2:  (mem_hotplug.lock){......}, at: [<ffffffff811e6525>] mem_hotplug_begin+0x5/0x80
+> [  725.594369]  #3:  (mem_hotplug.lock#2){......}, at: [<ffffffff811e656f>] mem_hotplug_begin+0x4f/0x80
+> [  725.628554]  #4:  (mem_sysfs_mutex){......}, at: [<ffffffff81601873>] register_new_memory+0x33/0xd0
+> [  725.658519]  #5:  (&dev->mutex){......}, at: [<ffffffff815ed773>] device_attach+0x23/0xb0
+> 
+> Second participant, udev:
+> 
+> [  725.750889] systemd-udevd   D ffff88003b94fc68 14016   888    530 0x00000004
+> [  725.773767]  ffff88003b94fc68 0000000000000000 ffff8800034949c0 00000000000151c0
+> [  725.798332]  ffffffff8210d980 ffff88003b94ffd8 00000000000151c0 ffff880037a69270
+> [  725.822841]  ffff8800034949c0 0000000100000001 ffff8800034949c0 ffffffff81ff2b48
+> [  725.849184] Call Trace:
+> [  725.858987]  [<ffffffff81aac0a9>] schedule_preempt_disabled+0x29/0x70
+> [  725.879231]  [<ffffffff81aae33b>] mutex_lock_nested+0x14b/0x470
+> [  725.897860]  [<ffffffff811e656f>] ? mem_hotplug_begin+0x4f/0x80
+> [  725.916698]  [<ffffffff811e656f>] mem_hotplug_begin+0x4f/0x80
+> [  725.935064]  [<ffffffff811e6525>] ? mem_hotplug_begin+0x5/0x80
+> [  725.953464]  [<ffffffff81a9631b>] online_pages+0x3b/0x520
+> [  725.971542]  [<ffffffff815eb0b3>] ? device_online+0x23/0xa0
+> [  725.989207]  [<ffffffff81601524>] memory_subsys_online+0x64/0xc0
+> [  726.008513]  [<ffffffff815eb0fd>] device_online+0x6d/0xa0
+> [  726.025579]  [<ffffffff816012eb>] store_mem_state+0x5b/0xe0
+> [  726.043400]  [<ffffffff815e8258>] dev_attr_store+0x18/0x30
+> [  726.060506]  [<ffffffff8127a808>] sysfs_kf_write+0x48/0x60
+> [  726.077940]  [<ffffffff81279d1b>] kernfs_fop_write+0x13b/0x1a0
+> [  726.099416]  [<ffffffff811f9f67>] vfs_write+0xb7/0x1f0
+> [  726.115748]  [<ffffffff811fabf8>] SyS_write+0x58/0xd0
+> [  726.131933]  [<ffffffff81ab1ea9>] system_call_fastpath+0x12/0x17
+> [  726.150691] 7 locks held by systemd-udevd/888:
+> [  726.165044]  #0:  (sb_writers#3){......}, at: [<ffffffff811fa063>] vfs_write+0x1b3/0x1f0
+> [  726.192422]  #1:  (&of->mutex){......}, at: [<ffffffff81279c46>] kernfs_fop_write+0x66/0x1a0
+> [  726.220289]  #2:  (s_active#60){......}, at: [<ffffffff81279c4e>] kernfs_fop_write+0x6e/0x1a0
+> [  726.249382]  #3:  (device_hotplug_lock){......}, at: [<ffffffff815e9c15>] lock_device_hotplug_sysfs+0x15/0x50
+> [  726.281901]  #4:  (&dev->mutex){......}, at: [<ffffffff815eb0b3>] device_online+0x23/0xa0
+> [  726.308619]  #5:  (mem_hotplug.lock){......}, at: [<ffffffff811e6525>] mem_hotplug_begin+0x5/0x80
+> [  726.337994]  #6:  (mem_hotplug.lock#2){......}, at: [<ffffffff811e656f>] mem_hotplug_begin+0x4f/0x80
+> 
+> In short: onlining grabs device lock and then tries to do mem_hotplug_begin()
+> while add_memory() is between mem_hotplug_begin() and mem_hotplug_done() and it
+> tries grabbing device lock.
+> 
+> To my understanding ACPI memory hotplug doesn't have the same issue as
+> device_hotplug_lock is being grabbed when the ACPI device is added.
+> 
+> Solve the issue by grabbing device_hotplug_lock before doing add_memory(). If
+> we do that, lock_device_hotplug_sysfs() will cause syscall retry which will
+> eventually succeed. To support the change we need to export lock_device_hotplug/
+> unlock_device_hotplug. This approach can be completely wrong though.
+> 
+> Vitaly Kuznetsov (3):
+>   driver core: export lock_device_hotplug/unlock_device_hotplug
+>   memory_hotplug: add note about holding device_hotplug_lock and
+>     add_memory()
+>   Drivers: hv: balloon: fix deadlock between memory adding and onlining
+> 
+>  drivers/base/core.c     |  2 ++
+>  drivers/hv/hv_balloon.c | 10 ++++++++++
+>  mm/memory_hotplug.c     |  6 +++++-
+>  3 files changed, 17 insertions(+), 1 deletion(-)
+> 
+> -- 
+> 1.9.3
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ 
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
->=20
-> diff --git a/Documentation/vm/userfaultfd.txt b/Documentation/vm/userfa=
-ultfd.txt
-> new file mode 100644
-> index 0000000..2ec296c
-> --- /dev/null
-> +++ b/Documentation/vm/userfaultfd.txt
-> @@ -0,0 +1,97 @@
-> +=3D Userfaultfd =3D
-> +
-> +=3D=3D Objective =3D=3D
-> +
-> +Userfaults allow to implement on demand paging from userland and more
-
-s/to implement/the implementation of/
-and maybe: s/on demand/on-demand/
-
-> +generally they allow userland to take control various memory page
-> +faults, something otherwise only the kernel code could do.
-> +
-> +For example userfaults allows a proper and more optimal implementation=
-
-> +of the PROT_NONE+SIGSEGV trick.
-> +
-> +=3D=3D Design =3D=3D
-> +
-> +Userfaults are delivered and resolved through the userfaultfd syscall.=
-
-> +
-> +The userfaultfd (aside from registering and unregistering virtual
-> +memory ranges) provides for two primary functionalities:
-
-s/provides for/provides/
-
-> +
-> +1) read/POLLIN protocol to notify an userland thread of the faults
-
-s/an userland/a userland/ (remember, 'a unicorn gets an umbrella' - if
-the 'u' is pronounced 'you' the correct article is 'a')
-
-> +   happening
-> +
-> +2) various UFFDIO_* ioctls that can mangle over the virtual memory
-> +   regions registered in the userfaultfd that allows userland to
-> +   efficiently resolve the userfaults it receives via 1) or to mangle
-> +   the virtual memory in the background
-
-maybe: s/mangle/manage/2
-
-> +
-> +The real advantage of userfaults if compared to regular virtual memory=
-
-> +management of mremap/mprotect is that the userfaults in all their
-> +operations never involve heavyweight structures like vmas (in fact the=
-
-> +userfaultfd runtime load never takes the mmap_sem for writing).
-> +
-> +Vmas are not suitable for page(or hugepage)-granular fault tracking
-
-s/page(or hugepage)-granular/page- (or hugepage-) granular/
-
-> +when dealing with virtual address spaces that could span
-> +Terabytes. Too many vmas would be needed for that.
-> +
-> +The userfaultfd once opened by invoking the syscall, can also be
-> +passed using unix domain sockets to a manager process, so the same
-> +manager process could handle the userfaults of a multitude of
-> +different process without them being aware about what is going on
-
-s/process/processes/
-
-> +(well of course unless they later try to use the userfaultfd themself
-
-s/themself/themselves/
-
-> +on the same region the manager is already tracking, which is a corner
-> +case that would currently return -EBUSY).
-> +
-> +=3D=3D API =3D=3D
-> +
-> +When first opened the userfaultfd must be enabled invoking the
-> +UFFDIO_API ioctl specifying an uffdio_api.api value set to UFFD_API
-
-s/an uffdio/a uffdio/
-
-> +which will specify the read/POLLIN protocol userland intends to speak
-> +on the UFFD. The UFFDIO_API ioctl if successful (i.e. if the requested=
-
-> +uffdio_api.api is spoken also by the running kernel), will return into=
-
-> +uffdio_api.bits and uffdio_api.ioctls two 64bit bitmasks of
-> +respectively the activated feature bits below PAGE_SHIFT in the
-> +userfault addresses returned by read(2) and the generic ioctl
-> +available.
-> +
-> +Once the userfaultfd has been enabled the UFFDIO_REGISTER ioctl should=
-
-> +be invoked (if present in the returned uffdio_api.ioctls bitmask) to
-> +register a memory range in the userfaultfd by setting the
-> +uffdio_register structure accordingly. The uffdio_register.mode
-> +bitmask will specify to the kernel which kind of faults to track for
-> +the range (UFFDIO_REGISTER_MODE_MISSING would track missing
-> +pages). The UFFDIO_REGISTER ioctl will return the
-> +uffdio_register.ioctls bitmask of ioctls that are suitable to resolve
-> +userfaults on the range reigstered. Not all ioctls will necessarily be=
-
-
-s/reigstered/registered/
-
-> +supported for all memory types depending on the underlying virtual
-> +memory backend (anonymous memory vs tmpfs vs real filebacked
-> +mappings).
-> +
-> +Userland can use the uffdio_register.ioctls to mangle the virtual
-
-maybe s/mangle/manage/
-
-> +address space in the background (to add or potentially also remove
-> +memory from the userfaultfd registered range). This means an userfault=
-
-
-s/an/a/
-
-> +could be triggering just before userland maps in the background the
-> +user-faulted page. To avoid POLLIN resulting in an unexpected blocking=
-
-> +read (if the UFFD is not opened in nonblocking mode in the first
-> +place), we don't allow the background thread to wake userfaults that
-> +haven't been read by userland yet. If we would do that likely the
-> +UFFDIO_WAKE ioctl could be dropped. This may change in the future
-> +(with a UFFD_API protocol bumb combined with the removal of the
-
-s/bumb/bump/
-
-> +UFFDIO_WAKE ioctl) if it'll be demonstrated that it's a valid
-> +optimization and worthy to force userland to use the UFFD always in
-> +nonblocking mode if combined with POLLIN.
-> +
-> +userfaultfd is also a generic enough feature, that it allows KVM to
-> +implement postcopy live migration (one form of memory externalization
-> +consisting of a virtual machine running with part or all of its memory=
-
-> +residing on a different node in the cloud) without having to modify a
-> +single line of KVM kernel code. Guest async page faults, FOLL_NOWAIT
-> +and all other GUP features works just fine in combination with
-> +userfaults (userfaults trigger async page faults in the guest
-> +scheduler so those guest processes that aren't waiting for userfaults
-> +can keep running in the guest vcpus).
-> +
-> +The primary ioctl to resolve userfaults is UFFDIO_COPY. That
-> +atomically copies a page into the userfault registered range and wakes=
-
-> +up the blocked userfaults (unless uffdio_copy.mode &
-> +UFFDIO_COPY_MODE_DONTWAKE is set). Other ioctl works similarly to
-> +UFFDIO_COPY.
->=20
->=20
->=20
-
---=20
-Eric Blake   eblake redhat com    +1-919-301-3266
-Libvirt virtualization library http://libvirt.org
-
-
---noF7tnHsD61G0LuwSVKVHrkMBnWhfn9Jv
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-Comment: Public key at http://people.redhat.com/eblake/eblake.gpg
-Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
-
-iQEcBAEBCAAGBQJU+coyAAoJEKeha0olJ0NqrXsIAILrBkZemsV+IvQTydQFd1vT
-aQ0XfU5RHlHZ5YEunNWrHmOGJDkSlC+VKXq6FwGiLym3UwW66BGw8AX3hQQr3TKP
-oUOoSWrmtwqy26zIP5dUJNQUkodfKBMxe0NISqRx6D55VkTSdThXGWlhzyjApgW6
-lsnvoNQi68eWApIxiXO2m+qSpSfj27sVxhm6haQywKFbtRqIEb+jNKSp+EZB7DOr
-eCbfgztTgPC2VPpraMWYDRi6DFHCBd4k+f+xt3CqTKADgN4FRBVj0sL2razi3Dw5
-1s21Db3zFEiNVWc18273YZALkjAU1ZYMW3fHzb4aXOR/TweFuIZYFjCGsrdFsgg=
-=VRG0
------END PGP SIGNATURE-----
-
---noF7tnHsD61G0LuwSVKVHrkMBnWhfn9Jv--
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
