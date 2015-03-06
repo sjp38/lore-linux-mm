@@ -1,57 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id A1D006B0038
-	for <linux-mm@kvack.org>; Fri,  6 Mar 2015 16:07:04 -0500 (EST)
-Received: by igbhn18 with SMTP id hn18so7206718igb.2
-        for <linux-mm@kvack.org>; Fri, 06 Mar 2015 13:07:04 -0800 (PST)
-Received: from mail-ie0-x230.google.com (mail-ie0-x230.google.com. [2607:f8b0:4001:c03::230])
-        by mx.google.com with ESMTPS id 82si87685ioz.62.2015.03.06.13.07.04
+Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
+	by kanga.kvack.org (Postfix) with ESMTP id E401F6B0038
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2015 16:13:26 -0500 (EST)
+Received: by wevm14 with SMTP id m14so61925088wev.8
+        for <linux-mm@kvack.org>; Fri, 06 Mar 2015 13:13:26 -0800 (PST)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id ng4si19958006wic.45.2015.03.06.13.13.23
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Mar 2015 13:07:04 -0800 (PST)
-Received: by iecrl12 with SMTP id rl12so6159087iec.5
-        for <linux-mm@kvack.org>; Fri, 06 Mar 2015 13:07:04 -0800 (PST)
-Date: Fri, 6 Mar 2015 13:07:02 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] Allow compaction of unevictable pages
-In-Reply-To: <1425667287-30841-1-git-send-email-emunson@akamai.com>
-Message-ID: <alpine.DEB.2.10.1503061301500.10330@chino.kir.corp.google.com>
-References: <1425667287-30841-1-git-send-email-emunson@akamai.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 06 Mar 2015 13:13:24 -0800 (PST)
+Date: Fri, 6 Mar 2015 13:13:09 -0800
+From: Shaohua Li <shli@fb.com>
+Subject: Re: [PATCH] vmscan: get_scan_count selects anon pages conservative
+Message-ID: <20150306211309.GA3054673@devbig257.prn2.facebook.com>
+References: <d8192a90f6f9b474b33ec732b88b8b2d7e8623cd.1425499261.git.shli@fb.com>
+ <54F770A7.2030205@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <54F770A7.2030205@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric B Munson <emunson@akamai.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <cl@linux.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, Kernel-team@fb.com, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Fri, 6 Mar 2015, Eric B Munson wrote:
+On Wed, Mar 04, 2015 at 03:52:55PM -0500, Rik van Riel wrote:
+> On 03/04/2015 03:03 PM, Shaohua Li wrote:
+> > kswapd is a per-node based. Sometimes there is imbalance between nodes,
+> > node A is full of clean file pages (easy to reclaim), node B is
+> > full of anon pages (hard to reclaim). With memory pressure, kswapd will
+> > be waken up for both nodes. The kswapd of node B will try to swap, while
+> > we prefer reclaim pages from node A first. The real issue here is we
+> > don't have a mechanism to prevent memory allocation from a hard-reclaim
+> > node (node B here) if there is an easy-reclaim node (node A) to reclaim
+> > memory.
+> > 
+> > The swap can happen even with swapiness 0. Below is a simple script to
+> > trigger it. cpu 1 and 8 are in different node, each has 72G memory:
+> > truncate -s 70G img
+> > taskset -c 8 dd if=img of=/dev/null bs=4k
+> > taskset -c 1 usemem 70G
+> > 
+> > The swap can even easier to trigger because we have a protect mechanism
+> > for situation file pages are less than high watermark. This logic makes
+> > sense but could be more conservative.
+> > 
+> > This patch doesn't try to fix the kswapd imbalance issue above, but make
+> > get_scan_count more conservative to select anon pages. The protect
+> > mechanism is designed for situation file pages are rotated frequently.
+> > In that situation, page reclaim should be in trouble, eg, priority is
+> > lower. So let's only apply the protect mechanism in that situation. In
+> > pratice, this fixes the swap issue in above test.
+> > 
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Cc: Mel Gorman <mgorman@suse.de>
+> > Cc: Rik van Riel <riel@redhat.com>
+> > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> > Signed-off-by: Shaohua Li <shli@fb.com>
+> 
+> Doh, never mind my earlier comment. I must be too tired
+> to look at stuff right...
+> 
+> I see how your patch helps avoid the problem, but I am
+> worried about potential side effects. I suspect it could
+> lead to page cache thrashing when all zones are low on
+> page cache memory.
+> 
+> Would it make sense to explicitly check that we are low
+> on page cache pages in all zones on the scan list, before
+> forcing anon only scanning, when we get into this function?
 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 8c0d945..33c81e1 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -1056,7 +1056,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
->  {
->  	unsigned long low_pfn, end_pfn;
->  	struct page *page;
-> -	const isolate_mode_t isolate_mode =
-> +	const isolate_mode_t isolate_mode = ISOLATE_UNEVICTABLE |
->  		(cc->mode == MIGRATE_ASYNC ? ISOLATE_ASYNC_MIGRATE : 0);
->  
->  	/*
-
-I agree that memory compaction should be isolating and migrating 
-unevictable memory for better results, and we have been running with a 
-similar patch internally for about a year for the same purpose as you, 
-higher probability of allocating hugepages.
-
-This would be better off removing the notion of ISOLATE_UNEVICTABLE 
-entirely, however, since CMA and now memory compaction would be using it, 
-so the check in __isolate_lru_page() is no longer necessary.  Has the 
-added bonus of removing about 10 lines of soure code.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Ok, we still need to check the priority to make sure kswapd doesn't
+stuck to zones without enough file pages. How about this one?
