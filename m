@@ -1,74 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
-	by kanga.kvack.org (Postfix) with ESMTP id E401F6B0038
-	for <linux-mm@kvack.org>; Fri,  6 Mar 2015 16:13:26 -0500 (EST)
-Received: by wevm14 with SMTP id m14so61925088wev.8
-        for <linux-mm@kvack.org>; Fri, 06 Mar 2015 13:13:26 -0800 (PST)
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id ng4si19958006wic.45.2015.03.06.13.13.23
+Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D5DF6B0038
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2015 16:14:45 -0500 (EST)
+Received: by igbhl2 with SMTP id hl2so7241549igb.5
+        for <linux-mm@kvack.org>; Fri, 06 Mar 2015 13:14:45 -0800 (PST)
+Received: from mail-ie0-x22e.google.com (mail-ie0-x22e.google.com. [2607:f8b0:4001:c03::22e])
+        by mx.google.com with ESMTPS id b19si12909384ioe.59.2015.03.06.13.14.44
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 06 Mar 2015 13:13:24 -0800 (PST)
-Date: Fri, 6 Mar 2015 13:13:09 -0800
-From: Shaohua Li <shli@fb.com>
-Subject: Re: [PATCH] vmscan: get_scan_count selects anon pages conservative
-Message-ID: <20150306211309.GA3054673@devbig257.prn2.facebook.com>
-References: <d8192a90f6f9b474b33ec732b88b8b2d7e8623cd.1425499261.git.shli@fb.com>
- <54F770A7.2030205@redhat.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 06 Mar 2015 13:14:45 -0800 (PST)
+Received: by iebtr6 with SMTP id tr6so15735180ieb.4
+        for <linux-mm@kvack.org>; Fri, 06 Mar 2015 13:14:44 -0800 (PST)
+Date: Fri, 6 Mar 2015 13:14:43 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC 0/3] hugetlbfs: optionally reserve all fs pages at mount
+ time
+In-Reply-To: <54F9F8F1.4020203@oracle.com>
+Message-ID: <alpine.DEB.2.10.1503061312170.10330@chino.kir.corp.google.com>
+References: <1425077893-18366-1-git-send-email-mike.kravetz@oracle.com> <20150302151009.2ae58f4430f9f34b81533821@linux-foundation.org> <54F50BD6.1030706@oracle.com> <20150306151045.GA23443@dhcp22.suse.cz> <54F9F8F1.4020203@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <54F770A7.2030205@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, Kernel-team@fb.com, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Wed, Mar 04, 2015 at 03:52:55PM -0500, Rik van Riel wrote:
-> On 03/04/2015 03:03 PM, Shaohua Li wrote:
-> > kswapd is a per-node based. Sometimes there is imbalance between nodes,
-> > node A is full of clean file pages (easy to reclaim), node B is
-> > full of anon pages (hard to reclaim). With memory pressure, kswapd will
-> > be waken up for both nodes. The kswapd of node B will try to swap, while
-> > we prefer reclaim pages from node A first. The real issue here is we
-> > don't have a mechanism to prevent memory allocation from a hard-reclaim
-> > node (node B here) if there is an easy-reclaim node (node A) to reclaim
-> > memory.
-> > 
-> > The swap can happen even with swapiness 0. Below is a simple script to
-> > trigger it. cpu 1 and 8 are in different node, each has 72G memory:
-> > truncate -s 70G img
-> > taskset -c 8 dd if=img of=/dev/null bs=4k
-> > taskset -c 1 usemem 70G
-> > 
-> > The swap can even easier to trigger because we have a protect mechanism
-> > for situation file pages are less than high watermark. This logic makes
-> > sense but could be more conservative.
-> > 
-> > This patch doesn't try to fix the kswapd imbalance issue above, but make
-> > get_scan_count more conservative to select anon pages. The protect
-> > mechanism is designed for situation file pages are rotated frequently.
-> > In that situation, page reclaim should be in trouble, eg, priority is
-> > lower. So let's only apply the protect mechanism in that situation. In
-> > pratice, this fixes the swap issue in above test.
-> > 
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Cc: Mel Gorman <mgorman@suse.de>
-> > Cc: Rik van Riel <riel@redhat.com>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > Signed-off-by: Shaohua Li <shli@fb.com>
-> 
-> Doh, never mind my earlier comment. I must be too tired
-> to look at stuff right...
-> 
-> I see how your patch helps avoid the problem, but I am
-> worried about potential side effects. I suspect it could
-> lead to page cache thrashing when all zones are low on
-> page cache memory.
-> 
-> Would it make sense to explicitly check that we are low
-> on page cache pages in all zones on the scan list, before
-> forcing anon only scanning, when we get into this function?
+On Fri, 6 Mar 2015, Mike Kravetz wrote:
 
-Ok, we still need to check the priority to make sure kswapd doesn't
-stuck to zones without enough file pages. How about this one?
+> Thanks for the CONFIG_CGROUP_HUGETLB suggestion, however I do not
+> believe this will be a satisfactory solution for my usecase.  As you
+> point out, cgroups could be set up (by a sysadmin) for every hugetlb
+> user/application.  In this case, the sysadmin needs to have knowledge
+> of every huge page user/application and configure appropriately.
+> 
+> I was approaching this from the point of view of the application.  The
+> application wants the guarantee of a minimum number of huge pages,
+> independent of other users/applications.  The "reserve" approach allows
+> the application to set aside those pages at initialization time.  If it
+> can not get the pages it needs, it can refuse to start, or configure
+> itself to use less, or take other action.
+> 
+
+Would it be too difficult to modify the application to mmap() the 
+hugepages at startup so they are no longer free in the global pool but 
+rather get marked as reserved so other applications cannot map them?  That 
+should return MAP_FAILED if there is an insufficient number of hugepages 
+available to be reserved (HugePages_Rsvd in /proc/meminfo).
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
