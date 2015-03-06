@@ -1,59 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 37E5C6B0038
-	for <linux-mm@kvack.org>; Fri,  6 Mar 2015 16:32:54 -0500 (EST)
-Received: by obcwp18 with SMTP id wp18so11943593obc.1
-        for <linux-mm@kvack.org>; Fri, 06 Mar 2015 13:32:53 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id gg9si6742599obb.30.2015.03.06.13.32.53
+Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
+	by kanga.kvack.org (Postfix) with ESMTP id EB8826B0038
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2015 16:47:58 -0500 (EST)
+Received: by lbiz11 with SMTP id z11so34469176lbi.13
+        for <linux-mm@kvack.org>; Fri, 06 Mar 2015 13:47:58 -0800 (PST)
+Received: from mail-la0-f44.google.com (mail-la0-f44.google.com. [209.85.215.44])
+        by mx.google.com with ESMTPS id i6si8151473laa.43.2015.03.06.13.47.56
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 06 Mar 2015 13:32:53 -0800 (PST)
-Message-ID: <54FA1CFE.1000500@oracle.com>
-Date: Fri, 06 Mar 2015 13:32:46 -0800
-From: Mike Kravetz <mike.kravetz@oracle.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 06 Mar 2015 13:47:56 -0800 (PST)
+Received: by labgq15 with SMTP id gq15so6371059lab.11
+        for <linux-mm@kvack.org>; Fri, 06 Mar 2015 13:47:56 -0800 (PST)
+From: "Grygorii.Strashko@linaro.org" <grygorii.strashko@linaro.org>
+Message-ID: <54FA2084.8050803@linaro.org>
+Date: Fri, 06 Mar 2015 23:47:48 +0200
 MIME-Version: 1.0
-Subject: Re: [RFC 0/3] hugetlbfs: optionally reserve all fs pages at mount
- time
-References: <1425077893-18366-1-git-send-email-mike.kravetz@oracle.com> <20150302151009.2ae58f4430f9f34b81533821@linux-foundation.org> <54F50BD6.1030706@oracle.com> <20150306151045.GA23443@dhcp22.suse.cz> <54F9F8F1.4020203@oracle.com> <alpine.DEB.2.10.1503061312170.10330@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1503061312170.10330@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Subject: Re: ARM: OMPA4+: is it expected dma_coerce_mask_and_coherent(dev,
+ DMA_BIT_MASK(64)); to fail?
+References: <54F8A68B.3080709@linaro.org> <20150305201753.GG29584@n2100.arm.linux.org.uk>
+In-Reply-To: <20150305201753.GG29584@n2100.arm.linux.org.uk>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Tejun Heo <tj@kernel.org>, Tony Lindgren <tony@atomide.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-arm <linux-arm-kernel@lists.infradead.org>, "linux-omap@vger.kernel.org" <linux-omap@vger.kernel.org>, Laura Abbott <lauraa@codeaurora.org>, open list <linux-kernel@vger.kernel.org>, Santosh Shilimkar <ssantosh@kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, Peter Ujfalusi <peter.ujfalusi@ti.com>
 
-On 03/06/2015 01:14 PM, David Rientjes wrote:
-> On Fri, 6 Mar 2015, Mike Kravetz wrote:
->
->> Thanks for the CONFIG_CGROUP_HUGETLB suggestion, however I do not
->> believe this will be a satisfactory solution for my usecase.  As you
->> point out, cgroups could be set up (by a sysadmin) for every hugetlb
->> user/application.  In this case, the sysadmin needs to have knowledge
->> of every huge page user/application and configure appropriately.
->>
->> I was approaching this from the point of view of the application.  The
->> application wants the guarantee of a minimum number of huge pages,
->> independent of other users/applications.  The "reserve" approach allows
->> the application to set aside those pages at initialization time.  If it
->> can not get the pages it needs, it can refuse to start, or configure
->> itself to use less, or take other action.
->>
->
-> Would it be too difficult to modify the application to mmap() the
-> hugepages at startup so they are no longer free in the global pool but
-> rather get marked as reserved so other applications cannot map them?  That
-> should return MAP_FAILED if there is an insufficient number of hugepages
-> available to be reserved (HugePages_Rsvd in /proc/meminfo).
+Hi Russell,
 
-The application is a database with multiple processes/tasks that will
-come and go over time.  I thought about having one task do a big
-mmap() at initialization time, but then the issue is how to coordinate
-with the other tasks and their requests to allocate/free pages.
+On 03/05/2015 10:17 PM, Russell King - ARM Linux wrote:
+> On Thu, Mar 05, 2015 at 08:55:07PM +0200, Grygorii.Strashko@linaro.org wrote:
+>> Now I can see very interesting behavior related to dma_coerce_mask_and_coherent()
+>> and friends which I'd like to explain and clarify.
+>>
+>> Below is set of questions I have (why - I explained below):
+>> - Is expected dma_coerce_mask_and_coherent(DMA_BIT_MASK(64)) and friends to fail on 32 bits HW?
+> 
+> Not really.
+> 
+>> - What is expected value for max_pfn: max_phys_pfn or max_phys_pfn + 1?
+> 
+> mm/page_owner.c:
+>          /* Find an allocated page */
+>          for (; pfn < max_pfn; pfn++) {
+> 
+> drivers/base/platform.c:    u32 low_totalram = ((max_pfn - 1) << PAGE_SHIFT);
+> drivers/base/platform.c:    u32 high_totalram = ((max_pfn - 1) >> (32 - PAGE_SHIFT));
+> 
+> So, there's ample evidence that max_pfn is one more than the greatest pfn
+> which may be used in the system.
+> 
+>> - What is expected value for struct memblock_region->size: mem_range_size or mem_range_size - 1?
+> 
+> A size is a size - it's a number of bytes contained within the region.
+> If it is value 1, then there is exactly one byte in the region.  If
+> there are 0x7fffffff, then there are 2G-1 bytes in the region, not 2G.
+
+Thanks - it seems clear now.
+
+>> - What is expected value to be returned by memblock_end_of_DRAM():
+>>    @base + @size(max_phys_addr + 1) or @base + @size - 1(max_phys_addr)?
+> 
+> The last address plus one in the system.  However, there's a problem here.
+> On a 32-bit system, phys_addr_t may be 32-bit.  If it is 32-bit, then
+> "last address plus one" could be zero, which makes no sense.  Hence, it
+> is artificially reduced to 0xfffff000, thereby omitting the final page.
+
+^ this part seems not fully true now, because for ARM32 + DT the 
+fdt.c->early_init_dt_add_memory_arch() is called instead of arm_add_memory()
+ and it works in a different way a bit.
+
+For example, I don't see below message when reg = <0x80000000 0x80000000>:
+"Truncating memory at 0x80000000 to fit in 32-bit physical address space"
+
+instead memblock silently configured as
+memory.cnt  = 0x1
+memory[0x0].base = 0x80000000
+memory[0x0].size = 0x7fffffff
+
+
+> 
+>> Example 3 CONFIG_ARM_LPAE=y (but system really works with 32 bit address space):
+>> 	memory {
+>> 		device_type = "memory";
+>> 		reg = <0x80000000 0x80000000>;
+>> 	};
+>>
+>>    memblock will be configured as:
+>> 	memory.cnt  = 0x1
+>> 	memory[0x0]     [0x00000080000000-0x000000ffffffff], 0x80000000 bytes flags: 0x0
+>> 							     ^^^^^^^^^^
+>>    max_pfn = 0x00100000
+>>
+>> The dma_coerce_mask_and_coherent() will fail in case 'Example 3' and succeed in cases 1,2.
+>> dma-mapping.c --> __dma_supported()
+>> 	if (sizeof(mask) != sizeof(dma_addr_t) && <== true for all OMAP4+
+>> 	    mask > (dma_addr_t)~0 &&		<== true for DMA_BIT_MASK(64)
+>> 	    dma_to_pfn(dev, ~0) < max_pfn) {  <== true only for Example 3
+> 
+> Hmm, I think this may make more sense to be "< max_pfn - 1" here, as
+> that would be better suited to our intention.
+> 
+> The result of dma_to_pfn(dev, ~0) is the maximum PFN which we could
+> address via DMA, but we're comparing it with the maximum PFN in the
+> system plus 1 - so we need to subtract one from it.
+
+Ok. I'll try it.
+
+> 
+> Please think about this and test this out; I'm not back to normal yet
+> (post-op) so I could very well not be thinking straight yet.
+
+Thanks for your comments. I hope you feel better.
 
 -- 
-Mike Kravetz
+regards,
+-grygorii
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
