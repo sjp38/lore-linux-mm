@@ -1,121 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
-	by kanga.kvack.org (Postfix) with ESMTP id EB8826B0038
-	for <linux-mm@kvack.org>; Fri,  6 Mar 2015 16:47:58 -0500 (EST)
-Received: by lbiz11 with SMTP id z11so34469176lbi.13
-        for <linux-mm@kvack.org>; Fri, 06 Mar 2015 13:47:58 -0800 (PST)
-Received: from mail-la0-f44.google.com (mail-la0-f44.google.com. [209.85.215.44])
-        by mx.google.com with ESMTPS id i6si8151473laa.43.2015.03.06.13.47.56
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 343906B0038
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2015 16:52:59 -0500 (EST)
+Received: by padet14 with SMTP id et14so58169144pad.0
+        for <linux-mm@kvack.org>; Fri, 06 Mar 2015 13:52:58 -0800 (PST)
+Received: from na01-bn1-obe.outbound.protection.outlook.com (mail-bn1on0146.outbound.protection.outlook.com. [157.56.110.146])
+        by mx.google.com with ESMTPS id rg12si16763493pdb.99.2015.03.06.13.52.57
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Mar 2015 13:47:56 -0800 (PST)
-Received: by labgq15 with SMTP id gq15so6371059lab.11
-        for <linux-mm@kvack.org>; Fri, 06 Mar 2015 13:47:56 -0800 (PST)
-From: "Grygorii.Strashko@linaro.org" <grygorii.strashko@linaro.org>
-Message-ID: <54FA2084.8050803@linaro.org>
-Date: Fri, 06 Mar 2015 23:47:48 +0200
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 06 Mar 2015 13:52:58 -0800 (PST)
+From: Yannick Guerrini <yguerrini@tomshardware.fr>
+Subject: [PATCH] percpu: Fix trivial typos in comments
+Date: Fri, 6 Mar 2015 22:52:28 +0100
+Message-ID: <1425678748-11848-1-git-send-email-yguerrini@tomshardware.fr>
 MIME-Version: 1.0
-Subject: Re: ARM: OMPA4+: is it expected dma_coerce_mask_and_coherent(dev,
- DMA_BIT_MASK(64)); to fail?
-References: <54F8A68B.3080709@linaro.org> <20150305201753.GG29584@n2100.arm.linux.org.uk>
-In-Reply-To: <20150305201753.GG29584@n2100.arm.linux.org.uk>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Tejun Heo <tj@kernel.org>, Tony Lindgren <tony@atomide.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-arm <linux-arm-kernel@lists.infradead.org>, "linux-omap@vger.kernel.org" <linux-omap@vger.kernel.org>, Laura Abbott <lauraa@codeaurora.org>, open list <linux-kernel@vger.kernel.org>, Santosh Shilimkar <ssantosh@kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, Peter Ujfalusi <peter.ujfalusi@ti.com>
+To: tj@kernel.org
+Cc: cl@linux-foundation.org, trivial@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yannick Guerrini <yguerrini@tomshardware.fr>
 
-Hi Russell,
+Change 'iff' to 'if'
+Change 'tranlated' to 'translated'
+Change 'mutliples' to 'multiples'
 
-On 03/05/2015 10:17 PM, Russell King - ARM Linux wrote:
-> On Thu, Mar 05, 2015 at 08:55:07PM +0200, Grygorii.Strashko@linaro.org wrote:
->> Now I can see very interesting behavior related to dma_coerce_mask_and_coherent()
->> and friends which I'd like to explain and clarify.
->>
->> Below is set of questions I have (why - I explained below):
->> - Is expected dma_coerce_mask_and_coherent(DMA_BIT_MASK(64)) and friends to fail on 32 bits HW?
-> 
-> Not really.
-> 
->> - What is expected value for max_pfn: max_phys_pfn or max_phys_pfn + 1?
-> 
-> mm/page_owner.c:
->          /* Find an allocated page */
->          for (; pfn < max_pfn; pfn++) {
-> 
-> drivers/base/platform.c:    u32 low_totalram = ((max_pfn - 1) << PAGE_SHIFT);
-> drivers/base/platform.c:    u32 high_totalram = ((max_pfn - 1) >> (32 - PAGE_SHIFT));
-> 
-> So, there's ample evidence that max_pfn is one more than the greatest pfn
-> which may be used in the system.
-> 
->> - What is expected value for struct memblock_region->size: mem_range_size or mem_range_size - 1?
-> 
-> A size is a size - it's a number of bytes contained within the region.
-> If it is value 1, then there is exactly one byte in the region.  If
-> there are 0x7fffffff, then there are 2G-1 bytes in the region, not 2G.
+Signed-off-by: Yannick Guerrini <yguerrini@tomshardware.fr>
+---
+ mm/percpu.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
 
-Thanks - it seems clear now.
-
->> - What is expected value to be returned by memblock_end_of_DRAM():
->>    @base + @size(max_phys_addr + 1) or @base + @size - 1(max_phys_addr)?
-> 
-> The last address plus one in the system.  However, there's a problem here.
-> On a 32-bit system, phys_addr_t may be 32-bit.  If it is 32-bit, then
-> "last address plus one" could be zero, which makes no sense.  Hence, it
-> is artificially reduced to 0xfffff000, thereby omitting the final page.
-
-^ this part seems not fully true now, because for ARM32 + DT the 
-fdt.c->early_init_dt_add_memory_arch() is called instead of arm_add_memory()
- and it works in a different way a bit.
-
-For example, I don't see below message when reg = <0x80000000 0x80000000>:
-"Truncating memory at 0x80000000 to fit in 32-bit physical address space"
-
-instead memblock silently configured as
-memory.cnt  = 0x1
-memory[0x0].base = 0x80000000
-memory[0x0].size = 0x7fffffff
-
-
-> 
->> Example 3 CONFIG_ARM_LPAE=y (but system really works with 32 bit address space):
->> 	memory {
->> 		device_type = "memory";
->> 		reg = <0x80000000 0x80000000>;
->> 	};
->>
->>    memblock will be configured as:
->> 	memory.cnt  = 0x1
->> 	memory[0x0]     [0x00000080000000-0x000000ffffffff], 0x80000000 bytes flags: 0x0
->> 							     ^^^^^^^^^^
->>    max_pfn = 0x00100000
->>
->> The dma_coerce_mask_and_coherent() will fail in case 'Example 3' and succeed in cases 1,2.
->> dma-mapping.c --> __dma_supported()
->> 	if (sizeof(mask) != sizeof(dma_addr_t) && <== true for all OMAP4+
->> 	    mask > (dma_addr_t)~0 &&		<== true for DMA_BIT_MASK(64)
->> 	    dma_to_pfn(dev, ~0) < max_pfn) {  <== true only for Example 3
-> 
-> Hmm, I think this may make more sense to be "< max_pfn - 1" here, as
-> that would be better suited to our intention.
-> 
-> The result of dma_to_pfn(dev, ~0) is the maximum PFN which we could
-> address via DMA, but we're comparing it with the maximum PFN in the
-> system plus 1 - so we need to subtract one from it.
-
-Ok. I'll try it.
-
-> 
-> Please think about this and test this out; I'm not back to normal yet
-> (post-op) so I could very well not be thinking straight yet.
-
-Thanks for your comments. I hope you feel better.
-
+diff --git a/mm/percpu.c b/mm/percpu.c
+index 73c97a5..6e6dcdb 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -324,7 +324,7 @@ static void pcpu_mem_free(void *ptr, size_t size)
+  *
+  * Count the number of pages chunk's @i'th area occupies.  When the area's
+  * start and/or end address isn't aligned to page boundary, the straddled
+- * page is included in the count iff the rest of the page is free.
++ * page is included in the count if the rest of the page is free.
+  */
+ static int pcpu_count_occupied_pages(struct pcpu_chunk *chunk, int i)
+ {
+@@ -963,7 +963,7 @@ restart:
+ 
+ 	/*
+ 	 * No space left.  Create a new chunk.  We don't want multiple
+-	 * tasks to create chunks simultaneously.  Serialize and create iff
++	 * tasks to create chunks simultaneously.  Serialize and create if
+ 	 * there's still no empty chunk after grabbing the mutex.
+ 	 */
+ 	if (is_atomic)
+@@ -1310,7 +1310,7 @@ bool is_kernel_percpu_address(unsigned long addr)
+  * and, from the second one, the backing allocator (currently either vm or
+  * km) provides translation.
+  *
+- * The addr can be tranlated simply without checking if it falls into the
++ * The addr can be translated simply without checking if it falls into the
+  * first chunk. But the current code reflects better how percpu allocator
+  * actually works, and the verification can discover both bugs in percpu
+  * allocator itself and per_cpu_ptr_to_phys() callers. So we keep current
+@@ -1744,7 +1744,7 @@ early_param("percpu_alloc", percpu_alloc_setup);
+ #define BUILD_EMBED_FIRST_CHUNK
+ #endif
+ 
+-/* build pcpu_page_first_chunk() iff needed by the arch config */
++/* build pcpu_page_first_chunk() if needed by the arch config */
+ #if defined(CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK)
+ #define BUILD_PAGE_FIRST_CHUNK
+ #endif
+@@ -1762,7 +1762,7 @@ early_param("percpu_alloc", percpu_alloc_setup);
+  * and other parameters considering needed percpu size, allocation
+  * atom size and distances between CPUs.
+  *
+- * Groups are always mutliples of atom size and CPUs which are of
++ * Groups are always multiples of atom size and CPUs which are of
+  * LOCAL_DISTANCE both ways are grouped together and share space for
+  * units in the same group.  The returned configuration is guaranteed
+  * to have CPUs on different nodes on different groups and >=75% usage
 -- 
-regards,
--grygorii
+1.9.5.msysgit.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
