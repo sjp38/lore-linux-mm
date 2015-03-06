@@ -1,402 +1,1049 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 189526B0038
-	for <linux-mm@kvack.org>; Fri,  6 Mar 2015 02:50:34 -0500 (EST)
-Received: by wesw55 with SMTP id w55so4400957wes.3
-        for <linux-mm@kvack.org>; Thu, 05 Mar 2015 23:50:33 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id pe8si18699629wic.94.2015.03.05.23.50.31
+Received: from mail-la0-f48.google.com (mail-la0-f48.google.com [209.85.215.48])
+	by kanga.kvack.org (Postfix) with ESMTP id A1CEF6B0038
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2015 05:49:05 -0500 (EST)
+Received: by labgq15 with SMTP id gq15so2815158lab.11
+        for <linux-mm@kvack.org>; Fri, 06 Mar 2015 02:49:05 -0800 (PST)
+Received: from mail-lb0-x229.google.com (mail-lb0-x229.google.com. [2a00:1450:4010:c04::229])
+        by mx.google.com with ESMTPS id lu10si6705717lac.162.2015.03.06.02.49.02
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 05 Mar 2015 23:50:32 -0800 (PST)
-Message-ID: <54F95C40.6040302@suse.cz>
-Date: Fri, 06 Mar 2015 08:50:24 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 06 Mar 2015 02:49:03 -0800 (PST)
+Received: by lbdu14 with SMTP id u14so35591695lbd.0
+        for <linux-mm@kvack.org>; Fri, 06 Mar 2015 02:49:02 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [RFC 0/6] the big khugepaged redesign
-References: <1424696322-21952-1-git-send-email-vbabka@suse.cz> <1424731603.6539.51.camel@stgolabs.net> <20150223145619.64f3a225b914034a17d4f520@linux-foundation.org> <54EC533E.8040805@suse.cz> <54F88498.2000902@suse.cz> <20150306002102.GU30405@awork2.anarazel.de>
-In-Reply-To: <20150306002102.GU30405@awork2.anarazel.de>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Reply-To: mtk.manpages@gmail.com
+In-Reply-To: <1425575884-2574-11-git-send-email-aarcange@redhat.com>
+References: <1425575884-2574-1-git-send-email-aarcange@redhat.com> <1425575884-2574-11-git-send-email-aarcange@redhat.com>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Date: Fri, 6 Mar 2015 11:48:42 +0100
+Message-ID: <CAKgNAkhh_XHHjVESX9Y7+gpwn-7Os4wRzQPPdwAR884oDfd0CQ@mail.gmail.com>
+Subject: Re: [PATCH 10/21] userfaultfd: add new syscall to provide memory externalization
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andres Freund <andres@anarazel.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Alex Thorlton <athorlton@sgi.com>, David Rientjes <rientjes@google.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Robert Haas <robertmhaas@gmail.com>, Josh Berkus <josh@agliodbs.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: qemu-devel@nongnu.org, kvm@vger.kernel.org, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, Android Kernel Team <kernel-team@android.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Pavel Emelyanov <xemul@parallels.com>, Sanidhya Kashyap <sanidhya.gatech@gmail.com>, zhang.zhanghailiang@huawei.com, Linus Torvalds <torvalds@linux-foundation.org>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave@sr71.net>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Christopher Covington <cov@codeaurora.org>, Johannes Weiner <hannes@cmpxchg.org>, Robert Love <rlove@google.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, Keith Packard <keithp@keithp.com>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Anthony Liguori <anthony@codemonkey.ws>, Stefan Hajnoczi <stefanha@gmail.com>, Wenchao Xia <wenchaoqemu@gmail.com>, Andrew Jones <drjones@redhat.com>, Juan Quintela <quintela@redhat.com>
 
-On 03/06/2015 01:21 AM, Andres Freund wrote:
-> Long mail ahead, sorry for that.
+Hi Andrea,
 
-No problem, thanks a lot!
+On 5 March 2015 at 18:17, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> Once an userfaultfd has been created and certain region of the process
+> virtual address space have been registered into it, the thread
+> responsible for doing the memory externalization can manage the page
+> faults in userland by talking to the kernel using the userfaultfd
+> protocol.
 
-> TL;DR: THP is still noticeable, but not nearly as bad.
-> 
-> On 2015-03-05 17:30:16 +0100, Vlastimil Babka wrote:
->> That however means the workload is based on hugetlbfs and shouldn't trigger THP
->> page fault activity, which is the aim of this patchset. Some more googling made
->> me recall that last LSF/MM, postgresql people mentioned THP issues and pointed
->> at compaction. See http://lwn.net/Articles/591723/ That's exactly where this
->> patchset should help, but I obviously won't be able to measure this before LSF/MM...
-> 
-> Just as a reference, this is how some the more extreme profiles looked
-> like in the past:
-> 
->>     96.50%    postmaster  [kernel.kallsyms]         [k] _spin_lock_irq
->>               |
->>               --- _spin_lock_irq
->>                  |
->>                  |--99.87%-- compact_zone
->>                  |          compact_zone_order
->>                  |          try_to_compact_pages
->>                  |          __alloc_pages_nodemask
->>                  |          alloc_pages_vma
->>                  |          do_huge_pmd_anonymous_page
->>                  |          handle_mm_fault
->>                  |          __do_page_fault
->>                  |          do_page_fault
->>                  |          page_fault
->>                  |          0x631d98
->>                   --0.13%-- [...]
-> 
-> That specific profile is from a rather old kernel as you probably
-> recognize.
+Is there someting like a man page for this new syscall?
 
-Yeah, sounds like synchronous compaction before it was forbidden for THP page
-faults...
+Thanks,
 
->> I'm CCing the psql guys from last year LSF/MM - do you have any insight about
->> psql performance with THPs enabled/disabled on recent kernels, where e.g.
->> compaction is no longer synchronous for THP page faults?
-> 
-> So, I've managed to get a machine upgraded to 3.19. 4 x E5-4620, 256GB
-> RAM.
-> 
-> First of: It's noticeably harder to trigger problems than it used to
-> be. But, I can still trigger various problems that are much worse with
-> THP enabled than without.
-> 
-> There seem to be various different bottlenecks; I can get somewhat
-> different profiles.
-> 
-> In a somewhat artificial workload, that tries to simulate what I've seen
-> trigger the problem at a customer, I can quite easily trigger large
-> differences between THP=enable and THP=never.  There's two types of
-> tasks running, one purely OLTP, another doing somewhat more complex
-> statements that require a fair amount of process local memory.
-> 
-> (ignore the absolute numbers for progress, I just waited for somewhat
-> stable results while doing other stuff)
-> 
-> THP off:
-> Task 1 solo:
-> progress: 200.0 s, 391442.0 tps, 0.654 ms lat
-> progress: 201.0 s, 394816.1 tps, 0.683 ms lat
-> progress: 202.0 s, 409722.5 tps, 0.625 ms lat
-> progress: 203.0 s, 384794.9 tps, 0.665 ms lat
-> 
-> combined:
-> Task 1:
-> progress: 144.0 s, 25430.4 tps, 10.067 ms lat
-> progress: 145.0 s, 22260.3 tps, 11.500 ms lat
-> progress: 146.0 s, 24089.9 tps, 10.627 ms lat
-> progress: 147.0 s, 25888.8 tps, 9.888 ms lat
-> 
-> Task 2:
-> progress: 24.4 s, 30.0 tps, 2134.043 ms lat
-> progress: 26.5 s, 29.8 tps, 2150.487 ms lat
-> progress: 28.4 s, 29.7 tps, 2151.557 ms lat
-> progress: 30.4 s, 28.5 tps, 2245.304 ms lat
-> 
-> flat profile:
->      6.07%      postgres  postgres            [.] heap_form_minimal_tuple
->      4.36%      postgres  postgres            [.] heap_fill_tuple
->      4.22%      postgres  postgres            [.] ExecStoreMinimalTuple
->      4.11%      postgres  postgres            [.] AllocSetAlloc
->      3.97%      postgres  postgres            [.] advance_aggregates
->      3.94%      postgres  postgres            [.] advance_transition_function
->      3.94%      postgres  postgres            [.] ExecMakeTableFunctionResult
->      3.33%      postgres  postgres            [.] heap_compute_data_size
->      3.30%      postgres  postgres            [.] MemoryContextReset
->      3.28%      postgres  postgres            [.] ExecScan
->      3.04%      postgres  postgres            [.] ExecProject
->      2.96%      postgres  postgres            [.] generate_series_step_int4
->      2.94%      postgres  [kernel.kallsyms]   [k] clear_page_c
-> 
-> (i.e. most of it postgres, cache miss bound)
-> 
-> THP on:
-> Task 1 solo:
-> progress: 140.0 s, 390458.1 tps, 0.656 ms lat
-> progress: 141.0 s, 391174.2 tps, 0.654 ms lat
-> progress: 142.0 s, 394828.8 tps, 0.648 ms lat
-> progress: 143.0 s, 398156.2 tps, 0.643 ms lat
-> 
-> Task 1:
-> progress: 179.0 s, 23963.1 tps, 10.683 ms lat
-> progress: 180.0 s, 22712.9 tps, 11.271 ms lat
-> progress: 181.0 s, 21211.4 tps, 12.069 ms lat
-> progress: 182.0 s, 23207.8 tps, 11.031 ms lat
-> 
-> Task 2:
-> progress: 28.2 s, 19.1 tps, 3349.747 ms lat
-> progress: 31.0 s, 19.8 tps, 3230.589 ms lat
-> progress: 34.3 s, 21.5 tps, 2979.113 ms lat
-> progress: 37.4 s, 20.9 tps, 3055.143 ms lat
+Michael
 
-So that's 1/3 worse tps for task 2? Not very nice...
 
-> flat profile:
->     21.36%      postgres  [kernel.kallsyms]   [k] pageblock_pfn_to_page
-
-Interesting. This function shouldn't be heavyweight, although cache misses are
-certainly possible. It's only called once per pageblock, so for this to be so
-prominent, the pageblocks are probably marked as unsuitable and it just skips
-over them uselessly. The compaction doesn't become deferred, since that only
-happens for synchronous compaction and this is probably doing just a lots of
-asynchronous ones.
-
-I wonder what are the /proc/vmstat here for compaction and thp fault succcesses...
-
->      4.93%      postgres  postgres            [.] ExecStoreMinimalTuple
->      4.02%      postgres  postgres            [.] heap_form_minimal_tuple
->      3.55%      postgres  [kernel.kallsyms]   [k] clear_page_c
->      2.85%      postgres  postgres            [.] heap_fill_tuple
->      2.60%      postgres  postgres            [.] ExecMakeTableFunctionResult
->      2.57%      postgres  postgres            [.] AllocSetAlloc
->      2.44%      postgres  postgres            [.] advance_transition_function
->      2.43%      postgres  postgres            [.] generate_series_step_int4
-> 
-> callgraph:
->     18.23%      postgres  [kernel.kallsyms]   [k] pageblock_pfn_to_page
->                 |
->                 --- pageblock_pfn_to_page
->                    |
->                    |--99.05%-- isolate_migratepages
->                    |          compact_zone
->                    |          compact_zone_order
->                    |          try_to_compact_pages
->                    |          __alloc_pages_direct_compact
->                    |          __alloc_pages_nodemask
->                    |          alloc_pages_vma
->                    |          do_huge_pmd_anonymous_page
->                    |          __handle_mm_fault
->                    |          handle_mm_fault
->                    |          __do_page_fault
->                    |          do_page_fault
->                    |          page_fault
-> ....
->                    |
->                     --0.95%-- compact_zone
->                               compact_zone_order
->                               try_to_compact_pages
->                               __alloc_pages_direct_compact
->                               __alloc_pages_nodemask
->                               alloc_pages_vma
->                               do_huge_pmd_anonymous_page
->                               __handle_mm_fault
->                               handle_mm_fault
->                               __do_page_fault
->      4.98%      postgres  postgres            [.] ExecStoreMinimalTuple
->                 |
->      4.20%      postgres  postgres            [.] heap_form_minimal_tuple
->                 |
->      3.69%      postgres  [kernel.kallsyms]   [k] clear_page_c
->                 |
->                 --- clear_page_c
->                    |
->                    |--58.89%-- __do_huge_pmd_anonymous_page
->                    |          do_huge_pmd_anonymous_page
->                    |          __handle_mm_fault
->                    |          handle_mm_fault
->                    |          __do_page_fault
->                    |          do_page_fault
->                    |          page_fault
-> 
-> As you can see THP on/off makes a noticeable difference, especially for
-> Task 2. Compaction suddenly takes a significant amount of time. But:
-> It's a relatively gradual slowdown, at pretty extreme concurrency. So
-> I'm pretty happy already.
-> 
-> 
-> In the workload tested here most non-shared allocations are short
-> lived. So it's not surprising that it's not worth compacting pages. I do
-> wonder whether it'd be possible to keep some running statistics about
-> THP being worthwhile or not.
-
-My goal was to be more conservative and collapse mostly in khugepaged instead
-of page faults. But maybe some running per-thread statistics of hugepage lifetime
-could work too...
-
-> This is just one workload, and I saw some different profiles while
-> playing around. But I've already invested more time in this today than I
-> should have... :)
-
-Again, thanks a lot! If you find some more time, could you please also quickly
-try how this workload looks like when THP's are enabled but page fault
-compaction disabled completely by:
-
-echo never > /sys/kernel/mm/transparent_hugepage/defrag
-
-After LSF/MM I might be interested in how to reproduce this locally to use as a
-testcase...
-
-> BTW, parallel process exits with large shared mappings isn't
-> particularly fun:
-> 
->     80.09%      postgres  [kernel.kallsyms]  [k] _raw_spin_lock_irqsave
->                 |
->                 --- _raw_spin_lock_irqsave
->                    |
->                    |--99.97%-- pagevec_lru_move_fn
->                    |          |
->                    |          |--65.51%-- activate_page
-
-Hm at first sight it seems odd that page activation would be useful to do when
-pages are being unmapped. But I'm not that familiar with this area...
-
->                    |          |          mark_page_accessed.part.23
->                    |          |          mark_page_accessed
->                    |          |          zap_pte_range
->                    |          |          unmap_page_range
->                    |          |          unmap_single_vma
->                    |          |          unmap_vmas
->                    |          |          exit_mmap
->                    |          |          mmput.part.27
->                    |          |          mmput
->                    |          |          exit_mm
->                    |          |          do_exit
->                    |          |          do_group_exit
->                    |          |          sys_exit_group
->                    |          |          system_call_fastpath
->                    |          |
->                    |           --34.49%-- lru_add_drain_cpu
->                    |                     lru_add_drain
->                    |                     free_pages_and_swap_cache
->                    |                     tlb_flush_mmu_free
->                    |                     zap_pte_range
->                    |                     unmap_page_range
->                    |                     unmap_single_vma
->                    |                     unmap_vmas
->                    |                     exit_mmap
->                    |                     mmput.part.27
->                    |                     mmput
->                    |                     exit_mm
->                    |                     do_exit
->                    |                     do_group_exit
->                    |                     sys_exit_group
->                    |                     system_call_fastpath
->                     --0.03%-- [...]
-> 
->      9.75%      postgres  [kernel.kallsyms]  [k] zap_pte_range
->                 |
->                 --- zap_pte_range
->                     unmap_page_range
->                     unmap_single_vma
->                     unmap_vmas
->                     exit_mmap
->                     mmput.part.27
->                     mmput
->                     exit_mm
->                     do_exit
->                     do_group_exit
->                     sys_exit_group
->                     system_call_fastpath
-> 
->      1.93%      postgres  [kernel.kallsyms]  [k] release_pages
->                 |
->                 --- release_pages
->                    |
->                    |--77.09%-- free_pages_and_swap_cache
->                    |          tlb_flush_mmu_free
->                    |          zap_pte_range
->                    |          unmap_page_range
->                    |          unmap_single_vma
->                    |          unmap_vmas
->                    |          exit_mmap
->                    |          mmput.part.27
->                    |          mmput
->                    |          exit_mm
->                    |          do_exit
->                    |          do_group_exit
->                    |          sys_exit_group
->                    |          system_call_fastpath
->                    |
->                    |--22.64%-- pagevec_lru_move_fn
->                    |          |
->                    |          |--63.88%-- activate_page
->                    |          |          mark_page_accessed.part.23
->                    |          |          mark_page_accessed
->                    |          |          zap_pte_range
->                    |          |          unmap_page_range
->                    |          |          unmap_single_vma
->                    |          |          unmap_vmas
->                    |          |          exit_mmap
->                    |          |          mmput.part.27
->                    |          |          mmput
->                    |          |          exit_mm
->                    |          |          do_exit
->                    |          |          do_group_exit
->                    |          |          sys_exit_group
->                    |          |          system_call_fastpath
->                    |          |
->                    |           --36.12%-- lru_add_drain_cpu
->                    |                     lru_add_drain
->                    |                     free_pages_and_swap_cache
->                    |                     tlb_flush_mmu_free
->                    |                     zap_pte_range
->                    |                     unmap_page_range
->                    |                     unmap_single_vma
->                    |                     unmap_vmas
->                    |                     exit_mmap
->                    |                     mmput.part.27
->                    |                     mmput
->                    |                     exit_mm
->                    |                     do_exit
->                    |                     do_group_exit
->                    |                     sys_exit_group
->                    |                     system_call_fastpath
->                     --0.27%-- [...]
-> 
->      1.91%      postgres  [kernel.kallsyms]  [k] page_remove_file_rmap
->                 |
->                 --- page_remove_file_rmap
->                    |
->                    |--98.18%-- page_remove_rmap
->                    |          zap_pte_range
->                    |          unmap_page_range
->                    |          unmap_single_vma
->                    |          unmap_vmas
->                    |          exit_mmap
->                    |          mmput.part.27
->                    |          mmput
->                    |          exit_mm
->                    |          do_exit
->                    |          do_group_exit
->                    |          sys_exit_group
->                    |          system_call_fastpath
->                    |
->                     --1.82%-- zap_pte_range
->                               unmap_page_range
->                               unmap_single_vma
->                               unmap_vmas
->                               exit_mmap
->                               mmput.part.27
->                               mmput
->                               exit_mm
->                               do_exit
->                               do_group_exit
->                               sys_exit_group
->                               system_call_fastpath
-> 
-> 
-> 
-> Greetings,
-> 
-> Andres Freund
-> 
+> poll() can be used to know when there are new pending userfaults to be
+> read (POLLIN).
+>
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+>  fs/userfaultfd.c | 977 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+>  1 file changed, 977 insertions(+)
+>  create mode 100644 fs/userfaultfd.c
+>
+> diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+> new file mode 100644
+> index 0000000..6b31967
+> --- /dev/null
+> +++ b/fs/userfaultfd.c
+> @@ -0,0 +1,977 @@
+> +/*
+> + *  fs/userfaultfd.c
+> + *
+> + *  Copyright (C) 2007  Davide Libenzi <davidel@xmailserver.org>
+> + *  Copyright (C) 2008-2009 Red Hat, Inc.
+> + *  Copyright (C) 2015  Red Hat, Inc.
+> + *
+> + *  This work is licensed under the terms of the GNU GPL, version 2. See
+> + *  the COPYING file in the top-level directory.
+> + *
+> + *  Some part derived from fs/eventfd.c (anon inode setup) and
+> + *  mm/ksm.c (mm hashing).
+> + */
+> +
+> +#include <linux/hashtable.h>
+> +#include <linux/sched.h>
+> +#include <linux/mm.h>
+> +#include <linux/poll.h>
+> +#include <linux/slab.h>
+> +#include <linux/seq_file.h>
+> +#include <linux/file.h>
+> +#include <linux/bug.h>
+> +#include <linux/anon_inodes.h>
+> +#include <linux/syscalls.h>
+> +#include <linux/userfaultfd_k.h>
+> +#include <linux/mempolicy.h>
+> +#include <linux/ioctl.h>
+> +#include <linux/security.h>
+> +
+> +enum userfaultfd_state {
+> +       UFFD_STATE_WAIT_API,
+> +       UFFD_STATE_RUNNING,
+> +};
+> +
+> +struct userfaultfd_ctx {
+> +       /* pseudo fd refcounting */
+> +       atomic_t refcount;
+> +       /* waitqueue head for the userfaultfd page faults */
+> +       wait_queue_head_t fault_wqh;
+> +       /* waitqueue head for the pseudo fd to wakeup poll/read */
+> +       wait_queue_head_t fd_wqh;
+> +       /* userfaultfd syscall flags */
+> +       unsigned int flags;
+> +       /* state machine */
+> +       enum userfaultfd_state state;
+> +       /* released */
+> +       bool released;
+> +       /* mm with one ore more vmas attached to this userfaultfd_ctx */
+> +       struct mm_struct *mm;
+> +};
+> +
+> +struct userfaultfd_wait_queue {
+> +       unsigned long address;
+> +       wait_queue_t wq;
+> +       bool pending;
+> +       struct userfaultfd_ctx *ctx;
+> +};
+> +
+> +struct userfaultfd_wake_range {
+> +       unsigned long start;
+> +       unsigned long len;
+> +};
+> +
+> +static int userfaultfd_wake_function(wait_queue_t *wq, unsigned mode,
+> +                                    int wake_flags, void *key)
+> +{
+> +       struct userfaultfd_wake_range *range = key;
+> +       int ret;
+> +       struct userfaultfd_wait_queue *uwq;
+> +       unsigned long start, len;
+> +
+> +       uwq = container_of(wq, struct userfaultfd_wait_queue, wq);
+> +       ret = 0;
+> +       /* don't wake the pending ones to avoid reads to block */
+> +       if (uwq->pending && !ACCESS_ONCE(uwq->ctx->released))
+> +               goto out;
+> +       /* len == 0 means wake all */
+> +       start = range->start;
+> +       len = range->len;
+> +       if (len && (start > uwq->address || start + len <= uwq->address))
+> +               goto out;
+> +       ret = wake_up_state(wq->private, mode);
+> +       if (ret)
+> +               /* wake only once, autoremove behavior */
+> +               list_del_init(&wq->task_list);
+> +out:
+> +       return ret;
+> +}
+> +
+> +/**
+> + * userfaultfd_ctx_get - Acquires a reference to the internal userfaultfd
+> + * context.
+> + * @ctx: [in] Pointer to the userfaultfd context.
+> + *
+> + * Returns: In case of success, returns not zero.
+> + */
+> +static void userfaultfd_ctx_get(struct userfaultfd_ctx *ctx)
+> +{
+> +       if (!atomic_inc_not_zero(&ctx->refcount))
+> +               BUG();
+> +}
+> +
+> +/**
+> + * userfaultfd_ctx_put - Releases a reference to the internal userfaultfd
+> + * context.
+> + * @ctx: [in] Pointer to userfaultfd context.
+> + *
+> + * The userfaultfd context reference must have been previously acquired either
+> + * with userfaultfd_ctx_get() or userfaultfd_ctx_fdget().
+> + */
+> +static void userfaultfd_ctx_put(struct userfaultfd_ctx *ctx)
+> +{
+> +       if (atomic_dec_and_test(&ctx->refcount)) {
+> +               mmdrop(ctx->mm);
+> +               kfree(ctx);
+> +       }
+> +}
+> +
+> +static inline unsigned long userfault_address(unsigned long address,
+> +                                             unsigned int flags,
+> +                                             unsigned long reason)
+> +{
+> +       BUILD_BUG_ON(PAGE_SHIFT < UFFD_BITS);
+> +       address &= PAGE_MASK;
+> +       if (flags & FAULT_FLAG_WRITE)
+> +               /*
+> +                * Encode "write" fault information in the LSB of the
+> +                * address read by userland, without depending on
+> +                * FAULT_FLAG_WRITE kernel internal value.
+> +                */
+> +               address |= UFFD_BIT_WRITE;
+> +       if (reason & VM_UFFD_WP)
+> +               /*
+> +                * Encode "reason" fault information as bit number 1
+> +                * in the address read by userland. If bit number 1 is
+> +                * clear it means the reason is a VM_FAULT_MISSING
+> +                * fault.
+> +                */
+> +               address |= UFFD_BIT_WP;
+> +       return address;
+> +}
+> +
+> +/*
+> + * The locking rules involved in returning VM_FAULT_RETRY depending on
+> + * FAULT_FLAG_ALLOW_RETRY, FAULT_FLAG_RETRY_NOWAIT and
+> + * FAULT_FLAG_KILLABLE are not straightforward. The "Caution"
+> + * recommendation in __lock_page_or_retry is not an understatement.
+> + *
+> + * If FAULT_FLAG_ALLOW_RETRY is set, the mmap_sem must be released
+> + * before returning VM_FAULT_RETRY only if FAULT_FLAG_RETRY_NOWAIT is
+> + * not set.
+> + *
+> + * If FAULT_FLAG_ALLOW_RETRY is set but FAULT_FLAG_KILLABLE is not
+> + * set, VM_FAULT_RETRY can still be returned if and only if there are
+> + * fatal_signal_pending()s, and the mmap_sem must be released before
+> + * returning it.
+> + */
+> +int handle_userfault(struct vm_area_struct *vma, unsigned long address,
+> +                    unsigned int flags, unsigned long reason)
+> +{
+> +       struct mm_struct *mm = vma->vm_mm;
+> +       struct userfaultfd_ctx *ctx;
+> +       struct userfaultfd_wait_queue uwq;
+> +
+> +       BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
+> +
+> +       ctx = vma->vm_userfaultfd_ctx.ctx;
+> +       if (!ctx)
+> +               return VM_FAULT_SIGBUS;
+> +
+> +       BUG_ON(ctx->mm != mm);
+> +
+> +       VM_BUG_ON(reason & ~(VM_UFFD_MISSING|VM_UFFD_WP));
+> +       VM_BUG_ON(!(reason & VM_UFFD_MISSING) ^ !!(reason & VM_UFFD_WP));
+> +
+> +       /*
+> +        * If it's already released don't get it. This avoids to loop
+> +        * in __get_user_pages if userfaultfd_release waits on the
+> +        * caller of handle_userfault to release the mmap_sem.
+> +        */
+> +       if (unlikely(ACCESS_ONCE(ctx->released)))
+> +               return VM_FAULT_SIGBUS;
+> +
+> +       /* check that we can return VM_FAULT_RETRY */
+> +       if (unlikely(!(flags & FAULT_FLAG_ALLOW_RETRY))) {
+> +               /*
+> +                * Validate the invariant that nowait must allow retry
+> +                * to be sure not to return SIGBUS erroneously on
+> +                * nowait invocations.
+> +                */
+> +               BUG_ON(flags & FAULT_FLAG_RETRY_NOWAIT);
+> +#ifdef CONFIG_DEBUG_VM
+> +               if (printk_ratelimit()) {
+> +                       printk(KERN_WARNING
+> +                              "FAULT_FLAG_ALLOW_RETRY missing %x\n", flags);
+> +                       dump_stack();
+> +               }
+> +#endif
+> +               return VM_FAULT_SIGBUS;
+> +       }
+> +
+> +       /*
+> +        * Handle nowait, not much to do other than tell it to retry
+> +        * and wait.
+> +        */
+> +       if (flags & FAULT_FLAG_RETRY_NOWAIT)
+> +               return VM_FAULT_RETRY;
+> +
+> +       /* take the reference before dropping the mmap_sem */
+> +       userfaultfd_ctx_get(ctx);
+> +
+> +       /* be gentle and immediately relinquish the mmap_sem */
+> +       up_read(&mm->mmap_sem);
+> +
+> +       init_waitqueue_func_entry(&uwq.wq, userfaultfd_wake_function);
+> +       uwq.wq.private = current;
+> +       uwq.address = userfault_address(address, flags, reason);
+> +       uwq.pending = true;
+> +       uwq.ctx = ctx;
+> +
+> +       spin_lock(&ctx->fault_wqh.lock);
+> +       /*
+> +        * After the __add_wait_queue the uwq is visible to userland
+> +        * through poll/read().
+> +        */
+> +       __add_wait_queue(&ctx->fault_wqh, &uwq.wq);
+> +       for (;;) {
+> +               set_current_state(TASK_KILLABLE);
+> +               if (!uwq.pending || ACCESS_ONCE(ctx->released) ||
+> +                   fatal_signal_pending(current))
+> +                       break;
+> +               spin_unlock(&ctx->fault_wqh.lock);
+> +
+> +               wake_up_poll(&ctx->fd_wqh, POLLIN);
+> +               schedule();
+> +
+> +               spin_lock(&ctx->fault_wqh.lock);
+> +       }
+> +       __remove_wait_queue(&ctx->fault_wqh, &uwq.wq);
+> +       __set_current_state(TASK_RUNNING);
+> +       spin_unlock(&ctx->fault_wqh.lock);
+> +
+> +       /*
+> +        * ctx may go away after this if the userfault pseudo fd is
+> +        * already released.
+> +        */
+> +       userfaultfd_ctx_put(ctx);
+> +
+> +       return VM_FAULT_RETRY;
+> +}
+> +
+> +static int userfaultfd_release(struct inode *inode, struct file *file)
+> +{
+> +       struct userfaultfd_ctx *ctx = file->private_data;
+> +       struct mm_struct *mm = ctx->mm;
+> +       struct vm_area_struct *vma, *prev;
+> +       /* len == 0 means wake all */
+> +       struct userfaultfd_wake_range range = { .len = 0, };
+> +       unsigned long new_flags;
+> +
+> +       ACCESS_ONCE(ctx->released) = true;
+> +
+> +       /*
+> +        * Flush page faults out of all CPUs. NOTE: all page faults
+> +        * must be retried without returning VM_FAULT_SIGBUS if
+> +        * userfaultfd_ctx_get() succeeds but vma->vma_userfault_ctx
+> +        * changes while handle_userfault released the mmap_sem. So
+> +        * it's critical that released is set to true (above), before
+> +        * taking the mmap_sem for writing.
+> +        */
+> +       down_write(&mm->mmap_sem);
+> +       prev = NULL;
+> +       for (vma = mm->mmap; vma; vma = vma->vm_next) {
+> +               cond_resched();
+> +               BUG_ON(!!vma->vm_userfaultfd_ctx.ctx ^
+> +                      !!(vma->vm_flags & (VM_UFFD_MISSING | VM_UFFD_WP)));
+> +               if (vma->vm_userfaultfd_ctx.ctx != ctx) {
+> +                       prev = vma;
+> +                       continue;
+> +               }
+> +               new_flags = vma->vm_flags & ~(VM_UFFD_MISSING | VM_UFFD_WP);
+> +               prev = vma_merge(mm, prev, vma->vm_start, vma->vm_end,
+> +                                new_flags, vma->anon_vma,
+> +                                vma->vm_file, vma->vm_pgoff,
+> +                                vma_policy(vma),
+> +                                NULL_VM_UFFD_CTX);
+> +               if (prev)
+> +                       vma = prev;
+> +               else
+> +                       prev = vma;
+> +               vma->vm_flags = new_flags;
+> +               vma->vm_userfaultfd_ctx = NULL_VM_UFFD_CTX;
+> +       }
+> +       up_write(&mm->mmap_sem);
+> +
+> +       /*
+> +        * After no new page faults can wait on this fault_wqh, flush
+> +        * the last page faults that may have been already waiting on
+> +        * the fault_wqh.
+> +        */
+> +       spin_lock(&ctx->fault_wqh.lock);
+> +       __wake_up_locked_key(&ctx->fault_wqh, TASK_NORMAL, 0, &range);
+> +       spin_unlock(&ctx->fault_wqh.lock);
+> +
+> +       wake_up_poll(&ctx->fd_wqh, POLLHUP);
+> +       userfaultfd_ctx_put(ctx);
+> +       return 0;
+> +}
+> +
+> +static inline unsigned int find_userfault(struct userfaultfd_ctx *ctx,
+> +                                         struct userfaultfd_wait_queue **uwq)
+> +{
+> +       wait_queue_t *wq;
+> +       struct userfaultfd_wait_queue *_uwq;
+> +       unsigned int ret = 0;
+> +
+> +       spin_lock(&ctx->fault_wqh.lock);
+> +       list_for_each_entry(wq, &ctx->fault_wqh.task_list, task_list) {
+> +               _uwq = container_of(wq, struct userfaultfd_wait_queue, wq);
+> +               if (_uwq->pending) {
+> +                       ret = POLLIN;
+> +                       if (uwq)
+> +                               *uwq = _uwq;
+> +                       break;
+> +               }
+> +       }
+> +       spin_unlock(&ctx->fault_wqh.lock);
+> +
+> +       return ret;
+> +}
+> +
+> +static unsigned int userfaultfd_poll(struct file *file, poll_table *wait)
+> +{
+> +       struct userfaultfd_ctx *ctx = file->private_data;
+> +
+> +       poll_wait(file, &ctx->fd_wqh, wait);
+> +
+> +       switch (ctx->state) {
+> +       case UFFD_STATE_WAIT_API:
+> +               return POLLERR;
+> +       case UFFD_STATE_RUNNING:
+> +               return find_userfault(ctx, NULL);
+> +       default:
+> +               BUG();
+> +       }
+> +}
+> +
+> +static ssize_t userfaultfd_ctx_read(struct userfaultfd_ctx *ctx, int no_wait,
+> +                                   __u64 *addr)
+> +{
+> +       ssize_t ret;
+> +       DECLARE_WAITQUEUE(wait, current);
+> +       struct userfaultfd_wait_queue *uwq = NULL;
+> +
+> +       /* always take the fd_wqh lock before the fault_wqh lock */
+> +       spin_lock(&ctx->fd_wqh.lock);
+> +       __add_wait_queue(&ctx->fd_wqh, &wait);
+> +       for (;;) {
+> +               set_current_state(TASK_INTERRUPTIBLE);
+> +               if (find_userfault(ctx, &uwq)) {
+> +                       uwq->pending = false;
+> +                       /* careful to always initialize addr if ret == 0 */
+> +                       *addr = uwq->address;
+> +                       ret = 0;
+> +                       break;
+> +               }
+> +               if (signal_pending(current)) {
+> +                       ret = -ERESTARTSYS;
+> +                       break;
+> +               }
+> +               if (no_wait) {
+> +                       ret = -EAGAIN;
+> +                       break;
+> +               }
+> +               spin_unlock(&ctx->fd_wqh.lock);
+> +               schedule();
+> +               spin_lock_irq(&ctx->fd_wqh.lock);
+> +       }
+> +       __remove_wait_queue(&ctx->fd_wqh, &wait);
+> +       __set_current_state(TASK_RUNNING);
+> +       spin_unlock_irq(&ctx->fd_wqh.lock);
+> +
+> +       return ret;
+> +}
+> +
+> +static ssize_t userfaultfd_read(struct file *file, char __user *buf,
+> +                               size_t count, loff_t *ppos)
+> +{
+> +       struct userfaultfd_ctx *ctx = file->private_data;
+> +       ssize_t _ret, ret = 0;
+> +       /* careful to always initialize addr if ret == 0 */
+> +       __u64 uninitialized_var(addr);
+> +       int no_wait = file->f_flags & O_NONBLOCK;
+> +
+> +       if (ctx->state == UFFD_STATE_WAIT_API)
+> +               return -EINVAL;
+> +       BUG_ON(ctx->state != UFFD_STATE_RUNNING);
+> +
+> +       for (;;) {
+> +               if (count < sizeof(addr))
+> +                       return ret ? ret : -EINVAL;
+> +               _ret = userfaultfd_ctx_read(ctx, no_wait, &addr);
+> +               if (_ret < 0)
+> +                       return ret ? ret : _ret;
+> +               if (put_user(addr, (__u64 __user *) buf))
+> +                       return ret ? ret : -EFAULT;
+> +               ret += sizeof(addr);
+> +               buf += sizeof(addr);
+> +               count -= sizeof(addr);
+> +               /*
+> +                * Allow to read more than one fault at time but only
+> +                * block if waiting for the very first one.
+> +                */
+> +               no_wait = O_NONBLOCK;
+> +       }
+> +}
+> +
+> +static int __wake_userfault(struct userfaultfd_ctx *ctx,
+> +                           struct userfaultfd_wake_range *range)
+> +{
+> +       wait_queue_t *wq;
+> +       struct userfaultfd_wait_queue *uwq;
+> +       int ret;
+> +       unsigned long start, end;
+> +
+> +       start = range->start;
+> +       end = range->start + range->len;
+> +
+> +       ret = -ENOENT;
+> +       spin_lock(&ctx->fault_wqh.lock);
+> +       list_for_each_entry(wq, &ctx->fault_wqh.task_list, task_list) {
+> +               uwq = container_of(wq, struct userfaultfd_wait_queue, wq);
+> +               if (uwq->pending)
+> +                       continue;
+> +               if (uwq->address >= start && uwq->address < end) {
+> +                       ret = 0;
+> +                       /* wake all in the range and autoremove */
+> +                       __wake_up_locked_key(&ctx->fault_wqh, TASK_NORMAL, 0,
+> +                                            range);
+> +                       break;
+> +               }
+> +       }
+> +       spin_unlock(&ctx->fault_wqh.lock);
+> +
+> +       return ret;
+> +}
+> +
+> +static __always_inline int wake_userfault(struct userfaultfd_ctx *ctx,
+> +                                         struct userfaultfd_wake_range *range)
+> +{
+> +       if (!waitqueue_active(&ctx->fault_wqh))
+> +               return -ENOENT;
+> +
+> +       return __wake_userfault(ctx, range);
+> +}
+> +
+> +static __always_inline int validate_range(struct mm_struct *mm,
+> +                                         __u64 start, __u64 len)
+> +{
+> +       __u64 task_size = mm->task_size;
+> +
+> +       if (start & ~PAGE_MASK)
+> +               return -EINVAL;
+> +       if (len & ~PAGE_MASK)
+> +               return -EINVAL;
+> +       if (!len)
+> +               return -EINVAL;
+> +       if (start < mmap_min_addr)
+> +               return -EINVAL;
+> +       if (start >= task_size)
+> +               return -EINVAL;
+> +       if (len > task_size - start)
+> +               return -EINVAL;
+> +       return 0;
+> +}
+> +
+> +static int userfaultfd_register(struct userfaultfd_ctx *ctx,
+> +                               unsigned long arg)
+> +{
+> +       struct mm_struct *mm = ctx->mm;
+> +       struct vm_area_struct *vma, *prev, *cur;
+> +       int ret;
+> +       struct uffdio_register uffdio_register;
+> +       struct uffdio_register __user *user_uffdio_register;
+> +       unsigned long vm_flags, new_flags;
+> +       bool found;
+> +       unsigned long start, end, vma_end;
+> +
+> +       user_uffdio_register = (struct uffdio_register __user *) arg;
+> +
+> +       ret = -EFAULT;
+> +       if (copy_from_user(&uffdio_register, user_uffdio_register,
+> +                          sizeof(uffdio_register)-sizeof(__u64)))
+> +               goto out;
+> +
+> +       ret = -EINVAL;
+> +       if (!uffdio_register.mode)
+> +               goto out;
+> +       if (uffdio_register.mode & ~(UFFDIO_REGISTER_MODE_MISSING|
+> +                                    UFFDIO_REGISTER_MODE_WP))
+> +               goto out;
+> +       vm_flags = 0;
+> +       if (uffdio_register.mode & UFFDIO_REGISTER_MODE_MISSING)
+> +               vm_flags |= VM_UFFD_MISSING;
+> +       if (uffdio_register.mode & UFFDIO_REGISTER_MODE_WP) {
+> +               vm_flags |= VM_UFFD_WP;
+> +               /*
+> +                * FIXME: remove the below error constraint by
+> +                * implementing the wprotect tracking mode.
+> +                */
+> +               ret = -EINVAL;
+> +               goto out;
+> +       }
+> +
+> +       ret = validate_range(mm, uffdio_register.range.start,
+> +                            uffdio_register.range.len);
+> +       if (ret)
+> +               goto out;
+> +
+> +       start = uffdio_register.range.start;
+> +       end = start + uffdio_register.range.len;
+> +
+> +       down_write(&mm->mmap_sem);
+> +       vma = find_vma_prev(mm, start, &prev);
+> +
+> +       ret = -ENOMEM;
+> +       if (!vma)
+> +               goto out_unlock;
+> +
+> +       /* check that there's at least one vma in the range */
+> +       ret = -EINVAL;
+> +       if (vma->vm_start >= end)
+> +               goto out_unlock;
+> +
+> +       /*
+> +        * Search for not compatible vmas.
+> +        *
+> +        * FIXME: this shall be relaxed later so that it doesn't fail
+> +        * on tmpfs backed vmas (in addition to the current allowance
+> +        * on anonymous vmas).
+> +        */
+> +       found = false;
+> +       for (cur = vma; cur && cur->vm_start < end; cur = cur->vm_next) {
+> +               cond_resched();
+> +
+> +               BUG_ON(!!cur->vm_userfaultfd_ctx.ctx ^
+> +                      !!(cur->vm_flags & (VM_UFFD_MISSING | VM_UFFD_WP)));
+> +
+> +               /* check not compatible vmas */
+> +               ret = -EINVAL;
+> +               if (cur->vm_ops)
+> +                       goto out_unlock;
+> +
+> +               /*
+> +                * Check that this vma isn't already owned by a
+> +                * different userfaultfd. We can't allow more than one
+> +                * userfaultfd to own a single vma simultaneously or we
+> +                * wouldn't know which one to deliver the userfaults to.
+> +                */
+> +               ret = -EBUSY;
+> +               if (cur->vm_userfaultfd_ctx.ctx &&
+> +                   cur->vm_userfaultfd_ctx.ctx != ctx)
+> +                       goto out_unlock;
+> +
+> +               found = true;
+> +       }
+> +       BUG_ON(!found);
+> +
+> +       /*
+> +        * Now that we scanned all vmas we can already tell userland which
+> +        * ioctls methods are guaranteed to succeed on this range.
+> +        */
+> +       ret = -EFAULT;
+> +       if (put_user(UFFD_API_RANGE_IOCTLS, &user_uffdio_register->ioctls))
+> +               goto out_unlock;
+> +
+> +       if (vma->vm_start < start)
+> +               prev = vma;
+> +
+> +       ret = 0;
+> +       do {
+> +               cond_resched();
+> +
+> +               BUG_ON(vma->vm_ops);
+> +               BUG_ON(vma->vm_userfaultfd_ctx.ctx &&
+> +                      vma->vm_userfaultfd_ctx.ctx != ctx);
+> +
+> +               /*
+> +                * Nothing to do: this vma is already registered into this
+> +                * userfaultfd and with the right tracking mode too.
+> +                */
+> +               if (vma->vm_userfaultfd_ctx.ctx == ctx &&
+> +                   (vma->vm_flags & vm_flags) == vm_flags)
+> +                       goto skip;
+> +
+> +               if (vma->vm_start > start)
+> +                       start = vma->vm_start;
+> +               vma_end = min(end, vma->vm_end);
+> +
+> +               new_flags = (vma->vm_flags & ~vm_flags) | vm_flags;
+> +               prev = vma_merge(mm, prev, start, vma_end, new_flags,
+> +                                vma->anon_vma, vma->vm_file, vma->vm_pgoff,
+> +                                vma_policy(vma),
+> +                                ((struct vm_userfaultfd_ctx){ ctx }));
+> +               if (prev) {
+> +                       vma = prev;
+> +                       goto next;
+> +               }
+> +               if (vma->vm_start < start) {
+> +                       ret = split_vma(mm, vma, start, 1);
+> +                       if (ret)
+> +                               break;
+> +               }
+> +               if (vma->vm_end > end) {
+> +                       ret = split_vma(mm, vma, end, 0);
+> +                       if (ret)
+> +                               break;
+> +               }
+> +       next:
+> +               /*
+> +                * In the vma_merge() successful mprotect-like case 8:
+> +                * the next vma was merged into the current one and
+> +                * the current one has not been updated yet.
+> +                */
+> +               vma->vm_flags = new_flags;
+> +               vma->vm_userfaultfd_ctx.ctx = ctx;
+> +
+> +       skip:
+> +               prev = vma;
+> +               start = vma->vm_end;
+> +               vma = vma->vm_next;
+> +       } while (vma && vma->vm_start < end);
+> +out_unlock:
+> +       up_write(&mm->mmap_sem);
+> +out:
+> +       return ret;
+> +}
+> +
+> +static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
+> +                                 unsigned long arg)
+> +{
+> +       struct mm_struct *mm = ctx->mm;
+> +       struct vm_area_struct *vma, *prev, *cur;
+> +       int ret;
+> +       struct uffdio_range uffdio_unregister;
+> +       unsigned long new_flags;
+> +       bool found;
+> +       unsigned long start, end, vma_end;
+> +       const void __user *buf = (void __user *)arg;
+> +
+> +       ret = -EFAULT;
+> +       if (copy_from_user(&uffdio_unregister, buf, sizeof(uffdio_unregister)))
+> +               goto out;
+> +
+> +       ret = validate_range(mm, uffdio_unregister.start,
+> +                            uffdio_unregister.len);
+> +       if (ret)
+> +               goto out;
+> +
+> +       start = uffdio_unregister.start;
+> +       end = start + uffdio_unregister.len;
+> +
+> +       down_write(&mm->mmap_sem);
+> +       vma = find_vma_prev(mm, start, &prev);
+> +
+> +       ret = -ENOMEM;
+> +       if (!vma)
+> +               goto out_unlock;
+> +
+> +       /* check that there's at least one vma in the range */
+> +       ret = -EINVAL;
+> +       if (vma->vm_start >= end)
+> +               goto out_unlock;
+> +
+> +       /*
+> +        * Search for not compatible vmas.
+> +        *
+> +        * FIXME: this shall be relaxed later so that it doesn't fail
+> +        * on tmpfs backed vmas (in addition to the current allowance
+> +        * on anonymous vmas).
+> +        */
+> +       found = false;
+> +       ret = -EINVAL;
+> +       for (cur = vma; cur && cur->vm_start < end; cur = cur->vm_next) {
+> +               cond_resched();
+> +
+> +               BUG_ON(!!cur->vm_userfaultfd_ctx.ctx ^
+> +                      !!(cur->vm_flags & (VM_UFFD_MISSING | VM_UFFD_WP)));
+> +
+> +               /*
+> +                * Check not compatible vmas, not strictly required
+> +                * here as not compatible vmas cannot have an
+> +                * userfaultfd_ctx registered on them, but this
+> +                * provides for more strict behavior to notice
+> +                * unregistration errors.
+> +                */
+> +               if (cur->vm_ops)
+> +                       goto out_unlock;
+> +
+> +               found = true;
+> +       }
+> +       BUG_ON(!found);
+> +
+> +       if (vma->vm_start < start)
+> +               prev = vma;
+> +
+> +       ret = 0;
+> +       do {
+> +               cond_resched();
+> +
+> +               BUG_ON(vma->vm_ops);
+> +
+> +               /*
+> +                * Nothing to do: this vma is already registered into this
+> +                * userfaultfd and with the right tracking mode too.
+> +                */
+> +               if (!vma->vm_userfaultfd_ctx.ctx)
+> +                       goto skip;
+> +
+> +               if (vma->vm_start > start)
+> +                       start = vma->vm_start;
+> +               vma_end = min(end, vma->vm_end);
+> +
+> +               new_flags = vma->vm_flags & ~(VM_UFFD_MISSING | VM_UFFD_WP);
+> +               prev = vma_merge(mm, prev, start, vma_end, new_flags,
+> +                                vma->anon_vma, vma->vm_file, vma->vm_pgoff,
+> +                                vma_policy(vma),
+> +                                NULL_VM_UFFD_CTX);
+> +               if (prev) {
+> +                       vma = prev;
+> +                       goto next;
+> +               }
+> +               if (vma->vm_start < start) {
+> +                       ret = split_vma(mm, vma, start, 1);
+> +                       if (ret)
+> +                               break;
+> +               }
+> +               if (vma->vm_end > end) {
+> +                       ret = split_vma(mm, vma, end, 0);
+> +                       if (ret)
+> +                               break;
+> +               }
+> +       next:
+> +               /*
+> +                * In the vma_merge() successful mprotect-like case 8:
+> +                * the next vma was merged into the current one and
+> +                * the current one has not been updated yet.
+> +                */
+> +               vma->vm_flags = new_flags;
+> +               vma->vm_userfaultfd_ctx = NULL_VM_UFFD_CTX;
+> +
+> +       skip:
+> +               prev = vma;
+> +               start = vma->vm_end;
+> +               vma = vma->vm_next;
+> +       } while (vma && vma->vm_start < end);
+> +out_unlock:
+> +       up_write(&mm->mmap_sem);
+> +out:
+> +       return ret;
+> +}
+> +
+> +/*
+> + * This is mostly needed to re-wakeup those userfaults that were still
+> + * pending when userland wake them up the first time. We don't wake
+> + * the pending one to avoid blocking reads to block, or non blocking
+> + * read to return -EAGAIN, if used with POLLIN, to avoid userland
+> + * doubts on why POLLIN wasn't reliable.
+> + */
+> +static int userfaultfd_wake(struct userfaultfd_ctx *ctx,
+> +                           unsigned long arg)
+> +{
+> +       int ret;
+> +       struct uffdio_range uffdio_wake;
+> +       struct userfaultfd_wake_range range;
+> +       const void __user *buf = (void __user *)arg;
+> +
+> +       ret = -EFAULT;
+> +       if (copy_from_user(&uffdio_wake, buf, sizeof(uffdio_wake)))
+> +               goto out;
+> +
+> +       ret = validate_range(ctx->mm, uffdio_wake.start, uffdio_wake.len);
+> +       if (ret)
+> +               goto out;
+> +
+> +       range.start = uffdio_wake.start;
+> +       range.len = uffdio_wake.len;
+> +
+> +       /*
+> +        * len == 0 means wake all and we don't want to wake all here,
+> +        * so check it again to be sure.
+> +        */
+> +       VM_BUG_ON(!range.len);
+> +
+> +       ret = wake_userfault(ctx, &range);
+> +
+> +out:
+> +       return ret;
+> +}
+> +
+> +/*
+> + * userland asks for a certain API version and we return which bits
+> + * and ioctl commands are implemented in this kernel for such API
+> + * version or -EINVAL if unknown.
+> + */
+> +static int userfaultfd_api(struct userfaultfd_ctx *ctx,
+> +                          unsigned long arg)
+> +{
+> +       struct uffdio_api uffdio_api;
+> +       void __user *buf = (void __user *)arg;
+> +       int ret;
+> +
+> +       ret = -EINVAL;
+> +       if (ctx->state != UFFD_STATE_WAIT_API)
+> +               goto out;
+> +       ret = -EFAULT;
+> +       if (copy_from_user(&uffdio_api, buf, sizeof(__u64)))
+> +               goto out;
+> +       if (uffdio_api.api != UFFD_API) {
+> +               /* careful not to leak info, we only read the first 8 bytes */
+> +               memset(&uffdio_api, 0, sizeof(uffdio_api));
+> +               if (copy_to_user(buf, &uffdio_api, sizeof(uffdio_api)))
+> +                       goto out;
+> +               ret = -EINVAL;
+> +               goto out;
+> +       }
+> +       /* careful not to leak info, we only read the first 8 bytes */
+> +       uffdio_api.bits = UFFD_API_BITS;
+> +       uffdio_api.ioctls = UFFD_API_IOCTLS;
+> +       ret = -EFAULT;
+> +       if (copy_to_user(buf, &uffdio_api, sizeof(uffdio_api)))
+> +               goto out;
+> +       ctx->state = UFFD_STATE_RUNNING;
+> +       ret = 0;
+> +out:
+> +       return ret;
+> +}
+> +
+> +static long userfaultfd_ioctl(struct file *file, unsigned cmd,
+> +                             unsigned long arg)
+> +{
+> +       int ret = -EINVAL;
+> +       struct userfaultfd_ctx *ctx = file->private_data;
+> +
+> +       switch(cmd) {
+> +       case UFFDIO_API:
+> +               ret = userfaultfd_api(ctx, arg);
+> +               break;
+> +       case UFFDIO_REGISTER:
+> +               ret = userfaultfd_register(ctx, arg);
+> +               break;
+> +       case UFFDIO_UNREGISTER:
+> +               ret = userfaultfd_unregister(ctx, arg);
+> +               break;
+> +       case UFFDIO_WAKE:
+> +               ret = userfaultfd_wake(ctx, arg);
+> +               break;
+> +       }
+> +       return ret;
+> +}
+> +
+> +#ifdef CONFIG_PROC_FS
+> +static void userfaultfd_show_fdinfo(struct seq_file *m, struct file *f)
+> +{
+> +       struct userfaultfd_ctx *ctx = f->private_data;
+> +       wait_queue_t *wq;
+> +       struct userfaultfd_wait_queue *uwq;
+> +       unsigned long pending = 0, total = 0;
+> +
+> +       spin_lock(&ctx->fault_wqh.lock);
+> +       list_for_each_entry(wq, &ctx->fault_wqh.task_list, task_list) {
+> +               uwq = container_of(wq, struct userfaultfd_wait_queue, wq);
+> +               if (uwq->pending)
+> +                       pending++;
+> +               total++;
+> +       }
+> +       spin_unlock(&ctx->fault_wqh.lock);
+> +
+> +       /*
+> +        * If more protocols will be added, there will be all shown
+> +        * separated by a space. Like this:
+> +        *      protocols: 0xaa 0xbb
+> +        */
+> +       seq_printf(m, "pending:\t%lu\ntotal:\t%lu\nAPI:\t%Lx:%x:%Lx\n",
+> +                  pending, total, UFFD_API, UFFD_API_BITS,
+> +                  UFFD_API_IOCTLS|UFFD_API_RANGE_IOCTLS);
+> +}
+> +#endif
+> +
+> +static const struct file_operations userfaultfd_fops = {
+> +#ifdef CONFIG_PROC_FS
+> +       .show_fdinfo    = userfaultfd_show_fdinfo,
+> +#endif
+> +       .release        = userfaultfd_release,
+> +       .poll           = userfaultfd_poll,
+> +       .read           = userfaultfd_read,
+> +       .unlocked_ioctl = userfaultfd_ioctl,
+> +       .compat_ioctl   = userfaultfd_ioctl,
+> +       .llseek         = noop_llseek,
+> +};
+> +
+> +/**
+> + * userfaultfd_file_create - Creates an userfaultfd file pointer.
+> + * @flags: Flags for the userfaultfd file.
+> + *
+> + * This function creates an userfaultfd file pointer, w/out installing
+> + * it into the fd table. This is useful when the userfaultfd file is
+> + * used during the initialization of data structures that require
+> + * extra setup after the userfaultfd creation. So the userfaultfd
+> + * creation is split into the file pointer creation phase, and the
+> + * file descriptor installation phase.  In this way races with
+> + * userspace closing the newly installed file descriptor can be
+> + * avoided.  Returns an userfaultfd file pointer, or a proper error
+> + * pointer.
+> + */
+> +static struct file *userfaultfd_file_create(int flags)
+> +{
+> +       struct file *file;
+> +       struct userfaultfd_ctx *ctx;
+> +
+> +       BUG_ON(!current->mm);
+> +
+> +       /* Check the UFFD_* constants for consistency.  */
+> +       BUILD_BUG_ON(UFFD_CLOEXEC != O_CLOEXEC);
+> +       BUILD_BUG_ON(UFFD_NONBLOCK != O_NONBLOCK);
+> +
+> +       file = ERR_PTR(-EINVAL);
+> +       if (flags & ~UFFD_SHARED_FCNTL_FLAGS)
+> +               goto out;
+> +
+> +       file = ERR_PTR(-ENOMEM);
+> +       ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
+> +       if (!ctx)
+> +               goto out;
+> +
+> +       atomic_set(&ctx->refcount, 1);
+> +       init_waitqueue_head(&ctx->fault_wqh);
+> +       init_waitqueue_head(&ctx->fd_wqh);
+> +       ctx->flags = flags;
+> +       ctx->state = UFFD_STATE_WAIT_API;
+> +       ctx->released = false;
+> +       ctx->mm = current->mm;
+> +       /* prevent the mm struct to be freed */
+> +       atomic_inc(&ctx->mm->mm_count);
+> +
+> +       file = anon_inode_getfile("[userfaultfd]", &userfaultfd_fops, ctx,
+> +                                 O_RDWR | (flags & UFFD_SHARED_FCNTL_FLAGS));
+> +       if (IS_ERR(file))
+> +               kfree(ctx);
+> +out:
+> +       return file;
+> +}
+> +
+> +SYSCALL_DEFINE1(userfaultfd, int, flags)
+> +{
+> +       int fd, error;
+> +       struct file *file;
+> +
+> +       error = get_unused_fd_flags(flags & UFFD_SHARED_FCNTL_FLAGS);
+> +       if (error < 0)
+> +               return error;
+> +       fd = error;
+> +
+> +       file = userfaultfd_file_create(flags);
+> +       if (IS_ERR(file)) {
+> +               error = PTR_ERR(file);
+> +               goto err_put_unused_fd;
+> +       }
+> +       fd_install(fd, file);
+> +
+> +       return fd;
+> +
+> +err_put_unused_fd:
+> +       put_unused_fd(fd);
+> +
+> +       return error;
+> +}
 > --
->  Andres Freund	                   http://www.2ndQuadrant.com/
->  PostgreSQL Development, 24x7 Support, Training & Services
-> 
+> To unsubscribe from this list: send the line "unsubscribe linux-api" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+
+
+
+-- 
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
