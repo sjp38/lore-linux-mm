@@ -1,52 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f172.google.com (mail-ie0-f172.google.com [209.85.223.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FFA36B0038
-	for <linux-mm@kvack.org>; Sat,  7 Mar 2015 13:42:30 -0500 (EST)
-Received: by iebtr6 with SMTP id tr6so20417010ieb.4
-        for <linux-mm@kvack.org>; Sat, 07 Mar 2015 10:42:30 -0800 (PST)
-Received: from mail-ig0-x22e.google.com (mail-ig0-x22e.google.com. [2607:f8b0:4001:c05::22e])
-        by mx.google.com with ESMTPS id ko3si8357263icc.101.2015.03.07.10.42.30
+Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 633336B0038
+	for <linux-mm@kvack.org>; Sat,  7 Mar 2015 14:12:51 -0500 (EST)
+Received: by iery20 with SMTP id y20so486746ier.0
+        for <linux-mm@kvack.org>; Sat, 07 Mar 2015 11:12:51 -0800 (PST)
+Received: from mail-ig0-x22b.google.com (mail-ig0-x22b.google.com. [2607:f8b0:4001:c05::22b])
+        by mx.google.com with ESMTPS id c23si6738825iod.46.2015.03.07.11.12.50
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 07 Mar 2015 10:42:30 -0800 (PST)
-Received: by igbhn18 with SMTP id hn18so11605639igb.2
-        for <linux-mm@kvack.org>; Sat, 07 Mar 2015 10:42:30 -0800 (PST)
+        Sat, 07 Mar 2015 11:12:50 -0800 (PST)
+Received: by igbhl2 with SMTP id hl2so11015165igb.0
+        for <linux-mm@kvack.org>; Sat, 07 Mar 2015 11:12:50 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFwSQgrYqfXPr6RPvQ+8OJfexXJRY_GVEKg5QtB2t38cWA@mail.gmail.com>
+In-Reply-To: <20150307163657.GA9702@gmail.com>
 References: <1425741651-29152-1-git-send-email-mgorman@suse.de>
-	<1425741651-29152-4-git-send-email-mgorman@suse.de>
-	<CA+55aFwSQgrYqfXPr6RPvQ+8OJfexXJRY_GVEKg5QtB2t38cWA@mail.gmail.com>
-Date: Sat, 7 Mar 2015 10:42:29 -0800
-Message-ID: <CA+55aFxwmysVRCkBKFA88m_h0Byb0-2QvWn0_2rb_QNb8Eeedg@mail.gmail.com>
-Subject: Re: [PATCH 3/4] mm: numa: Mark huge PTEs young when clearing NUMA
- hinting faults
+	<1425741651-29152-5-git-send-email-mgorman@suse.de>
+	<20150307163657.GA9702@gmail.com>
+Date: Sat, 7 Mar 2015 11:12:50 -0800
+Message-ID: <CA+55aFwDuzpL-k8LsV3touhNLh+TFSLKP8+-nPwMXkWXDYPhrg@mail.gmail.com>
+Subject: Re: [PATCH 4/4] mm: numa: Slow PTE scan rate if migration failures occur
 From: Linus Torvalds <torvalds@linux-foundation.org>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, xfs@oss.sgi.com, ppc-dev <linuxppc-dev@lists.ozlabs.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, xfs@oss.sgi.com, ppc-dev <linuxppc-dev@lists.ozlabs.org>
 
-On Sat, Mar 7, 2015 at 10:33 AM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
+On Sat, Mar 7, 2015 at 8:36 AM, Ingo Molnar <mingo@kernel.org> wrote:
 >
->             Completely untested, but that "just
-> or in the new protection bits" is what pnf_pte() does just a few lines
-> above this.
+> And the patch Dave bisected to is a relatively simple patch.
+> Why not simply revert it to see whether that cures much of the
+> problem?
 
-Hmm. Looking at this, we do *not* want to set _PAGE_ACCESSED when we
-turn a page into PROT_NONE or mark it for numa faulting. Nor do we
-want to set it for mprotect for random pages that we haven't actually
-accessed, just changed the protections for.
+So the problem with that is that "pmd_set_numa()" and friends simply
+no longer exist. So we can't just revert that one patch, it's the
+whole series, and the whole point of the series.
 
-So my patch was obviously wrong, and I should feel bad for suggesting
-it. I'm a moron, and my expectations that "pte_modify()" would just
-take the accessed bit from the vm_page_prot field was stupid and
-wrong.
+What confuses me is that the only real change that I can see in that
+patch is the change to "change_huge_pmd()". Everything else is pretty
+much a 100% equivalent transformation, afaik. Of course, I may be
+wrong about that, and missing something silly.
 
-Mel's patch is the right thing to do.
+And the changes to "change_huge_pmd()" were basically re-done
+differently by subsequent patches anyway.
 
-                                Linus
+The *only* change I see remaining is that change_huge_pmd() now does
+
+   entry = pmdp_get_and_clear_notify(mm, addr, pmd);
+   entry = pmd_modify(entry, newprot);
+   set_pmd_at(mm, addr, pmd, entry);
+
+for all changes. It used to do that "pmdp_set_numa()" for the
+prot_numa case, which did just
+
+   pmd_t pmd = *pmdp;
+   pmd = pmd_mknuma(pmd);
+   set_pmd_at(mm, addr, pmdp, pmd);
+
+instead.
+
+I don't like the old pmdp_set_numa() because it can drop dirty bits,
+so I think the old code was actively buggy.
+
+But I do *not* see why the new code would cause more migrations to happen.
+
+There's probably something really stupid I'm missing.
+
+                           Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
