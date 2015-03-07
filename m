@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 0211E6B0070
-	for <linux-mm@kvack.org>; Sat,  7 Mar 2015 10:20:59 -0500 (EST)
-Received: by wevk48 with SMTP id k48so18487457wev.5
-        for <linux-mm@kvack.org>; Sat, 07 Mar 2015 07:20:58 -0800 (PST)
+Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A4CA900015
+	for <linux-mm@kvack.org>; Sat,  7 Mar 2015 10:21:01 -0500 (EST)
+Received: by wgha1 with SMTP id a1so15167871wgh.1
+        for <linux-mm@kvack.org>; Sat, 07 Mar 2015 07:21:00 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id vt8si25192089wjc.208.2015.03.07.07.20.56
+        by mx.google.com with ESMTPS id wt7si25296471wjc.159.2015.03.07.07.20.57
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 07 Mar 2015 07:20:56 -0800 (PST)
+        Sat, 07 Mar 2015 07:20:57 -0800 (PST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 1/4] mm: thp: Return the correct value for change_huge_pmd
-Date: Sat,  7 Mar 2015 15:20:48 +0000
-Message-Id: <1425741651-29152-2-git-send-email-mgorman@suse.de>
+Subject: [PATCH 2/4] mm: numa: Remove migrate_ratelimited
+Date: Sat,  7 Mar 2015 15:20:49 +0000
+Message-Id: <1425741651-29152-3-git-send-email-mgorman@suse.de>
 In-Reply-To: <1425741651-29152-1-git-send-email-mgorman@suse.de>
 References: <1425741651-29152-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,41 +20,73 @@ List-ID: <linux-mm.kvack.org>
 To: Dave Chinner <david@fromorbit.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, xfs@oss.sgi.com, linuxppc-dev@lists.ozlabs.org, Mel Gorman <mgorman@suse.de>
 
-The wrong value is being returned by change_huge_pmd since commit
-10c1045f28e8 ("mm: numa: avoid unnecessary TLB flushes when setting
-NUMA hinting entries") which allows a fallthrough that tries to adjust
-non-existent PTEs. This patch corrects it.
+This code is dead since commit 9e645ab6d089 ("sched/numa: Continue PTE
+scanning even if migrate rate limited") so remove it.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/huge_memory.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ include/linux/migrate.h |  5 -----
+ mm/migrate.c            | 20 --------------------
+ 2 files changed, 25 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index fc00c8cb5a82..194c0f019774 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1482,6 +1482,7 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index 78baed5f2952..cac1c0904d5f 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -69,7 +69,6 @@ static inline int migrate_huge_page_move_mapping(struct address_space *mapping,
+ extern bool pmd_trans_migrating(pmd_t pmd);
+ extern int migrate_misplaced_page(struct page *page,
+ 				  struct vm_area_struct *vma, int node);
+-extern bool migrate_ratelimited(int node);
+ #else
+ static inline bool pmd_trans_migrating(pmd_t pmd)
+ {
+@@ -80,10 +79,6 @@ static inline int migrate_misplaced_page(struct page *page,
+ {
+ 	return -EAGAIN; /* can't migrate now */
+ }
+-static inline bool migrate_ratelimited(int node)
+-{
+-	return false;
+-}
+ #endif /* CONFIG_NUMA_BALANCING */
  
- 	if (__pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
- 		pmd_t entry;
-+		ret = 1;
+ #if defined(CONFIG_NUMA_BALANCING) && defined(CONFIG_TRANSPARENT_HUGEPAGE)
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 85e042686031..6aa9a4222ea9 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1554,30 +1554,10 @@ static struct page *alloc_misplaced_dst_page(struct page *page,
+  * page migration rate limiting control.
+  * Do not migrate more than @pages_to_migrate in a @migrate_interval_millisecs
+  * window of time. Default here says do not migrate more than 1280M per second.
+- * If a node is rate-limited then PTE NUMA updates are also rate-limited. However
+- * as it is faults that reset the window, pte updates will happen unconditionally
+- * if there has not been a fault since @pteupdate_interval_millisecs after the
+- * throttle window closed.
+  */
+ static unsigned int migrate_interval_millisecs __read_mostly = 100;
+-static unsigned int pteupdate_interval_millisecs __read_mostly = 1000;
+ static unsigned int ratelimit_pages __read_mostly = 128 << (20 - PAGE_SHIFT);
  
- 		/*
- 		 * Avoid trapping faults against the zero page. The read-only
-@@ -1490,11 +1491,10 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 		 */
- 		if (prot_numa && is_huge_zero_pmd(*pmd)) {
- 			spin_unlock(ptl);
--			return 0;
-+			return ret;
- 		}
- 
- 		if (!prot_numa || !pmd_protnone(*pmd)) {
--			ret = 1;
- 			entry = pmdp_get_and_clear_notify(mm, addr, pmd);
- 			entry = pmd_modify(entry, newprot);
- 			ret = HPAGE_PMD_NR;
+-/* Returns true if NUMA migration is currently rate limited */
+-bool migrate_ratelimited(int node)
+-{
+-	pg_data_t *pgdat = NODE_DATA(node);
+-
+-	if (time_after(jiffies, pgdat->numabalancing_migrate_next_window +
+-				msecs_to_jiffies(pteupdate_interval_millisecs)))
+-		return false;
+-
+-	if (pgdat->numabalancing_migrate_nr_pages < ratelimit_pages)
+-		return false;
+-
+-	return true;
+-}
+-
+ /* Returns true if the node is migrate rate-limited after the update */
+ static bool numamigrate_update_ratelimit(pg_data_t *pgdat,
+ 					unsigned long nr_pages)
 -- 
 2.1.2
 
