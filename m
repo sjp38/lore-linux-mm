@@ -1,64 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AA6F6B006C
-	for <linux-mm@kvack.org>; Fri,  6 Mar 2015 17:31:27 -0500 (EST)
-Received: by padbj1 with SMTP id bj1so21376900pad.12
-        for <linux-mm@kvack.org>; Fri, 06 Mar 2015 14:31:27 -0800 (PST)
-Received: from na01-bn1-obe.outbound.protection.outlook.com (mail-bn1bn0108.outbound.protection.outlook.com. [157.56.110.108])
-        by mx.google.com with ESMTPS id qm16si4851223pab.124.2015.03.06.14.31.26
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 631066B0038
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2015 19:18:24 -0500 (EST)
+Received: by padet14 with SMTP id et14so31557280pad.11
+        for <linux-mm@kvack.org>; Fri, 06 Mar 2015 16:18:24 -0800 (PST)
+Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
+        by mx.google.com with ESMTPS id yp4si16954020pab.231.2015.03.06.16.18.23
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 06 Mar 2015 14:31:26 -0800 (PST)
-From: Yannick Guerrini <yguerrini@tomshardware.fr>
-Subject: [PATCHv2] percpu: Fix trivial typos in comments
-Date: Fri, 6 Mar 2015 23:30:42 +0100
-Message-ID: <1425681042-8416-1-git-send-email-yguerrini@tomshardware.fr>
-In-Reply-To: <20150306220228.GC15052@htj.duckdns.org>
-References: <20150306220228.GC15052@htj.duckdns.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 06 Mar 2015 16:18:23 -0800 (PST)
+Received: by pabli10 with SMTP id li10so55590215pab.2
+        for <linux-mm@kvack.org>; Fri, 06 Mar 2015 16:18:23 -0800 (PST)
+Date: Sat, 7 Mar 2015 08:18:16 +0800
+From: Wang YanQing <udknight@gmail.com>
+Subject: [PATCH RESEND] block:bounce: fix call inc_|dec_zone_page_state on
+ different pages confuse value of NR_BOUNCE
+Message-ID: <20150307001816.GA2850@udknight>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tj@kernel.org
-Cc: cl@linux-foundation.org, trivial@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yannick Guerrini <yguerrini@tomshardware.fr>
+To: axboe@kernel.dk
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Change 'tranlated' to 'translated'
-Change 'mutliples' to 'multiples'
+Commit d2c5e30c9a1420902262aa923794d2ae4e0bc391
+("[PATCH] zoned vm counters: conversion of nr_bounce to per zone counter")
+convert statistic of nr_bounce to per zone and one global value in vm_stat,
+but it call call inc_|dec_zone_page_state on different pages, then different
+zones, and cause we get confusion value of NR_BOUNCE.
 
-Signed-off-by: Yannick Guerrini <yguerrini@tomshardware.fr>
+Below is the result on my machine:
+Mar  2 09:26:08 udknight kernel: [144766.778265] Mem-Info:
+Mar  2 09:26:08 udknight kernel: [144766.778266] DMA per-cpu:
+Mar  2 09:26:08 udknight kernel: [144766.778268] CPU    0: hi:    0, btch:   1 usd:   0
+Mar  2 09:26:08 udknight kernel: [144766.778269] CPU    1: hi:    0, btch:   1 usd:   0
+Mar  2 09:26:08 udknight kernel: [144766.778270] Normal per-cpu:
+Mar  2 09:26:08 udknight kernel: [144766.778271] CPU    0: hi:  186, btch:  31 usd:   0
+Mar  2 09:26:08 udknight kernel: [144766.778273] CPU    1: hi:  186, btch:  31 usd:   0
+Mar  2 09:26:08 udknight kernel: [144766.778274] HighMem per-cpu:
+Mar  2 09:26:08 udknight kernel: [144766.778275] CPU    0: hi:  186, btch:  31 usd:   0
+Mar  2 09:26:08 udknight kernel: [144766.778276] CPU    1: hi:  186, btch:  31 usd:   0
+Mar  2 09:26:08 udknight kernel: [144766.778279] active_anon:46926 inactive_anon:287406 isolated_anon:0
+Mar  2 09:26:08 udknight kernel: [144766.778279]  active_file:105085 inactive_file:139432 isolated_file:0
+Mar  2 09:26:08 udknight kernel: [144766.778279]  unevictable:653 dirty:0 writeback:0 unstable:0
+Mar  2 09:26:08 udknight kernel: [144766.778279]  free:178957 slab_reclaimable:6419 slab_unreclaimable:9966
+Mar  2 09:26:08 udknight kernel: [144766.778279]  mapped:4426 shmem:305277 pagetables:784 bounce:0
+Mar  2 09:26:08 udknight kernel: [144766.778279]  free_cma:0
+Mar  2 09:26:08 udknight kernel: [144766.778286] DMA free:3324kB min:68kB low:84kB high:100kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:15976kB managed:15900kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? yes
+Mar  2 09:26:08 udknight kernel: [144766.778287] lowmem_reserve[]: 0 822 3754 3754
+Mar  2 09:26:08 udknight kernel: [144766.778293] Normal free:26828kB min:3632kB low:4540kB high:5448kB active_anon:4872kB inactive_anon:68kB active_file:1796kB inactive_file:1796kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:892920kB managed:842560kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:4144kB slab_reclaimable:25676kB slab_unreclaimable:39864kB kernel_stack:1944kB pagetables:3136kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:2412612 all_unreclaimable? yes
+Mar  2 09:26:08 udknight kernel: [144766.778294] lowmem_reserve[]: 0 0 23451 23451
+Mar  2 09:26:08 udknight kernel: [144766.778299] HighMem free:685676kB min:512kB low:3748kB high:6984kB active_anon:182832kB inactive_anon:1149556kB active_file:418544kB inactive_file:555932kB unevictable:2612kB isolated(anon):0kB isolated(file):0kB present:3001732kB managed:3001732kB mlocked:0kB dirty:0kB writeback:0kB mapped:17704kB shmem:1216964kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:75771152kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+Mar  2 09:26:08 udknight kernel: [144766.778300] lowmem_reserve[]: 0 0 0 0
+
+You can see bounce:75771152kB for HighMem, but bounce:0 for lowmem and global.
+
+This patch fix it.
+
+Signed-off-by: Wang YanQing <udknight@gmail.com>
 ---
-v2: don't replace 'iff' by 'if' !
-    as suggested by Tejun Heo <tj@kernel.org>
+ I find previous email can't be "git am" properly,
+ so resend it.
 
+ Thanks.
 
- mm/percpu.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ block/bounce.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/percpu.c b/mm/percpu.c
-index 73c97a5..dfd0248 100644
---- a/mm/percpu.c
-+++ b/mm/percpu.c
-@@ -1310,7 +1310,7 @@ bool is_kernel_percpu_address(unsigned long addr)
-  * and, from the second one, the backing allocator (currently either vm or
-  * km) provides translation.
-  *
-- * The addr can be tranlated simply without checking if it falls into the
-+ * The addr can be translated simply without checking if it falls into the
-  * first chunk. But the current code reflects better how percpu allocator
-  * actually works, and the verification can discover both bugs in percpu
-  * allocator itself and per_cpu_ptr_to_phys() callers. So we keep current
-@@ -1762,7 +1762,7 @@ early_param("percpu_alloc", percpu_alloc_setup);
-  * and other parameters considering needed percpu size, allocation
-  * atom size and distances between CPUs.
-  *
-- * Groups are always mutliples of atom size and CPUs which are of
-+ * Groups are always multiples of atom size and CPUs which are of
-  * LOCAL_DISTANCE both ways are grouped together and share space for
-  * units in the same group.  The returned configuration is guaranteed
-  * to have CPUs on different nodes on different groups and >=75% usage
+diff --git a/block/bounce.c b/block/bounce.c
+index ab21ba2..ed9dd80 100644
+--- a/block/bounce.c
++++ b/block/bounce.c
+@@ -221,8 +221,8 @@ bounce:
+ 		if (page_to_pfn(page) <= queue_bounce_pfn(q) && !force)
+ 			continue;
+ 
+-		inc_zone_page_state(to->bv_page, NR_BOUNCE);
+ 		to->bv_page = mempool_alloc(pool, q->bounce_gfp);
++		inc_zone_page_state(to->bv_page, NR_BOUNCE);
+ 
+ 		if (rw == WRITE) {
+ 			char *vto, *vfrom;
 -- 
-1.9.5.msysgit.0
-
+2.2.2.dirty
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
