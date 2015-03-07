@@ -1,89 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 631066B0038
-	for <linux-mm@kvack.org>; Fri,  6 Mar 2015 19:18:24 -0500 (EST)
-Received: by padet14 with SMTP id et14so31557280pad.11
-        for <linux-mm@kvack.org>; Fri, 06 Mar 2015 16:18:24 -0800 (PST)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id yp4si16954020pab.231.2015.03.06.16.18.23
+Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id C7A936B0038
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2015 19:21:12 -0500 (EST)
+Received: by wghl18 with SMTP id l18so16016207wgh.5
+        for <linux-mm@kvack.org>; Fri, 06 Mar 2015 16:21:12 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id l5si23445776wiv.80.2015.03.06.16.21.10
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Mar 2015 16:18:23 -0800 (PST)
-Received: by pabli10 with SMTP id li10so55590215pab.2
-        for <linux-mm@kvack.org>; Fri, 06 Mar 2015 16:18:23 -0800 (PST)
-Date: Sat, 7 Mar 2015 08:18:16 +0800
-From: Wang YanQing <udknight@gmail.com>
-Subject: [PATCH RESEND] block:bounce: fix call inc_|dec_zone_page_state on
- different pages confuse value of NR_BOUNCE
-Message-ID: <20150307001816.GA2850@udknight>
+        Fri, 06 Mar 2015 16:21:11 -0800 (PST)
+Date: Fri, 6 Mar 2015 19:20:55 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: How to handle TIF_MEMDIE stalls?
+Message-ID: <20150307002055.GA29679@phnom.home.cmpxchg.org>
+References: <20150217125315.GA14287@phnom.home.cmpxchg.org>
+ <20150217225430.GJ4251@dastard>
+ <20150219102431.GA15569@phnom.home.cmpxchg.org>
+ <20150219225217.GY12722@dastard>
+ <20150221235227.GA25079@phnom.home.cmpxchg.org>
+ <20150223004521.GK12722@dastard>
+ <20150222172930.6586516d.akpm@linux-foundation.org>
+ <20150223073235.GT4251@dastard>
+ <54F42FEA.1020404@suse.cz>
+ <20150302223154.GJ18360@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20150302223154.GJ18360@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: axboe@kernel.dk
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@suse.cz, dchinner@redhat.com, linux-mm@kvack.org, rientjes@google.com, oleg@redhat.com, mgorman@suse.de, torvalds@linux-foundation.org, xfs@oss.sgi.com
 
-Commit d2c5e30c9a1420902262aa923794d2ae4e0bc391
-("[PATCH] zoned vm counters: conversion of nr_bounce to per zone counter")
-convert statistic of nr_bounce to per zone and one global value in vm_stat,
-but it call call inc_|dec_zone_page_state on different pages, then different
-zones, and cause we get confusion value of NR_BOUNCE.
+On Tue, Mar 03, 2015 at 09:31:54AM +1100, Dave Chinner wrote:
+> What we don't know is how many objects we might need to scan to find
+> the objects we will eventually modify.  Here's an (admittedly
+> extreme) example to demonstrate a worst case scenario: allocate a
+> 64k data extent. Because it is an exact size allocation, we look it
+> up in the by-size free space btree. Free space is fragmented, so
+> there are about a million 64k free space extents in the tree.
+> 
+> Once we find the first 64k extent, we search them to find the best
+> locality target match.  The btree records are 16 bytes each, so we
+> fit roughly 500 to a 4k block. Say we search half the extents to
+> find the best match - i.e. we walk a thousand leaf blocks before
+> finding the match we want, and modify that leaf block.
+> 
+> Now, the modification removed an entry from the leaf and tht
+> triggers leaf merge thresholds, so a merge with the 1002nd block
+> occurs. That block now demand pages in and we then modify and join
+> it to the transaction. Now we walk back up the btree to update
+> indexes, merging blocks all the way back up to the root.  We have a
+> worst case size btree (5 levels) and we merge at every level meaning
+> we demand page another 8 btree blocks and modify them.
+> 
+> In this case, we've demand paged ~1010 btree blocks, but only
+> modified 10 of them. i.e. the memory we consumed permanently was
+> only 10 4k buffers (approx. 10 slab and 10 page allocations), but
+> the allocation demand was 2 orders of magnitude more than the
+> unreclaimable memory consumption of the btree modification.
+> 
+> I hope you start to see the scope of the problem now...
 
-Below is the result on my machine:
-Mar  2 09:26:08 udknight kernel: [144766.778265] Mem-Info:
-Mar  2 09:26:08 udknight kernel: [144766.778266] DMA per-cpu:
-Mar  2 09:26:08 udknight kernel: [144766.778268] CPU    0: hi:    0, btch:   1 usd:   0
-Mar  2 09:26:08 udknight kernel: [144766.778269] CPU    1: hi:    0, btch:   1 usd:   0
-Mar  2 09:26:08 udknight kernel: [144766.778270] Normal per-cpu:
-Mar  2 09:26:08 udknight kernel: [144766.778271] CPU    0: hi:  186, btch:  31 usd:   0
-Mar  2 09:26:08 udknight kernel: [144766.778273] CPU    1: hi:  186, btch:  31 usd:   0
-Mar  2 09:26:08 udknight kernel: [144766.778274] HighMem per-cpu:
-Mar  2 09:26:08 udknight kernel: [144766.778275] CPU    0: hi:  186, btch:  31 usd:   0
-Mar  2 09:26:08 udknight kernel: [144766.778276] CPU    1: hi:  186, btch:  31 usd:   0
-Mar  2 09:26:08 udknight kernel: [144766.778279] active_anon:46926 inactive_anon:287406 isolated_anon:0
-Mar  2 09:26:08 udknight kernel: [144766.778279]  active_file:105085 inactive_file:139432 isolated_file:0
-Mar  2 09:26:08 udknight kernel: [144766.778279]  unevictable:653 dirty:0 writeback:0 unstable:0
-Mar  2 09:26:08 udknight kernel: [144766.778279]  free:178957 slab_reclaimable:6419 slab_unreclaimable:9966
-Mar  2 09:26:08 udknight kernel: [144766.778279]  mapped:4426 shmem:305277 pagetables:784 bounce:0
-Mar  2 09:26:08 udknight kernel: [144766.778279]  free_cma:0
-Mar  2 09:26:08 udknight kernel: [144766.778286] DMA free:3324kB min:68kB low:84kB high:100kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:15976kB managed:15900kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? yes
-Mar  2 09:26:08 udknight kernel: [144766.778287] lowmem_reserve[]: 0 822 3754 3754
-Mar  2 09:26:08 udknight kernel: [144766.778293] Normal free:26828kB min:3632kB low:4540kB high:5448kB active_anon:4872kB inactive_anon:68kB active_file:1796kB inactive_file:1796kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:892920kB managed:842560kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:4144kB slab_reclaimable:25676kB slab_unreclaimable:39864kB kernel_stack:1944kB pagetables:3136kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:2412612 all_unreclaimable? yes
-Mar  2 09:26:08 udknight kernel: [144766.778294] lowmem_reserve[]: 0 0 23451 23451
-Mar  2 09:26:08 udknight kernel: [144766.778299] HighMem free:685676kB min:512kB low:3748kB high:6984kB active_anon:182832kB inactive_anon:1149556kB active_file:418544kB inactive_file:555932kB unevictable:2612kB isolated(anon):0kB isolated(file):0kB present:3001732kB managed:3001732kB mlocked:0kB dirty:0kB writeback:0kB mapped:17704kB shmem:1216964kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:75771152kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
-Mar  2 09:26:08 udknight kernel: [144766.778300] lowmem_reserve[]: 0 0 0 0
+Isn't this bounded one way or another?  Sure, the inaccuracy itself is
+high, but when you put the absolute numbers in perspective it really
+doesn't seem to matter: with your extreme case of 3MB per transaction,
+you can still run 5k+ of them in parallel on a small 16G machine.
+Occupy a generous 75% of RAM with anonymous pages, and you can STILL
+run over a thousand transactions concurrently.  That would seem like a
+decent pipeline to keep the storage device occupied.
 
-You can see bounce:75771152kB for HighMem, but bounce:0 for lowmem and global.
-
-This patch fix it.
-
-Signed-off-by: Wang YanQing <udknight@gmail.com>
----
- I find previous email can't be "git am" properly,
- so resend it.
-
- Thanks.
-
- block/bounce.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/block/bounce.c b/block/bounce.c
-index ab21ba2..ed9dd80 100644
---- a/block/bounce.c
-+++ b/block/bounce.c
-@@ -221,8 +221,8 @@ bounce:
- 		if (page_to_pfn(page) <= queue_bounce_pfn(q) && !force)
- 			continue;
- 
--		inc_zone_page_state(to->bv_page, NR_BOUNCE);
- 		to->bv_page = mempool_alloc(pool, q->bounce_gfp);
-+		inc_zone_page_state(to->bv_page, NR_BOUNCE);
- 
- 		if (rw == WRITE) {
- 			char *vto, *vfrom;
--- 
-2.2.2.dirty
+The level of precision that you are asking for comes with complexity
+and fragility that I'm not convinced is necessary, or justified.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
