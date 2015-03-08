@@ -1,94 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
-	by kanga.kvack.org (Postfix) with ESMTP id C599E6B0038
-	for <linux-mm@kvack.org>; Sun,  8 Mar 2015 14:11:32 -0400 (EDT)
-Received: by qgdz60 with SMTP id z60so23825564qgd.5
-        for <linux-mm@kvack.org>; Sun, 08 Mar 2015 11:11:32 -0700 (PDT)
-Received: from mail-qg0-x230.google.com (mail-qg0-x230.google.com. [2607:f8b0:400d:c04::230])
-        by mx.google.com with ESMTPS id b3si13055910qkb.89.2015.03.08.11.11.31
+Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 2141F6B0038
+	for <linux-mm@kvack.org>; Sun,  8 Mar 2015 14:36:00 -0400 (EDT)
+Received: by igbhl2 with SMTP id hl2so14621933igb.0
+        for <linux-mm@kvack.org>; Sun, 08 Mar 2015 11:35:59 -0700 (PDT)
+Received: from mail-ig0-x229.google.com (mail-ig0-x229.google.com. [2607:f8b0:4001:c05::229])
+        by mx.google.com with ESMTPS id x13si787032ioi.93.2015.03.08.11.35.59
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 08 Mar 2015 11:11:31 -0700 (PDT)
-Received: by qgdz107 with SMTP id z107so23778599qgd.3
-        for <linux-mm@kvack.org>; Sun, 08 Mar 2015 11:11:31 -0700 (PDT)
-Date: Sun, 8 Mar 2015 14:11:29 -0400
-From: Michal Hocko <mhocko@suse.cz>
-Subject: RFC for small allocation failure mode transition plan (was: Re:
- [Lsf] common session about page allocator vs. FS/IO) It's time to put
- together the schedule)
-Message-ID: <20150308181129.GA5751@dhcp22.suse.cz>
-References: <1424395745.2603.27.camel@HansenPartnership.com>
- <20150223170842.GK24272@dhcp22.suse.cz>
- <20150302151941.GB26343@dhcp22.suse.cz>
- <1425309993.2187.3.camel@HansenPartnership.com>
- <20150302152858.GF26334@dhcp22.suse.cz>
- <20150302104154.3ae46eb7@tlielax.poochiereds.net>
- <1425311094.2187.11.camel@HansenPartnership.com>
+        Sun, 08 Mar 2015 11:35:59 -0700 (PDT)
+Received: by igbhn18 with SMTP id hn18so15463295igb.2
+        for <linux-mm@kvack.org>; Sun, 08 Mar 2015 11:35:59 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1425311094.2187.11.camel@HansenPartnership.com>
+In-Reply-To: <20150308100223.GC15487@gmail.com>
+References: <1425741651-29152-1-git-send-email-mgorman@suse.de>
+	<1425741651-29152-5-git-send-email-mgorman@suse.de>
+	<20150307163657.GA9702@gmail.com>
+	<CA+55aFwDuzpL-k8LsV3touhNLh+TFSLKP8+-nPwMXkWXDYPhrg@mail.gmail.com>
+	<20150308100223.GC15487@gmail.com>
+Date: Sun, 8 Mar 2015 11:35:59 -0700
+Message-ID: <CA+55aFyQyZXu2fi7X9bWdSX0utk8=sccfBwFaSoToROXoE_PLA@mail.gmail.com>
+Subject: Re: [PATCH 4/4] mm: numa: Slow PTE scan rate if migration failures occur
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: Jeff Layton <jeff.layton@primarydata.com>, lsf@lists.linux-foundation.org, Theodore Ts'o <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, xfs@oss.sgi.com, ppc-dev <linuxppc-dev@lists.ozlabs.org>
 
-On Mon 02-03-15 07:44:54, James Bottomley wrote:
-> On Mon, 2015-03-02 at 10:41 -0500, Jeff Layton wrote:
-> > On Mon, 2 Mar 2015 16:28:58 +0100
-> > Michal Hocko <mhocko@suse.cz> wrote:
-> > 
-> > > [Let's add people from the discussion on the CC]
-> > > 
-> > > On Mon 02-03-15 07:26:33, James Bottomley wrote:
-> > > > On Mon, 2015-03-02 at 16:19 +0100, Michal Hocko wrote:
-> > > > > On Mon 23-02-15 18:08:42, Michal Hocko wrote:
-[...]
-> > > > > > I would like to propose a common session (FS and MM, maybe IO as well)
-> > > > > > about memory allocator guarantees and the current behavior of the
-> > > > > > page allocator with different gfp flags - GFP_KERNEL being basically
-> > > > > > __GFP_NOFAIL for small allocations. __GFP_NOFAIL allocations in general
-> > > > > > - how they are used in fs/io code paths and what can the allocator do
-> > > > > > to prevent from memory exhaustion. GFP_NOFS behavior when combined with
-> > > > > > __GFP_NOFAIL and so on. It seems there was a disconnection between mm
-> > > > > > and fs people and one camp is not fully aware of what others are doing
-> > > > > > and why as it turned out during recent discussions.
-> > > > > 
-> > > > > James do you have any plans to put this on the schedule?
-> > > > 
-> > > > I was waiting to see if there was any other feedback, but if you feel
-> > > > strongly it should happen, I can do it.
-> > > 
-> > > I think it would be helpful, but let's see what other involved in the
-> > > discussion think.
-> > 
-> > It makes sense to me as a plenary discussion.
-> > 
-> > I was personally quite surprised to hear that small allocations
-> > couldn't fail, and dismayed at how much time I've spent writing dead
-> > error handling code. ;)
-> > 
-> > If we're keen to get rid of that behavior (and I think it really ought
-> > to go, IMNSHO), then what might make sense is to add a Kconfig switch
-> > that allows small allocations to fail as an interim step and see what
-> > breaks when it's enabled.
-> > 
-> > Once we fix all of those places up, then we can see about getting
-> > distros to turn it on, and eventually eliminate the Kconfig switch
-> > altogether. It'll take a few years, but that's probably the least
-> > disruptive approach.
-> 
-> OK, your wish is my command: it's filled up the last empty plenary slot
-> on Monday morning.
+On Sun, Mar 8, 2015 at 3:02 AM, Ingo Molnar <mingo@kernel.org> wrote:
+>
+> Well, there's a difference in what we write to the pte:
+>
+>  #define _PAGE_BIT_NUMA          (_PAGE_BIT_GLOBAL+1)
+>  #define _PAGE_BIT_PROTNONE      _PAGE_BIT_GLOBAL
+>
+> and our expectation was that the two should be equivalent methods from
+> the POV of the NUMA balancing code, right?
 
-I guess the following RFC patch should be good for the first part of the
-topic - Small allocations implying __GFP_NOFAIL currently. I am CCing
-linux-mm mailing list as well so that people not attending LSF/MM can
-comment on the approach.
+Right.
 
-I hope people will find time to look at it before the session because I
-am afraid two topics per one slot will be too dense otherwise. I also
-hope this part will be less controversial and the primary point for
-discussion will be on HOW TO GET RID OF the current behavior in a sane
-way rather than WHY TO KEEP IT.
----
+But yes, we might have screwed something up. In particular, there
+might be something that thinks it cares about the global bit, but
+doesn't notice that the present bit isn't set, so it considers the
+protnone mappings to be global and causes lots more tlb flushes etc.
+
+>> I don't like the old pmdp_set_numa() because it can drop dirty bits,
+>> so I think the old code was actively buggy.
+>
+> Could we, as a silly testing hack not to be applied, write a
+> hack-patch that re-introduces the racy way of setting the NUMA bit, to
+> confirm that it is indeed this difference that changes pte visibility
+> across CPUs enough to create so many more faults?
+
+So one of Mel's patches did that, but I don't know if Dave tested it.
+
+And thinking about it, it *may* be safe for huge-pages, if they always
+already have the dirty bit set to begin with. And I don't see how we
+could have a clean hugepage (apart from the special case of the
+zeropage, which is read-only, so races on teh dirty bit aren't an
+issue).
+
+So it might actually be that the non-atomic version is safe for
+hpages. And we could possibly get rid of the "atomic read-and-clear"
+even for the non-numa case.
+
+I'd rather do it for both cases than for just one of them.
+
+But:
+
+> As a second hack (not to be applied), could we change:
+>
+>  #define _PAGE_BIT_PROTNONE      _PAGE_BIT_GLOBAL
+>
+> to:
+>
+>  #define _PAGE_BIT_PROTNONE      (_PAGE_BIT_GLOBAL+1)
+>
+> to double check that the position of the bit does not matter?
+
+Agreed. We should definitely try that.
+
+Dave?
+
+Also, is there some sane way for me to actually see this behavior on a
+regular machine with just a single socket? Dave is apparently running
+in some fake-numa setup, I'm wondering if this is easy enough to
+reproduce that I could see it myself.
+
+                          Linus
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
