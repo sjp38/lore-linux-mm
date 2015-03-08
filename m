@@ -1,113 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 52B856B006E
-	for <linux-mm@kvack.org>; Sun,  8 Mar 2015 06:02:31 -0400 (EDT)
-Received: by wggx13 with SMTP id x13so28710265wgg.4
-        for <linux-mm@kvack.org>; Sun, 08 Mar 2015 03:02:30 -0700 (PDT)
-Received: from mail-wg0-x235.google.com (mail-wg0-x235.google.com. [2a00:1450:400c:c00::235])
-        by mx.google.com with ESMTPS id ll20si20968810wic.111.2015.03.08.03.02.29
+Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
+	by kanga.kvack.org (Postfix) with ESMTP id C599E6B0038
+	for <linux-mm@kvack.org>; Sun,  8 Mar 2015 14:11:32 -0400 (EDT)
+Received: by qgdz60 with SMTP id z60so23825564qgd.5
+        for <linux-mm@kvack.org>; Sun, 08 Mar 2015 11:11:32 -0700 (PDT)
+Received: from mail-qg0-x230.google.com (mail-qg0-x230.google.com. [2607:f8b0:400d:c04::230])
+        by mx.google.com with ESMTPS id b3si13055910qkb.89.2015.03.08.11.11.31
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 08 Mar 2015 03:02:29 -0700 (PDT)
-Received: by wghl18 with SMTP id l18so14697997wgh.11
-        for <linux-mm@kvack.org>; Sun, 08 Mar 2015 03:02:29 -0700 (PDT)
-Date: Sun, 8 Mar 2015 11:02:23 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 4/4] mm: numa: Slow PTE scan rate if migration failures
- occur
-Message-ID: <20150308100223.GC15487@gmail.com>
-References: <1425741651-29152-1-git-send-email-mgorman@suse.de>
- <1425741651-29152-5-git-send-email-mgorman@suse.de>
- <20150307163657.GA9702@gmail.com>
- <CA+55aFwDuzpL-k8LsV3touhNLh+TFSLKP8+-nPwMXkWXDYPhrg@mail.gmail.com>
+        Sun, 08 Mar 2015 11:11:31 -0700 (PDT)
+Received: by qgdz107 with SMTP id z107so23778599qgd.3
+        for <linux-mm@kvack.org>; Sun, 08 Mar 2015 11:11:31 -0700 (PDT)
+Date: Sun, 8 Mar 2015 14:11:29 -0400
+From: Michal Hocko <mhocko@suse.cz>
+Subject: RFC for small allocation failure mode transition plan (was: Re:
+ [Lsf] common session about page allocator vs. FS/IO) It's time to put
+ together the schedule)
+Message-ID: <20150308181129.GA5751@dhcp22.suse.cz>
+References: <1424395745.2603.27.camel@HansenPartnership.com>
+ <20150223170842.GK24272@dhcp22.suse.cz>
+ <20150302151941.GB26343@dhcp22.suse.cz>
+ <1425309993.2187.3.camel@HansenPartnership.com>
+ <20150302152858.GF26334@dhcp22.suse.cz>
+ <20150302104154.3ae46eb7@tlielax.poochiereds.net>
+ <1425311094.2187.11.camel@HansenPartnership.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+55aFwDuzpL-k8LsV3touhNLh+TFSLKP8+-nPwMXkWXDYPhrg@mail.gmail.com>
+In-Reply-To: <1425311094.2187.11.camel@HansenPartnership.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, xfs@oss.sgi.com, ppc-dev <linuxppc-dev@lists.ozlabs.org>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: Jeff Layton <jeff.layton@primarydata.com>, lsf@lists.linux-foundation.org, Theodore Ts'o <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org
 
-
-* Linus Torvalds <torvalds@linux-foundation.org> wrote:
-
-> On Sat, Mar 7, 2015 at 8:36 AM, Ingo Molnar <mingo@kernel.org> wrote:
-> >
-> > And the patch Dave bisected to is a relatively simple patch. Why 
-> > not simply revert it to see whether that cures much of the 
-> > problem?
+On Mon 02-03-15 07:44:54, James Bottomley wrote:
+> On Mon, 2015-03-02 at 10:41 -0500, Jeff Layton wrote:
+> > On Mon, 2 Mar 2015 16:28:58 +0100
+> > Michal Hocko <mhocko@suse.cz> wrote:
+> > 
+> > > [Let's add people from the discussion on the CC]
+> > > 
+> > > On Mon 02-03-15 07:26:33, James Bottomley wrote:
+> > > > On Mon, 2015-03-02 at 16:19 +0100, Michal Hocko wrote:
+> > > > > On Mon 23-02-15 18:08:42, Michal Hocko wrote:
+[...]
+> > > > > > I would like to propose a common session (FS and MM, maybe IO as well)
+> > > > > > about memory allocator guarantees and the current behavior of the
+> > > > > > page allocator with different gfp flags - GFP_KERNEL being basically
+> > > > > > __GFP_NOFAIL for small allocations. __GFP_NOFAIL allocations in general
+> > > > > > - how they are used in fs/io code paths and what can the allocator do
+> > > > > > to prevent from memory exhaustion. GFP_NOFS behavior when combined with
+> > > > > > __GFP_NOFAIL and so on. It seems there was a disconnection between mm
+> > > > > > and fs people and one camp is not fully aware of what others are doing
+> > > > > > and why as it turned out during recent discussions.
+> > > > > 
+> > > > > James do you have any plans to put this on the schedule?
+> > > > 
+> > > > I was waiting to see if there was any other feedback, but if you feel
+> > > > strongly it should happen, I can do it.
+> > > 
+> > > I think it would be helpful, but let's see what other involved in the
+> > > discussion think.
+> > 
+> > It makes sense to me as a plenary discussion.
+> > 
+> > I was personally quite surprised to hear that small allocations
+> > couldn't fail, and dismayed at how much time I've spent writing dead
+> > error handling code. ;)
+> > 
+> > If we're keen to get rid of that behavior (and I think it really ought
+> > to go, IMNSHO), then what might make sense is to add a Kconfig switch
+> > that allows small allocations to fail as an interim step and see what
+> > breaks when it's enabled.
+> > 
+> > Once we fix all of those places up, then we can see about getting
+> > distros to turn it on, and eventually eliminate the Kconfig switch
+> > altogether. It'll take a few years, but that's probably the least
+> > disruptive approach.
 > 
-> So the problem with that is that "pmd_set_numa()" and friends simply 
-> no longer exist. So we can't just revert that one patch, it's the 
-> whole series, and the whole point of the series.
+> OK, your wish is my command: it's filled up the last empty plenary slot
+> on Monday morning.
 
-Yeah.
+I guess the following RFC patch should be good for the first part of the
+topic - Small allocations implying __GFP_NOFAIL currently. I am CCing
+linux-mm mailing list as well so that people not attending LSF/MM can
+comment on the approach.
 
-> What confuses me is that the only real change that I can see in that 
-> patch is the change to "change_huge_pmd()". Everything else is 
-> pretty much a 100% equivalent transformation, afaik. Of course, I 
-> may be wrong about that, and missing something silly.
-
-Well, there's a difference in what we write to the pte:
-
- #define _PAGE_BIT_NUMA          (_PAGE_BIT_GLOBAL+1)
- #define _PAGE_BIT_PROTNONE      _PAGE_BIT_GLOBAL
-
-and our expectation was that the two should be equivalent methods from 
-the POV of the NUMA balancing code, right?
-
-> And the changes to "change_huge_pmd()" were basically re-done
-> differently by subsequent patches anyway.
-> 
-> The *only* change I see remaining is that change_huge_pmd() now does
-> 
->    entry = pmdp_get_and_clear_notify(mm, addr, pmd);
->    entry = pmd_modify(entry, newprot);
->    set_pmd_at(mm, addr, pmd, entry);
-> 
-> for all changes. It used to do that "pmdp_set_numa()" for the
-> prot_numa case, which did just
-> 
->    pmd_t pmd = *pmdp;
->    pmd = pmd_mknuma(pmd);
->    set_pmd_at(mm, addr, pmdp, pmd);
-> 
-> instead.
-> 
-> I don't like the old pmdp_set_numa() because it can drop dirty bits,
-> so I think the old code was actively buggy.
-
-Could we, as a silly testing hack not to be applied, write a 
-hack-patch that re-introduces the racy way of setting the NUMA bit, to 
-confirm that it is indeed this difference that changes pte visibility 
-across CPUs enough to create so many more faults?
-
-Because if the answer is 'yes', then we can safely say: 'we regressed 
-performance because correctness [not dropping dirty bits] comes before 
-performance'.
-
-If the answer is 'no', then we still have a mystery (and a regression) 
-to track down.
-
-As a second hack (not to be applied), could we change:
-
- #define _PAGE_BIT_PROTNONE      _PAGE_BIT_GLOBAL
-
-to:
-
- #define _PAGE_BIT_PROTNONE      (_PAGE_BIT_GLOBAL+1)
-
-to double check that the position of the bit does not matter?
-
-I don't think we've exhaused all avenues of analysis here.
-
-Thanks,
-
-	Ingo
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I hope people will find time to look at it before the session because I
+am afraid two topics per one slot will be too dense otherwise. I also
+hope this part will be less controversial and the primary point for
+discussion will be on HOW TO GET RID OF the current behavior in a sane
+way rather than WHY TO KEEP IT.
+---
