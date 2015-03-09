@@ -1,86 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 302076B0032
-	for <linux-mm@kvack.org>; Mon,  9 Mar 2015 07:29:46 -0400 (EDT)
-Received: by pdbfl12 with SMTP id fl12so63117444pdb.9
-        for <linux-mm@kvack.org>; Mon, 09 Mar 2015 04:29:45 -0700 (PDT)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id n9si29662551pap.184.2015.03.09.04.29.43
-        for <linux-mm@kvack.org>;
-        Mon, 09 Mar 2015 04:29:44 -0700 (PDT)
-Date: Mon, 9 Mar 2015 22:29:36 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 4/4] mm: numa: Slow PTE scan rate if migration failures
- occur
-Message-ID: <20150309112936.GD26657@destitution>
-References: <1425741651-29152-1-git-send-email-mgorman@suse.de>
- <1425741651-29152-5-git-send-email-mgorman@suse.de>
- <20150307163657.GA9702@gmail.com>
- <CA+55aFwDuzpL-k8LsV3touhNLh+TFSLKP8+-nPwMXkWXDYPhrg@mail.gmail.com>
- <20150308100223.GC15487@gmail.com>
- <CA+55aFyQyZXu2fi7X9bWdSX0utk8=sccfBwFaSoToROXoE_PLA@mail.gmail.com>
+Received: from mail-ie0-f172.google.com (mail-ie0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 67FF36B0032
+	for <linux-mm@kvack.org>; Mon,  9 Mar 2015 08:04:30 -0400 (EDT)
+Received: by iecvy18 with SMTP id vy18so38137744iec.1
+        for <linux-mm@kvack.org>; Mon, 09 Mar 2015 05:04:30 -0700 (PDT)
+Received: from mail-ig0-x22d.google.com (mail-ig0-x22d.google.com. [2607:f8b0:4001:c05::22d])
+        by mx.google.com with ESMTPS id kl11si7063874icb.47.2015.03.09.05.04.29
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 Mar 2015 05:04:29 -0700 (PDT)
+Received: by igal13 with SMTP id l13so18767354iga.1
+        for <linux-mm@kvack.org>; Mon, 09 Mar 2015 05:04:29 -0700 (PDT)
+References: <alpine.DEB.2.10.1503081611290.15536@chino.kir.corp.google.com> <20150309043051.GA13380@node.dhcp.inet.fi> <alpine.DEB.2.10.1503090041120.21058@chino.kir.corp.google.com>
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [patch v2] mm, hugetlb: abort __get_user_pages if current has been oom killed
+In-reply-to: <alpine.DEB.2.10.1503090041120.21058@chino.kir.corp.google.com>
+Date: Mon, 09 Mar 2015 05:04:25 -0700
+Message-ID: <xr93r3synzqu.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFyQyZXu2fi7X9bWdSX0utk8=sccfBwFaSoToROXoE_PLA@mail.gmail.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, xfs@oss.sgi.com, ppc-dev <linuxppc-dev@lists.ozlabs.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sun, Mar 08, 2015 at 11:35:59AM -0700, Linus Torvalds wrote:
-> On Sun, Mar 8, 2015 at 3:02 AM, Ingo Molnar <mingo@kernel.org> wrote:
-> But:
-> 
-> > As a second hack (not to be applied), could we change:
-> >
-> >  #define _PAGE_BIT_PROTNONE      _PAGE_BIT_GLOBAL
-> >
-> > to:
-> >
-> >  #define _PAGE_BIT_PROTNONE      (_PAGE_BIT_GLOBAL+1)
-> >
-> > to double check that the position of the bit does not matter?
-> 
-> Agreed. We should definitely try that.
-> 
-> Dave?
 
-As Mel has already mentioned, I'm in Boston for LSFMM and don't have
-access to the test rig I've used to generate this.
+On Mon, Mar 09 2015, David Rientjes wrote:
 
-> Also, is there some sane way for me to actually see this behavior on a
-> regular machine with just a single socket? Dave is apparently running
-> in some fake-numa setup, I'm wondering if this is easy enough to
-> reproduce that I could see it myself.
+> If __get_user_pages() is faulting a significant number of hugetlb pages,
+> usually as the result of mmap(MAP_LOCKED), it can potentially allocate a
+> very large amount of memory.
+>
+> If the process has been oom killed, this will cause a lot of memory to
+> be overcharged to its memcg since it has access to memory reserves or
+> could potentially deplete all system memory reserves.
 
-Should be - I don't actually use 500TB of storage to generate this -
-50GB on an SSD is all you need from the storage side. I just use a
-sparse backing file to make it look like a 500TB device. :P
+s/memcg/hugetlb_cgroup/ but I don't think hugetlb has any
+fatal_signal_pending() based overcharging.  I no objection to the patch,
+but this doesn't seems like a cgroup thing, so the commit log could
+stand a tweak.
 
-i.e. create an XFS filesystem on a 500TB sparse file with "mkfs.xfs
--d size=500t,file=1 /path/to/file.img", mount it on loopback or as a
-virtio,cache=none device for the guest vm and then use fsmark to
-generate several million files spread across many, many directories
-such as:
-
-$  fs_mark -D 10000 -S0 -n 100000 -s 1 -L 32 -d \
-/mnt/scratch/0 -d /mnt/scratch/1 -d /mnt/scratch/2 -d \
-/mnt/scratch/3 -d /mnt/scratch/4 -d /mnt/scratch/5 -d \
-/mnt/scratch/6 -d /mnt/scratch/7
-
-That should only take a few minutes to run - if you throw 8p at it
-then it should run at >100k files/s being created.
-
-Then unmount and run "xfs_repair -o bhash=101703 /path/to/file.img"
-on the resultant image file.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+> In the same way that commit 4779280d1ea4 ("mm: make get_user_pages() 
+> interruptible") aborted for pending SIGKILLs when faulting non-hugetlb
+> memory, based on the premise of commit 462e00cc7151 ("oom: stop
+> allocating user memory if TIF_MEMDIE is set"), hugetlb page faults now
+> terminate when the process has been oom killed.
+>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: Davidlohr Bueso <dave@stgolabs.net>
+> Cc: "Kirill A. Shutemov" <kirill@shutemov.name>
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  v2: check signal inside follow_huegtlb_page() loop per Kirill
+>
+>  mm/hugetlb.c | 9 +++++++++
+>  1 file changed, 9 insertions(+)
+>
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -3276,6 +3276,15 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  		struct page *page;
+>  
+>  		/*
+> +		 * If we have a pending SIGKILL, don't keep faulting pages and
+> +		 * potentially allocating memory.
+> +		 */
+> +		if (unlikely(fatal_signal_pending(current))) {
+> +			remainder = 0;
+> +			break;
+> +		}
+> +
+> +		/*
+>  		 * Some archs (sparc64, sh*) have multiple pte_ts to
+>  		 * each hugepage.  We have to make sure we get the
+>  		 * first, for the page indexing below to work.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
