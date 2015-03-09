@@ -1,60 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f180.google.com (mail-ie0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 819766B0032
-	for <linux-mm@kvack.org>; Sun,  8 Mar 2015 19:12:15 -0400 (EDT)
-Received: by iecrl12 with SMTP id rl12so15782362iec.8
-        for <linux-mm@kvack.org>; Sun, 08 Mar 2015 16:12:15 -0700 (PDT)
-Received: from mail-ie0-x230.google.com (mail-ie0-x230.google.com. [2607:f8b0:4001:c03::230])
-        by mx.google.com with ESMTPS id h96si7290118iod.13.2015.03.08.16.12.14
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id DCB346B0032
+	for <linux-mm@kvack.org>; Sun,  8 Mar 2015 20:05:17 -0400 (EDT)
+Received: by padbj1 with SMTP id bj1so34530442pad.12
+        for <linux-mm@kvack.org>; Sun, 08 Mar 2015 17:05:17 -0700 (PDT)
+Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
+        by mx.google.com with ESMTPS id y5si26477669pdn.35.2015.03.08.17.05.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 08 Mar 2015 16:12:14 -0700 (PDT)
-Received: by iecrp18 with SMTP id rp18so30568809iec.7
-        for <linux-mm@kvack.org>; Sun, 08 Mar 2015 16:12:14 -0700 (PDT)
-Date: Sun, 8 Mar 2015 16:12:12 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, hugetlb: abort __get_user_pages if current has been oom
- killed
-Message-ID: <alpine.DEB.2.10.1503081611290.15536@chino.kir.corp.google.com>
+        Sun, 08 Mar 2015 17:05:16 -0700 (PDT)
+Received: by paceu11 with SMTP id eu11so54145261pac.1
+        for <linux-mm@kvack.org>; Sun, 08 Mar 2015 17:05:16 -0700 (PDT)
+Date: Mon, 9 Mar 2015 09:05:06 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v2 3/7] zsmalloc: support compaction
+Message-ID: <20150309000506.GA15184@blaptop>
+References: <1425445292-29061-1-git-send-email-minchan@kernel.org>
+ <1425445292-29061-4-git-send-email-minchan@kernel.org>
+ <54F7E719.6070505@samsung.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <54F7E719.6070505@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Heesub Shin <heesub.shin@samsung.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Juneho Choi <juno.choi@lge.com>, Gunho Lee <gunho.lee@lge.com>, Luigi Semenzato <semenzato@google.com>, Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjennings@variantweb.net>, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, opensource.ganesh@gmail.com
 
-If __get_user_pages() is faulting a significant number of hugetlb pages,
-usually as the result of mmap(MAP_LOCKED), it can potentially allocate a
-very large amount of memory.
+Hello Heesub,
 
-If the process has been oom killed, this will cause a lot of memory to
-be overcharged to its memcg since it has access to memory reserves or
-could potentially deplete all system memory reserves.
+On Thu, Mar 05, 2015 at 02:18:17PM +0900, Heesub Shin wrote:
+> Hello Minchan,
+> 
+> Nice work!
 
-In the same way that commit 4779280d1ea4 ("mm: make get_user_pages() 
-interruptible") aborted for pending SIGKILLs when faulting non-hugetlb
-memory, based on the premise of commit 462e00cc7151 ("oom: stop
-allocating user memory if TIF_MEMDIE is set"), hugetlb page faults now
-terminate when the process has been oom killed.
+Thanks. :)
 
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/gup.c | 2 ++
- 1 file changed, 2 insertions(+)
+> 
+> On 03/04/2015 02:01 PM, Minchan Kim wrote:
+> > +static void putback_zspage(struct zs_pool *pool, struct size_class *class,
+> > +				struct page *first_page)
+> > +{
+> > +	int class_idx;
+> > +	enum fullness_group fullness;
+> > +
+> > +	BUG_ON(!is_first_page(first_page));
+> > +
+> > +	get_zspage_mapping(first_page, &class_idx, &fullness);
+> > +	insert_zspage(first_page, class, fullness);
+> > +	fullness = fix_fullness_group(class, first_page);
+> 
+> Removal and re-insertion of zspage above can be eliminated, like this:
+> 
+> 	fullness = get_fullness_group(first_page);
+> 	insert_zspage(first_page, class, fullness);
+> 	set_zspage_mapping(first_page, class->index, fullness);
 
-diff --git a/mm/gup.c b/mm/gup.c
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -457,6 +457,8 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 			if (!vma || check_vma_flags(vma, gup_flags))
- 				return i ? : -EFAULT;
- 			if (is_vm_hugetlb_page(vma)) {
-+				if (unlikely(fatal_signal_pending(current)))
-+					return i ? : -ERESTARTSYS;
- 				i = follow_hugetlb_page(mm, vma, pages, vmas,
- 						&start, &nr_pages, i,
- 						gup_flags);
+True.
+
+Thanks for the review!
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
