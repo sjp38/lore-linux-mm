@@ -1,50 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 823BA6B0083
-	for <linux-mm@kvack.org>; Mon,  9 Mar 2015 17:47:54 -0400 (EDT)
-Received: by qgdz107 with SMTP id z107so32129446qgd.3
-        for <linux-mm@kvack.org>; Mon, 09 Mar 2015 14:47:54 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i90si19539222qge.83.2015.03.09.14.47.52
+Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
+	by kanga.kvack.org (Postfix) with ESMTP id D72C6900018
+	for <linux-mm@kvack.org>; Mon,  9 Mar 2015 18:09:30 -0400 (EDT)
+Received: by labgq15 with SMTP id gq15so221634lab.4
+        for <linux-mm@kvack.org>; Mon, 09 Mar 2015 15:09:30 -0700 (PDT)
+Received: from mail-la0-x22e.google.com (mail-la0-x22e.google.com. [2a00:1450:4010:c03::22e])
+        by mx.google.com with ESMTPS id ld3si6810737lac.55.2015.03.09.15.09.28
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Mar 2015 14:47:53 -0700 (PDT)
-Message-ID: <54FE084A.3060601@redhat.com>
-Date: Mon, 09 Mar 2015 16:53:30 -0400
-From: Rik van Riel <riel@redhat.com>
+        Mon, 09 Mar 2015 15:09:29 -0700 (PDT)
+Received: by labge10 with SMTP id ge10so7046080lab.7
+        for <linux-mm@kvack.org>; Mon, 09 Mar 2015 15:09:28 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [patch v3] mm, hugetlb: abort __get_user_pages if current has
- been oom killed
-References: <alpine.DEB.2.10.1503081611290.15536@chino.kir.corp.google.com> <20150309043051.GA13380@node.dhcp.inet.fi> <alpine.DEB.2.10.1503090041120.21058@chino.kir.corp.google.com> <xr93r3synzqu.fsf@gthelen.mtv.corp.google.com> <alpine.DEB.2.10.1503091307130.10307@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1503091307130.10307@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1425935472-17949-1-git-send-email-kirill@shutemov.name>
+References: <1425935472-17949-1-git-send-email-kirill@shutemov.name>
+Date: Tue, 10 Mar 2015 01:09:28 +0300
+Message-ID: <CALYGNiO44n0QP4Xowk=VaLKSLwQFyXhyEgVLaw13KdO+-LKhDQ@mail.gmail.com>
+Subject: Re: [RFC, PATCH] pagemap: do not leak physical addresses to
+ non-privileged userspace
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Greg Thelen <gthelen@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Davidlohr Bueso <dave@stgolabs.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Pavel Emelyanov <xemul@parallels.com>, Mark Seaborn <mseaborn@chromium.org>, Andy Lutomirski <luto@amacapital.net>
 
-On 03/09/2015 04:07 PM, David Rientjes wrote:
-> If __get_user_pages() is faulting a significant number of hugetlb pages,
-> usually as the result of mmap(MAP_LOCKED), it can potentially allocate a
-> very large amount of memory.
+On Tue, Mar 10, 2015 at 12:11 AM, Kirill A. Shutemov
+<kirill@shutemov.name> wrote:
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 >
-> If the process has been oom killed, this will cause a lot of memory to
-> potentially deplete memory reserves.
+> As pointed by recent post[1] on exploiting DRAM physical imperfection,
+> /proc/PID/pagemap exposes sensitive information which can be used to do
+> attacks.
 >
-> In the same way that commit 4779280d1ea4 ("mm: make get_user_pages()
-> interruptible") aborted for pending SIGKILLs when faulting non-hugetlb
-> memory, based on the premise of commit 462e00cc7151 ("oom: stop
-> allocating user memory if TIF_MEMDIE is set"), hugetlb page faults now
-> terminate when the process has been oom killed.
+> This is RFC patch which disallow anybody without CAP_SYS_ADMIN to read
+> the pagemap.
 >
-> Cc: Greg Thelen <gthelen@google.com>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Davidlohr Bueso <dave@stgolabs.net>
-> Acked-by: "Kirill A. Shutemov" <kirill@shutemov.name>
-> Signed-off-by: David Rientjes <rientjes@google.com>
+> Any comments?
+>
+> [1] http://googleprojectzero.blogspot.com/2015/03/exploiting-dram-rowhammer-bug-to-gain.html
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Pavel Emelyanov <xemul@parallels.com>
+> Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Linus Torvalds <torvalds@linux-foundation.org>
+> Cc: Mark Seaborn <mseaborn@chromium.org>
+> Cc: Andy Lutomirski <luto@amacapital.net>
+> ---
+>  fs/proc/task_mmu.c | 3 +++
+>  1 file changed, 3 insertions(+)
+>
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index 246eae84b13b..b72b36e64286 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -1322,6 +1322,9 @@ out:
+>
+>  static int pagemap_open(struct inode *inode, struct file *file)
+>  {
+> +       /* do not disclose physical addresses: attack vector */
+> +       if (!capable(CAP_SYS_ADMIN))
+> +               return -EPERM;
 
-Acked-by: Rik van Riel <riel@redhat.com>
+This interface is connected to /proc/kpagecount, /proc/kpageflags
+and these files are readable only by root. So it's fine, but it's might
+be better to change here file owner to root too.
+
+>         pr_warn_once("Bits 55-60 of /proc/PID/pagemap entries are about "
+>                         "to stop being page-shift some time soon. See the "
+>                         "linux/Documentation/vm/pagemap.txt for details.\n");
+> --
+> 2.3.1
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
