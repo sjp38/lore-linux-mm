@@ -1,45 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f48.google.com (mail-oi0-f48.google.com [209.85.218.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 257166B0032
-	for <linux-mm@kvack.org>; Mon,  9 Mar 2015 09:43:26 -0400 (EDT)
-Received: by oibg201 with SMTP id g201so29260676oib.10
-        for <linux-mm@kvack.org>; Mon, 09 Mar 2015 06:43:25 -0700 (PDT)
-Received: from m12-15.163.com (m12-15.163.com. [220.181.12.15])
-        by mx.google.com with ESMTP id 70si11399916oic.2.2015.03.09.06.42.36
-        for <linux-mm@kvack.org>;
-        Mon, 09 Mar 2015 06:43:25 -0700 (PDT)
-From: Yaowei Bai <bywxiaobai@163.com>
-Subject: [PATCH] mm/oom_kill.c: fix a typo
-Date: Mon,  9 Mar 2015 21:37:03 +0800
-Message-Id: <1425908223-6509-1-git-send-email-bywxiaobai@163.com>
+Received: from mail-qc0-f177.google.com (mail-qc0-f177.google.com [209.85.216.177])
+	by kanga.kvack.org (Postfix) with ESMTP id D31AC6B0032
+	for <linux-mm@kvack.org>; Mon,  9 Mar 2015 09:52:38 -0400 (EDT)
+Received: by qcxm20 with SMTP id m20so2124744qcx.3
+        for <linux-mm@kvack.org>; Mon, 09 Mar 2015 06:52:38 -0700 (PDT)
+Received: from mail-qg0-x234.google.com (mail-qg0-x234.google.com. [2607:f8b0:400d:c04::234])
+        by mx.google.com with ESMTPS id l1si5954995qkh.110.2015.03.09.06.52.37
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 Mar 2015 06:52:38 -0700 (PDT)
+Received: by qgfi50 with SMTP id i50so28350871qgf.9
+        for <linux-mm@kvack.org>; Mon, 09 Mar 2015 06:52:37 -0700 (PDT)
+Date: Mon, 9 Mar 2015 09:52:34 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] memcg: add per cgroup dirty page accounting
+Message-ID: <20150309135234.GU13283@htj.duckdns.org>
+References: <1425876632-6681-1-git-send-email-gthelen@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1425876632-6681-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mgorman@suse.de, vbabka@suse.cz, hannes@cmpxchg.org, riel@redhat.com, iamjoonsoo.kim@lge.com, rientjes@google.com, sasha.levin@oracle.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Konstantin Khebnikov <khlebnikov@yandex-team.ru>, Dave Chinner <david@fromorbit.com>, Sha Zhengju <handai.szj@gmail.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-Alter 'taks' -> 'task'
+Hello, Greg.
 
-Signed-off-by: Yaowei Bai <bywxiaobai@163.com>
----
- mm/oom_kill.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+On Sun, Mar 08, 2015 at 09:50:32PM -0700, Greg Thelen wrote:
+> When modifying PG_Dirty on cached file pages, update the new
+> MEM_CGROUP_STAT_DIRTY counter.  This is done in the same places where
+> global NR_FILE_DIRTY is managed.  The new memcg stat is visible in the
+> per memcg memory.stat cgroupfs file.  The most recent past attempt at
+> this was http://thread.gmane.org/gmane.linux.kernel.cgroups/8632
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 642f38c..5d6a458 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -408,7 +408,7 @@ bool oom_killer_disabled __read_mostly;
- static DECLARE_RWSEM(oom_sem);
- 
- /**
-- * mark_tsk_oom_victim - marks the given taks as OOM victim.
-+ * mark_tsk_oom_victim - marks the given task as OOM victim.
-  * @tsk: task to mark
-  *
-  * Has to be called with oom_sem taken for read and never after
+Awesome.  I had a similar but inferior (haven't noticed the irqsave
+problem) patch in my series.  Replaced that with this one.  I'm
+getting ready to post the v2 of the cgroup writeback patchset.  Do you
+mind routing this patch together in the patchset?
+
+Thanks.
+
 -- 
-1.9.1
-
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
