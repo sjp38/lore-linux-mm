@@ -1,93 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 8198D6B0032
-	for <linux-mm@kvack.org>; Mon,  9 Mar 2015 13:05:08 -0400 (EDT)
-Received: by pablj1 with SMTP id lj1so64878651pab.10
-        for <linux-mm@kvack.org>; Mon, 09 Mar 2015 10:05:08 -0700 (PDT)
-Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [72.246.2.115])
-        by mx.google.com with ESMTP id uz1si18652041pac.149.2015.03.09.10.05.07
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 237F16B006E
+	for <linux-mm@kvack.org>; Mon,  9 Mar 2015 13:15:34 -0400 (EDT)
+Received: by paceu11 with SMTP id eu11so60177760pac.1
+        for <linux-mm@kvack.org>; Mon, 09 Mar 2015 10:15:33 -0700 (PDT)
+Received: from prod-mail-xrelay02.akamai.com (prod-mail-xrelay02.akamai.com. [72.246.2.14])
+        by mx.google.com with ESMTP id ro12si10791547pab.108.2015.03.09.10.15.32
         for <linux-mm@kvack.org>;
-        Mon, 09 Mar 2015 10:05:07 -0700 (PDT)
-Date: Mon, 9 Mar 2015 13:05:05 -0400
+        Mon, 09 Mar 2015 10:15:33 -0700 (PDT)
 From: Eric B Munson <emunson@akamai.com>
-Subject: Re: [PATCH] Allow compaction of unevictable pages
-Message-ID: <20150309170505.GA2290@akamai.com>
-References: <1425667287-30841-1-git-send-email-emunson@akamai.com>
- <alpine.DEB.2.10.1503061301500.10330@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="OXfL5xGRrasGEqWY"
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1503061301500.10330@chino.kir.corp.google.com>
+Subject: [PATCH V2] Allow compaction of unevictable pages
+Date: Mon,  9 Mar 2015 13:12:36 -0400
+Message-Id: <1425921156-16923-1-git-send-email-emunson@akamai.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <cl@linux.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Eric B Munson <emunson@akamai.com>, Vlastimil Babka <vbabka@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <cl@linux.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+Currently, pages which are marked as unevictable are protected from
+compaction, but not from other types of migration.  The mlock
+desctription does not promise that all page faults will be avoided, only
+major ones so this protection is not necessary.  This extra protection
+can cause problems for applications that are using mlock to avoid
+swapping pages out, but require order > 0 allocations to continue to
+succeed in a fragmented environment.  This patch removes the
+ISOLATE_UNEVICTABLE mode and the check for it in __isolate_lru_page().
 
---OXfL5xGRrasGEqWY
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+To illustrate this problem I wrote a quick test program that mmaps a
+large number of 1MB files filled with random data.  These maps are
+created locked and read only.  Then every other mmap is unmapped and I
+attempt to allocate huge pages to the static huge page pool.  Without
+this patch I am unable to allocate any huge pages after  fragmenting
+memory.  With it, I can allocate almost all the space freed by unmapping
+as huge pages.
 
-On Fri, 06 Mar 2015, David Rientjes wrote:
+Signed-off-by: Eric B Munson <emunson@akamai.com>
 
-> On Fri, 6 Mar 2015, Eric B Munson wrote:
->=20
-> > diff --git a/mm/compaction.c b/mm/compaction.c
-> > index 8c0d945..33c81e1 100644
-> > --- a/mm/compaction.c
-> > +++ b/mm/compaction.c
-> > @@ -1056,7 +1056,7 @@ static isolate_migrate_t isolate_migratepages(str=
-uct zone *zone,
-> >  {
-> >  	unsigned long low_pfn, end_pfn;
-> >  	struct page *page;
-> > -	const isolate_mode_t isolate_mode =3D
-> > +	const isolate_mode_t isolate_mode =3D ISOLATE_UNEVICTABLE |
-> >  		(cc->mode =3D=3D MIGRATE_ASYNC ? ISOLATE_ASYNC_MIGRATE : 0);
-> > =20
-> >  	/*
->=20
-> I agree that memory compaction should be isolating and migrating=20
-> unevictable memory for better results, and we have been running with a=20
-> similar patch internally for about a year for the same purpose as you,=20
-> higher probability of allocating hugepages.
->=20
-> This would be better off removing the notion of ISOLATE_UNEVICTABLE=20
-> entirely, however, since CMA and now memory compaction would be using it,=
-=20
-> so the check in __isolate_lru_page() is no longer necessary.  Has the=20
-> added bonus of removing about 10 lines of soure code.
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 
-Thanks for having a look, I will send out a V2 that removes
-ISOLATE_UNEVICTABLE and the check in __isolate_lru_page().
+---
+ include/linux/mmzone.h |    2 --
+ mm/compaction.c        |    3 +--
+ mm/vmscan.c            |    4 ----
+ 3 files changed, 1 insertion(+), 8 deletions(-)
 
-Eric
-
---OXfL5xGRrasGEqWY
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iQIcBAEBAgAGBQJU/dLBAAoJELbVsDOpoOa9xfIP/R4oju4qqvlAS4eczr2ajl0Y
-ufjDDgBxT/NuKufYKtmMztrSHOItFhIHYnx9zjavYq0C/FL1ajoR9DvjghA/Im78
-pNEL8tk5OzdkPB75bOvNjmTNuNCGZOElGLy50wqBDhO+EHELX3ZycEuuTs8q9kfl
-QmGYxKPEj1X4P1THG4m/823CelitvYgTbyOWr5Jk5qsuAz5K3d1sVFR1nFUyhtGJ
-XirKnwplBMyAEi+FnffWUmmm3qEB/tHOf1dtyzQf5q0pB2luoz72m+Jv/PdgDDmH
-3sFISFUQjjrvPqDC5RGL7GAFpzkj+d2ZGLGUP9i2HhBlU7imPuaEJx6V3N9y545I
-FK+Kao71L3wWEygcE/C5Ldu62lV+RJTAxxkqXY0veel/KmmxfH4ggLPDZq+B4Oym
-g+HahZWMB4+qZDrwXoe9t4zytCZ8u59wKgedtBDBhJq2iZ8dB0M/SVzMaIlZ6d+5
-1qTZU/LGqLX8q63awQ6yGQIkKP9XoOBmJGzuTFDWvGjH6k6xAL5zblbpyNwODoNq
-ZqPv0WZY09zSCaAasncbB/5DrFqPaJlSw75jObdkIJMQ7RY+yhkgnH7aPnPSseYp
-s7+esvkC4wbHOOtA7ayDJGxBLd6sFeaIX4mpFJAlAbJ4NmSp6mowtDNspaataX5e
-HlqGCxo8cAGonbXEFJ4a
-=5YZm
------END PGP SIGNATURE-----
-
---OXfL5xGRrasGEqWY--
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index f279d9c..599fb01 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -232,8 +232,6 @@ struct lruvec {
+ #define ISOLATE_UNMAPPED	((__force isolate_mode_t)0x2)
+ /* Isolate for asynchronous migration */
+ #define ISOLATE_ASYNC_MIGRATE	((__force isolate_mode_t)0x4)
+-/* Isolate unevictable pages */
+-#define ISOLATE_UNEVICTABLE	((__force isolate_mode_t)0x8)
+ 
+ /* LRU Isolation modes. */
+ typedef unsigned __bitwise__ isolate_mode_t;
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 8c0d945..4a8ea87 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -872,8 +872,7 @@ isolate_migratepages_range(struct compact_control *cc, unsigned long start_pfn,
+ 		if (!pageblock_pfn_to_page(pfn, block_end_pfn, cc->zone))
+ 			continue;
+ 
+-		pfn = isolate_migratepages_block(cc, pfn, block_end_pfn,
+-							ISOLATE_UNEVICTABLE);
++		pfn = isolate_migratepages_block(cc, pfn, block_end_pfn, 0);
+ 
+ 		/*
+ 		 * In case of fatal failure, release everything that might
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 5e8eadd..3b2a444 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1234,10 +1234,6 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode)
+ 	if (!PageLRU(page))
+ 		return ret;
+ 
+-	/* Compaction should not handle unevictable pages but CMA can do so */
+-	if (PageUnevictable(page) && !(mode & ISOLATE_UNEVICTABLE))
+-		return ret;
+-
+ 	ret = -EBUSY;
+ 
+ 	/*
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
