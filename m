@@ -1,59 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AF7F6B0032
-	for <linux-mm@kvack.org>; Sun,  8 Mar 2015 20:57:42 -0400 (EDT)
-Received: by pabli10 with SMTP id li10so68341842pab.13
-        for <linux-mm@kvack.org>; Sun, 08 Mar 2015 17:57:42 -0700 (PDT)
-Received: from mail-pd0-x233.google.com (mail-pd0-x233.google.com. [2607:f8b0:400e:c02::233])
-        by mx.google.com with ESMTPS id di4si3745392pad.57.2015.03.08.17.57.41
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E02A6B0032
+	for <linux-mm@kvack.org>; Sun,  8 Mar 2015 23:17:28 -0400 (EDT)
+Received: by wghl18 with SMTP id l18so24705736wgh.5
+        for <linux-mm@kvack.org>; Sun, 08 Mar 2015 20:17:27 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id dk4si22680961wib.95.2015.03.08.20.17.26
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 08 Mar 2015 17:57:41 -0700 (PDT)
-Received: by pdev10 with SMTP id v10so30404673pde.13
-        for <linux-mm@kvack.org>; Sun, 08 Mar 2015 17:57:41 -0700 (PDT)
-Date: Mon, 9 Mar 2015 09:57:34 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC V3] mm: change mm_advise_free to clear page dirty
-Message-ID: <20150309005734.GC15184@blaptop>
-References: <20150303032537.GA25015@blaptop>
- <20150305153505.GD19347@dhcp22.suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 08 Mar 2015 20:17:26 -0700 (PDT)
+Message-ID: <54FD10BF.3010709@suse.cz>
+Date: Mon, 09 Mar 2015 04:17:19 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150305153505.GD19347@dhcp22.suse.cz>
+Subject: Re: [RFC 0/6] the big khugepaged redesign
+References: <1424696322-21952-1-git-send-email-vbabka@suse.cz> <1424731603.6539.51.camel@stgolabs.net>
+In-Reply-To: <1424731603.6539.51.camel@stgolabs.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: "Wang, Yalin" <Yalin.Wang@sonymobile.com>, 'Andrew Morton' <akpm@linux-foundation.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, 'Rik van Riel' <riel@redhat.com>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Mel Gorman' <mgorman@suse.de>, 'Shaohua Li' <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Cyrill Gorcunov <gorcunov@gmail.com>
+To: Davidlohr Bueso <dave@stgolabs.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Alex Thorlton <athorlton@sgi.com>, David Rientjes <rientjes@google.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>
 
-Hello Michal,
+On 02/23/2015 11:46 PM, Davidlohr Bueso wrote:
+> On Mon, 2015-02-23 at 13:58 +0100, Vlastimil Babka wrote:
+>> Recently, there was concern expressed (e.g. [1]) whether the quite aggressive
+>> THP allocation attempts on page faults are a good performance trade-off.
+>>
+>> - THP allocations add to page fault latency, as high-order allocations are
+>>    notoriously expensive. Page allocation slowpath now does extra checks for
+>>    GFP_TRANSHUGE && !PF_KTHREAD to avoid the more expensive synchronous
+>>    compaction for user page faults. But even async compaction can be expensive.
+>> - During the first page fault in a 2MB range we cannot predict how much of the
+>>    range will be actually accessed - we can theoretically waste as much as 511
+>>    worth of pages [2]. Or, the pages in the range might be accessed from CPUs
+>>    from different NUMA nodes and while base pages could be all local, THP could
+>>    be remote to all but one CPU. The cost of remote accesses due to this false
+>>    sharing would be higher than any savings on the TLB.
+>> - The interaction with memcg are also problematic [1].
+>>
+>> Now I don't have any hard data to show how big these problems are, and I
+>> expect we will discuss this on LSF/MM (and hope somebody has such data [3]).
+>> But it's certain that e.g. SAP recommends to disable THPs [4] for their apps
+>> for performance reasons.
+>
+> There are plenty of examples of this, ie for Oracle:
+>
+> https://blogs.oracle.com/linux/entry/performance_issues_with_transparent_huge
+> http://oracle-base.com/articles/linux/configuring-huge-pages-for-oracle-on-linux-64.php
 
-On Thu, Mar 05, 2015 at 04:35:05PM +0100, Michal Hocko wrote:
-> On Tue 03-03-15 12:25:51, Minchan Kim wrote:
-> [...]
-> > From 30c6d5b35a3dc7e451041183ce5efd6a6c42bf88 Mon Sep 17 00:00:00 2001
-> > From: Minchan Kim <minchan@kernel.org>
-> > Date: Tue, 3 Mar 2015 10:06:59 +0900
-> > Subject: [RFC] mm: make every pte dirty on do_swap_page
-> 
-> Hi Minchan, could you resend this patch separately. I am afraid that
-> this one got so convoluted with originally unrelated issues that
-> people might miss it.
-> 
-> Thanks!
+Just stumbled upon more references when catching up on lwn:
 
-No problem. Thanks for the review.
-I will resend it this week but I'm afraid everybody will be in LSF/MM
-so they will be busy with hardwork in there. :)
-
-
-> -- 
-> Michal Hocko
-> SUSE Labs
-
--- 
-Kind regards,
-Minchan Kim
+http://lwn.net/Articles/634797/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
