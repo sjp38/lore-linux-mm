@@ -1,51 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
-	by kanga.kvack.org (Postfix) with ESMTP id B2BF86B0032
-	for <linux-mm@kvack.org>; Mon,  9 Mar 2015 12:52:19 -0400 (EDT)
-Received: by igbhn18 with SMTP id hn18so22681855igb.2
-        for <linux-mm@kvack.org>; Mon, 09 Mar 2015 09:52:19 -0700 (PDT)
-Received: from mail-ie0-x234.google.com (mail-ie0-x234.google.com. [2607:f8b0:4001:c03::234])
-        by mx.google.com with ESMTPS id dy6si13412852icb.37.2015.03.09.09.52.19
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Mar 2015 09:52:19 -0700 (PDT)
-Received: by iecrd18 with SMTP id rd18so14150700iec.12
-        for <linux-mm@kvack.org>; Mon, 09 Mar 2015 09:52:19 -0700 (PDT)
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 8198D6B0032
+	for <linux-mm@kvack.org>; Mon,  9 Mar 2015 13:05:08 -0400 (EDT)
+Received: by pablj1 with SMTP id lj1so64878651pab.10
+        for <linux-mm@kvack.org>; Mon, 09 Mar 2015 10:05:08 -0700 (PDT)
+Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [72.246.2.115])
+        by mx.google.com with ESMTP id uz1si18652041pac.149.2015.03.09.10.05.07
+        for <linux-mm@kvack.org>;
+        Mon, 09 Mar 2015 10:05:07 -0700 (PDT)
+Date: Mon, 9 Mar 2015 13:05:05 -0400
+From: Eric B Munson <emunson@akamai.com>
+Subject: Re: [PATCH] Allow compaction of unevictable pages
+Message-ID: <20150309170505.GA2290@akamai.com>
+References: <1425667287-30841-1-git-send-email-emunson@akamai.com>
+ <alpine.DEB.2.10.1503061301500.10330@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20150309112936.GD26657@destitution>
-References: <1425741651-29152-1-git-send-email-mgorman@suse.de>
-	<1425741651-29152-5-git-send-email-mgorman@suse.de>
-	<20150307163657.GA9702@gmail.com>
-	<CA+55aFwDuzpL-k8LsV3touhNLh+TFSLKP8+-nPwMXkWXDYPhrg@mail.gmail.com>
-	<20150308100223.GC15487@gmail.com>
-	<CA+55aFyQyZXu2fi7X9bWdSX0utk8=sccfBwFaSoToROXoE_PLA@mail.gmail.com>
-	<20150309112936.GD26657@destitution>
-Date: Mon, 9 Mar 2015 09:52:18 -0700
-Message-ID: <CA+55aFywW5JLq=BU_qb2OG5+pJ-b1v9tiS5Ygi-vtEKbEZ_T5Q@mail.gmail.com>
-Subject: Re: [PATCH 4/4] mm: numa: Slow PTE scan rate if migration failures occur
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="OXfL5xGRrasGEqWY"
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1503061301500.10330@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Ingo Molnar <mingo@kernel.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, xfs@oss.sgi.com, ppc-dev <linuxppc-dev@lists.ozlabs.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <cl@linux.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Mar 9, 2015 at 4:29 AM, Dave Chinner <david@fromorbit.com> wrote:
->
->> Also, is there some sane way for me to actually see this behavior on a
->> regular machine with just a single socket? Dave is apparently running
->> in some fake-numa setup, I'm wondering if this is easy enough to
->> reproduce that I could see it myself.
->
-> Should be - I don't actually use 500TB of storage to generate this -
-> 50GB on an SSD is all you need from the storage side. I just use a
-> sparse backing file to make it look like a 500TB device. :P
 
-What's your virtual environment setup? Kernel config, and
-virtualization environment to actually get that odd fake NUMA thing
-happening?
+--OXfL5xGRrasGEqWY
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-                          Linus
+On Fri, 06 Mar 2015, David Rientjes wrote:
+
+> On Fri, 6 Mar 2015, Eric B Munson wrote:
+>=20
+> > diff --git a/mm/compaction.c b/mm/compaction.c
+> > index 8c0d945..33c81e1 100644
+> > --- a/mm/compaction.c
+> > +++ b/mm/compaction.c
+> > @@ -1056,7 +1056,7 @@ static isolate_migrate_t isolate_migratepages(str=
+uct zone *zone,
+> >  {
+> >  	unsigned long low_pfn, end_pfn;
+> >  	struct page *page;
+> > -	const isolate_mode_t isolate_mode =3D
+> > +	const isolate_mode_t isolate_mode =3D ISOLATE_UNEVICTABLE |
+> >  		(cc->mode =3D=3D MIGRATE_ASYNC ? ISOLATE_ASYNC_MIGRATE : 0);
+> > =20
+> >  	/*
+>=20
+> I agree that memory compaction should be isolating and migrating=20
+> unevictable memory for better results, and we have been running with a=20
+> similar patch internally for about a year for the same purpose as you,=20
+> higher probability of allocating hugepages.
+>=20
+> This would be better off removing the notion of ISOLATE_UNEVICTABLE=20
+> entirely, however, since CMA and now memory compaction would be using it,=
+=20
+> so the check in __isolate_lru_page() is no longer necessary.  Has the=20
+> added bonus of removing about 10 lines of soure code.
+
+Thanks for having a look, I will send out a V2 that removes
+ISOLATE_UNEVICTABLE and the check in __isolate_lru_page().
+
+Eric
+
+--OXfL5xGRrasGEqWY
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQIcBAEBAgAGBQJU/dLBAAoJELbVsDOpoOa9xfIP/R4oju4qqvlAS4eczr2ajl0Y
+ufjDDgBxT/NuKufYKtmMztrSHOItFhIHYnx9zjavYq0C/FL1ajoR9DvjghA/Im78
+pNEL8tk5OzdkPB75bOvNjmTNuNCGZOElGLy50wqBDhO+EHELX3ZycEuuTs8q9kfl
+QmGYxKPEj1X4P1THG4m/823CelitvYgTbyOWr5Jk5qsuAz5K3d1sVFR1nFUyhtGJ
+XirKnwplBMyAEi+FnffWUmmm3qEB/tHOf1dtyzQf5q0pB2luoz72m+Jv/PdgDDmH
+3sFISFUQjjrvPqDC5RGL7GAFpzkj+d2ZGLGUP9i2HhBlU7imPuaEJx6V3N9y545I
+FK+Kao71L3wWEygcE/C5Ldu62lV+RJTAxxkqXY0veel/KmmxfH4ggLPDZq+B4Oym
+g+HahZWMB4+qZDrwXoe9t4zytCZ8u59wKgedtBDBhJq2iZ8dB0M/SVzMaIlZ6d+5
+1qTZU/LGqLX8q63awQ6yGQIkKP9XoOBmJGzuTFDWvGjH6k6xAL5zblbpyNwODoNq
+ZqPv0WZY09zSCaAasncbB/5DrFqPaJlSw75jObdkIJMQ7RY+yhkgnH7aPnPSseYp
+s7+esvkC4wbHOOtA7ayDJGxBLd6sFeaIX4mpFJAlAbJ4NmSp6mowtDNspaataX5e
+HlqGCxo8cAGonbXEFJ4a
+=5YZm
+-----END PGP SIGNATURE-----
+
+--OXfL5xGRrasGEqWY--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
