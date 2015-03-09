@@ -1,58 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E02A6B0032
-	for <linux-mm@kvack.org>; Sun,  8 Mar 2015 23:17:28 -0400 (EDT)
-Received: by wghl18 with SMTP id l18so24705736wgh.5
-        for <linux-mm@kvack.org>; Sun, 08 Mar 2015 20:17:27 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id dk4si22680961wib.95.2015.03.08.20.17.26
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 08 Mar 2015 20:17:26 -0700 (PDT)
-Message-ID: <54FD10BF.3010709@suse.cz>
-Date: Mon, 09 Mar 2015 04:17:19 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 025D56B0032
+	for <linux-mm@kvack.org>; Mon,  9 Mar 2015 00:30:57 -0400 (EDT)
+Received: by wghl18 with SMTP id l18so24928809wgh.5
+        for <linux-mm@kvack.org>; Sun, 08 Mar 2015 21:30:56 -0700 (PDT)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.203])
+        by mx.google.com with ESMTP id q7si29036304wjq.201.2015.03.08.21.30.54
+        for <linux-mm@kvack.org>;
+        Sun, 08 Mar 2015 21:30:55 -0700 (PDT)
+Date: Mon, 9 Mar 2015 06:30:51 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [patch] mm, hugetlb: abort __get_user_pages if current has been
+ oom killed
+Message-ID: <20150309043051.GA13380@node.dhcp.inet.fi>
+References: <alpine.DEB.2.10.1503081611290.15536@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [RFC 0/6] the big khugepaged redesign
-References: <1424696322-21952-1-git-send-email-vbabka@suse.cz> <1424731603.6539.51.camel@stgolabs.net>
-In-Reply-To: <1424731603.6539.51.camel@stgolabs.net>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1503081611290.15536@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <dave@stgolabs.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Alex Thorlton <athorlton@sgi.com>, David Rientjes <rientjes@google.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 02/23/2015 11:46 PM, Davidlohr Bueso wrote:
-> On Mon, 2015-02-23 at 13:58 +0100, Vlastimil Babka wrote:
->> Recently, there was concern expressed (e.g. [1]) whether the quite aggressive
->> THP allocation attempts on page faults are a good performance trade-off.
->>
->> - THP allocations add to page fault latency, as high-order allocations are
->>    notoriously expensive. Page allocation slowpath now does extra checks for
->>    GFP_TRANSHUGE && !PF_KTHREAD to avoid the more expensive synchronous
->>    compaction for user page faults. But even async compaction can be expensive.
->> - During the first page fault in a 2MB range we cannot predict how much of the
->>    range will be actually accessed - we can theoretically waste as much as 511
->>    worth of pages [2]. Or, the pages in the range might be accessed from CPUs
->>    from different NUMA nodes and while base pages could be all local, THP could
->>    be remote to all but one CPU. The cost of remote accesses due to this false
->>    sharing would be higher than any savings on the TLB.
->> - The interaction with memcg are also problematic [1].
->>
->> Now I don't have any hard data to show how big these problems are, and I
->> expect we will discuss this on LSF/MM (and hope somebody has such data [3]).
->> But it's certain that e.g. SAP recommends to disable THPs [4] for their apps
->> for performance reasons.
->
-> There are plenty of examples of this, ie for Oracle:
->
-> https://blogs.oracle.com/linux/entry/performance_issues_with_transparent_huge
-> http://oracle-base.com/articles/linux/configuring-huge-pages-for-oracle-on-linux-64.php
+On Sun, Mar 08, 2015 at 04:12:12PM -0700, David Rientjes wrote:
+> If __get_user_pages() is faulting a significant number of hugetlb pages,
+> usually as the result of mmap(MAP_LOCKED), it can potentially allocate a
+> very large amount of memory.
+> 
+> If the process has been oom killed, this will cause a lot of memory to
+> be overcharged to its memcg since it has access to memory reserves or
+> could potentially deplete all system memory reserves.
+> 
+> In the same way that commit 4779280d1ea4 ("mm: make get_user_pages() 
+> interruptible") aborted for pending SIGKILLs when faulting non-hugetlb
+> memory, based on the premise of commit 462e00cc7151 ("oom: stop
+> allocating user memory if TIF_MEMDIE is set"), hugetlb page faults now
+> terminate when the process has been oom killed.
+> 
+> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  mm/gup.c | 2 ++
+>  1 file changed, 2 insertions(+)
+> 
+> diff --git a/mm/gup.c b/mm/gup.c
+> --- a/mm/gup.c
+> +++ b/mm/gup.c
+> @@ -457,6 +457,8 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>  			if (!vma || check_vma_flags(vma, gup_flags))
+>  				return i ? : -EFAULT;
+>  			if (is_vm_hugetlb_page(vma)) {
+> +				if (unlikely(fatal_signal_pending(current)))
+> +					return i ? : -ERESTARTSYS;
+>  				i = follow_hugetlb_page(mm, vma, pages, vmas,
+>  						&start, &nr_pages, i,
+>  						gup_flags);
 
-Just stumbled upon more references when catching up on lwn:
+Shouldn't the check be inside loop in follow_hugetlb_page()?
+IIUC, it wouldn't help much if nr_pages and hugetlb vma are big enough.
 
-http://lwn.net/Articles/634797/
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
