@@ -1,60 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
-	by kanga.kvack.org (Postfix) with ESMTP id E94836B0032
-	for <linux-mm@kvack.org>; Mon,  9 Mar 2015 11:31:21 -0400 (EDT)
-Received: by qgdz60 with SMTP id z60so29269236qgd.5
-        for <linux-mm@kvack.org>; Mon, 09 Mar 2015 08:31:21 -0700 (PDT)
-Received: from mail-qc0-x229.google.com (mail-qc0-x229.google.com. [2607:f8b0:400d:c01::229])
-        by mx.google.com with ESMTPS id e25si15392404qkh.43.2015.03.09.08.31.20
+Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
+	by kanga.kvack.org (Postfix) with ESMTP id B2BF86B0032
+	for <linux-mm@kvack.org>; Mon,  9 Mar 2015 12:52:19 -0400 (EDT)
+Received: by igbhn18 with SMTP id hn18so22681855igb.2
+        for <linux-mm@kvack.org>; Mon, 09 Mar 2015 09:52:19 -0700 (PDT)
+Received: from mail-ie0-x234.google.com (mail-ie0-x234.google.com. [2607:f8b0:4001:c03::234])
+        by mx.google.com with ESMTPS id dy6si13412852icb.37.2015.03.09.09.52.19
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Mar 2015 08:31:20 -0700 (PDT)
-Received: by qcvp6 with SMTP id p6so5915178qcv.5
-        for <linux-mm@kvack.org>; Mon, 09 Mar 2015 08:31:20 -0700 (PDT)
-Date: Mon, 9 Mar 2015 11:31:16 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] memcg: add per cgroup dirty page accounting
-Message-ID: <20150309153116.GV13283@htj.duckdns.org>
-References: <1425876632-6681-1-git-send-email-gthelen@google.com>
- <20150309135234.GU13283@htj.duckdns.org>
- <CAHH2K0aFJ1Ti+gWkHM1VC=mdLZQE2Yn+8gpvthOnv89DjmVAAQ@mail.gmail.com>
+        Mon, 09 Mar 2015 09:52:19 -0700 (PDT)
+Received: by iecrd18 with SMTP id rd18so14150700iec.12
+        for <linux-mm@kvack.org>; Mon, 09 Mar 2015 09:52:19 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAHH2K0aFJ1Ti+gWkHM1VC=mdLZQE2Yn+8gpvthOnv89DjmVAAQ@mail.gmail.com>
+In-Reply-To: <20150309112936.GD26657@destitution>
+References: <1425741651-29152-1-git-send-email-mgorman@suse.de>
+	<1425741651-29152-5-git-send-email-mgorman@suse.de>
+	<20150307163657.GA9702@gmail.com>
+	<CA+55aFwDuzpL-k8LsV3touhNLh+TFSLKP8+-nPwMXkWXDYPhrg@mail.gmail.com>
+	<20150308100223.GC15487@gmail.com>
+	<CA+55aFyQyZXu2fi7X9bWdSX0utk8=sccfBwFaSoToROXoE_PLA@mail.gmail.com>
+	<20150309112936.GD26657@destitution>
+Date: Mon, 9 Mar 2015 09:52:18 -0700
+Message-ID: <CA+55aFywW5JLq=BU_qb2OG5+pJ-b1v9tiS5Ygi-vtEKbEZ_T5Q@mail.gmail.com>
+Subject: Re: [PATCH 4/4] mm: numa: Slow PTE scan rate if migration failures occur
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Konstantin Khebnikov <khlebnikov@yandex-team.ru>, Dave Chinner <david@fromorbit.com>, Sha Zhengju <handai.szj@gmail.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Ingo Molnar <mingo@kernel.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, xfs@oss.sgi.com, ppc-dev <linuxppc-dev@lists.ozlabs.org>
 
-On Mon, Mar 09, 2015 at 11:29:05AM -0400, Greg Thelen wrote:
-> On Mon, Mar 9, 2015 at 9:52 AM, Tejun Heo <tj@kernel.org> wrote:
-> > Hello, Greg.
-> >
-> > On Sun, Mar 08, 2015 at 09:50:32PM -0700, Greg Thelen wrote:
-> >> When modifying PG_Dirty on cached file pages, update the new
-> >> MEM_CGROUP_STAT_DIRTY counter.  This is done in the same places where
-> >> global NR_FILE_DIRTY is managed.  The new memcg stat is visible in the
-> >> per memcg memory.stat cgroupfs file.  The most recent past attempt at
-> >> this was http://thread.gmane.org/gmane.linux.kernel.cgroups/8632
-> >
-> > Awesome.  I had a similar but inferior (haven't noticed the irqsave
-> > problem) patch in my series.  Replaced that with this one.  I'm
-> > getting ready to post the v2 of the cgroup writeback patchset.  Do you
-> > mind routing this patch together in the patchset?
-> 
-> I don't object to routing this patch with the larger writeback series.
-> But I do have small concern that merging the writeback series might
-> take a while and this patch has independent value.  For now, I'd say:
-> go for it.  If the series gets stalled we might want to split it off.
+On Mon, Mar 9, 2015 at 4:29 AM, Dave Chinner <david@fromorbit.com> wrote:
+>
+>> Also, is there some sane way for me to actually see this behavior on a
+>> regular machine with just a single socket? Dave is apparently running
+>> in some fake-numa setup, I'm wondering if this is easy enough to
+>> reproduce that I could see it myself.
+>
+> Should be - I don't actually use 500TB of storage to generate this -
+> 50GB on an SSD is all you need from the storage side. I just use a
+> sparse backing file to make it look like a 500TB device. :P
 
-Yeah, sure, either is fine for me.  Hmm... I'm gonna move this patch
-to the head of the series so that it can go either way.
+What's your virtual environment setup? Kernel config, and
+virtualization environment to actually get that odd fake NUMA thing
+happening?
 
-Thanks.
-
--- 
-tejun
+                          Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
