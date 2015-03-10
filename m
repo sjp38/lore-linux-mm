@@ -1,61 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 357BA900020
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2015 07:22:35 -0400 (EDT)
-Received: by wiwh11 with SMTP id h11so2008685wiw.5
-        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 04:22:34 -0700 (PDT)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id dk4si1087744wib.95.2015.03.10.04.22.33
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id C36FD900020
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2015 09:03:27 -0400 (EDT)
+Received: by obcwp4 with SMTP id wp4so1316894obc.4
+        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 06:03:27 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id s5si709437pdc.152.2015.03.10.06.03.26
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Mar 2015 04:22:33 -0700 (PDT)
-Date: Tue, 10 Mar 2015 12:22:20 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH V3] Allow compaction of unevictable pages
-Message-ID: <20150310112220.GW2896@worktop.programming.kicks-ass.net>
-References: <1425934123-30591-1-git-send-email-emunson@akamai.com>
+        Tue, 10 Mar 2015 06:03:26 -0700 (PDT)
+Date: Tue, 10 Mar 2015 06:03:23 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [RFC] shmem: Add eventfd notification on utlilization level
+Message-ID: <20150310130323.GA1515@infradead.org>
+References: <1423666208-10681-1-git-send-email-k.kozlowski@samsung.com>
+ <1423666208-10681-2-git-send-email-k.kozlowski@samsung.com>
+ <CAH9JG2X5qO418qp3_ZAvwE7LPe6YC_FdKkOwHtpYxzqZkUvB_w@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1425934123-30591-1-git-send-email-emunson@akamai.com>
+In-Reply-To: <CAH9JG2X5qO418qp3_ZAvwE7LPe6YC_FdKkOwHtpYxzqZkUvB_w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric B Munson <emunson@akamai.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Kyungmin Park <kmpark@infradead.org>
+Cc: Krzysztof Kozlowski <k.kozlowski@samsung.com>, Hugh Dickins <hughd@google.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Linux Filesystem Mailing List <linux-fsdevel@vger.kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Jan Kara <jack@suse.cz>
 
-On Mon, Mar 09, 2015 at 04:48:43PM -0400, Eric B Munson wrote:
-> Currently, pages which are marked as unevictable are protected from
-> compaction, but not from other types of migration.  The mlock
-> desctription does not promise that all page faults will be avoided, only
-> major ones so this protection is not necessary.  This extra protection
-> can cause problems for applications that are using mlock to avoid
-> swapping pages out, but require order > 0 allocations to continue to
-> succeed in a fragmented environment.  This patch removes the
-> ISOLATE_UNEVICTABLE mode and the check for it in __isolate_lru_page().
-> Removing this check allows the removal of the isolate_mode argument from
-> isolate_migratepages_block() because it can compute the required mode
-> from the compact_control structure.
-> 
-> To illustrate this problem I wrote a quick test program that mmaps a
-> large number of 1MB files filled with random data.  These maps are
-> created locked and read only.  Then every other mmap is unmapped and I
-> attempt to allocate huge pages to the static huge page pool.  Without
-> this patch I am unable to allocate any huge pages after  fragmenting
-> memory.  With it, I can allocate almost all the space freed by unmapping
-> as huge pages.
+On Tue, Mar 10, 2015 at 10:51:41AM +0900, Kyungmin Park wrote:
+> Any updates?
 
-So mlock() is part of the POSIX real-time spec. For real-time purposes
-we very much do _NOT_ want page migration to happen.
-
-So while you might be following the letter of the spec you're very much
-violating the spirit of the thing.
-
-Also, there is another solution to your problem; you can compact
-mlock'ed pages at mlock() time.
-
-Furthermore, I would once again like to remind people of my VM_PINNED
-patches. The only thing that needs happening there is someone needs to
-deobfuscate the IB code.
+Please just add disk quota support to tmpfs so thast the standard quota
+netlink notifications can be used.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
