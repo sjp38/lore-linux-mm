@@ -1,44 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B06490001E
-	for <linux-mm@kvack.org>; Mon,  9 Mar 2015 22:36:17 -0400 (EDT)
-Received: by pabrd3 with SMTP id rd3so43878470pab.6
-        for <linux-mm@kvack.org>; Mon, 09 Mar 2015 19:36:17 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id n10si34148405pap.21.2015.03.09.19.36.15
-        for <linux-mm@kvack.org>;
-        Mon, 09 Mar 2015 19:36:16 -0700 (PDT)
-Message-ID: <54FE589C.1050705@linux.intel.com>
-Date: Mon, 09 Mar 2015 19:36:12 -0700
-From: Dave Hansen <dave.hansen@linux.intel.com>
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id B940D6B0080
+	for <linux-mm@kvack.org>; Mon,  9 Mar 2015 23:15:29 -0400 (EDT)
+Received: by widem10 with SMTP id em10so12127762wid.2
+        for <linux-mm@kvack.org>; Mon, 09 Mar 2015 20:15:29 -0700 (PDT)
+Received: from mail-we0-x22a.google.com (mail-we0-x22a.google.com. [2a00:1450:400c:c03::22a])
+        by mx.google.com with ESMTPS id ey12si1989942wid.77.2015.03.09.20.15.28
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 Mar 2015 20:15:28 -0700 (PDT)
+Received: by wesq59 with SMTP id q59so23134751wes.9
+        for <linux-mm@kvack.org>; Mon, 09 Mar 2015 20:15:27 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [RFC, PATCH] pagemap: do not leak physical addresses to non-privileged
- userspace
-References: <1425935472-17949-1-git-send-email-kirill@shutemov.name> <CAGXu5jLvHa0fAV9sBwW5AvzkJY1AvQyhBmrRHLZWAtw5=-9aZg@mail.gmail.com> <CALCETrU_3FS6B7LtkAwdC3e8xfiwdhPjkVWPgxP1Vy2uPeqMtA@mail.gmail.com>
-In-Reply-To: <CALCETrU_3FS6B7LtkAwdC3e8xfiwdhPjkVWPgxP1Vy2uPeqMtA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Date: Mon, 9 Mar 2015 20:15:27 -0700
+Message-ID: <CAN3bvwucTo41Kk+NdUf8Fa_bkVWyeMcRo2ttAJeDM0G9bHjLiw@mail.gmail.com>
+Subject: Greedy kswapd reclaim behavior
+From: Lock Free <atomiclong64@gmail.com>
+Content-Type: multipart/alternative; boundary=047d7bf10b1cfef9d10510e68f9c
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>, Kees Cook <keescook@chromium.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, "Eric W. Biederman" <ebiederm@xmission.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Pavel Emelyanov <xemul@parallels.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Mark Seaborn <mseaborn@chromium.org>
+To: linux-mm@kvack.org
 
-On 03/09/2015 05:19 PM, Andy Lutomirski wrote:
-> per-pidns like this is no good.  You shouldn't be able to create a
-> non-paranoid pidns if your parent is paranoid.
+--047d7bf10b1cfef9d10510e68f9c
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-That sounds like a reasonable addition that shouldn't be hard to add.
+I'm trying to explain swapping out behavior that is causing
+unpredictability in our app.  We=E2=80=99re running redhat kernel 2.6.32-43=
+1 (yes
+older) on a host that has 24GB of physical memory and a swap space of 4GB.
+Swappiness is set to 10, min_free_kbytes is 90112.   Over time free memory
+drop down to ~180MB due to filesystem usage over a few hours, which is
+immediately followed by 2GB or 4GB of memory being reclaimed.  We expect
+the free memory to be used by the file system cache, and also expect kswapd
+to be triggered when min_free_kbytes is breached.  However what was not
+expected was the 2-4GB of memory being reclaimed.  Our understanding is
+once free memory hits high water mark which is 2 x min_free_kbytes, kswapd
+duty cycle finishes.   2-3GB is usually the file system cache pages,
+however the other 1-2GB are anonymous pages.  It=E2=80=99s a issue for us t=
+o see
+the anonymous pages swapped out because they correspond to a process (JVM)
+whose performance is important to us.  This process virtual and resident
+size is static at 15GB.  Why is kswapd so aggressive in reclaiming pages
+when it clearly reclaimed more than high water immediately after the FS
+cache was flushed?  Is this by design?
 
-> Also, at some point we need actual per-ns controls.  This mount option
-> stuff is hideous.
+--047d7bf10b1cfef9d10510e68f9c
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-So,
+<div dir=3D"ltr">
 
-	per-pidns == bad
-	per-ns == good
 
-If the pid namespace is the wrong place, which namespace is the right place?
 
+
+
+
+
+<p class=3D"">I&#39;m trying to explain swapping out behavior that is causi=
+ng unpredictability in our app.=C2=A0 We=E2=80=99re running redhat kernel 2=
+.6.32-431 (yes older) on a host that has 24GB of physical memory and a swap=
+ space of 4GB.=C2=A0 Swappiness is set to 10, min_free_kbytes is 90112. =C2=
+=A0 Over time free memory drop down to ~180MB due to filesystem usage over =
+a few hours, which is immediately followed by 2GB or 4GB of memory being re=
+claimed.=C2=A0 We expect the free memory to be used by the file system cach=
+e, and also expect kswapd to be triggered when min_free_kbytes is breached.=
+=C2=A0 However what was not expected was the 2-4GB of memory being reclaime=
+d.=C2=A0 Our understanding is once free memory hits high water mark which i=
+s 2 x min_free_kbytes, kswapd duty cycle finishes. =C2=A0 2-3GB is usually =
+the file system cache pages, however the other 1-2GB are anonymous pages.=
+=C2=A0 It=E2=80=99s a issue for us to see the anonymous pages swapped out b=
+ecause they correspond to a process (JVM) whose performance is important to=
+ us.=C2=A0 This process virtual and resident size is static at 15GB.=C2=A0 =
+Why is kswapd so aggressive in reclaiming pages when it clearly reclaimed m=
+ore than high water immediately after the FS cache was flushed?=C2=A0 Is th=
+is by design?</p></div>
+
+--047d7bf10b1cfef9d10510e68f9c--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
