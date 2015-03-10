@@ -1,91 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 51932900020
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2015 09:28:16 -0400 (EDT)
-Received: by pdjp10 with SMTP id p10so1694991pdj.10
-        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 06:28:16 -0700 (PDT)
-Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
-        by mx.google.com with ESMTPS id g12si1059084pat.50.2015.03.10.06.28.13
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Tue, 10 Mar 2015 06:28:15 -0700 (PDT)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout2.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NL0008WU09L1N80@mailout2.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 10 Mar 2015 13:32:09 +0000 (GMT)
-Message-id: <54FEF163.6000602@partner.samsung.com>
-Date: Tue, 10 Mar 2015 16:28:03 +0300
-From: Stefan Strogin <s.strogin@partner.samsung.com>
-MIME-version: 1.0
-Subject: Re: [PATCH v3 3/4] mm: cma: add list of currently allocated CMA
- buffers to debugfs
-References: <cover.1424802755.git.s.strogin@partner.samsung.com>
- <1fe64ae6f12eeda1c2aa59daea7f89e57e0e35a9.1424802755.git.s.strogin@partner.samsung.com>
- <87pp8qa1ab.fsf@linux.vnet.ibm.com>
-In-reply-to: <87pp8qa1ab.fsf@linux.vnet.ibm.com>
-Content-type: text/plain; charset=utf-8
-Content-transfer-encoding: 7bit
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id EAE54900020
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2015 10:12:06 -0400 (EDT)
+Received: by pdbfp1 with SMTP id fp1so2042858pdb.2
+        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 07:12:06 -0700 (PDT)
+Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [72.246.2.115])
+        by mx.google.com with ESMTP id xu6si1132544pab.113.2015.03.10.07.12.04
+        for <linux-mm@kvack.org>;
+        Tue, 10 Mar 2015 07:12:04 -0700 (PDT)
+Date: Tue, 10 Mar 2015 10:12:03 -0400
+From: Eric B Munson <emunson@akamai.com>
+Subject: Re: [PATCH V3] Allow compaction of unevictable pages
+Message-ID: <20150310141203.GA2310@akamai.com>
+References: <1425934123-30591-1-git-send-email-emunson@akamai.com>
+ <20150310112220.GW2896@worktop.programming.kicks-ass.net>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="sm4nu43k4a2Rpi4c"
+Content-Disposition: inline
+In-Reply-To: <20150310112220.GW2896@worktop.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Dmitry Safonov <d.safonov@partner.samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Minchan Kim <minchan@kernel.org>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>, Aleksei Mateosian <a.mateosian@samsung.com>, gregory.0xf0@gmail.com, sasha.levin@oracle.com, gioh.kim@lge.com, pavel@ucw.cz, stefan.strogin@gmail.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Aneesh,
 
-On 03/03/15 12:16, Aneesh Kumar K.V wrote:
-> Stefan Strogin <s.strogin@partner.samsung.com> writes:
-> 
->> When CONFIG_CMA_BUFFER_LIST is configured a file is added to debugfs:
->> /sys/kernel/debug/cma/cma-<N>/buffers contains a list of currently allocated
->> CMA buffers for each CMA region (N stands for number of CMA region).
->>
->> Format is:
->> <base_phys_addr> - <end_phys_addr> (<size> kB), allocated by <PID> (<comm>)
->>
->> When CONFIG_CMA_ALLOC_STACKTRACE is configured then stack traces are saved when
->> the allocations are made. The stack traces are added to cma/cma-<N>/buffers
->> for each buffer list entry.
->>
->> Example:
->>
->> root@debian:/sys/kernel/debug/cma# cat cma-0/buffers
->> 0x2f400000 - 0x2f417000 (92 kB), allocated by pid 1 (swapper/0)
->>  [<c1142c4b>] cma_alloc+0x1bb/0x200
->>  [<c143d28a>] dma_alloc_from_contiguous+0x3a/0x40
->>  [<c10079d9>] dma_generic_alloc_coherent+0x89/0x160
->>  [<c14456ce>] dmam_alloc_coherent+0xbe/0x100
->>  [<c1487312>] ahci_port_start+0xe2/0x210
->>  [<c146e0e0>] ata_host_start.part.28+0xc0/0x1a0
->>  [<c1473650>] ata_host_activate+0xd0/0x110
->>  [<c14881bf>] ahci_host_activate+0x3f/0x170
->>  [<c14854e4>] ahci_init_one+0x764/0xab0
->>  [<c12e415f>] pci_device_probe+0x6f/0xd0
->>  [<c14378a8>] driver_probe_device+0x68/0x210
->>  [<c1437b09>] __driver_attach+0x79/0x80
->>  [<c1435eef>] bus_for_each_dev+0x4f/0x80
->>  [<c143749e>] driver_attach+0x1e/0x20
->>  [<c1437197>] bus_add_driver+0x157/0x200
->>  [<c14381bd>] driver_register+0x5d/0xf0
->> <...>
-> 
-> A perf record -g will also give this information right ? To use this
-> feature, one need to recompile the kernel anyway. So why not assume that
-> user can always rerun the test with perf record -g and find the cma
-> allocation point stack trace ?
-> 
-> -aneesh
-> 
+--sm4nu43k4a2Rpi4c
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Excuse me for the delay.
-I thought that 'perf record <command>' gathers data only for a command
-that it runs, does it? But we want to have information about all the
-allocations and releases from the boot time. IMHO it would be more
-reasonable to use ftrace for that. But after all the patch enables to
-see not a history of allocations and deallocations but a current state
-of CMA region.
-As to recompilation, for example in our division this feature is enabled
-by default among other CONFIG_*_DEBUG features in debug versions of kernel.
+On Tue, 10 Mar 2015, Peter Zijlstra wrote:
+
+> On Mon, Mar 09, 2015 at 04:48:43PM -0400, Eric B Munson wrote:
+> > Currently, pages which are marked as unevictable are protected from
+> > compaction, but not from other types of migration.  The mlock
+> > desctription does not promise that all page faults will be avoided, only
+> > major ones so this protection is not necessary.  This extra protection
+> > can cause problems for applications that are using mlock to avoid
+> > swapping pages out, but require order > 0 allocations to continue to
+> > succeed in a fragmented environment.  This patch removes the
+> > ISOLATE_UNEVICTABLE mode and the check for it in __isolate_lru_page().
+> > Removing this check allows the removal of the isolate_mode argument from
+> > isolate_migratepages_block() because it can compute the required mode
+> > from the compact_control structure.
+> >=20
+> > To illustrate this problem I wrote a quick test program that mmaps a
+> > large number of 1MB files filled with random data.  These maps are
+> > created locked and read only.  Then every other mmap is unmapped and I
+> > attempt to allocate huge pages to the static huge page pool.  Without
+> > this patch I am unable to allocate any huge pages after  fragmenting
+> > memory.  With it, I can allocate almost all the space freed by unmapping
+> > as huge pages.
+>=20
+> So mlock() is part of the POSIX real-time spec. For real-time purposes
+> we very much do _NOT_ want page migration to happen.
+>=20
+> So while you might be following the letter of the spec you're very much
+> violating the spirit of the thing.
+>=20
+
+Fair enough, but the documentation in the mlock manpage only explicitly
+promises to prevent major faults.  If this patch is not taken, then the
+manpage for mlock needs to have a note added explaining that mlock
+prevents compaction as well.  The confusion our userspace devs had stems
+=66rom this as they though they could use mlock to avoid swapping, but
+still benefit from compaction in order > 0 allocations.
+
+> Also, there is another solution to your problem; you can compact
+> mlock'ed pages at mlock() time.
+
+This might work for some cases, I'd have to spend some time thinking on
+it, but it won't work in my case.  Memory is fragmented by unmapping
+as data is no longer needed.  So we really do need to compact the
+locked pages that are left.
+
+>=20
+> Furthermore, I would once again like to remind people of my VM_PINNED
+> patches. The only thing that needs happening there is someone needs to
+> deobfuscate the IB code.
+
+Hence my attempt to kick that discussion last week.  Unfortunately, I
+cannot provide any help with the IB code.  Having this mechanism would
+give us a way to continue to allow real-time users to avoid all faults
+while giving anyone that wants to avoid only major faults a way to do
+so.
+
+
+--sm4nu43k4a2Rpi4c
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQIcBAEBAgAGBQJU/vuzAAoJELbVsDOpoOa9DywP/RgDdb8ekqFRhlf9Mzb0UgYX
+Amkmliyzx5FZHLvfFgT5bMV64GGMeuUJrjuG3VQD5iVp9VF1MMVqcjgXpeyXtTGn
+3cKQ2OAMh2QSMdi2diUJ98AmSwB0VA71dlrKDLqKPeJvshbvzAGHLCuqNCjQ3gXR
+ttXPGfoNGQVoYqyFNnKuL9brH75fgAzdxUP/RfWUO2P6MxlGAM8dzsQWFUnn5mne
+Q+4Et/d5qnu8sFva0hcktBhZnuVEw2ock/KTMmlynPdxu61lVhgJZfF2+kUVdJj+
+F3J7rw+T/hiawBsdzNRXokMLHuDFqQFITfGXQIv0bPS8XyuCUAchMrvTG+zlOUqb
+6+OoFDqih2qCEuRjBrJ/6xzIpzE3p+dajrxtvkPxRNWNqpA0gowlwTpmyqC5nrEm
+887B7+fuwVqWK2YOxM+g9nysBAM0x9x0Biy0NL/pkQ90IdA8SBt354NYbVYnkieT
+AZ6KsB+Y4kvsl5AYFiQzOHYv6MY/7y6MI2YgvEjeWa+YyUpQm6+92ZQMuHcj3SNm
+Dv5n+y5BWMErZH2AHHWXbj9UiJd5RvYR2KDEJWCu9ap25kIe4fesMvAzN+E+Dmr1
+k77I8at5IqN0mENShjhrPYR6jcAFjH7DZ0vt62FmBuM2RTPAYJ1Y0yGULLsYLYEt
+T2kNGMWLmW6UAolxM+YQ
+=gdYR
+-----END PGP SIGNATURE-----
+
+--sm4nu43k4a2Rpi4c--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
