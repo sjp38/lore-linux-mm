@@ -1,133 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f52.google.com (mail-la0-f52.google.com [209.85.215.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 253C76B009A
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2015 12:37:55 -0400 (EDT)
-Received: by labmn12 with SMTP id mn12so3055062lab.0
-        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 09:37:54 -0700 (PDT)
-Received: from mail-lb0-f170.google.com (mail-lb0-f170.google.com. [209.85.217.170])
-        by mx.google.com with ESMTPS id v7si611286lbw.153.2015.03.10.09.37.52
+Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
+	by kanga.kvack.org (Postfix) with ESMTP id D1027900020
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2015 13:35:46 -0400 (EDT)
+Received: by lbvp9 with SMTP id p9so3378288lbv.10
+        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 10:35:46 -0700 (PDT)
+Received: from mail-la0-f43.google.com (mail-la0-f43.google.com. [209.85.215.43])
+        by mx.google.com with ESMTPS id wm3si716505lbb.146.2015.03.10.10.35.43
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Mar 2015 09:37:53 -0700 (PDT)
-Received: by lbdu14 with SMTP id u14so3093196lbd.0
-        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 09:37:52 -0700 (PDT)
+        Tue, 10 Mar 2015 10:35:44 -0700 (PDT)
+Received: by labge10 with SMTP id ge10so3352622lab.7
+        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 10:35:43 -0700 (PDT)
 From: "Grygorii.Strashko@linaro.org" <grygorii.strashko@linaro.org>
-Message-ID: <54FF1DDD.6060707@linaro.org>
-Date: Tue, 10 Mar 2015 18:37:49 +0200
+Message-ID: <54FF2B6D.1030005@linaro.org>
+Date: Tue, 10 Mar 2015 19:35:41 +0200
 MIME-Version: 1.0
 Subject: Re: ARM: OMPA4+: is it expected dma_coerce_mask_and_coherent(dev,
  DMA_BIT_MASK(64)); to fail?
-References: <54F8A68B.3080709@linaro.org> <20150305201753.GG29584@n2100.arm.linux.org.uk> <54FA2084.8050803@linaro.org> <20150310110538.GK29584@n2100.arm.linux.org.uk>
-In-Reply-To: <20150310110538.GK29584@n2100.arm.linux.org.uk>
+References: <54F8A68B.3080709@linaro.org> <2886917.pqK9QloHOD@wuerfel>
+In-Reply-To: <2886917.pqK9QloHOD@wuerfel>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>, "Grygorii.Strashko@linaro.org" <grygorii.strashko@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Tejun Heo <tj@kernel.org>, Tony Lindgren <tony@atomide.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-arm <linux-arm-kernel@lists.infradead.org>, "linux-omap@vger.kernel.org" <linux-omap@vger.kernel.org>, Laura Abbott <lauraa@codeaurora.org>, open list <linux-kernel@vger.kernel.org>, Santosh Shilimkar <ssantosh@kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, Peter Ujfalusi <peter.ujfalusi@ti.com>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux@arm.linux.org.uk, Tejun Heo <tj@kernel.org>, Tony Lindgren <tony@atomide.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-arm <linux-arm-kernel@lists.infradead.org>, "linux-omap@vger.kernel.org" <linux-omap@vger.kernel.org>, Laura Abbott <lauraa@codeaurora.org>, open list <linux-kernel@vger.kernel.org>, Santosh Shilimkar <ssantosh@kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, Peter Ujfalusi <peter.ujfalusi@ti.com>
 
-Hi Russell,
+Hi Arnd,
 
-On 03/10/2015 01:05 PM, Russell King - ARM Linux wrote:
-> On Fri, Mar 06, 2015 at 11:47:48PM +0200, Grygorii.Strashko@linaro.org wrote:
->> On 03/05/2015 10:17 PM, Russell King - ARM Linux wrote:
->>> On Thu, Mar 05, 2015 at 08:55:07PM +0200, Grygorii.Strashko@linaro.org wrote:
->>>> The dma_coerce_mask_and_coherent() will fail in case 'Example 3' and succeed in cases 1,2.
->>>> dma-mapping.c --> __dma_supported()
->>>> 	if (sizeof(mask) != sizeof(dma_addr_t) && <== true for all OMAP4+
->>>> 	    mask > (dma_addr_t)~0 &&		<== true for DMA_BIT_MASK(64)
->>>> 	    dma_to_pfn(dev, ~0) < max_pfn) {  <== true only for Example 3
->>>
->>> Hmm, I think this may make more sense to be "< max_pfn - 1" here, as
->>> that would be better suited to our intention.
->>>
->>> The result of dma_to_pfn(dev, ~0) is the maximum PFN which we could
->>> address via DMA, but we're comparing it with the maximum PFN in the
->>> system plus 1 - so we need to subtract one from it.
+On 03/09/2015 11:33 PM, Arnd Bergmann wrote:
+> On Thursday 05 March 2015 20:55:07 Grygorii.Strashko@linaro.org wrote:
+>> Hi All,
 >>
->> Ok. I'll try it.
+>> Now I can see very interesting behavior related to dma_coerce_mask_and_coherent()
+>> and friends which I'd like to explain and clarify.
+>>
+>> Below is set of questions I have (why - I explained below):
+>> - Is expected dma_coerce_mask_and_coherent(DMA_BIT_MASK(64)) and friends to fail on 32 bits HW?
 > 
-> Any news on this - I think it is a real off-by-one bug which we should
-> fix in any case.
+> No. dma_coerce_mask_and_coherent() is meant to ignore the actual mask. It's
+> usually considered a bug to use this function for that reason.
+> 
+>> - What is expected value for max_pfn: max_phys_pfn or max_phys_pfn + 1?
+>>
+>> - What is expected value for struct memblock_region->size: mem_range_size or mem_range_size - 1?
+>>
+>> - What is expected value to be returned by memblock_end_of_DRAM():
+>>    @base + @size(max_phys_addr + 1) or @base + @size - 1(max_phys_addr)?
+>>
+>>
+>> I'm working with BeaglBoard-X15 (AM572x/DRA7xx) board and have following code in OMAP ASOC driver
+>> which is failed SOMETIMES during the boot with error -EIO.
+>> === to omap-pcm.c:
+>> omap_pcm_new() {
+>> ...
+>> 	ret = dma_coerce_mask_and_coherent(card->dev, DMA_BIT_MASK(64));
+>> ^^ failed sometimes
+>> 	if (ret)
+>> 		return ret;
+>> }
+> 
+> The code should be fixed to use dma_set_mask_and_coherent(), which is expected to
+> fail if the bus is incapable of addressing all RAM within the mask.
+> 
+>> I'd be very appreciated for any comments/clarification on questions I've listed at the
+>> beginning of my e-mail - there are no patches from my side as I'd like to understand
+>> expected behavior of the kernel first (especially taking into account that any
+>> memblock changes might affect on at least half of arches).
+> 
+> Is the device you have actually 64-bit capable?
+> 
+> Is the bus it is connected to 64-bit wide?
 
-Sorry for delay, there was a day-off on my side.
+As I mentioned before - The device was fixed by switching to use 32 bit mask
+"The issue with omap-pcm was simply fixed by using DMA_BIT_MASK(32), ".
 
-As per my test results - with above change 
- dma_coerce_mask_and_coherent(DMA_BIT_MASK(64)) and friends will succeed always.
+> 
+> Does the dma-ranges property of the parent bus reflect the correct address width?
 
-
-=========== Test results:
-
-==== Test case 1:
-Input data:
-- RAM: start = 0x80000000 size = 0x80000000
-- CONFIG_ARM_LPAE=n and sizeof(phys_addr_t) = 4
-
-a) NO changes:
- memory registered within memblock as:
-   memory.cnt  = 0x1
-   memory[0x0]     [0x00000080000000-0x000000fffffffe], 0x7fffffff bytes flags: 0x0
-
- max_pfn   = 0xFFFFF
- max_mapnr = 0x7FFFF
-
- dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64)); -- succeeded
-
-b) with change in __dma_supported():
-        if (sizeof(mask) != sizeof(dma_addr_t) &&
-            mask > (dma_addr_t)~0 &&
--           dma_to_pfn(dev, ~0) < max_pfn) {
-+           dma_to_pfn(dev, ~0) < (max_pfn - 1)) {
-                if (warn) {
-
- memory registered within memblock as:
-   memory.cnt  = 0x1
-   memory[0x0]     [0x00000080000000-0x000000fffffffe], 0x7fffffff bytes flags: 0x0
-
- max_pfn   = 0xFFFFF
- max_mapnr = 0x7FFFF
-
- dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64)); -- succeeded
-
-
-==== Test case 2:
-Input data:
-- RAM: start = 0x80000000 size = 0x80000000
-- CONFIG_ARM_LPAE=y and sizeof(phys_addr_t) = 8
-
-a) NO changes:
- memory registered within memblock as:
-   memory.cnt  = 0x1
-   memory[0x0]     [0x00000080000000-0x000000ffffffff], 0x80000000 bytes flags: 0x0
-
- max_pfn   = 0x100000
- max_mapnr = 0x80000
-
- dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64)); -- failed
-[    5.468470] asoc-simple-card sound@0: Coherent DMA mask 0xffffffffffffffff is larger than dma_addr_t allows
-[    5.478706] asoc-simple-card sound@0: Driver did not use or check the return value from dma_set_coherent_mask()?
-[    5.496620] davinci-mcasp 48468000.mcasp: ASoC: pcm constructor failed: -5
-[    5.503844] asoc-simple-card sound@0: ASoC: can't create pcm davinci-mcasp.0-tlv320aic3x-hifi :-5
+dma-ranges is not used and all devices are created with default mask DMA_BIT_MASK(32);
 
 
-b) with change in __dma_supported():
-        if (sizeof(mask) != sizeof(dma_addr_t) &&
-            mask > (dma_addr_t)~0 &&
--           dma_to_pfn(dev, ~0) < max_pfn) {
-+           dma_to_pfn(dev, ~0) < (max_pfn - 1)) {
-                if (warn) {
+My goal was to clarify above questions (first of all), because on my HW I can see
+different values of  max_pfn, max_mapnr and memblock configuration depending on 
+CONFIG_ARM_LPAE=n|y and when RAM is defined as: start = 0x80000000 size = 0x80000000.
+(and also between kernels 3.14 and LKML).
 
- memory registered within memblock as:
-   memory.cnt  = 0x1
-   memory[0x0]     [0x00000080000000-0x000000ffffffff], 0x80000000 bytes flags: 0x0
+Looks like such RAM configuration is a corner case, which is not always handled as expected
+(and how is it expected to be handled?).
+For example:
+before commit ARM: 8025/1: Get rid of meminfo
+- registered RAM  start = 0x80000000 size = 0x80000000 will be adjusted by arm_add_memory()
+and final RAM configuration will be start = 0x80000000 size = 0x7FFFF000
+after this commit:
+- code will try to register start = 0x80000000 size = 0x80000000, but memblock will
+adjust it to start = 0x80000000 size = 0x7fffffff.
 
- max_pfn   = 0x100000
- max_mapnr = 0x80000
 
- dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64)); -- succeeded
-
-regards,
--grygorii
 
 -- 
 regards,
