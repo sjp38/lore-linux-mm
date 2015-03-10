@@ -1,69 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f52.google.com (mail-oi0-f52.google.com [209.85.218.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 981216B0088
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2015 03:26:26 -0400 (EDT)
-Received: by oiga141 with SMTP id a141so2192848oig.13
-        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 00:26:26 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id 70si12811655oic.2.2015.03.10.00.26.23
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 77B5E6B008A
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2015 07:05:58 -0400 (EDT)
+Received: by wiwl15 with SMTP id l15so27556146wiw.1
+        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 04:05:58 -0700 (PDT)
+Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id cm9si24564729wib.29.2015.03.10.04.05.56
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 10 Mar 2015 00:26:25 -0700 (PDT)
-Message-ID: <54FE9C21.8060107@huawei.com>
-Date: Tue, 10 Mar 2015 15:24:17 +0800
-From: Zhang Zhen <zhenzhang.zhang@huawei.com>
+        Tue, 10 Mar 2015 04:05:57 -0700 (PDT)
+Date: Tue, 10 Mar 2015 11:05:38 +0000
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: ARM: OMPA4+: is it expected dma_coerce_mask_and_coherent(dev,
+ DMA_BIT_MASK(64)); to fail?
+Message-ID: <20150310110538.GK29584@n2100.arm.linux.org.uk>
+References: <54F8A68B.3080709@linaro.org>
+ <20150305201753.GG29584@n2100.arm.linux.org.uk>
+ <54FA2084.8050803@linaro.org>
 MIME-Version: 1.0
-Subject: [PATCH] mm: refactor zone_movable_is_highmem()
-References: <1425972055-53804-1-git-send-email-zhenzhang.zhang@huawei.com>
-In-Reply-To: <1425972055-53804-1-git-send-email-zhenzhang.zhang@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <54FA2084.8050803@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, iamjoonsoo.kim@lge.com
-Cc: David Rientjes <rientjes@google.com>, Dave Hansen <dave.hansen@intel.com>
+To: "Grygorii.Strashko@linaro.org" <grygorii.strashko@linaro.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Tejun Heo <tj@kernel.org>, Tony Lindgren <tony@atomide.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-arm <linux-arm-kernel@lists.infradead.org>, "linux-omap@vger.kernel.org" <linux-omap@vger.kernel.org>, Laura Abbott <lauraa@codeaurora.org>, open list <linux-kernel@vger.kernel.org>, Santosh Shilimkar <ssantosh@kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, Peter Ujfalusi <peter.ujfalusi@ti.com>
 
-All callers of zone_movable_is_highmem are under #ifdef CONFIG_HIGHMEM,
-so the else branch return 0 is not needed.
+On Fri, Mar 06, 2015 at 11:47:48PM +0200, Grygorii.Strashko@linaro.org wrote:
+> Hi Russell,
+> 
+> On 03/05/2015 10:17 PM, Russell King - ARM Linux wrote:
+> > On Thu, Mar 05, 2015 at 08:55:07PM +0200, Grygorii.Strashko@linaro.org wrote:
+> >> The dma_coerce_mask_and_coherent() will fail in case 'Example 3' and succeed in cases 1,2.
+> >> dma-mapping.c --> __dma_supported()
+> >> 	if (sizeof(mask) != sizeof(dma_addr_t) && <== true for all OMAP4+
+> >> 	    mask > (dma_addr_t)~0 &&		<== true for DMA_BIT_MASK(64)
+> >> 	    dma_to_pfn(dev, ~0) < max_pfn) {  <== true only for Example 3
+> > 
+> > Hmm, I think this may make more sense to be "< max_pfn - 1" here, as
+> > that would be better suited to our intention.
+> > 
+> > The result of dma_to_pfn(dev, ~0) is the maximum PFN which we could
+> > address via DMA, but we're comparing it with the maximum PFN in the
+> > system plus 1 - so we need to subtract one from it.
+> 
+> Ok. I'll try it.
 
-Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
----
- include/linux/mmzone.h | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+Any news on this - I think it is a real off-by-one bug which we should
+fix in any case.
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index f279d9c..218f892 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -843,16 +843,16 @@ static inline int populated_zone(struct zone *zone)
+Thanks.
 
- extern int movable_zone;
-
-+#ifdef CONFIG_HIGHMEM
- static inline int zone_movable_is_highmem(void)
- {
--#if defined(CONFIG_HIGHMEM) && defined(CONFIG_HAVE_MEMBLOCK_NODE_MAP)
-+#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- 	return movable_zone == ZONE_HIGHMEM;
--#elif defined(CONFIG_HIGHMEM)
--	return (ZONE_MOVABLE - 1) == ZONE_HIGHMEM;
- #else
--	return 0;
-+	return (ZONE_MOVABLE - 1) == ZONE_HIGHMEM;
- #endif
- }
-+#endif
-
- static inline int is_highmem_idx(enum zone_type idx)
- {
 -- 
-1.8.5.5
-
-
-.
-
-
-
+FTTC broadband for 0.8mile line: currently at 10.5Mbps down 400kbps up
+according to speedtest.net.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
