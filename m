@@ -1,49 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 168C56B0096
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2015 17:46:37 -0400 (EDT)
-Received: by wghl18 with SMTP id l18so4857141wgh.11
-        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 14:46:36 -0700 (PDT)
-Received: from xavier.telenet-ops.be (xavier.telenet-ops.be. [195.130.132.52])
-        by mx.google.com with ESMTP id my16si3563963wic.59.2015.03.10.14.46.35
-        for <linux-mm@kvack.org>;
-        Tue, 10 Mar 2015 14:46:35 -0700 (PDT)
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Subject: [PATCH] zsmalloc: Add missing #include <linux/sched.h>
-Date: Tue, 10 Mar 2015 22:46:31 +0100
-Message-Id: <1426023991-30407-1-git-send-email-geert@linux-m68k.org>
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 235A490002E
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2015 19:16:07 -0400 (EDT)
+Received: by pdev10 with SMTP id v10so5899849pde.13
+        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 16:16:06 -0700 (PDT)
+Received: from mail-pd0-x234.google.com (mail-pd0-x234.google.com. [2607:f8b0:400e:c02::234])
+        by mx.google.com with ESMTPS id u14si3724329pdi.41.2015.03.10.16.16.06
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Mar 2015 16:16:06 -0700 (PDT)
+Received: by pdbfp1 with SMTP id fp1so5953490pdb.7
+        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 16:16:06 -0700 (PDT)
+Date: Wed, 11 Mar 2015 08:15:57 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] zsmalloc: Add missing #include <linux/sched.h>
+Message-ID: <20150310231557.GA4794@blaptop>
+References: <1426023991-30407-1-git-send-email-geert@linux-m68k.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1426023991-30407-1-git-send-email-geert@linux-m68k.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-next@vger.kernel.org, Geert Uytterhoeven <geert@linux-m68k.org>
+To: Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-next@vger.kernel.org
 
-mips/allmodconfig:
+On Tue, Mar 10, 2015 at 10:46:31PM +0100, Geert Uytterhoeven wrote:
+> mips/allmodconfig:
+> 
+> mm/zsmalloc.c: In function '__zs_compact':
+> mm/zsmalloc.c:1747:2: error: implicit declaration of function
+> 'cond_resched' [-Werror=implicit-function-declaration]
+> 
+> Signed-off-by: Geert Uytterhoeven <geert@linux-m68k.org>
+Acked-by: Minchan Kim <minchan@kernel.org>
 
-mm/zsmalloc.c: In function '__zs_compact':
-mm/zsmalloc.c:1747:2: error: implicit declaration of function
-'cond_resched' [-Werror=implicit-function-declaration]
+Thanks!
 
-Signed-off-by: Geert Uytterhoeven <geert@linux-m68k.org>
----
-http://kisskb.ellerman.id.au/kisskb/buildresult/12379881/
----
- mm/zsmalloc.c | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 73400f0534a773e7..dccc20c208725548 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -91,6 +91,7 @@
- #include <linux/cpu.h>
- #include <linux/vmalloc.h>
- #include <linux/hardirq.h>
-+#include <linux/sched.h>
- #include <linux/spinlock.h>
- #include <linux/types.h>
- #include <linux/debugfs.h>
 -- 
-1.9.1
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
