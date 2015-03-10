@@ -1,59 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 77B5E6B008A
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2015 07:05:58 -0400 (EDT)
-Received: by wiwl15 with SMTP id l15so27556146wiw.1
-        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 04:05:58 -0700 (PDT)
-Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id cm9si24564729wib.29.2015.03.10.04.05.56
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 357BA900020
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2015 07:22:35 -0400 (EDT)
+Received: by wiwh11 with SMTP id h11so2008685wiw.5
+        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 04:22:34 -0700 (PDT)
+Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
+        by mx.google.com with ESMTPS id dk4si1087744wib.95.2015.03.10.04.22.33
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 10 Mar 2015 04:05:57 -0700 (PDT)
-Date: Tue, 10 Mar 2015 11:05:38 +0000
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: ARM: OMPA4+: is it expected dma_coerce_mask_and_coherent(dev,
- DMA_BIT_MASK(64)); to fail?
-Message-ID: <20150310110538.GK29584@n2100.arm.linux.org.uk>
-References: <54F8A68B.3080709@linaro.org>
- <20150305201753.GG29584@n2100.arm.linux.org.uk>
- <54FA2084.8050803@linaro.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Mar 2015 04:22:33 -0700 (PDT)
+Date: Tue, 10 Mar 2015 12:22:20 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH V3] Allow compaction of unevictable pages
+Message-ID: <20150310112220.GW2896@worktop.programming.kicks-ass.net>
+References: <1425934123-30591-1-git-send-email-emunson@akamai.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <54FA2084.8050803@linaro.org>
+In-Reply-To: <1425934123-30591-1-git-send-email-emunson@akamai.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Grygorii.Strashko@linaro.org" <grygorii.strashko@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Tejun Heo <tj@kernel.org>, Tony Lindgren <tony@atomide.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-arm <linux-arm-kernel@lists.infradead.org>, "linux-omap@vger.kernel.org" <linux-omap@vger.kernel.org>, Laura Abbott <lauraa@codeaurora.org>, open list <linux-kernel@vger.kernel.org>, Santosh Shilimkar <ssantosh@kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, Peter Ujfalusi <peter.ujfalusi@ti.com>
+To: Eric B Munson <emunson@akamai.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Mar 06, 2015 at 11:47:48PM +0200, Grygorii.Strashko@linaro.org wrote:
-> Hi Russell,
+On Mon, Mar 09, 2015 at 04:48:43PM -0400, Eric B Munson wrote:
+> Currently, pages which are marked as unevictable are protected from
+> compaction, but not from other types of migration.  The mlock
+> desctription does not promise that all page faults will be avoided, only
+> major ones so this protection is not necessary.  This extra protection
+> can cause problems for applications that are using mlock to avoid
+> swapping pages out, but require order > 0 allocations to continue to
+> succeed in a fragmented environment.  This patch removes the
+> ISOLATE_UNEVICTABLE mode and the check for it in __isolate_lru_page().
+> Removing this check allows the removal of the isolate_mode argument from
+> isolate_migratepages_block() because it can compute the required mode
+> from the compact_control structure.
 > 
-> On 03/05/2015 10:17 PM, Russell King - ARM Linux wrote:
-> > On Thu, Mar 05, 2015 at 08:55:07PM +0200, Grygorii.Strashko@linaro.org wrote:
-> >> The dma_coerce_mask_and_coherent() will fail in case 'Example 3' and succeed in cases 1,2.
-> >> dma-mapping.c --> __dma_supported()
-> >> 	if (sizeof(mask) != sizeof(dma_addr_t) && <== true for all OMAP4+
-> >> 	    mask > (dma_addr_t)~0 &&		<== true for DMA_BIT_MASK(64)
-> >> 	    dma_to_pfn(dev, ~0) < max_pfn) {  <== true only for Example 3
-> > 
-> > Hmm, I think this may make more sense to be "< max_pfn - 1" here, as
-> > that would be better suited to our intention.
-> > 
-> > The result of dma_to_pfn(dev, ~0) is the maximum PFN which we could
-> > address via DMA, but we're comparing it with the maximum PFN in the
-> > system plus 1 - so we need to subtract one from it.
-> 
-> Ok. I'll try it.
+> To illustrate this problem I wrote a quick test program that mmaps a
+> large number of 1MB files filled with random data.  These maps are
+> created locked and read only.  Then every other mmap is unmapped and I
+> attempt to allocate huge pages to the static huge page pool.  Without
+> this patch I am unable to allocate any huge pages after  fragmenting
+> memory.  With it, I can allocate almost all the space freed by unmapping
+> as huge pages.
 
-Any news on this - I think it is a real off-by-one bug which we should
-fix in any case.
+So mlock() is part of the POSIX real-time spec. For real-time purposes
+we very much do _NOT_ want page migration to happen.
 
-Thanks.
+So while you might be following the letter of the spec you're very much
+violating the spirit of the thing.
 
--- 
-FTTC broadband for 0.8mile line: currently at 10.5Mbps down 400kbps up
-according to speedtest.net.
+Also, there is another solution to your problem; you can compact
+mlock'ed pages at mlock() time.
+
+Furthermore, I would once again like to remind people of my VM_PINNED
+patches. The only thing that needs happening there is someone needs to
+deobfuscate the IB code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
