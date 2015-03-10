@@ -1,37 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E606900020
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2015 15:19:50 -0400 (EDT)
-Received: by igjz20 with SMTP id z20so6634521igj.4
-        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 12:19:49 -0700 (PDT)
-Received: from mail-ie0-x22b.google.com (mail-ie0-x22b.google.com. [2607:f8b0:4001:c03::22b])
-        by mx.google.com with ESMTPS id j79si1904954ioe.36.2015.03.10.12.19.48
+Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BDC7900020
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2015 15:26:14 -0400 (EDT)
+Received: by wesw62 with SMTP id w62so4123236wes.8
+        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 12:26:13 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id li5si2039143wjb.191.2015.03.10.12.26.11
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Mar 2015 12:19:48 -0700 (PDT)
-Received: by iecsf10 with SMTP id sf10so26433402iec.2
-        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 12:19:46 -0700 (PDT)
-Date: Tue, 10 Mar 2015 12:19:44 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: refactor zone_movable_is_highmem()
-In-Reply-To: <54FE9C21.8060107@huawei.com>
-Message-ID: <alpine.DEB.2.10.1503101219320.29618@chino.kir.corp.google.com>
-References: <1425972055-53804-1-git-send-email-zhenzhang.zhang@huawei.com> <54FE9C21.8060107@huawei.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 10 Mar 2015 12:26:12 -0700 (PDT)
+Message-ID: <1426015564.2055.2.camel@stgolabs.net>
+Subject: Re: [patch v3] mm, hugetlb: abort __get_user_pages if current has
+ been oom killed
+From: Davidlohr Bueso <dave@stgolabs.net>
+Date: Tue, 10 Mar 2015 12:26:04 -0700
+In-Reply-To: <alpine.DEB.2.10.1503091307130.10307@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1503081611290.15536@chino.kir.corp.google.com>
+	 <20150309043051.GA13380@node.dhcp.inet.fi>
+	 <alpine.DEB.2.10.1503090041120.21058@chino.kir.corp.google.com>
+	 <xr93r3synzqu.fsf@gthelen.mtv.corp.google.com>
+	 <alpine.DEB.2.10.1503091307130.10307@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Zhen <zhenzhang.zhang@huawei.com>
-Cc: Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, iamjoonsoo.kim@lge.com, Dave Hansen <dave.hansen@intel.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill
+ A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 10 Mar 2015, Zhang Zhen wrote:
-
-> All callers of zone_movable_is_highmem are under #ifdef CONFIG_HIGHMEM,
-> so the else branch return 0 is not needed.
+On Mon, 2015-03-09 at 13:07 -0700, David Rientjes wrote:
+> If __get_user_pages() is faulting a significant number of hugetlb pages,
+> usually as the result of mmap(MAP_LOCKED), it can potentially allocate a
+> very large amount of memory.
 > 
-> Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
+> If the process has been oom killed, this will cause a lot of memory to
+> potentially deplete memory reserves.
+> 
+> In the same way that commit 4779280d1ea4 ("mm: make get_user_pages() 
+> interruptible") aborted for pending SIGKILLs when faulting non-hugetlb
+> memory, based on the premise of commit 462e00cc7151 ("oom: stop
+> allocating user memory if TIF_MEMDIE is set"), hugetlb page faults now
+> terminate when the process has been oom killed.
+> 
+> Cc: Greg Thelen <gthelen@google.com>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: Davidlohr Bueso <dave@stgolabs.net>
+> Acked-by: "Kirill A. Shutemov" <kirill@shutemov.name>
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-Acked-by: David Rientjes <rientjes@google.com>
+Makes sense.
+
+Acked-by: Davidlohr Bueso <dave@stgolabs.net>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
