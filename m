@@ -1,104 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 587A890002E
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2015 22:15:20 -0400 (EDT)
-Received: by obcuy5 with SMTP id uy5so5941666obc.11
-        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 19:15:20 -0700 (PDT)
-Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
-        by mx.google.com with ESMTPS id jq2si729536oeb.14.2015.03.10.19.15.18
+Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com [209.85.218.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 92AFA90002E
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2015 22:53:58 -0400 (EDT)
+Received: by oifu20 with SMTP id u20so5375336oif.11
+        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 19:53:58 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id m6si979832oel.34.2015.03.10.19.53.55
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 10 Mar 2015 19:15:19 -0700 (PDT)
-From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Date: Wed, 11 Mar 2015 10:14:51 +0800
-Subject: RE: [PATCH 3/4] mm: move lazy free pages to inactive list
-Message-ID: <35FD53F367049845BC99AC72306C23D10458D6173C04@CNBJMBX05.corpusers.net>
-References: <1426036838-18154-1-git-send-email-minchan@kernel.org>
- <1426036838-18154-3-git-send-email-minchan@kernel.org>
-In-Reply-To: <1426036838-18154-3-git-send-email-minchan@kernel.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 10 Mar 2015 19:53:57 -0700 (PDT)
+Message-ID: <54FFADB6.60604@huawei.com>
+Date: Wed, 11 Mar 2015 10:51:34 +0800
+From: Xie XiuQi <xiexiuqi@huawei.com>
 MIME-Version: 1.0
+Subject: Re: node-hotplug: is memset 0 safe in try_offline_node()?
+References: <54F52ACF.4030103@huawei.com> <54F81322.8010202@cn.fujitsu.com> <54F8243D.7020809@huawei.com> <54FF9662.8080303@cn.fujitsu.com>
+In-Reply-To: <54FF9662.8080303@cn.fujitsu.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Minchan Kim' <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>
+To: Gu Zheng <guz.fnst@cn.fujitsu.com>, Xishi Qiu <qiuxishi@huawei.com>
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Yinghai Lu <yinghai@kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Toshi Kani <toshi.kani@hp.com>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-> -----Original Message-----
-> From: Minchan Kim [mailto:minchan@kernel.org]
-> Sent: Wednesday, March 11, 2015 9:21 AM
-> To: Andrew Morton
-> Cc: linux-kernel@vger.kernel.org; linux-mm@kvack.org; Michal Hocko;
-> Johannes Weiner; Mel Gorman; Rik van Riel; Shaohua Li; Wang, Yalin; Minch=
-an
-> Kim
-> Subject: [PATCH 3/4] mm: move lazy free pages to inactive list
->=20
-> MADV_FREE is hint that it's okay to discard pages if there is
-> memory pressure and we uses reclaimers(ie, kswapd and direct reclaim)
-> to free them so there is no worth to remain them in active anonymous LRU
-> so this patch moves them to inactive LRU list's head.
->=20
-> This means that MADV_FREE-ed pages which were living on the inactive list
-> are reclaimed first because they are more likely to be cold rather than
-> recently active pages.
->=20
-> A arguable issue for the approach would be whether we should put it to
-> head or tail in inactive list. I selected *head* because kernel cannot
-> make sure it's really cold or warm for every MADV_FREE usecase but
-> at least we know it's not *hot* so landing of inactive head would be
-> comprimise for various usecases.
->=20
-> This is fixing a suboptimal behavior of MADV_FREE when pages living on
-> the active list will sit there for a long time even under memory
-> pressure while the inactive list is reclaimed heavily. This basically
-> breaks the whole purpose of using MADV_FREE to help the system to free
-> memory which is might not be used.
->=20
-> Acked-by: Michal Hocko <mhocko@suse.cz>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  include/linux/swap.h |  1 +
->  mm/madvise.c         |  2 ++
->  mm/swap.c            | 35 +++++++++++++++++++++++++++++++++++
->  3 files changed, 38 insertions(+)
->=20
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index cee108c..0428e4c 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -308,6 +308,7 @@ extern void lru_add_drain_cpu(int cpu);
->  extern void lru_add_drain_all(void);
->  extern void rotate_reclaimable_page(struct page *page);
->  extern void deactivate_file_page(struct page *page);
-> +extern void deactivate_page(struct page *page);
->  extern void swap_setup(void);
->=20
->  extern void add_page_to_unevictable_list(struct page *page);
-> diff --git a/mm/madvise.c b/mm/madvise.c
-> index ebe692e..22e8f0c 100644
-> --- a/mm/madvise.c
-> +++ b/mm/madvise.c
-> @@ -340,6 +340,8 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigne=
-d
-> long addr,
->  		ptent =3D pte_mkold(ptent);
->  		ptent =3D pte_mkclean(ptent);
->  		set_pte_at(mm, addr, pte, ptent);
-> +		if (PageActive(page))
-> +			deactivate_page(page);
->  		tlb_remove_tlb_entry(tlb, pte, addr);
->  	}
+On 2015/3/11 9:12, Gu Zheng wrote:
+> Hi Xishi,
+> 
+> What is the condition of this problem now?
 
-I think this place should be changed like this:
-  +		if (!page_referenced(page, false, NULL, NULL, NULL) && PageActive(page=
-))
-  +			deactivate_page(page);
-Because we don't know if other processes are reference this page,
-If it is true, don't need deactivate this page.
+Hi Gu,
 
-Thanks
+I have no machine to do this test now. But I've tested the
+patch "just remove memset 0" more than 20 hours last week,
+it's OK.
+
+Thanks,
+	Xie XiuQi
+
+> 
+> Regards,
+> Gu
+> On 03/05/2015 05:39 PM, Xishi Qiu wrote:
+> 
+>> On 2015/3/5 16:26, Gu Zheng wrote:
+>>
+>>> Hi Xishi,
+>>> Could you please try the following one?
+>>> It postpones the reset of obsolete pgdat from try_offline_node() to
+>>> hotadd_new_pgdat(), and just resetting pgdat->nr_zones and
+>>> pgdat->classzone_idx to be 0 rather than the whole reset by memset()
+>>> as Kame suggested.
+>>>
+>>> Regards,
+>>> Gu
+>>>
+>>> ---
+>>>  mm/memory_hotplug.c |   13 ++++---------
+>>>  1 files changed, 4 insertions(+), 9 deletions(-)
+>>>
+>>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>>> index 1778628..c17eebf 100644
+>>> --- a/mm/memory_hotplug.c
+>>> +++ b/mm/memory_hotplug.c
+>>> @@ -1092,6 +1092,10 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
+>>>  			return NULL;
+>>>  
+>>>  		arch_refresh_nodedata(nid, pgdat);
+>>> +	} else {
+>>> +		/* Reset the nr_zones and classzone_idx to 0 before reuse */
+>>> +		pgdat->nr_zones = 0;
+>>> +		pgdat->classzone_idx = 0;
+>>
+>> Hi Gu,
+>>
+>> This is just to avoid the warning, I think it's no meaning.
+>> Here is the changlog from the original patch:
+>>
+>> commit 88fdf75d1bb51d85ba00c466391770056d44bc03
+>>     ...
+>>     Warn if memory-hotplug/boot code doesn't initialize pg_data_t with zero
+>>     when it is allocated.  Arch code and memory hotplug already initiailize
+>>     pg_data_t.  So this warning should never happen.  I select fields *randomly*
+>>     near the beginning, middle and end of pg_data_t for checking.
+>>     ...
+>>
+>> Thanks,
+>> Xishi Qiu
+>>
+>>>  	}
+>>>  
+>>>  	/* we can use NODE_DATA(nid) from here */
+>>> @@ -2021,15 +2025,6 @@ void try_offline_node(int nid)
+>>>  
+>>>  	/* notify that the node is down */
+>>>  	call_node_notify(NODE_DOWN, (void *)(long)nid);
+>>> -
+>>> -	/*
+>>> -	 * Since there is no way to guarentee the address of pgdat/zone is not
+>>> -	 * on stack of any kernel threads or used by other kernel objects
+>>> -	 * without reference counting or other symchronizing method, do not
+>>> -	 * reset node_data and free pgdat here. Just reset it to 0 and reuse
+>>> -	 * the memory when the node is online again.
+>>> -	 */
+>>> -	memset(pgdat, 0, sizeof(*pgdat));
+>>>  }
+>>>  EXPORT_SYMBOL(try_offline_node);
+>>>  
+>>
+>>
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>> .
+>>
+> 
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
+> .
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
