@@ -1,48 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B3E682905
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2015 15:57:55 -0400 (EDT)
-Received: by obcuy5 with SMTP id uy5so11356994obc.11
-        for <linux-mm@kvack.org>; Wed, 11 Mar 2015 12:57:54 -0700 (PDT)
-Received: from mail-oi0-x231.google.com (mail-oi0-x231.google.com. [2607:f8b0:4003:c06::231])
-        by mx.google.com with ESMTPS id r2si150851oep.61.2015.03.11.12.57.54
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 48A0182905
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2015 16:01:02 -0400 (EDT)
+Received: by pabrd3 with SMTP id rd3so13989017pab.6
+        for <linux-mm@kvack.org>; Wed, 11 Mar 2015 13:01:02 -0700 (PDT)
+Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com. [2607:f8b0:400e:c02::232])
+        by mx.google.com with ESMTPS id oz10si9199631pdb.15.2015.03.11.13.01.01
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Mar 2015 12:57:54 -0700 (PDT)
-Received: by oibg201 with SMTP id g201so9966554oib.10
-        for <linux-mm@kvack.org>; Wed, 11 Mar 2015 12:57:54 -0700 (PDT)
+        Wed, 11 Mar 2015 13:01:01 -0700 (PDT)
+Received: by pdjp10 with SMTP id p10so13715742pdj.10
+        for <linux-mm@kvack.org>; Wed, 11 Mar 2015 13:01:01 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <55006C75.2050604@yandex-team.ru>
-References: <1425876632-6681-1-git-send-email-gthelen@google.com> <55006C75.2050604@yandex-team.ru>
-From: Greg Thelen <gthelen@google.com>
-Date: Wed, 11 Mar 2015 15:57:33 -0400
-Message-ID: <CAHH2K0beuz+w71dh5U4FnB522xBW2mf4VhcvJsX2k+wQkLx5GQ@mail.gmail.com>
-Subject: Re: [PATCH] memcg: add per cgroup dirty page accounting
+In-Reply-To: <20150311.144443.1290707334236248572.davem@davemloft.net>
+References: <55004595.7020304@oracle.com>
+	<20150311.132052.205877953171712952.davem@davemloft.net>
+	<55007A9B.4010608@oracle.com>
+	<20150311.144443.1290707334236248572.davem@davemloft.net>
+Date: Wed, 11 Mar 2015 23:01:00 +0300
+Message-ID: <CAPAsAGwuCzzDCgiNd=LrHA_W1Nj5TJu3Qym9tR3jnGdT45HQuw@mail.gmail.com>
+Subject: Re: [PATCH] mm: kill kmemcheck
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, Dave Chinner <david@fromorbit.com>, Sha Zhengju <handai.szj@gmail.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-fsdevel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: David Miller <davem@davemloft.net>
+Cc: Sasha Levin <sasha.levin@oracle.com>, rostedt@goodmis.org, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, linux-arch@vger.kernel.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-crypto@vger.kernel.org
 
-On Wed, Mar 11, 2015 at 12:25 PM, Konstantin Khlebnikov
-<khlebnikov@yandex-team.ru> wrote:
-> This patch conflicts with my cleanup which is already in mm tree:
-> ("page_writeback: clean up mess around cancel_dirty_page()")
-> Nothing nontrivial but I've killed cancel_dirty_page() and replaced
-> it which account_page_cleaned() symmetrical to account_page_dirtied().
-
-Fair enough.  I'll rebase.
-
-> I think this accounting can be done without mem_cgroup_begin_page_stat()
-> All page cleaning happens under page is lock.
-> Some dirtying is called without page-lock when kernel moves
-> dirty status from pte to page, but in this case acconting happens
-> under mapping->tree_lock.
+2015-03-11 21:44 GMT+03:00 David Miller <davem@davemloft.net>:
+> From: Sasha Levin <sasha.levin@oracle.com>
+> Date: Wed, 11 Mar 2015 13:25:47 -0400
 >
-> Memcg already locks pages when moves them between cgroups,
-> maybe it could also lock mapping->tree_lock?
+>> You're probably wondering why there are changes to SPARC in that patchset? :)
+>
+> Libsanitizer doesn't even build have the time on sparc, the release
+> manager has to hand patch it into building again every major release
+> because of the way ASAN development is done out of tree and local
+> commits to the gcc tree are basically written over during the
+> next merge.
+>
 
-Good suggestion.  I'll try it out and report back.
+Libsanitizer is userspace lib it's for userspace ASan, KASan doesn't use it.
+We have our own 'libsanitzer' in kernel.
+
+> So I'm a little bit bitter about this, as you can see. :)
+>
+
+
+-- 
+Best regards,
+Andrey Ryabinin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
