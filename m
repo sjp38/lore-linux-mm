@@ -1,101 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f48.google.com (mail-la0-f48.google.com [209.85.215.48])
-	by kanga.kvack.org (Postfix) with ESMTP id EFA5F90002E
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2015 08:21:33 -0400 (EDT)
-Received: by lamq1 with SMTP id q1so8281954lam.12
-        for <linux-mm@kvack.org>; Wed, 11 Mar 2015 05:21:33 -0700 (PDT)
-Received: from mail-lb0-x231.google.com (mail-lb0-x231.google.com. [2a00:1450:4010:c04::231])
-        by mx.google.com with ESMTPS id ca8si2272774lad.52.2015.03.11.05.21.31
+Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com [209.85.217.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 00D4790002E
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2015 08:30:19 -0400 (EDT)
+Received: by lbiz12 with SMTP id z12so8403372lbi.12
+        for <linux-mm@kvack.org>; Wed, 11 Mar 2015 05:30:19 -0700 (PDT)
+Received: from mail-la0-x236.google.com (mail-la0-x236.google.com. [2a00:1450:4010:c03::236])
+        by mx.google.com with ESMTPS id w9si1521210laz.154.2015.03.11.05.30.17
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Mar 2015 05:21:32 -0700 (PDT)
-Received: by lbvn10 with SMTP id n10so8364426lbv.11
-        for <linux-mm@kvack.org>; Wed, 11 Mar 2015 05:21:31 -0700 (PDT)
+        Wed, 11 Mar 2015 05:30:18 -0700 (PDT)
+Received: by labge10 with SMTP id ge10so8360699lab.7
+        for <linux-mm@kvack.org>; Wed, 11 Mar 2015 05:30:17 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1425062086.13329.10.camel@stgolabs.net>
-References: <1424979417.10344.14.camel@stgolabs.net>
-	<20150226205145.GH3041@moon>
-	<20150227173650.GA18823@redhat.com>
-	<1425062086.13329.10.camel@stgolabs.net>
-Date: Wed, 11 Mar 2015 15:21:31 +0300
-Message-ID: <CALYGNiM3oaempavTx=e29fJgUGkgcROL4C1PPSwCDEBod-vcpw@mail.gmail.com>
-Subject: Re: [PATCH] mm: replace mmap_sem for mm->exe_file serialization
+In-Reply-To: <1424958666-18241-3-git-send-email-vbabka@suse.cz>
+References: <1424958666-18241-1-git-send-email-vbabka@suse.cz>
+	<1424958666-18241-3-git-send-email-vbabka@suse.cz>
+Date: Wed, 11 Mar 2015 15:30:17 +0300
+Message-ID: <CALYGNiPn-C6AESik_BrQBEJpOsvcy7qG_sacAyf+O24A6P9kyA@mail.gmail.com>
+Subject: Re: [PATCH 2/4] mm, procfs: account for shmem swap in /proc/pid/smaps
 From: Konstantin Khlebnikov <koct9i@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <dave@stgolabs.net>
-Cc: Oleg Nesterov <oleg@redhat.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Davidlohr Bueso <dave.bueso@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Jerome Marchand <jmarchan@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-doc@vger.kernel.org, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Randy Dunlap <rdunlap@infradead.org>, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Paul Mackerras <paulus@samba.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Oleg Nesterov <oleg@redhat.com>
 
-On Fri, Feb 27, 2015 at 9:34 PM, Davidlohr Bueso <dave@stgolabs.net> wrote:
-> On Fri, 2015-02-27 at 18:36 +0100, Oleg Nesterov wrote:
->> On 02/26, Cyrill Gorcunov wrote:
->> >
->> > On Thu, Feb 26, 2015 at 11:36:57AM -0800, Davidlohr Bueso wrote:
->> > > We currently use the mmap_sem to serialize the mm exe_file.
->> > > This is atrocious and a clear example of the misuses this
->> > > lock has all over the place, making any significant changes
->> > > to the address space locking that much more complex and tedious.
->> > > This also has to do of how we used to check for the vma's vm_file
->> > > being VM_EXECUTABLE (much of which was replaced by 2dd8ad81e31).
->> > >
->> > > This patch, therefore, removes the mmap_sem dependency and
->> > > introduces a specific lock for the exe_file (rwlock_t, as it is
->> > > read mostly and protects a trivial critical region). As mentioned,
->> > > the motivation is to cleanup mmap_sem (as opposed to exe_file
->> > > performance).
->>
->> Well, I didn't see the patch, can't really comment.
->>
->> But I have to admit that this looks as atrocious and a clear example of
->> "lets add yet another random lock which we will regret about later" ;)
->>
->> rwlock_t in mm_struct just to serialize access to exe_file?
->
-> I don't see why this is a random lock nor how would we regret this
-> later. I regret having to do these kind of patches because people were
-> lazy and just relied on mmap_sem without thinking beyond their use case.
+On Thu, Feb 26, 2015 at 4:51 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
+> Currently, /proc/pid/smaps will always show "Swap: 0 kB" for shmem-backed
+> mappings, even if the mapped portion does contain pages that were swapped out.
+> This is because unlike private anonymous mappings, shmem does not change pte
+> to swap entry, but pte_none when swapping the page out. In the smaps page
+> walk, such page thus looks like it was never faulted in.
 
-That's history: exe_file had direct relation to mm->mmap_sem,
-that was file from first executable vma. After my patch it's less
-related to vmas.
-
-> As mentioned I'm also planning on creating an own sort of
-> exe_file_struct, which would be an isolated entity (still in the mm
-> though), with its own locking and prctl bits, that would tidy mm_struct
-> a bit. RCU was something else I considered, but it doesn't suite well in
-> all paths and we would still need a spinlock when updating the file
-> anyway.
-
-Please don't. What's wrong with mmap_sem?
-
-Do you want optimize reading mm->exe_file?
-Then you should use rcu for that: struct file is rcu-protected thing.
-See fget(), you could do something like that.
+Maybe just add count of swap entries allocated by mapped shmem into
+swap usage of this vma? That's isn't exactly correct for partially
+mapped shmem but this is something weird anyway.
 
 >
-> If you have a better suggestion please do tell.
+> This patch changes smaps_pte_entry() to determine the swap status for such
+> pte_none entries for shmem mappings, similarly to how mincore_page() does it.
+> Swapped out pages are thus accounted for.
 >
->>
->> > A nice side effect of this is that we avoid taking
->> > > the mmap_sem (shared) in fork paths for the exe_file handling
->> > > (note that readers block when the rwsem is taken exclusively by
->> > > another thread).
->>
->> Yes, this is ugly. Can't we kill this dup_mm_exe_file() and copy change
->> dup_mmap() to also dup ->exe_file ?
->>
->> > Hi Davidlohr, it would be interesting to know if the cleanup
->> > bring some performance benefit?
->>
->> To me the main question is whether the patch makes this code simpler
->> or uglier ;)
+> The accounting is arguably still not as precise as for private anonymous
+> mappings, since now we will count also pages that the process in question never
+> accessed, but only another process populated them and then let them become
+> swapped out. I believe it is still less confusing and subtle than not showing
+> any swap usage by shmem mappings at all. Also, swapped out pages only becomee a
+> performance issue for future accesses, and we cannot predict those for neither
+> kind of mapping.
 >
-> Its much beyond that. As mentioned, for any significant changes to the
-> mmap_sem locking scheme, this sort of thing needs to be addressed first.
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> ---
+>  Documentation/filesystems/proc.txt |  3 ++-
+>  fs/proc/task_mmu.c                 | 20 ++++++++++++++++++++
+>  2 files changed, 22 insertions(+), 1 deletion(-)
 >
-> Thanks,
-> Davidlohr
+> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+> index d4f56ec..8b30543 100644
+> --- a/Documentation/filesystems/proc.txt
+> +++ b/Documentation/filesystems/proc.txt
+> @@ -437,7 +437,8 @@ indicates the amount of memory currently marked as referenced or accessed.
+>  a mapping associated with a file may contain anonymous pages: when MAP_PRIVATE
+>  and a page is modified, the file page is replaced by a private anonymous copy.
+>  "Swap" shows how much would-be-anonymous memory is also used, but out on
+> -swap.
+> +swap. For shmem mappings, "Swap" shows how much of the mapped portion of the
+> +underlying shmem object is on swap.
+>
+>  "VmFlags" field deserves a separate description. This member represents the kernel
+>  flags associated with the particular virtual memory area in two letter encoded
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index 956b75d..0410309 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -13,6 +13,7 @@
+>  #include <linux/swap.h>
+>  #include <linux/swapops.h>
+>  #include <linux/mmu_notifier.h>
+> +#include <linux/shmem_fs.h>
+>
+>  #include <asm/elf.h>
+>  #include <asm/uaccess.h>
+> @@ -496,6 +497,25 @@ static void smaps_pte_entry(pte_t *pte, unsigned long addr,
+>                         mss->swap += PAGE_SIZE;
+>                 else if (is_migration_entry(swpent))
+>                         page = migration_entry_to_page(swpent);
+> +       } else if (IS_ENABLED(CONFIG_SHMEM) && IS_ENABLED(CONFIG_SWAP) &&
+> +                                       pte_none(*pte) && vma->vm_file) {
+> +               struct address_space *mapping =
+> +                       file_inode(vma->vm_file)->i_mapping;
+> +
+> +               /*
+> +                * shmem does not use swap pte's so we have to consult
+> +                * the radix tree to account for swap
+> +                */
+> +               if (shmem_mapping(mapping)) {
+> +                       page = find_get_entry(mapping, pgoff);
+> +                       if (page) {
+> +                               if (radix_tree_exceptional_entry(page))
+> +                                       mss->swap += PAGE_SIZE;
+> +                               else
+> +                                       page_cache_release(page);
+> +                       }
+> +                       page = NULL;
+> +               }
+>         }
+>
+>         if (!page)
+> --
+> 2.1.4
 >
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
