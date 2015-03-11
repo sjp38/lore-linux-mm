@@ -1,50 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id CBFD38296B
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2015 16:48:10 -0400 (EDT)
-Received: by padfb1 with SMTP id fb1so14300039pad.7
-        for <linux-mm@kvack.org>; Wed, 11 Mar 2015 13:48:10 -0700 (PDT)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id ej8si5606691pdb.104.2015.03.11.13.48.09
-        for <linux-mm@kvack.org>;
-        Wed, 11 Mar 2015 13:48:09 -0700 (PDT)
-Date: Wed, 11 Mar 2015 16:48:07 -0400 (EDT)
-Message-Id: <20150311.164807.1389597491151339402.davem@davemloft.net>
-Subject: Re: [PATCH] mm: kill kmemcheck
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <CAPAsAGwuCzzDCgiNd=LrHA_W1Nj5TJu3Qym9tR3jnGdT45HQuw@mail.gmail.com>
-References: <55007A9B.4010608@oracle.com>
-	<20150311.144443.1290707334236248572.davem@davemloft.net>
-	<CAPAsAGwuCzzDCgiNd=LrHA_W1Nj5TJu3Qym9tR3jnGdT45HQuw@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 869468296B
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2015 16:55:14 -0400 (EDT)
+Received: by wghl2 with SMTP id l2so12011867wgh.8
+        for <linux-mm@kvack.org>; Wed, 11 Mar 2015 13:55:14 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id dm7si22158904wid.26.2015.03.11.13.55.12
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 11 Mar 2015 13:55:12 -0700 (PDT)
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [PATCH 0/2] Move away from non-failing small allocations
+Date: Wed, 11 Mar 2015 16:54:52 -0400
+Message-Id: <1426107294-21551-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ryabinin.a.a@gmail.com
-Cc: sasha.levin@oracle.com, rostedt@goodmis.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, linux-arch@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-crypto@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <david@fromorbit.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Date: Wed, 11 Mar 2015 23:01:00 +0300
+Hi,
+as per discussion at LSF/MM summit few days back it seems there is a
+general agreement on moving away from "small allocations do not fail"
+concept.
 
-> 2015-03-11 21:44 GMT+03:00 David Miller <davem@davemloft.net>:
->> From: Sasha Levin <sasha.levin@oracle.com>
->> Date: Wed, 11 Mar 2015 13:25:47 -0400
->>
->>> You're probably wondering why there are changes to SPARC in that patchset? :)
->>
->> Libsanitizer doesn't even build have the time on sparc, the release
->> manager has to hand patch it into building again every major release
->> because of the way ASAN development is done out of tree and local
->> commits to the gcc tree are basically written over during the
->> next merge.
->>
-> 
-> Libsanitizer is userspace lib it's for userspace ASan, KASan doesn't use it.
-> We have our own 'libsanitzer' in kernel.
+There are two patches in this series. The first one exports a sysctl
+knob which controls how hard small allocation (!__GFP_NOFAIL ones of
+course) retry when we get completely out of memory before the allocation
+fails. The default is still retry infinitely because we cannot simply
+change the 14+ years behavior right away. It will take years before all
+the potential fallouts are discovered and fixed and we can change the
+default value.
 
-I was speaking about ASAN development in general, of which the
-libsanitizer issue is a byproduct.
+The second patch is the first step in the transition plan. It changes
+the default but it is NOT an upstream material. It is aimed for brave
+testers who can cope with failures. I have talked to Andrew and he
+was willing to keep that patch in mmotm tree. It would be even better
+to have this in linux-next because the testing coverage would be even
+bigger. Dave Chinner has also shown an interest to integrate this into
+his xfstest farm. It would be great if Fenguang could add it into the
+zero testing project too (if the pushing the patch into linux-next
+would be too controversial).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
