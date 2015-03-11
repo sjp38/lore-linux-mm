@@ -1,120 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com [209.85.217.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 00D4790002E
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2015 08:30:19 -0400 (EDT)
-Received: by lbiz12 with SMTP id z12so8403372lbi.12
-        for <linux-mm@kvack.org>; Wed, 11 Mar 2015 05:30:19 -0700 (PDT)
-Received: from mail-la0-x236.google.com (mail-la0-x236.google.com. [2a00:1450:4010:c03::236])
-        by mx.google.com with ESMTPS id w9si1521210laz.154.2015.03.11.05.30.17
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id C4A6090002E
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2015 08:34:53 -0400 (EDT)
+Received: by obcuy5 with SMTP id uy5so8397941obc.11
+        for <linux-mm@kvack.org>; Wed, 11 Mar 2015 05:34:53 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id m17si2036671oik.33.2015.03.11.05.34.52
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Mar 2015 05:30:18 -0700 (PDT)
-Received: by labge10 with SMTP id ge10so8360699lab.7
-        for <linux-mm@kvack.org>; Wed, 11 Mar 2015 05:30:17 -0700 (PDT)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 11 Mar 2015 05:34:53 -0700 (PDT)
+Message-ID: <55003666.3020100@oracle.com>
+Date: Wed, 11 Mar 2015 08:34:46 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <1424958666-18241-3-git-send-email-vbabka@suse.cz>
-References: <1424958666-18241-1-git-send-email-vbabka@suse.cz>
-	<1424958666-18241-3-git-send-email-vbabka@suse.cz>
-Date: Wed, 11 Mar 2015 15:30:17 +0300
-Message-ID: <CALYGNiPn-C6AESik_BrQBEJpOsvcy7qG_sacAyf+O24A6P9kyA@mail.gmail.com>
-Subject: Re: [PATCH 2/4] mm, procfs: account for shmem swap in /proc/pid/smaps
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH] mm: kill kmemcheck
+References: <1426074547-21888-1-git-send-email-sasha.levin@oracle.com> <20150311081909.552e2052@grimm.local.home>
+In-Reply-To: <20150311081909.552e2052@grimm.local.home>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Jerome Marchand <jmarchan@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-doc@vger.kernel.org, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Randy Dunlap <rdunlap@infradead.org>, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Paul Mackerras <paulus@samba.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Oleg Nesterov <oleg@redhat.com>
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, netdev@vger.kernel.org, linux-arch@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-crypto@vger.kernel.org
 
-On Thu, Feb 26, 2015 at 4:51 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
-> Currently, /proc/pid/smaps will always show "Swap: 0 kB" for shmem-backed
-> mappings, even if the mapped portion does contain pages that were swapped out.
-> This is because unlike private anonymous mappings, shmem does not change pte
-> to swap entry, but pte_none when swapping the page out. In the smaps page
-> walk, such page thus looks like it was never faulted in.
+On 03/11/2015 08:19 AM, Steven Rostedt wrote:
+> I removed the Cc list as it was so large, I'm sure that it exceeded the
+> LKML Cc size limit, and your email probably didn't make it to the list
+> (or any of them).
 
-Maybe just add count of swap entries allocated by mapped shmem into
-swap usage of this vma? That's isn't exactly correct for partially
-mapped shmem but this is something weird anyway.
+Thanks. I'll resend in a bit if it doesn't show up on lkml.org.
 
->
-> This patch changes smaps_pte_entry() to determine the swap status for such
-> pte_none entries for shmem mappings, similarly to how mincore_page() does it.
-> Swapped out pages are thus accounted for.
->
-> The accounting is arguably still not as precise as for private anonymous
-> mappings, since now we will count also pages that the process in question never
-> accessed, but only another process populated them and then let them become
-> swapped out. I believe it is still less confusing and subtle than not showing
-> any swap usage by shmem mappings at all. Also, swapped out pages only becomee a
-> performance issue for future accesses, and we cannot predict those for neither
-> kind of mapping.
->
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> ---
->  Documentation/filesystems/proc.txt |  3 ++-
->  fs/proc/task_mmu.c                 | 20 ++++++++++++++++++++
->  2 files changed, 22 insertions(+), 1 deletion(-)
->
-> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-> index d4f56ec..8b30543 100644
-> --- a/Documentation/filesystems/proc.txt
-> +++ b/Documentation/filesystems/proc.txt
-> @@ -437,7 +437,8 @@ indicates the amount of memory currently marked as referenced or accessed.
->  a mapping associated with a file may contain anonymous pages: when MAP_PRIVATE
->  and a page is modified, the file page is replaced by a private anonymous copy.
->  "Swap" shows how much would-be-anonymous memory is also used, but out on
-> -swap.
-> +swap. For shmem mappings, "Swap" shows how much of the mapped portion of the
-> +underlying shmem object is on swap.
->
->  "VmFlags" field deserves a separate description. This member represents the kernel
->  flags associated with the particular virtual memory area in two letter encoded
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index 956b75d..0410309 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -13,6 +13,7 @@
->  #include <linux/swap.h>
->  #include <linux/swapops.h>
->  #include <linux/mmu_notifier.h>
-> +#include <linux/shmem_fs.h>
->
->  #include <asm/elf.h>
->  #include <asm/uaccess.h>
-> @@ -496,6 +497,25 @@ static void smaps_pte_entry(pte_t *pte, unsigned long addr,
->                         mss->swap += PAGE_SIZE;
->                 else if (is_migration_entry(swpent))
->                         page = migration_entry_to_page(swpent);
-> +       } else if (IS_ENABLED(CONFIG_SHMEM) && IS_ENABLED(CONFIG_SWAP) &&
-> +                                       pte_none(*pte) && vma->vm_file) {
-> +               struct address_space *mapping =
-> +                       file_inode(vma->vm_file)->i_mapping;
-> +
-> +               /*
-> +                * shmem does not use swap pte's so we have to consult
-> +                * the radix tree to account for swap
-> +                */
-> +               if (shmem_mapping(mapping)) {
-> +                       page = find_get_entry(mapping, pgoff);
-> +                       if (page) {
-> +                               if (radix_tree_exceptional_entry(page))
-> +                                       mss->swap += PAGE_SIZE;
-> +                               else
-> +                                       page_cache_release(page);
-> +                       }
-> +                       page = NULL;
-> +               }
->         }
->
->         if (!page)
-> --
-> 2.1.4
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> On Wed, 11 Mar 2015 07:43:59 -0400
+> Sasha Levin <sasha.levin@oracle.com> wrote:
+> 
+>> > As discussed on LSF/MM, kill kmemcheck.
+>> > 
+>> > KASan is a replacement that is able to work without the limitation of
+>> > kmemcheck (single CPU, slow). KASan is already upstream.
+>> > 
+>> > We are also not aware of any users of kmemcheck (or users who don't consider
+>> > KASan as a suitable replacement).
+> I use kmemcheck and I am unaware of KASan. I'll try to play with KASan
+> and see if it suites my needs.
+
+Fair enough. We knew there are existing kmemcheck users, but KASan should be
+superior both in performance and the scope of bugs it finds. It also shouldn't
+impose new limitations beyond requiring gcc 4.9.2+.
+
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
