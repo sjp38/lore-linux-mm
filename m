@@ -1,215 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C39490002E
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2015 03:02:22 -0400 (EDT)
-Received: by wiwl15 with SMTP id l15so9073148wiw.0
-        for <linux-mm@kvack.org>; Wed, 11 Mar 2015 00:02:22 -0700 (PDT)
-Received: from mail-wg0-x22d.google.com (mail-wg0-x22d.google.com. [2a00:1450:400c:c00::22d])
-        by mx.google.com with ESMTPS id v7si3126465wiz.62.2015.03.11.00.02.20
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 3017E90002E
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2015 05:06:16 -0400 (EDT)
+Received: by padfa1 with SMTP id fa1so9851914pad.3
+        for <linux-mm@kvack.org>; Wed, 11 Mar 2015 02:06:15 -0700 (PDT)
+Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
+        by mx.google.com with ESMTPS id f10si5587042pas.26.2015.03.11.02.06.13
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Mar 2015 00:02:20 -0700 (PDT)
-Received: by wggy19 with SMTP id y19so7006753wgg.2
-        for <linux-mm@kvack.org>; Wed, 11 Mar 2015 00:02:20 -0700 (PDT)
-Date: Wed, 11 Mar 2015 08:02:16 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 3/3] mtrr, mm, x86: Enhance MTRR checks for KVA huge page
- mapping
-Message-ID: <20150311070216.GD29788@gmail.com>
-References: <1426018997-12936-1-git-send-email-toshi.kani@hp.com>
- <1426018997-12936-4-git-send-email-toshi.kani@hp.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 11 Mar 2015 02:06:14 -0700 (PDT)
+From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Date: Wed, 11 Mar 2015 17:05:46 +0800
+Subject: [RFC ] mm: don't ignore file map pages for madvise_free( )
+Message-ID: <35FD53F367049845BC99AC72306C23D10458D6173C0B@CNBJMBX05.corpusers.net>
+References: <1426036838-18154-1-git-send-email-minchan@kernel.org>
+ <1426036838-18154-3-git-send-email-minchan@kernel.org>
+In-Reply-To: <1426036838-18154-3-git-send-email-minchan@kernel.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1426018997-12936-4-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, arnd@arndb.de, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl
+To: 'Minchan Kim' <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>
+
+Hi
+
+I just want to explain my ideas about file map pages for madvise_free() sys=
+call.
+As the following patch,
+For file map vma, there is 2 types:
+1. private file map
+	In this type, the pages of this vma are file map pages or anon page (when =
+COW happened),
+2. shared file map
+	In this type, the pages of this vma are all file map pages.
+
+No matter which type file map,
+We can handle file map vma as the following:
+If the page is file map pages,
+We just clear its pte young bit(pte_mkold()),
+This will have some advantages, it will make page
+Reclaim path move this file map page into inactive
+lru list aggressively.
+
+If the page is anon map page, we just handle it in the
+Same way as for the pages in anon vma.
 
 
-* Toshi Kani <toshi.kani@hp.com> wrote:
+---
 
-> This patch adds an additional argument, *uniform, to
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 6d0fcb8..8fdc82f 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -322,7 +322,8 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned =
+long addr,
+                ptent =3D ptep_get_and_clear_full(mm, addr, pte,
+                                                tlb->fullmm);
+                ptent =3D pte_mkold(ptent);
+-               ptent =3D pte_mkclean(ptent);
++               if (PageAnon(page))
++                       ptent =3D pte_mkclean(ptent);
+                set_pte_at(mm, addr, pte, ptent);
+                tlb_remove_tlb_entry(tlb, pte, addr);
+        }
+@@ -364,10 +365,6 @@ static int madvise_free_single_vma(struct vm_area_stru=
+ct *vma,
+        if (vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP))
+                return -EINVAL;
 
-s/*uniform/'uniform'
-
-> mtrr_type_lookup(), which returns 1 when a given range is
-> either fully covered by a single MTRR entry or not covered
-> at all.
-
-s/or not covered/or is not covered
-
-> pud_set_huge() and pmd_set_huge() are changed to check the
-> new uniform flag to see if it is safe to create a huge page
-
-s/uniform/'uniform'
-
-> mapping to the range.  This allows them to create a huge page
-> mapping to a range covered by a single MTRR entry of any
-> memory type.  It also detects an unoptimal request properly.
-
-s/unoptimal/non-optimal
-
-or nonoptimal
-
-Also, some description in the changelog about what a 'non-optimal' 
-request is would be most userful.
-
-> They continue to check with the WB type since the WB type has
-> no effect even if a request spans to multiple MTRR entries.
-
-s/spans to/spans
-
-> -static inline u8 mtrr_type_lookup(u64 addr, u64 end)
-> +static inline u8 mtrr_type_lookup(u64 addr, u64 end, u8 *uniform)
->  {
->  	/*
->  	 * Return no-MTRRs:
->  	 */
-> +	*uniform = 1;
->  	return 0xff;
->  }
->  #define mtrr_save_fixed_ranges(arg) do {} while (0)
-> diff --git a/arch/x86/kernel/cpu/mtrr/generic.c b/arch/x86/kernel/cpu/mtrr/generic.c
-> index cdb955f..aef238c 100644
-> --- a/arch/x86/kernel/cpu/mtrr/generic.c
-> +++ b/arch/x86/kernel/cpu/mtrr/generic.c
-> @@ -108,14 +108,19 @@ static int check_type_overlap(u8 *prev, u8 *curr)
->   * *repeat == 1 implies [start:end] spanned across MTRR range and type returned
->   *		corresponds only to [start:*partial_end].
->   *		Caller has to lookup again for [*partial_end:end].
-> + * *uniform == 1 The requested range is either fully covered by a single MTRR
-> + *		 entry or not covered at all.
->   */
-
-So I think a better approach would be to count the number of separate 
-MTRR caching types a range is covered by, instead of this hard to 
-quality 'uniform' flag.
-
-I.e. a 'nr_mtrr_types' count.
-
-If for example a range partially intersects with an MTRR, then that 
-count would be 2: the MTRR, and the outside (default cache policy) 
-type.
-
-( Note that with this approach is not only easy to understand and easy 
-  to review, but could also be refined in the future, to count the 
-  number of _incompatible_ caching types present within a range. )
-
-
-> -static u8 __mtrr_type_lookup(u64 start, u64 end, u64 *partial_end, int *repeat)
-> +static u8 __mtrr_type_lookup(u64 start, u64 end,
-> +			     u64 *partial_end, int *repeat, u8 *uniform)
->  {
->  	int i;
->  	u64 base, mask;
->  	u8 prev_match, curr_match;
->  
->  	*repeat = 0;
-> +	*uniform = 1;
-> +
->  	if (!mtrr_state_set)
->  		return 0xFF;
->  
-> @@ -128,6 +133,7 @@ static u8 __mtrr_type_lookup(u64 start, u64 end, u64 *partial_end, int *repeat)
->  	/* Look in fixed ranges. Just return the type as per start */
->  	if (mtrr_state.have_fixed && (start < 0x100000)) {
->  		int idx;
-> +		*uniform = 0;
-
-So this function scares me, because the code is clearly crap:
-
-        if (mtrr_state.have_fixed && (start < 0x100000)) {
-	...
-                } else if (start < 0x1000000) {
-	...
-
-How can that 'else if' branch ever not be true?
-
-Did it perhaps want to be the other way around:
-
-        if (mtrr_state.have_fixed && (start < 0x1000000)) {
-	...
-                } else if (start < 0x100000) {
-	...
-
-or did it simply mess up the condition?
-
->  
->  		if (start < 0x80000) {
->  			idx = 0;
-> @@ -195,6 +201,7 @@ static u8 __mtrr_type_lookup(u64 start, u64 end, u64 *partial_end, int *repeat)
->  
->  			end = *partial_end - 1; /* end is inclusive */
->  			*repeat = 1;
-> +			*uniform = 0;
->  		}
->  
->  		if (!start_state)
-> @@ -206,6 +213,7 @@ static u8 __mtrr_type_lookup(u64 start, u64 end, u64 *partial_end, int *repeat)
->  			continue;
->  		}
->  
-> +		*uniform = 0;
->  		if (check_type_overlap(&prev_match, &curr_match))
->  			return curr_match;
->  	}
-
-
-> @@ -222,17 +230,21 @@ static u8 __mtrr_type_lookup(u64 start, u64 end, u64 *partial_end, int *repeat)
->  }
->  
->  /*
-> - * Returns the effective MTRR type for the region
-> + * Returns the effective MTRR type for the region.  *uniform is set to 1
-> + * when a given range is either fully covered by a single MTRR entry or
-> + * not covered at all.
-> + *
->   * Error return:
->   * 0xFF - when MTRR is not enabled
->   */
-> -u8 mtrr_type_lookup(u64 start, u64 end)
-> +u8 mtrr_type_lookup(u64 start, u64 end, u8 *uniform)
->  {
-> -	u8 type, prev_type;
-> +	u8 type, prev_type, is_uniform, dummy;
->  	int repeat;
->  	u64 partial_end;
->  
-> -	type = __mtrr_type_lookup(start, end, &partial_end, &repeat);
-> +	type = __mtrr_type_lookup(start, end,
-> +				  &partial_end, &repeat, &is_uniform);
->  
->  	/*
->  	 * Common path is with repeat = 0.
-> @@ -242,12 +254,18 @@ u8 mtrr_type_lookup(u64 start, u64 end)
->  	while (repeat) {
->  		prev_type = type;
->  		start = partial_end;
-> -		type = __mtrr_type_lookup(start, end, &partial_end, &repeat);
-> +		is_uniform = 0;
->  
-> -		if (check_type_overlap(&prev_type, &type))
-> +		type = __mtrr_type_lookup(start, end,
-> +					  &partial_end, &repeat, &dummy);
-> +
-> +		if (check_type_overlap(&prev_type, &type)) {
-> +			*uniform = 0;
->  			return type;
-> +		}
->  	}
->  
-> +	*uniform = is_uniform;
->  	return type;
-
-So the MTRR code is from hell, it would be nice to first clean up the 
-whole code and the MTRR data structures before extending it with more 
-complexity ...
-
-Thanks,
-
-	Ingo
+-       /* MADV_FREE works for only anon vma at the moment */
+-       if (vma->vm_file)
+-               return -EINVAL;
+-
+        start =3D max(vma->vm_start, start_addr);
+        if (start >=3D vma->vm_end)
+                return -EINVAL;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
