@@ -1,54 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id D6E9390002E
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2015 00:32:54 -0400 (EDT)
-Received: by pdjy10 with SMTP id y10so7840313pdj.12
-        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 21:32:54 -0700 (PDT)
-Received: from mail-pd0-x22b.google.com (mail-pd0-x22b.google.com. [2607:f8b0:400e:c02::22b])
-        by mx.google.com with ESMTPS id xu6si4698807pab.113.2015.03.10.21.32.53
+Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com [209.85.216.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 9034A90002E
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2015 00:35:33 -0400 (EDT)
+Received: by qcxm20 with SMTP id m20so7538451qcx.3
+        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 21:35:33 -0700 (PDT)
+Received: from mail-qc0-x22c.google.com (mail-qc0-x22c.google.com. [2607:f8b0:400d:c01::22c])
+        by mx.google.com with ESMTPS id w7si2438482qha.66.2015.03.10.21.35.32
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Mar 2015 21:32:53 -0700 (PDT)
-Received: by pdjz10 with SMTP id z10so7838843pdj.11
-        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 21:32:53 -0700 (PDT)
-Date: Wed, 11 Mar 2015 13:32:47 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH -next] zsmalloc: Include linux/sched.h to fix build error
-Message-ID: <20150311043247.GC4794@blaptop>
-References: <1426045262-14739-1-git-send-email-linux@roeck-us.net>
+        Tue, 10 Mar 2015 21:35:33 -0700 (PDT)
+Received: by qcwr17 with SMTP id r17so7607722qcw.2
+        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 21:35:32 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1426045262-14739-1-git-send-email-linux@roeck-us.net>
+In-Reply-To: <20150310142237.GA2095@quack.suse.cz>
+References: <1423666208-10681-1-git-send-email-k.kozlowski@samsung.com>
+	<1423666208-10681-2-git-send-email-k.kozlowski@samsung.com>
+	<CAH9JG2X5qO418qp3_ZAvwE7LPe6YC_FdKkOwHtpYxzqZkUvB_w@mail.gmail.com>
+	<20150310130323.GA1515@infradead.org>
+	<20150310142237.GA2095@quack.suse.cz>
+Date: Wed, 11 Mar 2015 13:35:32 +0900
+Message-ID: <CAH9JG2UOuWum=c2bCCgmc8E5xJ1Rhn8yYQ1AMyu8z8CavrAYkw@mail.gmail.com>
+Subject: Re: [RFC] shmem: Add eventfd notification on utlilization level
+From: Kyungmin Park <kmpark@infradead.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Guenter Roeck <linux@roeck-us.net>
-Cc: Nitin Gupta <ngupta@vflare.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Christoph Hellwig <hch@infradead.org>, Krzysztof Kozlowski <k.kozlowski@samsung.com>, Hugh Dickins <hughd@google.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Linux Filesystem Mailing List <linux-fsdevel@vger.kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>
 
-Hello Guenter,
+On Tue, Mar 10, 2015 at 11:22 PM, Jan Kara <jack@suse.cz> wrote:
+> On Tue 10-03-15 06:03:23, Christoph Hellwig wrote:
+>> On Tue, Mar 10, 2015 at 10:51:41AM +0900, Kyungmin Park wrote:
+>> > Any updates?
+>>
+>> Please just add disk quota support to tmpfs so thast the standard quota
+>> netlink notifications can be used.
+>   If I understand the problem at hand, they are really interested in
+> notification when running out of free space. Using quota for that doesn't
+> seem ideal since that tracks used space per user, not free space on fs as a
+> whole.
+>
+> But if I remember right there were discussions about ENOSPC notification
+> from filesystem for thin provisioning usecases. It would be good to make
+> this consistent with those but I'm not sure if it went anywhere.
 
-On Tue, Mar 10, 2015 at 08:41:02PM -0700, Guenter Roeck wrote:
-> Fix:
-> 
-> mm/zsmalloc.c: In function '__zs_compact':
-> mm/zsmalloc.c:1747:2: error: implicit declaration of function 'cond_resched'
-> 
-> seen when building mips:allmodconfig.
-> 
-> Fixes: c4d204c38734 ("zsmalloc: support compaction")
-> Cc: Minchan Kim <minchan@kernel.org>
-> Signed-off-by: Guenter Roeck <linux@roeck-us.net>
+In mobile case, it provides two warning messages when it remains 5%
+and 0.1% respectively.
+to achieve it, some daemon call statfs periodically. right it's inefficient.
 
-Thanks for the fixing!
+that's reason we need some notification method from filesystem.
 
-A few hours ago, Geert Uytterhoeven sent a patch.
-http://www.spinics.net/lists/linux-mm/msg85571.html
+tmpfs is different story. some malicious app fills tmpfs then system
+goes slow. so it has to check it periodically.
+to avoid it, this patch is developed and want to get feedback.
 
-Thanks.
+we considered quota but it's not desired one. other can't write tmpfs
+even though it has 20% remaining.
 
--- 
-Kind regards,
-Minchan Kim
+Thank you,
+Kyungmin Park
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
