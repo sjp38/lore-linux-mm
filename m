@@ -1,152 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E51D90002E
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2015 21:20:48 -0400 (EDT)
-Received: by pdbfl12 with SMTP id fl12so6668246pdb.9
-        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 18:20:47 -0700 (PDT)
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 5883790002E
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2015 21:20:50 -0400 (EDT)
+Received: by padfa1 with SMTP id fa1so6792233pad.9
+        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 18:20:50 -0700 (PDT)
 Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id x4si4166649pdr.44.2015.03.10.18.20.45
+        by mx.google.com with ESMTP id fe5si4178215pdb.39.2015.03.10.18.20.45
         for <linux-mm@kvack.org>;
-        Tue, 10 Mar 2015 18:20:46 -0700 (PDT)
+        Tue, 10 Mar 2015 18:20:47 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH 3/4] mm: move lazy free pages to inactive list
-Date: Wed, 11 Mar 2015 10:20:37 +0900
-Message-Id: <1426036838-18154-3-git-send-email-minchan@kernel.org>
-In-Reply-To: <1426036838-18154-1-git-send-email-minchan@kernel.org>
-References: <1426036838-18154-1-git-send-email-minchan@kernel.org>
+Subject: [PATCH 1/4] mm: free swp_entry in madvise_free
+Date: Wed, 11 Mar 2015 10:20:35 +0900
+Message-Id: <1426036838-18154-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Yalin.Wang@sonymobile.com, Minchan Kim <minchan@kernel.org>
 
-MADV_FREE is hint that it's okay to discard pages if there is
-memory pressure and we uses reclaimers(ie, kswapd and direct reclaim)
-to free them so there is no worth to remain them in active anonymous LRU
-so this patch moves them to inactive LRU list's head.
+When I test below piece of code with 12 processes(ie, 512M * 12 = 6G consume)
+on my (3G ram + 12 cpu + 8G swap, the madvise_free is siginficat slower
+(ie, 2x times) than madvise_dontneed.
 
-This means that MADV_FREE-ed pages which were living on the inactive list
-are reclaimed first because they are more likely to be cold rather than
-recently active pages.
+loop = 5;
+mmap(512M);
+while (loop--) {
+        memset(512M);
+        madvise(MADV_FREE or MADV_DONTNEED);
+}
 
-A arguable issue for the approach would be whether we should put it to
-head or tail in inactive list. I selected *head* because kernel cannot
-make sure it's really cold or warm for every MADV_FREE usecase but
-at least we know it's not *hot* so landing of inactive head would be
-comprimise for various usecases.
+The reason is lots of swapin.
 
-This is fixing a suboptimal behavior of MADV_FREE when pages living on
-the active list will sit there for a long time even under memory
-pressure while the inactive list is reclaimed heavily. This basically
-breaks the whole purpose of using MADV_FREE to help the system to free
-memory which is might not be used.
+1) dontneed: 1,612 swapin
+2) madvfree: 879,585 swapin
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+If we find hinted pages were already swapped out when syscall is called,
+it's pointless to keep the swapped-out pages in pte.
+Instead, let's free the cold page because swapin is more expensive
+than (alloc page + zeroing).
+
+With this patch, it reduced swapin from 879,585 to 1,878 so elapsed time
+
+1) dontneed: 6.10user 233.50system 0:50.44elapsed
+2) madvfree: 6.03user 401.17system 1:30.67elapsed
+2) madvfree + below patch: 6.70user 339.14system 1:04.45elapsed
+
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- include/linux/swap.h |  1 +
- mm/madvise.c         |  2 ++
- mm/swap.c            | 35 +++++++++++++++++++++++++++++++++++
- 3 files changed, 38 insertions(+)
+ mm/madvise.c | 26 +++++++++++++++++++++++++-
+ 1 file changed, 25 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index cee108c..0428e4c 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -308,6 +308,7 @@ extern void lru_add_drain_cpu(int cpu);
- extern void lru_add_drain_all(void);
- extern void rotate_reclaimable_page(struct page *page);
- extern void deactivate_file_page(struct page *page);
-+extern void deactivate_page(struct page *page);
- extern void swap_setup(void);
- 
- extern void add_page_to_unevictable_list(struct page *page);
 diff --git a/mm/madvise.c b/mm/madvise.c
-index ebe692e..22e8f0c 100644
+index 6d0fcb8..ebe692e 100644
 --- a/mm/madvise.c
 +++ b/mm/madvise.c
-@@ -340,6 +340,8 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
- 		ptent = pte_mkold(ptent);
- 		ptent = pte_mkclean(ptent);
+@@ -274,7 +274,9 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+ 	spinlock_t *ptl;
+ 	pte_t *pte, ptent;
+ 	struct page *page;
++	swp_entry_t entry;
+ 	unsigned long next;
++	int nr_swap = 0;
+ 
+ 	next = pmd_addr_end(addr, end);
+ 	if (pmd_trans_huge(*pmd)) {
+@@ -293,8 +295,22 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+ 	for (; addr != end; pte++, addr += PAGE_SIZE) {
+ 		ptent = *pte;
+ 
+-		if (!pte_present(ptent))
++		if (pte_none(ptent))
+ 			continue;
++		/*
++		 * If the pte has swp_entry, just clear page table to
++		 * prevent swap-in which is more expensive rather than
++		 * (page allocation + zeroing).
++		 */
++		if (!pte_present(ptent)) {
++			entry = pte_to_swp_entry(ptent);
++			if (non_swap_entry(entry))
++				continue;
++			nr_swap--;
++			free_swap_and_cache(entry);
++			pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
++			continue;
++		}
+ 
+ 		page = vm_normal_page(vma, addr, ptent);
+ 		if (!page)
+@@ -326,6 +342,14 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
  		set_pte_at(mm, addr, pte, ptent);
-+		if (PageActive(page))
-+			deactivate_page(page);
  		tlb_remove_tlb_entry(tlb, pte, addr);
  	}
- 
-diff --git a/mm/swap.c b/mm/swap.c
-index 5b2a605..393968c 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -43,6 +43,7 @@ int page_cluster;
- static DEFINE_PER_CPU(struct pagevec, lru_add_pvec);
- static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
- static DEFINE_PER_CPU(struct pagevec, lru_deactivate_file_pvecs);
-+static DEFINE_PER_CPU(struct pagevec, lru_deactivate_pvecs);
- 
- /*
-  * This path almost never happens for VM activity - pages are normally
-@@ -789,6 +790,23 @@ static void lru_deactivate_file_fn(struct page *page, struct lruvec *lruvec,
- 	update_page_reclaim_stat(lruvec, file, 0);
- }
- 
 +
-+static void lru_deactivate_fn(struct page *page, struct lruvec *lruvec,
-+			    void *arg)
-+{
-+	if (PageLRU(page) && PageActive(page) && !PageUnevictable(page)) {
-+		int file = page_is_file_cache(page);
-+		int lru = page_lru_base_type(page);
++	if (nr_swap) {
++		if (current->mm == mm)
++			sync_mm_rss(mm);
 +
-+		del_page_from_lru_list(page, lruvec, lru + LRU_ACTIVE);
-+		ClearPageActive(page);
-+		add_page_to_lru_list(page, lruvec, lru);
-+
-+		__count_vm_event(PGDEACTIVATE);
-+		update_page_reclaim_stat(lruvec, file, 0);
++		add_mm_counter(mm, MM_SWAPENTS, nr_swap);
 +	}
-+}
 +
- /*
-  * Drain pages out of the cpu's pagevecs.
-  * Either "cpu" is the current CPU, and preemption has already been
-@@ -815,6 +833,10 @@ void lru_add_drain_cpu(int cpu)
- 	if (pagevec_count(pvec))
- 		pagevec_lru_move_fn(pvec, lru_deactivate_file_fn, NULL);
- 
-+	pvec = &per_cpu(lru_deactivate_pvecs, cpu);
-+	if (pagevec_count(pvec))
-+		pagevec_lru_move_fn(pvec, lru_deactivate_fn, NULL);
-+
- 	activate_page_drain(cpu);
- }
- 
-@@ -844,6 +866,18 @@ void deactivate_file_page(struct page *page)
- 	}
- }
- 
-+void deactivate_page(struct page *page)
-+{
-+	if (PageLRU(page) && PageActive(page) && !PageUnevictable(page)) {
-+		struct pagevec *pvec = &get_cpu_var(lru_deactivate_pvecs);
-+
-+		page_cache_get(page);
-+		if (!pagevec_add(pvec, page))
-+			pagevec_lru_move_fn(pvec, lru_deactivate_fn, NULL);
-+		put_cpu_var(lru_deactivate_pvecs);
-+	}
-+}
-+
- void lru_add_drain(void)
- {
- 	lru_add_drain_cpu(get_cpu());
-@@ -873,6 +907,7 @@ void lru_add_drain_all(void)
- 		if (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
- 		    pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
- 		    pagevec_count(&per_cpu(lru_deactivate_file_pvecs, cpu)) ||
-+		    pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
- 		    need_activate_page_drain(cpu)) {
- 			INIT_WORK(work, lru_add_drain_per_cpu);
- 			schedule_work_on(cpu, work);
+ 	arch_leave_lazy_mmu_mode();
+ 	pte_unmap_unlock(pte - 1, ptl);
+ next:
 -- 
 1.9.3
 
