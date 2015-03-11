@@ -1,103 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
-	by kanga.kvack.org (Postfix) with ESMTP id A91B3900049
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2015 11:26:15 -0400 (EDT)
-Received: by obcwp4 with SMTP id wp4so9577937obc.4
-        for <linux-mm@kvack.org>; Wed, 11 Mar 2015 08:26:15 -0700 (PDT)
-Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
-        by mx.google.com with ESMTPS id p10si2275930oeq.29.2015.03.11.08.26.14
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id BA447900049
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2015 11:27:42 -0400 (EDT)
+Received: by wghk14 with SMTP id k14so10046479wgh.7
+        for <linux-mm@kvack.org>; Wed, 11 Mar 2015 08:27:42 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w5si7091038wix.8.2015.03.11.08.27.39
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Mar 2015 08:26:15 -0700 (PDT)
-Message-ID: <1426087526.17007.315.camel@misato.fc.hp.com>
-Subject: Re: [PATCH 1/3] mm, x86: Document return values of mapping funcs
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Wed, 11 Mar 2015 09:25:26 -0600
-In-Reply-To: <20150311063024.GB29788@gmail.com>
-References: <1426018997-12936-1-git-send-email-toshi.kani@hp.com>
-	 <1426018997-12936-2-git-send-email-toshi.kani@hp.com>
-	 <20150311063024.GB29788@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Wed, 11 Mar 2015 08:27:40 -0700 (PDT)
+Message-ID: <55005EBA.8080201@redhat.com>
+Date: Wed, 11 Mar 2015 16:26:50 +0100
+From: Jerome Marchand <jmarchan@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/4] mm, procfs: account for shmem swap in /proc/pid/smaps
+References: <1424958666-18241-1-git-send-email-vbabka@suse.cz>	<1424958666-18241-3-git-send-email-vbabka@suse.cz> <CALYGNiPn-C6AESik_BrQBEJpOsvcy7qG_sacAyf+O24A6P9kyA@mail.gmail.com> <5500592D.4090309@yandex-team.ru>
+In-Reply-To: <5500592D.4090309@yandex-team.ru>
+Content-Type: multipart/signed; micalg=pgp-sha1;
+ protocol="application/pgp-signature";
+ boundary="oKqHwNA89IQoqu8VfDE7xpr1Sm8MP6A0p"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@redhat.com" <mingo@redhat.com>, "arnd@arndb.de" <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dave.hansen@intel.com" <dave.hansen@intel.com>, "Elliott, Robert (Server Storage)" <Elliott@hp.com>, "pebolle@tiscali.nl" <pebolle@tiscali.nl>
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Konstantin Khlebnikov <koct9i@gmail.com>, Vlastimil Babka <vbabka@suse.cz>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-doc@vger.kernel.org, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Randy Dunlap <rdunlap@infradead.org>, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Paul Mackerras <paulus@samba.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Oleg Nesterov <oleg@redhat.com>
 
-On Wed, 2015-03-11 at 06:30 +0000, Ingo Molnar wrote:
-> * Toshi Kani <toshi.kani@hp.com> wrote:
-> 
-> > Documented the return values of KVA mapping functions,
-> > pud_set_huge(), pmd_set_huge, pud_clear_huge() and
-> > pmd_clear_huge().
-> > 
-> > Simplified the conditions to select HAVE_ARCH_HUGE_VMAP
-> > in Kconfig since X86_PAE depends on X86_32.
-> 
-> Changelogs are not a diary, they are a story, generally written in the 
-> present tense. 
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--oKqHwNA89IQoqu8VfDE7xpr1Sm8MP6A0p
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 
-Oh, I see. Thanks for the tip!
+On 03/11/2015 04:03 PM, Konstantin Khlebnikov wrote:
+> On 11.03.2015 15:30, Konstantin Khlebnikov wrote:
+>> On Thu, Feb 26, 2015 at 4:51 PM, Vlastimil Babka <vbabka@suse.cz> wrot=
+e:
+>>> Currently, /proc/pid/smaps will always show "Swap: 0 kB" for
+>>> shmem-backed
+>>> mappings, even if the mapped portion does contain pages that were
+>>> swapped out.
+>>> This is because unlike private anonymous mappings, shmem does not
+>>> change pte
+>>> to swap entry, but pte_none when swapping the page out. In the smaps
+>>> page
+>>> walk, such page thus looks like it was never faulted in.
+>>
+>> Maybe just add count of swap entries allocated by mapped shmem into
+>> swap usage of this vma? That's isn't exactly correct for partially
+>> mapped shmem but this is something weird anyway.
+>=20
+> Something like that (see patch in attachment)
+>=20
 
-> So it should be something like:
-> 
->   Document the return values of KVA mapping functions,
->   pud_set_huge(), pmd_set_huge, pud_clear_huge() and
->   pmd_clear_huge().
-> 
->   Simplify the conditions to select HAVE_ARCH_HUGE_VMAP
->   in the Kconfig, since X86_PAE depends on X86_32.
-> 
-> (also note the slight fixes I made to the text.)
+-8<---
 
-Updated with the descriptions above.
+diff --git a/mm/shmem.c b/mm/shmem.c
+index cf2d0ca010bc..492f78f51fc2 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1363,6 +1363,13 @@ static struct mempolicy *shmem_get_policy(struct
+vm_area_struct *vma,
+ }
+ #endif
 
-> > There is no functinal change in this patch.
-> 
-> Typo.
++static unsigned long shmem_get_swap_usage(struct vm_area_struct *vma)
++{
++	struct inode *inode =3D file_inode(vma->vm_file);
++
++	return SHMEM_I(inode)->swapped;
++}
++
+ int shmem_lock(struct file *file, int lock, struct user_struct *user)
+ {
+ 	struct inode *inode =3D file_inode(file);
 
-Fixed.
+-8<---
 
-> > +/**
-> > + * pud_set_huge - setup kernel PUD mapping
-> > + *
-> > + * MTRRs can override PAT memory types with a 4KB granularity.  Therefore,
-> 
-> s/with a/with
+That will not work for shared anonymous mapping since they all share the
+same vm_file (/dev/zero).
 
-Fixed.
+Jerome
 
-> > + * it does not set up a huge page when the range is covered by non-WB type
-> > + * of MTRRs.  0xFF indicates that MTRRs are disabled.
-> > + *
-> > + * Return 1 on success, and 0 on no-operation.
-> 
-> What is a 'no-operation'?
-> 
-> I suspect you want:
-> 
->     * Returns 1 on success, and 0 when no PUD was set.
 
-Yes, that's what it meant to say.
+--oKqHwNA89IQoqu8VfDE7xpr1Sm8MP6A0p
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
 
-> > +/**
-> > + * pmd_set_huge - setup kernel PMD mapping
-> > + *
-> > + * MTRRs can override PAT memory types with a 4KB granularity.  Therefore,
-> > + * it does not set up a huge page when the range is covered by non-WB type
-> > + * of MTRRs.  0xFF indicates that MTRRs are disabled.
-> > + *
-> > + * Return 1 on success, and 0 on no-operation.
-> 
-> Ditto (and the rest of the patch).
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
 
-Updated all functions. I changed pud_clear_huge()'s description to:  
+iQEcBAEBAgAGBQJVAF66AAoJEHTzHJCtsuoC/iYH/2EASD+Iir8EV3jvFdz51mh7
+m4jF5JCw/hKUk+Nus9t4zsTF1Piak6Ui2fdEbzggijVec4qQvcigYdscrE4On9wa
+jTJHxt2FZocD44OwTND/Seb7pKt2cBjmQ+W0dHBQH3LTo4Th9c+wCtzVM1KJmoMS
+jvdA0a3u4BqCxFy9jmRtVhUTDSM6Yif4W0dCuy75KF5u3RyPgqJJIg3jK5r5wTYZ
+Wb9SFVaBV1nEWhdohBl1oglmyEefd87UYoZT+LOCNPV/tQi4BAjWGwDRNZbOm+g3
+ui5RuizA94zNgsn3GyQuDQ5pkRrDltIPkipGrvaLzr30wfSlccukNGEcdDX7WgU=
+=BjwP
+-----END PGP SIGNATURE-----
 
- * Return 1 on success, and 0 when no PUD map was found.
-
-Thanks!
--Toshi
+--oKqHwNA89IQoqu8VfDE7xpr1Sm8MP6A0p--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
