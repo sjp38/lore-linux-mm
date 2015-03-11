@@ -1,88 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f173.google.com (mail-lb0-f173.google.com [209.85.217.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C7F890002E
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2015 01:40:12 -0400 (EDT)
-Received: by lbiw7 with SMTP id w7so6488173lbi.7
-        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 22:40:12 -0700 (PDT)
-Received: from plane.gmane.org (plane.gmane.org. [80.91.229.3])
-        by mx.google.com with ESMTPS id c6si557607lbo.127.2015.03.10.22.40.09
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id AAF8590002E
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2015 02:30:30 -0400 (EDT)
+Received: by wiwh11 with SMTP id h11so8815198wiw.5
+        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 23:30:30 -0700 (PDT)
+Received: from mail-we0-x22a.google.com (mail-we0-x22a.google.com. [2a00:1450:400c:c03::22a])
+        by mx.google.com with ESMTPS id bp16si7560292wib.122.2015.03.10.23.30.28
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 10 Mar 2015 22:40:10 -0700 (PDT)
-Received: from list by plane.gmane.org with local (Exim 4.69)
-	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
-	id 1YVZNI-0001Ky-1Z
-	for linux-mm@kvack.org; Wed, 11 Mar 2015 06:40:08 +0100
-Received: from 73.202.97.95 ([73.202.97.95])
-        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Wed, 11 Mar 2015 06:40:08 +0100
-Received: from atomiclong64 by 73.202.97.95 with local (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Wed, 11 Mar 2015 06:40:08 +0100
-From: Lock Free <atomiclong64@gmail.com>
-Subject: Re: Greedy kswapd reclaim behavior
-Date: Wed, 11 Mar 2015 05:39:55 +0000 (UTC)
-Message-ID: <loom.20150311T063736-490@post.gmane.org>
-References: <CAN3bvwucTo41Kk+NdUf8Fa_bkVWyeMcRo2ttAJeDM0G9bHjLiw@mail.gmail.com> <loom.20150310T211234-554@post.gmane.org> <fe129e5a96d84f279693d0d4d764425c@HQMAIL108.nvidia.com>
-Mime-Version: 1.0
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Mar 2015 23:30:29 -0700 (PDT)
+Received: by wevk48 with SMTP id k48so6804384wev.7
+        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 23:30:28 -0700 (PDT)
+Date: Wed, 11 Mar 2015 07:30:25 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 1/3] mm, x86: Document return values of mapping funcs
+Message-ID: <20150311063024.GB29788@gmail.com>
+References: <1426018997-12936-1-git-send-email-toshi.kani@hp.com>
+ <1426018997-12936-2-git-send-email-toshi.kani@hp.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <1426018997-12936-2-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, arnd@arndb.de, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl
 
-Thanks for the response Krishna,
 
->> Caches shrinking doesn't necessarily release the pages of a particular zone.
+* Toshi Kani <toshi.kani@hp.com> wrote:
 
-I thought kswap will try and reclaim fs cache first, before trying to page and
-potentially swap out pages...
+> Documented the return values of KVA mapping functions,
+> pud_set_huge(), pmd_set_huge, pud_clear_huge() and
+> pmd_clear_huge().
+> 
+> Simplified the conditions to select HAVE_ARCH_HUGE_VMAP
+> in Kconfig since X86_PAE depends on X86_32.
 
-We have 2 numa nodes with the following zones (see below).  Every two hours our
-available free space reported by /proc/meminfo drops down to ~180MB and then we
-see fs cache flushed followed by anonymous pages reclaimed.  The total is
-~2-3GB.  The fs cache accounted for ~2GB.  My understanding is kswapd should
-stop reclaiming once free pages is above the high water mark, however we see
-excessive swapping out freeing pages beyond the high water mark and impacting
-the performance of a memory latency sensitive application.
+Changelogs are not a diary, they are a story, generally written in the 
+present tense. So it should be something like:
 
-The /proc/zoneinfo below doesn't correspond to the time the issue occurred, just
-a example of what our host looks like.  Unfortunately we don't have zoneinfo
-persisted.  We do have the buddyinfo persisted not sure if that would help.
+  Document the return values of KVA mapping functions,
+  pud_set_huge(), pmd_set_huge, pud_clear_huge() and
+  pmd_clear_huge().
 
-Node 0, zone   Normal
-  pages free     163947
-        min      11275
-        low      14093
-        high     16912
-        scanned  0
-        spanned  3145728
-        present  3102720
-Node 1, zone      DMA
-  pages free     3935
-        min      13
-        low      16
-        high     19
-        scanned  0
-        spanned  4095
-        present  3840
-Node 1, zone    DMA32
-  pages free     19524
-        min      3017
-        low      3771
-        high     4525
-        scanned  0
-        spanned  1044480
-        present  830385
-Node 1, zone   Normal
-  pages free     294707
-        min      8221
-        low      10276
-        high     12331
-        scanned  0
-        spanned  2293760
-        present  2262400
+  Simplify the conditions to select HAVE_ARCH_HUGE_VMAP
+  in the Kconfig, since X86_PAE depends on X86_32.
+
+(also note the slight fixes I made to the text.)
+
+> There is no functinal change in this patch.
+
+Typo.
+
+> +/**
+> + * pud_set_huge - setup kernel PUD mapping
+> + *
+> + * MTRRs can override PAT memory types with a 4KB granularity.  Therefore,
+
+s/with a/with
+
+> + * it does not set up a huge page when the range is covered by non-WB type
+> + * of MTRRs.  0xFF indicates that MTRRs are disabled.
+> + *
+> + * Return 1 on success, and 0 on no-operation.
+
+What is a 'no-operation'?
+
+I suspect you want:
+
+    * Returns 1 on success, and 0 when no PUD was set.
+
+
+> +/**
+> + * pmd_set_huge - setup kernel PMD mapping
+> + *
+> + * MTRRs can override PAT memory types with a 4KB granularity.  Therefore,
+> + * it does not set up a huge page when the range is covered by non-WB type
+> + * of MTRRs.  0xFF indicates that MTRRs are disabled.
+> + *
+> + * Return 1 on success, and 0 on no-operation.
+
+Ditto (and the rest of the patch).
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
