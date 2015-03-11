@@ -1,132 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com [209.85.218.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 92AFA90002E
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2015 22:53:58 -0400 (EDT)
-Received: by oifu20 with SMTP id u20so5375336oif.11
-        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 19:53:58 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id m6si979832oel.34.2015.03.10.19.53.55
+Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 8818C6B0095
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2015 23:41:13 -0400 (EDT)
+Received: by obbnt9 with SMTP id nt9so6226071obb.12
+        for <linux-mm@kvack.org>; Tue, 10 Mar 2015 20:41:13 -0700 (PDT)
+Received: from bh-25.webhostbox.net (bh-25.webhostbox.net. [208.91.199.152])
+        by mx.google.com with ESMTPS id zc5si996183oec.52.2015.03.10.20.41.12
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 10 Mar 2015 19:53:57 -0700 (PDT)
-Message-ID: <54FFADB6.60604@huawei.com>
-Date: Wed, 11 Mar 2015 10:51:34 +0800
-From: Xie XiuQi <xiexiuqi@huawei.com>
-MIME-Version: 1.0
-Subject: Re: node-hotplug: is memset 0 safe in try_offline_node()?
-References: <54F52ACF.4030103@huawei.com> <54F81322.8010202@cn.fujitsu.com> <54F8243D.7020809@huawei.com> <54FF9662.8080303@cn.fujitsu.com>
-In-Reply-To: <54FF9662.8080303@cn.fujitsu.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+        Tue, 10 Mar 2015 20:41:12 -0700 (PDT)
+Received: from mailnull by bh-25.webhostbox.net with sa-checked (Exim 4.82)
+	(envelope-from <linux@roeck-us.net>)
+	id 1YVXWB-002ucJ-VK
+	for linux-mm@kvack.org; Wed, 11 Mar 2015 03:41:12 +0000
+From: Guenter Roeck <linux@roeck-us.net>
+Subject: [PATCH -next] zsmalloc: Include linux/sched.h to fix build error
+Date: Tue, 10 Mar 2015 20:41:02 -0700
+Message-Id: <1426045262-14739-1-git-send-email-linux@roeck-us.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gu Zheng <guz.fnst@cn.fujitsu.com>, Xishi Qiu <qiuxishi@huawei.com>
-Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Yinghai Lu <yinghai@kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Toshi Kani <toshi.kani@hp.com>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Nitin Gupta <ngupta@vflare.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Guenter Roeck <linux@roeck-us.net>
 
-On 2015/3/11 9:12, Gu Zheng wrote:
-> Hi Xishi,
-> 
-> What is the condition of this problem now?
+Fix:
 
-Hi Gu,
+mm/zsmalloc.c: In function '__zs_compact':
+mm/zsmalloc.c:1747:2: error: implicit declaration of function 'cond_resched'
 
-I have no machine to do this test now. But I've tested the
-patch "just remove memset 0" more than 20 hours last week,
-it's OK.
+seen when building mips:allmodconfig.
 
-Thanks,
-	Xie XiuQi
+Fixes: c4d204c38734 ("zsmalloc: support compaction")
+Cc: Minchan Kim <minchan@kernel.org>
+Signed-off-by: Guenter Roeck <linux@roeck-us.net>
+---
+ mm/zsmalloc.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-> 
-> Regards,
-> Gu
-> On 03/05/2015 05:39 PM, Xishi Qiu wrote:
-> 
->> On 2015/3/5 16:26, Gu Zheng wrote:
->>
->>> Hi Xishi,
->>> Could you please try the following one?
->>> It postpones the reset of obsolete pgdat from try_offline_node() to
->>> hotadd_new_pgdat(), and just resetting pgdat->nr_zones and
->>> pgdat->classzone_idx to be 0 rather than the whole reset by memset()
->>> as Kame suggested.
->>>
->>> Regards,
->>> Gu
->>>
->>> ---
->>>  mm/memory_hotplug.c |   13 ++++---------
->>>  1 files changed, 4 insertions(+), 9 deletions(-)
->>>
->>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->>> index 1778628..c17eebf 100644
->>> --- a/mm/memory_hotplug.c
->>> +++ b/mm/memory_hotplug.c
->>> @@ -1092,6 +1092,10 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
->>>  			return NULL;
->>>  
->>>  		arch_refresh_nodedata(nid, pgdat);
->>> +	} else {
->>> +		/* Reset the nr_zones and classzone_idx to 0 before reuse */
->>> +		pgdat->nr_zones = 0;
->>> +		pgdat->classzone_idx = 0;
->>
->> Hi Gu,
->>
->> This is just to avoid the warning, I think it's no meaning.
->> Here is the changlog from the original patch:
->>
->> commit 88fdf75d1bb51d85ba00c466391770056d44bc03
->>     ...
->>     Warn if memory-hotplug/boot code doesn't initialize pg_data_t with zero
->>     when it is allocated.  Arch code and memory hotplug already initiailize
->>     pg_data_t.  So this warning should never happen.  I select fields *randomly*
->>     near the beginning, middle and end of pg_data_t for checking.
->>     ...
->>
->> Thanks,
->> Xishi Qiu
->>
->>>  	}
->>>  
->>>  	/* we can use NODE_DATA(nid) from here */
->>> @@ -2021,15 +2025,6 @@ void try_offline_node(int nid)
->>>  
->>>  	/* notify that the node is down */
->>>  	call_node_notify(NODE_DOWN, (void *)(long)nid);
->>> -
->>> -	/*
->>> -	 * Since there is no way to guarentee the address of pgdat/zone is not
->>> -	 * on stack of any kernel threads or used by other kernel objects
->>> -	 * without reference counting or other symchronizing method, do not
->>> -	 * reset node_data and free pgdat here. Just reset it to 0 and reuse
->>> -	 * the memory when the node is online again.
->>> -	 */
->>> -	memset(pgdat, 0, sizeof(*pgdat));
->>>  }
->>>  EXPORT_SYMBOL(try_offline_node);
->>>  
->>
->>
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->> .
->>
-> 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
-> .
-> 
-
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 73400f0..b663a8b 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -94,6 +94,7 @@
+ #include <linux/spinlock.h>
+ #include <linux/types.h>
+ #include <linux/debugfs.h>
++#include <linux/sched.h>
+ #include <linux/zsmalloc.h>
+ #include <linux/zpool.h>
+ 
+-- 
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
