@@ -1,158 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id A5A138299B
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2015 11:26:42 -0400 (EDT)
-Received: by pdbnh10 with SMTP id nh10so20935321pdb.4
-        for <linux-mm@kvack.org>; Thu, 12 Mar 2015 08:26:42 -0700 (PDT)
-Received: from prod-mail-xrelay02.akamai.com (prod-mail-xrelay02.akamai.com. [72.246.2.14])
-        by mx.google.com with ESMTP id t8si13687426pdj.194.2015.03.12.08.26.41
-        for <linux-mm@kvack.org>;
-        Thu, 12 Mar 2015 08:26:41 -0700 (PDT)
-Date: Thu, 12 Mar 2015 11:26:40 -0400
-From: Eric B Munson <emunson@akamai.com>
-Subject: Re: [PATCH V4] Allow compaction of unevictable pages
-Message-ID: <20150312152640.GB2310@akamai.com>
-References: <1426173776-23471-1-git-send-email-emunson@akamai.com>
+Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 53EF38299B
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2015 11:35:20 -0400 (EDT)
+Received: by qcvs11 with SMTP id s11so19424220qcv.7
+        for <linux-mm@kvack.org>; Thu, 12 Mar 2015 08:35:20 -0700 (PDT)
+Received: from mail-qg0-x236.google.com (mail-qg0-x236.google.com. [2607:f8b0:400d:c04::236])
+        by mx.google.com with ESMTPS id 198si4921045qhr.90.2015.03.12.08.35.19
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 12 Mar 2015 08:35:19 -0700 (PDT)
+Received: by qgfh3 with SMTP id h3so18973519qgf.2
+        for <linux-mm@kvack.org>; Thu, 12 Mar 2015 08:35:19 -0700 (PDT)
+Date: Thu, 12 Mar 2015 11:35:13 -0400
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: committed memory, mmaps and shms
+Message-ID: <20150312153513.GA14537@dhcp22.suse.cz>
+References: <20150311181044.GC14481@diablo.grulicueva.local>
+ <20150312124053.GA30035@dhcp22.suse.cz>
+ <20150312145422.GA9240@grulic.org.ar>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="Bn2rw/3z4jIqBvZU"
-Content-Disposition: inline
-In-Reply-To: <1426173776-23471-1-git-send-email-emunson@akamai.com>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <cl@linux.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-
-
---Bn2rw/3z4jIqBvZU
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20150312145422.GA9240@grulic.org.ar>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Marcos Dione <mdione@grulic.org.ar>
+Cc: linux-kernel@vger.kernel.org, marcos-david.dione@amadeus.com, linux-mm@kvack.org
 
-On Thu, 12 Mar 2015, Eric B Munson wrote:
+On Thu 12-03-15 11:54:22, Marcos Dione wrote:
+> On Thu, Mar 12, 2015 at 08:40:53AM -0400, Michal Hocko wrote:
+> > [CCing MM maling list]
+> 
+>     Shall we completely migrate the rest of the conversation there?
 
-> Currently, pages which are marked as unevictable are protected from
-> compaction, but not from other types of migration.  The mlock
-> desctription does not promise that all page faults will be avoided, only
-> major ones so this protection is not necessary.  This extra protection
-> can cause problems for applications that are using mlock to avoid
-> swapping pages out, but require order > 0 allocations to continue to
-> succeed in a fragmented environment.  This patch adds a sysctl entry
-> that will be used to allow root to enable compaction of unevictable
-> pages.
->=20
-> To illustrate this problem I wrote a quick test program that mmaps a
-> large number of 1MB files filled with random data.  These maps are
-> created locked and read only.  Then every other mmap is unmapped and I
-> attempt to allocate huge pages to the static huge page pool.  When the
-> compact_unevictable sysctl is 0, I cannot allocate hugepages after
-> fragmenting memory.  When the value is set to 1, allocations succeed.
->=20
-> Signed-off-by: Eric B Munson <emunson@akamai.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Christoph Lameter <cl@linux.com>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: linux-mm@kvack.org
-> Cc: linux-kernel@vger.kernel.org
-> ---
-> Changes from V3:
-> Instead of removing the ISOLATE_UNEVICTABLE mode and checks, allow the
-> sysadmin to control if compaction of unevictable pages is allowable.
->=20
->  include/linux/compaction.h |    1 +
->  kernel/sysctl.c            |    7 +++++++
->  mm/compaction.c            |    3 +++
->  3 files changed, 11 insertions(+)
->=20
-> diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-> index a014559..9dd7e7c 100644
-> --- a/include/linux/compaction.h
-> +++ b/include/linux/compaction.h
-> @@ -34,6 +34,7 @@ extern int sysctl_compaction_handler(struct ctl_table *=
-table, int write,
->  extern int sysctl_extfrag_threshold;
->  extern int sysctl_extfrag_handler(struct ctl_table *table, int write,
->  			void __user *buffer, size_t *length, loff_t *ppos);
-> +extern int sysctl_compact_unevictable;
-> =20
->  extern int fragmentation_index(struct zone *zone, unsigned int order);
->  extern unsigned long try_to_compact_pages(gfp_t gfp_mask, unsigned int o=
-rder,
-> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-> index 88ea2d6..cc1a678 100644
-> --- a/kernel/sysctl.c
-> +++ b/kernel/sysctl.c
-> @@ -1313,6 +1313,13 @@ static struct ctl_table vm_table[] =3D {
->  		.extra1		=3D &min_extfrag_threshold,
->  		.extra2		=3D &max_extfrag_threshold,
->  	},
-> +	{
-> +		.procname	=3D "compact_unevictable",
-> +		.data		=3D &sysctl_compact_unevictable,
-> +		.maxlen		=3D sizeof(int),
-> +		.mode		=3D 0644,
-> +		.proc_handler	=3D proc_dointvec,
-> +	},
-> =20
->  #endif /* CONFIG_COMPACTION */
->  	{
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 8c0d945..b2c1e4e 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -1046,6 +1046,8 @@ typedef enum {
->  	ISOLATE_SUCCESS,	/* Pages isolated, migrate */
->  } isolate_migrate_t;
-> =20
-> +int sysctl_compact_unevictable;
-> +
->  /*
->   * Isolate all pages that can be migrated from the first suitable block,
->   * starting at the block pointed to by the migrate scanner pfn within
-> @@ -1057,6 +1059,7 @@ static isolate_migrate_t isolate_migratepages(struc=
-t zone *zone,
->  	unsigned long low_pfn, end_pfn;
->  	struct page *page;
->  	const isolate_mode_t isolate_mode =3D
-> +		(sysctl_compact_unevictable ? ISOLATE_UNEVICTABLE: 0) |
+It is usually better to keep lkml on the cc list for a larger audience.
+ 
+> > On Wed 11-03-15 19:10:44, Marcos Dione wrote:
+[...]
+> > > $ free
+> > >              total       used       free     shared    buffers     cached
+> > > Mem:     396895176  395956332     938844          0       8972  356409952
+> > > -/+ buffers/cache:   39537408  357357768
+> > > Swap:      8385788    8385788          0
+> > > 
+> > >     This reports 378GiB of RAM, 377 used; of those 8MiB in buffers,
+> > > 339GiB in cache, leaving only 38Gib for processes (for some reason this
+> > 
+> > I am not sure I understand your math here. 339G in the cache should be
+> > reclaimable (be careful about the shmem though). It is the rest which
+> > might be harder to reclaim.
+> 
+>     These 38GiB I mention is the rest of 378 available minus 339 in
+> cache. To me this difference represents the sum of the resident
+> anonymous memory malloc'ed by all processes. Unless there's some othr
+> kind of pages accounted in 'Used'.
 
-Sorry, missed the space following the :, if this idea is acceptable, I
-will send a patch with the correct whitespace.
+The kernel needs memory as well for its internal data structures
+(stacks, page tables, slab objects, memory used by drivers and what not).
+ 
+> > shmem (tmpfs) is a in memory filesystem. Pages backing shmem mappings
+> > are maintained in the page cache. Their backing storage is swap as you
+> > said. So from a conceptual point of vew this makes a lot of sense. 
+> 
+>     Now it's completely clear, thanks.
+> 
+> > > * Why 'pure' mmalloc'ed memory is ever reported? Does it make sense to
+> > >   talk about it?
+> > 
+> > This is simply private anonymous memory. And you can see it as such in
+> > /proc/<pid>/[s]maps
+> 
+>     Yes, but my question was more on the lines of 'why free or
+> /proc/meminfo do not show it'. Maybe it's just that it's difficult to
+> define (like I said, "sum of resident anonymous..." &c) or nobody really
+> cares about this. Maybe I shouldn't either.
 
->  		(cc->mode =3D=3D MIGRATE_ASYNC ? ISOLATE_ASYNC_MIGRATE : 0);
-> =20
->  	/*
-> --=20
-> 1.7.9.5
->=20
+meminfo is exporting this information as AnonPages.
 
---Bn2rw/3z4jIqBvZU
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
+[...]
+> > > * What is actually counted in Committed_AS? Does it count shms or mmaps?
+> > >   How?
+> > 
+> > This depends on the overcommit configuration. See
+> > Documentation/sysctl/vm.txt for more information.
+> 
+>     I understand what /proc/sys/vm/overcommit_memory is for; what I
+> don't understand is what exactly counted in the Committed_AS line in
+> /proc/meminfo.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
+It accounts all the address space reservations - e.g. mmap(len), len
+will get added. The things are slightly more complicated but start
+looking at callers of security_vm_enough_memory_mm should give you an
+idea what everything is included.
+How is this number used depends on the overcommit mode.
+__vm_enough_memory would give you a better picture.
 
-iQIcBAEBAgAGBQJVAbAwAAoJELbVsDOpoOa9Wj0P/2/U+9D6w2NCBBxO2HYUwUBb
-QQb/1HdA8RNMfsL84C6m8Bk9TCWgtpx/3atekUZgNm2fFRHAIPZleuSg9HQ9AhrT
-4XPRyo8FOYxP4fy2/OVIMgPs4YYStYydYqN2KKol2L1UBRhMqwof8nkrrHkRCR2M
-vVMH6O/MvTMS75OKTmdYKuftEKj6LKo9923eMJ+OVT/tZbeq8+RoTktLmZgSxhRN
-zcUYrlQn8v+M0jSwdTBh3njPfxfsseO5003R+GrmRTIDjhTPWQE0dbtqK8KdHOWi
-vvkyXiTAKYNC8vT9z3hZ4iskbfUWmh5z+21/MFI0nzd3/naRekHM+U5BXMhBgw64
-XuJAr30L5BOlQn7Pxha9fFvXrqbq5W7qj4lv4vpqJQIzqntK8DWuvOYZQw5BUOe6
-c0ng4iIfS3hcNsGUXn02SkJyHgIBZW1gnM+Rcd3jg9Y3AFunmT5GLcYt2Ll59h5i
-bM4zT17Y8RiTn4dLbixe25dKOYoz0qhY9KHrop9VCyEbAC3Gde9reRtzdla80zPN
-c8tRBLZAmW1Fd/ShqxAtU3CPtweNdTS7kZTnaIbbOrJapaTRglsLKiaBA1UX8gyU
-3EgNW4z3lPoLqO53T/xwEruXU+aXXW0Rwrgfs+W46oie0UpZwtT9F7dIChvoKsxz
-HD0UycIDTJgeYH/CVLzb
-=NqTU
------END PGP SIGNATURE-----
+> I also read Documentation/vm/overcommit-accounting
 
---Bn2rw/3z4jIqBvZU--
+What would help you to understand it better?
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
