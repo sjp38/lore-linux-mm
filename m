@@ -1,56 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DC236B0082
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2015 14:49:35 -0400 (EDT)
-Received: by wiwl15 with SMTP id l15so205863wiw.0
-        for <linux-mm@kvack.org>; Thu, 12 Mar 2015 11:49:34 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y6si2666627wiv.123.2015.03.12.11.49.33
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 64050829AD
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2015 15:30:45 -0400 (EDT)
+Received: by pdbfp1 with SMTP id fp1so22475187pdb.7
+        for <linux-mm@kvack.org>; Thu, 12 Mar 2015 12:30:45 -0700 (PDT)
+Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
+        by mx.google.com with ESMTPS id m4si889144pdm.252.2015.03.12.12.30.44
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 12 Mar 2015 11:49:33 -0700 (PDT)
-Date: Thu, 12 Mar 2015 18:49:26 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 4/4] mm: numa: Slow PTE scan rate if migration failures
- occur
-Message-ID: <20150312184925.GH3406@suse.de>
-References: <20150307163657.GA9702@gmail.com>
- <CA+55aFwDuzpL-k8LsV3touhNLh+TFSLKP8+-nPwMXkWXDYPhrg@mail.gmail.com>
- <20150308100223.GC15487@gmail.com>
- <CA+55aFyQyZXu2fi7X9bWdSX0utk8=sccfBwFaSoToROXoE_PLA@mail.gmail.com>
- <20150309112936.GD26657@destitution>
- <CA+55aFywW5JLq=BU_qb2OG5+pJ-b1v9tiS5Ygi-vtEKbEZ_T5Q@mail.gmail.com>
- <20150309191943.GF26657@destitution>
- <CA+55aFzFt-vX5Jerci0Ty4Uf7K4_nQ7wyCp8hhU_dB0X4cBpVQ@mail.gmail.com>
- <20150312131045.GE3406@suse.de>
- <CA+55aFx=81BGnQFNhnAGu6CetL7yifPsnD-+v7Y6QRqwgH47gQ@mail.gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 12 Mar 2015 12:30:44 -0700 (PDT)
+Received: by pabrd3 with SMTP id rd3so22962357pab.5
+        for <linux-mm@kvack.org>; Thu, 12 Mar 2015 12:30:44 -0700 (PDT)
+Date: Thu, 12 Mar 2015 15:30:38 -0400
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH V4] Allow compaction of unevictable pages
+Message-ID: <20150312193038.GB20841@dhcp22.suse.cz>
+References: <1426173776-23471-1-git-send-email-emunson@akamai.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+55aFx=81BGnQFNhnAGu6CetL7yifPsnD-+v7Y6QRqwgH47gQ@mail.gmail.com>
+In-Reply-To: <1426173776-23471-1-git-send-email-emunson@akamai.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, xfs@oss.sgi.com, ppc-dev <linuxppc-dev@lists.ozlabs.org>
+To: Eric B Munson <emunson@akamai.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <cl@linux.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Mar 12, 2015 at 09:20:36AM -0700, Linus Torvalds wrote:
-> On Thu, Mar 12, 2015 at 6:10 AM, Mel Gorman <mgorman@suse.de> wrote:
-> >
-> > I believe you're correct and it matches what was observed. I'm still
-> > travelling and wireless is dirt but managed to queue a test using pmd_dirty
-> 
-> Ok, thanks.
-> 
-> I'm not entirely happy with that change, and I suspect the whole
-> heuristic should be looked at much more (maybe it should also look at
-> whether it's executable, for example), but it's a step in the right
-> direction.
-> 
+On Thu 12-03-15 11:22:56, Eric B Munson wrote:
+> Currently, pages which are marked as unevictable are protected from
+> compaction, but not from other types of migration.  The mlock
+> desctription does not promise that all page faults will be avoided, only
+> major ones so this protection is not necessary.  This extra protection
+> can cause problems for applications that are using mlock to avoid
+> swapping pages out, but require order > 0 allocations to continue to
+> succeed in a fragmented environment.  This patch adds a sysctl entry
+> that will be used to allow root to enable compaction of unevictable
+> pages.
 
-I can follow up when I'm back in work properly. As you have already pulled
-this in directly, can you also consider pulling in "mm: thp: return the
-correct value for change_huge_pmd" please? The other two patches were very
-minor can be resent through the normal paths later.
+It would be appropriate to add a justification for the sysctl, because
+it is not obvious from the above description. mlock preventing from the
+swapout is not sufficient to justify it. It is the real time extension
+mentioned by Peter in the previous version which makes it worth a new
+user visible knob.
+
+I would also argue that the knob should be enabled by default because
+the real time extension requires an additional changes anyway (rt-kernel
+at least) while general usage doesn't need such a strong requirement.
+
+You also should provide a knob description to
+Documentation/sysctl/vm.txt
+
+> To illustrate this problem I wrote a quick test program that mmaps a
+> large number of 1MB files filled with random data.  These maps are
+> created locked and read only.  Then every other mmap is unmapped and I
+> attempt to allocate huge pages to the static huge page pool.  When the
+> compact_unevictable sysctl is 0, I cannot allocate hugepages after
+> fragmenting memory.  When the value is set to 1, allocations succeed.
+> 
+> Signed-off-by: Eric B Munson <emunson@akamai.com>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Christoph Lameter <cl@linux.com>
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: linux-mm@kvack.org
+> Cc: linux-kernel@vger.kernel.org
+
+After the above things are fixed
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
+One minor suggestion below
+
+> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+> index 88ea2d6..cc1a678 100644
+> --- a/kernel/sysctl.c
+> +++ b/kernel/sysctl.c
+> @@ -1313,6 +1313,13 @@ static struct ctl_table vm_table[] = {
+>  		.extra1		= &min_extfrag_threshold,
+>  		.extra2		= &max_extfrag_threshold,
+>  	},
+> +	{
+> +		.procname	= "compact_unevictable",
+> +		.data		= &sysctl_compact_unevictable,
+> +		.maxlen		= sizeof(int),
+> +		.mode		= 0644,
+> +		.proc_handler	= proc_dointvec,
+
+You can use .extra1 = &zero and .extra2 = &one to reduce the value
+space.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
