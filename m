@@ -1,104 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 823346B00AE
-	for <linux-mm@kvack.org>; Sun, 15 Mar 2015 11:28:51 -0400 (EDT)
-Received: by wgbcc7 with SMTP id cc7so21900643wgb.0
-        for <linux-mm@kvack.org>; Sun, 15 Mar 2015 08:28:51 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id lh10si12807173wjb.88.2015.03.15.08.28.48
+Received: from mail-oi0-f52.google.com (mail-oi0-f52.google.com [209.85.218.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 27DB86B00AF
+	for <linux-mm@kvack.org>; Sun, 15 Mar 2015 11:32:58 -0400 (EDT)
+Received: by oiag65 with SMTP id g65so19798113oia.2
+        for <linux-mm@kvack.org>; Sun, 15 Mar 2015 08:32:57 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id nv12si15349676pdb.56.2015.03.12.13.28.33
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 15 Mar 2015 08:28:49 -0700 (PDT)
-Date: Sun, 15 Mar 2015 16:26:52 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH -next v2 0/4] mm: replace mmap_sem for mm->exe_file
-	serialization
-Message-ID: <20150315152652.GA24590@redhat.com>
-References: <1426372766-3029-1-git-send-email-dave@stgolabs.net> <20150315142137.GA21741@redhat.com> <1426431270.28068.92.camel@stgolabs.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1426431270.28068.92.camel@stgolabs.net>
+        Thu, 12 Mar 2015 13:28:33 -0700 (PDT)
+Date: Thu, 12 Mar 2015 13:28:32 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 1/2] mm, mempool: poison elements backed by slab
+ allocator
+Message-Id: <20150312132832.87c85af5a1bc1978c0d7c049@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.10.1503090021380.19148@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1503090021380.19148@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <dave@stgolabs.net>
-Cc: akpm@linux-foundation.org, viro@zeniv.linux.org.uk, gorcunov@openvz.org, koct9i@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Sebastian Ott <sebott@linux.vnet.ibm.com>, Mikulas Patocka <mpatocka@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 03/15, Davidlohr Bueso wrote:
->
-> On Sun, 2015-03-15 at 15:21 +0100, Oleg Nesterov wrote:
-> > I didn't even read this version, but honestly I don't like it anyway.
-> >
-> > I leave the review to Cyrill and Konstantin though, If they like these
-> > changes I won't argue.
-> >
-> > But I simply can't understand why are you doing this.
-> >
-> >
-> >
-> > Yes, this code needs cleanups, I agree. Does this series makes it better?
-> > To me it doesn't, and the diffstat below shows that it blows the code.
->
-> Looking at some of the caller paths now, I have to disagree.
+On Mon, 9 Mar 2015 00:21:56 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
 
-And I believe you are wrong. But let me repeat, I leave this to Cyrill
-and Konstantin. Cleanups are always subjective.
+> Mempools keep elements in a reserved pool for contexts in which
+> allocation may not be possible.  When an element is allocated from the
+> reserved pool, its memory contents is the same as when it was added to
+> the reserved pool.
+> 
+> Because of this, elements lack any free poisoning to detect
+> use-after-free errors.
+> 
+> This patch adds free poisoning for elements backed by the slab allocator.
+> This is possible because the mempool layer knows the object size of each
+> element.
+> 
+> When an element is added to the reserved pool, it is poisoned with
+> POISON_FREE.  When it is removed from the reserved pool, the contents are
+> checked for POISON_FREE.  If there is a mismatch, a warning is emitted to
+> the kernel log.
+> 
+> This is only effective for configs with CONFIG_DEBUG_VM.
 
-> > In fact, to me it complicates this code. For example. Personally I think
-> > that MMF_EXE_FILE_CHANGED should die. And currently we can just remove it.
->
-> How could you remove this?
+At present CONFIG_DEBUG_VM is pretty lightweight (I hope) and using it
+for mempool poisoning might be inappropriately costly.  Would it be
+better to tie this to something else?  Either standalone or reuse some
+slab debug option, perhaps.
 
-Just remove this flag and the test_and_set_bit(MMF_EXE_FILE_CHANGED) check.
-Again, this is subjective, but to me it looks ugly. Why do we allow to
-change ->exe_file but only once?
+Did you measure the overhead btw?  It might be significant with fast
+devices.
 
-> > Not after your patch which adds another dependency.
->
-> I don't add another dependency, I just replace the current one.
+> --- a/mm/mempool.c
+> +++ b/mm/mempool.c
+> @@ -16,16 +16,77 @@
+>  #include <linux/blkdev.h>
+>  #include <linux/writeback.h>
+>  
+> +#ifdef CONFIG_DEBUG_VM
+> +static void poison_error(mempool_t *pool, void *element, size_t size,
+> +			 size_t byte)
+> +{
+> +	const int nr = pool->curr_nr;
+> +	const int start = max_t(int, byte - (BITS_PER_LONG / 8), 0);
+> +	const int end = min_t(int, byte + (BITS_PER_LONG / 8), size);
+> +	int i;
+> +
+> +	pr_err("BUG: mempool element poison mismatch\n");
+> +	pr_err("Mempool %p size %ld\n", pool, size);
+> +	pr_err(" nr=%d @ %p: %s0x", nr, element, start > 0 ? "... " : "");
+> +	for (i = start; i < end; i++)
+> +		pr_cont("%x ", *(u8 *)(element + i));
+> +	pr_cont("%s\n", end < size ? "..." : "");
+> +	dump_stack();
+> +}
 
-But you did. If we remove test_and_set_bit(MMF_EXE_FILE_CHANGED)
-set_mm_exe_file() becomes racy with your patch. Sure, this is fixable too.
+"byte" wasn't a very useful identifier, and it's called "i" in
+check_slab_element().  Rename it to "offset" in both places?
 
-> > Or do you think this is performance improvement? I don't think so. Yes,
-> > prctl() abuses mmap_sem, but this not a hot path and the task can only
-> > abuse its own ->mm.
->
-> I've tried to make it as clear as possible this is a not performance
-> patch. I guess I've failed. Let me repeat it again: this is *not*
-> performance motivated ;)
+> +static void check_slab_element(mempool_t *pool, void *element)
+> +{
+> +	if (pool->free == mempool_free_slab || pool->free == mempool_kfree) {
+> +		size_t size = ksize(element);
+> +		u8 *obj = element;
+> +		size_t i;
+> +
+> +		for (i = 0; i < size; i++) {
+> +			u8 exp = (i < size - 1) ? POISON_FREE : POISON_END;
+> +
+> +			if (obj[i] != exp) {
+> +				poison_error(pool, element, size, i);
+> +				return;
+> +			}
+> +		}
+> +		memset(obj, POISON_INUSE, size);
+> +	}
+> +}
 
-OK.
+I question the reuse of POISON_FREE/POISON_INUSE.  If this thing
+triggers, it may be hard to tell if it was due to a slab thing or to a
+mempool thing.  Using a distinct poison pattern for mempool would clear
+that up?
 
-> This kind of things under mmap_sem prevents
-> lock breakup.
-
-Could you spell?
-
-> > Hmm. And this series is simply wrong without more changes in audit paths.
-> > Unfortunately this is fixable, but let me NACK at least this version ;)
->
-> Could you explain this? Are you referring to the audit.c user? If so
-> that caller has already been updated.
-
-I do not see these changes in Linus's tree. OK, if those caller's were
-already changed somewhere else then unfortunately I can't nack this patch
-by technical reasons ;)
-
-But perhaps you should mention that this change depends on other patches
-and name them.
-
-> > Speaking of cleanups... IIRC Konstantin suggested to rcuify this pointer
-> > and I agree, this looks better than the new lock.
->
-> Yes, I can do that in patch 1, but as mentioned, rcu is not really the
-> question to me, it's the lock for when we change the exe file, so if
-> it's not mmap_sem we'd still need another lock.
-
-Not if we keep MMF_EXE_FILE_CHANGED. See above, we can change it lockless.
-And even without MMF_EXE_FILE_CHANGED, we can use xchg().
-
-Oleg.
+> ...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
