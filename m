@@ -1,258 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f44.google.com (mail-oi0-f44.google.com [209.85.218.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BCD2829A3
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2015 13:19:09 -0400 (EDT)
-Received: by oiga141 with SMTP id a141so15822390oig.8
-        for <linux-mm@kvack.org>; Thu, 12 Mar 2015 10:19:09 -0700 (PDT)
-Received: from g9t5009.houston.hp.com (g9t5009.houston.hp.com. [15.240.92.67])
-        by mx.google.com with ESMTPS id e125si918283oid.131.2015.03.12.10.19.07
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DC236B0082
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2015 14:49:35 -0400 (EDT)
+Received: by wiwl15 with SMTP id l15so205863wiw.0
+        for <linux-mm@kvack.org>; Thu, 12 Mar 2015 11:49:34 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y6si2666627wiv.123.2015.03.12.11.49.33
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Mar 2015 10:19:08 -0700 (PDT)
-From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH v2 4/4] mtrr, mm, x86: Enhance MTRR checks for KVA huge page mapping
-Date: Thu, 12 Mar 2015 11:18:10 -0600
-Message-Id: <1426180690-24234-5-git-send-email-toshi.kani@hp.com>
-In-Reply-To: <1426180690-24234-1-git-send-email-toshi.kani@hp.com>
-References: <1426180690-24234-1-git-send-email-toshi.kani@hp.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 12 Mar 2015 11:49:33 -0700 (PDT)
+Date: Thu, 12 Mar 2015 18:49:26 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 4/4] mm: numa: Slow PTE scan rate if migration failures
+ occur
+Message-ID: <20150312184925.GH3406@suse.de>
+References: <20150307163657.GA9702@gmail.com>
+ <CA+55aFwDuzpL-k8LsV3touhNLh+TFSLKP8+-nPwMXkWXDYPhrg@mail.gmail.com>
+ <20150308100223.GC15487@gmail.com>
+ <CA+55aFyQyZXu2fi7X9bWdSX0utk8=sccfBwFaSoToROXoE_PLA@mail.gmail.com>
+ <20150309112936.GD26657@destitution>
+ <CA+55aFywW5JLq=BU_qb2OG5+pJ-b1v9tiS5Ygi-vtEKbEZ_T5Q@mail.gmail.com>
+ <20150309191943.GF26657@destitution>
+ <CA+55aFzFt-vX5Jerci0Ty4Uf7K4_nQ7wyCp8hhU_dB0X4cBpVQ@mail.gmail.com>
+ <20150312131045.GE3406@suse.de>
+ <CA+55aFx=81BGnQFNhnAGu6CetL7yifPsnD-+v7Y6QRqwgH47gQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CA+55aFx=81BGnQFNhnAGu6CetL7yifPsnD-+v7Y6QRqwgH47gQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com
-Cc: linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl, Toshi Kani <toshi.kani@hp.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, xfs@oss.sgi.com, ppc-dev <linuxppc-dev@lists.ozlabs.org>
 
-This patch adds an additional argument, 'uniform', to
-mtrr_type_lookup(), which returns 1 when a given range is
-covered uniformly by MTRRs, i.e. the range is fully convered
-by a single MTRR entry or the default type.
+On Thu, Mar 12, 2015 at 09:20:36AM -0700, Linus Torvalds wrote:
+> On Thu, Mar 12, 2015 at 6:10 AM, Mel Gorman <mgorman@suse.de> wrote:
+> >
+> > I believe you're correct and it matches what was observed. I'm still
+> > travelling and wireless is dirt but managed to queue a test using pmd_dirty
+> 
+> Ok, thanks.
+> 
+> I'm not entirely happy with that change, and I suspect the whole
+> heuristic should be looked at much more (maybe it should also look at
+> whether it's executable, for example), but it's a step in the right
+> direction.
+> 
 
-pud_set_huge() and pmd_set_huge() are changed to check the
-new 'uniform' flag to see if it is safe to create a huge page
-mapping to the range.  This allows them to create a huge page
-mapping to a range covered by a single MTRR entry of any
-memory type.  It also detects a non-optimal request properly.
-They continue to check with the WB type since the WB type has
-no effect even if a request spans multiple MTRR entries.
-
-pmd_set_huge() logs a warning message to a non-optimal request
-so that driver writers will be aware of such a case.  Drivers
-should make a mapping request aligned to a single MTRR entry
-when the range is covered by MTRRs.
-
-Signed-off-by: Toshi Kani <toshi.kani@hp.com>
----
- arch/x86/include/asm/mtrr.h        |    5 +++--
- arch/x86/kernel/cpu/mtrr/generic.c |   34 +++++++++++++++++++++++++++-------
- arch/x86/mm/pat.c                  |    4 ++--
- arch/x86/mm/pgtable.c              |   25 +++++++++++++++----------
- 4 files changed, 47 insertions(+), 21 deletions(-)
-
-diff --git a/arch/x86/include/asm/mtrr.h b/arch/x86/include/asm/mtrr.h
-index f768f62..5b4d467 100644
---- a/arch/x86/include/asm/mtrr.h
-+++ b/arch/x86/include/asm/mtrr.h
-@@ -31,7 +31,7 @@
-  * arch_phys_wc_add and arch_phys_wc_del.
-  */
- # ifdef CONFIG_MTRR
--extern u8 mtrr_type_lookup(u64 addr, u64 end);
-+extern u8 mtrr_type_lookup(u64 addr, u64 end, u8 *uniform);
- extern void mtrr_save_fixed_ranges(void *);
- extern void mtrr_save_state(void);
- extern int mtrr_add(unsigned long base, unsigned long size,
-@@ -50,11 +50,12 @@ extern int mtrr_trim_uncached_memory(unsigned long end_pfn);
- extern int amd_special_default_mtrr(void);
- extern int phys_wc_to_mtrr_index(int handle);
- #  else
--static inline u8 mtrr_type_lookup(u64 addr, u64 end)
-+static inline u8 mtrr_type_lookup(u64 addr, u64 end, u8 *uniform)
- {
- 	/*
- 	 * Return no-MTRRs:
- 	 */
-+	*uniform = 1;
- 	return 0xff;
- }
- #define mtrr_save_fixed_ranges(arg) do {} while (0)
-diff --git a/arch/x86/kernel/cpu/mtrr/generic.c b/arch/x86/kernel/cpu/mtrr/generic.c
-index ef34a4f..56c352c 100644
---- a/arch/x86/kernel/cpu/mtrr/generic.c
-+++ b/arch/x86/kernel/cpu/mtrr/generic.c
-@@ -108,18 +108,22 @@ static int check_type_overlap(u8 *prev, u8 *curr)
-  * Return Value:
-  * memory type - Matched memory type or the default memory type (unmatched)
-  *
-- * Output Argument:
-+ * Output Arguments:
-  * repeat - Set to 1 when [start:end] spanned across MTRR range and type
-  *	    returned corresponds only to [start:*partial_end].  Caller has
-  *	    to lookup again for [*partial_end:end].
-+ * uniform - Set to 1 when MTRR covers the region uniformly, i.e. the region
-+ *	     is fully covered by a single MTRR entry or the default type.
-  */
--static u8 __mtrr_type_lookup(u64 start, u64 end, u64 *partial_end, int *repeat)
-+static u8 __mtrr_type_lookup(u64 start, u64 end,
-+			     u64 *partial_end, int *repeat, u8 *uniform)
- {
- 	int i;
- 	u64 base, mask;
- 	u8 prev_match, curr_match;
- 
- 	*repeat = 0;
-+	*uniform = 1;
- 
- 	/* Make end inclusive end, instead of exclusive */
- 	end--;
-@@ -167,6 +171,7 @@ static u8 __mtrr_type_lookup(u64 start, u64 end, u64 *partial_end, int *repeat)
- 
- 			end = *partial_end - 1; /* end is inclusive */
- 			*repeat = 1;
-+			*uniform = 0;
- 		}
- 
- 		if (!start_state)
-@@ -178,6 +183,7 @@ static u8 __mtrr_type_lookup(u64 start, u64 end, u64 *partial_end, int *repeat)
- 			continue;
- 		}
- 
-+		*uniform = 0;
- 		if (check_type_overlap(&prev_match, &curr_match))
- 			return curr_match;
- 	}
-@@ -194,19 +200,26 @@ static u8 __mtrr_type_lookup(u64 start, u64 end, u64 *partial_end, int *repeat)
-  * Return Values:
-  * memory type - The effective MTRR type for the region
-  * 0xFF - MTRR is disabled
-+ *
-+ * Output Argument:
-+ * uniform - Set to 1 when MTRR covers the region uniformly, i.e. the region
-+ *	     is fully covered by a single MTRR entry or the default type.
-  */
--u8 mtrr_type_lookup(u64 start, u64 end)
-+u8 mtrr_type_lookup(u64 start, u64 end, u8 *uniform)
- {
--	u8 type, prev_type;
-+	u8 type, prev_type, is_uniform, dummy;
- 	int repeat;
- 	u64 partial_end;
- 
-+	*uniform = 1;
-+
- 	if (!mtrr_state_set || !mtrr_state.enabled)
- 		return 0xFF;
- 
- 	/* Look in fixed ranges. Just return the type as per start */
- 	if (mtrr_state.have_fixed && (start < 0x100000)) {
- 		int idx;
-+		*uniform = 0;
- 
- 		if (start < 0x80000) {
- 			idx = 0;
-@@ -231,7 +244,8 @@ u8 mtrr_type_lookup(u64 start, u64 end)
- 	if (!(mtrr_state.enabled & 2))
- 		return mtrr_state.def_type;
- 
--	type = __mtrr_type_lookup(start, end, &partial_end, &repeat);
-+	type = __mtrr_type_lookup(start, end,
-+				  &partial_end, &repeat, &is_uniform);
- 
- 	/*
- 	 * Common path is with repeat = 0.
-@@ -242,15 +256,21 @@ u8 mtrr_type_lookup(u64 start, u64 end)
- 	while (repeat) {
- 		prev_type = type;
- 		start = partial_end;
--		type = __mtrr_type_lookup(start, end, &partial_end, &repeat);
-+		is_uniform = 0;
-+
-+		type = __mtrr_type_lookup(start, end,
-+					  &partial_end, &repeat, &dummy);
- 
--		if (check_type_overlap(&prev_type, &type))
-+		if (check_type_overlap(&prev_type, &type)) {
-+			*uniform = 0;
- 			return type;
-+		}
- 	}
- 
- 	if (mtrr_tom2 && (start >= (1ULL<<32)) && (end < mtrr_tom2))
- 		return MTRR_TYPE_WRBACK;
- 
-+	*uniform = is_uniform;
- 	return type;
- }
- 
-diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
-index 35af677..372ad42 100644
---- a/arch/x86/mm/pat.c
-+++ b/arch/x86/mm/pat.c
-@@ -267,9 +267,9 @@ static unsigned long pat_x_mtrr_type(u64 start, u64 end,
- 	 * request is for WB.
- 	 */
- 	if (req_type == _PAGE_CACHE_MODE_WB) {
--		u8 mtrr_type;
-+		u8 mtrr_type, uniform;
- 
--		mtrr_type = mtrr_type_lookup(start, end);
-+		mtrr_type = mtrr_type_lookup(start, end, &uniform);
- 		if (mtrr_type != MTRR_TYPE_WRBACK)
- 			return _PAGE_CACHE_MODE_UC_MINUS;
- 
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index 4891fa1..3d6edea 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -567,17 +567,18 @@ void native_set_fixmap(enum fixed_addresses idx, phys_addr_t phys,
-  * pud_set_huge - setup kernel PUD mapping
-  *
-  * MTRR can override PAT memory types with 4KB granularity.  Therefore,
-- * it does not set up a huge page when the range is covered by a non-WB
-- * type of MTRR.  0xFF indicates that MTRR are disabled.
-+ * it only sets up a huge page when the range is mapped uniformly by MTRR
-+ * (i.e. the range is fully covered by a single MTRR entry or the default
-+ * type) or the MTRR memory type is WB.
-  *
-  * Return 1 on success, and 0 when no PUD was set.
-  */
- int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot)
- {
--	u8 mtrr;
-+	u8 mtrr, uniform;
- 
--	mtrr = mtrr_type_lookup(addr, addr + PUD_SIZE);
--	if ((mtrr != MTRR_TYPE_WRBACK) && (mtrr != 0xFF))
-+	mtrr = mtrr_type_lookup(addr, addr + PUD_SIZE, &uniform);
-+	if ((!uniform) && (mtrr != MTRR_TYPE_WRBACK))
- 		return 0;
- 
- 	prot = pgprot_4k_2_large(prot);
-@@ -593,18 +594,22 @@ int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot)
-  * pmd_set_huge - setup kernel PMD mapping
-  *
-  * MTRR can override PAT memory types with 4KB granularity.  Therefore,
-- * it does not set up a huge page when the range is covered by a non-WB
-- * type of MTRR.  0xFF indicates that MTRR are disabled.
-+ * it only sets up a huge page when the range is mapped uniformly by MTRR
-+ * (i.e. the range is fully covered by a single MTRR entry or the default
-+ * type) or the MTRR memory type is WB.
-  *
-  * Return 1 on success, and 0 when no PMD was set.
-  */
- int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot)
- {
--	u8 mtrr;
-+	u8 mtrr, uniform;
- 
--	mtrr = mtrr_type_lookup(addr, addr + PMD_SIZE);
--	if ((mtrr != MTRR_TYPE_WRBACK) && (mtrr != 0xFF))
-+	mtrr = mtrr_type_lookup(addr, addr + PMD_SIZE, &uniform);
-+	if ((!uniform) && (mtrr != MTRR_TYPE_WRBACK)) {
-+		pr_warn("pmd_set_huge: requesting [mem %#010llx-%#010llx], which spans more than a single MTRR entry\n",
-+				addr, addr + PMD_SIZE);
- 		return 0;
-+	}
- 
- 	prot = pgprot_4k_2_large(prot);
- 
+I can follow up when I'm back in work properly. As you have already pulled
+this in directly, can you also consider pulling in "mm: thp: return the
+correct value for change_huge_pmd" please? The other two patches were very
+minor can be resent through the normal paths later.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
