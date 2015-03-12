@@ -1,44 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
-	by kanga.kvack.org (Postfix) with ESMTP id F0B8482905
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2015 22:52:04 -0400 (EDT)
-Received: by obcva2 with SMTP id va2so12909385obc.13
-        for <linux-mm@kvack.org>; Wed, 11 Mar 2015 19:52:04 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id i5si1178993oeq.104.2015.03.11.19.52.04
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id DBE0382905
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2015 23:14:08 -0400 (EDT)
+Received: by pdev10 with SMTP id v10so16273882pde.13
+        for <linux-mm@kvack.org>; Wed, 11 Mar 2015 20:14:08 -0700 (PDT)
+Received: from na01-by2-obe.outbound.protection.outlook.com (mail-by2on0107.outbound.protection.outlook.com. [207.46.100.107])
+        by mx.google.com with ESMTPS id i3si10534328pdg.111.2015.03.11.20.14.07
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 11 Mar 2015 19:52:04 -0700 (PDT)
-Message-ID: <5500FF4C.2020702@oracle.com>
-Date: Wed, 11 Mar 2015 22:51:56 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 11 Mar 2015 20:14:08 -0700 (PDT)
+From: Scott Wood <scottwood@freescale.com>
+Subject: [PATCH 01/22] mm/memblock.c: %pF is only for function pointers
+Date: Wed, 11 Mar 2015 22:13:36 -0500
+Message-ID: <1426130037-17956-1-git-send-email-scottwood@freescale.com>
 MIME-Version: 1.0
-Subject: Re: btrfs: kernel BUG at fs/btrfs/extent_io.c:676!
-References: <543B35D3.6050509@oracle.com> <1413268312.2971.1@mail.thefacebook.com>
-In-Reply-To: <1413268312.2971.1@mail.thefacebook.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Mason <clm@fb.com>
-Cc: jbacik@fb.com, linux-btrfs@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.cz>
+To: trivial@kernel.org, linux-kernel@vger.kernel.org
+Cc: Scott Wood <scottwood@freescale.com>, linux-mm@kvack.org
 
-On 10/14/2014 02:31 AM, Chris Mason wrote:
-> On Sun, Oct 12, 2014 at 10:15 PM, Sasha Levin <sasha.levin@oracle.com> wrote:
->> Ping?
->>
->> This BUG_ON()ing due to GFP_ATOMIC allocation failure is really silly :(
-> 
-> Agreed, I have a patch for this in testing.  It didn't make my first pull but I'll get it fixed up.
+Use %pS for actual addresses, otherwise you'll get bad output
+on arches like ppc64 where %pF expects a function descriptor.
 
-I've re-enabled fs testing after the discussion at LSF/MM (but mostly
-due to Michal's patch), and this issue came right back up.
+Signed-off-by: Scott Wood <scottwood@freescale.com>
+Cc: linux-mm@kvack.org
+---
+ mm/memblock.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
 
-Any updates?
-
-
-Thanks,
-Sasha
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 252b77b..a7d4ff3 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -685,7 +685,7 @@ int __init_memblock memblock_remove(phys_addr_t base, phys_addr_t size)
+ 
+ int __init_memblock memblock_free(phys_addr_t base, phys_addr_t size)
+ {
+-	memblock_dbg("   memblock_free: [%#016llx-%#016llx] %pF\n",
++	memblock_dbg("   memblock_free: [%#016llx-%#016llx] %pS\n",
+ 		     (unsigned long long)base,
+ 		     (unsigned long long)base + size - 1,
+ 		     (void *)_RET_IP_);
+@@ -701,7 +701,7 @@ static int __init_memblock memblock_reserve_region(phys_addr_t base,
+ {
+ 	struct memblock_type *_rgn = &memblock.reserved;
+ 
+-	memblock_dbg("memblock_reserve: [%#016llx-%#016llx] flags %#02lx %pF\n",
++	memblock_dbg("memblock_reserve: [%#016llx-%#016llx] flags %#02lx %pS\n",
+ 		     (unsigned long long)base,
+ 		     (unsigned long long)base + size - 1,
+ 		     flags, (void *)_RET_IP_);
+@@ -1218,7 +1218,7 @@ void * __init memblock_virt_alloc_try_nid_nopanic(
+ 				phys_addr_t min_addr, phys_addr_t max_addr,
+ 				int nid)
+ {
+-	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
++	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pS\n",
+ 		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
+ 		     (u64)max_addr, (void *)_RET_IP_);
+ 	return memblock_virt_alloc_internal(size, align, min_addr,
+@@ -1250,7 +1250,7 @@ void * __init memblock_virt_alloc_try_nid(
+ {
+ 	void *ptr;
+ 
+-	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
++	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pS\n",
+ 		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
+ 		     (u64)max_addr, (void *)_RET_IP_);
+ 	ptr = memblock_virt_alloc_internal(size, align,
+@@ -1274,7 +1274,7 @@ void * __init memblock_virt_alloc_try_nid(
+  */
+ void __init __memblock_free_early(phys_addr_t base, phys_addr_t size)
+ {
+-	memblock_dbg("%s: [%#016llx-%#016llx] %pF\n",
++	memblock_dbg("%s: [%#016llx-%#016llx] %pS\n",
+ 		     __func__, (u64)base, (u64)base + size - 1,
+ 		     (void *)_RET_IP_);
+ 	kmemleak_free_part(__va(base), size);
+@@ -1294,7 +1294,7 @@ void __init __memblock_free_late(phys_addr_t base, phys_addr_t size)
+ {
+ 	u64 cursor, end;
+ 
+-	memblock_dbg("%s: [%#016llx-%#016llx] %pF\n",
++	memblock_dbg("%s: [%#016llx-%#016llx] %pS\n",
+ 		     __func__, (u64)base, (u64)base + size - 1,
+ 		     (void *)_RET_IP_);
+ 	kmemleak_free_part(__va(base), size);
+-- 
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
