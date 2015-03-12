@@ -1,117 +1,441 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id E3F48829AD
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2015 15:45:43 -0400 (EDT)
-Received: by padfa1 with SMTP id fa1so23008802pad.9
-        for <linux-mm@kvack.org>; Thu, 12 Mar 2015 12:45:43 -0700 (PDT)
-Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [72.246.2.115])
-        by mx.google.com with ESMTP id bd12si7221137pdb.255.2015.03.12.12.45.42
-        for <linux-mm@kvack.org>;
-        Thu, 12 Mar 2015 12:45:42 -0700 (PDT)
-Message-ID: <5501ECE5.7080107@akamai.com>
-Date: Thu, 12 Mar 2015 15:45:41 -0400
-From: Eric B Munson <emunson@akamai.com>
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id A11FC8299B
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2015 18:18:22 -0400 (EDT)
+Received: by padfa1 with SMTP id fa1so23991038pad.3
+        for <linux-mm@kvack.org>; Thu, 12 Mar 2015 15:18:22 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id o15si276192pdl.169.2015.03.12.15.18.21
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 12 Mar 2015 15:18:21 -0700 (PDT)
+Date: Thu, 12 Mar 2015 15:18:20 -0700
+From: akpm@linux-foundation.org
+Subject: mmotm 2015-03-12-15-17 uploaded
+Message-ID: <550210ac.Pr9rP4DS86Wiia6Q%akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH V4] Allow compaction of unevictable pages
-References: <1426173776-23471-1-git-send-email-emunson@akamai.com> <20150312193038.GB20841@dhcp22.suse.cz>
-In-Reply-To: <20150312193038.GB20841@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <cl@linux.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
+The mm-of-the-moment snapshot 2015-03-12-15-17 has been uploaded to
 
-On 03/12/2015 03:30 PM, Michal Hocko wrote:
-> On Thu 12-03-15 11:22:56, Eric B Munson wrote:
->> Currently, pages which are marked as unevictable are protected
->> from compaction, but not from other types of migration.  The
->> mlock desctription does not promise that all page faults will be
->> avoided, only major ones so this protection is not necessary.
->> This extra protection can cause problems for applications that
->> are using mlock to avoid swapping pages out, but require order >
->> 0 allocations to continue to succeed in a fragmented environment.
->> This patch adds a sysctl entry that will be used to allow root to
->> enable compaction of unevictable pages.
-> 
-> It would be appropriate to add a justification for the sysctl,
-> because it is not obvious from the above description. mlock
-> preventing from the swapout is not sufficient to justify it. It is
-> the real time extension mentioned by Peter in the previous version
-> which makes it worth a new user visible knob.
-> 
-> I would also argue that the knob should be enabled by default
-> because the real time extension requires an additional changes
-> anyway (rt-kernel at least) while general usage doesn't need such a
-> strong requirement.
+   http://www.ozlabs.org/~akpm/mmotm/
 
-Thanks for the review, I will incorporate your suggestions into a V5.
- I agree that many users will want to set this to 1, but keeping the
-default to 0 maintains the behavior of the kernel today.  I'd like to
-have the real time folks say that they are okay with a default of 1
-before I make that change.
+mmotm-readme.txt says
 
-> 
-> You also should provide a knob description to 
-> Documentation/sysctl/vm.txt
+README for mm-of-the-moment:
 
-Will do.
+http://www.ozlabs.org/~akpm/mmotm/
 
-> 
->> To illustrate this problem I wrote a quick test program that
->> mmaps a large number of 1MB files filled with random data.  These
->> maps are created locked and read only.  Then every other mmap is
->> unmapped and I attempt to allocate huge pages to the static huge
->> page pool.  When the compact_unevictable sysctl is 0, I cannot
->> allocate hugepages after fragmenting memory.  When the value is
->> set to 1, allocations succeed.
->> 
->> Signed-off-by: Eric B Munson <emunson@akamai.com> Cc: Vlastimil
->> Babka <vbabka@suse.cz> Cc: Thomas Gleixner <tglx@linutronix.de> 
->> Cc: Christoph Lameter <cl@linux.com> Cc: Peter Zijlstra
->> <peterz@infradead.org> Cc: Mel Gorman <mgorman@suse.de> Cc: David
->> Rientjes <rientjes@google.com> Cc: Rik van Riel
->> <riel@redhat.com> Cc: linux-mm@kvack.org Cc:
->> linux-kernel@vger.kernel.org
-> 
-> After the above things are fixed Acked-by: Michal Hocko
-> <mhocko@suse.cz>
-> 
-> One minor suggestion below
-> 
->> diff --git a/kernel/sysctl.c b/kernel/sysctl.c index
->> 88ea2d6..cc1a678 100644 --- a/kernel/sysctl.c +++
->> b/kernel/sysctl.c @@ -1313,6 +1313,13 @@ static struct ctl_table
->> vm_table[] = { .extra1		= &min_extfrag_threshold, .extra2		=
->> &max_extfrag_threshold, }, +	{ +		.procname	=
->> "compact_unevictable", +		.data		= &sysctl_compact_unevictable, +
->> .maxlen		= sizeof(int), +		.mode		= 0644, +		.proc_handler	=
->> proc_dointvec,
-> 
-> You can use .extra1 = &zero and .extra2 = &one to reduce the value 
-> space.
-> 
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
+You will need quilt to apply these patches to the latest Linus release (3.x
+or 3.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
 
-iQIcBAEBAgAGBQJVAezjAAoJELbVsDOpoOa9MHwP/j4nvm3dFm00qjOX4RKxsalz
-cjhQxuozKnRU9H+OPS3dXXoqDGdpLaLu6CsUsu8FGiJj3zLgUNxea+quJSnSmYVz
-8fO5VqhgA3alu7R7zSF3MtOjLzyOoP5/+jDNiNUDLL8sUzg/3hKXLUgBO9R1VU4Q
-yD0Yuhw5veNLOvF57xhMCk/quCydIvZV9kAJyTr+fgoY4b8wLyp+QAcqi2lGMCBj
-4W9lXtO1abG+gu/m5zAhXLX7MS+ZRQtA070G+kmkY7Z95DtKePGitNjLN7+X9EI6
-F1073D+GtiEOJhC+xNOc6Xzwpfl4vRghg4jj6aTkSSrb+sY5/byuKg06p8rMRfef
-pJrqjprbBNqiAP95z7X9H6FWty31kx6ZVXtM8CA9/XDqabJGgGs0qmDwPVf264+M
-8ySZy5wPRE85yNUKElpvDnx7+t1gka8vDy3bVO+zPsJV3ZqSwhgAiYTTL6u2f/Qe
-QwMXWgu4PaAeq0Wltrd/OtA6Fu9H9A91rkk8t69ctPkTjZYCgN0UDGzaa0WpH9SB
-H2mz2B3+AE2sdpuoBoVQ62SU4/7PiBIT/ILRuzgQnnNELZFStjstRZPrnVSAYRKI
-E5ArRQHfMwbortIiz9KH8SoibTyS0QZiXuKua6LXPwGTnvYqsSN8Jz1XoytV3I5G
-MRhLUI7k4dgaVHPTVUYb
-=qBj6
------END PGP SIGNATURE-----
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
+
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
+
+A git tree which contains the memory management portion of this tree is
+maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+by Michal Hocko.  It contains the patches which are between the
+"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+file, http://www.ozlabs.org/~akpm/mmotm/series.
+
+
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
+
+http://git.cmpxchg.org/?p=linux-mmotm.git;a=summary
+
+To develop on top of mmotm git:
+
+  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+  $ git remote update mmotm
+  $ git checkout -b topic mmotm/master
+  <make changes, commit>
+  $ git send-email mmotm/master.. [...]
+
+To rebase a branch with older patches to a new mmotm release:
+
+  $ git remote update mmotm
+  $ git rebase --onto mmotm/master <topic base> topic
+
+
+
+
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
+
+A git copy of this tree is available at
+
+	http://git.cmpxchg.org/?p=linux-mmots.git;a=summary
+
+and use of this tree is similar to
+http://git.cmpxchg.org/?p=linux-mmotm.git, described above.
+
+
+This mmotm tree contains the following patches against 4.0-rc3:
+(patches marked "*" will be included in linux-next)
+
+  origin.patch
+  arch-alpha-kernel-systblss-remove-debug-check.patch
+  i-need-old-gcc.patch
+* ocfs2-make-append_dio-an-incompat-feature.patch
+* drivers-rtc-rtc-s3cc-add-needs_src_clk-to-s3c6410-rtc-data.patch
+* mm-oom-do-not-fail-__gfp_nofail-allocation-if-oom-killer-is-disbaled.patch
+* mm-hugetlb-close-race-when-setting-pagetail-for-gigantic-pages.patch
+* mm-cma-fix-cma-aligned-offset-calculation.patch
+* nilfs2-fix-deadlock-of-segment-constructor-during-recovery.patch
+* c6x-asm-pgtable-define-dummy-pgprot_writecombine-for-mmu.patch
+* mm-nommu-export-symbol-max_mapnr.patch
+* fanotify-fix-event-filtering-with-fan_ondir-set.patch
+* kasan-module-vmalloc-rework-shadow-allocation-for-modules.patch
+* kasan-module-move-module_align-macro-into-linux-moduleloaderh.patch
+* mm-reorder-can_do_mlock-to-fix-audit-denial.patch
+* memcg-disable-hierarchy-support-if-bound-to-the-legacy-cgroup-hierarchy.patch
+* mm-fix-anon_vma-degree-underflow-in-anon_vma-endless-growing-prevention.patch
+* mm-fix-anon_vma-degree-underflow-in-anon_vma-endless-growing-prevention-v2.patch
+* mm-pagewalk-prevent-positive-return-value-of-walk_page_test-from-being-passed-to-callers.patch
+* readme-update-version-number-reference.patch
+* maintainers-correct-rtc-armada38x-pattern-entry.patch
+* mm-thp-return-the-correct-value-for-change_huge_pmd.patch
+* mm-numa-mark-huge-ptes-young-when-clearing-numa-hinting-faults.patch
+* ptrace-x86-fix-the-tif_forced_tf-logic-in-handle_signal.patch
+* cxgb4-drop-__gfp_nofail-allocation.patch
+* cxgb4-drop-__gfp_nofail-allocation-fix.patch
+* sh-dwarf-destroy-mempools-on-cleanup.patch
+* sh-dwarf-use-mempool_create_slab_pool.patch
+* fs-ext4-fsyncc-generic_file_fsync-call-based-on-barrier-flag.patch
+* jbd2-revert-must-not-fail-allocation-loops-back-to-gfp_nofail.patch
+* ocfs2-deletion-of-unnecessary-checks-before-three-function-calls.patch
+* ocfs2-less-function-calls-in-ocfs2_convert_inline_data_to_extents-after-error-detection.patch
+* ocfs2-less-function-calls-in-ocfs2_figure_merge_contig_type-after-error-detection.patch
+* ocfs2-one-function-call-less-in-ocfs2_merge_rec_left-after-error-detection.patch
+* ocfs2-one-function-call-less-in-ocfs2_merge_rec_right-after-error-detection.patch
+* ocfs2-one-function-call-less-in-ocfs2_init_slot_info-after-error-detection.patch
+* ocfs2-one-function-call-less-in-user_cluster_connect-after-error-detection.patch
+* ocfs2-avoid-a-pointless-delay-in-o2cb_cluster_check.patch
+* ocfs2-fix-a-typing-error-in-ocfs2_direct_io_write.patch
+* ocfs2-no-need-get-dinode-bh-when-zeroing-extend.patch
+* ocfs2-take-inode-lock-when-get-clusters.patch
+* ocfs2-do-not-use-ocfs2_zero_extend-during-direct-io.patch
+* ocfs2-fix-typo-in-ocfs2_reserve_local_alloc_bits.patch
+* ocfs2-dereferencing-freed-pointers-in-ocfs2_reflink.patch
+* ocfs2-flush-inode-data-to-disk-and-free-inode-when-i_count-becomes-zero.patch
+* add-errors=continue.patch
+* acknowledge-return-value-of-ocfs2_error.patch
+* clear-the-rest-of-the-buffers-on-error.patch
+* ocfs2-fix-a-tiny-case-that-inode-can-not-removed.patch
+* ocfs2-use-64bit-variables-to-track-heartbeat-time.patch
+* ocfs2-call-ocfs2_journal_access_di-before-ocfs2_journal_dirty-in-ocfs2_write_end_nolock.patch
+* ocfs2-avoid-access-invalid-address-when-read-o2dlm-debug-messages.patch
+* ocfs2-avoid-access-invalid-address-when-read-o2dlm-debug-messages-v3.patch
+* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
+* posix_acl-make-posix_acl_create-safer-and-cleaner.patch
+* vfs-delete-vfs_readdir-function-declaration.patch
+* watchdog-new-definitions-and-variables-initialization.patch
+* watchdog-introduce-the-proc_watchdog_update-function.patch
+* watchdog-move-definition-of-watchdog_proc_mutex-outside-of-proc_dowatchdog.patch
+* watchdog-introduce-the-proc_watchdog_common-function.patch
+* watchdog-introduce-separate-handlers-for-parameters-in-proc-sys-kernel.patch
+* watchdog-implement-error-handling-for-failure-to-set-up-hardware-perf-events.patch
+* watchdog-implement-error-handling-for-failure-to-set-up-hardware-perf-events-fix.patch
+* watchdog-enable-the-new-user-interface-of-the-watchdog-mechanism.patch
+* watchdog-enable-the-new-user-interface-of-the-watchdog-mechanism-fix.patch
+* watchdog-clean-up-some-function-names-and-arguments.patch
+* watchdog-introduce-the-hardlockup_detector_disable-function.patch
+  mm.patch
+* mm-slub-parse-slub_debug-o-option-in-switch-statement.patch
+* mm-rename-foll_mlock-to-foll_populate.patch
+* mm-rename-__mlock_vma_pages_range-to-populate_vma_page_range.patch
+* mm-move-gup-posix-mlock-error-conversion-out-of-__mm_populate.patch
+* mm-move-mm_populate-related-code-to-mm-gupc.patch
+* mm-memblockc-name-the-local-variable-of-memblock_type-as-type.patch
+* mm-memcontrol-update-copyright-notice.patch
+* memory-hotplug-use-macro-to-switch-between-section-and-pfn.patch
+* mm-cma-debugfs-interface.patch
+* mm-cma-allocation-trigger.patch
+* mm-cma-release-trigger.patch
+* mm-cma-release-trigger-checkpatch-fixes.patch
+* mm-cma-release-trigger-fixpatch.patch
+* mm-cma-allocation-trigger-fix.patch
+* cma-debug-document-new-debugfs-interface.patch
+* mm-hotplug-fix-concurrent-memory-hot-add-deadlock.patch
+* mm-cma-change-fallback-behaviour-for-cma-freepage.patch
+* mm-page_alloc-factor-out-fallback-freepage-checking.patch
+* mm-compaction-enhance-compaction-finish-condition.patch
+* mm-compaction-enhance-compaction-finish-condition-fix.patch
+* mm-incorporate-zero-pages-into-transparent-huge-pages.patch
+* mm-incorporate-zero-pages-into-transparent-huge-pages-fix.patch
+* page_writeback-cleanup-mess-around-cancel_dirty_page.patch
+* page_writeback-cleanup-mess-around-cancel_dirty_page-checkpatch-fixes.patch
+* mm-hide-per-cpu-lists-in-output-of-show_mem.patch
+* mm-hide-per-cpu-lists-in-output-of-show_mem-fix.patch
+* mm-completely-remove-dumping-per-cpu-lists-from-show_mem.patch
+* alpha-expose-number-of-page-table-levels-on-kconfig-level.patch
+* arm64-expose-number-of-page-table-levels-on-kconfig-level.patch
+* arm-expose-number-of-page-table-levels-on-kconfig-level.patch
+* ia64-expose-number-of-page-table-levels-on-kconfig-level.patch
+* m68k-mark-pmd-folded-and-expose-number-of-page-table-levels.patch
+* mips-expose-number-of-page-table-levels-on-kconfig-level.patch
+* parisc-expose-number-of-page-table-levels-on-kconfig-level.patch
+* powerpc-expose-number-of-page-table-levels-on-kconfig-level.patch
+* s390-expose-number-of-page-table-levels.patch
+* sh-expose-number-of-page-table-levels.patch
+* sparc-expose-number-of-page-table-levels.patch
+* tile-expose-number-of-page-table-levels.patch
+* um-expose-number-of-page-table-levels.patch
+* x86-expose-number-of-page-table-levels-on-kconfig-level.patch
+* mm-define-default-pgtable_levels-to-two.patch
+* mm-do-not-add-nr_pmds-into-mm_struct-if-pmd-is-folded.patch
+* mm-refactor-do_wp_page-extract-the-reuse-case.patch
+* mm-refactor-do_wp_page-extract-the-reuse-case-fix.patch
+* mm-refactor-do_wp_page-rewrite-the-unlock-flow.patch
+* mm-refactor-do_wp_page-extract-the-page-copy-flow.patch
+* mm-refactor-do_wp_page-handling-of-shared-vma-into-a-function.patch
+* ocfs2-copy-fs-uuid-to-superblock.patch
+* cleancache-zap-uuid-arg-of-cleancache_init_shared_fs.patch
+* cleancache-forbid-overriding-cleancache_ops.patch
+* cleancache-remove-limit-on-the-number-of-cleancache-enabled-filesystems.patch
+* cleancache-remove-limit-on-the-number-of-cleancache-enabled-filesystems-fix.patch
+* mm-mempolicy-migrate_to_node-should-only-migrate-to-node.patch
+* mm-remove-gfp_thisnode.patch
+* mm-thp-really-limit-transparent-hugepage-allocation-to-local-node.patch
+* kernel-cpuset-remove-exception-for-__gfp_thisnode.patch
+* mm-cma-constify-and-use-correct-signness-in-mm-cmac.patch
+* mm-clarify-__gfp_nofail-deprecation-status.patch
+* mm-clarify-__gfp_nofail-deprecation-status-checkpatch-fixes.patch
+* sparc-clarify-__gfp_nofail-allocation.patch
+* mm-page_allocc-add-and-in-comment.patch
+* mm-change-__get_vm_area_node-to-use-fls_long.patch
+* lib-add-huge-i-o-map-capability-interfaces.patch
+* lib-add-huge-i-o-map-capability-interfaces-fix.patch
+* mm-change-ioremap-to-set-up-huge-i-o-mappings.patch
+* mm-change-ioremap-to-set-up-huge-i-o-mappings-fix.patch
+* mm-change-vunmap-to-tear-down-huge-kva-mappings.patch
+* mm-change-vunmap-to-tear-down-huge-kva-mappings-fix.patch
+* x86-mm-support-huge-i-o-mapping-capability-i-f.patch
+* x86-mm-support-huge-kva-mappings-on-x86.patch
+* x86-mm-support-huge-kva-mappings-on-x86-fix.patch
+* mm-memcontrol-let-mem_cgroup_move_account-have-effect-only-if-mmu-enabled.patch
+* arm-factor-out-mmap-aslr-into-mmap_rnd.patch
+* x86-standardize-mmap_rnd-usage.patch
+* arm64-standardize-mmap_rnd-usage.patch
+* arm64-standardize-mmap_rnd-usage-v4.patch
+* mips-extract-logic-for-mmap_rnd.patch
+* mips-extract-logic-for-mmap_rnd-v4.patch
+* powerpc-standardize-mmap_rnd-usage.patch
+* powerpc-standardize-mmap_rnd-usage-v4.patch
+* s390-standardize-mmap_rnd-usage.patch
+* mm-expose-arch_mmap_rnd-when-available.patch
+* s390-redefine-randomize_et_dyn-for-elf_et_dyn_base.patch
+* mm-split-et_dyn-aslr-from-mmap-aslr.patch
+* mm-fold-arch_randomize_brk-into-arch_has_elf_randomize.patch
+* mm-numa-remove-migrate_ratelimited.patch
+* memcg-print-cgroup-information-when-system-panics-due-to-panic_on_oom.patch
+* mm-mempool-do-not-allow-atomic-resizing.patch
+* mm-mempool-do-not-allow-atomic-resizing-checkpatch-fixes.patch
+* mm-hugetlb-abort-__get_user_pages-if-current-has-been-oom-killed.patch
+* mm-move-memtest-under-mm.patch
+* memtest-use-phys_addr_t-for-physical-addresses.patch
+* arm64-add-support-for-memtest.patch
+* arm-add-support-for-memtest.patch
+* kconfig-memtest-update-number-of-test-patterns-up-to-17.patch
+* documentation-update-arch-list-in-the-memtest-entry.patch
+* mm-oom_killc-fix-a-typo.patch
+* mm-vmscan-fix-the-page-state-calculation-in-too_many_isolated.patch
+* mm-page_isolation-check-pfn-validity-before-access.patch
+* mm-fix-invalid-use-of-pfn_valid_within-in-test_pages_in_a_zone.patch
+* fs-mpagec-forgotten-write_sync-in-case-of-data-integrity-write.patch
+* mm-support-madvisemadv_free.patch
+* mm-support-madvisemadv_free-fix.patch
+* x86-add-pmd_-for-thp.patch
+* x86-add-pmd_-for-thp-fix.patch
+* sparc-add-pmd_-for-thp.patch
+* sparc-add-pmd_-for-thp-fix.patch
+* powerpc-add-pmd_-for-thp.patch
+* arm-add-pmd_mkclean-for-thp.patch
+* arm64-add-pmd_-for-thp.patch
+* mm-dont-split-thp-page-when-syscall-is-called.patch
+* mm-dont-split-thp-page-when-syscall-is-called-fix.patch
+* mm-dont-split-thp-page-when-syscall-is-called-fix-2.patch
+* zram-cosmetic-zram_attr_ro-code-formatting-tweak.patch
+* zram-use-idr-instead-of-zram_devices-array.patch
+* zram-factor-out-device-reset-from-reset_store.patch
+* zram-reorganize-code-layout.patch
+* zram-add-dynamic-device-add-remove-functionality.patch
+* zram-add-dynamic-device-add-remove-functionality-fix.patch
+* zram-remove-max_num_devices-limitation.patch
+* zram-report-every-added-and-removed-device.patch
+* zram-trivial-correct-flag-operations-comment.patch
+* zram-return-zram-device_id-value-from-zram_add.patch
+* zram-introduce-automatic-device_id-generation.patch
+* zram-introduce-automatic-device_id-generation-fix.patch
+* zram-do-not-let-user-enforce-new-device-dev_id.patch
+* zsmalloc-decouple-handle-and-object.patch
+* zsmalloc-factor-out-obj_.patch
+* zsmalloc-support-compaction.patch
+* zsmalloc-support-compaction-fix.patch
+* zsmalloc-adjust-zs_almost_full.patch
+* zram-support-compaction.patch
+* zsmalloc-record-handle-in-page-private-for-huge-object.patch
+* zsmalloc-add-fullness-into-stat.patch
+* proc-pid-status-show-all-sets-of-pid-according-to-ns.patch
+* docs-add-missing-and-new-proc-pid-status-file-entries-fix-typos.patch
+* proc-show-locks-in-proc-pid-fdinfo-x.patch
+* proc-show-locks-in-proc-pid-fdinfo-x-v2.patch
+* include-linux-remove-empty-conditionals.patch
+* paride-fix-the-verbose-module-param.patch
+* kernel-conditionally-support-non-root-users-groups-and-capabilities.patch
+* kernel-conditionally-support-non-root-users-groups-and-capabilities-checkpatch-fixes.patch
+* resource-remove-deprecated-__check_region-and-friends.patch
+* printk-comment-pr_cont-stating-it-is-only-to-continue-a-line.patch
+* lib-vsprintfc-eliminate-some-branches.patch
+* lib-vsprintfc-reduce-stack-use-in-number.patch
+* lib-vsprintfc-eliminate-duplicate-hex-string-array.patch
+* lib-vsprintfc-another-small-hack.patch
+* lib-vsprintf-document-%p-parameters-passed-by-reference.patch
+* lib-vsprintf-move-integer-format-types-to-the-top.patch
+* lib-vsprintf-add-%pcnr-format-specifiers-for-clocks.patch
+* lib-vsprintf-add-%pcnr-format-specifiers-for-clocks-fix.patch
+* lib-vsprintfc-fix-potential-null-deref-in-hex_string.patch
+* lib-string_helpersc-refactor-string_escape_mem.patch
+* lib-string_helpersc-change-semantics-of-string_escape_mem.patch
+* lib-string_helpersc-change-semantics-of-string_escape_mem-fix.patch
+* lib-string_helpersc-change-semantics-of-string_escape_mem-fix-fix.patch
+* lib-vsprintf-add-%pt-format-specifier.patch
+* maintainers-use-tabs-consistently.patch
+* credits-add-ricardo-ribalda-delgado.patch
+* mailmap-add-ricardo-ribalda.patch
+* linux-bitmaph-improve-bitmap_lastfirst_word_mask.patch
+* x86-mtrr-if-remove-use-of-seq_printf-return-value.patch
+* power-wakeup-remove-use-of-seq_printf-return-value.patch
+* rtc-remove-use-of-seq_printf-return-value.patch
+* ipc-remove-use-of-seq_printf-return-value.patch
+* microblaze-mb-remove-use-of-seq_printf-return-value.patch
+* microblaze-mb-remove-use-of-seq_printf-return-value-fix.patch
+* nios2-cpuinfo-remove-use-of-seq_printf-return-value.patch
+* arm-plat-pxa-remove-use-of-seq_printf-return-value.patch
+* openrisc-remove-use-of-seq_printf-return-value.patch
+* cris-remove-use-of-seq_printf-return-value.patch
+* mfd-ab8500-debugfs-remove-use-of-seq_printf-return-value.patch
+* s390-remove-use-of-seq_printf-return-value.patch
+* i8k-remove-use-of-seq_printf-return-value.patch
+* watchdog-bcm281xx-remove-use-of-seq_printf-return-value.patch
+* proc-remove-use-of-seq_printf-return-value.patch
+* cgroup-remove-use-of-seq_printf-return-value.patch
+* tracing-remove-use-of-seq_printf-return-value.patch
+* lru_cache-remove-use-of-seq_printf-return-value.patch
+* parisc-remove-use-of-seq_printf-return-value.patch
+* lib-find__bit-reimplementation.patch
+* lib-find__bit-reimplementation-fix.patch
+* lib-move-find_last_bit-to-lib-find_next_bitc.patch
+* lib-rename-lib-find_next_bitc-to-lib-find_bitc.patch
+* lib-vsprintfc-even-faster-decimal-conversion.patch
+* mm-utilc-add-kstrimdup.patch
+* lib-add-crc64-ecma-module.patch
+* ihex-restore-missing-default-in-switch-statement.patch
+* checkpatch-improve-no-space-is-necessary-after-a-cast-test.patch
+* checkpatch-add-spell-checking-of-email-subject-line.patch
+* checkpatch-spell-check-reudce.patch
+* checkpatch-add-optional-codespell-dictionary-to-find-more-typos.patch
+* binfmt_misc-simplify-entry_status.patch
+* binfmt_misc-simplify-entry_status-fix.patch
+* rtc-pcf8563-simplify-return-from-function.patch
+* rtc-stmp3xxx-use-optional-crystal-in-low-power-states.patch
+* rtc-mc13xxx-fix-obfuscated-and-wrong-format-string.patch
+* rtc-mediatek-add-mt63xx-rtc-driver.patch
+* drivers-rtc-rtc-em3027c-add-device-tree-support.patch
+* rtc-x1205-use-sign_extend32-for-sign-extension.patch
+* rtc-hctosys-do-not-treat-lack-of-rtc-device-as-error.patch
+* rtc-s3c-delete-duplicate-clock-control.patch
+* rtc-rtc-ab-b5ze-s3-constify-struct-regmap_config.patch
+* rtc-add-rtc-abx805-a-driver-for-the-abracon-ab-1805-i2c-rtc.patch
+* rtc-add-abracon-abx80x-driver.patch
+* rtc-add-abracon-abx80x-driver-fix.patch
+* rtc-ds1685-remove-owner-assignment-from-platform_driver.patch
+* rtc-ds1685-fix-sparse-warnings.patch
+* rtc-da9052-add-extra-reads-with-timeouts-to-avoid-returning-partially-updated-values.patch
+* rtc-da9052-add-constraints-to-set-valid-year.patch
+* rtc-da9052-register-ability-of-alarm-to-wake-device-from-suspend.patch
+* rtc-hym8563-return-clock-rate-even-when-clock-is-disabled.patch
+* drivers-rtc-interfacec-check-the-error-after-__rtc_read_time.patch
+* rtc-restore-alarm-after-resume.patch
+* hfsplus-add-missing-curly-braces-in-hfsplus_delete_cat.patch
+* fs-hfsplus-move-xattr_name-allocation-in-hfsplus_getxattr.patch
+* fs-hfsplus-move-xattr_name-allocation-in-hfsplus_setxattr.patch
+* fs-hfsplus-atomically-set-inode-i_flags.patch
+* fs-hfsplus-use-bool-instead-of-int-for-is_known_namespace-return-value.patch
+* fs-fat-remove-unnecessary-defintion.patch
+* fs-fat-remove-unnecessary-includes.patch
+* fs-fat-remove-unnecessary-includes-fix.patch
+* fs-fat-comment-fix-fat_bits-can-be-also-32.patch
+* fat-add-fat_fallocate-operation.patch
+* fat-skip-cluster-allocation-on-fallocated-region.patch
+* fat-permit-to-return-phy-block-number-by-fibmap-in-fallocated-region.patch
+* documentation-filesystems-vfattxt-update-the-limitation-for-fat-fallocate.patch
+* fork-report-pid-reservation-failure-properly.patch
+* fork_init-update-max_threads-comment.patch
+* de_thread-move-notify_count-write-under-lock.patch
+* cpumask-dont-perform-while-loop-in-cpumask_next_and.patch
+* kdump-vmcoreinfo-report-actual-value-of-phys_base.patch
+* fs-affs-use-affs_mount-prefix-for-mount-options.patch
+* fs-affs-affsh-add-mount-option-manipulation-macros.patch
+* fs-affs-superc-use-affs_set_opt.patch
+* fs-affs-use-affs_test_opt.patch
+* bfs-bfad_worker-cleanup.patch
+* memstick-mspro_block-add-missing-curly-braces.patch
+* kconfig-use-macros-which-are-already-defined.patch
+* kconfig-use-macros-which-are-already-defined-fix.patch
+* arc-do-not-export-symbols-in-troubleshootc.patch
+* lib-lz4-pull-out-constant-tables.patch
+* seccomp-allow-compat-sigreturn-overrides.patch
+* arm-use-asm-generic-for-seccomph.patch
+* microblaze-use-asm-generic-for-seccomph.patch
+* mips-switch-to-using-asm-generic-for-seccomph.patch
+* parisc-switch-to-using-asm-generic-for-seccomph.patch
+* powerpc-switch-to-using-asm-generic-for-seccomph.patch
+* sparc-switch-to-using-asm-generic-for-seccomph.patch
+* x86-switch-to-using-asm-generic-for-seccomph.patch
+  linux-next.patch
+* unicore32-remove-unnecessary-kern_err-in-fpu-ucf64c.patch
+* lib-kconfig-fix-up-have_arch_bitreverse-help-text.patch
+* mips-ip32-add-platform-data-hooks-to-use-ds1685-driver.patch
+* tile-elf-reorganize-notify_exec.patch
+* oprofile-reduce-mmap_sem-hold-for-mm-exe_file.patch
+* powerpc-oprofile-reduce-mmap_sem-hold-for-exe_file.patch
+* oprofile-reduce-mmap_sem-hold-for-mm-exe_file-fix.patch
+* tomoyo-reduce-mmap_sem-hold-for-mm-exe_file.patch
+* tomoyo-reduce-mmap_sem-hold-for-mm-exe_file-checkpatch-fixes.patch
+* maintainers-add-mediatek-soc-mailing-list.patch
+* w1-call-put_device-if-device_register-fails.patch
+* mm-add-strictlimit-knob-v2.patch
+  do_shared_fault-check-that-mmap_sem-is-held.patch
+  make-sure-nobodys-leaking-resources.patch
+  journal_add_journal_head-debug.patch
+  journal_add_journal_head-debug-fix.patch
+  releasing-resources-with-children.patch
+  make-frame_pointer-default=y.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  mutex-subsystem-synchro-test-module.patch
+  slab-leaks3-default-y.patch
+  add-debugging-aid-for-memory-initialisation-problems.patch
+  workaround-for-a-pci-restoring-bug.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
