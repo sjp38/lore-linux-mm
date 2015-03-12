@@ -1,104 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 53EF38299B
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2015 11:35:20 -0400 (EDT)
-Received: by qcvs11 with SMTP id s11so19424220qcv.7
-        for <linux-mm@kvack.org>; Thu, 12 Mar 2015 08:35:20 -0700 (PDT)
-Received: from mail-qg0-x236.google.com (mail-qg0-x236.google.com. [2607:f8b0:400d:c04::236])
-        by mx.google.com with ESMTPS id 198si4921045qhr.90.2015.03.12.08.35.19
+Received: from mail-qc0-f181.google.com (mail-qc0-f181.google.com [209.85.216.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D0A6829A3
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2015 12:18:13 -0400 (EDT)
+Received: by qcwb13 with SMTP id b13so19752997qcw.9
+        for <linux-mm@kvack.org>; Thu, 12 Mar 2015 09:18:12 -0700 (PDT)
+Received: from mail-qc0-x22f.google.com (mail-qc0-x22f.google.com. [2607:f8b0:400d:c01::22f])
+        by mx.google.com with ESMTPS id i72si6999342qkh.25.2015.03.12.09.18.11
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Mar 2015 08:35:19 -0700 (PDT)
-Received: by qgfh3 with SMTP id h3so18973519qgf.2
-        for <linux-mm@kvack.org>; Thu, 12 Mar 2015 08:35:19 -0700 (PDT)
-Date: Thu, 12 Mar 2015 11:35:13 -0400
+        Thu, 12 Mar 2015 09:18:11 -0700 (PDT)
+Received: by qcxr5 with SMTP id r5so19832416qcx.4
+        for <linux-mm@kvack.org>; Thu, 12 Mar 2015 09:18:11 -0700 (PDT)
+Date: Thu, 12 Mar 2015 12:18:10 -0400
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: committed memory, mmaps and shms
-Message-ID: <20150312153513.GA14537@dhcp22.suse.cz>
-References: <20150311181044.GC14481@diablo.grulicueva.local>
- <20150312124053.GA30035@dhcp22.suse.cz>
- <20150312145422.GA9240@grulic.org.ar>
+Subject: Re: [PATCH RESEND 0/3] memory_hotplug: hyperv: fix deadlock between
+ memory adding and onlining
+Message-ID: <20150312161810.GA18269@dhcp22.suse.cz>
+References: <1423736634-338-1-git-send-email-vkuznets@redhat.com>
+ <20150306155002.GB23443@dhcp22.suse.cz>
+ <871tkyy35g.fsf@vitty.brq.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150312145422.GA9240@grulic.org.ar>
+In-Reply-To: <871tkyy35g.fsf@vitty.brq.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marcos Dione <mdione@grulic.org.ar>
-Cc: linux-kernel@vger.kernel.org, marcos-david.dione@amadeus.com, linux-mm@kvack.org
+To: Vitaly Kuznetsov <vkuznets@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Haiyang Zhang <haiyangz@microsoft.com>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Fabian Frederick <fabf@skynet.be>, Zhang Zhen <zhenzhang.zhang@huawei.com>, Vladimir Davydov <vdavydov@parallels.com>, Wang Nan <wangnan0@huawei.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, devel@linuxdriverproject.org, linux-mm@kvack.org
 
-On Thu 12-03-15 11:54:22, Marcos Dione wrote:
-> On Thu, Mar 12, 2015 at 08:40:53AM -0400, Michal Hocko wrote:
-> > [CCing MM maling list]
+On Mon 09-03-15 09:40:43, Vitaly Kuznetsov wrote:
+> Michal Hocko <mhocko@suse.cz> writes:
 > 
->     Shall we completely migrate the rest of the conversation there?
-
-It is usually better to keep lkml on the cc list for a larger audience.
- 
-> > On Wed 11-03-15 19:10:44, Marcos Dione wrote:
-[...]
-> > > $ free
-> > >              total       used       free     shared    buffers     cached
-> > > Mem:     396895176  395956332     938844          0       8972  356409952
-> > > -/+ buffers/cache:   39537408  357357768
-> > > Swap:      8385788    8385788          0
-> > > 
-> > >     This reports 378GiB of RAM, 377 used; of those 8MiB in buffers,
-> > > 339GiB in cache, leaving only 38Gib for processes (for some reason this
-> > 
-> > I am not sure I understand your math here. 339G in the cache should be
-> > reclaimable (be careful about the shmem though). It is the rest which
-> > might be harder to reclaim.
+> > [Sorry for the late response]
+> >
+> > This is basically the same code posted by KY Srinivasan posted late last
+> > year (http://marc.info/?l=linux-mm&m=141782228129426&w=2). I had
+> > objections to the implementation
+> > http://marc.info/?l=linux-mm&m=141805109216700&w=2
 > 
->     These 38GiB I mention is the rest of 378 available minus 339 in
-> cache. To me this difference represents the sum of the resident
-> anonymous memory malloc'ed by all processes. Unless there's some othr
-> kind of pages accounted in 'Used'.
-
-The kernel needs memory as well for its internal data structures
-(stacks, page tables, slab objects, memory used by drivers and what not).
- 
-> > shmem (tmpfs) is a in memory filesystem. Pages backing shmem mappings
-> > are maintained in the page cache. Their backing storage is swap as you
-> > said. So from a conceptual point of vew this makes a lot of sense. 
+> Np, David's alternative fix is already in -mm:
 > 
->     Now it's completely clear, thanks.
-> 
-> > > * Why 'pure' mmalloc'ed memory is ever reported? Does it make sense to
-> > >   talk about it?
-> > 
-> > This is simply private anonymous memory. And you can see it as such in
-> > /proc/<pid>/[s]maps
-> 
->     Yes, but my question was more on the lines of 'why free or
-> /proc/meminfo do not show it'. Maybe it's just that it's difficult to
-> define (like I said, "sum of resident anonymous..." &c) or nobody really
-> cares about this. Maybe I shouldn't either.
+> https://lkml.org/lkml/2015/2/12/655
 
-meminfo is exporting this information as AnonPages.
-
-[...]
-> > > * What is actually counted in Committed_AS? Does it count shms or mmaps?
-> > >   How?
-> > 
-> > This depends on the overcommit configuration. See
-> > Documentation/sysctl/vm.txt for more information.
-> 
->     I understand what /proc/sys/vm/overcommit_memory is for; what I
-> don't understand is what exactly counted in the Committed_AS line in
-> /proc/meminfo.
-
-It accounts all the address space reservations - e.g. mmap(len), len
-will get added. The things are slightly more complicated but start
-looking at callers of security_vm_enough_memory_mm should give you an
-idea what everything is included.
-How is this number used depends on the overcommit mode.
-__vm_enough_memory would give you a better picture.
-
-> I also read Documentation/vm/overcommit-accounting
-
-What would help you to understand it better?
-
+Thanks for the pointer. I have missed this one. This is definitely a
+better approach than cluttering around exporting device lock.
 -- 
 Michal Hocko
 SUSE Labs
