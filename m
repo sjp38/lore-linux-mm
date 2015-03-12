@@ -1,200 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
-	by kanga.kvack.org (Postfix) with ESMTP id E3A0182905
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2015 08:40:55 -0400 (EDT)
-Received: by qgdz107 with SMTP id z107so17485070qgd.4
-        for <linux-mm@kvack.org>; Thu, 12 Mar 2015 05:40:55 -0700 (PDT)
-Received: from mail-qg0-x22f.google.com (mail-qg0-x22f.google.com. [2607:f8b0:400d:c04::22f])
-        by mx.google.com with ESMTPS id d16si6360205qhc.92.2015.03.12.05.40.54
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 60F3D82905
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2015 08:54:57 -0400 (EDT)
+Received: by pdno5 with SMTP id o5so20046294pdn.1
+        for <linux-mm@kvack.org>; Thu, 12 Mar 2015 05:54:57 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id o7si3053976pdp.136.2015.03.12.05.54.55
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Mar 2015 05:40:54 -0700 (PDT)
-Received: by qgdz60 with SMTP id z60so17508259qgd.5
-        for <linux-mm@kvack.org>; Thu, 12 Mar 2015 05:40:54 -0700 (PDT)
-Date: Thu, 12 Mar 2015 08:40:53 -0400
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: committed memory, mmaps and shms
-Message-ID: <20150312124053.GA30035@dhcp22.suse.cz>
-References: <20150311181044.GC14481@diablo.grulicueva.local>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20150311181044.GC14481@diablo.grulicueva.local>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 12 Mar 2015 05:54:56 -0700 (PDT)
+Subject: Re: [PATCH 1/2] mm: Allow small allocations to fail
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1426107294-21551-1-git-send-email-mhocko@suse.cz>
+	<1426107294-21551-2-git-send-email-mhocko@suse.cz>
+In-Reply-To: <1426107294-21551-2-git-send-email-mhocko@suse.cz>
+Message-Id: <201503122154.JFB35925.SJHOOVOFLFtMFQ@I-love.SAKURA.ne.jp>
+Date: Thu, 12 Mar 2015 21:54:47 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marcos Dione <mdione@grulic.org.ar>
-Cc: linux-kernel@vger.kernel.org, marcos-david.dione@amadeus.com, linux-mm@kvack.org
+To: mhocko@suse.cz, akpm@linux-foundation.org
+Cc: hannes@cmpxchg.org, david@fromorbit.com, mgorman@suse.de, riel@redhat.com, fengguang.wu@intel.com, fernando_b1@lab.ntt.co.jp, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-[CCing MM maling list]
+(The Cc: line seems to be partially truncated. Please re-add if needed.)
 
-On Wed 11-03-15 19:10:44, Marcos Dione wrote:
-> 
->     Hi everybody. First, I hope this is the right list for such
-> questions;  I searched in the list of lists[1] for a MM specific one, but
-> didn't find any. Second, I'm not subscribed, so please CC me and my other
-> address when answering.
-> 
->     I'm trying to figure out how Linux really accounts for memory, both
-> globally and for each individual process. Most user's first approach  to
-> memory monitoring is running free (no pun intended):
-> 
-> $ free
->              total       used       free     shared    buffers     cached
-> Mem:     396895176  395956332     938844          0       8972  356409952
-> -/+ buffers/cache:   39537408  357357768
-> Swap:      8385788    8385788          0
-> 
->     This reports 378GiB of RAM, 377 used; of those 8MiB in buffers,
-> 339GiB in cache, leaving only 38Gib for processes (for some reason this
+Michal Hocko wrote:
+> Finally, if a non-failing allocation is unavoidable then __GFP_NOFAIL
+> flag is there to express this strong requirement. It is much better to
+> have a simple way to check all those places and come up with a solution
+> which will guarantee a forward progress for them.
 
-I am not sure I understand your math here. 339G in the cache should be
-reclaimable (be careful about the shmem though). It is the rest which
-might be harder to reclaim.
+Keeping gfp flags passed to ongoing allocation inside "struct task_struct"
+will allow the OOM killer to skip OOM victims doing __GFP_NOFAIL.
+http://marc.info/?l=linux-mm&m=141671829611143&w=2 would give a hint.
 
-> value is not displayed, which should probably be a warning to what is to
-> come); and 1GiB free. So far all seems good.
-> 
->     Now, this machine has (at least) a 108 GiB shm. All this memory is
-> clearly counted as cache. This is my first surprise. shms are not cache
-> of anything on disk, but spaces of shared memory (duh); at most, their
-> pages can end up in swap, but not in a file somewhere. Maybe I'm not
-> correctly interpreting the meaning of (what is accounted as) cache.
+> As this behavior is established for many years we cannot change it
+> immediately. This patch instead exports a new sysctl/proc knob which
+> tells allocator how much to retry. The higher the number the longer will
+> the allocator loop and try to trigger OOM killer when the memory is too
+> low. This implementation counts only those retries which involved OOM
+> killer because we do not want to be too eager to fail the request.
 
-shmem (tmpfs) is a in memory filesystem. Pages backing shmem mappings
-are maintained in the page cache. Their backing storage is swap as you
-said. So from a conceptual point of vew this makes a lot of sense. 
-I can completely understand why this might be confusing for users,
-though. The value simply means something else.
-I think it would make more sense to add something like easily
-reclaimable chache to the output of free (pagecache-shmem-dirty
-basically). That would give an admin a better view on immediatelly
-re-usable memory.
+I prefer jiffies timeouts than retry counts, for jiffies will allow vmcore
+to tell how long the process was stalled for memory allocation.
+http://marc.info/?l=linux-mm&m=141671821111135&w=1 and
+http://marc.info/?l=linux-mm&m=141709978209207&w=1 would give a hint.
 
-I will skip over the following section but keep it here for the mm
-mailing list (TL;DR right now).
+> The default value is ULONG_MAX which basically preserves the current
+> behavior (endless retries). The idea is that we start with testing
+> systems first and lower the value to catch potential fallouts (crashes
+> due to unchecked failures or other misbehavior like FS ro-remounts
+> etc...). Allocation failures are already reported by warn_alloc_failed
+> so we should be able to catch the allocation path before an issue is
+> triggered.
 
->     The next tool in the toolbox is ps:
-> 
-> $ ps ux | grep 27595
-> USER       PID %CPU %MEM        VSZ      RSS TTY STAT START   TIME COMMAND
-> osysops  27595 49.5 12.7 5506723020 50525312   ?   Sl 05:20 318:02 otf_be v2.9.0.13 : FQ_E08AS FQ_E08-FQDSIALT #1 [processing daemon lib, msg type: undefined]
-> 
->     This process is not only attached to that shm, it's also attached to 
-> 5TiB of mmap'ed files (128 LMDB databases), for a total of 5251GiB. For
-> context, know that another 9 processes do the same. This tells me that
-> shms and mmaps are counted as part of their virtual size, which makes
-> sense. Of those, only 48GiB are resident... but a couple of paragraphs
-> before I said that there were only 38GiB used by processes. Clearly some
-> part of each individual process' RSS also counts at least some part of
-> the mmaps. /proc/27595/smaps has more info:
-> 
-> $ cat /proc/27595/smaps | awk 'BEGIN { count= 0; } /Rss/ { count = count + $2; print } /Pss/ { print } /Swap/ { print } /^Size/ { print } /-/ { print } END { print count }'
-> [...]
-> 7f2987e92000-7f3387e92000 rw-s 00000000 fc:11 3225448420                 /instant/LMDBMedium_0000000000/data.mdb
-> Size:           41943040 kB
-> Rss:              353164 kB
-> Pss:              166169 kB
-> Swap:                  0 kB
-> [...]
-> 7f33df965000-7f4f1cdcc000 rw-s 00000000 00:04 454722576                  /SYSV00000000 (deleted)
-> Size:          114250140 kB
-> Rss:             5587224 kB
-> Pss:             3856206 kB
-> Swap:                  0 kB
-> [...]
-> 51652180
-> 
->     Notice that the sum is not the same as the one reported before; maybe
-> because I took them in different points of time while redacting this
-> mail. So this confirms that a process' RSS value includes shms and mmaps,
-> at least the resident part. In the case of the mmaps, the resident part
-> must be the part that currently sits on the cache; in the case of the
-> shms, I suppose it's the part that has ever been used. An internal tool
-> tels me that currently 24GiB of that shm is in use, but only 5 are
-> reported as part of that process' RSS. Maybe is that process' used part?
-> 
->     And now I reach to what I find more confusing (uninteresting values
-> removed):
-> 
-> $ cat /proc/meminfo 
-> MemTotal:       396895176 kB
-> MemFree:           989392 kB
-> Buffers :            8448 kB
-> Cached:         344059556 kB
-> SwapTotal:        8385788 kB
-> SwapFree:               0 kB
-> Mapped:         147188944 kB
-> Shmem:          109114792 kB
-> CommitLimit:    206833376 kB
-> Committed_AS:   349194180 kB
-> VmallocTotal: 34359738367 kB
-> VmallocUsed:      1222960 kB
-> VmallocChunk: 34157188704 kB
-> 
->     Again, values might vary due to timing. Mapped clearly includes Shmem
-> but not mmaps; in theory 36GiB are 'pure' (not shm'ed, not mmap'ed)
-> process memory, close to what I calculated before. Again, this is not
-> segregated, which again makes us wonder why. Probably it's more like "It
-> doesn't make sense to do it".
-> 
->     Last but definitely not least, Committed_AS is 333GiB, close to the
-> total mem. man proc says it's <<The amount of memory presently allocated
-> on the system. The committed memory is a sum of all of the memory which
-> has been allocated by processes, even if it has not been "used" by them
-> as of yet>>. What is not clear is if this counts or not mmaps (I think it
-> doesn't, or it would be either 5TiB or 50TiB, depending on whether you
-> count each attachment to each shm) and/or/neither shms (once, multiple
-> times?). In a rough calculation, the 83 procs using the same 108GiB shm
-> account for 9TiB, so at least it's not counting it multiple times.
-> 
->     While we're at it, I would like to know what VmallocTotal (32TiB) is
-> accounting. The explanation in man proc (<<Total size of vmalloc memory
-> area.>>, where vmalloc seems to be a kernel internal function to <<allocate
-> a contiguous memory region in the virtual address space>>) means not much
-> for me. At some point I thought it should be the sum of all VSSs, but
-> that clocks at 50TiB for me, so it isn't. Maybe I should just ignore it.
-> 
->     Short version:
-> 
-> * Why 'pure' mmalloc'ed memory is ever reported? Does it make sense to
->   talk about it?
+Few developers are using fault-injection capability (CONFIG_FAILSLAB and
+CONFIG_FAIL_PAGE_ALLOC). Even less developers would be performing OOM
+stress tests. Printing allocation failure messages only upon OOM condition
+is Whack-A-Mole where moles remain hidden until distribution kernel users
+by chance (or by intent) triggered OOM condition.
 
-This is simply private anonymous memory. And you can see it as such in
-/proc/<pid>/[s]maps
+I tried SystemTap-based mandatory fault-injection hooks at
+http://marc.info/?l=linux-kernel&m=141951300713051&w=2 and I reported
+random crashes at
+http://lists.freedesktop.org/archives/dri-devel/2015-January/075922.html .
+How can we find the exact culprit allocation when an issue is triggered
+some time after the first failure messages?
 
-> * Why shms shows up in cache? What does cache currently mean/hold?
+I think that your knob helps avoiding infinite loop if lower value is
+given, but I don't think that your knob helps catching potential fallouts.
 
-Explained above I hope (it is an in-memory filesystem).
+> We will try to encourage distributions to change the default in the
+> second step so that we get a much bigger exposure.
 
-> * What does the RSS value means for the shms in each proc's smaps file?
->   And for mmaps?
+Can we expect that distribution kernel users are willing to perform OOM
+stress tests which kernel developers did not perform?
 
-The amount of shmem backed pages mapped in to the user address space.
+> And finally we can change the default in the kernel while still keeping
+> the knob for conservative configurations. This will be long run but
+> let's start.
 
-> * Is my conclusion about Shmem being counted into Mapped correct?
-
-Mapped will tell you how much page cache is mapped via pagetable to a
-process. So it is a subset of pagecache. same as Shmem is a subset. Note
-that shmem doesn't have to be mapped anywhere (e.g. simply read a file
-on tmpfs filesystem - it will be in the pagecache but not mapped).
-
-> * What is actually counted in Committed_AS? Does it count shms or mmaps?
->   How?
-
-This depends on the overcommit configuration. See
-Documentation/sysctl/vm.txt for more information.
-
-> * What is VmallocTotal?
-
-Vmalloc areas are used by _kernel_ to map larger physically
-non-contiguous memory areas. More on that e.g. here
-http://www.makelinux.net/books/lkd2/ch11lev1sec5. You can safely ignore
-it.
-
--- 
-Michal Hocko
-SUSE Labs
+And finally what patches will you propose for already running systems
+using distribution kernels? I can't wait for years (or decades) until
+your knob and fixes for fallouts are backported.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
