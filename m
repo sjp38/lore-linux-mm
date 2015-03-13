@@ -1,64 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 903028299B
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2015 17:50:09 -0400 (EDT)
-Received: by oiav63 with SMTP id v63so22002655oia.9
-        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 14:50:09 -0700 (PDT)
-Received: from mail-oi0-x233.google.com (mail-oi0-x233.google.com. [2607:f8b0:4003:c06::233])
-        by mx.google.com with ESMTPS id o8si1656481oem.102.2015.03.13.14.50.08
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DBB98299B
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2015 19:08:40 -0400 (EDT)
+Received: by igjz20 with SMTP id z20so265461igj.4
+        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 16:08:40 -0700 (PDT)
+Received: from mail-ie0-x233.google.com (mail-ie0-x233.google.com. [2607:f8b0:4001:c03::233])
+        by mx.google.com with ESMTPS id l19si3706454icg.13.2015.03.13.16.08.39
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Mar 2015 14:50:08 -0700 (PDT)
-Received: by oifz81 with SMTP id z81so6451602oif.6
-        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 14:50:08 -0700 (PDT)
+        Fri, 13 Mar 2015 16:08:39 -0700 (PDT)
+Received: by ieclw3 with SMTP id lw3so130965485iec.2
+        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 16:08:39 -0700 (PDT)
+Date: Fri, 13 Mar 2015 16:08:38 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mremap should return -ENOMEM when __vm_enough_memory
+ fail
+In-Reply-To: <1426238498-21127-1-git-send-email-crquan@ymail.com>
+Message-ID: <alpine.DEB.2.10.1503131606100.7827@chino.kir.corp.google.com>
+References: <1426238498-21127-1-git-send-email-crquan@ymail.com>
 MIME-Version: 1.0
-In-Reply-To: <1426242602-52804-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1426242602-52804-1-git-send-email-kirill.shutemov@linux.intel.com>
-Date: Sat, 14 Mar 2015 08:20:08 +1030
-Message-ID: <CAFk90B_Y_yRebJ5W+ACXmrM9U=QKTr14yGidvi71ucN3NC6H8w@mail.gmail.com>
-Subject: Re: [PATCH] parisc: fix pmd accounting with 3-level page tables
-From: Graham Gower <graham.gower@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-parisc <linux-parisc@vger.kernel.org>, John David Anglin <dave.anglin@bell.net>, Aaro Koskinen <aaro.koskinen@iki.fi>, Domenico Andreoli <cavokz@gmail.com>
+To: Derek <crquan@ymail.com>
+Cc: linux-mm@kvack.org
 
-This fixes the problem on my C8000.
+On Fri, 13 Mar 2015, Derek wrote:
 
-Tested-by: graham.gower@gmail.com
+> Recently I straced bash behavior in this dd zero pipe to read test,
+> in part of testing under vm.overcommit_memory=2 (OVERCOMMIT_NEVER mode):
+>     # dd if=/dev/zero | read x
+> 
+> The bash sub shell is calling mremap to reallocate more and more memory
+> untill it finally failed -ENOMEM (I expect), or to be killed by system
+> OOM killer (which should not happen under OVERCOMMIT_NEVER mode);
+> But the mremap system call actually failed of -EFAULT, which is a surprise
+> to me, I think it's supposed to be -ENOMEM? then I wrote this piece
+> of C code testing confirmed it:
+> https://gist.github.com/crquan/326bde37e1ddda8effe5
+> 
+> The -EFAULT comes from the branch of security_vm_enough_memory_mm failure,
+> underlyingly it calls __vm_enough_memory which returns only 0 for success
+> or -ENOMEM; So why vma_to_resize needs to return -EFAULT in this case?
+> it sounds like a mistake to me.
+> 
+> Some more digging into git history:
+> 1) Before commit 119f657c7 in May 1 2005 (pre 2.6.12 days) it was returning
+>    -ENOMEM for this failure;
+> 2) but commit 119f657c7 changed it accidentally, to what ever is preserved
+>    in local ret, which happened to be -EFAULT, in a previous assignment;
+> 3) then in commit 54f5de709 code refactoring, it's explicitly returning
+>    -EFAULT, should be wrong.
+> 
+> Signed-off-by: Derek Che <crquan@ymail.com>
 
-On 13 March 2015 at 21:00, Kirill A. Shutemov
-<kirill.shutemov@linux.intel.com> wrote:
-> There's hack in pgd_alloc() on parisc to initialize one pmd, which is
-> not accounted. It leads to underflow on exit.
->
-> Let's adjust nr_pmds on pgd_alloc() to get accounting correct.
->
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: John David Anglin <dave.anglin@bell.net>
-> Cc: Aaro Koskinen <aaro.koskinen@iki.fi>
-> Cc: Graham Gower <graham.gower@gmail.com>
-> Cc: Domenico Andreoli <cavokz@gmail.com>
-> ---
->  arch/parisc/include/asm/pgalloc.h | 1 +
->  1 file changed, 1 insertion(+)
->
-> diff --git a/arch/parisc/include/asm/pgalloc.h b/arch/parisc/include/asm/pgalloc.h
-> index 55ad8be9b7f3..068b2fb9a47c 100644
-> --- a/arch/parisc/include/asm/pgalloc.h
-> +++ b/arch/parisc/include/asm/pgalloc.h
-> @@ -38,6 +38,7 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
->                 /* The first pmd entry also is marked with _PAGE_GATEWAY as
->                  * a signal that this pmd may not be freed */
->                 __pgd_val_set(*pgd, PxD_FLAG_ATTACHED);
-> +               mm_inc_nr_pmds(mm);
->  #endif
->         }
->         return actual_pgd;
-> --
-> 2.1.4
->
+Acked-by: David Rientjes <rientjes@google.com>
+
+vma_to_resize() could certainly be cleaned up to just return ERR_PTR() and 
+avoiding the "goto"s since there is no other cleanup needed as suggested 
+by Kirill if you have time for a cleanup patch on top of this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
