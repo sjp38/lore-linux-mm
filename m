@@ -1,46 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 230378299B
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2015 08:13:39 -0400 (EDT)
-Received: by pdbnh10 with SMTP id nh10so28511222pdb.3
-        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 05:13:38 -0700 (PDT)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id kn1si3686721pdb.158.2015.03.13.05.13.38
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FE2B8299B
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2015 08:13:44 -0400 (EDT)
+Received: by pdev10 with SMTP id v10so28553003pde.0
+        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 05:13:44 -0700 (PDT)
+Received: from mail-pd0-x231.google.com (mail-pd0-x231.google.com. [2607:f8b0:400e:c02::231])
+        by mx.google.com with ESMTPS id ww5si3687721pab.117.2015.03.13.05.13.43
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Mar 2015 05:13:38 -0700 (PDT)
-Received: by paceu11 with SMTP id eu11so29146393pac.1
-        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 05:13:38 -0700 (PDT)
+        Fri, 13 Mar 2015 05:13:43 -0700 (PDT)
+Received: by pdbnh10 with SMTP id nh10so28498793pdb.4
+        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 05:13:43 -0700 (PDT)
 From: Roman Pen <r.peniaev@gmail.com>
-Subject: [PATCH 2/3] mm/vmalloc: occupy newly allocated vmap block just after allocation
-Date: Fri, 13 Mar 2015 21:12:56 +0900
-Message-Id: <1426248777-19768-3-git-send-email-r.peniaev@gmail.com>
+Subject: [PATCH 3/3] mm/vmalloc: get rid of dirty bitmap inside vmap_block structure
+Date: Fri, 13 Mar 2015 21:12:57 +0900
+Message-Id: <1426248777-19768-4-git-send-email-r.peniaev@gmail.com>
 In-Reply-To: <1426248777-19768-1-git-send-email-r.peniaev@gmail.com>
 References: <1426248777-19768-1-git-send-email-r.peniaev@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: Roman Pen <r.peniaev@gmail.com>, Nick Piggin <npiggin@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, Eric Dumazet <edumazet@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, WANG Chao <chaowang@redhat.com>, Fabian Frederick <fabf@skynet.be>, Christoph Lameter <cl@linux.com>, Gioh Kim <gioh.kim@lge.com>, Rob Jones <rob.jones@codethink.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Roman Pen <r.peniaev@gmail.com>, Nick Piggin <npiggin@kernel.dk>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Eric Dumazet <edumazet@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, WANG Chao <chaowang@redhat.com>, Fabian Frederick <fabf@skynet.be>, Christoph Lameter <cl@linux.com>, Gioh Kim <gioh.kim@lge.com>, Rob Jones <rob.jones@codethink.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Previous implementation allocates new vmap block and repeats search of a free
-block from the very beginning, iterating over the CPU free list.
+In original implementation of vm_map_ram made by Nick Piggin there were two
+bitmaps:  alloc_map and dirty_map.  None of them were used as supposed to be:
+finding a suitable free hole for next allocation in block. vm_map_ram allocates
+space sequentially in block and on free call marks pages as dirty, so freed
+space can't be reused anymore.
 
-Why it can be better??
+Actually would be very interesting to know the real meaning of those bitmaps,
+maybe implementation was incomplete, etc.
 
-1. Allocation can happen on one CPU, but search can be done on another CPU.
-   In worst case we preallocate amount of vmap blocks which is equal to
-   CPU number on the system.
+But long time ago Zhang Yanfei removed alloc_map by these two commits:
 
-2. In previous patch I added newly allocated block to the tail of free list
-   to avoid soon exhaustion of virtual space and give a chance to occupy
-   blocks which were allocated long time ago.  Thus to find newly allocated
-   block all the search sequence should be repeated, seems it is not efficient.
+  mm/vmalloc.c: remove dead code in vb_alloc
+     3fcd76e8028e0be37b02a2002b4f56755daeda06
+  mm/vmalloc.c: remove alloc_map from vmap_block
+     b8e748b6c32999f221ea4786557b8e7e6c4e4e7a
 
-In this patch newly allocated block is occupied right away, address of virtual
-space is returned to the caller, so there is no any need to repeat the search
-sequence, allocation job is done.
+In current patch I replaced dirty_map with two range variables: dirty min and
+max.  These variables store minimum and maximum position of dirty space in a
+block, since we need only to know the dirty range, not exact position of dirty
+pages.
+
+Why it was made? Several reasons: at first glance it seems that vm_map_ram
+allocator concerns about fragmentation thus it uses bitmaps for finding free
+hole, but it is not true.  To avoid complexity seems it is better to use
+something simple, like min or max range values.  Secondly, code also becomes
+simpler, without iteration over bitmap, just comparing values in min and max
+macros.  Thirdly, bitmap occupies up to 1024 bits (4MB is a max size of a
+block).  Here I replaced the whole bitmap with two longs.
+
+Finally vm_unmap_aliases should be slightly faster and the whole vmap_block
+structure occupies less memory.
 
 Signed-off-by: Roman Pen <r.peniaev@gmail.com>
 Cc: Nick Piggin <npiggin@kernel.dk>
+Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Eric Dumazet <edumazet@google.com>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
@@ -53,133 +68,95 @@ Cc: Rob Jones <rob.jones@codethink.co.uk>
 Cc: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org
 ---
- mm/vmalloc.c | 57 ++++++++++++++++++++++++++++++++++++---------------------
- 1 file changed, 36 insertions(+), 21 deletions(-)
+ mm/vmalloc.c | 35 +++++++++++++++++------------------
+ 1 file changed, 17 insertions(+), 18 deletions(-)
 
 diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index db6bffb..9759c92 100644
+index 9759c92..77c4b8a 100644
 --- a/mm/vmalloc.c
 +++ b/mm/vmalloc.c
-@@ -791,13 +791,30 @@ static unsigned long addr_to_vb_idx(unsigned long addr)
- 	return addr;
- }
- 
--static struct vmap_block *new_vmap_block(gfp_t gfp_mask)
-+static void *vmap_block_vaddr(unsigned long va_start, unsigned long pages_off)
-+{
-+	unsigned long addr = va_start + (pages_off << PAGE_SHIFT);
-+	BUG_ON(addr_to_vb_idx(addr) != addr_to_vb_idx(va_start));
-+	return (void *)addr;
-+}
-+
-+/**
-+ * new_vmap_block - allocates new vmap_block and occupies 2^order pages in this
-+ *                  block. Of course pages number can't exceed VMAP_BBMAP_BITS
-+ * @order:    how many 2^order pages should be occupied in newly allocated block
-+ * @gfp_mask: flags for the page level allocator
-+ * @addr:     output virtual address of a newly allocator block
-+ *
-+ * Returns: address of virtual space in a block or ERR_PTR
-+ */
-+static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
- {
- 	struct vmap_block_queue *vbq;
- 	struct vmap_block *vb;
+@@ -760,7 +760,7 @@ struct vmap_block {
+ 	spinlock_t lock;
  	struct vmap_area *va;
- 	unsigned long vb_idx;
- 	int node, err;
-+	void *vaddr;
- 
- 	node = numa_node_id();
- 
-@@ -821,9 +838,12 @@ static struct vmap_block *new_vmap_block(gfp_t gfp_mask)
- 		return ERR_PTR(err);
- 	}
- 
-+	vaddr = vmap_block_vaddr(va->va_start, 0);
- 	spin_lock_init(&vb->lock);
- 	vb->va = va;
--	vb->free = VMAP_BBMAP_BITS;
-+	/* At least something should be left free */
-+	BUG_ON(VMAP_BBMAP_BITS <= (1UL << order));
-+	vb->free = VMAP_BBMAP_BITS - (1UL << order);
+ 	unsigned long free, dirty;
+-	DECLARE_BITMAP(dirty_map, VMAP_BBMAP_BITS);
++	unsigned long dirty_min, dirty_max; /*< dirty range */
+ 	struct list_head free_list;
+ 	struct rcu_head rcu_head;
+ 	struct list_head purge;
+@@ -845,7 +845,8 @@ static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
+ 	BUG_ON(VMAP_BBMAP_BITS <= (1UL << order));
+ 	vb->free = VMAP_BBMAP_BITS - (1UL << order);
  	vb->dirty = 0;
- 	bitmap_zero(vb->dirty_map, VMAP_BBMAP_BITS);
+-	bitmap_zero(vb->dirty_map, VMAP_BBMAP_BITS);
++	vb->dirty_min = VMAP_BBMAP_BITS;
++	vb->dirty_max = 0;
  	INIT_LIST_HEAD(&vb->free_list);
-@@ -841,7 +861,7 @@ static struct vmap_block *new_vmap_block(gfp_t gfp_mask)
- 	spin_unlock(&vbq->lock);
- 	put_cpu_var(vmap_block_queue);
  
--	return vb;
-+	return vaddr;
- }
- 
- static void free_vmap_block(struct vmap_block *vb)
-@@ -905,7 +925,7 @@ static void *vb_alloc(unsigned long size, gfp_t gfp_mask)
- {
- 	struct vmap_block_queue *vbq;
- 	struct vmap_block *vb;
--	unsigned long addr = 0;
-+	void *vaddr = NULL;
- 	unsigned int order;
- 
- 	BUG_ON(size & ~PAGE_MASK);
-@@ -920,43 +940,38 @@ static void *vb_alloc(unsigned long size, gfp_t gfp_mask)
- 	}
- 	order = get_order(size);
- 
--again:
- 	rcu_read_lock();
- 	vbq = &get_cpu_var(vmap_block_queue);
- 	list_for_each_entry_rcu(vb, &vbq->free, free_list) {
--		int i;
-+		unsigned long pages_nr;
- 
- 		spin_lock(&vb->lock);
--		if (vb->free < 1UL << order)
--			goto next;
-+		if (vb->free < (1UL << order)) {
-+			spin_unlock(&vb->lock);
-+			continue;
-+		}
- 
--		i = VMAP_BBMAP_BITS - vb->free;
--		addr = vb->va->va_start + (i << PAGE_SHIFT);
--		BUG_ON(addr_to_vb_idx(addr) !=
--				addr_to_vb_idx(vb->va->va_start));
-+		pages_nr = VMAP_BBMAP_BITS - vb->free;
-+		vaddr = vmap_block_vaddr(vb->va->va_start, pages_nr);
- 		vb->free -= 1UL << order;
- 		if (vb->free == 0) {
+ 	vb_idx = addr_to_vb_idx(va->va_start);
+@@ -896,7 +897,8 @@ static void purge_fragmented_blocks(int cpu)
+ 		if (vb->free + vb->dirty == VMAP_BBMAP_BITS && vb->dirty != VMAP_BBMAP_BITS) {
+ 			vb->free = 0; /* prevent further allocs after releasing lock */
+ 			vb->dirty = VMAP_BBMAP_BITS; /* prevent purging it again */
+-			bitmap_fill(vb->dirty_map, VMAP_BBMAP_BITS);
++			vb->dirty_min = 0;
++			vb->dirty_max = VMAP_BBMAP_BITS;
  			spin_lock(&vbq->lock);
  			list_del_rcu(&vb->free_list);
  			spin_unlock(&vbq->lock);
- 		}
+@@ -989,6 +991,7 @@ static void vb_free(const void *addr, unsigned long size)
+ 	order = get_order(size);
+ 
+ 	offset = (unsigned long)addr & (VMAP_BLOCK_SIZE - 1);
++	offset >>= PAGE_SHIFT;
+ 
+ 	vb_idx = addr_to_vb_idx((unsigned long)addr);
+ 	rcu_read_lock();
+@@ -999,7 +1002,10 @@ static void vb_free(const void *addr, unsigned long size)
+ 	vunmap_page_range((unsigned long)addr, (unsigned long)addr + size);
+ 
+ 	spin_lock(&vb->lock);
+-	BUG_ON(bitmap_allocate_region(vb->dirty_map, offset >> PAGE_SHIFT, order));
 +
- 		spin_unlock(&vb->lock);
- 		break;
--next:
--		spin_unlock(&vb->lock);
- 	}
++	/* Expand dirty range */
++	vb->dirty_min = min(vb->dirty_min, offset);
++	vb->dirty_max = max(vb->dirty_max, offset + (1UL << order));
  
- 	put_cpu_var(vmap_block_queue);
- 	rcu_read_unlock();
+ 	vb->dirty += 1UL << order;
+ 	if (vb->dirty == VMAP_BBMAP_BITS) {
+@@ -1038,25 +1044,18 @@ void vm_unmap_aliases(void)
  
--	if (!addr) {
--		vb = new_vmap_block(gfp_mask);
--		if (IS_ERR(vb))
--			return vb;
--		goto again;
--	}
-+	/* Allocate new block if nothing was found */
-+	if (!vaddr)
-+		vaddr = new_vmap_block(order, gfp_mask);
+ 		rcu_read_lock();
+ 		list_for_each_entry_rcu(vb, &vbq->free, free_list) {
+-			int i, j;
+-
+ 			spin_lock(&vb->lock);
+-			i = find_first_bit(vb->dirty_map, VMAP_BBMAP_BITS);
+-			if (i < VMAP_BBMAP_BITS) {
++			if (vb->dirty) {
++				unsigned long va_start = vb->va->va_start;
+ 				unsigned long s, e;
  
--	return (void *)addr;
-+	return vaddr;
- }
+-				j = find_last_bit(vb->dirty_map,
+-							VMAP_BBMAP_BITS);
+-				j = j + 1; /* need exclusive index */
++				s = va_start + (vb->dirty_min << PAGE_SHIFT);
++				e = va_start + (vb->dirty_max << PAGE_SHIFT);
  
- static void vb_free(const void *addr, unsigned long size)
+-				s = vb->va->va_start + (i << PAGE_SHIFT);
+-				e = vb->va->va_start + (j << PAGE_SHIFT);
+-				flush = 1;
++				start = min(s, start);
++				end   = max(e, end);
+ 
+-				if (s < start)
+-					start = s;
+-				if (e > end)
+-					end = e;
++				flush = 1;
+ 			}
+ 			spin_unlock(&vb->lock);
+ 		}
 -- 
 1.9.3
 
