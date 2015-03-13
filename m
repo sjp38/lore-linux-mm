@@ -1,86 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com [209.85.216.182])
-	by kanga.kvack.org (Postfix) with ESMTP id DD288829BE
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2015 15:09:21 -0400 (EDT)
-Received: by qcrw7 with SMTP id w7so28946090qcr.8
-        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 12:09:21 -0700 (PDT)
-Received: from prod-mail-xrelay06.akamai.com (prod-mail-xrelay06.akamai.com. [96.6.114.98])
-        by mx.google.com with ESMTP id q17si2721001qha.105.2015.03.13.12.09.20
+Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 385DB829BE
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2015 15:32:26 -0400 (EDT)
+Received: by iecsl2 with SMTP id sl2so121633307iec.1
+        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 12:32:26 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0174.hostedemail.com. [216.40.44.174])
+        by mx.google.com with ESMTP id j10si3150981igj.49.2015.03.13.12.32.12
         for <linux-mm@kvack.org>;
-        Fri, 13 Mar 2015 12:09:20 -0700 (PDT)
-Date: Fri, 13 Mar 2015 15:09:15 -0400
-From: Eric B Munson <emunson@akamai.com>
-Subject: Re: [PATCH V5] Allow compaction of unevictable pages
-Message-ID: <20150313190915.GA12589@akamai.com>
-References: <1426267597-25811-1-git-send-email-emunson@akamai.com>
- <550332CE.7040404@redhat.com>
+        Fri, 13 Mar 2015 12:32:12 -0700 (PDT)
+Date: Fri, 13 Mar 2015 15:32:10 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH] tracing: add trace event for memory-failure
+Message-ID: <20150313153210.14f1bd88@gandalf.local.home>
+In-Reply-To: <CA+8MBbKen9JfQ29AWVZuxO9CkPCmjG670q0Fg7G-qCPDrtDHig@mail.gmail.com>
+References: <1426241451-25729-1-git-send-email-xiexiuqi@huawei.com>
+	<CA+8MBbKen9JfQ29AWVZuxO9CkPCmjG670q0Fg7G-qCPDrtDHig@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="SUOF0GtieIMvvwua"
-Content-Disposition: inline
-In-Reply-To: <550332CE.7040404@redhat.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <cl@linux.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tony Luck <tony.luck@gmail.com>
+Cc: Xie XiuQi <xiexiuqi@huawei.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Chen Gong <gong.chen@linux.intel.com>, Bjorn Helgaas <bhelgaas@google.com>, Borislav Petkov <bp@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, jingle.chen@huawei.com
+
+On Fri, 13 Mar 2015 09:37:34 -0700
+Tony Luck <tony.luck@gmail.com> wrote:
 
 
---SUOF0GtieIMvvwua
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-
-On Fri, 13 Mar 2015, Rik van Riel wrote:
-
-> On 03/13/2015 01:26 PM, Eric B Munson wrote:
->=20
-> > --- a/mm/compaction.c
-> > +++ b/mm/compaction.c
-> > @@ -1046,6 +1046,8 @@ typedef enum {
-> >  	ISOLATE_SUCCESS,	/* Pages isolated, migrate */
-> >  } isolate_migrate_t;
-> > =20
-> > +int sysctl_compact_unevictable;
+> >  int sysctl_memory_failure_early_kill __read_mostly = 0;
+> >
+> > @@ -837,6 +838,8 @@ static struct page_state {
+> >   */
+> >  static void action_result(unsigned long pfn, char *msg, int result)
+> >  {
+> > +       trace_memory_failure_event(pfn, msg, action_name[result]);
 > > +
-> >  /*
-> >   * Isolate all pages that can be migrated from the first suitable bloc=
-k,
-> >   * starting at the block pointed to by the migrate scanner pfn within
->=20
-> I suspect that the use cases where users absolutely do not want
-> unevictable pages migrated are special cases, and it may make
-> sense to enable sysctl_compact_unevictable by default.
+> >         pr_err("MCE %#lx: %s page recovery: %s\n",
+> >                 pfn, msg, action_name[result]);
+> >  }
+> > --
+> > 1.7.1
+> >
+> > --
+> 
+> Concept looks good to me. Adding Steven Rostedt as we've historically had
+> challenges adding new trace points in the cleanest way.
 
-Given that sysctl_compact_unevictable=3D0 is the way the kernel behaves
-now and the push back against always enabling compaction on unevictable
-pages, I left the default to be the behavior as it is today.  I agree
-that this is likely the minority case, but I'd really like Peter Z or
-someone else from real time to say that they are okay with the default
-changing.
+Hehe, thank you :-) I actually do have a recommendation. How about just
+passing in "result" and doing:
 
---SUOF0GtieIMvvwua
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
+	TP_printk("pfn %#lx: %s page recovery: %s",
+		__entry->pfn,
+		__get_str(action),
+		__print_symbolic(result, 0, "Ignored",
+				1, "Failed",
+				2, "Delayed",
+				3, "Recovered"))
 
-iQIcBAEBAgAGBQJVAzXbAAoJELbVsDOpoOa9EssQAITn6Nsh9eTl0J8jUrDuC2V2
-b0McdIKX1u8DlydKOKUyvJfKxM6XElGVVQZTpQRBS3QPq0mxYztOm6fn+6JVWsJk
-QQhfTTiPSfg5BiYHC6SuyAIarEoOzgC6DCKnMddND/tvjQ4j/e/wlxjYjASO+IpI
-xo0EVRt7BUCoj/fyoPKRyDtFlAs+GAXdOQ2JCGlcVv9msSemtHO/JSgCF+ffXhlF
-G1JXYaHpdH7xkuRaXHun0qea8BueA4FZpjsfZPG9OVX83aHU8wRDCmZBLguIyJQf
-XYpvItbUmIo0O5APjPUylYS8IXaQJVOgJjxMVsv2HoZ8J8js7apIGt96Kaw2QbtG
-ED3N1YKUiA9ajqehbyNheNUtAUAOWeNVVVGL0NH4oXJtgR1sCxvcu/xPVULoWphH
-5TRyTJ/B1xCVuzfCHU9clGrCbORDhgNWpFFzZN8QzY+8CqGbe7fBrtjc4s23ZWJv
-QNPscDDdeOlTVnQNLfyWxwKPQ0aE2/NGLjRH7l4nNDEyICwvPYaaQxz44Y7vUv9X
-yQZh5s5ESuPcixXRLSGNjLxK97Wg0/DTV75VqGNLDIKEqrHUKIAg/cwfYQhbG4vC
-m4sDTDf3btr/NxgnlJ0yD5r4RUpQtecm3hE/YD7U4MCN4vfvLACscADTGmJeMaib
-G+at4wC91x0L6x97vtZg
-=IOEw
------END PGP SIGNATURE-----
 
---SUOF0GtieIMvvwua--
+Now it is hard coded here because trace-cmd and perf do not have a way
+to process enums (yet, I need to fix that).
+
+I also need a way to just submit print strings on module load and boot
+up such that you only need to pass in the address of the action field
+instead of the string. That is also a todo of mine that I may soon
+change.
+
+-- Steve
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
