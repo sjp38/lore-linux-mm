@@ -1,78 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F0546B00B3
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2015 16:19:59 -0400 (EDT)
-Received: by wesx3 with SMTP id x3so25689802wes.1
-        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 13:19:58 -0700 (PDT)
-Received: from mail-we0-x234.google.com (mail-we0-x234.google.com. [2a00:1450:400c:c03::234])
-        by mx.google.com with ESMTPS id dh7si4735280wjc.45.2015.03.13.13.19.57
+Received: from mail-oi0-f46.google.com (mail-oi0-f46.google.com [209.85.218.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 7ED2A829CA
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2015 17:34:33 -0400 (EDT)
+Received: by oiba3 with SMTP id a3so10542761oib.0
+        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 14:34:33 -0700 (PDT)
+Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
+        by mx.google.com with ESMTPS id wb9si1661667obc.21.2015.03.13.14.34.32
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Mar 2015 13:19:57 -0700 (PDT)
-Received: by wevk48 with SMTP id k48so25612366wev.7
-        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 13:19:57 -0700 (PDT)
-Date: Fri, 13 Mar 2015 21:19:54 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH V5] Allow compaction of unevictable pages
-Message-ID: <20150313201954.GB28848@dhcp22.suse.cz>
-References: <1426267597-25811-1-git-send-email-emunson@akamai.com>
- <550332CE.7040404@redhat.com>
- <20150313190915.GA12589@akamai.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150313190915.GA12589@akamai.com>
+        Fri, 13 Mar 2015 14:34:32 -0700 (PDT)
+From: Toshi Kani <toshi.kani@hp.com>
+Subject: [PATCH v3 0/5] mtrr, mm, x86: Enhance MTRR checks for huge I/O mapping
+Date: Fri, 13 Mar 2015 15:33:36 -0600
+Message-Id: <1426282421-25385-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric B Munson <emunson@akamai.com>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <cl@linux.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com
+Cc: linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl
 
-On Fri 13-03-15 15:09:15, Eric B Munson wrote:
-> On Fri, 13 Mar 2015, Rik van Riel wrote:
-> 
-> > On 03/13/2015 01:26 PM, Eric B Munson wrote:
-> > 
-> > > --- a/mm/compaction.c
-> > > +++ b/mm/compaction.c
-> > > @@ -1046,6 +1046,8 @@ typedef enum {
-> > >  	ISOLATE_SUCCESS,	/* Pages isolated, migrate */
-> > >  } isolate_migrate_t;
-> > >  
-> > > +int sysctl_compact_unevictable;
-> > > +
-> > >  /*
-> > >   * Isolate all pages that can be migrated from the first suitable block,
-> > >   * starting at the block pointed to by the migrate scanner pfn within
-> > 
-> > I suspect that the use cases where users absolutely do not want
-> > unevictable pages migrated are special cases, and it may make
-> > sense to enable sysctl_compact_unevictable by default.
-> 
-> Given that sysctl_compact_unevictable=0 is the way the kernel behaves
-> now and the push back against always enabling compaction on unevictable
-> pages, I left the default to be the behavior as it is today. 
+This patchset enhances MTRR checks for the kernel huge I/O mapping,
+which was enabled by the patchset below:
+  https://lkml.org/lkml/2015/3/3/589
 
-The question is _why_ we have this behavior now. Is it intentional?
+The following functional changes are made in patch 5/5.
+ - Allow pud_set_huge() and pmd_set_huge() to create a huge page
+   mapping to a range covered by a single MTRR entry of any memory
+   type.
+ - Log a pr_warn() message when a specified PMD map range spans more
+   than a single MTRR entry.  Drivers should make a mapping request
+   aligned to a single MTRR entry when the range is covered by MTRRs.
 
-e46a28790e59 (CMA: migrate mlocked pages) is a precedence in that
-direction. Vlastimil has then changed that by edc2ca612496 (mm,
-compaction: move pageblock checks up from isolate_migratepages_range()).
-There is no mention about mlock pages so I guess it was more an
-unintentional side effect of the patch. At least that is my current
-understanding. I might be wrong here.
+Patch 1/5 addresses other review comments to the mapping funcs for
+better code read-ability.  Patch 2/5 - 4/5 are bug fixes and clean up
+to mtrr_type_lookup().
 
-The thing about RT is that it is not usable with the upstream kernel
-without the RT patchset AFAIU. So the default should be reflect what is
-better for the standard kernel. RT loads have to tune the system anyway
-so it is not so surprising they would disable this option as well. We
-should help those guys and do not require them to touch the code but the
-knob is reasonable IMHO.
+The patchset is based on the -mm tree.
+---
+v3:
+ - Add patch 3/5 to fix a bug in MTRR state checks.
+ - Update patch 4/5 to create separate functions for the fixed and
+   variable entries. (Ingo Molnar)
 
-Especially when your changelog suggests that having this enabled by
-default is beneficial for the standard kernel.
--- 
-Michal Hocko
-SUSE Labs
+v2:
+ - Update change logs and comments per review comments.
+   (Ingo Molnar)
+ - Add patch 3/4 to clean up mtrr_type_lookup(). (Ingo Molnar)
+
+---
+Toshi Kani (5):
+ 1/5 mm, x86: Document return values of mapping funcs
+ 2/5 mtrr, x86: Fix MTRR lookup to handle inclusive entry
+ 3/5 mtrr, x86: Fix MTRR state checks in mtrr_type_lookup()
+ 4/5 mtrr, x86: Clean up mtrr_type_lookup()
+ 5/5 mtrr, mm, x86: Enhance MTRR checks for KVA huge page mapping
+
+---
+ arch/x86/Kconfig                   |   2 +-
+ arch/x86/include/asm/mtrr.h        |   5 +-
+ arch/x86/include/uapi/asm/mtrr.h   |   4 +
+ arch/x86/kernel/cpu/mtrr/generic.c | 181 ++++++++++++++++++++++++-------------
+ arch/x86/mm/pat.c                  |   4 +-
+ arch/x86/mm/pgtable.c              |  53 ++++++++---
+ 6 files changed, 165 insertions(+), 84 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
