@@ -1,77 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f175.google.com (mail-we0-f175.google.com [74.125.82.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F9D36B00AC
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2015 06:39:53 -0400 (EDT)
-Received: by wesx3 with SMTP id x3so22367850wes.1
-        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 03:39:52 -0700 (PDT)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.195])
-        by mx.google.com with ESMTP id r19si2438671wik.45.2015.03.13.03.39.51
-        for <linux-mm@kvack.org>;
-        Fri, 13 Mar 2015 03:39:51 -0700 (PDT)
-Date: Fri, 13 Mar 2015 12:39:49 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mremap should return -ENOMEM when __vm_enough_memory fail
-Message-ID: <20150313103949.GB7251@node.dhcp.inet.fi>
-References: <1426238498-21127-1-git-send-email-crquan@ymail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1426238498-21127-1-git-send-email-crquan@ymail.com>
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id BA6B28299B
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2015 08:13:27 -0400 (EDT)
+Received: by pdbfp1 with SMTP id fp1so28489614pdb.7
+        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 05:13:27 -0700 (PDT)
+Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com. [2607:f8b0:400e:c03::236])
+        by mx.google.com with ESMTPS id pb7si2182631pdb.193.2015.03.13.05.13.26
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 Mar 2015 05:13:26 -0700 (PDT)
+Received: by padbj1 with SMTP id bj1so29051454pad.12
+        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 05:13:26 -0700 (PDT)
+From: Roman Pen <r.peniaev@gmail.com>
+Subject: [PATCH 0/3] [RFC] mm/vmalloc: fix possible exhaustion of vmalloc space
+Date: Fri, 13 Mar 2015 21:12:54 +0900
+Message-Id: <1426248777-19768-1-git-send-email-r.peniaev@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Derek <crquan@ymail.com>
+Cc: Roman Pen <r.peniaev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@kernel.dk>, Eric Dumazet <edumazet@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, WANG Chao <chaowang@redhat.com>, Fabian Frederick <fabf@skynet.be>, Christoph Lameter <cl@linux.com>, Gioh Kim <gioh.kim@lge.com>, Rob Jones <rob.jones@codethink.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+
+Hello all.
+
+Recently I came across high fragmentation of vm_map_ram allocator: vmap_block
+has free space, but still new blocks continue to appear.  Further investigation
+showed that certain mapping/unmapping sequence can exhaust vmalloc space.  On
+small 32bit systems that's not a big problem, cause purging will be called soon
+on a first allocation failure (alloc_vmap_area), but on 64bit machines, e.g.
+x86_64 has 45 bits of vmalloc space, that can be a disaster.
+
+Fixing this I also did some tweaks in allocation logic of a new vmap block and
+replaced dirty bitmap with min/max dirty range values to make the logic simpler.
+
+I would like to receive comments on the following three patches.
+
+Thanks.
+
+Roman Pen (3):
+  mm/vmalloc: fix possible exhaustion of vmalloc space caused by
+    vm_map_ram allocator
+  mm/vmalloc: occupy newly allocated vmap block just after allocation
+  mm/vmalloc: get rid of dirty bitmap inside vmap_block structure
+
+ mm/vmalloc.c | 94 ++++++++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 54 insertions(+), 40 deletions(-)
+
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Nick Piggin <npiggin@kernel.dk>
+Cc: Eric Dumazet <edumazet@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: WANG Chao <chaowang@redhat.com>
+Cc: Fabian Frederick <fabf@skynet.be>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Gioh Kim <gioh.kim@lge.com>
+Cc: Rob Jones <rob.jones@codethink.co.uk>
 Cc: linux-mm@kvack.org
-
-On Fri, Mar 13, 2015 at 02:21:38AM -0700, Derek wrote:
-> Recently I straced bash behavior in this dd zero pipe to read test,
-> in part of testing under vm.overcommit_memory=2 (OVERCOMMIT_NEVER mode):
->     # dd if=/dev/zero | read x
-> 
-> The bash sub shell is calling mremap to reallocate more and more memory
-> untill it finally failed -ENOMEM (I expect), or to be killed by system
-> OOM killer (which should not happen under OVERCOMMIT_NEVER mode);
-> But the mremap system call actually failed of -EFAULT, which is a surprise
-> to me, I think it's supposed to be -ENOMEM? then I wrote this piece
-> of C code testing confirmed it:
-> https://gist.github.com/crquan/326bde37e1ddda8effe5
-> 
-> The -EFAULT comes from the branch of security_vm_enough_memory_mm failure,
-> underlyingly it calls __vm_enough_memory which returns only 0 for success
-> or -ENOMEM; So why vma_to_resize needs to return -EFAULT in this case?
-> it sounds like a mistake to me.
-> 
-> Some more digging into git history:
-> 1) Before commit 119f657c7 in May 1 2005 (pre 2.6.12 days) it was returning
->    -ENOMEM for this failure;
-> 2) but commit 119f657c7 changed it accidentally, to what ever is preserved
->    in local ret, which happened to be -EFAULT, in a previous assignment;
-> 3) then in commit 54f5de709 code refactoring, it's explicitly returning
->    -EFAULT, should be wrong.
-> 
-> Signed-off-by: Derek Che <crquan@ymail.com>
-> ---
->  mm/mremap.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/mremap.c b/mm/mremap.c
-> index 57dadc0..5da81cb 100644
-> --- a/mm/mremap.c
-> +++ b/mm/mremap.c
-> @@ -375,7 +375,7 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
->  	if (vma->vm_flags & VM_ACCOUNT) {
->  		unsigned long charged = (new_len - old_len) >> PAGE_SHIFT;
->  		if (security_vm_enough_memory_mm(mm, charged))
-> -			goto Efault;
-> +			goto Enomem;
->  		*p = charged;
->  	}
-
-Looks good to me.
-But that would be nice to get rid of these pointless gotos. Just plain
-return would work too.
-
+Cc: linux-kernel@vger.kernel.org
+Cc: stable@vger.kernel.org
 -- 
- Kirill A. Shutemov
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
