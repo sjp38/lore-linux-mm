@@ -1,72 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 299FA829B3
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2015 05:21:50 -0400 (EDT)
-Received: by iecsl2 with SMTP id sl2so93783599iec.1
-        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 02:21:50 -0700 (PDT)
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com. [209.85.192.181])
-        by mx.google.com with ESMTPS id d17si2876810pdf.186.2015.03.13.02.21.49
+Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
+	by kanga.kvack.org (Postfix) with ESMTP id CB943829B6
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2015 06:13:24 -0400 (EDT)
+Received: by obcuz6 with SMTP id uz6so18718675obc.5
+        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 03:13:24 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id v84si814790oig.22.2015.03.13.03.13.21
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Mar 2015 02:21:49 -0700 (PDT)
-Received: by pdbnh10 with SMTP id nh10so27487165pdb.4
-        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 02:21:49 -0700 (PDT)
-Received: from DDD (c-67-161-28-197.hsd1.ca.comcast.net. [67.161.28.197])
-        by mx.google.com with ESMTPSA id mi9sm2470582pab.3.2015.03.13.02.21.48
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 13 Mar 2015 02:21:48 -0700 (PDT)
-From: Derek <crquan@ymail.com>
-Subject: [PATCH] mremap should return -ENOMEM when __vm_enough_memory fail
-Date: Fri, 13 Mar 2015 02:21:38 -0700
-Message-Id: <1426238498-21127-1-git-send-email-crquan@ymail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 13 Mar 2015 03:13:23 -0700 (PDT)
+From: Xie XiuQi <xiexiuqi@huawei.com>
+Subject: [PATCH] tracing: add trace event for memory-failure
+Date: Fri, 13 Mar 2015 18:10:51 +0800
+Message-ID: <1426241451-25729-1-git-send-email-xiexiuqi@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: n-horiguchi@ah.jp.nec.com, gong.chen@linux.intel.com, bhelgaas@google.com, bp@suse.de, tony.luck@intel.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jingle.chen@huawei.com
 
-Recently I straced bash behavior in this dd zero pipe to read test,
-in part of testing under vm.overcommit_memory=2 (OVERCOMMIT_NEVER mode):
-    # dd if=/dev/zero | read x
+Memory-failure as the high level machine check handler, it's necessary
+to report memory page recovery action result to user space by ftrace.
 
-The bash sub shell is calling mremap to reallocate more and more memory
-untill it finally failed -ENOMEM (I expect), or to be killed by system
-OOM killer (which should not happen under OVERCOMMIT_NEVER mode);
-But the mremap system call actually failed of -EFAULT, which is a surprise
-to me, I think it's supposed to be -ENOMEM? then I wrote this piece
-of C code testing confirmed it:
-https://gist.github.com/crquan/326bde37e1ddda8effe5
+This patch add a event at ras group for memory-failure.
 
-The -EFAULT comes from the branch of security_vm_enough_memory_mm failure,
-underlyingly it calls __vm_enough_memory which returns only 0 for success
-or -ENOMEM; So why vma_to_resize needs to return -EFAULT in this case?
-it sounds like a mistake to me.
+The output like below:
+# tracer: nop
+#
+# entries-in-buffer/entries-written: 2/2   #P:24
+#
+#                              _-----=> irqs-off
+#                             / _----=> need-resched
+#                            | / _---=> hardirq/softirq
+#                            || / _--=> preempt-depth
+#                            ||| /     delay
+#           TASK-PID   CPU#  ||||    TIMESTAMP  FUNCTION
+#              | |       |   ||||       |         |
+      mce-inject-13150 [001] ....   277.019359: memory_failure_event: pfn 0x19869: free buddy page recovery: Delayed
 
-Some more digging into git history:
-1) Before commit 119f657c7 in May 1 2005 (pre 2.6.12 days) it was returning
-   -ENOMEM for this failure;
-2) but commit 119f657c7 changed it accidentally, to what ever is preserved
-   in local ret, which happened to be -EFAULT, in a previous assignment;
-3) then in commit 54f5de709 code refactoring, it's explicitly returning
-   -EFAULT, should be wrong.
-
-Signed-off-by: Derek Che <crquan@ymail.com>
+Signed-off-by: Xie XiuQi <xiexiuqi@huawei.com>
 ---
- mm/mremap.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ include/ras/ras_event.h |   36 ++++++++++++++++++++++++++++++++++++
+ mm/memory-failure.c     |    3 +++
+ 2 files changed, 39 insertions(+), 0 deletions(-)
 
-diff --git a/mm/mremap.c b/mm/mremap.c
-index 57dadc0..5da81cb 100644
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -375,7 +375,7 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
- 	if (vma->vm_flags & VM_ACCOUNT) {
- 		unsigned long charged = (new_len - old_len) >> PAGE_SHIFT;
- 		if (security_vm_enough_memory_mm(mm, charged))
--			goto Efault;
-+			goto Enomem;
- 		*p = charged;
- 	}
+diff --git a/include/ras/ras_event.h b/include/ras/ras_event.h
+index 79abb9c..0a6c8f3 100644
+--- a/include/ras/ras_event.h
++++ b/include/ras/ras_event.h
+@@ -232,6 +232,42 @@ TRACE_EVENT(aer_event,
+ 		__print_flags(__entry->status, "|", aer_uncorrectable_errors))
+ );
  
++/*
++ * memory-failure recovery action result event
++ *
++ * unsigned long pfn -	Page Number of the corrupted page
++ * char * action -	Recovery action: "free buddy", "free huge", "high
++ *			order kernel", "free buddy, 2nd try", "different
++ *			compound page after locking", "hugepage already
++ *			hardware poisoned", "unmapping failed", "already
++ *			truncated LRU", etc.
++ * char * result -	Action result: Ignored, Failed, Delayed, Recovered.
++ */
++TRACE_EVENT(memory_failure_event,
++	TP_PROTO(const unsigned long pfn,
++		 const char *action,
++		 const char *result),
++
++	TP_ARGS(pfn, action, result),
++
++	TP_STRUCT__entry(
++		__field(unsigned long, pfn)
++		__string(action, action)
++		__string(result, result)
++	),
++
++	TP_fast_assign(
++		__entry->pfn = pfn;
++		__assign_str(action, action);
++		__assign_str(result, result);
++	),
++
++	TP_printk("pfn %#lx: %s page recovery: %s",
++		__entry->pfn,
++		__get_str(action),
++		__get_str(result)
++	)
++);
+ #endif /* _TRACE_HW_EVENT_MC_H */
+ 
+ /* This part must be outside protection */
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index d487f8d..86a9cce 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -56,6 +56,7 @@
+ #include <linux/mm_inline.h>
+ #include <linux/kfifo.h>
+ #include "internal.h"
++#include <ras/ras_event.h>
+ 
+ int sysctl_memory_failure_early_kill __read_mostly = 0;
+ 
+@@ -837,6 +838,8 @@ static struct page_state {
+  */
+ static void action_result(unsigned long pfn, char *msg, int result)
+ {
++	trace_memory_failure_event(pfn, msg, action_name[result]);
++
+ 	pr_err("MCE %#lx: %s page recovery: %s\n",
+ 		pfn, msg, action_name[result]);
+ }
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
