@@ -1,105 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E078829B9
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2015 10:10:05 -0400 (EDT)
-Received: by wghk14 with SMTP id k14so23559210wgh.3
-        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 07:10:04 -0700 (PDT)
-Received: from mail-wi0-x22b.google.com (mail-wi0-x22b.google.com. [2a00:1450:400c:c05::22b])
-        by mx.google.com with ESMTPS id li8si3259419wic.1.2015.03.13.07.10.02
+Received: from mail-ob0-f180.google.com (mail-ob0-f180.google.com [209.85.214.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F4238299B
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2015 10:25:28 -0400 (EDT)
+Received: by obcvb8 with SMTP id vb8so19892109obc.10
+        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 07:25:28 -0700 (PDT)
+Received: from mail-oi0-x232.google.com (mail-oi0-x232.google.com. [2607:f8b0:4003:c06::232])
+        by mx.google.com with ESMTPS id s65si1125605oib.114.2015.03.13.07.25.27
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Mar 2015 07:10:03 -0700 (PDT)
-Received: by wivr20 with SMTP id r20so6502285wiv.5
-        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 07:10:02 -0700 (PDT)
-Date: Fri, 13 Mar 2015 15:09:58 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: committed memory, mmaps and shms
-Message-ID: <20150313140958.GC4881@dhcp22.suse.cz>
-References: <20150311181044.GC14481@diablo.grulicueva.local>
- <20150312124053.GA30035@dhcp22.suse.cz>
- <20150312145422.GA9240@grulic.org.ar>
- <20150312153513.GA14537@dhcp22.suse.cz>
- <20150312165600.GC9240@grulic.org.ar>
+        Fri, 13 Mar 2015 07:25:27 -0700 (PDT)
+Received: by oifz81 with SMTP id z81so1789052oif.13
+        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 07:25:27 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150312165600.GC9240@grulic.org.ar>
+Date: Fri, 13 Mar 2015 19:55:27 +0530
+Message-ID: <CAB5gotvwyD74UugjB6XQ_v=o11Hu9wAuA6N94UvGObPARYEz0w@mail.gmail.com>
+Subject: kswapd hogging in lowmem_shrink
+From: Vaibhav Shinde <v.bhav.shinde@gmail.com>
+Content-Type: multipart/alternative; boundary=001a113d662a99a3d905112c45ff
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marcos Dione <mdione@grulic.org.ar>
-Cc: linux-kernel@vger.kernel.org, marcos-david.dione@amadeus.com, linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>
 
-On Thu 12-03-15 13:56:00, Marcos Dione wrote:
-> On Thu, Mar 12, 2015 at 11:35:13AM -0400, Michal Hocko wrote:
-> > > > On Wed 11-03-15 19:10:44, Marcos Dione wrote:
-> > [...]
-> > > > > $ free
-> > > > >              total       used       free     shared    buffers     cached
-> > > > > Mem:     396895176  395956332     938844          0       8972  356409952
-> > > > > -/+ buffers/cache:   39537408  357357768
-> > > > > Swap:      8385788    8385788          0
-> > > > > 
-> > > > >     This reports 378GiB of RAM, 377 used; of those 8MiB in buffers,
-> > > > > 339GiB in cache, leaving only 38Gib for processes (for some reason this
-> > > > 
-> > > > I am not sure I understand your math here. 339G in the cache should be
-> > > > reclaimable (be careful about the shmem though). It is the rest which
-> > > > might be harder to reclaim.
-> > > 
-> > >     These 38GiB I mention is the rest of 378 available minus 339 in
-> > > cache. To me this difference represents the sum of the resident
-> > > anonymous memory malloc'ed by all processes. Unless there's some othr
-> > > kind of pages accounted in 'Used'.
-> > 
-> > The kernel needs memory as well for its internal data structures
-> > (stacks, page tables, slab objects, memory used by drivers and what not).
-> 
->     Are those in or out of the total memory reported by free? I had the
-> impression the were out. 396895176 accounts only for 378.5GiB of the 384
-> available in the machine; I assumed the missing 5.5 was kernel memory.
+--001a113d662a99a3d905112c45ff
+Content-Type: text/plain; charset=UTF-8
 
-I haven't checked the code of `free' but I would expect this to be part
-of `used'.
- 
-> > >     Yes, but my question was more on the lines of 'why free or
-> > > /proc/meminfo do not show it'. Maybe it's just that it's difficult to
-> > > define (like I said, "sum of resident anonymous..." &c) or nobody really
-> > > cares about this. Maybe I shouldn't either.
-> > 
-> > meminfo is exporting this information as AnonPages.
-> 
->     I think that what I'm trying to do is figure out what each value
-> represents and where it's incuded, as if to make a graph like this
-> (fields in /proc/meminfo between []'s; dots are inactive, plus signs
-> active):
-> 
->  RAM                            swap                          other (mmaps)
-> |------------------------------|-----------------------------|-------------...
-> |.| kernel [Slab+KernelStack+PageTables+?]
->   |.| buffers [Buffers]
->     | .  . . .  ..   .| swap cached (not necesarily like this, but you get the idea) (I'm assuming that it only includes anon pages, shms and private mmaps) [SwapCached]
->     |++..| resident annon (malloc'ed) [AnonPages/Active/Inactive(anon)]
->          |+++....+++........| cache [Cached/Active/Inactive(file)]
->          |+++...| (resident?) shms [Shmem]
->                 |+++..| resident mmaps
->                       |.....| other fs cache
->                             |..| free [MemFree]
->                                |.............| used swap [SwapTotal-SwapFree] 
->                                              |...............| swap free [SwapFree]
-> 
->     Note that there are no details on how the swap is used between anon
-> pages, shm and others; neither about mmaps; except in /proc/<pid>/smaps.
+On low memory situation, I see various shrinkers being invoked, but in
+lowmem_shrink() case, kswapd is found to be hogging for around 150msecs.
 
-Well, the memory management subsystem is rather complex and it is not
-really trivial to match all the possible combinations into simple
-counters.
+Due to this my application suffer latency issue, as the cpu was not
+released by kswapd0.
 
-I would be interested in the particular usecase where you want the
-specific information and it is important outside of debugging purposes.
+I took below traces with vmscan events, that show lowmem_shrink taking such
+long time for execution.
 
--- 
-Michal Hocko
-SUSE Labs
+kswapd0-67 [003] ...1  1501.987110: mm_shrink_slab_start:
+lowmem_shrink+0x0/0x580 c0ee8e34: objects to shrink 122 gfp_flags
+GFP_KERNEL pgs_scanned 83 lru_pgs 241753 cache items 241754 delta 10
+total_scan 132
+kswapd0-67 [003] ...1  1502.020827: mm_shrink_slab_end:
+lowmem_shrink+0x0/0x580 c0ee8e34: unused scan count 122 new scan count 4
+total_scan -118 last shrinker return val 237339
+
+Please provide inputs on the same.
+
+Thanks and Regards,
+Vaibhav
+
+--001a113d662a99a3d905112c45ff
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><br>On low memory situation, I see various shrinkers being=
+ invoked, but in lowmem_shrink() case, kswapd is found to be hogging for ar=
+ound 150msecs.<br><br>Due to this my application suffer latency issue, as t=
+he cpu was not released by kswapd0.<br><br>I took below traces with vmscan =
+events, that show lowmem_shrink taking such long time for execution.<br><br=
+>kswapd0-67 [003] ...1 =C2=A01501.987110: mm_shrink_slab_start: lowmem_shri=
+nk+0x0/0x580 c0ee8e34: objects to shrink 122 gfp_flags GFP_KERNEL pgs_scann=
+ed 83 lru_pgs 241753 cache items 241754 delta 10 total_scan 132<br>kswapd0-=
+67 [003] ...1 =C2=A01502.020827: mm_shrink_slab_end: lowmem_shrink+0x0/0x58=
+0 c0ee8e34: unused scan count 122 new scan count 4 total_scan -118 last shr=
+inker return val 237339<br><br>Please provide inputs on the same.<br><br>Th=
+anks and Regards,<br>Vaibhav<br></div>
+
+--001a113d662a99a3d905112c45ff--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
