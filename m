@@ -1,74 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 385DB829BE
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2015 15:32:26 -0400 (EDT)
-Received: by iecsl2 with SMTP id sl2so121633307iec.1
-        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 12:32:26 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0174.hostedemail.com. [216.40.44.174])
-        by mx.google.com with ESMTP id j10si3150981igj.49.2015.03.13.12.32.12
-        for <linux-mm@kvack.org>;
-        Fri, 13 Mar 2015 12:32:12 -0700 (PDT)
-Date: Fri, 13 Mar 2015 15:32:10 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH] tracing: add trace event for memory-failure
-Message-ID: <20150313153210.14f1bd88@gandalf.local.home>
-In-Reply-To: <CA+8MBbKen9JfQ29AWVZuxO9CkPCmjG670q0Fg7G-qCPDrtDHig@mail.gmail.com>
-References: <1426241451-25729-1-git-send-email-xiexiuqi@huawei.com>
-	<CA+8MBbKen9JfQ29AWVZuxO9CkPCmjG670q0Fg7G-qCPDrtDHig@mail.gmail.com>
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 65C54829BE
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2015 16:02:13 -0400 (EDT)
+Received: by wiwh11 with SMTP id h11so9024457wiw.1
+        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 13:02:12 -0700 (PDT)
+Received: from mail-wi0-x22d.google.com (mail-wi0-x22d.google.com. [2a00:1450:400c:c05::22d])
+        by mx.google.com with ESMTPS id di3si4657400wid.48.2015.03.13.13.02.11
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 Mar 2015 13:02:12 -0700 (PDT)
+Received: by wiwl15 with SMTP id l15so8771314wiw.0
+        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 13:02:11 -0700 (PDT)
+Date: Fri, 13 Mar 2015 21:02:08 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH V5] Allow compaction of unevictable pages
+Message-ID: <20150313200208.GA28848@dhcp22.suse.cz>
+References: <1426267597-25811-1-git-send-email-emunson@akamai.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1426267597-25811-1-git-send-email-emunson@akamai.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@gmail.com>
-Cc: Xie XiuQi <xiexiuqi@huawei.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Chen Gong <gong.chen@linux.intel.com>, Bjorn Helgaas <bhelgaas@google.com>, Borislav Petkov <bp@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, jingle.chen@huawei.com
+To: Eric B Munson <emunson@akamai.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <cl@linux.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 13 Mar 2015 09:37:34 -0700
-Tony Luck <tony.luck@gmail.com> wrote:
+On Fri 13-03-15 13:26:37, Eric B Munson wrote:
+[...]
+> +compact_unevictable
+> +
+> +Available only when CONFIG_COMPACTION is set. When set to 1, compaction is
+> +allowed to examine the unevictable lru (mlocked pages) for pages to compact.
+> +This should be used on systems where stalls for minor page faults are an
+> +acceptable trade for large contiguous free memory.  Set to 0 to prevent
+> +compaction from moving pages that are unevictable.
 
-
-> >  int sysctl_memory_failure_early_kill __read_mostly = 0;
-> >
-> > @@ -837,6 +838,8 @@ static struct page_state {
-> >   */
-> >  static void action_result(unsigned long pfn, char *msg, int result)
-> >  {
-> > +       trace_memory_failure_event(pfn, msg, action_name[result]);
-> > +
-> >         pr_err("MCE %#lx: %s page recovery: %s\n",
-> >                 pfn, msg, action_name[result]);
-> >  }
-> > --
-> > 1.7.1
-> >
-> > --
-> 
-> Concept looks good to me. Adding Steven Rostedt as we've historically had
-> challenges adding new trace points in the cleanest way.
-
-Hehe, thank you :-) I actually do have a recommendation. How about just
-passing in "result" and doing:
-
-
-	TP_printk("pfn %#lx: %s page recovery: %s",
-		__entry->pfn,
-		__get_str(action),
-		__print_symbolic(result, 0, "Ignored",
-				1, "Failed",
-				2, "Delayed",
-				3, "Recovered"))
-
-
-Now it is hard coded here because trace-cmd and perf do not have a way
-to process enums (yet, I need to fix that).
-
-I also need a way to just submit print strings on module load and boot
-up such that you only need to pass in the address of the action field
-instead of the string. That is also a todo of mine that I may soon
-change.
-
--- Steve
-
+It is not clear which behavior is default from this text.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
