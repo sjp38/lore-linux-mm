@@ -1,164 +1,211 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FE2B8299B
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2015 08:13:44 -0400 (EDT)
-Received: by pdev10 with SMTP id v10so28553003pde.0
-        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 05:13:44 -0700 (PDT)
-Received: from mail-pd0-x231.google.com (mail-pd0-x231.google.com. [2607:f8b0:400e:c02::231])
-        by mx.google.com with ESMTPS id ww5si3687721pab.117.2015.03.13.05.13.43
+Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 47B438299B
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2015 08:37:29 -0400 (EDT)
+Received: by wesw62 with SMTP id w62so23039749wes.0
+        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 05:37:28 -0700 (PDT)
+Received: from mail-wi0-x22c.google.com (mail-wi0-x22c.google.com. [2a00:1450:400c:c05::22c])
+        by mx.google.com with ESMTPS id j10si2844217wia.115.2015.03.13.05.37.27
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Mar 2015 05:13:43 -0700 (PDT)
-Received: by pdbnh10 with SMTP id nh10so28498793pdb.4
-        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 05:13:43 -0700 (PDT)
-From: Roman Pen <r.peniaev@gmail.com>
-Subject: [PATCH 3/3] mm/vmalloc: get rid of dirty bitmap inside vmap_block structure
-Date: Fri, 13 Mar 2015 21:12:57 +0900
-Message-Id: <1426248777-19768-4-git-send-email-r.peniaev@gmail.com>
-In-Reply-To: <1426248777-19768-1-git-send-email-r.peniaev@gmail.com>
-References: <1426248777-19768-1-git-send-email-r.peniaev@gmail.com>
+        Fri, 13 Mar 2015 05:37:27 -0700 (PDT)
+Received: by wibbs8 with SMTP id bs8so5843247wib.0
+        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 05:37:27 -0700 (PDT)
+Date: Fri, 13 Mar 2015 13:37:23 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH v2 3/4] mtrr, x86: Clean up mtrr_type_lookup()
+Message-ID: <20150313123722.GA4152@gmail.com>
+References: <1426180690-24234-1-git-send-email-toshi.kani@hp.com>
+ <1426180690-24234-4-git-send-email-toshi.kani@hp.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1426180690-24234-4-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: Roman Pen <r.peniaev@gmail.com>, Nick Piggin <npiggin@kernel.dk>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Eric Dumazet <edumazet@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, WANG Chao <chaowang@redhat.com>, Fabian Frederick <fabf@skynet.be>, Christoph Lameter <cl@linux.com>, Gioh Kim <gioh.kim@lge.com>, Rob Jones <rob.jones@codethink.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl
 
-In original implementation of vm_map_ram made by Nick Piggin there were two
-bitmaps:  alloc_map and dirty_map.  None of them were used as supposed to be:
-finding a suitable free hole for next allocation in block. vm_map_ram allocates
-space sequentially in block and on free call marks pages as dirty, so freed
-space can't be reused anymore.
 
-Actually would be very interesting to know the real meaning of those bitmaps,
-maybe implementation was incomplete, etc.
+* Toshi Kani <toshi.kani@hp.com> wrote:
 
-But long time ago Zhang Yanfei removed alloc_map by these two commits:
+> MTRRs contain fixed and variable entries.  mtrr_type_lookup()
+> may repeatedly call __mtrr_type_lookup() to handle a request
+> that overlaps with variable entries.  However,
+> __mtrr_type_lookup() also handles the fixed entries and other
+> conditions, which do not have to be repeated.  This patch moves
+> such code from __mtrr_type_lookup() to mtrr_type_lookup().
+> 
+> This patch also changes the 'else if (start < 0x1000000)',
+> which checks a fixed range but has an extra zero in the address,
+> to 'else' with no condition.
+> 
+> Lastly, the patch updates the function headers to clarify the
+> return values and output argument.  It also updates comments to
+> clarify that the repeating is necessary to handle overlaps with
+> the default type, since overlaps with multiple entries alone
+> can be handled without such repeating.
+> 
+> There is no functional change in this patch.
+> 
+> Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+> ---
+>  arch/x86/kernel/cpu/mtrr/generic.c |  102 +++++++++++++++++++-----------------
+>  1 file changed, 53 insertions(+), 49 deletions(-)
+> 
+> diff --git a/arch/x86/kernel/cpu/mtrr/generic.c b/arch/x86/kernel/cpu/mtrr/generic.c
+> index a82e370..ef34a4f 100644
+> --- a/arch/x86/kernel/cpu/mtrr/generic.c
+> +++ b/arch/x86/kernel/cpu/mtrr/generic.c
+> @@ -102,12 +102,16 @@ static int check_type_overlap(u8 *prev, u8 *curr)
+>  	return 0;
+>  }
+>  
+> -/*
+> - * Error/Semi-error returns:
+> - * 0xFF - when MTRR is not enabled
+> - * *repeat == 1 implies [start:end] spanned across MTRR range and type returned
+> - *		corresponds only to [start:*partial_end].
+> - *		Caller has to lookup again for [*partial_end:end].
+> +/**
+> + * __mtrr_type_lookup - look up memory type in MTRR variable entries
+> + *
+> + * Return Value:
+> + * memory type - Matched memory type or the default memory type (unmatched)
+> + *
+> + * Output Argument:
+> + * repeat - Set to 1 when [start:end] spanned across MTRR range and type
+> + *	    returned corresponds only to [start:*partial_end].  Caller has
+> + *	    to lookup again for [*partial_end:end].
+>   */
+>  static u8 __mtrr_type_lookup(u64 start, u64 end, u64 *partial_end, int *repeat)
+>  {
+> @@ -116,42 +120,10 @@ static u8 __mtrr_type_lookup(u64 start, u64 end, u64 *partial_end, int *repeat)
+>  	u8 prev_match, curr_match;
+>  
+>  	*repeat = 0;
+> -	if (!mtrr_state_set)
+> -		return 0xFF;
+> -
+> -	if (!mtrr_state.enabled)
+> -		return 0xFF;
+>  
+>  	/* Make end inclusive end, instead of exclusive */
+>  	end--;
+>  
+> -	/* Look in fixed ranges. Just return the type as per start */
+> -	if (mtrr_state.have_fixed && (start < 0x100000)) {
+> -		int idx;
+> -
+> -		if (start < 0x80000) {
+> -			idx = 0;
+> -			idx += (start >> 16);
+> -			return mtrr_state.fixed_ranges[idx];
+> -		} else if (start < 0xC0000) {
+> -			idx = 1 * 8;
+> -			idx += ((start - 0x80000) >> 14);
+> -			return mtrr_state.fixed_ranges[idx];
+> -		} else if (start < 0x1000000) {
+> -			idx = 3 * 8;
+> -			idx += ((start - 0xC0000) >> 12);
+> -			return mtrr_state.fixed_ranges[idx];
+> -		}
+> -	}
+> -
+> -	/*
+> -	 * Look in variable ranges
+> -	 * Look of multiple ranges matching this address and pick type
+> -	 * as per MTRR precedence
+> -	 */
+> -	if (!(mtrr_state.enabled & 2))
+> -		return mtrr_state.def_type;
+> -
+>  	prev_match = 0xFF;
+>  	for (i = 0; i < num_var_ranges; ++i) {
+>  		unsigned short start_state, end_state, inclusive;
+> @@ -180,7 +152,8 @@ static u8 __mtrr_type_lookup(u64 start, u64 end, u64 *partial_end, int *repeat)
+>  			 * Return the type for first region and a pointer to
+>  			 * the start of second region so that caller will
+>  			 * lookup again on the second region.
+> -			 * Note: This way we handle multiple overlaps as well.
+> +			 * Note: This way we handle overlaps with multiple
+> +			 * entries and the default type properly.
+>  			 */
+>  			if (start_state)
+>  				*partial_end = base + get_mtrr_size(mask);
+> @@ -209,21 +182,18 @@ static u8 __mtrr_type_lookup(u64 start, u64 end, u64 *partial_end, int *repeat)
+>  			return curr_match;
+>  	}
+>  
+> -	if (mtrr_tom2) {
+> -		if (start >= (1ULL<<32) && (end < mtrr_tom2))
+> -			return MTRR_TYPE_WRBACK;
+> -	}
+> -
+>  	if (prev_match != 0xFF)
+>  		return prev_match;
+>  
+>  	return mtrr_state.def_type;
+>  }
+>  
+> -/*
+> - * Returns the effective MTRR type for the region
+> - * Error return:
+> - * 0xFF - when MTRR is not enabled
+> +/**
+> + * mtrr_type_lookup - look up memory type in MTRR
+> + *
+> + * Return Values:
+> + * memory type - The effective MTRR type for the region
+> + * 0xFF - MTRR is disabled
+>   */
+>  u8 mtrr_type_lookup(u64 start, u64 end)
+>  {
+> @@ -231,12 +201,43 @@ u8 mtrr_type_lookup(u64 start, u64 end)
+>  	int repeat;
+>  	u64 partial_end;
+>  
+> +	if (!mtrr_state_set || !mtrr_state.enabled)
+> +		return 0xFF;
+> +
+> +	/* Look in fixed ranges. Just return the type as per start */
+> +	if (mtrr_state.have_fixed && (start < 0x100000)) {
+> +		int idx;
+> +
+> +		if (start < 0x80000) {
+> +			idx = 0;
+> +			idx += (start >> 16);
+> +			return mtrr_state.fixed_ranges[idx];
+> +		} else if (start < 0xC0000) {
+> +			idx = 1 * 8;
+> +			idx += ((start - 0x80000) >> 14);
+> +			return mtrr_state.fixed_ranges[idx];
+> +		} else {
+> +			idx = 3 * 8;
+> +			idx += ((start - 0xC0000) >> 12);
+> +			return mtrr_state.fixed_ranges[idx];
+> +		}
+> +	}
 
-  mm/vmalloc.c: remove dead code in vb_alloc
-     3fcd76e8028e0be37b02a2002b4f56755daeda06
-  mm/vmalloc.c: remove alloc_map from vmap_block
-     b8e748b6c32999f221ea4786557b8e7e6c4e4e7a
+So why not put this into a separate helper function - named 
+mtrr_type_lookup_fixed()? It has little relation to variable ranges.
 
-In current patch I replaced dirty_map with two range variables: dirty min and
-max.  These variables store minimum and maximum position of dirty space in a
-block, since we need only to know the dirty range, not exact position of dirty
-pages.
+> +
+> +	/*
+> +	 * Look in variable ranges
+> +	 * Look of multiple ranges matching this address and pick type
+> +	 * as per MTRR precedence
+> +	 */
+> +	if (!(mtrr_state.enabled & 2))
+> +		return mtrr_state.def_type;
+> +
+>  	type = __mtrr_type_lookup(start, end, &partial_end, &repeat);
 
-Why it was made? Several reasons: at first glance it seems that vm_map_ram
-allocator concerns about fragmentation thus it uses bitmaps for finding free
-hole, but it is not true.  To avoid complexity seems it is better to use
-something simple, like min or max range values.  Secondly, code also becomes
-simpler, without iteration over bitmap, just comparing values in min and max
-macros.  Thirdly, bitmap occupies up to 1024 bits (4MB is a max size of a
-block).  Here I replaced the whole bitmap with two longs.
+And this then should be named mtrr_type_lookup_variable() or so?
 
-Finally vm_unmap_aliases should be slightly faster and the whole vmap_block
-structure occupies less memory.
+Thanks,
 
-Signed-off-by: Roman Pen <r.peniaev@gmail.com>
-Cc: Nick Piggin <npiggin@kernel.dk>
-Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Eric Dumazet <edumazet@google.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: WANG Chao <chaowang@redhat.com>
-Cc: Fabian Frederick <fabf@skynet.be>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Gioh Kim <gioh.kim@lge.com>
-Cc: Rob Jones <rob.jones@codethink.co.uk>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
----
- mm/vmalloc.c | 35 +++++++++++++++++------------------
- 1 file changed, 17 insertions(+), 18 deletions(-)
-
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 9759c92..77c4b8a 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -760,7 +760,7 @@ struct vmap_block {
- 	spinlock_t lock;
- 	struct vmap_area *va;
- 	unsigned long free, dirty;
--	DECLARE_BITMAP(dirty_map, VMAP_BBMAP_BITS);
-+	unsigned long dirty_min, dirty_max; /*< dirty range */
- 	struct list_head free_list;
- 	struct rcu_head rcu_head;
- 	struct list_head purge;
-@@ -845,7 +845,8 @@ static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
- 	BUG_ON(VMAP_BBMAP_BITS <= (1UL << order));
- 	vb->free = VMAP_BBMAP_BITS - (1UL << order);
- 	vb->dirty = 0;
--	bitmap_zero(vb->dirty_map, VMAP_BBMAP_BITS);
-+	vb->dirty_min = VMAP_BBMAP_BITS;
-+	vb->dirty_max = 0;
- 	INIT_LIST_HEAD(&vb->free_list);
- 
- 	vb_idx = addr_to_vb_idx(va->va_start);
-@@ -896,7 +897,8 @@ static void purge_fragmented_blocks(int cpu)
- 		if (vb->free + vb->dirty == VMAP_BBMAP_BITS && vb->dirty != VMAP_BBMAP_BITS) {
- 			vb->free = 0; /* prevent further allocs after releasing lock */
- 			vb->dirty = VMAP_BBMAP_BITS; /* prevent purging it again */
--			bitmap_fill(vb->dirty_map, VMAP_BBMAP_BITS);
-+			vb->dirty_min = 0;
-+			vb->dirty_max = VMAP_BBMAP_BITS;
- 			spin_lock(&vbq->lock);
- 			list_del_rcu(&vb->free_list);
- 			spin_unlock(&vbq->lock);
-@@ -989,6 +991,7 @@ static void vb_free(const void *addr, unsigned long size)
- 	order = get_order(size);
- 
- 	offset = (unsigned long)addr & (VMAP_BLOCK_SIZE - 1);
-+	offset >>= PAGE_SHIFT;
- 
- 	vb_idx = addr_to_vb_idx((unsigned long)addr);
- 	rcu_read_lock();
-@@ -999,7 +1002,10 @@ static void vb_free(const void *addr, unsigned long size)
- 	vunmap_page_range((unsigned long)addr, (unsigned long)addr + size);
- 
- 	spin_lock(&vb->lock);
--	BUG_ON(bitmap_allocate_region(vb->dirty_map, offset >> PAGE_SHIFT, order));
-+
-+	/* Expand dirty range */
-+	vb->dirty_min = min(vb->dirty_min, offset);
-+	vb->dirty_max = max(vb->dirty_max, offset + (1UL << order));
- 
- 	vb->dirty += 1UL << order;
- 	if (vb->dirty == VMAP_BBMAP_BITS) {
-@@ -1038,25 +1044,18 @@ void vm_unmap_aliases(void)
- 
- 		rcu_read_lock();
- 		list_for_each_entry_rcu(vb, &vbq->free, free_list) {
--			int i, j;
--
- 			spin_lock(&vb->lock);
--			i = find_first_bit(vb->dirty_map, VMAP_BBMAP_BITS);
--			if (i < VMAP_BBMAP_BITS) {
-+			if (vb->dirty) {
-+				unsigned long va_start = vb->va->va_start;
- 				unsigned long s, e;
- 
--				j = find_last_bit(vb->dirty_map,
--							VMAP_BBMAP_BITS);
--				j = j + 1; /* need exclusive index */
-+				s = va_start + (vb->dirty_min << PAGE_SHIFT);
-+				e = va_start + (vb->dirty_max << PAGE_SHIFT);
- 
--				s = vb->va->va_start + (i << PAGE_SHIFT);
--				e = vb->va->va_start + (j << PAGE_SHIFT);
--				flush = 1;
-+				start = min(s, start);
-+				end   = max(e, end);
- 
--				if (s < start)
--					start = s;
--				if (e > end)
--					end = e;
-+				flush = 1;
- 			}
- 			spin_unlock(&vb->lock);
- 		}
--- 
-1.9.3
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
