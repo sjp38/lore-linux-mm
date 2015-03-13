@@ -1,64 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DBB98299B
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2015 19:08:40 -0400 (EDT)
-Received: by igjz20 with SMTP id z20so265461igj.4
-        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 16:08:40 -0700 (PDT)
-Received: from mail-ie0-x233.google.com (mail-ie0-x233.google.com. [2607:f8b0:4001:c03::233])
-        by mx.google.com with ESMTPS id l19si3706454icg.13.2015.03.13.16.08.39
+Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 600238299B
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2015 19:18:58 -0400 (EDT)
+Received: by ieclw3 with SMTP id lw3so131225779iec.2
+        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 16:18:58 -0700 (PDT)
+Received: from mail-ie0-x22c.google.com (mail-ie0-x22c.google.com. [2607:f8b0:4001:c03::22c])
+        by mx.google.com with ESMTPS id kv2si3709429igb.19.2015.03.13.16.18.57
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Mar 2015 16:08:39 -0700 (PDT)
-Received: by ieclw3 with SMTP id lw3so130965485iec.2
-        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 16:08:39 -0700 (PDT)
-Date: Fri, 13 Mar 2015 16:08:38 -0700 (PDT)
+        Fri, 13 Mar 2015 16:18:57 -0700 (PDT)
+Received: by iegc3 with SMTP id c3so134194851ieg.3
+        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 16:18:57 -0700 (PDT)
+Date: Fri, 13 Mar 2015 16:18:55 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mremap should return -ENOMEM when __vm_enough_memory
- fail
-In-Reply-To: <1426238498-21127-1-git-send-email-crquan@ymail.com>
-Message-ID: <alpine.DEB.2.10.1503131606100.7827@chino.kir.corp.google.com>
-References: <1426238498-21127-1-git-send-email-crquan@ymail.com>
+Subject: Re: [PATCH V5] Allow compaction of unevictable pages
+In-Reply-To: <20150313190915.GA12589@akamai.com>
+Message-ID: <alpine.DEB.2.10.1503131613560.7827@chino.kir.corp.google.com>
+References: <1426267597-25811-1-git-send-email-emunson@akamai.com> <550332CE.7040404@redhat.com> <20150313190915.GA12589@akamai.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Derek <crquan@ymail.com>
-Cc: linux-mm@kvack.org
+To: Eric B Munson <emunson@akamai.com>
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <cl@linux.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 13 Mar 2015, Derek wrote:
+On Fri, 13 Mar 2015, Eric B Munson wrote:
 
-> Recently I straced bash behavior in this dd zero pipe to read test,
-> in part of testing under vm.overcommit_memory=2 (OVERCOMMIT_NEVER mode):
->     # dd if=/dev/zero | read x
+> > > --- a/mm/compaction.c
+> > > +++ b/mm/compaction.c
+> > > @@ -1046,6 +1046,8 @@ typedef enum {
+> > >  	ISOLATE_SUCCESS,	/* Pages isolated, migrate */
+> > >  } isolate_migrate_t;
+> > >  
+> > > +int sysctl_compact_unevictable;
+> > > +
+> > >  /*
+> > >   * Isolate all pages that can be migrated from the first suitable block,
+> > >   * starting at the block pointed to by the migrate scanner pfn within
+> > 
+> > I suspect that the use cases where users absolutely do not want
+> > unevictable pages migrated are special cases, and it may make
+> > sense to enable sysctl_compact_unevictable by default.
 > 
-> The bash sub shell is calling mremap to reallocate more and more memory
-> untill it finally failed -ENOMEM (I expect), or to be killed by system
-> OOM killer (which should not happen under OVERCOMMIT_NEVER mode);
-> But the mremap system call actually failed of -EFAULT, which is a surprise
-> to me, I think it's supposed to be -ENOMEM? then I wrote this piece
-> of C code testing confirmed it:
-> https://gist.github.com/crquan/326bde37e1ddda8effe5
+> Given that sysctl_compact_unevictable=0 is the way the kernel behaves
+> now and the push back against always enabling compaction on unevictable
+> pages, I left the default to be the behavior as it is today.  I agree
+> that this is likely the minority case, but I'd really like Peter Z or
+> someone else from real time to say that they are okay with the default
+> changing.
 > 
-> The -EFAULT comes from the branch of security_vm_enough_memory_mm failure,
-> underlyingly it calls __vm_enough_memory which returns only 0 for success
-> or -ENOMEM; So why vma_to_resize needs to return -EFAULT in this case?
-> it sounds like a mistake to me.
-> 
-> Some more digging into git history:
-> 1) Before commit 119f657c7 in May 1 2005 (pre 2.6.12 days) it was returning
->    -ENOMEM for this failure;
-> 2) but commit 119f657c7 changed it accidentally, to what ever is preserved
->    in local ret, which happened to be -EFAULT, in a previous assignment;
-> 3) then in commit 54f5de709 code refactoring, it's explicitly returning
->    -EFAULT, should be wrong.
-> 
-> Signed-off-by: Derek Che <crquan@ymail.com>
 
-Acked-by: David Rientjes <rientjes@google.com>
+It would be really disappointing to not enable this by default for !rt 
+kernels.  We haven't migrated mlocked pages in the past by way of memory 
+compaction because it can theoretically result in consistent minor page 
+faults, but I haven't yet heard a !rt objection to enabling this.
 
-vma_to_resize() could certainly be cleaned up to just return ERR_PTR() and 
-avoiding the "goto"s since there is no other cleanup needed as suggested 
-by Kirill if you have time for a cleanup patch on top of this.
+If the rt patchset is going to carry a patch to disable this, then the 
+question arises: why not just carry an ISOLATE_UNEVICTABLE patch instead?  
+I think you've done the due diligence required to allow this to be 
+disabled at any time in a very easy way from userspace by the new tunable.  
+I think it should be enabled and I'd be very surprised to hear any other 
+objection about it other than it's different from the status quo.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
