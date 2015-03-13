@@ -1,132 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 473A9829C4
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2015 12:37:37 -0400 (EDT)
-Received: by wevk48 with SMTP id k48so24477714wev.5
-        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 09:37:36 -0700 (PDT)
-Received: from mail-wg0-x22f.google.com (mail-wg0-x22f.google.com. [2a00:1450:400c:c00::22f])
-        by mx.google.com with ESMTPS id ib9si3828421wjb.198.2015.03.13.09.37.35
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Mar 2015 09:37:35 -0700 (PDT)
-Received: by wggx12 with SMTP id x12so24401825wgg.13
-        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 09:37:35 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1426241451-25729-1-git-send-email-xiexiuqi@huawei.com>
-References: <1426241451-25729-1-git-send-email-xiexiuqi@huawei.com>
-Date: Fri, 13 Mar 2015 09:37:34 -0700
-Message-ID: <CA+8MBbKen9JfQ29AWVZuxO9CkPCmjG670q0Fg7G-qCPDrtDHig@mail.gmail.com>
-Subject: Re: [PATCH] tracing: add trace event for memory-failure
-From: Tony Luck <tony.luck@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F09F829BE
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2015 13:26:46 -0400 (EDT)
+Received: by pdbnh10 with SMTP id nh10so30368883pdb.3
+        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 10:26:46 -0700 (PDT)
+Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [72.246.2.115])
+        by mx.google.com with ESMTP id qn11si5179878pdb.229.2015.03.13.10.26.44
+        for <linux-mm@kvack.org>;
+        Fri, 13 Mar 2015 10:26:45 -0700 (PDT)
+From: Eric B Munson <emunson@akamai.com>
+Subject: [PATCH V5] Allow compaction of unevictable pages
+Date: Fri, 13 Mar 2015 13:26:37 -0400
+Message-Id: <1426267597-25811-1-git-send-email-emunson@akamai.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xie XiuQi <xiexiuqi@huawei.com>, Steven Rostedt <rostedt@goodmis.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Chen Gong <gong.chen@linux.intel.com>, Bjorn Helgaas <bhelgaas@google.com>, Borislav Petkov <bp@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, jingle.chen@huawei.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Eric B Munson <emunson@akamai.com>, Vlastimil Babka <vbabka@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <cl@linux.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Mar 13, 2015 at 3:10 AM, Xie XiuQi <xiexiuqi@huawei.com> wrote:
-> Memory-failure as the high level machine check handler, it's necessary
-> to report memory page recovery action result to user space by ftrace.
->
-> This patch add a event at ras group for memory-failure.
->
-> The output like below:
-> # tracer: nop
-> #
-> # entries-in-buffer/entries-written: 2/2   #P:24
-> #
-> #                              _-----=> irqs-off
-> #                             / _----=> need-resched
-> #                            | / _---=> hardirq/softirq
-> #                            || / _--=> preempt-depth
-> #                            ||| /     delay
-> #           TASK-PID   CPU#  ||||    TIMESTAMP  FUNCTION
-> #              | |       |   ||||       |         |
->       mce-inject-13150 [001] ....   277.019359: memory_failure_event: pfn 0x19869: free buddy page recovery: Delayed
->
-> Signed-off-by: Xie XiuQi <xiexiuqi@huawei.com>
-> ---
->  include/ras/ras_event.h |   36 ++++++++++++++++++++++++++++++++++++
->  mm/memory-failure.c     |    3 +++
->  2 files changed, 39 insertions(+), 0 deletions(-)
->
-> diff --git a/include/ras/ras_event.h b/include/ras/ras_event.h
-> index 79abb9c..0a6c8f3 100644
-> --- a/include/ras/ras_event.h
-> +++ b/include/ras/ras_event.h
-> @@ -232,6 +232,42 @@ TRACE_EVENT(aer_event,
->                 __print_flags(__entry->status, "|", aer_uncorrectable_errors))
->  );
->
-> +/*
-> + * memory-failure recovery action result event
-> + *
-> + * unsigned long pfn - Page Number of the corrupted page
-> + * char * action -     Recovery action: "free buddy", "free huge", "high
-> + *                     order kernel", "free buddy, 2nd try", "different
-> + *                     compound page after locking", "hugepage already
-> + *                     hardware poisoned", "unmapping failed", "already
-> + *                     truncated LRU", etc.
-> + * char * result -     Action result: Ignored, Failed, Delayed, Recovered.
-> + */
-> +TRACE_EVENT(memory_failure_event,
-> +       TP_PROTO(const unsigned long pfn,
-> +                const char *action,
-> +                const char *result),
-> +
-> +       TP_ARGS(pfn, action, result),
-> +
-> +       TP_STRUCT__entry(
-> +               __field(unsigned long, pfn)
-> +               __string(action, action)
-> +               __string(result, result)
-> +       ),
-> +
-> +       TP_fast_assign(
-> +               __entry->pfn = pfn;
-> +               __assign_str(action, action);
-> +               __assign_str(result, result);
-> +       ),
-> +
-> +       TP_printk("pfn %#lx: %s page recovery: %s",
-> +               __entry->pfn,
-> +               __get_str(action),
-> +               __get_str(result)
-> +       )
-> +);
->  #endif /* _TRACE_HW_EVENT_MC_H */
->
->  /* This part must be outside protection */
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index d487f8d..86a9cce 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -56,6 +56,7 @@
->  #include <linux/mm_inline.h>
->  #include <linux/kfifo.h>
->  #include "internal.h"
-> +#include <ras/ras_event.h>
->
->  int sysctl_memory_failure_early_kill __read_mostly = 0;
->
-> @@ -837,6 +838,8 @@ static struct page_state {
->   */
->  static void action_result(unsigned long pfn, char *msg, int result)
->  {
-> +       trace_memory_failure_event(pfn, msg, action_name[result]);
-> +
->         pr_err("MCE %#lx: %s page recovery: %s\n",
->                 pfn, msg, action_name[result]);
->  }
-> --
-> 1.7.1
->
-> --
+Currently, pages which are marked as unevictable are protected from
+compaction, but not from other types of migration.  The POSIX real time
+extension explicitly states that mlock() will prevent a major page
+fault, but the spirit of is is that mlock() should give a process the
+ability to control sources of latency, including minor page faults.
+However, the mlock manpage only explicitly says that a locked page will
+not be written to swap and this can cause some confusion.  The
+compaction code today, does not give a developer who wants to avoid swap
+but wants to have large contiguous areas available any method to achieve
+this state.  This patch introduces a sysctl for controlling compaction
+behavoir with respect to the unevictable lru.  Users that demand no page
+faults after a page is present can set compact_unevictable to 0 and
+users who need the large contiguous areas can enable compaction on
+locked memory by setting it to 1.
 
-Concept looks good to me. Adding Steven Rostedt as we've historically had
-challenges adding new trace points in the cleanest way.
+To illustrate this problem I wrote a quick test program that mmaps a
+large number of 1MB files filled with random data.  These maps are
+created locked and read only.  Then every other mmap is unmapped and I
+attempt to allocate huge pages to the static huge page pool.  When the
+compact_unevictable sysctl is 0, I cannot allocate hugepages after
+fragmenting memory.  When the value is set to 1, allocations succeed.
 
--Tony
+Signed-off-by: Eric B Munson <emunson@akamai.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
+---
+Changes from V3:
+* Updated changelog
+* Restrict valid input to 0 or 1 in sysctl
+* Add documentation to sysctl/vm.txt
+
+ Documentation/sysctl/vm.txt |   11 +++++++++++
+ include/linux/compaction.h  |    1 +
+ kernel/sysctl.c             |    9 +++++++++
+ mm/compaction.c             |    3 +++
+ 4 files changed, 24 insertions(+)
+
+diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+index 902b457..812f0d4 100644
+--- a/Documentation/sysctl/vm.txt
++++ b/Documentation/sysctl/vm.txt
+@@ -21,6 +21,7 @@ Currently, these files are in /proc/sys/vm:
+ - admin_reserve_kbytes
+ - block_dump
+ - compact_memory
++- compact_unevictable
+ - dirty_background_bytes
+ - dirty_background_ratio
+ - dirty_bytes
+@@ -106,6 +107,16 @@ huge pages although processes will also directly compact memory as required.
+ 
+ ==============================================================
+ 
++compact_unevictable
++
++Available only when CONFIG_COMPACTION is set. When set to 1, compaction is
++allowed to examine the unevictable lru (mlocked pages) for pages to compact.
++This should be used on systems where stalls for minor page faults are an
++acceptable trade for large contiguous free memory.  Set to 0 to prevent
++compaction from moving pages that are unevictable.
++
++==============================================================
++
+ dirty_background_bytes
+ 
+ Contains the amount of dirty memory at which the background kernel
+diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+index a014559..9dd7e7c 100644
+--- a/include/linux/compaction.h
++++ b/include/linux/compaction.h
+@@ -34,6 +34,7 @@ extern int sysctl_compaction_handler(struct ctl_table *table, int write,
+ extern int sysctl_extfrag_threshold;
+ extern int sysctl_extfrag_handler(struct ctl_table *table, int write,
+ 			void __user *buffer, size_t *length, loff_t *ppos);
++extern int sysctl_compact_unevictable;
+ 
+ extern int fragmentation_index(struct zone *zone, unsigned int order);
+ extern unsigned long try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index 88ea2d6..9272568 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -1313,6 +1313,15 @@ static struct ctl_table vm_table[] = {
+ 		.extra1		= &min_extfrag_threshold,
+ 		.extra2		= &max_extfrag_threshold,
+ 	},
++	{
++		.procname	= "compact_unevictable",
++		.data		= &sysctl_compact_unevictable,
++		.maxlen		= sizeof(int),
++		.mode		= 0644,
++		.proc_handler	= proc_dointvec,
++		.extra1		= &zero,
++		.extra2		= &one,
++	},
+ 
+ #endif /* CONFIG_COMPACTION */
+ 	{
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 8c0d945..342b221 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1046,6 +1046,8 @@ typedef enum {
+ 	ISOLATE_SUCCESS,	/* Pages isolated, migrate */
+ } isolate_migrate_t;
+ 
++int sysctl_compact_unevictable;
++
+ /*
+  * Isolate all pages that can be migrated from the first suitable block,
+  * starting at the block pointed to by the migrate scanner pfn within
+@@ -1057,6 +1059,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+ 	unsigned long low_pfn, end_pfn;
+ 	struct page *page;
+ 	const isolate_mode_t isolate_mode =
++		(sysctl_compact_unevictable ? ISOLATE_UNEVICTABLE : 0) |
+ 		(cc->mode == MIGRATE_ASYNC ? ISOLATE_ASYNC_MIGRATE : 0);
+ 
+ 	/*
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
