@@ -1,146 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f170.google.com (mail-ie0-f170.google.com [209.85.223.170])
-	by kanga.kvack.org (Postfix) with ESMTP id A3EF96B00A3
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2015 20:06:12 -0400 (EDT)
-Received: by iecsl2 with SMTP id sl2so131458030iec.1
-        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 17:06:12 -0700 (PDT)
-Received: from mail-ie0-x234.google.com (mail-ie0-x234.google.com. [2607:f8b0:4001:c03::234])
-        by mx.google.com with ESMTPS id h1si3815929igh.3.2015.03.13.17.06.12
+Received: from mail-ie0-f172.google.com (mail-ie0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 3867C829D1
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2015 20:08:49 -0400 (EDT)
+Received: by ieclw3 with SMTP id lw3so132530266iec.2
+        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 17:08:48 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id y13si299391igy.0.2015.03.13.17.08.48
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Mar 2015 17:06:12 -0700 (PDT)
-Received: by ieclw3 with SMTP id lw3so132490563iec.2
-        for <linux-mm@kvack.org>; Fri, 13 Mar 2015 17:06:12 -0700 (PDT)
-Date: Fri, 13 Mar 2015 17:06:09 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 1/2] mm, mempool: poison elements backed by slab
- allocator
-In-Reply-To: <20150312132832.87c85af5a1bc1978c0d7c049@linux-foundation.org>
-Message-ID: <alpine.DEB.2.10.1503131649080.19521@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1503090021380.19148@chino.kir.corp.google.com> <20150312132832.87c85af5a1bc1978c0d7c049@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Fri, 13 Mar 2015 17:08:48 -0700 (PDT)
+From: Laura Abbott <lauraa@codeaurora.org>
+Subject: [PATCHv3] mm: Don't offset memmap for flatmem
+Date: Fri, 13 Mar 2015 17:08:35 -0700
+Message-Id: <1426291715-16242-1-git-send-email-lauraa@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Sebastian Ott <sebott@linux.vnet.ibm.com>, Mikulas Patocka <mpatocka@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>, Srinivas Kandagatla <srinivas.kandagatla@linaro.org>, linux-arm-kernel@lists.infradead.org, Russell King - ARM Linux <linux@arm.linux.org.uk>, ssantosh@kernel.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Laura Abbott <lauraa@codeaurora.org>, Kevin Hilman <khilman@linaro.org>, Arnd Bergman <arnd@arndb.de>, Stephen Boyd <sboyd@codeaurora.org>, linux-mm@kvack.org, Kumar Gala <galak@codeaurora.org>, Mel Gorman <mgorman@suse.de>
 
-On Thu, 12 Mar 2015, Andrew Morton wrote:
+Srinivas Kandagatla reported bad page messages when trying to
+remove the bottom 2MB on an ARM based IFC6410 board
 
-> > Mempools keep elements in a reserved pool for contexts in which
-> > allocation may not be possible.  When an element is allocated from the
-> > reserved pool, its memory contents is the same as when it was added to
-> > the reserved pool.
-> > 
-> > Because of this, elements lack any free poisoning to detect
-> > use-after-free errors.
-> > 
-> > This patch adds free poisoning for elements backed by the slab allocator.
-> > This is possible because the mempool layer knows the object size of each
-> > element.
-> > 
-> > When an element is added to the reserved pool, it is poisoned with
-> > POISON_FREE.  When it is removed from the reserved pool, the contents are
-> > checked for POISON_FREE.  If there is a mismatch, a warning is emitted to
-> > the kernel log.
-> > 
-> > This is only effective for configs with CONFIG_DEBUG_VM.
-> 
-> At present CONFIG_DEBUG_VM is pretty lightweight (I hope) and using it
-> for mempool poisoning might be inappropriately costly.  Would it be
-> better to tie this to something else?  Either standalone or reuse some
-> slab debug option, perhaps.
-> 
+BUG: Bad page state in process swapper  pfn:fffa8
+page:ef7fb500 count:0 mapcount:0 mapping:  (null) index:0x0
+flags: 0x96640253(locked|error|dirty|active|arch_1|reclaim|mlocked)
+page dumped because: PAGE_FLAGS_CHECK_AT_FREE flag(s) set
+bad because of flags:
+flags: 0x200041(locked|active|mlocked)
+Modules linked in:
+CPU: 0 PID: 0 Comm: swapper Not tainted 3.19.0-rc3-00007-g412f9ba-dirty #816
+Hardware name: Qualcomm (Flattened Device Tree)
+[<c0218280>] (unwind_backtrace) from [<c0212be8>] (show_stack+0x20/0x24)
+[<c0212be8>] (show_stack) from [<c0af7124>] (dump_stack+0x80/0x9c)
+[<c0af7124>] (dump_stack) from [<c0301570>] (bad_page+0xc8/0x128)
+[<c0301570>] (bad_page) from [<c03018a8>] (free_pages_prepare+0x168/0x1e0)
+[<c03018a8>] (free_pages_prepare) from [<c030369c>] (free_hot_cold_page+0x3c/0x174)
+[<c030369c>] (free_hot_cold_page) from [<c0303828>] (__free_pages+0x54/0x58)
+[<c0303828>] (__free_pages) from [<c030395c>] (free_highmem_page+0x38/0x88)
+[<c030395c>] (free_highmem_page) from [<c0f62d5c>] (mem_init+0x240/0x430)
+[<c0f62d5c>] (mem_init) from [<c0f5db3c>] (start_kernel+0x1e4/0x3c8)
+[<c0f5db3c>] (start_kernel) from [<80208074>] (0x80208074)
+Disabling lock debugging due to kernel taint
 
-Ok, I agree.  I'll use CONFIG_DEBUG_SLAB and CONFIG_SLUB_DEBUG_ON and 
-allow it to be enabled by slub debugging when that is enabled.  It 
-probably doesn't make a lot of sense to do mempool poisoning without slab 
-poisoning.
+Removing the lower 2MB made the start of the lowmem zone to no longer
+be page block aligned. IFC6410 uses CONFIG_FLATMEM where
+alloc_node_mem_map allocates memory for the mem_map. alloc_node_mem_map
+will offset for unaligned nodes with the assumption the pfn/page
+translation functions will account for the offset. The functions for
+CONFIG_FLATMEM do not offset however, resulting in overrunning
+the memmap array. Just use the allocated memmap without any offset
+when running with CONFIG_FLATMEM to avoid the overrun.
 
-> Did you measure the overhead btw?  It might be significant with fast
-> devices.
-> 
+Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
+Reported-by: Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
+---
+The thread got too deep so I split this out into a new thread.
+See http://marc.info/?l=linux-mm&m=142188852025672&w=2 for previous
+thread discussion, last comment by Vlastimil
+http://marc.info/?l=linux-mm&m=142505070430844&w=2
+---
+ mm/page_alloc.c | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)
 
-It's certainly costly: with a new 128-byte slab cache, allocating 64 
-objects took about 480 cycles longer per object to do the poison checking 
-and in-use poisoning on one of my 2.2GHz machines (~90 cycles/object 
-without CONFIG_DEBUG_VM).  To do the free poisoning, it was about ~130 
-cycles longer per object (~140 cycles/object without CONFIG_DEBUG_VM).
-
-For cache cold pages from the page allocator, it's more expensive, 
-allocating and freeing 64 pages, it's ~620 cycles longer per page and 
-freeing is an additional ~60 cycles/page.
-
-Keep in mind that overhead is only incurred when the mempool alloc 
-function fails to allocate memory directly from the slab allocator or page 
-allocator in the given context and on mempool_create() to create the new 
-mempool.
-
-I didn't benchmark high-order page poisoning, but that's only used by 
-bcache and I'm looking at that separately: allocating high-order pages 
-from a mempool sucks.
-
-> > --- a/mm/mempool.c
-> > +++ b/mm/mempool.c
-> > @@ -16,16 +16,77 @@
-> >  #include <linux/blkdev.h>
-> >  #include <linux/writeback.h>
-> >  
-> > +#ifdef CONFIG_DEBUG_VM
-> > +static void poison_error(mempool_t *pool, void *element, size_t size,
-> > +			 size_t byte)
-> > +{
-> > +	const int nr = pool->curr_nr;
-> > +	const int start = max_t(int, byte - (BITS_PER_LONG / 8), 0);
-> > +	const int end = min_t(int, byte + (BITS_PER_LONG / 8), size);
-> > +	int i;
-> > +
-> > +	pr_err("BUG: mempool element poison mismatch\n");
-> > +	pr_err("Mempool %p size %ld\n", pool, size);
-> > +	pr_err(" nr=%d @ %p: %s0x", nr, element, start > 0 ? "... " : "");
-> > +	for (i = start; i < end; i++)
-> > +		pr_cont("%x ", *(u8 *)(element + i));
-> > +	pr_cont("%s\n", end < size ? "..." : "");
-> > +	dump_stack();
-> > +}
-> 
-> "byte" wasn't a very useful identifier, and it's called "i" in
-> check_slab_element().  Rename it to "offset" in both places?
-> 
-> > +static void check_slab_element(mempool_t *pool, void *element)
-> > +{
-> > +	if (pool->free == mempool_free_slab || pool->free == mempool_kfree) {
-> > +		size_t size = ksize(element);
-> > +		u8 *obj = element;
-> > +		size_t i;
-> > +
-> > +		for (i = 0; i < size; i++) {
-> > +			u8 exp = (i < size - 1) ? POISON_FREE : POISON_END;
-> > +
-> > +			if (obj[i] != exp) {
-> > +				poison_error(pool, element, size, i);
-> > +				return;
-> > +			}
-> > +		}
-> > +		memset(obj, POISON_INUSE, size);
-> > +	}
-> > +}
-> 
-> I question the reuse of POISON_FREE/POISON_INUSE.  If this thing
-> triggers, it may be hard to tell if it was due to a slab thing or to a
-> mempool thing.  Using a distinct poison pattern for mempool would clear
-> that up?
-> 
-
-Hmm, I think it would actually make it more confusing: mempools only 
-allocate from the reserved pool (those poisoned by this patchset) when 
-doing kmalloc() or kmem_cache_free() in context fails.  Normally, the 
-reserved pool isn't used because there are free objects sitting on slab 
-free or partial slabs and the context is irrelevant.  If slab poisoning is 
-enabled, they are already POISON_FREE as anticipated.  We only fallback to 
-the reserved pool when new slab needs to be allocated and fails in the 
-given context, so the poison value would differ depending on where the 
-objects came from.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index a47f0b2..a308ec7 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4945,6 +4945,8 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+ 
+ static void __init_refok alloc_node_mem_map(struct pglist_data *pgdat)
+ {
++	unsigned long __maybe_unused offset = 0;
++
+ 	/* Skip empty nodes */
+ 	if (!pgdat->node_spanned_pages)
+ 		return;
+@@ -4961,6 +4963,7 @@ static void __init_refok alloc_node_mem_map(struct pglist_data *pgdat)
+ 		 * for the buddy allocator to function correctly.
+ 		 */
+ 		start = pgdat->node_start_pfn & ~(MAX_ORDER_NR_PAGES - 1);
++		offset = pgdat->node_start_pfn - start;
+ 		end = pgdat_end_pfn(pgdat);
+ 		end = ALIGN(end, MAX_ORDER_NR_PAGES);
+ 		size =  (end - start) * sizeof(struct page);
+@@ -4968,7 +4971,7 @@ static void __init_refok alloc_node_mem_map(struct pglist_data *pgdat)
+ 		if (!map)
+ 			map = memblock_virt_alloc_node_nopanic(size,
+ 							       pgdat->node_id);
+-		pgdat->node_mem_map = map + (pgdat->node_start_pfn - start);
++		pgdat->node_mem_map = map + offset;
+ 	}
+ #ifndef CONFIG_NEED_MULTIPLE_NODES
+ 	/*
+@@ -4976,10 +4979,12 @@ static void __init_refok alloc_node_mem_map(struct pglist_data *pgdat)
+ 	 */
+ 	if (pgdat == NODE_DATA(0)) {
+ 		mem_map = NODE_DATA(0)->node_mem_map;
+-#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+-		if (page_to_pfn(mem_map) != pgdat->node_start_pfn)
+-			mem_map -= (pgdat->node_start_pfn - ARCH_PFN_OFFSET);
+-#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
++#if defined(CONFIG_HAVE_MEMBLOCK_NODE_MAP) || defined(CONFIG_FLATMEM)
++		if (page_to_pfn(mem_map) != pgdat->node_start_pfn) {
++			mem_map -= offset;
++			VM_BUG_ON(page_to_pfn(mem_map) != pgdat->node_start_pfn);
++		}
++#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP || CONFIG_FLATMEM */
+ 	}
+ #endif
+ #endif /* CONFIG_FLAT_NODE_MEM_MAP */
+-- 
+Qualcomm Innovation Center, Inc.
+Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum, a Linux Foundation Collaborative Project
+This e-mail address will be inactive after March 20, 2015
+Please contact privately for follow up after that date.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
