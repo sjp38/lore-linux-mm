@@ -1,110 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f52.google.com (mail-oi0-f52.google.com [209.85.218.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 27DB86B00AF
-	for <linux-mm@kvack.org>; Sun, 15 Mar 2015 11:32:58 -0400 (EDT)
-Received: by oiag65 with SMTP id g65so19798113oia.2
-        for <linux-mm@kvack.org>; Sun, 15 Mar 2015 08:32:57 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id nv12si15349676pdb.56.2015.03.12.13.28.33
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CEDA6B00B1
+	for <linux-mm@kvack.org>; Sun, 15 Mar 2015 11:42:13 -0400 (EDT)
+Received: by wixw10 with SMTP id w10so23685164wix.0
+        for <linux-mm@kvack.org>; Sun, 15 Mar 2015 08:42:13 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id vm4si12866309wjc.66.2015.03.15.08.42.11
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Mar 2015 13:28:33 -0700 (PDT)
-Date: Thu, 12 Mar 2015 13:28:32 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 1/2] mm, mempool: poison elements backed by slab
- allocator
-Message-Id: <20150312132832.87c85af5a1bc1978c0d7c049@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.10.1503090021380.19148@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1503090021380.19148@chino.kir.corp.google.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 15 Mar 2015 08:42:12 -0700 (PDT)
+Message-ID: <1426434125.28068.100.camel@stgolabs.net>
+Subject: Re: [PATCH -next v2 0/4] mm: replace mmap_sem for mm->exe_file
+ serialization
+From: Davidlohr Bueso <dave@stgolabs.net>
+Date: Sun, 15 Mar 2015 08:42:05 -0700
+In-Reply-To: <20150315152652.GA24590@redhat.com>
+References: <1426372766-3029-1-git-send-email-dave@stgolabs.net>
+	 <20150315142137.GA21741@redhat.com>
+	 <1426431270.28068.92.camel@stgolabs.net>
+	 <20150315152652.GA24590@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Sebastian Ott <sebott@linux.vnet.ibm.com>, Mikulas Patocka <mpatocka@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: akpm@linux-foundation.org, viro@zeniv.linux.org.uk, gorcunov@openvz.org, koct9i@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 9 Mar 2015 00:21:56 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
-
-> Mempools keep elements in a reserved pool for contexts in which
-> allocation may not be possible.  When an element is allocated from the
-> reserved pool, its memory contents is the same as when it was added to
-> the reserved pool.
+On Sun, 2015-03-15 at 16:26 +0100, Oleg Nesterov wrote:
+> On 03/15, Davidlohr Bueso wrote:
+> >
+> > On Sun, 2015-03-15 at 15:21 +0100, Oleg Nesterov wrote:
+> > > I didn't even read this version, but honestly I don't like it anyway.
+> > >
+> > > I leave the review to Cyrill and Konstantin though, If they like these
+> > > changes I won't argue.
+> > >
+> > > But I simply can't understand why are you doing this.
+> > >
+> > >
+> > >
+> > > Yes, this code needs cleanups, I agree. Does this series makes it better?
+> > > To me it doesn't, and the diffstat below shows that it blows the code.
+> >
+> > Looking at some of the caller paths now, I have to disagree.
 > 
-> Because of this, elements lack any free poisoning to detect
-> use-after-free errors.
+> And I believe you are wrong. But let me repeat, I leave this to Cyrill
+> and Konstantin. Cleanups are always subjective.
 > 
-> This patch adds free poisoning for elements backed by the slab allocator.
-> This is possible because the mempool layer knows the object size of each
-> element.
+> > > In fact, to me it complicates this code. For example. Personally I think
+> > > that MMF_EXE_FILE_CHANGED should die. And currently we can just remove it.
+> >
+> > How could you remove this?
 > 
-> When an element is added to the reserved pool, it is poisoned with
-> POISON_FREE.  When it is removed from the reserved pool, the contents are
-> checked for POISON_FREE.  If there is a mismatch, a warning is emitted to
-> the kernel log.
-> 
-> This is only effective for configs with CONFIG_DEBUG_VM.
+> Just remove this flag and the test_and_set_bit(MMF_EXE_FILE_CHANGED) check.
+> Again, this is subjective, but to me it looks ugly. Why do we allow to
+> change ->exe_file but only once?
 
-At present CONFIG_DEBUG_VM is pretty lightweight (I hope) and using it
-for mempool poisoning might be inappropriately costly.  Would it be
-better to tie this to something else?  Either standalone or reuse some
-slab debug option, perhaps.
+Ok I think I am finally seeing where you are going. And I like it *a
+lot* because it allows us to basically replace mmap_sem with rcu
+(MMF_EXE_FILE_CHANGED being the only user that requires a lock!!), but
+am afraid it might not be possible. I mean currently we have no rule wrt
+to users that don't deal with prctl. 
 
-Did you measure the overhead btw?  It might be significant with fast
-devices.
+Forbidding multiple exe_file changes to be generic would certainly
+change address space semantics, probably for the better (tighter around
+security), but changed nonetheless so users would have a right to
+complain, no? So if we can get away with removing MMF_EXE_FILE_CHANGED
+I'm all for it. Andrew?
 
-> --- a/mm/mempool.c
-> +++ b/mm/mempool.c
-> @@ -16,16 +16,77 @@
->  #include <linux/blkdev.h>
->  #include <linux/writeback.h>
->  
-> +#ifdef CONFIG_DEBUG_VM
-> +static void poison_error(mempool_t *pool, void *element, size_t size,
-> +			 size_t byte)
-> +{
-> +	const int nr = pool->curr_nr;
-> +	const int start = max_t(int, byte - (BITS_PER_LONG / 8), 0);
-> +	const int end = min_t(int, byte + (BITS_PER_LONG / 8), size);
-> +	int i;
-> +
-> +	pr_err("BUG: mempool element poison mismatch\n");
-> +	pr_err("Mempool %p size %ld\n", pool, size);
-> +	pr_err(" nr=%d @ %p: %s0x", nr, element, start > 0 ? "... " : "");
-> +	for (i = start; i < end; i++)
-> +		pr_cont("%x ", *(u8 *)(element + i));
-> +	pr_cont("%s\n", end < size ? "..." : "");
-> +	dump_stack();
-> +}
-
-"byte" wasn't a very useful identifier, and it's called "i" in
-check_slab_element().  Rename it to "offset" in both places?
-
-> +static void check_slab_element(mempool_t *pool, void *element)
-> +{
-> +	if (pool->free == mempool_free_slab || pool->free == mempool_kfree) {
-> +		size_t size = ksize(element);
-> +		u8 *obj = element;
-> +		size_t i;
-> +
-> +		for (i = 0; i < size; i++) {
-> +			u8 exp = (i < size - 1) ? POISON_FREE : POISON_END;
-> +
-> +			if (obj[i] != exp) {
-> +				poison_error(pool, element, size, i);
-> +				return;
-> +			}
-> +		}
-> +		memset(obj, POISON_INUSE, size);
-> +	}
-> +}
-
-I question the reuse of POISON_FREE/POISON_INUSE.  If this thing
-triggers, it may be hard to tell if it was due to a slab thing or to a
-mempool thing.  Using a distinct poison pattern for mempool would clear
-that up?
-
-> ...
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
