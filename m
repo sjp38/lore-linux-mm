@@ -1,63 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 1968D900017
-	for <linux-mm@kvack.org>; Sun, 15 Mar 2015 09:07:12 -0400 (EDT)
-Received: by oiaz123 with SMTP id z123so18404475oia.3
-        for <linux-mm@kvack.org>; Sun, 15 Mar 2015 06:07:11 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id bq16si922905oec.2.2015.03.15.06.07.10
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id BDB30900017
+	for <linux-mm@kvack.org>; Sun, 15 Mar 2015 10:23:37 -0400 (EDT)
+Received: by wgra20 with SMTP id a20so21208786wgr.3
+        for <linux-mm@kvack.org>; Sun, 15 Mar 2015 07:23:37 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t8si12503764wiz.124.2015.03.15.07.23.34
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 15 Mar 2015 06:07:11 -0700 (PDT)
-Subject: Re: [PATCH 1/2] mm: Allow small allocations to fail
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1426107294-21551-1-git-send-email-mhocko@suse.cz>
-	<1426107294-21551-2-git-send-email-mhocko@suse.cz>
-	<201503151443.CFE04129.MVFOOStLFHFOQJ@I-love.SAKURA.ne.jp>
-	<20150315121317.GA30685@dhcp22.suse.cz>
-In-Reply-To: <20150315121317.GA30685@dhcp22.suse.cz>
-Message-Id: <201503152206.AGJ22930.HOStFFFQLVMOOJ@I-love.SAKURA.ne.jp>
-Date: Sun, 15 Mar 2015 22:06:54 +0900
-Mime-Version: 1.0
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 15 Mar 2015 07:23:35 -0700 (PDT)
+Date: Sun, 15 Mar 2015 15:21:37 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH -next v2 0/4] mm: replace mmap_sem for mm->exe_file
+	serialization
+Message-ID: <20150315142137.GA21741@redhat.com>
+References: <1426372766-3029-1-git-send-email-dave@stgolabs.net>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1426372766-3029-1-git-send-email-dave@stgolabs.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.cz
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, david@fromorbit.com, mgorman@suse.de, riel@redhat.com, fengguang.wu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Davidlohr Bueso <dave@stgolabs.net>
+Cc: akpm@linux-foundation.org, viro@zeniv.linux.org.uk, gorcunov@openvz.org, koct9i@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Michal Hocko wrote:
-> On Sun 15-03-15 14:43:37, Tetsuo Handa wrote:
-> [...]
-> > If you want to count only those retries which involved OOM killer, you need
-> > to do like
-> > 
-> > -			nr_retries++;
-> > +			if (gfp_mask & __GFP_FS)
-> > +				nr_retries++;
-> > 
-> > in this patch.
-> 
-> No, we shouldn't create another type of hidden NOFAIL allocation like
-> this. I understand that the wording of the changelog might be confusing,
-> though.
-> 
-> It says: "This implementation counts only those retries which involved
-> OOM killer because we do not want to be too eager to fail the request."
-> 
-> Would it be more clear if I changed that to?
-> "This implemetnation counts only those retries when the system is
-> considered OOM because all previous reclaim attempts have resulted
-> in no progress because we do not want to be too eager to fail the
-> request."
-> 
-> We definitely _want_ to fail GFP_NOFS allocations.
+I didn't even read this version, but honestly I don't like it anyway.
 
-I see. The updated changelog is much more clear.
+I leave the review to Cyrill and Konstantin though, If they like these
+changes I won't argue.
 
-> -- 
-> Michal Hocko
-> SUSE Labs
-> 
+But I simply can't understand why are you doing this.
+
+
+
+Yes, this code needs cleanups, I agree. Does this series makes it better?
+To me it doesn't, and the diffstat below shows that it blows the code.
+
+In fact, to me it complicates this code. For example. Personally I think
+that MMF_EXE_FILE_CHANGED should die. And currently we can just remove it.
+Not after your patch which adds another dependency.
+
+
+
+Or do you think this is performance improvement? I don't think so. Yes,
+prctl() abuses mmap_sem, but this not a hot path and the task can only
+abuse its own ->mm.
+
+OK, I agree, dup_mm_exe_file() is horrible. But as I already said it can
+simply die. We can move this code into dup_mmap() and avoid another
+down_read/up_read.
+
+
+Hmm. And this series is simply wrong without more changes in audit paths.
+Unfortunately this is fixable, but let me NACK at least this version ;)
+
+
+Speaking of cleanups... IIRC Konstantin suggested to rcuify this pointer
+and I agree, this looks better than the new lock. But in fact I think
+that the cleanups should start with s/get_mm_exe_file//get_mm_exe_path/.
+Note that nobody actually needs "file *", every caller needs "struct path".
+Plus kill dup_mm_exe_file().
+
+Oleg.
+
+
+On 03/14, Davidlohr Bueso wrote:
+>
+> This is a set I created on top of patch 1/4 which also includes mm_struct cleanups
+> and dealing with prctl exe_file functionality. Specific details are in each patch.
+> Patch 4 is an extra trivial one I found while going through the code.
+>
+> Applies on top of next-20150313.
+>
+> Thanks!
+>
+> Davidlohr Bueso (4):
+>   mm: replace mmap_sem for mm->exe_file serialization
+>   mm: introduce struct exe_file
+>   prctl: move MMF_EXE_FILE_CHANGED into exe_file struct
+>   kernel/fork: use pr_alert() for rss counter bugs
+>
+>  fs/exec.c                |   6 +++
+>  include/linux/mm.h       |   4 ++
+>  include/linux/mm_types.h |   8 +++-
+>  include/linux/sched.h    |   5 +--
+>  kernel/fork.c            |  72 ++++++++++++++++++++++++++------
+>  kernel/sys.c             | 106 +++++++++++++++++++++++++++--------------------
+>  6 files changed, 141 insertions(+), 60 deletions(-)
+>
+> --
+> 2.1.4
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
