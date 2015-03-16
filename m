@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E01E6B0032
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 13:33:56 -0400 (EDT)
-Received: by wgra20 with SMTP id a20so45916013wgr.3
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 10:33:56 -0700 (PDT)
-Received: from mail-we0-x234.google.com (mail-we0-x234.google.com. [2a00:1450:400c:c03::234])
-        by mx.google.com with ESMTPS id eg10si19066180wjd.26.2015.03.16.10.33.54
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AF2C6B0032
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 13:51:16 -0400 (EDT)
+Received: by wibg7 with SMTP id g7so34194976wib.1
+        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 10:51:15 -0700 (PDT)
+Received: from mail-we0-x230.google.com (mail-we0-x230.google.com. [2a00:1450:400c:c03::230])
+        by mx.google.com with ESMTPS id hd7si19107444wib.85.2015.03.16.10.51.14
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Mar 2015 10:33:55 -0700 (PDT)
-Received: by webcq43 with SMTP id cq43so43601971web.2
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 10:33:54 -0700 (PDT)
+        Mon, 16 Mar 2015 10:51:14 -0700 (PDT)
+Received: by wegp1 with SMTP id p1so43925154weg.1
+        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 10:51:14 -0700 (PDT)
 From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH v4 3/5] stacktrace: add seq_print_stack_trace()
-In-Reply-To: <19b2815dbb60bfd38d17596a3d466637ee44c9a5.1426521377.git.s.strogin@partner.samsung.com>
-References: <cover.1426521377.git.s.strogin@partner.samsung.com> <19b2815dbb60bfd38d17596a3d466637ee44c9a5.1426521377.git.s.strogin@partner.samsung.com>
-Date: Mon, 16 Mar 2015 18:33:50 +0100
-Message-ID: <xa1toansoni9.fsf@mina86.com>
+Subject: Re: [PATCH v4 4/5] mm: cma: add list of currently allocated CMA buffers to debugfs
+In-Reply-To: <857357c314922e0d6f1d963ab74e5e4de5635799.1426521377.git.s.strogin@partner.samsung.com>
+References: <cover.1426521377.git.s.strogin@partner.samsung.com> <857357c314922e0d6f1d963ab74e5e4de5635799.1426521377.git.s.strogin@partner.samsung.com>
+Date: Mon, 16 Mar 2015 18:51:10 +0100
+Message-ID: <xa1tlhiwompd.fsf@mina86.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
@@ -26,82 +26,69 @@ To: Stefan Strogin <s.strogin@partner.samsung.com>, linux-mm@kvack.org, linux-ke
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Dmitry Safonov <d.safonov@partner.samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Minchan Kim <minchan@kernel.org>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>, Aleksei Mateosian <a.mateosian@samsung.com>, gregory.0xf0@gmail.com, sasha.levin@oracle.com, gioh.kim@lge.com, pavel@ucw.cz, stefan.strogin@gmail.com
 
 On Mon, Mar 16 2015, Stefan Strogin wrote:
-> Add a function seq_print_stack_trace() which prints stacktraces to seq_fi=
-les.
+> When CONFIG_CMA_BUFFER_LIST is configured a file is added to debugfs:
+> /sys/kernel/debug/cma/cma-<N>/buffers contains a list of currently alloca=
+ted
+> CMA buffers for each CMA region (N stands for number of CMA region).
+>
+> Format is:
+> <base_phys_addr> - <end_phys_addr> (<size> kB), allocated by <PID> (<comm=
+>)
+>
+> When CONFIG_CMA_ALLOC_STACKTRACE is configured then stack traces are save=
+d when
+> the allocations are made. The stack traces are added to cma/cma-<N>/buffe=
+rs
+> for each buffer list entry.
+>
+> Example:
+>
+> root@debian:/sys/kernel/debug/cma# cat cma-0/buffers
+> 0x2f400000 - 0x2f417000 (92 kB), allocated by pid 1 (swapper/0)
+>  [<c1142c4b>] cma_alloc+0x1bb/0x200
+>  [<c143d28a>] dma_alloc_from_contiguous+0x3a/0x40
+>  [<c10079d9>] dma_generic_alloc_coherent+0x89/0x160
+>  [<c14456ce>] dmam_alloc_coherent+0xbe/0x100
+>  [<c1487312>] ahci_port_start+0xe2/0x210
+>  [<c146e0e0>] ata_host_start.part.28+0xc0/0x1a0
+>  [<c1473650>] ata_host_activate+0xd0/0x110
+>  [<c14881bf>] ahci_host_activate+0x3f/0x170
+>  [<c14854e4>] ahci_init_one+0x764/0xab0
+>  [<c12e415f>] pci_device_probe+0x6f/0xd0
+>  [<c14378a8>] driver_probe_device+0x68/0x210
+>  [<c1437b09>] __driver_attach+0x79/0x80
+>  [<c1435eef>] bus_for_each_dev+0x4f/0x80
+>  [<c143749e>] driver_attach+0x1e/0x20
+>  [<c1437197>] bus_add_driver+0x157/0x200
+>  [<c14381bd>] driver_register+0x5d/0xf0
+> <...>
 >
 > Signed-off-by: Stefan Strogin <stefan.strogin@gmail.com>
-> Reviewed-by: SeongJae Park <sj38.park@gmail.com>
 
 Acked-by: Michal Nazarewicz <mina86@mina86.com>
 
-> ---
->  include/linux/stacktrace.h |  4 ++++
->  kernel/stacktrace.c        | 17 +++++++++++++++++
->  2 files changed, 21 insertions(+)
->
-> diff --git a/include/linux/stacktrace.h b/include/linux/stacktrace.h
-> index 0a34489..d80f2e9 100644
-> --- a/include/linux/stacktrace.h
-> +++ b/include/linux/stacktrace.h
-> @@ -2,6 +2,7 @@
->  #define __LINUX_STACKTRACE_H
+> @@ -127,6 +240,93 @@ static int cma_alloc_write(void *data, u64 val)
 >=20=20
->  #include <linux/types.h>
-> +#include <linux/seq_file.h>
+>  DEFINE_SIMPLE_ATTRIBUTE(cma_alloc_fops, NULL, cma_alloc_write, "%llu\n");
 >=20=20
->  struct task_struct;
->  struct pt_regs;
-> @@ -22,6 +23,8 @@ extern void save_stack_trace_tsk(struct task_struct *ts=
-k,
->  extern void print_stack_trace(struct stack_trace *trace, int spaces);
->  extern int snprint_stack_trace(char *buf, size_t size,
->  			struct stack_trace *trace, int spaces);
-> +extern void seq_print_stack_trace(struct seq_file *m,
-> +			struct stack_trace *trace, int spaces);
->=20=20
->  #ifdef CONFIG_USER_STACKTRACE_SUPPORT
->  extern void save_stack_trace_user(struct stack_trace *trace);
-> @@ -35,6 +38,7 @@ extern void save_stack_trace_user(struct stack_trace *t=
-race);
->  # define save_stack_trace_user(trace)			do { } while (0)
->  # define print_stack_trace(trace, spaces)		do { } while (0)
->  # define snprint_stack_trace(buf, size, trace, spaces)	do { } while (0)
-> +# define seq_print_stack_trace(m, trace, spaces)	do { } while (0)
->  #endif
->=20=20
->  #endif
-> diff --git a/kernel/stacktrace.c b/kernel/stacktrace.c
-> index b6e4c16..66ef6f4 100644
-> --- a/kernel/stacktrace.c
-> +++ b/kernel/stacktrace.c
-> @@ -57,6 +57,23 @@ int snprint_stack_trace(char *buf, size_t size,
->  }
->  EXPORT_SYMBOL_GPL(snprint_stack_trace);
->=20=20
-> +void seq_print_stack_trace(struct seq_file *m, struct stack_trace *trace,
-> +			int spaces)
+> +#ifdef CONFIG_CMA_BUFFER_LIST
+> +static void *s_start(struct seq_file *seq, loff_t *ppos)
 > +{
-> +	int i;
+> +	struct cma *cma =3D seq->private;
+> +	struct cma_buffer *cmabuf;
+> +	loff_t n =3D *ppos;
 > +
-> +	if (WARN_ON(!trace->entries))
-> +		return;
+> +	mutex_lock(&cma->list_lock);
+> +	cmabuf =3D list_first_entry(&cma->buffer_list, typeof(*cmabuf), list);
+> +	list_for_each_entry(cmabuf, &cma->buffer_list, list)
+> +		if (n-- =3D=3D 0)
+> +			return cmabuf;
 > +
-> +	for (i =3D 0; i < trace->nr_entries; i++) {
-> +		unsigned long ip =3D trace->entries[i];
-> +
-> +		seq_printf(m, "%*c[<%p>] %pS\n", 1 + spaces, ' ',
-> +				(void *) ip, (void *) ip);
-> +	}
+> +	return 0;
+
+	return NULL;
+
 > +}
-> +EXPORT_SYMBOL_GPL(seq_print_stack_trace);
-> +
->  /*
->   * Architectures that do not implement save_stack_trace_tsk or
->   * save_stack_trace_regs get this weak alias and a once-per-bootup warni=
-ng
-> --=20
-> 2.1.0
->
 
 --=20
 Best regards,                                         _     _
