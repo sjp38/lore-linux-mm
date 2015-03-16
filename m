@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 0779B6B0070
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 19:53:55 -0400 (EDT)
-Received: by pdbop1 with SMTP id op1so72136949pdb.2
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 16:53:54 -0700 (PDT)
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D7C16B0071
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 19:53:56 -0400 (EDT)
+Received: by pabyw6 with SMTP id yw6so79314605pab.2
+        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 16:53:56 -0700 (PDT)
 Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id og4si18695953pdb.24.2015.03.16.16.53.52
+        by mx.google.com with ESMTPS id xh9si25456881pab.119.2015.03.16.16.53.54
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 16 Mar 2015 16:53:54 -0700 (PDT)
+        Mon, 16 Mar 2015 16:53:55 -0700 (PDT)
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH V2 3/4] hugetlbfs: accept subpool min_size mount option and setup accordingly
-Date: Mon, 16 Mar 2015 16:53:28 -0700
-Message-Id: <cfcd697cffc0f3500ecdb3371350a2613ee22f2e.1426549011.git.mike.kravetz@oracle.com>
+Subject: [PATCH V2 4/4] hugetlbfs: document min_size mount option
+Date: Mon, 16 Mar 2015 16:53:29 -0700
+Message-Id: <3c82f2203e5453ddf3b29431863034afc7699303.1426549011.git.mike.kravetz@oracle.com>
 In-Reply-To: <cover.1426549010.git.mike.kravetz@oracle.com>
 References: <cover.1426549010.git.mike.kravetz@oracle.com>
 In-Reply-To: <cover.1426549010.git.mike.kravetz@oracle.com>
@@ -22,238 +22,52 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-Make 'min_size=' be an option when mounting a hugetlbfs.  This option
-takes the same value as the 'size' option.  min_size can be specified
-with specifying size.  If both are specified, min_size must be less
-that or equal to size else the mount will fail.  If min_size is
-specified, then at mount time an attempt is made to reserve min_size
-pages.  If the reservation fails, the mount fails.  At umount time,
-the reserved pages are released.
+Update documentation for the hugetlbfs min_size mount option.
 
 Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 ---
- fs/hugetlbfs/inode.c    | 75 ++++++++++++++++++++++++++++++++++++++-----------
- include/linux/hugetlb.h |  3 +-
- mm/hugetlb.c            | 26 +++++++++++++----
- 3 files changed, 80 insertions(+), 24 deletions(-)
+ Documentation/vm/hugetlbpage.txt | 21 ++++++++++++++-------
+ 1 file changed, 14 insertions(+), 7 deletions(-)
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 5eba47f..7a20a1b 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -50,6 +50,7 @@ struct hugetlbfs_config {
- 	long	nr_blocks;
- 	long	nr_inodes;
- 	struct hstate *hstate;
-+	long    min_size;
- };
+diff --git a/Documentation/vm/hugetlbpage.txt b/Documentation/vm/hugetlbpage.txt
+index f2d3a10..83c0305 100644
+--- a/Documentation/vm/hugetlbpage.txt
++++ b/Documentation/vm/hugetlbpage.txt
+@@ -267,8 +267,8 @@ call, then it is required that system administrator mount a file system of
+ type hugetlbfs:
  
- struct hugetlbfs_inode_info {
-@@ -73,7 +74,7 @@ int sysctl_hugetlb_shm_group;
- enum {
- 	Opt_size, Opt_nr_inodes,
- 	Opt_mode, Opt_uid, Opt_gid,
--	Opt_pagesize,
-+	Opt_pagesize, Opt_min_size,
- 	Opt_err,
- };
+   mount -t hugetlbfs \
+-	-o uid=<value>,gid=<value>,mode=<value>,size=<value>,nr_inodes=<value> \
+-	none /mnt/huge
++	-o uid=<value>,gid=<value>,mode=<value>,size=<value>,min_size=<value>, \
++	nr_inodes=<value> none /mnt/huge
  
-@@ -84,6 +85,7 @@ static const match_table_t tokens = {
- 	{Opt_uid,	"uid=%u"},
- 	{Opt_gid,	"gid=%u"},
- 	{Opt_pagesize,	"pagesize=%s"},
-+	{Opt_min_size,	"min_size=%s"},
- 	{Opt_err,	NULL},
- };
+ This command mounts a (pseudo) filesystem of type hugetlbfs on the directory
+ /mnt/huge.  Any files created on /mnt/huge uses huge pages.  The uid and gid
+@@ -277,11 +277,18 @@ the uid and gid of the current process are taken.  The mode option sets the
+ mode of root of file system to value & 01777.  This value is given in octal.
+ By default the value 0755 is picked. The size option sets the maximum value of
+ memory (huge pages) allowed for that filesystem (/mnt/huge). The size is
+-rounded down to HPAGE_SIZE.  The option nr_inodes sets the maximum number of
+-inodes that /mnt/huge can use.  If the size or nr_inodes option is not
+-provided on command line then no limits are set.  For size and nr_inodes
+-options, you can use [G|g]/[M|m]/[K|k] to represent giga/mega/kilo. For
+-example, size=2K has the same meaning as size=2048.
++rounded down to HPAGE_SIZE.  The min_size option sets the minimum value of
++memory (huge pages) allowed for the filesystem.  Like the size option,
++min_size is rounded down to HPAGE_SIZE.  At mount time, the number of huge
++pages specified by min_size are reserved for use by the filesystem.  If
++there are not enough free huge pages available, the mount will fail.  As
++huge pages are allocated to the filesystem and freed, the reserve count
++is adjusted so that the sum of allocated and reserved huge pages is always
++at least min_size.  The option nr_inodes sets the maximum number of
++inodes that /mnt/huge can use.  If the size, min_size or nr_inodes option
++is not provided on command line then no limits are set.  For size, min_size
++and nr_inodes options, you can use [G|g]/[M|m]/[K|k] to represent
++giga/mega/kilo. For example, size=2K has the same meaning as size=2048.
  
-@@ -761,14 +763,32 @@ static const struct super_operations hugetlbfs_ops = {
- 	.show_options	= generic_show_options,
- };
- 
-+enum { NO_SIZE, SIZE_STD, SIZE_PERCENT };
-+
-+static bool
-+hugetlbfs_options_setsize(struct hstate *h, long long *size, int setsize)
-+{
-+	if (setsize == NO_SIZE)
-+		return false;
-+
-+	if (setsize == SIZE_PERCENT) {
-+		*size <<= huge_page_shift(h);
-+		*size *= h->max_huge_pages;
-+		do_div(*size, 100);
-+	}
-+
-+	*size >>= huge_page_shift(h);
-+	return true;
-+}
-+
- static int
- hugetlbfs_parse_options(char *options, struct hugetlbfs_config *pconfig)
- {
- 	char *p, *rest;
- 	substring_t args[MAX_OPT_ARGS];
- 	int option;
--	unsigned long long size = 0;
--	enum { NO_SIZE, SIZE_STD, SIZE_PERCENT } setsize = NO_SIZE;
-+	unsigned long long max_size = 0, min_size = 0;
-+	int max_setsize = NO_SIZE, min_setsize = NO_SIZE;
- 
- 	if (!options)
- 		return 0;
-@@ -806,10 +826,10 @@ hugetlbfs_parse_options(char *options, struct hugetlbfs_config *pconfig)
- 			/* memparse() will accept a K/M/G without a digit */
- 			if (!isdigit(*args[0].from))
- 				goto bad_val;
--			size = memparse(args[0].from, &rest);
--			setsize = SIZE_STD;
-+			max_size = memparse(args[0].from, &rest);
-+			max_setsize = SIZE_STD;
- 			if (*rest == '%')
--				setsize = SIZE_PERCENT;
-+				max_setsize = SIZE_PERCENT;
- 			break;
- 		}
- 
-@@ -832,6 +852,17 @@ hugetlbfs_parse_options(char *options, struct hugetlbfs_config *pconfig)
- 			break;
- 		}
- 
-+		case Opt_min_size: {
-+			/* memparse() will accept a K/M/G without a digit */
-+			if (!isdigit(*args[0].from))
-+				goto bad_val;
-+			min_size = memparse(args[0].from, &rest);
-+			min_setsize = SIZE_STD;
-+			if (*rest == '%')
-+				min_setsize = SIZE_PERCENT;
-+			break;
-+		}
-+
- 		default:
- 			pr_err("Bad mount option: \"%s\"\n", p);
- 			return -EINVAL;
-@@ -839,15 +870,17 @@ hugetlbfs_parse_options(char *options, struct hugetlbfs_config *pconfig)
- 		}
- 	}
- 
--	/* Do size after hstate is set up */
--	if (setsize > NO_SIZE) {
--		struct hstate *h = pconfig->hstate;
--		if (setsize == SIZE_PERCENT) {
--			size <<= huge_page_shift(h);
--			size *= h->max_huge_pages;
--			do_div(size, 100);
--		}
--		pconfig->nr_blocks = (size >> huge_page_shift(h));
-+	/* Calculate number of huge pages based on hstate */
-+	if (hugetlbfs_options_setsize(pconfig->hstate, &max_size, max_setsize))
-+		pconfig->nr_blocks = max_size;
-+	if (hugetlbfs_options_setsize(pconfig->hstate, &min_size, min_setsize))
-+		pconfig->min_size = min_size;
-+
-+	/* If max_size specified, then min_size must be smaller */
-+	if (max_setsize > NO_SIZE && min_setsize > NO_SIZE &&
-+	    pconfig->min_size > pconfig->nr_blocks) {
-+		pr_err("minimum size can not be greater than maximum size\n");
-+		return -EINVAL;
- 	}
- 
- 	return 0;
-@@ -872,6 +905,7 @@ hugetlbfs_fill_super(struct super_block *sb, void *data, int silent)
- 	config.gid = current_fsgid();
- 	config.mode = 0755;
- 	config.hstate = &default_hstate;
-+	config.min_size = 0; /* No default minimum size */
- 	ret = hugetlbfs_parse_options(data, &config);
- 	if (ret)
- 		return ret;
-@@ -885,8 +919,15 @@ hugetlbfs_fill_super(struct super_block *sb, void *data, int silent)
- 	sbinfo->max_inodes = config.nr_inodes;
- 	sbinfo->free_inodes = config.nr_inodes;
- 	sbinfo->spool = NULL;
--	if (config.nr_blocks != -1) {
--		sbinfo->spool = hugepage_new_subpool(config.nr_blocks);
-+	/*
-+	 * Allocate and initialize subpool if maximum or minimum size is
-+	 * specified.  Any needed reservations (for minimim size) are taken
-+	 * taken when the subpool is created.
-+	 */
-+	if (config.nr_blocks != -1 || config.min_size != 0) {
-+		sbinfo->spool = hugepage_new_subpool(config.hstate,
-+							config.nr_blocks,
-+							config.min_size);
- 		if (!sbinfo->spool)
- 			goto out_free;
- 	}
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index cfe13fd..6883fca 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -40,7 +40,8 @@ extern int hugetlb_max_hstate __read_mostly;
- #define for_each_hstate(h) \
- 	for ((h) = hstates; (h) < &hstates[hugetlb_max_hstate]; (h)++)
- 
--struct hugepage_subpool *hugepage_new_subpool(long nr_blocks);
-+struct hugepage_subpool *hugepage_new_subpool(struct hstate *h, long nr_blocks,
-+						long min_size);
- void hugepage_put_subpool(struct hugepage_subpool *spool);
- 
- int PageHuge(struct page *page);
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index ab2ea1e..7d4be33 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -61,6 +61,9 @@ DEFINE_SPINLOCK(hugetlb_lock);
- static int num_fault_mutexes;
- static struct mutex *htlb_fault_mutex_table ____cacheline_aligned_in_smp;
- 
-+/* Forward declaration */
-+static int hugetlb_acct_memory(struct hstate *h, long delta);
-+
- static inline void unlock_or_release_subpool(struct hugepage_subpool *spool)
- {
- 	bool free = (spool->count == 0) && (spool->used_hpages == 0);
-@@ -68,12 +71,18 @@ static inline void unlock_or_release_subpool(struct hugepage_subpool *spool)
- 	spin_unlock(&spool->lock);
- 
- 	/* If no pages are used, and no other handles to the subpool
--	 * remain, free the subpool the subpool remain */
--	if (free)
-+	 * remain, give up any reservations mased on minimum size and
-+	 * free the subpool */
-+	if (free) {
-+		if (spool->min_hpages)
-+			hugetlb_acct_memory(spool->hstate,
-+						-spool->min_hpages);
- 		kfree(spool);
-+	}
- }
- 
--struct hugepage_subpool *hugepage_new_subpool(long nr_blocks)
-+struct hugepage_subpool *hugepage_new_subpool(struct hstate *h, long nr_blocks,
-+						long min_size)
- {
- 	struct hugepage_subpool *spool;
- 
-@@ -85,9 +94,14 @@ struct hugepage_subpool *hugepage_new_subpool(long nr_blocks)
- 	spool->count = 1;
- 	spool->max_hpages = nr_blocks;
- 	spool->used_hpages = 0;
--	spool->hstate = NULL;
--	spool->min_hpages = 0;
--	spool->rsv_hpages = 0;
-+	spool->hstate = h;
-+	spool->min_hpages = min_size;
-+
-+	if (min_size && hugetlb_acct_memory(h, min_size)) {
-+		kfree(spool);
-+		return NULL;
-+	}
-+	spool->rsv_hpages = min_size;
- 
- 	return spool;
- }
+ While read system calls are supported on files that reside on hugetlb
+ file systems, write system calls are not.
 -- 
 2.1.0
 
