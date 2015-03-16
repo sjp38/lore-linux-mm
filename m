@@ -1,91 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f176.google.com (mail-vc0-f176.google.com [209.85.220.176])
-	by kanga.kvack.org (Postfix) with ESMTP id D09486B0038
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 18:08:41 -0400 (EDT)
-Received: by mail-vc0-f176.google.com with SMTP id kv19so2659196vcb.7
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 15:08:41 -0700 (PDT)
-Received: from mail-vc0-x230.google.com (mail-vc0-x230.google.com. [2607:f8b0:400c:c03::230])
-        by mx.google.com with ESMTPS id e10si11052896vdw.92.2015.03.16.15.08.40
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id C73D86B0038
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 18:38:45 -0400 (EDT)
+Received: by pdbcz9 with SMTP id cz9so70606389pdb.3
+        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 15:38:45 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id ff7si25176330pac.120.2015.03.16.15.38.44
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Mar 2015 15:08:41 -0700 (PDT)
-Received: by mail-vc0-f176.google.com with SMTP id kv19so2659175vcb.7
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 15:08:40 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20150315170521.GA2278@moon>
-References: <1426372766-3029-1-git-send-email-dave@stgolabs.net>
-	<20150315142137.GA21741@redhat.com>
-	<1426431270.28068.92.camel@stgolabs.net>
-	<20150315152652.GA24590@redhat.com>
-	<1426434125.28068.100.camel@stgolabs.net>
-	<20150315170521.GA2278@moon>
-Date: Mon, 16 Mar 2015 15:08:40 -0700
-Message-ID: <CAGXu5j+S1iw6VCjqfS_sPTOjNz8XAy0kkFD7dTvvTTgagx-PMA@mail.gmail.com>
-Subject: Re: [PATCH -next v2 0/4] mm: replace mmap_sem for mm->exe_file serialization
-From: Kees Cook <keescook@chromium.org>
-Content-Type: text/plain; charset=UTF-8
+        Mon, 16 Mar 2015 15:38:44 -0700 (PDT)
+Date: Mon, 16 Mar 2015 15:38:43 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/2] Move away from non-failing small allocations
+Message-Id: <20150316153843.af945a9e452404c22c4db999@linux-foundation.org>
+In-Reply-To: <1426107294-21551-1-git-send-email-mhocko@suse.cz>
+References: <1426107294-21551-1-git-send-email-mhocko@suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>
-Cc: Davidlohr Bueso <dave@stgolabs.net>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, koct9i@gmail.com, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <david@fromorbit.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On Sun, Mar 15, 2015 at 10:05 AM, Cyrill Gorcunov <gorcunov@gmail.com> wrote:
-> On Sun, Mar 15, 2015 at 08:42:05AM -0700, Davidlohr Bueso wrote:
->> > > > Yes, this code needs cleanups, I agree. Does this series makes it better?
->> > > > To me it doesn't, and the diffstat below shows that it blows the code.
->> > >
->> > > Looking at some of the caller paths now, I have to disagree.
->> >
->> > And I believe you are wrong. But let me repeat, I leave this to Cyrill
->> > and Konstantin. Cleanups are always subjective.
->> >
->> > > > In fact, to me it complicates this code. For example. Personally I think
->> > > > that MMF_EXE_FILE_CHANGED should die. And currently we can just remove it.
->> > >
->> > > How could you remove this?
->> >
->> > Just remove this flag and the test_and_set_bit(MMF_EXE_FILE_CHANGED) check.
->> > Again, this is subjective, but to me it looks ugly. Why do we allow to
->> > change ->exe_file but only once?
->
-> This came from very first versions of the functionality implemented
-> in prctl. It supposed to help sysadmins to notice if there exe
-> transition happened. As to me it doesn't bring much security, if I
-> would be a virus I would simply replace executing code with ptrace
-> or via other ways without telling outside world that i've changed
-> exe path. That said I would happily rip off this MMF_EXE_FILE_CHANGED
-> bit but I fear security guys won't be that happy about it.
-> (CC'ing Kees)
->
-> As to series as a "cleanup" in general -- we need to measure that
-> at least it doesn't bring perf downgrade at least.
->
->> Ok I think I am finally seeing where you are going. And I like it *a
->> lot* because it allows us to basically replace mmap_sem with rcu
->> (MMF_EXE_FILE_CHANGED being the only user that requires a lock!!), but
->> am afraid it might not be possible. I mean currently we have no rule wrt
->> to users that don't deal with prctl.
->>
->> Forbidding multiple exe_file changes to be generic would certainly
->> change address space semantics, probably for the better (tighter around
->> security), but changed nonetheless so users would have a right to
->> complain, no? So if we can get away with removing MMF_EXE_FILE_CHANGED
->> I'm all for it. Andrew?
+On Wed, 11 Mar 2015 16:54:52 -0400 Michal Hocko <mhocko@suse.cz> wrote:
 
-I can't figure out why MMF_EXE_FILE_CHANGED is used to stop a second
-change. But it does seem useful to mark a process as "hey, we know for
-sure this the exe_file changed on this process" from an accounting
-perspective.
+> as per discussion at LSF/MM summit few days back it seems there is a
+> general agreement on moving away from "small allocations do not fail"
+> concept.
 
-And I'd agree about the malware: it would never use this interface, so
-there's no security benefit I can see. Maybe I haven't had enough
-coffee, though. :)
+Such a change affects basically every part of the kernel and every
+kernel developer.  I expect most developers will say "it works well
+enough and I'm not getting any bug reports so why should I spend time
+on this?".  It would help if we were to explain the justification very
+clearly.  https://lwn.net/Articles/636017/ is Jon's writeup of the
+conference discussion.
 
--Kees
+Realistically, I don't think this overall effort will be successful -
+we'll add the knob, it won't get enough testing and any attempt to
+alter the default will be us deliberately destabilizing the kernel
+without knowing how badly :(
 
--- 
-Kees Cook
-Chrome OS Security
+
+I wonder if we can alter the behaviour only for filesystem code, so we
+constrain the new behaviour just to that code where we're having
+problems.  Most/all fs code goes via vfs methods so there's a reasonably
+small set of places where we can call
+
+static inline void enter_fs_code(struct super_block *sb)
+{
+	if (sb->my_small_allocations_can_fail)
+		current->small_allocations_can_fail++;
+}
+
+that way (or something similar) we can select the behaviour on a per-fs
+basis and the rest of the kernel remains unaffected.  Other subsystems
+can opt in as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
