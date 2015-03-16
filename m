@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f52.google.com (mail-oi0-f52.google.com [209.85.218.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 553966B0038
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 17:05:00 -0400 (EDT)
-Received: by oier21 with SMTP id r21so49086172oie.1
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 14:05:00 -0700 (PDT)
-Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
-        by mx.google.com with ESMTPS id os8si6233661oeb.103.2015.03.16.14.04.59
+Received: from mail-oi0-f44.google.com (mail-oi0-f44.google.com [209.85.218.44])
+	by kanga.kvack.org (Postfix) with ESMTP id AF8826B0038
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 17:09:24 -0400 (EDT)
+Received: by oibu204 with SMTP id u204so49144721oib.0
+        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 14:09:24 -0700 (PDT)
+Received: from g4t3427.houston.hp.com (g4t3427.houston.hp.com. [15.201.208.55])
+        by mx.google.com with ESMTPS id q1si6257485oed.4.2015.03.16.14.09.23
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Mar 2015 14:04:59 -0700 (PDT)
+        Mon, 16 Mar 2015 14:09:23 -0700 (PDT)
 From: "Kani, Toshimitsu" <toshi.kani@hp.com>
-Subject: Re: [PATCH v3 2/5] mtrr, x86: Fix MTRR lookup to handle inclusive
- entry
-Date: Mon, 16 Mar 2015 21:03:52 +0000
-Message-ID: <B75F1944-155A-4DAF-9382-A2E5596E9E19@hp.com>
+Subject: Re: [PATCH v3 3/5] mtrr, x86: Fix MTRR state checks in
+ mtrr_type_lookup()
+Date: Mon, 16 Mar 2015 21:08:16 +0000
+Message-ID: <06AEC393-4271-46BB-913E-4909C3ED0C08@hp.com>
 References: <1426282421-25385-1-git-send-email-toshi.kani@hp.com>
- <1426282421-25385-3-git-send-email-toshi.kani@hp.com>,<20150316074954.GA15955@gmail.com>
-In-Reply-To: <20150316074954.GA15955@gmail.com>
+ <1426282421-25385-4-git-send-email-toshi.kani@hp.com>,<20150316075139.GB15955@gmail.com>
+In-Reply-To: <20150316075139.GB15955@gmail.com>
 Content-Language: en-US
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
@@ -27,36 +27,43 @@ To: Ingo Molnar <mingo@kernel.org>
 Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@redhat.com" <mingo@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dave.hansen@intel.com" <dave.hansen@intel.com>, "Elliott, Robert (Server
  Storage)" <Elliott@hp.com>, "pebolle@tiscali.nl" <pebolle@tiscali.nl>
 
-> On Mar 16, 2015, at 3:50 AM, Ingo Molnar <mingo@kernel.org> wrote:
+> On Mar 16, 2015, at 3:51 AM, Ingo Molnar <mingo@kernel.org> wrote:
 >=20
 >=20
 > * Toshi Kani <toshi.kani@hp.com> wrote:
 >=20
->> When an MTRR entry is inclusive to a requested range, i.e.
->> the start and end of the request are not within the MTRR
->> entry range but the range contains the MTRR entry entirely,
->> __mtrr_type_lookup() ignores such a case because both
->> start_state and end_state are set to zero.
+>> 'mtrr_state.enabled' contains FE (fixed MTRRs enabled) and
+>> E (MTRRs enabled) flags in MSR_MTRRdefType.  Intel SDM,
+>> section 11.11.2.1, defines these flags as follows:
+>> - All MTRRs are disabled when the E flag is clear.
+>>   The FE flag has no affect when the E flag is clear.
+>> - The default type is enabled when the E flag is set.
+>> - MTRR variable ranges are enabled when the E flag is set.
+>> - MTRR fixed ranges are enabled when both E and FE flags
+>>   are set.
 >>=20
->> This patch fixes the issue by adding a new flag, 'inclusive',
->> to detect the case.  This case is then handled in the same
->> way as (!start_state && end_state).
+>> MTRR state checks in __mtrr_type_lookup() do not follow the
+>> SDM definitions.  Therefore, this patch fixes the MTRR state
+>> checks according to the SDM.  This patch defines the flags
+>> in mtrr_state.enabled as follows.  print_mtrr_state() is also
+>> updated.
+>> - FE flag: MTRR_STATE_MTRR_FIXED_ENABLED
+>> - E  flag: MTRR_STATE_MTRR_ENABLED
+>>=20
+>> Lastly, this patch fixes the 'else if (start < 0x1000000)',
+>> which checks a fixed range but has an extra-zero in the
+>> address, to 'else' with no condition.
 >=20
-> It would be nice to discuss the high level effects of this fix in the=20
-> changelog: i.e. what (presumably bad thing) happened before the=20
-> change, what will happen after the change? What did users experience=20
-> before the patch, and what will users experience after the patch?
+> Firstly, this does multiple bug fixes in a single patch, which is a=20
+> no-no: please split it up into separate patches.
 
-The original code uses this function to track=20
-memory attributes of ioremap'd ranges=20
-in order to avoid
-any aliasing.
-So, ignoring MTRR entries leads a tracked=20
-memory attribute different from its effective=20
-memory attribute.  I will document more=20
-details in the next version.
+Right.  I will split into two patches.
 
-I will update the patchset next week.
+> Secondly, please also outline the differences between the old code and=20
+> the new code - don't just list the SDM logic and state that we are=20
+> updating to it.
+
+Yes, I will update the patch log accordingly.
 
 Thanks,
 -Toshi
