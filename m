@@ -1,58 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id CEA3F6B0072
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 12:37:19 -0400 (EDT)
-Received: by qgh62 with SMTP id 62so45020249qgh.1
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 09:37:19 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a17si10403434qkh.61.2015.03.16.09.37.18
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BEEB6B0032
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 13:04:17 -0400 (EDT)
+Received: by wibdy8 with SMTP id dy8so42971011wib.0
+        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 10:04:16 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id cg6si18910680wib.56.2015.03.16.10.04.14
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Mar 2015 09:37:19 -0700 (PDT)
-Date: Mon, 16 Mar 2015 17:35:21 +0100
-From: Oleg Nesterov <oleg@redhat.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 16 Mar 2015 10:04:15 -0700 (PDT)
+Message-ID: <1426525448.28068.121.camel@stgolabs.net>
 Subject: Re: [PATCH] mm: rcu-protected get_mm_exe_file()
-Message-ID: <20150316163521.GA9306@redhat.com>
-References: <20150316131257.32340.36600.stgit@buzz> <20150316140720.GA1859@redhat.com> <550701BE.40100@yandex-team.ru>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <550701BE.40100@yandex-team.ru>
+From: Davidlohr Bueso <dave@stgolabs.net>
+Date: Mon, 16 Mar 2015 10:04:08 -0700
+In-Reply-To: <5507023B.4090905@yandex-team.ru>
+References: <20150316131257.32340.36600.stgit@buzz>
+	 <20150316140720.GA1859@redhat.com>
+	 <1426517419.28068.118.camel@stgolabs.net> <5507023B.4090905@yandex-team.ru>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>, Al Viro <viro@zeniv.linux.org.uk>
+Cc: Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>
 
-On 03/16, Konstantin Khlebnikov wrote:
->
-> On 16.03.2015 17:07, Oleg Nesterov wrote:
->> I mean, I think we can do another cleanup on top of this change.
->>
->> 	1. set_mm_exe_file() should be called by exit/exec only, so
->> 	   it should use
->>
->> 		rcu_dereference_protected(mm->exe_file,
->> 					atomic_read(&mm->mm_users) <= 1);
->>
->> 	2. prctl() should not use it, it can do
->>
->> 	   get_file(new_exe);
->> 	   old_exe = xchg(&mm->exe_file);
->> 	   if (old_exe)
->> 	   	fput(old_exe);
->
-> I think smp_mb() is required before xchg() or
-> probably this stuff should be hidden inside yet another magic RCU macro
-> ( with two screens of comments =)
+On Mon, 2015-03-16 at 19:18 +0300, Konstantin Khlebnikov wrote:
+> On 16.03.2015 17:50, Davidlohr Bueso wrote:
+> > On Mon, 2015-03-16 at 15:07 +0100, Oleg Nesterov wrote:
+> >> 	3. and we can remove down_write(mmap_sem) from prctl paths.
+> >>
+> >> 	   Actually we can do this even without xchg() above, but we might
+> >> 	   want to kill MMF_EXE_FILE_CHANGED and test_and_set_bit() check.
+> >
+> > Yeah I was waiting for security folks input about this, otherwise this
+> > still doesn't do it for me as we still have to deal with mmap_sem.
+> >
+> 
+> Why? mm->flags are updated atomically. mmap_sem isn't required here.
 
-Not really, xchg() implies mb's on both sides. As any other atomic operation
-which returns the result.
-
-(And in fact we do not even need rcu_assign_pointer() in set_mm_exe_file(),
- get_mm_exe_file() could do READ_ONCE() + inc_not_zero(). But this is off-
- topic, and of course rcu_* helpers look better)
-
-Oleg.
+Right, nm I was thinking of the set but Oleg's xchg() idea is obviously
+correct and a much better approach to mine. The only thing I'd suggest
+is explicitly commenting the lockless get_mm_exe_file callers, if
+useful, you can take it from my patch 1.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
