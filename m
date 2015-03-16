@@ -1,153 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 1482C6B0032
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 05:29:24 -0400 (EDT)
-Received: by igbue6 with SMTP id ue6so36308019igb.1
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 02:29:23 -0700 (PDT)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id z12si21188677pas.241.2015.03.16.02.29.22
+Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
+	by kanga.kvack.org (Postfix) with ESMTP id C13736B0032
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 06:14:07 -0400 (EDT)
+Received: by wegp1 with SMTP id p1so34270881weg.1
+        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 03:14:07 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ev20si16933589wjc.79.2015.03.16.03.14.05
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 16 Mar 2015 02:29:23 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] tracing: add trace event for memory-failure
-Date: Mon, 16 Mar 2015 09:27:08 +0000
-Message-ID: <20150316092708.GC15902@hori1.linux.bs1.fc.nec.co.jp>
-References: <1426241451-25729-1-git-send-email-xiexiuqi@huawei.com>
-In-Reply-To: <1426241451-25729-1-git-send-email-xiexiuqi@huawei.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <1E3531A83CA4514E8C6088FB3036A706@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 16 Mar 2015 03:14:06 -0700 (PDT)
+Message-ID: <5506ACEC.9010403@suse.cz>
+Date: Mon, 16 Mar 2015 11:14:04 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
+Subject: Re: [PATCH V5] Allow compaction of unevictable pages
+References: <1426267597-25811-1-git-send-email-emunson@akamai.com> <550332CE.7040404@redhat.com> <20150313190915.GA12589@akamai.com> <20150313201954.GB28848@dhcp22.suse.cz>
+In-Reply-To: <20150313201954.GB28848@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xie XiuQi <xiexiuqi@huawei.com>
-Cc: "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, "bhelgaas@google.com" <bhelgaas@google.com>, "bp@suse.de" <bp@suse.de>, "tony.luck@intel.com" <tony.luck@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jingle.chen@huawei.com" <jingle.chen@huawei.com>
+To: Michal Hocko <mhocko@suse.cz>, Eric B Munson <emunson@akamai.com>
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <cl@linux.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linux API <linux-api@vger.kernel.org>
 
-On Fri, Mar 13, 2015 at 06:10:51PM +0800, Xie XiuQi wrote:
-> Memory-failure as the high level machine check handler, it's necessary
-> to report memory page recovery action result to user space by ftrace.
->=20
-> This patch add a event at ras group for memory-failure.
->=20
-> The output like below:
-> # tracer: nop
-> #
-> # entries-in-buffer/entries-written: 2/2   #P:24
-> #
-> #                              _-----=3D> irqs-off
-> #                             / _----=3D> need-resched
-> #                            | / _---=3D> hardirq/softirq
-> #                            || / _--=3D> preempt-depth
-> #                            ||| /     delay
-> #           TASK-PID   CPU#  ||||    TIMESTAMP  FUNCTION
-> #              | |       |   ||||       |         |
->       mce-inject-13150 [001] ....   277.019359: memory_failure_event: pfn=
- 0x19869: free buddy page recovery: Delayed
->=20
-> Signed-off-by: Xie XiuQi <xiexiuqi@huawei.com>
-> ---
->  include/ras/ras_event.h |   36 ++++++++++++++++++++++++++++++++++++
->  mm/memory-failure.c     |    3 +++
->  2 files changed, 39 insertions(+), 0 deletions(-)
->=20
-> diff --git a/include/ras/ras_event.h b/include/ras/ras_event.h
-> index 79abb9c..0a6c8f3 100644
-> --- a/include/ras/ras_event.h
-> +++ b/include/ras/ras_event.h
-> @@ -232,6 +232,42 @@ TRACE_EVENT(aer_event,
->  		__print_flags(__entry->status, "|", aer_uncorrectable_errors))
->  );
-> =20
-> +/*
-> + * memory-failure recovery action result event
-> + *
-> + * unsigned long pfn -	Page Number of the corrupted page
-> + * char * action -	Recovery action: "free buddy", "free huge", "high
-> + *			order kernel", "free buddy, 2nd try", "different
-> + *			compound page after locking", "hugepage already
-> + *			hardware poisoned", "unmapping failed", "already
-> + *			truncated LRU", etc.
+[CC += linux-api@]
 
-Listing all possible values here might be prone to become out of date when
-someone try to add/remove/change action_result() call sites.
-So I'd like to have some enumerator to bundle these strings in one place
-in mm/memory-failure.c.
-# I feel like doing this later.
+Since this is a kernel-user-space API change, please CC linux-api@.
+The kernel source file Documentation/SubmitChecklist notes that all
+Linux kernel patches that change userspace interfaces should be CCed
+to linux-api@vger.kernel.org, so that the various parties who are
+interested in API changes are informed. For further information, see
+https://www.kernel.org/doc/man-pages/linux-api-ml.html
 
-> + * char * result -	Action result: Ignored, Failed, Delayed, Recovered.
 
-mm/memory-failure.c has good explanation:
+On 03/13/2015 09:19 PM, Michal Hocko wrote:
+> On Fri 13-03-15 15:09:15, Eric B Munson wrote:
+>> On Fri, 13 Mar 2015, Rik van Riel wrote:
+>>
+>>> On 03/13/2015 01:26 PM, Eric B Munson wrote:
+>>>
+>>>> --- a/mm/compaction.c
+>>>> +++ b/mm/compaction.c
+>>>> @@ -1046,6 +1046,8 @@ typedef enum {
+>>>>   	ISOLATE_SUCCESS,	/* Pages isolated, migrate */
+>>>>   } isolate_migrate_t;
+>>>>
+>>>> +int sysctl_compact_unevictable;
 
-  /*
-   * Error handlers for various types of pages.
-   */
-  enum outcome {
-          IGNORED,        /* Error: cannot be handled */
-          FAILED,         /* Error: handling failed */
-          DELAYED,        /* Will be handled later */
-          RECOVERED,      /* Successfully recovered */
-  };
+A comment here would be useful I think, as well as explicit default 
+value. Maybe also __read_mostly although I don't know how much that matters.
 
-So adding a reference to here looks better to me.
+I also wonder if it might be confusing that "compact_memory" is a 
+write-only trigger that doesn't even show under "sysctl -a", while 
+"compact_unevictable" is a read/write setting. But I don't have a better 
+suggestion right now.
 
-Thanks,
-Naoya Horiguchi
+>>>> +
+>>>>   /*
+>>>>    * Isolate all pages that can be migrated from the first suitable block,
+>>>>    * starting at the block pointed to by the migrate scanner pfn within
+>>>
+>>> I suspect that the use cases where users absolutely do not want
+>>> unevictable pages migrated are special cases, and it may make
+>>> sense to enable sysctl_compact_unevictable by default.
+>>
+>> Given that sysctl_compact_unevictable=0 is the way the kernel behaves
+>> now and the push back against always enabling compaction on unevictable
+>> pages, I left the default to be the behavior as it is today.
+>
+> The question is _why_ we have this behavior now. Is it intentional?
 
-> + */
-> +TRACE_EVENT(memory_failure_event,
-> +	TP_PROTO(const unsigned long pfn,
-> +		 const char *action,
-> +		 const char *result),
-> +
-> +	TP_ARGS(pfn, action, result),
-> +
-> +	TP_STRUCT__entry(
-> +		__field(unsigned long, pfn)
-> +		__string(action, action)
-> +		__string(result, result)
-> +	),
-> +
-> +	TP_fast_assign(
-> +		__entry->pfn =3D pfn;
-> +		__assign_str(action, action);
-> +		__assign_str(result, result);
-> +	),
-> +
-> +	TP_printk("pfn %#lx: %s page recovery: %s",
-> +		__entry->pfn,
-> +		__get_str(action),
-> +		__get_str(result)
-> +	)
-> +);
->  #endif /* _TRACE_HW_EVENT_MC_H */
-> =20
->  /* This part must be outside protection */
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index d487f8d..86a9cce 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -56,6 +56,7 @@
->  #include <linux/mm_inline.h>
->  #include <linux/kfifo.h>
->  #include "internal.h"
-> +#include <ras/ras_event.h>
-> =20
->  int sysctl_memory_failure_early_kill __read_mostly =3D 0;
-> =20
-> @@ -837,6 +838,8 @@ static struct page_state {
->   */
->  static void action_result(unsigned long pfn, char *msg, int result)
->  {
-> +	trace_memory_failure_event(pfn, msg, action_name[result]);
-> +
->  	pr_err("MCE %#lx: %s page recovery: %s\n",
->  		pfn, msg, action_name[result]);
->  }
-> --=20
-> 1.7.1
-> =
+It's there since 748446bb6 ("mm: compaction: memory compaction core"). 
+Commit c53919adc0 ("mm: vmscan: remove lumpy reclaim") changes the 
+comment in __isolate_lru_page() handling of unevictable pages to mention 
+compaction explicitly. It could have been accidental in 748446bb6 
+though, maybe it just reused __isolate_lru_page() for compaction - it 
+seems that the skipping of unevictable was initially meant to optimize 
+lumpy reclaim.
+
+> e46a28790e59 (CMA: migrate mlocked pages) is a precedence in that
+
+Well, CMA and realtime kernels are probably mutually exclusive enough.
+
+> direction. Vlastimil has then changed that by edc2ca612496 (mm,
+> compaction: move pageblock checks up from isolate_migratepages_range()).
+> There is no mention about mlock pages so I guess it was more an
+> unintentional side effect of the patch. At least that is my current
+> understanding. I might be wrong here.
+
+Although that commit did change unintentionally more details that I 
+would have liked (unfortunately), I think you are wrong on this one. 
+ISOLATE_UNEVICTABLE is still passed from isolate_migratepages_range() 
+which is used by CMA, while the compaction variant 
+isolate_migratepages() does not pass it. So it's kept CMA-specific as 
+before.
+
+> The thing about RT is that it is not usable with the upstream kernel
+> without the RT patchset AFAIU. So the default should be reflect what is
+> better for the standard kernel. RT loads have to tune the system anyway
+> so it is not so surprising they would disable this option as well. We
+> should help those guys and do not require them to touch the code but the
+> knob is reasonable IMHO.
+>
+> Especially when your changelog suggests that having this enabled by
+> default is beneficial for the standard kernel.
+
+I agree, but if there's a danger of becoming too of a bikeshed topic, 
+I'm fine with keeping the default same as current behavior and changing 
+it later. Or maybe we should ask some -rt mailing list instead of just 
+Peter and Thomas?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
