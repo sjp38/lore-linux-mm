@@ -1,66 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id C7D716B0032
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 07:13:00 -0400 (EDT)
-Received: by wgbcc7 with SMTP id cc7so36697461wgb.0
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 04:13:00 -0700 (PDT)
-Received: from e06smtp16.uk.ibm.com (e06smtp16.uk.ibm.com. [195.75.94.112])
-        by mx.google.com with ESMTPS id w1si12211674wix.3.2015.03.16.04.12.58
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id ECE2F6B0032
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 07:30:16 -0400 (EDT)
+Received: by wibdy8 with SMTP id dy8so34939385wib.0
+        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 04:30:16 -0700 (PDT)
+Received: from mail-we0-x22c.google.com (mail-we0-x22c.google.com. [2a00:1450:400c:c03::22c])
+        by mx.google.com with ESMTPS id lx7si17322656wjb.33.2015.03.16.04.30.15
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 16 Mar 2015 04:12:59 -0700 (PDT)
-Received: from /spool/local
-	by e06smtp16.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Mon, 16 Mar 2015 11:12:58 -0000
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (d06relay12.portsmouth.uk.ibm.com [9.149.109.197])
-	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id D56FA17D8059
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 11:13:19 +0000 (GMT)
-Received: from d06av12.portsmouth.uk.ibm.com (d06av12.portsmouth.uk.ibm.com [9.149.37.247])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t2GBCtir66977800
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 11:12:55 GMT
-Received: from d06av12.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av12.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t2GBCti8013576
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 05:12:55 -0600
-Message-ID: <5506BAB6.3080104@de.ibm.com>
-Date: Mon, 16 Mar 2015 12:12:54 +0100
-From: Christian Borntraeger <borntraeger@de.ibm.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Mar 2015 04:30:15 -0700 (PDT)
+Received: by weop45 with SMTP id p45so10486116weo.0
+        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 04:30:14 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: trigger panic on bad page or PTE states if panic_on_oops
-References: <1426495021-6408-1-git-send-email-borntraeger@de.ibm.com> <20150316110033.GA20546@node.dhcp.inet.fi>
-In-Reply-To: <20150316110033.GA20546@node.dhcp.inet.fi>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1426372766-3029-5-git-send-email-dave@stgolabs.net>
+References: <1426372766-3029-1-git-send-email-dave@stgolabs.net>
+	<1426372766-3029-5-git-send-email-dave@stgolabs.net>
+Date: Mon, 16 Mar 2015 14:30:14 +0300
+Message-ID: <CALYGNiMt7j8+mpxBPzLkYPd+dA77B17r9FfSwkGjj3+48EgbGA@mail.gmail.com>
+Subject: Re: [PATCH 4/4] kernel/fork: use pr_alert() for rss counter bugs
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Davidlohr Bueso <dave@stgolabs.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Cyrill Gorcunov <gorcunov@openvz.org>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Davidlohr Bueso <dbueso@suse.de>
 
-Am 16.03.2015 um 12:00 schrieb Kirill A. Shutemov:
-> On Mon, Mar 16, 2015 at 09:37:01AM +0100, Christian Borntraeger wrote:
->> while debugging a memory management problem it helped a lot to
->> get a system dump as early as possible for bad page states.
->>
->> Lets assume that if panic_on_oops is set then the system should
->> not continue with broken mm data structures.
-> 
-> bed_pte is not an oops.
+On Sun, Mar 15, 2015 at 1:39 AM, Davidlohr Bueso <dave@stgolabs.net> wrote:
+> ... everyone else does.
+>
+> Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
+> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> Cc: Cyrill Gorcunov <gorcunov@openvz.org>
+> Cc: Oleg Nesterov <oleg@redhat.com>
+> CC: Konstantin Khlebnikov <koct9i@gmail.com>
+> ---
+>  kernel/fork.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+>
+> diff --git a/kernel/fork.c b/kernel/fork.c
+> index 54b0b91..fc5d4f3 100644
+> --- a/kernel/fork.c
+> +++ b/kernel/fork.c
+> @@ -602,8 +602,8 @@ static void check_mm(struct mm_struct *mm)
+>                 long x = atomic_long_read(&mm->rss_stat.count[i]);
+>
+>                 if (unlikely(x))
+> -                       printk(KERN_ALERT "BUG: Bad rss-counter state "
+> -                                         "mm:%p idx:%d val:%ld\n", mm, i, x);
+> +                       pr_alert("BUG: Bad rss-counter state "
+> +                                "mm:%p idx:%d val:%ld\n", mm, i, x);
+>         }
 
-I know that this is not an oops, but semantically it is like one.  I certainly
-want to a way to hard stop the system if something like that happens.
+Ack.
 
-Would something like panic_on_mm_error be better?
-
-> 
-> Probably we should consider putting VM_BUG() at the end of these
-> functions instead.
-
-That is probably also a workable solution if I can reproduce the issue on
-my system, but VM_BUG  defaults to off for many production systems (RHEL, SLES..)
-
-Any other suggestion?
-
-Christian
+>
+>         if (atomic_long_read(&mm->nr_ptes))
+> --
+> 2.1.4
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
