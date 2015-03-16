@@ -1,72 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com [209.85.216.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 2879A6B0032
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 07:43:58 -0400 (EDT)
-Received: by qcaz10 with SMTP id z10so40472609qca.1
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 04:43:58 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w33si9631630qgw.43.2015.03.16.04.43.56
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Mar 2015 04:43:57 -0700 (PDT)
-Message-ID: <5506C1F6.1090803@redhat.com>
-Date: Mon, 16 Mar 2015 07:43:50 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail-la0-f53.google.com (mail-la0-f53.google.com [209.85.215.53])
+	by kanga.kvack.org (Postfix) with ESMTP id CA7C66B0032
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 08:16:03 -0400 (EDT)
+Received: by lagg8 with SMTP id g8so37968332lag.1
+        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 05:16:03 -0700 (PDT)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.203])
+        by mx.google.com with ESMTP id dr2si17496635wid.108.2015.03.16.05.16.01
+        for <linux-mm@kvack.org>;
+        Mon, 16 Mar 2015 05:16:02 -0700 (PDT)
+Date: Mon, 16 Mar 2015 14:15:59 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: trigger panic on bad page or PTE states if
+ panic_on_oops
+Message-ID: <20150316121559.GB20546@node.dhcp.inet.fi>
+References: <1426495021-6408-1-git-send-email-borntraeger@de.ibm.com>
+ <20150316110033.GA20546@node.dhcp.inet.fi>
+ <5506BAB6.3080104@de.ibm.com>
 MIME-Version: 1.0
-Subject: Re: kswapd hogging in lowmem_shrink
-References: <CAB5gotvwyD74UugjB6XQ_v=o11Hu9wAuA6N94UvGObPARYEz0w@mail.gmail.com>	<5502F9BC.2020001@redhat.com> <CAB5gotsXCiHiwnwg0vMOi1qS8FoUtUJfsaTSe0acYFYgoOUh=Q@mail.gmail.com>
-In-Reply-To: <CAB5gotsXCiHiwnwg0vMOi1qS8FoUtUJfsaTSe0acYFYgoOUh=Q@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5506BAB6.3080104@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vaibhav Shinde <v.bhav.shinde@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>
+To: Christian Borntraeger <borntraeger@de.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 03/16/2015 03:45 AM, Vaibhav Shinde wrote:
+On Mon, Mar 16, 2015 at 12:12:54PM +0100, Christian Borntraeger wrote:
+> Am 16.03.2015 um 12:00 schrieb Kirill A. Shutemov:
+> > On Mon, Mar 16, 2015 at 09:37:01AM +0100, Christian Borntraeger wrote:
+> >> while debugging a memory management problem it helped a lot to
+> >> get a system dump as early as possible for bad page states.
+> >>
+> >> Lets assume that if panic_on_oops is set then the system should
+> >> not continue with broken mm data structures.
+> > 
+> > bed_pte is not an oops.
 > 
+> I know that this is not an oops, but semantically it is like one.  I certainly
+> want to a way to hard stop the system if something like that happens.
 > 
-> On Fri, Mar 13, 2015 at 7:52 AM, Rik van Riel <riel@redhat.com
-> <mailto:riel@redhat.com>> wrote:
->>
->> On 03/13/2015 10:25 AM, Vaibhav Shinde wrote:
->> >
->> > On low memory situation, I see various shrinkers being invoked, but in
->> > lowmem_shrink() case, kswapd is found to be hogging for around 150msecs.
->> >
->> > Due to this my application suffer latency issue, as the cpu was not
->> > released by kswapd0.
->> >
->> > I took below traces with vmscan events, that show lowmem_shrink taking
->> > such long time for execution.
->>
->> This is the Android low memory killer, which kills the
->> task with the lowest priority in the system.
->>
->> The low memory killer will iterate over all the tasks
->> in the system to identify the task to kill.
->>
->> This is not a problem in Android systems, and other
->> small systems where this piece of code is used.
->>
->> What kind of system are you trying to use the low
->> memory killer on?
->>
->> How many tasks are you running?
->>
-> yes, lowmemorykiller kills the task depending on its oom_score, I am
-> using a embedded device with 2GB memory, there are task running that
-> cause lowmemory situation - no issue about it.
-> 
-> But my concern is kswapd takes too long to iterate through all the
-> processes(lowmem_shrink() => for_each_process()), the time taken is
-> around 150msec, due to which my high priority application suffer system
-> latency that cause malfunctioning.
+> Would something like panic_on_mm_error be better?
 
-If it is an issue for you, you will have to fix that.
+Or panic_on_taint=<mask> where <mask> is bit-mask of TAINT_* values.
+
+The problem is that TAINT_* will effectevely become part of kernel ABI
+and I'm not sure it's good idea.
+
+Oopsing on any taint will have limited usefulness, I think.
 
 -- 
-All rights reversed
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
