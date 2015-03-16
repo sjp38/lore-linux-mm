@@ -1,49 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B0CF6B0032
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 11:39:46 -0400 (EDT)
-Received: by qgez64 with SMTP id z64so43455831qge.2
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 08:39:45 -0700 (PDT)
-Received: from resqmta-ch2-04v.sys.comcast.net (resqmta-ch2-04v.sys.comcast.net. [2001:558:fe21:29:69:252:207:36])
-        by mx.google.com with ESMTPS id 6si10263021qkx.10.2015.03.16.08.39.44
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 447B56B0032
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 12:08:03 -0400 (EDT)
+Received: by pdbni2 with SMTP id ni2so62123573pdb.1
+        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 09:08:03 -0700 (PDT)
+Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
+        by mx.google.com with ESMTPS id pe4si23460068pdb.34.2015.03.16.09.07.59
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Mon, 16 Mar 2015 08:39:44 -0700 (PDT)
-Date: Mon, 16 Mar 2015 10:39:42 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH V5] Allow compaction of unevictable pages
-In-Reply-To: <alpine.DEB.2.10.1503131613560.7827@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.11.1503161036160.32513@gentwo.org>
-References: <1426267597-25811-1-git-send-email-emunson@akamai.com> <550332CE.7040404@redhat.com> <20150313190915.GA12589@akamai.com> <alpine.DEB.2.10.1503131613560.7827@chino.kir.corp.google.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Mon, 16 Mar 2015 09:08:00 -0700 (PDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout4.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NLB00J2OBNSO900@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 16 Mar 2015 16:11:52 +0000 (GMT)
+From: Stefan Strogin <s.strogin@partner.samsung.com>
+Subject: [PATCH v4 0/5] mm: cma: add some debug information for CMA
+Date: Mon, 16 Mar 2015 19:06:55 +0300
+Message-id: <cover.1426521377.git.s.strogin@partner.samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Eric B Munson <emunson@akamai.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Stefan Strogin <s.strogin@partner.samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Dmitry Safonov <d.safonov@partner.samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Minchan Kim <minchan@kernel.org>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>, Aleksei Mateosian <a.mateosian@samsung.com>, gregory.0xf0@gmail.com, sasha.levin@oracle.com, gioh.kim@lge.com, pavel@ucw.cz, stefan.strogin@gmail.com
 
-On Fri, 13 Mar 2015, David Rientjes wrote:
+Hi all.
 
-> It would be really disappointing to not enable this by default for !rt
-> kernels.  We haven't migrated mlocked pages in the past by way of memory
-> compaction because it can theoretically result in consistent minor page
-> faults, but I haven't yet heard a !rt objection to enabling this.
->
-> If the rt patchset is going to carry a patch to disable this, then the
-> question arises: why not just carry an ISOLATE_UNEVICTABLE patch instead?
-> I think you've done the due diligence required to allow this to be
-> disabled at any time in a very easy way from userspace by the new tunable.
-> I think it should be enabled and I'd be very surprised to hear any other
-> objection about it other than it's different from the status quo.
+Here is the fourth version of a patch set that adds some debugging facility for
+CMA.
 
-Compaction can alrady be disabled and thus you can also disable migration
-of mlocked pages. In general low latency requires that no expensive kernel
-processing is being done. Thus the rest of compaction processing also
-needs to be disabled. That means that allowing compaction handling
-mlocked pages would be ok. RT loads and low latency configurations (like
-my environment) will selective disable compaction to avoid creating
-additional latencies. This could be done only for specific nodes and
-processors if necessary.
+This patch set is based on next-20150316.
+It is also available on git:
+git://github.com/stefanstrogin/linux -b cmainfo-v4
 
+We want an interface to see a list of currently allocated CMA buffers and some
+useful information about them (like /proc/vmallocinfo but for physically
+contiguous buffers allocated with CMA).
+
+For example. We want a big (megabytes) CMA buffer to be allocated in runtime
+in default CMA region. If someone already uses CMA then the big allocation
+could fail. If it happened then with such an interface we could find who used
+CMA at the moment of failure, who caused fragmentation and so on. Ftrace also
+would be helpful here, but with ftrace we can see the whole history of
+allocations and releases, whereas with this patch set we can see a snapshot of
+CMA region with actual information about its allocations.
+
+These patches add some files to debugfs when CONFIG_CMA_DEBUGFS is enbled.
+
+/sys/kernel/debug/cma/cma-<N>/used and cma/cma-<N>/maxchunk are added to show
+used size in pages and the biggest free chunk in each CMA region.
+
+When CONFIG_CMA_BUFFER_LIST is enabled (depended on CONFIG_CMA_DEBUGFS)
+/sys/kernel/debug/cma/cma-<N>/buffers is added. It contains a list of
+currently allocated contiguous buffers for each CMA region (N stands for
+region number). Format is:
+<base_phys_addr> - <end_phys_addr> (<size> kB), allocated by <PID> (<comm>)
+
+Another added option is CONFIG_CMA_ALLOC_STACKTRACE. When it's enabled then
+stack traces are also saved when the allocations are made. The stack traces
+are added to each entry in cma/cma-<N>/buffers (see an example [3]). This
+can be used to see who and whence allocated each buffer.
+
+Also added trace events for cma_alloc() and cma_release().
+
+Changes from v3 (https://lkml.org/lkml/2015/2/24/555):
+- Rebased on next-20150316 (includes Sasha Levin's patch set).
+- Use seq_file for cma/cma-<N>/buffers.
+- Trace allocation failures in cma_alloc() as well as successful allocations.
+- Added acks by Michal Nazarewicz and a review by SeongJae Park.
+
+Changes from v2 (https://lkml.org/lkml/2015/2/12/647):
+- Rebased on v4.0-rc1 and Sasha Levin's patch set v5 [1].
+- Changed kmalloc() to vmalloc() in cma_buffer_list_read().
+- Added CONFIG_CMA_BUFFER_LIST and CONFIG_CMA_ALLOC_STACKTRACE.
+- Considered order_per_bit for returning page number in cma_get_used() and
+  cma_get_maxchunk().
+- Reordered the patches to make the one with trace events indepentent of
+  others.
+- Moved the prototypes of cma_buffer_list_add() and cma_buffer_list_del()
+  from include/linux/cma.h to mm/cma.h.
+- Various small changes.
+
+Changes from v1 (aka "mm: cma: add /proc/cmainfo")
+(https://lkml.org/lkml/2014/12/26/95):
+- Rebased on v3.19 and Sasha Levin's patch set v4 [2].
+- Moved debug code from cma.c to cma_debug.c.
+- Moved cmainfo to debugfs and splited it by CMA region.
+- Splited 'cmainfo' into 'buffers', 'used' and 'maxchunk'.
+- Used CONFIG_CMA_DEBUGFS instead of CONFIG_CMA_DEBUG.
+- Added trace events for cma_alloc() and cma_release().
+- Don't use seq_files.
+- A small change of debug output in cma_release().
+- cma_buffer_list_del() now supports releasing chunks which ranges don't match
+  allocations. E.g. we have buffer1: [0x0, 0x1], buffer2: [0x2, 0x3], then
+  cma_buffer_list_del(cma, 0x1 /*or 0x0*/, 1 /*(or 2 or 3)*/) should work.
+- Various small changes.
+
+[1] https://lkml.org/lkml/2015/2/12/657
+
+[2] https://lkml.org/lkml/2015/1/28/755
+
+[3] root@debian:/sys/kernel/debug/cma# cat cma-0/buffers
+0x2f400000 - 0x2f417000 (92 kB), allocated by pid 1 (swapper/0)
+ [<c1142c4b>] cma_alloc+0x1bb/0x200
+ [<c143d28a>] dma_alloc_from_contiguous+0x3a/0x40
+ [<c10079d9>] dma_generic_alloc_coherent+0x89/0x160
+ [<c14456ce>] dmam_alloc_coherent+0xbe/0x100
+ [<c1487312>] ahci_port_start+0xe2/0x210
+ [<c146e0e0>] ata_host_start.part.28+0xc0/0x1a0
+ [<c1473650>] ata_host_activate+0xd0/0x110
+ [<c14881bf>] ahci_host_activate+0x3f/0x170
+ [<c14854e4>] ahci_init_one+0x764/0xab0
+ [<c12e415f>] pci_device_probe+0x6f/0xd0
+ [<c14378a8>] driver_probe_device+0x68/0x210
+ [<c1437b09>] __driver_attach+0x79/0x80
+ [<c1435eef>] bus_for_each_dev+0x4f/0x80
+ [<c143749e>] driver_attach+0x1e/0x20
+ [<c1437197>] bus_add_driver+0x157/0x200
+ [<c14381bd>] driver_register+0x5d/0xf0
+<...> 
+0x2f41b000 - 0x2f41c000 (4 kB), allocated by pid 1264 (NetworkManager)
+ [<c1142c4b>] cma_alloc+0x1bb/0x200
+ [<c143d28a>] dma_alloc_from_contiguous+0x3a/0x40
+ [<c10079d9>] dma_generic_alloc_coherent+0x89/0x160
+ [<c14c5d13>] e1000_setup_all_tx_resources+0x93/0x540
+ [<c14c8021>] e1000_open+0x31/0x120
+ [<c16264cf>] __dev_open+0x9f/0x130
+ [<c16267ce>] __dev_change_flags+0x8e/0x150
+ [<c16268b8>] dev_change_flags+0x28/0x60
+ [<c1633ee0>] do_setlink+0x2a0/0x760
+ [<c1634acb>] rtnl_newlink+0x60b/0x7b0
+ [<c16314f4>] rtnetlink_rcv_msg+0x84/0x1f0
+ [<c164b58e>] netlink_rcv_skb+0x8e/0xb0
+ [<c1631461>] rtnetlink_rcv+0x21/0x30
+ [<c164af7a>] netlink_unicast+0x13a/0x1d0
+ [<c164b250>] netlink_sendmsg+0x240/0x3e0
+ [<c160cbfd>] do_sock_sendmsg+0xbd/0xe0
+<...>
+
+Dmitry Safonov (1):
+  mm: cma: add functions to get region pages counters
+
+Stefan Strogin (4):
+  mm: cma: add trace events to debug physically-contiguous memory
+    allocations
+  mm: cma: add number of pages to debug message in cma_release()
+  stacktrace: add seq_print_stack_trace()
+  mm: cma: add list of currently allocated CMA buffers to debugfs
+
+ include/linux/cma.h        |   2 +
+ include/linux/stacktrace.h |   4 +
+ include/trace/events/cma.h |  57 +++++++++++
+ kernel/stacktrace.c        |  17 ++++
+ mm/Kconfig                 |  17 ++++
+ mm/cma.c                   |  44 ++++++++-
+ mm/cma.h                   |  14 +++
+ mm/cma_debug.c             | 230 ++++++++++++++++++++++++++++++++++++++++++++-
+ 8 files changed, 383 insertions(+), 2 deletions(-)
+ create mode 100644 include/trace/events/cma.h
+
+-- 
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
