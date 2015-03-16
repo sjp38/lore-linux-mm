@@ -1,66 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
-	by kanga.kvack.org (Postfix) with ESMTP id D5D536B0032
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 06:47:00 -0400 (EDT)
-Received: by lbbzq9 with SMTP id zq9so28427600lbb.0
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 03:47:00 -0700 (PDT)
-Received: from mail-lb0-x22b.google.com (mail-lb0-x22b.google.com. [2a00:1450:4010:c04::22b])
-        by mx.google.com with ESMTPS id zj11si7765497lbb.148.2015.03.16.03.46.58
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BC096B0032
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 06:49:35 -0400 (EDT)
+Received: by wibdy8 with SMTP id dy8so33961354wib.0
+        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 03:49:34 -0700 (PDT)
+Received: from mail-wi0-x230.google.com (mail-wi0-x230.google.com. [2a00:1450:400c:c05::230])
+        by mx.google.com with ESMTPS id cs8si17090680wjb.107.2015.03.16.03.49.33
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Mar 2015 03:46:59 -0700 (PDT)
-Received: by lbcds1 with SMTP id ds1so28402434lbc.3
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 03:46:58 -0700 (PDT)
-From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Subject: Re: [patch 1/2] mm, mempool: poison elements backed by slab allocator
-References: <alpine.DEB.2.10.1503090021380.19148@chino.kir.corp.google.com>
-Date: Mon, 16 Mar 2015 11:46:56 +0100
-In-Reply-To: <alpine.DEB.2.10.1503090021380.19148@chino.kir.corp.google.com>
-	(David Rientjes's message of "Mon, 9 Mar 2015 00:21:56 -0700 (PDT)")
-Message-ID: <8761a1dxsv.fsf@rasmusvillemoes.dk>
+        Mon, 16 Mar 2015 03:49:33 -0700 (PDT)
+Received: by wifj2 with SMTP id j2so39509954wif.1
+        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 03:49:33 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <5506B04D.1070506@lge.com>
+References: <1426248777-19768-1-git-send-email-r.peniaev@gmail.com>
+	<5506B04D.1070506@lge.com>
+Date: Mon, 16 Mar 2015 19:49:32 +0900
+Message-ID: <CACZ9PQXe6C1Cpt+zGD7ew2AXgcA2pD047BrXz9GXfz2ZhKuCAQ@mail.gmail.com>
+Subject: Re: [PATCH 0/3] [RFC] mm/vmalloc: fix possible exhaustion of vmalloc space
+From: Roman Peniaev <r.peniaev@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Sebastian Ott <sebott@linux.vnet.ibm.com>, Mikulas Patocka <mpatocka@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Gioh Kim <gioh.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Eric Dumazet <edumazet@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, WANG Chao <chaowang@redhat.com>, Fabian Frederick <fabf@skynet.be>, Christoph Lameter <cl@linux.com>, Rob Jones <rob.jones@codethink.co.uk>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>
 
-On Mon, Mar 09 2015, David Rientjes <rientjes@google.com> wrote:
+On Mon, Mar 16, 2015 at 7:28 PM, Gioh Kim <gioh.kim@lge.com> wrote:
+>
+>
+> 2015-03-13 =EC=98=A4=ED=9B=84 9:12=EC=97=90 Roman Pen =EC=9D=B4(=EA=B0=80=
+) =EC=93=B4 =EA=B8=80:
+>> Hello all.
+>>
+>> Recently I came across high fragmentation of vm_map_ram allocator: vmap_=
+block
+>> has free space, but still new blocks continue to appear.  Further invest=
+igation
+>> showed that certain mapping/unmapping sequence can exhaust vmalloc space=
+.  On
+>> small 32bit systems that's not a big problem, cause purging will be call=
+ed soon
+>> on a first allocation failure (alloc_vmap_area), but on 64bit machines, =
+e.g.
+>> x86_64 has 45 bits of vmalloc space, that can be a disaster.
+>
+> I think the problem you comments is already known so that I wrote comment=
+s about it as
+> "it could consume lots of address space through fragmentation".
+>
+> Could you tell me about your situation and reason why it should be avoide=
+d?
 
-> Mempools keep elements in a reserved pool for contexts in which
-> allocation may not be possible.  When an element is allocated from the
-> reserved pool, its memory contents is the same as when it was added to
-> the reserved pool.
->
-> Because of this, elements lack any free poisoning to detect
-> use-after-free errors.
->
-> This patch adds free poisoning for elements backed by the slab allocator.
-> This is possible because the mempool layer knows the object size of each
-> element.
->
-> When an element is added to the reserved pool, it is poisoned with
-> POISON_FREE.  When it is removed from the reserved pool, the contents are
-> checked for POISON_FREE.  If there is a mismatch, a warning is emitted to
-> the kernel log.
->
-> +
-> +static void poison_slab_element(mempool_t *pool, void *element)
-> +{
-> +	if (pool->alloc == mempool_alloc_slab ||
-> +	    pool->alloc == mempool_kmalloc) {
-> +		size_t size = ksize(element);
-> +		u8 *obj = element;
-> +
-> +		memset(obj, POISON_FREE, size - 1);
-> +		obj[size - 1] = POISON_END;
-> +	}
-> +}
+In the first patch of this set I explicitly described the function,
+which exhausts
+vmalloc space without any chance to be purged: vm_map_ram allocator is
+greedy and firstly
+tries to occupy newly allocated block, even old blocks contain enough
+free space.
 
-Maybe a stupid question, but what happens if the underlying slab
-allocator has non-trivial ->ctor?
+This can be easily fixed if we put newly allocated block (which has
+enough space to
+complete further requests) to the tail of a free list, to give a
+chance to old blocks.
 
-Rasmus
+Why it should be avoided?  Strange question.  For me it looks like a
+bug of an allocator,
+which should be fair and should not continuously allocate new blocks
+without lazy purging
+(seems vmap_lazy_nr and  __purge_vmap_area_lazy were created exactly
+for those reasons:
+ to avoid infinite allocations)
+
+
+--
+Roman
+
+
+>
+>
+>>
+>> Fixing this I also did some tweaks in allocation logic of a new vmap blo=
+ck and
+>> replaced dirty bitmap with min/max dirty range values to make the logic =
+simpler.
+>>
+>> I would like to receive comments on the following three patches.
+>>
+>> Thanks.
+>>
+>> Roman Pen (3):
+>>    mm/vmalloc: fix possible exhaustion of vmalloc space caused by
+>>      vm_map_ram allocator
+>>    mm/vmalloc: occupy newly allocated vmap block just after allocation
+>>    mm/vmalloc: get rid of dirty bitmap inside vmap_block structure
+>>
+>>   mm/vmalloc.c | 94 ++++++++++++++++++++++++++++++++++------------------=
+--------
+>>   1 file changed, 54 insertions(+), 40 deletions(-)
+>>
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>> Cc: Nick Piggin <npiggin@kernel.dk>
+>> Cc: Eric Dumazet <edumazet@google.com>
+>> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>> Cc: David Rientjes <rientjes@google.com>
+>> Cc: WANG Chao <chaowang@redhat.com>
+>> Cc: Fabian Frederick <fabf@skynet.be>
+>> Cc: Christoph Lameter <cl@linux.com>
+>> Cc: Gioh Kim <gioh.kim@lge.com>
+>> Cc: Rob Jones <rob.jones@codethink.co.uk>
+>> Cc: linux-mm@kvack.org
+>> Cc: linux-kernel@vger.kernel.org
+>> Cc: stable@vger.kernel.org
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
