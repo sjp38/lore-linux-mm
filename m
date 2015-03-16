@@ -1,174 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id B70786B0032
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 09:49:58 -0400 (EDT)
-Received: by pacwe9 with SMTP id we9so65533175pac.1
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 06:49:58 -0700 (PDT)
-Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [72.246.2.115])
-        by mx.google.com with ESMTP id ks9si22684890pab.194.2015.03.16.06.49.57
-        for <linux-mm@kvack.org>;
-        Mon, 16 Mar 2015 06:49:57 -0700 (PDT)
-Date: Mon, 16 Mar 2015 09:49:56 -0400
-From: Eric B Munson <emunson@akamai.com>
-Subject: Re: [PATCH V5] Allow compaction of unevictable pages
-Message-ID: <20150316134956.GA15324@akamai.com>
-References: <1426267597-25811-1-git-send-email-emunson@akamai.com>
- <550332CE.7040404@redhat.com>
- <20150313190915.GA12589@akamai.com>
- <20150313201954.GB28848@dhcp22.suse.cz>
- <5506ACEC.9010403@suse.cz>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="IS0zKkzwUGydFO0o"
-Content-Disposition: inline
-In-Reply-To: <5506ACEC.9010403@suse.cz>
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C20B6B0032
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 10:08:34 -0400 (EDT)
+Received: by wifj2 with SMTP id j2so44525359wif.1
+        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 07:08:33 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ev20si18125451wjc.79.2015.03.16.07.08.32
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 16 Mar 2015 07:08:32 -0700 (PDT)
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [PATCH] mm, memcg: sync allocation and memcg charge gfp flags for THP
+Date: Mon, 16 Mar 2015 15:08:12 +0100
+Message-Id: <1426514892-7063-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <cl@linux.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linux API <linux-api@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
+memcg currently uses hardcoded GFP_TRANSHUGE gfp flags for all THP
+charges. THP allocations, however, might be using different flags
+depending on /sys/kernel/mm/transparent_hugepage/{,khugepaged/}defrag
+and the current allocation context.
 
---IS0zKkzwUGydFO0o
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+The primary difference is that defrag configured to "madvise" value will
+clear __GFP_WAIT flag from the core gfp mask to make the allocation
+lighter for all mappings which are not backed by VM_HUGEPAGE vmas.
+If memcg charge path ignores this fact we will get light allocation but
+the a potential memcg reclaim would kill the whole point of the
+configuration.
 
-On Mon, 16 Mar 2015, Vlastimil Babka wrote:
+Fix the mismatch by providing the same gfp mask used for the
+allocation to the charge functions. This is quite easy for all
+paths except for hugepaged kernel thread with !CONFIG_NUMA which is
+doing a pre-allocation long before the allocated page is used in
+collapse_huge_page via khugepaged_alloc_page. To prevent from cluttering
+the whole code path from khugepaged_do_scan we simply return the current
+flags as per khugepaged_defrag() value which might have changed since
+the preallocation. If somebody changed the value of the knob we would
+charge differently but this shouldn't happen often and it is definitely
+not critical because it would only lead to a reduced success rate of
+one-off THP promotion.
 
-> [CC +=3D linux-api@]
->=20
-> Since this is a kernel-user-space API change, please CC linux-api@.
-> The kernel source file Documentation/SubmitChecklist notes that all
-> Linux kernel patches that change userspace interfaces should be CCed
-> to linux-api@vger.kernel.org, so that the various parties who are
-> interested in API changes are informed. For further information, see
-> https://urldefense.proofpoint.com/v2/url?u=3Dhttps-3A__www.kernel.org_doc=
-_man-2Dpages_linux-2Dapi-2Dml.html&d=3DAwIC-g&c=3D96ZbZZcaMF4w0F4jpN6LZg&r=
-=3DaUmMDRRT0nx4IfILbQLv8xzE0wB9sQxTHI3QrQ2lkBU&m=3DGUotTNnv26L0HxtXrBgiHqu6=
-kwW3ufx2_TQpXIA216c&s=3DIFFYQ7Zr-4SIaF3slOZqiSP_noyva42kCwVRxxDm5wo&e=3D
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+---
+ mm/huge_memory.c | 36 ++++++++++++++++++++----------------
+ 1 file changed, 20 insertions(+), 16 deletions(-)
 
-Added to the Cc list, thanks.
-
->=20
->=20
-> On 03/13/2015 09:19 PM, Michal Hocko wrote:
-> >On Fri 13-03-15 15:09:15, Eric B Munson wrote:
-> >>On Fri, 13 Mar 2015, Rik van Riel wrote:
-> >>
-> >>>On 03/13/2015 01:26 PM, Eric B Munson wrote:
-> >>>
-> >>>>--- a/mm/compaction.c
-> >>>>+++ b/mm/compaction.c
-> >>>>@@ -1046,6 +1046,8 @@ typedef enum {
-> >>>>  	ISOLATE_SUCCESS,	/* Pages isolated, migrate */
-> >>>>  } isolate_migrate_t;
-> >>>>
-> >>>>+int sysctl_compact_unevictable;
->=20
-> A comment here would be useful I think, as well as explicit default
-> value. Maybe also __read_mostly although I don't know how much that
-> matters.
-
-I am going to sit on V6 for a couple of days incase anyone from rt wants
-to chime in.  But these will be in V6.
-
->=20
-> I also wonder if it might be confusing that "compact_memory" is a
-> write-only trigger that doesn't even show under "sysctl -a", while
-> "compact_unevictable" is a read/write setting. But I don't have a
-> better suggestion right now.
-
-Does allow_unevictable_compaction sound better?  It feels too much like
-variable naming conventions from other languages which seems to
-encourage verbosity to me, but does indicate a difference from
-compact_memory.
-
->=20
-> >>>>+
-> >>>>  /*
-> >>>>   * Isolate all pages that can be migrated from the first suitable b=
-lock,
-> >>>>   * starting at the block pointed to by the migrate scanner pfn with=
-in
-> >>>
-> >>>I suspect that the use cases where users absolutely do not want
-> >>>unevictable pages migrated are special cases, and it may make
-> >>>sense to enable sysctl_compact_unevictable by default.
-> >>
-> >>Given that sysctl_compact_unevictable=3D0 is the way the kernel behaves
-> >>now and the push back against always enabling compaction on unevictable
-> >>pages, I left the default to be the behavior as it is today.
-> >
-> >The question is _why_ we have this behavior now. Is it intentional?
->=20
-> It's there since 748446bb6 ("mm: compaction: memory compaction
-> core"). Commit c53919adc0 ("mm: vmscan: remove lumpy reclaim")
-> changes the comment in __isolate_lru_page() handling of unevictable
-> pages to mention compaction explicitly. It could have been
-> accidental in 748446bb6 though, maybe it just reused
-> __isolate_lru_page() for compaction - it seems that the skipping of
-> unevictable was initially meant to optimize lumpy reclaim.
->=20
-> >e46a28790e59 (CMA: migrate mlocked pages) is a precedence in that
->=20
-> Well, CMA and realtime kernels are probably mutually exclusive enough.
->=20
-> >direction. Vlastimil has then changed that by edc2ca612496 (mm,
-> >compaction: move pageblock checks up from isolate_migratepages_range()).
-> >There is no mention about mlock pages so I guess it was more an
-> >unintentional side effect of the patch. At least that is my current
-> >understanding. I might be wrong here.
->=20
-> Although that commit did change unintentionally more details that I
-> would have liked (unfortunately), I think you are wrong on this one.
-> ISOLATE_UNEVICTABLE is still passed from
-> isolate_migratepages_range() which is used by CMA, while the
-> compaction variant isolate_migratepages() does not pass it. So it's
-> kept CMA-specific as before.
->=20
-> >The thing about RT is that it is not usable with the upstream kernel
-> >without the RT patchset AFAIU. So the default should be reflect what is
-> >better for the standard kernel. RT loads have to tune the system anyway
-> >so it is not so surprising they would disable this option as well. We
-> >should help those guys and do not require them to touch the code but the
-> >knob is reasonable IMHO.
-> >
-> >Especially when your changelog suggests that having this enabled by
-> >default is beneficial for the standard kernel.
->=20
-> I agree, but if there's a danger of becoming too of a bikeshed
-> topic, I'm fine with keeping the default same as current behavior
-> and changing it later. Or maybe we should ask some -rt mailing list
-> instead of just Peter and Thomas?
-
-According to the rt wiki, there is no -rt development list so lkml is
-it.  I will change the default to 1 for V6 if I don't hear otherwise by
-the time I get back around to spinning V6.
-
-
---IS0zKkzwUGydFO0o
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iQIcBAEBAgAGBQJVBt+EAAoJELbVsDOpoOa98S0QAJ0H/97J/XOFMuGhbQROQ48Y
-xvBLxpBrHi3go725ihNUpz499VjsE4n3HRzkQD1tzGuBrByewVllvF3W55yOCaCV
-lQj7qcrS4r1YZZ/aBAgbkoN4ukAFUIju6Xs17wcmfD38BGwbbQGNQ4zew0svODvr
-7ygoNizK7aqEmEQBWA1eBivhSXK+h5pAs1agfdepaIp9xgvKL2EMLl6jgSttUn8M
-6IyHMaVQnS5qU2WWWdLBtfmWF58uWDpM48WXWGxKWrmhhjg/CEpAfi1afi2f6SHY
-SVnCfH5sBCxCOzsUo9ZB2MJqxhYqS0kMso+G+Fr+Ep1ye1S4EblXh4g19HYsE6xh
-Wrg4WmIIxKMVdr/rv/+QVFbL3obtkvz4RDQiDIantCwyx60dzHWOVdsT6lDQcDlJ
-/oi89A80ZbxN8KJsgZ3vkVPLW5q4fx35dGPaxRV1SVpswsT2raNM8XzHdXEEqNVA
-pry5DdTIvI+zHndjIsBt18+NEvhBfraSXxnyrvuAdpBxv6zL9gaOZJngpXiTwPmF
-yQZbaCd/7i6iIOns4oSDR02yhSST2RMRM9CxDIdzhB4+lJ1iA1nyRbicnjmYmyrA
-29YK6FrPEV2W9WJQ8UkXmlXpxMSn7k4DzE0MwpGYvzelzfpYXPm6lOCSNBt2cgIG
-gd2tua0B+b4Yewn+SvTF
-=k7V/
------END PGP SIGNATURE-----
-
---IS0zKkzwUGydFO0o--
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 625eb556b509..91898b010406 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -708,7 +708,7 @@ static inline pmd_t mk_huge_pmd(struct page *page, pgprot_t prot)
+ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
+ 					struct vm_area_struct *vma,
+ 					unsigned long haddr, pmd_t *pmd,
+-					struct page *page)
++					struct page *page, gfp_t gfp)
+ {
+ 	struct mem_cgroup *memcg;
+ 	pgtable_t pgtable;
+@@ -716,7 +716,7 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
+ 
+ 	VM_BUG_ON_PAGE(!PageCompound(page), page);
+ 
+-	if (mem_cgroup_try_charge(page, mm, GFP_TRANSHUGE, &memcg))
++	if (mem_cgroup_try_charge(page, mm, gfp, &memcg))
+ 		return VM_FAULT_OOM;
+ 
+ 	pgtable = pte_alloc_one(mm, haddr);
+@@ -822,7 +822,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		count_vm_event(THP_FAULT_FALLBACK);
+ 		return VM_FAULT_FALLBACK;
+ 	}
+-	if (unlikely(__do_huge_pmd_anonymous_page(mm, vma, haddr, pmd, page))) {
++	if (unlikely(__do_huge_pmd_anonymous_page(mm, vma, haddr, pmd, page, gfp))) {
+ 		put_page(page);
+ 		count_vm_event(THP_FAULT_FALLBACK);
+ 		return VM_FAULT_FALLBACK;
+@@ -1080,6 +1080,7 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	unsigned long haddr;
+ 	unsigned long mmun_start;	/* For mmu_notifiers */
+ 	unsigned long mmun_end;		/* For mmu_notifiers */
++	gfp_t huge_gfp = GFP_TRANSHUGE;	/* for allocation and charge */
+ 
+ 	ptl = pmd_lockptr(mm, pmd);
+ 	VM_BUG_ON_VMA(!vma->anon_vma, vma);
+@@ -1106,10 +1107,8 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ alloc:
+ 	if (transparent_hugepage_enabled(vma) &&
+ 	    !transparent_hugepage_debug_cow()) {
+-		gfp_t gfp;
+-
+-		gfp = alloc_hugepage_gfpmask(transparent_hugepage_defrag(vma), 0);
+-		new_page = alloc_hugepage_vma(gfp, vma, haddr, HPAGE_PMD_ORDER);
++		huge_gfp = alloc_hugepage_gfpmask(transparent_hugepage_defrag(vma), 0);
++		new_page = alloc_hugepage_vma(huge_gfp, vma, haddr, HPAGE_PMD_ORDER);
+ 	} else
+ 		new_page = NULL;
+ 
+@@ -1131,7 +1130,7 @@ alloc:
+ 	}
+ 
+ 	if (unlikely(mem_cgroup_try_charge(new_page, mm,
+-					   GFP_TRANSHUGE, &memcg))) {
++					   huge_gfp, &memcg))) {
+ 		put_page(new_page);
+ 		if (page) {
+ 			split_huge_page(page);
+@@ -2354,16 +2353,14 @@ static bool khugepaged_prealloc_page(struct page **hpage, bool *wait)
+ }
+ 
+ static struct page
+-*khugepaged_alloc_page(struct page **hpage, struct mm_struct *mm,
++*khugepaged_alloc_page(struct page **hpage, gfp_t *gfp, struct mm_struct *mm,
+ 		       struct vm_area_struct *vma, unsigned long address,
+ 		       int node)
+ {
+-	gfp_t flags;
+-
+ 	VM_BUG_ON_PAGE(*hpage, *hpage);
+ 
+ 	/* Only allocate from the target node */
+-	flags = alloc_hugepage_gfpmask(khugepaged_defrag(), __GFP_OTHER_NODE) |
++	*gfp = alloc_hugepage_gfpmask(khugepaged_defrag(), __GFP_OTHER_NODE) |
+ 	        __GFP_THISNODE;
+ 
+ 	/*
+@@ -2374,7 +2371,7 @@ static struct page
+ 	 */
+ 	up_read(&mm->mmap_sem);
+ 
+-	*hpage = alloc_pages_exact_node(node, flags, HPAGE_PMD_ORDER);
++	*hpage = alloc_pages_exact_node(node, *gfp, HPAGE_PMD_ORDER);
+ 	if (unlikely(!*hpage)) {
+ 		count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
+ 		*hpage = ERR_PTR(-ENOMEM);
+@@ -2428,12 +2425,18 @@ static bool khugepaged_prealloc_page(struct page **hpage, bool *wait)
+ }
+ 
+ static struct page
+-*khugepaged_alloc_page(struct page **hpage, struct mm_struct *mm,
++*khugepaged_alloc_page(struct page **hpage, gfp_t *gfp, struct mm_struct *mm,
+ 		       struct vm_area_struct *vma, unsigned long address,
+ 		       int node)
+ {
+ 	up_read(&mm->mmap_sem);
+ 	VM_BUG_ON(!*hpage);
++
++	/*
++	 * khugepaged_alloc_hugepage is doing the preallocation, use the same
++	 * gfp flags here.
++	 */
++	*gfp = alloc_hugepage_gfpmask(khugepaged_defrag(), 0);
+ 	return  *hpage;
+ }
+ #endif
+@@ -2468,16 +2471,17 @@ static void collapse_huge_page(struct mm_struct *mm,
+ 	struct mem_cgroup *memcg;
+ 	unsigned long mmun_start;	/* For mmu_notifiers */
+ 	unsigned long mmun_end;		/* For mmu_notifiers */
++	gfp_t gfp;
+ 
+ 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+ 
+ 	/* release the mmap_sem read lock. */
+-	new_page = khugepaged_alloc_page(hpage, mm, vma, address, node);
++	new_page = khugepaged_alloc_page(hpage, &gfp, mm, vma, address, node);
+ 	if (!new_page)
+ 		return;
+ 
+ 	if (unlikely(mem_cgroup_try_charge(new_page, mm,
+-					   GFP_TRANSHUGE, &memcg)))
++					   gfp, &memcg)))
+ 		return;
+ 
+ 	/*
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
