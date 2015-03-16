@@ -1,24 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id AA3006B006E
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 12:08:25 -0400 (EDT)
-Received: by pabyw6 with SMTP id yw6so68835370pab.2
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 09:08:25 -0700 (PDT)
-Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
-        by mx.google.com with ESMTPS id l1si6083350pdm.154.2015.03.16.09.08.24
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 2ABB96B006E
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 12:08:36 -0400 (EDT)
+Received: by pdbni2 with SMTP id ni2so62136167pdb.1
+        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 09:08:35 -0700 (PDT)
+Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
+        by mx.google.com with ESMTPS id bl9si15831396pdb.52.2015.03.16.09.08.33
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Mon, 16 Mar 2015 09:08:24 -0700 (PDT)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout3.w1.samsung.com
+        Mon, 16 Mar 2015 09:08:34 -0700 (PDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout1.w1.samsung.com
  (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NLB00K3QBONVF00@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Mon, 16 Mar 2015 16:12:23 +0000 (GMT)
+ 17 2011)) with ESMTP id <0NLB00L8NBOYD400@mailout1.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 16 Mar 2015 16:12:34 +0000 (GMT)
 From: Stefan Strogin <s.strogin@partner.samsung.com>
-Subject: [PATCH v4 3/5] stacktrace: add seq_print_stack_trace()
-Date: Mon, 16 Mar 2015 19:06:58 +0300
+Subject: [PATCH v4 4/5] mm: cma: add list of currently allocated CMA buffers to
+ debugfs
+Date: Mon, 16 Mar 2015 19:06:59 +0300
 Message-id: 
- <19b2815dbb60bfd38d17596a3d466637ee44c9a5.1426521377.git.s.strogin@partner.samsung.com>
+ <857357c314922e0d6f1d963ab74e5e4de5635799.1426521377.git.s.strogin@partner.samsung.com>
 In-reply-to: <cover.1426521377.git.s.strogin@partner.samsung.com>
 References: <cover.1426521377.git.s.strogin@partner.samsung.com>
 In-reply-to: <cover.1426521377.git.s.strogin@partner.samsung.com>
@@ -28,72 +29,388 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Stefan Strogin <s.strogin@partner.samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Dmitry Safonov <d.safonov@partner.samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Minchan Kim <minchan@kernel.org>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>, Aleksei Mateosian <a.mateosian@samsung.com>, gregory.0xf0@gmail.com, sasha.levin@oracle.com, gioh.kim@lge.com, pavel@ucw.cz, stefan.strogin@gmail.com
 
-Add a function seq_print_stack_trace() which prints stacktraces to seq_files.
+When CONFIG_CMA_BUFFER_LIST is configured a file is added to debugfs:
+/sys/kernel/debug/cma/cma-<N>/buffers contains a list of currently allocated
+CMA buffers for each CMA region (N stands for number of CMA region).
+
+Format is:
+<base_phys_addr> - <end_phys_addr> (<size> kB), allocated by <PID> (<comm>)
+
+When CONFIG_CMA_ALLOC_STACKTRACE is configured then stack traces are saved when
+the allocations are made. The stack traces are added to cma/cma-<N>/buffers
+for each buffer list entry.
+
+Example:
+
+root@debian:/sys/kernel/debug/cma# cat cma-0/buffers
+0x2f400000 - 0x2f417000 (92 kB), allocated by pid 1 (swapper/0)
+ [<c1142c4b>] cma_alloc+0x1bb/0x200
+ [<c143d28a>] dma_alloc_from_contiguous+0x3a/0x40
+ [<c10079d9>] dma_generic_alloc_coherent+0x89/0x160
+ [<c14456ce>] dmam_alloc_coherent+0xbe/0x100
+ [<c1487312>] ahci_port_start+0xe2/0x210
+ [<c146e0e0>] ata_host_start.part.28+0xc0/0x1a0
+ [<c1473650>] ata_host_activate+0xd0/0x110
+ [<c14881bf>] ahci_host_activate+0x3f/0x170
+ [<c14854e4>] ahci_init_one+0x764/0xab0
+ [<c12e415f>] pci_device_probe+0x6f/0xd0
+ [<c14378a8>] driver_probe_device+0x68/0x210
+ [<c1437b09>] __driver_attach+0x79/0x80
+ [<c1435eef>] bus_for_each_dev+0x4f/0x80
+ [<c143749e>] driver_attach+0x1e/0x20
+ [<c1437197>] bus_add_driver+0x157/0x200
+ [<c14381bd>] driver_register+0x5d/0xf0
+<...>
 
 Signed-off-by: Stefan Strogin <stefan.strogin@gmail.com>
-Reviewed-by: SeongJae Park <sj38.park@gmail.com>
 ---
- include/linux/stacktrace.h |  4 ++++
- kernel/stacktrace.c        | 17 +++++++++++++++++
- 2 files changed, 21 insertions(+)
+ mm/Kconfig     |  17 +++++
+ mm/cma.c       |   7 ++
+ mm/cma.h       |  14 ++++
+ mm/cma_debug.c | 206 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 4 files changed, 243 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/stacktrace.h b/include/linux/stacktrace.h
-index 0a34489..d80f2e9 100644
---- a/include/linux/stacktrace.h
-+++ b/include/linux/stacktrace.h
-@@ -2,6 +2,7 @@
- #define __LINUX_STACKTRACE_H
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 390214d..5ee2388 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -523,6 +523,23 @@ config CMA_DEBUGFS
+ 	help
+ 	  Turns on the DebugFS interface for CMA.
  
- #include <linux/types.h>
-+#include <linux/seq_file.h>
- 
- struct task_struct;
- struct pt_regs;
-@@ -22,6 +23,8 @@ extern void save_stack_trace_tsk(struct task_struct *tsk,
- extern void print_stack_trace(struct stack_trace *trace, int spaces);
- extern int snprint_stack_trace(char *buf, size_t size,
- 			struct stack_trace *trace, int spaces);
-+extern void seq_print_stack_trace(struct seq_file *m,
-+			struct stack_trace *trace, int spaces);
- 
- #ifdef CONFIG_USER_STACKTRACE_SUPPORT
- extern void save_stack_trace_user(struct stack_trace *trace);
-@@ -35,6 +38,7 @@ extern void save_stack_trace_user(struct stack_trace *trace);
- # define save_stack_trace_user(trace)			do { } while (0)
- # define print_stack_trace(trace, spaces)		do { } while (0)
- # define snprint_stack_trace(buf, size, trace, spaces)	do { } while (0)
-+# define seq_print_stack_trace(m, trace, spaces)	do { } while (0)
++config CMA_BUFFER_LIST
++	bool "List of currently allocated CMA buffers in debugfs"
++	depends on CMA_DEBUGFS
++	help
++	  /sys/kernel/debug/cma/cma-<N>/buffers contains a list of currently
++	  allocated CMA buffers for each CMA region (N stands for number of
++	  CMA region).
++	  Format is:
++	  <base_phys_addr> - <end_phys_addr> (<size> kB), allocated by <PID> (<comm>)
++
++config CMA_ALLOC_STACKTRACE
++	bool "Add stack trace to CMA buffer list"
++	depends on CMA_BUFFER_LIST && STACKTRACE
++	help
++	  Add stack traces saved at the moment of allocation for each buffer
++	  listed in /sys/kernel/debug/cma/cma-<N>/buffers.
++
+ config CMA_AREAS
+ 	int "Maximum count of the CMA areas"
+ 	depends on CMA
+diff --git a/mm/cma.c b/mm/cma.c
+index 77960af..faf8eac 100644
+--- a/mm/cma.c
++++ b/mm/cma.c
+@@ -133,6 +133,10 @@ static int __init cma_activate_area(struct cma *cma)
+ 	INIT_HLIST_HEAD(&cma->mem_head);
+ 	spin_lock_init(&cma->mem_head_lock);
  #endif
++#ifdef CONFIG_CMA_BUFFER_LIST
++	INIT_LIST_HEAD(&cma->buffer_list);
++	mutex_init(&cma->list_lock);
++#endif
  
- #endif
-diff --git a/kernel/stacktrace.c b/kernel/stacktrace.c
-index b6e4c16..66ef6f4 100644
---- a/kernel/stacktrace.c
-+++ b/kernel/stacktrace.c
-@@ -57,6 +57,23 @@ int snprint_stack_trace(char *buf, size_t size,
+ 	return 0;
+ 
+@@ -416,6 +420,8 @@ struct page *cma_alloc(struct cma *cma, unsigned int count, unsigned int align)
+ 		start = bitmap_no + mask + 1;
+ 	}
+ 
++	if (page)
++		cma_buffer_list_add(cma, pfn, count);
+ 	trace_cma_alloc(cma, page, count);
+ 
+ 	pr_debug("%s(): returned %p\n", __func__, page);
+@@ -451,6 +457,7 @@ bool cma_release(struct cma *cma, const struct page *pages, unsigned int count)
+ 	free_contig_range(pfn, count);
+ 	cma_clear_bitmap(cma, pfn, count);
+ 	trace_cma_release(cma, pfn, count);
++	cma_buffer_list_del(cma, pfn, count);
+ 
+ 	return true;
  }
- EXPORT_SYMBOL_GPL(snprint_stack_trace);
+diff --git a/mm/cma.h b/mm/cma.h
+index 1132d73..e174272 100644
+--- a/mm/cma.h
++++ b/mm/cma.h
+@@ -1,6 +1,8 @@
+ #ifndef __MM_CMA_H__
+ #define __MM_CMA_H__
  
-+void seq_print_stack_trace(struct seq_file *m, struct stack_trace *trace,
-+			int spaces)
++#include <linux/sched.h>
++
+ struct cma {
+ 	unsigned long   base_pfn;
+ 	unsigned long   count;
+@@ -11,8 +13,20 @@ struct cma {
+ 	struct hlist_head mem_head;
+ 	spinlock_t mem_head_lock;
+ #endif
++#ifdef CONFIG_CMA_BUFFER_LIST
++	struct list_head buffer_list;
++	struct mutex	list_lock;
++#endif
+ };
+ 
++#ifdef CONFIG_CMA_BUFFER_LIST
++extern int cma_buffer_list_add(struct cma *cma, unsigned long pfn, int count);
++extern void cma_buffer_list_del(struct cma *cma, unsigned long pfn, int count);
++#else
++#define cma_buffer_list_add(cma, pfn, count) { }
++#define cma_buffer_list_del(cma, pfn, count) { }
++#endif
++
+ extern struct cma cma_areas[MAX_CMA_AREAS];
+ extern unsigned cma_area_count;
+ 
+diff --git a/mm/cma_debug.c b/mm/cma_debug.c
+index ec915e6..20bad2d 100644
+--- a/mm/cma_debug.c
++++ b/mm/cma_debug.c
+@@ -2,6 +2,7 @@
+  * CMA DebugFS Interface
+  *
+  * Copyright (c) 2015 Sasha Levin <sasha.levin@oracle.com>
++ * Copyright (c) 2015 Stefan Strogin <stefan.strogin@gmail.com>
+  */
+ 
+ 
+@@ -10,7 +11,8 @@
+ #include <linux/list.h>
+ #include <linux/kernel.h>
+ #include <linux/slab.h>
+-#include <linux/mm_types.h>
++#include <linux/mm.h>
++#include <linux/stacktrace.h>
+ 
+ #include "cma.h"
+ 
+@@ -20,8 +22,119 @@ struct cma_mem {
+ 	unsigned long n;
+ };
+ 
++#ifdef CONFIG_CMA_BUFFER_LIST
++struct cma_buffer {
++	unsigned long pfn;
++	unsigned long count;
++	pid_t pid;
++	char comm[TASK_COMM_LEN];
++#ifdef CONFIG_CMA_ALLOC_STACKTRACE
++	unsigned long trace_entries[16];
++	unsigned int nr_entries;
++#endif
++	struct list_head list;
++};
++#endif /* CONFIG_CMA_BUFFER_LIST */
++
+ static struct dentry *cma_debugfs_root;
+ 
++#ifdef CONFIG_CMA_BUFFER_LIST
++/* Must be called under cma->list_lock */
++static int __cma_buffer_list_add(struct cma *cma, unsigned long pfn, int count)
 +{
-+	int i;
++	struct cma_buffer *cmabuf;
++#ifdef CONFIG_CMA_ALLOC_STACKTRACE
++	struct stack_trace trace;
++#endif
 +
-+	if (WARN_ON(!trace->entries))
-+		return;
-+
-+	for (i = 0; i < trace->nr_entries; i++) {
-+		unsigned long ip = trace->entries[i];
-+
-+		seq_printf(m, "%*c[<%p>] %pS\n", 1 + spaces, ' ',
-+				(void *) ip, (void *) ip);
++	cmabuf = kmalloc(sizeof(*cmabuf), GFP_KERNEL);
++	if (!cmabuf) {
++		pr_warn("%s(page %p, count %d): failed to allocate buffer list entry\n",
++			__func__, pfn_to_page(pfn), count);
++		return -ENOMEM;
 +	}
-+}
-+EXPORT_SYMBOL_GPL(seq_print_stack_trace);
 +
- /*
-  * Architectures that do not implement save_stack_trace_tsk or
-  * save_stack_trace_regs get this weak alias and a once-per-bootup warning
++#ifdef CONFIG_CMA_ALLOC_STACKTRACE
++	trace.nr_entries = 0;
++	trace.max_entries = ARRAY_SIZE(cmabuf->trace_entries);
++	trace.entries = &cmabuf->trace_entries[0];
++	trace.skip = 2;
++	save_stack_trace(&trace);
++	cmabuf->nr_entries = trace.nr_entries;
++#endif
++	cmabuf->pfn = pfn;
++	cmabuf->count = count;
++	cmabuf->pid = task_pid_nr(current);
++	get_task_comm(cmabuf->comm, current);
++
++	list_add_tail(&cmabuf->list, &cma->buffer_list);
++
++	return 0;
++}
++
++/**
++ * cma_buffer_list_add() - add a new entry to a list of allocated buffers
++ * @cma:     Contiguous memory region for which the allocation is performed.
++ * @pfn:     Base PFN of the allocated buffer.
++ * @count:   Number of allocated pages.
++ *
++ * This function adds a new entry to the list of allocated contiguous memory
++ * buffers in a CMA region.
++ */
++int cma_buffer_list_add(struct cma *cma, unsigned long pfn, int count)
++{
++	int ret;
++
++	mutex_lock(&cma->list_lock);
++	ret = __cma_buffer_list_add(cma, pfn, count);
++	mutex_unlock(&cma->list_lock);
++
++	return ret;
++}
++
++/**
++ * cma_buffer_list_del() - delete an entry from a list of allocated buffers
++ * @cma:   Contiguous memory region for which the allocation was performed.
++ * @pfn:   Base PFN of the released buffer.
++ * @count: Number of pages.
++ *
++ * This function deletes a list entry added by cma_buffer_list_add().
++ */
++void cma_buffer_list_del(struct cma *cma, unsigned long pfn, int count)
++{
++	struct cma_buffer *cmabuf, *tmp;
++	int found = 0;
++	unsigned long buf_end_pfn, free_end_pfn = pfn + count;
++
++	mutex_lock(&cma->list_lock);
++	list_for_each_entry_safe(cmabuf, tmp, &cma->buffer_list, list) {
++
++		buf_end_pfn = cmabuf->pfn + cmabuf->count;
++		if (pfn <= cmabuf->pfn && free_end_pfn >= buf_end_pfn) {
++			list_del(&cmabuf->list);
++			kfree(cmabuf);
++			found = 1;
++		} else if (pfn <= cmabuf->pfn && free_end_pfn < buf_end_pfn) {
++			cmabuf->count -= free_end_pfn - cmabuf->pfn;
++			cmabuf->pfn = free_end_pfn;
++			found = 1;
++		} else if (pfn > cmabuf->pfn && pfn < buf_end_pfn) {
++			if (free_end_pfn < buf_end_pfn)
++				__cma_buffer_list_add(cma, free_end_pfn,
++						buf_end_pfn - free_end_pfn);
++			cmabuf->count = pfn - cmabuf->pfn;
++			found = 1;
++		}
++	}
++	mutex_unlock(&cma->list_lock);
++
++	if (!found)
++		pr_err("%s(page %p, count %d): couldn't find buffer list entry\n",
++		       __func__, pfn_to_page(pfn), count);
++
++}
++#endif /* CONFIG_CMA_BUFFER_LIST */
++
+ static int cma_debugfs_get(void *data, u64 *val)
+ {
+ 	unsigned long *p = data;
+@@ -127,6 +240,93 @@ static int cma_alloc_write(void *data, u64 val)
+ 
+ DEFINE_SIMPLE_ATTRIBUTE(cma_alloc_fops, NULL, cma_alloc_write, "%llu\n");
+ 
++#ifdef CONFIG_CMA_BUFFER_LIST
++static void *s_start(struct seq_file *seq, loff_t *ppos)
++{
++	struct cma *cma = seq->private;
++	struct cma_buffer *cmabuf;
++	loff_t n = *ppos;
++
++	mutex_lock(&cma->list_lock);
++	cmabuf = list_first_entry(&cma->buffer_list, typeof(*cmabuf), list);
++	list_for_each_entry(cmabuf, &cma->buffer_list, list)
++		if (n-- == 0)
++			return cmabuf;
++
++	return 0;
++}
++
++static int s_show(struct seq_file *seq, void *p)
++{
++	struct cma_buffer *cmabuf = p;
++#ifdef CONFIG_CMA_ALLOC_STACKTRACE
++	struct stack_trace trace;
++#endif
++
++	seq_printf(seq, "0x%llx - 0x%llx (%lu kB), allocated by pid %u (%s)\n",
++		   (unsigned long long)PFN_PHYS(cmabuf->pfn),
++		   (unsigned long long)PFN_PHYS(cmabuf->pfn +
++			   cmabuf->count),
++		   (cmabuf->count * PAGE_SIZE) >> 10, cmabuf->pid,
++		   cmabuf->comm);
++
++#ifdef CONFIG_CMA_ALLOC_STACKTRACE
++	trace.nr_entries = cmabuf->nr_entries;
++	trace.entries = &cmabuf->trace_entries[0];
++	seq_print_stack_trace(seq, &trace, 0);
++	seq_putc(seq, '\n');
++#endif
++
++	return 0;
++}
++
++static void *s_next(struct seq_file *seq, void *p, loff_t *ppos)
++{
++	struct cma *cma = seq->private;
++	struct cma_buffer *cmabuf = (struct cma_buffer *)p, *next;
++
++	++*ppos;
++	next = list_next_entry(cmabuf, list);
++	if (&next->list != &cma->buffer_list)
++		return next;
++
++	return 0;
++}
++
++static void s_stop(struct seq_file *seq, void *p)
++{
++	struct cma *cma = seq->private;
++
++	mutex_unlock(&cma->list_lock);
++}
++
++static const struct seq_operations cma_buffers_sops = {
++	.start = s_start,
++	.show = s_show,
++	.next = s_next,
++	.stop = s_stop,
++};
++
++static int cma_buffers_open(struct inode *inode, struct file *file)
++{
++	int ret = seq_open(file, &cma_buffers_sops);
++
++	if (ret == 0) {
++		struct seq_file *seq = file->private_data;
++
++		seq->private = inode->i_private;
++	}
++	return ret;
++}
++
++static const struct file_operations cma_buffers_fops = {
++	.open = cma_buffers_open,
++	.read = seq_read,
++	.llseek = seq_lseek,
++	.release = seq_release,
++};
++#endif /* CONFIG_CMA_BUFFER_LIST */
++
+ static void cma_debugfs_add_one(struct cma *cma, int idx)
+ {
+ 	struct dentry *tmp;
+@@ -149,6 +349,10 @@ static void cma_debugfs_add_one(struct cma *cma, int idx)
+ 				&cma->count, &cma_debugfs_fops);
+ 	debugfs_create_file("order_per_bit", S_IRUGO, tmp,
+ 				&cma->order_per_bit, &cma_debugfs_fops);
++#ifdef CONFIG_CMA_BUFFER_LIST
++	debugfs_create_file("buffers", S_IRUGO, tmp, cma,
++				&cma_buffers_fops);
++#endif
+ 
+ 	u32s = DIV_ROUND_UP(cma_bitmap_maxno(cma), BITS_PER_BYTE * sizeof(u32));
+ 	debugfs_create_u32_array("bitmap", S_IRUGO, tmp, (u32*)cma->bitmap, u32s);
 -- 
 2.1.0
 
