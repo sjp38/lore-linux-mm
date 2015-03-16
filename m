@@ -1,82 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 759506B0032
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 03:58:28 -0400 (EDT)
-Received: by wggv3 with SMTP id v3so32747200wgg.1
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 00:58:27 -0700 (PDT)
-Received: from mail-wi0-x22e.google.com (mail-wi0-x22e.google.com. [2a00:1450:400c:c05::22e])
-        by mx.google.com with ESMTPS id go8si16319268wib.8.2015.03.16.00.58.26
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 630126B0032
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 04:36:45 -0400 (EDT)
+Received: by wixw10 with SMTP id w10so36569158wix.0
+        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 01:36:44 -0700 (PDT)
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com. [195.75.94.107])
+        by mx.google.com with ESMTPS id bu8si16483835wib.29.2015.03.16.01.36.43
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Mar 2015 00:58:26 -0700 (PDT)
-Received: by wibg7 with SMTP id g7so25596690wib.1
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 00:58:26 -0700 (PDT)
-Date: Mon, 16 Mar 2015 08:58:21 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v3 4/5] mtrr, x86: Clean up mtrr_type_lookup()
-Message-ID: <20150316075821.GA16062@gmail.com>
-References: <1426282421-25385-1-git-send-email-toshi.kani@hp.com>
- <1426282421-25385-5-git-send-email-toshi.kani@hp.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1426282421-25385-5-git-send-email-toshi.kani@hp.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 16 Mar 2015 01:36:44 -0700 (PDT)
+Received: from /spool/local
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
+	Mon, 16 Mar 2015 08:36:42 -0000
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
+	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 4538817D8059
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 08:37:03 +0000 (GMT)
+Received: from d06av07.portsmouth.uk.ibm.com (d06av07.portsmouth.uk.ibm.com [9.149.37.248])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t2G8ad386750620
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 08:36:39 GMT
+Received: from d06av07.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av07.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t2G8acmF009233
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 04:36:39 -0400
+From: Christian Borntraeger <borntraeger@de.ibm.com>
+Subject: [PATCH] mm: trigger panic on bad page or PTE states if panic_on_oops
+Date: Mon, 16 Mar 2015 09:37:01 +0100
+Message-Id: <1426495021-6408-1-git-send-email-borntraeger@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: akpm@linux-foundation.org, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, Elliott@hp.com, pebolle@tiscali.nl
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Christian Borntraeger <borntraeger@de.ibm.com>
 
+while debugging a memory management problem it helped a lot to
+get a system dump as early as possible for bad page states.
 
-* Toshi Kani <toshi.kani@hp.com> wrote:
+Lets assume that if panic_on_oops is set then the system should
+not continue with broken mm data structures.
 
-> MTRRs contain fixed and variable entries.  mtrr_type_lookup()
-> may repeatedly call __mtrr_type_lookup() to handle a request
-> that overlaps with variable entries.  However,
-> __mtrr_type_lookup() also handles the fixed entries, which
-> do not have to be repeated.  Therefore, this patch creates
-> separate functions, mtrr_type_lookup_fixed() and
-> mtrr_type_lookup_variable(), to handle the fixed and variable
-> ranges respectively.
-> 
-> The patch also updates the function headers to clarify the
-> return values and output argument.  It updates comments to
-> clarify that the repeating is necessary to handle overlaps
-> with the default type, since overlaps with multiple entries
-> alone can be handled without such repeating.
-> 
-> There is no functional change in this patch.
+Signed-off-by: Christian Borntraeger <borntraeger@de.ibm.com>
+---
+ mm/memory.c     | 2 ++
+ mm/page_alloc.c | 2 ++
+ 2 files changed, 4 insertions(+)
 
-Nice cleanup!
-
-I also suggest adding a small table to the comments before the 
-function, that lists the fixed purpose MTRRs and their address ranges 
-- to make it more obvious what the magic hexadecimal constants within 
-the code are doing.
-
-> +static u8 mtrr_type_lookup_fixed(u64 start, u64 end)
-> +{
-> +	int idx;
-> +
-> +	if (start >= 0x100000)
-> +		return 0xFF;
-
-Btw., as a separate cleanup patch, we should probably also change 
-'0xFF' (which is sometimes written as 0xff) to be some sufficiently 
-named constant, and explain its usage somewhere?
-
-> +	if (!(mtrr_state.have_fixed) ||
-> +	    !(mtrr_state.enabled & MTRR_STATE_MTRR_FIXED_ENABLED))
-
-Btw., can MTRR_STATE_MTRR_FIXED_ENABLED ever be set in 
-mtrr_state.enabled, without mtrr_state.have_fixed being set?
-
-AFAICS get_mtrr_state() will only ever fill in mtrr_state with fixed 
-MTRRs if mtrr_state.have_fixed != 0 - but I might be mis-reading the 
-(rather convoluted) flow of code ...
-
-Thanks,
-
-	Ingo
+diff --git a/mm/memory.c b/mm/memory.c
+index 2c3536c..bdbf9cc 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -696,6 +696,8 @@ static void print_bad_pte(struct vm_area_struct *vma, unsigned long addr,
+ 		printk(KERN_ALERT "vma->vm_file->f_op->mmap: %pSR\n",
+ 		       vma->vm_file->f_op->mmap);
+ 	dump_stack();
++	if (panic_on_oops)
++		panic("Fatal exception");
+ 	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
+ }
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 8e20f9c..8c19db3 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -337,6 +337,8 @@ static void bad_page(struct page *page, const char *reason,
+ 
+ 	print_modules();
+ 	dump_stack();
++	if (panic_on_oops)
++		panic("Fatal exception");
+ out:
+ 	/* Leave bad fields for debug, except PageBuddy could make trouble */
+ 	page_mapcount_reset(page); /* remove PageBuddy */
+-- 
+2.3.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
