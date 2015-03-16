@@ -1,101 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AF2C6B0032
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 13:51:16 -0400 (EDT)
-Received: by wibg7 with SMTP id g7so34194976wib.1
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 10:51:15 -0700 (PDT)
-Received: from mail-we0-x230.google.com (mail-we0-x230.google.com. [2a00:1450:400c:c03::230])
-        by mx.google.com with ESMTPS id hd7si19107444wib.85.2015.03.16.10.51.14
+Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E22C6B0032
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 14:30:02 -0400 (EDT)
+Received: by iecsl2 with SMTP id sl2so178036893iec.1
+        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 11:30:02 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id n11si12165699ics.17.2015.03.16.11.30.01
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Mar 2015 10:51:14 -0700 (PDT)
-Received: by wegp1 with SMTP id p1so43925154weg.1
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 10:51:14 -0700 (PDT)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH v4 4/5] mm: cma: add list of currently allocated CMA buffers to debugfs
-In-Reply-To: <857357c314922e0d6f1d963ab74e5e4de5635799.1426521377.git.s.strogin@partner.samsung.com>
-References: <cover.1426521377.git.s.strogin@partner.samsung.com> <857357c314922e0d6f1d963ab74e5e4de5635799.1426521377.git.s.strogin@partner.samsung.com>
-Date: Mon, 16 Mar 2015 18:51:10 +0100
-Message-ID: <xa1tlhiwompd.fsf@mina86.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+        Mon, 16 Mar 2015 11:30:01 -0700 (PDT)
+From: Laura Abbott <lauraa@codeaurora.org>
+Subject: [PATCH] mm/page_alloc: Call kernel_map_pages in unset_migrateype_isolate
+Date: Mon, 16 Mar 2015 11:29:45 -0700
+Message-Id: <1426530585-11367-1-git-send-email-lauraa@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stefan Strogin <s.strogin@partner.samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Dmitry Safonov <d.safonov@partner.samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Minchan Kim <minchan@kernel.org>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>, Aleksei Mateosian <a.mateosian@samsung.com>, gregory.0xf0@gmail.com, sasha.levin@oracle.com, gioh.kim@lge.com, pavel@ucw.cz, stefan.strogin@gmail.com
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Gioh Kim <gioh.kim@lge.com>
+Cc: Laura Abbott <lauraa@codeaurora.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Xishi Qiu <qiuxishi@huawei.com>, Vladimir Davydov <vdavydov@parallels.com>, Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>
 
-On Mon, Mar 16 2015, Stefan Strogin wrote:
-> When CONFIG_CMA_BUFFER_LIST is configured a file is added to debugfs:
-> /sys/kernel/debug/cma/cma-<N>/buffers contains a list of currently alloca=
-ted
-> CMA buffers for each CMA region (N stands for number of CMA region).
->
-> Format is:
-> <base_phys_addr> - <end_phys_addr> (<size> kB), allocated by <PID> (<comm=
->)
->
-> When CONFIG_CMA_ALLOC_STACKTRACE is configured then stack traces are save=
-d when
-> the allocations are made. The stack traces are added to cma/cma-<N>/buffe=
-rs
-> for each buffer list entry.
->
-> Example:
->
-> root@debian:/sys/kernel/debug/cma# cat cma-0/buffers
-> 0x2f400000 - 0x2f417000 (92 kB), allocated by pid 1 (swapper/0)
->  [<c1142c4b>] cma_alloc+0x1bb/0x200
->  [<c143d28a>] dma_alloc_from_contiguous+0x3a/0x40
->  [<c10079d9>] dma_generic_alloc_coherent+0x89/0x160
->  [<c14456ce>] dmam_alloc_coherent+0xbe/0x100
->  [<c1487312>] ahci_port_start+0xe2/0x210
->  [<c146e0e0>] ata_host_start.part.28+0xc0/0x1a0
->  [<c1473650>] ata_host_activate+0xd0/0x110
->  [<c14881bf>] ahci_host_activate+0x3f/0x170
->  [<c14854e4>] ahci_init_one+0x764/0xab0
->  [<c12e415f>] pci_device_probe+0x6f/0xd0
->  [<c14378a8>] driver_probe_device+0x68/0x210
->  [<c1437b09>] __driver_attach+0x79/0x80
->  [<c1435eef>] bus_for_each_dev+0x4f/0x80
->  [<c143749e>] driver_attach+0x1e/0x20
->  [<c1437197>] bus_add_driver+0x157/0x200
->  [<c14381bd>] driver_register+0x5d/0xf0
-> <...>
->
-> Signed-off-by: Stefan Strogin <stefan.strogin@gmail.com>
+Commit 3c605096d315 ("mm/page_alloc: restrict max order of merging on isolated pageblock")
+changed the logic of unset_migratetype_isolate to check the buddy allocator
+and explicitly call __free_pages to merge. The page that is being freed in
+this path never had prep_new_page called so set_page_refcounted is called
+explicitly but there is no call to kernel_map_pages. With the default
+kernel_map_pages this is mostly harmless but if kernel_map_pages does any
+manipulation of the page tables (unmapping or setting pages to read only) this
+may trigger a fault:
 
-Acked-by: Michal Nazarewicz <mina86@mina86.com>
+    alloc_contig_range test_pages_isolated(ceb00, ced00) failed
+    Unable to handle kernel paging request at virtual address ffffffc0cec00000
+    pgd = ffffffc045fc4000
+    [ffffffc0cec00000] *pgd=0000000000000000
+    Internal error: Oops: 9600004f [#1] PREEMPT SMP
+    Modules linked in: exfatfs
+    CPU: 1 PID: 23237 Comm: TimedEventQueue Not tainted 3.10.49-gc72ad36-dirty #1
+    task: ffffffc03de52100 ti: ffffffc015388000 task.ti: ffffffc015388000
+    PC is at memset+0xc8/0x1c0
+    LR is at kernel_map_pages+0x1ec/0x244
 
-> @@ -127,6 +240,93 @@ static int cma_alloc_write(void *data, u64 val)
->=20=20
->  DEFINE_SIMPLE_ATTRIBUTE(cma_alloc_fops, NULL, cma_alloc_write, "%llu\n");
->=20=20
-> +#ifdef CONFIG_CMA_BUFFER_LIST
-> +static void *s_start(struct seq_file *seq, loff_t *ppos)
-> +{
-> +	struct cma *cma =3D seq->private;
-> +	struct cma_buffer *cmabuf;
-> +	loff_t n =3D *ppos;
-> +
-> +	mutex_lock(&cma->list_lock);
-> +	cmabuf =3D list_first_entry(&cma->buffer_list, typeof(*cmabuf), list);
-> +	list_for_each_entry(cmabuf, &cma->buffer_list, list)
-> +		if (n-- =3D=3D 0)
-> +			return cmabuf;
-> +
-> +	return 0;
+Fix this by calling kernel_map_pages to ensure the page is set in the
+page table properly
 
-	return NULL;
+Fixes: 3c605096d315 ("mm/page_alloc: restrict max order of merging on isolated pageblock")
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Cc: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Gioh Kim <gioh.kim@lge.com>
+Cc: Michal Nazarewicz <mina86@mina86.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
+---
+Note this was found on a backport to 3.10 and the code to make kernel_map_pages
+change the page table state is currently out of tree. The original had stable,
+so this may need to go into stable as well.
+---
+ mm/page_isolation.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-> +}
-
---=20
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
- (o o)
-ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
+diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+index 72f5ac3..755a42c 100644
+--- a/mm/page_isolation.c
++++ b/mm/page_isolation.c
+@@ -103,6 +103,7 @@ void unset_migratetype_isolate(struct page *page, unsigned migratetype)
+ 
+ 			if (!is_migrate_isolate_page(buddy)) {
+ 				__isolate_free_page(page, order);
++				kernel_map_pages(page, (1 << order), 1);
+ 				set_page_refcounted(page);
+ 				isolated_page = page;
+ 			}
+-- 
+Qualcomm Innovation Center, Inc.
+Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum, a Linux Foundation Collaborative Project
+This e-mail address will be inactive after March 20, 2015
+Please contact privately for follow up after that date.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
