@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f44.google.com (mail-oi0-f44.google.com [209.85.218.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F4E06B006E
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 19:53:46 -0400 (EDT)
-Received: by oigv203 with SMTP id v203so17611025oig.3
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 16:53:46 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id kj3si6408386oeb.58.2015.03.16.16.53.45
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 0779B6B0070
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 19:53:55 -0400 (EDT)
+Received: by pdbop1 with SMTP id op1so72136949pdb.2
+        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 16:53:54 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id og4si18695953pdb.24.2015.03.16.16.53.52
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 16 Mar 2015 16:53:45 -0700 (PDT)
+        Mon, 16 Mar 2015 16:53:54 -0700 (PDT)
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH V2 2/4] hugetlbfs: add minimum size accounting to subpools
-Date: Mon, 16 Mar 2015 16:53:27 -0700
-Message-Id: <464e43df640c54408ed78d1397ad8148784e4ecc.1426549011.git.mike.kravetz@oracle.com>
+Subject: [PATCH V2 3/4] hugetlbfs: accept subpool min_size mount option and setup accordingly
+Date: Mon, 16 Mar 2015 16:53:28 -0700
+Message-Id: <cfcd697cffc0f3500ecdb3371350a2613ee22f2e.1426549011.git.mike.kravetz@oracle.com>
 In-Reply-To: <cover.1426549010.git.mike.kravetz@oracle.com>
 References: <cover.1426549010.git.mike.kravetz@oracle.com>
 In-Reply-To: <cover.1426549010.git.mike.kravetz@oracle.com>
@@ -22,236 +22,238 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-The same routines that perform subpool maximum size accounting
-hugepage_subpool_get/put_pages() are modified to also perform
-minimum size accounting.  When a delta value is passed to these
-routines, calculate how global reservations must be adjusted
-to maintain the subpool minimum size.  The routines now return
-this global reserve count adjustment.  This global adjusted
-reserve count is then passed to the global accounting routine
-hugetlb_acct_memory().
+Make 'min_size=' be an option when mounting a hugetlbfs.  This option
+takes the same value as the 'size' option.  min_size can be specified
+with specifying size.  If both are specified, min_size must be less
+that or equal to size else the mount will fail.  If min_size is
+specified, then at mount time an attempt is made to reserve min_size
+pages.  If the reservation fails, the mount fails.  At umount time,
+the reserved pages are released.
 
 Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 ---
- mm/hugetlb.c | 115 ++++++++++++++++++++++++++++++++++++++++++++++++-----------
- 1 file changed, 94 insertions(+), 21 deletions(-)
+ fs/hugetlbfs/inode.c    | 75 ++++++++++++++++++++++++++++++++++++++-----------
+ include/linux/hugetlb.h |  3 +-
+ mm/hugetlb.c            | 26 +++++++++++++----
+ 3 files changed, 80 insertions(+), 24 deletions(-)
 
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index 5eba47f..7a20a1b 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -50,6 +50,7 @@ struct hugetlbfs_config {
+ 	long	nr_blocks;
+ 	long	nr_inodes;
+ 	struct hstate *hstate;
++	long    min_size;
+ };
+ 
+ struct hugetlbfs_inode_info {
+@@ -73,7 +74,7 @@ int sysctl_hugetlb_shm_group;
+ enum {
+ 	Opt_size, Opt_nr_inodes,
+ 	Opt_mode, Opt_uid, Opt_gid,
+-	Opt_pagesize,
++	Opt_pagesize, Opt_min_size,
+ 	Opt_err,
+ };
+ 
+@@ -84,6 +85,7 @@ static const match_table_t tokens = {
+ 	{Opt_uid,	"uid=%u"},
+ 	{Opt_gid,	"gid=%u"},
+ 	{Opt_pagesize,	"pagesize=%s"},
++	{Opt_min_size,	"min_size=%s"},
+ 	{Opt_err,	NULL},
+ };
+ 
+@@ -761,14 +763,32 @@ static const struct super_operations hugetlbfs_ops = {
+ 	.show_options	= generic_show_options,
+ };
+ 
++enum { NO_SIZE, SIZE_STD, SIZE_PERCENT };
++
++static bool
++hugetlbfs_options_setsize(struct hstate *h, long long *size, int setsize)
++{
++	if (setsize == NO_SIZE)
++		return false;
++
++	if (setsize == SIZE_PERCENT) {
++		*size <<= huge_page_shift(h);
++		*size *= h->max_huge_pages;
++		do_div(*size, 100);
++	}
++
++	*size >>= huge_page_shift(h);
++	return true;
++}
++
+ static int
+ hugetlbfs_parse_options(char *options, struct hugetlbfs_config *pconfig)
+ {
+ 	char *p, *rest;
+ 	substring_t args[MAX_OPT_ARGS];
+ 	int option;
+-	unsigned long long size = 0;
+-	enum { NO_SIZE, SIZE_STD, SIZE_PERCENT } setsize = NO_SIZE;
++	unsigned long long max_size = 0, min_size = 0;
++	int max_setsize = NO_SIZE, min_setsize = NO_SIZE;
+ 
+ 	if (!options)
+ 		return 0;
+@@ -806,10 +826,10 @@ hugetlbfs_parse_options(char *options, struct hugetlbfs_config *pconfig)
+ 			/* memparse() will accept a K/M/G without a digit */
+ 			if (!isdigit(*args[0].from))
+ 				goto bad_val;
+-			size = memparse(args[0].from, &rest);
+-			setsize = SIZE_STD;
++			max_size = memparse(args[0].from, &rest);
++			max_setsize = SIZE_STD;
+ 			if (*rest == '%')
+-				setsize = SIZE_PERCENT;
++				max_setsize = SIZE_PERCENT;
+ 			break;
+ 		}
+ 
+@@ -832,6 +852,17 @@ hugetlbfs_parse_options(char *options, struct hugetlbfs_config *pconfig)
+ 			break;
+ 		}
+ 
++		case Opt_min_size: {
++			/* memparse() will accept a K/M/G without a digit */
++			if (!isdigit(*args[0].from))
++				goto bad_val;
++			min_size = memparse(args[0].from, &rest);
++			min_setsize = SIZE_STD;
++			if (*rest == '%')
++				min_setsize = SIZE_PERCENT;
++			break;
++		}
++
+ 		default:
+ 			pr_err("Bad mount option: \"%s\"\n", p);
+ 			return -EINVAL;
+@@ -839,15 +870,17 @@ hugetlbfs_parse_options(char *options, struct hugetlbfs_config *pconfig)
+ 		}
+ 	}
+ 
+-	/* Do size after hstate is set up */
+-	if (setsize > NO_SIZE) {
+-		struct hstate *h = pconfig->hstate;
+-		if (setsize == SIZE_PERCENT) {
+-			size <<= huge_page_shift(h);
+-			size *= h->max_huge_pages;
+-			do_div(size, 100);
+-		}
+-		pconfig->nr_blocks = (size >> huge_page_shift(h));
++	/* Calculate number of huge pages based on hstate */
++	if (hugetlbfs_options_setsize(pconfig->hstate, &max_size, max_setsize))
++		pconfig->nr_blocks = max_size;
++	if (hugetlbfs_options_setsize(pconfig->hstate, &min_size, min_setsize))
++		pconfig->min_size = min_size;
++
++	/* If max_size specified, then min_size must be smaller */
++	if (max_setsize > NO_SIZE && min_setsize > NO_SIZE &&
++	    pconfig->min_size > pconfig->nr_blocks) {
++		pr_err("minimum size can not be greater than maximum size\n");
++		return -EINVAL;
+ 	}
+ 
+ 	return 0;
+@@ -872,6 +905,7 @@ hugetlbfs_fill_super(struct super_block *sb, void *data, int silent)
+ 	config.gid = current_fsgid();
+ 	config.mode = 0755;
+ 	config.hstate = &default_hstate;
++	config.min_size = 0; /* No default minimum size */
+ 	ret = hugetlbfs_parse_options(data, &config);
+ 	if (ret)
+ 		return ret;
+@@ -885,8 +919,15 @@ hugetlbfs_fill_super(struct super_block *sb, void *data, int silent)
+ 	sbinfo->max_inodes = config.nr_inodes;
+ 	sbinfo->free_inodes = config.nr_inodes;
+ 	sbinfo->spool = NULL;
+-	if (config.nr_blocks != -1) {
+-		sbinfo->spool = hugepage_new_subpool(config.nr_blocks);
++	/*
++	 * Allocate and initialize subpool if maximum or minimum size is
++	 * specified.  Any needed reservations (for minimim size) are taken
++	 * taken when the subpool is created.
++	 */
++	if (config.nr_blocks != -1 || config.min_size != 0) {
++		sbinfo->spool = hugepage_new_subpool(config.hstate,
++							config.nr_blocks,
++							config.min_size);
+ 		if (!sbinfo->spool)
+ 			goto out_free;
+ 	}
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index cfe13fd..6883fca 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -40,7 +40,8 @@ extern int hugetlb_max_hstate __read_mostly;
+ #define for_each_hstate(h) \
+ 	for ((h) = hstates; (h) < &hstates[hugetlb_max_hstate]; (h)++)
+ 
+-struct hugepage_subpool *hugepage_new_subpool(long nr_blocks);
++struct hugepage_subpool *hugepage_new_subpool(struct hstate *h, long nr_blocks,
++						long min_size);
+ void hugepage_put_subpool(struct hugepage_subpool *spool);
+ 
+ int PageHuge(struct page *page);
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 07b7226..ab2ea1e 100644
+index ab2ea1e..7d4be33 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -100,36 +100,85 @@ void hugepage_put_subpool(struct hugepage_subpool *spool)
- 	unlock_or_release_subpool(spool);
- }
+@@ -61,6 +61,9 @@ DEFINE_SPINLOCK(hugetlb_lock);
+ static int num_fault_mutexes;
+ static struct mutex *htlb_fault_mutex_table ____cacheline_aligned_in_smp;
  
--static int hugepage_subpool_get_pages(struct hugepage_subpool *spool,
-+/*
-+ * subpool accounting for allocating and reserving pages
-+ * return -ENOMEM if there are not enough resources to satisfy the
-+ * the request.  Otherwise, return the number of pages by which the
-+ * global pools must be adjusted (upward).  The returned value may
-+ * only be different than the passed value (delta) in the case where
-+ * a subpool minimum size must be manitained.
-+ */
-+static long hugepage_subpool_get_pages(struct hugepage_subpool *spool,
- 				      long delta)
++/* Forward declaration */
++static int hugetlb_acct_memory(struct hstate *h, long delta);
++
+ static inline void unlock_or_release_subpool(struct hugepage_subpool *spool)
  {
--	int ret = 0;
-+	long ret = delta;
+ 	bool free = (spool->count == 0) && (spool->used_hpages == 0);
+@@ -68,12 +71,18 @@ static inline void unlock_or_release_subpool(struct hugepage_subpool *spool)
+ 	spin_unlock(&spool->lock);
  
- 	if (!spool)
--		return 0;
-+		return ret;
- 
- 	spin_lock(&spool->lock);
--	if ((spool->used_hpages + delta) <= spool->max_hpages) {
--		spool->used_hpages += delta;
--	} else {
--		ret = -ENOMEM;
-+
-+	if (spool->max_hpages != -1) {		/* maximum size accounting */
-+		if ((spool->used_hpages + delta) <= spool->max_hpages)
-+			spool->used_hpages += delta;
-+		else {
-+			ret = -ENOMEM;
-+			goto unlock_ret;
-+		}
+ 	/* If no pages are used, and no other handles to the subpool
+-	 * remain, free the subpool the subpool remain */
+-	if (free)
++	 * remain, give up any reservations mased on minimum size and
++	 * free the subpool */
++	if (free) {
++		if (spool->min_hpages)
++			hugetlb_acct_memory(spool->hstate,
++						-spool->min_hpages);
+ 		kfree(spool);
 +	}
-+
-+	if (spool->min_hpages) {		/* minimum size accounting */
-+		if (delta > spool->rsv_hpages) {
-+			/* asking for more reserves than those already taken
-+			 * on behalf of subpool. return difference */
-+			ret = delta - spool->rsv_hpages;
-+			spool->rsv_hpages = 0;
-+		} else {
-+			ret = 0;	/* reserves already accounted for */
-+			spool->rsv_hpages -= delta;
-+		}
- 	}
--	spin_unlock(&spool->lock);
- 
-+unlock_ret:
-+	spin_unlock(&spool->lock);
- 	return ret;
  }
  
--static void hugepage_subpool_put_pages(struct hugepage_subpool *spool,
-+/*
-+ * subpool accounting for freeing and unreserving pages
-+ * Return the number of global page reservations that must be dropped.
-+ * The return value may only be different than the passed value (delta)
-+ * in the case where a subpool minimum size must be maintained.
-+ */
-+static long hugepage_subpool_put_pages(struct hugepage_subpool *spool,
- 				       long delta)
+-struct hugepage_subpool *hugepage_new_subpool(long nr_blocks)
++struct hugepage_subpool *hugepage_new_subpool(struct hstate *h, long nr_blocks,
++						long min_size)
  {
-+	long ret = delta;
-+
- 	if (!spool)
--		return;
-+		return delta;
+ 	struct hugepage_subpool *spool;
  
- 	spin_lock(&spool->lock);
--	spool->used_hpages -= delta;
+@@ -85,9 +94,14 @@ struct hugepage_subpool *hugepage_new_subpool(long nr_blocks)
+ 	spool->count = 1;
+ 	spool->max_hpages = nr_blocks;
+ 	spool->used_hpages = 0;
+-	spool->hstate = NULL;
+-	spool->min_hpages = 0;
+-	spool->rsv_hpages = 0;
++	spool->hstate = h;
++	spool->min_hpages = min_size;
 +
-+	if (spool->max_hpages != -1)		/* maximum size accounting */
-+		spool->used_hpages -= delta;
-+
-+	if (spool->min_hpages) {		/* minimum size accounting */
-+		if (spool->rsv_hpages + delta <= spool->min_hpages)
-+			ret = 0;
-+		else
-+			ret = spool->rsv_hpages + delta - spool->min_hpages;
-+
-+		spool->rsv_hpages += delta;
-+		if (spool->rsv_hpages > spool->min_hpages)
-+			spool->rsv_hpages = spool->min_hpages;
++	if (min_size && hugetlb_acct_memory(h, min_size)) {
++		kfree(spool);
++		return NULL;
 +	}
-+
- 	/* If hugetlbfs_put_super couldn't free spool due to
- 	* an outstanding quota reference, free it now. */
- 	unlock_or_release_subpool(spool);
-+
-+	return ret;
++	spool->rsv_hpages = min_size;
+ 
+ 	return spool;
  }
- 
- static inline struct hugepage_subpool *subpool_inode(struct inode *inode)
-@@ -877,6 +926,14 @@ void free_huge_page(struct page *page)
- 	restore_reserve = PagePrivate(page);
- 	ClearPagePrivate(page);
- 
-+	/*
-+	 * A return code of zero implies that the subpool will be under
-+	 * it's minimum size if the reservation is not restored after
-+	 * page is free.  Therefore, force restore_reserve operation.
-+	 */
-+	if (hugepage_subpool_put_pages(spool, 1) == 0)
-+		restore_reserve = true;
-+
- 	spin_lock(&hugetlb_lock);
- 	hugetlb_cgroup_uncharge_page(hstate_index(h),
- 				     pages_per_huge_page(h), page);
-@@ -894,7 +951,6 @@ void free_huge_page(struct page *page)
- 		enqueue_huge_page(h, page);
- 	}
- 	spin_unlock(&hugetlb_lock);
--	hugepage_subpool_put_pages(spool, 1);
- }
- 
- static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)
-@@ -1387,7 +1443,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 	if (chg < 0)
- 		return ERR_PTR(-ENOMEM);
- 	if (chg || avoid_reserve)
--		if (hugepage_subpool_get_pages(spool, 1))
-+		if (hugepage_subpool_get_pages(spool, 1) < 0)
- 			return ERR_PTR(-ENOSPC);
- 
- 	ret = hugetlb_cgroup_charge_cgroup(idx, pages_per_huge_page(h), &h_cg);
-@@ -2455,6 +2511,7 @@ static void hugetlb_vm_op_close(struct vm_area_struct *vma)
- 	struct resv_map *resv = vma_resv_map(vma);
- 	struct hugepage_subpool *spool = subpool_vma(vma);
- 	unsigned long reserve, start, end;
-+	long gbl_reserve;
- 
- 	if (!resv || !is_vma_resv_set(vma, HPAGE_RESV_OWNER))
- 		return;
-@@ -2467,8 +2524,12 @@ static void hugetlb_vm_op_close(struct vm_area_struct *vma)
- 	kref_put(&resv->refs, resv_map_release);
- 
- 	if (reserve) {
--		hugetlb_acct_memory(h, -reserve);
--		hugepage_subpool_put_pages(spool, reserve);
-+		/*
-+		 * decrement reserve counts.  The global reserve count
-+		 * may be adjusted if the subpool has a minimum size.
-+		 */
-+		gbl_reserve = hugepage_subpool_put_pages(spool, reserve);
-+		hugetlb_acct_memory(h, -gbl_reserve);
- 	}
- }
- 
-@@ -3399,6 +3460,7 @@ int hugetlb_reserve_pages(struct inode *inode,
- 	struct hstate *h = hstate_inode(inode);
- 	struct hugepage_subpool *spool = subpool_inode(inode);
- 	struct resv_map *resv_map;
-+	long gbl_reserve;
- 
- 	/*
- 	 * Only apply hugepage reservation if asked. At fault time, an
-@@ -3435,8 +3497,13 @@ int hugetlb_reserve_pages(struct inode *inode,
- 		goto out_err;
- 	}
- 
--	/* There must be enough pages in the subpool for the mapping */
--	if (hugepage_subpool_get_pages(spool, chg)) {
-+	/*
-+	 * There must be enough pages in the subpool for the mapping. If
-+	 * the subpool has a minimum size, there may be some global
-+	 * reservations already in place (gbl_reserve).
-+	 */
-+	gbl_reserve = hugepage_subpool_get_pages(spool, chg);
-+	if (gbl_reserve < 0) {
- 		ret = -ENOSPC;
- 		goto out_err;
- 	}
-@@ -3445,9 +3512,10 @@ int hugetlb_reserve_pages(struct inode *inode,
- 	 * Check enough hugepages are available for the reservation.
- 	 * Hand the pages back to the subpool if there are not
- 	 */
--	ret = hugetlb_acct_memory(h, chg);
-+	ret = hugetlb_acct_memory(h, gbl_reserve);
- 	if (ret < 0) {
--		hugepage_subpool_put_pages(spool, chg);
-+		/* put back original number of pages, chg */
-+		(void)hugepage_subpool_put_pages(spool, chg);
- 		goto out_err;
- 	}
- 
-@@ -3477,6 +3545,7 @@ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
- 	struct resv_map *resv_map = inode_resv_map(inode);
- 	long chg = 0;
- 	struct hugepage_subpool *spool = subpool_inode(inode);
-+	long gbl_reserve;
- 
- 	if (resv_map)
- 		chg = region_truncate(resv_map, offset);
-@@ -3484,8 +3553,12 @@ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
- 	inode->i_blocks -= (blocks_per_huge_page(h) * freed);
- 	spin_unlock(&inode->i_lock);
- 
--	hugepage_subpool_put_pages(spool, (chg - freed));
--	hugetlb_acct_memory(h, -(chg - freed));
-+	/*
-+	 * If the subpool has a minimum size, the number of global
-+	 * reservations to be released may be adjusted.
-+	 */
-+	gbl_reserve = hugepage_subpool_put_pages(spool, (chg - freed));
-+	hugetlb_acct_memory(h, -gbl_reserve);
- }
- 
- #ifdef CONFIG_ARCH_WANT_HUGE_PMD_SHARE
 -- 
 2.1.0
 
