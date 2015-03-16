@@ -1,160 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FD796B0032
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 09:05:57 -0400 (EDT)
-Received: by pdbcz9 with SMTP id cz9so57969527pdb.3
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 06:05:56 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id lp6si22499835pab.69.2015.03.16.06.05.54
+Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
+	by kanga.kvack.org (Postfix) with ESMTP id DAD626B0032
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 09:13:01 -0400 (EDT)
+Received: by lbcgn8 with SMTP id gn8so19494519lbc.2
+        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 06:13:01 -0700 (PDT)
+Received: from forward-corp1m.cmail.yandex.net (forward-corp1m.cmail.yandex.net. [5.255.216.100])
+        by mx.google.com with ESMTPS id mu1si8115966lbc.3.2015.03.16.06.12.59
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 16 Mar 2015 06:05:55 -0700 (PDT)
-Message-ID: <5506D4FA.4020501@huawei.com>
-Date: Mon, 16 Mar 2015 21:04:58 +0800
-From: Xie XiuQi <xiexiuqi@huawei.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Mar 2015 06:13:00 -0700 (PDT)
+Subject: [PATCH] mm: rcu-protected get_mm_exe_file()
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Date: Mon, 16 Mar 2015 16:12:57 +0300
+Message-ID: <20150316131257.32340.36600.stgit@buzz>
 MIME-Version: 1.0
-Subject: Re: [PATCH] tracing: add trace event for memory-failure
-References: <1426241451-25729-1-git-send-email-xiexiuqi@huawei.com> <20150316092708.GC15902@hori1.linux.bs1.fc.nec.co.jp>
-In-Reply-To: <20150316092708.GC15902@hori1.linux.bs1.fc.nec.co.jp>
-Content-Type: text/plain; charset="iso-2022-jp"
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, "bhelgaas@google.com" <bhelgaas@google.com>, "bp@suse.de" <bp@suse.de>, "tony.luck@intel.com" <tony.luck@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "jingle.chen@huawei.com" <jingle.chen@huawei.com>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Oleg Nesterov <oleg@redhat.com>
 
-On 2015/3/16 17:27, Naoya Horiguchi wrote:
-> On Fri, Mar 13, 2015 at 06:10:51PM +0800, Xie XiuQi wrote:
->> Memory-failure as the high level machine check handler, it's necessary
->> to report memory page recovery action result to user space by ftrace.
->>
->> This patch add a event at ras group for memory-failure.
->>
->> The output like below:
->> # tracer: nop
->> #
->> # entries-in-buffer/entries-written: 2/2   #P:24
->> #
->> #                              _-----=> irqs-off
->> #                             / _----=> need-resched
->> #                            | / _---=> hardirq/softirq
->> #                            || / _--=> preempt-depth
->> #                            ||| /     delay
->> #           TASK-PID   CPU#  ||||    TIMESTAMP  FUNCTION
->> #              | |       |   ||||       |         |
->>       mce-inject-13150 [001] ....   277.019359: memory_failure_event: pfn 0x19869: free buddy page recovery: Delayed
->>
->> Signed-off-by: Xie XiuQi <xiexiuqi@huawei.com>
->> ---
->>  include/ras/ras_event.h |   36 ++++++++++++++++++++++++++++++++++++
->>  mm/memory-failure.c     |    3 +++
->>  2 files changed, 39 insertions(+), 0 deletions(-)
->>
->> diff --git a/include/ras/ras_event.h b/include/ras/ras_event.h
->> index 79abb9c..0a6c8f3 100644
->> --- a/include/ras/ras_event.h
->> +++ b/include/ras/ras_event.h
->> @@ -232,6 +232,42 @@ TRACE_EVENT(aer_event,
->>  		__print_flags(__entry->status, "|", aer_uncorrectable_errors))
->>  );
->>  
->> +/*
->> + * memory-failure recovery action result event
->> + *
->> + * unsigned long pfn -	Page Number of the corrupted page
->> + * char * action -	Recovery action: "free buddy", "free huge", "high
->> + *			order kernel", "free buddy, 2nd try", "different
->> + *			compound page after locking", "hugepage already
->> + *			hardware poisoned", "unmapping failed", "already
->> + *			truncated LRU", etc.
-> 
-> Listing all possible values here might be prone to become out of date when
-> someone try to add/remove/change action_result() call sites.
-> So I'd like to have some enumerator to bundle these strings in one place
-> in mm/memory-failure.c.
-> # I feel like doing this later.
+This patch removes mm->mmap_sem from mm->exe_file read side.
+Also it kills dup_mm_exe_file() and moves exe_file duplication into
+dup_mmap() where both mmap_sems are locked.
 
-Good, we need this.
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: Davidlohr Bueso <dbueso@suse.de>
+Cc: Al Viro <viro@zeniv.linux.org.uk>
+---
+ fs/file.c                |    3 +-
+ include/linux/fs.h       |    1 +
+ include/linux/mm_types.h |    2 +-
+ kernel/fork.c            |   56 ++++++++++++++++++++++++++++++----------------
+ 4 files changed, 40 insertions(+), 22 deletions(-)
 
-> 
->> + * char * result -	Action result: Ignored, Failed, Delayed, Recovered.
-> 
-> mm/memory-failure.c has good explanation:
-> 
->   /*
->    * Error handlers for various types of pages.
->    */
->   enum outcome {
->           IGNORED,        /* Error: cannot be handled */
->           FAILED,         /* Error: handling failed */
->           DELAYED,        /* Will be handled later */
->           RECOVERED,      /* Successfully recovered */
->   };
-> 
-> So adding a reference to here looks better to me.
-
-Thanks for you comments. I'll change it.
-
-> 
-> Thanks,
-> Naoya Horiguchi
-> 
->> + */
->> +TRACE_EVENT(memory_failure_event,
->> +	TP_PROTO(const unsigned long pfn,
->> +		 const char *action,
->> +		 const char *result),
->> +
->> +	TP_ARGS(pfn, action, result),
->> +
->> +	TP_STRUCT__entry(
->> +		__field(unsigned long, pfn)
->> +		__string(action, action)
->> +		__string(result, result)
->> +	),
->> +
->> +	TP_fast_assign(
->> +		__entry->pfn = pfn;
->> +		__assign_str(action, action);
->> +		__assign_str(result, result);
->> +	),
->> +
->> +	TP_printk("pfn %#lx: %s page recovery: %s",
->> +		__entry->pfn,
->> +		__get_str(action),
->> +		__get_str(result)
->> +	)
->> +);
->>  #endif /* _TRACE_HW_EVENT_MC_H */
->>  
->>  /* This part must be outside protection */
->> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
->> index d487f8d..86a9cce 100644
->> --- a/mm/memory-failure.c
->> +++ b/mm/memory-failure.c
->> @@ -56,6 +56,7 @@
->>  #include <linux/mm_inline.h>
->>  #include <linux/kfifo.h>
->>  #include "internal.h"
->> +#include <ras/ras_event.h>
->>  
->>  int sysctl_memory_failure_early_kill __read_mostly = 0;
->>  
->> @@ -837,6 +838,8 @@ static struct page_state {
->>   */
->>  static void action_result(unsigned long pfn, char *msg, int result)
->>  {
->> +	trace_memory_failure_event(pfn, msg, action_name[result]);
->> +
->>  	pr_err("MCE %#lx: %s page recovery: %s\n",
->>  		pfn, msg, action_name[result]);
->>  }
->> -- 
->> 1.7.1
->>
-> .
-> 
-
+diff --git a/fs/file.c b/fs/file.c
+index ee738ea028fa..93c5f89c248b 100644
+--- a/fs/file.c
++++ b/fs/file.c
+@@ -638,8 +638,7 @@ static struct file *__fget(unsigned int fd, fmode_t mask)
+ 	file = fcheck_files(files, fd);
+ 	if (file) {
+ 		/* File object ref couldn't be taken */
+-		if ((file->f_mode & mask) ||
+-		    !atomic_long_inc_not_zero(&file->f_count))
++		if ((file->f_mode & mask) || !get_file_rcu(file))
+ 			file = NULL;
+ 	}
+ 	rcu_read_unlock();
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 1abc7f2a5730..29bc94cfa273 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -847,6 +847,7 @@ static inline struct file *get_file(struct file *f)
+ 	atomic_long_inc(&f->f_count);
+ 	return f;
+ }
++#define get_file_rcu(x) atomic_long_inc_not_zero(&(x)->f_count)
+ #define fput_atomic(x)	atomic_long_add_unless(&(x)->f_count, -1, 1)
+ #define file_count(x)	atomic_long_read(&(x)->f_count)
+ 
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 590630eb59ba..8d37e26a1007 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -429,7 +429,7 @@ struct mm_struct {
+ #endif
+ 
+ 	/* store ref to file /proc/<pid>/exe symlink points to */
+-	struct file *exe_file;
++	struct file __rcu *exe_file;
+ #ifdef CONFIG_MMU_NOTIFIER
+ 	struct mmu_notifier_mm *mmu_notifier_mm;
+ #endif
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 2113001ceb38..a7c596517bd6 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -380,6 +380,9 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
+ 	 */
+ 	down_write_nested(&mm->mmap_sem, SINGLE_DEPTH_NESTING);
+ 
++	/* No ordering required: file already has been exposed. */
++	RCU_INIT_POINTER(mm->exe_file, get_mm_exe_file(oldmm));
++
+ 	mm->total_vm = oldmm->total_vm;
+ 	mm->shared_vm = oldmm->shared_vm;
+ 	mm->exec_vm = oldmm->exec_vm;
+@@ -505,7 +508,13 @@ static inline void mm_free_pgd(struct mm_struct *mm)
+ 	pgd_free(mm, mm->pgd);
+ }
+ #else
+-#define dup_mmap(mm, oldmm)	(0)
++static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
++{
++	down_write(&oldmm->mmap_sem);
++	RCU_INIT_POINTER(mm->exe_file, get_mm_exe_file(oldmm));
++	up_write(&oldmm->mmap_sem);
++	return 0;
++}
+ #define mm_alloc_pgd(mm)	(0)
+ #define mm_free_pgd(mm)
+ #endif /* CONFIG_MMU */
+@@ -674,36 +683,47 @@ void mmput(struct mm_struct *mm)
+ }
+ EXPORT_SYMBOL_GPL(mmput);
+ 
++/**
++ * set_mm_exe_file - change a reference to the mm's executable file
++ *
++ * This changes mm's executale file (shown as symlink /proc/[pid]/exe).
++ *
++ * Main users are mmput(), sys_execve() and sys_prctl(PR_SET_MM_MAP/EXE_FILE).
++ * Callers prevent concurrent invocations: in mmput() nobody alive left,
++ * in execve task is single-threaded, prctl holds mmap_sem exclusively.
++ */
+ void set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file)
+ {
++	struct file *old_exe_file = rcu_dereference_protected(mm->exe_file,
++			!atomic_read(&mm->mm_users) || current->in_execve ||
++			lock_is_held(&mm->mmap_sem));
++
+ 	if (new_exe_file)
+ 		get_file(new_exe_file);
+-	if (mm->exe_file)
+-		fput(mm->exe_file);
+-	mm->exe_file = new_exe_file;
++	rcu_assign_pointer(mm->exe_file, new_exe_file);
++	if (old_exe_file)
++		fput(old_exe_file);
+ }
+ 
++/**
++ * get_mm_exe_file - acquire a reference to the mm's executable file
++ *
++ * Returns %NULL if mm has no associated executable file.
++ * User must release file via fput().
++ */
+ struct file *get_mm_exe_file(struct mm_struct *mm)
+ {
+ 	struct file *exe_file;
+ 
+-	/* We need mmap_sem to protect against races with removal of exe_file */
+-	down_read(&mm->mmap_sem);
+-	exe_file = mm->exe_file;
+-	if (exe_file)
+-		get_file(exe_file);
+-	up_read(&mm->mmap_sem);
++	rcu_read_lock();
++	exe_file = rcu_dereference(mm->exe_file);
++	if (exe_file && !get_file_rcu(exe_file))
++		exe_file = NULL;
++	rcu_read_unlock();
+ 	return exe_file;
+ }
+ EXPORT_SYMBOL(get_mm_exe_file);
+ 
+-static void dup_mm_exe_file(struct mm_struct *oldmm, struct mm_struct *newmm)
+-{
+-	/* It's safe to write the exe_file pointer without exe_file_lock because
+-	 * this is called during fork when the task is not yet in /proc */
+-	newmm->exe_file = get_mm_exe_file(oldmm);
+-}
+-
+ /**
+  * get_task_mm - acquire a reference to the task's mm
+  *
+@@ -865,8 +885,6 @@ static struct mm_struct *dup_mm(struct task_struct *tsk)
+ 	if (!mm_init(mm, tsk))
+ 		goto fail_nomem;
+ 
+-	dup_mm_exe_file(oldmm, mm);
+-
+ 	err = dup_mmap(mm, oldmm);
+ 	if (err)
+ 		goto free_pt;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
