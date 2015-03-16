@@ -1,115 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 919896B006C
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 17:12:05 -0400 (EDT)
-Received: by wetk59 with SMTP id k59so47365668wet.3
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 14:12:05 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id uj9si20023614wjc.15.2015.03.16.14.12.03
+Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
+	by kanga.kvack.org (Postfix) with ESMTP id C3CB46B0038
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 17:25:26 -0400 (EDT)
+Received: by obfv9 with SMTP id v9so45795187obf.2
+        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 14:25:26 -0700 (PDT)
+Received: from g9t5008.houston.hp.com (g9t5008.houston.hp.com. [15.240.92.66])
+        by mx.google.com with ESMTPS id i3si6275369obh.83.2015.03.16.14.25.25
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Mar 2015 14:12:04 -0700 (PDT)
-Date: Mon, 16 Mar 2015 17:11:46 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 1/2 v2] mm: Allow small allocations to fail
-Message-ID: <20150316211146.GA15456@phnom.home.cmpxchg.org>
-References: <1426107294-21551-1-git-send-email-mhocko@suse.cz>
- <1426107294-21551-2-git-send-email-mhocko@suse.cz>
- <201503151443.CFE04129.MVFOOStLFHFOQJ@I-love.SAKURA.ne.jp>
- <20150315121317.GA30685@dhcp22.suse.cz>
- <201503152206.AGJ22930.HOStFFFQLVMOOJ@I-love.SAKURA.ne.jp>
- <20150316074607.GA24885@dhcp22.suse.cz>
+        Mon, 16 Mar 2015 14:25:26 -0700 (PDT)
+From: "Kani, Toshimitsu" <toshi.kani@hp.com>
+Subject: Re: [PATCH v3 4/5] mtrr, x86: Clean up mtrr_type_lookup()
+Date: Mon, 16 Mar 2015 21:24:12 +0000
+Message-ID: <B4C2A151-B238-487F-942B-A550201FBAAD@hp.com>
+References: <1426282421-25385-1-git-send-email-toshi.kani@hp.com>
+ <1426282421-25385-5-git-send-email-toshi.kani@hp.com>,<20150316075821.GA16062@gmail.com>
+In-Reply-To: <20150316075821.GA16062@gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150316074607.GA24885@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, david@fromorbit.com, mgorman@suse.de, riel@redhat.com, fengguang.wu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@redhat.com" <mingo@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dave.hansen@intel.com" <dave.hansen@intel.com>, "Elliott, Robert (Server
+ Storage)" <Elliott@hp.com>, "pebolle@tiscali.nl" <pebolle@tiscali.nl>
 
-On Mon, Mar 16, 2015 at 08:46:07AM +0100, Michal Hocko wrote:
-> @@ -707,6 +708,29 @@ sysctl, it will revert to this default behavior.
->  
->  ==============================================================
->  
-> +retry_allocation_attempts
-> +
-> +Page allocator tries hard to not fail small allocations requests.
-> +Currently it retries indefinitely for small allocations requests (<= 32kB).
-> +This works mostly fine but under an extreme low memory conditions system
-> +might end up in deadlock situations because the looping allocation
-> +request might block further progress for OOM killer victims.
-> +
-> +Even though this hasn't turned out to be a huge problem for many years the
-> +long term plan is to move away from this default behavior but as this is
-> +a long established behavior we cannot change it immediately.
-> +
-> +This knob should help in the transition. It tells how many times should
-> +allocator retry when the system is OOM before the allocation fails.
-> +The default value (ULONG_MAX) preserves the old behavior. This is a safe
-> +default for production systems which cannot afford any unexpected
-> +downtimes. More experimental systems might set it to a small number
-> +(>=1), the higher the value the less probable would be allocation
-> +failures when OOM is transient and could be resolved without the
-> +particular allocation to fail.
+> On Mar 16, 2015, at 3:58 AM, Ingo Molnar <mingo@kernel.org> wrote:
+>=20
+>=20
+> * Toshi Kani <toshi.kani@hp.com> wrote:
+>=20
+>> MTRRs contain fixed and variable entries.  mtrr_type_lookup()
+>> may repeatedly call __mtrr_type_lookup() to handle a request
+>> that overlaps with variable entries.  However,
+>> __mtrr_type_lookup() also handles the fixed entries, which
+>> do not have to be repeated.  Therefore, this patch creates
+>> separate functions, mtrr_type_lookup_fixed() and
+>> mtrr_type_lookup_variable(), to handle the fixed and variable
+>> ranges respectively.
+>>=20
+>> The patch also updates the function headers to clarify the
+>> return values and output argument.  It updates comments to
+>> clarify that the repeating is necessary to handle overlaps
+>> with the default type, since overlaps with multiple entries
+>> alone can be handled without such repeating.
+>>=20
+>> There is no functional change in this patch.
+>=20
+> Nice cleanup!
+>=20
+> I also suggest adding a small table to the comments before the=20
+> function, that lists the fixed purpose MTRRs and their address ranges=20
+> - to make it more obvious what the magic hexadecimal constants within=20
+> the code are doing.
 
-This is a negotiation between the page allocator and the various
-requirements of its in-kernel users.  If *we* can't make an educated
-guess with the entire codebase available, how the heck can we expect
-userspace to?
+Yes, I will add a table to describe the fixed entries.
 
-And just assuming for a second that they actually do a better job than
-us, are they going to send us a report of their workload and machine
-specs and the value that worked for them?  Of course not, why would
-you think they'd suddenly send anything but regression reports?
+>> +static u8 mtrr_type_lookup_fixed(u64 start, u64 end)
+>> +{
+>> +    int idx;
+>> +
+>> +    if (start >=3D 0x100000)
+>> +        return 0xFF;
+>=20
+> Btw., as a separate cleanup patch, we should probably also change=20
+> '0xFF' (which is sometimes written as 0xff) to be some sufficiently=20
+> named constant, and explain its usage somewhere?
 
-And we wouldn't get regression reports without changing the default,
-because really, what is the incentive to mess with that knob?  Making
-a lockup you probably never encountered less likely to trigger, while
-adding failures of unknown quantity or quality into the system?
+Sounds good.  I will add a separate patch to do so.
 
-This is truly insane.  You're taking one magic factor out of a complex
-kernel mechanism and dump it on userspace, which has neither reason
-nor context to meaningfully change the default.  We'd never leave that
-state of transition.  Only when machines do lock up in the wild, at
-least we can tell them they should have set this knob to "like, 50?"
+>> +    if (!(mtrr_state.have_fixed) ||
+>> +        !(mtrr_state.enabled & MTRR_STATE_MTRR_FIXED_ENABLED))
+>=20
+> Btw., can MTRR_STATE_MTRR_FIXED_ENABLED ever be set in=20
+> mtrr_state.enabled, without mtrr_state.have_fixed being set?
 
-If we want to address this problem, we are the ones that have to make
-the call.  Pick a value based on a reasonable model, make it the
-default, then deal with the fallout and update our assumptions.
+Yes, I believe the arch allows the fixed entries disabled
+while MTRRs are enabled.  I expect the most of systems=20
+implement the fixed entries, though.
 
-Once that is done, whether we want to provide a boolean failsafe to
-revert this in the field is another question.
+> AFAICS get_mtrr_state() will only ever fill in mtrr_state with fixed=20
+> MTRRs if mtrr_state.have_fixed !=3D 0 - but I might be mis-reading the=20
+> (rather convoluted) flow of code ...
 
-A sysctl certainly doesn't sound appropriate to me because this is not
-a tunable that we expect people to set according to their usecase.  We
-expect our model to work for *everybody*.  A boot flag would be
-marginally better but it still reeks too much of tunable.
+I will check the code next week.
 
-Maybe CONFIG_FAILABLE_SMALL_ALLOCS.  Maybe something more euphemistic.
-But I honestly can't think of anything that wouldn't scream "horrible
-leak of implementation details."  The user just shouldn't ever care.
-
-Given that there are usually several stages of various testing between
-when a commit gets merged upstream and when it finally makes it into a
-critical production system, maybe we don't need to provide userspace
-control over this at all?
-
-So what value do we choose?
-
-Once we kick the OOM killer we should give the victim some time to
-exit and then try the allocation again.  Looping just ONCE after that
-means we scan all the LRU pages in the system a second time and invoke
-the shrinkers another twelve times, with ratios approaching 1.  If the
-OOM killer doesn't yield an allocatable page after this, I see very
-little point in going on.  After all, we expect all our callers to
-handle errors.
-
-So why not just pass an "oomed" bool to should_alloc_retry() and bail
-on small allocations at that point?  Put it upstream and deal with the
-fallout long before this hits critical infrastructure?  By presumably
-fixing up caller error handling and GFP flags?
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
