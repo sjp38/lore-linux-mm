@@ -1,181 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
-	by kanga.kvack.org (Postfix) with ESMTP id DAD626B0032
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 09:13:01 -0400 (EDT)
-Received: by lbcgn8 with SMTP id gn8so19494519lbc.2
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 06:13:01 -0700 (PDT)
-Received: from forward-corp1m.cmail.yandex.net (forward-corp1m.cmail.yandex.net. [5.255.216.100])
-        by mx.google.com with ESMTPS id mu1si8115966lbc.3.2015.03.16.06.12.59
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Mar 2015 06:13:00 -0700 (PDT)
-Subject: [PATCH] mm: rcu-protected get_mm_exe_file()
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Date: Mon, 16 Mar 2015 16:12:57 +0300
-Message-ID: <20150316131257.32340.36600.stgit@buzz>
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id B70786B0032
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 09:49:58 -0400 (EDT)
+Received: by pacwe9 with SMTP id we9so65533175pac.1
+        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 06:49:58 -0700 (PDT)
+Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [72.246.2.115])
+        by mx.google.com with ESMTP id ks9si22684890pab.194.2015.03.16.06.49.57
+        for <linux-mm@kvack.org>;
+        Mon, 16 Mar 2015 06:49:57 -0700 (PDT)
+Date: Mon, 16 Mar 2015 09:49:56 -0400
+From: Eric B Munson <emunson@akamai.com>
+Subject: Re: [PATCH V5] Allow compaction of unevictable pages
+Message-ID: <20150316134956.GA15324@akamai.com>
+References: <1426267597-25811-1-git-send-email-emunson@akamai.com>
+ <550332CE.7040404@redhat.com>
+ <20150313190915.GA12589@akamai.com>
+ <20150313201954.GB28848@dhcp22.suse.cz>
+ <5506ACEC.9010403@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="IS0zKkzwUGydFO0o"
+Content-Disposition: inline
+In-Reply-To: <5506ACEC.9010403@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Davidlohr Bueso <dbueso@suse.de>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, Oleg Nesterov <oleg@redhat.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <cl@linux.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linux API <linux-api@vger.kernel.org>
 
-This patch removes mm->mmap_sem from mm->exe_file read side.
-Also it kills dup_mm_exe_file() and moves exe_file duplication into
-dup_mmap() where both mmap_sems are locked.
 
-Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: Davidlohr Bueso <dbueso@suse.de>
-Cc: Al Viro <viro@zeniv.linux.org.uk>
----
- fs/file.c                |    3 +-
- include/linux/fs.h       |    1 +
- include/linux/mm_types.h |    2 +-
- kernel/fork.c            |   56 ++++++++++++++++++++++++++++++----------------
- 4 files changed, 40 insertions(+), 22 deletions(-)
+--IS0zKkzwUGydFO0o
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-diff --git a/fs/file.c b/fs/file.c
-index ee738ea028fa..93c5f89c248b 100644
---- a/fs/file.c
-+++ b/fs/file.c
-@@ -638,8 +638,7 @@ static struct file *__fget(unsigned int fd, fmode_t mask)
- 	file = fcheck_files(files, fd);
- 	if (file) {
- 		/* File object ref couldn't be taken */
--		if ((file->f_mode & mask) ||
--		    !atomic_long_inc_not_zero(&file->f_count))
-+		if ((file->f_mode & mask) || !get_file_rcu(file))
- 			file = NULL;
- 	}
- 	rcu_read_unlock();
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 1abc7f2a5730..29bc94cfa273 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -847,6 +847,7 @@ static inline struct file *get_file(struct file *f)
- 	atomic_long_inc(&f->f_count);
- 	return f;
- }
-+#define get_file_rcu(x) atomic_long_inc_not_zero(&(x)->f_count)
- #define fput_atomic(x)	atomic_long_add_unless(&(x)->f_count, -1, 1)
- #define file_count(x)	atomic_long_read(&(x)->f_count)
- 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 590630eb59ba..8d37e26a1007 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -429,7 +429,7 @@ struct mm_struct {
- #endif
- 
- 	/* store ref to file /proc/<pid>/exe symlink points to */
--	struct file *exe_file;
-+	struct file __rcu *exe_file;
- #ifdef CONFIG_MMU_NOTIFIER
- 	struct mmu_notifier_mm *mmu_notifier_mm;
- #endif
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 2113001ceb38..a7c596517bd6 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -380,6 +380,9 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
- 	 */
- 	down_write_nested(&mm->mmap_sem, SINGLE_DEPTH_NESTING);
- 
-+	/* No ordering required: file already has been exposed. */
-+	RCU_INIT_POINTER(mm->exe_file, get_mm_exe_file(oldmm));
-+
- 	mm->total_vm = oldmm->total_vm;
- 	mm->shared_vm = oldmm->shared_vm;
- 	mm->exec_vm = oldmm->exec_vm;
-@@ -505,7 +508,13 @@ static inline void mm_free_pgd(struct mm_struct *mm)
- 	pgd_free(mm, mm->pgd);
- }
- #else
--#define dup_mmap(mm, oldmm)	(0)
-+static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
-+{
-+	down_write(&oldmm->mmap_sem);
-+	RCU_INIT_POINTER(mm->exe_file, get_mm_exe_file(oldmm));
-+	up_write(&oldmm->mmap_sem);
-+	return 0;
-+}
- #define mm_alloc_pgd(mm)	(0)
- #define mm_free_pgd(mm)
- #endif /* CONFIG_MMU */
-@@ -674,36 +683,47 @@ void mmput(struct mm_struct *mm)
- }
- EXPORT_SYMBOL_GPL(mmput);
- 
-+/**
-+ * set_mm_exe_file - change a reference to the mm's executable file
-+ *
-+ * This changes mm's executale file (shown as symlink /proc/[pid]/exe).
-+ *
-+ * Main users are mmput(), sys_execve() and sys_prctl(PR_SET_MM_MAP/EXE_FILE).
-+ * Callers prevent concurrent invocations: in mmput() nobody alive left,
-+ * in execve task is single-threaded, prctl holds mmap_sem exclusively.
-+ */
- void set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file)
- {
-+	struct file *old_exe_file = rcu_dereference_protected(mm->exe_file,
-+			!atomic_read(&mm->mm_users) || current->in_execve ||
-+			lock_is_held(&mm->mmap_sem));
-+
- 	if (new_exe_file)
- 		get_file(new_exe_file);
--	if (mm->exe_file)
--		fput(mm->exe_file);
--	mm->exe_file = new_exe_file;
-+	rcu_assign_pointer(mm->exe_file, new_exe_file);
-+	if (old_exe_file)
-+		fput(old_exe_file);
- }
- 
-+/**
-+ * get_mm_exe_file - acquire a reference to the mm's executable file
-+ *
-+ * Returns %NULL if mm has no associated executable file.
-+ * User must release file via fput().
-+ */
- struct file *get_mm_exe_file(struct mm_struct *mm)
- {
- 	struct file *exe_file;
- 
--	/* We need mmap_sem to protect against races with removal of exe_file */
--	down_read(&mm->mmap_sem);
--	exe_file = mm->exe_file;
--	if (exe_file)
--		get_file(exe_file);
--	up_read(&mm->mmap_sem);
-+	rcu_read_lock();
-+	exe_file = rcu_dereference(mm->exe_file);
-+	if (exe_file && !get_file_rcu(exe_file))
-+		exe_file = NULL;
-+	rcu_read_unlock();
- 	return exe_file;
- }
- EXPORT_SYMBOL(get_mm_exe_file);
- 
--static void dup_mm_exe_file(struct mm_struct *oldmm, struct mm_struct *newmm)
--{
--	/* It's safe to write the exe_file pointer without exe_file_lock because
--	 * this is called during fork when the task is not yet in /proc */
--	newmm->exe_file = get_mm_exe_file(oldmm);
--}
--
- /**
-  * get_task_mm - acquire a reference to the task's mm
-  *
-@@ -865,8 +885,6 @@ static struct mm_struct *dup_mm(struct task_struct *tsk)
- 	if (!mm_init(mm, tsk))
- 		goto fail_nomem;
- 
--	dup_mm_exe_file(oldmm, mm);
--
- 	err = dup_mmap(mm, oldmm);
- 	if (err)
- 		goto free_pt;
+On Mon, 16 Mar 2015, Vlastimil Babka wrote:
+
+> [CC +=3D linux-api@]
+>=20
+> Since this is a kernel-user-space API change, please CC linux-api@.
+> The kernel source file Documentation/SubmitChecklist notes that all
+> Linux kernel patches that change userspace interfaces should be CCed
+> to linux-api@vger.kernel.org, so that the various parties who are
+> interested in API changes are informed. For further information, see
+> https://urldefense.proofpoint.com/v2/url?u=3Dhttps-3A__www.kernel.org_doc=
+_man-2Dpages_linux-2Dapi-2Dml.html&d=3DAwIC-g&c=3D96ZbZZcaMF4w0F4jpN6LZg&r=
+=3DaUmMDRRT0nx4IfILbQLv8xzE0wB9sQxTHI3QrQ2lkBU&m=3DGUotTNnv26L0HxtXrBgiHqu6=
+kwW3ufx2_TQpXIA216c&s=3DIFFYQ7Zr-4SIaF3slOZqiSP_noyva42kCwVRxxDm5wo&e=3D
+
+Added to the Cc list, thanks.
+
+>=20
+>=20
+> On 03/13/2015 09:19 PM, Michal Hocko wrote:
+> >On Fri 13-03-15 15:09:15, Eric B Munson wrote:
+> >>On Fri, 13 Mar 2015, Rik van Riel wrote:
+> >>
+> >>>On 03/13/2015 01:26 PM, Eric B Munson wrote:
+> >>>
+> >>>>--- a/mm/compaction.c
+> >>>>+++ b/mm/compaction.c
+> >>>>@@ -1046,6 +1046,8 @@ typedef enum {
+> >>>>  	ISOLATE_SUCCESS,	/* Pages isolated, migrate */
+> >>>>  } isolate_migrate_t;
+> >>>>
+> >>>>+int sysctl_compact_unevictable;
+>=20
+> A comment here would be useful I think, as well as explicit default
+> value. Maybe also __read_mostly although I don't know how much that
+> matters.
+
+I am going to sit on V6 for a couple of days incase anyone from rt wants
+to chime in.  But these will be in V6.
+
+>=20
+> I also wonder if it might be confusing that "compact_memory" is a
+> write-only trigger that doesn't even show under "sysctl -a", while
+> "compact_unevictable" is a read/write setting. But I don't have a
+> better suggestion right now.
+
+Does allow_unevictable_compaction sound better?  It feels too much like
+variable naming conventions from other languages which seems to
+encourage verbosity to me, but does indicate a difference from
+compact_memory.
+
+>=20
+> >>>>+
+> >>>>  /*
+> >>>>   * Isolate all pages that can be migrated from the first suitable b=
+lock,
+> >>>>   * starting at the block pointed to by the migrate scanner pfn with=
+in
+> >>>
+> >>>I suspect that the use cases where users absolutely do not want
+> >>>unevictable pages migrated are special cases, and it may make
+> >>>sense to enable sysctl_compact_unevictable by default.
+> >>
+> >>Given that sysctl_compact_unevictable=3D0 is the way the kernel behaves
+> >>now and the push back against always enabling compaction on unevictable
+> >>pages, I left the default to be the behavior as it is today.
+> >
+> >The question is _why_ we have this behavior now. Is it intentional?
+>=20
+> It's there since 748446bb6 ("mm: compaction: memory compaction
+> core"). Commit c53919adc0 ("mm: vmscan: remove lumpy reclaim")
+> changes the comment in __isolate_lru_page() handling of unevictable
+> pages to mention compaction explicitly. It could have been
+> accidental in 748446bb6 though, maybe it just reused
+> __isolate_lru_page() for compaction - it seems that the skipping of
+> unevictable was initially meant to optimize lumpy reclaim.
+>=20
+> >e46a28790e59 (CMA: migrate mlocked pages) is a precedence in that
+>=20
+> Well, CMA and realtime kernels are probably mutually exclusive enough.
+>=20
+> >direction. Vlastimil has then changed that by edc2ca612496 (mm,
+> >compaction: move pageblock checks up from isolate_migratepages_range()).
+> >There is no mention about mlock pages so I guess it was more an
+> >unintentional side effect of the patch. At least that is my current
+> >understanding. I might be wrong here.
+>=20
+> Although that commit did change unintentionally more details that I
+> would have liked (unfortunately), I think you are wrong on this one.
+> ISOLATE_UNEVICTABLE is still passed from
+> isolate_migratepages_range() which is used by CMA, while the
+> compaction variant isolate_migratepages() does not pass it. So it's
+> kept CMA-specific as before.
+>=20
+> >The thing about RT is that it is not usable with the upstream kernel
+> >without the RT patchset AFAIU. So the default should be reflect what is
+> >better for the standard kernel. RT loads have to tune the system anyway
+> >so it is not so surprising they would disable this option as well. We
+> >should help those guys and do not require them to touch the code but the
+> >knob is reasonable IMHO.
+> >
+> >Especially when your changelog suggests that having this enabled by
+> >default is beneficial for the standard kernel.
+>=20
+> I agree, but if there's a danger of becoming too of a bikeshed
+> topic, I'm fine with keeping the default same as current behavior
+> and changing it later. Or maybe we should ask some -rt mailing list
+> instead of just Peter and Thomas?
+
+According to the rt wiki, there is no -rt development list so lkml is
+it.  I will change the default to 1 for V6 if I don't hear otherwise by
+the time I get back around to spinning V6.
+
+
+--IS0zKkzwUGydFO0o
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQIcBAEBAgAGBQJVBt+EAAoJELbVsDOpoOa98S0QAJ0H/97J/XOFMuGhbQROQ48Y
+xvBLxpBrHi3go725ihNUpz499VjsE4n3HRzkQD1tzGuBrByewVllvF3W55yOCaCV
+lQj7qcrS4r1YZZ/aBAgbkoN4ukAFUIju6Xs17wcmfD38BGwbbQGNQ4zew0svODvr
+7ygoNizK7aqEmEQBWA1eBivhSXK+h5pAs1agfdepaIp9xgvKL2EMLl6jgSttUn8M
+6IyHMaVQnS5qU2WWWdLBtfmWF58uWDpM48WXWGxKWrmhhjg/CEpAfi1afi2f6SHY
+SVnCfH5sBCxCOzsUo9ZB2MJqxhYqS0kMso+G+Fr+Ep1ye1S4EblXh4g19HYsE6xh
+Wrg4WmIIxKMVdr/rv/+QVFbL3obtkvz4RDQiDIantCwyx60dzHWOVdsT6lDQcDlJ
+/oi89A80ZbxN8KJsgZ3vkVPLW5q4fx35dGPaxRV1SVpswsT2raNM8XzHdXEEqNVA
+pry5DdTIvI+zHndjIsBt18+NEvhBfraSXxnyrvuAdpBxv6zL9gaOZJngpXiTwPmF
+yQZbaCd/7i6iIOns4oSDR02yhSST2RMRM9CxDIdzhB4+lJ1iA1nyRbicnjmYmyrA
+29YK6FrPEV2W9WJQ8UkXmlXpxMSn7k4DzE0MwpGYvzelzfpYXPm6lOCSNBt2cgIG
+gd2tua0B+b4Yewn+SvTF
+=k7V/
+-----END PGP SIGNATURE-----
+
+--IS0zKkzwUGydFO0o--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
