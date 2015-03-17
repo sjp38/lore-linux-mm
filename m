@@ -1,54 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id C77176B0032
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2015 13:31:17 -0400 (EDT)
-Received: by pdbni2 with SMTP id ni2so15541622pdb.1
-        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 10:31:17 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id pu10si30591347pdb.124.2015.03.17.10.31.16
-        for <linux-mm@kvack.org>;
-        Tue, 17 Mar 2015 10:31:17 -0700 (PDT)
-Date: Tue, 17 Mar 2015 17:31:11 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH 0/6] make memtest a generic kernel feature
-Message-ID: <20150317173111.GA8399@arm.com>
-References: <1425896830-19705-1-git-send-email-vladimir.murzin@arm.com>
- <20150317171822.GW8399@arm.com>
- <5508625F.6060600@arm.com>
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 00A2C6B0032
+	for <linux-mm@kvack.org>; Tue, 17 Mar 2015 14:24:52 -0400 (EDT)
+Received: by pdbcz9 with SMTP id cz9so16717982pdb.3
+        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 11:24:52 -0700 (PDT)
+Received: from lxorguk.ukuu.org.uk (7.3.c.8.2.a.e.f.f.f.8.1.0.3.2.0.9.6.0.7.2.3.f.b.0.b.8.0.1.0.0.2.ip6.arpa. [2001:8b0:bf32:7069:230:18ff:fea2:8c37])
+        by mx.google.com with ESMTPS id pq9si30827033pdb.223.2015.03.17.11.24.49
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Mar 2015 11:24:52 -0700 (PDT)
+Date: Tue, 17 Mar 2015 17:58:59 +0000
+From: One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>
+Subject: Re: rowhammer and pagemap (was Re: [RFC, PATCH] pagemap: do not
+ leak physical addresses to non-privileged userspace)
+Message-ID: <20150317175859.1d9555fc@lxorguk.ukuu.org.uk>
+In-Reply-To: <20150317111653.GA23711@amd>
+References: <1425935472-17949-1-git-send-email-kirill@shutemov.name>
+	<20150316211122.GD11441@amd>
+	<CAL82V5O6awBrpj8uf2_cEREzZWPfjLfqPtRbHEd5_zTkRLU8Sg@mail.gmail.com>
+	<CALCETrU8SeOTSexLOi36sX7Smwfv0baraK=A3hq8twoyBN7NBg@mail.gmail.com>
+	<20150317111653.GA23711@amd>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5508625F.6060600@arm.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Murzin <Vladimir.Murzin@arm.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@redhat.com" <mingo@redhat.com>, "hpa@zytor.com" <hpa@zytor.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "lauraa@codeaurora.org" <lauraa@codeaurora.org>, Catalin Marinas <Catalin.Marinas@arm.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "arnd@arndb.de" <arnd@arndb.de>, Mark Rutland <Mark.Rutland@arm.com>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "baruch@tkos.co.il" <baruch@tkos.co.il>, "rdunlap@infradead.org" <rdunlap@infradead.org>
+To: Pavel Machek <pavel@ucw.cz>
+Cc: Andy Lutomirski <luto@amacapital.net>, Mark Seaborn <mseaborn@chromium.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, "linux-mm@kvack.org" <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Pavel Emelyanov <xemul@parallels.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>
 
-On Tue, Mar 17, 2015 at 05:20:31PM +0000, Vladimir Murzin wrote:
-> On 17/03/15 17:18, Will Deacon wrote:
-> > On Mon, Mar 09, 2015 at 10:27:04AM +0000, Vladimir Murzin wrote:
-> >> Memtest is a simple feature which fills the memory with a given set of
-> >> patterns and validates memory contents, if bad memory regions is detected it
-> >> reserves them via memblock API. Since memblock API is widely used by other
-> >> architectures this feature can be enabled outside of x86 world.
-> >>
-> >> This patch set promotes memtest to live under generic mm umbrella and enables
-> >> memtest feature for arm/arm64.
-> >>
-> >> It was reported that this patch set was useful for tracking down an issue with
-> >> some errant DMA on an arm64 platform.
-> >>
-> >> Since it touches x86 and mm bits it'd be great to get ACK/NAK for these bits.
+> > Can we just try getting rid of it except with global CAP_SYS_ADMIN.
 > > 
-> > Is your intention for akpm to merge this? I don't mind how it goes upstream,
-> > but that seems like a sensible route to me.
-> > 
+> > (Hmm.  Rowhammer attacks targeting SMRAM could be interesting.)
 > 
-> It is already in -mm tree.
 
-Cracking, I missed the memo somehow.
+CAP_SYS_RAWIO is the protection for "can achieve anything". If you have
+CAP_SYS_RAWIO you can attain any other capability, the reverse _should_
+not be true.
 
-Will
+> > The Intel people I asked last week weren't confident.  For one thing,
+> > I fully expect that rowhammer can be exploited using only reads and
+> > writes with some clever tricks involving cache associativity.  I don't
+> > think there are any fully-associative caches, although the cache
+> > replacement algorithm could make the attacks interesting.
+> 
+> We should definitely get Intel/AMD to disable CLFLUSH, then.
+
+I doubt that would work, because you'd have to fix up all the faults from
+userspace in things like graphics and video. Whether it is possible to
+make the microcode do other accesses and delays I have no idea - but
+that might also be quite horrible.
+
+A serious system should be using ECC memory anyway. and on things like
+shared boxes it is probably not a root compromise that is the worst case
+scenario but subtle undetected corruption of someone elses data sets.
+
+That's what ECC already exists to protect against whether its from flawed
+memory and rowhammer or just a vindictive passing cosmic ray.
+
+Alan
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
