@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 94D806B006E
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2015 07:57:04 -0400 (EDT)
-Received: by wifj2 with SMTP id j2so8818655wif.1
-        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 04:57:04 -0700 (PDT)
+Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
+	by kanga.kvack.org (Postfix) with ESMTP id DD8986B006E
+	for <linux-mm@kvack.org>; Tue, 17 Mar 2015 07:57:06 -0400 (EDT)
+Received: by wetk59 with SMTP id k59so5704583wet.3
+        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 04:57:06 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id bj3si2900503wib.4.2015.03.17.04.56.58
+        by mx.google.com with ESMTPS id wc10si2760222wic.102.2015.03.17.04.56.58
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Tue, 17 Mar 2015 04:56:59 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 2/9] mm: Provide new get_vaddr_pfns() helper
-Date: Tue, 17 Mar 2015 12:56:32 +0100
-Message-Id: <1426593399-6549-3-git-send-email-jack@suse.cz>
+Subject: [PATCH 4/9] vb2: Provide helpers for mapping virtual addresses
+Date: Tue, 17 Mar 2015 12:56:34 +0100
+Message-Id: <1426593399-6549-5-git-send-email-jack@suse.cz>
 In-Reply-To: <1426593399-6549-1-git-send-email-jack@suse.cz>
 References: <1426593399-6549-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,263 +20,104 @@ List-ID: <linux-mm.kvack.org>
 To: linux-media@vger.kernel.org
 Cc: Hans Verkuil <hans.verkuil@cisco.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>, Jan Kara <jack@suse.cz>
 
-Provide new function get_vaddr_pfns().  This function maps virtual
-addresses from given start and fills given array with page frame numbers of
-the corresponding pages. If given start belongs to a normal vma, the function
-grabs reference to each of the pages to pin them in memory. If start
-belongs to VM_IO | VM_PFNMAP vma, we don't touch page structures. Caller
-should make sure pfns aren't reused for anything else while he is using
-them.
-
-This function is created for various drivers to simplify handling of
-their buffers.
+Provide simple helper functions to map virtual address range into an
+array of pfns.
 
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- include/linux/mm.h |  38 +++++++++++
- mm/gup.c           | 180 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 218 insertions(+)
+ drivers/media/v4l2-core/videobuf2-memops.c | 57 ++++++++++++++++++++++++++++++
+ include/media/videobuf2-memops.h           |  4 +++
+ 2 files changed, 61 insertions(+)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 47a93928b90f..a5045df92454 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1279,6 +1279,44 @@ long get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
- 		    int write, int force, struct page **pages);
- int get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 			struct page **pages);
-+
-+/* Container for pinned pfns / pages */
-+struct pinned_pfns {
-+	unsigned int nr_allocated_pfns;	/* Number of pfns we have space for */
-+	unsigned int nr_pfns;		/* Number of pfns stored in pfns array */
-+	unsigned int got_ref:1;		/* Did we pin pfns by getting page ref? */
-+	unsigned int is_pages:1;	/* Does array contain pages or pfns? */
-+	void *ptrs[0];			/* Array of pinned pfns / pages.
-+					 * Use pfns_vector_pages() or
-+					 * pfns_vector_pfns() for access */
-+};
-+
-+struct pinned_pfns *pfns_vector_create(int nr_pfns);
-+void pfns_vector_destroy(struct pinned_pfns *pfns);
-+int get_vaddr_pfns(unsigned long start, int nr_pfns, int write, int force,
-+		   struct pinned_pfns *pfns);
-+void put_vaddr_pfns(struct pinned_pfns *pfns);
-+int pfns_vector_to_pages(struct pinned_pfns *pfns);
-+
-+static inline int pfns_vector_count(struct pinned_pfns *pfns)
-+{
-+	return pfns->nr_pfns;
-+}
-+
-+static inline struct page **pfns_vector_pages(struct pinned_pfns *pfns)
-+{
-+	if (!pfns->is_pages)
-+		return NULL;
-+	return (struct page **)(pfns->ptrs);
-+}
-+
-+static inline unsigned long *pfns_vector_pfns(struct pinned_pfns *pfns)
-+{
-+	if (pfns->is_pages)
-+		return NULL;
-+	return (unsigned long *)(pfns->ptrs);
-+}
-+
- struct kvec;
- int get_kernel_pages(const struct kvec *iov, int nr_pages, int write,
- 			struct page **pages);
-diff --git a/mm/gup.c b/mm/gup.c
-index a6e24e246f86..63903913ab04 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -819,6 +819,186 @@ long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- EXPORT_SYMBOL(get_user_pages);
+diff --git a/drivers/media/v4l2-core/videobuf2-memops.c b/drivers/media/v4l2-core/videobuf2-memops.c
+index 81c1ad8b2cf1..80ade22b920c 100644
+--- a/drivers/media/v4l2-core/videobuf2-memops.c
++++ b/drivers/media/v4l2-core/videobuf2-memops.c
+@@ -137,6 +137,63 @@ int vb2_get_contig_userptr(unsigned long vaddr, unsigned long size,
+ EXPORT_SYMBOL_GPL(vb2_get_contig_userptr);
  
  /**
-+ * get_vaddr_pfns() - map virtual addresses to pfns
-+ * @start:	starting user address
-+ * @nr_pfns:	number of pfns from start to map
-+ * @write:	whether pages will be written to by the caller
-+ * @force:	whether to force write access even if user mapping is
-+ *		readonly. This will result in the page being COWed even
-+ *		in MAP_SHARED mappings. You do not want this.
-+ * @pfns:	structure which receives pfns of the pages mapped.
-+ *		It should have space for at least nr_pfns pfns.
++ * vb2_create_pfnvec() - map virtual addresses to pfns
++ * @start:	Virtual user address where we start mapping
++ * @length:	Length of a range to map
++ * @write:	Should we map for writing into the area
 + *
-+ * This function maps virtual addresses from @start and fills @pfns structure
-+ * with page frame numbers of corresponding pages. If @start belongs to a
-+ * normal vma, the function grabs reference to each of the pages to pin them in
-+ * memory. If @start belongs to VM_IO | VM_PFNMAP vma, we don't touch page
-+ * structures. Caller should make sure pfns aren't reused for anything else
-+ * while he is using them.
-+ *
-+ * This function takes care of grabbing mmap_sem as necessary.
++ * This function allocates and fills in a vector with pfns corresponding to
++ * virtual address range passed in arguments. If pfns have corresponding pages,
++ * page references are also grabbed to pin pages in memory. The function
++ * returns pointer to the vector on success and error pointer in case of
++ * failure. Returned vector needs to be freed via vb2_destroy_pfnvec().
 + */
-+int get_vaddr_pfns(unsigned long start, int nr_pfns, int write, int force,
-+		   struct pinned_pfns *pfns)
++struct pinned_pfns *vb2_create_pfnvec(unsigned long start, unsigned long length,
++				      bool write)
 +{
-+	struct mm_struct *mm = current->mm;
-+	struct vm_area_struct *vma;
-+	int ret = 0;
-+	int err;
-+
-+	if (nr_pfns <= 0)
-+		return 0;
-+
-+	if (nr_pfns > pfns->nr_allocated_pfns)
-+		nr_pfns = pfns->nr_allocated_pfns;
-+
-+	down_read(&mm->mmap_sem);
-+	vma = find_vma_intersection(mm, start, start + 1);
-+	if (!vma) {
-+		ret = -EFAULT;
-+		goto out;
-+	}
-+	if (!(vma->vm_flags & (VM_IO | VM_PFNMAP))) {
-+		pfns->got_ref = 1;
-+		pfns->is_pages = 1;
-+		ret = get_user_pages(current, mm, start, nr_pfns, write, force,
-+				     pfns_vector_pages(pfns), NULL);
-+		goto out;
-+	}
-+
-+	pfns->got_ref = 0;
-+	pfns->is_pages = 0;
-+	do {
-+		unsigned long *nums = pfns_vector_pfns(pfns);
-+
-+		while (ret < nr_pfns && start + PAGE_SIZE <= vma->vm_end) {
-+			err = follow_pfn(vma, start, &nums[ret]);
-+			if (err) {
-+				if (ret == 0)
-+					ret = err;
-+				goto out;
-+			}
-+			start += PAGE_SIZE;
-+			ret++;
-+		}
-+		/*
-+		 * We stop if we have enough pages or if VMA doesn't completely
-+		 * cover the tail page.
-+		 */
-+		if (ret >= nr_pfns || start < vma->vm_end)
-+			break;
-+		vma = find_vma_intersection(mm, start, start + 1);
-+	} while (vma && vma->vm_flags & (VM_IO | VM_PFNMAP));
-+out:
-+	up_read(&mm->mmap_sem);
-+	if (!ret)
-+		ret = -EFAULT;
-+	if (ret > 0)
-+		pfns->nr_pfns = ret;
-+	return ret;
-+}
-+EXPORT_SYMBOL(get_vaddr_pfns);
-+
-+/**
-+ * put_vaddr_pfns() - drop references to pages if get_vaddr_pfns() acquired them
-+ * @pfns:     structure with pfns we pinned
-+ *
-+ * Drop references to pages if get_vaddr_pfns() acquired them. We also
-+ * invalidate the array of pfns so that it is prepared for the next call into
-+ * get_vaddr_pfns().
-+ */
-+void put_vaddr_pfns(struct pinned_pfns *pfns)
-+{
-+	int i;
-+
-+	if (!pfns->got_ref)
-+		goto out;
-+	if (pfns->is_pages) {
-+		struct page **pages = pfns_vector_pages(pfns);
-+
-+		for (i = 0; i < pfns->nr_pfns; i++)
-+			put_page(pages[i]);
-+	} else {
-+		unsigned long *nums = pfns_vector_pfns(pfns);
-+
-+		for (i = 0; i < pfns->nr_pfns; i++)
-+			put_page(pfn_to_page(nums[i]));
-+	}
-+	pfns->got_ref = 0;
-+out:
-+	pfns->nr_pfns = 0;
-+}
-+EXPORT_SYMBOL(put_vaddr_pfns);
-+
-+/**
-+ * pfns_vector_to_pages - convert vector of pfns to vector of page pointers
-+ * @pfns:	structure with pinned pfns
-+ *
-+ * Convert @pfns to not contain array of pfns but array of page pointers.
-+ * If the conversion is successful, return 0. Otherwise return an error.
-+ */
-+int pfns_vector_to_pages(struct pinned_pfns *pfns)
-+{
-+	int i;
-+	unsigned long *nums;
-+	struct page **pages;
-+
-+	if (pfns->is_pages)
-+		return 0;
-+	nums = pfns_vector_pfns(pfns);
-+	for (i = 0; i < pfns->nr_pfns; i++)
-+		if (!pfn_valid(nums[i]))
-+			return -EINVAL;
-+	pages = (struct page **)nums;
-+	for (i = 0; i < pfns->nr_pfns; i++)
-+		pages[i] = pfn_to_page(nums[i]);
-+	pfns->is_pages = 1;
-+	return 0;
-+}
-+EXPORT_SYMBOL(pfns_vector_to_pages);
-+
-+/**
-+ * pfns_vector_create() - allocate & initialize structure for pinned pfns
-+ * @nr_pfns:	number of pfns slots we should reserve
-+ *
-+ * Allocate and initialize struct pinned_pfns to be able to hold @nr_pfns
-+ * pfns.
-+ */
-+struct pinned_pfns *pfns_vector_create(int nr_pfns)
-+{
++	int ret;
++	unsigned long first, last;
++	unsigned long nr;
 +	struct pinned_pfns *pfns;
-+	int size = sizeof(struct pinned_pfns) + sizeof(unsigned long) * nr_pfns;
 +
-+	if (WARN_ON_ONCE(nr_pfns <= 0))
-+		return NULL;
-+	if (size <= PAGE_SIZE)
-+		pfns = kmalloc(size, GFP_KERNEL);
-+	else
-+		pfns = vmalloc(size);
++	first = start >> PAGE_SHIFT;
++	last = (start + length - 1) >> PAGE_SHIFT;
++	nr = last - first + 1;
++	pfns = pfns_vector_create(nr);
 +	if (!pfns)
-+		return NULL;
-+	pfns->nr_allocated_pfns = nr_pfns;
-+	pfns->nr_pfns = 0;
++		return ERR_PTR(-ENOMEM);
++	ret = get_vaddr_pfns(start, nr, write, 1, pfns);
++	if (ret < 0)
++		goto out_destroy;
++	/* We accept only complete set of PFNs */
++	if (ret != nr) {
++		ret = -EFAULT;
++		goto out_release;
++	}
 +	return pfns;
++out_release:
++	put_vaddr_pfns(pfns);
++out_destroy:
++	pfns_vector_destroy(pfns);
++	return ERR_PTR(ret);
 +}
-+EXPORT_SYMBOL(pfns_vector_create);
++EXPORT_SYMBOL(vb2_create_pfnvec);
 +
 +/**
-+ * pfns_vector_destroy() - free memory allocated to carry pinned pfns
-+ * @pfns:	Memory to free
++ * vb2_destroy_pfnvec() - release vector of mapped pfns
++ * @pfns:	vector of pfns to release
 + *
-+ * Free structure allocated by pfns_vector_create() to carry pinned pfns.
++ * This releases references to all pages in the vector @pfns (if corresponding
++ * pfns are backed by pages) and frees the passed vector.
 + */
-+void pfns_vector_destroy(struct pinned_pfns *pfns)
++void vb2_destroy_pfnvec(struct pinned_pfns *pfns)
 +{
-+	if (!is_vmalloc_addr(pfns))
-+		kfree(pfns);
-+	else
-+		vfree(pfns);
++	put_vaddr_pfns(pfns);
++	pfns_vector_destroy(pfns);
 +}
-+EXPORT_SYMBOL(pfns_vector_destroy);
++EXPORT_SYMBOL(vb2_destroy_pfnvec);
 +
 +/**
-  * get_dump_page() - pin user page in memory while writing it to core dump
-  * @addr: user address
+  * vb2_common_vm_open() - increase refcount of the vma
+  * @vma:	virtual memory region for the mapping
   *
+diff --git a/include/media/videobuf2-memops.h b/include/media/videobuf2-memops.h
+index f05444ca8c0c..868f9c1cd92d 100644
+--- a/include/media/videobuf2-memops.h
++++ b/include/media/videobuf2-memops.h
+@@ -15,6 +15,7 @@
+ #define _MEDIA_VIDEOBUF2_MEMOPS_H
+ 
+ #include <media/videobuf2-core.h>
++#include <linux/mm.h>
+ 
+ /**
+  * vb2_vmarea_handler - common vma refcount tracking handler
+@@ -36,5 +37,8 @@ int vb2_get_contig_userptr(unsigned long vaddr, unsigned long size,
+ struct vm_area_struct *vb2_get_vma(struct vm_area_struct *vma);
+ void vb2_put_vma(struct vm_area_struct *vma);
+ 
++struct pinned_pfns *vb2_create_pfnvec(unsigned long start, unsigned long length,
++				      bool write);
++void vb2_destroy_pfnvec(struct pinned_pfns *pfns);
+ 
+ #endif
 -- 
 2.1.4
 
