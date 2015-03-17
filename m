@@ -1,64 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 00A2C6B0032
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2015 14:24:52 -0400 (EDT)
-Received: by pdbcz9 with SMTP id cz9so16717982pdb.3
-        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 11:24:52 -0700 (PDT)
-Received: from lxorguk.ukuu.org.uk (7.3.c.8.2.a.e.f.f.f.8.1.0.3.2.0.9.6.0.7.2.3.f.b.0.b.8.0.1.0.0.2.ip6.arpa. [2001:8b0:bf32:7069:230:18ff:fea2:8c37])
-        by mx.google.com with ESMTPS id pq9si30827033pdb.223.2015.03.17.11.24.49
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id C8E106B0032
+	for <linux-mm@kvack.org>; Tue, 17 Mar 2015 15:24:28 -0400 (EDT)
+Received: by wibg7 with SMTP id g7so71667371wib.1
+        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 12:24:28 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id ey12si4777005wid.77.2015.03.17.12.24.26
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Mar 2015 11:24:52 -0700 (PDT)
-Date: Tue, 17 Mar 2015 17:58:59 +0000
-From: One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>
-Subject: Re: rowhammer and pagemap (was Re: [RFC, PATCH] pagemap: do not
- leak physical addresses to non-privileged userspace)
-Message-ID: <20150317175859.1d9555fc@lxorguk.ukuu.org.uk>
-In-Reply-To: <20150317111653.GA23711@amd>
-References: <1425935472-17949-1-git-send-email-kirill@shutemov.name>
-	<20150316211122.GD11441@amd>
-	<CAL82V5O6awBrpj8uf2_cEREzZWPfjLfqPtRbHEd5_zTkRLU8Sg@mail.gmail.com>
-	<CALCETrU8SeOTSexLOi36sX7Smwfv0baraK=A3hq8twoyBN7NBg@mail.gmail.com>
-	<20150317111653.GA23711@amd>
+        Tue, 17 Mar 2015 12:24:27 -0700 (PDT)
+Date: Tue, 17 Mar 2015 15:24:13 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [LKP] [mm] cc87317726f: WARNING: CPU: 0 PID: 1 at
+ drivers/iommu/io-pgtable-arm.c:413 __arm_lpae_unmap+0x341/0x380()
+Message-ID: <20150317192413.GA7772@phnom.home.cmpxchg.org>
+References: <1426227621.6711.238.camel@intel.com>
+ <CA+55aFxWTg_kCxGChLJGU=DFg0K_q842bkziktXu6B2fX=mXYQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFxWTg_kCxGChLJGU=DFg0K_q842bkziktXu6B2fX=mXYQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: Andy Lutomirski <luto@amacapital.net>, Mark Seaborn <mseaborn@chromium.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, "linux-mm@kvack.org" <linux-mm@kvack.org>, kernel list <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Pavel Emelyanov <xemul@parallels.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Huang Ying <ying.huang@intel.com>, Michal Hocko <mhocko@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, LKML <linux-kernel@vger.kernel.org>, LKP ML <lkp@01.org>, linux-mm <linux-mm@kvack.org>
 
-> > Can we just try getting rid of it except with global CAP_SYS_ADMIN.
-> > 
-> > (Hmm.  Rowhammer attacks targeting SMRAM could be interesting.)
+On Tue, Mar 17, 2015 at 10:15:29AM -0700, Linus Torvalds wrote:
+> Explicitly adding the emails of other people involved with that commit
+> and the original oom thread to make sure people are aware, since this
+> didn't get any response.
 > 
+> Commit cc87317726f8 fixed some behavior, but also seems to have turned
+> an oom situation into a complete hang. So presumably we shouldn't loop
+> *forever*. Hmm?
 
-CAP_SYS_RAWIO is the protection for "can achieve anything". If you have
-CAP_SYS_RAWIO you can attain any other capability, the reverse _should_
-not be true.
+It seems we are between a rock and a hard place here, as we reverted
+specifically to that endless looping on request of filesystem people.
+They said[1] they rely on these allocations never returning NULL, or
+they might fail inside a transactions and corrupt on-disk data.
 
-> > The Intel people I asked last week weren't confident.  For one thing,
-> > I fully expect that rowhammer can be exploited using only reads and
-> > writes with some clever tricks involving cache associativity.  I don't
-> > think there are any fully-associative caches, although the cache
-> > replacement algorithm could make the attacks interesting.
-> 
-> We should definitely get Intel/AMD to disable CLFLUSH, then.
+Huang, against which kernels did you first run this test on this exact
+setup?  Is there a chance you could try to run a kernel without/before
+9879de7373fc?  I want to make sure I'm not missing something, but all
+versions preceding this commit should also have the same hang.  There
+should only be a tiny window between 9879de7373fc and cc87317726f8 --
+v3.19 -- where these allocations are allowed to fail.
 
-I doubt that would work, because you'd have to fix up all the faults from
-userspace in things like graphics and video. Whether it is possible to
-make the microcode do other accesses and delays I have no idea - but
-that might also be quite horrible.
-
-A serious system should be using ECC memory anyway. and on things like
-shared boxes it is probably not a root compromise that is the worst case
-scenario but subtle undetected corruption of someone elses data sets.
-
-That's what ECC already exists to protect against whether its from flawed
-memory and rowhammer or just a vindictive passing cosmic ray.
-
-Alan
-
+[1] https://www.marc.info/?l=linux-mm&m=142450545009301&w=3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
