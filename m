@@ -1,115 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B1D586B0038
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2015 09:45:05 -0400 (EDT)
-Received: by qgfa8 with SMTP id a8so8069752qgf.0
-        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 06:45:05 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i204si13242450qhc.55.2015.03.17.06.45.04
+Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A33C6B0032
+	for <linux-mm@kvack.org>; Tue, 17 Mar 2015 10:06:47 -0400 (EDT)
+Received: by obcxo2 with SMTP id xo2so7895884obc.0
+        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 07:06:47 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id kv4si29539172pab.101.2015.03.17.07.06.46
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Mar 2015 06:45:05 -0700 (PDT)
-Date: Tue, 17 Mar 2015 14:43:09 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: install_special_mapping && vm_pgoff (Was: vvar, gup &&
-	coredump)
-Message-ID: <20150317134309.GA365@redhat.com>
-References: <87zj7r5fpz.fsf@redhat.com> <20150305205744.GA13165@host1.jankratochvil.net> <20150311200052.GA22654@redhat.com> <20150312143438.GA4338@redhat.com> <CALCETrW5rmAHutzm_OwK2LTd_J0XByV3pvWGyW=AmC=v7rLfhQ@mail.gmail.com> <20150312165423.GA10073@redhat.com> <20150312174653.GA13086@redhat.com> <20150316190154.GA18472@redhat.com> <CALCETrU9pLE2x3+vei1xw6B8uu4B33DOEzP03ue9DeS8sJhYUg@mail.gmail.com> <20150316194446.GA21791@redhat.com>
-MIME-Version: 1.0
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 17 Mar 2015 07:06:46 -0700 (PDT)
+Subject: Re: [PATCH 0/2] Move away from non-failing small allocations
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1426107294-21551-1-git-send-email-mhocko@suse.cz>
+	<20150316153843.af945a9e452404c22c4db999@linux-foundation.org>
+	<20150317090738.GB28112@dhcp22.suse.cz>
+In-Reply-To: <20150317090738.GB28112@dhcp22.suse.cz>
+Message-Id: <201503172305.DIH52162.FOFMFOVJHLOtQS@I-love.SAKURA.ne.jp>
+Date: Tue, 17 Mar 2015 23:06:34 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20150316194446.GA21791@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kratochvil <jan.kratochvil@redhat.com>, Sergio Durigan Junior <sergiodj@redhat.com>, GDB Patches <gdb-patches@sourceware.org>, Pedro Alves <palves@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: mhocko@suse.cz, akpm@linux-foundation.org
+Cc: hannes@cmpxchg.org, david@fromorbit.com, mgorman@suse.de, riel@redhat.com, fengguang.wu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 03/16, Oleg Nesterov wrote:
->
-> On 03/16, Andy Lutomirski wrote:
-> >
-> > Ick, you're probably right.  For what it's worth, the vdso *seems* to
-> > be okay (on 64-bit only, and only if you don't poke at it too hard) if
-> > you mremap it in one piece.  CRIU does that.
->
-> I need to run away till tomorrow, but looking at this code even if "one piece"
-> case doesn't look right if it was cow'ed. I'll verify tomorrow.
+Michal Hocko wrote:
+> On Mon 16-03-15 15:38:43, Andrew Morton wrote:
+> > Realistically, I don't think this overall effort will be successful -
+> > we'll add the knob, it won't get enough testing and any attempt to
+> > alter the default will be us deliberately destabilizing the kernel
+> > without knowing how badly :(
+> 
+> Without the knob we do not allow users to test this at all though and
+> the transition will _never_ happen. Which is IMHO bad.
+> 
 
-And I am still not sure this all is 100% correct, but I got lost in this code.
-Probably this is fine...
+Even with the knob, quite little users will test this. The consequence is
+likely that end users rush into customer support center about obscure bugs.
+I'm working at a support center, and such bugs are really annoying.
 
-But at least the bug exposed by the test-case looks clear:
+> > I wonder if we can alter the behaviour only for filesystem code, so we
+> > constrain the new behaviour just to that code where we're having
+> > problems.  Most/all fs code goes via vfs methods so there's a reasonably
+> > small set of places where we can call
+> 
+> We are seeing issues with the fs code now because the test cases which
+> led to the current discussion exercise FS code. The code which does
+> lock(); kmalloc(GFP_KERNEL) is not reduced there though. I am pretty sure
+> we can find other subsystems if we try hard enough.
 
-	do_linear_fault:
+I'm expecting for patches which avoids deadlock by lock(); kmalloc(GFP_KERNEL).
 
-		vmf->pgoff = (((address & PAGE_MASK) - vma->vm_start) >> PAGE_SHIFT)
-				+ vma->vm_pgoff;
-		...
+> > static inline void enter_fs_code(struct super_block *sb)
+> > {
+> > 	if (sb->my_small_allocations_can_fail)
+> > 		current->small_allocations_can_fail++;
+> > }
+> > 
+> > that way (or something similar) we can select the behaviour on a per-fs
+> > basis and the rest of the kernel remains unaffected.  Other subsystems
+> > can opt in as well.
+> 
+> This is basically leading to GFP_MAYFAIL which is completely backwards
+> (the hard requirement should be an exception not a default rule).
+> I really do not want to end up with stuffing random may_fail annotations
+> all over the kernel.
+> 
 
-		special_mapping_fault:
+I wish that GFP_NOFS / GFP_NOIO regions are annotated with
 
-			pgoff = vmf->pgoff - vma->vm_pgoff;
+  static inline void enter_fs_code(void)
+  {
+  #ifdef CONFIG_DEBUG_GFP_FLAGS
+  	current->in_fs_code++;
+  #endif
+  }
 
+  static inline void leave_fs_code(void)
+  {
+  #ifdef CONFIG_DEBUG_GFP_FLAGS
+  	current->in_fs_code--;
+  #endif
+  }
 
-So special_mapping_fault() can only work if this mapping starts from the
-first page in ->pages[].
+  static inline void enter_io_code(void)
+  {
+  #ifdef CONFIG_DEBUG_GFP_FLAGS
+  	current->in_io_code++;
+  #endif
+  }
 
-So perhaps we need _something like_ the (wrong/incomplete) patch below...
+  static inline void leave_io_code(void)
+  {
+  #ifdef CONFIG_DEBUG_GFP_FLAGS
+  	current->in_io_code--;
+  #endif
+  }
 
-Or, really, perhaps we can create vdso_mapping ? So that map_vdso() could
-simply mmap the anon_inode file...
+so that inappropriate GFP_KERNEL usage inside GFP_NOFS region are catchable
+by doing
 
-Oleg.
+  struct page *
+  __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+                          struct zonelist *zonelist, nodemask_t *nodemask)
+  {
+  	struct zoneref *preferred_zoneref;
+  	struct page *page = NULL;
+  	unsigned int cpuset_mems_cookie;
+  	int alloc_flags = ALLOC_WMARK_LOW|ALLOC_CPUSET|ALLOC_FAIR;
+  	gfp_t alloc_mask; /* The gfp_t that was actually used for allocation */
+  	struct alloc_context ac = {
+  		.high_zoneidx = gfp_zone(gfp_mask),
+  		.nodemask = nodemask,
+  		.migratetype = gfpflags_to_migratetype(gfp_mask),
+  	};
+  	
+  	gfp_mask &= gfp_allowed_mask;
+ +#ifdef CONFIG_DEBUG_GFP_FLAGS
+ +	WARN_ON(current->in_fs_code & (gfp_mask & __GFP_FS));
+ +	WARN_ON(current->in_io_code & (gfp_mask & __GFP_IO));
+ +#endif
+  
+  	lockdep_trace_alloc(gfp_mask);
+  
 
---- x/mm/mmap.c
-+++ x/mm/mmap.c
-@@ -2832,6 +2832,8 @@ int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
- 	return 0;
- }
- 
-+bool is_special_vma(struct vm_area_struct *vma);
-+
- /*
-  * Copy the vma structure to a new location in the same mm,
-  * prior to moving page table entries, to effect an mremap move.
-@@ -2851,7 +2853,7 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
- 	 * If anonymous vma has not yet been faulted, update new pgoff
- 	 * to match new location, to increase its chance of merging.
- 	 */
--	if (unlikely(!vma->vm_file && !vma->anon_vma)) {
-+	if (unlikely(!vma->vm_file && !is_special_vma(vma) && !vma->anon_vma)) {
- 		pgoff = addr >> PAGE_SHIFT;
- 		faulted_in_anon_vma = false;
- 	}
-@@ -2953,6 +2955,11 @@ static const struct vm_operations_struct legacy_special_mapping_vmops = {
- 	.fault = special_mapping_fault,
- };
- 
-+bool is_special_vma(struct vm_area_struct *vma)
-+{
-+	return vma->vm_ops == &special_mapping_vmops;
-+}
-+
- static int special_mapping_fault(struct vm_area_struct *vma,
- 				struct vm_fault *vmf)
- {
-@@ -2965,7 +2972,7 @@ static int special_mapping_fault(struct vm_area_struct *vma,
- 	 * We are allowed to do this because we are the mm; do not copy
- 	 * this code into drivers!
- 	 */
--	pgoff = vmf->pgoff - vma->vm_pgoff;
-+	pgoff = vmf->pgoff;
- 
- 	if (vma->vm_ops == &legacy_special_mapping_vmops)
- 		pages = vma->vm_private_data;
-@@ -3014,6 +3021,7 @@ static struct vm_area_struct *__install_special_mapping(
- 	if (ret)
- 		goto out;
- 
-+	vma->vm_pgoff = 0;
- 	mm->total_vm += len >> PAGE_SHIFT;
- 
- 	perf_event_mmap(vma);
+. It is difficult for non-fs developers to determine whether they need to use
+GFP_NOFS than GFP_KERNEL in their code. An example is seen at
+http://marc.info/?l=linux-security-module&m=138556479607024&w=2 .
+
+Moreover, I don't know how GFP flags are managed when stacked like
+"a swap file on ext4 on top of LVM (with snapshots) on a RAID array
+connected over iSCSI" (quoted from comments on Jon's writeup), but I
+wish that the distinction between GFP_KERNEL / GFP_NOFS / GFP_NOIO
+are removed from memory allocating function callers by doing
+
+  static inline void enter_fs_code(void)
+  {
+  	current->in_fs_code++;
+  }
+
+  static inline void leave_fs_code(void)
+  {
+  	current->in_fs_code--;
+  }
+
+  static inline void enter_io_code(void)
+  {
+  	current->in_io_code++;
+  }
+
+  static inline void leave_io_code(void)
+  {
+  	current->in_io_code--;
+  }
+
+  struct page *
+  __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+                          struct zonelist *zonelist, nodemask_t *nodemask)
+  {
+  	struct zoneref *preferred_zoneref;
+  	struct page *page = NULL;
+  	unsigned int cpuset_mems_cookie;
+  	int alloc_flags = ALLOC_WMARK_LOW|ALLOC_CPUSET|ALLOC_FAIR;
+  	gfp_t alloc_mask; /* The gfp_t that was actually used for allocation */
+  	struct alloc_context ac = {
+  		.high_zoneidx = gfp_zone(gfp_mask),
+  		.nodemask = nodemask,
+  		.migratetype = gfpflags_to_migratetype(gfp_mask),
+  	};
+  	
+  	gfp_mask &= gfp_allowed_mask;
+ +	if (current->in_fs_code)
+ +		gfp_mask &= ~__GFP_FS;
+ +	if (current->in_io_code)
+ +		gfp_mask &= ~__GFP_IO;
+  
+  	lockdep_trace_alloc(gfp_mask);
+  
+
+so that GFP flags passed to memory allocations involved by stacking
+will be appropriately masked.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
