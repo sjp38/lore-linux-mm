@@ -1,251 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F32F6B0032
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2015 13:26:47 -0400 (EDT)
-Received: by wifj2 with SMTP id j2so17119328wif.1
-        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 10:26:46 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id s15si4382677wik.39.2015.03.17.10.26.44
+Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FDF36B0032
+	for <linux-mm@kvack.org>; Tue, 17 Mar 2015 13:28:28 -0400 (EDT)
+Received: by wetk59 with SMTP id k59so13118625wet.3
+        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 10:28:27 -0700 (PDT)
+Received: from mail-we0-x22a.google.com (mail-we0-x22a.google.com. [2a00:1450:400c:c03::22a])
+        by mx.google.com with ESMTPS id hl10si4423093wib.6.2015.03.17.10.28.26
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Mar 2015 10:26:45 -0700 (PDT)
-Date: Tue, 17 Mar 2015 13:26:28 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 1/2 v2] mm: Allow small allocations to fail
-Message-ID: <20150317172628.GA5109@phnom.home.cmpxchg.org>
-References: <1426107294-21551-1-git-send-email-mhocko@suse.cz>
- <1426107294-21551-2-git-send-email-mhocko@suse.cz>
- <201503151443.CFE04129.MVFOOStLFHFOQJ@I-love.SAKURA.ne.jp>
- <20150315121317.GA30685@dhcp22.suse.cz>
- <201503152206.AGJ22930.HOStFFFQLVMOOJ@I-love.SAKURA.ne.jp>
- <20150316074607.GA24885@dhcp22.suse.cz>
- <20150316211146.GA15456@phnom.home.cmpxchg.org>
- <20150317102508.GG28112@dhcp22.suse.cz>
- <20150317132926.GA1824@phnom.home.cmpxchg.org>
- <20150317141729.GI28112@dhcp22.suse.cz>
+        Tue, 17 Mar 2015 10:28:26 -0700 (PDT)
+Received: by wetk59 with SMTP id k59so13118110wet.3
+        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 10:28:26 -0700 (PDT)
+Date: Tue, 17 Mar 2015 18:28:23 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [LKP] [mm] cc87317726f: WARNING: CPU: 0 PID: 1 at
+ drivers/iommu/io-pgtable-arm.c:413 __arm_lpae_unmap+0x341/0x380()
+Message-ID: <20150317172823.GA25494@dhcp22.suse.cz>
+References: <1426227621.6711.238.camel@intel.com>
+ <CA+55aFxWTg_kCxGChLJGU=DFg0K_q842bkziktXu6B2fX=mXYQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20150317141729.GI28112@dhcp22.suse.cz>
+In-Reply-To: <CA+55aFxWTg_kCxGChLJGU=DFg0K_q842bkziktXu6B2fX=mXYQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, david@fromorbit.com, mgorman@suse.de, riel@redhat.com, fengguang.wu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Huang Ying <ying.huang@intel.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, LKP ML <lkp@01.org>, linux-mm <linux-mm@kvack.org>, Theodore Ts'o <tytso@mit.edu>
 
-On Tue, Mar 17, 2015 at 03:17:29PM +0100, Michal Hocko wrote:
-> On Tue 17-03-15 09:29:26, Johannes Weiner wrote:
-> > On Tue, Mar 17, 2015 at 11:25:08AM +0100, Michal Hocko wrote:
-> > > On Mon 16-03-15 17:11:46, Johannes Weiner wrote:
-> > > > A sysctl certainly doesn't sound appropriate to me because this is not
-> > > > a tunable that we expect people to set according to their usecase.  We
-> > > > expect our model to work for *everybody*.  A boot flag would be
-> > > > marginally better but it still reeks too much of tunable.
-> > > 
-> > > I am OK with a boot option as well if the sysctl is considered
-> > > inappropriate. It is less flexible though. Consider a regression testing
-> > > where the same load is run 2 times once with failing allocations and
-> > > once without it. Why should we force the tester to do a reboot cycle?
-> > 
-> > Because we can get rid of the Kconfig more easily once we transitioned.
+[CCing Ted]
+
+On Tue 17-03-15 10:15:29, Linus Torvalds wrote:
+> Explicitly adding the emails of other people involved with that commit
+> and the original oom thread to make sure people are aware, since this
+> didn't get any response.
 > 
-> How? We might be forced to keep the original behavior _for ever_. I do
-> not see any difference between runtime, boottime or compiletime option.
-> Except for the flexibility which is different for each one of course. We
-> can argue about which one is the most appropriate of course but I feel
-> strongly we cannot go and change the semantic right away.
+> Commit cc87317726f8 fixed some behavior,
 
-Sure, why not add another slab allocator while you're at it.  How many
-times do we have to repeat the same mistakes?  If the old model sucks,
-then it needs to be fixed or replaced.  Don't just offer another one
-that sucks in different ways and ask the user to pick their poison,
-with a promise that we might improve the newer model until it's
-suitable to ditch the old one.
+Yes, it was ext4 remounting RO because of the allocation failures AFAIR.
+I am not sure those were addressed in the meantime. Ted?
 
-This is nothing more than us failing and giving up trying to actually
-solve our problems.
+> but also seems to have turned an oom situation into a complete
+> hang. So presumably we shouldn't loop *forever*. Hmm?
 
-> > > > Given that there are usually several stages of various testing between
-> > > > when a commit gets merged upstream and when it finally makes it into a
-> > > > critical production system, maybe we don't need to provide userspace
-> > > > control over this at all?
-> > > 
-> > > I can still see conservative users not changing this behavior _ever_.
-> > > Even after the rest of the world trusts the new default. They should
-> > > have a way to disable it. Many of those are running distribution kernels
-> > > so they really need a way to control the behavior. Be it a boot time
-> > > option or sysctl. Historically we were using sysctl for backward
-> > > compatibility and I do not see any reason to be different here as well.
-> > 
-> > Again, this is an implementation detail that we are trying to fix up.
+I am definitely for the failure for GFP_NOFS allocations. It is weird to
+loop inside the allocator without any way out because even OOM killer as
+the last resort is not used. The primary force for the revert was that
+the change came in very late in the release cycle. I guess we should go
+with revert of cc87317726f8 for 4.1.
+
 > 
-> This is not an implementation detail! This is about change of the
-> _semantic_ of the allocator. I wouldn't call it an implementation
-> detail.
-
-We can make the allocator robust through improving reclaim and the OOM
-killer.  This "nr of retries" is 100% an implementation detail of this
-single stupid function.
-
-On a higher level, allowing the page allocator to return NULL is an
-implementation detail of the operating system, userspace doesn't care
-how the allocator and the callers communicate as long as the callers
-can compensate for the allocator changing.  Involving userspace in
-this decision is simply crazy talk.  They have no incentive to
-partake.  MM people have to coordinate with other kernel developers to
-deal with allocation NULLs without regressing userspace.  Maybe they
-can fail the allocations without any problems, maybe they want to wait
-for other events that they have more insight into than the allocator.
-This is what Dave meant when he said that we should provide mechanism
-and leave policy to the callsites.
-
-It's 100% a kernel implementation detail that has NOTHING to do with
-userspace.  Zilch.  It's about how the allocator implements the OOM
-mechanism and how the allocation sites implement the OOM policy.
-
-> > It has nothing to do with userspace, it's not a heuristic.  It's bad
-> > enough that this would be at all selectable from userspace, now you
-> > want to make it permanently configurable?
-> > 
-> > The problem we have to solve here is finding a value that doesn't
-> > deadlock the allocator, makes error situations stable and behave
-> > predictably, and doesn't regress real workloads out there.
-> > Your proposal tries to avoid immediate regressions at the cost of
-> > keeping the deadlock potential AND fragmenting the test space, which
-> > will make the whole situation even more fragile. 
+> Comments?
 > 
-> While the deadlocks are possible the history shows they are not really
-> that common. While unexpected allocation failures are much more risky
-> because they would _regress_ previously working kernel. So I see this
-> conservative approach appropriate.
+>                            Linus
 > 
-> > Why would you want production systems to run code that nobody else is
-> > running anymore?
-> 
-> I do not understand this.
+> On Thu, Mar 12, 2015 at 11:20 PM, Huang Ying <ying.huang@intel.com> wrote:
+> > FYI, we noticed the below changes on
+> >
+> > git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
+> > commit cc87317726f851531ae8422e0c2d3d6e2d7b1955 ("mm: page_alloc: revert inadvertent !__GFP_FS retry behavior change")
+> >
+> > Before the commit, the page allocation failure is as follow (in prev_dmesg).
+> >
+> > [    3.069031] BTRFS: selftest: Running space stealing from bitmap to extent
+> > [    3.070243] BTRFS: selftest: Free space cache tests finished
+> > [    3.070919] BTRFS: selftest: Running extent buffer operation tests
+> > [    3.072111] BTRFS: selftest: Running btrfs_split_item tests
+> > [    3.072840] BTRFS: selftest: Running find delalloc tests
+> > [    3.295788] swapper/0: page allocation failure: order:0, mode:0x50
+> > [    3.296315] CPU: 0 PID: 1 Comm: swapper/0 Tainted: G        W       4.0.0-rc1-00038-g39afb5e #4
+> > [    3.297033] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+> > [    3.297490]  00000000 00000000 4002bdd4 4158716c 00000001 4002bdfc 410c64f1 41719e60
+> > [    3.298218]  4001b304 00000000 00000050 4002bdf8 4158da0d 00000000 00000000 4002be80
+> > [    3.298929]  410c8331 00000050 00000000 00000000 00000001 00000050 4001b000 00000040
+> > [    3.299644] Call Trace:
+> > [    3.299859]  [<4158716c>] dump_stack+0x48/0x60
+> > [    3.300235]  [<410c64f1>] warn_alloc_failed+0xa1/0xe0
+> > [    3.300640]  [<4158da0d>] ? _raw_spin_unlock+0x1d/0x30
+> > [    3.301070]  [<410c8331>] __alloc_pages_nodemask+0x4d1/0x810
+> > [    3.301517]  [<410c04e3>] pagecache_get_page+0xf3/0x1c0
+> > [    3.301957]  [<4124ccf7>] btrfs_test_extent_io+0x67/0x660
+> > [    3.302401]  [<4124c5cb>] ? btrfs_test_extent_buffer_operations+0x54b/0x6c0
+> > [    3.302966]  [<4184109b>] ? debugfs_init+0x4e/0x4e
+> > [    3.303360]  [<41841192>] init_btrfs_fs+0xf7/0x172
+> > [    3.303750]  [<41000472>] do_one_initcall+0xc2/0x1c0
+> > [    3.304155]  [<41829462>] ? repair_env_string+0x12/0x54
+> > [    3.304566]  [<41829400>] ? do_early_param+0x23/0x73
+> > [    3.304971]  [<4104ca99>] ? parse_args+0x249/0x4e0
+> > [    3.305364]  [<41829450>] ? do_early_param+0x73/0x73
+> > [    3.305767]  [<41829bce>] kernel_init_freeable+0xe3/0x160
+> > [    3.306204]  [<41829bce>] ? kernel_init_freeable+0xe3/0x160
+> > [    3.306632]  [<41582b78>] kernel_init+0x8/0xc0
+> > [    3.307022]  [<4158e281>] ret_from_kernel_thread+0x21/0x30
+> > [    3.307455]  [<41582b70>] ? rest_init+0xb0/0xb0
+> > [    3.307826] Mem-Info:
+> > [    3.308024] Normal per-cpu:
+> > [    3.308251] CPU    0: hi:   90, btch:  15 usd:  82
+> > [    3.308630] CPU    1: hi:   90, btch:  15 usd:   2
+> > [    3.309026] active_anon:0 inactive_anon:0 isolated_anon:0
+> > [    3.309026]  active_file:873 inactive_file:62554 isolated_file:0
+> > [    3.309026]  unevictable:9425 dirty:0 writeback:0 unstable:0
+> > [    3.309026]  free:539 slab_reclaimable:0 slab_unreclaimable:0
+> > [    3.309026]  mapped:0 shmem:0 pagetables:0 bounce:0
+> > [    3.309026]  free_cma:0
+> >
+> >
+> > After the commit, the system hang at the same position (in .dmesg).
+> >
+> > [    3.303002] BTRFS: selftest: Running btrfs free space cache tests
+> > [    3.303636] BTRFS: selftest: Running extent only tests
+> > [    3.304190] BTRFS: selftest: Running bitmap only tests
+> > [    3.304726] BTRFS: selftest: Running bitmap and extent tests
+> > [    3.305346] BTRFS: selftest: Running space stealing from bitmap to extent
+> > [    3.306318] BTRFS: selftest: Free space cache tests finished
+> > [    3.306881] BTRFS: selftest: Running extent buffer operation tests
+> > [    3.307483] BTRFS: selftest: Running btrfs_split_item tests
+> > [    3.308134] BTRFS: selftest: Running find delalloc tests
+> >
+> > BUG: kernel boot hang
+> > Elapsed time: 305
+> >
+> >
+> > Thanks,
+> > Ying Huang
+> >
+> >
+> > _______________________________________________
+> > LKP mailing list
+> > LKP@linux.intel.com
+> >
+> >
 
-Can you please read the entire email before replying?  What I meant by
-this is explained following this question.  You explicitely asked for
-permanently segregating the behavior of upstream kernels from that of
-critical production systems.
-
-> > We have a functioning testing pipeline to evaluate kernel changes like
-> > this: private tree -> subsystem tree -> next -> rc -> release ->
-> > stable -> longterm -> vendor.
-> 
-> This might work for smaller changes not when basically the whole kernel
-> is affected and the potential regression space is hard to predict and
-> potentially very large.
-
-Hence Andrew's suggestion to partition the callers and do the
-transition incrementally.
-
-> > We propagate risky changes to bigger
-> > and bigger test coverage domains and back them out once they introduce
-> > regressions.
-> 
-> Great so we end up reverting this in a month or two when the first users
-> stumble over a bug and we are back to square one. Excellent plan...
-
-No, we're not.  We now have data on the missing pieces.  We need to
-update our initial assumptions, evaluate our caller requirements.
-Update the way we perform reclaim, finetune how we determine OOM
-situations - maybe we just need some smart waits.  All this would
-actually improve the kernel.
-
-That whole "nr of retries" is stupid in the first place.  The amount
-of work that is retried is completely implementation dependent and
-changes all the time.  We can probably wait for much more sensible
-events.  For example, if the things we do in a single loop give up
-prematurely, then maybe instead of just adding more loops, we could
-add a timeout-wait for the OOM victim to exit.  Change the congestion
-throttling.  Whatever.  Anything is better than making the iterations
-of a variable loop configurable to userspace.  But what needs to be
-done depends on the way real applications actually regress.  Are
-allocations failing right before the OOM victim exited and we should
-have waited for it instead?  Are there in-flight writebacks we could
-have waited for and we need to adjust our throttling in vmscan.c?
-Because that throttling has only been tuned to save CPU cycles during
-our endless reclaim, not actually to reliably make LRU reclaim trail
-dirty page laundering.  There is so much room for optimizations that
-would leave us with a better functioning system across the map, than
-throwing braindead retrying at the problem.  But we need the data.
-
-Those endless retry loops have masked reliability problems in the
-underlying reclaim and OOM code.  We can not address them without
-exposure.  And we likely won't be needing this single magic number
-once the implementation is better and a single sequence of robust
-reclaim and OOM kills is enough to determine that we are thoroughly
-out of memory and there is no point in retrying inside the allocator.
-Whatever is left in terms of OOM policy should be the responsibility
-of the caller.
-
-> > You are trying to bypass this mechanism in an ad-hoc way
-> > with no plan of ever re-uniting the configuration space, but by
-> > splitting the test base in half (or N in your original proposal) you
-> > are setting us up for bugs reported in vendor kernels that didn't get
-> > caught through our primary means of maturing kernel changes.
-> > 
-> > Furthermore, it makes the code's behavior harder to predict and reason
-> > about, which makes subsequent development prone to errors and yet more
-> > regressions.
-> 
-> How come? !GFP_NOFAIL allocations _have_ to check for allocation
-> failures regardless the underlying allocator implementation.
-
-Can you please think a bit longer about these emails before replying?
-
-If you split the configuration space into kernels that endlessly retry
-and those that do not, you can introduce new deadlocks to the nofail
-kernels which don't get caught in the canfail kernels.  If you weaken
-the code that executes in each loop, you can regress robustness in the
-canfail kernels which is not caught in the nofail kernels.  You'll hit
-deadlocks in the production environments that were not existent in the
-canfail testing setups, and experience from production environments
-won't translate to upstream fixes very well.
-
-> > You're trying so hard to be defensive about this that you're actually
-> > making everybody worse off.  Prioritizing a single aspect of a change
-> > above everything else will never lead to good solutions.  Engineering
-> > is about making trade-offs and finding the sweet spots.
-> 
-> OK, so I am really wondering what you are proposing as an alternative.
-> Simply start failing allocations right away is hazardous and
-> irresponsible and not going to fly because we would quickly end up
-> reverting the change. Which will not help us to change the current
-> non-failing semantic which will be more and more PITA over the time
-> because it pushes us into the corner, it is deadlock prone and doesn't
-> allow callers to define proper fail strategies.
-
-Maybe run a smarter test than an artificial stress for starters, see
-if this actually matters for an array of more realistic mmtests and/or
-filesystem tests.  And then analyse those failures instead of bumping
-the nr_retries knob blindly.
-
-And I agree with Andrew that we could probably be selective INSIDE THE
-KERNEL about which callers are taking the plunge.  The only reason to
-be careful with this change is the scale, it has nothing to do with
-long-standing behavior.  That's just handwaving.  Make it opt-in on a
-kernel code level, not on a userspace level, so that we have those
-responsible for the callsite code be aware of this change and can
-think of the consequences up front.  Let XFS people think about
-failing small allocations in their context: which of those are allowed
-to propagate to userspace and which aren't?  If we regress userspace
-because allocation failures leak by accident, we know the caller needs
-to be fixed.  If we regress a workload by failing failable allocations
-earlier than before, we know that the page allocator should try
-harder/smarter.  This is the advantage of having an actual model: you
-can figure out who is violating it and fix the problem where it occurs
-instead of papering it over.
-
-Then let ext4 people think about it and ease them into it.  Let them
-know what is coming and what they should be prepared for, and then we
-can work with them in fixing up any issues.  Once the big ticket items
-are done we can flip the rest and deal with that fallout separately.
-
-There is an existing path to make and evaluate such changes and you
-haven't made a case why we should deviate from that.  We didn't ask
-users to choose between fine-grained locking or the big kernel lock,
-either, did we?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
