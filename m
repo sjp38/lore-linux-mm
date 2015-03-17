@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 24579900016
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2015 07:57:14 -0400 (EDT)
-Received: by wggv3 with SMTP id v3so6414095wgg.1
-        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 04:57:13 -0700 (PDT)
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 6599E900016
+	for <linux-mm@kvack.org>; Tue, 17 Mar 2015 07:57:16 -0400 (EDT)
+Received: by wgbcc7 with SMTP id cc7so6433555wgb.0
+        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 04:57:16 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id oy6si23109716wjb.128.2015.03.17.04.57.01
+        by mx.google.com with ESMTPS id v6si2848300wif.47.2015.03.17.04.57.01
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 17 Mar 2015 04:57:01 -0700 (PDT)
+        Tue, 17 Mar 2015 04:57:02 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 8/9] media: vb2: Remove unused functions
-Date: Tue, 17 Mar 2015 12:56:38 +0100
-Message-Id: <1426593399-6549-9-git-send-email-jack@suse.cz>
+Subject: [PATCH 9/9] drm/exynos: Convert g2d_userptr_get_dma_addr() to use get_vaddr_pfn()
+Date: Tue, 17 Mar 2015 12:56:39 +0100
+Message-Id: <1426593399-6549-10-git-send-email-jack@suse.cz>
 In-Reply-To: <1426593399-6549-1-git-send-email-jack@suse.cz>
 References: <1426593399-6549-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,39 +20,193 @@ List-ID: <linux-mm.kvack.org>
 To: linux-media@vger.kernel.org
 Cc: Hans Verkuil <hans.verkuil@cisco.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>, Jan Kara <jack@suse.cz>
 
-Conversion to the use of pinned pfns made some functions unused. Remove
-them. Also there's no need to lock mmap_sem in __buf_prepare() anymore.
+Convert g2d_userptr_get_dma_addr() to pin pages using get_vaddr_pfn().
+This removes the knowledge about vmas and mmap_sem locking from exynos
+driver. Also it fixes a problem that the function has been mapping user
+provided address without holding mmap_sem.
 
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- drivers/media/v4l2-core/videobuf2-memops.c | 114 -----------------------------
- include/media/videobuf2-memops.h           |   6 --
- 2 files changed, 120 deletions(-)
+ drivers/gpu/drm/exynos/exynos_drm_g2d.c | 91 ++++++++++---------------------
+ drivers/gpu/drm/exynos/exynos_drm_gem.c | 97 ---------------------------------
+ 2 files changed, 30 insertions(+), 158 deletions(-)
 
-diff --git a/drivers/media/v4l2-core/videobuf2-memops.c b/drivers/media/v4l2-core/videobuf2-memops.c
-index 80ade22b920c..08daaa5c4e2d 100644
---- a/drivers/media/v4l2-core/videobuf2-memops.c
-+++ b/drivers/media/v4l2-core/videobuf2-memops.c
-@@ -23,120 +23,6 @@
- #include <media/videobuf2-memops.h>
+diff --git a/drivers/gpu/drm/exynos/exynos_drm_g2d.c b/drivers/gpu/drm/exynos/exynos_drm_g2d.c
+index 81a250830808..8949354a85a1 100644
+--- a/drivers/gpu/drm/exynos/exynos_drm_g2d.c
++++ b/drivers/gpu/drm/exynos/exynos_drm_g2d.c
+@@ -190,10 +190,8 @@ struct g2d_cmdlist_userptr {
+ 	dma_addr_t		dma_addr;
+ 	unsigned long		userptr;
+ 	unsigned long		size;
+-	struct page		**pages;
+-	unsigned int		npages;
++	struct pinned_pfns	*pfns;
+ 	struct sg_table		*sgt;
+-	struct vm_area_struct	*vma;
+ 	atomic_t		refcount;
+ 	bool			in_pool;
+ 	bool			out_of_list;
+@@ -363,6 +361,7 @@ static void g2d_userptr_put_dma_addr(struct drm_device *drm_dev,
+ {
+ 	struct g2d_cmdlist_userptr *g2d_userptr =
+ 					(struct g2d_cmdlist_userptr *)obj;
++	struct page **pages;
  
- /**
-- * vb2_get_vma() - acquire and lock the virtual memory area
-- * @vma:	given virtual memory area
-- *
-- * This function attempts to acquire an area mapped in the userspace for
-- * the duration of a hardware operation. The area is "locked" by performing
-- * the same set of operation that are done when process calls fork() and
-- * memory areas are duplicated.
-- *
-- * Returns a copy of a virtual memory region on success or NULL.
-- */
--struct vm_area_struct *vb2_get_vma(struct vm_area_struct *vma)
+ 	if (!obj)
+ 		return;
+@@ -382,19 +381,21 @@ out:
+ 	exynos_gem_unmap_sgt_from_dma(drm_dev, g2d_userptr->sgt,
+ 					DMA_BIDIRECTIONAL);
+ 
+-	exynos_gem_put_pages_to_userptr(g2d_userptr->pages,
+-					g2d_userptr->npages,
+-					g2d_userptr->vma);
++	pages = pfns_vector_pages(g2d_userptr->pfns);
++	if (pages) {
++		int i;
+ 
+-	exynos_gem_put_vma(g2d_userptr->vma);
++		for (i = 0; i < pfns_vector_count(g2d_userptr->pfns); i++)
++			set_page_dirty_lock(pages[i]);
++	}
++	put_vaddr_pfns(g2d_userptr->pfns);
++	pfns_vector_destroy(g2d_userptr->pfns);
+ 
+ 	if (!g2d_userptr->out_of_list)
+ 		list_del_init(&g2d_userptr->list);
+ 
+ 	sg_free_table(g2d_userptr->sgt);
+ 	kfree(g2d_userptr->sgt);
+-
+-	drm_free_large(g2d_userptr->pages);
+ 	kfree(g2d_userptr);
+ }
+ 
+@@ -413,6 +414,7 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
+ 	struct vm_area_struct *vma;
+ 	unsigned long start, end;
+ 	unsigned int npages, offset;
++	struct pinned_pfns *pfns;
+ 	int ret;
+ 
+ 	if (!size) {
+@@ -456,65 +458,37 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
+ 		return ERR_PTR(-ENOMEM);
+ 
+ 	atomic_set(&g2d_userptr->refcount, 1);
++	g2d_userptr->size = size;
+ 
+ 	start = userptr & PAGE_MASK;
+ 	offset = userptr & ~PAGE_MASK;
+ 	end = PAGE_ALIGN(userptr + size);
+ 	npages = (end - start) >> PAGE_SHIFT;
+-	g2d_userptr->npages = npages;
++	pfns = g2d_userptr->pfns = pfns_vector_create(npages);
++	if (!pfns)
++		goto out_free;
+ 
+-	pages = drm_calloc_large(npages, sizeof(struct page *));
+-	if (!pages) {
+-		DRM_ERROR("failed to allocate pages.\n");
+-		ret = -ENOMEM;
+-		goto err_free;
+-	}
+-
+-	down_read(&current->mm->mmap_sem);
+-	vma = find_vma(current->mm, userptr);
+-	if (!vma) {
+-		up_read(&current->mm->mmap_sem);
+-		DRM_ERROR("failed to get vm region.\n");
++	ret = get_vaddr_pfn(start, npages, 1, 1, pfns);
++	if (ret != npages) {
++		DRM_ERROR("failed to get user pages from userptr.\n");
++		if (ret < 0)
++			goto err_destroy_pfns;
+ 		ret = -EFAULT;
+-		goto err_free_pages;
++		goto err_put_pfns;
+ 	}
+-
+-	if (vma->vm_end < userptr + size) {
+-		up_read(&current->mm->mmap_sem);
+-		DRM_ERROR("vma is too small.\n");
++	if (pfns_vector_to_pages(pfns) < 0) {
+ 		ret = -EFAULT;
+-		goto err_free_pages;
++		goto err_put_pfns;
+ 	}
+ 
+-	g2d_userptr->vma = exynos_gem_get_vma(vma);
+-	if (!g2d_userptr->vma) {
+-		up_read(&current->mm->mmap_sem);
+-		DRM_ERROR("failed to copy vma.\n");
+-		ret = -ENOMEM;
+-		goto err_free_pages;
+-	}
+-
+-	g2d_userptr->size = size;
+-
+-	ret = exynos_gem_get_pages_from_userptr(start & PAGE_MASK,
+-						npages, pages, vma);
+-	if (ret < 0) {
+-		up_read(&current->mm->mmap_sem);
+-		DRM_ERROR("failed to get user pages from userptr.\n");
+-		goto err_put_vma;
+-	}
+-
+-	up_read(&current->mm->mmap_sem);
+-	g2d_userptr->pages = pages;
+-
+ 	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
+ 	if (!sgt) {
+ 		ret = -ENOMEM;
+-		goto err_free_userptr;
++		goto err_put_pfns;
+ 	}
+ 
+-	ret = sg_alloc_table_from_pages(sgt, pages, npages, offset,
+-					size, GFP_KERNEL);
++	ret = sg_alloc_table_from_pages(sgt, pfns_vector_pages(pfns), npages,
++					offset, size, GFP_KERNEL);
+ 	if (ret < 0) {
+ 		DRM_ERROR("failed to get sgt from pages.\n");
+ 		goto err_free_sgt;
+@@ -549,16 +523,11 @@ err_sg_free_table:
+ err_free_sgt:
+ 	kfree(sgt);
+ 
+-err_free_userptr:
+-	exynos_gem_put_pages_to_userptr(g2d_userptr->pages,
+-					g2d_userptr->npages,
+-					g2d_userptr->vma);
+-
+-err_put_vma:
+-	exynos_gem_put_vma(g2d_userptr->vma);
++err_put_pfns:
++	put_vaddr_pfns(pfns);
+ 
+-err_free_pages:
+-	drm_free_large(pages);
++err_destroy_pfns:
++	pfns_vector_destroy(pfns);
+ 
+ err_free:
+ 	kfree(g2d_userptr);
+diff --git a/drivers/gpu/drm/exynos/exynos_drm_gem.c b/drivers/gpu/drm/exynos/exynos_drm_gem.c
+index 0d5b9698d384..47068ae44ced 100644
+--- a/drivers/gpu/drm/exynos/exynos_drm_gem.c
++++ b/drivers/gpu/drm/exynos/exynos_drm_gem.c
+@@ -378,103 +378,6 @@ int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
+ 	return 0;
+ }
+ 
+-struct vm_area_struct *exynos_gem_get_vma(struct vm_area_struct *vma)
 -{
 -	struct vm_area_struct *vma_copy;
 -
 -	vma_copy = kmalloc(sizeof(*vma_copy), GFP_KERNEL);
--	if (vma_copy == NULL)
+-	if (!vma_copy)
 -		return NULL;
 -
 -	if (vma->vm_ops && vma->vm_ops->open)
@@ -69,16 +223,8 @@ index 80ade22b920c..08daaa5c4e2d 100644
 -
 -	return vma_copy;
 -}
--EXPORT_SYMBOL_GPL(vb2_get_vma);
 -
--/**
-- * vb2_put_userptr() - release a userspace virtual memory area
-- * @vma:	virtual memory region associated with the area to be released
-- *
-- * This function releases the previously acquired memory area after a hardware
-- * operation.
-- */
--void vb2_put_vma(struct vm_area_struct *vma)
+-void exynos_gem_put_vma(struct vm_area_struct *vma)
 -{
 -	if (!vma)
 -		return;
@@ -91,86 +237,70 @@ index 80ade22b920c..08daaa5c4e2d 100644
 -
 -	kfree(vma);
 -}
--EXPORT_SYMBOL_GPL(vb2_put_vma);
 -
--/**
-- * vb2_get_contig_userptr() - lock physically contiguous userspace mapped memory
-- * @vaddr:	starting virtual address of the area to be verified
-- * @size:	size of the area
-- * @res_paddr:	will return physical address for the given vaddr
-- * @res_vma:	will return locked copy of struct vm_area for the given area
-- *
-- * This function will go through memory area of size @size mapped at @vaddr and
-- * verify that the underlying physical pages are contiguous. If they are
-- * contiguous the virtual memory area is locked and a @res_vma is filled with
-- * the copy and @res_pa set to the physical address of the buffer.
-- *
-- * Returns 0 on success.
-- */
--int vb2_get_contig_userptr(unsigned long vaddr, unsigned long size,
--			   struct vm_area_struct **res_vma, dma_addr_t *res_pa)
+-int exynos_gem_get_pages_from_userptr(unsigned long start,
+-						unsigned int npages,
+-						struct page **pages,
+-						struct vm_area_struct *vma)
 -{
--	struct mm_struct *mm = current->mm;
--	struct vm_area_struct *vma;
--	unsigned long offset, start, end;
--	unsigned long this_pfn, prev_pfn;
--	dma_addr_t pa = 0;
+-	int get_npages;
 -
--	start = vaddr;
--	offset = start & ~PAGE_MASK;
--	end = start + size;
+-	/* the memory region mmaped with VM_PFNMAP. */
+-	if (vma_is_io(vma)) {
+-		unsigned int i;
 -
--	vma = find_vma(mm, start);
+-		for (i = 0; i < npages; ++i, start += PAGE_SIZE) {
+-			unsigned long pfn;
+-			int ret = follow_pfn(vma, start, &pfn);
+-			if (ret)
+-				return ret;
 -
--	if (vma == NULL || vma->vm_end < end)
--		return -EFAULT;
+-			pages[i] = pfn_to_page(pfn);
+-		}
 -
--	for (prev_pfn = 0; start < end; start += PAGE_SIZE) {
--		int ret = follow_pfn(vma, start, &this_pfn);
--		if (ret)
--			return ret;
+-		if (i != npages) {
+-			DRM_ERROR("failed to get user_pages.\n");
+-			return -EINVAL;
+-		}
 -
--		if (prev_pfn == 0)
--			pa = this_pfn << PAGE_SHIFT;
--		else if (this_pfn != prev_pfn + 1)
--			return -EFAULT;
--
--		prev_pfn = this_pfn;
+-		return 0;
 -	}
 -
--	/*
--	 * Memory is contigous, lock vma and return to the caller
--	 */
--	*res_vma = vb2_get_vma(vma);
--	if (*res_vma == NULL)
--		return -ENOMEM;
+-	get_npages = get_user_pages(current, current->mm, start,
+-					npages, 1, 1, pages, NULL);
+-	get_npages = max(get_npages, 0);
+-	if (get_npages != npages) {
+-		DRM_ERROR("failed to get user_pages.\n");
+-		while (get_npages)
+-			put_page(pages[--get_npages]);
+-		return -EFAULT;
+-	}
 -
--	*res_pa = pa + offset;
 -	return 0;
 -}
--EXPORT_SYMBOL_GPL(vb2_get_contig_userptr);
 -
--/**
-  * vb2_create_pfnvec() - map virtual addresses to pfns
-  * @start:	Virtual user address where we start mapping
-  * @length:	Length of a range to map
-diff --git a/include/media/videobuf2-memops.h b/include/media/videobuf2-memops.h
-index 868f9c1cd92d..01b4325947f1 100644
---- a/include/media/videobuf2-memops.h
-+++ b/include/media/videobuf2-memops.h
-@@ -31,12 +31,6 @@ struct vb2_vmarea_handler {
- 
- extern const struct vm_operations_struct vb2_common_vm_ops;
- 
--int vb2_get_contig_userptr(unsigned long vaddr, unsigned long size,
--			   struct vm_area_struct **res_vma, dma_addr_t *res_pa);
+-void exynos_gem_put_pages_to_userptr(struct page **pages,
+-					unsigned int npages,
+-					struct vm_area_struct *vma)
+-{
+-	if (!vma_is_io(vma)) {
+-		unsigned int i;
 -
--struct vm_area_struct *vb2_get_vma(struct vm_area_struct *vma);
--void vb2_put_vma(struct vm_area_struct *vma);
+-		for (i = 0; i < npages; i++) {
+-			set_page_dirty_lock(pages[i]);
 -
- struct pinned_pfns *vb2_create_pfnvec(unsigned long start, unsigned long length,
- 				      bool write);
- void vb2_destroy_pfnvec(struct pinned_pfns *pfns);
+-			/*
+-			 * undo the reference we took when populating
+-			 * the table.
+-			 */
+-			put_page(pages[i]);
+-		}
+-	}
+-}
+-
+ int exynos_gem_map_sgt_with_dma(struct drm_device *drm_dev,
+ 				struct sg_table *sgt,
+ 				enum dma_data_direction dir)
 -- 
 2.1.4
 
