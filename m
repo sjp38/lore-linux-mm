@@ -1,52 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id C8E106B0032
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2015 15:24:28 -0400 (EDT)
-Received: by wibg7 with SMTP id g7so71667371wib.1
-        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 12:24:28 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id ey12si4777005wid.77.2015.03.17.12.24.26
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Mar 2015 12:24:27 -0700 (PDT)
-Date: Tue, 17 Mar 2015 15:24:13 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [LKP] [mm] cc87317726f: WARNING: CPU: 0 PID: 1 at
- drivers/iommu/io-pgtable-arm.c:413 __arm_lpae_unmap+0x341/0x380()
-Message-ID: <20150317192413.GA7772@phnom.home.cmpxchg.org>
-References: <1426227621.6711.238.camel@intel.com>
- <CA+55aFxWTg_kCxGChLJGU=DFg0K_q842bkziktXu6B2fX=mXYQ@mail.gmail.com>
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B1CD6B0032
+	for <linux-mm@kvack.org>; Tue, 17 Mar 2015 15:40:58 -0400 (EDT)
+Received: by wgbcc7 with SMTP id cc7so17129326wgb.0
+        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 12:40:57 -0700 (PDT)
+Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.203])
+        by mx.google.com with ESMTP id fj2si4807174wib.112.2015.03.17.12.40.56
+        for <linux-mm@kvack.org>;
+        Tue, 17 Mar 2015 12:40:56 -0700 (PDT)
+Date: Tue, 17 Mar 2015 21:40:53 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: trigger panic on bad page or PTE states if
+ panic_on_oops
+Message-ID: <20150317194053.GA27910@node.dhcp.inet.fi>
+References: <1426495021-6408-1-git-send-email-borntraeger@de.ibm.com>
+ <20150316110033.GA20546@node.dhcp.inet.fi>
+ <5506BAB6.3080104@de.ibm.com>
+ <20150316121559.GB20546@node.dhcp.inet.fi>
+ <55086217.6060802@yandex-team.ru>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+55aFxWTg_kCxGChLJGU=DFg0K_q842bkziktXu6B2fX=mXYQ@mail.gmail.com>
+In-Reply-To: <55086217.6060802@yandex-team.ru>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Huang Ying <ying.huang@intel.com>, Michal Hocko <mhocko@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, LKML <linux-kernel@vger.kernel.org>, LKP ML <lkp@01.org>, linux-mm <linux-mm@kvack.org>
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: Christian Borntraeger <borntraeger@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Mar 17, 2015 at 10:15:29AM -0700, Linus Torvalds wrote:
-> Explicitly adding the emails of other people involved with that commit
-> and the original oom thread to make sure people are aware, since this
-> didn't get any response.
+On Tue, Mar 17, 2015 at 08:19:19PM +0300, Konstantin Khlebnikov wrote:
+> On 16.03.2015 15:15, Kirill A. Shutemov wrote:
+> >On Mon, Mar 16, 2015 at 12:12:54PM +0100, Christian Borntraeger wrote:
+> >>Am 16.03.2015 um 12:00 schrieb Kirill A. Shutemov:
+> >>>On Mon, Mar 16, 2015 at 09:37:01AM +0100, Christian Borntraeger wrote:
+> >>>>while debugging a memory management problem it helped a lot to
+> >>>>get a system dump as early as possible for bad page states.
+> >>>>
+> >>>>Lets assume that if panic_on_oops is set then the system should
+> >>>>not continue with broken mm data structures.
+> >>>
+> >>>bed_pte is not an oops.
+> >>
+> >>I know that this is not an oops, but semantically it is like one.  I certainly
+> >>want to a way to hard stop the system if something like that happens.
+> >>
+> >>Would something like panic_on_mm_error be better?
+> >
+> >Or panic_on_taint=<mask> where <mask> is bit-mask of TAINT_* values.
+> >
+> >The problem is that TAINT_* will effectevely become part of kernel ABI
+> >and I'm not sure it's good idea.
 > 
-> Commit cc87317726f8 fixed some behavior, but also seems to have turned
-> an oom situation into a complete hang. So presumably we shouldn't loop
-> *forever*. Hmm?
+> Taint bits have associated letters: for example panic_on_taint=OP
+> panic on out-of-tree or propriate =)
 
-It seems we are between a rock and a hard place here, as we reverted
-specifically to that endless looping on request of filesystem people.
-They said[1] they rely on these allocations never returning NULL, or
-they might fail inside a transactions and corrupt on-disk data.
+Works for me.
 
-Huang, against which kernels did you first run this test on this exact
-setup?  Is there a chance you could try to run a kernel without/before
-9879de7373fc?  I want to make sure I'm not missing something, but all
-versions preceding this commit should also have the same hang.  There
-should only be a tiny window between 9879de7373fc and cc87317726f8 --
-v3.19 -- where these allocations are allowed to fail.
-
-[1] https://www.marc.info/?l=linux-mm&m=142450545009301&w=3
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
