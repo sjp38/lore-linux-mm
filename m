@@ -1,190 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 13705900016
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2015 07:57:24 -0400 (EDT)
-Received: by webcq43 with SMTP id cq43so5727177web.2
-        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 04:57:23 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cq1si2869811wib.21.2015.03.17.04.57.01
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id C52726B0038
+	for <linux-mm@kvack.org>; Tue, 17 Mar 2015 09:15:06 -0400 (EDT)
+Received: by wibg7 with SMTP id g7so46701393wib.1
+        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 06:15:06 -0700 (PDT)
+Received: from mail-wg0-x22f.google.com (mail-wg0-x22f.google.com. [2a00:1450:400c:c00::22f])
+        by mx.google.com with ESMTPS id cl5si23460737wjc.37.2015.03.17.06.15.04
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 17 Mar 2015 04:57:02 -0700 (PDT)
-From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 5/9] media: vb2: Convert vb2_dma_sg_get_userptr() to use pinned pfns
-Date: Tue, 17 Mar 2015 12:56:35 +0100
-Message-Id: <1426593399-6549-6-git-send-email-jack@suse.cz>
-In-Reply-To: <1426593399-6549-1-git-send-email-jack@suse.cz>
-References: <1426593399-6549-1-git-send-email-jack@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Mar 2015 06:15:05 -0700 (PDT)
+Received: by wgbcc7 with SMTP id cc7so8202359wgb.0
+        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 06:15:04 -0700 (PDT)
+Date: Tue, 17 Mar 2015 14:15:01 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/2 v2] mm: Allow small allocations to fail
+Message-ID: <20150317131501.GH28112@dhcp22.suse.cz>
+References: <1426107294-21551-2-git-send-email-mhocko@suse.cz>
+ <201503151443.CFE04129.MVFOOStLFHFOQJ@I-love.SAKURA.ne.jp>
+ <20150315121317.GA30685@dhcp22.suse.cz>
+ <201503152206.AGJ22930.HOStFFFQLVMOOJ@I-love.SAKURA.ne.jp>
+ <20150316074607.GA24885@dhcp22.suse.cz>
+ <201503172013.HCI87500.QFHtOOMLOVFSJF@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201503172013.HCI87500.QFHtOOMLOVFSJF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-media@vger.kernel.org
-Cc: Hans Verkuil <hans.verkuil@cisco.com>, Mauro Carvalho Chehab <mchehab@osg.samsung.com>, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>, Jan Kara <jack@suse.cz>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, david@fromorbit.com, mgorman@suse.de, riel@redhat.com, fengguang.wu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Signed-off-by: Jan Kara <jack@suse.cz>
----
- drivers/media/v4l2-core/videobuf2-dma-sg.c | 97 +++++-------------------------
- 1 file changed, 15 insertions(+), 82 deletions(-)
+On Tue 17-03-15 20:13:42, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Sun 15-03-15 22:06:54, Tetsuo Handa wrote:
+> > > Michal Hocko wrote:
+> > [...]
+> > > > this. I understand that the wording of the changelog might be confusing,
+> > > > though.
+> > > > 
+> > > > It says: "This implementation counts only those retries which involved
+> > > > OOM killer because we do not want to be too eager to fail the request."
+> > > > 
+> > > > Would it be more clear if I changed that to?
+> > > > "This implemetnation counts only those retries when the system is
+> > > > considered OOM because all previous reclaim attempts have resulted
+> > > > in no progress because we do not want to be too eager to fail the
+> > > > request."
+> > > > 
+> > > > We definitely _want_ to fail GFP_NOFS allocations.
+> > > 
+> > > I see. The updated changelog is much more clear.
+> > 
+> > Patch with the updated changelog (no other changes)
+> 
+> Now the changelog is clear that "Involved OOM killer" == "__GFP_FS allocation"
+> and "Considered OOM" == "both __GFP_FS and !__GFP_FS allocation".
+> 
+> One more thing I want to confirm about this patch's changelog.
+> This patch will generate the same result shown below.
+> 
+> Tetsuo Handa wrote:
+> > I also tested on XFS. One is Linux 3.19 and the other is Linux 3.19
+> > with debug printk patch shown above. According to console logs,
+> > oom_kill_process() is trivially called via pagefault_out_of_memory()
+> > for the former kernel. Due to giving up !GFP_FS allocations immediately?
+> > 
+> > (From http://I-love.SAKURA.ne.jp/tmp/serial-20150223-3.19-xfs-unpatched.txt.xz )
+> > ---------- xfs / Linux 3.19 ----------
+> > [  793.283099] su invoked oom-killer: gfp_mask=0x0, order=0, oom_score_adj=0
+> > [  793.283102] su cpuset=/ mems_allowed=0
+> > [  793.283104] CPU: 3 PID: 9552 Comm: su Not tainted 3.19.0 #40
+> > [  793.283159] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/31/2013
+> > [  793.283161]  0000000000000000 ffff88007ac03bf8 ffffffff816ae9d4 000000000000bebe
+> > [  793.283162]  ffff880078b0d740 ffff88007ac03c98 ffffffff816ac7ac 0000000000000206
+> > [  793.283163]  0000000481f30298 ffff880073e55850 ffff88007ac03c88 ffff88007a20bef8
+> > [  793.283164] Call Trace:
+> > [  793.283169]  [<ffffffff816ae9d4>] dump_stack+0x45/0x57
+> > [  793.283171]  [<ffffffff816ac7ac>] dump_header+0x7f/0x1f1
+> > [  793.283174]  [<ffffffff8114b36b>] oom_kill_process+0x22b/0x390
+> > [  793.283177]  [<ffffffff810776d0>] ? has_capability_noaudit+0x20/0x30
+> > [  793.283178]  [<ffffffff8114bb72>] out_of_memory+0x4b2/0x500
+> > [  793.283179]  [<ffffffff8114bc37>] pagefault_out_of_memory+0x77/0x90
+> > [  793.283180]  [<ffffffff816aab2c>] mm_fault_error+0x67/0x140
+> > [  793.283182]  [<ffffffff8105a9f6>] __do_page_fault+0x3f6/0x580
+> > [  793.283185]  [<ffffffff810aed1d>] ? remove_wait_queue+0x4d/0x60
+> > [  793.283186]  [<ffffffff81070fcb>] ? do_wait+0x12b/0x240
+> > [  793.283187]  [<ffffffff8105abb1>] do_page_fault+0x31/0x70
+> > [  793.283189]  [<ffffffff816b83e8>] page_fault+0x28/0x30
+> > ---------- xfs / Linux 3.19 ----------
+> 
+> Are all memory allocations caused by page fault __GFP_FS allocation?
 
-diff --git a/drivers/media/v4l2-core/videobuf2-dma-sg.c b/drivers/media/v4l2-core/videobuf2-dma-sg.c
-index 71510e4f7d7c..cc82c30d02cf 100644
---- a/drivers/media/v4l2-core/videobuf2-dma-sg.c
-+++ b/drivers/media/v4l2-core/videobuf2-dma-sg.c
-@@ -38,6 +38,7 @@ struct vb2_dma_sg_buf {
- 	struct device			*dev;
- 	void				*vaddr;
- 	struct page			**pages;
-+	struct pinned_pfns		*pfns;
- 	int				offset;
- 	enum dma_data_direction		dma_dir;
- 	struct sg_table			sg_table;
-@@ -51,7 +52,6 @@ struct vb2_dma_sg_buf {
- 	unsigned int			num_pages;
- 	atomic_t			refcount;
- 	struct vb2_vmarea_handler	handler;
--	struct vm_area_struct		*vma;
- 
- 	struct dma_buf_attachment	*db_attach;
- };
-@@ -224,25 +224,17 @@ static void vb2_dma_sg_finish(void *buf_priv)
- 	dma_sync_sg_for_cpu(buf->dev, sgt->sgl, sgt->nents, buf->dma_dir);
- }
- 
--static inline int vma_is_io(struct vm_area_struct *vma)
--{
--	return !!(vma->vm_flags & (VM_IO | VM_PFNMAP));
--}
--
- static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
- 				    unsigned long size,
- 				    enum dma_data_direction dma_dir)
- {
- 	struct vb2_dma_sg_conf *conf = alloc_ctx;
- 	struct vb2_dma_sg_buf *buf;
--	unsigned long first, last;
--	int num_pages_from_user;
--	struct vm_area_struct *vma;
- 	struct sg_table *sgt;
- 	DEFINE_DMA_ATTRS(attrs);
-+	struct pinned_pfns *pfns;
- 
- 	dma_set_attr(DMA_ATTR_SKIP_CPU_SYNC, &attrs);
--
- 	buf = kzalloc(sizeof *buf, GFP_KERNEL);
- 	if (!buf)
- 		return NULL;
-@@ -253,63 +245,19 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
- 	buf->offset = vaddr & ~PAGE_MASK;
- 	buf->size = size;
- 	buf->dma_sgt = &buf->sg_table;
-+	pfns = vb2_create_pfnvec(vaddr, size, buf->dma_dir == DMA_FROM_DEVICE);
-+	if (IS_ERR(pfns))
-+		goto userptr_fail_pfnvec;
-+	buf->pfns = pfns;
- 
--	first = (vaddr           & PAGE_MASK) >> PAGE_SHIFT;
--	last  = ((vaddr + size - 1) & PAGE_MASK) >> PAGE_SHIFT;
--	buf->num_pages = last - first + 1;
--
--	buf->pages = kzalloc(buf->num_pages * sizeof(struct page *),
--			     GFP_KERNEL);
--	if (!buf->pages)
--		goto userptr_fail_alloc_pages;
--
--	down_read(&current->mm->mmap_sem);
--	vma = find_vma(current->mm, vaddr);
--	if (!vma) {
--		dprintk(1, "no vma for address %lu\n", vaddr);
--		goto userptr_fail_find_vma;
--	}
--
--	if (vma->vm_end < vaddr + size) {
--		dprintk(1, "vma at %lu is too small for %lu bytes\n",
--			vaddr, size);
--		goto userptr_fail_find_vma;
--	}
--
--	buf->vma = vb2_get_vma(vma);
--	if (!buf->vma) {
--		dprintk(1, "failed to copy vma\n");
--		goto userptr_fail_find_vma;
--	}
--
--	if (vma_is_io(buf->vma)) {
--		for (num_pages_from_user = 0;
--		     num_pages_from_user < buf->num_pages;
--		     ++num_pages_from_user, vaddr += PAGE_SIZE) {
--			unsigned long pfn;
--
--			if (follow_pfn(vma, vaddr, &pfn)) {
--				dprintk(1, "no page for address %lu\n", vaddr);
--				break;
--			}
--			buf->pages[num_pages_from_user] = pfn_to_page(pfn);
--		}
--	} else
--		num_pages_from_user = get_user_pages(current, current->mm,
--					     vaddr & PAGE_MASK,
--					     buf->num_pages,
--					     buf->dma_dir == DMA_FROM_DEVICE,
--					     1, /* force */
--					     buf->pages,
--					     NULL);
--	up_read(&current->mm->mmap_sem);
--
--	if (num_pages_from_user != buf->num_pages)
--		goto userptr_fail_get_user_pages;
-+	if (pfns_vector_to_pages(pfns))
-+		goto userptr_fail_sgtable;
-+	buf->pages = pfns_vector_pages(pfns);
-+	buf->num_pages = pfns_vector_count(pfns);
- 
- 	if (sg_alloc_table_from_pages(buf->dma_sgt, buf->pages,
- 			buf->num_pages, buf->offset, size, 0))
--		goto userptr_fail_alloc_table_from_pages;
-+		goto userptr_fail_sgtable;
- 
- 	sgt = &buf->sg_table;
- 	/*
-@@ -323,19 +271,9 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
- 
- userptr_fail_map:
- 	sg_free_table(&buf->sg_table);
--userptr_fail_alloc_table_from_pages:
--userptr_fail_get_user_pages:
--	dprintk(1, "get_user_pages requested/got: %d/%d]\n",
--		buf->num_pages, num_pages_from_user);
--	if (!vma_is_io(buf->vma))
--		while (--num_pages_from_user >= 0)
--			put_page(buf->pages[num_pages_from_user]);
--	down_read(&current->mm->mmap_sem);
--	vb2_put_vma(buf->vma);
--userptr_fail_find_vma:
--	up_read(&current->mm->mmap_sem);
--	kfree(buf->pages);
--userptr_fail_alloc_pages:
-+userptr_fail_sgtable:
-+	vb2_destroy_pfnvec(pfns);
-+userptr_fail_pfnvec:
- 	kfree(buf);
- 	return NULL;
- }
-@@ -362,13 +300,8 @@ static void vb2_dma_sg_put_userptr(void *buf_priv)
- 	while (--i >= 0) {
- 		if (buf->dma_dir == DMA_FROM_DEVICE)
- 			set_page_dirty_lock(buf->pages[i]);
--		if (!vma_is_io(buf->vma))
--			put_page(buf->pages[i]);
- 	}
--	kfree(buf->pages);
--	down_read(&current->mm->mmap_sem);
--	vb2_put_vma(buf->vma);
--	up_read(&current->mm->mmap_sem);
-+	vb2_destroy_pfnvec(buf->pfns);
- 	kfree(buf);
- }
- 
+They should be GFP_HIGHUSER_MOVABLE or GFP_KERNEL. There should be no
+reason to have GFP_NOFS there because the page fault doesn't come from a
+fs path.
+
+> If memory allocations caused by page fault are !__GFP_FS allocation
+> (e.g. 0x2015a == __GFP_HARDWALL | __GFP_COLD | __GFP_IO | __GFP_WAIT |
+> __GFP_HIGHMEM | __GFP_MOVABLE), this patch will start trivially involving
+> OOM killer for !__GFP_FS allocation.
+> 
+> I haven't tried how many processes can be killed by this path, but this path
+> can potentially OOM-kill most of OOM-killable processes depending on how long
+> the OOM condition lasts. It would be better to mention that a lot of processes
+> might be OOM-killed by page faults due to this change.
+
+Tasks being killed inside a page fault path is nothing new. The rate
+would be higher if small allocations start failing as well but is this
+worth special mentioning? Other small allocations would start failing as
+well...
+
 -- 
-2.1.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
