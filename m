@@ -1,73 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 271506B0038
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id D14E26B006C
 	for <linux-mm@kvack.org>; Tue, 17 Mar 2015 19:35:43 -0400 (EDT)
-Received: by pdbni2 with SMTP id ni2so23819031pdb.1
-        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 16:35:42 -0700 (PDT)
-Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
-        by mx.google.com with ESMTPS id bv10si32227036pdb.53.2015.03.17.16.35.42
+Received: by pdnc3 with SMTP id c3so23866514pdn.0
+        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 16:35:43 -0700 (PDT)
+Received: from mail-pd0-x22d.google.com (mail-pd0-x22d.google.com. [2607:f8b0:400e:c02::22d])
+        by mx.google.com with ESMTPS id bq8si32193326pdb.214.2015.03.17.16.35.42
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Mar 2015 16:35:42 -0700 (PDT)
-Received: by pabxg6 with SMTP id xg6so10669403pab.0
-        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 16:35:41 -0700 (PDT)
+        Tue, 17 Mar 2015 16:35:43 -0700 (PDT)
+Received: by pdbni2 with SMTP id ni2so23819049pdb.1
+        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 16:35:42 -0700 (PDT)
 From: Derek <denc716@gmail.com>
-Subject: [PATCH 1/2] mremap should return -ENOMEM when __vm_enough_memory fail
-Date: Tue, 17 Mar 2015 16:35:32 -0700
-Message-Id: <1426635333-30257-1-git-send-email-denc716@gmail.com>
+Subject: [PATCH 2/2] clean up goto just return ERR_PTR
+Date: Tue, 17 Mar 2015 16:35:33 -0700
+Message-Id: <1426635333-30257-2-git-send-email-denc716@gmail.com>
+In-Reply-To: <1426635333-30257-1-git-send-email-denc716@gmail.com>
+References: <1426635333-30257-1-git-send-email-denc716@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill@shutemov.name>, David Rientjes <rientjes@google.com>
 Cc: Derek Che <crquan@ymail.com>
 
-Recently I straced bash behavior in this dd zero pipe to read test,
-in part of testing under vm.overcommit_memory=2 (OVERCOMMIT_NEVER mode):
-    # dd if=/dev/zero | read x
-
-The bash sub shell is calling mremap to reallocate more and more memory
-untill it finally failed -ENOMEM (I expect), or to be killed by system
-OOM killer (which should not happen under OVERCOMMIT_NEVER mode);
-But the mremap system call actually failed of -EFAULT, which is a
-surprise to me, I think it's supposed to be -ENOMEM? then I wrote this
-piece of C code testing confirmed it:
-https://gist.github.com/crquan/326bde37e1ddda8effe5
-
-    $ ./remap
-    allocated one page @0x7f686bf71000, (PAGE_SIZE: 4096)
-    grabbed 7680512000 bytes of memory (1875125 pages) @ 00007f6690993000.
-    mremap failed Bad address (14).
-
-The -EFAULT comes from the branch of security_vm_enough_memory_mm
-failure, underlyingly it calls __vm_enough_memory which returns only
-0 for success or -ENOMEM; So why vma_to_resize needs to return
--EFAULT in this case? this sounds like a mistake to me.
-
-Some more digging into git history:
-1) Before commit 119f657c7 in May 1 2005 (pre 2.6.12 days) it was
-   returning -ENOMEM for this failure;
-2) but commit 119f657c7 changed it accidentally, to what ever is
-   preserved in local ret, which happened to be -EFAULT, in a previous assignment;
-3) then in commit 54f5de709 code refactoring, it's explicitly returning
-   -EFAULT, should be wrong.
+As suggested by Kirill the "goto"s in vma_to_resize aren't
+neccessary, just change them to explicit return.
 
 Signed-off-by: Derek Che <crquan@ymail.com>
+Suggested-by: "Kirill A. Shutemov" <kirill@shutemov.name>
 Acked-by: David Rientjes <rientjes@google.com>
+
 ---
- mm/mremap.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/mremap.c | 25 ++++++++-----------------
+ 1 file changed, 8 insertions(+), 17 deletions(-)
 
 diff --git a/mm/mremap.c b/mm/mremap.c
-index 57dadc0..5da81cb 100644
+index 5da81cb..afa3ab7 100644
 --- a/mm/mremap.c
 +++ b/mm/mremap.c
-@@ -375,7 +375,7 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
+@@ -339,25 +339,25 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
+ 	struct vm_area_struct *vma = find_vma(mm, addr);
+ 
+ 	if (!vma || vma->vm_start > addr)
+-		goto Efault;
++		return ERR_PTR(-EFAULT);
+ 
+ 	if (is_vm_hugetlb_page(vma))
+-		goto Einval;
++		return ERR_PTR(-EINVAL);
+ 
+ 	/* We can't remap across vm area boundaries */
+ 	if (old_len > vma->vm_end - addr)
+-		goto Efault;
++		return ERR_PTR(-EFAULT);
+ 
+ 	/* Need to be careful about a growing mapping */
+ 	if (new_len > old_len) {
+ 		unsigned long pgoff;
+ 
+ 		if (vma->vm_flags & (VM_DONTEXPAND | VM_PFNMAP))
+-			goto Efault;
++			return ERR_PTR(-EFAULT);
+ 		pgoff = (addr - vma->vm_start) >> PAGE_SHIFT;
+ 		pgoff += vma->vm_pgoff;
+ 		if (pgoff + (new_len >> PAGE_SHIFT) < pgoff)
+-			goto Einval;
++			return ERR_PTR(-EINVAL);
+ 	}
+ 
+ 	if (vma->vm_flags & VM_LOCKED) {
+@@ -366,29 +366,20 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
+ 		lock_limit = rlimit(RLIMIT_MEMLOCK);
+ 		locked += new_len - old_len;
+ 		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
+-			goto Eagain;
++			return ERR_PTR(-EAGAIN);
+ 	}
+ 
+ 	if (!may_expand_vm(mm, (new_len - old_len) >> PAGE_SHIFT))
+-		goto Enomem;
++		return ERR_PTR(-ENOMEM);
+ 
  	if (vma->vm_flags & VM_ACCOUNT) {
  		unsigned long charged = (new_len - old_len) >> PAGE_SHIFT;
  		if (security_vm_enough_memory_mm(mm, charged))
--			goto Efault;
-+			goto Enomem;
+-			goto Enomem;
++			return ERR_PTR(-ENOMEM);
  		*p = charged;
  	}
+ 
+ 	return vma;
+-
+-Efault:	/* very odd choice for most of the cases, but... */
+-	return ERR_PTR(-EFAULT);
+-Einval:
+-	return ERR_PTR(-EINVAL);
+-Enomem:
+-	return ERR_PTR(-ENOMEM);
+-Eagain:
+-	return ERR_PTR(-EAGAIN);
+ }
+ 
+ static unsigned long mremap_to(unsigned long addr, unsigned long old_len,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
