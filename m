@@ -1,68 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B5AF6B0038
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 21:43:06 -0400 (EDT)
-Received: by padcy3 with SMTP id cy3so81701023pad.3
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 18:43:05 -0700 (PDT)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id b5si25914298pdo.198.2015.03.16.18.43.04
-        for <linux-mm@kvack.org>;
-        Mon, 16 Mar 2015 18:43:05 -0700 (PDT)
-Date: Tue, 17 Mar 2015 10:43:06 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v4 0/5] mm: cma: add some debug information for CMA
-Message-ID: <20150317014306.GB19483@js1304-P5Q-DELUXE>
-References: <cover.1426521377.git.s.strogin@partner.samsung.com>
+Received: from mail-yk0-f180.google.com (mail-yk0-f180.google.com [209.85.160.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 8353B6B0038
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 21:48:34 -0400 (EDT)
+Received: by ykfs63 with SMTP id s63so24958976ykf.2
+        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 18:48:34 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id m42si5822688yho.169.2015.03.16.18.48.33
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 16 Mar 2015 18:48:33 -0700 (PDT)
+Message-ID: <550787E7.1030604@oracle.com>
+Date: Mon, 16 Mar 2015 21:48:23 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <cover.1426521377.git.s.strogin@partner.samsung.com>
+Subject: Re: [PATCH] mm: kill kmemcheck
+References: <1426074547-21888-1-git-send-email-sasha.levin@oracle.com>	<20150311081909.552e2052@grimm.local.home>	<55003666.3020100@oracle.com>	<20150311084034.04ce6801@grimm.local.home>	<55004595.7020304@oracle.com>	<20150311102636.6b4110a8@gandalf.local.home>	<55005491.5080809@oracle.com> <20150311105210.1855c95e@gandalf.local.home>
+In-Reply-To: <20150311105210.1855c95e@gandalf.local.home>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stefan Strogin <s.strogin@partner.samsung.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, aneesh.kumar@linux.vnet.ibm.com, Laurent Pinchart <laurent.pinchart@ideasonboard.com>, Dmitry Safonov <d.safonov@partner.samsung.com>, Pintu Kumar <pintu.k@samsung.com>, Weijie Yang <weijie.yang@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, SeongJae Park <sj38.park@gmail.com>, Hui Zhu <zhuhui@xiaomi.com>, Minchan Kim <minchan@kernel.org>, Dyasly Sergey <s.dyasly@samsung.com>, Vyacheslav Tyrtov <v.tyrtov@samsung.com>, Aleksei Mateosian <a.mateosian@samsung.com>, gregory.0xf0@gmail.com, sasha.levin@oracle.com, gioh.kim@lge.com, pavel@ucw.cz, stefan.strogin@gmail.com
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, netdev@vger.kernel.org, linux-arch@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-crypto@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Mon, Mar 16, 2015 at 07:06:55PM +0300, Stefan Strogin wrote:
-> Hi all.
+On 03/11/2015 10:52 AM, Steven Rostedt wrote:
+>> > Could you try KASan for your use case and see if it potentially uncovers
+>> > anything new?
+> The problem is, I don't have a setup to build with the latest compiler.
 > 
-> Here is the fourth version of a patch set that adds some debugging facility for
-> CMA.
+> I could build with my host compiler (that happens to be 4.9.2), but it
+> would take a while to build, and is not part of my work flow.
 > 
-> This patch set is based on next-20150316.
-> It is also available on git:
-> git://github.com/stefanstrogin/linux -b cmainfo-v4
+> 4.9.2 is very new, I think it's a bit premature to declare that the
+> only way to test memory allocations is with the latest and greatest
+> kernel.
 > 
-> We want an interface to see a list of currently allocated CMA buffers and some
-> useful information about them (like /proc/vmallocinfo but for physically
-> contiguous buffers allocated with CMA).
-> 
-> For example. We want a big (megabytes) CMA buffer to be allocated in runtime
-> in default CMA region. If someone already uses CMA then the big allocation
-> could fail. If it happened then with such an interface we could find who used
-> CMA at the moment of failure, who caused fragmentation and so on. Ftrace also
-> would be helpful here, but with ftrace we can see the whole history of
-> allocations and releases, whereas with this patch set we can see a snapshot of
-> CMA region with actual information about its allocations.
+> But if kmemcheck really doesn't work anymore, than perhaps we should
+> get rid of it.
 
-Hello,
+Steven,
 
-Hmm... I still don't think that this is really helpful to find root
-cause of fragmentation. Think about following example.
 
-Assume 1024 MB CMA region.
+Since the only objection raised was the too-newiness of GCC 4.9.2/5.0, what
+would you consider a good time-line for removal?
 
-128 MB allocation * 4
-1 MB allocation
-128 MB allocation
-128 MB release * 4 (first 4)
-try 512 MB allocation
+I haven't heard any "over my dead body" objections, so I guess that trying
+to remove it while no distribution was shipping the compiler that would make
+it possible was premature.
 
-With above sequences, fragmentation happens and 512 MB allocation would
-be failed. We can get information about 1 MB allocation and 128 MB one
-from the buffer list as you suggested, but, fragmentation are related
-to whole sequence of allocation/free history, not snapshot of allocation.
+Although, on the other hand, I'd be happy if we can have a reasonable date
+(that is before my kid goes to college), preferably even before the next
+LSF/MM so that we could have a mission accomplished thingie with a round
+of beers and commemorative t-shirts.
 
-Thanks.
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
