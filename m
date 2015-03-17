@@ -1,159 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DAE46B0038
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2015 18:08:45 -0400 (EDT)
-Received: by padcy3 with SMTP id cy3so21662742pad.3
-        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 15:08:45 -0700 (PDT)
-Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
-        by mx.google.com with ESMTP id er5si31807075pad.227.2015.03.17.15.08.43
-        for <linux-mm@kvack.org>;
-        Tue, 17 Mar 2015 15:08:44 -0700 (PDT)
-Date: Wed, 18 Mar 2015 09:08:40 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 4/4] mm: numa: Slow PTE scan rate if migration failures
- occur
-Message-ID: <20150317220840.GC28621@dastard>
-References: <CA+55aFywW5JLq=BU_qb2OG5+pJ-b1v9tiS5Ygi-vtEKbEZ_T5Q@mail.gmail.com>
- <20150309191943.GF26657@destitution>
- <CA+55aFzFt-vX5Jerci0Ty4Uf7K4_nQ7wyCp8hhU_dB0X4cBpVQ@mail.gmail.com>
- <20150312131045.GE3406@suse.de>
- <CA+55aFx=81BGnQFNhnAGu6CetL7yifPsnD-+v7Y6QRqwgH47gQ@mail.gmail.com>
- <20150312184925.GH3406@suse.de>
- <20150317070655.GB10105@dastard>
- <CA+55aFzdLnFdku-gnm3mGbeS=QauYBNkFQKYXJAGkrMd2jKXhw@mail.gmail.com>
- <20150317205104.GA28621@dastard>
- <CA+55aFzSPcNgxw4GC7aAV1r0P5LniyVVC66COz=3cgMcx73Nag@mail.gmail.com>
+Received: from mail-ie0-f173.google.com (mail-ie0-f173.google.com [209.85.223.173])
+	by kanga.kvack.org (Postfix) with ESMTP id DEA796B0038
+	for <linux-mm@kvack.org>; Tue, 17 Mar 2015 18:52:36 -0400 (EDT)
+Received: by iecsl2 with SMTP id sl2so24040765iec.1
+        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 15:52:36 -0700 (PDT)
+Received: from mail-ig0-x22d.google.com (mail-ig0-x22d.google.com. [2607:f8b0:4001:c05::22d])
+        by mx.google.com with ESMTPS id gs14si7719585icb.15.2015.03.17.15.52.36
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Mar 2015 15:52:36 -0700 (PDT)
+Received: by igcau2 with SMTP id au2so48289588igc.0
+        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 15:52:36 -0700 (PDT)
+Date: Tue, 17 Mar 2015 15:52:32 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/2] mremap should return -ENOMEM when __vm_enough_memory
+ fail
+In-Reply-To: <1426580713-21151-1-git-send-email-denc716@gmail.com>
+Message-ID: <alpine.DEB.2.10.1503171551180.11185@chino.kir.corp.google.com>
+References: <1426580713-21151-1-git-send-email-denc716@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFzSPcNgxw4GC7aAV1r0P5LniyVVC66COz=3cgMcx73Nag@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, xfs@oss.sgi.com, ppc-dev <linuxppc-dev@lists.ozlabs.org>
+To: denc716@gmail.com
+Cc: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill@shutemov.name>, Derek Che <crquan@ymail.com>
 
-On Tue, Mar 17, 2015 at 02:30:57PM -0700, Linus Torvalds wrote:
-> On Tue, Mar 17, 2015 at 1:51 PM, Dave Chinner <david@fromorbit.com> wrote:
-> >
-> > On the -o ag_stride=-1 -o bhash=101073 config, the 60s perf stat I
-> > was using during steady state shows:
-> >
-> >      471,752      migrate:mm_migrate_pages ( +-  7.38% )
-> >
-> > The migrate pages rate is even higher than in 4.0-rc1 (~360,000)
-> > and 3.19 (~55,000), so that looks like even more of a problem than
-> > before.
+On Tue, 17 Mar 2015, denc716@gmail.com wrote:
+
+> Recently I straced bash behavior in this dd zero pipe to read test,
+> in part of testing under vm.overcommit_memory=2 (OVERCOMMIT_NEVER mode):
+>     # dd if=/dev/zero | read x
 > 
-> Hmm. How stable are those numbers boot-to-boot?
-
-I've run the test several times but only profiles once so far.
-runtimes were 7m45, 7m50, 7m44s, 8m2s, and the profiles came from
-the 8m2s run.
-
-reboot, run again:
-
-$ sudo perf stat -a -r 6 -e migrate:mm_migrate_pages sleep 10
-
- Performance counter stats for 'system wide' (6 runs):
-
-           572,839      migrate:mm_migrate_pages    ( +-  3.15% )
-
-      10.001664694 seconds time elapsed             ( +-  0.00% )
-$
-
-And just to confirm, a minute later, still in phase 3:
-
-	590,974      migrate:mm_migrate_pages       ( +-  2.86% )
-
-Reboot, run again:
-
-	575,344      migrate:mm_migrate_pages       ( +-  0.70% )
-
-So there is boot-to-boot variation, but it doesn't look like it
-gets any better....
-
-> That kind of extreme spread makes me suspicious. It's also interesting
-> that if the numbers really go up even more (and by that big amount),
-> then why does there seem to be almost no correlation with performance
-> (which apparently went up since rc1, despite migrate_pages getting
-> even _worse_).
+> The bash sub shell is calling mremap to reallocate more and more memory
+> untill it finally failed -ENOMEM (I expect), or to be killed by system
+> OOM killer (which should not happen under OVERCOMMIT_NEVER mode);
+> But the mremap system call actually failed of -EFAULT, which is a
+> surprise to me, I think it's supposed to be -ENOMEM? then I wrote this
+> piece of C code testing confirmed it:
+> https://gist.github.com/crquan/326bde37e1ddda8effe5
 > 
-> > And the profile looks like:
-> >
-> > -   43.73%     0.05%  [kernel]            [k] native_flush_tlb_others
+>     $ ./remap
+>     allocated one page @0x7f686bf71000, (PAGE_SIZE: 4096)
+>     grabbed 7680512000 bytes of memory (1875125 pages) @ 00007f6690993000.
+>     mremap failed Bad address (14).
 > 
-> Ok, that's down from rc1 (67%), but still hugely up from 3.19 (13.7%).
-> And flush_tlb_page() does seem to be called about ten times more
-> (flush_tlb_mm_range used to be 1.4% of the callers, now it's invisible
-> at 0.13%)
+> The -EFAULT comes from the branch of security_vm_enough_memory_mm
+> failure, underlyingly it calls __vm_enough_memory which returns only
+> 0 for success or -ENOMEM; So why vma_to_resize needs to return
+> -EFAULT in this case? this sounds like a mistake to me.
 > 
-> Damn. From a performance number standpoint, it looked like we zoomed
-> in on the right thing. But now it's migrating even more pages than
-> before. Odd.
-
-Throttling problem, like Mel originally suspected?
-
-> > And the vmstats are:
-> >
-> > 3.19:
-> >
-> > numa_hit 5163221
-> > numa_local 5153127
+> Some more digging into git history:
+> 1) Before commit 119f657c7 in May 1 2005 (pre 2.6.12 days) it was
+>    returning -ENOMEM for this failure;
+> 2) but commit 119f657c7 changed it accidentally, to what ever is
+>    preserved in local ret, which happened to be -EFAULT, in a previous assignment;
+> 3) then in commit 54f5de709 code refactoring, it's explicitly returning
+>    -EFAULT, should be wrong.
 > 
-> > 4.0-rc1:
-> >
-> > numa_hit 36952043
-> > numa_local 36927384
-> >
-> > 4.0-rc4:
-> >
-> > numa_hit 23447345
-> > numa_local 23438564
-> >
-> > Page migrations are still up by a factor of ~20 on 3.19.
+> Signed-off-by: Derek Che <crquan@ymail.com>
+> Acked-by: "Kirill A. Shutemov" <kirill@shutemov.name>
+> Acked-by: David Rientjes <rientjes@google.com>
+
+Did Kirill ack this patch?
+
+> ---
+>  mm/mremap.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
-> The thing is, those "numa_hit" things come from the zone_statistics()
-> call in buffered_rmqueue(), which in turn is simple from the memory
-> allocator. That has *nothing* to do with virtual memory, and
-> everything to do with actual physical memory allocations.  So the load
-> is simply allocating a lot more pages, presumably for those stupid
-> migration events.
-> 
-> But then it doesn't correlate with performance anyway..
->
-> Can you do a simple stupid test? Apply that commit 53da3bc2ba9e ("mm:
-> fix up numa read-only thread grouping logic") to 3.19, so that it uses
-> the same "pte_dirty()" logic as 4.0-rc4. That *should* make the 3.19
-> and 4.0-rc4 numbers comparable.
+> diff --git a/mm/mremap.c b/mm/mremap.c
+> index 57dadc0..5da81cb 100644
+> --- a/mm/mremap.c
+> +++ b/mm/mremap.c
+> @@ -375,7 +375,7 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
+>  	if (vma->vm_flags & VM_ACCOUNT) {
+>  		unsigned long charged = (new_len - old_len) >> PAGE_SHIFT;
+>  		if (security_vm_enough_memory_mm(mm, charged))
+> -			goto Efault;
+> +			goto Enomem;
+>  		*p = charged;
+>  	}
 
-patched 3.19 numbers on this test are slightly worse than stock
-3.19, but nowhere near as bad as 4.0-rc4:
-
-	241,718      migrate:mm_migrate_pages		( +-  5.17% )
-
-So that pte_write->pte_dirty change makes this go from ~55k to 240k,
-and runtime go from 4m54s to 5m20s. vmstats:
-
-numa_hit 9162476
-numa_miss 0
-numa_foreign 0
-numa_interleave 10685
-numa_local 9153740
-numa_other 8736
-numa_pte_updates 49582103
-numa_huge_pte_updates 0
-numa_hint_faults 48075098
-numa_hint_faults_local 12974704
-numa_pages_migrated 5748256
-pgmigrate_success 5748256
-pgmigrate_fail 0
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+The patch is corrupted and won't apply because there aren't three lines 
+after the changed line.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
