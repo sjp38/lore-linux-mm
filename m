@@ -1,82 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BCCE6B0038
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2015 04:33:56 -0400 (EDT)
-Received: by pagr17 with SMTP id r17so3440508pag.0
-        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 01:33:56 -0700 (PDT)
-Received: from e23smtp03.au.ibm.com (e23smtp03.au.ibm.com. [202.81.31.145])
-        by mx.google.com with ESMTPS id n10si27873978pap.20.2015.03.17.01.33.53
+Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
+	by kanga.kvack.org (Postfix) with ESMTP id ED9956B0038
+	for <linux-mm@kvack.org>; Tue, 17 Mar 2015 04:58:42 -0400 (EDT)
+Received: by wegp1 with SMTP id p1so2399703weg.1
+        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 01:58:42 -0700 (PDT)
+Received: from mail-wi0-x22e.google.com (mail-wi0-x22e.google.com. [2a00:1450:400c:c05::22e])
+        by mx.google.com with ESMTPS id gl10si2000701wib.104.2015.03.17.01.58.40
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 17 Mar 2015 01:33:55 -0700 (PDT)
-Received: from /spool/local
-	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 17 Mar 2015 18:33:48 +1000
-Received: from d23relay10.au.ibm.com (d23relay10.au.ibm.com [9.190.26.77])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 08960357804C
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2015 19:33:44 +1100 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id t2H8XZIt48300128
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2015 19:33:43 +1100
-Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id t2H8X9bN021279
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2015 19:33:10 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCHv4 12/24] thp: PMD splitting without splitting compound page
-In-Reply-To: <1425486792-93161-13-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1425486792-93161-1-git-send-email-kirill.shutemov@linux.intel.com> <1425486792-93161-13-git-send-email-kirill.shutemov@linux.intel.com>
-Date: Tue, 17 Mar 2015 14:02:36 +0530
-Message-ID: <878uewausb.fsf@linux.vnet.ibm.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Mar 2015 01:58:41 -0700 (PDT)
+Received: by wixw10 with SMTP id w10so43240410wix.0
+        for <linux-mm@kvack.org>; Tue, 17 Mar 2015 01:58:40 -0700 (PDT)
+Date: Tue, 17 Mar 2015 09:58:38 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: mm: hangs in free_pages_prepare
+Message-ID: <20150317085838.GA28112@dhcp22.suse.cz>
+References: <54FB4590.20102@oracle.com>
+ <20150308203838.GA10442@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150308203838.GA10442@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm >> Andrew Morton" <akpm@linux-foundation.org>
 
-"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
+On Sun 08-03-15 16:38:38, Michal Hocko wrote:
+> On Sat 07-03-15 13:38:08, Sasha Levin wrote:
+> [...]
+> > [ 1573.730097] ? kasan_free_pages (mm/kasan/kasan.c:301)
+> > [ 1573.788680] free_pages_prepare (mm/page_alloc.c:791)
+> > [ 1573.788680] ? free_hot_cold_page (./arch/x86/include/asm/paravirt.h:809 (discriminator 2) mm/page_alloc.c:1579 (discriminator 2))
+> > [ 1573.788680] free_hot_cold_page (mm/page_alloc.c:1543)
+> > [ 1573.788680] __free_pages (mm/page_alloc.c:2957)
+> > [ 1573.788680] ? __vunmap (mm/vmalloc.c:1460 (discriminator 2))
+> > [ 1573.788680] __vunmap (mm/vmalloc.c:1460 (discriminator 2))
+> 
+> __vunmap is doing:
+>                 for (i = 0; i < area->nr_pages; i++) {
+>                         struct page *page = area->pages[i];
+> 
+>                         BUG_ON(!page);
+>                         __free_page(page);
+>                 }
+> 
+> is it possible that nr_pages is a huge number (a large vmalloc area)? I
+> do not see any cond_resched down __free_page path at least. vfree
+> delayes the call to workqueue when called from irq context and vunmap is
+> marked as might_sleep). So to me it looks like it would be safe. Something
+> for vmalloc familiar people, though.
 
-> Current split_huge_page() combines two operations: splitting PMDs into
-> tables of PTEs and splitting underlying compound page. This patch
-> changes split_huge_pmd() implementation to split the given PMD without
-> splitting other PMDs this page mapped with or underlying compound page.
->
-> In order to do this we have to get rid of tail page refcounting, which
-> uses _mapcount of tail pages. Tail page refcounting is needed to be able
-> to split THP page at any point: we always know which of tail pages is
-> pinned (i.e. by get_user_pages()) and can distribute page count
-> correctly.
->
-> We can avoid this by allowing split_huge_page() to fail if the compound
-> page is pinned. This patch removes all infrastructure for tail page
-> refcounting and make split_huge_page() to always return -EBUSY. All
-> split_huge_page() users already know how to handle its fail. Proper
-> implementation will be added later.
->
-> Without tail page refcounting, implementation of split_huge_pmd() is
-> pretty straight-forward.
->
+Hmm, just looked into the git log and it seems that there are/were
+some callers of vfree with spinlock held (e.g. 9265f1d0c759 (GFS2:
+gfs2_dir_get_hash_table(): avoiding deferred vfree() is easy here...))
+and who knows how many others like that we have so cond_resched here is
+no-no.
 
-mm/gup.c: In function =E2=80=98gup_huge_pgd=E2=80=99:
-mm/gup.c:1183:2: error: =E2=80=98tail=E2=80=99 undeclared (first use in thi=
-s function)
-  tail =3D page;
-  ^
-diff --git a/mm/gup.c b/mm/gup.c
-index 2f776850108c..141b5a81cf8a 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -1180,7 +1180,6 @@ static int gup_huge_pgd(pgd_t orig, pgd_t *pgdp, unsi=
-gned long addr,
- 	refs =3D 0;
- 	head =3D pgd_page(orig);
- 	page =3D head + ((addr & ~PGDIR_MASK) >> PAGE_SHIFT);
--	tail =3D page;
- 	do {
- 		VM_BUG_ON_PAGE(compound_head(page) !=3D head, page);
- 		pages[*nr] =3D page;
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
