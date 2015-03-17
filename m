@@ -1,77 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 90DD66B0038
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 20:49:51 -0400 (EDT)
-Received: by qgfa8 with SMTP id a8so56348242qgf.0
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 17:49:51 -0700 (PDT)
-Received: from mail-qg0-x22a.google.com (mail-qg0-x22a.google.com. [2607:f8b0:400d:c04::22a])
-        by mx.google.com with ESMTPS id 84si11578838qhx.130.2015.03.16.17.49.50
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C69B6B0038
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2015 21:13:10 -0400 (EDT)
+Received: by pdbcz9 with SMTP id cz9so73867062pdb.3
+        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 18:13:10 -0700 (PDT)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id h7si25823410pdf.62.2015.03.16.18.13.09
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Mar 2015 17:49:50 -0700 (PDT)
-Received: by qgez64 with SMTP id z64so56411385qge.2
-        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 17:49:50 -0700 (PDT)
+        Mon, 16 Mar 2015 18:13:09 -0700 (PDT)
+Received: by pabyw6 with SMTP id yw6so81087365pab.2
+        for <linux-mm@kvack.org>; Mon, 16 Mar 2015 18:13:09 -0700 (PDT)
+Date: Tue, 17 Mar 2015 10:12:58 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH] zsmalloc: zsmalloc documentation
+Message-ID: <20150317011258.GA11994@blaptop>
 MIME-Version: 1.0
-In-Reply-To: <20150316211122.GD11441@amd>
-References: <1425935472-17949-1-git-send-email-kirill@shutemov.name> <20150316211122.GD11441@amd>
-From: Mark Seaborn <mseaborn@chromium.org>
-Date: Mon, 16 Mar 2015 17:49:30 -0700
-Message-ID: <CAL82V5O6awBrpj8uf2_cEREzZWPfjLfqPtRbHEd5_zTkRLU8Sg@mail.gmail.com>
-Subject: Re: [RFC, PATCH] pagemap: do not leak physical addresses to
- non-privileged userspace
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, kernel list <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Pavel Emelyanov <xemul@parallels.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Andy Lutomirski <luto@amacapital.net>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Juneho Choi <juno.choi@lge.com>, Gunho Lee <gunho.lee@lge.com>, Luigi Semenzato <semenzato@google.com>, Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjennings@variantweb.net>, Nitin Gupta <ngupta@vflare.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, opensource.ganesh@gmail.com
 
-On 16 March 2015 at 14:11, Pavel Machek <pavel@ucw.cz> wrote:
-> On Mon 2015-03-09 23:11:12, Kirill A. Shutemov wrote:
-> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> >
-> > As pointed by recent post[1] on exploiting DRAM physical imperfection,
-> > /proc/PID/pagemap exposes sensitive information which can be used to do
-> > attacks.
-> >
-> > This is RFC patch which disallow anybody without CAP_SYS_ADMIN to read
-> > the pagemap.
-> >
-> > Any comments?
-> >
-> > [1] http://googleprojectzero.blogspot.com/2015/03/exploiting-dram-rowhammer-bug-to-gain.html
->
-> Note that this kind of attack still works without pagemap, it just
-> takes longer. Actually the first demo program is not using pagemap.
+On Wed, Mar 04, 2015 at 04:56:10PM -0800, Andrew Morton wrote:
+> On Thu, 5 Mar 2015 09:43:31 +0900 Minchan Kim <minchan@kernel.org> wrote:
+> 
+> > Hello Andrew,
+> > 
+> > On Wed, Mar 04, 2015 at 02:02:02PM -0800, Andrew Morton wrote:
+> > > On Wed,  4 Mar 2015 14:01:32 +0900 Minchan Kim <minchan@kernel.org> wrote:
+> > > 
+> > > > +static int zs_stats_size_show(struct seq_file *s, void *v)
+> > > > +{
+> > > > +	int i;
+> > > > +	struct zs_pool *pool = s->private;
+> > > > +	struct size_class *class;
+> > > > +	int objs_per_zspage;
+> > > > +	unsigned long class_almost_full, class_almost_empty;
+> > > > +	unsigned long obj_allocated, obj_used, pages_used;
+> > > > +	unsigned long total_class_almost_full = 0, total_class_almost_empty = 0;
+> > > > +	unsigned long total_objs = 0, total_used_objs = 0, total_pages = 0;
+> > > > +
+> > > > +	seq_printf(s, " %5s %5s %11s %12s %13s %10s %10s %16s\n",
+> > > > +			"class", "size", "almost_full", "almost_empty",
+> > > > +			"obj_allocated", "obj_used", "pages_used",
+> > > > +			"pages_per_zspage");
+> > > 
+> > > Documentation?
+> > 
+> > It should been since [0f050d9, mm/zsmalloc: add statistics support].
+> > Anyway, I will try it.
+> > Where is right place to put only this statistics in Documentation?
+> > 
+> > Documentation/zsmalloc.txt?
+> > Documentation/vm/zsmalloc.txt?
+> > Documentation/blockdev/zram.txt?
+> > Documentation/ABI/testing/sysfs-block-zram?
+> 
+> hm, this is debugfs so Documentation/ABI/testing/sysfs-block-zram isn't
+> the right place.
+> 
+> akpm3:/usr/src/25> grep -rli zsmalloc Documentation 
+> akpm3:/usr/src/25> 
+> 
+> lol.
+> 
+> Documentation/vm/zsmalloc.txt looks good.
 
-That depends on the machine -- it depends on how bad the machine's
-DRAM is, and whether the machine has the 2x refresh rate mitigation
-enabled.
-
-Machines with less-bad DRAM or with a 2x refresh rate might still be
-vulnerable to rowhammer, but only if the attacker has access to huge
-pages or to /proc/PID/pagemap.
-
-/proc/PID/pagemap also gives an attacker the ability to scan for bad
-DRAM locations, save a list of their addresses, and exploit them in
-the future.
-
-Given that, I think it would still be worthwhile to disable /proc/PID/pagemap.
-
-
-> Can we do anything about that? Disabling cache flushes from userland
-> should make it no longer exploitable.
-
-Unfortunately there's no way to disable userland code's use of
-CLFLUSH, as far as I know.
-
-Maybe Intel or AMD could disable CLFLUSH via a microcode update, but
-they have not said whether that would be possible.
-
-Cheers,
-Mark
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Here it goes.
