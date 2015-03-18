@@ -1,63 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f53.google.com (mail-la0-f53.google.com [209.85.215.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CF706B0038
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2015 11:08:09 -0400 (EDT)
-Received: by lamx15 with SMTP id x15so38591446lam.3
-        for <linux-mm@kvack.org>; Wed, 18 Mar 2015 08:08:08 -0700 (PDT)
-Received: from mail-la0-x236.google.com (mail-la0-x236.google.com. [2a00:1450:4010:c03::236])
-        by mx.google.com with ESMTPS id o3si13099910lbh.93.2015.03.18.08.08.06
+Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DBAB6B0038
+	for <linux-mm@kvack.org>; Wed, 18 Mar 2015 11:14:20 -0400 (EDT)
+Received: by lagg8 with SMTP id g8so38705569lag.1
+        for <linux-mm@kvack.org>; Wed, 18 Mar 2015 08:14:19 -0700 (PDT)
+Received: from shrek.krogh.cc (188-178-198-210-static.dk.customer.tdc.net. [188.178.198.210])
+        by mx.google.com with ESMTPS id p8si13098137laf.145.2015.03.18.08.14.17
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Mar 2015 08:08:07 -0700 (PDT)
-Received: by lamx15 with SMTP id x15so38590444lam.3
-        for <linux-mm@kvack.org>; Wed, 18 Mar 2015 08:08:06 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <550987AD.8020409@intel.com>
-References: <20150318083040.7838.76933.stgit@zurg>
-	<550987AD.8020409@intel.com>
-Date: Wed, 18 Mar 2015 18:08:06 +0300
-Message-ID: <CALYGNiPPgaKb6_Pyo1SZ8sjgSbgC0yXFfZ2OwUN5=mSdTypcAA@mail.gmail.com>
-Subject: Re: [PATCH RFC] mm: protect suid binaries against rowhammer with
- copy-on-read mappings
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        Wed, 18 Mar 2015 08:14:18 -0700 (PDT)
+References: <52ec58f434865829c37337624d124981.squirrel@shrek.krogh.cc> <CABYiri81_RAtJizfpOdNPc6m9_Q2u0O35NX0ZhO1cxFpm866HQ@mail.gmail.com> <a0dcd8d7307e313474d4d721c76bb5a9.squirrel@shrek.krogh.cc> <CABYiri9BcgNEYD5C4qGf=3q6a=d549Rp9rXD7BAo8NkVDAPOqA@mail.gmail.com> <5509889C.2080602@suse.cz>
+Mime-Version: 1.0 (1.0)
+In-Reply-To: <5509889C.2080602@suse.cz>
+Content-Type: text/plain;
+	charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <0C41F6DA-DECD-48AD-90AD-DAF964950EB9@krogh.cc>
+From: Jesper Krogh <jesper@krogh.cc>
+Subject: Re: High system load and 3TB of memory.
+Date: Wed, 18 Mar 2015 16:14:05 +0100
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrey Korolyov <andrey@xdel.ru>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christian Marie <christian@ponies.io>
 
-On Wed, Mar 18, 2015 at 5:11 PM, Dave Hansen <dave.hansen@intel.com> wrote:
-> On 03/18/2015 01:30 AM, Konstantin Khlebnikov wrote:
->> +             /*
->> +              * Read-only SUID/SGID binares are mapped as copy-on-read
->> +              * this protects them against exploiting with Rowhammer.
->> +              */
->> +             if (!(file->f_mode & FMODE_WRITE) &&
->> +                 ((inode->i_mode & S_ISUID) || ((inode->i_mode & S_ISGID) &&
->> +                         (inode->i_mode & S_IXGRP)))) {
->> +                     vm_flags &= ~(VM_SHARED | VM_MAYSHARE);
->> +                     vm_flags |= VM_COR;
->> +             }
->
-> I think we probably need to come to _some_ sort of understanding in the
-> kernel of how much we are willing to do to thwart these kinds of
-> attacks.  I suspect it's a very deep rabbit hole.
->
-> For this particular case, I don't see how this would be effective.  The
-> existing exploit which you reference attacks PTE pages which are
-> unmapped in to the user address space.  I'm confused how avoiding
-> mapping a page in to an attacker's process can keep it from being exploited.
->
-> Right now, there's a relatively small number of pages that will get
-> COW'd for a SUID binary.  This greatly increases the number which could
-> allow spraying of these (valuable) copy-on-read pages.
 
-Yeah, on second thought that copy-on-read gives the same security
-level as hiding pfns from userspace. Sorry for the noise.
+> On 18/03/2015, at 15.15, Vlastimil Babka <vbabka@suse.cz>
+> Right, it would be great if you could try it with 3.18+ kernel and possibl=
+y Joonsoo's patch from
+> http://marc.info/?l=3Dlinux-mm&m=3D141774145601066
+>=20
 
-It seems the only option is memory zoning: kernel should allocate all
-normal memory for userspace from isolated area which is kept far far
-away from important data.
+Thanks, we will do that.
+
+We actually upgraded to 3.18.9 monday (together whith moving the database fr=
+om postgresql 9.2 to 9.3) and we havent seen the problem since.
+
+Sysload is sitting around 8-10%
+
+But we will test
+
+Jesper
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
