@@ -1,128 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 2ACA96B0038
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2015 08:36:48 -0400 (EDT)
-Received: by obdfc2 with SMTP id fc2so30527848obd.3
-        for <linux-mm@kvack.org>; Wed, 18 Mar 2015 05:36:47 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id dw5si8956076oeb.87.2015.03.18.05.36.45
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FF536B0038
+	for <linux-mm@kvack.org>; Wed, 18 Mar 2015 08:41:07 -0400 (EDT)
+Received: by wixw10 with SMTP id w10so63226217wix.0
+        for <linux-mm@kvack.org>; Wed, 18 Mar 2015 05:41:06 -0700 (PDT)
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com. [209.85.212.171])
+        by mx.google.com with ESMTPS id sd9si28721386wjb.210.2015.03.18.05.41.05
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 18 Mar 2015 05:36:46 -0700 (PDT)
-Subject: Re: [PATCH 1/2 v2] mm: Allow small allocations to fail
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20150317132926.GA1824@phnom.home.cmpxchg.org>
-	<20150317141729.GI28112@dhcp22.suse.cz>
-	<20150317172628.GA5109@phnom.home.cmpxchg.org>
-	<20150317194136.GA31691@dhcp22.suse.cz>
-	<5509410F.2080000@suse.cz>
-In-Reply-To: <5509410F.2080000@suse.cz>
-Message-Id: <201503182136.EJC90660.QSFOVJFOLHFOtM@I-love.SAKURA.ne.jp>
-Date: Wed, 18 Mar 2015 21:36:33 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Mar 2015 05:41:05 -0700 (PDT)
+Received: by wibg7 with SMTP id g7so89151146wib.1
+        for <linux-mm@kvack.org>; Wed, 18 Mar 2015 05:41:05 -0700 (PDT)
+Message-ID: <5509725C.8020508@linaro.org>
+Date: Wed, 18 Mar 2015 12:41:00 +0000
+From: Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
+MIME-Version: 1.0
+Subject: Re: [PATCHv3] mm: Don't offset memmap for flatmem
+References: <1426291715-16242-1-git-send-email-lauraa@codeaurora.org>
+In-Reply-To: <1426291715-16242-1-git-send-email-lauraa@codeaurora.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: vbabka@suse.cz, mhocko@suse.cz, hannes@cmpxchg.org
-Cc: akpm@linux-foundation.org, david@fromorbit.com, mgorman@suse.de, riel@redhat.com, fengguang.wu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Laura Abbott <lauraa@codeaurora.org>, Vlastimil Babka <vbabka@suse.cz>, linux-arm-kernel@lists.infradead.org, Russell King - ARM Linux <linux@arm.linux.org.uk>, ssantosh@kernel.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Kevin Hilman <khilman@linaro.org>, Arnd Bergman <arnd@arndb.de>, Stephen Boyd <sboyd@codeaurora.org>, linux-mm@kvack.org, Kumar Gala <galak@codeaurora.org>, Mel Gorman <mgorman@suse.de>
 
-Vlastimil Babka wrote:
-> I'll add that I think if we do improve the reclaim etc, and make 
-> allocations failures rarer, then the whole testing effort will have much 
-> lower chance of finding the places where allocation failures are not 
-> handled properly. Also Michal says that catching those depend on running 
-> all "their loads which we never dreamed of". In that case, if our goal 
-> is to fix all broken allocation sites with some quantifiable 
-> probability, I'm afraid we might be really better off with some form of 
-> fault injection, which will trigger the failures with the probability we 
-> set, and not depend on corner case low memory conditions manifesting
-> just at the time the workload is at one of the broken allocation sites.
-> 
 
-I think we can use SystemTap based fault injection which allows only once
-injection per each backtrace without putting the system under OOM condition,
-which I demonstrated at https://lkml.org/lkml/2014/12/25/64 .
 
-Since SystemTap can generate backtraces without garbage lines,
-we can uniquely identify and inject only once per each backtrace,
-making it possible to test every memory allocation callers.
+On 14/03/15 00:08, Laura Abbott wrote:
+> Srinivas Kandagatla reported bad page messages when trying to
+> remove the bottom 2MB on an ARM based IFC6410 board
+>
+> BUG: Bad page state in process swapper  pfn:fffa8
+> page:ef7fb500 count:0 mapcount:0 mapping:  (null) index:0x0
+> flags: 0x96640253(locked|error|dirty|active|arch_1|reclaim|mlocked)
+> page dumped because: PAGE_FLAGS_CHECK_AT_FREE flag(s) set
+> bad because of flags:
+> flags: 0x200041(locked|active|mlocked)
+> Modules linked in:
+> CPU: 0 PID: 0 Comm: swapper Not tainted 3.19.0-rc3-00007-g412f9ba-dirty #816
+> Hardware name: Qualcomm (Flattened Device Tree)
+> [<c0218280>] (unwind_backtrace) from [<c0212be8>] (show_stack+0x20/0x24)
+> [<c0212be8>] (show_stack) from [<c0af7124>] (dump_stack+0x80/0x9c)
+> [<c0af7124>] (dump_stack) from [<c0301570>] (bad_page+0xc8/0x128)
+> [<c0301570>] (bad_page) from [<c03018a8>] (free_pages_prepare+0x168/0x1e0)
+> [<c03018a8>] (free_pages_prepare) from [<c030369c>] (free_hot_cold_page+0x3c/0x174)
+> [<c030369c>] (free_hot_cold_page) from [<c0303828>] (__free_pages+0x54/0x58)
+> [<c0303828>] (__free_pages) from [<c030395c>] (free_highmem_page+0x38/0x88)
+> [<c030395c>] (free_highmem_page) from [<c0f62d5c>] (mem_init+0x240/0x430)
+> [<c0f62d5c>] (mem_init) from [<c0f5db3c>] (start_kernel+0x1e4/0x3c8)
+> [<c0f5db3c>] (start_kernel) from [<80208074>] (0x80208074)
+> Disabling lock debugging due to kernel taint
+>
+> Removing the lower 2MB made the start of the lowmem zone to no longer
+> be page block aligned. IFC6410 uses CONFIG_FLATMEM where
+> alloc_node_mem_map allocates memory for the mem_map. alloc_node_mem_map
+> will offset for unaligned nodes with the assumption the pfn/page
+> translation functions will account for the offset. The functions for
+> CONFIG_FLATMEM do not offset however, resulting in overrunning
+> the memmap array. Just use the allocated memmap without any offset
+> when running with CONFIG_FLATMEM to avoid the overrun.
+>
+> Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
+> Reported-by: Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
 
-Steps for installation and testing are described below.
+Tested-by: Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
 
----------- installation start ----------
-wget https://sourceware.org/systemtap/ftp/releases/systemtap-2.7.tar.gz
-echo 'e0c3c36955323ae59be07a26a9563474  systemtap-2.7.tar.gz' | md5sum --check -
-tar -zxf systemtap-2.7.tar.gz
-cd systemtap-2.7
-./configure --prefix=$HOME/systemtap.tmp
-make -s
-make -s install
----------- installation end ----------
 
----------- preparation (optional) start ----------
-Start kdump service and set /proc/sys/kernel/panic_on_oops to 1
-as root user so that we can obtain vmcore upon kernel oops.
----------- preparation (optional) end ----------
-
----------- testing start ----------
-Run
-
-$HOME/systemtap.tmp/bin/staprun fault_injection.ko
-
-and operate as you like, and see whether your system can survive or not.
----------- testing end ----------
-
-The fault_injection.ko is generated by commands shown below.
-Scripts shown below checks only sleepable allocations. If you
-replace %{ __GFP_WAIT %} with 0, you can check atomic allocations.
-
----------- For testing __kmalloc() failure ----------
-$HOME/systemtap.tmp/bin/stap -p4 -m fault_injection -g -DSTP_NO_OVERLOAD -e '
-global traces_bt[65536];
-probe begin { printf("Probe start!\n"); }
-probe kernel.function("__kmalloc") {
-  if (($flags & %{ __GFP_NOFAIL | __GFP_WAIT %} ) == %{ __GFP_WAIT %} && execname() != "stapio") {
-    bt = backtrace();
-    if (traces_bt[bt]++ == 0) {
-      printf("%s (%u) size:%u gfp:0x%x\n", execname(), tid(), $size, $flags);
-      print_stack(bt);
-      printf("\n\n");
-      $size = 1 << 30;
-    }
-  }
-}
-probe end { delete traces_bt; }'
----------- For testing __kmalloc() failure ----------
-
-Like an example shown below demonstrate, we will be able to selectively
-test specific subsystems by setting per a task_struct marker.
-
----------- For testing __alloc_pages_nodemask() failure except page fault ----------
-$HOME/systemtap.tmp/bin/stap -p4 -m fault_injection -g -DSTP_NO_OVERLOAD -e '
-global traces_bt[65536];
-global in_page_fault%;
-probe begin { printf("Probe start!\n"); }
-probe kernel.function("__alloc_pages_nodemask") {
-  if (($gfp_mask & %{ __GFP_NOFAIL | __GFP_WAIT %} ) == %{ __GFP_WAIT %} &&
-      in_page_fault[tid()] == 0 && execname() != "stapio") {
-    bt = backtrace();
-    if (traces_bt[bt]++ == 0) {
-      printf("%s (%u) order:%u gfp:0x%x\n", execname(), tid(), $order, $gfp_mask);
-      print_stack(bt);
-      printf("\n\n");
-      $order = 1 << 30;
-      $gfp_mask = $gfp_mask | %{ __GFP_NORETRY %};
-    }
-  }
-}
-probe kernel.function("handle_mm_fault") {
-  in_page_fault[tid()]++;
-}
-probe kernel.function("handle_mm_fault").return {
-  in_page_fault[tid()]--;
-}
-probe end { delete traces_bt; delete in_page_fault; }'
----------- For testing __alloc_pages_nodemask() failure except page fault ----------
+--srini
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
