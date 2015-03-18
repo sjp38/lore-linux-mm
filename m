@@ -1,72 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C0B16B0038
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2015 12:53:20 -0400 (EDT)
-Received: by wibg7 with SMTP id g7so95498472wib.1
-        for <linux-mm@kvack.org>; Wed, 18 Mar 2015 09:53:19 -0700 (PDT)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.195])
-        by mx.google.com with ESMTP id pi10si4594442wic.66.2015.03.18.09.53.17
-        for <linux-mm@kvack.org>;
-        Wed, 18 Mar 2015 09:53:18 -0700 (PDT)
-Date: Wed, 18 Mar 2015 18:53:13 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm: don't count preallocated pmds
-Message-ID: <20150318165313.GB5822@node.dhcp.inet.fi>
-References: <alpine.LRH.2.02.1503181057340.14516@file01.intranet.prod.int.rdu2.redhat.com>
- <20150318161246.GA5822@node.dhcp.inet.fi>
- <alpine.LRH.2.02.1503181219001.6223@file01.intranet.prod.int.rdu2.redhat.com>
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 32BCE6B0038
+	for <linux-mm@kvack.org>; Wed, 18 Mar 2015 13:31:30 -0400 (EDT)
+Received: by igbue6 with SMTP id ue6so77520227igb.1
+        for <linux-mm@kvack.org>; Wed, 18 Mar 2015 10:31:30 -0700 (PDT)
+Received: from mail-ig0-x234.google.com (mail-ig0-x234.google.com. [2607:f8b0:4001:c05::234])
+        by mx.google.com with ESMTPS id 129si18695423ion.55.2015.03.18.10.31.28
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Mar 2015 10:31:29 -0700 (PDT)
+Received: by igbue6 with SMTP id ue6so51118253igb.1
+        for <linux-mm@kvack.org>; Wed, 18 Mar 2015 10:31:28 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1503181219001.6223@file01.intranet.prod.int.rdu2.redhat.com>
+In-Reply-To: <CA+55aFwne-fe_Gg-_GTUo+iOAbbNpLBa264JqSFkH79EULyAqw@mail.gmail.com>
+References: <CA+55aFywW5JLq=BU_qb2OG5+pJ-b1v9tiS5Ygi-vtEKbEZ_T5Q@mail.gmail.com>
+	<20150309191943.GF26657@destitution>
+	<CA+55aFzFt-vX5Jerci0Ty4Uf7K4_nQ7wyCp8hhU_dB0X4cBpVQ@mail.gmail.com>
+	<20150312131045.GE3406@suse.de>
+	<CA+55aFx=81BGnQFNhnAGu6CetL7yifPsnD-+v7Y6QRqwgH47gQ@mail.gmail.com>
+	<20150312184925.GH3406@suse.de>
+	<20150317070655.GB10105@dastard>
+	<CA+55aFzdLnFdku-gnm3mGbeS=QauYBNkFQKYXJAGkrMd2jKXhw@mail.gmail.com>
+	<20150317205104.GA28621@dastard>
+	<CA+55aFzSPcNgxw4GC7aAV1r0P5LniyVVC66COz=3cgMcx73Nag@mail.gmail.com>
+	<20150317220840.GC28621@dastard>
+	<CA+55aFwne-fe_Gg-_GTUo+iOAbbNpLBa264JqSFkH79EULyAqw@mail.gmail.com>
+Date: Wed, 18 Mar 2015 10:31:28 -0700
+Message-ID: <CA+55aFy-Mw74rAdLMMMUgnsG3ZttMWVNGz7CXZJY7q9fqyRYfg@mail.gmail.com>
+Subject: Re: [PATCH 4/4] mm: numa: Slow PTE scan rate if migration failures occur
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-parisc@vger.kernel.org, jejb@parisc-linux.org, dave.anglin@bell.net
+To: Dave Chinner <david@fromorbit.com>
+Cc: Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, xfs@oss.sgi.com, ppc-dev <linuxppc-dev@lists.ozlabs.org>
 
-On Wed, Mar 18, 2015 at 12:25:11PM -0400, Mikulas Patocka wrote:
-> 
-> 
-> On Wed, 18 Mar 2015, Kirill A. Shutemov wrote:
-> 
-> > On Wed, Mar 18, 2015 at 11:16:42AM -0400, Mikulas Patocka wrote:
-> > > Hi
-> > > 
-> > > Here I'm sending a patch that fixes numerous "BUG: non-zero nr_pmds on 
-> > > freeing mm: -1" errors on 64-bit PA-RISC kernel.
-> > > 
-> > > I think the patch posted here 
-> > > http://www.spinics.net/lists/linux-parisc/msg05981.html is incorrect, it 
-> > > wouldn't work if the affected address range is freed and allocated 
-> > > multiple times.
-> > > 	- 1. alloc pgd with built-in pmd, the count of pmds is 1
-> > > 	- 2. free the range covered by the built-in pmd, the count of pmds 
-> > > 		is 0, but the built-in pmd is still present
-> > 
-> > Hm. Okay. I didn't realize you have special case in pmd_clear() for these
-> > pmds.
-> > 
-> > What about adding mm_inc_nr_pmds() in pmd_clear() for PxD_FLAG_ATTACHED
-> > to compensate mm_dec_nr_pmds() in free_pmd_range()?
-> 
-> pmd_clear clears one entry in the pmd, it wouldn't work. You need to add 
-> it to pgd_clear. That clears the pointer to the pmd (and does nothing if 
-> it is asked to clear the pointer to the preallocated pmd). But pgd_clear 
-> doesn't receive the pointer to mm.
+On Wed, Mar 18, 2015 at 9:08 AM, Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
+>
+> So why am I wrong? Why is testing for dirty not the same as testing
+> for writable?
+>
+> I can see a few cases:
+>
+>  - your load has lots of writable (but not written-to) shared memory
 
-I meant pmd_free(), not pmd_clear(). This should work fine.
+Hmm. I tried to look at the xfsprog sources, and I don't see any
+MAP_SHARED activity.  It looks like it's just using pread64/pwrite64,
+and the only MAP_SHARED is for the xfsio mmap test thing, not for
+xfsrepair.
 
-> 
-> > I don't like pmd_preallocated() in generic code. It's too specific to
-> > parisc.
-> 
-> The question is if it is better to use pmd_preallocated, or pass the 
-> pointer to the mm to pgd_clear (that would affect all architectures).
-> 
-> Mikulas
+So I don't see any shared mappings, but I don't know the code-base.
 
--- 
- Kirill A. Shutemov
+>  - something completely different that I am entirely missing
+
+So I think there's something I'm missing. For non-shared mappings, I
+still have the idea that pte_dirty should be the same as pte_write.
+And yet, your testing of 3.19 shows that it's a big difference.
+There's clearly something I'm completely missing.
+
+                          Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
