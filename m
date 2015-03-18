@@ -1,47 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DBAB6B0038
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2015 11:14:20 -0400 (EDT)
-Received: by lagg8 with SMTP id g8so38705569lag.1
-        for <linux-mm@kvack.org>; Wed, 18 Mar 2015 08:14:19 -0700 (PDT)
-Received: from shrek.krogh.cc (188-178-198-210-static.dk.customer.tdc.net. [188.178.198.210])
-        by mx.google.com with ESMTPS id p8si13098137laf.145.2015.03.18.08.14.17
+Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 470CF6B0038
+	for <linux-mm@kvack.org>; Wed, 18 Mar 2015 11:16:49 -0400 (EDT)
+Received: by qcbkw5 with SMTP id kw5so40786226qcb.2
+        for <linux-mm@kvack.org>; Wed, 18 Mar 2015 08:16:49 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q41si16880507qkq.55.2015.03.18.08.16.47
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Mar 2015 08:14:18 -0700 (PDT)
-References: <52ec58f434865829c37337624d124981.squirrel@shrek.krogh.cc> <CABYiri81_RAtJizfpOdNPc6m9_Q2u0O35NX0ZhO1cxFpm866HQ@mail.gmail.com> <a0dcd8d7307e313474d4d721c76bb5a9.squirrel@shrek.krogh.cc> <CABYiri9BcgNEYD5C4qGf=3q6a=d549Rp9rXD7BAo8NkVDAPOqA@mail.gmail.com> <5509889C.2080602@suse.cz>
-Mime-Version: 1.0 (1.0)
-In-Reply-To: <5509889C.2080602@suse.cz>
-Content-Type: text/plain;
-	charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <0C41F6DA-DECD-48AD-90AD-DAF964950EB9@krogh.cc>
-From: Jesper Krogh <jesper@krogh.cc>
-Subject: Re: High system load and 3TB of memory.
-Date: Wed, 18 Mar 2015 16:14:05 +0100
+        Wed, 18 Mar 2015 08:16:48 -0700 (PDT)
+Date: Wed, 18 Mar 2015 11:16:42 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: [PATCH] mm: don't count preallocated pmds
+Message-ID: <alpine.LRH.2.02.1503181057340.14516@file01.intranet.prod.int.rdu2.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrey Korolyov <andrey@xdel.ru>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christian Marie <christian@ponies.io>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-parisc@vger.kernel.org
+Cc: jejb@parisc-linux.org, dave.anglin@bell.net
+
+Hi
+
+Here I'm sending a patch that fixes numerous "BUG: non-zero nr_pmds on 
+freeing mm: -1" errors on 64-bit PA-RISC kernel.
+
+I think the patch posted here 
+http://www.spinics.net/lists/linux-parisc/msg05981.html is incorrect, it 
+wouldn't work if the affected address range is freed and allocated 
+multiple times.
+	- 1. alloc pgd with built-in pmd, the count of pmds is 1
+	- 2. free the range covered by the built-in pmd, the count of pmds 
+		is 0, but the built-in pmd is still present
+	- 3. alloc some memory in the range affected by the built-in pmd, 
+		the count of pmds is still 0
+	- 4. free the range covered by the built-in pmd, the counter 
+		underflows to -1
+
+Mikulas
 
 
-> On 18/03/2015, at 15.15, Vlastimil Babka <vbabka@suse.cz>
-> Right, it would be great if you could try it with 3.18+ kernel and possibl=
-y Joonsoo's patch from
-> http://marc.info/?l=3Dlinux-mm&m=3D141774145601066
->=20
+From: Mikulas Patocka <mpatocka@redhat.com>
 
-Thanks, we will do that.
+The patch dc6c9a35b66b520cf67e05d8ca60ebecad3b0479 that counts pmds 
+allocated for a process introduced a bug on 64-bit PA-RISC kernels. There 
+are many "BUG: non-zero nr_pmds on freeing mm: -1" messages.
 
-We actually upgraded to 3.18.9 monday (together whith moving the database fr=
-om postgresql 9.2 to 9.3) and we havent seen the problem since.
+The PA-RISC architecture preallocates one pmd with each pgd. This
+preallocated pmd can never be freed - pmd_free does nothing when it is
+called with this pmd. When the kernel attempts to free this preallocated
+pmd, it decreases the count of allocated pmds. The result is that the
+counter underflows and this error is reported.
 
-Sysload is sitting around 8-10%
+This patch fixes the bug by introducing a macro pmd_preallocated and
+making sure that the counter is not decremented when this preallocated pmd
+is freed.
 
-But we will test
+Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
 
-Jesper
+---
+ arch/parisc/include/asm/pgalloc.h |    2 ++
+ mm/memory.c                       |    5 ++++-
+ 2 files changed, 6 insertions(+), 1 deletion(-)
 
+Index: linux-4.0-rc4/arch/parisc/include/asm/pgalloc.h
+===================================================================
+--- linux-4.0-rc4.orig/arch/parisc/include/asm/pgalloc.h	2015-03-18 15:31:10.000000000 +0100
++++ linux-4.0-rc4/arch/parisc/include/asm/pgalloc.h	2015-03-18 15:33:20.000000000 +0100
+@@ -81,6 +81,8 @@ static inline void pmd_free(struct mm_st
+ 	free_pages((unsigned long)pmd, PMD_ORDER);
+ }
+ 
++#define pmd_preallocated(pmd)	(pmd_flag(*(pmd)) & PxD_FLAG_ATTACHED)
++
+ #else
+ 
+ /* Two Level Page Table Support for pmd's */
+Index: linux-4.0-rc4/mm/memory.c
+===================================================================
+--- linux-4.0-rc4.orig/mm/memory.c	2015-03-18 15:30:42.000000000 +0100
++++ linux-4.0-rc4/mm/memory.c	2015-03-18 15:32:33.000000000 +0100
+@@ -427,8 +427,11 @@ static inline void free_pmd_range(struct
+ 
+ 	pmd = pmd_offset(pud, start);
+ 	pud_clear(pud);
++#ifdef pmd_preallocated
++	if (!pmd_preallocated(pmd))
++#endif
++		mm_dec_nr_pmds(tlb->mm);
+ 	pmd_free_tlb(tlb, pmd, start);
+-	mm_dec_nr_pmds(tlb->mm);
+ }
+ 
+ static inline void free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
