@@ -1,59 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com [209.85.217.180])
-	by kanga.kvack.org (Postfix) with ESMTP id C0D456B0038
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2015 07:41:05 -0400 (EDT)
-Received: by lbcgn8 with SMTP id gn8so27330756lbc.2
-        for <linux-mm@kvack.org>; Wed, 18 Mar 2015 04:41:05 -0700 (PDT)
-Received: from forward-corp1f.mail.yandex.net (forward-corp1f.mail.yandex.net. [2a02:6b8:0:801::10])
-        by mx.google.com with ESMTPS id lc11si12705454lac.26.2015.03.18.04.41.03
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id BF7E66B0038
+	for <linux-mm@kvack.org>; Wed, 18 Mar 2015 07:45:34 -0400 (EDT)
+Received: by igbue6 with SMTP id ue6so40898944igb.1
+        for <linux-mm@kvack.org>; Wed, 18 Mar 2015 04:45:34 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id j10si11817486icg.99.2015.03.18.04.45.33
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Mar 2015 04:41:04 -0700 (PDT)
-Message-ID: <5509644C.40502@yandex-team.ru>
-Date: Wed, 18 Mar 2015 14:41:00 +0300
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-MIME-Version: 1.0
-Subject: Re: [PATCH RFC] mm: protect suid binaries against rowhammer with
- copy-on-read mappings
-References: <20150318083040.7838.76933.stgit@zurg> <20150318095702.GA2479@node.dhcp.inet.fi>
-In-Reply-To: <20150318095702.GA2479@node.dhcp.inet.fi>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 18 Mar 2015 04:45:34 -0700 (PDT)
+Subject: Re: [LKP] [mm] cc87317726f: WARNING: CPU: 0 PID: 1 atdrivers/iommu/io-pgtable-arm.c:413 __arm_lpae_unmap+0x341/0x380()
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1426227621.6711.238.camel@intel.com>
+	<CA+55aFxWTg_kCxGChLJGU=DFg0K_q842bkziktXu6B2fX=mXYQ@mail.gmail.com>
+	<20150317192413.GA7772@phnom.home.cmpxchg.org>
+	<1426643634.5570.14.camel@intel.com>
+In-Reply-To: <1426643634.5570.14.camel@intel.com>
+Message-Id: <201503182045.DEC48482.OtSOQOLVFFHFJM@I-love.SAKURA.ne.jp>
+Date: Wed, 18 Mar 2015 20:45:15 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>, Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>
+To: ying.huang@intel.com, hannes@cmpxchg.org
+Cc: torvalds@linux-foundation.org, mhocko@suse.cz, rientjes@google.com, akpm@linux-foundation.org, david@fromorbit.com, linux-kernel@vger.kernel.org, lkp@01.org, linux-mm@kvack.org
 
-On 18.03.2015 12:57, Kirill A. Shutemov wrote:
-> On Wed, Mar 18, 2015 at 11:30:40AM +0300, Konstantin Khlebnikov wrote:
->> From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
->>
->> Each user gets private copy of the code thus nobody will be able to exploit
->> pages in the page cache. This works for statically-linked binaries. Shared
->> libraries are still vulnerable, but setting suid bit will protect them too.
->
-> Hm. Do we have suid/sgid semantic defiend for non-executables?
->
-> To me we should do this for all file private mappings of the suid process
-> or don't do it at all.
+Huang Ying wrote:
+> On Tue, 2015-03-17 at 15:24 -0400, Johannes Weiner wrote:
+> > On Tue, Mar 17, 2015 at 10:15:29AM -0700, Linus Torvalds wrote:
+> > > Explicitly adding the emails of other people involved with that commit
+> > > and the original oom thread to make sure people are aware, since this
+> > > didn't get any response.
+> > > 
+> > > Commit cc87317726f8 fixed some behavior, but also seems to have turned
+> > > an oom situation into a complete hang. So presumably we shouldn't loop
+> > > *forever*. Hmm?
+> > 
+> > It seems we are between a rock and a hard place here, as we reverted
+> > specifically to that endless looping on request of filesystem people.
+> > They said[1] they rely on these allocations never returning NULL, or
+> > they might fail inside a transactions and corrupt on-disk data.
+> > 
+> > Huang, against which kernels did you first run this test on this exact
+> > setup?  Is there a chance you could try to run a kernel without/before
+> > 9879de7373fc?  I want to make sure I'm not missing something, but all
+> > versions preceding this commit should also have the same hang.  There
+> > should only be a tiny window between 9879de7373fc and cc87317726f8 --
+> > v3.19 -- where these allocations are allowed to fail.
+> 
+> I checked the test result of v3.19-rc6.  It shows that boot will hang at
+> the same position.
 
-Yeah, this patch doesn't provide full protection.
-That's just a proof-of-concept.
+OK. That's the expected result. We are discussing about how to safely
+allow small allocations to fail, including how to handle stalls caused by
+allocations without __GFP_FS.
 
->
-> And what about forked suid process which dropped privilages. We still have
-> code pages shared.
+> 
+> BTW: the test is run on 32 bit system.
 
-User can get access to that private copy later but new suid
-applications will get their own copy at exec.
-Original page-cache pages are never exposed in pte.
+That sounds like the cause of your problem. The system might be out of
+address space available for the kernel (only 1GB if x86_32). You should
+try running tests on 64 bit systems.
 
->
-> I don't think it worth it. The only right way to fix the problem is ECC
-> memory.
->
-
-ECC seems good protection until somebody figure out how to break it too.
+> 
+> Best Regards,
+> Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
