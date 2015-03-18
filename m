@@ -1,21 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DE4E6B006C
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2015 17:41:10 -0400 (EDT)
-Received: by pdbop1 with SMTP id op1so54803494pdb.2
-        for <linux-mm@kvack.org>; Wed, 18 Mar 2015 14:41:10 -0700 (PDT)
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 161426B0038
+	for <linux-mm@kvack.org>; Wed, 18 Mar 2015 17:43:59 -0400 (EDT)
+Received: by pacwe9 with SMTP id we9so54385547pac.1
+        for <linux-mm@kvack.org>; Wed, 18 Mar 2015 14:43:58 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id cn14si38468952pac.39.2015.03.18.14.41.09
+        by mx.google.com with ESMTPS id mj1si38513102pdb.40.2015.03.18.14.43.58
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Mar 2015 14:41:09 -0700 (PDT)
-Date: Wed, 18 Mar 2015 14:41:08 -0700
+        Wed, 18 Mar 2015 14:43:58 -0700 (PDT)
+Date: Wed, 18 Mar 2015 14:43:57 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH V2 4/4] hugetlbfs: document min_size mount option
-Message-Id: <20150318144108.e235862e0be30ff626e01820@linux-foundation.org>
-In-Reply-To: <3c82f2203e5453ddf3b29431863034afc7699303.1426549011.git.mike.kravetz@oracle.com>
+Subject: Re: [PATCH V2 2/4] hugetlbfs: add minimum size accounting to
+ subpools
+Message-Id: <20150318144357.0e7e25cdca5066c39032bae6@linux-foundation.org>
+In-Reply-To: <464e43df640c54408ed78d1397ad8148784e4ecc.1426549011.git.mike.kravetz@oracle.com>
 References: <cover.1426549010.git.mike.kravetz@oracle.com>
-	<3c82f2203e5453ddf3b29431863034afc7699303.1426549011.git.mike.kravetz@oracle.com>
+	<464e43df640c54408ed78d1397ad8148784e4ecc.1426549011.git.mike.kravetz@oracle.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -24,54 +25,85 @@ List-ID: <linux-mm.kvack.org>
 To: Mike Kravetz <mike.kravetz@oracle.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Mon, 16 Mar 2015 16:53:29 -0700 Mike Kravetz <mike.kravetz@oracle.com> wrote:
+On Mon, 16 Mar 2015 16:53:27 -0700 Mike Kravetz <mike.kravetz@oracle.com> wrote:
 
-> Update documentation for the hugetlbfs min_size mount option.
+> The same routines that perform subpool maximum size accounting
+> hugepage_subpool_get/put_pages() are modified to also perform
+> minimum size accounting.  When a delta value is passed to these
+> routines, calculate how global reservations must be adjusted
+> to maintain the subpool minimum size.  The routines now return
+> this global reserve count adjustment.  This global adjusted
+> reserve count is then passed to the global accounting routine
+> hugetlb_acct_memory().
 > 
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-> ---
->  Documentation/vm/hugetlbpage.txt | 21 ++++++++++++++-------
->  1 file changed, 14 insertions(+), 7 deletions(-)
-> 
-> diff --git a/Documentation/vm/hugetlbpage.txt b/Documentation/vm/hugetlbpage.txt
-> index f2d3a10..83c0305 100644
-> --- a/Documentation/vm/hugetlbpage.txt
-> +++ b/Documentation/vm/hugetlbpage.txt
-> @@ -267,8 +267,8 @@ call, then it is required that system administrator mount a file system of
->  type hugetlbfs:
->  
->    mount -t hugetlbfs \
-> -	-o uid=<value>,gid=<value>,mode=<value>,size=<value>,nr_inodes=<value> \
-> -	none /mnt/huge
-> +	-o uid=<value>,gid=<value>,mode=<value>,size=<value>,min_size=<value>, \
-> +	nr_inodes=<value> none /mnt/huge
->  
->  This command mounts a (pseudo) filesystem of type hugetlbfs on the directory
->  /mnt/huge.  Any files created on /mnt/huge uses huge pages.  The uid and gid
-> @@ -277,11 +277,18 @@ the uid and gid of the current process are taken.  The mode option sets the
->  mode of root of file system to value & 01777.  This value is given in octal.
->  By default the value 0755 is picked. The size option sets the maximum value of
->  memory (huge pages) allowed for that filesystem (/mnt/huge). The size is
-> -rounded down to HPAGE_SIZE.  The option nr_inodes sets the maximum number of
-> -inodes that /mnt/huge can use.  If the size or nr_inodes option is not
-> -provided on command line then no limits are set.  For size and nr_inodes
-> -options, you can use [G|g]/[M|m]/[K|k] to represent giga/mega/kilo. For
-> -example, size=2K has the same meaning as size=2048.
-> +rounded down to HPAGE_SIZE.  The min_size option sets the minimum value of
-> +memory (huge pages) allowed for the filesystem.  Like the size option,
-> +min_size is rounded down to HPAGE_SIZE.  At mount time, the number of huge
-> +pages specified by min_size are reserved for use by the filesystem.  If
-> +there are not enough free huge pages available, the mount will fail.  As
-> +huge pages are allocated to the filesystem and freed, the reserve count
-> +is adjusted so that the sum of allocated and reserved huge pages is always
-> +at least min_size.  The option nr_inodes sets the maximum number of
-> +inodes that /mnt/huge can use.  If the size, min_size or nr_inodes option
-> +is not provided on command line then no limits are set.  For size, min_size
-> +and nr_inodes options, you can use [G|g]/[M|m]/[K|k] to represent
-> +giga/mega/kilo. For example, size=2K has the same meaning as size=2048.
 
-Nowhere here is the reader told the units of "size".  We should at
-least describe that, and maybe even rename the thing to min_bytes.
+The comment layout is a bit chaotic.  Also, sentences start with
+capital letters and end with little round things!  It's a bit
+anal but heck, the kernel isn't written in linglish.
+
+
+--- a/mm/hugetlb.c~hugetlbfs-add-minimum-size-accounting-to-subpools-fix
++++ a/mm/hugetlb.c
+@@ -125,8 +125,10 @@ static long hugepage_subpool_get_pages(s
+ 
+ 	if (spool->min_hpages) {		/* minimum size accounting */
+ 		if (delta > spool->rsv_hpages) {
+-			/* asking for more reserves than those already taken
+-			 * on behalf of subpool. return difference */
++			/*
++			 * Asking for more reserves than those already taken on
++			 * behalf of subpool.  Return difference.
++			 */
+ 			ret = delta - spool->rsv_hpages;
+ 			spool->rsv_hpages = 0;
+ 		} else {
+@@ -141,7 +143,7 @@ unlock_ret:
+ }
+ 
+ /*
+- * subpool accounting for freeing and unreserving pages
++ * Subpool accounting for freeing and unreserving pages.
+  * Return the number of global page reservations that must be dropped.
+  * The return value may only be different than the passed value (delta)
+  * in the case where a subpool minimum size must be maintained.
+@@ -170,8 +172,10 @@ static long hugepage_subpool_put_pages(s
+ 			spool->rsv_hpages = spool->min_hpages;
+ 	}
+ 
+-	/* If hugetlbfs_put_super couldn't free spool due to
+-	* an outstanding quota reference, free it now. */
++	/*
++	 * If hugetlbfs_put_super couldn't free spool due to an outstanding
++	 * quota reference, free it now.
++	 */
+ 	unlock_or_release_subpool(spool);
+ 
+ 	return ret;
+@@ -923,9 +927,9 @@ void free_huge_page(struct page *page)
+ 	ClearPagePrivate(page);
+ 
+ 	/*
+-	 * A return code of zero implies that the subpool will be under
+-	 * it's minimum size if the reservation is not restored after
+-	 * page is free.  Therefore, force restore_reserve operation.
++	 * A return code of zero implies that the subpool will be under its
++	 * minimum size if the reservation is not restored after page is free.
++	 * Therefore, force restore_reserve operation.
+ 	 */
+ 	if (hugepage_subpool_put_pages(spool, 1) == 0)
+ 		restore_reserve = true;
+@@ -2523,8 +2527,8 @@ static void hugetlb_vm_op_close(struct v
+ 
+ 	if (reserve) {
+ 		/*
+-		 * decrement reserve counts.  The global reserve count
+-		 * may be adjusted if the subpool has a minimum size.
++		 * Decrement reserve counts.  The global reserve count may be
++		 * adjusted if the subpool has a minimum size.
+ 		 */
+ 		gbl_reserve = hugepage_subpool_put_pages(spool, reserve);
+ 		hugetlb_acct_memory(h, -gbl_reserve);
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
