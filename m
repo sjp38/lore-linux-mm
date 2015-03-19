@@ -1,84 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id A520E6B0038
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 07:12:35 -0400 (EDT)
-Received: by pdbni2 with SMTP id ni2so73399354pdb.1
-        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 04:12:35 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id d15si2500183pdl.13.2015.03.19.04.12.34
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D22C6B0038
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 07:39:25 -0400 (EDT)
+Received: by pabxg6 with SMTP id xg6so60508327pab.0
+        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 04:39:25 -0700 (PDT)
+Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
+        by mx.google.com with ESMTPS id fc2si2420022pac.102.2015.03.19.04.39.24
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 19 Mar 2015 04:12:34 -0700 (PDT)
-Subject: Re: [PATCH] mm: Use GFP_KERNEL allocation for the page cache inpage_cache_read
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1426687766-518-1-git-send-email-mhocko@suse.cz>
-	<55098F3B.7070000@redhat.com>
-	<20150318145528.GK17241@dhcp22.suse.cz>
-	<20150319071439.GE28621@dastard>
-In-Reply-To: <20150319071439.GE28621@dastard>
-Message-Id: <201503192011.BAH65682.MVQJFOtSLOFFOH@I-love.SAKURA.ne.jp>
-Date: Thu, 19 Mar 2015 20:11:51 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Thu, 19 Mar 2015 04:39:24 -0700 (PDT)
+Received: from epcpsbgx4.samsung.com
+ (u164.gpu120.samsung.co.kr [203.254.230.164])
+ by mailout2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTP id <0NLG005XOJ1LBGC0@mailout2.samsung.com> for linux-mm@kvack.org;
+ Thu, 19 Mar 2015 20:39:21 +0900 (KST)
+Date: Thu, 19 Mar 2015 11:39:21 +0000 (GMT)
+From: Yinghao Xie <yinghao.xie@samsung.com>
+Subject: mm/zsmalloc.c: count in handle's size when calculating
+ pages_per_zspage
+Reply-to: yinghao.xie@samsung.com
+MIME-version: 1.0
+Content-transfer-encoding: base64
+Content-type: text/plain; charset=utf-8
+MIME-version: 1.0
+Message-id: <430707086.362221426765159948.JavaMail.weblogic@epmlwas05d>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: david@fromorbit.com, mhocko@suse.cz
-Cc: riel@redhat.com, akpm@linux-foundation.org, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, mgorman@suse.de, neilb@suse.de, sage@inktank.com, mfasheh@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 
-Dave Chinner wrote:
-> On Wed, Mar 18, 2015 at 03:55:28PM +0100, Michal Hocko wrote:
-> > On Wed 18-03-15 10:44:11, Rik van Riel wrote:
-> > > On 03/18/2015 10:09 AM, Michal Hocko wrote:
-> > > > page_cache_read has been historically using page_cache_alloc_cold to
-> > > > allocate a new page. This means that mapping_gfp_mask is used as the
-> > > > base for the gfp_mask. Many filesystems are setting this mask to
-> > > > GFP_NOFS to prevent from fs recursion issues. page_cache_read is,
-> > > > however, not called from the fs layer 
-> > > 
-> > > Is that true for filesystems that have directories in
-> > > the page cache?
-> > 
-> > I haven't found any explicit callers of filemap_fault except for ocfs2
-> > and ceph and those seem OK to me. Which filesystems you have in mind?
-> 
-> Just about every major filesystem calls filemap_fault through the
-> .fault callout.
-> 
-> C symbol: filemap_fault
-> 
->   File           Function            Line
->   0 9p/vfs_file.c  <global>             831 .fault = filemap_fault,
->   1 9p/vfs_file.c  <global>             838 .fault = filemap_fault,
->   2 btrfs/file.c   <global>            2081 .fault = filemap_fault,
->   3 cifs/file.c    <global>            3242 .fault = filemap_fault,
->   4 ext4/file.c    <global>             215 .fault = filemap_fault,
->   5 f2fs/file.c    <global>              93 .fault = filemap_fault,
->   6 fuse/file.c    <global>            2062 .fault = filemap_fault,
->   7 gfs2/file.c    <global>             498 .fault = filemap_fault,
->   8 nfs/file.c     <global>             653 .fault = filemap_fault,
->   9 nilfs2/file.c  <global>             128 .fault = filemap_fault,
->   a ubifs/file.c   <global>            1536 .fault = filemap_fault,
->   b xfs/xfs_file.c <global>            1420 .fault = filemap_fault,
-> 
-> 
-> > Btw. how would that work as we already have GFP_KERNEL allocation few
-> > lines below?
-> 
-> GFP_KERNEL allocation for mappings is simply wrong. All mapping
-> allocations where the caller cannot pass a gfp_mask need to obey
-> the mapping_gfp_mask that is set by the mapping owner....
-> 
+RnJvbSAxNTlkNzRiNWE4ZjNkMGYwN2UxOGRkYWQ3NGI3MDI1Y2YxN2RjYzY5IE1vbiBTZXAgMTcg
+MDA6MDA6MDAgMjAwMQ0KRnJvbTogWWluZ2hhbyBYaWUgPHlpbmdoYW8ueGllQHN1bXN1bmcuY29t
+Pg0KRGF0ZTogVGh1LCAxOSBNYXIgMjAxNSAxOTozMjoyNSArMDgwMA0KU3ViamVjdDogW1BBVENI
+XSBtbS96c21hbGxvYy5jOiBjb3VudCBpbiBoYW5kbGUncyBzaXplIHdoZW4gY2FsY3VsYXRpbmcN
+CiBzaXplX2NsYXNzJ3MgcGFnZXNfcGVyX3pzcGFnZQ0KDQoxLiBGaXggd2FzdGFnZSBjYWxjdWxh
+dGlvbjsNCjIuIEluZGlyZWN0IGhhbmRsZSBpbnRyb2R1Y2VkIGV4dHJhIFpTX0hBTkRMRV9TSVpF
+IHNpemUgZm9yIGVhY2ggb2JqZWN0LGl0J3MgdHJhbnNwYXJlbnQNCiAgIGZvciB1cHBlciBmdW5j
+dGlvbiwgYnV0IGEgc2l6ZV9jbGFzcydzIHRvdGFsIG9iamVjdHMgd2lsbCBjaGFuZ2VkOg0KICAg
+dGFrZSB0aGUgNDNyZCBjbGFzcyB3aGljaCBjbGFzc19zaXplID0gMzIgKyA0MyAqIDE2ID0gNzIw
+IGFzIGV4YW1wbGU6DQoJNDA5NiAqIDEgJSA3MjAgPSA0OTYNCgk0MDk2ICogMiAlIDcyMCA9IDI3
+Mg0KCTQwOTYgKiAzICUgNzIwID0gNDggDQoJNDA5NiAqIDQgJTcyMCA9IDU0NA0KICAgYWZ0ZXIg
+aGFuZGxlIGludHJvZHVjZWQsY2xhc3Nfc2l6ZSArIFpTX0hBTkRMRV9TSVpFICg0IG9uIDMyYml0
+KSA9IDcyNA0KCTQwOTYgKiAxICUgNzI0ID0gNDc2DQoJNDA5NiAqIDIgJSA3MjQgPSAyMjgNCgk0
+MDk2ICogMyAlIDcyNCA9IDcwNA0KCTQwOTYgKiA0ICUgNzI0ID0gNDU2DQogICAgQ2xlYXJseSwg
+WlNfSEFORExFX1NJWkUgc2hvdWxkIGJlIGNvbnNpZGVyZWQgd2hlbiBjYWxjdWxhdGluZyBwYWdl
+c19wZXJfenNwYWdlOw0KDQozLiBpbiBnZXRfc2l6ZV9jbGFzc19pbmRleCgpLCBtaW4oenNfc2l6
+ZV9jbGFzc2VzIC0gMSwgaWR4KSBpbnN1cmVzIGEgaHVnZSBjbGFzcydzDQogICBpbmRleCA8PSB6
+c19zaXplX2NsYXNzZXMgLSAxLCBzbyBpdCdzIG5vIG5lZWQgdG8gY2hlY2sgYWdhaW47DQoNClNp
+Z25lZC1vZmYtYnk6IFlpbmdoYW8gWGllIDx5aW5naGFvLnhpZUBzdW1zdW5nLmNvbT4NCi0tLQ0K
+IG1tL3pzbWFsbG9jLmMgfCAgIDE1ICsrKysrKy0tLS0tLS0tLQ0KIDEgZmlsZSBjaGFuZ2VkLCA2
+IGluc2VydGlvbnMoKyksIDkgZGVsZXRpb25zKC0pDQoNCmRpZmYgLS1naXQgYS9tbS96c21hbGxv
+Yy5jIGIvbW0venNtYWxsb2MuYw0KaW5kZXggNDYxMjQzZS4uNjRjMzc5YiAxMDA2NDQNCi0tLSBh
+L21tL3pzbWFsbG9jLmMNCisrKyBiL21tL3pzbWFsbG9jLmMNCkBAIC03NjAsNyArNzYwLDggQEAg
+b3V0Og0KICAqIHRvIGZvcm0gYSB6c3BhZ2UgZm9yIGVhY2ggc2l6ZSBjbGFzcy4gVGhpcyBpcyBp
+bXBvcnRhbnQNCiAgKiB0byByZWR1Y2Ugd2FzdGFnZSBkdWUgdG8gdW51c2FibGUgc3BhY2UgbGVm
+dCBhdCBlbmQgb2YNCiAgKiBlYWNoIHpzcGFnZSB3aGljaCBpcyBnaXZlbiBhczoNCi0gKgl3YXN0
+YWdlID0gWnAgLSBacCAlIHNpemVfY2xhc3MNCisgKgl3YXN0YWdlID0gWnAgJSAoY2xhc3Nfc2l6
+ZSArIFpTX0hBTkRMRV9TSVpFKQ0KKyAqCXVzYWdlID0gWnAgLSB3YXN0YWdlDQogICogd2hlcmUg
+WnAgPSB6c3BhZ2Ugc2l6ZSA9IGsgKiBQQUdFX1NJWkUgd2hlcmUgayA9IDEsIDIsIC4uLg0KICAq
+DQogICogRm9yIGV4YW1wbGUsIGZvciBzaXplIGNsYXNzIG9mIDMvOCAqIFBBR0VfU0laRSwgd2Ug
+c2hvdWxkDQpAQCAtNzczLDYgKzc3NCw5IEBAIHN0YXRpYyBpbnQgZ2V0X3BhZ2VzX3Blcl96c3Bh
+Z2UoaW50IGNsYXNzX3NpemUpDQogCS8qIHpzcGFnZSBvcmRlciB3aGljaCBnaXZlcyBtYXhpbXVt
+IHVzZWQgc2l6ZSBwZXIgS0IgKi8NCiAJaW50IG1heF91c2VkcGNfb3JkZXIgPSAxOw0KIA0KKwlp
+ZiAoY2xhc3Nfc2l6ZSA+IFpTX01BWF9BTExPQ19TSVpFKQ0KKwkJY2xhc3Nfc2l6ZSA9IFpTX01B
+WF9BTExPQ19TSVpFOw0KKw0KIAlmb3IgKGkgPSAxOyBpIDw9IFpTX01BWF9QQUdFU19QRVJfWlNQ
+QUdFOyBpKyspIHsNCiAJCWludCB6c3BhZ2Vfc2l6ZTsNCiAJCWludCB3YXN0ZSwgdXNlZHBjOw0K
+QEAgLTE0MjYsMTEgKzE0MzAsNiBAQCB1bnNpZ25lZCBsb25nIHpzX21hbGxvYyhzdHJ1Y3QgenNf
+cG9vbCAqcG9vbCwgc2l6ZV90IHNpemUpDQogCS8qIGV4dHJhIHNwYWNlIGluIGNodW5rIHRvIGtl
+ZXAgdGhlIGhhbmRsZSAqLw0KIAlzaXplICs9IFpTX0hBTkRMRV9TSVpFOw0KIAljbGFzcyA9IHBv
+b2wtPnNpemVfY2xhc3NbZ2V0X3NpemVfY2xhc3NfaW5kZXgoc2l6ZSldOw0KLQkvKiBJbiBodWdl
+IGNsYXNzIHNpemUsIHdlIHN0b3JlIHRoZSBoYW5kbGUgaW50byBmaXJzdF9wYWdlLT5wcml2YXRl
+ICovDQotCWlmIChjbGFzcy0+aHVnZSkgew0KLQkJc2l6ZSAtPSBaU19IQU5ETEVfU0laRTsNCi0J
+CWNsYXNzID0gcG9vbC0+c2l6ZV9jbGFzc1tnZXRfc2l6ZV9jbGFzc19pbmRleChzaXplKV07DQot
+CX0NCiANCiAJc3Bpbl9sb2NrKCZjbGFzcy0+bG9jayk7DQogCWZpcnN0X3BhZ2UgPSBmaW5kX2dl
+dF96c3BhZ2UoY2xhc3MpOw0KQEAgLTE4NTYsOSArMTg1NSw3IEBAIHN0cnVjdCB6c19wb29sICp6
+c19jcmVhdGVfcG9vbChjaGFyICpuYW1lLCBnZnBfdCBmbGFncykNCiAJCXN0cnVjdCBzaXplX2Ns
+YXNzICpjbGFzczsNCiANCiAJCXNpemUgPSBaU19NSU5fQUxMT0NfU0laRSArIGkgKiBaU19TSVpF
+X0NMQVNTX0RFTFRBOw0KLQkJaWYgKHNpemUgPiBaU19NQVhfQUxMT0NfU0laRSkNCi0JCQlzaXpl
+ID0gWlNfTUFYX0FMTE9DX1NJWkU7DQotCQlwYWdlc19wZXJfenNwYWdlID0gZ2V0X3BhZ2VzX3Bl
+cl96c3BhZ2Uoc2l6ZSk7DQorCQlwYWdlc19wZXJfenNwYWdlID0gZ2V0X3BhZ2VzX3Blcl96c3Bh
+Z2Uoc2l6ZSArIFpTX0hBTkRMRV9TSVpFKTsNCiANCiAJCS8qDQogCQkgKiBzaXplX2NsYXNzIGlz
+IHVzZWQgZm9yIG5vcm1hbCB6c21hbGxvYyBvcGVyYXRpb24gc3VjaA0KLS0gDQoxLjcuOS41DQo=
 
-Is there any chance to annotate which GFP flag needs to be used like
-https://lkml.org/lkml/2015/3/17/507 ?
-
-> Cheers,
-> 
-> Dave.
-> -- 
-> Dave Chinner
-> david@fromorbit.com
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
