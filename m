@@ -1,66 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E4EE6B0038
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 10:56:18 -0400 (EDT)
-Received: by wibg7 with SMTP id g7so11032468wib.1
-        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 07:56:17 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ll20si3404033wic.111.2015.03.19.07.56.16
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D9326B0038
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 11:20:19 -0400 (EDT)
+Received: by pacwe9 with SMTP id we9so78506368pac.1
+        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 08:20:18 -0700 (PDT)
+Received: from mail-pd0-x231.google.com (mail-pd0-x231.google.com. [2607:f8b0:400e:c02::231])
+        by mx.google.com with ESMTPS id ro12si3526447pab.108.2015.03.19.08.20.17
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 19 Mar 2015 07:56:16 -0700 (PDT)
-Message-ID: <550AE38E.7090006@suse.cz>
-Date: Thu, 19 Mar 2015 15:56:14 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Mar 2015 08:20:18 -0700 (PDT)
+Received: by pdbni2 with SMTP id ni2so79154309pdb.1
+        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 08:20:17 -0700 (PDT)
+Date: Thu, 19 Mar 2015 23:12:14 +0800
+From: Wang YanQing <udknight@gmail.com>
+Subject: Re: [RFC] Strange do_munmap in mmap_region
+Message-ID: <20150319151214.GA2175@udknight>
+References: <20150228064647.GA9550@udknight.ahead-top.com>
+ <CALYGNiMLwhqQSmj58mT4MWk2RAuU-3TykoSd=XjuXVfqkL3NoA@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH V6] Allow compaction of unevictable pages
-References: <1426773430-31052-1-git-send-email-emunson@akamai.com>
-In-Reply-To: <1426773430-31052-1-git-send-email-emunson@akamai.com>
-Content-Type: text/plain; charset=iso-8859-2
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALYGNiMLwhqQSmj58mT4MWk2RAuU-3TykoSd=XjuXVfqkL3NoA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric B Munson <emunson@akamai.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <cl@linux.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, linux-rt-users@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, yinghai@kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-On 03/19/2015 02:57 PM, Eric B Munson wrote:
-> Currently, pages which are marked as unevictable are protected from
-> compaction, but not from other types of migration.  The POSIX real time
-> extension explicitly states that mlock() will prevent a major page
-> fault, but the spirit of is is that mlock() should give a process the
-> ability to control sources of latency, including minor page faults.
-> However, the mlock manpage only explicitly says that a locked page will
-> not be written to swap and this can cause some confusion.  The
-> compaction code today, does not give a developer who wants to avoid swap
-> but wants to have large contiguous areas available any method to achieve
-> this state.  This patch introduces a sysctl for controlling compaction
-> behavoir with respect to the unevictable lru.  Users that demand no page
-
-  behavior
-
-> faults after a page is present can set compact_unevictable to 0 and
-
-                                        compact_unevictable_allowed
-
-> users who need the large contiguous areas can enable compaction on
-> locked memory by leaving the default value of 1.
+On Thu, Mar 19, 2015 at 11:33:41AM +0300, Konstantin Khlebnikov wrote:
+> On Sat, Feb 28, 2015 at 9:46 AM, Wang YanQing <udknight@gmail.com> wrote:
+> > Hi Mel Gorman and all.
+> >
+> > I have read do_mmap_pgoff and mmap_region more than one hour,
+> > but still can't catch sense about below code in mmap_region:
+> >
+> > "
+> >         /* Clear old maps */
+> >         error = -ENOMEM;
+> > munmap_back:
+> >         if (find_vma_links(mm, addr, addr + len, &prev, &rb_link, &rb_parent)) {
+> >                 if (do_munmap(mm, addr, len))
+> >                         return -ENOMEM;
+> >                 goto munmap_back;
+> >         }
+> > "
+> >
+> > How can we just do_munmap overlapping vma without check its vm_flags
+> > and new vma's vm_flags? I must miss some important things, but I can't
+> > figure out.
+> >
+> > You give below comment about the code in "understand the linux memory manager":)
+> >
+> > "
+> > If a VMA was found and it is part of the new mmapping, this removes the
+> >  old mmapping because the new one will cover both
+> > "
+> >
+> > But if new mmapping has different vm_flags or others' property, how
+> > can we just say the new one will cover both?
+> >
+> > I appreicate any clue and explanation about this headache question.
+> >
+> > Thanks.
+> >
 > 
-> To illustrate this problem I wrote a quick test program that mmaps a
-> large number of 1MB files filled with random data.  These maps are
-> created locked and read only.  Then every other mmap is unmapped and I
-> attempt to allocate huge pages to the static huge page pool.  When the
-> compact_unevictable sysctl is 0, I cannot allocate hugepages after
+> Mmap() creates new mapping in given range
+> (new vma might be merged to one or both of sides if possible)
+> so everything what was here before is unmapped in process. Not?
 
-compact_unevictable_allowed
+Thanks for reply.
 
-> fragmenting memory.  When the value is set to 1, allocations succeed.
+Assme process has vma in region 4096-8192, one page size, mapped to
+a file's first 4096 bytes, then a new map want to create vma in range
+0-8192 to map 4096-1288 in file, please tell me what's your meaning:
+"so everything what was here before is unmapped in process"?
+
+Why we can just delete old vma for first 4096 size in file which reside
+in range 4096-8192 without notify user process? And create the new vma
+to occupy range 0-8192, do you think "everything" is really the same?
+
+Process lost old map for file's first 4096 bytes, and we use a new
+map for 4096-1288 in file to lie it, and say "the same".
+
+Indeed, I have another question, I guess the answer could save me the
+same as this question.
+
+I have read get_unmapped_area, it seems it will return a unused enough
+region for new vma, and we hold mm->mmap_sem before vm_mmap_pgoff,
+why unused enough region return by get_unmapped_area has overlapping vma
+in mmap_region cause the first question?
+
+I have tested it, running system always call do_munmap in mmap_region, so
+I must miss something important, it is strange.
+
+Thanks again.
 > 
-> Signed-off-by: Eric B Munson <emunson@akamai.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-Thanks.
+> >
+> >
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
