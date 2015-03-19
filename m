@@ -1,35 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 03B5B6B0038
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 14:29:56 -0400 (EDT)
-Received: by pdnc3 with SMTP id c3so83681938pdn.0
-        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 11:29:55 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id kk7si4379727pab.156.2015.03.19.11.29.54
-        for <linux-mm@kvack.org>;
-        Thu, 19 Mar 2015 11:29:55 -0700 (PDT)
-Message-ID: <550B15A0.9090308@intel.com>
-Date: Thu, 19 Mar 2015 11:29:52 -0700
-From: Dave Hansen <dave.hansen@intel.com>
+Received: from mail-we0-f175.google.com (mail-we0-f175.google.com [74.125.82.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 968956B0038
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 15:26:47 -0400 (EDT)
+Received: by wetk59 with SMTP id k59so65541704wet.3
+        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 12:26:47 -0700 (PDT)
+Received: from one.firstfloor.org (one.firstfloor.org. [193.170.194.197])
+        by mx.google.com with ESMTPS id a2si3751388wjs.97.2015.03.19.12.26.45
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Mar 2015 12:26:46 -0700 (PDT)
+Date: Thu, 19 Mar 2015 20:26:44 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] mm/memory-failure.c: define page types for
+ action_result() in one place
+Message-ID: <20150319192644.GD22151@two.firstfloor.org>
+References: <1426746272-24306-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 05/16] page-flags: define behavior of FS/IO-related flags
- on compound pages
-References: <1426784902-125149-1-git-send-email-kirill.shutemov@linux.intel.com> <1426784902-125149-6-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1426784902-125149-6-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1426746272-24306-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
-Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Tony Luck <tony.luck@intel.com>, Xie XiuQi <xiexiuqi@huawei.com>, Steven Rostedt <rostedt@goodmis.org>, Chen Gong <gong.chen@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 03/19/2015 10:08 AM, Kirill A. Shutemov wrote:
-> The odd expection is PG_dirty: sound uses compound pages and maps them
-> with PTEs. NO_COMPOUND triggers VM_BUG_ON() in set_page_dirty() on
-> handling shared fault. Let's use HEAD for PG_dirty.
+On Thu, Mar 19, 2015 at 06:24:35AM +0000, Naoya Horiguchi wrote:
+> This cleanup patch moves all strings passed to action_result() into a single
+> array action_page_type so that a reader can easily find which kind of action
+> results are possible. And this patch also fixes the odd lines to be printed
+> out, like "unknown page state page" or "free buddy, 2nd try page".
+> 
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Can we get the sound guys to look at this, btw?  It seems like an odd
-thing that we probably don't want to keep around, right?
+Looks good
+
+Reviewed-by: Andi Kleen <ak@linux.intel.com>
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
