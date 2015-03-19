@@ -1,157 +1,187 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 4503D6B006C
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 09:57:24 -0400 (EDT)
-Received: by padcy3 with SMTP id cy3so76434715pad.3
-        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 06:57:24 -0700 (PDT)
-Received: from prod-mail-xrelay02.akamai.com (prod-mail-xrelay02.akamai.com. [72.246.2.14])
-        by mx.google.com with ESMTP id h13si3376716pdl.3.2015.03.19.06.57.22
-        for <linux-mm@kvack.org>;
-        Thu, 19 Mar 2015 06:57:22 -0700 (PDT)
-From: Eric B Munson <emunson@akamai.com>
-Subject: [PATCH V6] Allow compaction of unevictable pages
-Date: Thu, 19 Mar 2015 09:57:10 -0400
-Message-Id: <1426773430-31052-1-git-send-email-emunson@akamai.com>
+Received: from mail-oi0-f49.google.com (mail-oi0-f49.google.com [209.85.218.49])
+	by kanga.kvack.org (Postfix) with ESMTP id EF0446B006C
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 10:05:19 -0400 (EDT)
+Received: by oifl3 with SMTP id l3so35417302oif.0
+        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 07:05:19 -0700 (PDT)
+Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
+        by mx.google.com with ESMTPS id ci11si3106696pdb.144.2015.03.19.07.05.19
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Mar 2015 07:05:19 -0700 (PDT)
+Received: by pacwe9 with SMTP id we9so76714578pac.1
+        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 07:05:19 -0700 (PDT)
+From: Roman Pen <r.peniaev@gmail.com>
+Subject: [RFC v2 2/3] mm/vmalloc: occupy newly allocated vmap block just after allocation
+Date: Thu, 19 Mar 2015 23:04:40 +0900
+Message-Id: <1426773881-5757-3-git-send-email-r.peniaev@gmail.com>
+In-Reply-To: <1426773881-5757-1-git-send-email-r.peniaev@gmail.com>
+References: <1426773881-5757-1-git-send-email-r.peniaev@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Eric B Munson <emunson@akamai.com>, Vlastimil Babka <vbabka@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <cl@linux.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, linux-rt-users@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Roman Pen <r.peniaev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Eric Dumazet <edumazet@google.com>, David Rientjes <rientjes@google.com>, WANG Chao <chaowang@redhat.com>, Fabian Frederick <fabf@skynet.be>, Christoph Lameter <cl@linux.com>, Gioh Kim <gioh.kim@lge.com>, Rob Jones <rob.jones@codethink.co.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Currently, pages which are marked as unevictable are protected from
-compaction, but not from other types of migration.  The POSIX real time
-extension explicitly states that mlock() will prevent a major page
-fault, but the spirit of is is that mlock() should give a process the
-ability to control sources of latency, including minor page faults.
-However, the mlock manpage only explicitly says that a locked page will
-not be written to swap and this can cause some confusion.  The
-compaction code today, does not give a developer who wants to avoid swap
-but wants to have large contiguous areas available any method to achieve
-this state.  This patch introduces a sysctl for controlling compaction
-behavoir with respect to the unevictable lru.  Users that demand no page
-faults after a page is present can set compact_unevictable to 0 and
-users who need the large contiguous areas can enable compaction on
-locked memory by leaving the default value of 1.
+Previous implementation allocates new vmap block and repeats search of a free
+block from the very beginning, iterating over the CPU free list.
 
-To illustrate this problem I wrote a quick test program that mmaps a
-large number of 1MB files filled with random data.  These maps are
-created locked and read only.  Then every other mmap is unmapped and I
-attempt to allocate huge pages to the static huge page pool.  When the
-compact_unevictable sysctl is 0, I cannot allocate hugepages after
-fragmenting memory.  When the value is set to 1, allocations succeed.
+Why it can be better??
 
-Signed-off-by: Eric B Munson <emunson@akamai.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Mel Gorman <mgorman@suse.de>
+1. Allocation can happen on one CPU, but search can be done on another CPU.
+   In worst case we preallocate amount of vmap blocks which is equal to
+   CPU number on the system.
+
+2. In previous patch I added newly allocated block to the tail of free list
+   to avoid soon exhaustion of virtual space and give a chance to occupy
+   blocks which were allocated long time ago.  Thus to find newly allocated
+   block all the search sequence should be repeated, seems it is not efficient.
+
+In this patch newly allocated block is occupied right away, address of virtual
+space is returned to the caller, so there is no any need to repeat the search
+sequence, allocation job is done.
+
+Signed-off-by: Roman Pen <r.peniaev@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Eric Dumazet <edumazet@google.com>
+Acked-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: David Rientjes <rientjes@google.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: linux-rt-users@vger.kernel.org
+Cc: WANG Chao <chaowang@redhat.com>
+Cc: Fabian Frederick <fabf@skynet.be>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Gioh Kim <gioh.kim@lge.com>
+Cc: Rob Jones <rob.jones@codethink.co.uk>
 Cc: linux-mm@kvack.org
-Cc: linux-api@vger.kernel.org
 Cc: linux-kernel@vger.kernel.org
 ---
-Changes from V5:
-* Default sysctl value is now 1
-* Used more descriptive sysctl name
-* documentation calss out default value
+ mm/vmalloc.c | 58 +++++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 37 insertions(+), 21 deletions(-)
 
- Documentation/sysctl/vm.txt |   11 +++++++++++
- include/linux/compaction.h  |    1 +
- kernel/sysctl.c             |    9 +++++++++
- mm/compaction.c             |    7 +++++++
- 4 files changed, 28 insertions(+)
-
-diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-index 902b457..9832ec5 100644
---- a/Documentation/sysctl/vm.txt
-+++ b/Documentation/sysctl/vm.txt
-@@ -21,6 +21,7 @@ Currently, these files are in /proc/sys/vm:
- - admin_reserve_kbytes
- - block_dump
- - compact_memory
-+- compact_unevictable_allowed
- - dirty_background_bytes
- - dirty_background_ratio
- - dirty_bytes
-@@ -106,6 +107,16 @@ huge pages although processes will also directly compact memory as required.
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index db6bffb..9bd102c 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -791,13 +791,31 @@ static unsigned long addr_to_vb_idx(unsigned long addr)
+ 	return addr;
+ }
  
- ==============================================================
- 
-+compact_unevictable_allowed
+-static struct vmap_block *new_vmap_block(gfp_t gfp_mask)
++static void *vmap_block_vaddr(unsigned long va_start, unsigned long pages_off)
++{
++	unsigned long addr;
 +
-+Available only when CONFIG_COMPACTION is set. When set to 1, compaction is
-+allowed to examine the unevictable lru (mlocked pages) for pages to compact.
-+This should be used on systems where stalls for minor page faults are an
-+acceptable trade for large contiguous free memory.  Set to 0 to prevent
-+compaction from moving pages that are unevictable.  Default value is 1.
++	addr = va_start + (pages_off << PAGE_SHIFT);
++	BUG_ON(addr_to_vb_idx(addr) != addr_to_vb_idx(va_start));
++	return (void *)addr;
++}
 +
-+==============================================================
-+
- dirty_background_bytes
- 
- Contains the amount of dirty memory at which the background kernel
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index a014559..aa8f61c 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -34,6 +34,7 @@ extern int sysctl_compaction_handler(struct ctl_table *table, int write,
- extern int sysctl_extfrag_threshold;
- extern int sysctl_extfrag_handler(struct ctl_table *table, int write,
- 			void __user *buffer, size_t *length, loff_t *ppos);
-+extern int sysctl_compact_unevictable_allowed;
- 
- extern int fragmentation_index(struct zone *zone, unsigned int order);
- extern unsigned long try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 88ea2d6..2f6c880 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -1313,6 +1313,15 @@ static struct ctl_table vm_table[] = {
- 		.extra1		= &min_extfrag_threshold,
- 		.extra2		= &max_extfrag_threshold,
- 	},
-+	{
-+		.procname	= "compact_unevictable_allowed",
-+		.data		= &sysctl_compact_unevictable_allowed,
-+		.maxlen		= sizeof(int),
-+		.mode		= 0644,
-+		.proc_handler	= proc_dointvec,
-+		.extra1		= &zero,
-+		.extra2		= &one,
-+	},
- 
- #endif /* CONFIG_COMPACTION */
- 	{
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 8c0d945..ad88a8c 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1047,6 +1047,12 @@ typedef enum {
- } isolate_migrate_t;
- 
- /*
-+ * Allow userspace to control policy on scanning the unevictable LRU for
-+ * compactable pages.
++/**
++ * new_vmap_block - allocates new vmap_block and occupies 2^order pages in this
++ *                  block. Of course pages number can't exceed VMAP_BBMAP_BITS
++ * @order:    how many 2^order pages should be occupied in newly allocated block
++ * @gfp_mask: flags for the page level allocator
++ *
++ * Returns: virtual address in a newly allocated block or ERR_PTR(-errno)
 + */
-+int sysctl_compact_unevictable_allowed __read_mostly = 1;
-+
-+/*
-  * Isolate all pages that can be migrated from the first suitable block,
-  * starting at the block pointed to by the migrate scanner pfn within
-  * compact_control.
-@@ -1057,6 +1063,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 	unsigned long low_pfn, end_pfn;
- 	struct page *page;
- 	const isolate_mode_t isolate_mode =
-+		(sysctl_compact_unevictable_allowed ? ISOLATE_UNEVICTABLE : 0) |
- 		(cc->mode == MIGRATE_ASYNC ? ISOLATE_ASYNC_MIGRATE : 0);
++static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
+ {
+ 	struct vmap_block_queue *vbq;
+ 	struct vmap_block *vb;
+ 	struct vmap_area *va;
+ 	unsigned long vb_idx;
+ 	int node, err;
++	void *vaddr;
  
- 	/*
+ 	node = numa_node_id();
+ 
+@@ -821,9 +839,12 @@ static struct vmap_block *new_vmap_block(gfp_t gfp_mask)
+ 		return ERR_PTR(err);
+ 	}
+ 
++	vaddr = vmap_block_vaddr(va->va_start, 0);
+ 	spin_lock_init(&vb->lock);
+ 	vb->va = va;
+-	vb->free = VMAP_BBMAP_BITS;
++	/* At least something should be left free */
++	BUG_ON(VMAP_BBMAP_BITS <= (1UL << order));
++	vb->free = VMAP_BBMAP_BITS - (1UL << order);
+ 	vb->dirty = 0;
+ 	bitmap_zero(vb->dirty_map, VMAP_BBMAP_BITS);
+ 	INIT_LIST_HEAD(&vb->free_list);
+@@ -841,7 +862,7 @@ static struct vmap_block *new_vmap_block(gfp_t gfp_mask)
+ 	spin_unlock(&vbq->lock);
+ 	put_cpu_var(vmap_block_queue);
+ 
+-	return vb;
++	return vaddr;
+ }
+ 
+ static void free_vmap_block(struct vmap_block *vb)
+@@ -905,7 +926,7 @@ static void *vb_alloc(unsigned long size, gfp_t gfp_mask)
+ {
+ 	struct vmap_block_queue *vbq;
+ 	struct vmap_block *vb;
+-	unsigned long addr = 0;
++	void *vaddr = NULL;
+ 	unsigned int order;
+ 
+ 	BUG_ON(size & ~PAGE_MASK);
+@@ -920,43 +941,38 @@ static void *vb_alloc(unsigned long size, gfp_t gfp_mask)
+ 	}
+ 	order = get_order(size);
+ 
+-again:
+ 	rcu_read_lock();
+ 	vbq = &get_cpu_var(vmap_block_queue);
+ 	list_for_each_entry_rcu(vb, &vbq->free, free_list) {
+-		int i;
++		unsigned long pages_off;
+ 
+ 		spin_lock(&vb->lock);
+-		if (vb->free < 1UL << order)
+-			goto next;
++		if (vb->free < (1UL << order)) {
++			spin_unlock(&vb->lock);
++			continue;
++		}
+ 
+-		i = VMAP_BBMAP_BITS - vb->free;
+-		addr = vb->va->va_start + (i << PAGE_SHIFT);
+-		BUG_ON(addr_to_vb_idx(addr) !=
+-				addr_to_vb_idx(vb->va->va_start));
++		pages_off = VMAP_BBMAP_BITS - vb->free;
++		vaddr = vmap_block_vaddr(vb->va->va_start, pages_off);
+ 		vb->free -= 1UL << order;
+ 		if (vb->free == 0) {
+ 			spin_lock(&vbq->lock);
+ 			list_del_rcu(&vb->free_list);
+ 			spin_unlock(&vbq->lock);
+ 		}
++
+ 		spin_unlock(&vb->lock);
+ 		break;
+-next:
+-		spin_unlock(&vb->lock);
+ 	}
+ 
+ 	put_cpu_var(vmap_block_queue);
+ 	rcu_read_unlock();
+ 
+-	if (!addr) {
+-		vb = new_vmap_block(gfp_mask);
+-		if (IS_ERR(vb))
+-			return vb;
+-		goto again;
+-	}
++	/* Allocate new block if nothing was found */
++	if (!vaddr)
++		vaddr = new_vmap_block(order, gfp_mask);
+ 
+-	return (void *)addr;
++	return vaddr;
+ }
+ 
+ static void vb_free(const void *addr, unsigned long size)
 -- 
-1.7.9.5
+2.2.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
