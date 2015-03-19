@@ -1,68 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EB9B6B0038
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 15:42:47 -0400 (EDT)
-Received: by igcau2 with SMTP id au2so104202536igc.0
-        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 12:42:47 -0700 (PDT)
-Received: from mail-ig0-x22d.google.com (mail-ig0-x22d.google.com. [2607:f8b0:4001:c05::22d])
-        by mx.google.com with ESMTPS id d19si2700796icc.71.2015.03.19.12.42.46
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Mar 2015 12:42:46 -0700 (PDT)
-Received: by ignm3 with SMTP id m3so17127258ign.0
-        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 12:42:46 -0700 (PDT)
-Date: Thu, 19 Mar 2015 12:42:44 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH V6] Allow compaction of unevictable pages
-In-Reply-To: <1426773430-31052-1-git-send-email-emunson@akamai.com>
-Message-ID: <alpine.DEB.2.10.1503191242150.20092@chino.kir.corp.google.com>
-References: <1426773430-31052-1-git-send-email-emunson@akamai.com>
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BA676B0038
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 16:03:11 -0400 (EDT)
+Received: by wibg7 with SMTP id g7so127521964wib.1
+        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 13:03:10 -0700 (PDT)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.195])
+        by mx.google.com with ESMTP id l3si3762268wjy.173.2015.03.19.13.03.09
+        for <linux-mm@kvack.org>;
+        Thu, 19 Mar 2015 13:03:09 -0700 (PDT)
+Date: Thu, 19 Mar 2015 22:02:52 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 05/16] page-flags: define behavior of FS/IO-related flags
+ on compound pages
+Message-ID: <20150319200252.GA13348@node.dhcp.inet.fi>
+References: <1426784902-125149-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1426784902-125149-6-git-send-email-kirill.shutemov@linux.intel.com>
+ <550B15A0.9090308@intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <550B15A0.9090308@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric B Munson <emunson@akamai.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <cl@linux.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, linux-rt-users@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jaroslav Kysela <perex@perex.cz>, Takashi Iwai <tiwai@suse.de>, alsa-devel@alsa-project.org
 
-On Thu, 19 Mar 2015, Eric B Munson wrote:
-
-> Currently, pages which are marked as unevictable are protected from
-> compaction, but not from other types of migration.  The POSIX real time
-> extension explicitly states that mlock() will prevent a major page
-> fault, but the spirit of is is that mlock() should give a process the
-> ability to control sources of latency, including minor page faults.
-> However, the mlock manpage only explicitly says that a locked page will
-> not be written to swap and this can cause some confusion.  The
-> compaction code today, does not give a developer who wants to avoid swap
-> but wants to have large contiguous areas available any method to achieve
-> this state.  This patch introduces a sysctl for controlling compaction
-> behavoir with respect to the unevictable lru.  Users that demand no page
-> faults after a page is present can set compact_unevictable to 0 and
-> users who need the large contiguous areas can enable compaction on
-> locked memory by leaving the default value of 1.
+On Thu, Mar 19, 2015 at 11:29:52AM -0700, Dave Hansen wrote:
+> On 03/19/2015 10:08 AM, Kirill A. Shutemov wrote:
+> > The odd exception is PG_dirty: sound uses compound pages and maps them
+> > with PTEs. NO_COMPOUND triggers VM_BUG_ON() in set_page_dirty() on
+> > handling shared fault. Let's use HEAD for PG_dirty.
 > 
-> To illustrate this problem I wrote a quick test program that mmaps a
-> large number of 1MB files filled with random data.  These maps are
-> created locked and read only.  Then every other mmap is unmapped and I
-> attempt to allocate huge pages to the static huge page pool.  When the
-> compact_unevictable sysctl is 0, I cannot allocate hugepages after
-> fragmenting memory.  When the value is set to 1, allocations succeed.
-> 
-> Signed-off-by: Eric B Munson <emunson@akamai.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Christoph Lameter <cl@linux.com>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: linux-rt-users@vger.kernel.org
-> Cc: linux-mm@kvack.org
-> Cc: linux-api@vger.kernel.org
-> Cc: linux-kernel@vger.kernel.org
+> Can we get the sound guys to look at this, btw?  It seems like an odd
+> thing that we probably don't want to keep around, right?
 
-Acked-by: David Rientjes <rientjes@google.com>
+CC: +sound guys
+
+I'm not sure what is right fix here. At the time adding __GFP_COMP was a
+fix: see f3d48f0373c1.
+
+Other odd part about __GFP_COMP here is that we have ->_mapcount in tail
+pages to be used for both: mapcount of the individual page and for gup
+pins. __compound_tail_refcounted() doesn't recognize that we don't need
+tail page accounting for these pages.
+
+Hugh, I tried to ask you about the situation several times (last time on
+the summit). Any comments?
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
