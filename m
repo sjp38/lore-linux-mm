@@ -1,849 +1,485 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 836916B0038
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 06:55:21 -0400 (EDT)
-Received: by pabxg6 with SMTP id xg6so59549199pab.0
-        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 03:55:21 -0700 (PDT)
-Received: from mail-pd0-x235.google.com (mail-pd0-x235.google.com. [2607:f8b0:400e:c02::235])
-        by mx.google.com with ESMTPS id n10si2374243pap.21.2015.03.19.03.55.19
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id ED27E6B0038
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 07:04:09 -0400 (EDT)
+Received: by igbud6 with SMTP id ud6so20154558igb.1
+        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 04:04:09 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id n2si1299862icu.81.2015.03.19.04.04.07
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Mar 2015 03:55:19 -0700 (PDT)
-Received: by pdnc3 with SMTP id c3so73055059pdn.0
-        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 03:55:19 -0700 (PDT)
-Date: Thu, 19 Mar 2015 03:55:15 -0700
-From: Kelley Nielsen <kelleynnn@gmail.com>
-Subject: [RFC v7 1/2] mm: prototype: rid swapoff of quadratic complexity
-Message-ID: <20150319105515.GA8140@kelleynnn-virtual-machine>
-MIME-Version: 1.0
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 19 Mar 2015 04:04:08 -0700 (PDT)
+Subject: Re: [PATCH 1/2 v2] mm: Allow small allocations to fail
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20150316074607.GA24885@dhcp22.suse.cz>
+	<201503172013.HCI87500.QFHtOOMLOVFSJF@I-love.SAKURA.ne.jp>
+	<20150317131501.GH28112@dhcp22.suse.cz>
+	<201503182033.CFI43269.FOJFOFtQHLSOMV@I-love.SAKURA.ne.jp>
+	<20150318122343.GF17241@dhcp22.suse.cz>
+In-Reply-To: <20150318122343.GF17241@dhcp22.suse.cz>
+Message-Id: <201503192003.ADB43774.JLHOSMVFtQOFFO@I-love.SAKURA.ne.jp>
+Date: Thu, 19 Mar 2015 20:03:50 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, riel@surriel.com, riel@redhat.com, opw-kernel@googlegroups.com, hughd@google.com, akpm@linux-foundation.org, jamieliu@google.com, sjenning@linux.vnet.ibm.com, sarah.a.sharp@intel.com
+To: mhocko@suse.cz
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, david@fromorbit.com, mgorman@suse.de, riel@redhat.com, fengguang.wu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The function try_to_unuse() is of quadratic complexity, with a lot of
-wasted effort. It unuses swap entries one by one, potentially iterating
-over all the page tables for all the processes in the system for each
-one.
+Michal Hocko wrote:
+> > So, your patch introduces a trigger to involve OOM killer for !__GFP_FS
+> > allocation. I myself think that we should trigger OOM killer for !__GFP_FS
+> > allocation in order to make forward progress in case the OOM victim is blocked.
+> > What is the reason we did not involve OOM killer for !__GFP_FS allocation?
+> 
+> Because the reclaim context for these allocations is very restricted. We
+> might have a lot of cache which needs to be written down before it will
+> be reclaimed. If we triggered OOM from this path we would see a lot of
+> pre-mature OOM killers triggered.
 
-This new proposed implementation of try_to_unuse simplifies its
-complexity to linear. It iterates over the system's mms once, unusing
-all the affected entries as it walks each set of page tables. It also
-makes similar changes to shmem_unuse.
+I see. I was worrying that the reason is related to possible deadlocks.
 
-Improvement
+Not giving up waiting for cache which _needs to be_ written down before
+it will be reclaimed (sysctl_nr_alloc_retry == ULONG_MAX) is causing
+system lockups we are seeing, isn't it?
 
-swapoff was called on a swap partition containing about 50M of data,
-and calls to the function unuse_pte_range() were counted.
+Giving up waiting for cache which _needs to be_ written down before
+it will be reclaimed (sysctl_nr_alloc_retry == 1) is also causing
+a lot of pre-mature page allocation failures I'm seeing, isn't it?
 
-Present implementation....about 22.5M calls.
-Prototype.................about  7.0K   calls.
+    /*
+     * If we fail to make progress by freeing individual
+     * pages, but the allocation wants us to keep going,
+     * start OOM killing tasks.
+     */
+    if (!did_some_progress) {
+            page = __alloc_pages_may_oom(gfp_mask, order, ac,
+                                            &did_some_progress);
+            if (page)
+                    goto got_pg;
+            if (!did_some_progress)
+                    goto nopage;
 
-Details
+            nr_retries++;
+    }
+    /* Wait for some write requests to complete then retry */
+    wait_iff_congested(ac->preferred_zone, BLK_RW_ASYNC, HZ/50);
+    goto retry;
 
-In shmem_unuse(), iterate over the shmem_swaplist and, for each
-shmem_inode_info that contains a swap entry, pass it to shmem_unuse_inode(),
-along with the swap type. In shmem_unuse_inode(), iterate over its associated
-radix tree, and store the index of each exceptional entry in an array for
-passing to shmem_getpage_gfp() outside of the RCU critical section.
+If we can somehow tell that there is no more cache which _can be_
+written down before it will be reclaimed, we don't need to use
+sysctl_nr_alloc_retry, and we can trigger OOM killer, right?
 
-In try_to_unuse(), instead of iterating over the entries in the type and
-unusing them one by one, perhaps walking all the page tables for all the
-processes for each one, iterate over the mmlist, making one pass. Pass
-each mm to unuse_mm() to begin its page table walk, and during the walk,
-unuse all the ptes that have backing store in the swap type received by
-try_to_unuse(). After the walk, check the type for orphaned swap entries
-with find_next_to_unuse(), and remove them from the swap cache. If
-find_next_to_unuse() starts over at the beginning of the type, repeat
-the check of the shmem_swaplist and the walk a maximum of three times.
 
-Change unuse_mm() and the intervening walk functions down to unuse_pte_range()
-to take the type as a parameter, and to iterate over their entire range,
-calling the next function down on every iteration. In unuse_pte_range(),
-make a swap entry from each pte in the range using the passed in type.
-If it has backing store in the type, call swapin_readahead() to retrieve
-the page, and then pass this page to unuse_pte().
 
-TODO
+Today's stress testing found another problem your patch did not care.
+If page fault caused SIGBUS signal when the first OOM victim cannot be
+terminated due to mutex_lock() dependency, the process which triggered
+the page fault will likely be killed. If the process is the global init,
+kernel panic is triggered like shown below.
 
-* Handle count of unused pages for frontswap.
+(From http://I-love.SAKURA.ne.jp/tmp/serial-20150319-1.txt.xz )
+----------
+[ 1277.833918] a.out           D ffff880066503bc8     0  8374   5141 0x00000080
+[ 1277.835930]  ffff880066503bc8 ffff88007d1180d0 ffff8800664fd070 ffff880066503bc8
+[ 1277.838052]  ffffffff8122a0eb ffff88007b8edc20 ffff880066500010 ffff88007fc93740
+[ 1277.840102]  7fffffffffffffff ffff880066503d20 0000000000000002 ffff880066503be8
+[ 1277.842128] Call Trace:
+[ 1277.842766]  [<ffffffff8122a0eb>] ? blk_peek_request+0x8b/0x2a0
+[ 1277.844222]  [<ffffffff814d1aee>] schedule+0x3e/0x90
+[ 1277.845459]  [<ffffffff814d3dfd>] schedule_timeout+0x12d/0x1a0
+[ 1277.846885]  [<ffffffff810b5b16>] ? ktime_get+0x46/0xb0
+[ 1277.848189]  [<ffffffff814d0faa>] io_schedule_timeout+0xaa/0x130
+[ 1277.849702]  [<ffffffff8108c610>] ? prepare_to_wait+0x60/0x90
+[ 1277.851173]  [<ffffffff814d1d90>] ? bit_wait_io_timeout+0x80/0x80
+[ 1277.852661]  [<ffffffff814d1dc6>] bit_wait_io+0x36/0x50
+[ 1277.853946]  [<ffffffff814d2125>] __wait_on_bit+0x65/0x90
+[ 1277.855005] ata4: SATA link up 3.0 Gbps (SStatus 123 SControl 320)
+[ 1277.855083] ata4: EH complete
+[ 1277.855174] sd 4:0:0:0: [sdb] tag#27 FAILED Result: hostbyte=DID_BAD_TARGET driverbyte=DRIVER_OK
+[ 1277.855175] sd 4:0:0:0: [sdb] tag#21 FAILED Result: hostbyte=DID_BAD_TARGET driverbyte=DRIVER_OK
+[ 1277.855177] sd 4:0:0:0: [sdb] tag#18 FAILED Result: hostbyte=DID_BAD_TARGET driverbyte=DRIVER_OK
+[ 1277.855178] sd 4:0:0:0: [sdb] tag#21 CDB: Read(10) 28 00 05 33 29 37 00 00 08 00
+[ 1277.855179] sd 4:0:0:0: [sdb] tag#27 CDB: Read(10) 28 00 05 33 53 6f 00 00 08 00
+[ 1277.855179] sd 4:0:0:0: [sdb] tag#18 CDB: Write(10) 2a 00 05 34 be 67 00 00 08 00
+[ 1277.855183] blk_update_request: I/O error, dev sdb, sector 87249775
+[ 1277.855256] sd 4:0:0:0: [sdb] tag#22 FAILED Result: hostbyte=DID_BAD_TARGET driverbyte=DRIVER_OK
+[ 1277.855257] sd 4:0:0:0: [sdb] tag#28 FAILED Result: hostbyte=DID_BAD_TARGET driverbyte=DRIVER_OK
+[ 1277.855258] sd 4:0:0:0: [sdb] tag#22 CDB: Read(10) 28 00 05 33 4e 2f 00 00 08 00
+[ 1277.855259] sd 4:0:0:0: [sdb] tag#19 FAILED Result: hostbyte=DID_BAD_TARGET driverbyte=DRIVER_OK
+[ 1277.855260] blk_update_request: I/O error, dev sdb, sector 87248431
+[ 1277.855260] sd 4:0:0:0: [sdb] tag#28 CDB: Write(10) 2a 00 05 33 5a 27 00 00 18 00
+[ 1277.855261] sd 4:0:0:0: [sdb] tag#19 CDB: Read(10) 28 00 05 34 ba a7 00 00 08 00
+[ 1277.855261] blk_update_request: I/O error, dev sdb, sector 87251495
+[ 1277.855262] blk_update_request: I/O error, dev sdb, sector 87341735
+[ 1277.855319] sd 4:0:0:0: [sdb] tag#20 FAILED Result: hostbyte=DID_BAD_TARGET driverbyte=DRIVER_OK
+[ 1277.855320] sd 4:0:0:0: [sdb] tag#29 FAILED Result: hostbyte=DID_BAD_TARGET driverbyte=DRIVER_OK
+[ 1277.855320] sd 4:0:0:0: [sdb] tag#20 CDB: Write(10) 2a 00 05 33 4d 37 00 00 08 00
+[ 1277.855321] sd 4:0:0:0: [sdb] tag#24 FAILED Result: hostbyte=DID_BAD_TARGET driverbyte=DRIVER_OK
+[ 1277.855322] blk_update_request: I/O error, dev sdb, sector 87248183
+[ 1277.855322] sd 4:0:0:0: [sdb] tag#29 CDB: Write(10) 2a 00 05 34 c1 2f 00 00 10 00
+[ 1277.855323] sd 4:0:0:0: [sdb] tag#24 CDB: Read(10) 28 00 05 33 52 9f 00 00 08 00
+[ 1277.855323] blk_update_request: I/O error, dev sdb, sector 87343407
+[ 1277.855324] blk_update_request: I/O error, dev sdb, sector 87249567
+[ 1277.855373] sd 4:0:0:0: [sdb] tag#30 FAILED Result: hostbyte=DID_BAD_TARGET driverbyte=DRIVER_OK
+[ 1277.855374] blk_update_request: I/O error, dev sdb, sector 87343167
+[ 1277.855374] sd 4:0:0:0: [sdb] tag#30 CDB: Read(10) 28 00 05 33 23 af 00 00 08 00
+[ 1277.855375] blk_update_request: I/O error, dev sdb, sector 87237551
+[ 1277.855376] blk_update_request: I/O error, dev sdb, sector 87250175
+[ 1277.855728] Buffer I/O error on dev sdb1, logical block 1069738, lost async page write
+[ 1277.855736] Buffer I/O error on dev sdb1, logical block 10917863, lost async page write
+[ 1277.855739] Buffer I/O error on dev sdb1, logical block 10917864, lost async page write
+[ 1277.855741] Buffer I/O error on dev sdb1, logical block 10917885, lost async page write
+[ 1277.855744] Buffer I/O error on dev sdb1, logical block 11933189, lost async page write
+[ 1277.855749] Buffer I/O error on dev sdb1, logical block 10917840, lost async page write
+[ 1277.855768] Buffer I/O error on dev sdb1, logical block 10917829, lost async page write
+[ 1277.856003] Buffer I/O error on dev sdb1, logical block 10906429, lost async page write
+[ 1277.856008] Buffer I/O error on dev sdb1, logical block 10906430, lost async page write
+[ 1277.856011] Buffer I/O error on dev sdb1, logical block 10906431, lost async page write
+[ 1277.856847] XFS (sdb1): metadata I/O error: block 0x50080d0 ("xlog_iodone") error 5 numblks 64
+[ 1277.856850] XFS (sdb1): xfs_do_force_shutdown(0x2) called from line 1180 of file fs/xfs/xfs_log.c.  Return address = 0xffffffffa00f31a9
+[ 1277.857054] XFS (sdb1): Log I/O Error Detected.  Shutting down filesystem
+[ 1277.857055] XFS (sdb1): Please umount the filesystem and rectify the problem(s)
+[ 1277.858225] Core dump to |/usr/libexec/abrt-hook-ccpp 7 0 1 0 0 1426725983 e pipe failed
+[ 1277.858320] Core dump to |/usr/libexec/abrt-hook-ccpp 7 16777216 4995 0 0 1426725983 e pipe failed
+[ 1277.858385] Kernel panic - not syncing: Attempted to kill init! exitcode=0x00000007
 
-Signed-off-by: Kelley Nielsen <kelleynnn@gmail.com>
----
-Changes since v6:
+[ 1277.858387] CPU: 1 PID: 1 Comm: init Tainted: G            E   4.0.0-rc4+ #15
+[ 1277.858388] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/31/2013
+[ 1277.858390]  ffff880037baf740 ffff88007d07bc38 ffffffff814d0ee5 000000000000fffe
+[ 1277.858391]  ffffffff81701f18 ffff88007d07bcb8 ffffffff814d0c6c ffffffff00000010
+[ 1277.858392]  ffff88007d07bcc8 ffff88007d07bc68 0000000000000008 ffff88007d07bcb8
+[ 1277.858392] Call Trace:
+[ 1277.858398]  [<ffffffff814d0ee5>] dump_stack+0x48/0x5b
+[ 1277.858400]  [<ffffffff814d0c6c>] panic+0xbb/0x1fa
+[ 1277.858403]  [<ffffffff81055871>] do_exit+0xb51/0xb90
+[ 1277.858404]  [<ffffffff81055901>] do_group_exit+0x51/0xc0
+[ 1277.858406]  [<ffffffff81061dd2>] get_signal+0x222/0x590
+[ 1277.858408]  [<ffffffff81002496>] do_signal+0x36/0x710
+[ 1277.858411]  [<ffffffff810461d0>] ? mm_fault_error+0xd0/0x160
+[ 1277.858413]  [<ffffffff8104661b>] ? __do_page_fault+0x3bb/0x430
+[ 1277.858414]  [<ffffffff81002bb8>] do_notify_resume+0x48/0x60
+[ 1277.858416]  [<ffffffff814d59a7>] retint_signal+0x41/0x7a
+----------
 
-- From try_to_unuse(), return -EBUSY if max number of retries
-is exceeded.
----
- include/linux/shmem_fs.h |   2 +-
- mm/shmem.c               | 190 +++++++++++------------
- mm/swapfile.c            | 394 +++++++++++++++++------------------------------
- 3 files changed, 231 insertions(+), 355 deletions(-)
+(From http://I-love.SAKURA.ne.jp/tmp/serial-20150319-2.txt.xz )
+----------
+[ 2822.642453] scsi_io_completion: 21 callbacks suppressed
+[ 2822.644049] sd 4:0:0:0: [sdb] tag#10 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_TIMEOUT
+[ 2822.646453] sd 4:0:0:0: [sdb] tag#10 CDB: Read(10) 28 00 05 32 28 ff 00 00 08 00
+[ 2822.648630] blk_update_request: 21 callbacks suppressed
+[ 2822.648631] blk_update_request: I/O error, dev sdb, sector 87173375
+[ 2822.648663] sd 4:0:0:0: [sdb] tag#11 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_TIMEOUT
+[ 2822.648665] sd 4:0:0:0: [sdb] tag#11 CDB: Write(10) 2a 00 05 32 25 6f 00 00 08 00
+[ 2822.648665] blk_update_request: I/O error, dev sdb, sector 87172463
+[ 2822.648676] sd 4:0:0:0: [sdb] tag#12 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_TIMEOUT
+[ 2822.648677] sd 4:0:0:0: [sdb] tag#12 CDB: Read(10) 28 00 05 32 1e 8f 00 00 08 00
+[ 2822.648678] blk_update_request: I/O error, dev sdb, sector 87170703
+[ 2822.648700] sd 4:0:0:0: [sdb] tag#13 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_TIMEOUT
+[ 2822.648701] sd 4:0:0:0: [sdb] tag#13 CDB: Write(10) 2a 00 05 32 35 17 00 00 08 00
+[ 2822.648701] blk_update_request: I/O error, dev sdb, sector 87176471
+[ 2822.648711] sd 4:0:0:0: [sdb] tag#14 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_TIMEOUT
+[ 2822.648712] sd 4:0:0:0: [sdb] tag#14 CDB: Write(10) 2a 00 05 32 8c 77 00 00 08 00
+[ 2822.648713] blk_update_request: I/O error, dev sdb, sector 87198839
+[ 2822.648722] sd 4:0:0:0: [sdb] tag#15 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_TIMEOUT
+[ 2822.648723] sd 4:0:0:0: [sdb] tag#15 CDB: Read(10) 28 00 05 0b fb 8f 00 00 08 00
+[ 2822.648723] blk_update_request: I/O error, dev sdb, sector 84671375
+[ 2822.648742] sd 4:0:0:0: [sdb] tag#16 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_TIMEOUT
+[ 2822.648743] sd 4:0:0:0: [sdb] tag#16 CDB: Read(10) 28 00 05 33 3e f7 00 00 08 00
+[ 2822.648744] blk_update_request: I/O error, dev sdb, sector 87244535
+[ 2822.648753] sd 4:0:0:0: [sdb] tag#17 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_TIMEOUT
+[ 2822.648754] sd 4:0:0:0: [sdb] tag#17 CDB: Write(10) 2a 00 05 d1 eb 77 00 00 08 00
+[ 2822.648755] blk_update_request: I/O error, dev sdb, sector 97643383
+[ 2822.648759] sd 4:0:0:0: [sdb] tag#19 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_TIMEOUT
+[ 2822.648760] sd 4:0:0:0: [sdb] tag#19 CDB: Read(10) 28 00 05 32 f9 7f 00 00 08 00
+[ 2822.648760] blk_update_request: I/O error, dev sdb, sector 87226751
+[ 2822.648778] sd 4:0:0:0: [sdb] tag#18 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_TIMEOUT
+[ 2822.648780] sd 4:0:0:0: [sdb] tag#18 CDB: Read(10) 28 00 05 32 e3 37 00 00 08 00
+[ 2822.648780] blk_update_request: I/O error, dev sdb, sector 87221047
+[ 2822.649830] buffer_io_error: 122 callbacks suppressed
+[ 2822.649832] Buffer I/O error on dev sdb1, logical block 10896550, lost async page write
+[ 2822.649850] Buffer I/O error on dev sdb1, logical block 10897051, lost async page write
+[ 2822.649864] Buffer I/O error on dev sdb1, logical block 10899847, lost async page write
+[ 2822.649878] Buffer I/O error on dev sdb1, logical block 12205415, lost async page write
+[ 2822.649893] Buffer I/O error on dev sdb1, logical block 10903400, lost async page write
+[ 2822.649900] Buffer I/O error on dev sdb1, logical block 10905034, lost async page write
+[ 2822.649902] Buffer I/O error on dev sdb1, logical block 10905077, lost async page write
+[ 2822.649908] Buffer I/O error on dev sdb1, logical block 10900244, lost async page write
+[ 2822.649910] Buffer I/O error on dev sdb1, logical block 10901263, lost async page write
+[ 2822.649915] Buffer I/O error on dev sdb1, logical block 10899976, lost async page write
+[ 2822.649920] XFS (sdb1): metadata I/O error: block 0x50046c8 ("xlog_iodone") error 5 numblks 64
+[ 2822.649924] XFS (sdb1): xfs_do_force_shutdown(0x2) called from line 1180 of file fs/xfs/xfs_log.c.  Return address = 0xffffffffa00f31a9
+[ 2822.650440] XFS (sdb1): Log I/O Error Detected.  Shutting down filesystem
+[ 2822.650440] XFS (sdb1): Please umount the filesystem and rectify the problem(s)
+[ 2822.650444] XFS (sdb1): metadata I/O error: block 0x5004701 ("xlog_iodone") error 5 numblks 64
+[ 2822.650445] XFS (sdb1): xfs_do_force_shutdown(0x2) called from line 1180 of file fs/xfs/xfs_log.c.  Return address = 0xffffffffa00f31a9
+[ 2822.650446] XFS (sdb1): metadata I/O error: block 0x5004741 ("xlog_iodone") error 5 numblks 64
+[ 2822.650447] XFS (sdb1): xfs_do_force_shutdown(0x2) called from line 1180 of file fs/xfs/xfs_log.c.  Return address = 0xffffffffa00f31a9
+[ 2822.650819] XFS (sdb1): xfs_log_force: error -5 returned.
+[ 2822.676108] Core dump to |/usr/libexec/abrt-hook-ccpp 7 0 2233 0 0 1426728845 e pipe failed
+[ 2822.676268] Core dump to |/usr/libexec/abrt-hook-ccpp 7 0 1847 0 0 1426728845 e pipe failed
+[ 2822.761872] XFS (sdb1): xfs_imap_to_bp: xfs_trans_read_buf() returned error -5.
+[ 2822.814996] XFS (sdb1): xfs_log_force: error -5 returned.
+[ 2823.210912] audit: *NO* daemon at audit_pid=1847
+[ 2823.212289] audit: audit_lost=1 audit_rate_limit=0 audit_backlog_limit=320
+[ 2823.214238] audit: auditd disappeared
+[ 2823.215419] audit: type=1701 audit(1426728846.212:69): auid=4294967295 uid=0 gid=0 ses=4294967295 pid=2196 comm="master" exe="/usr/libexec/postfix/master" sig=7
+[ 2823.219662] audit: type=1701 audit(1426728846.214:70): auid=4294967295 uid=89 gid=89 ses=4294967295 pid=9984 comm="pickup" exe="/usr/libexec/postfix/pickup" sig=7
+[ 2823.228854] audit: type=1701 audit(1426728846.229:71): auid=4294967295 uid=0 gid=0 ses=4294967295 pid=1880 comm="rsyslogd" exe="/sbin/rsyslogd" sig=7
+[ 2823.232849] Core dump to |/usr/libexec/abrt-hook-ccpp 7 0 1877 0 0 1426728846 e pipe failed
+[ 2823.240671] audit: type=1701 audit(1426728846.241:72): auid=4294967295 uid=0 gid=0 ses=4294967295 pid=2265 comm="smbd" exe="/usr/sbin/smbd" sig=7
+[ 2823.244547] Core dump to |/usr/libexec/abrt-hook-ccpp 7 16777216 2265 0 0 1426728846 e pipe failed
+[ 2823.247697] audit: type=1701 audit(1426728846.248:73): auid=4294967295 uid=0 gid=0 ses=4294967295 pid=2242 comm="smbd" exe="/usr/sbin/smbd" sig=7
+[ 2823.252653] Core dump to |/usr/libexec/abrt-hook-ccpp 7 16777216 2242 0 0 1426728846 e pipe failed
+[ 2823.263635] audit: type=1701 audit(1426728846.264:74): auid=4294967295 uid=0 gid=0 ses=4294967295 pid=1801 comm="dhclient" exe="/sbin/dhclient" sig=7
+[ 2823.267442] Core dump to |/usr/libexec/abrt-hook-ccpp 7 0 1801 0 0 1426728846 e pipe failed
+[ 2848.437629] audit: type=1701 audit(1426728871.443:75): auid=0 uid=0 gid=0 ses=5 pid=10052 comm="bash" exe="/bin/bash" sig=7
+[ 2848.444223] Core dump to |/usr/libexec/abrt-hook-ccpp 7 0 10052 0 0 1426728871 e pipe failed
+[ 2848.449033] audit: type=1701 audit(1426728871.454:76): auid=0 uid=0 gid=0 ses=5 pid=9958 comm="login" exe="/bin/login" sig=7
+[ 2848.455734] Core dump to |/usr/libexec/abrt-hook-ccpp 7 0 9958 0 0 1426728871 e pipe failed
+[ 2848.460683] audit: type=1701 audit(1426728871.466:77): auid=4294967295 uid=81 gid=81 ses=4294967295 pid=2048 comm="dbus-daemon" exe="/bin/dbus-daemon" sig=7
+[ 2848.464454] audit: type=1701 audit(1426728871.470:78): auid=4294967295 uid=0 gid=0 ses=4294967295 pid=1 comm="init" exe="/sbin/init" sig=7
+[ 2848.464577] audit: type=1701 audit(1426728871.470:79): auid=4294967295 uid=0 gid=0 ses=4294967295 pid=9986 comm="console-kit-dae" exe="/usr/sbin/console-kit-daemon" sig=7
+[ 2848.464578] audit: type=1701 audit(1426728871.470:80): auid=4294967295 uid=70 gid=70 ses=4294967295 pid=2060 comm="avahi-daemon" exe="/usr/sbin/avahi-daemon" sig=7
+[ 2848.465160] audit: type=1701 audit(1426728871.470:81): auid=4294967295 uid=70 gid=70 ses=4294967295 pid=2061 comm="avahi-daemon" exe="/usr/sbin/avahi-daemon" sig=7
+[ 2848.476649] Core dump to |/usr/libexec/abrt-hook-ccpp 7 0 9986 0 0 1426728871 e pipe failed
+[ 2848.481923] Core dump to |/usr/libexec/abrt-hook-ccpp 7 0 1 0 0 1426728871 e pipe failed
+[ 2848.484090] Kernel panic - not syncing: Attempted to kill init! exitcode=0x00000007
+[ 2848.484090] 
+[ 2848.486554] CPU: 2 PID: 1 Comm: init Tainted: G            E   4.0.0-rc4+ #15
+[ 2848.488377] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/31/2013
+[ 2848.491120]  ffff880037be4ac0 ffff88007d07bc38 ffffffff814d0ee5 000000000000fffe
+[ 2848.493549]  ffffffff81701f18 ffff88007d07bcb8 ffffffff814d0c6c ffffffff00000010
+[ 2848.495723]  ffff88007d07bcc8 ffff88007d07bc68 0000000000000008 ffff88007d07bcb8
+[ 2848.498043] Call Trace:
+[ 2848.498738]  [<ffffffff814d0ee5>] dump_stack+0x48/0x5b
+[ 2848.500114]  [<ffffffff814d0c6c>] panic+0xbb/0x1fa
+[ 2848.501394]  [<ffffffff81055871>] do_exit+0xb51/0xb90
+[ 2848.502710]  [<ffffffff81055901>] do_group_exit+0x51/0xc0
+[ 2848.504128]  [<ffffffff81061dd2>] get_signal+0x222/0x590
+[ 2848.505509]  [<ffffffff81002496>] do_signal+0x36/0x710
+[ 2848.506848]  [<ffffffff810461d0>] ? mm_fault_error+0xd0/0x160
+[ 2848.508421]  [<ffffffff8104661b>] ? __do_page_fault+0x3bb/0x430
+[ 2848.509966]  [<ffffffff81002bb8>] do_notify_resume+0x48/0x60
+[ 2848.511435]  [<ffffffff814d59a7>] retint_signal+0x41/0x7a
+----------
 
-diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
-index 50777b5..f0cd6c9 100644
---- a/include/linux/shmem_fs.h
-+++ b/include/linux/shmem_fs.h
-@@ -58,7 +58,7 @@ extern void shmem_unlock_mapping(struct address_space *mapping);
- extern struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
- 					pgoff_t index, gfp_t gfp_mask);
- extern void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end);
--extern int shmem_unuse(swp_entry_t entry, struct page *page);
-+extern int shmem_unuse(unsigned int type);
- 
- static inline struct page *shmem_read_mapping_page(
- 				struct address_space *mapping, pgoff_t index)
-diff --git a/mm/shmem.c b/mm/shmem.c
-index cf2d0ca..a396bd3 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -609,132 +609,116 @@ static void shmem_evict_inode(struct inode *inode)
- /*
-  * If swap found in inode, free it and move page from swapcache to filecache.
-  */
--static int shmem_unuse_inode(struct shmem_inode_info *info,
--			     swp_entry_t swap, struct page **pagep)
-+static int shmem_unuse_inode(struct inode *inode, unsigned int type)
- {
--	struct address_space *mapping = info->vfs_inode.i_mapping;
--	void *radswap;
--	pgoff_t index;
-+	struct address_space *mapping = inode->i_mapping;
-+	void **slot = NULL;
-+	struct radix_tree_iter iter;
-+	struct page *pagep;
- 	gfp_t gfp;
- 	int error = 0;
--
--	radswap = swp_to_radix_entry(swap);
--	index = radix_tree_locate_item(&mapping->page_tree, radswap);
--	if (index == -1)
--		return -EAGAIN;	/* tell shmem_unuse we found nothing */
--
--	/*
--	 * Move _head_ to start search for next from here.
--	 * But be careful: shmem_evict_inode checks list_empty without taking
--	 * mutex, and there's an instant in list_move_tail when info->swaplist
--	 * would appear empty, if it were the only one on shmem_swaplist.
--	 */
--	if (shmem_swaplist.next != &info->swaplist)
--		list_move_tail(&shmem_swaplist, &info->swaplist);
--
-+	struct page *page;
-+	pgoff_t index;
-+	pgoff_t indices[PAGEVEC_SIZE];
-+	int i;
-+	int entries = 0;
-+	swp_entry_t entry;
-+	unsigned int stype;
-+	pgoff_t start = 0;
- 	gfp = mapping_gfp_mask(mapping);
--	if (shmem_should_replace_page(*pagep, gfp)) {
--		mutex_unlock(&shmem_swaplist_mutex);
--		error = shmem_replace_page(pagep, gfp, info, index);
--		mutex_lock(&shmem_swaplist_mutex);
--		/*
--		 * We needed to drop mutex to make that restrictive page
--		 * allocation, but the inode might have been freed while we
--		 * dropped it: although a racing shmem_evict_inode() cannot
--		 * complete without emptying the radix_tree, our page lock
--		 * on this swapcache page is not enough to prevent that -
--		 * free_swap_and_cache() of our swap entry will only
--		 * trylock_page(), removing swap from radix_tree whatever.
--		 *
--		 * We must not proceed to shmem_add_to_page_cache() if the
--		 * inode has been freed, but of course we cannot rely on
--		 * inode or mapping or info to check that.  However, we can
--		 * safely check if our swap entry is still in use (and here
--		 * it can't have got reused for another page): if it's still
--		 * in use, then the inode cannot have been freed yet, and we
--		 * can safely proceed (if it's no longer in use, that tells
--		 * nothing about the inode, but we don't need to unuse swap).
--		 */
--		if (!page_swapcount(*pagep))
--			error = -ENOENT;
--	}
- 
--	/*
--	 * We rely on shmem_swaplist_mutex, not only to protect the swaplist,
--	 * but also to hold up shmem_evict_inode(): so inode cannot be freed
--	 * beneath us (pagelock doesn't help until the page is in pagecache).
--	 */
--	if (!error)
--		error = shmem_add_to_page_cache(*pagep, mapping, index,
--						radswap);
--	if (error != -ENOMEM) {
--		/*
--		 * Truncation and eviction use free_swap_and_cache(), which
--		 * only does trylock page: if we raced, best clean up here.
--		 */
--		delete_from_swap_cache(*pagep);
--		set_page_dirty(*pagep);
--		if (!error) {
--			spin_lock(&info->lock);
--			info->swapped--;
--			spin_unlock(&info->lock);
--			swap_free(swap);
-+repeat:
-+	rcu_read_lock();
-+	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
-+		index = iter.index;
-+		page = radix_tree_deref_slot(slot);
-+		if (unlikely(!page))
-+			continue;
-+		if (radix_tree_exceptional_entry(page)) {
-+			entry = radix_to_swp_entry(page);
-+			stype = swp_type(entry);
-+			if (stype == type) {
-+				indices[entries] = iter.index;
-+				entries++;
-+				if (entries == PAGEVEC_SIZE)
-+					break;
-+			}
-+		}
-+	}
-+	rcu_read_unlock();
-+	for (i = 0; i < entries; i++) {
-+		error = shmem_getpage_gfp(inode, indices[i], &pagep,
-+				SGP_CACHE, gfp, NULL);
-+		if (error == 0) {
-+			unlock_page(pagep);
-+			page_cache_release(pagep);
- 		}
-+		if (error == -ENOMEM)
-+			goto out;
- 	}
-+	if (slot != NULL) {
-+		entries = 0;
-+		start = iter.index;
-+		goto repeat;
-+	}
-+out:
- 	return error;
- }
- 
- /*
-- * Search through swapped inodes to find and replace swap by page.
-+ * Read all the shared memory data that resides in the swap
-+ * device 'type' back into memory, so the swap device can be
-+ * unused.
-  */
--int shmem_unuse(swp_entry_t swap, struct page *page)
-+int shmem_unuse(unsigned int type)
- {
--	struct list_head *this, *next;
- 	struct shmem_inode_info *info;
--	struct mem_cgroup *memcg;
-+	struct inode *inode;
-+	struct inode *prev_inode = NULL;
-+	struct list_head *p;
-+	struct list_head *next;
- 	int error = 0;
- 
--	/*
--	 * There's a faint possibility that swap page was replaced before
--	 * caller locked it: caller will come back later with the right page.
--	 */
--	if (unlikely(!PageSwapCache(page) || page_private(page) != swap.val))
--		goto out;
-+	if (list_empty(&shmem_swaplist))
-+		return 0;
- 
-+	mutex_lock(&shmem_swaplist_mutex);
-+	p = &shmem_swaplist;
- 	/*
--	 * Charge page using GFP_KERNEL while we can wait, before taking
--	 * the shmem_swaplist_mutex which might hold up shmem_writepage().
--	 * Charged back to the user (not to caller) when swap account is used.
-+	 * The extra refcount on the inode is necessary to safely dereference
-+	 * p->next after re-acquiring the lock. New shmem inodes with swap
-+	 * get added to the end of the list and we will scan them all.
- 	 */
--	error = mem_cgroup_try_charge(page, current->mm, GFP_KERNEL, &memcg);
--	if (error)
--		goto out;
--	/* No radix_tree_preload: swap entry keeps a place for page in tree */
--	error = -EAGAIN;
--
--	mutex_lock(&shmem_swaplist_mutex);
--	list_for_each_safe(this, next, &shmem_swaplist) {
--		info = list_entry(this, struct shmem_inode_info, swaplist);
-+	while (!error && (p = p->next) != &shmem_swaplist) {
-+		info = list_entry(p, struct shmem_inode_info, swaplist);
-+		inode = igrab(&info->vfs_inode);
-+		if (!inode)
-+			continue;
-+		mutex_unlock(&shmem_swaplist_mutex);
-+		if (prev_inode)
-+			iput(prev_inode);
- 		if (info->swapped)
--			error = shmem_unuse_inode(info, swap, &page);
--		else
--			list_del_init(&info->swaplist);
-+			error = shmem_unuse_inode(inode, type);
- 		cond_resched();
--		if (error != -EAGAIN)
-+		prev_inode = inode;
-+		if (error)
- 			break;
--		/* found nothing in this: move on to search the next */
-+		mutex_lock(&shmem_swaplist_mutex);
-+	}
-+	mutex_unlock(&shmem_swaplist_mutex);
-+
-+	if (prev_inode)
-+		iput(prev_inode);
-+
-+	/* Remove now swapless inodes from the swaplist. */
-+	mutex_lock(&shmem_swaplist_mutex);
-+	list_for_each_safe(p, next, &shmem_swaplist) {
-+		info = list_entry(p, struct shmem_inode_info, swaplist);
-+		if (!info->swapped)
-+			list_del_init(&info->swaplist);
- 	}
- 	mutex_unlock(&shmem_swaplist_mutex);
- 
--	if (error) {
--		if (error != -ENOMEM)
--			error = 0;
--		mem_cgroup_cancel_charge(page, memcg);
--	} else
--		mem_cgroup_commit_charge(page, memcg, true);
--out:
--	unlock_page(page);
--	page_cache_release(page);
- 	return error;
- }
- 
-@@ -1104,7 +1088,7 @@ repeat:
- 		}
- 		if (!PageUptodate(page)) {
- 			error = -EIO;
--			goto failed;
-+
- 		}
- 		wait_on_page_writeback(page);
- 
-@@ -3277,7 +3261,7 @@ int __init shmem_init(void)
- 	return 0;
- }
- 
--int shmem_unuse(swp_entry_t swap, struct page *page)
-+int shmem_unuse(unsigned int type)
- {
- 	return 0;
- }
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 63f55cc..79c47b6 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1146,34 +1146,72 @@ out_nolock:
- 
- static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 				unsigned long addr, unsigned long end,
--				swp_entry_t entry, struct page *page)
-+				unsigned int type)
- {
--	pte_t swp_pte = swp_entry_to_pte(entry);
-+	struct page *page;
-+	swp_entry_t entry;
-+	unsigned int found_type;
- 	pte_t *pte;
-+	struct swap_info_struct *si;
-+	volatile unsigned char *swap_map;
-+	unsigned char swcount;
-+	unsigned long offset;
- 	int ret = 0;
- 
--	/*
--	 * We don't actually need pte lock while scanning for swp_pte: since
--	 * we hold page lock and mmap_sem, swp_pte cannot be inserted into the
--	 * page table while we're scanning; though it could get zapped, and on
--	 * some architectures (e.g. x86_32 with PAE) we might catch a glimpse
--	 * of unmatched parts which look like swp_pte, so unuse_pte must
--	 * recheck under pte lock.  Scanning without pte lock lets it be
--	 * preemptable whenever CONFIG_PREEMPT but not CONFIG_HIGHPTE.
--	 */
-+	si = swap_info[type];
- 	pte = pte_offset_map(pmd, addr);
- 	do {
-+		if (is_swap_pte(*pte)) {
-+			entry = pte_to_swp_entry(*pte);
-+			found_type = swp_type(entry);
-+			offset = swp_offset(entry);
-+		} else
-+			continue;
-+		if (found_type != type)
-+			continue;
-+
-+		swap_map = &si->swap_map[offset];
-+		if (!swap_count(*swap_map))
-+			continue;
-+		swcount = *swap_map;
-+
-+		pte_unmap(pte);
-+		page = swapin_readahead(entry, GFP_HIGHUSER_MOVABLE,
-+				vma, addr);
-+		if (!page) {
-+			if (!swcount || swcount == SWAP_MAP_BAD)
-+				goto try_next;
-+			return -ENOMEM;
-+		}
- 		/*
--		 * swapoff spends a _lot_ of time in this loop!
--		 * Test inline before going to call unuse_pte.
-+		 * Wait for and lock page.  When do_swap_page races with
-+		 * try_to_unuse, do_swap_page can handle the fault much
-+		 * faster than try_to_unuse can locate the entry.  This
-+		 * apparently redundant "wait_on_page_locked" lets try_to_unuse
-+		 * defer to do_swap_page in such a case - in some tests,
-+		 * do_swap_page and try_to_unuse repeatedly compete.
- 		 */
--		if (unlikely(maybe_same_pte(*pte, swp_pte))) {
--			pte_unmap(pte);
--			ret = unuse_pte(vma, pmd, addr, entry, page);
--			if (ret)
--				goto out;
--			pte = pte_offset_map(pmd, addr);
-+		wait_on_page_locked(page);
-+		wait_on_page_writeback(page);
-+		lock_page(page);
-+		wait_on_page_writeback(page);
-+		ret = unuse_pte(vma, pmd, addr, entry, page);
-+		if (ret < 0) {
-+			unlock_page(page);
-+			page_cache_release(page);
-+			goto out;
- 		}
-+
-+		if (PageSwapCache(page) && (swap_count(*swap_map) == 0)) {
-+			wait_on_page_writeback(page);
-+			delete_from_swap_cache(page);
-+		}
-+
-+		SetPageDirty(page);
-+		unlock_page(page);
-+		page_cache_release(page);
-+try_next:
-+		pte = pte_offset_map(pmd, addr);
- 	} while (pte++, addr += PAGE_SIZE, addr != end);
- 	pte_unmap(pte - 1);
- out:
-@@ -1182,7 +1220,7 @@ out:
- 
- static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
- 				unsigned long addr, unsigned long end,
--				swp_entry_t entry, struct page *page)
-+				unsigned int type)
- {
- 	pmd_t *pmd;
- 	unsigned long next;
-@@ -1193,8 +1231,8 @@ static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
- 		next = pmd_addr_end(addr, end);
- 		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
- 			continue;
--		ret = unuse_pte_range(vma, pmd, addr, next, entry, page);
--		if (ret)
-+		ret = unuse_pte_range(vma, pmd, addr, next, type);
-+		if (ret < 0)
- 			return ret;
- 	} while (pmd++, addr = next, addr != end);
- 	return 0;
-@@ -1202,7 +1240,7 @@ static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
- 
- static inline int unuse_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
- 				unsigned long addr, unsigned long end,
--				swp_entry_t entry, struct page *page)
-+				unsigned int type)
- {
- 	pud_t *pud;
- 	unsigned long next;
-@@ -1213,65 +1251,50 @@ static inline int unuse_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
- 		next = pud_addr_end(addr, end);
- 		if (pud_none_or_clear_bad(pud))
- 			continue;
--		ret = unuse_pmd_range(vma, pud, addr, next, entry, page);
--		if (ret)
-+		ret = unuse_pmd_range(vma, pud, addr, next, type);
-+		if (ret < 0)
- 			return ret;
- 	} while (pud++, addr = next, addr != end);
- 	return 0;
- }
- 
--static int unuse_vma(struct vm_area_struct *vma,
--				swp_entry_t entry, struct page *page)
-+static int unuse_vma(struct vm_area_struct *vma, unsigned int type)
- {
- 	pgd_t *pgd;
- 	unsigned long addr, end, next;
- 	int ret;
- 
--	if (page_anon_vma(page)) {
--		addr = page_address_in_vma(page, vma);
--		if (addr == -EFAULT)
--			return 0;
--		else
--			end = addr + PAGE_SIZE;
--	} else {
--		addr = vma->vm_start;
--		end = vma->vm_end;
--	}
-+	addr = vma->vm_start;
-+	end = vma->vm_end;
- 
- 	pgd = pgd_offset(vma->vm_mm, addr);
- 	do {
- 		next = pgd_addr_end(addr, end);
- 		if (pgd_none_or_clear_bad(pgd))
- 			continue;
--		ret = unuse_pud_range(vma, pgd, addr, next, entry, page);
--		if (ret)
-+		ret = unuse_pud_range(vma, pgd, addr, next, type);
-+		if (ret < 0)
- 			return ret;
- 	} while (pgd++, addr = next, addr != end);
- 	return 0;
- }
- 
--static int unuse_mm(struct mm_struct *mm,
--				swp_entry_t entry, struct page *page)
-+static int unuse_mm(struct mm_struct *mm, unsigned int type)
- {
- 	struct vm_area_struct *vma;
- 	int ret = 0;
- 
--	if (!down_read_trylock(&mm->mmap_sem)) {
--		/*
--		 * Activate page so shrink_inactive_list is unlikely to unmap
--		 * its ptes while lock is dropped, so swapoff can make progress.
--		 */
--		activate_page(page);
--		unlock_page(page);
--		down_read(&mm->mmap_sem);
--		lock_page(page);
--	}
-+	down_read(&mm->mmap_sem);
- 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
--		if (vma->anon_vma && (ret = unuse_vma(vma, entry, page)))
--			break;
-+		if (vma->anon_vma) {
-+			ret = unuse_vma(vma, type);
-+			if (ret)
-+				break;
-+		}
- 	}
- 	up_read(&mm->mmap_sem);
--	return (ret < 0)? ret: 0;
-+
-+	return ret;
- }
- 
- /*
-@@ -1319,234 +1342,103 @@ static unsigned int find_next_to_unuse(struct swap_info_struct *si,
- 	return i;
- }
- 
--/*
-- * We completely avoid races by reading each swap page in advance,
-- * and then search for the process using it.  All the necessary
-- * page table adjustments can then be made atomically.
-- *
-- * if the boolean frontswap is true, only unuse pages_to_unuse pages;
-- * pages_to_unuse==0 means all pages; ignored if frontswap is false
-- */
-+/* TODO: frontswap */
-+#define MAX_RETRIES 3
- int try_to_unuse(unsigned int type, bool frontswap,
- 		 unsigned long pages_to_unuse)
- {
-+	struct mm_struct *prev_mm;
-+	struct mm_struct *mm;
-+	struct list_head *p;
-+	int retval = 0;
- 	struct swap_info_struct *si = swap_info[type];
--	struct mm_struct *start_mm;
--	volatile unsigned char *swap_map; /* swap_map is accessed without
--					   * locking. Mark it as volatile
--					   * to prevent compiler doing
--					   * something odd.
--					   */
--	unsigned char swcount;
- 	struct page *page;
- 	swp_entry_t entry;
- 	unsigned int i = 0;
--	int retval = 0;
-+	unsigned int oldi = 0;
-+	int retries = 0;
- 
--	/*
--	 * When searching mms for an entry, a good strategy is to
--	 * start at the first mm we freed the previous entry from
--	 * (though actually we don't notice whether we or coincidence
--	 * freed the entry).  Initialize this start_mm with a hold.
--	 *
--	 * A simpler strategy would be to start at the last mm we
--	 * freed the previous entry from; but that would take less
--	 * advantage of mmlist ordering, which clusters forked mms
--	 * together, child after parent.  If we race with dup_mmap(), we
--	 * prefer to resolve parent before child, lest we miss entries
--	 * duplicated after we scanned child: using last mm would invert
--	 * that.
--	 */
--	start_mm = &init_mm;
--	atomic_inc(&init_mm.mm_users);
-+retry:
-+	retval = shmem_unuse(type);
-+	if (retval)
-+		goto out;
- 
--	/*
--	 * Keep on scanning until all entries have gone.  Usually,
--	 * one pass through swap_map is enough, but not necessarily:
--	 * there are races when an instance of an entry might be missed.
--	 */
--	while ((i = find_next_to_unuse(si, i, frontswap)) != 0) {
-+	prev_mm = &init_mm;
-+	atomic_inc(&prev_mm->mm_users);
-+
-+	spin_lock(&mmlist_lock);
-+	p = &init_mm.mmlist;
-+	while (!retval && (p = p->next) != &init_mm.mmlist) {
- 		if (signal_pending(current)) {
- 			retval = -EINTR;
- 			break;
- 		}
- 
--		/*
--		 * Get a page for the entry, using the existing swap
--		 * cache page if there is one.  Otherwise, get a clean
--		 * page and read the swap into it.
--		 */
--		swap_map = &si->swap_map[i];
--		entry = swp_entry(type, i);
--		page = read_swap_cache_async(entry,
--					GFP_HIGHUSER_MOVABLE, NULL, 0);
--		if (!page) {
--			/*
--			 * Either swap_duplicate() failed because entry
--			 * has been freed independently, and will not be
--			 * reused since sys_swapoff() already disabled
--			 * allocation from here, or alloc_page() failed.
--			 */
--			swcount = *swap_map;
--			/*
--			 * We don't hold lock here, so the swap entry could be
--			 * SWAP_MAP_BAD (when the cluster is discarding).
--			 * Instead of fail out, We can just skip the swap
--			 * entry because swapoff will wait for discarding
--			 * finish anyway.
--			 */
--			if (!swcount || swcount == SWAP_MAP_BAD)
--				continue;
--			retval = -ENOMEM;
--			break;
--		}
-+		mm = list_entry(p, struct mm_struct, mmlist);
-+		if (!atomic_inc_not_zero(&mm->mm_users))
-+			continue;
-+		spin_unlock(&mmlist_lock);
-+		mmput(prev_mm);
-+		prev_mm = mm;
- 
--		/*
--		 * Don't hold on to start_mm if it looks like exiting.
--		 */
--		if (atomic_read(&start_mm->mm_users) == 1) {
--			mmput(start_mm);
--			start_mm = &init_mm;
--			atomic_inc(&init_mm.mm_users);
--		}
-+		retval = unuse_mm(mm, type);
-+		if (retval)
-+			goto out_put;
- 
- 		/*
--		 * Wait for and lock page.  When do_swap_page races with
--		 * try_to_unuse, do_swap_page can handle the fault much
--		 * faster than try_to_unuse can locate the entry.  This
--		 * apparently redundant "wait_on_page_locked" lets try_to_unuse
--		 * defer to do_swap_page in such a case - in some tests,
--		 * do_swap_page and try_to_unuse repeatedly compete.
-+		 * Make sure that we aren't completely killing
-+		 * interactive performance.
- 		 */
--		wait_on_page_locked(page);
--		wait_on_page_writeback(page);
--		lock_page(page);
--		wait_on_page_writeback(page);
-+		cond_resched();
-+		spin_lock(&mmlist_lock);
-+	}
-+	spin_unlock(&mmlist_lock);
- 
-+out_put:
-+	mmput(prev_mm);
-+	if (retval)
-+		goto out;
-+	while ((i = find_next_to_unuse(si, i, frontswap)) != 0) {
- 		/*
--		 * Remove all references to entry.
-+		 * under global memory pressure, swap entries
-+		 * can be reinserted back into process space
-+		 * after the mmlist loop above passes over them.
-+		 * This loop will then repeat fruitlessly,
-+		 * reading in from swap and deleting from swapcache,
-+		 * but doing nothing to actually free up the swap.
-+		 * In this case, go over the mmlist loop again.
- 		 */
--		swcount = *swap_map;
--		if (swap_count(swcount) == SWAP_MAP_SHMEM) {
--			retval = shmem_unuse(entry, page);
--			/* page has already been unlocked and released */
--			if (retval < 0)
--				break;
--			continue;
--		}
--		if (swap_count(swcount) && start_mm != &init_mm)
--			retval = unuse_mm(start_mm, entry, page);
--
--		if (swap_count(*swap_map)) {
--			int set_start_mm = (*swap_map >= swcount);
--			struct list_head *p = &start_mm->mmlist;
--			struct mm_struct *new_start_mm = start_mm;
--			struct mm_struct *prev_mm = start_mm;
--			struct mm_struct *mm;
--
--			atomic_inc(&new_start_mm->mm_users);
--			atomic_inc(&prev_mm->mm_users);
--			spin_lock(&mmlist_lock);
--			while (swap_count(*swap_map) && !retval &&
--					(p = p->next) != &start_mm->mmlist) {
--				mm = list_entry(p, struct mm_struct, mmlist);
--				if (!atomic_inc_not_zero(&mm->mm_users))
--					continue;
--				spin_unlock(&mmlist_lock);
--				mmput(prev_mm);
--				prev_mm = mm;
--
--				cond_resched();
--
--				swcount = *swap_map;
--				if (!swap_count(swcount)) /* any usage ? */
--					;
--				else if (mm == &init_mm)
--					set_start_mm = 1;
--				else
--					retval = unuse_mm(mm, entry, page);
--
--				if (set_start_mm && *swap_map < swcount) {
--					mmput(new_start_mm);
--					atomic_inc(&mm->mm_users);
--					new_start_mm = mm;
--					set_start_mm = 0;
--				}
--				spin_lock(&mmlist_lock);
-+		if (i < oldi) {
-+			retries++;
-+			if (retries > MAX_RETRIES) {
-+				retval = -EBUSY;
-+				goto out;
- 			}
--			spin_unlock(&mmlist_lock);
--			mmput(prev_mm);
--			mmput(start_mm);
--			start_mm = new_start_mm;
--		}
--		if (retval) {
--			unlock_page(page);
--			page_cache_release(page);
--			break;
-+			goto retry;
- 		}
--
--		/*
--		 * If a reference remains (rare), we would like to leave
--		 * the page in the swap cache; but try_to_unmap could
--		 * then re-duplicate the entry once we drop page lock,
--		 * so we might loop indefinitely; also, that page could
--		 * not be swapped out to other storage meanwhile.  So:
--		 * delete from cache even if there's another reference,
--		 * after ensuring that the data has been saved to disk -
--		 * since if the reference remains (rarer), it will be
--		 * read from disk into another page.  Splitting into two
--		 * pages would be incorrect if swap supported "shared
--		 * private" pages, but they are handled by tmpfs files.
--		 *
--		 * Given how unuse_vma() targets one particular offset
--		 * in an anon_vma, once the anon_vma has been determined,
--		 * this splitting happens to be just what is needed to
--		 * handle where KSM pages have been swapped out: re-reading
--		 * is unnecessarily slow, but we can fix that later on.
--		 */
--		if (swap_count(*swap_map) &&
--		     PageDirty(page) && PageSwapCache(page)) {
--			struct writeback_control wbc = {
--				.sync_mode = WB_SYNC_NONE,
--			};
--
--			swap_writepage(page, &wbc);
--			lock_page(page);
--			wait_on_page_writeback(page);
--		}
--
-+		entry = swp_entry(type, i);
-+		page = read_swap_cache_async(entry, GFP_HIGHUSER_MOVABLE,
-+				NULL, 0);
-+		if (!page)
-+			continue;
- 		/*
- 		 * It is conceivable that a racing task removed this page from
--		 * swap cache just before we acquired the page lock at the top,
--		 * or while we dropped it in unuse_mm().  The page might even
--		 * be back in swap cache on another swap area: that we must not
--		 * delete, since it may not have been written out to swap yet.
-+		 * swap cache just before we acquired the page lock. The page
-+		 * might even be back in swap cache on another swap area; that
-+		 * we must not delete, since it may not have been written
-+		 * out to swap yet.
- 		 */
-+		lock_page(page);
- 		if (PageSwapCache(page) &&
--		    likely(page_private(page) == entry.val))
-+		    likely(page_private(page) == entry.val)) {
-+			wait_on_page_writeback(page);
- 			delete_from_swap_cache(page);
--
--		/*
--		 * So we could skip searching mms once swap count went
--		 * to 1, we did not mark any present ptes as dirty: must
--		 * mark page dirty so shrink_page_list will preserve it.
--		 */
--		SetPageDirty(page);
-+		}
- 		unlock_page(page);
- 		page_cache_release(page);
--
--		/*
--		 * Make sure that we aren't completely killing
--		 * interactive performance.
--		 */
--		cond_resched();
--		if (frontswap && pages_to_unuse > 0) {
--			if (!--pages_to_unuse)
--				break;
--		}
-+		oldi = i;
- 	}
--
--	mmput(start_mm);
-+out:
- 	return retval;
- }
- 
--- 
-1.8.3.2
+Innocent (possibly critical) process can be killed unexpectedly than
+return -ENOMEM to the system calls or return NULL to e.g. kmalloc() users.
+This is much worse than choosing the second OOM victim upon timeout.
+
+Why not change each caller to use either __GFP_NOFAIL or __GFP_NORETRY
+than introduce global sysctl_nr_alloc_retry which will unconditionally
+allow small allocations to fail?
+
+
+
+Also found yet another problem. kernel worker thread seems to be stalling at
+bdi_writeback_workfn() => xfs_vm_writepage() => xfs_buf_allocate_memory() =>
+alloc_pages_current() => shrink_inactive_list() => congestion_wait() forever
+while kswapd0 seems to be stalling at shrink_inactive_list() =>
+xfs_vm_writepage() => xlog_grant_head_wait() forever.
+
+(From http://I-love.SAKURA.ne.jp/tmp/serial-20150319-3.txt.xz )
+----------
+[ 1392.529392] sysrq: SysRq : Show Blocked State
+[ 1392.532232]   task                        PC stack   pid father
+[ 1392.535229] kswapd0         D ffff88007c3a3728     0    40      2 0x00000000
+[ 1392.538916]  ffff88007c3a3728 ffff88007c5514b0 ffff88007cddac00 0000000000000008
+[ 1392.543034]  0000000000000286 ffff88007ac35a42 ffff88007c3a0010 ffff88007c11fdc0
+[ 1392.547234]  ffff880037af61c0 00000000000009cc 00000000000147a0 ffff88007c3a3748
+[ 1392.551350] Call Trace:
+[ 1392.552673]  [<ffffffff814d1aee>] schedule+0x3e/0x90
+[ 1392.555285]  [<ffffffffa00f4377>] xlog_grant_head_wait+0xb7/0x1c0 [xfs]
+[ 1392.558611]  [<ffffffffa00f4546>] xlog_grant_head_check+0xc6/0xe0 [xfs]
+[ 1392.561938]  [<ffffffffa00f4642>] xfs_log_reserve+0xe2/0x220 [xfs]
+[ 1392.565083]  [<ffffffffa00efc85>] xfs_trans_reserve+0x1e5/0x220 [xfs]
+[ 1392.568312]  [<ffffffffa00efe9a>] ? _xfs_trans_alloc+0x3a/0xa0 [xfs]
+[ 1392.570965]  [<ffffffffa00ca76a>] xfs_setfilesize_trans_alloc+0x4a/0xb0 [xfs]
+[ 1392.572670]  [<ffffffffa00ccb15>] xfs_vm_writepage+0x4a5/0x5a0 [xfs]
+[ 1392.574173]  [<ffffffff81139aac>] shrink_page_list+0x43c/0x9d0
+[ 1392.575566]  [<ffffffff8113a6c5>] shrink_inactive_list+0x275/0x500
+[ 1392.577084]  [<ffffffff812565c0>] ? radix_tree_gang_lookup_tag+0x90/0xd0
+[ 1392.578657]  [<ffffffff8113b2e1>] shrink_lruvec+0x641/0x730
+[ 1392.580093]  [<ffffffff8108098a>] ? set_next_entity+0x2a/0x60
+[ 1392.581516]  [<ffffffff810aeaac>] ? lock_timer_base+0x3c/0x70
+[ 1392.582915]  [<ffffffff810aed93>] ? try_to_del_timer_sync+0x53/0x70
+[ 1392.584408]  [<ffffffff8113b8c5>] shrink_zone+0x75/0x1b0
+[ 1392.585669]  [<ffffffff8113c19e>] kswapd+0x4de/0x9a0
+[ 1392.586967]  [<ffffffff8113bcc0>] ? zone_reclaim+0x2c0/0x2c0
+[ 1392.588363]  [<ffffffff8113bcc0>] ? zone_reclaim+0x2c0/0x2c0
+[ 1392.589738]  [<ffffffff8106f0ae>] kthread+0xce/0xf0
+[ 1392.590967]  [<ffffffff8106efe0>] ? kthread_freezable_should_stop+0x70/0x70
+[ 1392.592629]  [<ffffffff814d4c88>] ret_from_fork+0x58/0x90
+[ 1392.593909]  [<ffffffff8106efe0>] ? kthread_freezable_should_stop+0x70/0x70
+[ 1392.595582] kworker/u16:29  D ffff88007b28e8e8     0   440      2 0x00000000
+[ 1392.597428] Workqueue: writeback bdi_writeback_workfn (flush-8:0)
+[ 1392.598998]  ffff88007b28e8e8 ffff88007c9288c0 ffff88007b27aa80 ffff88007b28e8e8
+[ 1392.600983]  ffffffff810aed93 ffff88007fc93740 ffff88007b28c010 ffff88007d1b8000
+[ 1392.603045]  000000010010ac98 ffff88007d1b8000 000000010010ac34 ffff88007b28e908
+[ 1392.605052] Call Trace:
+[ 1392.605698]  [<ffffffff810aed93>] ? try_to_del_timer_sync+0x53/0x70
+[ 1392.607218]  [<ffffffff814d1aee>] schedule+0x3e/0x90
+[ 1392.608421]  [<ffffffff814d3dc9>] schedule_timeout+0xf9/0x1a0
+[ 1392.609785]  [<ffffffff810aefd0>] ? add_timer_on+0xd0/0xd0
+[ 1392.611093]  [<ffffffff814d0faa>] io_schedule_timeout+0xaa/0x130
+[ 1392.612599]  [<ffffffff811447af>] congestion_wait+0x7f/0x100
+[ 1392.614043]  [<ffffffff8108c170>] ? woken_wake_function+0x20/0x20
+[ 1392.615530]  [<ffffffff8113a8f4>] shrink_inactive_list+0x4a4/0x500
+[ 1392.617051]  [<ffffffff8113b2e1>] shrink_lruvec+0x641/0x730
+[ 1392.618446]  [<ffffffff8114d850>] ? list_lru_count_one+0x20/0x30
+[ 1392.619926]  [<ffffffff8113b8c5>] shrink_zone+0x75/0x1b0
+[ 1392.621223]  [<ffffffff8113c7f3>] do_try_to_free_pages+0x193/0x340
+[ 1392.622680]  [<ffffffff8113caf7>] try_to_free_pages+0xb7/0x140
+[ 1392.624074]  [<ffffffff811305bf>] __alloc_pages_nodemask+0x58f/0x9a0
+[ 1392.625567]  [<ffffffff81170d87>] alloc_pages_current+0xa7/0x170
+[ 1392.626992]  [<ffffffffa00d2a05>] xfs_buf_allocate_memory+0x1a5/0x290 [xfs]
+[ 1392.628650]  [<ffffffffa00d3fe0>] xfs_buf_get_map+0x130/0x180 [xfs]
+[ 1392.630281]  [<ffffffffa00d4060>] xfs_buf_read_map+0x30/0x100 [xfs]
+[ 1392.631815]  [<ffffffffa00fffb9>] xfs_trans_read_buf_map+0xd9/0x300 [xfs]
+[ 1392.633666]  [<ffffffffa00aa029>] xfs_btree_read_buf_block+0x79/0xc0 [xfs]
+[ 1392.635398]  [<ffffffffa00aa274>] xfs_btree_lookup_get_block+0x84/0xf0 [xfs]
+[ 1392.637112]  [<ffffffffa00aac8f>] xfs_btree_lookup+0xcf/0x4b0 [xfs]
+[ 1392.638594]  [<ffffffff81179573>] ? kmem_cache_alloc+0x163/0x1d0
+[ 1392.640033]  [<ffffffffa0092e39>] xfs_alloc_lookup_eq+0x19/0x20 [xfs]
+[ 1392.641556]  [<ffffffffa0093155>] xfs_alloc_fixup_trees+0x2a5/0x340 [xfs]
+[ 1392.643156]  [<ffffffffa0094b8d>] xfs_alloc_ag_vextent_near+0x9ad/0xb60 [xfs]
+[ 1392.644850]  [<ffffffffa0095c1d>] ? xfs_alloc_fix_freelist+0x3dd/0x470 [xfs]
+[ 1392.646615]  [<ffffffffa00950a5>] xfs_alloc_ag_vextent+0xd5/0x100 [xfs]
+[ 1392.648262]  [<ffffffffa0095f64>] xfs_alloc_vextent+0x2b4/0x600 [xfs]
+[ 1392.649855]  [<ffffffffa00a4c48>] xfs_bmap_btalloc+0x388/0x750 [xfs]
+[ 1392.651412]  [<ffffffffa00a86e8>] ? xfs_bmbt_get_all+0x18/0x20 [xfs]
+[ 1392.652917]  [<ffffffffa00a5034>] xfs_bmap_alloc+0x24/0x40 [xfs]
+[ 1392.654343]  [<ffffffffa00a7742>] xfs_bmapi_write+0x5a2/0xa20 [xfs]
+[ 1392.655846]  [<ffffffffa009e8d0>] ? xfs_bmap_last_offset+0x50/0xc0 [xfs]
+[ 1392.657431]  [<ffffffffa00df6fe>] xfs_iomap_write_allocate+0x14e/0x380 [xfs]
+[ 1392.659110]  [<ffffffffa00cbb79>] xfs_map_blocks+0x139/0x220 [xfs]
+[ 1392.660576]  [<ffffffffa00cc7f6>] xfs_vm_writepage+0x186/0x5a0 [xfs]
+[ 1392.662193]  [<ffffffff81130b47>] __writepage+0x17/0x40
+[ 1392.663635]  [<ffffffff81131d57>] write_cache_pages+0x247/0x510
+[ 1392.665121]  [<ffffffff81130b30>] ? set_page_dirty+0x60/0x60
+[ 1392.666503]  [<ffffffff81132071>] generic_writepages+0x51/0x80
+[ 1392.667966]  [<ffffffffa00cba03>] xfs_vm_writepages+0x53/0x70 [xfs]
+[ 1392.669445]  [<ffffffff811320c0>] do_writepages+0x20/0x40
+[ 1392.670730]  [<ffffffff811b1569>] __writeback_single_inode+0x49/0x2e0
+[ 1392.672267]  [<ffffffff8108c80f>] ? wake_up_bit+0x2f/0x40
+[ 1392.673681]  [<ffffffff811b1c3a>] writeback_sb_inodes+0x28a/0x4e0
+[ 1392.675167]  [<ffffffff811b1f2e>] __writeback_inodes_wb+0x9e/0xd0
+[ 1392.676661]  [<ffffffff811b215b>] wb_writeback+0x1fb/0x2c0
+[ 1392.678000]  [<ffffffff811b22a1>] wb_do_writeback+0x81/0x1f0
+[ 1392.679492]  [<ffffffff81086f3b>] ? pick_next_task_fair+0x40b/0x550
+[ 1392.681076]  [<ffffffff811b2480>] bdi_writeback_workfn+0x70/0x200
+[ 1392.682564]  [<ffffffff81076961>] ? dequeue_task+0x61/0x90
+[ 1392.683902]  [<ffffffff8106976a>] process_one_work+0x13a/0x420
+[ 1392.685287]  [<ffffffff81069b73>] worker_thread+0x123/0x4f0
+[ 1392.686610]  [<ffffffff81069a50>] ? process_one_work+0x420/0x420
+[ 1392.688045]  [<ffffffff81069a50>] ? process_one_work+0x420/0x420
+[ 1392.689466]  [<ffffffff8106f0ae>] kthread+0xce/0xf0
+[ 1392.690630]  [<ffffffff8106efe0>] ? kthread_freezable_should_stop+0x70/0x70
+[ 1392.692329]  [<ffffffff814d4c88>] ret_from_fork+0x58/0x90
+[ 1392.693617]  [<ffffffff8106efe0>] ? kthread_freezable_should_stop+0x70/0x70
+(...snipped...)
+[ 1714.888104] sysrq: SysRq : Show Blocked State
+[ 1714.890786]   task                        PC stack   pid father
+[ 1714.894315] kswapd0         D ffff88007c3a3728     0    40      2 0x00000000
+[ 1714.898427]  ffff88007c3a3728 ffff88007c5514b0 ffff88007cddac00 0000000000000008
+[ 1714.902908]  0000000000000286 ffff88007ac35a42 ffff88007c3a0010 ffff88007c11fdc0
+[ 1714.907032]  ffff880037af61c0 00000000000009cc 00000000000147a0 ffff88007c3a3748
+[ 1714.909212] Call Trace:
+[ 1714.909909]  [<ffffffff814d1aee>] schedule+0x3e/0x90
+[ 1714.911283]  [<ffffffffa00f4377>] xlog_grant_head_wait+0xb7/0x1c0 [xfs]
+[ 1714.913067]  [<ffffffffa00f4546>] xlog_grant_head_check+0xc6/0xe0 [xfs]
+[ 1714.914850]  [<ffffffffa00f4642>] xfs_log_reserve+0xe2/0x220 [xfs]
+[ 1714.916496]  [<ffffffffa00efc85>] xfs_trans_reserve+0x1e5/0x220 [xfs]
+[ 1714.918216]  [<ffffffffa00efe9a>] ? _xfs_trans_alloc+0x3a/0xa0 [xfs]
+[ 1714.919904]  [<ffffffffa00ca76a>] xfs_setfilesize_trans_alloc+0x4a/0xb0 [xfs]
+[ 1714.921796]  [<ffffffffa00ccb15>] xfs_vm_writepage+0x4a5/0x5a0 [xfs]
+[ 1714.923484]  [<ffffffff81139aac>] shrink_page_list+0x43c/0x9d0
+[ 1714.925037]  [<ffffffff8113a6c5>] shrink_inactive_list+0x275/0x500
+[ 1714.926706]  [<ffffffff812565c0>] ? radix_tree_gang_lookup_tag+0x90/0xd0
+[ 1714.928511]  [<ffffffff8113b2e1>] shrink_lruvec+0x641/0x730
+[ 1714.930028]  [<ffffffff8108098a>] ? set_next_entity+0x2a/0x60
+[ 1714.931562]  [<ffffffff810aeaac>] ? lock_timer_base+0x3c/0x70
+[ 1714.933089]  [<ffffffff810aed93>] ? try_to_del_timer_sync+0x53/0x70
+[ 1714.934781]  [<ffffffff8113b8c5>] shrink_zone+0x75/0x1b0
+[ 1714.936197]  [<ffffffff8113c19e>] kswapd+0x4de/0x9a0
+[ 1714.937549]  [<ffffffff8113bcc0>] ? zone_reclaim+0x2c0/0x2c0
+[ 1714.939067]  [<ffffffff8113bcc0>] ? zone_reclaim+0x2c0/0x2c0
+[ 1714.940593]  [<ffffffff8106f0ae>] kthread+0xce/0xf0
+[ 1714.941908]  [<ffffffff8106efe0>] ? kthread_freezable_should_stop+0x70/0x70
+[ 1714.943773]  [<ffffffff814d4c88>] ret_from_fork+0x58/0x90
+[ 1714.945216]  [<ffffffff8106efe0>] ? kthread_freezable_should_stop+0x70/0x70
+[ 1714.947069] kworker/u16:29  D ffff88007b28e8e8     0   440      2 0x00000000
+[ 1714.949024] Workqueue: writeback bdi_writeback_workfn (flush-8:0)
+[ 1714.950742]  ffff88007b28e8e8 ffff88007c9288c0 ffff88007b27aa80 ffff88007b28e8e8
+[ 1714.953192]  ffffffff810aed93 0000000000000002 ffff88007b28c010 ffff88007d1b8000
+[ 1714.955407]  0000000100159847 ffff88007d1b8000 00000001001597e3 ffff88007b28e908
+[ 1714.957577] Call Trace:
+[ 1714.958269]  [<ffffffff810aed93>] ? try_to_del_timer_sync+0x53/0x70
+[ 1714.959931]  [<ffffffff814d1aee>] schedule+0x3e/0x90
+[ 1714.961291]  [<ffffffff814d3dc9>] schedule_timeout+0xf9/0x1a0
+[ 1714.962838]  [<ffffffff810aefd0>] ? add_timer_on+0xd0/0xd0
+[ 1714.964305]  [<ffffffff814d0faa>] io_schedule_timeout+0xaa/0x130
+[ 1714.965903]  [<ffffffff811447af>] congestion_wait+0x7f/0x100
+[ 1714.967906]  [<ffffffff8108c170>] ? woken_wake_function+0x20/0x20
+[ 1714.969604]  [<ffffffff8113a8f4>] shrink_inactive_list+0x4a4/0x500
+[ 1714.971251]  [<ffffffff8113b2e1>] shrink_lruvec+0x641/0x730
+[ 1714.972743]  [<ffffffff8114d850>] ? list_lru_count_one+0x20/0x30
+[ 1714.974338]  [<ffffffff8113b8c5>] shrink_zone+0x75/0x1b0
+[ 1714.975801]  [<ffffffff8113c7f3>] do_try_to_free_pages+0x193/0x340
+[ 1714.977471]  [<ffffffff8113caf7>] try_to_free_pages+0xb7/0x140
+[ 1714.979048]  [<ffffffff811305bf>] __alloc_pages_nodemask+0x58f/0x9a0
+[ 1714.980734]  [<ffffffff81170d87>] alloc_pages_current+0xa7/0x170
+[ 1714.982347]  [<ffffffffa00d2a05>] xfs_buf_allocate_memory+0x1a5/0x290 [xfs]
+[ 1714.984239]  [<ffffffffa00d3fe0>] xfs_buf_get_map+0x130/0x180 [xfs]
+[ 1714.985925]  [<ffffffffa00d4060>] xfs_buf_read_map+0x30/0x100 [xfs]
+[ 1714.987611]  [<ffffffffa00fffb9>] xfs_trans_read_buf_map+0xd9/0x300 [xfs]
+[ 1714.989421]  [<ffffffffa00aa029>] xfs_btree_read_buf_block+0x79/0xc0 [xfs]
+[ 1714.991257]  [<ffffffffa00aa274>] xfs_btree_lookup_get_block+0x84/0xf0 [xfs]
+[ 1714.993342]  [<ffffffffa00aac8f>] xfs_btree_lookup+0xcf/0x4b0 [xfs]
+[ 1714.995038]  [<ffffffff81179573>] ? kmem_cache_alloc+0x163/0x1d0
+[ 1714.996655]  [<ffffffffa0092e39>] xfs_alloc_lookup_eq+0x19/0x20 [xfs]
+[ 1714.998429]  [<ffffffffa0093155>] xfs_alloc_fixup_trees+0x2a5/0x340 [xfs]
+[ 1715.000242]  [<ffffffffa0094b8d>] xfs_alloc_ag_vextent_near+0x9ad/0xb60 [xfs]
+[ 1715.002137]  [<ffffffffa0095c1d>] ? xfs_alloc_fix_freelist+0x3dd/0x470 [xfs]
+[ 1715.004003]  [<ffffffffa00950a5>] xfs_alloc_ag_vextent+0xd5/0x100 [xfs]
+[ 1715.005761]  [<ffffffffa0095f64>] xfs_alloc_vextent+0x2b4/0x600 [xfs]
+[ 1715.007482]  [<ffffffffa00a4c48>] xfs_bmap_btalloc+0x388/0x750 [xfs]
+[ 1715.009177]  [<ffffffffa00a86e8>] ? xfs_bmbt_get_all+0x18/0x20 [xfs]
+[ 1715.010896]  [<ffffffffa00a5034>] xfs_bmap_alloc+0x24/0x40 [xfs]
+[ 1715.012551]  [<ffffffffa00a7742>] xfs_bmapi_write+0x5a2/0xa20 [xfs]
+[ 1715.014248]  [<ffffffffa009e8d0>] ? xfs_bmap_last_offset+0x50/0xc0 [xfs]
+[ 1715.016071]  [<ffffffffa00df6fe>] xfs_iomap_write_allocate+0x14e/0x380 [xfs]
+[ 1715.017965]  [<ffffffffa00cbb79>] xfs_map_blocks+0x139/0x220 [xfs]
+[ 1715.019631]  [<ffffffffa00cc7f6>] xfs_vm_writepage+0x186/0x5a0 [xfs]
+[ 1715.021345]  [<ffffffff81130b47>] __writepage+0x17/0x40
+[ 1715.022762]  [<ffffffff81131d57>] write_cache_pages+0x247/0x510
+[ 1715.024370]  [<ffffffff81130b30>] ? set_page_dirty+0x60/0x60
+[ 1715.025885]  [<ffffffff81132071>] generic_writepages+0x51/0x80
+[ 1715.027614]  [<ffffffffa00cba03>] xfs_vm_writepages+0x53/0x70 [xfs]
+[ 1715.029179]  [<ffffffff811320c0>] do_writepages+0x20/0x40
+[ 1715.030559]  [<ffffffff811b1569>] __writeback_single_inode+0x49/0x2e0
+[ 1715.032154]  [<ffffffff8108c80f>] ? wake_up_bit+0x2f/0x40
+[ 1715.033498]  [<ffffffff811b1c3a>] writeback_sb_inodes+0x28a/0x4e0
+[ 1715.035025]  [<ffffffff811b1f2e>] __writeback_inodes_wb+0x9e/0xd0
+[ 1715.036551]  [<ffffffff811b215b>] wb_writeback+0x1fb/0x2c0
+[ 1715.037916]  [<ffffffff811b22a1>] wb_do_writeback+0x81/0x1f0
+[ 1715.039317]  [<ffffffff81086f3b>] ? pick_next_task_fair+0x40b/0x550
+[ 1715.040897]  [<ffffffff811b2480>] bdi_writeback_workfn+0x70/0x200
+[ 1715.042415]  [<ffffffff81076961>] ? dequeue_task+0x61/0x90
+[ 1715.043798]  [<ffffffff8106976a>] process_one_work+0x13a/0x420
+[ 1715.045260]  [<ffffffff81069b73>] worker_thread+0x123/0x4f0
+[ 1715.046665]  [<ffffffff81069a50>] ? process_one_work+0x420/0x420
+[ 1715.048154]  [<ffffffff81069a50>] ? process_one_work+0x420/0x420
+[ 1715.049659]  [<ffffffff8106f0ae>] kthread+0xce/0xf0
+[ 1715.050880]  [<ffffffff8106efe0>] ? kthread_freezable_should_stop+0x70/0x70
+[ 1715.052608]  [<ffffffff814d4c88>] ret_from_fork+0x58/0x90
+[ 1715.053958]  [<ffffffff8106efe0>] ? kthread_freezable_should_stop+0x70/0x70
+----------
+
+I do want hints like http://www.spinics.net/lists/linux-mm/msg81409.html for
+guessing whether forward progress is made or not. I'm fine with enabling
+such hints with CONFIG_DEBUG_something.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
