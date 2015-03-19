@@ -1,101 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id E41FB6B0038
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 04:08:37 -0400 (EDT)
-Received: by pabxg6 with SMTP id xg6so55665539pab.0
-        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 01:08:37 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id ww5si1295646pab.117.2015.03.19.01.08.36
+Received: from mail-la0-f51.google.com (mail-la0-f51.google.com [209.85.215.51])
+	by kanga.kvack.org (Postfix) with ESMTP id BA2CD6B0038
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 04:33:43 -0400 (EDT)
+Received: by ladw1 with SMTP id w1so56068154lad.0
+        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 01:33:43 -0700 (PDT)
+Received: from mail-la0-x231.google.com (mail-la0-x231.google.com. [2a00:1450:4010:c03::231])
+        by mx.google.com with ESMTPS id i9si474269lae.58.2015.03.19.01.33.41
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Mar 2015 01:08:36 -0700 (PDT)
-Date: Thu, 19 Mar 2015 11:08:18 +0300
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH 0/3] idle memory tracking
-Message-ID: <20150319080818.GD29416@esperanza>
-References: <cover.1426706637.git.vdavydov@parallels.com>
- <20150319021337.GD9153@blaptop>
+        Thu, 19 Mar 2015 01:33:41 -0700 (PDT)
+Received: by labjg1 with SMTP id jg1so56076568lab.2
+        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 01:33:41 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20150319021337.GD9153@blaptop>
+In-Reply-To: <20150228064647.GA9550@udknight.ahead-top.com>
+References: <20150228064647.GA9550@udknight.ahead-top.com>
+Date: Thu, 19 Mar 2015 11:33:41 +0300
+Message-ID: <CALYGNiMLwhqQSmj58mT4MWk2RAuU-3TykoSd=XjuXVfqkL3NoA@mail.gmail.com>
+Subject: Re: [RFC] Strange do_munmap in mmap_region
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jonathan Corbet <corbet@lwn.net>, linux-api@vger.kernel.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Wang YanQing <udknight@gmail.com>
+Cc: Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, yinghai@kernel.org.ahead-top.com, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Mar 19, 2015 at 11:13:37AM +0900, Minchan Kim wrote:
-> On Wed, Mar 18, 2015 at 11:44:33PM +0300, Vladimir Davydov wrote:
-> >  1. Write 1 to /proc/sys/vm/set_idle.
-> > 
-> >     This will set the IDLE flag for all user pages. The IDLE flag is cleared
-> >     when the page is read or the ACCESS/YOUNG bit is cleared in any PTE pointing
-> >     to the page. It is also cleared when the page is freed.
-> 
-> We should scan all of pages periodically? I understand why you did but
-> someone might not take care of unmapped pages so I hope it should be optional.
-> if someone just want to catch mapped file+anon pages, he can do it
-> by scanning of address space of the process he selects.
-> Even, someone might want to scan just part of address space rather than
-> all address space of the process. Acutally, I have such scenario.
+On Sat, Feb 28, 2015 at 9:46 AM, Wang YanQing <udknight@gmail.com> wrote:
+> Hi Mel Gorman and all.
+>
+> I have read do_mmap_pgoff and mmap_region more than one hour,
+> but still can't catch sense about below code in mmap_region:
+>
+> "
+>         /* Clear old maps */
+>         error = -ENOMEM;
+> munmap_back:
+>         if (find_vma_links(mm, addr, addr + len, &prev, &rb_link, &rb_parent)) {
+>                 if (do_munmap(mm, addr, len))
+>                         return -ENOMEM;
+>                 goto munmap_back;
+>         }
+> "
+>
+> How can we just do_munmap overlapping vma without check its vm_flags
+> and new vma's vm_flags? I must miss some important things, but I can't
+> figure out.
+>
+> You give below comment about the code in "understand the linux memory manager":)
+>
+> "
+> If a VMA was found and it is part of the new mmapping, this removes the
+>  old mmapping because the new one will cover both
+> "
+>
+> But if new mmapping has different vm_flags or others' property, how
+> can we just say the new one will cover both?
+>
+> I appreicate any clue and explanation about this headache question.
+>
+> Thanks.
+>
 
-You still can estimate the working set size of a particular process, or
-even by a part of its address space, by setting the IDLE bit for all
-user pages, but clearing refs for and analyzing only those pages you are
-interested in. You can filter them by scanning /proc/PID/pagemap.
+Mmap() creates new mapping in given range
+(new vma might be merged to one or both of sides if possible)
+so everything what was here before is unmapped in process. Not?
 
-If you are concerned about performance, I don't think it would be an
-issue: on my test machine setting the IDLE bit for 20 GB of user pages
-takes about 150 ms. Provided that this kind of work is supposed to be
-done relatively rarely (every several minutes or so), the overhead looks
-negligible to me. Anyway, we can introduce /proc/PID/set_mem_idle for
-setting the IDLE bit only on pages of a particular address space.
-
-> 
-> > 
-> >  2. Wait some time.
-> > 
-> >  3. Write 6 to /proc/PID/clear_refs for each PID of interest.
-> > 
-> >     This will clear the IDLE flag for recently accessed pages.
-> > 
-> >  4. Count the number of idle pages as reported by /proc/kpageflags. One may use
-> >     /proc/PID/pagemap and/or /proc/kpagecgroup to filter pages that belong to a
-> >     certain application/container.
-> > 
-> 
-> Adding two new page flags? I don't know it's okay for 64bit but there is no
-> room for 32bit. Please take care of 32 bit. It would be good feature for
-> embedded. How about using page_ext if you couldn't make room for page->flags
-> for 32bit? You would add per-page meta data in there.
-
-For the time being, I made it dependant on 64BIT explicitly, because I
-am only interested in analyzing working set size of containers running
-on big machines, but I admit one could use page_ext for storing the
-additional flags if compiled for 32 bit.
-
-> 
-> Your suggestion is generic so my concern is overhead. On every iteration,
-> we should set/clear/investigate page flags. I don't know how much overhead
-> is in there but it surely could be big if memory is big.
-> Couldn't we do that at one go? Maybe, like mincore
-> 
->         int idlecore(pid_t pid, void *addr, size_t length, unsigned char *vec)
-> 
-> So, we could know what pages of the process[pid] were idle by vec in
-> [addr, lentgh] and reset idle of the pages for the process
-> in the system call at one go.
-
-I don't think adding yet another syscall for such a specialized feature
-is a good idea. Besides, I want to keep the interface consistent with
-/proc/PID/clear_refs, which IMO suits perfectly well for clearing the
-IDLE flag on referenced pages. As I mentioned above, to reduce the
-overhead in case the user is not interested in unmapped file pages, we
-could introduce /proc/PID/set_mem_idle, though I think this only should
-be done if there are complains about /proc/sys/vm/set_idle performance.
-
-Thanks,
-Vladimir
+>
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
