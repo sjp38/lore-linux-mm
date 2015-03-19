@@ -1,49 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AF616B0038
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 03:06:19 -0400 (EDT)
-Received: by wgbcc7 with SMTP id cc7so54179047wgb.0
-        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 00:06:18 -0700 (PDT)
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com. [209.85.212.182])
-        by mx.google.com with ESMTPS id wp10si624775wjc.164.2015.03.19.00.06.17
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Mar 2015 00:06:17 -0700 (PDT)
-Received: by wixw10 with SMTP id w10so60471248wix.0
-        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 00:06:17 -0700 (PDT)
-Message-ID: <550A7566.8070907@linaro.org>
-Date: Thu, 19 Mar 2015 07:06:14 +0000
-From: Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BA4F6B0038
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 03:15:13 -0400 (EDT)
+Received: by pabxg6 with SMTP id xg6so54400052pab.0
+        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 00:15:13 -0700 (PDT)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id b1si831715pat.205.2015.03.19.00.15.11
+        for <linux-mm@kvack.org>;
+        Thu, 19 Mar 2015 00:15:12 -0700 (PDT)
+Date: Thu, 19 Mar 2015 18:14:39 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] mm: Use GFP_KERNEL allocation for the page cache in
+ page_cache_read
+Message-ID: <20150319071439.GE28621@dastard>
+References: <1426687766-518-1-git-send-email-mhocko@suse.cz>
+ <55098F3B.7070000@redhat.com>
+ <20150318145528.GK17241@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCHv3] mm: Don't offset memmap for flatmem
-References: <1426291715-16242-1-git-send-email-lauraa@codeaurora.org> <CAJAp7OhebH088EjXxo0tG__p8m11FiNw8qqG6k8eAky6cg2P8g@mail.gmail.com>
-In-Reply-To: <CAJAp7OhebH088EjXxo0tG__p8m11FiNw8qqG6k8eAky6cg2P8g@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150318145528.GK17241@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bjorn Andersson <bjorn@kryo.se>, Laura Abbott <lauraa@codeaurora.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, ssantosh@kernel.org, Andrew Morton <akpm@linux-foundation.org>, Kevin Hilman <khilman@linaro.org>, Arnd Bergman <arnd@arndb.de>, Stephen Boyd <sboyd@codeaurora.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Kumar Gala <galak@codeaurora.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Neil Brown <neilb@suse.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Sage Weil <sage@inktank.com>, Mark Fasheh <mfasheh@suse.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+
+On Wed, Mar 18, 2015 at 03:55:28PM +0100, Michal Hocko wrote:
+> On Wed 18-03-15 10:44:11, Rik van Riel wrote:
+> > On 03/18/2015 10:09 AM, Michal Hocko wrote:
+> > > page_cache_read has been historically using page_cache_alloc_cold to
+> > > allocate a new page. This means that mapping_gfp_mask is used as the
+> > > base for the gfp_mask. Many filesystems are setting this mask to
+> > > GFP_NOFS to prevent from fs recursion issues. page_cache_read is,
+> > > however, not called from the fs layer 
+> > 
+> > Is that true for filesystems that have directories in
+> > the page cache?
+> 
+> I haven't found any explicit callers of filemap_fault except for ocfs2
+> and ceph and those seem OK to me. Which filesystems you have in mind?
+
+Just about every major filesystem calls filemap_fault through the
+.fault callout.
+
+C symbol: filemap_fault
+
+  File           Function            Line
+  0 9p/vfs_file.c  <global>             831 .fault = filemap_fault,
+  1 9p/vfs_file.c  <global>             838 .fault = filemap_fault,
+  2 btrfs/file.c   <global>            2081 .fault = filemap_fault,
+  3 cifs/file.c    <global>            3242 .fault = filemap_fault,
+  4 ext4/file.c    <global>             215 .fault = filemap_fault,
+  5 f2fs/file.c    <global>              93 .fault = filemap_fault,
+  6 fuse/file.c    <global>            2062 .fault = filemap_fault,
+  7 gfs2/file.c    <global>             498 .fault = filemap_fault,
+  8 nfs/file.c     <global>             653 .fault = filemap_fault,
+  9 nilfs2/file.c  <global>             128 .fault = filemap_fault,
+  a ubifs/file.c   <global>            1536 .fault = filemap_fault,
+  b xfs/xfs_file.c <global>            1420 .fault = filemap_fault,
 
 
+> Btw. how would that work as we already have GFP_KERNEL allocation few
+> lines below?
 
-On 19/03/15 00:21, Bjorn Andersson wrote:
->> the memmap array. Just use the allocated memmap without any offset
->> >when running with CONFIG_FLATMEM to avoid the overrun.
->> >
->> >Signed-off-by: Laura Abbott<lauraa@codeaurora.org>
->> >Reported-by: Srinivas Kandagatla<srinivas.kandagatla@linaro.org>
->> >---
-> With this I can boot 8960 and 8064 without patching up the MEM ATAGs
-> from the bootloader (as well as "reserving" smem).
->
-Yes I forgot the mention this I can boot my IFC6410 without the 
-fixup.bin ...\o/ .
+GFP_KERNEL allocation for mappings is simply wrong. All mapping
+allocations where the caller cannot pass a gfp_mask need to obey
+the mapping_gfp_mask that is set by the mapping owner....
 
---srini
-> Tested-by: Bjorn Andersson<bjorn.andersson@sonymobile.com>
->
-> Thanks,
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
