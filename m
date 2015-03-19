@@ -1,59 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DB2D6B0038
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 09:24:44 -0400 (EDT)
-Received: by lagg8 with SMTP id g8so61979117lag.1
-        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 06:24:43 -0700 (PDT)
-Received: from forward-corp1g.mail.yandex.net (forward-corp1g.mail.yandex.net. [95.108.253.251])
-        by mx.google.com with ESMTPS id uq10si976389lbb.86.2015.03.19.06.24.42
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id E3D466B0038
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 09:56:01 -0400 (EDT)
+Received: by wgbcc7 with SMTP id cc7so63074536wgb.0
+        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 06:56:01 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p3si2269287wjz.207.2015.03.19.06.55.59
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Mar 2015 06:24:42 -0700 (PDT)
-Message-ID: <550ACE17.9040600@yandex-team.ru>
-Date: Thu, 19 Mar 2015 16:24:39 +0300
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 19 Mar 2015 06:55:59 -0700 (PDT)
+Date: Thu, 19 Mar 2015 14:55:58 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm: Use GFP_KERNEL allocation for the page cache in
+ page_cache_read
+Message-ID: <20150319135558.GD12466@dhcp22.suse.cz>
+References: <1426687766-518-1-git-send-email-mhocko@suse.cz>
+ <20150318154540.GN17241@dhcp22.suse.cz>
+ <20150319083835.2115ba11@notabene.brown>
 MIME-Version: 1.0
-Subject: Re: [PATCH RFC] mm: protect suid binaries against rowhammer with
- copy-on-read mappings
-References: <20150318083040.7838.76933.stgit@zurg> <20150318095702.GA2479@node.dhcp.inet.fi> <5509644C.40502@yandex-team.ru> <550AC958.9010502@suse.cz>
-In-Reply-To: <550AC958.9010502@suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20150319083835.2115ba11@notabene.brown>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>
+To: NeilBrown <neilb@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Sage Weil <sage@inktank.com>, Mark Fasheh <mfasheh@suse.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 19.03.2015 16:04, Vlastimil Babka wrote:
-> On 03/18/2015 12:41 PM, Konstantin Khlebnikov wrote:
->> On 18.03.2015 12:57, Kirill A. Shutemov wrote:
->>>
->>> I don't think it worth it. The only right way to fix the problem is ECC
->>> memory.
->>>
->>
->> ECC seems good protection until somebody figure out how to break it too.
+On Thu 19-03-15 08:38:35, Neil Brown wrote:
+[...]
+> Nearly half the places in the kernel which call mapping_gfp_mask() remove the
+> __GFP_FS bit.
+> 
+> That suggests to me that it might make sense to have
+>    mapping_gfp_mask_fs()
+> and
+>    mapping_gfp_mask_nofs()
 >
-> I doubt that kind of attitude can get us very far. If we can't trust the
-> hardware, we lose sooner or later.
->
+> and let the presence of __GFP_FS (and __GFP_IO) be determined by the
+> call-site rather than the filesystem.
 
-Obviously ECC was designed for protecting against cosmic rays which 
-flips several bits. If attacker modifies whole cacheline he can chose
-value which have the same ECC. I hope next generation of DRAM (or PRAM)
-wouldn't be affected.
+Sounds reasonable to me but filesystems tend to use this in a very
+different ways.
+- xfs drops GFP_FS in xfs_setup_inode so all page cache allocations are
+  NOFS.
+- reiserfs drops GFP_FS only before calling read_mapping_page in
+  reiserfs_get_page and never restores the original mask.
+- btrfs doesn't seem to rely on mapping_gfp_mask for anything other than
+  btree_inode (unless it gets inherrited in a way I haven't noticed).
+- ext* doesn't seem to rely on the mapping gfp mask at all.
 
-Software solution is possible: we can put untrusted applications into
-special ghetto memory zone. This is relatively easy for virtual 
-machines. And it seems might work for normal tasks too (page-cache
-pages should be doubled or handled in the way similar to copy-on-read
-from that patch).
-
--- 
-Konstantin
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+So it is not clear to me how we should change that into callsites. But I
+guess we can change at least the page fault path like the following. I
+like it much more than the previous way which is too hackish.
+---
