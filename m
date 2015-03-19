@@ -1,58 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 567266B0070
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 14:09:16 -0400 (EDT)
-Received: by igcau2 with SMTP id au2so15564809igc.1
-        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 11:09:16 -0700 (PDT)
-Received: from mail-ig0-x234.google.com (mail-ig0-x234.google.com. [2607:f8b0:4001:c05::234])
-        by mx.google.com with ESMTPS id 82si2075960ioz.62.2015.03.19.11.09.15
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Mar 2015 11:09:15 -0700 (PDT)
-Received: by ignm3 with SMTP id m3so15633818ign.0
-        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 11:09:15 -0700 (PDT)
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 03B5B6B0038
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 14:29:56 -0400 (EDT)
+Received: by pdnc3 with SMTP id c3so83681938pdn.0
+        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 11:29:55 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id kk7si4379727pab.156.2015.03.19.11.29.54
+        for <linux-mm@kvack.org>;
+        Thu, 19 Mar 2015 11:29:55 -0700 (PDT)
+Message-ID: <550B15A0.9090308@intel.com>
+Date: Thu, 19 Mar 2015 11:29:52 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20150319141022.GD3087@suse.de>
-References: <20150312131045.GE3406@suse.de>
-	<CA+55aFx=81BGnQFNhnAGu6CetL7yifPsnD-+v7Y6QRqwgH47gQ@mail.gmail.com>
-	<20150312184925.GH3406@suse.de>
-	<20150317070655.GB10105@dastard>
-	<CA+55aFzdLnFdku-gnm3mGbeS=QauYBNkFQKYXJAGkrMd2jKXhw@mail.gmail.com>
-	<20150317205104.GA28621@dastard>
-	<CA+55aFzSPcNgxw4GC7aAV1r0P5LniyVVC66COz=3cgMcx73Nag@mail.gmail.com>
-	<20150317220840.GC28621@dastard>
-	<CA+55aFwne-fe_Gg-_GTUo+iOAbbNpLBa264JqSFkH79EULyAqw@mail.gmail.com>
-	<CA+55aFy-Mw74rAdLMMMUgnsG3ZttMWVNGz7CXZJY7q9fqyRYfg@mail.gmail.com>
-	<20150319141022.GD3087@suse.de>
-Date: Thu, 19 Mar 2015 11:09:15 -0700
-Message-ID: <CA+55aFwTcw2rTjPM_EOjPeKNWwdfNVazx+O=YAFXPWw1h==Tgw@mail.gmail.com>
-Subject: Re: [PATCH 4/4] mm: numa: Slow PTE scan rate if migration failures occur
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH 05/16] page-flags: define behavior of FS/IO-related flags
+ on compound pages
+References: <1426784902-125149-1-git-send-email-kirill.shutemov@linux.intel.com> <1426784902-125149-6-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1426784902-125149-6-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Dave Chinner <david@fromorbit.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, xfs@oss.sgi.com, ppc-dev <linuxppc-dev@lists.ozlabs.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
+Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@gentwo.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@linaro.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Mar 19, 2015 at 7:10 AM, Mel Gorman <mgorman@suse.de> wrote:
-> -       if (!pmd_dirty(pmd))
-> +       /* See similar comment in do_numa_page for explanation */
-> +       if (!(vma->vm_flags & VM_WRITE))
+On 03/19/2015 10:08 AM, Kirill A. Shutemov wrote:
+> The odd expection is PG_dirty: sound uses compound pages and maps them
+> with PTEs. NO_COMPOUND triggers VM_BUG_ON() in set_page_dirty() on
+> handling shared fault. Let's use HEAD for PG_dirty.
 
-Yeah, that would certainly be a whole lot more obvious than all the
-"if this particular pte/pmd looks like X" tests.
-
-So that, together with scanning rate improvements (this *does* seem to
-be somewhat chaotic, so it's quite possible that the current scanning
-rate thing is just fairly unstable) is likely the right thing. I'd
-just like to _understand_ why that write/dirty bit makes such a
-difference. I thought I understood what was going on, and was happy,
-and then Dave come with his crazy numbers.
-
-Damn you Dave, and damn your numbers and "facts" and stuff. Sometimes
-I much prefer ignorant bliss.
-
-                           Linus
+Can we get the sound guys to look at this, btw?  It seems like an odd
+thing that we probably don't want to keep around, right?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
