@@ -1,85 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AA5E6B0038
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 19:31:00 -0400 (EDT)
-Received: by pdbni2 with SMTP id ni2so90368389pdb.1
-        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 16:31:00 -0700 (PDT)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id n10si5943487pap.21.2015.03.19.16.30.58
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 841676B0038
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2015 19:33:41 -0400 (EDT)
+Received: by padcy3 with SMTP id cy3so89722113pad.3
+        for <linux-mm@kvack.org>; Thu, 19 Mar 2015 16:33:41 -0700 (PDT)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id pm7si5854684pdb.71.2015.03.19.16.33.39
         for <linux-mm@kvack.org>;
-        Thu, 19 Mar 2015 16:30:59 -0700 (PDT)
-Date: Fri, 20 Mar 2015 10:23:26 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 4/4] mm: numa: Slow PTE scan rate if migration failures
- occur
-Message-ID: <20150319232326.GM10105@dastard>
-References: <20150317070655.GB10105@dastard>
- <CA+55aFzdLnFdku-gnm3mGbeS=QauYBNkFQKYXJAGkrMd2jKXhw@mail.gmail.com>
- <20150317205104.GA28621@dastard>
- <CA+55aFzSPcNgxw4GC7aAV1r0P5LniyVVC66COz=3cgMcx73Nag@mail.gmail.com>
- <20150317220840.GC28621@dastard>
- <CA+55aFwne-fe_Gg-_GTUo+iOAbbNpLBa264JqSFkH79EULyAqw@mail.gmail.com>
- <CA+55aFy-Mw74rAdLMMMUgnsG3ZttMWVNGz7CXZJY7q9fqyRYfg@mail.gmail.com>
- <CA+55aFyxA9u2cVzV+S7TSY9ZvRXCX=z22YAbi9mdPVBKmqgR5g@mail.gmail.com>
- <20150319224143.GI10105@dastard>
- <CA+55aFy5UeNnFUTi619cs3b9Up2NQ1wbuyvcCS614+o3=z=wBQ@mail.gmail.com>
+        Thu, 19 Mar 2015 16:33:40 -0700 (PDT)
+Message-ID: <550B5CD1.5010306@lge.com>
+Date: Fri, 20 Mar 2015 08:33:37 +0900
+From: Gioh Kim <gioh.kim@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFy5UeNnFUTi619cs3b9Up2NQ1wbuyvcCS614+o3=z=wBQ@mail.gmail.com>
+Subject: Re: [PATCH] [RFC] mm/compaction: initialize compaction information
+References: <1426743031-30096-1-git-send-email-gioh.kim@lge.com> <550A8BA9.9040005@suse.cz> <550A8E31.4040304@lge.com> <550A9086.3080508@suse.cz>
+In-Reply-To: <550A9086.3080508@suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, xfs@oss.sgi.com, ppc-dev <linuxppc-dev@lists.ozlabs.org>
+To: Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, rientjes@google.com, iamjoonsoo.kim@lge.com, mgorman@suse.de
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, gunho.lee@lge.com
 
-On Thu, Mar 19, 2015 at 04:05:46PM -0700, Linus Torvalds wrote:
-> On Thu, Mar 19, 2015 at 3:41 PM, Dave Chinner <david@fromorbit.com> wrote:
-> >
-> > My recollection wasn't faulty - I pulled it from an earlier email.
-> > That said, the original measurement might have been faulty. I ran
-> > the numbers again on the 3.19 kernel I saved away from the original
-> > testing. That came up at 235k, which is pretty much the same as
-> > yesterday's test. The runtime,however, is unchanged from my original
-> > measurements of 4m54s (pte_hack came in at 5m20s).
-> 
-> Ok. Good. So the "more than an order of magnitude difference" was
-> really about measurement differences, not quite as real. Looks like
-> more a "factor of two" than a factor of 20.
-> 
-> Did you do the profiles the same way? Because that would explain the
-> differences in the TLB flush percentages too (the "1.4% from
-> tlb_invalidate_range()" vs "pretty much everything from migration").
 
-No, the profiles all came from steady state. The profiles from the
-initial startup phase hammer the mmap_sem because of page fault vs
-mprotect contention (glibc runs mprotect() on every chunk of
-memory it allocates). It's not until the cache reaches "full" and it
-starts recycling old buffers rather than allocating new ones that
-the tlb flush problem dominates the profiles.
 
-> The runtime variation does show that there's some *big* subtle
-> difference for the numa balancing in the exact TNF_NO_GROUP details.
-> It must be *very* unstable for it to make that big of a difference.
-> But I feel at least a *bit* better about "unstable algorithm changes a
-> small varioation into a factor-of-two" vs that crazy factor-of-20.
-> 
-> Can you try Mel's change to make it use
-> 
->         if (!(vma->vm_flags & VM_WRITE))
-> 
-> instead of the pte details? Again, on otherwise plain 3.19, just so
-> that we have a baseline. I'd be *so* much happer with checking the vma
-> details over per-pte details, especially ones that change over the
-> lifetime of the pte entry, and the NUMA code explicitly mucks with.
+2015-03-19 i??i?? 6:01i?? Vlastimil Babka i?'(e??) i?' e,?:
+> On 03/19/2015 09:52 AM, Gioh Kim wrote:
+>>
+>>
+>> 2015-03-19 i??i?? 5:41i?? Vlastimil Babka i?'(e??) i?' e,?:
+>>> On 03/19/2015 06:30 AM, Gioh Kim wrote:
+>>>
+>>> The code below this comment already does the initialization if the cached values
+>>> are outside zone boundaries (e.g. due to not being initialized). So if I go
+>>> through what your __reset_isolation_suitable(zone) call possibly fixes:
+>>>
+>>> - the code below comment should take care of zone->compact_cached_migrate_pfn
+>>> and zone->compact_cached_free_pfn.
+>>> - the value of zone->compact_blockskip_flush shouldn't affect whether compaction
+>>> is done.
+>>> - the state of pageblock_skip bits shouldn't matter for compaction via
+>>> /proc/sys... as that sets ignore_skip_hint = true
+>>>
+>>> It might be perhaps possible that the cached scanner positions are close to
+>>> meeting and compaction occurs but doesn't process much. That would be also true
+>>> if both were zero, but at least on my x86 system, lowest zone's start_pfn is 1
+>>> so that would be detected and corrected. Maybe it is zero on yours though? (ARM?).
+>>
+>> YES, it is. As comment above, my platform is based on ARM.
+>
+> Ah, I see.
+>
+>> zone's start_pfn is 0.
+>
+> OK, good to know that's possible. In that case it's clear that the proper
+> initialization doesn't happen, and __compact_finished() decides that scanners
+> have already met at pfn 0.
+>
+>>>
+>>> So in any case, the problem should be identified in more detail so we know the
+>>> fix is not accidental. It could be also worthwile to always reset scanner
+>>> positions when doing a /proc triggered compaction, so it's not depending on what
+>>> happened before.
+>>>
+>>
+>> Excuse my poor english.
+>> I cannot catch exactly what you want.
+>> Is this what you want? This resets the position if compaction is started via /proc.
+>
+> Yes that's right, but..
+>
+>> diff --git a/mm/compaction.c b/mm/compaction.c
+>> index 8c0d945..827ec06 100644
+>> --- a/mm/compaction.c
+>> +++ b/mm/compaction.c
+>> @@ -1587,8 +1587,10 @@ static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
+>>                   INIT_LIST_HEAD(&cc->freepages);
+>>                   INIT_LIST_HEAD(&cc->migratepages);
+>>
+>> -               if (cc->order == -1 || !compaction_deferred(zone, cc->order))
+>> +               if (cc->order == -1 || !compaction_deferred(zone, cc->order)) {
+>> +                       __reset_isolation_suitable(zone);
+>
+> This will also trigger reset when called from kswapd through compact_pgdat() and
+> !compaction_deferred() is true.
+> The reset should be restricted to cc->order == -1 which only happens from /proc
+> trigger.
+>
+>>                           compact_zone(zone, cc);
+>> +               }
+>>
+>>                   if (cc->order > 0) {
+>>                           if (zone_watermark_ok(zone, cc->order,
+>>
+>
+>
 
-Yup, will do. might take an hour or two before I get to it, though...
+I've not been familiar with compaction code.
+I think cc->order is -1 only if __compact_pgdat is called via /proc.
+This is ugly but I don't have better solution.
+Do you have better idea?
 
-Cheers,
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 8c0d945..5b4e255 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1587,6 +1587,9 @@ static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
+                 INIT_LIST_HEAD(&cc->freepages);
+                 INIT_LIST_HEAD(&cc->migratepages);
+
++               if (cc->order == -1)
++                       __reset_isolation_suitable(zone);
++
+                 if (cc->order == -1 || !compaction_deferred(zone, cc->order))
+                         compact_zone(zone, cc);
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
