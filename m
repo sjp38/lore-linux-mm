@@ -1,125 +1,191 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F9726B0038
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2015 20:46:51 -0400 (EDT)
-Received: by pdbcz9 with SMTP id cz9so58736642pdb.3
-        for <linux-mm@kvack.org>; Wed, 18 Mar 2015 17:46:51 -0700 (PDT)
-Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
-        by mx.google.com with ESMTPS id r4si39265793pdf.25.2015.03.18.17.46.50
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 04B856B0038
+	for <linux-mm@kvack.org>; Wed, 18 Mar 2015 21:34:26 -0400 (EDT)
+Received: by pdbni2 with SMTP id ni2so59919747pdb.1
+        for <linux-mm@kvack.org>; Wed, 18 Mar 2015 18:34:25 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id ag9si39390433pad.217.2015.03.18.18.34.22
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Mar 2015 17:46:50 -0700 (PDT)
-Received: by padcy3 with SMTP id cy3so58186415pad.3
-        for <linux-mm@kvack.org>; Wed, 18 Mar 2015 17:46:50 -0700 (PDT)
-Date: Thu, 19 Mar 2015 09:46:41 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 1/4] mm: free swp_entry in madvise_free
-Message-ID: <20150319004641.GC9153@blaptop>
-References: <1426036838-18154-1-git-send-email-minchan@kernel.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 18 Mar 2015 18:34:24 -0700 (PDT)
+Message-ID: <550A2797.3000708@oracle.com>
+Date: Wed, 18 Mar 2015 18:34:15 -0700
+From: Mike Kravetz <mike.kravetz@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1426036838-18154-1-git-send-email-minchan@kernel.org>
+Subject: Re: [PATCH V2 3/4] hugetlbfs: accept subpool min_size mount option
+ and setup accordingly
+References: <cover.1426549010.git.mike.kravetz@oracle.com>	<cfcd697cffc0f3500ecdb3371350a2613ee22f2e.1426549011.git.mike.kravetz@oracle.com> <20150318144054.c099e8a5e462303eea707252@linux-foundation.org>
+In-Reply-To: <20150318144054.c099e8a5e462303eea707252@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Yalin.Wang@sonymobile.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Bump up.
+On 03/18/2015 02:40 PM, Andrew Morton wrote:
+> On Mon, 16 Mar 2015 16:53:28 -0700 Mike Kravetz <mike.kravetz@oracle.com> wrote:
+>
+>> Make 'min_size=' be an option when mounting a hugetlbfs.  This option
+>> takes the same value as the 'size' option.  min_size can be specified
+>> with specifying size.  If both are specified, min_size must be less
+>> that or equal to size else the mount will fail.  If min_size is
+>> specified, then at mount time an attempt is made to reserve min_size
+>> pages.  If the reservation fails, the mount fails.  At umount time,
+>> the reserved pages are released.
+>>
+>> ...
+>>
+>> @@ -761,14 +763,32 @@ static const struct super_operations hugetlbfs_ops = {
+>>   	.show_options	= generic_show_options,
+>>   };
+>>
+>> +enum { NO_SIZE, SIZE_STD, SIZE_PERCENT };
+>> +
+>> +static bool
+>> +hugetlbfs_options_setsize(struct hstate *h, long long *size, int setsize)
+>> +{
+>> +	if (setsize == NO_SIZE)
+>> +		return false;
+>> +
+>> +	if (setsize == SIZE_PERCENT) {
+>> +		*size <<= huge_page_shift(h);
+>> +		*size *= h->max_huge_pages;
+>> +		do_div(*size, 100);
+>
+> I suppose do_div() takes a long long.  u64 would be more conventional.
+> I don't *think* all this code needed to use signed types.
+>
+>> +	}
+>> +
+>> +	*size >>= huge_page_shift(h);
+>> +	return true;
+>> +}
+>> +
+>>   static int
+>>   hugetlbfs_parse_options(char *options, struct hugetlbfs_config *pconfig)
+>>   {
+>>   	char *p, *rest;
+>>   	substring_t args[MAX_OPT_ARGS];
+>>   	int option;
+>> -	unsigned long long size = 0;
+>> -	enum { NO_SIZE, SIZE_STD, SIZE_PERCENT } setsize = NO_SIZE;
+>> +	unsigned long long max_size = 0, min_size = 0;
+>> +	int max_setsize = NO_SIZE, min_setsize = NO_SIZE;
+>>
+>>   	if (!options)
+>>   		return 0;
+>> @@ -806,10 +826,10 @@ hugetlbfs_parse_options(char *options, struct hugetlbfs_config *pconfig)
+>>   			/* memparse() will accept a K/M/G without a digit */
+>>   			if (!isdigit(*args[0].from))
+>>   				goto bad_val;
+>> -			size = memparse(args[0].from, &rest);
+>> -			setsize = SIZE_STD;
+>> +			max_size = memparse(args[0].from, &rest);
+>> +			max_setsize = SIZE_STD;
+>>   			if (*rest == '%')
+>> -				setsize = SIZE_PERCENT;
+>> +				max_setsize = SIZE_PERCENT;
+>>   			break;
+>>   		}
+>>
+>> @@ -832,6 +852,17 @@ hugetlbfs_parse_options(char *options, struct hugetlbfs_config *pconfig)
+>>   			break;
+>>   		}
+>>
+>> +		case Opt_min_size: {
+>> +			/* memparse() will accept a K/M/G without a digit */
+>> +			if (!isdigit(*args[0].from))
+>> +				goto bad_val;
+>> +			min_size = memparse(args[0].from, &rest);
+>> +			min_setsize = SIZE_STD;
+>> +			if (*rest == '%')
+>> +				min_setsize = SIZE_PERCENT;
+>> +			break;
+>> +		}
+>> +
+>>   		default:
+>>   			pr_err("Bad mount option: \"%s\"\n", p);
+>>   			return -EINVAL;
+>> @@ -839,15 +870,17 @@ hugetlbfs_parse_options(char *options, struct hugetlbfs_config *pconfig)
+>>   		}
+>>   	}
+>>
+>> -	/* Do size after hstate is set up */
+>> -	if (setsize > NO_SIZE) {
+>> -		struct hstate *h = pconfig->hstate;
+>> -		if (setsize == SIZE_PERCENT) {
+>> -			size <<= huge_page_shift(h);
+>> -			size *= h->max_huge_pages;
+>> -			do_div(size, 100);
+>> -		}
+>> -		pconfig->nr_blocks = (size >> huge_page_shift(h));
+>> +	/* Calculate number of huge pages based on hstate */
+>> +	if (hugetlbfs_options_setsize(pconfig->hstate, &max_size, max_setsize))
+>> +		pconfig->nr_blocks = max_size;
+>
+> So hugetlbfs_options_setsize takes an arg whichis in units of bytes,
+> modifies it in-place to b in units of pages and then copies it into
+> something which is in units of nr_blocks.
+>
+>
+>> +	if (hugetlbfs_options_setsize(pconfig->hstate, &min_size, min_setsize))
+>> +		pconfig->min_size = min_size;
+>> +
+>> +	/* If max_size specified, then min_size must be smaller */
+>> +	if (max_setsize > NO_SIZE && min_setsize > NO_SIZE &&
+>> +	    pconfig->min_size > pconfig->nr_blocks) {
+>> +		pr_err("minimum size can not be greater than maximum size\n");
+>> +		return -EINVAL;
+>>   	}
+>>
+>>   	return 0;
+>> @@ -872,6 +905,7 @@ hugetlbfs_fill_super(struct super_block *sb, void *data, int silent)
+>>   	config.gid = current_fsgid();
+>>   	config.mode = 0755;
+>>   	config.hstate = &default_hstate;
+>> +	config.min_size = 0; /* No default minimum size */
+>>   	ret = hugetlbfs_parse_options(data, &config);
+>>   	if (ret)
+>>   		return ret;
+>> @@ -885,8 +919,15 @@ hugetlbfs_fill_super(struct super_block *sb, void *data, int silent)
+>>   	sbinfo->max_inodes = config.nr_inodes;
+>>   	sbinfo->free_inodes = config.nr_inodes;
+>>   	sbinfo->spool = NULL;
+>> -	if (config.nr_blocks != -1) {
+>> -		sbinfo->spool = hugepage_new_subpool(config.nr_blocks);
+>> +	/*
+>> +	 * Allocate and initialize subpool if maximum or minimum size is
+>> +	 * specified.  Any needed reservations (for minimim size) are taken
+>> +	 * taken when the subpool is created.
+>> +	 */
+>> +	if (config.nr_blocks != -1 || config.min_size != 0) {
+>> +		sbinfo->spool = hugepage_new_subpool(config.hstate,
+>> +							config.nr_blocks,
+>> +							config.min_size);
+>
+> And hugepage_new_subpool() takes something in units of nr_blocks and
+> copies it into something whcih has units of nr-hugepages.
+>
+> And it takes an arg called "size" which is no longer number-of-bytes
+> but is actually number-of-hpages.
+>
+>
+> It's all rather confusing and unclear.  A good philosophy would be
+> never to use a variable called "size", because the reader doesn't know
+> what units that size is measured in.  Instead, make sure that the name
+> reflects the variable's units.  max_bytes, min_hpages, nr_blocks, etc.
+>
 
-On Wed, Mar 11, 2015 at 10:20:35AM +0900, Minchan Kim wrote:
-> When I test below piece of code with 12 processes(ie, 512M * 12 = 6G consume)
-> on my (3G ram + 12 cpu + 8G swap, the madvise_free is siginficat slower
-> (ie, 2x times) than madvise_dontneed.
-> 
-> loop = 5;
-> mmap(512M);
-> while (loop--) {
->         memset(512M);
->         madvise(MADV_FREE or MADV_DONTNEED);
-> }
-> 
-> The reason is lots of swapin.
-> 
-> 1) dontneed: 1,612 swapin
-> 2) madvfree: 879,585 swapin
-> 
-> If we find hinted pages were already swapped out when syscall is called,
-> it's pointless to keep the swapped-out pages in pte.
-> Instead, let's free the cold page because swapin is more expensive
-> than (alloc page + zeroing).
-> 
-> With this patch, it reduced swapin from 879,585 to 1,878 so elapsed time
-> 
-> 1) dontneed: 6.10user 233.50system 0:50.44elapsed
-> 2) madvfree: 6.03user 401.17system 1:30.67elapsed
-> 2) madvfree + below patch: 6.70user 339.14system 1:04.45elapsed
-> 
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  mm/madvise.c | 26 +++++++++++++++++++++++++-
->  1 file changed, 25 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/madvise.c b/mm/madvise.c
-> index 6d0fcb8..ebe692e 100644
-> --- a/mm/madvise.c
-> +++ b/mm/madvise.c
-> @@ -274,7 +274,9 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
->  	spinlock_t *ptl;
->  	pte_t *pte, ptent;
->  	struct page *page;
-> +	swp_entry_t entry;
->  	unsigned long next;
-> +	int nr_swap = 0;
->  
->  	next = pmd_addr_end(addr, end);
->  	if (pmd_trans_huge(*pmd)) {
-> @@ -293,8 +295,22 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
->  	for (; addr != end; pte++, addr += PAGE_SIZE) {
->  		ptent = *pte;
->  
-> -		if (!pte_present(ptent))
-> +		if (pte_none(ptent))
->  			continue;
-> +		/*
-> +		 * If the pte has swp_entry, just clear page table to
-> +		 * prevent swap-in which is more expensive rather than
-> +		 * (page allocation + zeroing).
-> +		 */
-> +		if (!pte_present(ptent)) {
-> +			entry = pte_to_swp_entry(ptent);
-> +			if (non_swap_entry(entry))
-> +				continue;
-> +			nr_swap--;
-> +			free_swap_and_cache(entry);
-> +			pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
-> +			continue;
-> +		}
->  
->  		page = vm_normal_page(vma, addr, ptent);
->  		if (!page)
-> @@ -326,6 +342,14 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
->  		set_pte_at(mm, addr, pte, ptent);
->  		tlb_remove_tlb_entry(tlb, pte, addr);
->  	}
-> +
-> +	if (nr_swap) {
-> +		if (current->mm == mm)
-> +			sync_mm_rss(mm);
-> +
-> +		add_mm_counter(mm, MM_SWAPENTS, nr_swap);
-> +	}
-> +
->  	arch_leave_lazy_mmu_mode();
->  	pte_unmap_unlock(pte - 1, ptl);
->  next:
-> -- 
-> 1.9.3
-> 
+Thanks for the comments.
+
+I didn't want to cut/paste/duplicate the code used to parse the existing
+size option.  But, it looks like I made it harder to understand.  I'll
+take a pass as cleaning this up and making it more clear.
 
 -- 
-Kind regards,
-Minchan Kim
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
