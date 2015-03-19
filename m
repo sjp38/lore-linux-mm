@@ -1,86 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
-	by kanga.kvack.org (Postfix) with ESMTP id ACB106B0038
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2015 21:51:32 -0400 (EDT)
-Received: by obcxo2 with SMTP id xo2so44486418obc.0
-        for <linux-mm@kvack.org>; Wed, 18 Mar 2015 18:51:32 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id f18si6317060oem.54.2015.03.18.18.51.31
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 18 Mar 2015 18:51:31 -0700 (PDT)
-Message-ID: <550A2B9A.3060905@oracle.com>
-Date: Wed, 18 Mar 2015 18:51:22 -0700
-From: Mike Kravetz <mike.kravetz@oracle.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH V2 4/4] hugetlbfs: document min_size mount option
-References: <cover.1426549010.git.mike.kravetz@oracle.com>	<3c82f2203e5453ddf3b29431863034afc7699303.1426549011.git.mike.kravetz@oracle.com> <20150318144108.e235862e0be30ff626e01820@linux-foundation.org>
-In-Reply-To: <20150318144108.e235862e0be30ff626e01820@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D3026B0038
+	for <linux-mm@kvack.org>; Wed, 18 Mar 2015 21:57:07 -0400 (EDT)
+Received: by pdbni2 with SMTP id ni2so60440482pdb.1
+        for <linux-mm@kvack.org>; Wed, 18 Mar 2015 18:57:07 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id bu12si39549731pdb.92.2015.03.18.18.57.05
+        for <linux-mm@kvack.org>;
+        Wed, 18 Mar 2015 18:57:06 -0700 (PDT)
+Message-ID: <1426730222.5570.41.camel@intel.com>
+Subject: Re: [LKP] [mm] cc87317726f: WARNING: CPU: 0 PID: 1
+ atdrivers/iommu/io-pgtable-arm.c:413 __arm_lpae_unmap+0x341/0x380()
+From: Huang Ying <ying.huang@intel.com>
+Date: Thu, 19 Mar 2015 09:57:02 +0800
+In-Reply-To: <201503182045.DEC48482.OtSOQOLVFFHFJM@I-love.SAKURA.ne.jp>
+References: <1426227621.6711.238.camel@intel.com>
+	 <CA+55aFxWTg_kCxGChLJGU=DFg0K_q842bkziktXu6B2fX=mXYQ@mail.gmail.com>
+	 <20150317192413.GA7772@phnom.home.cmpxchg.org>
+	 <1426643634.5570.14.camel@intel.com>
+	 <201503182045.DEC48482.OtSOQOLVFFHFJM@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Davidlohr Bueso <dave@stgolabs.net>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: hannes@cmpxchg.org, torvalds@linux-foundation.org, mhocko@suse.cz, rientjes@google.com, akpm@linux-foundation.org, david@fromorbit.com, linux-kernel@vger.kernel.org, lkp@01.org, linux-mm@kvack.org
 
-On 03/18/2015 02:41 PM, Andrew Morton wrote:
-> On Mon, 16 Mar 2015 16:53:29 -0700 Mike Kravetz <mike.kravetz@oracle.com> wrote:
->
->> Update documentation for the hugetlbfs min_size mount option.
->>
->> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
->> ---
->>   Documentation/vm/hugetlbpage.txt | 21 ++++++++++++++-------
->>   1 file changed, 14 insertions(+), 7 deletions(-)
->>
->> diff --git a/Documentation/vm/hugetlbpage.txt b/Documentation/vm/hugetlbpage.txt
->> index f2d3a10..83c0305 100644
->> --- a/Documentation/vm/hugetlbpage.txt
->> +++ b/Documentation/vm/hugetlbpage.txt
->> @@ -267,8 +267,8 @@ call, then it is required that system administrator mount a file system of
->>   type hugetlbfs:
->>
->>     mount -t hugetlbfs \
->> -	-o uid=<value>,gid=<value>,mode=<value>,size=<value>,nr_inodes=<value> \
->> -	none /mnt/huge
->> +	-o uid=<value>,gid=<value>,mode=<value>,size=<value>,min_size=<value>, \
->> +	nr_inodes=<value> none /mnt/huge
->>
->>   This command mounts a (pseudo) filesystem of type hugetlbfs on the directory
->>   /mnt/huge.  Any files created on /mnt/huge uses huge pages.  The uid and gid
->> @@ -277,11 +277,18 @@ the uid and gid of the current process are taken.  The mode option sets the
->>   mode of root of file system to value & 01777.  This value is given in octal.
->>   By default the value 0755 is picked. The size option sets the maximum value of
->>   memory (huge pages) allowed for that filesystem (/mnt/huge). The size is
->> -rounded down to HPAGE_SIZE.  The option nr_inodes sets the maximum number of
->> -inodes that /mnt/huge can use.  If the size or nr_inodes option is not
->> -provided on command line then no limits are set.  For size and nr_inodes
->> -options, you can use [G|g]/[M|m]/[K|k] to represent giga/mega/kilo. For
->> -example, size=2K has the same meaning as size=2048.
->> +rounded down to HPAGE_SIZE.  The min_size option sets the minimum value of
->> +memory (huge pages) allowed for the filesystem.  Like the size option,
->> +min_size is rounded down to HPAGE_SIZE.  At mount time, the number of huge
->> +pages specified by min_size are reserved for use by the filesystem.  If
->> +there are not enough free huge pages available, the mount will fail.  As
->> +huge pages are allocated to the filesystem and freed, the reserve count
->> +is adjusted so that the sum of allocated and reserved huge pages is always
->> +at least min_size.  The option nr_inodes sets the maximum number of
->> +inodes that /mnt/huge can use.  If the size, min_size or nr_inodes option
->> +is not provided on command line then no limits are set.  For size, min_size
->> +and nr_inodes options, you can use [G|g]/[M|m]/[K|k] to represent
->> +giga/mega/kilo. For example, size=2K has the same meaning as size=2048.
->
-> Nowhere here is the reader told the units of "size".  We should at
-> least describe that, and maybe even rename the thing to min_bytes.
->
+On Wed, 2015-03-18 at 20:45 +0900, Tetsuo Handa wrote:
+> Huang Ying wrote:
+> > On Tue, 2015-03-17 at 15:24 -0400, Johannes Weiner wrote:
+> > > On Tue, Mar 17, 2015 at 10:15:29AM -0700, Linus Torvalds wrote:
+> > > > Explicitly adding the emails of other people involved with that commit
+> > > > and the original oom thread to make sure people are aware, since this
+> > > > didn't get any response.
+> > > > 
+> > > > Commit cc87317726f8 fixed some behavior, but also seems to have turned
+> > > > an oom situation into a complete hang. So presumably we shouldn't loop
+> > > > *forever*. Hmm?
+> > > 
+> > > It seems we are between a rock and a hard place here, as we reverted
+> > > specifically to that endless looping on request of filesystem people.
+> > > They said[1] they rely on these allocations never returning NULL, or
+> > > they might fail inside a transactions and corrupt on-disk data.
+> > > 
+> > > Huang, against which kernels did you first run this test on this exact
+> > > setup?  Is there a chance you could try to run a kernel without/before
+> > > 9879de7373fc?  I want to make sure I'm not missing something, but all
+> > > versions preceding this commit should also have the same hang.  There
+> > > should only be a tiny window between 9879de7373fc and cc87317726f8 --
+> > > v3.19 -- where these allocations are allowed to fail.
+> > 
+> > I checked the test result of v3.19-rc6.  It shows that boot will hang at
+> > the same position.
+> 
+> OK. That's the expected result. We are discussing about how to safely
+> allow small allocations to fail, including how to handle stalls caused by
+> allocations without __GFP_FS.
+> 
+> > 
+> > BTW: the test is run on 32 bit system.
+> 
+> That sounds like the cause of your problem. The system might be out of
+> address space available for the kernel (only 1GB if x86_32). You should
+> try running tests on 64 bit systems.
 
-Ok, I will add that the size is in unit of bytes.  My choice of
-'min_size' as a name for the new mount option was influenced by
-the existing 'size' mount option.  I'm open to any suggestions
-for the name of this new mount option.
+We run test on 32 bit and 64 bit systems.  Try to catch problems on both
+platforms.  I think we still need to support 32 bit systems?
 
--- 
-Mike Kravetz
+Best Regards,
+Huang, Ying
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
